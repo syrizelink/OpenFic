@@ -21,7 +21,6 @@ win:
     - target: nsis
       arch:
         - x64
-      artifactName: OpenFic-${version}-win-setup.${ext}
     - target: zip
       arch:
         - x64
@@ -29,6 +28,7 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  artifactName: OpenFic-${version}-win-setup.${ext}
 
 mac:
   target:
