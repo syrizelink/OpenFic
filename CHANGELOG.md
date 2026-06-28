@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/syrizelink/OpenFic/compare/v0.2.0...v0.2.1) (2026-06-28)
+
+
+### 🐛 问题修复
+
+* **test:** 移除引用已迁移路径与偶发卡死的失效测试 ([eb638df](https://github.com/syrizelink/OpenFic/commit/eb638df74a1754c65351ec924098edabd7c15ebe))
+
 ## [0.2.0](https://github.com/syrizelink/OpenFic/compare/v0.1.0...v0.2.0) (2026-06-28)
 
 
