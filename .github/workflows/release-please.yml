@@ -28,8 +28,12 @@ jobs:
       # 改为直接合并（普通合并路径，不依赖 auto-merge 设置）。
       # release PR 仅含版本号 bump + CHANGELOG，无代码逻辑，立即合并安全。
       # 用 PAT 合并，确保该 push 能触发下一次 release-please 运行去打 tag。
+      # steps.release.outputs.pr 是 JSON 字符串，需用 jq 提取 number 字段。
       - name: 合并 release PR
         if: ${{ steps.release.outputs.pr }}
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-        run: gh pr merge ${{ steps.release.outputs.pr }} --squash --delete-branch
+          PR_JSON: ${{ steps.release.outputs.pr }}
+        run: |
+          PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number')
+          gh pr merge "$PR_NUMBER" --squash --delete-branch
