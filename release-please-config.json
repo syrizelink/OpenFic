@@ -2,6 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "last-release-sha": "f7064e5029b83a8215ea890b19e281e64381c7a7",
   "include-component-in-tag": false,
+  "include-commit-authors": true,
   "changelog-sections": [
     { "type": "feat", "section": "✨ 新功能" },
     { "type": "fix", "section": "🐛 问题修复" },
