@@ -1,0 +1,80 @@
+.autocomplete-popover {
+  min-width: 280px;
+  max-width: 450px;
+  overflow: hidden;
+  border: 1px solid var(--gray-6) !important;
+  border-radius: 6px;
+  background-color: var(--gray-1) !important;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+  font-size: 14px;
+}
+
+.autocomplete-list {
+  height: auto;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.autocomplete-popover .autocomplete-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-left: 2px solid transparent;
+  background-color: transparent;
+  cursor: pointer;
+  transition: background-color 0.08s ease;
+}
+
+.autocomplete-popover .autocomplete-item:hover {
+  background-color: var(--gray-a3) !important;
+}
+
+.autocomplete-popover .autocomplete-item.selected {
+  border-left-color: var(--accent-9) !important;
+  background-color: var(--gray-a3) !important;
+}
+
+.autocomplete-item-icon {
+  display: flex;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-10);
+}
+
+.autocomplete-item-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-family: var(--default-font-family);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.autocomplete-item-label .highlight {
+  color: var(--accent-11);
+  font-weight: 600;
+}
+
+.autocomplete-item-desc {
+  max-width: 180px;
+  flex-shrink: 0;
+  overflow: hidden;
+  color: var(--gray-10);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.autocomplete-hint {
+  padding: 6px 10px;
+  background: var(--gray-a2);
+  color: var(--gray-11);
+  font-size: 13px;
+  font-style: italic;
+}

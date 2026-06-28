@@ -1,0 +1,194 @@
+.radix-themes,
+.radix-themes[data-accent-color="gray"] {
+  --default-font-family: var(--app-font-family);
+  font-family: var(--default-font-family);
+  --accent-1: #fafafa;
+  --accent-2: #f5f5f5;
+  --accent-3: #e5e5e5;
+  --accent-4: #d4d4d4;
+  --accent-5: #a3a3a3;
+  --accent-6: #737373;
+  --accent-7: #525252;
+  --accent-8: #404040;
+  --accent-9: #000000;
+  --accent-10: #1a1a1a;
+  --accent-11: #000000;
+  --accent-12: #000000;
+  --accent-a1: rgba(0, 0, 0, 0.02);
+  --accent-a2: rgba(0, 0, 0, 0.05);
+  --accent-a3: rgba(0, 0, 0, 0.1);
+  --accent-a4: rgba(0, 0, 0, 0.15);
+  --accent-a5: rgba(0, 0, 0, 0.3);
+  --accent-a6: rgba(0, 0, 0, 0.45);
+  --accent-a7: rgba(0, 0, 0, 0.6);
+  --accent-a8: rgba(0, 0, 0, 0.75);
+  --accent-a9: rgba(0, 0, 0, 0.95);
+  --accent-a10: rgba(0, 0, 0, 0.98);
+  --accent-a11: rgba(0, 0, 0, 1);
+  --accent-a12: rgba(0, 0, 0, 1);
+  --accent-contrast: #ffffff;
+}
+
+.radix-themes.dark,
+.radix-themes.dark[data-accent-color="gray"],
+.dark .radix-themes,
+.dark .radix-themes[data-accent-color="gray"] {
+  --accent-1: #0a0a0a;
+  --accent-2: #1a1a1a;
+  --accent-3: #262626;
+  --accent-4: #333333;
+  --accent-5: #525252;
+  --accent-6: #737373;
+  --accent-7: #a3a3a3;
+  --accent-8: #d4d4d4;
+  --accent-9: #ffffff;
+  --accent-10: #f5f5f5;
+  --accent-11: #ffffff;
+  --accent-12: #ffffff;
+  --accent-a1: rgba(255, 255, 255, 0.02);
+  --accent-a2: rgba(255, 255, 255, 0.05);
+  --accent-a3: rgba(255, 255, 255, 0.1);
+  --accent-a4: rgba(255, 255, 255, 0.15);
+  --accent-a5: rgba(255, 255, 255, 0.3);
+  --accent-a6: rgba(255, 255, 255, 0.45);
+  --accent-a7: rgba(255, 255, 255, 0.6);
+  --accent-a8: rgba(255, 255, 255, 0.75);
+  --accent-a9: rgba(255, 255, 255, 0.95);
+  --accent-a10: rgba(255, 255, 255, 0.98);
+  --accent-a11: rgba(255, 255, 255, 1);
+  --accent-a12: rgba(255, 255, 255, 1);
+  --accent-contrast: #000000;
+}
+
+[data-radix-popper-content-wrapper] + button,
+button[data-state="open"],
+button[data-state="closed"] {
+  outline: none;
+}
+
+.rt-BaseButton:focus-visible,
+.rt-IconButton:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.rt-SelectItem[data-highlighted],
+.dark .rt-SelectItem[data-highlighted],
+.radix-themes.dark .rt-SelectItem[data-highlighted] {
+  background-color: var(--gray-a3);
+  color: var(--gray-12);
+}
+
+.rt-IconButton.rt-variant-ghost {
+  min-width: var(--icon-button-size);
+  min-height: var(--icon-button-size);
+  margin: 0;
+  padding: 0;
+}
+
+.rt-IconButton.rt-variant-ghost.rt-r-size-1 {
+  --icon-button-size: 24px;
+}
+
+.rt-IconButton.rt-variant-ghost.rt-r-size-2 {
+  --icon-button-size: 32px;
+}
+
+.rt-IconButton.rt-variant-ghost.rt-r-size-3 {
+  --icon-button-size: 40px;
+}
+
+.rt-IconButton.rt-variant-ghost.rt-r-size-4 {
+  --icon-button-size: 48px;
+}
+
+.model-param-slider [class*="Track"],
+.model-param-slider [data-radix-slider-track] {
+  height: 2px !important;
+  min-height: 2px !important;
+  max-height: 2px !important;
+}
+
+.model-param-slider [class*="Range"],
+.model-param-slider [data-radix-slider-range] {
+  height: 2px !important;
+  min-height: 2px !important;
+  max-height: 2px !important;
+}
+
+.model-param-slider [class*="Thumb"],
+.model-param-slider [data-radix-slider-thumb] {
+  width: 12px !important;
+  height: 12px !important;
+  min-width: 12px !important;
+  min-height: 12px !important;
+  max-width: 12px !important;
+  max-height: 12px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+.rt-DialogOverlay:has(.summary-panel-content) {
+  background: color-mix(in srgb, var(--gray-12) 24%, transparent);
+  backdrop-filter: blur(2px);
+  animation-duration: 0.22s;
+  animation-timing-function: ease;
+  animation-fill-mode: both;
+}
+
+.rt-DialogOverlay:has(.summary-panel-content)[data-state="open"] {
+  animation-name: summaryPanelOverlayIn;
+}
+
+.rt-DialogOverlay:has(.summary-panel-content)[data-state="closed"] {
+  animation-name: summaryPanelOverlayOut;
+}
+
+.rt-SelectItemIndicator {
+  display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  flex: 0 0 0 !important;
+}
+
+.rt-SelectItem {
+  padding-left: 12px !important;
+}
+
+.rt-SelectItem > *:not(.rt-SelectItemIndicator) {
+  width: 100%;
+}
+
+.worldInfoSidebar .rt-ScrollAreaViewport > * {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.rt-DialogContent.prompt-chain-dialog-content {
+  width: min(900px, calc(100vw - 32px)) !important;
+  min-width: min(900px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px) !important;
+  max-height: 88vh;
+}
+
+.rt-Skeleton {
+  position: relative;
+  overflow: hidden;
+}
+
+.rt-Skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--gray-a4), transparent);
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rt-Skeleton::after {
+    animation: none;
+  }
+}

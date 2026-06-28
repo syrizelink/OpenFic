@@ -1,0 +1,35 @@
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-please-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      # release-please 创建/更新 release PR 后，立即用 PAT squash 合并。
+      # 私有免费仓库无法启用 "Allow auto-merge"，故不走 enable-automerge，
+      # 改为直接合并（普通合并路径，不依赖 auto-merge 设置）。
+      # release PR 仅含版本号 bump + CHANGELOG，无代码逻辑，立即合并安全。
+      # 用 PAT 合并，确保该 push 能触发下一次 release-please 运行去打 tag。
+      - name: 合并 release PR
+        if: ${{ steps.release.outputs.pr }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: gh pr merge ${{ steps.release.outputs.pr }} --squash --delete-branch

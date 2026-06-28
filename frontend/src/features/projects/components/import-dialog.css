@@ -1,0 +1,50 @@
+.import-dialog-file-input {
+  display: none;
+}
+
+.import-dialog-dropzone {
+  border: 2px dashed var(--gray-6);
+  border-radius: var(--radius-3);
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.import-dialog-upload-icon {
+  color: var(--gray-9);
+  margin-bottom: 16px;
+}
+
+.import-dialog-stat-card {
+  flex: 1;
+  padding: 12px 16px;
+}
+
+.import-dialog-label,
+.import-dialog-section-title {
+  display: block;
+}
+
+.import-dialog-preview-scroll {
+  height: 240px;
+  border: 1px solid var(--gray-5);
+  border-radius: var(--radius-2);
+}
+
+.import-dialog-preview-row--bordered {
+  border-bottom: 1px solid var(--gray-4);
+}
+
+.import-dialog-preview-title,
+.import-dialog-info-content {
+  flex: 1;
+}
+
+.import-dialog-cover-column {
+  flex-shrink: 0;
+}
+
+.import-dialog-info-content {
+  min-width: 0;
+}

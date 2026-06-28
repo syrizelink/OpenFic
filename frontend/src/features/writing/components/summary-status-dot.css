@@ -1,0 +1,24 @@
+.summary-status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px var(--gray-a4);
+}
+
+.summary-status-dot.is-running {
+  animation: summaryStatusPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes summaryStatusPulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.9);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}

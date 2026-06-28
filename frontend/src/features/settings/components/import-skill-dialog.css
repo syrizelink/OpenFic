@@ -1,0 +1,57 @@
+.import-skill-file-input {
+  display: none;
+}
+
+.import-skill-dropzone {
+  border: 2px dashed var(--gray-6);
+  border-radius: var(--radius-3);
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.import-skill-upload-icon {
+  color: var(--gray-9);
+  margin-bottom: 16px;
+}
+
+.import-skill-label {
+  display: block;
+}
+
+.import-skill-preview-scroll {
+  max-height: 55vh;
+}
+
+.import-skill-summary-preview {
+  max-height: 120px;
+  border: 1px solid var(--gray-5);
+  border-radius: var(--radius-2);
+  padding: 8px;
+}
+
+.import-skill-content-preview {
+  max-height: 240px;
+  border: 1px solid var(--gray-5);
+  border-radius: var(--radius-2);
+}
+
+.import-skill-preview-footer {
+  width: 100%;
+}
+
+.import-skill-complete {
+  text-align: center;
+  padding: 24px 0;
+}
+
+.import-skill-complete-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background-color: var(--green-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}

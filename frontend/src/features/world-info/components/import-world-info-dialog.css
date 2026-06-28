@@ -1,0 +1,70 @@
+.world-info-import-file-input {
+  display: none;
+}
+
+.world-info-import-dropzone {
+  border: 2px dashed var(--gray-6);
+  border-radius: var(--radius-3);
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.world-info-import-upload-icon {
+  color: var(--gray-9);
+  margin-bottom: 16px;
+}
+
+.world-info-import-stat-card {
+  flex: 1;
+  padding: 12px 16px;
+}
+
+.world-info-import-block-label,
+.world-info-import-preview-title,
+.world-info-import-preview-meta,
+.world-info-import-preview-content {
+  display: block;
+}
+
+.world-info-import-preview-scroll {
+  height: 260px;
+  border: 1px solid var(--gray-5);
+  border-radius: var(--radius-2);
+}
+
+.world-info-import-preview-row--bordered {
+  border-bottom: 1px solid var(--gray-4);
+}
+
+.world-info-import-preview-name {
+  flex: 1;
+}
+
+.world-info-import-progress,
+.world-info-import-complete {
+  text-align: center;
+}
+
+.world-info-import-progress {
+  padding: 48px 24px;
+}
+
+.world-info-import-complete {
+  padding: 24px 0;
+}
+
+.world-info-import-complete-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background-color: var(--green-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.world-info-import-preview-footer {
+  width: 100%;
+}

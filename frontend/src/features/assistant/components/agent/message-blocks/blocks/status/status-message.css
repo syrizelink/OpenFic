@@ -1,0 +1,133 @@
+.agent-status-message-card {
+  display: block;
+  min-width: 0;
+}
+
+.agent-status-message-header {
+  min-width: 0;
+}
+
+.agent-status-message-title[data-status-tone="retry"] {
+  color: var(--amber-11);
+}
+
+.agent-status-message-title[data-status-tone="error"] {
+  color: var(--red-11);
+}
+
+.agent-status-message-title[data-status-tone="completed"] {
+  color: var(--gray-12);
+}
+
+.agent-status-message-title[data-status-tone="compaction"] {
+  color: var(--gray-11);
+}
+
+.agent-status-message-icon[data-status-tone="retry"] {
+  color: var(--amber-10);
+}
+
+.agent-status-message-icon[data-status-tone="error"] {
+  color: var(--red-9);
+}
+
+.agent-status-message-icon[data-status-tone="completed"] {
+  color: var(--green-9);
+}
+
+.agent-status-message-icon[data-status-tone="compaction"] {
+  color: var(--accent-10);
+}
+
+.agent-compaction-divider {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 10px;
+  padding: 10px 0;
+  color: var(--gray-9);
+}
+
+.agent-compaction-divider::before,
+.agent-compaction-divider::after {
+  content: "";
+  flex: 1 1 0;
+  min-width: 16px;
+  height: 1px;
+  background: var(--gray-a5);
+}
+
+.agent-compaction-divider-content {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  gap: 5px;
+  color: var(--gray-9);
+}
+
+.agent-compaction-divider-icon {
+  flex: 0 0 auto;
+  color: var(--gray-8);
+}
+
+.agent-compaction-divider-label {
+  position: relative;
+  display: inline-block;
+  color: var(--gray-9);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.agent-compaction-divider-label.text-shimmer {
+  color: var(--gray-8);
+}
+
+.agent-compaction-divider-label.text-shimmer::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 34%,
+    color-mix(in srgb, var(--gray-12) 82%, transparent) 48%,
+    color-mix(in srgb, var(--gray-12) 82%, transparent) 56%,
+    transparent 70%,
+    transparent 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: agentCompactionTextShimmer 2.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.agent-status-message-detail {
+  display: block;
+  white-space: pre-wrap;
+}
+
+.agent-status-message-summary {
+  display: block;
+  padding-left: 24px;
+  color: var(--gray-11);
+}
+
+.agent-status-message-summary-note {
+  color: var(--gray-10);
+}
+
+@keyframes agentCompactionTextShimmer {
+  0% {
+    background-position: 220% 0;
+  }
+
+  100% {
+    background-position: -220% 0;
+  }
+}

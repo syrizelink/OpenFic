@@ -1,0 +1,35 @@
+.agent-subagent-tool-callout {
+  position: relative;
+  padding-left: 14px;
+}
+
+.agent-subagent-tool-callout::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: color-mix(in srgb, var(--gray-8) 72%, transparent);
+}
+
+.agent-subagent-tool-callout-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--gray-10);
+}
+
+.agent-subagent-tool-callout-label {
+  color: inherit;
+  line-height: 1.5;
+}
+
+.agent-subagent-tool-callout-prompt {
+  color: inherit;
+  line-height: 1.7;
+}
+
+.agent-tool-card[data-tool-name="recycle_subagent"] .agent-tool-header-main {
+  min-height: 24px;
+}

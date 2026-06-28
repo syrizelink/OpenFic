@@ -1,0 +1,135 @@
+.agent-chapter-tool-meta-shell {
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.agent-chapter-tool-meta-content {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.agent-chapter-tool-stats {
+  flex: 0 0 auto;
+}
+
+.agent-chapter-tool-change {
+  flex: 0 0 auto;
+  font-family: "JetBrainsMapleMono", monospace;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.agent-chapter-tool-change[data-change="added"] {
+  color: var(--green-10);
+}
+
+.agent-chapter-tool-change[data-change="removed"] {
+  color: var(--red-10);
+}
+
+.agent-tool-card:is([data-tool-name="write_chapter"], [data-tool-name="edit_chapter"], [data-tool-name="write_note"], [data-tool-name="edit_note"]) .agent-tool-header[data-expandable="true"]:hover .agent-chapter-tool-change[data-change="added"],
+.agent-tool-card:is([data-tool-name="write_chapter"], [data-tool-name="edit_chapter"], [data-tool-name="write_note"], [data-tool-name="edit_note"]) .agent-tool-header[data-expandable="true"]:focus-visible .agent-chapter-tool-change[data-change="added"] {
+  color: var(--green-11);
+}
+
+.agent-tool-card:is([data-tool-name="write_chapter"], [data-tool-name="edit_chapter"], [data-tool-name="write_note"], [data-tool-name="edit_note"]) .agent-tool-header[data-expandable="true"]:hover .agent-chapter-tool-change[data-change="removed"],
+.agent-tool-card:is([data-tool-name="write_chapter"], [data-tool-name="edit_chapter"], [data-tool-name="write_note"], [data-tool-name="edit_note"]) .agent-tool-header[data-expandable="true"]:focus-visible .agent-chapter-tool-change[data-change="removed"] {
+  color: var(--red-11);
+}
+
+.agent-chapter-diff-card {
+  overflow: hidden;
+  border: 1px solid var(--gray-a4);
+  border-radius: 12px;
+  background: var(--color-panel);
+}
+
+.agent-chapter-diff-card-header {
+  min-width: 0;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--gray-a4);
+}
+
+.agent-chapter-diff-card-meta {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.agent-chapter-diff-card-title {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  color: var(--gray-12);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-chapter-diff-copy-button {
+  flex: 0 0 auto;
+}
+
+.agent-chapter-diff-card-body {
+  min-width: 0;
+}
+
+.agent-chapter-diff-scroll {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.agent-chapter-diff-lines {
+  overflow: hidden;
+  background: var(--color-panel);
+}
+
+.agent-chapter-diff-line {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  align-items: start;
+  font-family: var(--code-font-family, monospace);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--gray-12);
+}
+
+.agent-chapter-diff-line[data-type="added"] {
+  background: var(--green-a2);
+  color: var(--green-12);
+}
+
+.agent-chapter-diff-line[data-type="removed"] {
+  background: var(--red-a2);
+  color: var(--red-12);
+}
+
+.agent-chapter-diff-gutter {
+  padding: 4px 8px 4px 6px;
+  color: var(--gray-10);
+  text-align: right;
+  user-select: none;
+}
+
+.agent-chapter-diff-line[data-type="added"] .agent-chapter-diff-gutter {
+  background: var(--green-a3);
+}
+
+.agent-chapter-diff-line[data-type="removed"] .agent-chapter-diff-gutter {
+  background: var(--red-a3);
+}
+
+.agent-chapter-diff-text {
+  min-width: 0;
+  padding: 4px 10px 4px 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.agent-chapter-diff-empty {
+  padding: 10px 12px;
+  color: var(--gray-10);
+  font-size: 12px;
+  line-height: 1.55;
+}

@@ -1,0 +1,72 @@
+@font-face {
+  font-family: "SourceHanSansCN-VF";
+  src: url("/fonts/SourceHanSansCN-VF.ttf.woff2") format("woff2");
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "SourceHanSerifCN-VF";
+  src: url("/fonts/SourceHanSerifCN-VF.ttf.woff2") format("woff2");
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "ChillKai";
+  src: url("/fonts/ChillKai.woff2") format("woff2");
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "JetBrainsMapleMono";
+  src: url("/fonts/JetBrainsMapleMono.woff2") format("woff2");
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --app-font-family: "SourceHanSerifCN-VF", "SourceHanSansCN-VF", "ChillKai",
+    "Source Han Serif SC", "Noto Serif CJK SC", Georgia, "PingFang SC",
+    "Microsoft YaHei", serif;
+  --code-font-family: "JetBrainsMapleMono", ui-monospace, "SF Mono", Monaco,
+    "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+  font-family: var(--app-font-family);
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --radius: 0.625rem;
+}
+
+.dark,
+[data-theme="dark"] {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --border: oklch(0.269 0 0);
+  --input: oklch(0.269 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --radius: 0.625rem;
+}

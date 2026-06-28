@@ -1,0 +1,2 @@
+class ToolExecutionError(Exception):
+    pass

@@ -1,0 +1,47 @@
+.scrollbar-auto-hide {
+  position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s ease;
+}
+
+.scrollbar-auto-hide.scrolling {
+  scrollbar-color: var(--gray-a6) transparent;
+}
+
+.scrollbar-auto-hide::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar-auto-hide::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.scrollbar-auto-hide::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.scrollbar-auto-hide.scrolling::-webkit-scrollbar-thumb {
+  background: var(--gray-a6);
+}
+
+.scrollbar-auto-hide::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-a8);
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.list-item-hover {
+  cursor: default;
+  transition: background-color 0.15s ease;
+}
+
+.list-item-hover:hover {
+  background-color: var(--gray-a3);
+}

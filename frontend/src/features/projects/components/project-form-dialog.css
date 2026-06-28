@@ -1,0 +1,9 @@
+.project-form-dialog-cover {
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .project-form-dialog-fields {
+    flex-direction: column;
+  }
+}

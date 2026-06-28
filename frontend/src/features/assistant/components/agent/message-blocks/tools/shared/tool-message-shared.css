@@ -1,0 +1,86 @@
+.agent-tool-body,
+.agent-tool-block-content {
+  min-width: 0;
+}
+
+.agent-tool-content-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--gray-12);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.agent-tool-content-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agent-tool-content-label {
+  line-height: 1.4;
+}
+
+.agent-tool-content-value {
+  color: var(--gray-12);
+  line-height: 1.7;
+}
+
+.agent-tool-content-plain-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.agent-tool-content-list {
+  margin: 6px 0 0 18px;
+  color: var(--gray-11);
+  line-height: 1.7;
+}
+
+.agent-tool-content-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agent-tool-content-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 10px;
+  border-left: 1px solid var(--gray-5);
+}
+
+.agent-tool-content-panel-title {
+  color: var(--gray-12);
+}
+
+.agent-tool-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--gray-5);
+  background: color-mix(in srgb, var(--gray-2) 88%, transparent);
+}
+
+.agent-tool-notice[data-tone="warning"] {
+  border-color: color-mix(in srgb, var(--amber-7) 45%, var(--gray-5));
+  background: color-mix(in srgb, var(--amber-3) 46%, transparent);
+}
+
+.agent-tool-notice[data-tone="error"] {
+  border-color: color-mix(in srgb, var(--red-7) 45%, var(--gray-5));
+  background: color-mix(in srgb, var(--red-3) 42%, transparent);
+}
+
+.agent-tool-notice-title {
+  color: var(--gray-12);
+}
+
+.agent-tool-notice-body {
+  color: var(--gray-11);
+  line-height: 1.7;
+}

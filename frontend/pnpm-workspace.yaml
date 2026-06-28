@@ -1,0 +1,7 @@
+allowBuilds:
+  bufferutil: false
+  core-js: false
+  electron: true
+  electron-builder: true
+  esbuild: true
+  utf-8-validate: false

@@ -1,0 +1,182 @@
+.active-subagent-panel {
+  overflow: hidden;
+  border-left: 1px solid var(--gray-a4);
+  border-right: 1px solid var(--gray-a4);
+  border-bottom: 1px solid var(--gray-a4);
+  border-radius: 0 0 18px 18px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.active-subagent-panel-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--gray-12);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--default-font-family, var(--app-font-family, inherit));
+}
+
+.active-subagent-panel-toggle[aria-expanded="true"] {
+  border-top: 1px solid var(--gray-a3);
+}
+
+.active-subagent-panel-toggle:hover {
+  background: var(--gray-a2);
+}
+
+.active-subagent-panel-toggle:focus-visible,
+.active-subagent-row:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: -2px;
+}
+
+.active-subagent-panel-title-group {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.active-subagent-panel-icon-wrap {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--gray-10);
+}
+
+.active-subagent-panel-title {
+  min-width: 0;
+  line-height: 1.2;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--gray-11);
+}
+
+.active-subagent-panel-chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--gray-10);
+}
+
+.active-subagent-panel-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+}
+
+.active-subagent-panel-list-item + .active-subagent-panel-list-item {
+  border-top: 1px solid var(--gray-a3);
+}
+
+.active-subagent-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 30px;
+  padding: 5px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--gray-12);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--default-font-family, var(--app-font-family, inherit));
+}
+
+.active-subagent-row:hover {
+  background: var(--gray-a2);
+}
+
+.active-subagent-row-main,
+.active-subagent-row-meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.active-subagent-row-main {
+  gap: 6px;
+}
+
+.active-subagent-row-meta {
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.active-subagent-row-indicator {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--blue-9);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--blue-9) 18%, transparent);
+}
+
+.active-subagent-row-agent,
+.active-subagent-row-status,
+.active-subagent-row-queue {
+  line-height: 1.2;
+}
+
+.active-subagent-row-agent {
+  font-size: 12px;
+}
+
+.active-subagent-row-status {
+  color: var(--gray-10);
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.active-subagent-row-queue {
+  color: var(--gray-9);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.active-subagent-row[data-status="running"] .active-subagent-row-status {
+  color: var(--blue-10);
+}
+
+.active-subagent-row[data-status="running"] .active-subagent-row-indicator {
+  background: var(--blue-9);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--blue-9) 18%, transparent);
+}
+
+.active-subagent-row[data-status="waiting"] .active-subagent-row-status {
+  color: var(--amber-10);
+}
+
+.active-subagent-row[data-status="waiting"] .active-subagent-row-indicator {
+  background: var(--amber-9);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--amber-9) 18%, transparent);
+}
+
+.active-subagent-row[data-status="success"] .active-subagent-row-status {
+  color: var(--green-10);
+}
+
+.active-subagent-row[data-status="success"] .active-subagent-row-indicator {
+  background: var(--green-9);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--green-9) 18%, transparent);
+}
+
+.active-subagent-row[data-status="danger"] .active-subagent-row-status {
+  color: var(--red-10);
+}
+
+.active-subagent-row[data-status="danger"] .active-subagent-row-indicator {
+  background: var(--red-9);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--red-9) 18%, transparent);
+}

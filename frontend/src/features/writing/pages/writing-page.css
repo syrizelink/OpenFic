@@ -1,0 +1,172 @@
+.writing-page-root {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.writing-page-shell,
+.writing-page-group,
+.writing-page-mobile-layout {
+  height: 100%;
+  min-height: 0;
+}
+
+.writing-page-group > [data-panel] {
+  min-height: 0;
+}
+
+.writing-page-sidebar {
+  height: 100%;
+  overflow: hidden;
+}
+
+.writing-page-sidebar--left {
+  border-right: 1px solid var(--gray-a4);
+  background: var(--color-background);
+}
+
+.writing-page-sidebar--right {
+  border-left: 1px solid var(--gray-a4);
+  background: var(--gray-a2);
+}
+
+.writing-page-group .writing-page-sidebar--left,
+.writing-page-group .writing-page-sidebar--right {
+  border-right: none;
+  border-left: none;
+}
+
+.writing-page-separator {
+  position: relative;
+  width: 1px;
+  flex-shrink: 0;
+  background: transparent;
+  cursor: col-resize;
+  overflow: visible;
+  z-index: 12;
+}
+
+.writing-page-separator::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 8px;
+  transform: translateX(-50%);
+}
+
+.writing-page-separator::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 0.3px;
+  transform: translateX(-50%);
+  background: var(--gray-a5);
+  transition:
+    width 0.18s ease,
+    background-color 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.resize-handle[data-separator]:hover::after {
+  width: 4px;
+  background: var(--gray-a7);
+}
+
+.writing-page-editor-shell {
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-background);
+  display: flex;
+  flex-direction: column;
+}
+
+.writing-page-editor-shell--mobile {
+  position: relative;
+  flex: 1;
+}
+
+.writing-page-content-fill {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.writing-page-mobile-topbar {
+  min-height: 44px;
+  border-bottom: 1px solid var(--gray-a4);
+  background: var(--color-background);
+}
+
+.writing-page-mobile-sidebar-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.writing-page-mobile-sidebar-sheet {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 11;
+  height: 100%;
+  overflow: hidden;
+  border-right: 1px solid var(--gray-a4);
+  background: var(--color-background);
+  will-change: transform;
+}
+
+.writing-page-mobile-assistant-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--color-background);
+  visibility: visible;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.writing-page-mobile-assistant-overlay[data-open="true"] {
+  pointer-events: auto;
+}
+
+.writing-page-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  height: 100%;
+}
+
+.resize-handle[data-separator][data-resize-handle-state="drag"] {
+  background-color: transparent !important;
+}
+
+.resize-handle[data-separator][data-resize-handle-state="drag"]::after {
+  width: 4px;
+  background: var(--accent-a5);
+}
+
+@media (max-width: 767px) {
+  .writing-page-loading-sidebar {
+    display: none;
+  }
+
+  .writing-page-loading-editor-tabs {
+    height: 44px !important;
+    background: var(--color-background) !important;
+  }
+
+  .writing-page-loading-editor-content {
+    padding: 32px 20px !important;
+  }
+}

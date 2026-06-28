@@ -1,0 +1,26 @@
+.agent-reasoning-body {
+  position: relative;
+  padding-left: 14px;
+}
+
+.agent-reasoning-body::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: color-mix(in srgb, var(--gray-8) 72%, transparent);
+}
+
+.agent-reasoning-timer {
+  font-family: "JetBrainsMapleMono", monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.agent-reasoning-content {
+  color: var(--gray-10);
+  --streaming-markdown-heading-color: var(--gray-11);
+  --streaming-markdown-emphasis-color: var(--gray-11);
+}

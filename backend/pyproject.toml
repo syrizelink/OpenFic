@@ -1,0 +1,99 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "openfic-backend"
+version = "0.0.0"
+description = "Ready for adding."
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "aiocache>=0.12.3",
+    "aiofiles>=22.0",
+    "aiosqlite>=0.22.0",
+    "alembic>=1.17.2",
+    "argon2-cffi>=25.1.0",
+    "charset-normalizer>=3.4.7",
+    "cryptography>=46.0.3",
+    "fastapi>=0.127.0",
+    "gunicorn>=23.0.0",
+    "itsdangerous>=2.2.0",
+    "json-repair>=0.60.1",
+    "lancedb>=0.26.0",
+    "langchain>=1.3.0",
+    "langchain-amazon-nova>=1.0.1",
+    "langchain-anthropic>=1.3.1",
+    "langchain-cohere>=0.5.1",
+    "langchain-deepseek>=1.0.1",
+    "langchain-google-genai>=4.1.3",
+    "langchain-groq>=1.1.2",
+    "langchain-huggingface>=1.2.2",
+    "langchain-mistralai>=1.1.1",
+    "langchain-nvidia-ai-endpoints>=1.4.0",
+    "langchain-ollama>=1.0.1",
+    "langchain-openai>=1.1.6",
+    "langchain-openrouter>=0.2.3",
+    "langgraph>=1.0.8",
+    "langgraph-checkpoint-sqlite>=3.0.5",
+    "loguru>=0.7.3",
+    "mem0ai>=1.0.2",
+    "nanoid>=2.0.0",
+    "pillow>=8.0,<12.0",
+    "pydantic-settings>=2.12.0",
+    "pyjwt[crypto]>=2.10.1",
+    "python-multipart>=0.0.21",
+    "python-socketio[asgi]>=5.11.0",
+    "pyyaml>=6.0.2",
+    "pyzmq>=27.1.0",
+    "sqlalchemy>=2.0.45",
+    "sqlmodel>=0.0.27",
+    "starlette-compress>=1.6.1",
+    "tiktoken>=0.12.0",
+    "uvicorn[standard]>=0.40.0",
+    "fastembed>=0.8.0",
+]
+
+[project.scripts]
+openfic = "app.cli:main"
+
+[dependency-groups]
+dev = [
+    "gradio>=5.0.0",
+    "mypy>=1.19.1",
+    "pre-commit>=4.5.1",
+    "pyinstaller>=6.20.0",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    "pytest-cov>=7.0.0",
+    "respx>=0.22.0",
+    "ruff>=0.14.10",
+    "types-nanoid>=2.0.0.20260508",
+    "types-pyyaml>=6.0.12.20260510",
+]
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+default = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"alembic.ini" = "alembic.ini"
+
+[tool.hatch.build.targets.sdist]
+force-include = { "alembic.ini" = "alembic.ini" }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "module"
+filterwarnings = [
+    "ignore::DeprecationWarning:langchain_community.*",
+    "ignore::DeprecationWarning:langchain_cohere.*",
+]
+
+[[tool.mypy.overrides]]
+module = ["lancedb"]
+ignore_missing_imports = true

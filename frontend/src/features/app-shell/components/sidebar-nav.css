@@ -1,0 +1,35 @@
+.app-sidebar-nav-item {
+  width: 100%;
+  border-radius: var(--radius-3);
+  justify-content: flex-start;
+  text-decoration: none;
+  overflow: hidden;
+  color: var(--gray-11);
+  background: transparent;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.app-sidebar-nav-item:hover,
+.app-sidebar-nav-item[data-active="true"] {
+  color: var(--gray-12);
+  background: var(--gray-a3);
+}
+
+.app-sidebar-nav-link {
+  width: 100%;
+  text-decoration: none;
+}
+
+.app-sidebar-nav-item__icon-box {
+}
+
+.app-sidebar-nav-item__icon {
+  flex-shrink: 0;
+}
+
+.app-sidebar-nav-item__label {
+  white-space: nowrap;
+  overflow: hidden;
+}

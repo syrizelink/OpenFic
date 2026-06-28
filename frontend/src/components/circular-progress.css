@@ -1,0 +1,26 @@
+.circular-progress {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  color: var(--gray-11);
+}
+
+.circular-progress.rt-Box {
+  display: inline-flex;
+}
+
+.circular-progress__svg {
+  display: block;
+  overflow: visible;
+}
+
+.circular-progress__track {
+  fill: none;
+  stroke: color-mix(in oklab, var(--gray-a5) 84%, var(--color-panel));
+}
+
+.circular-progress__indicator {
+  fill: none;
+  stroke: currentColor;
+}

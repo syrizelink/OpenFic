@@ -1,0 +1,83 @@
+.prompt-editor-shell {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.prompt-editor-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.prompt-editor-entry-name-row,
+.prompt-editor-entry-name-input {
+  flex: 1;
+}
+
+.prompt-editor-frame {
+  box-sizing: border-box;
+  border: 1px solid var(--gray-a5);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.prompt-editor-scroll-area {
+  box-sizing: border-box;
+  flex: 1;
+  min-height: 0;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.prompt-editor-scroll-area > div {
+  height: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.prompt-editor-statusbar {
+  padding: 8px 16px;
+}
+
+.prompt-editor-content {
+  display: block;
+  width: 100%;
+  min-height: 200px;
+  outline: none;
+  font-family: var(--code-font-family, "JetBrainsMapleMono", ui-monospace, monospace);
+  font-size: 14px;
+}
+
+.prompt-editor-content.ProseMirror {
+  width: 100%;
+  min-height: 100%;
+}
+
+.prompt-editor-content p {
+  margin: 0;
+  color: inherit;
+  font-family: var(--code-font-family, "JetBrainsMapleMono", ui-monospace, monospace);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.prompt-editor-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--gray-a9);
+  pointer-events: none;
+}

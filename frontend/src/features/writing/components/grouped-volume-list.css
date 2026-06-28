@@ -1,0 +1,57 @@
+.grouped-volume-list-scroller {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.grouped-volume-list-scroller::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.grouped-volume-list-scrollbar-thumb {
+  position: absolute;
+  top: 0;
+  right: 3px;
+  z-index: 20;
+  width: 6px;
+  border-radius: 999px;
+  background: var(--gray-a6);
+  opacity: 0;
+  pointer-events: none;
+  touch-action: none;
+  transition:
+    opacity 180ms ease,
+    background-color 180ms ease;
+  will-change: transform, height;
+}
+
+.grouped-volume-list-scrollbar-thumb.is-scrollable.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.grouped-volume-list-scrollbar-thumb.is-scrollable.is-visible:hover {
+  background: var(--gray-a8);
+}
+
+.chapter-list-item-row::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  bottom: 0;
+  left: 12px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--gray-a5) 22%, transparent) 16%,
+    color-mix(in srgb, var(--gray-a5) 58%, transparent) 34%,
+    var(--gray-a5) 43%,
+    var(--gray-a5) 57%,
+    color-mix(in srgb, var(--gray-a5) 58%, transparent) 66%,
+    color-mix(in srgb, var(--gray-a5) 22%, transparent) 84%,
+    transparent 100%
+  );
+  pointer-events: none;
+}

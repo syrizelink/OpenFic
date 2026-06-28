@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "python",
+  "include-component-in-tag": false,
+  "package-name": "openfic",
+  "changelog-path": "CHANGELOG.md",
+  "changelog-sections": [
+    { "type": "feat", "section": "✨ 新功能" },
+    { "type": "fix", "section": "🐛 问题修复" },
+    { "type": "perf", "section": "⚡ 性能优化" },
+    { "type": "refactor", "section": "♻️ 代码重构" },
+    { "type": "docs", "section": "📚 文档" },
+    { "type": "test", "section": "✅ 测试" },
+    { "type": "chore", "section": "🔧 杂项", "hidden": false },
+    { "type": "ci", "section": "👷 CI/CD", "hidden": false },
+    { "type": "style", "section": "💄 格式", "hidden": true }
+  ],
+  "extra-files": [
+    {
+      "type": "json",
+      "path": "frontend/package.json",
+      "jsonpath": "$.version"
+    }
+  ]
+}

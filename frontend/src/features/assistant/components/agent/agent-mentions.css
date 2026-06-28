@@ -1,0 +1,182 @@
+.agent-mention-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  margin: 0;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  appearance: none;
+  background: none;
+  color: #559ff5;
+  vertical-align: baseline;
+  font: inherit;
+  line-height: inherit;
+  text-decoration: none;
+  -webkit-user-drag: none;
+}
+
+.agent-mention-chip[data-selected="true"] {
+  border-color: currentColor;
+}
+
+.agent-mention-chip[data-clickable="true"] {
+  cursor: pointer;
+}
+
+.agent-mention-chip-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: inherit;
+}
+
+.agent-mention-chip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1.4;
+  color: inherit;
+}
+
+.agent-inline-mention-text {
+  white-space: pre-wrap;
+}
+
+.agent-inline-mention-text--single-line {
+  display: inline;
+  white-space: nowrap;
+}
+
+.agent-composer-editor {
+  position: relative;
+}
+
+.agent-composer-editor .ProseMirror {
+  width: 100%;
+  min-height: calc(2 * 1.4em + 20px);
+  max-height: 160px;
+  padding: 10px;
+  overflow-y: auto;
+  outline: none;
+  color: var(--gray-12);
+  font-size: 14px;
+  line-height: 1.4;
+  font-family: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.agent-composer-editor .ProseMirror p {
+  margin: 0;
+}
+
+.agent-composer-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--gray-a9);
+  pointer-events: none;
+}
+
+.agent-composer-editor[data-disabled="true"] .ProseMirror {
+  cursor: not-allowed;
+}
+
+.ai-sidebar-mention-shell {
+  position: absolute;
+  right: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transform-origin: center bottom;
+}
+
+.ai-sidebar-mention-card {
+  overflow: hidden;
+  pointer-events: auto;
+  border: 1px solid var(--gray-a5);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface) 96%, var(--gray-2));
+  font-family: inherit;
+  box-shadow:
+    0 10px 18px color-mix(in srgb, var(--color-panel) 48%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.ai-sidebar-mention-card-body {
+  overflow: hidden;
+}
+
+.agent-mention-suggestions-list {
+  max-height: calc(8 * 28px + 12px);
+  padding: 6px;
+  overflow-y: auto;
+}
+
+.ai-sidebar-mention-card-clearance {
+  height: var(--ai-sidebar-mention-clearance-height, 0px);
+  pointer-events: none;
+}
+
+.agent-mention-suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 12px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.agent-mention-suggestion-item:hover,
+.agent-mention-suggestion-item[data-selected="true"] {
+  background: var(--accent-a3);
+}
+
+.agent-mention-suggestion-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--gray-10);
+}
+
+.agent-mention-suggestion-copy {
+  display: block;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-mention-suggestion-title {
+  display: inline;
+  color: var(--gray-12);
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.agent-mention-suggestion-kind {
+  display: inline;
+  margin-inline-start: 6px;
+  color: var(--gray-10);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.agent-mention-suggestion-state {
+  padding: 11px 12px;
+  color: var(--gray-10);
+  font-size: 12px;
+  line-height: 1.4;
+}
