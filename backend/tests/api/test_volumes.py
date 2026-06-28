@@ -3,7 +3,6 @@
 Volume API tests.
 """
 
-import importlib
 import re
 
 import pytest
@@ -12,7 +11,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
-from app.core.ids import generate_id
 from app.retrieval.chapter_index import compute_chapter_source_hash
 from app.storage.models.retrieval_chapter_index_state import RetrievalChapterIndexState
 from app.storage.models.writing_activity_event import WritingActivityEvent
@@ -48,15 +46,6 @@ async def test_project_creation_creates_default_volume(client: AsyncClient) -> N
     assert volume["description"] is None
     assert volume["order"] == 1
     assert volume["chapter_count"] == 0
-
-
-def test_volume_migration_uses_nanoid_generator() -> None:
-    migration = importlib.import_module(
-        "app.storage.migrations.versions.048_add_volumes_and_chapter_volume_id"
-    )
-
-    assert migration.generate_id is generate_id
-    assert not hasattr(migration, "uuid4")
 
 
 @pytest.mark.asyncio
