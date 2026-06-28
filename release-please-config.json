@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "bootstrap-sha": "f7064e5029b83a8215ea890b19e281e64381c7a7",
+  "last-release-sha": "f7064e5029b83a8215ea890b19e281e64381c7a7",
   "release-type": "python",
   "include-component-in-tag": false,
   "package-name": "openfic",
