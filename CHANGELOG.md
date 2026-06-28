@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/syrizelink/OpenFic/compare/v0.2.2...v0.2.3) (2026-06-28)
+
+
+### 🐛 问题修复
+
+* **build:** 修正 electron-builder 配置并启用 changelog 作者显示 ([#13](https://github.com/syrizelink/OpenFic/issues/13)) ([82532ee](https://github.com/syrizelink/OpenFic/commit/82532ee37eb92e6965056b0e56c41c9a37fbbc8b))
+
 ## [0.2.2](https://github.com/syrizelink/OpenFic/compare/v0.2.1...v0.2.2) (2026-06-28)
 
 
