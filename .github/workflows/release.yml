@@ -133,6 +133,8 @@ jobs:
   docker:
     needs: [context, preflight, test-frontend, test-backend]
     runs-on: ubuntu-latest
+    env:
+      BUILDX_NO_DEFAULT_ATTESTATIONS: true
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-qemu-action@v4
@@ -154,6 +156,7 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          provenance: false
           tags: ${{ steps.tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
