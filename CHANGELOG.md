@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/syrizelink/OpenFic/compare/v0.2.3...v0.2.4) (2026-06-29)
+
+
+### 🐛 问题修复
+
+* **agent:** 移除子计划依赖并改用笔记大纲 ([#15](https://github.com/syrizelink/OpenFic/issues/15)) ([da97a8b](https://github.com/syrizelink/OpenFic/commit/da97a8be36256a814677a20d540f853713f496f5))
+
 ## [0.2.3](https://github.com/syrizelink/OpenFic/compare/v0.2.2...v0.2.3) (2026-06-28)
 
 
