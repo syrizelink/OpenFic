@@ -89,6 +89,18 @@ export function ProjectFormDialog({
     }
   }, [open, project, reset]);
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setCover(null);
+      reset({
+        title: "",
+        description: "",
+      });
+    }
+
+    onOpenChange(nextOpen);
+  };
+
   const handleFormSubmit = handleSubmit((data) => {
     onSubmit({ ...data, cover });
   });
@@ -96,7 +108,7 @@ export function ProjectFormDialog({
   return (
     <Dialog.Root
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleOpenChange}
       key={open ? "open" : "closed"}
     >
       <Dialog.Content maxWidth="600px">

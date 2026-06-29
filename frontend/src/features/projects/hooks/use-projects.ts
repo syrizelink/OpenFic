@@ -38,9 +38,8 @@ export function useCreateProject() {
 
   return useMutation({
     mutationFn: (data: ProjectCreate) => createProject(data),
-    onSuccess: () => {
-      // 创建成功后刷新项目列表
-      queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: projectsQueryKey });
     },
   });
 }
@@ -59,9 +58,8 @@ export function useUpdateProject() {
       projectId: string;
       data: ProjectUpdate;
     }) => updateProject(projectId, data),
-    onSuccess: () => {
-      // 更新成功后刷新项目列表
-      queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: projectsQueryKey });
     },
   });
 }
@@ -74,9 +72,8 @@ export function useDeleteProject() {
 
   return useMutation({
     mutationFn: (projectId: string) => deleteProject(projectId),
-    onSuccess: () => {
-      // 删除成功后刷新项目列表
-      queryClient.invalidateQueries({ queryKey: projectsQueryKey });
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: projectsQueryKey });
     },
   });
 }

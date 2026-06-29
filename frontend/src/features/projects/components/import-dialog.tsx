@@ -98,6 +98,10 @@ export function ImportDialog({
     setImportResult(null);
     setImportProgress(0);
     setImportStage("");
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   }, []);
 
   // 处理对话框关闭
