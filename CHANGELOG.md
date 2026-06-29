@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/syrizelink/OpenFic/compare/v0.3.0...v0.3.1) (2026-06-29)
+
+
+### 🐛 问题修复
+
+* **ci:** 等待 release PR 可合并后再自动合并 ([#23](https://github.com/syrizelink/OpenFic/issues/23)) ([d868fc6](https://github.com/syrizelink/OpenFic/commit/d868fc6647d0f5cd8097f3e19c55a4f1c8546233))
+
 ## [0.3.0](https://github.com/syrizelink/OpenFic/compare/v0.2.6...v0.3.0) (2026-06-29)
 
 
