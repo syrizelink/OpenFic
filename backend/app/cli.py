@@ -29,7 +29,7 @@ def _read_version() -> str:
     try:
         from importlib.metadata import PackageNotFoundError, version
 
-        return version("openfic-backend")
+        return version("openfic")
     except (PackageNotFoundError, Exception):
         return "0.0.0"
 

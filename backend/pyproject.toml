@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "openfic-backend"
+name = "openfic"
 version = "0.2.5"
 description = "Ready for adding."
 readme = "README.md"

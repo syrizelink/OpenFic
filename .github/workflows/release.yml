@@ -192,6 +192,9 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
       - name: 安装后端依赖并打包
         working-directory: backend
         run: |
@@ -217,7 +220,11 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact_name }}
-          path: dist-electron/*
+          path: |
+            dist-electron/*.exe
+            dist-electron/*.zip
+            dist-electron/*.dmg
+            dist-electron/*.blockmap
 
   # ---------------------------------------------------------------- release
   publish-release:

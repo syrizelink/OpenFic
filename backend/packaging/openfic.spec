@@ -29,7 +29,7 @@ _DYNAMIC_PACKAGES = [
     "langchain_nvidia_ai_endpoints", "langchain_openrouter",
     "langchain_amazon_nova", "langgraph_checkpoint_sqlite",
     "lancedb", "fastembed", "onnxruntime", "tiktoken", "mem0ai",
-    "aiocache", "argon2", "cryptography", "pyzmq", "fastembed",
+    "aiocache", "argon2", "cryptography", "pyzmq",
 ]
 for _pkg in _DYNAMIC_PACKAGES:
     try:
