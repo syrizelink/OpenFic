@@ -76,4 +76,33 @@ jobs:
           PR_JSON: ${{ steps.release.outputs.pr }}
         run: |
           PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number')
+
+          # GitHub may briefly report a newly created or updated PR as not mergeable
+          # before its mergeability computation finishes. Wait until the state settles.
+          for attempt in {1..18}; do
+            MERGEABLE=$(gh pr view "$PR_NUMBER" --json mergeable -q '.mergeable')
+            MERGE_STATE=$(gh pr view "$PR_NUMBER" --json mergeStateStatus -q '.mergeStateStatus')
+
+            echo "Attempt $attempt: mergeable=$MERGEABLE mergeStateStatus=$MERGE_STATE"
+
+            if [[ "$MERGEABLE" == "MERGEABLE" && "$MERGE_STATE" == "CLEAN" ]]; then
+              break
+            fi
+
+            if [[ "$MERGEABLE" == "CONFLICTING" || "$MERGE_STATE" == "DIRTY" ]]; then
+              echo "Release PR has merge conflicts and cannot be auto-merged"
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          FINAL_MERGEABLE=$(gh pr view "$PR_NUMBER" --json mergeable -q '.mergeable')
+          FINAL_MERGE_STATE=$(gh pr view "$PR_NUMBER" --json mergeStateStatus -q '.mergeStateStatus')
+
+          if [[ "$FINAL_MERGEABLE" != "MERGEABLE" || "$FINAL_MERGE_STATE" != "CLEAN" ]]; then
+            echo "Release PR is still not ready to merge: mergeable=$FINAL_MERGEABLE mergeStateStatus=$FINAL_MERGE_STATE"
+            exit 1
+          fi
+
           gh pr merge "$PR_NUMBER" --squash --delete-branch
