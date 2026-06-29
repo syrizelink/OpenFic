@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Box } from "@radix-ui/themes";
+import i18n from "@/i18n";
 
 import type { AgentMessage, AgentType } from "@/lib/agent.types";
 
-import { AGENT_NAMES } from "../../../agent-message.types";
+import { AGENT_NAMES, getAgentName } from "../../../agent-message.types";
 import { formatElapsedDuration } from "../../shared/message-duration";
 
 interface NodeStartMessageProps {
@@ -20,13 +21,13 @@ function isAgentType(value: unknown): value is AgentType {
 }
 
 function getAgentLabel(message: AgentMessage): string {
-  if (isAgentType(message.agent)) return AGENT_NAMES[message.agent];
+  if (isAgentType(message.agent)) return getAgentName(message.agent);
 
   const payloadNode = message.payload?.node;
-  if (isAgentType(payloadNode)) return AGENT_NAMES[payloadNode];
+  if (isAgentType(payloadNode)) return getAgentName(payloadNode);
   if (typeof payloadNode === "string" && payloadNode.trim()) return payloadNode.trim();
 
-  return "Agent";
+  return i18n.t("assistant.agentNames.unknown");
 }
 
 export function NodeStartMessage({
@@ -57,11 +58,11 @@ export function NodeStartMessage({
         type="button"
         className="agent-node-divider-toggle"
         aria-expanded={!isCollapsed}
-        aria-label={`${agentLabel}节点${isCollapsed ? "已收起" : "已展开"}`}
+        aria-label={i18n.t("assistant.node.toggleAriaLabel", { agent: agentLabel, state: isCollapsed ? i18n.t("assistant.node.collapsed") : i18n.t("assistant.node.expanded") })}
         onClick={onToggle}
       >
         <span className="agent-node-divider-agent">{agentLabel}</span>
-        <span className="agent-node-divider-status">已处理</span>
+        <span className="agent-node-divider-status">{i18n.t("assistant.node.processed")}</span>
         <span className="agent-node-divider-timer">{formatElapsedDuration(elapsedMs)}</span>
       </button>
     </Box>

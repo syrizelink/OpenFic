@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { List, MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react";
 import { motion } from "motion/react";
 import Fuse from "fuse.js";
+import { useTranslation } from "react-i18next";
 
 import {
   createAgentRule,
@@ -47,6 +48,7 @@ function toFormState(rule: AgentRule | null): RuleFormState {
 }
 
 export function RulesSettings() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -110,9 +112,9 @@ export function RulesSettings() {
     onSuccess: (createdRule) => {
       queryClient.invalidateQueries({ queryKey: ["agent-rules"] });
       setSelectedRuleId(createdRule.id);
-      toast.success("规则已创建");
+      toast.success(t("settingsExtra.rules.newRule"));
     },
-    onError: () => toast.error("规则创建失败"),
+    onError: () => toast.error(t("settingsExtra.rules.loadFailed")),
   });
 
   const updateMutation = useMutation({
@@ -127,7 +129,7 @@ export function RulesSettings() {
         };
       });
     },
-    onError: () => toast.error("规则保存失败"),
+    onError: () => toast.error(t("settings.saveFailed")),
   });
 
   const deleteMutation = useMutation({
@@ -136,9 +138,9 @@ export function RulesSettings() {
       queryClient.invalidateQueries({ queryKey: ["agent-rules"] });
       setDeleteDialogOpen(false);
       setContextMenuRuleId(null);
-      toast.success("规则已删除");
+      toast.success(t("common.delete"));
     },
-    onError: () => toast.error("规则删除失败"),
+    onError: () => toast.error(t("common.error")),
   });
 
   const handleCreate = useCallback(() => {

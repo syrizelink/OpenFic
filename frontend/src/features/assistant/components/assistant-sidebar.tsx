@@ -1097,7 +1097,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
             <ArrowLeft size={18} />
           </IconButton>
           <Text size="2" weight="medium">
-            AI
+            {t("assistant.mobileTitle")}
           </Text>
         </Flex>
       )}
@@ -1119,10 +1119,10 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                   <Text
                     size="2"
                     weight="medium"
-                    title={subagentHeaderLabel || "Subagent"}
+                    title={subagentHeaderLabel || t("assistant.subagentFallbackTitle")}
                     className="ai-sidebar-task-title"
                   >
-                    {subagentHeaderLabel || "Subagent"}
+                    {subagentHeaderLabel || t("assistant.subagentFallbackTitle")}
                   </Text>
                   <Text size="1" color="gray" className="ai-sidebar-task-subtitle">
                     {subagentStatusLabel}
@@ -1132,10 +1132,10 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                 <Text
                   size="2"
                   weight="medium"
-                  title={currentTaskTitle || "Task"}
+                  title={currentTaskTitle || t("assistant.taskFallbackTitle")}
                   className="ai-sidebar-task-title"
                 >
-                  {currentTaskTitle || "Task"}
+                  {currentTaskTitle || t("assistant.taskFallbackTitle")}
                 </Text>
               )}
             </Flex>
@@ -1148,7 +1148,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                   size="1"
                   onClick={handleCompactSession}
                   disabled={!canCompactAgentSession}
-                  aria-label="压缩上下文"
+                  aria-label={t("assistant.compactContext")}
                   aria-busy={agentSidebar.isCompacting || undefined}
                 >
                   {agentSidebar.isCompacting ? <Spinner size="1" /> : <ListChevronsDownUp size={16} />}
@@ -1159,7 +1159,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                 color="gray"
                 size="1"
                 onClick={openAllTasks}
-                aria-label="历史记录"
+                aria-label={t("assistant.history")}
               >
                 <History size={16} />
               </IconButton>
@@ -1168,7 +1168,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                 color="gray"
                 size="1"
                 onClick={backToTaskList}
-                aria-label="新建任务"
+                aria-label={t("assistant.newTask")}
               >
                 <SquarePen size={16} />
               </IconButton>
@@ -1176,8 +1176,8 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
           </Flex>
           <Flex align="center" justify="between" gap="3" className="ai-sidebar-token-row">
             <Flex align="center" gap="2" className="ai-sidebar-token-metrics">
-              <Text size="1" weight="medium" color="gray">Tokens</Text>
-              <Tooltip content={`总输出Tokens：${sessionTotalDisplay.tokenOutput}`}>
+              <Text size="1" weight="medium" color="gray">{t("assistant.tokens")}</Text>
+              <Tooltip content={t("assistant.totalOutputTokens", { count: sessionTotalDisplay.tokenOutput })}>
                 <Flex align="center" gap="1" className="ai-sidebar-token-metric">
                   <ArrowBigUp size={13} />
                   <Text as="span" size="1">
@@ -1185,7 +1185,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                   </Text>
                 </Flex>
               </Tooltip>
-              <Tooltip content={`总输入Tokens：${sessionTotalDisplay.tokenInput}`}>
+              <Tooltip content={t("assistant.totalInputTokens", { count: sessionTotalDisplay.tokenInput })}>
                 <Flex align="center" gap="1" className="ai-sidebar-token-metric">
                   <ArrowBigDown size={13} />
                   <Text as="span" size="1">
@@ -1193,7 +1193,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                   </Text>
                 </Flex>
               </Tooltip>
-              <Tooltip content={`缓存Tokens：${sessionTotalDisplay.tokenCache}`}>
+              <Tooltip content={t("assistant.cachedTokens", { count: sessionTotalDisplay.tokenCache })}>
                 <Flex align="center" gap="1" className="ai-sidebar-token-metric">
                   <Layers2 size={13} />
                   <Text as="span" size="1">
@@ -1210,7 +1210,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                     max={currentConversationUsage.contextLength}
                     size={16}
                     strokeWidth={1.75}
-                    ariaLabel="上下文占用"
+                    ariaLabel={t("assistant.contextUsage")}
                   />
                 </Box>
               </Tooltip>
@@ -1244,7 +1244,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
             {isLoadingTask ? (
               <Flex direction="column" align="center" justify="center" className="ai-sidebar-loading-state">
                 <Spinner size="2" />
-                <Text size="2" color="gray">加载任务中...</Text>
+                <Text size="2" color="gray">{t("assistant.loadingTask")}</Text>
               </Flex>
             ) : shouldShowSubagentConversation ? (
               <AgentMessages
@@ -1284,7 +1284,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
               variant="soft"
               color="gray"
               onClick={() => scrollToBottomFnRef.current?.()}
-              aria-label="回到底部"
+              aria-label={t("assistant.scrollToBottom")}
             >
               <ArrowDown size={16} />
             </IconButton>
@@ -1332,10 +1332,10 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
             open={summaryWarningOpen}
             onOpenChange={handleSummaryWarningOpenChange}
             onConfirm={handleConfirmSummaryWarning}
-            title="上下文摘要可能不完整"
-            description="以最新章节为锚点的上下文范围内仍有未生成或未完成的章节摘要/区间摘要。本次发送会继续执行，但 AI 读取到的上下文可能不完整。"
-            confirmText="继续发送"
-            cancelText="取消"
+            title={t("assistant.summaryWarningTitle")}
+            description={t("assistant.summaryWarningDescription")}
+            confirmText={t("assistant.summaryWarningConfirm")}
+            cancelText={t("common.cancel")}
             confirmColor="blue"
           />
         </>

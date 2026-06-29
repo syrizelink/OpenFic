@@ -1,4 +1,5 @@
 import { Box, Flex, Text } from "@radix-ui/themes";
+import i18n from "@/i18n";
 
 import type { AgentMessage } from "@/lib/agent.types";
 
@@ -24,8 +25,8 @@ export function AskUserToolMessage({ message }: AskUserToolMessageProps) {
     <ToolBody>
       <Box className="agent-ask-user-panel">
         <Flex align="center" justify="between" gap="3" className="agent-ask-user-panel-header">
-          <Text className="agent-ask-user-panel-title">询问</Text>
-          <Text className="agent-ask-user-panel-count">{pairs.length} 个问题</Text>
+          <Text className="agent-ask-user-panel-title">{i18n.t("assistant.tools.askUser")}</Text>
+          <Text className="agent-ask-user-panel-count">{i18n.t("assistant.tools.questionCount", { count: pairs.length })}</Text>
         </Flex>
         <ol className="agent-ask-user-list">
           {pairs.map((pair, index) => {

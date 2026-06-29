@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Box } from "@radix-ui/themes";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { BarChart3, BookOpenText, ListTree } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { MobileAppSidebarTrigger } from "@/features/app-shell";
 import { DashboardFilters } from "../components/dashboard-filters";
 import { DashboardRecordsTab } from "../components/dashboard-records-tab";
@@ -20,12 +21,6 @@ const defaultLlmQuery: DashboardQueryParams = {
   sortBy: "created_at",
   sortOrder: "desc",
 };
-
-const tabs: Array<{ value: DashboardTab; label: string; icon: typeof BookOpenText }> = [
-  { value: "writing", label: "写作", icon: BookOpenText },
-  { value: "llm", label: "LLM 统计", icon: BarChart3 },
-  { value: "records", label: "调用记录", icon: ListTree },
-];
 
 function getCurrentYear(): number {
   return new Date().getFullYear();
@@ -48,6 +43,7 @@ interface DashboardPageProps {
 }
 
 export function DashboardPage({ appearance }: DashboardPageProps) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<DashboardTab>("writing");
   const [llmQuery, setLlmQuery] = useState<DashboardQueryParams>(defaultLlmQuery);
   const [searchInput, setSearchInput] = useState("");
@@ -57,6 +53,11 @@ export function DashboardPage({ appearance }: DashboardPageProps) {
   const isWritingTab = activeTab === "writing";
   const isLlmTab = activeTab === "llm";
   const isRecordsTab = activeTab === "records";
+  const tabs: Array<{ value: DashboardTab; label: string; icon: typeof BookOpenText }> = [
+    { value: "writing", label: t("dashboard.tabs.writing"), icon: BookOpenText },
+    { value: "llm", label: t("dashboard.tabs.llm"), icon: BarChart3 },
+    { value: "records", label: t("dashboard.tabs.records"), icon: ListTree },
+  ];
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -164,11 +165,11 @@ export function DashboardPage({ appearance }: DashboardPageProps) {
         <header className="dashboard-header">
           <div className="dashboard-title-block" style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <MobileAppSidebarTrigger />
-            <h1 className="dashboard-title">仪表盘</h1>
+            <h1 className="dashboard-title">{t("dashboard.title")}</h1>
           </div>
         </header>
 
-        <nav className="dashboard-tab-nav" role="tablist" aria-label="仪表盘分区">
+        <nav className="dashboard-tab-nav" role="tablist" aria-label={t("dashboard.navLabel")}>
           {tabs.map((tab) => {
             const TabIcon = tab.icon;
             return (

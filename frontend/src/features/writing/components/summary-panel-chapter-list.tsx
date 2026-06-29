@@ -13,6 +13,7 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import { ChevronDown, ChevronLeft, ChevronRight, ListChecks, Search, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import "./summary-panel.css";
 
 import { ConfirmDialog, SimpleSelect, toast } from "@/components";
@@ -230,6 +231,7 @@ interface ChapterSummaryListViewProps {
 }
 
 export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProps) {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [volumeId, setVolumeId] = useState<string | null>(null);
@@ -338,9 +340,9 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
       if (shouldGoToPreviousPage) {
         setPage((current) => current - 1);
       }
-      toast.success(targetIds.length > 0 ? "已删除选中的章节摘要。" : "已删除全部章节摘要。");
+      toast.success(targetIds.length > 0 ? t("summary.deleteSelectedChapterSuccess") : t("summary.deleteAllChapterSuccess"));
     } catch (error) {
-      toast.error(`删除章节摘要失败：${getSummaryErrorMessage(error)}`);
+      toast.error(t("summary.deleteChapterFailed", { reason: getSummaryErrorMessage(error) }));
     }
   };
 
@@ -360,7 +362,7 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
           triggerClassName="summary-volume-select"
         />
         <TextField.Root
-          placeholder="搜索章节名、人物、地点或摘要内容"
+          placeholder={t("summary.searchChapterPlaceholder")}
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
           size="2"
@@ -370,12 +372,12 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
             <Search size={16} />
           </TextField.Slot>
         </TextField.Root>
-        <Tooltip content={isSelectionMode ? "取消多选" : "多选"}>
+        <Tooltip content={isSelectionMode ? t("summary.cancelSelectMode") : t("summary.selectMode")}>
           <IconButton variant={isSelectionMode ? "soft" : "ghost"} size="2" onClick={handleToggleSelectionMode}>
             <ListChecks size={16} />
           </IconButton>
         </Tooltip>
-        <Tooltip content={isSelectionMode && selectedIds.length > 0 ? "删除选中章节摘要" : "删除全部章节摘要"}>
+        <Tooltip content={isSelectionMode && selectedIds.length > 0 ? t("summary.deleteSelectedChapters") : t("summary.deleteAllChapters")}>
           <IconButton
             variant="ghost"
             size="2"
@@ -393,7 +395,7 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
       ) : items.length === 0 ? (
         <Flex align="center" justify="center" py="8">
           <Text size="2" color="gray">
-            {searchQuery ? "当前页没有匹配的章节摘要。" : "暂无章节。"}
+            {searchQuery ? t("summary.emptyChapterPage") : t("summary.emptyChapters")}
           </Text>
         </Flex>
       ) : (
@@ -417,14 +419,14 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
       ) : total > 0 && !searchQuery ? (
         <Flex align="center" justify="between" wrap="wrap" gap="3">
           <Text size="2" color="gray">
-            第 {pageStart} - {pageEnd} 条，共 {total} 条
+            {t("summary.range", { start: pageStart, end: pageEnd, total })}
           </Text>
           <Flex align="center" gap="2" wrap="wrap">
             <Text size="2" color="gray">
-              总页数: {totalPages}
+              {t("summary.totalPages", { total: totalPages })}
             </Text>
             <IconButton
-              aria-label="上一页"
+              aria-label={t("summary.prevPage")}
               color="gray"
                disabled={currentPage <= 1 || isFetching}
               size="1"
@@ -433,7 +435,7 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
             >
               <ChevronLeft size={14} />
             </IconButton>
-            <Flex align="center" gap="1" aria-label="页码列表">
+            <Flex align="center" gap="1" aria-label={t("summary.pageList")}>
               {visiblePages.map((visiblePage, index) =>
                 visiblePage === "ellipsis" ? (
                   <Text key={`ellipsis-${index}`} size="2" color="gray">
@@ -454,7 +456,7 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
               )}
             </Flex>
             <IconButton
-              aria-label="下一页"
+              aria-label={t("summary.nextPage")}
               color="gray"
                disabled={currentPage >= totalPages || isFetching}
               size="1"
@@ -471,13 +473,13 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         onConfirm={handleConfirmDelete}
-        title={isSelectionMode && selectedIds.length > 0 ? "删除选中的章节摘要" : "删除全部章节摘要"}
+        title={isSelectionMode && selectedIds.length > 0 ? t("summary.deleteDialog.deleteSelectedChaptersTitle") : t("summary.deleteDialog.deleteAllChaptersTitle")}
         description={
           isSelectionMode && selectedIds.length > 0
-            ? `将删除 ${selectedIds.length} 个已选章节的摘要内容。`
-            : "将删除当前项目下全部章节摘要内容。"
+            ? t("summary.deleteDialog.deleteSelectedChaptersDescription", { count: selectedIds.length })
+            : t("summary.deleteDialog.deleteAllChaptersDescription")
         }
-        confirmText="删除"
+        confirmText={t("common.delete")}
         confirmColor="red"
         loading={deleteMutation.isPending}
       />

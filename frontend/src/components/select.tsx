@@ -8,6 +8,7 @@
 import { Box, Button, Flex, Popover, ScrollArea, Select, Text, TextField } from "@radix-ui/themes";
 import { ChevronDown, Search } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { CSSProperties, ReactNode, ComponentProps } from "react";
 import "./select.css";
 
@@ -223,12 +224,15 @@ export function SearchableSelect({
   labelColor,
   layout = "vertical",
   gap = "2",
-  searchPlaceholder = "Search...",
-  emptyMessage = "No matching options",
+  searchPlaceholder,
+  emptyMessage,
   contentHeight = 260,
 }: SearchableSelectProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const resolvedSearchPlaceholder = searchPlaceholder ?? t("select.searchPlaceholder");
+  const resolvedEmptyMessage = emptyMessage ?? t("select.noMatchingOptions");
   const selectedOption = options.find((opt) => opt.value === value);
 
   const filteredOptions = useMemo(() => {
@@ -290,7 +294,7 @@ export function SearchableSelect({
           <TextField.Root
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder={searchPlaceholder}
+              placeholder={resolvedSearchPlaceholder}
             autoFocus
             size={size}
           >
@@ -327,7 +331,7 @@ export function SearchableSelect({
             ) : (
               <Flex align="center" justify="center" p="4">
                 <Text size="2" color="gray">
-                  {emptyMessage}
+                  {resolvedEmptyMessage}
                 </Text>
               </Flex>
             )}

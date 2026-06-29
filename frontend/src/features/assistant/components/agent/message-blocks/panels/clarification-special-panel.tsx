@@ -1,5 +1,6 @@
 import { Box, Flex, Text } from "@radix-ui/themes";
 import { HelpCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import type { AgentQuestionSpecialPanel } from "../../agent-special-panels-state";
 import {
@@ -45,6 +46,7 @@ function ClarificationSpecialPanelContent({
   onSubmitQuestionAnswer,
   readOnly = false,
 }: ClarificationSpecialPanelContentProps) {
+  const { t } = useTranslation();
   const model = useClarificationQuestionFlow(prompt, { onSubmitQuestionAnswer });
   const content = readOnly ? (
     <Flex direction="column" gap="3">
@@ -80,7 +82,7 @@ function ClarificationSpecialPanelContent({
     <SpecialPanelShell
       kind="question"
       icon={<HelpCircle size={15} />}
-      title="需要补充信息"
+      title={t("assistant.specialPanels.clarificationTitle")}
       summary={summary}
       content={content}
       actions={readOnly ? undefined : <ClarificationQuestionActions model={model} />}

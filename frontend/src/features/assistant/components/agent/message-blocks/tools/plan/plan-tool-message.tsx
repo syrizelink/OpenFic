@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Box, Text } from "@radix-ui/themes";
 import { ChevronDown, EllipsisVertical } from "lucide-react";
+import i18n from "@/i18n";
 
 import type { AgentMessage } from "@/lib/agent.types";
 
@@ -51,7 +52,7 @@ function PlanCardFrame({
     <Box className="agent-plan-panel">
       {topic ? (
         <Box className="agent-plan-top-row">
-          <Text className="agent-plan-topic-label">主题</Text>
+          <Text className="agent-plan-topic-label">{i18n.t("assistant.tools.topic")}</Text>
           <Text className="agent-plan-topic-value agent-tool-content-plain-text">{topic}</Text>
           {topRowSuffix}
         </Box>
@@ -169,7 +170,7 @@ function PlanCreateCard({ plan }: { plan: PlanPayload }) {
         </ul>
       ) : (
         <Box className="agent-plan-empty agent-tool-content-plain-text">
-          没有返回计划步骤。
+          {i18n.t("assistant.tools.noPlanSteps")}
         </Box>
       )}
     </PlanCardFrame>
@@ -208,7 +209,7 @@ function PlanUpdateCard({ plan }: { plan: PlanPayload }) {
       className="agent-plan-item-toggle"
       data-expanded={descriptionExpanded ? "true" : "false"}
       aria-expanded={descriptionExpanded}
-      aria-label={descriptionExpanded ? "收起计划说明" : "展开计划说明"}
+      aria-label={descriptionExpanded ? i18n.t("assistant.tools.collapsePlanDescription") : i18n.t("assistant.tools.expandPlanDescription")}
       onClick={() => {
         setDescriptionExpanded((current) => !current);
       }}
@@ -243,7 +244,7 @@ function PlanUpdateCard({ plan }: { plan: PlanPayload }) {
         </ul>
       ) : (
         <Box className="agent-plan-empty agent-tool-content-plain-text">
-          没有返回计划步骤。
+          {i18n.t("assistant.tools.noPlanSteps")}
         </Box>
       )}
     </PlanCardFrame>
@@ -271,8 +272,8 @@ export function PlanToolMessage({ message }: PlanToolMessageProps) {
 
   return (
     <ToolBody>
-      <ToolNotice title="未返回计划内容">
-        {getToolResultMessage(message) ?? "这次工具结果没有返回可显示的计划数据。"}
+      <ToolNotice title={i18n.t("assistant.tools.noPlanContent")}>
+        {getToolResultMessage(message) ?? i18n.t("assistant.tools.noPlanContentDescription")}
       </ToolNotice>
     </ToolBody>
   );

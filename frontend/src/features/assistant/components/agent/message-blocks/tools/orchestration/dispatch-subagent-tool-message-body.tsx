@@ -1,4 +1,5 @@
 import { Box } from "@radix-ui/themes";
+import i18n from "@/i18n";
 
 import type { AgentMessage } from "@/lib/agent.types";
 
@@ -19,7 +20,7 @@ export function DispatchSubagentToolMessageBody({
     <ToolBody>
       <Box className="agent-subagent-tool-callout">
         <Box className="agent-tool-block-content agent-subagent-tool-callout-content">
-          <Box className="agent-subagent-tool-callout-label">已根据指令委派：</Box>
+          <Box className="agent-subagent-tool-callout-label">{i18n.t("assistant.tools.dispatchInstruction")}</Box>
           <Box className="agent-subagent-tool-callout-prompt agent-tool-content-plain-text">{task}</Box>
         </Box>
       </Box>

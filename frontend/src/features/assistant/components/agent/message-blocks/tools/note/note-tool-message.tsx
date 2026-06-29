@@ -3,6 +3,7 @@ import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { Check, Copy } from "lucide-react";
 
 import type { AgentMessage } from "@/lib/agent.types";
+import i18n from "@/i18n";
 import type { ChapterDiffLine, ChapterDiffSection } from "@/features/assistant/lib/chapter-tool-preview";
 import {
   buildChapterDiffCopyText,
@@ -312,8 +313,8 @@ export function EditNoteToolMessage({ message }: NoteToolMessageProps) {
   if (!note.title && !oldContent && !newContent) {
     return (
       <ToolBody>
-        <ToolNotice title="未返回笔记编辑信息">
-          {getToolResultMessage(message) ?? "这次编辑没有返回可显示的笔记信息。"}
+        <ToolNotice title={i18n.t("assistant.tools.noNoteEditInfo")}>
+          {getToolResultMessage(message) ?? i18n.t("assistant.tools.noNoteEditInfoDescription")}
         </ToolNotice>
       </ToolBody>
     );
@@ -321,10 +322,10 @@ export function EditNoteToolMessage({ message }: NoteToolMessageProps) {
 
   return (
     <ToolBody>
-      <ToolTextBlock label="笔记" value={note.title} />
-      <ToolTextBlock label="查找" value={oldContent} />
-      <ToolTextBlock label="替换为" value={newContent} />
-      <ToolTextBlock label="结果" value={getToolResultMessage(message)} />
+      <ToolTextBlock label={i18n.t("assistant.tools.note")} value={note.title} />
+      <ToolTextBlock label={i18n.t("assistant.tools.find")} value={oldContent} />
+      <ToolTextBlock label={i18n.t("assistant.tools.replaceWith")} value={newContent} />
+      <ToolTextBlock label={i18n.t("assistant.tools.result")} value={getToolResultMessage(message)} />
     </ToolBody>
   );
 }

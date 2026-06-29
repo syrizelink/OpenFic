@@ -12,6 +12,7 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import { ChevronDown, ChevronLeft, ChevronRight, ListChecks, Search, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import "./summary-panel.css";
 
 import { ConfirmDialog, toast } from "@/components";
@@ -221,6 +222,7 @@ export function LongTermSummaryListView({
   open,
   emptyText,
 }: LongTermSummaryListViewProps) {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -317,9 +319,9 @@ export function LongTermSummaryListView({
       if (shouldGoToPreviousPage) {
         setPage((current) => current - 1);
       }
-      toast.success(targetRanges.length > 0 ? "已删除选中的区间摘要。" : "已删除全部区间摘要。");
+      toast.success(targetRanges.length > 0 ? t("summary.deleteSelectedRangeSuccess") : t("summary.deleteAllRangeSuccess"));
     } catch (error) {
-      toast.error(`删除区间摘要失败：${getSummaryErrorMessage(error)}`);
+      toast.error(t("summary.deleteRangeFailed", { reason: getSummaryErrorMessage(error) }));
     }
   };
 
@@ -337,7 +339,7 @@ export function LongTermSummaryListView({
     <Flex direction="column" gap="3">
       <Flex align="center" gap="2">
         <TextField.Root
-          placeholder="搜索章节区间或摘要内容"
+          placeholder={t("summary.searchRangePlaceholder")}
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
           size="2"
@@ -347,12 +349,12 @@ export function LongTermSummaryListView({
             <Search size={16} />
           </TextField.Slot>
         </TextField.Root>
-        <Tooltip content={isSelectionMode ? "取消多选" : "多选"}>
+        <Tooltip content={isSelectionMode ? t("summary.cancelSelectMode") : t("summary.selectMode")}>
           <IconButton variant={isSelectionMode ? "soft" : "ghost"} size="2" onClick={handleToggleSelectionMode}>
             <ListChecks size={16} />
           </IconButton>
         </Tooltip>
-        <Tooltip content={isSelectionMode && selectedKeys.length > 0 ? "删除选中区间摘要" : "删除全部区间摘要"}>
+        <Tooltip content={isSelectionMode && selectedKeys.length > 0 ? t("summary.deleteSelectedRanges") : t("summary.deleteAllRanges")}>
           <IconButton
             variant="ghost"
             size="2"
@@ -370,7 +372,7 @@ export function LongTermSummaryListView({
       ) : items.length === 0 ? (
         <Flex align="center" justify="center" py="8">
           <Text size="2" color="gray">
-            {searchQuery ? "当前页没有匹配的区间摘要。" : emptyText}
+            {searchQuery ? t("summary.emptyRangePage") : emptyText}
           </Text>
         </Flex>
       ) : (
@@ -397,14 +399,14 @@ export function LongTermSummaryListView({
       ) : total > 0 && !searchQuery ? (
         <Flex align="center" justify="between" wrap="wrap" gap="3">
           <Text size="2" color="gray">
-            第 {pageStart} - {pageEnd} 条，共 {total} 条
+            {t("summary.range", { start: pageStart, end: pageEnd, total })}
           </Text>
           <Flex align="center" gap="2" wrap="wrap">
             <Text size="2" color="gray">
-              总页数: {totalPages}
+              {t("summary.totalPages", { total: totalPages })}
             </Text>
             <IconButton
-              aria-label="上一页"
+              aria-label={t("summary.prevPage")}
               color="gray"
               disabled={currentPage <= 1 || isFetching}
               size="1"
@@ -413,7 +415,7 @@ export function LongTermSummaryListView({
             >
               <ChevronLeft size={14} />
             </IconButton>
-            <Flex align="center" gap="1" aria-label="页码列表">
+            <Flex align="center" gap="1" aria-label={t("summary.pageList")}>
               {visiblePages.map((visiblePage, index) =>
                 visiblePage === "ellipsis" ? (
                   <Text key={`ellipsis-${index}`} size="2" color="gray">
@@ -434,7 +436,7 @@ export function LongTermSummaryListView({
               )}
             </Flex>
             <IconButton
-              aria-label="下一页"
+              aria-label={t("summary.nextPage")}
               color="gray"
               disabled={currentPage >= totalPages || isFetching}
               size="1"
@@ -451,13 +453,13 @@ export function LongTermSummaryListView({
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         onConfirm={handleConfirmDelete}
-        title={isSelectionMode && selectedKeys.length > 0 ? "删除选中的区间摘要" : "删除全部区间摘要"}
+        title={isSelectionMode && selectedKeys.length > 0 ? t("summary.deleteDialog.deleteSelectedRangesTitle") : t("summary.deleteDialog.deleteAllRangesTitle")}
         description={
           isSelectionMode && selectedKeys.length > 0
-            ? `将删除 ${selectedKeys.length} 个已选区间的摘要内容。`
-            : "将删除当前项目下全部区间摘要内容。"
+            ? t("summary.deleteDialog.deleteSelectedRangesDescription", { count: selectedKeys.length })
+            : t("summary.deleteDialog.deleteAllRangesDescription")
         }
-        confirmText="删除"
+        confirmText={t("common.delete")}
         confirmColor="red"
         loading={deleteMutation.isPending}
       />

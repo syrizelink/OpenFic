@@ -16,6 +16,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import type { AgentMessage } from "@/lib/agent.types";
+import i18n from "@/i18n";
 import { formatChapterDisplayName } from "@/features/assistant/lib/chapter-tool-preview";
 import {
   getExploreToolNames as getCatalogExploreToolNames,
@@ -159,7 +160,7 @@ const TOOL_REGISTRY = {
     isExplore: true,
     contentMode: "hidden",
     icon: BookOpen,
-    getTitle: () => "读取章节",
+    getTitle: () => i18n.t("assistant.tools.readChapter"),
     getDetail: (message) => getReadChapterDetail(message),
   },
   write_chapter: {
@@ -169,7 +170,7 @@ const TOOL_REGISTRY = {
     isExplore: false,
     contentMode: "expandable",
     icon: FilePenLine,
-    getTitle: () => "写入章节",
+    getTitle: () => i18n.t("assistant.tools.writeChapter"),
     getDetail: (message) => getChapterPayload(message).title,
     defaultExpanded: () => true,
     render: (message) => <ChapterToolMessage message={message} />,
@@ -181,7 +182,7 @@ const TOOL_REGISTRY = {
     isExplore: false,
     contentMode: "expandable",
     icon: FilePenLine,
-    getTitle: () => "编辑章节",
+    getTitle: () => i18n.t("assistant.tools.editChapter"),
     getDetail: (message) =>
       getChapterPayload(message).title ?? formatChapterRefLabel(getToolRef(message, "chapter_ref")),
     defaultExpanded: () => true,
@@ -194,7 +195,7 @@ const TOOL_REGISTRY = {
     isExplore: false,
     contentMode: "hidden",
     icon: Trash2,
-    getTitle: () => "删除章节",
+    getTitle: () => i18n.t("assistant.tools.deleteChapter"),
     getDetail: (message) => {
       const chapter = getChapterPayload(message);
       return (
@@ -213,10 +214,10 @@ const TOOL_REGISTRY = {
     isExplore: true,
     contentMode: "hidden",
     icon: ListOrdered,
-    getTitle: () => "笔记列表",
+    getTitle: () => i18n.t("assistant.tools.listNotes"),
     getDetail: (message) => {
       const items = getNoteItemList(message);
-      return items.length > 0 ? `${items.length} 项` : undefined;
+      return items.length > 0 ? i18n.t("assistant.tools.itemCount", { count: items.length }) : undefined;
     },
   },
   read_note: {
@@ -226,7 +227,7 @@ const TOOL_REGISTRY = {
     isExplore: true,
     contentMode: "hidden",
     icon: BookOpen,
-    getTitle: () => "读取笔记",
+    getTitle: () => i18n.t("assistant.tools.readNote"),
     getDetail: (message) =>
       getNotePayload(message).title ?? formatNoteRefLabel(getToolRef(message, "note_ref")),
   },
@@ -237,7 +238,7 @@ const TOOL_REGISTRY = {
     isExplore: false,
     contentMode: "expandable",
     icon: FilePenLine,
-    getTitle: () => "写入笔记",
+    getTitle: () => i18n.t("assistant.tools.writeNote"),
     getDetail: (message) => getNotePayload(message).title,
     defaultExpanded: () => true,
     render: (message) => <WriteNoteToolMessage message={message} />,
@@ -249,7 +250,7 @@ const TOOL_REGISTRY = {
     isExplore: false,
     contentMode: "expandable",
     icon: FilePenLine,
-    getTitle: () => "编辑笔记",
+    getTitle: () => i18n.t("assistant.tools.editNote"),
     getDetail: (message) =>
       getNotePayload(message).title ?? formatNoteRefLabel(getToolRef(message, "note_ref")),
     defaultExpanded: () => true,
@@ -262,7 +263,7 @@ const TOOL_REGISTRY = {
     isExplore: false,
     contentMode: "hidden",
     icon: Trash2,
-    getTitle: () => "删除笔记",
+    getTitle: () => i18n.t("assistant.tools.deleteNote"),
     getDetail: (message) =>
       getNotePayload(message).title ?? formatNoteRefLabel(getToolRef(message, "note_ref")),
   },
@@ -273,13 +274,13 @@ const TOOL_REGISTRY = {
     isExplore: false,
     contentMode: "hidden",
     icon: FilePenLine,
-    getTitle: () => "移动笔记",
+    getTitle: () => i18n.t("assistant.tools.moveNote"),
     getDetail: (message) => {
       const note = getNotePayload(message);
       const noteLabel = note.title ?? formatNoteRefLabel(getToolRef(message, "note_ref"));
       const data = message.toolResult?.data;
       const target = isRecord(data) && isRecord(data.target_category) ? data.target_category : null;
-      const targetLabel = asString(target?.title) ?? formatCategoryRefLabel(getToolRef(message, "target_category_ref")) ?? "根层级";
+      const targetLabel = asString(target?.title) ?? formatCategoryRefLabel(getToolRef(message, "target_category_ref")) ?? i18n.t("assistant.tools.rootLevel");
       if (!noteLabel) return undefined;
       return `${noteLabel} \u2192 ${targetLabel}`;
     },
@@ -291,7 +292,7 @@ const TOOL_REGISTRY = {
     isExplore: false,
     contentMode: "hidden",
     icon: FilePenLine,
-    getTitle: () => "创建分类",
+    getTitle: () => i18n.t("assistant.tools.createCategory"),
     getDetail: (message) => {
       const data = getToolResultData(message);
       if (isRecord(data) && isRecord(data.category)) {
@@ -307,10 +308,10 @@ const TOOL_REGISTRY = {
     isExplore: true,
     contentMode: "hidden",
     icon: ListOrdered,
-    getTitle: () => "章节列表",
+    getTitle: () => i18n.t("assistant.tools.listChapters"),
     getDetail: (message) => {
       const chapters = getChapterList(message);
-      return chapters.length > 0 ? `${chapters.length} 个章节` : undefined;
+      return chapters.length > 0 ? i18n.t("assistant.tools.chapterCount", { count: chapters.length }) : undefined;
     },
   },
   search_chapters: {
@@ -320,14 +321,14 @@ const TOOL_REGISTRY = {
     isExplore: true,
     contentMode: "hidden",
     icon: FileSearch,
-    getTitle: () => "章节搜索",
+    getTitle: () => i18n.t("assistant.tools.searchChapters"),
     getDetail: (message) => {
       const data = getToolResultData(message);
       if (!isRecord(data)) return undefined;
       const results = Array.isArray(data.results) ? data.results : [];
       if (results.length === 0) return undefined;
       const query = typeof data.query === "string" && data.query ? data.query : undefined;
-      return query ? `${query} · ${results.length} 个匹配` : `${results.length} 个匹配章节`;
+      return query ? `${query} · ${i18n.t("assistant.tools.matchCount", { count: results.length })}` : i18n.t("assistant.tools.matchedChapters", { count: results.length });
     },
   },
   list_volumes: {
@@ -337,10 +338,10 @@ const TOOL_REGISTRY = {
     isExplore: true,
     contentMode: "hidden",
     icon: ListOrdered,
-    getTitle: () => "卷列表",
+    getTitle: () => i18n.t("assistant.tools.listVolumes"),
     getDetail: (message) => {
       const volumes = getVolumeList(message);
-      return volumes.length > 0 ? `${volumes.length} 个卷` : undefined;
+      return volumes.length > 0 ? i18n.t("assistant.tools.volumeCount", { count: volumes.length }) : undefined;
     },
   },
   create_volume: {
@@ -350,7 +351,7 @@ const TOOL_REGISTRY = {
     isExplore: false,
     contentMode: "static",
     icon: FileText,
-    getTitle: () => "创建卷",
+    getTitle: () => i18n.t("assistant.tools.createVolume"),
     getDetail: (message) =>
       getVolumePayload(message)?.title ?? asString(getStreamingData(message).title),
     render: (message) => <CreateVolumeToolMessage message={message} />,
@@ -362,7 +363,7 @@ const TOOL_REGISTRY = {
     isExplore: false,
     contentMode: "static",
     icon: FilePenLine,
-    getTitle: () => "编辑卷",
+    getTitle: () => i18n.t("assistant.tools.editVolume"),
     getDetail: (message) =>
       getVolumePayload(message)?.title ??
       asString(getStreamingData(message).new_title) ??
@@ -376,7 +377,7 @@ const TOOL_REGISTRY = {
     isExplore: false,
     contentMode: "static",
     icon: Trash2,
-    getTitle: () => "删除卷",
+    getTitle: () => i18n.t("assistant.tools.deleteVolume"),
     getDetail: (message) => formatVolumeRefLabel(getToolRef(message, "volume_ref")),
     render: (message) => <DeleteVolumeToolMessage message={message} />,
   },
@@ -387,7 +388,7 @@ const TOOL_REGISTRY = {
     isExplore: false,
     contentMode: "static",
     icon: FilePenLine,
-    getTitle: () => "移动章节到卷",
+    getTitle: () => i18n.t("assistant.tools.moveChapterToVolume"),
     getDetail: (message) =>
       getChapterPayload(message).title ?? formatChapterRefLabel(getToolRef(message, "chapter_ref")),
     render: (message) => <MoveChapterToVolumeToolMessage message={message} />,
@@ -399,11 +400,11 @@ const TOOL_REGISTRY = {
     isExplore: true,
     contentMode: "hidden",
     icon: FileSearch,
-    getTitle: () => "章节摘要",
+    getTitle: () => i18n.t("assistant.tools.chapterSummaries"),
     getDetail: (message) => {
       const summaries = getChapterSummaryList(message);
       return summaries.length > 0
-        ? `${summaries.length} 条摘要`
+        ? i18n.t("assistant.tools.summaryCount", { count: summaries.length })
         : formatChapterSummaryQuery(message);
     },
   },
@@ -414,11 +415,11 @@ const TOOL_REGISTRY = {
     isExplore: true,
     contentMode: "hidden",
     icon: FileText,
-    getTitle: () => "区间摘要",
+    getTitle: () => i18n.t("assistant.tools.rangeSummaries"),
     getDetail: (message) => {
       const summaries = getRangeSummaryList(message);
       return summaries.length > 0
-        ? `${summaries.length} 条摘要`
+        ? i18n.t("assistant.tools.summaryCount", { count: summaries.length })
         : formatRangeSummaryQuery(message);
     },
   },
@@ -429,12 +430,12 @@ const TOOL_REGISTRY = {
     isExplore: true,
     contentMode: "hidden",
     icon: BookOpen,
-    getTitle: () => "世界书",
+    getTitle: () => i18n.t("assistant.tools.worldInfo"),
     getDetail: (message) => {
       const content = getWorldInfoContent(message);
       const entries = parseWorldInfoEntries(content);
-      if (entries.length > 0) return `${entries.length} 条条目`;
-      return content ? "已匹配内容" : undefined;
+      if (entries.length > 0) return i18n.t("assistant.tools.worldInfoEntryCount", { count: entries.length });
+      return content ? i18n.t("assistant.tools.matchedContent") : undefined;
     },
   },
   create_plan: {
@@ -444,7 +445,7 @@ const TOOL_REGISTRY = {
     isExplore: false,
     contentMode: getPlanToolDisplayConfig("create_plan").contentMode,
     icon: ListOrdered,
-    getTitle: () => "创建计划",
+    getTitle: () => i18n.t("assistant.tools.createPlan"),
     getDetail: (message) =>
       getPlanDetailForDisplayKind(message, getPlanToolDisplayConfig("create_plan").detailKind),
     defaultExpanded: () => getPlanToolDisplayConfig("create_plan").defaultExpanded,
@@ -457,7 +458,7 @@ const TOOL_REGISTRY = {
     isExplore: false,
     contentMode: getPlanToolDisplayConfig("update_plan").contentMode,
     icon: ListOrdered,
-    getTitle: () => "更新计划",
+    getTitle: () => i18n.t("assistant.tools.updatePlan"),
     getDetail: (message) =>
       getPlanDetailForDisplayKind(message, getPlanToolDisplayConfig("update_plan").detailKind),
     defaultExpanded: () => getPlanToolDisplayConfig("update_plan").defaultExpanded,
@@ -470,7 +471,7 @@ const TOOL_REGISTRY = {
     isExplore: false,
     contentMode: getPlanToolDisplayConfig("get_plan").contentMode,
     icon: ListOrdered,
-    getTitle: () => "读取计划",
+    getTitle: () => i18n.t("assistant.tools.getPlan"),
     getDetail: (message) =>
       getPlanDetailForDisplayKind(message, getPlanToolDisplayConfig("get_plan").detailKind),
     render: (message) => <PlanToolMessage message={message} />,
@@ -482,7 +483,7 @@ const TOOL_REGISTRY = {
     isExplore: false,
     contentMode: getPlanToolDisplayConfig("list_plan").contentMode,
     icon: ListOrdered,
-    getTitle: () => "计划列表",
+    getTitle: () => i18n.t("assistant.tools.listPlan"),
     getDetail: (message) =>
       getPlanDetailForDisplayKind(message, getPlanToolDisplayConfig("list_plan").detailKind),
     render: (message) => <PlanToolMessage message={message} />,
@@ -494,7 +495,7 @@ const TOOL_REGISTRY = {
     isExplore: false,
     contentMode: "static",
     icon: Puzzle,
-    getTitle: () => "装载技能",
+    getTitle: () => i18n.t("assistant.tools.useSkill"),
     getDetail: (message) => {
       const data = getStreamingData(message);
       return asString(data.name) ?? asString(data.skill_id);
@@ -502,8 +503,8 @@ const TOOL_REGISTRY = {
     render: (message) => (
       <SkillToolMessage
         message={message}
-        actionLabel="装载技能"
-        emptyTitle="未返回技能装载信息"
+        actionLabel={i18n.t("assistant.tools.useSkillAction")}
+        emptyTitle={i18n.t("assistant.tools.useSkillEmpty")}
       />
     ),
   },
@@ -514,7 +515,7 @@ const TOOL_REGISTRY = {
     isExplore: false,
     contentMode: "static",
     icon: Puzzle,
-    getTitle: () => "卸载技能",
+    getTitle: () => i18n.t("assistant.tools.uninstallSkill"),
     getDetail: (message) => {
       const data = getStreamingData(message);
       return asString(data.name) ?? asString(data.skill_id);
@@ -522,8 +523,8 @@ const TOOL_REGISTRY = {
     render: (message) => (
       <SkillToolMessage
         message={message}
-        actionLabel="卸载技能"
-        emptyTitle="未返回技能卸载信息"
+        actionLabel={i18n.t("assistant.tools.uninstallSkillAction")}
+        emptyTitle={i18n.t("assistant.tools.uninstallSkillEmpty")}
       />
     ),
   },

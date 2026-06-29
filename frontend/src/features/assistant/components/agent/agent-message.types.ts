@@ -1,15 +1,20 @@
 import type { AgentType } from "@/lib/agent.types";
+import i18n from "@/i18n";
 
 export interface AgentMessageBlockProps {
   onApplyContent?: (content: string) => void;
 }
 
+export function getAgentName(agent: AgentType): string {
+  return i18n.t(`assistant.agentNames.${agent}`);
+}
+
 export const AGENT_NAMES: Record<AgentType, string> = {
-  primary: "Primary Agent",
-  explorer: "信息探索",
-  composer: "任务组织",
-  auditor: "计划审查",
-  writer: "内容创作",
-  actor: "任务执行",
-  reviewer: "质量审核",
+  primary: getAgentName("primary"),
+  explorer: getAgentName("explorer"),
+  composer: getAgentName("composer"),
+  auditor: getAgentName("auditor"),
+  writer: getAgentName("writer"),
+  actor: getAgentName("actor"),
+  reviewer: getAgentName("reviewer"),
 };
