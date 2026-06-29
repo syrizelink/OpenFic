@@ -7,7 +7,7 @@ import {
   TextField,
   Box,
 } from "@radix-ui/themes";
-import { Loader2, Check, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,6 +18,7 @@ import type {
   ModelProviderCatalogProvider,
   ProviderType,
 } from "@/lib/model.types";
+import { Spinner } from "@/components";
 import { LabeledSelect } from "@/components/select";
 import { validateProvider } from "../lib/model-api";
 import { IconCropper } from "./icon-cropper";
@@ -456,9 +457,7 @@ export function ConnectionFormDialog({
                       : undefined,
               }}
             >
-              {validationStatus === "validating" && (
-                <Loader2 size={16} className="animate-spin" />
-              )}
+              {validationStatus === "validating" ? <Spinner size={18} /> : null}
               {validationStatus === "success" && <Check size={16} />}
               {validationStatus === "error" && <X size={16} />}
               {validationStatus === "validating"
@@ -487,9 +486,7 @@ export function ConnectionFormDialog({
                   isSubmitting || (!isEditing && validationStatus !== "success")
                 }
               >
-                {isSubmitting && (
-                  <Loader2 size={16} className="animate-spin" />
-                )}
+                {isSubmitting ? <Spinner size={18} /> : null}
                 {isEditing ? t("common.save") : t("common.create")}
               </Button>
             </Flex>

@@ -9,7 +9,6 @@ import {
   TextArea,
   Separator,
 } from "@radix-ui/themes";
-import { Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,6 +23,7 @@ import type {
   ModelUpdateRequest,
   TaskType,
 } from "@/lib/model.types";
+import { Spinner } from "@/components";
 import { ModelIdSelect } from "@/components/model-id-select";
 import { LabeledSelect } from "@/components/select";
 import { TagInput } from "@/components/tag-input";
@@ -676,9 +676,7 @@ export function ModelFormDialog({
                 </Button>
               </Dialog.Close>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && (
-                  <Loader2 size={16} className="animate-spin" />
-                )}
+                {isSubmitting ? <Spinner size={18} /> : null}
                 {isEditing ? t("common.save") : t("common.create")}
               </Button>
             </Flex>

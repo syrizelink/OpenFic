@@ -1,11 +1,11 @@
-import { Box, Flex, IconButton, Spinner, Text, Tooltip } from "@radix-ui/themes";
-import { ArrowUp, CircleUserRound, Component, ExternalLink, Loader2, ShieldCheck, Square } from "lucide-react";
+import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
+import { ArrowUp, CircleUserRound, Component, ExternalLink, ShieldCheck, Square } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { ModelIdSelect, type ModelIdSelectOption } from "@/components";
+import { ModelIdSelect, Spinner, type ModelIdSelectOption } from "@/components";
 import { SimpleSelect, type SelectOption } from "@/components/select";
 import type { AgentPendingMessage, AgentSessionStatus } from "@/lib/agent.types";
 import {
@@ -259,7 +259,7 @@ export function AgentInput({
         <Flex align="center" gap="2" wrap="wrap" style={{ flex: "1 1 auto", minWidth: 0 }}>
           {isModelsLoading ? (
             <Flex align="center" gap="2" style={{ flex: "0 0 auto" }}>
-              <Spinner size="1" />
+              <Spinner size={18} />
               <Text size="1" color="gray">
                 加载中...
               </Text>
@@ -388,7 +388,7 @@ export function AgentInput({
               {shouldAbort ? (
                 <Square size={12} fill="currentColor" />
               ) : disabled ? (
-                <Loader2 size={14} className="animate-spin" />
+                <Spinner size={18} />
               ) : (
                 <ArrowUp size={14} />
               )}

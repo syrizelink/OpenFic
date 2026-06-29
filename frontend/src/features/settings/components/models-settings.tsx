@@ -14,7 +14,7 @@ import {
   Badge,
   Tabs,
 } from "@radix-ui/themes";
-import { Plus, Trash2, Edit, Loader2 } from "lucide-react";
+import { Plus, Trash2, Edit } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -27,6 +27,7 @@ import {
   ModelIdSelect,
   type ModelIdSelectOption,
 } from "@/components/model-id-select";
+import { Spinner } from "@/components";
 import {
   CapabilityIcon,
   ContextBadge,
@@ -321,7 +322,7 @@ export function ModelsSettings({
 
         {isContentLoading ? (
           <Flex align="center" justify="center" style={{ height: 200 }}>
-            <Loader2 size={24} className="animate-spin" />
+            <Spinner size={18} />
           </Flex>
         ) : (
           <>

@@ -1,6 +1,7 @@
 import { Box, Button, Flex } from "@radix-ui/themes";
 import { RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Spinner } from "./spinner";
 import "./global-loading.css";
 
 interface GlobalLoadingProps {
@@ -15,15 +16,13 @@ interface GlobalLoadingProps {
  */
 export function GlobalLoading({ error, onRetry }: GlobalLoadingProps) {
   const { t } = useTranslation();
+  const spinnerLabel = error ? t("common.retryInitialization") : t("common.loading");
 
   return (
     <Box className="global-loading-shell">
       <Flex className="global-loading-stage" direction="column" align="center" justify="center">
-        <Box className="global-loading-orbit" data-error={error ? "true" : "false"} aria-hidden="true">
-          <span className="global-loading-ring global-loading-ring-outer" />
-          <span className="global-loading-ring global-loading-ring-middle" />
-          <span className="global-loading-ring global-loading-ring-inner" />
-          <span className="global-loading-core" />
+        <Box className="global-loading-spinner-shell" data-error={error ? "true" : "false"}>
+          <Spinner className="global-loading-spinner" size={24} aria-label={spinnerLabel} />
         </Box>
 
         {error ? (

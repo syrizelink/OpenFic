@@ -13,7 +13,7 @@
   height: 100%;
 }
 
-.global-loading-orbit {
+.global-loading-spinner-shell {
   position: relative;
   display: grid;
   width: 96px;
@@ -22,61 +22,12 @@
   filter: drop-shadow(0 0 24px var(--gray-a4));
 }
 
-.global-loading-ring,
-.global-loading-core {
-  position: absolute;
-  border-radius: 999px;
+.global-loading-spinner {
+  color: var(--gray-12);
 }
 
-.global-loading-ring {
-  border: 1px solid transparent;
-}
-
-.global-loading-ring-outer {
-  inset: 0;
-  border-top-color: var(--gray-11);
-  border-right-color: var(--gray-8);
-  animation: global-loading-spin 1.6s linear infinite;
-}
-
-.global-loading-ring-middle {
-  inset: 14px;
-  border-bottom-color: var(--gray-7);
-  border-left-color: var(--gray-10);
-  animation: global-loading-spin-reverse 1.15s linear infinite;
-}
-
-.global-loading-ring-inner {
-  inset: 28px;
-  border-top-color: var(--gray-9);
-  border-left-color: var(--gray-6);
-  animation: global-loading-spin-pulse 1.8s linear infinite;
-}
-
-.global-loading-core {
-  top: 50%;
-  left: 50%;
-  width: 12px;
-  height: 12px;
-  background: var(--gray-12);
-  box-shadow: 0 0 0 10px var(--gray-a3);
-  transform: translate(-50%, -50%);
-  animation: global-loading-core 1.2s ease-in-out infinite;
-}
-
-.global-loading-orbit[data-error="true"] .global-loading-ring-outer,
-.global-loading-orbit[data-error="true"] .global-loading-ring-middle,
-.global-loading-orbit[data-error="true"] .global-loading-ring-inner {
-  border-color: transparent;
-  border-top-color: var(--red-9);
-  border-right-color: var(--red-7);
-  animation-duration: 2.4s;
-}
-
-.global-loading-orbit[data-error="true"] .global-loading-core {
-  background: var(--red-10);
-  box-shadow: 0 0 0 10px var(--red-a3);
-  animation-duration: 1.8s;
+.global-loading-spinner-shell[data-error="true"] .global-loading-spinner {
+  color: var(--red-10);
 }
 
 .global-loading-retry {
@@ -94,71 +45,4 @@
 
 .global-loading-retry:hover {
   background: color-mix(in oklab, var(--color-background) 68%, var(--gray-a4));
-}
-
-@keyframes global-loading-spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes global-loading-spin-reverse {
-  from {
-    transform: rotate(360deg) scale(1);
-  }
-
-  50% {
-    transform: rotate(180deg) scale(0.96);
-  }
-
-  to {
-    transform: rotate(0deg) scale(1);
-  }
-}
-
-@keyframes global-loading-pulse-ring {
-  0%,
-  100% {
-    transform: scale(0.94);
-    opacity: 0.55;
-  }
-
-  50% {
-    transform: scale(1.02);
-    opacity: 1;
-  }
-}
-
-@keyframes global-loading-spin-pulse {
-  0% {
-    transform: rotate(0deg) scale(0.94);
-    opacity: 0.55;
-  }
-
-  50% {
-    transform: rotate(180deg) scale(1.02);
-    opacity: 1;
-  }
-
-  100% {
-    transform: rotate(360deg) scale(0.94);
-    opacity: 0.55;
-  }
-}
-
-@keyframes global-loading-core {
-  0%,
-  100% {
-    transform: translate(-50%, -50%) scale(0.9);
-    opacity: 0.72;
-  }
-
-  50% {
-    transform: translate(-50%, -50%) scale(1.18);
-    opacity: 1;
-  }
 }

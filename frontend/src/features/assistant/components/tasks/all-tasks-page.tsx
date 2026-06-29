@@ -12,7 +12,6 @@ import {
   IconButton,
   Tooltip,
   TextField,
-  Spinner,
 } from "@radix-ui/themes";
 import { ArrowLeft, Copy, Star, Trash2, Search, ListX } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -21,7 +20,7 @@ import { zhCN } from "date-fns/locale";
 
 import type { TaskListItem } from "@/lib/task.types";
 import { useTasks, useUpdateTask, useDeleteTask, useDeleteAllTasks } from "../../hooks/use-tasks";
-import { toast, ConfirmDialog } from "@/components";
+import { toast, ConfirmDialog, Spinner } from "@/components";
 
 interface AllTasksPageProps {
   projectId: string;
@@ -174,7 +173,7 @@ export function AllTasksPage({
       >
         {isLoading ? (
           <Flex align="center" justify="center" style={{ padding: "32px" }}>
-            <Spinner size="3" />
+            <Spinner size={18} />
           </Flex>
         ) : tasks.length === 0 ? (
           <Flex

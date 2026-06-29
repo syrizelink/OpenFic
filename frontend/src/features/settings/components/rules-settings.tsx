@@ -5,7 +5,6 @@ import {
   Dialog,
   Flex,
   IconButton,
-  Spinner,
   Text,
   TextArea,
   TextField,
@@ -16,6 +15,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react";
 import Fuse from "fuse.js";
 import { useTranslation } from "react-i18next";
+import { Spinner } from "@/components";
 
 import {
   createAgentRule,
@@ -296,7 +296,7 @@ export function RulesSettings({
   if (isLoading) {
     return (
       <Flex align="center" justify="center" style={{ height: "100%" }}>
-        <Spinner size="3" />
+        <Spinner size={18} />
       </Flex>
     );
   }

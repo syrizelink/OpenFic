@@ -16,7 +16,6 @@ import {
   TextArea,
   ScrollArea,
   Badge,
-  Spinner,
   Progress,
   Card,
 } from "@radix-ui/themes";
@@ -29,6 +28,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Spinner } from "@/components";
 import "./import-dialog.css";
 import { CoverCropper } from "./cover-cropper";
 import {
@@ -241,7 +241,7 @@ export function ImportDialog({
 
             {loading && (
               <Flex align="center" gap="2" mt="4" justify="center">
-                <Spinner size="2" />
+                <Spinner size={18} />
                 <Text size="2" color="gray">
                   {t("import.parsing")}
                 </Text>

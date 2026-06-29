@@ -5,7 +5,7 @@
  */
 
 import { useState, useMemo } from "react";
-import { Box, Container, Flex, Text, Grid, Spinner } from "@radix-ui/themes";
+import { Box, Container, Flex, Text, Grid } from "@radix-ui/themes";
 import { BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
@@ -25,7 +25,7 @@ import { ProjectListItem } from "../components/project-list-item";
 import { ProjectsToolbar } from "../components/projects-toolbar";
 import { ProjectFormDialog } from "../components/project-form-dialog";
 import { ImportDialog } from "../components/import-dialog";
-import { ConfirmDialog, toast } from "@/components";
+import { ConfirmDialog, Spinner, toast } from "@/components";
 import type { Project } from "@/lib/project.types";
 import { getPinyin, getInitials } from "@/lib/pinyin-search";
 
@@ -225,7 +225,7 @@ export function ProjectsPage() {
         {/* 加载状态 */}
         {isLoading && (
           <Flex justify="center" align="center" py="9">
-            <Spinner size="3" />
+            <Spinner size={18} />
           </Flex>
         )}
 

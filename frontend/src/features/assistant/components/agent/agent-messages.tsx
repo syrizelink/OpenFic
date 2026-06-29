@@ -4,7 +4,7 @@
  * Agent 消息列表组件
  */
 
-import { Box, Flex, IconButton, Spinner, Text, Tooltip } from "@radix-ui/themes";
+import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { Check, Copy, GitFork, RotateCcw } from "lucide-react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -35,7 +35,7 @@ import {
 import { ExplorationMessage } from "./message-blocks/blocks/exploration/exploration-message";
 import "./agent-message-blocks.css";
 
-import { ConfirmDialog, toast } from "@/components";
+import { ConfirmDialog, Spinner, toast } from "@/components";
 import type { AgentMessage as AgentMessageType } from "@/lib/agent.types";
 
 const COPY_FEEDBACK_MS = 1200;
@@ -524,7 +524,7 @@ export function AgentMessages({
             gap: "8px",
           }}
         >
-          <Spinner size="2" />
+          <Spinner size={18} />
           <Text size="2" style={{ color: "white" }}>
             {t("assistant.rollbacking")}
           </Text>

@@ -6,7 +6,6 @@ import {
   Dialog,
   Flex,
   IconButton,
-  Spinner,
   Switch,
   Text,
   TextArea,
@@ -17,6 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { MoreHorizontal, Plus, Search, Trash2, Upload, X } from "lucide-react";
 import Fuse from "fuse.js";
+import { Spinner } from "@/components";
 
 import {
   createSkill,
@@ -397,7 +397,7 @@ export function SkillsSettings({
   if (isLoading) {
     return (
       <Flex align="center" justify="center" style={{ height: "100%" }}>
-        <Spinner size="3" />
+        <Spinner size={18} />
       </Flex>
     );
   }

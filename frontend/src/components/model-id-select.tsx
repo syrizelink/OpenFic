@@ -15,7 +15,6 @@ import {
   AlertCircle,
   ChevronDown,
   Component,
-  Loader2,
   RefreshCw,
   Search,
 } from "lucide-react";
@@ -24,6 +23,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 
 import type { AvailableModel, TaskType } from "@/lib/model.types";
+import { Spinner } from "@/components";
 import {
   CapabilityIcon,
   ContextBadge,
@@ -345,7 +345,7 @@ export function ModelIdSelect({
                     title={t("models.fetchRemoteModels")}
                   >
                     {isRefreshing ? (
-                      <Loader2 size={14} className="animate-spin" />
+                      <Spinner size={18} />
                     ) : (
                       <RefreshCw size={14} />
                     )}
@@ -364,7 +364,7 @@ export function ModelIdSelect({
                 gap="2"
                 style={{ height: placeholderHeight, padding: 20 }}
               >
-                <Loader2 size={24} className="animate-spin" />
+                <Spinner size={18} />
                 <Text size={labelSize} color="gray">
                   {t("models.loadingModels")}
                 </Text>

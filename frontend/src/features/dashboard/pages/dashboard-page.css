@@ -652,29 +652,6 @@
   pointer-events: none;
 }
 
-.dashboard-chart-mount-spinner {
-  --dashboard-chart-spinner-track: var(--gray-a5);
-  --dashboard-chart-spinner-active: var(--gray-10);
-  width: 24px;
-  height: 24px;
-  border: 2px solid var(--dashboard-chart-spinner-track);
-  border-top-color: var(--dashboard-chart-spinner-active);
-  border-radius: 999px;
-  animation: dashboard-chart-mount-spin 0.8s linear infinite;
-}
-
-.radix-themes.dark .dashboard-chart-mount-spinner,
-[data-theme="dark"] .dashboard-chart-mount-spinner {
-  --dashboard-chart-spinner-track: rgba(255, 255, 255, 0.12);
-  --dashboard-chart-spinner-active: rgba(255, 255, 255, 0.72);
-}
-
-@keyframes dashboard-chart-mount-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .dashboard-record-card {
   overflow: hidden;
 }
@@ -760,15 +737,6 @@
   gap: 10px;
   background: color-mix(in srgb, var(--color-panel-solid) 72%, transparent);
   pointer-events: none;
-}
-
-.dashboard-record-loading-spinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--gray-a5);
-  border-top-color: var(--gray-10);
-  border-radius: 999px;
-  animation: dashboard-chart-mount-spin 0.8s linear infinite;
 }
 
 .dashboard-record-time,

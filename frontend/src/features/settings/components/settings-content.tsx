@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { Box, Button, Flex, IconButton, Text } from "@radix-ui/themes";
-import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import axios from "axios";
+import { Spinner } from "@/components";
 import "./settings-dialog.css";
 
 import { SettingsSidebar } from "../components/settings-sidebar";
@@ -241,7 +242,7 @@ export function SettingsContent({ appearance, onClose, route }: SettingsContentP
       >
         {isCategoryLoading ? (
           <Flex align="center" justify="center" className="settings-dialog-loading-state">
-            <Loader2 size={24} className="animate-spin" />
+            <Spinner size={18} />
           </Flex>
         ) : displaySettings ? (
           <>
@@ -304,9 +305,7 @@ export function SettingsContent({ appearance, onClose, route }: SettingsContentP
             disabled={!hasChanges || saveMutation.isPending}
             onClick={handleSave}
           >
-            {saveMutation.isPending ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : null}
+            {saveMutation.isPending ? <Spinner size={18} /> : null}
             {t("settings.save")}
           </Button>
         </Box>

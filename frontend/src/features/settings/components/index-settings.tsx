@@ -12,18 +12,17 @@ import {
   Checkbox,
   Flex,
   Separator,
-  Spinner,
   Text,
   TextField,
   Badge,
 } from "@radix-ui/themes";
-import { Loader2, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ModelIdSelect, type ModelIdSelectOption } from "@/components/model-id-select";
 import { LabeledSelect } from "@/components/select";
-import { ConfirmDialog, toast } from "@/components";
+import { ConfirmDialog, Spinner, toast } from "@/components";
 import { fetchProjects } from "@/lib/api-client";
 import {
   subscribeBackgroundEvents,
@@ -324,7 +323,7 @@ export function IndexSettings() {
   if (!settings) {
     return (
       <Flex align="center" justify="center" style={{ height: 200 }}>
-        <Spinner size="3" />
+        <Spinner size={18} />
       </Flex>
     );
   }
@@ -642,7 +641,7 @@ function ProjectIndexInfoRow({ status }: { status: ProjectIndexStatus }) {
           disabled={startMutation.isPending || !canStart}
         >
           {startMutation.isPending || status.status === "indexing" ? (
-            <Loader2 size={14} className="animate-spin" />
+            <Spinner size={18} />
           ) : (
             <RefreshCw size={14} />
           )}

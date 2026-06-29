@@ -6,9 +6,9 @@ import {
   Dialog,
   Flex,
   ScrollArea,
-  Spinner,
   Text,
 } from "@radix-ui/themes";
+import { Spinner } from "@/components";
 import {
   AlertCircle,
   Check,
@@ -144,7 +144,7 @@ export function ImportSkillDialog({
 
             {loading && (
               <Flex align="center" gap="2" mt="4" justify="center">
-                <Spinner size="2" />
+                <Spinner size={18} />
                 <Text size="2" color="gray">
                   正在解析...
                 </Text>

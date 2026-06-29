@@ -8,7 +8,6 @@ import {
   Flex,
   Progress,
   ScrollArea,
-  Spinner,
   Text,
 } from "@radix-ui/themes";
 import {
@@ -20,6 +19,7 @@ import {
   Upload,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Spinner } from "@/components";
 import "./import-world-info-dialog.css";
 
 import {
@@ -201,7 +201,7 @@ export function ImportWorldInfoDialog({
 
             {loading && (
               <Flex align="center" gap="2" mt="4" justify="center">
-                <Spinner size="2" />
+                <Spinner size={18} />
                 <Text size="2" color="gray">
                   {t("worldInfo.importParsing")}
                 </Text>

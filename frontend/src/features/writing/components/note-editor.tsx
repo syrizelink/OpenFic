@@ -1,9 +1,9 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { Flex, Text, Spinner } from "@radix-ui/themes";
+import { Flex, Text } from "@radix-ui/themes";
 import { Lock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { MarkdownEditor } from "@/components";
+import { MarkdownEditor, Spinner } from "@/components";
 import { useNote, useUpdateNote } from "../hooks/use-notes";
 import { useAutoSave } from "../hooks/use-auto-save";
 import { useTabsStore } from "../store/use-tabs-store";
@@ -185,7 +185,7 @@ export function NoteEditor(props: NoteEditorProps) {
         justify="center"
         style={{ flex: 1, minHeight: 0, height: "100%" }}
       >
-        <Spinner size="3" />
+        <Spinner size={18} />
       </Flex>
     );
   }

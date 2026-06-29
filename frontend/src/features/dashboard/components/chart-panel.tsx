@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
+import { Spinner } from "@/components";
 import {
   DASHBOARD_ECHARTS_DARK_THEME_NAME,
   DASHBOARD_ECHARTS_LIGHT_THEME_NAME,
@@ -177,7 +178,7 @@ export function ChartPanel({ title, option, isLoading, themeMode, size = "medium
       <div className="dashboard-chart-frame">
         {!shouldShowEmptyState && !isChartReady ? (
           <div className="dashboard-chart-mount-loading" aria-label={t("dashboard.charts.loading")} role="status">
-            <div className="dashboard-chart-mount-spinner" />
+            <Spinner size={18} />
           </div>
         ) : null}
         {shouldShowEmptyState ? (

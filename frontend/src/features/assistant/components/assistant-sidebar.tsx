@@ -9,7 +9,7 @@ import {
 } from "react";
 import NumberFlow from "@number-flow/react";
 
-import { Box, Flex, IconButton, Spinner, Text, Tooltip } from "@radix-ui/themes";
+import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { ArrowBigDown, ArrowBigUp, ArrowDown, ArrowLeft, History, Layers2, ListChevronsDownUp, SquareArrowOutUpRight, SquarePen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,7 +23,7 @@ import {
 import { useLlmModelOptions } from "@/lib/use-llm-model-options";
 import { fetchSettings, updateSettings } from "@/features/settings/lib/settings-api";
 import { fetchAgentDefinitions } from "@/features/settings/lib/agent-definitions-api";
-import { CircularProgress, ConfirmDialog, toast, getModelValue } from "@/components";
+import { CircularProgress, ConfirmDialog, Spinner, toast, getModelValue } from "@/components";
 import type {
   ActiveSubagentState,
   AgentForkResponse,
@@ -1151,7 +1151,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                   aria-label={t("assistant.compactContext")}
                   aria-busy={agentSidebar.isCompacting || undefined}
                 >
-                  {agentSidebar.isCompacting ? <Spinner size="1" /> : <ListChevronsDownUp size={16} />}
+                  {agentSidebar.isCompacting ? <Spinner size={18} /> : <ListChevronsDownUp size={16} />}
                 </IconButton>
               </Tooltip>
               <IconButton
@@ -1243,7 +1243,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
           <Box className="ai-sidebar-messages ai-sidebar-messages--frame">
             {isLoadingTask ? (
               <Flex direction="column" align="center" justify="center" className="ai-sidebar-loading-state">
-                <Spinner size="2" />
+                <Spinner size={18} />
                 <Text size="2" color="gray">{t("assistant.loadingTask")}</Text>
               </Flex>
             ) : shouldShowSubagentConversation ? (

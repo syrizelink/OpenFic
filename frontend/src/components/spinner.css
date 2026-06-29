@@ -1,0 +1,23 @@
+.spinner {
+  display: inline-block;
+  box-sizing: border-box;
+  border: 2px solid var(--gray-a5);
+  border-radius: 999px;
+  border-top-color: currentColor;
+  animation: spin 0.72s linear infinite;
+}
+
+.spinner--18 {
+  width: 18px;
+  height: 18px;
+}
+
+.spinner--24 {
+  width: 24px;
+  height: 24px;
+}
+
+.spinner--32 {
+  width: 32px;
+  height: 32px;
+}

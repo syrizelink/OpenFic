@@ -3,9 +3,10 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Box, Flex, Text, Button, ScrollArea, Callout, Spinner } from "@radix-ui/themes";
+import { Box, Flex, Text, Button, ScrollArea, Callout } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 import { Database, RefreshCw, AlertCircle } from "lucide-react";
+import { Spinner } from "@/components";
 import type { MacroNode } from "@/lib/macro";
 import { parseMacro } from "@/lib/macro/parser";
 import {
@@ -150,7 +151,7 @@ export function GetmemPanel({ macro, workDir }: GetmemPanelProps) {
 
       {loading ? (
         <Flex align="center" justify="center" py="6">
-          <Spinner size="2" />
+          <Spinner size={18} />
         </Flex>
       ) : content !== null ? (
         <ScrollArea
