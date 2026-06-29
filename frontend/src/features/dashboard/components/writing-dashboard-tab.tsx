@@ -139,11 +139,12 @@ export function WritingDashboardTab({
             </aside>
             <div className="dashboard-year-calendar-main">
               <div className="dashboard-year-summary">
-                <NumberFlow value={selectedYear} locales="zh-CN" format={{ maximumFractionDigits: 0 }} className="dashboard-number-flow dashboard-number-flow-inline" />
+                <NumberFlow value={selectedYear} locales="zh-CN" format={{ maximumFractionDigits: 0, useGrouping: false }} className="dashboard-number-flow dashboard-number-flow-inline" />
                 {" "}
                 {t("dashboard.charts.yearSummaryMiddle")}
                 {" "}
-                <NumberFlow value={activeDays} locales="zh-CN" format={{ maximumFractionDigits: 0 }} className="dashboard-number-flow dashboard-number-flow-inline" />
+                <NumberFlow value={activeDays} locales="zh-CN" format={{ maximumFractionDigits: 0, useGrouping: false }} className="dashboard-number-flow dashboard-number-flow-inline" />
+                {" "}
                 {t("dashboard.charts.yearSummarySuffix")}
               </div>
               <div className="dashboard-calendar-frame dashboard-calendar-frame-yearly">

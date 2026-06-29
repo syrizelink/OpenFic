@@ -982,6 +982,7 @@
       "modelTokensTitle": "Model Token Usage",
       "projectTokensTitle": "Project Token Usage",
       "loading": "Loading charts",
+      "empty": "No statistics available for this metric",
       "yearSelector": "Writing year selector",
       "annualStats": "Annual Writing Stats",
       "yearSummary": "Created on {{days}} days in {{year}}",

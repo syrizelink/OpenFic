@@ -27,7 +27,7 @@ export function LlmDashboardTab({ data, isLoading, themeMode }: LlmDashboardTabP
 
   return (
     <section className="dashboard-tab-panel">
-      <section className="dashboard-metric-grid">
+      <section className="dashboard-metric-grid dashboard-llm-metric-grid">
         <MetricCard
           label={t("dashboard.metrics.agentCalls")}
           value={summary?.callsTotal ?? 0}

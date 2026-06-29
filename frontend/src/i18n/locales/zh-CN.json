@@ -1046,6 +1046,7 @@
       "modelTokensTitle": "模型 Token 消耗",
       "projectTokensTitle": "项目 Token 消耗",
       "loading": "图表加载中",
+      "empty": "该指标暂无统计数据",
       "yearSelector": "写作年份选择",
       "annualStats": "写作年度统计",
       "yearSummary": "{{year}} 年创作了 {{days}} 天",
