@@ -1,5 +1,5 @@
 import { Box, Flex, IconButton, Spinner, Text, Tooltip } from "@radix-ui/themes";
-import { ArrowUp, CircleUserRound, Component, Loader2, ShieldCheck, Square } from "lucide-react";
+import { ArrowUp, CircleUserRound, Component, ExternalLink, Loader2, ShieldCheck, Square } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -266,22 +266,21 @@ export function AgentInput({
             </Flex>
           ) : models.length === 0 || modelsError ? (
             <Tooltip content={t("writing.aiSidebar.noModelsTooltip")}>
-              <Box
-                onClick={onGoToSettings}
-                style={{
-                  cursor: "pointer",
-                  padding: "4px 10px",
-                  background: "var(--accent-a3)",
-                  borderRadius: "6px",
-                  fontSize: "12px",
-                  color: "var(--accent-11)",
-                  fontWeight: 500,
-                  border: "1px solid var(--accent-a5)",
-                  flex: "0 0 auto",
-                }}
-              >
-                {t("writing.aiSidebar.addModel")}
-              </Box>
+              <Flex align="center" gap="1" className="ai-sidebar-no-models">
+                <Text size="1" color="gray">
+                  {t("writing.aiSidebar.noModelsMessage")}
+                </Text>
+                <button
+                  type="button"
+                  className="ai-sidebar-no-models-action"
+                  onClick={onGoToSettings}
+                >
+                  <Text size="1" className="ai-sidebar-no-models-action-text">
+                    {t("writing.aiSidebar.noModelsAction")}
+                  </Text>
+                  <ExternalLink size={12} aria-hidden="true" />
+                </button>
+              </Flex>
             </Tooltip>
           ) : (
             <>

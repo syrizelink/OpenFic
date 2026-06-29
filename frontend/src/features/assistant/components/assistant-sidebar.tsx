@@ -1001,7 +1001,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
   );
 
   const handleGoToSettings = useCallback(() => {
-    openSettings();
+    openSettings({ category: "models", modelTab: "llm" });
   }, [openSettings]);
 
   const handleOpenSubagent = useCallback((subagent: ActiveSubagentState) => {

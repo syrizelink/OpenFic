@@ -34,6 +34,10 @@ import {
 interface SettingsContentProps {
   appearance: "light" | "dark";
   onClose: () => void;
+  route?: {
+    category: SettingsCategory;
+    modelTab?: ModelSettingsTab;
+  };
 }
 
 const SETTINGS_CATEGORIES: SettingsCategory[] = [
@@ -58,14 +62,16 @@ const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
   agents: "settings.agents",
 };
 
-export function SettingsContent({ appearance, onClose }: SettingsContentProps) {
+export function SettingsContent({ appearance, onClose, route }: SettingsContentProps) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>(
-    DEFAULT_SETTINGS_ROUTE_CATEGORY
+    route?.category ?? DEFAULT_SETTINGS_ROUTE_CATEGORY
   );
   const [activeModelTab, setActiveModelTab] = useState<ModelSettingsTab>(
-    DEFAULT_MODEL_SETTINGS_TAB
+    route?.category === "models"
+      ? (route.modelTab ?? DEFAULT_MODEL_SETTINGS_TAB)
+      : DEFAULT_MODEL_SETTINGS_TAB
   );
 
   const [editedSettings, setEditedSettings] = useState<Partial<Settings>>({});
