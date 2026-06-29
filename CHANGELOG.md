@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/syrizelink/OpenFic/compare/v0.3.1...v0.3.2) (2026-06-29)
+
+
+### 🐛 问题修复
+
+* **frontend:** 完善移动端适配 ([#25](https://github.com/syrizelink/OpenFic/issues/25)) ([a971904](https://github.com/syrizelink/OpenFic/commit/a971904f00466b53203aa87fb146330aad5e710a))
+
 ## [0.3.1](https://github.com/syrizelink/OpenFic/compare/v0.3.0...v0.3.1) (2026-06-29)
 
 
