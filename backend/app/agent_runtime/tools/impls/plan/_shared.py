@@ -37,10 +37,6 @@ class PlanTodoCreateInput(PlanTodoTextInput):
 class CreatePlanInput(BaseModel):
     topic: str = Field(min_length=1, description="计划主题")
     description: str = Field(min_length=1, description="计划描述")
-    parent_dependency_todo_id: str | None = Field(
-        default=None,
-        description="可选的上游 Todo ID",
-    )
     todos: list[PlanTodoCreateInput] = Field(description="初始 Todo 列表")
 
     @field_validator("todos")

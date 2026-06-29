@@ -4,7 +4,7 @@ import type {
   OutlineBeatData,
   OutlineData,
 } from "@/lib/agent.types";
-import { formatChapterDisplayName } from "../../../../../lib/chapter-tool-preview";
+import { formatChapterDisplayName } from "@/features/assistant/lib/chapter-tool-preview";
 
 export type TodoStatus = "pending" | "running" | "completed";
 
@@ -75,13 +75,6 @@ export interface AskUserQuestionAnswerPair {
 
 export type PlanStatus = "pending" | "in_progress" | "completed";
 
-export interface PlanDependencyPayload {
-  todo_id?: string;
-  plan_id?: string;
-  todo_title?: string;
-  todo_content?: string;
-}
-
 export interface PlanTodoPayload {
   id?: string;
   title: string;
@@ -94,7 +87,6 @@ export interface PlanPayload {
   topic: string;
   description: string;
   status: PlanStatus;
-  parent_dependency: PlanDependencyPayload | null;
   todos: PlanTodoPayload[];
 }
 
@@ -425,15 +417,6 @@ export function resolveToolMessageVisibilityState(input: {
   };
 }
 
-function toPlanDependencyPayload(value: Record<string, unknown>): PlanDependencyPayload {
-  return {
-    todo_id: asString(value.todo_id),
-    plan_id: asString(value.plan_id),
-    todo_title: asString(value.todo_title),
-    todo_content: asString(value.todo_content),
-  };
-}
-
 function toPlanTodoPayload(value: unknown, index: number): PlanTodoPayload | null {
   if (!isRecord(value)) return null;
   const title = asString(value.title);
@@ -453,9 +436,6 @@ function toPlanPayload(value: Record<string, unknown>): PlanPayload {
     topic: asString(value.topic) ?? "",
     description: asString(value.description) ?? "",
     status: asPlanStatus(value.status) ?? "pending",
-    parent_dependency: isRecord(value.parent_dependency)
-      ? toPlanDependencyPayload(value.parent_dependency)
-      : null,
     todos: asRecordArray(value.todos)
       .map((todo, index) => toPlanTodoPayload(todo, index))
       .filter((todo): todo is PlanTodoPayload => Boolean(todo)),
@@ -486,7 +466,6 @@ function getDraftPlanPayload(message: AgentMessage): PlanPayload | null {
     topic: topic ?? "",
     description: description ?? "",
     status: asPlanStatus(data.status) ?? "pending",
-    parent_dependency: null,
     todos,
   };
 }
@@ -520,17 +499,6 @@ export function getPlanCountDetail(message: AgentMessage): string | undefined {
 
 export function getPlanTopicDetail(message: AgentMessage): string | undefined {
   return getPlanPayload(message)?.topic || undefined;
-}
-
-export function formatPlanDependencySummary(
-  dependency: PlanDependencyPayload | null | undefined
-): string | undefined {
-  if (!dependency) return undefined;
-  const todoLabel = dependency.todo_title ?? dependency.todo_content;
-  if (todoLabel && dependency.plan_id) {
-    return `依赖 ${dependency.plan_id} · ${todoLabel}`;
-  }
-  return todoLabel ?? dependency.plan_id ?? dependency.todo_id;
 }
 
 export function formatOutlineDetail(message: AgentMessage): string | undefined {

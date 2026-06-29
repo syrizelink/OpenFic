@@ -83,38 +83,15 @@ def _normalize_create_todo_payload(payload: dict[str, Any]) -> dict[str, str]:
     }
 
 
-async def _load_dependency_snapshot(
-    session: AsyncSession,
-    parent_dependency_id: str | None,
-) -> dict[str, str] | None:
-    if not parent_dependency_id:
-        return None
-    todo = await plan_repo.get_todo(session, parent_dependency_id)
-    if todo is None:
-        return None
-    plan = await plan_repo.get_plan(session, todo.plan_id)
-    if plan is None:
-        return None
-    return {
-        "todo_id": todo.id,
-        "plan_id": plan.id,
-        "todo_title": todo.title,
-        "todo_content": todo.content,
-    }
-
-
 def _serialize_plan_snapshot(
     plan: PlanRecord,
     todos: list[PlanTodoRecord],
-    *,
-    dependency: dict[str, str] | None,
 ) -> dict[str, Any]:
     return {
         "id": plan.id,
         "topic": plan.topic,
         "description": plan.description,
         "status": plan.status,
-        "parent_dependency": dependency,
         "todos": [
             {
                 "id": todo.id,
@@ -132,41 +109,7 @@ async def _serialize_plan_from_rows(
     plan: PlanRecord,
     todos: list[PlanTodoRecord],
 ) -> dict[str, Any]:
-    return _serialize_plan_snapshot(
-        plan,
-        todos,
-        dependency=await _load_dependency_snapshot(session, plan.parent_dependency_id),
-    )
-
-
-async def _validate_dependency_target(
-    session: AsyncSession,
-    *,
-    scope_id: str,
-    parent_dependency_todo_id: str | None,
-) -> tuple[PlanRecord, PlanTodoRecord] | tuple[None, None]:
-    if parent_dependency_todo_id is None:
-        return None, None
-
-    todo = await plan_repo.get_todo(session, parent_dependency_todo_id)
-    if todo is None:
-        raise ToolExecutionError("依赖目标不存在")
-
-    plan = await plan_repo.get_plan(session, todo.plan_id)
-    if plan is None or plan.scope_id != scope_id:
-        raise ToolExecutionError("依赖目标必须位于当前会话作用域")
-
-    if plan.parent_dependency_id is not None:
-        raise ToolExecutionError("依赖目标必须是根计划的 Todo")
-
-    existing = await plan_repo.get_plan_by_parent_dependency_id(
-        session,
-        parent_dependency_todo_id,
-    )
-    if existing is not None:
-        raise ToolExecutionError("该依赖目标已被其他计划占用")
-
-    return plan, todo
+    return _serialize_plan_snapshot(plan, todos)
 
 
 def _ensure_plan_in_scope(plan: PlanRecord | None, scope_id: str) -> PlanRecord:
@@ -243,18 +186,12 @@ async def create_plan(
     runtime_state: dict[str, Any],
     topic: str,
     description: str,
-    parent_dependency_todo_id: str | None,
     todos: list[dict[str, Any]],
 ) -> dict[str, Any]:
     if not todos:
         raise ToolExecutionError("计划必须至少包含一个 Todo")
 
     scope_id = resolve_plan_scope_id(runtime_state)
-    await _validate_dependency_target(
-        session,
-        scope_id=scope_id,
-        parent_dependency_todo_id=parent_dependency_todo_id,
-    )
 
     now = datetime.now(UTC)
     plan = await plan_repo.create_plan(
@@ -264,7 +201,6 @@ async def create_plan(
             topic=topic,
             description=description,
             status="pending",
-            parent_dependency_id=parent_dependency_todo_id,
             created_at=now,
             updated_at=now,
         ),
@@ -311,7 +247,6 @@ async def update_plan(
     slice_end = slice_start + len(normalized_old)
     current_slice = current_todos[slice_start:slice_end]
     current_slice_by_id = {todo.id: todo for todo in current_slice}
-    referenced_ids = await plan_repo.list_referenced_todo_ids(session, scope_id)
 
     normalized_new = [_normalize_new_todo_payload(payload) for payload in new_todos]
     retained_ids = {
@@ -335,12 +270,12 @@ async def update_plan(
             new_title=title,
             new_content=content,
             new_status=status,
-            is_referenced=todo_id in referenced_ids,
+            is_referenced=False,
         )
 
     for todo in current_slice:
         if todo.id not in retained_ids:
-            _validate_todo_deletion(todo, is_referenced=todo.id in referenced_ids)
+            _validate_todo_deletion(todo, is_referenced=False)
 
     replacement_rows: list[PlanTodoRecord] = []
     now = datetime.now(UTC)

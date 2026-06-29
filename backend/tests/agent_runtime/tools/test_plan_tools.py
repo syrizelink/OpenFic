@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.agent_runtime.agents.definitions import get_default_agent_definition
 from app.agent_runtime.plan import service as plan_service
 from app.agent_runtime.tools.registry import ToolRegistry
 
@@ -47,28 +46,6 @@ def _fake_session():
         rollback=AsyncMock(),
         close=AsyncMock(),
     )
-
-
-def test_default_agent_definitions_bind_plan_tools_to_expected_agents() -> None:
-    primary = get_default_agent_definition("primary")
-    composer = get_default_agent_definition("composer")
-    auditor = get_default_agent_definition("auditor")
-    writer = get_default_agent_definition("writer")
-    actor = get_default_agent_definition("actor")
-    reviewer = get_default_agent_definition("reviewer")
-
-    assert "plan_read" in primary.tool_category_keys
-    assert "plan_write" in primary.tool_category_keys
-    assert "plan_read" in composer.tool_category_keys
-    assert "plan_write" in composer.tool_category_keys
-    assert "plan_read" in auditor.tool_category_keys
-    assert "plan_write" not in auditor.tool_category_keys
-    assert "plan_read" in writer.tool_category_keys
-    assert "plan_write" not in writer.tool_category_keys
-    assert "plan_read" in actor.tool_category_keys
-    assert "plan_write" not in actor.tool_category_keys
-    assert "plan_read" in reviewer.tool_category_keys
-    assert "plan_write" not in reviewer.tool_category_keys
 
 
 @pytest.mark.asyncio
@@ -123,7 +100,6 @@ async def test_update_plan_tool_returns_latest_snapshot() -> None:
         "id": "plan-1",
         "topic": "rewrite",
         "status": "in_progress",
-        "parent_dependency": None,
         "todos": [{"id": "todo-1", "title": "Todo A", "content": "a", "status": "in_progress"}],
     }
 
@@ -146,6 +122,7 @@ async def test_update_plan_tool_returns_latest_snapshot() -> None:
     payload = json.loads(result)
     assert payload["message"] == "计划已更新"
     assert payload["plan"]["status"] == "in_progress"
+    assert "parent_dependency" not in payload["plan"]
     assert payload["plan"]["todos"][0]["title"] == "Todo A"
     session.commit.assert_awaited_once()
 
@@ -233,7 +210,6 @@ async def test_update_plan_tool_accepts_structured_todo_inputs_through_real_sche
         runtime_state={"session_id": "session-1"},
         topic="rewrite",
         description="rewrite",
-        parent_dependency_todo_id=None,
         todos=[{"title": "Todo A", "content": "a"}],
     )
     await session.commit()

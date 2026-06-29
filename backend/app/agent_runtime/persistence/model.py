@@ -3,16 +3,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import (
-    CheckConstraint,
-    Column,
-    ForeignKey,
-    Index,
-    JSON,
-    String,
-    Text,
-    UniqueConstraint,
-)
+from sqlalchemy import CheckConstraint, Column, Index, JSON, Text, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 from app.core.ids import generate_id
@@ -209,19 +200,6 @@ class PlanRecord(SQLModel, table=True):
     topic: str = Field(max_length=200)
     description: str = Field(default="", sa_column=Column(Text, nullable=False, default=""))
     status: str = Field(default="pending", index=True, max_length=20)
-    parent_dependency_id: str | None = Field(
-        default=None,
-        sa_column=Column(
-            String(length=64),
-            ForeignKey(
-                "plan_todos.id",
-                name="fk_plans_parent_dependency_id_plan_todos",
-                use_alter=True,
-            ),
-            nullable=True,
-            unique=True,
-        ),
-    )
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
