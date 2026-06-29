@@ -1,4 +1,5 @@
 import { SimpleSelect } from "@/components/select";
+import { useTranslation } from "react-i18next";
 import { EMPTY_VALUE } from "../lib/dashboard-formatters";
 
 interface DashboardSelectFilterProps {
@@ -16,6 +17,7 @@ export function DashboardSelectFilter({
   onChange,
   labelForValue,
 }: DashboardSelectFilterProps) {
+  const { t } = useTranslation();
   const selectOptions = options.map((option) => {
     if (typeof option === "string") {
       return { value: option, label: labelForValue ? labelForValue(option) : option };
@@ -28,7 +30,7 @@ export function DashboardSelectFilter({
       value={value || EMPTY_VALUE}
       placeholder={placeholder}
       options={[
-        { value: EMPTY_VALUE, label: "全部" },
+        { value: EMPTY_VALUE, label: t("dashboard.filters.all") },
         ...selectOptions,
       ]}
       onChange={(next) => onChange(next === EMPTY_VALUE ? undefined : next)}

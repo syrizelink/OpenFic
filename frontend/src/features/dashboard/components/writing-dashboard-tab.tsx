@@ -3,6 +3,7 @@ import { type ReactNode, useMemo } from "react";
 import { Card } from "@radix-ui/themes";
 import { Flame } from "lucide-react";
 import { ActivityCalendar } from "react-activity-calendar";
+import { useTranslation } from "react-i18next";
 import "react-activity-calendar/tooltips.css";
 import { ChartPanel } from "./chart-panel";
 import { MetricCard } from "./metric-card";
@@ -104,6 +105,7 @@ export function WritingDashboardTab({
   themeMode,
   filtersSlot,
 }: WritingDashboardTabProps) {
+  const { t } = useTranslation();
   const isHeroLoading = !heroData;
   const isMetricLoading = isHeroLoading;
   const availableYears = useMemo(() => getCreativeYears(yearsData), [yearsData]);
@@ -122,7 +124,7 @@ export function WritingDashboardTab({
       <section className="dashboard-writing-hero dashboard-writing-hero-yearly">
         <Card className="dashboard-activity-card dashboard-writing-calendar-card">
           <div className="dashboard-year-card-layout">
-            <aside className="dashboard-year-selector" aria-label="写作年份选择">
+            <aside className="dashboard-year-selector" aria-label={t("dashboard.charts.yearSelector")}>
               {availableYears.map((year) => (
                 <button
                   key={year}
@@ -137,7 +139,12 @@ export function WritingDashboardTab({
             </aside>
             <div className="dashboard-year-calendar-main">
               <div className="dashboard-year-summary">
-                <NumberFlow value={selectedYear} locales="zh-CN" format={{ maximumFractionDigits: 0 }} className="dashboard-number-flow dashboard-number-flow-inline" /> 年创作了 <NumberFlow value={activeDays} locales="zh-CN" format={{ maximumFractionDigits: 0 }} className="dashboard-number-flow dashboard-number-flow-inline" /> 天
+                <NumberFlow value={selectedYear} locales="zh-CN" format={{ maximumFractionDigits: 0 }} className="dashboard-number-flow dashboard-number-flow-inline" />
+                {" "}
+                {t("dashboard.charts.yearSummaryMiddle")}
+                {" "}
+                <NumberFlow value={activeDays} locales="zh-CN" format={{ maximumFractionDigits: 0 }} className="dashboard-number-flow dashboard-number-flow-inline" />
+                {t("dashboard.charts.yearSummarySuffix")}
               </div>
               <div className="dashboard-calendar-frame dashboard-calendar-frame-yearly">
                 <ActivityCalendar
@@ -153,10 +160,12 @@ export function WritingDashboardTab({
                     light: ["var(--gray-a3)", "#b7dbc2", "#7fbd94", "#4f9467", "#2f6848"],
                     dark: ["var(--gray-a3)", "#b7dbc2", "#7fbd94", "#4f9467", "#2f6848"],
                   }}
-                  labels={{ totalCount: "{{count}} 字" }}
+                  labels={{ totalCount: t("dashboard.charts.tooltipWords", { count: "{{count}}" }) }}
                   tooltips={{
                     activity: {
-                      text: ({ count, date }) => count > 0 ? `${date} 创作了${count}字` : `${date} 没有进行创作`,
+                      text: ({ count, date }) => count > 0
+                        ? t("dashboard.charts.tooltipActivity", { date, count })
+                        : t("dashboard.charts.tooltipNoActivity", { date }),
                     },
                   }}
                 />
@@ -165,21 +174,21 @@ export function WritingDashboardTab({
           </div>
         </Card>
 
-        <section className="dashboard-writing-stack" aria-label="写作年度统计">
-          <MetricCard label="总创作天数" value={activeDays} valueFormat={{ maximumFractionDigits: 0 }} isLoading={isMetricLoading} hasValue={Boolean(heroData)} cardClassName="dashboard-writing-stat-card" />
-          <MetricCard label="连续创作天数" value={streakDays} valueFormat={{ maximumFractionDigits: 0 }} isLoading={isMetricLoading} hasValue={Boolean(heroData)} cardClassName="dashboard-writing-stat-card" valueClassName="dashboard-streak-value" prefix={streakDays > 0 ? <Flame size={20} className="dashboard-streak-icon" /> : null} />
-          <MetricCard label="总创作章节" value={creativeChapters} valueFormat={{ maximumFractionDigits: 0 }} isLoading={isMetricLoading} hasValue={Boolean(heroData)} cardClassName="dashboard-writing-stat-card" />
-          <MetricCard label="总创作字数" value={createdWords} valueFormat={{ maximumFractionDigits: 0 }} isLoading={isMetricLoading} hasValue={Boolean(heroData)} cardClassName="dashboard-writing-stat-card" />
+        <section className="dashboard-writing-stack" aria-label={t("dashboard.charts.annualStats")}>
+          <MetricCard label={t("dashboard.charts.totalDays")} value={activeDays} valueFormat={{ maximumFractionDigits: 0 }} isLoading={isMetricLoading} hasValue={Boolean(heroData)} cardClassName="dashboard-writing-stat-card" />
+          <MetricCard label={t("dashboard.charts.streakDays")} value={streakDays} valueFormat={{ maximumFractionDigits: 0 }} isLoading={isMetricLoading} hasValue={Boolean(heroData)} cardClassName="dashboard-writing-stat-card" valueClassName="dashboard-streak-value" prefix={streakDays > 0 ? <Flame size={20} className="dashboard-streak-icon" /> : null} />
+          <MetricCard label={t("dashboard.charts.totalChapters")} value={creativeChapters} valueFormat={{ maximumFractionDigits: 0 }} isLoading={isMetricLoading} hasValue={Boolean(heroData)} cardClassName="dashboard-writing-stat-card" />
+          <MetricCard label={t("dashboard.charts.totalWords")} value={createdWords} valueFormat={{ maximumFractionDigits: 0 }} isLoading={isMetricLoading} hasValue={Boolean(heroData)} cardClassName="dashboard-writing-stat-card" />
         </section>
       </section>
 
       {filtersSlot}
 
       <section className="dashboard-writing-layout dashboard-chart-grid dashboard-chart-grid-balanced">
-        <ChartPanel title="写作字数变化" option={writingTrendOption} isLoading={isDetailLoading} themeMode={themeMode} size="wide" />
-        <ChartPanel title="累计创作字数" option={writingCumulativeOption} isLoading={isDetailLoading} themeMode={themeMode} size="wide" />
-        <ChartPanel title="来源贡献占比" option={writingSourceOption} isLoading={isDetailLoading} themeMode={themeMode} size="medium" />
-        <ChartPanel title="创作活跃日分布" option={writingWeekdayOption} isLoading={isDetailLoading} themeMode={themeMode} size="medium" />
+        <ChartPanel title={t("dashboard.charts.writingTrend")} option={writingTrendOption} isLoading={isDetailLoading} themeMode={themeMode} size="wide" />
+        <ChartPanel title={t("dashboard.charts.cumulativeWords")} option={writingCumulativeOption} isLoading={isDetailLoading} themeMode={themeMode} size="wide" />
+        <ChartPanel title={t("dashboard.charts.sourceContribution")} option={writingSourceOption} isLoading={isDetailLoading} themeMode={themeMode} size="medium" />
+        <ChartPanel title={t("dashboard.charts.activeWeekday")} option={writingWeekdayOption} isLoading={isDetailLoading} themeMode={themeMode} size="medium" />
       </section>
     </section>
   );

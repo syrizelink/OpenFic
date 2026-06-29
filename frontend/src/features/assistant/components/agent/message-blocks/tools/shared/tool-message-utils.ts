@@ -4,6 +4,7 @@ import type {
   OutlineBeatData,
   OutlineData,
 } from "@/lib/agent.types";
+import i18n from "@/i18n";
 import { formatChapterDisplayName } from "@/features/assistant/lib/chapter-tool-preview";
 
 export type TodoStatus = "pending" | "running" | "completed";
@@ -101,15 +102,15 @@ export interface ToolMessageVisibilityState {
 }
 
 export const TODO_STATUS_LABELS: Record<TodoStatus, string> = {
-  pending: "未完成",
-  running: "进行中",
-  completed: "已完成",
+  pending: i18n.t("assistant.tools.todoStatus.pending"),
+  running: i18n.t("assistant.tools.todoStatus.running"),
+  completed: i18n.t("assistant.tools.todoStatus.completed"),
 };
 
 export const PLAN_STATUS_LABELS: Record<PlanStatus, string> = {
-  pending: "未开始",
-  in_progress: "进行中",
-  completed: "已完成",
+  pending: i18n.t("assistant.tools.planStatus.pending"),
+  in_progress: i18n.t("assistant.tools.planStatus.in_progress"),
+  completed: i18n.t("assistant.tools.planStatus.completed"),
 };
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -249,7 +250,7 @@ export function getOutlineData(message: AgentMessage): Partial<OutlineData> {
 
 export function getOutlineBeatRows(message: AgentMessage): OutlineBeatRow[] {
   return asPartialBeats(getOutlineData(message).beats).map((beat, index) => ({
-    content: beat.content || `情节点 ${index + 1}`,
+    content: beat.content || i18n.t("assistant.tools.outlineBeat", { index: index + 1 }),
     tone: beat.tone,
     note: beat.note,
   }));
@@ -258,8 +259,8 @@ export function getOutlineBeatRows(message: AgentMessage): OutlineBeatRow[] {
 export function getOutlineItems(message: AgentMessage): TodoListItem[] {
   return getOutlineBeatRows(message).map((beat) => {
     const detail = [
-      beat.tone ? `情绪基调：${beat.tone}` : undefined,
-      beat.note ? `备注：${beat.note}` : undefined,
+      beat.tone ? i18n.t("assistant.tools.outlineTone", { tone: beat.tone }) : undefined,
+      beat.note ? i18n.t("assistant.tools.outlineNote", { note: beat.note }) : undefined,
     ]
       .filter(Boolean)
       .join(" · ");
@@ -383,7 +384,7 @@ export function getAskUserQuestionAnswerPairs(message: AgentMessage): AskUserQue
 }
 
 export function getAskUserTitle(message: AgentMessage): string {
-  return message.status === "completed" ? "已询问" : "询问";
+  return message.status === "completed" ? i18n.t("assistant.tools.asked") : i18n.t("assistant.tools.asking");
 }
 
 export function getAskUserQuestionCount(message: AgentMessage): number {
@@ -393,7 +394,7 @@ export function getAskUserQuestionCount(message: AgentMessage): number {
 }
 
 export function getAskUserQuestionCountDetail(message: AgentMessage): string {
-  return `${getAskUserQuestionCount(message)} 个问题`;
+  return i18n.t("assistant.tools.questionCount", { count: getAskUserQuestionCount(message) });
 }
 
 export function resolveToolMessageVisibilityState(input: {
@@ -494,7 +495,7 @@ export function getPlanList(message: AgentMessage): PlanPayload[] {
 
 export function getPlanCountDetail(message: AgentMessage): string | undefined {
   const count = getPlanList(message).length;
-  return `${count} 个计划`;
+  return i18n.t("assistant.tools.planCount", { count });
 }
 
 export function getPlanTopicDetail(message: AgentMessage): string | undefined {
@@ -503,7 +504,7 @@ export function getPlanTopicDetail(message: AgentMessage): string | undefined {
 
 export function formatOutlineDetail(message: AgentMessage): string | undefined {
   const count = getOutlineItems(message).length;
-  return count > 0 ? `${count} 个情节点` : undefined;
+  return count > 0 ? i18n.t("assistant.tools.outlineCount", { count }) : undefined;
 }
 
 export function getChapterPayload(message: AgentMessage): ChapterPayload {
@@ -708,8 +709,8 @@ function formatReferenceLabel(
   const value = ref.value;
   const type = asString(ref.type);
   if (type === "order") {
-    if (typeof value === "number" && Number.isFinite(value)) return `第${value}${orderedLabel}`;
-    if (typeof value === "string" && value.trim()) return `第${value.trim()}${orderedLabel}`;
+    if (typeof value === "number" && Number.isFinite(value)) return i18n.t("assistant.tools.orderedReference", { value, unit: orderedLabel });
+    if (typeof value === "string" && value.trim()) return i18n.t("assistant.tools.orderedReference", { value: value.trim(), unit: orderedLabel });
   }
   return asString(value);
 }
@@ -737,8 +738,8 @@ export function getReadChapterDetail(message: AgentMessage): string | undefined 
 export function formatVolumeDisplayName(volume: VolumePayload): string | undefined {
   const order = volume.order;
   const title = volume.title;
-  if (order !== undefined && title) return `第${order}卷 · ${title}`;
-  if (order !== undefined) return `第${order}卷`;
+  if (order !== undefined && title) return i18n.t("assistant.tools.volumeDisplay", { order, title });
+  if (order !== undefined) return i18n.t("assistant.tools.volumeDisplayNoTitle", { order });
   return title;
 }
 
@@ -747,10 +748,10 @@ export function formatChapterSummaryQuery(message: AgentMessage): string | undef
   const offset = asNumber(data.offset);
   const limit = asNumber(data.limit);
   if (offset !== undefined && limit !== undefined) {
-    return `分页读取 ${offset + 1}-${offset + limit}`;
+    return i18n.t("assistant.tools.pagedRead", { start: offset + 1, end: offset + limit });
   }
   const orders = asNumberArray(data.orders);
-  return orders.length > 0 ? `按章节序号读取：${orders.join("、")}` : undefined;
+  return orders.length > 0 ? i18n.t("assistant.tools.readByOrders", { orders: orders.join("、") }) : undefined;
 }
 
 export function formatRangeSummaryQuery(message: AgentMessage): string | undefined {
@@ -758,7 +759,7 @@ export function formatRangeSummaryQuery(message: AgentMessage): string | undefin
   const offset = asNumber(data.offset);
   const limit = asNumber(data.limit);
   if (offset === undefined || limit === undefined) return undefined;
-  return `分页读取 ${offset + 1}-${offset + limit}`;
+  return i18n.t("assistant.tools.pagedRead", { start: offset + 1, end: offset + limit });
 }
 
 export function getToolResultMessage(message: AgentMessage): string | undefined {
@@ -776,8 +777,8 @@ export function getToolErrorMessage(message: AgentMessage): string | undefined {
   const toolResult = message.toolResult ?? {};
   const messageText = asString(toolResult.message);
   const reason = asString(toolResult.reason);
-  if (reason === "cancelled") return messageText ?? "用户中止了工具调用";
-  if (reason === "interrupted") return messageText ?? "工具调用因连接中断而停止";
-  if (messageText && reason) return `${messageText}\n原因：${reason}`;
+  if (reason === "cancelled") return messageText ?? i18n.t("assistant.tools.cancelled");
+  if (reason === "interrupted") return messageText ?? i18n.t("assistant.tools.interrupted");
+  if (messageText && reason) return `${messageText}\n${i18n.t("assistant.tools.errorReason", { reason })}`;
   return messageText ?? reason ?? message.content;
 }

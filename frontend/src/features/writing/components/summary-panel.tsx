@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Box, Dialog, Flex, TabNav } from "@radix-ui/themes";
 import { BookOpenText, Layers3, Sparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import "./summary-panel.css";
 
 import { ChapterSummaryListView } from "./summary-panel-chapter-list";
@@ -21,12 +22,6 @@ interface SummaryTabItem {
   icon: React.ReactNode;
   label: string;
 }
-
-const SUMMARY_TABS: SummaryTabItem[] = [
-  { section: "chapters", icon: <BookOpenText size={16} />, label: "章节摘要" },
-  { section: "long-term", icon: <Layers3 size={17} />, label: "区间摘要" },
-  { section: "maintenance", icon: <Sparkles size={17} />, label: "生成摘要" },
-];
 
 function SummaryNavButton({
   active,
@@ -60,7 +55,13 @@ export function SummaryPanel({
   onOpenChange,
   trigger,
 }: SummaryPanelProps) {
+  const { t } = useTranslation();
   const [section, setSection] = useState<SummarySection>("chapters");
+  const summaryTabs: SummaryTabItem[] = [
+    { section: "chapters", icon: <BookOpenText size={16} />, label: t("summary.tabs.chapters") },
+    { section: "long-term", icon: <Layers3 size={17} />, label: t("summary.tabs.ranges") },
+    { section: "maintenance", icon: <Sparkles size={17} />, label: t("summary.tabs.generate") },
+  ];
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -70,14 +71,14 @@ export function SummaryPanel({
         maxWidth="1180px"
         style={{ width: "min(1180px, calc(100vw - 32px))" }}
       >
-        <Dialog.Title className="summary-panel-visually-hidden">摘要</Dialog.Title>
+        <Dialog.Title className="summary-panel-visually-hidden">{t("summary.title")}</Dialog.Title>
         <Dialog.Description className="summary-panel-visually-hidden">
-          查看和维护章节、区间摘要。
+          {t("summary.description")}
         </Dialog.Description>
         <Flex className="summary-panel-layout">
           <Box p="3" className="summary-panel-sidebar">
             <Flex direction="column" gap="1" height="100%">
-              {SUMMARY_TABS.map((tab) => (
+              {summaryTabs.map((tab) => (
                 <SummaryNavButton
                   key={tab.section}
                   active={section === tab.section}
@@ -91,7 +92,7 @@ export function SummaryPanel({
 
           <Box px="5" pt="3" className="summary-panel-tabs">
             <TabNav.Root size="2" color="gray" highContrast>
-              {SUMMARY_TABS.map((tab) => (
+              {summaryTabs.map((tab) => (
                 <TabNav.Link key={tab.section} asChild active={section === tab.section}>
                   <button
                     type="button"
@@ -120,7 +121,7 @@ export function SummaryPanel({
                 <LongTermSummaryListView
                   projectId={projectId}
                   open={open}
-                  emptyText="还没有区间摘要。"
+                  emptyText={t("summary.emptyRanges")}
                 />
               )}
 

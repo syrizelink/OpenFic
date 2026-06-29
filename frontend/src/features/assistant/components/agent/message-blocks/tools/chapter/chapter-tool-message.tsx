@@ -3,6 +3,7 @@ import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { Check, Copy } from "lucide-react";
 
 import type { AgentMessage } from "@/lib/agent.types";
+import i18n from "@/i18n";
 import {
   buildChapterDiffCopyText,
   formatChapterDisplayName,
@@ -140,8 +141,8 @@ export function ChapterToolMessage({ message }: ChapterToolMessageProps) {
   if (isMutationTool) {
     return (
       <ToolBody>
-        <ToolNotice title="未返回章节差异">
-          {getToolResultMessage(message) ?? "这次工具结果缺少可显示的章节 Diff。"}
+        <ToolNotice title={i18n.t("assistant.tools.noChapterDiff")}>
+          {getToolResultMessage(message) ?? i18n.t("assistant.tools.noChapterDiffDescription")}
         </ToolNotice>
       </ToolBody>
     );
@@ -155,16 +156,16 @@ export function ChapterToolMessage({ message }: ChapterToolMessageProps) {
 
   return (
     <ToolBody>
-      <ToolTextBlock label="章节" value={chapterName} />
+      <ToolTextBlock label={i18n.t("assistant.tools.chapter")} value={chapterName} />
       <ToolTextBlock
-        label="字数"
+        label={i18n.t("assistant.tools.wordCount")}
         value={typeof chapter.word_count === "number" ? `${chapter.word_count} 字` : undefined}
       />
       {chapter.content ? (
-        <ToolTextBlock label="内容" value={chapter.content} />
+        <ToolTextBlock label={i18n.t("assistant.tools.content")} value={chapter.content} />
       ) : (
-        <ToolNotice title="没有可显示的章节内容">
-          {getToolResultMessage(message) ?? "这次读取没有返回章节正文。"}
+        <ToolNotice title={i18n.t("assistant.tools.noChapterContent")}>
+          {getToolResultMessage(message) ?? i18n.t("assistant.tools.noChapterContentDescription")}
         </ToolNotice>
       )}
     </ToolBody>

@@ -98,7 +98,7 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
         active: pathname.startsWith("/prompt-chains"),
       },
       {
-        label: "仪表盘",
+        label: t("dashboard.title"),
         href: "/dashboard",
         icon: ChartNoAxesCombined,
         active: pathname.startsWith("/dashboard"),
@@ -234,7 +234,7 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
           >
             <Flex direction="column" height="100%" p="3">
               <SidebarBrand
-                title={currentProject?.title ?? "OpenFic"}
+                title={currentProject?.title ?? t("common.appName")}
                 isExpanded={isMobile || isExpanded}
                 isHovered={isLogoHovered}
                 expandLabel={t("topbar.expand")}

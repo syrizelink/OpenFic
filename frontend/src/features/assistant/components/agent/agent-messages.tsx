@@ -7,6 +7,7 @@
 import { Box, Flex, IconButton, Spinner, Text, Tooltip } from "@radix-ui/themes";
 import { Check, Copy, GitFork, RotateCcw } from "lucide-react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AgentMessageRenderer } from "./agent-message-renderer";
 import { AgentStatusMessage } from "./agent-status-message";
 import {
@@ -163,6 +164,7 @@ export function AgentMessages({
   onAtBottomChange,
   scrollToBottomFnRef,
 }: AgentMessagesProps) {
+  const { t } = useTranslation();
   const contentRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLElement | null>(null);
@@ -471,22 +473,22 @@ export function AgentMessages({
             size="1"
             variant="ghost"
             color={isCopied ? "green" : "gray"}
-            aria-label={isCopied ? "最新回复已复制" : "复制最新回复"}
+              aria-label={isCopied ? t("assistant.latestReplyCopied") : t("assistant.copyLatestReply")}
             className="agent-message-block-toolbar-button"
             data-copied={isCopied ? "true" : undefined}
             disabled={!target.copyContent}
-            onClick={() => copyText(target.copyContent, "没有可复制的助手回复", actionId)}
+              onClick={() => copyText(target.copyContent, t("assistant.noAssistantReplyToCopy"), actionId)}
           >
             {isCopied ? <Check size={13} /> : <Copy size={13} />}
           </IconButton>
         </Tooltip>
         {canFork && (
-          <Tooltip content="分叉任务">
+          <Tooltip content={t("assistant.forkTask")}>
             <IconButton
               size="1"
               variant="ghost"
               color="gray"
-              aria-label="分叉任务"
+              aria-label={t("assistant.forkTask")}
               className="agent-message-block-toolbar-button"
               onClick={() => setPendingForkTarget(target)}
             >
@@ -524,7 +526,7 @@ export function AgentMessages({
         >
           <Spinner size="2" />
           <Text size="2" style={{ color: "white" }}>
-            正在回滚...
+            {t("assistant.rollbacking")}
           </Text>
         </Box>
       )}
@@ -574,26 +576,26 @@ export function AgentMessages({
                       {timestampText}
                     </Text>
                   ) : null}
-                  <Tooltip content={isCopied ? "已复制" : "复制"}>
+                  <Tooltip content={isCopied ? t("common.copied") : t("common.copy")}>
                     <IconButton
                       size="1"
                       variant="ghost"
                       color={isCopied ? "green" : "gray"}
-                      aria-label={isCopied ? "用户消息已复制" : "复制用户消息"}
+                      aria-label={isCopied ? t("assistant.userMessageCopied") : t("assistant.copyUserMessage")}
                       className="agent-message-block-toolbar-button"
                       data-copied={isCopied ? "true" : undefined}
-                      onClick={() => copyText(message.content ?? "", "没有可复制的用户消息", copyActionId)}
+                      onClick={() => copyText(message.content ?? "", t("assistant.noUserMessageToCopy"), copyActionId)}
                     >
                       {isCopied ? <Check size={13} /> : <Copy size={13} />}
                     </IconButton>
                   </Tooltip>
                   {canShowRollback && (
-                    <Tooltip content="回滚到此处">
+                    <Tooltip content={t("assistant.rollbackToHere")}>
                       <IconButton
                         size="1"
                         variant="ghost"
                         color="gray"
-                        aria-label="回滚到此处"
+                        aria-label={t("assistant.rollbackToHere")}
                         className="agent-message-block-toolbar-button"
                         onClick={() => setPendingRollbackMessage(message)}
                       >
@@ -630,9 +632,9 @@ export function AgentMessages({
           if (!open) setPendingRollbackMessage(null);
         }}
         onConfirm={confirmRollback}
-        title="回滚到此消息"
-        description="将恢复到这条用户消息发送前的状态，并把该消息内容放回输入框。此后的 Agent 消息和相关修改会被回滚。"
-        confirmText="确认回滚"
+        title={t("assistant.rollbackDialogTitle")}
+        description={t("assistant.rollbackDialogDescription")}
+        confirmText={t("assistant.rollbackDialogConfirm")}
       />
       <ConfirmDialog
         open={Boolean(pendingForkTarget)}
@@ -640,9 +642,9 @@ export function AgentMessages({
           if (!open) setPendingForkTarget(null);
         }}
         onConfirm={confirmFork}
-        title="创建分叉任务"
-        description="将从此轮 Agent 消息创建一个新的 Task。当前项目内容不会回滚，继承历史只作为上下文。"
-        confirmText="创建分叉"
+        title={t("assistant.forkDialogTitle")}
+        description={t("assistant.forkDialogDescription")}
+        confirmText={t("assistant.forkDialogConfirm")}
         confirmColor="blue"
       />
     </>

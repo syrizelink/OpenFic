@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Badge, Box, Button, Card, Dialog, Flex, IconButton, ScrollArea, Text } from "@radix-ui/themes";
 import { ArrowDownNarrowWide, ArrowUpDown, ArrowUpWideNarrow, ChevronLeft, ChevronRight, Info, ScanSearch } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { PromptChainDialog } from "@/components";
 import type { PromptChainDialogEntry } from "@/components";
 import { fetchDashboardRecordPrompt } from "../lib/dashboard-api";
@@ -73,19 +74,19 @@ function getPromptEntries(requestMessages: string | null | undefined): PromptCha
   });
 }
 
-function formatOutputContent(record: DashboardAuditRecord): string {
+function formatOutputContent(record: DashboardAuditRecord, t: ReturnType<typeof useTranslation>["t"]): string {
   const sections: string[] = [];
   if (record.responseContent) {
-    sections.push(`Content\n${record.responseContent}`);
+    sections.push(`${t("dashboard.records.outputSectionContent")}\n${record.responseContent}`);
   }
 
   const toolCalls = parseJson(record.responseToolCalls);
   if (toolCalls) {
-    sections.push(`Tool calls\n${typeof toolCalls === "string" ? toolCalls : JSON.stringify(toolCalls, null, 2)}`);
+    sections.push(`${t("dashboard.records.outputSectionToolCalls")}\n${typeof toolCalls === "string" ? toolCalls : JSON.stringify(toolCalls, null, 2)}`);
   }
 
   if (record.errorMessage || record.errorType) {
-    sections.push(`Error\n${record.errorMessage || record.errorType}`);
+    sections.push(`${t("dashboard.records.outputSectionError")}\n${record.errorMessage || record.errorType}`);
   }
 
   return sections.join("\n\n");
@@ -101,10 +102,10 @@ function isFailedRecord(record: DashboardAuditRecord): boolean {
   return record.status === "error" || record.status === "failed" || record.status === "failure";
 }
 
-function getRecordDescription(record: DashboardAuditRecord | null): string | undefined {
+function getRecordDescription(record: DashboardAuditRecord | null, t: ReturnType<typeof useTranslation>["t"]): string | undefined {
   if (!record) return undefined;
   const modelName = record.modelName || record.modelId;
-  const projectName = record.projectTitle || "未知项目";
+  const projectName = record.projectTitle || t("dashboard.records.unknownProject");
   return `${formatDateTime(record.createdAt)} · ${projectName} · ${modelName}`;
 }
 
@@ -146,14 +147,15 @@ function getVisiblePages(currentPage: number, totalPages: number): Array<number 
   return [1, currentPage - 1, currentPage, "ellipsis", currentPage + 1, totalPages];
 }
 
-function getRecordRange(total: number, page: number, pageSize: number): string {
-  if (total <= 0) return "第 0 - 0 条，共 0 条";
+function getRecordRange(total: number, page: number, pageSize: number, t: ReturnType<typeof useTranslation>["t"]): string {
+  if (total <= 0) return t("dashboard.records.rangeEmpty");
   const start = (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
-  return `第 ${formatNumber(start)} - ${formatNumber(end)} 条，共 ${formatNumber(total)} 条`;
+  return t("dashboard.records.range", { start: formatNumber(start), end: formatNumber(end), total: formatNumber(total) });
 }
 
 export function DashboardRecordsTab({ data, query, totalPages, isLoading, updateQuery }: DashboardRecordsTabProps) {
+  const { t } = useTranslation();
   const [inputRecord, setInputRecord] = useState<DashboardAuditRecord | null>(null);
   const [outputRecord, setOutputRecord] = useState<DashboardAuditRecord | null>(null);
   const promptQuery = useQuery({
@@ -165,7 +167,7 @@ export function DashboardRecordsTab({ data, query, totalPages, isLoading, update
     () => getPromptEntries(promptQuery.data?.requestMessages),
     [promptQuery.data?.requestMessages]
   );
-  const outputContent = outputRecord ? formatOutputContent(outputRecord) : "";
+  const outputContent = outputRecord ? formatOutputContent(outputRecord, t) : "";
   const recordTotal = data?.records.total ?? 0;
   const visiblePages = getVisiblePages(query.page, totalPages);
 
@@ -174,24 +176,24 @@ export function DashboardRecordsTab({ data, query, totalPages, isLoading, update
       <Card className="dashboard-record-card">
         <div className="dashboard-record-header">
           <Flex direction="column" gap="1">
-            <Text weight="bold">调用记录</Text>
+            <Text weight="bold">{t("dashboard.records.title")}</Text>
           </Flex>
         </div>
         <div className="dashboard-record-table-wrap" data-loading={isLoading}>
           <table className="dashboard-record-table">
             <thead>
               <tr>
-                <th><SortableHeader label="时间" sortBy="created_at" query={query} updateQuery={updateQuery} /></th>
-                <th>项目</th>
-                <th>模型</th>
-                <th>Agent</th>
-                <th><SortableHeader label="用时" sortBy="latency_ms" query={query} updateQuery={updateQuery} /></th>
-                <th><SortableHeader label="首字" sortBy="first_token_ms" query={query} updateQuery={updateQuery} /></th>
-                <th><SortableHeader label="输入（缓存）" sortBy="tokens_input" query={query} updateQuery={updateQuery} /></th>
-                <th><SortableHeader label="输出" sortBy="tokens_output" query={query} updateQuery={updateQuery} /></th>
-                <th>状态</th>
-                <th className="dashboard-record-action-divider">输入</th>
-                <th className="dashboard-record-action-heading">输出</th>
+                <th><SortableHeader label={t("dashboard.records.columnTime")} sortBy="created_at" query={query} updateQuery={updateQuery} /></th>
+                <th>{t("dashboard.records.columnProject")}</th>
+                <th>{t("dashboard.records.columnModel")}</th>
+                <th>{t("dashboard.records.columnAgent")}</th>
+                <th><SortableHeader label={t("dashboard.records.columnLatency")} sortBy="latency_ms" query={query} updateQuery={updateQuery} /></th>
+                <th><SortableHeader label={t("dashboard.records.columnFirstToken")} sortBy="first_token_ms" query={query} updateQuery={updateQuery} /></th>
+                <th><SortableHeader label={t("dashboard.records.columnInput")} sortBy="tokens_input" query={query} updateQuery={updateQuery} /></th>
+                <th><SortableHeader label={t("dashboard.records.columnOutput")} sortBy="tokens_output" query={query} updateQuery={updateQuery} /></th>
+                <th>{t("dashboard.records.columnStatus")}</th>
+                <th className="dashboard-record-action-divider">{t("dashboard.records.input")}</th>
+                <th className="dashboard-record-action-heading">{t("dashboard.records.output")}</th>
               </tr>
             </thead>
             <tbody>
@@ -220,7 +222,7 @@ export function DashboardRecordsTab({ data, query, totalPages, isLoading, update
                     </td>
                     <td className="dashboard-record-action-cell dashboard-record-action-divider">
                       <IconButton
-                        aria-label="查看输入提示词"
+                        aria-label={t("dashboard.records.viewInput")}
                         className="dashboard-record-icon-button"
                         color="gray"
                         size="1"
@@ -232,7 +234,7 @@ export function DashboardRecordsTab({ data, query, totalPages, isLoading, update
                     </td>
                     <td className="dashboard-record-action-cell">
                       <IconButton
-                        aria-label="查看输出内容"
+                        aria-label={t("dashboard.records.viewOutput")}
                         className="dashboard-record-icon-button"
                         color="gray"
                         disabled={hasFailed}
@@ -251,19 +253,19 @@ export function DashboardRecordsTab({ data, query, totalPages, isLoading, update
           {isLoading ? (
             <div className="dashboard-record-loading-overlay">
               <div className="dashboard-record-loading-spinner" aria-hidden="true" />
-              <Text size="2" color="gray">正在载入记录</Text>
+              <Text size="2" color="gray">{t("dashboard.records.loading")}</Text>
             </div>
           ) : null}
-          {data?.records.items.length === 0 ? <div className="dashboard-empty-state">没有符合条件的调用记录</div> : null}
+          {data?.records.items.length === 0 ? <div className="dashboard-empty-state">{t("dashboard.records.empty")}</div> : null}
         </div>
         <div className="dashboard-table-footer">
-          <Text size="2" color="gray">{getRecordRange(recordTotal, query.page, query.pageSize)}</Text>
+          <Text size="2" color="gray">{getRecordRange(recordTotal, query.page, query.pageSize, t)}</Text>
           <div className="dashboard-pagination">
-            <Text className="dashboard-pagination-total" size="2" color="gray">总页数: {formatNumber(totalPages)}</Text>
-            <IconButton className="dashboard-pagination-arrow" aria-label="上一页" color="gray" disabled={query.page <= 1 || isLoading} size="1" variant="ghost" onClick={() => updateQuery({ page: query.page - 1 })}>
+            <Text className="dashboard-pagination-total" size="2" color="gray">{t("dashboard.records.totalPages", { total: formatNumber(totalPages) })}</Text>
+            <IconButton className="dashboard-pagination-arrow" aria-label={t("dashboard.records.prevPage")} color="gray" disabled={query.page <= 1 || isLoading} size="1" variant="ghost" onClick={() => updateQuery({ page: query.page - 1 })}>
               <ChevronLeft size={14} />
             </IconButton>
-            <div className="dashboard-pagination-pages" aria-label="页码列表">
+            <div className="dashboard-pagination-pages" aria-label={t("dashboard.records.pageList")}>
               {visiblePages.map((page, index) => page === "ellipsis" ? (
                 <span className="dashboard-pagination-ellipsis" key={`ellipsis-${index}`}>...</span>
               ) : (
@@ -279,7 +281,7 @@ export function DashboardRecordsTab({ data, query, totalPages, isLoading, update
                 </button>
               ))}
             </div>
-            <IconButton className="dashboard-pagination-arrow" aria-label="下一页" color="gray" disabled={query.page >= totalPages || isLoading} size="1" variant="ghost" onClick={() => updateQuery({ page: query.page + 1 })}>
+            <IconButton className="dashboard-pagination-arrow" aria-label={t("dashboard.records.nextPage")} color="gray" disabled={query.page >= totalPages || isLoading} size="1" variant="ghost" onClick={() => updateQuery({ page: query.page + 1 })}>
               <ChevronRight size={14} />
             </IconButton>
           </div>
@@ -291,24 +293,24 @@ export function DashboardRecordsTab({ data, query, totalPages, isLoading, update
         onOpenChange={(open) => !open && setInputRecord(null)}
         entries={promptEntries}
         isLoading={promptQuery.isFetching}
-        title="输入提示词"
-        description={getRecordDescription(inputRecord)}
+        title={t("dashboard.records.inputDialogTitle")}
+        description={getRecordDescription(inputRecord, t)}
       />
 
       <Dialog.Root open={!!outputRecord} onOpenChange={(open) => !open && setOutputRecord(null)}>
         <Dialog.Content className="dashboard-output-dialog-content">
-          <Dialog.Title>输出内容</Dialog.Title>
+          <Dialog.Title>{t("dashboard.records.outputDialogTitle")}</Dialog.Title>
           <Dialog.Description size="2" mb="4">
-            模型输出 content 与 tool calls。
+            {t("dashboard.records.outputDialogDescription")}
           </Dialog.Description>
           <ScrollArea className="dashboard-output-scroll-area">
             <Box className="dashboard-output-content">
-              {outputContent || <Text color="gray">没有输出内容</Text>}
+              {outputContent || <Text color="gray">{t("dashboard.records.noOutput")}</Text>}
             </Box>
           </ScrollArea>
           <Flex justify="end" mt="4">
             <Dialog.Close>
-              <Button color="gray" variant="soft">关闭</Button>
+              <Button color="gray" variant="soft">{t("common.close")}</Button>
             </Dialog.Close>
           </Flex>
         </Dialog.Content>

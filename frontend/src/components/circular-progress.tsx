@@ -17,7 +17,7 @@ export function CircularProgress({
   size = 16,
   strokeWidth = 1.75,
   className,
-  ariaLabel = "Progress",
+  ariaLabel,
   ...props
 }: CircularProgressProps) {
   const shouldReduceMotion = useReducedMotion();

@@ -1,5 +1,6 @@
 import { Box, Button, Flex, Text } from "@radix-ui/themes";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import type { ClarificationQuestion } from "../../../../../../../lib/agent.types";
 import {
@@ -17,12 +18,13 @@ interface ClarificationQuestionActionsProps {
 }
 
 export function ClarificationQuestionBody({ model, bodyClassName }: ClarificationQuestionBodyProps) {
+  const { t } = useTranslation();
   const { prompt } = model;
   if (prompt.questions.length === 0) return null;
 
   const content = model.shouldStep ? (
     <>
-      <Flex className="agent-clarification-stepper" aria-label="澄清问题进度">
+      <Flex className="agent-clarification-stepper" aria-label={t("assistant.clarification.progress")}>
         {prompt.questions.map((question, index) => (
           <span
             key={`${question.title}-${index}`}
@@ -62,7 +64,7 @@ export function ClarificationQuestionBody({ model, bodyClassName }: Clarificatio
           fontStyle: "italic",
         }}
       >
-        请选择每个问题的一个选项，或选择“自行输入”填写自定义回答。
+        {t("assistant.clarification.multiSelectHint")}
       </Text>
     </>
   );
@@ -71,6 +73,7 @@ export function ClarificationQuestionBody({ model, bodyClassName }: Clarificatio
 }
 
 export function ClarificationQuestionActions({ model }: ClarificationQuestionActionsProps) {
+  const { t } = useTranslation();
   const { prompt } = model;
   if (prompt.questions.length === 0) return null;
 
@@ -84,18 +87,18 @@ export function ClarificationQuestionActions({ model }: ClarificationQuestionAct
           {model.currentStep > 0 && (
             <Button size="1" variant="soft" onClick={model.handlePrev}>
               <ChevronLeft size={14} />
-              上一步
+              {t("assistant.clarification.previous")}
             </Button>
           )}
           {!model.isLastStep ? (
             <Button size="1" onClick={model.handleNext} disabled={!model.isCurrentStepValid}>
-              下一步
+              {t("assistant.clarification.next")}
               <ChevronRight size={14} />
             </Button>
           ) : (
             model.canRenderSubmit && (
               <Button size="1" onClick={model.handleSubmit} disabled={!model.canSubmit}>
-                提交回答
+                {t("assistant.clarification.submit")}
               </Button>
             )
           )}
@@ -109,7 +112,7 @@ export function ClarificationQuestionActions({ model }: ClarificationQuestionAct
   return (
     <Flex justify="end">
       <Button size="1" onClick={model.handleSubmit} disabled={!model.canSubmit}>
-        提交回答
+        {t("assistant.clarification.submit")}
       </Button>
     </Flex>
   );
@@ -132,14 +135,15 @@ function ClarificationQuestionItem({
   onCustomChange,
   onSelect,
 }: ClarificationQuestionItemProps) {
+  const { t } = useTranslation();
   const options = [
     ...question.options.map((option) => ({
       ...option,
       value: option.label,
     })),
     {
-      label: "自行输入",
-      description: "输入自定义回答",
+      label: t("assistant.clarification.customInput"),
+      description: t("assistant.clarification.customInputDescription"),
       value: CUSTOM_CLARIFICATION_ANSWER,
     },
   ];
@@ -182,8 +186,8 @@ function ClarificationQuestionItem({
           value={customValue}
           onChange={(event) => onCustomChange(index, event.target.value)}
           rows={2}
-          placeholder="输入自定义回答..."
-          aria-label={`${question.title}的自定义回答`}
+          placeholder={t("assistant.clarification.customInputPlaceholder")}
+          aria-label={t("assistant.clarification.customAnswerAriaLabel", { title: question.title })}
         />
       )}
     </fieldset>

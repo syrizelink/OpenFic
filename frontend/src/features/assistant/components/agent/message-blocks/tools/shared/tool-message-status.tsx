@@ -1,4 +1,5 @@
 import { ToolBody, ToolNotice, ToolTextBlock } from "./tool-message-shared";
+import i18n from "@/i18n";
 
 interface ToolErrorMessageProps {
   errorMessage: string;
@@ -12,7 +13,7 @@ interface UnregisteredToolMessageProps {
 export function ToolErrorMessage({ errorMessage }: ToolErrorMessageProps) {
   return (
     <ToolBody>
-      <ToolNotice title="工具调用失败" tone="error">
+      <ToolNotice title={i18n.t("assistant.tools.toolError")} tone="error">
         {errorMessage}
       </ToolNotice>
     </ToolBody>
@@ -25,11 +26,11 @@ export function UnregisteredToolMessage({
 }: UnregisteredToolMessageProps) {
   return (
     <ToolBody>
-      <ToolNotice title="未注册工具" tone="warning">
-        当前前端没有为这条工具消息注册显式渲染器。
+      <ToolNotice title={i18n.t("assistant.tools.unregisteredTool")} tone="warning">
+        {i18n.t("assistant.tools.unregisteredToolDescription")}
       </ToolNotice>
-      <ToolTextBlock label="工具名" value={toolName ?? "未知"} />
-      <ToolTextBlock label="说明" value={errorMessage} />
+      <ToolTextBlock label={i18n.t("assistant.tools.toolName")} value={toolName ?? i18n.t("assistant.tools.unknown")} />
+      <ToolTextBlock label={i18n.t("assistant.tools.description")} value={errorMessage} />
     </ToolBody>
   );
 }

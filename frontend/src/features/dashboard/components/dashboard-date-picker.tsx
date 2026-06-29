@@ -4,6 +4,7 @@ import { format, parse } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { CalendarDays } from "lucide-react";
 import { DayPicker } from "react-day-picker";
+import { useTranslation } from "react-i18next";
 import "react-day-picker/style.css";
 
 interface DashboardDatePickerProps {
@@ -26,6 +27,7 @@ function formatDateValue(value: string): string {
 }
 
 export function DashboardDatePicker({ value, placeholder, onChange }: DashboardDatePickerProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const selected = parseDateValue(value);
 
@@ -56,7 +58,7 @@ export function DashboardDatePicker({ value, placeholder, onChange }: DashboardD
         />
         {value ? (
           <div className="dashboard-date-popover-footer">
-            <Button size="1" variant="soft" color="gray" onClick={() => onChange("")}>清除日期</Button>
+            <Button size="1" variant="soft" color="gray" onClick={() => onChange("")}>{t("dashboard.filters.clearDate")}</Button>
           </div>
         ) : null}
       </Popover.Content>

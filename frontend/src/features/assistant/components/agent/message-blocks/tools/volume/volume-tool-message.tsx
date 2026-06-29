@@ -1,4 +1,5 @@
 import type { AgentMessage } from "@/lib/agent.types";
+import i18n from "@/i18n";
 
 import {
   asBoolean,
@@ -80,10 +81,10 @@ export function DeleteVolumeToolMessage({ message }: VolumeToolMessageProps) {
 
   return (
     <ToolBody>
-      <ToolTextBlock label="目标卷" value={volumeLabel} />
-      <ToolTextBlock label="级联删除章节" value={cascade ? "是" : cascade === false ? "否" : undefined} />
-      <ToolNotice title="卷删除已提交">
-        {getToolResultMessage(message) ?? "卷删除成功。"}
+      <ToolTextBlock label={i18n.t("assistant.tools.targetVolume")} value={volumeLabel} />
+      <ToolTextBlock label={i18n.t("assistant.tools.cascadeDeleteChapters")} value={cascade ? i18n.t("assistant.tools.yes") : cascade === false ? i18n.t("assistant.tools.no") : undefined} />
+      <ToolNotice title={i18n.t("assistant.tools.volumeDeleteSubmitted")}>
+        {getToolResultMessage(message) ?? i18n.t("assistant.tools.volumeDeleteSuccess")}
       </ToolNotice>
     </ToolBody>
   );
@@ -102,15 +103,15 @@ export function MoveChapterToVolumeToolMessage({ message }: VolumeToolMessagePro
 
   return (
     <ToolBody>
-      <ToolTextBlock label="章节" value={chapter.title ?? chapterLabel} />
-      <ToolTextBlock label="来源卷" value={sourceVolumeLabel} />
-      <ToolTextBlock label="目标卷" value={targetVolumeLabel} />
+      <ToolTextBlock label={i18n.t("assistant.tools.chapter")} value={chapter.title ?? chapterLabel} />
+      <ToolTextBlock label={i18n.t("assistant.tools.sourceVolume")} value={sourceVolumeLabel} />
+      <ToolTextBlock label={i18n.t("assistant.tools.targetVolume")} value={targetVolumeLabel} />
       <ToolTextBlock
-        label="影响章节"
+        label={i18n.t("assistant.tools.affectedChapters")}
         value={typeof affectedCount === "number" ? `${affectedCount} 个` : undefined}
       />
-      <ToolNotice title="章节移动已提交">
-        {getToolResultMessage(message) ?? "章节已移动到目标卷末尾。"}
+      <ToolNotice title={i18n.t("assistant.tools.moveChapterSubmitted")}>
+        {getToolResultMessage(message) ?? i18n.t("assistant.tools.moveChapterSuccess")}
       </ToolNotice>
     </ToolBody>
   );

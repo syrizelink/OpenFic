@@ -1,5 +1,6 @@
 import { Box, Button, Flex } from "@radix-ui/themes";
 import { RefreshCw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import "./global-loading.css";
 
 interface GlobalLoadingProps {
@@ -13,6 +14,8 @@ interface GlobalLoadingProps {
  * Displayed when the application is initializing or waiting for the backend to become ready.
  */
 export function GlobalLoading({ error, onRetry }: GlobalLoadingProps) {
+  const { t } = useTranslation();
+
   return (
     <Box className="global-loading-shell">
       <Flex className="global-loading-stage" direction="column" align="center" justify="center">
@@ -29,7 +32,7 @@ export function GlobalLoading({ error, onRetry }: GlobalLoadingProps) {
             onClick={onRetry}
             variant="ghost"
             color="gray"
-            aria-label="Retry initialization"
+            aria-label={t("common.retryInitialization")}
           >
             <RefreshCw size={18} />
           </Button>

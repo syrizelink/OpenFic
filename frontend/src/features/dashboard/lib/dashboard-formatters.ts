@@ -1,21 +1,6 @@
+import i18n from "@/i18n";
+
 export const EMPTY_VALUE = "__all__";
-
-const statusLabels: Record<string, string> = {
-  success: "已完成",
-  error: "失败",
-  cancelled: "已取消",
-  running: "进行中",
-};
-
-const agentLabels: Record<string, string> = {
-  primary: "主代理",
-  explorer: "信息探索",
-  composer: "规划编排",
-  auditor: "计划审查",
-  writer: "正文写作",
-  actor: "任务执行",
-  reviewer: "审阅修改",
-};
 
 export function formatNumber(value: number): string {
   return new Intl.NumberFormat("zh-CN").format(Math.round(value));
@@ -23,7 +8,7 @@ export function formatNumber(value: number): string {
 
 export function formatSeconds(value: number | null | undefined): string {
   if (value === null || value === undefined) return "-";
-  return `${(value / 1000).toFixed(2)} s`;
+  return `${(value / 1000).toFixed(2)}${i18n.t("dashboard.metrics.secondsSuffix")}`;
 }
 
 export function formatDateTime(value: string): string {
@@ -46,11 +31,22 @@ export function formatDate(value: string | null | undefined): string {
 }
 
 export function getStatusLabel(value: string): string {
-  return statusLabels[value] ?? value;
+  if (value === "success") return i18n.t("dashboard.status.success");
+  if (value === "error") return i18n.t("dashboard.status.error");
+  if (value === "cancelled") return i18n.t("dashboard.status.cancelled");
+  if (value === "running") return i18n.t("dashboard.status.running");
+  return value;
 }
 
 export function getAgentLabel(value: string): string {
-  return agentLabels[value] ?? value;
+  if (value === "primary") return i18n.t("dashboard.agentLabels.primary");
+  if (value === "explorer") return i18n.t("dashboard.agentLabels.explorer");
+  if (value === "composer") return i18n.t("dashboard.agentLabels.composer");
+  if (value === "auditor") return i18n.t("dashboard.agentLabels.auditor");
+  if (value === "writer") return i18n.t("dashboard.agentLabels.writer");
+  if (value === "actor") return i18n.t("dashboard.agentLabels.actor");
+  if (value === "reviewer") return i18n.t("dashboard.agentLabels.reviewer");
+  return value;
 }
 
 export function toIsoDateTime(value: string | undefined, boundary: "start" | "end"): string | undefined {

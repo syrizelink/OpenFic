@@ -29,7 +29,7 @@ function getRoleMeta(role: string, t: ReturnType<typeof useTranslation>["t"]): {
   if (role === "system") return { label: t("promptChains.roleSystem"), Icon: Terminal };
   if (role === "assistant") return { label: t("promptChains.roleAssistant"), Icon: Bot };
   if (role === "user") return { label: t("promptChains.roleUser"), Icon: User };
-  return { label: role || "Unknown", Icon: Terminal };
+  return { label: role || t("promptChainDialog.unknownRole"), Icon: Terminal };
 }
 
 function highlightContent(content: string, query: string): ReactNode {
@@ -63,7 +63,7 @@ export function PromptChainDialog({
   onOpenChange,
   entries,
   isLoading,
-  title = "提示词链",
+  title,
   description,
 }: PromptChainDialogProps) {
   const { t } = useTranslation();
@@ -111,14 +111,18 @@ export function PromptChainDialog({
     });
   };
 
+  const resolvedTitle = title ?? t("promptChainDialog.title");
+
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       <Dialog.Content className="prompt-chain-dialog-content">
         <Flex justify="between" align="start" gap="4" mb="3">
           <Box>
-            <Dialog.Title>{title}</Dialog.Title>
+            <Dialog.Title>{resolvedTitle}</Dialog.Title>
             <Dialog.Description size="2" color="gray">
-              {description || (isBusy ? "正在载入并计算提示词 token" : `共 ${countedEntries.length} 条消息，约 ${totalTokens} tokens`)}
+              {description || (isBusy
+                ? t("promptChainDialog.loadingWithToken")
+                : t("promptChainDialog.summary", { count: countedEntries.length, tokens: totalTokens }))}
             </Dialog.Description>
           </Box>
           {!isBusy ? (
@@ -131,7 +135,7 @@ export function PromptChainDialog({
         <TextField.Root
           className="prompt-chain-dialog-search"
           value={searchQuery}
-          placeholder="搜索提示词内容"
+          placeholder={t("promptChainDialog.searchPlaceholder")}
           disabled={isBusy}
           onChange={(event) => setSearchQuery(event.target.value)}
         >
@@ -143,7 +147,7 @@ export function PromptChainDialog({
         {isBusy ? (
           <Flex className="prompt-chain-dialog-loading" align="center" justify="center">
             <div className="prompt-chain-dialog-spinner" aria-hidden="true" />
-            <Text color="gray" size="2">正在载入提示词</Text>
+            <Text color="gray" size="2">{t("promptChainDialog.loading")}</Text>
           </Flex>
         ) : (
           <ScrollArea className="prompt-chain-dialog-scroll-area">
@@ -173,7 +177,7 @@ export function PromptChainDialog({
                     </button>
                     {isExpanded ? (
                       <Box className="prompt-chain-dialog-entry-content">
-                        {entry.content ? highlightContent(entry.content, searchQuery) : <Text color="gray">空内容</Text>}
+                        {entry.content ? highlightContent(entry.content, searchQuery) : <Text color="gray">{t("promptChainDialog.emptyContent")}</Text>}
                       </Box>
                     ) : null}
                   </Box>
@@ -185,7 +189,7 @@ export function PromptChainDialog({
 
         <Flex mt="4" justify="end">
           <Dialog.Close>
-            <Button color="gray" variant="soft">关闭</Button>
+            <Button color="gray" variant="soft">{t("common.close")}</Button>
           </Dialog.Close>
         </Flex>
       </Dialog.Content>

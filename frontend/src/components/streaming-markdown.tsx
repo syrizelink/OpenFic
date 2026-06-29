@@ -4,6 +4,7 @@ import { math } from "@streamdown/math";
 import { mermaid } from "@streamdown/mermaid";
 import { AlertDialog, Button, Flex, Text } from "@radix-ui/themes";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Streamdown,
   type AnimateOptions,
@@ -60,6 +61,7 @@ function StreamingMarkdownLinkSafetyDialog({
   onConfirm,
   url,
 }: LinkSafetyModalProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const copyResetTimerRef = useRef<number | null>(null);
 
@@ -118,9 +120,9 @@ function StreamingMarkdownLinkSafetyDialog({
         data-streamdown="link-safety-dialog"
         maxWidth="420px"
       >
-        <AlertDialog.Title>Open external link?</AlertDialog.Title>
+        <AlertDialog.Title>{t("streamingMarkdown.openExternalLink")}</AlertDialog.Title>
         <AlertDialog.Description size="2">
-          <Text color="gray">You're about to visit an external website.</Text>
+          <Text color="gray">{t("streamingMarkdown.externalLinkWarning")}</Text>
         </AlertDialog.Description>
 
         <div
@@ -141,15 +143,15 @@ function StreamingMarkdownLinkSafetyDialog({
             type="button"
             variant="soft"
           >
-            {copied ? "Copied" : "Copy link"}
+            {copied ? t("streamingMarkdown.copied") : t("streamingMarkdown.copyLink")}
           </Button>
           <AlertDialog.Cancel>
             <Button color="gray" variant="soft">
-              Close
+              {t("common.close")}
             </Button>
           </AlertDialog.Cancel>
           <AlertDialog.Action>
-            <Button onClick={handleConfirm}>Open link</Button>
+            <Button onClick={handleConfirm}>{t("streamingMarkdown.openLink")}</Button>
           </AlertDialog.Action>
         </Flex>
       </AlertDialog.Content>

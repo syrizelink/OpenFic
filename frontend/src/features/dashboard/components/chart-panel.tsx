@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@radix-ui/themes";
+import { useTranslation } from "react-i18next";
 import {
   DASHBOARD_ECHARTS_DARK_THEME_NAME,
   DASHBOARD_ECHARTS_LIGHT_THEME_NAME,
@@ -61,6 +62,7 @@ function loadEcharts() {
 }
 
 export function ChartPanel({ title, option, isLoading, themeMode, size = "medium" }: ChartPanelProps) {
+  const { t } = useTranslation();
   const elementRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<DashboardChartInstance | null>(null);
   const latestOptionRef = useRef(withDashboardChartTheme(option, themeMode));
@@ -150,7 +152,7 @@ export function ChartPanel({ title, option, isLoading, themeMode, size = "medium
       </div>
       <div className="dashboard-chart-frame">
         {!isChartReady ? (
-          <div className="dashboard-chart-mount-loading" aria-label="图表加载中" role="status">
+          <div className="dashboard-chart-mount-loading" aria-label={t("dashboard.charts.loading")} role="status">
             <div className="dashboard-chart-mount-spinner" />
           </div>
         ) : null}

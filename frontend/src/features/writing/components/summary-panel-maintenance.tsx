@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import axios from "axios";
 import { Badge, Box, Button, Callout, Flex, Tabs, Text } from "@radix-ui/themes";
 import { AlertTriangle, Sparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import "./summary-panel.css";
 
 import { toast } from "@/components";
@@ -380,6 +381,7 @@ interface SummaryMaintenanceViewProps {
 export function SummaryMaintenanceView({
   projectId,
 }: SummaryMaintenanceViewProps) {
+  const { t } = useTranslation();
   const { data: panelData } = useSummaryPanel(projectId);
   const enqueueMutation = useEnqueueSummary(projectId);
   const [activeTab, setActiveTab] = useState<MaintenanceTab>("chapter");
@@ -423,7 +425,7 @@ export function SummaryMaintenanceView({
     try {
       await enqueueMutation.mutateAsync(request);
     } catch (error) {
-      toast.error(`加入摘要队列失败：${getSummaryErrorMessage(error)}`);
+      toast.error(t("summary.enqueueFailed", { reason: getSummaryErrorMessage(error) }));
     }
   };
 
@@ -432,7 +434,7 @@ export function SummaryMaintenanceView({
     try {
       await enqueueMutation.mutateAsync({ summaryType: "all" });
     } catch (error) {
-      toast.error(`批量加入摘要队列失败：${getSummaryErrorMessage(error)}`);
+      toast.error(t("summary.batchEnqueueFailed", { reason: getSummaryErrorMessage(error) }));
     }
   };
 
@@ -444,7 +446,7 @@ export function SummaryMaintenanceView({
             <AlertTriangle size={16} />
           </Callout.Icon>
           <Callout.Text>
-            {maintenance.blockReason ?? "没有摘要的章节过多，需要手动生成摘要。"}
+            {maintenance.blockReason ?? t("summary.maintenance.blockReasonFallback")}
           </Callout.Text>
         </Callout.Root>
       )}
@@ -457,24 +459,24 @@ export function SummaryMaintenanceView({
           <Flex align="start" justify="between" gap="4">
           <Flex direction="column" gap="1">
             <Text size="3" weight="medium">
-              摘要生成队列
+              {t("summary.maintenance.queueTitle")}
             </Text>
             <Text size="2" color="gray">
-              当前有 {chapterItems.length} 个章节摘要、{longTermItems.length} 个区间摘要需要处理。进度条表示整个队列的总体处理进度。
+              {t("summary.maintenance.queueDescription", { chapterCount: chapterItems.length, rangeCount: longTermItems.length })}
             </Text>
           </Flex>
             <Button size="2" onClick={handleGenerateAll} disabled={isGenerating || total === 0}>
               <Sparkles size={15} />
-              一键生成全部
+              {t("summary.maintenance.generateAll")}
             </Button>
           </Flex>
 
           <Flex gap="2" wrap="wrap">
-            <Badge color={chapterItems.length ? "amber" : "green"}>章节摘要 {chapterItems.length}</Badge>
-            <Badge color={longTermItems.length ? "amber" : "green"}>区间摘要 {longTermItems.length}</Badge>
-            <Badge color={skippedItems.length ? "gray" : "green"}>已跳过 {skippedItems.length}</Badge>
+            <Badge color={chapterItems.length ? "amber" : "green"}>{t("summary.maintenance.chapterBadge", { count: chapterItems.length })}</Badge>
+            <Badge color={longTermItems.length ? "amber" : "green"}>{t("summary.maintenance.rangeBadge", { count: longTermItems.length })}</Badge>
+            <Badge color={skippedItems.length ? "gray" : "green"}>{t("summary.maintenance.skippedBadge", { count: skippedItems.length })}</Badge>
             <Badge color={progressState?.isActive ? "amber" : "gray"}>
-              处理中 {progressState?.isActive ? (progressState.totalCount ?? 0) : 0}
+              {t("summary.maintenance.processingBadge", { count: progressState?.isActive ? (progressState.totalCount ?? 0) : 0 })}
             </Badge>
           </Flex>
 
@@ -490,19 +492,19 @@ export function SummaryMaintenanceView({
         <Tabs.List>
           <Tabs.Trigger value="chapter">
             <Flex align="center" gap="2">
-              <Text size="2">章节摘要</Text>
+              <Text size="2">{t("summary.tabs.chapters")}</Text>
               <Badge color={chapterViewItems.length ? "amber" : "green"}>{chapterViewItems.length}</Badge>
             </Flex>
           </Tabs.Trigger>
           <Tabs.Trigger value="long_term">
             <Flex align="center" gap="2">
-              <Text size="2">区间摘要</Text>
+              <Text size="2">{t("summary.tabs.ranges")}</Text>
               <Badge color={longTermViewItems.length ? "amber" : "green"}>{longTermViewItems.length}</Badge>
             </Flex>
           </Tabs.Trigger>
           <Tabs.Trigger value="skipped">
             <Flex align="center" gap="2">
-              <Text size="2">已跳过章节</Text>
+              <Text size="2">{t("summary.maintenance.skippedChapters")}</Text>
               <Badge color={skippedItems.length ? "gray" : "green"}>{skippedItems.length}</Badge>
             </Flex>
           </Tabs.Trigger>
@@ -511,9 +513,9 @@ export function SummaryMaintenanceView({
         <Box pt="4">
           <Tabs.Content value="chapter">
             <MaintenanceList
-              title="章节摘要队列"
-              totalText="逐章补齐缺失、失败或待更新的摘要。"
-              emptyText="所有章节摘要都已就绪。"
+              title={t("summary.maintenance.chapterQueueTitle")}
+              totalText={t("summary.maintenance.chapterQueueDescription")}
+              emptyText={t("summary.maintenance.chapterQueueEmpty")}
               items={chapterViewItems}
               isGenerating={isGenerating}
               onGenerate={handleGenerateOne}
@@ -522,9 +524,9 @@ export function SummaryMaintenanceView({
 
           <Tabs.Content value="long_term">
             <MaintenanceList
-              title="区间摘要队列"
-              totalText="按固定区间补齐可聚合的长程摘要。"
-              emptyText="没有需要处理的区间摘要。"
+              title={t("summary.maintenance.rangeQueueTitle")}
+              totalText={t("summary.maintenance.rangeQueueDescription")}
+              emptyText={t("summary.maintenance.rangeQueueEmpty")}
               items={longTermViewItems}
               isGenerating={isGenerating}
               onGenerate={handleGenerateOne}

@@ -2,6 +2,7 @@ import { IconButton } from "@radix-ui/themes";
 import { Clock3, Reply } from "lucide-react";
 import { motion } from "motion/react";
 import type { CSSProperties } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { AgentPendingMessage } from "@/lib/agent.types";
 import { InlineMentionText } from "./inline-mention-text";
@@ -19,6 +20,7 @@ export function AgentPendingMessageCard({
   onCancel,
   onOpenMentionChapter,
 }: AgentPendingMessageCardProps) {
+  const { t } = useTranslation();
   const normalizedClearanceHeight = Math.max(clearanceHeight, 0);
   const overlapOffset = Math.min(normalizedClearanceHeight, 12);
   const style = {
@@ -56,7 +58,7 @@ export function AgentPendingMessageCard({
               className="ai-sidebar-pending-cancel"
               onClick={onCancel}
               disabled={!onCancel}
-              aria-label="取消待发送消息"
+              aria-label={t("assistant.cancelPendingMessage")}
             >
               <Reply size={12} />
             </IconButton>

@@ -128,7 +128,7 @@ function ChapterEditorInner({
         <IconButton
           variant="ghost"
           size="2"
-          aria-label="摘要"
+          aria-label={t("summary.openPanel")}
           onClick={handleOpenSummary}
           onPointerEnter={() => {
             void loadSummaryPanel();
@@ -151,7 +151,7 @@ function ChapterEditorInner({
         )}
       </>
     );
-  }, [projectId, chapter.id, handleOpenSummary, handleSummaryOpenChange, summaryOpen, hasOpenedSummary]);
+  }, [projectId, chapter.id, handleOpenSummary, handleSummaryOpenChange, summaryOpen, hasOpenedSummary, t]);
 
   const openFind = useCallback(() => {
     if (isAgentLocked) {
