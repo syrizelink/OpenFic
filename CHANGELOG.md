@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/syrizelink/OpenFic/compare/v0.2.6...v0.3.0) (2026-06-29)
+
+
+### ✨ 新功能
+
+* **frontend:** 补齐前端国际化文案并对齐英文翻译 ([#21](https://github.com/syrizelink/OpenFic/issues/21)) ([59d4249](https://github.com/syrizelink/OpenFic/commit/59d4249bfdfdb2b5867a789a7951e5812de8a011))
+
 ## [0.2.6](https://github.com/syrizelink/OpenFic/compare/v0.2.5...v0.2.6) (2026-06-29)
 
 
