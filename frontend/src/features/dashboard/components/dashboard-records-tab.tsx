@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge, Box, Button, Card, Dialog, Flex, IconButton, ScrollArea, Text } from "@radix-ui/themes";
 import { ArrowDownNarrowWide, ArrowUpDown, ArrowUpWideNarrow, ChevronLeft, ChevronRight, Info, ScanSearch } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { PromptChainDialog } from "@/components";
+import { PromptChainDialog, Spinner } from "@/components";
 import type { PromptChainDialogEntry } from "@/components";
 import { fetchDashboardRecordPrompt } from "../lib/dashboard-api";
 import { formatDateTime, formatNumber, formatSeconds, getAgentLabel, getStatusLabel } from "../lib/dashboard-formatters";
@@ -252,7 +252,7 @@ export function DashboardRecordsTab({ data, query, totalPages, isLoading, update
           </table>
           {isLoading ? (
             <div className="dashboard-record-loading-overlay">
-              <div className="dashboard-record-loading-spinner" aria-hidden="true" />
+              <Spinner size={18} />
               <Text size="2" color="gray">{t("dashboard.records.loading")}</Text>
             </div>
           ) : null}

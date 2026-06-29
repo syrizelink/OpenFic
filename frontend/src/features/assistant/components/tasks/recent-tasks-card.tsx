@@ -73,12 +73,6 @@ export function RecentTasksCard({
             style={{ padding: "20px 0", color: "var(--gray-9)" }}
           >
             <Text size="2">{t("writing.aiSidebar.noTasks")}</Text>
-            <Text
-              size="1"
-              style={{ textAlign: "center", color: "var(--gray-10)" }}
-            >
-              {t("writing.aiSidebar.emptyMessage")}
-            </Text>
           </Flex>
         )}
       </Box>

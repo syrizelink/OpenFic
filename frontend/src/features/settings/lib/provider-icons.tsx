@@ -5,7 +5,7 @@
  */
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Spinner } from "@/components";
 
 import type { ProviderType } from "@/lib/model.types";
 import {
@@ -53,9 +53,8 @@ export function ProviderIcon({
         }}
       >
         {shouldShowLoading && !isLoaded ? (
-          <Loader2
-            size={Math.max(12, Math.round(size * 0.7))}
-            className="animate-spin"
+          <Spinner
+            size={18}
             style={{
               position: "absolute",
               color: "var(--gray-10)",

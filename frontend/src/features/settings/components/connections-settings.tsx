@@ -6,7 +6,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { Box, Flex, Text, Button, IconButton } from "@radix-ui/themes";
-import { Plus, Trash2, Edit, Loader2, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Edit, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -23,6 +23,7 @@ import {
 import { ProviderIcon } from "../lib/provider-icons";
 import { getProviderDisplayName, resolveProviderBuiltinIconPath, resolveProviderDisplayName } from "../lib/provider-utils";
 import { ConnectionFormDialog } from "./connection-form-dialog";
+import { Spinner } from "@/components";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { toast } from "@/components/toast";
 
@@ -188,9 +189,9 @@ export function ConnectionsSettings() {
         </Text>
 
         {isContentLoading ? (
-          <Flex align="center" justify="center" style={{ height: 200 }}>
-            <Loader2 size={24} className="animate-spin" />
-          </Flex>
+            <Flex align="center" justify="center" style={{ height: 200 }}>
+              <Spinner size={18} />
+            </Flex>
         ) : (
           <>
             <Box
@@ -222,18 +223,36 @@ export function ConnectionsSettings() {
                   )}
                 </Flex>
 
-                <Button
-                  variant="soft"
-                  onClick={() => refreshCatalogMutation.mutate()}
-                  disabled={refreshCatalogMutation.isPending}
-                >
-                  {refreshCatalogMutation.isPending ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <RefreshCw size={16} />
-                  )}
-                  {t("connections.refreshCatalog")}
-                </Button>
+                <Box display={{ initial: "none", md: "block" }}>
+                  <Button
+                    variant="soft"
+                    onClick={() => refreshCatalogMutation.mutate()}
+                    disabled={refreshCatalogMutation.isPending}
+                  >
+                    {refreshCatalogMutation.isPending ? (
+                      <Spinner size={18} />
+                    ) : (
+                      <RefreshCw size={16} />
+                    )}
+                    {t("connections.refreshCatalog")}
+                  </Button>
+                </Box>
+
+                <Box display={{ initial: "block", md: "none" }}>
+                  <IconButton
+                    variant="soft"
+                    color="gray"
+                    aria-label={t("connections.refreshCatalog")}
+                    onClick={() => refreshCatalogMutation.mutate()}
+                    disabled={refreshCatalogMutation.isPending}
+                  >
+                    {refreshCatalogMutation.isPending ? (
+                      <Spinner size={18} />
+                    ) : (
+                      <RefreshCw size={16} />
+                    )}
+                  </IconButton>
+                </Box>
               </Flex>
             </Box>
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Badge, Box, Button, Dialog, Flex, ScrollArea, Text, TextField } from "@radix-ui/themes";
 import { Bot, ChevronDown, Search, Terminal, User } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Spinner } from "@/components";
 import { countTokens } from "@/lib/tiktoken-utils";
 import type { ReactNode } from "react";
 import "./prompt-chain-dialog.css";
@@ -146,7 +147,7 @@ export function PromptChainDialog({
 
         {isBusy ? (
           <Flex className="prompt-chain-dialog-loading" align="center" justify="center">
-            <div className="prompt-chain-dialog-spinner" aria-hidden="true" />
+            <Spinner size={18} />
             <Text color="gray" size="2">{t("promptChainDialog.loading")}</Text>
           </Flex>
         ) : (

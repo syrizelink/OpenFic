@@ -163,7 +163,7 @@ export function DashboardPage({ appearance }: DashboardPageProps) {
     <Box className="dashboard-page">
       <div className="dashboard-shell">
         <header className="dashboard-header">
-          <div className="dashboard-title-block" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div className="dashboard-title-block dashboard-title-row">
             <MobileAppSidebarTrigger />
             <h1 className="dashboard-title">{t("dashboard.title")}</h1>
           </div>

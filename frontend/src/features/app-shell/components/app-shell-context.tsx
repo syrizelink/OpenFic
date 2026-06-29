@@ -1,5 +1,7 @@
 import { createContext, useContext } from "react";
 
+import type { SettingsDialogRoute } from "@/features/settings/lib/settings-route";
+
 interface AppShellContextValue {
   isMobile: boolean;
   isSidebarOpen: boolean;
@@ -7,7 +9,7 @@ interface AppShellContextValue {
   openSidebar: () => void;
   closeSidebar: () => void;
   toggleSidebar: () => void;
-  openSettings: () => void;
+  openSettings: (route?: SettingsDialogRoute) => void;
   closeSettings: () => void;
 }
 

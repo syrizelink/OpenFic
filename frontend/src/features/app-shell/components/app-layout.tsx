@@ -4,6 +4,7 @@ import { Outlet } from "react-router";
 import { AppSidebar } from "./app-sidebar";
 import { AppShellContext } from "./app-shell-context";
 import { SettingsDialog } from "@/features/settings";
+import type { SettingsDialogRoute } from "@/features/settings/lib/settings-route";
 
 interface AppLayoutProps {
   appearance: "light" | "dark";
@@ -14,6 +15,7 @@ export function AppLayout({ appearance, onToggleTheme }: AppLayoutProps) {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsRoute, setSettingsRoute] = useState<SettingsDialogRoute | undefined>(undefined);
 
   useEffect(() => {
     function handleResize() {
@@ -38,7 +40,10 @@ export function AppLayout({ appearance, onToggleTheme }: AppLayoutProps) {
       openSidebar: () => setIsSidebarOpen(true),
       closeSidebar: () => setIsSidebarOpen(false),
       toggleSidebar: () => setIsSidebarOpen((prev) => !prev),
-      openSettings: () => setIsSettingsOpen(true),
+      openSettings: (route?: SettingsDialogRoute) => {
+        setSettingsRoute(route);
+        setIsSettingsOpen(true);
+      },
       closeSettings: () => setIsSettingsOpen(false),
     }),
     [isMobile, isSidebarOpen, isSettingsOpen]
@@ -69,6 +74,7 @@ export function AppLayout({ appearance, onToggleTheme }: AppLayoutProps) {
           appearance={appearance}
           open={isSettingsOpen}
           onOpenChange={setIsSettingsOpen}
+          route={settingsRoute}
         />
       </Box>
     </AppShellContext.Provider>

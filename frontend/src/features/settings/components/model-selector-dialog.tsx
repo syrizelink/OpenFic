@@ -6,10 +6,11 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { Dialog, Flex, Button, Text, TextField, Box } from "@radix-ui/themes";
-import { Search, Loader2 } from "lucide-react";
+import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 
+import { Spinner } from "@/components";
 import type { AvailableModel } from "@/lib/model.types";
 
 const MotionBox = motion.create(Box);
@@ -96,7 +97,7 @@ export function ModelSelectorDialog({
                 justify="center"
                 style={{ height: 200, padding: 20 }}
               >
-                <Loader2 size={24} className="animate-spin" />
+                <Spinner size={18} />
                 <Text size="2" color="gray" ml="2">
                   {t("models.loadingModels")}
                 </Text>

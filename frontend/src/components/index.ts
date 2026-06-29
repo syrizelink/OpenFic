@@ -17,6 +17,8 @@ export { TagInput } from "./tag-input";
 export { AutocompletePopover } from "./autocomplete-popover";
 export type { AutocompleteItem, AutocompletePopoverProps } from "./autocomplete-popover";
 export { GlobalLoading } from "./global-loading";
+export { Spinner } from "./spinner";
+export type { SpinnerProps } from "./spinner";
 export { ModelIdSelect } from "./model-id-select";
 export type { ModelIdSelectOption } from "./model-id-select";
 export { getModelValue } from "./model-id-select";

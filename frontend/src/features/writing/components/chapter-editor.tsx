@@ -1,5 +1,5 @@
 import { Suspense, lazy, useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { Box, Flex, Text, Spinner, IconButton } from "@radix-ui/themes";
+import { Box, Flex, Text, IconButton } from "@radix-ui/themes";
 import { AtSign, Globe, FileText } from "lucide-react";
 import { toast } from "@/components";
 import { useEditor, EditorContent } from "@tiptap/react";
@@ -9,7 +9,7 @@ import { useNavigate } from "react-router";
 import { AnimatePresence } from "motion/react";
 import wordsCount from "words-count";
 
-import { TitleInput, EditorToolbar, type EditorToolbarExtraAction } from "@/components";
+import { TitleInput, EditorToolbar, Spinner, type EditorToolbarExtraAction } from "@/components";
 import { FindReplacePanel } from "./find-replace-panel";
 import { ContextMenu } from "@/components";
 import { createEditorExtensions } from "../lib/editor-config";
@@ -572,7 +572,7 @@ export function ChapterEditor({
         justify="center"
         style={{ flex: 1, minHeight: 0, height: "100%" }}
       >
-        <Spinner size="3" />
+        <Spinner size={18} />
       </Flex>
     );
   }
