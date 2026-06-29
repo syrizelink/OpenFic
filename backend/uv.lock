@@ -2004,8 +2004,8 @@ wheels = [
 ]
 
 [[package]]
-name = "openfic-backend"
-version = "0.2.4"
+name = "openfic"
+version = "0.2.5"
 source = { editable = "." }
 dependencies = [
     { name = "aiocache" },
