@@ -14,7 +14,7 @@ interface SettingsDialogProps {
 
 export function SettingsDialog({ appearance, open, onOpenChange, route }: SettingsDialogProps) {
   const { t } = useTranslation();
-  const routeKey = `${route?.category ?? "default"}:${route?.modelTab ?? ""}`;
+  const routeKey = `${open ? "open" : "closed"}:${route?.category ?? "default"}:${route?.modelTab ?? ""}`;
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>

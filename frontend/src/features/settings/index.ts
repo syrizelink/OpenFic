@@ -5,4 +5,4 @@
  */
 
 export { SettingsDialog } from "./components/settings-dialog";
-export type { SettingsCategory } from "./components/settings-sidebar";
+export type { SettingsCategory } from "./lib/settings-categories";

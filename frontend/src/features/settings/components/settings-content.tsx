@@ -1,15 +1,14 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { Box, Button, Flex, IconButton, TabNav } from "@radix-ui/themes";
-import { Loader2, X } from "lucide-react";
+import { Box, Button, Flex, IconButton, Text } from "@radix-ui/themes";
+import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "motion/react";
 import axios from "axios";
 import "./settings-dialog.css";
 
-import {
-  SettingsSidebar,
-  type SettingsCategory,
-} from "../components/settings-sidebar";
+import { SettingsSidebar } from "../components/settings-sidebar";
+import { SETTINGS_CATEGORY_ITEMS, type SettingsCategory } from "../lib/settings-categories";
 import { GeneralSettings } from "../components/general-settings";
 import { ConnectionsSettings } from "../components/connections-settings";
 import { ModelsSettings } from "../components/models-settings";
@@ -31,6 +30,22 @@ import {
   loadConfiguredFonts,
 } from "@/lib/font-utils";
 
+const MotionBox = motion.create(Box);
+
+type MobileSubpage = "list" | "detail";
+
+const mobilePageVariants = {
+  enter: (direction: number) => ({
+    x: direction > 0 ? "100%" : "-100%",
+  }),
+  center: {
+    x: 0,
+  },
+  exit: (direction: number) => ({
+    x: direction > 0 ? "-100%" : "100%",
+  }),
+};
+
 interface SettingsContentProps {
   appearance: "light" | "dark";
   onClose: () => void;
@@ -39,17 +54,6 @@ interface SettingsContentProps {
     modelTab?: ModelSettingsTab;
   };
 }
-
-const SETTINGS_CATEGORIES: SettingsCategory[] = [
-  "general",
-  "connections",
-  "models",
-  "index",
-  "agent-tools",
-  "rules",
-  "skills",
-  "agents",
-];
 
 const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
   general: "settings.general",
@@ -65,14 +69,19 @@ const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
 export function SettingsContent({ appearance, onClose, route }: SettingsContentProps) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const [activeCategory, setActiveCategory] = useState<SettingsCategory>(
-    route?.category ?? DEFAULT_SETTINGS_ROUTE_CATEGORY
-  );
+  const initialCategory = route?.category ?? DEFAULT_SETTINGS_ROUTE_CATEGORY;
+  const [activeCategory, setActiveCategory] = useState<SettingsCategory>(initialCategory);
   const [activeModelTab, setActiveModelTab] = useState<ModelSettingsTab>(
     route?.category === "models"
       ? (route.modelTab ?? DEFAULT_MODEL_SETTINGS_TAB)
       : DEFAULT_MODEL_SETTINGS_TAB
   );
+  const [mobileView, setMobileView] = useState<"list" | "detail">(
+    route ? "detail" : "list"
+  );
+  const [mobileSubpage, setMobileSubpage] = useState<MobileSubpage>("list");
+  const [mobileSubpageTitle, setMobileSubpageTitle] = useState<string | null>(null);
+  const [mobileDirection, setMobileDirection] = useState<1 | -1>(1);
 
   const [editedSettings, setEditedSettings] = useState<Partial<Settings>>({});
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
@@ -175,6 +184,135 @@ export function SettingsContent({ appearance, onClose, route }: SettingsContentP
   const shouldShowSaveButton =
     ((activeCategory === "general" && !isCategoryLoading) ||
       (activeCategory === "agent-tools" && !isAgentToolsLoading));
+  const isSplitPanelCategory =
+    activeCategory === "agents" || activeCategory === "skills" || activeCategory === "rules";
+  const shouldUseFormPagePadding =
+    activeCategory === "general"
+    || activeCategory === "connections"
+    || activeCategory === "models"
+    || activeCategory === "index"
+    || activeCategory === "agent-tools";
+  const isMobileListView = isMobile && mobileView === "list";
+  const isMobileSubpageDetail =
+    isMobile && mobileView === "detail" && isSplitPanelCategory && mobileSubpage === "detail";
+  const mobileTitle = isMobileListView
+    ? t("topbar.settings")
+    : isMobileSubpageDetail && mobileSubpageTitle
+      ? mobileSubpageTitle
+      : t(CATEGORY_TITLE_KEY_MAP[activeCategory]);
+
+  const handleMobileCategorySelect = useCallback((category: SettingsCategory) => {
+    setMobileDirection(1);
+    setActiveCategory(category);
+    setMobileSubpage("list");
+    setMobileSubpageTitle(null);
+    setMobileView("detail");
+  }, []);
+
+  const handleMobileBack = useCallback(() => {
+    if (isMobileListView) {
+      onClose();
+      return;
+    }
+
+    if (isMobileSubpageDetail) {
+      setMobileDirection(-1);
+      setMobileSubpage("list");
+      return;
+    }
+
+    setMobileDirection(-1);
+    setMobileView("list");
+  }, [isMobileListView, isMobileSubpageDetail, onClose]);
+
+  const handleMobileSubpageChange = useCallback((page: MobileSubpage) => {
+    setMobileDirection(page === "detail" ? 1 : -1);
+    setMobileSubpage(page);
+  }, []);
+
+  const detailPageContent = (
+    <>
+      <Box
+        className={isSplitPanelCategory
+          ? "settings-dialog-content-scroll settings-dialog-content-scroll--split-panel"
+          : shouldUseFormPagePadding
+            ? "settings-dialog-content-scroll settings-dialog-content-scroll--form-page"
+            : "settings-dialog-content-scroll"}
+      >
+        {isCategoryLoading ? (
+          <Flex align="center" justify="center" className="settings-dialog-loading-state">
+            <Loader2 size={24} className="animate-spin" />
+          </Flex>
+        ) : displaySettings ? (
+          <>
+            {activeCategory === "general" ? (
+              <GeneralSettings
+                settings={displaySettings}
+                onSettingsChange={handleSettingsChange}
+              />
+            ) : null}
+            {activeCategory === "connections" ? <ConnectionsSettings /> : null}
+            {activeCategory === "models" ? (
+              <ModelsSettings
+                activeTab={activeModelTab}
+                onActiveTabChange={setActiveModelTab}
+              />
+            ) : null}
+            {activeCategory === "index" ? <IndexSettings /> : null}
+            {activeCategory === "agent-tools" ? (
+              <AgentToolsSettings
+                settings={displaySettings}
+                tools={agentTools}
+                errorMessage={agentToolsErrorMessage}
+                onSettingsChange={handleSettingsChange}
+              />
+            ) : null}
+            {activeCategory === "rules" ? (
+              <RulesSettings
+                mobilePage={mobileSubpage}
+                mobileDirection={mobileDirection}
+                onMobileDetailTitleChange={setMobileSubpageTitle}
+                onMobilePageChange={handleMobileSubpageChange}
+              />
+            ) : null}
+            {activeCategory === "skills" ? (
+              <SkillsSettings
+                variant="settings"
+                mobilePage={mobileSubpage}
+                mobileDirection={mobileDirection}
+                onMobileDetailTitleChange={setMobileSubpageTitle}
+                onMobilePageChange={handleMobileSubpageChange}
+              />
+            ) : null}
+            {activeCategory === "agents" ? (
+              <AgentDefinitionsSettings
+                onCloseSettings={onClose}
+                mobilePage={mobileSubpage}
+                mobileDirection={mobileDirection}
+                onMobileDetailTitleChange={setMobileSubpageTitle}
+                onMobilePageChange={handleMobileSubpageChange}
+              />
+            ) : null}
+          </>
+        ) : null}
+      </Box>
+
+      {shouldShowSaveButton ? (
+        <Box className="settings-dialog-savebar">
+          <Button
+            size="3"
+            disabled={!hasChanges || saveMutation.isPending}
+            onClick={handleSave}
+          >
+            {saveMutation.isPending ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : null}
+            {t("settings.save")}
+          </Button>
+        </Box>
+      ) : null}
+    </>
+  );
 
   return (
     <Flex className="settings-dialog-layout">
@@ -188,90 +326,103 @@ export function SettingsContent({ appearance, onClose, route }: SettingsContentP
       ) : null}
 
       <Flex direction="column" className="settings-dialog-main">
-        <IconButton
-          className="settings-dialog-main-close"
-          variant="ghost"
-          color="gray"
-          radius="full"
-          aria-label={t("common.close")}
-          onClick={onClose}
-        >
-          <X size={18} />
-        </IconButton>
-
         {isMobile ? (
-          <Box className="settings-dialog-mobile-tabs-row">
-            <Box className="settings-dialog-mobile-tabs-scroll">
-              <TabNav.Root size="2" color="gray" highContrast>
-                {SETTINGS_CATEGORIES.map((category) => (
-                  <TabNav.Link key={category} asChild active={activeCategory === category}>
-                    <button
-                      type="button"
-                      className="settings-dialog-mobile-tab-button"
-                      onClick={() => setActiveCategory(category)}
-                    >
-                      {t(CATEGORY_TITLE_KEY_MAP[category])}
-                    </button>
-                  </TabNav.Link>
-                ))}
-              </TabNav.Root>
-            </Box>
-          </Box>
-        ) : null}
-
-          <Box className="settings-dialog-body">
-          <Box className={activeCategory === "agents" || activeCategory === "skills" || activeCategory === "rules" ? "settings-dialog-content-scroll settings-dialog-content-scroll--split-panel" : "settings-dialog-content-scroll"}>
-            {isCategoryLoading ? (
-              <Flex align="center" justify="center" className="settings-dialog-loading-state">
-                <Loader2 size={24} className="animate-spin" />
-              </Flex>
-            ) : displaySettings ? (
-              <>
-                {activeCategory === "general" ? (
-                  <GeneralSettings
-                    settings={displaySettings}
-                    onSettingsChange={handleSettingsChange}
-                  />
-                ) : null}
-                {activeCategory === "connections" ? <ConnectionsSettings /> : null}
-                {activeCategory === "models" ? (
-                  <ModelsSettings
-                    activeTab={activeModelTab}
-                    onActiveTabChange={setActiveModelTab}
-                  />
-                ) : null}
-                {activeCategory === "index" ? <IndexSettings /> : null}
-                {activeCategory === "agent-tools" ? (
-                  <AgentToolsSettings
-                    settings={displaySettings}
-                    tools={agentTools}
-                    errorMessage={agentToolsErrorMessage}
-                    onSettingsChange={handleSettingsChange}
-                  />
-                ) : null}
-                {activeCategory === "rules" ? <RulesSettings /> : null}
-                {activeCategory === "skills" ? <SkillsSettings variant="settings" /> : null}
-                {activeCategory === "agents" ? (
-                  <AgentDefinitionsSettings onCloseSettings={onClose} />
-                ) : null}
-              </>
-            ) : null}
-          </Box>
-
-          {shouldShowSaveButton ? (
-            <Box className="settings-dialog-savebar">
-              <Button
-                size="3"
-                disabled={!hasChanges || saveMutation.isPending}
-                onClick={handleSave}
+          <Flex align="center" className="settings-dialog-mobile-topbar">
+            <Flex align="center" gap="2" className="settings-dialog-mobile-topbar-leading">
+              <IconButton
+                variant="ghost"
+                color="gray"
+                radius="full"
+                aria-label={t("common.back")}
+                onClick={handleMobileBack}
               >
-                {saveMutation.isPending ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : null}
-                {t("settings.save")}
-              </Button>
+                  <ChevronLeft size={18} />
+              </IconButton>
+              <Text size="2" weight="medium" className="settings-dialog-mobile-topbar-title">
+                {mobileTitle}
+              </Text>
+            </Flex>
+            <Box className="settings-dialog-mobile-topbar-side settings-dialog-mobile-topbar-side--end">
+              <IconButton
+                variant="ghost"
+                color="gray"
+                radius="full"
+                aria-label={t("common.close")}
+                onClick={onClose}
+              >
+                <X size={18} />
+              </IconButton>
             </Box>
-          ) : null}
+          </Flex>
+        ) : (
+          <IconButton
+            className="settings-dialog-main-close"
+            variant="ghost"
+            color="gray"
+            radius="full"
+            aria-label={t("common.close")}
+            onClick={onClose}
+          >
+            <X size={18} />
+          </IconButton>
+        )}
+
+        <Box className="settings-dialog-body">
+          {isMobile ? (
+            <Box className="settings-dialog-mobile-page-stack">
+              <AnimatePresence initial={false} custom={mobileDirection} mode="sync">
+                {isMobileListView ? (
+                  <MotionBox
+                    key="settings-category-list"
+                    custom={mobileDirection}
+                    variants={mobilePageVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    className="settings-dialog-mobile-page"
+                  >
+                    <Box className="settings-dialog-mobile-category-list" role="list">
+                      {SETTINGS_CATEGORY_ITEMS.map((category) => {
+                        const Icon = category.icon;
+                        return (
+                          <button
+                            key={category.id}
+                            type="button"
+                            className="settings-dialog-mobile-category-item"
+                            onClick={() => handleMobileCategorySelect(category.id)}
+                          >
+                            <Flex align="center" gap="3" className="settings-dialog-mobile-category-item-content">
+                              <span className="settings-dialog-mobile-category-item-icon" aria-hidden="true">
+                                {Icon}
+                              </span>
+                              <Text size="2">{t(category.labelKey)}</Text>
+                            </Flex>
+                            <ChevronRight size={16} className="settings-dialog-mobile-category-item-arrow" />
+                          </button>
+                        );
+                      })}
+                    </Box>
+                  </MotionBox>
+                ) : (
+                  <MotionBox
+                    key={`settings-category-detail-${activeCategory}`}
+                    custom={mobileDirection}
+                    variants={mobilePageVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    className="settings-dialog-mobile-page"
+                  >
+                    {detailPageContent}
+                  </MotionBox>
+                )}
+              </AnimatePresence>
+            </Box>
+          ) : (
+            detailPageContent
+          )}
         </Box>
       </Flex>
     </Flex>

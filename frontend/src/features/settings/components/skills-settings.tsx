@@ -14,8 +14,8 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { List, MoreHorizontal, Plus, Search, Trash2, Upload, X } from "lucide-react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+import { MoreHorizontal, Plus, Search, Trash2, Upload, X } from "lucide-react";
 import Fuse from "fuse.js";
 
 import {
@@ -33,8 +33,6 @@ import type { Skill, SkillCreate, SkillListResponse } from "@/lib/skill.types";
 import { ImportSkillDialog } from "./import-skill-dialog";
 import "./skills-settings.css";
 
-const MotionBox = motion.create(Box);
-
 interface SkillFormState {
   name: string;
   summary: string;
@@ -44,7 +42,25 @@ interface SkillFormState {
 
 interface SkillsSettingsProps {
   variant?: "page" | "settings";
+  mobilePage?: "list" | "detail";
+  mobileDirection?: 1 | -1;
+  onMobileDetailTitleChange?: (title: string | null) => void;
+  onMobilePageChange?: (page: "list" | "detail") => void;
 }
+
+const MotionBox = motion.create(Box);
+
+const mobilePageVariants = {
+  enter: (direction: number) => ({
+    x: direction > 0 ? "100%" : "-100%",
+  }),
+  center: {
+    x: 0,
+  },
+  exit: (direction: number) => ({
+    x: direction > 0 ? "-100%" : "100%",
+  }),
+};
 
 const EMPTY_FORM: SkillFormState = {
   name: "",
@@ -68,7 +84,13 @@ function isValidSkillId(skillId: string): boolean {
   return /^[a-z]+(?:-[a-z]+)*$/.test(skillId);
 }
 
-export function SkillsSettings({ variant = "page" }: SkillsSettingsProps) {
+export function SkillsSettings({
+  variant = "page",
+  mobilePage,
+  mobileDirection: controlledMobileDirection,
+  onMobileDetailTitleChange,
+  onMobilePageChange,
+}: SkillsSettingsProps) {
   const queryClient = useQueryClient();
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -77,8 +99,11 @@ export function SkillsSettings({ variant = "page" }: SkillsSettingsProps) {
   const [contextMenuSkillId, setContextMenuSkillId] = useState<string | null>(null);
 
   const [isMobile, setIsMobile] = useState(false);
-  const [mobileListOpen, setMobileListOpen] = useState(false);
+  const [internalMobilePage, setInternalMobilePage] = useState<"list" | "detail">("list");
+  const [internalMobileDirection, setInternalMobileDirection] = useState<1 | -1>(1);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const currentMobilePage = mobilePage ?? internalMobilePage;
+  const currentMobileDirection = controlledMobileDirection ?? internalMobileDirection;
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -136,6 +161,18 @@ export function SkillsSettings({ variant = "page" }: SkillsSettingsProps) {
     [effectiveSelectedSkillId, skills]
   );
   const isSettingsVariant = variant === "settings";
+
+  const handleMobilePageChange = useCallback((page: "list" | "detail") => {
+    if (controlledMobileDirection === undefined) {
+      setInternalMobileDirection(page === "detail" ? 1 : -1);
+    }
+    onMobilePageChange?.(page);
+    if (mobilePage === undefined) setInternalMobilePage(page);
+  }, [controlledMobileDirection, mobilePage, onMobilePageChange]);
+
+  useEffect(() => {
+    onMobileDetailTitleChange?.(selectedSkill?.name || null);
+  }, [onMobileDetailTitleChange, selectedSkill]);
 
   const createMutation = useMutation({
     mutationFn: (payload: SkillCreate) => createSkill(payload),
@@ -340,8 +377,8 @@ export function SkillsSettings({ variant = "page" }: SkillsSettingsProps) {
                 isMenuOpen={skill.id === contextMenuSkillId}
                 onSelect={() => {
                   setSelectedSkillId(skill.id);
-                  if (isMobile) setMobileListOpen(false);
-                }}
+                  if (isMobile) handleMobilePageChange("detail");
+                 }}
                 onToggle={() =>
                   toggleMutation.mutate({
                     skillDbId: skill.id,
@@ -373,6 +410,97 @@ export function SkillsSettings({ variant = "page" }: SkillsSettingsProps) {
     );
   }
 
+  const detailContent = !selectedSkill ? (
+    <Box className="skills-settings-empty-state">
+      <Text size="2" color="gray">
+        请选择一个技能
+      </Text>
+    </Box>
+  ) : (
+    <SkillEditor
+      key={selectedSkill.id}
+      skill={selectedSkill}
+      onSave={handleSave}
+    />
+  );
+
+  if (isMobile) {
+    return (
+      <Flex
+        direction="column"
+        className={`skills-settings${isSettingsVariant ? " skills-settings--settings" : ""}`}
+      >
+        <Box className="settings-dialog-mobile-page-stack">
+          <AnimatePresence initial={false} custom={currentMobileDirection} mode="sync">
+            {currentMobilePage === "list" ? (
+              <MotionBox
+                key="skills-mobile-list"
+                custom={currentMobileDirection}
+                variants={mobilePageVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                className="settings-dialog-mobile-page"
+              >
+                <Box className="skills-settings-mobile-page">
+                  <Box className="skills-settings-mobile-page-content">{listContent}</Box>
+                </Box>
+              </MotionBox>
+            ) : (
+              <MotionBox
+                key="skills-mobile-detail"
+                custom={currentMobileDirection}
+                variants={mobilePageVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                className="settings-dialog-mobile-page"
+              >
+                <div className={`skills-settings-editor-panel${isSettingsVariant ? " skills-settings-editor-panel--settings" : ""}`}>
+                  {detailContent}
+                </div>
+              </MotionBox>
+            )}
+          </AnimatePresence>
+        </Box>
+
+        <ContextMenu
+          position={contextMenuPos}
+          items={contextMenuItems}
+          onClose={handleCloseContextMenu}
+        />
+
+        <Dialog.Root open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <Dialog.Content style={{ maxWidth: 420 }}>
+            <Dialog.Title>删除技能</Dialog.Title>
+            <Dialog.Description size="2" mt="2">
+              删除后无法恢复。
+            </Dialog.Description>
+            <Flex justify="end" gap="2" mt="4">
+              <Button variant="soft" color="gray" onClick={() => setDeleteDialogOpen(false)}>
+                取消
+              </Button>
+              <Button
+                color="red"
+                onClick={() => effectiveSelectedSkillId && deleteMutation.mutate(effectiveSelectedSkillId)}
+              >
+                删除
+              </Button>
+            </Flex>
+          </Dialog.Content>
+        </Dialog.Root>
+
+        <ImportSkillDialog
+          open={importDialogOpen}
+          onOpenChange={setImportDialogOpen}
+          onCreate={(payload) => createMutation.mutate(payload)}
+        />
+      </Flex>
+    );
+  }
+
   return (
     <Flex
       direction="column"
@@ -387,60 +515,9 @@ export function SkillsSettings({ variant = "page" }: SkillsSettingsProps) {
         </Box>
 
         <div className={`skills-settings-editor-panel${isSettingsVariant ? " skills-settings-editor-panel--settings" : ""}`}>
-          {isMobile && (
-            <Flex gap="2" className="skills-settings-mobile-trigger">
-              <Tooltip content="查看技能列表">
-                <IconButton
-                  variant="ghost"
-                  size="2"
-                  onClick={() => setMobileListOpen((prev) => !prev)}
-                >
-                  <List size={18} />
-                </IconButton>
-              </Tooltip>
-            </Flex>
-          )}
-
-          {!selectedSkill ? (
-            <Box className="skills-settings-empty-state">
-              <Text size="2" color="gray">
-                请选择一个技能
-              </Text>
-            </Box>
-          ) : (
-            <SkillEditor
-              key={selectedSkill.id}
-              skill={selectedSkill}
-              onSave={handleSave}
-            />
-          )}
+          {detailContent}
         </div>
       </Flex>
-
-      {isMobile && (
-        <>
-          <motion.div
-            initial={false}
-            animate={{ opacity: mobileListOpen ? 1 : 0 }}
-            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="skills-settings-mobile-backdrop"
-            onClick={() => setMobileListOpen(false)}
-            style={{ pointerEvents: mobileListOpen ? "auto" : "none" }}
-          />
-
-          <MotionBox
-            initial={false}
-            animate={{ x: mobileListOpen ? 0 : -320 }}
-            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="skills-settings-mobile-overlay"
-            style={{ pointerEvents: mobileListOpen ? "auto" : "none" }}
-          >
-            <Box className={`skills-settings-mobile-sheet${isSettingsVariant ? " skills-settings-mobile-sheet--settings" : ""}`}>
-              {listContent}
-            </Box>
-          </MotionBox>
-        </>
-      )}
 
       <ContextMenu
         position={contextMenuPos}

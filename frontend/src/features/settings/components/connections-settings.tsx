@@ -222,18 +222,36 @@ export function ConnectionsSettings() {
                   )}
                 </Flex>
 
-                <Button
-                  variant="soft"
-                  onClick={() => refreshCatalogMutation.mutate()}
-                  disabled={refreshCatalogMutation.isPending}
-                >
-                  {refreshCatalogMutation.isPending ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <RefreshCw size={16} />
-                  )}
-                  {t("connections.refreshCatalog")}
-                </Button>
+                <Box display={{ initial: "none", md: "block" }}>
+                  <Button
+                    variant="soft"
+                    onClick={() => refreshCatalogMutation.mutate()}
+                    disabled={refreshCatalogMutation.isPending}
+                  >
+                    {refreshCatalogMutation.isPending ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <RefreshCw size={16} />
+                    )}
+                    {t("connections.refreshCatalog")}
+                  </Button>
+                </Box>
+
+                <Box display={{ initial: "block", md: "none" }}>
+                  <IconButton
+                    variant="soft"
+                    color="gray"
+                    aria-label={t("connections.refreshCatalog")}
+                    onClick={() => refreshCatalogMutation.mutate()}
+                    disabled={refreshCatalogMutation.isPending}
+                  >
+                    {refreshCatalogMutation.isPending ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <RefreshCw size={16} />
+                    )}
+                  </IconButton>
+                </Box>
               </Flex>
             </Box>
 

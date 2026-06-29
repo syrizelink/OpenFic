@@ -1,9 +1,10 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import {
   Box, Button, Checkbox, Flex, ScrollArea, Text, TextArea, TextField,
   Dialog, IconButton, Select,
   Badge,
 } from "@radix-ui/themes";
+import { AnimatePresence, motion } from "motion/react";
 import {
   Bot,
   Copy,
@@ -50,6 +51,19 @@ import {
 import { fetchSettings } from "../lib/settings-api";
 
 const LIST_WIDTH = 280;
+const MotionBox = motion.create(Box);
+
+const mobilePageVariants = {
+  enter: (direction: number) => ({
+    x: direction > 0 ? "100%" : "-100%",
+  }),
+  center: {
+    x: 0,
+  },
+  exit: (direction: number) => ({
+    x: direction > 0 ? "-100%" : "100%",
+  }),
+};
 
 interface AgentListMenuState {
   key: string;
@@ -414,9 +428,19 @@ function AgentForm({ def, definitions, llmModelOptions, toolCategoryOptions, ski
 
 interface AgentDefinitionsSettingsProps {
   onCloseSettings?: () => void;
+  mobilePage?: "list" | "detail";
+  mobileDirection?: 1 | -1;
+  onMobileDetailTitleChange?: (title: string | null) => void;
+  onMobilePageChange?: (page: "list" | "detail") => void;
 }
 
-export function AgentDefinitionsSettings({ onCloseSettings }: AgentDefinitionsSettingsProps) {
+export function AgentDefinitionsSettings({
+  onCloseSettings,
+  mobilePage,
+  mobileDirection: controlledMobileDirection,
+  onMobileDetailTitleChange,
+  onMobilePageChange,
+}: AgentDefinitionsSettingsProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
@@ -431,6 +455,16 @@ export function AgentDefinitionsSettings({ onCloseSettings }: AgentDefinitionsSe
   const [menuState, setMenuState] = useState<AgentListMenuState | null>(null);
   const [confirmResetKey, setConfirmResetKey] = useState<string | null>(null);
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [internalMobilePage, setInternalMobilePage] = useState<"list" | "detail">("list");
+  const [internalMobileDirection, setInternalMobileDirection] = useState<1 | -1>(1);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const { data: definitions = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ["agent-definitions"],
@@ -481,6 +515,20 @@ export function AgentDefinitionsSettings({ onCloseSettings }: AgentDefinitionsSe
     () => definitions.find((d) => d.key === effectiveSelectedKey) ?? null,
     [definitions, effectiveSelectedKey]
   );
+  const currentMobilePage = mobilePage ?? internalMobilePage;
+  const currentMobileDirection = controlledMobileDirection ?? internalMobileDirection;
+
+  const handleMobilePageChange = useCallback((page: "list" | "detail") => {
+    if (controlledMobileDirection === undefined) {
+      setInternalMobileDirection(page === "detail" ? 1 : -1);
+    }
+    onMobilePageChange?.(page);
+    if (mobilePage === undefined) setInternalMobilePage(page);
+  }, [controlledMobileDirection, mobilePage, onMobilePageChange]);
+
+  useEffect(() => {
+    onMobileDetailTitleChange?.(selectedDef?.display_name || null);
+  }, [onMobileDetailTitleChange, selectedDef]);
 
   const orderedDefinitions = useMemo(
     () => [...definitions].sort((left, right) => {
@@ -564,6 +612,7 @@ export function AgentDefinitionsSettings({ onCloseSettings }: AgentDefinitionsSe
       invalidateDefs();
       closeCreateDialog();
       setSelectedKey(result.key);
+      if (isMobile) handleMobilePageChange("detail");
       toast.success(
         createMode === "copy"
           ? t("settings.agentsCopySuccess")
@@ -662,11 +711,15 @@ export function AgentDefinitionsSettings({ onCloseSettings }: AgentDefinitionsSe
       role="button"
       tabIndex={0}
       className={`agent-definition-item${effectiveSelectedKey === def.key ? " agent-definition-item--active" : ""}${menuState?.key === def.key ? " agent-definition-item--menu-open" : ""}`}
-      onClick={() => setSelectedKey(def.key)}
+      onClick={() => {
+        setSelectedKey(def.key);
+        if (isMobile) handleMobilePageChange("detail");
+      }}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           setSelectedKey(def.key);
+          if (isMobile) handleMobilePageChange("detail");
         }
       }}
       onContextMenu={(event) => {
@@ -716,80 +769,126 @@ export function AgentDefinitionsSettings({ onCloseSettings }: AgentDefinitionsSe
     </div>
   );
 
+  const listContent = (
+    <Box className="agent-definitions-list-panel" style={isMobile ? undefined : { width: LIST_WIDTH }}>
+      <Box className="agent-definitions-list-header">
+        <Flex align="center" justify="between" gap="2" className="agent-definitions-list-header-row">
+          <Text size="2" weight="medium" className="agent-definitions-list-count">
+            {t("settings.agentsTotalCount", { count: definitions.length })}
+          </Text>
+          <Flex align="center" gap="1" className="agent-definitions-list-actions">
+            <IconButton
+              size="2"
+              variant="ghost"
+              color="gray"
+              aria-label={t("settings.agentsNewAgent")}
+              onClick={openCreateDialog}
+            >
+              <Plus size={14} />
+            </IconButton>
+            <IconButton
+              size="2"
+              variant="ghost"
+              color="gray"
+              aria-label={t("common.refresh")}
+              onClick={() => void refetch()}
+              disabled={isFetching}
+            >
+              <RefreshCw size={14} className={isFetching ? "animate-spin" : undefined} />
+            </IconButton>
+          </Flex>
+        </Flex>
+      </Box>
+
+      <ScrollArea style={{ flex: 1 }}>
+        {isLoading ? (
+          <Flex align="center" justify="center" style={{ height: 100 }}>
+            <Text size="2" color="gray">{t("common.loading")}</Text>
+          </Flex>
+        ) : (
+          <Flex direction="column" gap="2" className="agent-definitions-list-body">
+            {orderedDefinitions.map(renderAgentListItem)}
+
+            {definitions.length === 0 ? (
+              <Flex align="center" justify="center" style={{ padding: 24 }}>
+                <Text size="2" color="gray">{t("settings.agentsEmpty")}</Text>
+              </Flex>
+            ) : null}
+          </Flex>
+        )}
+      </ScrollArea>
+    </Box>
+  );
+
+  const detailContent = !selectedDef ? (
+    <Flex direction="column" align="center" justify="center" gap="2" className="agent-definitions-empty-state">
+      <Bot size={32} style={{ opacity: 0.3 }} />
+      <Text size="2" color="gray">
+        {t("settings.agentsSelectHint")}
+      </Text>
+    </Flex>
+  ) : (
+    <AgentForm
+      key={selectedDef.key}
+      def={selectedDef}
+      definitions={definitions}
+      llmModelOptions={modelOptions}
+      toolCategoryOptions={toolCategoryOptions}
+      skills={skills}
+      onCloseSettings={onCloseSettings}
+      onUpdated={invalidateDefs}
+    />
+  );
+
   return (
     <>
-      <Flex className="agent-definitions-layout">
-        <Box className="agent-definitions-list-panel" style={{ width: LIST_WIDTH }}>
-          <Box className="agent-definitions-list-header">
-            <Flex align="center" justify="between" gap="2" className="agent-definitions-list-header-row">
-              <Text size="2" weight="medium" className="agent-definitions-list-count">
-                {t("settings.agentsTotalCount", { count: definitions.length })}
-              </Text>
-              <Flex align="center" gap="1" className="agent-definitions-list-actions">
-                <IconButton
-                  size="2"
-                  variant="ghost"
-                  color="gray"
-                  aria-label={t("settings.agentsNewAgent")}
-                  onClick={openCreateDialog}
+      {isMobile ? (
+        <Flex direction="column" className="agent-definitions-layout agent-definitions-layout--mobile">
+          <Box className="settings-dialog-mobile-page-stack">
+            <AnimatePresence initial={false} custom={currentMobileDirection} mode="sync">
+              {currentMobilePage === "list" ? (
+                <MotionBox
+                  key="agents-mobile-list"
+                  custom={currentMobileDirection}
+                  variants={mobilePageVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  className="settings-dialog-mobile-page"
                 >
-                  <Plus size={14} />
-                </IconButton>
-                <IconButton
-                  size="2"
-                  variant="ghost"
-                  color="gray"
-                  aria-label={t("common.refresh")}
-                  onClick={() => void refetch()}
-                  disabled={isFetching}
+                  <Box className="settings-dialog-mobile-page-padding">
+                    <Box className="settings-dialog-mobile-page-content">{listContent}</Box>
+                  </Box>
+                </MotionBox>
+              ) : (
+                <MotionBox
+                  key="agents-mobile-detail"
+                  custom={currentMobileDirection}
+                  variants={mobilePageVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  className="settings-dialog-mobile-page"
                 >
-                  <RefreshCw size={14} className={isFetching ? "animate-spin" : undefined} />
-                </IconButton>
-              </Flex>
-            </Flex>
+                  <Box className="agent-definitions-detail-panel agent-definitions-detail-panel--mobile">
+                    {detailContent}
+                  </Box>
+                </MotionBox>
+              )}
+            </AnimatePresence>
           </Box>
-
-          <ScrollArea style={{ flex: 1 }}>
-            {isLoading ? (
-              <Flex align="center" justify="center" style={{ height: 100 }}>
-                <Text size="2" color="gray">{t("common.loading")}</Text>
-              </Flex>
-            ) : (
-              <Flex direction="column" gap="2" className="agent-definitions-list-body">
-                {orderedDefinitions.map(renderAgentListItem)}
-
-                {definitions.length === 0 ? (
-                  <Flex align="center" justify="center" style={{ padding: 24 }}>
-                    <Text size="2" color="gray">{t("settings.agentsEmpty")}</Text>
-                  </Flex>
-                ) : null}
-              </Flex>
-            )}
-          </ScrollArea>
-        </Box>
+        </Flex>
+      ) : (
+      <Flex className="agent-definitions-layout">
+        {listContent}
 
         <Box className="agent-definitions-detail-panel">
-          {!selectedDef ? (
-            <Flex direction="column" align="center" justify="center" gap="2" className="agent-definitions-empty-state">
-              <Bot size={32} style={{ opacity: 0.3 }} />
-              <Text size="2" color="gray">
-                {t("settings.agentsSelectHint")}
-              </Text>
-            </Flex>
-          ) : (
-            <AgentForm
-              key={selectedDef.key}
-              def={selectedDef}
-              definitions={definitions}
-              llmModelOptions={modelOptions}
-              toolCategoryOptions={toolCategoryOptions}
-              skills={skills}
-              onCloseSettings={onCloseSettings}
-              onUpdated={invalidateDefs}
-            />
-          )}
+          {detailContent}
         </Box>
       </Flex>
+      )}
 
       <ContextMenu position={menuState?.position ?? null} items={menuItems} onClose={closeMenu} />
 

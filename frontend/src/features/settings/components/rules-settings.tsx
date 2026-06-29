@@ -12,8 +12,8 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { List, MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+import { MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react";
 import Fuse from "fuse.js";
 import { useTranslation } from "react-i18next";
 
@@ -29,6 +29,26 @@ import { toast } from "@/components/toast";
 import "./skills-settings.css";
 
 const MotionBox = motion.create(Box);
+
+const mobilePageVariants = {
+  enter: (direction: number) => ({
+    x: direction > 0 ? "100%" : "-100%",
+  }),
+  center: {
+    x: 0,
+  },
+  exit: (direction: number) => ({
+    x: direction > 0 ? "-100%" : "100%",
+  }),
+};
+
+interface RulesSettingsProps {
+  mobilePage?: "list" | "detail";
+  mobileDirection?: 1 | -1;
+  onMobileDetailTitleChange?: (title: string | null) => void;
+  onMobilePageChange?: (page: "list" | "detail") => void;
+}
+
 interface RuleFormState {
   title: string;
   content: string;
@@ -47,7 +67,12 @@ function toFormState(rule: AgentRule | null): RuleFormState {
   };
 }
 
-export function RulesSettings() {
+export function RulesSettings({
+  mobilePage,
+  mobileDirection: controlledMobileDirection,
+  onMobileDetailTitleChange,
+  onMobilePageChange,
+}: RulesSettingsProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
@@ -56,7 +81,8 @@ export function RulesSettings() {
   const [contextMenuPos, setContextMenuPos] = useState<ContextMenuPosition | null>(null);
   const [contextMenuRuleId, setContextMenuRuleId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [mobileListOpen, setMobileListOpen] = useState(false);
+  const [internalMobilePage, setInternalMobilePage] = useState<"list" | "detail">("list");
+  const [internalMobileDirection, setInternalMobileDirection] = useState<1 | -1>(1);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -106,6 +132,20 @@ export function RulesSettings() {
     () => rules.find((rule) => rule.id === effectiveSelectedRuleId) ?? null,
     [effectiveSelectedRuleId, rules],
   );
+  const currentMobilePage = mobilePage ?? internalMobilePage;
+  const currentMobileDirection = controlledMobileDirection ?? internalMobileDirection;
+
+  const handleMobilePageChange = useCallback((page: "list" | "detail") => {
+    if (controlledMobileDirection === undefined) {
+      setInternalMobileDirection(page === "detail" ? 1 : -1);
+    }
+    onMobilePageChange?.(page);
+    if (mobilePage === undefined) setInternalMobilePage(page);
+  }, [controlledMobileDirection, mobilePage, onMobilePageChange]);
+
+  useEffect(() => {
+    onMobileDetailTitleChange?.(selectedRule?.title || null);
+  }, [onMobileDetailTitleChange, selectedRule]);
 
   const createMutation = useMutation({
     mutationFn: (payload: AgentRuleCreate) => createAgentRule(payload),
@@ -242,7 +282,7 @@ export function RulesSettings() {
                 isMenuOpen={rule.id === contextMenuRuleId}
                 onSelect={() => {
                   setSelectedRuleId(rule.id);
-                  if (isMobile) setMobileListOpen(false);
+                  if (isMobile) handleMobilePageChange("detail");
                 }}
                 onContextMenu={(position) => handleContextMenu(rule.id, position)}
               />
@@ -269,6 +309,82 @@ export function RulesSettings() {
     );
   }
 
+  const detailContent = !selectedRule ? (
+    <Box className="skills-settings-empty-state">
+      <Text size="2" color="gray">
+        请选择一条规则
+      </Text>
+    </Box>
+  ) : (
+    <RuleEditor key={selectedRule.id} rule={selectedRule} onSave={handleSave} />
+  );
+
+  if (isMobile) {
+    return (
+      <Flex direction="column" className="skills-settings skills-settings--settings">
+        <Box className="settings-dialog-mobile-page-stack">
+          <AnimatePresence initial={false} custom={currentMobileDirection} mode="sync">
+            {currentMobilePage === "list" ? (
+              <MotionBox
+                key="rules-mobile-list"
+                custom={currentMobileDirection}
+                variants={mobilePageVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                className="settings-dialog-mobile-page"
+              >
+                <Box className="skills-settings-mobile-page">
+                  <Box className="skills-settings-mobile-page-content">{listContent}</Box>
+                </Box>
+              </MotionBox>
+            ) : (
+              <MotionBox
+                key="rules-mobile-detail"
+                custom={currentMobileDirection}
+                variants={mobilePageVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                className="settings-dialog-mobile-page"
+              >
+                <div className="skills-settings-editor-panel skills-settings-editor-panel--settings">
+                  {detailContent}
+                </div>
+              </MotionBox>
+            )}
+          </AnimatePresence>
+        </Box>
+
+        <ContextMenu position={contextMenuPos} items={contextMenuItems} onClose={handleCloseContextMenu} />
+
+        <Dialog.Root open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <Dialog.Content style={{ maxWidth: 420 }}>
+            <Dialog.Title>删除规则</Dialog.Title>
+            <Dialog.Description size="2" mt="2">
+              删除后无法恢复。
+            </Dialog.Description>
+            <Flex justify="end" gap="2" mt="4">
+              <Button variant="soft" color="gray" onClick={() => setDeleteDialogOpen(false)}>
+                取消
+              </Button>
+              <Button
+                color="red"
+                onClick={() => {
+                  if (effectiveSelectedRuleId) deleteMutation.mutate(effectiveSelectedRuleId);
+                }}
+              >
+                删除
+              </Button>
+            </Flex>
+          </Dialog.Content>
+        </Dialog.Root>
+      </Flex>
+    );
+  }
+
   return (
     <Flex direction="column" className="skills-settings skills-settings--settings">
       <Flex className="skills-settings-layout skills-settings-layout--settings">
@@ -277,52 +393,9 @@ export function RulesSettings() {
         </Box>
 
         <div className="skills-settings-editor-panel skills-settings-editor-panel--settings">
-          {isMobile ? (
-            <Flex gap="2" className="skills-settings-mobile-trigger">
-              <Tooltip content="查看规则列表">
-                <IconButton variant="ghost" size="2" onClick={() => setMobileListOpen((prev) => !prev)}>
-                  <List size={18} />
-                </IconButton>
-              </Tooltip>
-            </Flex>
-          ) : null}
-
-          {!selectedRule ? (
-            <Box className="skills-settings-empty-state">
-              <Text size="2" color="gray">
-                请选择一条规则
-              </Text>
-            </Box>
-          ) : (
-            <RuleEditor key={selectedRule.id} rule={selectedRule} onSave={handleSave} />
-          )}
+          {detailContent}
         </div>
       </Flex>
-
-      {isMobile ? (
-        <>
-          <motion.div
-            initial={false}
-            animate={{ opacity: mobileListOpen ? 1 : 0 }}
-            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="skills-settings-mobile-backdrop"
-            onClick={() => setMobileListOpen(false)}
-            style={{ pointerEvents: mobileListOpen ? "auto" : "none" }}
-          />
-
-          <MotionBox
-            initial={false}
-            animate={{ x: mobileListOpen ? 0 : -320 }}
-            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="skills-settings-mobile-overlay"
-            style={{ pointerEvents: mobileListOpen ? "auto" : "none" }}
-          >
-            <Box className="skills-settings-mobile-sheet skills-settings-mobile-sheet--settings">
-              {listContent}
-            </Box>
-          </MotionBox>
-        </>
-      ) : null}
 
       <ContextMenu position={contextMenuPos} items={contextMenuItems} onClose={handleCloseContextMenu} />
 
