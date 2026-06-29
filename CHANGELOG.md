@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.6](https://github.com/syrizelink/OpenFic/compare/v0.2.5...v0.2.6) (2026-06-29)
+
+
+### 🐛 问题修复
+
+* **ci:** 同步 uv.lock 并修正后端包名 ([#19](https://github.com/syrizelink/OpenFic/issues/19)) ([344bd82](https://github.com/syrizelink/OpenFic/commit/344bd82c5ac43ad85203f8d09ad340e5e4d46e18))
+
 ## [0.2.5](https://github.com/syrizelink/OpenFic/compare/v0.2.4...v0.2.5) (2026-06-29)
 
 
