@@ -1,7 +1,7 @@
 {
   "name": "openfic-frontend",
   "private": true,
-  "version": "0.2.4",
+  "version": "0.2.5",
   "type": "module",
   "main": "electron/main.cjs",
   "packageManager": "pnpm@11.8.0",

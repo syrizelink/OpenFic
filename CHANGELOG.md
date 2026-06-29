@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.5](https://github.com/syrizelink/OpenFic/compare/v0.2.4...v0.2.5) (2026-06-29)
+
+
+### 🐛 问题修复
+
+* **ci:** 修复 release-please 未更新后端版本号及镜像版本 ([#17](https://github.com/syrizelink/OpenFic/issues/17)) ([de2bbdc](https://github.com/syrizelink/OpenFic/commit/de2bbdc611cfb2615bc5be1987d4a82066dcd6e9))
+
 ## [0.2.4](https://github.com/syrizelink/OpenFic/compare/v0.2.3...v0.2.4) (2026-06-29)
 
 
