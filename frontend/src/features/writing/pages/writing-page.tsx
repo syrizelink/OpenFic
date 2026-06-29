@@ -229,6 +229,26 @@ export function WritingPage() {
     setCurrentChapter(currentChapterId);
   }, [currentChapterId, setCurrentChapter]);
 
+  useEffect(() => {
+    if (!isMobile || !currentChapterId) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      const activeElement = document.activeElement;
+      if (!(activeElement instanceof HTMLElement)) return;
+
+      const isTextInput =
+        activeElement instanceof HTMLInputElement ||
+        activeElement instanceof HTMLTextAreaElement;
+
+      // Mobile browsers may restore editor/title focus after chapter navigation.
+      if (!isTextInput && !activeElement.isContentEditable) return;
+
+      activeElement.blur();
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [currentChapterId, isMobile]);
+
   const handleSelectItem = useCallback(
     (refId: string, title: string, type: "chapter" | "note" = "chapter") => {
       if (isMobile) {

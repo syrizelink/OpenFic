@@ -1,10 +1,11 @@
 import { useMemo, useCallback } from "react";
+import { Flex, Text } from "@radix-ui/themes";
+import * as DndKitCore from "@dnd-kit/core";
 import { toast } from "@/components";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import {
   DndContext,
-  PointerSensor,
   useSensor,
   useSensors,
   useDroppable,
@@ -12,6 +13,7 @@ import {
   type DragEndEvent,
   type CollisionDetection,
 } from "@dnd-kit/core";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 
 import { NoteTreeItem, type NoteTreeItemData } from "./note-tree-item";
 import { useNotesStore } from "../store/use-notes-store";
@@ -215,8 +217,11 @@ export function NoteTree({
   );
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(DndKitCore.MouseSensor, {
       activationConstraint: { distance: 8 },
+    }),
+    useSensor(DndKitCore.TouchSensor, {
+      activationConstraint: { delay: 280, tolerance: 8 },
     })
   );
 
@@ -254,13 +259,19 @@ export function NoteTree({
     if (!data) return [];
     return flattenTree(data.categories, data.rootNotes, expandedIds, 0, null, []);
   }, [data, expandedIds]);
+  const isEmpty = !!data && flatItems.length === 0;
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
       if (!over) return;
 
-      const activeData = active.data.current as { itemType: string; itemId: string; depth: number } | undefined;
+      const activeData = active.data.current as {
+        itemType: string;
+        itemId: string;
+        depth: number;
+        parentId?: string | null;
+      } | undefined;
       const overData = over.data.current as { itemType?: string; itemId?: string; depth?: number } | undefined;
 
       if (!activeData) return;
@@ -299,6 +310,10 @@ export function NoteTree({
         return;
       }
 
+      if ((activeData.parentId ?? null) === targetCategoryId) {
+        return;
+      }
+
       onMove(sourceId, sourceKind, targetCategoryId).catch(() => {
         // error handled by mutation
       });
@@ -313,25 +328,34 @@ export function NoteTree({
       sensors={sensors}
       collisionDetection={collisionDetection}
       onDragEnd={handleDragEnd}
+      modifiers={[restrictToVerticalAxis]}
     >
       <RootDropArea>
-        {flatItems.map((item) => (
-          <NoteTreeItem
-            key={`${item.type}:${item.id}`}
-            data={item}
-            isActive={
-              (item.type === "note" && item.id === currentNoteId) ||
-              (item.type === "category" && item.id === selectedCategoryId)
-            }
-            isRenaming={renamingId === `${item.type}:${item.id}`}
-            activeAncestorCategoryIds={activeAncestorCategoryIds}
-            onSelect={handleSelect}
-            onExpand={handleExpand}
-            onContextMenu={onContextMenu}
-            onRenameConfirm={onRenameConfirm}
-            onRenameCancel={onRenameCancel}
-          />
-        ))}
+        {isEmpty ? (
+          <Flex align="center" justify="center" p="6" style={{ minHeight: "100%" }}>
+            <Text size="2" color="gray" align="center">
+              {t("writing.emptyNotes")}
+            </Text>
+          </Flex>
+        ) : (
+          flatItems.map((item) => (
+            <NoteTreeItem
+              key={`${item.type}:${item.id}`}
+              data={item}
+              isActive={
+                (item.type === "note" && item.id === currentNoteId) ||
+                (item.type === "category" && item.id === selectedCategoryId)
+              }
+              isRenaming={renamingId === `${item.type}:${item.id}`}
+              activeAncestorCategoryIds={activeAncestorCategoryIds}
+              onSelect={handleSelect}
+              onExpand={handleExpand}
+              onContextMenu={onContextMenu}
+              onRenameConfirm={onRenameConfirm}
+              onRenameCancel={onRenameCancel}
+            />
+          ))
+        )}
       </RootDropArea>
     </DndContext>
   );

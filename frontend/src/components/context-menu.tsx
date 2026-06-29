@@ -375,12 +375,20 @@ export function ContextMenu({
 
     const handleClick = () => onClose();
     const handleScroll = () => onClose();
+    let clickListenerAttached = false;
 
-    document.addEventListener("click", handleClick);
+    const timerId = window.setTimeout(() => {
+      document.addEventListener("click", handleClick);
+      clickListenerAttached = true;
+    }, 0);
+
     document.addEventListener("scroll", handleScroll, true);
 
     return () => {
-      document.removeEventListener("click", handleClick);
+      window.clearTimeout(timerId);
+      if (clickListenerAttached) {
+        document.removeEventListener("click", handleClick);
+      }
       document.removeEventListener("scroll", handleScroll, true);
     };
   }, [position, onClose]);

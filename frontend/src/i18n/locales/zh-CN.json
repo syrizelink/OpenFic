@@ -137,6 +137,7 @@
     "collapseAll": "全部收起",
     "noChaptersFound": "没有找到匹配的章节",
     "noNotesFound": "没有找到匹配的笔记",
+    "emptyNotes": "还没有任何分类或笔记",
     "noChapters": "还没有任何章节",
     "dragModeOn": "排序模式",
     "dragModeOff": "退出排序",

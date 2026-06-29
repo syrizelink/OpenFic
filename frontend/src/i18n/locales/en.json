@@ -137,6 +137,7 @@
     "collapseAll": "Collapse all",
     "noChaptersFound": "No matching chapters found",
     "noNotesFound": "No matching notes found",
+    "emptyNotes": "No categories or notes yet",
     "noChapters": "No chapters yet",
     "dragModeOn": "Reorder mode",
     "dragModeOff": "Exit reorder",

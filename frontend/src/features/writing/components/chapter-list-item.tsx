@@ -274,18 +274,38 @@ function ChapterListItemComponent({
   useEffect(() => {
     if (!isLongPressPending && !isLongPressActive) return;
 
-    const handleRelease = () => {
+    const handlePointerUp = () => {
+      if (isLongPressActive) {
+        const position = longPressPositionRef.current;
+        if (position && !isRenaming) {
+          longPressTriggeredRef.current = true;
+          suppressContextMenuRef.current = true;
+          onRequestContextMenu?.(chapter.id, chapter.title, position);
+        }
+      }
+
+      if (longPressTimeoutRef.current !== null) {
+        window.clearTimeout(longPressTimeoutRef.current);
+        longPressTimeoutRef.current = null;
+      }
       setIsLongPressPending(false);
       setIsLongPressActive(false);
+      window.getSelection()?.removeAllRanges();
     };
 
-    window.addEventListener("pointerup", handleRelease);
-    window.addEventListener("pointercancel", handleRelease);
-    return () => {
-      window.removeEventListener("pointerup", handleRelease);
-      window.removeEventListener("pointercancel", handleRelease);
+    const handlePointerCancel = () => {
+      setIsLongPressPending(false);
+      setIsLongPressActive(false);
+      window.getSelection()?.removeAllRanges();
     };
-  }, [isLongPressActive, isLongPressPending]);
+
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerCancel);
+    return () => {
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerCancel);
+    };
+  }, [chapter.id, chapter.title, isLongPressActive, isLongPressPending, isRenaming, onRequestContextMenu]);
 
   useEffect(
     () => () => {
@@ -317,17 +337,11 @@ function ChapterListItemComponent({
   );
 
   const triggerLongPressMenu = useCallback(() => {
-    const position = longPressPositionRef.current;
-    if (!position || isRenaming) return;
-
-    longPressTriggeredRef.current = true;
     setIsLongPressPending(false);
     setIsLongPressActive(true);
     suppressContextMenuRef.current = true;
-
     window.getSelection()?.removeAllRanges();
-    onRequestContextMenu?.(chapter.id, chapter.title, position);
-  }, [chapter.id, chapter.title, isRenaming, onRequestContextMenu]);
+  }, []);
 
   const handleContextMenu = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
@@ -365,7 +379,6 @@ function ChapterListItemComponent({
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (isRenaming) return;
       if (event.pointerType === "mouse" || event.button !== 0) return;
-      if (suppressContextMenuRef.current) return;
 
       onLongPressStart?.();
       window.getSelection()?.removeAllRanges();
@@ -401,11 +414,6 @@ function ChapterListItemComponent({
     [isLongPressPending, resetPressState]
   );
 
-  const handlePointerUp = useCallback(() => {
-    resetPressState();
-    window.getSelection()?.removeAllRanges();
-  }, [resetPressState]);
-
   const handleSelect = useCallback(() => {
     if (longPressTriggeredRef.current) {
       longPressTriggeredRef.current = false;
@@ -424,8 +432,6 @@ function ChapterListItemComponent({
       onContextMenu={handleContextMenu}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
     >
       <ChapterRowContent
         chapter={chapter}
