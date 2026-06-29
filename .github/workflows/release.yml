@@ -25,12 +25,11 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
       release_tag: ${{ steps.meta.outputs.release_tag }}
     steps:
-      - uses: actions/checkout@v7
       - id: meta
         run: |
-          VERSION=$(python3 -c "import tomllib;print(tomllib.loads(open('backend/pyproject.toml','rb').read().decode())['project']['version'])")
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "release_tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          RELEASE_TAG=${GITHUB_REF#refs/tags/}
+          echo "version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
 
   # ---------------------------------------------------------------- test gate
   test-frontend:
