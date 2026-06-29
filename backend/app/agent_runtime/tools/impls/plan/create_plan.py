@@ -31,7 +31,6 @@ class CreatePlanTool(AgentTool):
         self,
         topic: str,
         description: str,
-        parent_dependency_todo_id: str | None = None,
         todos: list[Any] | None = None,
     ) -> str:
         session = await create_session()
@@ -41,7 +40,6 @@ class CreatePlanTool(AgentTool):
                 runtime_state=self._state,
                 topic=topic,
                 description=description,
-                parent_dependency_todo_id=parent_dependency_todo_id,
                 todos=[_todo_payload(todo) for todo in (todos or [])],
             )
             await session.commit()

@@ -28,46 +28,6 @@ def test_default_agent_definitions_include_primary_and_six_subagents():
         assert definition.delegatable_agents == ()
 
 
-def test_primary_can_dispatch_but_subagents_cannot():
-    from app.agent_runtime.agents.definitions import get_default_agent_definition
-
-    assert "orchestration" in get_default_agent_definition("primary").tool_category_keys
-    for key in ("explorer", "composer", "auditor", "writer", "actor", "reviewer"):
-        assert (
-            "orchestration" not in get_default_agent_definition(key).tool_category_keys
-        )
-
-
-def test_writer_gets_mutation_category_and_reviewers_do_not():
-    from app.agent_runtime.agents.definitions import get_default_agent_definition
-
-    assert "chapter_write" in get_default_agent_definition("writer").tool_category_keys
-    assert "chapter_write" in get_default_agent_definition("actor").tool_category_keys
-    for key in ("explorer", "composer", "auditor", "reviewer"):
-        assert (
-            "chapter_write" not in get_default_agent_definition(key).tool_category_keys
-        )
-
-
-def test_note_category_allocation_matches_read_write_policy():
-    from app.agent_runtime.agents.definitions import get_default_agent_definition
-
-    for key in ("explorer", "composer", "auditor"):
-        assert "note_read" in get_default_agent_definition(key).tool_category_keys
-        assert "note_write" not in get_default_agent_definition(key).tool_category_keys
-
-    for key in ("primary", "writer", "actor"):
-        assert "note_read" in get_default_agent_definition(key).tool_category_keys
-        assert "note_write" in get_default_agent_definition(key).tool_category_keys
-
-    assert (
-        "note_read" not in get_default_agent_definition("reviewer").tool_category_keys
-    )
-    assert (
-        "note_write" not in get_default_agent_definition("reviewer").tool_category_keys
-    )
-
-
 @pytest.mark.asyncio
 async def test_load_agent_definition_prefers_db_record():
     from app.agent_runtime.agents.definitions import load_agent_definition

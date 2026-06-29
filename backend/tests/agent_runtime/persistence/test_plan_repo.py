@@ -83,66 +83,6 @@ async def test_list_plans_by_scope_orders_by_created_at(db_session: AsyncSession
 
     assert [plan.id for plan in plans] == [first.id, second.id]
 
-
-@pytest.mark.asyncio
-async def test_list_referenced_todo_ids_returns_scope_local_dependencies(
-    db_session: AsyncSession,
-) -> None:
-    root = await plan_repo.create_plan(
-        db_session,
-        PlanRecord(scope_id="scope-1", topic="root", description="root", status="pending"),
-    )
-    todo = await plan_repo.create_plan_todo(
-        db_session,
-        PlanTodoRecord(
-            plan_id=root.id,
-            title="Root Todo",
-            content="root todo",
-            status="pending",
-            sort_index=0,
-        ),
-    )
-    await plan_repo.create_plan(
-        db_session,
-        PlanRecord(
-            scope_id="scope-1",
-            topic="child",
-            description="child",
-            status="pending",
-            parent_dependency_id=todo.id,
-        ),
-    )
-    other_root = await plan_repo.create_plan(
-        db_session,
-        PlanRecord(scope_id="scope-2", topic="other-root", description="other-root", status="pending"),
-    )
-    other_todo = await plan_repo.create_plan_todo(
-        db_session,
-        PlanTodoRecord(
-            plan_id=other_root.id,
-            title="Other Todo",
-            content="other todo",
-            status="pending",
-            sort_index=0,
-        ),
-    )
-    await plan_repo.create_plan(
-        db_session,
-        PlanRecord(
-            scope_id="scope-2",
-            topic="other",
-            description="other",
-            status="pending",
-            parent_dependency_id=other_todo.id,
-        ),
-    )
-    await db_session.commit()
-
-    referenced = await plan_repo.list_referenced_todo_ids(db_session, "scope-1")
-
-    assert referenced == {todo.id}
-
-
 @pytest.mark.asyncio
 async def test_replace_plan_todos_updates_existing_adds_new_and_deletes_removed(
     db_session: AsyncSession,

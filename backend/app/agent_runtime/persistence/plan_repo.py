@@ -34,18 +34,6 @@ async def get_todo(session: AsyncSession, todo_id: str) -> PlanTodoRecord | None
     return await session.get(PlanTodoRecord, todo_id)
 
 
-async def get_plan_by_parent_dependency_id(
-    session: AsyncSession,
-    parent_dependency_id: str,
-) -> PlanRecord | None:
-    result = await session.execute(
-        select(PlanRecord).where(
-            col(PlanRecord.parent_dependency_id) == parent_dependency_id
-        )
-    )
-    return result.scalar_one_or_none()
-
-
 async def list_plans_by_scope(session: AsyncSession, scope_id: str) -> list[PlanRecord]:
     result = await session.execute(
         select(PlanRecord)
@@ -84,16 +72,6 @@ async def list_todos_by_plan_ids(
     for row in result.scalars().all():
         grouped.setdefault(row.plan_id, []).append(row)
     return grouped
-
-
-async def list_referenced_todo_ids(session: AsyncSession, scope_id: str) -> set[str]:
-    result = await session.execute(
-        select(col(PlanRecord.parent_dependency_id)).where(
-            col(PlanRecord.scope_id) == scope_id,
-            col(PlanRecord.parent_dependency_id).is_not(None),
-        )
-    )
-    return {todo_id for todo_id in result.scalars().all() if todo_id is not None}
 
 
 async def delete_todos_by_ids(
