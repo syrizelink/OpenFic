@@ -25,7 +25,11 @@
           "path": "frontend/package.json",
           "jsonpath": "$.version"
         },
-        "backend/pyproject.toml"
+        {
+          "type": "toml",
+          "path": "backend/pyproject.toml",
+          "jsonpath": "$.project.version"
+        }
       ]
     }
   }
