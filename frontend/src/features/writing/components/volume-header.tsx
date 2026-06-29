@@ -83,6 +83,7 @@ interface VolumeHeaderProps {
   isRenaming: boolean;
   isFirst: boolean;
   isLast: boolean;
+  canDelete?: boolean;
   isAgentLocked?: boolean;
   onToggle: () => void;
   onStartRename: () => void;
@@ -103,6 +104,7 @@ export function VolumeHeader({
   isRenaming,
   isFirst,
   isLast,
+  canDelete = true,
   isAgentLocked = false,
   onToggle,
   onStartRename,
@@ -130,8 +132,8 @@ export function VolumeHeader({
     [isAgentLocked, onLockedAction]
   );
 
-  const menuItems = useMemo<ContextMenuItem[]>(
-    () => [
+  const menuItems = useMemo<ContextMenuItem[]>(() => {
+    const items: ContextMenuItem[] = [
       {
         id: "rename",
         label: t("volume.menu.rename"),
@@ -174,29 +176,34 @@ export function VolumeHeader({
         disabled: isLast,
         onClick: onMoveDown,
       },
-      {
+    ];
+
+    if (canDelete) {
+      items.push({
         id: "delete",
         label: t("volume.menu.delete"),
         icon: Trash2,
         danger: true,
         onClick: onDelete,
-      },
-    ],
-    [
-      isFirst,
-      isLast,
-      onCreateChapter,
-      onAddToConversation,
-      onDelete,
-      onEditDescription,
-      onMoveDown,
-      onMoveUp,
-      onStartRename,
-      volume.id,
-      volume.title,
-      t,
-    ]
-  );
+      });
+    }
+
+    return items;
+  }, [
+    canDelete,
+    isFirst,
+    isLast,
+    onCreateChapter,
+    onAddToConversation,
+    onDelete,
+    onEditDescription,
+    onMoveDown,
+    onMoveUp,
+    onStartRename,
+    volume.id,
+    volume.title,
+    t,
+  ]);
 
   return (
     <>

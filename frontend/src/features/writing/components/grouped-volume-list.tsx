@@ -381,6 +381,7 @@ export function GroupedVolumeList({
   onLockedAction,
 }: GroupedVolumeListProps) {
   const { t } = useTranslation();
+  const canDeleteVolume = volumes.length > 1;
   const { currentChapterId, isDragMode, dragOrderMap, reorderChapters } = useWritingStore(
     useShallow((state) => ({
       currentChapterId: state.currentChapterId,
@@ -1005,6 +1006,7 @@ export function GroupedVolumeList({
           isRenaming={renamingVolumeId === volume.id}
           isFirst={groupIndex === 0}
           isLast={groupIndex === volumes.length - 1}
+          canDelete={canDeleteVolume}
           isAgentLocked={isAgentLocked}
           onToggle={() => handleToggleVolume(volume.id)}
           onStartRename={() => onStartRenameVolume(volume.id)}
@@ -1036,6 +1038,7 @@ export function GroupedVolumeList({
       handleToggleVolume,
       renamingVolumeId,
       volumes,
+      canDeleteVolume,
     ]
   );
 
@@ -1076,6 +1079,7 @@ export function GroupedVolumeList({
                     isRenaming={renamingVolumeId === volume.id}
                     isFirst={groupIndex === 0}
                     isLast={groupIndex === volumes.length - 1}
+                    canDelete={canDeleteVolume}
                     isAgentLocked={isAgentLocked}
                     onToggle={() => handleToggleVolume(volume.id)}
                     onStartRename={() => onStartRenameVolume(volume.id)}

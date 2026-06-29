@@ -208,7 +208,6 @@
     "backToProjects": "Back to projects",
     "selectChapter": "Select a chapter to start editing",
     "aiSidebar": {
-      "emptyMessage": "Start chatting with AI",
       "thinking": "AI is thinking...",
       "inputPlaceholder": "Ask your question...",
       "noModelsTooltip": "No models found, click to go to settings",
@@ -236,7 +235,7 @@
       "favorite": "Favorite",
       "unfavorite": "Unfavorite",
       "taskRunning": "Task is running",
-      "activeSubagents": "Active subagents",
+      "activeSubagents": "Active Sub Agents",
       "activeSubagentsCount": "{{count}} active agents",
       "returnToPrimary": "Return to primary",
       "subagentReadOnly": "This subagent session is read-only. To continue interacting, please ",
@@ -1079,8 +1078,8 @@
     }
   },
   "assistant": {
-    "mobileTitle": "AI",
-    "subagentFallbackTitle": "Subagent",
+    "mobileTitle": "Agent",
+    "subagentFallbackTitle": "Sub Agent",
     "taskFallbackTitle": "Task",
     "compactContext": "Compact Context",
     "history": "History",

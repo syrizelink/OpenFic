@@ -208,7 +208,6 @@
     "backToProjects": "返回项目列表",
     "selectChapter": "选择一个章节开始编辑",
     "aiSidebar": {
-      "emptyMessage": "开始与AI对话吧",
       "thinking": "AI 思考中...",
       "inputPlaceholder": "输入你的问题...",
       "noModelsTooltip": "未找到模型，点击前往设置",
@@ -222,7 +221,7 @@
       "imageDisabled": "图片功能即将推出",
       "recentTasks": "最近任务",
       "viewAll": "查看全部",
-      "noTasks": "还没有任何对话记录",
+      "noTasks": "还没有任何会话记录",
       "newChat": "开始新对话",
       "startFirstChat": "开始第一次对话",
       "allTasks": "全部任务",
@@ -1143,7 +1142,7 @@
     }
   },
   "assistant": {
-    "mobileTitle": "AI",
+    "mobileTitle": "Agent",
     "subagentFallbackTitle": "子智能体",
     "taskFallbackTitle": "任务",
     "compactContext": "压缩上下文",
