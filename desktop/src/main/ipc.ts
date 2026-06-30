@@ -1,10 +1,13 @@
-import { ipcMain } from "electron";
 import type { BrowserWindow } from "electron";
 import { IpcChannels, type CheckRemoteRequest, type SaveConfigRequest } from "../shared/ipc.js";
 import { readDesktopConfig, writeDesktopConfig } from "./config.js";
 import { waitForBackend } from "./health.js";
 import { runLocalSetup } from "./runtime/setup-runner.js";
 import type { BackendProcessHandle } from "./process.js";
+
+const electron = require("electron") as typeof import("electron");
+
+const { ipcMain } = electron;
 
 export interface IpcContext {
   setupWindow: () => BrowserWindow | null;

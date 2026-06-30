@@ -1,4 +1,3 @@
-import { app } from "electron";
 import { spawn } from "node:child_process";
 import { access, mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -6,6 +5,10 @@ import { findFreePort } from "../ports.js";
 import { startBackendProcess, type BackendProcessHandle } from "../process.js";
 import { waitForBackend } from "../health.js";
 import type { PortablePython } from "./python.js";
+
+const electron = require("electron") as typeof import("electron");
+
+const { app } = electron;
 
 export type OpenFicRuntimeStep = "create-venv" | "install-uv" | "install-openfic";
 

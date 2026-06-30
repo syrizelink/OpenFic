@@ -1,7 +1,10 @@
-import { app } from "electron";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createWriteStream, mkdirSync } from "node:fs";
 import path from "node:path";
+
+const electron = require("electron") as typeof import("electron");
+
+const { app } = electron;
 
 export interface BackendProcessHandle {
   process: ChildProcessWithoutNullStreams;

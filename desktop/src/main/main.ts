@@ -1,5 +1,6 @@
-import { app, dialog, Menu } from "electron";
 import type { BrowserWindow } from "electron";
+import { appendFileSync, mkdirSync } from "node:fs";
+import path from "node:path";
 import { registerAppScheme, handleAppProtocol, setRuntimeConfig } from "./protocol.js";
 import { createMainWindow, createSetupWindow } from "./windows.js";
 import { readDesktopConfig } from "./config.js";
@@ -9,12 +10,28 @@ import { ensurePortablePython } from "./runtime/python.js";
 import { ensureOpenFicRuntime, startLocalOpenFicBackend } from "./runtime/openfic.js";
 import { stopBackendProcess, type BackendProcessHandle } from "./process.js";
 
+const electron = require("electron") as typeof import("electron");
+
+const { app, dialog, Menu } = electron;
+
+function writeStartupLog(message: string): void {
+  try {
+    const logDir = path.join(process.env.APPDATA ?? app.getPath("userData"), "OpenFic");
+    mkdirSync(logDir, { recursive: true });
+    appendFileSync(path.join(logDir, "startup.log"), `[${new Date().toISOString()}] ${message}\n`, "utf8");
+  } catch {
+    // Ignore logging failures during startup diagnostics.
+  }
+}
+
 let mainWindow: BrowserWindow | null = null;
 let setupWindow: BrowserWindow | null = null;
 let backendHandle: BackendProcessHandle | null = null;
 let isQuitting = false;
 
+writeStartupLog("process start");
 registerAppScheme();
+writeStartupLog("scheme registered");
 
 function setBackend(handle: BackendProcessHandle): void {
   backendHandle = handle;
@@ -32,8 +49,9 @@ function setBackendBaseUrl(url: string): void {
 }
 
 function openMainWindow(): void {
-  if (mainWindow) {
-    mainWindow.focus();
+  const existingWindow = mainWindow;
+  if (existingWindow) {
+    existingWindow.focus();
     return;
   }
   mainWindow = createMainWindow();
@@ -43,8 +61,9 @@ function openMainWindow(): void {
 }
 
 function openSetupWindow(): void {
-  if (setupWindow) {
-    setupWindow.focus();
+  const existingWindow = setupWindow;
+  if (existingWindow) {
+    existingWindow.focus();
     return;
   }
   setupWindow = createSetupWindow();
@@ -76,8 +95,11 @@ function installMenu(): void {
 }
 
 async function bootstrap(): Promise<void> {
+  writeStartupLog("bootstrap start");
   handleAppProtocol();
+  writeStartupLog("protocol handler installed");
   installMenu();
+  writeStartupLog("menu installed");
   registerIpc({
     setupWindow: () => setupWindow,
     setBackend,
@@ -86,7 +108,9 @@ async function bootstrap(): Promise<void> {
   });
 
   const config = await readDesktopConfig();
+  writeStartupLog(`config loaded: ${config ? config.mode : "none"}`);
   if (!config) {
+    writeStartupLog("opening setup window");
     openSetupWindow();
     return;
   }
@@ -99,8 +123,10 @@ async function bootstrap(): Promise<void> {
     try {
       await waitForBackend(config.remoteUrl, 10_000);
       setBackendBaseUrl(config.remoteUrl);
+      writeStartupLog("opening main window with remote backend");
       openMainWindow();
     } catch (err) {
+      writeStartupLog(`remote backend failed: ${err instanceof Error ? err.message : String(err)}`);
       dialog.showErrorBox("远程后端不可用", err instanceof Error ? err.message : String(err));
       openSetupWindow();
     }
@@ -109,8 +135,10 @@ async function bootstrap(): Promise<void> {
 
   try {
     await startLocalBackend();
+    writeStartupLog("opening main window with local backend");
     openMainWindow();
   } catch (err) {
+    writeStartupLog(`local backend failed: ${err instanceof Error ? err.message : String(err)}`);
     dialog.showErrorBox("本地后端启动失败", err instanceof Error ? err.message : String(err));
     openSetupWindow();
   }
@@ -131,6 +159,7 @@ if (!gotLock) {
   });
 
   app.whenReady().then(() => {
+    writeStartupLog("app ready");
     void bootstrap();
   });
 
@@ -151,5 +180,14 @@ if (!gotLock) {
   process.on("SIGTERM", () => {
     stopBackendProcess(backendHandle);
     process.exit(0);
+  });
+
+  process.on("uncaughtException", (error) => {
+    writeStartupLog(`uncaughtException: ${error.stack ?? error.message}`);
+    throw error;
+  });
+
+  process.on("unhandledRejection", (reason) => {
+    writeStartupLog(`unhandledRejection: ${reason instanceof Error ? reason.stack ?? reason.message : String(reason)}`);
   });
 }

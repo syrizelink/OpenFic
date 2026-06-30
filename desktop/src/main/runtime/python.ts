@@ -1,8 +1,11 @@
-import { app } from "electron";
 import { access, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { downloadFile, extractTarGz } from "./archive.js";
 import { resolvePythonAsset } from "./python-assets.js";
+
+const electron = require("electron") as typeof import("electron");
+
+const { app } = electron;
 
 export interface PortablePython {
   pythonPath: string;

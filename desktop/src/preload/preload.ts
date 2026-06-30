@@ -1,6 +1,9 @@
-import { contextBridge, ipcRenderer } from "electron";
 import { IpcChannels, type CheckRemoteRequest, type SaveConfigRequest, type SetupProgressEvent } from "../shared/ipc.js";
 import type { DesktopConfig } from "../shared/config.js";
+
+const electron = require("electron") as typeof import("electron");
+
+const { contextBridge, ipcRenderer } = electron;
 
 const desktopApi = {
   getConfig: (): Promise<DesktopConfig | null> => ipcRenderer.invoke(IpcChannels.getConfig),

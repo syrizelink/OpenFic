@@ -1,8 +1,11 @@
-import { app, net, protocol } from "electron";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { RuntimeConfigResponse } from "../shared/config.js";
+
+const electron = require("electron") as typeof import("electron");
+
+const { app, net, protocol } = electron;
 
 let runtimeConfig: RuntimeConfigResponse | null = null;
 
@@ -29,6 +32,16 @@ function resolveStaticPath(rootDir: string, pathname: string): string {
   return path.join(resolvedRoot, "index.html");
 }
 
+function resolveSetupStaticPath(rootDir: string, pathname: string): string {
+  const normalizedPath = decodeURIComponent(pathname).replace(/^\/+/, "").replace(/^setup\//, "");
+  const resolvedRoot = path.resolve(rootDir);
+  const candidate = path.resolve(resolvedRoot, normalizedPath || "setup.html");
+  const relativeToRoot = path.relative(resolvedRoot, candidate);
+  if (relativeToRoot.startsWith("..") || path.isAbsolute(relativeToRoot)) return path.join(resolvedRoot, "setup.html");
+  if (existsSync(candidate)) return candidate;
+  return path.join(resolvedRoot, "setup.html");
+}
+
 export function registerAppScheme(): void {
   protocol.registerSchemesAsPrivileged([
     {
@@ -53,8 +66,9 @@ export function handleAppProtocol(): void {
       });
     }
 
-    const rootDir = url.hostname === "setup" ? getSetupDistDir() : getFrontendDistDir();
-    const filePath = resolveStaticPath(rootDir, url.pathname);
+    const filePath = url.hostname === "setup"
+      ? resolveSetupStaticPath(getSetupDistDir(), url.pathname)
+      : resolveStaticPath(getFrontendDistDir(), url.pathname);
     return net.fetch(pathToFileURL(filePath).toString());
   });
 }
