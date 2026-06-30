@@ -49,7 +49,7 @@ class ZmqBackgroundTransport(BackgroundTransport):
         self._job_push = job_push
         self._event_pub = event_pub
         self._event_sub = event_sub
-        logger.info("background zmq transport started")
+        logger.info("Background ZMQ transport started")
 
     async def stop(self) -> None:
         sockets = [self._job_push, self._job_pull, self._event_pub, self._event_sub]

@@ -1,18 +1,18 @@
 # OpenFic
-<p>
-  <img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+">
-  <img src="https://img.shields.io/badge/react-19-149ECA?style=flat-square&logo=react&logoColor=white" alt="React 19">
-  <img src="https://img.shields.io/badge/fastapi-0.127%2B-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI">
-</p>
 
+![License](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)
+![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white)
+![React](https://img.shields.io/badge/react-19-149ECA?style=flat-square&logo=react&logoColor=white)
 
-**OpenFic** 是AI Agent时代专为小说创作打造的一站式写作平台，构建设定、设计角色、定制工作流，让Agent适应你的写作流程，而非反之。与OpenFic一起，将你的脑海中的世界变为现实。
+> ❗️❗️本项目仍处于快速迭代阶段，部分功能尚不稳定，可能出现未知的bug，望知悉
+
+**OpenFic** 是AI Agent时代专为小说创作打造的一站式Vibe Wrting平台，构建设定、设计角色、定制工作流，让Agent适应你的写作流程，而非反之。与OpenFic一起，将你的脑海中的幻想世界变为现实。
 
 ## 特性
 
 - 🚀开箱即用：使用Docker或pip快速安装，无需复杂配置
-- 🤝全面的模型支持：无缝集成来自数十家提供商的模型，或是任何兼容OpenAI API的模型
-- 📱响应式UI：在桌面端、移动端和浏览器上享受无缝的流畅体验
+- 🤝全面的模型支持：无缝集成来自多种提供商的模型，或是任何兼容OpenAI API的模型
+- 📱响应式UI：专为多端设计的界面，在桌面端、移动端和浏览器上享受无缝的流畅体验
 - 🧩定制化工作流：高度可配置的Agent系统，自由的修改任何Prompt，构建属于你的工作流
 - ✒️以写作为中心：与Agent深度集成的辅助创作，发散思维、构建情节、协同编辑，告别抽卡式的一键生成
 - 💾本地持久化：所有项目数据保存在本地，零云存储依赖
@@ -66,6 +66,8 @@ openfic serve
 http://localhost:8000
 ```
 
-### 桌面应用
+### 桌面应用 (实验性)
+
+> 桌面版仍不稳定，仅供体验
 
 前往 <https://github.com/syrizelink/OpenFic/releases> 下载桌面应用，在你的系统上原生运行，而无需额外步骤。

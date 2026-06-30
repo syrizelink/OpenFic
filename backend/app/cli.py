@@ -1,6 +1,6 @@
 """OpenFic CLI 入口。
 
-用于以 pipx/uvx 安装后启动本地服务，默认绑定 127.0.0.1 并自动打开浏览器。
+用于以 pipx/uvx 安装后启动本地服务。
 桌面端（PyInstaller）与 Docker 不走此入口。
 """
 
@@ -8,9 +8,9 @@ from __future__ import annotations
 
 import argparse
 import os
-import threading
-import webbrowser
 from pathlib import Path
+
+from app.logging import configure_standard_logging
 
 _DEFAULT_HOST = "127.0.0.1"
 _DEFAULT_PORT = 8000
@@ -34,39 +34,15 @@ def _read_version() -> str:
         return "0.0.0"
 
 
-def _schedule_browser(host: str, port: int) -> None:
-    def _open() -> None:
-        import time
-        import urllib.error
-        import urllib.request
-
-        url = f"http://{host}:{port}/api/v1/health"
-        for _ in range(30):
-            try:
-                with urllib.request.urlopen(url, timeout=1):
-                    break
-            except (urllib.error.URLError, OSError, TimeoutError):
-                time.sleep(0.5)
-        webbrowser.open(f"http://{host}:{port}")
-
-    threading.Thread(target=_open, daemon=True).start()
+def handle_version(_args: argparse.Namespace) -> None:
+    print(f"openfic {_read_version()}")
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        prog="openfic",
-        description="OpenFic 本地服务启动器",
-    )
-    parser.add_argument("--host", default=_DEFAULT_HOST, help=f"绑定地址（默认 {_DEFAULT_HOST}）")
-    parser.add_argument("--port", type=int, default=_DEFAULT_PORT, help=f"绑定端口（默认 {_DEFAULT_PORT}）")
-    parser.add_argument("--no-browser", action="store_true", help="启动后不自动打开浏览器")
-    parser.add_argument("--version", action="version", version=f"openfic {_read_version()}")
-    args = parser.parse_args()
-
+def handle_serve(args: argparse.Namespace) -> None:
     _ensure_data_dir()
-
-    if not args.no_browser:
-        _schedule_browser(args.host, args.port)
+    configure_standard_logging()
+    os.environ["OPENFIC_SERVER_HOST"] = args.host
+    os.environ["OPENFIC_SERVER_PORT"] = str(args.port)
 
     import uvicorn
 
@@ -75,7 +51,40 @@ def main() -> None:
         host=args.host,
         port=args.port,
         log_level="info",
+        log_config=None,
+        access_log=False,
     )
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="openfic",
+        description="OpenFic 本地服务启动器",
+    )
+
+    subparsers = parser.add_subparsers(dest="command")
+
+    serve_parser = subparsers.add_parser("serve", help="启动本地服务")
+    serve_parser.add_argument("--host", default=_DEFAULT_HOST, help=f"绑定地址（默认 {_DEFAULT_HOST}）")
+    serve_parser.add_argument("--port", type=int, default=_DEFAULT_PORT, help=f"绑定端口（默认 {_DEFAULT_PORT}）")
+    serve_parser.set_defaults(handler=handle_serve)
+
+    version_parser = subparsers.add_parser("version", help="显示版本号")
+    version_parser.set_defaults(handler=handle_version)
+
+    return parser
+
+
+def main() -> None:
+    parser = build_parser()
+    args = parser.parse_args()
+
+    handler = getattr(args, "handler", None)
+    if handler is None:
+        parser.print_help()
+        raise SystemExit(0)
+
+    handler(args)
 
 
 if __name__ == "__main__":

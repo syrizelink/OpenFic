@@ -7,7 +7,23 @@ name = "openfic"
 version = "0.3.2"
 description = "Ready for adding."
 readme = "README.md"
+license = "Apache-2.0"
 requires-python = ">=3.12,<3.14"
+authors = [{ name = "Syrize", email = "syrize@qq.com" }]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+urls = { Homepage = "https://github.com/syrizelink/OpenFic", Repository = "https://github.com/syrizelink/OpenFic" }
 dependencies = [
     "aiocache>=0.12.3",
     "aiofiles>=22.0",
@@ -77,14 +93,19 @@ name = "pypi"
 url = "https://pypi.org/simple"
 default = true
 
+[tool.hatch.build.hooks.custom]
+path = "hatch_build.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "alembic.ini" = "alembic.ini"
+"LICENSE" = "LICENSE"
+"frontend" = "frontend"
 
 [tool.hatch.build.targets.sdist]
-force-include = { "alembic.ini" = "alembic.ini" }
+force-include = { "alembic.ini" = "alembic.ini", "../LICENSE" = "LICENSE", "frontend" = "frontend" }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

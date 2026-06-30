@@ -36,7 +36,7 @@ class BackgroundWorker:
         self._stop_event.set()
 
     async def run(self) -> None:
-        logger.bind(worker_id=self.worker_id).info("background worker started")
+        logger.bind(worker_id=self.worker_id).info("Background worker started")
         while not self._stop_event.is_set():
             notification = await self.transport.receive_job(timeout_ms=500)
             if notification and notification.job_id:
@@ -47,7 +47,7 @@ class BackgroundWorker:
                 await asyncio.wait_for(
                     self._stop_event.wait(), timeout=self.scan_interval_seconds
                 )
-        logger.bind(worker_id=self.worker_id).info("background worker stopped")
+        logger.bind(worker_id=self.worker_id).info("Background worker stopped")
 
     async def _run_pending_once(self) -> None:
         session = await create_session()

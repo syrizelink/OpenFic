@@ -90,7 +90,7 @@ async def seed_builtin_models(session: AsyncSession) -> None:
         )
         session.add(provider_row)
         await session.flush()
-        logger.info("已创建内置本地模型提供商")
+        logger.debug("Created builtin provider")
     elif not provider_row.is_builtin:
         provider_row.is_builtin = True
 
@@ -113,7 +113,7 @@ async def seed_builtin_models(session: AsyncSession) -> None:
             )
             session.add(model_row)
             await session.flush()
-            logger.info("已创建内置模型: {} ({})", spec.name, spec.task_type)
+            logger.debug("Created builtin model: {} ({})", spec.name, spec.task_type)
         elif not model_row.is_builtin:
             model_row.is_builtin = True
 
