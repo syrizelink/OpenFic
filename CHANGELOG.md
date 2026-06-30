@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.3](https://github.com/syrizelink/OpenFic/compare/v0.3.2...v0.3.3) (2026-06-30)
+
+
+### 🐛 问题修复
+
+* **backend:** 完善后端分发构建与启动入口 ([86b3d77](https://github.com/syrizelink/OpenFic/commit/86b3d77baff1a5cc5d57e1617fc6e619eb1090d0))
+* **backend:** 完善后端构建与分发流程 ([#27](https://github.com/syrizelink/OpenFic/issues/27)) ([86b3d77](https://github.com/syrizelink/OpenFic/commit/86b3d77baff1a5cc5d57e1617fc6e619eb1090d0))
+* **backend:** 完善后端构建与分发流程 ([#27](https://github.com/syrizelink/OpenFic/issues/27)) ([86b3d77](https://github.com/syrizelink/OpenFic/commit/86b3d77baff1a5cc5d57e1617fc6e619eb1090d0))
+
+
+### ♻️ 代码重构
+
+* **backend:** 统一后台运行日志输出 ([86b3d77](https://github.com/syrizelink/OpenFic/commit/86b3d77baff1a5cc5d57e1617fc6e619eb1090d0))
+
+
+### 📚 文档
+
+* **readme:** 更新项目介绍与发布提示 ([86b3d77](https://github.com/syrizelink/OpenFic/commit/86b3d77baff1a5cc5d57e1617fc6e619eb1090d0))
+
 ## [0.3.2](https://github.com/syrizelink/OpenFic/compare/v0.3.1...v0.3.2) (2026-06-29)
 
 
