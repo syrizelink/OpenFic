@@ -25,12 +25,12 @@ class BackgroundWatchdog:
         self._stop_event.set()
 
     async def run(self) -> None:
-        logger.info("background watchdog started")
+        logger.info("Background watchdog started")
         while not self._stop_event.is_set():
             await self.run_once()
             with suppress(asyncio.TimeoutError):
                 await asyncio.wait_for(self._stop_event.wait(), timeout=self.interval_seconds)
-        logger.info("background watchdog stopped")
+        logger.info("Background watchdog stopped")
 
     async def run_once(self) -> int:
         session = await create_session()

@@ -59,7 +59,7 @@ class BackgroundSupervisor:
                 interval_seconds=get_watchdog_interval_seconds(),
             )
             self._watchdog_task = asyncio.create_task(self._watchdog.run())
-        logger.info("background supervisor started")
+        logger.info("Background supervisor started")
 
     async def stop(self) -> None:
         self._stop_event.set()

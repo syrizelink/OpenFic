@@ -25,7 +25,7 @@ class AuditQueue:
         if self._worker is not None and not self._worker.done():
             return
         self._worker = asyncio.create_task(self._run(), name="agent-runtime-audit-queue")
-        logger.info("agent runtime audit queue started")
+        logger.info("Agent runtime audit queue started")
 
     async def stop(self) -> None:
         if self._worker is None:
@@ -34,7 +34,7 @@ class AuditQueue:
         await self._queue.put(None)
         await self._worker
         self._worker = None
-        logger.info("agent runtime audit queue stopped")
+        logger.info("Agent runtime audit queue stopped")
 
     async def enqueue(self, audit_log: AgentAuditLog) -> None:
         if self._worker is None or self._worker.done():
