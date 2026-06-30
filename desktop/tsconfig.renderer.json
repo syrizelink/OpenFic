@@ -6,5 +6,5 @@
     "jsx": "react-jsx",
     "types": ["react", "react-dom"]
   },
-  "include": ["src/setup-ui/**/*.ts", "src/setup-ui/**/*.tsx", "src/shared/**/*.ts"]
+  "include": ["src/setup-ui/**/*.ts", "src/setup-ui/**/*.tsx", "src/setup-ui/**/*.d.ts", "src/shared/**/*.ts"]
 }

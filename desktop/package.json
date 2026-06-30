@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@radix-ui/themes": "^3.3.0",
+    "lucide-react": "^1.22.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "scheduler": "^0.27.0"

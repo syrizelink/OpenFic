@@ -19,6 +19,8 @@ import { GlobalLoading } from "./components";
 import { checkHealth } from "./lib/api-client";
 import { loadRuntimeConfig } from "./lib/runtime-config";
 import { preloadTiktokenEncoding } from "./lib/tiktoken-utils";
+import { publishDesktopAppearance } from "./lib/desktop-appearance-bridge";
+import type { Settings } from "./features/settings/lib/settings.types";
 import "streamdown/styles.css";
 import "./styles/index.css";
 
@@ -42,9 +44,11 @@ const DashboardPage = lazy(() =>
 
 function AppContent({
   appearance,
+  setAppearance,
   toggleTheme,
 }: {
   appearance: "light" | "dark";
+  setAppearance: (appearance: "light" | "dark") => void;
   toggleTheme: () => void;
 }) {
   return (
@@ -52,7 +56,7 @@ function AppContent({
       <Routes>
         <Route
           element={
-            <AppLayout appearance={appearance} onToggleTheme={toggleTheme} />
+            <AppLayout appearance={appearance} onAppearanceChange={setAppearance} onToggleTheme={toggleTheme} />
           }
         >
           <Route path="/" element={<App />} />
@@ -75,6 +79,7 @@ function AppContent({
 
 function Root() {
   const [appearance, setAppearance] = useState<"light" | "dark">("light");
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState(false);
 
@@ -105,6 +110,8 @@ function Root() {
         await loadConfiguredFonts(settings.fontFamily, settings.codeFontFamily);
 
         if (mounted) {
+          setSettings(settings);
+          setAppearance(settings.theme);
           setIsReady(true);
         }
       } catch {
@@ -128,6 +135,14 @@ function Root() {
     };
   }, []);
 
+  useEffect(() => {
+    publishDesktopAppearance({
+      appearance,
+      fontFamily: settings?.fontFamily,
+      codeFontFamily: settings?.codeFontFamily,
+    });
+  }, [appearance, settings?.fontFamily, settings?.codeFontFamily]);
+
   return (
     <StrictMode>
       <QueryClientProvider client={queryClient}>
@@ -145,7 +160,7 @@ function Root() {
                 onRetry={() => window.location.reload()}
               />
             ) : (
-              <AppContent appearance={appearance} toggleTheme={toggleTheme} />
+              <AppContent appearance={appearance} setAppearance={setAppearance} toggleTheme={toggleTheme} />
             )}
           </Theme>
           {isReady ? <Toaster appearance={appearance} /> : null}

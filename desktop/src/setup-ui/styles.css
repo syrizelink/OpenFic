@@ -1,32 +1,105 @@
 :root {
-  color: #202020;
-  background: #f5f4f1;
-  font-family: Inter, "SF Pro Text", "Noto Sans SC", system-ui, sans-serif;
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--app-font-family);
 }
 
 body {
   margin: 0;
 }
 
-.setup-shell {
+.desktop-shell {
+  position: relative;
   min-height: 100vh;
+  background: var(--color-background);
+  color: var(--gray-12);
+  overflow: hidden;
+}
+
+.desktop-titlebar {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  padding: 0 10px 0 16px;
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--color-background) 94%, transparent);
+  border-bottom: 1px solid var(--gray-a4);
+  -webkit-app-region: drag;
+}
+
+.desktop-titlebar-brand {
+  color: var(--gray-11);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+.desktop-titlebar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-button {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--gray-11);
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.titlebar-button:hover {
+  background: var(--gray-a3);
+  color: var(--gray-12);
+}
+
+.titlebar-button-close:hover {
+  background: var(--red-a3, rgba(220, 38, 38, 0.1));
+  color: var(--red-11, #b91c1c);
+}
+
+.frontend-webview {
+  display: flex;
+  width: 100%;
+  height: calc(100vh - 44px);
+  border: 0;
+}
+
+.frontend-webview-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.setup-shell {
+  position: absolute;
+  inset: 44px 0 0;
   display: grid;
   place-items: center;
   padding: 32px;
+  box-sizing: border-box;
 }
 
 .setup-card {
   width: min(640px, 100%);
-  background: #fffdfa;
-  border: 1px solid #ded9cf;
+  background: var(--color-panel-solid);
+  border: 1px solid var(--gray-a5);
   border-radius: 18px;
   padding: 32px;
-  box-shadow: 0 20px 60px rgb(55 45 30 / 12%);
+  box-shadow: 0 20px 60px var(--gray-a4);
 }
 
 .eyebrow {
   margin: 0 0 8px;
-  color: #756b5c;
+  color: var(--gray-10);
   font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -38,7 +111,7 @@ h1 {
 }
 
 .description {
-  color: #5f574c;
+  color: var(--gray-11);
   line-height: 1.7;
 }
 
@@ -51,16 +124,17 @@ h1 {
 
 .mode-card {
   text-align: left;
-  border: 1px solid #ddd7cc;
+  border: 1px solid var(--gray-a5);
   border-radius: 14px;
-  background: #faf8f3;
+  background: var(--color-surface);
+  color: var(--gray-12);
   padding: 16px;
   cursor: pointer;
 }
 
 .mode-card.active {
-  border-color: #6f6a5f;
-  background: #f0ede5;
+  border-color: var(--accent-a8);
+  background: var(--accent-a3);
 }
 
 .mode-card strong,
@@ -72,7 +146,7 @@ h1 {
 .mode-card span,
 .field span {
   margin-top: 8px;
-  color: #665f55;
+  color: var(--gray-11);
   line-height: 1.5;
 }
 
@@ -82,18 +156,35 @@ h1 {
   margin-top: 8px;
   padding: 12px 14px;
   border-radius: 10px;
-  border: 1px solid #d7d0c4;
-  background: white;
+  border: 1px solid var(--gray-a6);
+  background: var(--color-background);
+  color: var(--gray-12);
   font-size: 14px;
 }
 
 .progress-list {
   margin: 18px 0;
-  color: #494238;
+  color: var(--gray-11);
 }
 
 .error {
-  color: #9b1c1c;
+  color: var(--red-11, #b91c1c);
+}
+
+.boot-state {
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+  padding-top: 12px;
+}
+
+.boot-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 3px solid var(--gray-a5);
+  border-top-color: var(--gray-12);
+  animation: setup-spin 0.8s linear infinite;
 }
 
 .primary-button {
@@ -101,8 +192,8 @@ h1 {
   border: 0;
   border-radius: 12px;
   padding: 13px 16px;
-  background: #2e2b26;
-  color: white;
+  background: var(--accent-9);
+  color: var(--accent-contrast);
   font-size: 15px;
   cursor: pointer;
 }
@@ -110,4 +201,14 @@ h1 {
 .primary-button:disabled {
   cursor: wait;
   opacity: 0.65;
+}
+
+@keyframes setup-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }

@@ -22,13 +22,19 @@ export async function loadRuntimeConfig(): Promise<RuntimeConfig | null> {
     .then(async (response) => {
       if (!response.ok) return null;
       const data = (await response.json()) as unknown;
-      if (!isRuntimeConfig(data)) return null;
+      if (!isRuntimeConfig(data)) {
+        runtimeConfigPromise = null;
+        return null;
+      }
       runtimeConfig = {
         backendBaseUrl: normalizeBackendBaseUrl(data.backendBaseUrl),
       };
       return runtimeConfig;
     })
-    .catch(() => null);
+    .catch(() => {
+      runtimeConfigPromise = null;
+      return null;
+    });
 
   return runtimeConfigPromise;
 }

@@ -7,12 +7,13 @@ import type { SettingsDialogRoute } from "../lib/settings-route";
 
 interface SettingsDialogProps {
   appearance: "light" | "dark";
+  onAppearanceChange: (appearance: "light" | "dark") => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   route?: SettingsDialogRoute;
 }
 
-export function SettingsDialog({ appearance, open, onOpenChange, route }: SettingsDialogProps) {
+export function SettingsDialog({ appearance, onAppearanceChange, open, onOpenChange, route }: SettingsDialogProps) {
   const { t } = useTranslation();
   const routeKey = `${open ? "open" : "closed"}:${route?.category ?? "default"}:${route?.modelTab ?? ""}`;
 
@@ -29,6 +30,7 @@ export function SettingsDialog({ appearance, open, onOpenChange, route }: Settin
         <SettingsContent
           key={routeKey}
           appearance={appearance}
+          onAppearanceChange={onAppearanceChange}
           onClose={() => onOpenChange(false)}
           route={route}
         />

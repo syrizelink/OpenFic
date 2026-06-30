@@ -8,10 +8,11 @@ import type { SettingsDialogRoute } from "@/features/settings/lib/settings-route
 
 interface AppLayoutProps {
   appearance: "light" | "dark";
+  onAppearanceChange: (appearance: "light" | "dark") => void;
   onToggleTheme: () => void;
 }
 
-export function AppLayout({ appearance, onToggleTheme }: AppLayoutProps) {
+export function AppLayout({ appearance, onAppearanceChange, onToggleTheme }: AppLayoutProps) {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -72,6 +73,7 @@ export function AppLayout({ appearance, onToggleTheme }: AppLayoutProps) {
 
         <SettingsDialog
           appearance={appearance}
+          onAppearanceChange={onAppearanceChange}
           open={isSettingsOpen}
           onOpenChange={setIsSettingsOpen}
           route={settingsRoute}

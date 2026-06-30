@@ -2,13 +2,14 @@ import type { BrowserWindow } from "electron";
 import { appendFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { registerAppScheme, handleAppProtocol, setRuntimeConfig } from "./protocol.js";
-import { createMainWindow, createSetupWindow } from "./windows.js";
+import { createMainWindow } from "./windows.js";
 import { readDesktopConfig } from "./config.js";
 import { registerIpc } from "./ipc.js";
 import { waitForBackend } from "./health.js";
 import { ensurePortablePython } from "./runtime/python.js";
 import { ensureOpenFicRuntime, startLocalOpenFicBackend } from "./runtime/openfic.js";
 import { stopBackendProcess, type BackendProcessHandle } from "./process.js";
+import type { InitializeAppResult } from "../shared/ipc.js";
 
 const electron = require("electron") as typeof import("electron");
 
@@ -25,7 +26,6 @@ function writeStartupLog(message: string): void {
 }
 
 let mainWindow: BrowserWindow | null = null;
-let setupWindow: BrowserWindow | null = null;
 let backendHandle: BackendProcessHandle | null = null;
 let isQuitting = false;
 
@@ -48,6 +48,12 @@ function setBackendBaseUrl(url: string): void {
   setRuntimeConfig({ backendBaseUrl: url.replace(/\/+$/, "") });
 }
 
+function attachWindowLifecycle(window: BrowserWindow): void {
+  window.on("closed", () => {
+    if (mainWindow === window) mainWindow = null;
+  });
+}
+
 function openMainWindow(): void {
   const existingWindow = mainWindow;
   if (existingWindow) {
@@ -55,21 +61,7 @@ function openMainWindow(): void {
     return;
   }
   mainWindow = createMainWindow();
-  mainWindow.on("closed", () => {
-    mainWindow = null;
-  });
-}
-
-function openSetupWindow(): void {
-  const existingWindow = setupWindow;
-  if (existingWindow) {
-    existingWindow.focus();
-    return;
-  }
-  setupWindow = createSetupWindow();
-  setupWindow.on("closed", () => {
-    setupWindow = null;
-  });
+  attachWindowLifecycle(mainWindow);
 }
 
 async function startLocalBackend(): Promise<void> {
@@ -81,17 +73,45 @@ async function startLocalBackend(): Promise<void> {
 }
 
 function installMenu(): void {
-  const menu = Menu.buildFromTemplate([
-    {
-      label: "OpenFic",
-      submenu: [
-        { label: "设置", click: openSetupWindow },
-        { type: "separator" },
-        { role: "quit", label: "退出" },
-      ],
-    },
-  ]);
-  Menu.setApplicationMenu(menu);
+  Menu.setApplicationMenu(null);
+}
+
+async function initializeApp(): Promise<InitializeAppResult> {
+  const config = await readDesktopConfig();
+  writeStartupLog(`config loaded: ${config ? config.mode : "none"}`);
+
+  if (!config) {
+    return { status: "needs-setup" };
+  }
+
+  if (config.mode === "remote") {
+    if (!config.remoteUrl) {
+      return { status: "needs-setup" };
+    }
+
+    try {
+      await waitForBackend(config.remoteUrl, 10_000);
+      setBackendBaseUrl(config.remoteUrl);
+      return { status: "ready" };
+    } catch (err) {
+      writeStartupLog(`remote backend failed: ${err instanceof Error ? err.message : String(err)}`);
+      return {
+        status: "needs-setup",
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  try {
+    await startLocalBackend();
+    return { status: "ready" };
+  } catch (err) {
+    writeStartupLog(`local backend failed: ${err instanceof Error ? err.message : String(err)}`);
+    return {
+      status: "needs-setup",
+      message: err instanceof Error ? err.message : String(err),
+    };
+  }
 }
 
 async function bootstrap(): Promise<void> {
@@ -101,47 +121,14 @@ async function bootstrap(): Promise<void> {
   installMenu();
   writeStartupLog("menu installed");
   registerIpc({
-    setupWindow: () => setupWindow,
+    shellWindow: () => mainWindow,
     setBackend,
     setBackendBaseUrl,
-    openMainWindow,
+    initializeApp,
   });
 
-  const config = await readDesktopConfig();
-  writeStartupLog(`config loaded: ${config ? config.mode : "none"}`);
-  if (!config) {
-    writeStartupLog("opening setup window");
-    openSetupWindow();
-    return;
-  }
-
-  if (config.mode === "remote") {
-    if (!config.remoteUrl) {
-      openSetupWindow();
-      return;
-    }
-    try {
-      await waitForBackend(config.remoteUrl, 10_000);
-      setBackendBaseUrl(config.remoteUrl);
-      writeStartupLog("opening main window with remote backend");
-      openMainWindow();
-    } catch (err) {
-      writeStartupLog(`remote backend failed: ${err instanceof Error ? err.message : String(err)}`);
-      dialog.showErrorBox("远程后端不可用", err instanceof Error ? err.message : String(err));
-      openSetupWindow();
-    }
-    return;
-  }
-
-  try {
-    await startLocalBackend();
-    writeStartupLog("opening main window with local backend");
-    openMainWindow();
-  } catch (err) {
-    writeStartupLog(`local backend failed: ${err instanceof Error ? err.message : String(err)}`);
-    dialog.showErrorBox("本地后端启动失败", err instanceof Error ? err.message : String(err));
-    openSetupWindow();
-  }
+  writeStartupLog("opening shell window");
+  openMainWindow();
 }
 
 const gotLock = app.requestSingleInstanceLock();
@@ -153,9 +140,7 @@ if (!gotLock) {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
-      return;
     }
-    if (setupWindow) setupWindow.focus();
   });
 
   app.whenReady().then(() => {

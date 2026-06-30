@@ -34,14 +34,29 @@ function attachWindowDiagnostics(window: BrowserWindowType, name: string): void 
   });
 }
 
+function applyShellWindowPresentation(window: BrowserWindowType): void {
+  window.setResizable(true);
+  window.setMinimumSize(960, 640);
+  window.setSize(1280, 800);
+  window.center();
+}
+
+export function loadMainApp(window: BrowserWindowType): void {
+  applyShellWindowPresentation(window);
+  void window.loadURL("app://setup/setup.html");
+}
+
 export function createMainWindow(): BrowserWindowType {
   const window = new BrowserWindow({
     width: 1280,
     height: 800,
+    frame: false,
     show: false,
+    titleBarStyle: "hidden",
     webPreferences: {
       contextIsolation: true,
       sandbox: false,
+      webviewTag: true,
       preload: path.join(__dirname, "..", "preload", "preload.js"),
     },
   });
@@ -53,26 +68,6 @@ export function createMainWindow(): BrowserWindowType {
   attachWindowDiagnostics(window, "main");
 
   window.once("ready-to-show", () => window.show());
-  void window.loadURL("app://openfic/");
-  return window;
-}
-
-export function createSetupWindow(): BrowserWindowType {
-  const window = new BrowserWindow({
-    width: 760,
-    height: 560,
-    resizable: false,
-    show: false,
-    webPreferences: {
-      contextIsolation: true,
-      sandbox: false,
-      preload: path.join(__dirname, "..", "preload", "preload.js"),
-      devTools: true,
-    },
-  });
-  attachWindowDiagnostics(window, "setup");
-
-  window.once("ready-to-show", () => window.show());
-  void window.loadURL("app://setup/setup.html");
+  loadMainApp(window);
   return window;
 }

@@ -9,6 +9,7 @@ const reactJsxRuntimePath = require.resolve("react/jsx-runtime");
 const reactDomPath = require.resolve("react-dom");
 const reactDomClientPath = require.resolve("react-dom/client");
 const schedulerPath = require.resolve("scheduler");
+const lucideReactPath = require.resolve("lucide-react");
 
 export default defineConfig({
   compilation: {
@@ -29,6 +30,7 @@ export default defineConfig({
         "react-dom": reactDomPath,
         "react-dom/client": reactDomClientPath,
         scheduler: schedulerPath,
+        "lucide-react": lucideReactPath,
       },
     },
   },
