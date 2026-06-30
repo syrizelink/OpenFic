@@ -3,8 +3,11 @@ OpenFic Backend - FastAPI Application Entry Point.
 """
 
 from contextlib import asynccontextmanager
+import ipaddress
 from os import getenv
 from pathlib import Path
+import socket
+import sys
 from typing import AsyncIterator
 
 from fastapi import FastAPI
@@ -37,8 +40,8 @@ from app.api.routers import (
     projects,
     prompt_chains,
     retrieval_index,
-    skills,
     settings,
+    skills,
     tasks,
     volumes,
     world_info,
@@ -59,6 +62,12 @@ from app.storage.database import close_db, create_session, init_db
 from app.storage.services import task_service
 
 
+ANSI_BOLD = "\033[1m"
+ANSI_GREEN = "\033[32m"
+ANSI_BLUE = "\033[34m"
+ANSI_RESET = "\033[0m"
+
+
 def _resolve_frontend_dist_dir() -> Path:
     """解析前端构建产物目录。
 
@@ -68,7 +77,7 @@ def _resolve_frontend_dist_dir() -> Path:
     if env_dist:
         return Path(env_dist)
 
-    packaged = Path(__file__).resolve().parent / "frontend_dist"
+    packaged = Path(__file__).resolve().parents[1] / "frontend"
     if (packaged / "index.html").exists():
         return packaged
 
@@ -108,6 +117,132 @@ async def _seed_builtin_models() -> None:
         await session.close()
 
 
+def _get_server_bind() -> tuple[str, int]:
+    host = getenv("OPENFIC_SERVER_HOST", app_settings.host)
+    port = int(getenv("OPENFIC_SERVER_PORT", str(app_settings.port)))
+    return host, port
+
+
+def _list_network_ipv4_addresses() -> list[str]:
+    addresses: set[str] = set()
+
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(("8.8.8.8", 80))
+            primary_ip = sock.getsockname()[0]
+            if primary_ip and not primary_ip.startswith("127."):
+                addresses.add(primary_ip)
+    except OSError:
+        pass
+
+    try:
+        hostname = socket.gethostname()
+        for family, _, _, _, sockaddr in socket.getaddrinfo(hostname, None, family=socket.AF_INET):
+            if family != socket.AF_INET:
+                continue
+            ip = sockaddr[0]
+            if isinstance(ip, str) and ip and not ip.startswith("127."):
+                addresses.add(ip)
+    except OSError:
+        pass
+
+    return sorted(addresses)
+
+
+def _build_access_urls(host: str, port: int) -> list[tuple[str, str]]:
+    try:
+        parsed_host = ipaddress.ip_address(host)
+    except ValueError:
+        parsed_host = None
+
+    if host == "localhost" or (parsed_host is not None and parsed_host.is_loopback):
+        return [("Local", f"http://127.0.0.1:{port}")]
+
+    if host == "0.0.0.0":
+        urls: list[tuple[str, str]] = [("Local", f"http://127.0.0.1:{port}")]
+        urls.extend(("Network", f"http://{ip}:{port}") for ip in _list_network_ipv4_addresses())
+        return urls
+
+    return [("Network", f"http://{host}:{port}")]
+
+
+def _format_access_url_lines(host: str, port: int) -> list[str]:
+    urls = _build_access_urls(host, port)
+    label_width = max(len(label) for label, _ in urls)
+    return [f"> {label:<{label_width}}: {url}" for label, url in urls]
+
+
+def _supports_styled_banner_output() -> bool:
+    stdout = sys.stdout
+    if not hasattr(stdout, "isatty") or not stdout.isatty():
+        return False
+    if getenv("NO_COLOR"):
+        return False
+    return getenv("TERM") != "dumb"
+
+
+def _bold(text: str) -> str:
+    return f"{ANSI_BOLD}{text}{ANSI_RESET}"
+
+
+def _bold_color(text: str, color: str) -> str:
+    return f"{ANSI_BOLD}{color}{text}{ANSI_RESET}"
+
+
+def _style_title_line(version: str, supports_ansi: bool) -> str:
+    if not supports_ansi:
+        return f"OpenFic v{version} - Entering the vibe writing era"
+    return (
+        f"{_bold_color('OpenFic', ANSI_GREEN)}"
+        f"{ANSI_BOLD} v{version} - Entering the vibe writing era{ANSI_RESET}"
+    )
+
+
+def _style_link_line(url: str, supports_ansi: bool) -> str:
+    if not supports_ansi:
+        return url
+    return _bold_color(url, ANSI_BLUE)
+
+
+def _style_access_line(line: str, supports_ansi: bool) -> str:
+    if not supports_ansi:
+        return line
+
+    prefix, url = line.split(": ", 1)
+    return f"{ANSI_BOLD}{prefix}: {ANSI_BLUE}{url}{ANSI_RESET}"
+
+
+def _format_banner_lines(version: str, host: str, port: int, supports_ansi: bool) -> list[str]:
+    return [
+        "",
+        " ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗",
+        "██╔═══██╗██╔══██╗██╔════╝████╗  ██║██╔════╝██║██╔════╝",
+        "██║   ██║██████╔╝█████╗  ██╔██╗ ██║█████╗  ██║██║     ",
+        "██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║██╔══╝  ██║██║     ",
+        "╚██████╔╝██║     ███████╗██║ ╚████║██║     ██║╚██████╗",
+        " ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚═╝     ╚═╝ ╚═════╝",
+        "",
+        _style_title_line(version, supports_ansi),
+        "",
+        _style_link_line("https://github.com/syrizelink/OpenFic", supports_ansi),
+        "",
+        *[_style_access_line(line, supports_ansi) for line in _format_access_url_lines(host, port)],
+        "",
+    ]
+
+
+def _print_startup_banner(version: str) -> None:
+    """启动完成后输出不含日志格式前缀的 banner。"""
+    host, port = _get_server_bind()
+    lines = _format_banner_lines(
+        version=version,
+        host=host,
+        port=port,
+        supports_ansi=_supports_styled_banner_output(),
+    )
+    print("\n".join(lines), flush=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan manager."""
@@ -120,6 +255,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await init_checkpointer()
     start_audit_queue()
     await start_background_runtime()
+    _print_startup_banner(app_settings.app_version)
     yield
     logger.info(f"Shutting down {app_settings.app_name}")
     cancelled_runs = await get_agent_run_registry().cancel_all()

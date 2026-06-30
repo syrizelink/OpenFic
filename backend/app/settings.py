@@ -13,57 +13,49 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 BACKEND_DATA_DIR = Path(os.getenv("OPENFIC_DATA_DIR", str(BACKEND_DIR / "data")))
-# .env 必须落到可写的数据目录（打包后为 userData），避免相对 CWD 写入不可写位置
 ENV_FILE_PATH = BACKEND_DATA_DIR / ".env"
-# 历史位置（开发态 backend/.env），仅用于读取已存在的密钥，防止现有加密数据失效
-_LEGACY_ENV_FILE_PATH = BACKEND_DIR / ".env"
+ENCRYPTION_KEY_FILE_PATH = BACKEND_DATA_DIR / ".key"
 
 
-def _read_encryption_key_from(path: Path) -> str | None:
+def _read_encryption_key_from_file(path: Path) -> str | None:
     if not path.exists():
         return None
+
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith("ENCRYPTION_KEY=") and not line.startswith("#"):
-                    key = line.split("=", 1)[1].strip().strip('"').strip("'")
-                    if key:
-                        return key
+        key = path.read_text(encoding="utf-8").strip()
     except OSError:
         return None
-    return None
+
+    if not key:
+        return None
+
+    logger.info("Loaded ENCRYPTION_KEY from .key file")
+    return key
 
 
 def _ensure_encryption_key() -> str:
-    """
-    确保加密密钥存在。
-
-    优先级：环境变量 > 数据目录 .env > 历史位置 .env > 新生成并写入数据目录。
-    所有路径均为绝对路径，不依赖当前工作目录。
-
-    Returns:
-        加密密钥字符串。
-    """
-    env_key = os.getenv("ENCRYPTION_KEY")
-    if env_key:
-        return env_key
-
-    key = _read_encryption_key_from(ENV_FILE_PATH)
+    key = _read_encryption_key_from_file(ENCRYPTION_KEY_FILE_PATH)
     if key:
         return key
 
-    key = _read_encryption_key_from(_LEGACY_ENV_FILE_PATH)
+    logger.info("Generating new ENCRYPTION_KEY")
+    ENCRYPTION_KEY_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    ENCRYPTION_KEY_FILE_PATH.write_text(Fernet.generate_key().decode(), encoding="utf-8")
+
+    key = _read_encryption_key_from_file(ENCRYPTION_KEY_FILE_PATH)
     if key:
         return key
 
-    new_key = Fernet.generate_key().decode()
-    logger.info("生成新的加密密钥并保存到数据目录")
-    ENV_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(ENV_FILE_PATH, "w", encoding="utf-8") as f:
-        f.write(f'ENCRYPTION_KEY="{new_key}"\n')
+    raise RuntimeError("Failed to load ENCRYPTION_KEY from .key file")
 
-    return new_key
+
+def _read_package_version() -> str:
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+
+        return version("openfic")
+    except (PackageNotFoundError, Exception):
+        return "0.0.0"
 
 
 class Settings(BaseSettings):
@@ -77,7 +69,7 @@ class Settings(BaseSettings):
 
     # Application
     app_name: str = "OpenFic"
-    app_version: str = "0.0.0"
+    app_version: str = _read_package_version()
     debug: bool = False
 
     @field_validator("debug", mode="before")
@@ -111,24 +103,16 @@ class Settings(BaseSettings):
     background_zmq_event_endpoint: str = "inproc://background-events"
 
     # Security - Encryption key for sensitive data (API keys, etc.)
-    # 如果未在环境变量或 .env 文件中设置，将自动生成并保存
     encryption_key: str = _ensure_encryption_key()
 
     @property
     def database_url(self) -> str:
-        """
-        获取数据库 URL，自动创建 data 目录。
-
-        Returns:
-            SQLite 数据库连接 URL。
-        """
         data_dir = BACKEND_DATA_DIR
         data_dir.mkdir(parents=True, exist_ok=True)
         return f"sqlite+aiosqlite:///{data_dir}/openfic.db"
 
     @property
     def checkpoint_db_path(self) -> Path:
-        """获取统一的 runtime checkpoint 数据库路径。"""
         data_dir = BACKEND_DATA_DIR
         data_dir.mkdir(parents=True, exist_ok=True)
         return data_dir / "checkpoints.db"

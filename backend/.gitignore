@@ -2,6 +2,7 @@ __pycache__/
 *.py[oc]
 build/
 dist/
+frontend/
 wheels/
 *.egg-info
 .venv/

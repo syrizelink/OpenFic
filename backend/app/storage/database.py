@@ -9,6 +9,7 @@ from collections.abc import AsyncGenerator
 
 from alembic import command
 from alembic.config import Config
+from loguru import logger
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -67,7 +68,9 @@ def _upgrade_db_to_head() -> None:
 
 async def init_db() -> None:
     """初始化数据库。"""
+    logger.info("Database initialization or migration started. Please wait...")
     _upgrade_db_to_head()
+    logger.info("Database initialization or migration completed.")
 
 
 async def close_db() -> None:

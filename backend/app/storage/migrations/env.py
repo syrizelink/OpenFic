@@ -1,10 +1,9 @@
-from logging.config import fileConfig
-
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
 
+from app.logging import configure_standard_logging
 # 导入应用配置和模型
 from app.settings import settings
 from sqlmodel import SQLModel
@@ -24,10 +23,7 @@ from app.agent_runtime.persistence.model import (  # noqa: F401, F403
 # access to the values within the .ini file in use.
 config = context.config
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+configure_standard_logging()
 
 # 配置数据库 URL（从应用设置获取，但使用同步 URL）
 database_url = settings.database_url.replace("+aiosqlite", "")
