@@ -5,13 +5,30 @@
  */
 
 import axios from "axios";
+import { getRuntimeConfig } from "./runtime-config";
+
+export function getApiBaseUrl(): string {
+  const backendBaseUrl = getRuntimeConfig()?.backendBaseUrl;
+  if (backendBaseUrl) return `${backendBaseUrl}/api/v1`;
+  return "/api/v1";
+}
+
+function getApiUrl(path: string): string {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${getApiBaseUrl().replace(/\/+$/, "")}${normalizedPath}`;
+}
 
 export const apiClient = axios.create({
-  baseURL: "/api/v1",
+  baseURL: getApiBaseUrl(),
   timeout: 120000,
   headers: {
     "Content-Type": "application/json",
   },
+});
+
+apiClient.interceptors.request.use((config) => {
+  config.baseURL = getApiBaseUrl();
+  return config;
 });
 
 // 响应拦截器 - 错误处理
@@ -1587,7 +1604,7 @@ export async function importWorldInfoEntriesStream(
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(`/api/v1/world-info/${worldInfoId}/entries/import-stream`, {
+  const response = await fetch(getApiUrl(`/world-info/${worldInfoId}/entries/import-stream`), {
     method: "POST",
     body: formData,
   });

@@ -1,0 +1,39 @@
+{
+  "name": "openfic-desktop",
+  "private": true,
+  "version": "0.3.3",
+  "type": "module",
+  "main": "dist/main/main.js",
+  "packageManager": "pnpm@11.8.0",
+  "scripts": {
+    "dev": "pnpm build:setup && pnpm build:main && electron .",
+    "build": "pnpm build:setup && pnpm build:main",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:setup": "farm build",
+    "type-check": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "package": "electron-builder --config electron-builder.yml"
+  },
+  "dependencies": {
+    "@farmfe/core": "^1.7.11",
+    "@farmfe/plugin-react": "^1.2.6",
+    "@radix-ui/themes": "^3.3.0",
+    "@types/node": "^24.12.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "typescript": "~5.9.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@farmfe/cli": "^1.0.5",
+    "@typescript-eslint/eslint-plugin": "^8.59.2",
+    "@typescript-eslint/parser": "^8.59.2",
+    "eslint": "^9.39.4",
+    "globals": "^16.5.0",
+    "typescript-eslint": "^8.59.2"
+  }
+}

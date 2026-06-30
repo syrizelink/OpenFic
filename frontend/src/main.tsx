@@ -17,6 +17,7 @@ import {
 import { Toaster } from "./components/toaster";
 import { GlobalLoading } from "./components";
 import { checkHealth } from "./lib/api-client";
+import { loadRuntimeConfig } from "./lib/runtime-config";
 import { preloadTiktokenEncoding } from "./lib/tiktoken-utils";
 import "streamdown/styles.css";
 import "./styles/index.css";
@@ -88,6 +89,8 @@ function Root() {
 
     const initializeApp = async () => {
       try {
+        await loadRuntimeConfig();
+
         const [, settings] = await Promise.all([
           checkHealth(),
           queryClient.fetchQuery({
