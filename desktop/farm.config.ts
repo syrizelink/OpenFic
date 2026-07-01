@@ -10,6 +10,7 @@ const reactDomPath = require.resolve("react-dom");
 const reactDomClientPath = require.resolve("react-dom/client");
 const schedulerPath = require.resolve("scheduler");
 const lucideReactPath = require.resolve("lucide-react");
+const radixThemesStylesPath = require.resolve("@radix-ui/themes/styles.css");
 
 export default defineConfig({
   compilation: {
@@ -31,6 +32,7 @@ export default defineConfig({
         "react-dom/client": reactDomClientPath,
         scheduler: schedulerPath,
         "lucide-react": lucideReactPath,
+        "@radix-ui/themes/styles.css": radixThemesStylesPath,
       },
     },
   },
