@@ -27,15 +27,18 @@ jobs:
         if: ${{ steps.release.outputs.pr }}
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
       - uses: actions/setup-python@v6
         if: ${{ steps.release.outputs.pr }}
         with:
           python-version: '3.12'
+
       - uses: astral-sh/setup-uv@v5
         if: ${{ steps.release.outputs.pr }}
         with:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
+
       - name: 同步 backend uv.lock
         if: ${{ steps.release.outputs.pr }}
         env:
@@ -62,44 +65,3 @@ jobs:
           git add backend/uv.lock
           git commit -m "chore(backend): 同步 uv.lock 版本"
           git push origin HEAD:"$PR_HEAD_REF"
-      - name: 启用 release PR auto-merge
-        if: ${{ steps.release.outputs.pr }}
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-          PR_JSON: ${{ steps.release.outputs.pr }}
-        run: |
-          PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number')
-
-          for attempt in {1..18}; do
-            echo "Attempt $attempt: enable auto-merge for release PR #${PR_NUMBER}"
-
-            MERGEABLE=$(gh pr view "$PR_NUMBER" --json mergeable -q '.mergeable')
-            MERGE_STATE=$(gh pr view "$PR_NUMBER" --json mergeStateStatus -q '.mergeStateStatus')
-            echo "mergeable=${MERGEABLE} mergeStateStatus=${MERGE_STATE}"
-
-            if [[ "$MERGEABLE" == "CONFLICTING" || "$MERGE_STATE" == "DIRTY" ]]; then
-              echo "Release PR has merge conflicts and cannot be auto-merged"
-              exit 1
-            fi
-
-            if [[ "$MERGEABLE" == "UNKNOWN" ]]; then
-              sleep 10
-              continue
-            fi
-
-            if gh pr merge "$PR_NUMBER" --auto --squash --delete-branch 2>merge-error.log; then
-              exit 0
-            fi
-
-            ERROR=$(cat merge-error.log)
-            echo "$ERROR"
-
-            if [[ "$ERROR" != *"Base branch was modified"* && "$ERROR" != *"Pull Request is not mergeable"* ]]; then
-              exit 1
-            fi
-
-            sleep 10
-          done
-
-          echo "Release PR auto-merge failed after retries"
-          exit 1
