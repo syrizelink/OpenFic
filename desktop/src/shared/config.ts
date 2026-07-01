@@ -1,8 +1,18 @@
-export interface DesktopConfig {
-  mode: "local" | "remote";
+export type DesktopInstanceMode = "local" | "remote";
+
+export interface DesktopInstance {
+  id: string;
+  name: string;
+  mode: DesktopInstanceMode;
   remoteUrl: string | null;
   autoStartLocal: boolean;
   installDir: string | null;
+  favorite?: boolean;
+}
+
+export interface DesktopConfig {
+  activeInstanceId: string | null;
+  instances: DesktopInstance[];
 }
 
 export interface RuntimeConfigResponse {
@@ -10,8 +20,6 @@ export interface RuntimeConfigResponse {
 }
 
 export const defaultDesktopConfig: DesktopConfig = {
-  mode: "local",
-  remoteUrl: null,
-  autoStartLocal: true,
-  installDir: null,
+  activeInstanceId: null,
+  instances: [],
 };

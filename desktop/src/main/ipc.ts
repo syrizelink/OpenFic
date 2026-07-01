@@ -5,16 +5,22 @@ import {
   type CheckDirectoryEmptyRequest,
   type CheckDirectoryEmptyResult,
   type CheckRemoteRequest,
+  type EnsureInstanceSessionRequest,
   type InitializeAppResult,
   type InstallRuntimeRequest,
+  type PingInstanceRequest,
+  type PingInstanceResult,
   type SaveConfigRequest,
   type StartLocalBackendRequest,
+  type SwitchInstanceRequest,
 } from "../shared/ipc.js";
 import { readDesktopConfig, writeDesktopConfig } from "./config.js";
 import { waitForBackend } from "./health.js";
+import { ensureAppProtocolForPartition } from "./protocol.js";
 import { installLocalRuntime, startLocalBackendFromInstall } from "./runtime/setup-runner.js";
 import { getDefaultInstallDir } from "./runtime/python.js";
 import type { BackendProcessHandle } from "./process.js";
+import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
 
 const electron = require("electron") as typeof import("electron");
 
@@ -25,6 +31,9 @@ export interface IpcContext {
   setBackend: (handle: BackendProcessHandle) => void;
   setBackendBaseUrl: (url: string) => void;
   initializeApp: () => Promise<InitializeAppResult>;
+  switchInstance: (instanceId: string) => Promise<InitializeAppResult>;
+  pingInstance: (instance: DesktopInstance) => Promise<number>;
+  onConfigSaved: (config: DesktopConfig) => void;
 }
 
 async function isDirectoryEmpty(dirPath: string): Promise<CheckDirectoryEmptyResult> {
@@ -47,17 +56,28 @@ export function registerIpc(context: IpcContext): void {
 
   ipcMain.handle(IpcChannels.saveConfig, async (_event, request: SaveConfigRequest) => {
     await writeDesktopConfig(request.config);
-    if (request.config.mode === "remote" && request.config.remoteUrl) {
-      context.setBackendBaseUrl(request.config.remoteUrl);
-    }
+    context.onConfigSaved(request.config);
   });
 
   ipcMain.handle(IpcChannels.initializeApp, () => context.initializeApp());
+
+  ipcMain.handle(IpcChannels.ensureInstanceSession, (_event, request: EnsureInstanceSessionRequest) => {
+    ensureAppProtocolForPartition(request.partition);
+  });
 
   ipcMain.handle(IpcChannels.getDefaultInstallDir, () => getDefaultInstallDir());
 
   ipcMain.handle(IpcChannels.checkRemote, async (_event, request: CheckRemoteRequest) => {
     await waitForBackend(request.url, 10_000);
+  });
+
+  ipcMain.handle(IpcChannels.switchInstance, (_event, request: SwitchInstanceRequest) =>
+    context.switchInstance(request.instanceId),
+  );
+
+  ipcMain.handle(IpcChannels.pingInstance, async (_event, request: PingInstanceRequest): Promise<PingInstanceResult> => {
+    const latencyMs = await context.pingInstance(request.instance);
+    return { latencyMs };
   });
 
   ipcMain.handle(IpcChannels.selectDirectory, async () => {

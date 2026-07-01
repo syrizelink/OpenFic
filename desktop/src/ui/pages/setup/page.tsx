@@ -52,7 +52,33 @@ const INITIAL_STEPS: StepState = {
 };
 
 interface SetupPageProps {
+  initialStep?: "mode" | "remote";
   onFinished: () => void;
+}
+
+function createInstanceId(): string {
+  return `instance-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function getRemoteInstanceName(url: string): string {
+  try {
+    return new URL(url).host || "Remote";
+  } catch {
+    return url || "Remote";
+  }
+}
+
+function normalizeRemoteUrl(url: string): string {
+  const trimmed = url.trim().replace(/\/+$/, "");
+  try {
+    const parsed = new URL(trimmed);
+    parsed.protocol = parsed.protocol.toLowerCase();
+    parsed.hostname = parsed.hostname.toLowerCase();
+    parsed.pathname = parsed.pathname.replace(/\/+$/, "");
+    return parsed.toString().replace(/\/+$/, "");
+  } catch {
+    return trimmed;
+  }
 }
 
 function applyProgress(prev: StepState, event: SetupProgressEvent): StepState {
@@ -74,8 +100,8 @@ function applyProgress(prev: StepState, event: SetupProgressEvent): StepState {
   return next;
 }
 
-export function SetupPage({ onFinished }: SetupPageProps) {
-  const [step, setStep] = useState<WizardStep>("mode");
+export function SetupPage({ initialStep = "mode", onFinished }: SetupPageProps) {
+  const [step, setStep] = useState<WizardStep>(initialStep);
   const [remoteUrl, setRemoteUrl] = useState("http://127.0.0.1:8000");
   const [installDir, setInstallDir] = useState("");
   const [dirCheck, setDirCheck] = useState<{ exists: boolean; empty: boolean } | null>(null);
@@ -94,8 +120,10 @@ export function SetupPage({ onFinished }: SetupPageProps) {
       window.openficDesktop.getConfig(),
     ]).then(([defaultDir, config]) => {
       if (cancelled) return;
-      setInstallDir(config?.installDir ?? defaultDir);
-      if (config?.mode === "remote" && config.remoteUrl) setRemoteUrl(config.remoteUrl);
+      const localInstance = config?.instances.find((instance) => instance.mode === "local");
+      setInstallDir(localInstance?.installDir ?? defaultDir);
+      const activeInstance = config?.instances.find((instance) => instance.id === config.activeInstanceId);
+      if (activeInstance?.mode === "remote" && activeInstance.remoteUrl) setRemoteUrl(activeInstance.remoteUrl);
     });
     return () => {
       cancelled = true;
@@ -154,14 +182,38 @@ export function SetupPage({ onFinished }: SetupPageProps) {
     setConnecting(true);
     setRemoteError(null);
     try {
-      await window.openficDesktop.checkRemote(remoteUrl);
-      const config: DesktopConfig = {
-        mode: "remote",
-        remoteUrl,
+      const normalizedRemoteUrl = normalizeRemoteUrl(remoteUrl);
+      await window.openficDesktop.checkRemote(normalizedRemoteUrl);
+      const previousConfig = await window.openficDesktop.getConfig();
+      const existingInstance = previousConfig?.instances.find(
+        (item) => item.mode === "remote" && item.remoteUrl && normalizeRemoteUrl(item.remoteUrl) === normalizedRemoteUrl,
+      );
+
+      if (existingInstance) {
+        const config: DesktopConfig = {
+          activeInstanceId: existingInstance.id,
+          instances: previousConfig?.instances ?? [existingInstance],
+        };
+        await window.openficDesktop.saveConfig(config);
+        await window.openficDesktop.switchInstance(existingInstance.id);
+        onFinished();
+        return;
+      }
+
+      const instance = {
+        id: createInstanceId(),
+        name: getRemoteInstanceName(normalizedRemoteUrl),
+        mode: "remote" as const,
+        remoteUrl: normalizedRemoteUrl,
         autoStartLocal: false,
         installDir: null,
       };
+      const config: DesktopConfig = {
+        activeInstanceId: instance.id,
+        instances: [...(previousConfig?.instances ?? []), instance],
+      };
       await window.openficDesktop.saveConfig(config);
+      await window.openficDesktop.switchInstance(instance.id);
       onFinished();
     } catch (err) {
       setRemoteError(err instanceof Error ? err.message : "无法连接到该地址");
@@ -175,13 +227,21 @@ export function SetupPage({ onFinished }: SetupPageProps) {
     setStartError(null);
     try {
       await window.openficDesktop.startLocalBackend(installDir);
-      const config: DesktopConfig = {
-        mode: "local",
+      const previousConfig = await window.openficDesktop.getConfig();
+      const instance = {
+        id: createInstanceId(),
+        name: "Local",
+        mode: "local" as const,
         remoteUrl: null,
         autoStartLocal: true,
         installDir,
       };
+      const config: DesktopConfig = {
+        activeInstanceId: instance.id,
+        instances: [...(previousConfig?.instances ?? []), instance],
+      };
       await window.openficDesktop.saveConfig(config);
+      await window.openficDesktop.switchInstance(instance.id);
       onFinished();
     } catch (err) {
       setStartError(err instanceof Error ? err.message : "启动后端失败");

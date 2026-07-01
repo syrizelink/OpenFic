@@ -1,13 +1,16 @@
-import type { DesktopConfig } from "./config.js";
+import type { DesktopConfig, DesktopInstance } from "./config.js";
 
 export const IpcChannels = {
   getConfig: "config:get",
   saveConfig: "config:save",
   initializeApp: "app:initialize",
+  ensureInstanceSession: "app:ensure-instance-session",
   getDefaultInstallDir: "app:default-install-dir",
   installRuntime: "setup:install-runtime",
   startLocalBackend: "setup:start-local-backend",
   checkRemote: "setup:check-remote",
+  switchInstance: "instance:switch",
+  pingInstance: "instance:ping",
   selectDirectory: "dialog:select-directory",
   checkDirectoryEmpty: "directory:check-empty",
   setupProgress: "setup:progress",
@@ -41,6 +44,22 @@ export interface CheckRemoteRequest {
   url: string;
 }
 
+export interface EnsureInstanceSessionRequest {
+  partition: string;
+}
+
+export interface SwitchInstanceRequest {
+  instanceId: string;
+}
+
+export interface PingInstanceRequest {
+  instance: DesktopInstance;
+}
+
+export interface PingInstanceResult {
+  latencyMs: number;
+}
+
 export interface InstallRuntimeRequest {
   installDir: string;
 }
@@ -60,5 +79,6 @@ export interface CheckDirectoryEmptyResult {
 
 export interface InitializeAppResult {
   status: "ready" | "needs-setup";
+  activeInstanceId?: string | null;
   message?: string;
 }

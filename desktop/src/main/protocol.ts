@@ -5,9 +5,10 @@ import type { RuntimeConfigResponse } from "../shared/config.js";
 
 const electron = require("electron") as typeof import("electron");
 
-const { app, net, protocol } = electron;
+const { app, net, protocol, session } = electron;
 
 let runtimeConfig: RuntimeConfigResponse | null = null;
+const registeredPartitions = new Set<string>();
 
 export function setRuntimeConfig(config: RuntimeConfigResponse): void {
   runtimeConfig = config;
@@ -56,8 +57,7 @@ export function registerAppScheme(): void {
   ]);
 }
 
-export function handleAppProtocol(): void {
-  protocol.handle("app", async (request) => {
+async function handleAppRequest(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
     if (url.pathname === "/runtime-config.json") {
@@ -70,5 +70,14 @@ export function handleAppProtocol(): void {
       ? resolveSetupStaticPath(getSetupDistDir(), url.pathname)
       : resolveStaticPath(getFrontendDistDir(), url.pathname);
     return net.fetch(pathToFileURL(filePath).toString());
-  });
+}
+
+export function handleAppProtocol(): void {
+  protocol.handle("app", handleAppRequest);
+}
+
+export function ensureAppProtocolForPartition(partition: string): void {
+  if (!partition || registeredPartitions.has(partition)) return;
+  session.fromPartition(partition).protocol.handle("app", handleAppRequest);
+  registeredPartitions.add(partition);
 }
