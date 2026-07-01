@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.8](https://github.com/syrizelink/OpenFic/compare/v0.4.7...v0.4.8) (2026-07-01)
+
+
+### 🔧 杂项
+
+* **frontend:** 调整设置面板自动保存 ([#46](https://github.com/syrizelink/OpenFic/issues/46)) ([a94d0eb](https://github.com/syrizelink/OpenFic/commit/a94d0ebf7683e2b864c5ba3539ede0f38bce66e9))
+
 ## [0.4.7](https://github.com/syrizelink/OpenFic/compare/v0.4.6...v0.4.7) (2026-07-01)
 
 
