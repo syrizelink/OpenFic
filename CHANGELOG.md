@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.5](https://github.com/syrizelink/OpenFic/compare/v0.4.4...v0.4.5) (2026-07-01)
+
+
+### 👷 CI/CD
+
+* **package:** 优化发布缓存复用 ([#39](https://github.com/syrizelink/OpenFic/issues/39)) ([68f9542](https://github.com/syrizelink/OpenFic/commit/68f954246c1e1f9307313cda7c8e8f6082be2f8b))
+
 ## [0.4.4](https://github.com/syrizelink/OpenFic/compare/v0.4.3...v0.4.4) (2026-07-01)
 
 
