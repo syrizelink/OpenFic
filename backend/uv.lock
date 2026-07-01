@@ -2005,7 +2005,7 @@ wheels = [
 
 [[package]]
 name = "openfic"
-version = "0.4.6"
+version = "0.4.7"
 source = { editable = "." }
 dependencies = [
     { name = "aiocache" },
@@ -2050,6 +2050,7 @@ dependencies = [
     { name = "sqlmodel" },
     { name = "starlette-compress" },
     { name = "tiktoken" },
+    { name = "tzdata" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -2112,6 +2113,7 @@ requires-dist = [
     { name = "sqlmodel", specifier = ">=0.0.27" },
     { name = "starlette-compress", specifier = ">=1.6.1" },
     { name = "tiktoken", specifier = ">=0.12.0" },
+    { name = "tzdata", specifier = ">=2025.2" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.40.0" },
 ]
 
