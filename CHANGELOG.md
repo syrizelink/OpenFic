@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/syrizelink/OpenFic/compare/v0.3.3...v0.4.0) (2026-07-01)
+
+
+### ✨ 新功能
+
+* **desktop:** 添加桌面端应用 ([#29](https://github.com/syrizelink/OpenFic/issues/29)) ([77c7789](https://github.com/syrizelink/OpenFic/commit/77c7789e322b3a7ee029c4837272bf8a7c10df28))
+
 ## [0.3.3](https://github.com/syrizelink/OpenFic/compare/v0.3.2...v0.3.3) (2026-06-30)
 
 
