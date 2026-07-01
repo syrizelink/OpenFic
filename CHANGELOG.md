@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3](https://github.com/syrizelink/OpenFic/compare/v0.4.2...v0.4.3) (2026-07-01)
+
+
+### 👷 CI/CD
+
+* **release:** 等待 release PR 可合并 ([#35](https://github.com/syrizelink/OpenFic/issues/35)) ([6105251](https://github.com/syrizelink/OpenFic/commit/6105251aa84f173ca9eb998dd229e05e5f243ac2))
+
 ## [0.4.2](https://github.com/syrizelink/OpenFic/compare/v0.4.1...v0.4.2) (2026-07-01)
 
 
