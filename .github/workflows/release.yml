@@ -1,4 +1,4 @@
-name: Release Please
+name: Release
 
 on:
   push:
@@ -69,4 +69,23 @@ jobs:
           PR_JSON: ${{ steps.release.outputs.pr }}
         run: |
           PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number')
-          gh pr merge "$PR_NUMBER" --auto --squash --delete-branch
+
+          for attempt in {1..12}; do
+            echo "Attempt $attempt: enable auto-merge for release PR #${PR_NUMBER}"
+
+            if gh pr merge "$PR_NUMBER" --auto --squash --delete-branch 2>merge-error.log; then
+              exit 0
+            fi
+
+            ERROR=$(cat merge-error.log)
+            echo "$ERROR"
+
+            if [[ "$ERROR" != *"Base branch was modified"* ]]; then
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          echo "Release PR auto-merge failed after retries"
+          exit 1

@@ -38,3 +38,15 @@ mac:
         - arm64
   category: public.app-category.productivity
   identity: null
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+        - arm64
+    - target: tar.gz
+      arch:
+        - x64
+        - arm64
+  category: Utility
