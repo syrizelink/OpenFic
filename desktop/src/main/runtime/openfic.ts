@@ -5,6 +5,7 @@ import { findFreePort } from "../ports.js";
 import { startBackendProcess, type BackendProcessHandle } from "../process.js";
 import { waitForBackend } from "../health.js";
 import type { PortablePython } from "./python.js";
+import { createOpenFicInstallCommand, createOpenFicProbeCommand, createOpenFicServeCommand } from "./openfic-commands.js";
 
 export type OpenFicRuntimeStep = "create-venv" | "install-uv" | "install-openfic";
 
@@ -24,6 +25,10 @@ function getUvPath(runtimeDir: string): string {
 
 export function resolveUvPath(runtimeDir: string): string {
   return getUvPath(runtimeDir);
+}
+
+export function resolveVenvPythonPath(runtimeDir: string): string {
+  return getVenvPythonPath(runtimeDir);
 }
 
 async function pathExists(filePath: string): Promise<boolean> {
@@ -66,7 +71,7 @@ export async function ensureOpenFicRuntime(
   python: PortablePython,
   runtimeDir: string,
   onProgress: (step: OpenFicRuntimeStep, message: string) => void,
-): Promise<{ uvPath: string }> {
+): Promise<{ uvPath: string; venvPythonPath: string }> {
   const venvDir = getVenvDir(runtimeDir);
   const venvPythonPath = getVenvPythonPath(runtimeDir);
   const uvPath = getUvPath(runtimeDir);
@@ -83,19 +88,22 @@ export async function ensureOpenFicRuntime(
     await run(venvPythonPath, ["-m", "pip", "install", "uv"], runtimeDir);
   }
 
-  if (!(await succeeds(uvPath, ["pip", "show", "openfic"], runtimeDir))) {
+  const probeCommand = createOpenFicProbeCommand(venvPythonPath);
+  if (!(await succeeds(probeCommand.command, probeCommand.args, runtimeDir))) {
     onProgress("install-openfic", "安装 OpenFic 后端");
-    await run(uvPath, ["pip", "install", "openfic"], runtimeDir);
+    const installCommand = createOpenFicInstallCommand(venvPythonPath);
+    await run(uvPath, installCommand.args, runtimeDir);
   }
 
-  return { uvPath };
+  return { uvPath, venvPythonPath };
 }
 
-export async function startLocalOpenFicBackend(uvPath: string): Promise<BackendProcessHandle> {
+export async function startLocalOpenFicBackend(venvPythonPath: string): Promise<BackendProcessHandle> {
   const port = await findFreePort();
+  const command = createOpenFicServeCommand(venvPythonPath, port);
   const handle = startBackendProcess({
-    command: uvPath,
-    args: ["run", "openfic", "serve", "--host", "127.0.0.1", "--port", String(port)],
+    command: command.command,
+    args: command.args,
     port,
   });
   await waitForBackend(handle.baseUrl);

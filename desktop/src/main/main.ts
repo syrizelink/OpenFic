@@ -83,7 +83,7 @@ async function startLocalBackend(installDir: string | null): Promise<void> {
   const runtimeDir = resolveRuntimeDir(installDir);
   const python = await ensurePortablePython(runtimeDir, () => undefined, () => undefined);
   const runtime = await ensureOpenFicRuntime(python, runtimeDir, () => undefined);
-  const backend = await startLocalOpenFicBackend(runtime.uvPath);
+  const backend = await startLocalOpenFicBackend(runtime.venvPythonPath);
   setBackend(backend);
   setBackendBaseUrl(backend.baseUrl);
 }
