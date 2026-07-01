@@ -2,17 +2,15 @@ appId: com.openfic.app
 productName: OpenFic
 
 directories:
-  output: ../dist-electron
+  output: dist-electron
 
-# Electron 壳仅需 main 进程；前端由 PyInstaller 后端托管，不打包 Farm 产物
 files:
-  - electron/main.cjs
+  - dist/**/*
   - package.json
 
-# PyInstaller onedir 产物作为额外资源打入安装包
 extraResources:
-  - from: ../backend/dist/openfic-server
-    to: openfic-server
+  - from: ../frontend/dist
+    to: frontend-dist
     filter:
       - "**/*"
 
@@ -39,7 +37,4 @@ mac:
       arch:
         - arm64
   category: public.app-category.productivity
-  # 首版不做签名公证
   identity: null
-
-# 版本号由 CI 从 pyproject.toml 同步写入 package.json

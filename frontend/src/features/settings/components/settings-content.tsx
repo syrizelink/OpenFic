@@ -49,6 +49,7 @@ const mobilePageVariants = {
 
 interface SettingsContentProps {
   appearance: "light" | "dark";
+  onAppearanceChange: (appearance: "light" | "dark") => void;
   onClose: () => void;
   route?: {
     category: SettingsCategory;
@@ -67,7 +68,7 @@ const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
   agents: "settings.agents",
 };
 
-export function SettingsContent({ appearance, onClose, route }: SettingsContentProps) {
+export function SettingsContent({ appearance, onAppearanceChange, onClose, route }: SettingsContentProps) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const initialCategory = route?.category ?? DEFAULT_SETTINGS_ROUTE_CATEGORY;
@@ -172,11 +173,12 @@ export function SettingsContent({ appearance, onClose, route }: SettingsContentP
   });
 
   const handleSettingsChange = useCallback((newSettings: Settings) => {
+    onAppearanceChange(newSettings.theme);
     applyFontFamily(newSettings.fontFamily);
     applyCodeFontFamily(newSettings.codeFontFamily);
     void loadConfiguredFonts(newSettings.fontFamily, newSettings.codeFontFamily);
     setEditedSettings(newSettings);
-  }, []);
+  }, [onAppearanceChange]);
 
   const handleSave = useCallback(() => {
     if (displaySettings) saveMutation.mutate(displaySettings);

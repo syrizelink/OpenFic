@@ -4,6 +4,8 @@
  * 字体应用工具函数
  */
 
+import { publishDesktopAppearance } from "./desktop-appearance-bridge";
+
 /**
  * 应用字体到页面
  * @param fontFamily 字体族名称
@@ -21,6 +23,8 @@ export function applyFontFamily(fontFamily: string): void {
   if (radixThemesEl instanceof HTMLElement) {
     radixThemesEl.style.setProperty("--default-font-family", fontStack);
   }
+
+  publishDesktopAppearance({ fontFamily: fontStack });
 }
 
 /**
@@ -39,6 +43,8 @@ export function applyCodeFontFamily(codeFontFamily: string): void {
 
   // 应用到所有代码相关的元素
   document.documentElement.style.setProperty("--code-font-family", fontStack);
+
+  publishDesktopAppearance({ codeFontFamily: fontStack });
 }
 
 export async function loadConfiguredFonts(

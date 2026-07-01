@@ -1,10 +1,14 @@
 import { io, type Socket } from "socket.io-client";
+import { getRuntimeConfig } from "./runtime-config";
 
 let socket: Socket | null = null;
 let socketUrl: string | undefined;
 let connectPromise: Promise<Socket> | null = null;
 
 function getSocketUrl(): string | undefined {
+  const runtimeBackendUrl = getRuntimeConfig()?.backendBaseUrl;
+  if (runtimeBackendUrl) return runtimeBackendUrl;
+
   const explicitBackendUrl = import.meta.env.VITE_BACKEND_URL as string | undefined;
   if (explicitBackendUrl) return explicitBackendUrl.replace(/\/$/, "");
 

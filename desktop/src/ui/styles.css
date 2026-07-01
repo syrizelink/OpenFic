@@ -1,0 +1,451 @@
+:root {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--app-font-family);
+}
+
+body {
+  margin: 0;
+}
+
+.desktop-shell {
+  display: grid;
+  grid-template-rows: 44px minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--color-background);
+  color: var(--gray-12);
+  overflow: hidden;
+}
+
+.desktop-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  padding: 0 10px 0 16px;
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--color-background) 94%, transparent);
+  border-bottom: 1px solid var(--gray-a4);
+  -webkit-app-region: drag;
+}
+
+.desktop-content {
+  min-height: 0;
+}
+
+.content-page {
+  height: 100%;
+}
+
+.content-page-centered {
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  box-sizing: border-box;
+}
+
+.content-page-fill {
+  min-height: 0;
+}
+
+.desktop-titlebar-brand {
+  color: var(--gray-11);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+.desktop-titlebar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-button {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--gray-11);
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.titlebar-button:hover {
+  background: var(--gray-a3);
+  color: var(--gray-12);
+}
+
+.titlebar-button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.titlebar-button:disabled:hover {
+  background: transparent;
+}
+
+.titlebar-link-button[data-connected="true"] {
+  color: var(--green-11, #15803d);
+}
+
+.titlebar-link-button[data-connected="false"] {
+  color: var(--red-11, #b91c1c);
+}
+
+.titlebar-button-close:hover {
+  background: var(--red-a3, rgba(220, 38, 38, 0.1));
+  color: var(--red-11, #b91c1c);
+}
+
+.instance-switcher {
+  position: relative;
+}
+
+.instance-panel-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  border: 0;
+  background: transparent;
+  cursor: default;
+  -webkit-app-region: no-drag;
+}
+
+.instance-panel-scrim[data-state="closed"] {
+  pointer-events: none;
+}
+
+.instance-panel {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  z-index: 20;
+  width: 400px;
+  max-width: calc(100vw - 28px);
+  padding: 12px 12px 8px;
+  border: 1px solid var(--gray-a5);
+  border-radius: 14px;
+  background: var(--color-panel-solid);
+  box-shadow: 0 18px 48px var(--gray-a7);
+  box-sizing: border-box;
+  color: var(--gray-12);
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: top right;
+  transition:
+    opacity 150ms ease,
+    transform 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.instance-panel[data-state="open"] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.instance-panel[data-state="closed"] {
+  pointer-events: none;
+}
+
+.instance-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+.instance-panel-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.instance-panel-desc {
+  margin: 7px 0 0;
+  color: var(--gray-10);
+  font-size: 13px;
+}
+
+.instance-icon-button,
+.instance-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: transparent;
+  color: var(--gray-11);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.instance-icon-button:hover,
+.instance-add:hover {
+  color: var(--gray-12);
+}
+
+.instance-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0 6px;
+  border-bottom: 1px solid var(--gray-a5);
+}
+
+.instance-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 6px;
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.instance-row:hover {
+  background: var(--gray-a3);
+}
+
+.instance-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--gray-8);
+}
+
+.instance-dot[data-status="ok"] {
+  background: var(--green-9, #16a34a);
+  color: var(--green-9, #16a34a);
+}
+
+.instance-dot[data-status="checking"] {
+  background: var(--blue-9, #2563eb);
+  color: var(--blue-9, #2563eb);
+  animation: instance-dot-breathe 1s ease-in-out infinite;
+}
+
+.instance-dot[data-status="failed"] {
+  background: var(--red-9, #dc2626);
+  color: var(--red-9, #dc2626);
+}
+
+.instance-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  padding: 0;
+}
+
+.instance-main:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.instance-name-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.instance-name-line strong {
+  max-width: 230px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--gray-12);
+  font-weight: 600;
+  line-height: inherit;
+}
+
+.instance-label-wrap {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: inherit;
+}
+
+.instance-current-badge {
+  flex: 0 0 auto;
+  color: var(--gray-12);
+  font-size: 12px;
+  line-height: inherit;
+}
+
+.instance-name-line > span:last-child {
+  color: var(--gray-10);
+  line-height: inherit;
+}
+
+.instance-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--gray-9);
+}
+
+.instance-action-button {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--gray-9);
+  cursor: pointer;
+}
+
+.instance-action-button:hover {
+  background: var(--gray-a4);
+  color: var(--gray-12);
+}
+
+.instance-action-button[data-active="true"] {
+  color: var(--amber-11, #b45309);
+}
+
+.instance-action-button:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.instance-action-button:disabled:hover {
+  background: transparent;
+  color: var(--gray-9);
+}
+
+.instance-add {
+  margin-top: 4px;
+  padding: 4px 0;
+}
+
+.frontend-webview {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.setup-card {
+  width: min(640px, 100%);
+  background: var(--color-panel-solid);
+  border: 1px solid var(--gray-a5);
+  border-radius: 18px;
+  padding: 36px;
+  box-shadow: 0 20px 60px var(--gray-a4);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--gray-10);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.description {
+  color: var(--gray-11);
+  line-height: 1.7;
+}
+
+.error {
+  color: var(--red-11, #b91c1c);
+}
+
+.boot-state {
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+  padding-top: 12px;
+}
+
+.boot-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 3px solid var(--gray-a5);
+  border-top-color: var(--gray-12);
+  animation: setup-spin 0.8s linear infinite;
+}
+
+.primary-button {
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 18px;
+  background: var(--accent-9);
+  color: var(--accent-contrast);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.primary-button:hover {
+  transform: translateY(-1px);
+}
+
+.primary-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+  transform: none;
+}
+
+@keyframes setup-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes instance-dot-breathe {
+  0%, 100% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 0.75;
+  }
+
+  50% {
+    box-shadow: 0 0 0 4px transparent;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .instance-panel {
+    transition: none;
+    transform: none;
+  }
+
+  .instance-dot[data-status="checking"] {
+    animation: none;
+  }
+}
