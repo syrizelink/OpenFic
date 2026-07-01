@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.4](https://github.com/syrizelink/OpenFic/compare/v0.4.3...v0.4.4) (2026-07-01)
+
+
+### 🐛 问题修复
+
+* **desktop:** 修复 Windows 构建样式解析 ([#37](https://github.com/syrizelink/OpenFic/issues/37)) ([e837bb1](https://github.com/syrizelink/OpenFic/commit/e837bb14ea17d2a3ef46b0de6d6a72590f3778a9))
+
 ## [0.4.3](https://github.com/syrizelink/OpenFic/compare/v0.4.2...v0.4.3) (2026-07-01)
 
 
