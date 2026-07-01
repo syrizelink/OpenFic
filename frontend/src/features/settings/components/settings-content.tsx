@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { Box, Button, Flex, IconButton, Text } from "@radix-ui/themes";
+import { Box, Flex, IconButton, Text } from "@radix-ui/themes";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import axios from "axios";
-import { Spinner } from "@/components";
+import { Spinner, toast } from "@/components";
+import { saveLanguagePreference } from "@/i18n";
 import "./settings-dialog.css";
 
 import { SettingsSidebar } from "../components/settings-sidebar";
@@ -144,14 +145,6 @@ export function SettingsContent({ appearance, onAppearanceChange, onClose, route
     };
   }, [serverSettings, editedSettings, i18n.language, appearance]);
 
-  const hasChanges = useMemo(() => {
-    if (!serverSettings) return false;
-    const hasLocalEdits = Object.keys(editedSettings).length > 0;
-    const languageChanged = i18n.language !== serverSettings.language;
-    const themeChanged = appearance !== serverSettings.theme;
-    return hasLocalEdits || languageChanged || themeChanged;
-  }, [serverSettings, editedSettings, i18n.language, appearance]);
-
   const saveMutation = useMutation({
     mutationFn: async (settings: Settings) => {
       const request: SettingsUpdateRequest = {
@@ -166,27 +159,47 @@ export function SettingsContent({ appearance, onAppearanceChange, onClose, route
       };
       return updateSettings(request);
     },
+    onMutate: async (nextSettings) => {
+      await queryClient.cancelQueries({ queryKey: ["settings"] });
+      const previousSettings = queryClient.getQueryData<Settings>(["settings"]) ?? null;
+      queryClient.setQueryData(["settings"], nextSettings);
+      setEditedSettings({});
+      return { previousSettings };
+    },
+    onError: (_error, _variables, context) => {
+      const previousSettings = context?.previousSettings;
+
+      if (previousSettings) {
+        queryClient.setQueryData(["settings"], previousSettings);
+        setEditedSettings({});
+        void i18n.changeLanguage(previousSettings.language);
+        saveLanguagePreference(previousSettings.language);
+        onAppearanceChange(previousSettings.theme);
+        applyFontFamily(previousSettings.fontFamily);
+        applyCodeFontFamily(previousSettings.codeFontFamily);
+        void loadConfiguredFonts(previousSettings.fontFamily, previousSettings.codeFontFamily);
+      }
+
+      toast.error(t("settings.saveFailed"));
+    },
     onSuccess: (savedSettings) => {
       queryClient.setQueryData(["settings"], savedSettings);
       setEditedSettings({});
+      toast.success(t("settings.saved"));
     },
   });
 
   const handleSettingsChange = useCallback((newSettings: Settings) => {
+    void i18n.changeLanguage(newSettings.language);
+    saveLanguagePreference(newSettings.language);
     onAppearanceChange(newSettings.theme);
     applyFontFamily(newSettings.fontFamily);
     applyCodeFontFamily(newSettings.codeFontFamily);
     void loadConfiguredFonts(newSettings.fontFamily, newSettings.codeFontFamily);
     setEditedSettings(newSettings);
-  }, [onAppearanceChange]);
+    saveMutation.mutate(newSettings);
+  }, [i18n, onAppearanceChange, saveMutation]);
 
-  const handleSave = useCallback(() => {
-    if (displaySettings) saveMutation.mutate(displaySettings);
-  }, [displaySettings, saveMutation]);
-
-  const shouldShowSaveButton =
-    ((activeCategory === "general" && !isCategoryLoading) ||
-      (activeCategory === "agent-tools" && !isAgentToolsLoading));
   const isSplitPanelCategory =
     activeCategory === "agents" || activeCategory === "skills" || activeCategory === "rules";
   const shouldUseFormPagePadding =
@@ -251,6 +264,7 @@ export function SettingsContent({ appearance, onAppearanceChange, onClose, route
             {activeCategory === "general" ? (
               <GeneralSettings
                 settings={displaySettings}
+                isSaving={saveMutation.isPending}
                 onSettingsChange={handleSettingsChange}
               />
             ) : null}
@@ -267,6 +281,7 @@ export function SettingsContent({ appearance, onAppearanceChange, onClose, route
                 settings={displaySettings}
                 tools={agentTools}
                 errorMessage={agentToolsErrorMessage}
+                isSaving={saveMutation.isPending}
                 onSettingsChange={handleSettingsChange}
               />
             ) : null}
@@ -299,19 +314,6 @@ export function SettingsContent({ appearance, onAppearanceChange, onClose, route
           </>
         ) : null}
       </Box>
-
-      {shouldShowSaveButton ? (
-        <Box className="settings-dialog-savebar">
-          <Button
-            size="3"
-            disabled={!hasChanges || saveMutation.isPending}
-            onClick={handleSave}
-          >
-            {saveMutation.isPending ? <Spinner size={18} /> : null}
-            {t("settings.save")}
-          </Button>
-        </Box>
-      ) : null}
     </>
   );
 

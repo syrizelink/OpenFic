@@ -17,11 +17,13 @@ interface GeneralSettingsProps {
   settings: Settings;
   /** 设置变更回调 */
   onSettingsChange: (settings: Settings) => void;
+  isSaving?: boolean;
 }
 
 export function GeneralSettings({
   settings,
   onSettingsChange,
+  isSaving = false,
 }: GeneralSettingsProps) {
   const { t } = useTranslation();
 
@@ -57,6 +59,7 @@ export function GeneralSettings({
             label: lang.name,
           }))}
           onChange={handleLanguageChange}
+          disabled={isSaving}
           triggerStyle={{ width: 200 }}
         />
 
@@ -68,6 +71,7 @@ export function GeneralSettings({
           <SegmentedControl.Root
             value={settings.theme}
             onValueChange={handleThemeChange}
+            disabled={isSaving}
             style={{ width: 200 }}
           >
             <SegmentedControl.Item value="light">
@@ -85,6 +89,7 @@ export function GeneralSettings({
           value={settings.fontFamily}
           options={FONT_OPTIONS}
           onChange={handleFontChange}
+          disabled={isSaving}
           triggerStyle={{ width: 200 }}
         />
 
@@ -94,6 +99,7 @@ export function GeneralSettings({
           value={settings.codeFontFamily || "JetBrainsMapleMono"}
           options={CODE_FONT_OPTIONS}
           onChange={handleCodeFontChange}
+          disabled={isSaving}
           triggerStyle={{ width: 200 }}
         />
       </Flex>
