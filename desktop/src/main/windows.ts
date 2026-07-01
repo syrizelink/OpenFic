@@ -8,7 +8,7 @@ const { app, BrowserWindow, shell } = electron;
 
 function writeWindowLog(message: string): void {
   try {
-    const logDir = path.join(process.env.APPDATA ?? app.getPath("userData"), "OpenFic");
+    const logDir = path.join(process.env.APPDATA ?? app.getPath("userData"), "openfic-desktop");
     mkdirSync(logDir, { recursive: true });
     appendFileSync(path.join(logDir, "startup.log"), `[${new Date().toISOString()}] ${message}\n`, "utf8");
   } catch {

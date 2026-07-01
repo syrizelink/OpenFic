@@ -8,7 +8,6 @@ function getOpenFicCliPath(venvPythonPath: string): string {
     ? venvPythonPath.replace(/python\.exe$/i, "openfic.exe")
     : venvPythonPath.replace(/python$/i, "openfic");
 }
-
 export function createOpenFicProbeCommand(venvPythonPath: string): SpawnCommand {
   return {
     command: venvPythonPath,

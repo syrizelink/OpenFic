@@ -18,7 +18,7 @@ const { app, dialog, Menu } = electron;
 
 function writeStartupLog(message: string): void {
   try {
-    const logDir = path.join(process.env.APPDATA ?? app.getPath("userData"), "OpenFic");
+    const logDir = path.join(process.env.APPDATA ?? app.getPath("userData"), "openfic-desktop");
     mkdirSync(logDir, { recursive: true });
     appendFileSync(path.join(logDir, "startup.log"), `[${new Date().toISOString()}] ${message}\n`, "utf8");
   } catch {
@@ -83,7 +83,7 @@ async function startLocalBackend(installDir: string | null): Promise<void> {
   const runtimeDir = resolveRuntimeDir(installDir);
   const python = await ensurePortablePython(runtimeDir, () => undefined, () => undefined);
   const runtime = await ensureOpenFicRuntime(python, runtimeDir, () => undefined);
-  const backend = await startLocalOpenFicBackend(runtime.uvPath, runtime.venvPythonPath);
+  const backend = await startLocalOpenFicBackend(runtime.venvPythonPath);
   setBackend(backend);
   setBackendBaseUrl(backend.baseUrl);
 }

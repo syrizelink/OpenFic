@@ -1,7 +1,7 @@
 import type { WebContents } from "electron";
 import { IpcChannels, type SetupProgressEvent } from "../../shared/ipc.js";
 import { describeDownloadProgress, ensurePortablePython, resolveRuntimeDir } from "./python.js";
-import { ensureOpenFicRuntime, resolveUvPath, resolveVenvPythonPath, startLocalOpenFicBackend } from "./openfic.js";
+import { ensureOpenFicRuntime, resolveVenvPythonPath, startLocalOpenFicBackend } from "./openfic.js";
 import type { BackendProcessHandle } from "../process.js";
 
 function emitProgress(webContents: WebContents, event: SetupProgressEvent): void {
@@ -53,5 +53,5 @@ export async function installLocalRuntime(webContents: WebContents, installDir: 
 
 export async function startLocalBackendFromInstall(installDir: string): Promise<BackendProcessHandle> {
   const runtimeDir = resolveRuntimeDir(installDir);
-  return startLocalOpenFicBackend(resolveUvPath(runtimeDir), resolveVenvPythonPath(runtimeDir));
+  return startLocalOpenFicBackend(resolveVenvPythonPath(runtimeDir));
 }
