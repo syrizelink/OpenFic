@@ -59,7 +59,7 @@
   width: 216px;
   flex-shrink: 0;
   border-right: 1px solid var(--gray-a4);
-  background: #f6f8fb;
+  background: var(--gray-a2);
   overflow: auto;
   scrollbar-width: thin;
 }
@@ -490,7 +490,7 @@
   }
 
   .settings-dialog-mobile-topbar .rt-IconButton {
-    color: #000;
+    color: var(--gray-12);
   }
 
   .settings-dialog-mobile-topbar-leading,
@@ -537,15 +537,15 @@
 
   .settings-dialog-mobile-category-item {
     padding: 0 4px;
-    color: #000;
+    color: var(--gray-12);
   }
 
   .settings-dialog-mobile-category-item-content {
-    color: #000;
+    color: var(--gray-12);
   }
 
   .settings-dialog-mobile-category-item-icon {
-    color: #000;
+    color: currentColor;
   }
 
   .skills-settings--settings .skills-settings-list-item,
@@ -553,7 +553,7 @@
   .skills-settings--settings .skills-settings-list-item--selected:hover,
   .skills-settings--settings .skills-settings-list-item--selected.skills-settings-list-item--menu-open {
     background: transparent;
-    color: #000;
+    color: var(--gray-12);
   }
 
   .skills-settings--settings .skills-settings-list-item:hover:not(.skills-settings-list-item--selected),
@@ -566,7 +566,7 @@
   .agent-definition-item--active:hover,
   .agent-definition-item--active.agent-definition-item--menu-open {
     background: transparent;
-    color: #000;
+    color: var(--gray-12);
   }
 
   .agent-definitions-layout {
