@@ -1,27 +1,57 @@
 import type { WebContents } from "electron";
 import { IpcChannels, type SetupProgressEvent } from "../../shared/ipc.js";
-import { ensurePortablePython } from "./python.js";
-import { ensureOpenFicRuntime, startLocalOpenFicBackend } from "./openfic.js";
+import { describeDownloadProgress, ensurePortablePython, resolveRuntimeDir } from "./python.js";
+import { ensureOpenFicRuntime, resolveUvPath, startLocalOpenFicBackend } from "./openfic.js";
 import type { BackendProcessHandle } from "../process.js";
 
 function emitProgress(webContents: WebContents, event: SetupProgressEvent): void {
   webContents.send(IpcChannels.setupProgress, event);
 }
 
-export async function runLocalSetup(webContents: WebContents): Promise<BackendProcessHandle> {
-  const python = await ensurePortablePython((message) =>
-    emitProgress(webContents, { step: "download-python", status: "running", message }),
+const STEP_DONE_MESSAGE: Record<SetupProgressEvent["step"], string> = {
+  "download-python": "Python 已就绪",
+  "extract-python": "Python 已解压",
+  "create-venv": "运行环境已创建",
+  "install-uv": "uv 已安装",
+  "install-openfic": "OpenFic 已安装",
+};
+
+function markDone(webContents: WebContents, step: SetupProgressEvent["step"]): void {
+  emitProgress(webContents, { step, status: "done", message: STEP_DONE_MESSAGE[step] });
+}
+
+export async function installLocalRuntime(webContents: WebContents, installDir: string): Promise<string> {
+  const runtimeDir = resolveRuntimeDir(installDir);
+  let currentStep: SetupProgressEvent["step"] | null = null;
+
+  const beginStep = (step: SetupProgressEvent["step"], message: string) => {
+    if (currentStep && currentStep !== step) markDone(webContents, currentStep);
+    currentStep = step;
+    emitProgress(webContents, { step, status: "running", message });
+  };
+
+  const python = await ensurePortablePython(
+    runtimeDir,
+    (phase, message) => beginStep(phase === "download" ? "download-python" : "extract-python", message),
+    ({ received, total }) => {
+      const fraction = total > 0 ? received / total : undefined;
+      emitProgress(webContents, {
+        step: "download-python",
+        status: "running",
+        message: `下载 Python · ${describeDownloadProgress({ received, total })}`,
+        progress: fraction,
+      });
+    },
   );
-  emitProgress(webContents, { step: "download-python", status: "done", message: "Python 已就绪" });
 
-  const runtime = await ensureOpenFicRuntime(python, (step, message) =>
-    emitProgress(webContents, { step, status: "running", message }),
-  );
-  emitProgress(webContents, { step: "install-openfic", status: "done", message: "OpenFic 已安装" });
+  await ensureOpenFicRuntime(python, runtimeDir, (step, message) => beginStep(step, message));
 
-  emitProgress(webContents, { step: "start-backend", status: "running", message: "启动 OpenFic 后端" });
-  const backend = await startLocalOpenFicBackend(runtime.uvPath);
-  emitProgress(webContents, { step: "health-check", status: "done", message: "后端已就绪" });
+  if (currentStep) markDone(webContents, currentStep);
 
-  return backend;
+  return runtimeDir;
+}
+
+export async function startLocalBackendFromInstall(installDir: string): Promise<BackendProcessHandle> {
+  const runtimeDir = resolveRuntimeDir(installDir);
+  return startLocalOpenFicBackend(resolveUvPath(runtimeDir));
 }

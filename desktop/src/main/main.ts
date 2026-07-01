@@ -6,7 +6,7 @@ import { createMainWindow } from "./windows.js";
 import { readDesktopConfig } from "./config.js";
 import { registerIpc } from "./ipc.js";
 import { waitForBackend } from "./health.js";
-import { ensurePortablePython } from "./runtime/python.js";
+import { ensurePortablePython, resolveRuntimeDir } from "./runtime/python.js";
 import { ensureOpenFicRuntime, startLocalOpenFicBackend } from "./runtime/openfic.js";
 import { stopBackendProcess, type BackendProcessHandle } from "./process.js";
 import type { InitializeAppResult } from "../shared/ipc.js";
@@ -64,9 +64,10 @@ function openMainWindow(): void {
   attachWindowLifecycle(mainWindow);
 }
 
-async function startLocalBackend(): Promise<void> {
-  const python = await ensurePortablePython(() => undefined);
-  const runtime = await ensureOpenFicRuntime(python, () => undefined);
+async function startLocalBackend(installDir: string | null): Promise<void> {
+  const runtimeDir = resolveRuntimeDir(installDir);
+  const python = await ensurePortablePython(runtimeDir, () => undefined, () => undefined);
+  const runtime = await ensureOpenFicRuntime(python, runtimeDir, () => undefined);
   const backend = await startLocalOpenFicBackend(runtime.uvPath);
   setBackend(backend);
   setBackendBaseUrl(backend.baseUrl);
@@ -103,7 +104,7 @@ async function initializeApp(): Promise<InitializeAppResult> {
   }
 
   try {
-    await startLocalBackend();
+    await startLocalBackend(config.installDir);
     return { status: "ready" };
   } catch (err) {
     writeStartupLog(`local backend failed: ${err instanceof Error ? err.message : String(err)}`);

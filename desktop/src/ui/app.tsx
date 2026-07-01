@@ -1,12 +1,9 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import type { DesktopConfig } from "../shared/config";
-import type { SetupProgressEvent } from "../shared/ipc";
 import { DesktopHeader } from "./components/header";
 import { BootPage } from "./pages/boot/page";
 import { FrontendPage } from "./pages/frontend/page";
 import { SetupPage } from "./pages/setup/page";
 
-type Mode = "local" | "remote";
 type ShellState = "booting" | "setup" | "frontend";
 type Appearance = "light" | "dark";
 
@@ -38,22 +35,11 @@ function isDesktopAppearancePayload(value: unknown): value is DesktopAppearanceP
 }
 
 export function App() {
-  const [mode, setMode] = useState<Mode>("local");
-  const [remoteUrl, setRemoteUrl] = useState("http://127.0.0.1:8000");
-  const [progress, setProgress] = useState<SetupProgressEvent[]>([]);
-  const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shellState, setShellState] = useState<ShellState>("booting");
   const [webviewKey, setWebviewKey] = useState(0);
   const [shellAppearance, setShellAppearance] = useState<ShellAppearance>({ appearance: "light" });
   const frontendWebviewRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    const dispose = window.openficDesktop.onSetupProgress((event) => {
-      setProgress((items) => [...items, event]);
-    });
-    return dispose;
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,9 +66,7 @@ export function App() {
 
   useEffect(() => {
     const handleShowSetup = () => {
-      setProgress([]);
       setError(null);
-      setIsBusy(false);
       setShellState("setup");
     };
 
@@ -112,49 +96,14 @@ export function App() {
   }, [webviewKey]);
 
   const showFrontend = () => {
-    setProgress([]);
     setError(null);
     setWebviewKey((key) => key + 1);
     setShellState("frontend");
   };
 
   const handleShowSetup = () => {
-    setProgress([]);
     setError(null);
-    setIsBusy(false);
     setShellState("setup");
-  };
-
-  const handleStartLocal = async () => {
-    setIsBusy(true);
-    setError(null);
-    try {
-      await window.openficDesktop.runLocalSetup();
-      const config: DesktopConfig = { mode: "local", remoteUrl: null, autoStartLocal: true };
-      await window.openficDesktop.saveConfig(config);
-      await window.openficDesktop.closeSetup();
-      showFrontend();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "本地后端设置失败");
-    } finally {
-      setIsBusy(false);
-    }
-  };
-
-  const handleUseRemote = async () => {
-    setIsBusy(true);
-    setError(null);
-    try {
-      await window.openficDesktop.checkRemote(remoteUrl);
-      const config: DesktopConfig = { mode: "remote", remoteUrl, autoStartLocal: false };
-      await window.openficDesktop.saveConfig(config);
-      await window.openficDesktop.closeSetup();
-      showFrontend();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "远程后端不可用");
-    } finally {
-      setIsBusy(false);
-    }
   };
 
   const shellClassName = `desktop-shell radix-themes${shellAppearance.appearance === "dark" ? " dark" : ""}`;
@@ -166,28 +115,22 @@ export function App() {
           "--default-font-family": shellAppearance.fontFamily,
         }
       : {}),
-    ...(shellAppearance.codeFontFamily
-      ? { "--code-font-family": shellAppearance.codeFontFamily }
-      : {}),
+    ...(shellAppearance.codeFontFamily ? { "--code-font-family": shellAppearance.codeFontFamily } : {}),
   } as CSSProperties;
 
   return (
-    <main className={shellClassName} data-accent-color="gray" data-gray-color="gray" data-radius="medium" data-scaling="100%" style={shellStyle}>
+    <main
+      className={shellClassName}
+      data-accent-color="gray"
+      data-gray-color="gray"
+      data-radius="medium"
+      data-scaling="100%"
+      style={shellStyle}
+    >
       <DesktopHeader onShowSetup={handleShowSetup} />
       <section className="desktop-content">
         {shellState === "booting" ? <BootPage error={error} /> : null}
-        {shellState === "setup" ? (
-          <SetupPage
-            mode={mode}
-            remoteUrl={remoteUrl}
-            progress={progress}
-            isBusy={isBusy}
-            error={error}
-            onModeChange={setMode}
-            onRemoteUrlChange={setRemoteUrl}
-            onSubmit={mode === "local" ? handleStartLocal : handleUseRemote}
-          />
-        ) : null}
+        {shellState === "setup" ? <SetupPage onFinished={showFrontend} /> : null}
         {shellState === "frontend" ? <FrontendPage webviewKey={webviewKey} webviewRef={frontendWebviewRef} /> : null}
       </section>
     </main>

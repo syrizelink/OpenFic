@@ -6,24 +6,24 @@ import { startBackendProcess, type BackendProcessHandle } from "../process.js";
 import { waitForBackend } from "../health.js";
 import type { PortablePython } from "./python.js";
 
-const electron = require("electron") as typeof import("electron");
-
-const { app } = electron;
-
 export type OpenFicRuntimeStep = "create-venv" | "install-uv" | "install-openfic";
 
-function getVenvDir(): string {
-  return path.join(app.getPath("userData"), "runtime", "venv");
+function getVenvDir(runtimeDir: string): string {
+  return path.join(runtimeDir, "venv");
 }
 
-function getVenvPythonPath(): string {
-  if (process.platform === "win32") return path.join(getVenvDir(), "Scripts", "python.exe");
-  return path.join(getVenvDir(), "bin", "python");
+function getVenvPythonPath(runtimeDir: string): string {
+  if (process.platform === "win32") return path.join(getVenvDir(runtimeDir), "Scripts", "python.exe");
+  return path.join(getVenvDir(runtimeDir), "bin", "python");
 }
 
-function getUvPath(): string {
-  if (process.platform === "win32") return path.join(getVenvDir(), "Scripts", "uv.exe");
-  return path.join(getVenvDir(), "bin", "uv");
+function getUvPath(runtimeDir: string): string {
+  if (process.platform === "win32") return path.join(getVenvDir(runtimeDir), "Scripts", "uv.exe");
+  return path.join(getVenvDir(runtimeDir), "bin", "uv");
+}
+
+export function resolveUvPath(runtimeDir: string): string {
+  return getUvPath(runtimeDir);
 }
 
 async function pathExists(filePath: string): Promise<boolean> {
@@ -64,12 +64,12 @@ function succeeds(command: string, args: string[], cwd: string): Promise<boolean
 
 export async function ensureOpenFicRuntime(
   python: PortablePython,
+  runtimeDir: string,
   onProgress: (step: OpenFicRuntimeStep, message: string) => void,
 ): Promise<{ uvPath: string }> {
-  const runtimeDir = path.join(app.getPath("userData"), "runtime");
-  const venvDir = getVenvDir();
-  const venvPythonPath = getVenvPythonPath();
-  const uvPath = getUvPath();
+  const venvDir = getVenvDir(runtimeDir);
+  const venvPythonPath = getVenvPythonPath(runtimeDir);
+  const uvPath = getUvPath(runtimeDir);
 
   await mkdir(runtimeDir, { recursive: true });
 

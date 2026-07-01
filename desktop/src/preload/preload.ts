@@ -1,9 +1,13 @@
 import {
   IpcChannels,
+  type CheckDirectoryEmptyRequest,
+  type CheckDirectoryEmptyResult,
   type CheckRemoteRequest,
   type InitializeAppResult,
+  type InstallRuntimeRequest,
   type SaveConfigRequest,
   type SetupProgressEvent,
+  type StartLocalBackendRequest,
 } from "../shared/ipc.js";
 import type { DesktopConfig } from "../shared/config.js";
 import path from "node:path";
@@ -14,10 +18,19 @@ const { contextBridge, ipcRenderer } = electron;
 
 const desktopApi = {
   getConfig: (): Promise<DesktopConfig | null> => ipcRenderer.invoke(IpcChannels.getConfig),
-  saveConfig: (config: DesktopConfig): Promise<void> => ipcRenderer.invoke(IpcChannels.saveConfig, { config } satisfies SaveConfigRequest),
+  saveConfig: (config: DesktopConfig): Promise<void> =>
+    ipcRenderer.invoke(IpcChannels.saveConfig, { config } satisfies SaveConfigRequest),
   initializeApp: (): Promise<InitializeAppResult> => ipcRenderer.invoke(IpcChannels.initializeApp),
-  runLocalSetup: (): Promise<void> => ipcRenderer.invoke(IpcChannels.runLocalSetup),
-  checkRemote: (url: string): Promise<void> => ipcRenderer.invoke(IpcChannels.checkRemote, { url } satisfies CheckRemoteRequest),
+  getDefaultInstallDir: (): Promise<string> => ipcRenderer.invoke(IpcChannels.getDefaultInstallDir),
+  installRuntime: (installDir: string): Promise<void> =>
+    ipcRenderer.invoke(IpcChannels.installRuntime, { installDir } satisfies InstallRuntimeRequest),
+  startLocalBackend: (installDir: string): Promise<void> =>
+    ipcRenderer.invoke(IpcChannels.startLocalBackend, { installDir } satisfies StartLocalBackendRequest),
+  checkRemote: (url: string): Promise<void> =>
+    ipcRenderer.invoke(IpcChannels.checkRemote, { url } satisfies CheckRemoteRequest),
+  selectDirectory: (): Promise<string | null> => ipcRenderer.invoke(IpcChannels.selectDirectory),
+  checkDirectoryEmpty: (dirPath: string): Promise<CheckDirectoryEmptyResult> =>
+    ipcRenderer.invoke(IpcChannels.checkDirectoryEmpty, { path: dirPath } satisfies CheckDirectoryEmptyRequest),
   closeSetup: (): Promise<void> => ipcRenderer.invoke(IpcChannels.closeSetup),
   showSetup: (): Promise<void> => ipcRenderer.invoke(IpcChannels.showSetup),
   frontendHostPreloadPath: path.join(__dirname, "frontend-host-preload.js"),
