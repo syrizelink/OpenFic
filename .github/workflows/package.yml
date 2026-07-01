@@ -17,6 +17,7 @@ env:
   PYTHON_VERSION: '3.12'
   NODE_VERSION: '22'
   PNPM_VERSION: '11.8.0'
+  UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
 
 jobs:
   # ---------------------------------------------------------------- context
@@ -53,8 +54,16 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: 配置 pnpm store
+        run: pnpm config set store-dir "${{ github.workspace }}/.pnpm-store"
+      - uses: actions/cache/restore@v5
+        id: pnpm-cache
+        with:
+          path: .pnpm-store
+          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-frontend-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-frontend-
+            ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-
       - name: 构建前端产物
         working-directory: frontend
         run: |
@@ -64,10 +73,15 @@ jobs:
         with:
           name: frontend-dist
           path: frontend/dist/
+      - uses: actions/cache/save@v5
+        if: ${{ steps.pnpm-cache.outputs.cache-hit != 'true' }}
+        with:
+          path: .pnpm-store
+          key: ${{ steps.pnpm-cache.outputs.cache-primary-key }}
 
   # ---------------------------------------------------------------- pypi
   pypi:
-    needs: [context]
+    needs: [context, build-frontend]
     runs-on: ubuntu-latest
     environment: pypi
     steps:
@@ -78,18 +92,64 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: 配置 pnpm store
+        run: pnpm config set store-dir "${{ github.workspace }}/.pnpm-store"
+      - uses: actions/cache/restore@v5
+        id: pnpm-cache
+        with:
+          path: .pnpm-store
+          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-frontend-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-frontend-
+            ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - uses: astral-sh/setup-uv@v5
+      - name: 生成 uv 缓存 key lock
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path("backend/uv.lock")
+          target = Path("backend/.uv-cache-key.lock")
+          lines = source.read_text(encoding="utf-8").splitlines()
+          normalized: list[str] = []
+          is_openfic_package = False
+
+          for line in lines:
+              if line == "[[package]]":
+                  is_openfic_package = False
+              elif line == 'name = "openfic"':
+                  is_openfic_package = True
+
+              if is_openfic_package and line.startswith("version = "):
+                  continue
+
+              normalized.append(line)
+
+          target.write_text("\n".join(normalized) + "\n", encoding="utf-8")
+          PY
+      - uses: actions/cache/restore@v5
+        id: uv-cache
         with:
-          enable-cache: true
-          cache-dependency-glob: backend/uv.lock
+          path: .uv-cache
+          key: ${{ runner.os }}-${{ runner.arch }}-uv-${{ env.PYTHON_VERSION }}-${{ hashFiles('backend/.uv-cache-key.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-uv-${{ env.PYTHON_VERSION }}-
       - name: 构建后端 Python 包
         working-directory: backend
         run: uv build
+      - uses: actions/cache/save@v5
+        if: ${{ steps.pnpm-cache.outputs.cache-hit != 'true' }}
+        with:
+          path: .pnpm-store
+          key: ${{ steps.pnpm-cache.outputs.cache-primary-key }}
+      - uses: actions/cache/save@v5
+        if: ${{ steps.uv-cache.outputs.cache-hit != 'true' }}
+        with:
+          path: .uv-cache
+          key: ${{ steps.uv-cache.outputs.cache-primary-key }}
       - name: 发布到 PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
@@ -186,6 +246,9 @@ jobs:
             electron_args: '--mac --arm64'
             artifact_name: desktop-mac-arm64
     runs-on: ${{ matrix.os }}
+    env:
+      ELECTRON_CACHE: ${{ github.workspace }}/.electron-cache
+      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.electron-builder-cache
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -198,10 +261,26 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: |
-            desktop/pnpm-lock.yaml
-            frontend/pnpm-lock.yaml
+      - name: 配置 pnpm store
+        run: pnpm config set store-dir "${{ github.workspace }}/.pnpm-store"
+      - uses: actions/cache/restore@v5
+        id: pnpm-cache
+        with:
+          path: .pnpm-store
+          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-desktop-${{ hashFiles('desktop/pnpm-lock.yaml', 'frontend/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-desktop-
+            ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-frontend-
+            ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-
+      - uses: actions/cache/restore@v5
+        id: electron-cache
+        with:
+          path: |
+            .electron-cache
+            .electron-builder-cache
+          key: ${{ runner.os }}-${{ runner.arch }}-electron-${{ hashFiles('desktop/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-electron-
       - name: 安装前端依赖
         working-directory: frontend
         run: pnpm install --frozen-lockfile
@@ -225,6 +304,18 @@ jobs:
             desktop/dist-electron/*.zip
             desktop/dist-electron/*.dmg
             desktop/dist-electron/*.blockmap
+      - uses: actions/cache/save@v5
+        if: ${{ steps.pnpm-cache.outputs.cache-hit != 'true' }}
+        with:
+          path: .pnpm-store
+          key: ${{ steps.pnpm-cache.outputs.cache-primary-key }}
+      - uses: actions/cache/save@v5
+        if: ${{ steps.electron-cache.outputs.cache-hit != 'true' }}
+        with:
+          path: |
+            .electron-cache
+            .electron-builder-cache
+          key: ${{ steps.electron-cache.outputs.cache-primary-key }}
 
   # ---------------------------------------------------------------- release
   publish-release:
