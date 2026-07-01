@@ -70,8 +70,22 @@ jobs:
         run: |
           PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number')
 
-          for attempt in {1..12}; do
+          for attempt in {1..18}; do
             echo "Attempt $attempt: enable auto-merge for release PR #${PR_NUMBER}"
+
+            MERGEABLE=$(gh pr view "$PR_NUMBER" --json mergeable -q '.mergeable')
+            MERGE_STATE=$(gh pr view "$PR_NUMBER" --json mergeStateStatus -q '.mergeStateStatus')
+            echo "mergeable=${MERGEABLE} mergeStateStatus=${MERGE_STATE}"
+
+            if [[ "$MERGEABLE" == "CONFLICTING" || "$MERGE_STATE" == "DIRTY" ]]; then
+              echo "Release PR has merge conflicts and cannot be auto-merged"
+              exit 1
+            fi
+
+            if [[ "$MERGEABLE" == "UNKNOWN" ]]; then
+              sleep 10
+              continue
+            fi
 
             if gh pr merge "$PR_NUMBER" --auto --squash --delete-branch 2>merge-error.log; then
               exit 0
@@ -80,7 +94,7 @@ jobs:
             ERROR=$(cat merge-error.log)
             echo "$ERROR"
 
-            if [[ "$ERROR" != *"Base branch was modified"* ]]; then
+            if [[ "$ERROR" != *"Base branch was modified"* && "$ERROR" != *"Pull Request is not mergeable"* ]]; then
               exit 1
             fi
 
