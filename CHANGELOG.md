@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/syrizelink/OpenFic/compare/v0.4.0...v0.4.1) (2026-07-01)
+
+
+### 🐛 问题修复
+
+* **ci:** 调整发布打包流程 ([#31](https://github.com/syrizelink/OpenFic/issues/31)) ([f83451a](https://github.com/syrizelink/OpenFic/commit/f83451a76225daa2c4d1669e93ef9f7f5309f52b))
+
 ## [0.4.0](https://github.com/syrizelink/OpenFic/compare/v0.3.3...v0.4.0) (2026-07-01)
 
 
