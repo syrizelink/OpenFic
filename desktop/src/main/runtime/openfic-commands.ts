@@ -16,9 +16,9 @@ export function createOpenFicInstallCommand(venvPythonPath: string): Omit<SpawnC
   };
 }
 
-export function createOpenFicServeCommand(venvPythonPath: string, port: number): SpawnCommand {
+export function createOpenFicServeCommand(uvPath: string, venvPythonPath: string, port: number): SpawnCommand {
   return {
-    command: venvPythonPath,
-    args: ["-m", "openfic", "serve", "--host", "127.0.0.1", "--port", String(port)],
+    command: uvPath,
+    args: ["run", "--python", venvPythonPath, "openfic", "serve", "--host", "127.0.0.1", "--port", String(port)],
   };
 }

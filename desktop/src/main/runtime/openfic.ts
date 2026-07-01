@@ -98,9 +98,9 @@ export async function ensureOpenFicRuntime(
   return { uvPath, venvPythonPath };
 }
 
-export async function startLocalOpenFicBackend(venvPythonPath: string): Promise<BackendProcessHandle> {
+export async function startLocalOpenFicBackend(uvPath: string, venvPythonPath: string): Promise<BackendProcessHandle> {
   const port = await findFreePort();
-  const command = createOpenFicServeCommand(venvPythonPath, port);
+  const command = createOpenFicServeCommand(uvPath, venvPythonPath, port);
   const handle = startBackendProcess({
     command: command.command,
     args: command.args,
