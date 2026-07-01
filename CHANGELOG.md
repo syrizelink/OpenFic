@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.7](https://github.com/syrizelink/OpenFic/compare/v0.4.6...v0.4.7) (2026-07-01)
+
+
+### 🐛 问题修复
+
+* **desktop:** 修复本地后端启动 ([#43](https://github.com/syrizelink/OpenFic/issues/43)) ([12440f7](https://github.com/syrizelink/OpenFic/commit/12440f715495a2755c81a7be794426ca2cb7027b))
+
 ## [0.4.6](https://github.com/syrizelink/OpenFic/compare/v0.4.5...v0.4.6) (2026-07-01)
 
 
