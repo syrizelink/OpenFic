@@ -1,248 +1,72 @@
-name: Release
+name: Release Please
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
 
 permissions:
   contents: write
-  packages: write
+  pull-requests: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-please-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  PYTHON_VERSION: '3.12'
-  NODE_VERSION: '22'
-  PNPM_VERSION: '11.8.0'
-
 jobs:
-  # ---------------------------------------------------------------- context
-  context:
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.meta.outputs.version }}
-      release_tag: ${{ steps.meta.outputs.release_tag }}
-    steps:
-      - id: meta
-        run: |
-          RELEASE_TAG=${GITHUB_REF#refs/tags/}
-          echo "version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
-          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
-
-  # ---------------------------------------------------------------- test gate
-  test-frontend:
+  release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      - uses: googleapis/release-please-action@v4
+        id: release
         with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
-      - name: 安装依赖
-        working-directory: frontend
-        run: pnpm install --frozen-lockfile
-      - name: Lint
-        working-directory: frontend
-        run: pnpm lint
-      - name: Type check
-        working-directory: frontend
-        run: pnpm type-check
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
 
-  test-backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
+        if: ${{ steps.release.outputs.pr }}
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
       - uses: actions/setup-python@v6
+        if: ${{ steps.release.outputs.pr }}
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: '3.12'
       - uses: astral-sh/setup-uv@v5
+        if: ${{ steps.release.outputs.pr }}
         with:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
-      - name: 安装依赖
-        working-directory: backend
-        run: uv sync --frozen
-      - name: Ruff
-        working-directory: backend
-        run: uv run ruff check .
-      - name: Mypy
-        working-directory: backend
-        run: uv run mypy app
-      - name: Pytest
-        working-directory: backend
-        run: uv run pytest -q
-
-  # ---------------------------------------------------------------- frontend
-  build-frontend:
-    needs: [test-frontend, test-backend]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-        with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
-      - name: Install & build
-        working-directory: frontend
+      - name: 同步 backend uv.lock
+        if: ${{ steps.release.outputs.pr }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          PR_JSON: ${{ steps.release.outputs.pr }}
         run: |
-          pnpm install --frozen-lockfile
-          pnpm build
-      - uses: actions/upload-artifact@v7
-        with:
-          name: frontend-dist
-          path: frontend/dist/
+          PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number')
+          PR_HEAD_REF=$(gh pr view "$PR_NUMBER" --json headRefName -q '.headRefName')
 
-  # ---------------------------------------------------------------- preflight
-  preflight:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/setup-python@v6
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: 校验关键原生依赖存在 aarch64 wheel
+          git fetch origin "$PR_HEAD_REF:$PR_HEAD_REF"
+          git checkout "$PR_HEAD_REF"
+
+          pushd backend
+          uv lock
+          popd
+
+          if git diff --quiet -- backend/uv.lock; then
+            echo "backend/uv.lock 无需更新"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/uv.lock
+          git commit -m "chore(backend): 同步 uv.lock 版本"
+          git push origin HEAD:"$PR_HEAD_REF"
+      - name: 启用 release PR auto-merge
+        if: ${{ steps.release.outputs.pr }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          PR_JSON: ${{ steps.release.outputs.pr }}
         run: |
-          python3 - <<'PY'
-          import json, urllib.request, sys
-          pkgs = ["lancedb", "onnxruntime"]
-          missing = []
-          for pkg in pkgs:
-              data = json.loads(urllib.request.urlopen(f"https://pypi.org/pypi/{pkg}/json").read())
-              latest = data["info"]["version"]
-              has_arm = any("aarch64" in f["filename"] for f in data["releases"].get(latest, []))
-              print(f"{pkg} {latest}: linux aarch64 = {has_arm}")
-              if not has_arm:
-                  missing.append(pkg)
-          if missing:
-              print(f"缺少 aarch64 wheel: {missing}", file=sys.stderr)
-              sys.exit(1)
-          print("预检通过")
-          PY
-
-  # ---------------------------------------------------------------- docker
-  docker:
-    needs: [context, preflight, test-frontend, test-backend]
-    runs-on: ubuntu-latest
-    env:
-      BUILDX_NO_DEFAULT_ATTESTATIONS: true
-    steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-qemu-action@v4
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - id: tags
-        run: |
-          IMAGE=ghcr.io/${{ github.repository_owner }}/openfic
-          IMAGE=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
-          VER="${{ needs.context.outputs.version }}"
-          MAJOR_MINOR=$(echo "$VER" | cut -d. -f1,2)
-          echo "tags=${IMAGE}:latest,${IMAGE}:${VER},${IMAGE}:${MAJOR_MINOR}" >> "$GITHUB_OUTPUT"
-      - uses: docker/build-push-action@v7
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          provenance: false
-          tags: ${{ steps.tags.outputs.tags }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # ---------------------------------------------------------------- desktop
-  desktop:
-    needs: [context, build-frontend]
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            electron_args: ''
-            artifact_name: desktop-win-x64
-          - os: macos-14
-            electron_args: '--arm64'
-            artifact_name: desktop-mac-arm64
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
-        with:
-          name: frontend-dist
-          path: frontend/dist
-      - name: 放入前端产物到包内
-        run: |
-          mkdir -p backend/app/frontend_dist
-          cp -r frontend/dist/. backend/app/frontend_dist/
-        shell: bash
-
-      # 版本号已由 release-please 写入 frontend/package.json，无需手动同步
-      # 后端 PyInstaller 打包
-      - uses: actions/setup-python@v6
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          cache-dependency-glob: backend/uv.lock
-      - name: 安装后端依赖并打包
-        working-directory: backend
-        run: |
-          uv sync --frozen
-          uv run pyinstaller packaging/openfic.spec --noconfirm
-
-      # Electron 安装包
-      - uses: pnpm/action-setup@v6
-        with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
-      - name: 安装前端依赖
-        working-directory: frontend
-        run: pnpm install --frozen-lockfile
-      - name: 构建 Electron 安装包
-        working-directory: frontend
-        run: pnpm exec electron-builder --config electron/electron-builder.yml ${{ matrix.electron_args }}
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: ${{ matrix.artifact_name }}
-          path: |
-            dist-electron/*.exe
-            dist-electron/*.zip
-            dist-electron/*.dmg
-            dist-electron/*.blockmap
-
-  # ---------------------------------------------------------------- release
-  publish-release:
-    needs: [context, desktop]
-    if: always() && needs.desktop.result != 'failure'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: desktop-*
-          merge-multiple: true
-          path: assets
-      - name: 列出产物
-        run: |
-          mkdir -p assets
-          find assets -type f -print
-      # release-please 已创建 Release（含 changelog body），此处仅追加构建产物
-      - uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ needs.context.outputs.release_tag }}
-          files: assets/*
+          PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number')
+          gh pr merge "$PR_NUMBER" --auto --squash --delete-branch

@@ -1,0 +1,238 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: '22'
+  PNPM_VERSION: '11.8.0'
+
+jobs:
+  # ---------------------------------------------------------------- context
+  context:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      release_tag: ${{ steps.meta.outputs.release_tag }}
+      image: ${{ steps.meta.outputs.image }}
+      major_minor: ${{ steps.meta.outputs.major_minor }}
+    steps:
+      - id: meta
+        run: |
+          RELEASE_TAG=${GITHUB_REF#refs/tags/}
+          VERSION=${RELEASE_TAG#v}
+          IMAGE=ghcr.io/${{ github.repository_owner }}/openfic
+          IMAGE=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
+          MAJOR_MINOR=$(echo "$VERSION" | cut -d. -f1,2)
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "major_minor=${MAJOR_MINOR}" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------- frontend
+  build-frontend:
+    needs: [context]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: 构建前端产物
+        working-directory: frontend
+        run: |
+          pnpm install --frozen-lockfile
+          OPENFIC_BUILD_VERSION=${{ needs.context.outputs.version }} pnpm build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+
+  # ---------------------------------------------------------------- pypi
+  pypi:
+    needs: [context]
+    runs-on: ubuntu-latest
+    environment: pypi
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: 构建后端 Python 包
+        working-directory: backend
+        run: uv build
+      - name: 发布到 PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: backend/dist
+
+  # ---------------------------------------------------------------- docker
+  docker:
+    needs: [context]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: linux/amd64
+            suffix: amd64
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            suffix: arm64
+    runs-on: ${{ matrix.runner }}
+    env:
+      BUILDX_NO_DEFAULT_ATTESTATIONS: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: tags
+        run: |
+          IMAGE=${{ needs.context.outputs.image }}
+          VERSION=${{ needs.context.outputs.version }}
+          MAJOR_MINOR=${{ needs.context.outputs.major_minor }}
+          SUFFIX=${{ matrix.suffix }}
+
+          echo "tags=${IMAGE}:latest-${SUFFIX},${IMAGE}:${VERSION}-${SUFFIX},${IMAGE}:${MAJOR_MINOR}-${SUFFIX}" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          push: true
+          provenance: false
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha,scope=docker-${{ matrix.suffix }}
+          cache-to: type=gha,mode=max,scope=docker-${{ matrix.suffix }}
+
+  docker-manifest:
+    needs: [context, docker]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: 发布多架构 Docker 标签
+        run: |
+          IMAGE=${{ needs.context.outputs.image }}
+          VERSION=${{ needs.context.outputs.version }}
+          MAJOR_MINOR=${{ needs.context.outputs.major_minor }}
+
+          docker buildx imagetools create \
+            -t "${IMAGE}:latest" \
+            "${IMAGE}:latest-amd64" \
+            "${IMAGE}:latest-arm64"
+          docker buildx imagetools create \
+            -t "${IMAGE}:${VERSION}" \
+            "${IMAGE}:${VERSION}-amd64" \
+            "${IMAGE}:${VERSION}-arm64"
+          docker buildx imagetools create \
+            -t "${IMAGE}:${MAJOR_MINOR}" \
+            "${IMAGE}:${MAJOR_MINOR}-amd64" \
+            "${IMAGE}:${MAJOR_MINOR}-arm64"
+
+  # ---------------------------------------------------------------- desktop
+  desktop:
+    needs: [context, build-frontend]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            electron_args: '--win --x64'
+            artifact_name: desktop-win-x64
+          - os: macos-13
+            electron_args: '--mac --x64'
+            artifact_name: desktop-mac-x64
+          - os: macos-14
+            electron_args: '--mac --arm64'
+            artifact_name: desktop-mac-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: frontend-dist
+          path: frontend/dist
+      - uses: pnpm/action-setup@v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: desktop/pnpm-lock.yaml
+      - name: 安装桌面端依赖
+        working-directory: desktop
+        run: pnpm install --frozen-lockfile
+      - name: 构建桌面端
+        working-directory: desktop
+        run: pnpm build
+      - name: 构建 Electron 安装包
+        working-directory: desktop
+        run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.electron_args }}
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            desktop/dist-electron/*.exe
+            desktop/dist-electron/*.zip
+            desktop/dist-electron/*.dmg
+            desktop/dist-electron/*.blockmap
+
+  # ---------------------------------------------------------------- release
+  publish-release:
+    needs: [context, desktop]
+    if: always() && needs.desktop.result != 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: desktop-*
+          merge-multiple: true
+          path: assets
+      - name: 列出产物
+        run: |
+          mkdir -p assets
+          find assets -type f -print
+      # release-please 已创建 Release（含 changelog body），此处仅追加构建产物
+      - uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.context.outputs.release_tag }}
+          files: assets/*
