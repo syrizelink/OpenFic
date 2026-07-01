@@ -1,7 +1,7 @@
 {
   "name": "openfic-frontend",
   "private": true,
-  "version": "0.4.1",
+  "version": "0.4.2",
   "type": "module",
   "packageManager": "pnpm@11.8.0",
   "scripts": {

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/syrizelink/OpenFic/compare/v0.4.1...v0.4.2) (2026-07-01)
+
+
+### 🐛 问题修复
+
+* **ci:** 修复桌面发布流程 ([#33](https://github.com/syrizelink/OpenFic/issues/33)) ([9f100fc](https://github.com/syrizelink/OpenFic/commit/9f100fc8c4ab75f09f5fd5262cfbe7ca66e62353))
+
 ## [0.4.1](https://github.com/syrizelink/OpenFic/compare/v0.4.0...v0.4.1) (2026-07-01)
 
 
