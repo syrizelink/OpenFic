@@ -2,7 +2,7 @@ import { defineConfig } from "@farmfe/core";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
-const setupPath = fileURLToPath(new URL("./src/setup-ui", import.meta.url));
+const uiPath = fileURLToPath(new URL("./src/ui", import.meta.url));
 const require = createRequire(import.meta.url);
 const reactPath = require.resolve("react");
 const reactJsxRuntimePath = require.resolve("react/jsx-runtime");
@@ -14,17 +14,17 @@ const lucideReactPath = require.resolve("lucide-react");
 export default defineConfig({
   compilation: {
     input: {
-      setup: "./src/setup-ui/index.html",
+      ui: "./src/ui/index.html",
     },
     output: {
-      path: "./dist/setup-ui",
+      path: "./dist/ui",
       publicPath: "./",
       targetEnv: "browser-esnext",
     },
     resolve: {
       symlinks: true,
       alias: {
-        "@setup": setupPath,
+        "@ui": uiPath,
         react: reactPath,
         "react/jsx-runtime": reactJsxRuntimePath,
         "react-dom": reactDomPath,

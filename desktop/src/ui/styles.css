@@ -9,16 +9,15 @@ body {
 }
 
 .desktop-shell {
-  position: relative;
+  display: grid;
+  grid-template-rows: 44px minmax(0, 1fr);
   min-height: 100vh;
   background: var(--color-background);
   color: var(--gray-12);
   overflow: hidden;
 }
 
-.desktop-titlebar {
-  position: relative;
-  z-index: 20;
+.desktop-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -28,6 +27,25 @@ body {
   background: color-mix(in srgb, var(--color-background) 94%, transparent);
   border-bottom: 1px solid var(--gray-a4);
   -webkit-app-region: drag;
+}
+
+.desktop-content {
+  min-height: 0;
+}
+
+.content-page {
+  height: 100%;
+}
+
+.content-page-centered {
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  box-sizing: border-box;
+}
+
+.content-page-fill {
+  min-height: 0;
 }
 
 .desktop-titlebar-brand {
@@ -70,22 +88,8 @@ body {
 .frontend-webview {
   display: flex;
   width: 100%;
-  height: calc(100vh - 44px);
+  height: 100%;
   border: 0;
-}
-
-.frontend-webview-hidden {
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.setup-shell {
-  position: absolute;
-  inset: 44px 0 0;
-  display: grid;
-  place-items: center;
-  padding: 32px;
-  box-sizing: border-box;
 }
 
 .setup-card {

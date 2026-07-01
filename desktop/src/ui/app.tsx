@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { Minus, Settings, Square, X } from "lucide-react";
 import type { DesktopConfig } from "../shared/config";
 import type { SetupProgressEvent } from "../shared/ipc";
+import { DesktopHeader } from "./components/header";
+import { BootPage } from "./pages/boot/page";
+import { FrontendPage } from "./pages/frontend/page";
+import { SetupPage } from "./pages/setup/page";
 
 type Mode = "local" | "remote";
 type ShellState = "booting" | "setup" | "frontend";
@@ -34,7 +37,7 @@ function isDesktopAppearancePayload(value: unknown): value is DesktopAppearanceP
   );
 }
 
-export function SetupApp() {
+export function App() {
   const [mode, setMode] = useState<Mode>("local");
   const [remoteUrl, setRemoteUrl] = useState("http://127.0.0.1:8000");
   const [progress, setProgress] = useState<SetupProgressEvent[]>([]);
@@ -170,86 +173,23 @@ export function SetupApp() {
 
   return (
     <main className={shellClassName} data-accent-color="gray" data-gray-color="gray" data-radius="medium" data-scaling="100%" style={shellStyle}>
-      <header className="desktop-titlebar">
-        <div className="desktop-titlebar-brand">OpenFic</div>
-        <div className="desktop-titlebar-actions">
-          <button className="titlebar-button" aria-label="设置" type="button" onClick={handleShowSetup}>
-            <Settings size={15} strokeWidth={2} />
-          </button>
-          <button className="titlebar-button" aria-label="最小化" type="button" onClick={() => void window.openficDesktop.minimizeWindow()}>
-            <Minus size={15} strokeWidth={2} />
-          </button>
-          <button className="titlebar-button" aria-label="最大化" type="button" onClick={() => void window.openficDesktop.toggleMaximizeWindow()}>
-            <Square size={14} strokeWidth={2} />
-          </button>
-          <button className="titlebar-button titlebar-button-close" aria-label="关闭" type="button" onClick={() => void window.openficDesktop.closeWindow()}>
-            <X size={16} strokeWidth={2} />
-          </button>
-        </div>
-      </header>
-
-      <webview
-        key={webviewKey}
-        ref={frontendWebviewRef}
-        className={shellState === "frontend" ? "frontend-webview" : "frontend-webview frontend-webview-hidden"}
-        src="app://openfic/"
-        preload={window.openficDesktop.frontendHostPreloadPath}
-      />
-
-      {shellState !== "frontend" ? (
-        <section className="setup-shell">
-          <section className="setup-card">
-            <p className="eyebrow">OpenFic Desktop</p>
-            <h1>{shellState === "booting" ? "正在准备 OpenFic" : "连接 OpenFic 后端"}</h1>
-            <p className="description">
-              {shellState === "booting"
-                ? "正在检查现有配置与后端状态。"
-                : "选择本地运行时，或连接已经运行的远程后端服务。"}
-            </p>
-
-            {shellState === "setup" ? (
-              <>
-                <div className="mode-grid">
-                  <button className={mode === "local" ? "mode-card active" : "mode-card"} onClick={() => setMode("local")} type="button">
-                    <strong>本地运行时</strong>
-                    <span>下载独立 Python，安装 uv 与 openfic 后启动。</span>
-                  </button>
-                  <button className={mode === "remote" ? "mode-card active" : "mode-card"} onClick={() => setMode("remote")} type="button">
-                    <strong>远程后端</strong>
-                    <span>连接已有 OpenFic 服务，不启动本地后端。</span>
-                  </button>
-                </div>
-
-                {mode === "remote" ? (
-                  <label className="field">
-                    <span>后端地址</span>
-                    <input value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} placeholder="http://127.0.0.1:8000" />
-                  </label>
-                ) : null}
-
-                {progress.length ? (
-                  <ol className="progress-list">
-                    {progress.map((item, index) => (
-                      <li key={`${item.step}-${index}`}>{item.message}</li>
-                    ))}
-                  </ol>
-                ) : null}
-
-                {error ? <p className="error">{error}</p> : null}
-
-                <button className="primary-button" disabled={isBusy} onClick={mode === "local" ? handleStartLocal : handleUseRemote} type="button">
-                  {isBusy ? "处理中..." : mode === "local" ? "设置并启动本地后端" : "连接远程后端"}
-                </button>
-              </>
-            ) : (
-              <div className="boot-state">
-                <div className="boot-spinner" aria-hidden="true" />
-                {error ? <p className="error">{error}</p> : null}
-              </div>
-            )}
-          </section>
-        </section>
-      ) : null}
+      <DesktopHeader onShowSetup={handleShowSetup} />
+      <section className="desktop-content">
+        {shellState === "booting" ? <BootPage error={error} /> : null}
+        {shellState === "setup" ? (
+          <SetupPage
+            mode={mode}
+            remoteUrl={remoteUrl}
+            progress={progress}
+            isBusy={isBusy}
+            error={error}
+            onModeChange={setMode}
+            onRemoteUrlChange={setRemoteUrl}
+            onSubmit={mode === "local" ? handleStartLocal : handleUseRemote}
+          />
+        ) : null}
+        {shellState === "frontend" ? <FrontendPage webviewKey={webviewKey} webviewRef={frontendWebviewRef} /> : null}
+      </section>
     </main>
   );
 }

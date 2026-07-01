@@ -43,7 +43,7 @@ function applyShellWindowPresentation(window: BrowserWindowType): void {
 
 export function loadMainApp(window: BrowserWindowType): void {
   applyShellWindowPresentation(window);
-  void window.loadURL("app://setup/setup.html");
+  void window.loadURL("app://setup/ui.html");
 }
 
 export function createMainWindow(): BrowserWindowType {

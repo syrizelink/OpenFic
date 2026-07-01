@@ -19,7 +19,7 @@ export function getFrontendDistDir(): string {
 }
 
 export function getSetupDistDir(): string {
-  return path.join(app.getAppPath(), "dist", "setup-ui");
+  return path.join(app.getAppPath(), "dist", "ui");
 }
 
 function resolveStaticPath(rootDir: string, pathname: string): string {
@@ -35,11 +35,11 @@ function resolveStaticPath(rootDir: string, pathname: string): string {
 function resolveSetupStaticPath(rootDir: string, pathname: string): string {
   const normalizedPath = decodeURIComponent(pathname).replace(/^\/+/, "").replace(/^setup\//, "");
   const resolvedRoot = path.resolve(rootDir);
-  const candidate = path.resolve(resolvedRoot, normalizedPath || "setup.html");
+  const candidate = path.resolve(resolvedRoot, normalizedPath || "ui.html");
   const relativeToRoot = path.relative(resolvedRoot, candidate);
-  if (relativeToRoot.startsWith("..") || path.isAbsolute(relativeToRoot)) return path.join(resolvedRoot, "setup.html");
+  if (relativeToRoot.startsWith("..") || path.isAbsolute(relativeToRoot)) return path.join(resolvedRoot, "ui.html");
   if (existsSync(candidate)) return candidate;
-  return path.join(resolvedRoot, "setup.html");
+  return path.join(resolvedRoot, "ui.html");
 }
 
 export function registerAppScheme(): void {
