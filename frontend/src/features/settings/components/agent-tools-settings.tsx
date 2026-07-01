@@ -20,6 +20,7 @@ interface AgentToolsSettingsProps {
   tools: AgentToolMetadata[];
   errorMessage?: string;
   onSettingsChange: (settings: Settings) => void;
+  isSaving?: boolean;
 }
 
 const PERMISSION_OPTIONS: AgentToolPermissionMode[] = ["allow", "ask", "deny"];
@@ -29,6 +30,7 @@ export function AgentToolsSettings({
   tools,
   errorMessage,
   onSettingsChange,
+  isSaving = false,
 }: AgentToolsSettingsProps) {
   const { t } = useTranslation();
 
@@ -104,6 +106,7 @@ export function AgentToolsSettings({
                 value={permissionMap.get(tool.key) ?? "ask"}
                 options={permissionOptions}
                 onChange={(value) => handlePermissionChange(tool.key, value)}
+                disabled={isSaving}
                 triggerStyle={{ width: 120 }}
               />
             </Flex>
