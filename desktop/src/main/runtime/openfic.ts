@@ -40,13 +40,49 @@ async function pathExists(filePath: string): Promise<boolean> {
   }
 }
 
-function run(command: string, args: string[], cwd: string): Promise<void> {
+function forwardLines(
+  stream: NodeJS.ReadableStream | null,
+  writer: NodeJS.WriteStream,
+  onLine?: (line: string) => void,
+): void {
+  if (!stream) return;
+
+  let buffer = "";
+  stream.on("data", (chunk: Buffer | string) => {
+    const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
+    writer.write(text);
+    buffer += text.replace(/\r/g, "\n");
+
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed) onLine?.(trimmed);
+    }
+  });
+
+  stream.on("end", () => {
+    const trimmed = buffer.trim();
+    if (trimmed) onLine?.(trimmed);
+  });
+}
+
+function stripAnsi(value: string): string {
+  return value.replace(/\u001b\[[0-9;]*[A-Za-z]/g, "");
+}
+
+function run(command: string, args: string[], cwd: string, onStdoutLine?: (line: string) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd,
       windowsHide: true,
-      stdio: "inherit",
+      stdio: ["ignore", "pipe", "pipe"],
     });
+    forwardLines(child.stdout, process.stdout, (line) => {
+      const text = stripAnsi(line).trim();
+      if (text) onStdoutLine?.(text);
+    });
+    forwardLines(child.stderr, process.stderr);
     child.on("error", reject);
     child.on("exit", (code) => {
       if (code === 0) resolve();
@@ -85,14 +121,14 @@ export async function ensureOpenFicRuntime(
 
   if (!(await pathExists(uvPath))) {
     onProgress("install-uv", "安装 uv");
-    await run(venvPythonPath, ["-m", "pip", "install", "uv"], runtimeDir);
+    await run(venvPythonPath, ["-m", "pip", "install", "uv"], runtimeDir, (message) => onProgress("install-uv", message));
   }
 
   const probeCommand = createOpenFicProbeCommand(venvPythonPath);
   if (!(await succeeds(probeCommand.command, probeCommand.args, runtimeDir))) {
     onProgress("install-openfic", "安装 OpenFic 后端");
     const installCommand = createOpenFicInstallCommand(venvPythonPath);
-    await run(uvPath, installCommand.args, runtimeDir);
+    await run(uvPath, installCommand.args, runtimeDir, (message) => onProgress("install-openfic", message));
   }
 
   return { uvPath, venvPythonPath };
