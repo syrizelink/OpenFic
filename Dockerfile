@@ -5,7 +5,8 @@ FROM --platform=$BUILDPLATFORM node:22-slim AS frontend
 WORKDIR /build
 RUN corepack enable
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm install --frozen-lockfile --store-dir /pnpm/store
 COPY frontend/ ./
 RUN pnpm build
 
@@ -23,7 +24,8 @@ WORKDIR /app
 
 # 先装依赖（利用层缓存）
 COPY backend/pyproject.toml backend/uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project
 
 # 复制后端源码
 COPY backend/ ./
