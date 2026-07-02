@@ -24,12 +24,11 @@ export const REGISTERED_TOOL_NAMES = [
   "read_range_summaries",
   "read_world_info",
   "search_chapters",
+  "update_index",
   "create_plan",
   "update_plan",
   "get_plan",
   "list_plan",
-  "use_skill",
-  "uninstall_skill",
 ] as const;
 
 export type RegisteredToolName = typeof REGISTERED_TOOL_NAMES[number];
@@ -41,8 +40,7 @@ export type ToolGroup =
   | "note"
   | "volume"
   | "context"
-  | "plan"
-  | "skill";
+  | "plan";
 
 export interface ToolDescriptorMeta {
   toolName: RegisteredToolName;
@@ -230,6 +228,13 @@ export const TOOL_DESCRIPTOR_META = {
     isExplore: true,
     contentMode: "hidden",
   },
+  update_index: {
+    toolName: "update_index",
+    group: "chapter",
+    tag: "update-index",
+    isExplore: false,
+    contentMode: "hidden",
+  },
   create_plan: {
     toolName: "create_plan",
     group: "plan",
@@ -257,20 +262,6 @@ export const TOOL_DESCRIPTOR_META = {
     tag: "list",
     isExplore: false,
     contentMode: "expandable",
-  },
-  use_skill: {
-    toolName: "use_skill",
-    group: "skill",
-    tag: "install",
-    isExplore: false,
-    contentMode: "static",
-  },
-  uninstall_skill: {
-    toolName: "uninstall_skill",
-    group: "skill",
-    tag: "uninstall",
-    isExplore: false,
-    contentMode: "static",
   },
 } satisfies Record<RegisteredToolName, ToolDescriptorMeta>;
 

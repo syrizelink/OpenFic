@@ -10,7 +10,6 @@ import {
   FileText,
   ListOrdered,
   MessageSquareWarning,
-  Puzzle,
   Trash2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -50,7 +49,6 @@ import {
   getRecycleSubagentDetail,
   getRecycleSubagentTitle,
 } from "../orchestration/recycle-subagent-tool-message";
-import { SkillToolMessage } from "../skill/skill-tool-message";
 import {
   CreateVolumeToolMessage,
   DeleteVolumeToolMessage,
@@ -331,6 +329,15 @@ const TOOL_REGISTRY = {
       return query ? `${query} · ${i18n.t("assistant.tools.matchCount", { count: results.length })}` : i18n.t("assistant.tools.matchedChapters", { count: results.length });
     },
   },
+  update_index: {
+    toolName: "update_index",
+    group: "chapter",
+    tag: "update-index",
+    isExplore: false,
+    contentMode: "hidden",
+    icon: FileSearch,
+    getTitle: () => i18n.t("assistant.tools.updateIndex"),
+  },
   list_volumes: {
     toolName: "list_volumes",
     group: "volume",
@@ -487,46 +494,6 @@ const TOOL_REGISTRY = {
     getDetail: (message) =>
       getPlanDetailForDisplayKind(message, getPlanToolDisplayConfig("list_plan").detailKind),
     render: (message) => <PlanToolMessage message={message} />,
-  },
-  use_skill: {
-    toolName: "use_skill",
-    group: "skill",
-    tag: "install",
-    isExplore: false,
-    contentMode: "static",
-    icon: Puzzle,
-    getTitle: () => i18n.t("assistant.tools.useSkill"),
-    getDetail: (message) => {
-      const data = getStreamingData(message);
-      return asString(data.name) ?? asString(data.skill_id);
-    },
-    render: (message) => (
-      <SkillToolMessage
-        message={message}
-        actionLabel={i18n.t("assistant.tools.useSkillAction")}
-        emptyTitle={i18n.t("assistant.tools.useSkillEmpty")}
-      />
-    ),
-  },
-  uninstall_skill: {
-    toolName: "uninstall_skill",
-    group: "skill",
-    tag: "uninstall",
-    isExplore: false,
-    contentMode: "static",
-    icon: Puzzle,
-    getTitle: () => i18n.t("assistant.tools.uninstallSkill"),
-    getDetail: (message) => {
-      const data = getStreamingData(message);
-      return asString(data.name) ?? asString(data.skill_id);
-    },
-    render: (message) => (
-      <SkillToolMessage
-        message={message}
-        actionLabel={i18n.t("assistant.tools.uninstallSkillAction")}
-        emptyTitle={i18n.t("assistant.tools.uninstallSkillEmpty")}
-      />
-    ),
   },
 } satisfies Record<RegisteredToolName, ToolDescriptor>;
 
