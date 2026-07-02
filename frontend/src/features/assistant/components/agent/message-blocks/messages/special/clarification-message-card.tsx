@@ -1,5 +1,6 @@
 import { Box, Flex, Text } from "@radix-ui/themes";
 import { AlertCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import type { AgentMessage } from "../../../../../../../lib/agent.types";
 import { MessageCardShell } from "../../shared/message-shell";
@@ -45,6 +46,7 @@ function ClarificationMessageCardContent({
   prompt,
   onSubmitQuestionAnswer,
 }: ClarificationMessageCardContentProps) {
+  const { t } = useTranslation();
   const model = useClarificationQuestionFlow(prompt, { onSubmitQuestionAnswer });
 
   return (
@@ -52,7 +54,7 @@ function ClarificationMessageCardContent({
       <Flex align="center" gap="2" style={{ marginBottom: "12px" }}>
         <AlertCircle size={16} style={{ color: "var(--gray-11)" }} />
         <Text size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
-          需要您提供更多信息
+          {t("assistant.clarificationCardTitle")}
         </Text>
       </Flex>
       <ClarificationQuestionBody model={model} bodyClassName="agent-question-panel-body" />

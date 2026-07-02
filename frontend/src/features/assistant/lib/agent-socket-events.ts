@@ -1,4 +1,5 @@
 import type { AgentEvent } from "@/lib/agent.types";
+import i18n from "@/i18n";
 
 import { getString, isRecord, normalizeToolResult } from "./tool-result-normalization";
 
@@ -206,7 +207,7 @@ export function toAgentEvent(
     const attempt = Number(data.attempt ?? 0);
     const maxAttempts = Number(data.max_attempts ?? 0);
     const errorType = getString(data.error_type);
-    const errorMessage = getString(data.error_message) || "上游请求失败";
+    const errorMessage = getString(data.error_message) || i18n.t("assistant.upstreamFailure");
     const id = `retry:${sessionId}`;
     return {
       id,
@@ -318,7 +319,7 @@ export function toAgentEvent(
       role: "system",
       status: "running",
       display: "list",
-      content: "正在压缩上下文",
+      content: i18n.t("assistant.compactionRunning"),
       created_at: getString(data.created_at),
       payload: {
         session_id: sessionKey,
@@ -343,7 +344,7 @@ export function toAgentEvent(
       role: "system",
       status: "completed",
       display: "list",
-      content: "上下文已压缩",
+      content: i18n.t("assistant.compactionDone"),
       created_at: getString(data.created_at),
       payload: {
         session_id: getString(data.session_id) || sessionId,
@@ -359,7 +360,7 @@ export function toAgentEvent(
 
   if (eventName === "agent:compaction_error") {
     const code = getString(data.code) || getString(data.error_code);
-    const message = getString(data.message) || getString(data.reason) || getString(data.error) || "压缩失败";
+    const message = getString(data.message) || getString(data.reason) || getString(data.error) || i18n.t("assistant.compactionFailed");
     const id = `compaction:error:${getString(data.session_id) || sessionId}:${Date.now()}`;
     return {
       id,
@@ -392,7 +393,7 @@ export function toAgentEvent(
 
   if (eventName === "agent:error") {
     if (data.type === "invalid_session") return null;
-    const content = getString(data.reason) || getString(data.error) || getString(data.message) || "Agent 运行失败";
+    const content = getString(data.reason) || getString(data.error) || getString(data.message) || i18n.t("assistant.agentRunFailed");
     return {
       type: "error",
       role: "system",
@@ -444,7 +445,7 @@ export function toAgentEvent(
         tool_call_id: toolCallId,
         tool_args: toolArgs,
         tool_result_preview: toolResultPreview,
-        message: getString(data.message) || `是否允许调用 ${toolName}？`,
+        message: getString(data.message) || i18n.t("assistant.tools.toolApprovalQuestion", { toolName }),
         interrupt_behavior: data.interrupt_behavior === "cancel" ? "cancel" : "block",
         payload: {
           approval_id: approvalId,
@@ -452,7 +453,7 @@ export function toAgentEvent(
           tool_call_id: toolCallId,
           tool_args: toolArgs,
           tool_result_preview: toolResultPreview,
-          message: getString(data.message) || `是否允许调用 ${toolName}？`,
+          message: getString(data.message) || i18n.t("assistant.tools.toolApprovalQuestion", { toolName }),
           interrupt_behavior: data.interrupt_behavior === "cancel" ? "cancel" : "block",
         },
       };

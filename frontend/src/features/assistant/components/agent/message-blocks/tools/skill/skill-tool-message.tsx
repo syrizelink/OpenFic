@@ -1,4 +1,5 @@
 import type { AgentMessage } from "@/lib/agent.types";
+import i18n from "@/i18n";
 
 import {
   asString,
@@ -33,15 +34,15 @@ export function SkillToolMessage({
     <ToolBody>
       {hasStructuredContent ? (
         <>
-          <ToolTextBlock label="操作" value={actionLabel} />
-          <ToolTextBlock label="技能" value={name ?? skillId} />
+          <ToolTextBlock label={i18n.t("assistant.tools.action")} value={actionLabel} />
+          <ToolTextBlock label={i18n.t("assistant.tools.skill")} value={name ?? skillId} />
           <ToolTextBlock label="Skill ID" value={name && skillId ? skillId : undefined} />
-          <ToolTextBlock label="原因" value={reason} />
-          <ToolTextBlock label="结果" value={resultMessage} />
+          <ToolTextBlock label={i18n.t("assistant.tools.reason")} value={reason} />
+          <ToolTextBlock label={i18n.t("assistant.tools.result")} value={resultMessage} />
         </>
       ) : (
         <ToolNotice title={emptyTitle}>
-          这条技能工具消息没有返回可显示的结构化内容。
+          {i18n.t("assistant.tools.skillNoStructuredContent")}
         </ToolNotice>
       )}
     </ToolBody>

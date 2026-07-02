@@ -1,4 +1,5 @@
 import type { AgentMessage, AgentSessionStatus } from "@/lib/agent.types";
+import i18n from "@/i18n";
 
 import { upsertRetryMessage } from "../lib/retry-message-state";
 
@@ -57,7 +58,7 @@ function createTransportReconnectRetryMessage({
     status: "running",
     display: "list",
     timestamp: Date.now(),
-    content: error.message || "连接失败",
+    content: error.message || i18n.t("assistant.connectionFailed"),
     payload: {
       attempt,
       max_attempts: maxAttempts ?? attempt,

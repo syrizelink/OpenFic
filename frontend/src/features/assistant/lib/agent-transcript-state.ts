@@ -1,4 +1,5 @@
 import type { AgentEvent, AgentMessage, AgentSessionStatus } from "@/lib/agent.types";
+import i18n from "@/i18n";
 
 import { mergeStreamingMessage } from "./streaming-message-merge";
 import {
@@ -76,11 +77,11 @@ function getEventPayload(event: AgentEvent): Record<string, unknown> {
 }
 
 export function getStageTextForAgentKey(agent?: string): string | null {
-  if (agent === "primary") return "正在协调任务...";
-  if (agent === "explorer") return "正在探索信息...";
-  if (agent === "composer") return "正在组织创作任务...";
-  if (agent === "writer") return "正在创作内容...";
-  if (agent === "reviewer") return "正在审核修改...";
+  if (agent === "primary") return i18n.t("assistant.agentStatus.primary");
+  if (agent === "explorer") return i18n.t("assistant.agentStatus.explorer");
+  if (agent === "composer") return i18n.t("assistant.agentStatus.composer");
+  if (agent === "writer") return i18n.t("assistant.agentStatus.writer");
+  if (agent === "reviewer") return i18n.t("assistant.agentStatus.reviewer");
   return null;
 }
 
@@ -359,14 +360,14 @@ function normalizeTranscriptEvent(event: AgentEvent): AgentMessage | null {
     return {
       ...base,
       type: "retry",
-      content: event.content || (typeof payload.error_message === "string" ? payload.error_message : "上游请求失败"),
+      content: event.content || (typeof payload.error_message === "string" ? payload.error_message : i18n.t("assistant.upstreamFailure")),
     };
   }
   if (event.type === "compaction") {
     return {
       ...base,
       type: "compaction",
-      content: event.content || (event.status === "running" ? "正在压缩上下文" : "上下文已压缩"),
+      content: event.content || (event.status === "running" ? i18n.t("assistant.compactionRunning") : i18n.t("assistant.compactionDone")),
     };
   }
   if (event.type === "reasoning") {
@@ -390,7 +391,7 @@ function normalizeTranscriptEvent(event: AgentEvent): AgentMessage | null {
         tool_call_id: typeof payload.tool_call_id === "string" ? payload.tool_call_id : undefined,
         tool_args: payload.tool_args && typeof payload.tool_args === "object" ? payload.tool_args as Record<string, unknown> : {},
         tool_result_preview: toolResultPreview,
-        message: typeof payload.message === "string" ? payload.message : event.content || "工具调用需要审批",
+        message: typeof payload.message === "string" ? payload.message : event.content || i18n.t("assistant.toolApprovalRequiredFallback"),
         interrupt_behavior: payload.interrupt_behavior === "block" ? "block" : "cancel",
       },
     };
@@ -441,7 +442,7 @@ function normalizeTranscriptEvent(event: AgentEvent): AgentMessage | null {
     return {
       ...base,
       type: "error",
-      content: event.content || (payload.error as string) || "Agent 运行失败",
+      content: event.content || (payload.error as string) || i18n.t("assistant.agentRunFailed"),
     };
   }
   if (event.display === "hidden") return base;
@@ -522,7 +523,7 @@ export function applyAgentTranscriptEvent(
           ),
           status: isRunning ? "running" : isManual ? "completed" : state.status,
           isRunning: isRunning ? true : isManual ? false : state.isRunning,
-          currentStage: isRunning ? "正在压缩上下文" : isManual ? "" : state.currentStage,
+          currentStage: isRunning ? i18n.t("assistant.compactionRunning") : isManual ? "" : state.currentStage,
         },
         message,
       };

@@ -107,9 +107,9 @@ function NoteSummary({ message, emptyTitle, emptyDescription }: NoteToolMessageP
 
   return (
     <>
-      <ToolTextBlock label="笔记" value={note.title} />
-      {note.content ? <ToolTextBlock label="内容" value={note.content} /> : null}
-      <ToolTextBlock label="结果" value={getToolResultMessage(message)} />
+      <ToolTextBlock label={i18n.t("assistant.tools.note")} value={note.title} />
+      {note.content ? <ToolTextBlock label={i18n.t("assistant.tools.content")} value={note.content} /> : null}
+      <ToolTextBlock label={i18n.t("assistant.tools.result")} value={getToolResultMessage(message)} />
     </>
   );
 }
@@ -133,7 +133,7 @@ export function WriteNoteToolMessage({ message }: NoteToolMessageProps) {
 
     const handleCopy = async () => {
       if (!copyText) {
-        toast.error("没有可复制的正文 Diff");
+        toast.error(i18n.t("assistant.tools.noDiffToCopy"));
         return;
       }
       try {
@@ -146,9 +146,9 @@ export function WriteNoteToolMessage({ message }: NoteToolMessageProps) {
           setIsCopied(false);
           copyFeedbackTimerRef.current = null;
         }, COPY_FEEDBACK_MS);
-        toast.success("已复制");
+        toast.success(i18n.t("common.copied"));
       } catch {
-        toast.error("复制失败");
+        toast.error(i18n.t("assistant.copyFailed"));
       }
     };
 
@@ -169,12 +169,12 @@ export function WriteNoteToolMessage({ message }: NoteToolMessageProps) {
                 </Text>
               </Flex>
             </Flex>
-            <Tooltip content={isCopied ? "已复制" : "复制正文 Diff"}>
+            <Tooltip content={isCopied ? i18n.t("common.copied") : i18n.t("assistant.tools.copyDiff")}>
               <IconButton
                 size="1"
                 variant="ghost"
                 color={isCopied ? "green" : "gray"}
-                aria-label={isCopied ? "正文 Diff 已复制" : "复制正文 Diff"}
+                aria-label={isCopied ? i18n.t("assistant.tools.diffCopied") : i18n.t("assistant.tools.copyDiff")}
                 className="agent-message-block-toolbar-button agent-chapter-diff-copy-button"
                 data-copied={isCopied ? "true" : undefined}
                 disabled={!copyText}
@@ -200,7 +200,7 @@ export function WriteNoteToolMessage({ message }: NoteToolMessageProps) {
                   </div>
                 )) : (
                   <div className="agent-chapter-diff-empty">
-                    无可显示正文差异。
+                    {i18n.t("assistant.tools.noBodyDiff")}
                   </div>
                 )}
               </div>
@@ -215,8 +215,8 @@ export function WriteNoteToolMessage({ message }: NoteToolMessageProps) {
     <ToolBody>
       <NoteSummary
         message={message}
-        emptyTitle="未返回新笔记信息"
-        emptyDescription="这次创建没有返回可显示的笔记信息。"
+        emptyTitle={i18n.t("assistant.tools.noNoteInfoReturned")}
+        emptyDescription={i18n.t("assistant.tools.noNoteInfoDescription")}
       />
     </ToolBody>
   );
@@ -241,7 +241,7 @@ export function EditNoteToolMessage({ message }: NoteToolMessageProps) {
 
     const handleCopy = async () => {
       if (!copyText) {
-        toast.error("没有可复制的正文 Diff");
+        toast.error(i18n.t("assistant.tools.noDiffToCopy"));
         return;
       }
       try {
@@ -254,9 +254,9 @@ export function EditNoteToolMessage({ message }: NoteToolMessageProps) {
           setIsCopied(false);
           copyFeedbackTimerRef.current = null;
         }, COPY_FEEDBACK_MS);
-        toast.success("已复制");
+        toast.success(i18n.t("common.copied"));
       } catch {
-        toast.error("复制失败");
+        toast.error(i18n.t("assistant.copyFailed"));
       }
     };
 
@@ -277,12 +277,12 @@ export function EditNoteToolMessage({ message }: NoteToolMessageProps) {
                 </Text>
               </Flex>
             </Flex>
-            <Tooltip content={isCopied ? "已复制" : "复制正文 Diff"}>
+            <Tooltip content={isCopied ? i18n.t("common.copied") : i18n.t("assistant.tools.copyDiff")}>
               <IconButton
                 size="1"
                 variant="ghost"
                 color={isCopied ? "green" : "gray"}
-                aria-label={isCopied ? "正文 Diff 已复制" : "复制正文 Diff"}
+                aria-label={isCopied ? i18n.t("assistant.tools.diffCopied") : i18n.t("assistant.tools.copyDiff")}
                 className="agent-message-block-toolbar-button agent-chapter-diff-copy-button"
                 data-copied={isCopied ? "true" : undefined}
                 disabled={!copyText}
@@ -308,7 +308,7 @@ export function EditNoteToolMessage({ message }: NoteToolMessageProps) {
                   </div>
                 )) : (
                   <div className="agent-chapter-diff-empty">
-                    无可显示正文差异。
+                    {i18n.t("assistant.tools.noBodyDiff")}
                   </div>
                 )}
               </div>

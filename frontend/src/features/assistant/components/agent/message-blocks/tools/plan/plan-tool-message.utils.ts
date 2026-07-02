@@ -3,6 +3,7 @@ import type {
   PlanStatus,
   ToolMessageContentMode,
 } from "../shared/tool-message-utils";
+import i18n from "@/i18n";
 
 export type PlanToolName = "create_plan" | "update_plan" | "get_plan" | "list_plan";
 export type PlanToolDetailKind = "topic" | "count";
@@ -87,7 +88,7 @@ export function buildPlanChecklistItems(plan: PlanPayload): PlanChecklistItem[] 
 }
 
 export function getPlanTodoToggleLabel(expanded: boolean): string {
-  return expanded ? "收起步骤内容" : "展开步骤内容";
+  return expanded ? i18n.t("assistant.tools.collapsePlanSteps") : i18n.t("assistant.tools.expandPlanSteps");
 }
 
 export function getPlanSummaryLabel(statuses: PlanStatus[]): string {
@@ -97,9 +98,9 @@ export function getPlanSummaryLabel(statuses: PlanStatus[]): string {
   const allCompleted = statuses.every((status) => status === "completed");
   const allPending = statuses.every((status) => status === "pending");
 
-  if (allCompleted) return `${count} 个已完成的步骤`;
-  if (allPending) return `${count} 个未开始的步骤`;
-  return `${count} 个后续步骤`;
+  if (allCompleted) return i18n.t("assistant.tools.completedSteps", { count });
+  if (allPending) return i18n.t("assistant.tools.pendingSteps", { count });
+  return i18n.t("assistant.tools.remainingSteps", { count });
 }
 
 export function buildUpdatePlanDisplayRows(

@@ -1,5 +1,6 @@
 import type { AgentEvent } from "@/lib/agent.types";
 import { connectSocket, getSocket } from "@/lib/socket-client";
+import i18n from "@/i18n";
 import { AGENT_SOCKET_EVENTS, toAgentEvent } from "./agent-socket-events";
 import { getString, isRecord } from "./tool-result-normalization";
 
@@ -46,7 +47,7 @@ export async function joinAgentSession(sessionId: string): Promise<void> {
     const onError = (data: unknown) => {
       if (isRecord(data) && data.type === "invalid_session") {
         cleanup();
-        reject(new Error(getString(data.reason) || "加入 Agent 会话失败"));
+        reject(new Error(getString(data.reason) || i18n.t("assistant.joinAgentSessionFailed")));
       }
     };
 
@@ -54,7 +55,7 @@ export async function joinAgentSession(sessionId: string): Promise<void> {
     activeSocket.on("agent:error", onError);
     const timeout = window.setTimeout(() => {
       cleanup();
-      reject(new Error("加入 Agent 会话超时"));
+      reject(new Error(i18n.t("assistant.joinAgentSessionTimeout")));
     }, 5000);
     activeSocket.emit("agent:join", { session_id: sessionId });
   });

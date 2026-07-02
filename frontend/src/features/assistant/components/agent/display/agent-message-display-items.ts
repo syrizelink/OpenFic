@@ -1,4 +1,5 @@
 import type { AgentBlockDisplayMessage, ToolDisplayMessage } from "./display-message-types";
+import i18n from "@/i18n";
 
 import {
   getToolDescriptorMeta,
@@ -216,10 +217,10 @@ export function buildExplorationSummary(messages: AgentBlockDisplayMessage[]): E
 export function formatExplorationSummary(summary: ExplorationSummary | undefined): string {
   if (!summary) return "";
   const parts: string[] = [];
-  if (summary.chapterCount > 0) parts.push(`${summary.chapterCount} 个章节`);
-  if (summary.listCount > 0) parts.push(`${summary.listCount} 个列表`);
-  if (summary.contextCount > 0) parts.push(`${summary.contextCount} 条上下文`);
-  if (summary.infoCount > 0) parts.push(`${summary.infoCount} 条信息`);
+  if (summary.chapterCount > 0) parts.push(i18n.t("assistant.explorationSummary.chapterCount", { count: summary.chapterCount }));
+  if (summary.listCount > 0) parts.push(i18n.t("assistant.explorationSummary.listCount", { count: summary.listCount }));
+  if (summary.contextCount > 0) parts.push(i18n.t("assistant.explorationSummary.contextCount", { count: summary.contextCount }));
+  if (summary.infoCount > 0) parts.push(i18n.t("assistant.explorationSummary.infoCount", { count: summary.infoCount }));
   return parts.join(" ");
 }
 

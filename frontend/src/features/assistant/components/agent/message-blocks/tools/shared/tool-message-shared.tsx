@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Box, Text } from "@radix-ui/themes";
+import i18n from "@/i18n";
 
 import "./tool-message-shared.css";
 
@@ -105,7 +106,7 @@ export function ToolPanel({ title, children, className }: ToolPanelProps) {
 
 export function ToolNotice({
   children,
-  title = "暂无可显示内容",
+  title = i18n.t("assistant.tools.noContentToDisplay"),
   tone = "neutral",
 }: ToolNoticeProps) {
   return (

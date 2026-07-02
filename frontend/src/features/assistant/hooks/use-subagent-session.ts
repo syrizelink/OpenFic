@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { toast } from "@/components";
+import i18n from "@/i18n";
 import type {
   AgentMessage,
   AgentSessionStatus,
@@ -146,7 +147,7 @@ export function useSubagentSession(
           messages: nextMessages,
           status: hasPendingApproval ? "waiting_approval" : "running",
           isRunning: !hasPendingApproval,
-          currentStage: hasPendingApproval ? "" : "正在应用修改...",
+          currentStage: hasPendingApproval ? "" : i18n.t("assistant.applyingChanges"),
         });
         setSession((current) => current
           ? {
@@ -255,8 +256,8 @@ export function useSubagentSession(
         if (event.type === "compaction_error") {
           suppressNextErrorAfterCompactionErrorRef.current = true;
           const payload = event.payload ?? {};
-          const message = event.content || (typeof payload.message === "string" ? payload.message : "") || "压缩失败";
-          toast.error(`压缩失败：${message}`);
+          const message = event.content || (typeof payload.message === "string" ? payload.message : "") || i18n.t("assistant.compactionFailed");
+          toast.error(`${i18n.t("assistant.compactionFailed")}：${message}`);
           commitTranscriptState(failCompactionTranscriptState(
             transcriptStateRef.current,
             typeof payload.session_id === "string" ? payload.session_id : targetThreadId

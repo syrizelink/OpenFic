@@ -154,7 +154,7 @@ export function RulesSettings({
       setSelectedRuleId(createdRule.id);
       toast.success(t("settingsExtra.rules.newRule"));
     },
-    onError: () => toast.error(t("settingsExtra.rules.loadFailed")),
+    onError: () => toast.error(t("common.error")),
   });
 
   const updateMutation = useMutation({
@@ -185,10 +185,10 @@ export function RulesSettings({
 
   const handleCreate = useCallback(() => {
     createMutation.mutate({
-      title: "新建规则",
+      title: t("settingsExtra.rules.newRule"),
       content: "",
     });
-  }, [createMutation]);
+  }, [createMutation, t]);
 
   const handleSave = useCallback(
     (ruleId: string, payload: RuleFormState) => {
@@ -212,7 +212,7 @@ export function RulesSettings({
     return [
       {
         id: "delete",
-        label: "删除",
+        label: t("common.delete"),
         icon: Trash2,
         danger: true,
         onClick: () => {
@@ -222,7 +222,7 @@ export function RulesSettings({
         },
       },
     ];
-  }, [contextMenuRuleId, handleCloseContextMenu]);
+  }, [contextMenuRuleId, handleCloseContextMenu, t]);
 
   const listContent = (
     <div className="skills-settings-list-container">
@@ -231,7 +231,7 @@ export function RulesSettings({
           <Box style={{ flex: 1, minWidth: 0 }}>
             <TextField.Root
               size="2"
-              placeholder="搜索规则..."
+              placeholder={t("settingsExtra.rules.searchPlaceholder")}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
             >
@@ -249,12 +249,12 @@ export function RulesSettings({
           </Box>
 
           <Flex align="center" gap="1" className="skills-settings-toolbar-actions">
-            <Tooltip content="新建规则">
+            <Tooltip content={t("settingsExtra.rules.newRule")}>
               <IconButton
                 size="2"
                 variant="ghost"
                 color="gray"
-                aria-label="新建规则"
+                aria-label={t("settingsExtra.rules.newRule")}
                 onClick={handleCreate}
                 disabled={createMutation.isPending}
               >
@@ -269,7 +269,9 @@ export function RulesSettings({
         {filteredRules.length === 0 ? (
           <Flex align="center" justify="center" p="6" style={{ height: "100%" }}>
             <Text size="2" color="gray" align="center">
-              {searchQuery.trim() ? "无匹配结果" : "暂无规则"}
+              {searchQuery.trim()
+                ? t("settingsExtra.rules.noSearchResults")
+                : t("settingsExtra.rules.empty")}
             </Text>
           </Flex>
         ) : (
@@ -304,7 +306,7 @@ export function RulesSettings({
   if (error) {
     return (
       <Flex align="center" justify="center" style={{ height: "100%" }}>
-        <Text color="red">规则列表加载失败</Text>
+        <Text color="red">{t("settingsExtra.rules.loadFailed")}</Text>
       </Flex>
     );
   }
@@ -312,7 +314,7 @@ export function RulesSettings({
   const detailContent = !selectedRule ? (
     <Box className="skills-settings-empty-state">
       <Text size="2" color="gray">
-        请选择一条规则
+        {t("settingsExtra.rules.selectRule")}
       </Text>
     </Box>
   ) : (
@@ -362,13 +364,13 @@ export function RulesSettings({
 
         <Dialog.Root open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <Dialog.Content style={{ maxWidth: 420 }}>
-            <Dialog.Title>删除规则</Dialog.Title>
+            <Dialog.Title>{t("settingsExtra.rules.deleteTitle")}</Dialog.Title>
             <Dialog.Description size="2" mt="2">
-              删除后无法恢复。
+              {t("settingsExtra.rules.deleteDescription")}
             </Dialog.Description>
             <Flex justify="end" gap="2" mt="4">
               <Button variant="soft" color="gray" onClick={() => setDeleteDialogOpen(false)}>
-                取消
+                {t("common.cancel")}
               </Button>
               <Button
                 color="red"
@@ -376,7 +378,7 @@ export function RulesSettings({
                   if (effectiveSelectedRuleId) deleteMutation.mutate(effectiveSelectedRuleId);
                 }}
               >
-                删除
+                {t("common.delete")}
               </Button>
             </Flex>
           </Dialog.Content>
@@ -401,13 +403,13 @@ export function RulesSettings({
 
       <Dialog.Root open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <Dialog.Content style={{ maxWidth: 420 }}>
-          <Dialog.Title>删除规则</Dialog.Title>
+          <Dialog.Title>{t("settingsExtra.rules.deleteTitle")}</Dialog.Title>
           <Dialog.Description size="2" mt="2">
-            删除后无法恢复。
+            {t("settingsExtra.rules.deleteDescription")}
           </Dialog.Description>
           <Flex justify="end" gap="2" mt="4">
             <Button variant="soft" color="gray" onClick={() => setDeleteDialogOpen(false)}>
-              取消
+              {t("common.cancel")}
             </Button>
             <Button
               color="red"
@@ -415,7 +417,7 @@ export function RulesSettings({
                 if (effectiveSelectedRuleId) deleteMutation.mutate(effectiveSelectedRuleId);
               }}
             >
-              删除
+              {t("common.delete")}
             </Button>
           </Flex>
         </Dialog.Content>
@@ -433,6 +435,7 @@ interface RuleListItemProps {
 }
 
 function RuleListItem({ rule, isSelected, isMenuOpen, onSelect, onContextMenu }: RuleListItemProps) {
+  const { t } = useTranslation();
   const handleContextMenu = useCallback(
     (event: React.MouseEvent) => {
       event.preventDefault();
@@ -458,7 +461,7 @@ function RuleListItem({ rule, isSelected, isMenuOpen, onSelect, onContextMenu }:
       <Flex align="start" justify="between" gap="2" className="skills-settings-item-row">
         <Flex align="center" className="skills-settings-item-content">
           <Text size="2" truncate weight={isSelected ? "medium" : "regular"}>
-            {rule.title || "未命名规则"}
+            {rule.title || t("settingsExtra.rules.untitled")}
           </Text>
         </Flex>
 
@@ -469,7 +472,7 @@ function RuleListItem({ rule, isSelected, isMenuOpen, onSelect, onContextMenu }:
             color="gray"
             size="1"
             className="skills-settings-item-menu"
-            aria-label="规则菜单"
+            aria-label={t("settingsExtra.rules.menu")}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -491,6 +494,7 @@ interface RuleEditorProps {
 }
 
 function RuleEditor({ rule, onSave }: RuleEditorProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<RuleFormState>(() => toFormState(rule));
   const [lastSaved, setLastSaved] = useState<string>(() => JSON.stringify(toFormState(rule)));
   const [isSaving, setIsSaving] = useState(false);
@@ -514,8 +518,8 @@ function RuleEditor({ rule, onSave }: RuleEditorProps) {
       <Flex direction="column" gap="1" className="skills-settings-editor-content">
         <Flex direction="column" gap="4">
           <Box>
-            <Text size="2" weight="medium" as="label">
-              标题
+              <Text size="2" weight="medium" as="label">
+              {t("settingsExtra.rules.title")}
             </Text>
             <TextField.Root
               mt="2"
@@ -523,7 +527,7 @@ function RuleEditor({ rule, onSave }: RuleEditorProps) {
               onChange={(event) => {
                 setForm((prev) => ({ ...prev, title: event.target.value }));
               }}
-              placeholder="输入规则标题，例如：回复语言"
+              placeholder={t("settingsExtra.rules.titlePlaceholder")}
             />
           </Box>
 
@@ -534,7 +538,7 @@ function RuleEditor({ rule, onSave }: RuleEditorProps) {
               onChange={(event) => {
                 setForm((prev) => ({ ...prev, content: event.target.value }));
               }}
-              placeholder="输入规则内容，例如：回复时使用简体中文"
+              placeholder={t("settingsExtra.rules.contentPlaceholder")}
               rows={18}
             />
           </Box>
@@ -542,7 +546,7 @@ function RuleEditor({ rule, onSave }: RuleEditorProps) {
 
         <Flex align="center" justify="end" className="skills-settings-editor-actions">
           <Button onClick={() => void handleSave()} disabled={!canSave}>
-            {isSaving ? "保存中..." : "保存"}
+            {isSaving ? t("settingsExtra.rules.saving") : t("common.save")}
           </Button>
         </Flex>
       </Flex>

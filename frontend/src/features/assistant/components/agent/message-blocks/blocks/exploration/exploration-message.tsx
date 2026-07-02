@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { memo, useState } from "react";
 import { Box, Text } from "@radix-ui/themes";
 import { Search } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import type {
   AgentBlockDisplayMessage,
@@ -26,10 +27,10 @@ interface ExplorationMessageProps {
 }
 
 const SUMMARY_ITEMS = [
-  { key: "chapterCount", label: "个章节" },
-  { key: "listCount", label: "个列表" },
-  { key: "contextCount", label: "条上下文" },
-  { key: "infoCount", label: "条信息" },
+  { key: "chapterCount", labelKey: "assistant.explorationUnit.chapter" },
+  { key: "listCount", labelKey: "assistant.explorationUnit.list" },
+  { key: "contextCount", labelKey: "assistant.explorationUnit.context" },
+  { key: "infoCount", labelKey: "assistant.explorationUnit.info" },
 ] as const;
 
 function areExplorationSummariesEqual(prev: ExplorationSummary, next: ExplorationSummary) {
@@ -61,6 +62,7 @@ function ExplorationMessageView({
   messages,
   summary,
 }: ExplorationMessageProps) {
+  const { t } = useTranslation();
   const isStreaming = messages.some((message) => Boolean(message.isStreaming || message.status === "running"));
   const hasContent = messages.length > 0;
   const [isExpanded, setIsExpanded] = useState(false);
@@ -71,7 +73,7 @@ function ExplorationMessageView({
     return [{
       key: item.key,
       value,
-      label: item.label,
+       label: t(item.labelKey),
     }];
   });
 
@@ -100,9 +102,9 @@ function ExplorationMessageView({
             size="1"
             weight="medium"
             className={isStreaming ? "agent-message-shell-title agent-exploration-title text-shimmer" : "agent-message-shell-title agent-exploration-title"}
-            data-text="已探索"
+            data-text={t("assistant.explorationTitle")}
           >
-            已探索
+            {t("assistant.explorationTitle")}
           </Text>
           <MessageBlockMeta className="agent-exploration-meta">
             {summaryItems.length > 0 ? (
@@ -138,7 +140,7 @@ function ExplorationMessageView({
               <MessageExpandButton
                 className="agent-exploration-expand-button"
                 expanded={isExpanded}
-                label={isExpanded ? "收起探索内容" : "展开探索内容"}
+                label={isExpanded ? t("assistant.collapseExploration") : t("assistant.expandExploration")}
               />
             ) : null}
           </MessageBlockMeta>

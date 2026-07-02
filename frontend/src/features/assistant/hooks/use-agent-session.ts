@@ -7,6 +7,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components";
+import i18n from "@/i18n";
 import { joinAgentSession, subscribeAgentSessionEvents } from "../lib/agent-socket";
 import { createApprovalPreviewToolMessage } from "../lib/chapter-tool-preview";
 import { clearRetryMessages } from "../lib/retry-message-state";
@@ -267,14 +268,14 @@ export function useAgentSession({
       }
 
       if (event.type === "compaction_error") {
-        const message = event.content || (typeof payload.message === "string" ? payload.message : "") || "压缩失败";
+        const message = event.content || (typeof payload.message === "string" ? payload.message : "") || i18n.t("assistant.compactionFailed");
         const trigger = typeof payload.trigger === "string" ? payload.trigger : "";
         const shouldToast = trigger !== "manual" || isCompactingRef.current;
         const shouldSuppressNextError = trigger !== "manual";
         suppressNextErrorAfterCompactionErrorRef.current = shouldSuppressNextError;
         syncCompactingState(false);
         if (shouldToast) {
-          toast.error(`压缩失败：${message}`);
+          toast.error(`${i18n.t("assistant.compactionFailed")}：${message}`);
         }
         if (trigger === "manual") {
           const previousState = manualCompactionPreviousStateRef.current;
@@ -403,7 +404,7 @@ export function useAgentSession({
 
       if (message?.type === "error") {
         ignoredApprovalIdsRef.current.clear();
-        toast.error(message.content || "Agent 运行失败");
+        toast.error(message.content || i18n.t("assistant.agentRunFailed"));
         return;
       }
 
@@ -461,7 +462,7 @@ if (message?.type === "completed" && result.state.status !== "running") {
           });
           commitTranscriptState(next);
           if (transportRetryAttemptRef.current === 1) {
-            toast.error(`Agent 连接失败：${error.message}`);
+            toast.error(i18n.t("assistant.agentConnectionFailed", { error: error.message }));
           }
         }
       );
@@ -492,7 +493,7 @@ if (message?.type === "completed" && result.state.status !== "running") {
       await joinAgentSession(activeSessionId);
     } catch (error) {
       transportRetryAttemptRef.current += 1;
-      const normalizedError = error instanceof Error ? error : new Error("未知错误");
+      const normalizedError = error instanceof Error ? error : new Error(i18n.t("common.error"));
       const next = applyTransportReconnectState({
         messages: transcriptStateRef.current.messages,
         error: normalizedError,
@@ -503,7 +504,7 @@ if (message?.type === "completed" && result.state.status !== "running") {
       });
       commitTranscriptState(next);
       if (transportRetryAttemptRef.current === 1) {
-        toast.error(`Agent 连接失败：${normalizedError.message}`);
+        toast.error(i18n.t("assistant.agentConnectionFailed", { error: normalizedError.message }));
       }
     }
   }, [attachAgentSocket, commitTranscriptState, sessionId]);
@@ -511,7 +512,7 @@ if (message?.type === "completed" && result.state.status !== "running") {
 const startSession = useCallback(
     async (userRequest: string) => {
       if (!modelId) {
-        toast.error("请先选择模型");
+        toast.error(i18n.t("writing.aiSidebar.noModelSelected"));
         return;
       }
 
@@ -547,7 +548,7 @@ const startSession = useCallback(
           isRunning: false,
           currentStage: "",
         }));
-        toast.error("启动 Agent 失败");
+        toast.error(i18n.t("assistant.startFailed"));
       }
     },
     [
@@ -567,11 +568,11 @@ const startSession = useCallback(
     async (message: string) => {
       const activeSessionId = sessionIdRef.current ?? sessionId;
       if (!activeSessionId) {
-        toast.error("会话不存在");
+        toast.error(i18n.t("assistant.sessionNotFound"));
         return;
       }
       if (pendingMessageRef.current) {
-        toast.error("请先处理待发送消息");
+        toast.error(i18n.t("writing.aiSidebar.cannotSendPendingMessage"));
         return;
       }
 
@@ -602,7 +603,7 @@ const startSession = useCallback(
           isRunning: false,
           currentStage: "",
         }));
-        toast.error("发送消息失败");
+        toast.error(i18n.t("assistant.sendMessageFailed"));
       }
     },
     [attachAgentSocket, sessionId, syncPendingMessageState, updateTranscriptState]
@@ -611,11 +612,11 @@ const startSession = useCallback(
   const compactSession = useCallback(async () => {
     const activeSessionId = sessionIdRef.current ?? sessionId;
     if (!activeSessionId) {
-      toast.error("会话不存在");
+      toast.error(i18n.t("assistant.sessionNotFound"));
       return false;
     }
     if (isCompactingRef.current) {
-      toast.error("正在压缩上下文");
+      toast.error(i18n.t("assistant.compactionRunning"));
       return false;
     }
     if (
@@ -623,7 +624,7 @@ const startSession = useCallback(
       || transcriptStateRef.current.status === "waiting_answer"
       || transcriptStateRef.current.status === "waiting_approval"
     ) {
-      toast.error("Agent运行中，无法手动压缩");
+      toast.error(i18n.t("assistant.compactionRunningToast"));
       return false;
     }
 
@@ -647,7 +648,7 @@ const startSession = useCallback(
         role: "system",
         status: "running",
         display: "list",
-        content: "正在压缩上下文",
+        content: i18n.t("assistant.compactionRunning"),
         payload: {
           session_id: activeSessionId,
           trigger: "manual",
@@ -655,7 +656,7 @@ const startSession = useCallback(
       });
       const result = await compactAgentSession(activeSessionId);
       if (!result.success) {
-        throw new Error("压缩失败");
+        throw new Error(i18n.t("assistant.compactionFailed"));
       }
       handleEvent({
         id: `compaction:${result.compaction_id}`,
@@ -664,7 +665,7 @@ const startSession = useCallback(
         role: "system",
         status: "completed",
         display: "list",
-        content: "上下文已压缩",
+          content: i18n.t("assistant.compactionDone"),
         payload: {
           session_id: result.session_id,
           compaction_id: result.compaction_id,
@@ -688,7 +689,7 @@ const startSession = useCallback(
         activeSessionId
       ));
       if (shouldToast) {
-        toast.error(`压缩失败：${getAgentApiErrorMessage(error, "压缩失败")}`);
+        toast.error(`${i18n.t("assistant.compactionFailed")}：${getAgentApiErrorMessage(error, i18n.t("assistant.compactionFailed"))}`);
       }
       return false;
     }
@@ -697,7 +698,7 @@ const startSession = useCallback(
   const handleToolApproval = useCallback(
     async (approvalId: string, approved: boolean) => {
       if (!sessionId) {
-        toast.error("会话不存在");
+      toast.error(i18n.t("assistant.sessionNotFound"));
         return;
       }
       try {
@@ -711,7 +712,7 @@ const startSession = useCallback(
           messages: nextMessages,
           status: hasPendingApproval ? "waiting_approval" : "running",
           isRunning: !hasPendingApproval,
-          currentStage: hasPendingApproval ? "" : "正在应用修改...",
+          currentStage: hasPendingApproval ? "" : i18n.t("assistant.applyingChanges"),
         }));
         if (!socketUnsubscribeRef.current) {
           attachAgentSocket(sessionId);
@@ -727,7 +728,7 @@ const startSession = useCallback(
           isRunning: false,
           currentStage: "",
         }));
-        toast.error("工具审批失败");
+        toast.error(i18n.t("assistant.toolApprovalFailed"));
       }
     },
     [attachAgentSocket, sessionId, updateTranscriptState]
@@ -736,11 +737,11 @@ const startSession = useCallback(
   const submitQuestionAnswer = useCallback(
     async (actionId: string, answer: string) => {
       if (!sessionId) {
-        toast.error("会话不存在");
+      toast.error(i18n.t("assistant.sessionNotFound"));
         return;
       }
       if (!actionId) {
-        toast.error("澄清请求不存在");
+      toast.error(i18n.t("assistant.clarificationNotFound"));
         return;
       }
 
@@ -766,7 +767,7 @@ const startSession = useCallback(
           isRunning: false,
           currentStage: "",
         }));
-        toast.error("提交回答失败");
+        toast.error(i18n.t("assistant.submitAnswerFailed"));
       }
     },
     [attachAgentSocket, sessionId, updateTranscriptState]
@@ -845,7 +846,7 @@ const startSession = useCallback(
         attachAgentSocket(existingSessionId);
         void joinAgentSession(existingSessionId).catch((error) => {
           transportRetryAttemptRef.current += 1;
-          const normalizedError = error instanceof Error ? error : new Error("未知错误");
+          const normalizedError = error instanceof Error ? error : new Error(i18n.t("common.error"));
           const next = applyTransportReconnectState({
             messages: transcriptStateRef.current.messages,
             error: normalizedError,
@@ -856,7 +857,7 @@ const startSession = useCallback(
           });
           commitTranscriptState(next);
           if (transportRetryAttemptRef.current === 1) {
-            toast.error(`Agent 连接失败：${normalizedError.message}`);
+            toast.error(i18n.t("assistant.agentConnectionFailed", { error: normalizedError.message }));
           }
         });
       }
@@ -881,7 +882,7 @@ const startSession = useCallback(
       if (pendingMessageRef.current?.messageId !== activePendingMessage.messageId) {
         return null;
       }
-      toast.error("取消待发送消息失败");
+      toast.error(i18n.t("assistant.cancelPendingFailed"));
       return null;
     }
   }, [sessionId, syncPendingMessageState]);
@@ -889,18 +890,18 @@ const startSession = useCallback(
   const rollbackToRevision = useCallback(
     async (messageId: string): Promise<string | null> => {
       if (!sessionId || isRollbacking || isRunning || isCompactingRef.current) {
-        toast.error("无法执行回滚操作");
+        toast.error(i18n.t("assistant.rollbackImpossible"));
         return null;
       }
 
       const targetMessage = messages.find((m) => m.id === messageId);
       if (!isUserTextMessage(targetMessage)) {
-        toast.error("只能回滚到用户消息节点");
+        toast.error(i18n.t("assistant.rollbackOnlyUserMessage"));
         return null;
       }
 
       if (!targetMessage.revisionId) {
-        toast.error("该消息节点没有revision信息");
+        toast.error(i18n.t("assistant.rollbackNoRevision"));
         return null;
       }
 
@@ -924,16 +925,16 @@ const startSession = useCallback(
           invalidateChapterQueries();
           invalidateNoteQueries();
 
-          toast.success("已回滚到该消息发送前的状态");
+          toast.success(i18n.t("assistant.rollbackSuccess"));
 
           return result.restored_message_content;
         } else {
-          toast.error("回滚失败");
+          toast.error(i18n.t("assistant.rollbackFailed"));
           return null;
         }
       } catch (error) {
         console.error("Rollback failed:", error);
-        toast.error("回滚操作失败");
+        toast.error(i18n.t("assistant.rollbackFailed"));
         return null;
       } finally {
         setIsRollbacking(false);
@@ -946,26 +947,26 @@ const startSession = useCallback(
     async (sourceRevisionId: string): Promise<AgentForkResponse | null> => {
       const activeSessionId = sessionIdRef.current ?? sessionId;
       if (!activeSessionId || isRollbacking || isRunning || isCompactingRef.current) {
-        toast.error("无法执行分叉操作");
+        toast.error(i18n.t("assistant.forkImpossible"));
         return null;
       }
       if (!sourceRevisionId) {
-        toast.error("该消息节点没有revision信息，无法分叉");
+        toast.error(i18n.t("assistant.forkNoRevision"));
         return null;
       }
       if (!modelId) {
-        toast.error("请先选择一个模型");
+        toast.error(i18n.t("writing.aiSidebar.noModelSelected"));
         return null;
       }
 
       try {
         const result = await forkAgentSession(activeSessionId, sourceRevisionId, modelId);
         queryClient.invalidateQueries({ queryKey: ["tasks", projectId], exact: false });
-        toast.success("已创建分叉任务");
+        toast.success(i18n.t("assistant.forkSuccess"));
         return result;
       } catch (error) {
         console.error("Fork failed:", error);
-        toast.error("分叉任务创建失败");
+        toast.error(i18n.t("assistant.forkFailed"));
         return null;
       }
     },

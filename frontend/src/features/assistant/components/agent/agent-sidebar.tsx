@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import type React from "react";
 
 import { toast } from "@/components";
+import i18n from "@/i18n";
 import { useAgentSession } from "../../hooks/use-agent-session";
 import type {
   AgentForkResponse,
@@ -106,16 +107,16 @@ export function useAgentSidebar({
 
   const handleSend = useCallback(async () => {
     if (agentStatus === "waiting_answer" || agentStatus === "waiting_approval") {
-      toast.error(agentStatus === "waiting_answer" ? "请先回答上方问题" : "请先处理工具审批");
+      toast.error(agentStatus === "waiting_answer" ? i18n.t("writing.aiSidebar.cannotSendWaitingAnswer") : i18n.t("writing.aiSidebar.cannotSendWaitingApproval"));
       return;
     }
     if (pendingMessage) {
-      toast.error("请先处理待发送消息");
+      toast.error(i18n.t("writing.aiSidebar.cannotSendPendingMessage"));
       return;
     }
     if (!inputValue.trim()) return;
     if (!modelId) {
-      toast.error("请先选择一个模型");
+      toast.error(i18n.t("writing.aiSidebar.noModelSelected"));
       return;
     }
 

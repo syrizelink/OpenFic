@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Box, Text } from "@radix-ui/themes";
 import { Brain } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { StreamingMarkdown } from "@/components";
 import type { AgentMessage } from "@/lib/agent.types";
@@ -28,6 +29,7 @@ function getInitialDuration(message: AgentMessage): number {
 }
 
 export function AgentThinkingMessage({ message }: AgentThinkingMessageProps) {
+  const { t } = useTranslation();
   const isRunning = Boolean(message.isStreaming || message.status === "running");
   const [initialDurationMs] = useState(() => getInitialDuration(message));
   const [startedAt] = useState(() => Date.now());
@@ -88,9 +90,9 @@ export function AgentThinkingMessage({ message }: AgentThinkingMessageProps) {
             size="1"
             weight="medium"
             className={isRunning ? "agent-message-shell-title agent-reasoning-title text-shimmer" : "agent-message-shell-title agent-reasoning-title"}
-            data-text="推理"
+            data-text={t("assistant.thinkingTitle")}
           >
-            推理
+            {t("assistant.thinkingTitle")}
           </Text>
           <MessageBlockMeta className="agent-reasoning-meta">
             <Text size="1" color="gray" className="agent-message-shell-detail agent-reasoning-timer">
@@ -100,7 +102,7 @@ export function AgentThinkingMessage({ message }: AgentThinkingMessageProps) {
               <MessageExpandButton
                 className="agent-reasoning-expand-button"
                 expanded={isExpanded}
-                label={isExpanded ? "收起推理内容" : "展开推理内容"}
+                label={isExpanded ? t("assistant.collapseThinking") : t("assistant.expandThinking")}
               />
             ) : null}
           </MessageBlockMeta>

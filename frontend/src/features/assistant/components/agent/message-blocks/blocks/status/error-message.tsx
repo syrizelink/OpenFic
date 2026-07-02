@@ -1,5 +1,6 @@
 import { Flex, HoverCard, Text } from "@radix-ui/themes";
 import { AlertCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import type { AgentMessage } from "@/lib/agent.types";
 import { MessageCardShell } from "../../shared/message-shell";
@@ -11,7 +12,8 @@ interface ErrorMessageProps {
 }
 
 export function ErrorMessage({ message }: ErrorMessageProps) {
-  const detail = message.content?.trim() || "暂无详细错误信息";
+  const { t } = useTranslation();
+  const detail = message.content?.trim() || t("assistant.noErrorDetail");
 
   return (
     <HoverCard.Root>
@@ -20,7 +22,7 @@ export function ErrorMessage({ message }: ErrorMessageProps) {
           <Flex align="center" gap="2" className="agent-status-message-header">
             <AlertCircle size={16} className="agent-status-message-icon" data-status-tone="error" />
             <Text size="2" weight="medium" className="agent-status-message-title" data-status-tone="error">
-              发生错误
+              {t("assistant.errorTitle")}
             </Text>
           </Flex>
         </MessageCardShell>

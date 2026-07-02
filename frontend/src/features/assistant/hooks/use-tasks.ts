@@ -12,6 +12,7 @@ import {
   deleteTask,
   deleteAllTasks,
 } from "@/lib/api-client";
+import i18n from "@/i18n";
 import type {
   Task,
   TaskListResponse,
@@ -80,7 +81,7 @@ export function useUpdateTask() {
       });
     },
     onError: (error: Error) => {
-      toast.error(`更新任务失败：${error.message}`);
+      toast.error(i18n.t("writing.aiSidebar.updateTaskFailed", { error: error.message }));
     },
   });
 }
@@ -98,10 +99,10 @@ export function useDeleteTask(projectId: string) {
         queryKey: ["tasks", projectId],
         exact: false,
       });
-      toast.success("任务已删除");
+      toast.success(i18n.t("writing.aiSidebar.taskDeletedToast"));
     },
     onError: (error: Error) => {
-      toast.error(`删除任务失败：${error.message}`);
+      toast.error(i18n.t("writing.aiSidebar.deleteTaskFailed", { error: error.message }));
     },
   });
 }
@@ -118,12 +119,12 @@ export function useDeleteAllTasks(projectId: string) {
       });
       toast.success(
         result.skippedRunningCount > 0
-          ? `已删除 ${result.deletedCount} 个任务，跳过 ${result.skippedRunningCount} 个运行中的任务`
-          : `已删除 ${result.deletedCount} 个任务`
+          ? i18n.t("writing.aiSidebar.deleteAllTasksResultWithRunning", { deleted: result.deletedCount, skipped: result.skippedRunningCount })
+          : i18n.t("writing.aiSidebar.deleteAllTasksResult", { deleted: result.deletedCount })
       );
     },
     onError: (error: Error) => {
-      toast.error(`批量删除任务失败：${error.message}`);
+      toast.error(i18n.t("writing.aiSidebar.batchDeleteFailed", { error: error.message }));
     },
   });
 }

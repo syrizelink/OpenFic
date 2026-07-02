@@ -441,11 +441,11 @@ export function AgentMessages({
         setCopiedActionId(null);
         copyFeedbackTimerRef.current = null;
       }, COPY_FEEDBACK_MS);
-      toast.success("已复制");
+      toast.success(t("common.copied"));
     } catch {
-      toast.error("复制失败");
+      toast.error(t("assistant.copyFailed"));
     }
-  }, []);
+  }, [t]);
 
   const confirmRollback = useCallback(async () => {
     const messageId = pendingRollbackMessage?.id;
@@ -468,7 +468,7 @@ export function AgentMessages({
     const timestampText = formatAgentToolbarTimestamp(target.timestamp);
     return (
       <Flex key={target.id} className="agent-message-round-toolbar agent-message-block-toolbar" data-align="left" align="center" gap="1">
-        <Tooltip content={isCopied ? "已复制" : "复制最新回复"}>
+        <Tooltip content={isCopied ? t("common.copied") : t("assistant.copyLatestReply")}>
           <IconButton
             size="1"
             variant="ghost"

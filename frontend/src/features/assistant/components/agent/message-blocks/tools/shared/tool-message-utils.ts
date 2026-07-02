@@ -716,11 +716,11 @@ function formatReferenceLabel(
 }
 
 export function formatVolumeRefLabel(ref: Record<string, unknown> | null): string | undefined {
-  return formatReferenceLabel(ref, "卷");
+  return formatReferenceLabel(ref, i18n.t("assistant.tools.volumeUnit"));
 }
 
 export function formatChapterRefLabel(ref: Record<string, unknown> | null): string | undefined {
-  return formatReferenceLabel(ref, "章");
+  return formatReferenceLabel(ref, i18n.t("assistant.tools.chapterUnit"));
 }
 
 export function getReadChapterDetail(message: AgentMessage): string | undefined {

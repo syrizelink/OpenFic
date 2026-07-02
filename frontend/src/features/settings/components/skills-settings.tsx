@@ -16,6 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { MoreHorizontal, Plus, Search, Trash2, Upload, X } from "lucide-react";
 import Fuse from "fuse.js";
+import { useTranslation } from "react-i18next";
 import { Spinner } from "@/components";
 
 import {
@@ -91,6 +92,7 @@ export function SkillsSettings({
   onMobileDetailTitleChange,
   onMobilePageChange,
 }: SkillsSettingsProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -179,10 +181,10 @@ export function SkillsSettings({
     onSuccess: (createdSkill) => {
       queryClient.invalidateQueries({ queryKey: ["skills"] });
       setSelectedSkillId(createdSkill.id);
-      toast.success("技能已创建");
+      toast.success(t("settingsExtra.skills.newSkill"));
     },
     onError: () => {
-      toast.error("技能创建失败");
+      toast.error(t("common.error"));
     },
   });
 
@@ -198,7 +200,7 @@ export function SkillsSettings({
       queryClient.invalidateQueries({ queryKey: ["skills"] });
     },
     onError: () => {
-      toast.error("技能保存失败");
+      toast.error(t("settings.saveFailed"));
     },
   });
 
@@ -223,7 +225,7 @@ export function SkillsSettings({
       if (context?.previous) {
         queryClient.setQueryData(["skills"], context.previous);
       }
-      toast.error("技能启用状态更新失败");
+      toast.error(t("common.error"));
     },
     onSuccess: (updatedSkill) => {
       queryClient.setQueryData<SkillListResponse>(["skills"], (current) => {
@@ -235,7 +237,7 @@ export function SkillsSettings({
           ),
         };
       });
-      toast.success(updatedSkill.isEnabled ? "技能已启用" : "技能已停用");
+      toast.success(updatedSkill.isEnabled ? t("worldInfo.enabled") : t("worldInfo.disabled"));
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["skills"] });
@@ -247,16 +249,16 @@ export function SkillsSettings({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["skills"] });
       setDeleteDialogOpen(false);
-      toast.success("技能已删除");
+      toast.success(t("common.delete"));
     },
     onError: () => {
-      toast.error("技能删除失败");
+      toast.error(t("common.error"));
     },
   });
 
   const handleCreate = () => {
     const defaultPayload: SkillCreate = {
-      name: "新建技能",
+      name: t("settingsExtra.skills.newSkill"),
       summary: "",
       skillId: "",
       content: "",
@@ -290,7 +292,7 @@ export function SkillsSettings({
     return [
       {
         id: "delete",
-        label: "删除",
+        label: t("common.delete"),
         icon: Trash2,
         danger: true,
         onClick: () => {
@@ -300,7 +302,7 @@ export function SkillsSettings({
         },
       },
     ];
-  }, [contextMenuSkillId, skills, handleCloseContextMenu]);
+  }, [contextMenuSkillId, skills, handleCloseContextMenu, t]);
 
   const listContent = (
     <div className="skills-settings-list-container">
@@ -309,7 +311,7 @@ export function SkillsSettings({
           <Box style={{ flex: 1, minWidth: 0 }}>
             <TextField.Root
               size="2"
-              placeholder="搜索技能..."
+              placeholder={t("settingsExtra.skills.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             >
@@ -331,12 +333,12 @@ export function SkillsSettings({
           </Box>
 
           <Flex align="center" gap="1" className="skills-settings-toolbar-actions">
-            <Tooltip content="新建技能">
+            <Tooltip content={t("settingsExtra.skills.newSkill")}>
               <IconButton
                 size="2"
                 variant="ghost"
                 color="gray"
-                aria-label="新建技能"
+                aria-label={t("settingsExtra.skills.newSkill")}
                 onClick={handleCreate}
                 disabled={createMutation.isPending}
               >
@@ -344,12 +346,12 @@ export function SkillsSettings({
               </IconButton>
             </Tooltip>
 
-            <Tooltip content="导入技能">
+            <Tooltip content={t("settingsExtra.skills.importSkill")}>
               <IconButton
                 size="2"
                 variant="ghost"
                 color="gray"
-                aria-label="导入技能"
+                aria-label={t("settingsExtra.skills.importSkill")}
                 onClick={() => setImportDialogOpen(true)}
                 disabled={createMutation.isPending}
               >
@@ -364,7 +366,9 @@ export function SkillsSettings({
         {filteredSkills.length === 0 ? (
           <Flex align="center" justify="center" p="6" style={{ height: "100%" }}>
             <Text size="2" color="gray" align="center">
-              {searchQuery.trim() ? "无匹配结果" : "暂无技能"}
+              {searchQuery.trim()
+                ? t("settingsExtra.skills.noSearchResults")
+                : t("settingsExtra.skills.empty")}
             </Text>
           </Flex>
         ) : (
@@ -378,7 +382,7 @@ export function SkillsSettings({
                 onSelect={() => {
                   setSelectedSkillId(skill.id);
                   if (isMobile) handleMobilePageChange("detail");
-                 }}
+                }}
                 onToggle={() =>
                   toggleMutation.mutate({
                     skillDbId: skill.id,
@@ -405,7 +409,7 @@ export function SkillsSettings({
   if (error) {
     return (
       <Flex align="center" justify="center" style={{ height: "100%" }}>
-        <Text color="red">技能列表加载失败</Text>
+        <Text color="red">{t("settingsExtra.skills.loadFailed")}</Text>
       </Flex>
     );
   }
@@ -413,7 +417,7 @@ export function SkillsSettings({
   const detailContent = !selectedSkill ? (
     <Box className="skills-settings-empty-state">
       <Text size="2" color="gray">
-        请选择一个技能
+        {t("settingsExtra.skills.selectSkill")}
       </Text>
     </Box>
   ) : (
@@ -474,19 +478,19 @@ export function SkillsSettings({
 
         <Dialog.Root open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <Dialog.Content style={{ maxWidth: 420 }}>
-            <Dialog.Title>删除技能</Dialog.Title>
+            <Dialog.Title>{t("settingsExtra.skills.deleteTitle")}</Dialog.Title>
             <Dialog.Description size="2" mt="2">
-              删除后无法恢复。
+              {t("settingsExtra.skills.deleteDescription")}
             </Dialog.Description>
             <Flex justify="end" gap="2" mt="4">
               <Button variant="soft" color="gray" onClick={() => setDeleteDialogOpen(false)}>
-                取消
+                {t("common.cancel")}
               </Button>
               <Button
                 color="red"
                 onClick={() => effectiveSelectedSkillId && deleteMutation.mutate(effectiveSelectedSkillId)}
               >
-                删除
+                {t("common.delete")}
               </Button>
             </Flex>
           </Dialog.Content>
@@ -527,19 +531,19 @@ export function SkillsSettings({
 
       <Dialog.Root open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <Dialog.Content style={{ maxWidth: 420 }}>
-          <Dialog.Title>删除技能</Dialog.Title>
+          <Dialog.Title>{t("settingsExtra.skills.deleteTitle")}</Dialog.Title>
           <Dialog.Description size="2" mt="2">
-            删除后无法恢复。
+            {t("settingsExtra.skills.deleteDescription")}
           </Dialog.Description>
           <Flex justify="end" gap="2" mt="4">
             <Button variant="soft" color="gray" onClick={() => setDeleteDialogOpen(false)}>
-              取消
+              {t("common.cancel")}
             </Button>
             <Button
               color="red"
               onClick={() => effectiveSelectedSkillId && deleteMutation.mutate(effectiveSelectedSkillId)}
             >
-              删除
+              {t("common.delete")}
             </Button>
           </Flex>
         </Dialog.Content>
@@ -571,6 +575,7 @@ function SkillListItem({
   onToggle,
   onContextMenu,
 }: SkillListItemProps) {
+  const { t } = useTranslation();
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
@@ -597,16 +602,16 @@ function SkillListItem({
         <Flex direction="column" gap="1" className="skills-settings-item-content">
           <Flex align="center" gap="2" className="skills-settings-item-title-row">
             <Text size="2" truncate weight={isSelected ? "medium" : "regular"}>
-              {skill.name || "未命名技能"}
+              {skill.name || t("settingsExtra.skills.untitled")}
             </Text>
             {!skill.isComplete ? (
               <Badge size="1" variant="soft" color="amber">
-                待完善
+                {t("settingsExtra.skills.incomplete")}
               </Badge>
             ) : null}
           </Flex>
           <Text size="1" color="gray" className="skills-settings-item-description">
-            {skill.summary || "暂无描述"}
+            {skill.summary || t("settingsExtra.skills.noDescription")}
           </Text>
         </Flex>
 
@@ -624,7 +629,7 @@ function SkillListItem({
             color="gray"
             size="1"
             className="skills-settings-item-menu"
-            aria-label="技能菜单"
+            aria-label={t("settingsExtra.skills.menu")}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -646,6 +651,7 @@ interface SkillEditorProps {
 }
 
 function SkillEditor({ skill, onSave }: SkillEditorProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<SkillFormState>(() => toFormState(skill));
   const [lastSaved, setLastSaved] = useState<string>(() => JSON.stringify(toFormState(skill)));
   const [isSaving, setIsSaving] = useState(false);
@@ -672,32 +678,32 @@ function SkillEditor({ skill, onSave }: SkillEditorProps) {
         <Flex direction="column" gap="3">
           <Box>
             <Text size="2" weight="medium" as="label">
-              名称
+              {t("settingsExtra.skills.name")}
             </Text>
             <TextField.Root
               mt="2"
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-              placeholder="输入技能名"
+              placeholder={t("settingsExtra.skills.namePlaceholder")}
             />
           </Box>
 
           <Box>
             <Text size="2" weight="medium" as="label">
-              简述
+              {t("settingsExtra.skills.summary")}
             </Text>
             <TextArea
               mt="2"
               value={form.summary}
               onChange={(e) => setForm((prev) => ({ ...prev, summary: e.target.value }))}
-              placeholder="输入对技能的简略描述"
+              placeholder={t("settingsExtra.skills.summaryPlaceholder")}
               rows={3}
             />
           </Box>
 
           <Box>
             <Text size="2" weight="medium" as="label">
-              ID
+              {t("settingsExtra.skills.id")}
             </Text>
             <TextField.Root
               mt="2"
@@ -705,21 +711,21 @@ function SkillEditor({ skill, onSave }: SkillEditorProps) {
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, skillId: e.target.value.trim() }))
               }
-              placeholder="仅小写英文和 -"
+              placeholder={t("settingsExtra.skills.idPlaceholder")}
             />
             <Text
               size="1"
               color={form.skillId && !isValidSkillId(form.skillId) ? "red" : "gray"}
               style={{ display: "block", marginTop: 6, visibility: form.skillId && !isValidSkillId(form.skillId) ? "visible" : "hidden" }}
             >
-              ID 只允许英文小写字母和 &apos;-&apos;
+              {t("settingsExtra.skills.idHelp")}
             </Text>
           </Box>
 
           <Box>
             <Flex justify="between" align="center">
               <Text size="2" weight="medium" as="label">
-                内容
+                {t("settingsExtra.skills.content")}
               </Text>
               <Text size="1" color="gray">
                 {tokenCount} tokens
@@ -729,7 +735,7 @@ function SkillEditor({ skill, onSave }: SkillEditorProps) {
               mt="2"
               value={form.content}
               onChange={(e) => setForm((prev) => ({ ...prev, content: e.target.value }))}
-              placeholder="输入技能的完整内容"
+              placeholder={t("settingsExtra.skills.contentPlaceholder")}
               rows={18}
             />
           </Box>
@@ -737,7 +743,7 @@ function SkillEditor({ skill, onSave }: SkillEditorProps) {
 
         <Flex align="center" justify="end" className="skills-settings-editor-actions">
           <Button onClick={() => void handleSave()} disabled={!canSave}>
-            {isSaving ? "保存中..." : "保存"}
+            {isSaving ? t("settingsExtra.skills.saving") : t("common.save")}
           </Button>
         </Flex>
       </Flex>
