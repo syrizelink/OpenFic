@@ -34,6 +34,7 @@ import {
   fetchTags,
 } from "../lib/model-api";
 import {
+  isSelectableModelProviderForTask,
   resolveProviderCatalogType,
   resolveProviderDisplayName,
   supportsEmbeddingDimensions,
@@ -202,10 +203,8 @@ export function ModelFormDialog({
   // 根据任务类型过滤提供商（openai-compatible始终显示）
   const filteredProviders = useMemo(() => {
     if (!providers) return [];
-    return providers.filter(
-      (p) =>
-        p.providerType === "openai-compatible" ||
-        p.supportedTaskTypes?.includes(taskType as TaskType)
+    return providers.filter((provider) =>
+      isSelectableModelProviderForTask(provider, taskType as TaskType)
     );
   }, [providers, taskType]);
 

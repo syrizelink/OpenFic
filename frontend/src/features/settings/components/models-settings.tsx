@@ -13,6 +13,7 @@ import {
   IconButton,
   Badge,
   Tabs,
+  Tooltip,
 } from "@radix-ui/themes";
 import { Plus, Trash2, Edit } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -47,7 +48,11 @@ import {
   DEFAULT_MODEL_SETTINGS_TAB,
   type ModelSettingsTab,
 } from "../lib/settings-route";
-import { resolveProviderCatalogType, resolveProviderDisplayName } from "../lib/provider-utils";
+import {
+  hasSelectableModelProvider,
+  resolveProviderCatalogType,
+  resolveProviderDisplayName,
+} from "../lib/provider-utils";
 import { ModelFormDialog } from "./model-form-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { toast } from "@/components/toast";
@@ -291,6 +296,8 @@ export function ModelsSettings({
   );
 
   const filteredModels = models?.filter((m) => m.taskType === activeTab) || [];
+  const hasLlmModels = llmModelOptions.length > 0;
+  const hasProviders = providers ? hasSelectableModelProvider(providers) : false;
   const isContentLoading =
     isModelsLoading ||
     isModelsFetching ||
@@ -337,9 +344,10 @@ export function ModelsSettings({
               value={settings?.defaultModel || ""}
               onChange={handleDefaultModelChange}
               models={llmModelOptions}
-              placeholder={t("models.selectModelPlaceholder")}
+              placeholder={hasLlmModels ? t("models.selectModelPlaceholder") : t("models.noModelPlaceholder")}
               editable={false}
               allowCustomValue={false}
+              disabled={!hasLlmModels}
               emptyOptionLabel={`（${t("models.selectModelPlaceholder")}）`}
             />
           </Flex>
@@ -355,9 +363,10 @@ export function ModelsSettings({
               value={settings?.lightModel || ""}
               onChange={handleLightModelChange}
               models={llmModelOptions}
-              placeholder={t("models.selectModelPlaceholder")}
+              placeholder={hasLlmModels ? t("models.selectModelPlaceholder") : t("models.noModelPlaceholder")}
               editable={false}
               allowCustomValue={false}
+              disabled={!hasLlmModels}
               emptyOptionLabel={`（${t("models.selectModelPlaceholder")}）`}
             />
           </Flex>
@@ -365,10 +374,14 @@ export function ModelsSettings({
 
         {/* 新建按钮 */}
         <Flex>
-          <Button onClick={handleCreate}>
-            <Plus size={16} />
-            {t("models.newModel")}
-          </Button>
+          <Tooltip content={!hasProviders ? t("models.noProvidersTooltip") : undefined}>
+            <span>
+              <Button onClick={handleCreate} disabled={!hasProviders}>
+                <Plus size={16} />
+                {t("models.newModel")}
+              </Button>
+            </span>
+          </Tooltip>
         </Flex>
 
         {/* Tab导航 */}
