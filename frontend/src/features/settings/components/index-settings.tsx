@@ -86,16 +86,26 @@ export function IndexSettings() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
-  const { data: settings } = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
-  const { data: models } = useQuery({
+  const {
+    data: settings,
+    isLoading: isSettingsLoading,
+    isFetching: isSettingsFetching,
+  } = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
+  const {
+    data: models,
+    isLoading: isModelsLoading,
+    isFetching: isModelsFetching,
+  } = useQuery({
     queryKey: ["models"],
     queryFn: () => fetchModels(),
-    staleTime: 5 * 60 * 1000,
   });
-  const { data: projectsData } = useQuery({
+  const {
+    data: projectsData,
+    isLoading: isProjectsLoading,
+    isFetching: isProjectsFetching,
+  } = useQuery({
     queryKey: ["projects", "all-for-index"],
     queryFn: () => fetchProjects({ page: 1, pageSize: 100 }),
-    staleTime: 60 * 1000,
   });
   const overall = useOverallIndexStatus(Boolean(settings));
 
@@ -320,9 +330,20 @@ export function IndexSettings() {
     [updateSettingsMutation]
   );
 
-  if (!settings) {
+  const isContentLoading =
+    isSettingsLoading ||
+    isSettingsFetching ||
+    isModelsLoading ||
+    isModelsFetching ||
+    isProjectsLoading ||
+    isProjectsFetching ||
+    overall.isLoading ||
+    overall.isFetching ||
+    !settings;
+
+  if (isContentLoading) {
     return (
-      <Flex align="center" justify="center" style={{ height: 200 }}>
+      <Flex align="center" justify="center" style={{ height: "100%" }}>
         <Spinner size={18} />
       </Flex>
     );

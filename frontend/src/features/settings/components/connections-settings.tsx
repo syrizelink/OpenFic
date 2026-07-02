@@ -45,7 +45,6 @@ export function ConnectionsSettings() {
   } = useQuery({
     queryKey: ["model-providers"],
     queryFn: fetchProviders,
-    staleTime: 5 * 60 * 1000, // 5分钟内不重新请求
   });
 
   const externalConnections = useMemo(
@@ -56,7 +55,6 @@ export function ConnectionsSettings() {
   const { data: catalogProviders, isLoading: isCatalogProvidersLoading } = useQuery({
     queryKey: ["model-provider-catalog", "providers"],
     queryFn: fetchModelProviderCatalogProviders,
-    staleTime: 5 * 60 * 1000,
   });
 
   const {
@@ -66,7 +64,6 @@ export function ConnectionsSettings() {
   } = useQuery({
     queryKey: ["model-provider-catalog", "status"],
     queryFn: fetchModelProviderCatalogStatus,
-    staleTime: 60 * 1000,
   });
 
   // 创建连接
@@ -180,6 +177,14 @@ export function ConnectionsSettings() {
     isCatalogStatusLoading ||
     isCatalogStatusFetching;
 
+  if (isContentLoading) {
+    return (
+      <Flex align="center" justify="center" style={{ height: "100%" }}>
+        <Spinner size={18} />
+      </Flex>
+    );
+  }
+
   return (
     <Box>
       <Flex direction="column" gap="4">
@@ -188,19 +193,13 @@ export function ConnectionsSettings() {
           {t("connections.description")}
         </Text>
 
-        {isContentLoading ? (
-            <Flex align="center" justify="center" style={{ height: 200 }}>
-              <Spinner size={18} />
-            </Flex>
-        ) : (
-          <>
-            <Box
-              style={{
-                border: "1px solid var(--gray-a4)",
-                borderRadius: "var(--radius-3)",
-                padding: "var(--space-4)",
-              }}
-            >
+        <Box
+          style={{
+            border: "1px solid var(--gray-a4)",
+            borderRadius: "var(--radius-3)",
+            padding: "var(--space-4)",
+          }}
+        >
               <Flex align="start" justify="between" gap="3">
                 <Flex direction="column" gap="1">
                   <Text size="2" weight="medium">
@@ -254,21 +253,21 @@ export function ConnectionsSettings() {
                   </IconButton>
                 </Box>
               </Flex>
-            </Box>
+        </Box>
 
-            {/* 新建按钮 */}
-            <Flex>
-              <Button onClick={handleCreate}>
-                <Plus size={16} />
-                {t("connections.newConnection")}
-              </Button>
-            </Flex>
+        {/* 新建按钮 */}
+        <Flex>
+          <Button onClick={handleCreate}>
+            <Plus size={16} />
+            {t("connections.newConnection")}
+          </Button>
+        </Flex>
 
-            {/* 连接列表 */}
-            {externalConnections.length > 0 ? (
-              <Flex direction="column">
-                {externalConnections.map((connection, index) => (
-                  <Box key={connection.id} className="list-item-hover">
+        {/* 连接列表 */}
+        {externalConnections.length > 0 ? (
+          <Flex direction="column">
+            {externalConnections.map((connection, index) => (
+              <Box key={connection.id} className="list-item-hover">
                     <Flex
                       align="center"
                       justify="between"
@@ -328,21 +327,21 @@ export function ConnectionsSettings() {
 
                       {/* 操作按钮 */}
                       <Flex gap="2">
-                          <IconButton
-                            variant="ghost"
-                            color="gray"
-                            onClick={() => handleEdit(connection)}
-                          >
-                            <Edit size={16} />
-                          </IconButton>
-                          <IconButton
-                            variant="ghost"
-                            color="red"
-                            onClick={() => handleDelete(connection)}
-                          >
-                            <Trash2 size={16} />
-                          </IconButton>
-                        </Flex>
+                        <IconButton
+                          variant="ghost"
+                          color="gray"
+                          onClick={() => handleEdit(connection)}
+                        >
+                          <Edit size={16} />
+                        </IconButton>
+                        <IconButton
+                          variant="ghost"
+                          color="red"
+                          onClick={() => handleDelete(connection)}
+                        >
+                          <Trash2 size={16} />
+                        </IconButton>
+                      </Flex>
                     </Flex>
                     {index < externalConnections.length - 1 && (
                       <Box
@@ -354,23 +353,21 @@ export function ConnectionsSettings() {
                         }}
                       />
                     )}
-                  </Box>
-                ))}
-              </Flex>
-            ) : (
-              <Flex
-                direction="column"
-                align="center"
-                justify="center"
-                gap="3"
-                style={{ height: 200 }}
-              >
-                <Text size="2" color="gray">
-                  {t("connections.noConnections")}
-                </Text>
-              </Flex>
-            )}
-          </>
+              </Box>
+            ))}
+          </Flex>
+        ) : (
+          <Flex
+            direction="column"
+            align="center"
+            justify="center"
+            gap="3"
+            style={{ height: 200 }}
+          >
+            <Text size="2" color="gray">
+              {t("connections.noConnections")}
+            </Text>
+          </Flex>
         )}
       </Flex>
 

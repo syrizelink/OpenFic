@@ -76,7 +76,6 @@ export function ModelsSettings({
   } = useQuery({
     queryKey: ["models"],
     queryFn: () => fetchModels(),
-    staleTime: 5 * 60 * 1000, // 5分钟内不重新请求
   });
 
   // 获取所有提供商（用于显示提供商名称）
@@ -87,7 +86,6 @@ export function ModelsSettings({
   } = useQuery({
     queryKey: ["model-providers"],
     queryFn: fetchProviders,
-    staleTime: 5 * 60 * 1000,
   });
 
   // 获取设置
@@ -98,7 +96,6 @@ export function ModelsSettings({
   } = useQuery({
     queryKey: ["settings"],
     queryFn: fetchSettings,
-    staleTime: 5 * 60 * 1000,
   });
 
   // 更新设置
@@ -160,7 +157,6 @@ export function ModelsSettings({
       return new Map(responses);
     },
     enabled: llmCatalogProviderTypes.length > 0,
-    staleTime: 5 * 60 * 1000,
   });
 
   const llmModelOptions: ModelIdSelectOption[] = useMemo(() => {
@@ -312,6 +308,14 @@ export function ModelsSettings({
     [onActiveTabChange]
   );
 
+  if (isContentLoading) {
+    return (
+      <Flex align="center" justify="center" style={{ height: "100%" }}>
+        <Spinner size={18} />
+      </Flex>
+    );
+  }
+
   return (
     <Box>
       <Flex direction="column" gap="4">
@@ -320,76 +324,70 @@ export function ModelsSettings({
           {t("models.description")}
         </Text>
 
-        {isContentLoading ? (
-          <Flex align="center" justify="center" style={{ height: 200 }}>
-            <Spinner size={18} />
+        {/* 默认模型 & 轻量模型 */}
+        <Flex direction="column" gap="4">
+          <Flex direction="column" gap="1" style={{ maxWidth: 400, minWidth: 0 }}>
+            <Text size="2" weight="medium">
+              {t("models.defaultModel")}
+            </Text>
+            <Text size="1" color="gray" style={{ marginBottom: "var(--space-1)" }}>
+              {t("models.defaultModelDesc")}
+            </Text>
+            <ModelIdSelect
+              value={settings?.defaultModel || ""}
+              onChange={handleDefaultModelChange}
+              models={llmModelOptions}
+              placeholder={t("models.selectModelPlaceholder")}
+              editable={false}
+              allowCustomValue={false}
+              emptyOptionLabel={`（${t("models.selectModelPlaceholder")}）`}
+            />
           </Flex>
-        ) : (
-          <>
-            {/* 默认模型 & 轻量模型 */}
-            <Flex direction="column" gap="4">
-              <Flex direction="column" gap="1" style={{ maxWidth: 400, minWidth: 0 }}>
-                <Text size="2" weight="medium">
-                  {t("models.defaultModel")}
-                </Text>
-                <Text size="1" color="gray" style={{ marginBottom: "var(--space-1)" }}>
-                  {t("models.defaultModelDesc")}
-                </Text>
-                <ModelIdSelect
-                  value={settings?.defaultModel || ""}
-                  onChange={handleDefaultModelChange}
-                  models={llmModelOptions}
-                  placeholder={t("models.selectModelPlaceholder")}
-                  editable={false}
-                  allowCustomValue={false}
-                  emptyOptionLabel={`（${t("models.selectModelPlaceholder")}）`}
-                />
-              </Flex>
 
-              <Flex direction="column" gap="1" style={{ maxWidth: 400, minWidth: 0 }}>
-                <Text size="2" weight="medium">
-                  {t("models.lightModel")}
-                </Text>
-                <Text size="1" color="gray" style={{ marginBottom: "var(--space-1)" }}>
-                  {t("models.lightModelDesc")}
-                </Text>
-                <ModelIdSelect
-                  value={settings?.lightModel || ""}
-                  onChange={handleLightModelChange}
-                  models={llmModelOptions}
-                  placeholder={t("models.selectModelPlaceholder")}
-                  editable={false}
-                  allowCustomValue={false}
-                  emptyOptionLabel={`（${t("models.selectModelPlaceholder")}）`}
-                />
-              </Flex>
-            </Flex>
+          <Flex direction="column" gap="1" style={{ maxWidth: 400, minWidth: 0 }}>
+            <Text size="2" weight="medium">
+              {t("models.lightModel")}
+            </Text>
+            <Text size="1" color="gray" style={{ marginBottom: "var(--space-1)" }}>
+              {t("models.lightModelDesc")}
+            </Text>
+            <ModelIdSelect
+              value={settings?.lightModel || ""}
+              onChange={handleLightModelChange}
+              models={llmModelOptions}
+              placeholder={t("models.selectModelPlaceholder")}
+              editable={false}
+              allowCustomValue={false}
+              emptyOptionLabel={`（${t("models.selectModelPlaceholder")}）`}
+            />
+          </Flex>
+        </Flex>
 
-            {/* 新建按钮 */}
-            <Flex>
-              <Button onClick={handleCreate}>
-                <Plus size={16} />
-                {t("models.newModel")}
-              </Button>
-            </Flex>
+        {/* 新建按钮 */}
+        <Flex>
+          <Button onClick={handleCreate}>
+            <Plus size={16} />
+            {t("models.newModel")}
+          </Button>
+        </Flex>
 
-            {/* Tab导航 */}
-            <Tabs.Root
-              value={activeTab}
-              onValueChange={handleActiveTabChange}
-            >
-              <Tabs.List>
-                <Tabs.Trigger value="llm">{t("models.llmModels")}</Tabs.Trigger>
-                <Tabs.Trigger value="embedding">{t("models.embeddingModels")}</Tabs.Trigger>
-                <Tabs.Trigger value="rerank">{t("models.rerankModels")}</Tabs.Trigger>
-              </Tabs.List>
-            </Tabs.Root>
+        {/* Tab导航 */}
+        <Tabs.Root
+          value={activeTab}
+          onValueChange={handleActiveTabChange}
+        >
+          <Tabs.List>
+            <Tabs.Trigger value="llm">{t("models.llmModels")}</Tabs.Trigger>
+            <Tabs.Trigger value="embedding">{t("models.embeddingModels")}</Tabs.Trigger>
+            <Tabs.Trigger value="rerank">{t("models.rerankModels")}</Tabs.Trigger>
+          </Tabs.List>
+        </Tabs.Root>
 
-            {/* 模型列表 */}
-            {filteredModels.length > 0 ? (
-              <Flex direction="column">
-                {filteredModels.map((model, index) => (
-                  <Box key={model.id} className="list-item-hover">
+        {/* 模型列表 */}
+        {filteredModels.length > 0 ? (
+          <Flex direction="column">
+            {filteredModels.map((model, index) => (
+              <Box key={model.id} className="list-item-hover">
                     <Flex direction="column" gap="3" style={{ padding: "var(--space-4)" }}>
                       <Flex align="center" justify="between">
                         <Flex direction="column" gap="1" style={{ flex: 1 }}>
@@ -485,23 +483,21 @@ export function ModelsSettings({
                         }}
                       />
                     )}
-                  </Box>
-                ))}
-              </Flex>
-            ) : (
-              <Flex
-                direction="column"
-                align="center"
-                justify="center"
-                gap="3"
-                style={{ height: 200 }}
-              >
-                <Text size="2" color="gray">
-                  {t("models.noModels")}
-                </Text>
-              </Flex>
-            )}
-          </>
+              </Box>
+            ))}
+          </Flex>
+        ) : (
+          <Flex
+            direction="column"
+            align="center"
+            justify="center"
+            gap="3"
+            style={{ height: 200 }}
+          >
+            <Text size="2" color="gray">
+              {t("models.noModels")}
+            </Text>
+          </Flex>
         )}
       </Flex>
 
