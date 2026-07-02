@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.4.9](https://github.com/syrizelink/OpenFic/compare/v0.4.8...v0.4.9) (2026-07-02)
+
+
+### 🐛 问题修复
+
+* **assistant:** 使用稳定的 diff section type ([#50](https://github.com/syrizelink/OpenFic/issues/50)) ([27decdc](https://github.com/syrizelink/OpenFic/commit/27decdcdf4bfe1fb6404d73a552fa1cc53958876))
+* **frontend:** 修复 Agent 侧边栏模型图标显示 ([#54](https://github.com/syrizelink/OpenFic/issues/54)) ([9eeaaff](https://github.com/syrizelink/OpenFic/commit/9eeaaff74c83a8d492eeb8fd3aa096017a89804c))
+* **frontend:** 对齐 Agent 工具消息注册 ([#55](https://github.com/syrizelink/OpenFic/issues/55)) ([b7942f5](https://github.com/syrizelink/OpenFic/commit/b7942f5cab56836dbeb3f837e4e6ad5deff373b3))
+
+
+### 🔧 杂项
+
+* **frontend:** 统一设置面板加载行为 ([#52](https://github.com/syrizelink/OpenFic/issues/52)) ([798e8ad](https://github.com/syrizelink/OpenFic/commit/798e8add8df5d24c93bbf0d1118049f6b4412ea4))
+* **frontend:** 补齐前端界面 i18n 文案接入 ([#51](https://github.com/syrizelink/OpenFic/issues/51)) ([7932bf7](https://github.com/syrizelink/OpenFic/commit/7932bf7e4f3175746677f1be990164ca64e3bc24))
+* **frontend:** 调整设置面板模型禁用态 ([#53](https://github.com/syrizelink/OpenFic/issues/53)) ([86449ec](https://github.com/syrizelink/OpenFic/commit/86449ece001aa8dbf210d322d19522ed81d8f620))
+
+
+### 👷 CI/CD
+
+* **release:** 修复每次 PR 都触发发版 ([#48](https://github.com/syrizelink/OpenFic/issues/48)) ([5668036](https://github.com/syrizelink/OpenFic/commit/5668036edb098c386ec8369867f21e21c9b0bd60))
+
 ## [0.4.8](https://github.com/syrizelink/OpenFic/compare/v0.4.7...v0.4.8) (2026-07-01)
 
 
