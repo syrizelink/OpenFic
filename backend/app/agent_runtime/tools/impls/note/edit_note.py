@@ -134,7 +134,7 @@ class EditNoteTool(AgentTool):
             diff_lines = _build_diff_lines(before_content, note.content)
             note_diff = {
                 "operation": "update",
-                "sections": [{"label": "内容", "lines": diff_lines}],
+                "sections": [{"type": "content", "lines": diff_lines}],
                 "note_id": note.id,
                 "note_title": note.title,
             }

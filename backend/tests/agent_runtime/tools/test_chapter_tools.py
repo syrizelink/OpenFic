@@ -227,6 +227,7 @@ async def test_write_chapter_appends_to_volume_and_returns_volume_id() -> None:
     assert data["chapter"]["volume_id"] == "vol-1"
     assert data["chapter_diff"]["operation"] == "create"
     assert data["chapter_diff"]["chapter_id"] == "chap-new"
+    assert [section["type"] for section in data["chapter_diff"]["sections"]] == ["title", "content"]
     assert data["affected_chapters"] == ["chap-new"]
     mock_repo.get_max_order.assert_awaited_once_with(mock_session, "vol-1")
     created_chapter = mock_repo.create.call_args[0][1]
@@ -293,6 +294,7 @@ async def test_write_chapter_insert_order_shifts_within_volume() -> None:
     assert data["word_count"] == 4
     assert data["chapter"]["order"] == 2
     assert data["chapter_diff"]["operation"] == "create"
+    assert [section["type"] for section in data["chapter_diff"]["sections"]] == ["title", "content"]
     mock_repo.shift_orders.assert_awaited_once_with(mock_session, "vol-1", 2, 5, 1)
 
 
@@ -345,6 +347,7 @@ async def test_edit_chapter_resolves_inside_volume() -> None:
     assert data["chapter"]["volume_id"] == "vol-1"
     assert data["chapter_diff"]["operation"] == "update"
     assert data["chapter_diff"]["chapter_id"] == "chap-1"
+    assert data["chapter_diff"]["sections"][0]["type"] == "title"
     assert data["affected_chapters"] == ["chap-1"]
     mock_repo.list_by_volume.assert_awaited_once_with(mock_session, "vol-1")
 

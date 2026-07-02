@@ -112,7 +112,7 @@ class WriteNoteTool(AgentTool):
             ]
             note_diff = {
                 "operation": "create",
-                "sections": [{"label": "内容", "lines": diff_lines}],
+                "sections": [{"type": "content", "lines": diff_lines}],
                 "note_id": note.id,
                 "note_title": note.title,
             }

@@ -4,7 +4,11 @@ import { Check, Copy } from "lucide-react";
 
 import type { AgentMessage } from "@/lib/agent.types";
 import i18n from "@/i18n";
-import type { ChapterDiffLine, ChapterDiffSection } from "@/features/assistant/lib/chapter-tool-preview";
+import type {
+  ChapterDiffLine,
+  ChapterDiffSection,
+  ChapterDiffSectionType,
+} from "@/features/assistant/lib/chapter-tool-preview";
 import {
   buildChapterDiffCopyText,
   getChapterDiffDisplayLineNumber,
@@ -43,6 +47,11 @@ function normalizeDiffLineType(value: unknown): ChapterDiffLine["type"] {
   return "context";
 }
 
+function normalizeDiffSectionType(value: unknown): ChapterDiffSectionType | null {
+  if (value === "content" || value === "title") return value;
+  return null;
+}
+
 function getToolResultDataRecord(message: AgentMessage): Record<string, unknown> | null {
   const resultData = message.toolResult?.data;
   if (isRecord(resultData)) return resultData;
@@ -61,18 +70,22 @@ function getNoteDiffPreview(message: AgentMessage): NoteDiffPreview | null {
     note_title: asString(rawPreview.note_title),
     sections: rawPreview.sections
       .filter(isRecord)
-      .map((section) => ({
-        label: asString(section.label) ?? "",
-        lines: Array.isArray(section.lines)
-          ? section.lines.filter(isRecord).map((line) => ({
-            type: normalizeDiffLineType(line.type),
-            before_line_number: typeof line.before_line_number === "number" ? line.before_line_number : null,
-            after_line_number: typeof line.after_line_number === "number" ? line.after_line_number : null,
-            text: typeof line.text === "string" ? line.text : "",
-          }))
-          : [],
-      }))
-      .filter((section) => section.label),
+      .map((section) => {
+        const sectionType = normalizeDiffSectionType(section.type);
+        if (!sectionType) return null;
+        return {
+          type: sectionType,
+          lines: Array.isArray(section.lines)
+            ? section.lines.filter(isRecord).map((line) => ({
+              type: normalizeDiffLineType(line.type),
+              before_line_number: typeof line.before_line_number === "number" ? line.before_line_number : null,
+              after_line_number: typeof line.after_line_number === "number" ? line.after_line_number : null,
+              text: typeof line.text === "string" ? line.text : "",
+            }))
+            : [],
+        };
+      })
+      .filter((section): section is ChapterDiffSection => section !== null),
   };
 }
 
@@ -114,7 +127,7 @@ export function WriteNoteToolMessage({ message }: NoteToolMessageProps) {
   }, []);
 
   if (diffPreview) {
-    const contentSection = diffPreview.sections.find((s) => s.label === "内容") ?? null;
+    const contentSection = diffPreview.sections.find((s) => s.type === "content") ?? null;
     const changeSummary = summarizeChapterDiffSection(contentSection);
     const copyText = buildChapterDiffCopyText(contentSection);
 
@@ -222,7 +235,7 @@ export function EditNoteToolMessage({ message }: NoteToolMessageProps) {
   }, []);
 
   if (diffPreview) {
-    const contentSection = diffPreview.sections.find((s) => s.label === "内容") ?? null;
+    const contentSection = diffPreview.sections.find((s) => s.type === "content") ?? null;
     const changeSummary = summarizeChapterDiffSection(contentSection);
     const copyText = buildChapterDiffCopyText(contentSection);
 

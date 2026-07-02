@@ -7,8 +7,10 @@ export interface ChapterDiffLine {
   text: string;
 }
 
+export type ChapterDiffSectionType = "content" | "title";
+
 export interface ChapterDiffSection {
-  label: string;
+  type: ChapterDiffSectionType;
   lines: ChapterDiffLine[];
 }
 
@@ -36,6 +38,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function normalizeChapterDiffSectionType(value: unknown): ChapterDiffSectionType | null {
+  if (value === "content" || value === "title") return value;
+  return null;
 }
 
 function getDiffLinePrefix(type: ChapterDiffLine["type"]): string {
@@ -69,18 +76,22 @@ export function getChapterDiffPreview(message: AgentMessage): ChapterDiffPreview
     order: typeof rawPreview.order === "number" ? rawPreview.order : undefined,
     sections: rawPreview.sections
       .filter(isRecord)
-      .map((section) => ({
-        label: asString(section.label) ?? "",
-        lines: Array.isArray(section.lines)
-          ? section.lines.filter(isRecord).map((line) => ({
-            type: normalizeChapterDiffLineType(line.type),
-            before_line_number: typeof line.before_line_number === "number" ? line.before_line_number : null,
-            after_line_number: typeof line.after_line_number === "number" ? line.after_line_number : null,
-            text: typeof line.text === "string" ? line.text : "",
-          }))
-          : [],
-      }))
-      .filter((section) => section.label),
+      .map((section) => {
+        const sectionType = normalizeChapterDiffSectionType(section.type);
+        if (!sectionType) return null;
+        return {
+          type: sectionType,
+          lines: Array.isArray(section.lines)
+            ? section.lines.filter(isRecord).map((line) => ({
+              type: normalizeChapterDiffLineType(line.type),
+              before_line_number: typeof line.before_line_number === "number" ? line.before_line_number : null,
+              after_line_number: typeof line.after_line_number === "number" ? line.after_line_number : null,
+              text: typeof line.text === "string" ? line.text : "",
+            }))
+            : [],
+        };
+      })
+      .filter((section): section is ChapterDiffSection => section !== null),
   };
 }
 
@@ -88,9 +99,9 @@ export function getChapterDiffBodySection(
   preview: ChapterDiffPreview | null
 ): ChapterDiffSection | null {
   if (!preview) return null;
-  const contentSection = preview.sections.find((section) => section.label === "内容");
+  const contentSection = preview.sections.find((section) => section.type === "content");
   if (contentSection) return contentSection;
-  return preview.sections.find((section) => section.label !== "标题") ?? null;
+  return preview.sections.find((section) => section.type !== "title") ?? null;
 }
 
 export function summarizeChapterDiffSection(

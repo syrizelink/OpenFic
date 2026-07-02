@@ -255,6 +255,8 @@ async def test_write_note_creates_note_and_returns_success() -> None:
     assert data["tool_name"] == "write_note"
     assert data["note"]["title"] == "新笔记"
     assert data["revision_id"] == "rev-1"
+    assert data["note_diff"]["operation"] == "create"
+    assert data["note_diff"]["sections"][0]["type"] == "content"
 
 
 async def test_move_note_rejects_locked_note() -> None:
