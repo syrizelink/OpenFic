@@ -6,6 +6,7 @@
 
 import { Dialog, Flex, Text, Button, Callout, Box } from "@radix-ui/themes";
 import { AlertTriangle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { PromptChainVersion } from "@/lib/prompt-chain.types";
 
 interface SaveConfirmDialogProps {
@@ -23,6 +24,7 @@ export function SaveConfirmDialog({
   versions,
   onConfirm,
 }: SaveConfirmDialogProps) {
+  const { t } = useTranslation();
   if (!currentVersion) return null;
 
   // 检查当前版本是否是最新版本
@@ -43,11 +45,11 @@ export function SaveConfirmDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Content style={{ maxWidth: "500px" }}>
-        <Dialog.Title>保存当前更改？</Dialog.Title>
+        <Dialog.Title>{t("promptChains.confirmSave")}</Dialog.Title>
 
         <Flex direction="column" gap="3" mt="3">
           <Text size="2">
-            这将创建一个新版本（v{currentVersion.versionNumber + 1}）。
+            {t("promptChains.confirmSaveMessage", { version: currentVersion.versionNumber + 1 })}
           </Text>
 
           {/* 警告：从中间版本保存 */}
@@ -58,12 +60,14 @@ export function SaveConfirmDialog({
               </Callout.Icon>
               <Callout.Text>
                 <Text size="2" weight="bold" mb="1">
-                  注意：版本截断警告
+                  {t("promptChains.confirmSaveTruncateWarningTitle")}
                 </Text>
                 <Text size="2">
-                  从 v{currentVersion.versionNumber} 保存将导致 v
-                  {currentVersion.versionNumber + 1} 至 v{maxVersionNumber} 的版本被标记为非活跃状态。
-                  这些版本将保留在历史记录中，但不会出现在主分支上。
+                  {t("promptChains.confirmSaveTruncateWarningDescription", {
+                    current: currentVersion.versionNumber,
+                    next: currentVersion.versionNumber + 1,
+                    max: maxVersionNumber,
+                  })}
                 </Text>
               </Callout.Text>
             </Callout.Root>
@@ -80,7 +84,7 @@ export function SaveConfirmDialog({
               }}
             >
               <Text size="2" weight="bold" mb="2">
-                将被截断的版本：
+                {t("promptChains.truncatedVersions")}
               </Text>
               <Flex direction="column" gap="1">
                 {versionsToTruncate.map((v) => (
@@ -97,11 +101,11 @@ export function SaveConfirmDialog({
         <Flex gap="3" mt="4" justify="end">
           <Dialog.Close>
             <Button variant="soft" color="gray">
-              取消
+              {t("common.cancel")}
             </Button>
           </Dialog.Close>
           <Button onClick={handleConfirm} color={isLatestVersion ? "blue" : "orange"}>
-            {isLatestVersion ? "确认保存" : "确认保存并截断"}
+            {isLatestVersion ? t("promptChains.confirmSaveButton") : t("promptChains.confirmSaveAndTruncateButton")}
           </Button>
         </Flex>
       </Dialog.Content>

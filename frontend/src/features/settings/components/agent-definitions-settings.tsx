@@ -39,8 +39,8 @@ import type {
   AgentDefinitionCreateRequest,
 } from "../lib/agent-definitions.types";
 import {
-  AGENT_KIND_OPTIONS,
-  AGENT_KIND_LABELS,
+  getAgentKindLabel,
+  getAgentKindOptions,
   SYSTEM_DEFAULT_MODEL_REFERENCE,
   SYSTEM_LIGHT_MODEL_REFERENCE,
 } from "../lib/agent-definitions.types";
@@ -442,6 +442,7 @@ export function AgentDefinitionsSettings({
   onMobilePageChange,
 }: AgentDefinitionsSettingsProps) {
   const { t } = useTranslation();
+  const agentKindOptions = getAgentKindOptions();
   const queryClient = useQueryClient();
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -703,7 +704,7 @@ export function AgentDefinitionsSettings({
     }
 
     return items;
-  }, [closeMenu, menuTarget, openCopyDialog, t]);
+  }, [closeMenu, menuTarget, openCopyDialog, setConfirmDeleteKey, setConfirmResetKey, setSelectedKey, t]);
 
   const renderAgentListItem = (def: AgentDefinitionResponse) => (
     <div
@@ -731,8 +732,8 @@ export function AgentDefinitionsSettings({
         <Flex align="center" gap="2" className="agent-definition-item-row">
           <span
             className="agent-definition-kind-icon"
-            aria-label={AGENT_KIND_LABELS[def.kind] ?? def.kind}
-            title={AGENT_KIND_LABELS[def.kind] ?? def.kind}
+            aria-label={getAgentKindLabel(def.kind)}
+            title={getAgentKindLabel(def.kind)}
           >
             {def.kind === "primary" ? <Crown size={14} /> : <Bot size={14} />}
           </span>
@@ -900,11 +901,11 @@ export function AgentDefinitionsSettings({
           <Flex direction="column" gap="3" style={{ marginTop: 12 }}>
             <Flex direction="column" gap="1">
               <Text size="1" weight="medium">{t("settings.agentsKey")}</Text>
-              <TextField.Root
-                value={newKey}
-                onChange={(event) => setNewKey(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                placeholder="primary-agent"
-              />
+            <TextField.Root
+              value={newKey}
+              onChange={(event) => setNewKey(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+              placeholder={t("settings.agentsKeyPlaceholder")}
+            />
             </Flex>
 
             <Flex direction="column" gap="1">
@@ -931,7 +932,7 @@ export function AgentDefinitionsSettings({
               <Select.Root value={newKind} onValueChange={(value) => setNewKind(value as "primary" | "subagent") }>
                 <Select.Trigger style={{ width: "100%" }} />
                 <Select.Content>
-                  {AGENT_KIND_OPTIONS.map((opt) => (
+                  {agentKindOptions.map((opt) => (
                     <Select.Item key={opt.value} value={opt.value}>
                       {opt.label}
                     </Select.Item>

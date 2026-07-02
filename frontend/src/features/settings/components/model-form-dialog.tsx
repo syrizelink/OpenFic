@@ -253,12 +253,12 @@ export function ModelFormDialog({
         setAvailableModels(result.models);
       } catch (error) {
         setAvailableModels([]);
-        setModelsError(error instanceof Error ? error.message : "加载模型列表失败");
+        setModelsError(error instanceof Error ? error.message : t("models.loadModelsFailed"));
       } finally {
         setLoadingModels(false);
       }
     },
-    []
+    [t]
   );
 
   // 加载提供商的模型列表
@@ -280,18 +280,18 @@ export function ModelFormDialog({
         } else {
           setAvailableModels([]);
           // 显示后端返回的错误信息
-          setModelsError(result.message || "获取模型列表失败");
+          setModelsError(result.message || t("models.fetchModelsFailed"));
         }
       } catch (error) {
         console.error("Failed to load models:", error);
         setAvailableModels([]);
         // 显示网络错误或其他异常
-        setModelsError(error instanceof Error ? error.message : "网络请求失败");
+        setModelsError(error instanceof Error ? error.message : t("models.networkRequestFailed"));
       } finally {
         setLoadingModels(false);
       }
     },
-    [providers]
+    [providers, t]
   );
 
   const handleRefreshRemoteModels = useCallback(() => {

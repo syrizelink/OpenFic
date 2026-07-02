@@ -98,20 +98,32 @@ export interface FontOption {
   label: string;
 }
 
+export interface FontDefinition {
+  value: string;
+  labelKey: string;
+}
+
 export const DEFAULT_FONT_FAMILY = "SourceHanSerifCN-VF";
 export const DEFAULT_CODE_FONT_FAMILY = "JetBrainsMapleMono";
 
 /** 可用字体列表 */
-export const FONT_OPTIONS: FontOption[] = [
-  { value: "SourceHanSerifCN-VF", label: "思源宋体" },
-  { value: "SourceHanSansCN-VF", label: "思源黑体" },
-  { value: "ChillKai", label: "寒蝉手札体" },
+export const FONT_OPTIONS: FontDefinition[] = [
+  { value: "SourceHanSerifCN-VF", labelKey: "settings.fontOptionSourceHanSerif" },
+  { value: "SourceHanSansCN-VF", labelKey: "settings.fontOptionSourceHanSans" },
+  { value: "ChillKai", labelKey: "settings.fontOptionChillKai" },
 ];
 
 /** 代码字体选项 */
 export const CODE_FONT_OPTIONS: FontOption[] = [
   { value: DEFAULT_CODE_FONT_FAMILY, label: "JetBrains Maple Mono" },
 ];
+
+export function getFontOptions(t: (key: string) => string): FontOption[] {
+  return FONT_OPTIONS.map((option) => ({
+    value: option.value,
+    label: t(option.labelKey),
+  }));
+}
 
 export function getSupportedFontFamily(fontFamily: string): string {
   if (FONT_OPTIONS.some((option) => option.value === fontFamily)) return fontFamily;

@@ -1,5 +1,6 @@
 import type { DashboardBreakdownItem, DashboardModelTimeSeriesPoint, DashboardStatsResponse, WritingActivityTimeSeriesPoint } from "./dashboard.types";
 import type { DashboardEchartsThemeMode } from "./dashboard-echarts-theme";
+import i18n from "@/i18n";
 
 export type DashboardChartOption = Record<string, unknown>;
 
@@ -80,7 +81,7 @@ function buildAxisTooltipWithTotal(formatter?: (value: number) => string) {
     return [
       title,
       ...rows.map((item) => `${item.marker ?? ""} ${item.seriesName ?? ""}: ${format(Number(item.value ?? 0))}`),
-      `总量: ${format(total)}`,
+      `${i18n.t("dashboard.charts.tooltipTotal")}: ${format(total)}`,
     ].join("<br />");
   };
 }
@@ -166,8 +167,8 @@ export function buildWritingTrendOption(points: WritingActivityTimeSeriesPoint[]
     xAxis: { type: "category", data: points.map((item) => item.date), axisTick: { show: false } },
     yAxis: { type: "value" },
     series: [
-      { name: "创作", type: "bar", stack: "words", barMaxWidth: 28, itemStyle: brightBarStyle, data: points.map((item) => item.userWordDelta + item.agentWordDelta) },
-      { name: "导入", type: "bar", stack: "words", barMaxWidth: 28, itemStyle: brightBarStyle, data: points.map((item) => item.importWordDelta) },
+      { name: i18n.t("dashboard.charts.writingSeriesCreated"), type: "bar", stack: "words", barMaxWidth: 28, itemStyle: brightBarStyle, data: points.map((item) => item.userWordDelta + item.agentWordDelta) },
+      { name: i18n.t("dashboard.charts.writingSeriesImported"), type: "bar", stack: "words", barMaxWidth: 28, itemStyle: brightBarStyle, data: points.map((item) => item.importWordDelta) },
     ],
   };
 }
@@ -185,7 +186,7 @@ export function buildWritingCumulativeOption(points: WritingActivityTimeSeriesPo
     yAxis: { type: "value" },
     series: [
       {
-        name: "累计创作",
+        name: i18n.t("dashboard.charts.cumulativeSeries"),
         type: "line",
         smooth: true,
         showSymbol: false,
@@ -205,14 +206,14 @@ export function buildWritingSourceOption(points: WritingActivityTimeSeriesPoint[
     legend: { bottom: 0, left: "center" },
     series: [
       {
-        name: "字数来源",
+        name: i18n.t("dashboard.charts.sourceSeries"),
         type: "pie",
         radius: ["46%", "70%"],
         center: ["50%", "42%"],
         data: [
-          { name: "用户编辑", value: userTotal },
-          { name: "Agent 修改", value: agentTotal },
-          { name: "导入初始化", value: importTotal },
+          { name: i18n.t("dashboard.charts.sourceUserEdit"), value: userTotal },
+          { name: i18n.t("dashboard.charts.sourceAgentEdit"), value: agentTotal },
+          { name: i18n.t("dashboard.charts.sourceImport"), value: importTotal },
         ],
         label: { formatter: "{b}: {c}" },
       },
@@ -221,7 +222,15 @@ export function buildWritingSourceOption(points: WritingActivityTimeSeriesPoint[
 }
 
 export function buildWritingWeekdayOption(points: WritingActivityTimeSeriesPoint[]): DashboardChartOption {
-  const labels = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+  const labels = [
+    i18n.t("dashboard.charts.weekdayMon"),
+    i18n.t("dashboard.charts.weekdayTue"),
+    i18n.t("dashboard.charts.weekdayWed"),
+    i18n.t("dashboard.charts.weekdayThu"),
+    i18n.t("dashboard.charts.weekdayFri"),
+    i18n.t("dashboard.charts.weekdaySat"),
+    i18n.t("dashboard.charts.weekdaySun"),
+  ];
   const activeDayCounts = Array.from({ length: 7 }, () => 0);
   for (const item of points) {
     const creativeWords = Math.max(0, item.userWordDelta + item.agentWordDelta);
@@ -235,6 +244,6 @@ export function buildWritingWeekdayOption(points: WritingActivityTimeSeriesPoint
     grid: { top: 28, left: 46, right: 24, bottom: 34 },
     xAxis: { type: "category", data: labels, axisTick: { show: false } },
     yAxis: { type: "value" },
-    series: [{ name: "活跃天数", type: "bar", barMaxWidth: 24, itemStyle: brightBarStyle, data: activeDayCounts }],
+    series: [{ name: i18n.t("dashboard.charts.activeDaysSeries"), type: "bar", barMaxWidth: 24, itemStyle: brightBarStyle, data: activeDayCounts }],
   };
 }

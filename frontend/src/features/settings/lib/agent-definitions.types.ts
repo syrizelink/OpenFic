@@ -1,3 +1,5 @@
+import i18n from "@/i18n";
+
 /**
  * Agent Definition Types
  *
@@ -62,12 +64,18 @@ export interface AgentToolCategoryListResponse {
 export const SYSTEM_DEFAULT_MODEL_REFERENCE = "__system_default_model__";
 export const SYSTEM_LIGHT_MODEL_REFERENCE = "__system_light_model__";
 
-export const AGENT_KIND_LABELS: Record<string, string> = {
-  primary: "主",
-  subagent: "子",
+const AGENT_KIND_LABEL_KEYS: Record<string, string> = {
+  primary: "settings.agentsKindPrimary",
+  subagent: "settings.agentsKindSubagent",
 };
 
-export const AGENT_KIND_OPTIONS = [
-  { value: "primary", label: "主智能体 (Primary)" },
-  { value: "subagent", label: "子智能体 (Subagent)" },
-] as const;
+export function getAgentKindOptions(): Array<{ value: "primary" | "subagent"; label: string }> {
+  return [
+    { value: "primary", label: i18n.t("settings.agentsKindPrimaryOption") },
+    { value: "subagent", label: i18n.t("settings.agentsKindSubagentOption") },
+  ];
+}
+
+export function getAgentKindLabel(kind: string): string {
+  return i18n.t(AGENT_KIND_LABEL_KEYS[kind] ?? kind, { defaultValue: kind });
+}

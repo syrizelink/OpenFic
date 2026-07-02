@@ -8,7 +8,7 @@ import { Box, Flex, Text, SegmentedControl } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 
 import type { Settings, ThemeMode } from "../lib/settings.types";
-import { FONT_OPTIONS, CODE_FONT_OPTIONS } from "../lib/settings.types";
+import { CODE_FONT_OPTIONS, getFontOptions } from "../lib/settings.types";
 import { supportedLanguages, type LanguageCode } from "@/i18n";
 import { LabeledSelect } from "@/components/select";
 
@@ -87,7 +87,7 @@ export function GeneralSettings({
         <LabeledSelect
           label={t("settings.fontFamily")}
           value={settings.fontFamily}
-          options={FONT_OPTIONS}
+          options={getFontOptions(t)}
           onChange={handleFontChange}
           disabled={isSaving}
           triggerStyle={{ width: 200 }}
