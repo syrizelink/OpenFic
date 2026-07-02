@@ -23,6 +23,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 
 import type { AvailableModel, TaskType } from "@/lib/model.types";
+import type { ProviderType } from "@/lib/model.types";
 import { Spinner } from "@/components";
 import {
   CapabilityIcon,
@@ -35,6 +36,9 @@ const MotionBox = motion.create(Box);
 
 export interface ModelIdSelectOption extends AvailableModel {
   value?: string;
+  providerType?: ProviderType;
+  uploadedProviderIconPath?: string | null;
+  catalogProviderIconPath?: string | null;
 }
 
 interface ModelIdSelectProps {

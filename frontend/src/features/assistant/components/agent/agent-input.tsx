@@ -1,12 +1,13 @@
 import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
-import { ArrowUp, CircleUserRound, Component, ExternalLink, ShieldCheck, Square } from "lucide-react";
+import { ArrowUp, CircleUserRound, ExternalLink, ShieldCheck, Square } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ModelIdSelect, Spinner, type ModelIdSelectOption } from "@/components";
 import { SimpleSelect, type SelectOption } from "@/components/select";
+import { ProviderIcon } from "@/features/settings/lib/provider-icons";
 import type { AgentPendingMessage, AgentSessionStatus } from "@/lib/agent.types";
 import {
   canSendAgentInput,
@@ -107,6 +108,21 @@ export function AgentInput({
   const inputContainerRef = useRef<HTMLDivElement>(null);
   const [pendingClearanceHeight, setPendingClearanceHeight] = useState(0);
   const [mentionSuggestions, setMentionSuggestions] = useState<AgentComposerSuggestionState | null>(null);
+  const selectedModel = useMemo(
+    () => models.find((model) => model.value === modelId || model.id === modelId),
+    [modelId, models]
+  );
+  const modelTriggerPrefix = selectedModel
+    ? (
+      <ProviderIcon
+        providerType={selectedModel.providerType}
+        size={14}
+        className="ai-sidebar-model-provider-icon"
+        uploadedIconPath={selectedModel.uploadedProviderIconPath}
+        catalogIconPath={selectedModel.catalogProviderIconPath}
+      />
+    )
+    : null;
 
   useLayoutEffect(() => {
     const container = inputContainerRef.current;
@@ -311,7 +327,7 @@ export function AgentInput({
                   editable={false}
                   allowCustomValue={false}
                   compact
-                  triggerPrefix={<Component size={14} aria-hidden="true" />}
+                  triggerPrefix={modelTriggerPrefix}
                   hideTriggerChevron
                   triggerClassName="ai-sidebar-inline-select-trigger"
                   triggerStyle={{

@@ -154,3 +154,17 @@ export function resolveProviderBuiltinIconPath(
 ): string | null {
   return provider.catalogMatch?.iconPath ?? null;
 }
+
+export interface ProviderIconPaths {
+  uploadedIconPath: string | null;
+  catalogIconPath: string | null;
+}
+
+export function resolveProviderIconPaths(
+  provider: Pick<ModelProvider, "iconPath" | "catalogMatch">
+): ProviderIconPaths {
+  return {
+    uploadedIconPath: provider.iconPath ?? null,
+    catalogIconPath: provider.catalogMatch?.iconPath ?? null,
+  };
+}

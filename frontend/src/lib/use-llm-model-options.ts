@@ -7,7 +7,10 @@ import {
   fetchModels,
   fetchProviders,
 } from "@/features/settings/lib/model-api";
-import { resolveProviderCatalogType } from "@/features/settings/lib/provider-utils";
+import {
+  resolveProviderCatalogType,
+  resolveProviderIconPaths,
+} from "@/features/settings/lib/provider-utils";
 
 export interface UseLlmModelOptionsResult {
   options: ModelIdSelectOption[];
@@ -67,6 +70,9 @@ export function useLlmModelOptions(): UseLlmModelOptionsResult {
     return llmModels.map((model) => {
       const provider = providers?.find((entry) => entry.id === model.providerId);
       const catalogProviderType = provider ? resolveProviderCatalogType(provider) : null;
+      const providerIconPaths = provider
+        ? resolveProviderIconPaths(provider)
+        : { uploadedIconPath: null, catalogIconPath: null };
       const catalogModel = catalogProviderType
         ? catalogMetadata?.get(catalogProviderType)?.find((entry) => entry.id === model.modelId)
         : null;
@@ -75,6 +81,7 @@ export function useLlmModelOptions(): UseLlmModelOptionsResult {
         value: model.id,
         id: model.modelId,
         name: model.name,
+        providerType: provider?.providerType,
         taskType: "llm",
         releaseDate: catalogModel?.releaseDate ?? null,
         reasoning: catalogModel?.reasoning ?? null,
@@ -87,6 +94,8 @@ export function useLlmModelOptions(): UseLlmModelOptionsResult {
         outputPricePerMillion: catalogModel?.outputPricePerMillion ?? null,
         cacheReadPricePerMillion: catalogModel?.cacheReadPricePerMillion ?? null,
         source: catalogModel?.source ?? "catalog",
+        uploadedProviderIconPath: providerIconPaths.uploadedIconPath,
+        catalogProviderIconPath: providerIconPaths.catalogIconPath,
       };
     });
   }, [catalogMetadata, llmModels, providers]);
