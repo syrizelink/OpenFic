@@ -191,6 +191,20 @@
   color: var(--gray-10);
 }
 
+.ai-sidebar-model-provider-icon {
+  border-radius: 4px;
+}
+
+.ai-sidebar-model-provider-icon img {
+  border-radius: inherit;
+}
+
+.dark .ai-sidebar-model-provider-icon,
+[data-theme="dark"] .ai-sidebar-model-provider-icon {
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: inset 0 0 0 1px rgba(17, 17, 17, 0.08);
+}
+
 .ai-sidebar-token-number {
   line-height: 1;
   font-variant-numeric: tabular-nums;
