@@ -1,4 +1,5 @@
 import type { AgentMessage, ToolApprovalData } from "../../../../lib/agent.types";
+import i18n from "@/i18n";
 
 import {
   getClarificationPromptData,
@@ -35,25 +36,25 @@ function getStringArg(args: Record<string, unknown>, ...keys: string[]): string 
 
 function getApprovalSummary(toolName: string, toolArgs: Record<string, unknown>): string {
   const title = getStringArg(toolArgs, "title", "chapter_title", "name");
-  const chapterLabel = title ?? getStringArg(toolArgs, "chapter_id") ?? "章节";
+  const chapterLabel = title ?? getStringArg(toolArgs, "chapter_id") ?? i18n.t("assistant.tools.chapter");
 
   switch (toolName) {
     case "write_chapter":
-      return `写入 ${chapterLabel}`;
+      return `${i18n.t("assistant.tools.writeChapter")} ${chapterLabel}`;
     case "edit_chapter":
-      return `编辑 ${chapterLabel}`;
+      return `${i18n.t("assistant.tools.editChapter")} ${chapterLabel}`;
     case "delete_chapter":
-      return `删除 ${chapterLabel}`;
+      return `${i18n.t("assistant.tools.deleteChapter")} ${chapterLabel}`;
     case "move_chapter":
-      return `移动 ${chapterLabel}`;
+      return `${i18n.t("assistant.tools.moveChapterToVolume")} ${chapterLabel}`;
     case "rename_chapter":
-      return `重命名 ${chapterLabel}`;
+      return `${i18n.t("chapterMenu.rename")} ${chapterLabel}`;
     case "set_chapter_content":
-      return `更新 ${chapterLabel}`;
+      return `${i18n.t("assistant.tools.content")} ${chapterLabel}`;
     case "apply_chapter_operations":
-      return "批量修改章节";
+      return i18n.t("assistant.batchEditChapters");
     default:
-      return toolName ? `执行 ${toolName}` : "执行工具调用";
+      return toolName ? i18n.t("assistant.executeTool", { toolName }) : i18n.t("assistant.executeToolCall");
   }
 }
 
@@ -63,7 +64,7 @@ function isVisibleActiveSpecialPanelMessage(message: AgentMessage): boolean {
 }
 
 function getQuestionSummary(prompt: ClarificationPromptData): string {
-  return `${prompt.questions.length} 个待回答问题`;
+  return i18n.t("assistant.tools.questionCount", { count: prompt.questions.length });
 }
 
 export function getAgentSpecialPanels(messages: AgentMessage[]): AgentSpecialPanel[] {

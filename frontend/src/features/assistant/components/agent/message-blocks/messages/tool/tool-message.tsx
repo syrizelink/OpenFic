@@ -4,6 +4,7 @@ import { Box, Flex, Text, Tooltip } from "@radix-ui/themes";
 import { AlertTriangle, CircleAlert } from "lucide-react";
 
 import type { AgentMessage } from "@/lib/agent.types";
+import i18n from "@/i18n";
 import {
   formatChapterDisplayName,
   getChapterDiffBodySection,
@@ -136,8 +137,8 @@ export function ToolMessage({ message }: ToolMessageProps) {
     descriptor.render(message)
   );
   const Icon = descriptor?.icon ?? AlertTriangle;
-  const title = descriptor?.getTitle(message) ?? "未注册工具";
-  const detail = descriptor ? descriptor.getDetail?.(message) : message.toolName ?? "未知";
+  const title = descriptor?.getTitle(message) ?? i18n.t("assistant.tools.unregisteredTool");
+  const detail = descriptor ? descriptor.getDetail?.(message) : message.toolName ?? i18n.t("assistant.tools.unknown");
   const chapterDiffBodySection = getChapterDiffBodySection(chapterDiffPreview);
   const noteDiffBodySection = noteDiffPreview?.sections.find((s) => s.type === "content") ?? null;
   const diffBodySection = chapterDiffBodySection ?? noteDiffBodySection;
@@ -256,7 +257,7 @@ export function ToolMessage({ message }: ToolMessageProps) {
               {visibilityState.showExpandButton ? (
                 <MessageExpandButton
                   expanded={isExpanded}
-                  label={isExpanded ? "收起工具消息" : "展开工具消息"}
+                  label={isExpanded ? i18n.t("assistant.collapseToolMessage") : i18n.t("assistant.expandToolMessage")}
                 />
               ) : null}
             </MessageBlockMeta>

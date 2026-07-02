@@ -477,11 +477,11 @@ export function PromptChainsPage() {
   }, [selectedMacro]);
 
   const mobileEntrySidebarTrigger = isMobile ? (
-    <Tooltip content={t("promptChains.viewEntries", { defaultValue: "查看条目列表" })}>
+    <Tooltip content={t("promptChains.viewEntries")}>
       <IconButton
         variant="ghost"
         size="2"
-        aria-label={t("promptChains.viewEntries", { defaultValue: "查看条目列表" })}
+        aria-label={t("promptChains.viewEntries")}
         onClick={() => setMobileEntriesOpen((prev) => !prev)}
       >
         <List size={18} />

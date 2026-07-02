@@ -1,4 +1,5 @@
 import type { AgentEvent, AgentMessage } from "@/lib/agent.types";
+import i18n from "@/i18n";
 import { getReasoningDurationMs } from "../lib/streaming-message-merge";
 
 const MESSAGE_TYPES_THAT_STOP_REASONING = new Set<AgentMessage["type"]>([
@@ -39,7 +40,7 @@ const CANCELLED_TOOL_RESULT: Record<string, unknown> = {
   success: false,
   recoverable: true,
   reason: "cancelled",
-  message: "用户中止了工具调用",
+  message: i18n.t("assistant.userAbortedToolCall"),
   data: null,
   metadata: { interrupted: true },
 };
@@ -117,7 +118,7 @@ export function stopStreamingToolMessages(messages: AgentMessage[], status: "com
           }
         : message.payload,
       toolResult: isError ? CANCELLED_TOOL_RESULT : message.toolResult,
-      content: isError ? "用户中止了工具调用" : message.content,
+      content: isError ? i18n.t("assistant.userAbortedToolCall") : message.content,
     };
   });
   return hasRunningTool ? next : messages;
@@ -141,7 +142,7 @@ function markLastUnresolvedToolCancelled(messages: AgentMessage[]): AgentMessage
       tool_result: CANCELLED_TOOL_RESULT,
     },
     toolResult: CANCELLED_TOOL_RESULT,
-    content: "用户中止了工具调用",
+    content: i18n.t("assistant.userAbortedToolCall"),
   };
   return next;
 }

@@ -80,8 +80,8 @@ function ChapterEditorInner({
   const [hasOpenedSummary, setHasOpenedSummary] = useState(false);
 
   const showLockedToast = useMemo(
-    () => createToastThrottler("Agent 运行中，章节暂不可修改"),
-    []
+    () => createToastThrottler(t("writing.agentLockedChapterEdit")),
+    [t]
   );
 
   useEffect(() => {

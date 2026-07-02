@@ -28,8 +28,8 @@ function NoteEditorInner({
   const { updateTabTitle } = useTabsStore();
 
   const showLockedToast = useMemo(
-    () => createToastThrottler("Agent 运行中，笔记暂不可修改"),
-    []
+    () => createToastThrottler(t("writing.agentLockedNoteEdit")),
+    [t]
   );
 
   const [title, setTitle] = useState(note.title);

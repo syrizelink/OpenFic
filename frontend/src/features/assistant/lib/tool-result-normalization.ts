@@ -1,3 +1,5 @@
+import i18n from "@/i18n";
+
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
@@ -51,7 +53,7 @@ function normalizeParsedToolResult(
   }
 
   if (isErrorStatus || explicitSuccess === false) {
-    const message = getString(parsed) || "工具调用失败";
+    const message = getString(parsed) || i18n.t("assistant.tools.toolError");
     return {
       type: "fail",
       success: false,

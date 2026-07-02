@@ -1,11 +1,12 @@
 import type { AgentMessage, AgentSessionStatus } from "../../../lib/agent.types";
+import i18n from "@/i18n";
 
 export const AGENT_STAGE_TEXT = {
-  primary: "正在协调任务...",
-  explorer: "正在探索信息...",
-  composer: "正在组织创作任务...",
-  writer: "正在创作内容...",
-  reviewer: "正在审核修改...",
+  primary: i18n.t("assistant.agentStatus.primary"),
+  explorer: i18n.t("assistant.agentStatus.explorer"),
+  composer: i18n.t("assistant.agentStatus.composer"),
+  writer: i18n.t("assistant.agentStatus.writer"),
+  reviewer: i18n.t("assistant.agentStatus.reviewer"),
 } as const;
 
 export interface LoadedAgentSessionState {
@@ -28,7 +29,7 @@ export function hasRunningAsyncSubagent(messages: AgentMessage[]): boolean {
 export function getBestEffortContinueStage(messages: AgentMessage[]): string {
   const lastMessage = messages[messages.length - 1];
   if (!lastMessage) return AGENT_STAGE_TEXT.primary;
-  if (lastMessage.type === "tool_approval" || lastMessage.type === "approval") return "正在应用修改...";
+  if (lastMessage.type === "tool_approval" || lastMessage.type === "approval") return i18n.t("assistant.applyingChanges");
   if (lastMessage.type === "tool") {
     return AGENT_STAGE_TEXT.writer;
   }

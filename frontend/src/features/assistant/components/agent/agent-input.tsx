@@ -145,8 +145,8 @@ export function AgentInput({
   }, [bodyMode, isComposerLocked, readOnly]);
 
   const getPlaceholder = () => {
-    if (agentStatus === "waiting_answer") return "请先回答上方问题";
-    if (agentStatus === "waiting_approval") return "请先处理上方工具审批";
+    if (agentStatus === "waiting_answer") return t("writing.aiSidebar.inputPlaceholderWaitingAnswer");
+    if (agentStatus === "waiting_approval") return t("writing.aiSidebar.inputPlaceholderWaitingApproval");
     return t("writing.aiSidebar.inputPlaceholder");
   };
 
@@ -261,7 +261,7 @@ export function AgentInput({
             <Flex align="center" gap="2" style={{ flex: "0 0 auto" }}>
               <Spinner size={18} />
               <Text size="1" color="gray">
-                加载中...
+                {t("common.loading")}
               </Text>
             </Flex>
           ) : models.length === 0 || modelsError ? (

@@ -16,6 +16,7 @@ import {
   FileText,
   Upload,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import type { SkillCreate } from "@/lib/skill.types";
 import { parseSkillMarkdown } from "../lib/skill-import";
@@ -40,6 +41,7 @@ export function ImportSkillDialog({
   onOpenChange,
   onCreate,
 }: ImportSkillDialogProps) {
+  const { t } = useTranslation();
   const [step, setStep] = useState<Step>("select");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +68,7 @@ export function ImportSkillDialog({
   const handleFileSelect = useCallback(
     async (selectedFile: File) => {
       if (!selectedFile.name.toLowerCase().endsWith(".md")) {
-        setError("仅支持 .md 格式的 Markdown 文件");
+        setError(t("settingsExtra.skills.importDialog.invalidFileType"));
         return;
       }
 
@@ -85,12 +87,12 @@ export function ImportSkillDialog({
         setPreview({ payload, fileName: selectedFile.name, isRecognized });
         setStep("preview");
       } catch {
-        setError("文件读取失败");
+        setError(t("settingsExtra.skills.importDialog.readFailed"));
       } finally {
         setLoading(false);
       }
     },
-    []
+    [t]
   );
 
   const handleDrop = useCallback(
@@ -135,10 +137,10 @@ export function ImportSkillDialog({
             >
               <Upload size={48} className="import-skill-upload-icon" />
               <Text as="p" size="3" weight="medium" mb="2">
-                拖放或点击选择文件
+                {t("settingsExtra.skills.importDialog.dropzoneTitle")}
               </Text>
               <Text as="p" size="2" color="gray">
-                支持 .md 格式的 Markdown 文件
+                {t("settingsExtra.skills.importDialog.dropzoneDescription")}
               </Text>
             </Box>
 
@@ -146,7 +148,7 @@ export function ImportSkillDialog({
               <Flex align="center" gap="2" mt="4" justify="center">
                 <Spinner size={18} />
                 <Text size="2" color="gray">
-                  正在解析...
+                  {t("settingsExtra.skills.importDialog.parsing")}
                 </Text>
               </Flex>
             )}
@@ -164,24 +166,26 @@ export function ImportSkillDialog({
                     {preview.fileName}
                   </Text>
                   <Badge size="1" color={preview.isRecognized ? "green" : "amber"}>
-                    {preview.isRecognized ? "已识别为 Skill" : "未识别格式"}
+                    {preview.isRecognized
+                      ? t("settingsExtra.skills.importDialog.recognized")
+                      : t("settingsExtra.skills.importDialog.unrecognized")}
                   </Badge>
                 </Flex>
 
                 <Flex direction="column" gap="3">
                   <Box>
                     <Text size="1" color="gray" mb="1" className="import-skill-label">
-                      名称
+                      {t("settingsExtra.skills.name")}
                     </Text>
                     <Text size="2">
-                      {preview.payload.name || "（无）"}
+                      {preview.payload.name || t("settingsExtra.skills.importDialog.emptyValue")}
                     </Text>
                   </Box>
 
                   {preview.payload.skillId && (
                     <Box>
                       <Text size="1" color="gray" mb="1" className="import-skill-label">
-                        ID
+                        {t("settingsExtra.skills.id")}
                       </Text>
                       <Text size="2">
                         {preview.payload.skillId}
@@ -192,7 +196,7 @@ export function ImportSkillDialog({
                   {preview.payload.summary && (
                     <Box>
                       <Text size="1" color="gray" mb="1" className="import-skill-label">
-                        简述
+                        {t("settingsExtra.skills.summary")}
                       </Text>
                       <ScrollArea className="import-skill-summary-preview">
                         <Text size="2" style={{ whiteSpace: "pre-wrap" }}>
@@ -205,7 +209,7 @@ export function ImportSkillDialog({
                   {preview.payload.content && (
                     <Box>
                       <Text size="1" color="gray" mb="1" className="import-skill-label">
-                        内容预览
+                        {t("settingsExtra.skills.importDialog.contentPreview")}
                       </Text>
                       <ScrollArea className="import-skill-content-preview">
                         <Box p="2">
@@ -224,7 +228,7 @@ export function ImportSkillDialog({
                   <Flex align="center" gap="2" mt="3">
                     <AlertCircle size={14} color="var(--amber-9)" />
                     <Text size="1" color="amber">
-                      未识别为标准 Skill 格式，文件内容将作为技能内容导入
+                      {t("settingsExtra.skills.importDialog.unrecognizedHint")}
                     </Text>
                   </Flex>
                 )}
@@ -240,10 +244,12 @@ export function ImportSkillDialog({
               <Check size={32} color="var(--green-9)" />
             </Box>
             <Text as="p" size="5" weight="bold" mb="2">
-              导入成功
+              {t("settingsExtra.skills.importDialog.successTitle")}
             </Text>
             <Text as="p" size="2" color="gray">
-              技能「{preview?.payload.name}」已创建
+              {t("settingsExtra.skills.importDialog.successDescription", {
+                name: preview?.payload.name,
+              })}
             </Text>
           </Box>
         );
@@ -255,7 +261,7 @@ export function ImportSkillDialog({
       case "select":
         return (
           <Button variant="soft" color="gray" onClick={() => handleOpenChange(false)}>
-            关闭
+            {t("common.close")}
           </Button>
         );
       case "preview":
@@ -263,31 +269,31 @@ export function ImportSkillDialog({
           <Flex gap="3" justify="between" className="import-skill-preview-footer">
             <Button variant="soft" color="gray" onClick={() => setStep("select")}>
               <ChevronLeft size={16} />
-              返回
+              {t("common.back")}
             </Button>
-            <Button onClick={handleConfirm}>确认导入</Button>
+            <Button onClick={handleConfirm}>{t("settingsExtra.skills.importDialog.confirmImport")}</Button>
           </Flex>
         );
       case "complete":
-        return <Button onClick={() => handleOpenChange(false)}>完成</Button>;
+        return <Button onClick={() => handleOpenChange(false)}>{t("import.finish")}</Button>;
     }
   };
 
   const getStepTitle = () => {
     switch (step) {
       case "select":
-        return "选择要导入的 Markdown 文件";
+        return t("settingsExtra.skills.importDialog.selectTitle");
       case "preview":
-        return "确认导入内容";
+        return t("settingsExtra.skills.importDialog.previewTitle");
       case "complete":
-        return "导入完成";
+        return t("settingsExtra.skills.importDialog.completeTitle");
     }
   };
 
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       <Dialog.Content maxWidth="680px">
-        <Dialog.Title>导入技能</Dialog.Title>
+        <Dialog.Title>{t("settingsExtra.skills.importSkill")}</Dialog.Title>
         <Dialog.Description size="2" color="gray" mb="4">
           {getStepTitle()}
         </Dialog.Description>

@@ -39,13 +39,13 @@ function VolumeSummary({ message, emptyTitle, emptyDescription }: VolumeToolMess
 
   return (
     <>
-      <ToolTextBlock label="卷" value={formatVolumeDisplayName(volume)} />
-      <ToolTextBlock label="说明" value={volume.description} />
+      <ToolTextBlock label={i18n.t("assistant.tools.volume")} value={formatVolumeDisplayName(volume)} />
+      <ToolTextBlock label={i18n.t("assistant.tools.descriptionLabel")} value={volume.description} />
       <ToolTextBlock
-        label="章节数"
-        value={typeof volume.chapter_count === "number" ? `${volume.chapter_count} 章` : undefined}
+        label={i18n.t("assistant.tools.chapterCountLabel")}
+        value={typeof volume.chapter_count === "number" ? i18n.t("assistant.tools.chapterCount", { count: volume.chapter_count }) : undefined}
       />
-      <ToolTextBlock label="结果" value={getToolResultMessage(message)} />
+      <ToolTextBlock label={i18n.t("assistant.tools.result")} value={getToolResultMessage(message)} />
     </>
   );
 }
@@ -55,8 +55,8 @@ export function CreateVolumeToolMessage({ message }: VolumeToolMessageProps) {
     <ToolBody>
       <VolumeSummary
         message={message}
-        emptyTitle="未返回新卷信息"
-        emptyDescription="这次创建没有返回可显示的卷信息。"
+        emptyTitle={i18n.t("assistant.tools.noVolumeInfoReturned")}
+        emptyDescription={i18n.t("assistant.tools.noVolumeInfoDescription")}
       />
     </ToolBody>
   );
@@ -67,8 +67,8 @@ export function EditVolumeToolMessage({ message }: VolumeToolMessageProps) {
     <ToolBody>
       <VolumeSummary
         message={message}
-        emptyTitle="未返回更新后的卷信息"
-        emptyDescription="这次编辑没有返回可显示的卷信息。"
+        emptyTitle={i18n.t("assistant.tools.noUpdatedVolumeInfo")}
+        emptyDescription={i18n.t("assistant.tools.noUpdatedVolumeInfoDescription")}
       />
     </ToolBody>
   );
@@ -108,7 +108,7 @@ export function MoveChapterToVolumeToolMessage({ message }: VolumeToolMessagePro
       <ToolTextBlock label={i18n.t("assistant.tools.targetVolume")} value={targetVolumeLabel} />
       <ToolTextBlock
         label={i18n.t("assistant.tools.affectedChapters")}
-        value={typeof affectedCount === "number" ? `${affectedCount} 个` : undefined}
+        value={typeof affectedCount === "number" ? i18n.t("assistant.tools.affectedCount", { count: affectedCount }) : undefined}
       />
       <ToolNotice title={i18n.t("assistant.tools.moveChapterSubmitted")}>
         {getToolResultMessage(message) ?? i18n.t("assistant.tools.moveChapterSuccess")}

@@ -51,7 +51,7 @@ export function ChapterToolMessage({ message }: ChapterToolMessageProps) {
       order: diffPreview.order,
       title: diffPreview.chapter_title ?? chapter.title,
       chapterId: diffPreview.chapter_id ?? chapter.chapter_id,
-    }) ?? "章节";
+    }) ?? i18n.t("assistant.tools.chapter");
     const chapterChangeSummary = summarizeChapterDiffSection(diffSection);
     const copyText = buildChapterDiffCopyText(diffSection);
     const isTitleOnlyChange =
@@ -60,7 +60,7 @@ export function ChapterToolMessage({ message }: ChapterToolMessageProps) {
 
     const handleCopy = async () => {
       if (!copyText) {
-        toast.error("没有可复制的正文 Diff");
+        toast.error(i18n.t("assistant.tools.noDiffToCopy"));
         return;
       }
       try {
@@ -73,9 +73,9 @@ export function ChapterToolMessage({ message }: ChapterToolMessageProps) {
           setIsCopied(false);
           copyFeedbackTimerRef.current = null;
         }, COPY_FEEDBACK_MS);
-        toast.success("已复制");
+        toast.success(i18n.t("common.copied"));
       } catch {
-        toast.error("复制失败");
+        toast.error(i18n.t("assistant.copyFailed"));
       }
     };
 
@@ -96,12 +96,12 @@ export function ChapterToolMessage({ message }: ChapterToolMessageProps) {
                 </Text>
               </Flex>
             </Flex>
-            <Tooltip content={isCopied ? "已复制" : "复制正文 Diff"}>
+            <Tooltip content={isCopied ? i18n.t("common.copied") : i18n.t("assistant.tools.copyDiff")}>
               <IconButton
                 size="1"
                 variant="ghost"
                 color={isCopied ? "green" : "gray"}
-                aria-label={isCopied ? "正文 Diff 已复制" : "复制正文 Diff"}
+                aria-label={isCopied ? i18n.t("assistant.tools.diffCopied") : i18n.t("assistant.tools.copyDiff")}
                 className="agent-message-block-toolbar-button agent-chapter-diff-copy-button"
                 data-copied={isCopied ? "true" : undefined}
                 disabled={!copyText}
@@ -127,7 +127,7 @@ export function ChapterToolMessage({ message }: ChapterToolMessageProps) {
                   </div>
                 )) : (
                   <div className="agent-chapter-diff-empty">
-                    {isTitleOnlyChange ? "本次仅变更章节标题。" : "无可显示正文差异。"}
+                    {isTitleOnlyChange ? i18n.t("assistant.tools.titleOnlyChange") : i18n.t("assistant.tools.noBodyDiff")}
                   </div>
                 )}
               </div>
@@ -159,7 +159,7 @@ export function ChapterToolMessage({ message }: ChapterToolMessageProps) {
       <ToolTextBlock label={i18n.t("assistant.tools.chapter")} value={chapterName} />
       <ToolTextBlock
         label={i18n.t("assistant.tools.wordCount")}
-        value={typeof chapter.word_count === "number" ? `${chapter.word_count} 字` : undefined}
+        value={typeof chapter.word_count === "number" ? i18n.t("assistant.tools.wordCountWithUnit", { count: chapter.word_count }) : undefined}
       />
       {chapter.content ? (
         <ToolTextBlock label={i18n.t("assistant.tools.content")} value={chapter.content} />

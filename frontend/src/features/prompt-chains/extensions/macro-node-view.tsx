@@ -4,6 +4,7 @@
 
 import { NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
 import { BookOpen, Database, GitBranch } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import "./macro-node.css";
 
 const MACRO_ICONS: Record<string, React.ReactNode> = {
@@ -14,20 +15,20 @@ const MACRO_ICONS: Record<string, React.ReactNode> = {
   endif: <GitBranch size={12} />,
 };
 
-const MACRO_LABELS: Record<string, string> = {
-  getmem: "获取记忆",
-  getlist: "章节目录",
-  getworld: "世界书",
-  if: "条件开始",
-  endif: "条件结束",
-};
-
 export function MacroNodeView({ node, selected }: NodeViewProps) {
+  const { t } = useTranslation();
   const macroName = node.attrs.macroName as string;
   const macroRaw = node.attrs.macroRaw as string;
 
   const icon = MACRO_ICONS[macroName] || null;
-  const label = MACRO_LABELS[macroName] || macroName;
+  const labelKeyMap: Record<string, string> = {
+    getmem: "promptChains.macroGetmem",
+    getlist: "promptChains.macroGetlist",
+    getworld: "promptChains.macroGetworld",
+    if: "promptChains.macroIf",
+    endif: "promptChains.macroEndIf",
+  };
+  const label = t(labelKeyMap[macroName] ?? macroName, { defaultValue: macroName });
 
   const getDisplayText = (): string => {
     try {

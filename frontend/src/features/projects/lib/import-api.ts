@@ -3,6 +3,7 @@
  */
 
 import axios from "axios";
+import i18n from "@/i18n";
 
 const API_BASE = "/api/v1";
 
@@ -163,7 +164,7 @@ export async function confirmImportStream(
 
   const reader = response.body?.getReader();
   if (!reader) {
-    throw new Error("无法获取响应流");
+    throw new Error(i18n.t("import.streamUnavailable"));
   }
 
   const decoder = new TextDecoder();

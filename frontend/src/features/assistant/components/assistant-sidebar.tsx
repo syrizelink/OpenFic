@@ -288,7 +288,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       queryClient.setQueryData(["settings"], savedSettings);
     },
     onError: () => {
-      toast.error("更新工具审批放行设置失败");
+      toast.error(t("writing.aiSidebar.toggleApprovalBypassFailed"));
     },
   });
 
@@ -382,7 +382,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
           fullTask.createdAt
         );
         if (!fullTask.agentSessionId) {
-          toast.error("分叉任务缺少Agent会话ID");
+          toast.error(t("assistant.forkMissingSessionId"));
           return;
         }
         const sessionId = fullTask.agentSessionId;
@@ -411,10 +411,10 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         queryClient.invalidateQueries({ queryKey: ["tasks", projectId], exact: false });
       } catch (error) {
         console.error("Failed to load fork task:", error);
-        toast.error("分叉任务加载失败");
+        toast.error(t("assistant.forkLoadFailed"));
       }
     },
-    [currentModel, projectId, queryClient]
+    [currentModel, projectId, queryClient, t]
   );
 
   const handleToggleToolApprovalBypass = useCallback(() => {
@@ -582,7 +582,10 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         : 0
     )
   );
-  const contextUsageTooltip = `上下文占用 ${formatTokenCount(currentConversationUsage.contextInputTokens)} / ${formatTokenCount(currentConversationUsage.contextLength)} (${contextUsagePercent.toFixed(1)}%)`;
+  const contextUsageTooltip = t("assistant.contextUsageTooltip", {
+    used: `${formatTokenCount(currentConversationUsage.contextInputTokens)} (${contextUsagePercent.toFixed(1)}%)`,
+    total: formatTokenCount(currentConversationUsage.contextLength),
+  });
 
   useEffect(() => {
     if (!onStateChange) return;
@@ -764,7 +767,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         const fullTask = bundle.task;
 
         if (!fullTask.agentSessionId) {
-          toast.error("Agent会话ID不存在，无法恢复任务");
+          toast.error(t("writing.aiSidebar.agentSessionNotFound"));
           setIsLoadingTask(false);
           return false;
         }
@@ -830,7 +833,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         }));
 
         if (options.showSuccessToast !== false) {
-          toast.success("Agent任务已加载");
+          toast.success(t("writing.aiSidebar.agentTaskLoaded"));
         }
         setIsLoadingTask(false);
         return true;
@@ -964,18 +967,18 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       || agentSidebar.status === "error"
     );
   const compactionTooltip = agentSidebar.isCompacting
-    ? "正在压缩上下文"
+    ? t("assistant.compactionInProgressTooltip")
     : isLoadingTask
-      ? "正在加载会话"
+      ? t("assistant.compactionLoadingSession")
     : isViewingSubagent
-      ? "子会话不能手动压缩"
+      ? t("assistant.compactionSubagentDisabled")
       : agentSidebar.isRunning
-        ? "Agent运行中不能手动压缩"
+        ? t("assistant.compactionRunningDisabled")
         : agentSidebar.status === "waiting_answer" || agentSidebar.status === "waiting_approval"
-          ? "请先处理当前会话"
+          ? t("assistant.compactionPendingActionRequired")
           : agentSidebar.sessionId
-            ? "压缩上下文"
-            : "当前没有Agent会话";
+            ? t("assistant.compactionAvailable")
+            : t("assistant.compactionNoSession");
   const handleCompactSession = useCallback(() => {
     if (!canCompactAgentSession) return;
     void agentSidebar.compactSession();

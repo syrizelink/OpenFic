@@ -24,14 +24,18 @@ interface GetmemPanelProps {
   };
 }
 
-const FIELD_LABELS: Record<string, string> = {
-  latest: "最新",
-  far: "远场",
-  middle: "中场",
-  near: "近场",
-};
-
 const VALID_FIELDS = ["latest", "near", "middle", "far"];
+
+function getFieldLabel(field: string, t: (key: string) => string): string {
+  const keyMap: Record<string, string> = {
+    latest: "promptChains.memoryFieldLatest",
+    far: "promptChains.memoryFieldFar",
+    middle: "promptChains.memoryFieldMiddle",
+    near: "promptChains.memoryFieldNear",
+  };
+
+  return t(keyMap[field] ?? field);
+}
 
 export function GetmemPanel({ macro, workDir }: GetmemPanelProps) {
   const { t } = useTranslation();
@@ -124,7 +128,7 @@ export function GetmemPanel({ macro, workDir }: GetmemPanelProps) {
         </Text>
         {field && (
           <Text size="2" color="gray">
-            ({FIELD_LABELS[field] || field})
+            ({getFieldLabel(field, t)})
           </Text>
         )}
       </Flex>

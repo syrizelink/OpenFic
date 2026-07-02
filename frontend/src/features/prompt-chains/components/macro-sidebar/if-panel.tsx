@@ -51,7 +51,7 @@ export function IfPanel({ macro, onUpdate }: IfPanelProps) {
           <TextField.Root
             value={varName}
             onChange={(e) => setVarName(e.target.value)}
-            placeholder="show_content"
+            placeholder={t("promptChains.ifVariablePlaceholder")}
           />
           <Text size="1" color="gray" mt="1">
             {t("promptChains.ifVariableHint")}
@@ -66,8 +66,8 @@ export function IfPanel({ macro, onUpdate }: IfPanelProps) {
             {t("promptChains.ifUsageDesc")}
           </Text>
           <Code size="1">
-            {`{{if::show}}
-这段内容会显示
+            {`{{if::${t("promptChains.ifExampleVariable")}}}
+  ${t("promptChains.ifExampleContent")}
 {{endif}}`}
           </Code>
         </Box>

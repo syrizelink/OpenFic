@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { BookOpen, FileText, Folder, StickyNote } from "lucide-react";
 import { motion } from "motion/react";
 import type { CSSProperties } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { AssistantMentionCandidate } from "@/features/assistant/lib/mention-text";
 import type { AgentComposerSuggestionStatus } from "./agent-composer-editor";
@@ -24,22 +25,22 @@ function getItemIcon(kind: AssistantMentionCandidate["kind"]) {
   return <FileText size={12} />;
 }
 
-function getItemMeta(item: AssistantMentionCandidate): string {
+function getItemMeta(item: AssistantMentionCandidate, t: (key: string, options?: Record<string, unknown>) => string): string {
   const base =
     item.kind === "volume"
-      ? "卷"
+      ? t("assistant.mentionKind.volume")
       : item.kind === "note"
-        ? "笔记"
+        ? t("assistant.mentionKind.note")
         : item.kind === "note_category"
-          ? "笔记分类"
-          : "章节";
-  return item.description ? `${base} · ${item.description}` : base;
+          ? t("assistant.mentionKind.noteCategory")
+          : t("assistant.mentionKind.chapter");
+  return item.description ? t("assistant.mentionMetaFormat", { base, description: item.description }) : base;
 }
 
-function getStateMessage(status: AgentComposerSuggestionStatus): string {
-  if (status === "idle") return "输入内容以检索";
-  if (status === "loading") return "检索中";
-  return "未找到匹配内容";
+function getStateMessage(status: AgentComposerSuggestionStatus, t: (key: string) => string): string {
+  if (status === "idle") return t("assistant.mentionSearch.idle");
+  if (status === "loading") return t("assistant.mentionSearch.loading");
+  return t("assistant.mentionSearch.empty");
 }
 
 export function AgentMentionSuggestions({
@@ -52,6 +53,7 @@ export function AgentMentionSuggestions({
   onSelectedIndexChange,
   onClose,
 }: AgentMentionSuggestionsProps) {
+  const { t } = useTranslation();
   const listRef = useRef<HTMLDivElement>(null);
   const normalizedClearanceHeight = Math.max(clearanceHeight, 0);
   const style = {
@@ -133,7 +135,7 @@ export function AgentMentionSuggestions({
                     <span className="agent-mention-suggestion-copy">
                       <span className="agent-mention-suggestion-title">{item.title}</span>
                       <span className="agent-mention-suggestion-kind">
-                        {getItemMeta(item)}
+                        {getItemMeta(item, t)}
                       </span>
                     </span>
                   </button>
@@ -141,8 +143,8 @@ export function AgentMentionSuggestions({
               </div>
             ) : (
               <div className="agent-mention-suggestion-state">
-                {getStateMessage(status)}
-              </div>
+                 {getStateMessage(status, t)}
+               </div>
             )}
           </motion.div>
           <div

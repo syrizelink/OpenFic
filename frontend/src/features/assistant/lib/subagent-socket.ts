@@ -1,5 +1,6 @@
 import type { ActiveSubagentState, AgentEvent } from "@/lib/agent.types";
 import { connectSocket, getSocket } from "../../../lib/socket-client";
+import i18n from "@/i18n";
 import { AGENT_SOCKET_EVENTS, toAgentEvent } from "./agent-socket-events";
 import { getString, isRecord } from "./tool-result-normalization";
 
@@ -124,8 +125,8 @@ export function createSubagentSocketTransport(
       payload: { session_id: sessionId },
       matchesJoined: (data) => getString(data.session_id) === sessionId,
       invalidType: "invalid_session",
-      timeoutMessage: "加入子代理状态房间超时",
-      invalidMessage: "加入子代理状态房间失败",
+      timeoutMessage: i18n.t("assistant.joinSubagentStatusTimeout"),
+      invalidMessage: i18n.t("assistant.joinSubagentStatusFailed"),
     });
   }
 
@@ -153,11 +154,11 @@ export function createSubagentSocketTransport(
     const connectHandler = () => {
       if (!hasJoinedRoom) return;
       void joinSubagentStatusStream(sessionId).catch((error) => {
-        onError?.(error instanceof Error ? error : new Error("子代理状态重连失败"));
+        onError?.(error instanceof Error ? error : new Error(i18n.t("assistant.subagentStatusReconnectFailed")));
       });
     };
     const connectError = (error: unknown) => {
-      onError?.(error instanceof Error ? error : new Error("子代理状态订阅失败"));
+      onError?.(error instanceof Error ? error : new Error(i18n.t("assistant.subagentStatusSubscribeFailed")));
     };
 
     socket.on(SUBAGENT_SOCKET_EVENTS.status, statusHandler);
@@ -182,8 +183,8 @@ export function createSubagentSocketTransport(
       payload: { child_thread_id: childThreadId },
       matchesJoined: (data) => getString(data.child_thread_id) === childThreadId,
       invalidType: "invalid_child_thread",
-      timeoutMessage: "加入子代理会话房间超时",
-      invalidMessage: "加入子代理会话房间失败",
+      timeoutMessage: i18n.t("assistant.joinSubagentSessionTimeout"),
+      invalidMessage: i18n.t("assistant.joinSubagentSessionFailed"),
     });
   }
 
@@ -207,11 +208,11 @@ export function createSubagentSocketTransport(
     const connectHandler = () => {
       if (!hasJoinedRoom) return;
       void joinSubagentSession(childThreadId).catch((error) => {
-        onError?.(error instanceof Error ? error : new Error("子代理会话重连失败"));
+        onError?.(error instanceof Error ? error : new Error(i18n.t("assistant.subagentSessionReconnectFailed")));
       });
     };
     const connectError = (error: unknown) => {
-      onError?.(error instanceof Error ? error : new Error("子代理会话订阅失败"));
+      onError?.(error instanceof Error ? error : new Error(i18n.t("assistant.subagentSessionSubscribeFailed")));
     };
     const handlers = AGENT_SOCKET_EVENTS.map((eventName) => {
       const handler = (data: unknown) => {
