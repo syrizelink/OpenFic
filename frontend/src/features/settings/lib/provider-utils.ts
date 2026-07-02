@@ -12,6 +12,8 @@ import type {
   TaskType,
 } from "@/lib/model.types";
 
+const ALL_TASK_TYPES: TaskType[] = ["llm", "embedding", "rerank"];
+
 export const SUPPORTED_PROVIDER_TYPES: ProviderType[] = [
   "openai",
   "anthropic",
@@ -42,6 +44,28 @@ export function isSupportedProviderType(value: string): value is ProviderType {
 
 export function supportsEmbeddingDimensions(providerType: ProviderType): boolean {
   return EMBEDDING_DIMENSIONS_SUPPORTED_PROVIDER_TYPES.has(providerType);
+}
+
+export function isSelectableModelProviderForTask(
+  provider: Pick<ModelProvider, "providerType" | "supportedTaskTypes" | "isBuiltin">,
+  taskType: TaskType
+): boolean {
+  if (provider.isBuiltin) {
+    return false;
+  }
+
+  return (
+    provider.providerType === "openai-compatible" ||
+    provider.supportedTaskTypes.includes(taskType)
+  );
+}
+
+export function hasSelectableModelProvider(
+  providers: Array<Pick<ModelProvider, "providerType" | "supportedTaskTypes" | "isBuiltin">>
+): boolean {
+  return providers.some((provider) =>
+    ALL_TASK_TYPES.some((taskType) => isSelectableModelProviderForTask(provider, taskType))
+  );
 }
 
 /**

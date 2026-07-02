@@ -84,7 +84,7 @@ function buildAgentModelOptions(
   return [
     {
       value: SYSTEM_DEFAULT_MODEL_REFERENCE,
-      id: SYSTEM_DEFAULT_MODEL_REFERENCE,
+      id: t("settings.agentsFollowSystemSetting"),
       name: defaultModelId
         ? `${t("settings.agentsSystemDefaultModel")} (${defaultModelId})`
         : t("settings.agentsSystemDefaultModel"),
@@ -92,7 +92,7 @@ function buildAgentModelOptions(
     },
     {
       value: SYSTEM_LIGHT_MODEL_REFERENCE,
-      id: SYSTEM_LIGHT_MODEL_REFERENCE,
+      id: t("settings.agentsFollowSystemSetting"),
       name: lightModelId
         ? `${t("settings.agentsSystemLightModel")} (${lightModelId})`
         : t("settings.agentsSystemLightModel"),
@@ -106,13 +106,14 @@ interface AgentFormProps {
   def: AgentDefinitionResponse;
   definitions: AgentDefinitionResponse[];
   llmModelOptions: ModelIdSelectOption[];
+  hasLlmModels: boolean;
   toolCategoryOptions: AgentToolCategoryResponse[];
   skills: Skill[];
   onCloseSettings?: () => void;
   onUpdated: () => void;
 }
 
-function AgentForm({ def, definitions, llmModelOptions, toolCategoryOptions, skills, onCloseSettings, onUpdated }: AgentFormProps) {
+function AgentForm({ def, definitions, llmModelOptions, hasLlmModels, toolCategoryOptions, skills, onCloseSettings, onUpdated }: AgentFormProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const fieldLabelStyle = useMemo(() => ({ fontSize: 14 }), []);
@@ -256,7 +257,7 @@ function AgentForm({ def, definitions, llmModelOptions, toolCategoryOptions, ski
           onChange={setFormModelId}
           editable={false}
           allowCustomValue={false}
-          emptyOptionLabel={`（${t("settings.agentsNoModel")}）`}
+          disabled={!hasLlmModels}
           triggerStyle={{ width: "100%" }}
         />
       </Flex>
@@ -507,6 +508,7 @@ export function AgentDefinitionsSettings({
   });
 
   const { options: llmModelOptions, isLoading: isModelOptionsLoading } = useLlmModelOptions();
+  const hasLlmModels = llmModelOptions.length > 0;
   const modelOptions = useMemo(
     () => buildAgentModelOptions(
       llmModelOptions,
@@ -858,6 +860,7 @@ export function AgentDefinitionsSettings({
       def={selectedDef}
       definitions={definitions}
       llmModelOptions={modelOptions}
+      hasLlmModels={hasLlmModels}
       toolCategoryOptions={toolCategoryOptions}
       skills={skills}
       onCloseSettings={onCloseSettings}
