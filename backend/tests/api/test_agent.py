@@ -196,7 +196,7 @@ class TestAgentAPI:
             },
         ]
 
-    async def test_create_agent_session_success(self, client: AsyncClient) -> None:
+    async def test_create_agent_session_success(self, client: AsyncClient, session) -> None:
         target = await _seed_agent_target(client)
 
         response = await client.post(
@@ -217,8 +217,11 @@ class TestAgentAPI:
         assert data["task_id"]
         assert data["session_id"].startswith("agent_")
         assert "checkpoint_id" not in data
-        assert data["task_title"] == "Agent Session"
+        assert data["task_title"]
         assert data["session_id"] in _SESSION_RUNNERS
+
+        created_task = await task_service.get_task(session, data["task_id"])
+        assert created_task.title == data["task_title"]
 
     async def test_create_agent_session_rejects_mode_field(self, client: AsyncClient) -> None:
         target = await _seed_agent_target(client)
@@ -453,6 +456,40 @@ class TestAgentAPI:
             assert response.json()["success"] is True
             await asyncio.sleep(0.05)
             mock_run.assert_awaited_once_with(user_request="帮我写一个场景")
+
+    async def test_send_message_enqueues_title_job_for_new_default_title(
+        self,
+        client: AsyncClient,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={
+                "project_id": target["project_id"],
+                "model_id": target["model_id"],
+                "max_iterations": 5,
+            },
+        )
+        session_id = session_response.json()["session_id"]
+
+        with patch(
+            "app.api.routers.agent_runtime.enqueue_session_title_job",
+            new=AsyncMock(),
+        ) as enqueue_mock, patch(
+            "app.api.routers.agent_runtime.background_service.commit_and_notify",
+            new=AsyncMock(),
+        ) as commit_and_notify_mock, patch(
+            "app.api.routers.agent_runtime.SessionRunner.run",
+            new=AsyncMock(return_value=None),
+        ):
+            response = await client.post(
+                f"/api/v1/agent/sessions/{session_id}/message",
+                json={"message": "帮我写一个场景"},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        enqueue_mock.assert_awaited_once()
+        commit_and_notify_mock.assert_awaited_once()
 
     async def test_send_message_persists_running_state_and_emits_status_updates(
         self,

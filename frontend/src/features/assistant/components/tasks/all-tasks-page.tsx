@@ -13,14 +13,15 @@ import {
   Tooltip,
   TextField,
 } from "@radix-ui/themes";
-import { ArrowLeft, Copy, Star, Trash2, Search, ListX } from "lucide-react";
+import { ArrowLeft, Pencil, Star, Trash2, Search, ListX } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 
 import type { TaskListItem } from "@/lib/task.types";
 import { useTasks, useUpdateTask, useDeleteTask, useDeleteAllTasks } from "../../hooks/use-tasks";
-import { toast, ConfirmDialog, Spinner } from "@/components";
+import { ConfirmDialog, Spinner } from "@/components";
+import { TaskRenameInput } from "./task-rename-input";
 
 interface AllTasksPageProps {
   projectId: string;
@@ -38,6 +39,8 @@ export function AllTasksPage({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingTask, setDeletingTask] = useState<TaskListItem | null>(null);
   const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
 
   // 获取任务列表
   const { data, isLoading, refetch } = useTasks(projectId, {
@@ -65,14 +68,34 @@ export function AllTasksPage({
     }
   };
 
-  // 复制任务内容
-  const handleCopy = (task: TaskListItem, e: React.MouseEvent) => {
+  const handleStartEdit = (task: TaskListItem, e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(task.title);
-    toast.success(t("common.copied"));
+    setEditingTaskId(task.id);
   };
 
-  // 切换收藏
+  const handleCancelEdit = () => {
+    setEditingTaskId(null);
+  };
+
+  const handleCommitEdit = async (taskId: string, originalTitle: string, nextTitle: string) => {
+    const trimmedTitle = nextTitle.trim();
+    if (!trimmedTitle || trimmedTitle === originalTitle) {
+      handleCancelEdit();
+      return;
+    }
+
+    setSavingTaskId(taskId);
+    try {
+      await updateMutation.mutateAsync({
+        taskId,
+        data: { title: trimmedTitle },
+      });
+      handleCancelEdit();
+    } finally {
+      setSavingTaskId(null);
+    }
+  };
+
   const handleToggleFavorite = (task: TaskListItem, e: React.MouseEvent) => {
     e.stopPropagation();
     updateMutation.mutate({
@@ -81,14 +104,12 @@ export function AllTasksPage({
     });
   };
 
-  // 打开删除对话框
   const handleOpenDelete = (task: TaskListItem, e: React.MouseEvent) => {
     e.stopPropagation();
     setDeletingTask(task);
     setDeleteDialogOpen(true);
   };
 
-  // 确认删除
   const handleConfirmDelete = async () => {
     if (!deletingTask) return;
     await deleteMutation.mutateAsync(deletingTask.id);
@@ -96,7 +117,6 @@ export function AllTasksPage({
     setDeletingTask(null);
   };
 
-  // 确认删除全部
   const handleConfirmDeleteAll = async () => {
     await deleteAllMutation.mutateAsync();
     setDeleteAllDialogOpen(false);
@@ -192,22 +212,36 @@ export function AllTasksPage({
             <Box
               key={task.id}
               className="task-list-item"
-              onClick={() => onTaskClick(task)}
+              onClick={() => {
+                if (editingTaskId !== task.id) onTaskClick(task);
+              }}
             >
               <Flex align="center" gap="2" style={{ marginBottom: "8px" }}>
-                <Text
-                  size="2"
-                  weight="medium"
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {task.title}
-                </Text>
+                {editingTaskId === task.id ? (
+                  <Box style={{ flex: 1, minWidth: 0, height: "20px" }}>
+                    <TaskRenameInput
+                      key={task.id}
+                      initialValue={task.title}
+                      disabled={savingTaskId === task.id}
+                      onConfirm={(newTitle) => handleCommitEdit(task.id, task.title, newTitle)}
+                      onCancel={handleCancelEdit}
+                    />
+                  </Box>
+                ) : (
+                  <Text
+                    size="2"
+                    weight="medium"
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {task.title}
+                  </Text>
+                )}
                 {task.isRunning && (
                   <span
                     aria-label={runningLabel}
@@ -226,14 +260,15 @@ export function AllTasksPage({
 
                 {/* 右侧：操作按钮 */}
                 <Flex align="center" gap="1">
-                  <Tooltip content={t("common.copy")}>
+                  <Tooltip content={t("common.edit")}>
                     <IconButton
                       variant="ghost"
                       size="1"
-                      onClick={(e) => handleCopy(task, e)}
+                      onClick={(e) => handleStartEdit(task, e)}
+                      disabled={savingTaskId === task.id}
                       style={{ width: "24px", height: "24px" }}
                     >
-                      <Copy size={14} />
+                      <Pencil size={14} />
                     </IconButton>
                   </Tooltip>
                   <Tooltip

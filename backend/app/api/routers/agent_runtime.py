@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -73,6 +74,12 @@ from app.storage.database import get_session
 from app.storage.services import task_service
 
 router = APIRouter(tags=["Agent"])
+
+LEGACY_DEFAULT_AGENT_SESSION_TITLE = "Agent Session"
+DEFAULT_AGENT_SESSION_TITLE_PREFIX = "New session - "
+DEFAULT_AGENT_SESSION_TITLE_PATTERN = re.compile(
+    r"^New session - \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$"
+)
 
 TOOL_DISPLAY_ORDER = {
     "ask_user": 0,
@@ -154,6 +161,17 @@ TOOL_DISPLAY_METADATA = {
         "description": "将指定章节移动到目标卷末尾。",
     },
 }
+
+
+def _build_default_agent_session_title(created_at: datetime) -> str:
+    timestamp = created_at.astimezone(UTC).isoformat(timespec="milliseconds")
+    return f"{DEFAULT_AGENT_SESSION_TITLE_PREFIX}{timestamp.replace('+00:00', 'Z')}"
+
+
+def _is_pending_agent_session_title(title: str) -> bool:
+    return title == LEGACY_DEFAULT_AGENT_SESSION_TITLE or bool(
+        DEFAULT_AGENT_SESSION_TITLE_PATTERN.fullmatch(title)
+    )
 
 _SESSION_RUNNERS: dict[str, SessionRunner] = {}
 
@@ -553,10 +571,11 @@ async def create_agent_session(
         task = await task_service.create_task(
             session=session,
             project_id=request.project_id,
-            title="Agent Session",
+            title="New session",
             mode="agent",
             agent_session_id=session_id,
         )
+        task.title = _build_default_agent_session_title(task.created_at)
         runner = SessionRunner(
             session_id=session_id,
             task_id=task.id,
@@ -613,7 +632,7 @@ async def send_agent_message(
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    if task.title == "Agent Session":
+    if _is_pending_agent_session_title(task.title):
         await enqueue_session_title_job(session, task, body.message)
         await background_service.commit_and_notify(session)
     if await registry.is_running(session_id):

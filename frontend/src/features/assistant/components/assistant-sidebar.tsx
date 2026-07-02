@@ -865,6 +865,16 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
     [updateTaskMutation]
   );
 
+  const handleRenameTask = useCallback(
+    async (taskId: string, title: string) => {
+      await updateTaskMutation.mutateAsync({
+        taskId,
+        data: { title },
+      });
+    },
+    [updateTaskMutation]
+  );
+
   const backToTaskList = useCallback(() => {
     setSessionTotalUsage(createSessionTotalUsageState());
     setConversationUsageBySession({});
@@ -1271,6 +1281,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                 hasRecentTasks={hasRecentTasks}
                 onTaskClick={loadTask}
                 onToggleFavorite={handleToggleFavorite}
+                onRenameTask={handleRenameTask}
                 onViewAll={openAllTasks}
               />
             ) : (
