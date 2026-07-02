@@ -6,7 +6,7 @@
   "packageManager": "pnpm@11.8.0",
   "scripts": {
     "dev": "farm start",
-    "build": "tsc -b && farm build",
+    "build": "tsc -b && farm build && node scripts/generate-precachelist.mjs",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "type-check": "tsc -b tsconfig.json --noEmit",
     "preview": "farm preview"

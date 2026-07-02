@@ -22,7 +22,9 @@
     "progress": "进度",
     "appName": "OpenFic",
     "searchPlaceholder": "搜索...",
-    "noMatchingOptions": "没有匹配选项"
+    "noMatchingOptions": "没有匹配选项",
+    "swUpdated": "应用已更新，点击刷新",
+    "refresh": "刷新"
   },
   "topbar": {
     "projects": "项目",
