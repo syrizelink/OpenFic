@@ -4,43 +4,64 @@
  * 任务列表组件，显示最近的任务。
  */
 
+import { useState } from "react";
 import { Box, Flex, Text, IconButton, Tooltip } from "@radix-ui/themes";
-import { Copy, Star, Clock } from "lucide-react";
+import { Pencil, Star, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 
 import type { TaskListItem } from "@/lib/task.types";
-import { toast } from "@/components";
+import { TaskRenameInput } from "./task-rename-input";
 
 interface TaskListProps {
   tasks: TaskListItem[];
   onTaskClick: (task: TaskListItem) => void;
   onToggleFavorite: (taskId: string, isFavorited: boolean) => void;
+  onRenameTask: (taskId: string, title: string) => Promise<void>;
 }
 
 export function TaskList({
   tasks,
   onTaskClick,
   onToggleFavorite,
+  onRenameTask,
 }: TaskListProps) {
   const { t } = useTranslation();
   const runningLabel = t("writing.aiSidebar.taskRunning");
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
 
-  // 复制任务内容
-  const handleCopy = (task: TaskListItem, e: React.MouseEvent) => {
+  const handleStartEdit = (task: TaskListItem, e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(task.title);
-    toast.success(t("common.copied"));
+    setEditingTaskId(task.id);
   };
 
-  // 切换收藏
+  const handleCancelEdit = () => {
+    setEditingTaskId(null);
+  };
+
+  const handleCommitEdit = async (taskId: string, originalTitle: string, nextTitle: string) => {
+    const trimmedTitle = nextTitle.trim();
+    if (!trimmedTitle || trimmedTitle === originalTitle) {
+      handleCancelEdit();
+      return;
+    }
+
+    setSavingTaskId(taskId);
+    try {
+      await onRenameTask(taskId, trimmedTitle);
+      handleCancelEdit();
+    } finally {
+      setSavingTaskId(null);
+    }
+  };
+
   const handleToggleFavorite = (task: TaskListItem, e: React.MouseEvent) => {
     e.stopPropagation();
     onToggleFavorite(task.id, !task.isFavorited);
   };
 
-  // 格式化时间
   const formatTime = (dateString: string) => {
     try {
       return formatDistanceToNow(new Date(dateString), {
@@ -70,22 +91,36 @@ export function TaskList({
         <Box
           key={task.id}
           className="task-list-item"
-          onClick={() => onTaskClick(task)}
+          onClick={() => {
+            if (editingTaskId !== task.id) onTaskClick(task);
+          }}
         >
           <Flex align="center" gap="2" style={{ marginBottom: "8px" }}>
-            <Text
-              size="2"
-              weight="medium"
-              style={{
-                flex: 1,
-                minWidth: 0,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {task.title}
-            </Text>
+            {editingTaskId === task.id ? (
+              <Box style={{ flex: 1, minWidth: 0, height: "20px" }}>
+                <TaskRenameInput
+                  key={task.id}
+                  initialValue={task.title}
+                  disabled={savingTaskId === task.id}
+                  onConfirm={(newTitle) => handleCommitEdit(task.id, task.title, newTitle)}
+                  onCancel={handleCancelEdit}
+                />
+              </Box>
+            ) : (
+              <Text
+                size="2"
+                weight="medium"
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {task.title}
+              </Text>
+            )}
             {task.isRunning && (
               <span
                 aria-label={runningLabel}
@@ -105,14 +140,15 @@ export function TaskList({
 
             {/* 右侧：操作按钮 */}
             <Flex align="center" gap="1">
-              <Tooltip content={t("common.copy")}>
+              <Tooltip content={t("common.edit")}>
                 <IconButton
                   variant="ghost"
                   size="1"
-                  onClick={(e) => handleCopy(task, e)}
+                  onClick={(e) => handleStartEdit(task, e)}
+                  disabled={savingTaskId === task.id}
                   style={{ width: "24px", height: "24px" }}
                 >
-                  <Copy size={14} />
+                  <Pencil size={14} />
                 </IconButton>
               </Tooltip>
               <Tooltip

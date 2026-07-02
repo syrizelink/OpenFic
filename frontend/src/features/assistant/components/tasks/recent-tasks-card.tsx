@@ -15,6 +15,7 @@ interface RecentTasksCardProps {
   hasRecentTasks: boolean;
   onTaskClick: (task: TaskListItem) => void;
   onToggleFavorite: (taskId: string, isFavorited: boolean) => void;
+  onRenameTask: (taskId: string, title: string) => Promise<void>;
   onViewAll: () => void;
 }
 
@@ -23,6 +24,7 @@ export function RecentTasksCard({
   hasRecentTasks,
   onTaskClick,
   onToggleFavorite,
+  onRenameTask,
   onViewAll,
 }: RecentTasksCardProps) {
   const { t } = useTranslation();
@@ -61,6 +63,7 @@ export function RecentTasksCard({
               tasks={tasks}
               onTaskClick={onTaskClick}
               onToggleFavorite={onToggleFavorite}
+              onRenameTask={onRenameTask}
             />
           </>
         ) : (

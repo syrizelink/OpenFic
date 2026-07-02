@@ -73,14 +73,33 @@ export function useUpdateTask() {
   return useMutation({
     mutationFn: ({ taskId, data }: { taskId: string; data: UpdateTaskRequest }) =>
       updateTask(taskId, data),
-    onSuccess: (updatedTask) => {
+    onSuccess: (updatedTask, variables) => {
       queryClient.setQueryData(["task", updatedTask.id], updatedTask);
       queryClient.invalidateQueries({
         queryKey: ["tasks", updatedTask.projectId],
         exact: false,
       });
+      if (typeof variables.data.title === "string") {
+        toast.success(i18n.t("writing.aiSidebar.taskRenamed"));
+        return;
+      }
+      if (typeof variables.data.is_favorited === "boolean") {
+        toast.success(
+          variables.data.is_favorited
+            ? i18n.t("writing.aiSidebar.taskFavorited")
+            : i18n.t("writing.aiSidebar.taskUnfavorited")
+        );
+      }
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables) => {
+      if (typeof variables.data.title === "string") {
+        toast.error(i18n.t("writing.aiSidebar.renameTaskFailed", { error: error.message }));
+        return;
+      }
+      if (typeof variables.data.is_favorited === "boolean") {
+        toast.error(i18n.t("writing.aiSidebar.favoriteTaskFailed", { error: error.message }));
+        return;
+      }
       toast.error(i18n.t("writing.aiSidebar.updateTaskFailed", { error: error.message }));
     },
   });
