@@ -19,6 +19,9 @@ export default defineConfig({
     persistentCache: true,
     treeShaking: true,
     minify: true,
+    define: {
+      "import.meta.env.PROD": JSON.stringify(process.env.NODE_ENV === "production"),
+    },
     input: {
       index: "./index.html"
     },

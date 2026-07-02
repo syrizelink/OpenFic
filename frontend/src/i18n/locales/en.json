@@ -22,7 +22,9 @@
     "progress": "Progress",
     "appName": "OpenFic",
     "searchPlaceholder": "Search...",
-    "noMatchingOptions": "No matching options"
+    "noMatchingOptions": "No matching options",
+    "swUpdated": "App updated. Click to refresh.",
+    "refresh": "Refresh"
   },
   "topbar": {
     "projects": "Projects",

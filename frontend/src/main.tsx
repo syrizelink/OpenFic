@@ -20,6 +20,7 @@ import { checkHealth } from "./lib/api-client";
 import { loadRuntimeConfig } from "./lib/runtime-config";
 import { preloadTiktokenEncoding } from "./lib/tiktoken-utils";
 import { publishDesktopAppearance } from "./lib/desktop-appearance-bridge";
+import { registerSW } from "./pwa/register-sw";
 import type { Settings } from "./features/settings/lib/settings.types";
 import "streamdown/styles.css";
 import "./styles/index.css";
@@ -169,5 +170,7 @@ function Root() {
     </StrictMode>
   );
 }
+
+registerSW();
 
 getOrCreateRoot(document.getElementById("root")!).render(<Root />);
