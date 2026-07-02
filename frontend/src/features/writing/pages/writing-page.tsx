@@ -430,11 +430,11 @@ export function WritingPage() {
                   </Tooltip>
                 </Flex>
 
-                <Tooltip content="AI">
+                <Tooltip content={t("assistant.mobileTitle")}>
                   <IconButton
                     variant="ghost"
                     size="2"
-                    aria-label="AI"
+                    aria-label={t("assistant.mobileTitle")}
                     onClick={() => setIsAssistantOpen(true)}
                   >
                     <Bot size={18} />

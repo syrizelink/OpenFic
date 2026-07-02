@@ -53,7 +53,7 @@ export function ImportDialog({
   onOpenChange,
   onSuccess,
 }: ImportDialogProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // 步骤状态
   const [step, setStep] = useState<Step>("select");
@@ -200,10 +200,25 @@ export function ImportDialog({
 
   // 格式化字数
   const formatWordCount = (count: number) => {
-    if (count >= 10000) {
-      return `${(count / 10000).toFixed(1)}万`;
+    return new Intl.NumberFormat(i18n.language, {
+      notation: count >= 10000 ? "compact" : "standard",
+      maximumFractionDigits: count >= 10000 ? 1 : 0,
+    }).format(count);
+  };
+
+  const getImportStageText = () => {
+    switch (importStage) {
+      case "reading":
+        return t("import.stageReading");
+      case "parsing":
+        return t("import.stageParsing");
+      case "creating_project":
+        return t("import.stageCreatingProject");
+      case "saving_chapters":
+        return t("import.stageSavingChapters");
+      default:
+        return "";
     }
-    return count.toString();
   };
 
   // 渲染步骤内容
@@ -409,10 +424,7 @@ export function ImportDialog({
               {t("import.importing")}
             </Text>
             <Text as="p" size="2" color="gray" mb="4">
-              {importStage === "reading" && "正在读取文件..."}
-              {importStage === "parsing" && "正在解析章节..."}
-              {importStage === "creating_project" && "正在创建项目..."}
-              {importStage === "saving_chapters" && "正在保存章节..."}
+              {getImportStageText()}
             </Text>
             <Progress
               value={importProgress}

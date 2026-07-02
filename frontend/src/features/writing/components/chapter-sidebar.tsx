@@ -112,8 +112,8 @@ export function ChapterSidebar({
   const lastHandledInitialCurrentChapterNavigationKeyRef = useRef<string | null>(null);
 
   const showLockedToast = useMemo(
-    () => createToastThrottler("Agent 运行中，章节暂不可修改"),
-    []
+    () => createToastThrottler(t("writing.agentLockedChapterEdit")),
+    [t]
   );
 
   useEffect(() => {
