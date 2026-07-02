@@ -19,13 +19,14 @@ export function useLlmModelOptions(): UseLlmModelOptionsResult {
   const { data: models, isLoading: isModelsLoading, error: modelsError } = useQuery({
     queryKey: ["models"],
     queryFn: () => fetchModels(),
-    staleTime: 5 * 60 * 1000,
   });
 
-  const { data: providers } = useQuery({
+  const {
+    data: providers,
+    isLoading: isProvidersLoading,
+  } = useQuery({
     queryKey: ["model-providers"],
     queryFn: fetchProviders,
-    staleTime: 5 * 60 * 1000,
   });
 
   const llmModels = useMemo(
@@ -45,7 +46,10 @@ export function useLlmModelOptions(): UseLlmModelOptionsResult {
     );
   }, [llmModels, providers]);
 
-  const { data: catalogMetadata } = useQuery({
+  const {
+    data: catalogMetadata,
+    isLoading: isCatalogMetadataLoading,
+  } = useQuery({
     queryKey: ["model-provider-catalog", "llm-model-metadata", catalogProviderTypes],
     queryFn: async () => {
       const responses = await Promise.all(
@@ -57,7 +61,6 @@ export function useLlmModelOptions(): UseLlmModelOptionsResult {
       return new Map(responses);
     },
     enabled: catalogProviderTypes.length > 0,
-    staleTime: 5 * 60 * 1000,
   });
 
   const options = useMemo<ModelIdSelectOption[]>(() => {
@@ -90,7 +93,10 @@ export function useLlmModelOptions(): UseLlmModelOptionsResult {
 
   return {
     options,
-    isLoading: isModelsLoading,
+    isLoading:
+      isModelsLoading ||
+      isProvidersLoading ||
+      (catalogProviderTypes.length > 0 && isCatalogMetadataLoading),
     error: modelsError,
   };
 }

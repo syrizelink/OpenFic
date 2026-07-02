@@ -31,6 +31,7 @@ import {
   applyFontFamily,
   loadConfiguredFonts,
 } from "@/lib/font-utils";
+import { OVERALL_INDEX_STATUS_QUERY_KEY } from "@/lib/index-status";
 
 const MotionBox = motion.create(Box);
 
@@ -217,13 +218,58 @@ export function SettingsContent({ appearance, onAppearanceChange, onClose, route
       ? mobileSubpageTitle
       : t(CATEGORY_TITLE_KEY_MAP[activeCategory]);
 
+  const clearCategoryQueries = useCallback((category: SettingsCategory) => {
+    const removeQuery = (queryKey: readonly unknown[]) => {
+      queryClient.removeQueries({ queryKey });
+    };
+
+    if (category === "general") removeQuery(["settings"]);
+    if (category === "connections") {
+      removeQuery(["model-providers"]);
+      removeQuery(["model-provider-catalog"]);
+    }
+    if (category === "models") {
+      removeQuery(["models"]);
+      removeQuery(["model-providers"]);
+      removeQuery(["settings"]);
+      removeQuery(["model-provider-catalog"]);
+    }
+    if (category === "index") {
+      removeQuery(["settings"]);
+      removeQuery(["models"]);
+      removeQuery(["projects", "all-for-index"]);
+      removeQuery(OVERALL_INDEX_STATUS_QUERY_KEY);
+    }
+    if (category === "agent-tools") {
+      removeQuery(["settings"]);
+      removeQuery(["agent-tools"]);
+    }
+    if (category === "rules") removeQuery(["agent-rules"]);
+    if (category === "skills") removeQuery(["skills"]);
+    if (category === "agents") {
+      removeQuery(["agent-definitions"]);
+      removeQuery(["agent-tool-categories"]);
+      removeQuery(["skills"]);
+      removeQuery(["settings"]);
+      removeQuery(["models"]);
+      removeQuery(["model-providers"]);
+      removeQuery(["model-provider-catalog"]);
+    }
+  }, [queryClient]);
+
   const handleMobileCategorySelect = useCallback((category: SettingsCategory) => {
+    clearCategoryQueries(category);
     setMobileDirection(1);
     setActiveCategory(category);
     setMobileSubpage("list");
     setMobileSubpageTitle(null);
     setMobileView("detail");
-  }, []);
+  }, [clearCategoryQueries]);
+
+  const handleDesktopCategorySelect = useCallback((category: SettingsCategory) => {
+    clearCategoryQueries(category);
+    setActiveCategory(category);
+  }, [clearCategoryQueries]);
 
   const handleMobileBack = useCallback(() => {
     if (isMobileListView) {
@@ -256,7 +302,7 @@ export function SettingsContent({ appearance, onAppearanceChange, onClose, route
             : "settings-dialog-content-scroll"}
       >
         {isCategoryLoading ? (
-          <Flex align="center" justify="center" className="settings-dialog-loading-state">
+          <Flex align="center" justify="center" style={{ height: "100%" }}>
             <Spinner size={18} />
           </Flex>
         ) : displaySettings ? (
@@ -323,7 +369,7 @@ export function SettingsContent({ appearance, onAppearanceChange, onClose, route
         <Box className="settings-dialog-sidebar-shell">
           <SettingsSidebar
             activeCategory={activeCategory}
-            onCategoryChange={setActiveCategory}
+            onCategoryChange={handleDesktopCategorySelect}
           />
         </Box>
       ) : null}

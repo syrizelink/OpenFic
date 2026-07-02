@@ -24,7 +24,7 @@ import { ModelIdSelect, type ModelIdSelectOption } from "@/components";
 import { fetchSkills } from "@/lib/api-client";
 import type { Skill } from "@/lib/skill.types";
 import { useLlmModelOptions } from "@/lib/use-llm-model-options";
-import { ContextMenu, type ContextMenuItem, toast, ConfirmDialog } from "@/components";
+import { ContextMenu, type ContextMenuItem, toast, ConfirmDialog, Spinner } from "@/components";
 import {
   fetchAgentToolCategories,
   fetchAgentDefinitions,
@@ -474,14 +474,22 @@ export function AgentDefinitionsSettings({
     refetchOnMount: "always",
   });
 
-  const { data: toolCategoryOptions = [] } = useQuery({
+  const {
+    data: toolCategoryOptions = [],
+    isLoading: isToolCategoriesLoading,
+    isFetching: isToolCategoriesFetching,
+  } = useQuery({
     queryKey: ["agent-tool-categories"],
     queryFn: fetchAgentToolCategories,
     staleTime: 0,
     refetchOnMount: "always",
   });
 
-  const { data: skillsData } = useQuery({
+  const {
+    data: skillsData,
+    isLoading: isSkillsLoading,
+    isFetching: isSkillsFetching,
+  } = useQuery({
     queryKey: ["skills"],
     queryFn: () => fetchSkills({ page: 1, pageSize: 100 }),
     staleTime: 0,
@@ -489,12 +497,16 @@ export function AgentDefinitionsSettings({
   });
   const skills = useMemo(() => skillsData?.items ?? [], [skillsData?.items]);
 
-  const { data: settings } = useQuery({
+  const {
+    data: settings,
+    isLoading: isSettingsLoading,
+    isFetching: isSettingsFetching,
+  } = useQuery({
     queryKey: ["settings"],
     queryFn: fetchSettings,
   });
 
-  const { options: llmModelOptions } = useLlmModelOptions();
+  const { options: llmModelOptions, isLoading: isModelOptionsLoading } = useLlmModelOptions();
   const modelOptions = useMemo(
     () => buildAgentModelOptions(
       llmModelOptions,
@@ -526,6 +538,18 @@ export function AgentDefinitionsSettings({
     onMobilePageChange?.(page);
     if (mobilePage === undefined) setInternalMobilePage(page);
   }, [controlledMobileDirection, mobilePage, onMobilePageChange]);
+
+  const isContentLoading =
+    isLoading ||
+    isFetching ||
+    isToolCategoriesLoading ||
+    isToolCategoriesFetching ||
+    isSkillsLoading ||
+    isSkillsFetching ||
+    isSettingsLoading ||
+    isSettingsFetching ||
+    isModelOptionsLoading ||
+    !settings;
 
   useEffect(() => {
     onMobileDetailTitleChange?.(selectedDef?.display_name || null);
@@ -843,7 +867,11 @@ export function AgentDefinitionsSettings({
 
   return (
     <>
-      {isMobile ? (
+      {isContentLoading ? (
+        <Flex align="center" justify="center" style={{ height: "100%" }}>
+          <Spinner size={18} />
+        </Flex>
+      ) : isMobile ? (
         <Flex direction="column" className="agent-definitions-layout agent-definitions-layout--mobile">
           <Box className="settings-dialog-mobile-page-stack">
             <AnimatePresence initial={false} custom={currentMobileDirection} mode="sync">
@@ -882,13 +910,13 @@ export function AgentDefinitionsSettings({
           </Box>
         </Flex>
       ) : (
-      <Flex className="agent-definitions-layout">
-        {listContent}
+        <Flex className="agent-definitions-layout">
+          {listContent}
 
-        <Box className="agent-definitions-detail-panel">
-          {detailContent}
-        </Box>
-      </Flex>
+          <Box className="agent-definitions-detail-panel">
+            {detailContent}
+          </Box>
+        </Flex>
       )}
 
       <ContextMenu position={menuState?.position ?? null} items={menuItems} onClose={closeMenu} />
