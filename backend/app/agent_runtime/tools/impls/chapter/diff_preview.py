@@ -72,7 +72,7 @@ def build_chapter_diff_preview(
 
     if before is None or after is None or before.title != after.title:
         sections.append({
-            "label": "标题",
+            "type": "title",
             "lines": _build_diff_lines(
                 before.title if before else "",
                 after.title if after else "",
@@ -81,7 +81,7 @@ def build_chapter_diff_preview(
 
     if before is None or after is None or before.content != after.content:
         sections.append({
-            "label": "内容",
+            "type": "content",
             "lines": _build_diff_lines(
                 before.content if before else "",
                 after.content if after else "",

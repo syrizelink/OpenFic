@@ -621,7 +621,7 @@ async def test_projects_completed_write_tool_result_keeps_chapter_diff_for_reloa
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="tool",
-        content='{"type":"ok","success":true,"tool_name":"write_chapter","message":"章节已写入","word_count":2,"chapter":{"id":"chapter_1","title":"第一章","content":"正文","order":1},"chapter_diff":{"operation":"create","chapter_id":"chapter_1","chapter_title":"第一章","order":1,"sections":[{"label":"内容","lines":[{"type":"added","before_line_number":null,"after_line_number":1,"text":"正文"}]}]},"affected_chapters":["chapter_1"]}',
+        content='{"type":"ok","success":true,"tool_name":"write_chapter","message":"章节已写入","word_count":2,"chapter":{"id":"chapter_1","title":"第一章","content":"正文","order":1},"chapter_diff":{"operation":"create","chapter_id":"chapter_1","chapter_title":"第一章","order":1,"sections":[{"type":"content","lines":[{"type":"added","before_line_number":null,"after_line_number":1,"text":"正文"}]}]},"affected_chapters":["chapter_1"]}',
         status="complete",
         tool_call_id="call_write",
         tool_name="write_chapter",
@@ -635,3 +635,4 @@ async def test_projects_completed_write_tool_result_keeps_chapter_diff_for_reloa
     assert tool_messages[0].payload["tool_result"]["data"]["chapter"]["id"] == "chapter_1"
     assert tool_messages[0].payload["tool_result"]["data"]["chapter_diff"]["operation"] == "create"
     assert tool_messages[0].payload["tool_result"]["data"]["chapter_diff"]["chapter_id"] == "chapter_1"
+    assert tool_messages[0].payload["tool_result"]["data"]["chapter_diff"]["sections"][0]["type"] == "content"

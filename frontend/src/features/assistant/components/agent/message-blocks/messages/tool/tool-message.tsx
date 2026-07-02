@@ -10,6 +10,7 @@ import {
   getChapterDiffPreview,
   summarizeChapterDiffSection,
   type ChapterDiffSection,
+  type ChapterDiffSectionType,
 } from "@/features/assistant/lib/chapter-tool-preview";
 
 import { getToolDescriptor } from "../../tools/shared/tool-message-registry";
@@ -71,6 +72,11 @@ function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
 }
 
+function normalizeSectionType(value: unknown): ChapterDiffSectionType | null {
+  if (value === "content" || value === "title") return value;
+  return null;
+}
+
 function getToolResultDataRecord(message: AgentMessage): Record<string, unknown> | null {
   const resultData = message.toolResult?.data;
   if (isRecord(resultData)) return resultData;
@@ -91,18 +97,22 @@ function getNoteDiffPreview(message: AgentMessage): {
     note_id: asString(rawPreview.note_id),
     sections: rawPreview.sections
       .filter(isRecord)
-      .map((section) => ({
-        label: asString(section.label) ?? "",
-        lines: Array.isArray(section.lines)
-          ? section.lines.filter(isRecord).map((line) => ({
-            type: (line.type === "added" || line.type === "removed" ? line.type : "context") as ChapterDiffSection["lines"][0]["type"],
-            before_line_number: typeof line.before_line_number === "number" ? line.before_line_number : null,
-            after_line_number: typeof line.after_line_number === "number" ? line.after_line_number : null,
-            text: typeof line.text === "string" ? line.text : "",
-          }))
-          : [],
-      }))
-      .filter((section) => section.label),
+      .map((section) => {
+        const sectionType = normalizeSectionType(section.type);
+        if (!sectionType) return null;
+        return {
+          type: sectionType,
+          lines: Array.isArray(section.lines)
+            ? section.lines.filter(isRecord).map((line) => ({
+              type: (line.type === "added" || line.type === "removed" ? line.type : "context") as ChapterDiffSection["lines"][0]["type"],
+              before_line_number: typeof line.before_line_number === "number" ? line.before_line_number : null,
+              after_line_number: typeof line.after_line_number === "number" ? line.after_line_number : null,
+              text: typeof line.text === "string" ? line.text : "",
+            }))
+            : [],
+        };
+      })
+      .filter((section): section is ChapterDiffSection => section !== null),
   };
 }
 
@@ -129,7 +139,7 @@ export function ToolMessage({ message }: ToolMessageProps) {
   const title = descriptor?.getTitle(message) ?? "未注册工具";
   const detail = descriptor ? descriptor.getDetail?.(message) : message.toolName ?? "未知";
   const chapterDiffBodySection = getChapterDiffBodySection(chapterDiffPreview);
-  const noteDiffBodySection = noteDiffPreview?.sections.find((s) => s.label === "内容") ?? null;
+  const noteDiffBodySection = noteDiffPreview?.sections.find((s) => s.type === "content") ?? null;
   const diffBodySection = chapterDiffBodySection ?? noteDiffBodySection;
   const diffChangeSummary = summarizeChapterDiffSection(diffBodySection);
   const chapter = getChapterPayload(message);

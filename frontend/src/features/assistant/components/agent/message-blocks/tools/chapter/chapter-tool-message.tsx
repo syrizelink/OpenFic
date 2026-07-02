@@ -56,7 +56,7 @@ export function ChapterToolMessage({ message }: ChapterToolMessageProps) {
     const copyText = buildChapterDiffCopyText(diffSection);
     const isTitleOnlyChange =
       !diffSection &&
-      diffPreview.sections.some((section) => section.label === "标题");
+      diffPreview.sections.some((section) => section.type === "title");
 
     const handleCopy = async () => {
       if (!copyText) {
