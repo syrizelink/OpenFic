@@ -67,6 +67,49 @@ async def test_create_multiple_entries(client: AsyncClient, world_info_id: str) 
 
 
 @pytest.mark.asyncio
+async def test_create_entry_uses_unique_name_suffix(
+    client: AsyncClient, world_info_id: str
+) -> None:
+    """创建同名条目时自动追加序号。"""
+    first = await client.post(
+        f"/api/v1/world-info/{world_info_id}/entries",
+        json={"name": "新条目"},
+    )
+    second = await client.post(
+        f"/api/v1/world-info/{world_info_id}/entries",
+        json={"name": "新条目"},
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["name"] == "新条目"
+    assert second.json()["name"] == "新条目 (1)"
+
+
+@pytest.mark.asyncio
+async def test_update_entry_rejects_duplicate_name(
+    client: AsyncClient, world_info_id: str
+) -> None:
+    """条目重命名不能改成已有名称。"""
+    first = await client.post(
+        f"/api/v1/world-info/{world_info_id}/entries",
+        json={"name": "人物"},
+    )
+    second = await client.post(
+        f"/api/v1/world-info/{world_info_id}/entries",
+        json={"name": "地点"},
+    )
+
+    response = await client.patch(
+        f"/api/v1/world-info-entries/{second.json()['id']}",
+        json={"name": first.json()["name"]},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "世界书条目名称已存在: 人物"
+
+
+@pytest.mark.asyncio
 async def test_list_entries(client: AsyncClient, world_info_id: str) -> None:
     """测试获取条目列表。"""
     # 创建几个条目
@@ -283,6 +326,28 @@ async def test_import_world_info_entries_stream(
     assert items[1]["is_enabled"] is False
     assert "keywords" not in items[1]
     assert "mode" not in items[1]
+
+
+@pytest.mark.asyncio
+async def test_import_world_info_entries_stream_deduplicates_names(
+    client: AsyncClient, world_info_id: str
+) -> None:
+    """导入条目不能产生重复名称。"""
+    await client.post(
+        f"/api/v1/world-info/{world_info_id}/entries",
+        json={"name": "人物"},
+    )
+    content = '{"entries":{"0":{"uid":0,"comment":"人物","content":"A","disable":false,"order":100},"1":{"uid":1,"comment":"人物","content":"B","disable":false,"order":101}}}'.encode("utf-8")
+
+    response = await client.post(
+        f"/api/v1/world-info/{world_info_id}/entries/import-stream",
+        files={"file": ("worldbook.json", content, "application/json")},
+    )
+
+    assert response.status_code == 200
+    list_response = await client.get(f"/api/v1/world-info/{world_info_id}/entries")
+    names = [item["name"] for item in list_response.json()["items"]]
+    assert names == ["人物", "人物 (1)", "人物 (2)"]
 
 
 @pytest.mark.asyncio

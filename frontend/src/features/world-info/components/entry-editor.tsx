@@ -11,10 +11,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { Editor } from "@tiptap/react";
 
 import { MarkdownEditor } from "@/components";
+import { toast } from "@/components/toast";
 import { updateWorldInfoEntry } from "@/lib/api-client";
 import { countTokens } from "@/lib/tiktoken-utils";
 import type {
   WorldInfoEntry,
+  WorldInfoEntryBrief,
   WorldInfoEntryBriefListResponse,
 } from "@/lib/world-info.types";
 
@@ -23,16 +25,27 @@ interface EntryEditorProps {
   entry: WorldInfoEntry;
   /** 世界书 ID（用于刷新缓存） */
   worldInfoId: string;
+  /** 同一世界书中的条目列表，用于名称唯一性校验 */
+  entries: WorldInfoEntryBrief[];
   /** 滚动到指定行（1-based） */
   scrollToLine?: number | null;
   /** 滚动完成后回调 */
   onScrollComplete?: () => void;
+  /** Agent 运行时锁定编辑 */
+  isAgentLocked?: boolean;
 }
 
 /** 自动保存防抖延迟（毫秒） */
 const AUTO_SAVE_DELAY = 1500;
 
-export function EntryEditor({ entry, worldInfoId, scrollToLine, onScrollComplete }: EntryEditorProps) {
+export function EntryEditor({
+  entry,
+  worldInfoId,
+  entries,
+  scrollToLine,
+  onScrollComplete,
+  isAgentLocked = false,
+}: EntryEditorProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
@@ -80,7 +93,17 @@ export function EntryEditor({ entry, worldInfoId, scrollToLine, onScrollComplete
     setIsSaving(true);
 
     const content = savedContentRef.current;
-    const newName = savedNameRef.current;
+    const newName = savedNameRef.current.trim();
+    const hasDuplicateName = entries.some(
+      (item) => item.id !== entry.id && item.name === newName
+    );
+    if (hasDuplicateName) {
+      toast.error(t("worldInfo.duplicateEntryName"));
+      isSavingRef.current = false;
+      setIsSaving(false);
+      return;
+    }
+
     const newTokenCount = countTokens(content);
     setTokenCount(newTokenCount);
 
@@ -97,7 +120,7 @@ export function EntryEditor({ entry, worldInfoId, scrollToLine, onScrollComplete
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [entry.id, updateCaches]);
+  }, [entries, entry.id, t, updateCaches]);
 
   const triggerAutoSave = useCallback(() => {
     if (saveTimerRef.current) {
@@ -195,6 +218,7 @@ export function EntryEditor({ entry, worldInfoId, scrollToLine, onScrollComplete
       wordCount={tokenCount}
       wordCountLabel={t("worldInfo.tokenCount")}
       editorRef={editorRef}
+      isLocked={isAgentLocked}
     />
   );
 }

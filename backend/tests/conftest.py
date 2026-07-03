@@ -117,6 +117,9 @@ async def _test_app():
 async def client(_test_app: FastAPI, db_engine) -> AsyncGenerator[AsyncClient, None]:
     """每个测试的 HTTP 客户端。通过连接级事务实现隔离。"""
     global _per_test_session
+    async with db_engine.begin() as setup_conn:
+        await setup_conn.run_sync(SQLModel.metadata.create_all)
+
     async with db_engine.connect() as conn:
         await conn.begin()
         session = AsyncSession(

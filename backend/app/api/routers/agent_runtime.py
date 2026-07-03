@@ -97,6 +97,11 @@ TOOL_DISPLAY_ORDER = {
     "edit_volume": 12,
     "delete_volume": 13,
     "move_chapter_to_volume": 14,
+    "list_world_entries": 15,
+    "read_world_entry": 16,
+    "create_world_entry": 17,
+    "edit_world_entry": 18,
+    "delete_world_entry": 19,
 }
 
 TOOL_DISPLAY_METADATA = {
@@ -159,6 +164,26 @@ TOOL_DISPLAY_METADATA = {
     "move_chapter_to_volume": {
         "name": "Move Chapter",
         "description": "将指定章节移动到目标卷末尾。",
+    },
+    "list_world_entries": {
+        "name": "List World Entries",
+        "description": "列出当前项目世界书条目标题。",
+    },
+    "read_world_entry": {
+        "name": "Read World Entry",
+        "description": "根据标题读取世界书条目内容。",
+    },
+    "create_world_entry": {
+        "name": "Create World Entry",
+        "description": "在当前项目世界书中创建条目。",
+    },
+    "edit_world_entry": {
+        "name": "Edit World Entry",
+        "description": "编辑世界书条目的标题或内容。",
+    },
+    "delete_world_entry": {
+        "name": "Delete World Entry",
+        "description": "删除指定世界书条目。",
     },
 }
 
@@ -1040,6 +1065,7 @@ async def rollback_agent_session(
         affected_chapters=result.affected_chapters,
         affected_notes=result.affected_notes,
         affected_note_categories=result.affected_note_categories,
+        affected_world_entries=result.affected_world_entries,
         restored_message_content=result.restored_message_content,
     )
 

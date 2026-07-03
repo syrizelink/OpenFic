@@ -55,6 +55,7 @@ import {
   EditVolumeToolMessage,
   MoveChapterToVolumeToolMessage,
 } from "../volume/volume-tool-message";
+import { WorldEntryToolMessage } from "../world-entry/world-entry-tool-message";
 import { getPlanToolDisplayConfig } from "../plan/plan-tool-message.utils";
 import {
   asString,
@@ -80,9 +81,9 @@ import {
   getToolResultData,
   getVolumeList,
   getVolumePayload,
-  getWorldInfoContent,
+  getWorldEntryList,
+  getWorldEntryPayload,
   isRecord,
-  parseWorldInfoEntries,
 } from "./tool-message-utils";
 
 export { REGISTERED_TOOL_NAMES };
@@ -430,20 +431,62 @@ const TOOL_REGISTRY = {
         : formatRangeSummaryQuery(message);
     },
   },
-  read_world_info: {
-    toolName: "read_world_info",
+  list_world_entries: {
+    toolName: "list_world_entries",
     group: "context",
-    tag: "world-info",
+    tag: "world-entry-list",
+    isExplore: true,
+    contentMode: "hidden",
+    icon: ListOrdered,
+    getTitle: () => i18n.t("assistant.tools.listWorldEntries"),
+    getDetail: (message) => {
+      const entries = getWorldEntryList(message);
+      return entries.length > 0 ? i18n.t("assistant.tools.worldEntryCount", { count: entries.length }) : undefined;
+    },
+  },
+  read_world_entry: {
+    toolName: "read_world_entry",
+    group: "context",
+    tag: "world-entry-read",
     isExplore: true,
     contentMode: "hidden",
     icon: BookOpen,
-    getTitle: () => i18n.t("assistant.tools.worldInfo"),
-    getDetail: (message) => {
-      const content = getWorldInfoContent(message);
-      const entries = parseWorldInfoEntries(content);
-      if (entries.length > 0) return i18n.t("assistant.tools.worldInfoEntryCount", { count: entries.length });
-      return content ? i18n.t("assistant.tools.matchedContent") : undefined;
-    },
+    getTitle: () => i18n.t("assistant.tools.readWorldEntry"),
+    getDetail: (message) => getWorldEntryPayload(message).title,
+  },
+  create_world_entry: {
+    toolName: "create_world_entry",
+    group: "context",
+    tag: "world-entry-create",
+    isExplore: false,
+    contentMode: "expandable",
+    icon: FilePenLine,
+    getTitle: () => i18n.t("assistant.tools.createWorldEntry"),
+    getDetail: (message) => getWorldEntryPayload(message).title,
+    defaultExpanded: () => true,
+    render: (message) => <WorldEntryToolMessage message={message} />,
+  },
+  edit_world_entry: {
+    toolName: "edit_world_entry",
+    group: "context",
+    tag: "world-entry-edit",
+    isExplore: false,
+    contentMode: "expandable",
+    icon: FilePenLine,
+    getTitle: () => i18n.t("assistant.tools.editWorldEntry"),
+    getDetail: (message) => getWorldEntryPayload(message).title,
+    defaultExpanded: () => true,
+    render: (message) => <WorldEntryToolMessage message={message} />,
+  },
+  delete_world_entry: {
+    toolName: "delete_world_entry",
+    group: "context",
+    tag: "world-entry-delete",
+    isExplore: false,
+    contentMode: "hidden",
+    icon: Trash2,
+    getTitle: () => i18n.t("assistant.tools.deleteWorldEntry"),
+    getDetail: (message) => getWorldEntryPayload(message).title,
   },
   create_plan: {
     toolName: "create_plan",

@@ -20,9 +20,13 @@ import { motion } from "motion/react";
 import { List } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Panel, Group, Separator } from "react-resizable-panels";
+import "./world-info-page.css";
 
 
 import { MobileAppSidebarTrigger } from "@/features/app-shell/components/mobile-app-sidebar-trigger";
+import { AssistantSidebar } from "@/features/assistant";
+import type { AssistantSidebarState } from "@/features/assistant";
 import { WorldInfoSelector } from "../components/world-info-selector";
 import { EntryList } from "../components/entry-list";
 import { EntryEditor } from "../components/entry-editor";
@@ -30,6 +34,7 @@ import { useWorldInfoStore } from "../store/use-world-info-store";
 import { toast } from "@/components/toast";
 import {
   fetchWorldInfoByProject,
+  fetchWorldInfoList,
   createWorldInfo,
   fetchWorldInfoEntries,
   fetchWorldInfoEntry,
@@ -44,6 +49,18 @@ import { getPreference, setPreference } from "@/lib/local-db";
 import type { WorldInfoEntry, WorldInfoEntryBrief, WorldInfoEntryBriefListResponse } from "@/lib/world-info.types";
 
 const MotionBox = motion.create(Box);
+
+function generateUniqueEntryName(baseName: string, entries: WorldInfoEntryBrief[]): string {
+  const normalizedName = baseName.trim();
+  const existingNames = new Set(entries.map((entry) => entry.name));
+  if (!existingNames.has(normalizedName)) return normalizedName;
+
+  let counter = 1;
+  while (existingNames.has(`${normalizedName} (${counter})`)) {
+    counter += 1;
+  }
+  return `${normalizedName} (${counter})`;
+}
 
 export function WorldInfoPage() {
   const { t } = useTranslation();
@@ -73,6 +90,10 @@ export function WorldInfoPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [isCreatingEntry, setIsCreatingEntry] = useState(false);
   const [scrollToLine, setScrollToLine] = useState<number | null>(null);
+  const [assistantState, setAssistantState] = useState<AssistantSidebarState>({
+    agentStatus: "idle",
+    isAgentRunning: false,
+  });
   // 响应式检测
   const [isMobile, setIsMobile] = useState(false);
 
@@ -103,6 +124,18 @@ export function WorldInfoPage() {
     queryFn: () => fetchWorldInfoByProject(projectIdFromUrl!),
     enabled: !!projectIdFromUrl && !currentWorldInfoId,
   });
+
+  const { data: worldInfoList } = useQuery({
+    queryKey: ["world-info-list"],
+    queryFn: () => fetchWorldInfoList({ page: 1, pageSize: 100 }),
+  });
+
+  const selectedWorldInfoProjectId = useMemo(
+    () =>
+      worldInfoList?.items.find((worldInfo) => worldInfo.id === currentWorldInfoId)
+        ?.projectId ?? null,
+    [currentWorldInfoId, worldInfoList?.items]
+  );
 
   // 如果找到了项目的世界书，自动选中
   useEffect(() => {
@@ -196,6 +229,13 @@ export function WorldInfoPage() {
     return entriesData?.items ?? [];
   }, [optimisticEntries, entriesData?.items]);
 
+  useEffect(() => {
+    if (!currentEntryId || !entriesData) return;
+    if (!entries.some((entry) => entry.id === currentEntryId)) {
+      setCurrentEntry(null);
+    }
+  }, [currentEntryId, entries, entriesData, setCurrentEntry]);
+
   /** 从完整条目提取轻量字段，用于更新列表缓存 */
   const extractBrief = useCallback((entry: WorldInfoEntry): WorldInfoEntryBrief => ({
     id: entry.id,
@@ -211,9 +251,9 @@ export function WorldInfoPage() {
 
   // 创建条目
   const createEntryMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (name: string) =>
       createWorldInfoEntry(currentWorldInfoId!, {
-        name: t("worldInfo.newEntry"),
+        name,
       }),
     onSuccess: (newEntry) => {
       const brief = extractBrief(newEntry);
@@ -317,11 +357,12 @@ export function WorldInfoPage() {
   /** 处理创建条目 */
   const handleCreateEntry = useCallback(() => {
     if (currentWorldInfoId) {
+      const name = generateUniqueEntryName(t("worldInfo.newEntry"), entries);
       setCurrentEntry(null);
       setIsCreatingEntry(true);
-      createEntryMutation.mutate();
+      createEntryMutation.mutate(name);
     }
-  }, [currentWorldInfoId, createEntryMutation, setCurrentEntry]);
+  }, [currentWorldInfoId, createEntryMutation, entries, setCurrentEntry, t]);
 
   /** 处理选择条目 */
   const handleSelectEntry = useCallback(
@@ -542,6 +583,7 @@ export function WorldInfoPage() {
 
   // 侧边栏宽度
   const sidebarWidth = 320;
+  const isAgentLocked = Boolean(selectedWorldInfoProjectId && assistantState.isAgentRunning);
 
   // 侧边栏内容
   const sidebarContent = currentWorldInfoId ? (
@@ -583,6 +625,21 @@ export function WorldInfoPage() {
     </Tooltip>
   ) : null;
 
+  const agentSidebarContent = selectedWorldInfoProjectId ? (
+    <AssistantSidebar
+      projectId={selectedWorldInfoProjectId}
+      onStateChange={setAssistantState}
+    />
+  ) : (
+    <Flex align="center" justify="center" height="100%" p="4">
+      <Text size="2" color="gray" align="center">
+        {currentWorldInfoId
+          ? t("worldInfo.bindProjectRequiredForAgent")
+          : t("worldInfo.selectWorldInfo")}
+      </Text>
+    </Flex>
+  );
+
   return (
     <Box
       style={{
@@ -607,111 +664,168 @@ export function WorldInfoPage() {
             entrySidebarTrigger={mobileEntrySidebarTrigger}
           />
 
-          {/* 三栏布局 */}
-          <Flex
-            style={{
-              flex: 1,
-              minHeight: 0,
-              background: "var(--gray-a2)",
-              overflow: "hidden",
-              position: "relative",
-            }}
-          >
-            {/* 左侧条目列表（桌面端） */}
-            {!isMobile && (
+          {!isMobile ? (
+            <Group orientation="horizontal" className="world-info-page-group">
+              <Panel
+                id="left-sidebar"
+                defaultSize={300}
+                minSize={250}
+                maxSize={400}
+                collapsible={false}
+              >
+                <Box className="world-info-page-sidebar world-info-page-sidebar--left">
+                  {sidebarContent}
+                </Box>
+              </Panel>
+
+              <Separator className="resize-handle world-info-page-separator" />
+
+              <Panel id="editor" minSize={30}>
+                <Box
+                  data-scroll-container
+                  className="world-info-page-editor-shell"
+                >
+                  {isCreatingEntry ? (
+                    <Box p="4">
+                      <Flex direction="column" gap="4" style={{ maxWidth: 800, margin: "0 auto" }}>
+                        <Skeleton width="120px" height="14px" />
+                        <Skeleton width="100%" height="36px" />
+                        <Flex gap="4">
+                          <Skeleton style={{ flex: 1 }} height="36px" />
+                          <Skeleton style={{ flex: 1 }} height="36px" />
+                        </Flex>
+                        <Skeleton width="100%" height="200px" />
+                        <Skeleton width="100%" height="80px" />
+                      </Flex>
+                    </Box>
+                  ) : selectedEntry ? (
+                    <EntryEditor
+                      key={selectedEntry.id}
+                      entry={selectedEntry}
+                      worldInfoId={currentWorldInfoId!}
+                      entries={entries}
+                      scrollToLine={scrollToLine}
+                      onScrollComplete={handleScrollComplete}
+                      isAgentLocked={isAgentLocked}
+                    />
+                  ) : currentEntryId && isEntryLoading ? (
+                    <Box p="4">
+                      <Flex direction="column" gap="4" style={{ maxWidth: 800, margin: "0 auto" }}>
+                        <Skeleton width="120px" height="14px" />
+                        <Skeleton width="100%" height="36px" />
+                        <Flex gap="4">
+                          <Skeleton style={{ flex: 1 }} height="36px" />
+                          <Skeleton style={{ flex: 1 }} height="36px" />
+                        </Flex>
+                        <Skeleton width="100%" height="200px" />
+                        <Skeleton width="100%" height="80px" />
+                      </Flex>
+                    </Box>
+                  ) : (
+                    <Flex
+                      align="center"
+                      justify="center"
+                      height="100%"
+                      direction="column"
+                      gap="2"
+                    >
+                      <Text size="3" color="gray">
+                        {currentWorldInfoId
+                          ? t("worldInfo.selectEntry")
+                          : t("worldInfo.selectWorldInfo")}
+                      </Text>
+                    </Flex>
+                  )}
+                </Box>
+              </Panel>
+
+              <Separator className="resize-handle world-info-page-separator" />
+
+              <Panel
+                id="right-sidebar"
+                defaultSize={500}
+                minSize={300}
+                maxSize={600}
+                collapsible={false}
+              >
+                <Box className="world-info-page-sidebar world-info-page-sidebar--right">
+                  {agentSidebarContent}
+                </Box>
+              </Panel>
+            </Group>
+          ) : (
+            <Flex
+              style={{
+                flex: 1,
+                minHeight: 0,
+                background: "var(--gray-a2)",
+                overflow: "hidden",
+                position: "relative",
+              }}
+            >
               <Box
-                className="worldInfoSidebar"
+                data-scroll-container
                 style={{
-                  width: sidebarWidth,
-                  flexShrink: 0,
+                  flex: 1,
                   height: "100%",
                   minHeight: 0,
-                  borderRight: "1px solid var(--gray-a4)",
+                  overflowY: "auto",
                   background: "var(--color-background)",
                 }}
               >
-                {sidebarContent}
+                {isCreatingEntry ? (
+                  <Box p="4">
+                    <Flex direction="column" gap="4" style={{ maxWidth: 800, margin: "0 auto" }}>
+                      <Skeleton width="120px" height="14px" />
+                      <Skeleton width="100%" height="36px" />
+                      <Flex gap="4">
+                        <Skeleton style={{ flex: 1 }} height="36px" />
+                        <Skeleton style={{ flex: 1 }} height="36px" />
+                      </Flex>
+                      <Skeleton width="100%" height="200px" />
+                      <Skeleton width="100%" height="80px" />
+                    </Flex>
+                  </Box>
+                ) : selectedEntry ? (
+                  <EntryEditor
+                    key={selectedEntry.id}
+                    entry={selectedEntry}
+                    worldInfoId={currentWorldInfoId!}
+                    entries={entries}
+                    scrollToLine={scrollToLine}
+                    onScrollComplete={handleScrollComplete}
+                    isAgentLocked={isAgentLocked}
+                  />
+                ) : currentEntryId && isEntryLoading ? (
+                  <Box p="4">
+                    <Flex direction="column" gap="4" style={{ maxWidth: 800, margin: "0 auto" }}>
+                      <Skeleton width="120px" height="14px" />
+                      <Skeleton width="100%" height="36px" />
+                      <Flex gap="4">
+                        <Skeleton style={{ flex: 1 }} height="36px" />
+                        <Skeleton style={{ flex: 1 }} height="36px" />
+                      </Flex>
+                      <Skeleton width="100%" height="200px" />
+                      <Skeleton width="100%" height="80px" />
+                    </Flex>
+                  </Box>
+                ) : (
+                  <Flex
+                    align="center"
+                    justify="center"
+                    height="100%"
+                    direction="column"
+                    gap="2"
+                  >
+                    <Text size="3" color="gray">
+                      {currentWorldInfoId
+                        ? t("worldInfo.selectEntry")
+                        : t("worldInfo.selectWorldInfo")}
+                    </Text>
+                  </Flex>
+                )}
               </Box>
-            )}
 
-            {/* 中间编辑器区域 */}
-            <Box
-              data-scroll-container
-              style={{
-                flex: 1,
-                height: "100%",
-                minHeight: 0,
-                overflowY: "auto",
-                background: "var(--color-background)",
-              }}
-            >
-              {isCreatingEntry ? (
-                <Box p="4">
-                  <Flex direction="column" gap="4" style={{ maxWidth: 800, margin: "0 auto" }}>
-                    <Skeleton width="120px" height="14px" />
-                    <Skeleton width="100%" height="36px" />
-                    <Flex gap="4">
-                      <Skeleton style={{ flex: 1 }} height="36px" />
-                      <Skeleton style={{ flex: 1 }} height="36px" />
-                    </Flex>
-                    <Skeleton width="100%" height="200px" />
-                    <Skeleton width="100%" height="80px" />
-                  </Flex>
-                </Box>
-              ) : selectedEntry ? (
-                <EntryEditor
-                  key={selectedEntry.id}
-                  entry={selectedEntry}
-                  worldInfoId={currentWorldInfoId!}
-                  scrollToLine={scrollToLine}
-                  onScrollComplete={handleScrollComplete}
-                />
-              ) : currentEntryId && isEntryLoading ? (
-                <Box p="4">
-                  <Flex direction="column" gap="4" style={{ maxWidth: 800, margin: "0 auto" }}>
-                    <Skeleton width="120px" height="14px" />
-                    <Skeleton width="100%" height="36px" />
-                    <Flex gap="4">
-                      <Skeleton style={{ flex: 1 }} height="36px" />
-                      <Skeleton style={{ flex: 1 }} height="36px" />
-                    </Flex>
-                    <Skeleton width="100%" height="200px" />
-                    <Skeleton width="100%" height="80px" />
-                  </Flex>
-                </Box>
-              ) : (
-                <Flex
-                  align="center"
-                  justify="center"
-                  height="100%"
-                  direction="column"
-                  gap="2"
-                >
-                  <Text size="3" color="gray">
-                    {currentWorldInfoId
-                      ? t("worldInfo.selectEntry")
-                      : t("worldInfo.selectWorldInfo")}
-                  </Text>
-                </Flex>
-              )}
-            </Box>
-
-            {/* 右侧空白侧边栏（占位） */}
-            {!isMobile && (
-              <Box
-                className="worldInfoRightSidebar"
-                style={{
-                  width: sidebarWidth,
-                  flexShrink: 0,
-                  height: "100%",
-                  minHeight: 0,
-                  borderLeft: "1px solid var(--gray-a4)",
-                  background: "var(--color-background)",
-                }}
-              />
-            )}
-
-            {isMobile && (
               <>
                 <motion.div
                   initial={false}
@@ -749,8 +863,8 @@ export function WorldInfoPage() {
                   {sidebarContent}
                 </MotionBox>
               </>
-            )}
-          </Flex>
+            </Flex>
+          )}
         </Flex>
       </Box>
 

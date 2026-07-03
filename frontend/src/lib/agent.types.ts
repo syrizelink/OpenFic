@@ -80,6 +80,7 @@ export type AgentMessageType =
   | "task_usage_delta"
   | "chapter_refresh"
   | "note_refresh"
+  | "world_entry_refresh"
   | "task_completed"
   | "user_request"
   | "agent_thinking"
@@ -335,6 +336,7 @@ export interface AgentRollbackResponse {
   affected_chapters: string[];
   affected_notes: string[];
   affected_note_categories: string[];
+  affected_world_entries: string[];
   restored_message_content: string;
 }
 

@@ -22,6 +22,7 @@ import {
   getChapterPayload,
   getNotePayload,
   getToolErrorMessage,
+  getWorldEntryPayload,
   resolveToolMessageVisibilityState,
 } from "../../tools/shared/tool-message-utils";
 import {
@@ -63,6 +64,10 @@ function isChapterDiffTool(message: AgentMessage): boolean {
 
 function isNoteDiffTool(message: AgentMessage): boolean {
   return message.toolName === "write_note" || message.toolName === "edit_note";
+}
+
+function isWorldEntryDiffTool(message: AgentMessage): boolean {
+  return message.toolName === "create_world_entry" || message.toolName === "edit_world_entry";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -117,6 +122,39 @@ function getNoteDiffPreview(message: AgentMessage): {
   };
 }
 
+function getWorldEntryDiffPreview(message: AgentMessage): {
+  entry_title?: string;
+  entry_id?: string;
+  sections: ChapterDiffSection[];
+} | null {
+  const data = getToolResultDataRecord(message);
+  if (!data) return null;
+  const rawPreview = data.world_entry_diff;
+  if (!isRecord(rawPreview) || !Array.isArray(rawPreview.sections)) return null;
+  return {
+    entry_title: asString(rawPreview.entry_title),
+    entry_id: asString(rawPreview.entry_id),
+    sections: rawPreview.sections
+      .filter(isRecord)
+      .map((section) => {
+        const sectionType = normalizeSectionType(section.type);
+        if (!sectionType) return null;
+        return {
+          type: sectionType,
+          lines: Array.isArray(section.lines)
+            ? section.lines.filter(isRecord).map((line) => ({
+              type: (line.type === "added" || line.type === "removed" ? line.type : "context") as ChapterDiffSection["lines"][0]["type"],
+              before_line_number: typeof line.before_line_number === "number" ? line.before_line_number : null,
+              after_line_number: typeof line.after_line_number === "number" ? line.after_line_number : null,
+              text: typeof line.text === "string" ? line.text : "",
+            }))
+            : [],
+        };
+      })
+      .filter((section): section is ChapterDiffSection => section !== null),
+  };
+}
+
 export function ToolMessage({ message }: ToolMessageProps) {
   const descriptor = getToolDescriptor(message.toolName);
   const errorMessage = getToolErrorMessage(message);
@@ -127,7 +165,8 @@ export function ToolMessage({ message }: ToolMessageProps) {
   const isRunning = Boolean(message.isStreaming || message.status === "running" || isIncompleteAskUser);
   const chapterDiffPreview = isChapterDiffTool(message) ? getChapterDiffPreview(message) : null;
   const noteDiffPreview = isNoteDiffTool(message) ? getNoteDiffPreview(message) : null;
-  const usesDiffHeader = Boolean(chapterDiffPreview || noteDiffPreview);
+  const worldEntryDiffPreview = isWorldEntryDiffTool(message) ? getWorldEntryDiffPreview(message) : null;
+  const usesDiffHeader = Boolean(chapterDiffPreview || noteDiffPreview || worldEntryDiffPreview);
   const contentMode = usesDiffHeader ? "expandable" : (descriptor?.contentMode ?? "static");
   const defaultExpanded = descriptor?.defaultExpanded?.(message) ?? false;
   const [isExpanded, setIsExpanded] = useState(() => defaultExpanded);
@@ -141,10 +180,12 @@ export function ToolMessage({ message }: ToolMessageProps) {
   const detail = descriptor ? descriptor.getDetail?.(message) : message.toolName ?? i18n.t("assistant.tools.unknown");
   const chapterDiffBodySection = getChapterDiffBodySection(chapterDiffPreview);
   const noteDiffBodySection = noteDiffPreview?.sections.find((s) => s.type === "content") ?? null;
-  const diffBodySection = chapterDiffBodySection ?? noteDiffBodySection;
+  const worldEntryDiffBodySection = worldEntryDiffPreview?.sections.find((s) => s.type === "content") ?? null;
+  const diffBodySection = chapterDiffBodySection ?? noteDiffBodySection ?? worldEntryDiffBodySection;
   const diffChangeSummary = summarizeChapterDiffSection(diffBodySection);
   const chapter = getChapterPayload(message);
   const note = isNoteDiffTool(message) ? getNotePayload(message) : null;
+  const worldEntry = isWorldEntryDiffTool(message) ? getWorldEntryPayload(message) : null;
   const showCollapsedDiffMeta = usesDiffHeader && !isExpanded;
   const diffDetail = chapterDiffPreview
     ? formatChapterDisplayName({
@@ -152,7 +193,9 @@ export function ToolMessage({ message }: ToolMessageProps) {
         title: chapterDiffPreview.chapter_title ?? chapter.title,
         chapterId: chapterDiffPreview.chapter_id ?? chapter.chapter_id,
       })
-    : (noteDiffPreview ? (noteDiffPreview.note_title ?? note?.title) : undefined);
+    : noteDiffPreview
+      ? (noteDiffPreview.note_title ?? note?.title)
+      : (worldEntryDiffPreview ? (worldEntryDiffPreview.entry_title ?? worldEntry?.title) : undefined);
   const visibilityState = resolveToolMessageVisibilityState({
     message,
     contentMode,

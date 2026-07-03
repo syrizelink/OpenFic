@@ -169,47 +169,334 @@ async def test_read_range_summaries_returns_ascending_page() -> None:
 
 
 @pytest.mark.asyncio
-async def test_read_world_info_injects_all_enabled_entries() -> None:
-    from app.agent_runtime.tools.impls.context.read_world_info import ReadWorldInfoTool
+async def test_list_world_entries_returns_enabled_entry_titles() -> None:
+    from app.agent_runtime.tools.impls.context.world_entry import ListWorldEntriesTool
 
-    tool = ReadWorldInfoTool(_state=_make_state())
+    tool = ListWorldEntriesTool(_state=_make_state())
     entries = [
-        SimpleNamespace(
-            id="e2",
-            name="势力",
-            order=2,
-            content="青岚会",
-        ),
-        SimpleNamespace(
-            id="e1",
-            name="主角",
-            order=1,
-            content="林舟 & 旧友",
-        ),
-        SimpleNamespace(
-            id="e3",
-            name="无关",
-            order=3,
-            content="不会出现",
-        ),
+        SimpleNamespace(id="e1", name="主角", uid=1, order=1, content="林舟"),
+        SimpleNamespace(id="e2", name="势力", uid=2, order=2, content="青岚会"),
     ]
 
     with patch(
-        "app.agent_runtime.tools.impls.context.read_world_info.create_session"
+        "app.agent_runtime.tools.impls.context.world_entry.create_session"
     ) as mock_cs, patch(
-        "app.agent_runtime.tools.impls.context.read_world_info.world_info_repo"
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_repo"
     ) as mock_world_repo, patch(
-        "app.agent_runtime.tools.impls.context.read_world_info.world_info_entry_repo"
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_repo"
     ) as mock_entry_repo:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
-        mock_world_repo.get_by_project_id = AsyncMock(
-            return_value=SimpleNamespace(id="world-1")
-        )
+        mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
         mock_entry_repo.list_enabled_by_world_info = AsyncMock(return_value=entries)
 
         result = await tool.ainvoke({})
 
     assert json.loads(result) == {
-        "content": "<主角>\n林舟 &amp; 旧友\n</主角>\n<势力>\n青岚会\n</势力>\n<无关>\n不会出现\n</无关>"
+        "entries": [
+            {"title": "主角", "uid": 1, "order": 1},
+            {"title": "势力", "uid": 2, "order": 2},
+        ]
+    }
+
+
+@pytest.mark.asyncio
+async def test_read_world_entry_reads_content_by_title() -> None:
+    from app.agent_runtime.tools.impls.context.world_entry import ReadWorldEntryTool
+
+    tool = ReadWorldEntryTool(_state=_make_state())
+    entries = [
+        SimpleNamespace(id="e1", name="主角", uid=1, order=1, content="林舟\n旧友"),
+    ]
+
+    with patch(
+        "app.agent_runtime.tools.impls.context.world_entry.create_session"
+    ) as mock_cs, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_repo"
+    ) as mock_world_repo, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_repo"
+    ) as mock_entry_repo:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
+        mock_entry_repo.list_by_world_info = AsyncMock(return_value=entries)
+
+        result = await tool.ainvoke({"title": "主角"})
+
+    assert json.loads(result) == {
+        "title": "主角",
+        "uid": 1,
+        "order": 1,
+        "content": "1|林舟\n2|旧友",
+    }
+
+
+@pytest.mark.asyncio
+async def test_read_world_entry_rejects_duplicate_titles() -> None:
+    from app.agent_runtime.tools.impls.context.world_entry import ReadWorldEntryTool
+
+    tool = ReadWorldEntryTool(_state=_make_state())
+    entries = [
+        SimpleNamespace(id="e1", name="主角", uid=1, order=1, content="一"),
+        SimpleNamespace(id="e2", name="主角", uid=2, order=2, content="二"),
+    ]
+
+    with patch(
+        "app.agent_runtime.tools.impls.context.world_entry.create_session"
+    ) as mock_cs, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_repo"
+    ) as mock_world_repo, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_repo"
+    ) as mock_entry_repo:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
+        mock_entry_repo.list_by_world_info = AsyncMock(return_value=entries)
+
+        result = await tool.ainvoke({"title": "主角"})
+
+    assert json.loads(result) == {"error": "世界书条目标题不唯一: 主角"}
+
+
+@pytest.mark.asyncio
+async def test_create_world_entry_returns_diff() -> None:
+    from app.agent_runtime.tools.impls.context.world_entry import CreateWorldEntryTool
+
+    tool = CreateWorldEntryTool(_state={**_make_state(), "current_revision_id": "rev-1"})
+    created = SimpleNamespace(
+        id="e1",
+        world_info_id="world-1",
+        name="主角",
+        uid=1,
+        order=1,
+        content="林舟",
+        token_count=2,
+        is_enabled=True,
+    )
+
+    with patch(
+        "app.agent_runtime.tools.impls.context.world_entry.create_session"
+    ) as mock_cs, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_repo"
+    ) as mock_world_repo, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_repo"
+    ) as mock_entry_repo, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_service"
+    ) as mock_entry_service, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.record_world_entry_diffs"
+    ) as mock_record_diffs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
+        mock_entry_repo.list_by_world_info = AsyncMock(return_value=[])
+        mock_entry_service.create_entry = AsyncMock(return_value=created)
+        mock_record_diffs.return_value = ["e1"]
+
+        result = await tool.ainvoke({"title": "主角", "content": "林舟"})
+
+    data = json.loads(result)
+    assert data["success"] is True
+    assert data["tool_name"] == "create_world_entry"
+    assert data["world_entry"] == {
+        "id": "e1",
+        "title": "主角",
+        "uid": 1,
+        "order": 1,
+        "content": "林舟",
+        "token_count": 2,
+        "is_enabled": True,
+    }
+    assert data["world_entry_diff"] == {
+        "operation": "create",
+        "entry_id": "e1",
+        "entry_title": "主角",
+        "sections": [
+            {
+                "type": "content",
+                "lines": [
+                    {
+                        "type": "added",
+                        "before_line_number": None,
+                        "after_line_number": 1,
+                        "text": "林舟",
+                    }
+                ],
+            }
+        ],
+    }
+
+
+@pytest.mark.asyncio
+async def test_create_world_entry_rejects_duplicate_title() -> None:
+    from app.agent_runtime.tools.impls.context.world_entry import CreateWorldEntryTool
+
+    tool = CreateWorldEntryTool(_state={**_make_state(), "current_revision_id": "rev-1"})
+
+    with patch(
+        "app.agent_runtime.tools.impls.context.world_entry.create_session"
+    ) as mock_cs, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_repo"
+    ) as mock_world_repo, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_repo"
+    ) as mock_entry_repo:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
+        mock_entry_repo.list_by_world_info = AsyncMock(
+            return_value=[SimpleNamespace(id="e1", name="主角", uid=1, order=1, content="")]
+        )
+
+        result = await tool.ainvoke({"title": "主角", "content": "林舟"})
+
+    assert json.loads(result) == {"error": "世界书条目标题已存在: 主角"}
+
+
+@pytest.mark.asyncio
+async def test_edit_world_entry_returns_diff() -> None:
+    from app.agent_runtime.tools.impls.context.world_entry import EditWorldEntryTool
+
+    tool = EditWorldEntryTool(_state={**_make_state(), "current_revision_id": "rev-1"})
+    entry = SimpleNamespace(
+        id="e1",
+        world_info_id="world-1",
+        name="主角",
+        uid=1,
+        order=1,
+        content="林舟",
+        token_count=2,
+        is_enabled=True,
+    )
+    updated_entry = SimpleNamespace(
+        id="e1",
+        world_info_id="world-1",
+        name="主角",
+        uid=1,
+        order=1,
+        content="林舟与旧友",
+        token_count=2,
+        is_enabled=True,
+    )
+
+    with patch(
+        "app.agent_runtime.tools.impls.context.world_entry.create_session"
+    ) as mock_cs, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_repo"
+    ) as mock_world_repo, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_repo"
+    ) as mock_entry_repo, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_service"
+    ) as mock_entry_service, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.record_world_entry_diffs"
+    ) as mock_record_diffs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
+        mock_entry_repo.list_by_world_info = AsyncMock(return_value=[entry])
+        mock_entry_service.update_entry = AsyncMock(return_value=updated_entry)
+        mock_record_diffs.return_value = ["e1"]
+
+        result = await tool.ainvoke(
+            {"title": "主角", "old_content": "林舟", "new_content": "林舟与旧友"}
+        )
+
+    data = json.loads(result)
+    assert data["success"] is True
+    assert data["tool_name"] == "edit_world_entry"
+    assert data["world_entry_diff"]["operation"] == "edit"
+    assert data["world_entry_diff"]["sections"] == [
+        {
+            "type": "content",
+            "lines": [
+                {
+                    "type": "removed",
+                    "before_line_number": 1,
+                    "after_line_number": None,
+                    "text": "林舟",
+                },
+                {
+                    "type": "added",
+                    "before_line_number": None,
+                    "after_line_number": 1,
+                    "text": "林舟与旧友",
+                },
+            ],
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_edit_world_entry_rejects_duplicate_new_title() -> None:
+    from app.agent_runtime.tools.impls.context.world_entry import EditWorldEntryTool
+
+    tool = EditWorldEntryTool(_state={**_make_state(), "current_revision_id": "rev-1"})
+    entries = [
+        SimpleNamespace(id="e1", name="主角", uid=1, order=1, content="林舟"),
+        SimpleNamespace(id="e2", name="反派", uid=2, order=2, content="沈墨"),
+    ]
+
+    with patch(
+        "app.agent_runtime.tools.impls.context.world_entry.create_session"
+    ) as mock_cs, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_repo"
+    ) as mock_world_repo, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_repo"
+    ) as mock_entry_repo:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
+        mock_entry_repo.list_by_world_info = AsyncMock(return_value=entries)
+
+        result = await tool.ainvoke({"title": "主角", "new_title": "反派"})
+
+    assert json.loads(result) == {"error": "世界书条目标题已存在: 反派"}
+
+
+@pytest.mark.asyncio
+async def test_delete_world_entry_removes_title() -> None:
+    from app.agent_runtime.tools.impls.context.world_entry import DeleteWorldEntryTool
+
+    tool = DeleteWorldEntryTool(_state={**_make_state(), "current_revision_id": "rev-1"})
+    entry = SimpleNamespace(
+        id="e1",
+        world_info_id="world-1",
+        name="主角",
+        uid=1,
+        order=1,
+        content="林舟",
+        token_count=2,
+        is_enabled=True,
+    )
+
+    with patch(
+        "app.agent_runtime.tools.impls.context.world_entry.create_session"
+    ) as mock_cs, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_repo"
+    ) as mock_world_repo, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_repo"
+    ) as mock_entry_repo, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_service"
+    ) as mock_entry_service, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.record_world_entry_diffs"
+    ) as mock_record_diffs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
+        mock_entry_repo.list_by_world_info = AsyncMock(return_value=[entry])
+        mock_entry_service.delete_entry = AsyncMock(return_value=None)
+        mock_record_diffs.return_value = ["e1"]
+
+        result = await tool.ainvoke({"title": "主角"})
+
+    assert json.loads(result) == {
+        "type": "ok",
+        "success": True,
+        "tool_name": "delete_world_entry",
+        "revision_id": "rev-1",
+        "world_info_id": "world-1",
+        "affected_world_entries": ["e1"],
+        "entry_id": "e1",
+        "title": "主角",
+        "uid": 1,
+        "order": 1,
+        "message": "世界书条目已删除",
     }

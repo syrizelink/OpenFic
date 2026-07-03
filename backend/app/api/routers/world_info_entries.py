@@ -344,6 +344,8 @@ async def update_entry(
         return _entry_to_response(entry)
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except world_info_entry_service.WorldInfoEntryNameConflictError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @router.delete(

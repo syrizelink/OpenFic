@@ -1,0 +1,76 @@
+.world-info-page-group {
+  flex: 1;
+  min-height: 0;
+  background: var(--gray-a2);
+  overflow: hidden;
+}
+
+.world-info-page-group > [data-panel] {
+  min-height: 0;
+}
+
+.world-info-page-sidebar {
+  height: 100%;
+  overflow: hidden;
+}
+
+.world-info-page-sidebar--left,
+.world-info-page-sidebar--right,
+.world-info-page-editor-shell {
+  background: var(--color-background);
+}
+
+.world-info-page-editor-shell {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.world-info-page-separator {
+  position: relative;
+  width: 1px;
+  flex-shrink: 0;
+  background: transparent;
+  cursor: col-resize;
+  overflow: visible;
+  z-index: 12;
+}
+
+.world-info-page-separator::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 8px;
+  transform: translateX(-50%);
+}
+
+.world-info-page-separator::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 0.3px;
+  transform: translateX(-50%);
+  background: var(--gray-a5);
+  transition:
+    width 0.18s ease,
+    background-color 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.resize-handle[data-separator]:hover::after {
+  width: 4px;
+  background: var(--gray-a7);
+}
+
+.resize-handle[data-separator][data-resize-handle-state="drag"] {
+  background-color: transparent !important;
+}
+
+.resize-handle[data-separator][data-resize-handle-state="drag"]::after {
+  width: 4px;
+  background: var(--accent-a5);
+}
