@@ -1254,6 +1254,21 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       ) : (
         <>
           <Box className="ai-sidebar-messages ai-sidebar-messages--frame">
+            {agentSidebar.isRollbacking ? (
+              <Flex
+                className="ai-sidebar-rollback-overlay"
+                direction="column"
+                align="center"
+                justify="center"
+                role="status"
+                aria-live="polite"
+              >
+                <Spinner size={18} />
+                <Text size="2" className="ai-sidebar-rollback-text">
+                  {t("assistant.rollbacking")}
+                </Text>
+              </Flex>
+            ) : null}
             {isLoadingTask ? (
               <Flex direction="column" align="center" justify="center" className="ai-sidebar-loading-state">
                 <Spinner size={18} />

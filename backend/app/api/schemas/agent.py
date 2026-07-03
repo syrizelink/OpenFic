@@ -205,6 +205,9 @@ class AgentRollbackResponse(BaseModel):
     affected_note_categories: list[str] = Field(
         default_factory=list, description="受影响的笔记分类ID列表"
     )
+    affected_world_entries: list[str] = Field(
+        default_factory=list, description="受影响的世界书条目ID列表"
+    )
     restored_message_content: str = Field(..., description="恢复的消息内容")
 
 

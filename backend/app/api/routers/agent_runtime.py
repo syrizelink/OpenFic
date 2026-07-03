@@ -1065,6 +1065,7 @@ async def rollback_agent_session(
         affected_chapters=result.affected_chapters,
         affected_notes=result.affected_notes,
         affected_note_categories=result.affected_note_categories,
+        affected_world_entries=result.affected_world_entries,
         restored_message_content=result.restored_message_content,
     )
 

@@ -265,6 +265,7 @@ async def test_create_world_entry_returns_diff() -> None:
     tool = CreateWorldEntryTool(_state={**_make_state(), "current_revision_id": "rev-1"})
     created = SimpleNamespace(
         id="e1",
+        world_info_id="world-1",
         name="主角",
         uid=1,
         order=1,
@@ -281,12 +282,15 @@ async def test_create_world_entry_returns_diff() -> None:
         "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_repo"
     ) as mock_entry_repo, patch(
         "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_service"
-    ) as mock_entry_service:
+    ) as mock_entry_service, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.record_world_entry_diffs"
+    ) as mock_record_diffs:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
         mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
         mock_entry_repo.list_by_world_info = AsyncMock(return_value=[])
         mock_entry_service.create_entry = AsyncMock(return_value=created)
+        mock_record_diffs.return_value = ["e1"]
 
         result = await tool.ainvoke({"title": "主角", "content": "林舟"})
 
@@ -354,6 +358,7 @@ async def test_edit_world_entry_returns_diff() -> None:
     tool = EditWorldEntryTool(_state={**_make_state(), "current_revision_id": "rev-1"})
     entry = SimpleNamespace(
         id="e1",
+        world_info_id="world-1",
         name="主角",
         uid=1,
         order=1,
@@ -363,6 +368,7 @@ async def test_edit_world_entry_returns_diff() -> None:
     )
     updated_entry = SimpleNamespace(
         id="e1",
+        world_info_id="world-1",
         name="主角",
         uid=1,
         order=1,
@@ -379,12 +385,15 @@ async def test_edit_world_entry_returns_diff() -> None:
         "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_repo"
     ) as mock_entry_repo, patch(
         "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_service"
-    ) as mock_entry_service:
+    ) as mock_entry_service, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.record_world_entry_diffs"
+    ) as mock_record_diffs:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
         mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
         mock_entry_repo.list_by_world_info = AsyncMock(return_value=[entry])
         mock_entry_service.update_entry = AsyncMock(return_value=updated_entry)
+        mock_record_diffs.return_value = ["e1"]
 
         result = await tool.ainvoke(
             {"title": "主角", "old_content": "林舟", "new_content": "林舟与旧友"}
@@ -447,7 +456,16 @@ async def test_delete_world_entry_removes_title() -> None:
     from app.agent_runtime.tools.impls.context.world_entry import DeleteWorldEntryTool
 
     tool = DeleteWorldEntryTool(_state={**_make_state(), "current_revision_id": "rev-1"})
-    entry = SimpleNamespace(id="e1", name="主角", uid=1, order=1, content="林舟")
+    entry = SimpleNamespace(
+        id="e1",
+        world_info_id="world-1",
+        name="主角",
+        uid=1,
+        order=1,
+        content="林舟",
+        token_count=2,
+        is_enabled=True,
+    )
 
     with patch(
         "app.agent_runtime.tools.impls.context.world_entry.create_session"
@@ -457,12 +475,15 @@ async def test_delete_world_entry_removes_title() -> None:
         "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_repo"
     ) as mock_entry_repo, patch(
         "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_service"
-    ) as mock_entry_service:
+    ) as mock_entry_service, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.record_world_entry_diffs"
+    ) as mock_record_diffs:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
         mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
         mock_entry_repo.list_by_world_info = AsyncMock(return_value=[entry])
         mock_entry_service.delete_entry = AsyncMock(return_value=None)
+        mock_record_diffs.return_value = ["e1"]
 
         result = await tool.ainvoke({"title": "主角"})
 
@@ -472,6 +493,7 @@ async def test_delete_world_entry_removes_title() -> None:
         "tool_name": "delete_world_entry",
         "revision_id": "rev-1",
         "world_info_id": "world-1",
+        "affected_world_entries": ["e1"],
         "entry_id": "e1",
         "title": "主角",
         "uid": 1,

@@ -3,7 +3,11 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.agent_runtime.revisions import current_revision_id_from_state
+from app.agent_runtime.revisions import (
+    current_revision_id_from_state,
+    record_world_entry_diffs,
+    world_entry_images_by_id,
+)
 from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.tools.registry import ToolRegistry
@@ -261,6 +265,13 @@ class CreateWorldEntryTool(AgentTool):
                 content=content,
                 is_enabled=True,
             )
+            affected_world_entries = await record_world_entry_diffs(
+                session,
+                revision_id=revision_id,
+                project_id=self.project_id,
+                before={},
+                after=world_entry_images_by_id([entry], project_id=self.project_id),
+            )
             await session.commit()
             entry_preview = _preview_from_entry(entry)
             return json.dumps(
@@ -270,6 +281,7 @@ class CreateWorldEntryTool(AgentTool):
                     "tool_name": self.name,
                     "revision_id": revision_id,
                     "world_info_id": world_info.id,
+                    "affected_world_entries": affected_world_entries,
                     "world_entry": _serialize_world_entry(entry),
                     "world_entry_diff": _build_world_entry_diff(None, entry_preview),
                     "message": "世界书条目已创建",
@@ -321,11 +333,19 @@ class EditWorldEntryTool(AgentTool):
                     new_title,
                     exclude_entry_id=entry.id,
                 )
+            before_images = world_entry_images_by_id([entry], project_id=self.project_id)
             updated = await world_info_entry_service.update_entry(
                 session,
                 entry.id,
                 name=normalized_new_title,
                 content=content if content != before.content else None,
+            )
+            affected_world_entries = await record_world_entry_diffs(
+                session,
+                revision_id=revision_id,
+                project_id=self.project_id,
+                before=before_images,
+                after=world_entry_images_by_id([updated], project_id=self.project_id),
             )
             await session.commit()
             after = _preview_from_entry(updated)
@@ -336,6 +356,7 @@ class EditWorldEntryTool(AgentTool):
                     "tool_name": self.name,
                     "revision_id": revision_id,
                     "world_info_id": world_info.id,
+                    "affected_world_entries": affected_world_entries,
                     "world_entry": _serialize_world_entry(updated),
                     "world_entry_diff": _build_world_entry_diff(before, after),
                     "message": "世界书条目已编辑",
@@ -365,7 +386,15 @@ class DeleteWorldEntryTool(AgentTool):
             world_info = await _get_project_world_info(session, self.project_id)
             entry = await _resolve_entry_by_title(session, world_info.id, title)
             before = _preview_from_entry(entry)
+            before_images = world_entry_images_by_id([entry], project_id=self.project_id)
             await world_info_entry_service.delete_entry(session, entry.id)
+            affected_world_entries = await record_world_entry_diffs(
+                session,
+                revision_id=revision_id,
+                project_id=self.project_id,
+                before=before_images,
+                after={},
+            )
             await session.commit()
             return json.dumps(
                 {
@@ -374,6 +403,7 @@ class DeleteWorldEntryTool(AgentTool):
                     "tool_name": self.name,
                     "revision_id": revision_id,
                     "world_info_id": world_info.id,
+                    "affected_world_entries": affected_world_entries,
                     "entry_id": before.id,
                     "title": before.title,
                     "uid": before.uid,

@@ -12,6 +12,8 @@ from app.storage.models.note import Note, NoteCategory
 from app.storage.models.project import Project
 from app.storage.models.task import Task
 from app.storage.models.volume import Volume
+from app.storage.models.world_info import WorldInfo
+from app.storage.models.world_info_entry import WorldInfoEntry
 from tests.model_registry import register_sqlmodel_models
 
 
@@ -67,6 +69,25 @@ async def revision_db(monkeypatch):
             )
         )
         session.add(
+            WorldInfo(
+                id="world-1",
+                project_id="proj-1",
+                name="测试世界书",
+            )
+        )
+        session.add(
+            WorldInfoEntry(
+                id="entry-1",
+                world_info_id="world-1",
+                uid=1,
+                name="已有条目",
+                order=1,
+                content="原始设定",
+                token_count=4,
+                is_enabled=True,
+            )
+        )
+        session.add(
             NoteCategory(
                 id="cat-1",
                 project_id="proj-1",
@@ -113,6 +134,10 @@ async def revision_db(monkeypatch):
     )
     monkeypatch.setattr(
         "app.agent_runtime.tools.impls.note.create_note_category.create_session",
+        create_test_session,
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.tools.impls.context.world_entry.create_session",
         create_test_session,
     )
 
@@ -832,3 +857,196 @@ async def test_rollback_restores_nested_category_before_note(revision_db):
     assert sub_cat_after is None
     assert note_after is None
     assert {c.id for c in all_cats} == {"cat-1"}
+
+
+@pytest.mark.asyncio
+async def test_rollback_revision_restores_created_world_entries(revision_db):
+    from app.agent_runtime.revisions import (
+        begin_user_revision,
+        rollback_revision_for_session,
+    )
+    from app.agent_runtime.tools.impls.context.world_entry import CreateWorldEntryTool
+    from app.storage.repos import world_info_entry_repo
+
+    async with revision_db() as session:
+        user = await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="创建世界书条目",
+        )
+        revision = await begin_user_revision(
+            session,
+            project_id="proj-1",
+            task_id="task-1",
+            agent_session_id="sess-1",
+            user_message_id=user.id,
+            user_message_seq=user.seq,
+            message="用户消息: 创建世界书条目",
+            pre_run_checkpoint_id="cp-before",
+            graph_thread_id="sess-1",
+        )
+        await session.commit()
+
+    tool = CreateWorldEntryTool(
+        _state={
+            "session_id": "sess-1",
+            "task_id": "task-1",
+            "project_id": "proj-1",
+            "current_revision_id": revision.id,
+        }
+    )
+    result = json.loads(
+        await tool.ainvoke({"title": "临时条目", "content": "临时设定"})
+    )
+    assert result["success"] is True
+    entry_id = result["world_entry"]["id"]
+
+    async with revision_db() as session:
+        rollback_result = await rollback_revision_for_session(
+            session,
+            agent_session_id="sess-1",
+            revision_id=revision.id,
+        )
+        await session.commit()
+
+    assert set(rollback_result.affected_world_entries) == {entry_id}
+
+    async with revision_db() as session:
+        entry_after = await world_info_entry_repo.get_by_id(session, entry_id)
+
+    assert entry_after is None
+
+
+@pytest.mark.asyncio
+async def test_rollback_revision_restores_edited_world_entries(revision_db):
+    from app.agent_runtime.revisions import (
+        begin_user_revision,
+        rollback_revision_for_session,
+    )
+    from app.agent_runtime.tools.impls.context.world_entry import EditWorldEntryTool
+    from app.storage.repos import world_info_entry_repo
+
+    async with revision_db() as session:
+        user = await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="编辑世界书条目",
+        )
+        revision = await begin_user_revision(
+            session,
+            project_id="proj-1",
+            task_id="task-1",
+            agent_session_id="sess-1",
+            user_message_id=user.id,
+            user_message_seq=user.seq,
+            message="用户消息: 编辑世界书条目",
+            pre_run_checkpoint_id="cp-before",
+            graph_thread_id="sess-1",
+        )
+        await session.commit()
+
+    tool = EditWorldEntryTool(
+        _state={
+            "session_id": "sess-1",
+            "task_id": "task-1",
+            "project_id": "proj-1",
+            "current_revision_id": revision.id,
+        }
+    )
+    result = json.loads(
+        await tool.ainvoke(
+            {
+                "title": "已有条目",
+                "new_title": "改名条目",
+                "old_content": "原始",
+                "new_content": "更新",
+            }
+        )
+    )
+    assert result["success"] is True
+
+    async with revision_db() as session:
+        rollback_result = await rollback_revision_for_session(
+            session,
+            agent_session_id="sess-1",
+            revision_id=revision.id,
+        )
+        await session.commit()
+
+    assert set(rollback_result.affected_world_entries) == {"entry-1"}
+
+    async with revision_db() as session:
+        entry_after = await world_info_entry_repo.get_by_id(session, "entry-1")
+
+    assert entry_after is not None
+    assert entry_after.name == "已有条目"
+    assert entry_after.content == "原始设定"
+
+
+@pytest.mark.asyncio
+async def test_rollback_revision_restores_deleted_world_entries(revision_db):
+    from app.agent_runtime.revisions import (
+        begin_user_revision,
+        rollback_revision_for_session,
+    )
+    from app.agent_runtime.tools.impls.context.world_entry import DeleteWorldEntryTool
+    from app.storage.repos import world_info_entry_repo
+
+    async with revision_db() as session:
+        user = await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="删除世界书条目",
+        )
+        revision = await begin_user_revision(
+            session,
+            project_id="proj-1",
+            task_id="task-1",
+            agent_session_id="sess-1",
+            user_message_id=user.id,
+            user_message_seq=user.seq,
+            message="用户消息: 删除世界书条目",
+            pre_run_checkpoint_id="cp-before",
+            graph_thread_id="sess-1",
+        )
+        await session.commit()
+
+    tool = DeleteWorldEntryTool(
+        _state={
+            "session_id": "sess-1",
+            "task_id": "task-1",
+            "project_id": "proj-1",
+            "current_revision_id": revision.id,
+        }
+    )
+    result = json.loads(await tool.ainvoke({"title": "已有条目"}))
+    assert result["success"] is True
+
+    async with revision_db() as session:
+        rollback_result = await rollback_revision_for_session(
+            session,
+            agent_session_id="sess-1",
+            revision_id=revision.id,
+        )
+        await session.commit()
+
+    assert set(rollback_result.affected_world_entries) == {"entry-1"}
+
+    async with revision_db() as session:
+        entry_after = await world_info_entry_repo.get_by_id(session, "entry-1")
+
+    assert entry_after is not None
+    assert entry_after.name == "已有条目"
+    assert entry_after.content == "原始设定"

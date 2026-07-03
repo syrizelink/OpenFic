@@ -1971,6 +1971,7 @@ class TestAgentAPI:
         assert "restored_checkpoint_id" not in data
         assert data["restored_message_content"] == "改写第一章"
         assert data["affected_chapters"] == ["chap-rollback"]
+        assert data["affected_world_entries"] == []
         assert data["revision_id"]
         fake_runner.cancel.assert_called_once()
         fake_registry.cancel.assert_awaited_once_with("sess-rollback")

@@ -965,6 +965,7 @@ const startSession = useCallback(
 
           invalidateChapterQueries();
           invalidateNoteQueries();
+          invalidateWorldEntryQueries();
 
           toast.success(i18n.t("assistant.rollbackSuccess"));
 
@@ -981,7 +982,7 @@ const startSession = useCallback(
         setIsRollbacking(false);
       }
     },
-    [commitTranscriptState, sessionId, isRollbacking, isRunning, messages, invalidateChapterQueries, invalidateNoteQueries]
+    [commitTranscriptState, sessionId, isRollbacking, isRunning, messages, invalidateChapterQueries, invalidateNoteQueries, invalidateWorldEntryQueries]
   );
 
   const forkFromRevision = useCallback(

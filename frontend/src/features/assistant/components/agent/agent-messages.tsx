@@ -35,7 +35,7 @@ import {
 import { ExplorationMessage } from "./message-blocks/blocks/exploration/exploration-message";
 import "./agent-message-blocks.css";
 
-import { ConfirmDialog, Spinner, toast } from "@/components";
+import { ConfirmDialog, toast } from "@/components";
 import type { AgentMessage as AgentMessageType } from "@/lib/agent.types";
 
 const COPY_FEEDBACK_MS = 1200;
@@ -506,31 +506,7 @@ export function AgentMessages({
   };
 
   return (
-    <>
-      {isRollbacking && (
-        <Box
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 100,
-            gap: "8px",
-          }}
-        >
-          <Spinner size={18} />
-          <Text size="2" style={{ color: "white" }}>
-            {t("assistant.rollbacking")}
-          </Text>
-        </Box>
-      )}
-
+    <Box className="agent-messages-root" data-rollbacking={isRollbacking ? "true" : undefined}>
       <Box ref={contentRef} className="agent-message-scroll-content">
         {visibleMessageBlocks.map((block) => {
           const toolbarTarget = toolbarTargetByAnchorId.get(block.id);
@@ -629,12 +605,13 @@ export function AgentMessages({
       <ConfirmDialog
         open={Boolean(pendingRollbackMessage)}
         onOpenChange={(open) => {
-          if (!open) setPendingRollbackMessage(null);
+          if (!open && !isRollbacking) setPendingRollbackMessage(null);
         }}
         onConfirm={confirmRollback}
         title={t("assistant.rollbackDialogTitle")}
         description={t("assistant.rollbackDialogDescription")}
         confirmText={t("assistant.rollbackDialogConfirm")}
+        loading={isRollbacking}
       />
       <ConfirmDialog
         open={Boolean(pendingForkTarget)}
@@ -647,6 +624,6 @@ export function AgentMessages({
         confirmText={t("assistant.forkDialogConfirm")}
         confirmColor="blue"
       />
-    </>
+    </Box>
   );
 }

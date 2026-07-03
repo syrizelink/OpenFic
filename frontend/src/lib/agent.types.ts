@@ -336,6 +336,7 @@ export interface AgentRollbackResponse {
   affected_chapters: string[];
   affected_notes: string[];
   affected_note_categories: string[];
+  affected_world_entries: string[];
   restored_message_content: string;
 }
 

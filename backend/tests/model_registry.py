@@ -34,6 +34,7 @@ def register_sqlmodel_models() -> None:
     )
     from app.storage.models.revision import Revision
     from app.storage.models.revision_chapter_snapshot import RevisionChapterSnapshot
+    from app.storage.models.revision_world_entry_snapshot import RevisionWorldEntrySnapshot
     from app.storage.models.setting import Setting
     from app.storage.models.skill import Skill
     from app.storage.models.task import Task
@@ -66,6 +67,7 @@ def register_sqlmodel_models() -> None:
         RetrievalChapterIndexState,
         Revision,
         RevisionChapterSnapshot,
+        RevisionWorldEntrySnapshot,
         Setting,
         Skill,
         Task,

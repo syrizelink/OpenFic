@@ -22,6 +22,8 @@ from app.storage.models.revision_note_snapshot import (
     RevisionNoteCategorySnapshot,
     RevisionNoteSnapshot,
 )
+from app.storage.models.revision_world_entry_snapshot import RevisionWorldEntrySnapshot
+from app.storage.models.world_info_entry import WorldInfoEntry
 from app.storage.repos import (
     chapter_repo,
     commit_repo,
@@ -31,8 +33,10 @@ from app.storage.repos import (
     revision_chapter_snapshot_repo,
     revision_note_snapshot_repo,
     revision_repo,
+    revision_world_entry_snapshot_repo,
     task_repo,
     volume_repo,
+    world_info_entry_repo,
 )
 from app.storage.services import writing_activity_service
 from app.storage.services.version_control_service import refresh_project_stats
@@ -69,11 +73,25 @@ class NoteCategoryImage:
 
 
 @dataclass(frozen=True)
+class WorldEntryImage:
+    id: str
+    project_id: str
+    world_info_id: str
+    uid: int
+    name: str
+    order: int
+    content: str
+    token_count: int
+    is_enabled: bool
+
+
+@dataclass(frozen=True)
 class AgentRollbackResult:
     rollback_revision: Revision
     affected_chapters: list[str]
     affected_notes: list[str]
     affected_note_categories: list[str]
+    affected_world_entries: list[str]
     restored_message_content: str
     restored_checkpoint_id: str | None
 
@@ -483,6 +501,119 @@ async def record_note_category_diffs(
     return affected
 
 
+def _image_from_world_entry(entry: WorldInfoEntry, project_id: str) -> WorldEntryImage:
+    return WorldEntryImage(
+        id=entry.id,
+        project_id=project_id,
+        world_info_id=entry.world_info_id,
+        uid=entry.uid,
+        name=entry.name,
+        order=entry.order,
+        content=entry.content,
+        token_count=entry.token_count,
+        is_enabled=entry.is_enabled,
+    )
+
+
+def _image_from_world_entry_snapshot(
+    snapshot: RevisionWorldEntrySnapshot,
+) -> WorldEntryImage | None:
+    if not snapshot.exists:
+        return None
+    return WorldEntryImage(
+        id=snapshot.entry_id,
+        project_id=snapshot.project_id,
+        world_info_id=snapshot.world_info_id or "",
+        uid=snapshot.uid or 0,
+        name=snapshot.name or "",
+        order=snapshot.entry_order or 1,
+        content=snapshot.content or "",
+        token_count=snapshot.token_count or 0,
+        is_enabled=snapshot.is_enabled if snapshot.is_enabled is not None else True,
+    )
+
+
+def _snapshot_from_world_entry_image(
+    revision_id: str,
+    project_id: str,
+    entry_id: str,
+    image: WorldEntryImage | None,
+) -> RevisionWorldEntrySnapshot:
+    if image is None:
+        return RevisionWorldEntrySnapshot(
+            revision_id=revision_id,
+            entry_id=entry_id,
+            project_id=project_id,
+            exists=False,
+        )
+    return RevisionWorldEntrySnapshot(
+        revision_id=revision_id,
+        entry_id=image.id,
+        project_id=image.project_id,
+        exists=True,
+        world_info_id=image.world_info_id,
+        uid=image.uid,
+        name=image.name,
+        entry_order=image.order,
+        content=image.content,
+        token_count=image.token_count,
+        is_enabled=image.is_enabled,
+    )
+
+
+def _world_entry_has_changed(
+    before: WorldEntryImage | None,
+    after: WorldEntryImage | None,
+) -> bool:
+    if before is None or after is None:
+        return before is not after
+    return (
+        before.world_info_id != after.world_info_id
+        or before.uid != after.uid
+        or before.name != after.name
+        or before.order != after.order
+        or before.content != after.content
+        or before.token_count != after.token_count
+        or before.is_enabled != after.is_enabled
+    )
+
+
+def world_entry_images_by_id(
+    entries: list[WorldInfoEntry],
+    *,
+    project_id: str,
+) -> dict[str, WorldEntryImage]:
+    return {entry.id: _image_from_world_entry(entry, project_id) for entry in entries}
+
+
+async def record_world_entry_diffs(
+    session: AsyncSession,
+    *,
+    revision_id: str,
+    project_id: str,
+    before: dict[str, WorldEntryImage],
+    after: dict[str, WorldEntryImage],
+) -> list[str]:
+    existing_snapshots = await revision_world_entry_snapshot_repo.list_by_revision(
+        session, revision_id
+    )
+    snapshotted = {item.entry_id for item in existing_snapshots}
+    affected: list[str] = []
+    for entry_id in sorted(set(before) | set(after)):
+        old = before.get(entry_id)
+        new = after.get(entry_id)
+        if not _world_entry_has_changed(old, new):
+            continue
+        affected.append(entry_id)
+        if entry_id not in snapshotted:
+            await revision_world_entry_snapshot_repo.create(
+                session,
+                _snapshot_from_world_entry_image(revision_id, project_id, entry_id, old),
+            )
+            snapshotted.add(entry_id)
+    return affected
+
+
 def _sort_category_snapshots_by_hierarchy(
     snapshots: list[RevisionNoteCategorySnapshot],
 ) -> list[RevisionNoteCategorySnapshot]:
@@ -586,6 +717,7 @@ async def rollback_revision_for_session(
     restore_by_chapter: dict[str, RevisionChapterSnapshot] = {}
     restore_by_note: dict[str, RevisionNoteSnapshot] = {}
     restore_by_category: dict[str, RevisionNoteCategorySnapshot] = {}
+    restore_by_world_entry: dict[str, RevisionWorldEntrySnapshot] = {}
     for revision in revisions:
         snapshots = await revision_chapter_snapshot_repo.list_by_revision(
             session, revision.id
@@ -604,6 +736,13 @@ async def rollback_revision_for_session(
         )
         for cat_snapshot in category_snapshots:
             restore_by_category.setdefault(cat_snapshot.category_id, cat_snapshot)
+        world_entry_snapshots = await revision_world_entry_snapshot_repo.list_by_revision(
+            session, revision.id
+        )
+        for world_entry_snapshot in world_entry_snapshots:
+            restore_by_world_entry.setdefault(
+                world_entry_snapshot.entry_id, world_entry_snapshot
+            )
 
     restored_message_content = ""
     if target.user_message_id:
@@ -758,6 +897,47 @@ async def rollback_revision_for_session(
             current_note.updated_at = datetime.now(UTC)
             await note_repo.update_note(session, current_note)
 
+    affected_world_entries: list[str] = []
+    world_entry_deletes = [
+        item for item in restore_by_world_entry.values() if not item.exists
+    ]
+    world_entry_upserts = [
+        item for item in restore_by_world_entry.values() if item.exists
+    ]
+    for entry_snapshot in [*world_entry_deletes, *world_entry_upserts]:
+        affected_world_entries.append(entry_snapshot.entry_id)
+        current_entry = await world_info_entry_repo.get_by_id(
+            session, entry_snapshot.entry_id
+        )
+        after_entry_image = _image_from_world_entry_snapshot(entry_snapshot)
+        if after_entry_image is None:
+            if current_entry is not None:
+                await world_info_entry_repo.delete(session, current_entry)
+        elif current_entry is None:
+            await world_info_entry_repo.create(
+                session,
+                WorldInfoEntry(
+                    id=after_entry_image.id,
+                    world_info_id=after_entry_image.world_info_id,
+                    uid=after_entry_image.uid,
+                    name=after_entry_image.name,
+                    order=after_entry_image.order,
+                    content=after_entry_image.content,
+                    token_count=after_entry_image.token_count,
+                    is_enabled=after_entry_image.is_enabled,
+                ),
+            )
+        else:
+            current_entry.world_info_id = after_entry_image.world_info_id
+            current_entry.uid = after_entry_image.uid
+            current_entry.name = after_entry_image.name
+            current_entry.order = after_entry_image.order
+            current_entry.content = after_entry_image.content
+            current_entry.token_count = after_entry_image.token_count
+            current_entry.is_enabled = after_entry_image.is_enabled
+            current_entry.updated_at = datetime.now(UTC)
+            await world_info_entry_repo.update_entry(session, current_entry)
+
     await refresh_project_stats(session, target.project_id)
     await compaction_repo.delete_intersecting_or_after(
         session,
@@ -787,6 +967,7 @@ async def rollback_revision_for_session(
         affected_chapters=list(dict.fromkeys(affected)),
         affected_notes=list(dict.fromkeys(affected_notes)),
         affected_note_categories=list(dict.fromkeys(affected_note_categories)),
+        affected_world_entries=list(dict.fromkeys(affected_world_entries)),
         restored_message_content=restored_message_content,
         restored_checkpoint_id=target.pre_run_checkpoint_id,
     )
