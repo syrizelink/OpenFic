@@ -16,6 +16,10 @@ from app.storage.repos import world_info_entry_repo
 from app.storage.services.world_info_service import get_world_info
 
 
+class WorldInfoEntryNameConflictError(ValueError):
+    """世界书条目名称冲突。"""
+
+
 @dataclass
 class WorldInfoEntryListResult:
     """世界书条目列表结果。"""
@@ -97,6 +101,43 @@ def _calculate_token_count(content: str) -> int:
         return len(content) // 4
 
 
+async def _get_existing_entry_names(
+    session: AsyncSession,
+    world_info_id: str,
+    exclude_entry_id: str | None = None,
+) -> set[str]:
+    entries = await world_info_entry_repo.list_by_world_info(
+        session, world_info_id, offset=0, limit=10000
+    )
+    return {entry.name for entry in entries if entry.id != exclude_entry_id}
+
+
+def generate_unique_entry_name(base_name: str, existing_names: set[str]) -> str:
+    normalized_name = base_name.strip()
+    if normalized_name not in existing_names:
+        return normalized_name
+
+    counter = 1
+    while f"{normalized_name} ({counter})" in existing_names:
+        counter += 1
+    return f"{normalized_name} ({counter})"
+
+
+async def ensure_entry_name_available(
+    session: AsyncSession,
+    world_info_id: str,
+    name: str,
+    exclude_entry_id: str | None = None,
+) -> str:
+    normalized_name = name.strip()
+    existing_names = await _get_existing_entry_names(
+        session, world_info_id, exclude_entry_id=exclude_entry_id
+    )
+    if normalized_name in existing_names:
+        raise WorldInfoEntryNameConflictError(f"世界书条目名称已存在: {normalized_name}")
+    return normalized_name
+
+
 def parse_sillytavern_worldbook(raw_payload: bytes) -> WorldInfoImportPreviewResult:
     """解析 SillyTavern 世界书 JSON 并归一化为当前项目结构。"""
     try:
@@ -164,13 +205,16 @@ async def import_entries(
     max_uid = await world_info_entry_repo.get_max_uid(session, world_info_id)
     max_order = await world_info_entry_repo.get_max_order(session, world_info_id)
 
+    existing_names = await _get_existing_entry_names(session, world_info_id)
     entry_objects: list[WorldInfoEntry] = []
     for index, entry in enumerate(entries, start=1):
+        unique_name = generate_unique_entry_name(entry.name, existing_names)
+        existing_names.add(unique_name)
         entry_objects.append(
             WorldInfoEntry(
                 world_info_id=world_info_id,
                 uid=max_uid + index,
-                name=entry.name,
+                name=unique_name,
                 order=max_order + index,
                 content=entry.content,
                 token_count=_calculate_token_count(entry.content),
@@ -218,6 +262,9 @@ async def create_entry(
     # 检查世界书是否存在
     await get_world_info(session, world_info_id)
 
+    existing_names = await _get_existing_entry_names(session, world_info_id)
+    unique_name = generate_unique_entry_name(name, existing_names)
+
     # 获取当前最大 UID 和 order
     max_uid = await world_info_entry_repo.get_max_uid(session, world_info_id)
     max_order = await world_info_entry_repo.get_max_order(session, world_info_id)
@@ -225,7 +272,7 @@ async def create_entry(
     entry = WorldInfoEntry(
         world_info_id=world_info_id,
         uid=max_uid + 1,
-        name=name,
+        name=unique_name,
         order=max_order + 1,
         content=content,
         token_count=token_count,
@@ -316,7 +363,12 @@ async def update_entry(
     entry = await get_entry(session, entry_id)
 
     if name is not None:
-        entry.name = name
+        entry.name = await ensure_entry_name_available(
+            session,
+            entry.world_info_id,
+            name,
+            exclude_entry_id=entry.id,
+        )
     if content is not None:
         entry.content = content
     if token_count is not None:

@@ -212,6 +212,31 @@ export function useAgentSession({
     [projectId, queryClient]
   );
 
+  const invalidateWorldEntryQueries = useCallback(
+    (targetWorldInfoId?: string, targetEntryId?: string, operation?: string) => {
+      if (targetWorldInfoId) {
+        queryClient.invalidateQueries({ queryKey: ["world-info-entries", targetWorldInfoId] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["world-info-entries"] });
+      }
+      if (!targetEntryId) return;
+
+      if (operation === "delete") {
+        queryClient.removeQueries({ queryKey: ["world-info-entry-detail", targetEntryId], exact: true });
+        return;
+      }
+
+      const detailQuery = queryClient.getQueryCache().find({
+        queryKey: ["world-info-entry-detail", targetEntryId],
+        exact: true,
+      });
+      if (detailQuery?.getObserversCount()) {
+        queryClient.invalidateQueries({ queryKey: ["world-info-entry-detail", targetEntryId], exact: true });
+      }
+    },
+    [queryClient]
+  );
+
   const commitTranscriptState = useCallback((nextState: AgentTranscriptState) => {
     syncAgentTranscriptLiveState(transcriptStateRef.current, nextState);
     setMessages(nextState.messages);
@@ -408,10 +433,25 @@ export function useAgentSession({
         return;
       }
 
+      if (message?.type === "world_entry_refresh") {
+        const targetWorldInfoId = typeof message.payload?.world_info_id === "string"
+          ? message.payload.world_info_id
+          : undefined;
+        const targetEntryId = typeof message.payload?.entry_id === "string"
+          ? message.payload.entry_id
+          : undefined;
+        const operation = typeof message.payload?.operation === "string"
+          ? message.payload.operation
+          : undefined;
+        invalidateWorldEntryQueries(targetWorldInfoId, targetEntryId, operation);
+        return;
+      }
+
 if (message?.type === "completed" && result.state.status !== "running") {
         ignoredApprovalIdsRef.current.clear();
         invalidateChapterQueries();
         invalidateNoteQueries();
+        invalidateWorldEntryQueries();
         return;
       }
 
@@ -427,6 +467,7 @@ if (message?.type === "completed" && result.state.status !== "running") {
       commitTranscriptState,
       invalidateChapterQueries,
       invalidateNoteQueries,
+      invalidateWorldEntryQueries,
       onTaskTitleUpdated,
       onTokenUsage,
       onTaskUsageDelta,

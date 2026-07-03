@@ -650,7 +650,6 @@ export function EntryList({
           }}
         >
           <Box
-            p="2"
             style={{
               width: "100%",
               minWidth: 0,

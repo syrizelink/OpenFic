@@ -26,6 +26,7 @@ from app.agent_runtime.tools.hooks.dispatch_description import (
     build_dispatch_subagent_description_hook,
 )
 from app.agent_runtime.tools.hooks.note_refresh import note_refresh_post_hook
+from app.agent_runtime.tools.hooks.world_entry_refresh import world_entry_refresh_post_hook
 from app.agent_runtime.types import ReactAgentConfig, TerminationCondition
 from app.models.clients.model_factory import ModelConfig, create_chat_model
 
@@ -95,7 +96,7 @@ async def primary_node(
                 state=tool_state,
                 build_hooks=await _primary_build_hooks(config, agent_key=agent_key),
                 pre_hooks=[auth_hook],
-                post_hooks=[chapter_refresh_post_hook, note_refresh_post_hook],
+                post_hooks=[chapter_refresh_post_hook, note_refresh_post_hook, world_entry_refresh_post_hook],
             ),
         ),
         termination=TerminationCondition(mode="no_tool_call"),

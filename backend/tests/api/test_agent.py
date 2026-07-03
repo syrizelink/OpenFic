@@ -19,6 +19,7 @@ from app.agent_runtime.persistence.child_runs import (
 )
 from app.agent_runtime.revisions import begin_user_revision
 from app.agent_runtime.runner.checkpointer import reset_checkpointer
+from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buffer
 from app.api.routers.agent_runtime import _SESSION_RUNNERS
 from app.socket.handlers import agent_subagents_room
@@ -33,11 +34,13 @@ from app.storage.services import task_service
 
 @pytest_asyncio.fixture(autouse=True)
 async def reset_agent_runtime_globals():
+    await get_agent_run_registry().cancel_all()
     _SESSION_RUNNERS.clear()
     await reset_checkpointer()
     try:
         yield
     finally:
+        await get_agent_run_registry().cancel_all()
         _SESSION_RUNNERS.clear()
         await reset_checkpointer()
 
@@ -192,6 +195,36 @@ class TestAgentAPI:
                 "key": "move_chapter_to_volume",
                 "name": "Move Chapter",
                 "description": "将指定章节移动到目标卷末尾。",
+                "is_readonly": False,
+            },
+            {
+                "key": "list_world_entries",
+                "name": "List World Entries",
+                "description": "列出当前项目世界书条目标题。",
+                "is_readonly": True,
+            },
+            {
+                "key": "read_world_entry",
+                "name": "Read World Entry",
+                "description": "根据标题读取世界书条目内容。",
+                "is_readonly": True,
+            },
+            {
+                "key": "create_world_entry",
+                "name": "Create World Entry",
+                "description": "在当前项目世界书中创建条目。",
+                "is_readonly": False,
+            },
+            {
+                "key": "edit_world_entry",
+                "name": "Edit World Entry",
+                "description": "编辑世界书条目的标题或内容。",
+                "is_readonly": False,
+            },
+            {
+                "key": "delete_world_entry",
+                "name": "Delete World Entry",
+                "description": "删除指定世界书条目。",
                 "is_readonly": False,
             },
         ]

@@ -63,9 +63,25 @@ _PERMISSION_METADATA_BY_TOOL_NAME = {
         permission_key="read_range_summaries",
         default_mode="allow",
     ),
-    "read_world_info": ToolPermissionMetadata(
-        permission_key="read_world_info",
+    "list_world_entries": ToolPermissionMetadata(
+        permission_key="list_world_entries",
         default_mode="allow",
+    ),
+    "read_world_entry": ToolPermissionMetadata(
+        permission_key="read_world_entry",
+        default_mode="allow",
+    ),
+    "create_world_entry": ToolPermissionMetadata(
+        permission_key="create_world_entry",
+        default_mode="ask",
+    ),
+    "edit_world_entry": ToolPermissionMetadata(
+        permission_key="edit_world_entry",
+        default_mode="ask",
+    ),
+    "delete_world_entry": ToolPermissionMetadata(
+        permission_key="delete_world_entry",
+        default_mode="ask",
     ),
     "write_chapter": ToolPermissionMetadata(
         permission_key="write_chapter",

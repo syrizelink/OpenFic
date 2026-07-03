@@ -58,8 +58,10 @@ export interface RangeSummaryPayload {
 }
 
 export interface WorldInfoEntryPayload {
-  name: string;
-  content: string;
+  title?: string;
+  content?: string;
+  uid?: number;
+  order?: number;
 }
 
 export interface OutlineBeatRow {
@@ -672,21 +674,41 @@ export function getRangeSummaryList(message: AgentMessage): RangeSummaryPayload[
   return [];
 }
 
-export function getWorldInfoContent(message: AgentMessage): string | undefined {
+export function getWorldEntryPayload(message: AgentMessage): WorldInfoEntryPayload {
   const resultData = getToolResultData(message);
-  if (isRecord(resultData) && typeof resultData.content === "string") return resultData.content;
-  return asString(getToolData(message).content);
+  const data = getToolData(message);
+  const entryData = isRecord(resultData) && isRecord(resultData.world_entry)
+    ? resultData.world_entry
+    : data;
+  const diff = isRecord(resultData) && isRecord(resultData.world_entry_diff)
+    ? resultData.world_entry_diff
+    : null;
+  return {
+    title:
+      asString(entryData.title) ??
+      asString(entryData.name) ??
+      asString(diff?.entry_title) ??
+      asString(data.title) ??
+      asString(data.new_title),
+    content: asString(entryData.content) ?? asString(data.content) ?? asString(data.new_content),
+    uid: asNumber(entryData.uid),
+    order: asNumber(entryData.order),
+  };
 }
 
-export function parseWorldInfoEntries(content: string | undefined): WorldInfoEntryPayload[] {
-  if (!content) return [];
-  const matches = Array.from(content.matchAll(/<([^>\n]+)>\s*([\s\S]*?)\s*<\/\1>/g));
-  return matches
-    .map((match) => ({
-      name: match[1]?.trim() ?? "",
-      content: match[2]?.trim() ?? "",
+export function getWorldEntryList(message: AgentMessage): WorldInfoEntryPayload[] {
+  const resultData = getToolResultData(message);
+  const entries = isRecord(resultData) && Array.isArray(resultData.entries)
+    ? resultData.entries
+    : [];
+  return entries
+    .filter(isRecord)
+    .map((entry) => ({
+      title: asString(entry.title) ?? asString(entry.name),
+      uid: asNumber(entry.uid),
+      order: asNumber(entry.order),
     }))
-    .filter((entry) => entry.name && entry.content);
+    .filter((entry) => entry.title);
 }
 
 export function getToolRef(
