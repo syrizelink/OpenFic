@@ -160,6 +160,7 @@ class AgentChildRun(SQLModel, table=True):
         default_factory=dict,
         sa_column=Column(JSON, nullable=False, default=dict),
     )
+    parent_revision_id: str | None = Field(default=None, index=True, max_length=64)
     started_at: datetime | None = Field(default=None, index=True)
     completed_at: datetime | None = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
@@ -183,6 +184,10 @@ class AgentChildRunRequest(SQLModel, table=True):
         sa_column=Column(Text, nullable=True),
     )
     error: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    parent_revision_id: str | None = Field(default=None, index=True, max_length=64)
+    child_user_message_id: str | None = Field(default=None, index=True, max_length=64)
+    child_user_message_seq: int | None = Field(default=None, index=True)
+    pre_request_checkpoint_id: str | None = Field(default=None, index=True, max_length=128)
     seq: int = Field(index=True, ge=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
     started_at: datetime | None = Field(default=None, index=True)

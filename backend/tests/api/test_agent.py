@@ -5,6 +5,7 @@ import asyncio
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY
 
 import pytest
 import pytest_asyncio
@@ -22,7 +23,7 @@ from app.agent_runtime.runner.checkpointer import reset_checkpointer
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buffer
 from app.api.routers.agent_runtime import _SESSION_RUNNERS
-from app.socket.handlers import agent_subagents_room
+from app.socket.handlers import agent_session_room, agent_subagents_room
 from app.storage.models.chapter import Chapter
 from app.storage.models.commit import Commit
 from app.storage.models.project import Project
@@ -1849,6 +1850,8 @@ class TestAgentAPI:
         client: AsyncClient,
         session,
     ) -> None:
+        buffer = get_agent_event_replay_buffer()
+        buffer.clear_all()
         session.add(Project(id="proj-rollback", title="回滚项目"))
         session.add(
             Volume(
@@ -1941,14 +1944,32 @@ class TestAgentAPI:
             status="complete",
             content="已改写",
         )
+        child = await create_child_run(
+            session,
+            parent_session_id="sess-rollback",
+            parent_task_id="task-rollback",
+            parent_thread_id="sess-rollback",
+            child_thread_id="sess-rollback:child:rollback",
+            agent_key="writer",
+            dispatch_id="dispatch-rollback",
+            tool_call_id="tool-call-rollback",
+            request={"task": "write", "input": {}, "metadata": {}},
+            status="completed",
+            parent_revision_id=revision.id,
+            child_user_message_seq=0,
+        )
         await session.commit()
 
         fake_runner = SimpleNamespace(
             cancel=MagicMock(),
+            model_config={"max_context_tokens": 1},
+            project_id="proj-rollback",
         )
         _SESSION_RUNNERS["sess-rollback"] = cast(Any, fake_runner)
         fake_registry = SimpleNamespace(cancel=AsyncMock())
         delete_checkpoints_after_mock = AsyncMock()
+        delete_checkpoints_for_thread_mock = AsyncMock()
+        emit_mock = AsyncMock()
 
         with (
             patch(
@@ -1958,6 +1979,18 @@ class TestAgentAPI:
             patch(
                 "app.api.routers.agent_runtime.delete_checkpoints_after_for_thread",
                 delete_checkpoints_after_mock,
+            ),
+            patch(
+                "app.api.routers.agent_runtime.delete_checkpoints_for_thread",
+                delete_checkpoints_for_thread_mock,
+            ),
+            patch(
+                "app.api.routers.agent_runtime.emit",
+                new=emit_mock,
+            ),
+            patch(
+                "app.agent_runtime.runner.subagent_runner.emit",
+                new=emit_mock,
             ),
         ):
             response = await client.post(
@@ -1973,14 +2006,162 @@ class TestAgentAPI:
         assert data["affected_chapters"] == ["chap-rollback"]
         assert data["affected_world_entries"] == []
         assert data["revision_id"]
+        emit_mock.assert_any_await(
+            "agent:chapter_refresh",
+            {
+                "session_id": "sess-rollback",
+                "project_id": "proj-rollback",
+                "created_at": ANY,
+                "chapter_id": "chap-rollback",
+            },
+            room=agent_session_room("sess-rollback"),
+        )
         fake_runner.cancel.assert_called_once()
         fake_registry.cancel.assert_awaited_once_with("sess-rollback")
         delete_checkpoints_after_mock.assert_awaited_once_with(
             "sess-rollback", "cp-before"
         )
+        delete_checkpoints_for_thread_mock.assert_awaited_once_with(child.child_thread_id)
+        replayed = buffer.replay_events_unlocked("sess-rollback")
+        rollback_statuses = [
+            event.data
+            for event in replayed
+            if event.name == "agent:subagent_status"
+            and event.data.get("child_run_id") == child.id
+        ]
+        assert rollback_statuses == [
+            {
+                "parent_session_id": "sess-rollback",
+                "child_run_id": child.id,
+                "child_thread_id": child.child_thread_id,
+                "agent_key": "writer",
+                "agent_number": child.metadata_json["agent_number"],
+                "status": "cancelled",
+                "queued_messages": 0,
+                "is_active": False,
+                "pending_approval": None,
+            }
+        ]
+        emit_mock.assert_any_await(
+            "agent:subagent_status",
+            rollback_statuses[0],
+            room=agent_subagents_room("sess-rollback"),
+        )
         rolled_back_task = await session.get(Task, "task-rollback")
         assert rolled_back_task is not None
         await session.refresh(rolled_back_task)
+        buffer.clear_all()
+
+    async def test_rollback_created_chapter_emits_global_chapter_refresh_only(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        session.add(Project(id="proj-rollback-created", title="回滚新建章节项目"))
+        session.add(
+            Volume(
+                id="vol-rollback-created",
+                project_id="proj-rollback-created",
+                title="第一卷",
+                order=1,
+                chapter_count=1,
+            )
+        )
+        session.add(
+            Task(
+                id="task-rollback-created",
+                project_id="proj-rollback-created",
+                title="Agent Session",
+                mode="agent",
+                agent_session_id="sess-rollback-created",
+            )
+        )
+        await session.commit()
+
+        user_message = await message_repo.insert_message(
+            session,
+            session_id="sess-rollback-created",
+            task_id="task-rollback-created",
+            project_id="proj-rollback-created",
+            role="user",
+            status="sent",
+            content="新建章节",
+        )
+        revision = await begin_user_revision(
+            session,
+            project_id="proj-rollback-created",
+            task_id="task-rollback-created",
+            agent_session_id="sess-rollback-created",
+            user_message_id=user_message.id,
+            user_message_seq=user_message.seq,
+            message="用户消息: 新建章节",
+            pre_run_checkpoint_id="cp-before-created",
+            graph_thread_id="sess-rollback-created",
+        )
+        session.add(
+            Chapter(
+                id="chap-created-rollback",
+                project_id="proj-rollback-created",
+                volume_id="vol-rollback-created",
+                title="新章节",
+                content="新内容",
+                word_count=3,
+                order=1,
+            )
+        )
+        session.add(
+            RevisionChapterSnapshot(
+                revision_id=revision.id,
+                chapter_id="chap-created-rollback",
+                project_id="proj-rollback-created",
+                exists=False,
+            )
+        )
+        await session.commit()
+
+        fake_runner = SimpleNamespace(
+            cancel=MagicMock(),
+            model_config={"max_context_tokens": 1},
+            project_id="proj-rollback-created",
+        )
+        _SESSION_RUNNERS["sess-rollback-created"] = cast(Any, fake_runner)
+        fake_registry = SimpleNamespace(cancel=AsyncMock())
+        emit_mock = AsyncMock()
+
+        with (
+            patch(
+                "app.api.routers.agent_runtime.get_agent_run_registry",
+                return_value=fake_registry,
+            ),
+            patch(
+                "app.api.routers.agent_runtime.delete_checkpoints_after_for_thread",
+                AsyncMock(),
+            ),
+            patch(
+                "app.api.routers.agent_runtime.emit",
+                new=emit_mock,
+            ),
+        ):
+            response = await client.post(
+                "/api/v1/agent/sessions/sess-rollback-created/rollback",
+                json={"revision_id": revision.id},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        emit_mock.assert_any_await(
+            "agent:chapter_refresh",
+            {
+                "session_id": "sess-rollback-created",
+                "project_id": "proj-rollback-created",
+                "created_at": ANY,
+            },
+            room=agent_session_room("sess-rollback-created"),
+        )
+        assert not any(
+            call.args[0] == "agent:chapter_refresh"
+            and call.args[1].get("chapter_id") == "chap-created-rollback"
+            for call in emit_mock.await_args_list
+        )
 
     async def test_rollback_rejects_checkpoint_id_request_body(
         self,

@@ -10,6 +10,7 @@ from typing import Literal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.persistence import compaction_repo, repo as message_repo
+from app.agent_runtime.persistence.child_runs import rollback_child_runs_for_parent_revisions
 from app.agent_runtime.persistence.model import AgentRunMessage
 from app.core.errors import NotFoundError
 from app.storage.models.chapter import Chapter
@@ -94,6 +95,8 @@ class AgentRollbackResult:
     affected_world_entries: list[str]
     restored_message_content: str
     restored_checkpoint_id: str | None
+    child_checkpoint_boundaries: list[tuple[str, str | None]]
+    affected_child_run_ids: list[str]
 
 
 def current_revision_id_from_state(state: dict) -> str | None:
@@ -945,6 +948,10 @@ async def rollback_revision_for_session(
         target.user_message_seq,
     )
     await message_repo.delete_from_seq(session, agent_session_id, target.user_message_seq)
+    child_rollback_result = await rollback_child_runs_for_parent_revisions(
+        session,
+        parent_revision_ids=[revision.id for revision in revisions],
+    )
 
     for revision in revisions:
         await revision_repo.update_status(session, revision.id, "rolled_back")
@@ -970,4 +977,6 @@ async def rollback_revision_for_session(
         affected_world_entries=list(dict.fromkeys(affected_world_entries)),
         restored_message_content=restored_message_content,
         restored_checkpoint_id=target.pre_run_checkpoint_id,
+        child_checkpoint_boundaries=child_rollback_result.checkpoint_boundaries,
+        affected_child_run_ids=child_rollback_result.child_run_ids,
     )

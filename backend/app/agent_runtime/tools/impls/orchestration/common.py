@@ -9,6 +9,7 @@ from langchain_core.runnables import RunnableConfig
 from loguru import logger
 
 from app.agent_runtime.persistence import repo as message_repo
+from app.agent_runtime.persistence.types import PersistedMessage
 from app.agent_runtime.persistence.child_runs import (
     get_child_run_agent_number,
     get_child_run_for_parent,
@@ -128,7 +129,7 @@ async def persist_child_user_message(
     task_id: str,
     project_id: str,
     content: str,
-) -> None:
+) -> PersistedMessage:
     session = await open_session(session_factory)
     try:
         message = await message_repo.insert_message(
@@ -166,6 +167,7 @@ async def persist_child_user_message(
             payload,
             room=agent_subagent_session_room(child_thread_id),
         )
+    return message
 
 
 async def resolve_child_run(
