@@ -280,11 +280,13 @@ class SubagentRunner:
         self,
         row: AgentChildRun,
         content: str,
+        *,
+        parent_revision_id: str | None = None,
     ) -> dict[str, Any]:
         session = await _open_session(self.session_factory)
         try:
             task = await task_service.get_task(session, row.parent_task_id)
-            current_revision_id = task.current_revision_id
+            current_revision_id = parent_revision_id or task.current_revision_id
         finally:
             await _close_session(session)
 
@@ -843,7 +845,11 @@ class SubagentRunner:
 
         definition = await self._load_agent_definition(row.agent_key)
         history = await self._load_history(row.child_thread_id)
-        runtime_state = await self._build_runtime_state(row, request_row.content)
+        runtime_state = await self._build_runtime_state(
+            row,
+            request_row.content,
+            parent_revision_id=request_row.parent_revision_id,
+        )
         graph = await self._build_graph(row, definition, runtime_state)
         graph_input: Any
         if resume_payload is None:

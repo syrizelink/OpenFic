@@ -14,7 +14,9 @@ from app.agent_runtime.persistence.child_runs import (
     get_child_run_request_by_seq,
     get_running_child_run_request,
     get_waiting_child_run_for_tool_call,
+    update_child_run_request_boundaries,
 )
+from app.agent_runtime.runner.checkpointer import latest_checkpoint_id_for_thread
 from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.tools.impls.orchestration.common import (
@@ -147,6 +149,9 @@ class DispatchSubagentTool(AgentTool):
                 tool_call_id=tool_call_id,
                 request={"task": task, "input": input, "metadata": metadata},
                 metadata={"tool_metadata": metadata},
+                parent_revision_id=self._state.get("current_revision_id")
+                if isinstance(self._state.get("current_revision_id"), str)
+                else None,
             )
         finally:
             await close_session(session)
@@ -264,7 +269,10 @@ class DispatchSubagentTool(AgentTool):
                 configurable=configurable,
                 tool_call_id=tool_call_id,
             )
-            await persist_child_user_message(
+            pre_request_checkpoint_id = await latest_checkpoint_id_for_thread(
+                row.child_thread_id
+            )
+            child_user_message = await persist_child_user_message(
                 session_factory=configurable.get("session_factory"),
                 child_thread_id=row.child_thread_id,
                 task_id=str(self._state["task_id"]),
@@ -275,6 +283,17 @@ class DispatchSubagentTool(AgentTool):
                 configurable=configurable,
                 child_run_id=row.id,
             )
+            session = await open_session(configurable.get("session_factory"))
+            try:
+                await update_child_run_request_boundaries(
+                    session,
+                    request_id,
+                    child_user_message_id=child_user_message.id,
+                    child_user_message_seq=child_user_message.seq,
+                    pre_request_checkpoint_id=pre_request_checkpoint_id,
+                )
+            finally:
+                await close_session(session)
         runner = make_subagent_runner(state=self._state, configurable=configurable)
         await runner.publish_parent_subagent_status(row.id)
 

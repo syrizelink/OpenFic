@@ -222,6 +222,127 @@ async def test_write_chapter_records_current_revision_and_structured_result(revi
 
 
 @pytest.mark.asyncio
+async def test_rollback_second_subagent_revision_restores_chapter_to_first_revision_content(
+    revision_db,
+    monkeypatch,
+):
+    from app.agent_runtime.revisions import begin_user_revision, rollback_revision_for_session
+    from app.agent_runtime.tools.impls.chapter.edit_chapter import EditChapterTool
+    from app.agent_runtime.tools.impls.chapter.write_chapter import WriteChapterTool
+    from app.storage.repos import chapter_repo
+
+    async def create_test_session():
+        return revision_db()
+
+    monkeypatch.setattr(
+        "app.agent_runtime.tools.impls.chapter.edit_chapter.create_session",
+        create_test_session,
+    )
+
+    async with revision_db() as session:
+        first_user = await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="委派 subagent 创建章节",
+        )
+        first_revision = await begin_user_revision(
+            session,
+            project_id="proj-1",
+            task_id="task-1",
+            agent_session_id="sess-1",
+            user_message_id=first_user.id,
+            user_message_seq=first_user.seq,
+            message="用户消息: 委派 subagent 创建章节",
+            pre_run_checkpoint_id="cp-before-first",
+            graph_thread_id="sess-1",
+        )
+        await session.commit()
+
+    write_tool = WriteChapterTool(
+        _state={
+            "session_id": "sess-1:child:writer",
+            "task_id": "task-1",
+            "project_id": "proj-1",
+            "current_revision_id": first_revision.id,
+        }
+    )
+    write_result = json.loads(
+        await write_tool.ainvoke(
+            {
+                "volume_ref": {"type": "order", "value": 1},
+                "title": "Subagent 章节",
+                "content": "你好",
+            }
+        )
+    )
+    chapter_id = write_result["chapter"]["id"]
+
+    async with revision_db() as session:
+        second_user = await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="通知 subagent 修改章节",
+        )
+        second_revision = await begin_user_revision(
+            session,
+            project_id="proj-1",
+            task_id="task-1",
+            agent_session_id="sess-1",
+            user_message_id=second_user.id,
+            user_message_seq=second_user.seq,
+            message="用户消息: 通知 subagent 修改章节",
+            pre_run_checkpoint_id="cp-before-second",
+            graph_thread_id="sess-1",
+        )
+        await session.commit()
+
+    edit_tool = EditChapterTool(
+        _state={
+            "session_id": "sess-1:child:writer",
+            "task_id": "task-1",
+            "project_id": "proj-1",
+            "current_revision_id": second_revision.id,
+        }
+    )
+    edit_result = json.loads(
+        await edit_tool.ainvoke(
+            {
+                "volume_ref": {"type": "order", "value": 1},
+                "chapter_ref": {"type": "title", "value": "Subagent 章节"},
+                "old_content": "你好",
+                "new_content": "Hello",
+            }
+        )
+    )
+    assert edit_result.get("success") is True, edit_result
+
+    async with revision_db() as session:
+        edited = await chapter_repo.get_by_id(session, chapter_id)
+        assert edited is not None
+        assert edited.content == "Hello"
+        await rollback_revision_for_session(
+            session,
+            agent_session_id="sess-1",
+            revision_id=second_revision.id,
+        )
+        await session.commit()
+
+    async with revision_db() as session:
+        restored = await chapter_repo.get_by_id(session, chapter_id)
+
+    assert restored is not None
+    assert restored.content == "你好"
+
+
+@pytest.mark.asyncio
 async def test_rollback_revision_restores_chapters_and_messages(revision_db):
     from app.agent_runtime.revisions import (
         begin_user_revision,

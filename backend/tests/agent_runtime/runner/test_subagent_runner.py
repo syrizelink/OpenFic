@@ -296,6 +296,99 @@ async def test_subagent_runner_uses_child_thread_history_and_parent_task(
 
 
 @pytest.mark.asyncio
+async def test_subagent_runner_uses_request_parent_revision_for_notify_turn(
+    db_session_factory,
+    monkeypatch,
+):
+    from app.agent_runtime.runner.subagent_runner import SubagentRunner
+
+    async with db_session_factory() as session:
+        task = await session.get(Task, "task-1")
+        assert task is not None
+        task.current_revision_id = "rev-stale"
+        session.add(task)
+        row = await create_child_run(
+            session,
+            parent_session_id="parent-session",
+            parent_task_id="task-1",
+            parent_thread_id="parent-session",
+            child_thread_id="child-thread-revision",
+            agent_key="writer",
+            dispatch_id="dispatch-revision",
+            tool_call_id="tool-call-revision",
+            request={"task": "first", "input": {}},
+            status="completed",
+            parent_revision_id="rev-1",
+        )
+        await enqueue_child_run_request(
+            session,
+            child_run_id=row.id,
+            request_kind="notify",
+            content="second",
+            parent_revision_id="rev-2",
+        )
+        await session.commit()
+
+    captured: dict = {}
+
+    class FakeGraph:
+        async def astream_events(self, initial_state, config=None, version=None):
+            captured["runtime_state"] = config["configurable"]["runtime_state"]
+            yield {
+                "event": "on_chat_model_end",
+                "run_id": "child-run-revision",
+                "tags": ["subagent_child"],
+                "data": {"output": AIMessage(content="second done")},
+            }
+            yield {
+                "event": "on_chain_end",
+                "tags": ["subagent_child"],
+                "data": {"output": {
+                    "messages": [AIMessage(content="second done")],
+                    "iteration_count": 1,
+                    "is_done": True,
+                    "final_output": None,
+                }},
+            }
+
+        async def ainvoke(self, initial_state, config=None):
+            return {
+                "messages": [AIMessage(content="second done")],
+                "iteration_count": 1,
+                "is_done": True,
+                "final_output": None,
+            }
+
+    async def fake_emit(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr("app.agent_runtime.runner.subagent_runner.emit", fake_emit)
+    monkeypatch.setattr(
+        "app.agent_runtime.runner.subagent_runner.create_chat_model",
+        lambda _config: object(),
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.runner.subagent_runner.create_react_agent",
+        lambda *_args, **_kwargs: FakeGraph(),
+    )
+
+    runner = SubagentRunner(
+        session_factory=db_session_factory,
+        model_config={
+            "provider_type": "openai",
+            "base_url": "",
+            "api_key": "key",
+            "model_id": "gpt-test",
+            "max_context_tokens": 8000,
+        },
+        project_id="project-1",
+    )
+    await runner.run(row.id)
+
+    assert captured["runtime_state"]["current_revision_id"] == "rev-2"
+
+
+@pytest.mark.asyncio
 async def test_subagent_runner_passes_compaction_sinks_to_child_graph(
     db_session_factory,
     monkeypatch,

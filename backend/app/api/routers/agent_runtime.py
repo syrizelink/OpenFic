@@ -34,6 +34,7 @@ from app.agent_runtime.revisions import rollback_revision_for_session
 from app.agent_runtime.fork import fork_agent_session_at_revision
 from app.agent_runtime.runner.checkpointer import (
     delete_checkpoints_after_for_thread,
+    delete_checkpoints_for_thread,
 )
 from app.agent_runtime.runner.session_runner import SessionRunner
 from app.agent_runtime.runner.subagent_runner import SubagentRunner
@@ -69,8 +70,9 @@ from app.settings import settings
 from app.background.jobs.session_title_jobs import enqueue_session_title_job
 from app.background.jobs import service as background_service
 from app.socket import emit
-from app.socket.handlers import background_project_room
+from app.socket.handlers import agent_session_room, background_project_room
 from app.storage.database import get_session
+from app.storage.models.chapter import Chapter
 from app.storage.services import task_service
 
 router = APIRouter(tags=["Agent"])
@@ -1055,6 +1057,50 @@ async def rollback_agent_session(
         except Exception:
             logger.bind(session_id=session_id).opt(exception=True).error(
                 "Agent graph checkpoint rollback failed after revision rollback"
+            )
+            raise
+    if result.affected_child_run_ids:
+        status_publisher = SubagentRunner(
+            session_factory=sessionmaker(  # type: ignore[call-overload]
+                session.bind,
+                class_=AsyncSession,
+                expire_on_commit=False,
+            ),
+            model_config=runner.model_config if runner is not None else {"max_context_tokens": 1},
+            project_id=runner.project_id if runner is not None else "",
+        )
+        for child_run_id in result.affected_child_run_ids:
+            await status_publisher.publish_parent_subagent_status(child_run_id)
+    emitted_global_chapter_refresh = False
+    for chapter_id in result.affected_chapters:
+        payload = {
+            "session_id": session_id,
+            "project_id": result.rollback_revision.project_id,
+            "created_at": datetime.now(UTC).isoformat(),
+        }
+        if await session.get(Chapter, chapter_id) is not None:
+            payload["chapter_id"] = chapter_id
+        elif emitted_global_chapter_refresh:
+            continue
+        else:
+            emitted_global_chapter_refresh = True
+        await emit(
+            "agent:chapter_refresh",
+            payload,
+            room=agent_session_room(session_id),
+        )
+    for child_thread_id, checkpoint_id in result.child_checkpoint_boundaries:
+        try:
+            if checkpoint_id:
+                await delete_checkpoints_after_for_thread(child_thread_id, checkpoint_id)
+            else:
+                await delete_checkpoints_for_thread(child_thread_id)
+        except Exception:
+            logger.bind(
+                session_id=session_id,
+                child_thread_id=child_thread_id,
+            ).opt(exception=True).error(
+                "Agent subagent checkpoint rollback failed after revision rollback"
             )
             raise
 

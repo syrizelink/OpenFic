@@ -103,6 +103,26 @@ async def delete_checkpoints_after_for_thread(
         await conn.close()
 
 
+async def latest_checkpoint_id_for_thread(thread_id: str) -> str | None:
+    if not thread_id:
+        return None
+
+    db_path = _get_db_path()
+    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+
+    conn = await aiosqlite.connect(db_path)
+    try:
+        cursor = await conn.execute(
+            "SELECT checkpoint_id FROM checkpoints WHERE thread_id = ? "
+            "ORDER BY checkpoint_id DESC LIMIT 1",
+            (thread_id,),
+        )
+        row = await cursor.fetchone()
+        return str(row[0]) if row and row[0] else None
+    finally:
+        await conn.close()
+
+
 async def init_checkpointer() -> AsyncSqliteSaver:
     return await get_checkpointer()
 

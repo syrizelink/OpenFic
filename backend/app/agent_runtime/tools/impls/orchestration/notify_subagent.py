@@ -5,7 +5,11 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.agent_runtime.persistence.child_runs import enqueue_child_run_request
+from app.agent_runtime.persistence.child_runs import (
+    enqueue_child_run_request,
+    update_child_run_request_boundaries,
+)
+from app.agent_runtime.runner.checkpointer import latest_checkpoint_id_for_thread
 from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.tools.impls.orchestration.common import (
@@ -109,6 +113,9 @@ class NotifySubagentTool(AgentTool):
         if not row.is_active:
             raise ToolExecutionError("subagent thread is inactive")
         tool_call_id = self.tool_call_id or generate_id()
+        current_revision_id = self._state.get("current_revision_id")
+        parent_revision_id = current_revision_id if isinstance(current_revision_id, str) else None
+        pre_request_checkpoint_id = await latest_checkpoint_id_for_thread(row.child_thread_id)
 
         session = await open_session(configurable.get("session_factory"))
         try:
@@ -117,17 +124,29 @@ class NotifySubagentTool(AgentTool):
                 child_run_id=row.id,
                 request_kind="notify",
                 content=message,
+                parent_revision_id=parent_revision_id,
+                pre_request_checkpoint_id=pre_request_checkpoint_id,
             )
         finally:
             await close_session(session)
 
-        await persist_child_user_message(
+        child_user_message = await persist_child_user_message(
             session_factory=configurable.get("session_factory"),
             child_thread_id=row.child_thread_id,
             task_id=str(self._state["task_id"]),
             project_id=str(self._state["project_id"]),
             content=message,
         )
+        session = await open_session(configurable.get("session_factory"))
+        try:
+            await update_child_run_request_boundaries(
+                session,
+                request_row.id,
+                child_user_message_id=child_user_message.id,
+                child_user_message_seq=child_user_message.seq,
+            )
+        finally:
+            await close_session(session)
 
         runner = make_subagent_runner(state=self._state, configurable=configurable)
         await runner.publish_parent_subagent_status(row.id)
