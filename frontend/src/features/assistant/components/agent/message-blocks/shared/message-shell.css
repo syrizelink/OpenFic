@@ -33,6 +33,11 @@
   align-items: center;
 }
 
+.agent-message-shell-header,
+.agent-tool-card .agent-tool-header {
+  min-height: 24px;
+}
+
 .agent-message-shell-meta,
 .agent-tool-card .agent-message-shell-meta {
   min-width: 0;
