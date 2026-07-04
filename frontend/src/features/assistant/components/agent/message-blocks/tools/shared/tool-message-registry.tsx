@@ -49,12 +49,6 @@ import {
   getRecycleSubagentDetail,
   getRecycleSubagentTitle,
 } from "../orchestration/recycle-subagent-tool-message";
-import {
-  CreateVolumeToolMessage,
-  DeleteVolumeToolMessage,
-  EditVolumeToolMessage,
-  MoveChapterToVolumeToolMessage,
-} from "../volume/volume-tool-message";
 import { WorldEntryToolMessage } from "../world-entry/world-entry-tool-message";
 import { getPlanToolDisplayConfig } from "../plan/plan-tool-message.utils";
 import {
@@ -106,6 +100,11 @@ function getPlanDetailForDisplayKind(
   detailKind: ReturnType<typeof getPlanToolDisplayConfig>["detailKind"]
 ): string | undefined {
   return detailKind === "count" ? getPlanCountDetail(message) : getPlanTopicDetail(message);
+}
+
+function getVolumeRefLabel(message: AgentMessage, key: string): string | undefined {
+  const ref = getToolRef(message, key);
+  return asString(ref?.title) ?? formatVolumeRefLabel(ref);
 }
 
 const TOOL_REGISTRY = {
@@ -357,49 +356,51 @@ const TOOL_REGISTRY = {
     group: "volume",
     tag: "create",
     isExplore: false,
-    contentMode: "static",
+    contentMode: "hidden",
     icon: FileText,
     getTitle: () => i18n.t("assistant.tools.createVolume"),
     getDetail: (message) =>
       getVolumePayload(message)?.title ?? asString(getStreamingData(message).title),
-    render: (message) => <CreateVolumeToolMessage message={message} />,
   },
   edit_volume: {
     toolName: "edit_volume",
     group: "volume",
     tag: "edit",
     isExplore: false,
-    contentMode: "static",
+    contentMode: "hidden",
     icon: FilePenLine,
     getTitle: () => i18n.t("assistant.tools.editVolume"),
-    getDetail: (message) =>
-      getVolumePayload(message)?.title ??
-      asString(getStreamingData(message).new_title) ??
-      formatVolumeRefLabel(getToolRef(message, "volume_ref")),
-    render: (message) => <EditVolumeToolMessage message={message} />,
+    getDetail: (message) => {
+      const sourceLabel = getVolumeRefLabel(message, "volume_ref");
+      const targetLabel = getVolumePayload(message)?.title ?? asString(getStreamingData(message).new_title);
+      if (sourceLabel && targetLabel) return `${sourceLabel} \u2192 ${targetLabel}`;
+      return targetLabel ?? sourceLabel;
+    },
   },
   delete_volume: {
     toolName: "delete_volume",
     group: "volume",
     tag: "delete",
     isExplore: false,
-    contentMode: "static",
+    contentMode: "hidden",
     icon: Trash2,
     getTitle: () => i18n.t("assistant.tools.deleteVolume"),
-    getDetail: (message) => formatVolumeRefLabel(getToolRef(message, "volume_ref")),
-    render: (message) => <DeleteVolumeToolMessage message={message} />,
+    getDetail: (message) => getVolumeRefLabel(message, "volume_ref"),
   },
   move_chapter_to_volume: {
     toolName: "move_chapter_to_volume",
     group: "volume",
     tag: "move",
     isExplore: false,
-    contentMode: "static",
+    contentMode: "hidden",
     icon: FilePenLine,
     getTitle: () => i18n.t("assistant.tools.moveChapterToVolume"),
-    getDetail: (message) =>
-      getChapterPayload(message).title ?? formatChapterRefLabel(getToolRef(message, "chapter_ref")),
-    render: (message) => <MoveChapterToVolumeToolMessage message={message} />,
+    getDetail: (message) => {
+      const chapterLabel = getChapterPayload(message).title ?? formatChapterRefLabel(getToolRef(message, "chapter_ref"));
+      const targetLabel = getVolumeRefLabel(message, "target_volume_ref");
+      if (chapterLabel && targetLabel) return `${chapterLabel} \u2192 ${targetLabel}`;
+      return chapterLabel ?? targetLabel;
+    },
   },
   read_chapter_summaries: {
     toolName: "read_chapter_summaries",
