@@ -214,10 +214,6 @@
   animation: agentCardSlideIn 0.3s ease-out;
 }
 
-.agent-message-card[data-streaming="true"] {
-  animation: none;
-}
-
 @keyframes agentCardSlideIn {
   from {
     opacity: 0;

@@ -56,7 +56,7 @@ function isToolMessage(message: AgentBlockDisplayMessage): message is ToolDispla
 
 function pushMessageItem(items: AgentDisplayItem[], message: AgentBlockDisplayMessage): void {
   items.push({
-    id: `message:${message.id}`,
+    id: `message:${items.length}`,
     type: "message",
     message,
   });
@@ -125,7 +125,7 @@ function pushExplorationItem(
     return;
   }
   items.push({
-    id: `exploration:${explorationMessages[0]?.id ?? items.length}`,
+    id: `exploration:${items.length}`,
     type: "exploration",
     messages: explorationMessages,
     summary: buildExplorationSummary(explorationMessages),
