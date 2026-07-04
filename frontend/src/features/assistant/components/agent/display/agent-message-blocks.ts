@@ -26,6 +26,10 @@ export interface AgentRoundToolbarTarget {
   timestamp?: number;
 }
 
+interface AgentRoundToolbarOptions {
+  isRunning?: boolean;
+}
+
 interface BuildAgentMessageBlocksOptions {
   closeOpenNodeAt?: number;
 }
@@ -246,8 +250,11 @@ function getLatestAssistantToolbarTimestamp(blocks: AgentMessageBlock[]): number
 
 export function getAgentRoundToolbarTargets(
   blocks: AgentMessageBlock[],
-  visibleBlocks: AgentMessageBlock[]
+  visibleBlocks: AgentMessageBlock[],
+  options: AgentRoundToolbarOptions = {}
 ): AgentRoundToolbarTarget[] {
+  if (options.isRunning) return [];
+
   const roundOrder: string[] = [];
   const rounds = new Map<string, {
     blocks: AgentMessageBlock[];

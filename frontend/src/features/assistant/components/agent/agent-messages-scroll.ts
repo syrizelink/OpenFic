@@ -26,6 +26,13 @@ export function shouldTrackStreamingFollowBottom(isRunning: boolean): boolean {
   return isRunning;
 }
 
+export function shouldResetFollowBottomForRun(
+  previousIsRunning: boolean,
+  nextIsRunning: boolean
+): boolean {
+  return !previousIsRunning && nextIsRunning;
+}
+
 export function resolveFollowBottomStateOnScroll({
   previous,
   next,
