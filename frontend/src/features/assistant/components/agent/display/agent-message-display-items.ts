@@ -54,6 +54,14 @@ function isToolMessage(message: AgentBlockDisplayMessage): message is ToolDispla
   return message.type === "tool";
 }
 
+function hasPendingDisplayMessage(messages: AgentBlockDisplayMessage[]): boolean {
+  return messages.some((message) => Boolean(
+    message.isStreaming
+    || message.status === "running"
+    || message.status === "pending"
+  ));
+}
+
 function pushMessageItem(items: AgentDisplayItem[], message: AgentBlockDisplayMessage): void {
   items.push({
     id: `message:${items.length}`,
@@ -140,48 +148,32 @@ function pushRequestItems(
 
   const firstToolIndex = requestMessages.findIndex((message) => message.type === "tool");
   if (firstToolIndex < 0) {
+    if (items.at(-1)?.type === "exploration" && hasPendingDisplayMessage(requestMessages)) {
+      pushExplorationItem(items, requestMessages);
+      return;
+    }
     requestMessages.forEach((message) => pushMessageItem(items, message));
     return;
   }
 
-  const prefixMessages = requestMessages.slice(0, firstToolIndex);
-  let prefixEmittedOutside = false;
-  let explorationCandidate: AgentBlockDisplayMessage[] = [];
-
-  const flushExplorationCandidate = () => {
-    if (explorationCandidate.length === 0) return;
-    pushExplorationItem(items, explorationCandidate);
-    explorationCandidate = [];
-  };
-
-  const emitPrefixOutside = () => {
-    if (prefixEmittedOutside) return;
-    prefixMessages.forEach((message) => pushMessageItem(items, message));
-    prefixEmittedOutside = true;
-  };
-
-  for (let index = firstToolIndex; index < requestMessages.length; index += 1) {
-    const message = requestMessages[index];
-    if (!isToolMessage(message)) continue;
-
-    if (isReadToolMessage(message)) {
-      if (explorationCandidate.length === 0) {
-        explorationCandidate = prefixEmittedOutside ? [] : [...prefixMessages];
-        prefixEmittedOutside = true;
-      }
-      explorationCandidate.push(message);
-      continue;
-    }
-
-    flushExplorationCandidate();
-    emitPrefixOutside();
-    pushMessageItem(items, message);
+  const firstExploreToolIndex = requestMessages.findIndex(isReadToolMessage);
+  if (firstExploreToolIndex < 0) {
+    requestMessages.forEach((message) => pushMessageItem(items, message));
+    return;
   }
 
-  flushExplorationCandidate();
-  if (!prefixEmittedOutside) {
-    emitPrefixOutside();
+  const firstNonExploreToolIndex = requestMessages.findIndex(
+    (message) => isToolMessage(message) && !isReadToolMessage(message)
+  );
+  const shouldGroupExplorePrefix = firstNonExploreToolIndex < 0 || firstExploreToolIndex < firstNonExploreToolIndex;
+  if (!shouldGroupExplorePrefix) {
+    requestMessages.forEach((message) => pushMessageItem(items, message));
+    return;
   }
+
+  const explorationEndIndex = firstNonExploreToolIndex < 0 ? requestMessages.length : firstNonExploreToolIndex;
+  pushExplorationItem(items, requestMessages.slice(0, explorationEndIndex));
+  requestMessages.slice(explorationEndIndex).forEach((message) => pushMessageItem(items, message));
 }
 
 export function buildExplorationSummary(messages: AgentBlockDisplayMessage[]): ExplorationSummary {

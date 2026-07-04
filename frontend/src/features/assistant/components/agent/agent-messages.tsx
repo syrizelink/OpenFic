@@ -28,6 +28,7 @@ import {
   shouldAutoScrollOnFrameChange,
   shouldFollowBottom,
   shouldResetFollowBottomForLoad,
+  shouldResetFollowBottomForRun,
   shouldScheduleLoadedSessionBottomRestoreImmediately,
   shouldTrackStreamingFollowBottom,
   type ScrollViewportMetrics,
@@ -174,6 +175,7 @@ export function AgentMessages({
   const restoreAttemptRef = useRef(0);
   const resizeFrameRef = useRef<{ scrollHeight: number; clientHeight: number; } | null>(null);
   const viewportMetricsRef = useRef<ScrollViewportMetrics | null>(null);
+  const previousIsRunningRef = useRef(isRunning);
   const lastLoadScrollKeyRef = useRef<string | null | undefined>(null);
   const copyFeedbackTimerRef = useRef<number | null>(null);
   const restoreScrollRafRef = useRef<number | null>(null);
@@ -201,7 +203,6 @@ export function AgentMessages({
 
   const scrollContainerToBottom = useCallback((container: HTMLElement) => {
     container.scrollTop = container.scrollHeight;
-    bottomRef.current?.scrollIntoView({ block: "end" });
   }, []);
 
   const scheduleStreamingScrollToBottom = useCallback(() => {
@@ -328,6 +329,12 @@ export function AgentMessages({
   }, [isRunning, onAtBottomChange, scheduleLoadedSessionBottomRestore, scheduleStreamingScrollToBottom]);
 
   useEffect(() => {
+    const previousIsRunning = previousIsRunningRef.current;
+    previousIsRunningRef.current = isRunning;
+    if (shouldResetFollowBottomForRun(previousIsRunning, isRunning)) {
+      shouldFollowBottomRef.current = true;
+      scheduleStreamingScrollToBottom();
+    }
     if (!shouldTrackStreamingFollowBottom(isRunning)) return;
     scheduleStreamingScrollToBottom();
   }, [currentStage, isRunning, scheduleStreamingScrollToBottom, streamFollowSignal]);
@@ -408,8 +415,8 @@ export function AgentMessages({
     [collapsedNodeIds, messageBlocks]
   );
   const toolbarTargets = useMemo(
-    () => getAgentRoundToolbarTargets(messageBlocks, visibleMessageBlocks),
-    [messageBlocks, visibleMessageBlocks]
+    () => getAgentRoundToolbarTargets(messageBlocks, visibleMessageBlocks, { isRunning }),
+    [isRunning, messageBlocks, visibleMessageBlocks]
   );
   const toolbarTargetByAnchorId = useMemo(
     () => new Map(toolbarTargets.map((target) => [target.anchorBlockId, target])),

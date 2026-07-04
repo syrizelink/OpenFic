@@ -127,6 +127,20 @@ function isAssistantOutputMessage(message: AgentMessage): boolean {
   return (message.type === "text" && message.role === "assistant") || message.type === "agent_output";
 }
 
+function stopStreamingAssistantOutput(messages: AgentMessage[]): AgentMessage[] {
+  let changed = false;
+  const next = messages.map((message) => {
+    if (!isAssistantOutputMessage(message) || !(message.isStreaming || message.status === "running")) return message;
+    changed = true;
+    return {
+      ...message,
+      status: "completed" as const,
+      isStreaming: false,
+    };
+  });
+  return changed ? next : messages;
+}
+
 function isSameAssistantOutputByFallback(item: AgentMessage, message: AgentMessage): boolean {
   if (!isAssistantOutputMessage(item) || !isAssistantOutputMessage(message)) return false;
   if (!item.isStreaming && item.status !== "running") return false;
@@ -293,7 +307,7 @@ export function upsertTranscriptStreamingMessage(messages: AgentMessage[], messa
 }
 
 export function stopTranscriptStreamingMessages(messages: AgentMessage[]): AgentMessage[] {
-  return stopStreamingToolMessages(stopStreamingReasoning(messages));
+  return stopStreamingToolMessages(stopStreamingReasoning(stopStreamingAssistantOutput(messages)));
 }
 
 function completeLatestAssistantMessage(
@@ -600,7 +614,7 @@ export function applyAgentTranscriptEvent(
         state: {
           ...state,
           messages: upsertTranscriptMessage(
-            clearRetryMessages(stopStreamingReasoning(baseMessages)).filter((item) => item.type !== "question" && item.type !== "clarification"),
+            clearRetryMessages(stopStreamingReasoning(stopStreamingAssistantOutput(baseMessages))).filter((item) => item.type !== "question" && item.type !== "clarification"),
             message
           ),
           status: "waiting_answer",
@@ -613,7 +627,7 @@ export function applyAgentTranscriptEvent(
 
     if (message.type === "tool") {
       const nextMessages = upsertTranscriptStreamingMessage(
-        clearRetryMessages(stopStreamingReasoning(baseMessages)).filter((item) => item.type !== "approval" && item.type !== "tool_approval"),
+        clearRetryMessages(stopStreamingReasoning(stopStreamingAssistantOutput(baseMessages))).filter((item) => item.type !== "approval" && item.type !== "tool_approval"),
         message
       );
       return {
