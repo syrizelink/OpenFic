@@ -123,6 +123,17 @@ function isSameToolMessageByFallback(item: AgentMessage, message: AgentMessage):
   return true;
 }
 
+function isAssistantOutputMessage(message: AgentMessage): boolean {
+  return (message.type === "text" && message.role === "assistant") || message.type === "agent_output";
+}
+
+function isSameAssistantOutputByFallback(item: AgentMessage, message: AgentMessage): boolean {
+  if (!isAssistantOutputMessage(item) || !isAssistantOutputMessage(message)) return false;
+  if (!item.isStreaming && item.status !== "running") return false;
+  if (item.agent && message.agent && item.agent !== message.agent) return false;
+  return true;
+}
+
 function isSameOptimisticUserMessage(item: AgentMessage, message: AgentMessage): boolean {
   if (!item.isDraft) return false;
   if (item.type !== "user_request" && !(item.type === "text" && item.role === "user")) return false;
@@ -237,6 +248,7 @@ function isSameStreamMessage(item: AgentMessage, message: AgentMessage): boolean
   if (isSameCompactionMessage(item, message)) return true;
   if (message.correlationId && item.correlationId === message.correlationId) return true;
   if (isSameOptimisticUserMessage(item, message)) return true;
+  if (isSameAssistantOutputByFallback(item, message)) return true;
   if (item.type !== "tool" || message.type !== "tool") return false;
   const itemToolCallId = getMessageToolCallId(item);
   const messageToolCallId = getMessageToolCallId(message);

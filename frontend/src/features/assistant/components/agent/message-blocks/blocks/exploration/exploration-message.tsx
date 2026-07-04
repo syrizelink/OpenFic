@@ -153,9 +153,9 @@ function ExplorationMessageView({
         visible={hasContent && isExpanded}
       >
         <Box className="agent-exploration-content">
-          {messages.map((message) => (
+          {messages.map((message, index) => (
             <AgentMessageRenderer
-              key={message.id}
+              key={`exploration-message:${index}`}
               message={message}
             />
           ))}

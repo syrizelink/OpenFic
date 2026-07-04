@@ -74,6 +74,7 @@ export function buildAgentMessageBlocks(
   let resumableNodeBlock: ResumableNodeBlock | null = null;
   let activeAgentRoundId: string | undefined;
   let fallbackRoundCount = 0;
+  let agentBlockCount = 0;
 
   const ensureAgentRoundId = () => {
     if (!activeAgentRoundId) {
@@ -169,8 +170,9 @@ export function buildAgentMessageBlocks(
 
     if (!currentAgentBlock) {
       const agentRoundId = ensureAgentRoundId();
+      agentBlockCount += 1;
       currentAgentBlock = {
-        id: `agent:${message.id}`,
+        id: `agent:${agentRoundId}:${agentBlockCount}`,
         type: "agent",
         messages: [],
         sourceRevisionId: pendingUserRevisionId,

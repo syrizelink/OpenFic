@@ -159,20 +159,24 @@ function StreamingMarkdownLinkSafetyDialog({
   );
 }
 
-export function StreamingMarkdown({ content, isStreaming = false, className }: StreamingMarkdownProps) {
+export function StreamingMarkdown({
+  content,
+  isStreaming = false,
+  className,
+}: StreamingMarkdownProps) {
   const markdownClassName = className ? `streaming-markdown ${className}` : "streaming-markdown";
 
   return (
     <Streamdown
-      animated={isStreaming ? STREAMING_ANIMATION : false}
+      animated={STREAMING_ANIMATION}
       className={markdownClassName}
       controls={STREAMDOWN_CONTROLS}
       data-streaming={isStreaming ? "true" : undefined}
       isAnimating={isStreaming}
       lineNumbers
       linkSafety={STREAMDOWN_LINK_SAFETY}
-      mode={isStreaming ? "streaming" : "static"}
-      parseIncompleteMarkdown={isStreaming}
+      mode="streaming"
+      parseIncompleteMarkdown
       plugins={STREAMDOWN_PLUGINS}
       remarkPlugins={STREAMDOWN_REMARK_PLUGINS}
     >
