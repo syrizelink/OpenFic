@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.5.0](https://github.com/syrizelink/OpenFic/compare/v0.4.9...v0.5.0) (2026-07-04)
+
+
+### ✨ 新功能
+
+* **agent:** 支持世界书条目与回滚 ([#59](https://github.com/syrizelink/OpenFic/issues/59)) ([b02549d](https://github.com/syrizelink/OpenFic/commit/b02549d8ab8dc050478f98d8e95601c95ade3295))
+* **frontend:** 添加 PWA 支持实现可安装应用 ([#56](https://github.com/syrizelink/OpenFic/issues/56)) ([bd623fb](https://github.com/syrizelink/OpenFic/commit/bd623fb73c87733a58e3d521cf9f066bcc0ccde7))
+
+
+### 🐛 问题修复
+
+* **agent:** 修复 subagent 回滚状态恢复 ([#60](https://github.com/syrizelink/OpenFic/issues/60)) ([b5fa608](https://github.com/syrizelink/OpenFic/commit/b5fa60852a1031f9626e0fff201b719da77cb4c0))
+* **frontend:** 修复 Agent 消息完成重新挂载的问题 ([#61](https://github.com/syrizelink/OpenFic/issues/61)) ([10e2e53](https://github.com/syrizelink/OpenFic/commit/10e2e53811853d2b26c1bcdec5dd1152a02f1223))
+* **frontend:** 修复 Agent 消息流式展示顺序 ([#63](https://github.com/syrizelink/OpenFic/issues/63)) ([9b4ee74](https://github.com/syrizelink/OpenFic/commit/9b4ee74f4e0f0481cba5f5c021ca0b61aa06c0f9))
+* **frontend:** 调整 Agent 工具消息展示 ([#62](https://github.com/syrizelink/OpenFic/issues/62)) ([f6ccfbb](https://github.com/syrizelink/OpenFic/commit/f6ccfbb2d853ac009a13def1b96d5cad1043cffa))
+
+
+### 🔧 杂项
+
+* 调整 Agent 会话命名与任务列表交互 ([#58](https://github.com/syrizelink/OpenFic/issues/58)) ([741d2e3](https://github.com/syrizelink/OpenFic/commit/741d2e369a37c11d28f3831fd5eb5d777b09ab46))
+
 ## [0.4.9](https://github.com/syrizelink/OpenFic/compare/v0.4.8...v0.4.9) (2026-07-02)
 
 
