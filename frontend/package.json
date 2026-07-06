@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "farm start",
     "build": "farm build && node scripts/generate-precachelist.mjs",
+    "format": "oxfmt . --write",
+    "format:check": "oxfmt . --check",
     "lint": "oxlint .",
     "type-check": "oxlint . --type-aware --type-check",
     "preview": "farm preview"
@@ -98,6 +100,7 @@
     "eslint-plugin-react-refresh": "^0.5.3",
     "jiti": "^2.6.1",
     "koa": "^3.2.0",
+    "oxfmt": "^0.57.0",
     "oxlint": "^1.72.0",
     "oxlint-tsgolint": "^0.24.0",
     "react-refresh": "^0.18.0",
