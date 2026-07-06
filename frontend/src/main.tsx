@@ -18,6 +18,7 @@ import { publishDesktopAppearance } from "./lib/desktop-appearance-bridge";
 import { applyCodeFontFamily, applyFontFamily, loadConfiguredFonts } from "./lib/font-utils";
 import { getOrCreateRoot } from "./lib/get-or-create-root";
 import { loadRuntimeConfig } from "./lib/runtime-config";
+import { connectSocket } from "./lib/socket-client";
 import { preloadTiktokenEncoding } from "./lib/tiktoken-utils";
 import { registerSW } from "./pwa/register-sw";
 
@@ -46,10 +47,12 @@ const DashboardPage = lazy(() =>
 
 function AppContent({
   appearance,
+  version,
   setAppearance,
   toggleTheme,
 }: {
   appearance: "light" | "dark";
+  version: string;
   setAppearance: (appearance: "light" | "dark") => void;
   toggleTheme: () => void;
 }) {
@@ -60,6 +63,7 @@ function AppContent({
           element={
             <AppLayout
               appearance={appearance}
+              version={version}
               onAppearanceChange={setAppearance}
               onToggleTheme={toggleTheme}
             />
@@ -102,6 +106,7 @@ function AppContent({
 function Root() {
   const [appearance, setAppearance] = useState<"light" | "dark">("light");
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [version, setVersion] = useState("");
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState(false);
 
@@ -118,13 +123,14 @@ function Root() {
       try {
         await loadRuntimeConfig();
 
-        const [, settings] = await Promise.all([
+        const [health, settings] = await Promise.all([
           checkHealth(),
           queryClient.fetchQuery({
             queryKey: ["settings"],
             queryFn: fetchSettings,
           }),
           preloadTiktokenEncoding(),
+          connectSocket(),
         ]);
 
         applyFontFamily(settings.fontFamily);
@@ -133,6 +139,7 @@ function Root() {
 
         if (mounted) {
           setSettings(settings);
+          setVersion(health.version);
           setAppearance(settings.theme);
           setIsReady(true);
         }
@@ -184,6 +191,7 @@ function Root() {
             ) : (
               <AppContent
                 appearance={appearance}
+                version={version}
                 setAppearance={setAppearance}
                 toggleTheme={toggleTheme}
               />

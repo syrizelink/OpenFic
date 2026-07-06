@@ -1,4 +1,3 @@
-import { Box } from "@radix-ui/themes";
 import { useEffect, useMemo, useState } from "react";
 import { Outlet } from "react-router";
 
@@ -7,14 +6,17 @@ import type { SettingsDialogRoute } from "@/features/settings/lib/settings-route
 
 import { AppShellContext } from "./app-shell-context";
 import { AppSidebar } from "./app-sidebar";
+import "./app-layout.css";
+import { StatusBar } from "./status-bar";
 
 interface AppLayoutProps {
   appearance: "light" | "dark";
+  version: string;
   onAppearanceChange: (appearance: "light" | "dark") => void;
   onToggleTheme: () => void;
 }
 
-export function AppLayout({ appearance, onAppearanceChange, onToggleTheme }: AppLayoutProps) {
+export function AppLayout({ appearance, version, onAppearanceChange, onToggleTheme }: AppLayoutProps) {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -54,27 +56,19 @@ export function AppLayout({ appearance, onAppearanceChange, onToggleTheme }: App
 
   return (
     <AppShellContext.Provider value={contextValue}>
-      <Box
-        style={{
-          height: "100dvh",
-          overflow: "hidden",
-        }}
-      >
-        <AppSidebar
-          appearance={appearance}
-          onToggleTheme={onToggleTheme}
-        />
+      <div className="app-layout-root">
+        <div className="app-layout-body">
+          <AppSidebar
+            appearance={appearance}
+            onToggleTheme={onToggleTheme}
+          />
 
-        <Box
-          style={{
-            paddingLeft: "var(--app-sidebar-width)",
-            height: "100%",
-            overflow: "hidden",
-            transition: "padding-left 0.24s cubic-bezier(0.22, 1, 0.36, 1)",
-          }}
-        >
-          <Outlet />
-        </Box>
+          <div className="app-layout-content">
+            <Outlet />
+          </div>
+        </div>
+
+        <StatusBar version={version} />
 
         <SettingsDialog
           appearance={appearance}
@@ -83,7 +77,7 @@ export function AppLayout({ appearance, onAppearanceChange, onToggleTheme }: App
           onOpenChange={setIsSettingsOpen}
           route={settingsRoute}
         />
-      </Box>
+      </div>
     </AppShellContext.Provider>
   );
 }

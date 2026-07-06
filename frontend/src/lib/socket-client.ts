@@ -2,9 +2,60 @@ import { io, type Socket } from "socket.io-client";
 
 import { getRuntimeConfig } from "./runtime-config";
 
-let socket: Socket | null = null;
-let socketUrl: string | undefined;
-let connectPromise: Promise<Socket> | null = null;
+export type SocketConnectionStatus = "connected" | "disconnected";
+
+interface SocketClientState {
+  socket: Socket | null;
+  socketUrl: string | undefined;
+  connectPromise: Promise<Socket> | null;
+  connectionStatus: SocketConnectionStatus;
+  statusListeners: Set<() => void>;
+  statusBoundSocket: Socket | null;
+}
+
+declare global {
+  interface Window {
+    __openficSocketClientState?: SocketClientState;
+  }
+}
+
+function getSocketState(): SocketClientState {
+  window.__openficSocketClientState ??= {
+    socket: null,
+    socketUrl: undefined,
+    connectPromise: null,
+    connectionStatus: "disconnected",
+    statusListeners: new Set<() => void>(),
+    statusBoundSocket: null,
+  };
+  return window.__openficSocketClientState;
+}
+
+function setConnectionStatus(nextStatus: SocketConnectionStatus): void {
+  const state = getSocketState();
+  if (state.connectionStatus === nextStatus) return;
+  state.connectionStatus = nextStatus;
+  state.statusListeners.forEach((listener) => listener());
+}
+
+export function getSocketConnectionStatus(): SocketConnectionStatus {
+  return getSocketState().connectionStatus;
+}
+
+export function subscribeSocketConnectionStatus(listener: () => void): () => void {
+  const state = getSocketState();
+  state.statusListeners.add(listener);
+  return () => state.statusListeners.delete(listener);
+}
+
+function bindConnectionStatus(socket: Socket): void {
+  const state = getSocketState();
+  if (state.statusBoundSocket === socket) return;
+  state.statusBoundSocket = socket;
+  socket.on("connect", () => setConnectionStatus("connected"));
+  socket.on("disconnect", () => setConnectionStatus("disconnected"));
+  socket.on("connect_error", () => setConnectionStatus("disconnected"));
+}
 
 function getSocketUrl(): string | undefined {
   const runtimeBackendUrl = getRuntimeConfig()?.backendBaseUrl;
@@ -23,15 +74,19 @@ function getSocketUrl(): string | undefined {
 }
 
 export function getSocket(): Socket {
+  const state = getSocketState();
   const nextSocketUrl = getSocketUrl();
-  if (socket && socketUrl !== nextSocketUrl) {
-    socket.disconnect();
-    socket = null;
-    connectPromise = null;
+  if (state.socket && state.socketUrl !== nextSocketUrl) {
+    state.socket.disconnect();
+    state.socket = null;
+    state.socketUrl = undefined;
+    state.connectPromise = null;
+    state.statusBoundSocket = null;
+    setConnectionStatus("disconnected");
   }
 
-  if (!socket) {
-    socket = nextSocketUrl
+  if (!state.socket) {
+    state.socket = nextSocketUrl
       ? io(nextSocketUrl, {
           path: "/socket.io",
           autoConnect: false,
@@ -42,18 +97,21 @@ export function getSocket(): Socket {
           autoConnect: false,
           transports: ["websocket", "polling"],
         });
-    socketUrl = nextSocketUrl;
+    state.socketUrl = nextSocketUrl;
+    bindConnectionStatus(state.socket);
+    setConnectionStatus(state.socket.connected ? "connected" : "disconnected");
   }
 
-  return socket;
+  return state.socket;
 }
 
 export function connectSocket(): Promise<Socket> {
+  const state = getSocketState();
   const activeSocket = getSocket();
   if (activeSocket.connected) return Promise.resolve(activeSocket);
-  if (connectPromise) return connectPromise;
+  if (state.connectPromise) return state.connectPromise;
 
-  connectPromise = new Promise<Socket>((resolve, reject) => {
+  state.connectPromise = new Promise<Socket>((resolve, reject) => {
     const cleanup = () => {
       window.clearTimeout(timeout);
       activeSocket.off("connect", onConnect);
@@ -78,15 +136,22 @@ export function connectSocket(): Promise<Socket> {
     }, 5000);
     activeSocket.connect();
   }).finally(() => {
-    connectPromise = null;
+    state.connectPromise = null;
   });
 
-  return connectPromise;
+  return state.connectPromise;
 }
 
 export function disposeSocketForHmr(): void {
-  socket?.disconnect();
-  socket = null;
-  socketUrl = undefined;
-  connectPromise = null;
+  const state = getSocketState();
+  state.socket?.disconnect();
+  state.socket = null;
+  state.socketUrl = undefined;
+  state.connectPromise = null;
+  state.statusBoundSocket = null;
+  setConnectionStatus("disconnected");
+}
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(disposeSocketForHmr);
 }
