@@ -12,8 +12,7 @@ from typing import TypeGuard, cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.agent_runtime.agents.definitions import load_agent_definition
 from app.agent_runtime.context.compaction.service import CompactionError
@@ -230,11 +229,10 @@ def _build_seed_state(
 
 
 def _is_valid_model_config(model_config: object) -> TypeGuard[dict[str, object]]:
-    return (
-        isinstance(model_config, dict)
-        and isinstance(model_config.get("max_context_tokens"), int)
-        and int(model_config["max_context_tokens"]) > 0
-    )
+    if not isinstance(model_config, dict):
+        return False
+    max_context_tokens = model_config.get("max_context_tokens")
+    return isinstance(max_context_tokens, int) and max_context_tokens > 0
 
 
 def _build_subagent_state_response(
@@ -415,6 +413,16 @@ async def _set_task_running_state(
             },
             room=background_project_room(project_id),
         )
+
+
+def _make_status_session_factory(session: AsyncSession) -> Callable[[], AsyncSession]:
+    if session.bind is None:
+        raise RuntimeError("数据库会话未绑定连接")
+    factory = async_sessionmaker(
+        session.bind,
+        expire_on_commit=False,
+    )
+    return factory
 
 
 async def _launch_task(
@@ -654,11 +662,7 @@ async def send_agent_message(
     runner = await _get_runner(session_id, session)
     registry = get_agent_run_registry()
     task = await task_service.get_task(session, runner.task_id)
-    status_session_factory = sessionmaker(  # type: ignore[call-overload]
-        session.bind,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
+    status_session_factory = _make_status_session_factory(session)
     if _is_pending_agent_session_title(task.title):
         await enqueue_session_title_job(session, task, body.message)
         await background_service.commit_and_notify(session)
@@ -745,11 +749,7 @@ async def compact_agent_session(
     pending_message: tuple[str, str] | None = None
     compaction_error: CompactionError | None = None
     result: dict[str, int | str] | None = None
-    status_session_factory = sessionmaker(  # type: ignore[call-overload]
-        session.bind,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
+    status_session_factory = _make_status_session_factory(session)
 
     try:
         registered = await registry.try_register_parent(session_id, current_task)
@@ -852,11 +852,7 @@ async def submit_agent_question_answer(
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     runner = await _get_runner(session_id, session)
-    status_session_factory = sessionmaker(  # type: ignore[call-overload]
-        session.bind,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
+    status_session_factory = _make_status_session_factory(session)
     payload = {
         "action_type": "clarification",
         "action_id": body.action_id,
@@ -879,11 +875,7 @@ async def submit_agent_tool_approval(
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     runner = await _get_runner(session_id, session)
-    status_session_factory = sessionmaker(  # type: ignore[call-overload]
-        session.bind,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
+    status_session_factory = _make_status_session_factory(session)
     payload = {
         "action_type": "tool_approval",
         "approval_id": body.approval_id,
@@ -1061,11 +1053,7 @@ async def rollback_agent_session(
             raise
     if result.affected_child_run_ids:
         status_publisher = SubagentRunner(
-            session_factory=sessionmaker(  # type: ignore[call-overload]
-                session.bind,
-                class_=AsyncSession,
-                expire_on_commit=False,
-            ),
+            session_factory=_make_status_session_factory(session),
             model_config=runner.model_config if runner is not None else {"max_context_tokens": 1},
             project_id=runner.project_id if runner is not None else "",
         )
@@ -1174,11 +1162,7 @@ async def cancel_agent_session(
     session: AsyncSession = Depends(get_session),
 ) -> AgentCancelResponse:
     runner = await _get_runner(session_id, session)
-    status_session_factory = sessionmaker(  # type: ignore[call-overload]
-        session.bind,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
+    status_session_factory = _make_status_session_factory(session)
     status_publisher = SubagentRunner(
         session_factory=status_session_factory,
         model_config=runner.model_config,

@@ -286,6 +286,7 @@ async def update_plan(
         if todo_id is None:
             replacement_rows.append(
                 PlanTodoRecord(
+                    plan_id=plan.id,
                     title=title,
                     content=content,
                     status="pending",

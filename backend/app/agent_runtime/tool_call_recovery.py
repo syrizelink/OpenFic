@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from hashlib import sha1
-from typing import Any
+from typing import Any, cast
 
 from json_repair import loads as repair_json_loads
 
@@ -89,7 +89,7 @@ def recover_tool_calls(
         if not isinstance(raw_tool_call, Mapping):
             continue
         recovered_tool_call = _recover_one_tool_call(
-            raw_tool_call,
+            cast(Mapping[str, Any], raw_tool_call),
             index=index,
             id_seed=id_seed,
         )

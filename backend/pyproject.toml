@@ -77,7 +77,6 @@ openfic = "app.cli:main"
 [dependency-groups]
 dev = [
     "gradio>=5.0.0",
-    "mypy>=1.19.1",
     "pre-commit>=4.5.1",
     "pyinstaller>=6.20.0",
     "pytest>=9.0.2",
@@ -85,6 +84,7 @@ dev = [
     "pytest-cov>=7.0.0",
     "respx>=0.22.0",
     "ruff>=0.14.10",
+    "ty>=0.0.56",
     "types-nanoid>=2.0.0.20260508",
     "types-pyyaml>=6.0.12.20260510",
 ]
@@ -116,6 +116,8 @@ filterwarnings = [
     "ignore::DeprecationWarning:langchain_cohere.*",
 ]
 
-[[tool.mypy.overrides]]
-module = ["lancedb"]
-ignore_missing_imports = true
+[tool.ty.analysis]
+allowed-unresolved-imports = ["lancedb"]
+
+[tool.ty.src]
+exclude = ["app/storage/migrations/versions/legacy/**"]

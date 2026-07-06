@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import cast
 from datetime import UTC, datetime
 
 from sqlalchemy import delete, select
@@ -73,7 +74,7 @@ def _row_to_dto(row: AgentContextCompaction) -> PersistedCompaction:
         start_seq=row.start_seq,
         end_seq=row.end_seq,
         summary=row.summary,
-        trigger=row.trigger,  # type: ignore[arg-type]
+        trigger=cast(CompactionTrigger, row.trigger),
         source_input_tokens=row.source_input_tokens,
         summary_tokens=row.summary_tokens,
         created_at=row.created_at,

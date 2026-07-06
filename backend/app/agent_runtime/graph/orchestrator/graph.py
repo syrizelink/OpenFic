@@ -123,7 +123,7 @@ async def primary_node(
 
 
 def build_orchestrator_graph(checkpointer=None) -> CompiledStateGraph:
-    builder = StateGraph(OrchestratorState)
+    builder = StateGraph(cast(Any, OrchestratorState))
     primary_action = cast(
         Callable[[dict[str, Any], RunnableConfig | None], Awaitable[dict[str, Any]]],
         primary_node,
@@ -135,4 +135,4 @@ def build_orchestrator_graph(checkpointer=None) -> CompiledStateGraph:
     builder.add_node("primary", cast(Any, primary_with_events))
     builder.add_edge(START, "primary")
     builder.add_edge("primary", END)
-    return builder.compile(checkpointer=checkpointer)
+    return cast(CompiledStateGraph, builder.compile(checkpointer=checkpointer))

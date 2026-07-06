@@ -10,7 +10,7 @@ import time
 from dataclasses import dataclass
 import json
 import re
-from typing import AsyncGenerator, Any, Mapping
+from typing import AsyncGenerator, Any, Mapping, cast
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import (
@@ -558,6 +558,6 @@ class LLMClient:
             返回self以支持链式调用。
         """
         llm = self._get_llm()
-        self._llm_with_tools = llm.bind_tools(tools)  # type: ignore[assignment]
+        self._llm_with_tools = cast(BaseChatModel, llm.bind_tools(tools))
         logger.info(f"已绑定 {len(tools)} 个工具到LLM")
         return self

@@ -4,8 +4,10 @@ ModelProvider Repository - 模型服务提供商数据访问层。
 """
 
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from sqlalchemy import delete, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -138,4 +140,4 @@ async def delete_by_id(session: AsyncSession, provider_id: str) -> bool:
     result = await session.execute(
         delete(ModelProvider).where(col(ModelProvider.id) == provider_id)
     )
-    return result.rowcount > 0  # type: ignore[attr-defined]
+    return cast("CursorResult[Any]", result).rowcount > 0

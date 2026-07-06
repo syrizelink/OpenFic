@@ -3,7 +3,10 @@
 WorldInfoEntry Repository - 世界书条目数据访问层。
 """
 
+from typing import Any, cast
+
 from sqlalchemy import delete as sql_delete
+from sqlalchemy.engine import CursorResult
 from sqlalchemy import func, select, update as sql_update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
@@ -209,7 +212,7 @@ async def batch_toggle(
         .values(is_enabled=is_enabled)
     )
     await session.flush()
-    return result.rowcount  # type: ignore[attr-defined]
+    return cast("CursorResult[Any]", result).rowcount
 
 
 async def batch_delete(
@@ -225,7 +228,7 @@ async def batch_delete(
         )
     )
     await session.flush()
-    return result.rowcount  # type: ignore[attr-defined]
+    return cast("CursorResult[Any]", result).rowcount
 
 
 async def shift_orders(

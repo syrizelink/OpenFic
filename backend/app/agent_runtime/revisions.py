@@ -672,20 +672,23 @@ async def record_agent_activity_for_change(
     if before is None and after is not None:
         operation: Literal["create", "update", "delete", "move_to_volume"] = "create"
         chapter_id = after.id
+        project_id = after.project_id
         title = after.title
     elif before is not None and after is None:
         operation = "delete"
         chapter_id = before.id
+        project_id = before.project_id
         title = before.title
     elif before is not None and after is not None:
         operation = "move_to_volume" if before.volume_id != after.volume_id else "update"
         chapter_id = after.id
+        project_id = after.project_id
         title = after.title
     else:
         return
     await writing_activity_service.record_activity(
         session,
-        project_id=(after or before).project_id,  # type: ignore[union-attr]
+        project_id=project_id,
         chapter_id=chapter_id,
         chapter_title=title,
         source="agent",
