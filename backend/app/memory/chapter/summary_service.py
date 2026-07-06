@@ -7,7 +7,7 @@ import unicodedata
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from difflib import SequenceMatcher
-from typing import Any, cast
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -728,7 +728,7 @@ async def _get_or_create_summary_batch_job(
         offset=0,
     )
     if existing:
-        return cast(BackgroundJob, existing[0]), False
+        return existing[0], False
     job = await job_service.submit_job(
         session,
         job_type=JOB_TYPE_SUMMARY_BATCH,
@@ -741,7 +741,7 @@ async def _get_or_create_summary_batch_job(
         subject_type="project",
         subject_id=project_id,
     )
-    return cast(BackgroundJob, job), True
+    return job, True
 
 
 async def _existing_batch_item_map(session: AsyncSession, batch_job_id: str) -> dict[str, BackgroundJobItem]:

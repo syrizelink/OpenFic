@@ -2,8 +2,10 @@
 """Character Repository - 角色数据访问层。"""
 
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from sqlalchemy import delete as sql_delete
+from sqlalchemy.engine import CursorResult
 from sqlalchemy import func, or_, select
 from sqlalchemy import update as sql_update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -131,7 +133,7 @@ async def batch_update_favorite(
         .values(is_favorited=is_favorited, updated_at=datetime.now(UTC))
     )
     await session.flush()
-    return result.rowcount  # type: ignore[attr-defined]
+    return cast("CursorResult[Any]", result).rowcount
 
 
 async def batch_delete(
@@ -149,7 +151,7 @@ async def batch_delete(
         )
     )
     await session.flush()
-    return result.rowcount  # type: ignore[attr-defined]
+    return cast("CursorResult[Any]", result).rowcount
 
 
 async def delete(session: AsyncSession, character: Character) -> None:

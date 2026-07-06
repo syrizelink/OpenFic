@@ -2,8 +2,10 @@
 """Repository helpers for structured chapter summaries."""
 
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from sqlalchemy import and_, delete as sql_delete, func, or_, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -51,7 +53,7 @@ async def delete_by_id(session: AsyncSession, summary_id: str) -> bool:
         sql_delete(ChapterSummary).where(col(ChapterSummary.id) == summary_id)
     )
     await session.flush()
-    return result.rowcount > 0  # type: ignore[attr-defined]
+    return cast("CursorResult[Any]", result).rowcount > 0
 
 
 async def get_by_chapter_id(

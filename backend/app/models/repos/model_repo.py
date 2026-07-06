@@ -5,8 +5,10 @@ Model Repository - 模型数据访问层。
 
 import json
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from sqlalchemy import delete, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -242,7 +244,7 @@ async def delete_by_id(session: AsyncSession, model_id: str) -> bool:
         是否成功删除。
     """
     result = await session.execute(delete(Model).where(col(Model.id) == model_id))
-    return result.rowcount > 0  # type: ignore[attr-defined]
+    return cast("CursorResult[Any]", result).rowcount > 0
 
 
 async def get_all_tags(session: AsyncSession) -> list[str]:

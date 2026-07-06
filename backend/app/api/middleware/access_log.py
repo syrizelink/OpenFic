@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from http import HTTPStatus
 from inspect import getsourcelines
 from types import CodeType
-from typing import Callable, MutableMapping, cast
+from typing import MutableMapping, Protocol, TypeGuard, cast
 
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -63,6 +63,14 @@ class EndpointLocation:
     line: int
 
 
+class LocatedCallable(Protocol):
+    __module__: str
+    __qualname__: str
+    __code__: CodeType
+
+    def __call__(self, *args: object, **kwargs: object) -> object: ...
+
+
 def format_access_log(
     method: str, path: str, status_code: int, duration_ms: float
 ) -> str:
@@ -71,9 +79,18 @@ def format_access_log(
 
 def get_endpoint_location(request: Request) -> EndpointLocation | None:
     endpoint = request.scope.get("endpoint")
-    if not callable(endpoint) or not hasattr(endpoint, "__code__"):
+    if not _is_located_callable(endpoint):
         return None
     return get_callable_location(endpoint)
+
+
+def _is_located_callable(endpoint: object) -> TypeGuard[LocatedCallable]:
+    return (
+        callable(endpoint)
+        and hasattr(endpoint, "__code__")
+        and hasattr(endpoint, "__module__")
+        and hasattr(endpoint, "__qualname__")
+    )
 
 
 def _patch_endpoint_location(
@@ -84,7 +101,7 @@ def _patch_endpoint_location(
     record["line"] = endpoint_location.line
 
 
-def get_callable_location(endpoint: Callable[..., object]) -> EndpointLocation:
+def get_callable_location(endpoint: LocatedCallable) -> EndpointLocation:
     code = _get_callable_code(endpoint)
     line = code.co_firstlineno
     try:
@@ -98,8 +115,8 @@ def get_callable_location(endpoint: Callable[..., object]) -> EndpointLocation:
     )
 
 
-def _get_callable_code(endpoint: Callable[..., object]) -> CodeType:
-    return endpoint.__code__  # type: ignore[attr-defined]
+def _get_callable_code(endpoint: LocatedCallable) -> CodeType:
+    return endpoint.__code__
 
 
 def _log_at_level(bound_logger, status_code: int, message: str) -> None:

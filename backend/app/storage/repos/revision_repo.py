@@ -4,8 +4,10 @@ Revision Repository - 版本数据访问层。
 """
 
 from datetime import UTC, datetime
+from typing import Any, cast
 
 from sqlalchemy import func, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -235,4 +237,4 @@ async def complete_active_revisions_by_session(
         .values(status="completed", finished_at=datetime.now(UTC), updated_at=datetime.now(UTC))
     )
     await session.flush()
-    return result.rowcount  # type: ignore[attr-defined]
+    return cast("CursorResult[Any]", result).rowcount
