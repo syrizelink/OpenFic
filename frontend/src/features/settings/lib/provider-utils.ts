@@ -48,23 +48,22 @@ export function supportsEmbeddingDimensions(providerType: ProviderType): boolean
 
 export function isSelectableModelProviderForTask(
   provider: Pick<ModelProvider, "providerType" | "supportedTaskTypes" | "isBuiltin">,
-  taskType: TaskType
+  taskType: TaskType,
 ): boolean {
   if (provider.isBuiltin) {
     return false;
   }
 
   return (
-    provider.providerType === "openai-compatible" ||
-    provider.supportedTaskTypes.includes(taskType)
+    provider.providerType === "openai-compatible" || provider.supportedTaskTypes.includes(taskType)
   );
 }
 
 export function hasSelectableModelProvider(
-  providers: Array<Pick<ModelProvider, "providerType" | "supportedTaskTypes" | "isBuiltin">>
+  providers: Array<Pick<ModelProvider, "providerType" | "supportedTaskTypes" | "isBuiltin">>,
 ): boolean {
   return providers.some((provider) =>
-    ALL_TASK_TYPES.some((taskType) => isSelectableModelProviderForTask(provider, taskType))
+    ALL_TASK_TYPES.some((taskType) => isSelectableModelProviderForTask(provider, taskType)),
   );
 }
 
@@ -97,29 +96,26 @@ export function getProviderDisplayName(providerType: string): string {
  */
 export function getProviderUrl(
   providerType: ProviderType,
-  catalogProviders?: ModelProviderCatalogProvider[]
+  catalogProviders?: ModelProviderCatalogProvider[],
 ): string | null {
   if (providerType === "openai-compatible") {
     return null;
   }
 
   const catalogProvider = catalogProviders?.find(
-    (provider) => provider.providerType === providerType
+    (provider) => provider.providerType === providerType,
   );
   return catalogProvider?.defaultUrl ?? null;
 }
 
 export function getProviderSelectOptions(
   catalogProviders: ModelProviderCatalogProvider[] | undefined,
-  taskType?: TaskType
+  taskType?: TaskType,
 ): ProviderOption[] {
   const options =
     catalogProviders
       ?.filter((provider) => isSupportedProviderType(provider.providerType))
-      .filter(
-        (provider) =>
-          !taskType || provider.supportedTaskTypes.includes(taskType)
-      )
+      .filter((provider) => !taskType || provider.supportedTaskTypes.includes(taskType))
       .map((provider) => ({
         value: provider.providerType as ProviderType,
         label: provider.displayName,
@@ -144,13 +140,13 @@ export function resolveProviderCatalogType(provider: ModelProvider): string | nu
 }
 
 export function resolveProviderDisplayName(
-  provider: Pick<ModelProvider, "providerType" | "catalogMatch">
+  provider: Pick<ModelProvider, "providerType" | "catalogMatch">,
 ): string {
   return provider.catalogMatch?.displayName || getProviderDisplayName(provider.providerType);
 }
 
 export function resolveProviderBuiltinIconPath(
-  provider: Pick<ModelProvider, "catalogMatch">
+  provider: Pick<ModelProvider, "catalogMatch">,
 ): string | null {
   return provider.catalogMatch?.iconPath ?? null;
 }
@@ -161,7 +157,7 @@ export interface ProviderIconPaths {
 }
 
 export function resolveProviderIconPaths(
-  provider: Pick<ModelProvider, "iconPath" | "catalogMatch">
+  provider: Pick<ModelProvider, "iconPath" | "catalogMatch">,
 ): ProviderIconPaths {
   return {
     uploadedIconPath: provider.iconPath ?? null,

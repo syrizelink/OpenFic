@@ -29,13 +29,41 @@
   color: var(--red-10);
 }
 
-.agent-tool-card:is([data-tool-name="write_chapter"], [data-tool-name="edit_chapter"], [data-tool-name="write_note"], [data-tool-name="edit_note"]) .agent-tool-header[data-expandable="true"]:hover .agent-chapter-tool-change[data-change="added"],
-.agent-tool-card:is([data-tool-name="write_chapter"], [data-tool-name="edit_chapter"], [data-tool-name="write_note"], [data-tool-name="edit_note"]) .agent-tool-header[data-expandable="true"]:focus-visible .agent-chapter-tool-change[data-change="added"] {
+.agent-tool-card:is(
+    [data-tool-name="write_chapter"],
+    [data-tool-name="edit_chapter"],
+    [data-tool-name="write_note"],
+    [data-tool-name="edit_note"]
+  )
+  .agent-tool-header[data-expandable="true"]:hover
+  .agent-chapter-tool-change[data-change="added"],
+.agent-tool-card:is(
+    [data-tool-name="write_chapter"],
+    [data-tool-name="edit_chapter"],
+    [data-tool-name="write_note"],
+    [data-tool-name="edit_note"]
+  )
+  .agent-tool-header[data-expandable="true"]:focus-visible
+  .agent-chapter-tool-change[data-change="added"] {
   color: var(--green-11);
 }
 
-.agent-tool-card:is([data-tool-name="write_chapter"], [data-tool-name="edit_chapter"], [data-tool-name="write_note"], [data-tool-name="edit_note"]) .agent-tool-header[data-expandable="true"]:hover .agent-chapter-tool-change[data-change="removed"],
-.agent-tool-card:is([data-tool-name="write_chapter"], [data-tool-name="edit_chapter"], [data-tool-name="write_note"], [data-tool-name="edit_note"]) .agent-tool-header[data-expandable="true"]:focus-visible .agent-chapter-tool-change[data-change="removed"] {
+.agent-tool-card:is(
+    [data-tool-name="write_chapter"],
+    [data-tool-name="edit_chapter"],
+    [data-tool-name="write_note"],
+    [data-tool-name="edit_note"]
+  )
+  .agent-tool-header[data-expandable="true"]:hover
+  .agent-chapter-tool-change[data-change="removed"],
+.agent-tool-card:is(
+    [data-tool-name="write_chapter"],
+    [data-tool-name="edit_chapter"],
+    [data-tool-name="write_note"],
+    [data-tool-name="edit_note"]
+  )
+  .agent-tool-header[data-expandable="true"]:focus-visible
+  .agent-chapter-tool-change[data-change="removed"] {
   color: var(--red-11);
 }
 

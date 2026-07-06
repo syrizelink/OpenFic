@@ -4,16 +4,13 @@
  * Agent 工具权限设置面板。
  */
 
-import { useMemo } from "react";
 import { Box, Flex, Text } from "@radix-ui/themes";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { LabeledSelect, type SelectOption } from "@/components/select";
-import type {
-  AgentToolMetadata,
-  AgentToolPermissionMode,
-  Settings,
-} from "../lib/settings.types";
+
+import type { AgentToolMetadata, AgentToolPermissionMode, Settings } from "../lib/settings.types";
 
 interface AgentToolsSettingsProps {
   settings: Settings;
@@ -40,19 +37,19 @@ export function AgentToolsSettings({
         value: mode,
         label: t(`settings.permission${mode[0].toUpperCase()}${mode.slice(1)}`),
       })),
-    [t]
+    [t],
   );
 
   const permissionMap = useMemo(
     () => new Map(settings.agentToolPermissions.map((item) => [item.toolName, item.mode])),
-    [settings.agentToolPermissions]
+    [settings.agentToolPermissions],
   );
 
   const handlePermissionChange = (toolName: string, mode: string) => {
     const nextMode = mode as AgentToolPermissionMode;
     const nextPermissions = tools.map((tool) => ({
       toolName: tool.key,
-      mode: tool.key === toolName ? nextMode : permissionMap.get(tool.key) ?? "ask",
+      mode: tool.key === toolName ? nextMode : (permissionMap.get(tool.key) ?? "ask"),
     }));
 
     onSettingsChange({
@@ -63,24 +60,39 @@ export function AgentToolsSettings({
 
   return (
     <Box>
-      <Flex direction="column" gap="4">
-        <Text size="2" color="gray">
+      <Flex
+        direction="column"
+        gap="4"
+      >
+        <Text
+          size="2"
+          color="gray"
+        >
           {t("settings.agentToolsDescription")}
         </Text>
 
         {errorMessage ? (
-          <Text size="2" color="red">
+          <Text
+            size="2"
+            color="red"
+          >
             {errorMessage}
           </Text>
         ) : null}
 
         {!errorMessage && tools.length === 0 ? (
-          <Text size="2" color="gray">
+          <Text
+            size="2"
+            color="gray"
+          >
             {t("settings.agentToolsEmpty")}
           </Text>
         ) : null}
 
-        <Flex direction="column" gap="2">
+        <Flex
+          direction="column"
+          gap="2"
+        >
           {tools.map((tool) => (
             <Flex
               key={tool.key}
@@ -93,11 +105,22 @@ export function AgentToolsSettings({
                 borderRadius: "var(--radius-3)",
               }}
             >
-              <Flex direction="column" gap="1" style={{ minWidth: 0, flex: 1 }}>
-                <Text size="2" weight="medium">
+              <Flex
+                direction="column"
+                gap="1"
+                style={{ minWidth: 0, flex: 1 }}
+              >
+                <Text
+                  size="2"
+                  weight="medium"
+                >
                   {tool.name}
                 </Text>
-                <Text size="2" color="gray" style={{ lineHeight: 1.5 }}>
+                <Text
+                  size="2"
+                  color="gray"
+                  style={{ lineHeight: 1.5 }}
+                >
                   {tool.description}
                 </Text>
               </Flex>

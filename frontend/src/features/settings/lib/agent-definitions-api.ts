@@ -5,6 +5,7 @@
  */
 
 import { apiClient } from "@/lib/api-client";
+
 import type {
   AgentDefinitionCreateRequest,
   AgentDefinitionListResponse,
@@ -26,13 +27,13 @@ export async function fetchAgentDefinition(key: string): Promise<AgentDefinition
 
 export async function fetchAgentToolCategories(): Promise<AgentToolCategoryResponse[]> {
   const response = await apiClient.get<AgentToolCategoryListResponse>(
-    "/agent-definitions/tool-categories"
+    "/agent-definitions/tool-categories",
   );
   return response.data.categories;
 }
 
 export async function createAgentDefinition(
-  data: AgentDefinitionCreateRequest
+  data: AgentDefinitionCreateRequest,
 ): Promise<AgentDefinitionResponse> {
   const response = await apiClient.post<AgentDefinitionResponse>("/agent-definitions", data);
   return response.data;
@@ -40,7 +41,7 @@ export async function createAgentDefinition(
 
 export async function updateAgentDefinition(
   key: string,
-  data: AgentDefinitionUpdateRequest
+  data: AgentDefinitionUpdateRequest,
 ): Promise<AgentDefinitionResponse> {
   const response = await apiClient.put<AgentDefinitionResponse>(`/agent-definitions/${key}`, data);
   return response.data;

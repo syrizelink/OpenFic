@@ -19,9 +19,16 @@ export function CompactionMessage({ message }: CompactionMessageProps) {
     : "agent-compaction-divider-label";
 
   return (
-    <div className="agent-compaction-divider" data-status={message.status}>
+    <div
+      className="agent-compaction-divider"
+      data-status={message.status}
+    >
       <span className="agent-compaction-divider-content">
-        <ListChevronsDownUp size={14} className="agent-compaction-divider-icon" aria-hidden="true" />
+        <ListChevronsDownUp
+          size={14}
+          className="agent-compaction-divider-icon"
+          aria-hidden="true"
+        />
         <Text
           as="span"
           size="1"

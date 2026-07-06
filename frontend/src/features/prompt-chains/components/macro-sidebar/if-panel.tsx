@@ -2,10 +2,11 @@
  * IfPanel - if 宏编辑面板
  */
 
-import { useState } from "react";
 import { Box, Flex, Text, TextField, Button, Code } from "@radix-ui/themes";
-import { useTranslation } from "react-i18next";
 import { GitBranch } from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+
 import type { MacroNode } from "@/lib/macro";
 
 interface IfPanelProps {
@@ -36,16 +37,33 @@ export function IfPanel({ macro, onUpdate }: IfPanelProps) {
 
   return (
     <Box>
-      <Flex align="center" gap="2" mb="4">
-        <GitBranch size={16} style={{ color: "var(--green-9)" }} />
-        <Text size="2" weight="medium">
+      <Flex
+        align="center"
+        gap="2"
+        mb="4"
+      >
+        <GitBranch
+          size={16}
+          style={{ color: "var(--green-9)" }}
+        />
+        <Text
+          size="2"
+          weight="medium"
+        >
           {t("promptChains.macroIf")}
         </Text>
       </Flex>
 
-      <Flex direction="column" gap="3">
+      <Flex
+        direction="column"
+        gap="3"
+      >
         <Box>
-          <Text size="2" weight="medium" mb="2">
+          <Text
+            size="2"
+            weight="medium"
+            mb="2"
+          >
             {t("promptChains.conditionVariable")}
           </Text>
           <TextField.Root
@@ -53,16 +71,28 @@ export function IfPanel({ macro, onUpdate }: IfPanelProps) {
             onChange={(e) => setVarName(e.target.value)}
             placeholder={t("promptChains.ifVariablePlaceholder")}
           />
-          <Text size="1" color="gray" mt="1">
+          <Text
+            size="1"
+            color="gray"
+            mt="1"
+          >
             {t("promptChains.ifVariableHint")}
           </Text>
         </Box>
 
         <Box>
-          <Text size="2" weight="medium" mb="2">
+          <Text
+            size="2"
+            weight="medium"
+            mb="2"
+          >
             {t("promptChains.usage")}
           </Text>
-          <Text size="2" color="gray" mb="2">
+          <Text
+            size="2"
+            color="gray"
+            mb="2"
+          >
             {t("promptChains.ifUsageDesc")}
           </Text>
           <Code size="1">
@@ -73,8 +103,15 @@ export function IfPanel({ macro, onUpdate }: IfPanelProps) {
         </Box>
       </Flex>
 
-      <Flex justify="end" mt="4">
-        <Button size="2" onClick={handleApply} disabled={!varName.trim()}>
+      <Flex
+        justify="end"
+        mt="4"
+      >
+        <Button
+          size="2"
+          onClick={handleApply}
+          disabled={!varName.trim()}
+        >
           {t("promptChains.apply")}
         </Button>
       </Flex>

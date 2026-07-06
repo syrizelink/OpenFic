@@ -5,6 +5,7 @@
  */
 
 import axios from "axios";
+
 import { getRuntimeConfig } from "./runtime-config";
 
 export function getApiBaseUrl(): string {
@@ -40,7 +41,7 @@ apiClient.interceptors.response.use(
       console.error("API Error:", error);
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 // 健康检查类型
@@ -60,13 +61,6 @@ export async function checkHealth(): Promise<HealthResponse> {
 // ============================================
 
 import type {
-  Project,
-  ProjectCreate,
-  ProjectUpdate,
-  ProjectListResponse,
-  ProjectListParams,
-} from "./project.types";
-import type {
   Character,
   CharacterCreate,
   CharacterListItem,
@@ -75,9 +69,14 @@ import type {
   CharacterSearchResponse,
   CharacterUpdate,
 } from "./character.types";
+import type { AssistantMentionCandidate } from "./mention.types";
 import type {
-  AssistantMentionCandidate,
-} from "./mention.types";
+  Project,
+  ProjectCreate,
+  ProjectUpdate,
+  ProjectListResponse,
+  ProjectListParams,
+} from "./project.types";
 import type {
   Skill,
   SkillCreate,
@@ -105,9 +104,7 @@ function transformProject(raw: Record<string, unknown>): Project {
 /**
  * 获取项目列表
  */
-export async function fetchProjects(
-  params?: ProjectListParams
-): Promise<ProjectListResponse> {
+export async function fetchProjects(params?: ProjectListParams): Promise<ProjectListResponse> {
   const response = await apiClient.get("/projects", {
     params: {
       page: params?.page ?? 1,
@@ -149,14 +146,10 @@ export async function createProject(data: ProjectCreate): Promise<Project> {
 /**
  * 更新项目
  */
-export async function updateProject(
-  projectId: string,
-  data: ProjectUpdate
-): Promise<Project> {
+export async function updateProject(projectId: string, data: ProjectUpdate): Promise<Project> {
   const formData = new FormData();
   if (data.title !== undefined) formData.append("title", data.title || "");
-  if (data.description !== undefined)
-    formData.append("description", data.description || "");
+  if (data.description !== undefined) formData.append("description", data.description || "");
   if (data.cover) formData.append("cover", data.cover);
 
   const response = await apiClient.patch(`/projects/${projectId}`, formData, {
@@ -204,7 +197,7 @@ function transformCharacterListItem(raw: Record<string, unknown>): CharacterList
 
 export async function fetchCharactersByProject(
   projectId: string,
-  params?: CharacterListParams
+  params?: CharacterListParams,
 ): Promise<CharacterListResponse> {
   const response = await apiClient.get(`/projects/${projectId}/characters`, {
     params: {
@@ -228,24 +221,22 @@ export async function fetchCharacter(characterId: string): Promise<Character> {
 
 export async function createCharacter(
   projectId: string,
-  data: CharacterCreate
+  data: CharacterCreate,
 ): Promise<Character> {
   const formData = new FormData();
   formData.append("name", data.name);
   formData.append("description", data.description ?? "");
   if (data.image) formData.append("image", data.image);
 
-  const response = await apiClient.post(
-    `/projects/${projectId}/characters`,
-    formData,
-    { headers: { "Content-Type": "multipart/form-data" } }
-  );
+  const response = await apiClient.post(`/projects/${projectId}/characters`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return transformCharacter(response.data);
 }
 
 export async function updateCharacter(
   characterId: string,
-  data: CharacterUpdate
+  data: CharacterUpdate,
 ): Promise<Character> {
   const formData = new FormData();
   if (data.name !== undefined) formData.append("name", data.name);
@@ -270,29 +261,28 @@ export async function deleteCharacter(characterId: string): Promise<void> {
 export async function batchFavoriteCharacters(
   projectId: string,
   characterIds: string[],
-  isFavorited: boolean
+  isFavorited: boolean,
 ): Promise<number> {
-  const response = await apiClient.post(
-    `/projects/${projectId}/characters/batch/favorite`,
-    { character_ids: characterIds, is_favorited: isFavorited }
-  );
+  const response = await apiClient.post(`/projects/${projectId}/characters/batch/favorite`, {
+    character_ids: characterIds,
+    is_favorited: isFavorited,
+  });
   return response.data.updated_count as number;
 }
 
 export async function batchDeleteCharacters(
   projectId: string,
-  characterIds: string[]
+  characterIds: string[],
 ): Promise<number> {
-  const response = await apiClient.post(
-    `/projects/${projectId}/characters/batch/delete`,
-    { character_ids: characterIds }
-  );
+  const response = await apiClient.post(`/projects/${projectId}/characters/batch/delete`, {
+    character_ids: characterIds,
+  });
   return response.data.deleted_count as number;
 }
 
 export async function searchCharacters(
   projectId: string,
-  query: string
+  query: string,
 ): Promise<CharacterSearchResponse> {
   const response = await apiClient.get(`/projects/${projectId}/characters/search`, {
     params: { q: query },
@@ -326,9 +316,7 @@ function transformSkill(raw: Record<string, unknown>): Skill {
   };
 }
 
-export async function fetchSkills(
-  params?: SkillListParams
-): Promise<SkillListResponse> {
+export async function fetchSkills(params?: SkillListParams): Promise<SkillListResponse> {
   const response = await apiClient.get("/skills", {
     params: {
       page: params?.page ?? 1,
@@ -360,10 +348,7 @@ export async function createSkill(data: SkillCreate): Promise<Skill> {
   return transformSkill(response.data);
 }
 
-export async function updateSkill(
-  skillDbId: string,
-  data: SkillUpdate
-): Promise<Skill> {
+export async function updateSkill(skillDbId: string, data: SkillUpdate): Promise<Skill> {
   const response = await apiClient.patch(`/skills/${skillDbId}`, {
     name: data.name,
     summary: data.summary,
@@ -407,7 +392,7 @@ function transformAgentRule(raw: Record<string, unknown>): AgentRule {
 }
 
 export async function fetchAgentRules(
-  params?: AgentRuleListParams
+  params?: AgentRuleListParams,
 ): Promise<AgentRuleListResponse> {
   const response = await apiClient.get("/agent-rules", {
     params: {
@@ -432,10 +417,7 @@ export async function createAgentRule(data: AgentRuleCreate): Promise<AgentRule>
   return transformAgentRule(response.data);
 }
 
-export async function updateAgentRule(
-  ruleId: string,
-  data: AgentRuleUpdate
-): Promise<AgentRule> {
+export async function updateAgentRule(ruleId: string, data: AgentRuleUpdate): Promise<AgentRule> {
   const response = await apiClient.patch(`/agent-rules/${ruleId}`, {
     title: data.title,
     content: data.content,
@@ -477,7 +459,7 @@ function transformAgentMemory(raw: Record<string, unknown>): AgentMemory {
 }
 
 export async function fetchAgentMemories(
-  params?: AgentMemoryListParams
+  params?: AgentMemoryListParams,
 ): Promise<AgentMemoryListResponse> {
   const response = await apiClient.get("/agent-memories", {
     params: {
@@ -503,7 +485,7 @@ export async function createAgentMemory(data: AgentMemoryCreate): Promise<AgentM
 
 export async function updateAgentMemory(
   memoryId: string,
-  data: AgentMemoryUpdate
+  data: AgentMemoryUpdate,
 ): Promise<AgentMemory> {
   const response = await apiClient.patch(`/agent-memories/${memoryId}`, {
     content: data.content,
@@ -560,9 +542,7 @@ function transformChapter(raw: Record<string, unknown>): Chapter {
 /**
  * 后端响应字段转换（snake_case -> camelCase）- 精简版章节列表项
  */
-function transformChapterListItem(
-  raw: Record<string, unknown>
-): ChapterListItem {
+function transformChapterListItem(raw: Record<string, unknown>): ChapterListItem {
   return {
     id: raw.id as string,
     projectId: raw.project_id as string,
@@ -588,22 +568,16 @@ function transformVolume(raw: Record<string, unknown>): Volume {
   };
 }
 
-function transformVolumeWithChapters(
-  raw: Record<string, unknown>
-): VolumeWithChapters {
+function transformVolumeWithChapters(raw: Record<string, unknown>): VolumeWithChapters {
   return {
     ...transformVolume(raw),
-    chapters: ((raw.chapters as Record<string, unknown>[]) ?? []).map(
-      transformChapterListItem
-    ),
+    chapters: ((raw.chapters as Record<string, unknown>[]) ?? []).map(transformChapterListItem),
   };
 }
 
 function transformVolumeTree(raw: Record<string, unknown>): VolumeTreeResponse {
   return {
-    volumes: ((raw.volumes as Record<string, unknown>[]) ?? []).map(
-      transformVolumeWithChapters
-    ),
+    volumes: ((raw.volumes as Record<string, unknown>[]) ?? []).map(transformVolumeWithChapters),
     totalChapters: raw.total_chapters as number,
   };
 }
@@ -621,9 +595,7 @@ function transformMentionCandidate(raw: Record<string, unknown>): AssistantMenti
 /**
  * 获取卷-章节树
  */
-export async function fetchChapters(
-  projectId: string
-): Promise<VolumeTreeResponse> {
+export async function fetchChapters(projectId: string): Promise<VolumeTreeResponse> {
   const response = await apiClient.get(`/projects/${projectId}/chapters`);
   return transformVolumeTree(response.data);
 }
@@ -635,20 +607,15 @@ export async function searchMentionCandidates(
   kind?: "volume" | "chapter" | "note",
   signal?: AbortSignal,
 ): Promise<AssistantMentionCandidate[]> {
-  const response = await apiClient.get<Record<string, unknown>>(
-    `/projects/${projectId}/mentions`,
-    {
-      params: {
-        query,
-        limit,
-        ...(kind ? { kind } : {}),
-      },
-      signal,
+  const response = await apiClient.get<Record<string, unknown>>(`/projects/${projectId}/mentions`, {
+    params: {
+      query,
+      limit,
+      ...(kind ? { kind } : {}),
     },
-  );
-  return ((response.data.items as Record<string, unknown>[]) ?? []).map(
-    transformMentionCandidate,
-  );
+    signal,
+  });
+  return ((response.data.items as Record<string, unknown>[]) ?? []).map(transformMentionCandidate);
 }
 
 /**
@@ -662,10 +629,7 @@ export async function fetchChapter(chapterId: string): Promise<Chapter> {
 /**
  * 创建章节
  */
-export async function createChapter(
-  projectId: string,
-  data: ChapterCreate
-): Promise<Chapter> {
+export async function createChapter(projectId: string, data: ChapterCreate): Promise<Chapter> {
   const response = await apiClient.post(`/projects/${projectId}/chapters`, {
     volume_id: data.volumeId,
     title: data.title,
@@ -675,10 +639,7 @@ export async function createChapter(
   return transformChapter(response.data);
 }
 
-export async function createVolume(
-  projectId: string,
-  data: VolumeCreate
-): Promise<Volume> {
+export async function createVolume(projectId: string, data: VolumeCreate): Promise<Volume> {
   const response = await apiClient.post(`/projects/${projectId}/volumes`, {
     title: data.title,
     description: data.description ?? null,
@@ -696,10 +657,7 @@ export async function fetchVolume(volumeId: string): Promise<Volume> {
   return transformVolume(response.data);
 }
 
-export async function updateVolume(
-  volumeId: string,
-  data: VolumeUpdate
-): Promise<Volume> {
+export async function updateVolume(volumeId: string, data: VolumeUpdate): Promise<Volume> {
   const response = await apiClient.patch(`/volumes/${volumeId}`, {
     title: data.title,
     description: data.description,
@@ -707,19 +665,13 @@ export async function updateVolume(
   return transformVolume(response.data);
 }
 
-export async function deleteVolume(
-  volumeId: string,
-  cascade = false
-): Promise<void> {
+export async function deleteVolume(volumeId: string, cascade = false): Promise<void> {
   await apiClient.delete(`/volumes/${volumeId}`, {
     params: { cascade },
   });
 }
 
-export async function moveVolume(
-  volumeId: string,
-  data: VolumeMove
-): Promise<Volume> {
+export async function moveVolume(volumeId: string, data: VolumeMove): Promise<Volume> {
   const response = await apiClient.post(`/volumes/${volumeId}/move`, {
     new_order: data.newOrder,
   });
@@ -729,10 +681,7 @@ export async function moveVolume(
 /**
  * 更新章节
  */
-export async function updateChapter(
-  chapterId: string,
-  data: ChapterUpdate
-): Promise<Chapter> {
+export async function updateChapter(chapterId: string, data: ChapterUpdate): Promise<Chapter> {
   const response = await apiClient.patch(`/chapters/${chapterId}`, {
     title: data.title,
     content: data.content,
@@ -753,7 +702,7 @@ export async function deleteChapter(chapterId: string): Promise<void> {
  */
 export async function reorderChapters(
   volumeId: string,
-  chapterIds: string[]
+  chapterIds: string[],
 ): Promise<ChapterListItem[]> {
   const response = await apiClient.post("/chapters/reorder", {
     volume_id: volumeId,
@@ -764,7 +713,7 @@ export async function reorderChapters(
 
 export async function moveChapterToVolume(
   chapterId: string,
-  data: ChapterMoveToVolume
+  data: ChapterMoveToVolume,
 ): Promise<Chapter> {
   const response = await apiClient.post(`/chapters/${chapterId}/move-to-volume`, {
     volume_id: data.volumeId,
@@ -800,7 +749,7 @@ export interface BuiltContextResponse {
  */
 export async function fetchChapterContext(
   projectId: string,
-  currentOrder: number
+  currentOrder: number,
 ): Promise<BuiltContextResponse> {
   const response = await apiClient.get<BuiltContextResponse>(
     `/projects/${projectId}/chapter-context/context`,
@@ -808,7 +757,7 @@ export async function fetchChapterContext(
       params: {
         current_order: currentOrder,
       },
-    }
+    },
   );
   return response.data;
 }
@@ -820,12 +769,7 @@ export interface ContextFieldResponse {
   content: string;
 }
 
-export type SummaryStatus =
-  | "not_generated"
-  | "queued"
-  | "running"
-  | "ready"
-  | "failed";
+export type SummaryStatus = "not_generated" | "queued" | "running" | "ready" | "failed";
 
 export interface LongTermSummaryListItem {
   startOrder: number;
@@ -993,9 +937,7 @@ function transformSummaryStatusItem(raw: Record<string, unknown>): SummaryStatus
   };
 }
 
-function transformLongTermSummaryListItem(
-  raw: Record<string, unknown>
-): LongTermSummaryListItem {
+function transformLongTermSummaryListItem(raw: Record<string, unknown>): LongTermSummaryListItem {
   return {
     startOrder: Number(raw.start_order ?? 0),
     endOrder: Number(raw.end_order ?? 0),
@@ -1010,9 +952,7 @@ function transformLongTermSummaryListItem(
   };
 }
 
-function transformChapterSummaryListItem(
-  raw: Record<string, unknown>
-): ChapterSummaryListItem {
+function transformChapterSummaryListItem(raw: Record<string, unknown>): ChapterSummaryListItem {
   return {
     chapterId: raw.chapter_id as string,
     chapterOrder: Number(raw.chapter_order ?? 0),
@@ -1076,7 +1016,9 @@ function transformSummaryMaintenance(raw: Record<string, unknown>): SummaryMaint
       ? {
           jobId: (raw.batch_progress as Record<string, unknown>).job_id as string,
           status: (raw.batch_progress as Record<string, unknown>).status as string,
-          progressCurrent: Number((raw.batch_progress as Record<string, unknown>).progress_current ?? 0),
+          progressCurrent: Number(
+            (raw.batch_progress as Record<string, unknown>).progress_current ?? 0,
+          ),
           progressTotal:
             (raw.batch_progress as Record<string, unknown>).progress_total == null
               ? null
@@ -1085,11 +1027,21 @@ function transformSummaryMaintenance(raw: Record<string, unknown>): SummaryMaint
             (raw.batch_progress as Record<string, unknown>).progress_percent == null
               ? null
               : Number((raw.batch_progress as Record<string, unknown>).progress_percent),
-          progressMessage: ((raw.batch_progress as Record<string, unknown>).progress_message as string | null) ?? null,
-          totalItemCount: Number((raw.batch_progress as Record<string, unknown>).total_item_count ?? 0),
-          completedItemCount: Number((raw.batch_progress as Record<string, unknown>).completed_item_count ?? 0),
-          runningItemCount: Number((raw.batch_progress as Record<string, unknown>).running_item_count ?? 0),
-          queuedItemCount: Number((raw.batch_progress as Record<string, unknown>).queued_item_count ?? 0),
+          progressMessage:
+            ((raw.batch_progress as Record<string, unknown>).progress_message as string | null) ??
+            null,
+          totalItemCount: Number(
+            (raw.batch_progress as Record<string, unknown>).total_item_count ?? 0,
+          ),
+          completedItemCount: Number(
+            (raw.batch_progress as Record<string, unknown>).completed_item_count ?? 0,
+          ),
+          runningItemCount: Number(
+            (raw.batch_progress as Record<string, unknown>).running_item_count ?? 0,
+          ),
+          queuedItemCount: Number(
+            (raw.batch_progress as Record<string, unknown>).queued_item_count ?? 0,
+          ),
           createdAt: (raw.batch_progress as Record<string, unknown>).created_at as string,
           updatedAt: (raw.batch_progress as Record<string, unknown>).updated_at as string,
         }
@@ -1113,15 +1065,19 @@ function transformSummaryMaintenance(raw: Record<string, unknown>): SummaryMaint
 }
 
 export function transformSummaryRealtimeSnapshot(
-  raw: Record<string, unknown>
+  raw: Record<string, unknown>,
 ): SummaryRealtimeSnapshot {
   const summary = (raw.summary as Record<string, unknown>) || {};
   return {
     projectId: raw.project_id as string,
     projectRevision: raw.project_revision == null ? null : Number(raw.project_revision),
     summary: {
-      statuses: ((summary.statuses as Record<string, unknown>[]) || []).map(transformSummaryStatusItem),
-      maintenance: transformSummaryMaintenance((summary.maintenance as Record<string, unknown>) || {}),
+      statuses: ((summary.statuses as Record<string, unknown>[]) || []).map(
+        transformSummaryStatusItem,
+      ),
+      maintenance: transformSummaryMaintenance(
+        (summary.maintenance as Record<string, unknown>) || {},
+      ),
     },
   };
 }
@@ -1131,7 +1087,7 @@ export async function fetchChapterSummaryList(
   page: number,
   pageSize = 20,
   signal?: AbortSignal,
-  volumeId?: string | null
+  volumeId?: string | null,
 ): Promise<ChapterSummaryListResponse> {
   const response = await apiClient.get<Record<string, unknown>>(
     `/projects/${projectId}/chapter-context/summaries/chapters`,
@@ -1142,11 +1098,11 @@ export async function fetchChapterSummaryList(
         ...(volumeId ? { volume_id: volumeId } : {}),
       },
       signal,
-    }
+    },
   );
   return {
     items: ((response.data.items as Record<string, unknown>[]) || []).map(
-      transformChapterSummaryListItem
+      transformChapterSummaryListItem,
     ),
     total: Number(response.data.total ?? 0),
     page: Number(response.data.page ?? page),
@@ -1156,7 +1112,7 @@ export async function fetchChapterSummaryList(
 
 export async function deleteChapterSummaries(
   projectId: string,
-  chapterIds: string[]
+  chapterIds: string[],
 ): Promise<void> {
   await apiClient.delete(`/projects/${projectId}/chapter-context/summaries/chapters`, {
     data: {
@@ -1167,7 +1123,7 @@ export async function deleteChapterSummaries(
 
 export async function deleteLongTermSummaries(
   projectId: string,
-  ranges: Array<[number, number]>
+  ranges: Array<[number, number]>,
 ): Promise<void> {
   await apiClient.delete(`/projects/${projectId}/chapter-context/summaries/long-term`, {
     data: {
@@ -1180,15 +1136,15 @@ export async function fetchLongTermSummariesPage(
   projectId: string,
   page: number,
   pageSize = 20,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<LongTermSummaryListResponse> {
   const response = await apiClient.get<Record<string, unknown>>(
     `/projects/${projectId}/chapter-context/summaries/long-term`,
-    { params: { page, page_size: pageSize }, signal }
+    { params: { page, page_size: pageSize }, signal },
   );
   return {
     items: ((response.data.items as Record<string, unknown>[]) || []).map(
-      transformLongTermSummaryListItem
+      transformLongTermSummaryListItem,
     ),
     total: Number(response.data.total ?? 0),
     page: Number(response.data.page ?? page),
@@ -1198,14 +1154,17 @@ export async function fetchLongTermSummariesPage(
 
 export async function enqueueSummary(
   projectId: string,
-  data: EnqueueSummaryRequest
+  data: EnqueueSummaryRequest,
 ): Promise<EnqueueSummaryResponse> {
-  const response = await apiClient.post<Record<string, unknown>>(`/projects/${projectId}/chapter-context/summaries/enqueue`, {
-    summary_type: data.summaryType,
-    chapter_id: data.chapterId,
-    start_order: data.startOrder,
-    end_order: data.endOrder,
-  });
+  const response = await apiClient.post<Record<string, unknown>>(
+    `/projects/${projectId}/chapter-context/summaries/enqueue`,
+    {
+      summary_type: data.summaryType,
+      chapter_id: data.chapterId,
+      start_order: data.startOrder,
+      end_order: data.endOrder,
+    },
+  );
   return {
     summaryId: (response.data.summary_id as string | null) ?? null,
     status: (response.data.status as string) || "queued",
@@ -1219,7 +1178,7 @@ export async function enqueueSummary(
  */
 export async function fetchNearField(
   projectId: string,
-  currentOrder: number
+  currentOrder: number,
 ): Promise<ContextFieldResponse> {
   const response = await apiClient.get<ContextFieldResponse>(
     `/projects/${projectId}/chapter-context/near`,
@@ -1227,7 +1186,7 @@ export async function fetchNearField(
       params: {
         current_order: currentOrder,
       },
-    }
+    },
   );
   return response.data;
 }
@@ -1237,7 +1196,7 @@ export async function fetchNearField(
  */
 export async function fetchMiddleField(
   projectId: string,
-  currentOrder: number
+  currentOrder: number,
 ): Promise<ContextFieldResponse> {
   const response = await apiClient.get<ContextFieldResponse>(
     `/projects/${projectId}/chapter-context/middle`,
@@ -1245,7 +1204,7 @@ export async function fetchMiddleField(
       params: {
         current_order: currentOrder,
       },
-    }
+    },
   );
   return response.data;
 }
@@ -1255,7 +1214,7 @@ export async function fetchMiddleField(
  */
 export async function fetchFarField(
   projectId: string,
-  currentOrder: number
+  currentOrder: number,
 ): Promise<ContextFieldResponse> {
   const response = await apiClient.get<ContextFieldResponse>(
     `/projects/${projectId}/chapter-context/far`,
@@ -1263,7 +1222,7 @@ export async function fetchFarField(
       params: {
         current_order: currentOrder,
       },
-    }
+    },
   );
   return response.data;
 }
@@ -1273,7 +1232,7 @@ export async function fetchFarField(
  */
 export async function fetchLatestField(
   projectId: string,
-  currentOrder: number
+  currentOrder: number,
 ): Promise<ContextFieldResponse> {
   const response = await apiClient.get<ContextFieldResponse>(
     `/projects/${projectId}/chapter-context/latest`,
@@ -1281,7 +1240,7 @@ export async function fetchLatestField(
       params: {
         current_order: currentOrder,
       },
-    }
+    },
   );
   return response.data;
 }
@@ -1355,7 +1314,7 @@ function transformWorldInfoEntryBrief(raw: Record<string, unknown>): WorldInfoEn
 }
 
 function transformWorldInfoImportPreview(
-  raw: Record<string, unknown>
+  raw: Record<string, unknown>,
 ): WorldInfoImportPreviewResponse {
   return {
     entryCount: raw.entry_count as number,
@@ -1373,7 +1332,7 @@ function transformWorldInfoImportPreview(
  * 获取世界书列表
  */
 export async function fetchWorldInfoList(
-  params?: WorldInfoListParams
+  params?: WorldInfoListParams,
 ): Promise<WorldInfoListResponse> {
   const response = await apiClient.get("/world-info", {
     params: {
@@ -1393,9 +1352,7 @@ export async function fetchWorldInfoList(
 /**
  * 根据 ID 获取世界书
  */
-export async function fetchWorldInfoById(
-  worldInfoId: string
-): Promise<WorldInfo> {
+export async function fetchWorldInfoById(worldInfoId: string): Promise<WorldInfo> {
   const response = await apiClient.get(`/world-info/${worldInfoId}`);
   return transformWorldInfo(response.data);
 }
@@ -1403,9 +1360,7 @@ export async function fetchWorldInfoById(
 /**
  * 获取项目的世界书
  */
-export async function fetchWorldInfoByProject(
-  projectId: string
-): Promise<WorldInfo | null> {
+export async function fetchWorldInfoByProject(projectId: string): Promise<WorldInfo | null> {
   const response = await apiClient.get(`/projects/${projectId}/world-info`);
   if (response.data === null) {
     return null;
@@ -1416,9 +1371,7 @@ export async function fetchWorldInfoByProject(
 /**
  * 创建世界书
  */
-export async function createWorldInfo(
-  data: WorldInfoCreate
-): Promise<WorldInfo> {
+export async function createWorldInfo(data: WorldInfoCreate): Promise<WorldInfo> {
   const response = await apiClient.post("/world-info", {
     name: data.name,
     project_id: data.projectId,
@@ -1431,7 +1384,7 @@ export async function createWorldInfo(
  */
 export async function updateWorldInfo(
   worldInfoId: string,
-  data: WorldInfoUpdate
+  data: WorldInfoUpdate,
 ): Promise<WorldInfo> {
   const response = await apiClient.patch(`/world-info/${worldInfoId}`, {
     name: data.name,
@@ -1453,7 +1406,7 @@ export async function deleteWorldInfo(worldInfoId: string): Promise<void> {
  */
 export async function fetchWorldInfoEntries(
   worldInfoId: string,
-  params?: WorldInfoEntryListParams
+  params?: WorldInfoEntryListParams,
 ): Promise<WorldInfoEntryBriefListResponse> {
   const response = await apiClient.get(`/world-info/${worldInfoId}/entries`, {
     params: {
@@ -1463,9 +1416,7 @@ export async function fetchWorldInfoEntries(
   });
   const data = response.data;
   return {
-    items: (data.items as Record<string, unknown>[]).map(
-      transformWorldInfoEntryBrief
-    ),
+    items: (data.items as Record<string, unknown>[]).map(transformWorldInfoEntryBrief),
     total: data.total,
     page: data.page,
     pageSize: data.page_size,
@@ -1475,9 +1426,7 @@ export async function fetchWorldInfoEntries(
 /**
  * 获取单个条目
  */
-export async function fetchWorldInfoEntry(
-  entryId: string
-): Promise<WorldInfoEntry> {
+export async function fetchWorldInfoEntry(entryId: string): Promise<WorldInfoEntry> {
   const response = await apiClient.get(`/world-info-entries/${entryId}`);
   return transformWorldInfoEntry(response.data);
 }
@@ -1487,7 +1436,7 @@ export async function fetchWorldInfoEntry(
  */
 export async function createWorldInfoEntry(
   worldInfoId: string,
-  data: WorldInfoEntryCreate
+  data: WorldInfoEntryCreate,
 ): Promise<WorldInfoEntry> {
   const response = await apiClient.post(`/world-info/${worldInfoId}/entries`, {
     name: data.name,
@@ -1503,7 +1452,7 @@ export async function createWorldInfoEntry(
  */
 export async function updateWorldInfoEntry(
   entryId: string,
-  data: WorldInfoEntryUpdate
+  data: WorldInfoEntryUpdate,
 ): Promise<WorldInfoEntry> {
   const response = await apiClient.patch(`/world-info-entries/${entryId}`, {
     name: data.name,
@@ -1525,7 +1474,7 @@ export async function deleteWorldInfoEntry(entryId: string): Promise<void> {
  * 删除世界书的所有条目
  */
 export async function deleteAllWorldInfoEntries(
-  worldInfoId: string
+  worldInfoId: string,
 ): Promise<{ deletedCount: number }> {
   const response = await apiClient.delete(`/world-info/${worldInfoId}/entries`);
   return { deletedCount: response.data.deleted_count };
@@ -1536,7 +1485,7 @@ export async function deleteAllWorldInfoEntries(
  */
 export async function moveWorldInfoEntry(
   entryId: string,
-  newOrder: number
+  newOrder: number,
 ): Promise<WorldInfoEntry> {
   const response = await apiClient.post(`/world-info-entries/${entryId}/move`, {
     new_order: newOrder,
@@ -1549,26 +1498,19 @@ export async function moveWorldInfoEntry(
  */
 export async function reorderWorldInfoEntries(
   worldInfoId: string,
-  orders: Record<string, number>
+  orders: Record<string, number>,
 ): Promise<WorldInfoEntry[]> {
-  const response = await apiClient.post(
-    `/world-info/${worldInfoId}/entries/reorder`,
-    {
-      orders,
-    }
-  );
+  const response = await apiClient.post(`/world-info/${worldInfoId}/entries/reorder`, {
+    orders,
+  });
   return response.data.map(transformWorldInfoEntry);
 }
 
 /**
  * 切换条目开关
  */
-export async function toggleWorldInfoEntry(
-  entryId: string
-): Promise<WorldInfoEntry> {
-  const response = await apiClient.post(
-    `/world-info-entries/${entryId}/toggle`
-  );
+export async function toggleWorldInfoEntry(entryId: string): Promise<WorldInfoEntry> {
+  const response = await apiClient.post(`/world-info-entries/${entryId}/toggle`);
   return transformWorldInfoEntry(response.data);
 }
 
@@ -1578,12 +1520,12 @@ export async function toggleWorldInfoEntry(
 export async function batchToggleWorldInfoEntries(
   worldInfoId: string,
   entryIds: string[],
-  isEnabled: boolean
+  isEnabled: boolean,
 ): Promise<number> {
-  const response = await apiClient.post(
-    `/world-info/${worldInfoId}/entries/batch/toggle`,
-    { entry_ids: entryIds, is_enabled: isEnabled }
-  );
+  const response = await apiClient.post(`/world-info/${worldInfoId}/entries/batch/toggle`, {
+    entry_ids: entryIds,
+    is_enabled: isEnabled,
+  });
   return response.data.updated_count as number;
 }
 
@@ -1592,12 +1534,11 @@ export async function batchToggleWorldInfoEntries(
  */
 export async function batchDeleteWorldInfoEntries(
   worldInfoId: string,
-  entryIds: string[]
+  entryIds: string[],
 ): Promise<number> {
-  const response = await apiClient.post(
-    `/world-info/${worldInfoId}/entries/batch/delete`,
-    { entry_ids: entryIds }
-  );
+  const response = await apiClient.post(`/world-info/${worldInfoId}/entries/batch/delete`, {
+    entry_ids: entryIds,
+  });
   return response.data.deleted_count as number;
 }
 
@@ -1606,12 +1547,11 @@ export async function batchDeleteWorldInfoEntries(
  */
 export async function searchWorldInfoEntries(
   worldInfoId: string,
-  query: string
+  query: string,
 ): Promise<WorldInfoEntrySearchResponse> {
-  const response = await apiClient.get(
-    `/world-info/${worldInfoId}/entries/search`,
-    { params: { q: query } }
-  );
+  const response = await apiClient.get(`/world-info/${worldInfoId}/entries/search`, {
+    params: { q: query },
+  });
   const data = response.data as Record<string, unknown>;
   return {
     results: ((data.results as Record<string, unknown>[]) ?? []).map(
@@ -1623,9 +1563,9 @@ export async function searchWorldInfoEntries(
           (m: Record<string, unknown>) => ({
             lineNumber: m.line_number as number,
             lineText: m.line_text as string,
-          })
+          }),
         ),
-      })
+      }),
     ),
     totalEntries: data.total_entries as number,
     totalMatches: data.total_matches as number,
@@ -1652,12 +1592,11 @@ export interface ChapterSearchResponse {
 
 export async function searchChapters(
   projectId: string,
-  query: string
+  query: string,
 ): Promise<ChapterSearchResponse> {
-  const response = await apiClient.get(
-    `/projects/${projectId}/chapters/search`,
-    { params: { q: query } }
-  );
+  const response = await apiClient.get(`/projects/${projectId}/chapters/search`, {
+    params: { q: query },
+  });
   const data = response.data as Record<string, unknown>;
   return {
     results: ((data.results as Record<string, unknown>[]) ?? []).map(
@@ -1669,9 +1608,9 @@ export async function searchChapters(
           (m: Record<string, unknown>) => ({
             lineNumber: m.line_number as number,
             lineText: m.line_text as string,
-          })
+          }),
         ),
-      })
+      }),
     ),
     totalChapters: data.total_chapters as number,
     totalMatches: data.total_matches as number,
@@ -1696,14 +1635,10 @@ export interface NoteSearchResponse {
   totalMatches: number;
 }
 
-export async function searchNotes(
-  projectId: string,
-  query: string
-): Promise<NoteSearchResponse> {
-  const response = await apiClient.get(
-    `/projects/${projectId}/notes/search`,
-    { params: { q: query } }
-  );
+export async function searchNotes(projectId: string, query: string): Promise<NoteSearchResponse> {
+  const response = await apiClient.get(`/projects/${projectId}/notes/search`, {
+    params: { q: query },
+  });
   const data = response.data as Record<string, unknown>;
   return {
     results: ((data.results as Record<string, unknown>[]) ?? []).map(
@@ -1715,9 +1650,9 @@ export async function searchNotes(
           (m: Record<string, unknown>) => ({
             lineNumber: m.line_number as number,
             lineText: m.line_text as string,
-          })
+          }),
         ),
-      })
+      }),
     ),
     totalNotes: data.total_notes as number,
     totalMatches: data.total_matches as number,
@@ -1727,9 +1662,7 @@ export async function searchNotes(
 /**
  * 预览 SillyTavern 世界书导入结果
  */
-export async function previewWorldInfoImport(
-  file: File
-): Promise<WorldInfoImportPreviewResponse> {
+export async function previewWorldInfoImport(file: File): Promise<WorldInfoImportPreviewResponse> {
   const formData = new FormData();
   formData.append("file", file);
 
@@ -1748,7 +1681,7 @@ export async function previewWorldInfoImport(
 export async function importWorldInfoEntriesStream(
   worldInfoId: string,
   file: File,
-  onEvent: (event: WorldInfoImportEvent) => void
+  onEvent: (event: WorldInfoImportEvent) => void,
 ): Promise<WorldInfoImportCompleteEvent | null> {
   const formData = new FormData();
   formData.append("file", file);
@@ -1901,13 +1834,15 @@ export async function fetchPromptChainVersions(
   modeName: string,
   taskName: string,
   agentName?: string | null,
-  activeOnly: boolean = false
+  activeOnly: boolean = false,
 ): Promise<PromptChainVersion[]> {
   const params = {
     ...(agentName ? { agent_name: agentName } : {}),
     active_only: activeOnly,
   };
-  const response = await apiClient.get(`/prompt-chains/${modeName}/${taskName}/versions`, { params });
+  const response = await apiClient.get(`/prompt-chains/${modeName}/${taskName}/versions`, {
+    params,
+  });
   return (response.data as Record<string, unknown>[]).map(transformPromptChainVersion);
 }
 
@@ -1917,13 +1852,12 @@ export async function fetchPromptChainVersions(
 export async function fetchLatestPromptChainVersion(
   modeName: string,
   taskName: string,
-  agentName?: string | null
+  agentName?: string | null,
 ): Promise<VersionWithEntries> {
   const params = agentName ? { agent_name: agentName } : {};
-  const response = await apiClient.get(
-    `/prompt-chains/${modeName}/${taskName}/versions/latest`,
-    { params }
-  );
+  const response = await apiClient.get(`/prompt-chains/${modeName}/${taskName}/versions/latest`, {
+    params,
+  });
   return {
     version: transformPromptChainVersion(response.data.version),
     entries: (response.data.entries as Record<string, unknown>[]).map(transformPromptEntry),
@@ -1937,12 +1871,12 @@ export async function fetchPromptChainVersion(
   modeName: string,
   taskName: string,
   versionId: string,
-  agentName?: string | null
+  agentName?: string | null,
 ): Promise<VersionWithEntries> {
   const params = agentName ? { agent_name: agentName } : {};
   const response = await apiClient.get(
     `/prompt-chains/${modeName}/${taskName}/versions/${versionId}`,
-    { params }
+    { params },
   );
   return {
     version: transformPromptChainVersion(response.data.version),
@@ -1957,7 +1891,7 @@ export async function createPromptChainVersion(
   modeName: string,
   taskName: string,
   request: CreateVersionRequest,
-  agentName?: string | null
+  agentName?: string | null,
 ): Promise<VersionWithEntries> {
   const params = agentName ? { agent_name: agentName } : {};
 
@@ -1971,7 +1905,7 @@ export async function createPromptChainVersion(
   const response = await apiClient.post(
     `/prompt-chains/${modeName}/${taskName}/versions`,
     requestData,
-    { params }
+    { params },
   );
   return {
     version: transformPromptChainVersion(response.data.version),
@@ -1988,13 +1922,13 @@ export async function compilePromptChain(
   modeName: string,
   taskName: string,
   request: CompileRequest,
-  agentName?: string | null
+  agentName?: string | null,
 ): Promise<CompileResponse> {
   const params = agentName ? { agent_name: agentName } : {};
   const response = await apiClient.post<CompileResponse>(
     `/prompt-chains/${modeName}/${taskName}/compile`,
     request,
-    { params }
+    { params },
   );
   return response.data;
 }
@@ -2017,12 +1951,12 @@ export async function fetchVersionDiff(
   taskName: string,
   baseVersionId: string,
   compareVersionId: string,
-  agentName?: string | null
+  agentName?: string | null,
 ): Promise<VersionDiff> {
   const params = agentName ? { agent_name: agentName } : {};
   const response = await apiClient.get(
     `/prompt-chains/${modeName}/${taskName}/versions/${baseVersionId}/diff/${compareVersionId}`,
-    { params }
+    { params },
   );
 
   return {
@@ -2031,8 +1965,12 @@ export async function fetchVersionDiff(
     diffs: response.data.diffs.map((diff: Record<string, unknown>) => ({
       entryId: diff.entry_id as string,
       changeType: diff.change_type as string,
-      baseEntry: diff.base_entry ? transformPromptEntry(diff.base_entry as Record<string, unknown>) : null,
-      compareEntry: diff.compare_entry ? transformPromptEntry(diff.compare_entry as Record<string, unknown>) : null,
+      baseEntry: diff.base_entry
+        ? transformPromptEntry(diff.base_entry as Record<string, unknown>)
+        : null,
+      compareEntry: diff.compare_entry
+        ? transformPromptEntry(diff.compare_entry as Record<string, unknown>)
+        : null,
     })),
   };
 }
@@ -2040,14 +1978,12 @@ export async function fetchVersionDiff(
 export async function resetPromptChain(
   modeName: string,
   taskName: string,
-  agentName?: string | null
+  agentName?: string | null,
 ): Promise<VersionWithEntries> {
   const params = agentName ? { agent_name: agentName } : {};
-  const response = await apiClient.post(
-    `/prompt-chains/${modeName}/${taskName}/reset`,
-    null,
-    { params }
-  );
+  const response = await apiClient.post(`/prompt-chains/${modeName}/${taskName}/reset`, null, {
+    params,
+  });
 
   return {
     version: transformPromptChainVersion(response.data.version),
@@ -2059,12 +1995,7 @@ export async function resetPromptChain(
 // Task API
 // ============================================
 
-import type {
-  Task,
-  TaskListItem,
-  TaskListResponse,
-  UpdateTaskRequest,
-} from "./task.types";
+import type { Task, TaskListItem, TaskListResponse, UpdateTaskRequest } from "./task.types";
 
 function normalizeUtcDateString(value: unknown): string {
   if (typeof value !== "string") return "";
@@ -2104,7 +2035,7 @@ function transformTask(raw: Record<string, unknown>): Task {
     projectId: raw.project_id as string,
     title: raw.title as string,
     messages: ((raw.messages as Record<string, unknown>[] | undefined) ?? []).map(
-      transformTaskMessage
+      transformTaskMessage,
     ),
     tokenInput: Number(raw.token_input ?? raw.tokenInput ?? 0),
     tokenOutput: Number(raw.token_output ?? raw.tokenOutput ?? 0),
@@ -2162,7 +2093,7 @@ export async function fetchTasks(
     offset?: number;
     search?: string;
     favorited?: boolean;
-  }
+  },
 ): Promise<TaskListResponse> {
   const response = await apiClient.get(`/projects/${projectId}/tasks`, {
     params: {
@@ -2173,9 +2104,7 @@ export async function fetchTasks(
     },
   });
   return {
-    items: (response.data.items as Record<string, unknown>[]).map(
-      transformTaskListItem
-    ),
+    items: (response.data.items as Record<string, unknown>[]).map(transformTaskListItem),
     total: response.data.total,
   };
 }
@@ -2183,10 +2112,7 @@ export async function fetchTasks(
 /**
  * 更新任务
  */
-export async function updateTask(
-  taskId: string,
-  data: UpdateTaskRequest
-): Promise<Task> {
+export async function updateTask(taskId: string, data: UpdateTaskRequest): Promise<Task> {
   const response = await apiClient.patch(`/tasks/${taskId}`, {
     title: data.title,
     is_favorited: data.is_favorited,
@@ -2205,7 +2131,7 @@ export async function deleteTask(taskId: string): Promise<void> {
  * 删除项目下的所有任务
  */
 export async function deleteAllTasks(
-  projectId: string
+  projectId: string,
 ): Promise<{ deletedCount: number; skippedRunningCount: number }> {
   const response = await apiClient.delete(`/projects/${projectId}/tasks`);
   return {
@@ -2238,22 +2164,23 @@ import type {
  * 创建 Agent 会话（仅创建 Task，不运行）
  */
 export async function createAgentSession(
-  data: AgentSessionCreateRequest
+  data: AgentSessionCreateRequest,
 ): Promise<AgentSessionCreateResponse> {
   const response = await apiClient.post("/agent/sessions", data);
   return response.data;
 }
 
 export async function fetchAgentSessionState(
-  sessionId: string
+  sessionId: string,
 ): Promise<AgentSessionStateResponse> {
   const response = await apiClient.get(`/agent/sessions/${sessionId}`);
   const data = response.data as Record<string, unknown>;
   return {
     sessionId: String(data.session_id ?? sessionId),
-    state: data.state && typeof data.state === "object" && !Array.isArray(data.state)
-      ? data.state as Record<string, unknown>
-      : {},
+    state:
+      data.state && typeof data.state === "object" && !Array.isArray(data.state)
+        ? (data.state as Record<string, unknown>)
+        : {},
     isRunning: data.is_running === true,
   };
 }
@@ -2291,9 +2218,7 @@ function transformActiveSubagentState(raw: Record<string, unknown>): ActiveSubag
   };
 }
 
-function transformSubagentSessionPayload(
-  raw: Record<string, unknown>
-): SubagentSessionPayload {
+function transformSubagentSessionPayload(raw: Record<string, unknown>): SubagentSessionPayload {
   const metadata = raw.metadata;
   const metadataRecord = isRecord(metadata) ? metadata : null;
   const pendingApproval = isRecord(raw.pending_approval) ? raw.pending_approval : null;
@@ -2313,23 +2238,21 @@ function transformSubagentSessionPayload(
     contextLength: Number(raw.context_length ?? 0),
     pendingApproval,
     messages: ((raw.messages as Record<string, unknown>[] | undefined) ?? []).map(
-      transformTaskMessage
+      transformTaskMessage,
     ),
   };
 }
 
 export async function fetchActiveSubagents(
-  parentSessionId: string
+  parentSessionId: string,
 ): Promise<ActiveSubagentState[]> {
   const response = await apiClient.get(`/agent/sessions/${parentSessionId}/subagents`);
   return ((response.data as Record<string, unknown>[] | undefined) ?? []).map(
-    transformActiveSubagentState
+    transformActiveSubagentState,
   );
 }
 
-export async function fetchSubagentSession(
-  childRunId: string
-): Promise<SubagentSessionPayload> {
+export async function fetchSubagentSession(childRunId: string): Promise<SubagentSessionPayload> {
   const response = await apiClient.get(`/agent/subagents/${childRunId}`);
   return transformSubagentSessionPayload(response.data as Record<string, unknown>);
 }
@@ -2339,7 +2262,7 @@ export async function fetchSubagentSession(
  */
 export async function sendAgentMessage(
   sessionId: string,
-  message: string
+  message: string,
 ): Promise<AgentSendMessageResponse> {
   const response = await apiClient.post(`/agent/sessions/${sessionId}/message`, { message });
   const data = response.data as Record<string, unknown>;
@@ -2352,9 +2275,7 @@ export async function sendAgentMessage(
   };
 }
 
-export async function compactAgentSession(
-  sessionId: string
-): Promise<AgentCompactionResponse> {
+export async function compactAgentSession(sessionId: string): Promise<AgentCompactionResponse> {
   const response = await apiClient.post(`/agent/sessions/${sessionId}/compaction`);
   const data = response.data as Record<string, unknown>;
   return {
@@ -2371,7 +2292,7 @@ export async function compactAgentSession(
 export async function submitAgentQuestionAnswer(
   sessionId: string,
   actionId: string,
-  answer: string
+  answer: string,
 ): Promise<AgentQuestionAnswerResponse | void> {
   const response = await apiClient.post(`/agent/sessions/${sessionId}/question-answer`, {
     action_id: actionId,
@@ -2385,19 +2306,18 @@ export async function submitAgentQuestionAnswer(
  */
 export async function rollbackAgentRevision(
   sessionId: string,
-  revisionId: string
+  revisionId: string,
 ): Promise<AgentRollbackResponse> {
-  const response = await apiClient.post(
-    `/agent/sessions/${sessionId}/rollback`,
-    { revision_id: revisionId }
-  );
+  const response = await apiClient.post(`/agent/sessions/${sessionId}/rollback`, {
+    revision_id: revisionId,
+  });
   return response.data;
 }
 
 export async function forkAgentSession(
   sessionId: string,
   sourceRevisionId: string,
-  modelId: string
+  modelId: string,
 ): Promise<AgentForkResponse> {
   const response = await apiClient.post(`/agent/sessions/${sessionId}/fork`, {
     source_revision_id: sourceRevisionId,
@@ -2409,7 +2329,7 @@ export async function forkAgentSession(
 export async function submitAgentToolApproval(
   sessionId: string,
   approvalId: string,
-  approved: boolean
+  approved: boolean,
 ): Promise<void> {
   await apiClient.post(`/agent/sessions/${sessionId}/tool-approval`, {
     approval_id: approvalId,
@@ -2420,16 +2340,14 @@ export async function submitAgentToolApproval(
 /**
  * 取消Agent会话
  */
-export async function cancelAgentSession(
-  sessionId: string
-): Promise<AgentCancelResponse> {
+export async function cancelAgentSession(sessionId: string): Promise<AgentCancelResponse> {
   const response = await apiClient.post(`/agent/sessions/${sessionId}/cancel`);
   return response.data;
 }
 
 export async function cancelPendingAgentMessage(
   sessionId: string,
-  messageId: string
+  messageId: string,
 ): Promise<AgentCancelPendingMessageResponse> {
   const response = await apiClient.post(`/agent/sessions/${sessionId}/pending-message/cancel`, {
     message_id: messageId,
@@ -2497,22 +2415,18 @@ function transformNoteCategoryItem(raw: Record<string, unknown>): NoteCategoryIt
   return {
     ...transformNoteCategory(raw),
     categories: ((raw.categories as Record<string, unknown>[]) ?? []).map(
-      transformNoteCategoryItem
+      transformNoteCategoryItem,
     ),
-    notes: ((raw.notes as Record<string, unknown>[]) ?? []).map(
-      transformNoteListItem
-    ),
+    notes: ((raw.notes as Record<string, unknown>[]) ?? []).map(transformNoteListItem),
   };
 }
 
 function transformNoteTree(raw: Record<string, unknown>): NoteTreeResponse {
   return {
     categories: ((raw.categories as Record<string, unknown>[]) ?? []).map(
-      transformNoteCategoryItem
+      transformNoteCategoryItem,
     ),
-    rootNotes: ((raw.root_notes as Record<string, unknown>[]) ?? []).map(
-      transformNoteListItem
-    ),
+    rootNotes: ((raw.root_notes as Record<string, unknown>[]) ?? []).map(transformNoteListItem),
     totalNotes: raw.total_notes as number,
   };
 }
@@ -2521,7 +2435,9 @@ function transformNoteMoveResult(raw: Record<string, unknown>): NoteMoveResult {
   return {
     kind: raw.kind as "category" | "note",
     note: raw.note ? transformNote(raw.note as Record<string, unknown>) : undefined,
-    category: raw.category ? transformNoteCategory(raw.category as Record<string, unknown>) : undefined,
+    category: raw.category
+      ? transformNoteCategory(raw.category as Record<string, unknown>)
+      : undefined,
   };
 }
 
@@ -2572,7 +2488,7 @@ export async function toggleNoteHidden(noteId: string, isHidden: boolean): Promi
 
 export async function createNoteCategory(
   projectId: string,
-  data: NoteCategoryCreate
+  data: NoteCategoryCreate,
 ): Promise<NoteCategory> {
   const response = await apiClient.post(`/projects/${projectId}/note-categories`, {
     parent_id: data.parentId,
@@ -2583,7 +2499,7 @@ export async function createNoteCategory(
 
 export async function updateNoteCategory(
   categoryId: string,
-  data: NoteCategoryUpdate
+  data: NoteCategoryUpdate,
 ): Promise<NoteCategory> {
   const response = await apiClient.patch(`/note-categories/${categoryId}`, {
     title: data.title,

@@ -6,10 +6,6 @@
  * 性能优化：使用 memo 和选择器避免不必要的重渲染。
  */
 
-import { memo, useCallback, useState, useMemo } from "react";
-import { Box, Flex, Text, IconButton, Button } from "@radix-ui/themes";
-import { AtSign, FilePlus, FileText, Lock, Plus, StickyNote, Unlock, X, XCircle } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import {
   DndContext,
   closestCenter,
@@ -19,6 +15,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
+import { restrictToHorizontalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
 import {
   SortableContext,
   sortableKeyboardCoordinates,
@@ -26,16 +23,27 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Box, Flex, Text, IconButton, Button } from "@radix-ui/themes";
 import {
-  restrictToHorizontalAxis,
-  restrictToParentElement,
-} from "@dnd-kit/modifiers";
+  AtSign,
+  FilePlus,
+  FileText,
+  Lock,
+  Plus,
+  StickyNote,
+  Unlock,
+  X,
+  XCircle,
+} from "lucide-react";
+import { memo, useCallback, useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
-import { useTabs, useActiveTabId, useTabsStore } from "../store/use-tabs-store";
 import { ContextMenu, type ContextMenuItem } from "@/components";
 import { buildChapterMentionTag, buildNoteMentionTag } from "@/features/assistant/lib/mention-text";
+
 import { isEmptyTab } from "../lib/tab.types";
 import type { EditorTab } from "../lib/tab.types";
+import { useTabs, useActiveTabId, useTabsStore } from "../store/use-tabs-store";
 
 /** 标签页尺寸配置 */
 const TAB_MIN_WIDTH = 80;
@@ -59,14 +67,9 @@ const SortableTabItem = memo(function SortableTabItem({
   onClose,
   onContextMenu,
 }: SortableTabItemProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: tab.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: tab.id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -78,7 +81,12 @@ const SortableTabItem = memo(function SortableTabItem({
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+    >
       <Flex
         align="center"
         justify="between"
@@ -101,14 +109,20 @@ const SortableTabItem = memo(function SortableTabItem({
           zIndex: isActive ? 2 : 0,
           marginBottom: isActive ? 0 : 1,
         }}
-        >
-          {/* 类型图标 */}
-          {tab.type === "chapter" ? (
-            <FileText size={12} style={{ flexShrink: 0, marginRight: 4, opacity: 0.6 }} />
-          ) : (
-            <StickyNote size={12} style={{ flexShrink: 0, marginRight: 4, opacity: 0.6 }} />
-          )}
-          {/* 标题 */}
+      >
+        {/* 类型图标 */}
+        {tab.type === "chapter" ? (
+          <FileText
+            size={12}
+            style={{ flexShrink: 0, marginRight: 4, opacity: 0.6 }}
+          />
+        ) : (
+          <StickyNote
+            size={12}
+            style={{ flexShrink: 0, marginRight: 4, opacity: 0.6 }}
+          />
+        )}
+        {/* 标题 */}
         <Text
           size="2"
           weight={isActive ? "medium" : "regular"}
@@ -155,10 +169,7 @@ interface EmptyTabContentProps {
   onClose: () => void;
 }
 
-export function EmptyTabContent({
-  onCreateNew,
-  onClose,
-}: EmptyTabContentProps) {
+export function EmptyTabContent({ onCreateNew, onClose }: EmptyTabContentProps) {
   const { t } = useTranslation();
 
   return (
@@ -170,11 +181,20 @@ export function EmptyTabContent({
       style={{ height: "100%", minHeight: 400 }}
     >
       <Flex gap="3">
-        <Button variant="soft" size="2" onClick={onCreateNew}>
+        <Button
+          variant="soft"
+          size="2"
+          onClick={onCreateNew}
+        >
           <FilePlus size={16} />
           {t("tabs.createNewFile")}
         </Button>
-        <Button variant="soft" color="gray" size="2" onClick={onClose}>
+        <Button
+          variant="soft"
+          color="gray"
+          size="2"
+          onClick={onClose}
+        >
           <XCircle size={16} />
           {t("tabs.closeFile")}
         </Button>
@@ -192,7 +212,8 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
   const { t } = useTranslation();
   const tabs = useTabs();
   const activeTabId = useActiveTabId();
-  const { setActiveTab, closeTab, reorderTabs, closeOtherTabs, closeAllTabs, toggleLock } = useTabsStore();
+  const { setActiveTab, closeTab, reorderTabs, closeOtherTabs, closeAllTabs, toggleLock } =
+    useTabsStore();
 
   // 拖拽传感器
   const sensors = useSensors(
@@ -203,7 +224,7 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   // 右键菜单状态
@@ -218,7 +239,7 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
     (tabId: string) => {
       setActiveTab(tabId);
     },
-    [setActiveTab]
+    [setActiveTab],
   );
 
   // 关闭标签页
@@ -226,18 +247,15 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
     (tabId: string) => {
       closeTab(tabId);
     },
-    [closeTab]
+    [closeTab],
   );
 
   // 打开右键菜单
-  const handleContextMenu = useCallback(
-    (tabId: string, e: React.MouseEvent) => {
-      e.preventDefault();
-      setContextMenuTabId(tabId);
-      setContextMenuPos({ x: e.clientX, y: e.clientY });
-    },
-    []
-  );
+  const handleContextMenu = useCallback((tabId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenuTabId(tabId);
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+  }, []);
 
   // 关闭右键菜单
   const handleCloseContextMenu = useCallback(() => {
@@ -259,7 +277,7 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
         reorderTabs(active.id as string, over.id as string);
       }
     },
-    [reorderTabs]
+    [reorderTabs],
   );
 
   const contextMenuItems = useMemo<ContextMenuItem[]>(() => {
@@ -276,15 +294,19 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
         disabled: !onAddToConversation,
         onClick: () => {
           if (targetTab.type === "note") {
-            onAddToConversation?.(buildNoteMentionTag({
-              noteId: targetTab.refId!,
-              label: targetTab.title.trim() || t("writing.untitledNote"),
-            }));
+            onAddToConversation?.(
+              buildNoteMentionTag({
+                noteId: targetTab.refId!,
+                label: targetTab.title.trim() || t("writing.untitledNote"),
+              }),
+            );
           } else {
-            onAddToConversation?.(buildChapterMentionTag({
-              chapterId: targetTab.refId!,
-              label: targetTab.title.trim() || t("writing.untitledChapter"),
-            }));
+            onAddToConversation?.(
+              buildChapterMentionTag({
+                chapterId: targetTab.refId!,
+                label: targetTab.title.trim() || t("writing.untitledChapter"),
+              }),
+            );
           }
         },
       });
@@ -319,7 +341,16 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
     );
 
     return items;
-  }, [closeAllTabs, closeOtherTabs, closeTab, contextMenuTabId, onAddToConversation, t, tabs, toggleLock]);
+  }, [
+    closeAllTabs,
+    closeOtherTabs,
+    closeTab,
+    contextMenuTabId,
+    onAddToConversation,
+    t,
+    tabs,
+    toggleLock,
+  ]);
 
   return (
     <>
@@ -380,9 +411,7 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
                       key={tab.id}
                       tab={tab}
                       isActive={tab.id === activeTabId}
-                      displayTitle={
-                        isEmptyTab(tab.id) ? t("tabs.emptyTab") : tab.title
-                      }
+                      displayTitle={isEmptyTab(tab.id) ? t("tabs.emptyTab") : tab.title}
                       onActivate={() => handleActivate(tab.id)}
                       onClose={() => handleClose(tab.id)}
                       onContextMenu={(e) => handleContextMenu(tab.id, e)}

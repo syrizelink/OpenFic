@@ -8,9 +8,9 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 
-import zhCN from "./locales/zh-CN.json";
-import en from "./locales/en.json";
 import { getPreference, setPreference } from "../lib/local-db";
+import en from "./locales/en.json";
+import zhCN from "./locales/zh-CN.json";
 
 /** 支持的语言列表 */
 export const supportedLanguages = [
@@ -33,10 +33,7 @@ const LANGUAGE_STORAGE_KEY = "openfic-language";
 function getInitialLanguage(): LanguageCode {
   // i18n 初始化需要同步获取，因此使用 localStorage
   const storedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-  if (
-    storedLanguage &&
-    supportedLanguages.some((lang) => lang.code === storedLanguage)
-  ) {
+  if (storedLanguage && supportedLanguages.some((lang) => lang.code === storedLanguage)) {
     return storedLanguage as LanguageCode;
   }
   return defaultLanguage;

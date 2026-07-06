@@ -1,15 +1,12 @@
 import { memo } from "react";
 import type { ComponentType } from "react";
 
-import type {
-  RenderableDisplayMessage,
-} from "./display/display-message-types";
-
+import type { RenderableDisplayMessage } from "./display/display-message-types";
+import { NodeStartMessage } from "./message-blocks/blocks/node/node-start-message";
 import { AgentThinkingMessage } from "./message-blocks/blocks/reasoning/agent-thinking-message";
 import { CompactionMessage } from "./message-blocks/blocks/status/compaction-message";
 import { CompletedMessage } from "./message-blocks/blocks/status/completed-message";
 import { ErrorMessage } from "./message-blocks/blocks/status/error-message";
-import { NodeStartMessage } from "./message-blocks/blocks/node/node-start-message";
 import { RetryMessage } from "./message-blocks/blocks/status/retry-message";
 import { AgentOutputMessage } from "./message-blocks/messages/special/agent-output-message";
 import { ToolMessage } from "./message-blocks/messages/tool/tool-message";
@@ -87,20 +84,20 @@ function AgentMessageRendererView({
 
 function areAgentMessageRendererPropsEqual(
   prev: AgentMessageRendererProps,
-  next: AgentMessageRendererProps
+  next: AgentMessageRendererProps,
 ) {
   return (
-    prev.message === next.message
-    && prev.nodeStartedAt === next.nodeStartedAt
-    && prev.nodeEndedAt === next.nodeEndedAt
-    && prev.nodeElapsedBaseMs === next.nodeElapsedBaseMs
-    && prev.isNodeCollapsed === next.isNodeCollapsed
-    && Boolean(prev.onToggleNode) === Boolean(next.onToggleNode)
-    && prev.onOpenMentionChapter === next.onOpenMentionChapter
+    prev.message === next.message &&
+    prev.nodeStartedAt === next.nodeStartedAt &&
+    prev.nodeEndedAt === next.nodeEndedAt &&
+    prev.nodeElapsedBaseMs === next.nodeElapsedBaseMs &&
+    prev.isNodeCollapsed === next.isNodeCollapsed &&
+    Boolean(prev.onToggleNode) === Boolean(next.onToggleNode) &&
+    prev.onOpenMentionChapter === next.onOpenMentionChapter
   );
 }
 
 export const AgentMessageRenderer = memo(
   AgentMessageRendererView,
-  areAgentMessageRendererPropsEqual
+  areAgentMessageRendererPropsEqual,
 );

@@ -4,14 +4,15 @@
  * 用于设置提示词链编译时使用的项目和章节。
  */
 
-import { useState, useEffect, useMemo, useCallback } from "react";
 import { Dialog, Flex, Button, Box, Text } from "@radix-ui/themes";
-import { useTranslation } from "react-i18next";
 import { Settings } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+
 import { LabeledSelect } from "@/components";
 import { fetchProjects, fetchChapters } from "@/lib/api-client";
-import type { Project } from "@/lib/project.types";
 import type { ChapterListItem } from "@/lib/chapter.types";
+import type { Project } from "@/lib/project.types";
 
 interface WorkDirDialogProps {
   open: boolean;
@@ -32,12 +33,8 @@ export function WorkDirDialog({
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [chapters, setChapters] = useState<ChapterListItem[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
-    currentProjectId
-  );
-  const [selectedChapterId, setSelectedChapterId] = useState<string | null>(
-    currentChapterId
-  );
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(currentProjectId);
+  const [selectedChapterId, setSelectedChapterId] = useState<string | null>(currentChapterId);
   const [loading, setLoading] = useState(false);
 
   const loadProjects = useCallback(async () => {
@@ -77,10 +74,7 @@ export function WorkDirDialog({
       value: String(c.order),
       label: `${c.order}. ${c.title}`,
     }));
-    return [
-      { value: "latest", label: t("promptChains.latestChapter") },
-      ...list,
-    ];
+    return [{ value: "latest", label: t("promptChains.latestChapter") }, ...list];
   }, [chapters, t]);
 
   useEffect(() => {
@@ -112,16 +106,26 @@ export function WorkDirDialog({
   };
 
   return (
-    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={handleOpenChange}
+    >
       <Dialog.Content style={{ maxWidth: 450 }}>
         <Dialog.Title>
-          <Flex align="center" gap="2">
+          <Flex
+            align="center"
+            gap="2"
+          >
             <Settings size={18} />
             {t("promptChains.workDirSettings")}
           </Flex>
         </Dialog.Title>
 
-        <Dialog.Description size="2" color="gray" mb="4">
+        <Dialog.Description
+          size="2"
+          color="gray"
+          mb="4"
+        >
           {t("promptChains.workDirDescription")}
         </Dialog.Description>
 
@@ -136,13 +140,19 @@ export function WorkDirDialog({
               border: "1px solid var(--yellow-a6)",
             }}
           >
-            <Text size="2" color="yellow">
+            <Text
+              size="2"
+              color="yellow"
+            >
               {t("promptChains.workDirWarning")}
             </Text>
           </Box>
         )}
 
-        <Flex direction="column" gap="4">
+        <Flex
+          direction="column"
+          gap="4"
+        >
           <LabeledSelect
             label={t("promptChains.project")}
             value={selectedProjectId || ""}
@@ -165,9 +175,16 @@ export function WorkDirDialog({
           />
         </Flex>
 
-        <Flex gap="3" mt="4" justify="end">
+        <Flex
+          gap="3"
+          mt="4"
+          justify="end"
+        >
           <Dialog.Close>
-            <Button variant="soft" color="gray">
+            <Button
+              variant="soft"
+              color="gray"
+            >
               {t("promptChains.cancel")}
             </Button>
           </Dialog.Close>

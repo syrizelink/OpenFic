@@ -1,18 +1,15 @@
 import { Extension, type JSONContent } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
-import { Plugin } from "@tiptap/pm/state";
-import Placeholder from "@tiptap/extension-placeholder";
 import CharacterCount from "@tiptap/extension-character-count";
-import { TableKit } from "@tiptap/extension-table";
-import { TaskList, TaskItem } from "@tiptap/extension-list";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
+import { TaskList, TaskItem } from "@tiptap/extension-list";
+import Placeholder from "@tiptap/extension-placeholder";
+import { TableKit } from "@tiptap/extension-table";
 import { Markdown } from "@tiptap/markdown";
+import { Plugin } from "@tiptap/pm/state";
+import StarterKit from "@tiptap/starter-kit";
 import { createLowlight, common } from "lowlight";
 
-import {
-  createEditorShortcuts,
-  type EditorShortcutCallbacks,
-} from "./editor-shortcuts";
+import { createEditorShortcuts, type EditorShortcutCallbacks } from "./editor-shortcuts";
 
 export type { EditorShortcutCallbacks } from "./editor-shortcuts";
 

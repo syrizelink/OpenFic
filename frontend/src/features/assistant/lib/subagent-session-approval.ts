@@ -7,20 +7,14 @@ interface PendingApprovalDetails {
   payload: ToolApprovalData;
 }
 
-function getPendingApprovalDetails(
-  pendingApproval: unknown,
-): PendingApprovalDetails | null {
+function getPendingApprovalDetails(pendingApproval: unknown): PendingApprovalDetails | null {
   const data = isRecord(pendingApproval) ? pendingApproval : null;
   if (!data || getString(data.type) !== "tool_approval") return null;
 
   const approvalId = getString(data.approval_id) || getString(data.id);
   if (!approvalId) return null;
 
-  const toolArgs = isRecord(data.args)
-    ? data.args
-    : isRecord(data.tool_args)
-      ? data.tool_args
-      : {};
+  const toolArgs = isRecord(data.args) ? data.args : isRecord(data.tool_args) ? data.tool_args : {};
   const toolName = getString(data.tool_name) || "";
   const toolCallId = getString(data.tool_call_id);
   const toolResultPreview = isRecord(data.tool_result_preview)

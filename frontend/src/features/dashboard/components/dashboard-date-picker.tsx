@@ -1,10 +1,11 @@
-import { useState } from "react";
 import { Button, Popover } from "@radix-ui/themes";
 import { format, parse } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import { CalendarDays } from "lucide-react";
+import { useState } from "react";
 import { DayPicker } from "react-day-picker";
 import { useTranslation } from "react-i18next";
+
 import "react-day-picker/style.css";
 
 interface DashboardDatePickerProps {
@@ -37,16 +38,29 @@ export function DashboardDatePicker({ value, placeholder, onChange }: DashboardD
   };
 
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
+    <Popover.Root
+      open={open}
+      onOpenChange={setOpen}
+    >
       <Popover.Trigger>
-        <button type="button" className="dashboard-date-trigger">
+        <button
+          type="button"
+          className="dashboard-date-trigger"
+        >
           <span className={value ? "dashboard-date-value" : "dashboard-date-placeholder"}>
             {formatDateValue(value) || placeholder}
           </span>
-          <CalendarDays size={15} className="dashboard-date-icon" />
+          <CalendarDays
+            size={15}
+            className="dashboard-date-icon"
+          />
         </button>
       </Popover.Trigger>
-      <Popover.Content className="dashboard-date-popover" sideOffset={6} align="start">
+      <Popover.Content
+        className="dashboard-date-popover"
+        sideOffset={6}
+        align="start"
+      >
         <DayPicker
           mode="single"
           selected={selected}
@@ -58,7 +72,14 @@ export function DashboardDatePicker({ value, placeholder, onChange }: DashboardD
         />
         {value ? (
           <div className="dashboard-date-popover-footer">
-            <Button size="1" variant="soft" color="gray" onClick={() => onChange("")}>{t("dashboard.filters.clearDate")}</Button>
+            <Button
+              size="1"
+              variant="soft"
+              color="gray"
+              onClick={() => onChange("")}
+            >
+              {t("dashboard.filters.clearDate")}
+            </Button>
           </div>
         ) : null}
       </Popover.Content>

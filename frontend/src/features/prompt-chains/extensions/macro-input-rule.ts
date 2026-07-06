@@ -6,7 +6,9 @@
 
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
+
 import { findMacros, tryParseMacro } from "@/lib/macro";
+
 import type { MacroNodeAttributes } from "./macro-node";
 
 export const MacroInputRule = Extension.create({
@@ -26,12 +28,7 @@ export const MacroInputRule = Extension.create({
           const { selection } = newState;
           const { $from } = selection;
 
-          const textBefore = $from.parent.textBetween(
-            0,
-            $from.parentOffset,
-            undefined,
-            "\ufffc"
-          );
+          const textBefore = $from.parent.textBetween(0, $from.parentOffset, undefined, "\ufffc");
 
           if (!textBefore.endsWith("}}")) return null;
 

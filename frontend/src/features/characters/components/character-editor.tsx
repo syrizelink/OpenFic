@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import { Flex, Text } from "@radix-ui/themes";
-import { useTranslation } from "react-i18next";
 import type { Editor } from "@tiptap/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { MarkdownEditor, Spinner } from "@/components";
-import { countTokens } from "@/lib/tiktoken-utils";
 import type { Character } from "@/lib/character.types";
+import { countTokens } from "@/lib/tiktoken-utils";
 
 const AUTO_SAVE_DELAY = 1500;
 
@@ -16,7 +16,12 @@ interface CharacterEditorProps {
   onSave: (data: { name: string; description: string }) => Promise<void> | void;
 }
 
-export function CharacterEditor({ character, isSaving = false, isLoading = false, onSave }: CharacterEditorProps) {
+export function CharacterEditor({
+  character,
+  isSaving = false,
+  isLoading = false,
+  onSave,
+}: CharacterEditorProps) {
   const { t } = useTranslation();
   const [name, setName] = useState(character?.name ?? "");
   const [description, setDescription] = useState(character?.description ?? "");
@@ -24,7 +29,10 @@ export function CharacterEditor({ character, isSaving = false, isLoading = false
   const [hasChanges, setHasChanges] = useState(false);
   const editorRef = useRef<Editor | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latestValueRef = useRef({ name: character?.name ?? "", description: character?.description ?? "" });
+  const latestValueRef = useRef({
+    name: character?.name ?? "",
+    description: character?.description ?? "",
+  });
   const hasChangesRef = useRef(false);
   const isSavingRef = useRef(false);
 
@@ -62,7 +70,7 @@ export function CharacterEditor({ character, isSaving = false, isLoading = false
       setHasChanges(true);
       scheduleSave();
     },
-    [scheduleSave]
+    [scheduleSave],
   );
 
   const handleContentChange = useCallback(
@@ -74,7 +82,7 @@ export function CharacterEditor({ character, isSaving = false, isLoading = false
       setHasChanges(true);
       scheduleSave();
     },
-    [scheduleSave]
+    [scheduleSave],
   );
 
   const handleSave = useCallback(() => {
@@ -94,7 +102,11 @@ export function CharacterEditor({ character, isSaving = false, isLoading = false
 
   if (isLoading) {
     return (
-      <Flex className="characters-editor-empty" align="center" justify="center">
+      <Flex
+        className="characters-editor-empty"
+        align="center"
+        justify="center"
+      >
         <Spinner size={18} />
       </Flex>
     );
@@ -102,9 +114,24 @@ export function CharacterEditor({ character, isSaving = false, isLoading = false
 
   if (!character) {
     return (
-      <Flex className="characters-editor-empty" direction="column" align="center" justify="center">
-        <Text size="3" weight="medium">{t("characters.selectCharacter")}</Text>
-        <Text size="2" color="gray">{t("characters.selectCharacterHint")}</Text>
+      <Flex
+        className="characters-editor-empty"
+        direction="column"
+        align="center"
+        justify="center"
+      >
+        <Text
+          size="3"
+          weight="medium"
+        >
+          {t("characters.selectCharacter")}
+        </Text>
+        <Text
+          size="2"
+          color="gray"
+        >
+          {t("characters.selectCharacterHint")}
+        </Text>
       </Flex>
     );
   }

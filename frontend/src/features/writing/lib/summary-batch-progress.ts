@@ -18,7 +18,10 @@ function getNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-function resolveProgressMessage(payload: Record<string, unknown>, current: string | null): string | null {
+function resolveProgressMessage(
+  payload: Record<string, unknown>,
+  current: string | null,
+): string | null {
   if ("progress_message" in payload) return getString(payload.progress_message);
   if ("message" in payload) return getString(payload.message);
   return current;
@@ -26,13 +29,19 @@ function resolveProgressMessage(payload: Record<string, unknown>, current: strin
 
 export function extractBatchProgressFromEvent(
   event: BackgroundEvent,
-  current: SummaryMaintenance["batchProgress"]
+  current: SummaryMaintenance["batchProgress"],
 ): SummaryMaintenance["batchProgress"] {
   if (!event.job_id || !event.payload) return current;
   const payload = event.payload;
-  const progressCurrent = getNumber(payload.current) ?? getNumber(payload.progress_current) ?? current?.progressCurrent ?? 0;
-  const progressTotal = getNumber(payload.total) ?? getNumber(payload.progress_total) ?? current?.progressTotal ?? null;
-  const completedItemCount = getNumber(payload.completed_item_count) ?? current?.completedItemCount ?? 0;
+  const progressCurrent =
+    getNumber(payload.current) ??
+    getNumber(payload.progress_current) ??
+    current?.progressCurrent ??
+    0;
+  const progressTotal =
+    getNumber(payload.total) ?? getNumber(payload.progress_total) ?? current?.progressTotal ?? null;
+  const completedItemCount =
+    getNumber(payload.completed_item_count) ?? current?.completedItemCount ?? 0;
   const totalItemCount = getNumber(payload.total_item_count) ?? current?.totalItemCount ?? 0;
   return {
     jobId: event.job_id,
@@ -40,10 +49,14 @@ export function extractBatchProgressFromEvent(
     progressCurrent,
     progressTotal,
     progressPercent:
-      getNumber(payload.progress_percent)
-      ?? current?.progressPercent
-      ?? (totalItemCount > 0 ? Math.round((completedItemCount / totalItemCount) * 100) : null),
-    progressMessage: getString(payload.message) ?? getString(payload.progress_message) ?? current?.progressMessage ?? null,
+      getNumber(payload.progress_percent) ??
+      current?.progressPercent ??
+      (totalItemCount > 0 ? Math.round((completedItemCount / totalItemCount) * 100) : null),
+    progressMessage:
+      getString(payload.message) ??
+      getString(payload.progress_message) ??
+      current?.progressMessage ??
+      null,
     totalItemCount,
     completedItemCount,
     runningItemCount: getNumber(payload.running_item_count) ?? current?.runningItemCount ?? 0,
@@ -54,13 +67,18 @@ export function extractBatchProgressFromEvent(
 }
 
 function hasAuthoritativeProgress(current: SummaryMaintenance["batchProgress"] | null): boolean {
-  return Boolean(current && (current.progressTotal != null || current.progressPercent != null || current.totalItemCount > 0));
+  return Boolean(
+    current &&
+    (current.progressTotal != null ||
+      current.progressPercent != null ||
+      current.totalItemCount > 0),
+  );
 }
 
 export function updateBatchProgressForItemEvent(
   current: SummaryMaintenance["batchProgress"],
   event: BackgroundEvent,
-  previousJob: SummaryBackgroundJobItem | undefined
+  previousJob: SummaryBackgroundJobItem | undefined,
 ): SummaryMaintenance["batchProgress"] {
   const jobId = getString(event.job_id) ?? current?.jobId;
   if (!jobId) return current;
@@ -95,7 +113,10 @@ export function updateBatchProgressForItemEvent(
     completedItemCount += 1;
   }
 
-  totalItemCount = Math.max(totalItemCount, completedItemCount + runningItemCount + queuedItemCount);
+  totalItemCount = Math.max(
+    totalItemCount,
+    completedItemCount + runningItemCount + queuedItemCount,
+  );
   const nextProgressMessage = resolveProgressMessage(payload, current?.progressMessage ?? null);
 
   if (!hasAuthoritativeProgress(current)) {

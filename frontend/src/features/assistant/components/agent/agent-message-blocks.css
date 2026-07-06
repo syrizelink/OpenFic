@@ -16,7 +16,9 @@
   min-width: 0;
 }
 
-.agent-message-scroll-content > :not(.agent-message-bottom-anchor) + :not(.agent-message-bottom-anchor) {
+.agent-message-scroll-content
+  > :not(.agent-message-bottom-anchor)
+  + :not(.agent-message-bottom-anchor) {
   margin-top: 8px;
 }
 
@@ -181,7 +183,9 @@
   border-radius: 6px;
   color: var(--gray-11);
   cursor: pointer;
-  transition: color 120ms ease, background 120ms ease;
+  transition:
+    color 120ms ease,
+    background 120ms ease;
 }
 
 .agent-user-message-expand-button:hover {
@@ -196,7 +200,9 @@
   border-radius: 6px;
   color: var(--gray-11);
   cursor: pointer;
-  transition: color 120ms ease, background 120ms ease;
+  transition:
+    color 120ms ease,
+    background 120ms ease;
 }
 
 .agent-user-message-collapse-button:hover {

@@ -1,17 +1,14 @@
-import type { AgentEvent, AgentMessage, AgentSessionStatus } from "@/lib/agent.types";
 import i18n from "@/i18n";
+import type { AgentEvent, AgentMessage, AgentSessionStatus } from "@/lib/agent.types";
 
-import { mergeStreamingMessage } from "./streaming-message-merge";
-import {
-  clearRetryMessages,
-  upsertRetryMessage,
-} from "./retry-message-state";
 import {
   stopStreamingReasoning,
   stopStreamingReasoningForAgentEvent,
   stopStreamingToolMessages,
 } from "../hooks/use-agent-session-message-state";
 import { parseUtcTimestamp } from "./date-utils";
+import { clearRetryMessages, upsertRetryMessage } from "./retry-message-state";
+import { mergeStreamingMessage } from "./streaming-message-merge";
 
 export interface AgentTranscriptState {
   messages: AgentMessage[];
@@ -51,17 +48,20 @@ function normalizeClarificationQuestions(value: unknown): AgentMessage["question
     }
     if (!isRecord(item) || typeof item.title !== "string" || !item.title.trim()) return result;
     const options = Array.isArray(item.options)
-      ? item.options.reduce<NonNullable<NonNullable<AgentMessage["questions"]>[number]["options"]>>((optionResult, option) => {
-          if (!isRecord(option) || typeof option.label !== "string" || !option.label.trim()) {
+      ? item.options.reduce<NonNullable<NonNullable<AgentMessage["questions"]>[number]["options"]>>(
+          (optionResult, option) => {
+            if (!isRecord(option) || typeof option.label !== "string" || !option.label.trim()) {
+              return optionResult;
+            }
+            optionResult.push({
+              label: option.label.trim(),
+              description:
+                typeof option.description === "string" ? option.description.trim() : undefined,
+            });
             return optionResult;
-          }
-          optionResult.push({
-            label: option.label.trim(),
-            description:
-              typeof option.description === "string" ? option.description.trim() : undefined,
-          });
-          return optionResult;
-        }, [])
+          },
+          [],
+        )
       : [];
     result.push({
       title: item.title.trim(),
@@ -99,14 +99,15 @@ function getMessageToolCallId(message: AgentMessage): string | null {
 
 function isPendingApprovalToolMessage(
   message: AgentMessage,
-  approvalMessage: AgentMessage
+  approvalMessage: AgentMessage,
 ): boolean {
   if (message.type !== "tool" || approvalMessage.type !== "approval") return false;
   if (!(message.isStreaming || message.status === "running")) return false;
 
-  const approvalToolCallId = typeof approvalMessage.toolApproval?.tool_call_id === "string"
-    ? approvalMessage.toolApproval.tool_call_id
-    : undefined;
+  const approvalToolCallId =
+    typeof approvalMessage.toolApproval?.tool_call_id === "string"
+      ? approvalMessage.toolApproval.tool_call_id
+      : undefined;
   if (approvalToolCallId) {
     return getMessageToolCallId(message) === approvalToolCallId;
   }
@@ -124,13 +125,19 @@ function isSameToolMessageByFallback(item: AgentMessage, message: AgentMessage):
 }
 
 function isAssistantOutputMessage(message: AgentMessage): boolean {
-  return (message.type === "text" && message.role === "assistant") || message.type === "agent_output";
+  return (
+    (message.type === "text" && message.role === "assistant") || message.type === "agent_output"
+  );
 }
 
 function stopStreamingAssistantOutput(messages: AgentMessage[]): AgentMessage[] {
   let changed = false;
   const next = messages.map((message) => {
-    if (!isAssistantOutputMessage(message) || !(message.isStreaming || message.status === "running")) return message;
+    if (
+      !isAssistantOutputMessage(message) ||
+      !(message.isStreaming || message.status === "running")
+    )
+      return message;
     changed = true;
     return {
       ...message,
@@ -175,7 +182,7 @@ function isRunningCompactionMessageForSession(message: AgentMessage, sessionId?:
 
 export function removeRunningCompactionMessages(
   messages: AgentMessage[],
-  sessionId?: string
+  sessionId?: string,
 ): AgentMessage[] {
   let changed = false;
   const nextMessages = messages.filter((message) => {
@@ -188,7 +195,7 @@ export function removeRunningCompactionMessages(
 
 export function failCompactionTranscriptState(
   state: AgentTranscriptState,
-  sessionId?: string
+  sessionId?: string,
 ): AgentTranscriptState {
   return {
     ...state,
@@ -202,7 +209,7 @@ export function failCompactionTranscriptState(
 export function restoreManualCompactionTranscriptState(
   state: AgentTranscriptState,
   previousState: Pick<AgentTranscriptState, "status" | "isRunning" | "currentStage"> | null,
-  sessionId?: string
+  sessionId?: string,
 ): AgentTranscriptState {
   return {
     ...state,
@@ -215,7 +222,7 @@ export function restoreManualCompactionTranscriptState(
 
 export function abortCompactionTranscriptState(
   state: AgentTranscriptState,
-  sessionId?: string
+  sessionId?: string,
 ): AgentTranscriptState {
   return {
     ...state,
@@ -244,12 +251,12 @@ function isSameCompactionMessage(item: AgentMessage, message: AgentMessage): boo
   const messageStartSeq = getPayloadNumber(message, "start_seq");
   const messageEndSeq = getPayloadNumber(message, "end_seq");
   if (
-    itemStartSeq !== null
-    && itemEndSeq !== null
-    && messageStartSeq !== null
-    && messageEndSeq !== null
-    && itemStartSeq === messageStartSeq
-    && itemEndSeq === messageEndSeq
+    itemStartSeq !== null &&
+    itemEndSeq !== null &&
+    messageStartSeq !== null &&
+    messageEndSeq !== null &&
+    itemStartSeq === messageStartSeq &&
+    itemEndSeq === messageEndSeq
   ) {
     return true;
   }
@@ -266,10 +273,16 @@ function isSameStreamMessage(item: AgentMessage, message: AgentMessage): boolean
   if (item.type !== "tool" || message.type !== "tool") return false;
   const itemToolCallId = getMessageToolCallId(item);
   const messageToolCallId = getMessageToolCallId(message);
-  return Boolean(itemToolCallId && itemToolCallId === messageToolCallId) || isSameToolMessageByFallback(item, message);
+  return (
+    Boolean(itemToolCallId && itemToolCallId === messageToolCallId) ||
+    isSameToolMessageByFallback(item, message)
+  );
 }
 
-export function upsertTranscriptMessage(messages: AgentMessage[], message: AgentMessage): AgentMessage[] {
+export function upsertTranscriptMessage(
+  messages: AgentMessage[],
+  message: AgentMessage,
+): AgentMessage[] {
   const index = messages.findIndex((item) => isSameStreamMessage(item, message));
   if (index < 0) return [...messages, message];
   const next = [...messages];
@@ -281,8 +294,12 @@ export function upsertTranscriptMessage(messages: AgentMessage[], message: Agent
   return next;
 }
 
-export function upsertTranscriptStreamingMessage(messages: AgentMessage[], message: AgentMessage): AgentMessage[] {
-  if (message.payload?.is_delta && ["text", "reasoning"].includes(message.type) && !message.content) return messages;
+export function upsertTranscriptStreamingMessage(
+  messages: AgentMessage[],
+  message: AgentMessage,
+): AgentMessage[] {
+  if (message.payload?.is_delta && ["text", "reasoning"].includes(message.type) && !message.content)
+    return messages;
   if (message.payload?.is_delta && message.type === "tool" && !message.toolArgsText) {
     const index = messages.findIndex((item) => isSameStreamMessage(item, message));
     return index < 0 ? [...messages, message] : messages;
@@ -294,13 +311,14 @@ export function upsertTranscriptStreamingMessage(messages: AgentMessage[], messa
   const previous = messages[index];
   const mergedMessage = mergeStreamingMessage(previous, message);
   if (
-    previous.content === mergedMessage.content
-    && previous.status === mergedMessage.status
-    && previous.toolArgsText === mergedMessage.toolArgsText
-    && previous.partialToolArgs === mergedMessage.partialToolArgs
-    && previous.toolResult === mergedMessage.toolResult
-    && previous.thinkingDurationMs === mergedMessage.thinkingDurationMs
-  ) return messages;
+    previous.content === mergedMessage.content &&
+    previous.status === mergedMessage.status &&
+    previous.toolArgsText === mergedMessage.toolArgsText &&
+    previous.partialToolArgs === mergedMessage.partialToolArgs &&
+    previous.toolResult === mergedMessage.toolResult &&
+    previous.thinkingDurationMs === mergedMessage.thinkingDurationMs
+  )
+    return messages;
   const next = [...messages];
   next[index] = mergedMessage;
   return next;
@@ -312,30 +330,30 @@ export function stopTranscriptStreamingMessages(messages: AgentMessage[]): Agent
 
 function completeLatestAssistantMessage(
   messages: AgentMessage[],
-  completedAt?: number
+  completedAt?: number,
 ): AgentMessage[] {
-  const lastAssistantIndex = messages.findLastIndex((message) => (
-    (message?.type === "text" && message.role === "assistant")
-    || message?.type === "agent_output"
-  ));
+  const lastAssistantIndex = messages.findLastIndex(
+    (message) =>
+      (message?.type === "text" && message.role === "assistant") ||
+      message?.type === "agent_output",
+  );
   if (lastAssistantIndex < 0) return messages;
 
   let nextMessages = messages;
   for (let index = 0; index < messages.length; index += 1) {
     const message = messages[index];
     const isAssistantOutput =
-      (message?.type === "text" && message.role === "assistant")
-      || message?.type === "agent_output";
+      (message?.type === "text" && message.role === "assistant") ||
+      message?.type === "agent_output";
     if (!isAssistantOutput) continue;
 
     const isLastAssistantOutput = index === lastAssistantIndex;
-    const timestamp = isLastAssistantOutput && typeof completedAt === "number"
-      ? completedAt
-      : message.timestamp;
+    const timestamp =
+      isLastAssistantOutput && typeof completedAt === "number" ? completedAt : message.timestamp;
     const shouldUpdate =
-      message.status === "running"
-      || message.isStreaming
-      || (isLastAssistantOutput && message.timestamp !== timestamp);
+      message.status === "running" ||
+      message.isStreaming ||
+      (isLastAssistantOutput && message.timestamp !== timestamp);
     if (!shouldUpdate) continue;
 
     if (nextMessages === messages) {
@@ -353,12 +371,9 @@ function completeLatestAssistantMessage(
 
 function finalizeCompletedTranscriptMessages(
   messages: AgentMessage[],
-  completedAt?: number
+  completedAt?: number,
 ): AgentMessage[] {
-  return completeLatestAssistantMessage(
-    stopTranscriptStreamingMessages(messages),
-    completedAt
-  );
+  return completeLatestAssistantMessage(stopTranscriptStreamingMessages(messages), completedAt);
 }
 
 function normalizeTranscriptEvent(event: AgentEvent): AgentMessage | null {
@@ -386,14 +401,22 @@ function normalizeTranscriptEvent(event: AgentEvent): AgentMessage | null {
     return {
       ...base,
       type: "retry",
-      content: event.content || (typeof payload.error_message === "string" ? payload.error_message : i18n.t("assistant.upstreamFailure")),
+      content:
+        event.content ||
+        (typeof payload.error_message === "string"
+          ? payload.error_message
+          : i18n.t("assistant.upstreamFailure")),
     };
   }
   if (event.type === "compaction") {
     return {
       ...base,
       type: "compaction",
-      content: event.content || (event.status === "running" ? i18n.t("assistant.compactionRunning") : i18n.t("assistant.compactionDone")),
+      content:
+        event.content ||
+        (event.status === "running"
+          ? i18n.t("assistant.compactionRunning")
+          : i18n.t("assistant.compactionDone")),
     };
   }
   if (event.type === "reasoning") {
@@ -406,7 +429,7 @@ function normalizeTranscriptEvent(event: AgentEvent): AgentMessage | null {
   if (event.type === "approval") {
     const toolResultPreview =
       payload.tool_result_preview && typeof payload.tool_result_preview === "object"
-        ? payload.tool_result_preview as Record<string, unknown>
+        ? (payload.tool_result_preview as Record<string, unknown>)
         : undefined;
     return {
       ...base,
@@ -415,9 +438,15 @@ function normalizeTranscriptEvent(event: AgentEvent): AgentMessage | null {
         approval_id: typeof payload.approval_id === "string" ? payload.approval_id : "",
         tool_name: typeof payload.tool_name === "string" ? payload.tool_name : "",
         tool_call_id: typeof payload.tool_call_id === "string" ? payload.tool_call_id : undefined,
-        tool_args: payload.tool_args && typeof payload.tool_args === "object" ? payload.tool_args as Record<string, unknown> : {},
+        tool_args:
+          payload.tool_args && typeof payload.tool_args === "object"
+            ? (payload.tool_args as Record<string, unknown>)
+            : {},
         tool_result_preview: toolResultPreview,
-        message: typeof payload.message === "string" ? payload.message : event.content || i18n.t("assistant.toolApprovalRequiredFallback"),
+        message:
+          typeof payload.message === "string"
+            ? payload.message
+            : event.content || i18n.t("assistant.toolApprovalRequiredFallback"),
         interrupt_behavior: payload.interrupt_behavior === "block" ? "block" : "cancel",
       },
     };
@@ -441,12 +470,14 @@ function normalizeTranscriptEvent(event: AgentEvent): AgentMessage | null {
       toolArgsText: typeof payload.tool_args_text === "string" ? payload.tool_args_text : undefined,
       partialToolArgs:
         payload.partial_tool_args && typeof payload.partial_tool_args === "object"
-          ? payload.partial_tool_args as Record<string, unknown>
+          ? (payload.partial_tool_args as Record<string, unknown>)
           : undefined,
-      toolResult: payload.tool_result && typeof payload.tool_result === "object"
-        ? payload.tool_result as Record<string, unknown>
-        : undefined,
-      toolSuccess: typeof payload.success === "boolean" ? payload.success : event.status !== "error",
+      toolResult:
+        payload.tool_result && typeof payload.tool_result === "object"
+          ? (payload.tool_result as Record<string, unknown>)
+          : undefined,
+      toolSuccess:
+        typeof payload.success === "boolean" ? payload.success : event.status !== "error",
       confirmedPlan: payload.confirmed_plan as AgentMessage["confirmedPlan"],
       outlineData: payload.outline_data as AgentMessage["outlineData"],
       reviewData: payload.review_data as AgentMessage["reviewData"],
@@ -459,7 +490,8 @@ function normalizeTranscriptEvent(event: AgentEvent): AgentMessage | null {
     return {
       ...base,
       type: "completed",
-      finalContent: typeof payload.final_content === "string" ? payload.final_content : event.final_content,
+      finalContent:
+        typeof payload.final_content === "string" ? payload.final_content : event.final_content,
       wordCount: typeof payload.word_count === "number" ? payload.word_count : event.word_count,
       iteration: typeof payload.iteration === "number" ? payload.iteration : event.iteration,
     };
@@ -478,17 +510,32 @@ function normalizeTranscriptEvent(event: AgentEvent): AgentMessage | null {
 export function applyAgentTranscriptEvent(
   state: AgentTranscriptState,
   event: AgentEvent,
-  options: AgentTranscriptEventOptions = {}
+  options: AgentTranscriptEventOptions = {},
 ): AgentTranscriptEventResult {
   const message = normalizeTranscriptEvent(event);
   if (!message) {
     return { state, message: null };
   }
 
-  const agentStage = options.getStageTextForAgent?.(event.agent) ?? options.getStageTextForAgent?.(options.fallbackAgent);
-  const stageText = options.getStageTextForStage?.(event.stage) ?? agentStage ?? options.defaultRunningStage ?? "";
+  const agentStage =
+    options.getStageTextForAgent?.(event.agent) ??
+    options.getStageTextForAgent?.(options.fallbackAgent);
+  const stageText =
+    options.getStageTextForStage?.(event.stage) ?? agentStage ?? options.defaultRunningStage ?? "";
 
-  if (["text", "retry", "compaction", "reasoning", "tool", "approval", "question", "error", "task_completed"].includes(event.type)) {
+  if (
+    [
+      "text",
+      "retry",
+      "compaction",
+      "reasoning",
+      "tool",
+      "approval",
+      "question",
+      "error",
+      "task_completed",
+    ].includes(event.type)
+  ) {
     const baseMessages = state.messages;
 
     if (message.type === "text" && message.role === "user") {
@@ -496,7 +543,7 @@ export function applyAgentTranscriptEvent(
         return { state, message };
       }
       const finalizedMessages = finalizeCompletedTranscriptMessages(
-        clearRetryMessages(baseMessages)
+        clearRetryMessages(baseMessages),
       );
       return {
         state: {
@@ -514,11 +561,11 @@ export function applyAgentTranscriptEvent(
           ...state,
           messages: upsertTranscriptStreamingMessage(
             clearRetryMessages(stopStreamingReasoning(baseMessages)),
-            message
+            message,
           ),
           status: isRunning ? "running" : state.status,
           isRunning: isRunning ? true : state.isRunning,
-          currentStage: isRunning ? (state.currentStage || stageText) : state.currentStage,
+          currentStage: isRunning ? state.currentStage || stageText : state.currentStage,
         },
         message,
       };
@@ -528,7 +575,10 @@ export function applyAgentTranscriptEvent(
       return {
         state: {
           ...state,
-          messages: upsertRetryMessage(baseMessages.filter((item) => item.type !== "error"), message),
+          messages: upsertRetryMessage(
+            baseMessages.filter((item) => item.type !== "error"),
+            message,
+          ),
           status: "running",
           isRunning: true,
           currentStage: stageText || state.currentStage,
@@ -545,11 +595,15 @@ export function applyAgentTranscriptEvent(
           ...state,
           messages: upsertTranscriptMessage(
             stopTranscriptStreamingMessages(clearRetryMessages(baseMessages)),
-            message
+            message,
           ),
           status: isRunning ? "running" : isManual ? "completed" : state.status,
           isRunning: isRunning ? true : isManual ? false : state.isRunning,
-          currentStage: isRunning ? i18n.t("assistant.compactionRunning") : isManual ? "" : state.currentStage,
+          currentStage: isRunning
+            ? i18n.t("assistant.compactionRunning")
+            : isManual
+              ? ""
+              : state.currentStage,
         },
         message,
       };
@@ -563,7 +617,7 @@ export function applyAgentTranscriptEvent(
           messages: upsertTranscriptStreamingMessage(clearRetryMessages(baseMessages), message),
           status: isRunning ? "running" : state.status,
           isRunning: isRunning ? true : state.isRunning,
-          currentStage: isRunning ? (state.currentStage || stageText) : state.currentStage,
+          currentStage: isRunning ? state.currentStage || stageText : state.currentStage,
         },
         message,
       };
@@ -576,7 +630,7 @@ export function applyAgentTranscriptEvent(
           ...state,
           messages: finalizeCompletedTranscriptMessages(
             clearRetryMessages(baseMessages),
-            message.timestamp
+            message.timestamp,
           ),
           status: shouldKeepRunning ? "running" : "completed",
           isRunning: shouldKeepRunning,
@@ -588,8 +642,9 @@ export function applyAgentTranscriptEvent(
 
     if (message.type === "approval") {
       const previewToolMessage = options.approvalPreviewFactory?.(message) ?? null;
-      const stopped = stopTranscriptStreamingMessages(clearRetryMessages(baseMessages))
-        .filter((item) => item.type !== "approval" && item.type !== "tool_approval");
+      const stopped = stopTranscriptStreamingMessages(clearRetryMessages(baseMessages)).filter(
+        (item) => item.type !== "approval" && item.type !== "tool_approval",
+      );
       const withoutPendingTool = previewToolMessage
         ? stopped
         : stopped.filter((item) => !isPendingApprovalToolMessage(item, message));
@@ -614,8 +669,10 @@ export function applyAgentTranscriptEvent(
         state: {
           ...state,
           messages: upsertTranscriptMessage(
-            clearRetryMessages(stopStreamingReasoning(stopStreamingAssistantOutput(baseMessages))).filter((item) => item.type !== "question" && item.type !== "clarification"),
-            message
+            clearRetryMessages(
+              stopStreamingReasoning(stopStreamingAssistantOutput(baseMessages)),
+            ).filter((item) => item.type !== "question" && item.type !== "clarification"),
+            message,
           ),
           status: "waiting_answer",
           isRunning: false,
@@ -627,14 +684,21 @@ export function applyAgentTranscriptEvent(
 
     if (message.type === "tool") {
       const nextMessages = upsertTranscriptStreamingMessage(
-        clearRetryMessages(stopStreamingReasoning(stopStreamingAssistantOutput(baseMessages))).filter((item) => item.type !== "approval" && item.type !== "tool_approval"),
-        message
+        clearRetryMessages(
+          stopStreamingReasoning(stopStreamingAssistantOutput(baseMessages)),
+        ).filter((item) => item.type !== "approval" && item.type !== "tool_approval"),
+        message,
       );
       return {
         state: {
           ...state,
           messages: nextMessages,
-          status: message.status === "error" ? "running" : (message.status === "running" || message.isStreaming ? "running" : state.status),
+          status:
+            message.status === "error"
+              ? "running"
+              : message.status === "running" || message.isStreaming
+                ? "running"
+                : state.status,
           isRunning: message.status === "running" || message.isStreaming ? true : state.isRunning,
           currentStage: stageText || state.currentStage,
         },
@@ -646,7 +710,10 @@ export function applyAgentTranscriptEvent(
       return {
         state: {
           ...state,
-          messages: upsertTranscriptMessage(stopTranscriptStreamingMessages(clearRetryMessages(baseMessages)), message),
+          messages: upsertTranscriptMessage(
+            stopTranscriptStreamingMessages(clearRetryMessages(baseMessages)),
+            message,
+          ),
           status: "error",
           isRunning: false,
           currentStage: "",
@@ -658,7 +725,15 @@ export function applyAgentTranscriptEvent(
 
   if (event.display === "hidden") {
     const applyHiddenEventToMessages = (nextMessage?: AgentMessage | null) => {
-      const base = ["token_usage", "node_start", "node_end", "stage_start", "stage_transfer", "iteration_start", "task_completed"].includes(event.type)
+      const base = [
+        "token_usage",
+        "node_start",
+        "node_end",
+        "stage_start",
+        "stage_transfer",
+        "iteration_start",
+        "task_completed",
+      ].includes(event.type)
         ? clearRetryMessages(state.messages)
         : state.messages;
       const next = stopStreamingReasoningForAgentEvent(base, event, nextMessage ?? undefined);
@@ -694,7 +769,10 @@ export function applyAgentTranscriptEvent(
             : typeof event.agent === "string"
               ? event.agent
               : undefined;
-      const nextStage = options.getStageTextForStage?.(activeNode) ?? options.getStageTextForAgent?.(event.agent) ?? stageText;
+      const nextStage =
+        options.getStageTextForStage?.(activeNode) ??
+        options.getStageTextForAgent?.(event.agent) ??
+        stageText;
       return {
         state: {
           ...state,
@@ -709,9 +787,9 @@ export function applyAgentTranscriptEvent(
 
     if (event.type === "stage_start" || event.type === "stage_transfer") {
       const nextStage =
-        options.getStageTextForStage?.(event.payload?.stage as string)
-        ?? options.getStageTextForAgent?.(event.agent)
-        ?? stageText;
+        options.getStageTextForStage?.(event.payload?.stage as string) ??
+        options.getStageTextForAgent?.(event.agent) ??
+        stageText;
       return {
         state: {
           ...state,

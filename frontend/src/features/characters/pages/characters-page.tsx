@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertDialog, Box, Button, Dialog, Flex, Text } from "@radix-ui/themes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Group, Panel, Separator } from "react-resizable-panels";
+import { useSearchParams } from "react-router";
 
 import { toast } from "@/components/toast";
 import {
@@ -16,13 +16,15 @@ import {
   fetchProjects,
   updateCharacter,
 } from "@/lib/api-client";
+import type { Character, CharacterListItem, CharacterListResponse } from "@/lib/character.types";
 import { getPreference, setPreference } from "@/lib/local-db";
 import { countTokens } from "@/lib/tiktoken-utils";
-import type { Character, CharacterListItem, CharacterListResponse } from "@/lib/character.types";
-import { useCharactersStore } from "../store/use-characters-store";
+
 import { CharacterEditor } from "../components/character-editor";
 import { CharacterList } from "../components/character-list";
 import { CharacterProfileDialog } from "../components/character-profile-dialog";
+import { useCharactersStore } from "../store/use-characters-store";
+
 import "./characters-page.css";
 
 const LAST_PROJECT_KEY = "characters.lastProjectId";
@@ -62,7 +64,9 @@ export function CharactersPage() {
     setListOpen,
   } = useCharactersStore();
   const [profileCharacter, setProfileCharacter] = useState<CharacterListItem | null>(null);
-  const [deleteCharacterTarget, setDeleteCharacterTarget] = useState<CharacterListItem | null>(null);
+  const [deleteCharacterTarget, setDeleteCharacterTarget] = useState<CharacterListItem | null>(
+    null,
+  );
   const [isMobile, setIsMobile] = useState(false);
   const [selectedCharacterLoadVersion, setSelectedCharacterLoadVersion] = useState(0);
 
@@ -154,17 +158,17 @@ export function CharactersPage() {
           if (!old) return old;
           const exists = old.items.some((character) => character.id === updated.id);
           const items = exists
-            ? old.items.map((character) => character.id === updated.id ? updated : character)
+            ? old.items.map((character) => (character.id === updated.id ? updated : character))
             : [updated, ...old.items];
           return {
             ...old,
             items: sortCharacters(items),
             total: exists ? old.total : old.total + 1,
           };
-        }
+        },
       );
     },
-    [queryClient]
+    [queryClient],
   );
 
   const createMutation = useMutation({
@@ -181,11 +185,19 @@ export function CharactersPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ characterId, data }: { characterId: string; data: Parameters<typeof updateCharacter>[1] }) =>
-      updateCharacter(characterId, data),
+    mutationFn: ({
+      characterId,
+      data,
+    }: {
+      characterId: string;
+      data: Parameters<typeof updateCharacter>[1];
+    }) => updateCharacter(characterId, data),
     onSuccess: (character) => {
       upsertCharacterCache(toCharacterListItem(character));
-      queryClient.setQueryData(["character", character.id, selectedCharacterLoadVersion], character);
+      queryClient.setQueryData(
+        ["character", character.id, selectedCharacterLoadVersion],
+        character,
+      );
       queryClient.invalidateQueries({ queryKey: ["characters", character.projectId] });
       setProfileCharacter(null);
     },
@@ -196,8 +208,13 @@ export function CharactersPage() {
   });
 
   const favoriteMutation = useMutation({
-    mutationFn: ({ character, isFavorited }: { character: CharacterListItem; isFavorited: boolean }) =>
-      updateCharacter(character.id, { isFavorited }),
+    mutationFn: ({
+      character,
+      isFavorited,
+    }: {
+      character: CharacterListItem;
+      isFavorited: boolean;
+    }) => updateCharacter(character.id, { isFavorited }),
     onMutate: ({ character, isFavorited }) => {
       upsertCharacterCache({
         ...character,
@@ -208,7 +225,9 @@ export function CharactersPage() {
     onSuccess: (character) => {
       upsertCharacterCache(toCharacterListItem(character));
       queryClient.invalidateQueries({ queryKey: ["characters", character.projectId] });
-      toast.success(character.isFavorited ? t("characters.favorited") : t("characters.unfavorited"));
+      toast.success(
+        character.isFavorited ? t("characters.favorited") : t("characters.unfavorited"),
+      );
     },
     onError: (_error, { character }) => {
       upsertCharacterCache(character);
@@ -230,7 +249,8 @@ export function CharactersPage() {
     mutationFn: (characterIds: string[]) => batchDeleteCharacters(currentProjectId!, characterIds),
     onSuccess: (_deletedCount, characterIds) => {
       queryClient.invalidateQueries({ queryKey: ["characters", currentProjectId] });
-      if (currentCharacterId && characterIds.includes(currentCharacterId)) setCurrentCharacter(null);
+      if (currentCharacterId && characterIds.includes(currentCharacterId))
+        setCurrentCharacter(null);
       toast.success(t("characters.deleted"));
     },
   });
@@ -307,37 +327,79 @@ export function CharactersPage() {
   );
 
   return (
-    <Flex className="characters-page" direction="column">
+    <Flex
+      className="characters-page"
+      direction="column"
+    >
       {currentProjectId && !isMobile ? (
-        <Group orientation="horizontal" className="characters-page-body">
-          <Panel id="characters-list" defaultSize={300} minSize={250} maxSize={400} collapsible={false}>
+        <Group
+          orientation="horizontal"
+          className="characters-page-body"
+        >
+          <Panel
+            id="characters-list"
+            defaultSize={300}
+            minSize={250}
+            maxSize={400}
+            collapsible={false}
+          >
             <Box className="characters-panel characters-page-list-panel">{list}</Box>
           </Panel>
 
           <Separator className="resize-handle characters-page-separator" />
 
-          <Panel id="characters-editor" minSize={30}>
+          <Panel
+            id="characters-editor"
+            minSize={30}
+          >
             <Box className="characters-panel characters-editor-shell">{editorContent}</Box>
           </Panel>
 
           <Separator className="resize-handle characters-page-separator" />
 
-          <Panel id="characters-right" defaultSize={350} minSize={260} maxSize={450} collapsible={false}>
-          </Panel>
+          <Panel
+            id="characters-right"
+            defaultSize={350}
+            minSize={260}
+            maxSize={450}
+            collapsible={false}
+          ></Panel>
         </Group>
       ) : currentProjectId ? (
         <Box className="characters-page-body characters-page-body--mobile">
           <Box className="characters-panel characters-editor-shell">{editorContent}</Box>
         </Box>
       ) : (
-        <Flex className="characters-project-empty" align="center" justify="center" direction="column" gap="2">
-          <Text size="3" weight="medium">{t("characters.noProject")}</Text>
-          <Text size="2" color="gray">{t("characters.noProjectHint")}</Text>
+        <Flex
+          className="characters-project-empty"
+          align="center"
+          justify="center"
+          direction="column"
+          gap="2"
+        >
+          <Text
+            size="3"
+            weight="medium"
+          >
+            {t("characters.noProject")}
+          </Text>
+          <Text
+            size="2"
+            color="gray"
+          >
+            {t("characters.noProjectHint")}
+          </Text>
         </Flex>
       )}
 
-      <Dialog.Root open={isListOpen} onOpenChange={setListOpen}>
-        <Dialog.Content className="characters-mobile-dialog" maxWidth="360px">
+      <Dialog.Root
+        open={isListOpen}
+        onOpenChange={setListOpen}
+      >
+        <Dialog.Content
+          className="characters-mobile-dialog"
+          maxWidth="360px"
+        >
           <Dialog.Title>{t("characters.listTitle")}</Dialog.Title>
           {list}
         </Dialog.Content>
@@ -356,17 +418,29 @@ export function CharactersPage() {
         }}
       />
 
-      <AlertDialog.Root open={!!deleteCharacterTarget} onOpenChange={(open) => {
-        if (!open) setDeleteCharacterTarget(null);
-      }}>
+      <AlertDialog.Root
+        open={!!deleteCharacterTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteCharacterTarget(null);
+        }}
+      >
         <AlertDialog.Content maxWidth="420px">
           <AlertDialog.Title>{t("characters.deleteCharacter")}</AlertDialog.Title>
           <AlertDialog.Description>
             {t("characters.deleteConfirm", { name: deleteCharacterTarget?.name ?? "" })}
           </AlertDialog.Description>
-          <Flex justify="end" gap="3" mt="5">
+          <Flex
+            justify="end"
+            gap="3"
+            mt="5"
+          >
             <AlertDialog.Cancel>
-              <Button variant="soft" color="gray">{t("common.cancel")}</Button>
+              <Button
+                variant="soft"
+                color="gray"
+              >
+                {t("common.cancel")}
+              </Button>
             </AlertDialog.Cancel>
             <AlertDialog.Action>
               <Button

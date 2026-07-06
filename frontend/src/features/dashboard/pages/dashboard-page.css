@@ -77,8 +77,7 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition:
-    color 120ms ease;
+  transition: color 120ms ease;
 }
 
 .dashboard-tab-button:hover {
@@ -207,7 +206,10 @@
 }
 
 .dashboard-filter-row[data-tab="records"] {
-  grid-template-columns: minmax(150px, 1.1fr) minmax(150px, 1.1fr) minmax(130px, 0.9fr) minmax(118px, 0.75fr) minmax(136px, 0.9fr) minmax(136px, 0.9fr) minmax(220px, 1.4fr) 32px;
+  grid-template-columns: minmax(150px, 1.1fr) minmax(150px, 1.1fr) minmax(130px, 0.9fr) minmax(
+      118px,
+      0.75fr
+    ) minmax(136px, 0.9fr) minmax(136px, 0.9fr) minmax(220px, 1.4fr) 32px;
 }
 
 .dashboard-filter-field-search {

@@ -1,7 +1,7 @@
 import NumberFlow from "@number-flow/react";
 import type { Format } from "@number-flow/react";
-import type { ReactNode } from "react";
 import { Card } from "@radix-ui/themes";
+import type { ReactNode } from "react";
 
 interface MetricCardHintPartNumber {
   format?: Format;
@@ -52,23 +52,27 @@ export function MetricCard({
   const displayValue = isLoading && !hasValue ? 0 : value;
   const resolvedHint = hintParts ? (
     <span>
-      {hintParts.map((part, index) => part.kind === "text" ? (
-        <span key={`${part.kind}-${index}`}>{part.value}</span>
-      ) : (
-        <NumberFlow
-          key={`${part.kind}-${index}`}
-          value={part.value}
-          locales="zh-CN"
-          format={part.format}
-          suffix={part.suffix}
-          transformTiming={flowTiming}
-          spinTiming={flowTiming}
-          opacityTiming={{ duration: 220, easing: "ease-out" }}
-          className="dashboard-number-flow dashboard-number-flow-inline"
-        />
-      ))}
+      {hintParts.map((part, index) =>
+        part.kind === "text" ? (
+          <span key={`${part.kind}-${index}`}>{part.value}</span>
+        ) : (
+          <NumberFlow
+            key={`${part.kind}-${index}`}
+            value={part.value}
+            locales="zh-CN"
+            format={part.format}
+            suffix={part.suffix}
+            transformTiming={flowTiming}
+            spinTiming={flowTiming}
+            opacityTiming={{ duration: 220, easing: "ease-out" }}
+            className="dashboard-number-flow dashboard-number-flow-inline"
+          />
+        ),
+      )}
     </span>
-  ) : hint;
+  ) : (
+    hint
+  );
 
   return (
     <Card className={["dashboard-metric-card", cardClassName].filter(Boolean).join(" ")}>

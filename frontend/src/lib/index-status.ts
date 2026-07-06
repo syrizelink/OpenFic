@@ -4,8 +4,8 @@
  * 供 Agent 侧边栏状态指示器与设置页索引信息共用。
  */
 
-import { useCallback, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { apiClient } from "@/lib/api-client";
 import { subscribeIndexStatus } from "@/lib/background-socket";
@@ -57,24 +57,17 @@ export function getProjectIndexStatusQueryKey(projectId: string) {
   return [INDEX_STATUS_QUERY_KEY_PREFIX, "project", projectId] as const;
 }
 
-export const OVERALL_INDEX_STATUS_QUERY_KEY = [
-  INDEX_STATUS_QUERY_KEY_PREFIX,
-  "overall",
-] as const;
+export const OVERALL_INDEX_STATUS_QUERY_KEY = [INDEX_STATUS_QUERY_KEY_PREFIX, "overall"] as const;
 
-export async function fetchProjectIndexStatus(
-  projectId: string
-): Promise<ProjectIndexStatus> {
+export async function fetchProjectIndexStatus(projectId: string): Promise<ProjectIndexStatus> {
   const response = await apiClient.get<ProjectIndexStatus>(
-    `/projects/${projectId}/retrieval/index/status`
+    `/projects/${projectId}/retrieval/index/status`,
   );
   return response.data;
 }
 
 export async function fetchOverallIndexStatus(): Promise<OverallIndexStatus> {
-  const response = await apiClient.get<OverallIndexStatus>(
-    `/retrieval/index/status`
-  );
+  const response = await apiClient.get<OverallIndexStatus>(`/retrieval/index/status`);
   return response.data;
 }
 
@@ -83,9 +76,7 @@ export async function startProjectIndex(projectId: string): Promise<void> {
 }
 
 /** 索引状态对应的展示颜色（Radix 颜色变量）。 */
-export function getIndexStatusColor(
-  status: IndexStatus | null | undefined
-): string {
+export function getIndexStatusColor(status: IndexStatus | null | undefined): string {
   if (status === "fresh") return "var(--green-9)";
   if (status === "indexing") return "var(--blue-9)";
   if (status === "failed") return "var(--red-9)";
@@ -100,10 +91,7 @@ export function getIndexStatusColor(
  */
 export function useProjectIndexStatus(projectId: string, enabled = true) {
   const queryClient = useQueryClient();
-  const queryKey = useMemo(
-    () => getProjectIndexStatusQueryKey(projectId),
-    [projectId]
-  );
+  const queryKey = useMemo(() => getProjectIndexStatusQueryKey(projectId), [projectId]);
 
   const query = useQuery({
     queryKey,
@@ -123,7 +111,7 @@ export function useProjectIndexStatus(projectId: string, enabled = true) {
       },
       () => {
         void queryClient.invalidateQueries({ queryKey });
-      }
+      },
     );
     return () => sub.close();
   }, [projectId, enabled, queryClient, queryKey]);
@@ -150,37 +138,34 @@ export function useOverallIndexStatus(enabled = true) {
   // 将单个项目的 index:status 增量合并进 overall 缓存，并重算汇总字段。
   const mergeProjectStatus = useCallback(
     (status: ProjectIndexStatus) => {
-      queryClient.setQueryData<OverallIndexStatus>(
-        OVERALL_INDEX_STATUS_QUERY_KEY,
-        (prev) => {
-          if (!prev) return prev;
-          let found = false;
-          const projects = prev.projects.map((p) => {
-            if (p.project_id === status.project_id) {
-              found = true;
-              return status;
-            }
-            return p;
-          });
-          if (!found) {
-            projects.push(status);
+      queryClient.setQueryData<OverallIndexStatus>(OVERALL_INDEX_STATUS_QUERY_KEY, (prev) => {
+        if (!prev) return prev;
+        let found = false;
+        const projects = prev.projects.map((p) => {
+          if (p.project_id === status.project_id) {
+            found = true;
+            return status;
           }
-          const sum = (sel: (p: ProjectIndexStatus) => number) =>
-            projects.reduce((acc, p) => acc + sel(p), 0);
-          return {
-            ...prev,
-            projects,
-            total_projects: projects.length,
-            total_chapters: sum((p) => p.total_chapters),
-            indexed_count: sum((p) => p.indexed_count),
-            pending_count: sum((p) => p.pending_count),
-            in_progress_count: sum((p) => p.in_progress_count),
-            failed_count: sum((p) => p.failed_count),
-          };
+          return p;
+        });
+        if (!found) {
+          projects.push(status);
         }
-      );
+        const sum = (sel: (p: ProjectIndexStatus) => number) =>
+          projects.reduce((acc, p) => acc + sel(p), 0);
+        return {
+          ...prev,
+          projects,
+          total_projects: projects.length,
+          total_chapters: sum((p) => p.total_chapters),
+          indexed_count: sum((p) => p.indexed_count),
+          pending_count: sum((p) => p.pending_count),
+          in_progress_count: sum((p) => p.in_progress_count),
+          failed_count: sum((p) => p.failed_count),
+        };
+      });
     },
-    [queryClient]
+    [queryClient],
   );
 
   // index:config 广播：整体配置变更（如启用范围/模型切换），刷新整体状态与设置。
@@ -198,7 +183,7 @@ export function useOverallIndexStatus(enabled = true) {
   // 订阅每个启用项目的 index:status 推送，增量合并进 overall 缓存。
   const projectIds = useMemo(
     () => query.data?.projects.map((p) => p.project_id) ?? [],
-    [query.data?.projects]
+    [query.data?.projects],
   );
   const projectIdsKey = projectIds.join("|");
   useEffect(() => {
@@ -208,7 +193,7 @@ export function useOverallIndexStatus(enabled = true) {
         if (raw && typeof raw.project_id === "string") {
           mergeProjectStatus(raw as unknown as ProjectIndexStatus);
         }
-      })
+      }),
     );
     return () => subs.forEach((s) => s.close());
     // projectIdsKey 作为依赖：项目列表变化时重新订阅。

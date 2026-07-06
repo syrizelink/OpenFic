@@ -2,10 +2,11 @@ import { Box, Flex, Skeleton, Text } from "@radix-ui/themes";
 import { BookOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import type { SummaryStatusItem } from "@/lib/api-client";
+import type { ChapterListItem, VolumeWithChapters } from "@/lib/chapter.types";
+
 import { GroupedVolumeList } from "./grouped-volume-list";
 import type { GroupedVolumeListScrollRequest } from "./grouped-volume-list-focus";
-import type { ChapterListItem, VolumeWithChapters } from "@/lib/chapter.types";
-import type { SummaryStatusItem } from "@/lib/api-client";
 
 interface VolumeListProps {
   projectId: string;
@@ -72,9 +73,19 @@ export function VolumeList({
     return (
       <Box p="2">
         {[1, 2, 3].map((item) => (
-          <Box key={item} p="3">
-            <Skeleton height="16px" width="55%" mb="2" />
-            <Skeleton height="12px" width="36%" />
+          <Box
+            key={item}
+            p="3"
+          >
+            <Skeleton
+              height="16px"
+              width="55%"
+              mb="2"
+            />
+            <Skeleton
+              height="12px"
+              width="36%"
+            />
           </Box>
         ))}
       </Box>
@@ -92,7 +103,10 @@ export function VolumeList({
         style={{ color: "var(--gray-9)" }}
       >
         <BookOpen size={40} />
-        <Text size="2" color="gray">
+        <Text
+          size="2"
+          color="gray"
+        >
           {t("volume.empty")}
         </Text>
       </Flex>

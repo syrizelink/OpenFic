@@ -10,17 +10,11 @@ export type AgentDefinitionMenuAction =
   (typeof AGENT_DEFINITION_MENU_ACTIONS)[keyof typeof AGENT_DEFINITION_MENU_ACTIONS];
 
 export function getAgentDefinitionMenuActions(
-  definition: Pick<AgentDefinitionResponse, "source">
+  definition: Pick<AgentDefinitionResponse, "source">,
 ): AgentDefinitionMenuAction[] {
   if (definition.source === "builtin") {
-    return [
-      AGENT_DEFINITION_MENU_ACTIONS.copy,
-      AGENT_DEFINITION_MENU_ACTIONS.reset,
-    ];
+    return [AGENT_DEFINITION_MENU_ACTIONS.copy, AGENT_DEFINITION_MENU_ACTIONS.reset];
   }
 
-  return [
-    AGENT_DEFINITION_MENU_ACTIONS.copy,
-    AGENT_DEFINITION_MENU_ACTIONS.delete,
-  ];
+  return [AGENT_DEFINITION_MENU_ACTIONS.copy, AGENT_DEFINITION_MENU_ACTIONS.delete];
 }

@@ -4,26 +4,12 @@
  * 查找和替换面板组件，提供搜索输入、结果导航和替换功能。
  */
 
-import { useState, useEffect, useCallback } from "react";
-import {
-  Box,
-  Flex,
-  IconButton,
-  Text,
-  Separator,
-  Tooltip,
-} from "@radix-ui/themes";
-import {
-  X,
-  ChevronUp,
-  ChevronDown,
-  Replace,
-  ReplaceAll,
-  Search,
-} from "lucide-react";
-import { motion } from "motion/react";
-import { useTranslation } from "react-i18next";
+import { Box, Flex, IconButton, Text, Separator, Tooltip } from "@radix-ui/themes";
 import type { Editor } from "@tiptap/react";
+import { X, ChevronUp, ChevronDown, Replace, ReplaceAll, Search } from "lucide-react";
+import { motion } from "motion/react";
+import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 interface FindReplacePanelProps {
   editor: Editor;
@@ -67,11 +53,7 @@ const replaceInputStyle: React.CSSProperties = {
   transition: "border-color 0.2s ease, box-shadow 0.2s ease",
 };
 
-export function FindReplacePanel({
-  editor,
-  showReplace,
-  onClose,
-}: FindReplacePanelProps) {
+export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePanelProps) {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState("");
   const [replaceTerm, setReplaceTerm] = useState("");
@@ -147,14 +129,11 @@ export function FindReplacePanel({
       // 使用 ProseMirror 的坐标系统获取位置并滚动
       const { from } = currentResult;
       const coords = editor.view.coordsAtPos(from);
-      const editorElement = editor.view.dom.closest(
-        ".tiptap-editor-wrapper"
-      ) as HTMLElement;
+      const editorElement = editor.view.dom.closest(".tiptap-editor-wrapper") as HTMLElement;
 
       if (editorElement && coords) {
         const editorRect = editorElement.getBoundingClientRect();
-        const relativeTop =
-          coords.top - editorRect.top + editorElement.scrollTop;
+        const relativeTop = coords.top - editorRect.top + editorElement.scrollTop;
 
         // 滚动使结果在视图中居中
         editorElement.scrollTo({
@@ -205,9 +184,15 @@ export function FindReplacePanel({
             padding: "0 24px",
           }}
         >
-          <Flex direction="column" gap="2">
+          <Flex
+            direction="column"
+            gap="2"
+          >
             {/* 查找行 */}
-            <Flex align="center" gap="2">
+            <Flex
+              align="center"
+              gap="2"
+            >
               {/* 搜索输入框容器 */}
               <Box style={{ flex: 1, position: "relative" }}>
                 {/* 搜索图标 */}
@@ -236,12 +221,8 @@ export function FindReplacePanel({
                   style={{
                     ...inputStyle,
                     width: "100%",
-                    borderColor: searchFocused
-                      ? "var(--gray-a8)"
-                      : "var(--gray-a5)",
-                    boxShadow: searchFocused
-                      ? "0 0 0 1px var(--gray-a4)"
-                      : "none",
+                    borderColor: searchFocused ? "var(--gray-a8)" : "var(--gray-a5)",
+                    boxShadow: searchFocused ? "0 0 0 1px var(--gray-a4)" : "none",
                   }}
                 />
 
@@ -288,7 +269,10 @@ export function FindReplacePanel({
                 </Tooltip>
               </Flex>
 
-              <Separator orientation="vertical" size="1" />
+              <Separator
+                orientation="vertical"
+                size="1"
+              />
 
               {/* 关闭按钮 */}
               <Tooltip content={t("common.close")}>
@@ -305,7 +289,10 @@ export function FindReplacePanel({
 
             {/* 替换行 */}
             {showReplace && (
-              <Flex align="center" gap="2">
+              <Flex
+                align="center"
+                gap="2"
+              >
                 {/* 替换输入框 */}
                 <Box style={{ flex: 1 }}>
                   <input
@@ -318,12 +305,8 @@ export function FindReplacePanel({
                     style={{
                       ...replaceInputStyle,
                       width: "100%",
-                      borderColor: replaceFocused
-                        ? "var(--gray-a8)"
-                        : "var(--gray-a5)",
-                      boxShadow: replaceFocused
-                        ? "0 0 0 1px var(--gray-a4)"
-                        : "none",
+                      borderColor: replaceFocused ? "var(--gray-a8)" : "var(--gray-a5)",
+                      boxShadow: replaceFocused ? "0 0 0 1px var(--gray-a4)" : "none",
                     }}
                   />
                 </Box>

@@ -4,14 +4,14 @@
  * 条目搜索面板，支持拼音搜索
  */
 
-import { useMemo } from "react";
 import { Box, Text, Popover, Flex } from "@radix-ui/themes";
-import { useTranslation } from "react-i18next";
-import { Terminal, Bot, User } from "lucide-react";
 import Fuse from "fuse.js";
+import { Terminal, Bot, User } from "lucide-react";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
-import type { PromptEntryData } from "@/lib/prompt-chain.types";
 import { getPinyin, getInitials } from "@/lib/pinyin-search";
+import type { PromptEntryData } from "@/lib/prompt-chain.types";
 
 interface EntrySearchProps {
   query: string;
@@ -39,13 +39,7 @@ interface SearchResult {
 /**
  * 高亮渲染文本
  */
-function HighlightedText({
-  text,
-  matches,
-}: {
-  text: string;
-  matches: Array<[number, number]>;
-}) {
+function HighlightedText({ text, matches }: { text: string; matches: Array<[number, number]> }) {
   if (matches.length === 0) {
     return <>{text}</>;
   }
@@ -73,9 +67,7 @@ function HighlightedText({
   for (const [start, end] of mergedMatches) {
     // 添加非高亮部分
     if (start > lastIndex) {
-      parts.push(
-        <span key={`text-${lastIndex}`}>{text.slice(lastIndex, start)}</span>
-      );
+      parts.push(<span key={`text-${lastIndex}`}>{text.slice(lastIndex, start)}</span>);
     }
     // 添加高亮部分
     parts.push(
@@ -89,7 +81,7 @@ function HighlightedText({
         }}
       >
         {text.slice(start, end + 1)}
-      </mark>
+      </mark>,
     );
     lastIndex = end + 1;
   }
@@ -177,8 +169,13 @@ export function EntrySearch({
   };
 
   return (
-    <Popover.Root open={open} onOpenChange={onOpenChange}>
-      <Popover.Trigger style={{ border: "none", background: "transparent", padding: 0, width: "100%" }}>
+    <Popover.Root
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <Popover.Trigger
+        style={{ border: "none", background: "transparent", padding: 0, width: "100%" }}
+      >
         {children}
       </Popover.Trigger>
 
@@ -188,14 +185,18 @@ export function EntrySearch({
         onOpenAutoFocus={(e) => e.preventDefault()}
         onInteractOutside={(e) => {
           const target = e.target as HTMLElement;
-          const inputElement = target.closest('input, [role="textbox"], [data-radix-popover-trigger]');
+          const inputElement = target.closest(
+            'input, [role="textbox"], [data-radix-popover-trigger]',
+          );
           if (inputElement) {
             e.preventDefault();
           }
         }}
         onPointerDownOutside={(e) => {
           const target = e.target as HTMLElement;
-          const inputElement = target.closest('input, [role="textbox"], [data-radix-popover-trigger]');
+          const inputElement = target.closest(
+            'input, [role="textbox"], [data-radix-popover-trigger]',
+          );
           if (inputElement) {
             e.preventDefault();
           }
@@ -203,18 +204,22 @@ export function EntrySearch({
         style={{ width: 320, maxWidth: 280, minWidth: 280, padding: 0 }}
       >
         {/* 搜索结果 */}
-        <Box 
-          style={{ 
-            maxHeight: 350, 
-            overflowY: "auto", 
-            overflowX: "hidden"
+        <Box
+          style={{
+            maxHeight: 350,
+            overflowY: "auto",
+            overflowX: "hidden",
           }}
         >
           {query.trim() ? (
             <>
               {searchResults.length === 0 ? (
                 <Box p="4">
-                  <Text size="2" color="gray" align="center">
+                  <Text
+                    size="2"
+                    color="gray"
+                    align="center"
+                  >
                     {t("promptChains.noEntriesFound")}
                   </Text>
                 </Box>
@@ -226,8 +231,8 @@ export function EntrySearch({
                       result.entry.role === "system"
                         ? Terminal
                         : result.entry.role === "assistant"
-                        ? Bot
-                        : User;
+                          ? Bot
+                          : User;
 
                     return (
                       <Box
@@ -237,9 +242,7 @@ export function EntrySearch({
                           padding: "12px 16px",
                           cursor: "pointer",
                           borderBottom:
-                            index < searchResults.length - 1
-                              ? "1px solid var(--gray-a4)"
-                              : "none",
+                            index < searchResults.length - 1 ? "1px solid var(--gray-a4)" : "none",
                           background: "transparent",
                           transition: "background 0.1s ease",
                         }}
@@ -250,9 +253,17 @@ export function EntrySearch({
                           e.currentTarget.style.background = "transparent";
                         }}
                       >
-                        <Flex align="center" justify="between" gap="2">
+                        <Flex
+                          align="center"
+                          justify="between"
+                          gap="2"
+                        >
                           {/* 左侧：角色图标 + 条目名称 */}
-                          <Flex align="center" gap="2" style={{ flex: 1, minWidth: 0 }}>
+                          <Flex
+                            align="center"
+                            gap="2"
+                            style={{ flex: 1, minWidth: 0 }}
+                          >
                             {/* 角色图标 */}
                             <Box style={{ color: "var(--gray-a10)", flexShrink: 0 }}>
                               <RoleIcon size={14} />
@@ -277,7 +288,11 @@ export function EntrySearch({
                           </Flex>
 
                           {/* 右侧：状态点 + token数 */}
-                          <Flex align="center" gap="0" style={{ flexShrink: 0 }}>
+                          <Flex
+                            align="center"
+                            gap="0"
+                            style={{ flexShrink: 0 }}
+                          >
                             {/* 状态点（启用=绿点，未启用=红点） */}
                             <Box
                               style={{
@@ -292,7 +307,11 @@ export function EntrySearch({
                             />
 
                             {/* Token数 */}
-                            <Text size="1" color="gray" style={{ minWidth: "32px", textAlign: "right" }}>
+                            <Text
+                              size="1"
+                              color="gray"
+                              style={{ minWidth: "32px", textAlign: "right" }}
+                            >
                               {originalEntry.token_count}
                             </Text>
                           </Flex>
@@ -305,7 +324,11 @@ export function EntrySearch({
             </>
           ) : (
             <Box p="4">
-              <Text size="2" color="gray" align="center">
+              <Text
+                size="2"
+                color="gray"
+                align="center"
+              >
                 {t("promptChains.searchPlaceholder")}
               </Text>
             </Box>

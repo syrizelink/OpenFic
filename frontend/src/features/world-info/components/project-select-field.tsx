@@ -4,11 +4,13 @@
  * 项目选择字段，使用展开面板显示项目网格选择器。
  */
 
-import { useState } from "react";
 import { Box, TextField, Popover, Text } from "@radix-ui/themes";
 import { ChevronDown } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+
 import type { Project } from "@/lib/project.types";
+
 import { ProjectGridSelector } from "./project-grid-selector";
 
 interface ProjectSelectFieldProps {
@@ -41,16 +43,14 @@ export function ProjectSelectField({
   const [open, setOpen] = useState(false);
 
   // 获取当前选中的项目
-  const selectedProject = value
-    ? projects.find((p) => p.id === value)
-    : null;
+  const selectedProject = value ? projects.find((p) => p.id === value) : null;
 
   // 显示文本（如果选中了项目显示标题，如果没选中且显示无绑定选项则显示"无绑定"，否则为空字符串以显示占位符）
   const displayText = selectedProject
     ? selectedProject.title
     : value === "" && showNoneOption
-    ? t("worldInfo.noBinding")
-    : "";
+      ? t("worldInfo.noBinding")
+      : "";
 
   // 处理选择
   const handleSelect = (projectId: string) => {
@@ -68,11 +68,20 @@ export function ProjectSelectField({
   return (
     <Box>
       {label && (
-        <Text as="label" size="2" weight="medium" mb="1" style={{ display: "block" }}>
+        <Text
+          as="label"
+          size="2"
+          weight="medium"
+          mb="1"
+          style={{ display: "block" }}
+        >
           {label}
         </Text>
       )}
-      <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Root
+        open={open}
+        onOpenChange={setOpen}
+      >
         <Popover.Trigger>
           <Box style={{ position: "relative", width: "100%" }}>
             <TextField.Root
@@ -96,7 +105,10 @@ export function ProjectSelectField({
                 opacity: disabled ? 0.5 : 1,
               }}
             >
-              <ChevronDown size={16} color="var(--gray-11)" />
+              <ChevronDown
+                size={16}
+                color="var(--gray-11)"
+              />
             </Box>
           </Box>
         </Popover.Trigger>

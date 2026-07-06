@@ -5,6 +5,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
 import {
   fetchChapter,
   createChapter,
@@ -56,13 +57,8 @@ export function useUpdateChapter() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      chapterId,
-      data,
-    }: {
-      chapterId: string;
-      data: ChapterUpdate;
-    }) => updateChapter(chapterId, data),
+    mutationFn: ({ chapterId, data }: { chapterId: string; data: ChapterUpdate }) =>
+      updateChapter(chapterId, data),
     onSuccess: (updatedChapter) => {
       queryClient.setQueryData(["chapter", updatedChapter.id], updatedChapter);
       queryClient.invalidateQueries({
@@ -102,13 +98,8 @@ export function useReorderChapters(projectId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      volumeId,
-      chapterIds,
-    }: {
-      volumeId: string;
-      chapterIds: string[];
-    }) => reorderChapters(volumeId, chapterIds),
+    mutationFn: ({ volumeId, chapterIds }: { volumeId: string; chapterIds: string[] }) =>
+      reorderChapters(volumeId, chapterIds),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["volume-tree", projectId] });
     },
@@ -119,13 +110,8 @@ export function useMoveChapterToVolume(projectId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      chapterId,
-      volumeId,
-    }: {
-      chapterId: string;
-      volumeId: string;
-    }) => moveChapterToVolume(chapterId, { volumeId }),
+    mutationFn: ({ chapterId, volumeId }: { chapterId: string; volumeId: string }) =>
+      moveChapterToVolume(chapterId, { volumeId }),
     onSuccess: (chapter) => {
       queryClient.invalidateQueries({ queryKey: ["volume-tree", projectId] });
       queryClient.invalidateQueries({ queryKey: ["chapter", chapter.id] });

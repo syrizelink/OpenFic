@@ -8,6 +8,7 @@ import { Box, Flex, Text } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 
 import type { TaskListItem } from "@/lib/task.types";
+
 import { TaskList } from "./task-list";
 
 interface RecentTasksCardProps {
@@ -39,14 +40,21 @@ export function RecentTasksCard({
       <Box
         style={{
           width: "90%",
-          maxWidth: "320px"
+          maxWidth: "320px",
         }}
       >
         {hasRecentTasks ? (
           <>
             {/* 标题栏 */}
-            <Flex justify="between" align="center" mb="3">
-              <Text size="2" weight="medium">
+            <Flex
+              justify="between"
+              align="center"
+              mb="3"
+            >
+              <Text
+                size="2"
+                weight="medium"
+              >
                 {t("writing.aiSidebar.recentTasks")}
               </Text>
               <Text

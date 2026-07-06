@@ -4,19 +4,17 @@
  * Tiptap 编辑器扩展配置 - 纯文本模式。
  */
 
-import { Extension } from "@tiptap/react";
-import Document from "@tiptap/extension-document";
-import Paragraph from "@tiptap/extension-paragraph";
-import Text from "@tiptap/extension-text";
-import History from "@tiptap/extension-history";
-import Placeholder from "@tiptap/extension-placeholder";
 import CharacterCount from "@tiptap/extension-character-count";
+import Document from "@tiptap/extension-document";
+import History from "@tiptap/extension-history";
+import Paragraph from "@tiptap/extension-paragraph";
+import Placeholder from "@tiptap/extension-placeholder";
+import Text from "@tiptap/extension-text";
+import { Extension } from "@tiptap/react";
+
+import { createEditorShortcuts, type EditorShortcutCallbacks } from "@/components/editor-shortcuts";
 
 import { SearchAndReplace } from "./search-and-replace";
-import {
-  createEditorShortcuts,
-  type EditorShortcutCallbacks,
-} from "@/components/editor-shortcuts";
 
 export type { EditorShortcutCallbacks } from "@/components/editor-shortcuts";
 

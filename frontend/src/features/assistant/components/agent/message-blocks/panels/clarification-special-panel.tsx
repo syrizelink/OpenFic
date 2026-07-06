@@ -4,10 +4,13 @@ import { useTranslation } from "react-i18next";
 
 import type { AgentQuestionSpecialPanel } from "../../agent-special-panels-state";
 import {
+  getClarificationPromptKey,
+  type ClarificationPromptData,
+} from "../messages/special/clarification-flow-state";
+import {
   ClarificationQuestionActions,
   ClarificationQuestionBody,
 } from "../messages/special/clarification-question-flow";
-import { getClarificationPromptKey, type ClarificationPromptData } from "../messages/special/clarification-flow-state";
 import { useClarificationQuestionFlow } from "../messages/special/use-clarification-question-flow";
 import { SpecialPanelShell } from "./special-panel-shell";
 
@@ -49,21 +52,39 @@ function ClarificationSpecialPanelContent({
   const { t } = useTranslation();
   const model = useClarificationQuestionFlow(prompt, { onSubmitQuestionAnswer });
   const content = readOnly ? (
-    <Flex direction="column" gap="3">
+    <Flex
+      direction="column"
+      gap="3"
+    >
       {prompt.questions.map((question, index) => (
         <Box key={`${question.title}-${index}`}>
-          <Text size="2" weight="medium">
+          <Text
+            size="2"
+            weight="medium"
+          >
             {index + 1}. {question.title}
           </Text>
           {question.description ? (
-            <Text size="1" color="gray" style={{ display: "block", marginTop: "4px" }}>
+            <Text
+              size="1"
+              color="gray"
+              style={{ display: "block", marginTop: "4px" }}
+            >
               {question.description}
             </Text>
           ) : null}
           {question.options.length > 0 ? (
-            <Flex direction="column" gap="1" mt="2">
+            <Flex
+              direction="column"
+              gap="1"
+              mt="2"
+            >
               {question.options.map((option) => (
-                <Text key={option.label} size="1" color="gray">
+                <Text
+                  key={option.label}
+                  size="1"
+                  color="gray"
+                >
                   {option.label}
                 </Text>
               ))}

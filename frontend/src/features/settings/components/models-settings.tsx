@@ -4,37 +4,24 @@
  * 模型设置面板，管理和配置 AI 模型。
  */
 
-import { useState, useCallback, useMemo } from "react";
-import {
-  Box,
-  Flex,
-  Text,
-  Button,
-  IconButton,
-  Badge,
-  Tabs,
-  Tooltip,
-} from "@radix-ui/themes";
-import { Plus, Trash2, Edit } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { Box, Flex, Text, Button, IconButton, Badge, Tabs, Tooltip } from "@radix-ui/themes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus, Trash2, Edit } from "lucide-react";
+import { useState, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
-import type {
-  Model,
-  ModelCreateRequest,
-  ModelUpdateRequest,
-} from "@/lib/model.types";
-import {
-  ModelIdSelect,
-  type ModelIdSelectOption,
-} from "@/components/model-id-select";
 import { Spinner } from "@/components";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   CapabilityIcon,
   ContextBadge,
   getModelCapabilityKeys,
   formatContextWindow,
 } from "@/components/model-capability-tags";
+import { ModelIdSelect, type ModelIdSelectOption } from "@/components/model-id-select";
+import { toast } from "@/components/toast";
+import type { Model, ModelCreateRequest, ModelUpdateRequest } from "@/lib/model.types";
+
 import {
   fetchModelProviderCatalogModels,
   fetchModels,
@@ -43,19 +30,14 @@ import {
   updateModel,
   deleteModel,
 } from "../lib/model-api";
-import { fetchSettings, updateSettings } from "../lib/settings-api";
-import {
-  DEFAULT_MODEL_SETTINGS_TAB,
-  type ModelSettingsTab,
-} from "../lib/settings-route";
 import {
   hasSelectableModelProvider,
   resolveProviderCatalogType,
   resolveProviderDisplayName,
 } from "../lib/provider-utils";
+import { fetchSettings, updateSettings } from "../lib/settings-api";
+import { DEFAULT_MODEL_SETTINGS_TAB, type ModelSettingsTab } from "../lib/settings-route";
 import { ModelFormDialog } from "./model-form-dialog";
-import { ConfirmDialog } from "@/components/confirm-dialog";
-import { toast } from "@/components/toast";
 
 interface ModelsSettingsProps {
   activeTab?: ModelSettingsTab;
@@ -116,20 +98,17 @@ export function ModelsSettings({
     (value: string) => {
       updateSettingsMutation.mutate({ default_model: value });
     },
-    [updateSettingsMutation]
+    [updateSettingsMutation],
   );
 
   const handleLightModelChange = useCallback(
     (value: string) => {
       updateSettingsMutation.mutate({ light_model: value });
     },
-    [updateSettingsMutation]
+    [updateSettingsMutation],
   );
 
-  const llmModels = useMemo(
-    () => models?.filter((m) => m.taskType === "llm") ?? [],
-    [models]
-  );
+  const llmModels = useMemo(() => models?.filter((m) => m.taskType === "llm") ?? [], [models]);
   const llmCatalogProviderTypes = useMemo(() => {
     if (!providers || llmModels.length === 0) {
       return [];
@@ -140,8 +119,8 @@ export function ModelsSettings({
         llmModels
           .map((model) => providers.find((provider) => provider.id === model.providerId))
           .map((provider) => (provider ? resolveProviderCatalogType(provider) : null))
-          .filter((providerType): providerType is string => Boolean(providerType))
-      )
+          .filter((providerType): providerType is string => Boolean(providerType)),
+      ),
     );
   }, [llmModels, providers]);
 
@@ -156,7 +135,7 @@ export function ModelsSettings({
         llmCatalogProviderTypes.map(async (providerType) => {
           const result = await fetchModelProviderCatalogModels(providerType, "llm");
           return [providerType, result.models] as const;
-        })
+        }),
       );
 
       return new Map(responses);
@@ -169,9 +148,7 @@ export function ModelsSettings({
       const provider = providers?.find((entry) => entry.id === model.providerId);
       const catalogProviderType = provider ? resolveProviderCatalogType(provider) : null;
       const catalogModel = catalogProviderType
-        ? llmCatalogMetadata
-            ?.get(catalogProviderType)
-            ?.find((entry) => entry.id === model.modelId)
+        ? llmCatalogMetadata?.get(catalogProviderType)?.find((entry) => entry.id === model.modelId)
         : null;
 
       return {
@@ -218,8 +195,7 @@ export function ModelsSettings({
 
   // 更新模型
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: ModelUpdateRequest }) =>
-      updateModel(id, data),
+    mutationFn: ({ id, data }: { id: string; data: ModelUpdateRequest }) => updateModel(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["models"] });
       queryClient.invalidateQueries({ queryKey: ["model-tags"] });
@@ -270,7 +246,7 @@ export function ModelsSettings({
         await createMutation.mutateAsync(data as ModelCreateRequest);
       }
     },
-    [editingModel, createMutation, updateMutation]
+    [editingModel, createMutation, updateMutation],
   );
 
   // 确认删除
@@ -292,7 +268,7 @@ export function ModelsSettings({
       if (!provider) return providerId;
       return provider.name || resolveProviderDisplayName(provider);
     },
-    [providers]
+    [providers],
   );
 
   const filteredModels = models?.filter((m) => m.taskType === activeTab) || [];
@@ -305,19 +281,23 @@ export function ModelsSettings({
     isProvidersFetching ||
     isSettingsLoading ||
     isSettingsFetching ||
-      (llmCatalogProviderTypes.length > 0 &&
+    (llmCatalogProviderTypes.length > 0 &&
       (isLlmCatalogMetadataLoading || isLlmCatalogMetadataFetching));
 
   const handleActiveTabChange = useCallback(
     (value: string) => {
       onActiveTabChange?.(value as ModelSettingsTab);
     },
-    [onActiveTabChange]
+    [onActiveTabChange],
   );
 
   if (isContentLoading) {
     return (
-      <Flex align="center" justify="center" style={{ height: "100%" }}>
+      <Flex
+        align="center"
+        justify="center"
+        style={{ height: "100%" }}
+      >
         <Spinner size={18} />
       </Flex>
     );
@@ -325,26 +305,48 @@ export function ModelsSettings({
 
   return (
     <Box>
-      <Flex direction="column" gap="4">
+      <Flex
+        direction="column"
+        gap="4"
+      >
         {/* 描述 */}
-        <Text size="2" color="gray">
+        <Text
+          size="2"
+          color="gray"
+        >
           {t("models.description")}
         </Text>
 
         {/* 默认模型 & 轻量模型 */}
-        <Flex direction="column" gap="4">
-          <Flex direction="column" gap="1" style={{ maxWidth: 400, minWidth: 0 }}>
-            <Text size="2" weight="medium">
+        <Flex
+          direction="column"
+          gap="4"
+        >
+          <Flex
+            direction="column"
+            gap="1"
+            style={{ maxWidth: 400, minWidth: 0 }}
+          >
+            <Text
+              size="2"
+              weight="medium"
+            >
               {t("models.defaultModel")}
             </Text>
-            <Text size="1" color="gray" style={{ marginBottom: "var(--space-1)" }}>
+            <Text
+              size="1"
+              color="gray"
+              style={{ marginBottom: "var(--space-1)" }}
+            >
               {t("models.defaultModelDesc")}
             </Text>
             <ModelIdSelect
               value={settings?.defaultModel || ""}
               onChange={handleDefaultModelChange}
               models={llmModelOptions}
-              placeholder={hasLlmModels ? t("models.selectModelPlaceholder") : t("models.noModelPlaceholder")}
+              placeholder={
+                hasLlmModels ? t("models.selectModelPlaceholder") : t("models.noModelPlaceholder")
+              }
               editable={false}
               allowCustomValue={false}
               disabled={!hasLlmModels}
@@ -352,18 +354,31 @@ export function ModelsSettings({
             />
           </Flex>
 
-          <Flex direction="column" gap="1" style={{ maxWidth: 400, minWidth: 0 }}>
-            <Text size="2" weight="medium">
+          <Flex
+            direction="column"
+            gap="1"
+            style={{ maxWidth: 400, minWidth: 0 }}
+          >
+            <Text
+              size="2"
+              weight="medium"
+            >
               {t("models.lightModel")}
             </Text>
-            <Text size="1" color="gray" style={{ marginBottom: "var(--space-1)" }}>
+            <Text
+              size="1"
+              color="gray"
+              style={{ marginBottom: "var(--space-1)" }}
+            >
               {t("models.lightModelDesc")}
             </Text>
             <ModelIdSelect
               value={settings?.lightModel || ""}
               onChange={handleLightModelChange}
               models={llmModelOptions}
-              placeholder={hasLlmModels ? t("models.selectModelPlaceholder") : t("models.noModelPlaceholder")}
+              placeholder={
+                hasLlmModels ? t("models.selectModelPlaceholder") : t("models.noModelPlaceholder")
+              }
               editable={false}
               allowCustomValue={false}
               disabled={!hasLlmModels}
@@ -376,7 +391,10 @@ export function ModelsSettings({
         <Flex>
           <Tooltip content={!hasProviders ? t("models.noProvidersTooltip") : undefined}>
             <span>
-              <Button onClick={handleCreate} disabled={!hasProviders}>
+              <Button
+                onClick={handleCreate}
+                disabled={!hasProviders}
+              >
                 <Plus size={16} />
                 {t("models.newModel")}
               </Button>
@@ -400,102 +418,155 @@ export function ModelsSettings({
         {filteredModels.length > 0 ? (
           <Flex direction="column">
             {filteredModels.map((model, index) => (
-              <Box key={model.id} className="list-item-hover">
-                    <Flex direction="column" gap="3" style={{ padding: "var(--space-4)" }}>
-                      <Flex align="center" justify="between">
-                        <Flex direction="column" gap="1" style={{ flex: 1 }}>
-                          {/* 模型名称 + 元数据标签 */}
-                          <Flex align="center" gap="2" wrap="wrap">
-                            <Text size="3" weight="medium">
-                              {model.name}
-                            </Text>
-                            {model.isBuiltin ? (
-                              <Badge size="1" color="green" variant="soft">
-                                {t("models.builtin")}
-                              </Badge>
-                            ) : null}
-                            {(() => {
-                              const metadata = llmModelMetadataMap.get(model.id);
-                              if (!metadata) return null;
-                              const capabilityKeys = getModelCapabilityKeys(metadata);
-                              const contextLabel = formatContextWindow(metadata.contextWindow);
-                              if (capabilityKeys.length === 0 && !contextLabel) return null;
-                              return (
-                                <Flex align="center" gap="1">
-                                  {capabilityKeys.map((cap) => (
-                                    <CapabilityIcon key={cap} capability={cap} />
-                                  ))}
-                                  {contextLabel ? <ContextBadge label={contextLabel} /> : null}
-                                </Flex>
-                              );
-                            })()}
-                          </Flex>
-
-                          {/* 提供商和模型 ID */}
-                          <Flex align="center" gap="2">
-                            <Text size="2" color="gray">
-                              {getProviderName(model.providerId)}
-                            </Text>
-                            <Text size="2" color="gray">
-                              •
-                            </Text>
-                            <Text size="2" color="gray">
-                              {model.modelId}
-                            </Text>
-                          </Flex>
-
-                          {/* 备注 */}
-                          {model.remark && (
-                            <Text size="2" color="gray">
-                              {model.remark}
-                            </Text>
-                          )}
-                        </Flex>
-
-                        {/* 操作按钮 */}
-                        <Flex gap="2">
-                          {model.isBuiltin ? null : (
-                            <>
-                              <IconButton
-                                variant="ghost"
-                                color="gray"
-                                onClick={() => handleEdit(model)}
-                              >
-                                <Edit size={16} />
-                              </IconButton>
-                              <IconButton
-                                variant="ghost"
-                                color="red"
-                                onClick={() => handleDelete(model)}
-                              >
-                                <Trash2 size={16} />
-                              </IconButton>
-                            </>
-                          )}
-                        </Flex>
+              <Box
+                key={model.id}
+                className="list-item-hover"
+              >
+                <Flex
+                  direction="column"
+                  gap="3"
+                  style={{ padding: "var(--space-4)" }}
+                >
+                  <Flex
+                    align="center"
+                    justify="between"
+                  >
+                    <Flex
+                      direction="column"
+                      gap="1"
+                      style={{ flex: 1 }}
+                    >
+                      {/* 模型名称 + 元数据标签 */}
+                      <Flex
+                        align="center"
+                        gap="2"
+                        wrap="wrap"
+                      >
+                        <Text
+                          size="3"
+                          weight="medium"
+                        >
+                          {model.name}
+                        </Text>
+                        {model.isBuiltin ? (
+                          <Badge
+                            size="1"
+                            color="green"
+                            variant="soft"
+                          >
+                            {t("models.builtin")}
+                          </Badge>
+                        ) : null}
+                        {(() => {
+                          const metadata = llmModelMetadataMap.get(model.id);
+                          if (!metadata) return null;
+                          const capabilityKeys = getModelCapabilityKeys(metadata);
+                          const contextLabel = formatContextWindow(metadata.contextWindow);
+                          if (capabilityKeys.length === 0 && !contextLabel) return null;
+                          return (
+                            <Flex
+                              align="center"
+                              gap="1"
+                            >
+                              {capabilityKeys.map((cap) => (
+                                <CapabilityIcon
+                                  key={cap}
+                                  capability={cap}
+                                />
+                              ))}
+                              {contextLabel ? <ContextBadge label={contextLabel} /> : null}
+                            </Flex>
+                          );
+                        })()}
                       </Flex>
 
-                      {/* 标签 */}
-                      {model.tags.length > 0 && (
-                        <Flex gap="2" wrap="wrap">
-                          {model.tags.map((tag) => (
-                            <Badge key={tag} size="1" variant="soft">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </Flex>
+                      {/* 提供商和模型 ID */}
+                      <Flex
+                        align="center"
+                        gap="2"
+                      >
+                        <Text
+                          size="2"
+                          color="gray"
+                        >
+                          {getProviderName(model.providerId)}
+                        </Text>
+                        <Text
+                          size="2"
+                          color="gray"
+                        >
+                          •
+                        </Text>
+                        <Text
+                          size="2"
+                          color="gray"
+                        >
+                          {model.modelId}
+                        </Text>
+                      </Flex>
+
+                      {/* 备注 */}
+                      {model.remark && (
+                        <Text
+                          size="2"
+                          color="gray"
+                        >
+                          {model.remark}
+                        </Text>
                       )}
                     </Flex>
-                    {index < filteredModels.length - 1 && (
-                      <Box
-                        style={{
-                          height: "1px",
-                          background: "var(--gray-a4)",
-                          marginLeft: "var(--space-4)",
-                          marginRight: "var(--space-4)",
-                        }}
-                      />
-                    )}
+
+                    {/* 操作按钮 */}
+                    <Flex gap="2">
+                      {model.isBuiltin ? null : (
+                        <>
+                          <IconButton
+                            variant="ghost"
+                            color="gray"
+                            onClick={() => handleEdit(model)}
+                          >
+                            <Edit size={16} />
+                          </IconButton>
+                          <IconButton
+                            variant="ghost"
+                            color="red"
+                            onClick={() => handleDelete(model)}
+                          >
+                            <Trash2 size={16} />
+                          </IconButton>
+                        </>
+                      )}
+                    </Flex>
+                  </Flex>
+
+                  {/* 标签 */}
+                  {model.tags.length > 0 && (
+                    <Flex
+                      gap="2"
+                      wrap="wrap"
+                    >
+                      {model.tags.map((tag) => (
+                        <Badge
+                          key={tag}
+                          size="1"
+                          variant="soft"
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                    </Flex>
+                  )}
+                </Flex>
+                {index < filteredModels.length - 1 && (
+                  <Box
+                    style={{
+                      height: "1px",
+                      background: "var(--gray-a4)",
+                      marginLeft: "var(--space-4)",
+                      marginRight: "var(--space-4)",
+                    }}
+                  />
+                )}
               </Box>
             ))}
           </Flex>
@@ -507,7 +578,10 @@ export function ModelsSettings({
             gap="3"
             style={{ height: 200 }}
           >
-            <Text size="2" color="gray">
+            <Text
+              size="2"
+              color="gray"
+            >
               {t("models.noModels")}
             </Text>
           </Flex>

@@ -5,8 +5,9 @@
  * 风格参考 VSCode 补全面板。
  */
 
-import { useEffect, useRef, useCallback } from "react";
 import { Box } from "@radix-ui/themes";
+import { useEffect, useRef, useCallback } from "react";
+
 import "./autocomplete-popover.css";
 
 export interface AutocompleteItem {
@@ -42,7 +43,6 @@ export interface AutocompletePopoverProps {
   /** 当前输入的过滤文本（用于高亮） */
   filterText?: string;
 }
-
 
 /** 高亮显示匹配文本 */
 function HighlightedLabel({ label, filterText }: { label: string; filterText?: string }) {
@@ -113,9 +113,7 @@ export function AutocompletePopover({
           e.preventDefault();
           e.stopPropagation();
           if (items.length > 0) {
-            onSelectedIndexChange(
-              (selectedIndex - 1 + items.length) % items.length
-            );
+            onSelectedIndexChange((selectedIndex - 1 + items.length) % items.length);
           }
           break;
 
@@ -135,7 +133,7 @@ export function AutocompletePopover({
           break;
       }
     },
-    [visible, items, selectedIndex, onSelect, onSelectedIndexChange, onClose]
+    [visible, items, selectedIndex, onSelect, onSelectedIndexChange, onClose],
   );
 
   // 添加/移除键盘监听
@@ -147,7 +145,6 @@ export function AutocompletePopover({
       document.removeEventListener("keydown", handleKeyDown, true);
     };
   }, [visible, handleKeyDown]);
-
 
   if (!visible || !anchorRect) return null;
 
@@ -168,26 +165,26 @@ export function AutocompletePopover({
       {showHint ? (
         <div className="autocomplete-hint">{hint}</div>
       ) : hasItems ? (
-        <div ref={listRef} className="autocomplete-list">
+        <div
+          ref={listRef}
+          className="autocomplete-list"
+        >
           {items.map((item, index) => (
             <div
               key={`${item.label}-${index}`}
-              className={`autocomplete-item ${
-                index === selectedIndex ? "selected" : ""
-              }`}
+              className={`autocomplete-item ${index === selectedIndex ? "selected" : ""}`}
               onClick={() => onSelect(item, index)}
               onMouseEnter={() => onSelectedIndexChange(index)}
             >
-              {item.icon && (
-                <span className="autocomplete-item-icon">{item.icon}</span>
-              )}
+              {item.icon && <span className="autocomplete-item-icon">{item.icon}</span>}
               <span className="autocomplete-item-label">
-                <HighlightedLabel label={item.label} filterText={filterText} />
+                <HighlightedLabel
+                  label={item.label}
+                  filterText={filterText}
+                />
               </span>
               {item.description && (
-                <span className="autocomplete-item-desc">
-                  {item.description}
-                </span>
+                <span className="autocomplete-item-desc">{item.description}</span>
               )}
             </div>
           ))}

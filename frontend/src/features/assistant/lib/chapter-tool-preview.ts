@@ -83,11 +83,13 @@ export function getChapterDiffPreview(message: AgentMessage): ChapterDiffPreview
           type: sectionType,
           lines: Array.isArray(section.lines)
             ? section.lines.filter(isRecord).map((line) => ({
-              type: normalizeChapterDiffLineType(line.type),
-              before_line_number: typeof line.before_line_number === "number" ? line.before_line_number : null,
-              after_line_number: typeof line.after_line_number === "number" ? line.after_line_number : null,
-              text: typeof line.text === "string" ? line.text : "",
-            }))
+                type: normalizeChapterDiffLineType(line.type),
+                before_line_number:
+                  typeof line.before_line_number === "number" ? line.before_line_number : null,
+                after_line_number:
+                  typeof line.after_line_number === "number" ? line.after_line_number : null,
+                text: typeof line.text === "string" ? line.text : "",
+              }))
             : [],
         };
       })
@@ -96,7 +98,7 @@ export function getChapterDiffPreview(message: AgentMessage): ChapterDiffPreview
 }
 
 export function getChapterDiffBodySection(
-  preview: ChapterDiffPreview | null
+  preview: ChapterDiffPreview | null,
 ): ChapterDiffSection | null {
   if (!preview) return null;
   const contentSection = preview.sections.find((section) => section.type === "content");
@@ -105,27 +107,26 @@ export function getChapterDiffBodySection(
 }
 
 export function summarizeChapterDiffSection(
-  section: ChapterDiffSection | null | undefined
+  section: ChapterDiffSection | null | undefined,
 ): ChapterDiffChangeSummary {
-  return (section?.lines ?? []).reduce<ChapterDiffChangeSummary>((summary, line) => {
-    if (line.type === "added") summary.added += 1;
-    if (line.type === "removed") summary.removed += 1;
-    return summary;
-  }, {
-    added: 0,
-    removed: 0,
-  });
+  return (section?.lines ?? []).reduce<ChapterDiffChangeSummary>(
+    (summary, line) => {
+      if (line.type === "added") summary.added += 1;
+      if (line.type === "removed") summary.removed += 1;
+      return summary;
+    },
+    {
+      added: 0,
+      removed: 0,
+    },
+  );
 }
 
-export function getChapterDiffDisplayLineNumber(
-  line: ChapterDiffLine
-): number | null {
+export function getChapterDiffDisplayLineNumber(line: ChapterDiffLine): number | null {
   return line.after_line_number ?? line.before_line_number;
 }
 
-export function buildChapterDiffCopyText(
-  section: ChapterDiffSection | null | undefined
-): string {
+export function buildChapterDiffCopyText(section: ChapterDiffSection | null | undefined): string {
   return (section?.lines ?? [])
     .map((line) => `${getDiffLinePrefix(line.type)}${line.text}`)
     .join("\n");

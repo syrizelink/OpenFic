@@ -1,4 +1,3 @@
-import { useCallback, useRef, useState } from "react";
 import {
   Badge,
   Box,
@@ -10,22 +9,15 @@ import {
   ScrollArea,
   Text,
 } from "@radix-ui/themes";
-import {
-  AlertCircle,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  FileJson,
-  Upload,
-} from "lucide-react";
+import { AlertCircle, Check, ChevronLeft, ChevronRight, FileJson, Upload } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+
 import { Spinner } from "@/components";
+
 import "./import-world-info-dialog.css";
 
-import {
-  importWorldInfoEntriesStream,
-  previewWorldInfoImport,
-} from "@/lib/api-client";
+import { importWorldInfoEntriesStream, previewWorldInfoImport } from "@/lib/api-client";
 import type { WorldInfoImportPreviewResponse } from "@/lib/world-info.types";
 
 interface ImportWorldInfoDialogProps {
@@ -76,7 +68,7 @@ export function ImportWorldInfoDialog({
       }
       onOpenChange(nextOpen);
     },
-    [onOpenChange, resetState]
+    [onOpenChange, resetState],
   );
 
   const handleFileSelect = useCallback(
@@ -95,15 +87,14 @@ export function ImportWorldInfoDialog({
         setPreviewData(result);
         setStep("preview");
       } catch (importError) {
-        const message = importError instanceof Error
-          ? importError.message
-          : t("worldInfo.importParseFailed");
+        const message =
+          importError instanceof Error ? importError.message : t("worldInfo.importParseFailed");
         setError(message);
       } finally {
         setLoading(false);
       }
     },
-    [t]
+    [t],
   );
 
   const handleDrop = useCallback(
@@ -114,7 +105,7 @@ export function ImportWorldInfoDialog({
         void handleFileSelect(droppedFile);
       }
     },
-    [handleFileSelect]
+    [handleFileSelect],
   );
 
   const handleImport = useCallback(async () => {
@@ -150,9 +141,8 @@ export function ImportWorldInfoDialog({
         onSuccess?.(result.imported_count);
       }
     } catch (importError) {
-      const message = importError instanceof Error
-        ? importError.message
-        : t("worldInfo.importFailed");
+      const message =
+        importError instanceof Error ? importError.message : t("worldInfo.importFailed");
       setError(message);
       setStep("preview");
     } finally {
@@ -190,19 +180,39 @@ export function ImportWorldInfoDialog({
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
             >
-              <Upload size={48} className="world-info-import-upload-icon" />
-              <Text as="p" size="3" weight="medium" mb="2">
+              <Upload
+                size={48}
+                className="world-info-import-upload-icon"
+              />
+              <Text
+                as="p"
+                size="3"
+                weight="medium"
+                mb="2"
+              >
                 {t("worldInfo.importDragDropHint")}
               </Text>
-              <Text as="p" size="2" color="gray">
+              <Text
+                as="p"
+                size="2"
+                color="gray"
+              >
                 {t("worldInfo.importSupportedFormats")}
               </Text>
             </Box>
 
             {loading && (
-              <Flex align="center" gap="2" mt="4" justify="center">
+              <Flex
+                align="center"
+                gap="2"
+                mt="4"
+                justify="center"
+              >
                 <Spinner size={18} />
-                <Text size="2" color="gray">
+                <Text
+                  size="2"
+                  color="gray"
+                >
                   {t("worldInfo.importParsing")}
                 </Text>
               </Flex>
@@ -215,26 +225,50 @@ export function ImportWorldInfoDialog({
           <Box>
             {previewData && (
               <>
-                <Flex gap="4" mb="4">
+                <Flex
+                  gap="4"
+                  mb="4"
+                >
                   <Card className="world-info-import-stat-card">
-                    <Text size="2" color="gray" mb="1" className="world-info-import-block-label">
+                    <Text
+                      size="2"
+                      color="gray"
+                      mb="1"
+                      className="world-info-import-block-label"
+                    >
                       {t("worldInfo.importEntryCount")}
                     </Text>
-                    <Text size="5" weight="bold">
+                    <Text
+                      size="5"
+                      weight="bold"
+                    >
                       {previewData.entryCount}
                     </Text>
                   </Card>
                   <Card className="world-info-import-stat-card">
-                    <Text size="2" color="gray" mb="1" className="world-info-import-block-label">
+                    <Text
+                      size="2"
+                      color="gray"
+                      mb="1"
+                      className="world-info-import-block-label"
+                    >
                       {t("worldInfo.importEnabledCount")}
                     </Text>
-                    <Text size="5" weight="bold">
+                    <Text
+                      size="5"
+                      weight="bold"
+                    >
                       {previewData.enabledCount}
                     </Text>
                   </Card>
                 </Flex>
 
-                <Text size="2" weight="medium" mb="2" className="world-info-import-preview-title">
+                <Text
+                  size="2"
+                  weight="medium"
+                  mb="2"
+                  className="world-info-import-preview-title"
+                >
                   {t("worldInfo.importPreview")}
                 </Text>
                 <ScrollArea className="world-info-import-preview-scroll">
@@ -244,22 +278,50 @@ export function ImportWorldInfoDialog({
                         key={`${entry.uid}-${index}`}
                         py="2"
                         px="2"
-                        className={index < previewData.entries.length - 1 ? "world-info-import-preview-row--bordered" : undefined}
+                        className={
+                          index < previewData.entries.length - 1
+                            ? "world-info-import-preview-row--bordered"
+                            : undefined
+                        }
                       >
-                        <Flex align="center" gap="2" mb="1">
-                          <FileJson size={16} color="var(--gray-9)" />
-                          <Text size="2" weight="medium" className="world-info-import-preview-name" truncate>
+                        <Flex
+                          align="center"
+                          gap="2"
+                          mb="1"
+                        >
+                          <FileJson
+                            size={16}
+                            color="var(--gray-9)"
+                          />
+                          <Text
+                            size="2"
+                            weight="medium"
+                            className="world-info-import-preview-name"
+                            truncate
+                          >
                             {entry.name}
                           </Text>
-                          <Badge size="1" color={entry.isEnabled ? "green" : "gray"}>
+                          <Badge
+                            size="1"
+                            color={entry.isEnabled ? "green" : "gray"}
+                          >
                             {entry.isEnabled ? t("worldInfo.enabled") : t("worldInfo.disabled")}
                           </Badge>
                         </Flex>
-                        <Text size="1" color="gray" className="world-info-import-preview-meta">
+                        <Text
+                          size="1"
+                          color="gray"
+                          className="world-info-import-preview-meta"
+                        >
                           UID: {entry.uid}
                         </Text>
                         {entry.contentPreview && (
-                          <Text size="1" color="gray" mt="1" className="world-info-import-preview-content">
+                          <Text
+                            size="1"
+                            color="gray"
+                            mt="1"
+                            className="world-info-import-preview-content"
+                          >
                             {entry.contentPreview}
                           </Text>
                         )}
@@ -275,18 +337,42 @@ export function ImportWorldInfoDialog({
       case "importing":
         return (
           <Box className="world-info-import-progress">
-            <Text as="p" size="3" weight="medium" mb="2">
+            <Text
+              as="p"
+              size="3"
+              weight="medium"
+              mb="2"
+            >
               {t("worldInfo.importInProgress")}
             </Text>
-            <Text as="p" size="2" color="gray" mb="4">
+            <Text
+              as="p"
+              size="2"
+              color="gray"
+              mb="4"
+            >
               {getStageLabel()}
             </Text>
-            <Progress value={importProgress} max={100} size="2" />
-            <Text as="p" size="1" color="gray" mt="2">
+            <Progress
+              value={importProgress}
+              max={100}
+              size="2"
+            />
+            <Text
+              as="p"
+              size="1"
+              color="gray"
+              mt="2"
+            >
               {importProgress}%
             </Text>
             {totalEntries > 0 && (
-              <Text as="p" size="2" color="gray" mt="3">
+              <Text
+                as="p"
+                size="2"
+                color="gray"
+                mt="3"
+              >
                 {t("worldInfo.importProgressDetail", {
                   current: Math.min(currentEntry, totalEntries),
                   total: totalEntries,
@@ -300,12 +386,24 @@ export function ImportWorldInfoDialog({
         return (
           <Box className="world-info-import-complete">
             <Box className="world-info-import-complete-icon">
-              <Check size={32} color="var(--green-9)" />
+              <Check
+                size={32}
+                color="var(--green-9)"
+              />
             </Box>
-            <Text as="p" size="5" weight="bold" mb="2">
+            <Text
+              as="p"
+              size="5"
+              weight="bold"
+              mb="2"
+            >
               {t("worldInfo.importSuccess")}
             </Text>
-            <Text as="p" size="2" color="gray">
+            <Text
+              as="p"
+              size="2"
+              color="gray"
+            >
               {t("worldInfo.importedEntriesInfo", { count: importedCount })}
             </Text>
           </Box>
@@ -317,18 +415,34 @@ export function ImportWorldInfoDialog({
     switch (step) {
       case "select":
         return (
-          <Button variant="soft" color="gray" onClick={() => handleOpenChange(false)}>
+          <Button
+            variant="soft"
+            color="gray"
+            onClick={() => handleOpenChange(false)}
+          >
             {t("import.close")}
           </Button>
         );
       case "preview":
         return (
-          <Flex gap="3" justify="between" className="world-info-import-preview-footer">
-            <Button variant="soft" color="gray" onClick={() => setStep("select")}>
+          <Flex
+            gap="3"
+            justify="between"
+            className="world-info-import-preview-footer"
+          >
+            <Button
+              variant="soft"
+              color="gray"
+              onClick={() => setStep("select")}
+            >
               <ChevronLeft size={16} />
               {t("import.back")}
             </Button>
-            <Button onClick={handleImport} disabled={!file || !worldInfoId} loading={loading}>
+            <Button
+              onClick={handleImport}
+              disabled={!file || !worldInfoId}
+              loading={loading}
+            >
               {t("worldInfo.startImport")}
               <ChevronRight size={16} />
             </Button>
@@ -337,11 +451,7 @@ export function ImportWorldInfoDialog({
       case "importing":
         return null;
       case "complete":
-        return (
-          <Button onClick={() => handleOpenChange(false)}>
-            {t("import.finish")}
-          </Button>
-        );
+        return <Button onClick={() => handleOpenChange(false)}>{t("import.finish")}</Button>;
     }
   };
 
@@ -359,25 +469,46 @@ export function ImportWorldInfoDialog({
   };
 
   return (
-    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={handleOpenChange}
+    >
       <Dialog.Content maxWidth="640px">
         <Dialog.Title>{t("worldInfo.importTitle")}</Dialog.Title>
-        <Dialog.Description size="2" color="gray" mb="4">
+        <Dialog.Description
+          size="2"
+          color="gray"
+          mb="4"
+        >
           {getStepTitle()}
         </Dialog.Description>
 
         {renderStepContent()}
 
         {error && (
-          <Flex align="center" gap="2" mt="3">
-            <AlertCircle size={14} color="var(--red-9)" />
-            <Text size="2" color="red">
+          <Flex
+            align="center"
+            gap="2"
+            mt="3"
+          >
+            <AlertCircle
+              size={14}
+              color="var(--red-9)"
+            />
+            <Text
+              size="2"
+              color="red"
+            >
               {error}
             </Text>
           </Flex>
         )}
 
-        <Flex gap="3" mt="5" justify="end">
+        <Flex
+          gap="3"
+          mt="5"
+          justify="end"
+        >
           {renderFooter()}
         </Flex>
       </Dialog.Content>

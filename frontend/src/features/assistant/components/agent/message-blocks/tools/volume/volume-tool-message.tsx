@@ -1,6 +1,7 @@
-import type { AgentMessage } from "@/lib/agent.types";
 import i18n from "@/i18n";
+import type { AgentMessage } from "@/lib/agent.types";
 
+import { ToolBody, ToolNotice, ToolTextBlock } from "../shared/tool-message-shared";
 import {
   asBoolean,
   formatChapterRefLabel,
@@ -13,17 +14,16 @@ import {
   getVolumePayload,
   isRecord,
 } from "../shared/tool-message-utils";
-import {
-  ToolBody,
-  ToolNotice,
-  ToolTextBlock,
-} from "../shared/tool-message-shared";
 
 interface VolumeToolMessageProps {
   message: AgentMessage;
 }
 
-function VolumeSummary({ message, emptyTitle, emptyDescription }: VolumeToolMessageProps & {
+function VolumeSummary({
+  message,
+  emptyTitle,
+  emptyDescription,
+}: VolumeToolMessageProps & {
   emptyTitle: string;
   emptyDescription: string;
 }) {
@@ -39,13 +39,26 @@ function VolumeSummary({ message, emptyTitle, emptyDescription }: VolumeToolMess
 
   return (
     <>
-      <ToolTextBlock label={i18n.t("assistant.tools.volume")} value={formatVolumeDisplayName(volume)} />
-      <ToolTextBlock label={i18n.t("assistant.tools.descriptionLabel")} value={volume.description} />
+      <ToolTextBlock
+        label={i18n.t("assistant.tools.volume")}
+        value={formatVolumeDisplayName(volume)}
+      />
+      <ToolTextBlock
+        label={i18n.t("assistant.tools.descriptionLabel")}
+        value={volume.description}
+      />
       <ToolTextBlock
         label={i18n.t("assistant.tools.chapterCountLabel")}
-        value={typeof volume.chapter_count === "number" ? i18n.t("assistant.tools.chapterCount", { count: volume.chapter_count }) : undefined}
+        value={
+          typeof volume.chapter_count === "number"
+            ? i18n.t("assistant.tools.chapterCount", { count: volume.chapter_count })
+            : undefined
+        }
       />
-      <ToolTextBlock label={i18n.t("assistant.tools.result")} value={getToolResultMessage(message)} />
+      <ToolTextBlock
+        label={i18n.t("assistant.tools.result")}
+        value={getToolResultMessage(message)}
+      />
     </>
   );
 }
@@ -81,8 +94,20 @@ export function DeleteVolumeToolMessage({ message }: VolumeToolMessageProps) {
 
   return (
     <ToolBody>
-      <ToolTextBlock label={i18n.t("assistant.tools.targetVolume")} value={volumeLabel} />
-      <ToolTextBlock label={i18n.t("assistant.tools.cascadeDeleteChapters")} value={cascade ? i18n.t("assistant.tools.yes") : cascade === false ? i18n.t("assistant.tools.no") : undefined} />
+      <ToolTextBlock
+        label={i18n.t("assistant.tools.targetVolume")}
+        value={volumeLabel}
+      />
+      <ToolTextBlock
+        label={i18n.t("assistant.tools.cascadeDeleteChapters")}
+        value={
+          cascade
+            ? i18n.t("assistant.tools.yes")
+            : cascade === false
+              ? i18n.t("assistant.tools.no")
+              : undefined
+        }
+      />
       <ToolNotice title={i18n.t("assistant.tools.volumeDeleteSubmitted")}>
         {getToolResultMessage(message) ?? i18n.t("assistant.tools.volumeDeleteSuccess")}
       </ToolNotice>
@@ -103,12 +128,25 @@ export function MoveChapterToVolumeToolMessage({ message }: VolumeToolMessagePro
 
   return (
     <ToolBody>
-      <ToolTextBlock label={i18n.t("assistant.tools.chapter")} value={chapter.title ?? chapterLabel} />
-      <ToolTextBlock label={i18n.t("assistant.tools.sourceVolume")} value={sourceVolumeLabel} />
-      <ToolTextBlock label={i18n.t("assistant.tools.targetVolume")} value={targetVolumeLabel} />
+      <ToolTextBlock
+        label={i18n.t("assistant.tools.chapter")}
+        value={chapter.title ?? chapterLabel}
+      />
+      <ToolTextBlock
+        label={i18n.t("assistant.tools.sourceVolume")}
+        value={sourceVolumeLabel}
+      />
+      <ToolTextBlock
+        label={i18n.t("assistant.tools.targetVolume")}
+        value={targetVolumeLabel}
+      />
       <ToolTextBlock
         label={i18n.t("assistant.tools.affectedChapters")}
-        value={typeof affectedCount === "number" ? i18n.t("assistant.tools.affectedCount", { count: affectedCount }) : undefined}
+        value={
+          typeof affectedCount === "number"
+            ? i18n.t("assistant.tools.affectedCount", { count: affectedCount })
+            : undefined
+        }
       />
       <ToolNotice title={i18n.t("assistant.tools.moveChapterSubmitted")}>
         {getToolResultMessage(message) ?? i18n.t("assistant.tools.moveChapterSuccess")}

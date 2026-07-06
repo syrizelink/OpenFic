@@ -1,5 +1,14 @@
+import {
+  Brain,
+  Bot,
+  Cable,
+  Database,
+  FileText,
+  Package,
+  Settings as SettingsIcon,
+  ShieldAlert,
+} from "lucide-react";
 import type { ReactNode } from "react";
-import { Brain, Bot, Cable, Database, FileText, Package, Settings as SettingsIcon, ShieldAlert } from "lucide-react";
 
 export type SettingsCategory =
   | "general"

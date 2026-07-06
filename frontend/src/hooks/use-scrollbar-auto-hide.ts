@@ -71,7 +71,7 @@ export function useScrollbarAutoHide(hideDelay = 5000) {
         timeoutRef.current = setTimeout(hideScrollbar, hideDelay);
       }
     },
-    [showScrollbar, hideScrollbar, hideDelay]
+    [showScrollbar, hideScrollbar, hideDelay],
   );
 
   // 鼠标离开容器

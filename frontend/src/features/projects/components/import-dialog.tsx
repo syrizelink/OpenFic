@@ -5,7 +5,6 @@
  * 步骤：选择文件 → 解析预览 → 填写书名和封面 → 完成
  */
 
-import { useState, useCallback, useRef } from "react";
 import {
   Dialog,
   Button,
@@ -19,23 +18,15 @@ import {
   Progress,
   Card,
 } from "@radix-ui/themes";
-import {
-  Upload,
-  FileText,
-  ChevronLeft,
-  ChevronRight,
-  Check,
-  AlertCircle,
-} from "lucide-react";
+import { Upload, FileText, ChevronLeft, ChevronRight, Check, AlertCircle } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
+
 import { Spinner } from "@/components";
+
 import "./import-dialog.css";
+import { previewTxtFile, confirmImportStream, type ImportPreviewResponse } from "../lib/import-api";
 import { CoverCropper } from "./cover-cropper";
-import {
-  previewTxtFile,
-  confirmImportStream,
-  type ImportPreviewResponse,
-} from "../lib/import-api";
 
 interface ImportDialogProps {
   /** 是否打开对话框 */
@@ -48,11 +39,7 @@ interface ImportDialogProps {
 
 type Step = "select" | "preview" | "info" | "importing" | "complete";
 
-export function ImportDialog({
-  open,
-  onOpenChange,
-  onSuccess,
-}: ImportDialogProps) {
+export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProps) {
   const { t, i18n } = useTranslation();
 
   // 步骤状态
@@ -62,9 +49,7 @@ export function ImportDialog({
 
   // 文件和解析结果
   const [file, setFile] = useState<File | null>(null);
-  const [previewData, setPreviewData] = useState<ImportPreviewResponse | null>(
-    null
-  );
+  const [previewData, setPreviewData] = useState<ImportPreviewResponse | null>(null);
 
   // 项目信息
   const [title, setTitle] = useState("");
@@ -112,7 +97,7 @@ export function ImportDialog({
       }
       onOpenChange(newOpen);
     },
-    [onOpenChange, resetState]
+    [onOpenChange, resetState],
   );
 
   // 处理文件选择
@@ -139,7 +124,7 @@ export function ImportDialog({
         setLoading(false);
       }
     },
-    [t]
+    [t],
   );
 
   // 处理文件拖放
@@ -151,7 +136,7 @@ export function ImportDialog({
         handleFileSelect(droppedFile);
       }
     },
-    [handleFileSelect]
+    [handleFileSelect],
   );
 
   // 处理确认导入
@@ -177,7 +162,7 @@ export function ImportDialog({
             setImportProgress(event.progress);
             setImportStage(event.stage);
           }
-        }
+        },
       );
 
       if (result) {
@@ -245,28 +230,59 @@ export function ImportDialog({
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
             >
-              <Upload size={48} className="import-dialog-upload-icon" />
-              <Text as="p" size="3" weight="medium" mb="2">
+              <Upload
+                size={48}
+                className="import-dialog-upload-icon"
+              />
+              <Text
+                as="p"
+                size="3"
+                weight="medium"
+                mb="2"
+              >
                 {t("import.dragDropHint")}
               </Text>
-              <Text as="p" size="2" color="gray">
+              <Text
+                as="p"
+                size="2"
+                color="gray"
+              >
                 {t("import.supportedFormats")}
               </Text>
             </Box>
 
             {loading && (
-              <Flex align="center" gap="2" mt="4" justify="center">
+              <Flex
+                align="center"
+                gap="2"
+                mt="4"
+                justify="center"
+              >
                 <Spinner size={18} />
-                <Text size="2" color="gray">
+                <Text
+                  size="2"
+                  color="gray"
+                >
                   {t("import.parsing")}
                 </Text>
               </Flex>
             )}
 
             {error && (
-              <Flex align="center" gap="2" mt="4" justify="center">
-                <AlertCircle size={16} color="var(--red-9)" />
-                <Text size="2" color="red">
+              <Flex
+                align="center"
+                gap="2"
+                mt="4"
+                justify="center"
+              >
+                <AlertCircle
+                  size={16}
+                  color="var(--red-9)"
+                />
+                <Text
+                  size="2"
+                  color="red"
+                >
                   {error}
                 </Text>
               </Flex>
@@ -280,7 +296,10 @@ export function ImportDialog({
             {previewData && (
               <>
                 {/* 统计信息 */}
-                <Flex gap="4" mb="4">
+                <Flex
+                  gap="4"
+                  mb="4"
+                >
                   <Card className="import-dialog-stat-card">
                     <Text
                       size="2"
@@ -290,7 +309,10 @@ export function ImportDialog({
                     >
                       {t("import.chapterCount")}
                     </Text>
-                    <Text size="5" weight="bold">
+                    <Text
+                      size="5"
+                      weight="bold"
+                    >
                       {previewData.chapter_count}
                     </Text>
                   </Card>
@@ -303,7 +325,10 @@ export function ImportDialog({
                     >
                       {t("import.totalWordCount")}
                     </Text>
-                    <Text size="5" weight="bold">
+                    <Text
+                      size="5"
+                      weight="bold"
+                    >
                       {formatWordCount(previewData.total_word_count)}
                     </Text>
                   </Card>
@@ -327,13 +352,27 @@ export function ImportDialog({
                         gap="2"
                         py="2"
                         px="2"
-                        className={index < previewData.chapters.length - 1 ? "import-dialog-preview-row--bordered" : undefined}
+                        className={
+                          index < previewData.chapters.length - 1
+                            ? "import-dialog-preview-row--bordered"
+                            : undefined
+                        }
                       >
-                        <FileText size={16} color="var(--gray-9)" />
-                        <Text size="2" className="import-dialog-preview-title" truncate>
+                        <FileText
+                          size={16}
+                          color="var(--gray-9)"
+                        />
+                        <Text
+                          size="2"
+                          className="import-dialog-preview-title"
+                          truncate
+                        >
                           {chapter.title}
                         </Text>
-                        <Badge size="1" color="gray">
+                        <Badge
+                          size="1"
+                          color="gray"
+                        >
                           {chapter.word_count} {t("projects.words")}
                         </Badge>
                       </Flex>
@@ -342,9 +381,19 @@ export function ImportDialog({
                 </ScrollArea>
 
                 {previewData.chapter_count === 1 && (
-                  <Flex align="center" gap="2" mt="3">
-                    <AlertCircle size={14} color="var(--amber-9)" />
-                    <Text size="1" color="amber">
+                  <Flex
+                    align="center"
+                    gap="2"
+                    mt="3"
+                  >
+                    <AlertCircle
+                      size={14}
+                      color="var(--amber-9)"
+                    />
+                    <Text
+                      size="1"
+                      color="amber"
+                    >
                       {t("import.noChaptersFound")}
                     </Text>
                   </Flex>
@@ -359,11 +408,18 @@ export function ImportDialog({
           <Flex gap="5">
             {/* 左侧：封面 */}
             <Box className="import-dialog-cover-column">
-              <CoverCropper value={cover} onChange={setCover} />
+              <CoverCropper
+                value={cover}
+                onChange={setCover}
+              />
             </Box>
 
             {/* 右侧：项目信息 */}
-            <Flex direction="column" gap="4" className="import-dialog-info-content">
+            <Flex
+              direction="column"
+              gap="4"
+              className="import-dialog-info-content"
+            >
               {/* 书名 */}
               <Box>
                 <Text
@@ -408,8 +464,7 @@ export function ImportDialog({
                     {previewData.chapter_count} {t("projects.chapters")}
                   </Badge>
                   <Badge size="2">
-                    {formatWordCount(previewData.total_word_count)}{" "}
-                    {t("projects.words")}
+                    {formatWordCount(previewData.total_word_count)} {t("projects.words")}
                   </Badge>
                 </Flex>
               )}
@@ -420,10 +475,20 @@ export function ImportDialog({
       case "importing":
         return (
           <Box style={{ textAlign: "center", padding: "48px 24px" }}>
-            <Text as="p" size="3" weight="medium" mb="2">
+            <Text
+              as="p"
+              size="3"
+              weight="medium"
+              mb="2"
+            >
               {t("import.importing")}
             </Text>
-            <Text as="p" size="2" color="gray" mb="4">
+            <Text
+              as="p"
+              size="2"
+              color="gray"
+              mb="4"
+            >
               {getImportStageText()}
             </Text>
             <Progress
@@ -432,7 +497,12 @@ export function ImportDialog({
               size="2"
               style={{ width: "100%" }}
             />
-            <Text as="p" size="1" color="gray" mt="2">
+            <Text
+              as="p"
+              size="1"
+              color="gray"
+              mt="2"
+            >
               {importProgress}%
             </Text>
           </Box>
@@ -453,13 +523,25 @@ export function ImportDialog({
                 margin: "0 auto 16px",
               }}
             >
-              <Check size={32} color="var(--green-9)" />
+              <Check
+                size={32}
+                color="var(--green-9)"
+              />
             </Box>
-            <Text as="p" size="5" weight="bold" mb="2">
+            <Text
+              as="p"
+              size="5"
+              weight="bold"
+              mb="2"
+            >
               {t("import.importSuccess")}
             </Text>
             {importResult && (
-              <Text as="p" size="2" color="gray">
+              <Text
+                as="p"
+                size="2"
+                color="gray"
+              >
                 {t("import.importedInfo", {
                   chapters: importResult.chapterCount,
                   words: formatWordCount(importResult.wordCount),
@@ -487,7 +569,11 @@ export function ImportDialog({
 
       case "preview":
         return (
-          <Flex gap="3" justify="between" style={{ width: "100%" }}>
+          <Flex
+            gap="3"
+            justify="between"
+            style={{ width: "100%" }}
+          >
             <Button
               variant="soft"
               color="gray"
@@ -505,7 +591,11 @@ export function ImportDialog({
 
       case "info":
         return (
-          <Flex gap="3" justify="between" style={{ width: "100%" }}>
+          <Flex
+            gap="3"
+            justify="between"
+            style={{ width: "100%" }}
+          >
             <Button
               variant="soft"
               color="gray"
@@ -526,11 +616,7 @@ export function ImportDialog({
         );
 
       case "complete":
-        return (
-          <Button onClick={() => handleOpenChange(false)}>
-            {t("import.finish")}
-          </Button>
-        );
+        return <Button onClick={() => handleOpenChange(false)}>{t("import.finish")}</Button>;
 
       case "importing":
         return null;
@@ -554,25 +640,46 @@ export function ImportDialog({
   };
 
   return (
-    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={handleOpenChange}
+    >
       <Dialog.Content maxWidth="600px">
         <Dialog.Title>{t("import.title")}</Dialog.Title>
-        <Dialog.Description size="2" color="gray" mb="4">
+        <Dialog.Description
+          size="2"
+          color="gray"
+          mb="4"
+        >
           {getStepTitle()}
         </Dialog.Description>
 
         {renderStepContent()}
 
         {error && step !== "select" && (
-          <Flex align="center" gap="2" mt="3">
-            <AlertCircle size={14} color="var(--red-9)" />
-            <Text size="2" color="red">
+          <Flex
+            align="center"
+            gap="2"
+            mt="3"
+          >
+            <AlertCircle
+              size={14}
+              color="var(--red-9)"
+            />
+            <Text
+              size="2"
+              color="red"
+            >
               {error}
             </Text>
           </Flex>
         )}
 
-        <Flex gap="3" mt="5" justify="end">
+        <Flex
+          gap="3"
+          mt="5"
+          justify="end"
+        >
           {renderFooter()}
         </Flex>
       </Dialog.Content>

@@ -1,20 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  Dialog,
-  Flex,
-  Button,
-  Text,
-  TextField,
-  TextArea,
-  Separator,
-} from "@radix-ui/themes";
-import { useTranslation } from "react-i18next";
-import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { Box, Dialog, Flex, Button, Text, TextField, TextArea, Separator } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useForm, Controller, useWatch } from "react-hook-form";
+import { useTranslation } from "react-i18next";
+import { z } from "zod";
 
+import { Spinner } from "@/components";
+import { ModelIdSelect } from "@/components/model-id-select";
+import { LabeledSelect } from "@/components/select";
+import { TagInput } from "@/components/tag-input";
 import type {
   AvailableModel,
   Model,
@@ -23,10 +18,7 @@ import type {
   ModelUpdateRequest,
   TaskType,
 } from "@/lib/model.types";
-import { Spinner } from "@/components";
-import { ModelIdSelect } from "@/components/model-id-select";
-import { LabeledSelect } from "@/components/select";
-import { TagInput } from "@/components/tag-input";
+
 import {
   fetchModelProviderCatalogModels,
   fetchProviders,
@@ -87,9 +79,7 @@ export function ModelFormDialog({
   const [availableModels, setAvailableModels] = useState<AvailableModel[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [modelsError, setModelsError] = useState<string>("");
-  const [modelOptionsSource, setModelOptionsSource] = useState<
-    "catalog" | "remote" | null
-  >(null);
+  const [modelOptionsSource, setModelOptionsSource] = useState<"catalog" | "remote" | null>(null);
 
   const {
     control,
@@ -204,25 +194,22 @@ export function ModelFormDialog({
   const filteredProviders = useMemo(() => {
     if (!providers) return [];
     return providers.filter((provider) =>
-      isSelectableModelProviderForTask(provider, taskType as TaskType)
+      isSelectableModelProviderForTask(provider, taskType as TaskType),
     );
   }, [providers, taskType]);
 
   const selectedProvider = useMemo(
     () => providers?.find((p) => p.id === providerId),
-    [providers, providerId]
+    [providers, providerId],
   );
   const isDeepSeekProvider = selectedProvider?.providerType === "deepseek";
   const selectedCatalogProviderType = useMemo(
     () => (selectedProvider ? resolveProviderCatalogType(selectedProvider) : null),
-    [selectedProvider]
+    [selectedProvider],
   );
   const selectedProviderSupportsEmbeddingDimensions = useMemo(
-    () =>
-      selectedProvider
-        ? supportsEmbeddingDimensions(selectedProvider.providerType)
-        : false,
-    [selectedProvider]
+    () => (selectedProvider ? supportsEmbeddingDimensions(selectedProvider.providerType) : false),
+    [selectedProvider],
   );
   const isModelSelectionDisabled = !providerId;
 
@@ -245,10 +232,7 @@ export function ModelFormDialog({
       }
 
       try {
-        const result = await fetchModelProviderCatalogModels(
-          catalogProviderType,
-          currentTaskType
-        );
+        const result = await fetchModelProviderCatalogModels(catalogProviderType, currentTaskType);
         setAvailableModels(result.models);
       } catch (error) {
         setAvailableModels([]);
@@ -257,7 +241,7 @@ export function ModelFormDialog({
         setLoadingModels(false);
       }
     },
-    [t]
+    [t],
   );
 
   // 加载提供商的模型列表
@@ -290,7 +274,7 @@ export function ModelFormDialog({
         setLoadingModels(false);
       }
     },
-    [providers, t]
+    [providers, t],
   );
 
   const handleRefreshRemoteModels = useCallback(() => {
@@ -325,9 +309,7 @@ export function ModelFormDialog({
     }
 
     const isInitialEditingValue =
-      isEditing &&
-      model?.providerId === providerId &&
-      model?.taskType === taskType;
+      isEditing && model?.providerId === providerId && model?.taskType === taskType;
 
     if (!isInitialEditingValue) {
       queueMicrotask(() => {
@@ -350,7 +332,7 @@ export function ModelFormDialog({
         setValue("name", modelName);
       }
     },
-    [getValues, setValue]
+    [getValues, setValue],
   );
 
   // 提交表单
@@ -394,7 +376,7 @@ export function ModelFormDialog({
         throw error;
       }
     },
-    [isDeepSeekProvider, onSubmit, reset, selectedProviderSupportsEmbeddingDimensions]
+    [isDeepSeekProvider, onSubmit, reset, selectedProviderSupportsEmbeddingDimensions],
   );
 
   const handleOpenChange = useCallback(
@@ -404,285 +386,373 @@ export function ModelFormDialog({
       }
       onOpenChange(newOpen);
     },
-    [onOpenChange, reset]
+    [onOpenChange, reset],
   );
 
   return (
-    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
-      <Dialog.Content
-      maxWidth="600px"
-      style={{
-        maxHeight: "90vh",
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-      }}
+    <Dialog.Root
+      open={open}
+      onOpenChange={handleOpenChange}
     >
-      <Dialog.Title>
-        {isEditing ? t("models.editModel") : t("models.createModel")}
-      </Dialog.Title>
-
-      <Box
+      <Dialog.Content
+        maxWidth="600px"
         style={{
-          flex: 1,
-          overflowY: "auto",
-          overflowX: "hidden",
-          paddingRight: "var(--space-2)",
-          scrollbarWidth: "none", // Firefox
-          msOverflowStyle: "none", // IE and Edge
+          maxHeight: "90vh",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
         }}
-        className="hide-scrollbar"
       >
-        <form
-          onSubmit={handleSubmit(onFormSubmit, (errors) => {
-            console.error("表单验证错误:", errors);
-          })}
+        <Dialog.Title>{isEditing ? t("models.editModel") : t("models.createModel")}</Dialog.Title>
+
+        <Box
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            overflowX: "hidden",
+            paddingRight: "var(--space-2)",
+            scrollbarWidth: "none", // Firefox
+            msOverflowStyle: "none", // IE and Edge
+          }}
+          className="hide-scrollbar"
         >
-          <Flex direction="column" gap="4" mt="4">
-            {/* 模型名称 */}
-            <Flex direction="column" gap="2">
-              <Text size="2" weight="medium" color="gray">
-                {t("models.name")}{" "}
-                <Text color="red" style={{ display: "inline" }}>
-                  *
-                </Text>
-              </Text>
-              <Controller
-                name="name"
-                control={control}
-                render={({ field }) => (
-                  <TextField.Root
-                    {...field}
-                    placeholder={t("models.namePlaceholder")}
-                  />
-                )}
-              />
-              {errors.name && (
-                <Text size="1" color="red">
-                  {t(`models.${errors.name.message}`)}
-                </Text>
-              )}
-            </Flex>
-
-            {/* 任务类型 */}
-            <Flex direction="column" gap="2">
-              <Text size="2" weight="medium" color="gray">
-                {t("models.taskType")}{" "}
-                <Text color="red" style={{ display: "inline" }}>
-                  *
-                </Text>
-              </Text>
-              <Controller
-                name="taskType"
-                control={control}
-                render={({ field }) => (
-                  <LabeledSelect
-                    value={field.value}
-                    options={[
-                      { value: "llm", label: t("models.taskTypeLLM") },
-                      { value: "embedding", label: t("models.taskTypeEmbedding") },
-                      { value: "rerank", label: t("models.taskTypeRerank") },
-                    ]}
-                    onChange={field.onChange}
-                    triggerStyle={{ width: "100%" }}
-                    placeholder={t("models.taskTypePlaceholder")}
-                  />
-                )}
-              />
-              {errors.taskType && (
-                <Text size="1" color="red">
-                  {t(`models.${errors.taskType.message}`)}
-                </Text>
-              )}
-            </Flex>
-
-            {/* 提供商 */}
-            <Flex direction="column" gap="2">
-              <Text size="2" weight="medium" color="gray">
-                {t("models.provider")}{" "}
-                <Text color="red" style={{ display: "inline" }}>
-                  *
-                </Text>
-              </Text>
-              <Controller
-                name="providerId"
-                control={control}
-                render={({ field }) => (
-                  <LabeledSelect
-                    value={field.value}
-                    options={
-                      filteredProviders.map((p) => ({
-                        value: p.id,
-                        label: getProviderOptionLabel(p),
-                      }))
-                    }
-                    onChange={field.onChange}
-                    triggerStyle={{ width: "100%" }}
-                    placeholder={t("models.providerPlaceholder")}
-                  />
-                )}
-              />
-              {errors.providerId && (
-                <Text size="1" color="red">
-                  {t(`models.${errors.providerId.message}`)}
-                </Text>
-              )}
-              {!providers || providers.length === 0 ? (
-                <Text size="1" color="gray">
-                  {t("models.noProviders")}
-                </Text>
-              ) : null}
-            </Flex>
-
-            {/* 模型 - 使用高级选择器 */}
+          <form
+            onSubmit={handleSubmit(onFormSubmit, (errors) => {
+              console.error("表单验证错误:", errors);
+            })}
+          >
             <Flex
               direction="column"
-              gap="2"
-              style={{
-                opacity: isModelSelectionDisabled ? 0.5 : 1,
-              }}
+              gap="4"
+              mt="4"
             >
-              <Text size="2" weight="medium" color="gray">
-                {t("models.modelId")}{" "}
-                <Text color="red" style={{ display: "inline" }}>
-                  *
-                </Text>
-              </Text>
-              <Controller
-                name="modelId"
-                control={control}
-                render={({ field }) => (
-                  <ModelIdSelect
-                    value={field.value}
-                    onChange={handleModelIdChange}
-                    models={availableModels}
-                    isLoading={loadingModels}
-                    placeholder={t("models.modelIdPlaceholder")}
-                    disabled={isModelSelectionDisabled}
-                    taskType={taskType as TaskType}
-                    error={modelsError}
-                    showRefreshButton
-                    onRefresh={handleRefreshRemoteModels}
-                    isRefreshing={loadingModels && modelOptionsSource === "remote"}
-                    refreshDisabled={!providerId || loadingModels}
-                  />
-                )}
-              />
-              {errors.modelId && (
-                <Text size="1" color="red">
-                  {t(`models.${errors.modelId.message}`)}
-                </Text>
-              )}
-              {selectedProvider?.providerType === "openai-compatible" &&
-                !selectedCatalogProviderType &&
-                !loadingModels && (
-                  <Text size="1" color="gray">
-                    {t("models.noCatalogMatchHint")}
+              {/* 模型名称 */}
+              <Flex
+                direction="column"
+                gap="2"
+              >
+                <Text
+                  size="2"
+                  weight="medium"
+                  color="gray"
+                >
+                  {t("models.name")}{" "}
+                  <Text
+                    color="red"
+                    style={{ display: "inline" }}
+                  >
+                    *
                   </Text>
-                )}
-            </Flex>
-
-            {taskType === "embedding" && selectedProviderSupportsEmbeddingDimensions && (
-              <Flex direction="column" gap="2">
-                <Text size="2" weight="medium" color="gray">
-                  {t("models.dimensions")}
                 </Text>
                 <Controller
-                  name="dimensions"
+                  name="name"
                   control={control}
                   render={({ field }) => (
                     <TextField.Root
-                      type="number"
-                      min={1}
-                      max={4096}
-                      value={field.value?.toString() || ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        field.onChange(val === "" ? null : Number(val));
-                      }}
-                      placeholder={t("models.dimensionsPlaceholder")}
+                      {...field}
+                      placeholder={t("models.namePlaceholder")}
                     />
                   )}
                 />
-                {errors.dimensions && (
-                  <Text size="1" color="red">
-                    {t(`models.${errors.dimensions.message}`)}
+                {errors.name && (
+                  <Text
+                    size="1"
+                    color="red"
+                  >
+                    {t(`models.${errors.name.message}`)}
                   </Text>
                 )}
-                <Text size="1" color="gray">
-                  {t("models.dimensionsDesc")}
-                </Text>
               </Flex>
-            )}
 
-            {/* 备注 */}
-            <Flex direction="column" gap="2">
-              <Text size="2" weight="medium" color="gray">
-                {t("models.remark")}
-              </Text>
+              {/* 任务类型 */}
+              <Flex
+                direction="column"
+                gap="2"
+              >
+                <Text
+                  size="2"
+                  weight="medium"
+                  color="gray"
+                >
+                  {t("models.taskType")}{" "}
+                  <Text
+                    color="red"
+                    style={{ display: "inline" }}
+                  >
+                    *
+                  </Text>
+                </Text>
+                <Controller
+                  name="taskType"
+                  control={control}
+                  render={({ field }) => (
+                    <LabeledSelect
+                      value={field.value}
+                      options={[
+                        { value: "llm", label: t("models.taskTypeLLM") },
+                        { value: "embedding", label: t("models.taskTypeEmbedding") },
+                        { value: "rerank", label: t("models.taskTypeRerank") },
+                      ]}
+                      onChange={field.onChange}
+                      triggerStyle={{ width: "100%" }}
+                      placeholder={t("models.taskTypePlaceholder")}
+                    />
+                  )}
+                />
+                {errors.taskType && (
+                  <Text
+                    size="1"
+                    color="red"
+                  >
+                    {t(`models.${errors.taskType.message}`)}
+                  </Text>
+                )}
+              </Flex>
+
+              {/* 提供商 */}
+              <Flex
+                direction="column"
+                gap="2"
+              >
+                <Text
+                  size="2"
+                  weight="medium"
+                  color="gray"
+                >
+                  {t("models.provider")}{" "}
+                  <Text
+                    color="red"
+                    style={{ display: "inline" }}
+                  >
+                    *
+                  </Text>
+                </Text>
+                <Controller
+                  name="providerId"
+                  control={control}
+                  render={({ field }) => (
+                    <LabeledSelect
+                      value={field.value}
+                      options={filteredProviders.map((p) => ({
+                        value: p.id,
+                        label: getProviderOptionLabel(p),
+                      }))}
+                      onChange={field.onChange}
+                      triggerStyle={{ width: "100%" }}
+                      placeholder={t("models.providerPlaceholder")}
+                    />
+                  )}
+                />
+                {errors.providerId && (
+                  <Text
+                    size="1"
+                    color="red"
+                  >
+                    {t(`models.${errors.providerId.message}`)}
+                  </Text>
+                )}
+                {!providers || providers.length === 0 ? (
+                  <Text
+                    size="1"
+                    color="gray"
+                  >
+                    {t("models.noProviders")}
+                  </Text>
+                ) : null}
+              </Flex>
+
+              {/* 模型 - 使用高级选择器 */}
+              <Flex
+                direction="column"
+                gap="2"
+                style={{
+                  opacity: isModelSelectionDisabled ? 0.5 : 1,
+                }}
+              >
+                <Text
+                  size="2"
+                  weight="medium"
+                  color="gray"
+                >
+                  {t("models.modelId")}{" "}
+                  <Text
+                    color="red"
+                    style={{ display: "inline" }}
+                  >
+                    *
+                  </Text>
+                </Text>
+                <Controller
+                  name="modelId"
+                  control={control}
+                  render={({ field }) => (
+                    <ModelIdSelect
+                      value={field.value}
+                      onChange={handleModelIdChange}
+                      models={availableModels}
+                      isLoading={loadingModels}
+                      placeholder={t("models.modelIdPlaceholder")}
+                      disabled={isModelSelectionDisabled}
+                      taskType={taskType as TaskType}
+                      error={modelsError}
+                      showRefreshButton
+                      onRefresh={handleRefreshRemoteModels}
+                      isRefreshing={loadingModels && modelOptionsSource === "remote"}
+                      refreshDisabled={!providerId || loadingModels}
+                    />
+                  )}
+                />
+                {errors.modelId && (
+                  <Text
+                    size="1"
+                    color="red"
+                  >
+                    {t(`models.${errors.modelId.message}`)}
+                  </Text>
+                )}
+                {selectedProvider?.providerType === "openai-compatible" &&
+                  !selectedCatalogProviderType &&
+                  !loadingModels && (
+                    <Text
+                      size="1"
+                      color="gray"
+                    >
+                      {t("models.noCatalogMatchHint")}
+                    </Text>
+                  )}
+              </Flex>
+
+              {taskType === "embedding" && selectedProviderSupportsEmbeddingDimensions && (
+                <Flex
+                  direction="column"
+                  gap="2"
+                >
+                  <Text
+                    size="2"
+                    weight="medium"
+                    color="gray"
+                  >
+                    {t("models.dimensions")}
+                  </Text>
+                  <Controller
+                    name="dimensions"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField.Root
+                        type="number"
+                        min={1}
+                        max={4096}
+                        value={field.value?.toString() || ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          field.onChange(val === "" ? null : Number(val));
+                        }}
+                        placeholder={t("models.dimensionsPlaceholder")}
+                      />
+                    )}
+                  />
+                  {errors.dimensions && (
+                    <Text
+                      size="1"
+                      color="red"
+                    >
+                      {t(`models.${errors.dimensions.message}`)}
+                    </Text>
+                  )}
+                  <Text
+                    size="1"
+                    color="gray"
+                  >
+                    {t("models.dimensionsDesc")}
+                  </Text>
+                </Flex>
+              )}
+
+              {/* 备注 */}
+              <Flex
+                direction="column"
+                gap="2"
+              >
+                <Text
+                  size="2"
+                  weight="medium"
+                  color="gray"
+                >
+                  {t("models.remark")}
+                </Text>
+                <Controller
+                  name="remark"
+                  control={control}
+                  render={({ field }) => (
+                    <TextArea
+                      {...field}
+                      placeholder={t("models.remarkPlaceholder")}
+                      rows={2}
+                    />
+                  )}
+                />
+              </Flex>
+
+              {/* 标签 */}
               <Controller
-                name="remark"
+                name="tags"
                 control={control}
                 render={({ field }) => (
-                  <TextArea
-                    {...field}
-                    placeholder={t("models.remarkPlaceholder")}
-                    rows={2}
+                  <TagInput
+                    tags={field.value || []}
+                    onChange={field.onChange}
+                    label={t("models.tags")}
+                    placeholder={t("models.tagsPlaceholder")}
+                    existingTags={existingTags}
+                    existingTagsLabel={
+                      existingTags && existingTags.length > 0 ? t("models.existingTags") : undefined
+                    }
                   />
                 )}
               />
-            </Flex>
 
-            {/* 标签 */}
-            <Controller
-              name="tags"
-              control={control}
-              render={({ field }) => (
-                <TagInput
-                  tags={field.value || []}
-                  onChange={field.onChange}
-                  label={t("models.tags")}
-                  placeholder={t("models.tagsPlaceholder")}
-                  existingTags={existingTags}
-                  existingTagsLabel={existingTags && existingTags.length > 0 ? t("models.existingTags") : undefined}
+              <Separator size="4" />
+
+              {/* 高级参数 - 仅 LLM 模式 */}
+              {taskType === "llm" && (
+                <AdvancedParamsSection
+                  control={control}
+                  getValues={getValues}
+                  setValue={setValue}
+                  modelId={model?.id}
+                  isDeepSeekProvider={isDeepSeekProvider}
                 />
               )}
-            />
 
-            <Separator size="4" />
-
-            {/* 高级参数 - 仅 LLM 模式 */}
-            {taskType === "llm" && (
-              <AdvancedParamsSection
-                control={control}
-                getValues={getValues}
-                setValue={setValue}
-                modelId={model?.id}
-                isDeepSeekProvider={isDeepSeekProvider}
-              />
-            )}
-
-            {/* 操作按钮 */}
-            <Flex gap="3" mt="2" justify="end" style={{ flexShrink: 0 }}>
-              <Dialog.Close>
+              {/* 操作按钮 */}
+              <Flex
+                gap="3"
+                mt="2"
+                justify="end"
+                style={{ flexShrink: 0 }}
+              >
+                <Dialog.Close>
+                  <Button
+                    type="button"
+                    variant="soft"
+                    color="gray"
+                    disabled={isSubmitting}
+                  >
+                    {t("common.cancel")}
+                  </Button>
+                </Dialog.Close>
                 <Button
-                  type="button"
-                  variant="soft"
-                  color="gray"
+                  type="submit"
                   disabled={isSubmitting}
                 >
-                  {t("common.cancel")}
+                  {isSubmitting ? <Spinner size={18} /> : null}
+                  {isEditing ? t("common.save") : t("common.create")}
                 </Button>
-              </Dialog.Close>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? <Spinner size={18} /> : null}
-                {isEditing ? t("common.save") : t("common.create")}
-              </Button>
+              </Flex>
             </Flex>
-          </Flex>
-        </form>
-      </Box>
-    </Dialog.Content>
+          </form>
+        </Box>
+      </Dialog.Content>
     </Dialog.Root>
   );
 }

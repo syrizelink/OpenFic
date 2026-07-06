@@ -10,7 +10,7 @@ import {
 export type AgentTranscriptLiveState = AgentTranscriptState;
 
 export function createAgentTranscriptLiveState(
-  initial: Partial<AgentTranscriptState> = {}
+  initial: Partial<AgentTranscriptState> = {},
 ): AgentTranscriptLiveState {
   return {
     messages: initial.messages ?? [],
@@ -22,7 +22,7 @@ export function createAgentTranscriptLiveState(
 
 export function syncAgentTranscriptLiveState(
   liveState: AgentTranscriptLiveState,
-  nextState: AgentTranscriptState
+  nextState: AgentTranscriptState,
 ): AgentTranscriptState {
   liveState.messages = nextState.messages;
   liveState.status = nextState.status;
@@ -34,7 +34,7 @@ export function syncAgentTranscriptLiveState(
 export function applyAgentTranscriptEventToLiveState(
   liveState: AgentTranscriptLiveState,
   event: AgentEvent,
-  options: AgentTranscriptEventOptions = {}
+  options: AgentTranscriptEventOptions = {},
 ): AgentTranscriptEventResult {
   const result = applyAgentTranscriptEvent(liveState, event, options);
   syncAgentTranscriptLiveState(liveState, result.state);

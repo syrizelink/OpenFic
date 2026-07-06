@@ -57,24 +57,26 @@ export const MentionNode = Node.create<AssistantMentionNodeOptions>({
   },
 
   parseHTML() {
-    return [{
-      tag: "span[data-assistant-mention=\"true\"]",
-      getAttrs: (node) => {
-        if (!(node instanceof HTMLElement)) return false;
-        return {
-          mentionKind: node.dataset.mentionKind ?? "",
-          mentionLabel: node.dataset.mentionLabel ?? "",
-          mentionRaw: node.dataset.mentionRaw ?? "",
-          mentionBody: node.dataset.mentionBody ?? "",
-          volumeId: node.dataset.mentionVolumeId ?? "",
-          chapterId: node.dataset.mentionChapterId ?? "",
-          noteId: node.dataset.mentionNoteId ?? "",
-          noteCategoryId: node.dataset.mentionNoteCategoryId ?? "",
-          startLine: node.dataset.mentionStartLine ?? "",
-          endLine: node.dataset.mentionEndLine ?? "",
-        };
+    return [
+      {
+        tag: 'span[data-assistant-mention="true"]',
+        getAttrs: (node) => {
+          if (!(node instanceof HTMLElement)) return false;
+          return {
+            mentionKind: node.dataset.mentionKind ?? "",
+            mentionLabel: node.dataset.mentionLabel ?? "",
+            mentionRaw: node.dataset.mentionRaw ?? "",
+            mentionBody: node.dataset.mentionBody ?? "",
+            volumeId: node.dataset.mentionVolumeId ?? "",
+            chapterId: node.dataset.mentionChapterId ?? "",
+            noteId: node.dataset.mentionNoteId ?? "",
+            noteCategoryId: node.dataset.mentionNoteCategoryId ?? "",
+            startLine: node.dataset.mentionStartLine ?? "",
+            endLine: node.dataset.mentionEndLine ?? "",
+          };
+        },
       },
-    }];
+    ];
   },
 
   renderHTML({ HTMLAttributes }) {
@@ -105,10 +107,11 @@ export const MentionNode = Node.create<AssistantMentionNodeOptions>({
     return {
       insertAssistantMention:
         (attrs) =>
-        ({ commands }) => commands.insertContent({
-          type: this.name,
-          attrs,
-        }),
+        ({ commands }) =>
+          commands.insertContent({
+            type: this.name,
+            attrs,
+          }),
     };
   },
 });

@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Flex, IconButton, Popover, Text } from "@radix-ui/themes";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, ChevronsUpDown } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { searchCharacters } from "@/lib/api-client";
@@ -40,13 +40,14 @@ function highlightText(text: string, query: string): React.ReactNode {
         }}
       >
         {text.slice(idx, idx + query.length)}
-      </mark>
+      </mark>,
     );
     lastIndex = idx + query.length;
     idx = lowerText.indexOf(lowerQuery, lastIndex);
   }
 
-  if (lastIndex < text.length) parts.push(<span key={`t-${lastIndex}`}>{text.slice(lastIndex)}</span>);
+  if (lastIndex < text.length)
+    parts.push(<span key={`t-${lastIndex}`}>{text.slice(lastIndex)}</span>);
 
   return <>{parts}</>;
 }
@@ -85,7 +86,10 @@ function CharacterResultGroup({
           event.currentTarget.style.background = "transparent";
         }}
       >
-        <ChevronIcon size={14} style={{ color: "var(--gray-a9)", flexShrink: 0 }} />
+        <ChevronIcon
+          size={14}
+          style={{ color: "var(--gray-a9)", flexShrink: 0 }}
+        />
         <Text
           size="2"
           weight="bold"
@@ -113,7 +117,12 @@ function CharacterResultGroup({
             flexShrink: 0,
           }}
         >
-          <Text size="1" style={{ lineHeight: 1 }}>{result.matches.length}</Text>
+          <Text
+            size="1"
+            style={{ lineHeight: 1 }}
+          >
+            {result.matches.length}
+          </Text>
         </Box>
       </Flex>
 
@@ -241,13 +250,16 @@ export function CharacterSearchPopover({
       onNavigateToMatch(characterId);
       onOpenChange(false);
     },
-    [onNavigateToMatch, onOpenChange]
+    [onNavigateToMatch, onOpenChange],
   );
 
   const hasResults = data && data.results.length > 0;
 
   return (
-    <Popover.Root open={open} onOpenChange={onOpenChange}>
+    <Popover.Root
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <Popover.Trigger
         style={{
           border: "none",
@@ -273,9 +285,25 @@ export function CharacterSearchPopover({
           }}
         >
           {debouncedQuery.trim().length === 0 ? (
-            <Box p="4"><Text size="2" color="gray" align="center">{t("characters.searchPlaceholder")}</Text></Box>
+            <Box p="4">
+              <Text
+                size="2"
+                color="gray"
+                align="center"
+              >
+                {t("characters.searchPlaceholder")}
+              </Text>
+            </Box>
           ) : isLoading ? (
-            <Box p="4"><Text size="2" color="gray" align="center">{t("characters.searching")}</Text></Box>
+            <Box p="4">
+              <Text
+                size="2"
+                color="gray"
+                align="center"
+              >
+                {t("characters.searching")}
+              </Text>
+            </Box>
           ) : hasResults ? (
             <>
               <Flex
@@ -287,13 +315,21 @@ export function CharacterSearchPopover({
                   background: "var(--gray-a2)",
                 }}
               >
-                <Text size="1" color="gray">
+                <Text
+                  size="1"
+                  color="gray"
+                >
                   {t("characters.searchResultSummary", {
                     characters: data.totalCharacters,
                     matches: data.totalMatches,
                   })}
                 </Text>
-                <IconButton variant="ghost" size="1" onClick={handleToggleAll} title={allCollapsed ? t("characters.expandAll") : t("characters.collapseAll")}>
+                <IconButton
+                  variant="ghost"
+                  size="1"
+                  onClick={handleToggleAll}
+                  title={allCollapsed ? t("characters.expandAll") : t("characters.collapseAll")}
+                >
                   <ChevronsUpDown size={14} />
                 </IconButton>
               </Flex>
@@ -309,7 +345,15 @@ export function CharacterSearchPopover({
               ))}
             </>
           ) : (
-            <Box p="4"><Text size="2" color="gray" align="center">{t("characters.noCharactersFound")}</Text></Box>
+            <Box p="4">
+              <Text
+                size="2"
+                color="gray"
+                align="center"
+              >
+                {t("characters.noCharactersFound")}
+              </Text>
+            </Box>
           )}
         </Box>
       </Popover.Content>

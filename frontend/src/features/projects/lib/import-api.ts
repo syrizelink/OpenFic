@@ -3,6 +3,7 @@
  */
 
 import axios from "axios";
+
 import i18n from "@/i18n";
 
 const API_BASE = "/api/v1";
@@ -36,21 +37,15 @@ export interface ImportConfirmResponse {
  * @param file TXT 文件
  * @returns 解析预览结果
  */
-export async function previewTxtFile(
-  file: File
-): Promise<ImportPreviewResponse> {
+export async function previewTxtFile(file: File): Promise<ImportPreviewResponse> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await axios.post<ImportPreviewResponse>(
-    `${API_BASE}/import/preview`,
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
-  );
+  const response = await axios.post<ImportPreviewResponse>(`${API_BASE}/import/preview`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
 
   return response.data;
 }
@@ -68,7 +63,7 @@ export async function confirmImport(
   file: File,
   title: string,
   description?: string,
-  cover?: File | null
+  cover?: File | null,
 ): Promise<ImportConfirmResponse> {
   const formData = new FormData();
   formData.append("file", file);
@@ -82,15 +77,11 @@ export async function confirmImport(
     formData.append("cover", cover);
   }
 
-  const response = await axios.post<ImportConfirmResponse>(
-    `${API_BASE}/import/confirm`,
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
-  );
+  const response = await axios.post<ImportConfirmResponse>(`${API_BASE}/import/confirm`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
 
   return response.data;
 }
@@ -120,10 +111,7 @@ export interface ImportErrorEvent {
 }
 
 /** 导入事件类型 */
-export type ImportEvent =
-  | ImportProgressEvent
-  | ImportCompleteEvent
-  | ImportErrorEvent;
+export type ImportEvent = ImportProgressEvent | ImportCompleteEvent | ImportErrorEvent;
 
 /**
  * 流式确认导入，提供实时进度更新。
@@ -139,7 +127,7 @@ export async function confirmImportStream(
   title: string,
   description: string | undefined,
   cover: File | null | undefined,
-  onEvent: (event: ImportEvent) => void
+  onEvent: (event: ImportEvent) => void,
 ): Promise<ImportConfirmResponse | null> {
   const formData = new FormData();
   formData.append("file", file);

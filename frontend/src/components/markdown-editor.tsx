@@ -1,14 +1,14 @@
-import { useCallback, useRef, useEffect } from "react";
 import { Box, Flex, Text } from "@radix-ui/themes";
 import { useEditor, EditorContent } from "@tiptap/react";
-import { useTranslation } from "react-i18next";
-import { useHotkeys } from "react-hotkeys-hook";
 import type { Editor } from "@tiptap/react";
+import { useCallback, useRef, useEffect } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
+import { useTranslation } from "react-i18next";
 
-import { TitleInput } from "./title-input";
-import { EditorToolbar, type EditorToolbarExtraAction } from "./editor-toolbar";
 import { ContextMenu } from "./context-menu";
+import { EditorToolbar, type EditorToolbarExtraAction } from "./editor-toolbar";
 import { createMarkdownEditorExtensions } from "./markdown-editor-config";
+import { TitleInput } from "./title-input";
 
 export interface MarkdownEditorProps {
   title: string;
@@ -122,7 +122,7 @@ export function MarkdownEditor({
       }
       onSave();
     },
-    { enableOnFormTags: true }
+    { enableOnFormTags: true },
   );
 
   const handleTitleBlur = useCallback(() => {
@@ -176,14 +176,23 @@ export function MarkdownEditor({
             placeholder={titlePlaceholder}
           />
           <Box style={{ borderBottom: "1px solid var(--gray-a4)" }} />
-          <Box py="5" ref={editorContentRef}>
-            <EditorContent editor={editor} className="tiptap-editor" />
+          <Box
+            py="5"
+            ref={editorContentRef}
+          >
+            <EditorContent
+              editor={editor}
+              className="tiptap-editor"
+            />
           </Box>
         </Box>
       </Box>
 
       {!isLocked && (
-        <ContextMenu editor={editor} containerRef={editorContentRef} />
+        <ContextMenu
+          editor={editor}
+          containerRef={editorContentRef}
+        />
       )}
 
       <Flex
@@ -196,10 +205,16 @@ export function MarkdownEditor({
           background: "var(--gray-a2)",
         }}
       >
-        <Text size="1" color="gray">
+        <Text
+          size="1"
+          color="gray"
+        >
           {wordCount} {wordCountLabel ?? t("writing.words")}
         </Text>
-        <Text size="1" color="gray">
+        <Text
+          size="1"
+          color="gray"
+        >
           {saveStatus === "saving" && (saveStatusText?.saving ?? t("writing.saving"))}
           {saveStatus === "saved" && (saveStatusText?.saved ?? t("writing.saved"))}
           {saveStatus === "unsaved" && (saveStatusText?.unsaved ?? t("writing.unsavedChanges"))}

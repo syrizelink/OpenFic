@@ -7,10 +7,11 @@
 import { Box, Flex, Text, SegmentedControl } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 
+import { LabeledSelect } from "@/components/select";
+import { supportedLanguages, type LanguageCode } from "@/i18n";
+
 import type { Settings, ThemeMode } from "../lib/settings.types";
 import { CODE_FONT_OPTIONS, getFontOptions } from "../lib/settings.types";
-import { supportedLanguages, type LanguageCode } from "@/i18n";
-import { LabeledSelect } from "@/components/select";
 
 interface GeneralSettingsProps {
   /** 当前设置 */
@@ -49,7 +50,10 @@ export function GeneralSettings({
 
   return (
     <Box>
-      <Flex direction="column" gap="4">
+      <Flex
+        direction="column"
+        gap="4"
+      >
         {/* 语言设置 */}
         <LabeledSelect
           label={t("settings.language")}
@@ -64,8 +68,15 @@ export function GeneralSettings({
         />
 
         {/* 主题设置 */}
-        <Flex direction="column" gap="2">
-          <Text size="2" weight="medium" color="gray">
+        <Flex
+          direction="column"
+          gap="2"
+        >
+          <Text
+            size="2"
+            weight="medium"
+            color="gray"
+          >
             {t("settings.theme")}
           </Text>
           <SegmentedControl.Root
@@ -74,12 +85,8 @@ export function GeneralSettings({
             disabled={isSaving}
             style={{ width: 200 }}
           >
-            <SegmentedControl.Item value="light">
-              {t("settings.themeLight")}
-            </SegmentedControl.Item>
-            <SegmentedControl.Item value="dark">
-              {t("settings.themeDark")}
-            </SegmentedControl.Item>
+            <SegmentedControl.Item value="light">{t("settings.themeLight")}</SegmentedControl.Item>
+            <SegmentedControl.Item value="dark">{t("settings.themeDark")}</SegmentedControl.Item>
           </SegmentedControl.Root>
         </Flex>
 

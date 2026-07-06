@@ -138,7 +138,9 @@
   background: transparent;
   color: var(--gray-10);
   cursor: pointer;
-  transition: color 120ms ease-out, background-color 120ms ease-out;
+  transition:
+    color 120ms ease-out,
+    background-color 120ms ease-out;
 }
 
 .agent-plan-item-toggle:hover,

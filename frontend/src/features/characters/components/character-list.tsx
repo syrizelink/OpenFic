@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -11,16 +10,31 @@ import {
   Text,
   Tooltip,
 } from "@radix-ui/themes";
-import { ArrowDown, ArrowUp, ArrowUpDown, CheckSquare, ListChecks, Pencil, Plus, Search, Star, StarOff, Trash2, UserRound } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  CheckSquare,
+  ListChecks,
+  Pencil,
+  Plus,
+  Search,
+  Star,
+  StarOff,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 import { motion } from "motion/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { ContextMenu, type ContextMenuItem } from "@/components/context-menu";
 import { Spinner } from "@/components";
+import { ContextMenu, type ContextMenuItem } from "@/components/context-menu";
 import { ProjectSelectField } from "@/features/world-info/components/project-select-field";
+import type { CharacterListItem } from "@/lib/character.types";
 import type { Project } from "@/lib/project.types";
 import { formatRelativeTime } from "@/lib/time-utils";
-import type { CharacterListItem } from "@/lib/character.types";
+
 import { CharacterSearchPopover } from "./character-search-popover";
 
 const loadedAvatarUrls = new Set<string>();
@@ -61,7 +75,9 @@ function CharacterListAvatar({
   character: CharacterListItem;
   onEditProfile: (character: CharacterListItem) => void;
 }) {
-  const [isLoaded, setIsLoaded] = useState(() => !character.imageUrl || loadedAvatarUrls.has(character.imageUrl));
+  const [isLoaded, setIsLoaded] = useState(
+    () => !character.imageUrl || loadedAvatarUrls.has(character.imageUrl),
+  );
 
   return (
     <button
@@ -75,7 +91,12 @@ function CharacterListAvatar({
     >
       {character.imageUrl ? (
         <>
-          {!isLoaded && <Spinner size={18} className="characters-list-avatar-spinner" />}
+          {!isLoaded && (
+            <Spinner
+              size={18}
+              className="characters-list-avatar-spinner"
+            />
+          )}
           <img
             src={character.imageUrl}
             alt=""
@@ -88,7 +109,12 @@ function CharacterListAvatar({
           />
         </>
       ) : (
-        <Text size="1" weight="medium">{getAvatarFallback(character.name)}</Text>
+        <Text
+          size="1"
+          weight="medium"
+        >
+          {getAvatarFallback(character.name)}
+        </Text>
       )}
       <span className="characters-list-avatar-overlay">
         <Pencil size={14} />
@@ -157,7 +183,7 @@ export function CharacterList({
 
   const menuCharacter = useMemo(
     () => characters.find((character) => character.id === menuCharacterId) ?? null,
-    [characters, menuCharacterId]
+    [characters, menuCharacterId],
   );
 
   const handleCloseContextMenu = useCallback(() => {
@@ -179,7 +205,7 @@ export function CharacterList({
       }
       setMenuPosition({ x: event.clientX, y: event.clientY });
     },
-    [isMultiSelect]
+    [isMultiSelect],
   );
 
   const handleToggleMultiSelect = useCallback(() => {
@@ -218,7 +244,7 @@ export function CharacterList({
       setSortField(field);
       setSortDirection("desc");
     },
-    [sortField]
+    [sortField],
   );
 
   function getSortIcon(field: SortField) {
@@ -248,13 +274,10 @@ export function CharacterList({
     }
   }, [searchQuery]);
 
-  const handlePopoverOpenChange = useCallback(
-    (open: boolean) => {
-      setSearchOpen(open);
-      if (!open) setSearchExpanded(false);
-    },
-    []
-  );
+  const handlePopoverOpenChange = useCallback((open: boolean) => {
+    setSearchOpen(open);
+    if (!open) setSearchExpanded(false);
+  }, []);
 
   const handleBatchDeleteConfirm = useCallback(() => {
     if (selectedIds.size === 0) return;
@@ -270,7 +293,7 @@ export function CharacterList({
       onBatchFavorite(Array.from(selectedIds), isFavorited);
       handleCloseContextMenu();
     },
-    [handleCloseContextMenu, onBatchFavorite, selectedIds]
+    [handleCloseContextMenu, onBatchFavorite, selectedIds],
   );
 
   const menuItems = useMemo<ContextMenuItem[]>(() => {
@@ -330,13 +353,31 @@ export function CharacterList({
         },
       },
     ];
-  }, [handleBatchFavorite, handleCloseContextMenu, isMultiSelect, menuCharacter, onDeleteCharacter, onEditProfile, onToggleFavorite, t]);
+  }, [
+    handleBatchFavorite,
+    handleCloseContextMenu,
+    isMultiSelect,
+    menuCharacter,
+    onDeleteCharacter,
+    onEditProfile,
+    onToggleFavorite,
+    t,
+  ]);
 
   return (
     <>
-      <Flex className="characters-list" direction="column">
-        <Box p="3" className="characters-list-header">
-          <Flex direction="column" gap="2">
+      <Flex
+        className="characters-list"
+        direction="column"
+      >
+        <Box
+          p="3"
+          className="characters-list-header"
+        >
+          <Flex
+            direction="column"
+            gap="2"
+          >
             <Box className="characters-list-project-select">
               <ProjectSelectField
                 projects={projects}
@@ -347,7 +388,10 @@ export function CharacterList({
               />
             </Box>
 
-            <Flex gap="2" align="center">
+            <Flex
+              gap="2"
+              align="center"
+            >
               <Box
                 ref={searchContainerRef}
                 style={{
@@ -363,7 +407,8 @@ export function CharacterList({
                   flex: searchExpanded ? 1 : undefined,
                   minWidth: 0,
                   position: "relative",
-                  transition: "border-color 0.15s ease, background 0.15s ease, padding-right 0.15s ease",
+                  transition:
+                    "border-color 0.15s ease, background 0.15s ease, padding-right 0.15s ease",
                 }}
               >
                 <CharacterSearchPopover
@@ -428,7 +473,13 @@ export function CharacterList({
                   <Box style={{ flex: 1 }} />
 
                   {isMultiSelect ? (
-                    <Tooltip content={selectedIds.size > 0 ? t("characters.deselectAll") : t("characters.selectAll")}>
+                    <Tooltip
+                      content={
+                        selectedIds.size > 0
+                          ? t("characters.deselectAll")
+                          : t("characters.selectAll")
+                      }
+                    >
                       <IconButton
                         variant="ghost"
                         size="2"
@@ -440,31 +491,51 @@ export function CharacterList({
                   ) : (
                     <DropdownMenu.Root>
                       <DropdownMenu.Trigger>
-                        <IconButton variant="ghost" size="2" aria-label={t("characters.sort")}> 
+                        <IconButton
+                          variant="ghost"
+                          size="2"
+                          aria-label={t("characters.sort")}
+                        >
                           <ArrowUpDown size={16} />
                         </IconButton>
                       </DropdownMenu.Trigger>
                       <DropdownMenu.Content align="end">
                         <DropdownMenu.Item onClick={() => handleSortChange("favorite")}>
-                          <Flex align="center" justify="between" width="100%">
+                          <Flex
+                            align="center"
+                            justify="between"
+                            width="100%"
+                          >
                             <Text>{t("characters.sortByFavorite")}</Text>
                             {getSortIcon("favorite")}
                           </Flex>
                         </DropdownMenu.Item>
                         <DropdownMenu.Item onClick={() => handleSortChange("updatedAt")}>
-                          <Flex align="center" justify="between" width="100%">
+                          <Flex
+                            align="center"
+                            justify="between"
+                            width="100%"
+                          >
                             <Text>{t("characters.sortByUpdated")}</Text>
                             {getSortIcon("updatedAt")}
                           </Flex>
                         </DropdownMenu.Item>
                         <DropdownMenu.Item onClick={() => handleSortChange("tokenCount")}>
-                          <Flex align="center" justify="between" width="100%">
+                          <Flex
+                            align="center"
+                            justify="between"
+                            width="100%"
+                          >
                             <Text>{t("characters.sortByTokens")}</Text>
                             {getSortIcon("tokenCount")}
                           </Flex>
                         </DropdownMenu.Item>
                         <DropdownMenu.Item onClick={() => handleSortChange("name")}>
-                          <Flex align="center" justify="between" width="100%">
+                          <Flex
+                            align="center"
+                            justify="between"
+                            width="100%"
+                          >
                             <Text>{t("characters.sortByName")}</Text>
                             {getSortIcon("name")}
                           </Flex>
@@ -473,7 +544,13 @@ export function CharacterList({
                     </DropdownMenu.Root>
                   )}
 
-                  <Tooltip content={isMultiSelect ? t("characters.multiselectExit") : t("characters.multiselectEnter")}>
+                  <Tooltip
+                    content={
+                      isMultiSelect
+                        ? t("characters.multiselectExit")
+                        : t("characters.multiselectEnter")
+                    }
+                  >
                     <IconButton
                       variant={isMultiSelect ? "solid" : "ghost"}
                       size="2"
@@ -497,14 +574,29 @@ export function CharacterList({
                   style={{ width: "100%" }}
                 >
                   <Trash2 size={16} />
-                  <Text size="2" ml="1">{t("characters.deleteSelected")}</Text>
+                  <Text
+                    size="2"
+                    ml="1"
+                  >
+                    {t("characters.deleteSelected")}
+                  </Text>
                 </IconButton>
               </Tooltip>
             ) : (
               <Tooltip content={t("characters.newCharacter")}>
-                <IconButton size="2" variant="soft" onClick={onCreateCharacter} style={{ width: "100%" }}>
+                <IconButton
+                  size="2"
+                  variant="soft"
+                  onClick={onCreateCharacter}
+                  style={{ width: "100%" }}
+                >
                   <Plus size={16} />
-                  <Text size="2" ml="1">{t("characters.newCharacter")}</Text>
+                  <Text
+                    size="2"
+                    ml="1"
+                  >
+                    {t("characters.newCharacter")}
+                  </Text>
                 </IconButton>
               </Tooltip>
             )}
@@ -513,28 +605,79 @@ export function CharacterList({
 
         <Box className="characters-list-body">
           {isLoading ? (
-            <Flex direction="column" gap="0">
+            <Flex
+              direction="column"
+              gap="0"
+            >
               {Array.from({ length: 8 }).map((_, index) => (
-                <Box key={index} p="3" style={{ borderBottom: "1px solid var(--gray-a5)" }}>
-                  <Flex align="center" gap="2" justify="between">
-                    <Skeleton width="32px" height="32px" style={{ borderRadius: 999 }} />
-                    <Flex direction="column" gap="1" style={{ flex: 1, minWidth: 0 }}>
-                      <Skeleton height="14px" width={`${50 + (index % 4) * 12}%`} style={{ maxWidth: 200 }} />
-                      <Skeleton height="12px" width="120px" />
+                <Box
+                  key={index}
+                  p="3"
+                  style={{ borderBottom: "1px solid var(--gray-a5)" }}
+                >
+                  <Flex
+                    align="center"
+                    gap="2"
+                    justify="between"
+                  >
+                    <Skeleton
+                      width="32px"
+                      height="32px"
+                      style={{ borderRadius: 999 }}
+                    />
+                    <Flex
+                      direction="column"
+                      gap="1"
+                      style={{ flex: 1, minWidth: 0 }}
+                    >
+                      <Skeleton
+                        height="14px"
+                        width={`${50 + (index % 4) * 12}%`}
+                        style={{ maxWidth: 200 }}
+                      />
+                      <Skeleton
+                        height="12px"
+                        width="120px"
+                      />
                     </Flex>
-                    <Skeleton width="20px" height="20px" />
+                    <Skeleton
+                      width="20px"
+                      height="20px"
+                    />
                   </Flex>
                 </Box>
               ))}
             </Flex>
           ) : characters.length === 0 ? (
-            <Flex className="characters-empty" direction="column" align="center" justify="center" gap="2" py="6">
+            <Flex
+              className="characters-empty"
+              direction="column"
+              align="center"
+              justify="center"
+              gap="2"
+              py="6"
+            >
               <UserRound size={28} />
-              <Text size="2" color="gray">{t("characters.empty")}</Text>
-              <Button size="2" variant="soft" onClick={onCreateCharacter}>{t("characters.newCharacter")}</Button>
+              <Text
+                size="2"
+                color="gray"
+              >
+                {t("characters.empty")}
+              </Text>
+              <Button
+                size="2"
+                variant="soft"
+                onClick={onCreateCharacter}
+              >
+                {t("characters.newCharacter")}
+              </Button>
             </Flex>
           ) : (
-            <Flex direction="column" width="100%" style={{ minWidth: 0 }}>
+            <Flex
+              direction="column"
+              width="100%"
+              style={{ minWidth: 0 }}
+            >
               {sortedCharacters.map((character) => {
                 const isSelected = character.id === selectedCharacterId;
                 const isChecked = selectedIds.has(character.id);
@@ -564,13 +707,31 @@ export function CharacterList({
                     }}
                     onContextMenu={(event) => handleContextMenu(event, character)}
                   >
-                    <Flex className="characters-list-item-row" align="center" gap="2" justify="between">
+                    <Flex
+                      className="characters-list-item-row"
+                      align="center"
+                      gap="2"
+                      justify="between"
+                    >
                       {isMultiSelect ? (
-                        <Flex className="characters-list-leading" align="center" justify="center" onClick={(event) => event.stopPropagation()}>
-                          <Checkbox checked={isChecked} onCheckedChange={() => handleCheckCharacter(character.id)} size="1" />
+                        <Flex
+                          className="characters-list-leading"
+                          align="center"
+                          justify="center"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <Checkbox
+                            checked={isChecked}
+                            onCheckedChange={() => handleCheckCharacter(character.id)}
+                            size="1"
+                          />
                         </Flex>
                       ) : (
-                        <Flex className="characters-list-leading" align="center" justify="center">
+                        <Flex
+                          className="characters-list-leading"
+                          align="center"
+                          justify="center"
+                        >
                           <CharacterListAvatar
                             key={character.imageUrl ?? character.id}
                             character={character}
@@ -579,14 +740,37 @@ export function CharacterList({
                         </Flex>
                       )}
 
-                      <Flex className="characters-list-item-main" align="center" gap="2" justify="between">
-                        <Flex direction="column" gap="1" style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
-                          <Text size="2" weight="medium" className="characters-list-item-title">
+                      <Flex
+                        className="characters-list-item-main"
+                        align="center"
+                        gap="2"
+                        justify="between"
+                      >
+                        <Flex
+                          direction="column"
+                          gap="1"
+                          style={{ flex: 1, minWidth: 0, overflow: "hidden" }}
+                        >
+                          <Text
+                            size="2"
+                            weight="medium"
+                            className="characters-list-item-title"
+                          >
                             {character.name}
                           </Text>
                           <Flex gap="2">
-                            <Text size="1" color="gray">{character.tokenCount} {t("characters.tokenCount")}</Text>
-                            <Text size="1" color="gray">· {formatRelativeTime(character.updatedAt)}</Text>
+                            <Text
+                              size="1"
+                              color="gray"
+                            >
+                              {character.tokenCount} {t("characters.tokenCount")}
+                            </Text>
+                            <Text
+                              size="1"
+                              color="gray"
+                            >
+                              · {formatRelativeTime(character.updatedAt)}
+                            </Text>
                           </Flex>
                         </Flex>
 
@@ -599,13 +783,20 @@ export function CharacterList({
                             height: "24px",
                             color: character.isFavorited ? "var(--amber-9)" : "var(--gray-9)",
                           }}
-                          aria-label={character.isFavorited ? t("characters.unfavorite") : t("characters.favorite")}
+                          aria-label={
+                            character.isFavorited
+                              ? t("characters.unfavorite")
+                              : t("characters.favorite")
+                          }
                           onClick={(event) => {
                             event.stopPropagation();
                             onToggleFavorite(character, !character.isFavorited);
                           }}
                         >
-                          <Star size={15} fill={character.isFavorited ? "currentColor" : "none"} />
+                          <Star
+                            size={15}
+                            fill={character.isFavorited ? "currentColor" : "none"}
+                          />
                         </IconButton>
                       </Flex>
                     </Flex>
@@ -617,19 +808,43 @@ export function CharacterList({
         </Box>
       </Flex>
 
-      <ContextMenu position={menuPosition} items={menuItems} onClose={handleCloseContextMenu} />
+      <ContextMenu
+        position={menuPosition}
+        items={menuItems}
+        onClose={handleCloseContextMenu}
+      />
 
-      <Dialog.Root open={batchDeleteDialogOpen} onOpenChange={setBatchDeleteDialogOpen}>
+      <Dialog.Root
+        open={batchDeleteDialogOpen}
+        onOpenChange={setBatchDeleteDialogOpen}
+      >
         <Dialog.Content style={{ maxWidth: 400 }}>
           <Dialog.Title>{t("characters.deleteSelected")}</Dialog.Title>
-          <Dialog.Description size="2" mb="4">
+          <Dialog.Description
+            size="2"
+            mb="4"
+          >
             {t("characters.batchDeleteConfirm", { count: selectedIds.size })}
           </Dialog.Description>
-          <Flex gap="3" justify="end">
+          <Flex
+            gap="3"
+            justify="end"
+          >
             <Dialog.Close>
-              <Button variant="soft" color="gray">{t("common.cancel")}</Button>
+              <Button
+                variant="soft"
+                color="gray"
+              >
+                {t("common.cancel")}
+              </Button>
             </Dialog.Close>
-            <Button variant="solid" color="red" onClick={handleBatchDeleteConfirm}>{t("common.delete")}</Button>
+            <Button
+              variant="solid"
+              color="red"
+              onClick={handleBatchDeleteConfirm}
+            >
+              {t("common.delete")}
+            </Button>
           </Flex>
         </Dialog.Content>
       </Dialog.Root>

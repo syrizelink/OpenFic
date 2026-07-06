@@ -1,13 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Flex, IconButton, Popover, Text } from "@radix-ui/themes";
-import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, ChevronsUpDown } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { searchWorldInfoEntries } from "@/lib/api-client";
-import type {
-  WorldInfoEntrySearchResult,
-} from "@/lib/world-info.types";
+import type { WorldInfoEntrySearchResult } from "@/lib/world-info.types";
 
 interface EntrySearchPopoverProps {
   worldInfoId: string;
@@ -29,9 +27,7 @@ function highlightText(text: string, query: string): React.ReactNode {
   let idx = lowerText.indexOf(lowerQuery, lastIndex);
   while (idx !== -1) {
     if (idx > lastIndex) {
-      parts.push(
-        <span key={`t-${lastIndex}`}>{text.slice(lastIndex, idx)}</span>
-      );
+      parts.push(<span key={`t-${lastIndex}`}>{text.slice(lastIndex, idx)}</span>);
     }
     parts.push(
       <mark
@@ -44,7 +40,7 @@ function highlightText(text: string, query: string): React.ReactNode {
         }}
       >
         {text.slice(idx, idx + query.length)}
-      </mark>
+      </mark>,
     );
     lastIndex = idx + query.length;
     idx = lowerText.indexOf(lowerQuery, lastIndex);
@@ -91,7 +87,10 @@ function EntryResultGroup({
           e.currentTarget.style.background = "transparent";
         }}
       >
-        <ChevronIcon size={14} style={{ color: "var(--gray-a9)", flexShrink: 0 }} />
+        <ChevronIcon
+          size={14}
+          style={{ color: "var(--gray-a9)", flexShrink: 0 }}
+        />
         <Text
           size="2"
           weight="bold"
@@ -119,7 +118,10 @@ function EntryResultGroup({
             flexShrink: 0,
           }}
         >
-          <Text size="1" style={{ lineHeight: 1 }}>
+          <Text
+            size="1"
+            style={{ lineHeight: 1 }}
+          >
             {result.matches.length}
           </Text>
         </Box>
@@ -263,11 +265,14 @@ export function EntrySearchPopover({
       onNavigateToMatch(entryId, lineNumber);
       onOpenChange(false);
     },
-    [onNavigateToMatch, onOpenChange]
+    [onNavigateToMatch, onOpenChange],
   );
 
   return (
-    <Popover.Root open={open} onOpenChange={onOpenChange}>
+    <Popover.Root
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <Popover.Trigger
         style={{
           border: "none",
@@ -295,13 +300,21 @@ export function EntrySearchPopover({
         >
           {debouncedQuery.trim().length === 0 ? (
             <Box p="4">
-              <Text size="2" color="gray" align="center">
+              <Text
+                size="2"
+                color="gray"
+                align="center"
+              >
                 {t("worldInfo.searchPlaceholder")}
               </Text>
             </Box>
           ) : isLoading ? (
             <Box p="4">
-              <Text size="2" color="gray" align="center">
+              <Text
+                size="2"
+                color="gray"
+                align="center"
+              >
                 {t("worldInfo.searching")}
               </Text>
             </Box>
@@ -316,7 +329,10 @@ export function EntrySearchPopover({
                   background: "var(--gray-a2)",
                 }}
               >
-                <Text size="1" color="gray">
+                <Text
+                  size="1"
+                  color="gray"
+                >
                   {t("worldInfo.searchResultSummary", {
                     entries: data.totalEntries,
                     matches: data.totalMatches,
@@ -326,11 +342,7 @@ export function EntrySearchPopover({
                   variant="ghost"
                   size="1"
                   onClick={handleToggleAll}
-                  title={
-                    allCollapsed
-                      ? t("worldInfo.expandAll")
-                      : t("worldInfo.collapseAll")
-                  }
+                  title={allCollapsed ? t("worldInfo.expandAll") : t("worldInfo.collapseAll")}
                 >
                   <ChevronsUpDown size={14} />
                 </IconButton>
@@ -348,7 +360,11 @@ export function EntrySearchPopover({
             </>
           ) : (
             <Box p="4">
-              <Text size="2" color="gray" align="center">
+              <Text
+                size="2"
+                color="gray"
+                align="center"
+              >
                 {t("worldInfo.noEntriesFound")}
               </Text>
             </Box>

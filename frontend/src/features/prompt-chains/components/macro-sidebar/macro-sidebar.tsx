@@ -6,13 +6,15 @@
 
 import { Box, Text, Heading } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
+
 import type { MacroNode } from "@/lib/macro";
-import { GetmemPanel } from "./getmem-panel";
+
+import { EmptyPanel } from "./empty-panel";
+import { EndIfPanel } from "./endif-panel";
 import { GetlistPanel } from "./getlist-panel";
+import { GetmemPanel } from "./getmem-panel";
 import { GetworldPanel } from "./getworld-panel";
 import { IfPanel } from "./if-panel";
-import { EndIfPanel } from "./endif-panel";
-import { EmptyPanel } from "./empty-panel";
 
 interface MacroSidebarProps {
   selectedMacro: MacroNode | null;
@@ -23,11 +25,7 @@ interface MacroSidebarProps {
   };
 }
 
-export function MacroSidebar({
-  selectedMacro,
-  onMacroUpdate,
-  workDir,
-}: MacroSidebarProps) {
+export function MacroSidebar({ selectedMacro, onMacroUpdate, workDir }: MacroSidebarProps) {
   const { t } = useTranslation();
 
   const renderPanel = () => {
@@ -38,14 +36,22 @@ export function MacroSidebar({
     switch (selectedMacro.name) {
       case "getmem":
         return (
-          <GetmemPanel macro={selectedMacro} workDir={workDir} />
+          <GetmemPanel
+            macro={selectedMacro}
+            workDir={workDir}
+          />
         );
       case "getlist":
         return <GetlistPanel />;
       case "getworld":
         return <GetworldPanel />;
       case "if":
-        return <IfPanel macro={selectedMacro} onUpdate={onMacroUpdate} />;
+        return (
+          <IfPanel
+            macro={selectedMacro}
+            onUpdate={onMacroUpdate}
+          />
+        );
       case "endif":
         return <EndIfPanel />;
       default:
@@ -70,11 +76,17 @@ export function MacroSidebar({
           flexShrink: 0,
         }}
       >
-        <Heading size="3" weight="medium">
+        <Heading
+          size="3"
+          weight="medium"
+        >
           {t("promptChains.macroPanel")}
         </Heading>
         {selectedMacro && (
-          <Text size="2" color="gray">
+          <Text
+            size="2"
+            color="gray"
+          >
             {selectedMacro.name}
           </Text>
         )}

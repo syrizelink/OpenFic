@@ -1,5 +1,5 @@
-import type { AgentMessage } from "@/lib/agent.types";
 import i18n from "@/i18n";
+import type { AgentMessage } from "@/lib/agent.types";
 
 import { getSubagentTargetLabel } from "./subagent-tool-message-utils";
 

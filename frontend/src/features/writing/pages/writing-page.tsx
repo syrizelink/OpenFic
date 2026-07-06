@@ -1,32 +1,29 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router";
 import { Box, Flex, IconButton, Tooltip } from "@radix-ui/themes";
-import { motion } from "motion/react";
 import { Bot, List } from "lucide-react";
+import { motion } from "motion/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Panel, Group, Separator } from "react-resizable-panels";
+import { useParams } from "react-router";
+
 import "./writing-page.css";
 
 import { MobileAppSidebarTrigger } from "@/features/app-shell";
-import { WritingSidebar } from "../components/writing-sidebar";
-import { ChapterEditor } from "../components/chapter-editor";
-import { NoteEditor } from "../components/note-editor";
-import { EditorTabs, EmptyTabContent } from "../components/editor-tabs";
-import { PageLoadingOverlay } from "../components/page-loading-overlay";
 import { AssistantSidebar } from "@/features/assistant";
 import type { AssistantSidebarHandle, AssistantSidebarState } from "@/features/assistant";
-import { useWritingStore } from "../store/use-writing-store";
-import {
-  useTabsStore,
-  useActiveTabId,
-  useTabs,
-  useTabsLoaded,
-} from "../store/use-tabs-store";
 import { getLastChapterId, setLastChapterId } from "@/lib/local-db";
+
+import { ChapterEditor } from "../components/chapter-editor";
+import { EditorTabs, EmptyTabContent } from "../components/editor-tabs";
+import { NoteEditor } from "../components/note-editor";
+import { PageLoadingOverlay } from "../components/page-loading-overlay";
+import { WritingSidebar } from "../components/writing-sidebar";
 import { useCreateChapter } from "../hooks/use-chapters";
-import { useCreateVolume, useVolumeTree } from "../hooks/use-volumes";
 import { useNoteTree } from "../hooks/use-notes";
+import { useCreateVolume, useVolumeTree } from "../hooks/use-volumes";
 import { isEmptyTab } from "../lib/tab.types";
+import { useTabsStore, useActiveTabId, useTabs, useTabsLoaded } from "../store/use-tabs-store";
+import { useWritingStore } from "../store/use-writing-store";
 
 const MotionBox = motion.create(Box);
 const MOBILE_SIDEBAR_WIDTH = 320;
@@ -49,24 +46,19 @@ export function WritingPage() {
   const tabs = useTabs();
   const isTabsLoaded = useTabsLoaded();
 
-  const activeTab = useMemo(
-    () => tabs.find((t) => t.id === activeTabId),
-    [tabs, activeTabId]
-  );
+  const activeTab = useMemo(() => tabs.find((t) => t.id === activeTabId), [tabs, activeTabId]);
   const activeRefId = useMemo(() => activeTab?.refId ?? null, [activeTab]);
   const activeType = useMemo(() => activeTab?.type ?? "chapter", [activeTab]);
 
   const currentChapterId = useMemo(
     () => (activeTab?.type === "chapter" ? activeTab.refId : null),
-    [activeTab]
+    [activeTab],
   );
 
   const createMutation = useCreateChapter(projectId ?? "");
   const createVolumeMutation = useCreateVolume(projectId ?? "");
 
-  const { data: chaptersData, isLoading: isChaptersLoading } = useVolumeTree(
-    projectId ?? ""
-  );
+  const { data: chaptersData, isLoading: isChaptersLoading } = useVolumeTree(projectId ?? "");
 
   const { data: noteTreeData } = useNoteTree(projectId ?? "");
 
@@ -83,7 +75,7 @@ export function WritingPage() {
 
   const isAgentLocked = useMemo(
     () => assistantState.isAgentRunning,
-    [assistantState.isAgentRunning]
+    [assistantState.isAgentRunning],
   );
   const isViewingSubagent = assistantState.conversationDescriptor?.kind === "subagent";
 
@@ -103,7 +95,7 @@ export function WritingPage() {
 
   const allChapters = useMemo(
     () => chaptersData?.volumes.flatMap((volume) => volume.chapters) ?? [],
-    [chaptersData]
+    [chaptersData],
   );
 
   const allNotes = useMemo(() => {
@@ -127,8 +119,9 @@ export function WritingPage() {
   const hasInitialized = useRef(false);
   const initialChapterNavigationSequenceRef = useRef(0);
   const prevProjectIdRef = useRef<string | null>(null);
-  const [initialCurrentChapterNavigationKey, setInitialCurrentChapterNavigationKey] =
-    useState<string | null>(null);
+  const [initialCurrentChapterNavigationKey, setInitialCurrentChapterNavigationKey] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     if (!projectId) return;
@@ -138,7 +131,7 @@ export function WritingPage() {
       prevProjectIdRef.current = projectId;
       initialChapterNavigationSequenceRef.current += 1;
       setInitialCurrentChapterNavigationKey(
-        `${projectId}:${initialChapterNavigationSequenceRef.current}`
+        `${projectId}:${initialChapterNavigationSequenceRef.current}`,
       );
     }
 
@@ -237,8 +230,7 @@ export function WritingPage() {
       if (!(activeElement instanceof HTMLElement)) return;
 
       const isTextInput =
-        activeElement instanceof HTMLInputElement ||
-        activeElement instanceof HTMLTextAreaElement;
+        activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement;
 
       // Mobile browsers may restore editor/title focus after chapter navigation.
       if (!isTextInput && !activeElement.isContentEditable) return;
@@ -259,21 +251,21 @@ export function WritingPage() {
 
       openTab(refId, title, type);
     },
-    [openSingleTab, openTab, isMobile]
+    [openSingleTab, openTab, isMobile],
   );
 
   const handleChapterSelect = useCallback(
     (chapterId: string, chapterTitle: string) => {
       handleSelectItem(chapterId, chapterTitle, "chapter");
     },
-    [handleSelectItem]
+    [handleSelectItem],
   );
 
   const handleNoteSelect = useCallback(
     (noteId: string, noteTitle: string) => {
       handleSelectItem(noteId, noteTitle, "note");
     },
-    [handleSelectItem]
+    [handleSelectItem],
   );
 
   const handleShowEmptyTab = useCallback(() => {
@@ -301,7 +293,15 @@ export function WritingPage() {
     } catch {
       // 错误处理由 mutation 处理
     }
-  }, [chaptersData?.volumes, createMutation, createVolumeMutation, isMobile, t, openSingleTab, openTab]);
+  }, [
+    chaptersData?.volumes,
+    createMutation,
+    createVolumeMutation,
+    isMobile,
+    t,
+    openSingleTab,
+    openTab,
+  ]);
 
   const handleCloseAllTabs = useCallback(() => {
     closeAllTabs();
@@ -321,7 +321,7 @@ export function WritingPage() {
 
       assistantSidebarRef.current?.appendToComposer(markup);
     },
-    [isAssistantOpen, isMobile]
+    [isAssistantOpen, isMobile],
   );
 
   if (!projectId) {
@@ -345,7 +345,10 @@ export function WritingPage() {
 
       <Box className="writing-page-shell">
         {!isMobile ? (
-          <Group orientation="horizontal" className="writing-page-group">
+          <Group
+            orientation="horizontal"
+            className="writing-page-group"
+          >
             <Panel
               id="left-sidebar"
               defaultSize={300}
@@ -360,7 +363,10 @@ export function WritingPage() {
 
             <Separator className="resize-handle writing-page-separator" />
 
-            <Panel id="editor" minSize={30}>
+            <Panel
+              id="editor"
+              minSize={30}
+            >
               <div className="writing-page-editor-shell">
                 <EditorTabs
                   onAddTab={handleShowEmptyTab}
@@ -380,7 +386,9 @@ export function WritingPage() {
                         chapterId={activeRefId}
                         projectId={projectId}
                         isAgentLocked={isAgentLocked}
-                        onAddToConversation={isViewingSubagent ? undefined : handleAddToConversation}
+                        onAddToConversation={
+                          isViewingSubagent ? undefined : handleAddToConversation
+                        }
                       />
                     )
                   ) : (
@@ -415,8 +423,17 @@ export function WritingPage() {
         ) : (
           <Flex className="writing-page-mobile-layout">
             <div className="writing-page-editor-shell writing-page-editor-shell--mobile">
-              <Flex align="center" justify="between" px="3" py="2" className="writing-page-mobile-topbar">
-                <Flex align="center" gap="1">
+              <Flex
+                align="center"
+                justify="between"
+                px="3"
+                py="2"
+                className="writing-page-mobile-topbar"
+              >
+                <Flex
+                  align="center"
+                  gap="1"
+                >
                   <MobileAppSidebarTrigger />
                   <Tooltip content={t("writing.chapters")}>
                     <IconButton
@@ -521,7 +538,6 @@ export function WritingPage() {
           />
         </MotionBox>
       )}
-
     </Box>
   );
 }

@@ -1,10 +1,8 @@
-import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
 import { Box, Flex, Text, Tooltip } from "@radix-ui/themes";
 import { AlertTriangle, CircleAlert } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
 
-import type { AgentMessage } from "@/lib/agent.types";
-import i18n from "@/i18n";
 import {
   formatChapterDisplayName,
   getChapterDiffBodySection,
@@ -13,18 +11,9 @@ import {
   type ChapterDiffSection,
   type ChapterDiffSectionType,
 } from "@/features/assistant/lib/chapter-tool-preview";
+import i18n from "@/i18n";
+import type { AgentMessage } from "@/lib/agent.types";
 
-import { getToolDescriptor } from "../../tools/shared/tool-message-registry";
-import {
-  UnregisteredToolMessage,
-} from "../../tools/shared/tool-message-status";
-import {
-  getChapterPayload,
-  getNotePayload,
-  getToolErrorMessage,
-  getWorldEntryPayload,
-  resolveToolMessageVisibilityState,
-} from "../../tools/shared/tool-message-utils";
 import {
   MessageBlockContent,
   MessageBlockHeader,
@@ -34,6 +23,15 @@ import {
   MessageExpandButton,
 } from "../../shared/message-shell";
 import { joinClassNames } from "../../shared/message-shell-utils";
+import { getToolDescriptor } from "../../tools/shared/tool-message-registry";
+import { UnregisteredToolMessage } from "../../tools/shared/tool-message-status";
+import {
+  getChapterPayload,
+  getNotePayload,
+  getToolErrorMessage,
+  getWorldEntryPayload,
+  resolveToolMessageVisibilityState,
+} from "../../tools/shared/tool-message-utils";
 
 interface ToolMessageProps {
   message: AgentMessage;
@@ -45,9 +43,7 @@ interface ToolErrorIndicatorProps {
 
 export function ToolErrorIndicator({ errorMessage }: ToolErrorIndicatorProps) {
   return (
-    <Tooltip
-      content={<Box className="agent-tool-error-tooltip">{errorMessage}</Box>}
-    >
+    <Tooltip content={<Box className="agent-tool-error-tooltip">{errorMessage}</Box>}>
       <Box
         className="agent-tool-error-indicator"
         aria-label={errorMessage}
@@ -110,11 +106,15 @@ function getNoteDiffPreview(message: AgentMessage): {
           type: sectionType,
           lines: Array.isArray(section.lines)
             ? section.lines.filter(isRecord).map((line) => ({
-              type: (line.type === "added" || line.type === "removed" ? line.type : "context") as ChapterDiffSection["lines"][0]["type"],
-              before_line_number: typeof line.before_line_number === "number" ? line.before_line_number : null,
-              after_line_number: typeof line.after_line_number === "number" ? line.after_line_number : null,
-              text: typeof line.text === "string" ? line.text : "",
-            }))
+                type: (line.type === "added" || line.type === "removed"
+                  ? line.type
+                  : "context") as ChapterDiffSection["lines"][0]["type"],
+                before_line_number:
+                  typeof line.before_line_number === "number" ? line.before_line_number : null,
+                after_line_number:
+                  typeof line.after_line_number === "number" ? line.after_line_number : null,
+                text: typeof line.text === "string" ? line.text : "",
+              }))
             : [],
         };
       })
@@ -143,11 +143,15 @@ function getWorldEntryDiffPreview(message: AgentMessage): {
           type: sectionType,
           lines: Array.isArray(section.lines)
             ? section.lines.filter(isRecord).map((line) => ({
-              type: (line.type === "added" || line.type === "removed" ? line.type : "context") as ChapterDiffSection["lines"][0]["type"],
-              before_line_number: typeof line.before_line_number === "number" ? line.before_line_number : null,
-              after_line_number: typeof line.after_line_number === "number" ? line.after_line_number : null,
-              text: typeof line.text === "string" ? line.text : "",
-            }))
+                type: (line.type === "added" || line.type === "removed"
+                  ? line.type
+                  : "context") as ChapterDiffSection["lines"][0]["type"],
+                before_line_number:
+                  typeof line.before_line_number === "number" ? line.before_line_number : null,
+                after_line_number:
+                  typeof line.after_line_number === "number" ? line.after_line_number : null,
+                text: typeof line.text === "string" ? line.text : "",
+              }))
             : [],
         };
       })
@@ -159,29 +163,38 @@ export function ToolMessage({ message }: ToolMessageProps) {
   const descriptor = getToolDescriptor(message.toolName);
   const errorMessage = getToolErrorMessage(message);
   const isIncompleteAskUser =
-    message.toolName === "ask_user" &&
-    message.status !== "completed" &&
-    message.status !== "error";
-  const isRunning = Boolean(message.isStreaming || message.status === "running" || isIncompleteAskUser);
+    message.toolName === "ask_user" && message.status !== "completed" && message.status !== "error";
+  const isRunning = Boolean(
+    message.isStreaming || message.status === "running" || isIncompleteAskUser,
+  );
   const chapterDiffPreview = isChapterDiffTool(message) ? getChapterDiffPreview(message) : null;
   const noteDiffPreview = isNoteDiffTool(message) ? getNoteDiffPreview(message) : null;
-  const worldEntryDiffPreview = isWorldEntryDiffTool(message) ? getWorldEntryDiffPreview(message) : null;
+  const worldEntryDiffPreview = isWorldEntryDiffTool(message)
+    ? getWorldEntryDiffPreview(message)
+    : null;
   const usesDiffHeader = Boolean(chapterDiffPreview || noteDiffPreview || worldEntryDiffPreview);
   const contentMode = usesDiffHeader ? "expandable" : (descriptor?.contentMode ?? "static");
   const defaultExpanded = descriptor?.defaultExpanded?.(message) ?? false;
   const [isExpanded, setIsExpanded] = useState(() => defaultExpanded);
   const content = !descriptor ? (
-    <UnregisteredToolMessage toolName={message.toolName} errorMessage={errorMessage} />
+    <UnregisteredToolMessage
+      toolName={message.toolName}
+      errorMessage={errorMessage}
+    />
   ) : contentMode === "hidden" ? null : !descriptor.render ? null : (
     descriptor.render(message)
   );
   const Icon = descriptor?.icon ?? AlertTriangle;
   const title = descriptor?.getTitle(message) ?? i18n.t("assistant.tools.unregisteredTool");
-  const detail = descriptor ? descriptor.getDetail?.(message) : message.toolName ?? i18n.t("assistant.tools.unknown");
+  const detail = descriptor
+    ? descriptor.getDetail?.(message)
+    : (message.toolName ?? i18n.t("assistant.tools.unknown"));
   const chapterDiffBodySection = getChapterDiffBodySection(chapterDiffPreview);
   const noteDiffBodySection = noteDiffPreview?.sections.find((s) => s.type === "content") ?? null;
-  const worldEntryDiffBodySection = worldEntryDiffPreview?.sections.find((s) => s.type === "content") ?? null;
-  const diffBodySection = chapterDiffBodySection ?? noteDiffBodySection ?? worldEntryDiffBodySection;
+  const worldEntryDiffBodySection =
+    worldEntryDiffPreview?.sections.find((s) => s.type === "content") ?? null;
+  const diffBodySection =
+    chapterDiffBodySection ?? noteDiffBodySection ?? worldEntryDiffBodySection;
   const diffChangeSummary = summarizeChapterDiffSection(diffBodySection);
   const chapter = getChapterPayload(message);
   const note = isNoteDiffTool(message) ? getNotePayload(message) : null;
@@ -195,7 +208,9 @@ export function ToolMessage({ message }: ToolMessageProps) {
       })
     : noteDiffPreview
       ? (noteDiffPreview.note_title ?? note?.title)
-      : (worldEntryDiffPreview ? (worldEntryDiffPreview.entry_title ?? worldEntry?.title) : undefined);
+      : worldEntryDiffPreview
+        ? (worldEntryDiffPreview.entry_title ?? worldEntry?.title)
+        : undefined;
   const visibilityState = resolveToolMessageVisibilityState({
     message,
     contentMode,
@@ -207,17 +222,18 @@ export function ToolMessage({ message }: ToolMessageProps) {
     "agent-tool-title",
     "agent-message-shell-title",
     isRunning && "text-shimmer",
-    visibilityState.showErrorIndicator && "agent-message-shell-title--error"
+    visibilityState.showErrorIndicator && "agent-message-shell-title--error",
   );
   const iconClassName = joinClassNames(
     "agent-message-icon",
     "agent-message-shell-icon",
-    visibilityState.showErrorIndicator && "agent-message-shell-icon--error"
+    visibilityState.showErrorIndicator && "agent-message-shell-icon--error",
   );
-  const showMeta = visibilityState.showErrorIndicator
-    || usesDiffHeader
-    || visibilityState.showDetail
-    || visibilityState.showExpandButton;
+  const showMeta =
+    visibilityState.showErrorIndicator ||
+    usesDiffHeader ||
+    visibilityState.showDetail ||
+    visibilityState.showExpandButton;
 
   const handleToggleExpanded = () => {
     if (!visibilityState.canExpand) return;
@@ -242,7 +258,10 @@ export function ToolMessage({ message }: ToolMessageProps) {
         onToggle={handleToggleExpanded}
       >
         <MessageBlockHeaderMain>
-          <Icon size={16} className={iconClassName} />
+          <Icon
+            size={16}
+            className={iconClassName}
+          />
           <Text
             size="1"
             weight="medium"
@@ -270,7 +289,11 @@ export function ToolMessage({ message }: ToolMessageProps) {
                         x: { duration: 0.18, ease: [0.22, 1, 0.36, 1] },
                       }}
                     >
-                      <Flex align="center" gap="2" className="agent-chapter-tool-meta-content">
+                      <Flex
+                        align="center"
+                        gap="2"
+                        className="agent-chapter-tool-meta-content"
+                      >
                         {diffDetail ? (
                           <Text
                             size="1"
@@ -280,11 +303,23 @@ export function ToolMessage({ message }: ToolMessageProps) {
                             {diffDetail}
                           </Text>
                         ) : null}
-                        <Flex align="center" gap="1" className="agent-chapter-tool-stats">
-                          <Text size="1" className="agent-chapter-tool-change" data-change="added">
+                        <Flex
+                          align="center"
+                          gap="1"
+                          className="agent-chapter-tool-stats"
+                        >
+                          <Text
+                            size="1"
+                            className="agent-chapter-tool-change"
+                            data-change="added"
+                          >
                             +{diffChangeSummary.added}
                           </Text>
-                          <Text size="1" className="agent-chapter-tool-change" data-change="removed">
+                          <Text
+                            size="1"
+                            className="agent-chapter-tool-change"
+                            data-change="removed"
+                          >
                             -{diffChangeSummary.removed}
                           </Text>
                         </Flex>
@@ -293,14 +328,22 @@ export function ToolMessage({ message }: ToolMessageProps) {
                   ) : null}
                 </AnimatePresence>
               ) : visibilityState.showDetail && detail ? (
-                <Text size="1" color="gray" className="agent-tool-detail agent-message-shell-detail">
+                <Text
+                  size="1"
+                  color="gray"
+                  className="agent-tool-detail agent-message-shell-detail"
+                >
                   {detail}
                 </Text>
               ) : null}
               {visibilityState.showExpandButton ? (
                 <MessageExpandButton
                   expanded={isExpanded}
-                  label={isExpanded ? i18n.t("assistant.collapseToolMessage") : i18n.t("assistant.expandToolMessage")}
+                  label={
+                    isExpanded
+                      ? i18n.t("assistant.collapseToolMessage")
+                      : i18n.t("assistant.expandToolMessage")
+                  }
                 />
               ) : null}
             </MessageBlockMeta>
@@ -308,11 +351,17 @@ export function ToolMessage({ message }: ToolMessageProps) {
         </MessageBlockHeaderMain>
       </MessageBlockHeader>
       {visibilityState.showStaticContent ? (
-        <Box className="agent-tool-content-shell" data-static="true">
+        <Box
+          className="agent-tool-content-shell"
+          data-static="true"
+        >
           <Box className="agent-tool-content">{content}</Box>
         </Box>
       ) : null}
-      <MessageBlockContent motionKey="tool-content" visible={visibilityState.canExpand && isExpanded}>
+      <MessageBlockContent
+        motionKey="tool-content"
+        visible={visibilityState.canExpand && isExpanded}
+      >
         {content}
       </MessageBlockContent>
     </MessageBlockShell>

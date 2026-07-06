@@ -4,11 +4,11 @@
  * 模型选择器对话框，用于从提供商的模型列表中选择模型。
  */
 
-import { useState, useCallback, useMemo } from "react";
 import { Dialog, Flex, Button, Text, TextField, Box } from "@radix-ui/themes";
 import { Search } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
+import { useState, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Spinner } from "@/components";
 import type { AvailableModel } from "@/lib/model.types";
@@ -39,9 +39,7 @@ export function ModelSelectorDialog({
 
     const query = searchQuery.toLowerCase();
     return models.filter(
-      (model) =>
-        model.id.toLowerCase().includes(query) ||
-        model.name.toLowerCase().includes(query)
+      (model) => model.id.toLowerCase().includes(query) || model.name.toLowerCase().includes(query),
     );
   }, [models, searchQuery]);
 
@@ -51,7 +49,7 @@ export function ModelSelectorDialog({
       onSelect(model);
       setSearchQuery("");
     },
-    [onSelect]
+    [onSelect],
   );
 
   // 处理对话框关闭
@@ -62,15 +60,22 @@ export function ModelSelectorDialog({
       }
       onOpenChange(newOpen);
     },
-    [onOpenChange]
+    [onOpenChange],
   );
 
   return (
-    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={handleOpenChange}
+    >
       <Dialog.Content maxWidth="600px">
         <Dialog.Title>{t("models.selectModel")}</Dialog.Title>
 
-        <Flex direction="column" gap="4" mt="4">
+        <Flex
+          direction="column"
+          gap="4"
+          mt="4"
+        >
           {/* 搜索框 */}
           <TextField.Root
             placeholder={t("models.searchModel")}
@@ -98,7 +103,11 @@ export function ModelSelectorDialog({
                 style={{ height: 200, padding: 20 }}
               >
                 <Spinner size={18} />
-                <Text size="2" color="gray" ml="2">
+                <Text
+                  size="2"
+                  color="gray"
+                  ml="2"
+                >
                   {t("models.loadingModels")}
                 </Text>
               </Flex>
@@ -117,11 +126,20 @@ export function ModelSelectorDialog({
                     whileTap={{ scale: 0.98 }}
                     transition={{ duration: 0.15 }}
                   >
-                    <Flex direction="column" gap="1">
-                      <Text size="2" weight="medium">
+                    <Flex
+                      direction="column"
+                      gap="1"
+                    >
+                      <Text
+                        size="2"
+                        weight="medium"
+                      >
                         {model.name}
                       </Text>
-                      <Text size="1" color="gray">
+                      <Text
+                        size="1"
+                        color="gray"
+                      >
                         {model.id}
                       </Text>
                     </Flex>
@@ -136,10 +154,11 @@ export function ModelSelectorDialog({
                 gap="2"
                 style={{ height: 200, padding: 20 }}
               >
-                <Text size="2" color="gray">
-                  {searchQuery
-                    ? t("projects.noProjectsFound")
-                    : t("models.noModels")}
+                <Text
+                  size="2"
+                  color="gray"
+                >
+                  {searchQuery ? t("projects.noProjectsFound") : t("models.noModels")}
                 </Text>
               </Flex>
             )}
@@ -148,7 +167,10 @@ export function ModelSelectorDialog({
           {/* 关闭按钮 */}
           <Flex justify="end">
             <Dialog.Close>
-              <Button variant="soft" color="gray">
+              <Button
+                variant="soft"
+                color="gray"
+              >
                 {t("common.close")}
               </Button>
             </Dialog.Close>

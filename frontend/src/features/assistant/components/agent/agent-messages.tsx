@@ -8,20 +8,11 @@ import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { Check, Copy, GitFork, RotateCcw } from "lucide-react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+import { ConfirmDialog, toast } from "@/components";
+import type { AgentMessage as AgentMessageType } from "@/lib/agent.types";
+
 import { AgentMessageRenderer } from "./agent-message-renderer";
-import { AgentStatusMessage } from "./agent-status-message";
-import {
-  buildAgentMessageBlocks,
-  getAgentRoundToolbarTargets,
-  getVisibleAgentMessageBlocks,
-  type AgentRoundToolbarTarget,
-} from "./display/agent-message-blocks";
-import { buildAgentDisplayItems } from "./display/agent-message-display-items";
-import { normalizeDisplayMessages } from "./display/display-message-normalization";
-import type {
-  AgentBlockDisplayMessage,
-  BlockDisplayMessage,
-} from "./display/display-message-types";
 import {
   hasPendingLoadedSessionBottomRestore,
   resolveFollowBottomStateOnScroll,
@@ -33,11 +24,23 @@ import {
   shouldTrackStreamingFollowBottom,
   type ScrollViewportMetrics,
 } from "./agent-messages-scroll";
-import { ExplorationMessage } from "./message-blocks/blocks/exploration/exploration-message";
+import { AgentStatusMessage } from "./agent-status-message";
+import {
+  buildAgentMessageBlocks,
+  getAgentRoundToolbarTargets,
+  getVisibleAgentMessageBlocks,
+  type AgentRoundToolbarTarget,
+} from "./display/agent-message-blocks";
+import { buildAgentDisplayItems } from "./display/agent-message-display-items";
+import { normalizeDisplayMessages } from "./display/display-message-normalization";
+
 import "./agent-message-blocks.css";
 
-import { ConfirmDialog, toast } from "@/components";
-import type { AgentMessage as AgentMessageType } from "@/lib/agent.types";
+import type {
+  AgentBlockDisplayMessage,
+  BlockDisplayMessage,
+} from "./display/display-message-types";
+import { ExplorationMessage } from "./message-blocks/blocks/exploration/exploration-message";
 
 const COPY_FEEDBACK_MS = 1200;
 
@@ -52,10 +55,12 @@ function getTimestampParts(timestamp: number, timeZone?: string): Record<string,
     hour12: false,
     hourCycle: "h23",
   });
-  return formatter.formatToParts(new Date(timestamp)).reduce<Record<string, string>>((result, part) => {
-    if (part.type !== "literal") result[part.type] = part.value;
-    return result;
-  }, {});
+  return formatter
+    .formatToParts(new Date(timestamp))
+    .reduce<Record<string, string>>((result, part) => {
+      if (part.type !== "literal") result[part.type] = part.value;
+      return result;
+    }, {});
 }
 
 function formatAgentToolbarTimestamp(timestamp?: number, now = Date.now()): string {
@@ -94,14 +99,15 @@ function isRollbackableUserMessage(message: AgentMessageType): boolean {
   );
 }
 
-function isAgentBlockDisplayMessage(message: BlockDisplayMessage): message is AgentBlockDisplayMessage {
-  return message.type !== "user_request" && message.type !== "node_start" && message.type !== "node_end";
+function isAgentBlockDisplayMessage(
+  message: BlockDisplayMessage,
+): message is AgentBlockDisplayMessage {
+  return (
+    message.type !== "user_request" && message.type !== "node_start" && message.type !== "node_end"
+  );
 }
 
-function areBlockMessageListsEqual(
-  previous: BlockDisplayMessage[],
-  next: BlockDisplayMessage[]
-) {
+function areBlockMessageListsEqual(previous: BlockDisplayMessage[], next: BlockDisplayMessage[]) {
   if (previous === next) return true;
   if (previous.length !== next.length) return false;
   for (let index = 0; index < previous.length; index += 1) {
@@ -115,42 +121,39 @@ interface AgentBlockContentProps {
   onOpenMentionChapter?: (chapterId: string, chapterTitle: string) => void;
 }
 
-const AgentBlockContent = memo(function AgentBlockContent({
-  messages,
-  onOpenMentionChapter,
-}: AgentBlockContentProps) {
-  const agentMessages = useMemo(
-    () => messages.filter(isAgentBlockDisplayMessage),
-    [messages]
-  );
-  const displayItems = useMemo(
-    () => buildAgentDisplayItems(agentMessages),
-    [agentMessages]
-  );
+const AgentBlockContent = memo(
+  function AgentBlockContent({ messages, onOpenMentionChapter }: AgentBlockContentProps) {
+    const agentMessages = useMemo(() => messages.filter(isAgentBlockDisplayMessage), [messages]);
+    const displayItems = useMemo(() => buildAgentDisplayItems(agentMessages), [agentMessages]);
 
-  return (
-    <Flex direction="column" gap="2" className="agent-message-block-content">
-      {displayItems.map((item) => (
-        item.type === "exploration" ? (
-          <ExplorationMessage
-            key={item.id}
-            messages={item.messages}
-            summary={item.summary}
-          />
-        ) : (
-          <AgentMessageRenderer
-            key={item.id}
-            message={item.message}
-            onOpenMentionChapter={onOpenMentionChapter}
-          />
-        )
-      ))}
-    </Flex>
-  );
-}, (prev, next) => (
-  areBlockMessageListsEqual(prev.messages, next.messages)
-  && prev.onOpenMentionChapter === next.onOpenMentionChapter
-));
+    return (
+      <Flex
+        direction="column"
+        gap="2"
+        className="agent-message-block-content"
+      >
+        {displayItems.map((item) =>
+          item.type === "exploration" ? (
+            <ExplorationMessage
+              key={item.id}
+              messages={item.messages}
+              summary={item.summary}
+            />
+          ) : (
+            <AgentMessageRenderer
+              key={item.id}
+              message={item.message}
+              onOpenMentionChapter={onOpenMentionChapter}
+            />
+          ),
+        )}
+      </Flex>
+    );
+  },
+  (prev, next) =>
+    areBlockMessageListsEqual(prev.messages, next.messages) &&
+    prev.onOpenMentionChapter === next.onOpenMentionChapter,
+);
 
 export function AgentMessages({
   messages,
@@ -173,7 +176,7 @@ export function AgentMessages({
   const isRestoringLoadedSessionBottomRef = useRef(false);
   const pendingLoadedSessionRestoreKeyRef = useRef<string | null | undefined>(null);
   const restoreAttemptRef = useRef(0);
-  const resizeFrameRef = useRef<{ scrollHeight: number; clientHeight: number; } | null>(null);
+  const resizeFrameRef = useRef<{ scrollHeight: number; clientHeight: number } | null>(null);
   const viewportMetricsRef = useRef<ScrollViewportMetrics | null>(null);
   const previousIsRunningRef = useRef(isRunning);
   const lastLoadScrollKeyRef = useRef<string | null | undefined>(null);
@@ -182,7 +185,9 @@ export function AgentMessages({
   const streamingScrollRafRef = useRef<number | null>(null);
   const isAtBottomRef = useRef(true);
   const [copiedActionId, setCopiedActionId] = useState<string | null>(null);
-  const [pendingRollbackMessage, setPendingRollbackMessage] = useState<AgentMessageType | null>(null);
+  const [pendingRollbackMessage, setPendingRollbackMessage] = useState<AgentMessageType | null>(
+    null,
+  );
   const [pendingForkTarget, setPendingForkTarget] = useState<AgentRoundToolbarTarget | null>(null);
   const [collapsedNodeIds, setCollapsedNodeIds] = useState<Set<string>>(() => new Set());
   const latestMessage = messages.at(-1);
@@ -198,7 +203,7 @@ export function AgentMessages({
 
   const getScrollContainer = useCallback(
     () => scrollContainerRef.current ?? bottomRef.current?.closest(".ai-sidebar-messages"),
-    []
+    [],
   );
 
   const scrollContainerToBottom = useCallback((container: HTMLElement) => {
@@ -222,7 +227,7 @@ export function AgentMessages({
   const scheduleLoadedSessionBottomRestore = useCallback(() => {
     const hasPendingRestore = hasPendingLoadedSessionBottomRestore(
       pendingLoadedSessionRestoreKeyRef.current,
-      scrollToBottomKey
+      scrollToBottomKey,
     );
     if (!hasPendingRestore) return;
     const container = getScrollContainer();
@@ -326,7 +331,12 @@ export function AgentMessages({
       resizeObserver.disconnect();
       container.removeEventListener("scroll", handleScroll);
     };
-  }, [isRunning, onAtBottomChange, scheduleLoadedSessionBottomRestore, scheduleStreamingScrollToBottom]);
+  }, [
+    isRunning,
+    onAtBottomChange,
+    scheduleLoadedSessionBottomRestore,
+    scheduleStreamingScrollToBottom,
+  ]);
 
   useEffect(() => {
     const previousIsRunning = previousIsRunningRef.current;
@@ -351,13 +361,13 @@ export function AgentMessages({
     }
     const hasPendingRestore = hasPendingLoadedSessionBottomRestore(
       pendingLoadedSessionRestoreKeyRef.current,
-      scrollToBottomKey
+      scrollToBottomKey,
     );
     if (!hasPendingRestore) return;
     isRestoringLoadedSessionBottomRef.current = true;
     const shouldScheduleImmediately = shouldScheduleLoadedSessionBottomRestoreImmediately(
       hasPendingRestore,
-      scrollContainerRef.current instanceof HTMLElement
+      scrollContainerRef.current instanceof HTMLElement,
     );
     if (shouldScheduleImmediately) {
       scheduleLoadedSessionBottomRestore();
@@ -385,42 +395,47 @@ export function AgentMessages({
     };
   }, [scrollToBottomFnRef, getScrollContainer, scrollContainerToBottom, onAtBottomChange]);
 
-  useEffect(() => () => {
-    if (copyFeedbackTimerRef.current !== null) {
-      window.clearTimeout(copyFeedbackTimerRef.current);
-    }
-    if (restoreScrollRafRef.current !== null) {
-      window.cancelAnimationFrame(restoreScrollRafRef.current);
-    }
-    if (streamingScrollRafRef.current !== null) {
-      window.cancelAnimationFrame(streamingScrollRafRef.current);
-    }
-    isRestoringLoadedSessionBottomRef.current = false;
-    restoreAttemptRef.current = 0;
-  }, []);
+  useEffect(
+    () => () => {
+      if (copyFeedbackTimerRef.current !== null) {
+        window.clearTimeout(copyFeedbackTimerRef.current);
+      }
+      if (restoreScrollRafRef.current !== null) {
+        window.cancelAnimationFrame(restoreScrollRafRef.current);
+      }
+      if (streamingScrollRafRef.current !== null) {
+        window.cancelAnimationFrame(streamingScrollRafRef.current);
+      }
+      isRestoringLoadedSessionBottomRef.current = false;
+      restoreAttemptRef.current = 0;
+    },
+    [],
+  );
 
   const displayMessages = useMemo(() => normalizeDisplayMessages(messages), [messages]);
   const closeOpenNodeAt = useMemo(() => {
     if (isRunning) return undefined;
-    return displayMessages.reduce<number | undefined>((latest, message) => (
-      typeof latest === "number" ? Math.max(latest, message.timestamp) : message.timestamp
-    ), undefined);
+    return displayMessages.reduce<number | undefined>(
+      (latest, message) =>
+        typeof latest === "number" ? Math.max(latest, message.timestamp) : message.timestamp,
+      undefined,
+    );
   }, [displayMessages, isRunning]);
   const messageBlocks = useMemo(
     () => buildAgentMessageBlocks(displayMessages, { closeOpenNodeAt }),
-    [closeOpenNodeAt, displayMessages]
+    [closeOpenNodeAt, displayMessages],
   );
   const visibleMessageBlocks = useMemo(
     () => getVisibleAgentMessageBlocks(messageBlocks, collapsedNodeIds),
-    [collapsedNodeIds, messageBlocks]
+    [collapsedNodeIds, messageBlocks],
   );
   const toolbarTargets = useMemo(
     () => getAgentRoundToolbarTargets(messageBlocks, visibleMessageBlocks, { isRunning }),
-    [isRunning, messageBlocks, visibleMessageBlocks]
+    [isRunning, messageBlocks, visibleMessageBlocks],
   );
   const toolbarTargetByAnchorId = useMemo(
     () => new Map(toolbarTargets.map((target) => [target.anchorBlockId, target])),
-    [toolbarTargets]
+    [toolbarTargets],
   );
 
   const toggleNodeCollapsed = useCallback((nodeId: string) => {
@@ -432,27 +447,30 @@ export function AgentMessages({
     });
   }, []);
 
-  const copyText = useCallback(async (content: string, emptyMessage: string, actionId: string) => {
-    const text = content.trim();
-    if (!text) {
-      toast.error(emptyMessage);
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedActionId(actionId);
-      if (copyFeedbackTimerRef.current !== null) {
-        window.clearTimeout(copyFeedbackTimerRef.current);
+  const copyText = useCallback(
+    async (content: string, emptyMessage: string, actionId: string) => {
+      const text = content.trim();
+      if (!text) {
+        toast.error(emptyMessage);
+        return;
       }
-      copyFeedbackTimerRef.current = window.setTimeout(() => {
-        setCopiedActionId(null);
-        copyFeedbackTimerRef.current = null;
-      }, COPY_FEEDBACK_MS);
-      toast.success(t("common.copied"));
-    } catch {
-      toast.error(t("assistant.copyFailed"));
-    }
-  }, [t]);
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopiedActionId(actionId);
+        if (copyFeedbackTimerRef.current !== null) {
+          window.clearTimeout(copyFeedbackTimerRef.current);
+        }
+        copyFeedbackTimerRef.current = window.setTimeout(() => {
+          setCopiedActionId(null);
+          copyFeedbackTimerRef.current = null;
+        }, COPY_FEEDBACK_MS);
+        toast.success(t("common.copied"));
+      } catch {
+        toast.error(t("assistant.copyFailed"));
+      }
+    },
+    [t],
+  );
 
   const confirmRollback = useCallback(async () => {
     const messageId = pendingRollbackMessage?.id;
@@ -474,17 +492,27 @@ export function AgentMessages({
     const canFork = Boolean(target.sourceRevisionId && onFork && !isRollbacking && !isRunning);
     const timestampText = formatAgentToolbarTimestamp(target.timestamp);
     return (
-      <Flex key={target.id} className="agent-message-round-toolbar agent-message-block-toolbar" data-align="left" align="center" gap="1">
+      <Flex
+        key={target.id}
+        className="agent-message-round-toolbar agent-message-block-toolbar"
+        data-align="left"
+        align="center"
+        gap="1"
+      >
         <Tooltip content={isCopied ? t("common.copied") : t("assistant.copyLatestReply")}>
           <IconButton
             size="1"
             variant="ghost"
             color={isCopied ? "green" : "gray"}
-              aria-label={isCopied ? t("assistant.latestReplyCopied") : t("assistant.copyLatestReply")}
+            aria-label={
+              isCopied ? t("assistant.latestReplyCopied") : t("assistant.copyLatestReply")
+            }
             className="agent-message-block-toolbar-button"
             data-copied={isCopied ? "true" : undefined}
             disabled={!target.copyContent}
-              onClick={() => copyText(target.copyContent, t("assistant.noAssistantReplyToCopy"), actionId)}
+            onClick={() =>
+              copyText(target.copyContent, t("assistant.noAssistantReplyToCopy"), actionId)
+            }
           >
             {isCopied ? <Check size={13} /> : <Copy size={13} />}
           </IconButton>
@@ -504,7 +532,10 @@ export function AgentMessages({
           </Tooltip>
         )}
         {timestampText ? (
-          <Text size="1" className="agent-message-block-toolbar-timestamp">
+          <Text
+            size="1"
+            className="agent-message-block-toolbar-timestamp"
+          >
             {timestampText}
           </Text>
         ) : null}
@@ -513,8 +544,14 @@ export function AgentMessages({
   };
 
   return (
-    <Box className="agent-messages-root" data-rollbacking={isRollbacking ? "true" : undefined}>
-      <Box ref={contentRef} className="agent-message-scroll-content">
+    <Box
+      className="agent-messages-root"
+      data-rollbacking={isRollbacking ? "true" : undefined}
+    >
+      <Box
+        ref={contentRef}
+        className="agent-message-scroll-content"
+      >
         {visibleMessageBlocks.map((block) => {
           const toolbarTarget = toolbarTargetByAnchorId.get(block.id);
           if (block.type === "node") {
@@ -523,8 +560,15 @@ export function AgentMessages({
             const nodeId = block.nodeId ?? message.id;
             const isCollapsed = collapsedNodeIds.has(nodeId);
             return (
-              <Box key={block.id} className="agent-message-block-stack" data-block-type="node">
-                <Box className="agent-message-block" data-block-type="node">
+              <Box
+                key={block.id}
+                className="agent-message-block-stack"
+                data-block-type="node"
+              >
+                <Box
+                  className="agent-message-block"
+                  data-block-type="node"
+                >
                   <AgentMessageRenderer
                     message={message}
                     nodeStartedAt={block.nodeStartedAt}
@@ -543,19 +587,32 @@ export function AgentMessages({
           if (block.type === "user") {
             const message = block.messages[0];
             if (!message || message.type !== "user_request") return null;
-            const canShowRollback = isRollbackableUserMessage(message) && !isRollbacking && !isRunning;
+            const canShowRollback =
+              isRollbackableUserMessage(message) && !isRollbacking && !isRunning;
             const copyActionId = `copy:${block.id}`;
             const isCopied = copiedActionId === copyActionId;
             const timestampText = formatAgentToolbarTimestamp(message.timestamp);
             return (
-              <Box key={block.id} className="agent-message-block" data-block-type="user">
+              <Box
+                key={block.id}
+                className="agent-message-block"
+                data-block-type="user"
+              >
                 <AgentMessageRenderer
                   message={message}
                   onOpenMentionChapter={onOpenMentionChapter}
                 />
-                <Flex className="agent-message-block-toolbar" data-align="right" align="center" gap="1">
+                <Flex
+                  className="agent-message-block-toolbar"
+                  data-align="right"
+                  align="center"
+                  gap="1"
+                >
                   {timestampText ? (
-                    <Text size="1" className="agent-message-block-toolbar-timestamp">
+                    <Text
+                      size="1"
+                      className="agent-message-block-toolbar-timestamp"
+                    >
                       {timestampText}
                     </Text>
                   ) : null}
@@ -564,10 +621,18 @@ export function AgentMessages({
                       size="1"
                       variant="ghost"
                       color={isCopied ? "green" : "gray"}
-                      aria-label={isCopied ? t("assistant.userMessageCopied") : t("assistant.copyUserMessage")}
+                      aria-label={
+                        isCopied ? t("assistant.userMessageCopied") : t("assistant.copyUserMessage")
+                      }
                       className="agent-message-block-toolbar-button"
                       data-copied={isCopied ? "true" : undefined}
-                      onClick={() => copyText(message.content ?? "", t("assistant.noUserMessageToCopy"), copyActionId)}
+                      onClick={() =>
+                        copyText(
+                          message.content ?? "",
+                          t("assistant.noUserMessageToCopy"),
+                          copyActionId,
+                        )
+                      }
                     >
                       {isCopied ? <Check size={13} /> : <Copy size={13} />}
                     </IconButton>
@@ -592,8 +657,15 @@ export function AgentMessages({
           }
 
           return (
-            <Box key={block.id} className="agent-message-block-stack" data-block-type="agent">
-              <Box className="agent-message-block" data-block-type="agent">
+            <Box
+              key={block.id}
+              className="agent-message-block-stack"
+              data-block-type="agent"
+            >
+              <Box
+                className="agent-message-block"
+                data-block-type="agent"
+              >
                 <AgentBlockContent
                   messages={block.messages}
                   onOpenMentionChapter={onOpenMentionChapter}
@@ -607,7 +679,10 @@ export function AgentMessages({
         {isRunning && status === "running" && currentStage && (
           <AgentStatusMessage content={currentStage} />
         )}
-        <Box ref={bottomRef} className="agent-message-bottom-anchor" />
+        <Box
+          ref={bottomRef}
+          className="agent-message-bottom-anchor"
+        />
       </Box>
       <ConfirmDialog
         open={Boolean(pendingRollbackMessage)}

@@ -40,7 +40,7 @@ export function parseThinkingTags(content: string, currentTime: number): ParsedM
   while ((match = thinkRegex.exec(content)) !== null) {
     const thinkContent = match[1];
     const isComplete = match[0].includes("</");
-    
+
     if (isComplete) {
       // 完整的思考块
       thinkingBlocks.push({
@@ -57,7 +57,7 @@ export function parseThinkingTags(content: string, currentTime: number): ParsedM
 
   // 移除思考标签，只保留显示内容
   displayContent = content.replace(/<think(?:ing)?>([\s\S]*?)<\/think(?:ing)?>/gi, "");
-  
+
   // 如果正在思考中，也要移除未闭合的标签
   displayContent = displayContent.replace(/<think(?:ing)?>([\s\S]*?)$/gi, "");
 
@@ -117,7 +117,8 @@ export class ThinkingStreamParser {
     } else if (openThinkMatch && closeThinkMatch) {
       // 思考结束
       if (this.currentThinkingStart !== null) {
-        const thinkContent = this.buffer.match(/<think(?:ing)?>([\s\S]*?)<\/think(?:ing)?>/i)?.[1] || "";
+        const thinkContent =
+          this.buffer.match(/<think(?:ing)?>([\s\S]*?)<\/think(?:ing)?>/i)?.[1] || "";
         this.thinkingBlocks.push({
           content: thinkContent,
           startTime: this.currentThinkingStart,

@@ -7,6 +7,7 @@
 import { Dialog, Flex, Text, Button, Callout, Box } from "@radix-ui/themes";
 import { AlertTriangle } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
 import type { PromptChainVersion } from "@/lib/prompt-chain.types";
 
 interface SaveConfirmDialogProps {
@@ -34,7 +35,7 @@ export function SaveConfirmDialog({
 
   // 计算将被截断的版本
   const versionsToTruncate = activeVersions.filter(
-    (v) => v.versionNumber > currentVersion.versionNumber
+    (v) => v.versionNumber > currentVersion.versionNumber,
   );
 
   const handleConfirm = () => {
@@ -43,11 +44,18 @@ export function SaveConfirmDialog({
   };
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <Dialog.Content style={{ maxWidth: "500px" }}>
         <Dialog.Title>{t("promptChains.confirmSave")}</Dialog.Title>
 
-        <Flex direction="column" gap="3" mt="3">
+        <Flex
+          direction="column"
+          gap="3"
+          mt="3"
+        >
           <Text size="2">
             {t("promptChains.confirmSaveMessage", { version: currentVersion.versionNumber + 1 })}
           </Text>
@@ -59,7 +67,11 @@ export function SaveConfirmDialog({
                 <AlertTriangle size={16} />
               </Callout.Icon>
               <Callout.Text>
-                <Text size="2" weight="bold" mb="1">
+                <Text
+                  size="2"
+                  weight="bold"
+                  mb="1"
+                >
                   {t("promptChains.confirmSaveTruncateWarningTitle")}
                 </Text>
                 <Text size="2">
@@ -83,14 +95,23 @@ export function SaveConfirmDialog({
                 borderRadius: "var(--radius-2)",
               }}
             >
-              <Text size="2" weight="bold" mb="2">
+              <Text
+                size="2"
+                weight="bold"
+                mb="2"
+              >
                 {t("promptChains.truncatedVersions")}
               </Text>
-              <Flex direction="column" gap="1">
+              <Flex
+                direction="column"
+                gap="1"
+              >
                 {versionsToTruncate.map((v) => (
-                  <Text key={v.id} size="2">
-                    • v{v.versionNumber} ({v.versionHash})
-                    {v.note && ` - ${v.note}`}
+                  <Text
+                    key={v.id}
+                    size="2"
+                  >
+                    • v{v.versionNumber} ({v.versionHash}){v.note && ` - ${v.note}`}
                   </Text>
                 ))}
               </Flex>
@@ -98,14 +119,26 @@ export function SaveConfirmDialog({
           )}
         </Flex>
 
-        <Flex gap="3" mt="4" justify="end">
+        <Flex
+          gap="3"
+          mt="4"
+          justify="end"
+        >
           <Dialog.Close>
-            <Button variant="soft" color="gray">
+            <Button
+              variant="soft"
+              color="gray"
+            >
               {t("common.cancel")}
             </Button>
           </Dialog.Close>
-          <Button onClick={handleConfirm} color={isLatestVersion ? "blue" : "orange"}>
-            {isLatestVersion ? t("promptChains.confirmSaveButton") : t("promptChains.confirmSaveAndTruncateButton")}
+          <Button
+            onClick={handleConfirm}
+            color={isLatestVersion ? "blue" : "orange"}
+          >
+            {isLatestVersion
+              ? t("promptChains.confirmSaveButton")
+              : t("promptChains.confirmSaveAndTruncateButton")}
           </Button>
         </Flex>
       </Dialog.Content>

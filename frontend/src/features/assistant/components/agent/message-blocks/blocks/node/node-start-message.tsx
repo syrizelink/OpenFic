@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
 import { Box } from "@radix-ui/themes";
-import i18n from "@/i18n";
+import { useEffect, useState } from "react";
 
+import i18n from "@/i18n";
 import type { AgentMessage, AgentType } from "@/lib/agent.types";
 
 import { AGENT_NAMES, getAgentName } from "../../../agent-message.types";
@@ -52,13 +52,24 @@ export function NodeStartMessage({
   }, [hasEnded]);
 
   return (
-    <Box className="agent-node-divider" data-collapsed={isCollapsed ? "true" : "false"}>
-      <Box className="agent-node-divider-line" aria-hidden="true" />
+    <Box
+      className="agent-node-divider"
+      data-collapsed={isCollapsed ? "true" : "false"}
+    >
+      <Box
+        className="agent-node-divider-line"
+        aria-hidden="true"
+      />
       <button
         type="button"
         className="agent-node-divider-toggle"
         aria-expanded={!isCollapsed}
-        aria-label={i18n.t("assistant.node.toggleAriaLabel", { agent: agentLabel, state: isCollapsed ? i18n.t("assistant.node.collapsed") : i18n.t("assistant.node.expanded") })}
+        aria-label={i18n.t("assistant.node.toggleAriaLabel", {
+          agent: agentLabel,
+          state: isCollapsed
+            ? i18n.t("assistant.node.collapsed")
+            : i18n.t("assistant.node.expanded"),
+        })}
         onClick={onToggle}
       >
         <span className="agent-node-divider-agent">{agentLabel}</span>

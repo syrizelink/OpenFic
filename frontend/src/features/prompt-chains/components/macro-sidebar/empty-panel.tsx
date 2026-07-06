@@ -3,8 +3,8 @@
  */
 
 import { Flex, Text } from "@radix-ui/themes";
-import { useTranslation } from "react-i18next";
 import { MousePointerClick } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export function EmptyPanel() {
   const { t } = useTranslation();

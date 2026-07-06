@@ -26,7 +26,7 @@ interface NormalizeToolResultOptions {
 
 function normalizeParsedToolResult(
   parsed: unknown,
-  options: NormalizeToolResultOptions = {}
+  options: NormalizeToolResultOptions = {},
 ): Record<string, unknown> {
   const status = getString(options.status);
   const isErrorStatus = status === "error";
@@ -38,8 +38,8 @@ function normalizeParsedToolResult(
     const errorText = getString(parsed.error);
     const messageText = getString(parsed.message) || errorText;
     const success =
-      explicitSuccess
-      ?? (typeof parsed.success === "boolean" ? parsed.success : !errorText && !isErrorStatus);
+      explicitSuccess ??
+      (typeof parsed.success === "boolean" ? parsed.success : !errorText && !isErrorStatus);
     return {
       ...parsed,
       type: parsed.type ?? (success ? "ok" : "fail"),
@@ -77,7 +77,7 @@ function normalizeParsedToolResult(
 
 export function normalizeToolResult(
   value: unknown,
-  options: NormalizeToolResultOptions = {}
+  options: NormalizeToolResultOptions = {},
 ): Record<string, unknown> {
   const parsed = parseMaybeJson(value);
 

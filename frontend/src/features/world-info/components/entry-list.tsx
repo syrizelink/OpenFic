@@ -4,7 +4,23 @@
  * 世界书条目列表组件，包含搜索、排序和重排序功能。
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragMoveEvent,
+} from "@dnd-kit/core";
+import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import {
   Box,
   Flex,
@@ -29,31 +45,16 @@ import {
   ToggleLeft,
   ToggleRight,
 } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragMoveEvent,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useTranslation } from "react-i18next";
 
-import { EntryListItem } from "./entry-list-item";
-import { EntrySearchPopover } from "./entry-search-popover";
-import { useWorldInfoStore } from "../store/use-world-info-store";
 import { ContextMenu, type ContextMenuItem } from "@/components/context-menu";
 import type { WorldInfoEntryBrief } from "@/lib/world-info.types";
+
+import { useWorldInfoStore } from "../store/use-world-info-store";
+import { EntryListItem } from "./entry-list-item";
+import { EntrySearchPopover } from "./entry-search-popover";
 
 /** 排序字段 */
 type SortField = "order" | "uid" | "tokenCount" | "name";
@@ -141,7 +142,7 @@ export function EntryList({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   const sortedEntries = useMemo(() => {
@@ -176,7 +177,7 @@ export function EntryList({
         setSearchOpen(true);
       }
     },
-    [setSearchQuery]
+    [setSearchQuery],
   );
 
   const handleSearchToggle = useCallback(() => {
@@ -204,15 +205,12 @@ export function EntryList({
     }
   }, [searchQuery]);
 
-  const handlePopoverOpenChange = useCallback(
-    (open: boolean) => {
-      setSearchOpen(open);
-      if (!open) {
-        setSearchExpanded(false);
-      }
-    },
-    []
-  );
+  const handlePopoverOpenChange = useCallback((open: boolean) => {
+    setSearchOpen(open);
+    if (!open) {
+      setSearchExpanded(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (searchExpanded && searchContainerRef.current) {
@@ -294,7 +292,7 @@ export function EntryList({
 
   const contextMenuEntry = useMemo(
     () => entries.find((entry) => entry.id === contextMenuEntryId) ?? null,
-    [entries, contextMenuEntryId]
+    [entries, contextMenuEntryId],
   );
 
   const menuItems = useMemo<ContextMenuItem[]>(() => {
@@ -339,7 +337,16 @@ export function EntryList({
         onClick: () => onDeleteEntry(contextMenuEntry),
       },
     ];
-  }, [isMultiSelect, contextMenuEntry, onDeleteEntry, onPinEntry, t, handleBatchEnable, handleBatchDisable, handleBatchDeleteClick]);
+  }, [
+    isMultiSelect,
+    contextMenuEntry,
+    onDeleteEntry,
+    onPinEntry,
+    t,
+    handleBatchEnable,
+    handleBatchDisable,
+    handleBatchDeleteClick,
+  ]);
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -373,7 +380,7 @@ export function EntryList({
         }, 0);
       }
     },
-    [onReorderEntries, onSaveDragOrder, shouldShowDragHandle, sortedEntries]
+    [onReorderEntries, onSaveDragOrder, shouldShowDragHandle, sortedEntries],
   );
 
   const handleDragStart = useCallback(() => {
@@ -417,7 +424,7 @@ export function EntryList({
 
       autoScrollSpeedRef.current = 0;
     },
-    [shouldShowDragHandle]
+    [shouldShowDragHandle],
   );
 
   useEffect(() => {
@@ -465,9 +472,18 @@ export function EntryList({
         width="100%"
         style={{ minWidth: 0, overflow: "hidden" }}
       >
-        <Box p="3" style={{ borderBottom: "1px solid var(--gray-a5)", flexShrink: 0 }}>
-          <Flex direction="column" gap="2">
-            <Flex gap="2" align="center">
+        <Box
+          p="3"
+          style={{ borderBottom: "1px solid var(--gray-a5)", flexShrink: 0 }}
+        >
+          <Flex
+            direction="column"
+            gap="2"
+          >
+            <Flex
+              gap="2"
+              align="center"
+            >
               <Box
                 ref={searchContainerRef}
                 style={{
@@ -483,7 +499,8 @@ export function EntryList({
                   flex: searchExpanded ? 1 : undefined,
                   minWidth: 0,
                   position: "relative",
-                  transition: "border-color 0.15s ease, background 0.15s ease, padding-right 0.15s ease",
+                  transition:
+                    "border-color 0.15s ease, background 0.15s ease, padding-right 0.15s ease",
                 }}
               >
                 <EntrySearchPopover
@@ -545,7 +562,11 @@ export function EntryList({
                   <Box style={{ flex: 1 }} />
 
                   {isMultiSelect ? (
-                    <Tooltip content={selectedIds.size > 0 ? t("worldInfo.deselectAll") : t("worldInfo.selectAll")}>
+                    <Tooltip
+                      content={
+                        selectedIds.size > 0 ? t("worldInfo.deselectAll") : t("worldInfo.selectAll")
+                      }
+                    >
                       <IconButton
                         variant="ghost"
                         size="2"
@@ -557,31 +578,50 @@ export function EntryList({
                   ) : (
                     <DropdownMenu.Root>
                       <DropdownMenu.Trigger>
-                        <IconButton variant="ghost" size="2">
+                        <IconButton
+                          variant="ghost"
+                          size="2"
+                        >
                           <ArrowUpDown size={16} />
                         </IconButton>
                       </DropdownMenu.Trigger>
                       <DropdownMenu.Content align="end">
                         <DropdownMenu.Item onClick={() => onSortChange("order")}>
-                          <Flex align="center" justify="between" width="100%">
+                          <Flex
+                            align="center"
+                            justify="between"
+                            width="100%"
+                          >
                             <Text>{t("worldInfo.sortByOrder")}</Text>
                             {getSortIcon("order")}
                           </Flex>
                         </DropdownMenu.Item>
                         <DropdownMenu.Item onClick={() => onSortChange("uid")}>
-                          <Flex align="center" justify="between" width="100%">
+                          <Flex
+                            align="center"
+                            justify="between"
+                            width="100%"
+                          >
                             <Text>{t("worldInfo.sortByUid")}</Text>
                             {getSortIcon("uid")}
                           </Flex>
                         </DropdownMenu.Item>
                         <DropdownMenu.Item onClick={() => onSortChange("tokenCount")}>
-                          <Flex align="center" justify="between" width="100%">
+                          <Flex
+                            align="center"
+                            justify="between"
+                            width="100%"
+                          >
                             <Text>{t("worldInfo.sortByTokens")}</Text>
                             {getSortIcon("tokenCount")}
                           </Flex>
                         </DropdownMenu.Item>
                         <DropdownMenu.Item onClick={() => onSortChange("name")}>
-                          <Flex align="center" justify="between" width="100%">
+                          <Flex
+                            align="center"
+                            justify="between"
+                            width="100%"
+                          >
                             <Text>{t("worldInfo.sortByName")}</Text>
                             {getSortIcon("name")}
                           </Flex>
@@ -590,7 +630,13 @@ export function EntryList({
                     </DropdownMenu.Root>
                   )}
 
-                  <Tooltip content={isMultiSelect ? t("worldInfo.multiselectExit") : t("worldInfo.multiselectEnter")}>
+                  <Tooltip
+                    content={
+                      isMultiSelect
+                        ? t("worldInfo.multiselectExit")
+                        : t("worldInfo.multiselectEnter")
+                    }
+                  >
                     <IconButton
                       variant={isMultiSelect ? "solid" : "ghost"}
                       size="2"
@@ -614,7 +660,10 @@ export function EntryList({
                   style={{ width: "100%" }}
                 >
                   <Trash2 size={16} />
-                  <Text size="2" ml="1">
+                  <Text
+                    size="2"
+                    ml="1"
+                  >
                     {t("worldInfo.deleteSelected")}
                   </Text>
                 </IconButton>
@@ -628,7 +677,10 @@ export function EntryList({
                   style={{ width: "100%" }}
                 >
                   <Plus size={16} />
-                  <Text size="2" ml="1">
+                  <Text
+                    size="2"
+                    ml="1"
+                  >
                     {t("worldInfo.newEntry")}
                   </Text>
                 </IconButton>
@@ -658,29 +710,63 @@ export function EntryList({
             }}
           >
             {isLoading ? (
-              <Flex direction="column" gap="0">
+              <Flex
+                direction="column"
+                gap="0"
+              >
                 {Array.from({ length: 8 }).map((_, i) => (
-                  <Box key={i} p="3" style={{ borderBottom: "1px solid var(--gray-a5)" }}>
-                    <Flex align="center" gap="2" justify="between">
+                  <Box
+                    key={i}
+                    p="3"
+                    style={{ borderBottom: "1px solid var(--gray-a5)" }}
+                  >
+                    <Flex
+                      align="center"
+                      gap="2"
+                      justify="between"
+                    >
                       <Box style={{ width: 16, flexShrink: 0 }}>
-                        <Skeleton width="16px" height="16px" />
+                        <Skeleton
+                          width="16px"
+                          height="16px"
+                        />
                       </Box>
-                      <Flex direction="column" gap="1" style={{ flex: 1, minWidth: 0 }}>
+                      <Flex
+                        direction="column"
+                        gap="1"
+                        style={{ flex: 1, minWidth: 0 }}
+                      >
                         <Skeleton
                           height="14px"
                           width={`${50 + (i % 4) * 12}%`}
                           style={{ maxWidth: 200 }}
                         />
-                        <Skeleton height="12px" width="48px" />
+                        <Skeleton
+                          height="12px"
+                          width="48px"
+                        />
                       </Flex>
-                      <Skeleton width="28px" height="16px" style={{ borderRadius: 999 }} />
+                      <Skeleton
+                        width="28px"
+                        height="16px"
+                        style={{ borderRadius: 999 }}
+                      />
                     </Flex>
                   </Box>
                 ))}
               </Flex>
             ) : sortedEntries.length === 0 ? (
-              <Flex direction="column" align="center" justify="center" py="6" gap="2">
-                <Text size="2" color="gray">
+              <Flex
+                direction="column"
+                align="center"
+                justify="center"
+                py="6"
+                gap="2"
+              >
+                <Text
+                  size="2"
+                  color="gray"
+                >
                   {searchQuery.trim() ? t("worldInfo.noEntriesFound") : t("worldInfo.noEntries")}
                 </Text>
               </Flex>
@@ -700,21 +786,25 @@ export function EntryList({
                   strategy={verticalListSortingStrategy}
                   disabled={!shouldShowDragHandle}
                 >
-                  <Flex direction="column" width="100%" style={{ minWidth: 0 }}>
+                  <Flex
+                    direction="column"
+                    width="100%"
+                    style={{ minWidth: 0 }}
+                  >
                     {sortedEntries.map((entry) => (
-                        <EntryListItem
-                          key={entry.id}
-                          entry={entry}
-                          isSelected={currentEntryId === entry.id}
-                          showDragHandle={shouldShowDragHandle}
-                          isMultiSelect={isMultiSelect}
-                          isChecked={selectedIds.has(entry.id)}
-                          onCheckChange={handleCheckEntry}
-                          onClick={onSelectEntry}
-                          onToggle={onToggleEntry}
-                          onLongPressStart={handleLongPressStart}
-                          onContextMenu={handleContextMenu}
-                        />
+                      <EntryListItem
+                        key={entry.id}
+                        entry={entry}
+                        isSelected={currentEntryId === entry.id}
+                        showDragHandle={shouldShowDragHandle}
+                        isMultiSelect={isMultiSelect}
+                        isChecked={selectedIds.has(entry.id)}
+                        onCheckChange={handleCheckEntry}
+                        onClick={onSelectEntry}
+                        onToggle={onToggleEntry}
+                        onLongPressStart={handleLongPressStart}
+                        onContextMenu={handleContextMenu}
+                      />
                     ))}
                   </Flex>
                 </SortableContext>
@@ -730,15 +820,27 @@ export function EntryList({
         onClose={handleCloseContextMenu}
       />
 
-      <Dialog.Root open={batchDeleteDialogOpen} onOpenChange={setBatchDeleteDialogOpen}>
+      <Dialog.Root
+        open={batchDeleteDialogOpen}
+        onOpenChange={setBatchDeleteDialogOpen}
+      >
         <Dialog.Content style={{ maxWidth: 400 }}>
           <Dialog.Title>{t("worldInfo.deleteSelected")}</Dialog.Title>
-          <Dialog.Description size="2" mb="4">
+          <Dialog.Description
+            size="2"
+            mb="4"
+          >
             {t("worldInfo.batchDeleteConfirm", { count: selectedIds.size })}
           </Dialog.Description>
-          <Flex gap="3" justify="end">
+          <Flex
+            gap="3"
+            justify="end"
+          >
             <Dialog.Close>
-              <Button variant="soft" color="gray">
+              <Button
+                variant="soft"
+                color="gray"
+              >
                 {t("common.cancel")}
               </Button>
             </Dialog.Close>

@@ -1,5 +1,5 @@
-import { pinyinMatch } from "@/lib/pinyin-search";
 import type { AssistantMentionCandidate } from "@/lib/mention.types";
+import { pinyinMatch } from "@/lib/pinyin-search";
 
 export type { AssistantMentionCandidate } from "@/lib/mention.types";
 
@@ -14,12 +14,13 @@ export interface AssistantMentionToken {
 
 export type AssistantMentionSegment = string | AssistantMentionToken;
 
-const MENTION_RE = /<of-mention\b(?<attrsSelf>[^<>]*?)\s*\/>|<of-mention\b(?<attrsBlock>[^<>]*?)>(?<body>.*?)<\/of-mention\s*>/gs;
+const MENTION_RE =
+  /<of-mention\b(?<attrsSelf>[^<>]*?)\s*\/>|<of-mention\b(?<attrsBlock>[^<>]*?)>(?<body>.*?)<\/of-mention\s*>/gs;
 const ATTR_RE = /([A-Za-z_][A-Za-z0-9_]*)="([^"]*)"/g;
 
 function decodeMentionEntities(text: string): string {
   return text
-    .replace(/&quot;/g, "\"")
+    .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
@@ -27,28 +28,20 @@ function decodeMentionEntities(text: string): string {
 }
 
 function escapeMentionEntities(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function escapeMentionAttribute(text: string): string {
-  return escapeMentionEntities(text)
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+  return escapeMentionEntities(text).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 function parseAttrs(rawAttrs: string): Record<string, string> {
-  return Array.from(rawAttrs.matchAll(ATTR_RE)).reduce<Record<string, string>>(
-    (result, match) => {
-      const [, key, value] = match;
-      if (!key) return result;
-      result[key] = decodeMentionEntities(value ?? "");
-      return result;
-    },
-    {}
-  );
+  return Array.from(rawAttrs.matchAll(ATTR_RE)).reduce<Record<string, string>>((result, match) => {
+    const [, key, value] = match;
+    if (!key) return result;
+    result[key] = decodeMentionEntities(value ?? "");
+    return result;
+  }, {});
 }
 
 export function parseMentionText(text: string): AssistantMentionSegment[] {
@@ -89,9 +82,7 @@ function escapeHtml(text: string): string {
 }
 
 function escapeHtmlAttr(text: string): string {
-  return escapeHtml(text)
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+  return escapeHtml(text).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 function buildMentionHtml(token: AssistantMentionToken): string {
@@ -169,10 +160,12 @@ export function getMentionDisplayLabel(token: AssistantMentionToken): string {
     if (lineRangeLabel) return lineRangeLabel;
   }
 
-  return token.attrs.label?.trim()
-    || token.attrs.chapter_id?.trim()
-    || token.attrs.volume_id?.trim()
-    || token.kind;
+  return (
+    token.attrs.label?.trim() ||
+    token.attrs.chapter_id?.trim() ||
+    token.attrs.volume_id?.trim() ||
+    token.kind
+  );
 }
 
 export function getMentionNavigationTarget(token: AssistantMentionToken): {
@@ -232,13 +225,7 @@ export function buildChapterMentionTag({
   return `<of-mention kind="chapter" chapter_id="${escapeMentionAttribute(chapterId)}" label="${escapeMentionAttribute(label)}" />`;
 }
 
-export function buildNoteMentionTag({
-  noteId,
-  label,
-}: {
-  noteId: string;
-  label: string;
-}): string {
+export function buildNoteMentionTag({ noteId, label }: { noteId: string; label: string }): string {
   return `<of-mention kind="note" note_id="${escapeMentionAttribute(noteId)}" label="${escapeMentionAttribute(label)}" />`;
 }
 
@@ -284,10 +271,11 @@ export function filterMentionCandidates(
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) return [];
 
-  return candidates.filter((candidate) => (
-    candidate.title.toLowerCase().includes(normalizedQuery)
-    || pinyinMatch(candidate.title, normalizedQuery)
-  ));
+  return candidates.filter(
+    (candidate) =>
+      candidate.title.toLowerCase().includes(normalizedQuery) ||
+      pinyinMatch(candidate.title, normalizedQuery),
+  );
 }
 
 export function findActiveMentionQuery(textBeforeCursor: string): {

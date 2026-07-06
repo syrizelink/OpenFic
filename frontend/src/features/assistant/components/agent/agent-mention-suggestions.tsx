@@ -1,10 +1,11 @@
-import { useEffect, useRef } from "react";
 import { BookOpen, FileText, Folder, StickyNote } from "lucide-react";
 import { motion } from "motion/react";
+import { useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { AssistantMentionCandidate } from "@/features/assistant/lib/mention-text";
+
 import type { AgentComposerSuggestionStatus } from "./agent-composer-editor";
 
 interface AgentMentionSuggestionsProps {
@@ -25,7 +26,10 @@ function getItemIcon(kind: AssistantMentionCandidate["kind"]) {
   return <FileText size={12} />;
 }
 
-function getItemMeta(item: AssistantMentionCandidate, t: (key: string, options?: Record<string, unknown>) => string): string {
+function getItemMeta(
+  item: AssistantMentionCandidate,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
   const base =
     item.kind === "volume"
       ? t("assistant.mentionKind.volume")
@@ -34,10 +38,15 @@ function getItemMeta(item: AssistantMentionCandidate, t: (key: string, options?:
         : item.kind === "note_category"
           ? t("assistant.mentionKind.noteCategory")
           : t("assistant.mentionKind.chapter");
-  return item.description ? t("assistant.mentionMetaFormat", { base, description: item.description }) : base;
+  return item.description
+    ? t("assistant.mentionMetaFormat", { base, description: item.description })
+    : base;
 }
 
-function getStateMessage(status: AgentComposerSuggestionStatus, t: (key: string) => string): string {
+function getStateMessage(
+  status: AgentComposerSuggestionStatus,
+  t: (key: string) => string,
+): string {
   if (status === "idle") return t("assistant.mentionSearch.idle");
   if (status === "loading") return t("assistant.mentionSearch.loading");
   return t("assistant.mentionSearch.empty");
@@ -108,7 +117,10 @@ export function AgentMentionSuggestions({
   if (!visible) return null;
 
   return (
-    <div className="ai-sidebar-mention-shell" style={style}>
+    <div
+      className="ai-sidebar-mention-shell"
+      style={style}
+    >
       <div className="ai-sidebar-mention-card-stack">
         <div className="ai-sidebar-mention-card">
           <motion.div
@@ -119,7 +131,10 @@ export function AgentMentionSuggestions({
             transition={{ duration: 0.18, ease: "easeOut" }}
           >
             {status === "ready" && items.length > 0 ? (
-              <div ref={listRef} className="agent-mention-suggestions-list">
+              <div
+                ref={listRef}
+                className="agent-mention-suggestions-list"
+              >
                 {items.map((item, index) => (
                   <button
                     key={`${item.kind}-${item.id}`}
@@ -129,22 +144,21 @@ export function AgentMentionSuggestions({
                     onClick={() => onSelect(item, index)}
                     onMouseEnter={() => onSelectedIndexChange(index)}
                   >
-                    <span className="agent-mention-suggestion-icon" aria-hidden="true">
+                    <span
+                      className="agent-mention-suggestion-icon"
+                      aria-hidden="true"
+                    >
                       {getItemIcon(item.kind)}
                     </span>
                     <span className="agent-mention-suggestion-copy">
                       <span className="agent-mention-suggestion-title">{item.title}</span>
-                      <span className="agent-mention-suggestion-kind">
-                        {getItemMeta(item, t)}
-                      </span>
+                      <span className="agent-mention-suggestion-kind">{getItemMeta(item, t)}</span>
                     </span>
                   </button>
                 ))}
               </div>
             ) : (
-              <div className="agent-mention-suggestion-state">
-                 {getStateMessage(status, t)}
-               </div>
+              <div className="agent-mention-suggestion-state">{getStateMessage(status, t)}</div>
             )}
           </motion.div>
           <div

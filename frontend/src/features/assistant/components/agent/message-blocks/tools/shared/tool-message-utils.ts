@@ -1,11 +1,11 @@
+import { formatChapterDisplayName } from "@/features/assistant/lib/chapter-tool-preview";
+import i18n from "@/i18n";
 import type {
   AgentMessage,
   ClarificationQuestion,
   OutlineBeatData,
   OutlineData,
 } from "@/lib/agent.types";
-import i18n from "@/i18n";
-import { formatChapterDisplayName } from "@/features/assistant/lib/chapter-tool-preview";
 
 export type TodoStatus = "pending" | "running" | "completed";
 
@@ -158,7 +158,9 @@ export function asTodoStatus(value: unknown): TodoStatus | undefined {
 }
 
 export function asPlanStatus(value: unknown): PlanStatus | undefined {
-  return value === "pending" || value === "in_progress" || value === "completed" ? value : undefined;
+  return value === "pending" || value === "in_progress" || value === "completed"
+    ? value
+    : undefined;
 }
 
 export function getPlanStatusLabel(status: PlanStatus | undefined): string | undefined {
@@ -229,7 +231,7 @@ export function getToolResultData(message: AgentMessage): unknown {
 
 export function getNestedRecord(
   data: Record<string, unknown>,
-  key: string
+  key: string,
 ): Record<string, unknown> | null {
   const nested = data[key];
   return isRecord(nested) ? nested : null;
@@ -283,7 +285,10 @@ function getAskUserAnswerRecords(value: unknown): Record<string, unknown>[] {
   if (isRecord(value) && Array.isArray(value.answers)) {
     return value.answers.filter(isRecord);
   }
-  if (isRecord(value) && (value.answer !== undefined || value.label !== undefined || value.question !== undefined)) {
+  if (
+    isRecord(value) &&
+    (value.answer !== undefined || value.label !== undefined || value.question !== undefined)
+  ) {
     return [value];
   }
   return [];
@@ -342,22 +347,24 @@ export function getAskUserQuestionAnswerPairs(message: AgentMessage): AskUserQue
   const answerRecords = getAskUserAnswerRecords(resultData);
 
   if (answerRecords.length > 0) {
-    return answerRecords
-      .flatMap((record, index) => {
-        const answer = normalizeAskUserAnswerValue(record.answer);
-        const questionTitle =
-          asString(record.question) ??
-          asString(record.title) ??
-          asString(record.label) ??
-          questions[index]?.title;
-        if (!questionTitle || !answer) return [];
-        const matchingQuestion = questions.find((question) => question.title === questionTitle) ?? questions[index];
-        return [{
+    return answerRecords.flatMap((record, index) => {
+      const answer = normalizeAskUserAnswerValue(record.answer);
+      const questionTitle =
+        asString(record.question) ??
+        asString(record.title) ??
+        asString(record.label) ??
+        questions[index]?.title;
+      if (!questionTitle || !answer) return [];
+      const matchingQuestion =
+        questions.find((question) => question.title === questionTitle) ?? questions[index];
+      return [
+        {
           question: questionTitle,
           description: matchingQuestion?.description,
           answer,
-        }];
-      });
+        },
+      ];
+    });
   }
 
   if (typeof resultData === "string") {
@@ -365,20 +372,25 @@ export function getAskUserQuestionAnswerPairs(message: AgentMessage): AskUserQue
     if (parsedPairs.length > 0) {
       return parsedPairs.map((pair, index) => ({
         ...pair,
-        description: questions.find((question) => question.title === pair.question)?.description ?? questions[index]?.description,
+        description:
+          questions.find((question) => question.title === pair.question)?.description ??
+          questions[index]?.description,
       }));
     }
   }
 
   if (isRecord(resultData)) {
     const answer = normalizeAskUserAnswerValue(resultData.answer);
-    const questionTitle = questions[0]?.title ?? asString(resultData.question) ?? asString(resultData.title);
+    const questionTitle =
+      questions[0]?.title ?? asString(resultData.question) ?? asString(resultData.title);
     if (questionTitle && answer) {
-      return [{
-        question: questionTitle,
-        description: questions[0]?.description,
-        answer,
-      }];
+      return [
+        {
+          question: questionTitle,
+          description: questions[0]?.description,
+          answer,
+        },
+      ];
     }
   }
 
@@ -386,7 +398,9 @@ export function getAskUserQuestionAnswerPairs(message: AgentMessage): AskUserQue
 }
 
 export function getAskUserTitle(message: AgentMessage): string {
-  return message.status === "completed" ? i18n.t("assistant.tools.asked") : i18n.t("assistant.tools.asking");
+  return message.status === "completed"
+    ? i18n.t("assistant.tools.asked")
+    : i18n.t("assistant.tools.asking");
 }
 
 export function getAskUserQuestionCount(message: AgentMessage): number {
@@ -455,12 +469,14 @@ function getDraftPlanPayload(message: AgentMessage): PlanPayload | null {
         const title = asString(todo.title);
         const content = asString(todo.content);
         if (!title || !content) return [];
-        return [{
-          id: `draft-plan-todo-${index}`,
-          title,
-          content,
-          status: "pending" as const,
-        }];
+        return [
+          {
+            id: `draft-plan-todo-${index}`,
+            title,
+            content,
+            status: "pending" as const,
+          },
+        ];
       })
     : [];
   if (!topic && !description && todos.length === 0) return null;
@@ -532,7 +548,7 @@ export function getChapterPayload(message: AgentMessage): ChapterPayload {
           ? toolArgs.title
           : typeof toolArgs.new_title === "string"
             ? toolArgs.new_title
-          : chapterRefTitle,
+            : chapterRefTitle,
     content:
       typeof chapterData.content === "string"
         ? chapterData.content
@@ -620,11 +636,13 @@ export function getNoteItemList(message: AgentMessage): NoteItemPayload[] {
   if (!isRecord(resultData) || !Array.isArray(resultData.items)) return [];
   return resultData.items
     .filter(isRecord)
-    .map((item): NoteItemPayload => ({
-      type: item.type === "category" ? "category" : "note",
-      id: asString(item.id) ?? "",
-      title: asString(item.title) ?? "",
-    }))
+    .map(
+      (item): NoteItemPayload => ({
+        type: item.type === "category" ? "category" : "note",
+        id: asString(item.id) ?? "",
+        title: asString(item.title) ?? "",
+      }),
+    )
     .filter((item) => item.id && item.title);
 }
 
@@ -652,7 +670,8 @@ export function getChapterSummaryList(message: AgentMessage): ChapterSummaryPayl
     return resultData.summaries.filter(isRecord).map(toChapterSummaryPayload);
   }
   const data = getToolData(message);
-  if (Array.isArray(data.summaries)) return data.summaries.filter(isRecord).map(toChapterSummaryPayload);
+  if (Array.isArray(data.summaries))
+    return data.summaries.filter(isRecord).map(toChapterSummaryPayload);
   return [];
 }
 
@@ -670,19 +689,20 @@ export function getRangeSummaryList(message: AgentMessage): RangeSummaryPayload[
     return resultData.summaries.filter(isRecord).map(toRangeSummaryPayload);
   }
   const data = getToolData(message);
-  if (Array.isArray(data.summaries)) return data.summaries.filter(isRecord).map(toRangeSummaryPayload);
+  if (Array.isArray(data.summaries))
+    return data.summaries.filter(isRecord).map(toRangeSummaryPayload);
   return [];
 }
 
 export function getWorldEntryPayload(message: AgentMessage): WorldInfoEntryPayload {
   const resultData = getToolResultData(message);
   const data = getToolData(message);
-  const entryData = isRecord(resultData) && isRecord(resultData.world_entry)
-    ? resultData.world_entry
-    : data;
-  const diff = isRecord(resultData) && isRecord(resultData.world_entry_diff)
-    ? resultData.world_entry_diff
-    : null;
+  const entryData =
+    isRecord(resultData) && isRecord(resultData.world_entry) ? resultData.world_entry : data;
+  const diff =
+    isRecord(resultData) && isRecord(resultData.world_entry_diff)
+      ? resultData.world_entry_diff
+      : null;
   return {
     title:
       asString(entryData.title) ??
@@ -698,9 +718,8 @@ export function getWorldEntryPayload(message: AgentMessage): WorldInfoEntryPaylo
 
 export function getWorldEntryList(message: AgentMessage): WorldInfoEntryPayload[] {
   const resultData = getToolResultData(message);
-  const entries = isRecord(resultData) && Array.isArray(resultData.entries)
-    ? resultData.entries
-    : [];
+  const entries =
+    isRecord(resultData) && Array.isArray(resultData.entries) ? resultData.entries : [];
   return entries
     .filter(isRecord)
     .map((entry) => ({
@@ -711,10 +730,7 @@ export function getWorldEntryList(message: AgentMessage): WorldInfoEntryPayload[
     .filter((entry) => entry.title);
 }
 
-export function getToolRef(
-  message: AgentMessage,
-  key: string
-): Record<string, unknown> | null {
+export function getToolRef(message: AgentMessage, key: string): Record<string, unknown> | null {
   const data = getStreamingData(message);
   const toolArgs = message.toolArgs ?? {};
   const dataValue = data[key];
@@ -725,14 +741,19 @@ export function getToolRef(
 
 function formatReferenceLabel(
   ref: Record<string, unknown> | null,
-  orderedLabel: string
+  orderedLabel: string,
 ): string | undefined {
   if (!ref) return undefined;
   const value = ref.value;
   const type = asString(ref.type);
   if (type === "order") {
-    if (typeof value === "number" && Number.isFinite(value)) return i18n.t("assistant.tools.orderedReference", { value, unit: orderedLabel });
-    if (typeof value === "string" && value.trim()) return i18n.t("assistant.tools.orderedReference", { value: value.trim(), unit: orderedLabel });
+    if (typeof value === "number" && Number.isFinite(value))
+      return i18n.t("assistant.tools.orderedReference", { value, unit: orderedLabel });
+    if (typeof value === "string" && value.trim())
+      return i18n.t("assistant.tools.orderedReference", {
+        value: value.trim(),
+        unit: orderedLabel,
+      });
   }
   return asString(value);
 }
@@ -752,15 +773,15 @@ export function getReadChapterDetail(message: AgentMessage): string | undefined 
       order: chapter.order,
       title: chapter.title,
       chapterId: chapter.chapter_id,
-    }) ??
-    formatChapterRefLabel(getToolRef(message, "chapter_ref"))
+    }) ?? formatChapterRefLabel(getToolRef(message, "chapter_ref"))
   );
 }
 
 export function formatVolumeDisplayName(volume: VolumePayload): string | undefined {
   const order = volume.order;
   const title = volume.title;
-  if (order !== undefined && title) return i18n.t("assistant.tools.volumeDisplay", { order, title });
+  if (order !== undefined && title)
+    return i18n.t("assistant.tools.volumeDisplay", { order, title });
   if (order !== undefined) return i18n.t("assistant.tools.volumeDisplayNoTitle", { order });
   return title;
 }
@@ -773,7 +794,9 @@ export function formatChapterSummaryQuery(message: AgentMessage): string | undef
     return i18n.t("assistant.tools.pagedRead", { start: offset + 1, end: offset + limit });
   }
   const orders = asNumberArray(data.orders);
-  return orders.length > 0 ? i18n.t("assistant.tools.readByOrders", { orders: orders.join("、") }) : undefined;
+  return orders.length > 0
+    ? i18n.t("assistant.tools.readByOrders", { orders: orders.join("、") })
+    : undefined;
 }
 
 export function formatRangeSummaryQuery(message: AgentMessage): string | undefined {
@@ -801,6 +824,7 @@ export function getToolErrorMessage(message: AgentMessage): string | undefined {
   const reason = asString(toolResult.reason);
   if (reason === "cancelled") return messageText ?? i18n.t("assistant.tools.cancelled");
   if (reason === "interrupted") return messageText ?? i18n.t("assistant.tools.interrupted");
-  if (messageText && reason) return `${messageText}\n${i18n.t("assistant.tools.errorReason", { reason })}`;
+  if (messageText && reason)
+    return `${messageText}\n${i18n.t("assistant.tools.errorReason", { reason })}`;
   return messageText ?? reason ?? message.content;
 }

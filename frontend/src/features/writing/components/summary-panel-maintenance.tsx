@@ -1,25 +1,27 @@
-import { forwardRef, useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import axios from "axios";
 import { Badge, Box, Button, Callout, Flex, Tabs, Text } from "@radix-ui/themes";
+import axios from "axios";
 import { AlertTriangle, Sparkles } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { forwardRef, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+
 import "./summary-panel.css";
 
 import { toast } from "@/components";
-import { requestBackgroundSnapshot } from "@/lib/background-socket";
 import type {
   EnqueueSummaryRequest,
   MissingChapterSummaryItem,
   MissingLongTermSummaryItem,
   SkippedChapterSummaryItem,
 } from "@/lib/api-client";
+import { requestBackgroundSnapshot } from "@/lib/background-socket";
+
+import { useEnqueueSummary, useSummaryPanel } from "../hooks/use-summaries";
 import {
   buildSummaryProgressState,
   shouldShowSummaryProgressPanel,
   type SummaryProgressState,
 } from "../lib/summary-progress-state";
-import { useEnqueueSummary, useSummaryPanel } from "../hooks/use-summaries";
 
 interface ApiErrorPayload {
   detail?: unknown;
@@ -56,7 +58,8 @@ function getErrorText(value: unknown): string | null {
 
 function getSummaryErrorMessage(error: unknown): string {
   if (axios.isAxiosError<ApiErrorPayload>(error)) {
-    const responseMessage = getErrorText(error.response?.data?.detail) ?? getErrorText(error.response?.data?.message);
+    const responseMessage =
+      getErrorText(error.response?.data?.detail) ?? getErrorText(error.response?.data?.message);
     if (responseMessage) return responseMessage;
     if (error.message) return error.message;
   }
@@ -65,7 +68,10 @@ function getSummaryErrorMessage(error: unknown): string {
   return "摘要生成失败，请稍后重试。";
 }
 
-function getStatusColor(status: string, isStale: boolean): "green" | "blue" | "amber" | "red" | "gray" {
+function getStatusColor(
+  status: string,
+  isStale: boolean,
+): "green" | "blue" | "amber" | "red" | "gray" {
   if (status === "ready" && isStale) return "amber";
   if (status === "ready") return "green";
   if (status === "running") return "blue";
@@ -91,9 +97,7 @@ function AnimatedProgressBar({ value }: { value: number | null }) {
   const clampedValue = value == null ? null : Math.max(0, Math.min(100, value));
 
   return (
-    <Box
-      className="summary-progress-track"
-    >
+    <Box className="summary-progress-track">
       {clampedValue == null ? (
         <motion.div
           initial={{ x: "-35%" }}
@@ -120,30 +124,63 @@ function SummaryProgressPanel({ state }: { state: SummaryProgressState }) {
       transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
       className="summary-motion-hidden"
     >
-      <Flex direction="column" gap="3" pt="1">
-        <Flex direction="column" gap="2">
+      <Flex
+        direction="column"
+        gap="3"
+        pt="1"
+      >
+        <Flex
+          direction="column"
+          gap="2"
+        >
           <AnimatedProgressBar value={state.currentProgressValue} />
-          <Flex align="center" justify="between" gap="3">
-            <Text size="1" color="gray">
+          <Flex
+            align="center"
+            justify="between"
+            gap="3"
+          >
+            <Text
+              size="1"
+              color="gray"
+            >
               {state.currentMessage}
             </Text>
-            <Text size="1" color="gray">
+            <Text
+              size="1"
+              color="gray"
+            >
               {state.currentProgressValue == null ? "--" : `${state.currentProgressValue}%`}
             </Text>
           </Flex>
         </Flex>
 
-        <Flex align="center" gap="3" wrap="wrap">
-          <Text size="1" color="gray">
+        <Flex
+          align="center"
+          gap="3"
+          wrap="wrap"
+        >
+          <Text
+            size="1"
+            color="gray"
+          >
             队列共 {state.totalCount} 项
           </Text>
-          <Text size="1" color="gray">
+          <Text
+            size="1"
+            color="gray"
+          >
             已完成 {state.completedCount} 项
           </Text>
-          <Text size="1" color="gray">
+          <Text
+            size="1"
+            color="gray"
+          >
             运行中 {state.runningCount} 项
           </Text>
-          <Text size="1" color="gray">
+          <Text
+            size="1"
+            color="gray"
+          >
             排队中 {state.queuedCount} 项
           </Text>
         </Flex>
@@ -152,9 +189,7 @@ function SummaryProgressPanel({ state }: { state: SummaryProgressState }) {
   );
 }
 
-function buildChapterItems(
-  chapterItems: MissingChapterSummaryItem[]
-): ChapterMaintenanceItem[] {
+function buildChapterItems(chapterItems: MissingChapterSummaryItem[]): ChapterMaintenanceItem[] {
   return chapterItems.map((item) => ({
     key: item.chapterId,
     request: { summaryType: "chapter", chapterId: item.chapterId },
@@ -167,7 +202,7 @@ function buildChapterItems(
 }
 
 function buildLongTermItems(
-  longTermItems: MissingLongTermSummaryItem[]
+  longTermItems: MissingLongTermSummaryItem[],
 ): LongTermMaintenanceItem[] {
   return longTermItems.map((item) => ({
     key: `${item.startOrder}-${item.endOrder}`,
@@ -186,11 +221,10 @@ interface MaintenanceRowProps {
   onGenerate: () => void;
 }
 
-const MaintenanceRow = forwardRef<HTMLDivElement, MaintenanceRowProps>(function MaintenanceRow({
-  item,
-  disabled,
-  onGenerate,
-}, ref) {
+const MaintenanceRow = forwardRef<HTMLDivElement, MaintenanceRowProps>(function MaintenanceRow(
+  { item, disabled, onGenerate },
+  ref,
+) {
   return (
     <motion.div
       ref={ref}
@@ -201,28 +235,60 @@ const MaintenanceRow = forwardRef<HTMLDivElement, MaintenanceRowProps>(function 
       transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1], layout: { duration: 0.24 } }}
       className="summary-motion-hidden"
     >
-      <Box
-        className="summary-card"
-      >
-        <Flex align="center" justify="between" gap="3" px="3" py="2" className="summary-row">
-          <Flex direction="column" gap="1" className="summary-row-fill">
-            <Text size="2" className="summary-maintenance-title">
+      <Box className="summary-card">
+        <Flex
+          align="center"
+          justify="between"
+          gap="3"
+          px="3"
+          py="2"
+          className="summary-row"
+        >
+          <Flex
+            direction="column"
+            gap="1"
+            className="summary-row-fill"
+          >
+            <Text
+              size="2"
+              className="summary-maintenance-title"
+            >
               {item.title}
             </Text>
             {item.volumeTitle && (
-              <Text size="1" color="gray" className="summary-volume-label">
+              <Text
+                size="1"
+                color="gray"
+                className="summary-volume-label"
+              >
                 {item.volumeTitle}
               </Text>
             )}
           </Flex>
-          <Flex align="center" gap="2" className="summary-row-fixed">
+          <Flex
+            align="center"
+            gap="2"
+            className="summary-row-fixed"
+          >
             {item.progressMessage ? (
-              <Text size="1" color="gray" className="summary-maintenance-progress-text">
+              <Text
+                size="1"
+                color="gray"
+                className="summary-maintenance-progress-text"
+              >
                 {item.progressMessage}
               </Text>
             ) : null}
-            <SummaryStatusBadge status={item.status} isStale={item.isStale} />
-            <Button size="1" variant="soft" onClick={onGenerate} disabled={disabled}>
+            <SummaryStatusBadge
+              status={item.status}
+              isStale={item.isStale}
+            />
+            <Button
+              size="1"
+              variant="soft"
+              onClick={onGenerate}
+              disabled={disabled}
+            >
               生成
             </Button>
           </Flex>
@@ -232,19 +298,32 @@ const MaintenanceRow = forwardRef<HTMLDivElement, MaintenanceRowProps>(function 
   );
 });
 
-function SkippedChapterList({
-  items,
-}: {
-  items: SkippedChapterSummaryItem[];
-}) {
+function SkippedChapterList({ items }: { items: SkippedChapterSummaryItem[] }) {
   return (
-    <Flex direction="column" gap="3">
-      <Flex align="center" justify="between" gap="3" wrap="wrap">
-        <Flex direction="column" gap="1">
-          <Text size="2" weight="medium">
+    <Flex
+      direction="column"
+      gap="3"
+    >
+      <Flex
+        align="center"
+        justify="between"
+        gap="3"
+        wrap="wrap"
+      >
+        <Flex
+          direction="column"
+          gap="1"
+        >
+          <Text
+            size="2"
+            weight="medium"
+          >
             已跳过章节
           </Text>
-          <Text size="1" color="gray">
+          <Text
+            size="1"
+            color="gray"
+          >
             字数少于 500 的章节不会参与章节摘要生成，也不会阻塞区间摘要聚合。
           </Text>
         </Flex>
@@ -252,21 +331,41 @@ function SkippedChapterList({
       </Flex>
 
       {items.length ? (
-        <Flex direction="column" gap="2">
+        <Flex
+          direction="column"
+          gap="2"
+        >
           {items.slice(0, 20).map((item) => (
             <Box
               key={item.chapterId}
               className="summary-card"
             >
-              <Flex align="center" justify="between" gap="3" px="3" py="2" className="summary-row">
-                <Flex direction="column" gap="1" className="summary-row-fill">
-                  <Text size="2" className="summary-single-line-text">
+              <Flex
+                align="center"
+                justify="between"
+                gap="3"
+                px="3"
+                py="2"
+                className="summary-row"
+              >
+                <Flex
+                  direction="column"
+                  gap="1"
+                  className="summary-row-fill"
+                >
+                  <Text
+                    size="2"
+                    className="summary-single-line-text"
+                  >
                     {item.volumeTitle && (
                       <span className="summary-volume-label">{item.volumeTitle}</span>
                     )}
                     {item.chapterOrder}. {item.chapterTitle}
                   </Text>
-                  <Text size="1" color="gray">
+                  <Text
+                    size="1"
+                    color="gray"
+                  >
                     当前字数 {item.wordCount}
                   </Text>
                 </Flex>
@@ -276,15 +375,25 @@ function SkippedChapterList({
           ))}
         </Flex>
       ) : (
-        <Flex align="center" justify="center" py="8">
-          <Text size="2" color="gray">
+        <Flex
+          align="center"
+          justify="center"
+          py="8"
+        >
+          <Text
+            size="2"
+            color="gray"
+          >
             当前没有因字数不足而跳过的章节。
           </Text>
         </Flex>
       )}
 
       {items.length > 20 && (
-        <Text size="1" color="gray">
+        <Text
+          size="1"
+          color="gray"
+        >
           还有 {items.length - 20} 项未展开显示。
         </Text>
       )}
@@ -328,13 +437,30 @@ function MaintenanceList({
   }, [displayedItems.length, items]);
 
   return (
-    <Flex direction="column" gap="3">
-      <Flex align="center" justify="between" gap="3" wrap="wrap">
-        <Flex direction="column" gap="1">
-          <Text size="2" weight="medium">
+    <Flex
+      direction="column"
+      gap="3"
+    >
+      <Flex
+        align="center"
+        justify="between"
+        gap="3"
+        wrap="wrap"
+      >
+        <Flex
+          direction="column"
+          gap="1"
+        >
+          <Text
+            size="2"
+            weight="medium"
+          >
             {title}
           </Text>
-          <Text size="1" color="gray">
+          <Text
+            size="1"
+            color="gray"
+          >
             {totalText}
           </Text>
         </Flex>
@@ -342,8 +468,14 @@ function MaintenanceList({
       </Flex>
 
       {displayedItems.length ? (
-        <Flex direction="column" gap="2">
-          <AnimatePresence initial={false} mode="popLayout">
+        <Flex
+          direction="column"
+          gap="2"
+        >
+          <AnimatePresence
+            initial={false}
+            mode="popLayout"
+          >
             {displayedItems.slice(0, 20).map((item) => {
               const isPresent = items.some((currentItem) => currentItem.key === item.key);
               return (
@@ -358,15 +490,25 @@ function MaintenanceList({
           </AnimatePresence>
         </Flex>
       ) : (
-        <Flex align="center" justify="center" py="8">
-          <Text size="2" color="gray">
+        <Flex
+          align="center"
+          justify="center"
+          py="8"
+        >
+          <Text
+            size="2"
+            color="gray"
+          >
             {emptyText}
           </Text>
         </Flex>
       )}
 
       {items.length > 20 && (
-        <Text size="1" color="gray">
+        <Text
+          size="1"
+          color="gray"
+        >
           还有 {items.length - 20} 项会在批量生成时继续处理。
         </Text>
       )}
@@ -378,9 +520,7 @@ interface SummaryMaintenanceViewProps {
   projectId: string;
 }
 
-export function SummaryMaintenanceView({
-  projectId,
-}: SummaryMaintenanceViewProps) {
+export function SummaryMaintenanceView({ projectId }: SummaryMaintenanceViewProps) {
   const { t } = useTranslation();
   const { data: panelData } = useSummaryPanel(projectId);
   const enqueueMutation = useEnqueueSummary(projectId);
@@ -393,33 +533,24 @@ export function SummaryMaintenanceView({
   const maintenance = panelData?.maintenance;
   const chapterItems = useMemo(
     () => maintenance?.missingOrFailedChapterSummaries ?? [],
-    [maintenance]
+    [maintenance],
   );
   const longTermItems = useMemo(
     () => maintenance?.missingOrFailedLongTermSummaries ?? [],
-    [maintenance]
+    [maintenance],
   );
-  const skippedItems = useMemo(
-    () => maintenance?.skippedChapterSummaries ?? [],
-    [maintenance]
-  );
+  const skippedItems = useMemo(() => maintenance?.skippedChapterSummaries ?? [], [maintenance]);
   const batchProgress = useMemo(() => maintenance?.batchProgress ?? null, [maintenance]);
   const activeJobs = useMemo(() => maintenance?.activeJobs ?? [], [maintenance]);
   const total = chapterItems.length + longTermItems.length;
   const progressState = useMemo(
     () => buildSummaryProgressState(batchProgress, activeJobs),
-    [activeJobs, batchProgress]
+    [activeJobs, batchProgress],
   );
   const isGenerating = enqueueMutation.isPending || (progressState?.isActive ?? false);
 
-  const chapterViewItems = useMemo(
-    () => buildChapterItems(chapterItems),
-    [chapterItems]
-  );
-  const longTermViewItems = useMemo(
-    () => buildLongTermItems(longTermItems),
-    [longTermItems]
-  );
+  const chapterViewItems = useMemo(() => buildChapterItems(chapterItems), [chapterItems]);
+  const longTermViewItems = useMemo(() => buildLongTermItems(longTermItems), [longTermItems]);
 
   const handleGenerateOne = async (request: EnqueueSummaryRequest) => {
     try {
@@ -439,9 +570,15 @@ export function SummaryMaintenanceView({
   };
 
   return (
-    <Flex direction="column" gap="4">
+    <Flex
+      direction="column"
+      gap="4"
+    >
       {maintenance?.autoGenerationBlocked && (
-        <Callout.Root color="amber" size="1">
+        <Callout.Root
+          color="amber"
+          size="1"
+        >
           <Callout.Icon>
             <AlertTriangle size={16} />
           </Callout.Icon>
@@ -455,55 +592,111 @@ export function SummaryMaintenanceView({
         p="4"
         className="summary-maintenance-hero"
       >
-        <Flex direction="column" gap="3">
-          <Flex align="start" justify="between" gap="4">
-          <Flex direction="column" gap="1">
-            <Text size="3" weight="medium">
-              {t("summary.maintenance.queueTitle")}
-            </Text>
-            <Text size="2" color="gray">
-              {t("summary.maintenance.queueDescription", { chapterCount: chapterItems.length, rangeCount: longTermItems.length })}
-            </Text>
-          </Flex>
-            <Button size="2" onClick={handleGenerateAll} disabled={isGenerating || total === 0}>
+        <Flex
+          direction="column"
+          gap="3"
+        >
+          <Flex
+            align="start"
+            justify="between"
+            gap="4"
+          >
+            <Flex
+              direction="column"
+              gap="1"
+            >
+              <Text
+                size="3"
+                weight="medium"
+              >
+                {t("summary.maintenance.queueTitle")}
+              </Text>
+              <Text
+                size="2"
+                color="gray"
+              >
+                {t("summary.maintenance.queueDescription", {
+                  chapterCount: chapterItems.length,
+                  rangeCount: longTermItems.length,
+                })}
+              </Text>
+            </Flex>
+            <Button
+              size="2"
+              onClick={handleGenerateAll}
+              disabled={isGenerating || total === 0}
+            >
               <Sparkles size={15} />
               {t("summary.maintenance.generateAll")}
             </Button>
           </Flex>
 
-          <Flex gap="2" wrap="wrap">
-            <Badge color={chapterItems.length ? "amber" : "green"}>{t("summary.maintenance.chapterBadge", { count: chapterItems.length })}</Badge>
-            <Badge color={longTermItems.length ? "amber" : "green"}>{t("summary.maintenance.rangeBadge", { count: longTermItems.length })}</Badge>
-            <Badge color={skippedItems.length ? "gray" : "green"}>{t("summary.maintenance.skippedBadge", { count: skippedItems.length })}</Badge>
+          <Flex
+            gap="2"
+            wrap="wrap"
+          >
+            <Badge color={chapterItems.length ? "amber" : "green"}>
+              {t("summary.maintenance.chapterBadge", { count: chapterItems.length })}
+            </Badge>
+            <Badge color={longTermItems.length ? "amber" : "green"}>
+              {t("summary.maintenance.rangeBadge", { count: longTermItems.length })}
+            </Badge>
+            <Badge color={skippedItems.length ? "gray" : "green"}>
+              {t("summary.maintenance.skippedBadge", { count: skippedItems.length })}
+            </Badge>
             <Badge color={progressState?.isActive ? "amber" : "gray"}>
-              {t("summary.maintenance.processingBadge", { count: progressState?.isActive ? (progressState.totalCount ?? 0) : 0 })}
+              {t("summary.maintenance.processingBadge", {
+                count: progressState?.isActive ? (progressState.totalCount ?? 0) : 0,
+              })}
             </Badge>
           </Flex>
 
-          <AnimatePresence initial={false} mode="wait">
+          <AnimatePresence
+            initial={false}
+            mode="wait"
+          >
             {shouldShowSummaryProgressPanel(progressState) ? (
-              <SummaryProgressPanel key="summary-progress" state={progressState} />
+              <SummaryProgressPanel
+                key="summary-progress"
+                state={progressState}
+              />
             ) : null}
           </AnimatePresence>
         </Flex>
       </Box>
 
-      <Tabs.Root value={activeTab} onValueChange={(value) => setActiveTab(value as MaintenanceTab)}>
+      <Tabs.Root
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as MaintenanceTab)}
+      >
         <Tabs.List>
           <Tabs.Trigger value="chapter">
-            <Flex align="center" gap="2">
+            <Flex
+              align="center"
+              gap="2"
+            >
               <Text size="2">{t("summary.tabs.chapters")}</Text>
-              <Badge color={chapterViewItems.length ? "amber" : "green"}>{chapterViewItems.length}</Badge>
+              <Badge color={chapterViewItems.length ? "amber" : "green"}>
+                {chapterViewItems.length}
+              </Badge>
             </Flex>
           </Tabs.Trigger>
           <Tabs.Trigger value="long_term">
-            <Flex align="center" gap="2">
+            <Flex
+              align="center"
+              gap="2"
+            >
               <Text size="2">{t("summary.tabs.ranges")}</Text>
-              <Badge color={longTermViewItems.length ? "amber" : "green"}>{longTermViewItems.length}</Badge>
+              <Badge color={longTermViewItems.length ? "amber" : "green"}>
+                {longTermViewItems.length}
+              </Badge>
             </Flex>
           </Tabs.Trigger>
           <Tabs.Trigger value="skipped">
-            <Flex align="center" gap="2">
+            <Flex
+              align="center"
+              gap="2"
+            >
               <Text size="2">{t("summary.maintenance.skippedChapters")}</Text>
               <Badge color={skippedItems.length ? "gray" : "green"}>{skippedItems.length}</Badge>
             </Flex>

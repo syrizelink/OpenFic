@@ -1,6 +1,7 @@
-import type { ActiveSubagentState, AgentEvent } from "@/lib/agent.types";
-import { connectSocket, getSocket } from "../../../lib/socket-client";
 import i18n from "@/i18n";
+import type { ActiveSubagentState, AgentEvent } from "@/lib/agent.types";
+
+import { connectSocket, getSocket } from "../../../lib/socket-client";
 import { AGENT_SOCKET_EVENTS, toAgentEvent } from "./agent-socket-events";
 import { getString, isRecord } from "./tool-result-normalization";
 
@@ -39,7 +40,7 @@ function matchesParentSession(sessionId: string, data: Record<string, unknown>):
 
 export function toSubagentStatusEvent(
   sessionId: string,
-  rawData: unknown
+  rawData: unknown,
 ): ActiveSubagentState | null {
   const data = isRecord(rawData) ? rawData : {};
   if (!matchesParentSession(sessionId, data)) return null;
@@ -76,7 +77,7 @@ function waitForJoinAck(
     invalidType: string;
     timeoutMessage: string;
     invalidMessage: string;
-  }
+  },
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     let timeout: ReturnType<typeof globalThis.setTimeout> | null = null;
@@ -115,7 +116,7 @@ export function createSubagentSocketTransport(
   connector: SubagentSocketConnector = {
     connect: connectSocket,
     get: getSocket,
-  }
+  },
 ) {
   async function joinSubagentStatusStream(sessionId: string): Promise<void> {
     const socket = await connector.connect();
@@ -139,7 +140,7 @@ export function createSubagentSocketTransport(
   function subscribeSubagentStatusEvents(
     sessionId: string,
     onEvent: (event: ActiveSubagentState) => void,
-    onError?: (error: Error) => void
+    onError?: (error: Error) => void,
   ): () => void {
     const socket = connector.get();
     let hasJoinedRoom = false;
@@ -154,11 +155,19 @@ export function createSubagentSocketTransport(
     const connectHandler = () => {
       if (!hasJoinedRoom) return;
       void joinSubagentStatusStream(sessionId).catch((error) => {
-        onError?.(error instanceof Error ? error : new Error(i18n.t("assistant.subagentStatusReconnectFailed")));
+        onError?.(
+          error instanceof Error
+            ? error
+            : new Error(i18n.t("assistant.subagentStatusReconnectFailed")),
+        );
       });
     };
     const connectError = (error: unknown) => {
-      onError?.(error instanceof Error ? error : new Error(i18n.t("assistant.subagentStatusSubscribeFailed")));
+      onError?.(
+        error instanceof Error
+          ? error
+          : new Error(i18n.t("assistant.subagentStatusSubscribeFailed")),
+      );
     };
 
     socket.on(SUBAGENT_SOCKET_EVENTS.status, statusHandler);
@@ -197,7 +206,7 @@ export function createSubagentSocketTransport(
   function subscribeSubagentSessionEvents(
     childThreadId: string,
     onEvent: (event: AgentEvent) => void,
-    onError?: (error: Error) => void
+    onError?: (error: Error) => void,
   ): () => void {
     const socket = connector.get();
     let hasJoinedRoom = false;
@@ -208,11 +217,19 @@ export function createSubagentSocketTransport(
     const connectHandler = () => {
       if (!hasJoinedRoom) return;
       void joinSubagentSession(childThreadId).catch((error) => {
-        onError?.(error instanceof Error ? error : new Error(i18n.t("assistant.subagentSessionReconnectFailed")));
+        onError?.(
+          error instanceof Error
+            ? error
+            : new Error(i18n.t("assistant.subagentSessionReconnectFailed")),
+        );
       });
     };
     const connectError = (error: unknown) => {
-      onError?.(error instanceof Error ? error : new Error(i18n.t("assistant.subagentSessionSubscribeFailed")));
+      onError?.(
+        error instanceof Error
+          ? error
+          : new Error(i18n.t("assistant.subagentSessionSubscribeFailed")),
+      );
     };
     const handlers = AGENT_SOCKET_EVENTS.map((eventName) => {
       const handler = (data: unknown) => {

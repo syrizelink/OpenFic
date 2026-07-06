@@ -8,8 +8,9 @@
 import { Box, Button, Flex, Popover, ScrollArea, Select, Text, TextField } from "@radix-ui/themes";
 import { ChevronDown, Search } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import type { CSSProperties, ReactNode, ComponentProps } from "react";
+import { useTranslation } from "react-i18next";
+
 import "./select.css";
 
 type TextColor = ComponentProps<typeof Text>["color"];
@@ -77,7 +78,11 @@ export function LabeledSelect({
       disabled={disabled}
       size={size}
     >
-      <Select.Trigger className={triggerClassName} style={triggerStyle} placeholder={placeholder}>
+      <Select.Trigger
+        className={triggerClassName}
+        style={triggerStyle}
+        placeholder={placeholder}
+      >
         <Flex
           align="center"
           justify={triggerLabelVisible ? undefined : "center"}
@@ -99,13 +104,22 @@ export function LabeledSelect({
       </Select.Trigger>
       <Select.Content position={contentPosition}>
         {options.map((option) => (
-          <Select.Item 
-            key={option.value} 
+          <Select.Item
+            key={option.value}
             value={option.value}
             disabled={option.disabled}
           >
-            <Flex align="center" gap="2" justify="between" className="select-option-row">
-              <Flex align="center" gap="2" className="select-option-row__main">
+            <Flex
+              align="center"
+              gap="2"
+              justify="between"
+              className="select-option-row"
+            >
+              <Flex
+                align="center"
+                gap="2"
+                className="select-option-row__main"
+              >
                 {option.prefix}
                 {option.label}
               </Flex>
@@ -123,9 +137,12 @@ export function LabeledSelect({
 
   if (layout === "horizontal") {
     return (
-      <Flex align="center" gap={gap}>
-        <Text 
-          size={labelSize} 
+      <Flex
+        align="center"
+        gap={gap}
+      >
+        <Text
+          size={labelSize}
           weight={labelWeight}
         >
           {label}
@@ -136,9 +153,12 @@ export function LabeledSelect({
   }
 
   return (
-    <Flex direction="column" gap={gap}>
-      <Text 
-        size={labelSize} 
+    <Flex
+      direction="column"
+      gap={gap}
+    >
+      <Text
+        size={labelSize}
         weight={labelWeight}
       >
         {label}
@@ -161,12 +181,7 @@ export function SimpleSelect({
   triggerClassName,
 }: Omit<
   LabeledSelectProps,
-  | "label"
-  | "labelSize"
-  | "labelWeight"
-  | "labelColor"
-  | "layout"
-  | "gap"
+  "label" | "labelSize" | "labelWeight" | "labelColor" | "layout" | "gap"
 >) {
   const selectedOption = options.find((opt) => opt.value === value);
   const triggerLabel = selectedOption?.label || placeholder;
@@ -178,12 +193,24 @@ export function SimpleSelect({
       disabled={disabled}
       size={size}
     >
-      <Select.Trigger className={triggerClassName} style={triggerStyle} placeholder={placeholder}>
-        <Flex align="center" gap="2" className="select-trigger-content">
+      <Select.Trigger
+        className={triggerClassName}
+        style={triggerStyle}
+        placeholder={placeholder}
+      >
+        <Flex
+          align="center"
+          gap="2"
+          className="select-trigger-content"
+        >
           {triggerPrefix}
           {selectedOption?.prefix}
           {triggerLabel && (
-            <Text size={size} color={selectedOption ? undefined : "gray"} className="select-option-label">
+            <Text
+              size={size}
+              color={selectedOption ? undefined : "gray"}
+              className="select-option-label"
+            >
               {triggerLabel}
             </Text>
           )}
@@ -191,13 +218,22 @@ export function SimpleSelect({
       </Select.Trigger>
       <Select.Content position={contentPosition}>
         {options.map((option) => (
-          <Select.Item 
-            key={option.value} 
+          <Select.Item
+            key={option.value}
             value={option.value}
             disabled={option.disabled}
           >
-            <Flex align="center" gap="2" justify="between" className="select-option-row">
-              <Flex align="center" gap="2" className="select-option-row__main">
+            <Flex
+              align="center"
+              gap="2"
+              justify="between"
+              className="select-option-row"
+            >
+              <Flex
+                align="center"
+                gap="2"
+                className="select-option-row__main"
+              >
                 {option.prefix}
                 {option.label}
               </Flex>
@@ -241,8 +277,7 @@ export function SearchableSelect({
 
     return options.filter(
       (option) =>
-        option.label.toLowerCase().includes(query) ||
-        option.value.toLowerCase().includes(query)
+        option.label.toLowerCase().includes(query) || option.value.toLowerCase().includes(query),
     );
   }, [options, searchQuery]);
 
@@ -258,7 +293,10 @@ export function SearchableSelect({
   };
 
   const selectControl = (
-    <Popover.Root open={open} onOpenChange={handleOpenChange}>
+    <Popover.Root
+      open={open}
+      onOpenChange={handleOpenChange}
+    >
       <Popover.Trigger>
         <Button
           type="button"
@@ -270,7 +308,11 @@ export function SearchableSelect({
           style={{ width: "100%", justifyContent: "space-between", ...triggerStyle }}
           size={size}
         >
-          <Flex align="center" gap="2" className="select-trigger-content">
+          <Flex
+            align="center"
+            gap="2"
+            className="select-trigger-content"
+          >
             {selectedOption?.prefix}
             <Text
               size={size}
@@ -280,7 +322,10 @@ export function SearchableSelect({
               {selectedOption?.label || placeholder}
             </Text>
           </Flex>
-          <ChevronDown size={16} aria-hidden="true" />
+          <ChevronDown
+            size={16}
+            aria-hidden="true"
+          />
         </Button>
       </Popover.Trigger>
 
@@ -290,22 +335,31 @@ export function SearchableSelect({
         className="searchable-select-content"
         style={{ width: "var(--radix-popover-trigger-width)" }}
       >
-        <Box p="2" className="searchable-select-search-box">
+        <Box
+          p="2"
+          className="searchable-select-search-box"
+        >
           <TextField.Root
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={resolvedSearchPlaceholder}
+            placeholder={resolvedSearchPlaceholder}
             autoFocus
             size={size}
           >
             <TextField.Slot>
-              <Search size={16} aria-hidden="true" />
+              <Search
+                size={16}
+                aria-hidden="true"
+              />
             </TextField.Slot>
           </TextField.Root>
         </Box>
 
         <ScrollArea style={{ height: contentHeight }}>
-          <Flex direction="column" py="1">
+          <Flex
+            direction="column"
+            py="1"
+          >
             {filteredOptions.length > 0 ? (
               filteredOptions.map((option) => (
                 <button
@@ -317,10 +371,22 @@ export function SearchableSelect({
                   className="searchable-select-item"
                   onClick={() => handleSelect(option.value)}
                 >
-                  <Flex align="center" gap="2" justify="between" className="select-option-row">
-                    <Flex align="center" gap="2" className="select-option-row__main select-option-row__main--truncate">
+                  <Flex
+                    align="center"
+                    gap="2"
+                    justify="between"
+                    className="select-option-row"
+                  >
+                    <Flex
+                      align="center"
+                      gap="2"
+                      className="select-option-row__main select-option-row__main--truncate"
+                    >
                       {option.prefix}
-                      <Text size="2" truncate>
+                      <Text
+                        size="2"
+                        truncate
+                      >
                         {option.label}
                       </Text>
                     </Flex>
@@ -329,8 +395,15 @@ export function SearchableSelect({
                 </button>
               ))
             ) : (
-              <Flex align="center" justify="center" p="4">
-                <Text size="2" color="gray">
+              <Flex
+                align="center"
+                justify="center"
+                p="4"
+              >
+                <Text
+                  size="2"
+                  color="gray"
+                >
                   {resolvedEmptyMessage}
                 </Text>
               </Flex>
@@ -347,8 +420,15 @@ export function SearchableSelect({
 
   if (layout === "horizontal") {
     return (
-      <Flex align="center" gap={gap}>
-        <Text size={labelSize} weight={labelWeight} color={labelColor}>
+      <Flex
+        align="center"
+        gap={gap}
+      >
+        <Text
+          size={labelSize}
+          weight={labelWeight}
+          color={labelColor}
+        >
           {label}
         </Text>
         {selectControl}
@@ -357,8 +437,15 @@ export function SearchableSelect({
   }
 
   return (
-    <Flex direction="column" gap={gap}>
-      <Text size={labelSize} weight={labelWeight} color={labelColor}>
+    <Flex
+      direction="column"
+      gap={gap}
+    >
+      <Text
+        size={labelSize}
+        weight={labelWeight}
+        color={labelColor}
+      >
         {label}
       </Text>
       {selectControl}

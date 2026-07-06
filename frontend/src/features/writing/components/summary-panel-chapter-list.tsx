@@ -1,6 +1,3 @@
-import { memo, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import axios from "axios";
 import {
   Badge,
   Box,
@@ -12,16 +9,18 @@ import {
   TextField,
   Tooltip,
 } from "@radix-ui/themes";
+import axios from "axios";
 import { ChevronDown, ChevronLeft, ChevronRight, ListChecks, Search, Trash2 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { memo, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+
 import "./summary-panel.css";
 
 import { ConfirmDialog, SimpleSelect, toast } from "@/components";
 import type { ChapterSummaryListItem } from "@/lib/api-client";
-import {
-  useChapterSummaryListPage,
-  useDeleteChapterSummaries,
-} from "../hooks/use-summaries";
+
+import { useChapterSummaryListPage, useDeleteChapterSummaries } from "../hooks/use-summaries";
 import { useVolumeTree } from "../hooks/use-volumes";
 
 const CHAPTER_SUMMARY_PAGE_SIZE = 20;
@@ -38,7 +37,8 @@ function getErrorText(value: unknown): string | null {
 
 function getSummaryErrorMessage(error: unknown): string {
   if (axios.isAxiosError<ApiErrorPayload>(error)) {
-    const responseMessage = getErrorText(error.response?.data?.detail) ?? getErrorText(error.response?.data?.message);
+    const responseMessage =
+      getErrorText(error.response?.data?.detail) ?? getErrorText(error.response?.data?.message);
     if (responseMessage) return responseMessage;
     if (error.message) return error.message;
   }
@@ -47,7 +47,10 @@ function getSummaryErrorMessage(error: unknown): string {
   return "摘要处理失败，请稍后重试。";
 }
 
-function getStatusColor(status: string, isStale: boolean): "green" | "blue" | "amber" | "red" | "gray" {
+function getStatusColor(
+  status: string,
+  isStale: boolean,
+): "green" | "blue" | "amber" | "red" | "gray" {
   if (status === "ready" && isStale) return "amber";
   if (status === "ready") return "green";
   if (status === "running") return "blue";
@@ -72,27 +75,66 @@ function SummaryStatusBadge({ status, isStale }: { status: string; isStale: bool
 function getVisiblePages(currentPage: number, totalPages: number): Array<number | "ellipsis"> {
   if (totalPages <= 6) return Array.from({ length: totalPages }, (_, index) => index + 1);
   if (currentPage <= 3) return [1, 2, 3, "ellipsis", totalPages - 1, totalPages];
-  if (currentPage >= totalPages - 2) return [1, 2, "ellipsis", totalPages - 2, totalPages - 1, totalPages];
+  if (currentPage >= totalPages - 2)
+    return [1, 2, "ellipsis", totalPages - 2, totalPages - 1, totalPages];
   return [1, currentPage - 1, currentPage, "ellipsis", currentPage + 1, totalPages];
 }
 
 function ChapterSummarySkeletonList() {
   return (
-    <Flex direction="column" gap="2">
+    <Flex
+      direction="column"
+      gap="2"
+    >
       {Array.from({ length: CHAPTER_SUMMARY_PAGE_SIZE }, (_, index) => (
         <Box
           key={index}
           className="summary-card"
         >
-          <Flex align="center" gap="3" px="3" py="2" className="summary-row">
-            <Skeleton height="16px" width="16px" style={{ borderRadius: 999 }} />
-            <Skeleton height="16px" width={`${40 + (index % 3) * 8}%`} style={{ maxWidth: 240 }} />
-            <Flex gap="2" className="summary-row-fill">
-              <Skeleton height="20px" width="56px" style={{ borderRadius: 999 }} />
-              <Skeleton height="20px" width="68px" style={{ borderRadius: 999 }} />
-              {index % 2 === 0 && <Skeleton height="20px" width="52px" style={{ borderRadius: 999 }} />}
+          <Flex
+            align="center"
+            gap="3"
+            px="3"
+            py="2"
+            className="summary-row"
+          >
+            <Skeleton
+              height="16px"
+              width="16px"
+              style={{ borderRadius: 999 }}
+            />
+            <Skeleton
+              height="16px"
+              width={`${40 + (index % 3) * 8}%`}
+              style={{ maxWidth: 240 }}
+            />
+            <Flex
+              gap="2"
+              className="summary-row-fill"
+            >
+              <Skeleton
+                height="20px"
+                width="56px"
+                style={{ borderRadius: 999 }}
+              />
+              <Skeleton
+                height="20px"
+                width="68px"
+                style={{ borderRadius: 999 }}
+              />
+              {index % 2 === 0 && (
+                <Skeleton
+                  height="20px"
+                  width="52px"
+                  style={{ borderRadius: 999 }}
+                />
+              )}
             </Flex>
-            <Skeleton height="20px" width="56px" style={{ borderRadius: 999 }} />
+            <Skeleton
+              height="20px"
+              width="56px"
+              style={{ borderRadius: 999 }}
+            />
           </Flex>
         </Box>
       ))}
@@ -111,18 +153,60 @@ interface ChapterSummaryAccordionItemProps {
 
 function SummaryPaginationSkeleton() {
   return (
-    <Flex align="center" justify="between" wrap="wrap" gap="3">
-      <Skeleton height="16px" width="160px" />
-      <Flex align="center" gap="2" wrap="wrap">
-        <Skeleton height="16px" width="72px" />
-        <Skeleton height="28px" width="52px" style={{ borderRadius: 999 }} />
-        <Flex align="center" gap="1">
-          <Skeleton height="28px" width="28px" style={{ borderRadius: 999 }} />
-          <Skeleton height="28px" width="28px" style={{ borderRadius: 999 }} />
-          <Skeleton height="28px" width="28px" style={{ borderRadius: 999 }} />
-          <Skeleton height="28px" width="28px" style={{ borderRadius: 999 }} />
+    <Flex
+      align="center"
+      justify="between"
+      wrap="wrap"
+      gap="3"
+    >
+      <Skeleton
+        height="16px"
+        width="160px"
+      />
+      <Flex
+        align="center"
+        gap="2"
+        wrap="wrap"
+      >
+        <Skeleton
+          height="16px"
+          width="72px"
+        />
+        <Skeleton
+          height="28px"
+          width="52px"
+          style={{ borderRadius: 999 }}
+        />
+        <Flex
+          align="center"
+          gap="1"
+        >
+          <Skeleton
+            height="28px"
+            width="28px"
+            style={{ borderRadius: 999 }}
+          />
+          <Skeleton
+            height="28px"
+            width="28px"
+            style={{ borderRadius: 999 }}
+          />
+          <Skeleton
+            height="28px"
+            width="28px"
+            style={{ borderRadius: 999 }}
+          />
+          <Skeleton
+            height="28px"
+            width="28px"
+            style={{ borderRadius: 999 }}
+          />
         </Flex>
-        <Skeleton height="28px" width="52px" style={{ borderRadius: 999 }} />
+        <Skeleton
+          height="28px"
+          width="52px"
+          style={{ borderRadius: 999 }}
+        />
       </Flex>
     </Flex>
   );
@@ -144,8 +228,19 @@ const ChapterSummaryAccordionItem = memo(function ChapterSummaryAccordionItem({
       className="summary-card"
       data-selected={selected ? "true" : "false"}
     >
-      <Flex align="center" gap="3" px="3" py="2" className="summary-row">
-        {isSelecting && <Checkbox checked={selected} onCheckedChange={onToggleSelect} />}
+      <Flex
+        align="center"
+        gap="3"
+        px="3"
+        py="2"
+        className="summary-row"
+      >
+        {isSelecting && (
+          <Checkbox
+            checked={selected}
+            onCheckedChange={onToggleSelect}
+          />
+        )}
         <button
           type="button"
           onClick={canExpand ? onToggleExpand : undefined}
@@ -154,19 +249,36 @@ const ChapterSummaryAccordionItem = memo(function ChapterSummaryAccordionItem({
           data-expandable={canExpand ? "true" : "false"}
           aria-label={expanded ? "收起" : "展开"}
         >
-          <ChevronDown size={14} className="summary-expand-icon" data-expanded={expanded ? "true" : "false"} />
+          <ChevronDown
+            size={14}
+            className="summary-expand-icon"
+            data-expanded={expanded ? "true" : "false"}
+          />
         </button>
-        <Flex direction="column" gap="1" className="summary-chapter-meta">
-          <Text size="2" className="summary-chapter-title">
-            {item.volumeTitle && (
-              <span className="summary-volume-label">{item.volumeTitle}</span>
-            )}
+        <Flex
+          direction="column"
+          gap="1"
+          className="summary-chapter-meta"
+        >
+          <Text
+            size="2"
+            className="summary-chapter-title"
+          >
+            {item.volumeTitle && <span className="summary-volume-label">{item.volumeTitle}</span>}
             {`第 ${item.chapterOrder} 章 ${item.chapterTitle}`}
           </Text>
           {tags.length > 0 && (
-            <Flex gap="2" wrap="wrap" className="summary-chapter-tags">
+            <Flex
+              gap="2"
+              wrap="wrap"
+              className="summary-chapter-tags"
+            >
               {tags.map((tag) => (
-                <Badge key={`${item.chapterId}-${tag}`} variant="soft" color="gray">
+                <Badge
+                  key={`${item.chapterId}-${tag}`}
+                  variant="soft"
+                  color="gray"
+                >
                   {tag}
                 </Badge>
               ))}
@@ -174,7 +286,10 @@ const ChapterSummaryAccordionItem = memo(function ChapterSummaryAccordionItem({
           )}
         </Flex>
         <Box className="summary-row-fixed">
-          <SummaryStatusBadge status={item.status} isStale={item.isStale} />
+          <SummaryStatusBadge
+            status={item.status}
+            isStale={item.isStale}
+          />
         </Box>
       </Flex>
       <AnimatePresence initial={false}>
@@ -190,18 +305,33 @@ const ChapterSummaryAccordionItem = memo(function ChapterSummaryAccordionItem({
               opacity: { duration: 0.18, ease: "easeOut" },
             }}
           >
-            <Box className="summary-accordion-content__inner" px="3">
-              <Flex direction="column" gap="2">
+            <Box
+              className="summary-accordion-content__inner"
+              px="3"
+            >
+              <Flex
+                direction="column"
+                gap="2"
+              >
                 {(item.startTime || item.endTime) && (
-                  <Text size="1" color="gray">
+                  <Text
+                    size="1"
+                    color="gray"
+                  >
                     {item.startTime || "未知"} - {item.endTime || "未知"}
                   </Text>
                 )}
-                <Text size="2" className="summary-content-text">
+                <Text
+                  size="2"
+                  className="summary-content-text"
+                >
                   {item.summary || "暂无摘要内容。"}
                 </Text>
                 {item.errorMessage && (
-                  <Text size="1" color="red">
+                  <Text
+                    size="1"
+                    color="red"
+                  >
                     {item.errorMessage}
                   </Text>
                 )}
@@ -216,7 +346,7 @@ const ChapterSummaryAccordionItem = memo(function ChapterSummaryAccordionItem({
 
 function areChapterSummaryItemPropsEqual(
   previous: Readonly<ChapterSummaryAccordionItemProps>,
-  next: Readonly<ChapterSummaryAccordionItemProps>
+  next: Readonly<ChapterSummaryAccordionItemProps>,
 ) {
   return (
     previous.item === next.item &&
@@ -260,7 +390,8 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
   const deleteMutation = useDeleteChapterSummaries(projectId);
   const requestPage = page;
   const isInitialLoading = isLoading && !chapterSummaryList;
-  const isPageSwitchLoading = isFetching && (chapterSummaryList?.page ?? requestPage) !== requestPage;
+  const isPageSwitchLoading =
+    isFetching && (chapterSummaryList?.page ?? requestPage) !== requestPage;
   const isListLoading = isInitialLoading || isPageSwitchLoading;
 
   const items = useMemo(() => {
@@ -283,17 +414,14 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
     });
   }, [chapterSummaryList?.items, searchQuery]);
 
-  const visibleChapterIds = useMemo(
-    () => new Set(items.map((item) => item.chapterId)),
-    [items]
-  );
+  const visibleChapterIds = useMemo(() => new Set(items.map((item) => item.chapterId)), [items]);
   const selectedIds = useMemo(
     () => selectedChapterIds.filter((chapterId) => visibleChapterIds.has(chapterId)),
-    [selectedChapterIds, visibleChapterIds]
+    [selectedChapterIds, visibleChapterIds],
   );
   const expandedIds = useMemo(
     () => expandedChapterIds.filter((chapterId) => visibleChapterIds.has(chapterId)),
-    [expandedChapterIds, visibleChapterIds]
+    [expandedChapterIds, visibleChapterIds],
   );
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const expandedIdSet = useMemo(() => new Set(expandedIds), [expandedIds]);
@@ -301,7 +429,10 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
   const pageSize = chapterSummaryList?.pageSize ?? CHAPTER_SUMMARY_PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const currentPage = Math.min(requestPage, totalPages);
-  const visiblePages = useMemo(() => getVisiblePages(currentPage, totalPages), [currentPage, totalPages]);
+  const visiblePages = useMemo(
+    () => getVisiblePages(currentPage, totalPages),
+    [currentPage, totalPages],
+  );
   const pageStart = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const pageEnd = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
 
@@ -316,7 +447,7 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
     setSelectedChapterIds((current) =>
       current.includes(chapterId)
         ? current.filter((item) => item !== chapterId)
-        : [...current, chapterId]
+        : [...current, chapterId],
     );
   };
 
@@ -324,7 +455,7 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
     setExpandedChapterIds((current) =>
       current.includes(chapterId)
         ? current.filter((item) => item !== chapterId)
-        : [...current, chapterId]
+        : [...current, chapterId],
     );
   };
 
@@ -340,7 +471,11 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
       if (shouldGoToPreviousPage) {
         setPage((current) => current - 1);
       }
-      toast.success(targetIds.length > 0 ? t("summary.deleteSelectedChapterSuccess") : t("summary.deleteAllChapterSuccess"));
+      toast.success(
+        targetIds.length > 0
+          ? t("summary.deleteSelectedChapterSuccess")
+          : t("summary.deleteAllChapterSuccess"),
+      );
     } catch (error) {
       toast.error(t("summary.deleteChapterFailed", { reason: getSummaryErrorMessage(error) }));
     }
@@ -352,8 +487,14 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
   };
 
   return (
-    <Flex direction="column" gap="3">
-      <Flex align="center" gap="2">
+    <Flex
+      direction="column"
+      gap="3"
+    >
+      <Flex
+        align="center"
+        gap="2"
+      >
         <SimpleSelect
           value={volumeId ?? "all"}
           options={volumeOptions}
@@ -372,12 +513,24 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
             <Search size={16} />
           </TextField.Slot>
         </TextField.Root>
-        <Tooltip content={isSelectionMode ? t("summary.cancelSelectMode") : t("summary.selectMode")}>
-          <IconButton variant={isSelectionMode ? "soft" : "ghost"} size="2" onClick={handleToggleSelectionMode}>
+        <Tooltip
+          content={isSelectionMode ? t("summary.cancelSelectMode") : t("summary.selectMode")}
+        >
+          <IconButton
+            variant={isSelectionMode ? "soft" : "ghost"}
+            size="2"
+            onClick={handleToggleSelectionMode}
+          >
             <ListChecks size={16} />
           </IconButton>
         </Tooltip>
-        <Tooltip content={isSelectionMode && selectedIds.length > 0 ? t("summary.deleteSelectedChapters") : t("summary.deleteAllChapters")}>
+        <Tooltip
+          content={
+            isSelectionMode && selectedIds.length > 0
+              ? t("summary.deleteSelectedChapters")
+              : t("summary.deleteAllChapters")
+          }
+        >
           <IconButton
             variant="ghost"
             size="2"
@@ -393,13 +546,23 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
       {isListLoading ? (
         <ChapterSummarySkeletonList />
       ) : items.length === 0 ? (
-        <Flex align="center" justify="center" py="8">
-          <Text size="2" color="gray">
+        <Flex
+          align="center"
+          justify="center"
+          py="8"
+        >
+          <Text
+            size="2"
+            color="gray"
+          >
             {searchQuery ? t("summary.emptyChapterPage") : t("summary.emptyChapters")}
           </Text>
         </Flex>
       ) : (
-        <Flex direction="column" gap="2">
+        <Flex
+          direction="column"
+          gap="2"
+        >
           {items.map((item) => (
             <ChapterSummaryAccordionItem
               key={item.chapterId}
@@ -417,28 +580,51 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
       {isInitialLoading && !searchQuery ? (
         <SummaryPaginationSkeleton />
       ) : total > 0 && !searchQuery ? (
-        <Flex align="center" justify="between" wrap="wrap" gap="3">
-          <Text size="2" color="gray">
+        <Flex
+          align="center"
+          justify="between"
+          wrap="wrap"
+          gap="3"
+        >
+          <Text
+            size="2"
+            color="gray"
+          >
             {t("summary.range", { start: pageStart, end: pageEnd, total })}
           </Text>
-          <Flex align="center" gap="2" wrap="wrap">
-            <Text size="2" color="gray">
+          <Flex
+            align="center"
+            gap="2"
+            wrap="wrap"
+          >
+            <Text
+              size="2"
+              color="gray"
+            >
               {t("summary.totalPages", { total: totalPages })}
             </Text>
             <IconButton
               aria-label={t("summary.prevPage")}
               color="gray"
-               disabled={currentPage <= 1 || isFetching}
+              disabled={currentPage <= 1 || isFetching}
               size="1"
               variant="ghost"
               onClick={() => setPage((current) => current - 1)}
             >
               <ChevronLeft size={14} />
             </IconButton>
-            <Flex align="center" gap="1" aria-label={t("summary.pageList")}>
+            <Flex
+              align="center"
+              gap="1"
+              aria-label={t("summary.pageList")}
+            >
               {visiblePages.map((visiblePage, index) =>
                 visiblePage === "ellipsis" ? (
-                  <Text key={`ellipsis-${index}`} size="2" color="gray">
+                  <Text
+                    key={`ellipsis-${index}`}
+                    size="2"
+                    color="gray"
+                  >
                     ...
                   </Text>
                 ) : (
@@ -446,19 +632,19 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
                     type="button"
                     key={visiblePage}
                     onClick={() => setPage(visiblePage)}
-                     disabled={isFetching || visiblePage === currentPage}
+                    disabled={isFetching || visiblePage === currentPage}
                     className="summary-pagination-page"
                     data-active={visiblePage === currentPage}
                   >
                     {visiblePage}
                   </button>
-                )
+                ),
               )}
             </Flex>
             <IconButton
               aria-label={t("summary.nextPage")}
               color="gray"
-               disabled={currentPage >= totalPages || isFetching}
+              disabled={currentPage >= totalPages || isFetching}
               size="1"
               variant="ghost"
               onClick={() => setPage((current) => current + 1)}
@@ -473,10 +659,16 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         onConfirm={handleConfirmDelete}
-        title={isSelectionMode && selectedIds.length > 0 ? t("summary.deleteDialog.deleteSelectedChaptersTitle") : t("summary.deleteDialog.deleteAllChaptersTitle")}
+        title={
+          isSelectionMode && selectedIds.length > 0
+            ? t("summary.deleteDialog.deleteSelectedChaptersTitle")
+            : t("summary.deleteDialog.deleteAllChaptersTitle")
+        }
         description={
           isSelectionMode && selectedIds.length > 0
-            ? t("summary.deleteDialog.deleteSelectedChaptersDescription", { count: selectedIds.length })
+            ? t("summary.deleteDialog.deleteSelectedChaptersDescription", {
+                count: selectedIds.length,
+              })
             : t("summary.deleteDialog.deleteAllChaptersDescription")
         }
         confirmText={t("common.delete")}

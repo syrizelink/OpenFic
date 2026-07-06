@@ -19,22 +19,23 @@ export interface UseLlmModelOptionsResult {
 }
 
 export function useLlmModelOptions(): UseLlmModelOptionsResult {
-  const { data: models, isLoading: isModelsLoading, error: modelsError } = useQuery({
+  const {
+    data: models,
+    isLoading: isModelsLoading,
+    error: modelsError,
+  } = useQuery({
     queryKey: ["models"],
     queryFn: () => fetchModels(),
   });
 
-  const {
-    data: providers,
-    isLoading: isProvidersLoading,
-  } = useQuery({
+  const { data: providers, isLoading: isProvidersLoading } = useQuery({
     queryKey: ["model-providers"],
     queryFn: fetchProviders,
   });
 
   const llmModels = useMemo(
     () => (models ?? []).filter((model) => model.taskType === "llm"),
-    [models]
+    [models],
   );
 
   const catalogProviderTypes = useMemo(() => {
@@ -44,22 +45,19 @@ export function useLlmModelOptions(): UseLlmModelOptionsResult {
         llmModels
           .map((model) => providers.find((provider) => provider.id === model.providerId))
           .map((provider) => (provider ? resolveProviderCatalogType(provider) : null))
-          .filter((providerType): providerType is string => Boolean(providerType))
-      )
+          .filter((providerType): providerType is string => Boolean(providerType)),
+      ),
     );
   }, [llmModels, providers]);
 
-  const {
-    data: catalogMetadata,
-    isLoading: isCatalogMetadataLoading,
-  } = useQuery({
+  const { data: catalogMetadata, isLoading: isCatalogMetadataLoading } = useQuery({
     queryKey: ["model-provider-catalog", "llm-model-metadata", catalogProviderTypes],
     queryFn: async () => {
       const responses = await Promise.all(
         catalogProviderTypes.map(async (providerType) => {
           const result = await fetchModelProviderCatalogModels(providerType, "llm");
           return [providerType, result.models] as const;
-        })
+        }),
       );
       return new Map(responses);
     },

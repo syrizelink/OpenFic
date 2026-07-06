@@ -5,8 +5,8 @@
  */
 
 import { Dialog, Flex, Text, Button } from "@radix-ui/themes";
-import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface ResetConfirmDialogProps {
   open: boolean;
@@ -24,24 +24,41 @@ export function ResetConfirmDialog({
   const { t } = useTranslation();
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <Dialog.Content maxWidth="400px">
         <Dialog.Title>{t("promptChains.resetToDefault")}</Dialog.Title>
         <Dialog.Description>
-          <Flex direction="column" gap="3">
-            <Flex align="center" gap="2">
-              <AlertTriangle size={20} color="var(--red-9)" />
-              <Text size="2" color="red">
+          <Flex
+            direction="column"
+            gap="3"
+          >
+            <Flex
+              align="center"
+              gap="2"
+            >
+              <AlertTriangle
+                size={20}
+                color="var(--red-9)"
+              />
+              <Text
+                size="2"
+                color="red"
+              >
                 {t("promptChains.resetWarningTitle")}
               </Text>
             </Flex>
-            <Text size="2">
-              {t("promptChains.resetWarningDescription")}
-            </Text>
+            <Text size="2">{t("promptChains.resetWarningDescription")}</Text>
           </Flex>
         </Dialog.Description>
 
-        <Flex gap="3" mt="4" justify="end">
+        <Flex
+          gap="3"
+          mt="4"
+          justify="end"
+        >
           <Button
             variant="soft"
             color="gray"

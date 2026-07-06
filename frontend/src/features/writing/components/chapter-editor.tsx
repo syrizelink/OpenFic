@@ -1,30 +1,31 @@
-import { Suspense, lazy, useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Box, Flex, Text, IconButton } from "@radix-ui/themes";
-import { AtSign, Globe, FileText } from "lucide-react";
-import { toast } from "@/components";
 import { useEditor, EditorContent } from "@tiptap/react";
-import { useTranslation } from "react-i18next";
-import { useHotkeys } from "react-hotkeys-hook";
-import { useNavigate } from "react-router";
+import { AtSign, Globe, FileText } from "lucide-react";
 import { AnimatePresence } from "motion/react";
+import { Suspense, lazy, useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router";
 import wordsCount from "words-count";
 
+import { toast } from "@/components";
 import { TitleInput, EditorToolbar, Spinner, type EditorToolbarExtraAction } from "@/components";
-import { FindReplacePanel } from "./find-replace-panel";
 import { ContextMenu } from "@/components";
-import { createEditorExtensions } from "../lib/editor-config";
-import { useChapter, useUpdateChapter } from "../hooks/use-chapters";
-import { useAutoSave } from "../hooks/use-auto-save";
+import {
+  buildChapterMentionTag,
+  buildLineRangeMentionTag,
+} from "@/features/assistant/lib/mention-text";
 import { useScrollbarAutoHide } from "@/hooks/use-scrollbar-auto-hide";
-import { useTabsStore } from "../store/use-tabs-store";
-import { createToastThrottler } from "@/lib/ui-utils";
-import { buildChapterMentionTag, buildLineRangeMentionTag } from "@/features/assistant/lib/mention-text";
 import type { Chapter } from "@/lib/chapter.types";
 import { htmlToNewlines, newlinesToHtml } from "@/lib/html-utils";
-import {
-  createChapterEditorDraft,
-  isChapterEditorDraftDirty,
-} from "../lib/chapter-editor-draft";
+import { createToastThrottler } from "@/lib/ui-utils";
+
+import { useAutoSave } from "../hooks/use-auto-save";
+import { useChapter, useUpdateChapter } from "../hooks/use-chapters";
+import { createChapterEditorDraft, isChapterEditorDraftDirty } from "../lib/chapter-editor-draft";
+import { createEditorExtensions } from "../lib/editor-config";
+import { useTabsStore } from "../store/use-tabs-store";
+import { FindReplacePanel } from "./find-replace-panel";
 
 const loadSummaryPanel = () =>
   import("./summary-panel").then((module) => ({ default: module.SummaryPanel }));
@@ -67,13 +68,11 @@ function ChapterEditorInner({
     createChapterEditorDraft({
       title: chapter.title,
       content: chapter.content,
-    })
+    }),
   );
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [findReplaceMode, setFindReplaceMode] = useState<
-    "closed" | "find" | "replace"
-  >("closed");
+  const [findReplaceMode, setFindReplaceMode] = useState<"closed" | "find" | "replace">("closed");
   const [wordCount, setWordCount] = useState(() => wordsCount(chapter.content || ""));
   const saveStatus = isSaving ? "saving" : hasChanges ? "unsaved" : "saved";
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -81,7 +80,7 @@ function ChapterEditorInner({
 
   const showLockedToast = useMemo(
     () => createToastThrottler(t("writing.agentLockedChapterEdit")),
-    [t]
+    [t],
   );
 
   useEffect(() => {
@@ -151,7 +150,15 @@ function ChapterEditorInner({
         )}
       </>
     );
-  }, [projectId, chapter.id, handleOpenSummary, handleSummaryOpenChange, summaryOpen, hasOpenedSummary, t]);
+  }, [
+    projectId,
+    chapter.id,
+    handleOpenSummary,
+    handleSummaryOpenChange,
+    summaryOpen,
+    hasOpenedSummary,
+    t,
+  ]);
 
   const openFind = useCallback(() => {
     if (isAgentLocked) {
@@ -182,7 +189,7 @@ function ChapterEditorInner({
     (editorInstance: { getHTML: () => string }) => {
       updateDirtyState(titleRef.current, editorInstance.getHTML());
     },
-    [updateDirtyState]
+    [updateDirtyState],
   );
 
   const editor = useEditor({
@@ -263,7 +270,7 @@ function ChapterEditorInner({
       t,
       title,
       updateMutation,
-    ]
+    ],
   );
 
   useEffect(() => {
@@ -358,7 +365,7 @@ function ChapterEditorInner({
       }
       handleSave(true);
     },
-    { enableOnFormTags: true }
+    { enableOnFormTags: true },
   );
 
   useHotkeys(
@@ -371,7 +378,7 @@ function ChapterEditorInner({
       }
       setFindReplaceMode("find");
     },
-    { enableOnFormTags: true }
+    { enableOnFormTags: true },
   );
 
   useHotkeys(
@@ -384,7 +391,7 @@ function ChapterEditorInner({
       }
       setFindReplaceMode("replace");
     },
-    { enableOnFormTags: true }
+    { enableOnFormTags: true },
   );
 
   const handleTitleChange = (newTitle: string) => {
@@ -407,9 +414,8 @@ function ChapterEditorInner({
 
     const chapterLabel = chapter.title.trim() || t("writing.untitledChapter");
     const { from, to } = editor.state.selection;
-    const selectedText = from === to
-      ? ""
-      : editor.state.doc.textBetween(from, to, "\n", "\n").trim();
+    const selectedText =
+      from === to ? "" : editor.state.doc.textBetween(from, to, "\n", "\n").trim();
     const hasSelection = selectedText.length > 0;
 
     return [
@@ -419,10 +425,12 @@ function ChapterEditorInner({
         icon: AtSign,
         onClick: () => {
           if (!hasSelection) {
-            onAddToConversation(buildChapterMentionTag({
-              chapterId: chapter.id,
-              label: chapterLabel,
-            }));
+            onAddToConversation(
+              buildChapterMentionTag({
+                chapterId: chapter.id,
+                label: chapterLabel,
+              }),
+            );
             return;
           }
 
@@ -431,13 +439,15 @@ function ChapterEditorInner({
           const startLine = textBeforeSelection.split("\n").length;
           const endLine = textBeforeSelectionEnd.split("\n").length;
 
-          onAddToConversation(buildLineRangeMentionTag({
-            chapterId: chapter.id,
-            startLine,
-            endLine,
-            label: `${chapterLabel} L${startLine}-${endLine}`,
-            snapshotText: selectedText,
-          }));
+          onAddToConversation(
+            buildLineRangeMentionTag({
+              chapterId: chapter.id,
+              startLine,
+              endLine,
+              label: `${chapterLabel} L${startLine}-${endLine}`,
+              snapshotText: selectedText,
+            }),
+          );
         },
       },
     ];
@@ -504,8 +514,14 @@ function ChapterEditorInner({
             onDisabledClick={showLockedToast}
           />
           <Box style={{ borderBottom: "1px solid var(--gray-a4)" }} />
-          <Box py="5" ref={editorContentRef}>
-            <EditorContent editor={editor} className="tiptap-editor" />
+          <Box
+            py="5"
+            ref={editorContentRef}
+          >
+            <EditorContent
+              editor={editor}
+              className="tiptap-editor"
+            />
           </Box>
         </Box>
       </Box>
@@ -528,10 +544,16 @@ function ChapterEditorInner({
           background: "var(--gray-a2)",
         }}
       >
-        <Text size="1" color="gray">
+        <Text
+          size="1"
+          color="gray"
+        >
           {wordCount} {t("writing.words")}
         </Text>
-        <Text size="1" color="gray">
+        <Text
+          size="1"
+          color="gray"
+        >
           {saveStatus === "saving" && t("writing.saving")}
           {saveStatus === "saved" && t("writing.saved")}
           {saveStatus === "unsaved" && t("writing.unsavedChanges")}
@@ -558,7 +580,10 @@ export function ChapterEditor({
         justify="center"
         style={{ flex: 1, minHeight: 0 }}
       >
-        <Text color="gray" size="3">
+        <Text
+          color="gray"
+          size="3"
+        >
           {t("writing.selectChapter")}
         </Text>
       </Flex>

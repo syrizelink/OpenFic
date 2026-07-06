@@ -14,24 +14,20 @@ export interface SubagentConversationEntry extends SubagentConversationDescripto
   subagent: ActiveSubagentState;
 }
 
-export type AssistantConversationEntry =
-  | ParentConversationEntry
-  | SubagentConversationEntry;
+export type AssistantConversationEntry = ParentConversationEntry | SubagentConversationEntry;
 
 export interface AssistantConversationStackState {
   entries: AssistantConversationEntry[];
 }
 
-export function createConversationStackState(
-  sessionId: string
-): AssistantConversationStackState {
+export function createConversationStackState(sessionId: string): AssistantConversationStackState {
   return {
     entries: [{ kind: "parent", sessionId }],
   };
 }
 
 export function getCurrentConversationDescriptor(
-  state: AssistantConversationStackState
+  state: AssistantConversationStackState,
 ): AgentConversationDescriptor | null {
   const current = state.entries.at(-1);
   if (!current) return null;
@@ -47,7 +43,7 @@ export function getCurrentConversationDescriptor(
 }
 
 export function getCurrentSubagentSnapshot(
-  state: AssistantConversationStackState
+  state: AssistantConversationStackState,
 ): ActiveSubagentState | null {
   const current = state.entries.at(-1);
   return current?.kind === "subagent" ? current.subagent : null;
@@ -55,7 +51,7 @@ export function getCurrentSubagentSnapshot(
 
 export function syncParentConversationState(
   state: AssistantConversationStackState,
-  sessionId: string
+  sessionId: string,
 ): AssistantConversationStackState {
   const parentEntry = state.entries[0];
   const parentSessionId = parentEntry?.kind === "parent" ? parentEntry.sessionId : undefined;
@@ -68,7 +64,7 @@ export function syncParentConversationState(
 export function openSubagentConversation(
   state: AssistantConversationStackState,
   parentSessionId: string,
-  subagent: ActiveSubagentState
+  subagent: ActiveSubagentState,
 ): AssistantConversationStackState {
   const synced = syncParentConversationState(state, parentSessionId);
   return {
@@ -86,7 +82,7 @@ export function openSubagentConversation(
 }
 
 export function returnToPrimaryConversation(
-  state: AssistantConversationStackState
+  state: AssistantConversationStackState,
 ): AssistantConversationStackState {
   const parentEntry = state.entries[0];
   if (!parentEntry) return createConversationStackState("");

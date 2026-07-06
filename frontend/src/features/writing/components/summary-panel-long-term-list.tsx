@@ -1,6 +1,3 @@
-import { memo, useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import axios from "axios";
 import {
   Box,
   Checkbox,
@@ -11,16 +8,18 @@ import {
   TextField,
   Tooltip,
 } from "@radix-ui/themes";
+import axios from "axios";
 import { ChevronDown, ChevronLeft, ChevronRight, ListChecks, Search, Trash2 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+
 import "./summary-panel.css";
 
 import { ConfirmDialog, toast } from "@/components";
 import type { LongTermSummaryListItem } from "@/lib/api-client";
-import {
-  useDeleteLongTermSummaries,
-  useLongTermSummariesPage,
-} from "../hooks/use-summaries";
+
+import { useDeleteLongTermSummaries, useLongTermSummariesPage } from "../hooks/use-summaries";
 
 const PAGE_SIZE = 20;
 
@@ -46,7 +45,10 @@ function getSummaryErrorMessage(error: unknown): string {
   return "摘要处理失败，请稍后重试。";
 }
 
-function getStatusColor(status: string, isStale: boolean): "green" | "blue" | "amber" | "red" | "gray" {
+function getStatusColor(
+  status: string,
+  isStale: boolean,
+): "green" | "blue" | "amber" | "red" | "gray" {
   if (status === "ready" && isStale) return "amber";
   if (status === "ready") return "green";
   if (status === "running") return "blue";
@@ -66,7 +68,10 @@ const STATUS_LABELS: Record<string, string> = {
 function SummaryStatusBadge({ status, isStale }: { status: string; isStale: boolean }) {
   const label = status === "ready" && isStale ? "待更新" : (STATUS_LABELS[status] ?? status);
   return (
-    <span className="rt-Badge rt-r-size-1 rt-variant-soft" data-accent-color={getStatusColor(status, isStale)}>
+    <span
+      className="rt-Badge rt-r-size-1 rt-variant-soft"
+      data-accent-color={getStatusColor(status, isStale)}
+    >
       {label}
     </span>
   );
@@ -75,23 +80,45 @@ function SummaryStatusBadge({ status, isStale }: { status: string; isStale: bool
 function getVisiblePages(currentPage: number, totalPages: number): Array<number | "ellipsis"> {
   if (totalPages <= 6) return Array.from({ length: totalPages }, (_, index) => index + 1);
   if (currentPage <= 3) return [1, 2, 3, "ellipsis", totalPages - 1, totalPages];
-  if (currentPage >= totalPages - 2) return [1, 2, "ellipsis", totalPages - 2, totalPages - 1, totalPages];
+  if (currentPage >= totalPages - 2)
+    return [1, 2, "ellipsis", totalPages - 2, totalPages - 1, totalPages];
   return [1, currentPage - 1, currentPage, "ellipsis", currentPage + 1, totalPages];
 }
 
 function LongTermSummarySkeletonList() {
   return (
-    <Flex direction="column" gap="2">
+    <Flex
+      direction="column"
+      gap="2"
+    >
       {Array.from({ length: PAGE_SIZE }, (_, index) => (
         <Box
           key={index}
           className="summary-card"
         >
-          <Flex align="center" gap="3" px="3" py="2" className="summary-row">
-            <Skeleton height="16px" width="16px" style={{ borderRadius: 999 }} />
-            <Skeleton height="16px" width={`${34 + (index % 3) * 6}%`} style={{ maxWidth: 180 }} />
+          <Flex
+            align="center"
+            gap="3"
+            px="3"
+            py="2"
+            className="summary-row"
+          >
+            <Skeleton
+              height="16px"
+              width="16px"
+              style={{ borderRadius: 999 }}
+            />
+            <Skeleton
+              height="16px"
+              width={`${34 + (index % 3) * 6}%`}
+              style={{ maxWidth: 180 }}
+            />
             <Box className="summary-row-fixed">
-              <Skeleton height="20px" width="56px" style={{ borderRadius: 999 }} />
+              <Skeleton
+                height="20px"
+                width="56px"
+                style={{ borderRadius: 999 }}
+              />
             </Box>
           </Flex>
         </Box>
@@ -111,18 +138,60 @@ interface LongTermSummaryAccordionItemProps {
 
 function SummaryPaginationSkeleton() {
   return (
-    <Flex align="center" justify="between" wrap="wrap" gap="3">
-      <Skeleton height="16px" width="160px" />
-      <Flex align="center" gap="2" wrap="wrap">
-        <Skeleton height="16px" width="72px" />
-        <Skeleton height="28px" width="52px" style={{ borderRadius: 999 }} />
-        <Flex align="center" gap="1">
-          <Skeleton height="28px" width="28px" style={{ borderRadius: 999 }} />
-          <Skeleton height="28px" width="28px" style={{ borderRadius: 999 }} />
-          <Skeleton height="28px" width="28px" style={{ borderRadius: 999 }} />
-          <Skeleton height="28px" width="28px" style={{ borderRadius: 999 }} />
+    <Flex
+      align="center"
+      justify="between"
+      wrap="wrap"
+      gap="3"
+    >
+      <Skeleton
+        height="16px"
+        width="160px"
+      />
+      <Flex
+        align="center"
+        gap="2"
+        wrap="wrap"
+      >
+        <Skeleton
+          height="16px"
+          width="72px"
+        />
+        <Skeleton
+          height="28px"
+          width="52px"
+          style={{ borderRadius: 999 }}
+        />
+        <Flex
+          align="center"
+          gap="1"
+        >
+          <Skeleton
+            height="28px"
+            width="28px"
+            style={{ borderRadius: 999 }}
+          />
+          <Skeleton
+            height="28px"
+            width="28px"
+            style={{ borderRadius: 999 }}
+          />
+          <Skeleton
+            height="28px"
+            width="28px"
+            style={{ borderRadius: 999 }}
+          />
+          <Skeleton
+            height="28px"
+            width="28px"
+            style={{ borderRadius: 999 }}
+          />
         </Flex>
-        <Skeleton height="28px" width="52px" style={{ borderRadius: 999 }} />
+        <Skeleton
+          height="28px"
+          width="52px"
+          style={{ borderRadius: 999 }}
+        />
       </Flex>
     </Flex>
   );
@@ -143,8 +212,19 @@ const LongTermSummaryAccordionItem = memo(function LongTermSummaryAccordionItem(
       className="summary-card"
       data-selected={selected ? "true" : "false"}
     >
-      <Flex align="center" gap="3" px="3" py="2" className="summary-row">
-        {isSelecting && <Checkbox checked={selected} onCheckedChange={onToggleSelect} />}
+      <Flex
+        align="center"
+        gap="3"
+        px="3"
+        py="2"
+        className="summary-row"
+      >
+        {isSelecting && (
+          <Checkbox
+            checked={selected}
+            onCheckedChange={onToggleSelect}
+          />
+        )}
         <button
           type="button"
           onClick={canExpand ? onToggleExpand : undefined}
@@ -153,13 +233,23 @@ const LongTermSummaryAccordionItem = memo(function LongTermSummaryAccordionItem(
           data-expandable={canExpand ? "true" : "false"}
           aria-label={expanded ? "收起" : "展开"}
         >
-          <ChevronDown size={14} className="summary-expand-icon" data-expanded={expanded ? "true" : "false"} />
+          <ChevronDown
+            size={14}
+            className="summary-expand-icon"
+            data-expanded={expanded ? "true" : "false"}
+          />
         </button>
-        <Text size="2" className="summary-range-title">
+        <Text
+          size="2"
+          className="summary-range-title"
+        >
           {`第 ${item.startOrder} - ${item.endOrder} 章`}
         </Text>
         <Box className="summary-row-fixed">
-          <SummaryStatusBadge status={item.status} isStale={item.isStale} />
+          <SummaryStatusBadge
+            status={item.status}
+            isStale={item.isStale}
+          />
         </Box>
       </Flex>
       <AnimatePresence initial={false}>
@@ -175,18 +265,33 @@ const LongTermSummaryAccordionItem = memo(function LongTermSummaryAccordionItem(
               opacity: { duration: 0.18, ease: "easeOut" },
             }}
           >
-            <Box className="summary-accordion-content__inner" px="3">
-              <Flex direction="column" gap="2">
+            <Box
+              className="summary-accordion-content__inner"
+              px="3"
+            >
+              <Flex
+                direction="column"
+                gap="2"
+              >
                 {(item.startTime || item.endTime) && (
-                  <Text size="1" color="gray">
+                  <Text
+                    size="1"
+                    color="gray"
+                  >
                     {item.startTime || "未知"} - {item.endTime || "未知"}
                   </Text>
                 )}
-                <Text size="2" className="summary-content-text">
+                <Text
+                  size="2"
+                  className="summary-content-text"
+                >
                   {item.summary || "该区间摘要尚未生成，当前先保留为未显示状态。"}
                 </Text>
                 {item.errorMessage && (
-                  <Text size="1" color="red">
+                  <Text
+                    size="1"
+                    color="red"
+                  >
                     {item.errorMessage}
                   </Text>
                 )}
@@ -201,7 +306,7 @@ const LongTermSummaryAccordionItem = memo(function LongTermSummaryAccordionItem(
 
 function areLongTermSummaryItemPropsEqual(
   previous: Readonly<LongTermSummaryAccordionItemProps>,
-  next: Readonly<LongTermSummaryAccordionItemProps>
+  next: Readonly<LongTermSummaryAccordionItemProps>,
 ) {
   return (
     previous.item === next.item &&
@@ -230,7 +335,12 @@ export function LongTermSummaryListView({
   const [expandedRanges, setExpandedRanges] = useState<string[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  const { data: pageData, isLoading, isFetching, refetch } = useLongTermSummariesPage(projectId, page);
+  const {
+    data: pageData,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useLongTermSummariesPage(projectId, page);
   const deleteMutation = useDeleteLongTermSummaries(projectId);
   const requestPage = page;
   const isInitialLoading = isLoading && !pageData;
@@ -262,15 +372,15 @@ export function LongTermSummaryListView({
 
   const visibleRangeKeys = useMemo(
     () => new Set(items.map((item) => `${item.startOrder}-${item.endOrder}`)),
-    [items]
+    [items],
   );
   const selectedKeys = useMemo(
     () => selectedRanges.filter((key) => visibleRangeKeys.has(key)),
-    [selectedRanges, visibleRangeKeys]
+    [selectedRanges, visibleRangeKeys],
   );
   const expandedKeys = useMemo(
     () => expandedRanges.filter((key) => visibleRangeKeys.has(key)),
-    [expandedRanges, visibleRangeKeys]
+    [expandedRanges, visibleRangeKeys],
   );
   const selectedKeySet = useMemo(() => new Set(selectedKeys), [selectedKeys]);
   const expandedKeySet = useMemo(() => new Set(expandedKeys), [expandedKeys]);
@@ -278,7 +388,10 @@ export function LongTermSummaryListView({
   const pageSize = pageData?.pageSize ?? PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const currentPage = Math.min(requestPage, totalPages);
-  const visiblePages = useMemo(() => getVisiblePages(currentPage, totalPages), [currentPage, totalPages]);
+  const visiblePages = useMemo(
+    () => getVisiblePages(currentPage, totalPages),
+    [currentPage, totalPages],
+  );
   const pageStart = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const pageEnd = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
 
@@ -291,13 +404,13 @@ export function LongTermSummaryListView({
 
   const handleToggleSelect = (key: string) => {
     setSelectedRanges((current) =>
-      current.includes(key) ? current.filter((item) => item !== key) : [...current, key]
+      current.includes(key) ? current.filter((item) => item !== key) : [...current, key],
     );
   };
 
   const handleToggleExpand = (key: string) => {
     setExpandedRanges((current) =>
-      current.includes(key) ? current.filter((item) => item !== key) : [...current, key]
+      current.includes(key) ? current.filter((item) => item !== key) : [...current, key],
     );
   };
 
@@ -319,7 +432,11 @@ export function LongTermSummaryListView({
       if (shouldGoToPreviousPage) {
         setPage((current) => current - 1);
       }
-      toast.success(targetRanges.length > 0 ? t("summary.deleteSelectedRangeSuccess") : t("summary.deleteAllRangeSuccess"));
+      toast.success(
+        targetRanges.length > 0
+          ? t("summary.deleteSelectedRangeSuccess")
+          : t("summary.deleteAllRangeSuccess"),
+      );
     } catch (error) {
       toast.error(t("summary.deleteRangeFailed", { reason: getSummaryErrorMessage(error) }));
     }
@@ -327,8 +444,17 @@ export function LongTermSummaryListView({
 
   if (!isListLoading && !items.length && !searchQuery) {
     return (
-      <Flex direction="column" align="center" justify="center" gap="2" py="8">
-        <Text size="2" color="gray">
+      <Flex
+        direction="column"
+        align="center"
+        justify="center"
+        gap="2"
+        py="8"
+      >
+        <Text
+          size="2"
+          color="gray"
+        >
           {emptyText}
         </Text>
       </Flex>
@@ -336,8 +462,14 @@ export function LongTermSummaryListView({
   }
 
   return (
-    <Flex direction="column" gap="3">
-      <Flex align="center" gap="2">
+    <Flex
+      direction="column"
+      gap="3"
+    >
+      <Flex
+        align="center"
+        gap="2"
+      >
         <TextField.Root
           placeholder={t("summary.searchRangePlaceholder")}
           value={searchQuery}
@@ -349,12 +481,24 @@ export function LongTermSummaryListView({
             <Search size={16} />
           </TextField.Slot>
         </TextField.Root>
-        <Tooltip content={isSelectionMode ? t("summary.cancelSelectMode") : t("summary.selectMode")}>
-          <IconButton variant={isSelectionMode ? "soft" : "ghost"} size="2" onClick={handleToggleSelectionMode}>
+        <Tooltip
+          content={isSelectionMode ? t("summary.cancelSelectMode") : t("summary.selectMode")}
+        >
+          <IconButton
+            variant={isSelectionMode ? "soft" : "ghost"}
+            size="2"
+            onClick={handleToggleSelectionMode}
+          >
             <ListChecks size={16} />
           </IconButton>
         </Tooltip>
-        <Tooltip content={isSelectionMode && selectedKeys.length > 0 ? t("summary.deleteSelectedRanges") : t("summary.deleteAllRanges")}>
+        <Tooltip
+          content={
+            isSelectionMode && selectedKeys.length > 0
+              ? t("summary.deleteSelectedRanges")
+              : t("summary.deleteAllRanges")
+          }
+        >
           <IconButton
             variant="ghost"
             size="2"
@@ -370,13 +514,23 @@ export function LongTermSummaryListView({
       {isListLoading ? (
         <LongTermSummarySkeletonList />
       ) : items.length === 0 ? (
-        <Flex align="center" justify="center" py="8">
-          <Text size="2" color="gray">
+        <Flex
+          align="center"
+          justify="center"
+          py="8"
+        >
+          <Text
+            size="2"
+            color="gray"
+          >
             {searchQuery ? t("summary.emptyRangePage") : emptyText}
           </Text>
         </Flex>
       ) : (
-        <Flex direction="column" gap="2">
+        <Flex
+          direction="column"
+          gap="2"
+        >
           {items.map((item) => {
             const key = `${item.startOrder}-${item.endOrder}`;
             return (
@@ -397,12 +551,27 @@ export function LongTermSummaryListView({
       {isInitialLoading && !searchQuery ? (
         <SummaryPaginationSkeleton />
       ) : total > 0 && !searchQuery ? (
-        <Flex align="center" justify="between" wrap="wrap" gap="3">
-          <Text size="2" color="gray">
+        <Flex
+          align="center"
+          justify="between"
+          wrap="wrap"
+          gap="3"
+        >
+          <Text
+            size="2"
+            color="gray"
+          >
             {t("summary.range", { start: pageStart, end: pageEnd, total })}
           </Text>
-          <Flex align="center" gap="2" wrap="wrap">
-            <Text size="2" color="gray">
+          <Flex
+            align="center"
+            gap="2"
+            wrap="wrap"
+          >
+            <Text
+              size="2"
+              color="gray"
+            >
               {t("summary.totalPages", { total: totalPages })}
             </Text>
             <IconButton
@@ -415,10 +584,18 @@ export function LongTermSummaryListView({
             >
               <ChevronLeft size={14} />
             </IconButton>
-            <Flex align="center" gap="1" aria-label={t("summary.pageList")}>
+            <Flex
+              align="center"
+              gap="1"
+              aria-label={t("summary.pageList")}
+            >
               {visiblePages.map((visiblePage, index) =>
                 visiblePage === "ellipsis" ? (
-                  <Text key={`ellipsis-${index}`} size="2" color="gray">
+                  <Text
+                    key={`ellipsis-${index}`}
+                    size="2"
+                    color="gray"
+                  >
                     ...
                   </Text>
                 ) : (
@@ -432,7 +609,7 @@ export function LongTermSummaryListView({
                   >
                     {visiblePage}
                   </button>
-                )
+                ),
               )}
             </Flex>
             <IconButton
@@ -453,10 +630,16 @@ export function LongTermSummaryListView({
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         onConfirm={handleConfirmDelete}
-        title={isSelectionMode && selectedKeys.length > 0 ? t("summary.deleteDialog.deleteSelectedRangesTitle") : t("summary.deleteDialog.deleteAllRangesTitle")}
+        title={
+          isSelectionMode && selectedKeys.length > 0
+            ? t("summary.deleteDialog.deleteSelectedRangesTitle")
+            : t("summary.deleteDialog.deleteAllRangesTitle")
+        }
         description={
           isSelectionMode && selectedKeys.length > 0
-            ? t("summary.deleteDialog.deleteSelectedRangesDescription", { count: selectedKeys.length })
+            ? t("summary.deleteDialog.deleteSelectedRangesDescription", {
+                count: selectedKeys.length,
+              })
             : t("summary.deleteDialog.deleteAllRangesDescription")
         }
         confirmText={t("common.delete")}

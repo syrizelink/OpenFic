@@ -31,11 +31,12 @@
 }
 
 :root {
-  --app-font-family: "SourceHanSerifCN-VF", "SourceHanSansCN-VF", "ChillKai",
-    "Source Han Serif SC", "Noto Serif CJK SC", Georgia, "PingFang SC",
-    "Microsoft YaHei", serif;
-  --code-font-family: "JetBrainsMapleMono", ui-monospace, "SF Mono", Monaco,
-    "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+  --app-font-family:
+    "SourceHanSerifCN-VF", "SourceHanSansCN-VF", "ChillKai", "Source Han Serif SC",
+    "Noto Serif CJK SC", Georgia, "PingFang SC", "Microsoft YaHei", serif;
+  --code-font-family:
+    "JetBrainsMapleMono", ui-monospace, "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas,
+    "Courier New", monospace;
   font-family: var(--app-font-family);
   line-height: 1.5;
   font-weight: 400;

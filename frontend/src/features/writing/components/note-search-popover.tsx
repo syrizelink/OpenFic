@@ -1,6 +1,6 @@
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
 
 import { ContentSearchPopover } from "@/components/content-search-popover";
 import type { ContentSearchResultItem } from "@/components/content-search-popover";
@@ -81,7 +81,7 @@ export function NoteSearchPopover({
     (itemId: string, _lineNumber: number) => {
       onNavigateToNote(itemId);
     },
-    [onNavigateToNote]
+    [onNavigateToNote],
   );
 
   return (

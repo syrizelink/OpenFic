@@ -1,10 +1,11 @@
 import { Card, IconButton, TextField } from "@radix-ui/themes";
 import { ListRestart } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { DashboardDatePicker } from "./dashboard-date-picker";
-import { DashboardSelectFilter } from "./dashboard-select-filter";
+
 import { getAgentLabel, getStatusLabel } from "../lib/dashboard-formatters";
 import type { DashboardQueryParams } from "../lib/dashboard.types";
+import { DashboardDatePicker } from "./dashboard-date-picker";
+import { DashboardSelectFilter } from "./dashboard-select-filter";
 
 type DashboardTab = "writing" | "llm" | "records";
 
@@ -47,7 +48,12 @@ export function DashboardFilters({
 
   const resetButton = (
     <div className="dashboard-filter-actions dashboard-filter-actions-inline">
-      <IconButton aria-label={t("dashboard.filters.reset")} color="gray" variant="soft" onClick={resetFilters}>
+      <IconButton
+        aria-label={t("dashboard.filters.reset")}
+        color="gray"
+        variant="soft"
+        onClick={resetFilters}
+      >
         <ListRestart size={16} />
       </IconButton>
     </div>
@@ -70,33 +76,67 @@ export function DashboardFilters({
               </label>
               <label className="dashboard-filter-field">
                 <span className="dashboard-filter-label">{t("dashboard.filters.model")}</span>
-                <DashboardSelectFilter value={query.modelId} placeholder={t("dashboard.filters.allModels")} options={options?.modelOptions ?? options?.modelIds ?? []} onChange={(modelId) => updateQuery({ modelId })} />
+                <DashboardSelectFilter
+                  value={query.modelId}
+                  placeholder={t("dashboard.filters.allModels")}
+                  options={options?.modelOptions ?? options?.modelIds ?? []}
+                  onChange={(modelId) => updateQuery({ modelId })}
+                />
               </label>
               <label className="dashboard-filter-field">
                 <span className="dashboard-filter-label">{t("dashboard.filters.provider")}</span>
-                <DashboardSelectFilter value={query.modelProvider} placeholder={t("dashboard.filters.allProviders")} options={options?.modelProviders ?? []} onChange={(modelProvider) => updateQuery({ modelProvider })} />
+                <DashboardSelectFilter
+                  value={query.modelProvider}
+                  placeholder={t("dashboard.filters.allProviders")}
+                  options={options?.modelProviders ?? []}
+                  onChange={(modelProvider) => updateQuery({ modelProvider })}
+                />
               </label>
               <label className="dashboard-filter-field">
                 <span className="dashboard-filter-label">{t("dashboard.filters.agent")}</span>
-                <DashboardSelectFilter value={query.agentNode} placeholder={t("dashboard.filters.allRoles")} options={options?.agentNodes ?? []} onChange={(agentNode) => updateQuery({ agentNode })} labelForValue={getAgentLabel} />
+                <DashboardSelectFilter
+                  value={query.agentNode}
+                  placeholder={t("dashboard.filters.allRoles")}
+                  options={options?.agentNodes ?? []}
+                  onChange={(agentNode) => updateQuery({ agentNode })}
+                  labelForValue={getAgentLabel}
+                />
               </label>
               <label className="dashboard-filter-field">
                 <span className="dashboard-filter-label">{t("dashboard.filters.status")}</span>
-                <DashboardSelectFilter value={query.status} placeholder={t("dashboard.filters.allStatuses")} options={options?.statuses ?? []} onChange={(status) => updateQuery({ status })} labelForValue={getStatusLabel} />
+                <DashboardSelectFilter
+                  value={query.status}
+                  placeholder={t("dashboard.filters.allStatuses")}
+                  options={options?.statuses ?? []}
+                  onChange={(status) => updateQuery({ status })}
+                  labelForValue={getStatusLabel}
+                />
               </label>
             </div>
             <div className="dashboard-filter-records-row dashboard-filter-records-row-secondary">
               <label className="dashboard-filter-field dashboard-filter-field-date">
                 <span className="dashboard-filter-label">{t("dashboard.filters.startDate")}</span>
-                <DashboardDatePicker value={startDate} placeholder={t("dashboard.filters.startDatePlaceholder")} onChange={setStartDate} />
+                <DashboardDatePicker
+                  value={startDate}
+                  placeholder={t("dashboard.filters.startDatePlaceholder")}
+                  onChange={setStartDate}
+                />
               </label>
               <label className="dashboard-filter-field dashboard-filter-field-date">
                 <span className="dashboard-filter-label">{t("dashboard.filters.endDate")}</span>
-                <DashboardDatePicker value={endDate} placeholder={t("dashboard.filters.endDatePlaceholder")} onChange={setEndDate} />
+                <DashboardDatePicker
+                  value={endDate}
+                  placeholder={t("dashboard.filters.endDatePlaceholder")}
+                  onChange={setEndDate}
+                />
               </label>
               <label className="dashboard-filter-field dashboard-filter-field-search">
                 <span className="dashboard-filter-label">{t("dashboard.filters.search")}</span>
-                <TextField.Root value={searchInput} placeholder={t("dashboard.filters.searchPlaceholder")} onChange={(event) => setSearchInput(event.target.value)} />
+                <TextField.Root
+                  value={searchInput}
+                  placeholder={t("dashboard.filters.searchPlaceholder")}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                />
               </label>
               <div className="dashboard-filter-records-reset">{resetButton}</div>
             </div>
@@ -120,18 +160,30 @@ export function DashboardFilters({
                 onChange={(projectId) => updateQuery({ projectId })}
               />
             </label>
-            <div className="dashboard-filter-writing-reset dashboard-filter-writing-reset-mobile">{resetButton}</div>
+            <div className="dashboard-filter-writing-reset dashboard-filter-writing-reset-mobile">
+              {resetButton}
+            </div>
           </div>
           <div className="dashboard-filter-writing-date-row">
             <label className="dashboard-filter-field dashboard-filter-field-date">
               <span className="dashboard-filter-label">{t("dashboard.filters.startDate")}</span>
-              <DashboardDatePicker value={startDate} placeholder={t("dashboard.filters.startDatePlaceholder")} onChange={setStartDate} />
+              <DashboardDatePicker
+                value={startDate}
+                placeholder={t("dashboard.filters.startDatePlaceholder")}
+                onChange={setStartDate}
+              />
             </label>
             <label className="dashboard-filter-field dashboard-filter-field-date">
               <span className="dashboard-filter-label">{t("dashboard.filters.endDate")}</span>
-              <DashboardDatePicker value={endDate} placeholder={t("dashboard.filters.endDatePlaceholder")} onChange={setEndDate} />
+              <DashboardDatePicker
+                value={endDate}
+                placeholder={t("dashboard.filters.endDatePlaceholder")}
+                onChange={setEndDate}
+              />
             </label>
-            <div className="dashboard-filter-writing-reset dashboard-filter-writing-reset-desktop">{resetButton}</div>
+            <div className="dashboard-filter-writing-reset dashboard-filter-writing-reset-desktop">
+              {resetButton}
+            </div>
           </div>
         </div>
       </Card>
@@ -140,7 +192,10 @@ export function DashboardFilters({
 
   return (
     <Card className="dashboard-filter-card">
-      <div className="dashboard-filter-row" data-tab={activeTab}>
+      <div
+        className="dashboard-filter-row"
+        data-tab={activeTab}
+      >
         <div className="dashboard-filter-project-group">
           <label className="dashboard-filter-field dashboard-filter-field-project">
             <span className="dashboard-filter-label">{t("dashboard.filters.project")}</span>
@@ -156,28 +211,58 @@ export function DashboardFilters({
         <>
           <label className="dashboard-filter-field">
             <span className="dashboard-filter-label">{t("dashboard.filters.model")}</span>
-            <DashboardSelectFilter value={query.modelId} placeholder={t("dashboard.filters.allModels")} options={options?.modelOptions ?? options?.modelIds ?? []} onChange={(modelId) => updateQuery({ modelId })} />
+            <DashboardSelectFilter
+              value={query.modelId}
+              placeholder={t("dashboard.filters.allModels")}
+              options={options?.modelOptions ?? options?.modelIds ?? []}
+              onChange={(modelId) => updateQuery({ modelId })}
+            />
           </label>
           <label className="dashboard-filter-field">
             <span className="dashboard-filter-label">{t("dashboard.filters.provider")}</span>
-            <DashboardSelectFilter value={query.modelProvider} placeholder={t("dashboard.filters.allProviders")} options={options?.modelProviders ?? []} onChange={(modelProvider) => updateQuery({ modelProvider })} />
+            <DashboardSelectFilter
+              value={query.modelProvider}
+              placeholder={t("dashboard.filters.allProviders")}
+              options={options?.modelProviders ?? []}
+              onChange={(modelProvider) => updateQuery({ modelProvider })}
+            />
           </label>
           <label className="dashboard-filter-field">
             <span className="dashboard-filter-label">{t("dashboard.filters.agent")}</span>
-            <DashboardSelectFilter value={query.agentNode} placeholder={t("dashboard.filters.allRoles")} options={options?.agentNodes ?? []} onChange={(agentNode) => updateQuery({ agentNode })} labelForValue={getAgentLabel} />
+            <DashboardSelectFilter
+              value={query.agentNode}
+              placeholder={t("dashboard.filters.allRoles")}
+              options={options?.agentNodes ?? []}
+              onChange={(agentNode) => updateQuery({ agentNode })}
+              labelForValue={getAgentLabel}
+            />
           </label>
           <label className="dashboard-filter-field">
             <span className="dashboard-filter-label">{t("dashboard.filters.status")}</span>
-            <DashboardSelectFilter value={query.status} placeholder={t("dashboard.filters.allStatuses")} options={options?.statuses ?? []} onChange={(status) => updateQuery({ status })} labelForValue={getStatusLabel} />
+            <DashboardSelectFilter
+              value={query.status}
+              placeholder={t("dashboard.filters.allStatuses")}
+              options={options?.statuses ?? []}
+              onChange={(status) => updateQuery({ status })}
+              labelForValue={getStatusLabel}
+            />
           </label>
         </>
         <label className="dashboard-filter-field dashboard-filter-field-date">
           <span className="dashboard-filter-label">{t("dashboard.filters.startDate")}</span>
-          <DashboardDatePicker value={startDate} placeholder={t("dashboard.filters.startDatePlaceholder")} onChange={setStartDate} />
+          <DashboardDatePicker
+            value={startDate}
+            placeholder={t("dashboard.filters.startDatePlaceholder")}
+            onChange={setStartDate}
+          />
         </label>
         <label className="dashboard-filter-field dashboard-filter-field-date">
           <span className="dashboard-filter-label">{t("dashboard.filters.endDate")}</span>
-          <DashboardDatePicker value={endDate} placeholder={t("dashboard.filters.endDatePlaceholder")} onChange={setEndDate} />
+          <DashboardDatePicker
+            value={endDate}
+            placeholder={t("dashboard.filters.endDatePlaceholder")}
+            onChange={setEndDate}
+          />
         </label>
       </div>
     </Card>

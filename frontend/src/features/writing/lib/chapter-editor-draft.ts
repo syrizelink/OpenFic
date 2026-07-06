@@ -15,7 +15,7 @@ export function createChapterEditorDraft(input: {
 
 export function isChapterEditorDraftDirty(
   saved: ChapterEditorDraft,
-  current: ChapterEditorDraft
+  current: ChapterEditorDraft,
 ): boolean {
   return saved.title !== current.title || saved.content !== current.content;
 }

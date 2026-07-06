@@ -5,29 +5,17 @@
  * 采用与"通用"设置一致的紧凑布局，单选用下拉框。
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Box,
-  Button,
-  Checkbox,
-  Flex,
-  Separator,
-  Text,
-  TextField,
-  Badge,
-} from "@radix-ui/themes";
-import { RefreshCw } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { Box, Button, Checkbox, Flex, Separator, Text, TextField, Badge } from "@radix-ui/themes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
+import { ConfirmDialog, Spinner, toast } from "@/components";
 import { ModelIdSelect, type ModelIdSelectOption } from "@/components/model-id-select";
 import { LabeledSelect } from "@/components/select";
-import { ConfirmDialog, Spinner, toast } from "@/components";
 import { fetchProjects } from "@/lib/api-client";
-import {
-  subscribeBackgroundEvents,
-  type BackgroundEvent,
-} from "@/lib/background-socket";
+import { subscribeBackgroundEvents, type BackgroundEvent } from "@/lib/background-socket";
 import {
   getIndexStatusColor,
   OVERALL_INDEX_STATUS_QUERY_KEY,
@@ -38,6 +26,7 @@ import {
   type OverallIndexStatus,
   type ProjectIndexStatus,
 } from "@/lib/index-status";
+
 import { fetchModels } from "../lib/model-api";
 import { fetchSettings, updateSettings } from "../lib/settings-api";
 import type { Settings, SettingsUpdateRequest } from "../lib/settings.types";
@@ -46,10 +35,7 @@ const FIELD_WIDTH = { width: 240 } as const;
 const HINT_STYLE = { marginTop: "var(--space-1)" } as const;
 
 /** 将后端 snake_case 的更新请求映射为前端 camelCase 的 Settings 局部补丁。 */
-function patchSettings(
-  current: Settings,
-  patch: SettingsUpdateRequest
-): Settings {
+function patchSettings(current: Settings, patch: SettingsUpdateRequest): Settings {
   return {
     ...current,
     language: (patch.language as Settings["language"]) ?? current.language,
@@ -58,21 +44,15 @@ function patchSettings(
     codeFontFamily: patch.code_font_family ?? current.codeFontFamily,
     defaultModel: patch.default_model ?? current.defaultModel,
     lightModel: patch.light_model ?? current.lightModel,
-    defaultEmbeddingModel:
-      patch.default_embedding_model ?? current.defaultEmbeddingModel,
+    defaultEmbeddingModel: patch.default_embedding_model ?? current.defaultEmbeddingModel,
     indexMode: patch.index_mode ?? current.indexMode,
-    indexEnabledProjects:
-      patch.index_enabled_projects ?? current.indexEnabledProjects,
+    indexEnabledProjects: patch.index_enabled_projects ?? current.indexEnabledProjects,
     indexChunkSize: patch.index_chunk_size ?? current.indexChunkSize,
     indexChunkOverlap: patch.index_chunk_overlap ?? current.indexChunkOverlap,
-    indexAutoStrategy:
-      patch.index_auto_strategy ?? current.indexAutoStrategy,
-    indexRerankEnabled:
-      patch.index_rerank_enabled ?? current.indexRerankEnabled,
-    defaultRerankModel:
-      patch.default_rerank_model ?? current.defaultRerankModel,
-    agentBypassToolApproval:
-      patch.agent_bypass_tool_approval ?? current.agentBypassToolApproval,
+    indexAutoStrategy: patch.index_auto_strategy ?? current.indexAutoStrategy,
+    indexRerankEnabled: patch.index_rerank_enabled ?? current.indexRerankEnabled,
+    defaultRerankModel: patch.default_rerank_model ?? current.defaultRerankModel,
+    agentBypassToolApproval: patch.agent_bypass_tool_approval ?? current.agentBypassToolApproval,
     agentToolPermissions: patch.agent_tool_permissions
       ? patch.agent_tool_permissions.map((item) => ({
           toolName: item.tool_name,
@@ -115,7 +95,7 @@ export function IndexSettings() {
   // 事件（携带 message），这里据此 toast。
   const projectIds = useMemo(
     () => overall.data?.projects.map((p) => p.project_id) ?? [],
-    [overall.data?.projects]
+    [overall.data?.projects],
   );
   const projectIdsKey = projectIds.join("|");
   useEffect(() => {
@@ -132,7 +112,7 @@ export function IndexSettings() {
               : t("index.indexFailedUnknown");
           toast.error(t("index.indexFailed", { message }));
         }
-      })
+      }),
     );
     return () => subs.forEach((s) => s.close());
     // projectIdsKey 变化时重新订阅。
@@ -185,7 +165,7 @@ export function IndexSettings() {
   const [pendingEmbeddingModelId, setPendingEmbeddingModelId] = useState<string | null>(null);
   const [chunkSize, setChunkSize] = useState<string>(String(settings?.indexChunkSize ?? 800));
   const [chunkOverlap, setChunkOverlap] = useState<string>(
-    String(settings?.indexChunkOverlap ?? 100)
+    String(settings?.indexChunkOverlap ?? 100),
   );
 
   const rerankModelOptions: ModelIdSelectOption[] = useMemo(() => {
@@ -211,27 +191,26 @@ export function IndexSettings() {
     (enabled: boolean) => {
       updateSettingsMutation.mutate({ index_rerank_enabled: enabled });
     },
-    [updateSettingsMutation]
+    [updateSettingsMutation],
   );
 
   const handleRerankModelChange = useCallback(
     (value: string) => {
       updateSettingsMutation.mutate({ default_rerank_model: value });
     },
-    [updateSettingsMutation]
+    [updateSettingsMutation],
   );
 
   // 当服务端分块参数变化时（如被其他端修改），同步本地输入。
   const [lastServerSize, setLastServerSize] = useState<number | undefined>(
-    settings?.indexChunkSize
+    settings?.indexChunkSize,
   );
   const [lastServerOverlap, setLastServerOverlap] = useState<number | undefined>(
-    settings?.indexChunkOverlap
+    settings?.indexChunkOverlap,
   );
   if (
     settings &&
-    (settings.indexChunkSize !== lastServerSize ||
-      settings.indexChunkOverlap !== lastServerOverlap)
+    (settings.indexChunkSize !== lastServerSize || settings.indexChunkOverlap !== lastServerOverlap)
   ) {
     setLastServerSize(settings.indexChunkSize);
     setLastServerOverlap(settings.indexChunkOverlap);
@@ -266,7 +245,13 @@ export function IndexSettings() {
         index_chunk_overlap: overlap,
       });
     }, 800);
-  }, [chunkSize, chunkOverlap, settings?.indexChunkSize, settings?.indexChunkOverlap, updateSettingsMutation]);
+  }, [
+    chunkSize,
+    chunkOverlap,
+    settings?.indexChunkSize,
+    settings?.indexChunkOverlap,
+    updateSettingsMutation,
+  ]);
 
   const modeOptions = useMemo(
     () => [
@@ -274,7 +259,7 @@ export function IndexSettings() {
       { value: "all", label: t("index.enableAll") },
       { value: "selected", label: t("index.enableSelected") },
     ],
-    [t]
+    [t],
   );
   const autoStrategyOptions = useMemo(
     () => [
@@ -282,14 +267,14 @@ export function IndexSettings() {
       { value: "agent_decided", label: t("index.autoAgentDecided") },
       { value: "off", label: t("index.autoOff") },
     ],
-    [t]
+    [t],
   );
 
   const handleModeChange = useCallback(
     (mode: string) => {
       updateSettingsMutation.mutate({ index_mode: mode as IndexMode });
     },
-    [updateSettingsMutation]
+    [updateSettingsMutation],
   );
 
   const handleToggleProject = useCallback(
@@ -300,7 +285,7 @@ export function IndexSettings() {
         : current.filter((id) => id !== projectId);
       updateSettingsMutation.mutate({ index_enabled_projects: next });
     },
-    [settings?.indexEnabledProjects, updateSettingsMutation]
+    [settings?.indexEnabledProjects, updateSettingsMutation],
   );
 
   const handleEmbeddingModelChange = useCallback(
@@ -312,7 +297,7 @@ export function IndexSettings() {
       }
       updateSettingsMutation.mutate({ default_embedding_model: value });
     },
-    [settings?.defaultEmbeddingModel, updateSettingsMutation]
+    [settings?.defaultEmbeddingModel, updateSettingsMutation],
   );
 
   const confirmEmbeddingModelChange = useCallback(() => {
@@ -327,7 +312,7 @@ export function IndexSettings() {
         index_auto_strategy: strategy as IndexAutoStrategy,
       });
     },
-    [updateSettingsMutation]
+    [updateSettingsMutation],
   );
 
   const isContentLoading =
@@ -343,7 +328,11 @@ export function IndexSettings() {
 
   if (isContentLoading) {
     return (
-      <Flex align="center" justify="center" style={{ height: "100%" }}>
+      <Flex
+        align="center"
+        justify="center"
+        style={{ height: "100%" }}
+      >
         <Spinner size={18} />
       </Flex>
     );
@@ -364,7 +353,10 @@ export function IndexSettings() {
 
   return (
     <Box>
-      <Flex direction="column" gap="4">
+      <Flex
+        direction="column"
+        gap="4"
+      >
         {/* 启用范围 */}
         <LabeledSelect
           label={t("index.enable")}
@@ -374,13 +366,25 @@ export function IndexSettings() {
           disabled={updateSettingsMutation.isPending}
           triggerStyle={FIELD_WIDTH}
         />
-        <Text size="1" color="gray" style={HINT_STYLE}>
+        <Text
+          size="1"
+          color="gray"
+          style={HINT_STYLE}
+        >
           {t(modeDescKey)}
         </Text>
 
         {settings.indexMode === "selected" ? (
-          <Flex direction="column" gap="1" style={{ marginTop: "var(--space-1)" }}>
-            <Text size="2" weight="medium" color="gray">
+          <Flex
+            direction="column"
+            gap="1"
+            style={{ marginTop: "var(--space-1)" }}
+          >
+            <Text
+              size="2"
+              weight="medium"
+              color="gray"
+            >
               {t("index.selectProjects")}
             </Text>
             {projectsData && projectsData.items.length > 0 ? (
@@ -401,15 +405,16 @@ export function IndexSettings() {
                   <Checkbox
                     checked={settings.indexEnabledProjects.includes(project.id)}
                     disabled={updateSettingsMutation.isPending}
-                    onCheckedChange={(checked) =>
-                      handleToggleProject(project.id, checked === true)
-                    }
+                    onCheckedChange={(checked) => handleToggleProject(project.id, checked === true)}
                   />
                   {project.title}
                 </Text>
               ))
             ) : (
-              <Text size="2" color="gray">
+              <Text
+                size="2"
+                color="gray"
+              >
                 {t("index.noProjects")}
               </Text>
             )}
@@ -417,8 +422,15 @@ export function IndexSettings() {
         ) : null}
 
         {/* 嵌入模型 */}
-        <Flex direction="column" gap="2" style={{ maxWidth: 240 }}>
-          <Text size="2" weight="medium">
+        <Flex
+          direction="column"
+          gap="2"
+          style={{ maxWidth: 240 }}
+        >
+          <Text
+            size="2"
+            weight="medium"
+          >
             {t("index.embeddingModel")}
           </Text>
           <ModelIdSelect
@@ -431,18 +443,29 @@ export function IndexSettings() {
             allowCustomValue={false}
             emptyOptionLabel={`（${t("index.selectEmbeddingModelPlaceholder")}）`}
           />
-          <Text size="1" color="gray" style={HINT_STYLE}>
+          <Text
+            size="1"
+            color="gray"
+            style={HINT_STYLE}
+          >
             {t("index.embeddingModelDesc")}
           </Text>
           {!overall.data?.embedding_model_configured ? (
-            <Text size="1" color="amber">
+            <Text
+              size="1"
+              color="amber"
+            >
               {t("index.infoNotConfigured")}
             </Text>
           ) : null}
         </Flex>
 
         {/* Rerank 二次排序 */}
-        <Flex direction="column" gap="2" style={{ maxWidth: 240 }}>
+        <Flex
+          direction="column"
+          gap="2"
+          style={{ maxWidth: 240 }}
+        >
           <Text
             as="label"
             size="2"
@@ -457,9 +480,7 @@ export function IndexSettings() {
             <Checkbox
               checked={settings.indexRerankEnabled}
               disabled={updateSettingsMutation.isPending}
-              onCheckedChange={(checked) =>
-                handleRerankEnabledChange(checked === true)
-              }
+              onCheckedChange={(checked) => handleRerankEnabledChange(checked === true)}
             />
             {t("index.rerankEnabled")}
           </Text>
@@ -477,25 +498,48 @@ export function IndexSettings() {
                 emptyOptionLabel={`（${t("index.selectRerankModelPlaceholder")}）`}
               />
               {!settings.defaultRerankModel ? (
-                <Text size="1" color="amber">
+                <Text
+                  size="1"
+                  color="amber"
+                >
                   {t("index.rerankModelNotConfigured")}
                 </Text>
               ) : null}
             </>
           ) : null}
-          <Text size="1" color="gray" style={HINT_STYLE}>
+          <Text
+            size="1"
+            color="gray"
+            style={HINT_STYLE}
+          >
             {t("index.rerankEnabledDesc")}
           </Text>
         </Flex>
 
         {/* 分块参数 */}
-        <Flex direction="column" gap="2">
-          <Text size="2" weight="medium">
+        <Flex
+          direction="column"
+          gap="2"
+        >
+          <Text
+            size="2"
+            weight="medium"
+          >
             {t("index.chunkParams")}
           </Text>
-          <Flex direction="column" gap="2">
-            <Flex direction="column" gap="1" style={{ width: 240 }}>
-              <Text size="1" color="gray">
+          <Flex
+            direction="column"
+            gap="2"
+          >
+            <Flex
+              direction="column"
+              gap="1"
+              style={{ width: 240 }}
+            >
+              <Text
+                size="1"
+                color="gray"
+              >
                 {t("index.chunkSize")}
               </Text>
               <TextField.Root
@@ -509,8 +553,15 @@ export function IndexSettings() {
                 disabled={updateSettingsMutation.isPending}
               />
             </Flex>
-            <Flex direction="column" gap="1" style={{ width: 240 }}>
-              <Text size="1" color="gray">
+            <Flex
+              direction="column"
+              gap="1"
+              style={{ width: 240 }}
+            >
+              <Text
+                size="1"
+                color="gray"
+              >
                 {t("index.chunkOverlap")}
               </Text>
               <TextField.Root
@@ -525,7 +576,11 @@ export function IndexSettings() {
               />
             </Flex>
           </Flex>
-          <Text size="1" color="gray" style={HINT_STYLE}>
+          <Text
+            size="1"
+            color="gray"
+            style={HINT_STYLE}
+          >
             {t("index.chunkParamsHint")}
           </Text>
         </Flex>
@@ -539,25 +594,44 @@ export function IndexSettings() {
           disabled={updateSettingsMutation.isPending}
           triggerStyle={FIELD_WIDTH}
         />
-        <Text size="1" color="gray" style={HINT_STYLE}>
+        <Text
+          size="1"
+          color="gray"
+          style={HINT_STYLE}
+        >
           {t(autoDescKey)}
         </Text>
 
         {/* 索引信息 */}
         <Separator size="4" />
-        <Flex direction="column" gap="3">
-          <Text size="2" weight="medium">
+        <Flex
+          direction="column"
+          gap="3"
+        >
+          <Text
+            size="2"
+            weight="medium"
+          >
             {t("index.info")}
           </Text>
           <OverallIndexInfo data={overall.data} />
           {overall.data && overall.data.projects.length > 0 ? (
-            <Flex direction="column" gap="2">
+            <Flex
+              direction="column"
+              gap="2"
+            >
               {overall.data.projects.map((project) => (
-                <ProjectIndexInfoRow key={project.project_id} status={project} />
+                <ProjectIndexInfoRow
+                  key={project.project_id}
+                  status={project}
+                />
               ))}
             </Flex>
           ) : (
-            <Text size="2" color="gray">
+            <Text
+              size="2"
+              color="gray"
+            >
               {t("index.infoEmpty")}
             </Text>
           )}
@@ -584,22 +658,46 @@ function OverallIndexInfo({ data }: { data: OverallIndexStatus | undefined }) {
   if (!data) return null;
   const remaining = Math.max(0, data.total_chapters - data.indexed_count);
   return (
-    <Flex gap="4" wrap="wrap">
-      <InfoStat label={t("index.totalChapters")} value={data.total_chapters} />
-      <InfoStat label={t("index.indexed")} value={data.indexed_count} />
-      <InfoStat label={t("index.pending")} value={remaining} />
-      <InfoStat label={t("index.statusIndexing")} value={data.in_progress_count} />
+    <Flex
+      gap="4"
+      wrap="wrap"
+    >
+      <InfoStat
+        label={t("index.totalChapters")}
+        value={data.total_chapters}
+      />
+      <InfoStat
+        label={t("index.indexed")}
+        value={data.indexed_count}
+      />
+      <InfoStat
+        label={t("index.pending")}
+        value={remaining}
+      />
+      <InfoStat
+        label={t("index.statusIndexing")}
+        value={data.in_progress_count}
+      />
     </Flex>
   );
 }
 
 function InfoStat({ label, value }: { label: string; value: number }) {
   return (
-    <Flex direction="column" gap="1">
-      <Text size="1" color="gray">
+    <Flex
+      direction="column"
+      gap="1"
+    >
+      <Text
+        size="1"
+        color="gray"
+      >
         {label}
       </Text>
-      <Text size="3" weight="medium">
+      <Text
+        size="3"
+        weight="medium"
+      >
         {value}
       </Text>
     </Flex>
@@ -610,12 +708,8 @@ function ProjectIndexInfoRow({ status }: { status: ProjectIndexStatus }) {
   const { t } = useTranslation();
   const startMutation = useStartProjectIndex(status.project_id);
   const color = getIndexStatusColor(status.status);
-  const indexable = Math.max(
-    0,
-    status.total_chapters - (status.empty_content_count || 0),
-  );
-  const progressPct =
-    indexable > 0 ? Math.round((status.indexed_count / indexable) * 100) : 0;
+  const indexable = Math.max(0, status.total_chapters - (status.empty_content_count || 0));
+  const progressPct = indexable > 0 ? Math.round((status.indexed_count / indexable) * 100) : 0;
   const canStart =
     status.enabled &&
     status.status !== "indexing" &&
@@ -625,17 +719,39 @@ function ProjectIndexInfoRow({ status }: { status: ProjectIndexStatus }) {
     status.pending_count > 0;
 
   return (
-    <Flex align="center" justify="between" gap="3" wrap="wrap">
-      <Flex direction="column" gap="1" style={{ flex: "1 1 200px", minWidth: 0 }}>
-        <Flex align="center" gap="2">
-          <Text size="2" weight="medium">
+    <Flex
+      align="center"
+      justify="between"
+      gap="3"
+      wrap="wrap"
+    >
+      <Flex
+        direction="column"
+        gap="1"
+        style={{ flex: "1 1 200px", minWidth: 0 }}
+      >
+        <Flex
+          align="center"
+          gap="2"
+        >
+          <Text
+            size="2"
+            weight="medium"
+          >
             {status.title || t("index.untitledProject")}
           </Text>
-          <Badge size="1" variant="soft" style={{ color }}>
+          <Badge
+            size="1"
+            variant="soft"
+            style={{ color }}
+          >
             {t(`index.status.${status.status}` as const)}
           </Badge>
         </Flex>
-        <Text size="1" color="gray">
+        <Text
+          size="1"
+          color="gray"
+        >
           {t("index.progress", {
             indexed: status.indexed_count,
             total: indexable,
@@ -649,7 +765,11 @@ function ProjectIndexInfoRow({ status }: { status: ProjectIndexStatus }) {
           {indexable > 0 ? ` · ${progressPct}%` : ""}
         </Text>
         {status.last_error ? (
-          <Text size="1" color="red" style={{ wordBreak: "break-word" }}>
+          <Text
+            size="1"
+            color="red"
+            style={{ wordBreak: "break-word" }}
+          >
             {status.last_error}
           </Text>
         ) : null}

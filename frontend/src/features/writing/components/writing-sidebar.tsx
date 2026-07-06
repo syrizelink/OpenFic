@@ -1,9 +1,9 @@
 import { SegmentedControl } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 
+import { useWritingStore } from "../store/use-writing-store";
 import { ChapterSidebar } from "./chapter-sidebar";
 import { NoteSidebar } from "./note-sidebar";
-import { useWritingStore } from "../store/use-writing-store";
 
 interface WritingSidebarProps {
   projectId: string;
@@ -49,12 +49,8 @@ export function WritingSidebar({
           size="2"
           style={{ width: "100%" }}
         >
-          <SegmentedControl.Item value="chapters">
-            {t("writing.chapters")}
-          </SegmentedControl.Item>
-          <SegmentedControl.Item value="notes">
-            {t("writing.notes")}
-          </SegmentedControl.Item>
+          <SegmentedControl.Item value="chapters">{t("writing.chapters")}</SegmentedControl.Item>
+          <SegmentedControl.Item value="notes">{t("writing.notes")}</SegmentedControl.Item>
         </SegmentedControl.Root>
       </div>
 

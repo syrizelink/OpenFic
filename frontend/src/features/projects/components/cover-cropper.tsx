@@ -5,9 +5,9 @@
  * 裁剪功能使用覆盖式 Dialog 弹窗显示。
  */
 
-import { useState, useCallback, useRef } from "react";
 import { Box, Button, Dialog, Flex, Text } from "@radix-ui/themes";
 import { Upload } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
 import Cropper, { type Area } from "react-easy-crop";
 import { useTranslation } from "react-i18next";
 
@@ -31,10 +31,7 @@ interface CroppedArea {
 /**
  * 创建裁剪后的图片文件。
  */
-async function getCroppedImage(
-  imageSrc: string,
-  croppedAreaPixels: CroppedArea
-): Promise<File> {
+async function getCroppedImage(imageSrc: string, croppedAreaPixels: CroppedArea): Promise<File> {
   const image = new Image();
   image.src = imageSrc;
 
@@ -59,7 +56,7 @@ async function getCroppedImage(
     0,
     0,
     croppedAreaPixels.width,
-    croppedAreaPixels.height
+    croppedAreaPixels.height,
   );
 
   // 转换为 Blob
@@ -72,11 +69,7 @@ async function getCroppedImage(
   });
 }
 
-export function CoverCropper({
-  value,
-  onChange,
-  previewUrl,
-}: CoverCropperProps) {
+export function CoverCropper({ value, onChange, previewUrl }: CoverCropperProps) {
   const { t } = useTranslation();
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -85,40 +78,31 @@ export function CoverCropper({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /** 处理文件选择 */
-  const handleFileSelect = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
+  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = () => {
-        setImageSrc(reader.result as string);
-        // 重置裁剪状态
-        setCrop({ x: 0, y: 0 });
-        setZoom(1);
-      };
-      reader.readAsDataURL(file);
-    },
-    []
-  );
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImageSrc(reader.result as string);
+      // 重置裁剪状态
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+    };
+    reader.readAsDataURL(file);
+  }, []);
 
   /** 裁剪完成回调 */
-  const onCropComplete = useCallback(
-    (_croppedArea: Area, croppedAreaPixels: Area) => {
-      setCroppedAreaPixels(croppedAreaPixels);
-    },
-    []
-  );
+  const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
 
   /** 确认裁剪 */
   const handleCropConfirm = useCallback(async () => {
     if (!imageSrc || !croppedAreaPixels) return;
 
     try {
-      const croppedFile = await getCroppedImage(
-        imageSrc as string,
-        croppedAreaPixels
-      );
+      const croppedFile = await getCroppedImage(imageSrc as string, croppedAreaPixels);
       onChange(croppedFile);
       setImageSrc(null);
     } catch (error) {
@@ -217,7 +201,10 @@ export function CoverCropper({
             size={24}
             style={{ color: "var(--gray-a9)", marginBottom: "8px" }}
           />
-          <Text size="1" color="gray">
+          <Text
+            size="1"
+            color="gray"
+          >
             {t("coverCropper.uploadCover")}
           </Text>
         </Box>
@@ -242,7 +229,10 @@ export function CoverCropper({
       >
         <Dialog.Content maxWidth="600px">
           <Dialog.Title>{t("coverCropper.cropCover")}</Dialog.Title>
-          <Dialog.Description size="2" color="gray">
+          <Dialog.Description
+            size="2"
+            color="gray"
+          >
             {t("coverCropper.cropDescription")}
           </Dialog.Description>
 
@@ -269,7 +259,11 @@ export function CoverCropper({
             )}
           </Box>
 
-          <Flex gap="3" mt="4" justify="end">
+          <Flex
+            gap="3"
+            mt="4"
+            justify="end"
+          >
             <Button
               variant="soft"
               color="gray"
@@ -278,7 +272,10 @@ export function CoverCropper({
             >
               {t("common.cancel")}
             </Button>
-            <Button type="button" onClick={handleCropConfirm}>
+            <Button
+              type="button"
+              onClick={handleCropConfirm}
+            >
               {t("coverCropper.confirmCrop")}
             </Button>
           </Flex>

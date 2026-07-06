@@ -1,16 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
 import { Box } from "@radix-ui/themes";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { BarChart3, BookOpenText, ListTree } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+
 import { MobileAppSidebarTrigger } from "@/features/app-shell";
+
 import { DashboardFilters } from "../components/dashboard-filters";
 import { DashboardRecordsTab } from "../components/dashboard-records-tab";
 import { LlmDashboardTab } from "../components/llm-dashboard-tab";
 import { WritingDashboardTab } from "../components/writing-dashboard-tab";
-import { fetchLlmDashboardRecords, fetchLlmDashboardStats, fetchWritingDashboard } from "../lib/dashboard-api";
+import {
+  fetchLlmDashboardRecords,
+  fetchLlmDashboardStats,
+  fetchWritingDashboard,
+} from "../lib/dashboard-api";
 import { toIsoDateTime } from "../lib/dashboard-formatters";
 import type { DashboardQueryParams, WritingDashboardQueryParams } from "../lib/dashboard.types";
+
 import "./dashboard-page.css";
 
 type DashboardTab = "writing" | "llm" | "records";
@@ -77,7 +84,7 @@ export function DashboardPage({ appearance }: DashboardPageProps) {
 
   const llmDashboardQuery = useMemo(
     () => ({ ...llmQuery, startAt, endAt }),
-    [endAt, llmQuery, startAt]
+    [endAt, llmQuery, startAt],
   );
 
   const writingHeroQuery = useMemo<WritingDashboardQueryParams>(
@@ -86,14 +93,17 @@ export function DashboardPage({ appearance }: DashboardPageProps) {
       endAt: toIsoDateTime(getYearEnd(writingYear), "end"),
       timezone: userTimezone,
     }),
-    [userTimezone, writingYear]
+    [userTimezone, writingYear],
   );
 
-  const writingYearsQuery = useMemo<WritingDashboardQueryParams>(() => ({ timezone: userTimezone }), [userTimezone]);
+  const writingYearsQuery = useMemo<WritingDashboardQueryParams>(
+    () => ({ timezone: userTimezone }),
+    [userTimezone],
+  );
 
   const writingDetailQuery = useMemo<WritingDashboardQueryParams>(
     () => ({ projectId: llmQuery.projectId, startAt, endAt, timezone: userTimezone }),
-    [endAt, llmQuery.projectId, startAt, userTimezone]
+    [endAt, llmQuery.projectId, startAt, userTimezone],
   );
 
   const { data: llmStatsData, isFetching: isLlmStatsFetching } = useQuery({
@@ -129,7 +139,10 @@ export function DashboardPage({ appearance }: DashboardPageProps) {
   });
 
   const llmOptions = isRecordsTab ? llmRecordsData?.options : llmStatsData?.options;
-  const totalPages = Math.max(1, Math.ceil((llmRecordsData?.records.total ?? 0) / llmQuery.pageSize));
+  const totalPages = Math.max(
+    1,
+    Math.ceil((llmRecordsData?.records.total ?? 0) / llmQuery.pageSize),
+  );
 
   const updateLlmQuery = (updates: Partial<DashboardQueryParams>) => {
     setLlmQuery((current) => ({ ...current, ...updates, page: updates.page ?? 1 }));
@@ -169,7 +182,11 @@ export function DashboardPage({ appearance }: DashboardPageProps) {
           </div>
         </header>
 
-        <nav className="dashboard-tab-nav" role="tablist" aria-label={t("dashboard.navLabel")}>
+        <nav
+          className="dashboard-tab-nav"
+          role="tablist"
+          aria-label={t("dashboard.navLabel")}
+        >
           {tabs.map((tab) => {
             const TabIcon = tab.icon;
             return (
@@ -182,7 +199,11 @@ export function DashboardPage({ appearance }: DashboardPageProps) {
                 aria-selected={activeTab === tab.value}
                 onClick={() => setActiveTab(tab.value)}
               >
-                <TabIcon size={16} className="dashboard-tab-icon" aria-hidden="true" />
+                <TabIcon
+                  size={16}
+                  className="dashboard-tab-icon"
+                  aria-hidden="true"
+                />
                 <span>{tab.label}</span>
               </button>
             );
@@ -201,7 +222,13 @@ export function DashboardPage({ appearance }: DashboardPageProps) {
             filtersSlot={filters}
           />
         ) : null}
-        {isLlmTab ? <LlmDashboardTab data={llmStatsData} isLoading={isLlmStatsFetching} themeMode={appearance} /> : null}
+        {isLlmTab ? (
+          <LlmDashboardTab
+            data={llmStatsData}
+            isLoading={isLlmStatsFetching}
+            themeMode={appearance}
+          />
+        ) : null}
         {isRecordsTab ? (
           <>
             {filters}
@@ -214,7 +241,6 @@ export function DashboardPage({ appearance }: DashboardPageProps) {
             />
           </>
         ) : null}
-
       </div>
     </Box>
   );

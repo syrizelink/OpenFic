@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Badge,
   Box,
@@ -13,25 +12,26 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "motion/react";
-import { MoreHorizontal, Plus, Search, Trash2, Upload, X } from "lucide-react";
 import Fuse from "fuse.js";
+import { MoreHorizontal, Plus, Search, Trash2, Upload, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Spinner } from "@/components";
 
+import { Spinner } from "@/components";
 import {
-  createSkill,
-  deleteSkill,
-  fetchSkills,
-  toggleSkill,
-  updateSkill,
-} from "@/lib/api-client";
+  ContextMenu,
+  type ContextMenuItem,
+  type ContextMenuPosition,
+} from "@/components/context-menu";
 import { toast } from "@/components/toast";
-import { ContextMenu, type ContextMenuItem, type ContextMenuPosition } from "@/components/context-menu";
-import { countTokens } from "@/lib/tiktoken-utils";
+import { createSkill, deleteSkill, fetchSkills, toggleSkill, updateSkill } from "@/lib/api-client";
 import { getPinyin, getInitials } from "@/lib/pinyin-search";
 import type { Skill, SkillCreate, SkillListResponse } from "@/lib/skill.types";
+import { countTokens } from "@/lib/tiktoken-utils";
+
 import { ImportSkillDialog } from "./import-skill-dialog";
+
 import "./skills-settings.css";
 
 interface SkillFormState {
@@ -160,17 +160,20 @@ export function SkillsSettings({
 
   const selectedSkill = useMemo(
     () => skills.find((item) => item.id === effectiveSelectedSkillId) ?? null,
-    [effectiveSelectedSkillId, skills]
+    [effectiveSelectedSkillId, skills],
   );
   const isSettingsVariant = variant === "settings";
 
-  const handleMobilePageChange = useCallback((page: "list" | "detail") => {
-    if (controlledMobileDirection === undefined) {
-      setInternalMobileDirection(page === "detail" ? 1 : -1);
-    }
-    onMobilePageChange?.(page);
-    if (mobilePage === undefined) setInternalMobilePage(page);
-  }, [controlledMobileDirection, mobilePage, onMobilePageChange]);
+  const handleMobilePageChange = useCallback(
+    (page: "list" | "detail") => {
+      if (controlledMobileDirection === undefined) {
+        setInternalMobileDirection(page === "detail" ? 1 : -1);
+      }
+      onMobilePageChange?.(page);
+      if (mobilePage === undefined) setInternalMobilePage(page);
+    },
+    [controlledMobileDirection, mobilePage, onMobilePageChange],
+  );
 
   useEffect(() => {
     onMobileDetailTitleChange?.(selectedSkill?.name || null);
@@ -205,7 +208,8 @@ export function SkillsSettings({
   });
 
   const toggleMutation = useMutation({
-    mutationFn: ({ skillDbId }: { skillDbId: string; nextEnabled: boolean }) => toggleSkill(skillDbId),
+    mutationFn: ({ skillDbId }: { skillDbId: string; nextEnabled: boolean }) =>
+      toggleSkill(skillDbId),
     onMutate: async ({ skillDbId, nextEnabled }) => {
       await queryClient.cancelQueries({ queryKey: ["skills"] });
       const previous = queryClient.getQueryData<SkillListResponse>(["skills"]);
@@ -214,7 +218,7 @@ export function SkillsSettings({
         queryClient.setQueryData<SkillListResponse>(["skills"], {
           ...previous,
           items: previous.items.map((item) =>
-            item.id === skillDbId ? { ...item, isEnabled: nextEnabled } : item
+            item.id === skillDbId ? { ...item, isEnabled: nextEnabled } : item,
           ),
         });
       }
@@ -232,9 +236,7 @@ export function SkillsSettings({
         if (!current) return current;
         return {
           ...current,
-          items: current.items.map((item) =>
-            item.id === updatedSkill.id ? updatedSkill : item
-          ),
+          items: current.items.map((item) => (item.id === updatedSkill.id ? updatedSkill : item)),
         };
       });
       toast.success(updatedSkill.isEnabled ? t("worldInfo.enabled") : t("worldInfo.disabled"));
@@ -271,7 +273,7 @@ export function SkillsSettings({
     (skillDbId: string, payload: SkillFormState) => {
       return updateMutation.mutateAsync({ skillDbId, payload });
     },
-    [updateMutation]
+    [updateMutation],
   );
 
   const handleContextMenu = useCallback((skillId: string, position: ContextMenuPosition) => {
@@ -307,7 +309,12 @@ export function SkillsSettings({
   const listContent = (
     <div className="skills-settings-list-container">
       <div className="skills-settings-toolbar">
-        <Flex align="center" justify="between" gap="2" className="skills-settings-toolbar-row">
+        <Flex
+          align="center"
+          justify="between"
+          gap="2"
+          className="skills-settings-toolbar-row"
+        >
           <Box style={{ flex: 1, minWidth: 0 }}>
             <TextField.Root
               size="2"
@@ -332,7 +339,11 @@ export function SkillsSettings({
             </TextField.Root>
           </Box>
 
-          <Flex align="center" gap="1" className="skills-settings-toolbar-actions">
+          <Flex
+            align="center"
+            gap="1"
+            className="skills-settings-toolbar-actions"
+          >
             <Tooltip content={t("settingsExtra.skills.newSkill")}>
               <IconButton
                 size="2"
@@ -364,15 +375,28 @@ export function SkillsSettings({
 
       <div className="skills-settings-list">
         {filteredSkills.length === 0 ? (
-          <Flex align="center" justify="center" p="6" style={{ height: "100%" }}>
-            <Text size="2" color="gray" align="center">
+          <Flex
+            align="center"
+            justify="center"
+            p="6"
+            style={{ height: "100%" }}
+          >
+            <Text
+              size="2"
+              color="gray"
+              align="center"
+            >
               {searchQuery.trim()
                 ? t("settingsExtra.skills.noSearchResults")
                 : t("settingsExtra.skills.empty")}
             </Text>
           </Flex>
         ) : (
-          <Flex direction="column" gap="2" className="skills-settings-list-body">
+          <Flex
+            direction="column"
+            gap="2"
+            className="skills-settings-list-body"
+          >
             {filteredSkills.map((skill) => (
               <SkillListItem
                 key={skill.id}
@@ -400,7 +424,11 @@ export function SkillsSettings({
 
   if (isLoading) {
     return (
-      <Flex align="center" justify="center" style={{ height: "100%" }}>
+      <Flex
+        align="center"
+        justify="center"
+        style={{ height: "100%" }}
+      >
         <Spinner size={18} />
       </Flex>
     );
@@ -408,7 +436,11 @@ export function SkillsSettings({
 
   if (error) {
     return (
-      <Flex align="center" justify="center" style={{ height: "100%" }}>
+      <Flex
+        align="center"
+        justify="center"
+        style={{ height: "100%" }}
+      >
         <Text color="red">{t("settingsExtra.skills.loadFailed")}</Text>
       </Flex>
     );
@@ -416,7 +448,10 @@ export function SkillsSettings({
 
   const detailContent = !selectedSkill ? (
     <Box className="skills-settings-empty-state">
-      <Text size="2" color="gray">
+      <Text
+        size="2"
+        color="gray"
+      >
         {t("settingsExtra.skills.selectSkill")}
       </Text>
     </Box>
@@ -435,7 +470,11 @@ export function SkillsSettings({
         className={`skills-settings${isSettingsVariant ? " skills-settings--settings" : ""}`}
       >
         <Box className="settings-dialog-mobile-page-stack">
-          <AnimatePresence initial={false} custom={currentMobileDirection} mode="sync">
+          <AnimatePresence
+            initial={false}
+            custom={currentMobileDirection}
+            mode="sync"
+          >
             {currentMobilePage === "list" ? (
               <MotionBox
                 key="skills-mobile-list"
@@ -462,7 +501,9 @@ export function SkillsSettings({
                 transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                 className="settings-dialog-mobile-page"
               >
-                <div className={`skills-settings-editor-panel${isSettingsVariant ? " skills-settings-editor-panel--settings" : ""}`}>
+                <div
+                  className={`skills-settings-editor-panel${isSettingsVariant ? " skills-settings-editor-panel--settings" : ""}`}
+                >
                   {detailContent}
                 </div>
               </MotionBox>
@@ -476,19 +517,35 @@ export function SkillsSettings({
           onClose={handleCloseContextMenu}
         />
 
-        <Dialog.Root open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <Dialog.Root
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+        >
           <Dialog.Content style={{ maxWidth: 420 }}>
             <Dialog.Title>{t("settingsExtra.skills.deleteTitle")}</Dialog.Title>
-            <Dialog.Description size="2" mt="2">
+            <Dialog.Description
+              size="2"
+              mt="2"
+            >
               {t("settingsExtra.skills.deleteDescription")}
             </Dialog.Description>
-            <Flex justify="end" gap="2" mt="4">
-              <Button variant="soft" color="gray" onClick={() => setDeleteDialogOpen(false)}>
+            <Flex
+              justify="end"
+              gap="2"
+              mt="4"
+            >
+              <Button
+                variant="soft"
+                color="gray"
+                onClick={() => setDeleteDialogOpen(false)}
+              >
                 {t("common.cancel")}
               </Button>
               <Button
                 color="red"
-                onClick={() => effectiveSelectedSkillId && deleteMutation.mutate(effectiveSelectedSkillId)}
+                onClick={() =>
+                  effectiveSelectedSkillId && deleteMutation.mutate(effectiveSelectedSkillId)
+                }
               >
                 {t("common.delete")}
               </Button>
@@ -510,7 +567,9 @@ export function SkillsSettings({
       direction="column"
       className={`skills-settings${isSettingsVariant ? " skills-settings--settings" : ""}`}
     >
-      <Flex className={`skills-settings-layout${isSettingsVariant ? " skills-settings-layout--settings" : ""}`}>
+      <Flex
+        className={`skills-settings-layout${isSettingsVariant ? " skills-settings-layout--settings" : ""}`}
+      >
         <Box
           display={{ initial: "none", md: "block" }}
           className={`skills-settings-list-panel${isSettingsVariant ? " skills-settings-list-panel--settings" : ""}`}
@@ -518,7 +577,9 @@ export function SkillsSettings({
           {listContent}
         </Box>
 
-        <div className={`skills-settings-editor-panel${isSettingsVariant ? " skills-settings-editor-panel--settings" : ""}`}>
+        <div
+          className={`skills-settings-editor-panel${isSettingsVariant ? " skills-settings-editor-panel--settings" : ""}`}
+        >
           {detailContent}
         </div>
       </Flex>
@@ -529,19 +590,35 @@ export function SkillsSettings({
         onClose={handleCloseContextMenu}
       />
 
-      <Dialog.Root open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <Dialog.Root
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+      >
         <Dialog.Content style={{ maxWidth: 420 }}>
           <Dialog.Title>{t("settingsExtra.skills.deleteTitle")}</Dialog.Title>
-          <Dialog.Description size="2" mt="2">
+          <Dialog.Description
+            size="2"
+            mt="2"
+          >
             {t("settingsExtra.skills.deleteDescription")}
           </Dialog.Description>
-          <Flex justify="end" gap="2" mt="4">
-            <Button variant="soft" color="gray" onClick={() => setDeleteDialogOpen(false)}>
+          <Flex
+            justify="end"
+            gap="2"
+            mt="4"
+          >
+            <Button
+              variant="soft"
+              color="gray"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
               {t("common.cancel")}
             </Button>
             <Button
               color="red"
-              onClick={() => effectiveSelectedSkillId && deleteMutation.mutate(effectiveSelectedSkillId)}
+              onClick={() =>
+                effectiveSelectedSkillId && deleteMutation.mutate(effectiveSelectedSkillId)
+              }
             >
               {t("common.delete")}
             </Button>
@@ -581,7 +658,7 @@ function SkillListItem({
       e.preventDefault();
       onContextMenu({ x: e.clientX, y: e.clientY });
     },
-    [onContextMenu]
+    [onContextMenu],
   );
 
   return (
@@ -598,24 +675,53 @@ function SkillListItem({
       }}
       onContextMenu={handleContextMenu}
     >
-      <Flex align="start" justify="between" gap="2" className="skills-settings-item-row">
-        <Flex direction="column" gap="1" className="skills-settings-item-content">
-          <Flex align="center" gap="2" className="skills-settings-item-title-row">
-            <Text size="2" truncate weight={isSelected ? "medium" : "regular"}>
+      <Flex
+        align="start"
+        justify="between"
+        gap="2"
+        className="skills-settings-item-row"
+      >
+        <Flex
+          direction="column"
+          gap="1"
+          className="skills-settings-item-content"
+        >
+          <Flex
+            align="center"
+            gap="2"
+            className="skills-settings-item-title-row"
+          >
+            <Text
+              size="2"
+              truncate
+              weight={isSelected ? "medium" : "regular"}
+            >
               {skill.name || t("settingsExtra.skills.untitled")}
             </Text>
             {!skill.isComplete ? (
-              <Badge size="1" variant="soft" color="amber">
+              <Badge
+                size="1"
+                variant="soft"
+                color="amber"
+              >
                 {t("settingsExtra.skills.incomplete")}
               </Badge>
             ) : null}
           </Flex>
-          <Text size="1" color="gray" className="skills-settings-item-description">
+          <Text
+            size="1"
+            color="gray"
+            className="skills-settings-item-description"
+          >
             {skill.summary || t("settingsExtra.skills.noDescription")}
           </Text>
         </Flex>
 
-        <Flex align="center" gap="1" className="skills-settings-item-actions">
+        <Flex
+          align="center"
+          gap="1"
+          className="skills-settings-item-actions"
+        >
           <Switch
             size="1"
             checked={skill.isEnabled}
@@ -674,10 +780,21 @@ function SkillEditor({ skill, onSave }: SkillEditorProps) {
 
   return (
     <Box p={{ initial: "4", md: "5" }}>
-      <Flex direction="column" gap="1" className="skills-settings-editor-content">
-        <Flex direction="column" gap="3">
+      <Flex
+        direction="column"
+        gap="1"
+        className="skills-settings-editor-content"
+      >
+        <Flex
+          direction="column"
+          gap="3"
+        >
           <Box>
-            <Text size="2" weight="medium" as="label">
+            <Text
+              size="2"
+              weight="medium"
+              as="label"
+            >
               {t("settingsExtra.skills.name")}
             </Text>
             <TextField.Root
@@ -689,7 +806,11 @@ function SkillEditor({ skill, onSave }: SkillEditorProps) {
           </Box>
 
           <Box>
-            <Text size="2" weight="medium" as="label">
+            <Text
+              size="2"
+              weight="medium"
+              as="label"
+            >
               {t("settingsExtra.skills.summary")}
             </Text>
             <TextArea
@@ -702,32 +823,48 @@ function SkillEditor({ skill, onSave }: SkillEditorProps) {
           </Box>
 
           <Box>
-            <Text size="2" weight="medium" as="label">
+            <Text
+              size="2"
+              weight="medium"
+              as="label"
+            >
               {t("settingsExtra.skills.id")}
             </Text>
             <TextField.Root
               mt="2"
               value={form.skillId}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, skillId: e.target.value.trim() }))
-              }
+              onChange={(e) => setForm((prev) => ({ ...prev, skillId: e.target.value.trim() }))}
               placeholder={t("settingsExtra.skills.idPlaceholder")}
             />
             <Text
               size="1"
               color={form.skillId && !isValidSkillId(form.skillId) ? "red" : "gray"}
-              style={{ display: "block", marginTop: 6, visibility: form.skillId && !isValidSkillId(form.skillId) ? "visible" : "hidden" }}
+              style={{
+                display: "block",
+                marginTop: 6,
+                visibility: form.skillId && !isValidSkillId(form.skillId) ? "visible" : "hidden",
+              }}
             >
               {t("settingsExtra.skills.idHelp")}
             </Text>
           </Box>
 
           <Box>
-            <Flex justify="between" align="center">
-              <Text size="2" weight="medium" as="label">
+            <Flex
+              justify="between"
+              align="center"
+            >
+              <Text
+                size="2"
+                weight="medium"
+                as="label"
+              >
                 {t("settingsExtra.skills.content")}
               </Text>
-              <Text size="1" color="gray">
+              <Text
+                size="1"
+                color="gray"
+              >
                 {tokenCount} tokens
               </Text>
             </Flex>
@@ -741,8 +878,15 @@ function SkillEditor({ skill, onSave }: SkillEditorProps) {
           </Box>
         </Flex>
 
-        <Flex align="center" justify="end" className="skills-settings-editor-actions">
-          <Button onClick={() => void handleSave()} disabled={!canSave}>
+        <Flex
+          align="center"
+          justify="end"
+          className="skills-settings-editor-actions"
+        >
+          <Button
+            onClick={() => void handleSave()}
+            disabled={!canSave}
+          >
             {isSaving ? t("settingsExtra.skills.saving") : t("common.save")}
           </Button>
         </Flex>

@@ -1,5 +1,6 @@
-import type { AgentEvent, AgentMessage } from "@/lib/agent.types";
 import i18n from "@/i18n";
+import type { AgentEvent, AgentMessage } from "@/lib/agent.types";
+
 import { getReasoningDurationMs } from "../lib/streaming-message-merge";
 
 const MESSAGE_TYPES_THAT_STOP_REASONING = new Set<AgentMessage["type"]>([
@@ -61,9 +62,7 @@ function getActiveNodeStart(messages: AgentMessage[]): AgentMessage | null {
 
 function createCancelledNodeEndMessage(nodeStart: AgentMessage): AgentMessage {
   const payload = nodeStart.payload ?? {};
-  const node = typeof payload.node === "string" && payload.node
-    ? payload.node
-    : nodeStart.agent;
+  const node = typeof payload.node === "string" && payload.node ? payload.node : nodeStart.agent;
   const previousNode = payload.previous_node;
   const timestamp = Date.now();
   return {
@@ -87,7 +86,8 @@ function createCancelledNodeEndMessage(nodeStart: AgentMessage): AgentMessage {
 export function stopStreamingReasoning(messages: AgentMessage[]): AgentMessage[] {
   let hasRunningReasoning = false;
   const next = messages.map((message) => {
-    if (message.type !== "reasoning" || !(message.isStreaming || message.status === "running")) return message;
+    if (message.type !== "reasoning" || !(message.isStreaming || message.status === "running"))
+      return message;
     hasRunningReasoning = true;
     return {
       ...message,
@@ -99,10 +99,14 @@ export function stopStreamingReasoning(messages: AgentMessage[]): AgentMessage[]
   return hasRunningReasoning ? next : messages;
 }
 
-export function stopStreamingToolMessages(messages: AgentMessage[], status: "completed" | "error" = "completed"): AgentMessage[] {
+export function stopStreamingToolMessages(
+  messages: AgentMessage[],
+  status: "completed" | "error" = "completed",
+): AgentMessage[] {
   let hasRunningTool = false;
   const next = messages.map((message) => {
-    if (message.type !== "tool" || !(message.isStreaming || message.status === "running")) return message;
+    if (message.type !== "tool" || !(message.isStreaming || message.status === "running"))
+      return message;
     hasRunningTool = true;
     const isError = status === "error";
     return {
@@ -151,9 +155,14 @@ export function cancelStreamingAgentMessages(messages: AgentMessage[]): AgentMes
   let changed = false;
   const activeNode = getActiveNodeStart(messages);
   const next = markLastUnresolvedToolCancelled(
-    stopStreamingToolMessages(stopStreamingReasoning(messages), "error")
+    stopStreamingToolMessages(stopStreamingReasoning(messages), "error"),
   ).map((message) => {
-    if (message.type !== "text" || message.role !== "assistant" || !(message.isStreaming || message.status === "running")) return message;
+    if (
+      message.type !== "text" ||
+      message.role !== "assistant" ||
+      !(message.isStreaming || message.status === "running")
+    )
+      return message;
     changed = true;
     return {
       ...message,
@@ -173,14 +182,14 @@ export function shouldSuppressAgentEventAfterAbort(event: Pick<AgentEvent, "type
 
 export function shouldSuppressAgentErrorAfterCompactionError(
   event: Pick<AgentEvent, "type">,
-  suppressNextError: boolean
+  suppressNextError: boolean,
 ): boolean {
   return suppressNextError && event.type === "error";
 }
 
 export function shouldStopStreamingReasoningForAgentEvent(
   event: Pick<AgentEvent, "type" | "display">,
-  message?: Pick<AgentMessage, "type" | "role">
+  message?: Pick<AgentMessage, "type" | "role">,
 ): boolean {
   if (message?.type === "reasoning") return false;
   if (message?.type === "text") return message.role === "assistant";
@@ -191,7 +200,7 @@ export function shouldStopStreamingReasoningForAgentEvent(
 export function stopStreamingReasoningForAgentEvent(
   messages: AgentMessage[],
   event: Pick<AgentEvent, "type" | "display">,
-  message?: Pick<AgentMessage, "type" | "role">
+  message?: Pick<AgentMessage, "type" | "role">,
 ): AgentMessage[] {
   if (!shouldStopStreamingReasoningForAgentEvent(event, message)) return messages;
   return stopStreamingReasoning(messages);

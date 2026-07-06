@@ -67,7 +67,7 @@ interface ResumableNodeBlock {
 
 export function buildAgentMessageBlocks(
   messages: BlockDisplayMessage[],
-  options: BuildAgentMessageBlocksOptions = {}
+  options: BuildAgentMessageBlocksOptions = {},
 ): AgentMessageBlock[] {
   const blocks: AgentMessageBlock[] = [];
   let pendingUserRevisionId: string | undefined;
@@ -192,10 +192,10 @@ export function buildAgentMessageBlocks(
   }
 
   if (activeNodeBlock && typeof options.closeOpenNodeAt === "number") {
-    closeNodeSegment(activeNodeBlock, Math.max(
-      activeNodeBlock.nodeStartedAt ?? options.closeOpenNodeAt,
-      options.closeOpenNodeAt
-    ));
+    closeNodeSegment(
+      activeNodeBlock,
+      Math.max(activeNodeBlock.nodeStartedAt ?? options.closeOpenNodeAt, options.closeOpenNodeAt),
+    );
     activeNodeBlock.nodeStatus = activeNodeBlock.nodeStatus === "error" ? "error" : "completed";
   }
 
@@ -204,7 +204,7 @@ export function buildAgentMessageBlocks(
 
 export function getVisibleAgentMessageBlocks(
   blocks: AgentMessageBlock[],
-  collapsedNodeIds: ReadonlySet<string>
+  collapsedNodeIds: ReadonlySet<string>,
 ): AgentMessageBlock[] {
   return blocks.filter((block) => {
     if (block.type === "node") return true;
@@ -213,7 +213,9 @@ export function getVisibleAgentMessageBlocks(
 }
 
 function hasRunningMessage(block: AgentMessageBlock): boolean {
-  return block.messages.some((message) => Boolean(message.isStreaming || message.status === "running"));
+  return block.messages.some((message) =>
+    Boolean(message.isStreaming || message.status === "running"),
+  );
 }
 
 function getLatestRoundTimestamp(blocks: AgentMessageBlock[]): number | undefined {
@@ -231,7 +233,11 @@ function getLatestRoundTimestamp(blocks: AgentMessageBlock[]): number | undefine
 function getLatestAssistantTimestampFromBlock(block: AgentMessageBlock): number | undefined {
   for (let index = block.messages.length - 1; index >= 0; index -= 1) {
     const message = block.messages[index];
-    if (message?.type === "agent_output" && typeof message.timestamp === "number" && Number.isFinite(message.timestamp)) {
+    if (
+      message?.type === "agent_output" &&
+      typeof message.timestamp === "number" &&
+      Number.isFinite(message.timestamp)
+    ) {
       return message.timestamp;
     }
   }
@@ -251,16 +257,19 @@ function getLatestAssistantToolbarTimestamp(blocks: AgentMessageBlock[]): number
 export function getAgentRoundToolbarTargets(
   blocks: AgentMessageBlock[],
   visibleBlocks: AgentMessageBlock[],
-  options: AgentRoundToolbarOptions = {}
+  options: AgentRoundToolbarOptions = {},
 ): AgentRoundToolbarTarget[] {
   if (options.isRunning) return [];
 
   const roundOrder: string[] = [];
-  const rounds = new Map<string, {
-    blocks: AgentMessageBlock[];
-    visibleBlocks: AgentMessageBlock[];
-    sourceRevisionId?: string;
-  }>();
+  const rounds = new Map<
+    string,
+    {
+      blocks: AgentMessageBlock[];
+      visibleBlocks: AgentMessageBlock[];
+      sourceRevisionId?: string;
+    }
+  >();
 
   for (const block of blocks) {
     if (!block.agentRoundId || (block.type !== "agent" && block.type !== "node")) continue;
@@ -287,7 +296,9 @@ export function getAgentRoundToolbarTargets(
     const round = rounds.get(roundId);
     if (!round) return [];
     const hasAgentWork = round.blocks.some((block) => block.type === "agent");
-    const isRunning = round.blocks.some((block) => block.type === "agent" && hasRunningMessage(block));
+    const isRunning = round.blocks.some(
+      (block) => block.type === "agent" && hasRunningMessage(block),
+    );
     const anchorBlock = round.visibleBlocks.at(-1);
     if (!hasAgentWork || isRunning || !anchorBlock) return [];
 
@@ -299,14 +310,16 @@ export function getAgentRoundToolbarTargets(
       if (copyContent) break;
     }
 
-    return [{
-      id: `toolbar:${roundId}`,
-      roundId,
-      anchorBlockId: anchorBlock.id,
-      sourceRevisionId: round.sourceRevisionId,
-      copyContent,
-      timestamp: getLatestAssistantToolbarTimestamp(round.blocks),
-    }];
+    return [
+      {
+        id: `toolbar:${roundId}`,
+        roundId,
+        anchorBlockId: anchorBlock.id,
+        sourceRevisionId: round.sourceRevisionId,
+        copyContent,
+        timestamp: getLatestAssistantToolbarTimestamp(round.blocks),
+      },
+    ];
   });
 }
 

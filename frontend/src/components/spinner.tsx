@@ -1,4 +1,5 @@
 import type { ComponentProps } from "react";
+
 import "./spinner.css";
 
 const spinnerSizeClassNames = {
@@ -21,5 +22,13 @@ export function Spinner({
     ? `spinner ${spinnerSizeClassNames[size]} ${className}`
     : `spinner ${spinnerSizeClassNames[size]}`;
 
-  return <span {...props} className={spinnerClassName} data-slot="spinner" role="status" aria-label={ariaLabel} />;
+  return (
+    <span
+      {...props}
+      className={spinnerClassName}
+      data-slot="spinner"
+      role="status"
+      aria-label={ariaLabel}
+    />
+  );
 }

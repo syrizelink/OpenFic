@@ -237,7 +237,9 @@
   cursor: pointer;
   text-align: left;
   font: inherit;
-  transition: background-color 140ms ease, color 140ms ease;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
   box-sizing: border-box;
 }
 
@@ -295,7 +297,9 @@
   pointer-events: none;
   margin-top: -2px;
   flex-shrink: 0;
-  transition: opacity 140ms ease, visibility 140ms ease;
+  transition:
+    opacity 140ms ease,
+    visibility 140ms ease;
 }
 
 .agent-definition-item:hover .agent-definition-item-menu,
@@ -389,7 +393,9 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background-color 140ms ease, color 140ms ease;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
 }
 
 .settings-sidebar-item:hover {
@@ -551,12 +557,14 @@
   .skills-settings--settings .skills-settings-list-item,
   .skills-settings--settings .skills-settings-list-item--selected,
   .skills-settings--settings .skills-settings-list-item--selected:hover,
-  .skills-settings--settings .skills-settings-list-item--selected.skills-settings-list-item--menu-open {
+  .skills-settings--settings
+    .skills-settings-list-item--selected.skills-settings-list-item--menu-open {
     background: transparent;
     color: var(--gray-12);
   }
 
-  .skills-settings--settings .skills-settings-list-item:hover:not(.skills-settings-list-item--selected),
+  .skills-settings--settings
+    .skills-settings-list-item:hover:not(.skills-settings-list-item--selected),
   .skills-settings--settings .skills-settings-list-item--menu-open {
     background: var(--gray-a3);
   }

@@ -32,7 +32,7 @@ interface UseClarificationQuestionFlowOptions {
 
 export function useClarificationQuestionFlow(
   prompt: ClarificationPromptData,
-  options: UseClarificationQuestionFlowOptions = {}
+  options: UseClarificationQuestionFlowOptions = {},
 ): ClarificationQuestionFlowModel {
   const { onSubmitQuestionAnswer } = options;
   const [answers, setAnswers] = useState<ClarificationAnswers>({});
@@ -41,7 +41,12 @@ export function useClarificationQuestionFlow(
 
   const shouldStep = prompt.questions.length > 1;
   const canSubmit = canSubmitClarificationAnswers(prompt.questions, answers, customAnswers);
-  const isCurrentStepValid = isClarificationStepComplete(prompt.questions, answers, customAnswers, currentStep);
+  const isCurrentStepValid = isClarificationStepComplete(
+    prompt.questions,
+    answers,
+    customAnswers,
+    currentStep,
+  );
   const isLastStep = currentStep === prompt.questions.length - 1;
 
   const handleSubmit = () => {

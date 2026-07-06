@@ -5,20 +5,11 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  fetchTask,
-  fetchTasks,
-  updateTask,
-  deleteTask,
-  deleteAllTasks,
-} from "@/lib/api-client";
-import i18n from "@/i18n";
-import type {
-  Task,
-  TaskListResponse,
-  UpdateTaskRequest,
-} from "@/lib/task.types";
+
 import { toast } from "@/components";
+import i18n from "@/i18n";
+import { fetchTask, fetchTasks, updateTask, deleteTask, deleteAllTasks } from "@/lib/api-client";
+import type { Task, TaskListResponse, UpdateTaskRequest } from "@/lib/task.types";
 
 function getTasksQueryKey(
   projectId: string,
@@ -27,7 +18,7 @@ function getTasksQueryKey(
     offset?: number;
     search?: string;
     favorited?: boolean;
-  }
+  },
 ) {
   return ["tasks", projectId, params] as const;
 }
@@ -42,7 +33,7 @@ export function useTasks(
     offset?: number;
     search?: string;
     favorited?: boolean;
-  }
+  },
 ) {
   return useQuery<TaskListResponse>({
     queryKey: getTasksQueryKey(projectId, params),
@@ -87,7 +78,7 @@ export function useUpdateTask() {
         toast.success(
           variables.data.is_favorited
             ? i18n.t("writing.aiSidebar.taskFavorited")
-            : i18n.t("writing.aiSidebar.taskUnfavorited")
+            : i18n.t("writing.aiSidebar.taskUnfavorited"),
         );
       }
     },
@@ -138,8 +129,11 @@ export function useDeleteAllTasks(projectId: string) {
       });
       toast.success(
         result.skippedRunningCount > 0
-          ? i18n.t("writing.aiSidebar.deleteAllTasksResultWithRunning", { deleted: result.deletedCount, skipped: result.skippedRunningCount })
-          : i18n.t("writing.aiSidebar.deleteAllTasksResult", { deleted: result.deletedCount })
+          ? i18n.t("writing.aiSidebar.deleteAllTasksResultWithRunning", {
+              deleted: result.deletedCount,
+              skipped: result.skippedRunningCount,
+            })
+          : i18n.t("writing.aiSidebar.deleteAllTasksResult", { deleted: result.deletedCount }),
       );
     },
     onError: (error: Error) => {

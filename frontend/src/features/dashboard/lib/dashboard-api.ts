@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api-client";
+
 import type {
   DashboardAuditRecord,
   DashboardBreakdownItem,
@@ -143,9 +144,7 @@ function transformSummary(raw: RawDashboardSummary): DashboardSummary {
   };
 }
 
-function transformTimeSeriesPoint(
-  raw: RawDashboardTimeSeriesPoint
-): DashboardTimeSeriesPoint {
+function transformTimeSeriesPoint(raw: RawDashboardTimeSeriesPoint): DashboardTimeSeriesPoint {
   return {
     date: raw.date,
     calls: raw.calls,
@@ -155,7 +154,7 @@ function transformTimeSeriesPoint(
 }
 
 function transformModelTimeSeriesPoint(
-  raw: RawDashboardModelTimeSeriesPoint
+  raw: RawDashboardModelTimeSeriesPoint,
 ): DashboardModelTimeSeriesPoint {
   return {
     ...transformTimeSeriesPoint(raw),
@@ -226,7 +225,10 @@ function transformOptions(raw: RawDashboardFilterOptions): DashboardFilterOption
     modelIds: raw.model_ids,
     agentNodes: raw.agent_nodes,
     statuses: raw.statuses,
-    projectOptions: raw.project_options.map((option) => ({ value: option.value, label: option.label })),
+    projectOptions: raw.project_options.map((option) => ({
+      value: option.value,
+      label: option.label,
+    })),
     modelOptions: raw.model_options.map((option) => ({ value: option.value, label: option.label })),
   };
 }
@@ -239,7 +241,7 @@ function transformWritingSummary(raw: RawWritingActivitySummary): WritingActivit
 }
 
 function transformWritingTimeSeriesPoint(
-  raw: RawWritingActivityTimeSeriesPoint
+  raw: RawWritingActivityTimeSeriesPoint,
 ): WritingActivityTimeSeriesPoint {
   return {
     date: raw.date,
@@ -250,7 +252,7 @@ function transformWritingTimeSeriesPoint(
 }
 
 export async function fetchLlmDashboardStats(
-  query: DashboardQueryParams
+  query: DashboardQueryParams,
 ): Promise<DashboardStatsResponse> {
   const response = await apiClient.get<RawDashboardStatsResponse>("/dashboard/llm-api/stats", {
     params: {
@@ -274,7 +276,7 @@ export async function fetchLlmDashboardStats(
 }
 
 export async function fetchLlmDashboardRecords(
-  query: DashboardQueryParams
+  query: DashboardQueryParams,
 ): Promise<DashboardRecordsResponse> {
   const response = await apiClient.get<RawDashboardRecordsResponse>("/dashboard/llm-api/records", {
     params: {
@@ -302,12 +304,14 @@ export async function fetchLlmDashboardRecords(
 }
 
 export async function fetchDashboardRecordPrompt(recordId: string): Promise<DashboardRecordPrompt> {
-  const response = await apiClient.get<RawDashboardRecordPrompt>(`/dashboard/llm-api/records/${recordId}/prompt`);
+  const response = await apiClient.get<RawDashboardRecordPrompt>(
+    `/dashboard/llm-api/records/${recordId}/prompt`,
+  );
   return transformRecordPrompt(response.data);
 }
 
 export async function fetchWritingDashboard(
-  query: WritingDashboardQueryParams
+  query: WritingDashboardQueryParams,
 ): Promise<WritingDashboardResponse> {
   const response = await apiClient.get<RawWritingDashboardResponse>("/dashboard/writing", {
     params: {

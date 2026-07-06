@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
 import { Box, Flex, IconButton, Separator, Tooltip } from "@radix-ui/themes";
-import { Undo, Redo, Save } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import type { Editor } from "@tiptap/react";
+import { Undo, Redo, Save } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Spinner } from "./spinner";
 
@@ -31,12 +31,7 @@ interface ToolbarButtonProps {
   onClick: () => void;
 }
 
-function ToolbarButton({
-  icon,
-  label,
-  disabled = false,
-  onClick,
-}: ToolbarButtonProps) {
+function ToolbarButton({ icon, label, disabled = false, onClick }: ToolbarButtonProps) {
   return (
     <Tooltip content={label}>
       <IconButton
@@ -90,7 +85,7 @@ export function EditorToolbar({
       }
       action();
     },
-    [isAgentLocked, onLockedAction]
+    [isAgentLocked, onLockedAction],
   );
 
   if (!editor) return null;
@@ -106,7 +101,11 @@ export function EditorToolbar({
         zIndex: 10,
       }}
     >
-      <Flex gap="1" align="center" justify="end">
+      <Flex
+        gap="1"
+        align="center"
+        justify="end"
+      >
         {toolbarPrefix}
 
         {extraActions?.map((action) => (
@@ -119,7 +118,10 @@ export function EditorToolbar({
         ))}
 
         {extraActions && extraActions.length > 0 && (
-          <Separator orientation="vertical" size="1" />
+          <Separator
+            orientation="vertical"
+            size="1"
+          />
         )}
 
         <ToolbarButton
@@ -135,7 +137,10 @@ export function EditorToolbar({
           onClick={() => runEditorAction(() => editor.chain().focus().redo().run())}
         />
 
-        <Separator orientation="vertical" size="1" />
+        <Separator
+          orientation="vertical"
+          size="1"
+        />
 
         <ToolbarButton
           icon={isSaving ? <Spinner size={18} /> : <Save size={18} />}

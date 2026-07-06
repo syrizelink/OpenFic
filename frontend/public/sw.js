@@ -10,7 +10,7 @@ self.addEventListener("install", (event) => {
     caches
       .open(CACHE_NAME)
       .then((cache) => cache.addAll(precacheList))
-      .then(() => self.skipWaiting())
+      .then(() => self.skipWaiting()),
   );
 });
 
@@ -22,10 +22,10 @@ self.addEventListener("activate", (event) => {
         Promise.all(
           keys
             .filter((key) => key.startsWith("openfic-shell-") && key !== CACHE_NAME)
-            .map((key) => caches.delete(key))
-        )
+            .map((key) => caches.delete(key)),
+        ),
       )
-      .then(() => self.clients.claim())
+      .then(() => self.clients.claim()),
   );
 });
 
@@ -57,7 +57,7 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put("/index.html", copy));
           return response;
         })
-        .catch(() => caches.match("/index.html"))
+        .catch(() => caches.match("/index.html")),
     );
     return;
   }
@@ -74,6 +74,6 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       });
-    })
+    }),
   );
 });

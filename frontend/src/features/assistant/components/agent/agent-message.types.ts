@@ -1,5 +1,5 @@
-import type { AgentType } from "@/lib/agent.types";
 import i18n from "@/i18n";
+import type { AgentType } from "@/lib/agent.types";
 
 export interface AgentMessageBlockProps {
   onApplyContent?: (content: string) => void;

@@ -1,6 +1,7 @@
 import { IconButton, Tooltip, DropdownMenu } from "@radix-ui/themes";
 import { Languages, Moon, Settings, Sun } from "lucide-react";
 import { motion } from "motion/react";
+
 import {
   SIDEBAR_ICON_COLOR,
   SIDEBAR_ICON_SIZE,
@@ -40,9 +41,15 @@ export function SidebarActions({
 
   return (
     <>
-      <motion.div layout transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>
+      <motion.div
+        layout
+        transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+      >
         <DropdownMenu.Root>
-          <Tooltip content={languageLabel} side={tooltipSide}>
+          <Tooltip
+            content={languageLabel}
+            side={tooltipSide}
+          >
             <DropdownMenu.Trigger>
               <IconButton
                 variant="ghost"
@@ -50,13 +57,19 @@ export function SidebarActions({
                 aria-label={languageLabel}
                 style={sidebarActionButtonStyle}
               >
-                <Languages size={SIDEBAR_ICON_SIZE} color="currentColor" />
+                <Languages
+                  size={SIDEBAR_ICON_SIZE}
+                  color="currentColor"
+                />
               </IconButton>
             </DropdownMenu.Trigger>
           </Tooltip>
           <DropdownMenu.Content side={tooltipSide}>
             {languages.map((lang) => (
-              <DropdownMenu.Item key={lang.code} onSelect={() => onLanguageChange(lang.code)}>
+              <DropdownMenu.Item
+                key={lang.code}
+                onSelect={() => onLanguageChange(lang.code)}
+              >
                 {lang.name}
                 {currentLanguage === lang.code && " ✓"}
               </DropdownMenu.Item>
@@ -65,8 +78,14 @@ export function SidebarActions({
         </DropdownMenu.Root>
       </motion.div>
 
-      <motion.div layout transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>
-        <Tooltip side={tooltipSide} content={themeTooltip}>
+      <motion.div
+        layout
+        transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <Tooltip
+          side={tooltipSide}
+          content={themeTooltip}
+        >
           <IconButton
             variant="ghost"
             size="2"
@@ -86,17 +105,29 @@ export function SidebarActions({
               }}
             >
               {appearance === "light" ? (
-                <Moon size={SIDEBAR_ICON_SIZE} color="currentColor" />
+                <Moon
+                  size={SIDEBAR_ICON_SIZE}
+                  color="currentColor"
+                />
               ) : (
-                <Sun size={SIDEBAR_ICON_SIZE} color="currentColor" />
+                <Sun
+                  size={SIDEBAR_ICON_SIZE}
+                  color="currentColor"
+                />
               )}
             </motion.div>
           </IconButton>
         </Tooltip>
       </motion.div>
 
-      <motion.div layout transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}>
-        <Tooltip content={settingsLabel} side={tooltipSide}>
+      <motion.div
+        layout
+        transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <Tooltip
+          content={settingsLabel}
+          side={tooltipSide}
+        >
           <IconButton
             variant="ghost"
             size="2"
@@ -107,7 +138,10 @@ export function SidebarActions({
               color: SIDEBAR_ICON_COLOR,
             }}
           >
-            <Settings size={SIDEBAR_ICON_SIZE} color="currentColor" />
+            <Settings
+              size={SIDEBAR_ICON_SIZE}
+              color="currentColor"
+            />
           </IconButton>
         </Tooltip>
       </motion.div>

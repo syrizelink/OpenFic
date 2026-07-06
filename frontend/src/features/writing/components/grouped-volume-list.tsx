@@ -1,4 +1,21 @@
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { Box, Text } from "@radix-ui/themes";
+import { AtSign, Copy, ExternalLink, MoveRight, Pencil, Trash2 } from "lucide-react";
+import {
   forwardRef,
   useCallback,
   useEffect,
@@ -8,48 +25,27 @@ import {
   useState,
   type ForwardedRef,
 } from "react";
-import { Box, Text } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import {
-  restrictToParentElement,
-  restrictToVerticalAxis,
-} from "@dnd-kit/modifiers";
-import {
-  GroupedVirtuoso,
-  type GroupedVirtuosoHandle,
-  type ScrollerProps,
-} from "react-virtuoso";
+import { GroupedVirtuoso, type GroupedVirtuosoHandle, type ScrollerProps } from "react-virtuoso";
 import { useShallow } from "zustand/react/shallow";
-import { AtSign, Copy, ExternalLink, MoveRight, Pencil, Trash2 } from "lucide-react";
 
 import "./grouped-volume-list.css";
+import { ContextMenu, type ContextMenuItem } from "@/components";
+import { buildChapterMentionTag } from "@/features/assistant/lib/mention-text";
+import type { SummaryStatusItem } from "@/lib/api-client";
+import type {
+  ChapterListItem as ChapterListItemData,
+  VolumeWithChapters,
+} from "@/lib/chapter.types";
+
+import { useWritingStore } from "../store/use-writing-store";
 import { ChapterListItem, SortableChapterListItem } from "./chapter-list-item";
-import { VolumeHeader } from "./volume-header";
 import {
   resolveInitialCurrentChapterNavigation,
   resolveGroupedVolumeListScrollRequest,
   type GroupedVolumeListScrollRequest,
   type GroupedVolumeListScrollTarget,
 } from "./grouped-volume-list-focus";
-import {
-  type BottomAnchoredScrollAdjustment,
-  getBottomAnchoredScrollAdjustmentForShrink,
-  type GroupedVolumeListViewportMetrics,
-} from "./grouped-volume-list-scroll";
 import {
   buildGroupedVolumeListModel,
   getCollapseScrollGroupIndex,
@@ -58,11 +54,12 @@ import {
   shouldAnchorCollapsedGroupScroll,
   type GroupedVolumeListItem,
 } from "./grouped-volume-list-model";
-import { ContextMenu, type ContextMenuItem } from "@/components";
-import { buildChapterMentionTag } from "@/features/assistant/lib/mention-text";
-import { useWritingStore } from "../store/use-writing-store";
-import type { ChapterListItem as ChapterListItemData, VolumeWithChapters } from "@/lib/chapter.types";
-import type { SummaryStatusItem } from "@/lib/api-client";
+import {
+  type BottomAnchoredScrollAdjustment,
+  getBottomAnchoredScrollAdjustmentForShrink,
+  type GroupedVolumeListViewportMetrics,
+} from "./grouped-volume-list-scroll";
+import { VolumeHeader } from "./volume-header";
 
 const SCROLLBAR_HIDE_DELAY = 5000;
 const SCROLLBAR_HOT_ZONE_WIDTH = 20;
@@ -91,7 +88,7 @@ const GroupedVolumeListScroller = forwardRef<HTMLDivElement, ScrollerProps>(
         scrollerRef.current = node;
         assignForwardedRef(forwardedRef, node);
       },
-      [forwardedRef]
+      [forwardedRef],
     );
 
     useEffect(() => {
@@ -129,7 +126,7 @@ const GroupedVolumeListScroller = forwardRef<HTMLDivElement, ScrollerProps>(
 
         const thumbHeight = Math.max(
           SCROLLBAR_MIN_THUMB_HEIGHT,
-          Math.round((scroller.clientHeight / scroller.scrollHeight) * scroller.clientHeight)
+          Math.round((scroller.clientHeight / scroller.scrollHeight) * scroller.clientHeight),
         );
         const trackTravel = Math.max(1, scroller.clientHeight - thumbHeight);
         const thumbTop = (scroller.scrollTop / maxScrollTop) * trackTravel;
@@ -151,7 +148,7 @@ const GroupedVolumeListScroller = forwardRef<HTMLDivElement, ScrollerProps>(
 
       const observeMeasuredElements = () => {
         const measuredElements = scroller.querySelectorAll(
-          '[data-testid="virtuoso-item-list"], [data-testid="virtuoso-top-item-list"], [data-viewport-type]'
+          '[data-testid="virtuoso-item-list"], [data-testid="virtuoso-top-item-list"], [data-viewport-type]',
         );
         measuredElements.forEach((element) => resizeObserver.observe(element));
       };
@@ -228,11 +225,10 @@ const GroupedVolumeListScroller = forwardRef<HTMLDivElement, ScrollerProps>(
 
         event.preventDefault();
         const scrollDelta =
-          ((event.clientY - dragState.startY) / dragState.trackTravel) *
-          dragState.maxScrollTop;
+          ((event.clientY - dragState.startY) / dragState.trackTravel) * dragState.maxScrollTop;
         scroller.scrollTop = Math.min(
           dragState.maxScrollTop,
-          Math.max(0, dragState.startScrollTop + scrollDelta)
+          Math.max(0, dragState.startScrollTop + scrollDelta),
         );
         showScrollbar();
       };
@@ -301,10 +297,13 @@ const GroupedVolumeListScroller = forwardRef<HTMLDivElement, ScrollerProps>(
         style={style}
       >
         {children}
-        <div ref={thumbRef} className="grouped-volume-list-scrollbar-thumb" />
+        <div
+          ref={thumbRef}
+          className="grouped-volume-list-scrollbar-thumb"
+        />
       </div>
     );
-  }
+  },
 );
 
 const GROUPED_VOLUME_LIST_COMPONENTS = {
@@ -388,7 +387,7 @@ export function GroupedVolumeList({
       isDragMode: state.isDragMode,
       dragOrderMap: state.isDragMode ? state.dragOrderMap : EMPTY_DRAG_ORDER_MAP,
       reorderChapters: state.reorderChapters,
-    }))
+    })),
   );
 
   const virtuosoRef = useRef<GroupedVirtuosoHandle>(null);
@@ -407,11 +406,11 @@ export function GroupedVolumeList({
 
   const listModel = useMemo(
     () => buildGroupedVolumeListModel({ volumes, expandedVolumeIds }),
-    [expandedVolumeIds, volumes]
+    [expandedVolumeIds, volumes],
   );
   const structureSignature = useMemo(
     () => getGroupedVolumeListStructureSignature(volumes, expandedVolumeIds),
-    [expandedVolumeIds, volumes]
+    [expandedVolumeIds, volumes],
   );
   const viewportMetrics = useMemo<GroupedVolumeListViewportMetrics>(
     () => ({
@@ -419,7 +418,7 @@ export function GroupedVolumeList({
       itemCount: listModel.items.length,
       visibleRowCount: volumes.length + listModel.items.length,
     }),
-    [listModel.items.length, volumes.length]
+    [listModel.items.length, volumes.length],
   );
   const groupCountsSignature = listModel.groupCounts.join(",");
   const previousStructureSignatureRef = useRef<string | null>(null);
@@ -431,7 +430,7 @@ export function GroupedVolumeList({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   const handleScrollerRef = useCallback((ref: HTMLElement | Window | null) => {
@@ -488,12 +487,12 @@ export function GroupedVolumeList({
         scrollerElementRef.current.scrollTop = 0;
       }
     },
-    []
+    [],
   );
 
   const getStickyGroupIndex = useCallback(() => {
     const stickyGroup = scrollerElementRef.current?.querySelector<HTMLElement>(
-      '[data-testid="virtuoso-top-item-list"] [data-item-index]'
+      '[data-testid="virtuoso-top-item-list"] [data-item-index]',
     );
     const rawIndex = stickyGroup?.dataset.itemIndex;
     if (!rawIndex) {
@@ -507,7 +506,7 @@ export function GroupedVolumeList({
   const getRegularGroupTop = useCallback((groupIndex: number) => {
     return scrollerElementRef.current
       ?.querySelector<HTMLElement>(
-        `[data-testid="virtuoso-item-list"] [data-item-index="${groupIndex}"]:not([data-item-group-index])`
+        `[data-testid="virtuoso-item-list"] [data-item-index="${groupIndex}"]:not([data-item-group-index])`,
       )
       ?.getBoundingClientRect().top;
   }, []);
@@ -523,7 +522,7 @@ export function GroupedVolumeList({
 
     const scroller = scrollerElementRef.current;
     const groupElement = scroller?.querySelector<HTMLElement>(
-      `[data-testid="virtuoso-item-list"] [data-item-index="${groupIndex}"]:not([data-item-group-index])`
+      `[data-testid="virtuoso-item-list"] [data-item-index="${groupIndex}"]:not([data-item-group-index])`,
     );
 
     if (scroller && groupElement) {
@@ -592,7 +591,7 @@ export function GroupedVolumeList({
         lastAutoScrolledChapterKeyRef.current = currentChapterScrollKey;
         lastHandledInitialCurrentChapterNavigationKeyRef.current =
           initialCurrentChapterNavigationKey;
-      })
+      }),
     );
 
     return () => {
@@ -642,7 +641,7 @@ export function GroupedVolumeList({
         if (scrollRequest.type === "chapter" && currentChapterScrollKey) {
           lastAutoScrolledChapterKeyRef.current = currentChapterScrollKey;
         }
-      })
+      }),
     );
 
     return () => {
@@ -687,7 +686,7 @@ export function GroupedVolumeList({
         applyScrollTarget(adjustment);
         refreshScrollbar();
         frameIds.push(window.requestAnimationFrame(refreshScrollbar));
-      })
+      }),
     );
 
     return () => {
@@ -719,7 +718,7 @@ export function GroupedVolumeList({
       window.requestAnimationFrame(() => {
         run();
         frameIds.push(window.requestAnimationFrame(run));
-      })
+      }),
     );
 
     return () => {
@@ -750,7 +749,7 @@ export function GroupedVolumeList({
 
       onToggleVolume(volumeId);
     },
-    [expandedVolumeIds, getRegularGroupTop, getStickyGroupIndex, onToggleVolume, volumes]
+    [expandedVolumeIds, getRegularGroupTop, getStickyGroupIndex, onToggleVolume, volumes],
   );
 
   const handleSortableDragEnd = useCallback(
@@ -773,7 +772,7 @@ export function GroupedVolumeList({
 
       reorderChapters(oldIndex, newIndex, chapterIds);
     },
-    [isAgentLocked, onLockedAction, reorderChapters]
+    [isAgentLocked, onLockedAction, reorderChapters],
   );
 
   const handleRequestContextMenu = useCallback(
@@ -786,7 +785,7 @@ export function GroupedVolumeList({
       setContextMenuChapterId(chapterId);
       setContextMenuChapterTitle(chapterTitle);
     },
-    [isAgentLocked, onLockedAction]
+    [isAgentLocked, onLockedAction],
   );
 
   const handleLongPressStart = useCallback(() => {
@@ -810,7 +809,7 @@ export function GroupedVolumeList({
       }
       onOpenInNewTab(chapterId, title);
     },
-    [isAgentLocked, onLockedAction, onOpenInNewTab]
+    [isAgentLocked, onLockedAction, onOpenInNewTab],
   );
 
   const handleDuplicate = useCallback(
@@ -821,7 +820,7 @@ export function GroupedVolumeList({
       }
       onDuplicate(chapterId, title);
     },
-    [isAgentLocked, onDuplicate, onLockedAction]
+    [isAgentLocked, onDuplicate, onLockedAction],
   );
 
   const handleStartRename = useCallback(
@@ -832,7 +831,7 @@ export function GroupedVolumeList({
       }
       setRenamingChapterId(chapterId);
     },
-    [isAgentLocked, onLockedAction]
+    [isAgentLocked, onLockedAction],
   );
 
   const handleRenameConfirm = useCallback(
@@ -840,7 +839,7 @@ export function GroupedVolumeList({
       onRenameChapter(chapterId, newTitle);
       setRenamingChapterId(null);
     },
-    [onRenameChapter]
+    [onRenameChapter],
   );
 
   const handleRenameCancel = useCallback(() => {
@@ -858,7 +857,7 @@ export function GroupedVolumeList({
         onDeleteChapter(chapter);
       }
     },
-    [isAgentLocked, listModel, onDeleteChapter, onLockedAction]
+    [isAgentLocked, listModel, onDeleteChapter, onLockedAction],
   );
 
   const handleMoveToVolume = useCallback(
@@ -872,7 +871,7 @@ export function GroupedVolumeList({
         onMoveChapterToVolume(chapter);
       }
     },
-    [isAgentLocked, listModel, onLockedAction, onMoveChapterToVolume]
+    [isAgentLocked, listModel, onLockedAction, onMoveChapterToVolume],
   );
 
   const menuItems = useMemo<ContextMenuItem[]>(() => {
@@ -885,8 +884,7 @@ export function GroupedVolumeList({
         id: "openInNewTab",
         label: t("chapterMenu.openInNewTab"),
         icon: ExternalLink,
-        onClick: () =>
-          handleOpenInNewTab(contextMenuChapterId, contextMenuChapterTitle ?? ""),
+        onClick: () => handleOpenInNewTab(contextMenuChapterId, contextMenuChapterTitle ?? ""),
       });
     }
 
@@ -895,10 +893,13 @@ export function GroupedVolumeList({
       label: t("chapterMenu.addToConversation"),
       icon: AtSign,
       disabled: !onAddToConversation,
-      onClick: () => onAddToConversation?.(buildChapterMentionTag({
-        chapterId: contextMenuChapterId,
-        label: (contextMenuChapterTitle ?? "").trim() || t("writing.untitledChapter"),
-      })),
+      onClick: () =>
+        onAddToConversation?.(
+          buildChapterMentionTag({
+            chapterId: contextMenuChapterId,
+            label: (contextMenuChapterTitle ?? "").trim() || t("writing.untitledChapter"),
+          }),
+        ),
     });
 
     items.push(
@@ -906,8 +907,7 @@ export function GroupedVolumeList({
         id: "duplicate",
         label: t("chapterMenu.duplicate"),
         icon: Copy,
-        onClick: () =>
-          handleDuplicate(contextMenuChapterId, contextMenuChapterTitle ?? ""),
+        onClick: () => handleDuplicate(contextMenuChapterId, contextMenuChapterTitle ?? ""),
       },
       {
         id: "rename",
@@ -927,7 +927,7 @@ export function GroupedVolumeList({
         icon: Trash2,
         danger: true,
         onClick: () => handleDelete(contextMenuChapterId),
-      }
+      },
     );
 
     return items;
@@ -954,8 +954,15 @@ export function GroupedVolumeList({
 
       if (row.type === "empty") {
         return (
-          <Box px="4" py="3" style={{ borderBottom: "1px solid var(--gray-a4)" }}>
-            <Text size="1" color="gray">
+          <Box
+            px="4"
+            py="3"
+            style={{ borderBottom: "1px solid var(--gray-a4)" }}
+          >
+            <Text
+              size="1"
+              color="gray"
+            >
               {t("volume.empty")}
             </Text>
           </Box>
@@ -991,7 +998,7 @@ export function GroupedVolumeList({
       renamingChapterId,
       summaryStatusMap,
       t,
-    ]
+    ],
   );
 
   const renderGroupHeader = useCallback(
@@ -1039,7 +1046,7 @@ export function GroupedVolumeList({
       renamingVolumeId,
       volumes,
       canDeleteVolume,
-    ]
+    ],
   );
 
   if (isDragMode) {
@@ -1065,7 +1072,10 @@ export function GroupedVolumeList({
             const chapterIds = sortedChapters.map((chapter) => chapter.id);
 
             return (
-              <Box key={volume.id} style={{ minWidth: 0 }}>
+              <Box
+                key={volume.id}
+                style={{ minWidth: 0 }}
+              >
                 <Box
                   style={{
                     position: "sticky",
@@ -1096,8 +1106,15 @@ export function GroupedVolumeList({
                 </Box>
 
                 {isExpanded && sortedChapters.length === 0 ? (
-                  <Box px="4" py="3" style={{ borderBottom: "1px solid var(--gray-a4)" }}>
-                    <Text size="1" color="gray">
+                  <Box
+                    px="4"
+                    py="3"
+                    style={{ borderBottom: "1px solid var(--gray-a4)" }}
+                  >
+                    <Text
+                      size="1"
+                      color="gray"
+                    >
                       {t("volume.empty")}
                     </Text>
                   </Box>
@@ -1110,7 +1127,10 @@ export function GroupedVolumeList({
                     onDragEnd={(event) => handleSortableDragEnd(event, chapterIds)}
                     modifiers={[restrictToVerticalAxis, restrictToParentElement]}
                   >
-                    <SortableContext items={chapterIds} strategy={verticalListSortingStrategy}>
+                    <SortableContext
+                      items={chapterIds}
+                      strategy={verticalListSortingStrategy}
+                    >
                       {sortedChapters.map((chapter) => (
                         <SortableChapterListItem
                           key={chapter.id}

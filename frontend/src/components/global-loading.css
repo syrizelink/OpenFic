@@ -4,7 +4,11 @@
   z-index: 9999;
   background:
     radial-gradient(circle at center, var(--gray-a3) 0, transparent 26%),
-    linear-gradient(180deg, var(--color-background), color-mix(in oklab, var(--color-background) 92%, var(--gray-3)));
+    linear-gradient(
+      180deg,
+      var(--color-background),
+      color-mix(in oklab, var(--color-background) 92%, var(--gray-3))
+    );
 }
 
 .global-loading-stage {

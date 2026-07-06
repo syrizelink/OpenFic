@@ -5,6 +5,7 @@
 import { NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
 import { BookOpen, Database, GitBranch } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
 import "./macro-node.css";
 
 const MACRO_ICONS: Record<string, React.ReactNode> = {

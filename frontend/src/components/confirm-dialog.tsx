@@ -46,16 +46,27 @@ export function ConfirmDialog({
   };
 
   return (
-    <AlertDialog.Root open={open} onOpenChange={onOpenChange}>
+    <AlertDialog.Root
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <AlertDialog.Content maxWidth="400px">
         <AlertDialog.Title>{title}</AlertDialog.Title>
         <AlertDialog.Description size="2">
           <Text color="gray">{description}</Text>
         </AlertDialog.Description>
 
-        <Flex gap="3" mt="4" justify="end">
+        <Flex
+          gap="3"
+          mt="4"
+          justify="end"
+        >
           <AlertDialog.Cancel>
-            <Button variant="soft" color="gray" disabled={loading}>
+            <Button
+              variant="soft"
+              color="gray"
+              disabled={loading}
+            >
               {cancelText ?? t("common.cancel")}
             </Button>
           </AlertDialog.Cancel>

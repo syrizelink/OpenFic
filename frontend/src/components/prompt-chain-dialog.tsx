@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
 import { Badge, Box, Button, Dialog, Flex, ScrollArea, Text, TextField } from "@radix-ui/themes";
 import { Bot, ChevronDown, Search, Terminal, User } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+
 import { Spinner } from "@/components";
 import { countTokens } from "@/lib/tiktoken-utils";
-import type { ReactNode } from "react";
+
 import "./prompt-chain-dialog.css";
 
 export interface PromptChainDialogEntry {
@@ -26,7 +28,10 @@ interface CountedPromptEntry extends PromptChainDialogEntry {
   tokenCount: number;
 }
 
-function getRoleMeta(role: string, t: ReturnType<typeof useTranslation>["t"]): { label: string; Icon: typeof Terminal } {
+function getRoleMeta(
+  role: string,
+  t: ReturnType<typeof useTranslation>["t"],
+): { label: string; Icon: typeof Terminal } {
   if (role === "system") return { label: t("promptChains.roleSystem"), Icon: Terminal };
   if (role === "assistant") return { label: t("promptChains.roleAssistant"), Icon: Bot };
   if (role === "user") return { label: t("promptChains.roleUser"), Icon: User };
@@ -47,9 +52,12 @@ function highlightContent(content: string, query: string): ReactNode {
     if (matchIndex > cursor) parts.push(content.slice(cursor, matchIndex));
     const end = matchIndex + trimmedQuery.length;
     parts.push(
-      <mark className="prompt-chain-dialog-highlight" key={`${matchIndex}-${end}`}>
+      <mark
+        className="prompt-chain-dialog-highlight"
+        key={`${matchIndex}-${end}`}
+      >
         {content.slice(matchIndex, end)}
-      </mark>
+      </mark>,
     );
     cursor = end;
     matchIndex = lowerContent.indexOf(lowerQuery, cursor);
@@ -98,7 +106,7 @@ export function PromptChainDialog({
 
   const totalTokens = useMemo(
     () => countedEntries.reduce((total, entry) => total + entry.tokenCount, 0),
-    [countedEntries]
+    [countedEntries],
   );
 
   const isBusy = isLoading || (open && !isLoading && countedEntries.length !== entries.length);
@@ -115,19 +123,37 @@ export function PromptChainDialog({
   const resolvedTitle = title ?? t("promptChainDialog.title");
 
   return (
-    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={handleOpenChange}
+    >
       <Dialog.Content className="prompt-chain-dialog-content">
-        <Flex justify="between" align="start" gap="4" mb="3">
+        <Flex
+          justify="between"
+          align="start"
+          gap="4"
+          mb="3"
+        >
           <Box>
             <Dialog.Title>{resolvedTitle}</Dialog.Title>
-            <Dialog.Description size="2" color="gray">
-              {description || (isBusy
-                ? t("promptChainDialog.loadingWithToken")
-                : t("promptChainDialog.summary", { count: countedEntries.length, tokens: totalTokens }))}
+            <Dialog.Description
+              size="2"
+              color="gray"
+            >
+              {description ||
+                (isBusy
+                  ? t("promptChainDialog.loadingWithToken")
+                  : t("promptChainDialog.summary", {
+                      count: countedEntries.length,
+                      tokens: totalTokens,
+                    }))}
             </Dialog.Description>
           </Box>
           {!isBusy ? (
-            <Badge color="gray" variant="soft">
+            <Badge
+              color="gray"
+              variant="soft"
+            >
               {totalTokens} tokens
             </Badge>
           ) : null}
@@ -146,39 +172,88 @@ export function PromptChainDialog({
         </TextField.Root>
 
         {isBusy ? (
-          <Flex className="prompt-chain-dialog-loading" align="center" justify="center">
+          <Flex
+            className="prompt-chain-dialog-loading"
+            align="center"
+            justify="center"
+          >
             <Spinner size={18} />
-            <Text color="gray" size="2">{t("promptChainDialog.loading")}</Text>
+            <Text
+              color="gray"
+              size="2"
+            >
+              {t("promptChainDialog.loading")}
+            </Text>
           </Flex>
         ) : (
           <ScrollArea className="prompt-chain-dialog-scroll-area">
-            <Flex className="prompt-chain-dialog-list" direction="column" gap="2">
+            <Flex
+              className="prompt-chain-dialog-list"
+              direction="column"
+              gap="2"
+            >
               {countedEntries.map((entry, index) => {
                 const { label, Icon } = getRoleMeta(entry.role, t);
                 const isExpanded = expandedIndexes.has(index);
                 return (
-                  <Box className="prompt-chain-dialog-entry" data-expanded={isExpanded} key={`${entry.role}-${index}`}>
+                  <Box
+                    className="prompt-chain-dialog-entry"
+                    data-expanded={isExpanded}
+                    key={`${entry.role}-${index}`}
+                  >
                     <button
                       type="button"
                       className="prompt-chain-dialog-entry-header"
                       aria-expanded={isExpanded}
                       onClick={() => toggleEntry(index)}
                     >
-                      <Flex align="center" gap="2" className="prompt-chain-dialog-entry-title">
-                        <Icon size={14} aria-hidden="true" />
-                        <Text size="2" weight="medium">{entry.name || label}</Text>
-                        <Badge color="gray" variant="soft">{label}</Badge>
+                      <Flex
+                        align="center"
+                        gap="2"
+                        className="prompt-chain-dialog-entry-title"
+                      >
+                        <Icon
+                          size={14}
+                          aria-hidden="true"
+                        />
+                        <Text
+                          size="2"
+                          weight="medium"
+                        >
+                          {entry.name || label}
+                        </Text>
+                        <Badge
+                          color="gray"
+                          variant="soft"
+                        >
+                          {label}
+                        </Badge>
                       </Flex>
-                      <Flex align="center" gap="2">
-                        <Text size="1" color="gray">{entry.tokenCount} tokens</Text>
+                      <Flex
+                        align="center"
+                        gap="2"
+                      >
+                        <Text
+                          size="1"
+                          color="gray"
+                        >
+                          {entry.tokenCount} tokens
+                        </Text>
                         <span className="prompt-chain-dialog-toggle-icon">
-                          <ChevronDown size={14} aria-hidden="true" />
+                          <ChevronDown
+                            size={14}
+                            aria-hidden="true"
+                          />
                         </span>
                       </Flex>
                     </button>
                     {isExpanded ? (
                       <Box className="prompt-chain-dialog-entry-content">
-                        {entry.content ? highlightContent(entry.content, searchQuery) : <Text color="gray">{t("promptChainDialog.emptyContent")}</Text>}
+                        {entry.content ? (
+                          highlightContent(entry.content, searchQuery)
+                        ) : (
+                          <Text color="gray">{t("promptChainDialog.emptyContent")}</Text>
+                        )}
                       </Box>
                     ) : null}
                   </Box>
@@ -188,9 +263,17 @@ export function PromptChainDialog({
           </ScrollArea>
         )}
 
-        <Flex mt="4" justify="end">
+        <Flex
+          mt="4"
+          justify="end"
+        >
           <Dialog.Close>
-            <Button color="gray" variant="soft">{t("common.close")}</Button>
+            <Button
+              color="gray"
+              variant="soft"
+            >
+              {t("common.close")}
+            </Button>
           </Dialog.Close>
         </Flex>
       </Dialog.Content>

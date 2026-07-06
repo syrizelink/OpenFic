@@ -8,7 +8,7 @@ interface RootContainer extends HTMLElement {
 
 export function getOrCreateRoot(
   container: HTMLElement,
-  createRootImpl: (container: HTMLElement) => Root = createRoot
+  createRootImpl: (container: HTMLElement) => Root = createRoot,
 ): Root {
   const rootContainer = container as RootContainer;
 

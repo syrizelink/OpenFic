@@ -24,18 +24,26 @@ export function ToolApprovalSpecialPanel({
       icon={<ShieldAlert size={15} />}
       title={t("assistant.specialPanels.approvalTitle")}
       summary={panel.summary}
-      actions={!onApproveTool
-        ? undefined
-        : (
+      actions={
+        !onApproveTool ? undefined : (
           <>
-            <Button size="1" variant="soft" color="gray" onClick={() => onApproveTool(panel.approval.approval_id, false)}>
+            <Button
+              size="1"
+              variant="soft"
+              color="gray"
+              onClick={() => onApproveTool(panel.approval.approval_id, false)}
+            >
               {t("assistant.specialPanels.deny")}
             </Button>
-            <Button size="1" onClick={() => onApproveTool(panel.approval.approval_id, true)}>
+            <Button
+              size="1"
+              onClick={() => onApproveTool(panel.approval.approval_id, true)}
+            >
               {t("assistant.specialPanels.approve")}
             </Button>
           </>
-        )}
+        )
+      }
     />
   );
 }

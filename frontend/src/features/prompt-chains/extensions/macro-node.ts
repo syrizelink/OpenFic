@@ -6,6 +6,7 @@
 
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
+
 import { MacroNodeView } from "./macro-node-view";
 
 export interface MacroNodeAttributes {

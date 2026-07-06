@@ -1,16 +1,12 @@
 import { Box, Flex, Text } from "@radix-ui/themes";
-import i18n from "@/i18n";
 
+import i18n from "@/i18n";
 import type { AgentMessage } from "@/lib/agent.types";
 
 import "./ask-user-tool-message.css";
 
-import {
-  getAskUserQuestionAnswerPairs,
-} from "../shared/tool-message-utils";
-import {
-  ToolBody,
-} from "../shared/tool-message-shared";
+import { ToolBody } from "../shared/tool-message-shared";
+import { getAskUserQuestionAnswerPairs } from "../shared/tool-message-utils";
 
 interface AskUserToolMessageProps {
   message: AgentMessage;
@@ -24,9 +20,16 @@ export function AskUserToolMessage({ message }: AskUserToolMessageProps) {
   return (
     <ToolBody>
       <Box className="agent-ask-user-panel">
-        <Flex align="center" justify="between" gap="3" className="agent-ask-user-panel-header">
+        <Flex
+          align="center"
+          justify="between"
+          gap="3"
+          className="agent-ask-user-panel-header"
+        >
           <Text className="agent-ask-user-panel-title">{i18n.t("assistant.tools.askUser")}</Text>
-          <Text className="agent-ask-user-panel-count">{i18n.t("assistant.tools.questionCount", { count: pairs.length })}</Text>
+          <Text className="agent-ask-user-panel-count">
+            {i18n.t("assistant.tools.questionCount", { count: pairs.length })}
+          </Text>
         </Flex>
         <ol className="agent-ask-user-list">
           {pairs.map((pair, index) => {
@@ -39,9 +42,7 @@ export function AskUserToolMessage({ message }: AskUserToolMessageProps) {
               >
                 <span className="agent-ask-user-index">{index + 1}</span>
                 <Box className="agent-ask-user-item-main">
-                  <Text className="agent-ask-user-item-title">
-                    {promptText}
-                  </Text>
+                  <Text className="agent-ask-user-item-title">{promptText}</Text>
                   <Box className="agent-ask-user-answer-block">
                     <Box className="agent-ask-user-answer-value agent-tool-content-plain-text">
                       {pair.answer}

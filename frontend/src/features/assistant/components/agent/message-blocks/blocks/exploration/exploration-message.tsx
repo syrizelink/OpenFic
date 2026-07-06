@@ -1,15 +1,13 @@
 import NumberFlow from "@number-flow/react";
-import { AnimatePresence, motion } from "motion/react";
-import { memo, useState } from "react";
 import { Box, Text } from "@radix-ui/themes";
 import { Search } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { memo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type {
-  AgentBlockDisplayMessage,
-} from "../../../display/display-message-types";
-import type { ExplorationSummary } from "../../../display/agent-message-display-items";
 import { AgentMessageRenderer } from "../../../agent-message-renderer";
+import type { ExplorationSummary } from "../../../display/agent-message-display-items";
+import type { AgentBlockDisplayMessage } from "../../../display/display-message-types";
 import {
   MessageBlockContent,
   MessageBlockHeader,
@@ -34,15 +32,17 @@ const SUMMARY_ITEMS = [
 ] as const;
 
 function areExplorationSummariesEqual(prev: ExplorationSummary, next: ExplorationSummary) {
-  return prev.chapterCount === next.chapterCount
-    && prev.listCount === next.listCount
-    && prev.contextCount === next.contextCount
-    && prev.infoCount === next.infoCount;
+  return (
+    prev.chapterCount === next.chapterCount &&
+    prev.listCount === next.listCount &&
+    prev.contextCount === next.contextCount &&
+    prev.infoCount === next.infoCount
+  );
 }
 
 function areExplorationMessagePropsEqual(
   prev: ExplorationMessageProps,
-  next: ExplorationMessageProps
+  next: ExplorationMessageProps,
 ) {
   if (prev.messages === next.messages) {
     return areExplorationSummariesEqual(prev.summary, next.summary);
@@ -58,23 +58,24 @@ function areExplorationMessagePropsEqual(
   return areExplorationSummariesEqual(prev.summary, next.summary);
 }
 
-function ExplorationMessageView({
-  messages,
-  summary,
-}: ExplorationMessageProps) {
+function ExplorationMessageView({ messages, summary }: ExplorationMessageProps) {
   const { t } = useTranslation();
-  const isStreaming = messages.some((message) => Boolean(message.isStreaming || message.status === "running"));
+  const isStreaming = messages.some((message) =>
+    Boolean(message.isStreaming || message.status === "running"),
+  );
   const hasContent = messages.length > 0;
   const [isExpanded, setIsExpanded] = useState(false);
 
   const summaryItems = SUMMARY_ITEMS.flatMap((item) => {
     const value = summary[item.key];
     if (value <= 0) return [];
-    return [{
-      key: item.key,
-      value,
-       label: t(item.labelKey),
-    }];
+    return [
+      {
+        key: item.key,
+        value,
+        label: t(item.labelKey),
+      },
+    ];
   });
 
   const handleToggleExpanded = () => {
@@ -97,18 +98,28 @@ function ExplorationMessageView({
         onToggle={handleToggleExpanded}
       >
         <MessageBlockHeaderMain className="agent-exploration-header-main">
-          <Search size={16} className="agent-message-shell-icon agent-exploration-icon" />
+          <Search
+            size={16}
+            className="agent-message-shell-icon agent-exploration-icon"
+          />
           <Text
             size="1"
             weight="medium"
-            className={isStreaming ? "agent-message-shell-title agent-exploration-title text-shimmer" : "agent-message-shell-title agent-exploration-title"}
+            className={
+              isStreaming
+                ? "agent-message-shell-title agent-exploration-title text-shimmer"
+                : "agent-message-shell-title agent-exploration-title"
+            }
             data-text={t("assistant.explorationTitle")}
           >
             {t("assistant.explorationTitle")}
           </Text>
           <MessageBlockMeta className="agent-exploration-meta">
             {summaryItems.length > 0 ? (
-              <AnimatePresence initial={false} mode="popLayout">
+              <AnimatePresence
+                initial={false}
+                mode="popLayout"
+              >
                 {summaryItems.map((item) => (
                   <motion.span
                     key={item.key}
@@ -129,7 +140,10 @@ function ExplorationMessageView({
                       format={{ maximumFractionDigits: 0 }}
                       className="agent-exploration-summary-number"
                     />
-                    <motion.span layout className="agent-exploration-summary-label">
+                    <motion.span
+                      layout
+                      className="agent-exploration-summary-label"
+                    >
                       {item.label}
                     </motion.span>
                   </motion.span>
@@ -140,7 +154,9 @@ function ExplorationMessageView({
               <MessageExpandButton
                 className="agent-exploration-expand-button"
                 expanded={isExpanded}
-                label={isExpanded ? t("assistant.collapseExploration") : t("assistant.expandExploration")}
+                label={
+                  isExpanded ? t("assistant.collapseExploration") : t("assistant.expandExploration")
+                }
               />
             ) : null}
           </MessageBlockMeta>
@@ -165,7 +181,4 @@ function ExplorationMessageView({
   );
 }
 
-export const ExplorationMessage = memo(
-  ExplorationMessageView,
-  areExplorationMessagePropsEqual
-);
+export const ExplorationMessage = memo(ExplorationMessageView, areExplorationMessagePropsEqual);

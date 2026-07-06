@@ -1,5 +1,5 @@
-import type { ComponentProps } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import type { ComponentProps } from "react";
 
 import "./circular-progress.css";
 
@@ -33,7 +33,10 @@ export function CircularProgress({
   const rootClassName = ["circular-progress", className].filter(Boolean).join(" ");
 
   return (
-    <span {...props} className={rootClassName}>
+    <span
+      {...props}
+      className={rootClassName}
+    >
       <svg
         className="circular-progress__svg"
         width={size}
@@ -63,9 +66,7 @@ export function CircularProgress({
           strokeDasharray={circumference}
           animate={{ strokeDashoffset }}
           transition={
-            shouldReduceMotion
-              ? { duration: 0 }
-              : { duration: 0.35, ease: [0.22, 1, 0.36, 1] }
+            shouldReduceMotion ? { duration: 0 } : { duration: 0.35, ease: [0.22, 1, 0.36, 1] }
           }
           transform={`rotate(-90 ${center} ${center})`}
         />

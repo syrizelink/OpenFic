@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { AgentPendingMessage } from "@/lib/agent.types";
+
 import { InlineMentionText } from "./inline-mention-text";
 
 interface AgentPendingMessageCardProps {

@@ -5,11 +5,12 @@
  */
 
 import { Box, Flex, Text } from "@radix-ui/themes";
-import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+
+import { LabeledSelect } from "@/components/select";
 import { fetchProjects } from "@/lib/api-client";
 import type { Project } from "@/lib/project.types";
-import { LabeledSelect } from "@/components/select";
 
 interface ProjectSelectorProps {
   /** 当前选中的项目 ID */
@@ -20,11 +21,7 @@ interface ProjectSelectorProps {
   disabled?: boolean;
 }
 
-export function ProjectSelector({
-  value,
-  onChange,
-  disabled = false,
-}: ProjectSelectorProps) {
+export function ProjectSelector({ value, onChange, disabled = false }: ProjectSelectorProps) {
   const { t } = useTranslation();
 
   // 获取项目列表
@@ -47,7 +44,10 @@ export function ProjectSelector({
         background: "var(--gray-a2)",
       }}
     >
-      <Flex align="center" gap="3">
+      <Flex
+        align="center"
+        gap="3"
+      >
         <LabeledSelect
           label={t("worldInfo.selectProject")}
           value={value || ""}
@@ -63,7 +63,10 @@ export function ProjectSelector({
           triggerStyle={{ minWidth: 200 }}
         />
         {selectedProject && (
-          <Text size="2" color="gray">
+          <Text
+            size="2"
+            color="gray"
+          >
             {selectedProject.title} 的世界书
           </Text>
         )}

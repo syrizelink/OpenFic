@@ -1,9 +1,6 @@
-import type {
-  PlanPayload,
-  PlanStatus,
-  ToolMessageContentMode,
-} from "../shared/tool-message-utils";
 import i18n from "@/i18n";
+
+import type { PlanPayload, PlanStatus, ToolMessageContentMode } from "../shared/tool-message-utils";
 
 export type PlanToolName = "create_plan" | "update_plan" | "get_plan" | "list_plan";
 export type PlanToolDetailKind = "topic" | "count";
@@ -88,7 +85,9 @@ export function buildPlanChecklistItems(plan: PlanPayload): PlanChecklistItem[] 
 }
 
 export function getPlanTodoToggleLabel(expanded: boolean): string {
-  return expanded ? i18n.t("assistant.tools.collapsePlanSteps") : i18n.t("assistant.tools.expandPlanSteps");
+  return expanded
+    ? i18n.t("assistant.tools.collapsePlanSteps")
+    : i18n.t("assistant.tools.expandPlanSteps");
 }
 
 export function getPlanSummaryLabel(statuses: PlanStatus[]): string {
@@ -105,14 +104,13 @@ export function getPlanSummaryLabel(statuses: PlanStatus[]): string {
 
 export function buildUpdatePlanDisplayRows(
   plan: PlanPayload,
-  maxVisibleTodos = 8
+  maxVisibleTodos = 8,
 ): PlanDisplayRow[] {
   const checklistItems = buildPlanChecklistItems(plan);
   if (checklistItems.length === 0) return [];
 
   const firstInProgressIndex = checklistItems.findIndex((item) => item.status === "in_progress");
-  const topItem =
-    firstInProgressIndex >= 0 ? checklistItems[firstInProgressIndex] : undefined;
+  const topItem = firstInProgressIndex >= 0 ? checklistItems[firstInProgressIndex] : undefined;
   const itemsBeforeTop =
     firstInProgressIndex >= 0 ? checklistItems.slice(0, firstInProgressIndex) : [];
   const itemsAfterTop =
@@ -147,7 +145,7 @@ export function buildUpdatePlanDisplayRows(
       kind: "todo" as const,
       id: item.id,
       item,
-    }))
+    })),
   );
 
   if (omittedItems.length > 0) {

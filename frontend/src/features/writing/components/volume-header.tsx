@@ -1,4 +1,3 @@
-import { useCallback, useMemo, useState, type MouseEvent } from "react";
 import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import {
   AtSign,
@@ -12,6 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { useCallback, useMemo, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ContextMenu, type ContextMenuItem } from "@/components";
@@ -129,7 +129,7 @@ export function VolumeHeader({
       }
       setContextMenuPos(position);
     },
-    [isAgentLocked, onLockedAction]
+    [isAgentLocked, onLockedAction],
   );
 
   const menuItems = useMemo<ContextMenuItem[]>(() => {
@@ -157,10 +157,13 @@ export function VolumeHeader({
         label: t("volume.menu.addToConversation"),
         icon: AtSign,
         disabled: !onAddToConversation,
-        onClick: () => onAddToConversation?.(buildVolumeMentionTag({
-          volumeId: volume.id,
-          label: volume.title.trim() || t("volume.untitled"),
-        })),
+        onClick: () =>
+          onAddToConversation?.(
+            buildVolumeMentionTag({
+              volumeId: volume.id,
+              label: volume.title.trim() || t("volume.untitled"),
+            }),
+          ),
       },
       {
         id: "moveUp",
@@ -252,7 +255,13 @@ export function VolumeHeader({
             pointerEvents: "none",
           }}
         />
-        <Flex align="center" gap="2" px="3" py="2" style={{ minWidth: 0 }}>
+        <Flex
+          align="center"
+          gap="2"
+          px="3"
+          py="2"
+          style={{ minWidth: 0 }}
+        >
           <IconButton
             variant="ghost"
             color="gray"
@@ -270,7 +279,10 @@ export function VolumeHeader({
             </motion.div>
           </IconButton>
 
-          <Box style={{ flex: 1, minWidth: 0 }} onClick={onToggle}>
+          <Box
+            style={{ flex: 1, minWidth: 0 }}
+            onClick={onToggle}
+          >
             {isRenaming ? (
               <HeaderRenameInput
                 initialValue={volume.title}
@@ -309,7 +321,11 @@ export function VolumeHeader({
             ) : null}
           </Box>
 
-          <Text size="1" color="gray" style={{ flexShrink: 0 }}>
+          <Text
+            size="1"
+            color="gray"
+            style={{ flexShrink: 0 }}
+          >
             {volume.chapterCount}
           </Text>
 

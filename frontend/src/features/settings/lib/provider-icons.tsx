@@ -5,13 +5,11 @@
  */
 
 import { useState } from "react";
-import { Spinner } from "@/components";
 
+import { Spinner } from "@/components";
 import type { ProviderType } from "@/lib/model.types";
-import {
-  getCatalogProviderIconUrl,
-  getUploadedProviderIconUrl,
-} from "./provider-icon-url";
+
+import { getCatalogProviderIconUrl, getUploadedProviderIconUrl } from "./provider-icon-url";
 
 /**
  * 提供商图标组件

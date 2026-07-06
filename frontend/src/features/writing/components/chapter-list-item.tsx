@@ -5,16 +5,17 @@
  * 普通滚动路径不接入 dnd-kit，只在拖拽模式下启用 sortable。
  */
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Box, Flex, Text, Tooltip } from "@radix-ui/themes";
-import { GripVertical, MoreHorizontal } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Box, Flex, Text, Tooltip } from "@radix-ui/themes";
+import { GripVertical, MoreHorizontal } from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { formatRelativeTime } from "@/lib/time-utils";
-import type { ChapterListItem as ChapterListItemType } from "@/lib/chapter.types";
 import type { SummaryStatus } from "@/lib/api-client";
+import type { ChapterListItem as ChapterListItemType } from "@/lib/chapter.types";
+import { formatRelativeTime } from "@/lib/time-utils";
+
 import { SummaryStatusDot } from "./summary-status-dot";
 
 function RenameInput({
@@ -55,7 +56,7 @@ function RenameInput({
         onCancel();
       }
     },
-    [handleSubmit, onCancel]
+    [handleSubmit, onCancel],
   );
 
   return (
@@ -95,7 +96,7 @@ interface ChapterListItemBaseProps {
   onRequestContextMenu?: (
     chapterId: string,
     chapterTitle: string,
-    position: { x: number; y: number }
+    position: { x: number; y: number },
   ) => void;
   isMenuOpen?: boolean;
   onRenameChapter?: (chapterId: string, newTitle: string) => void;
@@ -133,7 +134,11 @@ function ChapterRowContent({
   const showMenuTrigger = Boolean(onOpenMenu);
 
   return (
-    <Flex gap="2" align="center" style={{ minWidth: 0, padding: "12px 18px" }}>
+    <Flex
+      gap="2"
+      align="center"
+      style={{ minWidth: 0, padding: "12px 18px" }}
+    >
       {dragHandle}
 
       <Box style={{ flex: 1, minWidth: 0 }}>
@@ -165,18 +170,33 @@ function ChapterRowContent({
           </Text>
         )}
 
-        <Flex gap="2" mt="1">
-          <Text size="1" color={textColor ? undefined : "gray"} style={{ color: textColor }}>
+        <Flex
+          gap="2"
+          mt="1"
+        >
+          <Text
+            size="1"
+            color={textColor ? undefined : "gray"}
+            style={{ color: textColor }}
+          >
             {chapter.wordCount} {t("writing.words")}
           </Text>
-          <Text size="1" color={textColor ? undefined : "gray"} style={{ color: textColor }}>
+          <Text
+            size="1"
+            color={textColor ? undefined : "gray"}
+            style={{ color: textColor }}
+          >
             · {formatRelativeTime(chapter.updatedAt)}
           </Text>
         </Flex>
       </Box>
 
       {showMenuTrigger ? (
-        <Flex align="center" gap="4" style={{ flexShrink: 0 }}>
+        <Flex
+          align="center"
+          gap="4"
+          style={{ flexShrink: 0 }}
+        >
           <Tooltip content={t("chapterMenu.moreActions")}>
             <button
               type="button"
@@ -209,10 +229,16 @@ function ChapterRowContent({
               <MoreHorizontal size={14} />
             </button>
           </Tooltip>
-          <SummaryStatusDot status={summaryStatus} isStale={summaryIsStale} />
+          <SummaryStatusDot
+            status={summaryStatus}
+            isStale={summaryIsStale}
+          />
         </Flex>
       ) : (
-        <SummaryStatusDot status={summaryStatus} isStale={summaryIsStale} />
+        <SummaryStatusDot
+          status={summaryStatus}
+          isStale={summaryIsStale}
+        />
       )}
     </Flex>
   );
@@ -243,7 +269,8 @@ function ChapterListItemComponent({
   const isDarkPressed = isLongPressActive;
   const isPendingPressed = isLongPressPending && !isLongPressActive;
   const textColor = isDarkPressed ? "var(--gray-1)" : undefined;
-  const isMenuButtonVisible = Boolean(onRequestContextMenu) && !isRenaming && (isHovered || isMenuOpen);
+  const isMenuButtonVisible =
+    Boolean(onRequestContextMenu) && !isRenaming && (isHovered || isMenuOpen);
 
   const style = useMemo(
     () => ({
@@ -268,7 +295,7 @@ function ChapterListItemComponent({
       WebkitTapHighlightColor: "transparent",
       transition: "background-color 0.08s ease, color 0.08s ease, opacity 0.08s ease",
     }),
-    [isActive, isDarkPressed, isPendingPressed, isPressed]
+    [isActive, isDarkPressed, isPendingPressed, isPressed],
   );
 
   useEffect(() => {
@@ -305,7 +332,14 @@ function ChapterListItemComponent({
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", handlePointerCancel);
     };
-  }, [chapter.id, chapter.title, isLongPressActive, isLongPressPending, isRenaming, onRequestContextMenu]);
+  }, [
+    chapter.id,
+    chapter.title,
+    isLongPressActive,
+    isLongPressPending,
+    isRenaming,
+    onRequestContextMenu,
+  ]);
 
   useEffect(
     () => () => {
@@ -313,7 +347,7 @@ function ChapterListItemComponent({
         window.clearTimeout(longPressTimeoutRef.current);
       }
     },
-    []
+    [],
   );
 
   const clearLongPress = useCallback(() => {
@@ -333,7 +367,7 @@ function ChapterListItemComponent({
     (newTitle: string) => {
       onRenameChapter?.(chapter.id, newTitle);
     },
-    [chapter.id, onRenameChapter]
+    [chapter.id, onRenameChapter],
   );
 
   const triggerLongPressMenu = useCallback(() => {
@@ -358,7 +392,7 @@ function ChapterListItemComponent({
         y: event.clientY,
       });
     },
-    [chapter.id, chapter.title, onRequestContextMenu, resetPressState]
+    [chapter.id, chapter.title, onRequestContextMenu, resetPressState],
   );
 
   const handleOpenMenuFromButton = useCallback(
@@ -372,7 +406,7 @@ function ChapterListItemComponent({
         y: rect.bottom + 4,
       });
     },
-    [chapter.id, chapter.title, isRenaming, onRequestContextMenu]
+    [chapter.id, chapter.title, isRenaming, onRequestContextMenu],
   );
 
   const handlePointerDown = useCallback(
@@ -396,7 +430,7 @@ function ChapterListItemComponent({
         triggerLongPressMenu();
       }, 280);
     },
-    [isRenaming, onLongPressStart, triggerLongPressMenu]
+    [isRenaming, onLongPressStart, triggerLongPressMenu],
   );
 
   const handlePointerMove = useCallback(
@@ -404,14 +438,11 @@ function ChapterListItemComponent({
       const position = longPressPositionRef.current;
       if (!position || !isLongPressPending) return;
 
-      if (
-        Math.abs(event.clientX - position.x) > 8
-        || Math.abs(event.clientY - position.y) > 8
-      ) {
+      if (Math.abs(event.clientX - position.x) > 8 || Math.abs(event.clientY - position.y) > 8) {
         resetPressState();
       }
     },
-    [isLongPressPending, resetPressState]
+    [isLongPressPending, resetPressState],
   );
 
   const handleSelect = useCallback(() => {
@@ -463,14 +494,7 @@ function SortableChapterListItemComponent({
   summaryStatus,
   summaryIsStale = false,
 }: SortableChapterListItemProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: chapter.id,
   });
 
@@ -481,11 +505,7 @@ function SortableChapterListItemComponent({
         ? `${transition}, background-color 0.08s ease, opacity 0.08s ease`
         : "background-color 0.08s ease, opacity 0.08s ease",
       opacity: isDragging ? 0.5 : 1,
-      background: isDragging
-        ? "var(--accent-a2)"
-        : isActive
-          ? "var(--accent-a3)"
-          : "transparent",
+      background: isDragging ? "var(--accent-a2)" : isActive ? "var(--accent-a3)" : "transparent",
       cursor: "grab",
       width: "100%",
       minWidth: 0,
@@ -498,7 +518,7 @@ function SortableChapterListItemComponent({
       WebkitTouchCallout: "none" as const,
       WebkitTapHighlightColor: "transparent",
     }),
-    [isActive, isDragging, transform, transition]
+    [isActive, isDragging, transform, transition],
   );
 
   const handleSelect = useCallback(() => {
@@ -509,7 +529,7 @@ function SortableChapterListItemComponent({
     (event: React.PointerEvent<HTMLDivElement>) => {
       listeners?.onPointerDown?.(event);
     },
-    [listeners]
+    [listeners],
   );
 
   return (
@@ -525,7 +545,7 @@ function SortableChapterListItemComponent({
         isRenaming={false}
         summaryStatus={summaryStatus}
         summaryIsStale={summaryIsStale}
-        dragHandle={(
+        dragHandle={
           <Box
             style={{
               color: "var(--gray-9)",
@@ -537,54 +557,51 @@ function SortableChapterListItemComponent({
           >
             <GripVertical size={16} />
           </Box>
-        )}
+        }
       />
     </Box>
   );
 }
 
-function areBaseRowPropsEqual(
-  prev: ChapterListItemBaseProps,
-  next: ChapterListItemBaseProps
-) {
+function areBaseRowPropsEqual(prev: ChapterListItemBaseProps, next: ChapterListItemBaseProps) {
   return (
-    prev.chapter.id === next.chapter.id
-    && prev.chapter.title === next.chapter.title
-    && prev.chapter.order === next.chapter.order
-    && prev.chapter.wordCount === next.chapter.wordCount
-    && prev.chapter.updatedAt === next.chapter.updatedAt
-    && prev.isActive === next.isActive
-    && prev.isRenaming === next.isRenaming
-    && prev.isMenuOpen === next.isMenuOpen
-    && prev.summaryStatus === next.summaryStatus
-    && prev.summaryIsStale === next.summaryIsStale
-    && prev.onSelectChapter === next.onSelectChapter
-    && prev.onLongPressStart === next.onLongPressStart
-    && prev.onRequestContextMenu === next.onRequestContextMenu
-    && prev.onRenameChapter === next.onRenameChapter
-    && prev.onRenameCancel === next.onRenameCancel
+    prev.chapter.id === next.chapter.id &&
+    prev.chapter.title === next.chapter.title &&
+    prev.chapter.order === next.chapter.order &&
+    prev.chapter.wordCount === next.chapter.wordCount &&
+    prev.chapter.updatedAt === next.chapter.updatedAt &&
+    prev.isActive === next.isActive &&
+    prev.isRenaming === next.isRenaming &&
+    prev.isMenuOpen === next.isMenuOpen &&
+    prev.summaryStatus === next.summaryStatus &&
+    prev.summaryIsStale === next.summaryIsStale &&
+    prev.onSelectChapter === next.onSelectChapter &&
+    prev.onLongPressStart === next.onLongPressStart &&
+    prev.onRequestContextMenu === next.onRequestContextMenu &&
+    prev.onRenameChapter === next.onRenameChapter &&
+    prev.onRenameCancel === next.onRenameCancel
   );
 }
 
 function areSortableRowPropsEqual(
   prev: SortableChapterListItemProps,
-  next: SortableChapterListItemProps
+  next: SortableChapterListItemProps,
 ) {
   return (
-    prev.chapter.id === next.chapter.id
-    && prev.chapter.title === next.chapter.title
-    && prev.chapter.order === next.chapter.order
-    && prev.chapter.wordCount === next.chapter.wordCount
-    && prev.chapter.updatedAt === next.chapter.updatedAt
-    && prev.isActive === next.isActive
-    && prev.summaryStatus === next.summaryStatus
-    && prev.summaryIsStale === next.summaryIsStale
-    && prev.onSelectChapter === next.onSelectChapter
+    prev.chapter.id === next.chapter.id &&
+    prev.chapter.title === next.chapter.title &&
+    prev.chapter.order === next.chapter.order &&
+    prev.chapter.wordCount === next.chapter.wordCount &&
+    prev.chapter.updatedAt === next.chapter.updatedAt &&
+    prev.isActive === next.isActive &&
+    prev.summaryStatus === next.summaryStatus &&
+    prev.summaryIsStale === next.summaryIsStale &&
+    prev.onSelectChapter === next.onSelectChapter
   );
 }
 
 export const ChapterListItem = memo(ChapterListItemComponent, areBaseRowPropsEqual);
 export const SortableChapterListItem = memo(
   SortableChapterListItemComponent,
-  areSortableRowPropsEqual
+  areSortableRowPropsEqual,
 );
