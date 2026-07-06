@@ -6,6 +6,7 @@ import App from "./App.tsx";
 import { AppLayout } from "./features/app-shell";
 import { WritingPage } from "./features/writing";
 import { WorldInfoPage } from "./features/world-info";
+import { CharactersPage } from "./features/characters";
 import { PromptChainsPage } from "./features/prompt-chains";
 import { getOrCreateRoot } from "./lib/get-or-create-root";
 import { fetchSettings } from "./features/settings/lib/settings-api";
@@ -63,6 +64,7 @@ function AppContent({
           <Route path="/" element={<App />} />
           <Route path="/projects/:projectId" element={<WritingPage />} />
           <Route path="/world-info" element={<WorldInfoPage />} />
+          <Route path="/characters" element={<CharactersPage />} />
           <Route path="/prompt-chains" element={<PromptChainsPage />} />
           <Route
             path="/dashboard"

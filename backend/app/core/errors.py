@@ -67,6 +67,12 @@ class ValidationError(OpenFicError):
     pass
 
 
+class ConflictError(OpenFicError):
+    """资源冲突错误。"""
+
+    pass
+
+
 class ProjectAlreadyBoundError(OpenFicError):
     """项目已绑定世界书错误。"""
 
