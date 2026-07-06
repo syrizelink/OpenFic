@@ -19,6 +19,7 @@ import i18n from "@/i18n";
 import type { AgentMessage } from "@/lib/agent.types";
 
 import { AskUserToolMessage } from "../ask-user/ask-user-tool-message";
+import { CharacterToolMessage } from "../character/character-tool-message";
 import { ChapterToolMessage } from "../chapter/chapter-tool-message";
 import { EditNoteToolMessage, WriteNoteToolMessage } from "../note/note-tool-message";
 import {
@@ -59,6 +60,8 @@ import {
   getChapterList,
   getChapterPayload,
   getChapterSummaryList,
+  getCharacterList,
+  getCharacterPayload,
   getNoteItemList,
   getNotePayload,
   getPlanCountDetail,
@@ -441,6 +444,31 @@ const TOOL_REGISTRY = {
         : formatRangeSummaryQuery(message);
     },
   },
+  list_characters: {
+    toolName: "list_characters",
+    group: "context",
+    tag: "character-list",
+    isExplore: true,
+    contentMode: "hidden",
+    icon: ListOrdered,
+    getTitle: () => i18n.t("assistant.tools.listCharacters"),
+    getDetail: (message) => {
+      const characters = getCharacterList(message);
+      return characters.length > 0
+        ? i18n.t("assistant.tools.characterCount", { count: characters.length })
+        : undefined;
+    },
+  },
+  read_character: {
+    toolName: "read_character",
+    group: "context",
+    tag: "character-read",
+    isExplore: true,
+    contentMode: "hidden",
+    icon: BookOpen,
+    getTitle: () => i18n.t("assistant.tools.readCharacter"),
+    getDetail: (message) => getCharacterPayload(message).name,
+  },
   list_world_entries: {
     toolName: "list_world_entries",
     group: "context",
@@ -499,6 +527,40 @@ const TOOL_REGISTRY = {
     icon: Trash2,
     getTitle: () => i18n.t("assistant.tools.deleteWorldEntry"),
     getDetail: (message) => getWorldEntryPayload(message).title,
+  },
+  create_character: {
+    toolName: "create_character",
+    group: "context",
+    tag: "character-create",
+    isExplore: false,
+    contentMode: "expandable",
+    icon: FilePenLine,
+    getTitle: () => i18n.t("assistant.tools.createCharacter"),
+    getDetail: (message) => getCharacterPayload(message).name,
+    defaultExpanded: () => true,
+    render: (message) => <CharacterToolMessage message={message} />,
+  },
+  edit_character: {
+    toolName: "edit_character",
+    group: "context",
+    tag: "character-edit",
+    isExplore: false,
+    contentMode: "expandable",
+    icon: FilePenLine,
+    getTitle: () => i18n.t("assistant.tools.editCharacter"),
+    getDetail: (message) => getCharacterPayload(message).name,
+    defaultExpanded: () => true,
+    render: (message) => <CharacterToolMessage message={message} />,
+  },
+  delete_character: {
+    toolName: "delete_character",
+    group: "context",
+    tag: "character-delete",
+    isExplore: false,
+    contentMode: "hidden",
+    icon: Trash2,
+    getTitle: () => i18n.t("assistant.tools.deleteCharacter"),
+    getDetail: (message) => getCharacterPayload(message).name,
   },
   create_plan: {
     toolName: "create_plan",

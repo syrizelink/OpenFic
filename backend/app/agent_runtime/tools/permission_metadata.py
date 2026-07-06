@@ -63,6 +63,26 @@ _PERMISSION_METADATA_BY_TOOL_NAME = {
         permission_key="read_range_summaries",
         default_mode="allow",
     ),
+    "list_characters": ToolPermissionMetadata(
+        permission_key="list_characters",
+        default_mode="allow",
+    ),
+    "read_character": ToolPermissionMetadata(
+        permission_key="read_character",
+        default_mode="allow",
+    ),
+    "create_character": ToolPermissionMetadata(
+        permission_key="create_character",
+        default_mode="ask",
+    ),
+    "edit_character": ToolPermissionMetadata(
+        permission_key="edit_character",
+        default_mode="ask",
+    ),
+    "delete_character": ToolPermissionMetadata(
+        permission_key="delete_character",
+        default_mode="ask",
+    ),
     "list_world_entries": ToolPermissionMetadata(
         permission_key="list_world_entries",
         default_mode="allow",

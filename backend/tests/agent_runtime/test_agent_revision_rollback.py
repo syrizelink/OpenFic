@@ -8,6 +8,7 @@ from sqlmodel import SQLModel
 
 from app.agent_runtime.persistence import repo as message_repo
 from app.storage.models.chapter import Chapter
+from app.storage.models.character import Character
 from app.storage.models.note import Note, NoteCategory
 from app.storage.models.project import Project
 from app.storage.models.task import Task
@@ -88,6 +89,15 @@ async def revision_db(monkeypatch):
             )
         )
         session.add(
+            Character(
+                id="char-1",
+                project_id="proj-1",
+                name="已有角色",
+                description="原始角色描述",
+                is_favorited=False,
+            )
+        )
+        session.add(
             NoteCategory(
                 id="cat-1",
                 project_id="proj-1",
@@ -138,6 +148,10 @@ async def revision_db(monkeypatch):
     )
     monkeypatch.setattr(
         "app.agent_runtime.tools.impls.context.world_entry.create_session",
+        create_test_session,
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.tools.impls.context.character.create_session",
         create_test_session,
     )
 
@@ -1171,3 +1185,195 @@ async def test_rollback_revision_restores_deleted_world_entries(revision_db):
     assert entry_after is not None
     assert entry_after.name == "已有条目"
     assert entry_after.content == "原始设定"
+
+
+@pytest.mark.asyncio
+async def test_rollback_revision_restores_created_characters(revision_db):
+    from app.agent_runtime.revisions import (
+        begin_user_revision,
+        rollback_revision_for_session,
+    )
+    from app.agent_runtime.tools.impls.context.character import CreateCharacterTool
+    from app.storage.repos import character_repo
+
+    async with revision_db() as session:
+        user = await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="创建角色",
+        )
+        revision = await begin_user_revision(
+            session,
+            project_id="proj-1",
+            task_id="task-1",
+            agent_session_id="sess-1",
+            user_message_id=user.id,
+            user_message_seq=user.seq,
+            message="用户消息: 创建角色",
+            pre_run_checkpoint_id="cp-before",
+            graph_thread_id="sess-1",
+        )
+        await session.commit()
+
+    tool = CreateCharacterTool(
+        _state={
+            "session_id": "sess-1",
+            "task_id": "task-1",
+            "project_id": "proj-1",
+            "current_revision_id": revision.id,
+        }
+    )
+    result = json.loads(await tool.ainvoke({"name": "临时角色", "description": "临时描述"}))
+    assert result["success"] is True
+    character_id = result["character"]["id"]
+
+    async with revision_db() as session:
+        rollback_result = await rollback_revision_for_session(
+            session,
+            agent_session_id="sess-1",
+            revision_id=revision.id,
+        )
+        await session.commit()
+
+    assert set(rollback_result.affected_characters) == {character_id}
+
+    async with revision_db() as session:
+        character_after = await character_repo.get_by_id(session, character_id)
+
+    assert character_after is None
+
+
+@pytest.mark.asyncio
+async def test_rollback_revision_restores_edited_characters(revision_db):
+    from app.agent_runtime.revisions import (
+        begin_user_revision,
+        rollback_revision_for_session,
+    )
+    from app.agent_runtime.tools.impls.context.character import EditCharacterTool
+    from app.storage.repos import character_repo
+
+    async with revision_db() as session:
+        user = await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="编辑角色",
+        )
+        revision = await begin_user_revision(
+            session,
+            project_id="proj-1",
+            task_id="task-1",
+            agent_session_id="sess-1",
+            user_message_id=user.id,
+            user_message_seq=user.seq,
+            message="用户消息: 编辑角色",
+            pre_run_checkpoint_id="cp-before",
+            graph_thread_id="sess-1",
+        )
+        await session.commit()
+
+    tool = EditCharacterTool(
+        _state={
+            "session_id": "sess-1",
+            "task_id": "task-1",
+            "project_id": "proj-1",
+            "current_revision_id": revision.id,
+        }
+    )
+    result = json.loads(
+        await tool.ainvoke(
+            {
+                "name": "已有角色",
+                "new_name": "改名角色",
+                "old_description": "原始",
+                "new_description": "更新",
+            }
+        )
+    )
+    assert result["success"] is True
+
+    async with revision_db() as session:
+        rollback_result = await rollback_revision_for_session(
+            session,
+            agent_session_id="sess-1",
+            revision_id=revision.id,
+        )
+        await session.commit()
+
+    assert set(rollback_result.affected_characters) == {"char-1"}
+
+    async with revision_db() as session:
+        character_after = await character_repo.get_by_id(session, "char-1")
+
+    assert character_after is not None
+    assert character_after.name == "已有角色"
+    assert character_after.description == "原始角色描述"
+    assert character_after.is_favorited is False
+
+
+@pytest.mark.asyncio
+async def test_rollback_revision_restores_deleted_characters(revision_db):
+    from app.agent_runtime.revisions import (
+        begin_user_revision,
+        rollback_revision_for_session,
+    )
+    from app.agent_runtime.tools.impls.context.character import DeleteCharacterTool
+    from app.storage.repos import character_repo
+
+    async with revision_db() as session:
+        user = await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="删除角色",
+        )
+        revision = await begin_user_revision(
+            session,
+            project_id="proj-1",
+            task_id="task-1",
+            agent_session_id="sess-1",
+            user_message_id=user.id,
+            user_message_seq=user.seq,
+            message="用户消息: 删除角色",
+            pre_run_checkpoint_id="cp-before",
+            graph_thread_id="sess-1",
+        )
+        await session.commit()
+
+    tool = DeleteCharacterTool(
+        _state={
+            "session_id": "sess-1",
+            "task_id": "task-1",
+            "project_id": "proj-1",
+            "current_revision_id": revision.id,
+        }
+    )
+    result = json.loads(await tool.ainvoke({"name": "已有角色"}))
+    assert result["success"] is True
+
+    async with revision_db() as session:
+        rollback_result = await rollback_revision_for_session(
+            session,
+            agent_session_id="sess-1",
+            revision_id=revision.id,
+        )
+        await session.commit()
+
+    assert set(rollback_result.affected_characters) == {"char-1"}
+
+    async with revision_db() as session:
+        character_after = await character_repo.get_by_id(session, "char-1")
+
+    assert character_after is not None
+    assert character_after.name == "已有角色"
+    assert character_after.description == "原始角色描述"

@@ -64,6 +64,11 @@ export interface WorldInfoEntryPayload {
   order?: number;
 }
 
+export interface CharacterPayload {
+  name?: string;
+  description?: string;
+}
+
 export interface OutlineBeatRow {
   content: string;
   tone?: string;
@@ -728,6 +733,39 @@ export function getWorldEntryList(message: AgentMessage): WorldInfoEntryPayload[
       order: asNumber(entry.order),
     }))
     .filter((entry) => entry.title);
+}
+
+export function getCharacterPayload(message: AgentMessage): CharacterPayload {
+  const resultData = getToolResultData(message);
+  const data = getToolData(message);
+  const characterData =
+    isRecord(resultData) && isRecord(resultData.character) ? resultData.character : data;
+  const diff =
+    isRecord(resultData) && isRecord(resultData.character_diff) ? resultData.character_diff : null;
+  return {
+    name:
+      asString(characterData.name) ??
+      asString(diff?.character_name) ??
+      asString(data.name) ??
+      asString(data.new_name),
+    description:
+      asString(characterData.description) ??
+      asString(data.description) ??
+      asString(data.new_description),
+  };
+}
+
+export function getCharacterList(message: AgentMessage): CharacterPayload[] {
+  const resultData = getToolResultData(message);
+  const characters =
+    isRecord(resultData) && Array.isArray(resultData.characters) ? resultData.characters : [];
+  return characters
+    .filter(isRecord)
+    .map((character) => ({
+      name: asString(character.name),
+      description: asString(character.description),
+    }))
+    .filter((character) => character.name);
 }
 
 export function getToolRef(message: AgentMessage, key: string): Record<string, unknown> | null {

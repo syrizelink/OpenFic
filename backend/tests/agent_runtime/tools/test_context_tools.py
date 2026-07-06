@@ -169,6 +169,230 @@ async def test_read_range_summaries_returns_ascending_page() -> None:
 
 
 @pytest.mark.asyncio
+async def test_list_characters_returns_project_character_names() -> None:
+    from app.agent_runtime.tools.impls.context.character import ListCharactersTool
+
+    tool = ListCharactersTool(_state=_make_state())
+    characters = [
+        SimpleNamespace(id="char-1", name="林舟", description="主角", is_favorited=True),
+        SimpleNamespace(id="char-2", name="沈墨", description="反派", is_favorited=False),
+    ]
+
+    with patch(
+        "app.agent_runtime.tools.impls.context.character.create_session"
+    ) as mock_cs, patch(
+        "app.agent_runtime.tools.impls.context.character.character_repo"
+    ) as mock_character_repo:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        mock_character_repo.list_by_project = AsyncMock(return_value=(characters, 2))
+
+        result = await tool.ainvoke({})
+
+    assert json.loads(result) == {
+        "characters": [
+            {"name": "林舟"},
+            {"name": "沈墨"},
+        ]
+    }
+
+
+@pytest.mark.asyncio
+async def test_read_character_reads_description_by_name() -> None:
+    from app.agent_runtime.tools.impls.context.character import ReadCharacterTool
+
+    tool = ReadCharacterTool(_state=_make_state())
+    characters = [
+        SimpleNamespace(
+            id="char-1",
+            name="林舟",
+            description="主角\n旧友",
+            is_favorited=True,
+        ),
+    ]
+
+    with patch(
+        "app.agent_runtime.tools.impls.context.character.create_session"
+    ) as mock_cs, patch(
+        "app.agent_runtime.tools.impls.context.character.character_repo"
+    ) as mock_character_repo:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        mock_character_repo.list_by_project = AsyncMock(return_value=(characters, 1))
+
+        result = await tool.ainvoke({"name": "林舟"})
+
+    assert json.loads(result) == {
+        "name": "林舟",
+        "description": "1|主角\n2|旧友",
+    }
+
+
+@pytest.mark.asyncio
+async def test_create_character_returns_diff() -> None:
+    from app.agent_runtime.tools.impls.context.character import CreateCharacterTool
+
+    tool = CreateCharacterTool(_state={**_make_state(), "current_revision_id": "rev-1"})
+    created = SimpleNamespace(
+        id="char-1",
+        project_id="proj-1",
+        name="林舟",
+        description="主角",
+        image_path=None,
+        is_favorited=False,
+    )
+
+    with patch(
+        "app.agent_runtime.tools.impls.context.character.create_session"
+    ) as mock_cs, patch(
+        "app.agent_runtime.tools.impls.context.character.character_repo"
+    ) as mock_character_repo, patch(
+        "app.agent_runtime.tools.impls.context.character.character_service"
+    ) as mock_character_service, patch(
+        "app.agent_runtime.tools.impls.context.character.record_character_diffs"
+    ) as mock_record_diffs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        mock_character_repo.list_by_project = AsyncMock(return_value=([], 0))
+        mock_character_service.create_character = AsyncMock(return_value=created)
+        mock_record_diffs.return_value = ["char-1"]
+
+        result = await tool.ainvoke({"name": "林舟", "description": "主角"})
+
+    data = json.loads(result)
+    assert data["success"] is True
+    assert data["tool_name"] == "create_character"
+    assert data["character"] == {
+        "id": "char-1",
+        "name": "林舟",
+        "description": "主角",
+    }
+    assert data["character_diff"] == {
+        "operation": "create",
+        "character_id": "char-1",
+        "character_name": "林舟",
+        "sections": [
+            {
+                "type": "content",
+                "lines": [
+                    {
+                        "type": "added",
+                        "before_line_number": None,
+                        "after_line_number": 1,
+                        "text": "主角",
+                    }
+                ],
+            }
+        ],
+    }
+
+
+@pytest.mark.asyncio
+async def test_edit_character_replaces_description_text() -> None:
+    from app.agent_runtime.tools.impls.context.character import EditCharacterTool
+
+    tool = EditCharacterTool(_state={**_make_state(), "current_revision_id": "rev-1"})
+    character = SimpleNamespace(
+        id="char-1",
+        project_id="proj-1",
+        name="林舟",
+        description="主角",
+        is_favorited=False,
+    )
+    updated_character = SimpleNamespace(
+        id="char-1",
+        project_id="proj-1",
+        name="林舟",
+        description="主角与旧友",
+        is_favorited=True,
+    )
+
+    with patch(
+        "app.agent_runtime.tools.impls.context.character.create_session"
+    ) as mock_cs, patch(
+        "app.agent_runtime.tools.impls.context.character.character_repo"
+    ) as mock_character_repo, patch(
+        "app.agent_runtime.tools.impls.context.character.character_service"
+    ) as mock_character_service, patch(
+        "app.agent_runtime.tools.impls.context.character.record_character_diffs"
+    ) as mock_record_diffs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        mock_character_repo.list_by_project = AsyncMock(return_value=([character], 1))
+        mock_character_service.update_character = AsyncMock(return_value=updated_character)
+        mock_record_diffs.return_value = ["char-1"]
+
+        result = await tool.ainvoke(
+            {
+                "name": "林舟",
+                "old_description": "主角",
+                "new_description": "主角与旧友",
+            }
+        )
+
+    data = json.loads(result)
+    assert data["success"] is True
+    assert data["tool_name"] == "edit_character"
+    assert data["character_diff"]["operation"] == "edit"
+    assert data["character_diff"]["sections"][0]["lines"] == [
+        {
+            "type": "removed",
+            "before_line_number": 1,
+            "after_line_number": None,
+            "text": "主角",
+        },
+        {
+            "type": "added",
+            "before_line_number": None,
+            "after_line_number": 1,
+            "text": "主角与旧友",
+        },
+    ]
+
+
+@pytest.mark.asyncio
+async def test_delete_character_removes_name() -> None:
+    from app.agent_runtime.tools.impls.context.character import DeleteCharacterTool
+
+    tool = DeleteCharacterTool(_state={**_make_state(), "current_revision_id": "rev-1"})
+    character = SimpleNamespace(
+        id="char-1",
+        project_id="proj-1",
+        name="林舟",
+        description="主角",
+        is_favorited=False,
+    )
+
+    with patch(
+        "app.agent_runtime.tools.impls.context.character.create_session"
+    ) as mock_cs, patch(
+        "app.agent_runtime.tools.impls.context.character.character_repo"
+    ) as mock_character_repo, patch(
+        "app.agent_runtime.tools.impls.context.character.character_service"
+    ) as mock_character_service, patch(
+        "app.agent_runtime.tools.impls.context.character.record_character_diffs"
+    ) as mock_record_diffs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        mock_character_repo.list_by_project = AsyncMock(return_value=([character], 1))
+        mock_character_service.delete_character = AsyncMock(return_value=None)
+        mock_record_diffs.return_value = ["char-1"]
+
+        result = await tool.ainvoke({"name": "林舟"})
+
+    assert json.loads(result) == {
+        "type": "ok",
+        "success": True,
+        "tool_name": "delete_character",
+        "revision_id": "rev-1",
+        "affected_characters": ["char-1"],
+        "character_id": "char-1",
+        "name": "林舟",
+        "message": "角色已删除",
+    }
+
+
+@pytest.mark.asyncio
 async def test_list_world_entries_returns_enabled_entry_titles() -> None:
     from app.agent_runtime.tools.impls.context.world_entry import ListWorldEntriesTool
 

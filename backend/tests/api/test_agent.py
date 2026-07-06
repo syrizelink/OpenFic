@@ -199,6 +199,36 @@ class TestAgentAPI:
                 "is_readonly": False,
             },
             {
+                "key": "list_characters",
+                "name": "List Characters",
+                "description": "列出当前项目角色名称。",
+                "is_readonly": True,
+            },
+            {
+                "key": "read_character",
+                "name": "Read Character",
+                "description": "根据名称读取角色描述。",
+                "is_readonly": True,
+            },
+            {
+                "key": "create_character",
+                "name": "Create Character",
+                "description": "在当前项目中创建角色。",
+                "is_readonly": False,
+            },
+            {
+                "key": "edit_character",
+                "name": "Edit Character",
+                "description": "编辑角色的名称或描述。",
+                "is_readonly": False,
+            },
+            {
+                "key": "delete_character",
+                "name": "Delete Character",
+                "description": "删除指定角色。",
+                "is_readonly": False,
+            },
+            {
                 "key": "list_world_entries",
                 "name": "List World Entries",
                 "description": "列出当前项目世界书条目标题。",

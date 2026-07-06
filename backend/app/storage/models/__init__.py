@@ -22,6 +22,7 @@ from app.storage.models.project import Project
 from app.storage.models.prompt_chain_version import PromptChainVersion
 from app.storage.models.prompt_entry import PromptEntry
 from app.storage.models.revision import Revision
+from app.storage.models.revision_character_snapshot import RevisionCharacterSnapshot
 from app.storage.models.revision_chapter_snapshot import RevisionChapterSnapshot
 from app.storage.models.revision_note_snapshot import (
     RevisionNoteCategorySnapshot,
@@ -61,6 +62,7 @@ __all__ = [
     "PromptChainVersion",
     "PromptEntry",
     "Revision",
+    "RevisionCharacterSnapshot",
     "RevisionChapterSnapshot",
     "RevisionNoteCategorySnapshot",
     "RevisionNoteSnapshot",
