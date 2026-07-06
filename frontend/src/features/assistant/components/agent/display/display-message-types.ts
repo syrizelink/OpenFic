@@ -1,8 +1,4 @@
-import type {
-  AgentMessage,
-  ClarificationQuestion,
-  ToolApprovalData,
-} from "@/lib/agent.types";
+import type { AgentMessage, ClarificationQuestion, ToolApprovalData } from "@/lib/agent.types";
 
 type DisplayMessageOf<TType extends string> = Omit<AgentMessage, "type"> & {
   type: TType;
@@ -64,7 +60,7 @@ export type QuestionPanelItem = DisplayMessageOf<"question"> & {
 export type SpecialPanelItem = ApprovalPanelItem | QuestionPanelItem;
 
 export function isRenderableDisplayMessage(
-  message: BlockDisplayMessage
+  message: BlockDisplayMessage,
 ): message is RenderableDisplayMessage {
   return message.type !== "node_end";
 }

@@ -6,13 +6,11 @@
  */
 
 import { create } from "zustand";
+
+import { getProjectTabs, setProjectTabs, type EditorTabRecord } from "@/lib/local-db";
+
 import type { EditorTab } from "../lib/tab.types";
 import { MAX_TABS, isEmptyTab, generateEmptyTabId } from "../lib/tab.types";
-import {
-  getProjectTabs,
-  setProjectTabs,
-  type EditorTabRecord,
-} from "@/lib/local-db";
 
 interface TabsState {
   currentProjectId: string | null;
@@ -64,7 +62,7 @@ function fromRecord(record: EditorTabRecord): EditorTab {
 async function persistTabs(
   projectId: string | null,
   tabs: EditorTab[],
-  activeTabId: string | null
+  activeTabId: string | null,
 ): Promise<void> {
   if (!projectId) return;
   await setProjectTabs(projectId, tabs.map(toRecord), activeTabId);
@@ -272,9 +270,7 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
 
   toggleLock: (tabId) => {
     const { tabs, activeTabId, currentProjectId } = get();
-    const newTabs = tabs.map((t) =>
-      t.id === tabId ? { ...t, isLocked: !t.isLocked } : t
-    );
+    const newTabs = tabs.map((t) => (t.id === tabId ? { ...t, isLocked: !t.isLocked } : t));
     set({ tabs: newTabs });
     persistTabs(currentProjectId, newTabs, activeTabId);
   },
@@ -305,10 +301,7 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
     });
 
     let newActiveId = activeTabId;
-    if (
-      activeTabId &&
-      !isEmptyTab(activeTabId)
-    ) {
+    if (activeTabId && !isEmptyTab(activeTabId)) {
       const activeTab = tabs.find((t) => t.id === activeTabId);
       if (activeTab?.type === type && activeTab.refId && !titleMap.has(activeTab.refId)) {
         newActiveId = newTabs.length > 0 ? newTabs[0].id : null;

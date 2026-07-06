@@ -1,11 +1,11 @@
 import { Box } from "@radix-ui/themes";
-import type { AgentMessage } from "@/lib/agent.types";
+
 import i18n from "@/i18n";
+import type { AgentMessage } from "@/lib/agent.types";
 
 import { ToolBody } from "../shared/tool-message-shared";
-import {
-  getSubagentInstructionText,
-} from "./subagent-tool-message-utils";
+import { getSubagentInstructionText } from "./subagent-tool-message-utils";
+
 import "./subagent-tool-message.css";
 
 interface NotifySubagentToolMessageProps {
@@ -19,7 +19,9 @@ export function NotifySubagentToolMessage({ message }: NotifySubagentToolMessage
     <ToolBody>
       <Box className="agent-subagent-tool-callout">
         <Box className="agent-tool-block-content agent-subagent-tool-callout-content">
-          <Box className="agent-subagent-tool-callout-label">{i18n.t("assistant.tools.notifyInstruction")}</Box>
+          <Box className="agent-subagent-tool-callout-label">
+            {i18n.t("assistant.tools.notifyInstruction")}
+          </Box>
           <Box className="agent-subagent-tool-callout-prompt agent-tool-content-plain-text">
             {notifyMessage}
           </Box>

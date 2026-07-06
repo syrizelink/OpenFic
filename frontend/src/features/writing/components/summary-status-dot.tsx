@@ -1,6 +1,7 @@
 import { Tooltip } from "@radix-ui/themes";
 
 import type { SummaryStatus } from "@/lib/api-client";
+
 import "./summary-status-dot.css";
 
 interface SummaryStatusDotProps {
@@ -24,7 +25,10 @@ const STATUS_COLORS: Record<SummaryStatus, string> = {
   failed: "var(--red-8)",
 };
 
-export function SummaryStatusDot({ status = "not_generated", isStale = false }: SummaryStatusDotProps) {
+export function SummaryStatusDot({
+  status = "not_generated",
+  isStale = false,
+}: SummaryStatusDotProps) {
   const label = status === "ready" && isStale ? "摘要待更新" : STATUS_LABELS[status];
   const color = status === "ready" && isStale ? "var(--orange-8)" : STATUS_COLORS[status];
   return (

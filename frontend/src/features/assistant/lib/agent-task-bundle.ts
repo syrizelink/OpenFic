@@ -15,7 +15,7 @@ export interface AgentTaskBundle {
 
 export async function loadAgentTaskBundle(
   taskId: string,
-  loaders: AgentTaskBundleLoaders
+  loaders: AgentTaskBundleLoaders,
 ): Promise<AgentTaskBundle> {
   const task = await loaders.fetchTask(taskId);
   if (!task.agentSessionId) {
@@ -33,8 +33,7 @@ export async function loadAgentTaskBundle(
 
   return {
     task,
-    sessionState:
-      sessionStateResult.status === "fulfilled" ? sessionStateResult.value : null,
+    sessionState: sessionStateResult.status === "fulfilled" ? sessionStateResult.value : null,
     activeSubagentRows:
       activeSubagentsResult.status === "fulfilled"
         ? activeSubagentsResult.value.filter((item) => item.isActive)

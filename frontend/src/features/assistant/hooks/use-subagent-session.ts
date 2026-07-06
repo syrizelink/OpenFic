@@ -8,30 +8,25 @@ import type {
   SubagentSessionPayload,
   TokenUsageState,
 } from "@/lib/agent.types";
+import { fetchSubagentSession, submitAgentToolApproval } from "@/lib/api-client";
 import type { TaskListItem } from "@/lib/task.types";
+
 import {
-  fetchSubagentSession,
-  submitAgentToolApproval,
-} from "@/lib/api-client";
-import { createApprovalPreviewToolMessage } from "../lib/chapter-tool-preview";
+  applyAgentTranscriptEventToLiveState,
+  createAgentTranscriptLiveState,
+  syncAgentTranscriptLiveState,
+} from "../lib/agent-transcript-live-state";
 import {
   failCompactionTranscriptState,
   getStageTextForAgentKey,
   getStageTextForStageKey,
   type AgentTranscriptState,
 } from "../lib/agent-transcript-state";
-import {
-  applyAgentTranscriptEventToLiveState,
-  createAgentTranscriptLiveState,
-  syncAgentTranscriptLiveState,
-} from "../lib/agent-transcript-live-state";
-import { shouldSuppressAgentErrorAfterCompactionError } from "./use-agent-session-message-state";
-import { buildAgentMessagesFromTaskMessages } from "../lib/task-message-agent-mapping";
-import {
-  joinSubagentSession,
-  subscribeSubagentSessionEvents,
-} from "../lib/subagent-socket";
+import { createApprovalPreviewToolMessage } from "../lib/chapter-tool-preview";
 import { createPendingApprovalEvent } from "../lib/subagent-session-approval";
+import { joinSubagentSession, subscribeSubagentSessionEvents } from "../lib/subagent-socket";
+import { buildAgentMessagesFromTaskMessages } from "../lib/task-message-agent-mapping";
+import { shouldSuppressAgentErrorAfterCompactionError } from "./use-agent-session-message-state";
 
 function resolveStageText(stage?: string): string {
   return getStageTextForAgentKey(stage) || stage || "";
@@ -47,7 +42,7 @@ function toSessionStatus(payload: SubagentSessionPayload | null): AgentSessionSt
 
 function toPayloadStatus(
   status: AgentSessionStatus,
-  current: SubagentSessionPayload["status"]
+  current: SubagentSessionPayload["status"],
 ): SubagentSessionPayload["status"] {
   if (status === "error") return "error";
   if (status === "completed") return "completed";
@@ -91,15 +86,13 @@ function toTokenUsage(payload: {
 
 function hasApprovalMessage(messages: AgentMessage[]): boolean {
   return messages.some(
-    (message) => (message.type === "approval" || message.type === "tool_approval")
-      && Boolean(message.toolApproval?.approval_id)
+    (message) =>
+      (message.type === "approval" || message.type === "tool_approval") &&
+      Boolean(message.toolApproval?.approval_id),
   );
 }
 
-function removeApprovalMessageById(
-  messages: AgentMessage[],
-  approvalId: string
-): AgentMessage[] {
+function removeApprovalMessageById(messages: AgentMessage[], approvalId: string): AgentMessage[] {
   return messages.filter((message) => {
     if (message.type !== "approval" && message.type !== "tool_approval") return true;
     return message.toolApproval?.approval_id !== approvalId;
@@ -109,7 +102,7 @@ function removeApprovalMessageById(
 export function useSubagentSession(
   childRunId: string | null,
   childThreadId: string | null = null,
-  onTokenUsage?: (sessionId: string, usage: TokenUsageState) => void
+  onTokenUsage?: (sessionId: string, usage: TokenUsageState) => void,
 ) {
   const [session, setSession] = useState<SubagentSessionPayload | null>(null);
   const [messages, setMessages] = useState<AgentMessage[]>([]);
@@ -140,7 +133,10 @@ export function useSubagentSession(
       if (!parentSessionId) return;
 
       try {
-        const nextMessages = removeApprovalMessageById(transcriptStateRef.current.messages, approvalId);
+        const nextMessages = removeApprovalMessageById(
+          transcriptStateRef.current.messages,
+          approvalId,
+        );
         const hasPendingApproval = hasApprovalMessage(nextMessages);
         commitTranscriptState({
           ...transcriptStateRef.current,
@@ -149,14 +145,16 @@ export function useSubagentSession(
           isRunning: !hasPendingApproval,
           currentStage: hasPendingApproval ? "" : i18n.t("assistant.applyingChanges"),
         });
-        setSession((current) => current
-          ? {
-              ...current,
-              pendingApproval: null,
-              status: hasPendingApproval ? "waiting_user" : "running",
-              isRunning: !hasPendingApproval,
-            }
-          : current);
+        setSession((current) =>
+          current
+            ? {
+                ...current,
+                pendingApproval: null,
+                status: hasPendingApproval ? "waiting_user" : "running",
+                isRunning: !hasPendingApproval,
+              }
+            : current,
+        );
         await submitAgentToolApproval(parentSessionId, approvalId, approved);
       } catch (error) {
         console.error("Subagent tool approval failed:", error);
@@ -166,16 +164,18 @@ export function useSubagentSession(
           isRunning: false,
           currentStage: "",
         });
-        setSession((current) => current
-          ? {
-              ...current,
-              status: "error",
-              isRunning: false,
-            }
-          : current);
+        setSession((current) =>
+          current
+            ? {
+                ...current,
+                status: "error",
+                isRunning: false,
+              }
+            : current,
+        );
       }
     },
-    [commitTranscriptState, session?.parentSessionId]
+    [commitTranscriptState, session?.parentSessionId],
   );
 
   const load = useCallback(async () => {
@@ -201,7 +201,7 @@ export function useSubagentSession(
     const nextMessages = buildAgentMessagesFromTaskMessages(
       payload.messages,
       buildTaskSnapshot(payload),
-      payload.messages[0]?.createdAt ?? new Date().toISOString()
+      payload.messages[0]?.createdAt ?? new Date().toISOString(),
     );
     const nextState = createAgentTranscriptLiveState({
       messages: nextMessages,
@@ -211,23 +211,19 @@ export function useSubagentSession(
     });
     const pendingApprovalEvent = createPendingApprovalEvent(
       payload.pendingApproval,
-      payload.messages[payload.messages.length - 1]?.createdAt
+      payload.messages[payload.messages.length - 1]?.createdAt,
     );
     setSession(payload);
     commitTranscriptState(
       pendingApprovalEvent
-        ? applyAgentTranscriptEventToLiveState(
-            nextState,
-            pendingApprovalEvent,
-            {
-              approvalPreviewFactory: createApprovalPreviewToolMessage,
-              defaultRunningStage: getStageTextForAgentKey("primary") || "",
-              fallbackAgent: payload.agentKey,
-              getStageTextForAgent: getStageTextForAgentKey,
-              getStageTextForStage: getStageTextForStageKey,
-            }
-          ).state
-        : nextState
+        ? applyAgentTranscriptEventToLiveState(nextState, pendingApprovalEvent, {
+            approvalPreviewFactory: createApprovalPreviewToolMessage,
+            defaultRunningStage: getStageTextForAgentKey("primary") || "",
+            fallbackAgent: payload.agentKey,
+            getStageTextForAgent: getStageTextForAgentKey,
+            getStageTextForStage: getStageTextForStageKey,
+          }).state
+        : nextState,
     );
     setTokenUsage(nextTokenUsage);
     onTokenUsage?.(payload.childThreadId, nextTokenUsage);
@@ -256,32 +252,36 @@ export function useSubagentSession(
         if (event.type === "compaction_error") {
           suppressNextErrorAfterCompactionErrorRef.current = true;
           const payload = event.payload ?? {};
-          const message = event.content || (typeof payload.message === "string" ? payload.message : "") || i18n.t("assistant.compactionFailed");
+          const message =
+            event.content ||
+            (typeof payload.message === "string" ? payload.message : "") ||
+            i18n.t("assistant.compactionFailed");
           toast.error(`${i18n.t("assistant.compactionFailed")}：${message}`);
-          commitTranscriptState(failCompactionTranscriptState(
-            transcriptStateRef.current,
-            typeof payload.session_id === "string" ? payload.session_id : targetThreadId
-          ));
-          setSession((current) => current
-            ? { ...current, status: "error", isRunning: false, isActive: false }
-            : current);
+          commitTranscriptState(
+            failCompactionTranscriptState(
+              transcriptStateRef.current,
+              typeof payload.session_id === "string" ? payload.session_id : targetThreadId,
+            ),
+          );
+          setSession((current) =>
+            current ? { ...current, status: "error", isRunning: false, isActive: false } : current,
+          );
           return;
         }
 
         if (
           shouldSuppressAgentErrorAfterCompactionError(
             event,
-            suppressNextErrorAfterCompactionErrorRef.current
+            suppressNextErrorAfterCompactionErrorRef.current,
           )
         ) {
           suppressNextErrorAfterCompactionErrorRef.current = false;
-          commitTranscriptState(failCompactionTranscriptState(
-            transcriptStateRef.current,
-            targetThreadId
-          ));
-          setSession((current) => current
-            ? { ...current, status: "error", isRunning: false, isActive: false }
-            : current);
+          commitTranscriptState(
+            failCompactionTranscriptState(transcriptStateRef.current, targetThreadId),
+          );
+          setSession((current) =>
+            current ? { ...current, status: "error", isRunning: false, isActive: false } : current,
+          );
           return;
         }
 
@@ -296,41 +296,39 @@ export function useSubagentSession(
           };
           setTokenUsage(nextTokenUsage);
           onTokenUsage?.(targetThreadId, nextTokenUsage);
-          setSession((current) => current
-            ? {
-                ...current,
-                tokenInput: nextTokenUsage.tokenInput,
-                tokenOutput: nextTokenUsage.tokenOutput,
-                tokenCache: nextTokenUsage.tokenCache,
-                contextInputTokens: nextTokenUsage.contextInputTokens,
-                contextLength: nextTokenUsage.contextLength,
-              }
-            : current);
+          setSession((current) =>
+            current
+              ? {
+                  ...current,
+                  tokenInput: nextTokenUsage.tokenInput,
+                  tokenOutput: nextTokenUsage.tokenOutput,
+                  tokenCache: nextTokenUsage.tokenCache,
+                  contextInputTokens: nextTokenUsage.contextInputTokens,
+                  contextLength: nextTokenUsage.contextLength,
+                }
+              : current,
+          );
         }
 
-        const result = applyAgentTranscriptEventToLiveState(
-          transcriptStateRef.current,
-          event,
-          {
-            approvalPreviewFactory: createApprovalPreviewToolMessage,
-            defaultRunningStage: getStageTextForAgentKey("primary") || "",
-            fallbackAgent: session?.agentKey,
-            getStageTextForAgent: getStageTextForAgentKey,
-            getStageTextForStage: getStageTextForStageKey,
-          }
-        );
+        const result = applyAgentTranscriptEventToLiveState(transcriptStateRef.current, event, {
+          approvalPreviewFactory: createApprovalPreviewToolMessage,
+          defaultRunningStage: getStageTextForAgentKey("primary") || "",
+          fallbackAgent: session?.agentKey,
+          getStageTextForAgent: getStageTextForAgentKey,
+          getStageTextForStage: getStageTextForStageKey,
+        });
 
         commitTranscriptState(result.state);
         setSession((current) => {
           if (!current) return current;
           const nextStatus = toPayloadStatus(result.state.status, current.status);
-          const isTerminal =
-            result.state.status === "completed" || result.state.status === "error";
-          const nextPendingApproval = result.message?.type === "approval"
-            ? result.message.payload ?? current.pendingApproval
-            : nextStatus === "waiting_user"
-              ? current.pendingApproval
-              : null;
+          const isTerminal = result.state.status === "completed" || result.state.status === "error";
+          const nextPendingApproval =
+            result.message?.type === "approval"
+              ? (result.message.payload ?? current.pendingApproval)
+              : nextStatus === "waiting_user"
+                ? current.pendingApproval
+                : null;
           return {
             ...current,
             status: nextStatus,
@@ -341,9 +339,9 @@ export function useSubagentSession(
         });
       },
       (error) => {
-        setSession((current) => current
-          ? { ...current, status: "error", isRunning: false, isActive: false }
-          : current);
+        setSession((current) =>
+          current ? { ...current, status: "error", isRunning: false, isActive: false } : current,
+        );
         commitTranscriptState({
           messages: transcriptStateRef.current.messages,
           status: "error",
@@ -351,13 +349,13 @@ export function useSubagentSession(
           currentStage: "",
         });
         console.warn("Subagent session stream disconnected", error);
-      }
+      },
     );
 
     void joinSubagentSession(targetThreadId).catch((error) => {
-      setSession((current) => current
-        ? { ...current, status: "error", isRunning: false, isActive: false }
-        : current);
+      setSession((current) =>
+        current ? { ...current, status: "error", isRunning: false, isActive: false } : current,
+      );
       commitTranscriptState({
         messages: transcriptStateRef.current.messages,
         status: "error",
@@ -370,7 +368,14 @@ export function useSubagentSession(
     return () => {
       cleanup();
     };
-  }, [childRunId, childThreadId, commitTranscriptState, onTokenUsage, session?.agentKey, session?.childThreadId]);
+  }, [
+    childRunId,
+    childThreadId,
+    commitTranscriptState,
+    onTokenUsage,
+    session?.agentKey,
+    session?.childThreadId,
+  ]);
 
   return {
     session,

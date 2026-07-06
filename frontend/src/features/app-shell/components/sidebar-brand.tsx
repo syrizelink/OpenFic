@@ -2,6 +2,7 @@ import { Box, Flex, Text, IconButton, Tooltip } from "@radix-ui/themes";
 import { BookOpen, PanelLeft } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { KeyboardEvent, PointerEvent } from "react";
+
 import {
   SIDEBAR_EXPANDED_WIDTH,
   SIDEBAR_ICON_ACTIVE_COLOR,
@@ -49,7 +50,11 @@ export function SidebarBrand({
   };
 
   return (
-    <Flex align="center" gap="0" style={{ height: SIDEBAR_ITEM_HEIGHT, flexShrink: 0 }}>
+    <Flex
+      align="center"
+      gap="0"
+      style={{ height: SIDEBAR_ITEM_HEIGHT, flexShrink: 0 }}
+    >
       <MotionFlex
         align="center"
         onPointerEnter={onPointerEnter}
@@ -91,7 +96,10 @@ export function SidebarBrand({
             flexShrink: 0,
           }}
         >
-          <AnimatePresence mode="wait" initial={false}>
+          <AnimatePresence
+            mode="wait"
+            initial={false}
+          >
             {!isExpanded && isHovered ? (
               <motion.div
                 key="panel"
@@ -154,7 +162,10 @@ export function SidebarBrand({
       </MotionFlex>
 
       {isExpanded && (
-        <Box ml="auto" style={{ flexShrink: 0 }}>
+        <Box
+          ml="auto"
+          style={{ flexShrink: 0 }}
+        >
           <Tooltip content={collapseLabel}>
             <IconButton
               variant="ghost"
@@ -163,7 +174,10 @@ export function SidebarBrand({
               aria-label={collapseLabel}
               style={{ ...sidebarActionButtonStyle, cursor: "pointer" }}
             >
-              <PanelLeft size={SIDEBAR_ICON_SIZE} color="currentColor" />
+              <PanelLeft
+                size={SIDEBAR_ICON_SIZE}
+                color="currentColor"
+              />
             </IconButton>
           </Tooltip>
         </Box>

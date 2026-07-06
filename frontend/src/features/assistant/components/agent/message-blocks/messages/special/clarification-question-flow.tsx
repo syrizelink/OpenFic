@@ -3,9 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { ClarificationQuestion } from "../../../../../../../lib/agent.types";
-import {
-  CUSTOM_CLARIFICATION_ANSWER,
-} from "./clarification-flow-state";
+import { CUSTOM_CLARIFICATION_ANSWER } from "./clarification-flow-state";
 import type { ClarificationQuestionFlowModel } from "./use-clarification-question-flow";
 
 interface ClarificationQuestionBodyProps {
@@ -17,14 +15,20 @@ interface ClarificationQuestionActionsProps {
   model: ClarificationQuestionFlowModel;
 }
 
-export function ClarificationQuestionBody({ model, bodyClassName }: ClarificationQuestionBodyProps) {
+export function ClarificationQuestionBody({
+  model,
+  bodyClassName,
+}: ClarificationQuestionBodyProps) {
   const { t } = useTranslation();
   const { prompt } = model;
   if (prompt.questions.length === 0) return null;
 
   const content = model.shouldStep ? (
     <>
-      <Flex className="agent-clarification-stepper" aria-label={t("assistant.clarification.progress")}>
+      <Flex
+        className="agent-clarification-stepper"
+        aria-label={t("assistant.clarification.progress")}
+      >
         {prompt.questions.map((question, index) => (
           <span
             key={`${question.title}-${index}`}
@@ -79,25 +83,44 @@ export function ClarificationQuestionActions({ model }: ClarificationQuestionAct
 
   if (model.shouldStep) {
     return (
-      <Flex align="center" justify="between" style={{ width: "100%" }}>
-        <Text size="1" color="gray">
+      <Flex
+        align="center"
+        justify="between"
+        style={{ width: "100%" }}
+      >
+        <Text
+          size="1"
+          color="gray"
+        >
           {model.currentStep + 1} / {prompt.questions.length}
         </Text>
         <Flex gap="2">
           {model.currentStep > 0 && (
-            <Button size="1" variant="soft" onClick={model.handlePrev}>
+            <Button
+              size="1"
+              variant="soft"
+              onClick={model.handlePrev}
+            >
               <ChevronLeft size={14} />
               {t("assistant.clarification.previous")}
             </Button>
           )}
           {!model.isLastStep ? (
-            <Button size="1" onClick={model.handleNext} disabled={!model.isCurrentStepValid}>
+            <Button
+              size="1"
+              onClick={model.handleNext}
+              disabled={!model.isCurrentStepValid}
+            >
               {t("assistant.clarification.next")}
               <ChevronRight size={14} />
             </Button>
           ) : (
             model.canRenderSubmit && (
-              <Button size="1" onClick={model.handleSubmit} disabled={!model.canSubmit}>
+              <Button
+                size="1"
+                onClick={model.handleSubmit}
+                disabled={!model.canSubmit}
+              >
                 {t("assistant.clarification.submit")}
               </Button>
             )
@@ -111,7 +134,11 @@ export function ClarificationQuestionActions({ model }: ClarificationQuestionAct
 
   return (
     <Flex justify="end">
-      <Button size="1" onClick={model.handleSubmit} disabled={!model.canSubmit}>
+      <Button
+        size="1"
+        onClick={model.handleSubmit}
+        disabled={!model.canSubmit}
+      >
         {t("assistant.clarification.submit")}
       </Button>
     </Flex>
@@ -154,16 +181,28 @@ function ClarificationQuestionItem({
         {index + 1}. {question.title}
       </legend>
       {question.description && (
-        <Text size="1" color="gray" className="agent-clarification-question-description">
+        <Text
+          size="1"
+          color="gray"
+          className="agent-clarification-question-description"
+        >
           {question.description}
         </Text>
       )}
-      <Flex direction="column" gap="2" mt="2">
+      <Flex
+        direction="column"
+        gap="2"
+        mt="2"
+      >
         {options.map((option) => {
           const inputId = `clarification-${index}-${option.value}`;
 
           return (
-            <label key={option.value} className="agent-clarification-option" htmlFor={inputId}>
+            <label
+              key={option.value}
+              className="agent-clarification-option"
+              htmlFor={inputId}
+            >
               <input
                 id={inputId}
                 type="radio"
@@ -174,7 +213,11 @@ function ClarificationQuestionItem({
               />
               <span className="agent-clarification-option-copy">
                 <span className="agent-clarification-option-label">{option.label}</span>
-                {option.description && <span className="agent-clarification-option-description">{option.description}</span>}
+                {option.description && (
+                  <span className="agent-clarification-option-description">
+                    {option.description}
+                  </span>
+                )}
               </span>
             </label>
           );

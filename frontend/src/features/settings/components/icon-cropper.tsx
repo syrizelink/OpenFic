@@ -4,12 +4,14 @@
  * 图标裁剪器组件，支持图片选择、预览和裁剪（固定 1:1 比例）。
  */
 
-import { useState, useCallback, useRef } from "react";
 import { Box, Button, Dialog, Flex } from "@radix-ui/themes";
 import { Upload } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
 import Cropper, { type Area } from "react-easy-crop";
 import { useTranslation } from "react-i18next";
+
 import type { ProviderType } from "@/lib/model.types";
+
 import { ProviderIcon } from "../lib/provider-icons";
 
 interface IconCropperProps {
@@ -38,10 +40,7 @@ interface CroppedArea {
 /**
  * 创建裁剪后的图片文件。
  */
-async function getCroppedImage(
-  imageSrc: string,
-  croppedAreaPixels: CroppedArea
-): Promise<File> {
+async function getCroppedImage(imageSrc: string, croppedAreaPixels: CroppedArea): Promise<File> {
   const image = new Image();
   image.src = imageSrc;
 
@@ -66,7 +65,7 @@ async function getCroppedImage(
     0,
     0,
     croppedAreaPixels.width,
-    croppedAreaPixels.height
+    croppedAreaPixels.height,
   );
 
   // 转换为 Blob
@@ -99,40 +98,31 @@ export function IconCropper({
   const hasCustomIcon = value || previewUrl;
 
   /** 处理文件选择 */
-  const handleFileSelect = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
+  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = () => {
-        setImageSrc(reader.result as string);
-        // 重置裁剪状态
-        setCrop({ x: 0, y: 0 });
-        setZoom(1);
-      };
-      reader.readAsDataURL(file);
-    },
-    []
-  );
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImageSrc(reader.result as string);
+      // 重置裁剪状态
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+    };
+    reader.readAsDataURL(file);
+  }, []);
 
   /** 裁剪完成回调 */
-  const onCropComplete = useCallback(
-    (_croppedArea: Area, croppedAreaPixels: Area) => {
-      setCroppedAreaPixels(croppedAreaPixels);
-    },
-    []
-  );
+  const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
 
   /** 确认裁剪 */
   const handleCropConfirm = useCallback(async () => {
     if (!imageSrc || !croppedAreaPixels) return;
 
     try {
-      const croppedFile = await getCroppedImage(
-        imageSrc as string,
-        croppedAreaPixels
-      );
+      const croppedFile = await getCroppedImage(imageSrc as string, croppedAreaPixels);
       onChange(croppedFile);
       setImageSrc(null);
     } catch (error) {
@@ -195,7 +185,10 @@ export function IconCropper({
               size={size * 0.5}
             />
           ) : (
-            <Upload size={24} style={{ color: "var(--gray-a9)" }} />
+            <Upload
+              size={24}
+              style={{ color: "var(--gray-a9)" }}
+            />
           )}
         </Box>
 
@@ -215,7 +208,10 @@ export function IconCropper({
               borderRadius: "var(--radius-2)",
             }}
           >
-            <Upload size={24} style={{ color: "white" }} />
+            <Upload
+              size={24}
+              style={{ color: "white" }}
+            />
           </Box>
         )}
       </Box>
@@ -239,7 +235,10 @@ export function IconCropper({
       >
         <Dialog.Content maxWidth="600px">
           <Dialog.Title>{t("connections.cropIcon")}</Dialog.Title>
-          <Dialog.Description size="2" color="gray">
+          <Dialog.Description
+            size="2"
+            color="gray"
+          >
             {t("connections.cropIconDescription")}
           </Dialog.Description>
 
@@ -266,7 +265,11 @@ export function IconCropper({
             )}
           </Box>
 
-          <Flex gap="3" mt="4" justify="end">
+          <Flex
+            gap="3"
+            mt="4"
+            justify="end"
+          >
             <Button
               variant="soft"
               color="gray"
@@ -275,7 +278,10 @@ export function IconCropper({
             >
               {t("common.cancel")}
             </Button>
-            <Button type="button" onClick={handleCropConfirm}>
+            <Button
+              type="button"
+              onClick={handleCropConfirm}
+            >
               {t("common.confirm")}
             </Button>
           </Flex>

@@ -7,10 +7,11 @@
 import { Box, Card, Flex, Text, IconButton, Tooltip } from "@radix-ui/themes";
 import { Edit2, Trash2, BookOpen } from "lucide-react";
 import { motion } from "motion/react";
-import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { formatRelativeTime } from "@/lib/time-utils";
+import { useNavigate } from "react-router";
+
 import type { Project } from "@/lib/project.types";
+import { formatRelativeTime } from "@/lib/time-utils";
 
 const MotionCard = motion.create(Card);
 
@@ -53,8 +54,7 @@ export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
           background: project.coverUrl ? "transparent" : "var(--gray-a3)",
           borderRadius: "var(--radius-2)",
           marginBottom: "12px",
-          boxShadow:
-            "0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06)",
+          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06)",
         }}
       >
         {project.coverUrl ? (
@@ -68,19 +68,38 @@ export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
             }}
           />
         ) : (
-          <Flex align="center" justify="center" style={{ height: "100%" }}>
-            <BookOpen size={48} style={{ color: "var(--gray-a9)" }} />
+          <Flex
+            align="center"
+            justify="center"
+            style={{ height: "100%" }}
+          >
+            <BookOpen
+              size={48}
+              style={{ color: "var(--gray-a9)" }}
+            />
           </Flex>
         )}
       </Box>
 
       {/* 项目信息 */}
       <Box>
-        <Flex justify="between" align="start" mb="1">
-          <Text size="3" weight="bold" style={{ flex: 1 }} truncate>
+        <Flex
+          justify="between"
+          align="start"
+          mb="1"
+        >
+          <Text
+            size="3"
+            weight="bold"
+            style={{ flex: 1 }}
+            truncate
+          >
             {project.title}
           </Text>
-          <Flex gap="3" ml="2">
+          <Flex
+            gap="3"
+            ml="2"
+          >
             <Tooltip content={t("common.edit")}>
               <IconButton
                 size="1"
@@ -109,19 +128,35 @@ export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
           </Flex>
         </Flex>
 
-        <Flex gap="2" align="center">
-          <Text size="1" color="gray">
+        <Flex
+          gap="2"
+          align="center"
+        >
+          <Text
+            size="1"
+            color="gray"
+          >
             {project.wordCount.toLocaleString()} {t("projects.words")}
           </Text>
-          <Text size="1" color="gray">
+          <Text
+            size="1"
+            color="gray"
+          >
             ·
           </Text>
-          <Text size="1" color="gray">
+          <Text
+            size="1"
+            color="gray"
+          >
             {project.chapterCount} {t("projects.chapters")}
           </Text>
         </Flex>
 
-        <Text size="1" color="gray" mt="1">
+        <Text
+          size="1"
+          color="gray"
+          mt="1"
+        >
           {formatRelativeTime(project.updatedAt)}
         </Text>
       </Box>

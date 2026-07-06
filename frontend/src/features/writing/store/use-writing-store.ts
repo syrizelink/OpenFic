@@ -5,6 +5,7 @@
  */
 
 import { create } from "zustand";
+
 import { getPreference, setPreference } from "@/lib/local-db";
 
 const EXPANDED_VOLUME_IDS_KEY = "writing.expandedVolumeIds";
@@ -30,11 +31,7 @@ interface WritingStore {
   enterDragMode: (chapters: Array<{ id: string; order: number }>) => void;
   exitDragMode: () => void;
   setDragOrder: (id: string, order: number) => void;
-  reorderChapters: (
-    fromIndex: number,
-    toIndex: number,
-    chapterIds: string[]
-  ) => void;
+  reorderChapters: (fromIndex: number, toIndex: number, chapterIds: string[]) => void;
   resetDragChanges: () => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
@@ -85,9 +82,7 @@ export const useWritingStore = create<WritingStore>((set, get) => ({
     const newMap = { ...dragOrderMap, [id]: order };
 
     // 检查是否有未保存的修改
-    const hasChanges = Object.keys(newMap).some(
-      (key) => newMap[key] !== originalOrder[key]
-    );
+    const hasChanges = Object.keys(newMap).some((key) => newMap[key] !== originalOrder[key]);
 
     set({
       dragOrderMap: newMap,
@@ -109,9 +104,7 @@ export const useWritingStore = create<WritingStore>((set, get) => ({
     });
 
     // 检查是否有未保存的修改
-    const hasChanges = Object.keys(newMap).some(
-      (key) => newMap[key] !== originalOrder[key]
-    );
+    const hasChanges = Object.keys(newMap).some((key) => newMap[key] !== originalOrder[key]);
 
     set({
       dragOrderMap: newMap,
@@ -146,7 +139,7 @@ export const useWritingStore = create<WritingStore>((set, get) => ({
       }
       set({
         expandedVolumeIds: new Set(
-          ids.filter((id): id is string => typeof id === "string" && id.length > 0)
+          ids.filter((id): id is string => typeof id === "string" && id.length > 0),
         ),
         hasHydratedExpandedVolumeIds: true,
         hasStoredExpandedVolumeIdsPreference: true,

@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
 import { ChevronDown } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { AgentMessage } from "@/lib/agent.types";
+
+import { InlineMentionText } from "../../../inline-mention-text";
 import { MessageCardShell, UserMessageShell } from "../../shared/message-shell";
 import { joinClassNames } from "../../shared/message-shell-utils";
-import { InlineMentionText } from "../../../inline-mention-text";
 
 interface UserRequestMessageProps {
   message: AgentMessage;
@@ -22,10 +23,7 @@ const USER_MESSAGE_AFFORDANCE_TRANSITION = {
   ease: [0.22, 1, 0.36, 1] as const,
 };
 
-export function UserRequestMessage({
-  message,
-  onOpenMentionChapter,
-}: UserRequestMessageProps) {
+export function UserRequestMessage({ message, onOpenMentionChapter }: UserRequestMessageProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isClamped, setIsClamped] = useState(false);
   const [isPointerInside, setIsPointerInside] = useState(false);
@@ -39,7 +37,8 @@ export function UserRequestMessage({
   }, [message.content]);
 
   const canToggle = isClamped || isExpanded;
-  const showExpandOverlay = isClamped && !isExpanded && isPointerInside && !suppressCollapsedOverlay;
+  const showExpandOverlay =
+    isClamped && !isExpanded && isPointerInside && !suppressCollapsedOverlay;
 
   const handleToggle = useCallback(() => {
     if (!canToggle) return;
@@ -65,13 +64,17 @@ export function UserRequestMessage({
 
   return (
     <UserMessageShell>
-      <motion.div layout transition={USER_MESSAGE_LAYOUT_TRANSITION} style={{ width: "100%" }}>
+      <motion.div
+        layout
+        transition={USER_MESSAGE_LAYOUT_TRANSITION}
+        style={{ width: "100%" }}
+      >
         <MessageCardShell
           className={joinClassNames(
             "ai-sidebar-user-message",
             "agent-user-message-preview",
             isExpanded && "agent-user-message-preview--expanded",
-            isClamped && "agent-user-message-preview--clamped"
+            isClamped && "agent-user-message-preview--clamped",
           )}
           onClick={handleToggle}
           onPointerEnter={handlePointerEnter}
@@ -102,7 +105,10 @@ export function UserRequestMessage({
                   animate={{ rotate: 0 }}
                   transition={USER_MESSAGE_LAYOUT_TRANSITION}
                 >
-                  <ChevronDown size={14} className="agent-user-message-expand-icon" />
+                  <ChevronDown
+                    size={14}
+                    className="agent-user-message-expand-icon"
+                  />
                 </motion.span>
               </motion.div>
             ) : null}

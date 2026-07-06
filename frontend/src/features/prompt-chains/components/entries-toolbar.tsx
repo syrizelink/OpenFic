@@ -4,13 +4,14 @@
  * 条目列表工具栏，包含搜索框和新建按钮
  */
 
-import { useState } from "react";
 import { Box, Flex, TextField, IconButton, Tooltip } from "@radix-ui/themes";
-import { useTranslation } from "react-i18next";
 import { Search, Plus, X } from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+
+import type { PromptEntryData } from "@/lib/prompt-chain.types";
 
 import { EntrySearch } from "./entry-search";
-import type { PromptEntryData } from "@/lib/prompt-chain.types";
 
 interface EntriesToolbarProps {
   entries: PromptEntryData[];
@@ -18,11 +19,7 @@ interface EntriesToolbarProps {
   onCreateEntry: () => void;
 }
 
-export function EntriesToolbar({
-  entries,
-  onEntrySelect,
-  onCreateEntry,
-}: EntriesToolbarProps) {
+export function EntriesToolbar({ entries, onEntrySelect, onCreateEntry }: EntriesToolbarProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -48,7 +45,10 @@ export function EntriesToolbar({
         background: "var(--color-background)",
       }}
     >
-      <Flex gap="2" align="center">
+      <Flex
+        gap="2"
+        align="center"
+      >
         {/* 搜索框 */}
         <EntrySearch
           query={query}

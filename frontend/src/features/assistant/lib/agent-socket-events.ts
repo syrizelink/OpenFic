@@ -1,5 +1,5 @@
-import type { AgentEvent } from "@/lib/agent.types";
 import i18n from "@/i18n";
+import type { AgentEvent } from "@/lib/agent.types";
 
 import { getString, isRecord, normalizeToolResult } from "./tool-result-normalization";
 
@@ -38,20 +38,26 @@ function isHiddenSystemReminderContent(content: string): boolean {
 }
 
 function eventId(prefix: string, data: Record<string, unknown>): string {
-  return getString(data.tool_call_id)
-    || getString(data.dispatch_id)
-    || getString(data.run_id)
-    || getString(data.id)
-    || `${prefix}-${Date.now()}`;
+  return (
+    getString(data.tool_call_id) ||
+    getString(data.dispatch_id) ||
+    getString(data.run_id) ||
+    getString(data.id) ||
+    `${prefix}-${Date.now()}`
+  );
 }
 
 function matchesSession(sessionId: string, data: Record<string, unknown>): boolean {
   const payload = isRecord(data.payload) ? data.payload : null;
-  const eventSessionId = getString(data.session_id) || (payload ? getString(payload.session_id) : undefined);
+  const eventSessionId =
+    getString(data.session_id) || (payload ? getString(payload.session_id) : undefined);
   return !eventSessionId || eventSessionId === sessionId;
 }
 
-function getToolEventStatus(_toolName: string, result: Record<string, unknown>): AgentEvent["status"] {
+function getToolEventStatus(
+  _toolName: string,
+  result: Record<string, unknown>,
+): AgentEvent["status"] {
   return result.success === false ? "error" : "completed";
 }
 
@@ -62,7 +68,7 @@ function getToolEventSuccess(_toolName: string, result: Record<string, unknown>)
 export function toAgentEvent(
   eventName: AgentSocketEventName,
   sessionId: string,
-  rawData: unknown
+  rawData: unknown,
 ): AgentEvent | null {
   const data = isRecord(rawData) ? rawData : {};
   if (!matchesSession(sessionId, data)) return null;
@@ -147,7 +153,8 @@ export function toAgentEvent(
         tool_name: getString(data.tool) || getString(data.tool_name) || "",
         tool_args: isRecord(input) ? input : undefined,
         partial_tool_args_text: partialArgsText,
-        tool_args_text: argsText || (typeof input === "string" ? input : JSON.stringify(input ?? {})),
+        tool_args_text:
+          argsText || (typeof input === "string" ? input : JSON.stringify(input ?? {})),
         is_delta: data.is_delta === true,
       },
     };
@@ -157,7 +164,8 @@ export function toAgentEvent(
     const id = eventId("agent-tool", data);
     const result = normalizeToolResult(data.output);
     const input = data.input;
-    const toolName = getString(data.tool) || getString(data.tool_name) || getString(result.tool_name) || "";
+    const toolName =
+      getString(data.tool) || getString(data.tool_name) || getString(result.tool_name) || "";
     const toolSuccess = getToolEventSuccess(toolName, result);
     return {
       id,
@@ -378,7 +386,11 @@ export function toAgentEvent(
 
   if (eventName === "agent:compaction_error") {
     const code = getString(data.code) || getString(data.error_code);
-    const message = getString(data.message) || getString(data.reason) || getString(data.error) || i18n.t("assistant.compactionFailed");
+    const message =
+      getString(data.message) ||
+      getString(data.reason) ||
+      getString(data.error) ||
+      i18n.t("assistant.compactionFailed");
     const id = `compaction:error:${getString(data.session_id) || sessionId}:${Date.now()}`;
     return {
       id,
@@ -411,7 +423,11 @@ export function toAgentEvent(
 
   if (eventName === "agent:error") {
     if (data.type === "invalid_session") return null;
-    const content = getString(data.reason) || getString(data.error) || getString(data.message) || i18n.t("assistant.agentRunFailed");
+    const content =
+      getString(data.reason) ||
+      getString(data.error) ||
+      getString(data.message) ||
+      i18n.t("assistant.agentRunFailed");
     return {
       type: "error",
       role: "system",
@@ -440,7 +456,8 @@ export function toAgentEvent(
     }
 
     if (data.type === "tool_approval") {
-      const approvalId = getString(data.approval_id) || getString(data.id) || `approval-${Date.now()}`;
+      const approvalId =
+        getString(data.approval_id) || getString(data.id) || `approval-${Date.now()}`;
       const toolArgs = isRecord(data.args)
         ? data.args
         : isRecord(data.tool_args)
@@ -463,7 +480,8 @@ export function toAgentEvent(
         tool_call_id: toolCallId,
         tool_args: toolArgs,
         tool_result_preview: toolResultPreview,
-        message: getString(data.message) || i18n.t("assistant.tools.toolApprovalQuestion", { toolName }),
+        message:
+          getString(data.message) || i18n.t("assistant.tools.toolApprovalQuestion", { toolName }),
         interrupt_behavior: data.interrupt_behavior === "cancel" ? "cancel" : "block",
         payload: {
           approval_id: approvalId,
@@ -471,7 +489,8 @@ export function toAgentEvent(
           tool_call_id: toolCallId,
           tool_args: toolArgs,
           tool_result_preview: toolResultPreview,
-          message: getString(data.message) || i18n.t("assistant.tools.toolApprovalQuestion", { toolName }),
+          message:
+            getString(data.message) || i18n.t("assistant.tools.toolApprovalQuestion", { toolName }),
           interrupt_behavior: data.interrupt_behavior === "cancel" ? "cancel" : "block",
         },
       };

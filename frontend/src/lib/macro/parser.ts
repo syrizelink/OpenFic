@@ -43,18 +43,12 @@ export function parseMacro(match: MacroMatch): MacroNode {
   try {
     args = tokenizeArgs(argsStr);
   } catch (e) {
-    throw new MacroParseError(
-      e instanceof Error ? e.message : String(e),
-      match.raw
-    );
+    throw new MacroParseError(e instanceof Error ? e.message : String(e), match.raw);
   }
 
   if (NO_ARG_MACROS.has(name)) {
     if (args.length !== 0) {
-      throw new MacroParseError(
-        `${name} 宏不接受参数，收到: ${args.length}`,
-        match.raw
-      );
+      throw new MacroParseError(`${name} 宏不接受参数，收到: ${args.length}`, match.raw);
     }
   }
 

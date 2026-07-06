@@ -8,6 +8,7 @@ import { Box, Flex, Text, ScrollArea } from "@radix-ui/themes";
 import { BookOpen, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
+
 import type { Project } from "@/lib/project.types";
 
 const MotionBox = motion.create(Box);
@@ -45,7 +46,10 @@ export function ProjectGridSelector({
   return (
     <ScrollArea style={{ maxHeight: `${maxHeight}px` }}>
       <Box>
-        <Flex wrap="wrap" gap="3">
+        <Flex
+          wrap="wrap"
+          gap="3"
+        >
           {/* 无绑定选项 */}
           {showNoneOption && (
             <MotionBox
@@ -69,10 +73,7 @@ export function ProjectGridSelector({
                   background: "var(--gray-a3)",
                   borderRadius: "var(--radius-2)",
                   marginBottom: "8px",
-                  border:
-                    value === ""
-                      ? "2px solid var(--accent-9)"
-                      : "2px solid transparent",
+                  border: value === "" ? "2px solid var(--accent-9)" : "2px solid transparent",
                   boxShadow:
                     value === ""
                       ? "0 0 0 2px var(--accent-a3)"
@@ -85,7 +86,10 @@ export function ProjectGridSelector({
                   justify="center"
                   style={{ height: "100%", flexDirection: "column", gap: "8px" }}
                 >
-                  <X size={24} style={{ color: "var(--gray-a9)" }} />
+                  <X
+                    size={24}
+                    style={{ color: "var(--gray-a9)" }}
+                  />
                 </Flex>
               </Box>
               <Text
@@ -126,9 +130,7 @@ export function ProjectGridSelector({
                     background: project.coverUrl ? "transparent" : "var(--gray-a3)",
                     borderRadius: "var(--radius-2)",
                     marginBottom: "8px",
-                    border: isSelected
-                      ? "2px solid var(--accent-9)"
-                      : "2px solid transparent",
+                    border: isSelected ? "2px solid var(--accent-9)" : "2px solid transparent",
                     boxShadow: isSelected
                       ? "0 0 0 2px var(--accent-a3)"
                       : "0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06)",
@@ -146,8 +148,15 @@ export function ProjectGridSelector({
                       }}
                     />
                   ) : (
-                    <Flex align="center" justify="center" style={{ height: "100%" }}>
-                      <BookOpen size={24} style={{ color: "var(--gray-a9)" }} />
+                    <Flex
+                      align="center"
+                      justify="center"
+                      style={{ height: "100%" }}
+                    >
+                      <BookOpen
+                        size={24}
+                        style={{ color: "var(--gray-a9)" }}
+                      />
                     </Flex>
                   )}
                 </Box>

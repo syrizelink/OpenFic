@@ -4,22 +4,17 @@
  * 创建/编辑项目对话框，使用 React Hook Form + Zod 验证，支持封面上传。
  */
 
-import { useEffect, useState } from "react";
-import {
-  Dialog,
-  Button,
-  Flex,
-  Text,
-  TextField,
-  TextArea,
-  Box,
-} from "@radix-ui/themes";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Dialog, Button, Flex, Text, TextField, TextArea, Box } from "@radix-ui/themes";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { z } from "zod";
+
 import type { Project } from "@/lib/project.types";
+
 import { CoverCropper } from "./cover-cropper";
+
 import "./project-form-dialog.css";
 
 interface ProjectFormDialogProps {
@@ -28,11 +23,7 @@ interface ProjectFormDialogProps {
   /** 关闭对话框回调 */
   onOpenChange: (open: boolean) => void;
   /** 提交表单回调 */
-  onSubmit: (data: {
-    title: string;
-    description?: string;
-    cover?: File | null;
-  }) => void;
+  onSubmit: (data: { title: string; description?: string; cover?: File | null }) => void;
   /** 编辑模式时传入现有项目 */
   project?: Project | null;
   /** 是否处于加载状态 */
@@ -113,18 +104,21 @@ export function ProjectFormDialog({
     >
       <Dialog.Content maxWidth="600px">
         <Dialog.Title>
-          {isEditMode
-            ? t("projectForm.editProject")
-            : t("projectForm.newProject")}
+          {isEditMode ? t("projectForm.editProject") : t("projectForm.newProject")}
         </Dialog.Title>
-        <Dialog.Description size="2" color="gray">
-          {isEditMode
-            ? t("projectForm.editDescription")
-            : t("projectForm.createDescription")}
+        <Dialog.Description
+          size="2"
+          color="gray"
+        >
+          {isEditMode ? t("projectForm.editDescription") : t("projectForm.createDescription")}
         </Dialog.Description>
 
         <form onSubmit={handleFormSubmit}>
-          <Flex gap="5" mt="4" className="project-form-dialog-fields">
+          <Flex
+            gap="5"
+            mt="4"
+            className="project-form-dialog-fields"
+          >
             {/* 左侧：封面 */}
             <Box className="project-form-dialog-cover">
               <CoverCropper
@@ -135,7 +129,11 @@ export function ProjectFormDialog({
             </Box>
 
             {/* 右侧：项目信息 */}
-            <Flex direction="column" gap="4" style={{ flex: 1, minWidth: 0 }}>
+            <Flex
+              direction="column"
+              gap="4"
+              style={{ flex: 1, minWidth: 0 }}
+            >
               {/* 标题 */}
               <Box>
                 <Text
@@ -152,7 +150,11 @@ export function ProjectFormDialog({
                   {...register("title")}
                 />
                 {errors.title && (
-                  <Text size="1" color="red" mt="1">
+                  <Text
+                    size="1"
+                    color="red"
+                    mt="1"
+                  >
                     {errors.title.message}
                   </Text>
                 )}
@@ -178,13 +180,24 @@ export function ProjectFormDialog({
             </Flex>
           </Flex>
 
-          <Flex gap="3" mt="5" justify="end">
+          <Flex
+            gap="3"
+            mt="5"
+            justify="end"
+          >
             <Dialog.Close>
-              <Button variant="soft" color="gray" disabled={loading}>
+              <Button
+                variant="soft"
+                color="gray"
+                disabled={loading}
+              >
                 {t("common.cancel")}
               </Button>
             </Dialog.Close>
-            <Button type="submit" loading={loading}>
+            <Button
+              type="submit"
+              loading={loading}
+            >
               {isEditMode ? t("common.save") : t("common.create")}
             </Button>
           </Flex>

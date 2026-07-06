@@ -42,7 +42,7 @@ export function TaskRenameInput({
         onCancel();
       }
     },
-    [handleSubmit, onCancel]
+    [handleSubmit, onCancel],
   );
 
   return (

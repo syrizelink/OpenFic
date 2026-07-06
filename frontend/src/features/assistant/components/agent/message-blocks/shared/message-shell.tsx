@@ -1,7 +1,7 @@
-import type { ComponentPropsWithoutRef, ReactNode } from "react";
-import { AnimatePresence, motion } from "motion/react";
 import { Box, Flex, IconButton } from "@radix-ui/themes";
 import { ChevronDown } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
 import "./message-shell.css";
 import { joinClassNames } from "./message-shell-utils";
@@ -63,7 +63,7 @@ export function MessageCardShell({
         "agent-message-card",
         "agent-message-card-shell",
         cardTone === "tool" && "agent-tool-card",
-        className
+        className,
       )}
       data-expandable={expandable === undefined ? undefined : expandable ? "true" : "false"}
       data-status={status}
@@ -88,7 +88,7 @@ export function MessageBlockShell({
       className={joinClassNames(
         "agent-message-block-shell",
         flush && "agent-message-block-shell--flush",
-        className
+        className,
       )}
     >
       {children}
@@ -117,11 +117,15 @@ export function MessageBlockHeader({
       data-expandable={expandable ? "true" : "false"}
       aria-expanded={expandable ? expanded : undefined}
       onClick={isInteractive ? handleToggle : undefined}
-      onKeyDown={isInteractive ? (event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        handleToggle();
-      } : undefined}
+      onKeyDown={
+        isInteractive
+          ? (event) => {
+              if (event.key !== "Enter" && event.key !== " ") return;
+              event.preventDefault();
+              handleToggle();
+            }
+          : undefined
+      }
       role={isInteractive ? "button" : undefined}
       tabIndex={isInteractive ? 0 : undefined}
     >
@@ -138,17 +142,18 @@ export function MessageBlockHeaderMain({
     <Flex
       align="center"
       gap="2"
-      className={joinClassNames("agent-tool-header-main", "agent-message-shell-header-main", className)}
+      className={joinClassNames(
+        "agent-tool-header-main",
+        "agent-message-shell-header-main",
+        className,
+      )}
     >
       {children}
     </Flex>
   );
 }
 
-export function MessageBlockMeta({
-  children,
-  className,
-}: ComponentPropsWithoutRef<typeof Flex>) {
+export function MessageBlockMeta({ children, className }: ComponentPropsWithoutRef<typeof Flex>) {
   return (
     <Flex
       align="center"
@@ -160,11 +165,7 @@ export function MessageBlockMeta({
   );
 }
 
-export function MessageExpandButton({
-  className,
-  expanded,
-  label,
-}: MessageExpandButtonProps) {
+export function MessageExpandButton({ className, expanded, label }: MessageExpandButtonProps) {
   return (
     <IconButton
       size="1"
@@ -172,7 +173,7 @@ export function MessageExpandButton({
       className={joinClassNames(
         "agent-tool-expand-button",
         "agent-message-shell-expand-button",
-        className
+        className,
       )}
       tabIndex={-1}
       aria-label={label}
@@ -243,7 +244,10 @@ export function MessageBlockContent({
 
 export function UserMessageShell({ children, className }: UserMessageShellProps) {
   return (
-    <Flex justify="end" className={joinClassNames("agent-message-user-shell-row", className)}>
+    <Flex
+      justify="end"
+      className={joinClassNames("agent-message-user-shell-row", className)}
+    >
       <Box className="agent-user-message-shell">{children}</Box>
     </Flex>
   );

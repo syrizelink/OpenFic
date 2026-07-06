@@ -1,5 +1,3 @@
-/* oxlint-disable react-refresh/only-export-components */
-import type { ReactNode } from "react";
 import {
   BookOpen,
   Bot,
@@ -13,27 +11,16 @@ import {
   Trash2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+/* oxlint-disable react-refresh/only-export-components */
+import type { ReactNode } from "react";
 
-import type { AgentMessage } from "@/lib/agent.types";
-import i18n from "@/i18n";
 import { formatChapterDisplayName } from "@/features/assistant/lib/chapter-tool-preview";
-import {
-  getExploreToolNames as getCatalogExploreToolNames,
-  REGISTERED_TOOL_NAMES,
-  isExploreToolName,
-  type RegisteredToolName,
-  type ToolContentMode,
-  type ToolGroup,
-} from "./tool-message-catalog";
+import i18n from "@/i18n";
+import type { AgentMessage } from "@/lib/agent.types";
 
 import { AskUserToolMessage } from "../ask-user/ask-user-tool-message";
-import {
-  ChapterToolMessage,
-} from "../chapter/chapter-tool-message";
-import {
-  EditNoteToolMessage,
-  WriteNoteToolMessage,
-} from "../note/note-tool-message";
+import { ChapterToolMessage } from "../chapter/chapter-tool-message";
+import { EditNoteToolMessage, WriteNoteToolMessage } from "../note/note-tool-message";
 import {
   getSubagentDispatchDetail,
   getSubagentDispatchTitle,
@@ -44,13 +31,21 @@ import {
   getNotifySubagentDetail,
   getNotifySubagentTitle,
 } from "../orchestration/notify-subagent-tool-message-utils";
-import { PlanToolMessage } from "../plan/plan-tool-message";
 import {
   getRecycleSubagentDetail,
   getRecycleSubagentTitle,
 } from "../orchestration/recycle-subagent-tool-message";
-import { WorldEntryToolMessage } from "../world-entry/world-entry-tool-message";
+import { PlanToolMessage } from "../plan/plan-tool-message";
 import { getPlanToolDisplayConfig } from "../plan/plan-tool-message.utils";
+import { WorldEntryToolMessage } from "../world-entry/world-entry-tool-message";
+import {
+  getExploreToolNames as getCatalogExploreToolNames,
+  REGISTERED_TOOL_NAMES,
+  isExploreToolName,
+  type RegisteredToolName,
+  type ToolContentMode,
+  type ToolGroup,
+} from "./tool-message-catalog";
 import {
   asString,
   formatCategoryRefLabel,
@@ -97,7 +92,7 @@ export interface ToolDescriptor {
 
 function getPlanDetailForDisplayKind(
   message: AgentMessage,
-  detailKind: ReturnType<typeof getPlanToolDisplayConfig>["detailKind"]
+  detailKind: ReturnType<typeof getPlanToolDisplayConfig>["detailKind"],
 ): string | undefined {
   return detailKind === "count" ? getPlanCountDetail(message) : getPlanTopicDetail(message);
 }
@@ -215,7 +210,9 @@ const TOOL_REGISTRY = {
     getTitle: () => i18n.t("assistant.tools.listNotes"),
     getDetail: (message) => {
       const items = getNoteItemList(message);
-      return items.length > 0 ? i18n.t("assistant.tools.itemCount", { count: items.length }) : undefined;
+      return items.length > 0
+        ? i18n.t("assistant.tools.itemCount", { count: items.length })
+        : undefined;
     },
   },
   read_note: {
@@ -278,7 +275,10 @@ const TOOL_REGISTRY = {
       const noteLabel = note.title ?? formatNoteRefLabel(getToolRef(message, "note_ref"));
       const data = message.toolResult?.data;
       const target = isRecord(data) && isRecord(data.target_category) ? data.target_category : null;
-      const targetLabel = asString(target?.title) ?? formatCategoryRefLabel(getToolRef(message, "target_category_ref")) ?? i18n.t("assistant.tools.rootLevel");
+      const targetLabel =
+        asString(target?.title) ??
+        formatCategoryRefLabel(getToolRef(message, "target_category_ref")) ??
+        i18n.t("assistant.tools.rootLevel");
       if (!noteLabel) return undefined;
       return `${noteLabel} \u2192 ${targetLabel}`;
     },
@@ -309,7 +309,9 @@ const TOOL_REGISTRY = {
     getTitle: () => i18n.t("assistant.tools.listChapters"),
     getDetail: (message) => {
       const chapters = getChapterList(message);
-      return chapters.length > 0 ? i18n.t("assistant.tools.chapterCount", { count: chapters.length }) : undefined;
+      return chapters.length > 0
+        ? i18n.t("assistant.tools.chapterCount", { count: chapters.length })
+        : undefined;
     },
   },
   search_chapters: {
@@ -326,7 +328,9 @@ const TOOL_REGISTRY = {
       const results = Array.isArray(data.results) ? data.results : [];
       if (results.length === 0) return undefined;
       const query = typeof data.query === "string" && data.query ? data.query : undefined;
-      return query ? `${query} · ${i18n.t("assistant.tools.matchCount", { count: results.length })}` : i18n.t("assistant.tools.matchedChapters", { count: results.length });
+      return query
+        ? `${query} · ${i18n.t("assistant.tools.matchCount", { count: results.length })}`
+        : i18n.t("assistant.tools.matchedChapters", { count: results.length });
     },
   },
   update_index: {
@@ -348,7 +352,9 @@ const TOOL_REGISTRY = {
     getTitle: () => i18n.t("assistant.tools.listVolumes"),
     getDetail: (message) => {
       const volumes = getVolumeList(message);
-      return volumes.length > 0 ? i18n.t("assistant.tools.volumeCount", { count: volumes.length }) : undefined;
+      return volumes.length > 0
+        ? i18n.t("assistant.tools.volumeCount", { count: volumes.length })
+        : undefined;
     },
   },
   create_volume: {
@@ -372,7 +378,8 @@ const TOOL_REGISTRY = {
     getTitle: () => i18n.t("assistant.tools.editVolume"),
     getDetail: (message) => {
       const sourceLabel = getVolumeRefLabel(message, "volume_ref");
-      const targetLabel = getVolumePayload(message)?.title ?? asString(getStreamingData(message).new_title);
+      const targetLabel =
+        getVolumePayload(message)?.title ?? asString(getStreamingData(message).new_title);
       if (sourceLabel && targetLabel) return `${sourceLabel} \u2192 ${targetLabel}`;
       return targetLabel ?? sourceLabel;
     },
@@ -396,7 +403,9 @@ const TOOL_REGISTRY = {
     icon: FilePenLine,
     getTitle: () => i18n.t("assistant.tools.moveChapterToVolume"),
     getDetail: (message) => {
-      const chapterLabel = getChapterPayload(message).title ?? formatChapterRefLabel(getToolRef(message, "chapter_ref"));
+      const chapterLabel =
+        getChapterPayload(message).title ??
+        formatChapterRefLabel(getToolRef(message, "chapter_ref"));
       const targetLabel = getVolumeRefLabel(message, "target_volume_ref");
       if (chapterLabel && targetLabel) return `${chapterLabel} \u2192 ${targetLabel}`;
       return chapterLabel ?? targetLabel;
@@ -442,7 +451,9 @@ const TOOL_REGISTRY = {
     getTitle: () => i18n.t("assistant.tools.listWorldEntries"),
     getDetail: (message) => {
       const entries = getWorldEntryList(message);
-      return entries.length > 0 ? i18n.t("assistant.tools.worldEntryCount", { count: entries.length }) : undefined;
+      return entries.length > 0
+        ? i18n.t("assistant.tools.worldEntryCount", { count: entries.length })
+        : undefined;
     },
   },
   read_world_entry: {

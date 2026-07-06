@@ -5,10 +5,10 @@
  * 注意：父组件应使用 key={entry.id} 来确保 entry 变化时组件重新挂载。
  */
 
-import { useState, useCallback, useRef, useEffect } from "react";
-import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Editor } from "@tiptap/react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 import { MarkdownEditor } from "@/components";
 import { toast } from "@/components/toast";
@@ -78,13 +78,13 @@ export function EntryEditor({
                     name: updated.name,
                     tokenCount: updated.tokenCount,
                   }
-                : item
+                : item,
             ),
           };
-        }
+        },
       );
     },
-    [entry.id, queryClient, worldInfoId]
+    [entry.id, queryClient, worldInfoId],
   );
 
   const flushSave = useCallback(async () => {
@@ -94,9 +94,7 @@ export function EntryEditor({
 
     const content = savedContentRef.current;
     const newName = savedNameRef.current.trim();
-    const hasDuplicateName = entries.some(
-      (item) => item.id !== entry.id && item.name === newName
-    );
+    const hasDuplicateName = entries.some((item) => item.id !== entry.id && item.name === newName);
     if (hasDuplicateName) {
       toast.error(t("worldInfo.duplicateEntryName"));
       isSavingRef.current = false;
@@ -139,7 +137,7 @@ export function EntryEditor({
       setHasChanges(true);
       triggerAutoSave();
     },
-    [triggerAutoSave]
+    [triggerAutoSave],
   );
 
   const handleContentChange = useCallback(
@@ -150,7 +148,7 @@ export function EntryEditor({
       setHasChanges(true);
       triggerAutoSave();
     },
-    [triggerAutoSave]
+    [triggerAutoSave],
   );
 
   const handleSave = useCallback(() => {
@@ -186,9 +184,10 @@ export function EntryEditor({
         const resolvedPos = editor.state.doc.resolve(targetPos);
         const node = editor.view.domAtPos(resolvedPos.pos);
         if (node.node) {
-          const el = node.node.nodeType === Node.TEXT_NODE
-            ? node.node.parentElement
-            : node.node as HTMLElement;
+          const el =
+            node.node.nodeType === Node.TEXT_NODE
+              ? node.node.parentElement
+              : (node.node as HTMLElement);
           el?.scrollIntoView({ behavior: "smooth", block: "center" });
         }
       } finally {

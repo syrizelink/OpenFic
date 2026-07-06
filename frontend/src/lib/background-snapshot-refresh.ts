@@ -9,9 +9,15 @@ export interface BackgroundSnapshot {
 
 export interface BackgroundSnapshotRefreshSocket {
   on(event: "background:snapshot", listener: (snapshot: BackgroundSnapshot) => void): void;
-  on(event: "background:error", listener: (payload: { type?: string; reason?: string }) => void): void;
+  on(
+    event: "background:error",
+    listener: (payload: { type?: string; reason?: string }) => void,
+  ): void;
   off(event: "background:snapshot", listener: (snapshot: BackgroundSnapshot) => void): void;
-  off(event: "background:error", listener: (payload: { type?: string; reason?: string }) => void): void;
+  off(
+    event: "background:error",
+    listener: (payload: { type?: string; reason?: string }) => void,
+  ): void;
   emit(event: "background:join", payload: { project_id: string }): void;
 }
 
@@ -24,7 +30,7 @@ export interface BackgroundSnapshotRefreshTimers {
 export async function joinProjectAndWaitForSnapshot(
   socket: BackgroundSnapshotRefreshSocket,
   projectId: string,
-  timers: BackgroundSnapshotRefreshTimers = {}
+  timers: BackgroundSnapshotRefreshTimers = {},
 ): Promise<BackgroundSnapshot> {
   const timeoutMs = timers.timeoutMs ?? 5000;
   const setTimeoutFn = timers.setTimeoutFn ?? globalThis.setTimeout;

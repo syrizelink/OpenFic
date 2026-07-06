@@ -1,5 +1,11 @@
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { useEffect } from "react";
-import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
 import {
   deleteChapterSummaries,
@@ -21,6 +27,7 @@ import {
   type SummaryStatus,
   type SummaryStatusItem,
 } from "@/lib/api-client";
+
 import {
   extractBatchProgressFromEvent,
   ITEM_TERMINAL_EVENT_TYPES,
@@ -99,8 +106,8 @@ function createEmptySummaryProjection(projectId: string): SummaryProjection {
 
 function getProjection(queryClient: QueryClient, projectId: string): SummaryProjection {
   return (
-    queryClient.getQueryData<SummaryProjection>(getSummaryProjectionQueryKey(projectId))
-    ?? createEmptySummaryProjection(projectId)
+    queryClient.getQueryData<SummaryProjection>(getSummaryProjectionQueryKey(projectId)) ??
+    createEmptySummaryProjection(projectId)
   );
 }
 
@@ -113,13 +120,19 @@ function normalizeRevision(value: unknown): number | null {
   return null;
 }
 
-function shouldApplyEventRevision(currentRevision: number | null, eventRevision: number | null): boolean {
+function shouldApplyEventRevision(
+  currentRevision: number | null,
+  eventRevision: number | null,
+): boolean {
   if (eventRevision == null) return true;
   if (currentRevision == null) return true;
   return eventRevision > currentRevision;
 }
 
-function shouldApplySnapshotRevision(currentRevision: number | null, snapshotRevision: number | null): boolean {
+function shouldApplySnapshotRevision(
+  currentRevision: number | null,
+  snapshotRevision: number | null,
+): boolean {
   if (snapshotRevision == null) return true;
   if (currentRevision == null) return true;
   return snapshotRevision >= currentRevision;
@@ -139,11 +152,11 @@ function getBoolean(value: unknown, fallback = false): boolean {
 
 function normalizeSummaryStatus(value: unknown): SummaryStatus | null {
   if (
-    value === "not_generated"
-    || value === "queued"
-    || value === "running"
-    || value === "ready"
-    || value === "failed"
+    value === "not_generated" ||
+    value === "queued" ||
+    value === "running" ||
+    value === "ready" ||
+    value === "failed"
   ) {
     return value;
   }
@@ -162,7 +175,10 @@ function resolveUpdatedAt(payload: Record<string, unknown>, current: string | nu
   return getString(payload.updated_at);
 }
 
-function resolveProgressMessage(payload: Record<string, unknown>, current: string | null): string | null {
+function resolveProgressMessage(
+  payload: Record<string, unknown>,
+  current: string | null,
+): string | null {
   if ("progress_message" in payload) return getString(payload.progress_message);
   if ("message" in payload) return getString(payload.message);
   return current;
@@ -170,7 +186,7 @@ function resolveProgressMessage(payload: Record<string, unknown>, current: strin
 
 function applyChapterStatusToProjection(
   projection: SummaryProjection,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
 ): SummaryProjection {
   const chapterId = getString(payload.chapter_id);
   const status = normalizeSummaryStatus(payload.status);
@@ -211,7 +227,8 @@ function applyChapterStatusToProjection(
         status,
         isStale,
         summaryId: resolveSummaryId(payload, item.summaryId),
-        progressMessage: status === "ready" ? null : resolveProgressMessage(payload, item.progressMessage),
+        progressMessage:
+          status === "ready" ? null : resolveProgressMessage(payload, item.progressMessage),
       };
     })
     .filter((item) => !(item.chapterId === chapterId && item.status === "ready" && !item.isStale));
@@ -244,7 +261,7 @@ function applyChapterStatusToProjection(
 
 function applyLongTermStatusToProjection(
   projection: SummaryProjection,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
 ): SummaryProjection {
   const startOrder = getNumber(payload.start_order);
   const endOrder = getNumber(payload.end_order);
@@ -262,10 +279,19 @@ function applyLongTermStatusToProjection(
         status,
         isStale,
         summaryId: resolveSummaryId(payload, item.summaryId),
-        progressMessage: status === "ready" ? null : resolveProgressMessage(payload, item.progressMessage),
+        progressMessage:
+          status === "ready" ? null : resolveProgressMessage(payload, item.progressMessage),
       };
     })
-    .filter((item) => !(item.startOrder === startOrder && item.endOrder === endOrder && item.status === "ready" && !item.isStale));
+    .filter(
+      (item) =>
+        !(
+          item.startOrder === startOrder &&
+          item.endOrder === endOrder &&
+          item.status === "ready" &&
+          !item.isStale
+        ),
+    );
 
   if (!found && !(status === "ready" && !isStale)) {
     missingOrFailedLongTermSummaries.push({
@@ -289,15 +315,18 @@ function applyLongTermStatusToProjection(
 
 function buildActiveJobFromEvent(
   event: BackgroundEvent,
-  existing: SummaryBackgroundJobItem | undefined
+  existing: SummaryBackgroundJobItem | undefined,
 ): SummaryBackgroundJobItem | null {
   const jobId = getString(event.item_id) ?? getString(event.job_id);
   const payload = event.payload ?? {};
-  const jobType = event.item_type === "chapter_summary" || event.item_type === "long_term_summary"
-    ? event.item_type
-    : event.job_type === "chapter_summary" || event.job_type === "long_term_summary" || event.job_type === "summary_batch"
-      ? event.job_type
-      : null;
+  const jobType =
+    event.item_type === "chapter_summary" || event.item_type === "long_term_summary"
+      ? event.item_type
+      : event.job_type === "chapter_summary" ||
+          event.job_type === "long_term_summary" ||
+          event.job_type === "summary_batch"
+        ? event.job_type
+        : null;
   if (!jobId || !jobType) return null;
 
   const now = event.created_at ?? new Date().toISOString();
@@ -309,19 +338,29 @@ function buildActiveJobFromEvent(
     summaryId: resolveSummaryId(payload, existing?.summaryId ?? null),
     startOrder: getNumber(payload.start_order) ?? existing?.startOrder ?? null,
     endOrder: getNumber(payload.end_order) ?? existing?.endOrder ?? null,
-    progressCurrent: getNumber(payload.progress_current) ?? getNumber(payload.current) ?? existing?.progressCurrent ?? 0,
+    progressCurrent:
+      getNumber(payload.progress_current) ??
+      getNumber(payload.current) ??
+      existing?.progressCurrent ??
+      0,
     progressTotal:
       "progress_total" in payload
         ? getNumber(payload.progress_total)
-        : getNumber(payload.total) ?? existing?.progressTotal ?? null,
+        : (getNumber(payload.total) ?? existing?.progressTotal ?? null),
     progressMessage: resolveProgressMessage(payload, existing?.progressMessage ?? null),
-    errorMessage: "error_message" in payload ? getString(payload.error_message) : existing?.errorMessage ?? null,
+    errorMessage:
+      "error_message" in payload
+        ? getString(payload.error_message)
+        : (existing?.errorMessage ?? null),
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
 }
 
-function applyItemEventToProjection(projection: SummaryProjection, event: BackgroundEvent): SummaryProjection {
+function applyItemEventToProjection(
+  projection: SummaryProjection,
+  event: BackgroundEvent,
+): SummaryProjection {
   const jobId = getString(event.item_id) ?? getString(event.job_id);
   const payload = event.payload ?? {};
   let next = projection;
@@ -351,12 +390,19 @@ function applyItemEventToProjection(projection: SummaryProjection, event: Backgr
     maintenance: {
       ...next.maintenance,
       activeJobs,
-      batchProgress: updateBatchProgressForItemEvent(next.maintenance.batchProgress, event, previousJob),
+      batchProgress: updateBatchProgressForItemEvent(
+        next.maintenance.batchProgress,
+        event,
+        previousJob,
+      ),
     },
   };
 }
 
-function applyJobEventToProjection(projection: SummaryProjection, event: BackgroundEvent): SummaryProjection {
+function applyJobEventToProjection(
+  projection: SummaryProjection,
+  event: BackgroundEvent,
+): SummaryProjection {
   const jobId = getString(event.job_id);
   const itemId = getString(event.item_id);
   if (!jobId && !itemId) return projection;
@@ -383,26 +429,35 @@ function applyJobEventToProjection(projection: SummaryProjection, event: Backgro
             ? {
                 ...job,
                 status: event.type === "background_job_started" ? "running" : job.status,
-                progressCurrent: getNumber(event.payload?.current) ?? getNumber(event.payload?.progress_current) ?? job.progressCurrent,
+                progressCurrent:
+                  getNumber(event.payload?.current) ??
+                  getNumber(event.payload?.progress_current) ??
+                  job.progressCurrent,
                 progressTotal:
-                  getNumber(event.payload?.total) ?? getNumber(event.payload?.progress_total) ?? job.progressTotal,
-                progressMessage: getString(event.payload?.message) ?? getString(event.payload?.progress_message) ?? job.progressMessage,
+                  getNumber(event.payload?.total) ??
+                  getNumber(event.payload?.progress_total) ??
+                  job.progressTotal,
+                progressMessage:
+                  getString(event.payload?.message) ??
+                  getString(event.payload?.progress_message) ??
+                  job.progressMessage,
                 updatedAt: event.created_at ?? job.updatedAt,
               }
-            : job
+            : job,
         ),
       },
     };
   }
 
   if (
-    event.type === "background_job_succeeded"
-    || event.type === "background_job_failed"
-    || event.type === "background_job_skipped"
+    event.type === "background_job_succeeded" ||
+    event.type === "background_job_failed" ||
+    event.type === "background_job_skipped"
   ) {
-    const currentBatchProgress = jobId && projection.maintenance.batchProgress?.jobId === jobId
-      ? projection.maintenance.batchProgress
-      : null;
+    const currentBatchProgress =
+      jobId && projection.maintenance.batchProgress?.jobId === jobId
+        ? projection.maintenance.batchProgress
+        : null;
     const terminalStatus =
       event.type === "background_job_succeeded"
         ? "succeeded"
@@ -415,20 +470,21 @@ function applyJobEventToProjection(projection: SummaryProjection, event: Backgro
           status: terminalStatus,
           completedItemCount:
             event.type === "background_job_succeeded"
-              ? Math.max(currentBatchProgress.completedItemCount, currentBatchProgress.totalItemCount)
+              ? Math.max(
+                  currentBatchProgress.completedItemCount,
+                  currentBatchProgress.totalItemCount,
+                )
               : currentBatchProgress.completedItemCount,
           progressCurrent:
             event.type === "background_job_succeeded"
-              ? currentBatchProgress.progressTotal ?? currentBatchProgress.progressCurrent
+              ? (currentBatchProgress.progressTotal ?? currentBatchProgress.progressCurrent)
               : currentBatchProgress.progressCurrent,
           progressPercent:
-            event.type === "background_job_succeeded"
-              ? 100
-              : currentBatchProgress.progressPercent,
+            event.type === "background_job_succeeded" ? 100 : currentBatchProgress.progressPercent,
           progressMessage:
-            getString(event.payload?.message)
-            ?? getString(event.payload?.progress_message)
-            ?? currentBatchProgress.progressMessage,
+            getString(event.payload?.message) ??
+            getString(event.payload?.progress_message) ??
+            currentBatchProgress.progressMessage,
           queuedItemCount: 0,
           runningItemCount: 0,
           updatedAt: event.created_at ?? currentBatchProgress.updatedAt,
@@ -441,7 +497,7 @@ function applyJobEventToProjection(projection: SummaryProjection, event: Backgro
         ...projection.maintenance,
         batchProgress,
         activeJobs: projection.maintenance.activeJobs.filter((job) =>
-          itemId != null ? job.jobId !== itemId : job.jobId !== jobId
+          itemId != null ? job.jobId !== itemId : job.jobId !== jobId,
         ),
       },
     };
@@ -450,7 +506,10 @@ function applyJobEventToProjection(projection: SummaryProjection, event: Backgro
   return projection;
 }
 
-function reduceSummaryProjectionEvent(projection: SummaryProjection, event: BackgroundEvent): SummaryProjection {
+function reduceSummaryProjectionEvent(
+  projection: SummaryProjection,
+  event: BackgroundEvent,
+): SummaryProjection {
   let next = projection;
   if (event.type === "chapter_summary_updated" && event.payload) {
     next = applyChapterStatusToProjection(next, event.payload);
@@ -469,7 +528,7 @@ function reduceSummaryProjectionEvent(projection: SummaryProjection, event: Back
 function applyChapterStatusToListQueries(
   queryClient: QueryClient,
   projectId: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
 ) {
   const chapterId = getString(payload.chapter_id);
   const status = normalizeSummaryStatus(payload.status);
@@ -490,17 +549,17 @@ function applyChapterStatusToListQueries(
                 summaryId: resolveSummaryId(payload, item.summaryId),
                 updatedAt: resolveUpdatedAt(payload, item.updatedAt),
               }
-            : item
+            : item,
         ),
       };
-    }
+    },
   );
 }
 
 function applyLongTermStatusToListQueries(
   queryClient: QueryClient,
   projectId: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
 ) {
   const startOrder = getNumber(payload.start_order);
   const endOrder = getNumber(payload.end_order);
@@ -522,14 +581,18 @@ function applyLongTermStatusToListQueries(
                 summaryId: resolveSummaryId(payload, item.summaryId),
                 updatedAt: resolveUpdatedAt(payload, item.updatedAt),
               }
-            : item
+            : item,
         ),
       };
-    }
+    },
   );
 }
 
-function applySummaryEventToListQueries(queryClient: QueryClient, projectId: string, event: BackgroundEvent) {
+function applySummaryEventToListQueries(
+  queryClient: QueryClient,
+  projectId: string,
+  event: BackgroundEvent,
+) {
   if (!event.payload) return;
   if (event.type === "chapter_summary_updated" || event.item_type === "chapter_summary") {
     applyChapterStatusToListQueries(queryClient, projectId, event.payload);
@@ -539,8 +602,14 @@ function applySummaryEventToListQueries(queryClient: QueryClient, projectId: str
   }
 }
 
-function applySummarySnapshot(queryClient: QueryClient, projectId: string, snapshot: BackgroundSnapshot) {
-  const transformed = transformSummaryRealtimeSnapshot(snapshot as unknown as Record<string, unknown>);
+function applySummarySnapshot(
+  queryClient: QueryClient,
+  projectId: string,
+  snapshot: BackgroundSnapshot,
+) {
+  const transformed = transformSummaryRealtimeSnapshot(
+    snapshot as unknown as Record<string, unknown>,
+  );
   if (transformed.projectId !== projectId) return;
 
   const current = getProjection(queryClient, projectId);
@@ -563,7 +632,7 @@ function applySummaryEvent(queryClient: QueryClient, projectId: string, event: B
 
   queryClient.setQueryData<SummaryProjection>(
     getSummaryProjectionQueryKey(projectId),
-    reduceSummaryProjectionEvent(current, event)
+    reduceSummaryProjectionEvent(current, event),
   );
   applySummaryEventToListQueries(queryClient, projectId, event);
 }
@@ -584,7 +653,7 @@ function useSummaryProjectionSync(projectId: string) {
       const subscription = subscribeBackgroundProjection(
         projectId,
         (snapshot) => applySummarySnapshot(queryClient, projectId, snapshot),
-        (event) => applySummaryEvent(queryClient, projectId, event)
+        (event) => applySummaryEvent(queryClient, projectId, event),
       );
       summaryProjectionSubscriptions.set(projectId, { count: 1, subscription });
     }
@@ -636,11 +705,12 @@ export function useSummaryPanel(projectId: string) {
 export function useChapterSummaryListPage(
   projectId: string,
   page: number,
-  volumeId?: string | null
+  volumeId?: string | null,
 ) {
   return useQuery<ChapterSummaryListResponse>({
     queryKey: ["chapter-summary-list", projectId, volumeId ?? "all", page, SUMMARY_PAGE_SIZE],
-    queryFn: ({ signal }) => fetchChapterSummaryList(projectId, page, SUMMARY_PAGE_SIZE, signal, volumeId),
+    queryFn: ({ signal }) =>
+      fetchChapterSummaryList(projectId, page, SUMMARY_PAGE_SIZE, signal, volumeId),
     enabled: !!projectId,
     placeholderData: keepPreviousData,
     staleTime: 30 * 1000,
@@ -666,29 +736,29 @@ export function useEnqueueSummary(projectId: string) {
       const now = new Date().toISOString();
       const optimisticStatus = result.status === "ready" ? "ready" : "queued";
       const optimisticProgressMessage = optimisticStatus === "queued" ? "已加入队列" : null;
-      const optimisticJob: SummaryBackgroundJobItem | null = result.jobId
-        && variables.summaryType !== "all"
-        ? {
-            jobId: result.jobId,
-            jobType:
-              variables.summaryType === "chapter"
-                ? "chapter_summary"
-                : variables.summaryType === "long_term"
-                  ? "long_term_summary"
-                  : "chapter_summary",
-            status: optimisticStatus === "queued" ? "pending" : "running",
-            chapterId: variables.chapterId ?? null,
-            summaryId: result.summaryId,
-            startOrder: variables.startOrder ?? null,
-            endOrder: variables.endOrder ?? null,
-            progressCurrent: 0,
-            progressTotal: null,
-            progressMessage: optimisticProgressMessage,
-            errorMessage: null,
-            createdAt: now,
-            updatedAt: now,
-          }
-        : null;
+      const optimisticJob: SummaryBackgroundJobItem | null =
+        result.jobId && variables.summaryType !== "all"
+          ? {
+              jobId: result.jobId,
+              jobType:
+                variables.summaryType === "chapter"
+                  ? "chapter_summary"
+                  : variables.summaryType === "long_term"
+                    ? "long_term_summary"
+                    : "chapter_summary",
+              status: optimisticStatus === "queued" ? "pending" : "running",
+              chapterId: variables.chapterId ?? null,
+              summaryId: result.summaryId,
+              startOrder: variables.startOrder ?? null,
+              endOrder: variables.endOrder ?? null,
+              progressCurrent: 0,
+              progressTotal: null,
+              progressMessage: optimisticProgressMessage,
+              errorMessage: null,
+              createdAt: now,
+              updatedAt: now,
+            }
+          : null;
 
       queryClient.setQueryData<SummaryProjection>(
         getSummaryProjectionQueryKey(projectId),
@@ -703,9 +773,9 @@ export function useEnqueueSummary(projectId: string) {
             });
           }
           if (
-            variables.summaryType === "long_term"
-            && variables.startOrder != null
-            && variables.endOrder != null
+            variables.summaryType === "long_term" &&
+            variables.startOrder != null &&
+            variables.endOrder != null
           ) {
             next = applyLongTermStatusToProjection(next, {
               start_order: variables.startOrder,
@@ -726,13 +796,14 @@ export function useEnqueueSummary(projectId: string) {
               ],
             },
           };
-        }
+        },
       );
 
       queryClient.setQueriesData(
         { queryKey: ["chapter-summary-list", projectId] },
         (current: ChapterSummaryListResponse | undefined) => {
-          if (!current || variables.summaryType !== "chapter" || !variables.chapterId) return current;
+          if (!current || variables.summaryType !== "chapter" || !variables.chapterId)
+            return current;
           return {
             ...current,
             items: current.items.map((item) =>
@@ -743,10 +814,10 @@ export function useEnqueueSummary(projectId: string) {
                     isStale: optimisticStatus === "ready" ? item.isStale : false,
                     summaryId: result.summaryId,
                   }
-                : item
+                : item,
             ),
           };
-        }
+        },
       );
 
       queryClient.setQueriesData(
@@ -763,10 +834,10 @@ export function useEnqueueSummary(projectId: string) {
                     isStale: optimisticStatus === "ready" ? item.isStale : false,
                     summaryId: result.summaryId,
                   }
-                : item
+                : item,
             ),
           };
-        }
+        },
       );
 
       void queryClient.invalidateQueries({ queryKey: ["chapter-summary-list", projectId] });
@@ -787,7 +858,7 @@ export function useDeleteChapterSummaries(projectId: string) {
         queryKey: ["chapter-summary-list", projectId],
       });
       const previousSummaryProjection = queryClient.getQueryData<SummaryProjection>(
-        getSummaryProjectionQueryKey(projectId)
+        getSummaryProjectionQueryKey(projectId),
       );
       const shouldClearAll = chapterIds.length === 0;
       const targetIdSet = new Set(chapterIds);
@@ -804,7 +875,7 @@ export function useDeleteChapterSummaries(projectId: string) {
             items: nextItems,
             total: shouldClearAll ? 0 : Math.max(0, current.total - targetIdSet.size),
           };
-        }
+        },
       );
 
       queryClient.setQueryData<SummaryProjection>(
@@ -822,24 +893,25 @@ export function useDeleteChapterSummaries(projectId: string) {
                     summaryId: null,
                     updatedAt: null,
                   }
-                : item
+                : item,
             ),
             maintenance: {
               ...current.maintenance,
-              missingOrFailedChapterSummaries: current.maintenance.missingOrFailedChapterSummaries.map((item) =>
-                shouldClearAll || targetIdSet.has(item.chapterId)
-                  ? {
-                      ...item,
-                      status: "not_generated",
-                      isStale: false,
-                      summaryId: null,
-                      progressMessage: null,
-                    }
-                  : item
-              ),
+              missingOrFailedChapterSummaries:
+                current.maintenance.missingOrFailedChapterSummaries.map((item) =>
+                  shouldClearAll || targetIdSet.has(item.chapterId)
+                    ? {
+                        ...item,
+                        status: "not_generated",
+                        isStale: false,
+                        summaryId: null,
+                        progressMessage: null,
+                      }
+                    : item,
+                ),
             },
           };
-        }
+        },
       );
 
       return { previousChapterSummaryLists, previousSummaryProjection };
@@ -848,7 +920,10 @@ export function useDeleteChapterSummaries(projectId: string) {
       context?.previousChapterSummaryLists.forEach(([queryKey, data]) => {
         queryClient.setQueryData(queryKey, data);
       });
-      queryClient.setQueryData(getSummaryProjectionQueryKey(projectId), context?.previousSummaryProjection);
+      queryClient.setQueryData(
+        getSummaryProjectionQueryKey(projectId),
+        context?.previousSummaryProjection,
+      );
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["chapter-summary-list", projectId] });
@@ -868,7 +943,7 @@ export function useDeleteLongTermSummaries(projectId: string) {
         queryKey: ["long-term-summaries-page", projectId],
       });
       const previousSummaryProjection = queryClient.getQueryData<SummaryProjection>(
-        getSummaryProjectionQueryKey(projectId)
+        getSummaryProjectionQueryKey(projectId),
       );
       const shouldClearAll = ranges.length === 0;
       const targetRangeSet = new Set(ranges.map(([s, e]) => `${s}-${e}`));
@@ -880,14 +955,14 @@ export function useDeleteLongTermSummaries(projectId: string) {
           const nextItems = shouldClearAll
             ? []
             : current.items.filter(
-                (item) => !targetRangeSet.has(`${item.startOrder}-${item.endOrder}`)
+                (item) => !targetRangeSet.has(`${item.startOrder}-${item.endOrder}`),
               );
           return {
             ...current,
             items: nextItems,
             total: shouldClearAll ? 0 : Math.max(0, current.total - targetRangeSet.size),
           };
-        }
+        },
       );
 
       queryClient.setQueryData<SummaryProjection>(
@@ -898,20 +973,21 @@ export function useDeleteLongTermSummaries(projectId: string) {
             ...current,
             maintenance: {
               ...current.maintenance,
-              missingOrFailedLongTermSummaries: current.maintenance.missingOrFailedLongTermSummaries.map((item) =>
-                shouldClearAll || targetRangeSet.has(`${item.startOrder}-${item.endOrder}`)
-                  ? {
-                      ...item,
-                      status: "not_generated",
-                      isStale: false,
-                      summaryId: null,
-                      progressMessage: null,
-                    }
-                  : item
-              ),
+              missingOrFailedLongTermSummaries:
+                current.maintenance.missingOrFailedLongTermSummaries.map((item) =>
+                  shouldClearAll || targetRangeSet.has(`${item.startOrder}-${item.endOrder}`)
+                    ? {
+                        ...item,
+                        status: "not_generated",
+                        isStale: false,
+                        summaryId: null,
+                        progressMessage: null,
+                      }
+                    : item,
+                ),
             },
           };
-        }
+        },
       );
 
       return { previousLongTermLists, previousSummaryProjection };
@@ -920,7 +996,10 @@ export function useDeleteLongTermSummaries(projectId: string) {
       context?.previousLongTermLists.forEach(([queryKey, data]) => {
         queryClient.setQueryData(queryKey, data);
       });
-      queryClient.setQueryData(getSummaryProjectionQueryKey(projectId), context?.previousSummaryProjection);
+      queryClient.setQueryData(
+        getSummaryProjectionQueryKey(projectId),
+        context?.previousSummaryProjection,
+      );
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["long-term-summaries-page", projectId] });

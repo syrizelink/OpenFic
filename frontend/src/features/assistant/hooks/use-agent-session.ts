@@ -4,13 +4,38 @@
  * Agent 会话管理 Hook
  */
 
-import { useState, useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useState, useCallback, useEffect, useRef } from "react";
+
 import { toast } from "@/components";
 import i18n from "@/i18n";
+import type {
+  AgentMessage,
+  AgentPendingMessage,
+  AgentSessionCreateResponse,
+  AgentSessionStatus,
+  AgentEvent,
+} from "@/lib/agent.types";
+import type { TokenUsageState } from "@/lib/agent.types";
+import type { AgentForkResponse } from "@/lib/agent.types";
+import {
+  cancelPendingAgentMessage,
+  compactAgentSession,
+  createAgentSession,
+  forkAgentSession,
+  sendAgentMessage,
+  submitAgentQuestionAnswer,
+  rollbackAgentRevision,
+  cancelAgentSession,
+  submitAgentToolApproval,
+} from "@/lib/api-client";
+
 import { joinAgentSession, subscribeAgentSessionEvents } from "../lib/agent-socket";
-import { createApprovalPreviewToolMessage } from "../lib/chapter-tool-preview";
-import { clearRetryMessages } from "../lib/retry-message-state";
+import {
+  applyAgentTranscriptEventToLiveState,
+  createAgentTranscriptLiveState,
+  syncAgentTranscriptLiveState,
+} from "../lib/agent-transcript-live-state";
 import {
   abortCompactionTranscriptState,
   failCompactionTranscriptState,
@@ -19,11 +44,13 @@ import {
   restoreManualCompactionTranscriptState,
   type AgentTranscriptState,
 } from "../lib/agent-transcript-state";
+import { createApprovalPreviewToolMessage } from "../lib/chapter-tool-preview";
 import {
-  applyAgentTranscriptEventToLiveState,
-  createAgentTranscriptLiveState,
-  syncAgentTranscriptLiveState,
-} from "../lib/agent-transcript-live-state";
+  applyPendingUserMessageEvent,
+  createPendingUserMessage,
+} from "../lib/pending-user-message-state";
+import { clearRetryMessages } from "../lib/retry-message-state";
+import { applyTransportReconnectState } from "./agent-session-transport-state";
 import {
   cancelStreamingAgentMessages,
   shouldSuppressAgentErrorAfterCompactionError,
@@ -36,35 +63,12 @@ import {
   hasRunningAsyncSubagent,
   shouldJoinLoadedAgentSession,
 } from "./use-agent-session-reconnect";
-import { applyTransportReconnectState } from "./agent-session-transport-state";
-
-import type {
-  AgentMessage,
-  AgentPendingMessage,
-  AgentSessionCreateResponse,
-  AgentSessionStatus,
-  AgentEvent,
-} from "@/lib/agent.types";
-import {
-  cancelPendingAgentMessage,
-  compactAgentSession,
-  createAgentSession,
-  forkAgentSession,
-  sendAgentMessage,
-  submitAgentQuestionAnswer,
-  rollbackAgentRevision,
-  cancelAgentSession,
-  submitAgentToolApproval,
-} from "@/lib/api-client";
-import type { TokenUsageState } from "@/lib/agent.types";
-import type { AgentForkResponse } from "@/lib/agent.types";
-import {
-  applyPendingUserMessageEvent,
-  createPendingUserMessage,
-} from "../lib/pending-user-message-state";
 
 function isUserTextMessage(message: AgentMessage | undefined): message is AgentMessage {
-  return Boolean(message && (message.type === "user_request" || (message.type === "text" && message.role === "user")));
+  return Boolean(
+    message &&
+    (message.type === "user_request" || (message.type === "text" && message.role === "user")),
+  );
 }
 
 function createOptimisticUserMessage(content: string): AgentMessage {
@@ -81,15 +85,13 @@ function createOptimisticUserMessage(content: string): AgentMessage {
 
 function hasApprovalMessage(messages: AgentMessage[]): boolean {
   return messages.some(
-    (message) => (message.type === "approval" || message.type === "tool_approval")
-      && Boolean(message.toolApproval?.approval_id)
+    (message) =>
+      (message.type === "approval" || message.type === "tool_approval") &&
+      Boolean(message.toolApproval?.approval_id),
   );
 }
 
-function removeApprovalMessageById(
-  messages: AgentMessage[],
-  approvalId: string
-): AgentMessage[] {
+function removeApprovalMessageById(messages: AgentMessage[], approvalId: string): AgentMessage[] {
   return messages.filter((message) => {
     if (message.type !== "approval" && message.type !== "tool_approval") return true;
     return message.toolApproval?.approval_id !== approvalId;
@@ -113,12 +115,12 @@ function getAgentApiErrorMessage(error: unknown, fallback: string): string {
       ? getString(detail.message) || getString(detail.reason) || getString(detail.error)
       : getString(detail);
     return (
-      getString(responseData.message)
-      || detailMessage
-      || getString(responseData.detail)
-      || getString(responseData.reason)
-      || getString(responseData.error)
-      || fallback
+      getString(responseData.message) ||
+      detailMessage ||
+      getString(responseData.detail) ||
+      getString(responseData.reason) ||
+      getString(responseData.error) ||
+      fallback
     );
   }
   if (error instanceof Error && error.message) return error.message;
@@ -131,24 +133,20 @@ interface UseAgentSessionOptions {
   agentKey?: string;
   maxIterations?: number;
   onTokenUsage?: (sessionId: string, usage: TokenUsageState) => void;
-  onTaskUsageSnapshot?: (
-    payload: {
-      sessionId: string;
-      taskId: string;
-      tokenInput: number;
-      tokenOutput: number;
-      tokenCache: number;
-    }
-  ) => void;
-  onTaskUsageDelta?: (
-    payload: {
-      sessionId: string;
-      taskId: string;
-      tokenInput: number;
-      tokenOutput: number;
-      tokenCache: number;
-    }
-  ) => void;
+  onTaskUsageSnapshot?: (payload: {
+    sessionId: string;
+    taskId: string;
+    tokenInput: number;
+    tokenOutput: number;
+    tokenCache: number;
+  }) => void;
+  onTaskUsageDelta?: (payload: {
+    sessionId: string;
+    taskId: string;
+    tokenInput: number;
+    tokenOutput: number;
+    tokenCache: number;
+  }) => void;
   onTaskTitleUpdated?: (taskId: string, title: string, updatedAt?: string) => void;
   onSessionCreated?: (session: AgentSessionCreateResponse) => void;
 }
@@ -171,7 +169,10 @@ export function useAgentSession({
   const sessionIdRef = useRef<string | null>(null);
   const pendingMessageRef = useRef<AgentPendingMessage | null>(null);
   const isCompactingRef = useRef(false);
-  const manualCompactionPreviousStateRef = useRef<Pick<AgentTranscriptState, "status" | "isRunning" | "currentStage"> | null>(null);
+  const manualCompactionPreviousStateRef = useRef<Pick<
+    AgentTranscriptState,
+    "status" | "isRunning" | "currentStage"
+  > | null>(null);
   const suppressNextErrorAfterCompactionErrorRef = useRef(false);
   const transcriptStateRef = useRef(createAgentTranscriptLiveState());
   const transportRetryAttemptRef = useRef(0);
@@ -199,7 +200,7 @@ export function useAgentSession({
       }
       queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
-    [projectId, queryClient]
+    [projectId, queryClient],
   );
 
   const invalidateNoteQueries = useCallback(
@@ -209,7 +210,7 @@ export function useAgentSession({
         queryClient.invalidateQueries({ queryKey: ["note", targetNoteId] });
       }
     },
-    [projectId, queryClient]
+    [projectId, queryClient],
   );
 
   const invalidateWorldEntryQueries = useCallback(
@@ -222,7 +223,10 @@ export function useAgentSession({
       if (!targetEntryId) return;
 
       if (operation === "delete") {
-        queryClient.removeQueries({ queryKey: ["world-info-entry-detail", targetEntryId], exact: true });
+        queryClient.removeQueries({
+          queryKey: ["world-info-entry-detail", targetEntryId],
+          exact: true,
+        });
         return;
       }
 
@@ -231,10 +235,13 @@ export function useAgentSession({
         exact: true,
       });
       if (detailQuery?.getObserversCount()) {
-        queryClient.invalidateQueries({ queryKey: ["world-info-entry-detail", targetEntryId], exact: true });
+        queryClient.invalidateQueries({
+          queryKey: ["world-info-entry-detail", targetEntryId],
+          exact: true,
+        });
       }
     },
-    [queryClient]
+    [queryClient],
   );
 
   const commitTranscriptState = useCallback((nextState: AgentTranscriptState) => {
@@ -250,7 +257,7 @@ export function useAgentSession({
       const nextState = updater(transcriptStateRef.current);
       commitTranscriptState(nextState);
     },
-    [commitTranscriptState]
+    [commitTranscriptState],
   );
 
   const syncPendingMessageState = useCallback((nextPendingMessage: AgentPendingMessage | null) => {
@@ -264,12 +271,17 @@ export function useAgentSession({
   }, []);
 
   const handleEvent = useCallback(
-(event: AgentEvent) => {
-      if (suppressSocketEventsAfterAbortRef.current && shouldSuppressAgentEventAfterAbort(event)) return;
+    (event: AgentEvent) => {
+      if (suppressSocketEventsAfterAbortRef.current && shouldSuppressAgentEventAfterAbort(event))
+        return;
       transportRetryAttemptRef.current = 0;
       const payload = event.payload ?? {};
       const approvalId = typeof payload.approval_id === "string" ? payload.approval_id : "";
-      if (event.type === "approval" && approvalId && ignoredApprovalIdsRef.current.has(approvalId)) {
+      if (
+        event.type === "approval" &&
+        approvalId &&
+        ignoredApprovalIdsRef.current.has(approvalId)
+      ) {
         return;
       }
 
@@ -279,21 +291,21 @@ export function useAgentSession({
         const content = typeof payload.content === "string" ? payload.content : undefined;
         const createdAt = typeof payload.created_at === "string" ? payload.created_at : undefined;
         syncPendingMessageState(
-          applyPendingUserMessageEvent(
-            pendingMessageRef.current,
-            {
-              action: action as "queued" | "cancelled" | "consumed",
-              messageId,
-              content,
-              createdAt,
-            },
-          ),
+          applyPendingUserMessageEvent(pendingMessageRef.current, {
+            action: action as "queued" | "cancelled" | "consumed",
+            messageId,
+            content,
+            createdAt,
+          }),
         );
         return;
       }
 
       if (event.type === "compaction_error") {
-        const message = event.content || (typeof payload.message === "string" ? payload.message : "") || i18n.t("assistant.compactionFailed");
+        const message =
+          event.content ||
+          (typeof payload.message === "string" ? payload.message : "") ||
+          i18n.t("assistant.compactionFailed");
         const trigger = typeof payload.trigger === "string" ? payload.trigger : "";
         const shouldToast = trigger !== "manual" || isCompactingRef.current;
         const shouldSuppressNextError = trigger !== "manual";
@@ -305,18 +317,26 @@ export function useAgentSession({
         if (trigger === "manual") {
           const previousState = manualCompactionPreviousStateRef.current;
           manualCompactionPreviousStateRef.current = null;
-          updateTranscriptState((current) => restoreManualCompactionTranscriptState(
-            current,
-            previousState,
-            typeof payload.session_id === "string" ? payload.session_id : sessionIdRef.current ?? undefined
-          ));
+          updateTranscriptState((current) =>
+            restoreManualCompactionTranscriptState(
+              current,
+              previousState,
+              typeof payload.session_id === "string"
+                ? payload.session_id
+                : (sessionIdRef.current ?? undefined),
+            ),
+          );
           return;
         }
         if (trigger !== "manual" || transcriptStateRef.current.isRunning) {
-          updateTranscriptState((current) => failCompactionTranscriptState(
-            current,
-            typeof payload.session_id === "string" ? payload.session_id : sessionIdRef.current ?? undefined
-          ));
+          updateTranscriptState((current) =>
+            failCompactionTranscriptState(
+              current,
+              typeof payload.session_id === "string"
+                ? payload.session_id
+                : (sessionIdRef.current ?? undefined),
+            ),
+          );
         }
         return;
       }
@@ -324,7 +344,7 @@ export function useAgentSession({
       if (
         shouldSuppressAgentErrorAfterCompactionError(
           event,
-          suppressNextErrorAfterCompactionErrorRef.current
+          suppressNextErrorAfterCompactionErrorRef.current,
         )
       ) {
         suppressNextErrorAfterCompactionErrorRef.current = false;
@@ -338,18 +358,14 @@ export function useAgentSession({
         return;
       }
 
-      const result = applyAgentTranscriptEventToLiveState(
-        transcriptStateRef.current,
-        event,
-        {
-          approvalPreviewFactory: createApprovalPreviewToolMessage,
-          defaultRunningStage: AGENT_STAGE_TEXT.primary,
-          fallbackAgent: "primary",
-          getStageTextForAgent: getStageTextForAgentKey,
-          getStageTextForStage: getStageTextForStageKey,
-          keepRunningOnCompleted: hasRunningAsyncSubagent,
-        }
-      );
+      const result = applyAgentTranscriptEventToLiveState(transcriptStateRef.current, event, {
+        approvalPreviewFactory: createApprovalPreviewToolMessage,
+        defaultRunningStage: AGENT_STAGE_TEXT.primary,
+        fallbackAgent: "primary",
+        getStageTextForAgent: getStageTextForAgentKey,
+        getStageTextForStage: getStageTextForStageKey,
+        keepRunningOnCompleted: hasRunningAsyncSubagent,
+      });
 
       commitTranscriptState(result.state);
 
@@ -369,9 +385,10 @@ export function useAgentSession({
           return;
         }
         if (event.type === "token_usage") {
-          const eventSessionId = typeof payload.session_id === "string" && payload.session_id
-            ? payload.session_id
-            : sessionIdRef.current;
+          const eventSessionId =
+            typeof payload.session_id === "string" && payload.session_id
+              ? payload.session_id
+              : sessionIdRef.current;
           if (!eventSessionId) return;
           onTokenUsage?.(eventSessionId, {
             tokenInput: Number(payload.token_input ?? 0),
@@ -412,17 +429,15 @@ export function useAgentSession({
 
       const message = result.message;
       if (message?.type === "chapter_refresh") {
-        const targetChapterId = typeof message.payload?.chapter_id === "string"
-          ? message.payload.chapter_id
-          : undefined;
+        const targetChapterId =
+          typeof message.payload?.chapter_id === "string" ? message.payload.chapter_id : undefined;
         invalidateChapterQueries(targetChapterId);
         return;
       }
 
       if (message?.type === "note_refresh") {
-        const targetNoteId = typeof message.payload?.note_id === "string"
-          ? message.payload.note_id
-          : undefined;
+        const targetNoteId =
+          typeof message.payload?.note_id === "string" ? message.payload.note_id : undefined;
         invalidateNoteQueries(targetNoteId);
         return;
       }
@@ -434,20 +449,19 @@ export function useAgentSession({
       }
 
       if (message?.type === "world_entry_refresh") {
-        const targetWorldInfoId = typeof message.payload?.world_info_id === "string"
-          ? message.payload.world_info_id
-          : undefined;
-        const targetEntryId = typeof message.payload?.entry_id === "string"
-          ? message.payload.entry_id
-          : undefined;
-        const operation = typeof message.payload?.operation === "string"
-          ? message.payload.operation
-          : undefined;
+        const targetWorldInfoId =
+          typeof message.payload?.world_info_id === "string"
+            ? message.payload.world_info_id
+            : undefined;
+        const targetEntryId =
+          typeof message.payload?.entry_id === "string" ? message.payload.entry_id : undefined;
+        const operation =
+          typeof message.payload?.operation === "string" ? message.payload.operation : undefined;
         invalidateWorldEntryQueries(targetWorldInfoId, targetEntryId, operation);
         return;
       }
 
-if (message?.type === "completed" && result.state.status !== "running") {
+      if (message?.type === "completed" && result.state.status !== "running") {
         ignoredApprovalIdsRef.current.clear();
         invalidateChapterQueries();
         invalidateNoteQueries();
@@ -456,9 +470,9 @@ if (message?.type === "completed" && result.state.status !== "running") {
       }
 
       if (
-        !result.message
-        && event.display !== "hidden"
-        && !["stage_start", "stage_transfer", "iteration_start"].includes(event.type)
+        !result.message &&
+        event.display !== "hidden" &&
+        !["stage_start", "stage_transfer", "iteration_start"].includes(event.type)
       ) {
         console.warn("Unknown agent event type:", event.type);
       }
@@ -475,7 +489,7 @@ if (message?.type === "completed" && result.state.status !== "running") {
       syncCompactingState,
       syncPendingMessageState,
       updateTranscriptState,
-    ]
+    ],
   );
 
   const attachAgentSocket = useCallback(
@@ -486,9 +500,9 @@ if (message?.type === "completed" && result.state.status !== "running") {
         handleEvent,
         (error) => {
           if (
-            transcriptStateRef.current.status === "idle"
-            || transcriptStateRef.current.status === "completed"
-            || transcriptStateRef.current.status === "error"
+            transcriptStateRef.current.status === "idle" ||
+            transcriptStateRef.current.status === "completed" ||
+            transcriptStateRef.current.status === "error"
           ) {
             return;
           }
@@ -505,10 +519,10 @@ if (message?.type === "completed" && result.state.status !== "running") {
           if (transportRetryAttemptRef.current === 1) {
             toast.error(i18n.t("assistant.agentConnectionFailed", { error: error.message }));
           }
-        }
+        },
       );
     },
-    [commitTranscriptState, handleEvent]
+    [commitTranscriptState, handleEvent],
   );
 
   const disconnectTransport = useCallback(() => {
@@ -523,9 +537,9 @@ if (message?.type === "completed" && result.state.status !== "running") {
     const loadedState = getLoadedAgentSessionState({
       messages: transcriptStateRef.current.messages,
       isRemoteRunning:
-        transcriptStateRef.current.status === "running"
-        || transcriptStateRef.current.status === "waiting_answer"
-        || transcriptStateRef.current.status === "waiting_approval",
+        transcriptStateRef.current.status === "running" ||
+        transcriptStateRef.current.status === "waiting_answer" ||
+        transcriptStateRef.current.status === "waiting_approval",
     });
     if (!shouldJoinLoadedAgentSession(loadedState)) return;
 
@@ -550,7 +564,7 @@ if (message?.type === "completed" && result.state.status !== "running") {
     }
   }, [attachAgentSocket, commitTranscriptState, sessionId]);
 
-const startSession = useCallback(
+  const startSession = useCallback(
     async (userRequest: string) => {
       if (!modelId) {
         toast.error(i18n.t("writing.aiSidebar.noModelSelected"));
@@ -602,7 +616,7 @@ const startSession = useCallback(
       queryClient,
       updateTranscriptState,
       agentKey,
-    ]
+    ],
   );
 
   const sendMessage = useCallback(
@@ -647,7 +661,7 @@ const startSession = useCallback(
         toast.error(i18n.t("assistant.sendMessageFailed"));
       }
     },
-    [attachAgentSocket, sessionId, syncPendingMessageState, updateTranscriptState]
+    [attachAgentSocket, sessionId, syncPendingMessageState, updateTranscriptState],
   );
 
   const compactSession = useCallback(async () => {
@@ -661,9 +675,9 @@ const startSession = useCallback(
       return false;
     }
     if (
-      transcriptStateRef.current.status === "running"
-      || transcriptStateRef.current.status === "waiting_answer"
-      || transcriptStateRef.current.status === "waiting_approval"
+      transcriptStateRef.current.status === "running" ||
+      transcriptStateRef.current.status === "waiting_answer" ||
+      transcriptStateRef.current.status === "waiting_approval"
     ) {
       toast.error(i18n.t("assistant.compactionRunningToast"));
       return false;
@@ -706,7 +720,7 @@ const startSession = useCallback(
         role: "system",
         status: "completed",
         display: "list",
-          content: i18n.t("assistant.compactionDone"),
+        content: i18n.t("assistant.compactionDone"),
         payload: {
           session_id: result.session_id,
           compaction_id: result.compaction_id,
@@ -724,13 +738,13 @@ const startSession = useCallback(
       const previousState = manualCompactionPreviousStateRef.current;
       manualCompactionPreviousStateRef.current = null;
       syncCompactingState(false);
-      updateTranscriptState((current) => restoreManualCompactionTranscriptState(
-        current,
-        previousState,
-        activeSessionId
-      ));
+      updateTranscriptState((current) =>
+        restoreManualCompactionTranscriptState(current, previousState, activeSessionId),
+      );
       if (shouldToast) {
-        toast.error(`${i18n.t("assistant.compactionFailed")}：${getAgentApiErrorMessage(error, i18n.t("assistant.compactionFailed"))}`);
+        toast.error(
+          `${i18n.t("assistant.compactionFailed")}：${getAgentApiErrorMessage(error, i18n.t("assistant.compactionFailed"))}`,
+        );
       }
       return false;
     }
@@ -739,14 +753,17 @@ const startSession = useCallback(
   const handleToolApproval = useCallback(
     async (approvalId: string, approved: boolean) => {
       if (!sessionId) {
-      toast.error(i18n.t("assistant.sessionNotFound"));
+        toast.error(i18n.t("assistant.sessionNotFound"));
         return;
       }
       try {
         console.debug("[agent:approval] click", { sessionId, approvalId, approved });
         suppressSocketEventsAfterAbortRef.current = false;
         ignoredApprovalIdsRef.current.add(approvalId);
-        const nextMessages = removeApprovalMessageById(transcriptStateRef.current.messages, approvalId);
+        const nextMessages = removeApprovalMessageById(
+          transcriptStateRef.current.messages,
+          approvalId,
+        );
         const hasPendingApproval = hasApprovalMessage(nextMessages);
         updateTranscriptState((current) => ({
           ...current,
@@ -772,17 +789,17 @@ const startSession = useCallback(
         toast.error(i18n.t("assistant.toolApprovalFailed"));
       }
     },
-    [attachAgentSocket, sessionId, updateTranscriptState]
+    [attachAgentSocket, sessionId, updateTranscriptState],
   );
 
   const submitQuestionAnswer = useCallback(
     async (actionId: string, answer: string) => {
       if (!sessionId) {
-      toast.error(i18n.t("assistant.sessionNotFound"));
+        toast.error(i18n.t("assistant.sessionNotFound"));
         return;
       }
       if (!actionId) {
-      toast.error(i18n.t("assistant.clarificationNotFound"));
+        toast.error(i18n.t("assistant.clarificationNotFound"));
         return;
       }
 
@@ -790,7 +807,10 @@ const startSession = useCallback(
         suppressSocketEventsAfterAbortRef.current = false;
         updateTranscriptState((current) => ({
           ...current,
-          messages: current.messages.filter((item) => item.type !== "question" && item.type !== "clarification" && item.type !== "error"),
+          messages: current.messages.filter(
+            (item) =>
+              item.type !== "question" && item.type !== "clarification" && item.type !== "error",
+          ),
           status: "running",
           isRunning: true,
           currentStage: getBestEffortContinueStage(current.messages),
@@ -811,7 +831,7 @@ const startSession = useCallback(
         toast.error(i18n.t("assistant.submitAnswerFailed"));
       }
     },
-    [attachAgentSocket, sessionId, updateTranscriptState]
+    [attachAgentSocket, sessionId, updateTranscriptState],
   );
 
   const resetSession = useCallback(() => {
@@ -836,13 +856,15 @@ const startSession = useCallback(
     socketUnsubscribeRef.current = null;
     syncPendingMessageState(null);
     syncCompactingState(false);
-    updateTranscriptState((current) => abortCompactionTranscriptState(
-      {
-        ...current,
-        messages: clearRetryMessages(cancelStreamingAgentMessages(current.messages)),
-      },
-      activeSessionId ?? undefined
-    ));
+    updateTranscriptState((current) =>
+      abortCompactionTranscriptState(
+        {
+          ...current,
+          messages: clearRetryMessages(cancelStreamingAgentMessages(current.messages)),
+        },
+        activeSessionId ?? undefined,
+      ),
+    );
 
     if (activeSessionId) {
       try {
@@ -860,7 +882,7 @@ const startSession = useCallback(
       options: {
         reconnect?: boolean;
         isRemoteRunning?: boolean;
-      } = {}
+      } = {},
     ) => {
       sessionIdRef.current = existingSessionId;
       suppressSocketEventsAfterAbortRef.current = false;
@@ -887,7 +909,8 @@ const startSession = useCallback(
         attachAgentSocket(existingSessionId);
         void joinAgentSession(existingSessionId).catch((error) => {
           transportRetryAttemptRef.current += 1;
-          const normalizedError = error instanceof Error ? error : new Error(i18n.t("common.error"));
+          const normalizedError =
+            error instanceof Error ? error : new Error(i18n.t("common.error"));
           const next = applyTransportReconnectState({
             messages: transcriptStateRef.current.messages,
             error: normalizedError,
@@ -898,12 +921,14 @@ const startSession = useCallback(
           });
           commitTranscriptState(next);
           if (transportRetryAttemptRef.current === 1) {
-            toast.error(i18n.t("assistant.agentConnectionFailed", { error: normalizedError.message }));
+            toast.error(
+              i18n.t("assistant.agentConnectionFailed", { error: normalizedError.message }),
+            );
           }
         });
       }
     },
-    [attachAgentSocket, commitTranscriptState, syncCompactingState, syncPendingMessageState]
+    [attachAgentSocket, commitTranscriptState, syncCompactingState, syncPendingMessageState],
   );
 
   const cancelPendingMessage = useCallback(async (): Promise<string | null> => {
@@ -949,10 +974,7 @@ const startSession = useCallback(
       setIsRollbacking(true);
 
       try {
-        const result = await rollbackAgentRevision(
-          sessionId,
-          targetMessage.revisionId
-        );
+        const result = await rollbackAgentRevision(sessionId, targetMessage.revisionId);
 
         if (result.success) {
           const targetIndex = messages.findIndex((m) => m.id === messageId);
@@ -982,7 +1004,16 @@ const startSession = useCallback(
         setIsRollbacking(false);
       }
     },
-    [commitTranscriptState, sessionId, isRollbacking, isRunning, messages, invalidateChapterQueries, invalidateNoteQueries, invalidateWorldEntryQueries]
+    [
+      commitTranscriptState,
+      sessionId,
+      isRollbacking,
+      isRunning,
+      messages,
+      invalidateChapterQueries,
+      invalidateNoteQueries,
+      invalidateWorldEntryQueries,
+    ],
   );
 
   const forkFromRevision = useCallback(
@@ -1012,7 +1043,7 @@ const startSession = useCallback(
         return null;
       }
     },
-    [isRollbacking, isRunning, modelId, projectId, queryClient, sessionId]
+    [isRollbacking, isRunning, modelId, projectId, queryClient, sessionId],
   );
 
   return {

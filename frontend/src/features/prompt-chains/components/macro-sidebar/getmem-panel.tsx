@@ -2,19 +2,20 @@
  * GetmemPanel - getmem 宏预览面板（只读）
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react";
 import { Box, Flex, Text, Button, ScrollArea, Callout } from "@radix-ui/themes";
-import { useTranslation } from "react-i18next";
 import { Database, RefreshCw, AlertCircle } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+
 import { Spinner } from "@/components";
-import type { MacroNode } from "@/lib/macro";
-import { parseMacro } from "@/lib/macro/parser";
 import {
   fetchNearField,
   fetchMiddleField,
   fetchFarField,
   fetchLatestField,
 } from "@/lib/api-client";
+import type { MacroNode } from "@/lib/macro";
+import { parseMacro } from "@/lib/macro/parser";
 
 interface GetmemPanelProps {
   macro: MacroNode;
@@ -46,7 +47,7 @@ export function GetmemPanel({ macro, workDir }: GetmemPanelProps) {
 
   const field = useMemo(() => {
     let args = macro.args;
-    
+
     // 防御性编程：如果 args 为空但 raw 存在，尝试重新解析
     if ((!args || args.length === 0) && macro.raw) {
       try {
@@ -121,31 +122,48 @@ export function GetmemPanel({ macro, workDir }: GetmemPanelProps) {
 
   return (
     <Box>
-      <Flex align="center" gap="2" mb="4">
-        <Database size={16} style={{ color: "var(--green-9)" }} />
-        <Text size="2" weight="medium">
+      <Flex
+        align="center"
+        gap="2"
+        mb="4"
+      >
+        <Database
+          size={16}
+          style={{ color: "var(--green-9)" }}
+        />
+        <Text
+          size="2"
+          weight="medium"
+        >
           {t("promptChains.macroGetmem")}
         </Text>
         {field && (
-          <Text size="2" color="gray">
+          <Text
+            size="2"
+            color="gray"
+          >
             ({getFieldLabel(field, t)})
           </Text>
         )}
       </Flex>
 
       {!workDir?.projectId && (
-        <Callout.Root color="amber" mb="3">
+        <Callout.Root
+          color="amber"
+          mb="3"
+        >
           <Callout.Icon>
             <AlertCircle size={16} />
           </Callout.Icon>
-          <Callout.Text size="1">
-            {t("promptChains.noWorkDirSet")}
-          </Callout.Text>
+          <Callout.Text size="1">{t("promptChains.noWorkDirSet")}</Callout.Text>
         </Callout.Root>
       )}
 
       {error && (
-        <Callout.Root color="red" mb="3">
+        <Callout.Root
+          color="red"
+          mb="3"
+        >
           <Callout.Icon>
             <AlertCircle size={16} />
           </Callout.Icon>
@@ -154,7 +172,11 @@ export function GetmemPanel({ macro, workDir }: GetmemPanelProps) {
       )}
 
       {loading ? (
-        <Flex align="center" justify="center" py="6">
+        <Flex
+          align="center"
+          justify="center"
+          py="6"
+        >
           <Spinner size={18} />
         </Flex>
       ) : content !== null ? (
@@ -180,7 +202,10 @@ export function GetmemPanel({ macro, workDir }: GetmemPanelProps) {
         </ScrollArea>
       ) : null}
 
-      <Flex justify="end" mt="4">
+      <Flex
+        justify="end"
+        mt="4"
+      >
         <Button
           size="2"
           variant="soft"

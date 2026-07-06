@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "@/components";
 import { useTranslation } from "react-i18next";
+
+import { toast } from "@/components";
 import {
   fetchNoteTree,
   fetchNote,
@@ -44,7 +45,11 @@ function cloneTree(tree: NoteTreeResponse): NoteTreeResponse {
 
 type NoteMutator = (note: NoteListItem) => NoteListItem;
 
-function applyToNote(tree: NoteTreeResponse, noteId: string, mutator: NoteMutator): NoteTreeResponse {
+function applyToNote(
+  tree: NoteTreeResponse,
+  noteId: string,
+  mutator: NoteMutator,
+): NoteTreeResponse {
   const next = cloneTree(tree);
 
   const walkCategories = (cats: NoteCategoryItem[]): boolean => {
@@ -72,7 +77,11 @@ function applyToNote(tree: NoteTreeResponse, noteId: string, mutator: NoteMutato
 
 type CategoryMutator = (category: NoteCategoryItem) => NoteCategoryItem;
 
-function applyToCategory(tree: NoteTreeResponse, categoryId: string, mutator: CategoryMutator): NoteTreeResponse {
+function applyToCategory(
+  tree: NoteTreeResponse,
+  categoryId: string,
+  mutator: CategoryMutator,
+): NoteTreeResponse {
   const next = cloneTree(tree);
 
   const walk = (cats: NoteCategoryItem[]): boolean => {
@@ -145,7 +154,10 @@ function findNoteInTree(tree: NoteTreeResponse, noteId: string): NoteListItem | 
   return walk(tree.categories) ?? tree.rootNotes.find((n) => n.id === noteId);
 }
 
-function findCategoryInTree(tree: NoteTreeResponse, categoryId: string): NoteCategoryItem | undefined {
+function findCategoryInTree(
+  tree: NoteTreeResponse,
+  categoryId: string,
+): NoteCategoryItem | undefined {
   const walk = (cats: NoteCategoryItem[]): NoteCategoryItem | undefined => {
     for (const cat of cats) {
       if (cat.id === categoryId) return cat;
@@ -157,7 +169,11 @@ function findCategoryInTree(tree: NoteTreeResponse, categoryId: string): NoteCat
   return walk(tree.categories);
 }
 
-function moveNoteInTree(tree: NoteTreeResponse, noteId: string, targetCategoryId: string | null): NoteTreeResponse {
+function moveNoteInTree(
+  tree: NoteTreeResponse,
+  noteId: string,
+  targetCategoryId: string | null,
+): NoteTreeResponse {
   const source = findNoteInTree(tree, noteId);
   if (!source) return tree;
 
@@ -185,7 +201,11 @@ function moveNoteInTree(tree: NoteTreeResponse, noteId: string, targetCategoryId
   return next;
 }
 
-function moveCategoryInTree(tree: NoteTreeResponse, categoryId: string, targetCategoryId: string | null): NoteTreeResponse {
+function moveCategoryInTree(
+  tree: NoteTreeResponse,
+  categoryId: string,
+  targetCategoryId: string | null,
+): NoteTreeResponse {
   const source = findCategoryInTree(tree, categoryId);
   if (!source) return tree;
 
@@ -212,10 +232,7 @@ function moveCategoryInTree(tree: NoteTreeResponse, categoryId: string, targetCa
 }
 
 function countCategoryNotes(cats: NoteCategoryItem[]): number {
-  return cats.reduce(
-    (sum, cat) => sum + cat.notes.length + countCategoryNotes(cat.categories),
-    0
-  );
+  return cats.reduce((sum, cat) => sum + cat.notes.length + countCategoryNotes(cat.categories), 0);
 }
 
 export function useNoteTree(projectId: string) {
@@ -257,13 +274,8 @@ export function useUpdateNote(projectId: string) {
   const { t } = useTranslation();
 
   return useMutation({
-    mutationFn: ({
-      noteId,
-      data,
-    }: {
-      noteId: string;
-      data: NoteUpdate;
-    }) => updateNote(noteId, data),
+    mutationFn: ({ noteId, data }: { noteId: string; data: NoteUpdate }) =>
+      updateNote(noteId, data),
     onMutate: async ({ noteId, data }) => {
       await queryClient.cancelQueries({ queryKey: ["note-tree", projectId] });
       const previous = queryClient.getQueryData<NoteTreeResponse>(["note-tree", projectId]);
@@ -323,13 +335,8 @@ export function useToggleNoteLock(projectId: string) {
   const { t } = useTranslation();
 
   return useMutation({
-    mutationFn: ({
-      noteId,
-      isLocked,
-    }: {
-      noteId: string;
-      isLocked: boolean;
-    }) => toggleNoteLock(noteId, isLocked),
+    mutationFn: ({ noteId, isLocked }: { noteId: string; isLocked: boolean }) =>
+      toggleNoteLock(noteId, isLocked),
     onMutate: async ({ noteId, isLocked }) => {
       await queryClient.cancelQueries({ queryKey: ["note-tree", projectId] });
       const previous = queryClient.getQueryData<NoteTreeResponse>(["note-tree", projectId]);
@@ -350,7 +357,9 @@ export function useToggleNoteLock(projectId: string) {
     onSuccess: (updatedNote) => {
       queryClient.setQueryData(["note", updatedNote.id], updatedNote);
       queryClient.invalidateQueries({ queryKey: ["note-tree", updatedNote.projectId] });
-      toast.success(updatedNote.isLocked ? t("writing.noteLockedToast") : t("writing.noteUnlockedToast"));
+      toast.success(
+        updatedNote.isLocked ? t("writing.noteLockedToast") : t("writing.noteUnlockedToast"),
+      );
     },
   });
 }
@@ -360,13 +369,8 @@ export function useToggleNoteHidden(projectId: string) {
   const { t } = useTranslation();
 
   return useMutation({
-    mutationFn: ({
-      noteId,
-      isHidden,
-    }: {
-      noteId: string;
-      isHidden: boolean;
-    }) => toggleNoteHidden(noteId, isHidden),
+    mutationFn: ({ noteId, isHidden }: { noteId: string; isHidden: boolean }) =>
+      toggleNoteHidden(noteId, isHidden),
     onMutate: async ({ noteId, isHidden }) => {
       await queryClient.cancelQueries({ queryKey: ["note-tree", projectId] });
       const previous = queryClient.getQueryData<NoteTreeResponse>(["note-tree", projectId]);
@@ -413,13 +417,8 @@ export function useUpdateNoteCategory(projectId: string) {
   const { t } = useTranslation();
 
   return useMutation({
-    mutationFn: ({
-      categoryId,
-      data,
-    }: {
-      categoryId: string;
-      data: NoteCategoryUpdate;
-    }) => updateNoteCategory(categoryId, data),
+    mutationFn: ({ categoryId, data }: { categoryId: string; data: NoteCategoryUpdate }) =>
+      updateNoteCategory(categoryId, data),
     onMutate: async ({ categoryId, data }) => {
       await queryClient.cancelQueries({ queryKey: ["note-tree", projectId] });
       const previous = queryClient.getQueryData<NoteTreeResponse>(["note-tree", projectId]);

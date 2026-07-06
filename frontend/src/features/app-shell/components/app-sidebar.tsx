@@ -1,12 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { Box, Flex } from "@radix-ui/themes";
-import { BookOpenText, ChartNoAxesCombined, Globe, LibraryBig, UserRound, Workflow } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
+import {
+  BookOpenText,
+  ChartNoAxesCombined,
+  Globe,
+  LibraryBig,
+  UserRound,
+  Workflow,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { apiClient, fetchProject } from "@/lib/api-client";
+
 import { saveLanguagePreference, supportedLanguages, type LanguageCode } from "@/i18n";
+import { apiClient, fetchProject } from "@/lib/api-client";
+
+import { useAppShell } from "./app-shell-context";
 import {
   SIDEBAR_COLLAPSED_WIDTH,
   SIDEBAR_EXPANDED_WIDTH,
@@ -15,7 +25,6 @@ import {
 import { SidebarActions } from "./sidebar-actions";
 import { SidebarBrand } from "./sidebar-brand";
 import { SidebarNav } from "./sidebar-nav";
-import { useAppShell } from "./app-shell-context";
 
 const MotionBox = motion.create(Box);
 const MotionFlex = motion.create(Flex);
@@ -48,7 +57,7 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
   useEffect(() => {
     document.documentElement.style.setProperty(
       "--app-sidebar-width",
-      `${isMobile ? 0 : sidebarWidth}px`
+      `${isMobile ? 0 : sidebarWidth}px`,
     );
   }, [isMobile, sidebarWidth]);
 
@@ -178,7 +187,7 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
         }
       }
     },
-    [isExpanded, isLogoHovered]
+    [isExpanded, isLogoHovered],
   );
 
   const navigateToProjects = useCallback(() => {
@@ -223,9 +232,7 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
             bottom="0"
             initial={isMobile ? { x: -SIDEBAR_EXPANDED_WIDTH } : false}
             animate={
-              isMobile
-                ? { x: 0, width: SIDEBAR_EXPANDED_WIDTH }
-                : { x: 0, width: sidebarWidth }
+              isMobile ? { x: 0, width: SIDEBAR_EXPANDED_WIDTH } : { x: 0, width: sidebarWidth }
             }
             exit={isMobile ? { x: -SIDEBAR_EXPANDED_WIDTH } : undefined}
             transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
@@ -238,7 +245,11 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
               boxShadow: isMobile ? "var(--shadow-5)" : undefined,
             }}
           >
-            <Flex direction="column" height="100%" p="3">
+            <Flex
+              direction="column"
+              height="100%"
+              p="3"
+            >
               <SidebarBrand
                 title={currentProject?.title ?? t("common.appName")}
                 isExpanded={isMobile || isExpanded}
@@ -267,8 +278,8 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
                 <MotionBox
                   initial={false}
                   animate={{
-                    width: (isMobile || isExpanded) ? SIDEBAR_EXPANDED_WIDTH - 40 : 32,
-                    marginLeft: (isMobile || isExpanded) ? 8 : 4,
+                    width: isMobile || isExpanded ? SIDEBAR_EXPANDED_WIDTH - 40 : 32,
+                    marginLeft: isMobile || isExpanded ? 8 : 4,
                   }}
                   transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
                   style={{
@@ -278,14 +289,17 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
                 />
               </Box>
 
-              <SidebarNav items={navItems} isExpanded={isMobile || isExpanded} />
+              <SidebarNav
+                items={navItems}
+                isExpanded={isMobile || isExpanded}
+              />
 
               <MotionFlex
                 layout
                 mt="auto"
-                direction={(isMobile || isExpanded) ? "row" : "column"}
+                direction={isMobile || isExpanded ? "row" : "column"}
                 align="center"
-                justify={(isMobile || isExpanded) ? "end" : "center"}
+                justify={isMobile || isExpanded ? "end" : "center"}
                 gap="1"
                 width="100%"
                 transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
@@ -298,18 +312,20 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
                   settingsLabel={t("topbar.settings")}
                   toggleThemeLabel={t("topbar.toggleTheme")}
                   themeTooltip={
-                    appearance === "light" ? t("topbar.toggleDarkMode") : t("topbar.toggleLightMode")
+                    appearance === "light"
+                      ? t("topbar.toggleDarkMode")
+                      : t("topbar.toggleLightMode")
                   }
                   languages={supportedLanguages.map((lang) => ({
                     code: lang.code,
                     name: lang.name,
                   }))}
-                   currentLanguage={i18n.language}
-                   onLanguageChange={handleLanguageChange}
-                   onToggleTheme={handleThemeToggle}
-                   onOpenSettings={handleOpenSettings}
-                 />
-               </MotionFlex>
+                  currentLanguage={i18n.language}
+                  onLanguageChange={handleLanguageChange}
+                  onToggleTheme={handleThemeToggle}
+                  onOpenSettings={handleOpenSettings}
+                />
+              </MotionFlex>
             </Flex>
           </MotionBox>
         )}

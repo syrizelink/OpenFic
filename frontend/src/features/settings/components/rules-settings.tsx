@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -11,21 +10,27 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "motion/react";
-import { MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react";
 import Fuse from "fuse.js";
+import { MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Spinner } from "@/components";
 
+import { Spinner } from "@/components";
+import {
+  ContextMenu,
+  type ContextMenuItem,
+  type ContextMenuPosition,
+} from "@/components/context-menu";
+import { toast } from "@/components/toast";
+import type { AgentRule, AgentRuleCreate, AgentRuleListResponse } from "@/lib/agent-rule.types";
 import {
   createAgentRule,
   deleteAgentRule,
   fetchAgentRules,
   updateAgentRule,
 } from "@/lib/api-client";
-import type { AgentRule, AgentRuleCreate, AgentRuleListResponse } from "@/lib/agent-rule.types";
-import { ContextMenu, type ContextMenuItem, type ContextMenuPosition } from "@/components/context-menu";
-import { toast } from "@/components/toast";
+
 import "./skills-settings.css";
 
 const MotionBox = motion.create(Box);
@@ -135,13 +140,16 @@ export function RulesSettings({
   const currentMobilePage = mobilePage ?? internalMobilePage;
   const currentMobileDirection = controlledMobileDirection ?? internalMobileDirection;
 
-  const handleMobilePageChange = useCallback((page: "list" | "detail") => {
-    if (controlledMobileDirection === undefined) {
-      setInternalMobileDirection(page === "detail" ? 1 : -1);
-    }
-    onMobilePageChange?.(page);
-    if (mobilePage === undefined) setInternalMobilePage(page);
-  }, [controlledMobileDirection, mobilePage, onMobilePageChange]);
+  const handleMobilePageChange = useCallback(
+    (page: "list" | "detail") => {
+      if (controlledMobileDirection === undefined) {
+        setInternalMobileDirection(page === "detail" ? 1 : -1);
+      }
+      onMobilePageChange?.(page);
+      if (mobilePage === undefined) setInternalMobilePage(page);
+    },
+    [controlledMobileDirection, mobilePage, onMobilePageChange],
+  );
 
   useEffect(() => {
     onMobileDetailTitleChange?.(selectedRule?.title || null);
@@ -227,7 +235,12 @@ export function RulesSettings({
   const listContent = (
     <div className="skills-settings-list-container">
       <div className="skills-settings-toolbar">
-        <Flex align="center" justify="between" gap="2" className="skills-settings-toolbar-row">
+        <Flex
+          align="center"
+          justify="between"
+          gap="2"
+          className="skills-settings-toolbar-row"
+        >
           <Box style={{ flex: 1, minWidth: 0 }}>
             <TextField.Root
               size="2"
@@ -240,7 +253,11 @@ export function RulesSettings({
               </TextField.Slot>
               {searchQuery ? (
                 <TextField.Slot>
-                  <IconButton variant="ghost" size="1" onClick={() => setSearchQuery("")}>
+                  <IconButton
+                    variant="ghost"
+                    size="1"
+                    onClick={() => setSearchQuery("")}
+                  >
                     <X size={12} />
                   </IconButton>
                 </TextField.Slot>
@@ -248,7 +265,11 @@ export function RulesSettings({
             </TextField.Root>
           </Box>
 
-          <Flex align="center" gap="1" className="skills-settings-toolbar-actions">
+          <Flex
+            align="center"
+            gap="1"
+            className="skills-settings-toolbar-actions"
+          >
             <Tooltip content={t("settingsExtra.rules.newRule")}>
               <IconButton
                 size="2"
@@ -267,15 +288,28 @@ export function RulesSettings({
 
       <div className="skills-settings-list">
         {filteredRules.length === 0 ? (
-          <Flex align="center" justify="center" p="6" style={{ height: "100%" }}>
-            <Text size="2" color="gray" align="center">
+          <Flex
+            align="center"
+            justify="center"
+            p="6"
+            style={{ height: "100%" }}
+          >
+            <Text
+              size="2"
+              color="gray"
+              align="center"
+            >
               {searchQuery.trim()
                 ? t("settingsExtra.rules.noSearchResults")
                 : t("settingsExtra.rules.empty")}
             </Text>
           </Flex>
         ) : (
-          <Flex direction="column" gap="2" className="skills-settings-list-body">
+          <Flex
+            direction="column"
+            gap="2"
+            className="skills-settings-list-body"
+          >
             {filteredRules.map((rule) => (
               <RuleListItem
                 key={rule.id}
@@ -297,7 +331,11 @@ export function RulesSettings({
 
   if (isLoading) {
     return (
-      <Flex align="center" justify="center" style={{ height: "100%" }}>
+      <Flex
+        align="center"
+        justify="center"
+        style={{ height: "100%" }}
+      >
         <Spinner size={18} />
       </Flex>
     );
@@ -305,7 +343,11 @@ export function RulesSettings({
 
   if (error) {
     return (
-      <Flex align="center" justify="center" style={{ height: "100%" }}>
+      <Flex
+        align="center"
+        justify="center"
+        style={{ height: "100%" }}
+      >
         <Text color="red">{t("settingsExtra.rules.loadFailed")}</Text>
       </Flex>
     );
@@ -313,19 +355,33 @@ export function RulesSettings({
 
   const detailContent = !selectedRule ? (
     <Box className="skills-settings-empty-state">
-      <Text size="2" color="gray">
+      <Text
+        size="2"
+        color="gray"
+      >
         {t("settingsExtra.rules.selectRule")}
       </Text>
     </Box>
   ) : (
-    <RuleEditor key={selectedRule.id} rule={selectedRule} onSave={handleSave} />
+    <RuleEditor
+      key={selectedRule.id}
+      rule={selectedRule}
+      onSave={handleSave}
+    />
   );
 
   if (isMobile) {
     return (
-      <Flex direction="column" className="skills-settings skills-settings--settings">
+      <Flex
+        direction="column"
+        className="skills-settings skills-settings--settings"
+      >
         <Box className="settings-dialog-mobile-page-stack">
-          <AnimatePresence initial={false} custom={currentMobileDirection} mode="sync">
+          <AnimatePresence
+            initial={false}
+            custom={currentMobileDirection}
+            mode="sync"
+          >
             {currentMobilePage === "list" ? (
               <MotionBox
                 key="rules-mobile-list"
@@ -360,16 +416,34 @@ export function RulesSettings({
           </AnimatePresence>
         </Box>
 
-        <ContextMenu position={contextMenuPos} items={contextMenuItems} onClose={handleCloseContextMenu} />
+        <ContextMenu
+          position={contextMenuPos}
+          items={contextMenuItems}
+          onClose={handleCloseContextMenu}
+        />
 
-        <Dialog.Root open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <Dialog.Root
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+        >
           <Dialog.Content style={{ maxWidth: 420 }}>
             <Dialog.Title>{t("settingsExtra.rules.deleteTitle")}</Dialog.Title>
-            <Dialog.Description size="2" mt="2">
+            <Dialog.Description
+              size="2"
+              mt="2"
+            >
               {t("settingsExtra.rules.deleteDescription")}
             </Dialog.Description>
-            <Flex justify="end" gap="2" mt="4">
-              <Button variant="soft" color="gray" onClick={() => setDeleteDialogOpen(false)}>
+            <Flex
+              justify="end"
+              gap="2"
+              mt="4"
+            >
+              <Button
+                variant="soft"
+                color="gray"
+                onClick={() => setDeleteDialogOpen(false)}
+              >
                 {t("common.cancel")}
               </Button>
               <Button
@@ -388,9 +462,15 @@ export function RulesSettings({
   }
 
   return (
-    <Flex direction="column" className="skills-settings skills-settings--settings">
+    <Flex
+      direction="column"
+      className="skills-settings skills-settings--settings"
+    >
       <Flex className="skills-settings-layout skills-settings-layout--settings">
-        <Box display={{ initial: "none", md: "block" }} className="skills-settings-list-panel skills-settings-list-panel--settings">
+        <Box
+          display={{ initial: "none", md: "block" }}
+          className="skills-settings-list-panel skills-settings-list-panel--settings"
+        >
           {listContent}
         </Box>
 
@@ -399,16 +479,34 @@ export function RulesSettings({
         </div>
       </Flex>
 
-      <ContextMenu position={contextMenuPos} items={contextMenuItems} onClose={handleCloseContextMenu} />
+      <ContextMenu
+        position={contextMenuPos}
+        items={contextMenuItems}
+        onClose={handleCloseContextMenu}
+      />
 
-      <Dialog.Root open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <Dialog.Root
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+      >
         <Dialog.Content style={{ maxWidth: 420 }}>
           <Dialog.Title>{t("settingsExtra.rules.deleteTitle")}</Dialog.Title>
-          <Dialog.Description size="2" mt="2">
+          <Dialog.Description
+            size="2"
+            mt="2"
+          >
             {t("settingsExtra.rules.deleteDescription")}
           </Dialog.Description>
-          <Flex justify="end" gap="2" mt="4">
-            <Button variant="soft" color="gray" onClick={() => setDeleteDialogOpen(false)}>
+          <Flex
+            justify="end"
+            gap="2"
+            mt="4"
+          >
+            <Button
+              variant="soft"
+              color="gray"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
               {t("common.cancel")}
             </Button>
             <Button
@@ -434,7 +532,13 @@ interface RuleListItemProps {
   onContextMenu: (position: ContextMenuPosition) => void;
 }
 
-function RuleListItem({ rule, isSelected, isMenuOpen, onSelect, onContextMenu }: RuleListItemProps) {
+function RuleListItem({
+  rule,
+  isSelected,
+  isMenuOpen,
+  onSelect,
+  onContextMenu,
+}: RuleListItemProps) {
   const { t } = useTranslation();
   const handleContextMenu = useCallback(
     (event: React.MouseEvent) => {
@@ -458,14 +562,30 @@ function RuleListItem({ rule, isSelected, isMenuOpen, onSelect, onContextMenu }:
       }}
       onContextMenu={handleContextMenu}
     >
-      <Flex align="start" justify="between" gap="2" className="skills-settings-item-row">
-        <Flex align="center" className="skills-settings-item-content">
-          <Text size="2" truncate weight={isSelected ? "medium" : "regular"}>
+      <Flex
+        align="start"
+        justify="between"
+        gap="2"
+        className="skills-settings-item-row"
+      >
+        <Flex
+          align="center"
+          className="skills-settings-item-content"
+        >
+          <Text
+            size="2"
+            truncate
+            weight={isSelected ? "medium" : "regular"}
+          >
             {rule.title || t("settingsExtra.rules.untitled")}
           </Text>
         </Flex>
 
-        <Flex align="center" gap="1" className="skills-settings-item-actions">
+        <Flex
+          align="center"
+          gap="1"
+          className="skills-settings-item-actions"
+        >
           <IconButton
             type="button"
             variant="ghost"
@@ -515,10 +635,21 @@ function RuleEditor({ rule, onSave }: RuleEditorProps) {
 
   return (
     <Box p={{ initial: "4", md: "5" }}>
-      <Flex direction="column" gap="1" className="skills-settings-editor-content">
-        <Flex direction="column" gap="4">
+      <Flex
+        direction="column"
+        gap="1"
+        className="skills-settings-editor-content"
+      >
+        <Flex
+          direction="column"
+          gap="4"
+        >
           <Box>
-              <Text size="2" weight="medium" as="label">
+            <Text
+              size="2"
+              weight="medium"
+              as="label"
+            >
               {t("settingsExtra.rules.title")}
             </Text>
             <TextField.Root
@@ -544,8 +675,15 @@ function RuleEditor({ rule, onSave }: RuleEditorProps) {
           </Box>
         </Flex>
 
-        <Flex align="center" justify="end" className="skills-settings-editor-actions">
-          <Button onClick={() => void handleSave()} disabled={!canSave}>
+        <Flex
+          align="center"
+          justify="end"
+          className="skills-settings-editor-actions"
+        >
+          <Button
+            onClick={() => void handleSave()}
+            disabled={!canSave}
+          >
             {isSaving ? t("settingsExtra.rules.saving") : t("common.save")}
           </Button>
         </Flex>

@@ -1,29 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Dialog,
-  Flex,
-  Button,
-  Text,
-  TextField,
-  Box,
-} from "@radix-ui/themes";
-import { Check, X } from "lucide-react";
-import { useTranslation } from "react-i18next";
-import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Dialog, Flex, Button, Text, TextField, Box } from "@radix-ui/themes";
+import { Check, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useForm, Controller, useWatch } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 
-import type {
-  ModelProvider,
-  ModelProviderCatalogProvider,
-  ProviderType,
-} from "@/lib/model.types";
 import { Spinner } from "@/components";
 import { LabeledSelect } from "@/components/select";
+import type { ModelProvider, ModelProviderCatalogProvider, ProviderType } from "@/lib/model.types";
+
 import { validateProvider } from "../lib/model-api";
-import { IconCropper } from "./icon-cropper";
-import { getProviderSelectOptions, getProviderUrl } from "../lib/provider-utils";
 import { getUploadedProviderIconUrl } from "../lib/provider-icon-url";
+import { getProviderSelectOptions, getProviderUrl } from "../lib/provider-utils";
+import { IconCropper } from "./icon-cropper";
 
 const connectionSchema = z
   .object({
@@ -44,7 +34,7 @@ const connectionSchema = z
     {
       message: "urlRequired",
       path: ["url"],
-    }
+    },
   );
 
 type ConnectionFormData = z.infer<typeof connectionSchema>;
@@ -105,12 +95,11 @@ export function ConnectionFormDialog({
   const apiKey = useWatch({ control, name: "apiKey" });
   const providerOptions = useMemo(
     () => getProviderSelectOptions(catalogProviders),
-    [catalogProviders]
+    [catalogProviders],
   );
   const selectedCatalogProvider = useMemo(
-    () =>
-      catalogProviders?.find((provider) => provider.providerType === providerType),
-    [catalogProviders, providerType]
+    () => catalogProviders?.find((provider) => provider.providerType === providerType),
+    [catalogProviders, providerType],
   );
 
   // 切换到 OpenAI-compatible 时只清空一次 URL，不要在每次输入时重置。
@@ -132,10 +121,7 @@ export function ConnectionFormDialog({
     }
 
     // 其他提供商类型，使用固定 URL
-    const fixedUrl = getProviderUrl(
-      providerType as ProviderType,
-      catalogProviders
-    );
+    const fixedUrl = getProviderUrl(providerType as ProviderType, catalogProviders);
     if (fixedUrl) {
       // 在新建模式下，自动设置固定 URL
       // 在编辑模式下，如果当前 URL 为空或者是固定 URL，则更新为新的固定 URL
@@ -167,10 +153,7 @@ export function ConnectionFormDialog({
     // 确定要使用的 URL
     let validateUrl = formData.url;
     if (!validateUrl || validateUrl.trim() === "") {
-      const fixedUrl = getProviderUrl(
-        formData.providerType as ProviderType,
-        catalogProviders
-      );
+      const fixedUrl = getProviderUrl(formData.providerType as ProviderType, catalogProviders);
       if (fixedUrl) {
         validateUrl = fixedUrl;
       } else {
@@ -217,10 +200,7 @@ export function ConnectionFormDialog({
       let finalUrl = data.url;
       if (!finalUrl || finalUrl.trim() === "") {
         // 如果没有 URL，尝试从提供商类型获取固定 URL
-        const fixedUrl = getProviderUrl(
-          data.providerType as ProviderType,
-          catalogProviders
-        );
+        const fixedUrl = getProviderUrl(data.providerType as ProviderType, catalogProviders);
         if (fixedUrl) {
           finalUrl = fixedUrl;
         }
@@ -250,7 +230,7 @@ export function ConnectionFormDialog({
       setValidationStatus("idle");
       setIconFile(null);
     },
-    [catalogProviders, onSubmit, reset, iconFile]
+    [catalogProviders, onSubmit, reset, iconFile],
   );
 
   const handleOpenChange = useCallback(
@@ -261,241 +241,303 @@ export function ConnectionFormDialog({
       }
       onOpenChange(newOpen);
     },
-    [onOpenChange]
+    [onOpenChange],
   );
 
   const canValidate = useMemo(() => {
     if (!providerType) return false;
-    if (providerType === "openai-compatible" && (!url || !url.trim()))
-      return false;
+    if (providerType === "openai-compatible" && (!url || !url.trim())) return false;
     if (!isEditing && !apiKey) return false;
     return true;
   }, [providerType, url, isEditing, apiKey]);
 
   return (
-    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={handleOpenChange}
+    >
       <Dialog.Content maxWidth="500px">
-      <Dialog.Title>
-        {isEditing
-          ? t("connections.editConnection")
-          : t("connections.createConnection")}
-      </Dialog.Title>
+        <Dialog.Title>
+          {isEditing ? t("connections.editConnection") : t("connections.createConnection")}
+        </Dialog.Title>
 
-      <form onSubmit={handleSubmit(onFormSubmit)}>
-        <Flex direction="column" gap="4" mt="4">
-          {/* 第一行：图标和基本信息 */}
-          <Flex gap="3" align="center">
-            {/* 左侧：图标预览 */}
-            <IconCropper
-              value={iconFile}
-              onChange={setIconFile}
-              previewUrl={getUploadedProviderIconUrl(connection?.iconPath)}
-              providerType={providerType as ProviderType}
-              catalogIconPath={
-                selectedCatalogProvider?.iconPath || connection?.catalogMatch?.iconPath
-              }
-              size={80}
-            />
+        <form onSubmit={handleSubmit(onFormSubmit)}>
+          <Flex
+            direction="column"
+            gap="4"
+            mt="4"
+          >
+            {/* 第一行：图标和基本信息 */}
+            <Flex
+              gap="3"
+              align="center"
+            >
+              {/* 左侧：图标预览 */}
+              <IconCropper
+                value={iconFile}
+                onChange={setIconFile}
+                previewUrl={getUploadedProviderIconUrl(connection?.iconPath)}
+                providerType={providerType as ProviderType}
+                catalogIconPath={
+                  selectedCatalogProvider?.iconPath || connection?.catalogMatch?.iconPath
+                }
+                size={80}
+              />
 
-            {/* 右侧：备注名称和提供商类型 */}
-            <Flex direction="column" gap="3" style={{ flex: 1 }}>
-              {/* 备注名称 */}
-              <Flex direction="column" gap="2">
-                <Text size="2" weight="medium" color="gray">
-                  {t("connections.name")}
-                </Text>
-                <Controller
-                  name="name"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField.Root
-                      {...field}
-                      placeholder={t("connections.namePlaceholder")}
-                    />
+              {/* 右侧：备注名称和提供商类型 */}
+              <Flex
+                direction="column"
+                gap="3"
+                style={{ flex: 1 }}
+              >
+                {/* 备注名称 */}
+                <Flex
+                  direction="column"
+                  gap="2"
+                >
+                  <Text
+                    size="2"
+                    weight="medium"
+                    color="gray"
+                  >
+                    {t("connections.name")}
+                  </Text>
+                  <Controller
+                    name="name"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField.Root
+                        {...field}
+                        placeholder={t("connections.namePlaceholder")}
+                      />
+                    )}
+                  />
+                </Flex>
+
+                {/* 提供商类型 */}
+                <Flex
+                  direction="column"
+                  gap="2"
+                >
+                  <Text
+                    size="2"
+                    weight="medium"
+                    color="gray"
+                  >
+                    {t("connections.providerType")}{" "}
+                    <Text
+                      color="red"
+                      style={{ display: "inline" }}
+                    >
+                      *
+                    </Text>
+                  </Text>
+                  <Controller
+                    name="providerType"
+                    control={control}
+                    render={({ field }) => (
+                      <LabeledSelect
+                        value={field.value}
+                        options={providerOptions.map((opt) => ({
+                          value: opt.value,
+                          label: opt.label,
+                        }))}
+                        onChange={field.onChange}
+                        triggerStyle={{ width: "100%" }}
+                        placeholder={t("connections.providerTypePlaceholder")}
+                        disabled={isEditing}
+                      />
+                    )}
+                  />
+                  {errors.providerType && (
+                    <Text
+                      size="1"
+                      color="red"
+                    >
+                      {t(`connections.${errors.providerType.message}`)}
+                    </Text>
                   )}
-                />
+                  {!isEditing && isCatalogLoading && (
+                    <Text
+                      size="1"
+                      color="gray"
+                    >
+                      {t("connections.catalogLoading")}
+                    </Text>
+                  )}
+                </Flex>
               </Flex>
+            </Flex>
 
-              {/* 提供商类型 */}
-              <Flex direction="column" gap="2">
-                <Text size="2" weight="medium" color="gray">
-                  {t("connections.providerType")}{" "}
-                  <Text color="red" style={{ display: "inline" }}>
+            {/* 服务 URL - 仅 OpenAI 兼容模式显示 */}
+            {providerType === "openai-compatible" && (
+              <Flex
+                direction="column"
+                gap="2"
+              >
+                <Text
+                  size="2"
+                  weight="medium"
+                  color="gray"
+                >
+                  {t("connections.url")}{" "}
+                  <Text
+                    color="red"
+                    style={{ display: "inline" }}
+                  >
                     *
                   </Text>
                 </Text>
                 <Controller
-                  name="providerType"
+                  name="url"
                   control={control}
                   render={({ field }) => (
-                    <LabeledSelect
-                      value={field.value}
-                      options={providerOptions.map((opt) => ({
-                        value: opt.value,
-                        label: opt.label,
-                      }))}
-                      onChange={field.onChange}
-                      triggerStyle={{ width: "100%" }}
-                      placeholder={t("connections.providerTypePlaceholder")}
-                      disabled={isEditing}
+                    <TextField.Root
+                      {...field}
+                      placeholder={t("connections.urlPlaceholder")}
                     />
                   )}
                 />
-                {errors.providerType && (
-                  <Text size="1" color="red">
-                    {t(`connections.${errors.providerType.message}`)}
-                  </Text>
-                )}
-                {!isEditing && isCatalogLoading && (
-                  <Text size="1" color="gray">
-                    {t("connections.catalogLoading")}
+                {errors.url && (
+                  <Text
+                    size="1"
+                    color="red"
+                  >
+                    {t(`connections.${errors.url.message}`)}
                   </Text>
                 )}
               </Flex>
-            </Flex>
-          </Flex>
-
-          {/* 服务 URL - 仅 OpenAI 兼容模式显示 */}
-          {providerType === "openai-compatible" && (
-            <Flex direction="column" gap="2">
-              <Text size="2" weight="medium" color="gray">
-                {t("connections.url")}{" "}
-                <Text color="red" style={{ display: "inline" }}>
-                  *
-                </Text>
-              </Text>
-              <Controller
-                name="url"
-                control={control}
-                render={({ field }) => (
-                  <TextField.Root
-                    {...field}
-                    placeholder={t("connections.urlPlaceholder")}
-                  />
-                )}
-              />
-              {errors.url && (
-                <Text size="1" color="red">
-                  {t(`connections.${errors.url.message}`)}
-                </Text>
-              )}
-            </Flex>
-          )}
-
-          {/* API Key */}
-          <Flex direction="column" gap="2">
-            <Text size="2" weight="medium" color="gray">
-              {t("connections.apiKey")}
-              {!isEditing && (
-                <Text color="red" style={{ display: "inline" }}>
-                  {" "}
-                  *
-                </Text>
-              )}
-            </Text>
-            {isEditing ? (
-              <Box>
-                <TextField.Root
-                  value={apiKey || ""}
-                  onChange={(e) => {
-                    const form = getValues();
-                    reset({
-                      ...form,
-                      apiKey: e.target.value,
-                    });
-                  }}
-                  type="password"
-                  placeholder={
-                    apiKey
-                      ? t("connections.apiKeyPlaceholderEdit")
-                      : "••••••••••••••••"
-                  }
-                />
-                <Text size="1" color="gray" mt="1">
-                  {t("connections.apiKeyEditHint")}
-                </Text>
-              </Box>
-            ) : (
-              <Controller
-                name="apiKey"
-                control={control}
-                render={({ field }) => (
-                  <TextField.Root
-                    {...field}
-                    type="password"
-                    placeholder={t("connections.apiKeyPlaceholder")}
-                  />
-                )}
-              />
             )}
-            {errors.apiKey && (
-              <Text size="1" color="red">
-                {t(`connections.${errors.apiKey.message}`)}
-              </Text>
-            )}
-          </Flex>
 
-          {/* 操作按钮 */}
-          <Flex gap="3" mt="2" justify="between">
-            <Button
-              type="button"
-              variant="soft"
-              onClick={handleValidate}
-              disabled={!canValidate || validationStatus === "validating"}
-              style={{
-                backgroundColor:
-                  validationStatus === "success"
-                    ? "var(--green-a3)"
-                    : validationStatus === "error"
-                      ? "var(--red-a3)"
-                      : undefined,
-                color:
-                  validationStatus === "success"
-                    ? "var(--green-11)"
-                    : validationStatus === "error"
-                      ? "var(--red-11)"
-                      : undefined,
-              }}
+            {/* API Key */}
+            <Flex
+              direction="column"
+              gap="2"
             >
-              {validationStatus === "validating" ? <Spinner size={18} /> : null}
-              {validationStatus === "success" && <Check size={16} />}
-              {validationStatus === "error" && <X size={16} />}
-              {validationStatus === "validating"
-                ? t("connections.validating")
-                : validationStatus === "success"
-                  ? t("connections.validateSuccess")
-                  : validationStatus === "error"
-                    ? t("connections.validateFailed")
-                    : t("connections.validate")}
-            </Button>
-
-            <Flex gap="3">
-              <Dialog.Close>
-                <Button
-                  type="button"
-                  variant="soft"
-                  color="gray"
-                  disabled={isSubmitting}
-                >
-                  {t("common.cancel")}
-                </Button>
-              </Dialog.Close>
-              <Button
-                type="submit"
-                disabled={
-                  isSubmitting || (!isEditing && validationStatus !== "success")
-                }
+              <Text
+                size="2"
+                weight="medium"
+                color="gray"
               >
-                {isSubmitting ? <Spinner size={18} /> : null}
-                {isEditing ? t("common.save") : t("common.create")}
+                {t("connections.apiKey")}
+                {!isEditing && (
+                  <Text
+                    color="red"
+                    style={{ display: "inline" }}
+                  >
+                    {" "}
+                    *
+                  </Text>
+                )}
+              </Text>
+              {isEditing ? (
+                <Box>
+                  <TextField.Root
+                    value={apiKey || ""}
+                    onChange={(e) => {
+                      const form = getValues();
+                      reset({
+                        ...form,
+                        apiKey: e.target.value,
+                      });
+                    }}
+                    type="password"
+                    placeholder={
+                      apiKey ? t("connections.apiKeyPlaceholderEdit") : "••••••••••••••••"
+                    }
+                  />
+                  <Text
+                    size="1"
+                    color="gray"
+                    mt="1"
+                  >
+                    {t("connections.apiKeyEditHint")}
+                  </Text>
+                </Box>
+              ) : (
+                <Controller
+                  name="apiKey"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField.Root
+                      {...field}
+                      type="password"
+                      placeholder={t("connections.apiKeyPlaceholder")}
+                    />
+                  )}
+                />
+              )}
+              {errors.apiKey && (
+                <Text
+                  size="1"
+                  color="red"
+                >
+                  {t(`connections.${errors.apiKey.message}`)}
+                </Text>
+              )}
+            </Flex>
+
+            {/* 操作按钮 */}
+            <Flex
+              gap="3"
+              mt="2"
+              justify="between"
+            >
+              <Button
+                type="button"
+                variant="soft"
+                onClick={handleValidate}
+                disabled={!canValidate || validationStatus === "validating"}
+                style={{
+                  backgroundColor:
+                    validationStatus === "success"
+                      ? "var(--green-a3)"
+                      : validationStatus === "error"
+                        ? "var(--red-a3)"
+                        : undefined,
+                  color:
+                    validationStatus === "success"
+                      ? "var(--green-11)"
+                      : validationStatus === "error"
+                        ? "var(--red-11)"
+                        : undefined,
+                }}
+              >
+                {validationStatus === "validating" ? <Spinner size={18} /> : null}
+                {validationStatus === "success" && <Check size={16} />}
+                {validationStatus === "error" && <X size={16} />}
+                {validationStatus === "validating"
+                  ? t("connections.validating")
+                  : validationStatus === "success"
+                    ? t("connections.validateSuccess")
+                    : validationStatus === "error"
+                      ? t("connections.validateFailed")
+                      : t("connections.validate")}
               </Button>
+
+              <Flex gap="3">
+                <Dialog.Close>
+                  <Button
+                    type="button"
+                    variant="soft"
+                    color="gray"
+                    disabled={isSubmitting}
+                  >
+                    {t("common.cancel")}
+                  </Button>
+                </Dialog.Close>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || (!isEditing && validationStatus !== "success")}
+                >
+                  {isSubmitting ? <Spinner size={18} /> : null}
+                  {isEditing ? t("common.save") : t("common.create")}
+                </Button>
+              </Flex>
             </Flex>
           </Flex>
-        </Flex>
-      </form>
-    </Dialog.Content>
+        </form>
+      </Dialog.Content>
     </Dialog.Root>
   );
 }
-
-

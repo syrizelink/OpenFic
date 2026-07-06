@@ -4,30 +4,33 @@
  * 提示词链管理页面 - 三栏布局（左：条目列表，中：编辑器，右：预留）
  */
 
-import { useState, useCallback, useEffect, useRef } from "react";
 import { Box, Flex, IconButton, Tooltip } from "@radix-ui/themes";
-import { Panel, Group, Separator } from "react-resizable-panels";
-import { useTranslation } from "react-i18next";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import type { Editor } from "@tiptap/react";
 import { List } from "lucide-react";
 import { motion } from "motion/react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { Panel, Group, Separator } from "react-resizable-panels";
+
+import "./prompt-chains-page.css";
 import { useSearchParams } from "react-router";
 import { v4 as uuidv4 } from "uuid";
-import "./prompt-chains-page.css";
+
 import { ConfirmDialog, PromptChainDialog } from "@/components";
 import { MobileAppSidebarTrigger } from "@/features/app-shell";
-import { PromptChainsTopBar } from "../components/prompt-chains-top-bar";
-import { EntriesSidebar } from "../components/entries-sidebar";
-import { PromptEditor } from "../components/prompt-editor";
-import { MacroSidebar } from "../components/macro-sidebar";
-import { usePromptChain } from "../hooks/use-prompt-chain";
-import { usePromptChainStore } from "../store/use-prompt-chain-store";
 import { fetchPromptChainsMetadata, compilePromptChain, resetPromptChain } from "@/lib/api-client";
 import { findMacros, tryParseMacro } from "@/lib/macro";
+import type { MacroNode } from "@/lib/macro";
 import type { PromptEntryData, CompileResponse } from "@/lib/prompt-chain.types";
 import type { PromptChainsMetadata } from "@/lib/prompt-chain.types";
-import type { MacroNode } from "@/lib/macro";
-import type { Editor } from "@tiptap/react";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+
+import { EntriesSidebar } from "../components/entries-sidebar";
+import { MacroSidebar } from "../components/macro-sidebar";
+import { PromptChainsTopBar } from "../components/prompt-chains-top-bar";
+import { PromptEditor } from "../components/prompt-editor";
+import { usePromptChain } from "../hooks/use-prompt-chain";
+import { usePromptChainStore } from "../store/use-prompt-chain-store";
 
 const MotionBox = motion.create(Box);
 
@@ -64,7 +67,9 @@ function getDefaultPromptChainSelection(metadata: PromptChainsMetadata): {
 } {
   const preferredMode = metadata.modes.find((mode) => mode.value === DEFAULT_PROMPT_MODE);
   const preferredTask = preferredMode?.tasks.find((task) => task.value === DEFAULT_PROMPT_TASK);
-  const preferredAgent = preferredTask?.agents.find((agent) => agent.value === DEFAULT_PROMPT_AGENT);
+  const preferredAgent = preferredTask?.agents.find(
+    (agent) => agent.value === DEFAULT_PROMPT_AGENT,
+  );
   if (preferredMode && preferredTask && preferredAgent) {
     return {
       mode: preferredMode.value,
@@ -99,7 +104,7 @@ function getEffectivePromptChainSelection(
   metadata: PromptChainsMetadata | null,
   mode: string | null,
   task: string | null,
-  agent: string | null
+  agent: string | null,
 ): {
   mode: string | null;
   task: string | null;
@@ -153,10 +158,10 @@ export function PromptChainsPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const initialSelection = getInitialPromptSelection(searchParams);
-  
+
   // 元数据状态
   const [metadata, setMetadata] = useState<PromptChainsMetadata | null>(null);
-  
+
   // 导航状态（使用ID，默认选中 assistant / agent / explorer）
   const [selectedMode, setSelectedMode] = useState<string | null>(initialSelection.mode);
   const [selectedTask, setSelectedTask] = useState<string | null>(initialSelection.task);
@@ -221,7 +226,7 @@ export function PromptChainsPage() {
     metadata,
     selectedMode,
     selectedTask,
-    selectedAgent
+    selectedAgent,
   );
   const effectiveSelectedMode = effectiveSelection.mode;
   const effectiveSelectedTask = effectiveSelection.task;
@@ -235,9 +240,9 @@ export function PromptChainsPage() {
   // 从 metadata 中提取当前 mode+task 下是否有 agent 选项
   const hasAgentOptions = (() => {
     if (!effectiveSelectedMode || !effectiveSelectedTask || !metadata) return false;
-    const mode = metadata.modes.find(m => m.value === effectiveSelectedMode);
+    const mode = metadata.modes.find((m) => m.value === effectiveSelectedMode);
     if (!mode) return false;
-    const task = mode.tasks.find(tk => tk.value === effectiveSelectedTask);
+    const task = mode.tasks.find((tk) => tk.value === effectiveSelectedTask);
     return !!task && task.agents.length > 0;
   })();
 
@@ -260,14 +265,18 @@ export function PromptChainsPage() {
       observer.disconnect();
       window.removeEventListener("resize", updateHeight);
     };
-  }, [isMobile, effectiveSelectedMode, effectiveSelectedTask, effectiveSelectedAgent, hasAgentOptions]);
+  }, [
+    isMobile,
+    effectiveSelectedMode,
+    effectiveSelectedTask,
+    effectiveSelectedAgent,
+    hasAgentOptions,
+  ]);
 
   // 使用自定义hook管理提示词链状态
   // 如果当前 task 有 agent 选项但尚未选择 agent，则不加载 chain（避免 404）
   const shouldLoadChain =
-    effectiveSelectedMode &&
-    effectiveSelectedTask &&
-    (!hasAgentOptions || effectiveSelectedAgent);
+    effectiveSelectedMode && effectiveSelectedTask && (!hasAgentOptions || effectiveSelectedAgent);
   const {
     currentVersion,
     versions,
@@ -283,40 +292,45 @@ export function PromptChainsPage() {
   } = usePromptChain(
     shouldLoadChain ? effectiveSelectedMode : "",
     shouldLoadChain ? effectiveSelectedTask : "",
-    effectiveSelectedAgent
+    effectiveSelectedAgent,
   );
 
   // 获取当前选中的条目（如果没有选中且有条目，自动选择第一个）
-  const actualSelectedId: string | null = selectedEntryId || (entries.length > 0 ? (entries[0].id || null) : null);
+  const actualSelectedId: string | null =
+    selectedEntryId || (entries.length > 0 ? entries[0].id || null : null);
   const selectedEntry = entries.find((e) => e.id === actualSelectedId) || null;
 
   // 更新条目（使用 useCallback 优化）
-  const handleUpdateEntry = useCallback((entryId: string, updates: Partial<PromptEntryData>) => {
-    setEntries((prev) => {
-      // 检查是否有实际变化，避免不必要的数组重建
-      const entry = prev.find((e) => e.id === entryId);
-      if (!entry) return prev;
+  const handleUpdateEntry = useCallback(
+    (entryId: string, updates: Partial<PromptEntryData>) => {
+      setEntries((prev) => {
+        // 检查是否有实际变化，避免不必要的数组重建
+        const entry = prev.find((e) => e.id === entryId);
+        if (!entry) return prev;
 
-      // 检查是否有实际变化
-      const hasChanges = Object.keys(updates).some(
-        (key) => entry[key as keyof PromptEntryData] !== updates[key as keyof PromptEntryData]
-      );
+        // 检查是否有实际变化
+        const hasChanges = Object.keys(updates).some(
+          (key) => entry[key as keyof PromptEntryData] !== updates[key as keyof PromptEntryData],
+        );
 
-      if (!hasChanges) return prev;
+        if (!hasChanges) return prev;
 
-      // 有变化时才创建新数组
-      return prev.map((e) => (e.id === entryId ? { ...e, ...updates } : e));
-    });
-  }, [setEntries]);
+        // 有变化时才创建新数组
+        return prev.map((e) => (e.id === entryId ? { ...e, ...updates } : e));
+      });
+    },
+    [setEntries],
+  );
 
   // 切换条目启用状态（使用 useCallback 优化）
-  const handleToggleEntry = useCallback((entryId: string) => {
-    setEntries((prev) =>
-      prev.map((e) =>
-        e.id === entryId ? { ...e, is_enabled: !e.is_enabled } : e
-      )
-    );
-  }, [setEntries]);
+  const handleToggleEntry = useCallback(
+    (entryId: string) => {
+      setEntries((prev) =>
+        prev.map((e) => (e.id === entryId ? { ...e, is_enabled: !e.is_enabled } : e)),
+      );
+    },
+    [setEntries],
+  );
 
   // 删除条目（确认后）
   const confirmDeleteEntry = () => {
@@ -346,7 +360,7 @@ export function PromptChainsPage() {
 
     setEntries((prev) => [...prev, newEntry]);
     setSelectedEntryId(newEntryId);
-    
+
     // 设置高亮动画
     setHighlightEntryId(newEntryId);
     setTimeout(() => {
@@ -354,12 +368,15 @@ export function PromptChainsPage() {
     }, 1000);
   };
 
-  const handleSelectEntry = useCallback((entryId: string) => {
-    setSelectedEntryId(entryId);
-    if (isMobile) {
-      setMobileEntriesOpen(false);
-    }
-  }, [isMobile]);
+  const handleSelectEntry = useCallback(
+    (entryId: string) => {
+      setSelectedEntryId(entryId);
+      if (isMobile) {
+        setMobileEntriesOpen(false);
+      }
+    },
+    [isMobile],
+  );
 
   // 编译提示词链
   const handleCompile = useCallback(async () => {
@@ -378,7 +395,7 @@ export function PromptChainsPage() {
           // chapterId 为 null 表示使用最新章节
           chapter_id: workDir.chapterId || "latest",
         },
-        effectiveSelectedAgent
+        effectiveSelectedAgent,
       );
       setCompileResult(result);
     } catch (error) {
@@ -397,7 +414,7 @@ export function PromptChainsPage() {
       const result = await resetPromptChain(
         effectiveSelectedMode,
         effectiveSelectedTask,
-        effectiveSelectedAgent
+        effectiveSelectedAgent,
       );
       const entriesData: PromptEntryData[] = result.entries.map((e) => ({
         id: e.id,
@@ -415,66 +432,78 @@ export function PromptChainsPage() {
     } finally {
       setIsResetting(false);
     }
-  }, [effectiveSelectedMode, effectiveSelectedTask, effectiveSelectedAgent, isSaving, resetWorkingCopy]);
+  }, [
+    effectiveSelectedMode,
+    effectiveSelectedTask,
+    effectiveSelectedAgent,
+    isSaving,
+    resetWorkingCopy,
+  ]);
 
-  const handleSaveVersion = useCallback((note?: string) => {
-    if (isResetting || !hasUnsavedChanges) return;
+  const handleSaveVersion = useCallback(
+    (note?: string) => {
+      if (isResetting || !hasUnsavedChanges) return;
 
-    saveVersion(note);
-  }, [hasUnsavedChanges, isResetting, saveVersion]);
+      saveVersion(note);
+    },
+    [hasUnsavedChanges, isResetting, saveVersion],
+  );
 
   // 更新宏内容
-  const handleMacroUpdate = useCallback((newMacroRaw: string) => {
-    const editor = editorRef.current;
-    if (!editor || !selectedMacro) return;
+  const handleMacroUpdate = useCallback(
+    (newMacroRaw: string) => {
+      const editor = editorRef.current;
+      if (!editor || !selectedMacro) return;
 
-    // 使用保存的宏位置进行查找和替换
-    const { start, end } = selectedMacro;
-    
-    let foundPos = -1;
-    let foundNode: ProseMirrorNode | null = null;
+      // 使用保存的宏位置进行查找和替换
+      const { start, end } = selectedMacro;
 
-    editor.state.doc.nodesBetween(start, end, (node: ProseMirrorNode, pos) => {
-      if (node.type.name === "macroNode") {
-        foundPos = pos;
-        foundNode = node;
-        return false;
-      }
-    });
+      let foundPos = -1;
+      let foundNode: ProseMirrorNode | null = null;
 
-    if (foundPos !== -1 && foundNode) {
-      const nodeToReplace = foundNode as ProseMirrorNode;
+      editor.state.doc.nodesBetween(start, end, (node: ProseMirrorNode, pos) => {
+        if (node.type.name === "macroNode") {
+          foundPos = pos;
+          foundNode = node;
+          return false;
+        }
+      });
 
-      // 解析新的宏
-      const matches = findMacros(newMacroRaw);
-      if (matches.length > 0) {
-        const macroNode = tryParseMacro(matches[0]);
-        if (macroNode) {
-          // 保存当前 selection，防止触发 onSelectionUpdate 清除选中状态
-          const prevSelection = editor.state.selection;
-          
-          const attrs = {
-            macroName: macroNode.name,
-            macroRaw: macroNode.raw,
-            macroData: JSON.stringify({ args: macroNode.args }),
-          };
-          const tr = editor.state.tr;
-          const newNode = editor.schema.nodes.macroNode.create(attrs);
-          tr.replaceWith(foundPos, foundPos + nodeToReplace.nodeSize, newNode);
-          // 恢复之前的 selection
-          tr.setSelection(prevSelection);
-          editor.view.dispatch(tr);
-          
-          // 更新选中的宏状态，保持同步
-          setSelectedMacro({
-            ...macroNode,
-            start: foundPos,
-            end: foundPos + newNode.nodeSize
-          });
+      if (foundPos !== -1 && foundNode) {
+        const nodeToReplace = foundNode as ProseMirrorNode;
+
+        // 解析新的宏
+        const matches = findMacros(newMacroRaw);
+        if (matches.length > 0) {
+          const macroNode = tryParseMacro(matches[0]);
+          if (macroNode) {
+            // 保存当前 selection，防止触发 onSelectionUpdate 清除选中状态
+            const prevSelection = editor.state.selection;
+
+            const attrs = {
+              macroName: macroNode.name,
+              macroRaw: macroNode.raw,
+              macroData: JSON.stringify({ args: macroNode.args }),
+            };
+            const tr = editor.state.tr;
+            const newNode = editor.schema.nodes.macroNode.create(attrs);
+            tr.replaceWith(foundPos, foundPos + nodeToReplace.nodeSize, newNode);
+            // 恢复之前的 selection
+            tr.setSelection(prevSelection);
+            editor.view.dispatch(tr);
+
+            // 更新选中的宏状态，保持同步
+            setSelectedMacro({
+              ...macroNode,
+              start: foundPos,
+              end: foundPos + newNode.nodeSize,
+            });
+          }
         }
       }
-    }
-  }, [selectedMacro]);
+    },
+    [selectedMacro],
+  );
 
   const mobileEntrySidebarTrigger = isMobile ? (
     <Tooltip content={t("promptChains.viewEntries")}>
@@ -530,13 +559,16 @@ export function PromptChainsPage() {
           style={isMobile ? { height: `calc(100dvh - ${mobileTopBarHeight}px)` } : undefined}
         >
           {!isMobile ? (
-            <Group orientation="horizontal" className="prompt-chains-page-group">
+            <Group
+              orientation="horizontal"
+              className="prompt-chains-page-group"
+            >
               {/* 左侧边栏：条目列表 */}
-              <Panel 
+              <Panel
                 id="left-sidebar"
-                defaultSize={300} 
-                minSize={250} 
-                maxSize={400} 
+                defaultSize={300}
+                minSize={250}
+                maxSize={400}
                 collapsible={false}
               >
                 <Box className="prompt-chains-page-panel-shell prompt-chains-page-panel-shell--left">
@@ -556,25 +588,34 @@ export function PromptChainsPage() {
               <Separator className="resize-handle writing-page-separator" />
 
               {/* 中间栏：编辑器 */}
-              <Panel id="editor" minSize={30}>
+              <Panel
+                id="editor"
+                minSize={30}
+              >
                 <div className="prompt-chains-page-editor-panel">
                   {!shouldLoadChain ? (
-                    <Flex align="center" justify="center" className="prompt-chains-page-empty-state">
+                    <Flex
+                      align="center"
+                      justify="center"
+                      className="prompt-chains-page-empty-state"
+                    >
                       {t("promptChains.selectModeAndTask")}
                     </Flex>
                   ) : selectedEntry && selectedEntry.id ? (
                     <PromptEditor
                       entry={selectedEntry}
-                      onUpdate={(updates) =>
-                        handleUpdateEntry(selectedEntry.id!, updates)
-                      }
+                      onUpdate={(updates) => handleUpdateEntry(selectedEntry.id!, updates)}
                       onUpdateWithId={handleUpdateEntry}
                       onMacroSelect={setSelectedMacro}
                       editorRef={editorRef}
                       isMobile={false}
                     />
                   ) : (
-                    <Flex align="center" justify="center" className="prompt-chains-page-empty-state">
+                    <Flex
+                      align="center"
+                      justify="center"
+                      className="prompt-chains-page-empty-state"
+                    >
                       {t("promptChains.selectEntryToEdit")}
                     </Flex>
                   )}
@@ -584,11 +625,11 @@ export function PromptChainsPage() {
               <Separator className="resize-handle writing-page-separator" />
 
               {/* 右侧栏：宏编辑器 */}
-              <Panel 
+              <Panel
                 id="right-sidebar"
-                defaultSize={300} 
-                minSize={250} 
-                maxSize={500} 
+                defaultSize={300}
+                minSize={250}
+                maxSize={500}
                 collapsible={false}
               >
                 <Box className="prompt-chains-page-panel-shell prompt-chains-page-panel-shell--right">
@@ -605,22 +646,28 @@ export function PromptChainsPage() {
             <Flex className="prompt-chains-page-mobile-layout">
               <div className="prompt-chains-page-editor-panel">
                 {!shouldLoadChain ? (
-                  <Flex align="center" justify="center" className="prompt-chains-page-empty-state">
+                  <Flex
+                    align="center"
+                    justify="center"
+                    className="prompt-chains-page-empty-state"
+                  >
                     {t("promptChains.selectModeAndTask")}
                   </Flex>
                 ) : selectedEntry && selectedEntry.id ? (
                   <PromptEditor
                     entry={selectedEntry}
-                    onUpdate={(updates) =>
-                      handleUpdateEntry(selectedEntry.id!, updates)
-                    }
+                    onUpdate={(updates) => handleUpdateEntry(selectedEntry.id!, updates)}
                     onUpdateWithId={handleUpdateEntry}
                     onMacroSelect={setSelectedMacro}
                     editorRef={editorRef}
                     isMobile={true}
                   />
                 ) : (
-                  <Flex align="center" justify="center" className="prompt-chains-page-empty-state">
+                  <Flex
+                    align="center"
+                    justify="center"
+                    className="prompt-chains-page-empty-state"
+                  >
                     {t("promptChains.selectEntryToEdit")}
                   </Flex>
                 )}
@@ -693,10 +740,14 @@ export function PromptChainsPage() {
         entries={compileResult?.entries ?? []}
         isLoading={isCompiling}
         title={t("promptChains.compileResult")}
-        description={compileResult ? t("promptChains.compileResultDescription", {
-          count: compileResult.entries.length,
-          tokens: compileResult.total_tokens,
-        }) : undefined}
+        description={
+          compileResult
+            ? t("promptChains.compileResultDescription", {
+                count: compileResult.entries.length,
+                tokens: compileResult.total_tokens,
+              })
+            : undefined
+        }
       />
     </Box>
   );

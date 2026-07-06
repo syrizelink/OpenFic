@@ -1,5 +1,3 @@
-/* oxlint-disable react-refresh/only-export-components */
-import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -11,20 +9,17 @@ import {
   TextField,
   Tooltip,
 } from "@radix-ui/themes";
-import {
-  AlertCircle,
-  ChevronDown,
-  Component,
-  RefreshCw,
-  Search,
-} from "lucide-react";
+import { AlertCircle, ChevronDown, Component, RefreshCw, Search } from "lucide-react";
 import { motion } from "motion/react";
-import { useTranslation } from "react-i18next";
+/* oxlint-disable react-refresh/only-export-components */
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
+import { Spinner } from "@/components";
 import type { AvailableModel, TaskType } from "@/lib/model.types";
 import type { ProviderType } from "@/lib/model.types";
-import { Spinner } from "@/components";
+
 import {
   CapabilityIcon,
   ContextBadge,
@@ -90,7 +85,7 @@ function formatModelPriceLine(
     input: string;
     output: string;
     cacheRead: string;
-  }
+  },
 ): string | null {
   const inputPrice = formatPricePerMillion(model.inputPricePerMillion);
   const outputPrice = formatPricePerMillion(model.outputPricePerMillion);
@@ -121,7 +116,10 @@ function ToolCallWarningBadge({ message }: { message: string }) {
           flexShrink: 0,
         }}
       >
-        <AlertCircle size={12} strokeWidth={2.2} />
+        <AlertCircle
+          size={12}
+          strokeWidth={2.2}
+        />
       </Box>
     </Tooltip>
   );
@@ -166,7 +164,7 @@ export function ModelIdSelect({
 
   const selectedModel = useMemo(
     () => models.find((model) => getModelValue(model) === value),
-    [models, value]
+    [models, value],
   );
 
   const filteredModels = useMemo(() => {
@@ -257,7 +255,7 @@ export function ModelIdSelect({
     ? open
       ? searchQuery
       : value || ""
-    : selectedModel?.name ?? value;
+    : (selectedModel?.name ?? value);
 
   const trigger = editable ? (
     <Box style={{ position: "relative" }}>
@@ -278,7 +276,10 @@ export function ModelIdSelect({
           pointerEvents: "none",
         }}
       >
-        <ChevronDown size={16} color="var(--gray-11)" />
+        <ChevronDown
+          size={16}
+          color="var(--gray-11)"
+        />
       </Box>
     </Box>
   ) : (
@@ -295,13 +296,31 @@ export function ModelIdSelect({
         ...triggerStyle,
       }}
     >
-      <Flex align="center" gap="2" className="select-trigger-content">
-        {triggerPrefix ?? (compact ? <Component size={14} aria-hidden="true" /> : null)}
-        <Text color={selectedModel ? undefined : "gray"} truncate>
+      <Flex
+        align="center"
+        gap="2"
+        className="select-trigger-content"
+      >
+        {triggerPrefix ??
+          (compact ? (
+            <Component
+              size={14}
+              aria-hidden="true"
+            />
+          ) : null)}
+        <Text
+          color={selectedModel ? undefined : "gray"}
+          truncate
+        >
           {selectedModel?.name || placeholder || t("models.modelIdPlaceholder")}
         </Text>
       </Flex>
-      {hideTriggerChevron ? null : <ChevronDown size={16} aria-hidden="true" />}
+      {hideTriggerChevron ? null : (
+        <ChevronDown
+          size={16}
+          aria-hidden="true"
+        />
+      )}
     </Button>
   );
 
@@ -310,7 +329,10 @@ export function ModelIdSelect({
   }
 
   return (
-    <Popover.Root open={open} onOpenChange={handleOpenChange}>
+    <Popover.Root
+      open={open}
+      onOpenChange={handleOpenChange}
+    >
       <Popover.Trigger>{trigger}</Popover.Trigger>
 
       <Popover.Content
@@ -323,8 +345,14 @@ export function ModelIdSelect({
       >
         <Box style={{ maxHeight: 400, overflow: "hidden" }}>
           {showSearchBox || showRefreshButton ? (
-            <Box p={headerPad} style={{ borderBottom: "1px solid var(--gray-a4)" }}>
-              <Flex align="center" gap={compact ? "1" : "2"}>
+            <Box
+              p={headerPad}
+              style={{ borderBottom: "1px solid var(--gray-a4)" }}
+            >
+              <Flex
+                align="center"
+                gap={compact ? "1" : "2"}
+              >
                 {showSearchBox ? (
                   <TextField.Root
                     size={compact ? "1" : "2"}
@@ -348,11 +376,7 @@ export function ModelIdSelect({
                     aria-label={t("models.fetchRemoteModels")}
                     title={t("models.fetchRemoteModels")}
                   >
-                    {isRefreshing ? (
-                      <Spinner size={18} />
-                    ) : (
-                      <RefreshCw size={14} />
-                    )}
+                    {isRefreshing ? <Spinner size={18} /> : <RefreshCw size={14} />}
                   </IconButton>
                 ) : null}
               </Flex>
@@ -369,7 +393,10 @@ export function ModelIdSelect({
                 style={{ height: placeholderHeight, padding: 20 }}
               >
                 <Spinner size={18} />
-                <Text size={labelSize} color="gray">
+                <Text
+                  size={labelSize}
+                  color="gray"
+                >
                   {t("models.loadingModels")}
                 </Text>
               </Flex>
@@ -381,14 +408,28 @@ export function ModelIdSelect({
                 gap="2"
                 style={{ height: placeholderHeight, padding: 20 }}
               >
-                <Text size="2" color="red" align="center" weight="medium">
+                <Text
+                  size="2"
+                  color="red"
+                  align="center"
+                  weight="medium"
+                >
                   {t("models.loadModelsFailed")}
                 </Text>
-                <Text size="1" color="gray" align="center" style={{ maxWidth: 300 }}>
+                <Text
+                  size="1"
+                  color="gray"
+                  align="center"
+                  style={{ maxWidth: 300 }}
+                >
                   {error}
                 </Text>
                 {allowCustomValue ? (
-                  <Text size="1" color="gray" align="center">
+                  <Text
+                    size="1"
+                    color="gray"
+                    align="center"
+                  >
                     {t("models.manualInputHint")}
                   </Text>
                 ) : null}
@@ -407,7 +448,10 @@ export function ModelIdSelect({
                     whileTap={{ scale: 0.98 }}
                     transition={{ duration: 0.15 }}
                   >
-                    <Text size={labelSize} color="gray">
+                    <Text
+                      size={labelSize}
+                      color="gray"
+                    >
                       {emptyOptionLabel}
                     </Text>
                   </MotionBox>
@@ -419,11 +463,19 @@ export function ModelIdSelect({
                   gap="2"
                   style={{ height: placeholderHeight, padding: 20 }}
                 >
-                  <Text size={labelSize} color="gray" align="center">
+                  <Text
+                    size={labelSize}
+                    color="gray"
+                    align="center"
+                  >
                     {t("models.noModelsAvailable")}
                   </Text>
                   {allowCustomValue ? (
-                    <Text size="1" color="gray" align="center">
+                    <Text
+                      size="1"
+                      color="gray"
+                      align="center"
+                    >
                       {t("models.manualInputHint")}
                     </Text>
                   ) : null}
@@ -443,7 +495,10 @@ export function ModelIdSelect({
                     whileTap={{ scale: 0.98 }}
                     transition={{ duration: 0.15 }}
                   >
-                    <Text size={labelSize} color="gray">
+                    <Text
+                      size={labelSize}
+                      color="gray"
+                    >
                       {emptyOptionLabel}
                     </Text>
                   </MotionBox>
@@ -462,13 +517,23 @@ export function ModelIdSelect({
                     whileTap={{ scale: 0.98 }}
                     transition={{ duration: 0.15 }}
                   >
-                    <Flex direction="column" gap="1">
-                      <Text size="2" weight="medium" color="blue">
+                    <Flex
+                      direction="column"
+                      gap="1"
+                    >
+                      <Text
+                        size="2"
+                        weight="medium"
+                        color="blue"
+                      >
                         {t("models.useCustomModelId", {
                           modelId: searchQuery,
                         })}
                       </Text>
-                      <Text size="1" color="gray">
+                      <Text
+                        size="1"
+                        color="gray"
+                      >
                         {t("models.customModelIdHint")}
                       </Text>
                     </Flex>
@@ -479,8 +544,7 @@ export function ModelIdSelect({
                   const capabilityKeys = getModelCapabilityKeys(model);
                   const contextLabel = formatContextWindow(model.contextWindow);
                   const hasMetadata =
-                    model.reasoning !== null &&
-                    model.reasoning !== undefined
+                    model.reasoning !== null && model.reasoning !== undefined
                       ? true
                       : model.toolCall !== null && model.toolCall !== undefined
                         ? true
@@ -512,9 +576,20 @@ export function ModelIdSelect({
                       whileTap={{ scale: 0.98 }}
                       transition={{ duration: 0.15 }}
                     >
-                      <Flex direction="column" gap="1">
-                        <Flex align="start" justify="between" gap="2">
-                          <Flex align="center" gap="1" style={{ minWidth: 0 }}>
+                      <Flex
+                        direction="column"
+                        gap="1"
+                      >
+                        <Flex
+                          align="start"
+                          justify="between"
+                          gap="2"
+                        >
+                          <Flex
+                            align="center"
+                            gap="1"
+                            style={{ minWidth: 0 }}
+                          >
                             <Text
                               size={modelNameSize}
                               weight="medium"
@@ -526,9 +601,7 @@ export function ModelIdSelect({
                               {model.name}
                             </Text>
                             {showToolCallWarning ? (
-                              <ToolCallWarningBadge
-                                message={t("models.toolCallWarningTooltip")}
-                              />
+                              <ToolCallWarningBadge message={t("models.toolCallWarningTooltip")} />
                             ) : null}
                           </Flex>
                           {capabilityKeys.length > 0 || contextLabel ? (
@@ -550,7 +623,10 @@ export function ModelIdSelect({
                           ) : null}
                         </Flex>
                         {compact ? null : (
-                          <Text size="1" color="gray">
+                          <Text
+                            size="1"
+                            color="gray"
+                          >
                             {priceLine || model.id}
                           </Text>
                         )}
@@ -565,7 +641,10 @@ export function ModelIdSelect({
                     justify="center"
                     style={{ height: placeholderHeight, padding: 20 }}
                   >
-                    <Text size={labelSize} color="gray">
+                    <Text
+                      size={labelSize}
+                      color="gray"
+                    >
                       {t("projects.noProjectsFound")}
                     </Text>
                   </Flex>

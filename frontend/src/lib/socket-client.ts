@@ -1,4 +1,5 @@
 import { io, type Socket } from "socket.io-client";
+
 import { getRuntimeConfig } from "./runtime-config";
 
 let socket: Socket | null = null;

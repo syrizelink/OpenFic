@@ -12,10 +12,13 @@ export interface ClarificationPromptData {
 
 type ClarificationMessageSource = Pick<AgentMessage, "questions" | "payload" | "correlationId">;
 
-export function getClarificationPromptData(message: ClarificationMessageSource): ClarificationPromptData {
-  const actionId = typeof message.payload?.action_id === "string"
-    ? message.payload.action_id
-    : message.correlationId ?? "";
+export function getClarificationPromptData(
+  message: ClarificationMessageSource,
+): ClarificationPromptData {
+  const actionId =
+    typeof message.payload?.action_id === "string"
+      ? message.payload.action_id
+      : (message.correlationId ?? "");
 
   return {
     actionId,
@@ -34,7 +37,7 @@ export function getClarificationPromptKey(prompt: ClarificationPromptData): stri
 function resolveClarificationAnswer(
   answers: ClarificationAnswers,
   customAnswers: ClarificationCustomAnswers,
-  index: number
+  index: number,
 ): string | undefined {
   const selected = answers[index];
   if (!selected) return undefined;
@@ -48,7 +51,7 @@ export function isClarificationStepComplete(
   questions: ClarificationQuestion[],
   answers: ClarificationAnswers,
   customAnswers: ClarificationCustomAnswers,
-  stepIndex: number
+  stepIndex: number,
 ): boolean {
   if (!questions[stepIndex]) return false;
   return Boolean(resolveClarificationAnswer(answers, customAnswers, stepIndex));
@@ -57,21 +60,25 @@ export function isClarificationStepComplete(
 export function canSubmitClarificationAnswers(
   questions: ClarificationQuestion[],
   answers: ClarificationAnswers,
-  customAnswers: ClarificationCustomAnswers
+  customAnswers: ClarificationCustomAnswers,
 ): boolean {
   if (questions.length === 0) return false;
-  return questions.every((_, index) => isClarificationStepComplete(questions, answers, customAnswers, index));
+  return questions.every((_, index) =>
+    isClarificationStepComplete(questions, answers, customAnswers, index),
+  );
 }
 
 export function buildClarificationAnswerText(
   questions: ClarificationQuestion[],
   answers: ClarificationAnswers,
-  customAnswers: ClarificationCustomAnswers
+  customAnswers: ClarificationCustomAnswers,
 ): string | null {
   if (!canSubmitClarificationAnswers(questions, answers, customAnswers)) return null;
 
-  return questions.map((question, index) => {
-    const answer = resolveClarificationAnswer(answers, customAnswers, index) ?? "";
-    return `${index + 1}. ${question.title}\n${answer}`;
-  }).join("\n\n");
+  return questions
+    .map((question, index) => {
+      const answer = resolveClarificationAnswer(answers, customAnswers, index) ?? "";
+      return `${index + 1}. ${question.title}\n${answer}`;
+    })
+    .join("\n\n");
 }

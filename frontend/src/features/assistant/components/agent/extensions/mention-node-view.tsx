@@ -5,6 +5,7 @@ import {
   type AssistantMentionKind,
   type AssistantMentionToken,
 } from "@/features/assistant/lib/mention-text";
+
 import { MentionChip } from "../mention-chip";
 
 export function MentionNodeView({ node, selected, extension }: NodeViewProps) {
@@ -27,26 +28,28 @@ export function MentionNodeView({ node, selected, extension }: NodeViewProps) {
   };
   const navigationTarget = getMentionNavigationTarget(token);
   const handleOpenMentionChapter = navigationTarget?.chapterId
-    ? (extension.options.onOpenMentionChapter as ((
-        chapterId: string,
-        chapterTitle: string,
-      ) => void) | undefined)
+    ? (extension.options.onOpenMentionChapter as
+        | ((chapterId: string, chapterTitle: string) => void)
+        | undefined)
     : undefined;
 
   return (
-    <NodeViewWrapper as="span" data-mention-kind={kind} draggable={false}>
+    <NodeViewWrapper
+      as="span"
+      data-mention-kind={kind}
+      draggable={false}
+    >
       <MentionChip
         kind={kind}
         label={label}
         selected={selected}
-        onClick={navigationTarget?.chapterId && handleOpenMentionChapter
-          ? () => {
-              handleOpenMentionChapter(
-                navigationTarget.chapterId!,
-                navigationTarget.title,
-              );
-            }
-          : undefined}
+        onClick={
+          navigationTarget?.chapterId && handleOpenMentionChapter
+            ? () => {
+                handleOpenMentionChapter(navigationTarget.chapterId!, navigationTarget.title);
+              }
+            : undefined
+        }
       />
     </NodeViewWrapper>
   );

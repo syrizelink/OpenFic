@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
 import { Box, Text } from "@radix-ui/themes";
+import type { ReactNode } from "react";
+
 import i18n from "@/i18n";
 
 import "./tool-message-shared.css";
@@ -56,7 +57,12 @@ export function ToolBody({ children }: ToolBodyProps) {
 export function ToolGroup({ label, children, className }: ToolGroupProps) {
   return (
     <Box className={joinClassNames("agent-tool-content-block", className)}>
-      <Text size="1" weight="medium" color="gray" className="agent-tool-content-label">
+      <Text
+        size="1"
+        weight="medium"
+        color="gray"
+        className="agent-tool-content-label"
+      >
         {label}
       </Text>
       {children}
@@ -68,7 +74,12 @@ export function ToolTextBlock({ label, value }: ToolTextBlockProps) {
   if (!value) return null;
   return (
     <Box className="agent-tool-content-block">
-      <Text size="1" weight="medium" color="gray" className="agent-tool-content-label">
+      <Text
+        size="1"
+        weight="medium"
+        color="gray"
+        className="agent-tool-content-label"
+      >
         {label}
       </Text>
       <Box className="agent-tool-content-value agent-tool-content-plain-text">{value}</Box>
@@ -96,7 +107,11 @@ export function ToolStack({ children, className }: ToolStackProps) {
 export function ToolPanel({ title, children, className }: ToolPanelProps) {
   return (
     <Box className={joinClassNames("agent-tool-content-panel", className)}>
-      <Text size="2" weight="medium" className="agent-tool-content-panel-title">
+      <Text
+        size="2"
+        weight="medium"
+        className="agent-tool-content-panel-title"
+      >
         {title}
       </Text>
       {children}
@@ -110,8 +125,15 @@ export function ToolNotice({
   tone = "neutral",
 }: ToolNoticeProps) {
   return (
-    <Box className="agent-tool-notice" data-tone={tone}>
-      <Text size="2" weight="medium" className="agent-tool-notice-title">
+    <Box
+      className="agent-tool-notice"
+      data-tone={tone}
+    >
+      <Text
+        size="2"
+        weight="medium"
+        className="agent-tool-notice-title"
+      >
         {title}
       </Text>
       <Box className="agent-tool-notice-body agent-tool-content-plain-text">{children}</Box>

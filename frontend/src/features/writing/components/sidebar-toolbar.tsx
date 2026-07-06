@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Flex, IconButton, Tooltip, Badge } from "@radix-ui/themes";
 import { BookPlus, FilePlus, GripVertical, Check, X, Search } from "lucide-react";
+import { motion } from "motion/react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
-import { motion } from "motion/react";
 
-import { ChapterSearchPopover } from "./chapter-search-popover";
-import { useWritingStore } from "../store/use-writing-store";
 import type { ChapterListItem } from "@/lib/chapter.types";
+
+import { useWritingStore } from "../store/use-writing-store";
+import { ChapterSearchPopover } from "./chapter-search-popover";
 
 interface SidebarToolbarProps {
   projectId: string;
@@ -40,7 +41,7 @@ export function SidebarToolbar({
       isDragMode: state.isDragMode,
       hasUnsavedDragChanges: state.hasUnsavedDragChanges,
       enterDragMode: state.enterDragMode,
-    }))
+    })),
   );
 
   const [contentSearchOpen, setContentSearchOpen] = useState(false);
@@ -101,15 +102,12 @@ export function SidebarToolbar({
     }
   }, [contentSearchExpanded, contentSearchQuery]);
 
-  const handleContentSearchChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setContentSearchQuery(e.target.value);
-      if (e.target.value.trim()) {
-        setContentSearchOpen(true);
-      }
-    },
-    []
-  );
+  const handleContentSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setContentSearchQuery(e.target.value);
+    if (e.target.value.trim()) {
+      setContentSearchOpen(true);
+    }
+  }, []);
 
   const handleContentSearchFocus = useCallback(() => {
     if (contentSearchQuery.trim()) {
@@ -123,15 +121,12 @@ export function SidebarToolbar({
     }
   }, [contentSearchQuery]);
 
-  const handlePopoverOpenChange = useCallback(
-    (open: boolean) => {
-      setContentSearchOpen(open);
-      if (!open) {
-        setContentSearchExpanded(false);
-      }
-    },
-    []
-  );
+  const handlePopoverOpenChange = useCallback((open: boolean) => {
+    setContentSearchOpen(open);
+    if (!open) {
+      setContentSearchExpanded(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (contentSearchExpanded && searchContainerRef.current) {
@@ -144,7 +139,7 @@ export function SidebarToolbar({
     (chapterId: string) => {
       onChapterSelect(chapterId);
     },
-    [onChapterSelect]
+    [onChapterSelect],
   );
 
   return (
@@ -155,8 +150,16 @@ export function SidebarToolbar({
         borderBottom: "1px solid var(--gray-a4)",
       }}
     >
-      <Flex gap="0" align="center" justify={contentSearchExpanded ? "start" : "between"}>
-        <Flex gap="0" align="center" style={contentSearchExpanded ? { flex: 1 } : undefined}>
+      <Flex
+        gap="0"
+        align="center"
+        justify={contentSearchExpanded ? "start" : "between"}
+      >
+        <Flex
+          gap="0"
+          align="center"
+          style={contentSearchExpanded ? { flex: 1 } : undefined}
+        >
           {!isDragMode && (
             <Box
               ref={searchContainerRef}
@@ -173,7 +176,8 @@ export function SidebarToolbar({
                 flex: contentSearchExpanded ? 1 : undefined,
                 minWidth: 0,
                 position: "relative",
-                transition: "border-color 0.15s ease, background 0.15s ease, padding-right 0.15s ease",
+                transition:
+                  "border-color 0.15s ease, background 0.15s ease, padding-right 0.15s ease",
               }}
             >
               <ChapterSearchPopover
@@ -206,7 +210,10 @@ export function SidebarToolbar({
               </IconButton>
               <motion.div
                 initial={{ width: 0, opacity: 0 }}
-                animate={{ width: contentSearchExpanded ? "100%" : 0, opacity: contentSearchExpanded ? 1 : 0 }}
+                animate={{
+                  width: contentSearchExpanded ? "100%" : 0,
+                  opacity: contentSearchExpanded ? 1 : 0,
+                }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
                 style={{ overflow: "hidden" }}
               >
@@ -238,12 +245,19 @@ export function SidebarToolbar({
             <>
               {!isDragMode ? (
                 <Tooltip content={t("writing.dragModeOn")}>
-                  <IconButton variant="ghost" size="2" onClick={handleEnterDragMode}>
+                  <IconButton
+                    variant="ghost"
+                    size="2"
+                    onClick={handleEnterDragMode}
+                  >
                     <GripVertical size={16} />
                   </IconButton>
                 </Tooltip>
               ) : (
-                <Badge color="blue" variant="soft">
+                <Badge
+                  color="blue"
+                  variant="soft"
+                >
                   {t("writing.dragModeOn")}
                 </Badge>
               )}
@@ -252,7 +266,10 @@ export function SidebarToolbar({
         </Flex>
 
         {!contentSearchExpanded && (
-          <Flex gap="0" align="center">
+          <Flex
+            gap="0"
+            align="center"
+          >
             {isDragMode ? (
               <>
                 <Tooltip content={t("writing.cancelOrder")}>
@@ -281,12 +298,20 @@ export function SidebarToolbar({
             ) : (
               <>
                 <Tooltip content={t("writing.newChapter")}>
-                  <IconButton variant="ghost" size="2" onClick={handleCreate}>
+                  <IconButton
+                    variant="ghost"
+                    size="2"
+                    onClick={handleCreate}
+                  >
                     <FilePlus size={16} />
                   </IconButton>
                 </Tooltip>
                 <Tooltip content={t("writing.newVolume")}>
-                  <IconButton variant="ghost" size="2" onClick={handleCreateVolume}>
+                  <IconButton
+                    variant="ghost"
+                    size="2"
+                    onClick={handleCreateVolume}
+                  >
                     <BookPlus size={16} />
                   </IconButton>
                 </Tooltip>

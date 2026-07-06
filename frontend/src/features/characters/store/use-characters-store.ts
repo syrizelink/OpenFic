@@ -13,8 +13,7 @@ export const useCharactersStore = create<CharactersState>((set) => ({
   currentProjectId: null,
   currentCharacterId: null,
   isListOpen: false,
-  setCurrentProject: (projectId) =>
-    set({ currentProjectId: projectId, currentCharacterId: null }),
+  setCurrentProject: (projectId) => set({ currentProjectId: projectId, currentCharacterId: null }),
   setCurrentCharacter: (characterId) => set({ currentCharacterId: characterId }),
   setListOpen: (open) => set({ isListOpen: open }),
 }));

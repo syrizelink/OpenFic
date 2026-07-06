@@ -1,8 +1,9 @@
-import { memo } from "react";
 import { Box } from "@radix-ui/themes";
+import { memo } from "react";
 
 import { StreamingMarkdown } from "@/components";
 import type { AgentMessage } from "@/lib/agent.types";
+
 import { MessageCardShell } from "../../shared/message-shell";
 
 interface AgentOutputMessageProps {

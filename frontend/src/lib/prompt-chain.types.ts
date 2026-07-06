@@ -6,7 +6,7 @@
 
 export interface PromptEntryData {
   id?: string;
-  uid?: string;  // 跨版本追踪标识符
+  uid?: string; // 跨版本追踪标识符
   name: string;
   role: "system" | "user" | "assistant";
   content: string;
@@ -30,7 +30,7 @@ export interface PromptChainVersion {
 
 export interface PromptEntry {
   id: string;
-  uid: string;  // 跨版本追踪标识符
+  uid: string; // 跨版本追踪标识符
   versionId: string;
   name: string;
   role: "system" | "user" | "assistant";
@@ -101,4 +101,3 @@ export interface VersionDiff {
   compareVersion: PromptChainVersion;
   diffs: EntryDiff[];
 }
-

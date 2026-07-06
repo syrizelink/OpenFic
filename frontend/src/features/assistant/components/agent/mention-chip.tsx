@@ -2,6 +2,7 @@ import { BookOpen, FileText, Folder, Quote, StickyNote } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { AssistantMentionKind } from "@/features/assistant/lib/mention-text";
+
 import "./agent-mentions.css";
 
 function getMentionIcon(kind: AssistantMentionKind): ReactNode {
@@ -25,7 +26,10 @@ export function MentionChip({
 }) {
   const content = (
     <>
-      <span className="agent-mention-chip-icon" aria-hidden="true">
+      <span
+        className="agent-mention-chip-icon"
+        aria-hidden="true"
+      >
         {getMentionIcon(kind)}
       </span>
       <span className="agent-mention-chip-label">{label}</span>

@@ -125,9 +125,7 @@ export const db = new OpenFicDB();
 /**
  * 获取项目最后访问的章节 ID
  */
-export async function getLastChapterId(
-  projectId: string
-): Promise<string | null> {
+export async function getLastChapterId(projectId: string): Promise<string | null> {
   try {
     const record = await db.projectLastChapters.get(projectId);
     return record?.chapterId ?? null;
@@ -140,10 +138,7 @@ export async function getLastChapterId(
 /**
  * 保存项目最后访问的章节 ID
  */
-export async function setLastChapterId(
-  projectId: string,
-  chapterId: string
-): Promise<void> {
+export async function setLastChapterId(projectId: string, chapterId: string): Promise<void> {
   try {
     await db.projectLastChapters.put({
       projectId,
@@ -172,7 +167,7 @@ export async function deleteLastChapterId(projectId: string): Promise<void> {
  * 获取项目的标签页状态
  */
 export async function getProjectTabs(
-  projectId: string
+  projectId: string,
 ): Promise<{ tabs: EditorTabRecord[]; activeTabId: string | null } | null> {
   try {
     const record = await db.projectTabs.get(projectId);
@@ -190,7 +185,7 @@ export async function getProjectTabs(
 export async function setProjectTabs(
   projectId: string,
   tabs: EditorTabRecord[],
-  activeTabId: string | null
+  activeTabId: string | null,
 ): Promise<void> {
   try {
     await db.projectTabs.put({
@@ -262,7 +257,7 @@ export async function deletePreference(key: string): Promise<void> {
  * 获取提示词链的Working Copy
  */
 export async function getPromptChainWorkingCopy(
-  chainId: string
+  chainId: string,
 ): Promise<PromptChainWorkingCopy | null> {
   try {
     const record = await db.promptChainWorkingCopies.get(chainId);
@@ -279,7 +274,7 @@ export async function getPromptChainWorkingCopy(
 export async function savePromptChainWorkingCopy(
   chainId: string,
   baseVersionId: string,
-  entries: PromptEntryData[]
+  entries: PromptEntryData[],
 ): Promise<void> {
   try {
     await db.promptChainWorkingCopies.put({
@@ -309,7 +304,10 @@ export async function deletePromptChainWorkingCopy(chainId: string): Promise<voi
 /**
  * 获取工作目录设置
  */
-export async function getWorkDirSettings(): Promise<{ projectId: string | null; chapterId: string | null } | null> {
+export async function getWorkDirSettings(): Promise<{
+  projectId: string | null;
+  chapterId: string | null;
+} | null> {
   try {
     const record = await db.workDirSettings.get("default");
     if (!record) return null;
@@ -325,7 +323,7 @@ export async function getWorkDirSettings(): Promise<{ projectId: string | null; 
  */
 export async function saveWorkDirSettings(
   projectId: string | null,
-  chapterId: string | null
+  chapterId: string | null,
 ): Promise<void> {
   try {
     await db.workDirSettings.put({
@@ -340,4 +338,11 @@ export async function saveWorkDirSettings(
 }
 
 // 导出类型
-export type { EditorTabRecord, ProjectTabs, UserPreference, PromptEntryData, PromptChainWorkingCopy, WorkDirSettings };
+export type {
+  EditorTabRecord,
+  ProjectTabs,
+  UserPreference,
+  PromptEntryData,
+  PromptChainWorkingCopy,
+  WorkDirSettings,
+};

@@ -78,7 +78,9 @@
   color: var(--gray-12);
   text-align: left;
   font: inherit;
-  transition: background-color 140ms ease, color 140ms ease;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
   box-sizing: border-box;
 }
 
@@ -139,7 +141,9 @@
   pointer-events: none;
   margin-top: -2px;
   flex-shrink: 0;
-  transition: opacity 140ms ease, visibility 140ms ease;
+  transition:
+    opacity 140ms ease,
+    visibility 140ms ease;
 }
 
 .skills-settings-list-item:hover .skills-settings-item-menu,

@@ -21,7 +21,7 @@ export function getSubagentAgentLabel(agentKey?: string | null): string {
 
 export function formatSubagentDisplayLabel(
   agentKey?: string | null,
-  agentNumber?: string | null
+  agentNumber?: string | null,
 ): string {
   const label = getSubagentAgentLabel(agentKey);
   if (!agentNumber) return label;

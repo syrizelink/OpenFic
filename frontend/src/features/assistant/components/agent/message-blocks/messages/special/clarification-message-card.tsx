@@ -5,14 +5,14 @@ import { useTranslation } from "react-i18next";
 import type { AgentMessage } from "../../../../../../../lib/agent.types";
 import { MessageCardShell } from "../../shared/message-shell";
 import {
-  ClarificationQuestionActions,
-  ClarificationQuestionBody,
-} from "./clarification-question-flow";
-import {
   getClarificationPromptData,
   getClarificationPromptKey,
   type ClarificationPromptData,
 } from "./clarification-flow-state";
+import {
+  ClarificationQuestionActions,
+  ClarificationQuestionBody,
+} from "./clarification-question-flow";
 import { useClarificationQuestionFlow } from "./use-clarification-question-flow";
 
 interface ClarificationMessageCardProps {
@@ -51,13 +51,27 @@ function ClarificationMessageCardContent({
 
   return (
     <MessageCardShell>
-      <Flex align="center" gap="2" style={{ marginBottom: "12px" }}>
-        <AlertCircle size={16} style={{ color: "var(--gray-11)" }} />
-        <Text size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
+      <Flex
+        align="center"
+        gap="2"
+        style={{ marginBottom: "12px" }}
+      >
+        <AlertCircle
+          size={16}
+          style={{ color: "var(--gray-11)" }}
+        />
+        <Text
+          size="2"
+          weight="medium"
+          style={{ color: "var(--gray-12)" }}
+        >
           {t("assistant.clarificationCardTitle")}
         </Text>
       </Flex>
-      <ClarificationQuestionBody model={model} bodyClassName="agent-question-panel-body" />
+      <ClarificationQuestionBody
+        model={model}
+        bodyClassName="agent-question-panel-body"
+      />
       {(model.shouldStep || model.canRenderSubmit) && (
         <Box mt="3">
           <ClarificationQuestionActions model={model} />

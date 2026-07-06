@@ -6,14 +6,14 @@
  * 2. 编辑器模式：通过 containerRef 自动监听右键，通过 editor 自动生成编辑器菜单项
  */
 
-import { useState, useCallback, useEffect, useLayoutEffect, useId, useRef } from "react";
-import { createPortal } from "react-dom";
 import { Box, Flex, Text } from "@radix-ui/themes";
-import { motion, AnimatePresence } from "motion/react";
-import { useTranslation } from "react-i18next";
+import type { Editor } from "@tiptap/react";
 import { Scissors, Copy, Clipboard } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { Editor } from "@tiptap/react";
+import { motion, AnimatePresence } from "motion/react";
+import { useState, useCallback, useEffect, useLayoutEffect, useId, useRef } from "react";
+import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 
 const MOBILE_POINTER_LONG_PRESS_MS = 280;
 const MOBILE_POINTER_MOVE_TOLERANCE = 8;
@@ -73,8 +73,7 @@ export function ContextMenu({
 }: ContextMenuProps) {
   const { t } = useTranslation();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
-  const [internalPosition, setInternalPosition] =
-    useState<ContextMenuPosition | null>(null);
+  const [internalPosition, setInternalPosition] = useState<ContextMenuPosition | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const themeWrapperRef = useRef<HTMLDivElement | null>(null);
   const [menuSize, setMenuSize] = useState({ width: 180, height: 0 });
@@ -94,7 +93,7 @@ export function ContextMenu({
   const isEditorMode = !!editor && !!containerRef;
 
   // 使用内部位置（编辑器模式）或外部位置（手动模式）
-  const position = isEditorMode ? internalPosition : externalPosition ?? null;
+  const position = isEditorMode ? internalPosition : (externalPosition ?? null);
   const onClose = useCallback(() => {
     if (isEditorMode) {
       setInternalPosition(null);
@@ -109,9 +108,7 @@ export function ContextMenu({
   // 打开时通知其他 ContextMenu 关闭
   useEffect(() => {
     if (!position) return;
-    document.dispatchEvent(
-      new CustomEvent("context-menu:opened", { detail: { id: instanceId } })
-    );
+    document.dispatchEvent(new CustomEvent("context-menu:opened", { detail: { id: instanceId } }));
   }, [position, instanceId]);
 
   // 其他 ContextMenu 打开时关闭自身
@@ -143,7 +140,7 @@ export function ContextMenu({
       e.preventDefault();
       setInternalPosition({ x: e.clientX, y: e.clientY });
     },
-    [isEditorMode, containerRef]
+    [isEditorMode, containerRef],
   );
 
   // 编辑器模式：监听容器右键事件
@@ -196,7 +193,7 @@ export function ContextMenu({
       clearMobilePointer();
       restoreEditorKeyboard();
     },
-    [clearMobilePointer, restoreEditorKeyboard]
+    [clearMobilePointer, restoreEditorKeyboard],
   );
 
   useEffect(() => {
@@ -290,15 +287,22 @@ export function ContextMenu({
       container.removeEventListener("pointercancel", handlePointerCancel, { capture: true });
       container.removeEventListener("contextmenu", handleContextMenuCapture, { capture: true });
     };
-  }, [clearMobileLongPressTimer, clearMobilePointer, containerRef, editor, isEditorMode, restoreEditorKeyboard, suppressEditorKeyboard]);
+  }, [
+    clearMobileLongPressTimer,
+    clearMobilePointer,
+    containerRef,
+    editor,
+    isEditorMode,
+    restoreEditorKeyboard,
+    suppressEditorKeyboard,
+  ]);
 
   // 编辑器模式：生成编辑器菜单项
   const editorItems: ContextMenuItem[] = (() => {
     if (!editor) return [];
 
     // 检查是否有选中文本
-    const hasSelection =
-      editor.state.selection.from !== editor.state.selection.to;
+    const hasSelection = editor.state.selection.from !== editor.state.selection.to;
 
     // 处理剪切
     const handleCut = () => {
@@ -367,7 +371,7 @@ export function ContextMenu({
   })();
 
   // 使用编辑器菜单项或外部菜单项
-  const items = isEditorMode ? editorItems : externalItems ?? [];
+  const items = isEditorMode ? editorItems : (externalItems ?? []);
 
   // 点击外部关闭
   useEffect(() => {
@@ -416,7 +420,7 @@ export function ContextMenu({
         onClose();
       }
     },
-    [onClose]
+    [onClose],
   );
 
   // 计算菜单位置，避免超出视口
@@ -460,11 +464,11 @@ export function ContextMenu({
     ? {
         x: Math.min(
           Math.max(position.x, viewportPadding),
-          Math.max(viewportPadding, window.innerWidth - menuWidth - viewportPadding)
+          Math.max(viewportPadding, window.innerWidth - menuWidth - viewportPadding),
         ),
         y: Math.min(
           Math.max(position.y, viewportPadding),
-          Math.max(viewportPadding, window.innerHeight - menuHeight - viewportPadding)
+          Math.max(viewportPadding, window.innerHeight - menuHeight - viewportPadding),
         ),
       }
     : null;
@@ -497,8 +501,7 @@ export function ContextMenu({
               borderRadius: 8,
               background: "var(--color-background)",
               border: "1px solid var(--gray-a5)",
-              boxShadow:
-                "0 4px 16px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08)",
+              boxShadow: "0 4px 16px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08)",
             }}
           >
             <Flex direction="column">
@@ -510,22 +513,21 @@ export function ContextMenu({
                     opacity: item.disabled ? 0.4 : 1,
                     cursor: item.disabled ? "not-allowed" : "pointer",
                     backgroundColor:
-                      hoveredItem === item.id && !item.disabled
-                        ? "var(--gray-a3)"
-                        : "transparent",
+                      hoveredItem === item.id && !item.disabled ? "var(--gray-a3)" : "transparent",
                   }}
                   onMouseEnter={() => !item.disabled && setHoveredItem(item.id)}
                   onMouseLeave={() => setHoveredItem(null)}
                   onClick={(e) => handleItemClick(item, e)}
                 >
-                  <Flex align="center" gap="2">
+                  <Flex
+                    align="center"
+                    gap="2"
+                  >
                     {item.icon && (
                       <item.icon
                         size={14}
                         style={{
-                          color: item.danger
-                            ? "var(--red-11)"
-                            : "var(--gray-a11)",
+                          color: item.danger ? "var(--red-11)" : "var(--gray-a11)",
                         }}
                       />
                     )}
@@ -539,7 +541,10 @@ export function ContextMenu({
                     </Text>
                   </Flex>
                   {item.shortcut && (
-                    <Text size="1" style={{ color: "var(--gray-a9)" }}>
+                    <Text
+                      size="1"
+                      style={{ color: "var(--gray-a9)" }}
+                    >
                       {item.shortcut}
                     </Text>
                   )}
@@ -562,11 +567,8 @@ export function ContextMenu({
 
   const themeRoot = document.querySelector(".radix-themes");
 
-  const portalContent = themeRoot instanceof HTMLElement ? (
-    <div ref={themeWrapperRef}>
-      {content}
-    </div>
-  ) : content;
+  const portalContent =
+    themeRoot instanceof HTMLElement ? <div ref={themeWrapperRef}>{content}</div> : content;
 
   return createPortal(portalContent, document.body);
 }

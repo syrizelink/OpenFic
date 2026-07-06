@@ -78,10 +78,7 @@ export async function preloadTiktokenEncoding(
   return encodingPromise;
 }
 
-export function countTokens(
-  text: string,
-  encodingName: string = DEFAULT_ENCODING,
-): number {
+export function countTokens(text: string, encodingName: string = DEFAULT_ENCODING): number {
   if (!text || text.trim().length === 0) {
     return 0;
   }

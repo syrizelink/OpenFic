@@ -4,14 +4,9 @@
  * 通用标签输入组件，支持添加、删除标签，并使用HSL生成随机浅色背景。
  */
 
-import { useState, useCallback } from "react";
-import {
-  Flex,
-  Text,
-  TextField,
-  Badge,
-} from "@radix-ui/themes";
+import { Flex, Text, TextField, Badge } from "@radix-ui/themes";
 import { X } from "lucide-react";
+import { useState, useCallback } from "react";
 
 /**
  * 基于标签文本生成HSL颜色
@@ -29,15 +24,15 @@ function generateTagColor(tag: string): { background: string; textColor: string 
   // 使用hash值生成HSL颜色
   // H (色相): 0-360，使用hash映射到不同色相
   const hue = Math.abs(hash) % 360;
-  
+
   // S (饱和度): 30-50%，生成柔和的颜色
   const saturation = 30 + (Math.abs(hash) % 21); // 30-50%
-  
+
   // L (亮度): 85-95%，生成浅色背景
   const lightness = 85 + (Math.abs(hash) % 11); // 85-95%
 
   const background = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-  
+
   // 根据亮度计算文字颜色，确保有足够对比度
   // 对于浅色背景（lightness > 80%），使用深色文字
   const textColor = lightness > 80 ? "hsl(0, 0%, 20%)" : "hsl(0, 0%, 80%)";
@@ -87,7 +82,7 @@ export function TagInput({
     (tag: string) => {
       onChange(tags.filter((t) => t !== tag));
     },
-    [tags, onChange]
+    [tags, onChange],
   );
 
   /** 从已存在标签快速添加 */
@@ -97,7 +92,7 @@ export function TagInput({
         onChange([...tags, tag]);
       }
     },
-    [tags, onChange]
+    [tags, onChange],
   );
 
   /** 处理键盘事件 */
@@ -111,13 +106,19 @@ export function TagInput({
         onChange(tags.slice(0, -1));
       }
     },
-    [handleAddTag, tagInput, tags, onChange]
+    [handleAddTag, tagInput, tags, onChange],
   );
 
   return (
-    <Flex direction="column" gap="2">
+    <Flex
+      direction="column"
+      gap="2"
+    >
       {label && (
-        <Text size="2" weight="medium">
+        <Text
+          size="2"
+          weight="medium"
+        >
           {label}
         </Text>
       )}
@@ -130,7 +131,10 @@ export function TagInput({
         disabled={disabled}
       />
       {tags.length > 0 && (
-        <Flex gap="2" wrap="wrap">
+        <Flex
+          gap="2"
+          wrap="wrap"
+        >
           {tags.map((tag) => {
             const { background, textColor } = generateTagColor(tag);
             return (
@@ -161,13 +165,22 @@ export function TagInput({
         </Flex>
       )}
       {existingTags && existingTags.length > 0 && (
-        <Flex direction="column" gap="1">
+        <Flex
+          direction="column"
+          gap="1"
+        >
           {existingTagsLabel && (
-            <Text size="1" color="gray">
+            <Text
+              size="1"
+              color="gray"
+            >
               {existingTagsLabel}:
             </Text>
           )}
-          <Flex gap="2" wrap="wrap">
+          <Flex
+            gap="2"
+            wrap="wrap"
+          >
             {existingTags.map((tag) => {
               const { background, textColor } = generateTagColor(tag);
               return (

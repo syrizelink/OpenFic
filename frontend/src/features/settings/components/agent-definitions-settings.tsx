@@ -1,10 +1,18 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
 import {
-  Box, Button, Checkbox, Flex, ScrollArea, Text, TextArea, TextField,
-  Dialog, IconButton, Select,
+  Box,
+  Button,
+  Checkbox,
+  Flex,
+  ScrollArea,
+  Text,
+  TextArea,
+  TextField,
+  Dialog,
+  IconButton,
+  Select,
   Badge,
 } from "@radix-ui/themes";
-import { AnimatePresence, motion } from "motion/react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Bot,
   Copy,
@@ -16,15 +24,21 @@ import {
   RotateCcw,
   Trash2,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { ModelIdSelect, type ModelIdSelectOption } from "@/components";
+import { ContextMenu, type ContextMenuItem, toast, ConfirmDialog, Spinner } from "@/components";
 import { fetchSkills } from "@/lib/api-client";
 import type { Skill } from "@/lib/skill.types";
 import { useLlmModelOptions } from "@/lib/use-llm-model-options";
-import { ContextMenu, type ContextMenuItem, toast, ConfirmDialog, Spinner } from "@/components";
+
+import {
+  AGENT_DEFINITION_MENU_ACTIONS,
+  getAgentDefinitionMenuActions,
+} from "../lib/agent-definition-menu";
 import {
   fetchAgentToolCategories,
   fetchAgentDefinitions,
@@ -44,10 +58,6 @@ import {
   SYSTEM_DEFAULT_MODEL_REFERENCE,
   SYSTEM_LIGHT_MODEL_REFERENCE,
 } from "../lib/agent-definitions.types";
-import {
-  AGENT_DEFINITION_MENU_ACTIONS,
-  getAgentDefinitionMenuActions,
-} from "../lib/agent-definition-menu";
 import { fetchSettings } from "../lib/settings-api";
 
 const LIST_WIDTH = 280;
@@ -79,7 +89,7 @@ function buildAgentModelOptions(
   llmModelOptions: ModelIdSelectOption[],
   defaultModelId: string,
   lightModelId: string,
-  t: (key: string) => string
+  t: (key: string) => string,
 ): ModelIdSelectOption[] {
   return [
     {
@@ -113,7 +123,16 @@ interface AgentFormProps {
   onUpdated: () => void;
 }
 
-function AgentForm({ def, definitions, llmModelOptions, hasLlmModels, toolCategoryOptions, skills, onCloseSettings, onUpdated }: AgentFormProps) {
+function AgentForm({
+  def,
+  definitions,
+  llmModelOptions,
+  hasLlmModels,
+  toolCategoryOptions,
+  skills,
+  onCloseSettings,
+  onUpdated,
+}: AgentFormProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const fieldLabelStyle = useMemo(() => ({ fontSize: 14 }), []);
@@ -121,15 +140,21 @@ function AgentForm({ def, definitions, llmModelOptions, hasLlmModels, toolCatego
   const [formDisplayName, setFormDisplayName] = useState(def.display_name);
   const [formDescription, setFormDescription] = useState(def.description);
   const [formModelId, setFormModelId] = useState(getEffectiveModelSelection(def.model_id));
-  const [formToolCategoryKeys, setFormToolCategoryKeys] = useState<string[]>([...def.tool_category_keys]);
-  const [formEnabledSkillIds, setFormEnabledSkillIds] = useState<string[]>([...def.enabled_skill_ids]);
+  const [formToolCategoryKeys, setFormToolCategoryKeys] = useState<string[]>([
+    ...def.tool_category_keys,
+  ]);
+  const [formEnabledSkillIds, setFormEnabledSkillIds] = useState<string[]>([
+    ...def.enabled_skill_ids,
+  ]);
   const [formEnabled, setFormEnabled] = useState(def.enabled);
-  const [formDelegatableAgents, setFormDelegatableAgents] = useState<string[]>([...def.delegatable_agents]);
+  const [formDelegatableAgents, setFormDelegatableAgents] = useState<string[]>([
+    ...def.delegatable_agents,
+  ]);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const allSubagents = useMemo(
     () => definitions.filter((d) => d.kind === "subagent" && d.enabled),
-    [definitions]
+    [definitions],
   );
 
   const delegatableOptions = useMemo(
@@ -140,7 +165,7 @@ function AgentForm({ def, definitions, llmModelOptions, hasLlmModels, toolCatego
           value: d.key,
           label: d.display_name || d.key,
         })),
-    [allSubagents, def.key]
+    [allSubagents, def.key],
   );
 
   const hasFormChanges = useMemo(() => {
@@ -153,7 +178,16 @@ function AgentForm({ def, definitions, llmModelOptions, hasLlmModels, toolCatego
       formEnabled !== def.enabled ||
       JSON.stringify(formDelegatableAgents) !== JSON.stringify(def.delegatable_agents)
     );
-  }, [def, formDescription, formDisplayName, formModelId, formToolCategoryKeys, formEnabledSkillIds, formEnabled, formDelegatableAgents]);
+  }, [
+    def,
+    formDescription,
+    formDisplayName,
+    formModelId,
+    formToolCategoryKeys,
+    formEnabledSkillIds,
+    formEnabled,
+    formDelegatableAgents,
+  ]);
 
   const isPrimary = def.kind === "primary";
 
@@ -196,42 +230,44 @@ function AgentForm({ def, definitions, llmModelOptions, hasLlmModels, toolCatego
     navigate(`/prompt-chains?${params.toString()}`);
   }, [def.key, navigate, onCloseSettings]);
 
-  const handleToggleDelegatable = useCallback(
-    (key: string) => {
-      setFormDelegatableAgents((prev) =>
-        prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-      );
-    },
-    []
-  );
+  const handleToggleDelegatable = useCallback((key: string) => {
+    setFormDelegatableAgents((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
+  }, []);
 
-  const handleToggleToolCategory = useCallback(
-    (key: string) => {
-      setFormToolCategoryKeys((prev) =>
-        prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-      );
-    },
-    []
-  );
+  const handleToggleToolCategory = useCallback((key: string) => {
+    setFormToolCategoryKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
+  }, []);
 
-  const handleToggleEnabledSkill = useCallback(
-    (skillId: string) => {
-      setFormEnabledSkillIds((prev) =>
-        prev.includes(skillId) ? prev.filter((id) => id !== skillId) : [...prev, skillId]
-      );
-    },
-    []
-  );
+  const handleToggleEnabledSkill = useCallback((skillId: string) => {
+    setFormEnabledSkillIds((prev) =>
+      prev.includes(skillId) ? prev.filter((id) => id !== skillId) : [...prev, skillId],
+    );
+  }, []);
 
-  const selectableSkills = useMemo(
-    () => skills.filter((skill) => skill.skillId.trim()),
-    [skills]
-  );
+  const selectableSkills = useMemo(() => skills.filter((skill) => skill.skillId.trim()), [skills]);
 
   return (
-    <Flex direction="column" gap="5" key={def.key} className="agent-definition-form">
-      <Flex direction="column" gap="1">
-        <Text size="1" weight="medium" style={fieldLabelStyle}>{t("settings.agentsDisplayName")}</Text>
+    <Flex
+      direction="column"
+      gap="5"
+      key={def.key}
+      className="agent-definition-form"
+    >
+      <Flex
+        direction="column"
+        gap="1"
+      >
+        <Text
+          size="1"
+          weight="medium"
+          style={fieldLabelStyle}
+        >
+          {t("settings.agentsDisplayName")}
+        </Text>
         <TextField.Root
           value={formDisplayName}
           onChange={(e) => setFormDisplayName(e.target.value)}
@@ -239,8 +275,17 @@ function AgentForm({ def, definitions, llmModelOptions, hasLlmModels, toolCatego
         />
       </Flex>
 
-      <Flex direction="column" gap="1">
-        <Text size="1" weight="medium" style={fieldLabelStyle}>{t("settings.agentsFieldDescription")}</Text>
+      <Flex
+        direction="column"
+        gap="1"
+      >
+        <Text
+          size="1"
+          weight="medium"
+          style={fieldLabelStyle}
+        >
+          {t("settings.agentsFieldDescription")}
+        </Text>
         <TextArea
           value={formDescription}
           onChange={(event) => setFormDescription(event.target.value)}
@@ -249,8 +294,17 @@ function AgentForm({ def, definitions, llmModelOptions, hasLlmModels, toolCatego
         />
       </Flex>
 
-      <Flex direction="column" gap="1">
-        <Text size="1" weight="medium" style={fieldLabelStyle}>{t("settings.agentsModelId")}</Text>
+      <Flex
+        direction="column"
+        gap="1"
+      >
+        <Text
+          size="1"
+          weight="medium"
+          style={fieldLabelStyle}
+        >
+          {t("settings.agentsModelId")}
+        </Text>
         <ModelIdSelect
           value={formModelId}
           models={llmModelOptions}
@@ -262,12 +316,29 @@ function AgentForm({ def, definitions, llmModelOptions, hasLlmModels, toolCatego
         />
       </Flex>
 
-      <Flex direction="column" gap="1">
-        <Text size="1" weight="medium" style={fieldLabelStyle}>{t("settings.agentsToolCategories")}</Text>
+      <Flex
+        direction="column"
+        gap="1"
+      >
+        <Text
+          size="1"
+          weight="medium"
+          style={fieldLabelStyle}
+        >
+          {t("settings.agentsToolCategories")}
+        </Text>
         {toolCategoryOptions.length === 0 ? (
-          <Text size="2" color="gray">{t("settings.agentsNoTools")}</Text>
+          <Text
+            size="2"
+            color="gray"
+          >
+            {t("settings.agentsNoTools")}
+          </Text>
         ) : (
-          <Flex wrap="wrap" gap="2">
+          <Flex
+            wrap="wrap"
+            gap="2"
+          >
             {toolCategoryOptions.map((opt) => (
               <label
                 key={opt.key}
@@ -294,12 +365,29 @@ function AgentForm({ def, definitions, llmModelOptions, hasLlmModels, toolCatego
         )}
       </Flex>
 
-      <Flex direction="column" gap="1">
-        <Text size="1" weight="medium" style={fieldLabelStyle}>{t("settings.agentsEnabledSkills")}</Text>
+      <Flex
+        direction="column"
+        gap="1"
+      >
+        <Text
+          size="1"
+          weight="medium"
+          style={fieldLabelStyle}
+        >
+          {t("settings.agentsEnabledSkills")}
+        </Text>
         {selectableSkills.length === 0 ? (
-          <Text size="2" color="gray">{t("settings.agentsNoSkills")}</Text>
+          <Text
+            size="2"
+            color="gray"
+          >
+            {t("settings.agentsNoSkills")}
+          </Text>
         ) : (
-          <Flex wrap="wrap" gap="2">
+          <Flex
+            wrap="wrap"
+            gap="2"
+          >
             {selectableSkills.map((skill) => {
               const disabled = !skill.isEnabled || !skill.isComplete;
               return (
@@ -332,7 +420,10 @@ function AgentForm({ def, definitions, llmModelOptions, hasLlmModels, toolCatego
         )}
       </Flex>
 
-      <Flex align="center" gap="2">
+      <Flex
+        align="center"
+        gap="2"
+      >
         <Checkbox
           checked={formEnabled}
           onCheckedChange={(checked) => setFormEnabled(checked === true)}
@@ -341,12 +432,29 @@ function AgentForm({ def, definitions, llmModelOptions, hasLlmModels, toolCatego
       </Flex>
 
       {isPrimary && (
-        <Flex direction="column" gap="2">
-          <Text size="1" weight="medium" style={fieldLabelStyle}>{t("settings.agentsDelegatableAgents")}</Text>
+        <Flex
+          direction="column"
+          gap="2"
+        >
+          <Text
+            size="1"
+            weight="medium"
+            style={fieldLabelStyle}
+          >
+            {t("settings.agentsDelegatableAgents")}
+          </Text>
           {delegatableOptions.length === 0 ? (
-              <Text size="2" color="gray">{t("settings.agentsNoDelegatableAgents")}</Text>
-            ) : (
-            <Flex wrap="wrap" gap="2">
+            <Text
+              size="2"
+              color="gray"
+            >
+              {t("settings.agentsNoDelegatableAgents")}
+            </Text>
+          ) : (
+            <Flex
+              wrap="wrap"
+              gap="2"
+            >
               {delegatableOptions.map((opt) => (
                 <label
                   key={opt.value}
@@ -374,10 +482,26 @@ function AgentForm({ def, definitions, llmModelOptions, hasLlmModels, toolCatego
         </Flex>
       )}
 
-      <Flex direction="column" gap="1">
-        <Text size="1" weight="medium" style={fieldLabelStyle}>{t("settings.agentsPromptChain")}</Text>
-        <Flex align="center" gap="1" wrap="wrap">
-          <Text size="2" color="gray">
+      <Flex
+        direction="column"
+        gap="1"
+      >
+        <Text
+          size="1"
+          weight="medium"
+          style={fieldLabelStyle}
+        >
+          {t("settings.agentsPromptChain")}
+        </Text>
+        <Flex
+          align="center"
+          gap="1"
+          wrap="wrap"
+        >
+          <Text
+            size="2"
+            color="gray"
+          >
             {t("settings.agentsPromptChainLocationPrefix", { agent: def.key })}
           </Text>
           <button
@@ -396,13 +520,22 @@ function AgentForm({ def, definitions, llmModelOptions, hasLlmModels, toolCatego
               font: "inherit",
             }}
           >
-            <Text size="2" style={{ color: "inherit" }}>{t("settings.agentsPromptChainAction")}</Text>
+            <Text
+              size="2"
+              style={{ color: "inherit" }}
+            >
+              {t("settings.agentsPromptChainAction")}
+            </Text>
             <ExternalLink size={14} />
           </button>
         </Flex>
       </Flex>
 
-      <Flex direction="column" gap="2" style={{ marginTop: 8 }}>
+      <Flex
+        direction="column"
+        gap="2"
+        style={{ marginTop: 8 }}
+      >
         <Button
           size="2"
           disabled={!hasFormChanges || updateMutation.isPending}
@@ -468,7 +601,12 @@ export function AgentDefinitionsSettings({
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const { data: definitions = [], isLoading, isFetching, refetch } = useQuery({
+  const {
+    data: definitions = [],
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ["agent-definitions"],
     queryFn: fetchAgentDefinitions,
     staleTime: 0,
@@ -510,13 +648,14 @@ export function AgentDefinitionsSettings({
   const { options: llmModelOptions, isLoading: isModelOptionsLoading } = useLlmModelOptions();
   const hasLlmModels = llmModelOptions.length > 0;
   const modelOptions = useMemo(
-    () => buildAgentModelOptions(
-      llmModelOptions,
-      settings?.defaultModel ?? "",
-      settings?.lightModel ?? "",
-      t
-    ),
-    [llmModelOptions, settings?.defaultModel, settings?.lightModel, t]
+    () =>
+      buildAgentModelOptions(
+        llmModelOptions,
+        settings?.defaultModel ?? "",
+        settings?.lightModel ?? "",
+        t,
+      ),
+    [llmModelOptions, settings?.defaultModel, settings?.lightModel, t],
   );
 
   const effectiveSelectedKey = useMemo(() => {
@@ -528,18 +667,21 @@ export function AgentDefinitionsSettings({
 
   const selectedDef = useMemo(
     () => definitions.find((d) => d.key === effectiveSelectedKey) ?? null,
-    [definitions, effectiveSelectedKey]
+    [definitions, effectiveSelectedKey],
   );
   const currentMobilePage = mobilePage ?? internalMobilePage;
   const currentMobileDirection = controlledMobileDirection ?? internalMobileDirection;
 
-  const handleMobilePageChange = useCallback((page: "list" | "detail") => {
-    if (controlledMobileDirection === undefined) {
-      setInternalMobileDirection(page === "detail" ? 1 : -1);
-    }
-    onMobilePageChange?.(page);
-    if (mobilePage === undefined) setInternalMobilePage(page);
-  }, [controlledMobileDirection, mobilePage, onMobilePageChange]);
+  const handleMobilePageChange = useCallback(
+    (page: "list" | "detail") => {
+      if (controlledMobileDirection === undefined) {
+        setInternalMobileDirection(page === "detail" ? 1 : -1);
+      }
+      onMobilePageChange?.(page);
+      if (mobilePage === undefined) setInternalMobilePage(page);
+    },
+    [controlledMobileDirection, mobilePage, onMobilePageChange],
+  );
 
   const isContentLoading =
     isLoading ||
@@ -558,26 +700,27 @@ export function AgentDefinitionsSettings({
   }, [onMobileDetailTitleChange, selectedDef]);
 
   const orderedDefinitions = useMemo(
-    () => [...definitions].sort((left, right) => {
-      if (left.source === right.source) return 0;
-      return left.source === "builtin" ? -1 : 1;
-    }),
-    [definitions]
+    () =>
+      [...definitions].sort((left, right) => {
+        if (left.source === right.source) return 0;
+        return left.source === "builtin" ? -1 : 1;
+      }),
+    [definitions],
   );
 
   const menuTarget = useMemo(
     () => definitions.find((item) => item.key === menuState?.key) ?? null,
-    [definitions, menuState]
+    [definitions, menuState],
   );
 
   const resetTarget = useMemo(
     () => definitions.find((item) => item.key === confirmResetKey) ?? null,
-    [confirmResetKey, definitions]
+    [confirmResetKey, definitions],
   );
 
   const deleteTarget = useMemo(
     () => definitions.find((item) => item.key === confirmDeleteKey) ?? null,
-    [confirmDeleteKey, definitions]
+    [confirmDeleteKey, definitions],
   );
 
   const invalidateDefs = useCallback(() => {
@@ -604,15 +747,18 @@ export function AgentDefinitionsSettings({
     setIsCreating(true);
   }, []);
 
-  const openCopyDialog = useCallback((def: AgentDefinitionResponse) => {
-    setCreateMode("copy");
-    setCopySource(def);
-    setNewKind(def.kind);
-    setNewKey(`${def.key}-copy`.replace(/[^a-z0-9-]/g, "").slice(0, 50));
-    setNewDisplayName(`${def.display_name} ${t("settings.agentsCopySuffix")}`);
-    setNewDescription(def.description);
-    setIsCreating(true);
-  }, [t]);
+  const openCopyDialog = useCallback(
+    (def: AgentDefinitionResponse) => {
+      setCreateMode("copy");
+      setCopySource(def);
+      setNewKind(def.kind);
+      setNewKey(`${def.key}-copy`.replace(/[^a-z0-9-]/g, "").slice(0, 50));
+      setNewDisplayName(`${def.display_name} ${t("settings.agentsCopySuffix")}`);
+      setNewDescription(def.description);
+      setIsCreating(true);
+    },
+    [t],
+  );
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -641,16 +787,13 @@ export function AgentDefinitionsSettings({
       setSelectedKey(result.key);
       if (isMobile) handleMobilePageChange("detail");
       toast.success(
-        createMode === "copy"
-          ? t("settings.agentsCopySuccess")
-          : t("settings.agentsCreateSuccess")
+        createMode === "copy" ? t("settings.agentsCopySuccess") : t("settings.agentsCreateSuccess"),
       );
     },
-    onError: () => toast.error(
-      createMode === "copy"
-        ? t("settings.agentsCopyFailed")
-        : t("settings.agentsCreateFailed")
-    ),
+    onError: () =>
+      toast.error(
+        createMode === "copy" ? t("settings.agentsCopyFailed") : t("settings.agentsCreateFailed"),
+      ),
   });
 
   const resetMutation = useMutation({
@@ -689,31 +832,29 @@ export function AgentDefinitionsSettings({
     const items: ContextMenuItem[] = [];
 
     if (actions.includes(AGENT_DEFINITION_MENU_ACTIONS.copy)) {
-      items.push(
-        {
-          id: "copy",
-          label: t("settings.agentsCopy"),
-          icon: Copy,
-          onClick: () => {
-            openCopyDialog(menuTarget);
-            closeMenu();
-          },
-        }
-      );
+      items.push({
+        id: "copy",
+        label: t("settings.agentsCopy"),
+        icon: Copy,
+        onClick: () => {
+          openCopyDialog(menuTarget);
+          closeMenu();
+        },
+      });
     }
 
     if (actions.includes(AGENT_DEFINITION_MENU_ACTIONS.delete)) {
       items.push({
-          id: "delete",
-          label: t("settings.agentsDelete"),
-          icon: Trash2,
-          danger: true,
-          onClick: () => {
-            setSelectedKey(menuTarget.key);
-            setConfirmDeleteKey(menuTarget.key);
-            closeMenu();
-          },
-        });
+        id: "delete",
+        label: t("settings.agentsDelete"),
+        icon: Trash2,
+        danger: true,
+        onClick: () => {
+          setSelectedKey(menuTarget.key);
+          setConfirmDeleteKey(menuTarget.key);
+          closeMenu();
+        },
+      });
     }
 
     if (actions.includes(AGENT_DEFINITION_MENU_ACTIONS.reset)) {
@@ -730,7 +871,15 @@ export function AgentDefinitionsSettings({
     }
 
     return items;
-  }, [closeMenu, menuTarget, openCopyDialog, setConfirmDeleteKey, setConfirmResetKey, setSelectedKey, t]);
+  }, [
+    closeMenu,
+    menuTarget,
+    openCopyDialog,
+    setConfirmDeleteKey,
+    setConfirmResetKey,
+    setSelectedKey,
+    t,
+  ]);
 
   const renderAgentListItem = (def: AgentDefinitionResponse) => (
     <div
@@ -754,8 +903,16 @@ export function AgentDefinitionsSettings({
         openMenuAt(def.key, { x: event.clientX, y: event.clientY });
       }}
     >
-      <Flex direction="column" gap="1" className="agent-definition-item-content">
-        <Flex align="center" gap="2" className="agent-definition-item-row">
+      <Flex
+        direction="column"
+        gap="1"
+        className="agent-definition-item-content"
+      >
+        <Flex
+          align="center"
+          gap="2"
+          className="agent-definition-item-row"
+        >
           <span
             className="agent-definition-kind-icon"
             aria-label={getAgentKindLabel(def.kind)}
@@ -763,16 +920,28 @@ export function AgentDefinitionsSettings({
           >
             {def.kind === "primary" ? <Crown size={14} /> : <Bot size={14} />}
           </span>
-          <Text size="2" truncate weight={effectiveSelectedKey === def.key ? "medium" : "regular"}>
+          <Text
+            size="2"
+            truncate
+            weight={effectiveSelectedKey === def.key ? "medium" : "regular"}
+          >
             {def.display_name}
           </Text>
           {def.source === "builtin" ? (
-            <Badge size="1" variant="soft" color="green">
+            <Badge
+              size="1"
+              variant="soft"
+              color="green"
+            >
               {t("settings.agentsBuiltin")}
             </Badge>
           ) : null}
         </Flex>
-        <Text size="1" color="gray" className="agent-definition-item-description">
+        <Text
+          size="1"
+          color="gray"
+          className="agent-definition-item-description"
+        >
           {def.description || t("settings.agentsNoDescription")}
         </Text>
       </Flex>
@@ -797,13 +966,29 @@ export function AgentDefinitionsSettings({
   );
 
   const listContent = (
-    <Box className="agent-definitions-list-panel" style={isMobile ? undefined : { width: LIST_WIDTH }}>
+    <Box
+      className="agent-definitions-list-panel"
+      style={isMobile ? undefined : { width: LIST_WIDTH }}
+    >
       <Box className="agent-definitions-list-header">
-        <Flex align="center" justify="between" gap="2" className="agent-definitions-list-header-row">
-          <Text size="2" weight="medium" className="agent-definitions-list-count">
+        <Flex
+          align="center"
+          justify="between"
+          gap="2"
+          className="agent-definitions-list-header-row"
+        >
+          <Text
+            size="2"
+            weight="medium"
+            className="agent-definitions-list-count"
+          >
             {t("settings.agentsTotalCount", { count: definitions.length })}
           </Text>
-          <Flex align="center" gap="1" className="agent-definitions-list-actions">
+          <Flex
+            align="center"
+            gap="1"
+            className="agent-definitions-list-actions"
+          >
             <IconButton
               size="2"
               variant="ghost"
@@ -821,7 +1006,10 @@ export function AgentDefinitionsSettings({
               onClick={() => void refetch()}
               disabled={isFetching}
             >
-              <RefreshCw size={14} className={isFetching ? "animate-spin" : undefined} />
+              <RefreshCw
+                size={14}
+                className={isFetching ? "animate-spin" : undefined}
+              />
             </IconButton>
           </Flex>
         </Flex>
@@ -829,16 +1017,38 @@ export function AgentDefinitionsSettings({
 
       <ScrollArea style={{ flex: 1 }}>
         {isLoading ? (
-          <Flex align="center" justify="center" style={{ height: 100 }}>
-            <Text size="2" color="gray">{t("common.loading")}</Text>
+          <Flex
+            align="center"
+            justify="center"
+            style={{ height: 100 }}
+          >
+            <Text
+              size="2"
+              color="gray"
+            >
+              {t("common.loading")}
+            </Text>
           </Flex>
         ) : (
-          <Flex direction="column" gap="2" className="agent-definitions-list-body">
+          <Flex
+            direction="column"
+            gap="2"
+            className="agent-definitions-list-body"
+          >
             {orderedDefinitions.map(renderAgentListItem)}
 
             {definitions.length === 0 ? (
-              <Flex align="center" justify="center" style={{ padding: 24 }}>
-                <Text size="2" color="gray">{t("settings.agentsEmpty")}</Text>
+              <Flex
+                align="center"
+                justify="center"
+                style={{ padding: 24 }}
+              >
+                <Text
+                  size="2"
+                  color="gray"
+                >
+                  {t("settings.agentsEmpty")}
+                </Text>
               </Flex>
             ) : null}
           </Flex>
@@ -848,9 +1058,21 @@ export function AgentDefinitionsSettings({
   );
 
   const detailContent = !selectedDef ? (
-    <Flex direction="column" align="center" justify="center" gap="2" className="agent-definitions-empty-state">
-      <Bot size={32} style={{ opacity: 0.3 }} />
-      <Text size="2" color="gray">
+    <Flex
+      direction="column"
+      align="center"
+      justify="center"
+      gap="2"
+      className="agent-definitions-empty-state"
+    >
+      <Bot
+        size={32}
+        style={{ opacity: 0.3 }}
+      />
+      <Text
+        size="2"
+        color="gray"
+      >
         {t("settings.agentsSelectHint")}
       </Text>
     </Flex>
@@ -871,13 +1093,24 @@ export function AgentDefinitionsSettings({
   return (
     <>
       {isContentLoading ? (
-        <Flex align="center" justify="center" style={{ height: "100%" }}>
+        <Flex
+          align="center"
+          justify="center"
+          style={{ height: "100%" }}
+        >
           <Spinner size={18} />
         </Flex>
       ) : isMobile ? (
-        <Flex direction="column" className="agent-definitions-layout agent-definitions-layout--mobile">
+        <Flex
+          direction="column"
+          className="agent-definitions-layout agent-definitions-layout--mobile"
+        >
           <Box className="settings-dialog-mobile-page-stack">
-            <AnimatePresence initial={false} custom={currentMobileDirection} mode="sync">
+            <AnimatePresence
+              initial={false}
+              custom={currentMobileDirection}
+              mode="sync"
+            >
               {currentMobilePage === "list" ? (
                 <MotionBox
                   key="agents-mobile-list"
@@ -916,31 +1149,58 @@ export function AgentDefinitionsSettings({
         <Flex className="agent-definitions-layout">
           {listContent}
 
-          <Box className="agent-definitions-detail-panel">
-            {detailContent}
-          </Box>
+          <Box className="agent-definitions-detail-panel">{detailContent}</Box>
         </Flex>
       )}
 
-      <ContextMenu position={menuState?.position ?? null} items={menuItems} onClose={closeMenu} />
+      <ContextMenu
+        position={menuState?.position ?? null}
+        items={menuItems}
+        onClose={closeMenu}
+      />
 
-      <Dialog.Root open={isCreating} onOpenChange={(open) => (!open ? closeCreateDialog() : setIsCreating(true))}>
+      <Dialog.Root
+        open={isCreating}
+        onOpenChange={(open) => (!open ? closeCreateDialog() : setIsCreating(true))}
+      >
         <Dialog.Content style={{ maxWidth: 420 }}>
           <Dialog.Title>
             {createMode === "copy" ? t("settings.agentsCopy") : t("settings.agentsNewAgent")}
           </Dialog.Title>
-          <Flex direction="column" gap="3" style={{ marginTop: 12 }}>
-            <Flex direction="column" gap="1">
-              <Text size="1" weight="medium">{t("settings.agentsKey")}</Text>
-            <TextField.Root
-              value={newKey}
-              onChange={(event) => setNewKey(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-              placeholder={t("settings.agentsKeyPlaceholder")}
-            />
+          <Flex
+            direction="column"
+            gap="3"
+            style={{ marginTop: 12 }}
+          >
+            <Flex
+              direction="column"
+              gap="1"
+            >
+              <Text
+                size="1"
+                weight="medium"
+              >
+                {t("settings.agentsKey")}
+              </Text>
+              <TextField.Root
+                value={newKey}
+                onChange={(event) =>
+                  setNewKey(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
+                }
+                placeholder={t("settings.agentsKeyPlaceholder")}
+              />
             </Flex>
 
-            <Flex direction="column" gap="1">
-              <Text size="1" weight="medium">{t("settings.agentsDisplayName")}</Text>
+            <Flex
+              direction="column"
+              gap="1"
+            >
+              <Text
+                size="1"
+                weight="medium"
+              >
+                {t("settings.agentsDisplayName")}
+              </Text>
               <TextField.Root
                 value={newDisplayName}
                 onChange={(event) => setNewDisplayName(event.target.value)}
@@ -948,8 +1208,16 @@ export function AgentDefinitionsSettings({
               />
             </Flex>
 
-            <Flex direction="column" gap="1">
-              <Text size="1" weight="medium">{t("settings.agentsFieldDescription")}</Text>
+            <Flex
+              direction="column"
+              gap="1"
+            >
+              <Text
+                size="1"
+                weight="medium"
+              >
+                {t("settings.agentsFieldDescription")}
+              </Text>
               <TextArea
                 value={newDescription}
                 onChange={(event) => setNewDescription(event.target.value)}
@@ -958,13 +1226,27 @@ export function AgentDefinitionsSettings({
               />
             </Flex>
 
-            <Flex direction="column" gap="1">
-              <Text size="1" weight="medium">{t("settings.agentsKind")}</Text>
-              <Select.Root value={newKind} onValueChange={(value) => setNewKind(value as "primary" | "subagent") }>
+            <Flex
+              direction="column"
+              gap="1"
+            >
+              <Text
+                size="1"
+                weight="medium"
+              >
+                {t("settings.agentsKind")}
+              </Text>
+              <Select.Root
+                value={newKind}
+                onValueChange={(value) => setNewKind(value as "primary" | "subagent")}
+              >
                 <Select.Trigger style={{ width: "100%" }} />
                 <Select.Content>
                   {agentKindOptions.map((opt) => (
-                    <Select.Item key={opt.value} value={opt.value}>
+                    <Select.Item
+                      key={opt.value}
+                      value={opt.value}
+                    >
                       {opt.label}
                     </Select.Item>
                   ))}
@@ -973,8 +1255,16 @@ export function AgentDefinitionsSettings({
             </Flex>
           </Flex>
 
-          <Flex gap="2" justify="end" style={{ marginTop: 20 }}>
-            <Button variant="soft" color="gray" onClick={closeCreateDialog}>
+          <Flex
+            gap="2"
+            justify="end"
+            style={{ marginTop: 20 }}
+          >
+            <Button
+              variant="soft"
+              color="gray"
+              onClick={closeCreateDialog}
+            >
               {t("common.cancel")}
             </Button>
             <Button
@@ -1004,9 +1294,11 @@ export function AgentDefinitionsSettings({
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => !open && setConfirmDeleteKey(null)}
         title={t("settings.agentsDelete")}
-        description={deleteTarget
-          ? `${t("settings.agentsDeleteConfirmPrefix")}「${deleteTarget.display_name}」${t("settings.agentsDeleteConfirmSuffix")}`
-          : ""}
+        description={
+          deleteTarget
+            ? `${t("settings.agentsDeleteConfirmPrefix")}「${deleteTarget.display_name}」${t("settings.agentsDeleteConfirmSuffix")}`
+            : ""
+        }
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.key)}
         confirmText={t("common.delete")}
         cancelText={t("common.cancel")}

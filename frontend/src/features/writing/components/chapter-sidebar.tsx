@@ -1,16 +1,13 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Box, Button, Dialog, Flex, TextArea } from "@radix-ui/themes";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 
-import { SidebarToolbar } from "./sidebar-toolbar";
-import { VolumeList } from "./volume-list";
-import { MoveChapterToVolumeDialog } from "./move-chapter-to-volume-dialog";
-import {
-  findVolumeIdForChapter,
-  getInitialCurrentChapterVolumeIdToExpand,
-  type GroupedVolumeListScrollRequest,
-} from "./grouped-volume-list-focus";
+import { ConfirmDialog, toast } from "@/components";
+import { fetchChapter } from "@/lib/api-client";
+import type { ChapterListItem, VolumeWithChapters } from "@/lib/chapter.types";
+import { createToastThrottler } from "@/lib/ui-utils";
+
 import {
   useCreateChapter,
   useUpdateChapter,
@@ -18,6 +15,7 @@ import {
   useReorderChapters,
   useMoveChapterToVolume,
 } from "../hooks/use-chapters";
+import { useSummaryStatuses } from "../hooks/use-summaries";
 import {
   useCreateVolume,
   useDeleteVolume,
@@ -25,13 +23,16 @@ import {
   useUpdateVolume,
   useVolumeTree,
 } from "../hooks/use-volumes";
-import { useSummaryStatuses } from "../hooks/use-summaries";
-import { useWritingStore } from "../store/use-writing-store";
 import { useTabsStore } from "../store/use-tabs-store";
-import { ConfirmDialog, toast } from "@/components";
-import { fetchChapter } from "@/lib/api-client";
-import { createToastThrottler } from "@/lib/ui-utils";
-import type { ChapterListItem, VolumeWithChapters } from "@/lib/chapter.types";
+import { useWritingStore } from "../store/use-writing-store";
+import {
+  findVolumeIdForChapter,
+  getInitialCurrentChapterVolumeIdToExpand,
+  type GroupedVolumeListScrollRequest,
+} from "./grouped-volume-list-focus";
+import { MoveChapterToVolumeDialog } from "./move-chapter-to-volume-dialog";
+import { SidebarToolbar } from "./sidebar-toolbar";
+import { VolumeList } from "./volume-list";
 
 interface ChapterSidebarProps {
   projectId: string;
@@ -92,7 +93,7 @@ export function ChapterSidebar({
       hydrateExpandedVolumeIds: state.hydrateExpandedVolumeIds,
       setVolumeExpanded: state.setVolumeExpanded,
       toggleVolumeExpanded: state.toggleVolumeExpanded,
-    }))
+    })),
   );
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -113,7 +114,7 @@ export function ChapterSidebar({
 
   const showLockedToast = useMemo(
     () => createToastThrottler(t("writing.agentLockedChapterEdit")),
-    [t]
+    [t],
   );
 
   useEffect(() => {
@@ -168,8 +169,7 @@ export function ChapterSidebar({
       return;
     }
 
-    lastHandledInitialCurrentChapterNavigationKeyRef.current =
-      initialCurrentChapterNavigationKey;
+    lastHandledInitialCurrentChapterNavigationKeyRef.current = initialCurrentChapterNavigationKey;
 
     const targetVolumeId = getInitialCurrentChapterVolumeIdToExpand({
       initialNavigationKey: initialCurrentChapterNavigationKey,
@@ -192,10 +192,7 @@ export function ChapterSidebar({
     volumes,
   ]);
 
-  const allChapters = useMemo(
-    () => volumes.flatMap((volume) => volume.chapters),
-    [volumes]
-  );
+  const allChapters = useMemo(() => volumes.flatMap((volume) => volume.chapters), [volumes]);
 
   const createScrollRequestKey = useCallback((prefix: string, id: string) => {
     scrollRequestSequenceRef.current += 1;
@@ -203,11 +200,8 @@ export function ChapterSidebar({
   }, []);
 
   const summaryStatusMap = useMemo(
-    () =>
-      Object.fromEntries(
-        (summaryStatuses ?? []).map((item) => [item.chapterId, item])
-      ),
-    [summaryStatuses]
+    () => Object.fromEntries((summaryStatuses ?? []).map((item) => [item.chapterId, item])),
+    [summaryStatuses],
   );
 
   const createChapterInVolume = useCallback(
@@ -240,7 +234,7 @@ export function ChapterSidebar({
       createScrollRequestKey,
       showLockedToast,
       t,
-    ]
+    ],
   );
 
   const handleCreateChapter = useCallback(async () => {
@@ -285,7 +279,7 @@ export function ChapterSidebar({
       setCurrentChapter(chapterId);
       onChapterSelect(chapterId, chapter?.title ?? "");
     },
-    [allChapters, onChapterSelect, setCurrentChapter]
+    [allChapters, onChapterSelect, setCurrentChapter],
   );
 
   const handleOpenInNewTab = useCallback(
@@ -295,7 +289,7 @@ export function ChapterSidebar({
       }
       openTab(chapterId, title);
     },
-    [openTab, tabs.length]
+    [openTab, tabs.length],
   );
 
   const handleDuplicate = useCallback(
@@ -319,7 +313,7 @@ export function ChapterSidebar({
         // 错误处理由 mutation 处理
       }
     },
-    [createChapterMutation, isAgentLocked, onChapterSelect, setCurrentChapter, showLockedToast]
+    [createChapterMutation, isAgentLocked, onChapterSelect, setCurrentChapter, showLockedToast],
   );
 
   const handleRenameChapter = useCallback(
@@ -344,7 +338,7 @@ export function ChapterSidebar({
         });
       }
     },
-    [isAgentLocked, showLockedToast, updateChapterMutation]
+    [isAgentLocked, showLockedToast, updateChapterMutation],
   );
 
   const handleOpenDeleteChapter = useCallback(
@@ -358,7 +352,7 @@ export function ChapterSidebar({
       setDeletingVolume(null);
       setDeleteDialogOpen(true);
     },
-    [isAgentLocked, showLockedToast]
+    [isAgentLocked, showLockedToast],
   );
 
   const handleOpenDeleteVolume = useCallback(
@@ -371,7 +365,7 @@ export function ChapterSidebar({
       setDeletingChapter(null);
       setDeleteDialogOpen(true);
     },
-    [isAgentLocked, showLockedToast]
+    [isAgentLocked, showLockedToast],
   );
 
   const handleDeleteDialogChange = useCallback((open: boolean) => {
@@ -431,16 +425,12 @@ export function ChapterSidebar({
       for (const volume of volumes) {
         const hasChanges = volume.chapters.some(
           (chapter) =>
-            dragOrderMap[chapter.id] !== undefined &&
-            dragOrderMap[chapter.id] !== chapter.order
+            dragOrderMap[chapter.id] !== undefined && dragOrderMap[chapter.id] !== chapter.order,
         );
         if (!hasChanges) continue;
 
         const sortedChapterIds = [...volume.chapters]
-          .sort(
-            (a, b) =>
-              (dragOrderMap[a.id] ?? a.order) - (dragOrderMap[b.id] ?? b.order)
-          )
+          .sort((a, b) => (dragOrderMap[a.id] ?? a.order) - (dragOrderMap[b.id] ?? b.order))
           .map((c) => c.id);
 
         await reorderChaptersMutation.mutateAsync({
@@ -485,7 +475,7 @@ export function ChapterSidebar({
         data: { title },
       });
     },
-    [isAgentLocked, showLockedToast, updateVolumeMutation]
+    [isAgentLocked, showLockedToast, updateVolumeMutation],
   );
 
   const handleOpenDescriptionEditor = useCallback((volume: VolumeWithChapters) => {
@@ -514,7 +504,7 @@ export function ChapterSidebar({
         newOrder: volume.order + direction,
       });
     },
-    [isAgentLocked, moveVolumeMutation, showLockedToast]
+    [isAgentLocked, moveVolumeMutation, showLockedToast],
   );
 
   const handleOpenMoveChapter = useCallback(
@@ -526,7 +516,7 @@ export function ChapterSidebar({
       setMovingChapter(chapter);
       setMoveDialogOpen(true);
     },
-    [isAgentLocked, showLockedToast]
+    [isAgentLocked, showLockedToast],
   );
 
   const handleConfirmMoveChapter = useCallback(
@@ -540,7 +530,7 @@ export function ChapterSidebar({
       setMoveDialogOpen(false);
       setMovingChapter(null);
     },
-    [moveChapterToVolumeMutation, movingChapter, setVolumeExpanded]
+    [moveChapterToVolumeMutation, movingChapter, setVolumeExpanded],
   );
 
   return (
@@ -604,7 +594,7 @@ export function ChapterSidebar({
             ? deletingVolume.chapterCount > 0
               ? t("volume.deleteCascadeConfirm")
               : t("volume.deleteConfirm")
-            : deletingChapter?.title ?? ""
+            : (deletingChapter?.title ?? "")
         }
         onConfirm={handleConfirmDelete}
         loading={deleteChapterMutation.isPending || deleteVolumeMutation.isPending}
@@ -649,7 +639,10 @@ export function ChapterSidebar({
       >
         <Dialog.Content maxWidth="420px">
           <Dialog.Title>{t("volume.menu.editDescription")}</Dialog.Title>
-          <Dialog.Description size="2" color="gray">
+          <Dialog.Description
+            size="2"
+            color="gray"
+          >
             {editingVolume?.title ?? t("volume.untitled")}
           </Dialog.Description>
           <TextArea
@@ -659,9 +652,16 @@ export function ChapterSidebar({
             resize="vertical"
             style={{ minHeight: 120 }}
           />
-          <Flex justify="end" gap="3" mt="4">
+          <Flex
+            justify="end"
+            gap="3"
+            mt="4"
+          >
             <Dialog.Close>
-              <Button variant="soft" color="gray">
+              <Button
+                variant="soft"
+                color="gray"
+              >
                 {t("common.cancel")}
               </Button>
             </Dialog.Close>

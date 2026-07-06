@@ -1,37 +1,36 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
 import { Box, Flex, IconButton, Text } from "@radix-ui/themes";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "motion/react";
 import axios from "axios";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+
 import { Spinner, toast } from "@/components";
 import { saveLanguagePreference } from "@/i18n";
+
 import "./settings-dialog.css";
 
-import { SettingsSidebar } from "../components/settings-sidebar";
-import { SETTINGS_CATEGORY_ITEMS, type SettingsCategory } from "../lib/settings-categories";
-import { GeneralSettings } from "../components/general-settings";
-import { ConnectionsSettings } from "../components/connections-settings";
-import { ModelsSettings } from "../components/models-settings";
-import { IndexSettings } from "../components/index-settings";
-import { AgentToolsSettings } from "../components/agent-tools-settings";
+import { applyCodeFontFamily, applyFontFamily, loadConfiguredFonts } from "@/lib/font-utils";
+import { OVERALL_INDEX_STATUS_QUERY_KEY } from "@/lib/index-status";
+
 import { AgentDefinitionsSettings } from "../components/agent-definitions-settings";
+import { AgentToolsSettings } from "../components/agent-tools-settings";
+import { ConnectionsSettings } from "../components/connections-settings";
+import { GeneralSettings } from "../components/general-settings";
+import { IndexSettings } from "../components/index-settings";
+import { ModelsSettings } from "../components/models-settings";
 import { RulesSettings } from "../components/rules-settings";
+import { SettingsSidebar } from "../components/settings-sidebar";
 import { SkillsSettings } from "../components/skills-settings";
 import { fetchAgentTools, fetchSettings, updateSettings } from "../lib/settings-api";
-import type { Settings, SettingsUpdateRequest } from "../lib/settings.types";
+import { SETTINGS_CATEGORY_ITEMS, type SettingsCategory } from "../lib/settings-categories";
 import {
   DEFAULT_MODEL_SETTINGS_TAB,
   DEFAULT_SETTINGS_ROUTE_CATEGORY,
   type ModelSettingsTab,
 } from "../lib/settings-route";
-import {
-  applyCodeFontFamily,
-  applyFontFamily,
-  loadConfiguredFonts,
-} from "@/lib/font-utils";
-import { OVERALL_INDEX_STATUS_QUERY_KEY } from "@/lib/index-status";
+import type { Settings, SettingsUpdateRequest } from "../lib/settings.types";
 
 const MotionBox = motion.create(Box);
 
@@ -70,7 +69,12 @@ const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
   agents: "settings.agents",
 };
 
-export function SettingsContent({ appearance, onAppearanceChange, onClose, route }: SettingsContentProps) {
+export function SettingsContent({
+  appearance,
+  onAppearanceChange,
+  onClose,
+  route,
+}: SettingsContentProps) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const initialCategory = route?.category ?? DEFAULT_SETTINGS_ROUTE_CATEGORY;
@@ -78,11 +82,9 @@ export function SettingsContent({ appearance, onAppearanceChange, onClose, route
   const [activeModelTab, setActiveModelTab] = useState<ModelSettingsTab>(
     route?.category === "models"
       ? (route.modelTab ?? DEFAULT_MODEL_SETTINGS_TAB)
-      : DEFAULT_MODEL_SETTINGS_TAB
+      : DEFAULT_MODEL_SETTINGS_TAB,
   );
-  const [mobileView, setMobileView] = useState<"list" | "detail">(
-    route ? "detail" : "list"
-  );
+  const [mobileView, setMobileView] = useState<"list" | "detail">(route ? "detail" : "list");
   const [mobileSubpage, setMobileSubpage] = useState<MobileSubpage>("list");
   const [mobileSubpageTitle, setMobileSubpageTitle] = useState<string | null>(null);
   const [mobileDirection, setMobileDirection] = useState<1 | -1>(1);
@@ -105,16 +107,14 @@ export function SettingsContent({ appearance, onAppearanceChange, onClose, route
     staleTime: 5 * 60 * 1000,
   });
 
-  const isCategoryLoading =
-    isLoading || (activeCategory === "agent-tools" && isAgentToolsLoading);
+  const isCategoryLoading = isLoading || (activeCategory === "agent-tools" && isAgentToolsLoading);
 
   const agentToolsErrorMessage = useMemo(() => {
     if (!agentToolsError) return undefined;
     if (axios.isAxiosError(agentToolsError)) {
       const detail = agentToolsError.response?.data;
       if (typeof detail === "string") return detail;
-      if (detail && typeof detail === "object" && "detail" in detail)
-        return String(detail.detail);
+      if (detail && typeof detail === "object" && "detail" in detail) return String(detail.detail);
       return agentToolsError.message;
     }
     if (agentToolsError instanceof Error) return agentToolsError.message;
@@ -190,25 +190,28 @@ export function SettingsContent({ appearance, onAppearanceChange, onClose, route
     },
   });
 
-  const handleSettingsChange = useCallback((newSettings: Settings) => {
-    void i18n.changeLanguage(newSettings.language);
-    saveLanguagePreference(newSettings.language);
-    onAppearanceChange(newSettings.theme);
-    applyFontFamily(newSettings.fontFamily);
-    applyCodeFontFamily(newSettings.codeFontFamily);
-    void loadConfiguredFonts(newSettings.fontFamily, newSettings.codeFontFamily);
-    setEditedSettings(newSettings);
-    saveMutation.mutate(newSettings);
-  }, [i18n, onAppearanceChange, saveMutation]);
+  const handleSettingsChange = useCallback(
+    (newSettings: Settings) => {
+      void i18n.changeLanguage(newSettings.language);
+      saveLanguagePreference(newSettings.language);
+      onAppearanceChange(newSettings.theme);
+      applyFontFamily(newSettings.fontFamily);
+      applyCodeFontFamily(newSettings.codeFontFamily);
+      void loadConfiguredFonts(newSettings.fontFamily, newSettings.codeFontFamily);
+      setEditedSettings(newSettings);
+      saveMutation.mutate(newSettings);
+    },
+    [i18n, onAppearanceChange, saveMutation],
+  );
 
   const isSplitPanelCategory =
     activeCategory === "agents" || activeCategory === "skills" || activeCategory === "rules";
   const shouldUseFormPagePadding =
-    activeCategory === "general"
-    || activeCategory === "connections"
-    || activeCategory === "models"
-    || activeCategory === "index"
-    || activeCategory === "agent-tools";
+    activeCategory === "general" ||
+    activeCategory === "connections" ||
+    activeCategory === "models" ||
+    activeCategory === "index" ||
+    activeCategory === "agent-tools";
   const isMobileListView = isMobile && mobileView === "list";
   const isMobileSubpageDetail =
     isMobile && mobileView === "detail" && isSplitPanelCategory && mobileSubpage === "detail";
@@ -218,58 +221,67 @@ export function SettingsContent({ appearance, onAppearanceChange, onClose, route
       ? mobileSubpageTitle
       : t(CATEGORY_TITLE_KEY_MAP[activeCategory]);
 
-  const clearCategoryQueries = useCallback((category: SettingsCategory) => {
-    const removeQuery = (queryKey: readonly unknown[]) => {
-      queryClient.removeQueries({ queryKey });
-    };
+  const clearCategoryQueries = useCallback(
+    (category: SettingsCategory) => {
+      const removeQuery = (queryKey: readonly unknown[]) => {
+        queryClient.removeQueries({ queryKey });
+      };
 
-    if (category === "general") removeQuery(["settings"]);
-    if (category === "connections") {
-      removeQuery(["model-providers"]);
-      removeQuery(["model-provider-catalog"]);
-    }
-    if (category === "models") {
-      removeQuery(["models"]);
-      removeQuery(["model-providers"]);
-      removeQuery(["settings"]);
-      removeQuery(["model-provider-catalog"]);
-    }
-    if (category === "index") {
-      removeQuery(["settings"]);
-      removeQuery(["models"]);
-      removeQuery(["projects", "all-for-index"]);
-      removeQuery(OVERALL_INDEX_STATUS_QUERY_KEY);
-    }
-    if (category === "agent-tools") {
-      removeQuery(["settings"]);
-      removeQuery(["agent-tools"]);
-    }
-    if (category === "rules") removeQuery(["agent-rules"]);
-    if (category === "skills") removeQuery(["skills"]);
-    if (category === "agents") {
-      removeQuery(["agent-definitions"]);
-      removeQuery(["agent-tool-categories"]);
-      removeQuery(["skills"]);
-      removeQuery(["settings"]);
-      removeQuery(["models"]);
-      removeQuery(["model-providers"]);
-      removeQuery(["model-provider-catalog"]);
-    }
-  }, [queryClient]);
+      if (category === "general") removeQuery(["settings"]);
+      if (category === "connections") {
+        removeQuery(["model-providers"]);
+        removeQuery(["model-provider-catalog"]);
+      }
+      if (category === "models") {
+        removeQuery(["models"]);
+        removeQuery(["model-providers"]);
+        removeQuery(["settings"]);
+        removeQuery(["model-provider-catalog"]);
+      }
+      if (category === "index") {
+        removeQuery(["settings"]);
+        removeQuery(["models"]);
+        removeQuery(["projects", "all-for-index"]);
+        removeQuery(OVERALL_INDEX_STATUS_QUERY_KEY);
+      }
+      if (category === "agent-tools") {
+        removeQuery(["settings"]);
+        removeQuery(["agent-tools"]);
+      }
+      if (category === "rules") removeQuery(["agent-rules"]);
+      if (category === "skills") removeQuery(["skills"]);
+      if (category === "agents") {
+        removeQuery(["agent-definitions"]);
+        removeQuery(["agent-tool-categories"]);
+        removeQuery(["skills"]);
+        removeQuery(["settings"]);
+        removeQuery(["models"]);
+        removeQuery(["model-providers"]);
+        removeQuery(["model-provider-catalog"]);
+      }
+    },
+    [queryClient],
+  );
 
-  const handleMobileCategorySelect = useCallback((category: SettingsCategory) => {
-    clearCategoryQueries(category);
-    setMobileDirection(1);
-    setActiveCategory(category);
-    setMobileSubpage("list");
-    setMobileSubpageTitle(null);
-    setMobileView("detail");
-  }, [clearCategoryQueries]);
+  const handleMobileCategorySelect = useCallback(
+    (category: SettingsCategory) => {
+      clearCategoryQueries(category);
+      setMobileDirection(1);
+      setActiveCategory(category);
+      setMobileSubpage("list");
+      setMobileSubpageTitle(null);
+      setMobileView("detail");
+    },
+    [clearCategoryQueries],
+  );
 
-  const handleDesktopCategorySelect = useCallback((category: SettingsCategory) => {
-    clearCategoryQueries(category);
-    setActiveCategory(category);
-  }, [clearCategoryQueries]);
+  const handleDesktopCategorySelect = useCallback(
+    (category: SettingsCategory) => {
+      clearCategoryQueries(category);
+      setActiveCategory(category);
+    },
+    [clearCategoryQueries],
+  );
 
   const handleMobileBack = useCallback(() => {
     if (isMobileListView) {
@@ -295,14 +307,20 @@ export function SettingsContent({ appearance, onAppearanceChange, onClose, route
   const detailPageContent = (
     <>
       <Box
-        className={isSplitPanelCategory
-          ? "settings-dialog-content-scroll settings-dialog-content-scroll--split-panel"
-          : shouldUseFormPagePadding
-            ? "settings-dialog-content-scroll settings-dialog-content-scroll--form-page"
-            : "settings-dialog-content-scroll"}
+        className={
+          isSplitPanelCategory
+            ? "settings-dialog-content-scroll settings-dialog-content-scroll--split-panel"
+            : shouldUseFormPagePadding
+              ? "settings-dialog-content-scroll settings-dialog-content-scroll--form-page"
+              : "settings-dialog-content-scroll"
+        }
       >
         {isCategoryLoading ? (
-          <Flex align="center" justify="center" style={{ height: "100%" }}>
+          <Flex
+            align="center"
+            justify="center"
+            style={{ height: "100%" }}
+          >
             <Spinner size={18} />
           </Flex>
         ) : displaySettings ? (
@@ -374,10 +392,20 @@ export function SettingsContent({ appearance, onAppearanceChange, onClose, route
         </Box>
       ) : null}
 
-      <Flex direction="column" className="settings-dialog-main">
+      <Flex
+        direction="column"
+        className="settings-dialog-main"
+      >
         {isMobile ? (
-          <Flex align="center" className="settings-dialog-mobile-topbar">
-            <Flex align="center" gap="2" className="settings-dialog-mobile-topbar-leading">
+          <Flex
+            align="center"
+            className="settings-dialog-mobile-topbar"
+          >
+            <Flex
+              align="center"
+              gap="2"
+              className="settings-dialog-mobile-topbar-leading"
+            >
               <IconButton
                 variant="ghost"
                 color="gray"
@@ -385,9 +413,13 @@ export function SettingsContent({ appearance, onAppearanceChange, onClose, route
                 aria-label={t("common.back")}
                 onClick={handleMobileBack}
               >
-                  <ChevronLeft size={18} />
+                <ChevronLeft size={18} />
               </IconButton>
-              <Text size="2" weight="medium" className="settings-dialog-mobile-topbar-title">
+              <Text
+                size="2"
+                weight="medium"
+                className="settings-dialog-mobile-topbar-title"
+              >
                 {mobileTitle}
               </Text>
             </Flex>
@@ -419,7 +451,11 @@ export function SettingsContent({ appearance, onAppearanceChange, onClose, route
         <Box className="settings-dialog-body">
           {isMobile ? (
             <Box className="settings-dialog-mobile-page-stack">
-              <AnimatePresence initial={false} custom={mobileDirection} mode="sync">
+              <AnimatePresence
+                initial={false}
+                custom={mobileDirection}
+                mode="sync"
+              >
                 {isMobileListView ? (
                   <MotionBox
                     key="settings-category-list"
@@ -431,7 +467,10 @@ export function SettingsContent({ appearance, onAppearanceChange, onClose, route
                     transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                     className="settings-dialog-mobile-page"
                   >
-                    <Box className="settings-dialog-mobile-category-list" role="list">
+                    <Box
+                      className="settings-dialog-mobile-category-list"
+                      role="list"
+                    >
                       {SETTINGS_CATEGORY_ITEMS.map((category) => {
                         const Icon = category.icon;
                         return (
@@ -441,13 +480,23 @@ export function SettingsContent({ appearance, onAppearanceChange, onClose, route
                             className="settings-dialog-mobile-category-item"
                             onClick={() => handleMobileCategorySelect(category.id)}
                           >
-                            <Flex align="center" gap="3" className="settings-dialog-mobile-category-item-content">
-                              <span className="settings-dialog-mobile-category-item-icon" aria-hidden="true">
+                            <Flex
+                              align="center"
+                              gap="3"
+                              className="settings-dialog-mobile-category-item-content"
+                            >
+                              <span
+                                className="settings-dialog-mobile-category-item-icon"
+                                aria-hidden="true"
+                              >
                                 {Icon}
                               </span>
                               <Text size="2">{t(category.labelKey)}</Text>
                             </Flex>
-                            <ChevronRight size={16} className="settings-dialog-mobile-category-item-arrow" />
+                            <ChevronRight
+                              size={16}
+                              className="settings-dialog-mobile-category-item-arrow"
+                            />
                           </button>
                         );
                       })}

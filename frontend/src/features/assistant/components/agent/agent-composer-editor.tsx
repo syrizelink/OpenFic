@@ -1,16 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useQuery } from "@tanstack/react-query";
+import Placeholder from "@tiptap/extension-placeholder";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { Editor } from "@tiptap/react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
-import { searchMentionCandidates } from "@/lib/api-client";
-import type {
-  AssistantMentionCandidate,
-} from "@/features/assistant/lib/mention-text";
+import type { AssistantMentionCandidate } from "@/features/assistant/lib/mention-text";
 import {
   buildChapterMentionTag,
   buildNoteCategoryMentionTag,
@@ -20,6 +17,8 @@ import {
   mentionTextToHtml,
   parseMentionText,
 } from "@/features/assistant/lib/mention-text";
+import { searchMentionCandidates } from "@/lib/api-client";
+
 import { MentionNode } from "./extensions/mention-node";
 import type { AssistantMentionNodeAttributes } from "./extensions/mention-node";
 
@@ -81,27 +80,29 @@ function docToCanonicalText(doc: ProseMirrorNode): string {
   return paragraphs.join("\n");
 }
 
-function createMentionNodeAttrs(candidate: AssistantMentionCandidate): AssistantMentionNodeAttributes {
+function createMentionNodeAttrs(
+  candidate: AssistantMentionCandidate,
+): AssistantMentionNodeAttributes {
   const mentionRaw =
     candidate.kind === "volume"
       ? buildVolumeMentionTag({
-        volumeId: candidate.id,
-        label: candidate.label,
-      })
-      : candidate.kind === "note"
-        ? buildNoteMentionTag({
-          noteId: candidate.id,
+          volumeId: candidate.id,
           label: candidate.label,
         })
-        : candidate.kind === "note_category"
-          ? buildNoteCategoryMentionTag({
-            categoryId: candidate.id,
+      : candidate.kind === "note"
+        ? buildNoteMentionTag({
+            noteId: candidate.id,
             label: candidate.label,
           })
+        : candidate.kind === "note_category"
+          ? buildNoteCategoryMentionTag({
+              categoryId: candidate.id,
+              label: candidate.label,
+            })
           : buildChapterMentionTag({
-            chapterId: candidate.id,
-            label: candidate.label,
-          });
+              chapterId: candidate.id,
+              label: candidate.label,
+            });
 
   return {
     mentionKind: candidate.kind,
@@ -134,20 +135,12 @@ export function AgentComposerEditor({
   );
 
   const normalizedMentionQuery = mentionQuery.query.trim();
-  const shouldSearchMentionCandidates = (
-    mentionQuery.visible
-    && normalizedMentionQuery.length > 0
-    && projectId.trim().length > 0
-  );
+  const shouldSearchMentionCandidates =
+    mentionQuery.visible && normalizedMentionQuery.length > 0 && projectId.trim().length > 0;
   const { data: remoteMentionCandidates, isFetching: isSearchingMentionCandidates } = useQuery({
     queryKey: ["assistant-mention-candidates", projectId, normalizedMentionQuery],
-    queryFn: ({ signal }) => searchMentionCandidates(
-      projectId,
-      normalizedMentionQuery,
-      20,
-      undefined,
-      signal,
-    ),
+    queryFn: ({ signal }) =>
+      searchMentionCandidates(projectId, normalizedMentionQuery, 20, undefined, signal),
     enabled: shouldSearchMentionCandidates,
     staleTime: 30 * 1000,
   });
@@ -163,32 +156,36 @@ export function AgentComposerEditor({
         : suggestionItems.length > 0
           ? "ready"
           : "empty";
-  const effectiveSelectedIndex = suggestionStatus === "ready" && suggestionItems.length > 0
-    ? Math.min(selectedIndex, suggestionItems.length - 1)
-    : 0;
+  const effectiveSelectedIndex =
+    suggestionStatus === "ready" && suggestionItems.length > 0
+      ? Math.min(selectedIndex, suggestionItems.length - 1)
+      : 0;
 
-  const extensions = useMemo(() => [
-    StarterKit.configure({
-      heading: false,
-      bold: false,
-      italic: false,
-      strike: false,
-      code: false,
-      codeBlock: false,
-      blockquote: false,
-      horizontalRule: false,
-      bulletList: false,
-      orderedList: false,
-      listItem: false,
-      hardBreak: false,
-    }),
-    Placeholder.configure({
-      placeholder,
-    }),
-    MentionNode.configure({
-      onOpenMentionChapter,
-    }),
-  ], [onOpenMentionChapter, placeholder]);
+  const extensions = useMemo(
+    () => [
+      StarterKit.configure({
+        heading: false,
+        bold: false,
+        italic: false,
+        strike: false,
+        code: false,
+        codeBlock: false,
+        blockquote: false,
+        horizontalRule: false,
+        bulletList: false,
+        orderedList: false,
+        listItem: false,
+        hardBreak: false,
+      }),
+      Placeholder.configure({
+        placeholder,
+      }),
+      MentionNode.configure({
+        onOpenMentionChapter,
+      }),
+    ],
+    [onOpenMentionChapter, placeholder],
+  );
 
   const editor = useEditor({
     extensions,
@@ -232,38 +229,35 @@ export function AgentComposerEditor({
     };
   }, [suggestionItems.length, suggestionStatus]);
 
-  const updateMentionQuery = useCallback((instance: Editor) => {
-    if (disabled) {
-      setMentionQuery((current) => current.visible
-        ? createClosedMentionQueryState()
-        : current);
-      return;
-    }
+  const updateMentionQuery = useCallback(
+    (instance: Editor) => {
+      if (disabled) {
+        setMentionQuery((current) => (current.visible ? createClosedMentionQueryState() : current));
+        return;
+      }
 
-    const selection = instance.state.selection;
-    if (!selection.empty) {
-      setMentionQuery((current) => current.visible
-        ? createClosedMentionQueryState()
-        : current);
-      return;
-    }
+      const selection = instance.state.selection;
+      if (!selection.empty) {
+        setMentionQuery((current) => (current.visible ? createClosedMentionQueryState() : current));
+        return;
+      }
 
-    const { from, $from } = selection;
-    const textBefore = $from.parent.textBetween(0, $from.parentOffset, undefined, "\ufffc");
-    const activeQuery = findActiveMentionQuery(textBefore);
-    if (!activeQuery) {
-      setMentionQuery((current) => current.visible
-        ? createClosedMentionQueryState()
-        : current);
-      return;
-    }
+      const { from, $from } = selection;
+      const textBefore = $from.parent.textBetween(0, $from.parentOffset, undefined, "\ufffc");
+      const activeQuery = findActiveMentionQuery(textBefore);
+      if (!activeQuery) {
+        setMentionQuery((current) => (current.visible ? createClosedMentionQueryState() : current));
+        return;
+      }
 
-    setMentionQuery({
-      query: activeQuery.query,
-      replaceFrom: from - activeQuery.replaceLength,
-      visible: true,
-    });
-  }, [disabled]);
+      setMentionQuery({
+        query: activeQuery.query,
+        replaceFrom: from - activeQuery.replaceLength,
+        visible: true,
+      });
+    },
+    [disabled],
+  );
 
   useEffect(() => {
     if (!editor) return;
@@ -283,9 +277,9 @@ export function AgentComposerEditor({
   useEffect(() => {
     if (!editor) return;
     const parsedSegments = parseMentionText(value);
-    const hasOnlyMentions = parsedSegments.length > 0 && parsedSegments.every((segment) => (
-      typeof segment !== "string" || !segment.trim()
-    ));
+    const hasOnlyMentions =
+      parsedSegments.length > 0 &&
+      parsedSegments.every((segment) => typeof segment !== "string" || !segment.trim());
     if (hasOnlyMentions && !value.includes("\n") && !editor.isFocused) {
       editor.commands.focus("end");
     }
@@ -296,33 +290,39 @@ export function AgentComposerEditor({
     setSelectedIndex(0);
   }, []);
 
-  const handleSelectSuggestion = useCallback((candidate: AssistantMentionCandidate, index: number) => {
-    if (!editor || mentionQuery.replaceFrom < 0) return;
-    const attrs = createMentionNodeAttrs(candidate);
-    const currentSelectionTo = editor.state.selection.from;
-    setSelectedIndex(index);
-    editor
-      .chain()
-      .focus()
-      .deleteRange({ from: mentionQuery.replaceFrom, to: currentSelectionTo })
-      .insertAssistantMention(attrs)
-      .insertContent(" ")
-      .run();
-    closeSuggestions();
-  }, [closeSuggestions, editor, mentionQuery.replaceFrom]);
+  const handleSelectSuggestion = useCallback(
+    (candidate: AssistantMentionCandidate, index: number) => {
+      if (!editor || mentionQuery.replaceFrom < 0) return;
+      const attrs = createMentionNodeAttrs(candidate);
+      const currentSelectionTo = editor.state.selection.from;
+      setSelectedIndex(index);
+      editor
+        .chain()
+        .focus()
+        .deleteRange({ from: mentionQuery.replaceFrom, to: currentSelectionTo })
+        .insertAssistantMention(attrs)
+        .insertContent(" ")
+        .run();
+      closeSuggestions();
+    },
+    [closeSuggestions, editor, mentionQuery.replaceFrom],
+  );
 
-  const handleEditorKeyDownCapture = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== "Enter") return;
-    if (event.shiftKey) {
-      if (!editor) return;
+  const handleEditorKeyDownCapture = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== "Enter") return;
+      if (event.shiftKey) {
+        if (!editor) return;
+        event.preventDefault();
+        editor.commands.splitBlock();
+        return;
+      }
+      if (suggestionStatus === "ready" && suggestionItems.length > 0) return;
       event.preventDefault();
-      editor.commands.splitBlock();
-      return;
-    }
-    if (suggestionStatus === "ready" && suggestionItems.length > 0) return;
-    event.preventDefault();
-    onSubmit();
-  }, [editor, onSubmit, suggestionItems.length, suggestionStatus]);
+      onSubmit();
+    },
+    [editor, onSubmit, suggestionItems.length, suggestionStatus],
+  );
 
   useEffect(() => {
     if (!editor) return;
@@ -359,7 +359,7 @@ export function AgentComposerEditor({
     () => () => {
       onMentionSuggestionsChange?.(null);
     },
-    [onMentionSuggestionsChange]
+    [onMentionSuggestionsChange],
   );
 
   return (

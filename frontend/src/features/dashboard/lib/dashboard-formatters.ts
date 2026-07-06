@@ -49,7 +49,10 @@ export function getAgentLabel(value: string): string {
   return value;
 }
 
-export function toIsoDateTime(value: string | undefined, boundary: "start" | "end"): string | undefined {
+export function toIsoDateTime(
+  value: string | undefined,
+  boundary: "start" | "end",
+): string | undefined {
   if (!value) return undefined;
   const suffix = boundary === "start" ? "T00:00:00" : "T23:59:59";
   return `${value}${suffix}`;

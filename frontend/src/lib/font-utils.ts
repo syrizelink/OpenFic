@@ -49,7 +49,7 @@ export function applyCodeFontFamily(codeFontFamily: string): void {
 
 export async function loadConfiguredFonts(
   fontFamily: string,
-  codeFontFamily: string
+  codeFontFamily: string,
 ): Promise<void> {
   if (!("fonts" in document)) return;
 

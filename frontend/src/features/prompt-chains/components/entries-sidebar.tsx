@@ -4,10 +4,6 @@
  * 左侧边栏：提示词条目列表
  */
 
-import React, { useRef } from "react";
-import { Box, Flex, Text, IconButton, Switch } from "@radix-ui/themes";
-import { useTranslation } from "react-i18next";
-import { GripVertical, Trash2, User, Bot, Terminal } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -17,6 +13,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
+import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
 import {
   arrayMove,
   SortableContext,
@@ -25,9 +22,14 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
-import { EntriesToolbar } from "./entries-toolbar";
+import { Box, Flex, Text, IconButton, Switch } from "@radix-ui/themes";
+import { GripVertical, Trash2, User, Bot, Terminal } from "lucide-react";
+import React, { useRef } from "react";
+import { useTranslation } from "react-i18next";
+
 import type { PromptEntryData } from "@/lib/prompt-chain.types";
+
+import { EntriesToolbar } from "./entries-toolbar";
 
 interface EntriesSidebarProps {
   entries: PromptEntryData[];
@@ -62,7 +64,7 @@ export function EntriesSidebar({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -118,7 +120,11 @@ export function EntriesSidebar({
             padding: "24px",
           }}
         >
-          <Text size="2" color="gray" align="center">
+          <Text
+            size="2"
+            color="gray"
+            align="center"
+          >
             {t("promptChains.selectModeAndTask")}
           </Text>
         </Box>
@@ -145,7 +151,10 @@ export function EntriesSidebar({
       />
 
       {/* 条目列表 */}
-      <Box ref={listRef} style={{ flex: 1, overflow: "auto" }}>
+      <Box
+        ref={listRef}
+        style={{ flex: 1, overflow: "auto" }}
+      >
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -191,150 +200,154 @@ interface EntryItemProps {
 
 const EntryItem = React.forwardRef<HTMLDivElement, EntryItemProps>(
   ({ entry, isSelected, isHighlighted, onSelect, onToggle, onDelete }, ref) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ 
-    id: entry.id || "",
-  });
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+      id: entry.id || "",
+    });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
 
-  // 角色图标
-  const RoleIcon =
-    entry.role === "system"
-      ? Terminal
-      : entry.role === "assistant"
-      ? Bot
-      : User;
+    // 角色图标
+    const RoleIcon = entry.role === "system" ? Terminal : entry.role === "assistant" ? Bot : User;
 
-  // 合并 refs
-  const combinedRef = (node: HTMLDivElement | null) => {
-    setNodeRef(node);
-    if (typeof ref === "function") {
-      ref(node);
-    } else if (ref) {
-      ref.current = node;
-    }
-  };
+    // 合并 refs
+    const combinedRef = (node: HTMLDivElement | null) => {
+      setNodeRef(node);
+      if (typeof ref === "function") {
+        ref(node);
+      } else if (ref) {
+        ref.current = node;
+      }
+    };
 
-  return (
-    <Box
-      ref={combinedRef}
-      className={isHighlighted && !isSelected ? "entry-highlight" : ""}
-      style={{
-        ...style,
-        borderBottom: "1px solid var(--gray-a5)",
-        background: isSelected ? "var(--accent-a3)" : "transparent",
-        cursor: "pointer",
-        width: "100%",
-        minWidth: 0,
-        overflow: "hidden",
-        touchAction: isDragging ? "none" : "pan-y",
-        userSelect: "none",
-        WebkitUserSelect: "none",
-        WebkitTouchCallout: "none",
-        WebkitTapHighlightColor: "transparent",
-      }}
-      onContextMenu={(e) => e.preventDefault()}
-      onClick={onSelect}
-    >
-      <Flex align="stretch" justify="between" style={{ minWidth: 0, width: "100%" }}>
+    return (
+      <Box
+        ref={combinedRef}
+        className={isHighlighted && !isSelected ? "entry-highlight" : ""}
+        style={{
+          ...style,
+          borderBottom: "1px solid var(--gray-a5)",
+          background: isSelected ? "var(--accent-a3)" : "transparent",
+          cursor: "pointer",
+          width: "100%",
+          minWidth: 0,
+          overflow: "hidden",
+          touchAction: isDragging ? "none" : "pan-y",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          WebkitTouchCallout: "none",
+          WebkitTapHighlightColor: "transparent",
+        }}
+        onContextMenu={(e) => e.preventDefault()}
+        onClick={onSelect}
+      >
         <Flex
-          {...attributes}
-          {...listeners}
-          align="center"
-          justify="center"
-          style={{
-            width: 44,
-            minWidth: 44,
-            flexShrink: 0,
-            cursor: isDragging ? "grabbing" : "grab",
-            color: "var(--gray-a9)",
-            touchAction: "none",
-            userSelect: "none",
-            WebkitUserSelect: "none",
-          }}
-          onClick={(e) => e.stopPropagation()}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-        >
-          <GripVertical size={16} />
-        </Flex>
-
-        <Flex
-          align="center"
-          gap="2"
+          align="stretch"
           justify="between"
-          style={{
-            flex: 1,
-            minWidth: 0,
-            padding: "12px 12px 12px 0",
-          }}
+          style={{ minWidth: 0, width: "100%" }}
         >
-          <Flex align="center" gap="2" style={{ flex: 1, minWidth: 0 }}>
-            <Box style={{ color: "var(--gray-a10)", flexShrink: 0 }}>
-              <RoleIcon size={14} />
-            </Box>
-
-            <Text
-              size="2"
-              weight="medium"
-              style={{
-                flex: 1,
-                minWidth: 0,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {entry.name}
-            </Text>
+          <Flex
+            {...attributes}
+            {...listeners}
+            align="center"
+            justify="center"
+            style={{
+              width: 44,
+              minWidth: 44,
+              flexShrink: 0,
+              cursor: isDragging ? "grabbing" : "grab",
+              color: "var(--gray-a9)",
+              touchAction: "none",
+              userSelect: "none",
+              WebkitUserSelect: "none",
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+          >
+            <GripVertical size={16} />
           </Flex>
 
-          <Flex align="center" gap="1" style={{ flexShrink: 0 }}>
-            {/* 删除按钮 */}
-            <IconButton
-              variant="ghost"
-              size="1"
-              color="red"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
+          <Flex
+            align="center"
+            gap="2"
+            justify="between"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              padding: "12px 12px 12px 0",
+            }}
+          >
+            <Flex
+              align="center"
+              gap="2"
+              style={{ flex: 1, minWidth: 0 }}
             >
-              <Trash2 size={12} />
-            </IconButton>
+              <Box style={{ color: "var(--gray-a10)", flexShrink: 0 }}>
+                <RoleIcon size={14} />
+              </Box>
 
-            {/* 启用开关 */}
-            <Switch
-              size="1"
-              checked={entry.is_enabled}
-              onClick={(e) => e.stopPropagation()}
-              onCheckedChange={onToggle}
-            />
+              <Text
+                size="2"
+                weight="medium"
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {entry.name}
+              </Text>
+            </Flex>
 
-            {/* Token计数（只显示数字） */}
-            <Text size="1" color="gray" style={{ minWidth: "32px", textAlign: "right" }}>
-              {entry.token_count}
-            </Text>
+            <Flex
+              align="center"
+              gap="1"
+              style={{ flexShrink: 0 }}
+            >
+              {/* 删除按钮 */}
+              <IconButton
+                variant="ghost"
+                size="1"
+                color="red"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+              >
+                <Trash2 size={12} />
+              </IconButton>
+
+              {/* 启用开关 */}
+              <Switch
+                size="1"
+                checked={entry.is_enabled}
+                onClick={(e) => e.stopPropagation()}
+                onCheckedChange={onToggle}
+              />
+
+              {/* Token计数（只显示数字） */}
+              <Text
+                size="1"
+                color="gray"
+                style={{ minWidth: "32px", textAlign: "right" }}
+              >
+                {entry.token_count}
+              </Text>
+            </Flex>
           </Flex>
         </Flex>
-      </Flex>
 
-      {/* 闪烁动画样式 */}
-      {!isSelected && (
-        <style>{`
+        {/* 闪烁动画样式 */}
+        {!isSelected && (
+          <style>{`
           .entry-highlight {
             animation: highlight-flash 1s ease-out;
           }
@@ -348,9 +361,10 @@ const EntryItem = React.forwardRef<HTMLDivElement, EntryItemProps>(
             }
           }
         `}</style>
-      )}
-    </Box>
-  );
-});
+        )}
+      </Box>
+    );
+  },
+);
 
 EntryItem.displayName = "EntryItem";

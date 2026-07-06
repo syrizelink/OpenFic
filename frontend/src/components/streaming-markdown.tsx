@@ -1,8 +1,8 @@
+import { AlertDialog, Button, Flex, Text } from "@radix-ui/themes";
 import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { mermaid } from "@streamdown/mermaid";
-import { AlertDialog, Button, Flex, Text } from "@radix-ui/themes";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -12,9 +12,11 @@ import {
   type LinkSafetyModalProps,
   type PluginConfig,
 } from "streamdown";
+
 import "katex/dist/katex.min.css";
 
 import { STREAMDOWN_REMARK_PLUGINS } from "./streaming-markdown-config";
+
 import "./streaming-markdown.css";
 
 interface StreamingMarkdownProps {
@@ -27,7 +29,7 @@ const STREAMING_ANIMATION: AnimateOptions = {
   animation: "blurIn",
   duration: 200,
   easing: "ease-out",
-  sep: "word"
+  sep: "word",
 };
 
 const STREAMDOWN_PLUGINS: PluginConfig = {
@@ -114,7 +116,10 @@ function StreamingMarkdownLinkSafetyDialog({
   };
 
   return (
-    <AlertDialog.Root open={isOpen} onOpenChange={handleOpenChange}>
+    <AlertDialog.Root
+      open={isOpen}
+      onOpenChange={handleOpenChange}
+    >
       <AlertDialog.Content
         className="streaming-markdown-link-dialog"
         data-streamdown="link-safety-dialog"
@@ -133,7 +138,13 @@ function StreamingMarkdownLinkSafetyDialog({
           {url}
         </div>
 
-        <Flex className="streaming-markdown-link-dialog-actions" gap="3" justify="end" mt="4" wrap="wrap">
+        <Flex
+          className="streaming-markdown-link-dialog-actions"
+          gap="3"
+          justify="end"
+          mt="4"
+          wrap="wrap"
+        >
           <Button
             className="streaming-markdown-link-dialog-copy"
             color="gray"
@@ -146,7 +157,10 @@ function StreamingMarkdownLinkSafetyDialog({
             {copied ? t("streamingMarkdown.copied") : t("streamingMarkdown.copyLink")}
           </Button>
           <AlertDialog.Cancel>
-            <Button color="gray" variant="soft">
+            <Button
+              color="gray"
+              variant="soft"
+            >
               {t("common.close")}
             </Button>
           </AlertDialog.Cancel>

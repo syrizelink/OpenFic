@@ -1,12 +1,8 @@
-import { Database } from "lucide-react";
 import { Tooltip } from "@radix-ui/themes";
+import { Database } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import {
-  getIndexStatusColor,
-  useProjectIndexStatus,
-  type IndexStatus,
-} from "@/lib/index-status";
+import { getIndexStatusColor, useProjectIndexStatus, type IndexStatus } from "@/lib/index-status";
 
 const STATUS_LABEL_KEY: Record<IndexStatus, string> = {
   disabled: "writing.aiSidebar.indexStatusDisabled",

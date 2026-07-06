@@ -1,4 +1,3 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Box, Flex, IconButton, Tooltip } from "@radix-ui/themes";
 import {
   FilePlus,
@@ -14,15 +13,19 @@ import {
   Trash2,
   Search,
 } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
-import { NoteTree } from "./note-tree";
-import { NoteSearchPopover } from "./note-search-popover";
 import { ConfirmDialog, ContextMenu, toast } from "@/components";
 import type { ContextMenuItem } from "@/components";
+import {
+  buildNoteCategoryMentionTag,
+  buildNoteMentionTag,
+} from "@/features/assistant/lib/mention-text";
+import type { NoteCategoryItem, NoteListItem, NoteTreeResponse } from "@/lib/note.types";
 import { createToastThrottler } from "@/lib/ui-utils";
-import { buildNoteCategoryMentionTag, buildNoteMentionTag } from "@/features/assistant/lib/mention-text";
+
 import {
   useNoteTree,
   useCreateNote,
@@ -36,7 +39,8 @@ import {
   useToggleNoteHidden,
   useDuplicateNote,
 } from "../hooks/use-notes";
-import type { NoteCategoryItem, NoteListItem, NoteTreeResponse } from "@/lib/note.types";
+import { NoteSearchPopover } from "./note-search-popover";
+import { NoteTree } from "./note-tree";
 
 interface NoteSidebarProps {
   projectId: string;
@@ -66,10 +70,18 @@ export function NoteSidebar({
   const duplicateNoteMutation = useDuplicateNote(projectId);
 
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
-  const [contextMenuTarget, setContextMenuTarget] = useState<{ id: string; type: "category" | "note"; title: string } | null>(null);
+  const [contextMenuTarget, setContextMenuTarget] = useState<{
+    id: string;
+    type: "category" | "note";
+    title: string;
+  } | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: "category" | "note"; title: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    type: "category" | "note";
+    title: string;
+  } | null>(null);
   const [currentNoteId, setCurrentNoteId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
@@ -80,7 +92,7 @@ export function NoteSidebar({
 
   const showLockedToast = useMemo(
     () => createToastThrottler(t("writing.agentLockedNoteEdit")),
-    [t]
+    [t],
   );
 
   const handleContextMenu = useCallback(
@@ -88,7 +100,7 @@ export function NoteSidebar({
       setContextMenuPos(position);
       setContextMenuTarget({ id, type, title });
     },
-    []
+    [],
   );
 
   const handleCloseContextMenu = useCallback(() => {
@@ -112,7 +124,7 @@ export function NoteSidebar({
         await updateCategoryMutation.mutateAsync({ categoryId: id, data: { title: newTitle } });
       }
     },
-    [updateNoteMutation, updateCategoryMutation, t]
+    [updateNoteMutation, updateCategoryMutation, t],
   );
 
   const handleDeleteConfirm = useCallback(async () => {
@@ -143,7 +155,15 @@ export function NoteSidebar({
     setSelectedCategoryId(null);
     setCurrentNoteId(note.id);
     onNoteSelect(note.id, note.title);
-  }, [createNoteMutation, isAgentLocked, onNoteSelect, showLockedToast, t, data, selectedCategoryId]);
+  }, [
+    createNoteMutation,
+    isAgentLocked,
+    onNoteSelect,
+    showLockedToast,
+    t,
+    data,
+    selectedCategoryId,
+  ]);
 
   const handleNewCategory = useCallback(async () => {
     if (isAgentLocked) {
@@ -161,16 +181,13 @@ export function NoteSidebar({
       setCurrentNoteId(noteId);
       onNoteSelect(noteId, title);
     },
-    [onNoteSelect]
+    [onNoteSelect],
   );
 
-  const handleCategorySelect = useCallback(
-    (categoryId: string) => {
-      setCurrentNoteId(null);
-      setSelectedCategoryId(categoryId);
-    },
-    []
-  );
+  const handleCategorySelect = useCallback((categoryId: string) => {
+    setCurrentNoteId(null);
+    setSelectedCategoryId(categoryId);
+  }, []);
 
   const handleOpenInNewTab = useCallback(() => {
     if (!contextMenuTarget || contextMenuTarget.type !== "note") return;
@@ -201,15 +218,22 @@ export function NoteSidebar({
     }
     const target = contextMenuTarget;
     handleCloseContextMenu();
-try {
-        const newNote = await duplicateNoteMutation.mutateAsync(target.id);
-        setSelectedCategoryId(null);
-        setCurrentNoteId(newNote.id);
-        onNoteSelect(newNote.id, newNote.title);
-      } catch {
+    try {
+      const newNote = await duplicateNoteMutation.mutateAsync(target.id);
+      setSelectedCategoryId(null);
+      setCurrentNoteId(newNote.id);
+      onNoteSelect(newNote.id, newNote.title);
+    } catch {
       // handled by mutation
     }
-  }, [contextMenuTarget, duplicateNoteMutation, handleCloseContextMenu, isAgentLocked, onNoteSelect, showLockedToast]);
+  }, [
+    contextMenuTarget,
+    duplicateNoteMutation,
+    handleCloseContextMenu,
+    isAgentLocked,
+    onNoteSelect,
+    showLockedToast,
+  ]);
 
   const handleToggleLock = useCallback(async () => {
     if (!contextMenuTarget || contextMenuTarget.type !== "note") return;
@@ -245,7 +269,7 @@ try {
         // handled by mutation
       }
     },
-    [isAgentLocked, moveMutation, showLockedToast]
+    [isAgentLocked, moveMutation, showLockedToast],
   );
 
   const contextMenuItems = useMemo<ContextMenuItem[]>(() => {
@@ -343,15 +367,12 @@ try {
     }
   }, [contentSearchExpanded, contentSearchQuery]);
 
-  const handleContentSearchChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setContentSearchQuery(e.target.value);
-      if (e.target.value.trim()) {
-        setContentSearchOpen(true);
-      }
-    },
-    []
-  );
+  const handleContentSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setContentSearchQuery(e.target.value);
+    if (e.target.value.trim()) {
+      setContentSearchOpen(true);
+    }
+  }, []);
 
   const handleContentSearchFocus = useCallback(() => {
     if (contentSearchQuery.trim()) {
@@ -365,15 +386,12 @@ try {
     }
   }, [contentSearchQuery]);
 
-  const handlePopoverOpenChange = useCallback(
-    (open: boolean) => {
-      setContentSearchOpen(open);
-      if (!open) {
-        setContentSearchExpanded(false);
-      }
-    },
-    []
-  );
+  const handlePopoverOpenChange = useCallback((open: boolean) => {
+    setContentSearchOpen(open);
+    if (!open) {
+      setContentSearchExpanded(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (contentSearchExpanded && searchContainerRef.current) {
@@ -389,7 +407,7 @@ try {
       const title = findNoteTitleInTree(data, noteId);
       onNoteSelect(noteId, title);
     },
-    [data, onNoteSelect]
+    [data, onNoteSelect],
   );
 
   return (
@@ -407,7 +425,11 @@ try {
           borderBottom: "1px solid var(--gray-a4)",
         }}
       >
-        <Flex gap="0" align="center" justify={contentSearchExpanded ? "start" : "between"}>
+        <Flex
+          gap="0"
+          align="center"
+          justify={contentSearchExpanded ? "start" : "between"}
+        >
           <Box
             ref={searchContainerRef}
             style={{
@@ -423,7 +445,8 @@ try {
               flex: contentSearchExpanded ? 1 : undefined,
               minWidth: 0,
               position: "relative",
-              transition: "border-color 0.15s ease, background 0.15s ease, padding-right 0.15s ease",
+              transition:
+                "border-color 0.15s ease, background 0.15s ease, padding-right 0.15s ease",
             }}
           >
             <NoteSearchPopover
@@ -456,7 +479,10 @@ try {
             </IconButton>
             <motion.div
               initial={{ width: 0, opacity: 0 }}
-              animate={{ width: contentSearchExpanded ? "100%" : 0, opacity: contentSearchExpanded ? 1 : 0 }}
+              animate={{
+                width: contentSearchExpanded ? "100%" : 0,
+                opacity: contentSearchExpanded ? 1 : 0,
+              }}
               transition={{ duration: 0.15, ease: "easeOut" }}
               style={{ overflow: "hidden" }}
             >
@@ -484,14 +510,25 @@ try {
           </Box>
 
           {!contentSearchExpanded && (
-            <Flex gap="0" align="center">
+            <Flex
+              gap="0"
+              align="center"
+            >
               <Tooltip content={t("writing.newNote")}>
-                <IconButton variant="ghost" size="2" onClick={() => void handleNewNote()}>
+                <IconButton
+                  variant="ghost"
+                  size="2"
+                  onClick={() => void handleNewNote()}
+                >
                   <FilePlus size={16} />
                 </IconButton>
               </Tooltip>
               <Tooltip content={t("writing.newCategory")}>
-                <IconButton variant="ghost" size="2" onClick={() => void handleNewCategory()}>
+                <IconButton
+                  variant="ghost"
+                  size="2"
+                  onClick={() => void handleNewCategory()}
+                >
                   <FolderPlus size={16} />
                 </IconButton>
               </Tooltip>
@@ -529,7 +566,7 @@ try {
         description={
           deleteTarget?.type === "category"
             ? t("writing.deleteCategoryConfirm")
-            : deleteTarget?.title ?? ""
+            : (deleteTarget?.title ?? "")
         }
         onConfirm={() => void handleDeleteConfirm()}
         loading={deleteNoteMutation.isPending || deleteCategoryMutation.isPending}
@@ -557,10 +594,7 @@ function findNoteInTree(
   return { id: note.id, isLocked: note.isLocked, isHidden: note.isHidden };
 }
 
-function findNoteTitleInTree(
-  data: NoteTreeResponse | undefined,
-  noteId: string,
-): string {
+function findNoteTitleInTree(data: NoteTreeResponse | undefined, noteId: string): string {
   if (!data) return "";
   const walk = (categories: NoteCategoryItem[]): string | undefined => {
     for (const cat of categories) {

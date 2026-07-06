@@ -4,14 +4,15 @@
  * 任务列表组件，显示最近的任务。
  */
 
-import { useState } from "react";
 import { Box, Flex, Text, IconButton, Tooltip } from "@radix-ui/themes";
-import { Pencil, Star, Clock } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
+import { Pencil, Star, Clock } from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { TaskListItem } from "@/lib/task.types";
+
 import { TaskRenameInput } from "./task-rename-input";
 
 interface TaskListProps {
@@ -21,12 +22,7 @@ interface TaskListProps {
   onRenameTask: (taskId: string, title: string) => Promise<void>;
 }
 
-export function TaskList({
-  tasks,
-  onTaskClick,
-  onToggleFavorite,
-  onRenameTask,
-}: TaskListProps) {
+export function TaskList({ tasks, onTaskClick, onToggleFavorite, onRenameTask }: TaskListProps) {
   const { t } = useTranslation();
   const runningLabel = t("writing.aiSidebar.taskRunning");
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -95,7 +91,11 @@ export function TaskList({
             if (editingTaskId !== task.id) onTaskClick(task);
           }}
         >
-          <Flex align="center" gap="2" style={{ marginBottom: "8px" }}>
+          <Flex
+            align="center"
+            gap="2"
+            style={{ marginBottom: "8px" }}
+          >
             {editingTaskId === task.id ? (
               <Box style={{ flex: 1, minWidth: 0, height: "20px" }}>
                 <TaskRenameInput
@@ -131,15 +131,25 @@ export function TaskList({
           </Flex>
 
           {/* 底部栏 */}
-          <Flex justify="between" align="center">
+          <Flex
+            justify="between"
+            align="center"
+          >
             {/* 左侧：时间 */}
-            <Flex align="center" gap="1" style={{ color: "var(--gray-10)" }}>
+            <Flex
+              align="center"
+              gap="1"
+              style={{ color: "var(--gray-10)" }}
+            >
               <Clock size={12} />
               <Text size="1">{formatTime(task.updatedAt)}</Text>
             </Flex>
 
             {/* 右侧：操作按钮 */}
-            <Flex align="center" gap="1">
+            <Flex
+              align="center"
+              gap="1"
+            >
               <Tooltip content={t("common.edit")}>
                 <IconButton
                   variant="ghost"
@@ -165,12 +175,13 @@ export function TaskList({
                   style={{
                     width: "24px",
                     height: "24px",
-                    color: task.isFavorited
-                      ? "var(--amber-9)"
-                      : "var(--gray-9)",
+                    color: task.isFavorited ? "var(--amber-9)" : "var(--gray-9)",
                   }}
                 >
-                  <Star size={14} fill={task.isFavorited ? "currentColor" : "none"} />
+                  <Star
+                    size={14}
+                    fill={task.isFavorited ? "currentColor" : "none"}
+                  />
                 </IconButton>
               </Tooltip>
             </Flex>
@@ -180,4 +191,3 @@ export function TaskList({
     </Box>
   );
 }
-

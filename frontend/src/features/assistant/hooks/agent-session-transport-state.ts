@@ -1,5 +1,5 @@
-import type { AgentMessage, AgentSessionStatus } from "@/lib/agent.types";
 import i18n from "@/i18n";
+import type { AgentMessage, AgentSessionStatus } from "@/lib/agent.types";
 
 import { upsertRetryMessage } from "../lib/retry-message-state";
 
@@ -22,9 +22,7 @@ interface TransportReconnectState {
   currentStage: string;
 }
 
-function normalizeReconnectStatus(
-  status: AgentSessionStatus | undefined
-): AgentSessionStatus {
+function normalizeReconnectStatus(status: AgentSessionStatus | undefined): AgentSessionStatus {
   if (status === "waiting_answer" || status === "waiting_approval" || status === "running") {
     return status;
   }
@@ -84,10 +82,7 @@ export function applyTransportReconnectState({
   });
 
   return {
-    messages: upsertRetryMessage(
-      clearTransportConnectionErrorMessages(messages),
-      retryMessage,
-    ),
+    messages: upsertRetryMessage(clearTransportConnectionErrorMessages(messages), retryMessage),
     status: nextStatus,
     isRunning: nextStatus === "running",
     currentStage: nextStatus === "running" ? currentStage || fallbackStage : currentStage || "",

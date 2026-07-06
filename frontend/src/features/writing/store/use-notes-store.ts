@@ -1,4 +1,5 @@
 import { create } from "zustand";
+
 import { getPreference, setPreference } from "@/lib/local-db";
 
 const EXPANDED_NOTE_CATEGORY_IDS_KEY = "writing.expandedNoteCategoryIds";
@@ -52,7 +53,7 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
       }
       set({
         expandedNoteCategoryIds: new Set(
-          ids.filter((id): id is string => typeof id === "string" && id.length > 0)
+          ids.filter((id): id is string => typeof id === "string" && id.length > 0),
         ),
         hasHydratedExpanded: true,
       });

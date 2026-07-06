@@ -7,14 +7,9 @@
  */
 
 import { Extension, type Range } from "@tiptap/core";
-import { Decoration, DecorationSet } from "@tiptap/pm/view";
-import {
-  Plugin,
-  PluginKey,
-  type EditorState,
-  type Transaction,
-} from "@tiptap/pm/state";
 import type { Node as PMNode } from "@tiptap/pm/model";
+import { Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
+import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
 /** Dispatch 函数类型 */
 type DispatchFn = ((tr: Transaction) => void) | undefined;
@@ -62,7 +57,7 @@ function processSearches(
   doc: PMNode,
   searchTerm: RegExp,
   searchResultClass: string,
-  resultIndex: number
+  resultIndex: number,
 ): ProcessedSearches {
   const decorations: Decoration[] = [];
   const results: Range[] = [];
@@ -101,9 +96,7 @@ function processSearches(
   // 查找所有匹配项
   for (const element of textNodesWithPosition) {
     const { text, pos } = element;
-    const matches = Array.from(text.matchAll(searchTerm)).filter(
-      ([matchText]) => matchText.trim()
-    );
+    const matches = Array.from(text.matchAll(searchTerm)).filter(([matchText]) => matchText.trim());
 
     for (const m of matches) {
       if (m[0] === "") break;
@@ -121,9 +114,7 @@ function processSearches(
   for (let i = 0; i < results.length; i += 1) {
     const r = results[i];
     const className =
-      i === resultIndex
-        ? `${searchResultClass} ${searchResultClass}-current`
-        : searchResultClass;
+      i === resultIndex ? `${searchResultClass} ${searchResultClass}-current` : searchResultClass;
     const decoration: Decoration = Decoration.inline(r.from, r.to, {
       class: className,
     });
@@ -142,7 +133,7 @@ function replaceFirst(
   replaceTerm: string,
   results: Range[],
   resultIndex: number,
-  { state, dispatch }: { state: EditorState; dispatch: DispatchFn }
+  { state, dispatch }: { state: EditorState; dispatch: DispatchFn },
 ) {
   const result = results[resultIndex];
 
@@ -158,7 +149,7 @@ function rebaseNextResult(
   replaceTerm: string,
   index: number,
   lastOffset: number,
-  results: Range[]
+  results: Range[],
 ): [number, Range[]] | null {
   const nextIndex = index + 1;
 
@@ -182,7 +173,7 @@ function rebaseNextResult(
 function replaceAllMatches(
   replaceTerm: string,
   results: Range[],
-  { tr, dispatch }: { tr: Transaction; dispatch: DispatchFn }
+  { tr, dispatch }: { tr: Transaction; dispatch: DispatchFn },
 ) {
   let offset = 0;
 
@@ -195,12 +186,7 @@ function replaceAllMatches(
 
     tr.insertText(replaceTerm, from, to);
 
-    const rebaseNextResultResponse = rebaseNextResult(
-      replaceTerm,
-      i,
-      offset,
-      resultsCopy
-    );
+    const rebaseNextResultResponse = rebaseNextResult(replaceTerm, i, offset, resultsCopy);
 
     if (!rebaseNextResultResponse) continue;
 
@@ -211,9 +197,7 @@ function replaceAllMatches(
   if (dispatch) dispatch(tr);
 }
 
-export const searchAndReplacePluginKey = new PluginKey(
-  "searchAndReplacePlugin"
-);
+export const searchAndReplacePluginKey = new PluginKey("searchAndReplacePlugin");
 
 export interface SearchAndReplaceOptions {
   /** 搜索结果的 CSS 类名 */
@@ -234,10 +218,7 @@ function getStorage(editor: any): SearchAndReplaceStorage {
   return editor.storage.searchAndReplace as SearchAndReplaceStorage;
 }
 
-export const SearchAndReplace = Extension.create<
-  SearchAndReplaceOptions,
-  SearchAndReplaceStorage
->({
+export const SearchAndReplace = Extension.create<SearchAndReplaceOptions, SearchAndReplaceStorage>({
   name: "searchAndReplace",
 
   addOptions() {
@@ -348,10 +329,8 @@ export const SearchAndReplace = Extension.create<
     const editor = this.editor;
     const { searchResultClass } = this.options;
 
-    const setLastSearchTerm = (t: string) =>
-      (getStorage(editor).lastSearchTerm = t);
-    const setLastResultIndex = (t: number) =>
-      (getStorage(editor).lastResultIndex = t);
+    const setLastSearchTerm = (t: string) => (getStorage(editor).lastSearchTerm = t);
+    const setLastResultIndex = (t: number) => (getStorage(editor).lastResultIndex = t);
 
     return [
       new Plugin({
@@ -361,8 +340,7 @@ export const SearchAndReplace = Extension.create<
           apply(tr, oldState) {
             const { doc, docChanged } = tr;
             const storage = getStorage(editor);
-            const { searchTerm, lastSearchTerm, resultIndex, lastResultIndex } =
-              storage;
+            const { searchTerm, lastSearchTerm, resultIndex, lastResultIndex } = storage;
 
             // 检查是否有来自 setMeta 的更新信号
             const metaUpdate = tr.getMeta(searchAndReplacePluginKey);
@@ -387,7 +365,7 @@ export const SearchAndReplace = Extension.create<
               doc,
               getRegex(searchTerm),
               searchResultClass,
-              resultIndex
+              resultIndex,
             );
 
             storage.results = results;

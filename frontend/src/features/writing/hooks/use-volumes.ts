@@ -34,13 +34,8 @@ export function useUpdateVolume() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      volumeId,
-      data,
-    }: {
-      volumeId: string;
-      data: VolumeUpdate;
-    }) => updateVolume(volumeId, data),
+    mutationFn: ({ volumeId, data }: { volumeId: string; data: VolumeUpdate }) =>
+      updateVolume(volumeId, data),
     onSuccess: (volume) => {
       queryClient.invalidateQueries({ queryKey: ["volume-tree", volume.projectId] });
     },
@@ -51,13 +46,8 @@ export function useDeleteVolume(projectId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      volumeId,
-      cascade = false,
-    }: {
-      volumeId: string;
-      cascade?: boolean;
-    }) => deleteVolume(volumeId, cascade),
+    mutationFn: ({ volumeId, cascade = false }: { volumeId: string; cascade?: boolean }) =>
+      deleteVolume(volumeId, cascade),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["volume-tree", projectId] });
       queryClient.invalidateQueries({ queryKey: ["projects"] });
@@ -69,13 +59,8 @@ export function useMoveVolume(projectId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      volumeId,
-      newOrder,
-    }: {
-      volumeId: string;
-      newOrder: number;
-    }) => moveVolume(volumeId, { newOrder }),
+    mutationFn: ({ volumeId, newOrder }: { volumeId: string; newOrder: number }) =>
+      moveVolume(volumeId, { newOrder }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["volume-tree", projectId] });
     },

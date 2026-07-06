@@ -10,7 +10,7 @@ export function clearRetryMessages(messages: AgentMessage[]): AgentMessage[] {
 
 export function upsertRetryMessage(
   messages: AgentMessage[],
-  retryMessage: AgentMessage
+  retryMessage: AgentMessage,
 ): AgentMessage[] {
   return [...clearRetryMessages(messages), retryMessage];
 }

@@ -7,10 +7,11 @@
 import { Box, Card, Flex, Text, IconButton, Tooltip } from "@radix-ui/themes";
 import { Edit2, Trash2, BookOpen } from "lucide-react";
 import { motion } from "motion/react";
-import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import { formatRelativeTime } from "@/lib/time-utils";
+import { useNavigate } from "react-router";
+
 import type { Project } from "@/lib/project.types";
+import { formatRelativeTime } from "@/lib/time-utils";
 
 const MotionCard = motion.create(Card);
 
@@ -20,11 +21,7 @@ interface ProjectListItemProps {
   onDelete: (project: Project) => void;
 }
 
-export function ProjectListItem({
-  project,
-  onEdit,
-  onDelete,
-}: ProjectListItemProps) {
+export function ProjectListItem({ project, onEdit, onDelete }: ProjectListItemProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -42,7 +39,10 @@ export function ProjectListItem({
       transition={{ duration: 0.2 }}
       onClick={handleClick}
     >
-      <Flex align="center" gap="4">
+      <Flex
+        align="center"
+        gap="4"
+      >
         {/* 左侧小封面 */}
         <Box
           style={{
@@ -65,37 +65,69 @@ export function ProjectListItem({
               }}
             />
           ) : (
-            <Flex align="center" justify="center" style={{ height: "100%" }}>
-              <BookOpen size={24} style={{ color: "var(--gray-a9)" }} />
+            <Flex
+              align="center"
+              justify="center"
+              style={{ height: "100%" }}
+            >
+              <BookOpen
+                size={24}
+                style={{ color: "var(--gray-a9)" }}
+              />
             </Flex>
           )}
         </Box>
 
         {/* 中间项目信息 */}
         <Box style={{ flex: 1, minWidth: 0 }}>
-          <Text size="3" weight="bold" truncate>
+          <Text
+            size="3"
+            weight="bold"
+            truncate
+          >
             {project.title}
           </Text>
           {project.description && (
-            <Text size="2" color="gray" truncate style={{ display: "block" }}>
+            <Text
+              size="2"
+              color="gray"
+              truncate
+              style={{ display: "block" }}
+            >
               {project.description}
             </Text>
           )}
-          <Flex gap="3" mt="1" align="center">
-            <Text size="1" color="gray">
+          <Flex
+            gap="3"
+            mt="1"
+            align="center"
+          >
+            <Text
+              size="1"
+              color="gray"
+            >
               {project.wordCount.toLocaleString()} {t("projects.words")}
             </Text>
-            <Text size="1" color="gray">
+            <Text
+              size="1"
+              color="gray"
+            >
               {project.chapterCount} {t("projects.chapters")}
             </Text>
-            <Text size="1" color="gray">
+            <Text
+              size="1"
+              color="gray"
+            >
               {formatRelativeTime(project.updatedAt)}
             </Text>
           </Flex>
         </Box>
 
         {/* 右侧操作按钮 */}
-        <Flex gap="3" align="center">
+        <Flex
+          gap="3"
+          align="center"
+        >
           <Tooltip content={t("common.edit")}>
             <IconButton
               size="2"

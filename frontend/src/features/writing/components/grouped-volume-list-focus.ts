@@ -51,7 +51,7 @@ interface ResolveGroupedVolumeListScrollRequestParams {
 
 export function findVolumeIdForChapter(
   volumes: VolumeWithChapters[],
-  chapterId: string | null
+  chapterId: string | null,
 ): string | null {
   if (!chapterId) {
     return null;

@@ -4,32 +4,24 @@
  * 世界书选择器，用于选择、创建和编辑世界书。
  */
 
-import { useState } from "react";
-import {
-  Box,
-  Flex,
-  Text,
-  Button,
-  Dialog,
-  TextField,
-  IconButton,
-  Tooltip,
-} from "@radix-ui/themes";
+import { Box, Flex, Text, Button, Dialog, TextField, IconButton, Tooltip } from "@radix-ui/themes";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Settings, Upload } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { SimpleSelect } from "@/components/select";
 import {
   fetchWorldInfoList,
   createWorldInfo,
   updateWorldInfo,
   fetchProjects,
 } from "@/lib/api-client";
-import { AnimatePresence, motion } from "motion/react";
-import { SimpleSelect } from "@/components/select";
-import { ProjectSelectField } from "./project-select-field";
+
 import { ImportWorldInfoDialog } from "./import-world-info-dialog";
+import { ProjectSelectField } from "./project-select-field";
 
 const MotionBox = motion.create(Box);
 
@@ -102,9 +94,7 @@ export function WorldInfoSelector({
       const unbindProject = Boolean(currentProjectId && !editProjectId);
       // 判断是否需要绑定新项目
       const newProjectId =
-        editProjectId && editProjectId !== currentProjectId
-          ? editProjectId
-          : undefined;
+        editProjectId && editProjectId !== currentProjectId ? editProjectId : undefined;
 
       return updateWorldInfo(value!, {
         name: editName !== currentWorldInfo?.name ? editName : undefined,
@@ -122,15 +112,12 @@ export function WorldInfoSelector({
   const selectedWorldInfo = worldInfoItems.find((w) => w.id === value);
   const currentWorldInfoProjectId = selectedWorldInfo?.projectId;
   const boundProjectIds = new Set(
-    worldInfoItems
-      .filter((w) => w.projectId && w.id !== value)
-      .map((w) => w.projectId as string)
+    worldInfoItems.filter((w) => w.projectId && w.id !== value).map((w) => w.projectId as string),
   );
-  const availableProjects =
-    projectsList?.items.filter((p) => !boundProjectIds.has(p.id)) ?? [];
+  const availableProjects = projectsList?.items.filter((p) => !boundProjectIds.has(p.id)) ?? [];
   const editableProjects =
     projectsList?.items.filter(
-      (p) => !boundProjectIds.has(p.id) || p.id === currentWorldInfoProjectId
+      (p) => !boundProjectIds.has(p.id) || p.id === currentWorldInfoProjectId,
     ) ?? [];
 
   // 获取项目名称
@@ -165,10 +152,20 @@ export function WorldInfoSelector({
 
   return (
     <>
-      <Box px="4" py="3" style={{ borderBottom: "1px solid var(--gray-a4)" }}>
+      <Box
+        px="4"
+        py="3"
+        style={{ borderBottom: "1px solid var(--gray-a4)" }}
+      >
         {isMobile ? (
-          <Flex direction="column" gap="2">
-            <Flex align="center" gap="2">
+          <Flex
+            direction="column"
+            gap="2"
+          >
+            <Flex
+              align="center"
+              gap="2"
+            >
               {appSidebarTrigger}
 
               <Box style={{ flex: 1, minWidth: 0 }}>
@@ -178,7 +175,10 @@ export function WorldInfoSelector({
                     value: worldInfo.id,
                     label: worldInfo.name,
                     suffix: worldInfo.projectId ? (
-                      <Text size="1" color="gray">
+                      <Text
+                        size="1"
+                        color="gray"
+                      >
                         {" "}
                         ({t("worldInfo.boundToProject")})
                       </Text>
@@ -198,7 +198,11 @@ export function WorldInfoSelector({
               </Box>
 
               <Tooltip content={t("worldInfo.createWorldInfo")}>
-                <IconButton variant="ghost" size="2" onClick={() => setCreateDialogOpen(true)}>
+                <IconButton
+                  variant="ghost"
+                  size="2"
+                  onClick={() => setCreateDialogOpen(true)}
+                >
                   <Plus size={16} />
                 </IconButton>
               </Tooltip>
@@ -225,16 +229,30 @@ export function WorldInfoSelector({
                   transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                   style={{ overflow: "hidden" }}
                 >
-                  <Flex align="center" gap="2" wrap="wrap" pt="2">
+                  <Flex
+                    align="center"
+                    gap="2"
+                    wrap="wrap"
+                    pt="2"
+                  >
                     {entrySidebarTrigger}
 
-                    <Text size="2" color="gray" style={{ flex: 1, minWidth: 0 }} truncate>
+                    <Text
+                      size="2"
+                      color="gray"
+                      style={{ flex: 1, minWidth: 0 }}
+                      truncate
+                    >
                       {selectedWorldInfo.projectId
                         ? `${t("worldInfo.boundToProject")}: ${getProjectName(selectedWorldInfo.projectId)}`
                         : t("worldInfo.notBound")}
                     </Text>
 
-                    <Button variant="ghost" size="2" onClick={handleOpenSettings}>
+                    <Button
+                      variant="ghost"
+                      size="2"
+                      onClick={handleOpenSettings}
+                    >
                       <Settings size={16} />
                       {t("worldInfo.settings")}
                     </Button>
@@ -244,14 +262,20 @@ export function WorldInfoSelector({
             </AnimatePresence>
           </Flex>
         ) : (
-          <Flex align="center" gap="3">
+          <Flex
+            align="center"
+            gap="3"
+          >
             <SimpleSelect
               value={value ?? undefined}
               options={worldInfoItems.map((worldInfo) => ({
                 value: worldInfo.id,
                 label: worldInfo.name,
                 suffix: worldInfo.projectId ? (
-                  <Text size="1" color="gray">
+                  <Text
+                    size="1"
+                    color="gray"
+                  >
                     {" "}
                     ({t("worldInfo.boundToProject")})
                   </Text>
@@ -270,10 +294,13 @@ export function WorldInfoSelector({
             />
 
             {selectedWorldInfo && (
-              <Text size="2" color="gray">
+              <Text
+                size="2"
+                color="gray"
+              >
                 {selectedWorldInfo.projectId
                   ? `${t("worldInfo.boundToProject")}: ${getProjectName(
-                      selectedWorldInfo.projectId
+                      selectedWorldInfo.projectId,
                     )}`
                   : t("worldInfo.notBound")}
               </Text>
@@ -281,7 +308,11 @@ export function WorldInfoSelector({
 
             {selectedWorldInfo && (
               <Tooltip content={t("worldInfo.settings")}>
-                <IconButton variant="ghost" size="2" onClick={handleOpenSettings}>
+                <IconButton
+                  variant="ghost"
+                  size="2"
+                  onClick={handleOpenSettings}
+                >
                   <Settings size={16} />
                 </IconButton>
               </Tooltip>
@@ -319,17 +350,31 @@ export function WorldInfoSelector({
       />
 
       {/* 创建世界书对话框 */}
-      <Dialog.Root open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+      <Dialog.Root
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+      >
         <Dialog.Content style={{ maxWidth: 450 }}>
           <Dialog.Title>{t("worldInfo.createWorldInfo")}</Dialog.Title>
-          <Dialog.Description size="2" mb="4">
+          <Dialog.Description
+            size="2"
+            mb="4"
+          >
             {t("worldInfo.createWorldInfoDesc")}
           </Dialog.Description>
 
-          <Flex direction="column" gap="3">
+          <Flex
+            direction="column"
+            gap="3"
+          >
             {/* 名称输入 */}
             <Box>
-              <Text as="label" size="2" weight="medium" mb="1">
+              <Text
+                as="label"
+                size="2"
+                weight="medium"
+                mb="1"
+              >
                 {t("worldInfo.worldInfoName")}
               </Text>
               <TextField.Root
@@ -350,9 +395,16 @@ export function WorldInfoSelector({
             />
           </Flex>
 
-          <Flex gap="3" mt="4" justify="end">
+          <Flex
+            gap="3"
+            mt="4"
+            justify="end"
+          >
             <Dialog.Close>
-              <Button variant="soft" color="gray">
+              <Button
+                variant="soft"
+                color="gray"
+              >
                 {t("common.cancel")}
               </Button>
             </Dialog.Close>
@@ -373,14 +425,25 @@ export function WorldInfoSelector({
       >
         <Dialog.Content style={{ maxWidth: 450 }}>
           <Dialog.Title>{t("worldInfo.settings")}</Dialog.Title>
-          <Dialog.Description size="2" mb="4">
+          <Dialog.Description
+            size="2"
+            mb="4"
+          >
             {t("worldInfo.settingsDesc")}
           </Dialog.Description>
 
-          <Flex direction="column" gap="3">
+          <Flex
+            direction="column"
+            gap="3"
+          >
             {/* 名称输入 */}
             <Box>
-              <Text as="label" size="2" weight="medium" mb="1">
+              <Text
+                as="label"
+                size="2"
+                weight="medium"
+                mb="1"
+              >
                 {t("worldInfo.worldInfoName")}
               </Text>
               <TextField.Root
@@ -401,9 +464,16 @@ export function WorldInfoSelector({
             />
           </Flex>
 
-          <Flex gap="3" mt="4" justify="end">
+          <Flex
+            gap="3"
+            mt="4"
+            justify="end"
+          >
             <Dialog.Close>
-              <Button variant="soft" color="gray">
+              <Button
+                variant="soft"
+                color="gray"
+              >
                 {t("common.cancel")}
               </Button>
             </Dialog.Close>

@@ -1,13 +1,14 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ChartPanel } from "./chart-panel";
-import { MetricCard } from "./metric-card";
+
 import {
   buildModelTokenTrendOption,
   buildModelTrendOption,
   buildRoundedDonutOption,
 } from "../lib/dashboard-chart-options";
 import type { DashboardStatsResponse } from "../lib/dashboard.types";
+import { ChartPanel } from "./chart-panel";
+import { MetricCard } from "./metric-card";
 
 interface LlmDashboardTabProps {
   data: DashboardStatsResponse | undefined;
@@ -19,10 +20,30 @@ export function LlmDashboardTab({ data, isLoading, themeMode }: LlmDashboardTabP
   const { t } = useTranslation();
   const callsOption = useMemo(() => buildModelTrendOption(data, "calls"), [data]);
   const tokenTrendOption = useMemo(() => buildModelTokenTrendOption(data), [data]);
-  const modelCallsOption = useMemo(() => buildRoundedDonutOption(data?.byModel ?? [], "calls", t("dashboard.charts.modelCallsTitle")), [data?.byModel, t]);
-  const modelTokensOption = useMemo(() => buildRoundedDonutOption(data?.byModel ?? [], "tokensTotal", t("dashboard.charts.modelTokensTitle")), [data?.byModel, t]);
+  const modelCallsOption = useMemo(
+    () =>
+      buildRoundedDonutOption(data?.byModel ?? [], "calls", t("dashboard.charts.modelCallsTitle")),
+    [data?.byModel, t],
+  );
+  const modelTokensOption = useMemo(
+    () =>
+      buildRoundedDonutOption(
+        data?.byModel ?? [],
+        "tokensTotal",
+        t("dashboard.charts.modelTokensTitle"),
+      ),
+    [data?.byModel, t],
+  );
   const latencyOption = useMemo(() => buildModelTrendOption(data, "avgLatencyMs"), [data]);
-  const projectTokensOption = useMemo(() => buildRoundedDonutOption(data?.byProject ?? [], "tokensTotal", t("dashboard.charts.projectTokensTitle")), [data?.byProject, t]);
+  const projectTokensOption = useMemo(
+    () =>
+      buildRoundedDonutOption(
+        data?.byProject ?? [],
+        "tokensTotal",
+        t("dashboard.charts.projectTokensTitle"),
+      ),
+    [data?.byProject, t],
+  );
   const summary = data?.summary;
 
   return (
@@ -34,7 +55,11 @@ export function LlmDashboardTab({ data, isLoading, themeMode }: LlmDashboardTabP
           valueFormat={{ maximumFractionDigits: 0 }}
           hintParts={[
             { kind: "text", value: t("dashboard.metrics.completedPrefix") },
-            { kind: "number", value: summary?.successTotal ?? 0, format: { maximumFractionDigits: 0 } },
+            {
+              kind: "number",
+              value: summary?.successTotal ?? 0,
+              format: { maximumFractionDigits: 0 },
+            },
             { kind: "text", value: t("dashboard.metrics.completedSuffix") },
           ]}
           isLoading={isLoading}
@@ -46,9 +71,17 @@ export function LlmDashboardTab({ data, isLoading, themeMode }: LlmDashboardTabP
           valueFormat={{ maximumFractionDigits: 0 }}
           hintParts={[
             { kind: "text", value: t("dashboard.metrics.inputPrefix") },
-            { kind: "number", value: summary?.tokensInputTotal ?? 0, format: { maximumFractionDigits: 0 } },
+            {
+              kind: "number",
+              value: summary?.tokensInputTotal ?? 0,
+              format: { maximumFractionDigits: 0 },
+            },
             { kind: "text", value: t("dashboard.metrics.outputPrefix") },
-            { kind: "number", value: summary?.tokensOutputTotal ?? 0, format: { maximumFractionDigits: 0 } },
+            {
+              kind: "number",
+              value: summary?.tokensOutputTotal ?? 0,
+              format: { maximumFractionDigits: 0 },
+            },
           ]}
           isLoading={isLoading}
           hasValue={Boolean(summary)}
@@ -73,12 +106,48 @@ export function LlmDashboardTab({ data, isLoading, themeMode }: LlmDashboardTabP
         />
       </section>
       <section className="dashboard-chart-grid dashboard-chart-grid-balanced dashboard-llm-chart-grid">
-        <ChartPanel title={t("dashboard.charts.callTrend")} option={callsOption} isLoading={isLoading} themeMode={themeMode} size="wide" />
-        <ChartPanel title={t("dashboard.charts.modelCallDistribution")} option={modelCallsOption} isLoading={isLoading} themeMode={themeMode} size="small" />
-        <ChartPanel title={t("dashboard.charts.modelTokenDistribution")} option={modelTokensOption} isLoading={isLoading} themeMode={themeMode} size="small" />
-        <ChartPanel title={t("dashboard.charts.tokenTrend")} option={tokenTrendOption} isLoading={isLoading} themeMode={themeMode} size="wide" />
-        <ChartPanel title={t("dashboard.charts.latencyTrend")} option={latencyOption} isLoading={isLoading} themeMode={themeMode} size="wide" />
-        <ChartPanel title={t("dashboard.charts.projectTokenDistribution")} option={projectTokensOption} isLoading={isLoading} themeMode={themeMode} size="small" />
+        <ChartPanel
+          title={t("dashboard.charts.callTrend")}
+          option={callsOption}
+          isLoading={isLoading}
+          themeMode={themeMode}
+          size="wide"
+        />
+        <ChartPanel
+          title={t("dashboard.charts.modelCallDistribution")}
+          option={modelCallsOption}
+          isLoading={isLoading}
+          themeMode={themeMode}
+          size="small"
+        />
+        <ChartPanel
+          title={t("dashboard.charts.modelTokenDistribution")}
+          option={modelTokensOption}
+          isLoading={isLoading}
+          themeMode={themeMode}
+          size="small"
+        />
+        <ChartPanel
+          title={t("dashboard.charts.tokenTrend")}
+          option={tokenTrendOption}
+          isLoading={isLoading}
+          themeMode={themeMode}
+          size="wide"
+        />
+        <ChartPanel
+          title={t("dashboard.charts.latencyTrend")}
+          option={latencyOption}
+          isLoading={isLoading}
+          themeMode={themeMode}
+          size="wide"
+        />
+        <ChartPanel
+          title={t("dashboard.charts.projectTokenDistribution")}
+          option={projectTokensOption}
+          isLoading={isLoading}
+          themeMode={themeMode}
+          size="small"
+        />
       </section>
     </section>
   );

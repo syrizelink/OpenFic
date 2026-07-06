@@ -1,11 +1,8 @@
 import type { AgentMessage } from "@/lib/agent.types";
 import type { TaskListItem, TaskMessage } from "@/lib/task.types";
 
-import {
-  isRecord,
-  normalizeToolResult,
-} from "./tool-result-normalization";
 import { parseUtcTimestamp } from "./date-utils";
+import { isRecord, normalizeToolResult } from "./tool-result-normalization";
 
 function isPermissionRequiredToolResult(result: Record<string, unknown> | null): boolean {
   return result?.reason === "permission_required";
@@ -25,7 +22,9 @@ const SUBAGENT_ORCHESTRATION_TOOL_NAMES = new Set([
 function getTaskMessageToolName(message: TaskMessage): string | undefined {
   const payloadToolName = message.payload?.tool_name;
   if (typeof payloadToolName === "string" && payloadToolName) return payloadToolName;
-  const toolCallName = message.toolCalls?.find((toolCall) => typeof toolCall.name === "string")?.name;
+  const toolCallName = message.toolCalls?.find(
+    (toolCall) => typeof toolCall.name === "string",
+  )?.name;
   return typeof toolCallName === "string" ? toolCallName : undefined;
 }
 
@@ -36,7 +35,7 @@ function isSubagentInternalTaskMessage(message: TaskMessage): boolean {
 
 function getPayloadToolResult(
   payload: Record<string, unknown>,
-  messageStatus: TaskMessage["messageStatus"]
+  messageStatus: TaskMessage["messageStatus"],
 ): Record<string, unknown> | null {
   if (!("tool_result" in payload)) return null;
   return normalizeToolResult(payload.tool_result, {
@@ -50,22 +49,26 @@ function getPayloadToolResult(
 function getToolIdentity(
   message: TaskMessage,
   messagePayload: Record<string, unknown>,
-  toolResult: Record<string, unknown> | null
+  toolResult: Record<string, unknown> | null,
 ): string | null {
   const payloadToolCallId = messagePayload.tool_call_id;
-  if (typeof payloadToolCallId === "string" && payloadToolCallId) return `call:${payloadToolCallId}`;
+  if (typeof payloadToolCallId === "string" && payloadToolCallId)
+    return `call:${payloadToolCallId}`;
 
   const resultToolCallId = toolResult?.tool_call_id;
   if (typeof resultToolCallId === "string" && resultToolCallId) return `call:${resultToolCallId}`;
 
   const payloadDispatchId = messagePayload.dispatch_id;
-  if (typeof payloadDispatchId === "string" && payloadDispatchId) return `dispatch:${payloadDispatchId}`;
+  if (typeof payloadDispatchId === "string" && payloadDispatchId)
+    return `dispatch:${payloadDispatchId}`;
 
   const resultDispatchId = toolResult?.dispatch_id;
-  if (typeof resultDispatchId === "string" && resultDispatchId) return `dispatch:${resultDispatchId}`;
+  if (typeof resultDispatchId === "string" && resultDispatchId)
+    return `dispatch:${resultDispatchId}`;
 
   const payloadChildRunId = messagePayload.child_run_id;
-  if (typeof payloadChildRunId === "string" && payloadChildRunId) return `child:${payloadChildRunId}`;
+  if (typeof payloadChildRunId === "string" && payloadChildRunId)
+    return `child:${payloadChildRunId}`;
 
   const resultChildRunId = toolResult?.child_run_id;
   if (typeof resultChildRunId === "string" && resultChildRunId) return `child:${resultChildRunId}`;
@@ -73,20 +76,25 @@ function getToolIdentity(
   const resultMetadata = toolResult?.metadata;
   if (resultMetadata && typeof resultMetadata === "object" && !Array.isArray(resultMetadata)) {
     const metadataToolCallId = (resultMetadata as Record<string, unknown>).tool_call_id;
-    if (typeof metadataToolCallId === "string" && metadataToolCallId) return `call:${metadataToolCallId}`;
+    if (typeof metadataToolCallId === "string" && metadataToolCallId)
+      return `call:${metadataToolCallId}`;
 
     const metadataDispatchId = (resultMetadata as Record<string, unknown>).dispatch_id;
-    if (typeof metadataDispatchId === "string" && metadataDispatchId) return `dispatch:${metadataDispatchId}`;
+    if (typeof metadataDispatchId === "string" && metadataDispatchId)
+      return `dispatch:${metadataDispatchId}`;
 
     const metadataChildRunId = (resultMetadata as Record<string, unknown>).child_run_id;
-    if (typeof metadataChildRunId === "string" && metadataChildRunId) return `child:${metadataChildRunId}`;
+    if (typeof metadataChildRunId === "string" && metadataChildRunId)
+      return `child:${metadataChildRunId}`;
 
     const metadataApprovalId = (resultMetadata as Record<string, unknown>).approval_id;
-    if (typeof metadataApprovalId === "string" && metadataApprovalId) return `approval:${metadataApprovalId}`;
+    if (typeof metadataApprovalId === "string" && metadataApprovalId)
+      return `approval:${metadataApprovalId}`;
   }
 
   const payloadApprovalId = messagePayload.approval_id;
-  if (typeof payloadApprovalId === "string" && payloadApprovalId) return `approval:${payloadApprovalId}`;
+  if (typeof payloadApprovalId === "string" && payloadApprovalId)
+    return `approval:${payloadApprovalId}`;
 
   if (message.correlationId) return `corr:${message.correlationId}`;
   if (message.id) return `msg:${message.id}`;
@@ -96,12 +104,14 @@ function getToolIdentity(
 
 function getTaskMessageRevisionId(
   payload: Record<string, unknown>,
-  metadata?: Record<string, unknown> | null
+  metadata?: Record<string, unknown> | null,
 ): string | undefined {
   const payloadRevisionId = payload.revision_id;
   if (typeof payloadRevisionId === "string" && payloadRevisionId) return payloadRevisionId;
   const metadataRevisionId = metadata?.revision_id;
-  return typeof metadataRevisionId === "string" && metadataRevisionId ? metadataRevisionId : undefined;
+  return typeof metadataRevisionId === "string" && metadataRevisionId
+    ? metadataRevisionId
+    : undefined;
 }
 
 function asAgentMessageStatus(value: unknown): AgentMessage["status"] | undefined {
@@ -110,7 +120,10 @@ function asAgentMessageStatus(value: unknown): AgentMessage["status"] | undefine
     : undefined;
 }
 
-function getToolMessageStatus(messageStatus: TaskMessage["messageStatus"], toolSuccess: boolean): AgentMessage["status"] {
+function getToolMessageStatus(
+  messageStatus: TaskMessage["messageStatus"],
+  toolSuccess: boolean,
+): AgentMessage["status"] {
   const normalizedStatus = asAgentMessageStatus(messageStatus) ?? "completed";
   if (!toolSuccess) return "error";
   return normalizedStatus;
@@ -120,7 +133,7 @@ function getToolSuccess(
   payload: Record<string, unknown>,
   toolResult: Record<string, unknown> | null,
   toolName: string | undefined,
-  messageStatus: TaskMessage["messageStatus"]
+  messageStatus: TaskMessage["messageStatus"],
 ): boolean {
   void toolName;
   if (typeof payload.success === "boolean") return payload.success;
@@ -131,7 +144,7 @@ function getToolSuccess(
 export function buildAgentMessagesFromTaskMessages(
   taskMessages: TaskMessage[],
   task: TaskListItem,
-  taskCreatedAt: string
+  taskCreatedAt: string,
 ): AgentMessage[] {
   const hasDispatchSubagent = taskMessages.some((message) => {
     const toolName = getTaskMessageToolName(message);
@@ -151,7 +164,7 @@ export function buildAgentMessagesFromTaskMessages(
     toolName: string | undefined,
     message: TaskMessage,
     messagePayload: Record<string, unknown>,
-    toolResult: Record<string, unknown> | null
+    toolResult: Record<string, unknown> | null,
   ) => {
     if (!toolName || !dedupedToolNames.has(toolName)) return null;
     const identity = getToolIdentity(message, messagePayload, toolResult);
@@ -264,7 +277,8 @@ export function buildAgentMessagesFromTaskMessages(
           content,
           agent: msg.agentId as AgentMessage["agent"],
           isStreaming: msg.messageStatus === "running",
-          thinkingDurationMs: typeof payload.duration_ms === "number" ? payload.duration_ms : undefined,
+          thinkingDurationMs:
+            typeof payload.duration_ms === "number" ? payload.duration_ms : undefined,
         });
         return;
       }
@@ -312,15 +326,17 @@ export function buildAgentMessagesFromTaskMessages(
           toolName,
           toolNames: toolName ? [toolName] : undefined,
           toolArgs,
-          partialToolArgs: payload.partial_tool_args && typeof payload.partial_tool_args === "object"
-            ? payload.partial_tool_args as Record<string, unknown>
-            : undefined,
+          partialToolArgs:
+            payload.partial_tool_args && typeof payload.partial_tool_args === "object"
+              ? (payload.partial_tool_args as Record<string, unknown>)
+              : undefined,
           toolResult: toolResult ?? undefined,
           toolSuccess,
           confirmedPlan: payload.confirmed_plan as AgentMessage["confirmedPlan"],
           outlineData: payload.outline_data as AgentMessage["outlineData"],
           reviewData: payload.review_data as AgentMessage["reviewData"],
-          reviewPassed: typeof payload.review_passed === "boolean" ? payload.review_passed : undefined,
+          reviewPassed:
+            typeof payload.review_passed === "boolean" ? payload.review_passed : undefined,
         };
         if (toolKey) {
           const previousIndex = visibleToolIndexByKey.get(toolKey);

@@ -1,4 +1,5 @@
-import { memo, useCallback, useRef, useEffect, useState } from "react";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import { Flex, Text } from "@radix-ui/themes";
 import {
   Folder,
@@ -9,9 +10,8 @@ import {
   MoreHorizontal,
   ChevronRight,
 } from "lucide-react";
+import { memo, useCallback, useRef, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useDraggable, useDroppable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
 
 const MOBILE_LONG_PRESS_MS = 280;
 const MOBILE_LONG_PRESS_MOVE_TOLERANCE = 8;
@@ -54,7 +54,7 @@ function RenameInput({
         onCancel();
       }
     },
-    [handleSubmit, onCancel]
+    [handleSubmit, onCancel],
   );
 
   return (
@@ -105,7 +105,12 @@ interface NoteTreeItemProps {
   activeAncestorCategoryIds: Set<string>;
   onSelect: (id: string, type: "category" | "note") => void;
   onExpand: (id: string) => void;
-  onContextMenu: (id: string, type: "category" | "note", position: { x: number; y: number }, title: string) => void;
+  onContextMenu: (
+    id: string,
+    type: "category" | "note",
+    position: { x: number; y: number },
+    title: string,
+  ) => void;
   onRenameConfirm: (id: string, type: "category" | "note", newTitle: string) => void;
   onRenameCancel: () => void;
 }
@@ -165,7 +170,7 @@ export const NoteTreeItem = memo(function NoteTreeItem({
       setDragNodeRef(node);
       if (isCategory) setDropNodeRef(node);
     },
-    [setDragNodeRef, setDropNodeRef, isCategory]
+    [setDragNodeRef, setDropNodeRef, isCategory],
   );
 
   const highlight = isCategory && isOver && !isDragging;
@@ -221,7 +226,7 @@ export const NoteTreeItem = memo(function NoteTreeItem({
       setIsLongPressActive(false);
       onContextMenu(data.id, data.type, { x: event.clientX, y: event.clientY }, data.title);
     },
-    [data.id, data.type, data.title, onContextMenu]
+    [data.id, data.type, data.title, onContextMenu],
   );
 
   const handleOpenMenu = useCallback(
@@ -230,13 +235,11 @@ export const NoteTreeItem = memo(function NoteTreeItem({
       const rect = event.currentTarget.getBoundingClientRect();
       onContextMenu(data.id, data.type, { x: rect.right - 4, y: rect.bottom + 4 }, data.title);
     },
-    [data.id, data.type, data.title, onContextMenu]
+    [data.id, data.type, data.title, onContextMenu],
   );
 
   const iconSize = 14;
-  const Icon = data.type === "category"
-    ? (data.isExpanded ? FolderOpen : Folder)
-    : StickyNote;
+  const Icon = data.type === "category" ? (data.isExpanded ? FolderOpen : Folder) : StickyNote;
 
   const handleRowClick = useCallback(() => {
     if (longPressTriggeredRef.current) {
@@ -286,7 +289,15 @@ export const NoteTreeItem = memo(function NoteTreeItem({
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", handlePointerCancel);
     };
-  }, [data.id, data.title, data.type, isLongPressActive, isLongPressPending, isRenaming, onContextMenu]);
+  }, [
+    data.id,
+    data.title,
+    data.type,
+    isLongPressActive,
+    isLongPressPending,
+    isRenaming,
+    onContextMenu,
+  ]);
 
   useEffect(
     () => () => {
@@ -294,7 +305,7 @@ export const NoteTreeItem = memo(function NoteTreeItem({
         window.clearTimeout(longPressTimeoutRef.current);
       }
     },
-    []
+    [],
   );
 
   const clearLongPress = useCallback(() => {
@@ -341,7 +352,7 @@ export const NoteTreeItem = memo(function NoteTreeItem({
         activateLongPress();
       }, MOBILE_LONG_PRESS_MS);
     },
-    [activateLongPress, isRenaming, listeners]
+    [activateLongPress, isRenaming, listeners],
   );
 
   const handlePointerMove = useCallback(
@@ -364,7 +375,7 @@ export const NoteTreeItem = memo(function NoteTreeItem({
         resetPressState();
       }
     },
-    [isLongPressActive, isLongPressPending, resetPressState]
+    [isLongPressActive, isLongPressPending, resetPressState],
   );
 
   const guideLines = Array.from({ length: data.depth }, (_, index) => {
@@ -460,10 +471,16 @@ export const NoteTreeItem = memo(function NoteTreeItem({
             />
           </span>
         ) : (
-          <span style={{ width: CHEVRON_GUTTER, flexShrink: 0 }} aria-hidden="true" />
+          <span
+            style={{ width: CHEVRON_GUTTER, flexShrink: 0 }}
+            aria-hidden="true"
+          />
         )}
 
-        <Icon size={iconSize} style={{ flexShrink: 0, opacity: 0.55, color: textColor }} />
+        <Icon
+          size={iconSize}
+          style={{ flexShrink: 0, opacity: 0.55, color: textColor }}
+        />
 
         <Box style={{ flex: 1, minWidth: 0 }}>
           {isRenaming ? (
@@ -485,14 +502,31 @@ export const NoteTreeItem = memo(function NoteTreeItem({
                 color: textColor,
               }}
             >
-              {data.title || (data.type === "category" ? t("writing.untitledCategory") : t("writing.untitledNote"))}
+              {data.title ||
+                (data.type === "category"
+                  ? t("writing.untitledCategory")
+                  : t("writing.untitledNote"))}
             </Text>
           )}
         </Box>
 
-        <Flex align="center" gap="1" style={{ flexShrink: 0 }}>
-          {data.isLocked && <Lock size={12} style={{ opacity: 0.4, color: textColor }} />}
-          {data.isHidden && <EyeOff size={12} style={{ opacity: 0.4, color: textColor }} />}
+        <Flex
+          align="center"
+          gap="1"
+          style={{ flexShrink: 0 }}
+        >
+          {data.isLocked && (
+            <Lock
+              size={12}
+              style={{ opacity: 0.4, color: textColor }}
+            />
+          )}
+          {data.isHidden && (
+            <EyeOff
+              size={12}
+              style={{ opacity: 0.4, color: textColor }}
+            />
+          )}
 
           {isHovered && (
             <button

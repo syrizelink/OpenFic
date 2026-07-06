@@ -1,14 +1,15 @@
-import { defineConfig } from "@farmfe/core";
-import type { Middleware } from 'koa';
 import { fileURLToPath } from "node:url";
 
+import { defineConfig } from "@farmfe/core";
+import type { Middleware } from "koa";
+
 function addCacheToFonts(): Middleware {
-    return async (ctx, next) => {
-        await next();
-        if (ctx.path && /\.(woff2?|ttf|otf|eot)$/i.test(ctx.path)) {
-            ctx.set('Cache-Control', 'public, max-age=3600');
-        }
-    };
+  return async (ctx, next) => {
+    await next();
+    if (ctx.path && /\.(woff2?|ttf|otf|eot)$/i.test(ctx.path)) {
+      ctx.set("Cache-Control", "public, max-age=3600");
+    }
+  };
 }
 
 const srcPath = fileURLToPath(new URL("./src", import.meta.url));
@@ -23,7 +24,7 @@ export default defineConfig({
       "import.meta.env.PROD": JSON.stringify(process.env.NODE_ENV === "production"),
     },
     input: {
-      index: "./index.html"
+      index: "./index.html",
     },
     output: {
       path: "./dist",
@@ -36,9 +37,7 @@ export default defineConfig({
       },
     },
   },
-  plugins: [
-    "@farmfe/plugin-react"
-  ],
+  plugins: ["@farmfe/plugin-react"],
   server: {
     host: "127.0.0.1",
     port: 9000,

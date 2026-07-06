@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Avatar, Box, Button, Dialog, Flex, Text, TextField } from "@radix-ui/themes";
 import { Upload } from "lucide-react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Cropper, { type Area } from "react-easy-crop";
 import { useTranslation } from "react-i18next";
 
@@ -49,7 +49,7 @@ async function getCroppedImage(imageSrc: string, croppedAreaPixels: CroppedArea)
     0,
     0,
     croppedAreaPixels.width,
-    croppedAreaPixels.height
+    croppedAreaPixels.height,
   );
 
   return new Promise((resolve, reject) => {
@@ -71,11 +71,19 @@ export function CharacterProfileDialog({
   onSubmit,
 }: CharacterProfileDialogProps) {
   if (!character) {
-    return <Dialog.Root open={open} onOpenChange={onOpenChange} />;
+    return (
+      <Dialog.Root
+        open={open}
+        onOpenChange={onOpenChange}
+      />
+    );
   }
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <CharacterProfileDialogContent
         key={character.id}
         character={character}
@@ -107,7 +115,7 @@ function CharacterProfileDialogContent({
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
 
-  const imageObjectUrl = useMemo(() => image ? URL.createObjectURL(image) : undefined, [image]);
+  const imageObjectUrl = useMemo(() => (image ? URL.createObjectURL(image) : undefined), [image]);
   const imagePreviewUrl = imageObjectUrl ?? character.imageUrl ?? undefined;
 
   useEffect(() => {
@@ -156,16 +164,30 @@ function CharacterProfileDialogContent({
       <Dialog.Title>{t("characters.editProfile")}</Dialog.Title>
 
       <form onSubmit={handleSubmit}>
-        <Flex direction="column" gap="4" mt="4">
-          <Flex align="center" gap="3">
+        <Flex
+          direction="column"
+          gap="4"
+          mt="4"
+        >
+          <Flex
+            align="center"
+            gap="3"
+          >
             <Avatar
               src={imagePreviewUrl}
               fallback={getAvatarFallback(name)}
               radius="full"
               size="5"
             />
-            <Flex direction="column" gap="2" align="start">
-              <Text size="2" weight="medium">
+            <Flex
+              direction="column"
+              gap="2"
+              align="start"
+            >
+              <Text
+                size="2"
+                weight="medium"
+              >
                 {t("characters.avatar")}
               </Text>
               <Button
@@ -187,8 +209,16 @@ function CharacterProfileDialogContent({
             </Flex>
           </Flex>
 
-          <Flex direction="column" gap="2">
-            <Text as="label" size="2" weight="medium" htmlFor={inputId}>
+          <Flex
+            direction="column"
+            gap="2"
+          >
+            <Text
+              as="label"
+              size="2"
+              weight="medium"
+              htmlFor={inputId}
+            >
               {t("characters.name")}
             </Text>
             <TextField.Root
@@ -200,27 +230,49 @@ function CharacterProfileDialogContent({
           </Flex>
         </Flex>
 
-        <Flex justify="end" gap="3" mt="5">
+        <Flex
+          justify="end"
+          gap="3"
+          mt="5"
+        >
           <Dialog.Close>
-            <Button type="button" variant="soft" color="gray">{t("common.cancel")}</Button>
+            <Button
+              type="button"
+              variant="soft"
+              color="gray"
+            >
+              {t("common.cancel")}
+            </Button>
           </Dialog.Close>
-          <Button type="submit" disabled={!name.trim() || isSaving}>
+          <Button
+            type="submit"
+            disabled={!name.trim() || isSaving}
+          >
             {isSaving ? <Spinner size={18} /> : null}
             {isSaving ? t("writing.saving") : t("common.save")}
           </Button>
         </Flex>
       </form>
 
-      <Dialog.Root open={!!imageSrc} onOpenChange={(nextOpen) => {
-        if (!nextOpen) handleCropCancel();
-      }}>
+      <Dialog.Root
+        open={!!imageSrc}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) handleCropCancel();
+        }}
+      >
         <Dialog.Content maxWidth="600px">
           <Dialog.Title>{t("characters.cropAvatar")}</Dialog.Title>
-          <Dialog.Description size="2" color="gray">
+          <Dialog.Description
+            size="2"
+            color="gray"
+          >
             {t("characters.cropAvatarDescription")}
           </Dialog.Description>
 
-          <Box className="characters-avatar-cropper" mt="4">
+          <Box
+            className="characters-avatar-cropper"
+            mt="4"
+          >
             {imageSrc && (
               <Cropper
                 image={imageSrc}
@@ -236,11 +288,23 @@ function CharacterProfileDialogContent({
             )}
           </Box>
 
-          <Flex gap="3" mt="4" justify="end">
-            <Button variant="soft" color="gray" type="button" onClick={handleCropCancel}>
+          <Flex
+            gap="3"
+            mt="4"
+            justify="end"
+          >
+            <Button
+              variant="soft"
+              color="gray"
+              type="button"
+              onClick={handleCropCancel}
+            >
               {t("common.cancel")}
             </Button>
-            <Button type="button" onClick={handleCropConfirm}>
+            <Button
+              type="button"
+              onClick={handleCropConfirm}
+            >
               {t("common.confirm")}
             </Button>
           </Flex>

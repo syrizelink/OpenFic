@@ -5,6 +5,7 @@
  */
 
 import { apiClient } from "@/lib/api-client";
+
 import type {
   AgentToolMetadata,
   Settings,
@@ -25,9 +26,7 @@ export function transformSettings(raw: SettingsResponse): Settings {
     language: raw.language as Settings["language"],
     theme: raw.theme as Settings["theme"],
     fontFamily: getSupportedFontFamily(raw.font_family),
-    codeFontFamily: getSupportedCodeFontFamily(
-      raw.code_font_family || DEFAULT_CODE_FONT_FAMILY
-    ),
+    codeFontFamily: getSupportedCodeFontFamily(raw.code_font_family || DEFAULT_CODE_FONT_FAMILY),
     defaultModel: raw.default_model || "",
     lightModel: raw.light_model || "",
     defaultEmbeddingModel: raw.default_embedding_model || "",
@@ -57,9 +56,7 @@ export async function fetchSettings(): Promise<Settings> {
 /**
  * 更新设置
  */
-export async function updateSettings(
-  data: SettingsUpdateRequest
-): Promise<Settings> {
+export async function updateSettings(data: SettingsUpdateRequest): Promise<Settings> {
   const response = await apiClient.put<SettingsResponse>("/settings", data);
   return transformSettings(response.data);
 }

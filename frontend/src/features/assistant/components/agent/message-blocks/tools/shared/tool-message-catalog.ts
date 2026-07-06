@@ -35,7 +35,7 @@ export const REGISTERED_TOOL_NAMES = [
   "list_plan",
 ] as const;
 
-export type RegisteredToolName = typeof REGISTERED_TOOL_NAMES[number];
+export type RegisteredToolName = (typeof REGISTERED_TOOL_NAMES)[number];
 export type ToolContentMode = "expandable" | "static" | "hidden";
 export type ToolGroup =
   | "orchestration"
@@ -308,9 +308,7 @@ export function getToolDescriptorMeta(toolName?: string): ToolDescriptorMeta | n
   const descriptor = TOOL_DESCRIPTOR_META[toolName as RegisteredToolName] ?? null;
   if (!descriptor) return null;
   const isExplore = isExploreToolName(toolName);
-  return descriptor.isExplore === isExplore
-    ? descriptor
-    : { ...descriptor, isExplore };
+  return descriptor.isExplore === isExplore ? descriptor : { ...descriptor, isExplore };
 }
 
 export function getExploreToolNames(): RegisteredToolName[] {

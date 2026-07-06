@@ -1,25 +1,13 @@
+import { Badge, Box, Button, Dialog, Flex, ScrollArea, Text } from "@radix-ui/themes";
+import { AlertCircle, Check, ChevronLeft, FileText, Upload } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
-import {
-  Badge,
-  Box,
-  Button,
-  Dialog,
-  Flex,
-  ScrollArea,
-  Text,
-} from "@radix-ui/themes";
-import { Spinner } from "@/components";
-import {
-  AlertCircle,
-  Check,
-  ChevronLeft,
-  FileText,
-  Upload,
-} from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { Spinner } from "@/components";
 import type { SkillCreate } from "@/lib/skill.types";
+
 import { parseSkillMarkdown } from "../lib/skill-import";
+
 import "./import-skill-dialog.css";
 
 interface ImportSkillDialogProps {
@@ -36,11 +24,7 @@ interface PreviewState {
   isRecognized: boolean;
 }
 
-export function ImportSkillDialog({
-  open,
-  onOpenChange,
-  onCreate,
-}: ImportSkillDialogProps) {
+export function ImportSkillDialog({ open, onOpenChange, onCreate }: ImportSkillDialogProps) {
   const { t } = useTranslation();
   const [step, setStep] = useState<Step>("select");
   const [loading, setLoading] = useState(false);
@@ -62,7 +46,7 @@ export function ImportSkillDialog({
       }
       onOpenChange(nextOpen);
     },
-    [onOpenChange, resetState]
+    [onOpenChange, resetState],
   );
 
   const handleFileSelect = useCallback(
@@ -92,7 +76,7 @@ export function ImportSkillDialog({
         setLoading(false);
       }
     },
-    [t]
+    [t],
   );
 
   const handleDrop = useCallback(
@@ -103,7 +87,7 @@ export function ImportSkillDialog({
         void handleFileSelect(droppedFile);
       }
     },
-    [handleFileSelect]
+    [handleFileSelect],
   );
 
   const handleConfirm = useCallback(() => {
@@ -135,19 +119,39 @@ export function ImportSkillDialog({
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
             >
-              <Upload size={48} className="import-skill-upload-icon" />
-              <Text as="p" size="3" weight="medium" mb="2">
+              <Upload
+                size={48}
+                className="import-skill-upload-icon"
+              />
+              <Text
+                as="p"
+                size="3"
+                weight="medium"
+                mb="2"
+              >
                 {t("settingsExtra.skills.importDialog.dropzoneTitle")}
               </Text>
-              <Text as="p" size="2" color="gray">
+              <Text
+                as="p"
+                size="2"
+                color="gray"
+              >
                 {t("settingsExtra.skills.importDialog.dropzoneDescription")}
               </Text>
             </Box>
 
             {loading && (
-              <Flex align="center" gap="2" mt="4" justify="center">
+              <Flex
+                align="center"
+                gap="2"
+                mt="4"
+                justify="center"
+              >
                 <Spinner size={18} />
-                <Text size="2" color="gray">
+                <Text
+                  size="2"
+                  color="gray"
+                >
                   {t("settingsExtra.skills.importDialog.parsing")}
                 </Text>
               </Flex>
@@ -160,21 +164,44 @@ export function ImportSkillDialog({
           <Box>
             {preview && (
               <ScrollArea className="import-skill-preview-scroll">
-                <Flex gap="3" mb="3" align="center">
-                  <FileText size={16} color="var(--gray-9)" />
-                  <Text size="2" weight="medium" truncate style={{ flex: 1 }}>
+                <Flex
+                  gap="3"
+                  mb="3"
+                  align="center"
+                >
+                  <FileText
+                    size={16}
+                    color="var(--gray-9)"
+                  />
+                  <Text
+                    size="2"
+                    weight="medium"
+                    truncate
+                    style={{ flex: 1 }}
+                  >
                     {preview.fileName}
                   </Text>
-                  <Badge size="1" color={preview.isRecognized ? "green" : "amber"}>
+                  <Badge
+                    size="1"
+                    color={preview.isRecognized ? "green" : "amber"}
+                  >
                     {preview.isRecognized
                       ? t("settingsExtra.skills.importDialog.recognized")
                       : t("settingsExtra.skills.importDialog.unrecognized")}
                   </Badge>
                 </Flex>
 
-                <Flex direction="column" gap="3">
+                <Flex
+                  direction="column"
+                  gap="3"
+                >
                   <Box>
-                    <Text size="1" color="gray" mb="1" className="import-skill-label">
+                    <Text
+                      size="1"
+                      color="gray"
+                      mb="1"
+                      className="import-skill-label"
+                    >
                       {t("settingsExtra.skills.name")}
                     </Text>
                     <Text size="2">
@@ -184,22 +211,33 @@ export function ImportSkillDialog({
 
                   {preview.payload.skillId && (
                     <Box>
-                      <Text size="1" color="gray" mb="1" className="import-skill-label">
+                      <Text
+                        size="1"
+                        color="gray"
+                        mb="1"
+                        className="import-skill-label"
+                      >
                         {t("settingsExtra.skills.id")}
                       </Text>
-                      <Text size="2">
-                        {preview.payload.skillId}
-                      </Text>
+                      <Text size="2">{preview.payload.skillId}</Text>
                     </Box>
                   )}
 
                   {preview.payload.summary && (
                     <Box>
-                      <Text size="1" color="gray" mb="1" className="import-skill-label">
+                      <Text
+                        size="1"
+                        color="gray"
+                        mb="1"
+                        className="import-skill-label"
+                      >
                         {t("settingsExtra.skills.summary")}
                       </Text>
                       <ScrollArea className="import-skill-summary-preview">
-                        <Text size="2" style={{ whiteSpace: "pre-wrap" }}>
+                        <Text
+                          size="2"
+                          style={{ whiteSpace: "pre-wrap" }}
+                        >
                           {preview.payload.summary}
                         </Text>
                       </ScrollArea>
@@ -208,12 +246,20 @@ export function ImportSkillDialog({
 
                   {preview.payload.content && (
                     <Box>
-                      <Text size="1" color="gray" mb="1" className="import-skill-label">
+                      <Text
+                        size="1"
+                        color="gray"
+                        mb="1"
+                        className="import-skill-label"
+                      >
                         {t("settingsExtra.skills.importDialog.contentPreview")}
                       </Text>
                       <ScrollArea className="import-skill-content-preview">
                         <Box p="2">
-                          <Text size="2" style={{ whiteSpace: "pre-wrap" }}>
+                          <Text
+                            size="2"
+                            style={{ whiteSpace: "pre-wrap" }}
+                          >
                             {preview.payload.content.length > 2000
                               ? preview.payload.content.slice(0, 2000) + "..."
                               : preview.payload.content}
@@ -225,9 +271,19 @@ export function ImportSkillDialog({
                 </Flex>
 
                 {!preview.isRecognized && (
-                  <Flex align="center" gap="2" mt="3">
-                    <AlertCircle size={14} color="var(--amber-9)" />
-                    <Text size="1" color="amber">
+                  <Flex
+                    align="center"
+                    gap="2"
+                    mt="3"
+                  >
+                    <AlertCircle
+                      size={14}
+                      color="var(--amber-9)"
+                    />
+                    <Text
+                      size="1"
+                      color="amber"
+                    >
                       {t("settingsExtra.skills.importDialog.unrecognizedHint")}
                     </Text>
                   </Flex>
@@ -241,12 +297,24 @@ export function ImportSkillDialog({
         return (
           <Box className="import-skill-complete">
             <Box className="import-skill-complete-icon">
-              <Check size={32} color="var(--green-9)" />
+              <Check
+                size={32}
+                color="var(--green-9)"
+              />
             </Box>
-            <Text as="p" size="5" weight="bold" mb="2">
+            <Text
+              as="p"
+              size="5"
+              weight="bold"
+              mb="2"
+            >
               {t("settingsExtra.skills.importDialog.successTitle")}
             </Text>
-            <Text as="p" size="2" color="gray">
+            <Text
+              as="p"
+              size="2"
+              color="gray"
+            >
               {t("settingsExtra.skills.importDialog.successDescription", {
                 name: preview?.payload.name,
               })}
@@ -260,18 +328,32 @@ export function ImportSkillDialog({
     switch (step) {
       case "select":
         return (
-          <Button variant="soft" color="gray" onClick={() => handleOpenChange(false)}>
+          <Button
+            variant="soft"
+            color="gray"
+            onClick={() => handleOpenChange(false)}
+          >
             {t("common.close")}
           </Button>
         );
       case "preview":
         return (
-          <Flex gap="3" justify="between" className="import-skill-preview-footer">
-            <Button variant="soft" color="gray" onClick={() => setStep("select")}>
+          <Flex
+            gap="3"
+            justify="between"
+            className="import-skill-preview-footer"
+          >
+            <Button
+              variant="soft"
+              color="gray"
+              onClick={() => setStep("select")}
+            >
               <ChevronLeft size={16} />
               {t("common.back")}
             </Button>
-            <Button onClick={handleConfirm}>{t("settingsExtra.skills.importDialog.confirmImport")}</Button>
+            <Button onClick={handleConfirm}>
+              {t("settingsExtra.skills.importDialog.confirmImport")}
+            </Button>
           </Flex>
         );
       case "complete":
@@ -291,25 +373,46 @@ export function ImportSkillDialog({
   };
 
   return (
-    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={handleOpenChange}
+    >
       <Dialog.Content maxWidth="680px">
         <Dialog.Title>{t("settingsExtra.skills.importSkill")}</Dialog.Title>
-        <Dialog.Description size="2" color="gray" mb="4">
+        <Dialog.Description
+          size="2"
+          color="gray"
+          mb="4"
+        >
           {getStepTitle()}
         </Dialog.Description>
 
         {renderStepContent()}
 
         {error && (
-          <Flex align="center" gap="2" mt="3">
-            <AlertCircle size={14} color="var(--red-9)" />
-            <Text size="2" color="red">
+          <Flex
+            align="center"
+            gap="2"
+            mt="3"
+          >
+            <AlertCircle
+              size={14}
+              color="var(--red-9)"
+            />
+            <Text
+              size="2"
+              color="red"
+            >
               {error}
             </Text>
           </Flex>
         )}
 
-        <Flex gap="3" mt="5" justify="end">
+        <Flex
+          gap="3"
+          mt="5"
+          justify="end"
+        >
           {renderFooter()}
         </Flex>
       </Dialog.Content>

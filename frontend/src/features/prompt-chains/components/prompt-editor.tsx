@@ -4,24 +4,27 @@
  * 提示词编辑器（基于Tiptap）
  */
 
-import { useEffect, useRef, useCallback, useState } from "react";
 import { Flex, TextField, Separator, Text } from "@radix-ui/themes";
-import { useTranslation } from "react-i18next";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
-import { Terminal, Bot, User } from "lucide-react";
-import "./prompt-editor.css";
-import { LabeledSelect } from "@/components/select";
-import { countTokens } from "@/lib/tiktoken-utils";
-import { ContextMenu } from "@/components";
-import { MacroNode } from "../extensions/macro-node";
-import { MacroInputRule } from "../extensions/macro-input-rule";
-import { MacroAutocomplete } from "../extensions/macro-autocomplete";
-import type { PromptEntryData } from "@/lib/prompt-chain.types";
-import type { MacroNode as MacroNodeType } from "@/lib/macro";
+import { useEditor, EditorContent } from "@tiptap/react";
 import type { Editor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import { Terminal, Bot, User } from "lucide-react";
+import { useEffect, useRef, useCallback, useState } from "react";
+
+import "./prompt-editor.css";
+import { useTranslation } from "react-i18next";
+
+import { ContextMenu } from "@/components";
+import { LabeledSelect } from "@/components/select";
 import { htmlToNewlines, newlinesToHtml } from "@/lib/html-utils";
+import type { MacroNode as MacroNodeType } from "@/lib/macro";
+import type { PromptEntryData } from "@/lib/prompt-chain.types";
+import { countTokens } from "@/lib/tiktoken-utils";
+
+import { MacroAutocomplete } from "../extensions/macro-autocomplete";
+import { MacroInputRule } from "../extensions/macro-input-rule";
+import { MacroNode } from "../extensions/macro-node";
 
 interface PromptEditorProps {
   entry: PromptEntryData;
@@ -32,7 +35,14 @@ interface PromptEditorProps {
   isMobile?: boolean;
 }
 
-export function PromptEditor({ entry, onUpdate, onUpdateWithId, onMacroSelect, editorRef, isMobile = false }: PromptEditorProps) {
+export function PromptEditor({
+  entry,
+  onUpdate,
+  onUpdateWithId,
+  onMacroSelect,
+  editorRef,
+  isMobile = false,
+}: PromptEditorProps) {
   const { t } = useTranslation();
   // 防抖定时器引用
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -41,9 +51,7 @@ export function PromptEditor({ entry, onUpdate, onUpdateWithId, onMacroSelect, e
   // 是否正在从外部设置内容（避免循环更新）
   const isSettingContentRef = useRef(false);
   // 上次保存的内容（用于判断是否有未保存的更改，存储 HTML 格式用于与编辑器内容比较）
-  const lastSavedContentRef = useRef<string>(
-    entry.content ? newlinesToHtml(entry.content) : ""
-  );
+  const lastSavedContentRef = useRef<string>(entry.content ? newlinesToHtml(entry.content) : "");
   // 编辑器内容容器引用（用于右键菜单）
   const editorContentRef = useRef<HTMLDivElement>(null);
   // 当前token数
@@ -77,7 +85,7 @@ export function PromptEditor({ entry, onUpdate, onUpdateWithId, onMacroSelect, e
         }
       }, 2000);
     },
-    [onUpdate]
+    [onUpdate],
   );
 
   // 立即更新（用于非内容字段，如角色、名称）
@@ -85,7 +93,7 @@ export function PromptEditor({ entry, onUpdate, onUpdateWithId, onMacroSelect, e
     (updates: Partial<PromptEntryData>) => {
       onUpdate(updates);
     },
-    [onUpdate]
+    [onUpdate],
   );
 
   // 创建编辑器实例
@@ -129,52 +137,49 @@ export function PromptEditor({ entry, onUpdate, onUpdateWithId, onMacroSelect, e
       const html = editor.getHTML();
       // 转换为换行符格式保存到数据库
       const content = htmlToNewlines(html);
-      
+
       // 使用 getText() 获取纯文本并计算 token 数（使用tiktoken）
       const text = editor.getText();
       const calculatedTokenCount = countTokens(text);
       // 实时更新token数显示
       setTokenCount(calculatedTokenCount);
       onUpdate({ token_count: calculatedTokenCount });
-      
+
       // 检查是否有未保存的更改（比较 HTML 格式，因为编辑器内部使用 HTML）
       const hasChanges = html !== lastSavedContentRef.current;
       setHasUnsavedChanges(hasChanges || debounceTimerRef.current !== null);
-      
+
       // 使用防抖更新（保存换行符格式到数据库）
-      debouncedUpdate({
-        content: content,
-        token_count: calculatedTokenCount,
-      }, html);
+      debouncedUpdate(
+        {
+          content: content,
+          token_count: calculatedTokenCount,
+        },
+        html,
+      );
     },
     onSelectionUpdate: ({ editor }) => {
       // 检测是否选中了宏节点
       const { selection } = editor.state;
-      
+
       // 检查当前选中位置的节点
       let selectedMacroNode: MacroNodeType | null = null;
-      
-      editor.state.doc.nodesBetween(
-        selection.from,
-        selection.to,
-        (node, pos) => {
-          if (node.type.name === "macroNode") {
-            const macroData = node.attrs.macroData 
-              ? JSON.parse(node.attrs.macroData) 
-              : { args: [] };
-            
-            selectedMacroNode = {
-              name: node.attrs.macroName,
-              args: macroData.args || [],
-              raw: node.attrs.macroRaw,
-              start: pos,
-              end: pos + node.nodeSize,
-            };
-            return false; // 停止遍历
-          }
+
+      editor.state.doc.nodesBetween(selection.from, selection.to, (node, pos) => {
+        if (node.type.name === "macroNode") {
+          const macroData = node.attrs.macroData ? JSON.parse(node.attrs.macroData) : { args: [] };
+
+          selectedMacroNode = {
+            name: node.attrs.macroName,
+            args: macroData.args || [],
+            raw: node.attrs.macroRaw,
+            start: pos,
+            end: pos + node.nodeSize,
+          };
+          return false; // 停止遍历
         }
-      );
-      
+      });
+
       onMacroSelect?.(selectedMacroNode);
     },
   });
@@ -208,39 +213,42 @@ export function PromptEditor({ entry, onUpdate, onUpdateWithId, onMacroSelect, e
   }, [editor, onUpdate]);
 
   // 带条目ID的保存函数（用于切换条目时保存旧条目）
-  const saveNowWithId = useCallback((targetEntryId: string) => {
-    if (!editor || isSettingContentRef.current) return;
+  const saveNowWithId = useCallback(
+    (targetEntryId: string) => {
+      if (!editor || isSettingContentRef.current) return;
 
-    // 清除防抖定时器
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
+      // 清除防抖定时器
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
 
-    // 获取当前编辑器内容
-    const html = editor.getHTML();
-    const content = htmlToNewlines(html);
-    const text = editor.getText();
-    const calculatedTokenCount = countTokens(text);
+      // 获取当前编辑器内容
+      const html = editor.getHTML();
+      const content = htmlToNewlines(html);
+      const text = editor.getText();
+      const calculatedTokenCount = countTokens(text);
 
-    // 使用 onUpdateWithId 保存指定条目的内容
-    if (onUpdateWithId) {
-      onUpdateWithId(targetEntryId, {
-        content: content,
-        token_count: calculatedTokenCount,
-      });
-    } else {
-      onUpdate({
-        content: content,
-        token_count: calculatedTokenCount,
-      });
-    }
+      // 使用 onUpdateWithId 保存指定条目的内容
+      if (onUpdateWithId) {
+        onUpdateWithId(targetEntryId, {
+          content: content,
+          token_count: calculatedTokenCount,
+        });
+      } else {
+        onUpdate({
+          content: content,
+          token_count: calculatedTokenCount,
+        });
+      }
 
-    // 更新保存状态
-    lastSavedContentRef.current = html;
-    setHasUnsavedChanges(false);
-    setTokenCount(calculatedTokenCount);
-  }, [editor, onUpdate, onUpdateWithId]);
+      // 更新保存状态
+      lastSavedContentRef.current = html;
+      setHasUnsavedChanges(false);
+      setTokenCount(calculatedTokenCount);
+    },
+    [editor, onUpdate, onUpdateWithId],
+  );
 
   // 设置 editorRef
   useEffect(() => {
@@ -262,8 +270,9 @@ export function PromptEditor({ entry, onUpdate, onUpdateWithId, onMacroSelect, e
       // 获取当前编辑器内容（HTML 格式）
       const currentEditorContent = editor.getHTML();
       // 直接检查当前内容是否与已保存的内容不同
-      const hasChanges = currentEditorContent !== lastSavedContentRef.current || debounceTimerRef.current !== null;
-      
+      const hasChanges =
+        currentEditorContent !== lastSavedContentRef.current || debounceTimerRef.current !== null;
+
       if (hasChanges) {
         // 调用保存函数（setState 在 useCallback 内部，不会触发警告）
         saveNowWithId(previousEntryId);
@@ -343,7 +352,11 @@ export function PromptEditor({ entry, onUpdate, onUpdateWithId, onMacroSelect, e
       {/* 表单区域 - 固定高度，不滚动 */}
       <div className="prompt-editor-form">
         {/* 第一行：角色选择 + 条目名称 */}
-        <Flex align="center" gap="4" mb="4">
+        <Flex
+          align="center"
+          gap="4"
+          mb="4"
+        >
           {/* 角色选择 */}
           <LabeledSelect
             value={entry.role}
@@ -354,14 +367,18 @@ export function PromptEditor({ entry, onUpdate, onUpdateWithId, onMacroSelect, e
             size="2"
             layout="horizontal"
             gap="2"
-            triggerStyle={isMobile ? { } : { minWidth: "150px" }}
+            triggerStyle={isMobile ? {} : { minWidth: "150px" }}
             triggerLabelVisible={!isMobile}
           />
 
-        <Separator orientation="vertical" />
+          <Separator orientation="vertical" />
 
           {/* 条目名称 */}
-          <Flex align="center" gap="2" className="prompt-editor-entry-name-row">
+          <Flex
+            align="center"
+            gap="2"
+            className="prompt-editor-entry-name-row"
+          >
             <TextField.Root
               value={entry.name}
               onChange={(e) => {
@@ -379,20 +396,32 @@ export function PromptEditor({ entry, onUpdate, onUpdateWithId, onMacroSelect, e
         {/* 编辑器块（带边框）- 可滚动区域，占据剩余空间 */}
         <div className="prompt-editor-frame">
           {/* 编辑器内容区 - 可滚动 */}
-          <div ref={editorContentRef} className="prompt-editor-scroll-area">
+          <div
+            ref={editorContentRef}
+            className="prompt-editor-scroll-area"
+          >
             <EditorContent editor={editor} />
           </div>
         </div>
 
         {/* 右键菜单 */}
-        <ContextMenu editor={editor} containerRef={editorContentRef} />
+        <ContextMenu
+          editor={editor}
+          containerRef={editorContentRef}
+        />
       </div>
 
       {/* 底部状态栏 - 固定 */}
       <div className="prompt-editor-statusbar">
-        <Flex justify="between" align="center">
+        <Flex
+          justify="between"
+          align="center"
+        >
           {/* 左侧：Token数 */}
-          <Text size="2" color="gray">
+          <Text
+            size="2"
+            color="gray"
+          >
             {t("promptChains.tokenCount")}: {tokenCount}
           </Text>
 
@@ -402,9 +431,7 @@ export function PromptEditor({ entry, onUpdate, onUpdateWithId, onMacroSelect, e
             color={hasUnsavedChanges ? "amber" : "green"}
             weight={hasUnsavedChanges ? "medium" : "regular"}
           >
-            {hasUnsavedChanges
-              ? t("promptChains.unsavedChanges")
-              : t("promptChains.saved")}
+            {hasUnsavedChanges ? t("promptChains.unsavedChanges") : t("promptChains.saved")}
           </Text>
         </Flex>
       </div>

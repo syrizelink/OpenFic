@@ -1,6 +1,12 @@
-import type { DashboardBreakdownItem, DashboardModelTimeSeriesPoint, DashboardStatsResponse, WritingActivityTimeSeriesPoint } from "./dashboard.types";
-import type { DashboardEchartsThemeMode } from "./dashboard-echarts-theme";
 import i18n from "@/i18n";
+
+import type { DashboardEchartsThemeMode } from "./dashboard-echarts-theme";
+import type {
+  DashboardBreakdownItem,
+  DashboardModelTimeSeriesPoint,
+  DashboardStatsResponse,
+  WritingActivityTimeSeriesPoint,
+} from "./dashboard.types";
 
 export type DashboardChartOption = Record<string, unknown>;
 
@@ -28,7 +34,10 @@ const softLineAreaStyle = {
   },
 };
 
-export function withDashboardChartTheme(option: DashboardChartOption, mode: DashboardEchartsThemeMode): DashboardChartOption {
+export function withDashboardChartTheme(
+  option: DashboardChartOption,
+  mode: DashboardEchartsThemeMode,
+): DashboardChartOption {
   if (mode === "light") return option;
   return {
     ...option,
@@ -67,20 +76,29 @@ function getTopModels(data: DashboardStatsResponse | undefined): DashboardBreakd
   return (data?.byModel ?? []).slice(0, 5);
 }
 
-function getModelPointMap(points: DashboardModelTimeSeriesPoint[]): Map<string, DashboardModelTimeSeriesPoint> {
+function getModelPointMap(
+  points: DashboardModelTimeSeriesPoint[],
+): Map<string, DashboardModelTimeSeriesPoint> {
   return new Map(points.map((point) => [`${point.date}:${point.key}`, point]));
 }
 
 function buildAxisTooltipWithTotal(formatter?: (value: number) => string) {
   return (params: unknown) => {
     if (!Array.isArray(params)) return "";
-    const title = String((params[0] as { axisValueLabel?: string; axisValue?: string })?.axisValueLabel ?? (params[0] as { axisValue?: string })?.axisValue ?? "");
+    const title = String(
+      (params[0] as { axisValueLabel?: string; axisValue?: string })?.axisValueLabel ??
+        (params[0] as { axisValue?: string })?.axisValue ??
+        "",
+    );
     const rows = params as Array<{ marker?: string; seriesName?: string; value?: number }>;
     const total = rows.reduce((sum, item) => sum + Number(item.value ?? 0), 0);
     const format = formatter ?? ((value: number) => String(Math.round(value)));
     return [
       title,
-      ...rows.map((item) => `${item.marker ?? ""} ${item.seriesName ?? ""}: ${format(Number(item.value ?? 0))}`),
+      ...rows.map(
+        (item) =>
+          `${item.marker ?? ""} ${item.seriesName ?? ""}: ${format(Number(item.value ?? 0))}`,
+      ),
       `${i18n.t("dashboard.charts.tooltipTotal")}: ${format(total)}`,
     ].join("<br />");
   };
@@ -88,7 +106,7 @@ function buildAxisTooltipWithTotal(formatter?: (value: number) => string) {
 
 export function buildModelTrendOption(
   data: DashboardStatsResponse | undefined,
-  key: "calls" | "avgLatencyMs"
+  key: "calls" | "avgLatencyMs",
 ): DashboardChartOption {
   const dates = getRecentDates(data);
   const models = getTopModels(data);
@@ -98,7 +116,9 @@ export function buildModelTrendOption(
   return {
     tooltip: {
       trigger: "axis",
-      formatter: buildAxisTooltipWithTotal(isLatency ? (value) => `${(value / 1000).toFixed(2)} s` : undefined),
+      formatter: buildAxisTooltipWithTotal(
+        isLatency ? (value) => `${(value / 1000).toFixed(2)} s` : undefined,
+      ),
     },
     legend: { top: 0, right: 0, type: "scroll" },
     grid: { top: 46, left: 48, right: 24, bottom: 34 },
@@ -114,7 +134,9 @@ export function buildModelTrendOption(
   };
 }
 
-export function buildModelTokenTrendOption(data: DashboardStatsResponse | undefined): DashboardChartOption {
+export function buildModelTokenTrendOption(
+  data: DashboardStatsResponse | undefined,
+): DashboardChartOption {
   const dates = getRecentDates(data);
   const models = getTopModels(data);
   const points = (data?.modelTimeSeries ?? []).filter((point) => dates.includes(point.date));
@@ -138,7 +160,7 @@ export function buildModelTokenTrendOption(data: DashboardStatsResponse | undefi
 export function buildRoundedDonutOption(
   items: DashboardBreakdownItem[],
   valueKey: "calls" | "tokensTotal",
-  name: string
+  name: string,
 ): DashboardChartOption {
   return {
     tooltip: { trigger: "item", formatter: "{b}: {c} ({d}%)" },
@@ -152,14 +174,18 @@ export function buildRoundedDonutOption(
         avoidLabelOverlap: true,
         padAngle: 2,
         itemStyle: roundedDonutStyle,
-        data: items.map((item) => ({ name: item.label, value: item[valueKey] })).filter((item) => item.value > 0),
+        data: items
+          .map((item) => ({ name: item.label, value: item[valueKey] }))
+          .filter((item) => item.value > 0),
         label: { formatter: "{b}\n{d}%" },
       },
     ],
   };
 }
 
-export function buildWritingTrendOption(points: WritingActivityTimeSeriesPoint[]): DashboardChartOption {
+export function buildWritingTrendOption(
+  points: WritingActivityTimeSeriesPoint[],
+): DashboardChartOption {
   return {
     tooltip: { trigger: "axis" },
     legend: { top: 0, right: 0 },
@@ -167,13 +193,29 @@ export function buildWritingTrendOption(points: WritingActivityTimeSeriesPoint[]
     xAxis: { type: "category", data: points.map((item) => item.date), axisTick: { show: false } },
     yAxis: { type: "value" },
     series: [
-      { name: i18n.t("dashboard.charts.writingSeriesCreated"), type: "bar", stack: "words", barMaxWidth: 28, itemStyle: brightBarStyle, data: points.map((item) => item.userWordDelta + item.agentWordDelta) },
-      { name: i18n.t("dashboard.charts.writingSeriesImported"), type: "bar", stack: "words", barMaxWidth: 28, itemStyle: brightBarStyle, data: points.map((item) => item.importWordDelta) },
+      {
+        name: i18n.t("dashboard.charts.writingSeriesCreated"),
+        type: "bar",
+        stack: "words",
+        barMaxWidth: 28,
+        itemStyle: brightBarStyle,
+        data: points.map((item) => item.userWordDelta + item.agentWordDelta),
+      },
+      {
+        name: i18n.t("dashboard.charts.writingSeriesImported"),
+        type: "bar",
+        stack: "words",
+        barMaxWidth: 28,
+        itemStyle: brightBarStyle,
+        data: points.map((item) => item.importWordDelta),
+      },
     ],
   };
 }
 
-export function buildWritingCumulativeOption(points: WritingActivityTimeSeriesPoint[]): DashboardChartOption {
+export function buildWritingCumulativeOption(
+  points: WritingActivityTimeSeriesPoint[],
+): DashboardChartOption {
   let total = 0;
   const cumulative = points.map((item) => {
     total += Math.max(0, item.userWordDelta + item.agentWordDelta);
@@ -197,7 +239,9 @@ export function buildWritingCumulativeOption(points: WritingActivityTimeSeriesPo
   };
 }
 
-export function buildWritingSourceOption(points: WritingActivityTimeSeriesPoint[]): DashboardChartOption {
+export function buildWritingSourceOption(
+  points: WritingActivityTimeSeriesPoint[],
+): DashboardChartOption {
   const userTotal = points.reduce((total, item) => total + Math.max(0, item.userWordDelta), 0);
   const agentTotal = points.reduce((total, item) => total + Math.max(0, item.agentWordDelta), 0);
   const importTotal = points.reduce((total, item) => total + Math.max(0, item.importWordDelta), 0);
@@ -221,7 +265,9 @@ export function buildWritingSourceOption(points: WritingActivityTimeSeriesPoint[
   };
 }
 
-export function buildWritingWeekdayOption(points: WritingActivityTimeSeriesPoint[]): DashboardChartOption {
+export function buildWritingWeekdayOption(
+  points: WritingActivityTimeSeriesPoint[],
+): DashboardChartOption {
   const labels = [
     i18n.t("dashboard.charts.weekdayMon"),
     i18n.t("dashboard.charts.weekdayTue"),
@@ -244,6 +290,14 @@ export function buildWritingWeekdayOption(points: WritingActivityTimeSeriesPoint
     grid: { top: 28, left: 46, right: 24, bottom: 34 },
     xAxis: { type: "category", data: labels, axisTick: { show: false } },
     yAxis: { type: "value" },
-    series: [{ name: i18n.t("dashboard.charts.activeDaysSeries"), type: "bar", barMaxWidth: 24, itemStyle: brightBarStyle, data: activeDayCounts }],
+    series: [
+      {
+        name: i18n.t("dashboard.charts.activeDaysSeries"),
+        type: "bar",
+        barMaxWidth: 24,
+        itemStyle: brightBarStyle,
+        data: activeDayCounts,
+      },
+    ],
   };
 }

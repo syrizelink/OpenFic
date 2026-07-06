@@ -1,14 +1,8 @@
-import { useState, useMemo } from "react";
-import {
-  Box,
-  Text,
-  TextField,
-  DropdownMenu,
-  IconButton,
-} from "@radix-ui/themes";
-import { Search, X } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { Box, Text, TextField, DropdownMenu, IconButton } from "@radix-ui/themes";
 import Fuse from "fuse.js";
+import { Search, X } from "lucide-react";
+import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Virtuoso } from "react-virtuoso";
 
 import type { ChapterListItem, VolumeWithChapters } from "@/lib/chapter.types";
@@ -38,13 +32,7 @@ interface SearchResult {
   titleMatches: Array<[number, number]>;
 }
 
-function HighlightedText({
-  text,
-  matches,
-}: {
-  text: string;
-  matches: Array<[number, number]>;
-}) {
+function HighlightedText({ text, matches }: { text: string; matches: Array<[number, number]> }) {
   if (matches.length === 0) return <>{text}</>;
 
   const parts: React.ReactNode[] = [];
@@ -68,9 +56,7 @@ function HighlightedText({
 
   for (const [start, end] of mergedMatches) {
     if (start > lastIndex) {
-      parts.push(
-        <span key={`text-${lastIndex}`}>{text.slice(lastIndex, start)}</span>
-      );
+      parts.push(<span key={`text-${lastIndex}`}>{text.slice(lastIndex, start)}</span>);
     }
 
     parts.push(
@@ -84,7 +70,7 @@ function HighlightedText({
         }}
       >
         {text.slice(start, end + 1)}
-      </mark>
+      </mark>,
     );
     lastIndex = end + 1;
   }
@@ -117,7 +103,7 @@ export function ChapterSearch({
         volumeTitlePinyin: getPinyin(volume.title),
         volumeTitleInitials: getInitials(volume.title),
         wordCount: chapter.wordCount,
-      }))
+      })),
     );
   }, [volumes]);
 
@@ -180,9 +166,16 @@ export function ChapterSearch({
   };
 
   return (
-    <DropdownMenu.Root open={isDisabled ? false : open} onOpenChange={setOpen}>
+    <DropdownMenu.Root
+      open={isDisabled ? false : open}
+      onOpenChange={setOpen}
+    >
       <DropdownMenu.Trigger>
-        <IconButton variant="ghost" size="2" onClick={handleTriggerClick}>
+        <IconButton
+          variant="ghost"
+          size="2"
+          onClick={handleTriggerClick}
+        >
           <Search size={16} />
         </IconButton>
       </DropdownMenu.Trigger>
@@ -204,7 +197,11 @@ export function ChapterSearch({
             </TextField.Slot>
             {query && (
               <TextField.Slot>
-                <IconButton variant="ghost" size="1" onClick={() => setQuery("")}>
+                <IconButton
+                  variant="ghost"
+                  size="1"
+                  onClick={() => setQuery("")}
+                >
                   <X size={12} />
                 </IconButton>
               </TextField.Slot>
@@ -219,7 +216,11 @@ export function ChapterSearch({
             <>
               {searchResults.length === 0 ? (
                 <Box p="4">
-                  <Text size="2" color="gray" align="center">
+                  <Text
+                    size="2"
+                    color="gray"
+                    align="center"
+                  >
                     {t("writing.noChaptersFound")}
                   </Text>
                 </Box>
@@ -234,9 +235,7 @@ export function ChapterSearch({
                         padding: "12px 16px",
                         cursor: "pointer",
                         borderBottom:
-                          index < searchResults.length - 1
-                            ? "1px solid var(--gray-a4)"
-                            : "none",
+                          index < searchResults.length - 1 ? "1px solid var(--gray-a4)" : "none",
                         background: "transparent",
                         transition: "background 0.1s ease",
                       }}
@@ -263,7 +262,10 @@ export function ChapterSearch({
                           matches={result.titleMatches}
                         />
                       </Text>
-                      <Text size="1" color="gray">
+                      <Text
+                        size="1"
+                        color="gray"
+                      >
                         {result.originalChapter.wordCount} {t("writing.words")}
                       </Text>
                     </Box>

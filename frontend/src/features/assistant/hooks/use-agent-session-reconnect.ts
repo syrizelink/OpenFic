@@ -1,5 +1,6 @@
-import type { AgentMessage, AgentSessionStatus } from "../../../lib/agent.types";
 import i18n from "@/i18n";
+
+import type { AgentMessage, AgentSessionStatus } from "../../../lib/agent.types";
 
 export const AGENT_STAGE_TEXT = {
   primary: i18n.t("assistant.agentStatus.primary"),
@@ -29,7 +30,8 @@ export function hasRunningAsyncSubagent(messages: AgentMessage[]): boolean {
 export function getBestEffortContinueStage(messages: AgentMessage[]): string {
   const lastMessage = messages[messages.length - 1];
   if (!lastMessage) return AGENT_STAGE_TEXT.primary;
-  if (lastMessage.type === "tool_approval" || lastMessage.type === "approval") return i18n.t("assistant.applyingChanges");
+  if (lastMessage.type === "tool_approval" || lastMessage.type === "approval")
+    return i18n.t("assistant.applyingChanges");
   if (lastMessage.type === "tool") {
     return AGENT_STAGE_TEXT.writer;
   }
@@ -62,7 +64,8 @@ export function getLoadedAgentSessionState({
     };
   }
 
-  if (lastMessage.type === "completed") return { status: "completed", isRunning: false, currentStage: "" };
+  if (lastMessage.type === "completed")
+    return { status: "completed", isRunning: false, currentStage: "" };
   if (lastMessage.type === "error" || (lastMessage.type as string) === "cancelled") {
     return { status: "error", isRunning: false, currentStage: "" };
   }
@@ -76,5 +79,7 @@ export function getLoadedAgentSessionState({
 }
 
 export function shouldJoinLoadedAgentSession(state: LoadedAgentSessionState): boolean {
-  return state.isRunning || state.status === "waiting_answer" || state.status === "waiting_approval";
+  return (
+    state.isRunning || state.status === "waiting_answer" || state.status === "waiting_approval"
+  );
 }

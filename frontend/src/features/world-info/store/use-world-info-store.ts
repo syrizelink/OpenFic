@@ -49,11 +49,7 @@ interface WorldInfoStoreActions {
   /** 退出拖拽模式 */
   exitDragMode: () => void;
   /** 重新排序条目 */
-  reorderEntries: (
-    fromIndex: number,
-    toIndex: number,
-    entryIds: string[]
-  ) => void;
+  reorderEntries: (fromIndex: number, toIndex: number, entryIds: string[]) => void;
   /** 获取拖拽后需要更新的条目 */
   getDragChanges: () => Array<{ id: string; newOrder: number }>;
 
@@ -79,13 +75,11 @@ const initialState: WorldInfoStoreState = {
 export const useWorldInfoStore = create<WorldInfoStore>((set, get) => ({
   ...initialState,
 
-  setCurrentWorldInfo: (worldInfoId) =>
-    set({ currentWorldInfoId: worldInfoId }),
+  setCurrentWorldInfo: (worldInfoId) => set({ currentWorldInfoId: worldInfoId }),
   setCurrentEntry: (entryId) => set({ currentEntryId: entryId }),
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
-  setFromWriting: (fromWriting, projectId) =>
-    set({ fromWriting, fromProjectId: projectId }),
+  setFromWriting: (fromWriting, projectId) => set({ fromWriting, fromProjectId: projectId }),
 
   enterDragMode: (entries) => {
     const orderMap: Record<string, number> = {};
@@ -122,9 +116,7 @@ export const useWorldInfoStore = create<WorldInfoStore>((set, get) => ({
     });
 
     // 检查是否有未保存的修改
-    const hasChanges = Object.keys(newMap).some(
-      (key) => newMap[key] !== originalOrder[key]
-    );
+    const hasChanges = Object.keys(newMap).some((key) => newMap[key] !== originalOrder[key]);
 
     set({
       dragOrderMap: newMap,

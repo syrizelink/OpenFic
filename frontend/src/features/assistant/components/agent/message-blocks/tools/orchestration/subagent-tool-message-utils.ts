@@ -1,6 +1,6 @@
 import type { AgentMessage } from "@/lib/agent.types";
-import { formatSubagentDisplayLabel } from "../../../../../lib/subagent-display";
 
+import { formatSubagentDisplayLabel } from "../../../../../lib/subagent-display";
 import {
   asString,
   getStreamingData,
@@ -22,7 +22,7 @@ export function getSubagentRecords(message: AgentMessage): Record<string, unknow
     ["data", "result", "request", "metadata"].flatMap((key) => {
       const value = record[key];
       return isRecord(value) ? [value] : [];
-    })
+    }),
   );
 
   return [...records, ...nestedRecords];
@@ -30,7 +30,7 @@ export function getSubagentRecords(message: AgentMessage): Record<string, unknow
 
 export function pickSubagentString(
   records: Record<string, unknown>[],
-  keys: string[]
+  keys: string[],
 ): string | undefined {
   for (const record of records) {
     for (const key of keys) {
@@ -43,7 +43,7 @@ export function pickSubagentString(
 
 export function pickSubagentBoolean(
   records: Record<string, unknown>[],
-  keys: string[]
+  keys: string[],
 ): boolean | undefined {
   for (const record of records) {
     for (const key of keys) {
@@ -56,14 +56,19 @@ export function pickSubagentBoolean(
 
 export function getSubagentTargetLabel(message: AgentMessage): string {
   const records = getSubagentRecords(message);
-  const agentKey = pickSubagentString(records, ["agent_key", "agent", "agent_name", "target_agent"]);
+  const agentKey = pickSubagentString(records, [
+    "agent_key",
+    "agent",
+    "agent_name",
+    "target_agent",
+  ]);
   const agentNumber = pickSubagentString(records, ["agent_number"]);
   return formatSubagentDisplayLabel(agentKey, agentNumber);
 }
 
 export function getSubagentInstructionText(
   message: AgentMessage,
-  keys: string[]
+  keys: string[],
 ): string | undefined {
   return pickSubagentString(getSubagentRecords(message), keys);
 }

@@ -1,10 +1,10 @@
-import { useCallback } from "react";
 import { Button, Dialog, Flex } from "@radix-ui/themes";
-import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
-import { deleteAllWorldInfoEntries } from "@/lib/api-client";
 import { toast } from "@/components/toast";
+import { deleteAllWorldInfoEntries } from "@/lib/api-client";
 
 interface DeleteAllEntriesDialogProps {
   open: boolean;
@@ -43,15 +43,27 @@ export function DeleteAllEntriesDialog({
   }, [deleteAllMutation]);
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <Dialog.Content style={{ maxWidth: 400 }}>
         <Dialog.Title>{t("worldInfo.deleteAllEntries")}</Dialog.Title>
-        <Dialog.Description size="2" mb="4">
+        <Dialog.Description
+          size="2"
+          mb="4"
+        >
           {t("worldInfo.deleteAllEntriesConfirm")}
         </Dialog.Description>
-        <Flex gap="3" justify="end">
+        <Flex
+          gap="3"
+          justify="end"
+        >
           <Dialog.Close>
-            <Button variant="soft" color="gray">
+            <Button
+              variant="soft"
+              color="gray"
+            >
               {t("common.cancel")}
             </Button>
           </Dialog.Close>

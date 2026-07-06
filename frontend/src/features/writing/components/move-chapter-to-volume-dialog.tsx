@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
 import { Button, Dialog, Flex, Text } from "@radix-ui/themes";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { SimpleSelect } from "@/components";
@@ -45,19 +45,32 @@ export function MoveChapterToVolumeDialog({
         label: volume.title || t("volume.untitled"),
         disabled: volume.id === chapter?.volumeId,
       })),
-    [chapter?.volumeId, t, volumes]
+    [chapter?.volumeId, t, volumes],
   );
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <Dialog.Content maxWidth="420px">
         <Dialog.Title>{t("writing.moveToVolumeDialog.title")}</Dialog.Title>
-        <Dialog.Description size="2" color="gray">
+        <Dialog.Description
+          size="2"
+          color="gray"
+        >
           {t("writing.moveToVolumeDialog.description")}
         </Dialog.Description>
 
-        <Flex direction="column" gap="3" mt="4">
-          <Text size="2" weight="medium">
+        <Flex
+          direction="column"
+          gap="3"
+          mt="4"
+        >
+          <Text
+            size="2"
+            weight="medium"
+          >
             {chapter?.title ?? t("writing.untitledChapter")}
           </Text>
           <SimpleSelect
@@ -68,9 +81,17 @@ export function MoveChapterToVolumeDialog({
           />
         </Flex>
 
-        <Flex justify="end" gap="3" mt="5">
+        <Flex
+          justify="end"
+          gap="3"
+          mt="5"
+        >
           <Dialog.Close>
-            <Button variant="soft" color="gray" disabled={loading}>
+            <Button
+              variant="soft"
+              color="gray"
+              disabled={loading}
+            >
               {t("common.cancel")}
             </Button>
           </Dialog.Close>

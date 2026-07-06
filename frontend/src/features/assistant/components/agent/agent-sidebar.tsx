@@ -3,18 +3,16 @@ import type React from "react";
 
 import { toast } from "@/components";
 import i18n from "@/i18n";
-import { useAgentSession } from "../../hooks/use-agent-session";
 import type {
   AgentForkResponse,
   AgentSessionCreateResponse,
   TokenUsageState,
 } from "@/lib/agent.types";
+
+import { useAgentSession } from "../../hooks/use-agent-session";
 import { AgentMessages } from "./agent-messages";
 import { AgentSpecialPanels } from "./agent-special-panels";
-import {
-  getAgentSpecialPanels,
-  type AgentSpecialPanel,
-} from "./agent-special-panels-state";
+import { getAgentSpecialPanels, type AgentSpecialPanel } from "./agent-special-panels-state";
 
 interface AgentSidebarProps {
   projectId: string;
@@ -26,24 +24,20 @@ interface AgentSidebarProps {
   onSetInputValue?: (value: string) => void;
   onOpenMentionChapter?: (chapterId: string, chapterTitle: string) => void;
   onTokenUsage?: (sessionId: string, usage: TokenUsageState) => void;
-  onTaskUsageSnapshot?: (
-    payload: {
-      sessionId: string;
-      taskId: string;
-      tokenInput: number;
-      tokenOutput: number;
-      tokenCache: number;
-    }
-  ) => void;
-  onTaskUsageDelta?: (
-    payload: {
-      sessionId: string;
-      taskId: string;
-      tokenInput: number;
-      tokenOutput: number;
-      tokenCache: number;
-    }
-  ) => void;
+  onTaskUsageSnapshot?: (payload: {
+    sessionId: string;
+    taskId: string;
+    tokenInput: number;
+    tokenOutput: number;
+    tokenCache: number;
+  }) => void;
+  onTaskUsageDelta?: (payload: {
+    sessionId: string;
+    taskId: string;
+    tokenInput: number;
+    tokenOutput: number;
+    tokenCache: number;
+  }) => void;
   onTaskTitleUpdated?: (taskId: string, title: string, updatedAt?: string) => void;
   onForkCreated?: (response: AgentForkResponse) => void | Promise<void>;
   onSessionCreated?: (response: AgentSessionCreateResponse) => void;
@@ -107,7 +101,11 @@ export function useAgentSidebar({
 
   const handleSend = useCallback(async () => {
     if (agentStatus === "waiting_answer" || agentStatus === "waiting_approval") {
-      toast.error(agentStatus === "waiting_answer" ? i18n.t("writing.aiSidebar.cannotSendWaitingAnswer") : i18n.t("writing.aiSidebar.cannotSendWaitingApproval"));
+      toast.error(
+        agentStatus === "waiting_answer"
+          ? i18n.t("writing.aiSidebar.cannotSendWaitingAnswer")
+          : i18n.t("writing.aiSidebar.cannotSendWaitingApproval"),
+      );
       return;
     }
     if (pendingMessage) {
@@ -155,7 +153,7 @@ export function useAgentSidebar({
       }
       return result;
     },
-    [rollbackAgentRevision, onSetInputValue]
+    [rollbackAgentRevision, onSetInputValue],
   );
 
   const handleFork = useCallback(
@@ -163,13 +161,12 @@ export function useAgentSidebar({
       const result = await forkAgentFromRevision(sourceRevisionId);
       if (result) await onForkCreated?.(result);
     },
-    [forkAgentFromRevision, onForkCreated]
+    [forkAgentFromRevision, onForkCreated],
   );
-  const specialPanels = [
-    ...getAgentSpecialPanels(agentMessages),
-    ...projectedSpecialPanels,
-  ];
-  const hasProjectedApprovalPanels = projectedSpecialPanels.some((panel) => panel.kind === "approval");
+  const specialPanels = [...getAgentSpecialPanels(agentMessages), ...projectedSpecialPanels];
+  const hasProjectedApprovalPanels = projectedSpecialPanels.some(
+    (panel) => panel.kind === "approval",
+  );
 
   return {
     messages: agentMessages,
@@ -208,7 +205,11 @@ export function useAgentSidebar({
       <AgentSpecialPanels
         panels={specialPanels}
         embedded
-        onApproveTool={agentStatus === "waiting_approval" || hasProjectedApprovalPanels ? handleAgentToolApproval : undefined}
+        onApproveTool={
+          agentStatus === "waiting_approval" || hasProjectedApprovalPanels
+            ? handleAgentToolApproval
+            : undefined
+        }
         onSubmitQuestionAnswer={submitAgentQuestionAnswer}
       />
     ),

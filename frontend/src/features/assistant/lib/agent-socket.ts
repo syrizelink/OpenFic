@@ -1,13 +1,14 @@
+import i18n from "@/i18n";
 import type { AgentEvent } from "@/lib/agent.types";
 import { connectSocket, getSocket } from "@/lib/socket-client";
-import i18n from "@/i18n";
+
 import { AGENT_SOCKET_EVENTS, toAgentEvent } from "./agent-socket-events";
 import { getString, isRecord } from "./tool-result-normalization";
 
 export function subscribeAgentSessionEvents(
   sessionId: string,
   onEvent: (event: AgentEvent) => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
 ): () => void {
   const activeSocket = getSocket();
   const connectError = (error: Error) => onError?.(error);

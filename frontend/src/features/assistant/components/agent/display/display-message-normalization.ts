@@ -52,7 +52,10 @@ function normalizeBlockMessage(message: AgentMessage): BlockDisplayMessage | nul
 }
 
 function isOpenSpecialPanelMessage(message: AgentMessage): boolean {
-  return message.display !== "hidden" && (message.status === "pending" || message.status === "running" || !message.status);
+  return (
+    message.display !== "hidden" &&
+    (message.status === "pending" || message.status === "running" || !message.status)
+  );
 }
 
 function getNormalizedBlockMessage(message: AgentMessage): BlockDisplayMessage | null {
@@ -113,7 +116,9 @@ export function normalizeDisplayMessages(messages: AgentMessage[]): BlockDisplay
 export function normalizeAgentBlockMessages(messages: AgentMessage[]): AgentBlockDisplayMessage[] {
   return normalizeDisplayMessages(messages).filter(
     (message): message is AgentBlockDisplayMessage =>
-      message.type !== "user_request" && message.type !== "node_start" && message.type !== "node_end"
+      message.type !== "user_request" &&
+      message.type !== "node_start" &&
+      message.type !== "node_end",
   );
 }
 

@@ -28,7 +28,7 @@ export function shouldTrackStreamingFollowBottom(isRunning: boolean): boolean {
 
 export function shouldResetFollowBottomForRun(
   previousIsRunning: boolean,
-  nextIsRunning: boolean
+  nextIsRunning: boolean,
 ): boolean {
   return !previousIsRunning && nextIsRunning;
 }
@@ -47,8 +47,7 @@ export function resolveFollowBottomStateOnScroll({
   if (!wasFollowingBottom) return isAtBottomNow;
 
   const frameChanged =
-    previous.scrollHeight !== next.scrollHeight
-    || previous.clientHeight !== next.clientHeight;
+    previous.scrollHeight !== next.scrollHeight || previous.clientHeight !== next.clientHeight;
 
   if (!frameChanged) return isAtBottomNow;
 
@@ -65,14 +64,14 @@ export function resolveFollowBottomStateOnScroll({
 
 export function hasPendingLoadedSessionBottomRestore(
   pendingRestoreKey: string | null | undefined,
-  currentScrollKey: string | null | undefined
+  currentScrollKey: string | null | undefined,
 ): boolean {
   return Boolean(pendingRestoreKey && currentScrollKey && pendingRestoreKey === currentScrollKey);
 }
 
 export function shouldScheduleLoadedSessionBottomRestoreImmediately(
   hasPendingRestore: boolean,
-  hasBoundScrollContainer: boolean
+  hasBoundScrollContainer: boolean,
 ): boolean {
   return hasPendingRestore && hasBoundScrollContainer;
 }
@@ -80,7 +79,7 @@ export function shouldScheduleLoadedSessionBottomRestoreImmediately(
 export function shouldAutoScrollOnFrameChange(
   previous: ScrollFrameMetrics | null,
   next: ScrollFrameMetrics,
-  isFollowingBottom: boolean
+  isFollowingBottom: boolean,
 ): boolean {
   if (!isFollowingBottom) return false;
   if (!previous) return true;
@@ -89,7 +88,7 @@ export function shouldAutoScrollOnFrameChange(
 
 export function shouldResetFollowBottomForLoad(
   previousKey: string | null | undefined,
-  nextKey: string | null | undefined
+  nextKey: string | null | undefined,
 ): boolean {
   return Boolean(nextKey && previousKey !== nextKey);
 }

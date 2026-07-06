@@ -390,7 +390,18 @@ export const dashboardLightEchartsTheme = {
 
 export const dashboardDarkEchartsTheme = {
   ...sharedTheme,
-  color: ["#38bdf8", "#22c55e", "#f59e0b", "#f43f5e", "#8b5cf6", "#14b8a6", "#f97316", "#0ea5e9", "#84cc16", "#ec4899"],
+  color: [
+    "#38bdf8",
+    "#22c55e",
+    "#f59e0b",
+    "#f43f5e",
+    "#8b5cf6",
+    "#14b8a6",
+    "#f97316",
+    "#0ea5e9",
+    "#84cc16",
+    "#ec4899",
+  ],
   backgroundColor: "transparent",
   textStyle: {
     color: "#e8e8e8",
@@ -404,28 +415,40 @@ export const dashboardDarkEchartsTheme = {
     axisTick: { show: true, lineStyle: { color: "#5a5a5a" } },
     axisLabel: { show: true, color: "#cfcfcf" },
     splitLine: { show: false, lineStyle: { color: ["#343434"] } },
-    splitArea: { show: false, areaStyle: { color: ["rgba(255,255,255,0.03)", "rgba(255,255,255,0.06)"] } },
+    splitArea: {
+      show: false,
+      areaStyle: { color: ["rgba(255,255,255,0.03)", "rgba(255,255,255,0.06)"] },
+    },
   },
   valueAxis: {
     axisLine: { show: true, lineStyle: { color: "#5a5a5a" } },
     axisTick: { show: true, lineStyle: { color: "#5a5a5a" } },
     axisLabel: { show: true, color: "#cfcfcf" },
     splitLine: { show: true, lineStyle: { color: ["#333333"] } },
-    splitArea: { show: false, areaStyle: { color: ["rgba(255,255,255,0.03)", "rgba(255,255,255,0.06)"] } },
+    splitArea: {
+      show: false,
+      areaStyle: { color: ["rgba(255,255,255,0.03)", "rgba(255,255,255,0.06)"] },
+    },
   },
   logAxis: {
     axisLine: { show: true, lineStyle: { color: "#5a5a5a" } },
     axisTick: { show: true, lineStyle: { color: "#5a5a5a" } },
     axisLabel: { show: true, color: "#cfcfcf" },
     splitLine: { show: true, lineStyle: { color: ["#333333"] } },
-    splitArea: { show: false, areaStyle: { color: ["rgba(255,255,255,0.03)", "rgba(255,255,255,0.06)"] } },
+    splitArea: {
+      show: false,
+      areaStyle: { color: ["rgba(255,255,255,0.03)", "rgba(255,255,255,0.06)"] },
+    },
   },
   timeAxis: {
     axisLine: { show: true, lineStyle: { color: "#5a5a5a" } },
     axisTick: { show: true, lineStyle: { color: "#5a5a5a" } },
     axisLabel: { show: true, color: "#cfcfcf" },
     splitLine: { show: true, lineStyle: { color: ["#333333"] } },
-    splitArea: { show: false, areaStyle: { color: ["rgba(255,255,255,0.03)", "rgba(255,255,255,0.06)"] } },
+    splitArea: {
+      show: false,
+      areaStyle: { color: ["rgba(255,255,255,0.03)", "rgba(255,255,255,0.06)"] },
+    },
   },
   legend: {
     textStyle: { color: "#d8d8d8" },

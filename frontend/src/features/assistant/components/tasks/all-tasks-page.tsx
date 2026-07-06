@@ -4,23 +4,17 @@
  * 查看全部任务页面组件。
  */
 
-import { useEffect, useState } from "react";
-import {
-  Box,
-  Flex,
-  Text,
-  IconButton,
-  Tooltip,
-  TextField,
-} from "@radix-ui/themes";
-import { ArrowLeft, Pencil, Star, Trash2, Search, ListX } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { Box, Flex, Text, IconButton, Tooltip, TextField } from "@radix-ui/themes";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
+import { ArrowLeft, Pencil, Star, Trash2, Search, ListX } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import type { TaskListItem } from "@/lib/task.types";
-import { useTasks, useUpdateTask, useDeleteTask, useDeleteAllTasks } from "../../hooks/use-tasks";
 import { ConfirmDialog, Spinner } from "@/components";
+import type { TaskListItem } from "@/lib/task.types";
+
+import { useTasks, useUpdateTask, useDeleteTask, useDeleteAllTasks } from "../../hooks/use-tasks";
 import { TaskRenameInput } from "./task-rename-input";
 
 interface AllTasksPageProps {
@@ -29,11 +23,7 @@ interface AllTasksPageProps {
   onTaskClick: (task: TaskListItem) => void;
 }
 
-export function AllTasksPage({
-  projectId,
-  onBack,
-  onTaskClick,
-}: AllTasksPageProps) {
+export function AllTasksPage({ projectId, onBack, onTaskClick }: AllTasksPageProps) {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -126,9 +116,10 @@ export function AllTasksPage({
   const allTasks = allTasksData?.items ?? [];
   const hasAnyTasks = allTasks.length > 0;
   const runningTaskCount = allTasks.filter((task) => task.isRunning).length;
-  const deleteAllDescription = runningTaskCount > 0
-    ? t("writing.aiSidebar.deleteAllTasksConfirmWithRunning", { count: runningTaskCount })
-    : t("writing.aiSidebar.deleteAllTasksConfirm");
+  const deleteAllDescription =
+    runningTaskCount > 0
+      ? t("writing.aiSidebar.deleteAllTasksConfirmWithRunning", { count: runningTaskCount })
+      : t("writing.aiSidebar.deleteAllTasksConfirm");
   const runningLabel = t("writing.aiSidebar.taskRunning");
 
   return (
@@ -148,16 +139,28 @@ export function AllTasksPage({
         gap="2"
         style={{ borderBottom: "1px solid var(--gray-a4)" }}
       >
-        <IconButton variant="ghost" size="2" onClick={onBack}>
+        <IconButton
+          variant="ghost"
+          size="2"
+          onClick={onBack}
+        >
           <ArrowLeft size={18} />
         </IconButton>
-        <Text size="3" weight="medium">
+        <Text
+          size="3"
+          weight="medium"
+        >
           {t("writing.aiSidebar.allTasks")}
         </Text>
       </Flex>
 
       {/* 搜索栏 */}
-      <Flex px="3" py="2" gap="2" align="center">
+      <Flex
+        px="3"
+        py="2"
+        gap="2"
+        align="center"
+      >
         <TextField.Root
           placeholder={t("writing.aiSidebar.searchTasks")}
           value={searchQuery}
@@ -192,7 +195,11 @@ export function AllTasksPage({
         }}
       >
         {isLoading ? (
-          <Flex align="center" justify="center" style={{ padding: "32px" }}>
+          <Flex
+            align="center"
+            justify="center"
+            style={{ padding: "32px" }}
+          >
             <Spinner size={18} />
           </Flex>
         ) : tasks.length === 0 ? (
@@ -216,7 +223,11 @@ export function AllTasksPage({
                 if (editingTaskId !== task.id) onTaskClick(task);
               }}
             >
-              <Flex align="center" gap="2" style={{ marginBottom: "8px" }}>
+              <Flex
+                align="center"
+                gap="2"
+                style={{ marginBottom: "8px" }}
+              >
                 {editingTaskId === task.id ? (
                   <Box style={{ flex: 1, minWidth: 0, height: "20px" }}>
                     <TaskRenameInput
@@ -252,14 +263,23 @@ export function AllTasksPage({
               </Flex>
 
               {/* 底部栏 */}
-              <Flex justify="between" align="center">
+              <Flex
+                justify="between"
+                align="center"
+              >
                 {/* 左侧：时间 */}
-                <Text size="1" style={{ color: "var(--gray-10)" }}>
+                <Text
+                  size="1"
+                  style={{ color: "var(--gray-10)" }}
+                >
                   {formatTime(task.updatedAt)}
                 </Text>
 
                 {/* 右侧：操作按钮 */}
-                <Flex align="center" gap="1">
+                <Flex
+                  align="center"
+                  gap="1"
+                >
                   <Tooltip content={t("common.edit")}>
                     <IconButton
                       variant="ghost"
@@ -285,9 +305,7 @@ export function AllTasksPage({
                       style={{
                         width: "24px",
                         height: "24px",
-                        color: task.isFavorited
-                          ? "var(--amber-9)"
-                          : "var(--gray-9)",
+                        color: task.isFavorited ? "var(--amber-9)" : "var(--gray-9)",
                       }}
                     >
                       <Star
@@ -347,4 +365,3 @@ export function AllTasksPage({
     </Box>
   );
 }
-

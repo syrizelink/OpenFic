@@ -296,7 +296,10 @@
   min-height: 24px;
   border-radius: 999px;
   color: var(--gray-12);
-  transition: color 120ms ease, opacity 120ms ease, background-color 120ms ease;
+  transition:
+    color 120ms ease,
+    opacity 120ms ease,
+    background-color 120ms ease;
 }
 
 .rt-reset.ai-sidebar-inline-select-trigger {
@@ -431,7 +434,9 @@
   position: relative;
   z-index: 0;
   margin-top: calc(var(--ai-sidebar-pending-overlap-offset, 0px) * -1);
-  margin-bottom: calc(var(--ai-sidebar-pending-overlap-offset, 0px) - var(--ai-sidebar-pending-clearance-height, 0px));
+  margin-bottom: calc(
+    var(--ai-sidebar-pending-overlap-offset, 0px) - var(--ai-sidebar-pending-clearance-height, 0px)
+  );
   transform-origin: center bottom;
 }
 

@@ -5,17 +5,9 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  fetchProjects,
-  createProject,
-  updateProject,
-  deleteProject,
-} from "@/lib/api-client";
-import type {
-  ProjectCreate,
-  ProjectUpdate,
-  ProjectListParams,
-} from "@/lib/project.types";
+
+import { fetchProjects, createProject, updateProject, deleteProject } from "@/lib/api-client";
+import type { ProjectCreate, ProjectUpdate, ProjectListParams } from "@/lib/project.types";
 
 /** 项目列表查询 key */
 export const projectsQueryKey = ["projects"] as const;
@@ -51,13 +43,8 @@ export function useUpdateProject() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      projectId,
-      data,
-    }: {
-      projectId: string;
-      data: ProjectUpdate;
-    }) => updateProject(projectId, data),
+    mutationFn: ({ projectId, data }: { projectId: string; data: ProjectUpdate }) =>
+      updateProject(projectId, data),
     onSuccess: async () => {
       await queryClient.refetchQueries({ queryKey: projectsQueryKey });
     },

@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
 import { Box } from "@radix-ui/themes";
+import { useEffect, useMemo, useState } from "react";
 import { Outlet } from "react-router";
-import { AppSidebar } from "./app-sidebar";
-import { AppShellContext } from "./app-shell-context";
+
 import { SettingsDialog } from "@/features/settings";
 import type { SettingsDialogRoute } from "@/features/settings/lib/settings-route";
+
+import { AppShellContext } from "./app-shell-context";
+import { AppSidebar } from "./app-sidebar";
 
 interface AppLayoutProps {
   appearance: "light" | "dark";
@@ -47,7 +49,7 @@ export function AppLayout({ appearance, onAppearanceChange, onToggleTheme }: App
       },
       closeSettings: () => setIsSettingsOpen(false),
     }),
-    [isMobile, isSidebarOpen, isSettingsOpen]
+    [isMobile, isSidebarOpen, isSettingsOpen],
   );
 
   return (
@@ -58,7 +60,10 @@ export function AppLayout({ appearance, onAppearanceChange, onToggleTheme }: App
           overflow: "hidden",
         }}
       >
-        <AppSidebar appearance={appearance} onToggleTheme={onToggleTheme} />
+        <AppSidebar
+          appearance={appearance}
+          onToggleTheme={onToggleTheme}
+        />
 
         <Box
           style={{

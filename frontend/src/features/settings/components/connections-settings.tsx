@@ -4,13 +4,17 @@
  * 外部连接设置面板，管理模型服务提供商连接。
  */
 
-import { useState, useCallback, useMemo } from "react";
 import { Box, Flex, Text, Button, IconButton } from "@radix-ui/themes";
-import { Plus, Trash2, Edit, RefreshCw } from "lucide-react";
-import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus, Trash2, Edit, RefreshCw } from "lucide-react";
+import { useState, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
+import { Spinner } from "@/components";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { toast } from "@/components/toast";
 import type { ModelProvider } from "@/lib/model.types";
+
 import {
   fetchProviders,
   fetchModelProviderCatalogProviders,
@@ -21,21 +25,20 @@ import {
   refreshModelProviderCatalog,
 } from "../lib/model-api";
 import { ProviderIcon } from "../lib/provider-icons";
-import { getProviderDisplayName, resolveProviderBuiltinIconPath, resolveProviderDisplayName } from "../lib/provider-utils";
+import {
+  getProviderDisplayName,
+  resolveProviderBuiltinIconPath,
+  resolveProviderDisplayName,
+} from "../lib/provider-utils";
 import { ConnectionFormDialog } from "./connection-form-dialog";
-import { Spinner } from "@/components";
-import { ConfirmDialog } from "@/components/confirm-dialog";
-import { toast } from "@/components/toast";
 
 export function ConnectionsSettings() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
 
   const [formOpen, setFormOpen] = useState(false);
-  const [editingConnection, setEditingConnection] =
-    useState<ModelProvider | null>(null);
-  const [deletingConnection, setDeletingConnection] =
-    useState<ModelProvider | null>(null);
+  const [editingConnection, setEditingConnection] = useState<ModelProvider | null>(null);
+  const [deletingConnection, setDeletingConnection] = useState<ModelProvider | null>(null);
 
   // 获取所有连接
   const {
@@ -49,7 +52,7 @@ export function ConnectionsSettings() {
 
   const externalConnections = useMemo(
     () => connections?.filter((c) => !c.isBuiltin) ?? [],
-    [connections]
+    [connections],
   );
 
   const { data: catalogProviders, isLoading: isCatalogProvidersLoading } = useQuery({
@@ -81,8 +84,7 @@ export function ConnectionsSettings() {
 
   // 更新连接
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: FormData }) =>
-      updateProvider(id, data),
+    mutationFn: ({ id, data }: { id: string; data: FormData }) => updateProvider(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["model-providers"] });
       setFormOpen(false);
@@ -150,7 +152,7 @@ export function ConnectionsSettings() {
         await createMutation.mutateAsync(data);
       }
     },
-    [editingConnection, createMutation, updateMutation]
+    [editingConnection, createMutation, updateMutation],
   );
 
   // 确认删除
@@ -179,7 +181,11 @@ export function ConnectionsSettings() {
 
   if (isContentLoading) {
     return (
-      <Flex align="center" justify="center" style={{ height: "100%" }}>
+      <Flex
+        align="center"
+        justify="center"
+        style={{ height: "100%" }}
+      >
         <Spinner size={18} />
       </Flex>
     );
@@ -187,9 +193,15 @@ export function ConnectionsSettings() {
 
   return (
     <Box>
-      <Flex direction="column" gap="4">
+      <Flex
+        direction="column"
+        gap="4"
+      >
         {/* 描述 */}
-        <Text size="2" color="gray">
+        <Text
+          size="2"
+          color="gray"
+        >
           {t("connections.description")}
         </Text>
 
@@ -200,59 +212,66 @@ export function ConnectionsSettings() {
             padding: "var(--space-4)",
           }}
         >
-              <Flex align="start" justify="between" gap="3">
-                <Flex direction="column" gap="1">
-                  <Text size="2" weight="medium">
-                    {t("connections.catalogTitle")}
-                  </Text>
-                  <Text size="1" color="gray">
-                    {t("connections.catalogStatus", {
-                      source: catalogStatus?.source || t("connections.catalogUnknownSource"),
-                      refreshedAt:
-                        formattedLastRefreshedAt || t("connections.catalogNeverRefreshed"),
-                    })}
-                  </Text>
-                  {catalogStatus && (
-                    <Text size="1" color="gray">
-                      {t("connections.catalogCounts", {
-                        providerCount: catalogStatus.providerCount,
-                        modelCount: catalogStatus.modelCount,
-                      })}
-                    </Text>
-                  )}
-                </Flex>
+          <Flex
+            align="start"
+            justify="between"
+            gap="3"
+          >
+            <Flex
+              direction="column"
+              gap="1"
+            >
+              <Text
+                size="2"
+                weight="medium"
+              >
+                {t("connections.catalogTitle")}
+              </Text>
+              <Text
+                size="1"
+                color="gray"
+              >
+                {t("connections.catalogStatus", {
+                  source: catalogStatus?.source || t("connections.catalogUnknownSource"),
+                  refreshedAt: formattedLastRefreshedAt || t("connections.catalogNeverRefreshed"),
+                })}
+              </Text>
+              {catalogStatus && (
+                <Text
+                  size="1"
+                  color="gray"
+                >
+                  {t("connections.catalogCounts", {
+                    providerCount: catalogStatus.providerCount,
+                    modelCount: catalogStatus.modelCount,
+                  })}
+                </Text>
+              )}
+            </Flex>
 
-                <Box display={{ initial: "none", md: "block" }}>
-                  <Button
-                    variant="soft"
-                    onClick={() => refreshCatalogMutation.mutate()}
-                    disabled={refreshCatalogMutation.isPending}
-                  >
-                    {refreshCatalogMutation.isPending ? (
-                      <Spinner size={18} />
-                    ) : (
-                      <RefreshCw size={16} />
-                    )}
-                    {t("connections.refreshCatalog")}
-                  </Button>
-                </Box>
+            <Box display={{ initial: "none", md: "block" }}>
+              <Button
+                variant="soft"
+                onClick={() => refreshCatalogMutation.mutate()}
+                disabled={refreshCatalogMutation.isPending}
+              >
+                {refreshCatalogMutation.isPending ? <Spinner size={18} /> : <RefreshCw size={16} />}
+                {t("connections.refreshCatalog")}
+              </Button>
+            </Box>
 
-                <Box display={{ initial: "block", md: "none" }}>
-                  <IconButton
-                    variant="soft"
-                    color="gray"
-                    aria-label={t("connections.refreshCatalog")}
-                    onClick={() => refreshCatalogMutation.mutate()}
-                    disabled={refreshCatalogMutation.isPending}
-                  >
-                    {refreshCatalogMutation.isPending ? (
-                      <Spinner size={18} />
-                    ) : (
-                      <RefreshCw size={16} />
-                    )}
-                  </IconButton>
-                </Box>
-              </Flex>
+            <Box display={{ initial: "block", md: "none" }}>
+              <IconButton
+                variant="soft"
+                color="gray"
+                aria-label={t("connections.refreshCatalog")}
+                onClick={() => refreshCatalogMutation.mutate()}
+                disabled={refreshCatalogMutation.isPending}
+              >
+                {refreshCatalogMutation.isPending ? <Spinner size={18} /> : <RefreshCw size={16} />}
+              </IconButton>
+            </Box>
+          </Flex>
         </Box>
 
         {/* 新建按钮 */}
@@ -267,92 +286,121 @@ export function ConnectionsSettings() {
         {externalConnections.length > 0 ? (
           <Flex direction="column">
             {externalConnections.map((connection, index) => (
-              <Box key={connection.id} className="list-item-hover">
-                    <Flex
-                      align="center"
-                      justify="between"
-                      style={{ padding: "var(--space-4)" }}
+              <Box
+                key={connection.id}
+                className="list-item-hover"
+              >
+                <Flex
+                  align="center"
+                  justify="between"
+                  style={{ padding: "var(--space-4)" }}
+                >
+                  <Flex
+                    align="center"
+                    gap="3"
+                    style={{ flex: 1 }}
+                  >
+                    {/* 图标 */}
+                    <Box
+                      style={{
+                        width: 40,
+                        height: 40,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: "var(--radius-2)",
+                        background: "#ffffff",
+                      }}
                     >
-                      <Flex align="center" gap="3" style={{ flex: 1 }}>
-                        {/* 图标 */}
-                        <Box
-                          style={{
-                            width: 40,
-                            height: 40,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            borderRadius: "var(--radius-2)",
-                            background: "#ffffff",
-                          }}
-                        >
-                          <ProviderIcon
-                            providerType={connection.providerType}
-                            uploadedIconPath={connection.iconPath}
-                            catalogIconPath={resolveProviderBuiltinIconPath(connection)}
-                            size={24}
-                          />
-                        </Box>
+                      <ProviderIcon
+                        providerType={connection.providerType}
+                        uploadedIconPath={connection.iconPath}
+                        catalogIconPath={resolveProviderBuiltinIconPath(connection)}
+                        size={24}
+                      />
+                    </Box>
 
-                        {/* 信息 */}
-                        <Flex direction="column" gap="1" style={{ flex: 1 }}>
-                          <Flex align="center" gap="2">
-                            <Text size="3" weight="medium">
-                              {connection.name ||
-                                (connection.providerType === "openai-compatible"
-                                  ? connection.url
-                                  : null) ||
-                                resolveProviderDisplayName(connection)}
-                            </Text>
-                          </Flex>
-                          <Flex align="center" gap="2">
-                            <Text size="2" color="gray">
-                              {connection.catalogMatch?.displayName ||
-                                getProviderDisplayName(connection.providerType)}
-                            </Text>
-                            {/* 只在 OpenAI 兼容模式下显示 URL */}
-                            {connection.providerType === "openai-compatible" && (
-                              <>
-                                <Text size="2" color="gray">
-                                  •
-                                </Text>
-                                <Text size="2" color="gray">
-                                  {connection.url}
-                                </Text>
-                              </>
-                            )}
-                          </Flex>
-                        </Flex>
+                    {/* 信息 */}
+                    <Flex
+                      direction="column"
+                      gap="1"
+                      style={{ flex: 1 }}
+                    >
+                      <Flex
+                        align="center"
+                        gap="2"
+                      >
+                        <Text
+                          size="3"
+                          weight="medium"
+                        >
+                          {connection.name ||
+                            (connection.providerType === "openai-compatible"
+                              ? connection.url
+                              : null) ||
+                            resolveProviderDisplayName(connection)}
+                        </Text>
                       </Flex>
-
-                      {/* 操作按钮 */}
-                      <Flex gap="2">
-                        <IconButton
-                          variant="ghost"
+                      <Flex
+                        align="center"
+                        gap="2"
+                      >
+                        <Text
+                          size="2"
                           color="gray"
-                          onClick={() => handleEdit(connection)}
                         >
-                          <Edit size={16} />
-                        </IconButton>
-                        <IconButton
-                          variant="ghost"
-                          color="red"
-                          onClick={() => handleDelete(connection)}
-                        >
-                          <Trash2 size={16} />
-                        </IconButton>
+                          {connection.catalogMatch?.displayName ||
+                            getProviderDisplayName(connection.providerType)}
+                        </Text>
+                        {/* 只在 OpenAI 兼容模式下显示 URL */}
+                        {connection.providerType === "openai-compatible" && (
+                          <>
+                            <Text
+                              size="2"
+                              color="gray"
+                            >
+                              •
+                            </Text>
+                            <Text
+                              size="2"
+                              color="gray"
+                            >
+                              {connection.url}
+                            </Text>
+                          </>
+                        )}
                       </Flex>
                     </Flex>
-                    {index < externalConnections.length - 1 && (
-                      <Box
-                        style={{
-                          height: "1px",
-                          background: "var(--gray-a4)",
-                          marginLeft: "var(--space-4)",
-                          marginRight: "var(--space-4)",
-                        }}
-                      />
-                    )}
+                  </Flex>
+
+                  {/* 操作按钮 */}
+                  <Flex gap="2">
+                    <IconButton
+                      variant="ghost"
+                      color="gray"
+                      onClick={() => handleEdit(connection)}
+                    >
+                      <Edit size={16} />
+                    </IconButton>
+                    <IconButton
+                      variant="ghost"
+                      color="red"
+                      onClick={() => handleDelete(connection)}
+                    >
+                      <Trash2 size={16} />
+                    </IconButton>
+                  </Flex>
+                </Flex>
+                {index < externalConnections.length - 1 && (
+                  <Box
+                    style={{
+                      height: "1px",
+                      background: "var(--gray-a4)",
+                      marginLeft: "var(--space-4)",
+                      marginRight: "var(--space-4)",
+                    }}
+                  />
+                )}
               </Box>
             ))}
           </Flex>
@@ -364,7 +412,10 @@ export function ConnectionsSettings() {
             gap="3"
             style={{ height: 200 }}
           >
-            <Text size="2" color="gray">
+            <Text
+              size="2"
+              color="gray"
+            >
               {t("connections.noConnections")}
             </Text>
           </Flex>

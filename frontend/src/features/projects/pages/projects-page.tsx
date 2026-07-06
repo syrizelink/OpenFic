@@ -4,14 +4,24 @@
  * 项目列表主页面，整合所有项目管理功能。
  */
 
-import { useState, useMemo } from "react";
 import { Box, Container, Flex, Text, Grid } from "@radix-ui/themes";
+import { useQueryClient } from "@tanstack/react-query";
+import Fuse from "fuse.js";
 import { BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import Fuse from "fuse.js";
-import { useQueryClient } from "@tanstack/react-query";
+
+import { ConfirmDialog, Spinner, toast } from "@/components";
 import { MobileAppSidebarTrigger } from "@/features/app-shell";
+import { getPinyin, getInitials } from "@/lib/pinyin-search";
+import type { Project } from "@/lib/project.types";
+
+import { ImportDialog } from "../components/import-dialog";
+import { ProjectCard } from "../components/project-card";
+import { ProjectFormDialog } from "../components/project-form-dialog";
+import { ProjectListItem } from "../components/project-list-item";
+import { ProjectsToolbar } from "../components/projects-toolbar";
 import {
   useProjects,
   useCreateProject,
@@ -20,14 +30,6 @@ import {
   projectsQueryKey,
 } from "../hooks/use-projects";
 import { useProjectsStore } from "../store/use-projects-store";
-import { ProjectCard } from "../components/project-card";
-import { ProjectListItem } from "../components/project-list-item";
-import { ProjectsToolbar } from "../components/projects-toolbar";
-import { ProjectFormDialog } from "../components/project-form-dialog";
-import { ImportDialog } from "../components/import-dialog";
-import { ConfirmDialog, Spinner, toast } from "@/components";
-import type { Project } from "@/lib/project.types";
-import { getPinyin, getInitials } from "@/lib/pinyin-search";
 
 const MotionBox = motion.create(Box);
 
@@ -128,12 +130,10 @@ export function ProjectsPage() {
       let comparison = 0;
       switch (sortBy) {
         case "updated_at":
-          comparison =
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+          comparison = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
           break;
         case "created_at":
-          comparison =
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
           break;
         case "title":
           comparison = a.title.localeCompare(b.title, "zh-CN");
@@ -175,9 +175,7 @@ export function ProjectsPage() {
       setFormDialogOpen(false);
       setEditingProject(null);
     } catch {
-      toast.error(
-        editingProject ? t("projects.updateFailed") : t("projects.createFailed")
-      );
+      toast.error(editingProject ? t("projects.updateFailed") : t("projects.createFailed"));
     }
   };
 
@@ -210,7 +208,10 @@ export function ProjectsPage() {
       }}
     >
       {/* 工具栏区域 */}
-      <Container size="4" px="5">
+      <Container
+        size="4"
+        px="5"
+      >
         <Box style={{ borderBottom: "1px solid var(--gray-a5)" }}>
           <ProjectsToolbar
             leadingSlot={<MobileAppSidebarTrigger />}
@@ -221,17 +222,29 @@ export function ProjectsPage() {
       </Container>
 
       {/* 主内容区域 */}
-      <Container size="4" py="6" px="5">
+      <Container
+        size="4"
+        py="6"
+        px="5"
+      >
         {/* 加载状态 */}
         {isLoading && (
-          <Flex justify="center" align="center" py="9">
+          <Flex
+            justify="center"
+            align="center"
+            py="9"
+          >
             <Spinner size={18} />
           </Flex>
         )}
 
         {/* 错误状态 */}
         {error && (
-          <Flex justify="center" align="center" py="9">
+          <Flex
+            justify="center"
+            align="center"
+            py="9"
+          >
             <Text color="red">{t("common.error")}</Text>
           </Flex>
         )}
@@ -257,17 +270,23 @@ export function ProjectsPage() {
                   background: "var(--accent-a3)",
                 }}
               >
-                <BookOpen size={48} style={{ color: "var(--accent-11)" }} />
+                <BookOpen
+                  size={48}
+                  style={{ color: "var(--accent-11)" }}
+                />
               </Box>
-              <Text size="5" weight="medium" color="gray">
-                {searchQuery
-                  ? t("projects.noProjectsFound")
-                  : t("projects.noProjects")}
+              <Text
+                size="5"
+                weight="medium"
+                color="gray"
+              >
+                {searchQuery ? t("projects.noProjectsFound") : t("projects.noProjects")}
               </Text>
-              <Text size="2" color="gray">
-                {searchQuery
-                  ? t("projects.tryOtherSearch")
-                  : t("projects.startCreating")}
+              <Text
+                size="2"
+                color="gray"
+              >
+                {searchQuery ? t("projects.tryOtherSearch") : t("projects.startCreating")}
               </Text>
             </Flex>
           </MotionBox>
@@ -293,7 +312,11 @@ export function ProjectsPage() {
                   ))}
                 </Grid>
               ) : (
-                <Flex key="list" direction="column" gap="3">
+                <Flex
+                  key="list"
+                  direction="column"
+                  gap="3"
+                >
                   {filteredProjects.map((project) => (
                     <ProjectListItem
                       key={project.id}

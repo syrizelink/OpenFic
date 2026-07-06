@@ -1,22 +1,19 @@
-import { useState, type ReactNode } from "react";
-import { AnimatePresence, motion } from "motion/react";
 import { Box, Text } from "@radix-ui/themes";
 import { ChevronDown, EllipsisVertical } from "lucide-react";
-import i18n from "@/i18n";
+import { AnimatePresence, motion } from "motion/react";
+import { useState, type ReactNode } from "react";
 
+import i18n from "@/i18n";
 import type { AgentMessage } from "@/lib/agent.types";
 
 import "./plan-tool-message.css";
 
+import { ToolBody, ToolNotice } from "../shared/tool-message-shared";
 import {
   getPlanPayload,
   getToolResultMessage,
   type PlanPayload,
 } from "../shared/tool-message-utils";
-import {
-  ToolBody,
-  ToolNotice,
-} from "../shared/tool-message-shared";
 import {
   buildPlanChecklistItems,
   buildUpdatePlanDisplayRows,
@@ -75,8 +72,15 @@ function PlanTodoRow({
   const showContent = expanded && item.content.trim().length > 0;
 
   return (
-    <li className="agent-plan-row agent-plan-item" data-kind="todo">
-      <span className="agent-plan-marker" data-status={item.status} aria-hidden="true">
+    <li
+      className="agent-plan-row agent-plan-item"
+      data-kind="todo"
+    >
+      <span
+        className="agent-plan-marker"
+        data-status={item.status}
+        aria-hidden="true"
+      >
         <span className="agent-plan-marker-glyph">{getPlanMarkerGlyph(item.marker)}</span>
       </span>
       <Box className="agent-plan-item-main">
@@ -93,7 +97,10 @@ function PlanTodoRow({
               onToggle();
             }}
           >
-            <ChevronDown size={14} aria-hidden="true" />
+            <ChevronDown
+              size={14}
+              aria-hidden="true"
+            />
           </button>
         </Box>
         <AnimatePresence initial={false}>
@@ -123,14 +130,22 @@ function PlanTodoRow({
 
 function PlanSummaryRow({ row }: { row: Extract<PlanDisplayRow, { kind: "summary" }> }) {
   return (
-    <li className="agent-plan-row agent-plan-summary" data-kind="summary">
-      <span className="agent-plan-marker" data-summary="true" aria-hidden="true">
-        <EllipsisVertical size={12} aria-hidden="true" />
+    <li
+      className="agent-plan-row agent-plan-summary"
+      data-kind="summary"
+    >
+      <span
+        className="agent-plan-marker"
+        data-summary="true"
+        aria-hidden="true"
+      >
+        <EllipsisVertical
+          size={12}
+          aria-hidden="true"
+        />
       </span>
       <Box className="agent-plan-summary-main">
-        <Text className="agent-plan-summary-label agent-tool-content-plain-text">
-          {row.label}
-        </Text>
+        <Text className="agent-plan-summary-label agent-tool-content-plain-text">{row.label}</Text>
       </Box>
     </li>
   );
@@ -139,21 +154,30 @@ function PlanSummaryRow({ row }: { row: Extract<PlanDisplayRow, { kind: "summary
 function PlanCreateCard({ plan }: { plan: PlanPayload }) {
   const checklistItems = buildPlanChecklistItems(plan);
   const description = plan.description?.trim() ? (
-    <Box className="agent-plan-description agent-tool-content-plain-text">
-      {plan.description}
-    </Box>
+    <Box className="agent-plan-description agent-tool-content-plain-text">{plan.description}</Box>
   ) : null;
 
   return (
-    <PlanCardFrame plan={plan} description={description}>
+    <PlanCardFrame
+      plan={plan}
+      description={description}
+    >
       {checklistItems.length > 0 ? (
         <ul className="agent-plan-list">
           {checklistItems.map((item) => {
             const showContent = item.content !== item.title;
 
             return (
-              <li key={item.id} className="agent-plan-row agent-plan-item" data-kind="todo">
-                <span className="agent-plan-marker" data-status={item.status} aria-hidden="true">
+              <li
+                key={item.id}
+                className="agent-plan-row agent-plan-item"
+                data-kind="todo"
+              >
+                <span
+                  className="agent-plan-marker"
+                  data-status={item.status}
+                  aria-hidden="true"
+                >
                   <span className="agent-plan-marker-glyph">{getPlanMarkerGlyph(item.marker)}</span>
                 </span>
                 <Box className="agent-plan-item-main">
@@ -209,22 +233,38 @@ function PlanUpdateCard({ plan }: { plan: PlanPayload }) {
       className="agent-plan-item-toggle"
       data-expanded={descriptionExpanded ? "true" : "false"}
       aria-expanded={descriptionExpanded}
-      aria-label={descriptionExpanded ? i18n.t("assistant.tools.collapsePlanDescription") : i18n.t("assistant.tools.expandPlanDescription")}
+      aria-label={
+        descriptionExpanded
+          ? i18n.t("assistant.tools.collapsePlanDescription")
+          : i18n.t("assistant.tools.expandPlanDescription")
+      }
       onClick={() => {
         setDescriptionExpanded((current) => !current);
       }}
     >
-      <ChevronDown size={14} aria-hidden="true" />
+      <ChevronDown
+        size={14}
+        aria-hidden="true"
+      />
     </button>
   ) : null;
 
   return (
-    <PlanCardFrame plan={plan} description={description} topRowSuffix={descriptionToggle}>
+    <PlanCardFrame
+      plan={plan}
+      description={description}
+      topRowSuffix={descriptionToggle}
+    >
       {rows.length > 0 ? (
         <ul className="agent-plan-list">
           {rows.map((row) => {
             if (row.kind === "summary") {
-              return <PlanSummaryRow key={row.id} row={row} />;
+              return (
+                <PlanSummaryRow
+                  key={row.id}
+                  row={row}
+                />
+              );
             }
 
             return (
@@ -253,8 +293,7 @@ function PlanUpdateCard({ plan }: { plan: PlanPayload }) {
 
 export function PlanToolMessage({ message }: PlanToolMessageProps) {
   const singlePlan = getPlanPayload(message);
-  const shouldRenderBody =
-    message.toolName === "create_plan" || message.toolName === "update_plan";
+  const shouldRenderBody = message.toolName === "create_plan" || message.toolName === "update_plan";
 
   if (shouldRenderBody && singlePlan) {
     return (

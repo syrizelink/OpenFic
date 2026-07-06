@@ -1,6 +1,6 @@
-import { useCallback, useState } from "react";
 import { Box, Flex, IconButton, Popover, Text } from "@radix-ui/themes";
 import { ChevronDown, ChevronRight, ChevronsUpDown } from "lucide-react";
+import { useCallback, useState } from "react";
 
 export interface ContentSearchMatch {
   lineNumber: number;
@@ -43,9 +43,7 @@ function highlightText(text: string, query: string): React.ReactNode {
   let idx = lowerText.indexOf(lowerQuery, lastIndex);
   while (idx !== -1) {
     if (idx > lastIndex) {
-      parts.push(
-        <span key={`t-${lastIndex}`}>{text.slice(lastIndex, idx)}</span>
-      );
+      parts.push(<span key={`t-${lastIndex}`}>{text.slice(lastIndex, idx)}</span>);
     }
     parts.push(
       <mark
@@ -58,7 +56,7 @@ function highlightText(text: string, query: string): React.ReactNode {
         }}
       >
         {text.slice(idx, idx + query.length)}
-      </mark>
+      </mark>,
     );
     lastIndex = idx + query.length;
     idx = lowerText.indexOf(lowerQuery, lastIndex);
@@ -105,9 +103,16 @@ function ResultGroup({
           e.currentTarget.style.background = "transparent";
         }}
       >
-        <ChevronIcon size={14} style={{ color: "var(--gray-a9)", flexShrink: 0 }} />
+        <ChevronIcon
+          size={14}
+          style={{ color: "var(--gray-a9)", flexShrink: 0 }}
+        />
         <Box style={{ flex: 1, minWidth: 0 }}>
-          <Flex align="baseline" gap="1" style={{ minWidth: 0 }}>
+          <Flex
+            align="baseline"
+            gap="1"
+            style={{ minWidth: 0 }}
+          >
             <Text
               size="2"
               weight="bold"
@@ -149,7 +154,10 @@ function ResultGroup({
             flexShrink: 0,
           }}
         >
-          <Text size="1" style={{ lineHeight: 1 }}>
+          <Text
+            size="1"
+            style={{ lineHeight: 1 }}
+          >
             {item.matches.length}
           </Text>
         </Box>
@@ -261,11 +269,14 @@ export function ContentSearchPopover({
       onNavigateToMatch(itemId, lineNumber);
       onOpenChange(false);
     },
-    [onNavigateToMatch, onOpenChange]
+    [onNavigateToMatch, onOpenChange],
   );
 
   return (
-    <Popover.Root open={open} onOpenChange={onOpenChange}>
+    <Popover.Root
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <Popover.Trigger
         style={{
           border: "none",
@@ -293,13 +304,21 @@ export function ContentSearchPopover({
         >
           {query.trim().length === 0 ? (
             <Box p="4">
-              <Text size="2" color="gray" align="center">
+              <Text
+                size="2"
+                color="gray"
+                align="center"
+              >
                 {emptyPlaceholder}
               </Text>
             </Box>
           ) : isLoading ? (
             <Box p="4">
-              <Text size="2" color="gray" align="center">
+              <Text
+                size="2"
+                color="gray"
+                align="center"
+              >
                 {searchingText}
               </Text>
             </Box>
@@ -314,7 +333,10 @@ export function ContentSearchPopover({
                   background: "var(--gray-a2)",
                 }}
               >
-                <Text size="1" color="gray">
+                <Text
+                  size="1"
+                  color="gray"
+                >
                   {resultSummaryText
                     .replace("{items}", String(totalItems))
                     .replace("{matches}", String(totalMatches))}
@@ -341,7 +363,11 @@ export function ContentSearchPopover({
             </>
           ) : (
             <Box p="4">
-              <Text size="2" color="gray" align="center">
+              <Text
+                size="2"
+                color="gray"
+                align="center"
+              >
                 {noResultsText}
               </Text>
             </Box>

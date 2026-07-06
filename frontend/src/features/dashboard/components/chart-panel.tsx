@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@radix-ui/themes";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+
 import { Spinner } from "@/components";
+
+import { withDashboardChartTheme, type DashboardChartOption } from "../lib/dashboard-chart-options";
 import {
   DASHBOARD_ECHARTS_DARK_THEME_NAME,
   DASHBOARD_ECHARTS_LIGHT_THEME_NAME,
@@ -10,7 +13,6 @@ import {
   getDashboardEchartsThemeName,
   type DashboardEchartsThemeMode,
 } from "../lib/dashboard-echarts-theme";
-import { withDashboardChartTheme, type DashboardChartOption } from "../lib/dashboard-chart-options";
 
 interface DashboardChartInstance {
   setOption: (option: DashboardChartOption, notMerge?: boolean) => void;
@@ -32,7 +34,7 @@ let echartsLoader: Promise<{
   init: (
     element: HTMLDivElement,
     theme?: string,
-    options?: { renderer?: "canvas" | "svg" }
+    options?: { renderer?: "canvas" | "svg" },
   ) => DashboardChartInstance;
 }> | null = null;
 
@@ -82,7 +84,13 @@ function hasChartData(option: DashboardChartOption): boolean {
   });
 }
 
-export function ChartPanel({ title, option, isLoading, themeMode, size = "medium" }: ChartPanelProps) {
+export function ChartPanel({
+  title,
+  option,
+  isLoading,
+  themeMode,
+  size = "medium",
+}: ChartPanelProps) {
   const { t } = useTranslation();
   const elementRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<DashboardChartInstance | null>(null);
@@ -91,7 +99,10 @@ export function ChartPanel({ title, option, isLoading, themeMode, size = "medium
   const hideLoadingTimerRef = useRef<number | null>(null);
   const applyOptionFrameRef = useRef<number | null>(null);
   const [isChartReady, setIsChartReady] = useState(false);
-  const shouldShowEmptyState = useMemo(() => !isLoading && !hasChartData(option), [isLoading, option]);
+  const shouldShowEmptyState = useMemo(
+    () => !isLoading && !hasChartData(option),
+    [isLoading, option],
+  );
 
   const showChartLoading = useCallback((chart: DashboardChartInstance) => {
     chart.showLoading("default", { text: "", spinnerRadius: 12, lineWidth: 2, zlevel: 0 });
@@ -151,7 +162,9 @@ export function ChartPanel({ title, option, isLoading, themeMode, size = "medium
 
     loadEcharts().then((echarts) => {
       if (isCancelled || !elementRef.current) return;
-      chartRef.current = echarts.init(elementRef.current, getDashboardEchartsThemeName(themeMode), { renderer: "canvas" });
+      chartRef.current = echarts.init(elementRef.current, getDashboardEchartsThemeName(themeMode), {
+        renderer: "canvas",
+      });
       showChartLoading(chartRef.current);
       if (!latestLoadingRef.current) hideChartLoadingSoon();
       setIsChartReady(true);
@@ -168,23 +181,48 @@ export function ChartPanel({ title, option, isLoading, themeMode, size = "medium
       chartRef.current = null;
       hideLoadingTimerRef.current = null;
     };
-  }, [clearScheduledOptionApply, hideChartLoadingSoon, showChartLoading, shouldShowEmptyState, themeMode]);
+  }, [
+    clearScheduledOptionApply,
+    hideChartLoadingSoon,
+    showChartLoading,
+    shouldShowEmptyState,
+    themeMode,
+  ]);
 
   return (
-    <Card className="dashboard-chart-card" data-size={size}>
+    <Card
+      className="dashboard-chart-card"
+      data-size={size}
+    >
       <div className="dashboard-chart-title-row">
         <div className="dashboard-chart-title">{title}</div>
       </div>
       <div className="dashboard-chart-frame">
         {!shouldShowEmptyState && !isChartReady ? (
-          <div className="dashboard-chart-mount-loading" aria-label={t("dashboard.charts.loading")} role="status">
+          <div
+            className="dashboard-chart-mount-loading"
+            aria-label={t("dashboard.charts.loading")}
+            role="status"
+          >
             <Spinner size={18} />
           </div>
         ) : null}
         {shouldShowEmptyState ? (
-          <div key="empty" className="dashboard-chart-empty-state" data-size={size}>{t("dashboard.charts.empty")}</div>
+          <div
+            key="empty"
+            className="dashboard-chart-empty-state"
+            data-size={size}
+          >
+            {t("dashboard.charts.empty")}
+          </div>
         ) : (
-          <div key="chart" ref={elementRef} className="dashboard-chart" data-ready={isChartReady} data-size={size} />
+          <div
+            key="chart"
+            ref={elementRef}
+            className="dashboard-chart"
+            data-ready={isChartReady}
+            data-size={size}
+          />
         )}
       </div>
     </Card>

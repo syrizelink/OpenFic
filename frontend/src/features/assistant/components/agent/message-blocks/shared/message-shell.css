@@ -112,25 +112,39 @@
 .agent-message-shell-header[data-expandable="true"]:hover .agent-message-shell-title,
 .agent-message-shell-header[data-expandable="true"]:focus-visible .agent-message-shell-title,
 .agent-tool-card .agent-tool-header[data-expandable="true"]:hover .agent-message-shell-title,
-.agent-tool-card .agent-tool-header[data-expandable="true"]:focus-visible .agent-message-shell-title {
+.agent-tool-card
+  .agent-tool-header[data-expandable="true"]:focus-visible
+  .agent-message-shell-title {
   color: var(--gray-12);
 }
 
 .agent-message-shell-header[data-expandable="true"]:hover .agent-message-shell-title.text-shimmer,
-.agent-message-shell-header[data-expandable="true"]:focus-visible .agent-message-shell-title.text-shimmer,
+.agent-message-shell-header[data-expandable="true"]:focus-visible
+  .agent-message-shell-title.text-shimmer,
 .agent-message-shell-header[data-expandable="true"]:hover .agent-message-shell-icon,
 .agent-message-shell-header[data-expandable="true"]:focus-visible .agent-message-shell-icon,
 .agent-message-shell-header[data-expandable="true"]:hover .agent-message-shell-detail,
 .agent-message-shell-header[data-expandable="true"]:focus-visible .agent-message-shell-detail,
 .agent-message-shell-header[data-expandable="true"]:hover .agent-message-shell-expand-button,
-.agent-message-shell-header[data-expandable="true"]:focus-visible .agent-message-shell-expand-button,
-.agent-tool-card .agent-tool-header[data-expandable="true"]:hover .agent-message-shell-title.text-shimmer,
-.agent-tool-card .agent-tool-header[data-expandable="true"]:focus-visible .agent-message-shell-title.text-shimmer,
+.agent-message-shell-header[data-expandable="true"]:focus-visible
+  .agent-message-shell-expand-button,
+.agent-tool-card
+  .agent-tool-header[data-expandable="true"]:hover
+  .agent-message-shell-title.text-shimmer,
+.agent-tool-card
+  .agent-tool-header[data-expandable="true"]:focus-visible
+  .agent-message-shell-title.text-shimmer,
 .agent-tool-card .agent-tool-header[data-expandable="true"]:hover .agent-message-shell-icon,
 .agent-tool-card .agent-tool-header[data-expandable="true"]:focus-visible .agent-message-shell-icon,
 .agent-tool-card .agent-tool-header[data-expandable="true"]:hover .agent-message-shell-detail,
-.agent-tool-card .agent-tool-header[data-expandable="true"]:focus-visible .agent-message-shell-detail,
-.agent-tool-card .agent-tool-header[data-expandable="true"]:hover .agent-message-shell-expand-button,
-.agent-tool-card .agent-tool-header[data-expandable="true"]:focus-visible .agent-message-shell-expand-button {
+.agent-tool-card
+  .agent-tool-header[data-expandable="true"]:focus-visible
+  .agent-message-shell-detail,
+.agent-tool-card
+  .agent-tool-header[data-expandable="true"]:hover
+  .agent-message-shell-expand-button,
+.agent-tool-card
+  .agent-tool-header[data-expandable="true"]:focus-visible
+  .agent-message-shell-expand-button {
   color: var(--gray-12) !important;
 }

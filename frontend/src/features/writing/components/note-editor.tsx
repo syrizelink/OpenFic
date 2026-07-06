@@ -1,13 +1,14 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Flex, Text } from "@radix-ui/themes";
 import { Lock } from "lucide-react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { MarkdownEditor, Spinner } from "@/components";
-import { useNote, useUpdateNote } from "../hooks/use-notes";
-import { useAutoSave } from "../hooks/use-auto-save";
-import { useTabsStore } from "../store/use-tabs-store";
 import { createToastThrottler } from "@/lib/ui-utils";
+
+import { useAutoSave } from "../hooks/use-auto-save";
+import { useNote, useUpdateNote } from "../hooks/use-notes";
+import { useTabsStore } from "../store/use-tabs-store";
 
 interface NoteEditorProps {
   noteId: string | null;
@@ -29,7 +30,7 @@ function NoteEditorInner({
 
   const showLockedToast = useMemo(
     () => createToastThrottler(t("writing.agentLockedNoteEdit")),
-    [t]
+    [t],
   );
 
   const [title, setTitle] = useState(note.title);
@@ -38,32 +39,29 @@ function NoteEditorInner({
   const [isSaving, setIsSaving] = useState(false);
   const savedContentRef = useRef(note.content ?? "");
 
-  const handleSave = useCallback(
-    async () => {
-      if (isAgentLocked) {
-        showLockedToast();
-        return;
-      }
+  const handleSave = useCallback(async () => {
+    if (isAgentLocked) {
+      showLockedToast();
+      return;
+    }
 
-      const markdown = savedContentRef.current;
+    const markdown = savedContentRef.current;
 
-      setIsSaving(true);
-      try {
-        const updatedNote = await updateMutation.mutateAsync({
-          noteId: note.id,
-          data: {
-            title,
-            content: markdown,
-          },
-        });
-        updateTabTitle(`note:${updatedNote.id}`, updatedNote.title);
-        setHasChanges(false);
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [note.id, title, updateMutation, updateTabTitle, isAgentLocked, showLockedToast]
-  );
+    setIsSaving(true);
+    try {
+      const updatedNote = await updateMutation.mutateAsync({
+        noteId: note.id,
+        data: {
+          title,
+          content: markdown,
+        },
+      });
+      updateTabTitle(`note:${updatedNote.id}`, updatedNote.title);
+      setHasChanges(false);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [note.id, title, updateMutation, updateTabTitle, isAgentLocked, showLockedToast]);
 
   useEffect(() => {
     titleRef.current = title;
@@ -122,7 +120,7 @@ function NoteEditorInner({
       savedContentRef.current = markdown;
       setHasChanges(markdown !== note.content || title !== note.title);
     },
-    [note.content, note.title, title]
+    [note.content, note.title, title],
   );
 
   const lockedBanner = note.isLocked ? (
@@ -136,8 +134,14 @@ function NoteEditorInner({
         borderBottom: "1px solid var(--yellow-a5)",
       }}
     >
-      <Lock size={14} style={{ color: "var(--yellow-10)" }} />
-      <Text size="1" style={{ color: "var(--yellow-10)" }}>
+      <Lock
+        size={14}
+        style={{ color: "var(--yellow-10)" }}
+      />
+      <Text
+        size="1"
+        style={{ color: "var(--yellow-10)" }}
+      >
         {t("writing.noteLocked")}
       </Text>
     </Flex>
@@ -171,7 +175,10 @@ export function NoteEditor(props: NoteEditorProps) {
         justify="center"
         style={{ flex: 1, minHeight: 0 }}
       >
-        <Text color="gray" size="3">
+        <Text
+          color="gray"
+          size="3"
+        >
           {t("writing.selectNote")}
         </Text>
       </Flex>

@@ -97,8 +97,7 @@ function handleBackgroundError(raw: { type?: string; reason?: string }) {
 }
 
 function handleIndexStatus(raw: Record<string, unknown> | undefined) {
-  const projectId =
-    typeof raw?.project_id === "string" ? raw.project_id : null;
+  const projectId = typeof raw?.project_id === "string" ? raw.project_id : null;
   if (!projectId) return;
   projectIndexStatusListeners.get(projectId)?.forEach((listener) => listener(raw));
 }
@@ -222,7 +221,7 @@ export async function requestBackgroundSnapshot(projectId: string): Promise<Back
 export function subscribeBackgroundEvents(
   projectId: string,
   onEvent: (event: BackgroundEvent) => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
 ): BackgroundEventSubscription {
   return subscribeBackgroundProjection(projectId, undefined, onEvent, onError);
 }
@@ -234,14 +233,13 @@ export function subscribeBackgroundEvents(
 export function subscribeIndexStatus(
   projectId: string,
   onStatus?: IndexStatusListener,
-  onConfig?: IndexConfigListener
+  onConfig?: IndexConfigListener,
 ): BackgroundEventSubscription {
   bindHandlers();
 
   let roomSub: BackgroundEventSubscription | null = null;
   if (projectId !== "__global__" && onStatus) {
-    const listeners =
-      projectIndexStatusListeners.get(projectId) ?? new Set<IndexStatusListener>();
+    const listeners = projectIndexStatusListeners.get(projectId) ?? new Set<IndexStatusListener>();
     listeners.add(onStatus);
     projectIndexStatusListeners.set(projectId, listeners);
     // 加入项目房间（复用 background 房间引用计数管理）
@@ -275,12 +273,13 @@ export function subscribeBackgroundProjection(
   projectId: string,
   onSnapshot?: (snapshot: BackgroundSnapshot) => void,
   onEvent?: (event: BackgroundEvent) => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
 ): BackgroundProjectionSubscription {
   bindHandlers();
 
   if (onSnapshot) {
-    const listeners = projectSnapshotListeners.get(projectId) ?? new Set<BackgroundSnapshotListener>();
+    const listeners =
+      projectSnapshotListeners.get(projectId) ?? new Set<BackgroundSnapshotListener>();
     listeners.add(onSnapshot);
     projectSnapshotListeners.set(projectId, listeners);
   }

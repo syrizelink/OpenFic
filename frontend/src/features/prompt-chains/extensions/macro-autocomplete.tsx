@@ -6,11 +6,12 @@
 
 /* oxlint-disable react-refresh/only-export-components */
 
-import { useState, useCallback, useEffect } from "react";
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 import { ReactRenderer } from "@tiptap/react";
+import { useState, useCallback, useEffect } from "react";
+
 import { AutocompletePopover } from "@/components";
 import type { AutocompleteItem } from "@/components";
 import { getMacroCompletions, findUncompletedMacro } from "@/lib/macro";
@@ -42,7 +43,7 @@ function getCursorRect(view: EditorView): { top: number; left: number } | null {
   const { from } = view.state.selection;
   const coords = view.coordsAtPos(from);
   if (!coords) return null;
-  
+
   return {
     top: coords.bottom + 4, // 光标下方留出间距
     left: coords.left,
@@ -81,7 +82,7 @@ function AutocompleteWrapper({
     (item: AutocompleteItem) => {
       onSelect(item);
     },
-    [onSelect]
+    [onSelect],
   );
 
   const handleSelectedIndexChange = useCallback((index: number) => {
@@ -108,32 +109,27 @@ export const MacroAutocomplete = Extension.create({
 
   addProseMirrorPlugins() {
     const editor = this.editor;
-    
+
     // 状态引用
     const stateRef: React.MutableRefObject<{
       updateState: (state: Partial<AutocompleteState>) => void;
     } | null> = { current: null };
-    
+
     // 当前状态
     let currentState: AutocompleteState = { ...initialState };
-    
+
     // ReactRenderer 实例
     let renderer: ReactRenderer | null = null;
 
     const updateAutocomplete = (view: EditorView) => {
       const { $from } = view.state.selection;
-      
+
       // 获取光标前的所有文本
-      const textBefore = $from.parent.textBetween(
-        0,
-        $from.parentOffset,
-        undefined,
-        "\ufffc"
-      );
-      
+      const textBefore = $from.parent.textBetween(0, $from.parentOffset, undefined, "\ufffc");
+
       // 检查是否有未闭合的宏
       const uncompletedMacro = findUncompletedMacro(textBefore);
-      
+
       if (uncompletedMacro === null) {
         // 没有未闭合的宏，隐藏补全
         if (currentState.visible) {
@@ -142,10 +138,10 @@ export const MacroAutocomplete = Extension.create({
         }
         return;
       }
-      
+
       // 获取补全建议
       const result = getMacroCompletions(uncompletedMacro);
-      
+
       // 如果没有补全项也没有提示，隐藏
       if (result.items.length === 0 && !result.hint) {
         if (currentState.visible) {
@@ -154,15 +150,15 @@ export const MacroAutocomplete = Extension.create({
         }
         return;
       }
-      
+
       // 计算锚点位置
       const anchorRect = getCursorRect(view);
-      
+
       // 计算需要替换的起始位置
       // 找到最后一个 :: 分隔符的位置，如果没有则从 {{ 之后开始
       const macroStartPos = $from.pos - uncompletedMacro.length; // {{ 之后的位置
       const lastSeparatorIndex = uncompletedMacro.lastIndexOf("::");
-      
+
       let replaceFrom: number;
       if (lastSeparatorIndex >= 0) {
         // 从最后一个 :: 之后开始替换
@@ -172,10 +168,9 @@ export const MacroAutocomplete = Extension.create({
         replaceFrom = macroStartPos;
       }
       // 计算当前输入的过滤文本（用于高亮）
-      const filterText = lastSeparatorIndex >= 0 
-        ? uncompletedMacro.slice(lastSeparatorIndex + 2)
-        : uncompletedMacro;
-      
+      const filterText =
+        lastSeparatorIndex >= 0 ? uncompletedMacro.slice(lastSeparatorIndex + 2) : uncompletedMacro;
+
       // 更新状态
       currentState = {
         visible: true,
@@ -186,20 +181,20 @@ export const MacroAutocomplete = Extension.create({
         replaceFrom,
         filterText,
       };
-      
+
       stateRef.current?.updateState(currentState);
     };
 
     const handleSelect = (item: AutocompleteItem) => {
       if (!currentState.visible) return;
-      
+
       const { state: editorState } = editor;
       const { from } = editorState.selection;
-      
+
       // 替换从 replaceFrom 到当前光标位置
       const replaceFrom = currentState.replaceFrom;
       const replaceTo = from;
-      
+
       // 插入补全文本
       editor
         .chain()
@@ -207,13 +202,13 @@ export const MacroAutocomplete = Extension.create({
         .deleteRange({ from: replaceFrom, to: replaceTo })
         .insertContentAt(replaceFrom, item.insertText)
         .run();
-      
+
       // 处理光标偏移
       if (item.cursorOffset && item.cursorOffset < 0) {
         const newPos = replaceFrom + item.insertText.length + item.cursorOffset;
         editor.commands.setTextSelection(newPos);
       }
-      
+
       // 隐藏补全
       currentState = { ...initialState };
       stateRef.current?.updateState(currentState);
@@ -261,7 +256,7 @@ export const MacroAutocomplete = Extension.create({
         props: {
           handleKeyDown(_view, event) {
             if (!currentState.visible) return false;
-            
+
             // 让 AutocompletePopover 处理键盘事件
             // 这里只需要阻止默认行为
             if (
@@ -272,25 +267,22 @@ export const MacroAutocomplete = Extension.create({
               event.key === "Escape"
             ) {
               // 对于 Enter 和 Tab，如果有补全项则触发选择
-              if (
-                (event.key === "Enter" || event.key === "Tab") &&
-                currentState.items.length > 0
-              ) {
+              if ((event.key === "Enter" || event.key === "Tab") && currentState.items.length > 0) {
                 event.preventDefault();
                 handleSelect(currentState.items[currentState.selectedIndex]);
                 return true;
               }
-              
+
               if (event.key === "Escape") {
                 event.preventDefault();
                 handleClose();
                 return true;
               }
-              
+
               // ↑/↓ 由 AutocompletePopover 的 document listener 处理
               return false;
             }
-            
+
             return false;
           },
         },

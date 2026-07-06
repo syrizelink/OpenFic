@@ -36,7 +36,7 @@ export function htmlToNewlines(html: string): string {
       }
       // 如果没有 macroRaw 属性，使用 span 的文本内容
       return _content;
-    }
+    },
   );
 
   // 2. 将 </p> 替换为换行符
@@ -113,7 +113,7 @@ import { tryParseMacro } from "./macro";
 function processLineWithMacros(line: string): string {
   // 匹配宏表达式：{{...}}
   const macroPattern = /\{\{([^{}]+)\}\}/g;
-  
+
   let result = "";
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -136,7 +136,7 @@ function processLineWithMacros(line: string): string {
       start: match.index,
       end: match.index + macroRaw.length,
     };
-    
+
     const macroNode = tryParseMacro(macroMatchKey);
 
     if (macroNode) {
@@ -149,7 +149,7 @@ function processLineWithMacros(line: string): string {
       const escapedMacroRaw = escapeHtmlAttribute(macroRaw);
       const escapedMacroName = escapeHtmlAttribute(macroName);
       const escapedMacroData = escapeHtmlAttribute(macroData);
-      
+
       result += `<span data-macro-node="true" macroname="${escapedMacroName}" macroraw="${escapedMacroRaw}" macrodata="${escapedMacroData}" class="macro-node macro-${escapedMacroName}">${escapeHtml(macroRaw)}</span>`;
     } else {
       // 解析失败或非法，作为普通文本处理
@@ -171,10 +171,7 @@ function processLineWithMacros(line: string): string {
  * HTML 转义（用于文本内容）
  */
 function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 /**
@@ -188,4 +185,3 @@ function escapeHtmlAttribute(text: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
-

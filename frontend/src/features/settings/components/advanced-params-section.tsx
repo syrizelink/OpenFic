@@ -4,13 +4,19 @@
  * 模型高级参数面板，包含温度、Top-P、Top-K 等参数。
  */
 
-import { useState, useEffect } from "react";
 import { Box, Button, Flex, Grid, Text } from "@radix-ui/themes";
 import { ChevronDown, ChevronLeft } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useTranslation } from "react-i18next";
-import type { Control, FieldValues, Path, UseFormGetValues, UseFormSetValue } from "react-hook-form";
+import { useState, useEffect } from "react";
+import type {
+  Control,
+  FieldValues,
+  Path,
+  UseFormGetValues,
+  UseFormSetValue,
+} from "react-hook-form";
 import { Controller, useWatch } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 
 import { LabeledSelect } from "@/components/select";
 import { SliderField } from "@/components/slider-field";
@@ -25,16 +31,106 @@ interface AdvancedParamsSectionProps<T extends FieldValues> {
 
 // 参数配置
 const PARAM_CONFIGS = [
-  { name: "temperature", labelKey: "temperature", descKey: "temperatureDesc", defaultValue: 1, min: 0, max: 2, sliderStep: 0.01, inputStep: 0.01 },
-  { name: "topP", labelKey: "topP", descKey: "topPDesc", defaultValue: 1, min: 0, max: 1, sliderStep: 0.01, inputStep: 0.01 },
-  { name: "topK", labelKey: "topK", descKey: "topKDesc", defaultValue: 0, min: 0, max: 1000, sliderStep: 1, inputStep: 1 },
-  { name: "minP", labelKey: "minP", descKey: "minPDesc", defaultValue: 0, min: 0, max: 1, sliderStep: 0.01, inputStep: 0.01 },
-  { name: "topA", labelKey: "topA", descKey: "topADesc", defaultValue: 0, min: 0, max: 1, sliderStep: 0.01, inputStep: 0.01 },
-  { name: "frequencyPenalty", labelKey: "frequencyPenalty", descKey: "frequencyPenaltyDesc", defaultValue: 0, min: -2, max: 2, sliderStep: 0.01, inputStep: 0.01 },
-  { name: "presencePenalty", labelKey: "presencePenalty", descKey: "presencePenaltyDesc", defaultValue: 0, min: -2, max: 2, sliderStep: 0.01, inputStep: 0.01 },
-  { name: "repetitionPenalty", labelKey: "repetitionPenalty", descKey: "repetitionPenaltyDesc", defaultValue: 1, min: 0, max: 2, sliderStep: 0.01, inputStep: 0.01 },
-  { name: "maxTokens", labelKey: "maxTokens", descKey: "maxTokensDesc", defaultValue: 0, min: -1, max: 2000000, sliderStep: 100, inputStep: 1 },
-  { name: "contextLength", labelKey: "contextLength", descKey: "contextLengthDesc", defaultValue: 128000, min: 1, max: 2000000, sliderStep: 1000, inputStep: 1 },
+  {
+    name: "temperature",
+    labelKey: "temperature",
+    descKey: "temperatureDesc",
+    defaultValue: 1,
+    min: 0,
+    max: 2,
+    sliderStep: 0.01,
+    inputStep: 0.01,
+  },
+  {
+    name: "topP",
+    labelKey: "topP",
+    descKey: "topPDesc",
+    defaultValue: 1,
+    min: 0,
+    max: 1,
+    sliderStep: 0.01,
+    inputStep: 0.01,
+  },
+  {
+    name: "topK",
+    labelKey: "topK",
+    descKey: "topKDesc",
+    defaultValue: 0,
+    min: 0,
+    max: 1000,
+    sliderStep: 1,
+    inputStep: 1,
+  },
+  {
+    name: "minP",
+    labelKey: "minP",
+    descKey: "minPDesc",
+    defaultValue: 0,
+    min: 0,
+    max: 1,
+    sliderStep: 0.01,
+    inputStep: 0.01,
+  },
+  {
+    name: "topA",
+    labelKey: "topA",
+    descKey: "topADesc",
+    defaultValue: 0,
+    min: 0,
+    max: 1,
+    sliderStep: 0.01,
+    inputStep: 0.01,
+  },
+  {
+    name: "frequencyPenalty",
+    labelKey: "frequencyPenalty",
+    descKey: "frequencyPenaltyDesc",
+    defaultValue: 0,
+    min: -2,
+    max: 2,
+    sliderStep: 0.01,
+    inputStep: 0.01,
+  },
+  {
+    name: "presencePenalty",
+    labelKey: "presencePenalty",
+    descKey: "presencePenaltyDesc",
+    defaultValue: 0,
+    min: -2,
+    max: 2,
+    sliderStep: 0.01,
+    inputStep: 0.01,
+  },
+  {
+    name: "repetitionPenalty",
+    labelKey: "repetitionPenalty",
+    descKey: "repetitionPenaltyDesc",
+    defaultValue: 1,
+    min: 0,
+    max: 2,
+    sliderStep: 0.01,
+    inputStep: 0.01,
+  },
+  {
+    name: "maxTokens",
+    labelKey: "maxTokens",
+    descKey: "maxTokensDesc",
+    defaultValue: 0,
+    min: -1,
+    max: 2000000,
+    sliderStep: 100,
+    inputStep: 1,
+  },
+  {
+    name: "contextLength",
+    labelKey: "contextLength",
+    descKey: "contextLengthDesc",
+    defaultValue: 128000,
+    min: 1,
+    max: 2000000,
+    sliderStep: 1000,
+    inputStep: 1,
+  },
 ] as const;
 
 export function AdvancedParamsSection<T extends FieldValues>({
@@ -67,7 +163,6 @@ export function AdvancedParamsSection<T extends FieldValues>({
     }
   }, [showAdvanced, setValue, getValues]);
 
-
   return (
     <>
       {/* 展开/折叠按钮 */}
@@ -77,7 +172,11 @@ export function AdvancedParamsSection<T extends FieldValues>({
         onClick={() => setShowAdvanced(!showAdvanced)}
         style={{ justifyContent: "flex-start" }}
       >
-        <Flex align="center" justify="between" style={{ width: "100%" }}>
+        <Flex
+          align="center"
+          justify="between"
+          style={{ width: "100%" }}
+        >
           <Text>{t("models.advancedParams")}</Text>
           <AnimatePresence mode="wait">
             <motion.div
@@ -104,7 +203,11 @@ export function AdvancedParamsSection<T extends FieldValues>({
             style={{ overflow: "hidden" }}
           >
             <Box style={{ paddingTop: "var(--space-4)" }}>
-              <Grid columns="2" gap="4" style={{ paddingLeft: 4, paddingRight: 4 }}>
+              <Grid
+                columns="2"
+                gap="4"
+                style={{ paddingLeft: 4, paddingRight: 4 }}
+              >
                 {PARAM_CONFIGS.map((config) => (
                   <SliderField
                     key={config.name}
@@ -123,9 +226,21 @@ export function AdvancedParamsSection<T extends FieldValues>({
               </Grid>
 
               {isDeepSeekProvider && (
-                <Grid columns="2" gap="4" mt="4" style={{ paddingLeft: 4, paddingRight: 4 }}>
-                  <Flex direction="column" gap="2">
-                    <Text size="2" weight="medium" color="gray">
+                <Grid
+                  columns="2"
+                  gap="4"
+                  mt="4"
+                  style={{ paddingLeft: 4, paddingRight: 4 }}
+                >
+                  <Flex
+                    direction="column"
+                    gap="2"
+                  >
+                    <Text
+                      size="2"
+                      weight="medium"
+                      color="gray"
+                    >
                       {t("models.deepseekThinkingType")}
                     </Text>
                     <Controller
@@ -143,14 +258,24 @@ export function AdvancedParamsSection<T extends FieldValues>({
                         />
                       )}
                     />
-                    <Text size="1" color="gray">
+                    <Text
+                      size="1"
+                      color="gray"
+                    >
                       {t("models.deepseekThinkingTypeDesc")}
                     </Text>
                   </Flex>
 
                   {deepseekThinkingType === "enabled" && (
-                    <Flex direction="column" gap="2">
-                      <Text size="2" weight="medium" color="gray">
+                    <Flex
+                      direction="column"
+                      gap="2"
+                    >
+                      <Text
+                        size="2"
+                        weight="medium"
+                        color="gray"
+                      >
                         {t("models.deepseekReasoningEffort")}
                       </Text>
                       <Controller
@@ -168,7 +293,10 @@ export function AdvancedParamsSection<T extends FieldValues>({
                           />
                         )}
                       />
-                      <Text size="1" color="gray">
+                      <Text
+                        size="1"
+                        color="gray"
+                      >
                         {t("models.deepseekReasoningEffortDesc")}
                       </Text>
                     </Flex>

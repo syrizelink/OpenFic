@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from "react";
 import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { Check, Copy } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
-import type { AgentMessage } from "@/lib/agent.types";
-import i18n from "@/i18n";
+import { toast } from "@/components";
 import type {
   ChapterDiffLine,
   ChapterDiffSection,
@@ -14,18 +13,11 @@ import {
   getChapterDiffDisplayLineNumber,
   summarizeChapterDiffSection,
 } from "@/features/assistant/lib/chapter-tool-preview";
-import { toast } from "@/components";
+import i18n from "@/i18n";
+import type { AgentMessage } from "@/lib/agent.types";
 
-import {
-  asString,
-  getNotePayload,
-  getToolResultMessage,
-} from "../shared/tool-message-utils";
-import {
-  ToolBody,
-  ToolNotice,
-  ToolTextBlock,
-} from "../shared/tool-message-shared";
+import { ToolBody, ToolNotice, ToolTextBlock } from "../shared/tool-message-shared";
+import { asString, getNotePayload, getToolResultMessage } from "../shared/tool-message-utils";
 
 interface NoteToolMessageProps {
   message: AgentMessage;
@@ -77,11 +69,13 @@ function getNoteDiffPreview(message: AgentMessage): NoteDiffPreview | null {
           type: sectionType,
           lines: Array.isArray(section.lines)
             ? section.lines.filter(isRecord).map((line) => ({
-              type: normalizeDiffLineType(line.type),
-              before_line_number: typeof line.before_line_number === "number" ? line.before_line_number : null,
-              after_line_number: typeof line.after_line_number === "number" ? line.after_line_number : null,
-              text: typeof line.text === "string" ? line.text : "",
-            }))
+                type: normalizeDiffLineType(line.type),
+                before_line_number:
+                  typeof line.before_line_number === "number" ? line.before_line_number : null,
+                after_line_number:
+                  typeof line.after_line_number === "number" ? line.after_line_number : null,
+                text: typeof line.text === "string" ? line.text : "",
+              }))
             : [],
         };
       })
@@ -91,7 +85,11 @@ function getNoteDiffPreview(message: AgentMessage): NoteDiffPreview | null {
 
 const COPY_FEEDBACK_MS = 1200;
 
-function NoteSummary({ message, emptyTitle, emptyDescription }: NoteToolMessageProps & {
+function NoteSummary({
+  message,
+  emptyTitle,
+  emptyDescription,
+}: NoteToolMessageProps & {
   emptyTitle: string;
   emptyDescription: string;
 }) {
@@ -107,9 +105,20 @@ function NoteSummary({ message, emptyTitle, emptyDescription }: NoteToolMessageP
 
   return (
     <>
-      <ToolTextBlock label={i18n.t("assistant.tools.note")} value={note.title} />
-      {note.content ? <ToolTextBlock label={i18n.t("assistant.tools.content")} value={note.content} /> : null}
-      <ToolTextBlock label={i18n.t("assistant.tools.result")} value={getToolResultMessage(message)} />
+      <ToolTextBlock
+        label={i18n.t("assistant.tools.note")}
+        value={note.title}
+      />
+      {note.content ? (
+        <ToolTextBlock
+          label={i18n.t("assistant.tools.content")}
+          value={note.content}
+        />
+      ) : null}
+      <ToolTextBlock
+        label={i18n.t("assistant.tools.result")}
+        value={getToolResultMessage(message)}
+      />
     </>
   );
 }
@@ -120,11 +129,14 @@ export function WriteNoteToolMessage({ message }: NoteToolMessageProps) {
   const copyFeedbackTimerRef = useRef<number | null>(null);
   const [isCopied, setIsCopied] = useState(false);
 
-  useEffect(() => () => {
-    if (copyFeedbackTimerRef.current !== null) {
-      window.clearTimeout(copyFeedbackTimerRef.current);
-    }
-  }, []);
+  useEffect(
+    () => () => {
+      if (copyFeedbackTimerRef.current !== null) {
+        window.clearTimeout(copyFeedbackTimerRef.current);
+      }
+    },
+    [],
+  );
 
   if (diffPreview) {
     const contentSection = diffPreview.sections.find((s) => s.type === "content") ?? null;
@@ -155,26 +167,53 @@ export function WriteNoteToolMessage({ message }: NoteToolMessageProps) {
     return (
       <ToolBody>
         <Box className="agent-chapter-diff-card">
-          <Flex align="center" justify="between" gap="2" className="agent-chapter-diff-card-header">
-            <Flex align="center" gap="2" className="agent-chapter-diff-card-meta">
+          <Flex
+            align="center"
+            justify="between"
+            gap="2"
+            className="agent-chapter-diff-card-header"
+          >
+            <Flex
+              align="center"
+              gap="2"
+              className="agent-chapter-diff-card-meta"
+            >
               <Text className="agent-chapter-diff-card-title">
                 {diffPreview.note_title ?? note.title}
               </Text>
-              <Flex align="center" gap="1" className="agent-chapter-tool-stats">
-                <Text size="1" className="agent-chapter-tool-change" data-change="added">
+              <Flex
+                align="center"
+                gap="1"
+                className="agent-chapter-tool-stats"
+              >
+                <Text
+                  size="1"
+                  className="agent-chapter-tool-change"
+                  data-change="added"
+                >
                   +{changeSummary.added}
                 </Text>
-                <Text size="1" className="agent-chapter-tool-change" data-change="removed">
+                <Text
+                  size="1"
+                  className="agent-chapter-tool-change"
+                  data-change="removed"
+                >
                   -{changeSummary.removed}
                 </Text>
               </Flex>
             </Flex>
-            <Tooltip content={isCopied ? i18n.t("common.copied") : i18n.t("assistant.tools.copyDiff")}>
+            <Tooltip
+              content={isCopied ? i18n.t("common.copied") : i18n.t("assistant.tools.copyDiff")}
+            >
               <IconButton
                 size="1"
                 variant="ghost"
                 color={isCopied ? "green" : "gray"}
-                aria-label={isCopied ? i18n.t("assistant.tools.diffCopied") : i18n.t("assistant.tools.copyDiff")}
+                aria-label={
+                  isCopied
+                    ? i18n.t("assistant.tools.diffCopied")
+                    : i18n.t("assistant.tools.copyDiff")
+                }
                 className="agent-message-block-toolbar-button agent-chapter-diff-copy-button"
                 data-copied={isCopied ? "true" : undefined}
                 disabled={!copyText}
@@ -187,18 +226,20 @@ export function WriteNoteToolMessage({ message }: NoteToolMessageProps) {
           <Box className="agent-chapter-diff-card-body">
             <Box className="agent-chapter-diff-scroll">
               <div className="agent-chapter-diff-lines">
-                {contentSection?.lines.length ? contentSection.lines.map((line, index) => (
-                  <div
-                    key={`${index}-${line.before_line_number ?? "n"}-${line.after_line_number ?? "n"}`}
-                    className="agent-chapter-diff-line"
-                    data-type={line.type}
-                  >
-                    <span className="agent-chapter-diff-gutter">
-                      {getChapterDiffDisplayLineNumber(line) ?? ""}
-                    </span>
-                    <span className="agent-chapter-diff-text">{line.text || " "}</span>
-                  </div>
-                )) : (
+                {contentSection?.lines.length ? (
+                  contentSection.lines.map((line, index) => (
+                    <div
+                      key={`${index}-${line.before_line_number ?? "n"}-${line.after_line_number ?? "n"}`}
+                      className="agent-chapter-diff-line"
+                      data-type={line.type}
+                    >
+                      <span className="agent-chapter-diff-gutter">
+                        {getChapterDiffDisplayLineNumber(line) ?? ""}
+                      </span>
+                      <span className="agent-chapter-diff-text">{line.text || " "}</span>
+                    </div>
+                  ))
+                ) : (
                   <div className="agent-chapter-diff-empty">
                     {i18n.t("assistant.tools.noBodyDiff")}
                   </div>
@@ -228,11 +269,14 @@ export function EditNoteToolMessage({ message }: NoteToolMessageProps) {
   const copyFeedbackTimerRef = useRef<number | null>(null);
   const [isCopied, setIsCopied] = useState(false);
 
-  useEffect(() => () => {
-    if (copyFeedbackTimerRef.current !== null) {
-      window.clearTimeout(copyFeedbackTimerRef.current);
-    }
-  }, []);
+  useEffect(
+    () => () => {
+      if (copyFeedbackTimerRef.current !== null) {
+        window.clearTimeout(copyFeedbackTimerRef.current);
+      }
+    },
+    [],
+  );
 
   if (diffPreview) {
     const contentSection = diffPreview.sections.find((s) => s.type === "content") ?? null;
@@ -263,26 +307,53 @@ export function EditNoteToolMessage({ message }: NoteToolMessageProps) {
     return (
       <ToolBody>
         <Box className="agent-chapter-diff-card">
-          <Flex align="center" justify="between" gap="2" className="agent-chapter-diff-card-header">
-            <Flex align="center" gap="2" className="agent-chapter-diff-card-meta">
+          <Flex
+            align="center"
+            justify="between"
+            gap="2"
+            className="agent-chapter-diff-card-header"
+          >
+            <Flex
+              align="center"
+              gap="2"
+              className="agent-chapter-diff-card-meta"
+            >
               <Text className="agent-chapter-diff-card-title">
                 {diffPreview.note_title ?? note.title}
               </Text>
-              <Flex align="center" gap="1" className="agent-chapter-tool-stats">
-                <Text size="1" className="agent-chapter-tool-change" data-change="added">
+              <Flex
+                align="center"
+                gap="1"
+                className="agent-chapter-tool-stats"
+              >
+                <Text
+                  size="1"
+                  className="agent-chapter-tool-change"
+                  data-change="added"
+                >
                   +{changeSummary.added}
                 </Text>
-                <Text size="1" className="agent-chapter-tool-change" data-change="removed">
+                <Text
+                  size="1"
+                  className="agent-chapter-tool-change"
+                  data-change="removed"
+                >
                   -{changeSummary.removed}
                 </Text>
               </Flex>
             </Flex>
-            <Tooltip content={isCopied ? i18n.t("common.copied") : i18n.t("assistant.tools.copyDiff")}>
+            <Tooltip
+              content={isCopied ? i18n.t("common.copied") : i18n.t("assistant.tools.copyDiff")}
+            >
               <IconButton
                 size="1"
                 variant="ghost"
                 color={isCopied ? "green" : "gray"}
-                aria-label={isCopied ? i18n.t("assistant.tools.diffCopied") : i18n.t("assistant.tools.copyDiff")}
+                aria-label={
+                  isCopied
+                    ? i18n.t("assistant.tools.diffCopied")
+                    : i18n.t("assistant.tools.copyDiff")
+                }
                 className="agent-message-block-toolbar-button agent-chapter-diff-copy-button"
                 data-copied={isCopied ? "true" : undefined}
                 disabled={!copyText}
@@ -295,18 +366,20 @@ export function EditNoteToolMessage({ message }: NoteToolMessageProps) {
           <Box className="agent-chapter-diff-card-body">
             <Box className="agent-chapter-diff-scroll">
               <div className="agent-chapter-diff-lines">
-                {contentSection?.lines.length ? contentSection.lines.map((line, index) => (
-                  <div
-                    key={`${index}-${line.before_line_number ?? "n"}-${line.after_line_number ?? "n"}`}
-                    className="agent-chapter-diff-line"
-                    data-type={line.type}
-                  >
-                    <span className="agent-chapter-diff-gutter">
-                      {getChapterDiffDisplayLineNumber(line) ?? ""}
-                    </span>
-                    <span className="agent-chapter-diff-text">{line.text || " "}</span>
-                  </div>
-                )) : (
+                {contentSection?.lines.length ? (
+                  contentSection.lines.map((line, index) => (
+                    <div
+                      key={`${index}-${line.before_line_number ?? "n"}-${line.after_line_number ?? "n"}`}
+                      className="agent-chapter-diff-line"
+                      data-type={line.type}
+                    >
+                      <span className="agent-chapter-diff-gutter">
+                        {getChapterDiffDisplayLineNumber(line) ?? ""}
+                      </span>
+                      <span className="agent-chapter-diff-text">{line.text || " "}</span>
+                    </div>
+                  ))
+                ) : (
                   <div className="agent-chapter-diff-empty">
                     {i18n.t("assistant.tools.noBodyDiff")}
                   </div>
@@ -335,10 +408,22 @@ export function EditNoteToolMessage({ message }: NoteToolMessageProps) {
 
   return (
     <ToolBody>
-      <ToolTextBlock label={i18n.t("assistant.tools.note")} value={note.title} />
-      <ToolTextBlock label={i18n.t("assistant.tools.find")} value={oldContent} />
-      <ToolTextBlock label={i18n.t("assistant.tools.replaceWith")} value={newContent} />
-      <ToolTextBlock label={i18n.t("assistant.tools.result")} value={getToolResultMessage(message)} />
+      <ToolTextBlock
+        label={i18n.t("assistant.tools.note")}
+        value={note.title}
+      />
+      <ToolTextBlock
+        label={i18n.t("assistant.tools.find")}
+        value={oldContent}
+      />
+      <ToolTextBlock
+        label={i18n.t("assistant.tools.replaceWith")}
+        value={newContent}
+      />
+      <ToolTextBlock
+        label={i18n.t("assistant.tools.result")}
+        value={getToolResultMessage(message)}
+      />
     </ToolBody>
   );
 }

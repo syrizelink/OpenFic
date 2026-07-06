@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
 import { Box, Text } from "@radix-ui/themes";
 import { Brain } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { StreamingMarkdown } from "@/components";
 import type { AgentMessage } from "@/lib/agent.types";
+
 import { getReasoningDurationMs } from "../../../../../lib/streaming-message-merge";
 import { formatElapsedDuration } from "../../shared/message-duration";
 import {
@@ -85,17 +86,28 @@ export function AgentThinkingMessage({ message }: AgentThinkingMessageProps) {
         onToggle={handleToggleExpanded}
       >
         <MessageBlockHeaderMain className="agent-reasoning-header-main">
-          <Brain size={16} className="agent-message-shell-icon agent-reasoning-icon" />
+          <Brain
+            size={16}
+            className="agent-message-shell-icon agent-reasoning-icon"
+          />
           <Text
             size="1"
             weight="medium"
-            className={isRunning ? "agent-message-shell-title agent-reasoning-title text-shimmer" : "agent-message-shell-title agent-reasoning-title"}
+            className={
+              isRunning
+                ? "agent-message-shell-title agent-reasoning-title text-shimmer"
+                : "agent-message-shell-title agent-reasoning-title"
+            }
             data-text={t("assistant.thinkingTitle")}
           >
             {t("assistant.thinkingTitle")}
           </Text>
           <MessageBlockMeta className="agent-reasoning-meta">
-            <Text size="1" color="gray" className="agent-message-shell-detail agent-reasoning-timer">
+            <Text
+              size="1"
+              color="gray"
+              className="agent-message-shell-detail agent-reasoning-timer"
+            >
               {formatElapsedDuration(durationMs)}
             </Text>
             {hasContent ? (

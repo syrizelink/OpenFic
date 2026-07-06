@@ -9,11 +9,7 @@ export const SETTINGS_ROUTE_CATEGORIES = [
   "agents",
 ] as const;
 
-export const MODEL_SETTINGS_TABS = [
-  "llm",
-  "embedding",
-  "rerank",
-] as const;
+export const MODEL_SETTINGS_TABS = ["llm", "embedding", "rerank"] as const;
 
 export type SettingsRouteCategory = (typeof SETTINGS_ROUTE_CATEGORIES)[number];
 export type ModelSettingsTab = (typeof MODEL_SETTINGS_TABS)[number];

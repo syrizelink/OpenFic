@@ -31,21 +31,53 @@ export function PageLoadingOverlay({ isLoading }: PageLoadingOverlayProps) {
           background: "var(--color-background)",
         }}
       >
-        <Flex px="3" py="3" pr="6" align="center" gap="2">
-          <Skeleton height="20px" width="72px" />
-          <Skeleton height="14px" width="28px" />
+        <Flex
+          px="3"
+          py="3"
+          pr="6"
+          align="center"
+          gap="2"
+        >
+          <Skeleton
+            height="20px"
+            width="72px"
+          />
+          <Skeleton
+            height="14px"
+            width="28px"
+          />
         </Flex>
 
-        <Box px="3" pb="3">
-          <Skeleton height="32px" width="100%" mb="3" />
-          <Skeleton height="32px" width="100%" />
+        <Box
+          px="3"
+          pb="3"
+        >
+          <Skeleton
+            height="32px"
+            width="100%"
+            mb="3"
+          />
+          <Skeleton
+            height="32px"
+            width="100%"
+          />
         </Box>
 
         <Box p="2">
           {[1, 2, 3, 4, 5].map((item) => (
-            <Box key={item} p="3">
-              <Skeleton height="16px" width="70%" mb="2" />
-              <Skeleton height="12px" width="45%" />
+            <Box
+              key={item}
+              p="3"
+            >
+              <Skeleton
+                height="16px"
+                width="70%"
+                mb="2"
+              />
+              <Skeleton
+                height="12px"
+                width="45%"
+              />
             </Box>
           ))}
         </Box>
@@ -72,7 +104,10 @@ export function PageLoadingOverlay({ isLoading }: PageLoadingOverlayProps) {
             background: "var(--gray-a2)",
           }}
         >
-          <Skeleton height="30px" width="148px" />
+          <Skeleton
+            height="30px"
+            width="148px"
+          />
         </Flex>
 
         <Box
@@ -82,13 +117,35 @@ export function PageLoadingOverlay({ isLoading }: PageLoadingOverlayProps) {
             padding: "48px clamp(24px, 8vw, 112px)",
           }}
         >
-          <Skeleton height="28px" width="42%" mb="6" />
-          <Flex direction="column" gap="4">
-            <Skeleton height="18px" width="100%" />
-            <Skeleton height="18px" width="96%" />
-            <Skeleton height="18px" width="88%" />
-            <Skeleton height="18px" width="92%" />
-            <Skeleton height="18px" width="64%" />
+          <Skeleton
+            height="28px"
+            width="42%"
+            mb="6"
+          />
+          <Flex
+            direction="column"
+            gap="4"
+          >
+            <Skeleton
+              height="18px"
+              width="100%"
+            />
+            <Skeleton
+              height="18px"
+              width="96%"
+            />
+            <Skeleton
+              height="18px"
+              width="88%"
+            />
+            <Skeleton
+              height="18px"
+              width="92%"
+            />
+            <Skeleton
+              height="18px"
+              width="64%"
+            />
           </Flex>
         </Box>
       </Box>
@@ -102,11 +159,27 @@ export function PageLoadingOverlay({ isLoading }: PageLoadingOverlayProps) {
         }}
       >
         <Box p="4">
-          <Skeleton height="22px" width="96px" mb="5" />
-          <Flex direction="column" gap="3">
-            <Skeleton height="36px" width="100%" />
-            <Skeleton height="36px" width="100%" />
-            <Skeleton height="96px" width="100%" />
+          <Skeleton
+            height="22px"
+            width="96px"
+            mb="5"
+          />
+          <Flex
+            direction="column"
+            gap="3"
+          >
+            <Skeleton
+              height="36px"
+              width="100%"
+            />
+            <Skeleton
+              height="36px"
+              width="100%"
+            />
+            <Skeleton
+              height="96px"
+              width="100%"
+            />
           </Flex>
         </Box>
       </Box>

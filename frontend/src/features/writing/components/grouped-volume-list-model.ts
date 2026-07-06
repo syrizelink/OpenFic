@@ -71,7 +71,7 @@ export function shouldAnchorCollapsedGroupScroll({
 
 export function getSortedVolumeChapters(
   chapters: ChapterListItem[],
-  dragOrderMap: Readonly<Record<string, number>>
+  dragOrderMap: Readonly<Record<string, number>>,
 ): ChapterListItem[] {
   if (Object.keys(dragOrderMap).length === 0) {
     return chapters;
@@ -86,7 +86,7 @@ export function getSortedVolumeChapters(
 
 export function getGroupedVolumeListStructureSignature(
   volumes: VolumeWithChapters[],
-  expandedVolumeIds: Set<string>
+  expandedVolumeIds: Set<string>,
 ): string {
   return volumes
     .map((volume) => {

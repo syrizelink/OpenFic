@@ -1,6 +1,6 @@
-import type { AgentMessage, ToolApprovalData } from "../../../../lib/agent.types";
 import i18n from "@/i18n";
 
+import type { AgentMessage, ToolApprovalData } from "../../../../lib/agent.types";
 import {
   getClarificationPromptData,
   type ClarificationPromptData,
@@ -24,7 +24,10 @@ export interface AgentQuestionSpecialPanel {
 
 export type AgentSpecialPanel = AgentApprovalSpecialPanel | AgentQuestionSpecialPanel;
 
-const ACTIVE_SPECIAL_PANEL_STATUSES = new Set<NonNullable<AgentMessage["status"]>>(["pending", "running"]);
+const ACTIVE_SPECIAL_PANEL_STATUSES = new Set<NonNullable<AgentMessage["status"]>>([
+  "pending",
+  "running",
+]);
 
 function getStringArg(args: Record<string, unknown>, ...keys: string[]): string | undefined {
   for (const key of keys) {
@@ -36,7 +39,8 @@ function getStringArg(args: Record<string, unknown>, ...keys: string[]): string 
 
 function getApprovalSummary(toolName: string, toolArgs: Record<string, unknown>): string {
   const title = getStringArg(toolArgs, "title", "chapter_title", "name");
-  const chapterLabel = title ?? getStringArg(toolArgs, "chapter_id") ?? i18n.t("assistant.tools.chapter");
+  const chapterLabel =
+    title ?? getStringArg(toolArgs, "chapter_id") ?? i18n.t("assistant.tools.chapter");
 
   switch (toolName) {
     case "write_chapter":
@@ -54,7 +58,9 @@ function getApprovalSummary(toolName: string, toolArgs: Record<string, unknown>)
     case "apply_chapter_operations":
       return i18n.t("assistant.batchEditChapters");
     default:
-      return toolName ? i18n.t("assistant.executeTool", { toolName }) : i18n.t("assistant.executeToolCall");
+      return toolName
+        ? i18n.t("assistant.executeTool", { toolName })
+        : i18n.t("assistant.executeToolCall");
   }
 }
 

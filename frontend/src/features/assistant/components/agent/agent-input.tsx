@@ -9,16 +9,10 @@ import { ModelIdSelect, Spinner, type ModelIdSelectOption } from "@/components";
 import { SimpleSelect, type SelectOption } from "@/components/select";
 import { ProviderIcon } from "@/features/settings/lib/provider-icons";
 import type { AgentPendingMessage, AgentSessionStatus } from "@/lib/agent.types";
-import {
-  canSendAgentInput,
-  getAgentInputBodyMode,
-  isAgentInputLocked,
-} from "./agent-input-state";
+
+import { AgentComposerEditor, type AgentComposerSuggestionState } from "./agent-composer-editor";
 import { AgentIndexStatusIndicator } from "./agent-index-status-indicator";
-import {
-  AgentComposerEditor,
-  type AgentComposerSuggestionState,
-} from "./agent-composer-editor";
+import { canSendAgentInput, getAgentInputBodyMode, isAgentInputLocked } from "./agent-input-state";
 import { AgentMentionSuggestions } from "./agent-mention-suggestions";
 import { AgentPendingMessageCard } from "./pending-message-card";
 
@@ -83,11 +77,7 @@ export function AgentInput({
   readOnlyMessage,
 }: AgentInputProps) {
   const { t } = useTranslation();
-  const bodyMode = getAgentInputBodyMode(
-    agentStatus,
-    Boolean(specialPanels),
-    forceSpecialPanels,
-  );
+  const bodyMode = getAgentInputBodyMode(agentStatus, Boolean(specialPanels), forceSpecialPanels);
   const hasContent = value.trim().length > 0;
   const hasPendingMessage = pendingMessage !== null;
   const isComposerLocked = isAgentInputLocked({
@@ -107,22 +97,22 @@ export function AgentInput({
   const buttonActive = shouldAbort || canSend;
   const inputContainerRef = useRef<HTMLDivElement>(null);
   const [pendingClearanceHeight, setPendingClearanceHeight] = useState(0);
-  const [mentionSuggestions, setMentionSuggestions] = useState<AgentComposerSuggestionState | null>(null);
+  const [mentionSuggestions, setMentionSuggestions] = useState<AgentComposerSuggestionState | null>(
+    null,
+  );
   const selectedModel = useMemo(
     () => models.find((model) => model.value === modelId || model.id === modelId),
-    [modelId, models]
+    [modelId, models],
   );
-  const modelTriggerPrefix = selectedModel
-    ? (
-      <ProviderIcon
-        providerType={selectedModel.providerType}
-        size={14}
-        className="ai-sidebar-model-provider-icon"
-        uploadedIconPath={selectedModel.uploadedProviderIconPath}
-        catalogIconPath={selectedModel.catalogProviderIconPath}
-      />
-    )
-    : null;
+  const modelTriggerPrefix = selectedModel ? (
+    <ProviderIcon
+      providerType={selectedModel.providerType}
+      size={14}
+      className="ai-sidebar-model-provider-icon"
+      uploadedIconPath={selectedModel.uploadedProviderIconPath}
+      catalogIconPath={selectedModel.catalogProviderIconPath}
+    />
+  ) : null;
 
   useLayoutEffect(() => {
     const container = inputContainerRef.current;
@@ -130,9 +120,9 @@ export function AgentInput({
 
     const syncHeight = () => {
       const nextHeight = Math.round(container.getBoundingClientRect().height);
-      setPendingClearanceHeight((currentHeight) => (
-        currentHeight === nextHeight ? currentHeight : nextHeight
-      ));
+      setPendingClearanceHeight((currentHeight) =>
+        currentHeight === nextHeight ? currentHeight : nextHeight,
+      );
     };
 
     syncHeight();
@@ -161,8 +151,10 @@ export function AgentInput({
   }, [bodyMode, isComposerLocked, readOnly]);
 
   const getPlaceholder = () => {
-    if (agentStatus === "waiting_answer") return t("writing.aiSidebar.inputPlaceholderWaitingAnswer");
-    if (agentStatus === "waiting_approval") return t("writing.aiSidebar.inputPlaceholderWaitingApproval");
+    if (agentStatus === "waiting_answer")
+      return t("writing.aiSidebar.inputPlaceholderWaitingAnswer");
+    if (agentStatus === "waiting_approval")
+      return t("writing.aiSidebar.inputPlaceholderWaitingApproval");
     return t("writing.aiSidebar.inputPlaceholder");
   };
 
@@ -208,7 +200,10 @@ export function AgentInput({
           data-mode={bodyMode}
           transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
         >
-          <AnimatePresence initial={false} mode="wait">
+          <AnimatePresence
+            initial={false}
+            mode="wait"
+          >
             {bodyMode === "special_panels" ? (
               <motion.div
                 key="special-panels"
@@ -271,45 +266,105 @@ export function AgentInput({
       </motion.div>
 
       {readOnly ? null : (
-      <Flex justify="between" align="center" gap="2">
-        <Flex align="center" gap="2" wrap="wrap" style={{ flex: "1 1 auto", minWidth: 0 }}>
-          {isModelsLoading ? (
-            <Flex align="center" gap="2" style={{ flex: "0 0 auto" }}>
-              <Spinner size={18} />
-              <Text size="1" color="gray">
-                {t("common.loading")}
-              </Text>
-            </Flex>
-          ) : models.length === 0 || modelsError ? (
-            <Tooltip content={t("writing.aiSidebar.noModelsTooltip")}>
-              <Flex align="center" gap="1" className="ai-sidebar-no-models">
-                <Text size="1" color="gray">
-                  {t("writing.aiSidebar.noModelsMessage")}
-                </Text>
-                <button
-                  type="button"
-                  className="ai-sidebar-no-models-action"
-                  onClick={onGoToSettings}
+        <Flex
+          justify="between"
+          align="center"
+          gap="2"
+        >
+          <Flex
+            align="center"
+            gap="2"
+            wrap="wrap"
+            style={{ flex: "1 1 auto", minWidth: 0 }}
+          >
+            {isModelsLoading ? (
+              <Flex
+                align="center"
+                gap="2"
+                style={{ flex: "0 0 auto" }}
+              >
+                <Spinner size={18} />
+                <Text
+                  size="1"
+                  color="gray"
                 >
-                  <Text size="1" className="ai-sidebar-no-models-action-text">
-                    {t("writing.aiSidebar.noModelsAction")}
-                  </Text>
-                  <ExternalLink size={12} aria-hidden="true" />
-                </button>
+                  {t("common.loading")}
+                </Text>
               </Flex>
-            </Tooltip>
-          ) : (
-            <>
-              {agentOptions.length > 0 && onAgentChange ? (
-                <Box className="ai-sidebar-model-selector" style={{ flex: "0 0 auto", minWidth: 0, marginRight: 4 }}>
-                  <SimpleSelect
-                    value={agentKey ?? ""}
-                    options={agentOptions}
-                    onChange={onAgentChange}
+            ) : models.length === 0 || modelsError ? (
+              <Tooltip content={t("writing.aiSidebar.noModelsTooltip")}>
+                <Flex
+                  align="center"
+                  gap="1"
+                  className="ai-sidebar-no-models"
+                >
+                  <Text
                     size="1"
-                    triggerPrefix={<CircleUserRound size={14} aria-hidden="true" />}
+                    color="gray"
+                  >
+                    {t("writing.aiSidebar.noModelsMessage")}
+                  </Text>
+                  <button
+                    type="button"
+                    className="ai-sidebar-no-models-action"
+                    onClick={onGoToSettings}
+                  >
+                    <Text
+                      size="1"
+                      className="ai-sidebar-no-models-action-text"
+                    >
+                      {t("writing.aiSidebar.noModelsAction")}
+                    </Text>
+                    <ExternalLink
+                      size={12}
+                      aria-hidden="true"
+                    />
+                  </button>
+                </Flex>
+              </Tooltip>
+            ) : (
+              <>
+                {agentOptions.length > 0 && onAgentChange ? (
+                  <Box
+                    className="ai-sidebar-model-selector"
+                    style={{ flex: "0 0 auto", minWidth: 0, marginRight: 4 }}
+                  >
+                    <SimpleSelect
+                      value={agentKey ?? ""}
+                      options={agentOptions}
+                      onChange={onAgentChange}
+                      size="1"
+                      triggerPrefix={
+                        <CircleUserRound
+                          size={14}
+                          aria-hidden="true"
+                        />
+                      }
+                      hideTriggerChevron
+                      triggerClassName="ai-sidebar-inline-select-trigger ai-sidebar-agent-select-trigger"
+                      triggerStyle={{
+                        fontSize: "12px",
+                        border: "none",
+                        background: "transparent",
+                        boxShadow: "none",
+                      }}
+                    />
+                  </Box>
+                ) : null}
+                <Box
+                  className="ai-sidebar-model-selector"
+                  style={{ flex: "0 1 auto", minWidth: 0 }}
+                >
+                  <ModelIdSelect
+                    value={modelId}
+                    models={models}
+                    onChange={onModelChange}
+                    editable={false}
+                    allowCustomValue={false}
+                    compact
+                    triggerPrefix={modelTriggerPrefix}
                     hideTriggerChevron
-                    triggerClassName="ai-sidebar-inline-select-trigger ai-sidebar-agent-select-trigger"
+                    triggerClassName="ai-sidebar-inline-select-trigger"
                     triggerStyle={{
                       fontSize: "12px",
                       border: "none",
@@ -318,100 +373,90 @@ export function AgentInput({
                     }}
                   />
                 </Box>
-              ) : null}
-              <Box className="ai-sidebar-model-selector" style={{ flex: "0 1 auto", minWidth: 0 }}>
-                <ModelIdSelect
-                  value={modelId}
-                  models={models}
-                  onChange={onModelChange}
-                  editable={false}
-                  allowCustomValue={false}
-                  compact
-                  triggerPrefix={modelTriggerPrefix}
-                  hideTriggerChevron
-                  triggerClassName="ai-sidebar-inline-select-trigger"
-                  triggerStyle={{
-                    fontSize: "12px",
-                    border: "none",
-                    background: "transparent",
-                    boxShadow: "none",
-                  }}
-                />
-              </Box>
-            </>
-          )}
-        </Flex>
+              </>
+            )}
+          </Flex>
 
-        <Flex align="center" gap="2">
-          <AgentIndexStatusIndicator projectId={projectId} />
-
-          <Tooltip
-            content={toolApprovalBypassEnabled
-              ? t("writing.aiSidebar.toolApprovalBypassOn")
-              : t("writing.aiSidebar.toolApprovalBypassOff")}
+          <Flex
+            align="center"
+            gap="2"
           >
-            <IconButton
-              type="button"
-              variant="ghost"
-              size="1"
-              onClick={onToggleToolApprovalBypass}
-              disabled={toolApprovalBypassDisabled}
-              aria-pressed={toolApprovalBypassEnabled}
-              aria-label={toolApprovalBypassEnabled
-                ? t("writing.aiSidebar.toolApprovalBypassOn")
-                : t("writing.aiSidebar.toolApprovalBypassOff")}
-              style={{
-                width: "26px",
-                height: "26px",
-                padding: 0,
-                borderRadius: "999px",
-                background: toolApprovalBypassEnabled ? "var(--green-a3)" : "transparent",
-                color: toolApprovalBypassEnabled ? "var(--green-11)" : "#111111",
-                border: "none",
-              }}
-            >
-              <ShieldCheck size={14} />
-            </IconButton>
-          </Tooltip>
+            <AgentIndexStatusIndicator projectId={projectId} />
 
-          <motion.div
-            animate={{
-              opacity: buttonActive ? 1 : 0.2,
-              scale: 1,
-            }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            style={{ display: "flex" }}
-          >
-            <IconButton
-              variant="solid"
-              size="1"
-              className="ai-sidebar-send-button"
-              onClick={shouldAbort ? onAbort : onSend}
-              disabled={shouldAbort ? false : !canSend}
-              aria-disabled={!buttonActive || undefined}
-              style={{
-                width: "26px",
-                height: "26px",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 0,
-                opacity: 1,
-                pointerEvents: buttonActive ? undefined : "none",
-              }}
+            <Tooltip
+              content={
+                toolApprovalBypassEnabled
+                  ? t("writing.aiSidebar.toolApprovalBypassOn")
+                  : t("writing.aiSidebar.toolApprovalBypassOff")
+              }
             >
-              {shouldAbort ? (
-                <Square size={12} fill="currentColor" />
-              ) : disabled ? (
-                <Spinner size={18} />
-              ) : (
-                <ArrowUp size={14} />
-              )}
-            </IconButton>
-          </motion.div>
+              <IconButton
+                type="button"
+                variant="ghost"
+                size="1"
+                onClick={onToggleToolApprovalBypass}
+                disabled={toolApprovalBypassDisabled}
+                aria-pressed={toolApprovalBypassEnabled}
+                aria-label={
+                  toolApprovalBypassEnabled
+                    ? t("writing.aiSidebar.toolApprovalBypassOn")
+                    : t("writing.aiSidebar.toolApprovalBypassOff")
+                }
+                style={{
+                  width: "26px",
+                  height: "26px",
+                  padding: 0,
+                  borderRadius: "999px",
+                  background: toolApprovalBypassEnabled ? "var(--green-a3)" : "transparent",
+                  color: toolApprovalBypassEnabled ? "var(--green-11)" : "#111111",
+                  border: "none",
+                }}
+              >
+                <ShieldCheck size={14} />
+              </IconButton>
+            </Tooltip>
+
+            <motion.div
+              animate={{
+                opacity: buttonActive ? 1 : 0.2,
+                scale: 1,
+              }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              style={{ display: "flex" }}
+            >
+              <IconButton
+                variant="solid"
+                size="1"
+                className="ai-sidebar-send-button"
+                onClick={shouldAbort ? onAbort : onSend}
+                disabled={shouldAbort ? false : !canSend}
+                aria-disabled={!buttonActive || undefined}
+                style={{
+                  width: "26px",
+                  height: "26px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 0,
+                  opacity: 1,
+                  pointerEvents: buttonActive ? undefined : "none",
+                }}
+              >
+                {shouldAbort ? (
+                  <Square
+                    size={12}
+                    fill="currentColor"
+                  />
+                ) : disabled ? (
+                  <Spinner size={18} />
+                ) : (
+                  <ArrowUp size={14} />
+                )}
+              </IconButton>
+            </motion.div>
+          </Flex>
         </Flex>
-      </Flex>
       )}
     </Box>
   );

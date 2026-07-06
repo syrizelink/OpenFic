@@ -1,14 +1,6 @@
 /* oxlint-disable react-refresh/only-export-components */
 import { Box } from "@radix-ui/themes";
-import {
-  AudioLines,
-  Brain,
-  FileText,
-  Image,
-  Type,
-  Video,
-  Wrench,
-} from "lucide-react";
+import { AudioLines, Brain, FileText, Image, Type, Video, Wrench } from "lucide-react";
 
 import type { AvailableModel } from "@/lib/model.types";
 
@@ -21,9 +13,13 @@ export type ModelCapabilityKey =
   | "reasoning"
   | "tool-call";
 
-const MODALITY_CAPABILITY_ORDER: Array<
-  Exclude<ModelCapabilityKey, "reasoning" | "tool-call">
-> = ["text", "image", "video", "audio", "pdf"];
+const MODALITY_CAPABILITY_ORDER: Array<Exclude<ModelCapabilityKey, "reasoning" | "tool-call">> = [
+  "text",
+  "image",
+  "video",
+  "audio",
+  "pdf",
+];
 
 const CAPABILITY_ICON_META: Record<
   ModelCapabilityKey,
@@ -71,13 +67,13 @@ const CAPABILITY_ICON_META: Record<
 };
 
 export function getModelCapabilityKeys(
-  model: Pick<AvailableModel, "inputModalities" | "reasoning" | "toolCall">
+  model: Pick<AvailableModel, "inputModalities" | "reasoning" | "toolCall">,
 ): ModelCapabilityKey[] {
   const inputModalities = new Set(
-    (model.inputModalities ?? []).map((modality) => modality.toLowerCase())
+    (model.inputModalities ?? []).map((modality) => modality.toLowerCase()),
   );
-  const capabilities: ModelCapabilityKey[] = MODALITY_CAPABILITY_ORDER.filter(
-    (capability) => inputModalities.has(capability)
+  const capabilities: ModelCapabilityKey[] = MODALITY_CAPABILITY_ORDER.filter((capability) =>
+    inputModalities.has(capability),
   );
 
   if (model.reasoning) {
@@ -127,7 +123,10 @@ export function CapabilityIcon({ capability }: { capability: ModelCapabilityKey 
         flexShrink: 0,
       }}
     >
-      <Icon size={12} strokeWidth={2.2} />
+      <Icon
+        size={12}
+        strokeWidth={2.2}
+      />
     </Box>
   );
 }

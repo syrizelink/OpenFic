@@ -64,7 +64,7 @@ export function TitleInput({
         inputRef.current?.blur();
       }, MOBILE_TITLE_LONG_PRESS_MS);
     },
-    [clearPointer, disabled]
+    [clearPointer, disabled],
   );
 
   const handlePointerMove = useCallback(
@@ -79,21 +79,24 @@ export function TitleInput({
         clearPointer();
       }
     },
-    [clearPointer]
+    [clearPointer],
   );
 
-  const handlePointerUp = useCallback((event: React.PointerEvent<HTMLInputElement>) => {
-    const pointer = pointerRef.current;
-    if (!pointer || pointer.pointerId !== event.pointerId) return;
+  const handlePointerUp = useCallback(
+    (event: React.PointerEvent<HTMLInputElement>) => {
+      const pointer = pointerRef.current;
+      if (!pointer || pointer.pointerId !== event.pointerId) return;
 
-    clearLongPress();
-    if (pointer.isLongPress) {
-      event.preventDefault();
-      event.stopPropagation();
-      inputRef.current?.blur();
-    }
-    pointerRef.current = null;
-  }, [clearLongPress]);
+      clearLongPress();
+      if (pointer.isLongPress) {
+        event.preventDefault();
+        event.stopPropagation();
+        inputRef.current?.blur();
+      }
+      pointerRef.current = null;
+    },
+    [clearLongPress],
+  );
 
   const handleContextMenu = useCallback((event: React.MouseEvent<HTMLInputElement>) => {
     if (!pointerRef.current?.isLongPress) return;

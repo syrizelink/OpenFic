@@ -1,8 +1,8 @@
-import StarterKit from "@tiptap/starter-kit";
-import { TableKit } from "@tiptap/extension-table";
-import { TaskList, TaskItem } from "@tiptap/extension-list";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
+import { TaskList, TaskItem } from "@tiptap/extension-list";
+import { TableKit } from "@tiptap/extension-table";
 import { MarkdownManager } from "@tiptap/markdown";
+import StarterKit from "@tiptap/starter-kit";
 import { createLowlight, common } from "lowlight";
 
 // Build the same flat extension list the editor uses (minus Markdown/ui-only ones)

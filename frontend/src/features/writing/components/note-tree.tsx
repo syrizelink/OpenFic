@@ -1,9 +1,4 @@
-import { useMemo, useCallback } from "react";
-import { Flex, Text } from "@radix-ui/themes";
 import * as DndKitCore from "@dnd-kit/core";
-import { toast } from "@/components";
-import { useTranslation } from "react-i18next";
-import { useShallow } from "zustand/react/shallow";
 import {
   DndContext,
   useSensor,
@@ -14,10 +9,16 @@ import {
   type CollisionDetection,
 } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { Flex, Text } from "@radix-ui/themes";
+import { useMemo, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { useShallow } from "zustand/react/shallow";
 
-import { NoteTreeItem, type NoteTreeItemData } from "./note-tree-item";
-import { useNotesStore } from "../store/use-notes-store";
+import { toast } from "@/components";
 import type { NoteTreeResponse, NoteCategoryItem, NoteListItem } from "@/lib/note.types";
+
+import { useNotesStore } from "../store/use-notes-store";
+import { NoteTreeItem, type NoteTreeItemData } from "./note-tree-item";
 
 const ROOT_DROP_ID = "note-tree-root";
 
@@ -30,8 +31,17 @@ interface NoteTreeProps {
   renamingId: string | null;
   onRenameConfirm: (id: string, type: "category" | "note", newTitle: string) => void;
   onRenameCancel: () => void;
-  onContextMenu: (id: string, type: "category" | "note", position: { x: number; y: number }, title: string) => void;
-  onMove: (itemId: string, kind: "category" | "note", targetCategoryId: string | null) => Promise<void>;
+  onContextMenu: (
+    id: string,
+    type: "category" | "note",
+    position: { x: number; y: number },
+    title: string,
+  ) => void;
+  onMove: (
+    itemId: string,
+    kind: "category" | "note",
+    targetCategoryId: string | null,
+  ) => Promise<void>;
 }
 
 function flattenTree(
@@ -59,14 +69,10 @@ function flattenTree(
 
     if (isExpanded) {
       result.push(
-        ...flattenTree(
-          cat.categories,
-          cat.notes,
-          expandedIds,
-          depth + 1,
+        ...flattenTree(cat.categories, cat.notes, expandedIds, depth + 1, cat.id, [
+          ...ancestorCategoryIds,
           cat.id,
-          [...ancestorCategoryIds, cat.id],
-        ),
+        ]),
       );
     }
   }
@@ -87,9 +93,7 @@ function flattenTree(
   return result;
 }
 
-function buildCategoryParentMap(
-  categories: NoteCategoryItem[],
-): Map<string, string | null> {
+function buildCategoryParentMap(categories: NoteCategoryItem[]): Map<string, string | null> {
   const map = new Map<string, string | null>();
   const walk = (cats: NoteCategoryItem[]) => {
     for (const cat of cats) {
@@ -101,10 +105,7 @@ function buildCategoryParentMap(
   return map;
 }
 
-function findNoteCategoryId(
-  data: NoteTreeResponse,
-  noteId: string,
-): string | null {
+function findNoteCategoryId(data: NoteTreeResponse, noteId: string): string | null {
   const walk = (cats: NoteCategoryItem[]): string | null => {
     for (const cat of cats) {
       const found = cat.notes.find((n) => n.id === noteId);
@@ -119,10 +120,7 @@ function findNoteCategoryId(
   return data.rootNotes.find((n) => n.id === noteId)?.categoryId ?? null;
 }
 
-function computeActiveAncestorIds(
-  data: NoteTreeResponse,
-  noteId: string | null,
-): Set<string> {
+function computeActiveAncestorIds(data: NoteTreeResponse, noteId: string | null): Set<string> {
   if (!noteId) return new Set();
   const categoryId = findNoteCategoryId(data, noteId);
   if (!categoryId) return new Set();
@@ -213,7 +211,7 @@ export function NoteTree({
 }: NoteTreeProps) {
   const { t } = useTranslation();
   const [expandedIds, toggleExpanded] = useNotesStore(
-    useShallow((s) => [s.expandedNoteCategoryIds, s.toggleNoteCategoryExpanded])
+    useShallow((s) => [s.expandedNoteCategoryIds, s.toggleNoteCategoryExpanded]),
   );
 
   const sensors = useSensors(
@@ -222,32 +220,30 @@ export function NoteTree({
     }),
     useSensor(DndKitCore.TouchSensor, {
       activationConstraint: { delay: 280, tolerance: 8 },
-    })
+    }),
   );
 
-  const collisionDetection = useMemo(
-    () => createCollisionDetection(),
-    []
-  );
+  const collisionDetection = useMemo(() => createCollisionDetection(), []);
 
   const handleSelect = useCallback(
     (id: string, itemType: "category" | "note") => {
       if (itemType === "note") {
-        const noteData = data?.rootNotes.find((n) => n.id === id)
-          || findNoteInCategories(data?.categories ?? [], id);
+        const noteData =
+          data?.rootNotes.find((n) => n.id === id) ||
+          findNoteInCategories(data?.categories ?? [], id);
         onNoteSelect(id, noteData?.title ?? "");
       } else {
         onCategorySelect(id);
       }
     },
-    [data, onNoteSelect, onCategorySelect]
+    [data, onNoteSelect, onCategorySelect],
   );
 
   const handleExpand = useCallback(
     (id: string) => {
       toggleExpanded(id);
     },
-    [toggleExpanded]
+    [toggleExpanded],
   );
 
   const activeAncestorCategoryIds = useMemo(
@@ -266,13 +262,17 @@ export function NoteTree({
       const { active, over } = event;
       if (!over) return;
 
-      const activeData = active.data.current as {
-        itemType: string;
-        itemId: string;
-        depth: number;
-        parentId?: string | null;
-      } | undefined;
-      const overData = over.data.current as { itemType?: string; itemId?: string; depth?: number } | undefined;
+      const activeData = active.data.current as
+        | {
+            itemType: string;
+            itemId: string;
+            depth: number;
+            parentId?: string | null;
+          }
+        | undefined;
+      const overData = over.data.current as
+        | { itemType?: string; itemId?: string; depth?: number }
+        | undefined;
 
       if (!activeData) return;
 
@@ -294,9 +294,10 @@ export function NoteTree({
         targetCategoryId = overData.itemId!;
         const targetDepth = overData.depth ?? 0;
 
-        if (sourceKind === "category"
-          && data?.categories
-          && isDescendantOf(data.categories, sourceId, targetCategoryId)
+        if (
+          sourceKind === "category" &&
+          data?.categories &&
+          isDescendantOf(data.categories, sourceId, targetCategoryId)
         ) {
           toast.error(t("writing.cannotMoveIntoDescendant"));
           return;
@@ -318,7 +319,7 @@ export function NoteTree({
         // error handled by mutation
       });
     },
-    [onMove, t, data]
+    [onMove, t, data],
   );
 
   if (!data) return null;
@@ -332,8 +333,17 @@ export function NoteTree({
     >
       <RootDropArea>
         {isEmpty ? (
-          <Flex align="center" justify="center" p="6" style={{ minHeight: "100%" }}>
-            <Text size="2" color="gray" align="center">
+          <Flex
+            align="center"
+            justify="center"
+            p="6"
+            style={{ minHeight: "100%" }}
+          >
+            <Text
+              size="2"
+              color="gray"
+              align="center"
+            >
               {t("writing.emptyNotes")}
             </Text>
           </Flex>
@@ -361,7 +371,10 @@ export function NoteTree({
   );
 }
 
-function findNoteInCategories(categories: NoteCategoryItem[], noteId: string): NoteListItem | undefined {
+function findNoteInCategories(
+  categories: NoteCategoryItem[],
+  noteId: string,
+): NoteListItem | undefined {
   for (const cat of categories) {
     const found = cat.notes.find((n) => n.id === noteId);
     if (found) return found;

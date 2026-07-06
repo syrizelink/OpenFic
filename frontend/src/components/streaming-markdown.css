@@ -391,7 +391,11 @@
   color: var(--gray-12);
 }
 
-.streaming-markdown [data-streamdown="mermaid"] > div > div:first-child:not([role]) button:disabled {
+.streaming-markdown
+  [data-streamdown="mermaid"]
+  > div
+  > div:first-child:not([role])
+  button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }
@@ -488,11 +492,17 @@
   background: var(--sdm-tbg, transparent);
 }
 
-[data-theme="dark"] .streaming-markdown [data-streamdown="code-block-body"] span[style*="--shiki-dark"] {
+[data-theme="dark"]
+  .streaming-markdown
+  [data-streamdown="code-block-body"]
+  span[style*="--shiki-dark"] {
   color: var(--shiki-dark, var(--sdm-c, inherit));
 }
 
-[data-theme="dark"] .streaming-markdown [data-streamdown="code-block-body"] span[style*="--shiki-dark-bg"] {
+[data-theme="dark"]
+  .streaming-markdown
+  [data-streamdown="code-block-body"]
+  span[style*="--shiki-dark-bg"] {
   background: var(--shiki-dark-bg, var(--sdm-tbg, transparent));
 }
 

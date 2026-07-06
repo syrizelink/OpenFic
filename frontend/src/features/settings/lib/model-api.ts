@@ -80,7 +80,7 @@ interface ModelProviderCatalogModelsApiResponse {
 
 function readNumericMetadataField(
   value: Record<string, unknown> | string | number | null | undefined,
-  key: string
+  key: string,
 ): number | null {
   if (value === null || value === undefined) {
     return null;
@@ -108,10 +108,7 @@ function readNumericMetadataField(
 }
 
 function transformCatalogMatch(
-  raw:
-    | NonNullable<ModelProviderResponse["catalog_match"]>
-    | null
-    | undefined
+  raw: NonNullable<ModelProviderResponse["catalog_match"]> | null | undefined,
 ): ModelProviderCatalogMatch | null {
   if (!raw) {
     return null;
@@ -178,7 +175,7 @@ function transformModel(raw: ModelResponse): Model {
 }
 
 function transformCatalogStatus(
-  raw: ModelProviderCatalogStatusResponse
+  raw: ModelProviderCatalogStatusResponse,
 ): ModelProviderCatalogStatus {
   return {
     source: raw.source,
@@ -189,7 +186,7 @@ function transformCatalogStatus(
 }
 
 function transformCatalogProvider(
-  raw: ModelProviderCatalogProviderResponse
+  raw: ModelProviderCatalogProviderResponse,
 ): ModelProviderCatalogProvider {
   return {
     providerType: raw.provider_type,
@@ -204,9 +201,7 @@ function transformCatalogProvider(
   };
 }
 
-function transformCatalogModel(
-  raw: ModelProviderCatalogModelResponse
-): ModelProviderCatalogModel {
+function transformCatalogModel(raw: ModelProviderCatalogModelResponse): ModelProviderCatalogModel {
   const metadata = raw.metadata ?? null;
 
   return {
@@ -229,7 +224,7 @@ function transformCatalogModel(
 
 function transformAvailableModel(
   raw: ModelProviderAvailableModelApiResponse,
-  source: "catalog" | "remote"
+  source: "catalog" | "remote",
 ): AvailableModel {
   const metadata = raw.metadata ?? null;
 
@@ -257,9 +252,7 @@ function transformAvailableModel(
  * 获取所有提供商
  */
 export async function fetchProviders(): Promise<ModelProvider[]> {
-  const response = await apiClient.get<ModelProviderResponse[]>(
-    "/model-providers"
-  );
+  const response = await apiClient.get<ModelProviderResponse[]>("/model-providers");
   return response.data.map(transformProvider);
 }
 
@@ -267,46 +260,31 @@ export async function fetchProviders(): Promise<ModelProvider[]> {
  * 根据 ID 获取提供商
  */
 export async function fetchProvider(id: string): Promise<ModelProvider> {
-  const response = await apiClient.get<ModelProviderResponse>(
-    `/model-providers/${id}`
-  );
+  const response = await apiClient.get<ModelProviderResponse>(`/model-providers/${id}`);
   return transformProvider(response.data);
 }
 
 /**
  * 创建提供商
  */
-export async function createProvider(
-  data: FormData
-): Promise<ModelProvider> {
-  const response = await apiClient.post<ModelProviderResponse>(
-    "/model-providers",
-    data,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
-  );
+export async function createProvider(data: FormData): Promise<ModelProvider> {
+  const response = await apiClient.post<ModelProviderResponse>("/model-providers", data, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
   return transformProvider(response.data);
 }
 
 /**
  * 更新提供商
  */
-export async function updateProvider(
-  id: string,
-  data: FormData
-): Promise<ModelProvider> {
-  const response = await apiClient.put<ModelProviderResponse>(
-    `/model-providers/${id}`,
-    data,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
-  );
+export async function updateProvider(id: string, data: FormData): Promise<ModelProvider> {
+  const response = await apiClient.put<ModelProviderResponse>(`/model-providers/${id}`, data, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
   return transformProvider(response.data);
 }
 
@@ -321,17 +299,15 @@ export async function deleteProvider(id: string): Promise<void> {
  * 验证提供商连接
  */
 export async function validateProvider(
-  data: ModelProviderValidateRequest
+  data: ModelProviderValidateRequest,
 ): Promise<ModelProviderValidateResponse> {
   const response = await apiClient.post<ModelProviderValidateApiResponse>(
     "/model-providers/validate",
-    data
+    data,
   );
   return {
     ...response.data,
-    models: (response.data.models || []).map((model) =>
-      transformAvailableModel(model, "remote")
-    ),
+    models: (response.data.models || []).map((model) => transformAvailableModel(model, "remote")),
   };
 }
 
@@ -340,30 +316,28 @@ export async function validateProvider(
  */
 export async function fetchProviderModels(
   providerId: string,
-  taskType: TaskType = "llm"
+  taskType: TaskType = "llm",
 ): Promise<ModelProviderValidateResponse> {
   const response = await apiClient.get<ModelProviderValidateApiResponse>(
     `/model-providers/${providerId}/models`,
-    { params: { task_type: taskType } }
+    { params: { task_type: taskType } },
   );
   return {
     ...response.data,
-    models: (response.data.models || []).map((model) =>
-      transformAvailableModel(model, "remote")
-    ),
+    models: (response.data.models || []).map((model) => transformAvailableModel(model, "remote")),
   };
 }
 
 export async function fetchModelProviderCatalogStatus(): Promise<ModelProviderCatalogStatus> {
   const response = await apiClient.get<ModelProviderCatalogStatusResponse>(
-    "/model-provider-catalog/status"
+    "/model-provider-catalog/status",
   );
   return transformCatalogStatus(response.data);
 }
 
 export async function refreshModelProviderCatalog(): Promise<ModelProviderCatalogStatus> {
   const response = await apiClient.post<ModelProviderCatalogStatusResponse>(
-    "/model-provider-catalog/refresh"
+    "/model-provider-catalog/refresh",
   );
   return transformCatalogStatus(response.data);
 }
@@ -372,18 +346,18 @@ export async function fetchModelProviderCatalogProviders(): Promise<
   ModelProviderCatalogProvider[]
 > {
   const response = await apiClient.get<ModelProviderCatalogProviderResponse[]>(
-    "/model-provider-catalog/providers"
+    "/model-provider-catalog/providers",
   );
   return response.data.map(transformCatalogProvider);
 }
 
 export async function fetchModelProviderCatalogModels(
   providerType: string,
-  taskType: TaskType
+  taskType: TaskType,
 ): Promise<ModelProviderCatalogModelsResponse> {
   const response = await apiClient.get<ModelProviderCatalogModelsApiResponse>(
     `/model-provider-catalog/providers/${providerType}/models`,
-    { params: { task_type: taskType } }
+    { params: { task_type: taskType } },
   );
 
   return {
@@ -424,10 +398,7 @@ export async function createModel(data: ModelCreateRequest): Promise<Model> {
 /**
  * 更新模型
  */
-export async function updateModel(
-  id: string,
-  data: ModelUpdateRequest
-): Promise<Model> {
+export async function updateModel(id: string, data: ModelUpdateRequest): Promise<Model> {
   const response = await apiClient.put<ModelResponse>(`/models/${id}`, data);
   return transformModel(response.data);
 }

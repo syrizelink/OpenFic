@@ -5,12 +5,7 @@
  */
 
 import { Flex, Text, TextField, Slider } from "@radix-ui/themes";
-import {
-  Controller,
-  type Control,
-  type FieldValues,
-  type Path,
-} from "react-hook-form";
+import { Controller, type Control, type FieldValues, type Path } from "react-hook-form";
 
 interface SliderFieldProps<T extends FieldValues> {
   name: Path<T>;
@@ -38,9 +33,19 @@ export function SliderField<T extends FieldValues>({
   inputKey,
 }: SliderFieldProps<T>) {
   return (
-    <Flex direction="column" gap="2">
-      <Flex justify="between" align="center">
-        <Text size="2" weight="medium" color="gray">
+    <Flex
+      direction="column"
+      gap="2"
+    >
+      <Flex
+        justify="between"
+        align="center"
+      >
+        <Text
+          size="2"
+          weight="medium"
+          color="gray"
+        >
           {label}
         </Text>
         <Controller
@@ -94,7 +99,10 @@ export function SliderField<T extends FieldValues>({
           );
         }}
       />
-      <Text size="1" color="gray">
+      <Text
+        size="1"
+        color="gray"
+      >
         {description}
       </Text>
     </Flex>
