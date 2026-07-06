@@ -23,6 +23,7 @@ from app.api.routers import (
     agent_definitions,
     agent_runtime,
     background,
+    characters,
     chapter_context,
     chapters,
     dashboard,
@@ -62,6 +63,7 @@ def _create_test_app() -> FastAPI:
     test_app.include_router(volumes.router, prefix="/api/v1")
     test_app.include_router(chapters.router, prefix="/api/v1")
     test_app.include_router(notes.router, prefix="/api/v1")
+    test_app.include_router(characters.router, prefix="/api/v1")
     test_app.include_router(world_info.router, prefix="/api/v1")
     test_app.include_router(world_info_entries.router, prefix="/api/v1")
     test_app.include_router(settings.router, prefix="/api/v1")

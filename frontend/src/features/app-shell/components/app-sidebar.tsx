@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { Box, Flex } from "@radix-ui/themes";
-import { BookOpenText, ChartNoAxesCombined, Globe, LibraryBig, Workflow } from "lucide-react";
+import { BookOpenText, ChartNoAxesCombined, Globe, LibraryBig, UserRound, Workflow } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -90,6 +90,12 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
         href: "/world-info",
         icon: Globe,
         active: pathname.startsWith("/world-info"),
+      },
+      {
+        label: t("topbar.characters"),
+        href: "/characters",
+        icon: UserRound,
+        active: pathname.startsWith("/characters"),
       },
       {
         label: t("topbar.promptChains"),

@@ -4,6 +4,8 @@ import { Undo, Redo, Save } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Editor } from "@tiptap/react";
 
+import { Spinner } from "./spinner";
+
 export interface EditorToolbarExtraAction {
   id: string;
   icon: React.ReactNode;
@@ -136,7 +138,7 @@ export function EditorToolbar({
         <Separator orientation="vertical" size="1" />
 
         <ToolbarButton
-          icon={<Save size={18} />}
+          icon={isSaving ? <Spinner size={18} /> : <Save size={18} />}
           label={t("editor.save")}
           disabled={isSaving || !hasChanges}
           onClick={() => runEditorAction(() => onSave(true))}

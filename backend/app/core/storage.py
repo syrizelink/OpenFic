@@ -27,6 +27,13 @@ def ensure_covers_dir() -> Path:
     return covers_dir
 
 
+def ensure_character_images_dir() -> Path:
+    """确保角色头像存储目录存在。"""
+    character_images_dir = settings.character_images_dir
+    character_images_dir.mkdir(parents=True, exist_ok=True)
+    return character_images_dir
+
+
 async def save_cover_file(project_id: str, cover_file: UploadFile) -> str:
     """
     保存上传的封面文件。
@@ -96,3 +103,33 @@ def get_cover_url(cover_path: str | None) -> str | None:
     # 添加时间戳避免浏览器缓存
     timestamp = int(time.time())
     return f"/covers/{cover_path}?t={timestamp}"
+
+
+async def save_character_image(character_id: str, image_file: UploadFile) -> str:
+    """保存角色头像文件。"""
+    ensure_character_images_dir()
+    content = await image_file.read()
+    image = Image.open(io.BytesIO(content))
+
+    if image.mode != "RGB":
+        image = image.convert("RGB")  # type: ignore[assignment]
+
+    image = image.resize((256, 256), Image.Resampling.LANCZOS)  # type: ignore[assignment]
+    filename = f"{character_id}-{time.time_ns()}.jpg"
+    filepath = settings.character_images_dir / filename
+    image.save(filepath, "JPEG", quality=88, optimize=True)
+    return filename
+
+
+def delete_character_image(image_path: str) -> None:
+    """删除角色头像文件。"""
+    filepath = settings.character_images_dir / image_path
+    if filepath.exists():
+        filepath.unlink()
+
+
+def get_character_image_url(image_path: str | None) -> str | None:
+    """获取角色头像访问 URL。"""
+    if not image_path:
+        return None
+    return f"/character-images/{image_path}"

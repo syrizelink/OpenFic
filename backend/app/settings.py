@@ -90,6 +90,7 @@ class Settings(BaseSettings):
 
     # Storage
     covers_dir: Path = BACKEND_DATA_DIR / "covers"
+    character_images_dir: Path = BACKEND_DATA_DIR / "character-images"
     static_dir: Path = BACKEND_DATA_DIR
 
     # Background runtime

@@ -27,6 +27,7 @@ from app.api.routers import (
     agent_runtime,
     audit,
     background,
+    characters,
     chapter_context,
     chapters,
     dashboard,
@@ -54,7 +55,7 @@ from app.background.runtime.supervisor import (
     start_background_runtime,
     stop_background_runtime,
 )
-from app.core.storage import ensure_covers_dir
+from app.core.storage import ensure_character_images_dir, ensure_covers_dir
 from app.models.builtin import seed_builtin_models
 from app.settings import settings as app_settings
 from app.socket import init_socketio
@@ -296,6 +297,7 @@ def create_app() -> FastAPI:
     app.include_router(volumes.router, prefix=app_settings.api_v1_prefix)
     app.include_router(chapters.router, prefix=app_settings.api_v1_prefix)
     app.include_router(notes.router, prefix=app_settings.api_v1_prefix)
+    app.include_router(characters.router, prefix=app_settings.api_v1_prefix)
     app.include_router(world_info.router, prefix=app_settings.api_v1_prefix)
     app.include_router(world_info_entries.router, prefix=app_settings.api_v1_prefix)
     app.include_router(settings.router, prefix=app_settings.api_v1_prefix)
@@ -323,6 +325,13 @@ def create_app() -> FastAPI:
     # 挂载静态文件服务（封面图片）
     covers_dir = ensure_covers_dir()
     app.mount("/covers", StaticFiles(directory=str(covers_dir)), name="covers")
+
+    character_images_dir = ensure_character_images_dir()
+    app.mount(
+        "/character-images",
+        StaticFiles(directory=str(character_images_dir)),
+        name="character_images",
+    )
 
     # 挂载静态文件服务（模型图标）
     icons_dir = app_settings.static_dir / "icons" / "model"
