@@ -1,0 +1,22 @@
+.app-layout-root {
+  --app-status-bar-height: 22px;
+
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-layout-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app-layout-content {
+  height: 100%;
+  padding-left: var(--app-sidebar-width);
+  overflow: hidden;
+  transition: padding-left 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}

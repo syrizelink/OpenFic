@@ -229,7 +229,7 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
             position="fixed"
             top="0"
             left="0"
-            bottom="0"
+            bottom="var(--app-status-bar-height)"
             initial={isMobile ? { x: -SIDEBAR_EXPANDED_WIDTH } : false}
             animate={
               isMobile ? { x: 0, width: SIDEBAR_EXPANDED_WIDTH } : { x: 0, width: sidebarWidth }

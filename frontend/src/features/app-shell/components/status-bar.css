@@ -1,0 +1,55 @@
+.app-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: var(--app-status-bar-height);
+  min-height: var(--app-status-bar-height);
+  padding: 0;
+  border-top: 1px solid var(--gray-a5);
+  color: var(--gray-11);
+  background: var(--gray-2);
+  font-size: 11px;
+  line-height: 1;
+  user-select: none;
+}
+
+.app-status-bar__section {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+}
+
+.app-status-bar__section[data-side="right"] {
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.app-status-bar__item {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  min-width: 0;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.app-status-bar__connection {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-status-bar__connection-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--red-9);
+  box-shadow: 0 0 0 1px var(--red-a5);
+}
+
+.app-status-bar__connection[data-state="connected"] .app-status-bar__connection-dot {
+  background: var(--green-9);
+  box-shadow: 0 0 0 1px var(--green-a5);
+}
