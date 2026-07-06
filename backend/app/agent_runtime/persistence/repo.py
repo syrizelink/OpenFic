@@ -2,6 +2,7 @@
 
 import json
 from datetime import UTC, datetime
+from typing import cast
 
 from sqlalchemy import delete, func, select
 from app.agent_runtime.context.helpers import compile_canonical_mentions
@@ -29,7 +30,7 @@ def _row_to_dto(row: AgentRunMessage) -> PersistedMessage:
         session_id=row.session_id,
         task_id=row.task_id,
         project_id=row.project_id,
-        role=row.role,  # type: ignore[arg-type]
+        role=cast(Role, row.role),
         agent_id=row.agent_id,
         content=row.content,
         reasoning=row.reasoning,
@@ -37,7 +38,7 @@ def _row_to_dto(row: AgentRunMessage) -> PersistedMessage:
         tool_calls=json.loads(row.tool_calls) if row.tool_calls else None,
         tool_call_id=row.tool_call_id,
         tool_name=row.tool_name,
-        status=row.status,  # type: ignore[arg-type]
+        status=cast(Status, row.status),
         message_type=row.message_type or "message",
         display_channel=row.display_channel or "list",
         llm_visibility=row.llm_visibility or "visible",

@@ -110,7 +110,7 @@ def _should_retry_on(policy: RetryPolicy, exc: Exception) -> bool:
     if isinstance(retry_on, type):
         return isinstance(exc, retry_on)
     if isinstance(retry_on, Sequence):
-        return any(isinstance(exc, exc_type) for exc_type in retry_on)
+        return any(isinstance(exc, cast(type[BaseException], exc_type)) for exc_type in retry_on)
     if callable(retry_on):
         return bool(retry_on(exc))
     return False
@@ -851,7 +851,7 @@ def create_react_agent(
     # Build graph
     # ------------------------------------------------------------------
 
-    graph = StateGraph(ReactState)
+    graph = StateGraph(cast(Any, ReactState))
 
     graph.add_node(
         "llm_call",

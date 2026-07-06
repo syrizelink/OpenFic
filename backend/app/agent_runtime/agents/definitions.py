@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -182,14 +182,14 @@ def agent_definition_from_record(record: AgentDefinitionRecord) -> AgentDefiniti
         key=record.key,
         display_name=record.display_name,
         description=record.description,
-        kind=record.kind,  # type: ignore[arg-type]
+        kind=cast(Literal["primary", "subagent"], record.kind),
         prompt_agent_name=record.prompt_agent_name,
         model_id=record.model_id,
         tool_category_keys=tuple(record.tool_category_keys_json or ()),
         enabled_skill_ids=tuple(record.enabled_skill_ids_json or ()),
         metadata=MappingProxyType(dict(record.metadata_json or {})),
         enabled=record.enabled,
-        source=record.source,  # type: ignore[arg-type]
+        source=cast(Literal["builtin", "custom"], record.source),
         delegatable_agents=tuple(record.delegatable_agents or ()),
     )
 

@@ -121,11 +121,3 @@ allowed-unresolved-imports = ["lancedb"]
 
 [tool.ty.src]
 exclude = ["app/storage/migrations/versions/legacy/**"]
-
-[tool.ty.rules]
-invalid-argument-type = "ignore"
-invalid-assignment = "ignore"
-invalid-return-type = "ignore"
-missing-argument = "ignore"
-no-matching-overload = "ignore"
-unknown-argument = "ignore"

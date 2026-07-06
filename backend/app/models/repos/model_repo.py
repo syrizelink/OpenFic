@@ -258,14 +258,14 @@ async def get_all_tags(session: AsyncSession) -> list[str]:
         标签列表（去重）。
     """
     result = await session.execute(select(col(Model.tags)))
-    tags_set = set()
+    tags_set: set[str] = set()
 
     for tags_json in result.scalars():
         try:
             tags_list = json.loads(tags_json)
             if isinstance(tags_list, list):
-                tags_set.update(tags_list)
+                tags_set.update(tag for tag in tags_list if isinstance(tag, str))
         except json.JSONDecodeError:
             continue
 
-    return sorted(list(tags_set))
+    return sorted(tags_set)

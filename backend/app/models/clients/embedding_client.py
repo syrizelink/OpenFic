@@ -6,10 +6,11 @@ Embedding Client - Embedding模型调用客户端。
 """
 
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from langchain_core.embeddings import Embeddings
 from loguru import logger
+from pydantic import SecretStr
 
 
 @dataclass
@@ -82,7 +83,7 @@ class EmbeddingClient:
 
             self._embeddings = GoogleGenerativeAIEmbeddings(
                 model=config.model_id,
-                google_api_key=config.api_key,  # type: ignore[call-arg]
+                api_key=SecretStr(config.api_key),
                 base_url=config.base_url or None,
             )
         elif provider == "mistral":
@@ -90,7 +91,7 @@ class EmbeddingClient:
 
             self._embeddings = MistralAIEmbeddings(
                 model=config.model_id,
-                api_key=config.api_key,  # type: ignore[arg-type]
+                api_key=cast(Any, config.api_key),
             )
         elif provider == "ollama":
             from langchain_ollama import OllamaEmbeddings
