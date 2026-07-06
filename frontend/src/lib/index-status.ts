@@ -212,7 +212,7 @@ export function useOverallIndexStatus(enabled = true) {
     );
     return () => subs.forEach((s) => s.close());
     // projectIdsKey 作为依赖：项目列表变化时重新订阅。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, projectIdsKey, mergeProjectStatus]);
 
   return query;

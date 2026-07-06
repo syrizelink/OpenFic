@@ -90,7 +90,6 @@ export function FindReplacePanel({
   // 监听 editor 更新，同步搜索结果到组件状态
   useEffect(() => {
     const updateResults = () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const storage = (editor as any).storage.searchAndReplace as
         | {
             results: Array<{ from: number; to: number }>;
@@ -139,7 +138,6 @@ export function FindReplacePanel({
 
   // 滚动到当前搜索结果
   const scrollToCurrentResult = useCallback(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const storage = (editor as any).storage.searchAndReplace;
     const results = storage?.results ?? [];
     const resultIndex = storage?.resultIndex ?? 0;

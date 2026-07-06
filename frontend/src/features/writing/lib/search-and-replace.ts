@@ -230,7 +230,6 @@ export interface SearchAndReplaceStorage {
 }
 
 /** 从 editor 获取 searchAndReplace storage（带类型断言） */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getStorage(editor: any): SearchAndReplaceStorage {
   return editor.storage.searchAndReplace as SearchAndReplaceStorage;
 }

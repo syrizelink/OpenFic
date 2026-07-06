@@ -29,7 +29,7 @@ import "./styles/index.css";
 // 初始化 i18n
 import "./i18n";
 
-/* eslint-disable react-refresh/only-export-components */
+/* oxlint-disable react-refresh/only-export-components */
 // 创建 QueryClient 实例（保持在组件外部以避免重新创建）
 const queryClient = new QueryClient({
   defaultOptions: {

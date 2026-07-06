@@ -6,9 +6,9 @@
   "packageManager": "pnpm@11.8.0",
   "scripts": {
     "dev": "farm start",
-    "build": "tsc -b && farm build && node scripts/generate-precachelist.mjs",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "type-check": "tsc -b tsconfig.json --noEmit",
+    "build": "farm build && node scripts/generate-precachelist.mjs",
+    "lint": "oxlint .",
+    "type-check": "oxlint . --type-aware --type-check",
     "preview": "farm preview"
   },
   "dependencies": {
@@ -87,7 +87,6 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
     "@farmfe/cli": "^1.0.5",
     "@farmfe/core": "^1.7.11",
     "@farmfe/plugin-react": "^1.2.6",
@@ -96,19 +95,14 @@
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@typescript-eslint/eslint-plugin": "^8.59.2",
-    "@typescript-eslint/parser": "^8.59.2",
-    "eslint": "^9.39.4",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^16.5.0",
+    "eslint-plugin-react-refresh": "^0.5.3",
     "jiti": "^2.6.1",
     "koa": "^3.2.0",
+    "oxlint": "^1.72.0",
+    "oxlint-tsgolint": "^0.24.0",
     "react-refresh": "^0.18.0",
     "typecheck": "^0.1.2",
-    "typescript": "~5.9.3",
-    "typescript-eslint": "^8.59.2"
+    "typescript": "~5.9.3"
   },
   "overrides": {
     "esbuild": "0.21.5"
