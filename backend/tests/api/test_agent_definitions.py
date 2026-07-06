@@ -43,6 +43,8 @@ async def test_list_agent_tool_categories(client: AsyncClient):
     keys = {item["key"] for item in data["categories"]}
     assert "chapter_read" in keys
     assert "chapter_write" in keys
+    assert "character_read" in keys
+    assert "character_write" in keys
 
     chapter_read = next(item for item in data["categories"] if item["key"] == "chapter_read")
     assert chapter_read["tool_keys"] == [
@@ -52,6 +54,20 @@ async def test_list_agent_tool_categories(client: AsyncClient):
         "search_chapters",
         "update_index",
     ]
+
+    character_read = next(item for item in data["categories"] if item["key"] == "character_read")
+    assert character_read == {
+        "key": "character_read",
+        "name": "角色读取",
+        "tool_keys": ["list_characters", "read_character"],
+    }
+
+    character_write = next(item for item in data["categories"] if item["key"] == "character_write")
+    assert character_write == {
+        "key": "character_write",
+        "name": "角色写入",
+        "tool_keys": ["create_character", "edit_character", "delete_character"],
+    }
 
 
 @pytest.mark.asyncio

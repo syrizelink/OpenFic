@@ -14,10 +14,12 @@ from app.agent_runtime.persistence.child_runs import rollback_child_runs_for_par
 from app.agent_runtime.persistence.model import AgentRunMessage
 from app.core.errors import NotFoundError
 from app.storage.models.chapter import Chapter
+from app.storage.models.character import Character
 from app.storage.models.commit import Commit
 from app.storage.models.note import Note
 from app.storage.models.note import NoteCategory
 from app.storage.models.revision import Revision
+from app.storage.models.revision_character_snapshot import RevisionCharacterSnapshot
 from app.storage.models.revision_chapter_snapshot import RevisionChapterSnapshot
 from app.storage.models.revision_note_snapshot import (
     RevisionNoteCategorySnapshot,
@@ -27,10 +29,12 @@ from app.storage.models.revision_world_entry_snapshot import RevisionWorldEntryS
 from app.storage.models.world_info_entry import WorldInfoEntry
 from app.storage.repos import (
     chapter_repo,
+    character_repo,
     commit_repo,
     note_category_repo,
     note_repo,
     project_repo,
+    revision_character_snapshot_repo,
     revision_chapter_snapshot_repo,
     revision_note_snapshot_repo,
     revision_repo,
@@ -87,12 +91,22 @@ class WorldEntryImage:
 
 
 @dataclass(frozen=True)
+class CharacterImage:
+    id: str
+    project_id: str
+    name: str
+    description: str
+    is_favorited: bool
+
+
+@dataclass(frozen=True)
 class AgentRollbackResult:
     rollback_revision: Revision
     affected_chapters: list[str]
     affected_notes: list[str]
     affected_note_categories: list[str]
     affected_world_entries: list[str]
+    affected_characters: list[str]
     restored_message_content: str
     restored_checkpoint_id: str | None
     child_checkpoint_boundaries: list[tuple[str, str | None]]
@@ -617,6 +631,99 @@ async def record_world_entry_diffs(
     return affected
 
 
+def _image_from_character(character: Character) -> CharacterImage:
+    return CharacterImage(
+        id=character.id,
+        project_id=character.project_id,
+        name=character.name,
+        description=character.description,
+        is_favorited=character.is_favorited,
+    )
+
+
+def _image_from_character_snapshot(
+    snapshot: RevisionCharacterSnapshot,
+) -> CharacterImage | None:
+    if not snapshot.exists:
+        return None
+    return CharacterImage(
+        id=snapshot.character_id,
+        project_id=snapshot.project_id,
+        name=snapshot.name or "",
+        description=snapshot.description or "",
+        is_favorited=snapshot.is_favorited if snapshot.is_favorited is not None else False,
+    )
+
+
+def _snapshot_from_character_image(
+    revision_id: str,
+    project_id: str,
+    character_id: str,
+    image: CharacterImage | None,
+) -> RevisionCharacterSnapshot:
+    if image is None:
+        return RevisionCharacterSnapshot(
+            revision_id=revision_id,
+            character_id=character_id,
+            project_id=project_id,
+            exists=False,
+        )
+    return RevisionCharacterSnapshot(
+        revision_id=revision_id,
+        character_id=image.id,
+        project_id=image.project_id,
+        exists=True,
+        name=image.name,
+        description=image.description,
+        is_favorited=image.is_favorited,
+    )
+
+
+def _character_has_changed(
+    before: CharacterImage | None,
+    after: CharacterImage | None,
+) -> bool:
+    if before is None or after is None:
+        return before is not after
+    return (
+        before.name != after.name
+        or before.description != after.description
+        or before.is_favorited != after.is_favorited
+    )
+
+
+def character_images_by_id(characters: list[Character]) -> dict[str, CharacterImage]:
+    return {character.id: _image_from_character(character) for character in characters}
+
+
+async def record_character_diffs(
+    session: AsyncSession,
+    *,
+    revision_id: str,
+    project_id: str,
+    before: dict[str, CharacterImage],
+    after: dict[str, CharacterImage],
+) -> list[str]:
+    existing_snapshots = await revision_character_snapshot_repo.list_by_revision(
+        session, revision_id
+    )
+    snapshotted = {item.character_id for item in existing_snapshots}
+    affected: list[str] = []
+    for character_id in sorted(set(before) | set(after)):
+        old = before.get(character_id)
+        new = after.get(character_id)
+        if not _character_has_changed(old, new):
+            continue
+        affected.append(character_id)
+        if character_id not in snapshotted:
+            await revision_character_snapshot_repo.create(
+                session,
+                _snapshot_from_character_image(revision_id, project_id, character_id, old),
+            )
+            snapshotted.add(character_id)
+    return affected
+
+
 def _sort_category_snapshots_by_hierarchy(
     snapshots: list[RevisionNoteCategorySnapshot],
 ) -> list[RevisionNoteCategorySnapshot]:
@@ -724,6 +831,7 @@ async def rollback_revision_for_session(
     restore_by_note: dict[str, RevisionNoteSnapshot] = {}
     restore_by_category: dict[str, RevisionNoteCategorySnapshot] = {}
     restore_by_world_entry: dict[str, RevisionWorldEntrySnapshot] = {}
+    restore_by_character: dict[str, RevisionCharacterSnapshot] = {}
     for revision in revisions:
         snapshots = await revision_chapter_snapshot_repo.list_by_revision(
             session, revision.id
@@ -748,6 +856,13 @@ async def rollback_revision_for_session(
         for world_entry_snapshot in world_entry_snapshots:
             restore_by_world_entry.setdefault(
                 world_entry_snapshot.entry_id, world_entry_snapshot
+            )
+        character_snapshots = await revision_character_snapshot_repo.list_by_revision(
+            session, revision.id
+        )
+        for character_snapshot in character_snapshots:
+            restore_by_character.setdefault(
+                character_snapshot.character_id, character_snapshot
             )
 
     restored_message_content = ""
@@ -944,6 +1059,36 @@ async def rollback_revision_for_session(
             current_entry.updated_at = datetime.now(UTC)
             await world_info_entry_repo.update_entry(session, current_entry)
 
+    affected_characters: list[str] = []
+    character_deletes = [item for item in restore_by_character.values() if not item.exists]
+    character_upserts = [item for item in restore_by_character.values() if item.exists]
+    for character_snapshot in [*character_deletes, *character_upserts]:
+        affected_characters.append(character_snapshot.character_id)
+        current_character = await character_repo.get_by_id(
+            session, character_snapshot.character_id
+        )
+        after_character_image = _image_from_character_snapshot(character_snapshot)
+        if after_character_image is None:
+            if current_character is not None:
+                await character_repo.delete(session, current_character)
+        elif current_character is None:
+            await character_repo.create(
+                session,
+                Character(
+                    id=after_character_image.id,
+                    project_id=after_character_image.project_id,
+                    name=after_character_image.name,
+                    description=after_character_image.description,
+                    is_favorited=after_character_image.is_favorited,
+                ),
+            )
+        else:
+            current_character.name = after_character_image.name
+            current_character.description = after_character_image.description
+            current_character.is_favorited = after_character_image.is_favorited
+            current_character.updated_at = datetime.now(UTC)
+            await character_repo.update(session, current_character)
+
     await refresh_project_stats(session, target.project_id)
     await compaction_repo.delete_intersecting_or_after(
         session,
@@ -978,6 +1123,7 @@ async def rollback_revision_for_session(
         affected_notes=list(dict.fromkeys(affected_notes)),
         affected_note_categories=list(dict.fromkeys(affected_note_categories)),
         affected_world_entries=list(dict.fromkeys(affected_world_entries)),
+        affected_characters=list(dict.fromkeys(affected_characters)),
         restored_message_content=restored_message_content,
         restored_checkpoint_id=target.pre_run_checkpoint_id,
         child_checkpoint_boundaries=child_rollback_result.checkpoint_boundaries,

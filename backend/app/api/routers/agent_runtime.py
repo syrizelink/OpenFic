@@ -98,11 +98,16 @@ TOOL_DISPLAY_ORDER = {
     "edit_volume": 12,
     "delete_volume": 13,
     "move_chapter_to_volume": 14,
-    "list_world_entries": 15,
-    "read_world_entry": 16,
-    "create_world_entry": 17,
-    "edit_world_entry": 18,
-    "delete_world_entry": 19,
+    "list_characters": 15,
+    "read_character": 16,
+    "create_character": 17,
+    "edit_character": 18,
+    "delete_character": 19,
+    "list_world_entries": 20,
+    "read_world_entry": 21,
+    "create_world_entry": 22,
+    "edit_world_entry": 23,
+    "delete_world_entry": 24,
 }
 
 TOOL_DISPLAY_METADATA = {
@@ -165,6 +170,26 @@ TOOL_DISPLAY_METADATA = {
     "move_chapter_to_volume": {
         "name": "Move Chapter",
         "description": "将指定章节移动到目标卷末尾。",
+    },
+    "list_characters": {
+        "name": "List Characters",
+        "description": "列出当前项目角色名称。",
+    },
+    "read_character": {
+        "name": "Read Character",
+        "description": "根据名称读取角色描述。",
+    },
+    "create_character": {
+        "name": "Create Character",
+        "description": "在当前项目中创建角色。",
+    },
+    "edit_character": {
+        "name": "Edit Character",
+        "description": "编辑角色的名称或描述。",
+    },
+    "delete_character": {
+        "name": "Delete Character",
+        "description": "删除指定角色。",
     },
     "list_world_entries": {
         "name": "List World Entries",

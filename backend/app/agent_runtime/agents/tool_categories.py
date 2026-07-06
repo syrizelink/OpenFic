@@ -24,6 +24,12 @@ TOOL_CATEGORIES: Mapping[str, tuple[str, ...]] = MappingProxyType(
             "read_chapter_summaries",
             "read_range_summaries",
         ),
+        "character_read": ("list_characters", "read_character"),
+        "character_write": (
+            "create_character",
+            "edit_character",
+            "delete_character",
+        ),
         "world_read": ("list_world_entries", "read_world_entry"),
         "world_write": (
             "create_world_entry",
@@ -61,6 +67,8 @@ TOOL_CATEGORY_DISPLAY: Mapping[str, str] = MappingProxyType(
         "plan_write": "计划编辑",
         "chapter_read": "章节读取",
         "summary_read": "摘要读取",
+        "character_read": "角色读取",
+        "character_write": "角色写入",
         "world_read": "世界书读取",
         "world_write": "世界书写入",
         "note_read": "笔记读取",

@@ -60,6 +60,8 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "world_write",
                 "note_read",
                 "note_write",
+                "character_read",
+                "character_write"
             ),
             enabled_skill_ids=(),
             metadata=MappingProxyType({}),
@@ -76,6 +78,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "summary_read",
                 "world_read",
                 "note_read",
+                "character_read"
             ),
             enabled_skill_ids=(),
             metadata=MappingProxyType({}),
@@ -94,6 +97,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "plan_read",
                 "note_read",
                 "note_write",
+                "character_read"
             ),
             enabled_skill_ids=(),
             metadata=MappingProxyType({}),
@@ -111,6 +115,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "world_read",
                 "plan_read",
                 "note_read",
+                "character_read"
             ),
             enabled_skill_ids=(),
             metadata=MappingProxyType({}),
@@ -130,6 +135,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "chapter_write",
                 "note_read",
                 "note_write",
+                "character_read"
             ),
             enabled_skill_ids=(),
             metadata=MappingProxyType({}),
@@ -149,6 +155,8 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "chapter_write",
                 "note_read",
                 "note_write",
+                "character_read",
+                "character_write"
             ),
             enabled_skill_ids=(),
             metadata=MappingProxyType({}),
@@ -165,6 +173,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "summary_read",
                 "world_read",
                 "plan_read",
+                "character_read"
             ),
             enabled_skill_ids=(),
             metadata=MappingProxyType({}),
