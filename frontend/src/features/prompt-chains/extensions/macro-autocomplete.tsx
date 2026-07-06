@@ -4,7 +4,7 @@
  * 检测 {{ 输入并显示宏补全建议面板。
  */
 
-/* eslint-disable react-refresh/only-export-components */
+/* oxlint-disable react-refresh/only-export-components */
 
 import { useState, useCallback, useEffect } from "react";
 import { Extension } from "@tiptap/core";

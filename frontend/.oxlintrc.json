@@ -1,0 +1,39 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "oxc",
+    "react"
+  ],
+  "jsPlugins": [
+    "eslint-plugin-react-refresh"
+  ],
+  "ignorePatterns": [
+    "dist",
+    "node_modules"
+  ],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_"
+      }
+    ],
+    "typescript/no-base-to-string": "off",
+    "typescript/no-floating-promises": "off",
+    "typescript/no-useless-default-assignment": "off",
+    "react-refresh/only-export-components": "error"
+  },
+  "options": {
+    "reportUnusedDisableDirectives": "error"
+  },
+  "env": {
+    "builtin": true,
+    "browser": true,
+    "node": true,
+    "serviceworker": true
+  }
+}

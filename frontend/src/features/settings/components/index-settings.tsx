@@ -136,7 +136,7 @@ export function IndexSettings() {
     );
     return () => subs.forEach((s) => s.close());
     // projectIdsKey 变化时重新订阅。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [projectIdsKey, t]);
 
   const updateSettingsMutation = useMutation({

@@ -1,4 +1,4 @@
-/* eslint-disable react-refresh/only-export-components */
+/* oxlint-disable react-refresh/only-export-components */
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
