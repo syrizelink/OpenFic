@@ -1,0 +1,26 @@
+# List available backend commands.
+help:
+    just --list
+
+# Run lint, type checks, and tests.
+check: lint type-check test
+
+# Run Ruff lint checks.
+lint:
+    uv run ruff check .
+
+# Run ty type checks.
+type-check:
+    uv run ty check app
+
+# Run the backend test suite, or a specific pytest target.
+test target="":
+    uv run pytest {{target}}
+
+# Build source and wheel distributions.
+build:
+    uv build
+
+# Run the backend development server.
+dev:
+    uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
