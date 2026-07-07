@@ -3,6 +3,7 @@ import {
   Button,
   Checkbox,
   Flex,
+  Switch,
   ScrollArea,
   Text,
   TextArea,
@@ -87,25 +88,19 @@ function getEffectiveModelSelection(modelId: string | null): string {
 
 function buildAgentModelOptions(
   llmModelOptions: ModelIdSelectOption[],
-  defaultModelId: string,
-  lightModelId: string,
   t: (key: string) => string,
 ): ModelIdSelectOption[] {
   return [
     {
       value: SYSTEM_DEFAULT_MODEL_REFERENCE,
       id: t("settings.agentsFollowSystemSetting"),
-      name: defaultModelId
-        ? `${t("settings.agentsSystemDefaultModel")} (${defaultModelId})`
-        : t("settings.agentsSystemDefaultModel"),
+      name: t("settings.agentsSystemDefaultModel"),
       taskType: "llm",
     },
     {
       value: SYSTEM_LIGHT_MODEL_REFERENCE,
       id: t("settings.agentsFollowSystemSetting"),
-      name: lightModelId
-        ? `${t("settings.agentsSystemLightModel")} (${lightModelId})`
-        : t("settings.agentsSystemLightModel"),
+      name: t("settings.agentsSystemLightModel"),
       taskType: "llm",
     },
     ...llmModelOptions,
@@ -146,7 +141,6 @@ function AgentForm({
   const [formEnabledSkillIds, setFormEnabledSkillIds] = useState<string[]>([
     ...def.enabled_skill_ids,
   ]);
-  const [formEnabled, setFormEnabled] = useState(def.enabled);
   const [formDelegatableAgents, setFormDelegatableAgents] = useState<string[]>([
     ...def.delegatable_agents,
   ]);
@@ -175,7 +169,6 @@ function AgentForm({
       formModelId !== getEffectiveModelSelection(def.model_id) ||
       JSON.stringify(formToolCategoryKeys) !== JSON.stringify(def.tool_category_keys) ||
       JSON.stringify(formEnabledSkillIds) !== JSON.stringify(def.enabled_skill_ids) ||
-      formEnabled !== def.enabled ||
       JSON.stringify(formDelegatableAgents) !== JSON.stringify(def.delegatable_agents)
     );
   }, [
@@ -185,7 +178,6 @@ function AgentForm({
     formModelId,
     formToolCategoryKeys,
     formEnabledSkillIds,
-    formEnabled,
     formDelegatableAgents,
   ]);
 
@@ -199,7 +191,6 @@ function AgentForm({
         model_id: formModelId,
         tool_category_keys: formToolCategoryKeys,
         enabled_skill_ids: formEnabledSkillIds,
-        enabled: formEnabled,
         delegatable_agents: formDelegatableAgents,
       });
     },
@@ -420,17 +411,6 @@ function AgentForm({
         )}
       </Flex>
 
-      <Flex
-        align="center"
-        gap="2"
-      >
-        <Checkbox
-          checked={formEnabled}
-          onCheckedChange={(checked) => setFormEnabled(checked === true)}
-        />
-        <Text size="2">{t("settings.agentsEnabled")}</Text>
-      </Flex>
-
       {isPrimary && (
         <Flex
           direction="column"
@@ -649,13 +629,8 @@ export function AgentDefinitionsSettings({
   const hasLlmModels = llmModelOptions.length > 0;
   const modelOptions = useMemo(
     () =>
-      buildAgentModelOptions(
-        llmModelOptions,
-        settings?.defaultModel ?? "",
-        settings?.lightModel ?? "",
-        t,
-      ),
-    [llmModelOptions, settings?.defaultModel, settings?.lightModel, t],
+      buildAgentModelOptions(llmModelOptions, t),
+    [llmModelOptions, t],
   );
 
   const effectiveSelectedKey = useMemo(() => {
@@ -817,6 +792,40 @@ export function AgentDefinitionsSettings({
     onError: () => toast.error(t("settings.agentsDeleteFailed")),
   });
 
+  const toggleMutation = useMutation({
+    mutationFn: ({ key, enabled }: { key: string; enabled: boolean }) =>
+      updateAgentDefinition(key, { enabled }),
+    onMutate: async ({ key, enabled }) => {
+      await queryClient.cancelQueries({ queryKey: ["agent-definitions"] });
+      const previous = queryClient.getQueryData<AgentDefinitionResponse[]>(["agent-definitions"]);
+
+      if (previous) {
+        queryClient.setQueryData<AgentDefinitionResponse[]>(
+          ["agent-definitions"],
+          previous.map((item) => (item.key === key ? { ...item, enabled } : item)),
+        );
+      }
+
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["agent-definitions"], context.previous);
+      }
+      toast.error(t("common.error"));
+    },
+    onSuccess: (updatedDef) => {
+      queryClient.setQueryData<AgentDefinitionResponse[]>(["agent-definitions"], (current) => {
+        if (!current) return current;
+        return current.map((item) => (item.key === updatedDef.key ? updatedDef : item));
+      });
+      toast.success(updatedDef.enabled ? t("worldInfo.enabled") : t("worldInfo.disabled"));
+    },
+    onSettled: () => {
+      invalidateDefs();
+    },
+  });
+
   const openMenuAt = useCallback((key: string, position: { x: number; y: number }) => {
     setMenuState({ key, position });
   }, []);
@@ -909,33 +918,72 @@ export function AgentDefinitionsSettings({
         className="agent-definition-item-content"
       >
         <Flex
-          align="center"
+          align="start"
+          justify="between"
           gap="2"
           className="agent-definition-item-row"
         >
-          <span
-            className="agent-definition-kind-icon"
-            aria-label={getAgentKindLabel(def.kind)}
-            title={getAgentKindLabel(def.kind)}
+          <Flex
+            align="center"
+            gap="2"
+            className="agent-definition-item-title-row"
           >
-            {def.kind === "primary" ? <Crown size={14} /> : <Bot size={14} />}
-          </span>
-          <Text
-            size="2"
-            truncate
-            weight={effectiveSelectedKey === def.key ? "medium" : "regular"}
-          >
-            {def.display_name}
-          </Text>
-          {def.source === "builtin" ? (
-            <Badge
-              size="1"
-              variant="soft"
-              color="green"
+            <span
+              className="agent-definition-kind-icon"
+              aria-label={getAgentKindLabel(def.kind)}
+              title={getAgentKindLabel(def.kind)}
             >
-              {t("settings.agentsBuiltin")}
-            </Badge>
-          ) : null}
+              {def.kind === "primary" ? <Crown size={14} /> : <Bot size={14} />}
+            </span>
+            <Text
+              size="2"
+              truncate
+              weight={effectiveSelectedKey === def.key ? "medium" : "regular"}
+            >
+              {def.display_name}
+            </Text>
+            {def.source === "builtin" ? (
+              <Badge
+                size="1"
+                variant="soft"
+                color="green"
+              >
+                {t("settings.agentsBuiltin")}
+              </Badge>
+            ) : null}
+          </Flex>
+
+          <Flex
+            align="center"
+            gap="1"
+            className="agent-definition-item-actions"
+          >
+            <Switch
+              size="1"
+              checked={def.enabled}
+              disabled={toggleMutation.isPending}
+              onClick={(event) => event.stopPropagation()}
+              onCheckedChange={(checked) => {
+                void toggleMutation.mutateAsync({ key: def.key, enabled: checked === true });
+              }}
+            />
+            <IconButton
+              type="button"
+              variant="ghost"
+              color="gray"
+              size="1"
+              className="agent-definition-item-menu"
+              aria-label={t("settings.agentsMenu")}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const rect = event.currentTarget.getBoundingClientRect();
+                openMenuAt(def.key, { x: rect.right, y: rect.bottom + 4 });
+              }}
+            >
+              <MoreHorizontal size={14} />
+            </IconButton>
+          </Flex>
         </Flex>
         <Text
           size="1"
@@ -945,23 +993,6 @@ export function AgentDefinitionsSettings({
           {def.description || t("settings.agentsNoDescription")}
         </Text>
       </Flex>
-
-      <IconButton
-        type="button"
-        variant="ghost"
-        color="gray"
-        size="1"
-        className="agent-definition-item-menu"
-        aria-label={t("settings.agentsMenu")}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          const rect = event.currentTarget.getBoundingClientRect();
-          openMenuAt(def.key, { x: rect.right, y: rect.bottom + 4 });
-        }}
-      >
-        <MoreHorizontal size={14} />
-      </IconButton>
     </div>
   );
 
