@@ -224,9 +224,9 @@
 
 .agent-definition-item {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
   width: 100%;
   min-width: 0;
   padding: 10px 12px;
@@ -272,6 +272,16 @@
 .agent-definition-item-row {
   width: 100%;
   min-width: 0;
+  gap: 10px;
+}
+
+.agent-definition-item-title-row {
+  min-width: 0;
+  flex: 1;
+}
+
+.agent-definition-item-actions {
+  flex-shrink: 0;
 }
 
 .agent-definition-kind-icon {
@@ -287,6 +297,8 @@
 .agent-definition-item-description {
   display: block;
   overflow: hidden;
+  width: 100%;
+  min-width: 0;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
