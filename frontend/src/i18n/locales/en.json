@@ -447,6 +447,11 @@
     "importParsing": "Parsing...",
     "importParseFailed": "Failed to parse world book file. Please check the export format.",
     "importPreview": "Import Preview",
+    "importMode": "Import Mode",
+    "importModeAppend": "Append",
+    "importModeOverwrite": "Overwrite",
+    "importModeAppendDesc": "Keep existing entries; overwrite any existing entry with the same name.",
+    "importModeOverwriteDesc": "Delete the current project's existing world book entries before importing.",
     "importEntryCount": "Entries",
     "importEnabledCount": "Enabled",
     "startImport": "Start Import",
@@ -459,6 +464,8 @@
     "importedEntriesInfo": "Imported {{count}} entries",
     "selectProject": "Select Project",
     "selectProjectPlaceholder": "Please select a project...",
+    "noProject": "No projects available",
+    "noProjectHint": "Create a project first to view its world book entries.",
     "selectWorldInfo": "Select World Book",
     "noWorldInfo": "No world books yet",
     "createWorldInfo": "New World Book",
@@ -467,8 +474,6 @@
     "worldInfoNamePlaceholder": "Enter world book name",
     "bindProject": "Link Project",
     "bindProjectRequiredForAgent": "Link this world book to a project before using Agent here.",
-    "selectProjectOptional": "Select project (optional)",
-    "noBinding": "No project link",
     "boundToProject": "Linked to project",
     "notBound": "Not linked",
     "settings": "World Book Settings",
@@ -511,6 +516,7 @@
     "selectEntry": "Select an entry to start editing",
     "entries": "Entries",
     "viewEntries": "View Entries",
+    "sort": "Sort",
     "sortByOrder": "Sort by Order",
     "sortByUid": "Sort by UID",
     "sortByTokens": "Sort by Tokens",
@@ -992,6 +998,10 @@
   "select": {
     "searchPlaceholder": "Search...",
     "noMatchingOptions": "No matching options"
+  },
+  "projectSelect": {
+    "noBinding": "No project link",
+    "placeholder": "Select project (optional)"
   },
   "promptChainDialog": {
     "title": "Prompt Chain",

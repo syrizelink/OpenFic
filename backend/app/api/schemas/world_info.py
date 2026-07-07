@@ -8,28 +8,6 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
-# ============== 世界书 Schemas ==============
-
-
-class WorldInfoCreate(BaseModel):
-    """创建世界书请求。"""
-
-    name: str = Field(min_length=1, max_length=200, description="世界书名称")
-    project_id: str | None = Field(default=None, description="关联的项目 ID（可选）")
-    description: str = Field(default="", description="世界书描述")
-
-
-class WorldInfoUpdate(BaseModel):
-    """更新世界书请求。"""
-
-    name: str | None = Field(
-        default=None, min_length=1, max_length=200, description="世界书名称"
-    )
-    project_id: str | None = Field(default=None, description="新的关联项目 ID")
-    unbind_project: bool = Field(default=False, description="是否解除项目绑定")
-    description: str | None = Field(default=None, description="世界书描述")
-
-
 class WorldInfoResponse(BaseModel):
     """世界书响应。"""
 
@@ -174,6 +152,12 @@ class WorldInfoImportResponse(BaseModel):
 
     world_info_id: str = Field(description="目标世界书 ID")
     imported_count: int = Field(description="成功导入的条目数")
+
+
+class WorldInfoImportMode(BaseModel):
+    """世界书导入模式。"""
+
+    mode: str = Field(description="导入模式：append 或 overwrite")
 
 
 # ============== 搜索 Schemas ==============

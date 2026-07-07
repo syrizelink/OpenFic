@@ -12,8 +12,9 @@ import { useTranslation } from "react-i18next";
 import type { Project } from "@/lib/project.types";
 
 import { ProjectGridSelector } from "./project-grid-selector";
+import "./project-select-field.css";
 
-interface ProjectSelectFieldProps {
+export interface ProjectSelectFieldProps {
   /** 可选的项目列表 */
   projects: Project[];
   /** 当前选中的项目 ID（空字符串表示无绑定） */
@@ -49,7 +50,7 @@ export function ProjectSelectField({
   const displayText = selectedProject
     ? selectedProject.title
     : value === "" && showNoneOption
-      ? t("worldInfo.noBinding")
+      ? t("projectSelect.noBinding")
       : "";
 
   // 处理选择
@@ -73,7 +74,7 @@ export function ProjectSelectField({
           size="2"
           weight="medium"
           mb="1"
-          style={{ display: "block" }}
+          className="project-select-field__label"
         >
           {label}
         </Text>
@@ -83,42 +84,26 @@ export function ProjectSelectField({
         onOpenChange={setOpen}
       >
         <Popover.Trigger>
-          <Box style={{ position: "relative", width: "100%" }}>
+          <Box
+            className="project-select-field__trigger"
+            data-disabled={disabled ? "true" : "false"}
+          >
             <TextField.Root
               value={displayText}
-              placeholder={placeholder || t("worldInfo.selectProjectOptional")}
+              placeholder={placeholder ?? t("projectSelect.placeholder")}
               disabled={disabled}
               readOnly
               onClick={handleInputClick}
-              style={{
-                cursor: disabled ? "not-allowed" : "pointer",
-                paddingRight: 32,
-              }}
+              className="project-select-field__input"
             />
-            <Box
-              style={{
-                position: "absolute",
-                right: 8,
-                top: "50%",
-                transform: "translateY(-50%)",
-                pointerEvents: "none",
-                opacity: disabled ? 0.5 : 1,
-              }}
-            >
-              <ChevronDown
-                size={16}
-                color="var(--gray-11)"
-              />
+            <Box className="project-select-field__chevron">
+              <ChevronDown size={16} />
             </Box>
           </Box>
         </Popover.Trigger>
 
         <Popover.Content
-          style={{
-            width: 400,
-            maxWidth: "90vw",
-            padding: "var(--space-4)",
-          }}
+          className="project-select-field__content"
           align="start"
           side="bottom"
         >

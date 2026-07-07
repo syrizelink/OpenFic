@@ -447,6 +447,11 @@
     "importParsing": "解析中...",
     "importParseFailed": "世界书解析失败，请检查导出文件格式",
     "importPreview": "导入预览",
+    "importMode": "导入模式",
+    "importModeAppend": "追加",
+    "importModeOverwrite": "覆盖",
+    "importModeAppendDesc": "保留现有条目；若名称重复，则覆盖已有条目。",
+    "importModeOverwriteDesc": "删除当前项目世界书中的现有条目，并导入文件内容。",
     "importEntryCount": "条目数",
     "importEnabledCount": "启用条目",
     "startImport": "开始导入",
@@ -459,6 +464,8 @@
     "importedEntriesInfo": "已导入 {{count}} 个条目",
     "selectProject": "选择项目",
     "selectProjectPlaceholder": "请选择一个项目...",
+    "noProject": "还没有可用项目",
+    "noProjectHint": "先创建项目后，才能查看对应世界书条目。",
     "selectWorldInfo": "选择世界书",
     "noWorldInfo": "还没有世界书",
     "createWorldInfo": "新建世界书",
@@ -467,8 +474,6 @@
     "worldInfoNamePlaceholder": "输入世界书名称",
     "bindProject": "关联项目",
     "bindProjectRequiredForAgent": "需要先关联项目，才能在世界书中使用 Agent。",
-    "selectProjectOptional": "选择项目（可选）",
-    "noBinding": "不关联项目",
     "boundToProject": "已关联项目",
     "notBound": "未关联项目",
     "settings": "世界书设置",
@@ -511,6 +516,7 @@
     "selectEntry": "选择一个条目开始编辑",
     "entries": "条目列表",
     "viewEntries": "查看条目列表",
+    "sort": "排序",
     "sortByOrder": "按顺序排序",
     "sortByUid": "按 UID 排序",
     "sortByTokens": "按 Token 数排序",
@@ -1056,6 +1062,10 @@
   "select": {
     "searchPlaceholder": "搜索...",
     "noMatchingOptions": "没有匹配选项"
+  },
+  "projectSelect": {
+    "noBinding": "不关联项目",
+    "placeholder": "选择项目（可选）"
   },
   "promptChainDialog": {
     "title": "提示词链",

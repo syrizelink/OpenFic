@@ -6,6 +6,7 @@ import {
   Dialog,
   Flex,
   Progress,
+  SegmentedControl,
   ScrollArea,
   Text,
 } from "@radix-ui/themes";
@@ -18,7 +19,7 @@ import { Spinner } from "@/components";
 import "./import-world-info-dialog.css";
 
 import { importWorldInfoEntriesStream, previewWorldInfoImport } from "@/lib/api-client";
-import type { WorldInfoImportPreviewResponse } from "@/lib/world-info.types";
+import type { WorldInfoImportMode, WorldInfoImportPreviewResponse } from "@/lib/world-info.types";
 
 interface ImportWorldInfoDialogProps {
   open: boolean;
@@ -41,6 +42,7 @@ export function ImportWorldInfoDialog({
   const [error, setError] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [previewData, setPreviewData] = useState<WorldInfoImportPreviewResponse | null>(null);
+  const [mode, setMode] = useState<WorldInfoImportMode>("append");
   const [importProgress, setImportProgress] = useState(0);
   const [importStage, setImportStage] = useState("");
   const [currentEntry, setCurrentEntry] = useState(0);
@@ -54,6 +56,7 @@ export function ImportWorldInfoDialog({
     setError(null);
     setFile(null);
     setPreviewData(null);
+    setMode("append");
     setImportProgress(0);
     setImportStage("");
     setCurrentEntry(0);
@@ -121,7 +124,7 @@ export function ImportWorldInfoDialog({
     setStep("importing");
 
     try {
-      const result = await importWorldInfoEntriesStream(worldInfoId, file, (event) => {
+      const result = await importWorldInfoEntriesStream(worldInfoId, file, mode, (event) => {
         if (event.type === "progress") {
           setImportProgress(event.progress);
           setImportStage(event.stage);
@@ -148,7 +151,7 @@ export function ImportWorldInfoDialog({
     } finally {
       setLoading(false);
     }
-  }, [file, onSuccess, previewData?.entryCount, t, worldInfoId]);
+  }, [file, mode, onSuccess, previewData?.entryCount, t, worldInfoId]);
 
   const getStageLabel = useCallback(() => {
     if (importStage === "reading") return t("worldInfo.importReading");
@@ -271,6 +274,28 @@ export function ImportWorldInfoDialog({
                 >
                   {t("worldInfo.importPreview")}
                 </Text>
+                <Box mb="4">
+                  <Text size="2" weight="medium" mb="2" as="p">
+                    {t("worldInfo.importMode")}
+                  </Text>
+                  <SegmentedControl.Root
+                    value={mode}
+                    onValueChange={(value) => setMode(value as WorldInfoImportMode)}
+                    size="2"
+                  >
+                    <SegmentedControl.Item value="append">
+                      {t("worldInfo.importModeAppend")}
+                    </SegmentedControl.Item>
+                    <SegmentedControl.Item value="overwrite">
+                      {t("worldInfo.importModeOverwrite")}
+                    </SegmentedControl.Item>
+                  </SegmentedControl.Root>
+                  <Text as="p" size="1" color="gray" mt="2">
+                    {mode === "append"
+                      ? t("worldInfo.importModeAppendDesc")
+                      : t("worldInfo.importModeOverwriteDesc")}
+                  </Text>
+                </Box>
                 <ScrollArea className="world-info-import-preview-scroll">
                   <Box p="2">
                     {previewData.entries.map((entry, index) => (

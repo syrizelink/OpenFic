@@ -8,7 +8,6 @@
 export { WorldInfoPage } from "./pages/world-info-page";
 
 // 组件
-export { WorldInfoSelector } from "./components/world-info-selector";
 export { EntryList } from "./components/entry-list";
 export { EntryListItem } from "./components/entry-list-item";
 

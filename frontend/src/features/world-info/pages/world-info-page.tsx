@@ -1,13 +1,11 @@
 ﻿/**
  * World Info Page
  *
- * 世界书主页面，包含世界书选择器、条目列表和条目编辑器。
+ * 世界书主页面，按项目展示对应世界书条目与编辑器。
  */
 
-import { Box, Flex, Text, Dialog, Button, Skeleton, IconButton, Tooltip } from "@radix-ui/themes";
+import { Box, Flex, Text, Dialog, Button, Skeleton } from "@radix-ui/themes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { List } from "lucide-react";
-import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Panel, Group, Separator } from "react-resizable-panels";
@@ -16,13 +14,11 @@ import { useSearchParams } from "react-router";
 import "./world-info-page.css";
 
 import { toast } from "@/components/toast";
-import { MobileAppSidebarTrigger } from "@/features/app-shell/components/mobile-app-sidebar-trigger";
 import { AssistantSidebar } from "@/features/assistant";
 import type { AssistantSidebarState } from "@/features/assistant";
 import {
   fetchWorldInfoByProject,
-  fetchWorldInfoList,
-  createWorldInfo,
+  fetchProjects,
   fetchWorldInfoEntries,
   fetchWorldInfoEntry,
   createWorldInfoEntry,
@@ -41,10 +37,11 @@ import type {
 
 import { EntryEditor } from "../components/entry-editor";
 import { EntryList } from "../components/entry-list";
-import { WorldInfoSelector } from "../components/world-info-selector";
+import { ImportWorldInfoDialog } from "../components/import-world-info-dialog";
 import { useWorldInfoStore } from "../store/use-world-info-store";
 
-const MotionBox = motion.create(Box);
+const LAST_PROJECT_KEY = "worldInfo.lastProjectId";
+const LAST_ENTRY_KEY = "worldInfo.lastEntryId";
 
 function generateUniqueEntryName(baseName: string, entries: WorldInfoEntryBrief[]): string {
   const normalizedName = baseName.trim();
@@ -69,8 +66,6 @@ export function WorldInfoPage() {
     currentEntryId,
     setCurrentEntry,
     setFromWriting,
-    sidebarOpen,
-    setSidebarOpen,
   } = useWorldInfoStore();
 
   // 删除确认对话框状态
@@ -84,18 +79,16 @@ export function WorldInfoPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [isCreatingEntry, setIsCreatingEntry] = useState(false);
   const [scrollToLine, setScrollToLine] = useState<number | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [assistantState, setAssistantState] = useState<AssistantSidebarState>({
     agentStatus: "idle",
     isAgentRunning: false,
   });
-  // 响应式检测
   const [isMobile, setIsMobile] = useState(false);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
@@ -111,82 +104,58 @@ export function WorldInfoPage() {
     }
   }, [searchParams, setFromWriting]);
 
-  // 如果从写作页面进入且有 projectId，查找对应的世界书
+  const { data: projectsData } = useQuery({
+    queryKey: ["projects", "world-info-page"],
+    queryFn: () => fetchProjects({ page: 1, pageSize: 100 }),
+  });
+
+  const projects = useMemo(() => projectsData?.items ?? [], [projectsData?.items]);
   const projectIdFromUrl = searchParams.get("projectId");
+
+  useEffect(() => {
+    const initProject = async () => {
+      if (currentProjectId || projects.length === 0) return;
+      const cachedProjectId = await getPreference(LAST_PROJECT_KEY);
+      const nextProjectId =
+        (projectIdFromUrl && projects.some((project) => project.id === projectIdFromUrl)
+          ? projectIdFromUrl
+          : null) ??
+        (cachedProjectId && projects.some((project) => project.id === cachedProjectId)
+          ? cachedProjectId
+          : null) ??
+        projects[0]?.id ??
+        null;
+      setCurrentProjectId(nextProjectId);
+    };
+
+    void initProject();
+  }, [currentProjectId, projectIdFromUrl, projects]);
+
+  useEffect(() => {
+    if (currentProjectId) void setPreference(LAST_PROJECT_KEY, currentProjectId);
+  }, [currentProjectId]);
+
   const { data: projectWorldInfo } = useQuery({
-    queryKey: ["world-info-by-project", projectIdFromUrl],
-    queryFn: () => fetchWorldInfoByProject(projectIdFromUrl!),
-    enabled: !!projectIdFromUrl && !currentWorldInfoId,
-  });
-
-  const { data: worldInfoList } = useQuery({
-    queryKey: ["world-info-list"],
-    queryFn: () => fetchWorldInfoList({ page: 1, pageSize: 100 }),
-  });
-
-  const selectedWorldInfoProjectId = useMemo(
-    () =>
-      worldInfoList?.items.find((worldInfo) => worldInfo.id === currentWorldInfoId)?.projectId ??
-      null,
-    [currentWorldInfoId, worldInfoList?.items],
-  );
-
-  // 如果找到了项目的世界书，自动选中
-  useEffect(() => {
-    if (projectWorldInfo && !currentWorldInfoId) {
-      setCurrentWorldInfo(projectWorldInfo.id);
-    }
-  }, [projectWorldInfo, currentWorldInfoId, setCurrentWorldInfo]);
-
-  // 如果从写作页面进入但项目没有世界书，自动创建
-  const createWorldInfoMutation = useMutation({
-    mutationFn: () =>
-      createWorldInfo({
-        name: t("worldInfo.title"),
-        projectId: projectIdFromUrl ?? undefined,
-      }),
-    onSuccess: (newWorldInfo) => {
-      queryClient.invalidateQueries({ queryKey: ["world-info-list"] });
-      queryClient.invalidateQueries({
-        queryKey: ["world-info-by-project", projectIdFromUrl],
-      });
-      setCurrentWorldInfo(newWorldInfo.id);
-    },
+    queryKey: ["world-info-by-project", currentProjectId],
+    queryFn: () => fetchWorldInfoByProject(currentProjectId!),
+    enabled: !!currentProjectId,
   });
 
   useEffect(() => {
-    if (
-      projectIdFromUrl &&
-      projectWorldInfo === null &&
-      !currentWorldInfoId &&
-      !createWorldInfoMutation.isPending
-    ) {
-      createWorldInfoMutation.mutate();
-    }
-  }, [projectIdFromUrl, projectWorldInfo, currentWorldInfoId, createWorldInfoMutation]);
+    setCurrentWorldInfo(projectWorldInfo?.id ?? null);
+    setOptimisticEntries(null);
+  }, [projectWorldInfo?.id, setCurrentWorldInfo]);
 
-  // 如果没有 URL 参数，从缓存恢复上次选择
   useEffect(() => {
-    if (!projectIdFromUrl) {
-      const restore = async () => {
-        const cachedWorldInfoId = await getPreference("worldInfo.lastWorldInfoId");
-        const cachedEntryId = await getPreference("worldInfo.lastEntryId");
-        if (cachedWorldInfoId) {
-          setCurrentWorldInfo(cachedWorldInfoId);
-          if (cachedEntryId) {
-            setCurrentEntry(cachedEntryId);
-          }
-        }
-      };
-      void restore();
+    if (!currentProjectId) {
+      setCurrentWorldInfo(null);
+      setCurrentEntry(null);
     }
-  }, [projectIdFromUrl, setCurrentWorldInfo, setCurrentEntry]);
+  }, [currentProjectId, setCurrentEntry, setCurrentWorldInfo]);
 
-  // 持久化当前选择
   useEffect(() => {
-    void setPreference("worldInfo.lastWorldInfoId", currentWorldInfoId ?? "");
-    void setPreference("worldInfo.lastEntryId", currentEntryId ?? "");
-  }, [currentWorldInfoId, currentEntryId]);
+    if (currentEntryId) void setPreference(LAST_ENTRY_KEY, currentEntryId);
+  }, [currentEntryId]);
 
   // 获取条目列表（轻量，不含 content）
   const { data: entriesData, isLoading: entriesLoading } = useQuery({
@@ -216,6 +185,18 @@ export function WorldInfoPage() {
     }
     return entriesData?.items ?? [];
   }, [optimisticEntries, entriesData?.items]);
+
+  useEffect(() => {
+    const restoreEntry = async () => {
+      if (!currentWorldInfoId || currentEntryId || entries.length === 0) return;
+      const cachedEntryId = await getPreference(LAST_ENTRY_KEY);
+      if (cachedEntryId && entries.some((entry) => entry.id === cachedEntryId)) {
+        setCurrentEntry(cachedEntryId);
+      }
+    };
+
+    void restoreEntry();
+  }, [currentEntryId, currentWorldInfoId, entries, setCurrentEntry]);
 
   useEffect(() => {
     if (!currentEntryId || !entriesData) return;
@@ -269,10 +250,6 @@ export function WorldInfoPage() {
       );
       queryClient.setQueryData(["world-info-entry-detail", newEntry.id], newEntry);
       setCurrentEntry(newEntry.id);
-      // 移动端创建后关闭侧边栏
-      if (isMobile) {
-        setSidebarOpen(false);
-      }
     },
     onError: () => {
       toast.error(t("worldInfo.createFailed"));
@@ -331,14 +308,11 @@ export function WorldInfoPage() {
     },
   });
 
-  /** 处理世界书选择 */
-  const handleWorldInfoChange = useCallback(
-    (worldInfoId: string) => {
-      setCurrentWorldInfo(worldInfoId);
-      setCurrentEntry(null);
-    },
-    [setCurrentWorldInfo, setCurrentEntry],
-  );
+  const handleSelectProject = useCallback((projectId: string) => {
+    setCurrentProjectId(projectId || null);
+    setCurrentEntry(null);
+    setIsCreatingEntry(false);
+  }, [setCurrentEntry]);
 
   /** 处理创建条目 */
   const handleCreateEntry = useCallback(() => {
@@ -354,12 +328,8 @@ export function WorldInfoPage() {
   const handleSelectEntry = useCallback(
     (entryId: string) => {
       setCurrentEntry(entryId);
-      // 移动端选择后关闭侧边栏
-      if (isMobile) {
-        setSidebarOpen(false);
-      }
     },
-    [setCurrentEntry, isMobile, setSidebarOpen],
+    [setCurrentEntry],
   );
 
   /** 处理切换条目启用状态 */
@@ -458,11 +428,6 @@ export function WorldInfoPage() {
     },
     [currentWorldInfoId, queryClient, t, extractBrief],
   );
-
-  /** 切换移动端侧边栏 */
-  const handleToggleSidebar = useCallback(() => {
-    setSidebarOpen(!sidebarOpen);
-  }, [sidebarOpen, setSidebarOpen]);
 
   /** 处理排序切换 */
   const handleSortChange = useCallback(
@@ -565,13 +530,15 @@ export function WorldInfoPage() {
   // 当前选中的条目（从详情查询获取完整数据）
   // selectedEntry 来自 useQuery，已在上方声明
 
-  // 侧边栏宽度
-  const sidebarWidth = 320;
-  const isAgentLocked = Boolean(selectedWorldInfoProjectId && assistantState.isAgentRunning);
+  const isAgentLocked = Boolean(currentProjectId && assistantState.isAgentRunning);
 
   // 侧边栏内容
-  const sidebarContent = currentWorldInfoId ? (
+  const sidebarContent = currentProjectId ? (
     <EntryList
+      projects={projects}
+      currentProjectId={currentProjectId}
+      onSelectProject={handleSelectProject}
+      onImport={() => setImportDialogOpen(true)}
       entries={entries}
       onCreateEntry={handleCreateEntry}
       onSelectEntry={handleSelectEntry}
@@ -600,27 +567,14 @@ export function WorldInfoPage() {
         color="gray"
         align="center"
       >
-        {t("worldInfo.selectWorldInfo")}
+        {t("worldInfo.noProject")}
       </Text>
     </Flex>
   );
 
-  const mobileEntrySidebarTrigger = isMobile ? (
-    <Tooltip content={t("worldInfo.viewEntries")}>
-      <IconButton
-        variant="ghost"
-        size="2"
-        aria-label={t("worldInfo.viewEntries")}
-        onClick={handleToggleSidebar}
-      >
-        <List size={18} />
-      </IconButton>
-    </Tooltip>
-  ) : null;
-
-  const agentSidebarContent = selectedWorldInfoProjectId ? (
+  const agentSidebarContent = currentProjectId ? (
     <AssistantSidebar
-      projectId={selectedWorldInfoProjectId}
+      projectId={currentProjectId}
       onStateChange={setAssistantState}
     />
   ) : (
@@ -635,9 +589,7 @@ export function WorldInfoPage() {
         color="gray"
         align="center"
       >
-        {currentWorldInfoId
-          ? t("worldInfo.bindProjectRequiredForAgent")
-          : t("worldInfo.selectWorldInfo")}
+        {t("worldInfo.noProject")}
       </Text>
     </Flex>
   );
@@ -661,15 +613,7 @@ export function WorldInfoPage() {
           direction="column"
           style={{ height: "100%", minHeight: 0 }}
         >
-          <WorldInfoSelector
-            value={currentWorldInfoId}
-            onChange={handleWorldInfoChange}
-            isMobile={isMobile}
-            appSidebarTrigger={isMobile ? <MobileAppSidebarTrigger /> : null}
-            entrySidebarTrigger={mobileEntrySidebarTrigger}
-          />
-
-          {!isMobile ? (
+          {!isMobile && currentProjectId ? (
             <Group
               orientation="horizontal"
               className="world-info-page-group"
@@ -788,9 +732,7 @@ export function WorldInfoPage() {
                         size="3"
                         color="gray"
                       >
-                        {currentWorldInfoId
-                          ? t("worldInfo.selectEntry")
-                          : t("worldInfo.selectWorldInfo")}
+                        {t("worldInfo.selectEntry")}
                       </Text>
                     </Flex>
                   )}
@@ -811,21 +753,31 @@ export function WorldInfoPage() {
                 </Box>
               </Panel>
             </Group>
-          ) : (
+          ) : currentProjectId ? (
             <Flex
+              direction="column"
               style={{
                 flex: 1,
                 minHeight: 0,
                 background: "var(--gray-a2)",
                 overflow: "hidden",
-                position: "relative",
               }}
             >
+              <Box
+                style={{
+                  flex: "0 0 42%",
+                  minHeight: 240,
+                  borderBottom: "1px solid var(--gray-a4)",
+                  background: "var(--color-background)",
+                  overflow: "hidden",
+                }}
+              >
+                {sidebarContent}
+              </Box>
               <Box
                 data-scroll-container
                 style={{
                   flex: 1,
-                  height: "100%",
                   minHeight: 0,
                   overflowY: "auto",
                   background: "var(--color-background)",
@@ -838,32 +790,14 @@ export function WorldInfoPage() {
                       gap="4"
                       style={{ maxWidth: 800, margin: "0 auto" }}
                     >
-                      <Skeleton
-                        width="120px"
-                        height="14px"
-                      />
-                      <Skeleton
-                        width="100%"
-                        height="36px"
-                      />
+                      <Skeleton width="120px" height="14px" />
+                      <Skeleton width="100%" height="36px" />
                       <Flex gap="4">
-                        <Skeleton
-                          style={{ flex: 1 }}
-                          height="36px"
-                        />
-                        <Skeleton
-                          style={{ flex: 1 }}
-                          height="36px"
-                        />
+                        <Skeleton style={{ flex: 1 }} height="36px" />
+                        <Skeleton style={{ flex: 1 }} height="36px" />
                       </Flex>
-                      <Skeleton
-                        width="100%"
-                        height="200px"
-                      />
-                      <Skeleton
-                        width="100%"
-                        height="80px"
-                      />
+                      <Skeleton width="100%" height="200px" />
+                      <Skeleton width="100%" height="80px" />
                     </Flex>
                   </Box>
                 ) : selectedEntry ? (
@@ -883,32 +817,14 @@ export function WorldInfoPage() {
                       gap="4"
                       style={{ maxWidth: 800, margin: "0 auto" }}
                     >
-                      <Skeleton
-                        width="120px"
-                        height="14px"
-                      />
-                      <Skeleton
-                        width="100%"
-                        height="36px"
-                      />
+                      <Skeleton width="120px" height="14px" />
+                      <Skeleton width="100%" height="36px" />
                       <Flex gap="4">
-                        <Skeleton
-                          style={{ flex: 1 }}
-                          height="36px"
-                        />
-                        <Skeleton
-                          style={{ flex: 1 }}
-                          height="36px"
-                        />
+                        <Skeleton style={{ flex: 1 }} height="36px" />
+                        <Skeleton style={{ flex: 1 }} height="36px" />
                       </Flex>
-                      <Skeleton
-                        width="100%"
-                        height="200px"
-                      />
-                      <Skeleton
-                        width="100%"
-                        height="80px"
-                      />
+                      <Skeleton width="100%" height="200px" />
+                      <Skeleton width="100%" height="80px" />
                     </Flex>
                   </Box>
                 ) : (
@@ -919,59 +835,40 @@ export function WorldInfoPage() {
                     direction="column"
                     gap="2"
                   >
-                    <Text
-                      size="3"
-                      color="gray"
-                    >
-                      {currentWorldInfoId
-                        ? t("worldInfo.selectEntry")
-                        : t("worldInfo.selectWorldInfo")}
+                    <Text size="3" color="gray">
+                      {t("worldInfo.selectEntry")}
                     </Text>
                   </Flex>
                 )}
               </Box>
-
-              <>
-                <motion.div
-                  initial={false}
-                  animate={{ opacity: sidebarOpen ? 1 : 0 }}
-                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                  onClick={() => setSidebarOpen(false)}
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    background: "rgba(0, 0, 0, 0.5)",
-                    zIndex: 10,
-                    pointerEvents: sidebarOpen ? "auto" : "none",
-                  }}
-                />
-
-                <MotionBox
-                  initial={false}
-                  animate={{ x: sidebarOpen ? 0 : -sidebarWidth }}
-                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: sidebarWidth,
-                    minWidth: sidebarWidth,
-                    height: "100%",
-                    background: "var(--color-background)",
-                    borderRight: "1px solid var(--gray-a4)",
-                    zIndex: 11,
-                    overflow: "hidden",
-                    pointerEvents: sidebarOpen ? "auto" : "none",
-                    willChange: "transform",
-                  }}
-                >
-                  {sidebarContent}
-                </MotionBox>
-              </>
+            </Flex>
+          ) : (
+            <Flex
+              align="center"
+              justify="center"
+              height="100%"
+              direction="column"
+              gap="2"
+            >
+              <Text size="3" weight="medium">
+                {t("worldInfo.noProject")}
+              </Text>
+              <Text size="2" color="gray">
+                {t("worldInfo.noProjectHint")}
+              </Text>
             </Flex>
           )}
         </Flex>
       </Box>
+
+      <ImportWorldInfoDialog
+        open={importDialogOpen}
+        worldInfoId={currentWorldInfoId}
+        onOpenChange={setImportDialogOpen}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["world-info-entries", currentWorldInfoId] });
+        }}
+      />
 
       {/* 删除确认对话框 */}
       <Dialog.Root

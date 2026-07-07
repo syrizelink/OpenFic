@@ -12,39 +12,8 @@
 export interface WorldInfo {
   id: string;
   projectId: string | null;
-  name: string;
-  description: string;
   createdAt: string;
   updatedAt: string;
-}
-
-/** 创建世界书请求 */
-export interface WorldInfoCreate {
-  name: string;
-  projectId?: string;
-  description?: string;
-}
-
-/** 更新世界书请求 */
-export interface WorldInfoUpdate {
-  name?: string;
-  projectId?: string;
-  unbindProject?: boolean;
-  description?: string;
-}
-
-/** 世界书列表响应 */
-export interface WorldInfoListResponse {
-  items: WorldInfo[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
-/** 世界书列表请求参数 */
-export interface WorldInfoListParams {
-  page?: number;
-  pageSize?: number;
 }
 
 // ============================================
@@ -120,6 +89,8 @@ export interface WorldInfoImportPreviewResponse {
   enabledCount: number;
   entries: WorldInfoImportPreviewEntry[];
 }
+
+export type WorldInfoImportMode = "append" | "overwrite";
 
 export interface WorldInfoImportProgressEvent {
   type: "progress";

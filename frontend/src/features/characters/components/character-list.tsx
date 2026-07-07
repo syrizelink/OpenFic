@@ -28,9 +28,8 @@ import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Spinner } from "@/components";
+import { ProjectSelectField, Spinner } from "@/components";
 import { ContextMenu, type ContextMenuItem } from "@/components/context-menu";
-import { ProjectSelectField } from "@/features/world-info/components/project-select-field";
 import type { CharacterListItem } from "@/lib/character.types";
 import type { Project } from "@/lib/project.types";
 import { formatRelativeTime } from "@/lib/time-utils";

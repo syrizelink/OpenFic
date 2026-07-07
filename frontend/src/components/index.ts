@@ -36,3 +36,5 @@ export { createEditorShortcuts } from "./editor-shortcuts";
 export type { EditorShortcutCallbacks } from "./editor-shortcuts";
 export { ContentSearchPopover } from "./content-search-popover";
 export type { ContentSearchMatch, ContentSearchResultItem } from "./content-search-popover";
+export { ProjectSelectField } from "./project-select-field";
+export type { ProjectSelectFieldProps } from "./project-select-field";
