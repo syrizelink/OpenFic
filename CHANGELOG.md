@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.6.0](https://github.com/syrizelink/OpenFic/compare/v0.5.0...v0.6.0) (2026-07-07)
+
+
+### ✨ 新功能
+
+* **agent:** 添加角色工具与回滚支持 ([#70](https://github.com/syrizelink/OpenFic/issues/70)) ([4d2bbf0](https://github.com/syrizelink/OpenFic/commit/4d2bbf06bef79b9fd97f2be414c6a5b779c5c865))
+* **characters:** 添加角色管理功能 ([#64](https://github.com/syrizelink/OpenFic/issues/64)) ([1d1626a](https://github.com/syrizelink/OpenFic/commit/1d1626a316c5bcd0471f54807ae29a1ee81df918))
+* **frontend:** 添加全局状态栏 ([#71](https://github.com/syrizelink/OpenFic/issues/71)) ([d584d56](https://github.com/syrizelink/OpenFic/commit/d584d560a6e05747655a4538593da48eaee87fbe))
+
+
+### ♻️ 代码重构
+
+* **frontend:** 将仪表盘图表库替换为 Nivo ([#72](https://github.com/syrizelink/OpenFic/issues/72)) ([3cbd4b7](https://github.com/syrizelink/OpenFic/commit/3cbd4b7389e39bf80d26d7ac8a24a85ae1a39a05))
+
+
+### 🔧 杂项
+
+* **api:** 世界书改为项目强绑定 ([#73](https://github.com/syrizelink/OpenFic/issues/73)) ([393add6](https://github.com/syrizelink/OpenFic/commit/393add677c755ddd60bf1019ebd6110b75b462b3))
+* **backend:** 添加 justfile 后端命令封装 ([#69](https://github.com/syrizelink/OpenFic/issues/69)) ([d66b128](https://github.com/syrizelink/OpenFic/commit/d66b1282ef7a4934a11827e793b894937f0cfc86))
+* **backend:** 迁移类型检查到 ty ([#68](https://github.com/syrizelink/OpenFic/issues/68)) ([d404696](https://github.com/syrizelink/OpenFic/commit/d40469688379706a176958cf6407d747a8c6b85c))
+* **frontend:** 添加 Oxfmt 格式化支持 ([#67](https://github.com/syrizelink/OpenFic/issues/67)) ([40e2efd](https://github.com/syrizelink/OpenFic/commit/40e2efd7890749378e76958d85a9da0819789fdf))
+* **frontend:** 迁移前端检查到 Oxlint ([#66](https://github.com/syrizelink/OpenFic/issues/66)) ([7c10648](https://github.com/syrizelink/OpenFic/commit/7c10648bcd31ab6f71248e8af5aa4d0f7414ac51))
+
 ## [0.5.0](https://github.com/syrizelink/OpenFic/compare/v0.4.9...v0.5.0) (2026-07-04)
 
 
