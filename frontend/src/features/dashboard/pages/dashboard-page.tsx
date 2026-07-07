@@ -45,11 +45,7 @@ function getUserTimezone(): string | undefined {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
-interface DashboardPageProps {
-  appearance: "light" | "dark";
-}
-
-export function DashboardPage({ appearance }: DashboardPageProps) {
+export function DashboardPage() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<DashboardTab>("writing");
   const [llmQuery, setLlmQuery] = useState<DashboardQueryParams>(defaultLlmQuery);
@@ -218,7 +214,6 @@ export function DashboardPage({ appearance }: DashboardPageProps) {
             isDetailLoading={isWritingDetailFetching}
             selectedYear={writingYear}
             onSelectedYearChange={setWritingYear}
-            themeMode={appearance}
             filtersSlot={filters}
           />
         ) : null}
@@ -226,7 +221,6 @@ export function DashboardPage({ appearance }: DashboardPageProps) {
           <LlmDashboardTab
             data={llmStatsData}
             isLoading={isLlmStatsFetching}
-            themeMode={appearance}
           />
         ) : null}
         {isRecordsTab ? (
