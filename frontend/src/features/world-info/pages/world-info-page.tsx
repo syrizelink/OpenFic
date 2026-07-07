@@ -4,8 +4,10 @@
  * 世界书主页面，按项目展示对应世界书条目与编辑器。
  */
 
-import { Box, Flex, Text, Dialog, Button, Skeleton } from "@radix-ui/themes";
+import { Box, Flex, Text, Dialog, Button, Skeleton, IconButton, Tooltip } from "@radix-ui/themes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Bot, List } from "lucide-react";
+import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Panel, Group, Separator } from "react-resizable-panels";
@@ -13,6 +15,7 @@ import { useSearchParams } from "react-router";
 
 import "./world-info-page.css";
 
+import { MobileAppSidebarTrigger } from "@/features/app-shell";
 import { toast } from "@/components/toast";
 import { AssistantSidebar } from "@/features/assistant";
 import type { AssistantSidebarState } from "@/features/assistant";
@@ -42,6 +45,8 @@ import { useWorldInfoStore } from "../store/use-world-info-store";
 
 const LAST_PROJECT_KEY = "worldInfo.lastProjectId";
 const LAST_ENTRY_KEY = "worldInfo.lastEntryId";
+const MotionBox = motion.create(Box);
+const MOBILE_SIDEBAR_WIDTH = 320;
 
 function generateUniqueEntryName(baseName: string, entries: WorldInfoEntryBrief[]): string {
   const normalizedName = baseName.trim();
@@ -65,6 +70,8 @@ export function WorldInfoPage() {
     setCurrentWorldInfo,
     currentEntryId,
     setCurrentEntry,
+    sidebarOpen,
+    setSidebarOpen,
     setFromWriting,
   } = useWorldInfoStore();
 
@@ -85,6 +92,7 @@ export function WorldInfoPage() {
     isAgentRunning: false,
   });
   const [isMobile, setIsMobile] = useState(false);
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -312,7 +320,9 @@ export function WorldInfoPage() {
     setCurrentProjectId(projectId || null);
     setCurrentEntry(null);
     setIsCreatingEntry(false);
-  }, [setCurrentEntry]);
+    setSidebarOpen(false);
+    setIsAssistantOpen(false);
+  }, [setCurrentEntry, setSidebarOpen]);
 
   /** 处理创建条目 */
   const handleCreateEntry = useCallback(() => {
@@ -328,8 +338,9 @@ export function WorldInfoPage() {
   const handleSelectEntry = useCallback(
     (entryId: string) => {
       setCurrentEntry(entryId);
+      setSidebarOpen(false);
     },
-    [setCurrentEntry],
+    [setCurrentEntry, setSidebarOpen],
   );
 
   /** 处理切换条目启用状态 */
@@ -576,6 +587,8 @@ export function WorldInfoPage() {
     <AssistantSidebar
       projectId={currentProjectId}
       onStateChange={setAssistantState}
+      onClose={() => setIsAssistantOpen(false)}
+      isMobileOverlay={isMobile}
     />
   ) : (
     <Flex
@@ -590,6 +603,67 @@ export function WorldInfoPage() {
         align="center"
       >
         {t("worldInfo.noProject")}
+      </Text>
+    </Flex>
+  );
+
+  const editorContent = isCreatingEntry ? (
+    <Box p="4">
+      <Flex
+        direction="column"
+        gap="4"
+        style={{ maxWidth: 800, margin: "0 auto" }}
+      >
+        <Skeleton width="120px" height="14px" />
+        <Skeleton width="100%" height="36px" />
+        <Flex gap="4">
+          <Skeleton style={{ flex: 1 }} height="36px" />
+          <Skeleton style={{ flex: 1 }} height="36px" />
+        </Flex>
+        <Skeleton width="100%" height="200px" />
+        <Skeleton width="100%" height="80px" />
+      </Flex>
+    </Box>
+  ) : selectedEntry ? (
+    <EntryEditor
+      key={selectedEntry.id}
+      entry={selectedEntry}
+      worldInfoId={currentWorldInfoId!}
+      entries={entries}
+      scrollToLine={scrollToLine}
+      onScrollComplete={handleScrollComplete}
+      isAgentLocked={isAgentLocked}
+    />
+  ) : currentEntryId && isEntryLoading ? (
+    <Box p="4">
+      <Flex
+        direction="column"
+        gap="4"
+        style={{ maxWidth: 800, margin: "0 auto" }}
+      >
+        <Skeleton width="120px" height="14px" />
+        <Skeleton width="100%" height="36px" />
+        <Flex gap="4">
+          <Skeleton style={{ flex: 1 }} height="36px" />
+          <Skeleton style={{ flex: 1 }} height="36px" />
+        </Flex>
+        <Skeleton width="100%" height="200px" />
+        <Skeleton width="100%" height="80px" />
+      </Flex>
+    </Box>
+  ) : (
+    <Flex
+      align="center"
+      justify="center"
+      height="100%"
+      direction="column"
+      gap="2"
+    >
+      <Text
+        size="3"
+        color="gray"
+      >
+        {t("worldInfo.selectEntry")}
       </Text>
     </Flex>
   );
@@ -640,102 +714,7 @@ export function WorldInfoPage() {
                   data-scroll-container
                   className="world-info-page-editor-shell"
                 >
-                  {isCreatingEntry ? (
-                    <Box p="4">
-                      <Flex
-                        direction="column"
-                        gap="4"
-                        style={{ maxWidth: 800, margin: "0 auto" }}
-                      >
-                        <Skeleton
-                          width="120px"
-                          height="14px"
-                        />
-                        <Skeleton
-                          width="100%"
-                          height="36px"
-                        />
-                        <Flex gap="4">
-                          <Skeleton
-                            style={{ flex: 1 }}
-                            height="36px"
-                          />
-                          <Skeleton
-                            style={{ flex: 1 }}
-                            height="36px"
-                          />
-                        </Flex>
-                        <Skeleton
-                          width="100%"
-                          height="200px"
-                        />
-                        <Skeleton
-                          width="100%"
-                          height="80px"
-                        />
-                      </Flex>
-                    </Box>
-                  ) : selectedEntry ? (
-                    <EntryEditor
-                      key={selectedEntry.id}
-                      entry={selectedEntry}
-                      worldInfoId={currentWorldInfoId!}
-                      entries={entries}
-                      scrollToLine={scrollToLine}
-                      onScrollComplete={handleScrollComplete}
-                      isAgentLocked={isAgentLocked}
-                    />
-                  ) : currentEntryId && isEntryLoading ? (
-                    <Box p="4">
-                      <Flex
-                        direction="column"
-                        gap="4"
-                        style={{ maxWidth: 800, margin: "0 auto" }}
-                      >
-                        <Skeleton
-                          width="120px"
-                          height="14px"
-                        />
-                        <Skeleton
-                          width="100%"
-                          height="36px"
-                        />
-                        <Flex gap="4">
-                          <Skeleton
-                            style={{ flex: 1 }}
-                            height="36px"
-                          />
-                          <Skeleton
-                            style={{ flex: 1 }}
-                            height="36px"
-                          />
-                        </Flex>
-                        <Skeleton
-                          width="100%"
-                          height="200px"
-                        />
-                        <Skeleton
-                          width="100%"
-                          height="80px"
-                        />
-                      </Flex>
-                    </Box>
-                  ) : (
-                    <Flex
-                      align="center"
-                      justify="center"
-                      height="100%"
-                      direction="column"
-                      gap="2"
-                    >
-                      <Text
-                        size="3"
-                        color="gray"
-                      >
-                        {t("worldInfo.selectEntry")}
-                      </Text>
-                    </Flex>
-                  )}
+                  {editorContent}
                 </Box>
               </Panel>
 
@@ -754,92 +733,70 @@ export function WorldInfoPage() {
               </Panel>
             </Group>
           ) : currentProjectId ? (
-            <Flex
-              direction="column"
-              style={{
-                flex: 1,
-                minHeight: 0,
-                background: "var(--gray-a2)",
-                overflow: "hidden",
-              }}
-            >
-              <Box
-                style={{
-                  flex: "0 0 42%",
-                  minHeight: 240,
-                  borderBottom: "1px solid var(--gray-a4)",
-                  background: "var(--color-background)",
-                  overflow: "hidden",
-                }}
-              >
-                {sidebarContent}
-              </Box>
-              <Box
-                data-scroll-container
-                style={{
-                  flex: 1,
-                  minHeight: 0,
-                  overflowY: "auto",
-                  background: "var(--color-background)",
-                }}
-              >
-                {isCreatingEntry ? (
-                  <Box p="4">
-                    <Flex
-                      direction="column"
-                      gap="4"
-                      style={{ maxWidth: 800, margin: "0 auto" }}
-                    >
-                      <Skeleton width="120px" height="14px" />
-                      <Skeleton width="100%" height="36px" />
-                      <Flex gap="4">
-                        <Skeleton style={{ flex: 1 }} height="36px" />
-                        <Skeleton style={{ flex: 1 }} height="36px" />
-                      </Flex>
-                      <Skeleton width="100%" height="200px" />
-                      <Skeleton width="100%" height="80px" />
-                    </Flex>
-                  </Box>
-                ) : selectedEntry ? (
-                  <EntryEditor
-                    key={selectedEntry.id}
-                    entry={selectedEntry}
-                    worldInfoId={currentWorldInfoId!}
-                    entries={entries}
-                    scrollToLine={scrollToLine}
-                    onScrollComplete={handleScrollComplete}
-                    isAgentLocked={isAgentLocked}
-                  />
-                ) : currentEntryId && isEntryLoading ? (
-                  <Box p="4">
-                    <Flex
-                      direction="column"
-                      gap="4"
-                      style={{ maxWidth: 800, margin: "0 auto" }}
-                    >
-                      <Skeleton width="120px" height="14px" />
-                      <Skeleton width="100%" height="36px" />
-                      <Flex gap="4">
-                        <Skeleton style={{ flex: 1 }} height="36px" />
-                        <Skeleton style={{ flex: 1 }} height="36px" />
-                      </Flex>
-                      <Skeleton width="100%" height="200px" />
-                      <Skeleton width="100%" height="80px" />
-                    </Flex>
-                  </Box>
-                ) : (
-                  <Flex
-                    align="center"
-                    justify="center"
-                    height="100%"
-                    direction="column"
-                    gap="2"
-                  >
-                    <Text size="3" color="gray">
-                      {t("worldInfo.selectEntry")}
-                    </Text>
+            <Flex className="world-info-page-mobile-layout">
+              <Box className="world-info-page-editor-shell world-info-page-editor-shell--mobile">
+                <Flex
+                  align="center"
+                  justify="between"
+                  px="3"
+                  py="2"
+                  className="world-info-page-mobile-topbar"
+                >
+                  <Flex align="center" gap="1">
+                    <MobileAppSidebarTrigger />
+                    <Tooltip content={t("worldInfo.entries")}>
+                      <IconButton
+                        variant="ghost"
+                        size="2"
+                        aria-label={t("worldInfo.entries")}
+                        onClick={() => setSidebarOpen(!sidebarOpen)}
+                      >
+                        <List size={18} />
+                      </IconButton>
+                    </Tooltip>
                   </Flex>
-                )}
+
+                  <Tooltip content={t("assistant.mobileTitle")}>
+                    <IconButton
+                      variant="ghost"
+                      size="2"
+                      aria-label={t("assistant.mobileTitle")}
+                      onClick={() => setIsAssistantOpen(true)}
+                    >
+                      <Bot size={18} />
+                    </IconButton>
+                  </Tooltip>
+                </Flex>
+
+                <Box
+                  data-scroll-container
+                  className="world-info-page-content-fill"
+                >
+                  {editorContent}
+                </Box>
+
+                <motion.div
+                  initial={false}
+                  animate={{ opacity: sidebarOpen ? 1 : 0 }}
+                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                  onClick={() => setSidebarOpen(false)}
+                  className="world-info-page-mobile-sidebar-backdrop"
+                  style={{ pointerEvents: sidebarOpen ? "auto" : "none" }}
+                />
+
+                <MotionBox
+                  initial={false}
+                  animate={{ x: sidebarOpen ? 0 : -MOBILE_SIDEBAR_WIDTH }}
+                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                  className="world-info-page-mobile-sidebar-sheet"
+                  style={{
+                    width: MOBILE_SIDEBAR_WIDTH,
+                    minWidth: MOBILE_SIDEBAR_WIDTH,
+                    pointerEvents: sidebarOpen ? "auto" : "none",
+                  }}
+                >
+                  {sidebarContent}
+                </MotionBox>
               </Box>
             </Flex>
           ) : (
@@ -860,6 +817,19 @@ export function WorldInfoPage() {
           )}
         </Flex>
       </Box>
+
+      {isMobile && currentProjectId && (
+        <MotionBox
+          initial={false}
+          animate={{ x: isAssistantOpen ? 0 : "100%" }}
+          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+          className="world-info-page-mobile-assistant-overlay"
+          data-open={isAssistantOpen}
+          aria-hidden={!isAssistantOpen}
+        >
+          {agentSidebarContent}
+        </MotionBox>
+      )}
 
       <ImportWorldInfoDialog
         open={importDialogOpen}

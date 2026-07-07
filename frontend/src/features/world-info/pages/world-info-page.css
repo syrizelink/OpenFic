@@ -26,6 +26,67 @@
   overflow-y: auto;
 }
 
+.world-info-page-mobile-layout {
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+}
+
+.world-info-page-editor-shell--mobile {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.world-info-page-content-fill {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--color-background);
+}
+
+.world-info-page-mobile-topbar {
+  min-height: 44px;
+  border-bottom: 1px solid var(--gray-a4);
+  background: var(--color-background);
+}
+
+.world-info-page-mobile-sidebar-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.world-info-page-mobile-sidebar-sheet {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 11;
+  height: 100%;
+  overflow: hidden;
+  border-right: 1px solid var(--gray-a4);
+  background: var(--color-background);
+  will-change: transform;
+}
+
+.world-info-page-mobile-assistant-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--color-background);
+  visibility: visible;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.world-info-page-mobile-assistant-overlay[data-open="true"] {
+  pointer-events: auto;
+}
+
 .world-info-page-separator {
   position: relative;
   width: 1px;

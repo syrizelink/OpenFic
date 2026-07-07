@@ -1,10 +1,13 @@
-import { AlertDialog, Box, Button, Dialog, Flex, Text } from "@radix-ui/themes";
+import { AlertDialog, Box, Button, Flex, IconButton, Tooltip, Text } from "@radix-ui/themes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { List } from "lucide-react";
+import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { useSearchParams } from "react-router";
 
+import { MobileAppSidebarTrigger } from "@/features/app-shell";
 import { toast } from "@/components/toast";
 import {
   batchDeleteCharacters,
@@ -29,6 +32,8 @@ import "./characters-page.css";
 
 const LAST_PROJECT_KEY = "characters.lastProjectId";
 const LAST_CHARACTER_KEY = "characters.lastCharacterId";
+const MotionBox = motion.create(Box);
+const MOBILE_SIDEBAR_WIDTH = 320;
 
 function toCharacterListItem(character: Character): CharacterListItem {
   return {
@@ -367,7 +372,56 @@ export function CharactersPage() {
         </Group>
       ) : currentProjectId ? (
         <Box className="characters-page-body characters-page-body--mobile">
-          <Box className="characters-panel characters-editor-shell">{editorContent}</Box>
+          <Box className="characters-panel characters-editor-shell characters-editor-shell--mobile">
+            <Flex
+              align="center"
+              justify="between"
+              px="3"
+              py="2"
+              className="characters-page-mobile-topbar"
+            >
+              <Flex align="center" gap="1">
+                <MobileAppSidebarTrigger />
+                <Tooltip content={t("characters.listTitle")}>
+                  <IconButton
+                    variant="ghost"
+                    size="2"
+                    aria-label={t("characters.listTitle")}
+                    onClick={() => setListOpen(!isListOpen)}
+                  >
+                    <List size={18} />
+                  </IconButton>
+                </Tooltip>
+              </Flex>
+
+              <Box className="characters-page-mobile-topbar-side" />
+            </Flex>
+
+            <Box className="characters-page-content-fill">{editorContent}</Box>
+
+            <motion.div
+              initial={false}
+              animate={{ opacity: isListOpen ? 1 : 0 }}
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+              onClick={() => setListOpen(false)}
+              className="characters-page-mobile-sidebar-backdrop"
+              style={{ pointerEvents: isListOpen ? "auto" : "none" }}
+            />
+
+            <MotionBox
+              initial={false}
+              animate={{ x: isListOpen ? 0 : -MOBILE_SIDEBAR_WIDTH }}
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+              className="characters-page-mobile-sidebar-sheet"
+              style={{
+                width: MOBILE_SIDEBAR_WIDTH,
+                minWidth: MOBILE_SIDEBAR_WIDTH,
+                pointerEvents: isListOpen ? "auto" : "none",
+              }}
+            >
+              {list}
+            </MotionBox>
+          </Box>
         </Box>
       ) : (
         <Flex
@@ -391,19 +445,6 @@ export function CharactersPage() {
           </Text>
         </Flex>
       )}
-
-      <Dialog.Root
-        open={isListOpen}
-        onOpenChange={setListOpen}
-      >
-        <Dialog.Content
-          className="characters-mobile-dialog"
-          maxWidth="360px"
-        >
-          <Dialog.Title>{t("characters.listTitle")}</Dialog.Title>
-          {list}
-        </Dialog.Content>
-      </Dialog.Root>
 
       <CharacterProfileDialog
         character={profileCharacter}

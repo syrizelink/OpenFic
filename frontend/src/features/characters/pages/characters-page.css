@@ -205,6 +205,52 @@
   overflow: hidden;
 }
 
+.characters-editor-shell--mobile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.characters-page-content-fill {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.characters-page-mobile-topbar {
+  min-height: 44px;
+  border-bottom: 1px solid var(--gray-a4);
+  background: var(--color-background);
+}
+
+.characters-page-mobile-topbar-side {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.characters-page-mobile-sidebar-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.characters-page-mobile-sidebar-sheet {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 11;
+  height: 100%;
+  overflow: hidden;
+  border-right: 1px solid var(--gray-a4);
+  background: var(--color-background);
+  will-change: transform;
+}
+
 .characters-right-empty {
   padding: var(--space-5);
 }
