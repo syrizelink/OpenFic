@@ -1251,13 +1251,10 @@ export async function fetchLatestField(
 
 import type {
   WorldInfo,
-  WorldInfoCreate,
   WorldInfoImportCompleteEvent,
   WorldInfoImportEvent,
+  WorldInfoImportMode,
   WorldInfoImportPreviewResponse,
-  WorldInfoUpdate,
-  WorldInfoListResponse,
-  WorldInfoListParams,
   WorldInfoEntry,
   WorldInfoEntryBrief,
   WorldInfoEntryCreate,
@@ -1274,8 +1271,6 @@ function transformWorldInfo(raw: Record<string, unknown>): WorldInfo {
   return {
     id: raw.id as string,
     projectId: raw.project_id as string | null,
-    name: raw.name as string,
-    description: (raw.description as string) || "",
     createdAt: raw.created_at as string,
     updatedAt: raw.updated_at as string,
   };
@@ -1329,27 +1324,6 @@ function transformWorldInfoImportPreview(
 }
 
 /**
- * 获取世界书列表
- */
-export async function fetchWorldInfoList(
-  params?: WorldInfoListParams,
-): Promise<WorldInfoListResponse> {
-  const response = await apiClient.get("/world-info", {
-    params: {
-      page: params?.page ?? 1,
-      page_size: params?.pageSize ?? 50,
-    },
-  });
-  const data = response.data;
-  return {
-    items: (data.items as Record<string, unknown>[]).map(transformWorldInfo),
-    total: data.total,
-    page: data.page,
-    pageSize: data.page_size,
-  };
-}
-
-/**
  * 根据 ID 获取世界书
  */
 export async function fetchWorldInfoById(worldInfoId: string): Promise<WorldInfo> {
@@ -1360,37 +1334,8 @@ export async function fetchWorldInfoById(worldInfoId: string): Promise<WorldInfo
 /**
  * 获取项目的世界书
  */
-export async function fetchWorldInfoByProject(projectId: string): Promise<WorldInfo | null> {
+export async function fetchWorldInfoByProject(projectId: string): Promise<WorldInfo> {
   const response = await apiClient.get(`/projects/${projectId}/world-info`);
-  if (response.data === null) {
-    return null;
-  }
-  return transformWorldInfo(response.data);
-}
-
-/**
- * 创建世界书
- */
-export async function createWorldInfo(data: WorldInfoCreate): Promise<WorldInfo> {
-  const response = await apiClient.post("/world-info", {
-    name: data.name,
-    project_id: data.projectId,
-  });
-  return transformWorldInfo(response.data);
-}
-
-/**
- * 更新世界书
- */
-export async function updateWorldInfo(
-  worldInfoId: string,
-  data: WorldInfoUpdate,
-): Promise<WorldInfo> {
-  const response = await apiClient.patch(`/world-info/${worldInfoId}`, {
-    name: data.name,
-    project_id: data.projectId,
-    unbind_project: data.unbindProject,
-  });
   return transformWorldInfo(response.data);
 }
 
@@ -1681,15 +1626,19 @@ export async function previewWorldInfoImport(file: File): Promise<WorldInfoImpor
 export async function importWorldInfoEntriesStream(
   worldInfoId: string,
   file: File,
+  mode: WorldInfoImportMode,
   onEvent: (event: WorldInfoImportEvent) => void,
 ): Promise<WorldInfoImportCompleteEvent | null> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(getApiUrl(`/world-info/${worldInfoId}/entries/import-stream`), {
-    method: "POST",
-    body: formData,
-  });
+  const response = await fetch(
+    getApiUrl(`/world-info/${worldInfoId}/entries/import-stream?mode=${mode}`),
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
 
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);

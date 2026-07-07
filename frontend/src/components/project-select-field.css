@@ -1,0 +1,51 @@
+/**
+ * Project Select Field Styles
+ *
+ * 项目选择字段样式。
+ */
+
+.project-select-field__label {
+  display: block;
+}
+
+.project-select-field__trigger {
+  position: relative;
+  width: 100%;
+}
+
+.project-select-field__input {
+  cursor: pointer;
+  padding-right: 32px;
+}
+
+.project-select-field__trigger[data-disabled="true"] .project-select-field__input {
+  cursor: not-allowed;
+}
+
+/* 覆盖 Radix 对 readOnly 输入框的 cursor: text（作用于内部 <input>） */
+.project-select-field__input input {
+  cursor: pointer;
+}
+
+.project-select-field__input input:disabled {
+  cursor: not-allowed;
+}
+
+.project-select-field__chevron {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--gray-11);
+}
+
+.project-select-field__trigger[data-disabled="true"] .project-select-field__chevron {
+  opacity: 0.5;
+}
+
+.project-select-field__content {
+  width: 400px;
+  max-width: 90vw;
+  padding: var(--space-4) !important;
+}

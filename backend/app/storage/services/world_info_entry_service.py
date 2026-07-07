@@ -198,36 +198,59 @@ async def import_entries(
     session: AsyncSession,
     world_info_id: str,
     entries: list[WorldInfoImportEntry],
+    mode: str = "append",
 ) -> WorldInfoImportResult:
     """批量导入世界书条目。"""
     await get_world_info(session, world_info_id)
 
+    if mode not in {"append", "overwrite"}:
+        raise ValueError(f"不支持的导入模式: {mode}")
+
+    if mode == "overwrite":
+        await world_info_entry_repo.delete_by_world_info(session, world_info_id)
+        existing_entries: list[WorldInfoEntry] = []
+    else:
+        existing_entries = await world_info_entry_repo.list_by_world_info(
+            session, world_info_id, offset=0, limit=10000
+        )
+
+    existing_by_name = {entry.name: entry for entry in existing_entries}
     max_uid = await world_info_entry_repo.get_max_uid(session, world_info_id)
     max_order = await world_info_entry_repo.get_max_order(session, world_info_id)
 
-    existing_names = await _get_existing_entry_names(session, world_info_id)
-    entry_objects: list[WorldInfoEntry] = []
-    for index, entry in enumerate(entries, start=1):
-        unique_name = generate_unique_entry_name(entry.name, existing_names)
-        existing_names.add(unique_name)
-        entry_objects.append(
+    imported_count = 0
+    for entry in entries:
+        token_count = _calculate_token_count(entry.content)
+        existing = existing_by_name.get(entry.name)
+        if existing is not None:
+            existing.content = entry.content
+            existing.token_count = token_count
+            existing.is_enabled = entry.is_enabled
+            existing.updated_at = datetime.now(UTC)
+            await world_info_entry_repo.update_entry(session, existing)
+            imported_count += 1
+            continue
+
+        max_uid += 1
+        max_order += 1
+        created = await world_info_entry_repo.create(
+            session,
             WorldInfoEntry(
                 world_info_id=world_info_id,
-                uid=max_uid + index,
-                name=unique_name,
-                order=max_order + index,
+                uid=max_uid,
+                name=entry.name,
+                order=max_order,
                 content=entry.content,
-                token_count=_calculate_token_count(entry.content),
+                token_count=token_count,
                 is_enabled=entry.is_enabled,
-            )
+            ),
         )
-
-    session.add_all(entry_objects)
-    await session.flush()
+        existing_by_name[created.name] = created
+        imported_count += 1
 
     return WorldInfoImportResult(
         world_info_id=world_info_id,
-        imported_count=len(entry_objects),
+        imported_count=imported_count,
     )
 
 

@@ -4,7 +4,7 @@ WorldInfo Entries Router - 世界书条目 CRUD API。
 """
 
 import json
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
@@ -140,6 +140,10 @@ async def import_entries_stream(
     world_info_id: str,
     file: Annotated[UploadFile, File(description="SillyTavern 世界书 JSON 文件")],
     session: Annotated[AsyncSession, Depends(get_session)],
+    mode: Annotated[
+        Literal["append", "overwrite"],
+        Query(description="导入模式"),
+    ] = "append",
 ) -> StreamingResponse:
     """流式导入世界书条目并返回实时进度。"""
 
@@ -171,6 +175,7 @@ async def import_entries_stream(
                 session=session,
                 world_info_id=world_info_id,
                 entries=preview.entries,
+                mode=mode,
             )
 
             complete_event = {

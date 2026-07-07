@@ -35,6 +35,7 @@ import {
 import {
   Search,
   Plus,
+  Upload,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -49,7 +50,9 @@ import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useTranslation } from "react-i18next";
 
+import { ProjectSelectField } from "@/components";
 import { ContextMenu, type ContextMenuItem } from "@/components/context-menu";
+import type { Project } from "@/lib/project.types";
 import type { WorldInfoEntryBrief } from "@/lib/world-info.types";
 
 import { useWorldInfoStore } from "../store/use-world-info-store";
@@ -65,6 +68,10 @@ const AUTO_SCROLL_EDGE_THRESHOLD = 56;
 const AUTO_SCROLL_MAX_SPEED = 18;
 
 interface EntryListProps {
+  projects: Project[];
+  currentProjectId: string;
+  onSelectProject: (projectId: string) => void;
+  onImport: () => void;
   /** 条目列表 */
   entries: WorldInfoEntryBrief[];
   /** 新建条目回调 */
@@ -103,6 +110,10 @@ interface ContextMenuPosition {
 }
 
 export function EntryList({
+  projects,
+  currentProjectId,
+  onSelectProject,
+  onImport,
   entries,
   onCreateEntry,
   onSelectEntry,
@@ -480,6 +491,14 @@ export function EntryList({
             direction="column"
             gap="2"
           >
+            <ProjectSelectField
+              projects={projects}
+              value={currentProjectId}
+              onChange={onSelectProject}
+              showNoneOption={false}
+              placeholder={t("worldInfo.selectProject")}
+            />
+
             <Flex
               gap="2"
               align="center"
@@ -561,6 +580,55 @@ export function EntryList({
                 <>
                   <Box style={{ flex: 1 }} />
 
+                  <Tooltip content={t("common.import")}>
+                    <IconButton
+                      variant="ghost"
+                      size="2"
+                      aria-label={t("common.import")}
+                      onClick={onImport}
+                    >
+                      <Upload size={16} />
+                    </IconButton>
+                  </Tooltip>
+
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger>
+                      <IconButton
+                        variant="ghost"
+                        size="2"
+                        aria-label={t("worldInfo.sort")}
+                      >
+                        <ArrowUpDown size={16} />
+                      </IconButton>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content align="end">
+                      <DropdownMenu.Item onClick={() => onSortChange("order")}>
+                        <Flex align="center" justify="between" width="100%">
+                          <Text>{t("worldInfo.sortByOrder")}</Text>
+                          {getSortIcon("order")}
+                        </Flex>
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item onClick={() => onSortChange("uid")}>
+                        <Flex align="center" justify="between" width="100%">
+                          <Text>{t("worldInfo.sortByUid")}</Text>
+                          {getSortIcon("uid")}
+                        </Flex>
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item onClick={() => onSortChange("tokenCount")}>
+                        <Flex align="center" justify="between" width="100%">
+                          <Text>{t("worldInfo.sortByTokens")}</Text>
+                          {getSortIcon("tokenCount")}
+                        </Flex>
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item onClick={() => onSortChange("name")}>
+                        <Flex align="center" justify="between" width="100%">
+                          <Text>{t("worldInfo.sortByName")}</Text>
+                          {getSortIcon("name")}
+                        </Flex>
+                      </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
+
                   {isMultiSelect ? (
                     <Tooltip
                       content={
@@ -575,60 +643,7 @@ export function EntryList({
                         <CheckSquare size={16} />
                       </IconButton>
                     </Tooltip>
-                  ) : (
-                    <DropdownMenu.Root>
-                      <DropdownMenu.Trigger>
-                        <IconButton
-                          variant="ghost"
-                          size="2"
-                        >
-                          <ArrowUpDown size={16} />
-                        </IconButton>
-                      </DropdownMenu.Trigger>
-                      <DropdownMenu.Content align="end">
-                        <DropdownMenu.Item onClick={() => onSortChange("order")}>
-                          <Flex
-                            align="center"
-                            justify="between"
-                            width="100%"
-                          >
-                            <Text>{t("worldInfo.sortByOrder")}</Text>
-                            {getSortIcon("order")}
-                          </Flex>
-                        </DropdownMenu.Item>
-                        <DropdownMenu.Item onClick={() => onSortChange("uid")}>
-                          <Flex
-                            align="center"
-                            justify="between"
-                            width="100%"
-                          >
-                            <Text>{t("worldInfo.sortByUid")}</Text>
-                            {getSortIcon("uid")}
-                          </Flex>
-                        </DropdownMenu.Item>
-                        <DropdownMenu.Item onClick={() => onSortChange("tokenCount")}>
-                          <Flex
-                            align="center"
-                            justify="between"
-                            width="100%"
-                          >
-                            <Text>{t("worldInfo.sortByTokens")}</Text>
-                            {getSortIcon("tokenCount")}
-                          </Flex>
-                        </DropdownMenu.Item>
-                        <DropdownMenu.Item onClick={() => onSortChange("name")}>
-                          <Flex
-                            align="center"
-                            justify="between"
-                            width="100%"
-                          >
-                            <Text>{t("worldInfo.sortByName")}</Text>
-                            {getSortIcon("name")}
-                          </Flex>
-                        </DropdownMenu.Item>
-                      </DropdownMenu.Content>
-                    </DropdownMenu.Root>
-                  )}
+                  ) : null}
 
                   <Tooltip
                     content={
