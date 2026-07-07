@@ -1,11 +1,10 @@
+import { ResponsiveTimeRange, type CalendarTooltipProps } from "@nivo/calendar";
 import NumberFlow from "@number-flow/react";
 import { Card } from "@radix-ui/themes";
 import { Flame } from "lucide-react";
-import { type ReactNode, useMemo } from "react";
-import { ActivityCalendar } from "react-activity-calendar";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import "react-activity-calendar/tooltips.css";
 import {
   buildWritingCumulativeOption,
   buildWritingSourceOption,
@@ -26,15 +25,46 @@ interface WritingDashboardTabProps {
   isDetailLoading: boolean;
   selectedYear: number;
   onSelectedYearChange: (value: number) => void;
-  themeMode: "light" | "dark";
   filtersSlot?: ReactNode;
 }
 
 interface CalendarItem {
   date: string;
   count: number;
-  level: number;
 }
+
+interface NivoCalendarDatum {
+  day: string;
+  value: number;
+}
+
+const calendarColors = ["#d9e5dc", "#a9c4b3", "#6f9a7f", "#315f46"];
+const dashboardCalendarFontFamily = "var(--app-font-family)";
+const dashboardCalendarTextTheme = {
+  background: "transparent",
+  fontFamily: dashboardCalendarFontFamily,
+  axis: {
+    domain: { line: { stroke: "var(--gray-a6)" } },
+    ticks: {
+      line: { stroke: "var(--gray-a6)" },
+      text: { fill: "var(--gray-11)", fontFamily: dashboardCalendarFontFamily, fontSize: 13 },
+    },
+    legend: { text: { fill: "var(--gray-11)", fontFamily: dashboardCalendarFontFamily, fontSize: 13 } },
+  },
+  grid: { line: { stroke: "var(--gray-a4)" } },
+  crosshair: { line: { stroke: "var(--gray-12)", strokeWidth: 1 } },
+  legends: { text: { fill: "var(--gray-11)", fontFamily: dashboardCalendarFontFamily, fontSize: 13 } },
+  labels: { text: { fill: "var(--gray-12)", fontFamily: dashboardCalendarFontFamily, fontSize: 13 } },
+  tooltip: {
+    container: {
+      borderColor: "var(--gray-a6)",
+      background: "var(--color-panel-solid)",
+      color: "var(--gray-12)",
+      fontFamily: dashboardCalendarFontFamily,
+      fontSize: "13px",
+    },
+  },
+};
 
 function getCurrentYear(): number {
   return new Date().getFullYear();
@@ -47,16 +77,12 @@ function formatLocalDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function getCreativeWords(point: WritingActivityTimeSeriesPoint): number {
-  return Math.max(0, point.userWordDelta + point.agentWordDelta);
+function formatCalendarTooltipDate(day: string | Date): string {
+  return typeof day === "string" ? day.slice(5) : formatLocalDate(day).slice(5);
 }
 
-function getActivityLevel(value: number): number {
-  if (value <= 0) return 0;
-  if (value >= 8000) return 4;
-  if (value >= 4000) return 3;
-  if (value >= 2000) return 2;
-  return 1;
+function getCreativeWords(point: WritingActivityTimeSeriesPoint): number {
+  return Math.max(0, point.userWordDelta + point.agentWordDelta);
 }
 
 function buildYearCalendarData(
@@ -69,19 +95,17 @@ function buildYearCalendarData(
   const dailyWords = new Map(yearPoints.map((point) => [point.date, getCreativeWords(point)]));
   const items = yearPoints.map((point) => {
     const count = getCreativeWords(point);
-    return { date: point.date, count, level: getActivityLevel(count) };
+    return { date: point.date, count };
   });
   return [
     {
       date: start,
       count: dailyWords.get(start) ?? 0,
-      level: getActivityLevel(dailyWords.get(start) ?? 0),
     },
     ...items.filter((item) => item.date !== start && item.date !== end),
     {
       date: end,
       count: dailyWords.get(end) ?? 0,
-      level: getActivityLevel(dailyWords.get(end) ?? 0),
     },
   ];
 }
@@ -117,7 +141,6 @@ export function WritingDashboardTab({
   isDetailLoading,
   selectedYear,
   onSelectedYearChange,
-  themeMode,
   filtersSlot,
 }: WritingDashboardTabProps) {
   const { t } = useTranslation();
@@ -127,6 +150,36 @@ export function WritingDashboardTab({
   const calendarData = useMemo(
     () => buildYearCalendarData(heroData?.timeSeries ?? [], selectedYear),
     [heroData?.timeSeries, selectedYear],
+  );
+  const calendarChartData = useMemo<NivoCalendarDatum[]>(
+    () =>
+      calendarData
+        .filter((item) => item.count > 0)
+        .map((item) => ({ day: item.date, value: item.count })),
+    [calendarData],
+  );
+  const [canRenderCalendar, setCanRenderCalendar] = useState(false);
+
+  useEffect(() => {
+    setCanRenderCalendar(false);
+
+    let secondFrame: number | undefined;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => setCanRenderCalendar(true));
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame !== undefined) window.cancelAnimationFrame(secondFrame);
+    };
+  }, [calendarChartData, selectedYear]);
+
+  const CalendarTooltip = ({ day, value }: CalendarTooltipProps) => (
+    <div className="dashboard-chart-tooltip">
+      {t("dashboard.charts.calendarTooltipPrefix", { date: formatCalendarTooltipDate(day) })}{" "}
+      <strong className="dashboard-chart-tooltip-value">{Number(value)}</strong>{" "}
+      {t("dashboard.charts.calendarTooltipSuffix")}
+    </div>
   );
   const writingTrendOption = useMemo(
     () => buildWritingTrendOption(detailData?.timeSeries ?? []),
@@ -188,31 +241,58 @@ export function WritingDashboardTab({
                 {t("dashboard.charts.yearSummarySuffix")}
               </div>
               <div className="dashboard-calendar-frame dashboard-calendar-frame-yearly">
-                <ActivityCalendar
-                  data={calendarData}
-                  blockSize={12}
-                  blockRadius={3}
-                  blockMargin={4}
-                  fontSize={12}
-                  weekStart={1}
-                  colorScheme="light"
-                  showWeekdayLabels
-                  theme={{
-                    light: ["var(--gray-a3)", "#b7dbc2", "#7fbd94", "#4f9467", "#2f6848"],
-                    dark: ["var(--gray-a3)", "#b7dbc2", "#7fbd94", "#4f9467", "#2f6848"],
-                  }}
-                  labels={{
-                    totalCount: t("dashboard.charts.tooltipWords", { count: "{{count}}" }),
-                  }}
-                  tooltips={{
-                    activity: {
-                      text: ({ count, date }) =>
-                        count > 0
-                          ? t("dashboard.charts.tooltipActivity", { date, count })
-                          : t("dashboard.charts.tooltipNoActivity", { date }),
-                    },
-                  }}
-                />
+                <div className="dashboard-nivo-calendar">
+                  <div className="dashboard-nivo-calendar-chart">
+                    {canRenderCalendar ? (
+                      <ResponsiveTimeRange
+                        data={calendarChartData}
+                        theme={dashboardCalendarTextTheme}
+                        from={`${selectedYear}-01-01`}
+                        to={`${selectedYear}-12-31`}
+                        firstWeekday="monday"
+                        weekdayTicks={[]}
+                        weekdayLegendOffset={0}
+                        align="top-left"
+                        margin={{ top: 24, right: 0, bottom: 0, left: 0 }}
+                        dayRadius={2}
+                        daySpacing={4}
+                        dayBorderWidth={0.5}
+                        dayBorderColor="var(--gray-a5)"
+                        emptyColor="var(--gray-a3)"
+                        colors={calendarColors}
+                        minValue={0}
+                        maxValue="auto"
+                        tooltip={CalendarTooltip}
+                      />
+                    ) : (
+                      <div
+                        className="dashboard-nivo-calendar-loading"
+                        role="status"
+                        aria-label={t("dashboard.charts.loading")}
+                      />
+                    )}
+                  </div>
+                  <div className="dashboard-nivo-calendar-footer">
+                    <span>
+                      {t("dashboard.charts.yearTotalWords", {
+                        count: createdWords,
+                        year: selectedYear,
+                      })}
+                    </span>
+                    <div className="dashboard-nivo-calendar-legend">
+                      <span>{t("dashboard.charts.calendarLess")}</span>
+                      <span className="dashboard-nivo-calendar-swatch" />
+                      {calendarColors.map((color, index) => (
+                        <span
+                          key={color}
+                          className="dashboard-nivo-calendar-swatch"
+                          data-level={index + 1}
+                        />
+                      ))}
+                      <span>{t("dashboard.charts.calendarMore")}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -273,29 +353,29 @@ export function WritingDashboardTab({
           title={t("dashboard.charts.writingTrend")}
           option={writingTrendOption}
           isLoading={isDetailLoading}
-          themeMode={themeMode}
           size="wide"
+          renderPriority={0}
         />
         <ChartPanel
           title={t("dashboard.charts.cumulativeWords")}
           option={writingCumulativeOption}
           isLoading={isDetailLoading}
-          themeMode={themeMode}
           size="wide"
+          renderPriority={1}
         />
         <ChartPanel
           title={t("dashboard.charts.sourceContribution")}
           option={writingSourceOption}
           isLoading={isDetailLoading}
-          themeMode={themeMode}
           size="medium"
+          renderPriority={2}
         />
         <ChartPanel
           title={t("dashboard.charts.activeWeekday")}
           option={writingWeekdayOption}
           isLoading={isDetailLoading}
-          themeMode={themeMode}
           size="medium"
+          renderPriority={3}
         />
       </section>
     </section>

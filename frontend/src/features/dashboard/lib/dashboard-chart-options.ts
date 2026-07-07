@@ -1,6 +1,5 @@
 import i18n from "@/i18n";
 
-import type { DashboardEchartsThemeMode } from "./dashboard-echarts-theme";
 import type {
   DashboardBreakdownItem,
   DashboardModelTimeSeriesPoint,
@@ -8,65 +7,55 @@ import type {
   WritingActivityTimeSeriesPoint,
 } from "./dashboard.types";
 
-export type DashboardChartOption = Record<string, unknown>;
+export type DashboardChartValueFormat = "number" | "seconds" | "compact";
+export type DashboardChartTooltipUnit = "words" | "days" | "calls" | "tokens" | "seconds";
+export type DashboardChartAxisFormat = "month-day";
 
-const brightBarStyle = {
-  borderRadius: [6, 6, 0, 0],
-};
-
-const roundedDonutStyle = {
-  borderRadius: 8,
-  borderColor: "var(--color-panel-solid)",
-  borderWidth: 2,
-};
-
-const softLineAreaStyle = {
-  color: {
-    type: "linear",
-    x: 0,
-    y: 0,
-    x2: 0,
-    y2: 1,
-    colorStops: [
-      { offset: 0, color: "rgba(14, 165, 233, 0.22)" },
-      { offset: 1, color: "rgba(14, 165, 233, 0.02)" },
-    ],
-  },
-};
-
-export function withDashboardChartTheme(
-  option: DashboardChartOption,
-  mode: DashboardEchartsThemeMode,
-): DashboardChartOption {
-  if (mode === "light") return option;
-  return {
-    ...option,
-    tooltip: {
-      backgroundColor: "#1f1f1f",
-      borderColor: "#3a3a3a",
-      textStyle: { color: "#f1f1f1" },
-      ...(option.tooltip as Record<string, unknown> | undefined),
-    },
-    legend: {
-      textStyle: { color: "#d8d8d8" },
-      ...(option.legend as Record<string, unknown> | undefined),
-    },
-    xAxis: {
-      axisLine: { lineStyle: { color: "#5a5a5a" } },
-      axisTick: { lineStyle: { color: "#5a5a5a" } },
-      axisLabel: { color: "#cfcfcf" },
-      splitLine: { lineStyle: { color: "#333333" } },
-      ...(option.xAxis as Record<string, unknown> | undefined),
-    },
-    yAxis: {
-      axisLine: { lineStyle: { color: "#5a5a5a" } },
-      axisTick: { lineStyle: { color: "#5a5a5a" } },
-      axisLabel: { color: "#cfcfcf" },
-      splitLine: { lineStyle: { color: "#333333" } },
-      ...(option.yAxis as Record<string, unknown> | undefined),
-    },
-  };
+export interface DashboardChartTooltip {
+  fixedLabel?: string;
+  unit: DashboardChartTooltipUnit;
 }
+
+export interface DashboardLineSeries {
+  id: string;
+  data: Array<{ x: string; y: number }>;
+}
+
+export interface DashboardBarDatum {
+  label: string;
+  [key: string]: string | number;
+}
+
+export interface DashboardPieDatum {
+  id: string;
+  label: string;
+  value: number;
+}
+
+export type DashboardChartModel =
+  | {
+      kind: "line";
+      data: DashboardLineSeries[];
+      valueFormat?: DashboardChartValueFormat;
+      xAxisFormat?: DashboardChartAxisFormat;
+      enableArea?: boolean;
+      tooltip?: DashboardChartTooltip;
+    }
+  | {
+      kind: "bar";
+      data: DashboardBarDatum[];
+      keys: string[];
+      valueFormat?: DashboardChartValueFormat;
+      xAxisFormat?: DashboardChartAxisFormat;
+      groupMode?: "grouped" | "stacked";
+      tooltip?: DashboardChartTooltip;
+    }
+  | {
+      kind: "pie";
+      data: DashboardPieDatum[];
+      valueFormat?: DashboardChartValueFormat;
+      tooltip?: DashboardChartTooltip;
+    };
 
 function getRecentDates(data: DashboardStatsResponse | undefined): string[] {
   return Array.from(new Set((data?.modelTimeSeries ?? []).map((item) => item.date))).slice(-7);
@@ -76,164 +65,124 @@ function getTopModels(data: DashboardStatsResponse | undefined): DashboardBreakd
   return (data?.byModel ?? []).slice(0, 5);
 }
 
+function getOptionLabel(
+  options: DashboardStatsResponse["options"] | undefined,
+  kind: "model" | "project",
+  value: string,
+  fallback: string,
+): string {
+  const items = kind === "model" ? options?.modelOptions : options?.projectOptions;
+  return items?.find((item) => item.value === value)?.label ?? fallback;
+}
+
 function getModelPointMap(
   points: DashboardModelTimeSeriesPoint[],
 ): Map<string, DashboardModelTimeSeriesPoint> {
   return new Map(points.map((point) => [`${point.date}:${point.key}`, point]));
 }
 
-function buildAxisTooltipWithTotal(formatter?: (value: number) => string) {
-  return (params: unknown) => {
-    if (!Array.isArray(params)) return "";
-    const title = String(
-      (params[0] as { axisValueLabel?: string; axisValue?: string })?.axisValueLabel ??
-        (params[0] as { axisValue?: string })?.axisValue ??
-        "",
-    );
-    const rows = params as Array<{ marker?: string; seriesName?: string; value?: number }>;
-    const total = rows.reduce((sum, item) => sum + Number(item.value ?? 0), 0);
-    const format = formatter ?? ((value: number) => String(Math.round(value)));
-    return [
-      title,
-      ...rows.map(
-        (item) =>
-          `${item.marker ?? ""} ${item.seriesName ?? ""}: ${format(Number(item.value ?? 0))}`,
-      ),
-      `${i18n.t("dashboard.charts.tooltipTotal")}: ${format(total)}`,
-    ].join("<br />");
-  };
-}
-
 export function buildModelTrendOption(
   data: DashboardStatsResponse | undefined,
   key: "calls" | "avgLatencyMs",
-): DashboardChartOption {
+): DashboardChartModel {
   const dates = getRecentDates(data);
   const models = getTopModels(data);
   const points = (data?.modelTimeSeries ?? []).filter((point) => dates.includes(point.date));
   const pointMap = getModelPointMap(points);
-  const isLatency = key === "avgLatencyMs";
   return {
-    tooltip: {
-      trigger: "axis",
-      formatter: buildAxisTooltipWithTotal(
-        isLatency ? (value) => `${(value / 1000).toFixed(2)} s` : undefined,
-      ),
-    },
-    legend: { top: 0, right: 0, type: "scroll" },
-    grid: { top: 46, left: 48, right: 24, bottom: 34 },
-    xAxis: { type: "category", data: dates, axisTick: { show: false } },
-    yAxis: { type: "value" },
-    series: models.map((model) => ({
-      name: model.label,
-      type: "line",
-      smooth: true,
-      showSymbol: false,
-      data: dates.map((date) => pointMap.get(`${date}:${model.key}`)?.[key] ?? 0),
+    kind: "line",
+    enableArea: true,
+    valueFormat: key === "avgLatencyMs" ? "seconds" : "compact",
+    xAxisFormat: "month-day",
+    tooltip: { unit: key === "avgLatencyMs" ? "seconds" : "calls" },
+    data: models.map((model) => ({
+      id: getOptionLabel(data?.options, "model", model.key, model.label),
+      data: dates.map((date) => ({ x: date, y: pointMap.get(`${date}:${model.key}`)?.[key] ?? 0 })),
     })),
   };
 }
 
 export function buildModelTokenTrendOption(
   data: DashboardStatsResponse | undefined,
-): DashboardChartOption {
+): DashboardChartModel {
   const dates = getRecentDates(data);
   const models = getTopModels(data);
   const points = (data?.modelTimeSeries ?? []).filter((point) => dates.includes(point.date));
   const pointMap = getModelPointMap(points);
   return {
-    tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
-    legend: { top: 0, right: 0, type: "scroll" },
-    grid: { top: 46, left: 54, right: 24, bottom: 34 },
-    xAxis: { type: "category", data: dates, axisTick: { show: false } },
-    yAxis: { type: "value" },
-    series: models.map((model) => ({
-      name: model.label,
-      type: "bar",
-      barMaxWidth: 20,
-      itemStyle: brightBarStyle,
-      data: dates.map((date) => pointMap.get(`${date}:${model.key}`)?.tokensTotal ?? 0),
-    })),
+    kind: "bar",
+    keys: models.map((model) => getOptionLabel(data?.options, "model", model.key, model.label)),
+    valueFormat: "compact",
+    xAxisFormat: "month-day",
+    tooltip: { unit: "tokens" },
+    data: dates.map((date) => {
+      const item: DashboardBarDatum = { label: date };
+      for (const model of models) {
+        item[getOptionLabel(data?.options, "model", model.key, model.label)] = pointMap.get(
+          `${date}:${model.key}`,
+        )?.tokensTotal ?? 0;
+      }
+      return item;
+    }),
   };
 }
 
 export function buildRoundedDonutOption(
   items: DashboardBreakdownItem[],
   valueKey: "calls" | "tokensTotal",
-  name: string,
-): DashboardChartOption {
+  _name: string,
+  options?: DashboardStatsResponse["options"],
+  labelKind: "model" | "project" = "model",
+): DashboardChartModel {
   return {
-    tooltip: { trigger: "item", formatter: "{b}: {c} ({d}%)" },
-    legend: { bottom: 0, left: "center", type: "scroll" },
-    series: [
-      {
-        name,
-        type: "pie",
-        radius: ["52%", "74%"],
-        center: ["50%", "42%"],
-        avoidLabelOverlap: true,
-        padAngle: 2,
-        itemStyle: roundedDonutStyle,
-        data: items
-          .map((item) => ({ name: item.label, value: item[valueKey] }))
-          .filter((item) => item.value > 0),
-        label: { formatter: "{b}\n{d}%" },
-      },
-    ],
+    kind: "pie",
+    tooltip: { unit: valueKey === "calls" ? "calls" : "tokens" },
+    data: items
+      .map((item) => ({
+        id: item.key,
+        label: getOptionLabel(options, labelKind, item.key, item.label),
+        value: item[valueKey],
+      }))
+      .filter((item) => item.value > 0),
   };
 }
 
 export function buildWritingTrendOption(
   points: WritingActivityTimeSeriesPoint[],
-): DashboardChartOption {
+): DashboardChartModel {
+  const createdKey = i18n.t("dashboard.charts.writingSeriesCreated");
+  const importedKey = i18n.t("dashboard.charts.writingSeriesImported");
   return {
-    tooltip: { trigger: "axis" },
-    legend: { top: 0, right: 0 },
-    grid: { top: 42, left: 48, right: 24, bottom: 34 },
-    xAxis: { type: "category", data: points.map((item) => item.date), axisTick: { show: false } },
-    yAxis: { type: "value" },
-    series: [
-      {
-        name: i18n.t("dashboard.charts.writingSeriesCreated"),
-        type: "bar",
-        stack: "words",
-        barMaxWidth: 28,
-        itemStyle: brightBarStyle,
-        data: points.map((item) => item.userWordDelta + item.agentWordDelta),
-      },
-      {
-        name: i18n.t("dashboard.charts.writingSeriesImported"),
-        type: "bar",
-        stack: "words",
-        barMaxWidth: 28,
-        itemStyle: brightBarStyle,
-        data: points.map((item) => item.importWordDelta),
-      },
-    ],
+    kind: "bar",
+    keys: [createdKey, importedKey],
+    groupMode: "stacked",
+    valueFormat: "compact",
+    xAxisFormat: "month-day",
+    tooltip: { unit: "words" },
+    data: points.map((item) => ({
+      label: item.date,
+      [createdKey]: item.userWordDelta + item.agentWordDelta,
+      [importedKey]: item.importWordDelta,
+    })),
   };
 }
 
 export function buildWritingCumulativeOption(
   points: WritingActivityTimeSeriesPoint[],
-): DashboardChartOption {
+): DashboardChartModel {
   let total = 0;
-  const cumulative = points.map((item) => {
-    total += Math.max(0, item.userWordDelta + item.agentWordDelta);
-    return total;
-  });
   return {
-    tooltip: { trigger: "axis" },
-    grid: { top: 28, left: 48, right: 24, bottom: 34 },
-    xAxis: { type: "category", data: points.map((item) => item.date), axisTick: { show: false } },
-    yAxis: { type: "value" },
-    series: [
+    kind: "line",
+    enableArea: true,
+    xAxisFormat: "month-day",
+    tooltip: { fixedLabel: i18n.t("dashboard.charts.cumulativeSeries"), unit: "words" },
+    data: [
       {
-        name: i18n.t("dashboard.charts.cumulativeSeries"),
-        type: "line",
-        smooth: true,
-        showSymbol: false,
-        areaStyle: softLineAreaStyle,
-        data: cumulative,
+        id: i18n.t("dashboard.charts.cumulativeSeries"),
+        data: points.map((item) => {
+          total += Math.max(0, item.userWordDelta + item.agentWordDelta);
+          return { x: item.date, y: total };
+        }),
       },
     ],
   };
@@ -241,33 +190,24 @@ export function buildWritingCumulativeOption(
 
 export function buildWritingSourceOption(
   points: WritingActivityTimeSeriesPoint[],
-): DashboardChartOption {
+): DashboardChartModel {
   const userTotal = points.reduce((total, item) => total + Math.max(0, item.userWordDelta), 0);
   const agentTotal = points.reduce((total, item) => total + Math.max(0, item.agentWordDelta), 0);
   const importTotal = points.reduce((total, item) => total + Math.max(0, item.importWordDelta), 0);
   return {
-    tooltip: { trigger: "item" },
-    legend: { bottom: 0, left: "center" },
-    series: [
-      {
-        name: i18n.t("dashboard.charts.sourceSeries"),
-        type: "pie",
-        radius: ["46%", "70%"],
-        center: ["50%", "42%"],
-        data: [
-          { name: i18n.t("dashboard.charts.sourceUserEdit"), value: userTotal },
-          { name: i18n.t("dashboard.charts.sourceAgentEdit"), value: agentTotal },
-          { name: i18n.t("dashboard.charts.sourceImport"), value: importTotal },
-        ],
-        label: { formatter: "{b}: {c}" },
-      },
-    ],
+    kind: "pie",
+    tooltip: { unit: "words" },
+    data: [
+      { id: "user", label: i18n.t("dashboard.charts.sourceUserEdit"), value: userTotal },
+      { id: "agent", label: i18n.t("dashboard.charts.sourceAgentEdit"), value: agentTotal },
+      { id: "import", label: i18n.t("dashboard.charts.sourceImport"), value: importTotal },
+    ].filter((item) => item.value > 0),
   };
 }
 
 export function buildWritingWeekdayOption(
   points: WritingActivityTimeSeriesPoint[],
-): DashboardChartOption {
+): DashboardChartModel {
   const labels = [
     i18n.t("dashboard.charts.weekdayMon"),
     i18n.t("dashboard.charts.weekdayTue"),
@@ -286,18 +226,9 @@ export function buildWritingWeekdayOption(
     activeDayCounts[mondayFirstIndex] += 1;
   }
   return {
-    tooltip: { trigger: "axis" },
-    grid: { top: 28, left: 46, right: 24, bottom: 34 },
-    xAxis: { type: "category", data: labels, axisTick: { show: false } },
-    yAxis: { type: "value" },
-    series: [
-      {
-        name: i18n.t("dashboard.charts.activeDaysSeries"),
-        type: "bar",
-        barMaxWidth: 24,
-        itemStyle: brightBarStyle,
-        data: activeDayCounts,
-      },
-    ],
+    kind: "bar",
+    keys: [i18n.t("dashboard.charts.activeDaysSeries")],
+    tooltip: { fixedLabel: i18n.t("dashboard.charts.activeDaysTooltipLabel"), unit: "days" },
+    data: labels.map((label, index) => ({ label, [i18n.t("dashboard.charts.activeDaysSeries")]: activeDayCounts[index] })),
   };
 }

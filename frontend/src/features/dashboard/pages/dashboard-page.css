@@ -1,6 +1,5 @@
 .dashboard-page {
-  position: fixed;
-  inset: 0 0 0 var(--app-sidebar-width);
+  height: 100%;
   width: auto;
   max-width: none;
   min-height: 0;
@@ -8,7 +7,6 @@
   overflow-y: auto;
   background: var(--color-background);
   padding: 28px;
-  transition: left 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .dashboard-shell {
@@ -341,7 +339,7 @@
 .dashboard-metric-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(150px, 1fr));
-  gap: 12px;
+  gap: 13px;
 }
 
 .dashboard-metric-card {
@@ -350,7 +348,7 @@
 
 .dashboard-metric-label {
   color: var(--gray-10);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .dashboard-metric-value {
@@ -407,7 +405,7 @@
 }
 
 .dashboard-writing-hero-yearly {
-  grid-template-columns: max-content minmax(360px, 1fr);
+  grid-template-columns: minmax(0, 920px) minmax(360px, 1fr);
 }
 
 .dashboard-year-card-layout {
@@ -459,21 +457,129 @@
   min-width: 0;
 }
 
-.dashboard-calendar-frame-yearly {
+.dashboard-calendar-frame.dashboard-calendar-frame-yearly {
   width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 14px 0 0;
 }
 
-.dashboard-calendar-frame-yearly .react-activity-calendar {
-  min-width: max-content;
-  width: max-content;
+.dashboard-nivo-calendar {
+  width: 780px;
+  min-width: 780px;
 }
 
-.dashboard-calendar-frame-yearly .react-activity-calendar__footer {
-  color: var(--gray-10);
-  font-size: 12px;
+.dashboard-nivo-calendar-chart {
+  height: 132px;
+}
+
+.dashboard-nivo-calendar-loading {
+  height: 132px;
+}
+
+.dashboard-nivo-calendar-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--gray-12);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.dashboard-nivo-calendar-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.dashboard-nivo-calendar-swatch {
+  width: 12px;
+  height: 12px;
+  border: 0.5px solid var(--gray-a5);
+  border-radius: 2px;
+  background: var(--gray-a3);
+}
+
+.dashboard-nivo-calendar-swatch[data-level="1"] {
+  background: #d9e5dc;
+}
+
+.dashboard-nivo-calendar-swatch[data-level="2"] {
+  background: #a9c4b3;
+}
+
+.dashboard-nivo-calendar-swatch[data-level="3"] {
+  background: #6f9a7f;
+}
+
+.dashboard-nivo-calendar-swatch[data-level="4"] {
+  background: #315f46;
+}
+
+.dashboard-chart-tooltip {
+  padding: 6px 8px;
+  border: 1px solid var(--gray-a6);
+  border-radius: var(--radius-2);
+  background: var(--color-panel-solid);
+  color: inherit;
+  font-family: var(--app-font-family);
+  font-size: 13px;
+  line-height: 1.5;
+  box-shadow: 0 4px 14px var(--black-a3);
+  white-space: nowrap;
+}
+
+.dashboard-chart-tooltip-row + .dashboard-chart-tooltip-row {
+  margin-top: 4px;
+}
+
+.dashboard-chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dashboard-chart-tooltip-chip {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  background: var(--dashboard-chart-tooltip-chip-color);
+}
+
+.dashboard-chart-tooltip-value {
+  color: var(--gray-12);
+  font-weight: 700;
+}
+
+.dashboard-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  max-height: 42px;
+  overflow-y: auto;
+  gap: 8px 14px;
+  color: var(--gray-11);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.dashboard-chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.dashboard-chart-legend-chip {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  background: var(--dashboard-chart-tooltip-chip-color);
 }
 
 .dashboard-writing-stack {
@@ -521,7 +627,7 @@
 }
 
 .dashboard-streak-icon {
-  color: var(--orange-9);
+  color: #6f9a7f;
   flex: 0 0 auto;
 }
 
@@ -602,6 +708,10 @@
 }
 
 .dashboard-chart {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   height: 300px;
   width: 100%;
   opacity: 0;
@@ -609,6 +719,11 @@
   transition:
     opacity 180ms ease,
     transform 180ms ease;
+}
+
+.dashboard-chart-plot {
+  min-height: 0;
+  flex: 1 1 auto;
 }
 
 .dashboard-chart[data-size="small"] {

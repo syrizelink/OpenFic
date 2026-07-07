@@ -93,7 +93,7 @@ function AppContent({
             path="/dashboard"
             element={
               <Suspense fallback={null}>
-                <DashboardPage appearance={appearance} />
+                <DashboardPage />
               </Suspense>
             }
           />

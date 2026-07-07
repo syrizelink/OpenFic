@@ -13,17 +13,22 @@ import { MetricCard } from "./metric-card";
 interface LlmDashboardTabProps {
   data: DashboardStatsResponse | undefined;
   isLoading: boolean;
-  themeMode: "light" | "dark";
 }
 
-export function LlmDashboardTab({ data, isLoading, themeMode }: LlmDashboardTabProps) {
+export function LlmDashboardTab({ data, isLoading }: LlmDashboardTabProps) {
   const { t } = useTranslation();
   const callsOption = useMemo(() => buildModelTrendOption(data, "calls"), [data]);
   const tokenTrendOption = useMemo(() => buildModelTokenTrendOption(data), [data]);
   const modelCallsOption = useMemo(
     () =>
-      buildRoundedDonutOption(data?.byModel ?? [], "calls", t("dashboard.charts.modelCallsTitle")),
-    [data?.byModel, t],
+      buildRoundedDonutOption(
+        data?.byModel ?? [],
+        "calls",
+        t("dashboard.charts.modelCallsTitle"),
+        data?.options,
+        "model",
+      ),
+    [data?.byModel, data?.options, t],
   );
   const modelTokensOption = useMemo(
     () =>
@@ -31,8 +36,10 @@ export function LlmDashboardTab({ data, isLoading, themeMode }: LlmDashboardTabP
         data?.byModel ?? [],
         "tokensTotal",
         t("dashboard.charts.modelTokensTitle"),
+        data?.options,
+        "model",
       ),
-    [data?.byModel, t],
+    [data?.byModel, data?.options, t],
   );
   const latencyOption = useMemo(() => buildModelTrendOption(data, "avgLatencyMs"), [data]);
   const projectTokensOption = useMemo(
@@ -41,8 +48,10 @@ export function LlmDashboardTab({ data, isLoading, themeMode }: LlmDashboardTabP
         data?.byProject ?? [],
         "tokensTotal",
         t("dashboard.charts.projectTokensTitle"),
+        data?.options,
+        "project",
       ),
-    [data?.byProject, t],
+    [data?.byProject, data?.options, t],
   );
   const summary = data?.summary;
 
@@ -110,43 +119,43 @@ export function LlmDashboardTab({ data, isLoading, themeMode }: LlmDashboardTabP
           title={t("dashboard.charts.callTrend")}
           option={callsOption}
           isLoading={isLoading}
-          themeMode={themeMode}
           size="wide"
+          renderPriority={0}
         />
         <ChartPanel
           title={t("dashboard.charts.modelCallDistribution")}
           option={modelCallsOption}
           isLoading={isLoading}
-          themeMode={themeMode}
-          size="small"
+          size="medium"
+          renderPriority={1}
         />
         <ChartPanel
           title={t("dashboard.charts.modelTokenDistribution")}
           option={modelTokensOption}
           isLoading={isLoading}
-          themeMode={themeMode}
-          size="small"
+          size="medium"
+          renderPriority={2}
         />
         <ChartPanel
           title={t("dashboard.charts.tokenTrend")}
           option={tokenTrendOption}
           isLoading={isLoading}
-          themeMode={themeMode}
           size="wide"
+          renderPriority={3}
         />
         <ChartPanel
           title={t("dashboard.charts.latencyTrend")}
           option={latencyOption}
           isLoading={isLoading}
-          themeMode={themeMode}
           size="wide"
+          renderPriority={4}
         />
         <ChartPanel
           title={t("dashboard.charts.projectTokenDistribution")}
           option={projectTokensOption}
           isLoading={isLoading}
-          themeMode={themeMode}
-          size="small"
+          size="medium"
+          renderPriority={5}
         />
       </section>
     </section>
