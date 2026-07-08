@@ -12,8 +12,10 @@ export interface AssistantMentionNodeAttributes {
   chapterId: string;
   noteId: string;
   noteCategoryId: string;
-  startLine: string;
-  endLine: string;
+  worldInfoEntryId: string;
+  characterId: string;
+  lineStart: string;
+  lineEnd: string;
 }
 
 export interface AssistantMentionNodeOptions {
@@ -49,10 +51,12 @@ export const MentionNode = Node.create<AssistantMentionNodeOptions>({
       mentionBody: { default: "" },
       volumeId: { default: "" },
       chapterId: { default: "" },
-      noteId: { default: "" },
-      noteCategoryId: { default: "" },
-      startLine: { default: "" },
-      endLine: { default: "" },
+        noteId: { default: "" },
+        noteCategoryId: { default: "" },
+        worldInfoEntryId: { default: "" },
+        characterId: { default: "" },
+        lineStart: { default: "" },
+        lineEnd: { default: "" },
     };
   },
 
@@ -71,8 +75,10 @@ export const MentionNode = Node.create<AssistantMentionNodeOptions>({
             chapterId: node.dataset.mentionChapterId ?? "",
             noteId: node.dataset.mentionNoteId ?? "",
             noteCategoryId: node.dataset.mentionNoteCategoryId ?? "",
-            startLine: node.dataset.mentionStartLine ?? "",
-            endLine: node.dataset.mentionEndLine ?? "",
+            worldInfoEntryId: node.dataset.mentionWorldInfoEntryId ?? "",
+            characterId: node.dataset.mentionCharacterId ?? "",
+            lineStart: node.dataset.mentionLineStart ?? "",
+            lineEnd: node.dataset.mentionLineEnd ?? "",
           };
         },
       },
@@ -92,8 +98,10 @@ export const MentionNode = Node.create<AssistantMentionNodeOptions>({
         "data-mention-chapter-id": HTMLAttributes.chapterId || "",
         "data-mention-note-id": HTMLAttributes.noteId || "",
         "data-mention-note-category-id": HTMLAttributes.noteCategoryId || "",
-        "data-mention-start-line": HTMLAttributes.startLine || "",
-        "data-mention-end-line": HTMLAttributes.endLine || "",
+        "data-mention-world-info-entry-id": HTMLAttributes.worldInfoEntryId || "",
+        "data-mention-character-id": HTMLAttributes.characterId || "",
+        "data-mention-line-start": HTMLAttributes.lineStart || "",
+        "data-mention-line-end": HTMLAttributes.lineEnd || "",
       }),
       HTMLAttributes.mentionLabel || "",
     ];

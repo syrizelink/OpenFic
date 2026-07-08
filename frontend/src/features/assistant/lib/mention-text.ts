@@ -3,7 +3,13 @@ import { pinyinMatch } from "@/lib/pinyin-search";
 
 export type { AssistantMentionCandidate } from "@/lib/mention.types";
 
-export type AssistantMentionKind = "volume" | "chapter" | "line_range" | "note" | "note_category";
+export type AssistantMentionKind =
+  | "volume"
+  | "chapter"
+  | "note"
+  | "note_category"
+  | "world_info_entry"
+  | "character";
 
 export interface AssistantMentionToken {
   raw: string;
@@ -17,6 +23,20 @@ export type AssistantMentionSegment = string | AssistantMentionToken;
 const MENTION_RE =
   /<of-mention\b(?<attrsSelf>[^<>]*?)\s*\/>|<of-mention\b(?<attrsBlock>[^<>]*?)>(?<body>.*?)<\/of-mention\s*>/gs;
 const ATTR_RE = /([A-Za-z_][A-Za-z0-9_]*)="([^"]*)"/g;
+
+function inferMentionKind(attrs: Record<string, string>): AssistantMentionKind {
+  if (attrs.volume_id?.trim()) return "volume";
+  if (attrs.chapter_id?.trim()) return "chapter";
+  if (attrs.note_id?.trim()) return "note";
+  if (attrs.note_category_id?.trim()) return "note_category";
+  if (attrs.world_info_entry_id?.trim()) return "world_info_entry";
+  if (attrs.character_id?.trim()) return "character";
+  return "chapter";
+}
+
+function isExpandedMention(token: AssistantMentionToken): boolean {
+  return Boolean(token.attrs.line_start?.trim() && token.attrs.line_end?.trim());
+}
 
 function decodeMentionEntities(text: string): string {
   return text
@@ -60,7 +80,7 @@ export function parseMentionText(text: string): AssistantMentionSegment[] {
     }
 
     const attrs = parseAttrs((match.groups?.attrsSelf ?? match.groups?.attrsBlock ?? "").trim());
-    const kind = (attrs.kind ?? "") as AssistantMentionKind;
+    const kind = inferMentionKind(attrs);
     segments.push({
       raw,
       kind,
@@ -91,14 +111,16 @@ function buildMentionHtml(token: AssistantMentionToken): string {
     ` data-mention-kind="${escapeHtmlAttr(token.kind)}"` +
     ` data-mention-raw="${escapeHtmlAttr(token.raw)}"` +
     ` data-mention-label="${escapeHtmlAttr(getMentionDisplayLabel(token))}"` +
-    ` data-mention-body="${escapeHtmlAttr(token.body)}"` +
-    ` data-mention-volume-id="${escapeHtmlAttr(token.attrs.volume_id ?? "")}"` +
-    ` data-mention-chapter-id="${escapeHtmlAttr(token.attrs.chapter_id ?? "")}"` +
-    ` data-mention-note-id="${escapeHtmlAttr(token.attrs.note_id ?? "")}"` +
-    ` data-mention-note-category-id="${escapeHtmlAttr(token.attrs.note_category_id ?? "")}"` +
-    ` data-mention-start-line="${escapeHtmlAttr(token.attrs.start_line ?? "")}"` +
-    ` data-mention-end-line="${escapeHtmlAttr(token.attrs.end_line ?? "")}"` +
-    `></span>`
+      ` data-mention-body="${escapeHtmlAttr(token.body)}"` +
+      ` data-mention-volume-id="${escapeHtmlAttr(token.attrs.volume_id ?? "")}"` +
+      ` data-mention-chapter-id="${escapeHtmlAttr(token.attrs.chapter_id ?? "")}"` +
+      ` data-mention-note-id="${escapeHtmlAttr(token.attrs.note_id ?? "")}"` +
+      ` data-mention-note-category-id="${escapeHtmlAttr(token.attrs.note_category_id ?? "")}"` +
+      ` data-mention-world-info-entry-id="${escapeHtmlAttr(token.attrs.world_info_entry_id ?? "")}"` +
+      ` data-mention-character-id="${escapeHtmlAttr(token.attrs.character_id ?? "")}"` +
+      ` data-mention-line-start="${escapeHtmlAttr(token.attrs.line_start ?? "")}"` +
+      ` data-mention-line-end="${escapeHtmlAttr(token.attrs.line_end ?? "")}"` +
+      `></span>`
   );
 }
 
@@ -138,8 +160,8 @@ function stripLineRangeSuffix(label: string): string {
 }
 
 function getLineRangeDisplayLabel(token: AssistantMentionToken): string | null {
-  const startLine = token.attrs.start_line?.trim();
-  const endLine = token.attrs.end_line?.trim();
+  const startLine = token.attrs.line_start?.trim();
+  const endLine = token.attrs.line_end?.trim();
   if (!startLine || !endLine) return null;
 
   const rangeLabel = `L${startLine}-${endLine}`;
@@ -155,7 +177,7 @@ function getLineRangeDisplayLabel(token: AssistantMentionToken): string | null {
 }
 
 export function getMentionDisplayLabel(token: AssistantMentionToken): string {
-  if (token.kind === "line_range") {
+  if (isExpandedMention(token)) {
     const lineRangeLabel = getLineRangeDisplayLabel(token);
     if (lineRangeLabel) return lineRangeLabel;
   }
@@ -163,7 +185,11 @@ export function getMentionDisplayLabel(token: AssistantMentionToken): string {
   return (
     token.attrs.label?.trim() ||
     token.attrs.chapter_id?.trim() ||
+    token.attrs.note_id?.trim() ||
     token.attrs.volume_id?.trim() ||
+    token.attrs.note_category_id?.trim() ||
+    token.attrs.world_info_entry_id?.trim() ||
+    token.attrs.character_id?.trim() ||
     token.kind
   );
 }
@@ -175,6 +201,8 @@ export function getMentionNavigationTarget(token: AssistantMentionToken): {
 } | null {
   if (token.kind === "volume") return null;
   if (token.kind === "note_category") return null;
+  if (token.kind === "world_info_entry") return null;
+  if (token.kind === "character") return null;
 
   if (token.kind === "note") {
     const noteId = token.attrs.note_id?.trim();
@@ -188,21 +216,10 @@ export function getMentionNavigationTarget(token: AssistantMentionToken): {
   const chapterId = token.attrs.chapter_id?.trim();
   if (!chapterId) return null;
 
-  if (token.kind === "chapter") {
-    return {
-      chapterId,
-      title: token.attrs.label?.trim() || chapterId,
-    };
-  }
-
-  if (token.kind === "line_range") {
-    return {
-      chapterId,
-      title: stripLineRangeSuffix(token.attrs.label?.trim() ?? "") || chapterId,
-    };
-  }
-
-  return null;
+  return {
+    chapterId,
+    title: stripLineRangeSuffix(token.attrs.label?.trim() ?? "") || chapterId,
+  };
 }
 
 export function buildVolumeMentionTag({
@@ -212,7 +229,7 @@ export function buildVolumeMentionTag({
   volumeId: string;
   label: string;
 }): string {
-  return `<of-mention kind="volume" volume_id="${escapeMentionAttribute(volumeId)}" label="${escapeMentionAttribute(label)}" />`;
+  return `<of-mention volume_id="${escapeMentionAttribute(volumeId)}" label="${escapeMentionAttribute(label)}" />`;
 }
 
 export function buildChapterMentionTag({
@@ -222,11 +239,11 @@ export function buildChapterMentionTag({
   chapterId: string;
   label: string;
 }): string {
-  return `<of-mention kind="chapter" chapter_id="${escapeMentionAttribute(chapterId)}" label="${escapeMentionAttribute(label)}" />`;
+  return `<of-mention chapter_id="${escapeMentionAttribute(chapterId)}" label="${escapeMentionAttribute(label)}" />`;
 }
 
 export function buildNoteMentionTag({ noteId, label }: { noteId: string; label: string }): string {
-  return `<of-mention kind="note" note_id="${escapeMentionAttribute(noteId)}" label="${escapeMentionAttribute(label)}" />`;
+  return `<of-mention note_id="${escapeMentionAttribute(noteId)}" label="${escapeMentionAttribute(label)}" />`;
 }
 
 export function buildNoteCategoryMentionTag({
@@ -236,7 +253,27 @@ export function buildNoteCategoryMentionTag({
   categoryId: string;
   label: string;
 }): string {
-  return `<of-mention kind="note_category" note_category_id="${escapeMentionAttribute(categoryId)}" label="${escapeMentionAttribute(label)}" />`;
+  return `<of-mention note_category_id="${escapeMentionAttribute(categoryId)}" label="${escapeMentionAttribute(label)}" />`;
+}
+
+export function buildWorldInfoEntryMentionTag({
+  worldInfoEntryId,
+  label,
+}: {
+  worldInfoEntryId: string;
+  label: string;
+}): string {
+  return `<of-mention world_info_entry_id="${escapeMentionAttribute(worldInfoEntryId)}" label="${escapeMentionAttribute(label)}" />`;
+}
+
+export function buildCharacterMentionTag({
+  characterId,
+  label,
+}: {
+  characterId: string;
+  label: string;
+}): string {
+  return `<of-mention character_id="${escapeMentionAttribute(characterId)}" label="${escapeMentionAttribute(label)}" />`;
 }
 
 export function buildLineRangeMentionTag({
@@ -253,8 +290,8 @@ export function buildLineRangeMentionTag({
   snapshotText: string;
 }): string {
   return (
-    `<of-mention kind="line_range" chapter_id="${escapeMentionAttribute(chapterId)}" start_line="${startLine}" ` +
-    `end_line="${endLine}" label="${escapeMentionAttribute(label)}">${escapeMentionEntities(snapshotText)}</of-mention>`
+    `<of-mention chapter_id="${escapeMentionAttribute(chapterId)}" line_start="${startLine}" ` +
+    `line_end="${endLine}" label="${escapeMentionAttribute(label)}">${escapeMentionEntities(snapshotText)}</of-mention>`
   );
 }
 

@@ -203,8 +203,8 @@ async def test_queue_pending_user_message_enqueues_without_persisting_until_cons
     factory = isolated_db
     sid = "s_x"
     emitted: list[tuple[str, dict]] = []
-    raw_follow_up = 'follow-up<of-mention kind="volume" volume_id="vol_x" label="旧卷" />'
-    compiled_follow_up = "follow-up\n> 引用卷：第一卷"
+    raw_follow_up = 'follow-up<of-mention volume_id="vol_x" label="旧卷" />'
+    persisted_follow_up = raw_follow_up
 
     async def capture_emit(name, payload=None, *_args, **_kwargs):
         emitted.append((name, payload or {}))
@@ -221,7 +221,7 @@ async def test_queue_pending_user_message_enqueues_without_persisting_until_cons
 
     pending = await runner.queue_pending_user_message(raw_follow_up)
 
-    assert pending["content"] == compiled_follow_up
+    assert pending["content"] == persisted_follow_up
     assert isinstance(pending["created_at"], str) and pending["created_at"]
 
     queued = runner._inject_queue.get_nowait()
@@ -229,7 +229,7 @@ async def test_queue_pending_user_message_enqueues_without_persisting_until_cons
     assert pending["message_id"] == queued_message_id
     assert isinstance(queued_message_id, str) and queued_message_id
     assert role == "user"
-    assert content == compiled_follow_up
+    assert content == persisted_follow_up
     assert queued_message_id in runner._queued_user_messages
 
     async with factory() as s:
@@ -251,8 +251,8 @@ async def test_cancel_pending_user_message_emits_cancel_event_and_skips_injectio
     factory = isolated_db
     sid = "s_x"
     emitted: list[tuple[str, dict]] = []
-    raw_follow_up = 'follow-up<of-mention kind="volume" volume_id="vol_x" label="旧卷" />'
-    compiled_follow_up = "follow-up\n> 引用卷：第一卷"
+    raw_follow_up = 'follow-up<of-mention volume_id="vol_x" label="旧卷" />'
+    persisted_follow_up = raw_follow_up
 
     async def capture_emit(name, payload=None, *_args, **_kwargs):
         emitted.append((name, payload or {}))
@@ -271,7 +271,7 @@ async def test_cancel_pending_user_message_emits_cancel_event_and_skips_injectio
     restored = await runner.cancel_pending_user_message(pending["message_id"])
 
     assert restored["message_id"] == pending["message_id"]
-    assert restored["content"] == compiled_follow_up
+    assert restored["content"] == persisted_follow_up
     assert pending["message_id"] not in runner._queued_user_messages
 
     runner._persister = runner._make_persister()
@@ -297,8 +297,8 @@ async def test_drain_inject_queue_emits_consumed_and_user_text_for_pending_messa
     factory = isolated_db
     sid = "s_x"
     emitted: list[tuple[str, dict]] = []
-    raw_follow_up = 'follow-up<of-mention kind="volume" volume_id="vol_x" label="旧卷" />'
-    compiled_follow_up = "follow-up\n> 引用卷：第一卷"
+    raw_follow_up = 'follow-up<of-mention volume_id="vol_x" label="旧卷" />'
+    persisted_follow_up = raw_follow_up
 
     async def capture_emit(name, payload=None, *_args, **_kwargs):
         emitted.append((name, payload or {}))
@@ -317,13 +317,13 @@ async def test_drain_inject_queue_emits_consumed_and_user_text_for_pending_messa
     runner._persister = runner._make_persister()
 
     drained = await runner._drain_inject_queue()
-    assert drained == [("user", compiled_follow_up, pending["message_id"])]
+    assert drained == [("user", persisted_follow_up, pending["message_id"])]
 
     async with factory() as s:
         items = await repo.list_by_session(s, sid)
 
     assert [(item.role, item.content, item.status) for item in items] == [
-        ("user", compiled_follow_up, "sent"),
+        ("user", persisted_follow_up, "sent"),
     ]
     queued_index = next(
         index
@@ -354,8 +354,8 @@ async def test_run_consumes_queued_follow_up_before_turn_finishes(
     monkeypatch,
 ):
     factory = isolated_db
-    raw_follow_up = 'follow-up<of-mention kind="volume" volume_id="vol_x" label="旧卷" />'
-    compiled_follow_up = "follow-up\n> 引用卷：第一卷"
+    raw_follow_up = 'follow-up<of-mention volume_id="vol_x" label="旧卷" />'
+    persisted_follow_up = raw_follow_up
 
     class _FakeModel:
         def bind_tools(self, _tools):
@@ -451,7 +451,7 @@ async def test_run_consumes_queued_follow_up_before_turn_finishes(
     ]
     assert user_messages == [
         ("user", "help", "sent"),
-        ("user", compiled_follow_up, "sent"),
+        ("user", persisted_follow_up, "sent"),
     ]
     assert not [item for item in items if item.role == "user" and item.status == "pending"]
     assert runner._queued_user_messages == {}
@@ -463,8 +463,8 @@ async def test_injected_follow_up_persists_after_assistant_reply(
     monkeypatch,
 ):
     factory = isolated_db
-    raw_follow_up = 'follow-up<of-mention kind="volume" volume_id="vol_x" label="旧卷" />'
-    compiled_follow_up = "follow-up\n> 引用卷：第一卷"
+    raw_follow_up = 'follow-up<of-mention volume_id="vol_x" label="旧卷" />'
+    persisted_follow_up = raw_follow_up
 
     async def noop_emit(*_args, **_kwargs):
         return None
@@ -499,7 +499,7 @@ async def test_injected_follow_up_persists_after_assistant_reply(
         "data": {"output": AIMessage(content="reply1")},
     })
     drained = await runner._drain_inject_queue()
-    assert drained == [("user", compiled_follow_up, queued_message_id)]
+    assert drained == [("user", persisted_follow_up, queued_message_id)]
 
     async with factory() as session:
         items = await repo.list_by_session(session, "session_x")
@@ -512,7 +512,7 @@ async def test_injected_follow_up_persists_after_assistant_reply(
     assert conversation == [
         ("user", "help"),
         ("assistant", "reply1"),
-        ("user", compiled_follow_up),
+        ("user", persisted_follow_up),
     ]
     assert queued_message_id not in runner._queued_user_messages
 

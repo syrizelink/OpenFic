@@ -1,4 +1,4 @@
-import { BookOpen, FileText, Folder, Quote, StickyNote } from "lucide-react";
+import { BookOpen, FileText, Folder, Quote, ScrollText, StickyNote, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { AssistantMentionKind } from "@/features/assistant/lib/mention-text";
@@ -10,6 +10,8 @@ function getMentionIcon(kind: AssistantMentionKind): ReactNode {
   if (kind === "chapter") return <FileText size={12} />;
   if (kind === "note") return <StickyNote size={12} />;
   if (kind === "note_category") return <Folder size={12} />;
+  if (kind === "world_info_entry") return <ScrollText size={12} />;
+  if (kind === "character") return <UserRound size={12} />;
   return <Quote size={12} />;
 }
 

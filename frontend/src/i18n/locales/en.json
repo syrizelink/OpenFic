@@ -1273,7 +1273,9 @@
       "volume": "Volume",
       "note": "Note",
       "noteCategory": "Note category",
-      "chapter": "Chapter"
+      "chapter": "Chapter",
+      "worldInfoEntry": "World info entry",
+      "character": "Character"
     },
     "mentionSearch": {
       "idle": "Type to search",

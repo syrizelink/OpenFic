@@ -651,7 +651,7 @@ class SessionRunner:
                 )
                 _user_message, revision = await self._begin_user_turn(
                     graph=graph,
-                    user_request=compiled_user_request,
+                    user_request=user_request,
                 )
                 state_user_request = compiled_user_request
             else:
@@ -791,21 +791,20 @@ class SessionRunner:
         await self._inject_queue.put((message_id, "user", content))
 
     async def queue_pending_user_message(self, content: str) -> dict[str, str]:
-        compiled_content = await self._compile_user_message_content(content)
         message_id = generate_id()
         created_at = datetime.now(UTC)
-        self._queued_user_messages[message_id] = (compiled_content, created_at)
+        self._queued_user_messages[message_id] = (content, created_at)
         created_at_iso = _format_utc_iso_datetime(created_at)
         await self._emit_pending_user_message(
-            compiled_content,
+            content,
             message_id=message_id,
             action="queued",
             created_at=created_at_iso,
         )
-        await self.inject_message(compiled_content, message_id)
+        await self.inject_message(content, message_id)
         return {
             "message_id": message_id,
-            "content": compiled_content,
+            "content": content,
             "created_at": created_at_iso,
         }
 
@@ -878,10 +877,9 @@ class SessionRunner:
         return message_id, content
 
     async def cancel_and_continue(self, new_message: str, message_id: str) -> None:
-        compiled_message = await self._compile_user_message_content(new_message)
         self._cancel_event.set()
         await self._inject_queue.put((None, "system", "[系统] 上一条回复被用户中止"))
-        await self._inject_queue.put((message_id, "user", compiled_message))
+        await self._inject_queue.put((message_id, "user", new_message))
 
     def cancel(self) -> None:
         self._cancel_event.set()
@@ -919,9 +917,9 @@ class SessionRunner:
         )
         user_message, revision = await self._begin_user_turn(
             graph=graph,
-            user_request=compiled_user_request,
+            user_request=user_request,
         )
-        await self.inject_message(compiled_user_request, user_message.id)
+        await self.inject_message(user_request, user_message.id)
 
         runtime_context: dict[str, Any] = {}
         audit_collector = AuditCollector(

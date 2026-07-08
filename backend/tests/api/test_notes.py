@@ -360,6 +360,67 @@ async def test_mentions_kind_filter_note_category_only(client: AsyncClient) -> N
 
 
 @pytest.mark.asyncio
+async def test_mentions_include_world_info_entry_and_character(client: AsyncClient) -> None:
+    project_id, _ = await _create_project(client)
+    world_info_resp = await client.get(f"/api/v1/projects/{project_id}/world-info")
+    assert world_info_resp.status_code == 200
+    world_info_id = world_info_resp.json()["id"]
+    entry_resp = await client.post(
+        f"/api/v1/world-info/{world_info_id}/entries",
+        json={"name": "帝国设定", "content": "背景"},
+    )
+    assert entry_resp.status_code == 201
+    character_resp = await client.post(
+        f"/api/v1/projects/{project_id}/characters",
+        data={"name": "林夏", "description": "主角"},
+    )
+    assert character_resp.status_code == 201
+
+    entry_search = await client.get(
+        f"/api/v1/projects/{project_id}/mentions",
+        params={"query": "帝国"},
+    )
+    assert entry_search.status_code == 200
+    entry_items = entry_search.json()["items"]
+    assert any(
+        item["kind"] == "world_info_entry" and item["title"] == "帝国设定"
+        for item in entry_items
+    )
+
+    character_search = await client.get(
+        f"/api/v1/projects/{project_id}/mentions",
+        params={"query": "林夏"},
+    )
+    assert character_search.status_code == 200
+    character_items = character_search.json()["items"]
+    assert any(
+        item["kind"] == "character" and item["title"] == "林夏"
+        for item in character_items
+    )
+
+
+@pytest.mark.asyncio
+async def test_mentions_kind_filter_world_info_entry_only(client: AsyncClient) -> None:
+    project_id, _ = await _create_project(client)
+    world_info_resp = await client.get(f"/api/v1/projects/{project_id}/world-info")
+    assert world_info_resp.status_code == 200
+    world_info_id = world_info_resp.json()["id"]
+    await client.post(
+        f"/api/v1/world-info/{world_info_id}/entries",
+        json={"name": "地理设定", "content": "地图"},
+    )
+
+    resp = await client.get(
+        f"/api/v1/projects/{project_id}/mentions",
+        params={"query": "设定", "kind": "world_info_entry"},
+    )
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    assert all(item["kind"] == "world_info_entry" for item in items)
+    assert any(item["title"] == "地理设定" for item in items)
+
+
+@pytest.mark.asyncio
 async def test_mentions_project_404(client: AsyncClient) -> None:
     resp = await client.get(
         "/api/v1/projects/nonexistent/mentions",

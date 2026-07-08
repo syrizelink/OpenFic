@@ -304,7 +304,15 @@ async def search_mention_candidates(
     query: Annotated[str, Query(description="mention 检索词")] = "",
     limit: Annotated[int, Query(ge=1, le=50, description="返回的最大候选数")] = 20,
     kind: Annotated[
-        Literal["volume", "chapter", "note", "note_category"] | None,
+        Literal[
+            "volume",
+            "chapter",
+            "note",
+            "note_category",
+            "world_info_entry",
+            "character",
+        ]
+        | None,
         Query(description="候选类型过滤"),
     ] = None,
 ) -> MentionCandidateSearchResponse:
