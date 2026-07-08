@@ -12,5 +12,4 @@ class AgentRuntimeState(TypedDict):
     error: str | None
     retry_count: int
     user_request: str
-    installed_skill_ids: list[str]
     current_revision_id: str | None

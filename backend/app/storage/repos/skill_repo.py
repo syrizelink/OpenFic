@@ -20,13 +20,6 @@ async def get_by_id(session: AsyncSession, skill_db_id: str) -> Skill | None:
     return result.scalar_one_or_none()
 
 
-async def get_by_skill_id(session: AsyncSession, skill_id: str) -> Skill | None:
-    if not skill_id:
-        return None
-    result = await session.execute(select(Skill).where(col(Skill.skill_id) == skill_id))
-    return result.scalar_one_or_none()
-
-
 async def get_all(
     session: AsyncSession,
     page: int = 1,
@@ -45,13 +38,23 @@ async def get_all(
     return list(result.scalars().all()), total
 
 
-async def list_by_skill_ids(session: AsyncSession, skill_ids: list[str]) -> list[Skill]:
-    if not skill_ids:
+async def list_by_names(session: AsyncSession, names: list[str]) -> list[Skill]:
+    if not names:
         return []
-    result = await session.execute(
-        select(Skill).where(col(Skill.skill_id).in_(skill_ids))
-    )
+    result = await session.execute(select(Skill).where(col(Skill.name).in_(names)))
     return list(result.scalars().all())
+
+
+async def list_by_ids(session: AsyncSession, ids: list[str]) -> list[Skill]:
+    if not ids:
+        return []
+    result = await session.execute(select(Skill).where(col(Skill.id).in_(ids)))
+    return list(result.scalars().all())
+
+
+async def get_all_names(session: AsyncSession) -> list[str]:
+    result = await session.execute(select(col(Skill.name)))
+    return [row[0] for row in result.all()]
 
 
 async def update(session: AsyncSession, skill: Skill) -> Skill:

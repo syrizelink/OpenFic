@@ -13,8 +13,8 @@ export interface AgentDefinitionResponse {
   kind: "primary" | "subagent";
   prompt_agent_name: string;
   model_id: string | null;
-  tool_category_keys: string[];
-  enabled_skill_ids: string[];
+  enabled_tool_categories: string[];
+  enabled_skills: string[];
   metadata: Record<string, unknown>;
   enabled: boolean;
   source: "builtin" | "custom";
@@ -28,8 +28,8 @@ export interface AgentDefinitionCreateRequest {
   kind: "primary" | "subagent";
   prompt_agent_name: string;
   model_id: string | null;
-  tool_category_keys: string[];
-  enabled_skill_ids: string[];
+  enabled_tool_categories: string[];
+  enabled_skills: string[];
   metadata: Record<string, unknown>;
   delegatable_agents: string[];
 }
@@ -40,8 +40,8 @@ export interface AgentDefinitionUpdateRequest {
   kind?: "primary" | "subagent" | null;
   prompt_agent_name?: string | null;
   model_id?: string | null;
-  tool_category_keys?: string[] | null;
-  enabled_skill_ids?: string[] | null;
+  enabled_tool_categories?: string[] | null;
+  enabled_skills?: string[] | null;
   metadata?: Record<string, unknown> | null;
   enabled?: boolean | null;
   delegatable_agents?: string[] | null;

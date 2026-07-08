@@ -88,6 +88,7 @@ export function SettingsContent({
   const [mobileSubpage, setMobileSubpage] = useState<MobileSubpage>("list");
   const [mobileSubpageTitle, setMobileSubpageTitle] = useState<string | null>(null);
   const [mobileDirection, setMobileDirection] = useState<1 | -1>(1);
+  const [mobileRefDocEdit, setMobileRefDocEdit] = useState(false);
 
   const [editedSettings, setEditedSettings] = useState<Partial<Settings>>({});
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
@@ -270,6 +271,7 @@ export function SettingsContent({
       setActiveCategory(category);
       setMobileSubpage("list");
       setMobileSubpageTitle(null);
+      setMobileRefDocEdit(false);
       setMobileView("detail");
     },
     [clearCategoryQueries],
@@ -289,6 +291,12 @@ export function SettingsContent({
       return;
     }
 
+    if (mobileRefDocEdit) {
+      setMobileDirection(-1);
+      setMobileRefDocEdit(false);
+      return;
+    }
+
     if (isMobileSubpageDetail) {
       setMobileDirection(-1);
       setMobileSubpage("list");
@@ -297,11 +305,17 @@ export function SettingsContent({
 
     setMobileDirection(-1);
     setMobileView("list");
-  }, [isMobileListView, isMobileSubpageDetail, onClose]);
+  }, [isMobileListView, isMobileSubpageDetail, mobileRefDocEdit, onClose]);
 
   const handleMobileSubpageChange = useCallback((page: MobileSubpage) => {
     setMobileDirection(page === "detail" ? 1 : -1);
+    setMobileRefDocEdit(false);
     setMobileSubpage(page);
+  }, []);
+
+  const handleMobileRefDocEditChange = useCallback((active: boolean) => {
+    setMobileDirection(active ? 1 : -1);
+    setMobileRefDocEdit(active);
   }, []);
 
   const detailPageContent = (
@@ -362,8 +376,10 @@ export function SettingsContent({
                 variant="settings"
                 mobilePage={mobileSubpage}
                 mobileDirection={mobileDirection}
+                mobileRefDocEdit={mobileRefDocEdit}
                 onMobileDetailTitleChange={setMobileSubpageTitle}
                 onMobilePageChange={handleMobileSubpageChange}
+                onMobileRefDocEditChange={handleMobileRefDocEditChange}
               />
             ) : null}
             {activeCategory === "agents" ? (

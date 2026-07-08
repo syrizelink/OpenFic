@@ -32,3 +32,10 @@ def get_encoding(encoding_name: str = "o200k_base") -> tiktoken.Encoding:
         else:
             logger.error(f"无法加载编码 {encoding_name}: {e}")
             raise e
+
+
+def count_tokens(text: str, encoding_name: str = "o200k_base") -> int:
+    """统计文本的 token 数量。"""
+    if not text:
+        return 0
+    return len(get_encoding(encoding_name).encode(text))

@@ -35,6 +35,7 @@ from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buffer
 from app.agent_runtime.tools import ToolRegistry
 from app.agent_runtime.tools.hooks import auth_hook, chapter_refresh_post_hook, note_refresh_post_hook, world_entry_refresh_post_hook
+from app.agent_runtime.tools.impls.skill.skill import skill_tool_names_for_definition
 from app.agent_runtime.types import (
     DEFAULT_AGENT_RECURSION_LIMIT,
     ReactAgentConfig,
@@ -261,16 +262,21 @@ class SubagentRunner:
         finally:
             await _close_session(session)
 
-    def _build_tools(
+    async def _build_tools(
         self,
         definition: AgentDefinition,
         runtime_state: dict[str, Any],
     ):
         if not definition.enabled or definition.kind != "subagent":
             raise ValueError(f"agent is not an enabled subagent: {definition.key}")
-        names = get_tool_names_for_categories(definition.tool_category_keys)
+        names = list(get_tool_names_for_categories(definition.enabled_tool_categories))
+        session = await _open_session(self.session_factory)
+        try:
+            names.extend(await skill_tool_names_for_definition(definition, session))
+        finally:
+            await _close_session(session)
         return ToolRegistry.get_tools(
-            names=list(names),
+            names=names,
             state=runtime_state,
             pre_hooks=[auth_hook],
             post_hooks=[chapter_refresh_post_hook, note_refresh_post_hook, world_entry_refresh_post_hook],
@@ -300,7 +306,6 @@ class SubagentRunner:
             "error": None,
             "retry_count": 0,
             "user_request": content,
-            "installed_skill_ids": [],
             "current_revision_id": current_revision_id,
             "parent_session_id": row.parent_session_id,
             "parent_thread_id": row.parent_thread_id,
@@ -316,7 +321,7 @@ class SubagentRunner:
     ):
         agent_config = ReactAgentConfig(
             name=row.agent_key,
-            tools=self._build_tools(definition, runtime_state),
+            tools=await self._build_tools(definition, runtime_state),
             termination=TerminationCondition(mode="no_tool_call"),
         )
         model_config = dict(self.model_config)

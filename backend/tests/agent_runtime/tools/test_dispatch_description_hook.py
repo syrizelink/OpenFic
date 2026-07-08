@@ -29,8 +29,8 @@ def test_dispatch_description_hook_appends_delegatable_agent_list():
         kind="primary",
         prompt_agent_name="orchestrator",
         model_id=None,
-        tool_category_keys=("orchestration",),
-        enabled_skill_ids=(),
+        enabled_tool_categories=("orchestration",),
+        enabled_skills=(),
         metadata=MappingProxyType({}),
         delegatable_agents=("explorer", "custom-bot"),
     )
@@ -41,8 +41,8 @@ def test_dispatch_description_hook_appends_delegatable_agent_list():
         kind="subagent",
         prompt_agent_name="custom-bot",
         model_id=None,
-        tool_category_keys=("chapter_read",),
-        enabled_skill_ids=(),
+        enabled_tool_categories=("chapter_read",),
+        enabled_skills=(),
         metadata=MappingProxyType({}),
         source="custom",
     )

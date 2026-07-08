@@ -3,19 +3,21 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.skill import (
     SkillCreate,
+    SkillImportResponse,
     SkillListResponse,
     SkillResponse,
     SkillUpdate,
 )
+from app.api.schemas.skill_reference_doc import SkillReferenceDocResponse
 from app.core.errors import NotFoundError
 from app.storage.database import get_session
-from app.storage.services import skill_service
+from app.storage.services import skill_import_service, skill_service
 
 router = APIRouter(tags=["skills"])
 
@@ -25,12 +27,22 @@ def _to_response(skill) -> SkillResponse:
         id=skill.id,
         name=skill.name,
         summary=skill.summary,
-        skill_id=skill.skill_id,
         content=skill.content,
         is_enabled=skill.is_enabled,
         is_complete=skill_service.is_skill_complete(skill),
         created_at=skill.created_at,
         updated_at=skill.updated_at,
+    )
+
+
+def _to_ref_response(doc) -> SkillReferenceDocResponse:
+    return SkillReferenceDocResponse(
+        id=doc.id,
+        title=doc.title,
+        content=doc.content,
+        tokens=doc.tokens,
+        created_at=doc.created_at,
+        updated_at=doc.updated_at,
     )
 
 
@@ -40,20 +52,17 @@ async def create_skill(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> SkillResponse:
     try:
-        logger.info(f"创建 Skill: skill_id={data.skill_id}")
+        logger.info(f"创建 Skill: name={data.name}")
         skill = await skill_service.create_skill(
             session,
             name=data.name,
             summary=data.summary,
-            skill_id=data.skill_id,
             content=data.content,
             is_enabled=data.is_enabled,
         )
         return _to_response(skill)
     except skill_service.SkillValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
-    except skill_service.SkillIdConflictError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
 
 
 @router.get("/skills", response_model=SkillListResponse)
@@ -69,6 +78,36 @@ async def list_skills(
         page=result.page,
         page_size=result.page_size,
     )
+
+
+@router.post(
+    "/skills/import",
+    response_model=SkillImportResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def import_skill(
+    files: Annotated[list[UploadFile], File()],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> SkillImportResponse:
+    try:
+        uploaded = [
+            skill_import_service.UploadedFile(
+                filename=f.filename or "",
+                content=await f.read(),
+            )
+            for f in files
+        ]
+        logger.info(f"导入技能: 文件数={len(uploaded)}")
+        result = await skill_import_service.import_skill(session, uploaded)
+        return SkillImportResponse(
+            skill=_to_response(result.skill),
+            reference_docs=[_to_ref_response(d) for d in result.reference_docs],
+            is_recognized=result.recognized,
+        )
+    except skill_import_service.SkillImportError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    except skill_service.SkillValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
 @router.get("/skills/{skill_db_id}", response_model=SkillResponse)
@@ -95,7 +134,6 @@ async def update_skill(
             skill_db_id,
             name=data.name,
             summary=data.summary,
-            skill_id=data.skill_id,
             content=data.content,
             is_enabled=data.is_enabled,
         )
@@ -104,8 +142,8 @@ async def update_skill(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except skill_service.SkillValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
-    except skill_service.SkillIdConflictError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+
+
 @router.post("/skills/{skill_db_id}/toggle", response_model=SkillResponse)
 async def toggle_skill(
     skill_db_id: str,

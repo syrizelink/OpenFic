@@ -47,8 +47,8 @@ async def test_load_agent_definition_prefers_db_record():
                     kind="subagent",
                     prompt_agent_name="reviewer",
                     model_id="model-reviewer",
-                    tool_category_keys_json=["finish"],
-                    enabled_skill_ids_json=["skill-review"],
+                    enabled_tool_categories=["finish"],
+                    enabled_skills=["skill-review"],
                     metadata_json={"scope": "custom"},
                     enabled=False,
                     order_index=10,
@@ -60,8 +60,8 @@ async def test_load_agent_definition_prefers_db_record():
 
         assert definition.display_name == "Custom Reviewer"
         assert definition.model_id == "model-reviewer"
-        assert definition.tool_category_keys == ("finish",)
-        assert definition.enabled_skill_ids == ("skill-review",)
+        assert definition.enabled_tool_categories == ("finish",)
+        assert definition.enabled_skills == ("skill-review",)
         assert definition.metadata == {"scope": "custom"}
         assert definition.enabled is False
         assert definition.source == "builtin"
@@ -89,8 +89,8 @@ async def test_load_custom_agent_definition_has_source_custom():
                     kind="subagent",
                     prompt_agent_name="custom-bot",
                     model_id=None,
-                    tool_category_keys_json=["chapter_read"],
-                    enabled_skill_ids_json=["skill-custom"],
+                    enabled_tool_categories=["chapter_read"],
+                    enabled_skills=["skill-custom"],
                     metadata_json={},
                     enabled=True,
                     source="custom",
@@ -102,7 +102,7 @@ async def test_load_custom_agent_definition_has_source_custom():
             definition = await load_agent_definition(session, "custom-bot")
 
         assert definition.source == "custom"
-        assert definition.enabled_skill_ids == ("skill-custom",)
+        assert definition.enabled_skills == ("skill-custom",)
         assert definition.delegatable_agents == ("explorer",)
     finally:
         await engine.dispose()
@@ -148,8 +148,8 @@ async def test_load_all_agent_definitions_merges_defaults_and_db_overrides():
                     kind="subagent",
                     prompt_agent_name="explorer",
                     model_id=None,
-                    tool_category_keys_json=["chapter_read"],
-                    enabled_skill_ids_json=[],
+                    enabled_tool_categories=["chapter_read"],
+                    enabled_skills=[],
                     metadata_json={},
                     enabled=False,
                     order_index=1,
@@ -162,8 +162,8 @@ async def test_load_all_agent_definitions_merges_defaults_and_db_overrides():
                     kind="subagent",
                     prompt_agent_name="custom-bot",
                     model_id=None,
-                    tool_category_keys_json=["chapter_read"],
-                    enabled_skill_ids_json=[],
+                    enabled_tool_categories=["chapter_read"],
+                    enabled_skills=[],
                     metadata_json={},
                     enabled=True,
                     source="custom",

@@ -20,8 +20,8 @@ class AgentDefinition:
     kind: Literal["primary", "subagent"]
     prompt_agent_name: str
     model_id: str | None
-    tool_category_keys: tuple[str, ...]
-    enabled_skill_ids: tuple[str, ...]
+    enabled_tool_categories: tuple[str, ...]
+    enabled_skills: tuple[str, ...]
     metadata: Mapping[str, Any]
     enabled: bool = True
     source: Literal["builtin", "custom"] = "builtin"
@@ -48,7 +48,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             kind="primary",
             prompt_agent_name="primary",
             model_id=None,
-            tool_category_keys=(
+            enabled_tool_categories=(
                 "orchestration",
                 "interaction",
                 "plan_read",
@@ -63,7 +63,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "character_read",
                 "character_write"
             ),
-            enabled_skill_ids=(),
+            enabled_skills=(),
             metadata=MappingProxyType({}),
         ),
         "explorer": AgentDefinition(
@@ -73,14 +73,14 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             kind="subagent",
             prompt_agent_name="explorer",
             model_id=None,
-            tool_category_keys=(
+            enabled_tool_categories=(
                 "chapter_read",
                 "summary_read",
                 "world_read",
                 "note_read",
                 "character_read"
             ),
-            enabled_skill_ids=(),
+            enabled_skills=(),
             metadata=MappingProxyType({}),
         ),
         "composer": AgentDefinition(
@@ -90,7 +90,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             kind="subagent",
             prompt_agent_name="composer",
             model_id=None,
-            tool_category_keys=(
+            enabled_tool_categories=(
                 "chapter_read",
                 "summary_read",
                 "world_read",
@@ -99,7 +99,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "note_write",
                 "character_read"
             ),
-            enabled_skill_ids=(),
+            enabled_skills=(),
             metadata=MappingProxyType({}),
         ),
         "auditor": AgentDefinition(
@@ -109,7 +109,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             kind="subagent",
             prompt_agent_name="auditor",
             model_id=None,
-            tool_category_keys=(
+            enabled_tool_categories=(
                 "chapter_read",
                 "summary_read",
                 "world_read",
@@ -117,7 +117,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "note_read",
                 "character_read"
             ),
-            enabled_skill_ids=(),
+            enabled_skills=(),
             metadata=MappingProxyType({}),
         ),
         "writer": AgentDefinition(
@@ -127,7 +127,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             kind="subagent",
             prompt_agent_name="writer",
             model_id=None,
-            tool_category_keys=(
+            enabled_tool_categories=(
                 "chapter_read",
                 "summary_read",
                 "world_read",
@@ -137,7 +137,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "note_write",
                 "character_read"
             ),
-            enabled_skill_ids=(),
+            enabled_skills=(),
             metadata=MappingProxyType({}),
         ),
         "actor": AgentDefinition(
@@ -147,7 +147,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             kind="subagent",
             prompt_agent_name="actor",
             model_id=None,
-            tool_category_keys=(
+            enabled_tool_categories=(
                 "chapter_read",
                 "summary_read",
                 "world_read",
@@ -158,7 +158,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "character_read",
                 "character_write"
             ),
-            enabled_skill_ids=(),
+            enabled_skills=(),
             metadata=MappingProxyType({}),
         ),
         "reviewer": AgentDefinition(
@@ -168,14 +168,14 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             kind="subagent",
             prompt_agent_name="reviewer",
             model_id=None,
-            tool_category_keys=(
+            enabled_tool_categories=(
                 "chapter_read",
                 "summary_read",
                 "world_read",
                 "plan_read",
                 "character_read"
             ),
-            enabled_skill_ids=(),
+            enabled_skills=(),
             metadata=MappingProxyType({}),
         ),
     }
@@ -194,8 +194,8 @@ def agent_definition_from_record(record: AgentDefinitionRecord) -> AgentDefiniti
         kind=cast(Literal["primary", "subagent"], record.kind),
         prompt_agent_name=record.prompt_agent_name,
         model_id=record.model_id,
-        tool_category_keys=tuple(record.tool_category_keys_json or ()),
-        enabled_skill_ids=tuple(record.enabled_skill_ids_json or ()),
+        enabled_tool_categories=tuple(record.enabled_tool_categories or ()),
+        enabled_skills=tuple(record.enabled_skills or ()),
         metadata=MappingProxyType(dict(record.metadata_json or {})),
         enabled=record.enabled,
         source=cast(Literal["builtin", "custom"], record.source),

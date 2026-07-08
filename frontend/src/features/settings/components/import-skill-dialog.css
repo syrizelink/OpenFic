@@ -55,3 +55,7 @@
   justify-content: center;
   margin: 0 auto 16px;
 }
+
+.import-skill-refdoc-tokens {
+  flex-shrink: 0;
+}

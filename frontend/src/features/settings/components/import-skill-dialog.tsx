@@ -1,49 +1,40 @@
 import { Badge, Box, Button, Dialog, Flex, ScrollArea, Text } from "@radix-ui/themes";
-import { AlertCircle, Check, ChevronLeft, FileText, Upload } from "lucide-react";
+import { AlertCircle, Check, FileText, Upload } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Spinner } from "@/components";
-import type { SkillCreate } from "@/lib/skill.types";
-
-import { parseSkillMarkdown } from "../lib/skill-import";
+import { importSkill } from "@/lib/api-client";
+import type { Skill, SkillImportResult } from "@/lib/skill.types";
 
 import "./import-skill-dialog.css";
 
 interface ImportSkillDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreate: (payload: SkillCreate) => void;
+  onImported: (skill: Skill) => void;
 }
 
-type Step = "select" | "preview" | "complete";
+type Step = "select" | "complete";
 
-interface PreviewState {
-  payload: SkillCreate;
-  fileName: string;
-  isRecognized: boolean;
-}
-
-export function ImportSkillDialog({ open, onOpenChange, onCreate }: ImportSkillDialogProps) {
+export function ImportSkillDialog({ open, onOpenChange, onImported }: ImportSkillDialogProps) {
   const { t } = useTranslation();
   const [step, setStep] = useState<Step>("select");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<PreviewState | null>(null);
+  const [result, setResult] = useState<SkillImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetState = useCallback(() => {
     setStep("select");
     setLoading(false);
     setError(null);
-    setPreview(null);
+    setResult(null);
   }, []);
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
-      if (!nextOpen) {
-        resetState();
-      }
+      if (!nextOpen) resetState();
       onOpenChange(nextOpen);
     },
     [onOpenChange, resetState],
@@ -51,276 +42,206 @@ export function ImportSkillDialog({ open, onOpenChange, onCreate }: ImportSkillD
 
   const handleFileSelect = useCallback(
     async (selectedFile: File) => {
-      if (!selectedFile.name.toLowerCase().endsWith(".md")) {
+      const lower = selectedFile.name.toLowerCase();
+      if (!lower.endsWith(".md") && !lower.endsWith(".zip")) {
         setError(t("settingsExtra.skills.importDialog.invalidFileType"));
         return;
       }
-
       setLoading(true);
       setError(null);
-
       try {
-        const text = await selectedFile.text();
-        const payload = parseSkillMarkdown(text);
-        const isRecognized = !!(payload.name || payload.summary);
-
-        if (!payload.name) {
-          payload.name = selectedFile.name.replace(/\.md$/i, "");
-        }
-
-        setPreview({ payload, fileName: selectedFile.name, isRecognized });
-        setStep("preview");
+        const importResult = await importSkill(selectedFile);
+        setResult(importResult);
+        onImported(importResult.skill);
+        setStep("complete");
       } catch {
         setError(t("settingsExtra.skills.importDialog.readFailed"));
       } finally {
         setLoading(false);
       }
     },
-    [t],
+    [onImported, t],
   );
 
   const handleDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
       const droppedFile = event.dataTransfer.files[0];
-      if (droppedFile) {
-        void handleFileSelect(droppedFile);
-      }
+      if (droppedFile) handleFileSelect(droppedFile);
     },
     [handleFileSelect],
   );
 
-  const handleConfirm = useCallback(() => {
-    if (!preview) return;
-    onCreate(preview.payload);
-    setStep("complete");
-  }, [preview, onCreate]);
+  const renderSelectStep = () => (
+    <Box>
+      <input
+        className="import-skill-file-input"
+        ref={fileInputRef}
+        type="file"
+        accept=".md,.zip"
+        onChange={(event) => {
+          const selectedFile = event.target.files?.[0];
+          if (selectedFile) handleFileSelect(selectedFile);
+          event.target.value = "";
+        }}
+      />
+      <Box
+        className="import-skill-dropzone"
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <Upload
+          size={48}
+          className="import-skill-upload-icon"
+        />
+        <Text
+          as="p"
+          size="3"
+          weight="medium"
+          mb="2"
+        >
+          {t("settingsExtra.skills.importDialog.dropzoneTitle")}
+        </Text>
+        <Text
+          as="p"
+          size="2"
+          color="gray"
+        >
+          {t("settingsExtra.skills.importDialog.dropzoneDescription")}
+        </Text>
+      </Box>
+
+      {loading && (
+        <Flex
+          align="center"
+          gap="2"
+          mt="4"
+          justify="center"
+        >
+          <Spinner size={18} />
+          <Text
+            size="2"
+            color="gray"
+          >
+            {t("settingsExtra.skills.importDialog.parsing")}
+          </Text>
+        </Flex>
+      )}
+    </Box>
+  );
+
+  const renderCompleteStep = () => {
+    if (!result) return null;
+    return (
+      <ScrollArea className="import-skill-preview-scroll">
+        <Flex
+          gap="3"
+          mb="3"
+          align="center"
+        >
+          <FileText
+            size={16}
+            color="var(--gray-9)"
+          />
+          <Text
+            size="2"
+            weight="medium"
+            truncate
+            style={{ flex: 1 }}
+          >
+            {result.skill.name || t("settingsExtra.skills.importDialog.emptyValue")}
+          </Text>
+          <Badge
+            size="1"
+            color={result.isRecognized ? "green" : "amber"}
+          >
+            {result.isRecognized
+              ? t("settingsExtra.skills.importDialog.recognized")
+              : t("settingsExtra.skills.importDialog.unrecognized")}
+          </Badge>
+        </Flex>
+
+        {result.skill.summary && (
+          <Box mb="3">
+            <Text
+              size="1"
+              color="gray"
+              mb="1"
+              className="import-skill-label"
+            >
+              {t("settingsExtra.skills.summary")}
+            </Text>
+            <Text
+              size="2"
+              style={{ whiteSpace: "pre-wrap" }}
+            >
+              {result.skill.summary}
+            </Text>
+          </Box>
+        )}
+
+        {result.referenceDocs.length > 0 && (
+          <Box>
+            <Text
+              size="1"
+              color="gray"
+              mb="1"
+              className="import-skill-label"
+            >
+              {t("settingsExtra.skills.importDialog.referenceDocsLabel", {
+                count: result.referenceDocs.length,
+              })}
+            </Text>
+            <Flex
+              direction="column"
+              gap="1"
+            >
+              {result.referenceDocs.map((doc) => (
+                <Flex
+                  key={doc.id}
+                  align="center"
+                  justify="between"
+                  gap="2"
+                >
+                  <Flex
+                    align="center"
+                    gap="2"
+                    minWidth="0"
+                  >
+                    <FileText
+                      size={14}
+                      color="var(--gray-9)"
+                    />
+                    <Text
+                      size="2"
+                      truncate
+                    >
+                      {doc.title}
+                    </Text>
+                  </Flex>
+                  <Text
+                    size="1"
+                    color="gray"
+                    className="import-skill-refdoc-tokens"
+                  >
+                    {doc.tokens} {t("settingsExtra.skills.tokens")}
+                  </Text>
+                </Flex>
+              ))}
+            </Flex>
+          </Box>
+        )}
+      </ScrollArea>
+    );
+  };
 
   const renderStepContent = () => {
     switch (step) {
       case "select":
-        return (
-          <Box>
-            <input
-              className="import-skill-file-input"
-              ref={fileInputRef}
-              type="file"
-              accept=".md"
-              onChange={(event) => {
-                const selectedFile = event.target.files?.[0];
-                if (selectedFile) {
-                  void handleFileSelect(selectedFile);
-                }
-              }}
-            />
-            <Box
-              className="import-skill-dropzone"
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload
-                size={48}
-                className="import-skill-upload-icon"
-              />
-              <Text
-                as="p"
-                size="3"
-                weight="medium"
-                mb="2"
-              >
-                {t("settingsExtra.skills.importDialog.dropzoneTitle")}
-              </Text>
-              <Text
-                as="p"
-                size="2"
-                color="gray"
-              >
-                {t("settingsExtra.skills.importDialog.dropzoneDescription")}
-              </Text>
-            </Box>
-
-            {loading && (
-              <Flex
-                align="center"
-                gap="2"
-                mt="4"
-                justify="center"
-              >
-                <Spinner size={18} />
-                <Text
-                  size="2"
-                  color="gray"
-                >
-                  {t("settingsExtra.skills.importDialog.parsing")}
-                </Text>
-              </Flex>
-            )}
-          </Box>
-        );
-
-      case "preview":
-        return (
-          <Box>
-            {preview && (
-              <ScrollArea className="import-skill-preview-scroll">
-                <Flex
-                  gap="3"
-                  mb="3"
-                  align="center"
-                >
-                  <FileText
-                    size={16}
-                    color="var(--gray-9)"
-                  />
-                  <Text
-                    size="2"
-                    weight="medium"
-                    truncate
-                    style={{ flex: 1 }}
-                  >
-                    {preview.fileName}
-                  </Text>
-                  <Badge
-                    size="1"
-                    color={preview.isRecognized ? "green" : "amber"}
-                  >
-                    {preview.isRecognized
-                      ? t("settingsExtra.skills.importDialog.recognized")
-                      : t("settingsExtra.skills.importDialog.unrecognized")}
-                  </Badge>
-                </Flex>
-
-                <Flex
-                  direction="column"
-                  gap="3"
-                >
-                  <Box>
-                    <Text
-                      size="1"
-                      color="gray"
-                      mb="1"
-                      className="import-skill-label"
-                    >
-                      {t("settingsExtra.skills.name")}
-                    </Text>
-                    <Text size="2">
-                      {preview.payload.name || t("settingsExtra.skills.importDialog.emptyValue")}
-                    </Text>
-                  </Box>
-
-                  {preview.payload.skillId && (
-                    <Box>
-                      <Text
-                        size="1"
-                        color="gray"
-                        mb="1"
-                        className="import-skill-label"
-                      >
-                        {t("settingsExtra.skills.id")}
-                      </Text>
-                      <Text size="2">{preview.payload.skillId}</Text>
-                    </Box>
-                  )}
-
-                  {preview.payload.summary && (
-                    <Box>
-                      <Text
-                        size="1"
-                        color="gray"
-                        mb="1"
-                        className="import-skill-label"
-                      >
-                        {t("settingsExtra.skills.summary")}
-                      </Text>
-                      <ScrollArea className="import-skill-summary-preview">
-                        <Text
-                          size="2"
-                          style={{ whiteSpace: "pre-wrap" }}
-                        >
-                          {preview.payload.summary}
-                        </Text>
-                      </ScrollArea>
-                    </Box>
-                  )}
-
-                  {preview.payload.content && (
-                    <Box>
-                      <Text
-                        size="1"
-                        color="gray"
-                        mb="1"
-                        className="import-skill-label"
-                      >
-                        {t("settingsExtra.skills.importDialog.contentPreview")}
-                      </Text>
-                      <ScrollArea className="import-skill-content-preview">
-                        <Box p="2">
-                          <Text
-                            size="2"
-                            style={{ whiteSpace: "pre-wrap" }}
-                          >
-                            {preview.payload.content.length > 2000
-                              ? preview.payload.content.slice(0, 2000) + "..."
-                              : preview.payload.content}
-                          </Text>
-                        </Box>
-                      </ScrollArea>
-                    </Box>
-                  )}
-                </Flex>
-
-                {!preview.isRecognized && (
-                  <Flex
-                    align="center"
-                    gap="2"
-                    mt="3"
-                  >
-                    <AlertCircle
-                      size={14}
-                      color="var(--amber-9)"
-                    />
-                    <Text
-                      size="1"
-                      color="amber"
-                    >
-                      {t("settingsExtra.skills.importDialog.unrecognizedHint")}
-                    </Text>
-                  </Flex>
-                )}
-              </ScrollArea>
-            )}
-          </Box>
-        );
-
+        return renderSelectStep();
       case "complete":
-        return (
-          <Box className="import-skill-complete">
-            <Box className="import-skill-complete-icon">
-              <Check
-                size={32}
-                color="var(--green-9)"
-              />
-            </Box>
-            <Text
-              as="p"
-              size="5"
-              weight="bold"
-              mb="2"
-            >
-              {t("settingsExtra.skills.importDialog.successTitle")}
-            </Text>
-            <Text
-              as="p"
-              size="2"
-              color="gray"
-            >
-              {t("settingsExtra.skills.importDialog.successDescription", {
-                name: preview?.payload.name,
-              })}
-            </Text>
-          </Box>
-        );
+        return renderCompleteStep();
     }
   };
 
@@ -336,26 +257,6 @@ export function ImportSkillDialog({ open, onOpenChange, onCreate }: ImportSkillD
             {t("common.close")}
           </Button>
         );
-      case "preview":
-        return (
-          <Flex
-            gap="3"
-            justify="between"
-            className="import-skill-preview-footer"
-          >
-            <Button
-              variant="soft"
-              color="gray"
-              onClick={() => setStep("select")}
-            >
-              <ChevronLeft size={16} />
-              {t("common.back")}
-            </Button>
-            <Button onClick={handleConfirm}>
-              {t("settingsExtra.skills.importDialog.confirmImport")}
-            </Button>
-          </Flex>
-        );
       case "complete":
         return <Button onClick={() => handleOpenChange(false)}>{t("import.finish")}</Button>;
     }
@@ -365,8 +266,6 @@ export function ImportSkillDialog({ open, onOpenChange, onCreate }: ImportSkillD
     switch (step) {
       case "select":
         return t("settingsExtra.skills.importDialog.selectTitle");
-      case "preview":
-        return t("settingsExtra.skills.importDialog.previewTitle");
       case "complete":
         return t("settingsExtra.skills.importDialog.completeTitle");
     }
@@ -386,6 +285,20 @@ export function ImportSkillDialog({ open, onOpenChange, onCreate }: ImportSkillD
         >
           {getStepTitle()}
         </Dialog.Description>
+
+        {step === "complete" && (
+          <Flex
+            justify="center"
+            mb="3"
+          >
+            <Box className="import-skill-complete-icon">
+              <Check
+                size={32}
+                color="var(--green-9)"
+              />
+            </Box>
+          </Flex>
+        )}
 
         {renderStepContent()}
 

@@ -29,7 +29,6 @@ def base_state() -> AgentRuntimeState:
         "error": None,
         "retry_count": 0,
         "user_request": "test",
-        "installed_skill_ids": [],
         "current_revision_id": None,
     }
 
