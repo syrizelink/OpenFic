@@ -20,6 +20,7 @@ from app.agent_runtime.graph.node_events import with_node_events
 from app.agent_runtime.graph.orchestrator.state import OrchestratorState
 from app.agent_runtime.graph.react_agent import create_react_agent
 from app.agent_runtime.tools import ToolRegistry
+from app.agent_runtime.tools.impls.skill.skill import skill_tool_names_for_definition
 from app.agent_runtime.tools.hooks.auth import auth_hook
 from app.agent_runtime.tools.hooks.chapter_refresh import chapter_refresh_post_hook
 from app.agent_runtime.tools.hooks.dispatch_description import (
@@ -47,7 +48,9 @@ async def _primary_tool_names(config: RunnableConfig | None, agent_key: str = "p
     if db_session is None:
         return list(get_tool_names_for_categories(DEFAULT_PRIMARY_TOOL_CATEGORIES))
     definition = await load_agent_definition(db_session, agent_key)
-    return list(get_tool_names_for_categories(definition.tool_category_keys))
+    return list(get_tool_names_for_categories(definition.enabled_tool_categories)) + list(
+        await skill_tool_names_for_definition(definition, db_session)
+    )
 
 
 async def _primary_build_hooks(

@@ -97,11 +97,11 @@ class AgentDefinitionRecord(SQLModel, table=True):
     kind: str = Field(index=True, max_length=20)
     prompt_agent_name: str = Field(max_length=50)
     model_id: str | None = Field(default=None, max_length=100)
-    tool_category_keys_json: list[str] = Field(
+    enabled_tool_categories: list[str] = Field(
         default_factory=list,
         sa_column=Column(JSON, nullable=False, default=list),
     )
-    enabled_skill_ids_json: list[str] = Field(
+    enabled_skills: list[str] = Field(
         default_factory=list,
         sa_column=Column(JSON, nullable=False, default=list),
     )

@@ -166,7 +166,6 @@ async def test_initial_state_does_not_include_context_anchor_state():
         await runner.run(user_request="hi")
 
     assert "context_anchor_order" not in captured
-    assert captured.get("installed_skill_ids") == []
     assert captured.get("current_revision_id") == "rev_1"
     assert captured.get("task_id") == "task_ctx_001"
     assert "message_checkpoints" not in captured

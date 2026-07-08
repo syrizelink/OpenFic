@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from app.core.errors import (
+    ConflictError,
     NotFoundError,
     OpenFicError,
     ProjectAlreadyBoundError,
@@ -43,6 +44,19 @@ def register_exception_handlers(app: FastAPI) -> None:
         request: Request, exc: ProjectAlreadyBoundError
     ) -> JSONResponse:
         """处理项目已绑定世界书错误。"""
+        logger.opt(exception=True).debug(
+            "request failed: {} {}", request.method, request.url.path
+        )
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={"detail": str(exc)},
+        )
+
+    @app.exception_handler(ConflictError)
+    async def conflict_error_handler(
+        request: Request, exc: ConflictError
+    ) -> JSONResponse:
+        """处理资源冲突错误。"""
         logger.opt(exception=True).debug(
             "request failed: {} {}", request.method, request.url.path
         )

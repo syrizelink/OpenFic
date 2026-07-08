@@ -13,9 +13,9 @@ import {
 } from "@radix-ui/themes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Fuse from "fuse.js";
-import { MoreHorizontal, Plus, Search, Trash2, Upload, X } from "lucide-react";
+import { FilePen, MoreHorizontal, PenLine, Plus, Search, Trash2, Import, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Spinner } from "@/components";
@@ -25,19 +25,34 @@ import {
   type ContextMenuPosition,
 } from "@/components/context-menu";
 import { toast } from "@/components/toast";
-import { createSkill, deleteSkill, fetchSkills, toggleSkill, updateSkill } from "@/lib/api-client";
+import {
+  createSkill,
+  createSkillReferenceDoc,
+  deleteSkill,
+  deleteSkillReferenceDoc,
+  fetchSkills,
+  fetchSkillReferenceDocs,
+  toggleSkill,
+  updateSkill,
+  updateSkillReferenceDoc,
+} from "@/lib/api-client";
 import { getPinyin, getInitials } from "@/lib/pinyin-search";
 import type { Skill, SkillCreate, SkillListResponse } from "@/lib/skill.types";
+import type {
+  SkillReferenceDoc,
+  SkillReferenceDocCreate,
+} from "@/lib/skill-reference-doc.types";
 import { countTokens } from "@/lib/tiktoken-utils";
 
 import { ImportSkillDialog } from "./import-skill-dialog";
+
+import { fetchAgentDefinitions } from "../lib/agent-definitions-api";
 
 import "./skills-settings.css";
 
 interface SkillFormState {
   name: string;
   summary: string;
-  skillId: string;
   content: string;
 }
 
@@ -45,8 +60,10 @@ interface SkillsSettingsProps {
   variant?: "page" | "settings";
   mobilePage?: "list" | "detail";
   mobileDirection?: 1 | -1;
+  mobileRefDocEdit?: boolean;
   onMobileDetailTitleChange?: (title: string | null) => void;
   onMobilePageChange?: (page: "list" | "detail") => void;
+  onMobileRefDocEditChange?: (active: boolean) => void;
 }
 
 const MotionBox = motion.create(Box);
@@ -66,7 +83,6 @@ const mobilePageVariants = {
 const EMPTY_FORM: SkillFormState = {
   name: "",
   summary: "",
-  skillId: "",
   content: "",
 };
 
@@ -75,22 +91,18 @@ function toFormState(skill: Skill | null): SkillFormState {
   return {
     name: skill.name,
     summary: skill.summary,
-    skillId: skill.skillId,
     content: skill.content,
   };
-}
-
-function isValidSkillId(skillId: string): boolean {
-  if (!skillId) return true;
-  return /^[a-z]+(?:-[a-z]+)*$/.test(skillId);
 }
 
 export function SkillsSettings({
   variant = "page",
   mobilePage,
   mobileDirection: controlledMobileDirection,
+  mobileRefDocEdit: controlledMobileRefDocEdit,
   onMobileDetailTitleChange,
   onMobilePageChange,
+  onMobileRefDocEditChange,
 }: SkillsSettingsProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -103,9 +115,15 @@ export function SkillsSettings({
   const [isMobile, setIsMobile] = useState(false);
   const [internalMobilePage, setInternalMobilePage] = useState<"list" | "detail">("list");
   const [internalMobileDirection, setInternalMobileDirection] = useState<1 | -1>(1);
+  const [internalMobileRefDocEdit, setInternalMobileRefDocEdit] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const currentMobilePage = mobilePage ?? internalMobilePage;
   const currentMobileDirection = controlledMobileDirection ?? internalMobileDirection;
+  const currentMobileRefDocEdit = controlledMobileRefDocEdit ?? internalMobileRefDocEdit;
+
+  const [editingRefDoc, setEditingRefDoc] = useState<SkillReferenceDoc | null>(null);
+  const [renamingRefDocId, setRenamingRefDocId] = useState<string | null>(null);
+  const [deletingRefDoc, setDeletingRefDoc] = useState<SkillReferenceDoc | null>(null);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -119,7 +137,23 @@ export function SkillsSettings({
     queryFn: () => fetchSkills({ page: 1, pageSize: 100 }),
   });
 
+  const { data: agentDefinitions } = useQuery({
+    queryKey: ["agent-definitions"],
+    queryFn: fetchAgentDefinitions,
+  });
+
   const skills = useMemo(() => data?.items ?? [], [data?.items]);
+
+  const agentCountBySkillId = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const agent of agentDefinitions ?? []) {
+      for (const skillId of agent.enabled_skills) {
+        if (!skillId) continue;
+        counts.set(skillId, (counts.get(skillId) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [agentDefinitions]);
 
   const searchableSkills = useMemo(() => {
     return skills.map((s) => ({
@@ -127,7 +161,6 @@ export function SkillsSettings({
       name: s.name || "",
       namePinyin: getPinyin(s.name || ""),
       nameInitials: getInitials(s.name || ""),
-      skillId: s.skillId || "",
     }));
   }, [skills]);
 
@@ -137,7 +170,6 @@ export function SkillsSettings({
         { name: "name", weight: 3 },
         { name: "namePinyin", weight: 2 },
         { name: "nameInitials", weight: 2.5 },
-        { name: "skillId", weight: 1.5 },
       ],
       threshold: 0.3,
       ignoreLocation: true,
@@ -164,6 +196,13 @@ export function SkillsSettings({
   );
   const isSettingsVariant = variant === "settings";
 
+  const { data: refDocsData } = useQuery({
+    queryKey: ["skill-reference-docs", effectiveSelectedSkillId],
+    queryFn: () => fetchSkillReferenceDocs(effectiveSelectedSkillId as string),
+    enabled: !!effectiveSelectedSkillId,
+  });
+  const refDocs = useMemo(() => refDocsData ?? [], [refDocsData]);
+
   const handleMobilePageChange = useCallback(
     (page: "list" | "detail") => {
       if (controlledMobileDirection === undefined) {
@@ -178,6 +217,12 @@ export function SkillsSettings({
   useEffect(() => {
     onMobileDetailTitleChange?.(selectedSkill?.name || null);
   }, [onMobileDetailTitleChange, selectedSkill]);
+
+  useEffect(() => {
+    setEditingRefDoc(null);
+    setRenamingRefDocId(null);
+    setDeletingRefDoc(null);
+  }, [effectiveSelectedSkillId]);
 
   const createMutation = useMutation({
     mutationFn: (payload: SkillCreate) => createSkill(payload),
@@ -196,16 +241,24 @@ export function SkillsSettings({
       updateSkill(skillDbId, {
         name: payload.name,
         summary: payload.summary,
-        skillId: payload.skillId || undefined,
         content: payload.content,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["skills"] });
     },
-    onError: () => {
-      toast.error(t("settings.saveFailed"));
+onError: () => {
+      toast.error(t("common.error"));
     },
   });
+
+  const handleImported = useCallback(
+    (skill: Skill) => {
+      queryClient.invalidateQueries({ queryKey: ["skills"] });
+      setSelectedSkillId(skill.id);
+      toast.success(t("settingsExtra.skills.importedSkill"));
+    },
+    [queryClient, t],
+  );
 
   const toggleMutation = useMutation({
     mutationFn: ({ skillDbId }: { skillDbId: string; nextEnabled: boolean }) =>
@@ -258,11 +311,101 @@ export function SkillsSettings({
     },
   });
 
+  const createRefDocMutation = useMutation({
+    mutationFn: ({ skillDbId, payload }: { skillDbId: string; payload: SkillReferenceDocCreate }) =>
+      createSkillReferenceDoc(skillDbId, payload),
+    onSuccess: () => {
+      if (effectiveSelectedSkillId) {
+        queryClient.invalidateQueries({
+          queryKey: ["skill-reference-docs", effectiveSelectedSkillId],
+        });
+      }
+      toast.success(t("settingsExtra.skills.referenceDocCreated"));
+    },
+    onError: () => {
+      toast.error(t("common.error"));
+    },
+  });
+
+  const renameRefDocMutation = useMutation({
+    mutationFn: ({
+      skillDbId,
+      docId,
+      title,
+    }: {
+      skillDbId: string;
+      docId: string;
+      title: string;
+    }) => updateSkillReferenceDoc(skillDbId, docId, { title }),
+    onMutate: async ({ skillDbId, docId, title }) => {
+      const queryKey = ["skill-reference-docs", skillDbId];
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<SkillReferenceDoc[]>(queryKey);
+      queryClient.setQueryData<SkillReferenceDoc[]>(queryKey, (current) =>
+        current?.map((d) => (d.id === docId ? { ...d, title } : d)) ?? current,
+      );
+      return { previous, skillDbId };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["skill-reference-docs", context.skillDbId], context.previous);
+      }
+      toast.error(t("settingsExtra.skills.referenceDocRenameFailed"));
+    },
+    onSuccess: () => {
+      toast.success(t("settingsExtra.skills.referenceDocRenamed"));
+    },
+    onSettled: (_data, _error, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["skill-reference-docs", variables.skillDbId],
+      });
+    },
+  });
+
+  const editRefDocContentMutation = useMutation({
+    mutationFn: ({
+      skillDbId,
+      docId,
+      content,
+    }: {
+      skillDbId: string;
+      docId: string;
+      content: string;
+    }) => updateSkillReferenceDoc(skillDbId, docId, { content }),
+    onSuccess: () => {
+      if (effectiveSelectedSkillId) {
+        queryClient.invalidateQueries({
+          queryKey: ["skill-reference-docs", effectiveSelectedSkillId],
+        });
+      }
+      toast.success(t("common.saveSuccess"));
+    },
+    onError: () => {
+      toast.error(t("common.saveFailed"));
+    },
+  });
+
+  const deleteRefDocMutation = useMutation({
+    mutationFn: ({ skillDbId, docId }: { skillDbId: string; docId: string }) =>
+      deleteSkillReferenceDoc(skillDbId, docId),
+    onSuccess: () => {
+      if (effectiveSelectedSkillId) {
+        queryClient.invalidateQueries({
+          queryKey: ["skill-reference-docs", effectiveSelectedSkillId],
+        });
+      }
+      setDeletingRefDoc(null);
+      toast.success(t("common.deleteSuccess"));
+    },
+    onError: () => {
+      toast.error(t("common.deleteFailed"));
+    },
+  });
+
   const handleCreate = () => {
     const defaultPayload: SkillCreate = {
       name: t("settingsExtra.skills.newSkill"),
       summary: "",
-      skillId: "",
       content: "",
       isEnabled: false,
     };
@@ -276,9 +419,9 @@ export function SkillsSettings({
     [updateMutation],
   );
 
-  const handleContextMenu = useCallback((skillId: string, position: ContextMenuPosition) => {
+  const handleContextMenu = useCallback((skillDbId: string, position: ContextMenuPosition) => {
     setContextMenuPos(position);
-    setContextMenuSkillId(skillId);
+    setContextMenuSkillId(skillDbId);
   }, []);
 
   const handleCloseContextMenu = useCallback(() => {
@@ -305,6 +448,89 @@ export function SkillsSettings({
       },
     ];
   }, [contextMenuSkillId, skills, handleCloseContextMenu, t]);
+
+  const handleCreateRefDoc = useCallback(() => {
+    if (!effectiveSelectedSkillId) return;
+    createRefDocMutation.mutate({
+      skillDbId: effectiveSelectedSkillId,
+      payload: { title: t("settingsExtra.skills.newReferenceDoc"), content: "" },
+    });
+  }, [createRefDocMutation, effectiveSelectedSkillId, t]);
+
+  const handleStartRenameRefDoc = useCallback((doc: SkillReferenceDoc) => {
+    setRenamingRefDocId(doc.id);
+  }, []);
+
+  const handleConfirmRenameRefDoc = useCallback(
+    (newTitle: string) => {
+      const docId = renamingRefDocId;
+      setRenamingRefDocId(null);
+      if (!docId || !effectiveSelectedSkillId) return;
+      const current = refDocs.find((d) => d.id === docId);
+      if (current && newTitle.trim() && newTitle.trim() !== current.title) {
+        renameRefDocMutation.mutate({
+          skillDbId: effectiveSelectedSkillId,
+          docId,
+          title: newTitle.trim(),
+        });
+      }
+    },
+    [renamingRefDocId, effectiveSelectedSkillId, refDocs, renameRefDocMutation],
+  );
+
+  const handleCancelRenameRefDoc = useCallback(() => {
+    setRenamingRefDocId(null);
+  }, []);
+
+  const handleEditRefDoc = useCallback(
+    (doc: SkillReferenceDoc) => {
+      setEditingRefDoc(doc);
+      if (isMobile) {
+        setInternalMobileRefDocEdit(true);
+        onMobileRefDocEditChange?.(true);
+        onMobileDetailTitleChange?.(doc.title || t("settingsExtra.skills.untitledReferenceDoc"));
+      }
+    },
+    [isMobile, onMobileRefDocEditChange, onMobileDetailTitleChange, t],
+  );
+
+  const handleDeleteRefDoc = useCallback((doc: SkillReferenceDoc) => {
+    setDeletingRefDoc(doc);
+  }, []);
+
+  const handleSaveRefDocContent = useCallback(
+    async (content: string) => {
+      if (!editingRefDoc || !effectiveSelectedSkillId) return;
+      await editRefDocContentMutation.mutateAsync({
+        skillDbId: effectiveSelectedSkillId,
+        docId: editingRefDoc.id,
+        content,
+      });
+    },
+    [editingRefDoc, effectiveSelectedSkillId, editRefDocContentMutation],
+  );
+
+  const handleConfirmDeleteRefDoc = useCallback(() => {
+    if (!deletingRefDoc || !effectiveSelectedSkillId) return;
+    deleteRefDocMutation.mutate({
+      skillDbId: effectiveSelectedSkillId,
+      docId: deletingRefDoc.id,
+    });
+  }, [deletingRefDoc, effectiveSelectedSkillId, deleteRefDocMutation]);
+
+  const handleExitRefDocEdit = useCallback(() => {
+    setInternalMobileRefDocEdit(false);
+    onMobileRefDocEditChange?.(false);
+  }, [onMobileRefDocEditChange]);
+
+  const prevMobileRefDocEditRef = useRef(false);
+  useEffect(() => {
+    if (prevMobileRefDocEditRef.current && !currentMobileRefDocEdit) {
+      setEditingRefDoc(null);
+      onMobileDetailTitleChange?.(selectedSkill?.name || null);
+    }
+    prevMobileRefDocEditRef.current = currentMobileRefDocEdit;
+  }, [currentMobileRefDocEdit, onMobileDetailTitleChange, selectedSkill]);
 
   const listContent = (
     <div className="skills-settings-list-container">
@@ -366,7 +592,7 @@ export function SkillsSettings({
                 onClick={() => setImportDialogOpen(true)}
                 disabled={createMutation.isPending}
               >
-                <Upload size={14} />
+                <Import size={14} />
               </IconButton>
             </Tooltip>
           </Flex>
@@ -401,6 +627,7 @@ export function SkillsSettings({
               <SkillListItem
                 key={skill.id}
                 skill={skill}
+                agentCount={agentCountBySkillId.get(skill.id) ?? 0}
                 isSelected={skill.id === effectiveSelectedSkillId}
                 isMenuOpen={skill.id === contextMenuSkillId}
                 onSelect={() => {
@@ -460,8 +687,41 @@ export function SkillsSettings({
       key={selectedSkill.id}
       skill={selectedSkill}
       onSave={handleSave}
+      refDocs={refDocs}
+      renamingRefDocId={renamingRefDocId}
+      onCreateRefDoc={handleCreateRefDoc}
+      onStartRenameRefDoc={handleStartRenameRefDoc}
+      onConfirmRenameRefDoc={handleConfirmRenameRefDoc}
+      onCancelRenameRefDoc={handleCancelRenameRefDoc}
+      onEditRefDoc={handleEditRefDoc}
+      onDeleteRefDoc={handleDeleteRefDoc}
+      isCreatingRefDoc={createRefDocMutation.isPending}
+      isRenamingRefDoc={renameRefDocMutation.isPending}
     />
   );
+
+  const refDocDialogs = (
+    <>
+      <SkillReferenceDocEditDialog
+        doc={editingRefDoc}
+        open={!!editingRefDoc && !isMobile}
+        onOpenChange={(o) => !o && setEditingRefDoc(null)}
+        onSave={handleSaveRefDocContent}
+        isSaving={editRefDocContentMutation.isPending}
+      />
+      <SkillReferenceDocDeleteDialog
+        doc={deletingRefDoc}
+        open={!!deletingRefDoc}
+        onOpenChange={(o) => !o && setDeletingRefDoc(null)}
+        onConfirm={handleConfirmDeleteRefDoc}
+        isSaving={deleteRefDocMutation.isPending}
+      />
+    </>
+  );
+
+  const mobilePageTransition = { duration: 0.22, ease: [0.22, 1, 0.36, 1] as const };
+
+  const effectiveMobilePage = currentMobileRefDocEdit ? "ref-doc-edit" : currentMobilePage;
 
   if (isMobile) {
     return (
@@ -475,7 +735,7 @@ export function SkillsSettings({
             custom={currentMobileDirection}
             mode="sync"
           >
-            {currentMobilePage === "list" ? (
+            {effectiveMobilePage === "list" ? (
               <MotionBox
                 key="skills-mobile-list"
                 custom={currentMobileDirection}
@@ -483,12 +743,52 @@ export function SkillsSettings({
                 initial="enter"
                 animate="center"
                 exit="exit"
-                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                transition={mobilePageTransition}
                 className="settings-dialog-mobile-page"
               >
                 <Box className="skills-settings-mobile-page">
                   <Box className="skills-settings-mobile-page-content">{listContent}</Box>
                 </Box>
+              </MotionBox>
+            ) : effectiveMobilePage === "ref-doc-edit" ? (
+              <MotionBox
+                key="skills-mobile-ref-doc-edit"
+                custom={currentMobileDirection}
+                variants={mobilePageVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={mobilePageTransition}
+                className="settings-dialog-mobile-page"
+              >
+                <div
+                  className={`skills-settings-editor-panel${isSettingsVariant ? " skills-settings-editor-panel--settings" : ""}`}
+                >
+                  {editingRefDoc ? (
+                    <div className="skills-settings-editor">
+                      <div className="skills-settings-editor-scroll">
+                        <Flex
+                          direction="column"
+                          gap="3"
+                          className="skills-settings-editor-content"
+                        >
+                          <Text
+                            size="3"
+                            weight="medium"
+                          >
+                            {editingRefDoc.title || t("settingsExtra.skills.untitledReferenceDoc")}
+                          </Text>
+                          <ReferenceDocEditor
+                            doc={editingRefDoc}
+                            onSave={handleSaveRefDocContent}
+                            onDone={handleExitRefDocEdit}
+                            isSaving={editRefDocContentMutation.isPending}
+                          />
+                        </Flex>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </MotionBox>
             ) : (
               <MotionBox
@@ -498,7 +798,7 @@ export function SkillsSettings({
                 initial="enter"
                 animate="center"
                 exit="exit"
-                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                transition={mobilePageTransition}
                 className="settings-dialog-mobile-page"
               >
                 <div
@@ -553,10 +853,12 @@ export function SkillsSettings({
           </Dialog.Content>
         </Dialog.Root>
 
+        {refDocDialogs}
+
         <ImportSkillDialog
           open={importDialogOpen}
           onOpenChange={setImportDialogOpen}
-          onCreate={(payload) => createMutation.mutate(payload)}
+          onImported={handleImported}
         />
       </Flex>
     );
@@ -626,10 +928,12 @@ export function SkillsSettings({
         </Dialog.Content>
       </Dialog.Root>
 
+      {refDocDialogs}
+
       <ImportSkillDialog
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}
-        onCreate={(payload) => createMutation.mutate(payload)}
+        onImported={handleImported}
       />
     </Flex>
   );
@@ -637,6 +941,7 @@ export function SkillsSettings({
 
 interface SkillListItemProps {
   skill: Skill;
+  agentCount: number;
   isSelected: boolean;
   isMenuOpen: boolean;
   onSelect: () => void;
@@ -646,6 +951,7 @@ interface SkillListItemProps {
 
 function SkillListItem({
   skill,
+  agentCount,
   isSelected,
   isMenuOpen,
   onSelect,
@@ -676,15 +982,15 @@ function SkillListItem({
       onContextMenu={handleContextMenu}
     >
       <Flex
-        align="start"
-        justify="between"
-        gap="2"
-        className="skills-settings-item-row"
+        direction="column"
+        gap="1"
+        className="skills-settings-item-content"
       >
         <Flex
-          direction="column"
-          gap="1"
-          className="skills-settings-item-content"
+          align="center"
+          justify="between"
+          gap="2"
+          className="skills-settings-item-row"
         >
           <Flex
             align="center"
@@ -707,45 +1013,61 @@ function SkillListItem({
                 {t("settingsExtra.skills.incomplete")}
               </Badge>
             ) : null}
+            <Tooltip
+              content={
+                agentCount > 0
+                  ? t("settingsExtra.skills.agentCountTooltip", { count: agentCount })
+                  : t("settingsExtra.skills.agentCountZero")
+              }
+            >
+              <Badge
+                size="1"
+                variant="soft"
+                color={agentCount > 0 ? "green" : "amber"}
+                className="skills-settings-item-agent-count"
+              >
+                {agentCount}
+              </Badge>
+            </Tooltip>
           </Flex>
-          <Text
-            size="1"
-            color="gray"
-            className="skills-settings-item-description"
-          >
-            {skill.summary || t("settingsExtra.skills.noDescription")}
-          </Text>
-        </Flex>
 
-        <Flex
-          align="center"
-          gap="1"
-          className="skills-settings-item-actions"
-        >
-          <Switch
-            size="1"
-            checked={skill.isEnabled}
-            disabled={!skill.isComplete}
-            onClick={(e) => e.stopPropagation()}
-            onCheckedChange={onToggle}
-          />
-          <IconButton
-            type="button"
-            variant="ghost"
-            color="gray"
-            size="1"
-            className="skills-settings-item-menu"
-            aria-label={t("settingsExtra.skills.menu")}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              const rect = event.currentTarget.getBoundingClientRect();
-              onContextMenu({ x: rect.right, y: rect.bottom + 4 });
-            }}
+          <Flex
+            align="center"
+            gap="1"
+            className="skills-settings-item-actions"
           >
-            <MoreHorizontal size={14} />
-          </IconButton>
+            <Switch
+              size="1"
+              checked={skill.isEnabled}
+              disabled={!skill.isComplete}
+              onClick={(e) => e.stopPropagation()}
+              onCheckedChange={onToggle}
+            />
+            <IconButton
+              type="button"
+              variant="ghost"
+              color="gray"
+              size="1"
+              className="skills-settings-item-menu"
+              aria-label={t("settingsExtra.skills.menu")}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const rect = event.currentTarget.getBoundingClientRect();
+                onContextMenu({ x: rect.right, y: rect.bottom + 4 });
+              }}
+            >
+              <MoreHorizontal size={14} />
+            </IconButton>
+          </Flex>
         </Flex>
+        <Text
+          size="1"
+          color="gray"
+          className="skills-settings-item-description"
+        >
+          {skill.summary || t("settingsExtra.skills.noDescription")}
+        </Text>
       </Flex>
     </div>
   );
@@ -754,9 +1076,32 @@ function SkillListItem({
 interface SkillEditorProps {
   skill: Skill;
   onSave: (skillDbId: string, payload: SkillFormState) => Promise<unknown>;
+  refDocs: SkillReferenceDoc[];
+  renamingRefDocId: string | null;
+  onCreateRefDoc: () => void;
+  onStartRenameRefDoc: (doc: SkillReferenceDoc) => void;
+  onConfirmRenameRefDoc: (newTitle: string) => void;
+  onCancelRenameRefDoc: () => void;
+  onEditRefDoc: (doc: SkillReferenceDoc) => void;
+  onDeleteRefDoc: (doc: SkillReferenceDoc) => void;
+  isCreatingRefDoc: boolean;
+  isRenamingRefDoc: boolean;
 }
 
-function SkillEditor({ skill, onSave }: SkillEditorProps) {
+function SkillEditor({
+  skill,
+  onSave,
+  refDocs,
+  renamingRefDocId,
+  onCreateRefDoc,
+  onStartRenameRefDoc,
+  onConfirmRenameRefDoc,
+  onCancelRenameRefDoc,
+  onEditRefDoc,
+  onDeleteRefDoc,
+  isCreatingRefDoc,
+  isRenamingRefDoc,
+}: SkillEditorProps) {
   const { t } = useTranslation();
   const [form, setForm] = useState<SkillFormState>(() => toFormState(skill));
   const [lastSaved, setLastSaved] = useState<string>(() => JSON.stringify(toFormState(skill)));
@@ -764,7 +1109,7 @@ function SkillEditor({ skill, onSave }: SkillEditorProps) {
   const tokenCount = useMemo(() => countTokens(form.content), [form.content]);
 
   const hasUnsavedChanges = JSON.stringify(form) !== lastSaved;
-  const canSave = hasUnsavedChanges && !isSaving && isValidSkillId(form.skillId);
+  const canSave = hasUnsavedChanges && !isSaving;
 
   const handleSave = useCallback(async () => {
     if (!canSave) return;
@@ -779,15 +1124,12 @@ function SkillEditor({ skill, onSave }: SkillEditorProps) {
   }, [canSave, form, onSave, skill.id]);
 
   return (
-    <Box p={{ initial: "4", md: "5" }}>
-      <Flex
-        direction="column"
-        gap="1"
-        className="skills-settings-editor-content"
-      >
+    <div className="skills-settings-editor">
+      <div className="skills-settings-editor-scroll">
         <Flex
           direction="column"
           gap="3"
+          className="skills-settings-editor-content"
         >
           <Box>
             <Text
@@ -823,33 +1165,6 @@ function SkillEditor({ skill, onSave }: SkillEditorProps) {
           </Box>
 
           <Box>
-            <Text
-              size="2"
-              weight="medium"
-              as="label"
-            >
-              {t("settingsExtra.skills.id")}
-            </Text>
-            <TextField.Root
-              mt="2"
-              value={form.skillId}
-              onChange={(e) => setForm((prev) => ({ ...prev, skillId: e.target.value.trim() }))}
-              placeholder={t("settingsExtra.skills.idPlaceholder")}
-            />
-            <Text
-              size="1"
-              color={form.skillId && !isValidSkillId(form.skillId) ? "red" : "gray"}
-              style={{
-                display: "block",
-                marginTop: 6,
-                visibility: form.skillId && !isValidSkillId(form.skillId) ? "visible" : "hidden",
-              }}
-            >
-              {t("settingsExtra.skills.idHelp")}
-            </Text>
-          </Box>
-
-          <Box>
             <Flex
               justify="between"
               align="center"
@@ -873,24 +1188,390 @@ function SkillEditor({ skill, onSave }: SkillEditorProps) {
               value={form.content}
               onChange={(e) => setForm((prev) => ({ ...prev, content: e.target.value }))}
               placeholder={t("settingsExtra.skills.contentPlaceholder")}
-              rows={18}
+              rows={12}
             />
           </Box>
-        </Flex>
 
-        <Flex
-          align="center"
-          justify="end"
-          className="skills-settings-editor-actions"
-        >
-          <Button
-            onClick={() => void handleSave()}
-            disabled={!canSave}
-          >
-            {isSaving ? t("settingsExtra.skills.saving") : t("common.save")}
-          </Button>
+          <SkillReferenceDocsSection
+            refDocs={refDocs}
+            renamingRefDocId={renamingRefDocId}
+            onCreate={onCreateRefDoc}
+            onStartRename={onStartRenameRefDoc}
+            onConfirmRename={onConfirmRenameRefDoc}
+            onCancelRename={onCancelRenameRefDoc}
+            onEdit={onEditRefDoc}
+            onDelete={onDeleteRefDoc}
+            isCreating={isCreatingRefDoc}
+            isRenaming={isRenamingRefDoc}
+          />
         </Flex>
+      </div>
+
+      <div className="skills-settings-editor-footer">
+        <Button
+          onClick={() => void handleSave()}
+          disabled={!canSave}
+        >
+          {isSaving ? t("settingsExtra.skills.saving") : t("common.save")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+interface SkillReferenceDocsSectionProps {
+  refDocs: SkillReferenceDoc[];
+  renamingRefDocId: string | null;
+  onCreate: () => void;
+  onStartRename: (doc: SkillReferenceDoc) => void;
+  onConfirmRename: (newTitle: string) => void;
+  onCancelRename: () => void;
+  onEdit: (doc: SkillReferenceDoc) => void;
+  onDelete: (doc: SkillReferenceDoc) => void;
+  isCreating: boolean;
+  isRenaming: boolean;
+}
+
+function SkillReferenceDocsSection({
+  refDocs,
+  renamingRefDocId,
+  onCreate,
+  onStartRename,
+  onConfirmRename,
+  onCancelRename,
+  onEdit,
+  onDelete,
+  isCreating,
+  isRenaming,
+}: SkillReferenceDocsSectionProps) {
+  const { t } = useTranslation();
+
+  return (
+    <Box className="skills-settings-refdocs">
+      <Flex
+        align="center"
+        justify="between"
+        gap="2"
+        className="skills-settings-refdocs-header"
+      >
+        <Text
+          size="2"
+          weight="medium"
+        >
+          {t("settingsExtra.skills.referenceDocs")} ({refDocs.length})
+        </Text>
+        <Button
+          size="1"
+          variant="ghost"
+          color="gray"
+          onClick={onCreate}
+          disabled={isCreating}
+        >
+          <Plus size={14} />
+          {t("settingsExtra.skills.newReferenceDocButton")}
+        </Button>
+      </Flex>
+
+      <Flex
+        direction="column"
+        gap="1"
+        className="skills-settings-refdocs-list"
+      >
+        {refDocs.length === 0 ? (
+          <Text
+            size="1"
+            color="gray"
+            className="skills-settings-refdocs-empty"
+          >
+            {t("settingsExtra.skills.referenceDocsEmpty")}
+          </Text>
+        ) : (
+          refDocs.map((doc) => (
+            <Flex
+              key={doc.id}
+              align="center"
+              justify="between"
+              gap="2"
+              className={`skills-settings-refdocs-item${renamingRefDocId === doc.id ? " skills-settings-refdocs-item--renaming" : ""}`}
+            >
+              <Box
+                className="skills-settings-refdocs-item-title"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {renamingRefDocId === doc.id ? (
+                  <RefDocRenameInput
+                    initialValue={doc.title}
+                    onConfirm={onConfirmRename}
+                    onCancel={onCancelRename}
+                  />
+                ) : (
+                  <Text
+                    size="2"
+                    truncate
+                  >
+                    {doc.title || t("settingsExtra.skills.untitledReferenceDoc")}
+                  </Text>
+                )}
+              </Box>
+
+              <Box className="skills-settings-refdocs-item-meta">
+                <Text
+                  size="1"
+                  color="gray"
+                  className="skills-settings-refdocs-item-tokens"
+                >
+                  {doc.tokens} {t("settingsExtra.skills.tokens")}
+                </Text>
+                <Flex
+                  align="center"
+                  gap="1"
+                  className="skills-settings-refdocs-item-actions"
+                >
+                  <Tooltip content={t("common.rename")}>
+                    <IconButton
+                      size="1"
+                      variant="ghost"
+                      color="gray"
+                      aria-label={t("common.rename")}
+                      disabled={isRenaming}
+                      onClick={() => onStartRename(doc)}
+                    >
+                      <PenLine size={14} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip content={t("common.edit")}>
+                    <IconButton
+                      size="1"
+                      variant="ghost"
+                      color="gray"
+                      aria-label={t("common.edit")}
+                      onClick={() => onEdit(doc)}
+                    >
+                      <FilePen size={14} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip content={t("common.delete")}>
+                    <IconButton
+                      size="1"
+                      variant="ghost"
+                      color="red"
+                      aria-label={t("common.delete")}
+                      onClick={() => onDelete(doc)}
+                    >
+                      <Trash2 size={14} />
+                    </IconButton>
+                  </Tooltip>
+                </Flex>
+              </Box>
+            </Flex>
+          ))
+        )}
       </Flex>
     </Box>
+  );
+}
+
+interface RefDocRenameInputProps {
+  initialValue: string;
+  onConfirm: (newTitle: string) => void;
+  onCancel: () => void;
+}
+
+function RefDocRenameInput({ initialValue, onConfirm, onCancel }: RefDocRenameInputProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, []);
+
+  const handleSubmit = useCallback(() => {
+    const trimmed = value.trim();
+    if (trimmed && trimmed !== initialValue) {
+      onConfirm(trimmed);
+      return;
+    }
+    onCancel();
+  }, [initialValue, onCancel, onConfirm, value]);
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleSubmit();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        onCancel();
+      }
+    },
+    [handleSubmit, onCancel],
+  );
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      value={value}
+      onChange={(event) => setValue(event.target.value)}
+      onBlur={handleSubmit}
+      onKeyDown={handleKeyDown}
+      onClick={(event) => event.stopPropagation()}
+      className="skills-settings-refdocs-item-rename-input"
+    />
+  );
+}
+
+interface ReferenceDocEditorProps {
+  doc: SkillReferenceDoc;
+  onSave: (content: string) => Promise<void>;
+  onDone: () => void;
+  isSaving: boolean;
+}
+
+function ReferenceDocEditor({ doc, onSave, onDone, isSaving }: ReferenceDocEditorProps) {
+  const { t } = useTranslation();
+  const [content, setContent] = useState(doc.content);
+  const hasChanges = content !== doc.content;
+
+  const handleSave = useCallback(async () => {
+    if (!hasChanges) {
+      onDone();
+      return;
+    }
+    await onSave(content);
+    onDone();
+  }, [hasChanges, onSave, content, onDone]);
+
+  return (
+    <Flex
+      direction="column"
+      gap="3"
+    >
+      <TextArea
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        placeholder={t("settingsExtra.skills.referenceDocContentPlaceholder")}
+        rows={12}
+      />
+      <Flex
+        gap="3"
+        justify="end"
+      >
+        <Button
+          variant="soft"
+          color="gray"
+          onClick={onDone}
+          disabled={isSaving}
+        >
+          {t("common.cancel")}
+        </Button>
+        <Button
+          onClick={() => void handleSave()}
+          disabled={isSaving || !hasChanges}
+        >
+          {isSaving ? <Spinner size={18} /> : null}
+          {t("common.save")}
+        </Button>
+      </Flex>
+    </Flex>
+  );
+}
+
+interface SkillReferenceDocEditDialogProps {
+  doc: SkillReferenceDoc | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (content: string) => Promise<void>;
+  isSaving: boolean;
+}
+
+function SkillReferenceDocEditDialog({
+  doc,
+  open,
+  onOpenChange,
+  onSave,
+  isSaving,
+}: SkillReferenceDocEditDialogProps) {
+  const { t } = useTranslation();
+
+  return (
+    <Dialog.Root
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <Dialog.Content style={{ maxWidth: 640 }}>
+        <Dialog.Title>
+          {doc?.title || t("settingsExtra.skills.untitledReferenceDoc")}
+        </Dialog.Title>
+        {doc ? (
+          <Box mt="4">
+            <ReferenceDocEditor
+              doc={doc}
+              onSave={onSave}
+              onDone={() => onOpenChange(false)}
+              isSaving={isSaving}
+            />
+          </Box>
+        ) : null}
+      </Dialog.Content>
+    </Dialog.Root>
+  );
+}
+
+interface SkillReferenceDocDeleteDialogProps {
+  doc: SkillReferenceDoc | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+  isSaving: boolean;
+}
+
+function SkillReferenceDocDeleteDialog({
+  open,
+  onOpenChange,
+  onConfirm,
+  isSaving,
+}: SkillReferenceDocDeleteDialogProps) {
+  const { t } = useTranslation();
+
+  return (
+    <Dialog.Root
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <Dialog.Content style={{ maxWidth: 420 }}>
+        <Dialog.Title>{t("settingsExtra.skills.deleteReferenceDoc")}</Dialog.Title>
+        <Dialog.Description
+          size="2"
+          mt="2"
+        >
+          {t("settingsExtra.skills.deleteReferenceDocDescription")}
+        </Dialog.Description>
+        <Flex
+          justify="end"
+          gap="2"
+          mt="4"
+        >
+          <Button
+            variant="soft"
+            color="gray"
+            onClick={() => onOpenChange(false)}
+            disabled={isSaving}
+          >
+            {t("common.cancel")}
+          </Button>
+          <Button
+            color="red"
+            onClick={onConfirm}
+            disabled={isSaving}
+          >
+            {t("common.delete")}
+          </Button>
+        </Flex>
+      </Dialog.Content>
+    </Dialog.Root>
   );
 }

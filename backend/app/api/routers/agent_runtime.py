@@ -108,6 +108,8 @@ TOOL_DISPLAY_ORDER = {
     "create_world_entry": 22,
     "edit_world_entry": 23,
     "delete_world_entry": 24,
+    "activate_skill": 25,
+    "reference_skill": 26,
 }
 
 TOOL_DISPLAY_METADATA = {
@@ -211,6 +213,14 @@ TOOL_DISPLAY_METADATA = {
         "name": "Delete World Entry",
         "description": "删除指定世界书条目。",
     },
+    "activate_skill": {
+        "name": "Activate Skill",
+        "description": "获取指定技能的完整内容与参考文档列表。",
+    },
+    "reference_skill": {
+        "name": "Reference Skill",
+        "description": "读取指定技能的某个参考文档内容。",
+    },
 }
 
 
@@ -247,7 +257,6 @@ def _build_seed_state(
         "error": None,
         "retry_count": 0,
         "user_request": "",
-        "installed_skill_ids": [],
         "current_revision_id": current_revision_id,
         "messages": [],
     }

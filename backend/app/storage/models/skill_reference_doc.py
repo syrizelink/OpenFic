@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Skill 数据模型。"""
+"""SkillReferenceDoc 数据模型 - 技能的参考文档。"""
 
 from datetime import UTC, datetime
 
@@ -8,15 +8,15 @@ from sqlmodel import Field, SQLModel
 from app.core.ids import generate_id
 
 
-class Skill(SQLModel, table=True):
-    """用户可编辑的 Skill。"""
+class SkillReferenceDoc(SQLModel, table=True):
+    """归属于某个 Skill 的参考文档。"""
 
-    __tablename__ = "skills"
+    __tablename__ = "skill_reference_docs"
 
     id: str = Field(default_factory=generate_id, primary_key=True)
-    name: str = Field(default="", max_length=200)
-    summary: str = Field(default="")
+    skill_db_id: str = Field(default="", foreign_key="skills.id", index=True)
+    title: str = Field(default="", max_length=200)
     content: str = Field(default="")
-    is_enabled: bool = Field(default=False, index=True)
+    tokens: int = Field(default=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

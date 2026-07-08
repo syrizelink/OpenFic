@@ -8,6 +8,7 @@ import {
   FileText,
   ListOrdered,
   MessageSquareWarning,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -103,6 +104,10 @@ function getPlanDetailForDisplayKind(
 function getVolumeRefLabel(message: AgentMessage, key: string): string | undefined {
   const ref = getToolRef(message, key);
   return asString(ref?.title) ?? formatVolumeRefLabel(ref);
+}
+
+function getSkillArg(message: AgentMessage, key: string): string | undefined {
+  return asString(getStreamingData(message)[key]) ?? undefined;
 }
 
 const TOOL_REGISTRY = {
@@ -611,6 +616,32 @@ const TOOL_REGISTRY = {
     getDetail: (message) =>
       getPlanDetailForDisplayKind(message, getPlanToolDisplayConfig("list_plan").detailKind),
     render: (message) => <PlanToolMessage message={message} />,
+  },
+  activate_skill: {
+    toolName: "activate_skill",
+    group: "skill",
+    tag: "activate",
+    isExplore: false,
+    contentMode: "hidden",
+    icon: Sparkles,
+    getTitle: () => i18n.t("assistant.tools.activateSkill"),
+    getDetail: (message) =>
+      getSkillArg(message, "skill_name") ?? i18n.t("assistant.tools.skillNotFound"),
+  },
+  reference_skill: {
+    toolName: "reference_skill",
+    group: "skill",
+    tag: "reference",
+    isExplore: false,
+    contentMode: "hidden",
+    icon: BookOpen,
+    getTitle: () => i18n.t("assistant.tools.referenceSkill"),
+    getDetail: (message) => {
+      const skillName = getSkillArg(message, "skill_name");
+      const refName = getSkillArg(message, "reference_name");
+      if (skillName && refName) return `${skillName}/${refName}`;
+      return skillName ?? refName;
+    },
   },
 } satisfies Record<RegisteredToolName, ToolDescriptor>;
 

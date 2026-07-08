@@ -258,6 +258,18 @@ class TestAgentAPI:
                 "description": "删除指定世界书条目。",
                 "is_readonly": False,
             },
+            {
+                "key": "activate_skill",
+                "name": "Activate Skill",
+                "description": "获取指定技能的完整内容与参考文档列表。",
+                "is_readonly": True,
+            },
+            {
+                "key": "reference_skill",
+                "name": "Reference Skill",
+                "description": "读取指定技能的某个参考文档内容。",
+                "is_readonly": True,
+            },
         ]
 
     async def test_create_agent_session_success(self, client: AsyncClient, session) -> None:
@@ -439,8 +451,8 @@ class TestAgentAPI:
                 "display_name": "Primary Agent",
                 "kind": "primary",
                 "prompt_agent_name": "primary",
-                "tool_category_keys": ["orchestration", "interaction", "chapter_read"],
-                "enabled_skill_ids": [],
+                "enabled_tool_categories": ["orchestration", "interaction", "chapter_read"],
+                "enabled_skills": [],
                 "metadata": {},
             },
         )
@@ -475,8 +487,8 @@ class TestAgentAPI:
                 "display_name": "Custom Primary",
                 "kind": "primary",
                 "prompt_agent_name": "primary",
-                "tool_category_keys": ["orchestration", "interaction", "chapter_read"],
-                "enabled_skill_ids": [],
+                "enabled_tool_categories": ["orchestration", "interaction", "chapter_read"],
+                "enabled_skills": [],
                 "metadata": {},
             },
         )

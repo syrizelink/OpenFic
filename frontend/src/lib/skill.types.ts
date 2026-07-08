@@ -1,8 +1,9 @@
+import type { SkillReferenceDoc } from "./skill-reference-doc.types";
+
 export interface Skill {
   id: string;
   name: string;
   summary: string;
-  skillId: string;
   content: string;
   isEnabled: boolean;
   isComplete: boolean;
@@ -13,7 +14,6 @@ export interface Skill {
 export interface SkillCreate {
   name: string;
   summary: string;
-  skillId: string;
   content: string;
   isEnabled?: boolean;
 }
@@ -21,7 +21,6 @@ export interface SkillCreate {
 export interface SkillUpdate {
   name?: string;
   summary?: string;
-  skillId?: string;
   content?: string;
   isEnabled?: boolean;
 }
@@ -36,4 +35,10 @@ export interface SkillListResponse {
 export interface SkillListParams {
   page?: number;
   pageSize?: number;
+}
+
+export interface SkillImportResult {
+  skill: Skill;
+  referenceDocs: SkillReferenceDoc[];
+  isRecognized: boolean;
 }

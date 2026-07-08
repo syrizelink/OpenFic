@@ -22,7 +22,7 @@ _BUILTIN_KEYS = frozenset(
 )
 
 
-def _normalize_enabled_skill_ids(skill_ids: list[str] | None) -> list[str]:
+def _normalize_enabled_skills(skill_ids: list[str] | None) -> list[str]:
     if not skill_ids:
         return []
     normalized: list[str] = []
@@ -66,8 +66,8 @@ async def create_definition(
     kind: str,
     prompt_agent_name: str,
     model_id: str | None,
-    tool_category_keys: list[str],
-    enabled_skill_ids: list[str],
+    enabled_tool_categories: list[str],
+    enabled_skills: list[str],
     metadata: dict[str, Any] | None,
     delegatable_agents: list[str] | None,
 ) -> AgentDefinitionRecord:
@@ -75,7 +75,7 @@ async def create_definition(
     if existing is not None:
         raise ValidationError(f"智能体 {key} 已存在")
 
-    normalized_enabled_skill_ids = _normalize_enabled_skill_ids(enabled_skill_ids)
+    normalized_enabled_skills = _normalize_enabled_skills(enabled_skills)
 
     record = AgentDefinitionRecord(
         key=key,
@@ -84,8 +84,8 @@ async def create_definition(
         kind=kind,
         prompt_agent_name=prompt_agent_name,
         model_id=model_id,
-        tool_category_keys_json=tool_category_keys,
-        enabled_skill_ids_json=normalized_enabled_skill_ids,
+        enabled_tool_categories=enabled_tool_categories,
+        enabled_skills=normalized_enabled_skills,
         metadata_json=metadata or {},
         enabled=True,
         source="custom",
@@ -105,8 +105,8 @@ def _build_record(
         kind=default.kind,
         prompt_agent_name=default.prompt_agent_name,
         model_id=default.model_id,
-        tool_category_keys_json=list(default.tool_category_keys),
-        enabled_skill_ids_json=list(default.enabled_skill_ids),
+        enabled_tool_categories=list(default.enabled_tool_categories),
+        enabled_skills=list(default.enabled_skills),
         metadata_json=dict(default.metadata),
         enabled=default.enabled,
         source="builtin",
@@ -122,8 +122,8 @@ async def update_definition(
     kind: str | None = None,
     prompt_agent_name: str | None = None,
     model_id: str | None = None,
-    tool_category_keys: list[str] | None = None,
-    enabled_skill_ids: list[str] | None = None,
+    enabled_tool_categories: list[str] | None = None,
+    enabled_skills: list[str] | None = None,
     metadata: dict[str, Any] | None = None,
     enabled: bool | None = None,
     delegatable_agents: list[str] | None = None,
@@ -146,10 +146,10 @@ async def update_definition(
         record.prompt_agent_name = prompt_agent_name
     if model_id is not None:
         record.model_id = model_id
-    if tool_category_keys is not None:
-        record.tool_category_keys_json = tool_category_keys
-    if enabled_skill_ids is not None:
-        record.enabled_skill_ids_json = _normalize_enabled_skill_ids(enabled_skill_ids)
+    if enabled_tool_categories is not None:
+        record.enabled_tool_categories = enabled_tool_categories
+    if enabled_skills is not None:
+        record.enabled_skills = _normalize_enabled_skills(enabled_skills)
     if metadata is not None:
         record.metadata_json = metadata
     if enabled is not None:

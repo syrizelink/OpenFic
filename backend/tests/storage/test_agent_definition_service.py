@@ -52,8 +52,8 @@ async def test_create_custom_definition():
                 kind="subagent",
                 prompt_agent_name="custom-bot",
                 model_id=None,
-                tool_category_keys=["chapter_read"],
-                enabled_skill_ids=["skill-a", "skill-b"],
+                enabled_tool_categories=["chapter_read"],
+                enabled_skills=["skill-a", "skill-b"],
                 metadata={},
                 delegatable_agents=[],
             )
@@ -62,7 +62,7 @@ async def test_create_custom_definition():
             assert record.key == "custom-bot"
             assert record.source == "custom"
             assert record.description == "Custom description"
-            assert record.enabled_skill_ids_json == ["skill-a", "skill-b"]
+            assert record.enabled_skills == ["skill-a", "skill-b"]
             assert record.delegatable_agents == []
     finally:
         await engine.dispose()
@@ -87,8 +87,8 @@ async def test_create_duplicate_raises_validation_error():
                 kind="subagent",
                 prompt_agent_name="dup",
                 model_id=None,
-                tool_category_keys=[],
-                enabled_skill_ids=[],
+                enabled_tool_categories=[],
+                enabled_skills=[],
                 metadata={},
                 delegatable_agents=[],
             )
@@ -103,8 +103,8 @@ async def test_create_duplicate_raises_validation_error():
                     kind="subagent",
                     prompt_agent_name="dup2",
                     model_id=None,
-                    tool_category_keys=[],
-                    enabled_skill_ids=[],
+                    enabled_tool_categories=[],
+                    enabled_skills=[],
                     metadata={},
                     delegatable_agents=[],
                 )
@@ -131,8 +131,8 @@ async def test_update_custom_definition():
                 kind="subagent",
                 prompt_agent_name="edit-me",
                 model_id=None,
-                tool_category_keys=[],
-                enabled_skill_ids=[],
+                enabled_tool_categories=[],
+                enabled_skills=[],
                 metadata={},
                 delegatable_agents=[],
             )
@@ -143,14 +143,14 @@ async def test_update_custom_definition():
                 key="edit-me",
                 display_name="Edited",
                 description="After update",
-                enabled_skill_ids=["skill-c"],
+                enabled_skills=["skill-c"],
                 delegatable_agents=["explorer", "writer"],
             )
             await session.commit()
 
             assert record.display_name == "Edited"
             assert record.description == "After update"
-            assert record.enabled_skill_ids_json == ["skill-c"]
+            assert record.enabled_skills == ["skill-c"]
             assert record.delegatable_agents == ["explorer", "writer"]
     finally:
         await engine.dispose()
@@ -239,8 +239,8 @@ async def test_reset_custom_raises_validation_error():
                 kind="subagent",
                 prompt_agent_name="custom-only",
                 model_id=None,
-                tool_category_keys=[],
-                enabled_skill_ids=[],
+                enabled_tool_categories=[],
+                enabled_skills=[],
                 metadata={},
                 delegatable_agents=[],
             )
@@ -272,8 +272,8 @@ async def test_delete_custom_definition():
                 kind="subagent",
                 prompt_agent_name="del-me",
                 model_id=None,
-                tool_category_keys=[],
-                enabled_skill_ids=[],
+                enabled_tool_categories=[],
+                enabled_skills=[],
                 metadata={},
                 delegatable_agents=[],
             )
@@ -325,8 +325,8 @@ async def test_delete_removes_delegatable_reference_from_primaries():
                     description="",
                     kind="primary",
                     prompt_agent_name="primary",
-                    tool_category_keys_json=[],
-                    enabled_skill_ids_json=[],
+                    enabled_tool_categories=[],
+                    enabled_skills=[],
                     source="builtin",
                     delegatable_agents=["explorer", "target-bot"],
                 )
@@ -339,8 +339,8 @@ async def test_delete_removes_delegatable_reference_from_primaries():
                 kind="subagent",
                 prompt_agent_name="target-bot",
                 model_id=None,
-                tool_category_keys=[],
-                enabled_skill_ids=[],
+                enabled_tool_categories=[],
+                enabled_skills=[],
                 metadata={},
                 delegatable_agents=[],
             )

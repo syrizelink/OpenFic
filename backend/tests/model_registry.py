@@ -39,6 +39,7 @@ def register_sqlmodel_models() -> None:
     from app.storage.models.revision_world_entry_snapshot import RevisionWorldEntrySnapshot
     from app.storage.models.setting import Setting
     from app.storage.models.skill import Skill
+    from app.storage.models.skill_reference_doc import SkillReferenceDoc
     from app.storage.models.task import Task
     from app.storage.models.task_message import TaskMessage
     from app.storage.models.volume import Volume
@@ -74,6 +75,7 @@ def register_sqlmodel_models() -> None:
         RevisionWorldEntrySnapshot,
         Setting,
         Skill,
+        SkillReferenceDoc,
         Task,
         TaskMessage,
         Volume,

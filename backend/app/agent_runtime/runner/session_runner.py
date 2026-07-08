@@ -572,7 +572,6 @@ class SessionRunner:
                 "error": None,
                 "retry_count": 0,
                 "user_request": "",
-                "installed_skill_ids": [],
                 "current_revision_id": None,
             })
             agent_name = state.get("active_agent") or state.get("agent_key") or "primary"
@@ -676,7 +675,6 @@ class SessionRunner:
                 "error": None,
                 "retry_count": 0,
                 "user_request": state_user_request,
-                "installed_skill_ids": [],
                 "current_revision_id": revision.id,
                 "messages": history_messages,
             }

@@ -135,11 +135,11 @@ function AgentForm({
   const [formDisplayName, setFormDisplayName] = useState(def.display_name);
   const [formDescription, setFormDescription] = useState(def.description);
   const [formModelId, setFormModelId] = useState(getEffectiveModelSelection(def.model_id));
-  const [formToolCategoryKeys, setFormToolCategoryKeys] = useState<string[]>([
-    ...def.tool_category_keys,
+  const [formEnabledToolCategories, setFormEnabledToolCategories] = useState<string[]>([
+    ...def.enabled_tool_categories,
   ]);
-  const [formEnabledSkillIds, setFormEnabledSkillIds] = useState<string[]>([
-    ...def.enabled_skill_ids,
+  const [formEnabledSkills, setFormEnabledSkills] = useState<string[]>([
+    ...def.enabled_skills,
   ]);
   const [formDelegatableAgents, setFormDelegatableAgents] = useState<string[]>([
     ...def.delegatable_agents,
@@ -167,8 +167,8 @@ function AgentForm({
       formDisplayName !== def.display_name ||
       formDescription !== def.description ||
       formModelId !== getEffectiveModelSelection(def.model_id) ||
-      JSON.stringify(formToolCategoryKeys) !== JSON.stringify(def.tool_category_keys) ||
-      JSON.stringify(formEnabledSkillIds) !== JSON.stringify(def.enabled_skill_ids) ||
+      JSON.stringify(formEnabledToolCategories) !== JSON.stringify(def.enabled_tool_categories) ||
+      JSON.stringify(formEnabledSkills) !== JSON.stringify(def.enabled_skills) ||
       JSON.stringify(formDelegatableAgents) !== JSON.stringify(def.delegatable_agents)
     );
   }, [
@@ -176,8 +176,8 @@ function AgentForm({
     formDescription,
     formDisplayName,
     formModelId,
-    formToolCategoryKeys,
-    formEnabledSkillIds,
+    formEnabledToolCategories,
+    formEnabledSkills,
     formDelegatableAgents,
   ]);
 
@@ -189,8 +189,8 @@ function AgentForm({
         display_name: formDisplayName,
         description: formDescription,
         model_id: formModelId,
-        tool_category_keys: formToolCategoryKeys,
-        enabled_skill_ids: formEnabledSkillIds,
+        enabled_tool_categories: formEnabledToolCategories,
+        enabled_skills: formEnabledSkills,
         delegatable_agents: formDelegatableAgents,
       });
     },
@@ -228,18 +228,18 @@ function AgentForm({
   }, []);
 
   const handleToggleToolCategory = useCallback((key: string) => {
-    setFormToolCategoryKeys((prev) =>
+    setFormEnabledToolCategories((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
     );
   }, []);
 
   const handleToggleEnabledSkill = useCallback((skillId: string) => {
-    setFormEnabledSkillIds((prev) =>
+    setFormEnabledSkills((prev) =>
       prev.includes(skillId) ? prev.filter((id) => id !== skillId) : [...prev, skillId],
     );
   }, []);
 
-  const selectableSkills = useMemo(() => skills.filter((skill) => skill.skillId.trim()), [skills]);
+  const selectableSkills = useMemo(() => skills.filter((skill) => skill.name.trim()), [skills]);
 
   return (
     <Flex
@@ -345,7 +345,7 @@ function AgentForm({
                 }}
               >
                 <Checkbox
-                  checked={formToolCategoryKeys.includes(opt.key)}
+                  checked={formEnabledToolCategories.includes(opt.key)}
                   onCheckedChange={() => handleToggleToolCategory(opt.key)}
                   style={{ margin: 0 }}
                 />
@@ -395,15 +395,15 @@ function AgentForm({
                     opacity: disabled ? 0.6 : 1,
                     fontSize: 13,
                   }}
-                  title={disabled ? t("settings.agentsSkillUnavailable") : skill.skillId}
+                  title={disabled ? t("settings.agentsSkillUnavailable") : skill.name}
                 >
                   <Checkbox
-                    checked={formEnabledSkillIds.includes(skill.skillId)}
+                    checked={formEnabledSkills.includes(skill.id)}
                     disabled={disabled}
-                    onCheckedChange={() => handleToggleEnabledSkill(skill.skillId)}
+                    onCheckedChange={() => handleToggleEnabledSkill(skill.id)}
                     style={{ margin: 0 }}
                   />
-                  {skill.name || skill.skillId}
+                  {skill.name || t("settingsExtra.skills.untitled")}
                 </label>
               );
             })}
@@ -745,8 +745,8 @@ export function AgentDefinitionsSettings({
         kind: newKind,
         prompt_agent_name: newKey.trim(),
         model_id: sourceDefinition?.model_id ?? SYSTEM_DEFAULT_MODEL_REFERENCE,
-        tool_category_keys: sourceDefinition?.tool_category_keys ?? [],
-        enabled_skill_ids: sourceDefinition?.enabled_skill_ids ?? [],
+        enabled_tool_categories: sourceDefinition?.enabled_tool_categories ?? [],
+        enabled_skills: sourceDefinition?.enabled_skills ?? [],
         metadata: sourceDefinition?.metadata ?? {},
         delegatable_agents: sourceDefinition?.delegatable_agents ?? [],
       };

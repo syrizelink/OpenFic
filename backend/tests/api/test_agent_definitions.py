@@ -19,7 +19,7 @@ async def test_list_agent_definitions(client: AsyncClient):
     assert "writer" in keys
     primary = next(d for d in data["definitions"] if d["kind"] == "primary")
     assert "description" in primary
-    assert primary["enabled_skill_ids"] == []
+    assert primary["enabled_skills"] == []
 
 
 @pytest.mark.asyncio
@@ -88,8 +88,8 @@ async def test_create_custom_agent_definition(
         "kind": "subagent",
         "prompt_agent_name": "custom-bot",
         "model_id": None,
-        "tool_category_keys": ["chapter_read"],
-        "enabled_skill_ids": ["skill-a", "skill-b"],
+        "enabled_tool_categories": ["chapter_read"],
+        "enabled_skills": ["skill-a", "skill-b"],
         "metadata": {},
         "delegatable_agents": ["explorer"],
     }
@@ -99,7 +99,7 @@ async def test_create_custom_agent_definition(
     assert data["key"] == "custom-bot"
     assert data["source"] == "custom"
     assert data["description"] == "Custom description"
-    assert data["enabled_skill_ids"] == ["skill-a", "skill-b"]
+    assert data["enabled_skills"] == ["skill-a", "skill-b"]
     assert data["delegatable_agents"] == ["explorer"]
 
     assert not (isolated_prompts_dir / "assistant" / "agent" / "custom-bot.yaml").exists()
@@ -135,8 +135,8 @@ async def test_create_duplicate_agent_definition(client: AsyncClient):
         "display_name": "Duplicate Bot",
         "kind": "subagent",
         "prompt_agent_name": "dup-bot",
-        "tool_category_keys": [],
-        "enabled_skill_ids": [],
+        "enabled_tool_categories": [],
+        "enabled_skills": [],
     }
     response = await client.post("/api/v1/agent-definitions", json=body)
     assert response.status_code == status.HTTP_201_CREATED
@@ -153,15 +153,15 @@ async def test_update_custom_agent_definition(client: AsyncClient):
         "description": "Before update",
         "kind": "subagent",
         "prompt_agent_name": "edit-me",
-        "tool_category_keys": ["chapter_read"],
-        "enabled_skill_ids": [],
+        "enabled_tool_categories": ["chapter_read"],
+        "enabled_skills": [],
     }
     await client.post("/api/v1/agent-definitions", json=create_body)
 
     update_body = {
         "display_name": "Edited Bot",
         "description": "After update",
-        "enabled_skill_ids": ["skill-z"],
+        "enabled_skills": ["skill-z"],
         "delegatable_agents": ["explorer", "writer"],
     }
     response = await client.put("/api/v1/agent-definitions/edit-me", json=update_body)
@@ -169,7 +169,7 @@ async def test_update_custom_agent_definition(client: AsyncClient):
     data = response.json()
     assert data["display_name"] == "Edited Bot"
     assert data["description"] == "After update"
-    assert data["enabled_skill_ids"] == ["skill-z"]
+    assert data["enabled_skills"] == ["skill-z"]
     assert data["delegatable_agents"] == ["explorer", "writer"]
 
 
@@ -204,8 +204,8 @@ async def test_reset_custom_agent_definition_rejected(client: AsyncClient):
         "display_name": "Custom Only",
         "kind": "subagent",
         "prompt_agent_name": "custom-only",
-        "tool_category_keys": ["chapter_read"],
-        "enabled_skill_ids": [],
+        "enabled_tool_categories": ["chapter_read"],
+        "enabled_skills": [],
     }
     await client.post("/api/v1/agent-definitions", json=create_body)
 
@@ -220,8 +220,8 @@ async def test_delete_custom_agent_definition(client: AsyncClient):
         "display_name": "Delete Me",
         "kind": "subagent",
         "prompt_agent_name": "del-me",
-        "tool_category_keys": ["chapter_read"],
-        "enabled_skill_ids": [],
+        "enabled_tool_categories": ["chapter_read"],
+        "enabled_skills": [],
     }
     await client.post("/api/v1/agent-definitions", json=create_body)
 

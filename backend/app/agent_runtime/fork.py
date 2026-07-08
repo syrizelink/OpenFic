@@ -71,7 +71,6 @@ def _build_fork_state(
         "error": None,
         "retry_count": 0,
         "user_request": "",
-        "installed_skill_ids": [],
         "current_revision_id": None,
     }
     return state

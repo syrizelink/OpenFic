@@ -3,23 +3,16 @@
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-import re
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import NotFoundError
+from app.core.errors import ConflictError, NotFoundError
 from app.storage.models.skill import Skill
-from app.storage.repos import skill_repo
-
-SKILL_ID_PATTERN = re.compile(r"^[a-z]+(?:-[a-z]+)*$")
+from app.storage.repos import skill_reference_doc_repo, skill_repo
 
 
 class SkillValidationError(Exception):
     """Skill 数据校验失败。"""
-
-
-class SkillIdConflictError(Exception):
-    """Skill ID 冲突。"""
 
 
 @dataclass
@@ -30,26 +23,19 @@ class SkillListResult:
     page_size: int
 
 
-def normalize_skill_id(skill_id: str) -> str:
-    return skill_id.strip()
-
-
 def is_skill_complete(skill: Skill) -> bool:
-    return bool(
-        skill.name.strip()
-        and skill.summary.strip()
-        and skill.skill_id.strip()
-        and skill.content.strip()
-        and SKILL_ID_PATTERN.fullmatch(skill.skill_id.strip())
-    )
+    return bool(skill.name.strip() and skill.summary.strip() and skill.content.strip())
 
 
-def validate_skill_id(skill_id: str) -> None:
-    normalized = normalize_skill_id(skill_id)
-    if not normalized:
-        return
-    if not SKILL_ID_PATTERN.fullmatch(normalized):
-        raise SkillValidationError("Skill ID 只允许英文小写字母和 '-'。")
+async def _ensure_unique_name(session: AsyncSession, name: str) -> str:
+    existing_names = {n for n in await skill_repo.get_all_names(session)}
+    if name not in existing_names:
+        return name
+    base = name
+    n = 2
+    while f"{base} ({n})" in existing_names:
+        n += 1
+    return f"{base} ({n})"
 
 
 async def create_skill(
@@ -57,22 +43,13 @@ async def create_skill(
     *,
     name: str = "",
     summary: str = "",
-    skill_id: str = "",
     content: str = "",
     is_enabled: bool = False,
 ) -> Skill:
-    validate_skill_id(skill_id)
-
-    normalized_id = normalize_skill_id(skill_id)
-    if normalized_id:
-        existing = await skill_repo.get_by_skill_id(session, normalized_id)
-        if existing is not None:
-            raise SkillIdConflictError(f"Skill ID 已存在: {skill_id}")
-
+    unique_name = await _ensure_unique_name(session, name)
     skill = Skill(
-        name=name,
+        name=unique_name,
         summary=summary,
-        skill_id=normalized_id,
         content=content,
         is_enabled=is_enabled,
     )
@@ -97,31 +74,19 @@ async def list_skills(
     return SkillListResult(items=items, total=total, page=page, page_size=page_size)
 
 
-async def list_enabled_skills_by_skill_ids(
+async def list_enabled_skills_by_ids(
     session: AsyncSession,
-    skill_ids: list[str],
+    ids: list[str],
 ) -> list[Skill]:
-    if not skill_ids:
+    if not ids:
         return []
-    skills = await skill_repo.list_by_skill_ids(session, skill_ids)
+    skills = await skill_repo.list_by_ids(session, ids)
     skill_by_id = {
-        skill.skill_id: skill
+        skill.id: skill
         for skill in skills
-        if isinstance(skill.skill_id, str) and skill.skill_id and skill.is_enabled and is_skill_complete(skill)
+        if isinstance(skill.id, str) and skill.id and skill.is_enabled and is_skill_complete(skill)
     }
-    return [skill_by_id[skill_id] for skill_id in skill_ids if skill_id in skill_by_id]
-
-
-async def list_skills_by_skill_ids(session: AsyncSession, skill_ids: list[str]) -> list[Skill]:
-    if not skill_ids:
-        return []
-    skills = await skill_repo.list_by_skill_ids(session, skill_ids)
-    skill_by_id = {
-        skill.skill_id: skill
-        for skill in skills
-        if isinstance(skill.skill_id, str) and skill.skill_id
-    }
-    return [skill_by_id[skill_id] for skill_id in skill_ids if skill_id in skill_by_id]
+    return [skill_by_id[skill_id] for skill_id in ids if skill_id in skill_by_id]
 
 
 async def update_skill(
@@ -130,24 +95,18 @@ async def update_skill(
     *,
     name: str | None = None,
     summary: str | None = None,
-    skill_id: str | None = None,
     content: str | None = None,
     is_enabled: bool | None = None,
 ) -> Skill:
     skill = await get_skill(session, skill_db_id)
 
-    if name is not None:
+    if name is not None and name != skill.name:
+        matches = await skill_repo.list_by_names(session, [name])
+        if any(other.id != skill.id for other in matches):
+            raise ConflictError(f"技能名称已存在: {name}")
         skill.name = name
     if summary is not None:
         skill.summary = summary
-    if skill_id is not None:
-        normalized = normalize_skill_id(skill_id)
-        validate_skill_id(normalized)
-        if normalized:
-            existing = await skill_repo.get_by_skill_id(session, normalized)
-            if existing is not None and existing.id != skill.id:
-                raise SkillIdConflictError(f"Skill ID 已存在: {skill_id}")
-        skill.skill_id = normalized
     if content is not None:
         skill.content = content
     if is_enabled is not None:
@@ -172,4 +131,5 @@ async def toggle_skill(session: AsyncSession, skill_db_id: str) -> Skill:
 
 async def delete_skill(session: AsyncSession, skill_db_id: str) -> None:
     skill = await get_skill(session, skill_db_id)
+    await skill_reference_doc_repo.delete_by_skill(session, skill_db_id)
     await skill_repo.delete(session, skill)

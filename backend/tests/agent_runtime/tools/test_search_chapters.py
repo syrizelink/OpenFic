@@ -239,7 +239,7 @@ def test_search_chapters_expands_from_chapter_read_for_default_agents() -> None:
     ):
         definition = get_default_agent_definition(agent_key)
         assert "search_chapters" in get_tool_names_for_categories(
-            definition.tool_category_keys
+            definition.enabled_tool_categories
         )
 
 
