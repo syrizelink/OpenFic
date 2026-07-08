@@ -7,7 +7,7 @@ from typing import Any, cast
 
 from sqlalchemy import delete as sql_delete
 from sqlalchemy.engine import CursorResult
-from sqlalchemy import func, select, update as sql_update
+from sqlalchemy import func, or_, select, update as sql_update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -88,6 +88,29 @@ async def list_enabled_by_world_info(
             col(WorldInfoEntry.is_enabled) == True,  # noqa: E712
         )
         .order_by(col(WorldInfoEntry.order))
+    )
+    return list(result.scalars().all())
+
+
+async def search_by_world_info(
+    session: AsyncSession,
+    world_info_id: str,
+    query: str,
+    *,
+    limit: int = 20,
+) -> list[WorldInfoEntry]:
+    pattern = f"%{query}%"
+    result = await session.execute(
+        select(WorldInfoEntry)
+        .where(col(WorldInfoEntry.world_info_id) == world_info_id)
+        .where(
+            or_(
+                col(WorldInfoEntry.name).ilike(pattern),
+                col(WorldInfoEntry.content).ilike(pattern),
+            )
+        )
+        .order_by(col(WorldInfoEntry.order))
+        .limit(limit)
     )
     return list(result.scalars().all())
 

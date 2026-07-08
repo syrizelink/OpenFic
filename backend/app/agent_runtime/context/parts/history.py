@@ -4,6 +4,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent_runtime.context.helpers import compile_canonical_mentions
 from app.agent_runtime.context.types import ContextMessage
 
 
@@ -113,6 +114,8 @@ async def build_history(
         content = raw.get("content", "")
         if role == "tool":
             content = _compact_tool_result_content(content, tool_name=name)
+        elif role == "user" and db_session is not None and isinstance(content, str) and "<of-mention" in content:
+            content = await compile_canonical_mentions(content, db_session)
         result.append(ContextMessage(
             role=role,
             content=content,

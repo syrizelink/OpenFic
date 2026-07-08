@@ -9,10 +9,12 @@ import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import type { AssistantMentionCandidate } from "@/features/assistant/lib/mention-text";
 import {
+  buildCharacterMentionTag,
   buildChapterMentionTag,
   buildNoteCategoryMentionTag,
   buildNoteMentionTag,
   buildVolumeMentionTag,
+  buildWorldInfoEntryMentionTag,
   findActiveMentionQuery,
   mentionTextToHtml,
   parseMentionText,
@@ -89,11 +91,21 @@ function createMentionNodeAttrs(
           volumeId: candidate.id,
           label: candidate.label,
         })
+      : candidate.kind === "character"
+        ? buildCharacterMentionTag({
+            characterId: candidate.id,
+            label: candidate.label,
+          })
       : candidate.kind === "note"
         ? buildNoteMentionTag({
             noteId: candidate.id,
             label: candidate.label,
           })
+        : candidate.kind === "world_info_entry"
+          ? buildWorldInfoEntryMentionTag({
+              worldInfoEntryId: candidate.id,
+              label: candidate.label,
+            })
         : candidate.kind === "note_category"
           ? buildNoteCategoryMentionTag({
               categoryId: candidate.id,
@@ -113,8 +125,10 @@ function createMentionNodeAttrs(
     chapterId: candidate.kind === "chapter" ? candidate.id : "",
     noteId: candidate.kind === "note" ? candidate.id : "",
     noteCategoryId: candidate.kind === "note_category" ? candidate.id : "",
-    startLine: "",
-    endLine: "",
+    worldInfoEntryId: candidate.kind === "world_info_entry" ? candidate.id : "",
+    characterId: candidate.kind === "character" ? candidate.id : "",
+    lineStart: "",
+    lineEnd: "",
   };
 }
 

@@ -305,8 +305,8 @@ async def test_continue_with_user_message_resumes_checkpoint_with_command_update
         persist_node_event=AsyncMock(),
         apply_interrupt_preview=AsyncMock(),
     )
-    raw_message = '<of-mention kind="chapter" chapter_id="chap_1" label="旧章节" />'
-    compiled_message = "> 引用章节：修订章节"
+    raw_message = '<of-mention chapter_id="chap_1" label="旧章节" />'
+    compiled_message = " @chapter:修订卷/修订章节 "
 
     with patch(
         "app.agent_runtime.runner.session_runner.compile_canonical_mentions",
@@ -348,7 +348,7 @@ async def test_continue_with_user_message_resumes_checkpoint_with_command_update
     assert captured["config"]["configurable"]["runtime_context"] == {}
     assert "context_anchor_order" not in begin_revision.await_args.kwargs
     queued = runner._inject_queue.get_nowait()
-    assert queued == ("msg_2", "user", compiled_message)
+    assert queued == ("msg_2", "user", raw_message)
 
 
 @pytest.mark.asyncio
@@ -384,8 +384,8 @@ async def test_run_compiles_user_request_for_model_and_persistence():
         persist_node_event=AsyncMock(),
     )
     persisted_message = SimpleNamespace(id="msg_mentions_001", seq=0, created_at=datetime.now(UTC))
-    raw_message = '<of-mention kind="chapter" chapter_id="chap_1" label="旧章节" />'
-    compiled_message = "> 引用章节：修订章节"
+    raw_message = '<of-mention chapter_id="chap_1" label="旧章节" />'
+    compiled_message = " @chapter:修订卷/修订章节 "
 
     with patch(
         "app.agent_runtime.runner.session_runner.compile_canonical_mentions",
@@ -400,7 +400,7 @@ async def test_run_compiles_user_request_for_model_and_persistence():
          ),          patch.object(runner, "_make_persister", MagicMock(return_value=fake_persister)):
         await runner.run(user_request=raw_message)
 
-    persist_user_message.assert_awaited_once_with(compiled_message)
+    persist_user_message.assert_awaited_once_with(raw_message)
     assert captured["state"]["user_request"] == compiled_message
 
 
@@ -419,14 +419,9 @@ async def test_cancel_and_continue_queues_compiled_user_message():
         project_id="proj_001",
     )
     fake_session = MagicMock(close=AsyncMock())
-    raw_message = '<of-mention kind="chapter" chapter_id="chap_1" label="旧章节" />'
-    compiled_message = "> 引用章节：修订章节"
+    raw_message = '<of-mention chapter_id="chap_1" label="旧章节" />'
 
     with patch(
-        "app.agent_runtime.runner.session_runner.compile_canonical_mentions",
-        AsyncMock(return_value=compiled_message),
-        create=True,
-    ), patch(
         "app.agent_runtime.runner.session_runner.create_session",
         AsyncMock(return_value=fake_session),
     ):
@@ -441,7 +436,7 @@ async def test_cancel_and_continue_queues_compiled_user_message():
     assert runner._inject_queue.get_nowait() == (
         "msg_cancel_001",
         "user",
-        compiled_message,
+        raw_message,
     )
 
 

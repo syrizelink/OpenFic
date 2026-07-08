@@ -25,6 +25,7 @@ from langgraph.types import RetryPolicy
 
 from app.agent_runtime.types import ReactAgentConfig
 from app.agent_runtime.context import build_context, build_context_parts
+from app.agent_runtime.context.helpers import compile_canonical_mentions
 from app.agent_runtime.context.compaction.config import AUTO_TRIGGER_RATIO
 from app.agent_runtime.context.compaction.service import CompactionError, compact_window
 from app.agent_runtime.context.compaction.tokens import count_context_tokens
@@ -579,15 +580,22 @@ def create_react_agent(
                             consumed = await consumed
                         should_inject = consumed is not False
                     if should_inject:
+                        compiled_content = content
+                        if (
+                            db_session is not None
+                            and isinstance(content, str)
+                            and "<of-mention" in content
+                        ):
+                            compiled_content = await compile_canonical_mentions(content, db_session)
                         drained_injected_user_message = True
                         transient_parts.append(
                             ContextMessage(
                                 role="user",
-                                content=content,
+                                content=compiled_content,
                                 metadata={"part": "runtime"},
                             )
                         )
-                        transient_messages.append(HumanMessage(content=content))
+                        transient_messages.append(HumanMessage(content=compiled_content))
 
         if (
             termination.mode == "tool_success"

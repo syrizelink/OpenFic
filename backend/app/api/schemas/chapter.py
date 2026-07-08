@@ -102,7 +102,14 @@ class VolumeTreeResponse(BaseModel):
 class MentionCandidateItem(BaseModel):
     """对话 mention 候选项。"""
 
-    kind: Literal["volume", "chapter", "note", "note_category"] = Field(description="候选类型")
+    kind: Literal[
+        "volume",
+        "chapter",
+        "note",
+        "note_category",
+        "world_info_entry",
+        "character",
+    ] = Field(description="候选类型")
     id: str = Field(description="卷或章节 ID")
     title: str = Field(description="候选标题")
     label: str = Field(description="插入 mention 时使用的标签")

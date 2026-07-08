@@ -21,8 +21,10 @@ export function MentionNodeView({ node, selected, extension }: NodeViewProps) {
       chapter_id: String(node.attrs.chapterId ?? ""),
       note_id: String(node.attrs.noteId ?? ""),
       note_category_id: String(node.attrs.noteCategoryId ?? ""),
-      start_line: String(node.attrs.startLine ?? ""),
-      end_line: String(node.attrs.endLine ?? ""),
+      world_info_entry_id: String(node.attrs.worldInfoEntryId ?? ""),
+      character_id: String(node.attrs.characterId ?? ""),
+      line_start: String(node.attrs.lineStart ?? ""),
+      line_end: String(node.attrs.lineEnd ?? ""),
     },
     body: String(node.attrs.mentionBody ?? ""),
   };

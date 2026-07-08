@@ -10,17 +10,27 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFoundError
 from app.storage.repos import (
+    character_repo,
     chapter_repo,
     note_category_repo,
     note_repo,
     project_repo,
     volume_repo,
+    world_info_entry_repo,
+    world_info_repo,
 )
 
 
 @dataclass(frozen=True)
 class MentionCandidate:
-    kind: Literal["volume", "chapter", "note", "note_category"]
+    kind: Literal[
+        "volume",
+        "chapter",
+        "note",
+        "note_category",
+        "world_info_entry",
+        "character",
+    ]
     id: str
     title: str
     label: str
@@ -50,7 +60,15 @@ async def search_all_mention_candidates(
     query: str,
     *,
     limit: int = 20,
-    kind: Literal["volume", "chapter", "note", "note_category"] | None = None,
+    kind: Literal[
+        "volume",
+        "chapter",
+        "note",
+        "note_category",
+        "world_info_entry",
+        "character",
+    ]
+    | None = None,
 ) -> list[MentionCandidate]:
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
@@ -150,10 +168,64 @@ async def search_all_mention_candidates(
                 )
             )
 
+    if kind is None or kind == "world_info_entry":
+        world_info = await world_info_repo.get_by_project_id(session, project_id)
+        if world_info is not None:
+            matched_entries = await world_info_entry_repo.search_by_world_info(
+                session,
+                world_info.id,
+                normalized_query,
+                limit=clamped_limit,
+            )
+            base_index = len(scored_candidates)
+            for offset, entry in enumerate(matched_entries):
+                entry_title = _display_title(entry.name)
+                scored_candidates.append(
+                    (
+                        _match_rank(entry_title, normalized_query),
+                        base_index + offset,
+                        MentionCandidate(
+                            kind="world_info_entry",
+                            id=entry.id,
+                            title=entry_title,
+                            label=entry_title,
+                        ),
+                    )
+                )
+
+    if kind is None or kind == "character":
+        matched_characters = await character_repo.search_by_project(
+            session,
+            project_id,
+            normalized_query,
+        )
+        base_index = len(scored_candidates)
+        for offset, character in enumerate(matched_characters[:clamped_limit]):
+            character_name = _display_title(character.name)
+            scored_candidates.append(
+                (
+                    _match_rank(character_name, normalized_query),
+                    base_index + offset,
+                    MentionCandidate(
+                        kind="character",
+                        id=character.id,
+                        title=character_name,
+                        label=character_name,
+                    ),
+                )
+            )
+
     scored_candidates.sort(
         key=lambda item: (
             item[0],
-            {"volume": 0, "chapter": 1, "note": 2, "note_category": 3}.get(
+            {
+                "volume": 0,
+                "chapter": 1,
+                "note": 2,
+                "note_category": 3,
+                "world_info_entry": 4,
+                "character": 5,
+            }.get(
                 item[2].kind, 4
             ),
             item[1],

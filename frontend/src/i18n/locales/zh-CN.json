@@ -1329,7 +1329,9 @@
       "volume": "卷",
       "note": "笔记",
       "noteCategory": "笔记分类",
-      "chapter": "章节"
+      "chapter": "章节",
+      "worldInfoEntry": "世界书条目",
+      "character": "角色"
     },
     "mentionSearch": {
       "idle": "输入内容以检索",

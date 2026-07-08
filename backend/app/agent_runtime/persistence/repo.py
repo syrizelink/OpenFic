@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 from typing import cast
 
 from sqlalchemy import delete, func, select
-from app.agent_runtime.context.helpers import compile_canonical_mentions
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
@@ -96,9 +95,6 @@ async def insert_message(
             raise PersistenceWriteError(
                 f"insert_message failed to allocate seq for session {session_id}"
             ) from e
-        normalized_content = content
-        if role == "user" and isinstance(content, str) and "<of-mention" in content:
-            normalized_content = await compile_canonical_mentions(content, session)
         now = created_at or datetime.now(UTC)
         row = AgentRunMessage(
             id=message_id or generate_id(),
@@ -107,7 +103,7 @@ async def insert_message(
             project_id=project_id,
             role=role,
             agent_id=agent_id,
-            content=normalized_content,
+            content=content,
             reasoning=reasoning,
             reasoning_duration_ms=reasoning_duration_ms,
             tool_calls=json.dumps(tool_calls) if tool_calls is not None else None,

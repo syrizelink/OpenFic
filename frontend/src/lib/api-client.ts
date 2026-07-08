@@ -649,7 +649,13 @@ function transformVolumeTree(raw: Record<string, unknown>): VolumeTreeResponse {
 
 function transformMentionCandidate(raw: Record<string, unknown>): AssistantMentionCandidate {
   return {
-    kind: raw.kind as "volume" | "chapter" | "note",
+    kind: raw.kind as
+      | "volume"
+      | "chapter"
+      | "note"
+      | "note_category"
+      | "world_info_entry"
+      | "character",
     id: raw.id as string,
     title: raw.title as string,
     label: raw.label as string,
@@ -669,7 +675,7 @@ export async function searchMentionCandidates(
   projectId: string,
   query: string,
   limit = 20,
-  kind?: "volume" | "chapter" | "note",
+  kind?: "volume" | "chapter" | "note" | "note_category" | "world_info_entry" | "character",
   signal?: AbortSignal,
 ): Promise<AssistantMentionCandidate[]> {
   const response = await apiClient.get<Record<string, unknown>>(`/projects/${projectId}/mentions`, {

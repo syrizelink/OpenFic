@@ -1,4 +1,4 @@
-import { BookOpen, FileText, Folder, StickyNote } from "lucide-react";
+import { BookOpen, FileText, Folder, ScrollText, StickyNote, UserRound } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
@@ -23,6 +23,8 @@ function getItemIcon(kind: AssistantMentionCandidate["kind"]) {
   if (kind === "volume") return <BookOpen size={12} />;
   if (kind === "note") return <StickyNote size={12} />;
   if (kind === "note_category") return <Folder size={12} />;
+  if (kind === "world_info_entry") return <ScrollText size={12} />;
+  if (kind === "character") return <UserRound size={12} />;
   return <FileText size={12} />;
 }
 
@@ -37,7 +39,11 @@ function getItemMeta(
         ? t("assistant.mentionKind.note")
         : item.kind === "note_category"
           ? t("assistant.mentionKind.noteCategory")
-          : t("assistant.mentionKind.chapter");
+          : item.kind === "world_info_entry"
+            ? t("assistant.mentionKind.worldInfoEntry")
+            : item.kind === "character"
+              ? t("assistant.mentionKind.character")
+              : t("assistant.mentionKind.chapter");
   return item.description
     ? t("assistant.mentionMetaFormat", { base, description: item.description })
     : base;

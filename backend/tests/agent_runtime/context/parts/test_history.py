@@ -1,4 +1,5 @@
 import json
+from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.agent_runtime.context.parts.history import build_history
@@ -112,12 +113,29 @@ async def test_history_preserves_extra_metadata_kind():
     assert result[0].metadata == {"part": "history", "kind": "thinking"}
 
 
-async def test_history_preserves_user_content_without_recompiling_mentions():
+async def test_history_compiles_user_mentions_for_llm_context_when_session_available():
     raw = [{
         "role": "user",
-        "content": '<of-mention kind="chapter" chapter_id="chap_1" label="旧章节" />',
+        "content": '<of-mention chapter_id="chap_1" label="旧章节" />',
+    }]
+
+    fake_session = object()
+    with patch(
+        "app.agent_runtime.context.parts.history.compile_canonical_mentions",
+        AsyncMock(return_value=" @chapter:第一卷/第一章 "),
+    ) as compile_mock:
+        result = await build_history(raw, fake_session)
+
+    compile_mock.assert_awaited_once_with(raw[0]["content"], fake_session)
+    assert result[0].content == " @chapter:第一卷/第一章 "
+
+
+async def test_history_preserves_user_xml_when_session_unavailable():
+    raw = [{
+        "role": "user",
+        "content": '<of-mention chapter_id="chap_1" label="旧章节" />',
     }]
 
     result = await build_history(raw)
 
-    assert result[0].content == '<of-mention kind="chapter" chapter_id="chap_1" label="旧章节" />'
+    assert result[0].content == raw[0]["content"]
