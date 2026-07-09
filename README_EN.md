@@ -17,7 +17,7 @@
 > [!Tip]  
 > *OpenFic is designed for Agent-assisted writing, not one-click novel generation. It is first and foremost a writing tool for fiction, and then an AI Agent system built around that workflow.*
 
-It works well when you:
+#### It works well when you:
 
 - are writing a mid-length or long-form novel and need to keep track of worldbuilding, characters, foreshadowing, and chapter details
 - want an Agent to help with brainstorming, continuity checks, and detail expansion
@@ -25,7 +25,7 @@ It works well when you:
 - want to customize prompts, Agents, and workflows around your own writing process
 - care about local data storage, context management, and sustainable long-term collaboration
 
-It is probably not a good fit when you:
+#### It is probably not a good fit when you:
 
 - expect to type one prompt and get a complete novel automatically
 - mainly need short-form marketing copy, social posts, or generic one-off text generation
@@ -33,15 +33,15 @@ It is probably not a good fit when you:
 
 ## Features
 
-- 🚀 Ready out of the box: install with Docker or pip, or use the desktop app directly, with minimal setup
-- ✒️ Built for writing first: an editor designed around fiction writing, with a comfortable long-form writing experience
-- 🤝 Broad model support: works with many providers, including any model compatible with the OpenAI API
-- 📱 Responsive UI: designed for desktop, mobile, and browser use without breaking the workflow
-- 🧩 Custom workflows: a highly configurable Agent system that lets you adapt prompts and workflows to your needs
-- 🤖 Human-AI co-writing: Agents help with brainstorming, plotting, and editing, instead of replacing the writing process with one-click generation
-- 💾 Local persistence: all project data stays on your machine, with no cloud storage dependency
-- 🧠 Semantic retrieval: Agentic RAG built on vector search, so Agents can retrieve information efficiently even in projects with millions of words
-- ⚖️ Cost-aware context handling: layered context management, smart compression, dynamic truncation, and stable caching to reduce usage cost
+- 🚀 **Ready out of the box**: install with Docker or pip, or use the desktop app directly, with minimal setup
+- ✒️ **Built for writing**: an editor designed around fiction writing, with a comfortable long-form writing experience
+- 🤝 **Broad model support**: works with many providers, including any model compatible with the OpenAI API
+- 📱 **Responsive UI**: designed for desktop, mobile, and browser use without breaking the workflow
+- 🧩 **Custom workflows**: a highly configurable Agent system that lets you adapt prompts and workflows to your needs
+- 🤖 **Human-AI co-writing**: Agents help with brainstorming, plotting, and editing, instead of replacing the writing process with one-click generation
+- 💾 **Local persistence**: all project data stays on your machine, with no cloud storage dependency
+- 🧠 **Semantic retrieval**: Agentic RAG built on vector search, so Agents can retrieve information efficiently even in projects with millions of words
+- ⚖️ **Cost-aware context handling**: layered context management, smart compression, dynamic truncation, and stable caching to reduce usage cost
 
 ## Quick Start
 
