@@ -14,7 +14,8 @@
 
 ## When to Use OpenFic
 
-*OpenFic is designed for Agent-assisted writing, not one-click novel generation. It is first and foremost a writing tool for fiction, and then an AI Agent system built around that workflow.*
+> [!Tip]  
+> *OpenFic is designed for Agent-assisted writing, not one-click novel generation. It is first and foremost a writing tool for fiction, and then an AI Agent system built around that workflow.*
 
 It works well when you:
 
