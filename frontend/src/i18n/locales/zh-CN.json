@@ -1023,6 +1023,12 @@
     "indexFailed": "索引失败：{{message}}",
     "indexFailedUnknown": "未知错误",
     "progress": "已索引 {{indexed}} / {{total}} 章",
+    "statusBar": {
+      "indexing": "索引中",
+      "error": "索引错误",
+      "errorDetail": "存在索引错误，请在索引设置中查看并重试。",
+      "openSettings": "打开索引设置"
+    },
     "indexed": "已索引",
     "pending": "待索引",
     "failed": "失败",

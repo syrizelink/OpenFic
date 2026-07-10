@@ -1663,6 +1663,12 @@
     "indexFailed": "Indexing failed: {{message}}",
     "indexFailedUnknown": "Unknown error",
     "progress": "Indexed {{indexed}} / {{total}} chapters",
+    "statusBar": {
+      "indexing": "Indexing",
+      "error": "Index error",
+      "errorDetail": "Indexing errors need attention in Index Settings.",
+      "openSettings": "Open Index Settings"
+    },
     "indexed": "Indexed",
     "pending": "Pending",
     "failed": "Failed",
