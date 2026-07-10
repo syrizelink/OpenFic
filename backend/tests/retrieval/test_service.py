@@ -72,6 +72,16 @@ class AlwaysFailEmbeddingClient(FakeEmbeddingClient):
         raise RuntimeError(f"embedding failed for {texts[0]}")
 
 
+class CommitCheckingChunkEngine:
+    def __init__(self, get_commit_count) -> None:
+        self.get_commit_count = get_commit_count
+
+    async def index_chunks(self, chunks, embedding_client, *, replace_document_ids=None):
+        _ = (chunks, embedding_client, replace_document_ids)
+        assert self.get_commit_count() > 0
+        return type("Result", (), {"succeeded_chunk_count": len(chunks)})()
+
+
 class FakeRerankClient:
     async def rerank(self, query: str, documents: list[str], top_n: int | None = None):
         return RerankResponse(
@@ -410,6 +420,47 @@ async def test_index_chunk_batches_append_one_chapter_without_reembedding_previo
         ["Chapter 1\nThe hero escapes."],
     ]
     assert sorted(row.chunk_index for row in results) == [0, 1, 2]
+
+
+@pytest.mark.asyncio
+async def test_index_chunk_batch_commits_building_status_before_embedding(
+    session: AsyncSession,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """索引状态写入不能持有 SQLite 写锁覆盖嵌入网络请求。"""
+    model = await _create_embedding_model(session)
+    service = OpenFicRetrievalService(base_dir=tmp_path / "lancedb")
+    await service.register_index(session, "chapters", _make_contract(model.id))
+
+    commit_count = 0
+    original_commit = session.commit
+
+    async def count_commit():
+        nonlocal commit_count
+        commit_count += 1
+        await original_commit()
+
+    monkeypatch.setattr(session, "commit", count_commit)
+    engine = CommitCheckingChunkEngine(lambda: commit_count)
+    monkeypatch.setattr(service, "_engine_for", lambda _row: engine)
+
+    result = await service.index_chunk_batch(
+        session,
+        "chapters",
+        [
+            IndexChunk(
+                document_id="chapter-1",
+                chunk_index=0,
+                raw_text="The hero wakes.",
+                indexed_text="Chapter 1\nThe hero wakes.",
+                attributes={"project_id": "p1", "chapter_order": 1},
+            )
+        ],
+        FakeEmbeddingClient(),
+    )
+
+    assert result.succeeded_chunk_count == 1
 
 
 @pytest.mark.asyncio

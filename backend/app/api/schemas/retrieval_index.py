@@ -44,3 +44,10 @@ class IndexStartResponse(BaseModel):
     project_id: str
     enqueued_count: int
     skipped_count: int = 0
+
+
+class IndexStopResponse(BaseModel):
+    """手动停止索引的响应。"""
+
+    project_id: str
+    stopped_count: int

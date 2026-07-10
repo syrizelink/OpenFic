@@ -128,6 +128,16 @@ async def _failure_hook(context: JobContext, reason: str) -> None:
     )
 
 
+async def _cancelled_hook(context: JobContext, reason: str) -> None:
+    await background_service.append_event(
+        context.session,
+        context.publisher,
+        context.job,
+        event_type="cancelled_hook_ran",
+        payload={"reason": reason},
+    )
+
+
 class RecordingTransport(BackgroundTransport):
     def __init__(self) -> None:
         self.job_notifications: deque[JobNotification] = deque()
@@ -724,6 +734,52 @@ async def test_worker_runs_failure_hook_after_rollback(tmp_path):
         assert stored.status == "failed"
         assert any(event.event_type == "failure_hook_ran" for event in events)
         assert any(event.type == "failure_hook_ran" for event in transport.events)
+    finally:
+        await session.close()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_worker_runs_cancellation_hook_after_rollback(tmp_path):
+    engine, factory = await _configure_file_database(tmp_path)
+    session = factory()
+    try:
+        get_job_registry().register(
+            JobDefinition(
+                type="cancellable_job",
+                name="Cancellable job",
+                description="Cancels for lifecycle hook coverage.",
+                input_model=_NoopInput,
+                handler=_slow_handler,
+                on_cancelled=_cancelled_hook,
+                supports_cancel=True,
+            )
+        )
+        job = await job_repo.create_job(
+            session,
+            BackgroundJob(
+                type="cancellable_job",
+                status=JOB_STATUS_CANCEL_REQUESTED,
+                payload_json='{"value":"x"}',
+                cancel_reason="用户停止任务",
+            ),
+        )
+        await background_service.commit_and_notify(session)
+
+        worker = BackgroundWorker(
+            worker_id="worker-1",
+            transport=RecordingTransport(),
+            scan_interval_seconds=1,
+        )
+        await worker._mark_cancelled_after_rollback(job.id, "用户停止任务")
+
+        session.expire(job)
+        await session.refresh(job)
+        stored = await job_repo.get_job(session, job.id)
+        events = await job_repo.list_events(session, job_id=job.id)
+        assert stored is not None
+        assert stored.status == JOB_STATUS_CANCELLED
+        assert any(event.event_type == "cancelled_hook_ran" for event in events)
     finally:
         await session.close()
         await engine.dispose()

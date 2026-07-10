@@ -5,6 +5,7 @@ import json
 from datetime import UTC, datetime
 from typing import NoReturn
 
+from loguru import logger
 from pydantic import BaseModel
 
 from app.background.jobs import repos as job_repo
@@ -16,12 +17,13 @@ from app.background.jobs.constants import (
 )
 from app.background.jobs.models import BackgroundJobItem
 from app.background.jobs.states import (
+    JOB_STATUS_CANCELLED,
     JOB_STATUS_FAILED,
     JOB_STATUS_PENDING,
     JOB_STATUS_RUNNING,
     JOB_STATUS_SUCCEEDED,
 )
-from app.background.runtime.context import JobContext
+from app.background.runtime.context import JobCancelledError, JobContext
 from app.core.encryption import EncryptionService
 from app.models.clients.embedding_client import EmbeddingClient, EmbeddingConfig
 from app.models.repos import model_provider_repo, model_repo
@@ -132,6 +134,26 @@ async def _maybe_await(value):
 
 
 async def _finalize_incomplete_items(context: JobContext, reason: str) -> None:
+    await _cleanup_incomplete_items(context, reason=reason, cancelled=False)
+
+
+async def _handle_failed(context: JobContext, reason: str) -> None:
+    await _finalize_incomplete_items(context, reason)
+
+
+async def _handle_cancelled(context: JobContext, reason: str) -> None:
+    """清理未完成章节，使下一次开始索引时只处理这些章节。"""
+    await _cleanup_incomplete_items(context, reason=reason, cancelled=True)
+    project_id = RetrievalChapterIndexBatchInput.model_validate(context.input).project_id
+    await _commit_and_emit(context, project_id)
+
+
+async def _cleanup_incomplete_items(
+    context: JobContext,
+    *,
+    reason: str,
+    cancelled: bool,
+) -> None:
     items = await job_service.list_job_items(context.session, job_id=context.job_id)
     for item in items:
         if item.status not in {JOB_STATUS_PENDING, JOB_STATUS_RUNNING}:
@@ -139,15 +161,32 @@ async def _finalize_incomplete_items(context: JobContext, reason: str) -> None:
         payload = job_service.parse_json_object(item.payload_json)
         project_id = payload.get("project_id")
         chapter_id = payload.get("chapter_id")
-        if isinstance(project_id, str) and isinstance(chapter_id, str):
+        if (
+            item.status == JOB_STATUS_RUNNING
+            and isinstance(project_id, str)
+            and isinstance(chapter_id, str)
+        ):
             try:
                 await OpenFicRetrievalService().delete_document(
                     context.session,
                     chapter_index_key(project_id),
                     chapter_document_id(chapter_id),
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.bind(
+                    project_id=project_id,
+                    chapter_id=chapter_id,
+                    job_id=context.job_id,
+                ).warning(f"retrieval index document cleanup failed: {exc}")
+        if cancelled:
+            await _reset_state_after_cancellation(
+                context,
+                item,
+                expected_job_id=context.job_id,
+                expected_item_id=item.id,
+            )
+            await _mark_item_terminal(context.session, item, JOB_STATUS_CANCELLED)
+            continue
         await _mark_state_failed(
             context,
             item,
@@ -161,10 +200,6 @@ async def _finalize_incomplete_items(context: JobContext, reason: str) -> None:
             JOB_STATUS_FAILED,
             error_message=reason,
         )
-
-
-async def _handle_failed(context: JobContext, reason: str) -> None:
-    await _finalize_incomplete_items(context, reason)
 
 
 async def handle_retrieval_chapter_index_batch(context: JobContext) -> dict[str, int]:
@@ -257,6 +292,7 @@ async def handle_retrieval_chapter_index_batch(context: JobContext) -> dict[str,
             embedding_model=model,
             job_id=context.job_id,
             max_chunks_per_batch=MAX_EMBEDDING_CHUNKS_PER_REQUEST,
+            check_cancelled=context.check_cancelled,
         ):
             await context.check_cancelled()
             for chapter_id in progress.completed_chapter_ids:
@@ -264,6 +300,8 @@ async def handle_retrieval_chapter_index_batch(context: JobContext) -> dict[str,
                 if item is not None:
                     await _mark_item_terminal(context.session, item, JOB_STATUS_SUCCEEDED)
             await _commit_and_emit(context, project_id)
+    except JobCancelledError:
+        raise
     except Exception as exc:
         await _finalize_and_abort(
             context, project_id=project_id, reason=f"索引中止：{exc}"
@@ -329,6 +367,33 @@ async def _mark_state_failed(
     await retrieval_chapter_index_state_repo.save(context.session, state)
 
 
+async def _reset_state_after_cancellation(
+    context: JobContext,
+    item: BackgroundJobItem,
+    *,
+    expected_job_id: str,
+    expected_item_id: str,
+) -> None:
+    payload = job_service.parse_json_object(item.payload_json)
+    project_id = payload.get("project_id")
+    chapter_id = payload.get("chapter_id")
+    if not isinstance(project_id, str) or not isinstance(chapter_id, str):
+        return
+    state = await retrieval_chapter_index_state_repo.get_by_project_and_chapter(
+        context.session,
+        project_id=project_id,
+        chapter_id=chapter_id,
+        index_key=f"chapters:{project_id}",
+    )
+    if state is None or state.job_id != expected_job_id or state.item_id != expected_item_id:
+        return
+    state.status = "needs_rebuild"
+    state.job_id = None
+    state.item_id = None
+    state.error_message = None
+    await retrieval_chapter_index_state_repo.save(context.session, state)
+
+
 RETRIEVAL_CHAPTER_INDEX_BATCH_JOB = JobDefinition(
     type=JOB_TYPE_RETRIEVAL_CHAPTER_INDEX_BATCH,
     name="Retrieval chapter index batch",
@@ -337,7 +402,7 @@ RETRIEVAL_CHAPTER_INDEX_BATCH_JOB = JobDefinition(
     handler=handle_retrieval_chapter_index_batch,
     on_failed=_handle_failed,
     on_timeout=_handle_failed,
-    on_cancelled=_handle_failed,
+    on_cancelled=_handle_cancelled,
     default_queue=JOB_QUEUE_DEFAULT,
     default_timeout_seconds=900,
     default_max_attempts=1,

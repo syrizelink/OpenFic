@@ -1019,6 +1019,7 @@
     "indexUnits": "索引单元",
     "untitledProject": "未命名项目",
     "startIndex": "开始索引",
+    "stopIndex": "停止索引",
     "indexFailed": "索引失败：{{message}}",
     "indexFailedUnknown": "未知错误",
     "progress": "已索引 {{indexed}} / {{total}} 章",

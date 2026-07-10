@@ -202,10 +202,14 @@ export function IndexSettings() {
     if (projectIds.length === 0) return;
     const subs = projectIds.map((pid) =>
       subscribeBackgroundEvents(pid, (event: BackgroundEvent) => {
-        if (
-          event.type === "background_job_failed" &&
-          event.job_type === "retrieval_chapter_index_batch"
-        ) {
+        if (event.job_type !== "retrieval_chapter_index_batch") return;
+        if (event.type === "background_job_cancelled") {
+          void queryClient.invalidateQueries({
+            queryKey: OVERALL_INDEX_STATUS_QUERY_KEY,
+          });
+          return;
+        }
+        if (event.type === "background_job_failed") {
           const message =
             typeof event.payload?.message === "string"
               ? event.payload.message
@@ -217,7 +221,7 @@ export function IndexSettings() {
     return () => subs.forEach((s) => s.close());
     // projectIdsKey 变化时重新订阅。
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectIdsKey, t]);
+  }, [projectIdsKey, queryClient, t]);
 
   const updateSettingsMutation = useMutation({
     mutationFn: updateSettings,

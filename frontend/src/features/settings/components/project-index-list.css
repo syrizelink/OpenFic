@@ -51,7 +51,7 @@
 
 .project-index-list-progress-track {
   background: var(--gray-a4);
-  border-radius: var(--radius-full);
+  border-radius: 999px;
   display: block;
   flex: 1 1 72px;
   height: 4px;
@@ -60,8 +60,8 @@
 }
 
 .project-index-list-progress-indicator {
-  background: var(--accent-9);
-  border-radius: inherit;
+  background: var(--accent-7);
+  border-radius: 999px;
   display: block;
   height: 100%;
 }

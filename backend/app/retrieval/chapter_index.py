@@ -7,7 +7,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
 from loguru import logger
@@ -1129,6 +1129,7 @@ class ChapterIndexIntegrationService:
         embedding_model: Model,
         job_id: str,
         max_chunks_per_batch: int,
+        check_cancelled: Callable[[], Awaitable[None]] | None = None,
     ) -> AsyncIterator[ChunkBatchIndexProgress]:
         """Index chapters through bounded chunk requests and yield completed chapters.
 
@@ -1194,6 +1195,11 @@ class ChapterIndexIntegrationService:
         async def flush_chunks() -> list[str]:
             if not buffered_chunks:
                 return []
+            if check_cancelled is not None:
+                await check_cancelled()
+            await session.commit()
+            if check_cancelled is not None:
+                await check_cancelled()
             document_ids = {chunk.document_id for chunk in buffered_chunks}
             await self.retrieval_service.index_chunk_batch(
                 session,
@@ -1211,6 +1217,8 @@ class ChapterIndexIntegrationService:
             return await finalize_completed()
 
         for chapter_id in chapter_ids:
+            if check_cancelled is not None:
+                await check_cancelled()
             chapter = await chapter_repo.get_by_id(session, chapter_id)
             if chapter is None:
                 raise ValueError(f"章节不存在: {chapter_id}")

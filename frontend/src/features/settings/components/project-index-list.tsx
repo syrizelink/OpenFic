@@ -1,13 +1,13 @@
 import { Badge, Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
-import { ChevronRight, RefreshCw } from "lucide-react";
+import { ChevronRight, RefreshCw, Square } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Spinner } from "@/components";
 import {
   getIndexStatusColor,
   useStartProjectIndex,
+  useStopProjectIndex,
   type ProjectIndexStatus,
 } from "@/lib/index-status";
 
@@ -80,6 +80,7 @@ function ProjectIndexAccordionItem({ group }: { group: ProjectIndexGroup }) {
   const bodyId = useId();
   const indexed = group.units.reduce((sum, unit) => sum + unit.indexed, 0);
   const total = group.units.reduce((sum, unit) => sum + unit.total, 0);
+  const progressText = total === 0 ? t("index.status.no_chapters") : t("index.progress", { indexed, total });
   const color = getIndexStatusColor(group.status);
 
   return (
@@ -113,7 +114,7 @@ function ProjectIndexAccordionItem({ group }: { group: ProjectIndexGroup }) {
             size="1"
             color="gray"
           >
-            {t("index.progress", { indexed, total })}
+            {progressText}
           </Text>
         </span>
         <IndexStatusBadge
@@ -158,11 +159,15 @@ function IndexUnitRow({
 }) {
   const { t } = useTranslation();
   const startMutation = useStartProjectIndex(projectId);
+  const stopMutation = useStopProjectIndex(projectId);
   const shouldReduceMotion = useReducedMotion();
   const color = getIndexStatusColor(unit.status);
   const progress =
     unit.total > 0 ? Math.min(100, Math.max(0, (unit.indexed / unit.total) * 100)) : 0;
-  const progressText = t("index.progress", { indexed: unit.indexed, total: unit.total });
+  const progressText =
+    unit.total === 0
+      ? t("index.status.no_chapters")
+      : t("index.progress", { indexed: unit.indexed, total: unit.total });
   const canStart =
     enabled &&
     unit.status !== "indexing" &&
@@ -170,21 +175,28 @@ function IndexUnitRow({
     unit.status !== "not_configured" &&
     unit.status !== "no_chapters" &&
     unit.pending > 0;
-  const isIndexing = startMutation.isPending || unit.status === "indexing";
+  const isIndexing = unit.status === "indexing";
+  const isSubmitting = startMutation.isPending || stopMutation.isPending;
 
   return (
     <div className="project-index-list-unit">
       <span className="project-index-list-unit-main">
-        <Tooltip content={t("index.startIndex")}>
+        <Tooltip content={isIndexing ? t("index.stopIndex") : t("index.startIndex")}>
           <IconButton
             size="1"
             variant="ghost"
             color="gray"
-            aria-label={t("index.startIndex")}
-            onClick={() => startMutation.mutate()}
-            disabled={!canStart || startMutation.isPending}
+            aria-label={isIndexing ? t("index.stopIndex") : t("index.startIndex")}
+            onClick={() => {
+              if (isIndexing) {
+                stopMutation.mutate();
+                return;
+              }
+              startMutation.mutate();
+            }}
+            disabled={isIndexing ? isSubmitting : !canStart || isSubmitting}
           >
-            {isIndexing ? <Spinner size={18} /> : <RefreshCw size={14} />}
+            {isIndexing ? <Square size={12} fill="currentColor" /> : <RefreshCw size={14} />}
           </IconButton>
         </Tooltip>
         <Text

@@ -1659,6 +1659,7 @@
     "indexUnits": "Index units",
     "untitledProject": "Untitled project",
     "startIndex": "Start indexing",
+    "stopIndex": "Stop indexing",
     "indexFailed": "Indexing failed: {{message}}",
     "indexFailedUnknown": "Unknown error",
     "progress": "Indexed {{indexed}} / {{total}} chapters",
