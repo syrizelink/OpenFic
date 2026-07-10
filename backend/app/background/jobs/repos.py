@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
 from app.background.jobs.models import BackgroundJob, BackgroundJobEvent, BackgroundJobItem
-from app.background.jobs.states import JOB_STATUS_PENDING, JOB_STATUS_RUNNING
+from app.background.jobs.states import JOB_STATUS_PENDING, JOB_STATUS_RUNNING, TERMINAL_STATUSES
 
 
 async def create_job(session: AsyncSession, job: BackgroundJob) -> BackgroundJob:
@@ -130,6 +130,20 @@ async def list_expired_running_jobs(session: AsyncSession, *, limit: int = 50) -
         .where(col(BackgroundJob.lease_expires_at).is_not(None))
         .where(col(BackgroundJob.lease_expires_at) < now)
         .order_by(col(BackgroundJob.lease_expires_at).asc())
+        .limit(limit)
+    )
+    return list(result.scalars().all())
+
+
+async def list_terminal_jobs_with_active_items(
+    session: AsyncSession, *, limit: int = 50
+) -> list[BackgroundJob]:
+    result = await session.execute(
+        select(BackgroundJob)
+        .join(BackgroundJobItem)
+        .where(col(BackgroundJob.status).in_(TERMINAL_STATUSES))
+        .where(col(BackgroundJobItem.status).in_([JOB_STATUS_PENDING, JOB_STATUS_RUNNING]))
+        .group_by(BackgroundJob.id)
         .limit(limit)
     )
     return list(result.scalars().all())

@@ -474,6 +474,13 @@ async def _finalize_incomplete_batch_items(context: JobContext, reason: str) -> 
                 continue
             summary = await summary_service.mark_summary_failed(context.session, summary, reason)
             await summary_service.publish_chapter_summary_update(context, summary)
+            await _publish_item_terminal(
+                context,
+                item,
+                summary,
+                terminal_status="failed",
+                error_message=reason,
+            )
             continue
         if item.type != summary_service.SUMMARY_BATCH_ITEM_TYPE_LONG_TERM:
             continue
@@ -495,6 +502,13 @@ async def _finalize_incomplete_batch_items(context: JobContext, reason: str) -> 
             continue
         summary = await summary_service.mark_summary_failed(context.session, summary, reason)
         await summary_service.publish_long_term_summary_update(context, summary)
+        await _publish_item_terminal(
+            context,
+            item,
+            summary,
+            terminal_status="failed",
+            error_message=reason,
+        )
 
 
 async def _handle_summary_batch_failed(context: JobContext, reason: str) -> None:

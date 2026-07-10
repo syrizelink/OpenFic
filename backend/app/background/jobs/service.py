@@ -418,7 +418,41 @@ async def recover_stale_job(
             payload={"reason": reason, "attempt_count": job.attempt_count},
         )
         return job
+    definition = get_job_registry().get(job.type)
+    if definition is not None and definition.on_timeout is not None:
+        from app.background.runtime.context import JobContext
+
+        context = JobContext(session=session, job=job, publisher=publisher, definition=definition)
+        await definition.on_timeout(context, reason)
     return await mark_timeout(session, publisher, job, error_message=reason)
+
+
+_ORPHAN_HOOK_BY_STATUS = {
+    JOB_STATUS_TIMEOUT: "on_timeout",
+    JOB_STATUS_FAILED: "on_failed",
+    JOB_STATUS_CANCELLED: "on_cancelled",
+}
+
+
+async def finalize_orphan_job_items(
+    session: AsyncSession,
+    publisher: BackgroundEventPublisher,
+    job: BackgroundJob,
+) -> None:
+    """Re-run the terminal lifecycle hook for a job that reached a terminal state
+    while some of its items were still pending or running (e.g. after an unclean
+    restart before the watchdog timeout-hook fix)."""
+    definition = get_job_registry().get(job.type)
+    if definition is None:
+        return
+    hook_name = _ORPHAN_HOOK_BY_STATUS.get(job.status, "on_failed")
+    hook = getattr(definition, hook_name, None) or definition.on_failed
+    if hook is None:
+        return
+    from app.background.runtime.context import JobContext
+
+    context = JobContext(session=session, job=job, publisher=publisher, definition=definition)
+    await hook(context, f"启动恢复：任务已 {job.status} 但仍存在未完成的子项")
 
 
 async def mark_skipped(

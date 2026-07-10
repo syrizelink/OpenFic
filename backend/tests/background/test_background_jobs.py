@@ -1730,3 +1730,200 @@ async def test_watchdog_times_out_exhausted_expired_running_job(session):
     assert recovered_count == 1
     assert stored is not None
     assert stored.status == JOB_STATUS_TIMEOUT
+
+
+@pytest.mark.asyncio
+async def test_watchdog_times_out_expired_summary_batch_and_finalizes_running_items(tmp_path):
+    engine, factory = await _configure_file_database(tmp_path)
+    session = factory()
+    try:
+        project = Project(title="项目", description="")
+        chapter = Chapter(
+            project_id=project.id,
+            volume_id=_default_volume_id(project),
+            title="第一章",
+            content="正文" * 400,
+            word_count=800,
+            order=1,
+        )
+        session.add(project)
+        session.add(_default_volume(project))
+        session.add(chapter)
+        await session.commit()
+
+        now = datetime.now(UTC)
+        job = await background_service.submit_job(
+            session,
+            job_type=JOB_TYPE_SUMMARY_BATCH,
+            payload={"project_id": project.id},
+            context={"project_id": project.id, "model_policy": "light_model"},
+            subject_type="project",
+            subject_id=project.id,
+            max_attempts=1,
+        )
+        job.status = JOB_STATUS_RUNNING
+        job.attempt_count = 1
+        job.locked_by = "worker-before-restart"
+        job.locked_at = now - timedelta(minutes=10)
+        job.heartbeat_at = now - timedelta(minutes=10)
+        job.lease_expires_at = now - timedelta(minutes=5)
+        item = await background_service.create_item(
+            session,
+            job_id=job.id,
+            item_key=f"chapter:{chapter.id}",
+            item_type=summary_service.SUMMARY_BATCH_ITEM_TYPE_CHAPTER,
+            payload={"project_id": project.id, "chapter_id": chapter.id},
+        )
+        item.status = JOB_STATUS_RUNNING
+        summary = ChapterSummary(
+            project_id=project.id,
+            summary_type="chapter",
+            status=SUMMARY_STATUS_RUNNING,
+            chapter_id=chapter.id,
+            chapter_order=chapter.order,
+            start_order=chapter.order,
+            end_order=chapter.order,
+            job_id=item.id,
+        )
+        session.add(summary)
+        await session.commit()
+
+        transport = RecordingTransport()
+        watchdog = BackgroundWatchdog(transport=transport, interval_seconds=1)
+        assert await watchdog.run_once() == 1
+
+        verification_session = factory()
+        try:
+            stored_job = await job_repo.get_job(verification_session, job.id)
+            stored_item = await verification_session.get(BackgroundJobItem, item.id)
+            stored_summary = await verification_session.get(ChapterSummary, summary.id)
+        finally:
+            await verification_session.close()
+        assert stored_job is not None
+        assert stored_item is not None
+        assert stored_summary is not None
+        assert stored_job.status == JOB_STATUS_TIMEOUT
+        assert stored_item.status == JOB_STATUS_FAILED
+        assert stored_summary.status == SUMMARY_STATUS_FAILED
+        assert stored_summary.error_message == "后台任务 worker lease 已过期"
+        item_events = [event for event in transport.events if event.type == "background_item_failed"]
+        assert len(item_events) == 1
+        assert item_events[0].item_id == item.id
+    finally:
+        await session.close()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_startup_finalizes_orphan_items_of_terminal_summary_batch(tmp_path):
+    engine, factory = await _configure_file_database(tmp_path)
+    session = factory()
+    try:
+        project = Project(title="项目", description="")
+        chapter_one = Chapter(
+            project_id=project.id,
+            volume_id=_default_volume_id(project),
+            title="第一章",
+            content="正文" * 400,
+            word_count=800,
+            order=1,
+        )
+        chapter_two = Chapter(
+            project_id=project.id,
+            volume_id=_default_volume_id(project),
+            title="第二章",
+            content="正文" * 400,
+            word_count=800,
+            order=2,
+        )
+        session.add(project)
+        session.add(_default_volume(project, chapter_count=2))
+        session.add(chapter_one)
+        session.add(chapter_two)
+        await session.commit()
+
+        job = await background_service.submit_job(
+            session,
+            job_type=JOB_TYPE_SUMMARY_BATCH,
+            payload={"project_id": project.id},
+            context={"project_id": project.id, "model_policy": "light_model"},
+            subject_type="project",
+            subject_id=project.id,
+            max_attempts=1,
+        )
+        job.status = JOB_STATUS_TIMEOUT
+        job.attempt_count = 1
+        job.finished_at = datetime.now(UTC)
+
+        pending_item = await background_service.create_item(
+            session,
+            job_id=job.id,
+            item_key=f"chapter:{chapter_one.id}",
+            item_type=summary_service.SUMMARY_BATCH_ITEM_TYPE_CHAPTER,
+            payload={"project_id": project.id, "chapter_id": chapter_one.id},
+            order_index=0,
+        )
+        running_item = await background_service.create_item(
+            session,
+            job_id=job.id,
+            item_key=f"chapter:{chapter_two.id}",
+            item_type=summary_service.SUMMARY_BATCH_ITEM_TYPE_CHAPTER,
+            payload={"project_id": project.id, "chapter_id": chapter_two.id},
+            order_index=1,
+        )
+        running_item.status = JOB_STATUS_RUNNING
+
+        pending_summary = ChapterSummary(
+            project_id=project.id,
+            summary_type="chapter",
+            status=SUMMARY_STATUS_QUEUED,
+            chapter_id=chapter_one.id,
+            chapter_order=chapter_one.order,
+            start_order=chapter_one.order,
+            end_order=chapter_one.order,
+            job_id=pending_item.id,
+        )
+        running_summary = ChapterSummary(
+            project_id=project.id,
+            summary_type="chapter",
+            status=SUMMARY_STATUS_RUNNING,
+            chapter_id=chapter_two.id,
+            chapter_order=chapter_two.order,
+            start_order=chapter_two.order,
+            end_order=chapter_two.order,
+            job_id=running_item.id,
+        )
+        session.add(pending_summary)
+        session.add(running_summary)
+        await session.commit()
+
+        transport = RecordingTransport()
+        publisher = BackgroundEventPublisher(transport)
+        orphan_jobs = await job_repo.list_terminal_jobs_with_active_items(session)
+        assert len(orphan_jobs) == 1
+        assert orphan_jobs[0].id == job.id
+
+        await background_service.finalize_orphan_job_items(session, publisher, orphan_jobs[0])
+        await background_service.commit_and_notify(session)
+
+        verification_session = factory()
+        try:
+            stored_pending_item = await verification_session.get(BackgroundJobItem, pending_item.id)
+            stored_running_item = await verification_session.get(BackgroundJobItem, running_item.id)
+            stored_pending_summary = await verification_session.get(ChapterSummary, pending_summary.id)
+            stored_running_summary = await verification_session.get(ChapterSummary, running_summary.id)
+        finally:
+            await verification_session.close()
+        assert stored_pending_item is not None
+        assert stored_running_item is not None
+        assert stored_pending_item.status == JOB_STATUS_FAILED
+        assert stored_running_item.status == JOB_STATUS_FAILED
+        assert stored_pending_summary is not None
+        assert stored_running_summary is not None
+        assert stored_pending_summary.status == SUMMARY_STATUS_FAILED
+        assert stored_running_summary.status == SUMMARY_STATUS_FAILED
+        item_events = [event for event in transport.events if event.type == "background_item_failed"]
+        assert len(item_events) == 2
+    finally:
+        await session.close()
+        await engine.dispose()
