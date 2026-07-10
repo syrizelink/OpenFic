@@ -18,4 +18,4 @@ async def emit(
     state = get_connection_state()
     if not state.is_connected():
         return
-    await sio.emit(event, data, to=state.sid)
+    await sio.emit(event, data)

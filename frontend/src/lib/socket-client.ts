@@ -141,17 +141,3 @@ export function connectSocket(): Promise<Socket> {
 
   return state.connectPromise;
 }
-
-export function disposeSocketForHmr(): void {
-  const state = getSocketState();
-  state.socket?.disconnect();
-  state.socket = null;
-  state.socketUrl = undefined;
-  state.connectPromise = null;
-  state.statusBoundSocket = null;
-  setConnectionStatus("disconnected");
-}
-
-if (import.meta.hot) {
-  import.meta.hot.dispose(disposeSocketForHmr);
-}
