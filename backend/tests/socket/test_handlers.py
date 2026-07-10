@@ -34,9 +34,19 @@ class TestConnectionState:
     def test_disconnect_clears_state(self):
         state = get_connection_state()
         state.on_connect("test_sid_123")
-        state.on_disconnect()
+        state.on_disconnect("test_sid_123")
         assert state.is_connected() is False
         assert state.sid is None
+
+    def test_disconnect_keeps_other_clients_connected(self):
+        state = get_connection_state()
+        state.on_connect("first_sid")
+        state.on_connect("second_sid")
+
+        state.on_disconnect("second_sid")
+
+        assert state.is_connected() is True
+        assert state.sid == "first_sid"
 
     def test_heartbeat_updates_last_seen(self):
         state = get_connection_state()

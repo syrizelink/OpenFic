@@ -15,21 +15,29 @@ from app.storage.services import task_service
 class ConnectionState:
     """单用户连接状态。"""
 
-    sid: str | None = None
+    sids: set[str] = field(default_factory=set)
     connected_at: float | None = None
     last_seen_at: float = field(default_factory=time.time)
 
     def is_connected(self) -> bool:
-        return self.sid is not None
+        return bool(self.sids)
+
+    @property
+    def sid(self) -> str | None:
+        return next(iter(self.sids), None)
 
     def on_connect(self, sid: str) -> None:
-        self.sid = sid
+        self.sids.add(sid)
         self.connected_at = time.time()
         self.last_seen_at = self.connected_at
 
-    def on_disconnect(self) -> None:
-        self.sid = None
-        self.connected_at = None
+    def on_disconnect(self, sid: str | None = None) -> None:
+        if sid is None:
+            self.sids.clear()
+        else:
+            self.sids.discard(sid)
+        if not self.sids:
+            self.connected_at = None
 
     def on_heartbeat(self) -> None:
         self.last_seen_at = time.time()
@@ -74,7 +82,7 @@ def register_handlers(sio: socketio.AsyncServer) -> None:
     @sio.event
     async def disconnect(sid: str) -> None:
         logger.info(f"Client disconnected: {sid}")
-        _state.on_disconnect()
+        _state.on_disconnect(sid)
 
     @sio.on("heartbeat")
     async def heartbeat(sid: str, data: dict | None = None) -> None:

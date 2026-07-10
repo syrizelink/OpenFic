@@ -50,6 +50,23 @@ class IndexDocument(BaseModel):
     metadata: dict[str, JSONScalar | list[JSONScalar]] | None = None
 
 
+class IndexChunk(BaseModel):
+    """One pre-chunked document fragment ready for embedding and storage."""
+
+    document_id: str
+    chunk_index: int
+    raw_text: str
+    indexed_text: str
+    attributes: dict[str, JSONScalar] | None = None
+    metadata: dict[str, JSONScalar | list[JSONScalar]] | None = None
+
+
+class ChunkIndexResult(BaseModel):
+    """Result of one bounded chunk indexing request."""
+
+    succeeded_chunk_count: int
+
+
 class DocumentIndexSuccess(BaseModel):
     document_id: str
     chunk_count: int

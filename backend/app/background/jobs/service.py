@@ -217,6 +217,30 @@ async def request_cancel(
     return job
 
 
+async def cancel_job(
+    session: AsyncSession,
+    publisher: BackgroundEventPublisher,
+    job: BackgroundJob,
+    *,
+    reason: str | None = None,
+) -> BackgroundJob:
+    """取消任务；等待中的任务同步运行取消清理钩子。"""
+    was_pending = job.status == JOB_STATUS_PENDING
+    job = await request_cancel(session, publisher, job, reason=reason)
+    if not was_pending or job.status != JOB_STATUS_CANCELLED:
+        return job
+
+    definition = get_job_registry().get(job.type)
+    if definition is None or definition.on_cancelled is None:
+        return job
+
+    from app.background.runtime.context import JobContext
+
+    context = JobContext(session=session, job=job, publisher=publisher, definition=definition)
+    await definition.on_cancelled(context, job.cancel_reason or "任务已取消")
+    return job
+
+
 async def append_event(
     session: AsyncSession,
     publisher: BackgroundEventPublisher,

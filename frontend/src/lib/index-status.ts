@@ -75,6 +75,10 @@ export async function startProjectIndex(projectId: string): Promise<void> {
   await apiClient.post(`/projects/${projectId}/retrieval/index/start`);
 }
 
+export async function stopProjectIndex(projectId: string): Promise<void> {
+  await apiClient.post(`/projects/${projectId}/retrieval/index/stop`);
+}
+
 /** 索引状态对应的展示颜色（Radix 颜色变量）。 */
 export function getIndexStatusColor(status: IndexStatus | null | undefined): string {
   if (status === "fresh") return "var(--green-9)";
@@ -208,6 +212,22 @@ export function useStartProjectIndex(projectId: string) {
 
   return useMutation({
     mutationFn: () => startProjectIndex(projectId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: getProjectIndexStatusQueryKey(projectId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: OVERALL_INDEX_STATUS_QUERY_KEY,
+      });
+    },
+  });
+}
+
+export function useStopProjectIndex(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => stopProjectIndex(projectId),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: getProjectIndexStatusQueryKey(projectId),

@@ -18,6 +18,7 @@ from app.retrieval.service import OpenFicRetrievalService
 from app.retrieval.types import (
     FilterableField,
     FilterableFieldType,
+    IndexChunk,
     IndexDocument,
     RetrievalIndexContract,
 )
@@ -44,8 +45,10 @@ class FakeEmbeddingClient:
 
     def __init__(self, model_id: str = "test-embedding", dimensions: int = 3):
         self.config = FakeEmbeddingConfig(model_id=model_id, dimensions=dimensions)
+        self.embed_calls: list[list[str]] = []
 
     async def embed(self, texts: list[str]) -> FakeEmbeddingResponse:
+        self.embed_calls.append(texts)
         return FakeEmbeddingResponse(
             embeddings=[self._embed_text(text) for text in texts],
             model=self.config.model_id,
@@ -67,6 +70,16 @@ class FakeEmbeddingClient:
 class AlwaysFailEmbeddingClient(FakeEmbeddingClient):
     async def embed(self, texts: list[str]) -> FakeEmbeddingResponse:
         raise RuntimeError(f"embedding failed for {texts[0]}")
+
+
+class CommitCheckingChunkEngine:
+    def __init__(self, get_commit_count) -> None:
+        self.get_commit_count = get_commit_count
+
+    async def index_chunks(self, chunks, embedding_client, *, replace_document_ids=None):
+        _ = (chunks, embedding_client, replace_document_ids)
+        assert self.get_commit_count() > 0
+        return type("Result", (), {"succeeded_chunk_count": len(chunks)})()
 
 
 class FakeRerankClient:
@@ -344,6 +357,110 @@ async def test_index_documents_accepts_prechunked_input(
     assert result.succeeded_count == 1
     assert result.succeeded[0].chunk_count == 2
     assert [row.chunk_index for row in results] == [1, 0]
+
+
+@pytest.mark.asyncio
+async def test_index_chunk_batches_append_one_chapter_without_reembedding_previous_chunks(
+    session: AsyncSession, tmp_path: Path
+) -> None:
+    model = await _create_embedding_model(session)
+    service = OpenFicRetrievalService(base_dir=tmp_path / "lancedb")
+    contract = _make_contract(model.id)
+    embedding_client = FakeEmbeddingClient()
+
+    await service.register_index(session, "chapters", contract)
+    first = await service.index_chunk_batch(
+        session,
+        "chapters",
+        [
+            IndexChunk(
+                document_id="chapter-1",
+                chunk_index=0,
+                raw_text="The hero wakes.",
+                indexed_text="Chapter 1\nThe hero wakes.",
+                attributes={"project_id": "p1", "chapter_order": 1},
+                metadata={"source": "chapter"},
+            ),
+            IndexChunk(
+                document_id="chapter-1",
+                chunk_index=1,
+                raw_text="The dragon appears.",
+                indexed_text="Chapter 1\nThe dragon appears.",
+                attributes={"project_id": "p1", "chapter_order": 1},
+                metadata={"source": "chapter"},
+            ),
+        ],
+        embedding_client,
+        replace_document_ids={"chapter-1"},
+    )
+    second = await service.index_chunk_batch(
+        session,
+        "chapters",
+        [
+            IndexChunk(
+                document_id="chapter-1",
+                chunk_index=2,
+                raw_text="The hero escapes.",
+                indexed_text="Chapter 1\nThe hero escapes.",
+                attributes={"project_id": "p1", "chapter_order": 1},
+                metadata={"source": "chapter"},
+            )
+        ],
+        embedding_client,
+    )
+    await service.finalize_chunk_index(session, "chapters")
+
+    query = await service.query(session, "chapters", "hero dragon", embedding_client)
+    results = await query.hybrid().limit(5).run()
+
+    assert first.succeeded_chunk_count == 2
+    assert second.succeeded_chunk_count == 1
+    assert embedding_client.embed_calls == [
+        ["Chapter 1\nThe hero wakes.", "Chapter 1\nThe dragon appears."],
+        ["Chapter 1\nThe hero escapes."],
+    ]
+    assert sorted(row.chunk_index for row in results) == [0, 1, 2]
+
+
+@pytest.mark.asyncio
+async def test_index_chunk_batch_commits_building_status_before_embedding(
+    session: AsyncSession,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """索引状态写入不能持有 SQLite 写锁覆盖嵌入网络请求。"""
+    model = await _create_embedding_model(session)
+    service = OpenFicRetrievalService(base_dir=tmp_path / "lancedb")
+    await service.register_index(session, "chapters", _make_contract(model.id))
+
+    commit_count = 0
+    original_commit = session.commit
+
+    async def count_commit():
+        nonlocal commit_count
+        commit_count += 1
+        await original_commit()
+
+    monkeypatch.setattr(session, "commit", count_commit)
+    engine = CommitCheckingChunkEngine(lambda: commit_count)
+    monkeypatch.setattr(service, "_engine_for", lambda _row: engine)
+
+    result = await service.index_chunk_batch(
+        session,
+        "chapters",
+        [
+            IndexChunk(
+                document_id="chapter-1",
+                chunk_index=0,
+                raw_text="The hero wakes.",
+                indexed_text="Chapter 1\nThe hero wakes.",
+                attributes={"project_id": "p1", "chapter_order": 1},
+            )
+        ],
+        FakeEmbeddingClient(),
+    )
+
+    assert result.succeeded_chunk_count == 1
 
 
 @pytest.mark.asyncio

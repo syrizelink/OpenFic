@@ -92,7 +92,7 @@ async def cancel_background_job(
     job = await background_service.get_job(session, job_id)
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="后台任务不存在")
-    job = await background_service.request_cancel(
+    job = await background_service.cancel_job(
         session,
         get_background_supervisor().create_event_publisher(),
         job,

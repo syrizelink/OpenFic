@@ -6,9 +6,11 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.encryption import EncryptionService
+from app.background.jobs.models import BackgroundJob, BackgroundJobItem
+from app.background.jobs.states import JOB_STATUS_CANCELLED
 from app.models.repos import model_provider_repo, model_repo
 from app.storage.models.retrieval_chapter_index_state import RetrievalChapterIndexState
-from app.storage.repos import setting_repo
+from app.storage.repos import retrieval_chapter_index_state_repo, setting_repo
 
 
 async def _create_project(client: AsyncClient) -> tuple[str, str]:
@@ -217,6 +219,71 @@ async def test_index_start_enqueues_outdated_chapters(
 
 
 @pytest.mark.asyncio
+async def test_index_stop_cancels_pending_job_and_resets_incomplete_chapters(
+    client: AsyncClient,
+    session: AsyncSession,
+) -> None:
+    from sqlalchemy import select
+    from sqlmodel import col
+
+    await _create_embedding_model(session)
+    project_id, volume_id = await _create_project(client)
+    chapter = await _create_chapter(client, project_id, volume_id, title="一章")
+    await setting_repo.upsert(session, "index_mode", "all")
+    await session.commit()
+
+    start_response = await client.post(f"/api/v1/projects/{project_id}/retrieval/index/start")
+    assert start_response.status_code == 200
+
+    response = await client.post(f"/api/v1/projects/{project_id}/retrieval/index/stop")
+
+    assert response.status_code == 200
+    assert response.json() == {"project_id": project_id, "stopped_count": 1}
+    job = (
+        await session.execute(
+            select(BackgroundJob).where(
+                col(BackgroundJob.subject_id) == project_id
+            )
+        )
+    ).scalar_one()
+    item = (
+        await session.execute(
+            select(BackgroundJobItem).where(
+                col(BackgroundJobItem.job_id) == job.id
+            )
+        )
+    ).scalar_one()
+    chapter_state = await retrieval_chapter_index_state_repo.get_by_project_and_chapter(
+        session,
+        project_id=project_id,
+        chapter_id=chapter["id"],
+        index_key=f"chapters:{project_id}",
+    )
+
+    assert job.status == JOB_STATUS_CANCELLED
+    assert item.status == JOB_STATUS_CANCELLED
+    assert chapter_state is not None
+    assert chapter_state.status == "needs_rebuild"
+    assert chapter_state.job_id is None
+    assert chapter_state.item_id is None
+    assert chapter_state.error_message is None
+
+
+@pytest.mark.asyncio
+async def test_index_stop_is_idempotent_without_an_active_job(
+    client: AsyncClient,
+    session: AsyncSession,
+) -> None:
+    await _create_embedding_model(session)
+    project_id, _ = await _create_project(client)
+
+    response = await client.post(f"/api/v1/projects/{project_id}/retrieval/index/stop")
+
+    assert response.status_code == 200
+    assert response.json() == {"project_id": project_id, "stopped_count": 0}
+
+
+@pytest.mark.asyncio
 async def test_overall_index_status_aggregates_enabled_projects(
     client: AsyncClient,
     session: AsyncSession,
@@ -297,6 +364,39 @@ async def test_index_start_emits_status_event_after_commit(
     assert captured["event"] == "index:status"
     assert captured["room"] == f"background:project:{project_id}"
     assert captured["data"] == expected_payload
+
+
+@pytest.mark.asyncio
+async def test_commit_and_emit_index_status_keeps_committed_progress_snapshot(
+    session: AsyncSession,
+    monkeypatch,
+) -> None:
+    """状态事件必须发送提交时的快照，不能被后续批次覆盖为最终状态。"""
+    import app.retrieval.index_status as index_status_mod
+
+    payloads = [
+        {"project_id": "project-1", "indexed_count": 10},
+        {"project_id": "project-1", "indexed_count": 20},
+    ]
+    emitted: list[dict[str, object]] = []
+
+    async def fake_payload(*_args, **_kwargs):
+        return payloads.pop(0)
+
+    async def fake_emit(_event, data, **_kwargs):
+        emitted.append(data)
+
+    monkeypatch.setattr(index_status_mod, "emit_project_index_status_payload", fake_payload)
+    monkeypatch.setattr(index_status_mod, "emit", fake_emit)
+    monkeypatch.setattr("app.socket.is_connected", lambda: True)
+
+    await index_status_mod.commit_and_emit_index_status(session, "project-1")
+    await index_status_mod.commit_and_emit_index_status(session, "project-1")
+
+    assert emitted == [
+        {"project_id": "project-1", "indexed_count": 10},
+        {"project_id": "project-1", "indexed_count": 20},
+    ]
 
 
 @pytest.mark.asyncio

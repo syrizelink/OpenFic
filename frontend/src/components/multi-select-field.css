@@ -1,0 +1,146 @@
+/**
+ * Multi Select Field Styles
+ *
+ * 通用多选选择器样式。
+ */
+
+.multi-select-field__label {
+  display: block;
+}
+
+.multi-select-field__trigger {
+  display: flex;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--gray-a7);
+  border-radius: var(--radius-2);
+  background: var(--color-panel-solid);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.multi-select-field__trigger[data-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.multi-select-field__trigger:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: 2px;
+}
+
+.multi-select-field__value {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.multi-select-field__placeholder {
+  font-size: 13px;
+  color: var(--gray-9);
+}
+
+.multi-select-field__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 1px 4px 1px 6px;
+  border-radius: 999px;
+  background: var(--gray-a3);
+  color: var(--gray-12);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.multi-select-field__tag-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.multi-select-field__tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--gray-11);
+  font: inherit;
+  cursor: pointer;
+}
+
+.multi-select-field__tag-remove:hover,
+.multi-select-field__tag-remove:focus-visible {
+  background: var(--gray-a4);
+  color: var(--gray-12);
+  outline: none;
+}
+
+.multi-select-field__chevron {
+  display: inline-flex;
+  align-items: center;
+  color: var(--gray-11);
+}
+
+.multi-select-field__content {
+  width: 240px;
+  max-width: min(90vw, 240px);
+  padding: 0 !important;
+}
+
+.multi-select-field__options {
+  max-height: 220px;
+}
+
+.multi-select-field__options-inner {
+  padding: 4px;
+}
+
+.multi-select-field__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px;
+  border-radius: var(--radius-2);
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.multi-select-field__option:hover,
+.multi-select-field__option:focus-within {
+  background: var(--gray-a3);
+}
+
+.multi-select-field__option[data-disabled="true"] {
+  color: var(--gray-9);
+  cursor: not-allowed;
+}
+
+.multi-select-field__option-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.multi-select-field__empty {
+  padding: 10px;
+  font-size: 13px;
+}

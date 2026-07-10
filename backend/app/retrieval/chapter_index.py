@@ -7,6 +7,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
 from loguru import logger
@@ -15,12 +16,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.entities.model import Model
 from app.models.repos import model_repo
 from app.retrieval.service import OpenFicRetrievalService
+from app.retrieval.internal.indexing.chunking import RecursiveCharacterChunker
 from app.retrieval.types import (
     BatchIndexResult,
     DocumentIndexFailure,
     DocumentIndexSuccess,
     FilterableField,
     FilterableFieldType,
+    IndexChunk,
     IndexDocument,
     RetrievalIndexContract,
 )
@@ -432,6 +435,13 @@ class IndexEnqueueResult:
     enqueued_count: int
     skipped_count: int
     job_id: str | None = None
+
+
+@dataclass
+class ChunkBatchIndexProgress:
+    """Chapters that became complete after one bounded embedding request."""
+
+    completed_chapter_ids: list[str]
 
 
 async def enqueue_project_index_update(
@@ -1109,6 +1119,167 @@ class ChapterIndexIntegrationService:
             failed=final_failed,
         )
         return result
+
+    async def stream_index_chapters(
+        self,
+        session: AsyncSession,
+        *,
+        chapter_ids: list[str],
+        embedding_client: Any,
+        embedding_model: Model,
+        job_id: str,
+        max_chunks_per_batch: int,
+        check_cancelled: Callable[[], Awaitable[None]] | None = None,
+    ) -> AsyncIterator[ChunkBatchIndexProgress]:
+        """Index chapters through bounded chunk requests and yield completed chapters.
+
+        A chapter may span requests, but its state becomes ready only after all of
+        its chunks were persisted. Completed records are released immediately so
+        memory use is bounded by the request buffer and active long chapters.
+        """
+        if max_chunks_per_batch < 1:
+            raise ValueError("max_chunks_per_batch must be positive")
+
+        if not chapter_ids:
+            return
+
+        first_chapter = await chapter_repo.get_by_id(session, chapter_ids[0])
+        if first_chapter is None:
+            raise ValueError(f"章节不存在: {chapter_ids[0]}")
+        project_id = first_chapter.project_id
+        await self.ensure_project_index(
+            session,
+            project_id=project_id,
+            model=embedding_model,
+        )
+        chunk_size, chunk_overlap = await get_index_chunk_config(session)
+        chunker = RecursiveCharacterChunker(chunk_size, chunk_overlap)
+        index_key = chapter_index_key(project_id)
+        buffered_chunks: list[IndexChunk] = []
+        pending: dict[str, dict[str, Any]] = {}
+        written_document_ids: set[str] = set()
+
+        async def finalize_completed() -> list[str]:
+            completed: list[str] = []
+            for chapter_id, record in list(pending.items()):
+                if record["remaining"] != 0 or not record["all_chunks_added"]:
+                    continue
+                chapter = record["chapter"]
+                state = record["state"]
+                await self._raise_if_snapshot_needs_rebuild(
+                    session,
+                    state=state,
+                    embedding_model_ref_id=embedding_model.id,
+                )
+                await session.refresh(chapter)
+                if compute_chapter_source_hash(chapter.content) != record["source_hash"]:
+                    state.status = CHAPTER_INDEX_STATUS_STALE
+                    state.job_id = None
+                    state.item_id = None
+                    state.error_message = None
+                    await retrieval_chapter_index_state_repo.save(session, state)
+                    raise ChapterIndexContentChangedError(
+                        "chapter content changed during indexing"
+                    )
+                state.status = CHAPTER_INDEX_STATUS_READY
+                state.source_hash = record["source_hash"]
+                state.embedding_model_ref_id = embedding_model.id
+                state.chunk_count = record["chunk_count"]
+                state.indexed_at = datetime.now(UTC)
+                state.error_message = None
+                await retrieval_chapter_index_state_repo.save(session, state)
+                del pending[chapter_id]
+                completed.append(chapter_id)
+            return completed
+
+        async def flush_chunks() -> list[str]:
+            if not buffered_chunks:
+                return []
+            if check_cancelled is not None:
+                await check_cancelled()
+            await session.commit()
+            if check_cancelled is not None:
+                await check_cancelled()
+            document_ids = {chunk.document_id for chunk in buffered_chunks}
+            await self.retrieval_service.index_chunk_batch(
+                session,
+                index_key,
+                buffered_chunks,
+                embedding_client,
+                replace_document_ids=document_ids - written_document_ids,
+            )
+            written_document_ids.update(document_ids)
+            for chunk in buffered_chunks:
+                chapter_id = chunk.attributes.get("chapter_id") if chunk.attributes else None
+                if isinstance(chapter_id, str):
+                    pending[chapter_id]["remaining"] -= 1
+            buffered_chunks.clear()
+            return await finalize_completed()
+
+        for chapter_id in chapter_ids:
+            if check_cancelled is not None:
+                await check_cancelled()
+            chapter = await chapter_repo.get_by_id(session, chapter_id)
+            if chapter is None:
+                raise ValueError(f"章节不存在: {chapter_id}")
+            if chapter.project_id != project_id:
+                raise ValueError("批量索引要求所有章节属于同一项目")
+            if _is_chapter_content_empty(chapter):
+                continue
+
+            state = await self.get_or_create_state(session, chapter)
+            self._raise_if_state_not_owned(
+                state,
+                expected_job_id=job_id,
+                expected_item_id=None,
+            )
+            state.status = CHAPTER_INDEX_STATUS_INDEXING
+            state.embedding_model_ref_id = embedding_model.id
+            state.error_message = None
+            await retrieval_chapter_index_state_repo.save(session, state)
+
+            document = self.build_chapter_document(chapter)
+            raw_chunks = chunker.split_text(document.text or "")
+            if not raw_chunks:
+                raise ValueError(f"章节无法分块: {chapter_id}")
+            metadata = document.metadata or {}
+            prefix = metadata.get("prefix")
+            indexed_chunks = [
+                f"{prefix}\n{raw}" if isinstance(prefix, str) and prefix else raw
+                for raw in raw_chunks
+            ]
+            pending[chapter_id] = {
+                "chapter": chapter,
+                "state": state,
+                "source_hash": metadata.get("source_hash"),
+                "chunk_count": len(raw_chunks),
+                "remaining": len(raw_chunks),
+                "all_chunks_added": False,
+            }
+
+            for chunk_index, (raw_text, indexed_text) in enumerate(
+                zip(raw_chunks, indexed_chunks, strict=True)
+            ):
+                if chunk_index == len(raw_chunks) - 1:
+                    pending[chapter_id]["all_chunks_added"] = True
+                buffered_chunks.append(
+                    IndexChunk(
+                        document_id=document.document_id,
+                        chunk_index=chunk_index,
+                        raw_text=raw_text,
+                        indexed_text=indexed_text,
+                        attributes=document.attributes,
+                        metadata=document.metadata,
+                    )
+                )
+                if len(buffered_chunks) == max_chunks_per_batch:
+                    completed = await flush_chunks()
+                    yield ChunkBatchIndexProgress(completed)
+
+        completed = await flush_chunks()
+        if completed:
+            yield ChunkBatchIndexProgress(completed)
+        await self.retrieval_service.finalize_chunk_index(session, index_key)
 
     @staticmethod
     def _raise_if_state_not_owned(

@@ -10,8 +10,12 @@ from app.api.schemas.retrieval_index import (
     IndexOverallStatusResponse,
     IndexProjectStatusResponse,
     IndexStartResponse,
+    IndexStopResponse,
 )
 from app.background.jobs import service as background_service
+from app.background.jobs.constants import JOB_TYPE_RETRIEVAL_CHAPTER_INDEX_BATCH
+from app.background.jobs.states import JOB_STATUS_PENDING, JOB_STATUS_RUNNING
+from app.background.runtime.supervisor import get_background_supervisor
 from app.retrieval.chapter_index import (
     INDEX_MODE_ALL,
     INDEX_MODE_OFF,
@@ -85,6 +89,32 @@ async def start_project_retrieval_index(
         enqueued_count=result.enqueued_count if result else 0,
         skipped_count=result.skipped_count if result else 0,
     )
+
+
+@router.post("/stop", response_model=IndexStopResponse)
+async def stop_project_retrieval_index(
+    project_id: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> IndexStopResponse:
+    await _require_project(session, project_id)
+    publisher = get_background_supervisor().create_event_publisher()
+    jobs = await background_service.list_jobs(
+        session,
+        subject_type="project",
+        subject_id=project_id,
+        statuses={JOB_STATUS_PENDING, JOB_STATUS_RUNNING},
+        job_type=JOB_TYPE_RETRIEVAL_CHAPTER_INDEX_BATCH,
+    )
+    for job in jobs:
+        await background_service.cancel_job(
+            session,
+            publisher,
+            job,
+            reason="用户停止索引",
+        )
+    schedule_emit_index_status(session, project_id)
+    await background_service.commit_and_notify(session)
+    return IndexStopResponse(project_id=project_id, stopped_count=len(jobs))
 
 
 @global_router.get("/status", response_model=IndexOverallStatusResponse)
