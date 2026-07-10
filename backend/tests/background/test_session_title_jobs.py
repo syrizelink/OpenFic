@@ -2,6 +2,7 @@ import json
 
 import pytest
 from sqlalchemy import select
+from sqlmodel import col
 
 from app.background.jobs.models import BackgroundJob
 from app.background.jobs.session_title_jobs import enqueue_session_title_job
@@ -53,7 +54,9 @@ async def test_enqueue_session_title_job_keeps_raw_seed_message(session):
     )
     await session.commit()
 
-    result = await session.execute(select(BackgroundJob).where(BackgroundJob.subject_id == task.id))
+    result = await session.execute(
+        select(BackgroundJob).where(col(BackgroundJob.subject_id) == task.id)
+    )
     job = result.scalar_one()
     payload = json.loads(job.payload_json)
 
@@ -62,3 +65,28 @@ async def test_enqueue_session_title_job_keeps_raw_seed_message(session):
         '和<of-mention kind="line_range" chapter_id="chap_title_mentions" start_line="4" '
         'end_line="9" label="旧片段">保留快照</of-mention>命名'
     )
+
+
+async def test_enqueue_session_title_job_reuses_active_job_for_same_task(session):
+    project = Project(id="proj_title_dedup", title="标题去重项目")
+    task = Task(
+        id="task_title_dedup",
+        project_id=project.id,
+        title="Agent Session",
+        mode="agent",
+    )
+    session.add(project)
+    session.add(task)
+    await session.commit()
+
+    await enqueue_session_title_job(session, task, "第一条消息")
+    await enqueue_session_title_job(session, task, "第二条消息")
+    await session.commit()
+
+    result = await session.execute(
+        select(BackgroundJob).where(col(BackgroundJob.subject_id) == task.id)
+    )
+    jobs = list(result.scalars())
+
+    assert len(jobs) == 1
+    assert json.loads(jobs[0].payload_json)["seed_message"] == "第一条消息"
