@@ -53,3 +53,83 @@
   background: var(--green-9);
   box-shadow: 0 0 0 1px var(--green-a5);
 }
+
+.app-status-bar__index-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.app-status-bar__index-button:hover {
+  color: var(--gray-12);
+}
+
+.app-status-bar__index-button:focus-visible {
+  outline: 1px solid var(--accent-8);
+  outline-offset: 2px;
+}
+
+.app-status-bar__index-progress,
+.app-status-bar__index-project-progress {
+  display: block;
+  overflow: hidden;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--gray-a5);
+}
+
+.app-status-bar__index-progress {
+  width: 100px;
+}
+
+.app-status-bar__index-progress-indicator,
+.app-status-bar__index-project-progress-indicator {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--blue-9);
+  transition: width 180ms ease-out;
+}
+
+.app-status-bar__index-button[data-state="error"] .app-status-bar__index-progress-indicator {
+  background: var(--red-9);
+}
+
+.app-status-bar__index-popover {
+  width: 250px;
+}
+
+.app-status-bar__index-project-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-status-bar__index-project {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+}
+
+.app-status-bar__index-project-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-status-bar__index-project-progress {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.app-status-bar__index-error-detail {
+  margin: 0;
+}
