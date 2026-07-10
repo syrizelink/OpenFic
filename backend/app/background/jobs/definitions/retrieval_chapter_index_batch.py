@@ -30,17 +30,19 @@ from app.retrieval.chapter_index import (
     CHAPTER_INDEX_STATUS_FAILED,
     ChapterIndexIntegrationService,
     chapter_document_id,
+    chapter_index_key,
 )
-from app.retrieval.index_status import schedule_emit_index_status
+from app.retrieval.index_status import commit_and_emit_index_status
+from app.retrieval.service import OpenFicRetrievalService
 from app.settings import settings
 from app.storage.repos import retrieval_chapter_index_state_repo, setting_repo
 
 
 SETTING_KEY_DEFAULT_EMBEDDING_MODEL = "default_embedding_model"
 
-# 每个子批处理的章节数。每批独立提交事务并推送进度，
-# 使前端能看到增量进度而非只在全部完成后一次性更新。
-INDEX_BATCH_CHUNK_SIZE = 10
+# 每次 Embedding 请求最多处理的分块数。章节可跨请求，但只会在
+# 全部分块写入成功后标记完成；每次请求后都会提交并推送章节级进度。
+MAX_EMBEDDING_CHUNKS_PER_REQUEST = 50
 
 
 class RetrievalChapterIndexBatchInput(BaseModel):
@@ -81,8 +83,9 @@ async def _mark_item_terminal(
 
 
 async def _commit_and_emit(context: JobContext, project_id: str) -> None:
-    schedule_emit_index_status(context.session, project_id)
-    await job_service.commit_and_notify(context.session)
+    await commit_and_emit_index_status(context.session, project_id)
+    await job_service.publish_committed_events(context.session)
+    await job_service.notify_submitted_jobs(context.session)
 
 
 async def _finalize_and_abort(
@@ -133,6 +136,18 @@ async def _finalize_incomplete_items(context: JobContext, reason: str) -> None:
     for item in items:
         if item.status not in {JOB_STATUS_PENDING, JOB_STATUS_RUNNING}:
             continue
+        payload = job_service.parse_json_object(item.payload_json)
+        project_id = payload.get("project_id")
+        chapter_id = payload.get("chapter_id")
+        if isinstance(project_id, str) and isinstance(chapter_id, str):
+            try:
+                await OpenFicRetrievalService().delete_document(
+                    context.session,
+                    chapter_index_key(project_id),
+                    chapter_document_id(chapter_id),
+                )
+            except Exception:
+                pass
         await _mark_state_failed(
             context,
             item,
@@ -234,71 +249,25 @@ async def handle_retrieval_chapter_index_batch(context: JobContext) -> dict[str,
     # 由于不允许对部分章节单独重新索引，任一子批次发生错误（异常或单章失败）
     # 都会终止整个任务：当前批次标记失败后，剩余未处理章节统一标记失败，
     # 以便用户发现问题后重新发起完整索引。
-    for batch_start in range(0, len(chapter_ids), INDEX_BATCH_CHUNK_SIZE):
-        await context.check_cancelled()
-        batch_cids = chapter_ids[batch_start : batch_start + INDEX_BATCH_CHUNK_SIZE]
-        batch_items = [item_map[cid] for cid in batch_cids if cid in item_map]
-
-        try:
-            result = await service.index_chapters(
-                context.session,
-                chapter_ids=batch_cids,
-                embedding_client=embedding_client,
-                embedding_model=model,
-                job_id=context.job_id,
-            )
-        except Exception as exc:
-            # 子批次异常：标记当前批次失败，终止整个任务。
-            for item in batch_items:
-                await _mark_item_terminal(
-                    context.session,
-                    item,
-                    JOB_STATUS_FAILED,
-                    error_message=str(exc),
-                )
-            await _finalize_and_abort(
-                context, project_id=project_id, reason=f"索引中止：{exc}"
-            )
-
-        succeeded_doc_ids = {s.document_id for s in result.succeeded}
-        failed_doc_ids = {f.document_id for f in result.failed}
-
-        batch_has_failure = False
-        for cid in batch_cids:
-            batch_item: BackgroundJobItem | None = item_map.get(cid)
-            if batch_item is None:
-                continue
-            doc_id = chapter_document_id(cid)
-            if doc_id in succeeded_doc_ids:
-                await _mark_item_terminal(context.session, batch_item, JOB_STATUS_SUCCEEDED)
-            elif doc_id in failed_doc_ids:
-                failure = next(
-                    f for f in result.failed if f.document_id == doc_id
-                )
-                await _mark_item_terminal(
-                    context.session,
-                    batch_item,
-                    JOB_STATUS_FAILED,
-                    error_message=failure.error,
-                )
-                batch_has_failure = True
-            else:
-                await _mark_item_terminal(
-                    context.session,
-                    batch_item,
-                    JOB_STATUS_FAILED,
-                    error_message="chapter not in batch result",
-                )
-                batch_has_failure = True
-
-        # 提交并推送当前批次进度。
-        await _commit_and_emit(context, project_id)
-
-        # 单章失败：终止整个任务，剩余章节统一标记失败。
-        if batch_has_failure:
-            await _finalize_and_abort(
-                context, project_id=project_id, reason="索引中止：存在索引失败的章节"
-            )
+    try:
+        async for progress in service.stream_index_chapters(
+            context.session,
+            chapter_ids=chapter_ids,
+            embedding_client=embedding_client,
+            embedding_model=model,
+            job_id=context.job_id,
+            max_chunks_per_batch=MAX_EMBEDDING_CHUNKS_PER_REQUEST,
+        ):
+            await context.check_cancelled()
+            for chapter_id in progress.completed_chapter_ids:
+                item = item_map.get(chapter_id)
+                if item is not None:
+                    await _mark_item_terminal(context.session, item, JOB_STATUS_SUCCEEDED)
+            await _commit_and_emit(context, project_id)
+    except Exception as exc:
+        await _finalize_and_abort(
+            context, project_id=project_id, reason=f"索引中止：{exc}"
+        )
 
     items = await job_service.list_job_items(context.session, job_id=context.job_id)
     return {

@@ -18,6 +18,7 @@ from app.retrieval.service import OpenFicRetrievalService
 from app.retrieval.types import (
     FilterableField,
     FilterableFieldType,
+    IndexChunk,
     IndexDocument,
     RetrievalIndexContract,
 )
@@ -44,8 +45,10 @@ class FakeEmbeddingClient:
 
     def __init__(self, model_id: str = "test-embedding", dimensions: int = 3):
         self.config = FakeEmbeddingConfig(model_id=model_id, dimensions=dimensions)
+        self.embed_calls: list[list[str]] = []
 
     async def embed(self, texts: list[str]) -> FakeEmbeddingResponse:
+        self.embed_calls.append(texts)
         return FakeEmbeddingResponse(
             embeddings=[self._embed_text(text) for text in texts],
             model=self.config.model_id,
@@ -344,6 +347,69 @@ async def test_index_documents_accepts_prechunked_input(
     assert result.succeeded_count == 1
     assert result.succeeded[0].chunk_count == 2
     assert [row.chunk_index for row in results] == [1, 0]
+
+
+@pytest.mark.asyncio
+async def test_index_chunk_batches_append_one_chapter_without_reembedding_previous_chunks(
+    session: AsyncSession, tmp_path: Path
+) -> None:
+    model = await _create_embedding_model(session)
+    service = OpenFicRetrievalService(base_dir=tmp_path / "lancedb")
+    contract = _make_contract(model.id)
+    embedding_client = FakeEmbeddingClient()
+
+    await service.register_index(session, "chapters", contract)
+    first = await service.index_chunk_batch(
+        session,
+        "chapters",
+        [
+            IndexChunk(
+                document_id="chapter-1",
+                chunk_index=0,
+                raw_text="The hero wakes.",
+                indexed_text="Chapter 1\nThe hero wakes.",
+                attributes={"project_id": "p1", "chapter_order": 1},
+                metadata={"source": "chapter"},
+            ),
+            IndexChunk(
+                document_id="chapter-1",
+                chunk_index=1,
+                raw_text="The dragon appears.",
+                indexed_text="Chapter 1\nThe dragon appears.",
+                attributes={"project_id": "p1", "chapter_order": 1},
+                metadata={"source": "chapter"},
+            ),
+        ],
+        embedding_client,
+        replace_document_ids={"chapter-1"},
+    )
+    second = await service.index_chunk_batch(
+        session,
+        "chapters",
+        [
+            IndexChunk(
+                document_id="chapter-1",
+                chunk_index=2,
+                raw_text="The hero escapes.",
+                indexed_text="Chapter 1\nThe hero escapes.",
+                attributes={"project_id": "p1", "chapter_order": 1},
+                metadata={"source": "chapter"},
+            )
+        ],
+        embedding_client,
+    )
+    await service.finalize_chunk_index(session, "chapters")
+
+    query = await service.query(session, "chapters", "hero dragon", embedding_client)
+    results = await query.hybrid().limit(5).run()
+
+    assert first.succeeded_chunk_count == 2
+    assert second.succeeded_chunk_count == 1
+    assert embedding_client.embed_calls == [
+        ["Chapter 1\nThe hero wakes.", "Chapter 1\nThe dragon appears."],
+        ["Chapter 1\nThe hero escapes."],
+    ]
+    assert sorted(row.chunk_index for row in results) == [0, 1, 2]
 
 
 @pytest.mark.asyncio

@@ -26,8 +26,10 @@ from app.retrieval.internal.validation import (
 )
 from app.retrieval.types import (
     BatchIndexResult,
+    ChunkIndexResult,
     DocumentIndexFailure,
     DocumentIndexSuccess,
+    IndexChunk,
     IndexDocument,
     RetrievalIndexContract,
 )
@@ -200,6 +202,40 @@ class LanceDBRetrievalEngine:
     async def delete_document(self, document_id: str) -> None:
         table = await self._open_table()
         await table.delete(f"document_id = '{quote_sql(document_id)}'")
+
+    async def index_chunks(
+        self,
+        chunks: list[IndexChunk],
+        embedding_client: Any,
+        *,
+        replace_document_ids: set[str] | None = None,
+    ) -> ChunkIndexResult:
+        """Embed and append a bounded chunk batch without rebuilding table indexes."""
+        validate_embedding_client(self.contract, embedding_client)
+        if not chunks:
+            return ChunkIndexResult(succeeded_chunk_count=0)
+
+        await self._ensure_table()
+        table = await self._open_table()
+        response = await embedding_client.embed([chunk.indexed_text for chunk in chunks])
+        if len(response.embeddings) != len(chunks):
+            raise ValidationError("Embedding response size mismatch")
+
+        for document_id in replace_document_ids or set():
+            await table.delete(f"document_id = '{quote_sql(document_id)}'")
+
+        rows = [
+            self._build_chunk_row(chunk, vector)
+            for chunk, vector in zip(chunks, response.embeddings, strict=True)
+        ]
+        await table.add(rows)
+        return ChunkIndexResult(succeeded_chunk_count=len(rows))
+
+    async def finalize_chunk_index(self) -> None:
+        """Build search indexes once after all bounded chunk writes succeed."""
+        table = await self._open_table()
+        await self._ensure_indexes(table)
+        await table.optimize()
 
     async def rebuild(
         self,
@@ -379,6 +415,22 @@ class LanceDBRetrievalEngine:
                 row[field.name] = attributes.get(field.name)
             rows.append(row)
         return rows
+
+    def _build_chunk_row(self, chunk: IndexChunk, vector: list[float]) -> dict[str, Any]:
+        if len(vector) != self.contract.embedding_dimensions_snapshot:
+            raise ValidationError("Embedding dimensions mismatch")
+        row: dict[str, Any] = {
+            "chunk_id": f"{chunk.document_id}:{chunk.chunk_index}",
+            "document_id": chunk.document_id,
+            "chunk_index": chunk.chunk_index,
+            "text": chunk.indexed_text,
+            "raw_text": chunk.raw_text,
+            "vector": [float(value) for value in vector],
+            "metadata": serialize_metadata(chunk.metadata),
+        }
+        for field in self.contract.filterable_fields:
+            row[field.name] = (chunk.attributes or {}).get(field.name)
+        return row
 
 
 __all__ = [

@@ -36,12 +36,18 @@ async def emit_project_index_status_payload(
     return status.to_payload()
 
 
-async def _emit_status_for_project(project_id: str) -> None:
+async def _emit_status_for_project(
+    project_id: str,
+    *,
+    payload: dict[str, Any] | None = None,
+) -> None:
     from app.storage.database import create_session
 
-    session = await create_session()
+    session = None
     try:
-        payload = await emit_project_index_status_payload(session, project_id)
+        if payload is None:
+            session = await create_session()
+            payload = await emit_project_index_status_payload(session, project_id)
         await emit(
             INDEX_STATUS_EVENT,
             payload,
@@ -52,7 +58,8 @@ async def _emit_status_for_project(project_id: str) -> None:
             f"emit index:status failed: {exc}"
         )
     finally:
-        await session.close()
+        if session is not None:
+            await session.close()
 
 
 async def _emit_index_config() -> None:
@@ -94,6 +101,16 @@ def schedule_emit_index_status(session: AsyncSession, project_id: str) -> None:
     _schedule_after_commit(session, lambda: _emit_status_for_project(project_id))
 
 
+async def commit_and_emit_index_status(session: AsyncSession, project_id: str) -> None:
+    """Commit one index progress snapshot and emit that exact committed state."""
+    payload = await emit_project_index_status_payload(session, project_id)
+    await session.commit()
+    from app.socket import is_connected
+
+    if is_connected():
+        await _emit_status_for_project(project_id, payload=payload)
+
+
 def schedule_emit_index_config(session: AsyncSession) -> None:
     """在当前 session 提交后广播 index:config 事件（前端据此刷新索引状态）。"""
     _schedule_after_commit(session, _emit_index_config)
@@ -104,6 +121,7 @@ __all__ = [
     "INDEX_CONFIG_EVENT",
     "ProjectIndexStatus",
     "emit_project_index_status_payload",
+    "commit_and_emit_index_status",
     "schedule_emit_index_status",
     "schedule_emit_index_config",
 ]

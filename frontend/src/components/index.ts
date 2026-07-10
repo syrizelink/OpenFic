@@ -38,3 +38,7 @@ export { ContentSearchPopover } from "./content-search-popover";
 export type { ContentSearchMatch, ContentSearchResultItem } from "./content-search-popover";
 export { ProjectSelectField } from "./project-select-field";
 export type { ProjectSelectFieldProps } from "./project-select-field";
+export { MultiSelectField } from "./multi-select-field";
+export type { MultiSelectFieldProps, MultiSelectOption } from "./multi-select-field";
+export { UnitTextField } from "./unit-text-field";
+export type { UnitTextFieldProps } from "./unit-text-field";

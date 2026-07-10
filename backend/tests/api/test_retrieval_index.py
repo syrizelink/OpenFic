@@ -300,6 +300,39 @@ async def test_index_start_emits_status_event_after_commit(
 
 
 @pytest.mark.asyncio
+async def test_commit_and_emit_index_status_keeps_committed_progress_snapshot(
+    session: AsyncSession,
+    monkeypatch,
+) -> None:
+    """状态事件必须发送提交时的快照，不能被后续批次覆盖为最终状态。"""
+    import app.retrieval.index_status as index_status_mod
+
+    payloads = [
+        {"project_id": "project-1", "indexed_count": 10},
+        {"project_id": "project-1", "indexed_count": 20},
+    ]
+    emitted: list[dict[str, object]] = []
+
+    async def fake_payload(*_args, **_kwargs):
+        return payloads.pop(0)
+
+    async def fake_emit(_event, data, **_kwargs):
+        emitted.append(data)
+
+    monkeypatch.setattr(index_status_mod, "emit_project_index_status_payload", fake_payload)
+    monkeypatch.setattr(index_status_mod, "emit", fake_emit)
+    monkeypatch.setattr("app.socket.is_connected", lambda: True)
+
+    await index_status_mod.commit_and_emit_index_status(session, "project-1")
+    await index_status_mod.commit_and_emit_index_status(session, "project-1")
+
+    assert emitted == [
+        {"project_id": "project-1", "indexed_count": 10},
+        {"project_id": "project-1", "indexed_count": 20},
+    ]
+
+
+@pytest.mark.asyncio
 async def test_index_status_payload_includes_title(
     client: AsyncClient,
     session: AsyncSession,

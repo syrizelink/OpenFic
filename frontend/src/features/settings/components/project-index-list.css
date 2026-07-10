@@ -1,0 +1,119 @@
+.index-settings-card {
+  border: 1px solid var(--gray-a4);
+  border-radius: var(--radius-3);
+  box-shadow: none;
+  padding: 16px;
+}
+
+.project-index-list-item {
+  border: 1px solid var(--gray-a5);
+  border-radius: var(--radius-3);
+  overflow: hidden;
+}
+
+.project-index-list-header {
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: var(--space-3);
+  justify-content: space-between;
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  width: 100%;
+}
+
+.project-index-list-header:hover {
+  background: var(--gray-a2);
+}
+
+.project-index-list-header:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: -2px;
+}
+
+.project-index-list-header-main {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.project-index-list-progress,
+.project-index-list-item [data-accent-color] {
+  white-space: nowrap;
+}
+
+.project-index-list-progress-track {
+  background: var(--gray-a4);
+  border-radius: var(--radius-full);
+  display: block;
+  flex: 1 1 72px;
+  height: 4px;
+  min-width: 48px;
+  overflow: hidden;
+}
+
+.project-index-list-progress-indicator {
+  background: var(--accent-9);
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+}
+
+.project-index-list-header-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-index-list-expand-icon {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.project-index-list-body {
+  border-top: 1px solid var(--gray-a4);
+  overflow: hidden;
+}
+
+.project-index-list-unit {
+  align-items: center;
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
+}
+
+.project-index-list-unit-main {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.project-index-list-unit-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .project-index-list-header,
+  .project-index-list-unit {
+    gap: var(--space-2);
+  }
+
+  .project-index-list-progress-track {
+    flex-basis: 48px;
+    min-width: 32px;
+  }
+}

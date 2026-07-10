@@ -21,7 +21,9 @@ from app.retrieval.internal.contracts.index_contracts import (
     validate_contract_model,
 )
 from app.retrieval.types import (
+    ChunkIndexResult,
     IndexDescription,
+    IndexChunk,
     IndexDocument,
     RetrievalIndexContract,
 )
@@ -132,6 +134,30 @@ class OpenFicRetrievalService:
     ) -> None:
         row = await self._get_index(session, index_key)
         await self._engine_for(row).delete_document(document_id)
+
+    async def index_chunk_batch(
+        self,
+        session: AsyncSession,
+        index_key: str,
+        chunks: list[IndexChunk],
+        embedding_client: EmbeddingClientLike,
+        *,
+        replace_document_ids: set[str] | None = None,
+    ) -> ChunkIndexResult:
+        row = await self._get_index(session, index_key)
+        if row.status not in {"registered", "building", "ready", "failed"}:
+            raise ValueError(f"Index {index_key} is not writable in status {row.status}")
+        await self._update_status(session, row, status="building", error=None)
+        return await self._engine_for(row).index_chunks(
+            chunks,
+            embedding_client,
+            replace_document_ids=replace_document_ids,
+        )
+
+    async def finalize_chunk_index(self, session: AsyncSession, index_key: str) -> None:
+        row = await self._get_index(session, index_key)
+        await self._engine_for(row).finalize_chunk_index()
+        await self._update_status(session, row, status="ready", error=None)
 
     async def rebuild(
         self,
