@@ -8,6 +8,8 @@ from typing import Any
 from loguru import logger
 
 from app.background.events.publisher import BackgroundEventPublisher
+from app.background.jobs import repos as job_repo
+from app.background.jobs import service as job_service
 from app.background.runtime.worker import BackgroundWorker
 from app.background.runtime.watchdog import BackgroundWatchdog, get_watchdog_interval_seconds
 from app.background.transport.messages import BackgroundEventMessage, JobNotification
@@ -15,6 +17,7 @@ from app.background.transport.zmq import ZmqBackgroundTransport
 from app.socket import emit
 from app.socket.handlers import agent_session_room, background_project_room
 from app.settings import settings
+from app.storage.database import create_session
 
 
 class BackgroundSupervisor:
@@ -111,6 +114,26 @@ class BackgroundSupervisor:
         count = await watchdog.run_once()
         if count:
             logger.warning(f"recovered {count} stale background jobs")
+        orphan_count = await self._finalize_orphan_job_items()
+        if orphan_count:
+            logger.warning(f"finalized orphan items for {orphan_count} terminal background jobs")
+
+    async def _finalize_orphan_job_items(self) -> int:
+        assert self._transport is not None
+        session = await create_session()
+        publisher = BackgroundEventPublisher(self._transport)
+        try:
+            jobs = await job_repo.list_terminal_jobs_with_active_items(session)
+            for job in jobs:
+                await job_service.finalize_orphan_job_items(session, publisher, job)
+            await job_service.commit_and_notify(session)
+            return len(jobs)
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            with suppress(Exception):
+                await session.close()
 
     def _resolve_project_id(self, message: BackgroundEventMessage) -> str | None:
         project_id = message.payload.get("project_id")
