@@ -8,6 +8,7 @@ import {
 import { useEffect } from "react";
 
 import {
+  cancelBackgroundJob,
   deleteChapterSummaries,
   deleteLongTermSummaries,
   enqueueSummary,
@@ -27,6 +28,7 @@ import {
   type SummaryStatus,
   type SummaryStatusItem,
 } from "@/lib/api-client";
+import { requestBackgroundSnapshot } from "@/lib/background-socket";
 
 import {
   extractBatchProgressFromEvent,
@@ -45,6 +47,8 @@ const SUMMARY_EVENT_TYPES = new Set([
   "background_job_succeeded",
   "background_job_failed",
   "background_job_skipped",
+  "background_job_cancel_requested",
+  "background_job_cancelled",
   "background_item_queued",
   "background_item_progress",
   "background_item_succeeded",
@@ -86,7 +90,8 @@ function isSummaryBackgroundEvent(event: BackgroundEvent): boolean {
 function createEmptySummaryMaintenance(): SummaryMaintenance {
   return {
     autoGenerationBlocked: false,
-    blockReason: null,
+    blockReasonCode: null,
+    blockReasonParams: null,
     missingOrFailedChapterSummaries: [],
     missingOrFailedLongTermSummaries: [],
     skippedChapterSummaries: [],
@@ -242,6 +247,7 @@ function applyChapterStatusToProjection(
       volumeTitle: null,
       volumeOrder: null,
       chapterTitle: getString(payload.chapter_title) ?? chapterId,
+      wordCount: getNumber(payload.word_count) ?? 0,
       status,
       isStale,
       summaryId: resolveSummaryId(payload, null),
@@ -297,6 +303,10 @@ function applyLongTermStatusToProjection(
     missingOrFailedLongTermSummaries.push({
       startOrder,
       endOrder,
+      startVolumeTitle: null,
+      startChapterTitle: "",
+      endVolumeTitle: null,
+      endChapterTitle: "",
       status,
       isStale,
       summaryId: resolveSummaryId(payload, null),
@@ -449,10 +459,32 @@ function applyJobEventToProjection(
     };
   }
 
+  if (event.type === "background_job_cancel_requested") {
+    return {
+      ...projection,
+      maintenance: {
+        ...projection.maintenance,
+        batchProgress:
+          jobId && projection.maintenance.batchProgress?.jobId === jobId
+            ? {
+                ...projection.maintenance.batchProgress,
+                status: "cancel_requested",
+                progressMessage: "batch_cancelling",
+                updatedAt: event.created_at ?? projection.maintenance.batchProgress.updatedAt,
+              }
+            : projection.maintenance.batchProgress,
+        activeJobs: projection.maintenance.activeJobs.map((job) =>
+          job.jobId === jobId ? { ...job, status: "cancel_requested" } : job,
+        ),
+      },
+    };
+  }
+
   if (
     event.type === "background_job_succeeded" ||
     event.type === "background_job_failed" ||
-    event.type === "background_job_skipped"
+    event.type === "background_job_skipped" ||
+    event.type === "background_job_cancelled"
   ) {
     const currentBatchProgress =
       jobId && projection.maintenance.batchProgress?.jobId === jobId
@@ -463,7 +495,9 @@ function applyJobEventToProjection(
         ? "succeeded"
         : event.type === "background_job_failed"
           ? "failed"
-          : "skipped";
+          : event.type === "background_job_skipped"
+            ? "skipped"
+            : "cancelled";
     const batchProgress = currentBatchProgress
       ? {
           ...currentBatchProgress,
@@ -706,24 +740,33 @@ export function useChapterSummaryListPage(
   projectId: string,
   page: number,
   volumeId?: string | null,
+  query?: string,
 ) {
   return useQuery<ChapterSummaryListResponse>({
-    queryKey: ["chapter-summary-list", projectId, volumeId ?? "all", page, SUMMARY_PAGE_SIZE],
+    queryKey: [
+      "chapter-summary-list",
+      projectId,
+      volumeId ?? "all",
+      query ?? "",
+      page,
+      SUMMARY_PAGE_SIZE,
+    ],
     queryFn: ({ signal }) =>
-      fetchChapterSummaryList(projectId, page, SUMMARY_PAGE_SIZE, signal, volumeId),
+      fetchChapterSummaryList(projectId, page, SUMMARY_PAGE_SIZE, signal, volumeId, query),
     enabled: !!projectId,
     placeholderData: keepPreviousData,
-    staleTime: 30 * 1000,
+    staleTime: 0,
   });
 }
 
-export function useLongTermSummariesPage(projectId: string, page: number) {
+export function useLongTermSummariesPage(projectId: string, page: number, query?: string) {
   return useQuery<LongTermSummaryListResponse>({
-    queryKey: ["long-term-summaries-page", projectId, page, SUMMARY_PAGE_SIZE],
-    queryFn: ({ signal }) => fetchLongTermSummariesPage(projectId, page, SUMMARY_PAGE_SIZE, signal),
+    queryKey: ["long-term-summaries-page", projectId, query ?? "", page, SUMMARY_PAGE_SIZE],
+    queryFn: ({ signal }) =>
+      fetchLongTermSummariesPage(projectId, page, SUMMARY_PAGE_SIZE, signal, query),
     enabled: !!projectId,
     placeholderData: keepPreviousData,
-    staleTime: 30 * 1000,
+    staleTime: 0,
   });
 }
 
@@ -842,6 +885,42 @@ export function useEnqueueSummary(projectId: string) {
 
       void queryClient.invalidateQueries({ queryKey: ["chapter-summary-list", projectId] });
       void queryClient.invalidateQueries({ queryKey: ["long-term-summaries-page", projectId] });
+    },
+  });
+}
+
+export function useCancelSummaryBatch(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (jobId: string) => cancelBackgroundJob(jobId, "用户停止摘要生成队列"),
+    onSuccess: (_result, jobId) => {
+      queryClient.setQueryData<SummaryProjection>(
+        getSummaryProjectionQueryKey(projectId),
+        (current) => {
+          if (
+            !current ||
+            current.maintenance.batchProgress?.jobId !== jobId ||
+            (current.maintenance.batchProgress.status !== "pending" &&
+              current.maintenance.batchProgress.status !== "running")
+          ) {
+            return current;
+          }
+          return {
+            ...current,
+            maintenance: {
+              ...current.maintenance,
+              batchProgress: {
+                ...current.maintenance.batchProgress,
+                status: "cancel_requested",
+                progressMessage: "batch_cancelling",
+                updatedAt: new Date().toISOString(),
+              },
+            },
+          };
+        },
+      );
+      void requestBackgroundSnapshot(projectId).catch(() => undefined);
     },
   });
 }

@@ -2,7 +2,7 @@ import { Box, Flex, Text, IconButton } from "@radix-ui/themes";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { AtSign, Globe, FileText } from "lucide-react";
 import { AnimatePresence } from "motion/react";
-import { Suspense, lazy, useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
@@ -27,11 +27,6 @@ import { createEditorExtensions } from "../lib/editor-config";
 import { useTabsStore } from "../store/use-tabs-store";
 import { FindReplacePanel } from "./find-replace-panel";
 
-const loadSummaryPanel = () =>
-  import("./summary-panel").then((module) => ({ default: module.SummaryPanel }));
-
-const SummaryPanel = lazy(loadSummaryPanel);
-
 const MANUAL_SAVE_EVENT = "openfic:chapter-editor-manual-save";
 
 interface ChapterEditorProps {
@@ -40,6 +35,7 @@ interface ChapterEditorProps {
   onAddToConversation?: (markup: string) => void;
   projectId?: string;
   isAgentLocked?: boolean;
+  onOpenSummary?: () => void;
 }
 
 function ChapterEditorInner({
@@ -48,12 +44,14 @@ function ChapterEditorInner({
   onAddToConversation,
   projectId,
   isAgentLocked = false,
+  onOpenSummary,
 }: {
   chapter: Chapter;
   onChapterUpdate?: (chapter: Chapter) => void;
   onAddToConversation?: (markup: string) => void;
   projectId?: string;
   isAgentLocked?: boolean;
+  onOpenSummary?: () => void;
 }) {
   const { t } = useTranslation();
   const updateMutation = useUpdateChapter();
@@ -75,34 +73,17 @@ function ChapterEditorInner({
   const [findReplaceMode, setFindReplaceMode] = useState<"closed" | "find" | "replace">("closed");
   const [wordCount, setWordCount] = useState(() => wordsCount(chapter.content || ""));
   const saveStatus = isSaving ? "saving" : hasChanges ? "unsaved" : "saved";
-  const [summaryOpen, setSummaryOpen] = useState(false);
-  const [hasOpenedSummary, setHasOpenedSummary] = useState(false);
 
   const showLockedToast = useMemo(
     () => createToastThrottler(t("writing.agentLockedChapterEdit")),
     [t],
   );
 
-  useEffect(() => {
-    if (!projectId || !chapter.id) return;
-    void loadSummaryPanel();
-  }, [chapter.id, projectId]);
-
   const handleWorldInfoClick = useCallback(() => {
     if (projectId) {
       navigate(`/world-info?projectId=${projectId}&from=writing`);
     }
   }, [navigate, projectId]);
-
-  const handleOpenSummary = useCallback(() => {
-    setHasOpenedSummary(true);
-    setSummaryOpen(true);
-  }, []);
-
-  const handleSummaryOpenChange = useCallback((open: boolean) => {
-    if (open) setHasOpenedSummary(true);
-    setSummaryOpen(open);
-  }, []);
 
   const extraActions: EditorToolbarExtraAction[] = useMemo(() => {
     const actions: EditorToolbarExtraAction[] = [];
@@ -128,35 +109,16 @@ function ChapterEditorInner({
           variant="ghost"
           size="2"
           aria-label={t("summary.openPanel")}
-          onClick={handleOpenSummary}
-          onPointerEnter={() => {
-            void loadSummaryPanel();
-          }}
-          onFocus={() => {
-            void loadSummaryPanel();
-          }}
+          onClick={onOpenSummary}
         >
           <FileText size={18} />
         </IconButton>
-        {hasOpenedSummary && (
-          <Suspense fallback={null}>
-            <SummaryPanel
-              projectId={projectId}
-              open={summaryOpen}
-              onOpenChange={handleSummaryOpenChange}
-              trigger={null}
-            />
-          </Suspense>
-        )}
       </>
     );
   }, [
     projectId,
     chapter.id,
-    handleOpenSummary,
-    handleSummaryOpenChange,
-    summaryOpen,
-    hasOpenedSummary,
+    onOpenSummary,
     t,
   ]);
 
@@ -569,6 +531,7 @@ export function ChapterEditor({
   onAddToConversation,
   projectId,
   isAgentLocked = false,
+  onOpenSummary,
 }: ChapterEditorProps) {
   const { t } = useTranslation();
   const { data: chapter, isLoading } = useChapter(chapterId);
@@ -610,6 +573,7 @@ export function ChapterEditor({
       onAddToConversation={onAddToConversation}
       projectId={projectId}
       isAgentLocked={isAgentLocked}
+      onOpenSummary={onOpenSummary}
     />
   );
 }

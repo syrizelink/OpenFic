@@ -1231,6 +1231,7 @@
       "generate": "生成摘要"
     },
     "emptyRanges": "还没有区间摘要。",
+    "rangeTitle": "第 {{start}} - {{end}} 章",
     "searchChapterPlaceholder": "搜索章节名、人物、地点或摘要内容",
     "searchRangePlaceholder": "搜索章节区间或摘要内容",
     "selectMode": "多选",
@@ -1255,7 +1256,16 @@
     "deleteRangeFailed": "删除区间摘要失败：{{reason}}",
     "enqueueFailed": "加入摘要队列失败：{{reason}}",
     "batchEnqueueFailed": "批量加入摘要队列失败：{{reason}}",
+    "batchCancelFailed": "停止摘要生成队列失败：{{reason}}",
     "openPanel": "摘要",
+    "wordCountWithUnit": "{{count}} 字",
+    "allVolumes": "全部卷",
+    "untitledVolume": "未命名卷",
+    "noSummaryContent": "暂无摘要内容。",
+    "noLongTermSummaryContent": "该区间摘要尚未生成",
+    "unknownTime": "未知",
+    "expandAria": "展开",
+    "collapseAria": "收起",
     "deleteDialog": {
       "deleteSelectedChaptersTitle": "删除选中的章节摘要",
       "deleteAllChaptersTitle": "删除全部章节摘要",
@@ -1267,22 +1277,59 @@
       "deleteAllRangesDescription": "将删除当前项目下全部区间摘要内容。"
     },
     "maintenance": {
-      "blockReasonFallback": "没有摘要的章节过多，需要手动生成摘要。",
+      "blockReasonFallback": "未生成摘要的章节过多，自动生成触发已被禁用，请尝试手动生成摘要",
+      "blockReasons": {
+        "too_many_pending_chapters": "未生成摘要的章节过多（超过 {{chapter_threshold}} 个），自动生成触发已被禁用，请尝试手动生成摘要"
+      },
       "queueTitle": "摘要生成队列",
-      "queueDescription": "当前有 {{chapterCount}} 个章节摘要、{{rangeCount}} 个区间摘要需要处理。进度条表示整个队列的总体处理进度。",
-      "generateAll": "一键生成全部",
+      "queueDescription": "当前有 {{chapterCount}} 个章节摘要、{{rangeCount}} 个区间摘要需要处理。",
+      "generateStart": "开始处理",
+      "generateStop": "停止处理",
+      "generate": "生成",
       "chapterBadge": "章节摘要 {{count}}",
       "rangeBadge": "区间摘要 {{count}}",
       "skippedBadge": "已跳过 {{count}}",
       "processingBadge": "处理中 {{count}}",
       "skippedChapters": "已跳过章节",
-      "chapterQueueTitle": "章节摘要队列",
-      "chapterQueueDescription": "逐章补齐缺失、失败或待更新的摘要。",
+      "skippedExcluded": "不参与摘要",
+      "skippedEmpty": "当前没有因字数不足而跳过的章节。",
+      "overflowHidden": "还有 {{count}} 项未展开显示。",
+      "overflowBatchRemaining": "还有 {{count}} 项会在批量生成时继续处理。",
+      "queueTotal": "队列共 {{count}} 项",
+      "queueCompleted": "已完成 {{count}} 项",
+      "queueRunning": "运行中 {{count}} 项",
+      "queueQueued": "排队中 {{count}} 项",
       "chapterQueueEmpty": "所有章节摘要都已就绪。",
-      "rangeQueueTitle": "区间摘要队列",
-      "rangeQueueDescription": "按固定区间补齐可聚合的长程摘要。",
-      "rangeQueueEmpty": "没有需要处理的区间摘要。"
-    }
+      "rangeQueueEmpty": "没有需要处理的区间摘要。",
+      "status": {
+        "not_generated": "未生成",
+        "not_displayed": "未显示",
+        "queued": "排队中",
+        "running": "正在生成",
+        "ready": "就绪",
+        "failed": "失败",
+        "stale": "待更新"
+      },
+      "progressMessages": {
+        "chapter_generating": "正在生成章节摘要",
+        "chapter_saved": "章节摘要已保存",
+        "chapter_completed": "章节摘要完成",
+        "long_term_generating": "正在生成区间摘要",
+        "long_term_saved": "区间摘要已保存",
+        "long_term_completed": "区间摘要完成",
+        "batch_completed": "摘要生成完成",
+        "batch_cancelled": "摘要生成已停止",
+        "batch_cancelling": "正在停止摘要生成",
+        "batch_generating": "正在生成摘要",
+        "batch_queued": "摘要已加入队列",
+        "batch_processing": "摘要处理中"
+      },
+      "errorMessages": {
+        "insufficient_source_summaries": "可聚合章节摘要不足"
+      }
+    },
+    "errorInvalidParams": "请求参数不正确",
+    "generateFailedFallback": "摘要生成失败，请稍后重试。"
   },
   "assistant": {
     "mobileTitle": "Agent",

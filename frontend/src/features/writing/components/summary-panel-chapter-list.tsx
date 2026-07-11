@@ -12,18 +12,21 @@ import {
 import axios from "axios";
 import { ChevronDown, ChevronLeft, ChevronRight, ListChecks, Search, Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { memo, useMemo, useState } from "react";
+import { memo, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import "./summary-panel.css";
 
 import { ConfirmDialog, SimpleSelect, toast } from "@/components";
 import type { ChapterSummaryListItem } from "@/lib/api-client";
+import i18n from "@/i18n";
 
 import { useChapterSummaryListPage, useDeleteChapterSummaries } from "../hooks/use-summaries";
 import { useVolumeTree } from "../hooks/use-volumes";
 
 const CHAPTER_SUMMARY_PAGE_SIZE = 20;
+const EMPTY_CHAPTER_SUMMARIES: ChapterSummaryListItem[] = [];
+
 interface ApiErrorPayload {
   detail?: unknown;
   message?: unknown;
@@ -31,7 +34,7 @@ interface ApiErrorPayload {
 
 function getErrorText(value: unknown): string | null {
   if (typeof value === "string" && value.trim()) return value.trim();
-  if (Array.isArray(value) && value.length > 0) return "请求参数不正确";
+  if (Array.isArray(value) && value.length > 0) return i18n.t("summary.errorInvalidParams");
   return null;
 }
 
@@ -44,7 +47,7 @@ function getSummaryErrorMessage(error: unknown): string {
   }
 
   if (error instanceof Error && error.message) return error.message;
-  return "摘要处理失败，请稍后重试。";
+  return i18n.t("summary.generateFailedFallback");
 }
 
 function getStatusColor(
@@ -59,16 +62,12 @@ function getStatusColor(
   return "gray";
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  not_generated: "未生成",
-  queued: "排队中",
-  running: "正在生成",
-  ready: "就绪",
-  failed: "失败",
-};
-
 function SummaryStatusBadge({ status, isStale }: { status: string; isStale: boolean }) {
-  const label = status === "ready" && isStale ? "待更新" : (STATUS_LABELS[status] ?? status);
+  const { t } = useTranslation();
+  const label =
+    status === "ready" && isStale
+      ? t("summary.maintenance.status.stale")
+      : t(`summary.maintenance.status.${status}`, { defaultValue: status });
   return <Badge color={getStatusColor(status, isStale)}>{label}</Badge>;
 }
 
@@ -220,6 +219,7 @@ const ChapterSummaryAccordionItem = memo(function ChapterSummaryAccordionItem({
   onToggleExpand,
   onToggleSelect,
 }: ChapterSummaryAccordionItemProps) {
+  const { t } = useTranslation();
   const tags = [...item.characters, ...item.locations].slice(0, 8);
   const canExpand = item.status !== "not_generated";
 
@@ -247,7 +247,7 @@ const ChapterSummaryAccordionItem = memo(function ChapterSummaryAccordionItem({
           disabled={!canExpand}
           className="summary-expand-button"
           data-expandable={canExpand ? "true" : "false"}
-          aria-label={expanded ? "收起" : "展开"}
+          aria-label={expanded ? t("summary.collapseAria") : t("summary.expandAria")}
         >
           <ChevronDown
             size={14}
@@ -264,8 +264,13 @@ const ChapterSummaryAccordionItem = memo(function ChapterSummaryAccordionItem({
             size="2"
             className="summary-chapter-title"
           >
-            {item.volumeTitle && <span className="summary-volume-label">{item.volumeTitle}</span>}
-            {`第 ${item.chapterOrder} 章 ${item.chapterTitle}`}
+            {item.volumeTitle && (
+              <span className="summary-volume-meta">
+                {item.volumeTitle} | {item.chapterOrder}
+              </span>
+            )}
+            {!item.volumeTitle && `${item.chapterOrder}. `}
+            {item.chapterTitle}
           </Text>
           {tags.length > 0 && (
             <Flex
@@ -318,21 +323,21 @@ const ChapterSummaryAccordionItem = memo(function ChapterSummaryAccordionItem({
                     size="1"
                     color="gray"
                   >
-                    {item.startTime || "未知"} - {item.endTime || "未知"}
+                    {item.startTime || t("summary.unknownTime")} - {item.endTime || t("summary.unknownTime")}
                   </Text>
                 )}
                 <Text
                   size="2"
                   className="summary-content-text"
                 >
-                  {item.summary || "暂无摘要内容。"}
+                  {item.summary || t("summary.noSummaryContent")}
                 </Text>
                 {item.errorMessage && (
                   <Text
                     size="1"
                     color="red"
                   >
-                    {item.errorMessage}
+                    {t(`summary.maintenance.errorMessages.${item.errorMessage}`, { defaultValue: item.errorMessage })}
                   </Text>
                 )}
               </Flex>
@@ -358,9 +363,10 @@ function areChapterSummaryItemPropsEqual(
 
 interface ChapterSummaryListViewProps {
   projectId: string;
+  open: boolean;
 }
 
-export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProps) {
+export function ChapterSummaryListView({ projectId, open }: ChapterSummaryListViewProps) {
   const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
@@ -369,50 +375,46 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
   const [selectedChapterIds, setSelectedChapterIds] = useState<string[]>([]);
   const [expandedChapterIds, setExpandedChapterIds] = useState<string[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(true);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const searchQueryParam = deferredSearchQuery.trim();
 
   const { data: volumeTree } = useVolumeTree(projectId);
   const volumeOptions = useMemo(() => {
     const volumes = volumeTree?.volumes ?? [];
     return [
-      { value: "all", label: "全部卷" },
+      { value: "all", label: t("summary.allVolumes") },
       ...volumes.map((v) => ({
         value: v.id,
-        label: v.title || "未命名卷",
+        label: v.title || t("summary.untitledVolume"),
       })),
     ];
-  }, [volumeTree?.volumes]);
+  }, [volumeTree?.volumes, t]);
 
   const {
     data: chapterSummaryList,
     isLoading,
     isFetching,
-  } = useChapterSummaryListPage(projectId, page, volumeId);
+    refetch,
+  } = useChapterSummaryListPage(projectId, page, volumeId, searchQueryParam);
   const deleteMutation = useDeleteChapterSummaries(projectId);
   const requestPage = page;
   const isInitialLoading = isLoading && !chapterSummaryList;
   const isPageSwitchLoading =
     isFetching && (chapterSummaryList?.page ?? requestPage) !== requestPage;
-  const isListLoading = isInitialLoading || isPageSwitchLoading;
+  const isListLoading = isRefreshing || isInitialLoading || isPageSwitchLoading;
 
-  const items = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    const source = chapterSummaryList?.items ?? [];
-    if (!query) return source;
-    return source.filter((item) => {
-      const haystack = [
-        item.chapterTitle,
-        item.volumeTitle ?? "",
-        `${item.chapterOrder}`,
-        item.summary,
-        item.errorMessage ?? "",
-        ...item.characters,
-        ...item.locations,
-      ]
-        .join("\n")
-        .toLowerCase();
-      return haystack.includes(query);
-    });
-  }, [chapterSummaryList?.items, searchQuery]);
+  useEffect(() => {
+    if (!open) return;
+    setIsRefreshing(true);
+    void refetch().finally(() => setIsRefreshing(false));
+  }, [open, refetch]);
+
+  const items = chapterSummaryList?.items ?? EMPTY_CHAPTER_SUMMARIES;
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQueryParam]);
 
   const visibleChapterIds = useMemo(() => new Set(items.map((item) => item.chapterId)), [items]);
   const selectedIds = useMemo(
@@ -577,9 +579,9 @@ export function ChapterSummaryListView({ projectId }: ChapterSummaryListViewProp
         </Flex>
       )}
 
-      {isInitialLoading && !searchQuery ? (
+      {isInitialLoading ? (
         <SummaryPaginationSkeleton />
-      ) : total > 0 && !searchQuery ? (
+      ) : total > 0 ? (
         <Flex
           align="center"
           justify="between"

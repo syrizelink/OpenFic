@@ -1,13 +1,13 @@
 import { Badge, Box, Button, Callout, Flex, Tabs, Text } from "@radix-ui/themes";
 import axios from "axios";
-import { AlertTriangle, Sparkles } from "lucide-react";
+import { AlertTriangle, Play, Square } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { forwardRef, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import "./summary-panel.css";
 
-import { toast } from "@/components";
+import { Spinner, toast } from "@/components";
 import type {
   EnqueueSummaryRequest,
   MissingChapterSummaryItem,
@@ -15,13 +15,19 @@ import type {
   SkippedChapterSummaryItem,
 } from "@/lib/api-client";
 import { requestBackgroundSnapshot } from "@/lib/background-socket";
+import i18n from "@/i18n";
 
-import { useEnqueueSummary, useSummaryPanel } from "../hooks/use-summaries";
+import {
+  useCancelSummaryBatch,
+  useEnqueueSummary,
+  useSummaryPanel,
+} from "../hooks/use-summaries";
 import {
   buildSummaryProgressState,
   shouldShowSummaryProgressPanel,
   type SummaryProgressState,
 } from "../lib/summary-progress-state";
+import { formatSummaryRangeMeta } from "../lib/summary-range-title";
 
 interface ApiErrorPayload {
   detail?: unknown;
@@ -32,27 +38,31 @@ interface ChapterMaintenanceItem {
   key: string;
   request: EnqueueSummaryRequest;
   title: string;
+  chapterOrder: number;
   volumeTitle: string | null;
+  wordCount: number;
   status: MissingChapterSummaryItem["status"];
   isStale: boolean;
-  progressMessage: string | null;
 }
 
 interface LongTermMaintenanceItem {
   key: string;
   request: EnqueueSummaryRequest;
-  title: string;
-  volumeTitle: null;
+  startOrder: number;
+  startVolumeTitle: string | null;
+  startChapterTitle: string;
+  endOrder: number;
+  endVolumeTitle: string | null;
+  endChapterTitle: string;
   status: MissingLongTermSummaryItem["status"];
   isStale: boolean;
-  progressMessage: string | null;
 }
 
 type MaintenanceTab = "chapter" | "long_term" | "skipped";
 
 function getErrorText(value: unknown): string | null {
   if (typeof value === "string" && value.trim()) return value.trim();
-  if (Array.isArray(value) && value.length > 0) return "请求参数不正确";
+  if (Array.isArray(value) && value.length > 0) return i18n.t("summary.errorInvalidParams");
   return null;
 }
 
@@ -65,7 +75,7 @@ function getSummaryErrorMessage(error: unknown): string {
   }
 
   if (error instanceof Error && error.message) return error.message;
-  return "摘要生成失败，请稍后重试。";
+  return i18n.t("summary.generateFailedFallback");
 }
 
 function getStatusColor(
@@ -80,17 +90,18 @@ function getStatusColor(
   return "gray";
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  not_generated: "未生成",
-  queued: "排队中",
-  running: "正在生成",
-  ready: "就绪",
-  failed: "失败",
-};
-
 function SummaryStatusBadge({ status, isStale }: { status: string; isStale: boolean }) {
-  const label = status === "ready" && isStale ? "待更新" : (STATUS_LABELS[status] ?? status);
+  const { t } = useTranslation();
+  const label =
+    status === "ready" && isStale
+      ? t("summary.maintenance.status.stale")
+      : t(`summary.maintenance.status.${status}`, { defaultValue: status });
   return <Badge color={getStatusColor(status, isStale)}>{label}</Badge>;
+}
+
+function translateProgressMessage(code: string | null, t: (key: string, options?: Record<string, unknown>) => string): string {
+  if (!code) return "";
+  return t(`summary.maintenance.progressMessages.${code}`, { defaultValue: code });
 }
 
 function AnimatedProgressBar({ value }: { value: number | null }) {
@@ -116,6 +127,7 @@ function AnimatedProgressBar({ value }: { value: number | null }) {
 }
 
 function SummaryProgressPanel({ state }: { state: SummaryProgressState }) {
+  const { t } = useTranslation();
   return (
     <motion.div
       initial={{ opacity: 0, height: 0, y: -8 }}
@@ -143,7 +155,7 @@ function SummaryProgressPanel({ state }: { state: SummaryProgressState }) {
               size="1"
               color="gray"
             >
-              {state.currentMessage}
+              {translateProgressMessage(state.currentMessage, t)}
             </Text>
             <Text
               size="1"
@@ -163,25 +175,25 @@ function SummaryProgressPanel({ state }: { state: SummaryProgressState }) {
             size="1"
             color="gray"
           >
-            队列共 {state.totalCount} 项
+            {t("summary.maintenance.queueTotal", { count: state.totalCount })}
           </Text>
           <Text
             size="1"
             color="gray"
           >
-            已完成 {state.completedCount} 项
+            {t("summary.maintenance.queueCompleted", { count: state.completedCount })}
           </Text>
           <Text
             size="1"
             color="gray"
           >
-            运行中 {state.runningCount} 项
+            {t("summary.maintenance.queueRunning", { count: state.runningCount })}
           </Text>
           <Text
             size="1"
             color="gray"
           >
-            排队中 {state.queuedCount} 项
+            {t("summary.maintenance.queueQueued", { count: state.queuedCount })}
           </Text>
         </Flex>
       </Flex>
@@ -194,10 +206,11 @@ function buildChapterItems(chapterItems: MissingChapterSummaryItem[]): ChapterMa
     key: item.chapterId,
     request: { summaryType: "chapter", chapterId: item.chapterId },
     title: item.chapterTitle,
+    chapterOrder: item.chapterOrder,
     volumeTitle: item.volumeTitle,
+    wordCount: item.wordCount,
     status: item.status,
     isStale: item.isStale,
-    progressMessage: item.progressMessage,
   }));
 }
 
@@ -207,11 +220,14 @@ function buildLongTermItems(
   return longTermItems.map((item) => ({
     key: `${item.startOrder}-${item.endOrder}`,
     request: { summaryType: "long_term", startOrder: item.startOrder, endOrder: item.endOrder },
-    title: `${item.startOrder} - ${item.endOrder}`,
-    volumeTitle: null,
+    startOrder: item.startOrder,
+    startVolumeTitle: item.startVolumeTitle,
+    startChapterTitle: item.startChapterTitle,
+    endOrder: item.endOrder,
+    endVolumeTitle: item.endVolumeTitle,
+    endChapterTitle: item.endChapterTitle,
     status: item.status,
     isStale: item.isStale,
-    progressMessage: item.progressMessage,
   }));
 }
 
@@ -225,6 +241,8 @@ const MaintenanceRow = forwardRef<HTMLDivElement, MaintenanceRowProps>(function 
   { item, disabled, onGenerate },
   ref,
 ) {
+  const { t } = useTranslation();
+  const isChapter = "chapterOrder" in item;
   return (
     <motion.div
       ref={ref}
@@ -245,24 +263,57 @@ const MaintenanceRow = forwardRef<HTMLDivElement, MaintenanceRowProps>(function 
           className="summary-row"
         >
           <Flex
-            direction="column"
-            gap="1"
+            align="center"
+            gap="2"
             className="summary-row-fill"
           >
             <Text
               size="2"
               className="summary-maintenance-title"
             >
-              {item.title}
+              {isChapter ? (
+                <>
+                  {item.volumeTitle && (
+                    <span className="summary-volume-meta">
+                      {item.volumeTitle} | {item.chapterOrder}
+                    </span>
+                  )}
+                  {item.title}
+                </>
+              ) : (
+                <>
+                  {item.startVolumeTitle && (
+                    <span className="summary-volume-meta">
+                      {formatSummaryRangeMeta({
+                        volumeTitle: item.startVolumeTitle,
+                        chapterOrder: item.startOrder,
+                      })}
+                    </span>
+                  )}
+                  {!item.startVolumeTitle && `${item.startOrder}. `}
+                  {item.startChapterTitle}
+                  <span className="summary-range-separator"> - </span>
+                  {item.endVolumeTitle && (
+                    <span className="summary-volume-meta">
+                      {formatSummaryRangeMeta({
+                        volumeTitle: item.endVolumeTitle,
+                        chapterOrder: item.endOrder,
+                      })}
+                    </span>
+                  )}
+                  {!item.endVolumeTitle && `${item.endOrder}. `}
+                  {item.endChapterTitle}
+                </>
+              )}
             </Text>
-            {item.volumeTitle && (
-              <Text
-                size="1"
+            {isChapter && (
+              <Badge
+                variant="soft"
                 color="gray"
-                className="summary-volume-label"
+                className="summary-word-count-badge"
               >
-                {item.volumeTitle}
-              </Text>
+                {t("summary.wordCountWithUnit", { count: item.wordCount })}
+              </Badge>
             )}
           </Flex>
           <Flex
@@ -270,15 +321,6 @@ const MaintenanceRow = forwardRef<HTMLDivElement, MaintenanceRowProps>(function 
             gap="2"
             className="summary-row-fixed"
           >
-            {item.progressMessage ? (
-              <Text
-                size="1"
-                color="gray"
-                className="summary-maintenance-progress-text"
-              >
-                {item.progressMessage}
-              </Text>
-            ) : null}
             <SummaryStatusBadge
               status={item.status}
               isStale={item.isStale}
@@ -289,7 +331,7 @@ const MaintenanceRow = forwardRef<HTMLDivElement, MaintenanceRowProps>(function 
               onClick={onGenerate}
               disabled={disabled}
             >
-              生成
+              {t("summary.maintenance.generate")}
             </Button>
           </Flex>
         </Flex>
@@ -299,37 +341,12 @@ const MaintenanceRow = forwardRef<HTMLDivElement, MaintenanceRowProps>(function 
 });
 
 function SkippedChapterList({ items }: { items: SkippedChapterSummaryItem[] }) {
+  const { t } = useTranslation();
   return (
     <Flex
       direction="column"
       gap="3"
     >
-      <Flex
-        align="center"
-        justify="between"
-        gap="3"
-        wrap="wrap"
-      >
-        <Flex
-          direction="column"
-          gap="1"
-        >
-          <Text
-            size="2"
-            weight="medium"
-          >
-            已跳过章节
-          </Text>
-          <Text
-            size="1"
-            color="gray"
-          >
-            字数少于 500 的章节不会参与章节摘要生成，也不会阻塞区间摘要聚合。
-          </Text>
-        </Flex>
-        <Badge color={items.length ? "gray" : "green"}>{items.length}</Badge>
-      </Flex>
-
       {items.length ? (
         <Flex
           direction="column"
@@ -349,27 +366,32 @@ function SkippedChapterList({ items }: { items: SkippedChapterSummaryItem[] }) {
                 className="summary-row"
               >
                 <Flex
-                  direction="column"
-                  gap="1"
+                  align="center"
+                  gap="2"
                   className="summary-row-fill"
                 >
                   <Text
                     size="2"
-                    className="summary-single-line-text"
+                    className="summary-maintenance-title"
                   >
                     {item.volumeTitle && (
-                      <span className="summary-volume-label">{item.volumeTitle}</span>
+                      <span className="summary-volume-meta">
+                        {item.volumeTitle} | {item.chapterOrder}
+                      </span>
                     )}
-                    {item.chapterOrder}. {item.chapterTitle}
+                    {item.chapterTitle}
                   </Text>
-                  <Text
-                    size="1"
+                  <Badge
+                    variant="soft"
                     color="gray"
+                    className="summary-word-count-badge"
                   >
-                    当前字数 {item.wordCount}
-                  </Text>
+                    {t("summary.wordCountWithUnit", { count: item.wordCount })}
+                  </Badge>
                 </Flex>
-                <Badge color="gray">不参与摘要</Badge>
+                <Box className="summary-row-fixed">
+                  <Badge color="gray">{t("summary.maintenance.skippedExcluded")}</Badge>
+                </Box>
               </Flex>
             </Box>
           ))}
@@ -384,7 +406,7 @@ function SkippedChapterList({ items }: { items: SkippedChapterSummaryItem[] }) {
             size="2"
             color="gray"
           >
-            当前没有因字数不足而跳过的章节。
+            {t("summary.maintenance.skippedEmpty")}
           </Text>
         </Flex>
       )}
@@ -394,7 +416,7 @@ function SkippedChapterList({ items }: { items: SkippedChapterSummaryItem[] }) {
           size="1"
           color="gray"
         >
-          还有 {items.length - 20} 项未展开显示。
+          {t("summary.maintenance.overflowHidden", { count: items.length - 20 })}
         </Text>
       )}
     </Flex>
@@ -402,20 +424,17 @@ function SkippedChapterList({ items }: { items: SkippedChapterSummaryItem[] }) {
 }
 
 function MaintenanceList({
-  title,
-  totalText,
   emptyText,
   items,
   isGenerating,
   onGenerate,
 }: {
-  title: string;
-  totalText: string;
   emptyText: string;
   items: Array<ChapterMaintenanceItem | LongTermMaintenanceItem>;
   isGenerating: boolean;
   onGenerate: (request: EnqueueSummaryRequest) => void;
 }) {
+  const { t } = useTranslation();
   const [displayedItems, setDisplayedItems] = useState(items);
 
   useEffect(() => {
@@ -441,32 +460,6 @@ function MaintenanceList({
       direction="column"
       gap="3"
     >
-      <Flex
-        align="center"
-        justify="between"
-        gap="3"
-        wrap="wrap"
-      >
-        <Flex
-          direction="column"
-          gap="1"
-        >
-          <Text
-            size="2"
-            weight="medium"
-          >
-            {title}
-          </Text>
-          <Text
-            size="1"
-            color="gray"
-          >
-            {totalText}
-          </Text>
-        </Flex>
-        <Badge color={items.length ? "amber" : "green"}>{items.length}</Badge>
-      </Flex>
-
       {displayedItems.length ? (
         <Flex
           direction="column"
@@ -509,7 +502,7 @@ function MaintenanceList({
           size="1"
           color="gray"
         >
-          还有 {items.length - 20} 项会在批量生成时继续处理。
+          {t("summary.maintenance.overflowBatchRemaining", { count: items.length - 20 })}
         </Text>
       )}
     </Flex>
@@ -518,17 +511,24 @@ function MaintenanceList({
 
 interface SummaryMaintenanceViewProps {
   projectId: string;
+  open: boolean;
 }
 
-export function SummaryMaintenanceView({ projectId }: SummaryMaintenanceViewProps) {
+export function SummaryMaintenanceView({ projectId, open }: SummaryMaintenanceViewProps) {
   const { t } = useTranslation();
   const { data: panelData } = useSummaryPanel(projectId);
   const enqueueMutation = useEnqueueSummary(projectId);
+  const cancelBatchMutation = useCancelSummaryBatch(projectId);
   const [activeTab, setActiveTab] = useState<MaintenanceTab>("chapter");
+  const [isRefreshing, setIsRefreshing] = useState(true);
 
   useEffect(() => {
-    void requestBackgroundSnapshot(projectId).catch(() => undefined);
-  }, [projectId]);
+    if (!open) return;
+    setIsRefreshing(true);
+    void requestBackgroundSnapshot(projectId)
+      .catch(() => undefined)
+      .finally(() => setIsRefreshing(false));
+  }, [open, projectId]);
 
   const maintenance = panelData?.maintenance;
   const chapterItems = useMemo(
@@ -548,6 +548,8 @@ export function SummaryMaintenanceView({ projectId }: SummaryMaintenanceViewProp
     [activeJobs, batchProgress],
   );
   const isGenerating = enqueueMutation.isPending || (progressState?.isActive ?? false);
+  const isCancelling = progressState?.status === "cancel_requested";
+  const batchJobId = progressState?.isActive ? batchProgress?.jobId : null;
 
   const chapterViewItems = useMemo(() => buildChapterItems(chapterItems), [chapterItems]);
   const longTermViewItems = useMemo(() => buildLongTermItems(longTermItems), [longTermItems]);
@@ -569,6 +571,27 @@ export function SummaryMaintenanceView({ projectId }: SummaryMaintenanceViewProp
     }
   };
 
+  const handleStopGenerating = async () => {
+    if (!batchJobId) return;
+    try {
+      await cancelBatchMutation.mutateAsync(batchJobId);
+    } catch (error) {
+      toast.error(t("summary.batchCancelFailed", { reason: getSummaryErrorMessage(error) }));
+    }
+  };
+
+  if (isRefreshing) {
+    return (
+      <Flex
+        align="center"
+        justify="center"
+        className="summary-panel-loading"
+      >
+        <Spinner size={24} />
+      </Flex>
+    );
+  }
+
   return (
     <Flex
       direction="column"
@@ -583,7 +606,12 @@ export function SummaryMaintenanceView({ projectId }: SummaryMaintenanceViewProp
             <AlertTriangle size={16} />
           </Callout.Icon>
           <Callout.Text>
-            {maintenance.blockReason ?? t("summary.maintenance.blockReasonFallback")}
+            {maintenance.blockReasonCode
+              ? t(
+                  `summary.maintenance.blockReasons.${maintenance.blockReasonCode}`,
+                  maintenance.blockReasonParams ?? {},
+                )
+              : t("summary.maintenance.blockReasonFallback")}
           </Callout.Text>
         </Callout.Root>
       )}
@@ -621,14 +649,26 @@ export function SummaryMaintenanceView({ projectId }: SummaryMaintenanceViewProp
                 })}
               </Text>
             </Flex>
-            <Button
-              size="2"
-              onClick={handleGenerateAll}
-              disabled={isGenerating || total === 0}
-            >
-              <Sparkles size={15} />
-              {t("summary.maintenance.generateAll")}
-            </Button>
+            {isGenerating ? (
+              <Button
+                size="2"
+                color="red"
+                onClick={handleStopGenerating}
+                disabled={!batchJobId || isCancelling || cancelBatchMutation.isPending}
+              >
+                <Square size={14} />
+                {t("summary.maintenance.generateStop")}
+              </Button>
+            ) : (
+              <Button
+                size="2"
+                onClick={handleGenerateAll}
+                disabled={total === 0}
+              >
+                <Play size={15} />
+                {t("summary.maintenance.generateStart")}
+              </Button>
+            )}
           </Flex>
 
           <Flex
@@ -706,8 +746,6 @@ export function SummaryMaintenanceView({ projectId }: SummaryMaintenanceViewProp
         <Box pt="4">
           <Tabs.Content value="chapter">
             <MaintenanceList
-              title={t("summary.maintenance.chapterQueueTitle")}
-              totalText={t("summary.maintenance.chapterQueueDescription")}
               emptyText={t("summary.maintenance.chapterQueueEmpty")}
               items={chapterViewItems}
               isGenerating={isGenerating}
@@ -717,8 +755,6 @@ export function SummaryMaintenanceView({ projectId }: SummaryMaintenanceViewProp
 
           <Tabs.Content value="long_term">
             <MaintenanceList
-              title={t("summary.maintenance.rangeQueueTitle")}
-              totalText={t("summary.maintenance.rangeQueueDescription")}
               emptyText={t("summary.maintenance.rangeQueueEmpty")}
               items={longTermViewItems}
               isGenerating={isGenerating}

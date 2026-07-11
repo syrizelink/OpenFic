@@ -31,12 +31,17 @@ export function buildSummaryProgressState(
     completedCount + queuedCount + runningCount,
   );
   const runningJob = activeJobs.find((job) => job.status === "running");
-  const isActive = batchProgress.status === "pending" || batchProgress.status === "running";
+  const isActive =
+    batchProgress.status === "pending" ||
+    batchProgress.status === "running" ||
+    batchProgress.status === "cancel_requested";
   const currentMessage =
-    (!isActive && totalCount > 0 && completedCount >= totalCount ? "摘要生成完成" : null) ??
+    (batchProgress.status === "cancel_requested" ? "batch_cancelling" : null) ??
+    (batchProgress.status === "cancelled" ? "batch_cancelled" : null) ??
+    (!isActive && totalCount > 0 && completedCount >= totalCount ? "batch_completed" : null) ??
     runningJob?.progressMessage ??
     batchProgress.progressMessage ??
-    (runningCount > 0 ? "正在生成摘要" : queuedCount > 0 ? "摘要已加入队列" : "摘要处理中");
+    (runningCount > 0 ? "batch_generating" : queuedCount > 0 ? "batch_queued" : "batch_processing");
 
   return {
     status: batchProgress.status,

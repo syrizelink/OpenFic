@@ -6,6 +6,15 @@ from app.background.events.types import EVENT_CHAPTER_SUMMARY_UPDATED, EVENT_LON
 from app.background.jobs import service as job_service
 from app.background.jobs.base import JobDefinition
 from app.background.jobs.constants import JOB_QUEUE_LLM, JOB_TYPE_CHAPTER_SUMMARY, JOB_TYPE_LONG_TERM_SUMMARY
+from app.background.jobs.definitions.summary_batch import (
+    ERROR_MSG_INSUFFICIENT_SOURCE,
+    PROGRESS_MSG_CHAPTER_COMPLETED,
+    PROGRESS_MSG_CHAPTER_GENERATING,
+    PROGRESS_MSG_CHAPTER_SAVED,
+    PROGRESS_MSG_LONG_TERM_COMPLETED,
+    PROGRESS_MSG_LONG_TERM_GENERATING,
+    PROGRESS_MSG_LONG_TERM_SAVED,
+)
 from app.background.llm.resolver import BackgroundModelUnavailableError, resolve_background_llm
 from app.background.runtime.context import JobContext
 from app.memory.chapter import summary_generator, summary_service
@@ -64,7 +73,7 @@ async def handle_chapter_summary(context: JobContext) -> dict[str, str] | None:
             job,
             current=1,
             total=3,
-            message="正在生成章节摘要",
+            message=PROGRESS_MSG_CHAPTER_GENERATING,
         )
         prompt = await summary_generator.build_chapter_summary_prompt(session, payload.chapter_id)
         return resolved, prompt
@@ -97,7 +106,7 @@ async def handle_chapter_summary(context: JobContext) -> dict[str, str] | None:
             job,
             current=2,
             total=3,
-            message="章节摘要已保存",
+            message=PROGRESS_MSG_CHAPTER_SAVED,
         )
         await _publish_chapter_update(context, row, session=session, job=job)
         await summary_service.enqueue_long_term_summary_if_ready(
@@ -112,7 +121,7 @@ async def handle_chapter_summary(context: JobContext) -> dict[str, str] | None:
             job,
             current=3,
             total=3,
-            message="章节摘要完成",
+            message=PROGRESS_MSG_CHAPTER_COMPLETED,
         )
         return row.id
 
@@ -127,12 +136,13 @@ async def handle_long_term_summary(context: JobContext) -> dict[str, str] | None
     metadata = SummaryJobContext.model_validate(context.metadata)
 
     async def prepare_generation(session, job):
-        source = await summary_service.load_long_term_source(
+        window = await summary_service.load_long_term_summary_window(
             session, payload.project_id, payload.start_order, payload.end_order
         )
-        if len(source) < summary_service.LONG_TERM_SUMMARY_INTERVAL:
-            await job_service.mark_skipped(session, context.publisher, job, reason="可聚合章节摘要不足")
+        if window is None:
+            await job_service.mark_skipped(session, context.publisher, job, reason=ERROR_MSG_INSUFFICIENT_SOURCE)
             return None, None, None
+        source = window.source_summaries
         chapters = await chapter_repo.list_by_project(session, payload.project_id)
         try:
             resolved = await resolve_background_llm(
@@ -145,6 +155,8 @@ async def handle_long_term_summary(context: JobContext) -> dict[str, str] | None
                 session,
                 payload.project_id,
                 source,
+                start_order=payload.start_order,
+                end_order=payload.end_order,
                 status=chapter_summary_repo.SUMMARY_STATUS_FAILED,
                 source_chapter_ids=await summary_service.load_long_term_chapter_ids(
                     session, payload.project_id, payload.start_order, payload.end_order
@@ -159,6 +171,8 @@ async def handle_long_term_summary(context: JobContext) -> dict[str, str] | None
             session,
             payload.project_id,
             source,
+            start_order=payload.start_order,
+            end_order=payload.end_order,
             status=chapter_summary_repo.SUMMARY_STATUS_RUNNING,
             source_chapter_ids=await summary_service.load_long_term_chapter_ids(
                 session, payload.project_id, payload.start_order, payload.end_order
@@ -173,7 +187,7 @@ async def handle_long_term_summary(context: JobContext) -> dict[str, str] | None
             job,
             current=1,
             total=3,
-            message="正在生成区间摘要",
+            message=PROGRESS_MSG_LONG_TERM_GENERATING,
         )
         prompt = await summary_generator.build_long_term_summary_prompt(session, source, chapters)
         return resolved, source, prompt
@@ -188,13 +202,18 @@ async def handle_long_term_summary(context: JobContext) -> dict[str, str] | None
     await context.check_cancelled()
 
     async def save_result(session, job):
-        source = await summary_service.load_long_term_source(
+        window = await summary_service.load_long_term_summary_window(
             session, payload.project_id, payload.start_order, payload.end_order
         )
+        if window is None:
+            raise ValueError(ERROR_MSG_INSUFFICIENT_SOURCE)
+        source = window.source_summaries
         row = await summary_service.save_long_term_summary_result(
             session,
             payload.project_id,
             source,
+            start_order=payload.start_order,
+            end_order=payload.end_order,
             start_time=result.start_time,
             end_time=result.end_time,
             summary=result.summary,
@@ -211,7 +230,7 @@ async def handle_long_term_summary(context: JobContext) -> dict[str, str] | None
             job,
             current=2,
             total=3,
-            message="区间摘要已保存",
+            message=PROGRESS_MSG_LONG_TERM_SAVED,
         )
         await _publish_long_term_update(context, row, session=session, job=job)
         await job_service.update_progress(
@@ -220,7 +239,7 @@ async def handle_long_term_summary(context: JobContext) -> dict[str, str] | None
             job,
             current=3,
             total=3,
-            message="区间摘要完成",
+            message=PROGRESS_MSG_LONG_TERM_COMPLETED,
         )
         return row.id
 

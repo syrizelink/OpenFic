@@ -1176,6 +1176,7 @@
       "generate": "Generate Summaries"
     },
     "emptyRanges": "No range summaries yet.",
+    "rangeTitle": "Chapters {{start}} - {{end}}",
     "searchChapterPlaceholder": "Search chapter names, characters, places, or summary content",
     "searchRangePlaceholder": "Search chapter ranges or summary content",
     "selectMode": "Multi-select",
@@ -1200,7 +1201,16 @@
     "deleteRangeFailed": "Failed to delete range summaries: {{reason}}",
     "enqueueFailed": "Failed to add summary job to queue: {{reason}}",
     "batchEnqueueFailed": "Failed to add summary jobs to queue in batch: {{reason}}",
+    "batchCancelFailed": "Failed to stop summary generation queue: {{reason}}",
     "openPanel": "Summary",
+    "wordCountWithUnit": "{{count}} words",
+    "allVolumes": "All volumes",
+    "untitledVolume": "Untitled volume",
+    "noSummaryContent": "No summary content available.",
+    "noLongTermSummaryContent": "This range summary has not been generated yet.",
+    "unknownTime": "Unknown",
+    "expandAria": "Expand",
+    "collapseAria": "Collapse",
     "deleteDialog": {
       "deleteSelectedChaptersTitle": "Delete selected chapter summaries",
       "deleteAllChaptersTitle": "Delete all chapter summaries",
@@ -1212,22 +1222,59 @@
       "deleteAllRangesDescription": "This will delete all range summary content in the current project."
     },
     "maintenance": {
-      "blockReasonFallback": "Too many chapters are missing summaries and they must be generated manually.",
+      "blockReasonFallback": "Too many chapters lack summaries. Automatic summary generation is disabled. Please try to generate summaries manually.",
+      "blockReasons": {
+        "too_many_pending_chapters": "Too many chapters lack summaries (more than {{chapter_threshold}}). Automatic summary generation is disabled. Please try to generate summaries manually."
+      },
       "queueTitle": "Summary Generation Queue",
-      "queueDescription": "There are currently {{chapterCount}} chapter summaries and {{rangeCount}} range summaries to process. The progress bar shows the overall progress for the entire queue.",
-      "generateAll": "Generate All",
+      "queueDescription": "There are currently {{chapterCount}} chapter summaries and {{rangeCount}} range summaries to process.",
+      "generateStart": "Start Processing",
+      "generateStop": "Stop Processing",
+      "generate": "Generate",
       "chapterBadge": "Chapter summaries {{count}}",
       "rangeBadge": "Range summaries {{count}}",
       "skippedBadge": "Skipped {{count}}",
       "processingBadge": "Processing {{count}}",
       "skippedChapters": "Skipped Chapters",
-      "chapterQueueTitle": "Chapter Summary Queue",
-      "chapterQueueDescription": "Backfill chapter summaries one by one for missing, failed, or outdated items.",
+      "skippedExcluded": "Excluded",
+      "skippedEmpty": "No chapters are skipped due to insufficient word count.",
+      "overflowHidden": "{{count}} more items not shown.",
+      "overflowBatchRemaining": "{{count}} more items will be processed during batch generation.",
+      "queueTotal": "Queue total: {{count}}",
+      "queueCompleted": "Completed: {{count}}",
+      "queueRunning": "Running: {{count}}",
+      "queueQueued": "Queued: {{count}}",
       "chapterQueueEmpty": "All chapter summaries are ready.",
-      "rangeQueueTitle": "Range Summary Queue",
-      "rangeQueueDescription": "Backfill aggregatable long-range summaries by fixed ranges.",
-      "rangeQueueEmpty": "No range summaries need processing."
-    }
+      "rangeQueueEmpty": "No range summaries need processing.",
+      "status": {
+        "not_generated": "Not generated",
+        "not_displayed": "Not displayed",
+        "queued": "Queued",
+        "running": "Generating",
+        "ready": "Ready",
+        "failed": "Failed",
+        "stale": "Outdated"
+      },
+      "progressMessages": {
+        "chapter_generating": "Generating chapter summary",
+        "chapter_saved": "Chapter summary saved",
+        "chapter_completed": "Chapter summary completed",
+        "long_term_generating": "Generating range summary",
+        "long_term_saved": "Range summary saved",
+        "long_term_completed": "Range summary completed",
+        "batch_completed": "Summary generation completed",
+        "batch_cancelled": "Summary generation stopped",
+        "batch_cancelling": "Stopping summary generation",
+        "batch_generating": "Generating summaries",
+        "batch_queued": "Summaries queued",
+        "batch_processing": "Processing summaries"
+      },
+      "errorMessages": {
+        "insufficient_source_summaries": "Insufficient chapter summaries for aggregation"
+      }
+    },
+    "errorInvalidParams": "Invalid request parameters",
+    "generateFailedFallback": "Summary generation failed. Please try again later."
   },
   "assistant": {
     "mobileTitle": "Agent",

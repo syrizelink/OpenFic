@@ -36,8 +36,8 @@
 }
 
 .summary-panel-sidebar {
-  width: 184px;
-  min-width: 184px;
+  width: 210px;
+  min-width: 210px;
   flex-shrink: 0;
   border-right: 1px solid var(--gray-a5);
   background: var(--color-background);
@@ -73,6 +73,10 @@
 .summary-panel-body {
   overflow: auto;
   height: min(720px, 86vh);
+}
+
+.summary-panel-loading {
+  height: 100%;
 }
 
 .summary-card {
@@ -162,6 +166,22 @@
   margin-right: 6px;
 }
 
+.summary-volume-meta {
+  color: var(--gray-9);
+  margin-right: 6px;
+  font-size: 12px;
+}
+
+.summary-range-separator {
+  color: var(--gray-9);
+  margin: 0 4px;
+}
+
+.summary-word-count-badge {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .summary-content-text {
   line-height: 1.8;
   white-space: pre-wrap;
@@ -204,13 +224,6 @@
 
 .summary-maintenance-title {
   flex: 1;
-}
-
-.summary-maintenance-progress-text {
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .summary-maintenance-hero {

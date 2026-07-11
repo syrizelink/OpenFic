@@ -97,6 +97,9 @@ class BackgroundSupervisor:
     def create_event_publisher(self) -> BackgroundEventPublisher:
         return BackgroundEventPublisher(self._transport)
 
+    def cancel_running_summary_batch(self, job_id: str) -> bool:
+        return any(worker.cancel_running_summary_batch(job_id) for worker in self._workers)
+
     async def _run_event_bridge(self) -> None:
         assert self._transport is not None
         while not self._stop_event.is_set():

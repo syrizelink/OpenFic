@@ -332,6 +332,7 @@ interface GroupedVolumeListProps {
   compact?: boolean;
   initialCurrentChapterNavigationKey?: string | null;
   summaryStatusMap?: Record<string, SummaryStatusItem>;
+  onOpenSummary?: () => void;
   onToggleVolume: (volumeId: string) => void;
   onStartRenameVolume: (volumeId: string) => void;
   onRenameVolume: (volumeId: string, title: string) => void;
@@ -361,6 +362,7 @@ export function GroupedVolumeList({
   compact = false,
   initialCurrentChapterNavigationKey = null,
   summaryStatusMap = {},
+  onOpenSummary,
   onToggleVolume,
   onStartRenameVolume,
   onRenameVolume,
@@ -982,6 +984,7 @@ export function GroupedVolumeList({
           onRenameCancel={handleRenameCancel}
           summaryStatus={summaryStatusMap[row.chapter.id]?.status}
           summaryIsStale={summaryStatusMap[row.chapter.id]?.isStale}
+          onOpenSummary={onOpenSummary}
         />
       );
     },
@@ -997,6 +1000,7 @@ export function GroupedVolumeList({
       onChapterSelect,
       renamingChapterId,
       summaryStatusMap,
+      onOpenSummary,
       t,
     ],
   );
@@ -1139,6 +1143,7 @@ export function GroupedVolumeList({
                           onSelectChapter={onChapterSelect}
                           summaryStatus={summaryStatusMap[chapter.id]?.status}
                           summaryIsStale={summaryStatusMap[chapter.id]?.isStale}
+                          onOpenSummary={onOpenSummary}
                         />
                       ))}
                     </SortableContext>

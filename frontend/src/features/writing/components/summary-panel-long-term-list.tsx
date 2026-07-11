@@ -11,17 +11,20 @@ import {
 import axios from "axios";
 import { ChevronDown, ChevronLeft, ChevronRight, ListChecks, Search, Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import "./summary-panel.css";
 
 import { ConfirmDialog, toast } from "@/components";
 import type { LongTermSummaryListItem } from "@/lib/api-client";
+import i18n from "@/i18n";
 
 import { useDeleteLongTermSummaries, useLongTermSummariesPage } from "../hooks/use-summaries";
+import { formatSummaryRangeMeta } from "../lib/summary-range-title";
 
 const PAGE_SIZE = 20;
+const EMPTY_LONG_TERM_SUMMARIES: LongTermSummaryListItem[] = [];
 
 interface ApiErrorPayload {
   detail?: unknown;
@@ -30,7 +33,7 @@ interface ApiErrorPayload {
 
 function getErrorText(value: unknown): string | null {
   if (typeof value === "string" && value.trim()) return value.trim();
-  if (Array.isArray(value) && value.length > 0) return "请求参数不正确";
+  if (Array.isArray(value) && value.length > 0) return i18n.t("summary.errorInvalidParams");
   return null;
 }
 
@@ -42,7 +45,7 @@ function getSummaryErrorMessage(error: unknown): string {
     if (error.message) return error.message;
   }
   if (error instanceof Error && error.message) return error.message;
-  return "摘要处理失败，请稍后重试。";
+  return i18n.t("summary.generateFailedFallback");
 }
 
 function getStatusColor(
@@ -57,16 +60,13 @@ function getStatusColor(
   return "gray";
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  not_generated: "未显示",
-  queued: "排队中",
-  running: "正在生成",
-  ready: "就绪",
-  failed: "失败",
-};
-
 function SummaryStatusBadge({ status, isStale }: { status: string; isStale: boolean }) {
-  const label = status === "ready" && isStale ? "待更新" : (STATUS_LABELS[status] ?? status);
+  const { t } = useTranslation();
+  const statusKey = status === "not_generated" ? "not_displayed" : status;
+  const label =
+    status === "ready" && isStale
+      ? t("summary.maintenance.status.stale")
+      : t(`summary.maintenance.status.${statusKey}`, { defaultValue: status });
   return (
     <span
       className="rt-Badge rt-r-size-1 rt-variant-soft"
@@ -205,6 +205,7 @@ const LongTermSummaryAccordionItem = memo(function LongTermSummaryAccordionItem(
   onToggleExpand,
   onToggleSelect,
 }: LongTermSummaryAccordionItemProps) {
+  const { t } = useTranslation();
   const canExpand = item.status !== "not_generated";
 
   return (
@@ -231,7 +232,7 @@ const LongTermSummaryAccordionItem = memo(function LongTermSummaryAccordionItem(
           disabled={!canExpand}
           className="summary-expand-button"
           data-expandable={canExpand ? "true" : "false"}
-          aria-label={expanded ? "收起" : "展开"}
+          aria-label={expanded ? t("summary.collapseAria") : t("summary.expandAria")}
         >
           <ChevronDown
             size={14}
@@ -243,7 +244,21 @@ const LongTermSummaryAccordionItem = memo(function LongTermSummaryAccordionItem(
           size="2"
           className="summary-range-title"
         >
-          {`第 ${item.startOrder} - ${item.endOrder} 章`}
+          {item.startVolumeTitle && (
+            <span className="summary-volume-meta">
+              {formatSummaryRangeMeta({ volumeTitle: item.startVolumeTitle, chapterOrder: item.startOrder })}
+            </span>
+          )}
+          {!item.startVolumeTitle && `${item.startOrder}. `}
+          {item.startChapterTitle}
+          <span className="summary-range-separator"> - </span>
+          {item.endVolumeTitle && (
+            <span className="summary-volume-meta">
+              {formatSummaryRangeMeta({ volumeTitle: item.endVolumeTitle, chapterOrder: item.endOrder })}
+            </span>
+          )}
+          {!item.endVolumeTitle && `${item.endOrder}. `}
+          {item.endChapterTitle}
         </Text>
         <Box className="summary-row-fixed">
           <SummaryStatusBadge
@@ -278,21 +293,21 @@ const LongTermSummaryAccordionItem = memo(function LongTermSummaryAccordionItem(
                     size="1"
                     color="gray"
                   >
-                    {item.startTime || "未知"} - {item.endTime || "未知"}
+                    {item.startTime || t("summary.unknownTime")} - {item.endTime || t("summary.unknownTime")}
                   </Text>
                 )}
                 <Text
                   size="2"
                   className="summary-content-text"
                 >
-                  {item.summary || "该区间摘要尚未生成，当前先保留为未显示状态。"}
+                  {item.summary || t("summary.noLongTermSummaryContent")}
                 </Text>
                 {item.errorMessage && (
                   <Text
                     size="1"
                     color="red"
                   >
-                    {item.errorMessage}
+                    {t(`summary.maintenance.errorMessages.${item.errorMessage}`, { defaultValue: item.errorMessage })}
                   </Text>
                 )}
               </Flex>
@@ -334,41 +349,33 @@ export function LongTermSummaryListView({
   const [selectedRanges, setSelectedRanges] = useState<string[]>([]);
   const [expandedRanges, setExpandedRanges] = useState<string[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(true);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const searchQueryParam = deferredSearchQuery.trim();
 
   const {
     data: pageData,
     isLoading,
     isFetching,
     refetch,
-  } = useLongTermSummariesPage(projectId, page);
+  } = useLongTermSummariesPage(projectId, page, searchQueryParam);
   const deleteMutation = useDeleteLongTermSummaries(projectId);
   const requestPage = page;
   const isInitialLoading = isLoading && !pageData;
   const isPageSwitchLoading = isFetching && (pageData?.page ?? requestPage) !== requestPage;
-  const isListLoading = isInitialLoading || isPageSwitchLoading;
+  const isListLoading = isRefreshing || isInitialLoading || isPageSwitchLoading;
 
   useEffect(() => {
     if (!open) return;
-    void refetch();
+    setIsRefreshing(true);
+    void refetch().finally(() => setIsRefreshing(false));
   }, [open, refetch]);
 
-  const items = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    const source = pageData?.items ?? [];
-    if (!query) return source;
-    return source.filter((item) => {
-      const haystack = [
-        `${item.startOrder}`,
-        `${item.endOrder}`,
-        `第 ${item.startOrder} - ${item.endOrder} 章`,
-        item.summary,
-        item.errorMessage ?? "",
-      ]
-        .join("\n")
-        .toLowerCase();
-      return haystack.includes(query);
-    });
-  }, [pageData?.items, searchQuery]);
+  const items = pageData?.items ?? EMPTY_LONG_TERM_SUMMARIES;
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQueryParam]);
 
   const visibleRangeKeys = useMemo(
     () => new Set(items.map((item) => `${item.startOrder}-${item.endOrder}`)),
@@ -548,9 +555,9 @@ export function LongTermSummaryListView({
         </Flex>
       )}
 
-      {isInitialLoading && !searchQuery ? (
+      {isInitialLoading ? (
         <SummaryPaginationSkeleton />
-      ) : total > 0 && !searchQuery ? (
+      ) : total > 0 ? (
         <Flex
           align="center"
           justify="between"

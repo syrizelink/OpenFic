@@ -1,7 +1,7 @@
 import { Box, Flex, IconButton, Tooltip } from "@radix-ui/themes";
 import { Bot, List } from "lucide-react";
 import { motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Panel, Group, Separator } from "react-resizable-panels";
 import { useParams } from "react-router";
@@ -27,6 +27,9 @@ import { useWritingStore } from "../store/use-writing-store";
 
 const MotionBox = motion.create(Box);
 const MOBILE_SIDEBAR_WIDTH = 320;
+const SummaryPanel = lazy(() =>
+  import("../components/summary-panel").then((module) => ({ default: module.SummaryPanel })),
+);
 
 export function WritingPage() {
   const { t } = useTranslation();
@@ -67,6 +70,8 @@ export function WritingPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [hasOpenedSummary, setHasOpenedSummary] = useState(false);
   const [assistantState, setAssistantState] = useState<AssistantSidebarState>({
     agentStatus: "idle",
     isAgentRunning: false,
@@ -324,6 +329,16 @@ export function WritingPage() {
     [isAssistantOpen, isMobile],
   );
 
+  const handleOpenSummary = useCallback(() => {
+    setHasOpenedSummary(true);
+    setIsSummaryOpen(true);
+  }, []);
+
+  const handleSummaryOpenChange = useCallback((open: boolean) => {
+    if (open) setHasOpenedSummary(true);
+    setIsSummaryOpen(open);
+  }, []);
+
   if (!projectId) {
     return null;
   }
@@ -336,6 +351,7 @@ export function WritingPage() {
       isAgentLocked={isAgentLocked}
       onAddToConversation={isViewingSubagent ? undefined : handleAddToConversation}
       initialCurrentChapterNavigationKey={initialCurrentChapterNavigationKey}
+      onOpenSummary={handleOpenSummary}
     />
   );
 
@@ -389,6 +405,7 @@ export function WritingPage() {
                         onAddToConversation={
                           isViewingSubagent ? undefined : handleAddToConversation
                         }
+                        onOpenSummary={handleOpenSummary}
                       />
                     )
                   ) : (
@@ -472,6 +489,7 @@ export function WritingPage() {
                       chapterId={activeRefId}
                       projectId={projectId}
                       isAgentLocked={isAgentLocked}
+                      onOpenSummary={handleOpenSummary}
                     />
                   )
                 ) : (
@@ -512,6 +530,7 @@ export function WritingPage() {
                   onAddToConversation={isViewingSubagent ? undefined : handleAddToConversation}
                   compact
                   initialCurrentChapterNavigationKey={initialCurrentChapterNavigationKey}
+                  onOpenSummary={handleOpenSummary}
                 />
               </MotionBox>
             </div>
@@ -537,6 +556,17 @@ export function WritingPage() {
             isMobileOverlay
           />
         </MotionBox>
+      )}
+
+      {hasOpenedSummary && (
+        <Suspense fallback={null}>
+          <SummaryPanel
+            projectId={projectId}
+            open={isSummaryOpen}
+            onOpenChange={handleSummaryOpenChange}
+            trigger={null}
+          />
+        </Suspense>
       )}
     </Box>
   );

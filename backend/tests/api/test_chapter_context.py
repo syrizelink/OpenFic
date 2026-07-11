@@ -371,6 +371,80 @@ class TestChapterSummaries:
         assert len(data["items"]) == 5
         assert data["items"][0]["chapter_order"] == 21
 
+    async def test_list_chapter_summaries_searches_all_pages(
+        self, client: AsyncClient, session, test_project: dict
+    ):
+        chapters: list[dict] = []
+        for index in range(21):
+            response = await client.post(
+                f"/api/v1/projects/{test_project['id']}/chapters",
+                json={
+                    "volume_id": test_project["default_volume_id"],
+                    "title": f"第{index + 1}章",
+                    "content": "内容",
+                    "word_count": 800,
+                },
+            )
+            assert response.status_code == 201
+            chapters.append(response.json())
+
+        for chapter in chapters:
+            session.add(
+                ChapterSummary(
+                    project_id=test_project["id"],
+                    summary_type="chapter",
+                    status=SUMMARY_STATUS_READY,
+                    chapter_id=chapter["id"],
+                    chapter_order=chapter["order"],
+                    start_order=chapter["order"],
+                    end_order=chapter["order"],
+                    summary=(
+                        "跨页目标摘要" if chapter["order"] == 21 else f"摘要{chapter['order']}"
+                    ),
+                    source_content_normalized="内容",
+                )
+            )
+        await session.commit()
+
+        response = await client.get(
+            f"/api/v1/projects/{test_project['id']}/chapter-context/summaries/chapters",
+            params={"q": "跨页目标", "page": 1, "page_size": 20},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["page"] == 1
+        assert [item["chapter_order"] for item in data["items"]] == [21]
+
+    async def test_list_chapter_summaries_searches_when_summary_content_is_empty(
+        self, client: AsyncClient, session, test_project: dict, test_chapters: list[dict]
+    ):
+        session.add(
+            ChapterSummary(
+                project_id=test_project["id"],
+                summary_type="chapter",
+                status=SUMMARY_STATUS_READY,
+                chapter_id=test_chapters[0]["id"],
+                chapter_order=test_chapters[0]["order"],
+                start_order=test_chapters[0]["order"],
+                end_order=test_chapters[0]["order"],
+                summary=None,
+                error_message="生成失败",
+            )
+        )
+        await session.commit()
+
+        response = await client.get(
+            f"/api/v1/projects/{test_project['id']}/chapter-context/summaries/chapters",
+            params={"q": "失败"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["error_message"] == "生成失败"
+
     async def test_list_chapter_summaries_returns_only_existing_summary_rows(
         self, client: AsyncClient, session, test_project: dict, test_chapters: list[dict]
     ):
@@ -558,7 +632,10 @@ class TestChapterSummaries:
         assert panel_response.status_code == 200
         maintenance = panel_response.json()["maintenance"]
         assert maintenance["auto_generation_blocked"] is True
+        assert maintenance["block_reason_code"] == "too_many_pending_chapters"
+        assert maintenance["block_reason_params"] == {"chapter_threshold": 20}
         assert len(maintenance["missing_or_failed_chapter_summaries"]) == 21
+        assert maintenance["missing_or_failed_chapter_summaries"][0]["word_count"] == 600
 
     async def test_maintenance_lists_skipped_short_chapters(
         self, client: AsyncClient, session, test_project: dict
@@ -634,7 +711,7 @@ class TestChapterSummaries:
             type="chapter_summary",
             status="running",
             payload_json=f'{{"chapter_id":"{chapter["id"]}"}}',
-            progress_json='{"current":3,"total":3,"message":"章节摘要已保存"}',
+            progress_json='{"current":3,"total":3,"message":"chapter_saved"}',
             order_index=0,
         )
         session.add(summary)
@@ -667,7 +744,7 @@ class TestChapterSummaries:
         chapter_items = maintenance["missing_or_failed_chapter_summaries"]
         assert chapter_items[0]["chapter_id"] == chapter["id"]
         assert chapter_items[0]["status"] == "running"
-        assert chapter_items[0]["progress_message"] == "章节摘要已保存"
+        assert chapter_items[0]["progress_message"] == "chapter_saved"
 
     async def test_maintenance_aggregates_total_progress_from_all_summary_items(
         self, client: AsyncClient, session, test_project: dict, test_chapters: list[dict]
@@ -707,7 +784,7 @@ class TestChapterSummaries:
                 subject_id=test_project["id"],
                 payload_json=f'{{"project_id":"{test_project["id"]}"}}',
                 context_json=f'{{"project_id":"{test_project["id"]}"}}',
-                progress_json='{"current":7,"total":9,"message":"正在生成章节摘要","progress_percent":78,"total_item_count":3,"completed_item_count":1,"running_item_count":1,"queued_item_count":1}',
+                progress_json='{"current":7,"total":9,"message":"chapter_generating","progress_percent":78,"total_item_count":3,"completed_item_count":1,"running_item_count":1,"queued_item_count":1}',
             )
         )
         session.add(
@@ -730,7 +807,7 @@ class TestChapterSummaries:
                 type="chapter_summary",
                 status="running",
                 payload_json=f'{{"chapter_id":"{chapter_two["id"]}"}}',
-                progress_json='{"current":3,"total":3,"message":"章节摘要已保存"}',
+                progress_json='{"current":3,"total":3,"message":"chapter_saved"}',
                 order_index=1,
             )
         )
@@ -772,7 +849,7 @@ class TestChapterSummaries:
                 subject_id=test_project["id"],
                 payload_json=f'{{"project_id":"{test_project["id"]}"}}',
                 context_json=f'{{"project_id":"{test_project["id"]}"}}',
-                progress_json='{"current":3,"total":3,"message":"正在生成章节摘要","progress_percent":100,"total_item_count":1,"completed_item_count":0,"running_item_count":1,"queued_item_count":0}',
+                progress_json='{"current":3,"total":3,"message":"chapter_generating","progress_percent":100,"total_item_count":1,"completed_item_count":0,"running_item_count":1,"queued_item_count":0}',
             )
         )
         session.add(
@@ -783,7 +860,7 @@ class TestChapterSummaries:
                 type="chapter_summary",
                 status="running",
                 payload_json=f'{{"chapter_id":"{chapter["id"]}"}}',
-                progress_json='{"current":3,"total":3,"message":"章节摘要已保存"}',
+                progress_json='{"current":3,"total":3,"message":"chapter_saved"}',
                 order_index=0,
             )
         )
@@ -862,7 +939,7 @@ class TestChapterSummaries:
             subject_id=test_project["id"],
             payload_json=f'{{"project_id":"{test_project["id"]}"}}',
             context_json=f'{{"project_id":"{test_project["id"]}"}}',
-            progress_json='{"current":1,"total":3,"message":"正在生成章节摘要","progress_percent":33,"total_item_count":1,"completed_item_count":0,"running_item_count":0,"queued_item_count":1}',
+            progress_json='{"current":1,"total":3,"message":"chapter_generating","progress_percent":33,"total_item_count":1,"completed_item_count":0,"running_item_count":0,"queued_item_count":1}',
             error_json='{"message":"生成失败"}',
         )
         item = BackgroundJobItem(
@@ -872,7 +949,7 @@ class TestChapterSummaries:
             type="chapter_summary",
             status="failed",
             payload_json=f'{{"chapter_id":"{chapter["id"]}"}}',
-            progress_json='{"current":1,"total":3,"message":"正在生成章节摘要"}',
+            progress_json='{"current":1,"total":3,"message":"chapter_generating"}',
             error_json='{"message":"生成失败"}',
             order_index=0,
         )
@@ -916,7 +993,7 @@ class TestChapterSummaries:
                 subject_id=test_project["id"],
                 payload_json=f'{{"project_id":"{test_project["id"]}"}}',
                 context_json=f'{{"project_id":"{test_project["id"]}"}}',
-                progress_json='{"current":194,"total":291,"message":"正在生成章节摘要","progress_percent":67,"total_item_count":97,"completed_item_count":23,"running_item_count":1,"queued_item_count":73}',
+                progress_json='{"current":194,"total":291,"message":"chapter_generating","progress_percent":67,"total_item_count":97,"completed_item_count":23,"running_item_count":1,"queued_item_count":73}',
             )
         )
         session.add(
@@ -927,7 +1004,7 @@ class TestChapterSummaries:
                 type="chapter_summary",
                 status="running",
                 payload_json=f'{{"chapter_id":"{chapter["id"]}"}}',
-                progress_json='{"current":2,"total":3,"message":"正在生成章节摘要"}',
+                progress_json='{"current":2,"total":3,"message":"chapter_generating"}',
                 order_index=0,
             )
         )
@@ -1078,6 +1155,10 @@ class TestChapterSummaries:
             {
                 "start_order": 1,
                 "end_order": LONG_TERM_SUMMARY_INTERVAL,
+                "start_volume_title": "第一卷",
+                "start_chapter_title": "第1章",
+                "end_volume_title": "第一卷",
+                "end_chapter_title": "第10章",
                 "status": "not_generated",
                 "is_stale": False,
                 "summary_id": None,
@@ -1090,7 +1171,7 @@ class TestChapterSummaries:
     ):
         chapters = []
         for index in range(LONG_TERM_SUMMARY_INTERVAL):
-            word_count = 120 if index in {1, 4} else 900
+            word_count = 120 if index in {0, 4} else 900
             response = await client.post(
                 f"/api/v1/projects/{test_project['id']}/chapters",
                 json={
@@ -1127,6 +1208,10 @@ class TestChapterSummaries:
             {
                 "start_order": 1,
                 "end_order": LONG_TERM_SUMMARY_INTERVAL,
+                "start_volume_title": "第一卷",
+                "start_chapter_title": "第1章",
+                "end_volume_title": "第一卷",
+                "end_chapter_title": "第10章",
                 "status": "not_generated",
                 "is_stale": False,
                 "summary_id": None,
@@ -1144,6 +1229,59 @@ class TestChapterSummaries:
         )
         assert enqueue_response.status_code == 200
         assert enqueue_response.json()["status"] == "queued"
+        summary = await chapter_summary_repo.get_long_term_by_range(
+            session,
+            test_project["id"],
+            1,
+            LONG_TERM_SUMMARY_INTERVAL,
+        )
+        assert summary is not None
+
+    async def test_maintenance_keeps_global_ranges_when_a_chapter_is_skipped(
+        self, client: AsyncClient, session, test_project: dict
+    ):
+        chapters = []
+        for index in range(40):
+            response = await client.post(
+                f"/api/v1/projects/{test_project['id']}/chapters",
+                json={
+                    "volume_id": test_project["default_volume_id"],
+                    "title": f"第{index + 1}章",
+                    "content": f"内容{index + 1}",
+                    "word_count": 120 if index == 14 else 900,
+                },
+            )
+            assert response.status_code == 201
+            chapters.append(response.json())
+
+        for chapter in chapters:
+            if chapter["word_count"] < MIN_CHAPTER_SUMMARY_WORD_COUNT:
+                continue
+            session.add(
+                ChapterSummary(
+                    project_id=test_project["id"],
+                    summary_type="chapter",
+                    status=SUMMARY_STATUS_READY,
+                    chapter_id=chapter["id"],
+                    chapter_order=chapter["order"],
+                    start_order=chapter["order"],
+                    end_order=chapter["order"],
+                    summary=f"摘要{chapter['order']}",
+                    source_content_normalized=_source_content(chapter),
+                )
+            )
+        await session.commit()
+
+        panel_response = await _summary_panel_response(session, test_project["id"])
+
+        assert panel_response.status_code == 200
+        ranges = panel_response.json()["maintenance"]["missing_or_failed_long_term_summaries"]
+        assert [(item["start_order"], item["end_order"]) for item in ranges] == [
+            (1, 10),
+            (11, 20),
+            (21, 30),
+            (31, 40),
+        ]
 
     async def test_maintenance_surfaces_running_long_term_range(
         self, client: AsyncClient, session, test_project: dict
@@ -1223,6 +1361,10 @@ class TestChapterSummaries:
             {
                 "start_order": 1,
                 "end_order": LONG_TERM_SUMMARY_INTERVAL,
+                "start_volume_title": "第一卷",
+                "start_chapter_title": "第1章",
+                "end_volume_title": "第一卷",
+                "end_chapter_title": "第10章",
                 "status": "running",
                 "is_stale": False,
                 "summary_id": items[0]["summary_id"],
@@ -1286,6 +1428,10 @@ class TestChapterSummaries:
             {
                 "start_order": 1,
                 "end_order": 10,
+                "start_volume_title": "第一卷",
+                "start_chapter_title": "第1章",
+                "end_volume_title": "第一卷",
+                "end_chapter_title": "第10章",
                 "status": "ready",
                 "is_stale": True,
                 "summary_id": data["items"][0]["summary_id"],
@@ -1353,6 +1499,10 @@ class TestChapterSummaries:
             {
                 "start_order": 1,
                 "end_order": 10,
+                "start_volume_title": "第一卷",
+                "start_chapter_title": "第1章",
+                "end_volume_title": "第一卷",
+                "end_chapter_title": "第10章",
                 "status": "ready",
                 "is_stale": True,
                 "summary_id": data["items"][0]["summary_id"],
@@ -1363,6 +1513,33 @@ class TestChapterSummaries:
                 "updated_at": data["items"][0]["updated_at"],
             }
         ]
+
+    async def test_long_term_summary_list_searches_all_pages(
+        self, client: AsyncClient, session, test_project: dict
+    ):
+        for index in range(21):
+            session.add(
+                ChapterSummary(
+                    project_id=test_project["id"],
+                    summary_type=SUMMARY_TYPE_LONG_TERM,
+                    status=SUMMARY_STATUS_READY,
+                    start_order=index * 10 + 1,
+                    end_order=index * 10 + 10,
+                    summary=("跨页区间摘要" if index == 20 else f"区间摘要{index + 1}"),
+                )
+            )
+        await session.commit()
+
+        response = await client.get(
+            f"/api/v1/projects/{test_project['id']}/chapter-context/summaries/long-term",
+            params={"q": "跨页区间", "page": 1, "page_size": 20},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["page"] == 1
+        assert [item["start_order"] for item in data["items"]] == [201]
 
     async def test_long_term_summary_list_surfaces_failed_range(
         self, client: AsyncClient, session, test_project: dict

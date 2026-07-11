@@ -20,6 +20,7 @@ interface VolumeListProps {
   compact?: boolean;
   initialCurrentChapterNavigationKey?: string | null;
   summaryStatusMap?: Record<string, SummaryStatusItem>;
+  onOpenSummary?: () => void;
   onToggleVolume: (volumeId: string) => void;
   onStartRenameVolume: (volumeId: string) => void;
   onRenameVolume: (volumeId: string, title: string) => void;
@@ -50,6 +51,7 @@ export function VolumeList({
   compact = false,
   initialCurrentChapterNavigationKey = null,
   summaryStatusMap = {},
+  onOpenSummary,
   onToggleVolume,
   onStartRenameVolume,
   onRenameVolume,
@@ -124,6 +126,7 @@ export function VolumeList({
       compact={compact}
       initialCurrentChapterNavigationKey={initialCurrentChapterNavigationKey}
       summaryStatusMap={summaryStatusMap}
+      onOpenSummary={onOpenSummary}
       onToggleVolume={onToggleVolume}
       onStartRenameVolume={onStartRenameVolume}
       onRenameVolume={onRenameVolume}
