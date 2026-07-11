@@ -7,8 +7,8 @@ import { useTranslation } from "react-i18next";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { useSearchParams } from "react-router";
 
-import { MobileAppSidebarTrigger } from "@/features/app-shell";
 import { toast } from "@/components/toast";
+import { MobileAppSidebarTrigger } from "@/features/app-shell";
 import {
   batchDeleteCharacters,
   batchFavoriteCharacters,
@@ -380,7 +380,10 @@ export function CharactersPage() {
               py="2"
               className="characters-page-mobile-topbar"
             >
-              <Flex align="center" gap="1">
+              <Flex
+                align="center"
+                gap="1"
+              >
                 <MobileAppSidebarTrigger />
                 <Tooltip content={t("characters.listTitle")}>
                   <IconButton

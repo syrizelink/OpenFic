@@ -12,11 +12,10 @@
 
 ![Demo Screenshot](./demo.png)
 
-
 ## 何时使用
 
 > [!Tip]  
-> *OpenFic 的设计理念是让 Agent 深度参与小说创作过程，而不是替你一键生成没有灵魂的文字，它首先是用户友好的小说写作工具，其次才是面向写作的 AI Agent 系统。*
+> _OpenFic 的设计理念是让 Agent 深度参与小说创作过程，而不是替你一键生成没有灵魂的文字，它首先是用户友好的小说写作工具，其次才是面向写作的 AI Agent 系统。_
 
 #### 它适合这些场景：
 
@@ -32,7 +31,6 @@
 - 主要需要短篇文案、社媒内容或一次性的通用文本生成
 - 你不打算维护复杂的设定信息，也不需要长期上下文和写作流程管理
 
-
 ## 特性
 
 - 🚀**开箱即用**：使用 Docker 或 pip 快速安装，或是直接使用桌面版，无需复杂配置
@@ -45,7 +43,6 @@
 - 🧠**语义化检索**：基于向量的 Agentic RAG，让 Agent 能够在百万字级别的项目中高效检索过往信息
 - ⚖️**成本优先**：多层上下文管理，智能压缩、动态截断、稳定缓存，尽可能降低使用成本
 
-
 ## 快速开始
 
 ### 🐳 Docker（推荐）
@@ -55,7 +52,6 @@
 ```bash
 docker run -d -p 8000:8000 -v "openfic:/data" --name openfic ghcr.io/syrizelink/openfic:latest
 ```
-
 
 ### 🐍 Python pip
 
@@ -74,7 +70,6 @@ pip install openfic
 openfic serve
 ```
 
-
 ### 🖥桌面应用 (实验性)
 
 > [!Warning]  
@@ -91,7 +86,6 @@ openfic serve
 - **提交代码**：Fork 本仓库，修改代码后提交 Pull Request
 
 查看 [CONTRIBUTING.md](./CONTRIBUTING.md) 获取详细的贡献指南。
-
 
 ## 许可证
 

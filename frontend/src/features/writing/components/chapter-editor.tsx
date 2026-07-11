@@ -115,12 +115,7 @@ function ChapterEditorInner({
         </IconButton>
       </>
     );
-  }, [
-    projectId,
-    chapter.id,
-    onOpenSummary,
-    t,
-  ]);
+  }, [projectId, chapter.id, onOpenSummary, t]);
 
   const openFind = useCallback(() => {
     if (isAgentLocked) {

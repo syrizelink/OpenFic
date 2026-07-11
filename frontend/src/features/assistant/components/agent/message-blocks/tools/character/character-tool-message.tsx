@@ -136,7 +136,9 @@ export function CharacterToolMessage({ message }: CharacterToolMessageProps) {
               className="agent-chapter-diff-card-meta"
             >
               <Text className="agent-chapter-diff-card-title">
-                {diffPreview.character_name ?? character.name ?? i18n.t("assistant.tools.character")}
+                {diffPreview.character_name ??
+                  character.name ??
+                  i18n.t("assistant.tools.character")}
               </Text>
               <Flex
                 align="center"

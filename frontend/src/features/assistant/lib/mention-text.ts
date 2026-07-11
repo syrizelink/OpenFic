@@ -111,16 +111,16 @@ function buildMentionHtml(token: AssistantMentionToken): string {
     ` data-mention-kind="${escapeHtmlAttr(token.kind)}"` +
     ` data-mention-raw="${escapeHtmlAttr(token.raw)}"` +
     ` data-mention-label="${escapeHtmlAttr(getMentionDisplayLabel(token))}"` +
-      ` data-mention-body="${escapeHtmlAttr(token.body)}"` +
-      ` data-mention-volume-id="${escapeHtmlAttr(token.attrs.volume_id ?? "")}"` +
-      ` data-mention-chapter-id="${escapeHtmlAttr(token.attrs.chapter_id ?? "")}"` +
-      ` data-mention-note-id="${escapeHtmlAttr(token.attrs.note_id ?? "")}"` +
-      ` data-mention-note-category-id="${escapeHtmlAttr(token.attrs.note_category_id ?? "")}"` +
-      ` data-mention-world-info-entry-id="${escapeHtmlAttr(token.attrs.world_info_entry_id ?? "")}"` +
-      ` data-mention-character-id="${escapeHtmlAttr(token.attrs.character_id ?? "")}"` +
-      ` data-mention-line-start="${escapeHtmlAttr(token.attrs.line_start ?? "")}"` +
-      ` data-mention-line-end="${escapeHtmlAttr(token.attrs.line_end ?? "")}"` +
-      `></span>`
+    ` data-mention-body="${escapeHtmlAttr(token.body)}"` +
+    ` data-mention-volume-id="${escapeHtmlAttr(token.attrs.volume_id ?? "")}"` +
+    ` data-mention-chapter-id="${escapeHtmlAttr(token.attrs.chapter_id ?? "")}"` +
+    ` data-mention-note-id="${escapeHtmlAttr(token.attrs.note_id ?? "")}"` +
+    ` data-mention-note-category-id="${escapeHtmlAttr(token.attrs.note_category_id ?? "")}"` +
+    ` data-mention-world-info-entry-id="${escapeHtmlAttr(token.attrs.world_info_entry_id ?? "")}"` +
+    ` data-mention-character-id="${escapeHtmlAttr(token.attrs.character_id ?? "")}"` +
+    ` data-mention-line-start="${escapeHtmlAttr(token.attrs.line_start ?? "")}"` +
+    ` data-mention-line-end="${escapeHtmlAttr(token.attrs.line_end ?? "")}"` +
+    `></span>`
   );
 }
 

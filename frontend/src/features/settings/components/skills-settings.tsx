@@ -37,16 +37,12 @@ import {
   updateSkillReferenceDoc,
 } from "@/lib/api-client";
 import { getPinyin, getInitials } from "@/lib/pinyin-search";
+import type { SkillReferenceDoc, SkillReferenceDocCreate } from "@/lib/skill-reference-doc.types";
 import type { Skill, SkillCreate, SkillListResponse } from "@/lib/skill.types";
-import type {
-  SkillReferenceDoc,
-  SkillReferenceDocCreate,
-} from "@/lib/skill-reference-doc.types";
 import { countTokens } from "@/lib/tiktoken-utils";
 
-import { ImportSkillDialog } from "./import-skill-dialog";
-
 import { fetchAgentDefinitions } from "../lib/agent-definitions-api";
+import { ImportSkillDialog } from "./import-skill-dialog";
 
 import "./skills-settings.css";
 
@@ -246,7 +242,7 @@ export function SkillsSettings({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["skills"] });
     },
-onError: () => {
+    onError: () => {
       toast.error(t("common.error"));
     },
   });
@@ -341,8 +337,9 @@ onError: () => {
       const queryKey = ["skill-reference-docs", skillDbId];
       await queryClient.cancelQueries({ queryKey });
       const previous = queryClient.getQueryData<SkillReferenceDoc[]>(queryKey);
-      queryClient.setQueryData<SkillReferenceDoc[]>(queryKey, (current) =>
-        current?.map((d) => (d.id === docId ? { ...d, title } : d)) ?? current,
+      queryClient.setQueryData<SkillReferenceDoc[]>(
+        queryKey,
+        (current) => current?.map((d) => (d.id === docId ? { ...d, title } : d)) ?? current,
       );
       return { previous, skillDbId };
     },
@@ -1503,9 +1500,7 @@ function SkillReferenceDocEditDialog({
       onOpenChange={onOpenChange}
     >
       <Dialog.Content style={{ maxWidth: 640 }}>
-        <Dialog.Title>
-          {doc?.title || t("settingsExtra.skills.untitledReferenceDoc")}
-        </Dialog.Title>
+        <Dialog.Title>{doc?.title || t("settingsExtra.skills.untitledReferenceDoc")}</Dialog.Title>
         {doc ? (
           <Box mt="4">
             <ReferenceDocEditor

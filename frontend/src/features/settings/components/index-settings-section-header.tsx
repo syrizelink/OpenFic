@@ -6,10 +6,7 @@ interface IndexSettingsSectionHeaderProps {
   action?: ReactNode;
 }
 
-export function IndexSettingsSectionHeader({
-  title,
-  action,
-}: IndexSettingsSectionHeaderProps) {
+export function IndexSettingsSectionHeader({ title, action }: IndexSettingsSectionHeaderProps) {
   return (
     <Flex
       align="center"

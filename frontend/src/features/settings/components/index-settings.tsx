@@ -28,7 +28,11 @@ import { fetchSettings, updateSettings } from "../lib/settings-api";
 import type { Settings, SettingsUpdateRequest } from "../lib/settings.types";
 import { IndexSettingsGlobalConfig } from "./index-settings-global-config";
 import { IndexSettingsOverview } from "./index-settings-overview";
-import { ProjectIndexList, type IndexUnitStatus, type ProjectIndexGroup } from "./project-index-list";
+import {
+  ProjectIndexList,
+  type IndexUnitStatus,
+  type ProjectIndexGroup,
+} from "./project-index-list";
 
 import "./project-index-list.css";
 
@@ -120,7 +124,9 @@ function patchOverallIndexStatus(
       ? []
       : nextSettings.indexMode === "all"
         ? allProjectIds
-        : nextSettings.indexEnabledProjects.filter((projectId) => allProjectIds.includes(projectId));
+        : nextSettings.indexEnabledProjects.filter((projectId) =>
+            allProjectIds.includes(projectId),
+          );
 
   const projectById = new Map(allProjects.map((project) => [project.id, project]));
   const previousById = new Map(current.projects.map((project) => [project.project_id, project]));
@@ -165,21 +171,15 @@ export function IndexSettings() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
-  const {
-    data: settings,
-    isLoading: isSettingsLoading,
-  } = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
-  const {
-    data: models,
-    isLoading: isModelsLoading,
-  } = useQuery({
+  const { data: settings, isLoading: isSettingsLoading } = useQuery({
+    queryKey: ["settings"],
+    queryFn: fetchSettings,
+  });
+  const { data: models, isLoading: isModelsLoading } = useQuery({
     queryKey: ["models"],
     queryFn: () => fetchModels(),
   });
-  const {
-    data: projectsData,
-    isLoading: isProjectsLoading,
-  } = useQuery({
+  const { data: projectsData, isLoading: isProjectsLoading } = useQuery({
     queryKey: ["projects", "all-for-index"],
     queryFn: () => fetchProjects({ page: 1, pageSize: 100 }),
   });
@@ -194,7 +194,8 @@ export function IndexSettings() {
     [overall.data?.projects],
   );
   const projectOptions = useMemo(
-    () => (projectsData?.items ?? []).map((project) => ({ value: project.id, label: project.title })),
+    () =>
+      (projectsData?.items ?? []).map((project) => ({ value: project.id, label: project.title })),
     [projectsData?.items],
   );
   const projectIdsKey = projectIds.join("|");

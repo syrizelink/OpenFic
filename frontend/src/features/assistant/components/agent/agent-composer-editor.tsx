@@ -96,25 +96,25 @@ function createMentionNodeAttrs(
             characterId: candidate.id,
             label: candidate.label,
           })
-      : candidate.kind === "note"
-        ? buildNoteMentionTag({
-            noteId: candidate.id,
-            label: candidate.label,
-          })
-        : candidate.kind === "world_info_entry"
-          ? buildWorldInfoEntryMentionTag({
-              worldInfoEntryId: candidate.id,
+        : candidate.kind === "note"
+          ? buildNoteMentionTag({
+              noteId: candidate.id,
               label: candidate.label,
             })
-        : candidate.kind === "note_category"
-          ? buildNoteCategoryMentionTag({
-              categoryId: candidate.id,
-              label: candidate.label,
-            })
-          : buildChapterMentionTag({
-              chapterId: candidate.id,
-              label: candidate.label,
-            });
+          : candidate.kind === "world_info_entry"
+            ? buildWorldInfoEntryMentionTag({
+                worldInfoEntryId: candidate.id,
+                label: candidate.label,
+              })
+            : candidate.kind === "note_category"
+              ? buildNoteCategoryMentionTag({
+                  categoryId: candidate.id,
+                  label: candidate.label,
+                })
+              : buildChapterMentionTag({
+                  chapterId: candidate.id,
+                  label: candidate.label,
+                });
 
   return {
     mentionKind: candidate.kind,

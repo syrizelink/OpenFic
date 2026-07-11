@@ -51,12 +51,12 @@ export const MentionNode = Node.create<AssistantMentionNodeOptions>({
       mentionBody: { default: "" },
       volumeId: { default: "" },
       chapterId: { default: "" },
-        noteId: { default: "" },
-        noteCategoryId: { default: "" },
-        worldInfoEntryId: { default: "" },
-        characterId: { default: "" },
-        lineStart: { default: "" },
-        lineEnd: { default: "" },
+      noteId: { default: "" },
+      noteCategoryId: { default: "" },
+      worldInfoEntryId: { default: "" },
+      characterId: { default: "" },
+      lineStart: { default: "" },
+      lineEnd: { default: "" },
     };
   },
 

@@ -15,8 +15,8 @@ import { useSearchParams } from "react-router";
 
 import "./world-info-page.css";
 
-import { MobileAppSidebarTrigger } from "@/features/app-shell";
 import { toast } from "@/components/toast";
+import { MobileAppSidebarTrigger } from "@/features/app-shell";
 import { AssistantSidebar } from "@/features/assistant";
 import type { AssistantSidebarState } from "@/features/assistant";
 import {
@@ -316,13 +316,16 @@ export function WorldInfoPage() {
     },
   });
 
-  const handleSelectProject = useCallback((projectId: string) => {
-    setCurrentProjectId(projectId || null);
-    setCurrentEntry(null);
-    setIsCreatingEntry(false);
-    setSidebarOpen(false);
-    setIsAssistantOpen(false);
-  }, [setCurrentEntry, setSidebarOpen]);
+  const handleSelectProject = useCallback(
+    (projectId: string) => {
+      setCurrentProjectId(projectId || null);
+      setCurrentEntry(null);
+      setIsCreatingEntry(false);
+      setSidebarOpen(false);
+      setIsAssistantOpen(false);
+    },
+    [setCurrentEntry, setSidebarOpen],
+  );
 
   /** 处理创建条目 */
   const handleCreateEntry = useCallback(() => {
@@ -614,14 +617,32 @@ export function WorldInfoPage() {
         gap="4"
         style={{ maxWidth: 800, margin: "0 auto" }}
       >
-        <Skeleton width="120px" height="14px" />
-        <Skeleton width="100%" height="36px" />
+        <Skeleton
+          width="120px"
+          height="14px"
+        />
+        <Skeleton
+          width="100%"
+          height="36px"
+        />
         <Flex gap="4">
-          <Skeleton style={{ flex: 1 }} height="36px" />
-          <Skeleton style={{ flex: 1 }} height="36px" />
+          <Skeleton
+            style={{ flex: 1 }}
+            height="36px"
+          />
+          <Skeleton
+            style={{ flex: 1 }}
+            height="36px"
+          />
         </Flex>
-        <Skeleton width="100%" height="200px" />
-        <Skeleton width="100%" height="80px" />
+        <Skeleton
+          width="100%"
+          height="200px"
+        />
+        <Skeleton
+          width="100%"
+          height="80px"
+        />
       </Flex>
     </Box>
   ) : selectedEntry ? (
@@ -641,14 +662,32 @@ export function WorldInfoPage() {
         gap="4"
         style={{ maxWidth: 800, margin: "0 auto" }}
       >
-        <Skeleton width="120px" height="14px" />
-        <Skeleton width="100%" height="36px" />
+        <Skeleton
+          width="120px"
+          height="14px"
+        />
+        <Skeleton
+          width="100%"
+          height="36px"
+        />
         <Flex gap="4">
-          <Skeleton style={{ flex: 1 }} height="36px" />
-          <Skeleton style={{ flex: 1 }} height="36px" />
+          <Skeleton
+            style={{ flex: 1 }}
+            height="36px"
+          />
+          <Skeleton
+            style={{ flex: 1 }}
+            height="36px"
+          />
         </Flex>
-        <Skeleton width="100%" height="200px" />
-        <Skeleton width="100%" height="80px" />
+        <Skeleton
+          width="100%"
+          height="200px"
+        />
+        <Skeleton
+          width="100%"
+          height="80px"
+        />
       </Flex>
     </Box>
   ) : (
@@ -742,7 +781,10 @@ export function WorldInfoPage() {
                   py="2"
                   className="world-info-page-mobile-topbar"
                 >
-                  <Flex align="center" gap="1">
+                  <Flex
+                    align="center"
+                    gap="1"
+                  >
                     <MobileAppSidebarTrigger />
                     <Tooltip content={t("worldInfo.entries")}>
                       <IconButton
@@ -807,10 +849,16 @@ export function WorldInfoPage() {
               direction="column"
               gap="2"
             >
-              <Text size="3" weight="medium">
+              <Text
+                size="3"
+                weight="medium"
+              >
                 {t("worldInfo.noProject")}
               </Text>
-              <Text size="2" color="gray">
+              <Text
+                size="2"
+                color="gray"
+              >
                 {t("worldInfo.noProjectHint")}
               </Text>
             </Flex>

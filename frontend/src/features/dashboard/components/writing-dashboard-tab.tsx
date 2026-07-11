@@ -49,12 +49,18 @@ const dashboardCalendarTextTheme = {
       line: { stroke: "var(--gray-a6)" },
       text: { fill: "var(--gray-11)", fontFamily: dashboardCalendarFontFamily, fontSize: 13 },
     },
-    legend: { text: { fill: "var(--gray-11)", fontFamily: dashboardCalendarFontFamily, fontSize: 13 } },
+    legend: {
+      text: { fill: "var(--gray-11)", fontFamily: dashboardCalendarFontFamily, fontSize: 13 },
+    },
   },
   grid: { line: { stroke: "var(--gray-a4)" } },
   crosshair: { line: { stroke: "var(--gray-12)", strokeWidth: 1 } },
-  legends: { text: { fill: "var(--gray-11)", fontFamily: dashboardCalendarFontFamily, fontSize: 13 } },
-  labels: { text: { fill: "var(--gray-12)", fontFamily: dashboardCalendarFontFamily, fontSize: 13 } },
+  legends: {
+    text: { fill: "var(--gray-11)", fontFamily: dashboardCalendarFontFamily, fontSize: 13 },
+  },
+  labels: {
+    text: { fill: "var(--gray-12)", fontFamily: dashboardCalendarFontFamily, fontSize: 13 },
+  },
   tooltip: {
     container: {
       borderColor: "var(--gray-a6)",

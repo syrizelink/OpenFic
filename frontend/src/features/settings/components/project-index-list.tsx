@@ -80,7 +80,8 @@ function ProjectIndexAccordionItem({ group }: { group: ProjectIndexGroup }) {
   const bodyId = useId();
   const indexed = group.units.reduce((sum, unit) => sum + unit.indexed, 0);
   const total = group.units.reduce((sum, unit) => sum + unit.total, 0);
-  const progressText = total === 0 ? t("index.status.no_chapters") : t("index.progress", { indexed, total });
+  const progressText =
+    total === 0 ? t("index.status.no_chapters") : t("index.progress", { indexed, total });
   const color = getIndexStatusColor(group.status);
 
   return (
@@ -196,7 +197,14 @@ function IndexUnitRow({
             }}
             disabled={isIndexing ? isSubmitting : !canStart || isSubmitting}
           >
-            {isIndexing ? <Square size={12} fill="currentColor" /> : <RefreshCw size={14} />}
+            {isIndexing ? (
+              <Square
+                size={12}
+                fill="currentColor"
+              />
+            ) : (
+              <RefreshCw size={14} />
+            )}
           </IconButton>
         </Tooltip>
         <Text

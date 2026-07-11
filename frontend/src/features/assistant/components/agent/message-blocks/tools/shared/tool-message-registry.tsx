@@ -20,8 +20,8 @@ import i18n from "@/i18n";
 import type { AgentMessage } from "@/lib/agent.types";
 
 import { AskUserToolMessage } from "../ask-user/ask-user-tool-message";
-import { CharacterToolMessage } from "../character/character-tool-message";
 import { ChapterToolMessage } from "../chapter/chapter-tool-message";
+import { CharacterToolMessage } from "../character/character-tool-message";
 import { EditNoteToolMessage, WriteNoteToolMessage } from "../note/note-tool-message";
 import {
   getSubagentDispatchDetail,

@@ -78,6 +78,11 @@ import type {
   ProjectListParams,
 } from "./project.types";
 import type {
+  SkillReferenceDoc,
+  SkillReferenceDocCreate,
+  SkillReferenceDocUpdate,
+} from "./skill-reference-doc.types";
+import type {
   Skill,
   SkillCreate,
   SkillImportResult,
@@ -85,11 +90,6 @@ import type {
   SkillListResponse,
   SkillUpdate,
 } from "./skill.types";
-import type {
-  SkillReferenceDoc,
-  SkillReferenceDocCreate,
-  SkillReferenceDocUpdate,
-} from "./skill-reference-doc.types";
 
 /**
  * 后端响应字段转换（snake_case -> camelCase）
@@ -1062,8 +1062,7 @@ function transformSummaryMaintenance(raw: Record<string, unknown>): SummaryMaint
   return {
     autoGenerationBlocked: Boolean(raw.auto_generation_blocked),
     blockReasonCode: (raw.block_reason_code as string | null) ?? null,
-    blockReasonParams:
-      (raw.block_reason_params as Record<string, number | string> | null) ?? null,
+    blockReasonParams: (raw.block_reason_params as Record<string, number | string> | null) ?? null,
     missingOrFailedChapterSummaries: (
       (raw.missing_or_failed_chapter_summaries as Record<string, unknown>[]) || []
     ).map((item) => ({

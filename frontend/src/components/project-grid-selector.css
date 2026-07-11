@@ -63,7 +63,8 @@
   transition: transform 0.25s ease;
 }
 
-.project-grid-selector__card:not([data-disabled="true"]):hover .project-grid-selector__cover-placeholder {
+.project-grid-selector__card:not([data-disabled="true"]):hover
+  .project-grid-selector__cover-placeholder {
   transform: scale(1.06);
 }
 
@@ -104,7 +105,8 @@
     transform: none;
   }
 
-  .project-grid-selector__card:not([data-disabled="true"]):hover .project-grid-selector__cover-placeholder {
+  .project-grid-selector__card:not([data-disabled="true"]):hover
+    .project-grid-selector__cover-placeholder {
     transform: none;
   }
 }

@@ -37,7 +37,9 @@ const dashboardChartTextTheme = {
       line: { stroke: "var(--gray-a6)" },
       text: { fill: "var(--gray-11)", fontFamily: dashboardChartFontFamily, fontSize: 13 },
     },
-    legend: { text: { fill: "var(--gray-11)", fontFamily: dashboardChartFontFamily, fontSize: 13 } },
+    legend: {
+      text: { fill: "var(--gray-11)", fontFamily: dashboardChartFontFamily, fontSize: 13 },
+    },
   },
   grid: { line: { stroke: "var(--gray-a4)" } },
   crosshair: { line: { stroke: "var(--gray-12)", strokeWidth: 1 } },
@@ -60,14 +62,19 @@ function formatChartValue(value: number, format: DashboardChartValueFormat = "nu
   if (format === "seconds") return `${Math.round(value / 1000)} s`;
   if (format === "compact") {
     const absoluteValue = Math.abs(value);
-    if (absoluteValue >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1).replace(/\.0$/, "")} b`;
-    if (absoluteValue >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")} m`;
+    if (absoluteValue >= 1_000_000_000)
+      return `${(value / 1_000_000_000).toFixed(1).replace(/\.0$/, "")} b`;
+    if (absoluteValue >= 1_000_000)
+      return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")} m`;
     if (absoluteValue >= 1_000) return `${(value / 1_000).toFixed(1).replace(/\.0$/, "")} k`;
   }
   return new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 0 }).format(value);
 }
 
-function formatAxisValue(value: string | number, format: DashboardChartAxisFormat | undefined): string {
+function formatAxisValue(
+  value: string | number,
+  format: DashboardChartAxisFormat | undefined,
+): string {
   const text = String(value);
   if (format === "month-day") return text.slice(5);
   return text;
@@ -145,7 +152,11 @@ interface TooltipContent {
   unit: string;
 }
 
-function getTooltipContent(option: DashboardChartModel, label: string, value: number): TooltipContent {
+function getTooltipContent(
+  option: DashboardChartModel,
+  label: string,
+  value: number,
+): TooltipContent {
   const tooltip = option.tooltip;
   const unit = tooltip?.unit ?? (option.valueFormat === "seconds" ? "seconds" : "calls");
   const displayLabel = tooltip?.fixedLabel ?? label;
@@ -344,11 +355,22 @@ export function ChartPanel({
                   colors={dashboardChartLegendColors}
                   margin={{ top: 24, right: 18, bottom: 34, left: 52 }}
                   xScale={{ type: "point" }}
-                  yScale={{ type: "linear", min: "auto", max: "auto", stacked: false, reverse: false }}
+                  yScale={{
+                    type: "linear",
+                    min: "auto",
+                    max: "auto",
+                    stacked: false,
+                    reverse: false,
+                  }}
                   axisTop={null}
                   axisRight={null}
                   axisBottom={{ tickSize: 0, tickPadding: 8, format: xAxisFormat }}
-                  axisLeft={{ tickSize: 0, tickPadding: 8, tickValues: yTickValues, format: valueFormat }}
+                  axisLeft={{
+                    tickSize: 0,
+                    tickPadding: 8,
+                    tickValues: yTickValues,
+                    format: valueFormat,
+                  }}
                   curve="monotoneX"
                   lineWidth={2}
                   enableArea={Boolean(option.enableArea)}
@@ -380,7 +402,12 @@ export function ChartPanel({
                   axisTop={null}
                   axisRight={null}
                   axisBottom={{ tickSize: 0, tickPadding: 8, format: xAxisFormat }}
-                  axisLeft={{ tickSize: 0, tickPadding: 8, tickValues: yTickValues, format: valueFormat }}
+                  axisLeft={{
+                    tickSize: 0,
+                    tickPadding: 8,
+                    tickValues: yTickValues,
+                    format: valueFormat,
+                  }}
                   enableGridX={false}
                   enableLabel={false}
                   tooltip={barTooltip}

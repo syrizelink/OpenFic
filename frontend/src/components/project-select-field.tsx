@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import type { Project } from "@/lib/project.types";
 
 import { ProjectGridSelector } from "./project-grid-selector";
+
 import "./project-select-field.css";
 
 export interface ProjectSelectFieldProps {
