@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.6.1](https://github.com/syrizelink/OpenFic/compare/v0.6.0...v0.6.1) (2026-07-11)
+
+
+### 🐛 问题修复
+
+* **backend:** 去重会话标题后台任务 ([#82](https://github.com/syrizelink/OpenFic/issues/82)) ([afd9650](https://github.com/syrizelink/OpenFic/commit/afd96506fff12d006383bedaae83c8273349a8c6))
+* **background:** 修复孤儿后台任务无法自动清理的问题 ([#83](https://github.com/syrizelink/OpenFic/issues/83)) ([643531d](https://github.com/syrizelink/OpenFic/commit/643531d73f86a860832305651bdc03a829ba136b))
+* **frontend:** 修复规则编辑区布局 ([#85](https://github.com/syrizelink/OpenFic/issues/85)) ([025efad](https://github.com/syrizelink/OpenFic/commit/025efad2f6ddf624b7d37242bfd180f8fa1ad4e2))
+* **index:** 修复索引取消清理与轮询导致的性能问题 ([#86](https://github.com/syrizelink/OpenFic/issues/86)) ([73fa08e](https://github.com/syrizelink/OpenFic/commit/73fa08e0f2c7e8049058e085837a45feb5cfeb28))
+
+
+### ♻️ 代码重构
+
+* **agent:** 重构 mention XML 流转链路 ([#78](https://github.com/syrizelink/OpenFic/issues/78)) ([28e7b16](https://github.com/syrizelink/OpenFic/commit/28e7b16aeb6c9d8288cd2d27210f075883a5d0ac))
+* **agent:** 重构 Skill 功能 ([#77](https://github.com/syrizelink/OpenFic/issues/77)) ([97e1f5e](https://github.com/syrizelink/OpenFic/commit/97e1f5e20083de7b2f1ca22073bbbd42314abe9c))
+* **index:** 重构索引面板与进度展示 ([#80](https://github.com/syrizelink/OpenFic/issues/80)) ([eff0886](https://github.com/syrizelink/OpenFic/commit/eff0886281ac277ccc49e03ab6cba8c3ec0c2eb3))
+* **summary:** 重构摘要生成面板与交互体验 ([#84](https://github.com/syrizelink/OpenFic/issues/84)) ([8e16a19](https://github.com/syrizelink/OpenFic/commit/8e16a19204ff9718fcf7a25b38719a80c9c2cf52))
+
+
+### 📚 文档
+
+* 更新README ([#79](https://github.com/syrizelink/OpenFic/issues/79)) ([869b98c](https://github.com/syrizelink/OpenFic/commit/869b98c248dd442c96165a47883b2ff011d697df))
+
+
+### 🔧 杂项
+
+* **frontend:** 适配角色与世界书移动端顶栏 ([#74](https://github.com/syrizelink/OpenFic/issues/74)) ([1824117](https://github.com/syrizelink/OpenFic/commit/1824117893de708fe7c802379021885236e2ea2b))
+* **status-bar:** 添加索引进度展示 ([#81](https://github.com/syrizelink/OpenFic/issues/81)) ([84f94c7](https://github.com/syrizelink/OpenFic/commit/84f94c725854e42d1e3a80cff82c707ebe30b643))
+
 ## [0.6.0](https://github.com/syrizelink/OpenFic/compare/v0.5.0...v0.6.0) (2026-07-07)
 
 
