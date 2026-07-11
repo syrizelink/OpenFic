@@ -103,6 +103,7 @@ interface ChapterListItemBaseProps {
   onRenameCancel?: () => void;
   summaryStatus?: SummaryStatus;
   summaryIsStale?: boolean;
+  onOpenSummary?: () => void;
 }
 
 interface ChapterRowContentProps {
@@ -112,6 +113,7 @@ interface ChapterRowContentProps {
   onRenameCancel?: () => void;
   summaryStatus?: SummaryStatus;
   summaryIsStale: boolean;
+  onOpenSummary?: () => void;
   isMenuButtonVisible?: boolean;
   onOpenMenu?: (triggerElement: HTMLElement) => void;
   textColor?: string;
@@ -125,6 +127,7 @@ function ChapterRowContent({
   onRenameCancel,
   summaryStatus,
   summaryIsStale,
+  onOpenSummary,
   isMenuButtonVisible = false,
   onOpenMenu,
   textColor,
@@ -232,12 +235,14 @@ function ChapterRowContent({
           <SummaryStatusDot
             status={summaryStatus}
             isStale={summaryIsStale}
+            onOpenSummary={onOpenSummary}
           />
         </Flex>
       ) : (
         <SummaryStatusDot
           status={summaryStatus}
           isStale={summaryIsStale}
+          onOpenSummary={onOpenSummary}
         />
       )}
     </Flex>
@@ -256,6 +261,7 @@ function ChapterListItemComponent({
   onRenameCancel,
   summaryStatus,
   summaryIsStale = false,
+  onOpenSummary,
 }: ChapterListItemBaseProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isLongPressPending, setIsLongPressPending] = useState(false);
@@ -471,6 +477,7 @@ function ChapterListItemComponent({
         onRenameCancel={onRenameCancel}
         summaryStatus={summaryStatus}
         summaryIsStale={summaryIsStale}
+        onOpenSummary={onOpenSummary}
         isMenuButtonVisible={isMenuButtonVisible}
         onOpenMenu={onRequestContextMenu ? handleOpenMenuFromButton : undefined}
         textColor={textColor}
@@ -485,6 +492,7 @@ interface SortableChapterListItemProps {
   onSelectChapter: (chapterId: string) => void;
   summaryStatus?: SummaryStatus;
   summaryIsStale?: boolean;
+  onOpenSummary?: () => void;
 }
 
 function SortableChapterListItemComponent({
@@ -493,6 +501,7 @@ function SortableChapterListItemComponent({
   onSelectChapter,
   summaryStatus,
   summaryIsStale = false,
+  onOpenSummary,
 }: SortableChapterListItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: chapter.id,
@@ -545,6 +554,7 @@ function SortableChapterListItemComponent({
         isRenaming={false}
         summaryStatus={summaryStatus}
         summaryIsStale={summaryIsStale}
+        onOpenSummary={onOpenSummary}
         dragHandle={
           <Box
             style={{
@@ -575,6 +585,7 @@ function areBaseRowPropsEqual(prev: ChapterListItemBaseProps, next: ChapterListI
     prev.isMenuOpen === next.isMenuOpen &&
     prev.summaryStatus === next.summaryStatus &&
     prev.summaryIsStale === next.summaryIsStale &&
+    prev.onOpenSummary === next.onOpenSummary &&
     prev.onSelectChapter === next.onSelectChapter &&
     prev.onLongPressStart === next.onLongPressStart &&
     prev.onRequestContextMenu === next.onRequestContextMenu &&
@@ -596,6 +607,7 @@ function areSortableRowPropsEqual(
     prev.isActive === next.isActive &&
     prev.summaryStatus === next.summaryStatus &&
     prev.summaryIsStale === next.summaryIsStale &&
+    prev.onOpenSummary === next.onOpenSummary &&
     prev.onSelectChapter === next.onSelectChapter
   );
 }

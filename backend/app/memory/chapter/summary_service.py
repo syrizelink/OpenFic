@@ -261,10 +261,9 @@ def _fixed_summary_windows(
 
 def _build_long_term_window_from_group(
     chapter_group: list[Chapter],
-    volumes: list[Volume],
+    order_map: dict[str, int],
     summary_by_chapter_id: dict[str | None, ChapterSummary],
 ) -> LongTermSummaryWindow | None:
-    order_map = global_order_index(chapter_group, volumes)
     source_summaries: list[ChapterSummary] = []
     for chapter in sorted(chapter_group, key=lambda item: order_map.get(item.id, float("inf"))):
         if is_chapter_summary_skipped(chapter):
@@ -300,7 +299,7 @@ def build_long_term_summary_window(
     ]
     if len(chapter_group) != end_order - start_order + 1:
         return None
-    return _build_long_term_window_from_group(chapter_group, volumes, summary_by_chapter_id)
+    return _build_long_term_window_from_group(chapter_group, order_map, summary_by_chapter_id)
 
 
 def list_eligible_long_term_ranges(
@@ -309,9 +308,10 @@ def list_eligible_long_term_ranges(
     chapter_summaries: list[ChapterSummary],
 ) -> list[tuple[int, int]]:
     summary_by_chapter_id = {summary.chapter_id: summary for summary in chapter_summaries}
+    order_map = global_order_index(chapters, volumes)
     ranges: list[tuple[int, int]] = []
     for chapter_group in _fixed_summary_windows(chapters, volumes, LONG_TERM_SUMMARY_INTERVAL):
-        window = _build_long_term_window_from_group(chapter_group, volumes, summary_by_chapter_id)
+        window = _build_long_term_window_from_group(chapter_group, order_map, summary_by_chapter_id)
         if window is None:
             continue
         ranges.append((window.start_order, window.end_order))
@@ -325,6 +325,7 @@ def list_ready_unaggregated_long_term_windows(
     long_term_summaries: list[ChapterSummary],
 ) -> list[LongTermSummaryWindow]:
     summary_by_chapter_id = {summary.chapter_id: summary for summary in chapter_summaries}
+    order_map = global_order_index(chapters, volumes)
     long_term_by_range = {
         (summary.start_order, summary.end_order): summary
         for summary in long_term_summaries
@@ -332,7 +333,7 @@ def list_ready_unaggregated_long_term_windows(
     }
     windows: list[LongTermSummaryWindow] = []
     for chapter_group in _fixed_summary_windows(chapters, volumes, LONG_TERM_SUMMARY_INTERVAL):
-        window = _build_long_term_window_from_group(chapter_group, volumes, summary_by_chapter_id)
+        window = _build_long_term_window_from_group(chapter_group, order_map, summary_by_chapter_id)
         if window is None:
             continue
         existing = long_term_by_range.get((window.start_order, window.end_order))
@@ -482,6 +483,8 @@ async def create_or_update_long_term_summary(
     project_id: str,
     source_summaries: list[ChapterSummary],
     *,
+    start_order: int,
+    end_order: int,
     status: str,
     source_chapter_ids: list[str] | None = None,
     job_id: str | None = None,
@@ -489,8 +492,6 @@ async def create_or_update_long_term_summary(
 ) -> ChapterSummary:
     if not source_summaries:
         raise NotFoundError("没有可聚合的章节摘要")
-    start_order = min(summary.chapter_order or 0 for summary in source_summaries)
-    end_order = max(summary.chapter_order or 0 for summary in source_summaries)
     source_chapter_ids_json = encode_summary_list(
         source_chapter_ids
         if source_chapter_ids is not None
@@ -534,6 +535,8 @@ async def save_long_term_summary_result(
     project_id: str,
     source_summaries: list[ChapterSummary],
     *,
+    start_order: int,
+    end_order: int,
     start_time: str,
     end_time: str,
     summary: str,
@@ -546,6 +549,8 @@ async def save_long_term_summary_result(
         session,
         project_id,
         source_summaries,
+        start_order=start_order,
+        end_order=end_order,
         status=SUMMARY_STATUS_READY,
         source_chapter_ids=source_chapter_ids,
         job_id=job_id,
@@ -602,6 +607,24 @@ async def load_long_term_source(
         ready_only=True,
     )
     return sorted(summaries, key=lambda summary: summary.chapter_order or 0)
+
+
+async def load_long_term_summary_window(
+    session: AsyncSession,
+    project_id: str,
+    start_order: int,
+    end_order: int,
+) -> LongTermSummaryWindow | None:
+    chapters = await chapter_repo.list_by_project(session, project_id)
+    volumes = await volume_repo.list_by_project(session, project_id)
+    chapter_summaries = await list_chapter_summaries(session, project_id)
+    return build_long_term_summary_window(
+        chapters,
+        volumes,
+        chapter_summaries,
+        start_order,
+        end_order,
+    )
 
 
 async def _job_item_progress_message(session: AsyncSession, item_id: str | None) -> str | None:
@@ -959,6 +982,8 @@ async def append_long_term_summary_items(
                 session,
                 project_id,
                 window.source_summaries,
+                start_order=start_order,
+                end_order=end_order,
                 status=SUMMARY_STATUS_QUEUED,
                 source_chapter_ids=window.chapter_ids,
                 model_id=model_id,

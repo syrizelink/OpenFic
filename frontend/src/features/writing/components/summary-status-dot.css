@@ -1,4 +1,23 @@
+.summary-status-dot-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.summary-status-dot-button:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: 1px;
+}
+
 .summary-status-dot {
+  display: block;
   width: 8px;
   height: 8px;
   flex: 0 0 auto;

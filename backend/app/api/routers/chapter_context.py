@@ -34,9 +34,9 @@ from app.background.jobs.states import JOB_STATUS_PENDING, JOB_STATUS_RUNNING
 from app.background.jobs import service as background_job_service
 from app.core.errors import NotFoundError, ValidationError
 from app.memory.chapter import build_context
+from app.memory.chapter.sequence import chapter_by_global_order
 from app.memory.chapter.summary_service import (
     AUTO_GENERATION_BLOCK_CHAPTER_THRESHOLD,
-    MIN_CHAPTER_SUMMARY_WORD_COUNT,
     SUMMARY_BATCH_ITEM_TYPE_CHAPTER,
     SUMMARY_BATCH_ITEM_TYPE_LONG_TERM,
     build_long_term_summary_window,
@@ -55,6 +55,8 @@ from app.memory.chapter.summary_service import (
     parse_summary_list,
 )
 from app.storage.database import get_session
+from app.storage.models.chapter import Chapter
+from app.storage.models.volume import Volume
 from app.storage.repos import chapter_repo, chapter_summary_repo, volume_repo
 
 
@@ -137,17 +139,39 @@ def _volume_brief(volume):
     }
 
 
+def _long_term_endpoint_details(
+    chapter_by_order: dict[int, Chapter], volumes_by_id: dict[str, Volume], order: int
+) -> tuple[str | None, str]:
+    chapter = chapter_by_order.get(order)
+    if chapter is None:
+        return None, ""
+    volume = volumes_by_id.get(chapter.volume_id) if chapter.volume_id else None
+    return volume.title if volume else None, chapter.title
+
+
 def _long_term_summary_list_item(
     summary,
     start_order: int,
     end_order: int,
+    chapter_by_order: dict[int, Chapter],
+    volumes_by_id: dict[str, Volume],
     *,
     is_stale: bool = False,
 ) -> LongTermSummaryListItemResponse:
+    start_volume_title, start_chapter_title = _long_term_endpoint_details(
+        chapter_by_order, volumes_by_id, start_order
+    )
+    end_volume_title, end_chapter_title = _long_term_endpoint_details(
+        chapter_by_order, volumes_by_id, end_order
+    )
     if summary is None:
         return LongTermSummaryListItemResponse(
             start_order=start_order,
             end_order=end_order,
+            start_volume_title=start_volume_title,
+            start_chapter_title=start_chapter_title,
+            end_volume_title=end_volume_title,
+            end_chapter_title=end_chapter_title,
             status="not_generated",
             is_stale=False,
             summary_id=None,
@@ -156,6 +180,10 @@ def _long_term_summary_list_item(
     return LongTermSummaryListItemResponse(
         start_order=start_order,
         end_order=end_order,
+        start_volume_title=start_volume_title,
+        start_chapter_title=start_chapter_title,
+        end_volume_title=end_volume_title,
+        end_chapter_title=end_chapter_title,
         status=summary.status,
         is_stale=is_stale,
         summary_id=summary.id,
@@ -165,6 +193,11 @@ def _long_term_summary_list_item(
         error_message=summary.error_message,
         updated_at=summary.updated_at,
     )
+
+
+def _matches_summary_search(query: str, *values: str | None) -> bool:
+    normalized_query = query.casefold()
+    return any(normalized_query in (value or "").casefold() for value in values)
 
 
 async def _build_maintenance_response(
@@ -207,6 +240,7 @@ async def _build_maintenance_response(
         if job.job_type == SUMMARY_BATCH_ITEM_TYPE_CHAPTER and job.chapter_id is not None
     }
     volumes_by_id = {volume.id: volume for volume in volumes}
+    chapter_by_order = chapter_by_global_order(chapters, volumes)
     missing_chapters: list[MissingChapterSummaryItem] = []
     skipped_chapters: list[SkippedChapterSummaryItem] = []
     for chapter in chapters:
@@ -234,6 +268,7 @@ async def _build_maintenance_response(
                 chapter_id=chapter.id,
                 chapter_order=chapter.order,
                 chapter_title=chapter.title,
+                word_count=chapter.word_count,
                 status=status,
                 is_stale=is_chapter_summary_stale(summary, chapter),
                 summary_id=summary.id if summary else None,
@@ -263,10 +298,20 @@ async def _build_maintenance_response(
             is_stale = False
         if status not in {"not_generated", "failed", "queued", "running"} and not is_stale:
             continue
+        start_volume_title, start_chapter_title = _long_term_endpoint_details(
+            chapter_by_order, volumes_by_id, start_order
+        )
+        end_volume_title, end_chapter_title = _long_term_endpoint_details(
+            chapter_by_order, volumes_by_id, end_order
+        )
         missing_long_terms.append(
             MissingLongTermSummaryItem(
                 start_order=start_order,
                 end_order=end_order,
+                start_volume_title=start_volume_title,
+                start_chapter_title=start_chapter_title,
+                end_volume_title=end_volume_title,
+                end_chapter_title=end_chapter_title,
                 status=status,
                 is_stale=is_stale,
                 summary_id=existing.id if existing else None,
@@ -286,11 +331,12 @@ async def _build_maintenance_response(
     )
     return SummaryMaintenanceResponse(
         auto_generation_blocked=auto_blocked,
-        block_reason=(
-            f"可参与摘要的章节过多（至少 {MIN_CHAPTER_SUMMARY_WORD_COUNT} 字），需要在面板中手动生成或启用摘要。"
-        )
-        if auto_blocked
-        else None,
+        block_reason_code="too_many_pending_chapters" if auto_blocked else None,
+        block_reason_params=(
+            {"chapter_threshold": AUTO_GENERATION_BLOCK_CHAPTER_THRESHOLD}
+            if auto_blocked
+            else None
+        ),
         missing_or_failed_chapter_summaries=missing_chapters,
         missing_or_failed_long_term_summaries=missing_long_terms,
         skipped_chapter_summaries=skipped_chapters,
@@ -367,14 +413,23 @@ async def list_chapter_summary_items(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     volume_id: str | None = Query(default=None, description="按卷过滤"),
+    q: str | None = Query(default=None, description="搜索章节摘要"),
 ) -> ChapterSummaryListResponse:
     offset = (page - 1) * page_size
-    total = await chapter_summary_repo.count_chapter_summaries_by_project(
-        session, project_id, volume_id=volume_id
-    )
-    summaries = await chapter_summary_repo.list_chapter_summaries_by_project_page(
-        session, project_id, offset=offset, limit=page_size, volume_id=volume_id
-    )
+    search_query = q.strip() if q else ""
+    if search_query:
+        summaries = await chapter_summary_repo.list_chapter_summaries_by_project(
+            session, project_id
+        )
+        if volume_id is not None:
+            summaries = [summary for summary in summaries if summary.volume_id == volume_id]
+    else:
+        total = await chapter_summary_repo.count_chapter_summaries_by_project(
+            session, project_id, volume_id=volume_id
+        )
+        summaries = await chapter_summary_repo.list_chapter_summaries_by_project_page(
+            session, project_id, offset=offset, limit=page_size, volume_id=volume_id
+        )
     chapters = await chapter_repo.list_by_project(session, project_id)
     chapter_by_id = {chapter.id: chapter for chapter in chapters}
     volumes = await volume_repo.list_by_project(session, project_id)
@@ -418,6 +473,25 @@ async def list_chapter_summary_items(
                 **(_volume_brief(volume) if volume is not None else {}),
             )
         )
+
+    if search_query:
+        items = [
+            item
+            for item in items
+            if _matches_summary_search(
+                search_query,
+                item.chapter_title,
+                item.volume_title or "",
+                str(item.chapter_order),
+                item.summary,
+                item.error_message or "",
+                *item.characters,
+                *item.locations,
+            )
+        ]
+        total = len(items)
+        items = items[offset : offset + page_size]
+
     return ChapterSummaryListResponse(
         items=items,
         total=total,
@@ -480,20 +554,26 @@ async def list_long_terms_page(
     session: Annotated[AsyncSession, Depends(get_session)],
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
+    q: str | None = Query(default=None, description="搜索区间摘要"),
 ) -> LongTermSummaryListResponse:
     chapters = await chapter_repo.list_by_project(session, project_id)
     volumes = await volume_repo.list_by_project(session, project_id)
     chapter_summaries = await list_chapter_summaries(session, project_id)
     summaries = await list_long_term_summaries(session, project_id)
+    chapter_by_order = chapter_by_global_order(chapters, volumes)
+    volumes_by_id = {volume.id: volume for volume in volumes}
     summaries.sort(key=lambda item: (item.start_order or 0, item.end_order or 0, item.updated_at))
+    search_query = q.strip() if q else ""
     total = len(summaries)
     offset = (page - 1) * page_size
-    page_summaries = summaries[offset : offset + page_size]
+    page_summaries = summaries if search_query else summaries[offset : offset + page_size]
     items = [
         _long_term_summary_list_item(
             summary,
             summary.start_order or 0,
             summary.end_order or 0,
+            chapter_by_order,
+            volumes_by_id,
             is_stale=is_long_term_summary_stale(
                 summary,
                 chapters,
@@ -503,6 +583,24 @@ async def list_long_terms_page(
         )
         for summary in page_summaries
     ]
+    if search_query:
+        items = [
+            item
+            for item in items
+            if _matches_summary_search(
+                search_query,
+                str(item.start_order),
+                str(item.end_order),
+                item.start_volume_title or "",
+                item.start_chapter_title,
+                item.end_volume_title or "",
+                item.end_chapter_title,
+                item.summary,
+                item.error_message or "",
+            )
+        ]
+        total = len(items)
+        items = items[offset : offset + page_size]
     return LongTermSummaryListResponse(
         items=items,
         total=total,

@@ -41,6 +41,7 @@ interface ChapterSidebarProps {
   isAgentLocked?: boolean;
   compact?: boolean;
   initialCurrentChapterNavigationKey?: string | null;
+  onOpenSummary?: () => void;
 }
 
 export function ChapterSidebar({
@@ -50,6 +51,7 @@ export function ChapterSidebar({
   isAgentLocked = false,
   compact = false,
   initialCurrentChapterNavigationKey = null,
+  onOpenSummary,
 }: ChapterSidebarProps) {
   const { t } = useTranslation();
 
@@ -565,6 +567,7 @@ export function ChapterSidebar({
         isAgentLocked={isAgentLocked}
         compact={compact}
         summaryStatusMap={summaryStatusMap}
+        onOpenSummary={onOpenSummary}
         initialCurrentChapterNavigationKey={initialCurrentChapterNavigationKey}
         onToggleVolume={toggleVolumeExpanded}
         onStartRenameVolume={setRenamingVolumeId}

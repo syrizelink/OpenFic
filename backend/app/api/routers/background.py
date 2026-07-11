@@ -99,6 +99,8 @@ async def cancel_background_job(
         reason=data.reason,
     )
     await background_service.commit_and_notify(session)
+    if job.type == "summary_batch":
+        get_background_supervisor().cancel_running_summary_batch(job.id)
     return _to_job_response(job)
 
 

@@ -7,6 +7,7 @@ import "./summary-status-dot.css";
 interface SummaryStatusDotProps {
   status?: SummaryStatus;
   isStale?: boolean;
+  onOpenSummary?: () => void;
 }
 
 const STATUS_LABELS: Record<SummaryStatus, string> = {
@@ -28,16 +29,27 @@ const STATUS_COLORS: Record<SummaryStatus, string> = {
 export function SummaryStatusDot({
   status = "not_generated",
   isStale = false,
+  onOpenSummary,
 }: SummaryStatusDotProps) {
   const label = status === "ready" && isStale ? "摘要待更新" : STATUS_LABELS[status];
   const color = status === "ready" && isStale ? "var(--orange-8)" : STATUS_COLORS[status];
   return (
     <Tooltip content={label}>
-      <span
+      <button
+        type="button"
         aria-label={label}
-        className={status === "running" ? "summary-status-dot is-running" : "summary-status-dot"}
-        style={{ backgroundColor: color }}
-      />
+        className="summary-status-dot-button"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpenSummary?.();
+        }}
+      >
+        <span
+          className={status === "running" ? "summary-status-dot is-running" : "summary-status-dot"}
+          style={{ backgroundColor: color }}
+        />
+      </button>
     </Tooltip>
   );
 }

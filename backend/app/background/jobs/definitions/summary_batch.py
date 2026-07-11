@@ -20,6 +20,14 @@ from app.storage.repos import chapter_repo
 
 SUMMARY_ITEM_STAGE_TOTAL = 3
 
+PROGRESS_MSG_CHAPTER_GENERATING = "chapter_generating"
+PROGRESS_MSG_CHAPTER_SAVED = "chapter_saved"
+PROGRESS_MSG_CHAPTER_COMPLETED = "chapter_completed"
+PROGRESS_MSG_LONG_TERM_GENERATING = "long_term_generating"
+PROGRESS_MSG_LONG_TERM_SAVED = "long_term_saved"
+PROGRESS_MSG_LONG_TERM_COMPLETED = "long_term_completed"
+ERROR_MSG_INSUFFICIENT_SOURCE = "insufficient_source_summaries"
+
 
 class SummaryBatchInput(BaseModel):
     project_id: str
@@ -215,16 +223,16 @@ async def _process_chapter_item(context: JobContext, item: BackgroundJobItem, me
         resolved.model.id,
     )
     await summary_service.publish_chapter_summary_update(context, row)
-    await _update_item_progress(context.session, item, current=1, total=3, message="正在生成章节摘要")
+    await _update_item_progress(context.session, item, current=1, total=3, message=PROGRESS_MSG_CHAPTER_GENERATING)
     await _publish_item_progress(
         context,
         item,
         row,
         current=1,
         total=3,
-        message="正在生成章节摘要",
+        message=PROGRESS_MSG_CHAPTER_GENERATING,
     )
-    await _update_batch_progress(context.session, context, message="正在生成章节摘要")
+    await _update_batch_progress(context.session, context, message=PROGRESS_MSG_CHAPTER_GENERATING)
     await job_service.commit_and_notify(context.session)
     prompt = await summary_generator.build_chapter_summary_prompt(context.session, chapter_id)
     result = await summary_generator.generate_chapter_summary_from_prompt(resolved.client, prompt)
@@ -240,14 +248,14 @@ async def _process_chapter_item(context: JobContext, item: BackgroundJobItem, me
         model_id=resolved.model.id,
         job_id=item.id,
     )
-    await _update_item_progress(context.session, item, current=2, total=3, message="章节摘要已保存")
+    await _update_item_progress(context.session, item, current=2, total=3, message=PROGRESS_MSG_CHAPTER_SAVED)
     await _publish_item_progress(
         context,
         item,
         row,
         current=2,
         total=3,
-        message="章节摘要已保存",
+        message=PROGRESS_MSG_CHAPTER_SAVED,
     )
     await summary_service.publish_chapter_summary_update(context, row)
     await summary_service.enqueue_long_term_summary_if_ready(
@@ -257,14 +265,14 @@ async def _process_chapter_item(context: JobContext, item: BackgroundJobItem, me
         model_policy=metadata.model_policy,
         batch_job_id=context.job_id,
     )
-    await _update_item_progress(context.session, item, current=3, total=3, message="章节摘要完成")
+    await _update_item_progress(context.session, item, current=3, total=3, message=PROGRESS_MSG_CHAPTER_COMPLETED)
     await _publish_item_progress(
         context,
         item,
         row,
         current=3,
         total=3,
-        message="章节摘要完成",
+        message=PROGRESS_MSG_CHAPTER_COMPLETED,
     )
     await _mark_item_terminal(context.session, item, JOB_STATUS_SUCCEEDED)
     await _publish_item_terminal(context, item, row, terminal_status="succeeded")
@@ -278,28 +286,36 @@ async def _process_long_term_item(context: JobContext, item: BackgroundJobItem, 
     if not isinstance(project_id, str) or not isinstance(start_order, int) or not isinstance(end_order, int):
         raise ValueError("长期摘要 item 缺少区间信息")
 
-    source = await summary_service.load_long_term_source(context.session, project_id, start_order, end_order)
-    if len(source) < summary_service.LONG_TERM_SUMMARY_INTERVAL:
+    window = await summary_service.load_long_term_summary_window(
+        context.session, project_id, start_order, end_order
+    )
+    if window is None:
+        source = await summary_service.load_long_term_source(
+            context.session, project_id, start_order, end_order
+        )
         row = await summary_service.create_or_update_long_term_summary(
             context.session,
             project_id,
             source,
+            start_order=start_order,
+            end_order=end_order,
             status=summary_service.SUMMARY_STATUS_FAILED,
             source_chapter_ids=await summary_service.load_long_term_chapter_ids(context.session, project_id, start_order, end_order),
             job_id=item.id,
         )
-        await summary_service.mark_summary_failed(context.session, row, "可聚合章节摘要不足")
+        await summary_service.mark_summary_failed(context.session, row, ERROR_MSG_INSUFFICIENT_SOURCE)
         await summary_service.publish_long_term_summary_update(context, row)
-        await _mark_item_terminal(context.session, item, JOB_STATUS_SKIPPED, error_message="可聚合章节摘要不足")
+        await _mark_item_terminal(context.session, item, JOB_STATUS_SKIPPED, error_message=ERROR_MSG_INSUFFICIENT_SOURCE)
         await _publish_item_terminal(
             context,
             item,
             row,
             terminal_status="skipped",
-            error_message="可聚合章节摘要不足",
+            error_message=ERROR_MSG_INSUFFICIENT_SOURCE,
         )
         return
 
+    source = window.source_summaries
     chapters = await chapter_repo.list_by_project(context.session, project_id)
     try:
         resolved = await resolve_background_llm(
@@ -312,6 +328,8 @@ async def _process_long_term_item(context: JobContext, item: BackgroundJobItem, 
             context.session,
             project_id,
             source,
+            start_order=start_order,
+            end_order=end_order,
             status=summary_service.SUMMARY_STATUS_FAILED,
             source_chapter_ids=await summary_service.load_long_term_chapter_ids(context.session, project_id, start_order, end_order),
             job_id=item.id,
@@ -332,30 +350,38 @@ async def _process_long_term_item(context: JobContext, item: BackgroundJobItem, 
         context.session,
         project_id,
         source,
+        start_order=start_order,
+        end_order=end_order,
         status=summary_service.SUMMARY_STATUS_RUNNING,
         source_chapter_ids=await summary_service.load_long_term_chapter_ids(context.session, project_id, start_order, end_order),
         job_id=item.id,
         model_id=resolved.model.id,
     )
     await summary_service.publish_long_term_summary_update(context, row)
-    await _update_item_progress(context.session, item, current=1, total=3, message="正在生成区间摘要")
+    await _update_item_progress(context.session, item, current=1, total=3, message=PROGRESS_MSG_LONG_TERM_GENERATING)
     await _publish_item_progress(
         context,
         item,
         row,
         current=1,
         total=3,
-        message="正在生成区间摘要",
+        message=PROGRESS_MSG_LONG_TERM_GENERATING,
     )
-    await _update_batch_progress(context.session, context, message="正在生成区间摘要")
+    await _update_batch_progress(context.session, context, message=PROGRESS_MSG_LONG_TERM_GENERATING)
     await job_service.commit_and_notify(context.session)
     prompt = await summary_generator.build_long_term_summary_prompt(context.session, source, chapters)
     result = await summary_generator.generate_long_term_summary_from_prompt(resolved.client, prompt)
-    refreshed_source = await summary_service.load_long_term_source(context.session, project_id, start_order, end_order)
+    refreshed_window = await summary_service.load_long_term_summary_window(
+        context.session, project_id, start_order, end_order
+    )
+    if refreshed_window is None:
+        raise ValueError(ERROR_MSG_INSUFFICIENT_SOURCE)
     row = await summary_service.save_long_term_summary_result(
         context.session,
         project_id,
-        refreshed_source,
+        refreshed_window.source_summaries,
+        start_order=start_order,
+        end_order=end_order,
         start_time=result.start_time,
         end_time=result.end_time,
         summary=result.summary,
@@ -364,24 +390,24 @@ async def _process_long_term_item(context: JobContext, item: BackgroundJobItem, 
         job_id=item.id,
         source_chapter_ids=await summary_service.load_long_term_chapter_ids(context.session, project_id, start_order, end_order),
     )
-    await _update_item_progress(context.session, item, current=2, total=3, message="区间摘要已保存")
+    await _update_item_progress(context.session, item, current=2, total=3, message=PROGRESS_MSG_LONG_TERM_SAVED)
     await _publish_item_progress(
         context,
         item,
         row,
         current=2,
         total=3,
-        message="区间摘要已保存",
+        message=PROGRESS_MSG_LONG_TERM_SAVED,
     )
     await summary_service.publish_long_term_summary_update(context, row)
-    await _update_item_progress(context.session, item, current=3, total=3, message="区间摘要完成")
+    await _update_item_progress(context.session, item, current=3, total=3, message=PROGRESS_MSG_LONG_TERM_COMPLETED)
     await _publish_item_progress(
         context,
         item,
         row,
         current=3,
         total=3,
-        message="区间摘要完成",
+        message=PROGRESS_MSG_LONG_TERM_COMPLETED,
     )
     await _mark_item_terminal(context.session, item, JOB_STATUS_SUCCEEDED)
     await _publish_item_terminal(context, item, row, terminal_status="succeeded")

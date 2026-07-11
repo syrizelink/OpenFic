@@ -786,6 +786,74 @@ async def test_worker_runs_cancellation_hook_after_rollback(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_worker_interrupts_running_summary_batch_on_cancel_request(tmp_path):
+    engine, factory = await _configure_file_database(tmp_path)
+    session = factory()
+    try:
+        generation_started = asyncio.Event()
+        generation_cancelled = asyncio.Event()
+
+        async def blocking_summary_handler(_context: JobContext) -> None:
+            generation_started.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                generation_cancelled.set()
+                raise
+
+        get_job_registry()._definitions[JOB_TYPE_SUMMARY_BATCH] = JobDefinition(
+            type=JOB_TYPE_SUMMARY_BATCH,
+            name="Blocking summary batch",
+            description="Blocks until cancellation for worker cancellation coverage.",
+            input_model=_NoopInput,
+            handler=blocking_summary_handler,
+            on_cancelled=_cancelled_hook,
+            supports_cancel=True,
+        )
+        job = await job_repo.create_job(
+            session,
+            BackgroundJob(type=JOB_TYPE_SUMMARY_BATCH, payload_json='{"value":"x"}'),
+        )
+        await background_service.commit_and_notify(session)
+
+        transport = RecordingTransport()
+        worker = BackgroundWorker(worker_id="worker-1", transport=transport, scan_interval_seconds=1)
+        run_task = asyncio.create_task(worker._run_job(job.id))
+        await asyncio.wait_for(generation_started.wait(), timeout=1)
+
+        cancel_session = factory()
+        try:
+            stored_job = await job_repo.get_job(cancel_session, job.id)
+            assert stored_job is not None
+            await background_service.request_cancel(
+                cancel_session,
+                BackgroundEventPublisher(transport),
+                stored_job,
+                reason="用户停止摘要生成队列",
+            )
+            await background_service.commit_and_notify(cancel_session)
+        finally:
+            await cancel_session.close()
+
+        assert worker.cancel_running_summary_batch(job.id) is True
+        await asyncio.wait_for(run_task, timeout=1)
+        assert generation_cancelled.is_set()
+
+        verification_session = factory()
+        try:
+            stored_job = await job_repo.get_job(verification_session, job.id)
+            events = await job_repo.list_events(verification_session, job_id=job.id)
+        finally:
+            await verification_session.close()
+        assert stored_job is not None
+        assert stored_job.status == JOB_STATUS_CANCELLED
+        assert any(event.event_type == "cancelled_hook_ran" for event in events)
+    finally:
+        await session.close()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_summary_batch_failure_hook_marks_incomplete_items_failed(tmp_path, monkeypatch):
     engine, factory = await _configure_file_database(tmp_path)
     session = factory()
@@ -1189,6 +1257,101 @@ async def test_summary_batch_commits_after_each_item(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_summary_batch_aggregates_window_with_skipped_first_chapter(tmp_path, monkeypatch):
+    engine, factory = await _configure_file_database(tmp_path)
+    session = factory()
+    try:
+        project = Project(title="项目", description="")
+        chapters = [
+            Chapter(
+                project_id=project.id,
+                volume_id=_default_volume_id(project),
+                title=f"第{index}章",
+                content="正文" * 400,
+                word_count=100 if index == 1 else 800,
+                order=index,
+            )
+            for index in range(1, summary_service.LONG_TERM_SUMMARY_INTERVAL + 1)
+        ]
+        session.add(project)
+        session.add(_default_volume(project, chapter_count=len(chapters)))
+        session.add_all(chapters)
+        await session.commit()
+
+        for chapter in chapters[1:]:
+            session.add(
+                ChapterSummary(
+                    project_id=project.id,
+                    summary_type="chapter",
+                    status=SUMMARY_STATUS_READY,
+                    chapter_id=chapter.id,
+                    volume_id=chapter.volume_id,
+                    chapter_order=chapter.order,
+                    start_order=chapter.order,
+                    end_order=chapter.order,
+                    summary=f"摘要{chapter.order}",
+                    source_content_normalized=chapter.content,
+                )
+            )
+        await session.commit()
+
+        queued = await summary_service.append_long_term_summary_items(
+            session, project.id, [(1, summary_service.LONG_TERM_SUMMARY_INTERVAL)]
+        )
+        await session.commit()
+
+        class FakeLongTermSummaryResult:
+            start_time = "开始"
+            end_time = "结束"
+            summary = "区间摘要"
+            token_count = 12
+
+        async def fake_resolve_background_llm(_session, model_policy: str, model_id: str | None):
+            class FakeResolvedModel:
+                id = "test-model"
+
+            class FakeResolved:
+                model = FakeResolvedModel()
+                client = object()
+
+            _ = (model_policy, model_id)
+            return FakeResolved()
+
+        async def fake_build_prompt(_session, source, _chapters):
+            assert len(source) == summary_service.LONG_TERM_SUMMARY_INTERVAL - 1
+            return "prompt"
+
+        async def fake_generate(_client, _prompt):
+            return FakeLongTermSummaryResult()
+
+        monkeypatch.setattr(summary_batch_definition, "resolve_background_llm", fake_resolve_background_llm)
+        monkeypatch.setattr(
+            summary_batch_definition.summary_generator,
+            "build_long_term_summary_prompt",
+            fake_build_prompt,
+        )
+        monkeypatch.setattr(
+            summary_batch_definition.summary_generator,
+            "generate_long_term_summary_from_prompt",
+            fake_generate,
+        )
+
+        worker = BackgroundWorker(
+            worker_id="worker-1", transport=RecordingTransport(), scan_interval_seconds=1
+        )
+        await worker._run_job(queued.batch_job_id)
+
+        summary = await summary_service.get_long_term_summary_by_range(
+            session, project.id, 1, summary_service.LONG_TERM_SUMMARY_INTERVAL
+        )
+        assert summary is not None
+        assert summary.status == SUMMARY_STATUS_READY
+    finally:
+        await session.close()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_summary_batch_persists_running_status_before_generation(tmp_path, monkeypatch):
     engine, factory = await _configure_file_database(tmp_path)
     session = factory()
@@ -1306,7 +1469,7 @@ async def test_summary_batch_progress_event_contains_aggregated_batch_progress(t
         progress_events = [event for event in transport.events if event.type == EVENT_JOB_PROGRESS]
         assert progress_events
         generating_event = next(
-            event for event in progress_events if event.payload.get("message") == "正在生成章节摘要"
+            event for event in progress_events if event.payload.get("message") == "chapter_generating"
         )
         assert generating_event.payload["current"] == 1
         assert generating_event.payload["total"] == 3
@@ -1373,7 +1536,7 @@ async def test_summary_batch_emits_item_progress_and_terminal_events(tmp_path, m
         ]
         assert item_progress_events
         generating_event = next(
-            event for event in item_progress_events if event.payload["progress_message"] == "正在生成章节摘要"
+            event for event in item_progress_events if event.payload["progress_message"] == "chapter_generating"
         )
         assert generating_event.item_type == "chapter_summary"
         assert generating_event.payload["project_id"] == project.id
@@ -1397,7 +1560,7 @@ async def test_summary_batch_emits_item_progress_and_terminal_events(tmp_path, m
         assert terminal_event.payload["is_stale"] is False
         assert terminal_event.payload["progress_current"] == 3
         assert terminal_event.payload["progress_total"] == 3
-        assert terminal_event.payload["progress_message"] == "章节摘要完成"
+        assert terminal_event.payload["progress_message"] == "chapter_completed"
         assert terminal_event.payload["error_message"] is None
     finally:
         await session.close()

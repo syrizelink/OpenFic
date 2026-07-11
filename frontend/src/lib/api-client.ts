@@ -845,6 +845,10 @@ export type SummaryStatus = "not_generated" | "queued" | "running" | "ready" | "
 export interface LongTermSummaryListItem {
   startOrder: number;
   endOrder: number;
+  startVolumeTitle: string | null;
+  startChapterTitle: string;
+  endVolumeTitle: string | null;
+  endChapterTitle: string;
   status: SummaryStatus;
   isStale: boolean;
   summaryId: string | null;
@@ -917,6 +921,7 @@ export interface MissingChapterSummaryItem {
   volumeTitle: string | null;
   volumeOrder: number | null;
   chapterTitle: string;
+  wordCount: number;
   status: SummaryStatus;
   isStale: boolean;
   summaryId: string | null;
@@ -926,6 +931,10 @@ export interface MissingChapterSummaryItem {
 export interface MissingLongTermSummaryItem {
   startOrder: number;
   endOrder: number;
+  startVolumeTitle: string | null;
+  startChapterTitle: string;
+  endVolumeTitle: string | null;
+  endChapterTitle: string;
   status: SummaryStatus;
   isStale: boolean;
   summaryId: string | null;
@@ -975,7 +984,8 @@ export interface SummaryBatchProgressItem {
 
 export interface SummaryMaintenance {
   autoGenerationBlocked: boolean;
-  blockReason: string | null;
+  blockReasonCode: string | null;
+  blockReasonParams: Record<string, number | string> | null;
   missingOrFailedChapterSummaries: MissingChapterSummaryItem[];
   missingOrFailedLongTermSummaries: MissingLongTermSummaryItem[];
   skippedChapterSummaries: SkippedChapterSummaryItem[];
@@ -1012,6 +1022,10 @@ function transformLongTermSummaryListItem(raw: Record<string, unknown>): LongTer
   return {
     startOrder: Number(raw.start_order ?? 0),
     endOrder: Number(raw.end_order ?? 0),
+    startVolumeTitle: (raw.start_volume_title as string | null) ?? null,
+    startChapterTitle: (raw.start_chapter_title as string) || "",
+    endVolumeTitle: (raw.end_volume_title as string | null) ?? null,
+    endChapterTitle: (raw.end_chapter_title as string) || "",
     status: raw.status as SummaryStatus,
     isStale: Boolean(raw.is_stale),
     summaryId: raw.summary_id as string | null,
@@ -1047,7 +1061,9 @@ function transformChapterSummaryListItem(raw: Record<string, unknown>): ChapterS
 function transformSummaryMaintenance(raw: Record<string, unknown>): SummaryMaintenance {
   return {
     autoGenerationBlocked: Boolean(raw.auto_generation_blocked),
-    blockReason: raw.block_reason as string | null,
+    blockReasonCode: (raw.block_reason_code as string | null) ?? null,
+    blockReasonParams:
+      (raw.block_reason_params as Record<string, number | string> | null) ?? null,
     missingOrFailedChapterSummaries: (
       (raw.missing_or_failed_chapter_summaries as Record<string, unknown>[]) || []
     ).map((item) => ({
@@ -1057,6 +1073,7 @@ function transformSummaryMaintenance(raw: Record<string, unknown>): SummaryMaint
       volumeTitle: (item.volume_title as string | null) ?? null,
       volumeOrder: item.volume_order == null ? null : Number(item.volume_order),
       chapterTitle: item.chapter_title as string,
+      wordCount: Number(item.word_count ?? 0),
       status: item.status as SummaryStatus,
       isStale: Boolean(item.is_stale),
       summaryId: item.summary_id as string | null,
@@ -1067,6 +1084,10 @@ function transformSummaryMaintenance(raw: Record<string, unknown>): SummaryMaint
     ).map((item) => ({
       startOrder: item.start_order as number,
       endOrder: item.end_order as number,
+      startVolumeTitle: (item.start_volume_title as string | null) ?? null,
+      startChapterTitle: (item.start_chapter_title as string) || "",
+      endVolumeTitle: (item.end_volume_title as string | null) ?? null,
+      endChapterTitle: (item.end_chapter_title as string) || "",
       status: item.status as SummaryStatus,
       isStale: Boolean(item.is_stale),
       summaryId: item.summary_id as string | null,
@@ -1159,6 +1180,7 @@ export async function fetchChapterSummaryList(
   pageSize = 20,
   signal?: AbortSignal,
   volumeId?: string | null,
+  query?: string,
 ): Promise<ChapterSummaryListResponse> {
   const response = await apiClient.get<Record<string, unknown>>(
     `/projects/${projectId}/chapter-context/summaries/chapters`,
@@ -1167,6 +1189,7 @@ export async function fetchChapterSummaryList(
         page,
         page_size: pageSize,
         ...(volumeId ? { volume_id: volumeId } : {}),
+        ...(query ? { q: query } : {}),
       },
       signal,
     },
@@ -1208,10 +1231,11 @@ export async function fetchLongTermSummariesPage(
   page: number,
   pageSize = 20,
   signal?: AbortSignal,
+  query?: string,
 ): Promise<LongTermSummaryListResponse> {
   const response = await apiClient.get<Record<string, unknown>>(
     `/projects/${projectId}/chapter-context/summaries/long-term`,
-    { params: { page, page_size: pageSize }, signal },
+    { params: { page, page_size: pageSize, ...(query ? { q: query } : {}) }, signal },
   );
   return {
     items: ((response.data.items as Record<string, unknown>[]) || []).map(
@@ -1242,6 +1266,10 @@ export async function enqueueSummary(
     jobId: (response.data.job_id as string | null) ?? null,
     itemCount: Number(response.data.item_count ?? 0),
   };
+}
+
+export async function cancelBackgroundJob(jobId: string, reason: string): Promise<void> {
+  await apiClient.post(`/background/jobs/${jobId}/cancel`, { reason });
 }
 
 /**

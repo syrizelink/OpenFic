@@ -141,18 +141,26 @@ export function SummaryPanel({ projectId, open, onOpenChange, trigger }: Summary
                 <ChapterSummaryListView
                   key={`${projectId}-${open ? "open" : "closed"}`}
                   projectId={projectId}
+                  open={open}
                 />
               )}
 
               {section === "long-term" && (
                 <LongTermSummaryListView
+                  key={`${projectId}-${open ? "open" : "closed"}`}
                   projectId={projectId}
                   open={open}
                   emptyText={t("summary.emptyRanges")}
                 />
               )}
 
-              {section === "maintenance" && <SummaryMaintenanceView projectId={projectId} />}
+              {section === "maintenance" && (
+                <SummaryMaintenanceView
+                  key={`${projectId}-${open ? "open" : "closed"}`}
+                  projectId={projectId}
+                  open={open}
+                />
+              )}
             </Box>
           </Flex>
         </Flex>

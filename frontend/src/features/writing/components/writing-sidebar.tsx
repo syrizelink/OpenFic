@@ -13,6 +13,7 @@ interface WritingSidebarProps {
   isAgentLocked?: boolean;
   compact?: boolean;
   initialCurrentChapterNavigationKey?: string | null;
+  onOpenSummary?: () => void;
 }
 
 export function WritingSidebar({
@@ -23,6 +24,7 @@ export function WritingSidebar({
   isAgentLocked = false,
   compact = false,
   initialCurrentChapterNavigationKey = null,
+  onOpenSummary,
 }: WritingSidebarProps) {
   const { t } = useTranslation();
   const sidebarView = useWritingStore((s) => s.sidebarView);
@@ -62,6 +64,7 @@ export function WritingSidebar({
           isAgentLocked={isAgentLocked}
           compact={compact}
           initialCurrentChapterNavigationKey={initialCurrentChapterNavigationKey}
+          onOpenSummary={onOpenSummary}
         />
       ) : (
         <NoteSidebar

@@ -51,6 +51,7 @@ class MissingChapterSummaryItem(BaseModel):
     volume_title: str | None = None
     volume_order: int | None = None
     chapter_title: str
+    word_count: int = 0
     status: str
     is_stale: bool = False
     summary_id: str | None = None
@@ -74,6 +75,10 @@ class MissingLongTermSummaryItem(BaseModel):
 
     start_order: int
     end_order: int
+    start_volume_title: str | None = None
+    start_chapter_title: str = ""
+    end_volume_title: str | None = None
+    end_chapter_title: str = ""
     status: str
     is_stale: bool = False
     summary_id: str | None = None
@@ -103,7 +108,8 @@ class SummaryMaintenanceResponse(BaseModel):
     """摘要维护状态。"""
 
     auto_generation_blocked: bool = False
-    block_reason: str | None = None
+    block_reason_code: str | None = None
+    block_reason_params: dict[str, int | str] | None = None
     missing_or_failed_chapter_summaries: list[MissingChapterSummaryItem] = Field(default_factory=list)
     missing_or_failed_long_term_summaries: list[MissingLongTermSummaryItem] = Field(default_factory=list)
     skipped_chapter_summaries: list[SkippedChapterSummaryItem] = Field(default_factory=list)
@@ -187,6 +193,10 @@ class LongTermSummaryListItemResponse(BaseModel):
 
     start_order: int
     end_order: int
+    start_volume_title: str | None = None
+    start_chapter_title: str = ""
+    end_volume_title: str | None = None
+    end_chapter_title: str = ""
     status: str
     is_stale: bool = False
     summary_id: str | None = None
