@@ -206,7 +206,7 @@
 
 .skills-settings--settings .skills-settings-editor-content {
   max-width: 560px;
-  margin: 0;
+  margin: 0 auto;
 }
 
 .skills-settings-editor-actions {
