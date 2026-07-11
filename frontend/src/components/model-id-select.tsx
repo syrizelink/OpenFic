@@ -17,8 +17,8 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Spinner } from "@/components";
+import { ProviderIcon } from "@/features/settings/lib/provider-icons";
 import type { AvailableModel, TaskType } from "@/lib/model.types";
-import type { ProviderType } from "@/lib/model.types";
 
 import {
   CapabilityIcon,
@@ -31,9 +31,7 @@ const MotionBox = motion.create(Box);
 
 export interface ModelIdSelectOption extends AvailableModel {
   value?: string;
-  providerType?: ProviderType;
-  uploadedProviderIconPath?: string | null;
-  catalogProviderIconPath?: string | null;
+  providerIconPath?: string | null;
 }
 
 interface ModelIdSelectProps {
@@ -345,10 +343,7 @@ export function ModelIdSelect({
       >
         <Box style={{ maxHeight: 400, overflow: "hidden" }}>
           {showSearchBox || showRefreshButton ? (
-            <Box
-              p={headerPad}
-              style={{ borderBottom: "1px solid var(--gray-a4)" }}
-            >
+            <Box p={headerPad}>
               <Flex
                 align="center"
                 gap={compact ? "1" : "2"}
@@ -489,7 +484,10 @@ export function ModelIdSelect({
                     style={{
                       padding: itemPadding,
                       cursor: "pointer",
-                      borderBottom: "1px solid var(--gray-a3)",
+                      borderBottom:
+                        showCustomOption || filteredModels.length > 0
+                          ? "1px solid var(--gray-a3)"
+                          : undefined,
                     }}
                     whileHover={{ backgroundColor: "var(--gray-a2)" }}
                     whileTap={{ scale: 0.98 }}
@@ -510,7 +508,8 @@ export function ModelIdSelect({
                     style={{
                       padding: itemPadding,
                       cursor: "pointer",
-                      borderBottom: "1px solid var(--gray-a3)",
+                      borderBottom:
+                        filteredModels.length > 0 ? "1px solid var(--gray-a3)" : undefined,
                       backgroundColor: "var(--blue-a2)",
                     }}
                     whileHover={{ backgroundColor: "var(--blue-a3)" }}
@@ -540,7 +539,7 @@ export function ModelIdSelect({
                   </MotionBox>
                 ) : null}
 
-                {filteredModels.map((model) => {
+                {filteredModels.map((model, index) => {
                   const capabilityKeys = getModelCapabilityKeys(model);
                   const contextLabel = formatContextWindow(model.contextWindow);
                   const hasMetadata =
@@ -570,66 +569,89 @@ export function ModelIdSelect({
                       style={{
                         padding: itemPadding,
                         cursor: "pointer",
-                        borderBottom: "1px solid var(--gray-a3)",
+                        borderBottom:
+                          index < filteredModels.length - 1
+                            ? "1px solid var(--gray-a3)"
+                            : undefined,
                       }}
                       whileHover={{ backgroundColor: "var(--gray-a2)" }}
                       whileTap={{ scale: 0.98 }}
                       transition={{ duration: 0.15 }}
                     >
                       <Flex
-                        direction="column"
-                        gap="1"
+                        align="center"
+                        gap={compact ? "1" : "2"}
                       >
+                        {compact ? null : (
+                          <ProviderIcon
+                            iconPath={model.providerIconPath}
+                            size={24}
+                          />
+                        )}
                         <Flex
-                          align="start"
-                          justify="between"
-                          gap="2"
+                          direction="column"
+                          gap="1"
+                          style={{ flex: 1, minWidth: 0 }}
                         >
                           <Flex
-                            align="center"
-                            gap="1"
-                            style={{ minWidth: 0 }}
+                            align="start"
+                            justify="between"
+                            gap="2"
                           >
-                            <Text
-                              size={modelNameSize}
-                              weight="medium"
-                              style={{
-                                minWidth: 0,
-                                color: showToolCallWarning ? "#c64545" : undefined,
-                              }}
-                            >
-                              {model.name}
-                            </Text>
-                            {showToolCallWarning ? (
-                              <ToolCallWarningBadge message={t("models.toolCallWarningTooltip")} />
-                            ) : null}
-                          </Flex>
-                          {capabilityKeys.length > 0 || contextLabel ? (
                             <Flex
                               align="center"
                               gap="1"
-                              wrap="wrap"
-                              justify="end"
-                              style={{ marginLeft: "auto", flexShrink: 0 }}
+                              style={{ minWidth: 0 }}
                             >
-                              {capabilityKeys.map((capability) => (
-                                <CapabilityIcon
-                                  key={`${getModelValue(model)}-${capability}`}
-                                  capability={capability}
+                              {compact ? (
+                                <ProviderIcon
+                                  iconPath={model.providerIconPath}
+                                  size={14}
                                 />
-                              ))}
-                              {contextLabel ? <ContextBadge label={contextLabel} /> : null}
+                              ) : null}
+                              <Text
+                                size={modelNameSize}
+                                weight="medium"
+                                style={{
+                                  minWidth: 0,
+                                  color: showToolCallWarning ? "#c64545" : undefined,
+                                }}
+                              >
+                                {model.name}
+                              </Text>
+                              {showToolCallWarning ? (
+                                <ToolCallWarningBadge
+                                  message={t("models.toolCallWarningTooltip")}
+                                />
+                              ) : null}
                             </Flex>
-                          ) : null}
+                            {capabilityKeys.length > 0 || contextLabel ? (
+                              <Flex
+                                align="center"
+                                gap="1"
+                                wrap="wrap"
+                                justify="end"
+                                style={{ marginLeft: "auto", flexShrink: 0 }}
+                              >
+                                {capabilityKeys.map((capability) => (
+                                  <CapabilityIcon
+                                    key={`${getModelValue(model)}-${capability}`}
+                                    capability={capability}
+                                  />
+                                ))}
+                                {contextLabel ? <ContextBadge label={contextLabel} /> : null}
+                              </Flex>
+                            ) : null}
+                          </Flex>
+                          {compact ? null : (
+                            <Text
+                              size="1"
+                              color="gray"
+                            >
+                              {priceLine || model.id}
+                            </Text>
+                          )}
                         </Flex>
-                        {compact ? null : (
-                          <Text
-                            size="1"
-                            color="gray"
-                          >
-                            {priceLine || model.id}
-                          </Text>
-                        )}
                       </Flex>
                     </MotionBox>
                   );

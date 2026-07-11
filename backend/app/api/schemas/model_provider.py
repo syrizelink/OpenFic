@@ -32,7 +32,7 @@ class ModelProviderResponse(BaseModel):
     supported_task_types: list[str] = Field(
         description="支持的任务类型列表 (llm, embedding, rerank)"
     )
-    icon_path: str | None = Field(description="图标文件路径")
+    icon_path: str | None = Field(description="Catalog 图标路径")
     is_builtin: bool = Field(default=False, description="是否为内置提供商")
     catalog_match: CatalogMatchResponse | None = Field(
         default=None, description="匹配到的 catalog 提供商元数据"

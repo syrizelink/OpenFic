@@ -8,11 +8,9 @@ from typing import Annotated
 from fastapi import (
     APIRouter,
     Depends,
-    File,
     Form,
     HTTPException,
     Query,
-    UploadFile,
     status,
 )
 from loguru import logger
@@ -146,7 +144,6 @@ async def create_provider(
     provider_type: Annotated[str, Form()],
     name: Annotated[str, Form()] = "",
     api_key: Annotated[str | None, Form()] = None,
-    icon: Annotated[UploadFile | None, File()] = None,
     session: AsyncSession = Depends(get_session),
     service: ModelProviderService = Depends(get_provider_service),
 ) -> ModelProviderResponse:
@@ -158,7 +155,6 @@ async def create_provider(
         url: 服务 URL。
         api_key: API Key。
         provider_type: 提供商类型。
-        icon: 图标文件。
         session: 数据库 session。
         service: 提供商服务。
 
@@ -173,7 +169,6 @@ async def create_provider(
         url=url,
         api_key=api_key or "",
         provider_type=provider_type,
-        icon_file=icon,
     )
 
     return await _build_provider_response(provider, service)
@@ -190,7 +185,6 @@ async def update_provider(
     url: Annotated[str | None, Form()] = None,
     api_key: Annotated[str | None, Form()] = None,
     provider_type: Annotated[str | None, Form()] = None,
-    icon: Annotated[UploadFile | None, File()] = None,
     session: AsyncSession = Depends(get_session),
     service: ModelProviderService = Depends(get_provider_service),
 ) -> ModelProviderResponse:
@@ -203,7 +197,6 @@ async def update_provider(
         url: 服务 URL。
         api_key: API Key。
         provider_type: 提供商类型。
-        icon: 图标文件。
         session: 数据库 session。
         service: 提供商服务。
 
@@ -223,7 +216,6 @@ async def update_provider(
             url=url,
             api_key=api_key,
             provider_type=provider_type,
-            icon_file=icon,
         )
 
         return await _build_provider_response(provider, service)

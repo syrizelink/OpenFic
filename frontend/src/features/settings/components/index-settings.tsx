@@ -23,7 +23,8 @@ import {
   type ProjectIndexStatus,
 } from "@/lib/index-status";
 
-import { fetchModels } from "../lib/model-api";
+import { fetchModels, fetchProviders } from "../lib/model-api";
+import { resolveProviderIconPath } from "../lib/provider-utils";
 import { fetchSettings, updateSettings } from "../lib/settings-api";
 import type { Settings, SettingsUpdateRequest } from "../lib/settings.types";
 import { IndexSettingsGlobalConfig } from "./index-settings-global-config";
@@ -179,6 +180,10 @@ export function IndexSettings() {
     queryKey: ["models"],
     queryFn: () => fetchModels(),
   });
+  const { data: providers, isLoading: isProvidersLoading } = useQuery({
+    queryKey: ["model-providers"],
+    queryFn: fetchProviders,
+  });
   const { data: projectsData, isLoading: isProjectsLoading } = useQuery({
     queryKey: ["projects", "all-for-index"],
     queryFn: () => fetchProjects({ page: 1, pageSize: 100 }),
@@ -275,23 +280,29 @@ export function IndexSettings() {
   });
 
   const embeddingModelOptions: ModelIdSelectOption[] = useMemo(() => {
-    return (models?.filter((m) => m.taskType === "embedding") ?? []).map((model) => ({
-      value: model.id,
-      id: model.modelId,
-      name: model.name,
-      taskType: "embedding",
-      releaseDate: null,
-      reasoning: null,
-      toolCall: null,
-      inputModalities: [],
-      limit: null,
-      cost: null,
-      contextWindow: model.contextLength,
-      inputPricePerMillion: null,
-      outputPricePerMillion: null,
-      cacheReadPricePerMillion: null,
-    }));
-  }, [models]);
+    return (models?.filter((m) => m.taskType === "embedding") ?? []).map((model) => {
+      const provider = providers?.find((entry) => entry.id === model.providerId);
+      const providerIconPath = provider ? resolveProviderIconPath(provider) : null;
+
+      return {
+        value: model.id,
+        id: model.modelId,
+        name: model.name,
+        taskType: "embedding",
+        releaseDate: null,
+        reasoning: null,
+        toolCall: null,
+        inputModalities: [],
+        limit: null,
+        cost: null,
+        contextWindow: model.contextLength,
+        inputPricePerMillion: null,
+        outputPricePerMillion: null,
+        cacheReadPricePerMillion: null,
+        providerIconPath,
+      };
+    });
+  }, [models, providers]);
 
   const embeddingModelIds = useMemo(
     () =>
@@ -308,23 +319,29 @@ export function IndexSettings() {
   );
 
   const rerankModelOptions: ModelIdSelectOption[] = useMemo(() => {
-    return (models?.filter((m) => m.taskType === "rerank") ?? []).map((model) => ({
-      value: model.id,
-      id: model.modelId,
-      name: model.name,
-      taskType: "rerank",
-      releaseDate: null,
-      reasoning: null,
-      toolCall: null,
-      inputModalities: [],
-      limit: null,
-      cost: null,
-      contextWindow: model.contextLength,
-      inputPricePerMillion: null,
-      outputPricePerMillion: null,
-      cacheReadPricePerMillion: null,
-    }));
-  }, [models]);
+    return (models?.filter((m) => m.taskType === "rerank") ?? []).map((model) => {
+      const provider = providers?.find((entry) => entry.id === model.providerId);
+      const providerIconPath = provider ? resolveProviderIconPath(provider) : null;
+
+      return {
+        value: model.id,
+        id: model.modelId,
+        name: model.name,
+        taskType: "rerank",
+        releaseDate: null,
+        reasoning: null,
+        toolCall: null,
+        inputModalities: [],
+        limit: null,
+        cost: null,
+        contextWindow: model.contextLength,
+        inputPricePerMillion: null,
+        outputPricePerMillion: null,
+        cacheReadPricePerMillion: null,
+        providerIconPath,
+      };
+    });
+  }, [models, providers]);
 
   const handleRerankModelChange = useCallback(
     (value: string) => {
@@ -443,6 +460,7 @@ export function IndexSettings() {
     isSettingsLoading ||
     !settings ||
     isModelsLoading ||
+    isProvidersLoading ||
     !models ||
     isProjectsLoading ||
     !projectsData ||

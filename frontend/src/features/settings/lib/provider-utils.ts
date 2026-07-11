@@ -145,22 +145,6 @@ export function resolveProviderDisplayName(
   return provider.catalogMatch?.displayName || getProviderDisplayName(provider.providerType);
 }
 
-export function resolveProviderBuiltinIconPath(
-  provider: Pick<ModelProvider, "catalogMatch">,
-): string | null {
-  return provider.catalogMatch?.iconPath ?? null;
-}
-
-export interface ProviderIconPaths {
-  uploadedIconPath: string | null;
-  catalogIconPath: string | null;
-}
-
-export function resolveProviderIconPaths(
-  provider: Pick<ModelProvider, "iconPath" | "catalogMatch">,
-): ProviderIconPaths {
-  return {
-    uploadedIconPath: provider.iconPath ?? null,
-    catalogIconPath: provider.catalogMatch?.iconPath ?? null,
-  };
+export function resolveProviderIconPath(provider: Pick<ModelProvider, "iconPath">): string | null {
+  return provider.iconPath;
 }
