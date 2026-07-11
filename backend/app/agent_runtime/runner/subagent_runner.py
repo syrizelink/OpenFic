@@ -59,6 +59,9 @@ from app.storage.services import task_service
 
 SYSTEM_DEFAULT_MODEL_REFERENCE = "__system_default_model__"
 SYSTEM_LIGHT_MODEL_REFERENCE = "__system_light_model__"
+_SUBAGENT_RESTRICTED_TOOL_NAMES = frozenset(
+    ("dispatch_subagent", "notify_subagent", "recycle_subagent", "ask_user")
+)
 
 
 def build_child_messages(history: list[BaseMessage], *, content: str) -> list[BaseMessage]:
@@ -269,7 +272,11 @@ class SubagentRunner:
     ):
         if not definition.enabled or definition.kind != "subagent":
             raise ValueError(f"agent is not an enabled subagent: {definition.key}")
-        names = list(get_tool_names_for_categories(definition.enabled_tool_categories))
+        names = [
+            name
+            for name in get_tool_names_for_categories(definition.enabled_tool_categories)
+            if name not in _SUBAGENT_RESTRICTED_TOOL_NAMES
+        ]
         session = await _open_session(self.session_factory)
         try:
             names.extend(await skill_tool_names_for_definition(definition, session))

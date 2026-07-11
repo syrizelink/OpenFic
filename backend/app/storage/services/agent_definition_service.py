@@ -20,6 +20,7 @@ from app.storage.repos import agent_definition_repo
 _BUILTIN_KEYS = frozenset(
     ("primary", "explorer", "composer", "auditor", "writer", "actor", "reviewer")
 )
+_SUBAGENT_RESTRICTED_TOOL_CATEGORIES = frozenset(("orchestration", "interaction"))
 
 
 def _normalize_enabled_skills(skill_ids: list[str] | None) -> list[str]:
@@ -34,6 +35,19 @@ def _normalize_enabled_skills(skill_ids: list[str] | None) -> list[str]:
         seen.add(value)
         normalized.append(value)
     return normalized
+
+
+def _normalize_enabled_tool_categories(
+    kind: str,
+    category_keys: list[str],
+) -> list[str]:
+    if kind != "subagent":
+        return category_keys
+    return [
+        category_key
+        for category_key in category_keys
+        if category_key not in _SUBAGENT_RESTRICTED_TOOL_CATEGORIES
+    ]
 
 
 async def list_definitions(
@@ -76,6 +90,10 @@ async def create_definition(
         raise ValidationError(f"智能体 {key} 已存在")
 
     normalized_enabled_skills = _normalize_enabled_skills(enabled_skills)
+    normalized_tool_categories = _normalize_enabled_tool_categories(
+        kind,
+        enabled_tool_categories,
+    )
 
     record = AgentDefinitionRecord(
         key=key,
@@ -84,7 +102,7 @@ async def create_definition(
         kind=kind,
         prompt_agent_name=prompt_agent_name,
         model_id=model_id,
-        enabled_tool_categories=enabled_tool_categories,
+        enabled_tool_categories=normalized_tool_categories,
         enabled_skills=normalized_enabled_skills,
         metadata_json=metadata or {},
         enabled=True,
@@ -147,7 +165,10 @@ async def update_definition(
     if model_id is not None:
         record.model_id = model_id
     if enabled_tool_categories is not None:
-        record.enabled_tool_categories = enabled_tool_categories
+        record.enabled_tool_categories = _normalize_enabled_tool_categories(
+            record.kind,
+            enabled_tool_categories,
+        )
     if enabled_skills is not None:
         record.enabled_skills = _normalize_enabled_skills(enabled_skills)
     if metadata is not None:
@@ -156,6 +177,11 @@ async def update_definition(
         record.enabled = enabled
     if delegatable_agents is not None:
         record.delegatable_agents = delegatable_agents
+
+    record.enabled_tool_categories = _normalize_enabled_tool_categories(
+        record.kind,
+        record.enabled_tool_categories or [],
+    )
 
     return await agent_definition_repo.update(session, record)
 

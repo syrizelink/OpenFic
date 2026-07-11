@@ -166,6 +166,58 @@ async def test_resolve_agent_model_config_falls_back_to_inherited_when_unconfigu
 
 
 @pytest.mark.asyncio
+async def test_subagent_runner_excludes_restricted_tools_from_definition(
+    db_session_factory,
+    monkeypatch,
+):
+    from app.agent_runtime.agents.definitions import AgentDefinition
+    from app.agent_runtime.runner.subagent_runner import SubagentRunner
+
+    captured: dict[str, list[str]] = {}
+
+    def fake_get_tools(*, names, **_kwargs):
+        captured["names"] = names
+        return []
+
+    async def fake_skill_tool_names(*_args, **_kwargs):
+        return ()
+
+    monkeypatch.setattr(
+        "app.agent_runtime.runner.subagent_runner.ToolRegistry.get_tools",
+        fake_get_tools,
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.runner.subagent_runner.skill_tool_names_for_definition",
+        fake_skill_tool_names,
+    )
+
+    runner = SubagentRunner(
+        session_factory=db_session_factory,
+        model_config={},
+        project_id="project-1",
+    )
+    definition = AgentDefinition(
+        key="restricted-subagent",
+        display_name="Restricted Subagent",
+        description="",
+        kind="subagent",
+        prompt_agent_name="restricted-subagent",
+        model_id=None,
+        enabled_tool_categories=("orchestration", "interaction", "chapter_read"),
+        enabled_skills=(),
+        metadata={},
+    )
+
+    await runner._build_tools(definition, {})
+
+    assert "dispatch_subagent" not in captured["names"]
+    assert "notify_subagent" not in captured["names"]
+    assert "recycle_subagent" not in captured["names"]
+    assert "ask_user" not in captured["names"]
+    assert "read_chapter" in captured["names"]
+
+
+@pytest.mark.asyncio
 async def test_subagent_runner_uses_child_thread_history_and_parent_task(
     db_session_factory,
     monkeypatch,
