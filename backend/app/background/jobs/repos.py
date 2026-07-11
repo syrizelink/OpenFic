@@ -187,6 +187,17 @@ async def create_item(session: AsyncSession, item: BackgroundJobItem) -> Backgro
     return item
 
 
+async def create_items(
+    session: AsyncSession,
+    items: list[BackgroundJobItem],
+) -> list[BackgroundJobItem]:
+    if not items:
+        return []
+    session.add_all(items)
+    await session.flush()
+    return items
+
+
 async def list_items(
     session: AsyncSession,
     *,
@@ -195,6 +206,21 @@ async def list_items(
     result = await session.execute(
         select(BackgroundJobItem)
         .where(col(BackgroundJobItem.job_id) == job_id)
+        .order_by(col(BackgroundJobItem.order_index).asc(), col(BackgroundJobItem.created_at).asc())
+    )
+    return list(result.scalars().all())
+
+
+async def list_items_by_status(
+    session: AsyncSession,
+    *,
+    job_id: str,
+    statuses: set[str],
+) -> list[BackgroundJobItem]:
+    result = await session.execute(
+        select(BackgroundJobItem)
+        .where(col(BackgroundJobItem.job_id) == job_id)
+        .where(col(BackgroundJobItem.status).in_(statuses))
         .order_by(col(BackgroundJobItem.order_index).asc(), col(BackgroundJobItem.created_at).asc())
     )
     return list(result.scalars().all())
@@ -219,3 +245,26 @@ async def save_item(session: AsyncSession, item: BackgroundJobItem) -> Backgroun
     await session.flush()
     await session.refresh(item)
     return item
+
+
+async def mark_items_terminal_by_status(
+    session: AsyncSession,
+    *,
+    job_id: str,
+    statuses: set[str],
+    terminal_status: str,
+    error_json: str | None = None,
+) -> None:
+    now = datetime.now(UTC)
+    await session.execute(
+        update(BackgroundJobItem)
+        .where(col(BackgroundJobItem.job_id) == job_id)
+        .where(col(BackgroundJobItem.status).in_(statuses))
+        .values(
+            status=terminal_status,
+            error_json=error_json,
+            updated_at=now,
+            finished_at=now,
+        )
+    )
+    await session.flush()

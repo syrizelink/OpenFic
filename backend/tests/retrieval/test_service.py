@@ -704,6 +704,18 @@ async def test_delete_document_removes_rows(
 
 
 @pytest.mark.asyncio
+async def test_delete_document_ignores_missing_table(
+    session: AsyncSession, tmp_path: Path
+) -> None:
+    model = await _create_embedding_model(session)
+    service = OpenFicRetrievalService(base_dir=tmp_path / "lancedb")
+
+    await service.register_index(session, "chapters", _make_contract(model.id))
+
+    await service.delete_document(session, "chapters", "chapter-1")
+
+
+@pytest.mark.asyncio
 async def test_rebuild_replaces_table_contents(
     session: AsyncSession, tmp_path: Path
 ) -> None:

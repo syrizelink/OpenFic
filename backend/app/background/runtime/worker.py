@@ -7,7 +7,10 @@ from loguru import logger
 
 from app.background.events.publisher import BackgroundEventPublisher
 from app.background.events.types import EVENT_JOB_STARTED
-from app.background.jobs.constants import JOB_TYPE_SUMMARY_BATCH
+from app.background.jobs.constants import (
+    JOB_TYPE_RETRIEVAL_CHAPTER_INDEX_BATCH,
+    JOB_TYPE_SUMMARY_BATCH,
+)
 from app.background.jobs import repos as job_repo
 from app.background.jobs import service as job_service
 from app.background.jobs.states import JOB_STATUS_CANCEL_REQUESTED, JOB_STATUS_RUNNING
@@ -33,7 +36,9 @@ class BackgroundWorker:
         self.scan_interval_seconds = scan_interval_seconds
         self._stop_event = asyncio.Event()
         self._running_summary_batch_tasks: dict[str, asyncio.Task[dict | None]] = {}
+        self._running_index_batch_tasks: dict[str, asyncio.Task[dict | None]] = {}
         self._preempted_summary_batch_ids: set[str] = set()
+        self._preempted_index_batch_ids: set[str] = set()
 
     def stop(self) -> None:
         self._stop_event.set()
@@ -43,6 +48,14 @@ class BackgroundWorker:
         if task is None or task.done():
             return False
         self._preempted_summary_batch_ids.add(job_id)
+        task.cancel()
+        return True
+
+    def cancel_running_index_batch(self, job_id: str) -> bool:
+        task = self._running_index_batch_tasks.get(job_id)
+        if task is None or task.done():
+            return False
+        self._preempted_index_batch_ids.add(job_id)
         task.cancel()
         return True
 
@@ -110,6 +123,8 @@ class BackgroundWorker:
             )
             if job.type == JOB_TYPE_SUMMARY_BATCH:
                 self._running_summary_batch_tasks[job.id] = execution_task
+            elif job.type == JOB_TYPE_RETRIEVAL_CHAPTER_INDEX_BATCH:
+                self._running_index_batch_tasks[job.id] = execution_task
             if job.timeout_seconds is None:
                 result = await execution_task
             else:
@@ -127,13 +142,17 @@ class BackgroundWorker:
                 )
             await job_service.commit_and_notify(context.session)
         except asyncio.CancelledError:
-            if job_id not in self._preempted_summary_batch_ids:
+            is_summary_batch_cancelled = job_id in self._preempted_summary_batch_ids
+            is_index_batch_cancelled = job_id in self._preempted_index_batch_ids
+            if not is_summary_batch_cancelled and not is_index_batch_cancelled:
                 raise
+            job_name = "summary batch" if is_summary_batch_cancelled else "index batch"
+            reason = "用户停止摘要生成队列" if is_summary_batch_cancelled else "用户停止索引"
             logger.bind(job_id=job_id, worker_id=self.worker_id).info(
-                "running summary batch interrupted by cancellation request"
+                f"running {job_name} interrupted by cancellation request"
             )
             await job_service.rollback_and_discard(context.session if context else session)
-            await self._mark_cancelled_after_rollback(job_id, "用户停止摘要生成队列")
+            await self._mark_cancelled_after_rollback(job_id, reason)
         except JobCancelledError as exc:
             logger.bind(job_id=job_id, worker_id=self.worker_id).info(
                 f"background job cancelled: {exc}"
@@ -155,7 +174,9 @@ class BackgroundWorker:
         finally:
             if execution_task is not None:
                 self._running_summary_batch_tasks.pop(job_id, None)
+                self._running_index_batch_tasks.pop(job_id, None)
             self._preempted_summary_batch_ids.discard(job_id)
+            self._preempted_index_batch_ids.discard(job_id)
             with suppress(asyncio.CancelledError):
                 await self._stop_heartbeat(heartbeat_task)
             if context is not None and context.session is not session:

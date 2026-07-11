@@ -132,8 +132,18 @@ class OpenFicRetrievalService:
     async def delete_document(
         self, session: AsyncSession, index_key: str, document_id: str
     ) -> None:
+        await self.delete_documents(session, index_key, [document_id])
+
+    async def delete_documents(
+        self,
+        session: AsyncSession,
+        index_key: str,
+        document_ids: list[str],
+    ) -> None:
+        if not document_ids:
+            return
         row = await self._get_index(session, index_key)
-        await self._engine_for(row).delete_document(document_id)
+        await self._engine_for(row).delete_documents(document_ids)
 
     async def index_chunk_batch(
         self,

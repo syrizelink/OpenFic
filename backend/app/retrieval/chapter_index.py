@@ -570,23 +570,30 @@ async def enqueue_project_index_update(
         subject_type="project",
         subject_id=project_id,
     )
-    service = ChapterIndexIntegrationService()
-    for index, chapter in enumerate(selected):
-        item = await background_service.create_item(
-            session,
-            job_id=job.id,
-            item_key=f"chapter:{chapter.id}",
-            item_type=CHAPTER_INDEX_ITEM_TYPE,
-            payload={"project_id": project_id, "chapter_id": chapter.id},
-            order_index=index,
-        )
-        await service.mark_chapter_queued(
-            session,
-            chapter,
-            embedding_model_ref_id=model.id,
-            job_id=job.id,
-            item_id=item.id,
-        )
+    items = await background_service.create_items(
+        session,
+        job_id=job.id,
+        items=[
+            (
+                f"chapter:{chapter.id}",
+                CHAPTER_INDEX_ITEM_TYPE,
+                {"project_id": project_id, "chapter_id": chapter.id},
+                index,
+            )
+            for index, chapter in enumerate(selected)
+        ],
+    )
+    await retrieval_chapter_index_state_repo.queue_chapters_for_job(
+        session,
+        project_id=project_id,
+        index_key=index_key,
+        chapter_ids=[chapter.id for chapter in selected],
+        embedding_model_ref_id=model.id,
+        job_id=job.id,
+        item_ids_by_chapter_id={
+            chapter.id: item.id for chapter, item in zip(selected, items, strict=True)
+        },
+    )
 
     return IndexEnqueueResult(
         enqueued_count=len(selected),
@@ -1130,6 +1137,7 @@ class ChapterIndexIntegrationService:
         job_id: str,
         max_chunks_per_batch: int,
         check_cancelled: Callable[[], Awaitable[None]] | None = None,
+        on_chapter_started: Callable[[str], Awaitable[None]] | None = None,
     ) -> AsyncIterator[ChunkBatchIndexProgress]:
         """Index chapters through bounded chunk requests and yield completed chapters.
 
@@ -1237,6 +1245,8 @@ class ChapterIndexIntegrationService:
             state.embedding_model_ref_id = embedding_model.id
             state.error_message = None
             await retrieval_chapter_index_state_repo.save(session, state)
+            if on_chapter_started is not None:
+                await on_chapter_started(chapter_id)
 
             document = self.build_chapter_document(chapter)
             raw_chunks = chunker.split_text(document.text or "")
