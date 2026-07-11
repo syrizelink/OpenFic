@@ -29,7 +29,6 @@ from app.models.clients.embedding_client import EmbeddingClient, EmbeddingConfig
 from app.models.repos import model_provider_repo, model_repo
 from app.models.services.model_provider_service import ModelProviderService
 from app.retrieval.chapter_index import (
-    CHAPTER_INDEX_STATUS_FAILED,
     ChapterIndexIntegrationService,
     chapter_document_id,
     chapter_index_key,
@@ -154,52 +153,62 @@ async def _cleanup_incomplete_items(
     reason: str,
     cancelled: bool,
 ) -> None:
-    items = await job_service.list_job_items(context.session, job_id=context.job_id)
-    for item in items:
-        if item.status not in {JOB_STATUS_PENDING, JOB_STATUS_RUNNING}:
-            continue
+    running_items = await job_repo.list_items_by_status(
+        context.session,
+        job_id=context.job_id,
+        statuses={JOB_STATUS_RUNNING},
+    )
+    document_ids_by_index_key: dict[str, list[str]] = {}
+    for item in running_items:
         payload = job_service.parse_json_object(item.payload_json)
         project_id = payload.get("project_id")
         chapter_id = payload.get("chapter_id")
-        if (
-            item.status == JOB_STATUS_RUNNING
-            and isinstance(project_id, str)
-            and isinstance(chapter_id, str)
-        ):
-            try:
-                await OpenFicRetrievalService().delete_document(
-                    context.session,
-                    chapter_index_key(project_id),
-                    chapter_document_id(chapter_id),
-                )
-            except Exception as exc:
-                logger.bind(
-                    project_id=project_id,
-                    chapter_id=chapter_id,
-                    job_id=context.job_id,
-                ).warning(f"retrieval index document cleanup failed: {exc}")
-        if cancelled:
-            await _reset_state_after_cancellation(
-                context,
-                item,
-                expected_job_id=context.job_id,
-                expected_item_id=item.id,
+        if isinstance(project_id, str) and isinstance(chapter_id, str):
+            index_key = chapter_index_key(project_id)
+            document_ids_by_index_key.setdefault(index_key, []).append(
+                chapter_document_id(chapter_id)
             )
-            await _mark_item_terminal(context.session, item, JOB_STATUS_CANCELLED)
-            continue
-        await _mark_state_failed(
-            context,
-            item,
-            reason,
-            expected_job_id=context.job_id,
-            expected_item_id=item.id,
-        )
-        await _mark_item_terminal(
+
+    retrieval_service = OpenFicRetrievalService()
+    for index_key, document_ids in document_ids_by_index_key.items():
+        try:
+            await retrieval_service.delete_documents(
+                context.session,
+                index_key,
+                document_ids,
+            )
+        except Exception as exc:
+            logger.bind(
+                job_id=context.job_id,
+                index_key=index_key,
+            ).warning(f"retrieval index document cleanup failed: {exc}")
+
+    active_item_statuses = {JOB_STATUS_PENDING, JOB_STATUS_RUNNING}
+    if cancelled:
+        await retrieval_chapter_index_state_repo.reset_active_states_for_job(
             context.session,
-            item,
-            JOB_STATUS_FAILED,
-            error_message=reason,
+            job_id=context.job_id,
         )
+        await job_repo.mark_items_terminal_by_status(
+            context.session,
+            job_id=context.job_id,
+            statuses=active_item_statuses,
+            terminal_status=JOB_STATUS_CANCELLED,
+        )
+        return
+
+    await retrieval_chapter_index_state_repo.fail_active_states_for_job(
+        context.session,
+        job_id=context.job_id,
+        error_message=reason,
+    )
+    await job_repo.mark_items_terminal_by_status(
+        context.session,
+        job_id=context.job_id,
+        statuses=active_item_statuses,
+        terminal_status=JOB_STATUS_FAILED,
+        error_json=json.dumps({"message": reason}, ensure_ascii=False),
+    )
 
 
 async def handle_retrieval_chapter_index_batch(context: JobContext) -> dict[str, int]:
@@ -234,9 +243,6 @@ async def handle_retrieval_chapter_index_batch(context: JobContext) -> dict[str,
                 1 for item in items if item.status == JOB_STATUS_FAILED
             ),
         }
-
-    for item in pending_items:
-        await _mark_item_running(context.session, item)
 
     chapter_ids: list[str] = []
     item_map: dict[str, BackgroundJobItem] = {}
@@ -278,6 +284,11 @@ async def handle_retrieval_chapter_index_batch(context: JobContext) -> dict[str,
     )
     service = ChapterIndexIntegrationService()
 
+    async def mark_chapter_running(chapter_id: str) -> None:
+        item = item_map.get(chapter_id)
+        if item is not None and item.status == JOB_STATUS_PENDING:
+            await _mark_item_running(context.session, item)
+
     # 按 INDEX_BATCH_CHUNK_SIZE 拆分为子批次，每批独立提交事务并推送进度。
     # 这样前端能看到增量更新（如 10/101 → 20/101 → …），而非只在全完成时跳到 100%。
     #
@@ -293,6 +304,7 @@ async def handle_retrieval_chapter_index_batch(context: JobContext) -> dict[str,
             job_id=context.job_id,
             max_chunks_per_batch=MAX_EMBEDDING_CHUNKS_PER_REQUEST,
             check_cancelled=context.check_cancelled,
+            on_chapter_started=mark_chapter_running,
         ):
             await context.check_cancelled()
             for chapter_id in progress.completed_chapter_ids:
@@ -315,83 +327,6 @@ async def handle_retrieval_chapter_index_batch(context: JobContext) -> dict[str,
         ),
         "failed": sum(1 for item in items if item.status == JOB_STATUS_FAILED),
     }
-
-
-async def _mark_state_failed(
-    context: JobContext,
-    item: BackgroundJobItem,
-    reason: str,
-    *,
-    expected_embedding_model_ref_id: str | None = None,
-    expected_job_id: str | None = None,
-    expected_item_id: str | None = None,
-) -> None:
-    payload = job_service.parse_json_object(item.payload_json)
-    project_id = payload.get("project_id")
-    chapter_id = payload.get("chapter_id")
-    if not isinstance(project_id, str) or not isinstance(chapter_id, str):
-        return
-    state = await retrieval_chapter_index_state_repo.get_by_project_and_chapter(
-        context.session,
-        project_id=project_id,
-        chapter_id=chapter_id,
-        index_key=f"chapters:{project_id}",
-    )
-    if state is None:
-        return
-    if state.status == "needs_rebuild":
-        state.error_message = None
-        await retrieval_chapter_index_state_repo.save(context.session, state)
-        return
-    if (
-        expected_job_id is not None
-        and expected_item_id is not None
-        and (state.job_id != expected_job_id or state.item_id != expected_item_id)
-    ):
-        return
-    if expected_embedding_model_ref_id is not None:
-        setting = await setting_repo.get_by_key(
-            context.session,
-            SETTING_KEY_DEFAULT_EMBEDDING_MODEL,
-        )
-        current_model_ref_id = setting.value.strip() if setting is not None else ""
-        if current_model_ref_id != expected_embedding_model_ref_id:
-            state.status = "needs_rebuild"
-            state.job_id = None
-            state.item_id = None
-            state.error_message = None
-            await retrieval_chapter_index_state_repo.save(context.session, state)
-            return
-    state.status = CHAPTER_INDEX_STATUS_FAILED
-    state.error_message = reason
-    await retrieval_chapter_index_state_repo.save(context.session, state)
-
-
-async def _reset_state_after_cancellation(
-    context: JobContext,
-    item: BackgroundJobItem,
-    *,
-    expected_job_id: str,
-    expected_item_id: str,
-) -> None:
-    payload = job_service.parse_json_object(item.payload_json)
-    project_id = payload.get("project_id")
-    chapter_id = payload.get("chapter_id")
-    if not isinstance(project_id, str) or not isinstance(chapter_id, str):
-        return
-    state = await retrieval_chapter_index_state_repo.get_by_project_and_chapter(
-        context.session,
-        project_id=project_id,
-        chapter_id=chapter_id,
-        index_key=f"chapters:{project_id}",
-    )
-    if state is None or state.job_id != expected_job_id or state.item_id != expected_item_id:
-        return
-    state.status = "needs_rebuild"
-    state.job_id = None
-    state.item_id = None
-    state.error_message = None
-    await retrieval_chapter_index_state_repo.save(context.session, state)
 
 
 RETRIEVAL_CHAPTER_INDEX_BATCH_JOB = JobDefinition(

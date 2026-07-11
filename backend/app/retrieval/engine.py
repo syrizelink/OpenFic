@@ -200,8 +200,20 @@ class LanceDBRetrievalEngine:
         )
 
     async def delete_document(self, document_id: str) -> None:
-        table = await self._open_table()
-        await table.delete(f"document_id = '{quote_sql(document_id)}'")
+        await self.delete_documents([document_id])
+
+    async def delete_documents(self, document_ids: list[str]) -> None:
+        if not document_ids:
+            return
+        db = await self._connect()
+        names = list((await db.list_tables()).tables)
+        if self.table_name not in names:
+            return
+        table = await db.open_table(self.table_name)
+        document_id_values = ", ".join(
+            f"'{quote_sql(document_id)}'" for document_id in set(document_ids)
+        )
+        await table.delete(f"document_id IN ({document_id_values})")
 
     async def index_chunks(
         self,

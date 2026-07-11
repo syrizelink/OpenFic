@@ -494,6 +494,27 @@ async def create_item(
     )
 
 
+async def create_items(
+    session: AsyncSession,
+    *,
+    job_id: str,
+    items: list[tuple[str, str, dict[str, Any] | None, int]],
+) -> list[BackgroundJobItem]:
+    return await job_repo.create_items(
+        session,
+        [
+            BackgroundJobItem(
+                job_id=job_id,
+                item_key=item_key,
+                type=item_type,
+                payload_json=_json(payload),
+                order_index=order_index,
+            )
+            for item_key, item_type, payload, order_index in items
+        ],
+    )
+
+
 async def update_item_progress(
     session: AsyncSession,
     item: BackgroundJobItem,

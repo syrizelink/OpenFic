@@ -19,7 +19,10 @@ from app.background.jobs.base import JobDefinition
 from app.background.jobs.definitions import register_all_background_jobs
 from app.background.jobs.definitions.chapter_summary import handle_chapter_summary
 from app.background.jobs.definitions import summary_batch as summary_batch_definition
-from app.background.jobs.constants import JOB_TYPE_SUMMARY_BATCH
+from app.background.jobs.constants import (
+    JOB_TYPE_RETRIEVAL_CHAPTER_INDEX_BATCH,
+    JOB_TYPE_SUMMARY_BATCH,
+)
 from app.background.jobs.definitions.session_title import handle_session_title
 from app.background.jobs import repos as job_repo
 from app.background.jobs import service as background_service
@@ -838,6 +841,74 @@ async def test_worker_interrupts_running_summary_batch_on_cancel_request(tmp_pat
         assert worker.cancel_running_summary_batch(job.id) is True
         await asyncio.wait_for(run_task, timeout=1)
         assert generation_cancelled.is_set()
+
+        verification_session = factory()
+        try:
+            stored_job = await job_repo.get_job(verification_session, job.id)
+            events = await job_repo.list_events(verification_session, job_id=job.id)
+        finally:
+            await verification_session.close()
+        assert stored_job is not None
+        assert stored_job.status == JOB_STATUS_CANCELLED
+        assert any(event.event_type == "cancelled_hook_ran" for event in events)
+    finally:
+        await session.close()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_worker_interrupts_running_index_batch_on_cancel_request(tmp_path):
+    engine, factory = await _configure_file_database(tmp_path)
+    session = factory()
+    try:
+        indexing_started = asyncio.Event()
+        indexing_cancelled = asyncio.Event()
+
+        async def blocking_index_handler(_context: JobContext) -> None:
+            indexing_started.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                indexing_cancelled.set()
+                raise
+
+        get_job_registry()._definitions[JOB_TYPE_RETRIEVAL_CHAPTER_INDEX_BATCH] = JobDefinition(
+            type=JOB_TYPE_RETRIEVAL_CHAPTER_INDEX_BATCH,
+            name="Blocking index batch",
+            description="Blocks until cancellation for worker cancellation coverage.",
+            input_model=_NoopInput,
+            handler=blocking_index_handler,
+            on_cancelled=_cancelled_hook,
+            supports_cancel=True,
+        )
+        job = await job_repo.create_job(
+            session,
+            BackgroundJob(type=JOB_TYPE_RETRIEVAL_CHAPTER_INDEX_BATCH, payload_json='{"value":"x"}'),
+        )
+        await background_service.commit_and_notify(session)
+
+        transport = RecordingTransport()
+        worker = BackgroundWorker(worker_id="worker-1", transport=transport, scan_interval_seconds=1)
+        run_task = asyncio.create_task(worker._run_job(job.id))
+        await asyncio.wait_for(indexing_started.wait(), timeout=1)
+
+        cancel_session = factory()
+        try:
+            stored_job = await job_repo.get_job(cancel_session, job.id)
+            assert stored_job is not None
+            await background_service.request_cancel(
+                cancel_session,
+                BackgroundEventPublisher(transport),
+                stored_job,
+                reason="用户停止索引",
+            )
+            await background_service.commit_and_notify(cancel_session)
+        finally:
+            await cancel_session.close()
+
+        assert worker.cancel_running_index_batch(job.id) is True
+        await asyncio.wait_for(run_task, timeout=1)
+        assert indexing_cancelled.is_set()
 
         verification_session = factory()
         try:

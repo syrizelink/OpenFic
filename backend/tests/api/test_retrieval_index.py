@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.encryption import EncryptionService
 from app.background.jobs.models import BackgroundJob, BackgroundJobItem
 from app.background.jobs.states import JOB_STATUS_CANCELLED
+from app.background.runtime.supervisor import get_background_supervisor
 from app.models.repos import model_provider_repo, model_repo
 from app.storage.models.retrieval_chapter_index_state import RetrievalChapterIndexState
 from app.storage.repos import retrieval_chapter_index_state_repo, setting_repo
@@ -219,6 +220,38 @@ async def test_index_start_enqueues_outdated_chapters(
 
 
 @pytest.mark.asyncio
+async def test_index_start_batches_item_and_state_enqueue(
+    client: AsyncClient,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.retrieval.chapter_index as chapter_index
+    from app.background.jobs import service as background_service
+
+    await _create_embedding_model(session)
+    project_id, volume_id = await _create_project(client)
+    for index in range(3):
+        await _create_chapter(client, project_id, volume_id, title=f"第{index + 1}章")
+    await setting_repo.upsert(session, "index_mode", "all")
+    await session.commit()
+
+    async def unexpected_individual_enqueue(*_args, **_kwargs):
+        raise AssertionError("index enqueue must not create items or states individually")
+
+    monkeypatch.setattr(background_service, "create_item", unexpected_individual_enqueue)
+    monkeypatch.setattr(
+        chapter_index.ChapterIndexIntegrationService,
+        "mark_chapter_queued",
+        unexpected_individual_enqueue,
+    )
+
+    response = await client.post(f"/api/v1/projects/{project_id}/retrieval/index/start")
+
+    assert response.status_code == 200
+    assert response.json()["enqueued_count"] == 3
+
+
+@pytest.mark.asyncio
 async def test_index_stop_cancels_pending_job_and_resets_incomplete_chapters(
     client: AsyncClient,
     session: AsyncSession,
@@ -267,6 +300,65 @@ async def test_index_stop_cancels_pending_job_and_resets_incomplete_chapters(
     assert chapter_state.job_id is None
     assert chapter_state.item_id is None
     assert chapter_state.error_message is None
+
+
+@pytest.mark.asyncio
+async def test_index_stop_interrupts_running_index_job(
+    client: AsyncClient,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_id, _ = await _create_project(client)
+    job = BackgroundJob(
+        type="retrieval_chapter_index_batch",
+        subject_type="project",
+        subject_id=project_id,
+        status="running",
+        payload_json='{"project_id":"test"}',
+    )
+    session.add(job)
+    await session.commit()
+
+    interrupted_job_ids: list[str] = []
+    monkeypatch.setattr(
+        get_background_supervisor(),
+        "cancel_running_index_batch",
+        interrupted_job_ids.append,
+    )
+
+    response = await client.post(f"/api/v1/projects/{project_id}/retrieval/index/stop")
+
+    assert response.status_code == 200
+    assert response.json() == {"project_id": project_id, "stopped_count": 1}
+    assert interrupted_job_ids == [job.id]
+
+
+@pytest.mark.asyncio
+async def test_background_cancel_interrupts_running_index_job(
+    client: AsyncClient,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    job = BackgroundJob(
+        type="retrieval_chapter_index_batch",
+        status="running",
+        payload_json='{"project_id":"test"}',
+    )
+    session.add(job)
+    await session.commit()
+
+    interrupted_job_ids: list[str] = []
+    monkeypatch.setattr(
+        get_background_supervisor(),
+        "cancel_running_index_batch",
+        interrupted_job_ids.append,
+    )
+
+    response = await client.post(f"/api/v1/background/jobs/{job.id}/cancel", json={})
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "cancel_requested"
+    assert interrupted_job_ids == [job.id]
 
 
 @pytest.mark.asyncio

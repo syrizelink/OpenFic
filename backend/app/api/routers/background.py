@@ -101,6 +101,8 @@ async def cancel_background_job(
     await background_service.commit_and_notify(session)
     if job.type == "summary_batch":
         get_background_supervisor().cancel_running_summary_batch(job.id)
+    elif job.type == "retrieval_chapter_index_batch":
+        get_background_supervisor().cancel_running_index_batch(job.id)
     return _to_job_response(job)
 
 

@@ -10,6 +10,7 @@ from app.background.jobs.states import (
     JOB_STATUS_CANCELLED,
     JOB_STATUS_FAILED,
     JOB_STATUS_PENDING,
+    JOB_STATUS_RUNNING,
     JOB_STATUS_SUCCEEDED,
 )
 from app.background.runtime.context import JobCancelledError, JobContext
@@ -137,8 +138,16 @@ class StateReassigningChapterIndexService:
         job_id=None,
         max_chunks_per_batch,
         check_cancelled=None,
+        on_chapter_started=None,
     ):
-        _ = (embedding_client, embedding_model, job_id, max_chunks_per_batch, check_cancelled)
+        _ = (
+            embedding_client,
+            embedding_model,
+            job_id,
+            max_chunks_per_batch,
+            check_cancelled,
+            on_chapter_started,
+        )
         if False:
             yield ChunkBatchIndexProgress([])
         from sqlalchemy import select
@@ -195,6 +204,7 @@ class MutatingFailingChapterIndexService:
         job_id=None,
         max_chunks_per_batch,
         check_cancelled=None,
+        on_chapter_started=None,
     ):
         _ = (
             chapter_ids,
@@ -203,6 +213,7 @@ class MutatingFailingChapterIndexService:
             job_id,
             max_chunks_per_batch,
             check_cancelled,
+            on_chapter_started,
         )
         if False:
             yield ChunkBatchIndexProgress([])
@@ -725,6 +736,34 @@ class CommitCheckingRetrievalService(MultiDocumentRetrievalService):
         return ChunkIndexResult(succeeded_chunk_count=len(chunks))
 
 
+class StopsAfterStartingFirstChapterIndexService:
+    async def stream_index_chapters(
+        self,
+        session,
+        *,
+        chapter_ids,
+        embedding_client,
+        embedding_model,
+        job_id,
+        max_chunks_per_batch,
+        check_cancelled=None,
+        on_chapter_started=None,
+    ):
+        _ = (
+            session,
+            embedding_client,
+            embedding_model,
+            job_id,
+            max_chunks_per_batch,
+            check_cancelled,
+        )
+        if False:
+            yield ChunkBatchIndexProgress([])
+        assert on_chapter_started is not None
+        await on_chapter_started(chapter_ids[0])
+        raise JobCancelledError("用户停止索引")
+
+
 async def _seed_multi_chapter_job(
     session: AsyncSession, *, chapter_count: int
 ):
@@ -966,9 +1005,9 @@ async def test_batch_cancellation_preserves_completed_chapters_and_resets_incomp
     deleted_document_ids: list[str] = []
 
     class CleanupRetrievalService:
-        async def delete_document(self, session, index_key, document_id):
+        async def delete_documents(self, session, index_key, document_ids):
             _ = (session, index_key)
-            deleted_document_ids.append(document_id)
+            deleted_document_ids.extend(document_ids)
 
     monkeypatch.setattr(definition, "OpenFicRetrievalService", CleanupRetrievalService)
 
@@ -1010,8 +1049,78 @@ async def test_batch_cancellation_preserves_completed_chapters_and_resets_incomp
     assert states[1].job_id is None
     assert states[1].item_id is None
     assert states[1].error_message is None
-    assert deleted_document_ids == ["chapter:chapter-multi-1"]
+    assert deleted_document_ids == []
     assert emit_count == 2
+
+
+@pytest.mark.asyncio
+async def test_batch_cancellation_batches_pending_items_and_cleans_only_running_chapter(
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    job, items, states = await _seed_multi_chapter_job(session, chapter_count=3)
+    monkeypatch.setattr(
+        definition,
+        "_build_embedding_client",
+        lambda session, model_ref_id: FakeEmbeddingClient(),
+    )
+    monkeypatch.setattr(
+        definition,
+        "ChapterIndexIntegrationService",
+        StopsAfterStartingFirstChapterIndexService,
+    )
+
+    context = JobContext(
+        session=session,
+        job=job,
+        publisher=BackgroundEventPublisher(),
+    )
+    context.check_cancelled = _noop_check_cancelled  # type: ignore[method-assign]
+
+    with pytest.raises(JobCancelledError, match="用户停止索引"):
+        await definition.handle_retrieval_chapter_index_batch(context)
+
+    await session.refresh(items[0])
+    await session.refresh(items[1])
+    await session.refresh(items[2])
+    assert items[0].status == JOB_STATUS_RUNNING
+    assert items[1].status == JOB_STATUS_PENDING
+    assert items[2].status == JOB_STATUS_PENDING
+
+    deleted_document_ids: list[str] = []
+
+    class CleanupRetrievalService:
+        async def delete_documents(self, session, index_key, document_ids):
+            _ = (session, index_key)
+            deleted_document_ids.extend(document_ids)
+
+    monkeypatch.setattr(definition, "OpenFicRetrievalService", CleanupRetrievalService)
+    monkeypatch.setattr(
+        definition.retrieval_chapter_index_state_repo,
+        "get_by_project_and_chapter",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("cancellation cleanup must not query chapter states individually")
+        ),
+    )
+    monkeypatch.setattr(
+        definition.job_repo,
+        "save_item",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("cancellation cleanup must not save items individually")
+        ),
+    )
+
+    await definition._handle_cancelled(context, "用户停止索引")
+
+    assert deleted_document_ids == ["chapter:chapter-multi-0"]
+    for item in items:
+        await session.refresh(item)
+        assert item.status == JOB_STATUS_CANCELLED
+    for state in states:
+        await session.refresh(state)
+        assert state.status == "needs_rebuild"
+        assert state.job_id is None
+        assert state.item_id is None
 
 
 

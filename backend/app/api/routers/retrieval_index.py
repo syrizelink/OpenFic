@@ -114,6 +114,8 @@ async def stop_project_retrieval_index(
         )
     schedule_emit_index_status(session, project_id)
     await background_service.commit_and_notify(session)
+    for job in jobs:
+        get_background_supervisor().cancel_running_index_batch(job.id)
     return IndexStopResponse(project_id=project_id, stopped_count=len(jobs))
 
 
