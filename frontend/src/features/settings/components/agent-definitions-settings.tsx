@@ -62,6 +62,7 @@ import {
 import { fetchSettings } from "../lib/settings-api";
 
 const LIST_WIDTH = 280;
+const SUBAGENT_RESTRICTED_TOOL_CATEGORIES = new Set(["orchestration", "interaction"]);
 const MotionBox = motion.create(Box);
 
 const mobilePageVariants = {
@@ -84,6 +85,14 @@ interface AgentListMenuState {
 function getEffectiveModelSelection(modelId: string | null): string {
   if (!modelId) return SYSTEM_DEFAULT_MODEL_REFERENCE;
   return modelId;
+}
+
+function getEnabledToolCategoriesForAgent(
+  kind: "primary" | "subagent",
+  categories: string[],
+): string[] {
+  if (kind !== "subagent") return categories;
+  return categories.filter((category) => !SUBAGENT_RESTRICTED_TOOL_CATEGORIES.has(category));
 }
 
 function buildAgentModelOptions(
@@ -136,7 +145,7 @@ function AgentForm({
   const [formDescription, setFormDescription] = useState(def.description);
   const [formModelId, setFormModelId] = useState(getEffectiveModelSelection(def.model_id));
   const [formEnabledToolCategories, setFormEnabledToolCategories] = useState<string[]>([
-    ...def.enabled_tool_categories,
+    ...getEnabledToolCategoriesForAgent(def.kind, def.enabled_tool_categories),
   ]);
   const [formEnabledSkills, setFormEnabledSkills] = useState<string[]>([...def.enabled_skills]);
   const [formDelegatableAgents, setFormDelegatableAgents] = useState<string[]>([
@@ -165,7 +174,8 @@ function AgentForm({
       formDisplayName !== def.display_name ||
       formDescription !== def.description ||
       formModelId !== getEffectiveModelSelection(def.model_id) ||
-      JSON.stringify(formEnabledToolCategories) !== JSON.stringify(def.enabled_tool_categories) ||
+      JSON.stringify(formEnabledToolCategories) !==
+        JSON.stringify(getEnabledToolCategoriesForAgent(def.kind, def.enabled_tool_categories)) ||
       JSON.stringify(formEnabledSkills) !== JSON.stringify(def.enabled_skills) ||
       JSON.stringify(formDelegatableAgents) !== JSON.stringify(def.delegatable_agents)
     );
@@ -180,6 +190,13 @@ function AgentForm({
   ]);
 
   const isPrimary = def.kind === "primary";
+  const selectableToolCategoryOptions = useMemo(
+    () =>
+      toolCategoryOptions.filter(
+        (option) => def.kind !== "subagent" || !SUBAGENT_RESTRICTED_TOOL_CATEGORIES.has(option.key),
+      ),
+    [def.kind, toolCategoryOptions],
+  );
 
   const updateMutation = useMutation({
     mutationFn: async () => {
@@ -316,7 +333,7 @@ function AgentForm({
         >
           {t("settings.agentsToolCategories")}
         </Text>
-        {toolCategoryOptions.length === 0 ? (
+        {selectableToolCategoryOptions.length === 0 ? (
           <Text
             size="2"
             color="gray"
@@ -328,7 +345,7 @@ function AgentForm({
             wrap="wrap"
             gap="2"
           >
-            {toolCategoryOptions.map((opt) => (
+            {selectableToolCategoryOptions.map((opt) => (
               <label
                 key={opt.key}
                 style={{
@@ -742,7 +759,10 @@ export function AgentDefinitionsSettings({
         kind: newKind,
         prompt_agent_name: newKey.trim(),
         model_id: sourceDefinition?.model_id ?? SYSTEM_DEFAULT_MODEL_REFERENCE,
-        enabled_tool_categories: sourceDefinition?.enabled_tool_categories ?? [],
+        enabled_tool_categories: getEnabledToolCategoriesForAgent(
+          newKind,
+          sourceDefinition?.enabled_tool_categories ?? [],
+        ),
         enabled_skills: sourceDefinition?.enabled_skills ?? [],
         metadata: sourceDefinition?.metadata ?? {},
         delegatable_agents: sourceDefinition?.delegatable_agents ?? [],

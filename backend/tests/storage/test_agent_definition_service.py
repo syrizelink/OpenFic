@@ -69,6 +69,37 @@ async def test_create_custom_definition():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("restricted_category", ["orchestration", "interaction"])
+async def test_create_subagent_excludes_restricted_tool_category(restricted_category: str):
+    from app.storage.services import agent_definition_service
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
+    factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+
+    try:
+        async with factory() as session:
+            record = await agent_definition_service.create_definition(
+                session,
+                key="restricted-custom-bot",
+                display_name="Restricted Custom Bot",
+                description="",
+                kind="subagent",
+                prompt_agent_name="restricted-custom-bot",
+                model_id=None,
+                enabled_tool_categories=["chapter_read", restricted_category],
+                enabled_skills=[],
+                metadata={},
+                delegatable_agents=[],
+            )
+
+        assert record.enabled_tool_categories == ["chapter_read"]
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_create_duplicate_raises_validation_error():
     from app.storage.services import agent_definition_service
 
@@ -152,6 +183,81 @@ async def test_update_custom_definition():
             assert record.description == "After update"
             assert record.enabled_skills == ["skill-c"]
             assert record.delegatable_agents == ["explorer", "writer"]
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("restricted_category", ["orchestration", "interaction"])
+async def test_update_subagent_excludes_restricted_tool_category(restricted_category: str):
+    from app.storage.services import agent_definition_service
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
+    factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+
+    try:
+        async with factory() as session:
+            await agent_definition_service.create_definition(
+                session,
+                key="restricted-edit-bot",
+                display_name="Restricted Edit Bot",
+                description="",
+                kind="subagent",
+                prompt_agent_name="restricted-edit-bot",
+                model_id=None,
+                enabled_tool_categories=["chapter_read"],
+                enabled_skills=[],
+                metadata={},
+                delegatable_agents=[],
+            )
+            await session.commit()
+
+            record = await agent_definition_service.update_definition(
+                session,
+                key="restricted-edit-bot",
+                enabled_tool_categories=["chapter_read", restricted_category],
+            )
+
+        assert record.enabled_tool_categories == ["chapter_read"]
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_update_definition_excludes_restricted_categories_when_becoming_subagent():
+    from app.storage.services import agent_definition_service
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
+    factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+
+    try:
+        async with factory() as session:
+            await agent_definition_service.create_definition(
+                session,
+                key="primary-to-subagent",
+                display_name="Primary To Subagent",
+                description="",
+                kind="primary",
+                prompt_agent_name="primary-to-subagent",
+                model_id=None,
+                enabled_tool_categories=["orchestration", "interaction", "chapter_read"],
+                enabled_skills=[],
+                metadata={},
+                delegatable_agents=[],
+            )
+            await session.commit()
+
+            record = await agent_definition_service.update_definition(
+                session,
+                key="primary-to-subagent",
+                kind="subagent",
+            )
+
+        assert record.enabled_tool_categories == ["chapter_read"]
     finally:
         await engine.dispose()
 
