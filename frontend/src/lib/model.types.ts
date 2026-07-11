@@ -4,22 +4,8 @@
  * 模型和提供商相关类型定义。
  */
 
-/** 提供商类型 */
-export type ProviderType =
-  | "openai"
-  | "anthropic"
-  | "google-genai"
-  | "ollama"
-  | "groq"
-  | "huggingface"
-  | "mistral"
-  | "nvidia-ai-endpoints"
-  | "cohere"
-  | "openrouter"
-  | "amazon-nova"
-  | "deepseek"
-  | "openai-compatible"
-  | "builtin";
+/** 提供商类型，目录提供商标识由 models.dev 动态提供。 */
+export type ProviderType = string;
 
 /** 任务类型 */
 export type TaskType = "llm" | "embedding" | "rerank";
@@ -210,19 +196,6 @@ export interface ModelUpdateRequest {
 /** 标签响应 */
 export interface TagsResponse {
   tags: string[];
-}
-
-/** 提供商选项 */
-export interface ProviderOption {
-  value: ProviderType;
-  label: string;
-}
-
-export interface ModelProviderCatalogStatus {
-  source: string;
-  lastRefreshedAt: string | null;
-  providerCount: number;
-  modelCount: number;
 }
 
 export interface ModelProviderCatalogProvider {

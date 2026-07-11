@@ -23,6 +23,7 @@ class EmbeddingConfig:
     model_id: str
     dimensions: int | None = None
     batch_size: int = 50
+    use_openai_compatible: bool = True
 
 
 @dataclass
@@ -70,7 +71,13 @@ class EmbeddingClient:
             return self._embeddings
 
         config = self.config
-        provider = config.provider_type
+        provider = (
+            "builtin"
+            if config.provider_type == "builtin"
+            else "openai-compatible"
+            if config.use_openai_compatible
+            else config.provider_type
+        )
 
         if provider == "builtin":
             from app.models.clients.fastembed_embeddings import FastEmbedEmbeddings

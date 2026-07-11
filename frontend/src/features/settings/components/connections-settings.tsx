@@ -6,7 +6,7 @@
 
 import { Box, Flex, Text, Button, IconButton } from "@radix-ui/themes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Edit, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Edit } from "lucide-react";
 import { useState, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -18,18 +18,16 @@ import type { ModelProvider } from "@/lib/model.types";
 import {
   fetchProviders,
   fetchModelProviderCatalogProviders,
-  fetchModelProviderCatalogStatus,
   createProvider,
   updateProvider,
   deleteProvider,
-  refreshModelProviderCatalog,
 } from "../lib/model-api";
 import { ProviderIcon } from "../lib/provider-icons";
 import { getProviderDisplayName, resolveProviderDisplayName } from "../lib/provider-utils";
 import { ConnectionFormDialog } from "./connection-form-dialog";
 
 export function ConnectionsSettings() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const [formOpen, setFormOpen] = useState(false);
@@ -54,15 +52,6 @@ export function ConnectionsSettings() {
   const { data: catalogProviders, isLoading: isCatalogProvidersLoading } = useQuery({
     queryKey: ["model-provider-catalog", "providers"],
     queryFn: fetchModelProviderCatalogProviders,
-  });
-
-  const {
-    data: catalogStatus,
-    isLoading: isCatalogStatusLoading,
-    isFetching: isCatalogStatusFetching,
-  } = useQuery({
-    queryKey: ["model-provider-catalog", "status"],
-    queryFn: fetchModelProviderCatalogStatus,
   });
 
   // 创建连接
@@ -105,25 +94,6 @@ export function ConnectionsSettings() {
     },
   });
 
-  const refreshCatalogMutation = useMutation({
-    mutationFn: refreshModelProviderCatalog,
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["model-provider-catalog"] });
-      const refreshSucceeded =
-        result.lastRefreshedAt !== catalogStatus?.lastRefreshedAt ||
-        (catalogStatus?.source !== "cache" && result.source === "cache");
-
-      if (refreshSucceeded) {
-        toast.success(t("connections.catalogRefreshSuccess"));
-      } else {
-        toast.error(t("connections.catalogRefreshFailed"));
-      }
-    },
-    onError: () => {
-      toast.error(t("connections.catalogRefreshFailed"));
-    },
-  });
-
   // 打开创建对话框
   const handleCreate = useCallback(() => {
     setEditingConnection(null);
@@ -163,17 +133,8 @@ export function ConnectionsSettings() {
     }
   }, [deletingConnection, deleteMutation]);
 
-  const formattedLastRefreshedAt = catalogStatus?.lastRefreshedAt
-    ? new Intl.DateTimeFormat(i18n.language === "en" ? "en-US" : "zh-CN", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(new Date(catalogStatus.lastRefreshedAt))
-    : null;
   const isContentLoading =
-    isConnectionsLoading ||
-    isConnectionsFetching ||
-    isCatalogStatusLoading ||
-    isCatalogStatusFetching;
+    isConnectionsLoading || isConnectionsFetching || isCatalogProvidersLoading;
 
   if (isContentLoading) {
     return (
@@ -200,75 +161,6 @@ export function ConnectionsSettings() {
         >
           {t("connections.description")}
         </Text>
-
-        <Box
-          style={{
-            border: "1px solid var(--gray-a4)",
-            borderRadius: "var(--radius-3)",
-            padding: "var(--space-4)",
-          }}
-        >
-          <Flex
-            align="start"
-            justify="between"
-            gap="3"
-          >
-            <Flex
-              direction="column"
-              gap="1"
-            >
-              <Text
-                size="2"
-                weight="medium"
-              >
-                {t("connections.catalogTitle")}
-              </Text>
-              <Text
-                size="1"
-                color="gray"
-              >
-                {t("connections.catalogStatus", {
-                  source: catalogStatus?.source || t("connections.catalogUnknownSource"),
-                  refreshedAt: formattedLastRefreshedAt || t("connections.catalogNeverRefreshed"),
-                })}
-              </Text>
-              {catalogStatus && (
-                <Text
-                  size="1"
-                  color="gray"
-                >
-                  {t("connections.catalogCounts", {
-                    providerCount: catalogStatus.providerCount,
-                    modelCount: catalogStatus.modelCount,
-                  })}
-                </Text>
-              )}
-            </Flex>
-
-            <Box display={{ initial: "none", md: "block" }}>
-              <Button
-                variant="soft"
-                onClick={() => refreshCatalogMutation.mutate()}
-                disabled={refreshCatalogMutation.isPending}
-              >
-                {refreshCatalogMutation.isPending ? <Spinner size={18} /> : <RefreshCw size={16} />}
-                {t("connections.refreshCatalog")}
-              </Button>
-            </Box>
-
-            <Box display={{ initial: "block", md: "none" }}>
-              <IconButton
-                variant="soft"
-                color="gray"
-                aria-label={t("connections.refreshCatalog")}
-                onClick={() => refreshCatalogMutation.mutate()}
-                disabled={refreshCatalogMutation.isPending}
-              >
-                {refreshCatalogMutation.isPending ? <Spinner size={18} /> : <RefreshCw size={16} />}
-              </IconButton>
-            </Box>
-          </Flex>
-        </Box>
 
         {/* 新建按钮 */}
         <Flex>
@@ -346,23 +238,24 @@ export function ConnectionsSettings() {
                           {connection.catalogMatch?.displayName ||
                             getProviderDisplayName(connection.providerType)}
                         </Text>
-                        {/* 只在 OpenAI 兼容模式下显示 URL */}
-                        {connection.providerType === "openai-compatible" && (
-                          <>
-                            <Text
-                              size="2"
-                              color="gray"
-                            >
-                              •
-                            </Text>
-                            <Text
-                              size="2"
-                              color="gray"
-                            >
-                              {connection.url}
-                            </Text>
-                          </>
-                        )}
+                        {/* 仅未匹配目录的 OpenAI Compatible 连接显示自定义 URL。 */}
+                        {connection.providerType === "openai-compatible" &&
+                          !connection.catalogMatch && (
+                            <>
+                              <Text
+                                size="2"
+                                color="gray"
+                              >
+                                •
+                              </Text>
+                              <Text
+                                size="2"
+                                color="gray"
+                              >
+                                {connection.url}
+                              </Text>
+                            </>
+                          )}
                       </Flex>
                     </Flex>
                   </Flex>

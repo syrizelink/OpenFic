@@ -103,19 +103,20 @@ async def test_rerank_raises_validation_error_for_out_of_range_index() -> None:
         await client.rerank("query", ["doc 1"])
 
 
-def test_rerank_rejects_unsupported_provider() -> None:
-    with pytest.raises(ValueError):
-        RerankClient(
-            RerankConfig(
-                provider_type="cohere",
-                base_url="https://api.cohere.com/v2",
-                api_key="test-key",
-                model_id="rerank-v3.5",
-            )
+def test_rerank_client_routes_any_nonbuiltin_provider_as_openai_compatible() -> None:
+    client = RerankClient(
+        RerankConfig(
+            provider_type="cohere",
+            base_url="https://api.cohere.com/v2",
+            api_key="test-key",
+            model_id="rerank-v3.5",
         )
+    )
+
+    assert client.runtime_provider_type == "openai-compatible"
 
 
-def test_rerank_accepts_nvidia_ai_endpoints_provider() -> None:
+def test_rerank_client_routes_nvidia_provider_as_openai_compatible() -> None:
     client = RerankClient(
         RerankConfig(
             provider_type="nvidia-ai-endpoints",
@@ -125,4 +126,4 @@ def test_rerank_accepts_nvidia_ai_endpoints_provider() -> None:
         )
     )
 
-    assert client.config.provider_type == "nvidia-ai-endpoints"
+    assert client.runtime_provider_type == "openai-compatible"

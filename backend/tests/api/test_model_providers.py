@@ -30,7 +30,7 @@ async def test_create_provider(client: AsyncClient, session: AsyncSession):
 
     data = response.json()
     assert data["name"] == "Test OpenAI"
-    assert data["url"] == "https://api.openai.com"
+    assert data["url"] == "https://api.openai.com/v1"
     assert data["provider_type"] == "openai"
     assert data["catalog_match"]["catalog_provider_type"] == "openai"
     assert data["catalog_match"]["matched_via"] == "provider_type"

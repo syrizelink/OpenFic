@@ -41,6 +41,7 @@ class RerankConfig:
     api_key: str
     model_id: str
     request_timeout: int = DEFAULT_RERANK_TIMEOUT
+    use_openai_compatible: bool = True
 
 
 @dataclass
@@ -64,16 +65,23 @@ class RerankClient:
     """Rerank 客户端，使用 OpenAI-compatible 风格 HTTP 接口。"""
 
     def __init__(self, config: RerankConfig):
-        if config.provider_type not in SUPPORTED_RERANK_PROVIDERS:
+        self.runtime_provider_type = (
+            "builtin"
+            if config.provider_type == "builtin"
+            else "openai-compatible"
+            if config.use_openai_compatible
+            else config.provider_type
+        )
+        if self.runtime_provider_type not in SUPPORTED_RERANK_PROVIDERS:
             raise ValueError(
-                f"Unsupported rerank provider_type: {config.provider_type}"
+                f"Unsupported rerank provider_type: {self.runtime_provider_type}"
             )
         self.config = config
 
     async def rerank(
         self, query: str, documents: list[str], top_n: int | None = None
     ) -> RerankResponse:
-        if self.config.provider_type == "builtin":
+        if self.runtime_provider_type == "builtin":
             return await self._rerank_builtin(query, documents, top_n)
 
         payload: dict[str, Any] = {

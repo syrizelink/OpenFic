@@ -49,6 +49,7 @@ class LLMConfig:
     presence_penalty: float | None = None
     deepseek_reasoning_effort: str | None = None
     deepseek_thinking_type: str | None = None
+    use_openai_compatible: bool = True
     request_timeout: int = DEFAULT_LLM_TIMEOUT
 
 
@@ -109,6 +110,7 @@ class LLMClient:
                 presence_penalty=config.presence_penalty,
                 deepseek_reasoning_effort=config.deepseek_reasoning_effort,
                 deepseek_thinking_type=config.deepseek_thinking_type,
+                use_openai_compatible=config.use_openai_compatible,
             )
         )
 

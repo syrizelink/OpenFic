@@ -59,7 +59,13 @@ class OpenAICompatibleAdapter(BaseAdapter):
                 models.append({"id": model_id, "name": model_name})
 
             return models
-        except Exception as e:
-            logger.warning(f"Failed to fetch models from OpenAI-compatible API: {e}")
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code in {401, 429} or exc.response.status_code >= 500:
+                raise
+            logger.warning(f"Failed to fetch models from OpenAI-compatible API: {exc}")
+            # 返回空列表，允许用户手动输入模型ID
+            return []
+        except httpx.HTTPError as exc:
+            logger.warning(f"Failed to fetch models from OpenAI-compatible API: {exc}")
             # 返回空列表，允许用户手动输入模型ID
             return []

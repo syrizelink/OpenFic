@@ -26,19 +26,13 @@ def _release_sort_tuple(value: str | None) -> tuple[int, int, int, int]:
 
 
 @pytest.mark.asyncio
-async def test_catalog_status_and_provider_listing_endpoints(client: AsyncClient) -> None:
-    status_response = await client.get("/api/v1/model-provider-catalog/status")
+async def test_catalog_provider_listing_endpoint(client: AsyncClient) -> None:
     providers_response = await client.get("/api/v1/model-provider-catalog/providers")
 
-    assert status_response.status_code == 200
     assert providers_response.status_code == 200
 
-    status_payload = status_response.json()
     providers_payload = providers_response.json()
 
-    assert status_payload["source"] in {"bundled", "cache"}
-    assert status_payload["provider_count"] >= 1
-    assert status_payload["model_count"] >= 1
     assert providers_payload[0].keys() >= {
         "provider_type",
         "display_name",
@@ -95,11 +89,16 @@ async def test_catalog_provider_models_endpoint_returns_release_date_desc_order(
 
 
 @pytest.mark.asyncio
-async def test_catalog_refresh_endpoint_returns_updated_status(client: AsyncClient) -> None:
-    response = await client.post("/api/v1/model-provider-catalog/refresh")
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("get", "/api/v1/model-provider-catalog/status"),
+        ("post", "/api/v1/model-provider-catalog/refresh"),
+    ],
+)
+async def test_catalog_management_endpoints_are_not_exposed(
+    client: AsyncClient, method: str, path: str
+) -> None:
+    response = await getattr(client, method)(path)
 
-    assert response.status_code == 200
-
-    payload = response.json()
-    assert payload["source"] == "cache"
-    assert payload["last_refreshed_at"] is not None
+    assert response.status_code == 404

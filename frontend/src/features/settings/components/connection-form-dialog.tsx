@@ -6,13 +6,12 @@ import { useForm, Controller, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 
-import { Spinner } from "@/components";
-import { LabeledSelect } from "@/components/select";
-import type { ModelProvider, ModelProviderCatalogProvider, ProviderType } from "@/lib/model.types";
+import { ProviderIdSelect, Spinner } from "@/components";
+import type { ModelProvider, ModelProviderCatalogProvider } from "@/lib/model.types";
 
 import { validateProvider } from "../lib/model-api";
 import { ProviderIcon } from "../lib/provider-icons";
-import { getProviderSelectOptions, getProviderUrl } from "../lib/provider-utils";
+import { getProviderUrl } from "../lib/provider-utils";
 
 const connectionSchema = z
   .object({
@@ -91,10 +90,6 @@ export function ConnectionFormDialog({
   const providerType = useWatch({ control, name: "providerType" });
   const url = useWatch({ control, name: "url" });
   const apiKey = useWatch({ control, name: "apiKey" });
-  const providerOptions = useMemo(
-    () => getProviderSelectOptions(catalogProviders),
-    [catalogProviders],
-  );
   const selectedCatalogProvider = useMemo(
     () => catalogProviders?.find((provider) => provider.providerType === providerType),
     [catalogProviders, providerType],
@@ -119,7 +114,7 @@ export function ConnectionFormDialog({
     }
 
     // 其他提供商类型，使用固定 URL
-    const fixedUrl = getProviderUrl(providerType as ProviderType, catalogProviders);
+    const fixedUrl = getProviderUrl(providerType, catalogProviders);
     if (fixedUrl) {
       // 在新建模式下，自动设置固定 URL
       // 在编辑模式下，如果当前 URL 为空或者是固定 URL，则更新为新的固定 URL
@@ -129,7 +124,7 @@ export function ConnectionFormDialog({
         // 编辑模式下，检查当前 URL 是否为空或等于旧的固定 URL
         const currentUrl = url;
         const oldFixedUrl = connection?.providerType
-          ? getProviderUrl(connection.providerType as ProviderType, catalogProviders)
+          ? getProviderUrl(connection.providerType, catalogProviders)
           : null;
 
         // 如果当前 URL 为空，或者是旧的固定 URL，则更新为新的固定 URL
@@ -151,7 +146,7 @@ export function ConnectionFormDialog({
     // 确定要使用的 URL
     let validateUrl = formData.url;
     if (!validateUrl || validateUrl.trim() === "") {
-      const fixedUrl = getProviderUrl(formData.providerType as ProviderType, catalogProviders);
+      const fixedUrl = getProviderUrl(formData.providerType, catalogProviders);
       if (fixedUrl) {
         validateUrl = fixedUrl;
       } else {
@@ -198,7 +193,7 @@ export function ConnectionFormDialog({
       let finalUrl = data.url;
       if (!finalUrl || finalUrl.trim() === "") {
         // 如果没有 URL，尝试从提供商类型获取固定 URL
-        const fixedUrl = getProviderUrl(data.providerType as ProviderType, catalogProviders);
+        const fixedUrl = getProviderUrl(data.providerType, catalogProviders);
         if (fixedUrl) {
           finalUrl = fixedUrl;
         }
@@ -332,14 +327,10 @@ export function ConnectionFormDialog({
                     name="providerType"
                     control={control}
                     render={({ field }) => (
-                      <LabeledSelect
+                      <ProviderIdSelect
                         value={field.value}
-                        options={providerOptions.map((opt) => ({
-                          value: opt.value,
-                          label: opt.label,
-                        }))}
                         onChange={field.onChange}
-                        triggerStyle={{ width: "100%" }}
+                        providers={catalogProviders ?? []}
                         placeholder={t("connections.providerTypePlaceholder")}
                         disabled={isEditing}
                       />

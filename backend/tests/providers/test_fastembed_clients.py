@@ -108,3 +108,33 @@ def test_rerank_client_accepts_builtin_provider():
         )
     )
     assert client.config.provider_type == "builtin"
+
+
+def test_embedding_client_forces_openai_compatible_for_non_builtin_provider():
+    client = EmbeddingClient(
+        EmbeddingConfig(
+            provider_type="cohere",
+            base_url="https://api.cohere.com/v2",
+            api_key="test-key",
+            model_id="embed-v4.0",
+            use_openai_compatible=True,
+        )
+    )
+
+    from langchain_openai import OpenAIEmbeddings
+
+    assert isinstance(client._get_embeddings(), OpenAIEmbeddings)
+
+
+def test_rerank_client_forces_openai_compatible_for_non_builtin_provider():
+    client = RerankClient(
+        RerankConfig(
+            provider_type="upstage",
+            base_url="https://api.upstage.ai/v1/solar",
+            api_key="test-key",
+            model_id="solar-rerank",
+            use_openai_compatible=True,
+        )
+    )
+
+    assert client.runtime_provider_type == "openai-compatible"

@@ -2,7 +2,8 @@
 OpenFic Backend - FastAPI Application Entry Point.
 """
 
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 import ipaddress
 from os import getenv
 from pathlib import Path
@@ -58,6 +59,7 @@ from app.background.runtime.supervisor import (
 )
 from app.core.storage import ensure_character_images_dir, ensure_covers_dir
 from app.models.builtin import seed_builtin_models
+from app.models.catalog import ModelProviderCatalogService
 from app.settings import settings as app_settings
 from app.socket import init_socketio
 from app.storage.database import close_db, create_session, init_db
@@ -258,19 +260,29 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     start_audit_queue()
     await start_background_runtime()
     _print_startup_banner(app_settings.app_version)
-    yield
-    logger.info(f"Shutting down {app_settings.app_name}")
-    cancelled_runs = await get_agent_run_registry().cancel_all()
-    if cancelled_runs:
-        logger.info(f"已取消 {cancelled_runs} 个运行中的 Agent 任务")
-    cleared_tasks = await _reset_task_running_state()
-    if cleared_tasks:
-        logger.info(f"已清理 {cleared_tasks} 个任务的运行状态")
-    await stop_background_runtime()
-    await stop_audit_queue()
-    await app.state.catalog_icon_proxy_service.aclose()
-    await close_checkpointer()
-    await close_db()
+    catalog_refresh_task = asyncio.create_task(
+        ModelProviderCatalogService().refresh(),
+        name="model-provider-catalog-refresh",
+    )
+    try:
+        yield
+    finally:
+        logger.info(f"Shutting down {app_settings.app_name}")
+        if not catalog_refresh_task.done():
+            catalog_refresh_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await catalog_refresh_task
+        cancelled_runs = await get_agent_run_registry().cancel_all()
+        if cancelled_runs:
+            logger.info(f"已取消 {cancelled_runs} 个运行中的 Agent 任务")
+        cleared_tasks = await _reset_task_running_state()
+        if cleared_tasks:
+            logger.info(f"已清理 {cleared_tasks} 个任务的运行状态")
+        await stop_background_runtime()
+        await stop_audit_queue()
+        await app.state.catalog_icon_proxy_service.aclose()
+        await close_checkpointer()
+        await close_db()
 
 
 def create_app() -> FastAPI:

@@ -1,0 +1,93 @@
+.provider-id-select-trigger {
+  width: 100%;
+  cursor: pointer;
+}
+
+.provider-id-select-trigger .rt-TextFieldRoot {
+  background-color: var(--color-surface);
+  background-image: none !important;
+  box-shadow: inset 0 0 0 1px var(--gray-a7) !important;
+}
+
+.provider-id-select-trigger .rt-TextFieldInput:read-only {
+  color: var(--gray-12);
+  cursor: pointer !important;
+  -webkit-text-fill-color: var(--gray-12);
+}
+
+.provider-id-select-trigger .rt-TextFieldInput:read-only::placeholder {
+  color: var(--gray-a10);
+  opacity: 1;
+}
+
+.provider-id-select-trigger .rt-TextFieldSlot {
+  color: var(--gray-12);
+  cursor: pointer !important;
+}
+
+.provider-id-select-trigger[data-disabled="true"],
+.provider-id-select-trigger[data-disabled="true"] * {
+  cursor: not-allowed !important;
+}
+
+.provider-id-select-trigger[data-disabled="true"] .rt-TextFieldRoot {
+  background-color: var(--gray-a3);
+  box-shadow: inset 0 0 0 1px var(--gray-a5) !important;
+}
+
+.provider-id-select-trigger[data-disabled="true"] .rt-TextFieldInput:disabled {
+  color: var(--gray-9);
+  pointer-events: none;
+  -webkit-text-fill-color: var(--gray-9);
+}
+
+.provider-id-select-trigger[data-disabled="true"] .rt-TextFieldSlot {
+  color: var(--gray-9);
+}
+
+.provider-id-select-content {
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(360px, calc(100dvh - 32px));
+  padding: 6px !important;
+  overflow: hidden !important;
+}
+
+.provider-id-select-list.rt-ScrollAreaRoot {
+  height: min(300px, calc(100dvh - 104px));
+  max-height: min(300px, calc(100dvh - 104px));
+}
+
+.provider-id-select-item {
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--radius-1);
+  background: transparent;
+  color: inherit;
+  font-family: var(--app-font-family);
+  cursor: pointer;
+  text-align: left;
+}
+
+.provider-id-select-item:hover,
+.provider-id-select-item[data-state="checked"] {
+  background: var(--gray-a3);
+}
+
+.provider-id-select-item:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: -2px;
+}
+
+.provider-id-select-empty {
+  padding: var(--space-3);
+}
+
+.provider-id-select-loading {
+  height: 100%;
+  min-height: min(300px, calc(100dvh - 104px));
+}
+
+.provider-id-select-fallback-icon {
+  flex-shrink: 0;
+}
