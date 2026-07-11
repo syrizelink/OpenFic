@@ -634,15 +634,12 @@ function RuleEditor({ rule, onSave }: RuleEditorProps) {
   }, [canSave, form, onSave, rule.id]);
 
   return (
-    <Box p={{ initial: "4", md: "5" }}>
-      <Flex
-        direction="column"
-        gap="1"
-        className="skills-settings-editor-content"
-      >
+    <div className="skills-settings-editor">
+      <div className="skills-settings-editor-scroll">
         <Flex
           direction="column"
           gap="4"
+          className="skills-settings-editor-content"
         >
           <Box>
             <Text
@@ -674,20 +671,16 @@ function RuleEditor({ rule, onSave }: RuleEditorProps) {
             />
           </Box>
         </Flex>
+      </div>
 
-        <Flex
-          align="center"
-          justify="end"
-          className="skills-settings-editor-actions"
+      <div className="skills-settings-editor-footer">
+        <Button
+          onClick={() => void handleSave()}
+          disabled={!canSave}
         >
-          <Button
-            onClick={() => void handleSave()}
-            disabled={!canSave}
-          >
-            {isSaving ? t("settingsExtra.rules.saving") : t("common.save")}
-          </Button>
-        </Flex>
-      </Flex>
-    </Box>
+          {isSaving ? t("settingsExtra.rules.saving") : t("common.save")}
+        </Button>
+      </div>
+    </div>
   );
 }

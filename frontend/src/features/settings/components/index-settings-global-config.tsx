@@ -4,11 +4,10 @@ import { useTranslation } from "react-i18next";
 import { MultiSelectField, UnitTextField } from "@/components";
 import { ModelIdSelect, type ModelIdSelectOption } from "@/components/model-id-select";
 import { LabeledSelect } from "@/components/select";
-
 import type { IndexAutoStrategy, IndexMode } from "@/lib/index-status";
 
-import { IndexSettingsSectionHeader } from "./index-settings-section-header";
 import type { Settings } from "../lib/settings.types";
+import { IndexSettingsSectionHeader } from "./index-settings-section-header";
 
 const FIELD_WIDTH = { width: "100%" } as const;
 const SETTINGS_GRID_STYLE = {

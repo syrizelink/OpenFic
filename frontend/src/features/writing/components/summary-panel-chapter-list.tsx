@@ -18,8 +18,8 @@ import { useTranslation } from "react-i18next";
 import "./summary-panel.css";
 
 import { ConfirmDialog, SimpleSelect, toast } from "@/components";
-import type { ChapterSummaryListItem } from "@/lib/api-client";
 import i18n from "@/i18n";
+import type { ChapterSummaryListItem } from "@/lib/api-client";
 
 import { useChapterSummaryListPage, useDeleteChapterSummaries } from "../hooks/use-summaries";
 import { useVolumeTree } from "../hooks/use-volumes";
@@ -323,7 +323,8 @@ const ChapterSummaryAccordionItem = memo(function ChapterSummaryAccordionItem({
                     size="1"
                     color="gray"
                   >
-                    {item.startTime || t("summary.unknownTime")} - {item.endTime || t("summary.unknownTime")}
+                    {item.startTime || t("summary.unknownTime")} -{" "}
+                    {item.endTime || t("summary.unknownTime")}
                   </Text>
                 )}
                 <Text
@@ -337,7 +338,9 @@ const ChapterSummaryAccordionItem = memo(function ChapterSummaryAccordionItem({
                     size="1"
                     color="red"
                   >
-                    {t(`summary.maintenance.errorMessages.${item.errorMessage}`, { defaultValue: item.errorMessage })}
+                    {t(`summary.maintenance.errorMessages.${item.errorMessage}`, {
+                      defaultValue: item.errorMessage,
+                    })}
                   </Text>
                 )}
               </Flex>

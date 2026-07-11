@@ -118,9 +118,8 @@ export function buildModelTokenTrendOption(
     data: dates.map((date) => {
       const item: DashboardBarDatum = { label: date };
       for (const model of models) {
-        item[getOptionLabel(data?.options, "model", model.key, model.label)] = pointMap.get(
-          `${date}:${model.key}`,
-        )?.tokensTotal ?? 0;
+        item[getOptionLabel(data?.options, "model", model.key, model.label)] =
+          pointMap.get(`${date}:${model.key}`)?.tokensTotal ?? 0;
       }
       return item;
     }),
@@ -229,6 +228,9 @@ export function buildWritingWeekdayOption(
     kind: "bar",
     keys: [i18n.t("dashboard.charts.activeDaysSeries")],
     tooltip: { fixedLabel: i18n.t("dashboard.charts.activeDaysTooltipLabel"), unit: "days" },
-    data: labels.map((label, index) => ({ label, [i18n.t("dashboard.charts.activeDaysSeries")]: activeDayCounts[index] })),
+    data: labels.map((label, index) => ({
+      label,
+      [i18n.t("dashboard.charts.activeDaysSeries")]: activeDayCounts[index],
+    })),
   };
 }

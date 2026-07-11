@@ -138,9 +138,7 @@ function AgentForm({
   const [formEnabledToolCategories, setFormEnabledToolCategories] = useState<string[]>([
     ...def.enabled_tool_categories,
   ]);
-  const [formEnabledSkills, setFormEnabledSkills] = useState<string[]>([
-    ...def.enabled_skills,
-  ]);
+  const [formEnabledSkills, setFormEnabledSkills] = useState<string[]>([...def.enabled_skills]);
   const [formDelegatableAgents, setFormDelegatableAgents] = useState<string[]>([
     ...def.delegatable_agents,
   ]);
@@ -628,8 +626,7 @@ export function AgentDefinitionsSettings({
   const { options: llmModelOptions, isLoading: isModelOptionsLoading } = useLlmModelOptions();
   const hasLlmModels = llmModelOptions.length > 0;
   const modelOptions = useMemo(
-    () =>
-      buildAgentModelOptions(llmModelOptions, t),
+    () => buildAgentModelOptions(llmModelOptions, t),
     [llmModelOptions, t],
   );
 

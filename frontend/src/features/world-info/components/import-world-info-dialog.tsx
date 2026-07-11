@@ -275,7 +275,12 @@ export function ImportWorldInfoDialog({
                   {t("worldInfo.importPreview")}
                 </Text>
                 <Box mb="4">
-                  <Text size="2" weight="medium" mb="2" as="p">
+                  <Text
+                    size="2"
+                    weight="medium"
+                    mb="2"
+                    as="p"
+                  >
                     {t("worldInfo.importMode")}
                   </Text>
                   <SegmentedControl.Root
@@ -290,7 +295,12 @@ export function ImportWorldInfoDialog({
                       {t("worldInfo.importModeOverwrite")}
                     </SegmentedControl.Item>
                   </SegmentedControl.Root>
-                  <Text as="p" size="1" color="gray" mt="2">
+                  <Text
+                    as="p"
+                    size="1"
+                    color="gray"
+                    mt="2"
+                  >
                     {mode === "append"
                       ? t("worldInfo.importModeAppendDesc")
                       : t("worldInfo.importModeOverwriteDesc")}

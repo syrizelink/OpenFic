@@ -6,6 +6,7 @@ import type { SettingsDialogRoute } from "@/features/settings/lib/settings-route
 
 import { AppShellContext } from "./app-shell-context";
 import { AppSidebar } from "./app-sidebar";
+
 import "./app-layout.css";
 import { StatusBar } from "./status-bar";
 
@@ -16,7 +17,12 @@ interface AppLayoutProps {
   onToggleTheme: () => void;
 }
 
-export function AppLayout({ appearance, version, onAppearanceChange, onToggleTheme }: AppLayoutProps) {
+export function AppLayout({
+  appearance,
+  version,
+  onAppearanceChange,
+  onToggleTheme,
+}: AppLayoutProps) {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);

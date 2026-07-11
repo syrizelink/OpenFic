@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import "./summary-panel.css";
 
 import { Spinner, toast } from "@/components";
+import i18n from "@/i18n";
 import type {
   EnqueueSummaryRequest,
   MissingChapterSummaryItem,
@@ -15,13 +16,8 @@ import type {
   SkippedChapterSummaryItem,
 } from "@/lib/api-client";
 import { requestBackgroundSnapshot } from "@/lib/background-socket";
-import i18n from "@/i18n";
 
-import {
-  useCancelSummaryBatch,
-  useEnqueueSummary,
-  useSummaryPanel,
-} from "../hooks/use-summaries";
+import { useCancelSummaryBatch, useEnqueueSummary, useSummaryPanel } from "../hooks/use-summaries";
 import {
   buildSummaryProgressState,
   shouldShowSummaryProgressPanel,
@@ -99,7 +95,10 @@ function SummaryStatusBadge({ status, isStale }: { status: string; isStale: bool
   return <Badge color={getStatusColor(status, isStale)}>{label}</Badge>;
 }
 
-function translateProgressMessage(code: string | null, t: (key: string, options?: Record<string, unknown>) => string): string {
+function translateProgressMessage(
+  code: string | null,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
   if (!code) return "";
   return t(`summary.maintenance.progressMessages.${code}`, { defaultValue: code });
 }

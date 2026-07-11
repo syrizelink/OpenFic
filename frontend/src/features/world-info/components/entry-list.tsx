@@ -603,25 +603,41 @@ export function EntryList({
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Content align="end">
                       <DropdownMenu.Item onClick={() => onSortChange("order")}>
-                        <Flex align="center" justify="between" width="100%">
+                        <Flex
+                          align="center"
+                          justify="between"
+                          width="100%"
+                        >
                           <Text>{t("worldInfo.sortByOrder")}</Text>
                           {getSortIcon("order")}
                         </Flex>
                       </DropdownMenu.Item>
                       <DropdownMenu.Item onClick={() => onSortChange("uid")}>
-                        <Flex align="center" justify="between" width="100%">
+                        <Flex
+                          align="center"
+                          justify="between"
+                          width="100%"
+                        >
                           <Text>{t("worldInfo.sortByUid")}</Text>
                           {getSortIcon("uid")}
                         </Flex>
                       </DropdownMenu.Item>
                       <DropdownMenu.Item onClick={() => onSortChange("tokenCount")}>
-                        <Flex align="center" justify="between" width="100%">
+                        <Flex
+                          align="center"
+                          justify="between"
+                          width="100%"
+                        >
                           <Text>{t("worldInfo.sortByTokens")}</Text>
                           {getSortIcon("tokenCount")}
                         </Flex>
                       </DropdownMenu.Item>
                       <DropdownMenu.Item onClick={() => onSortChange("name")}>
-                        <Flex align="center" justify="between" width="100%">
+                        <Flex
+                          align="center"
+                          justify="between"
+                          width="100%"
+                        >
                           <Text>{t("worldInfo.sortByName")}</Text>
                           {getSortIcon("name")}
                         </Flex>

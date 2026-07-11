@@ -4,11 +4,18 @@ interface SummaryRangeEndpoint {
   chapterTitle: string;
 }
 
-export function formatSummaryRangeMeta({ volumeTitle, chapterOrder }: Omit<SummaryRangeEndpoint, "chapterTitle">): string {
+export function formatSummaryRangeMeta({
+  volumeTitle,
+  chapterOrder,
+}: Omit<SummaryRangeEndpoint, "chapterTitle">): string {
   return volumeTitle ? `${volumeTitle} | ${chapterOrder}` : `${chapterOrder}.`;
 }
 
-function formatSummaryRangeEndpoint({ volumeTitle, chapterOrder, chapterTitle }: SummaryRangeEndpoint): string {
+function formatSummaryRangeEndpoint({
+  volumeTitle,
+  chapterOrder,
+  chapterTitle,
+}: SummaryRangeEndpoint): string {
   const chapter = `${chapterOrder} ${chapterTitle}`.trim();
   return volumeTitle ? `${volumeTitle} | ${chapter}` : chapter;
 }

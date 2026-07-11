@@ -17,8 +17,8 @@ import { useTranslation } from "react-i18next";
 import "./summary-panel.css";
 
 import { ConfirmDialog, toast } from "@/components";
-import type { LongTermSummaryListItem } from "@/lib/api-client";
 import i18n from "@/i18n";
+import type { LongTermSummaryListItem } from "@/lib/api-client";
 
 import { useDeleteLongTermSummaries, useLongTermSummariesPage } from "../hooks/use-summaries";
 import { formatSummaryRangeMeta } from "../lib/summary-range-title";
@@ -246,7 +246,10 @@ const LongTermSummaryAccordionItem = memo(function LongTermSummaryAccordionItem(
         >
           {item.startVolumeTitle && (
             <span className="summary-volume-meta">
-              {formatSummaryRangeMeta({ volumeTitle: item.startVolumeTitle, chapterOrder: item.startOrder })}
+              {formatSummaryRangeMeta({
+                volumeTitle: item.startVolumeTitle,
+                chapterOrder: item.startOrder,
+              })}
             </span>
           )}
           {!item.startVolumeTitle && `${item.startOrder}. `}
@@ -254,7 +257,10 @@ const LongTermSummaryAccordionItem = memo(function LongTermSummaryAccordionItem(
           <span className="summary-range-separator"> - </span>
           {item.endVolumeTitle && (
             <span className="summary-volume-meta">
-              {formatSummaryRangeMeta({ volumeTitle: item.endVolumeTitle, chapterOrder: item.endOrder })}
+              {formatSummaryRangeMeta({
+                volumeTitle: item.endVolumeTitle,
+                chapterOrder: item.endOrder,
+              })}
             </span>
           )}
           {!item.endVolumeTitle && `${item.endOrder}. `}
@@ -293,7 +299,8 @@ const LongTermSummaryAccordionItem = memo(function LongTermSummaryAccordionItem(
                     size="1"
                     color="gray"
                   >
-                    {item.startTime || t("summary.unknownTime")} - {item.endTime || t("summary.unknownTime")}
+                    {item.startTime || t("summary.unknownTime")} -{" "}
+                    {item.endTime || t("summary.unknownTime")}
                   </Text>
                 )}
                 <Text
@@ -307,7 +314,9 @@ const LongTermSummaryAccordionItem = memo(function LongTermSummaryAccordionItem(
                     size="1"
                     color="red"
                   >
-                    {t(`summary.maintenance.errorMessages.${item.errorMessage}`, { defaultValue: item.errorMessage })}
+                    {t(`summary.maintenance.errorMessages.${item.errorMessage}`, {
+                      defaultValue: item.errorMessage,
+                    })}
                   </Text>
                 )}
               </Flex>
