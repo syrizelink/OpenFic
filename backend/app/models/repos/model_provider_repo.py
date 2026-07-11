@@ -51,7 +51,6 @@ async def create(
     url: str,
     api_key_encrypted: str,
     provider_type: str,
-    icon_path: str | None = None,
 ) -> ModelProvider:
     """
     创建提供商。
@@ -62,8 +61,6 @@ async def create(
         url: 服务 URL。
         api_key_encrypted: 加密后的 API Key。
         provider_type: 提供商类型。
-        icon_path: 图标文件路径。
-
     Returns:
         创建的提供商实例。
     """
@@ -72,7 +69,6 @@ async def create(
         url=url,
         api_key_encrypted=api_key_encrypted,
         provider_type=provider_type,
-        icon_path=icon_path,
     )
     session.add(provider)
     await session.flush()
@@ -87,7 +83,6 @@ async def update(
     url: str | None = None,
     api_key_encrypted: str | None = None,
     provider_type: str | None = None,
-    icon_path: str | None = None,
 ) -> ModelProvider | None:
     """
     更新提供商。
@@ -99,8 +94,6 @@ async def update(
         url: 服务 URL。
         api_key_encrypted: 加密后的 API Key。
         provider_type: 提供商类型。
-        icon_path: 图标文件路径。
-
     Returns:
         更新后的提供商实例，如果不存在则返回 None。
     """
@@ -116,9 +109,6 @@ async def update(
         provider.api_key_encrypted = api_key_encrypted
     if provider_type is not None:
         provider.provider_type = provider_type
-    if icon_path is not None:
-        provider.icon_path = icon_path
-
     provider.updated_at = datetime.now(UTC)
     session.add(provider)
     await session.flush()

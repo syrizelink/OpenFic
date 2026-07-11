@@ -31,38 +31,38 @@ const CAPABILITY_ICON_META: Record<
 > = {
   text: {
     icon: Type,
-    color: "#4d8fde",
-    background: "#eff5ff",
+    color: "var(--blue-8)",
+    background: "var(--blue-a3)",
   },
   image: {
     icon: Image,
-    color: "#4ca878",
-    background: "#edf9f2",
+    color: "var(--green-8)",
+    background: "var(--green-a3)",
   },
   video: {
     icon: Video,
-    color: "#e09a3d",
-    background: "#fff6e8",
+    color: "var(--orange-8)",
+    background: "var(--orange-a3)",
   },
   audio: {
     icon: AudioLines,
-    color: "#40968f",
-    background: "#eaf8f7",
+    color: "var(--teal-8)",
+    background: "var(--teal-a3)",
   },
   pdf: {
     icon: FileText,
-    color: "#da6a3a",
-    background: "#fff1ea",
+    color: "var(--red-8)",
+    background: "var(--red-a3)",
   },
   reasoning: {
     icon: Brain,
-    color: "#4a93b4",
-    background: "#eef8fc",
+    color: "var(--cyan-8)",
+    background: "var(--cyan-a3)",
   },
   "tool-call": {
     icon: Wrench,
-    color: "#b28434",
-    background: "#fff5e5",
+    color: "var(--amber-8)",
+    background: "var(--amber-a3)",
   },
 };
 
@@ -142,8 +142,8 @@ export function ContextBadge({ label }: { label: string }) {
         justifyContent: "center",
         padding: "0 7px",
         borderRadius: 5,
-        color: "#5b6b7d",
-        background: "#edf2f7",
+        color: "var(--gray-11)",
+        background: "var(--gray-a3)",
         flexShrink: 0,
         fontSize: 11,
         fontWeight: 600,

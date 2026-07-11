@@ -3,22 +3,15 @@
 ModelProvider Service - 模型服务提供商业务逻辑层。
 """
 
-from pathlib import Path
-
 import httpx
 from cryptography.fernet import InvalidToken
-from fastapi import UploadFile
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.encryption import EncryptionService
 from app.core.errors import NotFoundError
-from app.core.ids import generate_id
 from app.models.entities.model_provider import ModelProvider
 from app.models.repos import model_provider_repo
-
-# 图标存储目录
-ICON_DIR = Path("data/icons/model")
 
 
 class ModelProviderService:
@@ -104,31 +97,6 @@ class ModelProviderService:
             raise NotFoundError(f"Provider with id {provider_id} not found")
         return provider
 
-    async def _save_icon(self, icon_file: UploadFile) -> str:
-        """
-        保存图标文件。
-
-        Args:
-            icon_file: 图标文件。
-
-        Returns:
-            图标文件名。
-        """
-        # 确保目录存在
-        ICON_DIR.mkdir(parents=True, exist_ok=True)
-
-        # 生成唯一文件名
-        file_ext = Path(icon_file.filename or "").suffix or ".jpg"
-        filename = f"{generate_id()}{file_ext}"
-        file_path = ICON_DIR / filename
-
-        # 保存文件
-        contents = await icon_file.read()
-        with open(file_path, "wb") as f:
-            f.write(contents)
-
-        return filename
-
     async def create_provider(
         self,
         session: AsyncSession,
@@ -136,7 +104,6 @@ class ModelProviderService:
         url: str,
         api_key: str,
         provider_type: str,
-        icon_file: UploadFile | None = None,
     ) -> ModelProvider:
         """
         创建提供商。
@@ -147,7 +114,6 @@ class ModelProviderService:
             url: 服务 URL。
             api_key: API Key（明文，将被加密）。
             provider_type: 提供商类型。
-            icon_file: 图标文件。
 
         Returns:
             创建的提供商实例。
@@ -161,18 +127,12 @@ class ModelProviderService:
                 logger.error("Failed to encrypt API key: {}", e)
                 raise ValueError(f"无法加密 API Key: {str(e)}")
 
-        # 保存图标
-        icon_path = None
-        if icon_file:
-            icon_path = await self._save_icon(icon_file)
-
         provider = await model_provider_repo.create(
             session=session,
             name=name,
             url=url,
             api_key_encrypted=api_key_encrypted,
             provider_type=provider_type,
-            icon_path=icon_path,
         )
         await session.commit()
         return provider
@@ -185,7 +145,6 @@ class ModelProviderService:
         url: str | None = None,
         api_key: str | None = None,
         provider_type: str | None = None,
-        icon_file: UploadFile | None = None,
     ) -> ModelProvider:
         """
         更新提供商。
@@ -197,7 +156,6 @@ class ModelProviderService:
             url: 服务 URL。
             api_key: API Key（明文，将被加密）。
             provider_type: 提供商类型。
-            icon_file: 图标文件。
 
         Returns:
             更新后的提供商实例。
@@ -210,18 +168,6 @@ class ModelProviderService:
         if api_key is not None and api_key:
             api_key_encrypted = self.encryption_service.encrypt(api_key)
 
-        # 如果提供了新图标，保存它
-        icon_path = None
-        if icon_file:
-            # 获取旧图标路径，用于删除
-            old_provider = await model_provider_repo.get_by_id(session, provider_id)
-            if old_provider and old_provider.icon_path:
-                old_icon_file = ICON_DIR / old_provider.icon_path
-                if old_icon_file.exists():
-                    old_icon_file.unlink()
-
-            icon_path = await self._save_icon(icon_file)
-
         provider = await model_provider_repo.update(
             session=session,
             provider_id=provider_id,
@@ -229,7 +175,6 @@ class ModelProviderService:
             url=url,
             api_key_encrypted=api_key_encrypted,
             provider_type=provider_type,
-            icon_path=icon_path,
         )
 
         if not provider:

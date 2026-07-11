@@ -85,7 +85,6 @@ async def seed_builtin_models(session: AsyncSession) -> None:
             url=BUILTIN_PROVIDER_URL,
             api_key_encrypted="",
             provider_type=BUILTIN_PROVIDER_TYPE,
-            icon_path=None,
             is_builtin=True,
         )
         session.add(provider_row)

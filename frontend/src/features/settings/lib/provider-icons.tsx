@@ -4,79 +4,84 @@
  * 提供商图标工具。
  */
 
-import { useState } from "react";
+import { ReactSVG } from "react-svg";
 
 import { Spinner } from "@/components";
-import type { ProviderType } from "@/lib/model.types";
 
-import { getCatalogProviderIconUrl, getUploadedProviderIconUrl } from "./provider-icon-url";
+import { getProviderIconUrl } from "./provider-icon-url";
 
 /**
  * 提供商图标组件
  */
 interface ProviderIconProps {
-  providerType?: ProviderType;
-  uploadedIconPath?: string | null;
-  catalogIconPath?: string | null;
+  iconPath?: string | null;
   size?: number;
-  className?: string;
 }
 
-export function ProviderIcon({
-  uploadedIconPath,
-  catalogIconPath,
-  size = 20,
-  className = "",
-}: ProviderIconProps) {
-  const uploadedIconUrl = getUploadedProviderIconUrl(uploadedIconPath);
-  const catalogIconUrl = getCatalogProviderIconUrl(catalogIconPath);
-  const iconUrl = uploadedIconUrl || catalogIconUrl;
-  const shouldShowLoading = Boolean(catalogIconUrl && !uploadedIconUrl);
-  const [loadedIconUrl, setLoadedIconUrl] = useState<string | null>(null);
-  const isLoaded = !shouldShowLoading || loadedIconUrl === iconUrl;
+function prepareProviderSvg(svg: SVGSVGElement, size: number): void {
+  svg
+    .querySelectorAll("script, foreignObject, image, use, iframe, object, embed, link, style")
+    .forEach((element) => element.remove());
+  svg.querySelectorAll<SVGElement>("*").forEach((element) => {
+    for (const attribute of Array.from(element.attributes)) {
+      if (
+        attribute.name.startsWith("on") ||
+        attribute.name === "href" ||
+        attribute.name === "xlink:href"
+      ) {
+        element.removeAttribute(attribute.name);
+      }
+    }
 
-  if (iconUrl) {
-    return (
-      <span
-        aria-hidden="true"
-        className={className}
+    if (element.getAttribute("fill") !== "none") {
+      element.setAttribute("fill", "currentColor");
+    }
+    if (element.hasAttribute("stroke")) {
+      element.setAttribute("stroke", "currentColor");
+    }
+    element.removeAttribute("style");
+  });
+
+  svg.setAttribute("width", String(size));
+  svg.setAttribute("height", String(size));
+  svg.setAttribute("aria-hidden", "true");
+  svg.style.display = "block";
+}
+
+export function ProviderIcon({ iconPath, size = 20 }: ProviderIconProps) {
+  const iconUrl = getProviderIconUrl(iconPath);
+
+  if (!iconUrl) {
+    return null;
+  }
+
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: "inline-flex",
+        width: size,
+        height: size,
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
+    >
+      <ReactSVG
+        beforeInjection={(svg) => prepareProviderSvg(svg, size)}
+        evalScripts="never"
+        fallback={() => null}
+        loading={() => <Spinner size={12} />}
+        src={iconUrl}
         style={{
-          position: "relative",
           display: "inline-flex",
           width: size,
           height: size,
           alignItems: "center",
           justifyContent: "center",
-          flexShrink: 0,
         }}
-      >
-        {shouldShowLoading && !isLoaded ? (
-          <Spinner
-            size={18}
-            style={{
-              position: "absolute",
-              color: "var(--gray-10)",
-            }}
-          />
-        ) : null}
-        <img
-          src={iconUrl}
-          alt=""
-          aria-hidden="true"
-          width={size}
-          height={size}
-          onLoad={() => setLoadedIconUrl(iconUrl)}
-          onError={() => setLoadedIconUrl(iconUrl)}
-          style={{
-            width: size,
-            height: size,
-            display: "block",
-            opacity: shouldShowLoading && !isLoaded ? 0 : 1,
-          }}
-        />
-      </span>
-    );
-  }
-
-  return null;
+        wrapper="span"
+      />
+    </span>
+  );
 }

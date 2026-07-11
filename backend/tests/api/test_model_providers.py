@@ -150,31 +150,23 @@ async def test_openai_compatible_provider_matches_non_default_catalog_provider_b
 
 
 @pytest.mark.asyncio
-async def test_custom_icon_takes_precedence_over_built_in_catalog_icon(
+@pytest.mark.asyncio
+async def test_create_provider_ignores_uploaded_icon(
     client: AsyncClient, session: AsyncSession
 ):
-    from app.core.encryption import EncryptionService
-    from app.settings import settings
-
-    encryption_service = EncryptionService(settings.encryption_key)
-    encrypted_key = encryption_service.encrypt("test-key")
-
-    provider = await model_provider_repo.create(
-        session=session,
-        name="Custom Icon Provider",
-        url="https://api.openai.com/v1",
-        api_key_encrypted=encrypted_key,
-        provider_type="openai",
-        icon_path="custom-provider.svg",
+    response = await client.post(
+        "/api/v1/model-providers",
+        data={
+            "name": "OpenAI with uploaded icon",
+            "url": "https://api.openai.com/v1",
+            "api_key": "sk-test-key",
+            "provider_type": "openai",
+        },
+        files={"icon": ("custom-provider.svg", b"<svg />", "image/svg+xml")},
     )
-    await session.commit()
 
-    response = await client.get(f"/api/v1/model-providers/{provider.id}")
-    assert response.status_code == 200
-
-    data = response.json()
-    assert data["icon_path"] == "custom-provider.svg"
-    assert data["catalog_match"]["icon_path"] == _OPENAI_ICON_URL
+    assert response.status_code == 201
+    assert response.json()["icon_path"] == _OPENAI_ICON_URL
 
 
 @pytest.mark.asyncio
@@ -361,7 +353,9 @@ async def test_get_provider_models_enriches_remote_models_with_catalog_metadata(
     newest_matched_model = next(
         model for model in data["models"] if model["id"] == "deepseek-v4-pro"
     )
-    matched_model = next(model for model in data["models"] if model["id"] == "deepseek-chat")
+    matched_model = next(
+        model for model in data["models"] if model["id"] == "deepseek-chat"
+    )
     unmatched_model = next(
         model for model in data["models"] if model["id"] == "custom-remote-model"
     )

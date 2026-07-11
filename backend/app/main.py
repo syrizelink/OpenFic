@@ -335,11 +335,6 @@ def create_app() -> FastAPI:
         name="character_images",
     )
 
-    # 挂载静态文件服务（模型图标）
-    icons_dir = app_settings.static_dir / "icons" / "model"
-    icons_dir.mkdir(parents=True, exist_ok=True)
-    app.mount("/icons/model", StaticFiles(directory=str(icons_dir)), name="model_icons")
-
     # 挂载前端构建产物；开发环境未构建时跳过，避免后端启动失败。
     if (FRONTEND_DIST_DIR / "index.html").exists():
         app.mount(

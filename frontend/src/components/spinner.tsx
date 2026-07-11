@@ -3,13 +3,14 @@ import type { ComponentProps } from "react";
 import "./spinner.css";
 
 const spinnerSizeClassNames = {
+  12: "spinner--12",
   18: "spinner--18",
   24: "spinner--24",
   32: "spinner--32",
 } as const;
 
 export interface SpinnerProps extends Omit<ComponentProps<"span">, "children"> {
-  size?: 18 | 24 | 32;
+  size?: 12 | 18 | 24 | 32;
 }
 
 export function Spinner({

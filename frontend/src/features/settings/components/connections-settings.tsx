@@ -25,11 +25,7 @@ import {
   refreshModelProviderCatalog,
 } from "../lib/model-api";
 import { ProviderIcon } from "../lib/provider-icons";
-import {
-  getProviderDisplayName,
-  resolveProviderBuiltinIconPath,
-  resolveProviderDisplayName,
-} from "../lib/provider-utils";
+import { getProviderDisplayName, resolveProviderDisplayName } from "../lib/provider-utils";
 import { ConnectionFormDialog } from "./connection-form-dialog";
 
 export function ConnectionsSettings() {
@@ -309,13 +305,11 @@ export function ConnectionsSettings() {
                         alignItems: "center",
                         justifyContent: "center",
                         borderRadius: "var(--radius-2)",
-                        background: "#ffffff",
+                        background: "var(--gray-a3)",
                       }}
                     >
                       <ProviderIcon
-                        providerType={connection.providerType}
-                        uploadedIconPath={connection.iconPath}
-                        catalogIconPath={resolveProviderBuiltinIconPath(connection)}
+                        iconPath={connection.iconPath}
                         size={24}
                       />
                     </Box>

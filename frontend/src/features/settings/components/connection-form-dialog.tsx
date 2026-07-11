@@ -11,9 +11,8 @@ import { LabeledSelect } from "@/components/select";
 import type { ModelProvider, ModelProviderCatalogProvider, ProviderType } from "@/lib/model.types";
 
 import { validateProvider } from "../lib/model-api";
-import { getUploadedProviderIconUrl } from "../lib/provider-icon-url";
+import { ProviderIcon } from "../lib/provider-icons";
 import { getProviderSelectOptions, getProviderUrl } from "../lib/provider-utils";
-import { IconCropper } from "./icon-cropper";
 
 const connectionSchema = z
   .object({
@@ -64,7 +63,6 @@ export function ConnectionFormDialog({
   const [validationStatus, setValidationStatus] = useState<
     "idle" | "validating" | "success" | "error"
   >("idle");
-  const [iconFile, setIconFile] = useState<File | null>(null);
 
   const {
     control,
@@ -220,24 +218,17 @@ export function ConnectionFormDialog({
         formData.append("api_key", data.apiKey);
       }
 
-      // 如果有图标文件，添加到 FormData
-      if (iconFile) {
-        formData.append("icon", iconFile);
-      }
-
       await onSubmit(formData);
       reset();
       setValidationStatus("idle");
-      setIconFile(null);
     },
-    [catalogProviders, onSubmit, reset, iconFile],
+    [catalogProviders, onSubmit, reset],
   );
 
   const handleOpenChange = useCallback(
     (newOpen: boolean) => {
       if (!newOpen) {
         setValidationStatus("idle");
-        setIconFile(null);
       }
       onOpenChange(newOpen);
     },
@@ -267,22 +258,27 @@ export function ConnectionFormDialog({
             gap="4"
             mt="4"
           >
-            {/* 第一行：图标和基本信息 */}
+            {/* 第一行：目录图标和基本信息 */}
             <Flex
               gap="3"
               align="center"
             >
-              {/* 左侧：图标预览 */}
-              <IconCropper
-                value={iconFile}
-                onChange={setIconFile}
-                previewUrl={getUploadedProviderIconUrl(connection?.iconPath)}
-                providerType={providerType as ProviderType}
-                catalogIconPath={
-                  selectedCatalogProvider?.iconPath || connection?.catalogMatch?.iconPath
-                }
-                size={80}
-              />
+              <Box
+                style={{
+                  width: 80,
+                  height: 80,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "var(--radius-2)",
+                  background: "var(--gray-a3)",
+                }}
+              >
+                <ProviderIcon
+                  iconPath={selectedCatalogProvider?.iconPath || connection?.iconPath}
+                  size={40}
+                />
+              </Box>
 
               {/* 右侧：备注名称和提供商类型 */}
               <Flex

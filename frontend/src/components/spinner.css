@@ -7,6 +7,11 @@
   animation: spin 0.72s linear infinite;
 }
 
+.spinner--12 {
+  width: 12px;
+  height: 12px;
+}
+
 .spinner--18 {
   width: 18px;
   height: 18px;

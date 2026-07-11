@@ -5,11 +5,9 @@ Model Provider Service - 模型服务提供商业务逻辑层。
 Service作为Executor，是唯一发起调用的地方，负责处理重试、熔断、fallback和观测。
 """
 
-from pathlib import Path
 from typing import Any
 
 import httpx
-from fastapi import UploadFile
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,7 +17,6 @@ from app.models.catalog import CatalogMatch, ModelProviderCatalogService
 from app.models.entities.model_provider import ModelProvider
 from app.models.registry import AdapterRegistry
 from app.models.repos import model_provider_repo
-from app.settings import settings
 
 
 class ModelProviderService:
@@ -43,9 +40,7 @@ class ModelProviderService:
     # CRUD 操作
     # ========================
 
-    async def get_all_providers(
-        self, session: AsyncSession
-    ) -> list[ModelProvider]:
+    async def get_all_providers(self, session: AsyncSession) -> list[ModelProvider]:
         """
         获取所有提供商。
 
@@ -62,9 +57,7 @@ class ModelProviderService:
             provider.provider_type, provider.url
         )
 
-    async def get_supported_task_types(
-        self, provider: ModelProvider
-    ) -> list[str]:
+    async def get_supported_task_types(self, provider: ModelProvider) -> list[str]:
         if provider.is_builtin:
             return ["embedding", "rerank"]
         catalog_match = await self.get_catalog_match(provider)
@@ -74,12 +67,8 @@ class ModelProviderService:
         )
 
     async def get_effective_icon_path(self, provider: ModelProvider) -> str | None:
-        if provider.icon_path:
-            return provider.icon_path
         catalog_match = await self.get_catalog_match(provider)
-        if catalog_match:
-            return catalog_match.icon_path
-        return None
+        return catalog_match.icon_path if catalog_match else None
 
     async def get_provider_by_id(
         self, session: AsyncSession, provider_id: str
@@ -109,7 +98,6 @@ class ModelProviderService:
         url: str,
         api_key: str,
         provider_type: str,
-        icon_file: UploadFile | None = None,
     ) -> ModelProvider:
         """
         创建提供商。
@@ -120,7 +108,6 @@ class ModelProviderService:
             url: 服务 URL。
             api_key: API Key（明文）。
             provider_type: 提供商类型。
-            icon_file: 图标文件。
 
         Returns:
             创建的提供商实例。
@@ -128,18 +115,12 @@ class ModelProviderService:
         # 加密 API Key
         encrypted_key = self.encryption_service.encrypt(api_key) if api_key else ""
 
-        # 处理图标文件
-        icon_path = None
-        if icon_file:
-            icon_path = await self._save_icon_file(icon_file)
-
         provider = await model_provider_repo.create(
             session=session,
             name=name,
             url=url,
             api_key_encrypted=encrypted_key,
             provider_type=provider_type,
-            icon_path=icon_path,
         )
         await session.commit()
         return provider
@@ -152,7 +133,6 @@ class ModelProviderService:
         url: str | None = None,
         api_key: str | None = None,
         provider_type: str | None = None,
-        icon_file: UploadFile | None = None,
     ) -> ModelProvider:
         """
         更新提供商。
@@ -164,7 +144,6 @@ class ModelProviderService:
             url: 服务 URL。
             api_key: API Key（明文），如果提供则重新加密。
             provider_type: 提供商类型。
-            icon_file: 图标文件。
 
         Returns:
             更新后的提供商实例。
@@ -183,11 +162,6 @@ class ModelProviderService:
         if existing.is_builtin:
             raise ValueError("内置提供商不允许编辑")
 
-        # 处理图标文件
-        icon_path = None
-        if icon_file:
-            icon_path = await self._save_icon_file(icon_file)
-
         provider = await model_provider_repo.update(
             session=session,
             provider_id=provider_id,
@@ -195,7 +169,6 @@ class ModelProviderService:
             url=url,
             api_key_encrypted=encrypted_key,
             provider_type=provider_type,
-            icon_path=icon_path,
         )
 
         if not provider:
@@ -204,9 +177,7 @@ class ModelProviderService:
         await session.commit()
         return provider
 
-    async def delete_provider(
-        self, session: AsyncSession, provider_id: str
-    ) -> None:
+    async def delete_provider(self, session: AsyncSession, provider_id: str) -> None:
         """
         删除提供商。
 
@@ -274,7 +245,7 @@ class ModelProviderService:
         """
         # 使用统一的Adapter获取模型
         adapter = AdapterRegistry.get_adapter(provider_type)
-        
+
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # 默认获取LLM模型列表（用于连接验证）
@@ -326,9 +297,13 @@ class ModelProviderService:
                 if task_type == "llm":
                     models = await adapter.get_llm_models(client, provider.url, api_key)
                 elif task_type == "rerank":
-                    models = await adapter.get_rerank_models(client, provider.url, api_key)
+                    models = await adapter.get_rerank_models(
+                        client, provider.url, api_key
+                    )
                 else:
-                    models = await adapter.get_embedding_models(client, provider.url, api_key)
+                    models = await adapter.get_embedding_models(
+                        client, provider.url, api_key
+                    )
 
                 logger.info(
                     f"Successfully fetched {len(models)} models for provider={provider.provider_type}, task_type={task_type}"
@@ -393,10 +368,6 @@ class ModelProviderService:
 
         return self.catalog_service._sort_model_dicts_by_release_date(enriched_models)
 
-    # ========================
-    # 私有方法：文件处理
-    # ========================
-
     @staticmethod
     def _builtin_available_models(task_type: str) -> list[dict[str, str]]:
         """内置提供商的固定模型列表。"""
@@ -407,37 +378,3 @@ class ModelProviderService:
             for spec in BUILTIN_MODELS
             if spec.task_type == task_type
         ]
-
-    async def _save_icon_file(self, icon_file: UploadFile) -> str | None:
-        """
-        保存图标文件到静态目录。
-
-        Args:
-            icon_file: 上传的图标文件。
-
-        Returns:
-            保存后的文件路径，如果保存失败返回 None。
-        """
-        if not icon_file.filename:
-            return None
-
-        try:
-            # 创建存储目录
-            icons_dir = Path(settings.static_dir) / "icons" / "model"
-            icons_dir.mkdir(parents=True, exist_ok=True)
-
-            # 生成唯一文件名
-            from app.core.ids import generate_id
-            file_ext = Path(icon_file.filename).suffix
-            file_name = f"{generate_id()}{file_ext}"
-            file_path = icons_dir / file_name
-
-            # 保存文件
-            content = await icon_file.read()
-            with open(file_path, "wb") as f:
-                f.write(content)
-
-            return f"/icons/model/{file_name}"
-        except Exception as e:
-            logger.error(f"Failed to save icon file: {e}")
-            return None

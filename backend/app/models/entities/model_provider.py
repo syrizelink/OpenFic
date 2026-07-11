@@ -20,7 +20,6 @@ class ModelProvider(SQLModel, table=True):
         url: 服务 URL。
         api_key_encrypted: 加密后的 API Key。
         provider_type: 提供商类型（Anthropic、OpenAI、Deepseek 等）。
-        icon_path: 图标文件路径（相对于icons/model目录）。
         created_at: 创建时间。
         updated_at: 上次修改时间。
     """
@@ -39,7 +38,6 @@ class ModelProvider(SQLModel, table=True):
             "amazon-nova, deepseek, openai-compatible"
         ),
     )
-    icon_path: str | None = Field(default=None, max_length=500)
     is_builtin: bool = Field(default=False, description="是否为内置提供商（不可删除/编辑）")
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

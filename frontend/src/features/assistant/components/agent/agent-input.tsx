@@ -106,11 +106,8 @@ export function AgentInput({
   );
   const modelTriggerPrefix = selectedModel ? (
     <ProviderIcon
-      providerType={selectedModel.providerType}
       size={14}
-      className="ai-sidebar-model-provider-icon"
-      uploadedIconPath={selectedModel.uploadedProviderIconPath}
-      catalogIconPath={selectedModel.catalogProviderIconPath}
+      iconPath={selectedModel.providerIconPath}
     />
   ) : null;
 

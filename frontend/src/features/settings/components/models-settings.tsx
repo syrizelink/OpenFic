@@ -34,6 +34,7 @@ import {
   hasSelectableModelProvider,
   resolveProviderCatalogType,
   resolveProviderDisplayName,
+  resolveProviderIconPath,
 } from "../lib/provider-utils";
 import { fetchSettings, updateSettings } from "../lib/settings-api";
 import { DEFAULT_MODEL_SETTINGS_TAB, type ModelSettingsTab } from "../lib/settings-route";
@@ -147,6 +148,7 @@ export function ModelsSettings({
     return llmModels.map((model) => {
       const provider = providers?.find((entry) => entry.id === model.providerId);
       const catalogProviderType = provider ? resolveProviderCatalogType(provider) : null;
+      const providerIconPath = provider ? resolveProviderIconPath(provider) : null;
       const catalogModel = catalogProviderType
         ? llmCatalogMetadata?.get(catalogProviderType)?.find((entry) => entry.id === model.modelId)
         : null;
@@ -167,6 +169,7 @@ export function ModelsSettings({
         outputPricePerMillion: catalogModel?.outputPricePerMillion ?? null,
         cacheReadPricePerMillion: catalogModel?.cacheReadPricePerMillion ?? null,
         source: catalogModel?.source ?? "catalog",
+        providerIconPath,
       };
     });
   }, [llmCatalogMetadata, llmModels, providers]);
