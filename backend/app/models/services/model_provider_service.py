@@ -112,6 +112,8 @@ class ModelProviderService:
         Returns:
             创建的提供商实例。
         """
+        url = await self._resolve_provider_url(provider_type, url)
+
         # 加密 API Key
         encrypted_key = self.encryption_service.encrypt(api_key) if api_key else ""
 
@@ -124,6 +126,17 @@ class ModelProviderService:
         )
         await session.commit()
         return provider
+
+    async def _resolve_provider_url(self, provider_type: str, url: str) -> str:
+        if provider_type == "openai-compatible":
+            return url
+
+        try:
+            catalog_provider = await self.catalog_service.get_provider(provider_type)
+        except KeyError:
+            return url
+
+        return catalog_provider.default_url or catalog_provider.api or url
 
     async def update_provider(
         self,
@@ -243,8 +256,10 @@ class ModelProviderService:
         Raises:
             Exception: 如果连接验证失败。
         """
+        url = await self._resolve_provider_url(provider_type, url)
+
         # 使用统一的Adapter获取模型
-        adapter = AdapterRegistry.get_adapter(provider_type)
+        adapter = AdapterRegistry.get_adapter("openai-compatible")
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -279,13 +294,14 @@ class ModelProviderService:
         )
 
         # 检查是否支持
-        if not AdapterRegistry.is_supported(provider.provider_type, task_type):
+        runtime_provider_type = "openai-compatible"
+        if not AdapterRegistry.is_supported(runtime_provider_type, task_type):
             raise ValueError(
                 f"Provider '{provider.provider_type}' does not support task_type '{task_type}'"
             )
 
         # 获取Adapter
-        adapter = AdapterRegistry.get_adapter(provider.provider_type)
+        adapter = AdapterRegistry.get_adapter(runtime_provider_type)
 
         # 解密API Key
         api_key = self.encryption_service.decrypt(provider.api_key_encrypted)

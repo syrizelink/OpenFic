@@ -21,6 +21,7 @@ class ModelConfig:
     presence_penalty: float | None = None
     deepseek_reasoning_effort: str | None = None
     deepseek_thinking_type: str | None = None
+    use_openai_compatible: bool = True
 
 
 def _compact_kwargs(**kwargs: Any) -> dict[str, Any]:
@@ -28,7 +29,7 @@ def _compact_kwargs(**kwargs: Any) -> dict[str, Any]:
 
 
 def create_chat_model(config: ModelConfig) -> BaseChatModel:
-    provider = config.provider_type
+    provider = "openai-compatible" if config.use_openai_compatible else config.provider_type
 
     if provider == "anthropic":
         from langchain_anthropic import ChatAnthropic

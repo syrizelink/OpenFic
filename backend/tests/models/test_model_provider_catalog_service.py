@@ -177,13 +177,8 @@ def _build_service(tmp_path: Path) -> ModelProviderCatalogService:
 async def test_catalog_service_uses_bundled_snapshot_until_refresh(tmp_path: Path) -> None:
     service = _build_service(tmp_path)
 
-    status = await service.get_status()
     providers = await service.list_providers()
 
-    assert status.source == "bundled"
-    assert status.last_refreshed_at is None
-    assert status.provider_count == 4
-    assert status.model_count == 9
     assert [provider.provider_type for provider in providers] == [
         "nvidia-ai-endpoints",
         "openai",
@@ -199,18 +194,19 @@ async def test_catalog_service_refreshes_cache_and_keeps_last_successful_cache_o
 ) -> None:
     service = _build_service(tmp_path)
 
-    refreshed_status = await service.refresh()
-    assert refreshed_status.source == "cache"
-    assert refreshed_status.last_refreshed_at is not None
+    await service.refresh()
+    assert service.cache_snapshot_path.exists()
+    refreshed_metadata = json.loads(service.cache_metadata_path.read_text(encoding="utf-8"))
+    assert refreshed_metadata["last_refreshed_at"]
 
     providers = await service.list_providers()
     assert providers[0].supported_task_types == ["embedding", "llm", "rerank"]
 
     assert service.source_snapshot_path is not None
     service.source_snapshot_path.write_text("{", encoding="utf-8")
-    preserved_status = await service.refresh()
-    assert preserved_status.source == "cache"
-    assert preserved_status.last_refreshed_at == refreshed_status.last_refreshed_at
+    await service.refresh()
+    preserved_metadata = json.loads(service.cache_metadata_path.read_text(encoding="utf-8"))
+    assert preserved_metadata == refreshed_metadata
 
     openai_provider = await service.get_provider("openai")
     assert openai_provider.default_url == "https://api.openai.com/v1"

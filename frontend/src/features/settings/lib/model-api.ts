@@ -12,7 +12,6 @@ import type {
   ModelProviderCatalogMatch,
   ModelProviderCatalogModelsResponse,
   ModelProviderCatalogProvider,
-  ModelProviderCatalogStatus,
   ModelProvider,
   ModelProviderResponse,
   ModelProviderValidateRequest,
@@ -23,13 +22,6 @@ import type {
   ModelUpdateRequest,
   TagsResponse,
 } from "@/lib/model.types";
-
-interface ModelProviderCatalogStatusResponse {
-  source: string;
-  last_refreshed_at: string | null;
-  provider_count: number;
-  model_count: number;
-}
 
 interface ModelProviderCatalogProviderResponse {
   provider_type: string;
@@ -174,17 +166,6 @@ function transformModel(raw: ModelResponse): Model {
   };
 }
 
-function transformCatalogStatus(
-  raw: ModelProviderCatalogStatusResponse,
-): ModelProviderCatalogStatus {
-  return {
-    source: raw.source,
-    lastRefreshedAt: raw.last_refreshed_at,
-    providerCount: raw.provider_count,
-    modelCount: raw.model_count,
-  };
-}
-
 function transformCatalogProvider(
   raw: ModelProviderCatalogProviderResponse,
 ): ModelProviderCatalogProvider {
@@ -326,20 +307,6 @@ export async function fetchProviderModels(
     ...response.data,
     models: (response.data.models || []).map((model) => transformAvailableModel(model, "remote")),
   };
-}
-
-export async function fetchModelProviderCatalogStatus(): Promise<ModelProviderCatalogStatus> {
-  const response = await apiClient.get<ModelProviderCatalogStatusResponse>(
-    "/model-provider-catalog/status",
-  );
-  return transformCatalogStatus(response.data);
-}
-
-export async function refreshModelProviderCatalog(): Promise<ModelProviderCatalogStatus> {
-  const response = await apiClient.post<ModelProviderCatalogStatusResponse>(
-    "/model-provider-catalog/refresh",
-  );
-  return transformCatalogStatus(response.data);
 }
 
 export async function fetchModelProviderCatalogProviders(): Promise<

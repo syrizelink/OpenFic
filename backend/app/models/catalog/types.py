@@ -4,15 +4,6 @@
 from pydantic import BaseModel, Field
 
 
-class CatalogStatus(BaseModel):
-    source: str = Field(description="bundled or cache")
-    last_refreshed_at: str | None = Field(
-        default=None, description="Last successful refresh timestamp"
-    )
-    provider_count: int = Field(description="Provider count in the current catalog")
-    model_count: int = Field(description="Model count in the current catalog")
-
-
 class CatalogProviderModelSummary(BaseModel):
     model_id: str = Field(description="Catalog model id")
     display_name: str = Field(description="Catalog model display name")

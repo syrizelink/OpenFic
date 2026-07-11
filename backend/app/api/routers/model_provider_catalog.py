@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.models.catalog import (
     CatalogProviderModelsResponse,
     CatalogProviderSummary,
-    CatalogStatus,
     ModelProviderCatalogService,
 )
 
@@ -17,13 +16,6 @@ router = APIRouter(prefix="/model-provider-catalog", tags=["model-provider-catal
 
 def get_catalog_service() -> ModelProviderCatalogService:
     return ModelProviderCatalogService()
-
-
-@router.get("/status", response_model=CatalogStatus, summary="Get catalog status")
-async def get_catalog_status(
-    service: Annotated[ModelProviderCatalogService, Depends(get_catalog_service)],
-) -> CatalogStatus:
-    return await service.get_status()
 
 
 @router.get(
@@ -54,10 +46,3 @@ async def get_catalog_provider_models(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Catalog provider '{provider_type}' not found",
         )
-
-
-@router.post("/refresh", response_model=CatalogStatus, summary="Refresh catalog cache")
-async def refresh_catalog(
-    service: Annotated[ModelProviderCatalogService, Depends(get_catalog_service)],
-) -> CatalogStatus:
-    return await service.refresh()

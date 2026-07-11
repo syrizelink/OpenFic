@@ -8,7 +8,6 @@ from app.models.catalog.types import (
     CatalogProviderModelsResponse,
     CatalogProviderModelSummary,
     CatalogProviderSummary,
-    CatalogStatus,
 )
 
 __all__ = [
@@ -16,7 +15,6 @@ __all__ = [
     "CatalogProviderModelSummary",
     "CatalogProviderModelsResponse",
     "CatalogProviderSummary",
-    "CatalogStatus",
     "CatalogIconProxyService",
     "ModelProviderCatalogService",
 ]

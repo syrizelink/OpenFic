@@ -17,7 +17,6 @@ from app.models.catalog.types import (
     CatalogProviderModelSummary,
     CatalogProviderModelsResponse,
     CatalogProviderSummary,
-    CatalogStatus,
 )
 from app.models.registry import AdapterRegistry
 from app.settings import BACKEND_DATA_DIR
@@ -105,16 +104,6 @@ class ModelProviderCatalogService:
             BACKEND_DATA_DIR / "icons" / "model" / "catalog"
         )
 
-    async def get_status(self) -> CatalogStatus:
-        snapshot, source, last_refreshed_at = self._load_current_snapshot()
-        provider_count, model_count = self._count_snapshot(snapshot)
-        return CatalogStatus(
-            source=source,
-            last_refreshed_at=last_refreshed_at,
-            provider_count=provider_count,
-            model_count=model_count,
-        )
-
     async def list_providers(self) -> list[CatalogProviderSummary]:
         snapshot, _, _ = self._load_current_snapshot()
         providers = [
@@ -151,7 +140,7 @@ class ModelProviderCatalogService:
             models=models,
         )
 
-    async def refresh(self) -> CatalogStatus:
+    async def refresh(self) -> None:
         try:
             raw_payload = await self._load_refresh_payload()
             normalized_snapshot = self._build_normalized_snapshot(raw_payload)
@@ -166,7 +155,6 @@ class ModelProviderCatalogService:
             )
         except Exception as exc:
             logger.warning("Catalog refresh failed, keeping last successful cache: {}", exc)
-        return await self.get_status()
 
     async def match_saved_provider(
         self, provider_type: str, url: str
@@ -249,11 +237,6 @@ class ModelProviderCatalogService:
         if not self._is_current_snapshot(snapshot):
             raise ValueError("Bundled catalog snapshot schema is outdated")
         return snapshot, "bundled", None
-
-    def _count_snapshot(self, snapshot: dict[str, Any]) -> tuple[int, int]:
-        providers = snapshot.get("providers", [])
-        model_count = sum(len(provider.get("models", [])) for provider in providers)
-        return len(providers), model_count
 
     def _find_provider(
         self, snapshot: dict[str, Any], provider_type: str
