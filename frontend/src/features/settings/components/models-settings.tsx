@@ -7,7 +7,7 @@
 import { Box, Flex, Text, Button, IconButton, Badge, Tabs, Tooltip } from "@radix-ui/themes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Edit } from "lucide-react";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Spinner } from "@/components";
@@ -38,23 +38,35 @@ import {
 } from "../lib/provider-utils";
 import { fetchSettings, updateSettings } from "../lib/settings-api";
 import { DEFAULT_MODEL_SETTINGS_TAB, type ModelSettingsTab } from "../lib/settings-route";
+import { AgentSettingsLockNotice } from "./agent-settings-lock-notice";
 import { ModelFormDialog } from "./model-form-dialog";
 
 interface ModelsSettingsProps {
   activeTab?: ModelSettingsTab;
   onActiveTabChange?: (tab: ModelSettingsTab) => void;
+  isAgentSettingsLocked: boolean;
+  isAgentSettingsLockLoading: boolean;
 }
 
 export function ModelsSettings({
   activeTab = DEFAULT_MODEL_SETTINGS_TAB,
   onActiveTabChange,
-}: ModelsSettingsProps = {}) {
+  isAgentSettingsLocked,
+  isAgentSettingsLockLoading,
+}: ModelsSettingsProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<Model | null>(null);
   const [deletingModel, setDeletingModel] = useState<Model | null>(null);
+
+  useEffect(() => {
+    if (!isAgentSettingsLocked) return;
+    setFormOpen(false);
+    setEditingModel(null);
+    setDeletingModel(null);
+  }, [isAgentSettingsLocked]);
 
   // 获取所有模型
   const {
@@ -284,6 +296,7 @@ export function ModelsSettings({
     isProvidersFetching ||
     isSettingsLoading ||
     isSettingsFetching ||
+    isAgentSettingsLockLoading ||
     (llmCatalogProviderTypes.length > 0 &&
       (isLlmCatalogMetadataLoading || isLlmCatalogMetadataFetching));
 
@@ -308,6 +321,7 @@ export function ModelsSettings({
 
   return (
     <Box>
+      <AgentSettingsLockNotice isLocked={isAgentSettingsLocked} />
       <Flex
         direction="column"
         gap="4"
@@ -352,7 +366,7 @@ export function ModelsSettings({
               }
               editable={false}
               allowCustomValue={false}
-              disabled={!hasLlmModels}
+              disabled={isAgentSettingsLocked || !hasLlmModels}
               emptyOptionLabel={`（${t("models.selectModelPlaceholder")}）`}
             />
           </Flex>
@@ -384,7 +398,7 @@ export function ModelsSettings({
               }
               editable={false}
               allowCustomValue={false}
-              disabled={!hasLlmModels}
+              disabled={isAgentSettingsLocked || !hasLlmModels}
               emptyOptionLabel={`（${t("models.selectModelPlaceholder")}）`}
             />
           </Flex>
@@ -396,7 +410,7 @@ export function ModelsSettings({
             <span>
               <Button
                 onClick={handleCreate}
-                disabled={!hasProviders}
+                disabled={isAgentSettingsLocked || !hasProviders}
               >
                 <Plus size={16} />
                 {t("models.newModel")}
@@ -527,6 +541,7 @@ export function ModelsSettings({
                             variant="ghost"
                             color="gray"
                             onClick={() => handleEdit(model)}
+                            disabled={isAgentSettingsLocked}
                           >
                             <Edit size={16} />
                           </IconButton>
@@ -534,6 +549,7 @@ export function ModelsSettings({
                             variant="ghost"
                             color="red"
                             onClick={() => handleDelete(model)}
+                            disabled={isAgentSettingsLocked}
                           >
                             <Trash2 size={16} />
                           </IconButton>
@@ -598,6 +614,7 @@ export function ModelsSettings({
         model={editingModel || undefined}
         onSubmit={handleSubmit}
         isSubmitting={createMutation.isPending || updateMutation.isPending}
+        isAgentSettingsLocked={isAgentSettingsLocked}
       />
 
       {/* 删除确认对话框 */}

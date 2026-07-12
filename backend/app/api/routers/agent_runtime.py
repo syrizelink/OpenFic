@@ -29,7 +29,7 @@ from app.agent_runtime.persistence.task_projection import (
     load_task_messages_for_agent_session,
 )
 from app.agent_runtime.persistence.model import AgentChildRun
-from app.agent_runtime.revisions import rollback_revision_for_session
+from app.agent_runtime.revisions import finalize_revision_status, rollback_revision_for_session
 from app.agent_runtime.fork import fork_agent_session_at_revision
 from app.agent_runtime.model_config import without_api_key
 from app.agent_runtime.runner.checkpointer import (
@@ -73,6 +73,7 @@ from app.socket import emit
 from app.socket.handlers import agent_session_room, background_project_room
 from app.storage.database import get_session
 from app.storage.models.chapter import Chapter
+from app.storage.repos import revision_repo
 from app.storage.services import task_service
 
 router = APIRouter(tags=["Agent"])
@@ -367,9 +368,18 @@ async def _get_runner(session_id: str, session: AsyncSession | None = None) -> S
     if not _is_valid_model_config(restored_model_config):
         raise NotFoundError(f"会话不存在: {session_id}")
     model_record_id = restored_model_config.get("model_record_id")
-    if not isinstance(model_record_id, str) or not model_record_id:
-        raise NotFoundError(f"会话不存在: {session_id}")
-    runner.model_config = await _resolve_model_config(session, model_record_id)
+    if isinstance(model_record_id, str) and model_record_id:
+        runner.model_config = await _resolve_model_config(session, model_record_id)
+    else:
+        runner.model_config = await _resolve_legacy_model_config(
+            session,
+            restored_model_config,
+        )
+        await graph.aupdate_state(
+            {"configurable": {"thread_id": session_id}},
+            {"model_config": without_api_key(runner.model_config)},
+            as_node="primary",
+        )
     restored_agent_key = values.get("agent_key")
     if isinstance(restored_agent_key, str) and restored_agent_key:
         runner.agent_key = restored_agent_key
@@ -412,6 +422,34 @@ async def _resolve_model_config(session: AsyncSession, model_id: str) -> dict:
         raise ValueError("API密钥解密失败") from exc
 
     return _build_model_config(model, provider, api_key)
+
+
+async def _resolve_legacy_model_config(
+    session: AsyncSession,
+    legacy_model_config: dict[str, object],
+) -> dict:
+    model_id = legacy_model_config.get("model_id")
+    provider_type = legacy_model_config.get("provider_type")
+    base_url = legacy_model_config.get("base_url")
+    if (
+        not isinstance(model_id, str)
+        or not model_id
+        or not isinstance(provider_type, str)
+        or not provider_type
+        or not isinstance(base_url, str)
+        or not base_url
+    ):
+        raise NotFoundError("会话模型配置无法恢复")
+
+    model = await model_repo.get_by_legacy_agent_config(
+        session,
+        model_id=model_id,
+        provider_type=provider_type,
+        base_url=base_url,
+    )
+    if model is None:
+        raise NotFoundError("会话模型配置无法恢复")
+    return await _resolve_model_config(session, model.id)
 
 
 async def _set_task_running_state(
@@ -1228,6 +1266,16 @@ async def cancel_agent_session(
         root_session_id=session_id,
         status_publisher=status_publisher,
     )
+    task = await task_service.get_task_by_agent_session_id(session, session_id)
+    revision = (
+        await revision_repo.get_by_id(session, task.current_revision_id)
+        if task.current_revision_id
+        else None
+    )
+    if revision is not None and revision.status in {"active", "interrupted"}:
+        await finalize_revision_status(session, revision.id, "cancelled")
+    await task_service.update_task(session, task.id, is_running=False)
+    await session.commit()
     return AgentCancelResponse(
         success=True,
         session_id=session_id,

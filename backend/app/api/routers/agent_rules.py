@@ -14,6 +14,7 @@ from app.api.schemas.agent_rule import (
     AgentRuleResponse,
     AgentRuleUpdate,
 )
+from app.api.agent_settings_lock import require_agent_settings_unlocked
 from app.core.errors import NotFoundError
 from app.storage.database import get_session
 from app.storage.services import agent_rule_service
@@ -37,6 +38,7 @@ async def create_rule(
     data: AgentRuleCreate,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AgentRuleResponse:
+    await require_agent_settings_unlocked(session)
     logger.info("创建 AgentRule")
     rule = await agent_rule_service.create_rule(
         session,
@@ -79,6 +81,7 @@ async def update_rule(
     data: AgentRuleUpdate,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AgentRuleResponse:
+    await require_agent_settings_unlocked(session)
     try:
         rule = await agent_rule_service.update_rule(
             session,
@@ -96,6 +99,7 @@ async def reorder_rules(
     data: AgentRuleReorder,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[AgentRuleResponse]:
+    await require_agent_settings_unlocked(session)
     rules = await agent_rule_service.reorder_rules(session, data.rule_ids)
     return [_to_response(rule) for rule in rules]
 
@@ -105,6 +109,7 @@ async def delete_rule(
     rule_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> None:
+    await require_agent_settings_unlocked(session)
     try:
         await agent_rule_service.delete_rule(session, rule_id)
     except NotFoundError as exc:

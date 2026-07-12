@@ -83,6 +83,58 @@ async def test_get_all_models(client: AsyncClient, session: AsyncSession):
 
 
 @pytest.mark.asyncio
+async def test_find_legacy_agent_model_requires_a_unique_match(
+    client: AsyncClient,
+    session: AsyncSession,
+):
+    from app.core.encryption import EncryptionService
+    from app.settings import settings
+
+    encrypted_key = EncryptionService(settings.encryption_key).encrypt("test-key")
+    provider = await model_provider_repo.create(
+        session=session,
+        name="Legacy Provider",
+        url="https://api.example.com",
+        api_key_encrypted=encrypted_key,
+        provider_type="openai-compatible",
+    )
+    first_model = await model_repo.create(
+        session=session,
+        name="Legacy Model 1",
+        provider_id=provider.id,
+        model_id="legacy-model",
+    )
+    await session.commit()
+
+    matched = await model_repo.get_by_legacy_agent_config(
+        session,
+        model_id="legacy-model",
+        provider_type="openai-compatible",
+        base_url="https://api.example.com",
+    )
+
+    assert matched is not None
+    assert matched.id == first_model.id
+
+    await model_repo.create(
+        session=session,
+        name="Legacy Model 2",
+        provider_id=provider.id,
+        model_id="legacy-model",
+    )
+    await session.commit()
+
+    ambiguous_match = await model_repo.get_by_legacy_agent_config(
+        session,
+        model_id="legacy-model",
+        provider_type="openai-compatible",
+        base_url="https://api.example.com",
+    )
+
+    assert ambiguous_match is None
+
+
+@pytest.mark.asyncio
 async def test_get_models_by_provider(client: AsyncClient, session: AsyncSession):
     """测试根据提供商 ID 获取模型。"""
     from app.core.encryption import EncryptionService

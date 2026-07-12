@@ -35,6 +35,7 @@ interface IndexSettingsGlobalConfigProps {
   onEnabledProjectsChange: (projectIds: string[]) => void;
   onChunkSizeChange: (value: string) => void;
   onChunkOverlapChange: (value: string) => void;
+  isAgentSettingsLocked: boolean;
 }
 
 export function IndexSettingsGlobalConfig({
@@ -53,6 +54,7 @@ export function IndexSettingsGlobalConfig({
   onEnabledProjectsChange,
   onChunkSizeChange,
   onChunkOverlapChange,
+  isAgentSettingsLocked,
 }: IndexSettingsGlobalConfigProps) {
   const { t } = useTranslation();
 
@@ -84,6 +86,7 @@ export function IndexSettingsGlobalConfig({
               allowCustomValue={false}
               emptyOptionLabel={t("index.disabled")}
               triggerStyle={FIELD_WIDTH}
+              disabled={isAgentSettingsLocked}
             />
           </Flex>
 
@@ -107,6 +110,7 @@ export function IndexSettingsGlobalConfig({
               allowCustomValue={false}
               emptyOptionLabel={t("index.disabled")}
               triggerStyle={FIELD_WIDTH}
+              disabled={isAgentSettingsLocked}
             />
           </Flex>
 
@@ -120,6 +124,7 @@ export function IndexSettingsGlobalConfig({
             labelWeight="regular"
             labelColor="gray"
             gap="1"
+            disabled={isAgentSettingsLocked}
           />
 
           <LabeledSelect
@@ -132,6 +137,7 @@ export function IndexSettingsGlobalConfig({
             labelWeight="regular"
             labelColor="gray"
             gap="1"
+            disabled={isAgentSettingsLocked}
           />
 
           {settings.indexMode === "selected" ? (
@@ -147,6 +153,7 @@ export function IndexSettingsGlobalConfig({
                 labelWeight="regular"
                 labelColor="gray"
                 onChange={onEnabledProjectsChange}
+                disabled={isAgentSettingsLocked}
               />
             </Box>
           ) : null}
@@ -157,6 +164,7 @@ export function IndexSettingsGlobalConfig({
             min={1}
             unit={t("index.unitCharacters")}
             onChange={onChunkSizeChange}
+            disabled={isAgentSettingsLocked}
           />
           <LabeledNumberInput
             label={t("index.chunkOverlap")}
@@ -164,6 +172,7 @@ export function IndexSettingsGlobalConfig({
             min={0}
             unit={t("index.unitCharacters")}
             onChange={onChunkOverlapChange}
+            disabled={isAgentSettingsLocked}
           />
         </Box>
       </Flex>
@@ -177,12 +186,14 @@ function LabeledNumberInput({
   min,
   unit,
   onChange,
+  disabled,
 }: {
   label: string;
   value: string;
   min: number;
   unit: string;
   onChange: (value: string) => void;
+  disabled: boolean;
 }) {
   return (
     <Flex
@@ -202,6 +213,7 @@ function LabeledNumberInput({
         min={min}
         unit={unit}
         unitSide="right"
+        disabled={disabled}
       />
     </Flex>
   );

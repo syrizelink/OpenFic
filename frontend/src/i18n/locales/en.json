@@ -541,6 +541,8 @@
     "batchToggled": "{{count}} entries updated"
   },
   "settings": {
+    "agentSettingsLocked": "An Agent session is running, so related settings are read-only.",
+    "agentSettingsLockHint": "Wait for all sessions to finish before making changes.",
     "title": "Settings",
     "general": "General",
     "connections": "Providers",

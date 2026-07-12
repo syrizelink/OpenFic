@@ -12,6 +12,7 @@ from app.api.schemas.retrieval_index import (
     IndexStartResponse,
     IndexStopResponse,
 )
+from app.api.agent_settings_lock import require_agent_settings_unlocked
 from app.background.jobs import service as background_service
 from app.background.jobs.constants import JOB_TYPE_RETRIEVAL_CHAPTER_INDEX_BATCH
 from app.background.jobs.states import JOB_STATUS_PENDING, JOB_STATUS_RUNNING
@@ -68,6 +69,7 @@ async def start_project_retrieval_index(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> IndexStartResponse:
+    await require_agent_settings_unlocked(session)
     await _require_project(session, project_id)
     config = await get_index_settings(session)
     if not is_project_index_enabled(config, project_id):
@@ -96,6 +98,7 @@ async def stop_project_retrieval_index(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> IndexStopResponse:
+    await require_agent_settings_unlocked(session)
     await _require_project(session, project_id)
     publisher = get_background_supervisor().create_event_publisher()
     jobs = await background_service.list_jobs(

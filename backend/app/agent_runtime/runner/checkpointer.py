@@ -4,12 +4,18 @@ from pathlib import Path
 import aiosqlite
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import Checkpoint, copy_checkpoint
+from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 import app.settings as app_settings
 from app.agent_runtime.model_config import without_api_key
 
 _checkpointer: AsyncSqliteSaver | None = None
+
+_ALLOWED_MSGPACK_MODULES = (
+    ("app.agent_runtime.tools.impls.interaction.ask_user", "Question"),
+    ("app.agent_runtime.tools.impls.interaction.ask_user", "QuestionOption"),
+)
 
 
 def _default_db_path() -> Path:
@@ -53,7 +59,12 @@ async def get_checkpointer() -> AsyncSqliteSaver:
         db_path = _get_db_path()
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
         conn = await aiosqlite.connect(db_path)
-        _checkpointer = AsyncSqliteSaver(conn)
+        _checkpointer = AsyncSqliteSaver(
+            conn,
+            serde=JsonPlusSerializer(
+                allowed_msgpack_modules=_ALLOWED_MSGPACK_MODULES,
+            ),
+        )
         await _checkpointer.setup()
         await _remove_api_keys_from_existing_checkpoints(_checkpointer)
     return _checkpointer

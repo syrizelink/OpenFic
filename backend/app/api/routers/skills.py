@@ -14,6 +14,7 @@ from app.api.schemas.skill import (
     SkillResponse,
     SkillUpdate,
 )
+from app.api.agent_settings_lock import require_agent_settings_unlocked
 from app.api.schemas.skill_reference_doc import SkillReferenceDocResponse
 from app.core.errors import NotFoundError
 from app.storage.database import get_session
@@ -52,6 +53,7 @@ async def create_skill(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> SkillResponse:
     try:
+        await require_agent_settings_unlocked(session)
         logger.info(f"创建 Skill: name={data.name}")
         skill = await skill_service.create_skill(
             session,
@@ -90,6 +92,7 @@ async def import_skill(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> SkillImportResponse:
     try:
+        await require_agent_settings_unlocked(session)
         uploaded = [
             skill_import_service.UploadedFile(
                 filename=f.filename or "",
@@ -129,6 +132,7 @@ async def update_skill(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> SkillResponse:
     try:
+        await require_agent_settings_unlocked(session)
         skill = await skill_service.update_skill(
             session,
             skill_db_id,
@@ -150,6 +154,7 @@ async def toggle_skill(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> SkillResponse:
     try:
+        await require_agent_settings_unlocked(session)
         skill = await skill_service.toggle_skill(session, skill_db_id)
         return _to_response(skill)
     except NotFoundError as exc:
@@ -164,6 +169,7 @@ async def delete_skill(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> None:
     try:
+        await require_agent_settings_unlocked(session)
         await skill_service.delete_skill(session, skill_db_id)
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))

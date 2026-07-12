@@ -27,6 +27,7 @@ import { fetchModels, fetchProviders } from "../lib/model-api";
 import { resolveProviderIconPath } from "../lib/provider-utils";
 import { fetchSettings, updateSettings } from "../lib/settings-api";
 import type { Settings, SettingsUpdateRequest } from "../lib/settings.types";
+import { AgentSettingsLockNotice } from "./agent-settings-lock-notice";
 import { IndexSettingsGlobalConfig } from "./index-settings-global-config";
 import { IndexSettingsOverview } from "./index-settings-overview";
 import {
@@ -168,7 +169,15 @@ function patchOverallIndexStatus(
   };
 }
 
-export function IndexSettings() {
+interface IndexSettingsProps {
+  isAgentSettingsLocked: boolean;
+  isAgentSettingsLockLoading: boolean;
+}
+
+export function IndexSettings({
+  isAgentSettingsLocked,
+  isAgentSettingsLockLoading,
+}: IndexSettingsProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
@@ -345,12 +354,13 @@ export function IndexSettings() {
 
   const handleRerankModelChange = useCallback(
     (value: string) => {
+      if (isAgentSettingsLocked) return;
       updateSettingsMutation.mutate({
         default_rerank_model: value,
         index_rerank_enabled: value !== "",
       });
     },
-    [updateSettingsMutation],
+    [isAgentSettingsLocked, updateSettingsMutation],
   );
 
   // 当服务端分块参数变化时（如被其他端修改），同步本地输入。
@@ -382,6 +392,7 @@ export function IndexSettings() {
   }, []);
 
   const scheduleChunkSave = useCallback(() => {
+    if (isAgentSettingsLocked) return;
     if (chunkSaveTimerRef.current !== null) {
       clearTimeout(chunkSaveTimerRef.current);
     }
@@ -400,10 +411,22 @@ export function IndexSettings() {
   }, [
     chunkSize,
     chunkOverlap,
+    isAgentSettingsLocked,
     settings?.indexChunkSize,
     settings?.indexChunkOverlap,
     updateSettingsMutation,
   ]);
+
+  useEffect(() => {
+    if (!isAgentSettingsLocked) return;
+    if (chunkSaveTimerRef.current !== null) {
+      clearTimeout(chunkSaveTimerRef.current);
+      chunkSaveTimerRef.current = null;
+    }
+    setPendingEmbeddingModelId(null);
+    setChunkSize(String(settings?.indexChunkSize ?? 800));
+    setChunkOverlap(String(settings?.indexChunkOverlap ?? 100));
+  }, [isAgentSettingsLocked, settings?.indexChunkOverlap, settings?.indexChunkSize]);
 
   const modeOptions = useMemo(
     () => [
@@ -424,13 +447,15 @@ export function IndexSettings() {
 
   const handleModeChange = useCallback(
     (mode: IndexMode) => {
+      if (isAgentSettingsLocked) return;
       updateSettingsMutation.mutate({ index_mode: mode });
     },
-    [updateSettingsMutation],
+    [isAgentSettingsLocked, updateSettingsMutation],
   );
 
   const handleEmbeddingModelChange = useCallback(
     (value: string) => {
+      if (isAgentSettingsLocked) return;
       const current = settings?.defaultEmbeddingModel || "";
       if (current && value !== current) {
         setPendingEmbeddingModelId(value);
@@ -438,22 +463,24 @@ export function IndexSettings() {
       }
       updateSettingsMutation.mutate({ default_embedding_model: value });
     },
-    [settings?.defaultEmbeddingModel, updateSettingsMutation],
+    [isAgentSettingsLocked, settings?.defaultEmbeddingModel, updateSettingsMutation],
   );
 
   const confirmEmbeddingModelChange = useCallback(() => {
+    if (isAgentSettingsLocked) return;
     if (pendingEmbeddingModelId === null) return;
     updateSettingsMutation.mutate({ default_embedding_model: pendingEmbeddingModelId });
     setPendingEmbeddingModelId(null);
-  }, [pendingEmbeddingModelId, updateSettingsMutation]);
+  }, [isAgentSettingsLocked, pendingEmbeddingModelId, updateSettingsMutation]);
 
   const handleAutoStrategyChange = useCallback(
     (strategy: IndexAutoStrategy) => {
+      if (isAgentSettingsLocked) return;
       updateSettingsMutation.mutate({
         index_auto_strategy: strategy,
       });
     },
-    [updateSettingsMutation],
+    [isAgentSettingsLocked, updateSettingsMutation],
   );
 
   const isContentLoading =
@@ -464,6 +491,7 @@ export function IndexSettings() {
     !models ||
     isProjectsLoading ||
     !projectsData ||
+    isAgentSettingsLockLoading ||
     (Boolean(settings) && overall.isLoading && !overall.data);
 
   if (isContentLoading) {
@@ -487,6 +515,7 @@ export function IndexSettings() {
 
   return (
     <Box>
+      <AgentSettingsLockNotice isLocked={isAgentSettingsLocked} />
       <Flex
         direction="column"
         gap="5"
@@ -514,19 +543,26 @@ export function IndexSettings() {
           onModeChange={handleModeChange}
           onAutoStrategyChange={handleAutoStrategyChange}
           onEnabledProjectsChange={(projectIds) => {
+            if (isAgentSettingsLocked) return;
             updateSettingsMutation.mutate({ index_enabled_projects: projectIds });
           }}
           onChunkSizeChange={(value) => {
+            if (isAgentSettingsLocked) return;
             setChunkSize(value);
             scheduleChunkSave();
           }}
           onChunkOverlapChange={(value) => {
+            if (isAgentSettingsLocked) return;
             setChunkOverlap(value);
             scheduleChunkSave();
           }}
+          isAgentSettingsLocked={isAgentSettingsLocked}
         />
 
-        <ProjectIndexList groups={projectGroups} />
+        <ProjectIndexList
+          groups={projectGroups}
+          isAgentSettingsLocked={isAgentSettingsLocked}
+        />
       </Flex>
 
       <ConfirmDialog

@@ -45,6 +45,7 @@ interface ConnectionFormDialogProps {
   isCatalogLoading?: boolean;
   onSubmit: (data: FormData) => Promise<void>;
   isSubmitting: boolean;
+  isAgentSettingsLocked: boolean;
 }
 
 export function ConnectionFormDialog({
@@ -55,6 +56,7 @@ export function ConnectionFormDialog({
   isCatalogLoading = false,
   onSubmit,
   isSubmitting,
+  isAgentSettingsLocked,
 }: ConnectionFormDialogProps) {
   const { t } = useTranslation();
   const isEditing = !!connection;
@@ -300,6 +302,7 @@ export function ConnectionFormDialog({
                       <TextField.Root
                         {...field}
                         placeholder={t("connections.namePlaceholder")}
+                        disabled={isAgentSettingsLocked}
                       />
                     )}
                   />
@@ -332,7 +335,7 @@ export function ConnectionFormDialog({
                         onChange={field.onChange}
                         providers={catalogProviders ?? []}
                         placeholder={t("connections.providerTypePlaceholder")}
-                        disabled={isEditing}
+                        disabled={isAgentSettingsLocked || isEditing}
                       />
                     )}
                   />
@@ -382,6 +385,7 @@ export function ConnectionFormDialog({
                     <TextField.Root
                       {...field}
                       placeholder={t("connections.urlPlaceholder")}
+                      disabled={isAgentSettingsLocked}
                     />
                   )}
                 />
@@ -432,6 +436,7 @@ export function ConnectionFormDialog({
                     placeholder={
                       apiKey ? t("connections.apiKeyPlaceholderEdit") : "••••••••••••••••"
                     }
+                    disabled={isAgentSettingsLocked}
                   />
                   <Text
                     size="1"
@@ -450,6 +455,7 @@ export function ConnectionFormDialog({
                       {...field}
                       type="password"
                       placeholder={t("connections.apiKeyPlaceholder")}
+                      disabled={isAgentSettingsLocked}
                     />
                   )}
                 />
@@ -474,7 +480,9 @@ export function ConnectionFormDialog({
                 type="button"
                 variant="soft"
                 onClick={handleValidate}
-                disabled={!canValidate || validationStatus === "validating"}
+                disabled={
+                  isAgentSettingsLocked || !canValidate || validationStatus === "validating"
+                }
                 style={{
                   backgroundColor:
                     validationStatus === "success"
@@ -515,7 +523,11 @@ export function ConnectionFormDialog({
                 </Dialog.Close>
                 <Button
                   type="submit"
-                  disabled={isSubmitting || (!isEditing && validationStatus !== "success")}
+                  disabled={
+                    isAgentSettingsLocked ||
+                    isSubmitting ||
+                    (!isEditing && validationStatus !== "success")
+                  }
                 >
                   {isSubmitting ? <Spinner size={18} /> : null}
                   {isEditing ? t("common.save") : t("common.create")}

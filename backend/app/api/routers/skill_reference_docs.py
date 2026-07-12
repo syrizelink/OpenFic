@@ -12,6 +12,7 @@ from app.api.schemas.skill_reference_doc import (
     SkillReferenceDocResponse,
     SkillReferenceDocUpdate,
 )
+from app.api.agent_settings_lock import require_agent_settings_unlocked
 from app.core.errors import NotFoundError
 from app.storage.database import get_session
 from app.storage.services import skill_reference_doc_service
@@ -41,6 +42,7 @@ async def create_reference_doc(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> SkillReferenceDocResponse:
     try:
+        await require_agent_settings_unlocked(session)
         logger.info(f"创建参考文档: skill_db_id={skill_db_id}")
         doc = await skill_reference_doc_service.create_reference_doc(
             session,
@@ -79,6 +81,7 @@ async def update_reference_doc(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> SkillReferenceDocResponse:
     try:
+        await require_agent_settings_unlocked(session)
         doc = await skill_reference_doc_service.update_reference_doc(
             session,
             skill_db_id,
@@ -101,6 +104,7 @@ async def delete_reference_doc(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> None:
     try:
+        await require_agent_settings_unlocked(session)
         await skill_reference_doc_service.delete_reference_doc(session, skill_db_id, doc_id)
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))

@@ -15,7 +15,10 @@ from app.agent_runtime.tools.permission_metadata import (
     SETTING_KEY_AGENT_TOOL_PERMISSIONS,
     get_default_agent_tool_permissions,
 )
+from app.agent_runtime.session_activity import has_active_agent_sessions
+from app.api.agent_settings_lock import require_agent_settings_unlocked
 from app.api.schemas.setting import (
+    AgentSettingsLockResponse,
     AgentToolPermissionItem,
     SettingsResponse,
     SettingsUpdateRequest,
@@ -76,6 +79,19 @@ DEFAULT_SETTINGS = {
     SETTING_KEY_AGENT_BYPASS_TOOL_APPROVAL: "false",
     SETTING_KEY_AGENT_TOOL_PERMISSIONS: "[]",
 }
+
+
+@router.get(
+    "/agent-session-lock",
+    response_model=AgentSettingsLockResponse,
+    summary="获取 Agent 会话设置锁定状态",
+)
+async def get_agent_settings_lock(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AgentSettingsLockResponse:
+    return AgentSettingsLockResponse(
+        is_locked=await has_active_agent_sessions(session),
+    )
 
 
 def _parse_agent_tool_permissions(raw_value: str) -> list[AgentToolPermissionItem]:
@@ -301,6 +317,24 @@ async def update_settings(
     Returns:
         更新后的设置。
     """
+    is_restricted_update = any(
+        value is not None
+        for value in (
+            request.default_model,
+            request.light_model,
+            request.default_embedding_model,
+            request.index_mode,
+            request.index_enabled_projects,
+            request.index_chunk_size,
+            request.index_chunk_overlap,
+            request.index_auto_strategy,
+            request.index_rerank_enabled,
+            request.default_rerank_model,
+        )
+    )
+    if is_restricted_update:
+        await require_agent_settings_unlocked(session)
+
     logger.info(f"更新设置: {request}")
 
     settings_list = await setting_repo.get_all(session)

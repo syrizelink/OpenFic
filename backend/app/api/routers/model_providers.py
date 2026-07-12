@@ -23,6 +23,7 @@ from app.api.schemas.model_provider import (
     ModelProviderValidateRequest,
     ModelProviderValidateResponse,
 )
+from app.api.agent_settings_lock import require_agent_settings_unlocked
 from app.models.catalog import ModelProviderCatalogService
 from app.core.encryption import EncryptionService
 from app.core.errors import NotFoundError
@@ -161,6 +162,7 @@ async def create_provider(
     Returns:
         创建的提供商信息。
     """
+    await require_agent_settings_unlocked(session)
     logger.info(f"创建提供商: {provider_type}")
 
     provider = await service.create_provider(
@@ -206,6 +208,7 @@ async def update_provider(
     Raises:
         HTTPException: 如果提供商不存在。
     """
+    await require_agent_settings_unlocked(session)
     logger.info(f"更新提供商: {provider_id}")
 
     try:
@@ -246,6 +249,7 @@ async def delete_provider(
     Raises:
         HTTPException: 如果提供商不存在。
     """
+    await require_agent_settings_unlocked(session)
     logger.info(f"删除提供商: {provider_id}")
 
     try:

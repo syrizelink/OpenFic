@@ -31,6 +31,8 @@ import {
   updateAgentRule,
 } from "@/lib/api-client";
 
+import { AgentSettingsLockNotice } from "./agent-settings-lock-notice";
+
 import "./skills-settings.css";
 
 const MotionBox = motion.create(Box);
@@ -52,6 +54,8 @@ interface RulesSettingsProps {
   mobileDirection?: 1 | -1;
   onMobileDetailTitleChange?: (title: string | null) => void;
   onMobilePageChange?: (page: "list" | "detail") => void;
+  isAgentSettingsLocked: boolean;
+  isAgentSettingsLockLoading: boolean;
 }
 
 interface RuleFormState {
@@ -77,6 +81,8 @@ export function RulesSettings({
   mobileDirection: controlledMobileDirection,
   onMobileDetailTitleChange,
   onMobilePageChange,
+  isAgentSettingsLocked,
+  isAgentSettingsLockLoading,
 }: RulesSettingsProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -95,6 +101,13 @@ export function RulesSettings({
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  useEffect(() => {
+    if (!isAgentSettingsLocked) return;
+    setDeleteDialogOpen(false);
+    setContextMenuPos(null);
+    setContextMenuRuleId(null);
+  }, [isAgentSettingsLocked]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["agent-rules"],
@@ -216,7 +229,7 @@ export function RulesSettings({
   }, []);
 
   const contextMenuItems = useMemo<ContextMenuItem[]>(() => {
-    if (!contextMenuRuleId) return [];
+    if (!contextMenuRuleId || isAgentSettingsLocked) return [];
     return [
       {
         id: "delete",
@@ -230,7 +243,7 @@ export function RulesSettings({
         },
       },
     ];
-  }, [contextMenuRuleId, handleCloseContextMenu, t]);
+  }, [contextMenuRuleId, handleCloseContextMenu, isAgentSettingsLocked, t]);
 
   const listContent = (
     <div className="skills-settings-list-container">
@@ -277,7 +290,7 @@ export function RulesSettings({
                 color="gray"
                 aria-label={t("settingsExtra.rules.newRule")}
                 onClick={handleCreate}
-                disabled={createMutation.isPending}
+                disabled={isAgentSettingsLocked || createMutation.isPending}
               >
                 <Plus size={14} />
               </IconButton>
@@ -321,6 +334,7 @@ export function RulesSettings({
                   if (isMobile) handleMobilePageChange("detail");
                 }}
                 onContextMenu={(position) => handleContextMenu(rule.id, position)}
+                isAgentSettingsLocked={isAgentSettingsLocked}
               />
             ))}
           </Flex>
@@ -329,7 +343,7 @@ export function RulesSettings({
     </div>
   );
 
-  if (isLoading) {
+  if (isLoading || isAgentSettingsLockLoading) {
     return (
       <Flex
         align="center"
@@ -367,6 +381,7 @@ export function RulesSettings({
       key={selectedRule.id}
       rule={selectedRule}
       onSave={handleSave}
+      isAgentSettingsLocked={isAgentSettingsLocked}
     />
   );
 
@@ -376,6 +391,7 @@ export function RulesSettings({
         direction="column"
         className="skills-settings skills-settings--settings"
       >
+        <AgentSettingsLockNotice isLocked={isAgentSettingsLocked} />
         <Box className="settings-dialog-mobile-page-stack">
           <AnimatePresence
             initial={false}
@@ -448,6 +464,7 @@ export function RulesSettings({
               </Button>
               <Button
                 color="red"
+                disabled={isAgentSettingsLocked}
                 onClick={() => {
                   if (effectiveSelectedRuleId) deleteMutation.mutate(effectiveSelectedRuleId);
                 }}
@@ -466,6 +483,7 @@ export function RulesSettings({
       direction="column"
       className="skills-settings skills-settings--settings"
     >
+      <AgentSettingsLockNotice isLocked={isAgentSettingsLocked} />
       <Flex className="skills-settings-layout skills-settings-layout--settings">
         <Box
           display={{ initial: "none", md: "block" }}
@@ -511,6 +529,7 @@ export function RulesSettings({
             </Button>
             <Button
               color="red"
+              disabled={isAgentSettingsLocked}
               onClick={() => {
                 if (effectiveSelectedRuleId) deleteMutation.mutate(effectiveSelectedRuleId);
               }}
@@ -530,6 +549,7 @@ interface RuleListItemProps {
   isMenuOpen: boolean;
   onSelect: () => void;
   onContextMenu: (position: ContextMenuPosition) => void;
+  isAgentSettingsLocked: boolean;
 }
 
 function RuleListItem({
@@ -538,14 +558,16 @@ function RuleListItem({
   isMenuOpen,
   onSelect,
   onContextMenu,
+  isAgentSettingsLocked,
 }: RuleListItemProps) {
   const { t } = useTranslation();
   const handleContextMenu = useCallback(
     (event: React.MouseEvent) => {
+      if (isAgentSettingsLocked) return;
       event.preventDefault();
       onContextMenu({ x: event.clientX, y: event.clientY });
     },
-    [onContextMenu],
+    [isAgentSettingsLocked, onContextMenu],
   );
 
   return (
@@ -599,6 +621,7 @@ function RuleListItem({
               const rect = event.currentTarget.getBoundingClientRect();
               onContextMenu({ x: rect.right, y: rect.bottom + 4 });
             }}
+            disabled={isAgentSettingsLocked}
           >
             <MoreHorizontal size={14} />
           </IconButton>
@@ -611,15 +634,17 @@ function RuleListItem({
 interface RuleEditorProps {
   rule: AgentRule;
   onSave: (ruleId: string, payload: RuleFormState) => Promise<unknown>;
+  isAgentSettingsLocked: boolean;
 }
 
-function RuleEditor({ rule, onSave }: RuleEditorProps) {
+function RuleEditor({ rule, onSave, isAgentSettingsLocked }: RuleEditorProps) {
   const { t } = useTranslation();
   const [form, setForm] = useState<RuleFormState>(() => toFormState(rule));
   const [lastSaved, setLastSaved] = useState<string>(() => JSON.stringify(toFormState(rule)));
   const [isSaving, setIsSaving] = useState(false);
   const hasUnsavedChanges = JSON.stringify(form) !== lastSaved;
-  const canSave = hasUnsavedChanges && !isSaving && Boolean(form.title.trim());
+  const canSave =
+    !isAgentSettingsLocked && hasUnsavedChanges && !isSaving && Boolean(form.title.trim());
 
   const handleSave = useCallback(async () => {
     if (!canSave) return;
@@ -656,6 +681,7 @@ function RuleEditor({ rule, onSave }: RuleEditorProps) {
                 setForm((prev) => ({ ...prev, title: event.target.value }));
               }}
               placeholder={t("settingsExtra.rules.titlePlaceholder")}
+              disabled={isAgentSettingsLocked}
             />
           </Box>
 
@@ -668,6 +694,7 @@ function RuleEditor({ rule, onSave }: RuleEditorProps) {
               }}
               placeholder={t("settingsExtra.rules.contentPlaceholder")}
               rows={18}
+              disabled={isAgentSettingsLocked}
             />
           </Box>
         </Flex>

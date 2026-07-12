@@ -23,6 +23,7 @@ import { ModelsSettings } from "../components/models-settings";
 import { RulesSettings } from "../components/rules-settings";
 import { SettingsSidebar } from "../components/settings-sidebar";
 import { SkillsSettings } from "../components/skills-settings";
+import { useAgentSettingsLock } from "../lib/agent-settings-lock";
 import { fetchAgentTools, fetchSettings, updateSettings } from "../lib/settings-api";
 import { SETTINGS_CATEGORY_ITEMS, type SettingsCategory } from "../lib/settings-categories";
 import {
@@ -97,6 +98,8 @@ export function SettingsContent({
     queryKey: ["settings"],
     queryFn: fetchSettings,
   });
+  const { data: isAgentSettingsLocked = false, isLoading: isAgentSettingsLockLoading } =
+    useAgentSettingsLock();
 
   const {
     data: agentTools = [],
@@ -346,14 +349,26 @@ export function SettingsContent({
                 onSettingsChange={handleSettingsChange}
               />
             ) : null}
-            {activeCategory === "connections" ? <ConnectionsSettings /> : null}
+            {activeCategory === "connections" ? (
+              <ConnectionsSettings
+                isAgentSettingsLocked={isAgentSettingsLocked}
+                isAgentSettingsLockLoading={isAgentSettingsLockLoading}
+              />
+            ) : null}
             {activeCategory === "models" ? (
               <ModelsSettings
                 activeTab={activeModelTab}
                 onActiveTabChange={setActiveModelTab}
+                isAgentSettingsLocked={isAgentSettingsLocked}
+                isAgentSettingsLockLoading={isAgentSettingsLockLoading}
               />
             ) : null}
-            {activeCategory === "index" ? <IndexSettings /> : null}
+            {activeCategory === "index" ? (
+              <IndexSettings
+                isAgentSettingsLocked={isAgentSettingsLocked}
+                isAgentSettingsLockLoading={isAgentSettingsLockLoading}
+              />
+            ) : null}
             {activeCategory === "agent-tools" ? (
               <AgentToolsSettings
                 settings={displaySettings}
@@ -369,6 +384,8 @@ export function SettingsContent({
                 mobileDirection={mobileDirection}
                 onMobileDetailTitleChange={setMobileSubpageTitle}
                 onMobilePageChange={handleMobileSubpageChange}
+                isAgentSettingsLocked={isAgentSettingsLocked}
+                isAgentSettingsLockLoading={isAgentSettingsLockLoading}
               />
             ) : null}
             {activeCategory === "skills" ? (
@@ -380,6 +397,8 @@ export function SettingsContent({
                 onMobileDetailTitleChange={setMobileSubpageTitle}
                 onMobilePageChange={handleMobileSubpageChange}
                 onMobileRefDocEditChange={handleMobileRefDocEditChange}
+                isAgentSettingsLocked={isAgentSettingsLocked}
+                isAgentSettingsLockLoading={isAgentSettingsLockLoading}
               />
             ) : null}
             {activeCategory === "agents" ? (
@@ -389,6 +408,8 @@ export function SettingsContent({
                 mobileDirection={mobileDirection}
                 onMobileDetailTitleChange={setMobileSubpageTitle}
                 onMobilePageChange={handleMobileSubpageChange}
+                isAgentSettingsLocked={isAgentSettingsLocked}
+                isAgentSettingsLockLoading={isAgentSettingsLockLoading}
               />
             ) : null}
           </>

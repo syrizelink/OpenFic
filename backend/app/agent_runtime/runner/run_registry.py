@@ -130,6 +130,14 @@ class AgentRunRegistry:
             session_tasks = self._tasks.get(session_id) or {}
             return any(not task.done() for task in session_tasks.values())
 
+    async def has_running_tasks(self) -> bool:
+        async with self._lock:
+            return any(
+                not task.done()
+                for session_tasks in self._tasks.values()
+                for task in session_tasks.values()
+            )
+
     async def is_parent_running(self, session_id: str) -> bool:
         async with self._lock:
             task = (self._tasks.get(session_id) or {}).get("__parent__")

@@ -17,6 +17,7 @@ from app.api.schemas.model import (
     TaskType,
     TagsResponse,
 )
+from app.api.agent_settings_lock import require_agent_settings_unlocked
 from app.core.errors import NotFoundError
 from app.storage.database import get_session
 from app.models.services import ModelService
@@ -176,6 +177,7 @@ async def create_model(
     Returns:
         创建的模型信息。
     """
+    await require_agent_settings_unlocked(session)
     logger.info(f"创建模型: {request.name}")
 
     model = await service.create_model(
@@ -230,6 +232,7 @@ async def update_model(
     Raises:
         HTTPException: 如果模型不存在。
     """
+    await require_agent_settings_unlocked(session)
     logger.info(f"更新模型: {model_id}")
 
     try:
@@ -285,6 +288,7 @@ async def delete_model(
     Raises:
         HTTPException: 如果模型不存在。
     """
+    await require_agent_settings_unlocked(session)
     logger.info(f"删除模型: {model_id}")
 
     try:

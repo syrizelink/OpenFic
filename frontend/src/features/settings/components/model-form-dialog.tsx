@@ -64,6 +64,7 @@ interface ModelFormDialogProps {
   model?: Model;
   onSubmit: (data: ModelCreateRequest | ModelUpdateRequest) => Promise<void>;
   isSubmitting: boolean;
+  isAgentSettingsLocked: boolean;
 }
 
 export function ModelFormDialog({
@@ -72,6 +73,7 @@ export function ModelFormDialog({
   model,
   onSubmit,
   isSubmitting,
+  isAgentSettingsLocked,
 }: ModelFormDialogProps) {
   const { t } = useTranslation();
   const isEditing = !!model;
@@ -451,6 +453,7 @@ export function ModelFormDialog({
                     <TextField.Root
                       {...field}
                       placeholder={t("models.namePlaceholder")}
+                      disabled={isAgentSettingsLocked}
                     />
                   )}
                 />
@@ -496,6 +499,7 @@ export function ModelFormDialog({
                       onChange={field.onChange}
                       triggerStyle={{ width: "100%" }}
                       placeholder={t("models.taskTypePlaceholder")}
+                      disabled={isAgentSettingsLocked}
                     />
                   )}
                 />
@@ -540,6 +544,7 @@ export function ModelFormDialog({
                       onChange={field.onChange}
                       triggerStyle={{ width: "100%" }}
                       placeholder={t("models.providerPlaceholder")}
+                      disabled={isAgentSettingsLocked}
                     />
                   )}
                 />
@@ -592,7 +597,7 @@ export function ModelFormDialog({
                       models={availableModels}
                       isLoading={loadingModels}
                       placeholder={t("models.modelIdPlaceholder")}
-                      disabled={isModelSelectionDisabled}
+                      disabled={isAgentSettingsLocked || isModelSelectionDisabled}
                       taskType={taskType as TaskType}
                       error={modelsError}
                       showRefreshButton
@@ -648,6 +653,7 @@ export function ModelFormDialog({
                           field.onChange(val === "" ? null : Number(val));
                         }}
                         placeholder={t("models.dimensionsPlaceholder")}
+                        disabled={isAgentSettingsLocked}
                       />
                     )}
                   />
@@ -688,6 +694,7 @@ export function ModelFormDialog({
                       {...field}
                       placeholder={t("models.remarkPlaceholder")}
                       rows={2}
+                      disabled={isAgentSettingsLocked}
                     />
                   )}
                 />
@@ -707,6 +714,7 @@ export function ModelFormDialog({
                     existingTagsLabel={
                       existingTags && existingTags.length > 0 ? t("models.existingTags") : undefined
                     }
+                    disabled={isAgentSettingsLocked}
                   />
                 )}
               />
@@ -743,7 +751,7 @@ export function ModelFormDialog({
                 </Dialog.Close>
                 <Button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isAgentSettingsLocked || isSubmitting}
                 >
                   {isSubmitting ? <Spinner size={18} /> : null}
                   {isEditing ? t("common.save") : t("common.create")}

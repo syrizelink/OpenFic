@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
 from app.models.entities.model import Model
+from app.models.entities.model_provider import ModelProvider
 
 
 async def get_all(session: AsyncSession) -> list[Model]:
@@ -59,6 +60,27 @@ async def get_by_id(session: AsyncSession, model_id: str) -> Model | None:
     """
     result = await session.execute(select(Model).where(col(Model.id) == model_id))
     return result.scalar_one_or_none()
+
+
+async def get_by_legacy_agent_config(
+    session: AsyncSession,
+    *,
+    model_id: str,
+    provider_type: str,
+    base_url: str,
+) -> Model | None:
+    """Find the unique current model matching a checkpoint created before model IDs persisted."""
+    result = await session.execute(
+        select(Model)
+        .join(ModelProvider, col(Model.provider_id) == col(ModelProvider.id))
+        .where(
+            col(Model.model_id) == model_id,
+            col(ModelProvider.provider_type) == provider_type,
+            col(ModelProvider.url) == base_url,
+        )
+    )
+    matches = list(result.scalars().all())
+    return matches[0] if len(matches) == 1 else None
 
 
 async def create(
