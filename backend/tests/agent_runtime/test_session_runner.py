@@ -29,6 +29,29 @@ def test_session_runner_inject_queue():
     assert runner._inject_queue.empty()
 
 
+def test_runtime_config_keeps_api_key_outside_persisted_state():
+    runner = SessionRunner(
+        session_id="sess_runtime_config",
+        task_id="task_runtime_config",
+        model_config={
+            "model_record_id": "model-record-1",
+            "provider_type": "openai-compatible",
+            "model_id": "gpt-4o",
+            "api_key": "sk-runtime",
+            "base_url": "",
+            "max_context_tokens": 8000,
+        },
+    )
+
+    config = runner._build_runtime_config(
+        runtime_session=MagicMock(),
+        runtime_context={},
+        audit_collector=MagicMock(),
+    )
+
+    assert config["configurable"]["model_config"]["api_key"] == "sk-runtime"
+
+
 @pytest.mark.asyncio
 async def test_session_runner_inject_message():
     runner = SessionRunner(session_id="sess_001", task_id="task_001", model_config={

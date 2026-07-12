@@ -19,6 +19,7 @@ from app.agent_runtime.graph.config import build_child_config, get_inject_queue
 from app.agent_runtime.graph.node_events import with_node_events
 from app.agent_runtime.graph.orchestrator.state import OrchestratorState
 from app.agent_runtime.graph.react_agent import create_react_agent
+from app.agent_runtime.model_config import to_client_model_config
 from app.agent_runtime.tools import ToolRegistry
 from app.agent_runtime.tools.impls.skill.skill import skill_tool_names_for_definition
 from app.agent_runtime.tools.hooks.auth import auth_hook
@@ -84,10 +85,17 @@ async def primary_node(
     config: RunnableConfig | None = None,
 ) -> dict:
     """Run the Primary Agent as the only parent graph node."""
-    model_config = ModelConfig(**state["model_config"])
+    configurable = config.get("configurable", {}) if isinstance(config, dict) else {}
+    runtime_model_config = (
+        configurable.get("model_config") if isinstance(configurable, dict) else None
+    )
+    if not isinstance(runtime_model_config, dict):
+        raise ValueError("Agent 运行时模型配置不可用")
+    model_config = ModelConfig(**to_client_model_config(runtime_model_config))
     model = create_chat_model(model_config)
     agent_key = state.get("agent_key", "primary")
     tool_state = dict(state)
+    tool_state["model_config"] = dict(runtime_model_config)
     tool_state["active_agent"] = agent_key
 
     agent_config = ReactAgentConfig(
@@ -111,6 +119,7 @@ async def primary_node(
     )
 
     effective_state = dict(state)
+    effective_state["model_config"] = dict(runtime_model_config)
     effective_state["active_agent"] = agent_key
     await react_graph.ainvoke(
         {

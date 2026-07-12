@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.context.compaction.window import CompactionWindow
 from app.agent_runtime.graph.state import AgentRuntimeState
+from app.agent_runtime.model_config import to_client_model_config
 from app.agent_runtime.persistence import compaction_repo
 from app.agent_runtime.persistence import repo as message_repo
 from app.agent_runtime.persistence.compaction_types import (
@@ -44,6 +45,7 @@ async def compact_window(
     trigger: CompactionTrigger,
     event_sink: EventSink | None = None,
     usage_sink: UsageSink | None = None,
+    model_config: Mapping[str, Any] | None = None,
 ) -> PersistedCompaction:
     session_id = str(state.get("session_id") or "")
     task_id = str(state.get("task_id") or "")
@@ -86,8 +88,10 @@ async def compact_window(
         raise error from exc
 
     try:
-        model_config = _model_config(state)
-        model = create_chat_model(ModelConfig(**model_config))
+        effective_model_config = (
+            dict(model_config) if model_config is not None else _model_config(state)
+        )
+        model = create_chat_model(ModelConfig(**to_client_model_config(effective_model_config)))
         response = await model.ainvoke(messages)
     except Exception as exc:
         logger.opt(exception=True).error("Compaction LLM request failed")

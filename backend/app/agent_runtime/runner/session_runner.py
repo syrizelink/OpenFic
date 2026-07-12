@@ -21,6 +21,7 @@ from app.agent_runtime.audit.collector import AuditCollector
 from app.agent_runtime.graph.orchestrator.graph import build_orchestrator_graph
 from app.agent_runtime.graph.react_agent import _to_history_dict
 from app.agent_runtime.graph.state import AgentRuntimeState
+from app.agent_runtime.model_config import without_api_key
 from app.agent_runtime.persistence import (
     MessagePersister,
     PersistenceError,
@@ -409,6 +410,7 @@ class SessionRunner:
                 "compaction_usage_sink": self._emit_persisted_task_usage_events,
                 "inject_queue": self._inject_queue,
                 "inject_message_consumed_sink": self._mark_injected_user_message_sent,
+                "model_config": self.model_config,
             }
         }
 
@@ -569,7 +571,7 @@ class SessionRunner:
                 "session_id": self.session_id,
                 "task_id": self.task_id,
                 "project_id": self.project_id,
-                "model_config": self.model_config,
+                "model_config": without_api_key(self.model_config),
                 "active_agent": None,
                 "agent_key": self.agent_key,
                 "is_completed": False,
@@ -613,6 +615,7 @@ class SessionRunner:
                 trigger="manual",
                 event_sink=self._emit_agent_event,
                 usage_sink=self._emit_persisted_task_usage_events,
+                model_config=self.model_config,
             )
             return {
                 "compaction_id": result.id,
@@ -672,7 +675,7 @@ class SessionRunner:
                 "session_id": self.session_id,
                 "task_id": self.task_id,
                 "project_id": self.project_id,
-                "model_config": self.model_config,
+                "model_config": without_api_key(self.model_config),
                 "active_agent": None,
                 "agent_key": self.agent_key,
                 "is_completed": False,

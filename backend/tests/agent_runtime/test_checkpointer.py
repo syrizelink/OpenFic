@@ -6,6 +6,9 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import app.agent_runtime.runner.checkpointer as checkpointer_mod
+import aiosqlite
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+import pytest
 from app.agent_runtime.runner.checkpointer import (
     close_checkpointer,
     delete_checkpoints_after_for_thread,
@@ -14,6 +17,50 @@ from app.agent_runtime.runner.checkpointer import (
     init_checkpointer,
     reset_checkpointer,
 )
+
+
+@pytest.mark.asyncio
+async def test_get_checkpointer_removes_api_keys_from_legacy_checkpoints():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test_checkpoints.db")
+        os.environ["AGENT_CHECKPOINT_DB"] = db_path
+        await reset_checkpointer()
+
+        conn = await aiosqlite.connect(db_path)
+        legacy_checkpointer = AsyncSqliteSaver(conn)
+        await legacy_checkpointer.setup()
+        config = {
+            "configurable": {
+                "thread_id": "legacy-session",
+                "checkpoint_ns": "",
+            }
+        }
+        checkpoint = {
+            "v": 2,
+            "id": "legacy-checkpoint",
+            "ts": "2026-07-12T00:00:00+00:00",
+            "channel_values": {
+                "model_config": {
+                    "model_record_id": "model-1",
+                    "model_id": "gpt-test",
+                    "api_key": "legacy-secret",
+                }
+            },
+            "channel_versions": {},
+            "versions_seen": {},
+            "pending_sends": [],
+        }
+        await legacy_checkpointer.aput(config, checkpoint, {}, {})
+        await conn.close()
+
+        checkpointer = await get_checkpointer()
+        persisted = await checkpointer.aget_tuple(config)
+
+        assert persisted is not None
+        assert "api_key" not in persisted.checkpoint["channel_values"]["model_config"]
+
+        del os.environ["AGENT_CHECKPOINT_DB"]
+        await reset_checkpointer()
 
 
 async def test_get_checkpointer_creates_db():

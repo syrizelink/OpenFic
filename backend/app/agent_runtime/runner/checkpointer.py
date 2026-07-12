@@ -1,11 +1,13 @@
 import os
 import shutil
 from pathlib import Path
-
 import aiosqlite
+from langchain_core.runnables import RunnableConfig
+from langgraph.checkpoint.base import Checkpoint, copy_checkpoint
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 import app.settings as app_settings
+from app.agent_runtime.model_config import without_api_key
 
 _checkpointer: AsyncSqliteSaver | None = None
 
@@ -53,7 +55,35 @@ async def get_checkpointer() -> AsyncSqliteSaver:
         conn = await aiosqlite.connect(db_path)
         _checkpointer = AsyncSqliteSaver(conn)
         await _checkpointer.setup()
+        await _remove_api_keys_from_existing_checkpoints(_checkpointer)
     return _checkpointer
+
+
+async def _remove_api_keys_from_existing_checkpoints(
+    checkpointer: AsyncSqliteSaver,
+) -> None:
+    """Rewrite legacy Agent checkpoints that persisted plaintext API keys."""
+    checkpoints: list[tuple[RunnableConfig, Checkpoint]] = []
+    async for item in checkpointer.alist(None):
+        channel_values = item.checkpoint.get("channel_values")
+        if not isinstance(channel_values, dict):
+            continue
+        model_config = channel_values.get("model_config")
+        if not isinstance(model_config, dict) or "api_key" not in model_config:
+            continue
+        sanitized_checkpoint = copy_checkpoint(item.checkpoint)
+        sanitized_channel_values = sanitized_checkpoint["channel_values"]
+        sanitized_channel_values["model_config"] = without_api_key(model_config)
+        sanitized_checkpoint["channel_values"] = sanitized_channel_values
+        checkpoints.append((item.config, sanitized_checkpoint))
+
+    for config, checkpoint in checkpoints:
+        await checkpointer.aput(
+            config,
+            checkpoint,
+            {},
+            checkpoint.get("channel_versions", {}),
+        )
 
 
 async def delete_checkpoints_for_thread(thread_id: str) -> int:
