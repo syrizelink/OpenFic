@@ -1,34 +1,24 @@
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
-
 import pytest
 
 from app.macro.compiler import EntryInput, PromptChainCompiler
 
 
 @pytest.mark.asyncio
-async def test_compile_uses_chapter_context_when_chapter_id_provided():
-    mock_session = AsyncMock()
-    compiler = PromptChainCompiler(mock_session)
+async def test_compile_preserves_macro_text():
+    compiler = PromptChainCompiler()
     entries = [
         EntryInput(
             role="system",
-            content="{{getmem::chapter::latest}}",
+            content=(
+                "{{getmem::chapter::latest}}\n"
+                "{{getworld}}\n"
+                "{{if::enabled}}保留内容{{endif}}"
+            ),
             order_index=0,
             is_enabled=True,
         )
     ]
 
-    with patch.object(
-        compiler,
-        "_load_chapter_context",
-        AsyncMock(return_value=SimpleNamespace(latest_field="chapter text")),
-    ) as mocked_load, patch.object(
-        compiler,
-        "_load_world_context",
-        AsyncMock(return_value=None),
-    ):
-        result = await compiler.compile(entries, project_id="p1", chapter_id="c0")
+    result = await compiler.compile(entries)
 
-    mocked_load.assert_awaited_once_with("p1", "c0")
-    assert result.entries[0].content == "chapter text"
+    assert result.entries[0].content == entries[0].content

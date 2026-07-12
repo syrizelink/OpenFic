@@ -71,11 +71,6 @@ export interface PromptChainsMetadata {
   modes: ModeMetadata[];
 }
 
-export interface CompileRequest {
-  project_id?: string | null;
-  chapter_id?: string | null;
-}
-
 export interface CompiledEntry {
   role: string;
   content: string;

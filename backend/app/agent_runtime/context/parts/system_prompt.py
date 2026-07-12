@@ -18,7 +18,7 @@ async def build_system_prompt(
     agent_name: str,
     db_session: AsyncSession,
 ) -> list[ContextMessage]:
-    """构建 p1 PromptChain：加载 prompt chain、编译宏，并保留各 entry 的原始 role。"""
+    """构建 p1 PromptChain，并保留各 entry 的原始 role。"""
     mode_name = _resolve_mode(state)
     task_name = "agent"
 
@@ -50,13 +50,9 @@ async def build_system_prompt(
     if not enabled_entries:
         return []
 
-    compiler = PromptChainCompiler(db_session)
+    compiler = PromptChainCompiler()
     try:
-        compile_result = await compiler.compile(
-            enabled_entries,
-            project_id=state.get("project_id") or None,
-            agent_session_id=state.get("session_id"),
-        )
+        compile_result = await compiler.compile(enabled_entries)
     except Exception as e:
         raise ContextBuildError("system_prompt", "compile failed", cause=e) from e
 

@@ -108,13 +108,6 @@ class PromptChainsMetadataResponse(BaseModel):
     modes: list[ModeMetadata] = Field(default_factory=list, description="模式列表")
 
 
-class CompileRequest(BaseModel):
-    """编译请求。"""
-
-    project_id: str | None = Field(default=None, description="项目ID（用于getmem宏）")
-    chapter_id: str | None = Field(default=None, description="章节ID（用于getmem宏）")
-
-
 class CompiledEntryResponse(BaseModel):
     """编译后的条目响应。"""
 

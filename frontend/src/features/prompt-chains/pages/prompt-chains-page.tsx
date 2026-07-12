@@ -1,12 +1,10 @@
 /**
  * PromptChainsPage Component
  *
- * 提示词链管理页面 - 三栏布局（左：条目列表，中：编辑器，右：预留）
+ * 提示词链管理页面。
  */
 
 import { Box, Flex, IconButton, Tooltip } from "@radix-ui/themes";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import type { Editor } from "@tiptap/react";
 import { List } from "lucide-react";
 import { motion } from "motion/react";
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -20,17 +18,13 @@ import { v4 as uuidv4 } from "uuid";
 import { ConfirmDialog, PromptChainDialog } from "@/components";
 import { MobileAppSidebarTrigger } from "@/features/app-shell";
 import { fetchPromptChainsMetadata, compilePromptChain, resetPromptChain } from "@/lib/api-client";
-import { findMacros, tryParseMacro } from "@/lib/macro";
-import type { MacroNode } from "@/lib/macro";
 import type { PromptEntryData, CompileResponse } from "@/lib/prompt-chain.types";
 import type { PromptChainsMetadata } from "@/lib/prompt-chain.types";
 
 import { EntriesSidebar } from "../components/entries-sidebar";
-import { MacroSidebar } from "../components/macro-sidebar";
 import { PromptChainsTopBar } from "../components/prompt-chains-top-bar";
 import { PromptEditor } from "../components/prompt-editor";
 import { usePromptChain } from "../hooks/use-prompt-chain";
-import { usePromptChainStore } from "../store/use-prompt-chain-store";
 
 const MotionBox = motion.create(Box);
 
@@ -176,14 +170,6 @@ export function PromptChainsPage() {
   // 高亮的条目ID（用于新建后的闪烁动画）
   const [highlightEntryId, setHighlightEntryId] = useState<string | null>(null);
 
-  // 选中的宏（用于侧边栏编辑）
-  const [selectedMacro, setSelectedMacro] = useState<MacroNode | null>(null);
-
-  // Work Dir store
-  const { workDir, setWorkDir, loadWorkDirFromDB } = usePromptChainStore();
-
-  // Editor ref for macro updates
-  const editorRef = useRef<Editor | null>(null);
   const topBarRef = useRef<HTMLDivElement | null>(null);
 
   // 编译相关状态
@@ -231,11 +217,6 @@ export function PromptChainsPage() {
   const effectiveSelectedMode = effectiveSelection.mode;
   const effectiveSelectedTask = effectiveSelection.task;
   const effectiveSelectedAgent = effectiveSelection.agent;
-
-  // 加载缓存的工作目录设置
-  useEffect(() => {
-    loadWorkDirFromDB();
-  }, [loadWorkDirFromDB]);
 
   // 从 metadata 中提取当前 mode+task 下是否有 agent 选项
   const hasAgentOptions = (() => {
@@ -390,11 +371,6 @@ export function PromptChainsPage() {
       const result = await compilePromptChain(
         effectiveSelectedMode,
         effectiveSelectedTask,
-        {
-          project_id: workDir.projectId,
-          // chapterId 为 null 表示使用最新章节
-          chapter_id: workDir.chapterId || "latest",
-        },
         effectiveSelectedAgent,
       );
       setCompileResult(result);
@@ -403,7 +379,7 @@ export function PromptChainsPage() {
     } finally {
       setIsCompiling(false);
     }
-  }, [effectiveSelectedMode, effectiveSelectedTask, effectiveSelectedAgent, workDir]);
+  }, [effectiveSelectedMode, effectiveSelectedTask, effectiveSelectedAgent]);
 
   // 重置到默认
   const handleReset = useCallback(async () => {
@@ -449,62 +425,6 @@ export function PromptChainsPage() {
     [hasUnsavedChanges, isResetting, saveVersion],
   );
 
-  // 更新宏内容
-  const handleMacroUpdate = useCallback(
-    (newMacroRaw: string) => {
-      const editor = editorRef.current;
-      if (!editor || !selectedMacro) return;
-
-      // 使用保存的宏位置进行查找和替换
-      const { start, end } = selectedMacro;
-
-      let foundPos = -1;
-      let foundNode: ProseMirrorNode | null = null;
-
-      editor.state.doc.nodesBetween(start, end, (node: ProseMirrorNode, pos) => {
-        if (node.type.name === "macroNode") {
-          foundPos = pos;
-          foundNode = node;
-          return false;
-        }
-      });
-
-      if (foundPos !== -1 && foundNode) {
-        const nodeToReplace = foundNode as ProseMirrorNode;
-
-        // 解析新的宏
-        const matches = findMacros(newMacroRaw);
-        if (matches.length > 0) {
-          const macroNode = tryParseMacro(matches[0]);
-          if (macroNode) {
-            // 保存当前 selection，防止触发 onSelectionUpdate 清除选中状态
-            const prevSelection = editor.state.selection;
-
-            const attrs = {
-              macroName: macroNode.name,
-              macroRaw: macroNode.raw,
-              macroData: JSON.stringify({ args: macroNode.args }),
-            };
-            const tr = editor.state.tr;
-            const newNode = editor.schema.nodes.macroNode.create(attrs);
-            tr.replaceWith(foundPos, foundPos + nodeToReplace.nodeSize, newNode);
-            // 恢复之前的 selection
-            tr.setSelection(prevSelection);
-            editor.view.dispatch(tr);
-
-            // 更新选中的宏状态，保持同步
-            setSelectedMacro({
-              ...macroNode,
-              start: foundPos,
-              end: foundPos + newNode.nodeSize,
-            });
-          }
-        }
-      }
-    },
-    [selectedMacro],
-  );
-
   const mobileEntrySidebarTrigger = isMobile ? (
     <Tooltip content={t("promptChains.viewEntries")}>
       <IconButton
@@ -545,8 +465,6 @@ export function PromptChainsPage() {
           isSaving={isSaving}
           hasUnsavedChanges={hasUnsavedChanges}
           isDefault={isDefault}
-          workDir={workDir}
-          onWorkDirChange={(projectId, chapterId) => setWorkDir({ projectId, chapterId })}
           modeName={effectiveSelectedMode || ""}
           taskName={effectiveSelectedTask || ""}
           agentName={effectiveSelectedAgent}
@@ -606,8 +524,6 @@ export function PromptChainsPage() {
                       entry={selectedEntry}
                       onUpdate={(updates) => handleUpdateEntry(selectedEntry.id!, updates)}
                       onUpdateWithId={handleUpdateEntry}
-                      onMacroSelect={setSelectedMacro}
-                      editorRef={editorRef}
                       isMobile={false}
                     />
                   ) : (
@@ -620,25 +536,6 @@ export function PromptChainsPage() {
                     </Flex>
                   )}
                 </div>
-              </Panel>
-
-              <Separator className="resize-handle writing-page-separator" />
-
-              {/* 右侧栏：宏编辑器 */}
-              <Panel
-                id="right-sidebar"
-                defaultSize={300}
-                minSize={250}
-                maxSize={500}
-                collapsible={false}
-              >
-                <Box className="prompt-chains-page-panel-shell prompt-chains-page-panel-shell--right">
-                  <MacroSidebar
-                    selectedMacro={selectedMacro}
-                    workDir={workDir}
-                    onMacroUpdate={handleMacroUpdate}
-                  />
-                </Box>
               </Panel>
             </Group>
           ) : (
@@ -658,8 +555,6 @@ export function PromptChainsPage() {
                     entry={selectedEntry}
                     onUpdate={(updates) => handleUpdateEntry(selectedEntry.id!, updates)}
                     onUpdateWithId={handleUpdateEntry}
-                    onMacroSelect={setSelectedMacro}
-                    editorRef={editorRef}
                     isMobile={true}
                   />
                 ) : (
@@ -672,16 +567,6 @@ export function PromptChainsPage() {
                   </Flex>
                 )}
               </div>
-
-              {selectedMacro && (
-                <Box className="prompt-chains-page-mobile-macro">
-                  <MacroSidebar
-                    selectedMacro={selectedMacro}
-                    workDir={workDir}
-                    onMacroUpdate={handleMacroUpdate}
-                  />
-                </Box>
-              )}
             </Flex>
           )}
 

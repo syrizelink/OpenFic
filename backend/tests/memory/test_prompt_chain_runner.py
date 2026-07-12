@@ -378,30 +378,25 @@ async def test_build_chat_messages_injects_handoff_without_task_history(monkeypa
     )
 
     class FakeCompiler:
-        def __init__(self, session) -> None:
-            self.session = session
+        def __init__(self) -> None:
             self.compile_calls: list[dict[str, object]] = []
 
-        async def compile(self, *, entries, project_id, chapter_id):
+        async def compile(self, *, entries):
             self.compile_calls.append(
                 {
                     "entries": entries,
-                    "project_id": project_id,
-                    "chapter_id": chapter_id,
                 }
             )
             return type("CompileResult", (), {"entries": entries})()
 
-    compiler = FakeCompiler(AsyncMock())
-    monkeypatch.setattr(prompt_chain_runner, "PromptChainCompiler", lambda session: compiler)
+    compiler = FakeCompiler()
+    monkeypatch.setattr(prompt_chain_runner, "PromptChainCompiler", lambda: compiler)
 
     messages = await build_chat_messages(
         AsyncMock(),
         mode_name="assistant",
         task_name="agent",
         agent_name="writer",
-        project_id="project-1",
-        chapter_id="chapter-1",
         runtime=ChatRuntime(
             current_message="写作请求",
             anchor_chapter_id="chapter-7",
@@ -410,7 +405,6 @@ async def test_build_chat_messages_injects_handoff_without_task_history(monkeypa
         ),
     )
 
-    assert compiler.compile_calls[0]["chapter_id"] == "chapter-7"
     assert [message["content"] for message in messages] == [
         "系统提示",
         "<skill>技能上下文</skill>",
@@ -440,10 +434,7 @@ async def test_build_chat_messages_does_not_append_empty_current_message(monkeyp
     )
 
     class FakeCompiler:
-        def __init__(self, session) -> None:
-            self.session = session
-
-        async def compile(self, *, entries, project_id, chapter_id):
+        async def compile(self, *, entries):
             return type("CompileResult", (), {"entries": entries})()
 
     monkeypatch.setattr(prompt_chain_runner, "PromptChainCompiler", FakeCompiler)
@@ -453,8 +444,6 @@ async def test_build_chat_messages_does_not_append_empty_current_message(monkeyp
         mode_name="assistant",
         task_name="agent",
         agent_name="writer",
-        project_id="project-1",
-        chapter_id="chapter-1",
         runtime=ChatRuntime(
             current_message="",
             handoff_messages=[{"role": "user", "content": "<workflow_handoff>包含初始请求</workflow_handoff>"}],
@@ -488,10 +477,7 @@ async def test_build_chat_messages_appends_current_agent_local_react_history(mon
     )
 
     class FakeCompiler:
-        def __init__(self, session) -> None:
-            self.session = session
-
-        async def compile(self, *, entries, project_id, chapter_id):
+        async def compile(self, *, entries):
             return type("CompileResult", (), {"entries": entries})()
 
     task_messages = [
@@ -544,8 +530,6 @@ async def test_build_chat_messages_appends_current_agent_local_react_history(mon
         mode_name="assistant",
         task_name="agent",
         agent_name="writer",
-        project_id="project-1",
-        chapter_id="chapter-1",
         runtime=ChatRuntime(
             current_message="继续写作",
             task_id="task-1",
@@ -589,10 +573,7 @@ async def test_build_chat_messages_places_writer_history_before_new_user_message
     )
 
     class FakeCompiler:
-        def __init__(self, session) -> None:
-            self.session = session
-
-        async def compile(self, *, entries, project_id, chapter_id):
+        async def compile(self, *, entries):
             return type("CompileResult", (), {"entries": entries})()
 
     task_messages = [
@@ -637,8 +618,6 @@ async def test_build_chat_messages_places_writer_history_before_new_user_message
         mode_name="assistant",
         task_name="agent",
         agent_name="writer",
-        project_id="project-1",
-        chapter_id="chapter-1",
         runtime=ChatRuntime(
             current_message="根据审查意见继续修改",
             task_id="task-1",

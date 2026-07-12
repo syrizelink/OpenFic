@@ -13,7 +13,6 @@ from app.api.schemas.prompt_chain import (
     PromptEntryResponse,
     VersionWithEntriesResponse,
     PromptChainsMetadataResponse,
-    CompileRequest,
     CompiledEntryResponse,
     CompileResponse,
     VersionDiffResponse,
@@ -236,17 +235,15 @@ async def create_version(
 async def compile_prompt_chain(
     mode_name: str,
     task_name: str,
-    request: CompileRequest,
     agent_name: str | None = Query(None, description="Agent名称（可选）"),
     session: AsyncSession = Depends(get_session),
 ) -> CompileResponse:
     """
-    编译提示词链，将宏替换为实际值。
+    编译提示词链。
 
     Args:
         mode_name: 模式名称。
         task_name: 任务名称。
-        request: 编译请求（包含 project_id 和 chapter_id）。
         agent_name: Agent名称（可选）。
         session: 数据库session。
 
@@ -254,7 +251,6 @@ async def compile_prompt_chain(
         编译后的提示词列表。
     """
     from app.macro.compiler import PromptChainCompiler, EntryInput
-    from app.storage.services import chapter_service
 
     try:
         result = await prompt_chain_service.get_latest_version_with_entries_or_default(
@@ -271,32 +267,8 @@ async def compile_prompt_chain(
             for e in result.entries
         ]
 
-        chapter_id: str | None = None
-        if request.chapter_id and request.project_id:
-            try:
-                if request.chapter_id == "latest":
-                    chapter_tree = await chapter_service.list_chapters(
-                        session, request.project_id
-                    )
-                    ordered_chapters = [
-                        chapter
-                        for group in chapter_tree.volumes
-                        for chapter in group.chapters
-                    ]
-                    if ordered_chapters:
-                        chapter_id = ordered_chapters[-1].id
-                else:
-                    await chapter_service.get_chapter(session, request.chapter_id)
-                    chapter_id = request.chapter_id
-            except Exception as e:
-                logger.warning(f"获取章节失败: {e}，跳过章节上下文")
-
-        compiler = PromptChainCompiler(session)
-        compile_result = await compiler.compile(
-            entries=entry_inputs,
-            project_id=request.project_id,
-            chapter_id=chapter_id,
-        )
+        compiler = PromptChainCompiler()
+        compile_result = await compiler.compile(entries=entry_inputs)
 
         return CompileResponse(
             entries=[

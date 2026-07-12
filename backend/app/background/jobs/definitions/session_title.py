@@ -64,8 +64,6 @@ async def handle_session_title(context: JobContext) -> dict[str, str] | None:
             mode_name="background",
             task_name="session_title",
             agent_name=None,
-            project_id=metadata.project_id,
-            chapter_id=None,
             runtime=ChatRuntime(current_message=compiled_message),
         )
         return resolved, messages

@@ -5,7 +5,7 @@
  */
 
 import { Box, Flex, Button, Text, IconButton, Tooltip } from "@radix-ui/themes";
-import { GitBranch, Save, Settings, Play, TriangleAlert, RotateCcw } from "lucide-react";
+import { GitBranch, Save, Play, RotateCcw } from "lucide-react";
 import { forwardRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -15,7 +15,6 @@ import type { PromptChainVersion, PromptChainsMetadata } from "@/lib/prompt-chai
 import { ResetConfirmDialog } from "./reset-confirm-dialog";
 import { SaveConfirmDialog } from "./save-confirm-dialog";
 import { VersionListDialog } from "./version-list-dialog";
-import { WorkDirDialog } from "./work-dir-dialog";
 
 interface PromptChainsTopBarProps {
   leadingSlot?: ReactNode;
@@ -39,8 +38,6 @@ interface PromptChainsTopBarProps {
   isSaving: boolean;
   hasUnsavedChanges: boolean;
   isDefault: boolean;
-  workDir?: { projectId: string | null; chapterId: string | null };
-  onWorkDirChange?: (projectId: string | null, chapterId: string | null) => void;
   modeName: string;
   taskName: string;
   agentName: string | null;
@@ -71,8 +68,6 @@ export const PromptChainsTopBar = forwardRef<HTMLDivElement, PromptChainsTopBarP
       isSaving,
       hasUnsavedChanges,
       isDefault,
-      workDir,
-      onWorkDirChange,
       modeName,
       taskName,
       agentName,
@@ -83,7 +78,6 @@ export const PromptChainsTopBar = forwardRef<HTMLDivElement, PromptChainsTopBarP
     const { t } = useTranslation();
     const [versionDialogOpen, setVersionDialogOpen] = useState(false);
     const [saveConfirmDialogOpen, setSaveConfirmDialogOpen] = useState(false);
-    const [workDirDialogOpen, setWorkDirDialogOpen] = useState(false);
     const [resetConfirmDialogOpen, setResetConfirmDialogOpen] = useState(false);
 
     // 从元数据生成模式选项
@@ -129,12 +123,7 @@ export const PromptChainsTopBar = forwardRef<HTMLDivElement, PromptChainsTopBarP
     // 是否显示版本和保存按钮（需要完成导航选择）
     const showVersionControls = selectedMode && selectedTask;
 
-    // 工作目录是否已设置
-    const isWorkDirSet = !!workDir?.projectId;
-
-    // 编译按钮是否可用：必须设置工作目录 + 没有未保存的更改
-    const canCompile =
-      isWorkDirSet && !hasUnsavedChanges && !isLoading && !isCompiling && !!currentVersion;
+    const canCompile = !hasUnsavedChanges && !isLoading && !isCompiling && !!currentVersion;
 
     const breadcrumbContent = isMobile ? (
       <Flex
@@ -383,23 +372,6 @@ export const PromptChainsTopBar = forwardRef<HTMLDivElement, PromptChainsTopBarP
                       </Tooltip>
                     )}
 
-                    <Tooltip
-                      content={
-                        isWorkDirSet
-                          ? t("promptChains.workDirSettings")
-                          : t("promptChains.workDirNotSet")
-                      }
-                    >
-                      <IconButton
-                        variant="ghost"
-                        size="2"
-                        color={isWorkDirSet ? undefined : "red"}
-                        onClick={() => setWorkDirDialogOpen(true)}
-                      >
-                        {isWorkDirSet ? <Settings size={16} /> : <TriangleAlert size={16} />}
-                      </IconButton>
-                    </Tooltip>
-
                     {versionContent}
 
                     <Tooltip content={t("promptChains.save")}>
@@ -421,11 +393,9 @@ export const PromptChainsTopBar = forwardRef<HTMLDivElement, PromptChainsTopBarP
 
                     <Tooltip
                       content={
-                        !isWorkDirSet
-                          ? t("promptChains.compileRequiresWorkDir")
-                          : hasUnsavedChanges
-                            ? t("promptChains.compileRequiresSave")
-                            : t("promptChains.compile")
+                        hasUnsavedChanges
+                          ? t("promptChains.compileRequiresSave")
+                          : t("promptChains.compile")
                       }
                     >
                       <IconButton
@@ -464,7 +434,7 @@ export const PromptChainsTopBar = forwardRef<HTMLDivElement, PromptChainsTopBarP
                       size="1"
                       color="amber"
                     >
-                      存在未提交的本地修改
+                      {t("promptChains.hasUnsavedLocalChanges")}
                     </Text>
                   )}
 
@@ -480,23 +450,6 @@ export const PromptChainsTopBar = forwardRef<HTMLDivElement, PromptChainsTopBarP
                       </IconButton>
                     </Tooltip>
                   )}
-
-                  <Tooltip
-                    content={
-                      isWorkDirSet
-                        ? t("promptChains.workDirSettings")
-                        : t("promptChains.workDirNotSet")
-                    }
-                  >
-                    <IconButton
-                      variant="ghost"
-                      size="2"
-                      color={isWorkDirSet ? undefined : "red"}
-                      onClick={() => setWorkDirDialogOpen(true)}
-                    >
-                      {isWorkDirSet ? <Settings size={16} /> : <TriangleAlert size={16} />}
-                    </IconButton>
-                  </Tooltip>
 
                   {versionContent && (
                     <Flex
@@ -532,11 +485,9 @@ export const PromptChainsTopBar = forwardRef<HTMLDivElement, PromptChainsTopBarP
 
                   <Tooltip
                     content={
-                      !isWorkDirSet
-                        ? t("promptChains.compileRequiresWorkDir")
-                        : hasUnsavedChanges
-                          ? t("promptChains.compileRequiresSave")
-                          : t("promptChains.compile")
+                      hasUnsavedChanges
+                        ? t("promptChains.compileRequiresSave")
+                        : t("promptChains.compile")
                     }
                   >
                     <IconButton
@@ -576,17 +527,6 @@ export const PromptChainsTopBar = forwardRef<HTMLDivElement, PromptChainsTopBarP
           currentVersion={currentVersion}
           versions={versions}
           onConfirm={() => onSave()}
-        />
-
-        {/* Work Dir设置弹窗 */}
-        <WorkDirDialog
-          open={workDirDialogOpen}
-          onOpenChange={setWorkDirDialogOpen}
-          currentProjectId={workDir?.projectId || null}
-          currentChapterId={workDir?.chapterId || null}
-          onConfirm={(projectId, chapterId) => {
-            onWorkDirChange?.(projectId, chapterId);
-          }}
         />
 
         {/* 重置确认弹窗 */}

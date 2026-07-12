@@ -255,14 +255,12 @@ async def build_chat_messages(
     mode_name: str,
     task_name: str,
     agent_name: str | None,
-    project_id: str | None,
-    chapter_id: str | None,
     runtime: ChatRuntime,
 ) -> list[dict[str, Any]]:
     """
     构建 Chat 运行时消息列表。
 
-    1. 加载 prompt-chain 并编译宏（仅 getmem / getlist / getworld / if）。
+    1. 加载并编译 prompt-chain。
     2. 追加 chat_history（chat 模式）。
     3. 追加 task context（agent 模式，来自 task_message_repo）。
     4. 追加当前用户消息（避免与历史重复）。
@@ -281,12 +279,8 @@ async def build_chat_messages(
         for e in version_entries.entries
     ]
 
-    compiler = PromptChainCompiler(session)
-    compile_result = await compiler.compile(
-        entries=entry_inputs,
-        project_id=project_id,
-        chapter_id=runtime.anchor_chapter_id or chapter_id,
-    )
+    compiler = PromptChainCompiler()
+    compile_result = await compiler.compile(entries=entry_inputs)
 
     messages: list[dict[str, Any]] = []
     for entry in compile_result.entries:

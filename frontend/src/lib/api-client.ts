@@ -833,13 +833,6 @@ export async function fetchChapterContext(
   return response.data;
 }
 
-/**
- * 上下文字段响应（纯文本）
- */
-export interface ContextFieldResponse {
-  content: string;
-}
-
 export type SummaryStatus = "not_generated" | "queued" | "running" | "ready" | "failed";
 
 export interface LongTermSummaryListItem {
@@ -1269,78 +1262,6 @@ export async function enqueueSummary(
 
 export async function cancelBackgroundJob(jobId: string, reason: string): Promise<void> {
   await apiClient.post(`/background/jobs/${jobId}/cancel`, { reason });
-}
-
-/**
- * 获取近场上下文
- */
-export async function fetchNearField(
-  projectId: string,
-  currentOrder: number,
-): Promise<ContextFieldResponse> {
-  const response = await apiClient.get<ContextFieldResponse>(
-    `/projects/${projectId}/chapter-context/near`,
-    {
-      params: {
-        current_order: currentOrder,
-      },
-    },
-  );
-  return response.data;
-}
-
-/**
- * 获取中场上下文
- */
-export async function fetchMiddleField(
-  projectId: string,
-  currentOrder: number,
-): Promise<ContextFieldResponse> {
-  const response = await apiClient.get<ContextFieldResponse>(
-    `/projects/${projectId}/chapter-context/middle`,
-    {
-      params: {
-        current_order: currentOrder,
-      },
-    },
-  );
-  return response.data;
-}
-
-/**
- * 获取远场上下文
- */
-export async function fetchFarField(
-  projectId: string,
-  currentOrder: number,
-): Promise<ContextFieldResponse> {
-  const response = await apiClient.get<ContextFieldResponse>(
-    `/projects/${projectId}/chapter-context/far`,
-    {
-      params: {
-        current_order: currentOrder,
-      },
-    },
-  );
-  return response.data;
-}
-
-/**
- * 获取最新章节内容
- */
-export async function fetchLatestField(
-  projectId: string,
-  currentOrder: number,
-): Promise<ContextFieldResponse> {
-  const response = await apiClient.get<ContextFieldResponse>(
-    `/projects/${projectId}/chapter-context/latest`,
-    {
-      params: {
-        current_order: currentOrder,
-      },
-    },
-  );
-  return response.data;
 }
 
 // ============================================
@@ -1960,21 +1881,20 @@ export async function createPromptChainVersion(
   };
 }
 
-import type { CompileRequest, CompileResponse } from "./prompt-chain.types";
+import type { CompileResponse } from "./prompt-chain.types";
 
 /**
- * 编译提示词链（解析宏）
+ * 编译提示词链
  */
 export async function compilePromptChain(
   modeName: string,
   taskName: string,
-  request: CompileRequest,
   agentName?: string | null,
 ): Promise<CompileResponse> {
   const params = agentName ? { agent_name: agentName } : {};
   const response = await apiClient.post<CompileResponse>(
     `/prompt-chains/${modeName}/${taskName}/compile`,
-    request,
+    {},
     { params },
   );
   return response.data;
