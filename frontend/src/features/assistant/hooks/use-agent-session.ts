@@ -646,8 +646,8 @@ export function useAgentSession({
 
         if (!socketUnsubscribeRef.current) {
           attachAgentSocket(activeSessionId);
-          await joinAgentSession(activeSessionId);
         }
+        await joinAgentSession(activeSessionId);
         const nextModelId = modelId === activeModelIdRef.current ? undefined : modelId;
         const response = await sendAgentMessage(activeSessionId, message, nextModelId);
         if (response.model_updated && nextModelId) activeModelIdRef.current = nextModelId;

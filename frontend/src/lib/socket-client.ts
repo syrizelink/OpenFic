@@ -105,11 +105,18 @@ export function getSocket(): Socket {
   return state.socket;
 }
 
-export function connectSocket(): Promise<Socket> {
+export function connectSocket({ force = false }: { force?: boolean } = {}): Promise<Socket> {
   const state = getSocketState();
   const activeSocket = getSocket();
   if (activeSocket.connected) return Promise.resolve(activeSocket);
-  if (state.connectPromise) return state.connectPromise;
+  if (state.connectPromise) {
+    if (force && activeSocket.active) {
+      // Cancel a pending automatic backoff before an explicit user action.
+      activeSocket.disconnect();
+      activeSocket.connect();
+    }
+    return state.connectPromise;
+  }
 
   state.connectPromise = new Promise<Socket>((resolve, reject) => {
     const cleanup = () => {
@@ -134,6 +141,7 @@ export function connectSocket(): Promise<Socket> {
       cleanup();
       reject(new Error("WebSocket 连接超时"));
     }, 5000);
+    if (force && activeSocket.active) activeSocket.disconnect();
     activeSocket.connect();
   }).finally(() => {
     state.connectPromise = null;
