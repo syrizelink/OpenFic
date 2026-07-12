@@ -2199,6 +2199,7 @@ import type {
   AgentSessionCreateResponse,
   AgentForkResponse,
   AgentPendingMessage,
+  AgentSendMessageRequest,
   AgentSendMessageResponse,
   AgentSessionStateResponse,
   AgentRollbackResponse,
@@ -2310,14 +2311,20 @@ export async function fetchSubagentSession(childRunId: string): Promise<Subagent
 export async function sendAgentMessage(
   sessionId: string,
   message: string,
+  modelId?: string,
 ): Promise<AgentSendMessageResponse> {
-  const response = await apiClient.post(`/agent/sessions/${sessionId}/message`, { message });
+  const request: AgentSendMessageRequest = {
+    message,
+    ...(modelId ? { model_id: modelId } : {}),
+  };
+  const response = await apiClient.post(`/agent/sessions/${sessionId}/message`, request);
   const data = response.data as Record<string, unknown>;
   return {
     success: data.success === true,
     session_id: String(data.session_id ?? sessionId),
     message: String(data.message ?? ""),
     queued: data.queued === true,
+    model_updated: data.model_updated === true,
     pending_message: transformPendingAgentMessage(data.pending_message),
   };
 }

@@ -167,6 +167,7 @@ export function useAgentSession({
   const ignoredApprovalIdsRef = useRef<Set<string>>(new Set());
   const suppressSocketEventsAfterAbortRef = useRef(false);
   const sessionIdRef = useRef<string | null>(null);
+  const activeModelIdRef = useRef<string | null>(null);
   const pendingMessageRef = useRef<AgentPendingMessage | null>(null);
   const isCompactingRef = useRef(false);
   const manualCompactionPreviousStateRef = useRef<Pick<
@@ -590,6 +591,7 @@ export function useAgentSession({
 
         onSessionCreated?.(createResponse);
         sessionIdRef.current = createResponse.session_id;
+        activeModelIdRef.current = modelId;
         setSessionId(createResponse.session_id);
         queryClient.invalidateQueries({ queryKey: ["tasks", projectId], exact: false });
         attachAgentSocket(createResponse.session_id);
@@ -646,7 +648,9 @@ export function useAgentSession({
           attachAgentSocket(activeSessionId);
           await joinAgentSession(activeSessionId);
         }
-        const response = await sendAgentMessage(activeSessionId, message);
+        const nextModelId = modelId === activeModelIdRef.current ? undefined : modelId;
+        const response = await sendAgentMessage(activeSessionId, message, nextModelId);
+        if (response.model_updated && nextModelId) activeModelIdRef.current = nextModelId;
         if (response.queued && response.pending_message) {
           syncPendingMessageState(createPendingUserMessage(response.pending_message));
         }
@@ -661,7 +665,7 @@ export function useAgentSession({
         toast.error(i18n.t("assistant.sendMessageFailed"));
       }
     },
-    [attachAgentSocket, sessionId, syncPendingMessageState, updateTranscriptState],
+    [attachAgentSocket, modelId, sessionId, syncPendingMessageState, updateTranscriptState],
   );
 
   const compactSession = useCallback(async () => {
@@ -836,6 +840,7 @@ export function useAgentSession({
 
   const resetSession = useCallback(() => {
     sessionIdRef.current = null;
+    activeModelIdRef.current = null;
     suppressSocketEventsAfterAbortRef.current = false;
     transportRetryAttemptRef.current = 0;
     suppressNextErrorAfterCompactionErrorRef.current = false;
@@ -885,6 +890,7 @@ export function useAgentSession({
       } = {},
     ) => {
       sessionIdRef.current = existingSessionId;
+      activeModelIdRef.current = null;
       suppressSocketEventsAfterAbortRef.current = false;
       transportRetryAttemptRef.current = 0;
       suppressNextErrorAfterCompactionErrorRef.current = false;
