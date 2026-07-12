@@ -31,6 +31,7 @@ from app.agent_runtime.persistence.task_projection import (
 from app.agent_runtime.persistence.model import AgentChildRun
 from app.agent_runtime.revisions import rollback_revision_for_session
 from app.agent_runtime.fork import fork_agent_session_at_revision
+from app.agent_runtime.model_config import without_api_key
 from app.agent_runtime.runner.checkpointer import (
     delete_checkpoints_after_for_thread,
     delete_checkpoints_for_thread,
@@ -250,7 +251,7 @@ def _build_seed_state(
         "session_id": session_id,
         "task_id": task_id,
         "project_id": project_id,
-        "model_config": dict(model_config),
+        "model_config": without_api_key(model_config),
         "active_agent": None,
         "agent_key": agent_key,
         "is_completed": False,
@@ -365,7 +366,10 @@ async def _get_runner(session_id: str, session: AsyncSession | None = None) -> S
     restored_model_config = values.get("model_config")
     if not _is_valid_model_config(restored_model_config):
         raise NotFoundError(f"会话不存在: {session_id}")
-    runner.model_config = dict(restored_model_config)
+    model_record_id = restored_model_config.get("model_record_id")
+    if not isinstance(model_record_id, str) or not model_record_id:
+        raise NotFoundError(f"会话不存在: {session_id}")
+    runner.model_config = await _resolve_model_config(session, model_record_id)
     restored_agent_key = values.get("agent_key")
     if isinstance(restored_agent_key, str) and restored_agent_key:
         runner.agent_key = restored_agent_key
@@ -375,6 +379,7 @@ async def _get_runner(session_id: str, session: AsyncSession | None = None) -> S
 
 def _build_model_config(model, provider, api_key: str) -> dict:
     return {
+        "model_record_id": model.id,
         "provider_type": provider.provider_type,
         "base_url": provider.url,
         "api_key": api_key,

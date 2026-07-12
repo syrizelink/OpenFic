@@ -19,7 +19,7 @@ from app.agent_runtime.persistence.child_runs import (
     record_child_run_pending_approval,
 )
 from app.agent_runtime.revisions import begin_user_revision
-from app.agent_runtime.runner.checkpointer import reset_checkpointer
+from app.agent_runtime.runner.checkpointer import get_checkpointer, reset_checkpointer
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.agent_runtime.runner.session_runner import SessionRunner
 from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buffer
@@ -1301,6 +1301,37 @@ class TestAgentAPI:
         assert data["is_running"] is False
         assert data["state"]["model_config"]["model_id"] == "gpt-3.5-turbo"
         assert session_id in _SESSION_RUNNERS
+        assert _SESSION_RUNNERS[session_id].model_config["api_key"] == "test_api_key"
+
+    async def test_agent_checkpoint_and_session_state_do_not_contain_api_key(
+        self,
+        client: AsyncClient,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={
+                "project_id": target["project_id"],
+                "model_id": target["model_id"],
+                "max_iterations": 5,
+            },
+        )
+        session_id = session_response.json()["session_id"]
+
+        checkpointer = await get_checkpointer()
+        checkpoint = await checkpointer.aget_tuple(
+            {"configurable": {"thread_id": session_id}}
+        )
+
+        assert checkpoint is not None
+        persisted_model_config = checkpoint.checkpoint["channel_values"]["model_config"]
+        assert "api_key" not in persisted_model_config
+
+        _SESSION_RUNNERS.clear()
+        response = await client.get(f"/api/v1/agent/sessions/{session_id}")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert "api_key" not in response.json()["state"]["model_config"]
 
     async def test_list_subagent_sessions_returns_only_active_state_rows(
         self,

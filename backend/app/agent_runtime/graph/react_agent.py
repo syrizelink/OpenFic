@@ -219,12 +219,13 @@ async def maybe_auto_compact(
     db_session: Any,
     event_sink: Callable[[str, dict[str, Any]], Awaitable[None] | None] | None,
     usage_sink: Callable[[dict[str, Any]], Awaitable[None] | None] | None,
+    model_config: Mapping[str, Any] | None = None,
 ) -> bool:
     del agent_name
-    model_config = state.get("model_config")
+    persisted_model_config = state.get("model_config")
     max_context_tokens = 0
-    if isinstance(model_config, Mapping):
-        raw_max_context_tokens = model_config.get("max_context_tokens")
+    if isinstance(persisted_model_config, Mapping):
+        raw_max_context_tokens = persisted_model_config.get("max_context_tokens")
         if isinstance(raw_max_context_tokens, int):
             max_context_tokens = raw_max_context_tokens
     if max_context_tokens <= 0:
@@ -289,6 +290,7 @@ async def maybe_auto_compact(
             trigger="auto",
             event_sink=tracked_event_sink if event_sink is not None else None,
             usage_sink=usage_sink,
+            model_config=model_config,
         )
     except CompactionError as exc:
         await emit_error_once(exc)
@@ -509,6 +511,9 @@ def create_react_agent(
         compaction_usage_sink = configurable.get("compaction_usage_sink")
         if not callable(compaction_usage_sink):
             compaction_usage_sink = None
+        runtime_model_config = configurable.get("model_config")
+        if not isinstance(runtime_model_config, Mapping):
+            runtime_model_config = None
         drained_injected_user_message = False
         context_parts: list[ContextMessage] | None = None
         effective_runtime_state: Mapping[str, Any] | None = None
@@ -627,6 +632,7 @@ def create_react_agent(
                 db_session=runtime_db_session,
                 event_sink=agent_event_sink,
                 usage_sink=compaction_usage_sink,
+                model_config=runtime_model_config,
             ):
                 context_parts = await build_context_parts(
                     state=cast("AgentRuntimeState", effective_runtime_state),

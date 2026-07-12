@@ -16,6 +16,7 @@ from app.agent_runtime.agents.definitions import (
 from app.agent_runtime.audit.collector import AuditCollector
 from app.agent_runtime.agents.tool_categories import get_tool_names_for_categories
 from app.agent_runtime.graph.react_agent import create_react_agent
+from app.agent_runtime.model_config import to_client_model_config
 from app.agent_runtime.persistence import MessagePersister
 from app.agent_runtime.persistence.child_runs import (
     claim_next_child_run_request,
@@ -341,7 +342,7 @@ class SubagentRunner:
             )
         finally:
             await _close_session(session)
-        model = create_chat_model(ModelConfig(**model_config))
+        model = create_chat_model(ModelConfig(**to_client_model_config(model_config)))
         return create_react_agent(
             agent_config,
             model=model,

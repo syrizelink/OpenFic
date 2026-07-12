@@ -12,6 +12,7 @@ from sqlmodel import col
 
 from app.agent_runtime.persistence import compaction_repo, repo as message_repo
 from app.agent_runtime.persistence.model import AgentRunMessage
+from app.agent_runtime.model_config import without_api_key
 from app.core.errors import NotFoundError
 from app.core.ids import generate_id
 from app.storage.models.revision import Revision
@@ -65,7 +66,7 @@ def _build_fork_state(
         "session_id": session_id,
         "task_id": task.id,
         "project_id": task.project_id,
-        "model_config": model_config,
+        "model_config": without_api_key(model_config),
         "active_agent": None,
         "is_completed": True,
         "error": None,
