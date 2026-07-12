@@ -46,6 +46,7 @@ class AgentSendMessageRequest(BaseModel):
     """发送用户消息请求。"""
 
     message: str = Field(..., description="用户消息内容")
+    model_id: str | None = Field(default=None, description="下一轮执行使用的模型ID")
 
 
 class AgentPendingMessageResponse(BaseModel):
@@ -63,6 +64,7 @@ class AgentSendMessageResponse(BaseModel):
     session_id: str = Field(..., description="会话ID")
     message: str = Field(..., description="结果消息")
     queued: bool = Field(default=False, description="是否进入 pending 队列")
+    model_updated: bool = Field(default=False, description="是否已更新下一轮执行模型")
     pending_message: AgentPendingMessageResponse | None = Field(
         default=None,
         description="进入 pending 的消息负载",

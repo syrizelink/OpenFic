@@ -707,9 +707,23 @@ async def send_agent_message(
             session_id=session_id,
             message="Agent 消息已排队",
             queued=True,
+            model_updated=False,
             pending_message=AgentPendingMessageResponse(**pending_message),
         )
-    if await runner.can_continue():
+    can_continue = await runner.can_continue()
+    model_updated = False
+    if body.model_id and not can_continue:
+        try:
+            runner.update_model_config(await _resolve_model_config(session, body.model_id))
+            model_updated = True
+        except NotFoundError as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(exc),
+            ) from exc
+    if can_continue:
         coro = runner.continue_with_user_message(body.message)
     else:
         coro = runner.run(user_request=body.message)
@@ -725,6 +739,7 @@ async def send_agent_message(
         session_id=session_id,
         message="Agent 任务已启动",
         queued=False,
+        model_updated=model_updated,
         pending_message=None,
     )
 

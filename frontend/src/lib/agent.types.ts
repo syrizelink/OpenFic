@@ -258,6 +258,7 @@ export interface AgentSessionStateResponse {
 
 export interface AgentSendMessageRequest {
   message: string;
+  model_id?: string;
 }
 
 export type AgentPendingMessageAction = "queued" | "cancelled" | "consumed";
@@ -273,6 +274,7 @@ export interface AgentSendMessageResponse {
   session_id: string;
   message: string;
   queued: boolean;
+  model_updated: boolean;
   pending_message: AgentPendingMessage | null;
 }
 

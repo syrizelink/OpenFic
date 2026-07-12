@@ -21,6 +21,7 @@ from app.agent_runtime.persistence.child_runs import (
 from app.agent_runtime.revisions import begin_user_revision
 from app.agent_runtime.runner.checkpointer import reset_checkpointer
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
+from app.agent_runtime.runner.session_runner import SessionRunner
 from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buffer
 from app.api.routers.agent_runtime import _SESSION_RUNNERS
 from app.socket.handlers import agent_session_room, agent_subagents_room
@@ -298,6 +299,144 @@ class TestAgentAPI:
 
         created_task = await task_service.get_task(session, data["task_id"])
         assert created_task.title == data["task_title"]
+
+    async def test_send_agent_message_uses_requested_model_for_next_run(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session.add(
+            Task(
+                id="task-model-switch",
+                project_id=target["project_id"],
+                title="模型切换",
+                mode="agent",
+                agent_session_id="session-model-switch",
+            )
+        )
+        await session.commit()
+
+        runner = SessionRunner(
+            session_id="session-model-switch",
+            task_id="task-model-switch",
+            model_config={"max_context_tokens": 8000, "model_id": "previous-model"},
+            project_id=target["project_id"],
+        )
+        runner.can_continue = AsyncMock(return_value=False)
+        runner.run = MagicMock(return_value=AsyncMock())
+        _SESSION_RUNNERS["session-model-switch"] = runner
+
+        next_model_config = {"max_context_tokens": 32000, "model_id": "next-model"}
+        with patch(
+            "app.api.routers.agent_runtime._resolve_model_config",
+            AsyncMock(return_value=next_model_config),
+        ) as resolve_model_config, patch(
+            "app.api.routers.agent_runtime._launch_task",
+            AsyncMock(),
+        ):
+            response = await client.post(
+                "/api/v1/agent/sessions/session-model-switch/message",
+                json={"message": "使用新模型继续", "model_id": "next-model-record"},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["model_updated"] is True
+        resolve_model_config.assert_awaited_once_with(session, "next-model-record")
+        assert runner.model_config == next_model_config
+        runner.run.assert_called_once_with(user_request="使用新模型继续")
+
+    async def test_send_agent_message_keeps_interrupted_run_model(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session.add(
+            Task(
+                id="task-model-resume",
+                project_id=target["project_id"],
+                title="模型恢复",
+                mode="agent",
+                agent_session_id="session-model-resume",
+            )
+        )
+        await session.commit()
+
+        original_model_config = {"max_context_tokens": 8000, "model_id": "original-model"}
+        runner = SessionRunner(
+            session_id="session-model-resume",
+            task_id="task-model-resume",
+            model_config=original_model_config,
+            project_id=target["project_id"],
+        )
+        runner.can_continue = AsyncMock(return_value=True)
+        runner.continue_with_user_message = MagicMock(return_value=AsyncMock())
+        _SESSION_RUNNERS["session-model-resume"] = runner
+
+        with patch(
+            "app.api.routers.agent_runtime._resolve_model_config",
+            AsyncMock(),
+        ) as resolve_model_config, patch(
+            "app.api.routers.agent_runtime._launch_task",
+            AsyncMock(),
+        ):
+            response = await client.post(
+                "/api/v1/agent/sessions/session-model-resume/message",
+                json={"message": "继续原任务", "model_id": "new-model-record"},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["model_updated"] is False
+        resolve_model_config.assert_not_awaited()
+        assert runner.model_config == original_model_config
+        runner.continue_with_user_message.assert_called_once_with("继续原任务")
+
+    async def test_send_agent_message_queues_without_updating_model(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session.add(
+            Task(
+                id="task-model-pending",
+                project_id=target["project_id"],
+                title="模型排队",
+                mode="agent",
+                agent_session_id="session-model-pending",
+            )
+        )
+        await session.commit()
+
+        runner = MagicMock()
+        runner.task_id = "task-model-pending"
+        runner.project_id = target["project_id"]
+        runner.queue_pending_user_message = AsyncMock(
+            return_value={
+                "message_id": "pending-model-message",
+                "content": "排队消息",
+                "created_at": "2026-07-12T00:00:00+00:00",
+            }
+        )
+        _SESSION_RUNNERS["session-model-pending"] = runner
+
+        with patch(
+            "app.api.routers.agent_runtime._resolve_model_config",
+            AsyncMock(),
+        ) as resolve_model_config, patch(
+            "app.api.routers.agent_runtime.get_agent_run_registry"
+        ) as get_registry:
+            get_registry.return_value.is_running = AsyncMock(return_value=True)
+            response = await client.post(
+                "/api/v1/agent/sessions/session-model-pending/message",
+                json={"message": "排队消息", "model_id": "next-model-record"},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["model_updated"] is False
+        resolve_model_config.assert_not_awaited()
+        runner.queue_pending_user_message.assert_awaited_once_with("排队消息")
 
     async def test_create_agent_session_rejects_mode_field(self, client: AsyncClient) -> None:
         target = await _seed_agent_target(client)

@@ -73,7 +73,7 @@ class SessionRunner:
         self._validate_model_config(model_config)
         self.session_id = session_id
         self.task_id = task_id
-        self.model_config = model_config
+        self.model_config = dict(model_config)
         self.project_id = project_id
         self.agent_key = agent_key
         self._graph: CompiledStateGraph | None = None
@@ -96,6 +96,10 @@ class SessionRunner:
                 "config",
                 "model_config.max_context_tokens must be a positive int",
             )
+
+    def update_model_config(self, model_config: dict) -> None:
+        self._validate_model_config(model_config)
+        self.model_config = dict(model_config)
 
     async def _get_graph(self) -> CompiledStateGraph:
         if self._graph is None:
