@@ -60,6 +60,7 @@ import {
   SYSTEM_LIGHT_MODEL_REFERENCE,
 } from "../lib/agent-definitions.types";
 import { fetchSettings } from "../lib/settings-api";
+import { AgentSettingsLockNotice } from "./agent-settings-lock-notice";
 
 const LIST_WIDTH = 280;
 const SUBAGENT_RESTRICTED_TOOL_CATEGORIES = new Set(["orchestration", "interaction"]);
@@ -125,6 +126,7 @@ interface AgentFormProps {
   skills: Skill[];
   onCloseSettings?: () => void;
   onUpdated: () => void;
+  isAgentSettingsLocked: boolean;
 }
 
 function AgentForm({
@@ -136,6 +138,7 @@ function AgentForm({
   skills,
   onCloseSettings,
   onUpdated,
+  isAgentSettingsLocked,
 }: AgentFormProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -278,6 +281,7 @@ function AgentForm({
           value={formDisplayName}
           onChange={(e) => setFormDisplayName(e.target.value)}
           placeholder={t("settings.agentsDisplayNamePlaceholder")}
+          disabled={isAgentSettingsLocked}
         />
       </Flex>
 
@@ -297,6 +301,7 @@ function AgentForm({
           onChange={(event) => setFormDescription(event.target.value)}
           rows={3}
           placeholder={t("settings.agentsDescriptionPlaceholder")}
+          disabled={isAgentSettingsLocked}
         />
       </Flex>
 
@@ -317,7 +322,7 @@ function AgentForm({
           onChange={setFormModelId}
           editable={false}
           allowCustomValue={false}
-          disabled={!hasLlmModels}
+          disabled={isAgentSettingsLocked || !hasLlmModels}
           triggerStyle={{ width: "100%" }}
         />
       </Flex>
@@ -355,12 +360,13 @@ function AgentForm({
                   padding: "4px 10px",
                   borderRadius: 6,
                   border: "1px solid var(--gray-a5)",
-                  cursor: "pointer",
+                  cursor: isAgentSettingsLocked ? "not-allowed" : "pointer",
                   fontSize: 13,
                 }}
               >
                 <Checkbox
                   checked={formEnabledToolCategories.includes(opt.key)}
+                  disabled={isAgentSettingsLocked}
                   onCheckedChange={() => handleToggleToolCategory(opt.key)}
                   style={{ margin: 0 }}
                 />
@@ -395,7 +401,7 @@ function AgentForm({
             gap="2"
           >
             {selectableSkills.map((skill) => {
-              const disabled = !skill.isEnabled || !skill.isComplete;
+              const disabled = isAgentSettingsLocked || !skill.isEnabled || !skill.isComplete;
               return (
                 <label
                   key={skill.id}
@@ -460,12 +466,13 @@ function AgentForm({
                     padding: "4px 10px",
                     borderRadius: 6,
                     border: "1px solid var(--gray-a5)",
-                    cursor: "pointer",
+                    cursor: isAgentSettingsLocked ? "not-allowed" : "pointer",
                     fontSize: 13,
                   }}
                 >
                   <Checkbox
                     checked={formDelegatableAgents.includes(opt.value)}
+                    disabled={isAgentSettingsLocked}
                     onCheckedChange={() => handleToggleDelegatable(opt.value)}
                     style={{ margin: 0 }}
                   />
@@ -533,7 +540,7 @@ function AgentForm({
       >
         <Button
           size="2"
-          disabled={!hasFormChanges || updateMutation.isPending}
+          disabled={isAgentSettingsLocked || !hasFormChanges || updateMutation.isPending}
           onClick={() => updateMutation.mutate()}
           style={{ alignSelf: "flex-start" }}
         >
@@ -561,6 +568,8 @@ interface AgentDefinitionsSettingsProps {
   mobileDirection?: 1 | -1;
   onMobileDetailTitleChange?: (title: string | null) => void;
   onMobilePageChange?: (page: "list" | "detail") => void;
+  isAgentSettingsLocked: boolean;
+  isAgentSettingsLockLoading: boolean;
 }
 
 export function AgentDefinitionsSettings({
@@ -569,6 +578,8 @@ export function AgentDefinitionsSettings({
   mobileDirection: controlledMobileDirection,
   onMobileDetailTitleChange,
   onMobilePageChange,
+  isAgentSettingsLocked,
+  isAgentSettingsLockLoading,
 }: AgentDefinitionsSettingsProps) {
   const { t } = useTranslation();
   const agentKindOptions = getAgentKindOptions();
@@ -682,6 +693,7 @@ export function AgentDefinitionsSettings({
     isSettingsLoading ||
     isSettingsFetching ||
     isModelOptionsLoading ||
+    isAgentSettingsLockLoading ||
     !settings;
 
   useEffect(() => {
@@ -726,7 +738,16 @@ export function AgentDefinitionsSettings({
     setNewDescription("");
   }, []);
 
+  useEffect(() => {
+    if (!isAgentSettingsLocked) return;
+    closeCreateDialog();
+    setMenuState(null);
+    setConfirmResetKey(null);
+    setConfirmDeleteKey(null);
+  }, [closeCreateDialog, isAgentSettingsLocked]);
+
   const openCreateDialog = useCallback(() => {
+    if (isAgentSettingsLocked) return;
     setCreateMode("create");
     setCopySource(null);
     setNewKind("primary");
@@ -734,10 +755,11 @@ export function AgentDefinitionsSettings({
     setNewDisplayName("");
     setNewDescription("");
     setIsCreating(true);
-  }, []);
+  }, [isAgentSettingsLocked]);
 
   const openCopyDialog = useCallback(
     (def: AgentDefinitionResponse) => {
+      if (isAgentSettingsLocked) return;
       setCreateMode("copy");
       setCopySource(def);
       setNewKind(def.kind);
@@ -746,7 +768,7 @@ export function AgentDefinitionsSettings({
       setNewDescription(def.description);
       setIsCreating(true);
     },
-    [t],
+    [isAgentSettingsLocked, t],
   );
 
   const createMutation = useMutation({
@@ -843,16 +865,20 @@ export function AgentDefinitionsSettings({
     },
   });
 
-  const openMenuAt = useCallback((key: string, position: { x: number; y: number }) => {
-    setMenuState({ key, position });
-  }, []);
+  const openMenuAt = useCallback(
+    (key: string, position: { x: number; y: number }) => {
+      if (isAgentSettingsLocked) return;
+      setMenuState({ key, position });
+    },
+    [isAgentSettingsLocked],
+  );
 
   const closeMenu = useCallback(() => {
     setMenuState(null);
   }, []);
 
   const menuItems = useMemo<ContextMenuItem[]>(() => {
-    if (!menuTarget) return [];
+    if (!menuTarget || isAgentSettingsLocked) return [];
 
     const actions = getAgentDefinitionMenuActions(menuTarget);
     const items: ContextMenuItem[] = [];
@@ -905,6 +931,7 @@ export function AgentDefinitionsSettings({
     setConfirmResetKey,
     setSelectedKey,
     t,
+    isAgentSettingsLocked,
   ]);
 
   const renderAgentListItem = (def: AgentDefinitionResponse) => (
@@ -978,7 +1005,7 @@ export function AgentDefinitionsSettings({
             <Switch
               size="1"
               checked={def.enabled}
-              disabled={toggleMutation.isPending}
+              disabled={isAgentSettingsLocked || toggleMutation.isPending}
               onClick={(event) => event.stopPropagation()}
               onCheckedChange={(checked) => {
                 void toggleMutation.mutateAsync({ key: def.key, enabled: checked === true });
@@ -997,6 +1024,7 @@ export function AgentDefinitionsSettings({
                 const rect = event.currentTarget.getBoundingClientRect();
                 openMenuAt(def.key, { x: rect.right, y: rect.bottom + 4 });
               }}
+              disabled={isAgentSettingsLocked}
             >
               <MoreHorizontal size={14} />
             </IconButton>
@@ -1043,6 +1071,7 @@ export function AgentDefinitionsSettings({
               color="gray"
               aria-label={t("settings.agentsNewAgent")}
               onClick={openCreateDialog}
+              disabled={isAgentSettingsLocked}
             >
               <Plus size={14} />
             </IconButton>
@@ -1135,6 +1164,7 @@ export function AgentDefinitionsSettings({
       skills={skills}
       onCloseSettings={onCloseSettings}
       onUpdated={invalidateDefs}
+      isAgentSettingsLocked={isAgentSettingsLocked}
     />
   );
 
@@ -1151,53 +1181,62 @@ export function AgentDefinitionsSettings({
       ) : isMobile ? (
         <Flex
           direction="column"
-          className="agent-definitions-layout agent-definitions-layout--mobile"
+          className="agent-definitions-settings-content"
         >
-          <Box className="settings-dialog-mobile-page-stack">
-            <AnimatePresence
-              initial={false}
-              custom={currentMobileDirection}
-              mode="sync"
-            >
-              {currentMobilePage === "list" ? (
-                <MotionBox
-                  key="agents-mobile-list"
-                  custom={currentMobileDirection}
-                  variants={mobilePageVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                  className="settings-dialog-mobile-page"
-                >
-                  <Box className="settings-dialog-mobile-page-padding">
-                    <Box className="settings-dialog-mobile-page-content">{listContent}</Box>
-                  </Box>
-                </MotionBox>
-              ) : (
-                <MotionBox
-                  key="agents-mobile-detail"
-                  custom={currentMobileDirection}
-                  variants={mobilePageVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                  className="settings-dialog-mobile-page"
-                >
-                  <Box className="agent-definitions-detail-panel agent-definitions-detail-panel--mobile">
-                    {detailContent}
-                  </Box>
-                </MotionBox>
-              )}
-            </AnimatePresence>
-          </Box>
+          <AgentSettingsLockNotice isLocked={isAgentSettingsLocked} />
+          <Flex className="agent-definitions-layout agent-definitions-layout--mobile">
+            <Box className="settings-dialog-mobile-page-stack">
+              <AnimatePresence
+                initial={false}
+                custom={currentMobileDirection}
+                mode="sync"
+              >
+                {currentMobilePage === "list" ? (
+                  <MotionBox
+                    key="agents-mobile-list"
+                    custom={currentMobileDirection}
+                    variants={mobilePageVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    className="settings-dialog-mobile-page"
+                  >
+                    <Box className="settings-dialog-mobile-page-padding">
+                      <Box className="settings-dialog-mobile-page-content">{listContent}</Box>
+                    </Box>
+                  </MotionBox>
+                ) : (
+                  <MotionBox
+                    key="agents-mobile-detail"
+                    custom={currentMobileDirection}
+                    variants={mobilePageVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    className="settings-dialog-mobile-page"
+                  >
+                    <Box className="agent-definitions-detail-panel agent-definitions-detail-panel--mobile">
+                      {detailContent}
+                    </Box>
+                  </MotionBox>
+                )}
+              </AnimatePresence>
+            </Box>
+          </Flex>
         </Flex>
       ) : (
-        <Flex className="agent-definitions-layout">
-          {listContent}
+        <Flex
+          direction="column"
+          className="agent-definitions-settings-content"
+        >
+          <AgentSettingsLockNotice isLocked={isAgentSettingsLocked} />
+          <Flex className="agent-definitions-layout">
+            {listContent}
 
-          <Box className="agent-definitions-detail-panel">{detailContent}</Box>
+            <Box className="agent-definitions-detail-panel">{detailContent}</Box>
+          </Flex>
         </Flex>
       )}
 
@@ -1236,6 +1275,7 @@ export function AgentDefinitionsSettings({
                   setNewKey(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
                 }
                 placeholder={t("settings.agentsKeyPlaceholder")}
+                disabled={isAgentSettingsLocked}
               />
             </Flex>
 
@@ -1253,6 +1293,7 @@ export function AgentDefinitionsSettings({
                 value={newDisplayName}
                 onChange={(event) => setNewDisplayName(event.target.value)}
                 placeholder={t("settings.agentsDisplayNamePlaceholder")}
+                disabled={isAgentSettingsLocked}
               />
             </Flex>
 
@@ -1271,6 +1312,7 @@ export function AgentDefinitionsSettings({
                 onChange={(event) => setNewDescription(event.target.value)}
                 rows={3}
                 placeholder={t("settings.agentsDescriptionPlaceholder")}
+                disabled={isAgentSettingsLocked}
               />
             </Flex>
 
@@ -1287,6 +1329,7 @@ export function AgentDefinitionsSettings({
               <Select.Root
                 value={newKind}
                 onValueChange={(value) => setNewKind(value as "primary" | "subagent")}
+                disabled={isAgentSettingsLocked}
               >
                 <Select.Trigger style={{ width: "100%" }} />
                 <Select.Content>
@@ -1316,7 +1359,12 @@ export function AgentDefinitionsSettings({
               {t("common.cancel")}
             </Button>
             <Button
-              disabled={!newKey.trim() || !newDisplayName.trim() || createMutation.isPending}
+              disabled={
+                isAgentSettingsLocked ||
+                !newKey.trim() ||
+                !newDisplayName.trim() ||
+                createMutation.isPending
+              }
               onClick={() => createMutation.mutate()}
             >
               {createMutation.isPending

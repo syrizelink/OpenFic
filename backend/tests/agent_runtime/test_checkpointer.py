@@ -17,6 +17,56 @@ from app.agent_runtime.runner.checkpointer import (
     init_checkpointer,
     reset_checkpointer,
 )
+from app.agent_runtime.tools.impls.interaction.ask_user import Question, QuestionOption
+
+
+@pytest.mark.asyncio
+async def test_get_checkpointer_restores_legacy_question_checkpoint(monkeypatch, tmp_path):
+    db_path = tmp_path / "test_checkpoints.db"
+    monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(db_path))
+    await reset_checkpointer()
+
+    try:
+        conn = await aiosqlite.connect(db_path)
+        legacy_checkpointer = AsyncSqliteSaver(conn)
+        await legacy_checkpointer.setup()
+        config = {
+            "configurable": {
+                "thread_id": "legacy-question-session",
+                "checkpoint_ns": "",
+            }
+        }
+        checkpoint = {
+            "v": 2,
+            "id": "legacy-question-checkpoint",
+            "ts": "2026-07-12T00:00:00+00:00",
+            "channel_values": {
+                "pending_question": Question(
+                    title="继续方式",
+                    description="请选择后续处理方式。",
+                    options=[
+                        QuestionOption(label="继续", description="继续执行"),
+                        QuestionOption(label="暂停", description="暂停执行"),
+                    ],
+                )
+            },
+            "channel_versions": {},
+            "versions_seen": {},
+            "pending_sends": [],
+        }
+        await legacy_checkpointer.aput(config, checkpoint, {}, {})
+        await conn.close()
+
+        checkpointer = await get_checkpointer()
+        persisted = await checkpointer.aget_tuple(config)
+
+        assert persisted is not None
+        question = persisted.checkpoint["channel_values"]["pending_question"]
+        assert isinstance(question, Question)
+        assert question.title == "继续方式"
+        assert isinstance(question.options[0], QuestionOption)
+    finally:
+        await reset_checkpointer()
 
 
 @pytest.mark.asyncio

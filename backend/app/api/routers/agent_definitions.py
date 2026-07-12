@@ -14,6 +14,7 @@ from app.api.schemas.agent_definition import (
     AgentToolCategoryResponse,
     AgentDefinitionUpdateRequest,
 )
+from app.api.agent_settings_lock import require_agent_settings_unlocked
 from app.agent_runtime.agents.definitions import agent_definition_from_record
 from app.agent_runtime.agents.tool_categories import list_tool_categories
 from app.core.errors import NotFoundError, ValidationError
@@ -98,6 +99,7 @@ async def create_definition(
     session: AsyncSession = Depends(get_session),
 ) -> AgentDefinitionResponse:
     try:
+        await require_agent_settings_unlocked(session)
         record = await agent_definition_service.create_definition(
             session,
             key=body.key,
@@ -137,6 +139,7 @@ async def update_definition(
     session: AsyncSession = Depends(get_session),
 ) -> AgentDefinitionResponse:
     try:
+        await require_agent_settings_unlocked(session)
         record = await agent_definition_service.update_definition(
             session,
             key=key,
@@ -169,6 +172,7 @@ async def reset_definition(
     session: AsyncSession = Depends(get_session),
 ) -> AgentDefinitionResponse:
     try:
+        await require_agent_settings_unlocked(session)
         defn = await agent_definition_service.reset_definition(session, key)
     except ValidationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -186,6 +190,7 @@ async def delete_definition(
     session: AsyncSession = Depends(get_session),
 ):
     try:
+        await require_agent_settings_unlocked(session)
         await agent_definition_service.delete_definition(session, key)
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))

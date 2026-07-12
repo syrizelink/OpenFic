@@ -32,6 +32,7 @@ export interface ProjectIndexGroup {
 
 interface ProjectIndexListProps {
   groups: ProjectIndexGroup[];
+  isAgentSettingsLocked: boolean;
 }
 
 const EXPAND_TRANSITION = {
@@ -39,7 +40,7 @@ const EXPAND_TRANSITION = {
   opacity: { duration: 0.18, ease: "easeOut" },
 } as const;
 
-export function ProjectIndexList({ groups }: ProjectIndexListProps) {
+export function ProjectIndexList({ groups, isAgentSettingsLocked }: ProjectIndexListProps) {
   const { t } = useTranslation();
 
   return (
@@ -58,6 +59,7 @@ export function ProjectIndexList({ groups }: ProjectIndexListProps) {
               <ProjectIndexAccordionItem
                 key={group.projectId}
                 group={group}
+                isAgentSettingsLocked={isAgentSettingsLocked}
               />
             ))}
           </Flex>
@@ -74,7 +76,13 @@ export function ProjectIndexList({ groups }: ProjectIndexListProps) {
   );
 }
 
-function ProjectIndexAccordionItem({ group }: { group: ProjectIndexGroup }) {
+function ProjectIndexAccordionItem({
+  group,
+  isAgentSettingsLocked,
+}: {
+  group: ProjectIndexGroup;
+  isAgentSettingsLocked: boolean;
+}) {
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
   const bodyId = useId();
@@ -140,6 +148,7 @@ function ProjectIndexAccordionItem({ group }: { group: ProjectIndexGroup }) {
                 projectId={group.projectId}
                 enabled={group.enabled}
                 unit={unit}
+                isAgentSettingsLocked={isAgentSettingsLocked}
               />
             ))}
           </motion.div>
@@ -153,10 +162,12 @@ function IndexUnitRow({
   projectId,
   enabled,
   unit,
+  isAgentSettingsLocked,
 }: {
   projectId: string;
   enabled: boolean;
   unit: IndexUnitStatus;
+  isAgentSettingsLocked: boolean;
 }) {
   const { t } = useTranslation();
   const startMutation = useStartProjectIndex(projectId);
@@ -195,7 +206,9 @@ function IndexUnitRow({
               }
               startMutation.mutate();
             }}
-            disabled={isIndexing ? isSubmitting : !canStart || isSubmitting}
+            disabled={
+              isAgentSettingsLocked || (isIndexing ? isSubmitting : !canStart || isSubmitting)
+            }
           >
             {isIndexing ? (
               <Square

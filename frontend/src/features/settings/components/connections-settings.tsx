@@ -7,7 +7,7 @@
 import { Box, Flex, Text, Button, IconButton } from "@radix-ui/themes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Edit } from "lucide-react";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Spinner } from "@/components";
@@ -24,15 +24,31 @@ import {
 } from "../lib/model-api";
 import { ProviderIcon } from "../lib/provider-icons";
 import { getProviderDisplayName, resolveProviderDisplayName } from "../lib/provider-utils";
+import { AgentSettingsLockNotice } from "./agent-settings-lock-notice";
 import { ConnectionFormDialog } from "./connection-form-dialog";
 
-export function ConnectionsSettings() {
+interface ConnectionsSettingsProps {
+  isAgentSettingsLocked: boolean;
+  isAgentSettingsLockLoading: boolean;
+}
+
+export function ConnectionsSettings({
+  isAgentSettingsLocked,
+  isAgentSettingsLockLoading,
+}: ConnectionsSettingsProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingConnection, setEditingConnection] = useState<ModelProvider | null>(null);
   const [deletingConnection, setDeletingConnection] = useState<ModelProvider | null>(null);
+
+  useEffect(() => {
+    if (!isAgentSettingsLocked) return;
+    setFormOpen(false);
+    setEditingConnection(null);
+    setDeletingConnection(null);
+  }, [isAgentSettingsLocked]);
 
   // 获取所有连接
   const {
@@ -134,7 +150,10 @@ export function ConnectionsSettings() {
   }, [deletingConnection, deleteMutation]);
 
   const isContentLoading =
-    isConnectionsLoading || isConnectionsFetching || isCatalogProvidersLoading;
+    isConnectionsLoading ||
+    isConnectionsFetching ||
+    isCatalogProvidersLoading ||
+    isAgentSettingsLockLoading;
 
   if (isContentLoading) {
     return (
@@ -150,6 +169,7 @@ export function ConnectionsSettings() {
 
   return (
     <Box>
+      <AgentSettingsLockNotice isLocked={isAgentSettingsLocked} />
       <Flex
         direction="column"
         gap="4"
@@ -164,7 +184,10 @@ export function ConnectionsSettings() {
 
         {/* 新建按钮 */}
         <Flex>
-          <Button onClick={handleCreate}>
+          <Button
+            onClick={handleCreate}
+            disabled={isAgentSettingsLocked}
+          >
             <Plus size={16} />
             {t("connections.newConnection")}
           </Button>
@@ -266,6 +289,7 @@ export function ConnectionsSettings() {
                       variant="ghost"
                       color="gray"
                       onClick={() => handleEdit(connection)}
+                      disabled={isAgentSettingsLocked}
                     >
                       <Edit size={16} />
                     </IconButton>
@@ -273,6 +297,7 @@ export function ConnectionsSettings() {
                       variant="ghost"
                       color="red"
                       onClick={() => handleDelete(connection)}
+                      disabled={isAgentSettingsLocked}
                     >
                       <Trash2 size={16} />
                     </IconButton>
@@ -318,6 +343,7 @@ export function ConnectionsSettings() {
         isCatalogLoading={isCatalogProvidersLoading}
         onSubmit={handleSubmit}
         isSubmitting={createMutation.isPending || updateMutation.isPending}
+        isAgentSettingsLocked={isAgentSettingsLocked}
       />
 
       {/* 删除确认对话框 */}

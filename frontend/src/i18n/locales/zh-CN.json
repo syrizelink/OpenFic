@@ -534,6 +534,8 @@
     "batchToggled": "已更新 {{count}} 个条目"
   },
   "settings": {
+    "agentSettingsLocked": "Agent 会话运行中，相关设置暂不可修改。",
+    "agentSettingsLockHint": "请等待所有会话结束后再修改。",
     "title": "设置",
     "general": "通用",
     "connections": "提供商",

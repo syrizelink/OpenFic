@@ -42,6 +42,7 @@ import type { Skill, SkillCreate, SkillListResponse } from "@/lib/skill.types";
 import { countTokens } from "@/lib/tiktoken-utils";
 
 import { fetchAgentDefinitions } from "../lib/agent-definitions-api";
+import { AgentSettingsLockNotice } from "./agent-settings-lock-notice";
 import { ImportSkillDialog } from "./import-skill-dialog";
 
 import "./skills-settings.css";
@@ -60,6 +61,8 @@ interface SkillsSettingsProps {
   onMobileDetailTitleChange?: (title: string | null) => void;
   onMobilePageChange?: (page: "list" | "detail") => void;
   onMobileRefDocEditChange?: (active: boolean) => void;
+  isAgentSettingsLocked?: boolean;
+  isAgentSettingsLockLoading?: boolean;
 }
 
 const MotionBox = motion.create(Box);
@@ -99,6 +102,8 @@ export function SkillsSettings({
   onMobileDetailTitleChange,
   onMobilePageChange,
   onMobileRefDocEditChange,
+  isAgentSettingsLocked = false,
+  isAgentSettingsLockLoading = false,
 }: SkillsSettingsProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -219,6 +224,17 @@ export function SkillsSettings({
     setRenamingRefDocId(null);
     setDeletingRefDoc(null);
   }, [effectiveSelectedSkillId]);
+
+  useEffect(() => {
+    if (!isAgentSettingsLocked) return;
+    setDeleteDialogOpen(false);
+    setImportDialogOpen(false);
+    setEditingRefDoc(null);
+    setRenamingRefDocId(null);
+    setDeletingRefDoc(null);
+    setContextMenuPos(null);
+    setContextMenuSkillId(null);
+  }, [isAgentSettingsLocked]);
 
   const createMutation = useMutation({
     mutationFn: (payload: SkillCreate) => createSkill(payload),
@@ -400,6 +416,7 @@ export function SkillsSettings({
   });
 
   const handleCreate = () => {
+    if (isAgentSettingsLocked) return;
     const defaultPayload: SkillCreate = {
       name: t("settingsExtra.skills.newSkill"),
       summary: "",
@@ -427,7 +444,7 @@ export function SkillsSettings({
   }, []);
 
   const contextMenuItems = useMemo<ContextMenuItem[]>(() => {
-    if (!contextMenuSkillId) return [];
+    if (!contextMenuSkillId || isAgentSettingsLocked) return [];
     const skill = skills.find((s) => s.id === contextMenuSkillId);
     if (!skill) return [];
 
@@ -444,19 +461,24 @@ export function SkillsSettings({
         },
       },
     ];
-  }, [contextMenuSkillId, skills, handleCloseContextMenu, t]);
+  }, [contextMenuSkillId, skills, handleCloseContextMenu, isAgentSettingsLocked, t]);
 
   const handleCreateRefDoc = useCallback(() => {
+    if (isAgentSettingsLocked) return;
     if (!effectiveSelectedSkillId) return;
     createRefDocMutation.mutate({
       skillDbId: effectiveSelectedSkillId,
       payload: { title: t("settingsExtra.skills.newReferenceDoc"), content: "" },
     });
-  }, [createRefDocMutation, effectiveSelectedSkillId, t]);
+  }, [createRefDocMutation, effectiveSelectedSkillId, isAgentSettingsLocked, t]);
 
-  const handleStartRenameRefDoc = useCallback((doc: SkillReferenceDoc) => {
-    setRenamingRefDocId(doc.id);
-  }, []);
+  const handleStartRenameRefDoc = useCallback(
+    (doc: SkillReferenceDoc) => {
+      if (isAgentSettingsLocked) return;
+      setRenamingRefDocId(doc.id);
+    },
+    [isAgentSettingsLocked],
+  );
 
   const handleConfirmRenameRefDoc = useCallback(
     (newTitle: string) => {
@@ -481,6 +503,7 @@ export function SkillsSettings({
 
   const handleEditRefDoc = useCallback(
     (doc: SkillReferenceDoc) => {
+      if (isAgentSettingsLocked) return;
       setEditingRefDoc(doc);
       if (isMobile) {
         setInternalMobileRefDocEdit(true);
@@ -488,12 +511,16 @@ export function SkillsSettings({
         onMobileDetailTitleChange?.(doc.title || t("settingsExtra.skills.untitledReferenceDoc"));
       }
     },
-    [isMobile, onMobileRefDocEditChange, onMobileDetailTitleChange, t],
+    [isAgentSettingsLocked, isMobile, onMobileRefDocEditChange, onMobileDetailTitleChange, t],
   );
 
-  const handleDeleteRefDoc = useCallback((doc: SkillReferenceDoc) => {
-    setDeletingRefDoc(doc);
-  }, []);
+  const handleDeleteRefDoc = useCallback(
+    (doc: SkillReferenceDoc) => {
+      if (isAgentSettingsLocked) return;
+      setDeletingRefDoc(doc);
+    },
+    [isAgentSettingsLocked],
+  );
 
   const handleSaveRefDocContent = useCallback(
     async (content: string) => {
@@ -574,7 +601,7 @@ export function SkillsSettings({
                 color="gray"
                 aria-label={t("settingsExtra.skills.newSkill")}
                 onClick={handleCreate}
-                disabled={createMutation.isPending}
+                disabled={isAgentSettingsLocked || createMutation.isPending}
               >
                 <Plus size={14} />
               </IconButton>
@@ -587,7 +614,7 @@ export function SkillsSettings({
                 color="gray"
                 aria-label={t("settingsExtra.skills.importSkill")}
                 onClick={() => setImportDialogOpen(true)}
-                disabled={createMutation.isPending}
+                disabled={isAgentSettingsLocked || createMutation.isPending}
               >
                 <Import size={14} />
               </IconButton>
@@ -638,6 +665,7 @@ export function SkillsSettings({
                   })
                 }
                 onContextMenu={(pos) => handleContextMenu(skill.id, pos)}
+                isAgentSettingsLocked={isAgentSettingsLocked}
               />
             ))}
           </Flex>
@@ -646,7 +674,7 @@ export function SkillsSettings({
     </div>
   );
 
-  if (isLoading) {
+  if (isLoading || isAgentSettingsLockLoading) {
     return (
       <Flex
         align="center"
@@ -694,6 +722,7 @@ export function SkillsSettings({
       onDeleteRefDoc={handleDeleteRefDoc}
       isCreatingRefDoc={createRefDocMutation.isPending}
       isRenamingRefDoc={renameRefDocMutation.isPending}
+      isAgentSettingsLocked={isAgentSettingsLocked}
     />
   );
 
@@ -705,6 +734,7 @@ export function SkillsSettings({
         onOpenChange={(o) => !o && setEditingRefDoc(null)}
         onSave={handleSaveRefDocContent}
         isSaving={editRefDocContentMutation.isPending}
+        isAgentSettingsLocked={isAgentSettingsLocked}
       />
       <SkillReferenceDocDeleteDialog
         doc={deletingRefDoc}
@@ -712,6 +742,7 @@ export function SkillsSettings({
         onOpenChange={(o) => !o && setDeletingRefDoc(null)}
         onConfirm={handleConfirmDeleteRefDoc}
         isSaving={deleteRefDocMutation.isPending}
+        isAgentSettingsLocked={isAgentSettingsLocked}
       />
     </>
   );
@@ -726,6 +757,7 @@ export function SkillsSettings({
         direction="column"
         className={`skills-settings${isSettingsVariant ? " skills-settings--settings" : ""}`}
       >
+        {isSettingsVariant ? <AgentSettingsLockNotice isLocked={isAgentSettingsLocked} /> : null}
         <Box className="settings-dialog-mobile-page-stack">
           <AnimatePresence
             initial={false}
@@ -780,6 +812,7 @@ export function SkillsSettings({
                             onSave={handleSaveRefDocContent}
                             onDone={handleExitRefDocEdit}
                             isSaving={editRefDocContentMutation.isPending}
+                            isAgentSettingsLocked={isAgentSettingsLocked}
                           />
                         </Flex>
                       </div>
@@ -840,6 +873,7 @@ export function SkillsSettings({
               </Button>
               <Button
                 color="red"
+                disabled={isAgentSettingsLocked}
                 onClick={() =>
                   effectiveSelectedSkillId && deleteMutation.mutate(effectiveSelectedSkillId)
                 }
@@ -856,6 +890,7 @@ export function SkillsSettings({
           open={importDialogOpen}
           onOpenChange={setImportDialogOpen}
           onImported={handleImported}
+          disabled={isAgentSettingsLocked}
         />
       </Flex>
     );
@@ -866,6 +901,7 @@ export function SkillsSettings({
       direction="column"
       className={`skills-settings${isSettingsVariant ? " skills-settings--settings" : ""}`}
     >
+      {isSettingsVariant ? <AgentSettingsLockNotice isLocked={isAgentSettingsLocked} /> : null}
       <Flex
         className={`skills-settings-layout${isSettingsVariant ? " skills-settings-layout--settings" : ""}`}
       >
@@ -915,6 +951,7 @@ export function SkillsSettings({
             </Button>
             <Button
               color="red"
+              disabled={isAgentSettingsLocked}
               onClick={() =>
                 effectiveSelectedSkillId && deleteMutation.mutate(effectiveSelectedSkillId)
               }
@@ -931,6 +968,7 @@ export function SkillsSettings({
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}
         onImported={handleImported}
+        disabled={isAgentSettingsLocked}
       />
     </Flex>
   );
@@ -944,6 +982,7 @@ interface SkillListItemProps {
   onSelect: () => void;
   onToggle: () => void;
   onContextMenu: (position: ContextMenuPosition) => void;
+  isAgentSettingsLocked: boolean;
 }
 
 function SkillListItem({
@@ -954,14 +993,16 @@ function SkillListItem({
   onSelect,
   onToggle,
   onContextMenu,
+  isAgentSettingsLocked,
 }: SkillListItemProps) {
   const { t } = useTranslation();
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
+      if (isAgentSettingsLocked) return;
       e.preventDefault();
       onContextMenu({ x: e.clientX, y: e.clientY });
     },
-    [onContextMenu],
+    [isAgentSettingsLocked, onContextMenu],
   );
 
   return (
@@ -1036,7 +1077,7 @@ function SkillListItem({
             <Switch
               size="1"
               checked={skill.isEnabled}
-              disabled={!skill.isComplete}
+              disabled={isAgentSettingsLocked || !skill.isComplete}
               onClick={(e) => e.stopPropagation()}
               onCheckedChange={onToggle}
             />
@@ -1053,6 +1094,7 @@ function SkillListItem({
                 const rect = event.currentTarget.getBoundingClientRect();
                 onContextMenu({ x: rect.right, y: rect.bottom + 4 });
               }}
+              disabled={isAgentSettingsLocked}
             >
               <MoreHorizontal size={14} />
             </IconButton>
@@ -1083,6 +1125,7 @@ interface SkillEditorProps {
   onDeleteRefDoc: (doc: SkillReferenceDoc) => void;
   isCreatingRefDoc: boolean;
   isRenamingRefDoc: boolean;
+  isAgentSettingsLocked: boolean;
 }
 
 function SkillEditor({
@@ -1098,6 +1141,7 @@ function SkillEditor({
   onDeleteRefDoc,
   isCreatingRefDoc,
   isRenamingRefDoc,
+  isAgentSettingsLocked,
 }: SkillEditorProps) {
   const { t } = useTranslation();
   const [form, setForm] = useState<SkillFormState>(() => toFormState(skill));
@@ -1141,6 +1185,7 @@ function SkillEditor({
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
               placeholder={t("settingsExtra.skills.namePlaceholder")}
+              disabled={isAgentSettingsLocked}
             />
           </Box>
 
@@ -1158,6 +1203,7 @@ function SkillEditor({
               onChange={(e) => setForm((prev) => ({ ...prev, summary: e.target.value }))}
               placeholder={t("settingsExtra.skills.summaryPlaceholder")}
               rows={3}
+              disabled={isAgentSettingsLocked}
             />
           </Box>
 
@@ -1186,6 +1232,7 @@ function SkillEditor({
               onChange={(e) => setForm((prev) => ({ ...prev, content: e.target.value }))}
               placeholder={t("settingsExtra.skills.contentPlaceholder")}
               rows={12}
+              disabled={isAgentSettingsLocked}
             />
           </Box>
 
@@ -1200,6 +1247,7 @@ function SkillEditor({
             onDelete={onDeleteRefDoc}
             isCreating={isCreatingRefDoc}
             isRenaming={isRenamingRefDoc}
+            isAgentSettingsLocked={isAgentSettingsLocked}
           />
         </Flex>
       </div>
@@ -1207,7 +1255,7 @@ function SkillEditor({
       <div className="skills-settings-editor-footer">
         <Button
           onClick={() => void handleSave()}
-          disabled={!canSave}
+          disabled={isAgentSettingsLocked || !canSave}
         >
           {isSaving ? t("settingsExtra.skills.saving") : t("common.save")}
         </Button>
@@ -1227,6 +1275,7 @@ interface SkillReferenceDocsSectionProps {
   onDelete: (doc: SkillReferenceDoc) => void;
   isCreating: boolean;
   isRenaming: boolean;
+  isAgentSettingsLocked: boolean;
 }
 
 function SkillReferenceDocsSection({
@@ -1240,6 +1289,7 @@ function SkillReferenceDocsSection({
   onDelete,
   isCreating,
   isRenaming,
+  isAgentSettingsLocked,
 }: SkillReferenceDocsSectionProps) {
   const { t } = useTranslation();
 
@@ -1262,7 +1312,7 @@ function SkillReferenceDocsSection({
           variant="ghost"
           color="gray"
           onClick={onCreate}
-          disabled={isCreating}
+          disabled={isAgentSettingsLocked || isCreating}
         >
           <Plus size={14} />
           {t("settingsExtra.skills.newReferenceDocButton")}
@@ -1300,6 +1350,7 @@ function SkillReferenceDocsSection({
                     initialValue={doc.title}
                     onConfirm={onConfirmRename}
                     onCancel={onCancelRename}
+                    disabled={isAgentSettingsLocked}
                   />
                 ) : (
                   <Text
@@ -1330,7 +1381,7 @@ function SkillReferenceDocsSection({
                       variant="ghost"
                       color="gray"
                       aria-label={t("common.rename")}
-                      disabled={isRenaming}
+                      disabled={isAgentSettingsLocked || isRenaming}
                       onClick={() => onStartRename(doc)}
                     >
                       <PenLine size={14} />
@@ -1343,6 +1394,7 @@ function SkillReferenceDocsSection({
                       color="gray"
                       aria-label={t("common.edit")}
                       onClick={() => onEdit(doc)}
+                      disabled={isAgentSettingsLocked}
                     >
                       <FilePen size={14} />
                     </IconButton>
@@ -1354,6 +1406,7 @@ function SkillReferenceDocsSection({
                       color="red"
                       aria-label={t("common.delete")}
                       onClick={() => onDelete(doc)}
+                      disabled={isAgentSettingsLocked}
                     >
                       <Trash2 size={14} />
                     </IconButton>
@@ -1372,9 +1425,15 @@ interface RefDocRenameInputProps {
   initialValue: string;
   onConfirm: (newTitle: string) => void;
   onCancel: () => void;
+  disabled: boolean;
 }
 
-function RefDocRenameInput({ initialValue, onConfirm, onCancel }: RefDocRenameInputProps) {
+function RefDocRenameInput({
+  initialValue,
+  onConfirm,
+  onCancel,
+  disabled,
+}: RefDocRenameInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState(initialValue);
 
@@ -1417,6 +1476,7 @@ function RefDocRenameInput({ initialValue, onConfirm, onCancel }: RefDocRenameIn
       onKeyDown={handleKeyDown}
       onClick={(event) => event.stopPropagation()}
       className="skills-settings-refdocs-item-rename-input"
+      disabled={disabled}
     />
   );
 }
@@ -1426,9 +1486,16 @@ interface ReferenceDocEditorProps {
   onSave: (content: string) => Promise<void>;
   onDone: () => void;
   isSaving: boolean;
+  isAgentSettingsLocked: boolean;
 }
 
-function ReferenceDocEditor({ doc, onSave, onDone, isSaving }: ReferenceDocEditorProps) {
+function ReferenceDocEditor({
+  doc,
+  onSave,
+  onDone,
+  isSaving,
+  isAgentSettingsLocked,
+}: ReferenceDocEditorProps) {
   const { t } = useTranslation();
   const [content, setContent] = useState(doc.content);
   const hasChanges = content !== doc.content;
@@ -1452,6 +1519,7 @@ function ReferenceDocEditor({ doc, onSave, onDone, isSaving }: ReferenceDocEdito
         onChange={(e) => setContent(e.target.value)}
         placeholder={t("settingsExtra.skills.referenceDocContentPlaceholder")}
         rows={12}
+        disabled={isAgentSettingsLocked}
       />
       <Flex
         gap="3"
@@ -1467,7 +1535,7 @@ function ReferenceDocEditor({ doc, onSave, onDone, isSaving }: ReferenceDocEdito
         </Button>
         <Button
           onClick={() => void handleSave()}
-          disabled={isSaving || !hasChanges}
+          disabled={isAgentSettingsLocked || isSaving || !hasChanges}
         >
           {isSaving ? <Spinner size={18} /> : null}
           {t("common.save")}
@@ -1483,6 +1551,7 @@ interface SkillReferenceDocEditDialogProps {
   onOpenChange: (open: boolean) => void;
   onSave: (content: string) => Promise<void>;
   isSaving: boolean;
+  isAgentSettingsLocked: boolean;
 }
 
 function SkillReferenceDocEditDialog({
@@ -1491,6 +1560,7 @@ function SkillReferenceDocEditDialog({
   onOpenChange,
   onSave,
   isSaving,
+  isAgentSettingsLocked,
 }: SkillReferenceDocEditDialogProps) {
   const { t } = useTranslation();
 
@@ -1508,6 +1578,7 @@ function SkillReferenceDocEditDialog({
               onSave={onSave}
               onDone={() => onOpenChange(false)}
               isSaving={isSaving}
+              isAgentSettingsLocked={isAgentSettingsLocked}
             />
           </Box>
         ) : null}
@@ -1522,6 +1593,7 @@ interface SkillReferenceDocDeleteDialogProps {
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
   isSaving: boolean;
+  isAgentSettingsLocked: boolean;
 }
 
 function SkillReferenceDocDeleteDialog({
@@ -1529,6 +1601,7 @@ function SkillReferenceDocDeleteDialog({
   onOpenChange,
   onConfirm,
   isSaving,
+  isAgentSettingsLocked,
 }: SkillReferenceDocDeleteDialogProps) {
   const { t } = useTranslation();
 
@@ -1554,14 +1627,14 @@ function SkillReferenceDocDeleteDialog({
             variant="soft"
             color="gray"
             onClick={() => onOpenChange(false)}
-            disabled={isSaving}
+            disabled={isAgentSettingsLocked || isSaving}
           >
             {t("common.cancel")}
           </Button>
           <Button
             color="red"
             onClick={onConfirm}
-            disabled={isSaving}
+            disabled={isAgentSettingsLocked || isSaving}
           >
             {t("common.delete")}
           </Button>

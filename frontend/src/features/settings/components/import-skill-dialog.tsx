@@ -13,11 +13,17 @@ interface ImportSkillDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImported: (skill: Skill) => void;
+  disabled?: boolean;
 }
 
 type Step = "select" | "complete";
 
-export function ImportSkillDialog({ open, onOpenChange, onImported }: ImportSkillDialogProps) {
+export function ImportSkillDialog({
+  open,
+  onOpenChange,
+  onImported,
+  disabled = false,
+}: ImportSkillDialogProps) {
   const { t } = useTranslation();
   const [step, setStep] = useState<Step>("select");
   const [loading, setLoading] = useState(false);
@@ -42,6 +48,7 @@ export function ImportSkillDialog({ open, onOpenChange, onImported }: ImportSkil
 
   const handleFileSelect = useCallback(
     async (selectedFile: File) => {
+      if (disabled) return;
       const lower = selectedFile.name.toLowerCase();
       if (!lower.endsWith(".md") && !lower.endsWith(".zip")) {
         setError(t("settingsExtra.skills.importDialog.invalidFileType"));
@@ -60,16 +67,17 @@ export function ImportSkillDialog({ open, onOpenChange, onImported }: ImportSkil
         setLoading(false);
       }
     },
-    [onImported, t],
+    [disabled, onImported, t],
   );
 
   const handleDrop = useCallback(
     (event: React.DragEvent) => {
+      if (disabled) return;
       event.preventDefault();
       const droppedFile = event.dataTransfer.files[0];
       if (droppedFile) handleFileSelect(droppedFile);
     },
-    [handleFileSelect],
+    [disabled, handleFileSelect],
   );
 
   const renderSelectStep = () => (
@@ -79,6 +87,7 @@ export function ImportSkillDialog({ open, onOpenChange, onImported }: ImportSkil
         ref={fileInputRef}
         type="file"
         accept=".md,.zip"
+        disabled={disabled}
         onChange={(event) => {
           const selectedFile = event.target.files?.[0];
           if (selectedFile) handleFileSelect(selectedFile);
@@ -87,9 +96,14 @@ export function ImportSkillDialog({ open, onOpenChange, onImported }: ImportSkil
       />
       <Box
         className="import-skill-dropzone"
-        onDragOver={(event) => event.preventDefault()}
+        onDragOver={(event) => {
+          if (!disabled) event.preventDefault();
+        }}
         onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => {
+          if (!disabled) fileInputRef.current?.click();
+        }}
+        data-disabled={disabled ? "true" : "false"}
       >
         <Upload
           size={48}

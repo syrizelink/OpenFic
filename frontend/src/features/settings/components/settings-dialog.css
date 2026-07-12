@@ -147,11 +147,42 @@
   overflow: hidden;
 }
 
+.settings-dialog-lock-notice {
+  width: 100%;
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border: 1px solid var(--amber-a6);
+  border-radius: 10px;
+  background: var(--amber-a3);
+  color: var(--amber-11);
+  box-sizing: border-box;
+}
+
+.settings-dialog-lock-notice-icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.settings-dialog-lock-notice-copy {
+  min-width: 0;
+  line-height: 1.55;
+}
+
 .agent-definitions-layout {
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
   overflow: hidden;
+}
+
+.agent-definitions-settings-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.agent-definitions-settings-content > .agent-definitions-layout {
+  height: auto;
 }
 
 .rt-Box.agent-definitions-list-panel {
@@ -456,6 +487,10 @@
 
   .settings-dialog-content-scroll.settings-dialog-content-scroll--agents {
     padding: 0;
+  }
+
+  .settings-dialog-lock-notice {
+    margin-bottom: 16px;
   }
 
   .settings-dialog-savebar {

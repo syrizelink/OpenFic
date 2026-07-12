@@ -2,6 +2,7 @@
 """Agent API 测试。"""
 
 import asyncio
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -35,7 +36,8 @@ from app.storage.services import task_service
 
 
 @pytest_asyncio.fixture(autouse=True)
-async def reset_agent_runtime_globals():
+async def reset_agent_runtime_globals(monkeypatch, tmp_path: Path):
+    monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(tmp_path / "checkpoints.db"))
     await get_agent_run_registry().cancel_all()
     _SESSION_RUNNERS.clear()
     await reset_checkpointer()
@@ -1302,6 +1304,37 @@ class TestAgentAPI:
         assert data["state"]["model_config"]["model_id"] == "gpt-3.5-turbo"
         assert session_id in _SESSION_RUNNERS
         assert _SESSION_RUNNERS[session_id].model_config["api_key"] == "test_api_key"
+
+    async def test_get_session_state_rehydrates_legacy_model_config_without_record_id(
+        self,
+        client: AsyncClient,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={
+                "project_id": target["project_id"],
+                "model_id": target["model_id"],
+                "max_iterations": 5,
+            },
+        )
+        session_id = session_response.json()["session_id"]
+        runner = _SESSION_RUNNERS[session_id]
+        graph = await runner._get_graph()
+        state = await graph.aget_state({"configurable": {"thread_id": session_id}})
+        legacy_model_config = dict(state.values["model_config"])
+        legacy_model_config.pop("model_record_id")
+        await graph.aupdate_state(
+            {"configurable": {"thread_id": session_id}},
+            {"model_config": legacy_model_config},
+            as_node="primary",
+        )
+        _SESSION_RUNNERS.clear()
+
+        response = await client.get(f"/api/v1/agent/sessions/{session_id}")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["state"]["model_config"]["model_record_id"] == target["model_id"]
 
     async def test_agent_checkpoint_and_session_state_do_not_contain_api_key(
         self,

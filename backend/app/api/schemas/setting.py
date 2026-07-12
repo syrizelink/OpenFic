@@ -13,6 +13,12 @@ class AgentToolPermissionItem(BaseModel):
     mode: str = Field(..., description="权限模式：allow / ask / deny")
 
 
+class AgentSettingsLockResponse(BaseModel):
+    """Agent 会话是否正在锁定相关设置。"""
+
+    is_locked: bool = Field(..., description="是否存在未结束的 Agent 或子智能体会话")
+
+
 class SettingsResponse(BaseModel):
     """设置响应。"""
 
