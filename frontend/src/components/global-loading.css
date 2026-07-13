@@ -1,6 +1,9 @@
 .global-loading-shell {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100dvh;
   z-index: 9999;
   background:
     radial-gradient(circle at center, var(--gray-a3) 0, transparent 26%),
@@ -17,7 +20,7 @@
   height: 100%;
 }
 
-.global-loading-spinner-shell {
+.rt-Box.global-loading-spinner-shell {
   position: relative;
   display: grid;
   width: 96px;

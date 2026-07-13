@@ -15,6 +15,11 @@
   min-height: 0;
 }
 
+.rt-Box.characters-page-body--mobile {
+  display: flex;
+  flex-direction: column;
+}
+
 .characters-panel {
   height: 100%;
   min-width: 0;
@@ -205,13 +210,14 @@
   overflow: hidden;
 }
 
-.characters-editor-shell--mobile {
+.rt-Box.characters-editor-shell--mobile {
   position: relative;
   display: flex;
+  flex: 1;
   flex-direction: column;
 }
 
-.characters-page-content-fill {
+.rt-Box.characters-page-content-fill {
   flex: 1;
   min-height: 0;
   display: flex;

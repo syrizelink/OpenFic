@@ -213,7 +213,10 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
             transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
             style={{
               position: "fixed",
-              inset: 0,
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: "var(--app-status-bar-height)",
               background: "rgba(0, 0, 0, 0.36)",
               zIndex: 99,
             }}
@@ -243,6 +246,7 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
               zIndex: 100,
               overflow: "hidden",
               boxShadow: isMobile ? "var(--shadow-5)" : undefined,
+              clipPath: isMobile ? "inset(0 -64px 0 0)" : undefined,
             }}
           >
             <Flex

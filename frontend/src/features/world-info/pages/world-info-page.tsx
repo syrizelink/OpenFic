@@ -708,16 +708,18 @@ export function WorldInfoPage() {
   );
 
   return (
-    <Box
+    <Flex
+      direction="column"
       style={{
         height: "100%",
         minHeight: 0,
         overflow: "hidden",
       }}
     >
-      <Box
+      <Flex
+        direction="column"
         style={{
-          height: "100%",
+          flex: 1,
           minHeight: 0,
           overflow: "hidden",
         }}
@@ -864,7 +866,7 @@ export function WorldInfoPage() {
             </Flex>
           )}
         </Flex>
-      </Box>
+      </Flex>
 
       {isMobile && currentProjectId && (
         <MotionBox
@@ -924,6 +926,6 @@ export function WorldInfoPage() {
           </Flex>
         </Dialog.Content>
       </Dialog.Root>
-    </Box>
+    </Flex>
   );
 }

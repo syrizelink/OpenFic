@@ -32,7 +32,7 @@
   flex: 1;
 }
 
-.world-info-page-editor-shell--mobile {
+.rt-Box.world-info-page-editor-shell--mobile {
   position: relative;
   display: flex;
   flex: 1;
