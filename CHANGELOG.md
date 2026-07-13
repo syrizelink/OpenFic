@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.6.2](https://github.com/syrizelink/OpenFic/compare/v0.6.1...v0.6.2) (2026-07-13)
+
+
+### 🐛 问题修复
+
+* **agent:** 修复会话切换模型不生效 ([#91](https://github.com/syrizelink/OpenFic/issues/91)) ([26ef7f3](https://github.com/syrizelink/OpenFic/commit/26ef7f3beb202eb182b56ed483c144852be6d9c6))
+* **agent:** 修复会话重连后流式事件丢失 ([#94](https://github.com/syrizelink/OpenFic/issues/94)) ([018749c](https://github.com/syrizelink/OpenFic/commit/018749caeea11f98d5f8405f17f7868949b3dbba))
+* **agent:** 防止会话检查点泄露模型密钥 ([#92](https://github.com/syrizelink/OpenFic/issues/92)) ([0342427](https://github.com/syrizelink/OpenFic/commit/034242754890db39d2296f3b489c2c2317eb37e7))
+* **mobile:** 修复移动端布局适配问题 ([#96](https://github.com/syrizelink/OpenFic/issues/96)) ([f396b34](https://github.com/syrizelink/OpenFic/commit/f396b34066577be9a9a3e5bbef4ace3192b7b1f4))
+* **settings:** 锁定运行期间的智能体配置 ([#93](https://github.com/syrizelink/OpenFic/issues/93)) ([6afd4b0](https://github.com/syrizelink/OpenFic/commit/6afd4b0e9fa8c106917e8d3ec07f32255c30f7e4))
+
+
+### ♻️ 代码重构
+
+* **prompt-chains:** 重构提示词管理页面 ([#95](https://github.com/syrizelink/OpenFic/issues/95)) ([73db522](https://github.com/syrizelink/OpenFic/commit/73db52232f506edb9bda8e76156382aef4508310))
+
+
+### 🔧 杂项
+
+* **agent:** 限制子智能体委派与提问能力 ([#90](https://github.com/syrizelink/OpenFic/issues/90)) ([9999283](https://github.com/syrizelink/OpenFic/commit/999928376012548bfca968aab270f38e7bcd3a83))
+* **models:** 优化模型选择器并移除Provider图标上传 ([#87](https://github.com/syrizelink/OpenFic/issues/87)) ([436f761](https://github.com/syrizelink/OpenFic/commit/436f761611ee57c67bcf0cdad72284b85a9fafaf))
+* **providers:** 优化内置提供商选取、刷新与调用 ([#89](https://github.com/syrizelink/OpenFic/issues/89)) ([0fe4188](https://github.com/syrizelink/OpenFic/commit/0fe418852730254789473fdcd96993136f7dabc2))
+
 ## [0.6.1](https://github.com/syrizelink/OpenFic/compare/v0.6.0...v0.6.1) (2026-07-11)
 
 
