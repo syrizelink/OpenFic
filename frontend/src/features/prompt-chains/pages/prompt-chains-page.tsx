@@ -9,7 +9,7 @@ import { List } from "lucide-react";
 import { motion } from "motion/react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Panel, Group, Separator } from "react-resizable-panels";
+import { Panel, Group, Separator, type PanelImperativeHandle } from "react-resizable-panels";
 
 import "./prompt-chains-page.css";
 import { useSearchParams } from "react-router";
@@ -22,144 +22,47 @@ import type { PromptEntryData, CompileResponse } from "@/lib/prompt-chain.types"
 import type { PromptChainsMetadata } from "@/lib/prompt-chain.types";
 
 import { EntriesSidebar } from "../components/entries-sidebar";
-import { PromptChainsTopBar } from "../components/prompt-chains-top-bar";
 import { PromptEditor } from "../components/prompt-editor";
+import { VersionHistorySidebar } from "../components/version-history-sidebar";
 import { usePromptChain } from "../hooks/use-prompt-chain";
 
 const MotionBox = motion.create(Box);
 
-const DEFAULT_PROMPT_MODE = "assistant";
-const DEFAULT_PROMPT_TASK = "agent";
-const DEFAULT_PROMPT_AGENT = "explorer";
+const DEFAULT_PROMPT_ID = "builtin-agent--explorer";
+const VERSION_HISTORY_COLLAPSED_SIZE = 36;
+const VERSION_HISTORY_MIN_SIZE = 72;
 
-function getInitialPromptSelection(searchParams: URLSearchParams): {
-  mode: string | null;
-  task: string | null;
-  agent: string | null;
-} {
-  const mode = searchParams.get("mode");
-  const task = searchParams.get("task");
-  if (!mode || !task) {
-    return {
-      mode: DEFAULT_PROMPT_MODE,
-      task: DEFAULT_PROMPT_TASK,
-      agent: DEFAULT_PROMPT_AGENT,
-    };
-  }
-
-  return {
-    mode,
-    task,
-    agent: searchParams.get("agent"),
-  };
+function getInitialPromptSelection(searchParams: URLSearchParams): string {
+  return searchParams.get("prompt") || DEFAULT_PROMPT_ID;
 }
 
-function getDefaultPromptChainSelection(metadata: PromptChainsMetadata): {
-  mode: string | null;
-  task: string | null;
-  agent: string | null;
-} {
-  const preferredMode = metadata.modes.find((mode) => mode.value === DEFAULT_PROMPT_MODE);
-  const preferredTask = preferredMode?.tasks.find((task) => task.value === DEFAULT_PROMPT_TASK);
-  const preferredAgent = preferredTask?.agents.find(
-    (agent) => agent.value === DEFAULT_PROMPT_AGENT,
+function getDefaultPromptId(metadata: PromptChainsMetadata): string | null {
+  const promptIds = (metadata.categories ?? []).flatMap((category) =>
+    category.prompts.map((prompt) => prompt.id),
   );
-  if (preferredMode && preferredTask && preferredAgent) {
-    return {
-      mode: preferredMode.value,
-      task: preferredTask.value,
-      agent: preferredAgent.value,
-    };
-  }
-
-  for (const mode of metadata.modes) {
-    for (const task of mode.tasks) {
-      const firstAgent = task.agents[0];
-      if (firstAgent) {
-        return {
-          mode: mode.value,
-          task: task.value,
-          agent: firstAgent.value,
-        };
-      }
-    }
-  }
-
-  const firstMode = metadata.modes[0];
-  const firstTask = firstMode?.tasks[0];
-  return {
-    mode: firstMode?.value ?? null,
-    task: firstTask?.value ?? null,
-    agent: null,
-  };
+  return promptIds.includes(DEFAULT_PROMPT_ID) ? DEFAULT_PROMPT_ID : (promptIds[0] ?? null);
 }
 
-function getEffectivePromptChainSelection(
+function getEffectivePromptId(
   metadata: PromptChainsMetadata | null,
-  mode: string | null,
-  task: string | null,
-  agent: string | null,
-): {
-  mode: string | null;
-  task: string | null;
-  agent: string | null;
-} {
-  if (!metadata) {
-    return { mode, task, agent };
-  }
-
-  const matchedMode = metadata.modes.find((item) => item.value === mode);
-
-  if (!matchedMode) {
-    return getDefaultPromptChainSelection(metadata);
-  }
-
-  if (!task) {
-    return {
-      mode: matchedMode.value,
-      task: null,
-      agent: null,
-    };
-  }
-
-  const matchedTask = matchedMode.tasks.find((item) => item.value === task);
-  if (!matchedTask) {
-    return {
-      mode: matchedMode.value,
-      task: null,
-      agent: null,
-    };
-  }
-
-  const needsAgent = matchedTask.agents.length > 0;
-  if (!needsAgent) {
-    return {
-      mode: matchedMode.value,
-      task: matchedTask.value,
-      agent: null,
-    };
-  }
-
-  const matchedAgent = matchedTask.agents.find((item) => item.value === agent);
-  return {
-    mode: matchedMode.value,
-    task: matchedTask.value,
-    agent: matchedAgent?.value ?? null,
-  };
+  promptId: string | null,
+): string | null {
+  if (!metadata) return promptId;
+  const promptIds = (metadata.categories ?? []).flatMap((category) =>
+    category.prompts.map((prompt) => prompt.id),
+  );
+  return promptId && promptIds.includes(promptId) ? promptId : getDefaultPromptId(metadata);
 }
 
 export function PromptChainsPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
-  const initialSelection = getInitialPromptSelection(searchParams);
+  const initialPromptId = getInitialPromptSelection(searchParams);
 
   // 元数据状态
   const [metadata, setMetadata] = useState<PromptChainsMetadata | null>(null);
 
-  // 导航状态（使用ID，默认选中 assistant / agent / explorer）
-  const [selectedMode, setSelectedMode] = useState<string | null>(initialSelection.mode);
-  const [selectedTask, setSelectedTask] = useState<string | null>(initialSelection.task);
-  const [selectedAgent, setSelectedAgent] = useState<string | null>(initialSelection.agent);
+  const [selectedPromptId, setSelectedPromptId] = useState<string | null>(initialPromptId);
 
   // 当前编辑的条目ID
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
@@ -169,8 +72,6 @@ export function PromptChainsPage() {
 
   // 高亮的条目ID（用于新建后的闪烁动画）
   const [highlightEntryId, setHighlightEntryId] = useState<string | null>(null);
-
-  const topBarRef = useRef<HTMLDivElement | null>(null);
 
   // 编译相关状态
   const [isCompiling, setIsCompiling] = useState(false);
@@ -183,7 +84,8 @@ export function PromptChainsPage() {
   // 响应式检测
   const [isMobile, setIsMobile] = useState(false);
   const [mobileEntriesOpen, setMobileEntriesOpen] = useState(false);
-  const [mobileTopBarHeight, setMobileTopBarHeight] = useState(60);
+  const [isVersionHistoryCollapsed, setIsVersionHistoryCollapsed] = useState(false);
+  const versionHistoryPanelRef = useRef<PanelImperativeHandle | null>(null);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -208,56 +110,9 @@ export function PromptChainsPage() {
     loadMetadata();
   }, []);
 
-  const effectiveSelection = getEffectivePromptChainSelection(
-    metadata,
-    selectedMode,
-    selectedTask,
-    selectedAgent,
-  );
-  const effectiveSelectedMode = effectiveSelection.mode;
-  const effectiveSelectedTask = effectiveSelection.task;
-  const effectiveSelectedAgent = effectiveSelection.agent;
+  const effectivePromptId = getEffectivePromptId(metadata, selectedPromptId);
 
-  // 从 metadata 中提取当前 mode+task 下是否有 agent 选项
-  const hasAgentOptions = (() => {
-    if (!effectiveSelectedMode || !effectiveSelectedTask || !metadata) return false;
-    const mode = metadata.modes.find((m) => m.value === effectiveSelectedMode);
-    if (!mode) return false;
-    const task = mode.tasks.find((tk) => tk.value === effectiveSelectedTask);
-    return !!task && task.agents.length > 0;
-  })();
-
-  useEffect(() => {
-    if (!isMobile || !topBarRef.current) return;
-
-    const element = topBarRef.current;
-
-    const updateHeight = () => {
-      setMobileTopBarHeight(element.getBoundingClientRect().height);
-    };
-
-    updateHeight();
-
-    const observer = new ResizeObserver(updateHeight);
-    observer.observe(element);
-    window.addEventListener("resize", updateHeight);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", updateHeight);
-    };
-  }, [
-    isMobile,
-    effectiveSelectedMode,
-    effectiveSelectedTask,
-    effectiveSelectedAgent,
-    hasAgentOptions,
-  ]);
-
-  // 使用自定义hook管理提示词链状态
-  // 如果当前 task 有 agent 选项但尚未选择 agent，则不加载 chain（避免 404）
-  const shouldLoadChain =
-    effectiveSelectedMode && effectiveSelectedTask && (!hasAgentOptions || effectiveSelectedAgent);
+  const shouldLoadChain = !!effectivePromptId;
   const {
     currentVersion,
     versions,
@@ -270,11 +125,7 @@ export function PromptChainsPage() {
     hasUnsavedChanges,
     isDefault,
     resetWorkingCopy,
-  } = usePromptChain(
-    shouldLoadChain ? effectiveSelectedMode : "",
-    shouldLoadChain ? effectiveSelectedTask : "",
-    effectiveSelectedAgent,
-  );
+  } = usePromptChain(effectivePromptId ?? "");
 
   // 获取当前选中的条目（如果没有选中且有条目，自动选择第一个）
   const actualSelectedId: string | null =
@@ -361,37 +212,29 @@ export function PromptChainsPage() {
 
   // 编译提示词链
   const handleCompile = useCallback(async () => {
-    if (!effectiveSelectedMode || !effectiveSelectedTask) return;
+    if (!effectivePromptId) return;
 
     setIsCompiling(true);
     setCompileDialogOpen(true);
     setCompileResult(null);
 
     try {
-      const result = await compilePromptChain(
-        effectiveSelectedMode,
-        effectiveSelectedTask,
-        effectiveSelectedAgent,
-      );
+      const result = await compilePromptChain(effectivePromptId);
       setCompileResult(result);
     } catch (error) {
       console.error("Failed to compile prompt chain:", error);
     } finally {
       setIsCompiling(false);
     }
-  }, [effectiveSelectedMode, effectiveSelectedTask, effectiveSelectedAgent]);
+  }, [effectivePromptId]);
 
   // 重置到默认
   const handleReset = useCallback(async () => {
-    if (!effectiveSelectedMode || !effectiveSelectedTask || isSaving) return;
+    if (!effectivePromptId || isSaving) return;
 
     setIsResetting(true);
     try {
-      const result = await resetPromptChain(
-        effectiveSelectedMode,
-        effectiveSelectedTask,
-        effectiveSelectedAgent,
-      );
+      const result = await resetPromptChain(effectivePromptId);
       const entriesData: PromptEntryData[] = result.entries.map((e) => ({
         id: e.id,
         uid: e.uid,
@@ -408,13 +251,7 @@ export function PromptChainsPage() {
     } finally {
       setIsResetting(false);
     }
-  }, [
-    effectiveSelectedMode,
-    effectiveSelectedTask,
-    effectiveSelectedAgent,
-    isSaving,
-    resetWorkingCopy,
-  ]);
+  }, [effectivePromptId, isSaving, resetWorkingCopy]);
 
   const handleSaveVersion = useCallback(
     (note?: string) => {
@@ -425,122 +262,118 @@ export function PromptChainsPage() {
     [hasUnsavedChanges, isResetting, saveVersion],
   );
 
-  const mobileEntrySidebarTrigger = isMobile ? (
-    <Tooltip content={t("promptChains.viewEntries")}>
-      <IconButton
-        variant="ghost"
-        size="2"
-        aria-label={t("promptChains.viewEntries")}
-        onClick={() => setMobileEntriesOpen((prev) => !prev)}
-      >
-        <List size={18} />
-      </IconButton>
-    </Tooltip>
-  ) : null;
+  const handleVersionHistoryCollapsedChange = () => {
+    const panel = versionHistoryPanelRef.current;
+    if (!panel) return;
 
-  return (
-    <Box minHeight="100vh">
-      <Box>
-        {/* 页面顶栏：面包屑导航 + 版本选择器 + 保存按钮 */}
-        <PromptChainsTopBar
-          ref={topBarRef}
-          leadingSlot={<MobileAppSidebarTrigger />}
-          entrySidebarTrigger={mobileEntrySidebarTrigger}
-          metadata={metadata}
-          selectedMode={effectiveSelectedMode}
-          selectedTask={effectiveSelectedTask}
-          selectedAgent={effectiveSelectedAgent}
-          onModeChange={setSelectedMode}
-          onTaskChange={setSelectedTask}
-          onAgentChange={setSelectedAgent}
+    if (panel.isCollapsed()) {
+      panel.expand();
+    } else {
+      panel.collapse();
+    }
+
+    setIsVersionHistoryCollapsed(panel.isCollapsed());
+  };
+
+  const handleVersionHistoryResize = () => {
+    setIsVersionHistoryCollapsed(versionHistoryPanelRef.current?.isCollapsed() ?? false);
+  };
+
+  const sidebarContent = (
+    <Group
+      orientation="vertical"
+      className="prompt-chains-page-sidebar-group"
+    >
+      <Panel
+        id="entries-sidebar"
+        defaultSize="60%"
+        minSize={30}
+      >
+        <EntriesSidebar
+          promptCategories={metadata?.categories ?? []}
+          selectedPromptId={effectivePromptId}
+          onPromptChange={setSelectedPromptId}
+          entries={shouldLoadChain ? entries : []}
+          selectedEntryId={actualSelectedId}
+          onSelectEntry={handleSelectEntry}
+          onToggleEntry={handleToggleEntry}
+          onDeleteEntry={setDeletingEntryId}
+          onReorderEntries={setEntries}
+          onCreateEntry={handleCreateEntry}
           currentVersion={currentVersion}
           versions={versions}
-          onVersionSelect={loadVersion}
           onSave={handleSaveVersion}
-          onCompile={handleCompile}
           onReset={handleReset}
+          onCompile={handleCompile}
           isLoading={isLoading}
-          isCompiling={isCompiling}
           isResetting={isResetting}
           isSaving={isSaving}
+          isCompiling={isCompiling}
           hasUnsavedChanges={hasUnsavedChanges}
           isDefault={isDefault}
-          modeName={effectiveSelectedMode || ""}
-          taskName={effectiveSelectedTask || ""}
-          agentName={effectiveSelectedAgent}
-          isMobile={isMobile}
+          highlightEntryId={highlightEntryId}
         />
+      </Panel>
 
-        {/* 主内容区 - resizable panels */}
-        <Box
-          className="prompt-chains-page-main"
-          style={isMobile ? { height: `calc(100dvh - ${mobileTopBarHeight}px)` } : undefined}
-        >
-          {!isMobile ? (
-            <Group
-              orientation="horizontal"
-              className="prompt-chains-page-group"
+      <Separator
+        className={
+          isVersionHistoryCollapsed
+            ? "resize-handle prompt-chains-page-sidebar-separator prompt-chains-page-sidebar-separator--disabled"
+            : "resize-handle prompt-chains-page-sidebar-separator"
+        }
+        disabled={isVersionHistoryCollapsed}
+      />
+
+      <Panel
+        id="version-history-sidebar"
+        panelRef={versionHistoryPanelRef}
+        defaultSize="40%"
+        minSize={`${VERSION_HISTORY_MIN_SIZE}px`}
+        collapsible
+        collapsedSize={VERSION_HISTORY_COLLAPSED_SIZE}
+        onResize={handleVersionHistoryResize}
+      >
+        <VersionHistorySidebar
+          promptId={effectivePromptId ?? ""}
+          versions={versions}
+          currentVersion={currentVersion}
+          onCheckout={loadVersion}
+          isCollapsed={isVersionHistoryCollapsed}
+          onCollapsedChange={handleVersionHistoryCollapsedChange}
+        />
+      </Panel>
+    </Group>
+  );
+
+  return (
+    <Box className="prompt-chains-page-root">
+      {/* 主内容区 - resizable panels */}
+      <Box className="prompt-chains-page-main">
+        {!isMobile ? (
+          <Group
+            orientation="horizontal"
+            className="prompt-chains-page-group"
+          >
+            {/* 左侧边栏：条目列表 */}
+            <Panel
+              id="left-sidebar"
+              defaultSize={300}
+              minSize={250}
+              maxSize={420}
+              collapsible={false}
             >
-              {/* 左侧边栏：条目列表 */}
-              <Panel
-                id="left-sidebar"
-                defaultSize={300}
-                minSize={250}
-                maxSize={400}
-                collapsible={false}
-              >
-                <Box className="prompt-chains-page-panel-shell prompt-chains-page-panel-shell--left">
-                  <EntriesSidebar
-                    entries={shouldLoadChain ? entries : []}
-                    selectedEntryId={actualSelectedId}
-                    onSelectEntry={setSelectedEntryId}
-                    onToggleEntry={handleToggleEntry}
-                    onDeleteEntry={setDeletingEntryId}
-                    onReorderEntries={setEntries}
-                    onCreateEntry={handleCreateEntry}
-                    highlightEntryId={highlightEntryId}
-                  />
-                </Box>
-              </Panel>
+              <Box className="prompt-chains-page-panel-shell prompt-chains-page-panel-shell--left">
+                {sidebarContent}
+              </Box>
+            </Panel>
 
-              <Separator className="resize-handle writing-page-separator" />
+            <Separator className="resize-handle writing-page-separator" />
 
-              {/* 中间栏：编辑器 */}
-              <Panel
-                id="editor"
-                minSize={30}
-              >
-                <div className="prompt-chains-page-editor-panel">
-                  {!shouldLoadChain ? (
-                    <Flex
-                      align="center"
-                      justify="center"
-                      className="prompt-chains-page-empty-state"
-                    >
-                      {t("promptChains.selectModeAndTask")}
-                    </Flex>
-                  ) : selectedEntry && selectedEntry.id ? (
-                    <PromptEditor
-                      entry={selectedEntry}
-                      onUpdate={(updates) => handleUpdateEntry(selectedEntry.id!, updates)}
-                      onUpdateWithId={handleUpdateEntry}
-                      isMobile={false}
-                    />
-                  ) : (
-                    <Flex
-                      align="center"
-                      justify="center"
-                      className="prompt-chains-page-empty-state"
-                    >
-                      {t("promptChains.selectEntryToEdit")}
-                    </Flex>
-                  )}
-                </div>
-              </Panel>
-            </Group>
-          ) : (
-            // 移动端/Legacy Layout (保持原样，但适配 container 宽度)
-            <Flex className="prompt-chains-page-mobile-layout">
+            {/* 中间栏：编辑器 */}
+            <Panel
+              id="editor"
+              minSize={30}
+            >
               <div className="prompt-chains-page-editor-panel">
                 {!shouldLoadChain ? (
                   <Flex
@@ -548,14 +381,14 @@ export function PromptChainsPage() {
                     justify="center"
                     className="prompt-chains-page-empty-state"
                   >
-                    {t("promptChains.selectModeAndTask")}
+                    {t("promptChains.selectPrompt")}
                   </Flex>
                 ) : selectedEntry && selectedEntry.id ? (
                   <PromptEditor
                     entry={selectedEntry}
                     onUpdate={(updates) => handleUpdateEntry(selectedEntry.id!, updates)}
                     onUpdateWithId={handleUpdateEntry}
-                    isMobile={true}
+                    isMobile={false}
                   />
                 ) : (
                   <Flex
@@ -567,43 +400,88 @@ export function PromptChainsPage() {
                   </Flex>
                 )}
               </div>
-            </Flex>
-          )}
-
-          {isMobile && (
-            <>
-              <motion.div
-                initial={false}
-                animate={{ opacity: mobileEntriesOpen ? 1 : 0 }}
-                transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                className="prompt-chains-page-mobile-sidebar-backdrop"
-                onClick={() => setMobileEntriesOpen(false)}
-                style={{ pointerEvents: mobileEntriesOpen ? "auto" : "none" }}
-              />
-
-              <MotionBox
-                initial={false}
-                animate={{ x: mobileEntriesOpen ? 0 : -320 }}
-                transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                className="prompt-chains-page-mobile-sidebar-overlay"
-                style={{ pointerEvents: mobileEntriesOpen ? "auto" : "none" }}
+            </Panel>
+          </Group>
+        ) : (
+          <Flex className="prompt-chains-page-mobile-layout">
+            <Flex
+              align="center"
+              justify="between"
+              px="3"
+              py="2"
+              className="prompt-chains-page-mobile-topbar"
+            >
+              <Flex
+                align="center"
+                gap="1"
               >
-                <Box className="prompt-chains-page-mobile-sidebar-sheet">
-                  <EntriesSidebar
-                    entries={shouldLoadChain ? entries : []}
-                    selectedEntryId={actualSelectedId}
-                    onSelectEntry={handleSelectEntry}
-                    onToggleEntry={handleToggleEntry}
-                    onDeleteEntry={setDeletingEntryId}
-                    onReorderEntries={setEntries}
-                    onCreateEntry={handleCreateEntry}
-                    highlightEntryId={highlightEntryId}
-                  />
-                </Box>
-              </MotionBox>
-            </>
-          )}
-        </Box>
+                <MobileAppSidebarTrigger />
+                <Tooltip content={t("promptChains.viewEntries")}>
+                  <IconButton
+                    variant="ghost"
+                    size="2"
+                    aria-label={t("promptChains.viewEntries")}
+                    onClick={() => setMobileEntriesOpen((prev) => !prev)}
+                  >
+                    <List size={18} />
+                  </IconButton>
+                </Tooltip>
+              </Flex>
+
+              <Box className="prompt-chains-page-mobile-topbar-side" />
+            </Flex>
+
+            <div className="prompt-chains-page-editor-panel">
+              {!shouldLoadChain ? (
+                <Flex
+                  align="center"
+                  justify="center"
+                  className="prompt-chains-page-empty-state"
+                >
+                  {t("promptChains.selectPrompt")}
+                </Flex>
+              ) : selectedEntry && selectedEntry.id ? (
+                <PromptEditor
+                  entry={selectedEntry}
+                  onUpdate={(updates) => handleUpdateEntry(selectedEntry.id!, updates)}
+                  onUpdateWithId={handleUpdateEntry}
+                  isMobile={true}
+                />
+              ) : (
+                <Flex
+                  align="center"
+                  justify="center"
+                  className="prompt-chains-page-empty-state"
+                >
+                  {t("promptChains.selectEntryToEdit")}
+                </Flex>
+              )}
+            </div>
+          </Flex>
+        )}
+
+        {isMobile && (
+          <>
+            <motion.div
+              initial={false}
+              animate={{ opacity: mobileEntriesOpen ? 1 : 0 }}
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+              className="prompt-chains-page-mobile-sidebar-backdrop"
+              onClick={() => setMobileEntriesOpen(false)}
+              style={{ pointerEvents: mobileEntriesOpen ? "auto" : "none" }}
+            />
+
+            <MotionBox
+              initial={false}
+              animate={{ x: mobileEntriesOpen ? 0 : -320 }}
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+              className="prompt-chains-page-mobile-sidebar-overlay"
+              style={{ pointerEvents: mobileEntriesOpen ? "auto" : "none" }}
+            >
+              <Box className="prompt-chains-page-mobile-sidebar-sheet">{sidebarContent}</Box>
+            </MotionBox>
+          </>
+        )}
       </Box>
 
       {/* 删除确认对话框 */}

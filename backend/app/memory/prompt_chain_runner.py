@@ -252,9 +252,7 @@ class ChatRuntime:
 async def build_chat_messages(
     session: AsyncSession,
     *,
-    mode_name: str,
-    task_name: str,
-    agent_name: str | None,
+    prompt_id: str,
     runtime: ChatRuntime,
 ) -> list[dict[str, Any]]:
     """
@@ -266,7 +264,7 @@ async def build_chat_messages(
     4. 追加当前用户消息（避免与历史重复）。
     """
     version_entries = await prompt_chain_service.get_latest_version_with_entries_or_default(
-        session, mode_name, task_name, agent_name
+        session, prompt_id
     )
 
     entry_inputs = [

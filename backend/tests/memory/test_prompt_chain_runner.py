@@ -394,9 +394,7 @@ async def test_build_chat_messages_injects_handoff_without_task_history(monkeypa
 
     messages = await build_chat_messages(
         AsyncMock(),
-        mode_name="assistant",
-        task_name="agent",
-        agent_name="writer",
+        prompt_id="builtin-agent--writer",
         runtime=ChatRuntime(
             current_message="写作请求",
             anchor_chapter_id="chapter-7",
@@ -441,9 +439,7 @@ async def test_build_chat_messages_does_not_append_empty_current_message(monkeyp
 
     messages = await build_chat_messages(
         AsyncMock(),
-        mode_name="assistant",
-        task_name="agent",
-        agent_name="writer",
+        prompt_id="builtin-agent--writer",
         runtime=ChatRuntime(
             current_message="",
             handoff_messages=[{"role": "user", "content": "<workflow_handoff>包含初始请求</workflow_handoff>"}],
@@ -527,9 +523,7 @@ async def test_build_chat_messages_appends_current_agent_local_react_history(mon
 
     messages = await build_chat_messages(
         AsyncMock(),
-        mode_name="assistant",
-        task_name="agent",
-        agent_name="writer",
+        prompt_id="builtin-agent--writer",
         runtime=ChatRuntime(
             current_message="继续写作",
             task_id="task-1",
@@ -615,9 +609,7 @@ async def test_build_chat_messages_places_writer_history_before_new_user_message
 
     messages = await build_chat_messages(
         AsyncMock(),
-        mode_name="assistant",
-        task_name="agent",
-        agent_name="writer",
+        prompt_id="builtin-agent--writer",
         runtime=ChatRuntime(
             current_message="根据审查意见继续修改",
             task_id="task-1",

@@ -199,7 +199,7 @@ async def reset_definition(
 
     from app.storage.services import prompt_chain_service
 
-    await prompt_chain_service.delete_prompt_chain(session, "assistant", "agent", key)
+    await prompt_chain_service.delete_prompt_chain(session, f"builtin-agent--{key}")
 
     return get_default_agent_definition(key)
 
@@ -234,4 +234,4 @@ async def delete_definition(
 
     from app.storage.services import prompt_chain_service
 
-    await prompt_chain_service.delete_prompt_chain(session, "assistant", "agent", key)
+    await prompt_chain_service.delete_prompt_chain(session, f"custom-agent--{key}")

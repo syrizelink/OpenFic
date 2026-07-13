@@ -1,0 +1,65 @@
+.prompt-chain-entries-toolbar {
+  min-width: 0;
+}
+
+.prompt-chain-entries-toolbar-row {
+  min-width: 0;
+}
+
+.prompt-chain-entries-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--space-6);
+  min-width: 0;
+  gap: 0;
+  border: 1px solid transparent;
+  border-radius: max(var(--radius-2), var(--radius-full));
+  background: transparent;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    padding-right 0.15s ease;
+}
+
+.prompt-chain-entries-search[data-expanded="true"] {
+  flex: 1;
+  padding-right: var(--space-2);
+  border-color: var(--gray-a7);
+  background: var(--color-surface);
+}
+
+.prompt-chain-entries-search-popover-anchor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.prompt-chain-entries-search-button {
+  flex-shrink: 0;
+  transition: opacity 0.15s ease;
+}
+
+.prompt-chain-entries-search-button[data-expanded="true"] {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.prompt-chain-entries-search-input-wrap {
+  overflow: hidden;
+}
+
+.prompt-chain-entries-search-input {
+  width: 200px;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--gray-12);
+  font-size: var(--font-size-2);
+  line-height: var(--line-height-2);
+}
+
+.prompt-chain-entries-toolbar-spacer {
+  flex: 1;
+}

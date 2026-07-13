@@ -21,9 +21,7 @@ class PromptChainVersion(SQLModel, table=True):
 
     Attributes:
         id: 唯一标识符（nanoid）。
-        mode_name: 模式名称（第一级导航）。
-        task_name: 任务名称（第二级导航）。
-        agent_name: Agent名称（第三级导航，可选）。
+        prompt_id: 提示词唯一标识。
         version_hash: 版本短hash（8位，用于用户标识）。
         version_number: 语义版本号（v1, v2, v3...）。
         parent_version_id: 父版本ID（可选，用于追踪版本关系）。
@@ -35,9 +33,7 @@ class PromptChainVersion(SQLModel, table=True):
     __tablename__ = "prompt_chain_versions"
 
     id: str = Field(default_factory=generate_id, primary_key=True)
-    mode_name: str = Field(max_length=100, description="模式名称")
-    task_name: str = Field(max_length=100, description="任务名称")
-    agent_name: str | None = Field(default=None, max_length=100, description="Agent名称")
+    prompt_id: str = Field(max_length=300, index=True, description="提示词唯一标识")
     version_hash: str = Field(default_factory=generate_short_hash, max_length=8, unique=True)
     version_number: int = Field(description="语义版本号")
     parent_version_id: str | None = Field(default=None, foreign_key="prompt_chain_versions.id")

@@ -37,6 +37,33 @@ class VersionWithEntries:
     entries: list[PromptEntry]
 
 
+@dataclass
+class PromptEntrySearchMatch:
+    """提示词条目中的单行搜索命中。"""
+
+    line_number: int
+    line_text: str
+
+
+@dataclass
+class PromptEntrySearchResult:
+    """单个提示词条目的搜索结果。"""
+
+    entry_id: str
+    entry_name: str
+    role: str
+    matches: list[PromptEntrySearchMatch]
+
+
+@dataclass
+class PromptEntrySearchResponse:
+    """提示词版本内条目搜索结果。"""
+
+    results: list[PromptEntrySearchResult]
+    total_entries: int
+    total_matches: int
+
+
 def _build_custom_agent_default_entries(kind: str) -> list[PromptEntryData]:
     if kind == "primary":
         system_content = (
@@ -70,18 +97,14 @@ def _build_custom_agent_default_entries(kind: str) -> list[PromptEntryData]:
 
 
 def _default_version_with_entries(
-    mode_name: str,
-    task_name: str,
-    agent_name: str | None,
+    prompt_id: str,
     entries: list[PromptEntryData],
 ) -> VersionWithEntries:
     """Build an in-memory default version without writing to DB."""
     now = datetime.now(UTC)
     version = PromptChainVersion(
         id="default",
-        mode_name=mode_name,
-        task_name=task_name,
-        agent_name=agent_name,
+        prompt_id=prompt_id,
         version_hash="default",
         version_number=0,
         parent_version_id=None,
@@ -108,36 +131,31 @@ def _default_version_with_entries(
     return VersionWithEntries(version=version, entries=prompt_entries)
 
 
-async def get_latest_version_with_entries_or_default(
-    session: AsyncSession,
-    mode_name: str,
-    task_name: str,
-    agent_name: str | None = None,
-) -> VersionWithEntries:
-    """Get the active DB version, falling back to YAML defaults without persistence."""
+def _load_default_version_with_entries(prompt_id: str) -> VersionWithEntries:
     from app.prompts import load_prompt_chain
 
-    version = await prompt_chain_version_repo.get_latest_version(
-        session, mode_name, task_name, agent_name
-    )
+    default_entries = load_prompt_chain(prompt_id)
+    if default_entries is None:
+        raise NotFoundError(f"提示词链不存在: {prompt_id}")
+    return _default_version_with_entries(prompt_id, default_entries)
+
+
+async def get_latest_version_with_entries_or_default(
+    session: AsyncSession,
+    prompt_id: str,
+) -> VersionWithEntries:
+    """Get the active DB version, falling back to YAML defaults without persistence."""
+    version = await prompt_chain_version_repo.get_latest_version(session, prompt_id)
     if version is not None:
         return await get_version_with_entries(session, version.id)
 
-    default_entries = load_prompt_chain(mode_name, task_name, agent_name)
-    if default_entries is None:
-        key = f"{mode_name}/{task_name}"
-        if agent_name:
-            key = f"{key}/{agent_name}"
-        raise NotFoundError(f"提示词链不存在: {key}")
-
-    return _default_version_with_entries(
-        mode_name, task_name, agent_name, default_entries
-    )
+    return _load_default_version_with_entries(prompt_id)
 
 
 async def get_version_with_entries(
     session: AsyncSession,
-    version_id: str
+    version_id: str,
+    prompt_id: str | None = None,
 ) -> VersionWithEntries:
     """
     获取版本及其所有条目。
@@ -145,6 +163,11 @@ async def get_version_with_entries(
     Raises:
         NotFoundError: 版本不存在。
     """
+    if version_id == "default":
+        if prompt_id is None:
+            raise ValidationError("获取默认版本时必须指定 prompt_id")
+        return _load_default_version_with_entries(prompt_id)
+
     version = await prompt_chain_version_repo.get_by_id(session, version_id)
     if version is None:
         raise NotFoundError(f"版本不存在: {version_id}")
@@ -153,11 +176,54 @@ async def get_version_with_entries(
     return VersionWithEntries(version=version, entries=entries)
 
 
+async def search_version_entries(
+    session: AsyncSession,
+    prompt_id: str,
+    version_id: str,
+    query: str,
+) -> PromptEntrySearchResponse:
+    """搜索指定提示词版本中的条目名称和内容。"""
+    result = await get_version_with_entries(session, version_id, prompt_id)
+    if result.version.prompt_id != prompt_id:
+        raise NotFoundError(f"版本不属于提示词链: {prompt_id}")
+
+    stripped_query = query.strip()
+    if not stripped_query:
+        return PromptEntrySearchResponse(results=[], total_entries=0, total_matches=0)
+
+    lower_query = stripped_query.lower()
+    results: list[PromptEntrySearchResult] = []
+    total_matches = 0
+
+    for entry in result.entries:
+        matches = [
+            PromptEntrySearchMatch(line_number=line_number, line_text=line)
+            for line_number, line in enumerate(entry.content.split("\n"), start=1)
+            if lower_query in line.lower()
+        ]
+        if lower_query in entry.name.lower():
+            matches.insert(0, PromptEntrySearchMatch(line_number=0, line_text=entry.name))
+        if matches:
+            results.append(
+                PromptEntrySearchResult(
+                    entry_id=entry.id,
+                    entry_name=entry.name,
+                    role=entry.role,
+                    matches=matches,
+                )
+            )
+            total_matches += len(matches)
+
+    return PromptEntrySearchResponse(
+        results=results,
+        total_entries=len(results),
+        total_matches=total_matches,
+    )
+
+
 async def get_latest_version(
     session: AsyncSession,
-    mode_name: str,
-    task_name: str,
-    agent_name: str | None = None,
+    prompt_id: str,
 ) -> PromptChainVersion:
     """
     获取最新的活跃版本。
@@ -165,35 +231,34 @@ async def get_latest_version(
     Raises:
         NotFoundError: 没有活跃版本。
     """
-    version = await prompt_chain_version_repo.get_latest_version(
-        session, mode_name, task_name, agent_name
-    )
+    version = await prompt_chain_version_repo.get_latest_version(session, prompt_id)
     if version is None:
-        key = f"{mode_name}/{task_name}"
-        if agent_name:
-            key = f"{key}/{agent_name}"
-        raise NotFoundError(f"没有找到活跃版本: {key}")
+        raise NotFoundError(f"没有找到活跃版本: {prompt_id}")
     return version
 
 
 async def list_versions(
     session: AsyncSession,
-    mode_name: str,
-    task_name: str,
-    agent_name: str | None = None,
+    prompt_id: str,
     active_only: bool = False
 ) -> list[PromptChainVersion]:
     """获取提示词链的所有版本。"""
-    return await prompt_chain_version_repo.list_by_chain_key(
-        session, mode_name, task_name, agent_name, active_only
+    versions = await prompt_chain_version_repo.list_by_chain_key(
+        session, prompt_id, active_only
     )
+    if prompt_id.startswith("custom-agent--"):
+        return versions
+
+    try:
+        default_version = _load_default_version_with_entries(prompt_id).version
+    except NotFoundError:
+        return versions
+    return [*versions, default_version]
 
 
 async def create_first_version(
     session: AsyncSession,
-    mode_name: str,
-    task_name: str,
-    agent_name: str | None,
+    prompt_id: str,
     entries: list[PromptEntryData],
     note: str | None = None,
 ) -> VersionWithEntries:
@@ -204,9 +269,7 @@ async def create_first_version(
 
     Args:
         session: 数据库session。
-        mode_name: 模式名称。
-        task_name: 任务名称。
-        agent_name: Agent名称（可选）。
+        prompt_id: 提示词唯一标识。
         entries: 条目列表。
         note: 版本备注。
 
@@ -216,9 +279,7 @@ async def create_first_version(
     import uuid
 
     new_version = PromptChainVersion(
-        mode_name=mode_name,
-        task_name=task_name,
-        agent_name=agent_name,
+        prompt_id=prompt_id,
         version_hash=generate_short_hash(),
         version_number=1,
         parent_version_id=None,
@@ -259,18 +320,14 @@ async def create_initial_custom_agent_version(
     """为自定义智能体创建首个默认提示词版本。"""
     return await create_first_version(
         session,
-        "assistant",
-        "agent",
-        agent_name,
+        f"custom-agent--{agent_name}",
         _build_custom_agent_default_entries(kind),
     )
 
 
 async def create_new_version(
     session: AsyncSession,
-    mode_name: str,
-    task_name: str,
-    agent_name: str | None,
+    prompt_id: str,
     parent_version_id: str,
     entries: list[PromptEntryData],
     note: str | None = None,
@@ -282,9 +339,7 @@ async def create_new_version(
 
     Args:
         session: 数据库session。
-        mode_name: 模式名称。
-        task_name: 任务名称。
-        agent_name: Agent名称（可选）。
+        prompt_id: 提示词唯一标识。
         parent_version_id: 父版本ID。
         entries: 条目列表。
         note: 版本备注。
@@ -298,27 +353,23 @@ async def create_new_version(
     if parent_version is None:
         raise NotFoundError(f"父版本不存在: {parent_version_id}")
 
-    if parent_version.mode_name != mode_name or parent_version.task_name != task_name:
-        raise ValidationError("父版本不属于该提示词链")
-    if agent_name != parent_version.agent_name:
+    if parent_version.prompt_id != prompt_id:
         raise ValidationError("父版本不属于该提示词链")
 
     max_version_number = await prompt_chain_version_repo.get_max_version_number(
-        session, mode_name, task_name, agent_name
+        session, prompt_id
     )
     new_version_number = max_version_number + 1
 
     if parent_version.version_number < max_version_number:
         await prompt_chain_version_repo.deactivate_versions_after(
-            session, mode_name, task_name, agent_name, parent_version.version_number
+            session, prompt_id, parent_version.version_number
         )
 
     now = datetime.now(UTC)
 
     new_version = PromptChainVersion(
-        mode_name=mode_name,
-        task_name=task_name,
-        agent_name=agent_name,
+        prompt_id=prompt_id,
         version_hash=generate_short_hash(),
         version_number=new_version_number,
         parent_version_id=parent_version_id,
@@ -412,12 +463,12 @@ async def get_prompt_chains_metadata(session: AsyncSession) -> dict:
 
     元数据从 YAML 配置文件读取，并合入数据库中的自定义 agent key。
 
-    返回分层结构: mode > task > agent
+    返回按业务类别分组的单级提示词列表。
     """
     from app.prompts import get_prompt_chains_metadata as get_yaml_metadata
     from app.storage.repos import agent_definition_repo
 
-    db_agent_keys: list[str] = []
+    custom_agents: list[tuple[str, str]] = []
     records = await agent_definition_repo.list_all(session)
     for record in records:
         if record.source == "custom" and record.key not in (
@@ -429,16 +480,14 @@ async def get_prompt_chains_metadata(session: AsyncSession) -> dict:
             "actor",
             "reviewer",
         ):
-            db_agent_keys.append(record.key)
+            custom_agents.append((record.key, record.display_name))
 
-    return get_yaml_metadata(db_agent_keys=db_agent_keys if db_agent_keys else None)
+    return get_yaml_metadata(custom_agents=custom_agents)
 
 
 async def reset_to_default(
     session: AsyncSession,
-    mode_name: str,
-    task_name: str,
-    agent_name: str | None = None,
+    prompt_id: str,
 ) -> VersionWithEntries:
     """
     重置提示词链到默认状态。
@@ -448,9 +497,7 @@ async def reset_to_default(
 
     Args:
         session: 数据库session。
-        mode_name: 模式名称。
-        task_name: 任务名称。
-        agent_name: Agent名称（可选）。
+        prompt_id: 提示词唯一标识。
 
     Returns:
         重置后的内存默认版本及其条目。
@@ -460,29 +507,18 @@ async def reset_to_default(
     """
     from app.prompts import load_prompt_chain
 
-    default_entries = load_prompt_chain(mode_name, task_name, agent_name)
+    default_entries = load_prompt_chain(prompt_id)
     if default_entries is None:
-        key = f"{mode_name}/{task_name}"
-        if agent_name:
-            key = f"{key}/{agent_name}"
-        raise NotFoundError(f"默认提示词配置不存在: {key}")
+        raise NotFoundError(f"默认提示词配置不存在: {prompt_id}")
 
-    await prompt_chain_version_repo.delete_by_chain_key(
-        session, mode_name, task_name, agent_name
-    )
+    await prompt_chain_version_repo.delete_by_chain_key(session, prompt_id)
 
-    return _default_version_with_entries(
-        mode_name, task_name, agent_name, default_entries
-    )
+    return _default_version_with_entries(prompt_id, default_entries)
 
 
 async def delete_prompt_chain(
     session: AsyncSession,
-    mode_name: str,
-    task_name: str,
-    agent_name: str | None = None,
+    prompt_id: str,
 ) -> int:
     """删除指定提示词链的所有版本和条目。"""
-    return await prompt_chain_version_repo.delete_by_chain_key(
-        session, mode_name, task_name, agent_name
-    )
+    return await prompt_chain_version_repo.delete_by_chain_key(session, prompt_id)

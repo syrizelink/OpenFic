@@ -17,9 +17,7 @@ export interface PromptEntryData {
 
 export interface PromptChainVersion {
   id: string;
-  modeName: string;
-  taskName: string;
-  agentName: string | null;
+  promptId: string;
   versionHash: string;
   versionNumber: number;
   parentVersionId: string | null;
@@ -42,6 +40,24 @@ export interface PromptEntry {
   updatedAt: string;
 }
 
+export interface PromptEntrySearchMatch {
+  lineNumber: number;
+  lineText: string;
+}
+
+export interface PromptEntrySearchResult {
+  entryId: string;
+  entryName: string;
+  role: "system" | "user" | "assistant";
+  matches: PromptEntrySearchMatch[];
+}
+
+export interface PromptEntrySearchResponse {
+  results: PromptEntrySearchResult[];
+  totalEntries: number;
+  totalMatches: number;
+}
+
 export interface VersionWithEntries {
   version: PromptChainVersion;
   entries: PromptEntry[];
@@ -53,25 +69,24 @@ export interface CreateVersionRequest {
   note?: string;
 }
 
-export interface AgentMetadata {
-  value: string;
+export interface PromptMetadata {
+  id: string;
+  label_key: string;
+  label: string | null;
 }
 
-export interface TaskMetadata {
-  value: string;
-  agents: AgentMetadata[];
-}
-
-export interface ModeMetadata {
-  value: string;
-  tasks: TaskMetadata[];
+export interface PromptCategoryMetadata {
+  id: string;
+  label_key: string;
+  prompts: PromptMetadata[];
 }
 
 export interface PromptChainsMetadata {
-  modes: ModeMetadata[];
+  categories: PromptCategoryMetadata[];
 }
 
 export interface CompiledEntry {
+  name: string;
   role: string;
   content: string;
   token_count: number;

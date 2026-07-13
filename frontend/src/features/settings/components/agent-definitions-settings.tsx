@@ -232,12 +232,10 @@ function AgentForm({
   const handleGoToPromptChain = useCallback(() => {
     onCloseSettings?.();
     const params = new URLSearchParams({
-      mode: "assistant",
-      task: "agent",
-      agent: def.key,
+      prompt: `${def.source === "builtin" ? "builtin-agent" : "custom-agent"}--${def.key}`,
     });
     navigate(`/prompt-chains?${params.toString()}`);
-  }, [def.key, navigate, onCloseSettings]);
+  }, [def.key, def.source, navigate, onCloseSettings]);
 
   const handleToggleDelegatable = useCallback((key: string) => {
     setFormDelegatableAgents((prev) =>

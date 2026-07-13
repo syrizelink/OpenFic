@@ -22,10 +22,6 @@ import {
 import type { PromptEntry, PromptEntryData } from "@/lib/prompt-chain.types";
 import { countTokens } from "@/lib/tiktoken-utils";
 
-function getChainKey(modeName: string, taskName: string, agentName: string | null): string {
-  return agentName ? `${modeName}/${taskName}/${agentName}` : `${modeName}/${taskName}`;
-}
-
 function getEntryTokenCount(content: string, tokenCount: number): number {
   if (!content.trim()) return 0;
   return countTokens(content) || tokenCount;
@@ -51,21 +47,21 @@ function normalizePromptEntryData(entry: PromptEntryData): PromptEntryData {
   };
 }
 
-export function usePromptChain(modeName: string, taskName: string, agentName: string | null) {
+export function usePromptChain(promptId: string) {
   const queryClient = useQueryClient();
   const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
   const [entries, setEntries] = useState<PromptEntryData[]>([]);
   const [baseEntries, setBaseEntries] = useState<PromptEntryData[]>([]);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const workingCopySaveRef = useRef(Promise.resolve());
   const [error, setError] = useState<Error | null>(null);
 
-  const shouldQuery = !!modeName && !!taskName;
-
-  const chainKey = getChainKey(modeName, taskName, agentName);
+  const shouldQuery = !!promptId;
+  const chainKey = promptId;
 
   const { data: versions = [], error: versionsError } = useQuery({
-    queryKey: ["promptChainVersions", modeName, taskName, agentName],
-    queryFn: () => fetchPromptChainVersions(modeName, taskName, agentName, false),
+    queryKey: ["promptChainVersions", promptId],
+    queryFn: () => fetchPromptChainVersions(promptId, false),
     enabled: shouldQuery,
     retry: 2,
     staleTime: 2 * 60 * 1000,
@@ -76,14 +72,25 @@ export function usePromptChain(modeName: string, taskName: string, agentName: st
     isLoading,
     error: latestVersionError,
   } = useQuery({
-    queryKey: ["promptChainLatest", modeName, taskName, agentName],
-    queryFn: () => fetchLatestPromptChainVersion(modeName, taskName, agentName),
+    queryKey: ["promptChainLatest", promptId],
+    queryFn: () => fetchLatestPromptChainVersion(promptId),
     enabled: shouldQuery,
     retry: 2,
     staleTime: 2 * 60 * 1000,
   });
 
   const queryError = (versionsError || latestVersionError) as Error | null;
+
+  const saveWorkingCopy = useCallback(
+    (baseVersionId: string, nextEntries: PromptEntryData[]) => {
+      const save = workingCopySaveRef.current.then(() =>
+        savePromptChainWorkingCopy(chainKey, baseVersionId, nextEntries),
+      );
+      workingCopySaveRef.current = save.catch(() => undefined);
+      return save;
+    },
+    [chainKey],
+  );
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -92,7 +99,7 @@ export function usePromptChain(modeName: string, taskName: string, agentName: st
       setBaseEntries([]);
       setError(null);
     });
-  }, [modeName, taskName, agentName]);
+  }, [promptId]);
 
   useEffect(() => {
     if (!latestVersion) return;
@@ -116,7 +123,7 @@ export function usePromptChain(modeName: string, taskName: string, agentName: st
           setEntries(entriesData);
           setBaseEntries(entriesData);
 
-          await savePromptChainWorkingCopy(chainKey, latestVersion.version.id, entriesData);
+          await saveWorkingCopy(latestVersion.version.id, entriesData);
         }
       } catch (err) {
         if (isStale) return;
@@ -131,7 +138,7 @@ export function usePromptChain(modeName: string, taskName: string, agentName: st
     return () => {
       isStale = true;
     };
-  }, [chainKey, latestVersion]);
+  }, [chainKey, latestVersion, saveWorkingCopy]);
 
   useEffect(() => {
     if (!currentVersionId || entries.length === 0) return;
@@ -142,13 +149,13 @@ export function usePromptChain(modeName: string, taskName: string, agentName: st
 
     saveTimerRef.current = setTimeout(async () => {
       try {
-        await savePromptChainWorkingCopy(chainKey, currentVersionId, entries);
+        await saveWorkingCopy(currentVersionId, entries);
       } catch (err) {
         console.error("Failed to save working copy:", err);
       } finally {
         saveTimerRef.current = null;
       }
-    }, 2000);
+    }, 1000);
 
     return () => {
       if (saveTimerRef.current) {
@@ -156,26 +163,26 @@ export function usePromptChain(modeName: string, taskName: string, agentName: st
         saveTimerRef.current = null;
       }
     };
-  }, [chainKey, currentVersionId, entries]);
+  }, [chainKey, currentVersionId, entries, saveWorkingCopy]);
 
   const loadVersion = useCallback(
     async (versionId: string) => {
       try {
         setError(null);
-        const versionData = await fetchPromptChainVersion(modeName, taskName, versionId, agentName);
+        const versionData = await fetchPromptChainVersion(promptId, versionId);
 
         setCurrentVersionId(versionData.version.id);
         const entriesData = versionData.entries.map(mapPromptEntry);
         setEntries(entriesData);
         setBaseEntries(entriesData);
 
-        await savePromptChainWorkingCopy(chainKey, versionData.version.id, entriesData);
+        await saveWorkingCopy(versionData.version.id, entriesData);
       } catch (err) {
         console.error("加载版本失败:", err);
         setError(err as Error);
       }
     },
-    [chainKey, modeName, taskName, agentName],
+    [promptId, saveWorkingCopy],
   );
 
   const currentVersion =
@@ -191,24 +198,25 @@ export function usePromptChain(modeName: string, taskName: string, agentName: st
       const parentVersionId = isDefault ? "default" : currentVersionId;
       if (!parentVersionId) throw new Error("No current version");
 
-      return createPromptChainVersion(
-        modeName,
-        taskName,
-        {
-          parentVersionId,
-          entries: entries,
-          note,
-        },
-        agentName,
-      );
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      await saveWorkingCopy(parentVersionId, entries);
+
+      return createPromptChainVersion(promptId, {
+        parentVersionId,
+        entries: entries,
+        note,
+      });
     },
     onSuccess: async (data) => {
       try {
         queryClient.invalidateQueries({
-          queryKey: ["promptChainVersions", modeName, taskName, agentName],
+          queryKey: ["promptChainVersions", promptId],
         });
         queryClient.invalidateQueries({
-          queryKey: ["promptChainLatest", modeName, taskName, agentName],
+          queryKey: ["promptChainLatest", promptId],
         });
 
         setCurrentVersionId(data.version.id);
@@ -243,15 +251,15 @@ export function usePromptChain(modeName: string, taskName: string, agentName: st
       setCurrentVersionId(baseVersionId);
       setEntries(nextEntries);
       setBaseEntries(nextEntries);
-      await savePromptChainWorkingCopy(chainKey, baseVersionId, nextEntries);
+      await saveWorkingCopy(baseVersionId, nextEntries);
       queryClient.invalidateQueries({
-        queryKey: ["promptChainVersions", modeName, taskName, agentName],
+        queryKey: ["promptChainVersions", promptId],
       });
       queryClient.invalidateQueries({
-        queryKey: ["promptChainLatest", modeName, taskName, agentName],
+        queryKey: ["promptChainLatest", promptId],
       });
     },
-    [agentName, chainKey, modeName, queryClient, taskName],
+    [promptId, queryClient, saveWorkingCopy],
   );
 
   return {

@@ -12,7 +12,7 @@ async def test_build_prompt_messages_appends_target_xml(
 ) -> None:
     messages = await _build_prompt_messages(
         session,
-        task_name="mid_range_summary",
+        prompt_id="memory-chapter-summary",
         target_xml="<target><chapter_title>第一章</chapter_title></target>",
     )
 

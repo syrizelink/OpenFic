@@ -25,9 +25,7 @@ class PromptChainVersionResponse(BaseModel):
     """提示词链版本响应。"""
 
     id: str = Field(description="版本ID")
-    mode_name: str = Field(description="模式名称")
-    task_name: str = Field(description="任务名称")
-    agent_name: str | None = Field(description="Agent名称")
+    prompt_id: str = Field(description="提示词唯一标识")
     version_hash: str = Field(description="版本短hash")
     version_number: int = Field(description="语义版本号")
     parent_version_id: str | None = Field(description="父版本ID")
@@ -56,6 +54,30 @@ class PromptEntryResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PromptEntrySearchMatch(BaseModel):
+    """提示词条目中的单行搜索命中。"""
+
+    line_number: int = Field(description="行号，条目名称使用 0")
+    line_text: str = Field(description="命中的原始文本")
+
+
+class PromptEntrySearchResult(BaseModel):
+    """单个提示词条目的搜索结果。"""
+
+    entry_id: str = Field(description="条目 ID")
+    entry_name: str = Field(description="条目名称")
+    role: str = Field(description="角色类型")
+    matches: list[PromptEntrySearchMatch] = Field(description="命中行")
+
+
+class PromptEntrySearchResponse(BaseModel):
+    """提示词版本内条目搜索响应。"""
+
+    results: list[PromptEntrySearchResult] = Field(default_factory=list, description="搜索结果")
+    total_entries: int = Field(ge=0, description="命中的条目数")
+    total_matches: int = Field(ge=0, description="命中的行数")
+
+
 class VersionWithEntriesResponse(BaseModel):
     """版本及其条目响应。"""
 
@@ -82,35 +104,32 @@ class UpdateEntryRequest(BaseModel):
     token_count: int | None = Field(default=None, ge=0, description="Token计数")
 
 
-class AgentMetadata(BaseModel):
-    """Agent元数据。"""
+class PromptMetadata(BaseModel):
+    """单个提示词元数据。"""
 
-    value: str = Field(description="Agent名称")
-
-
-class TaskMetadata(BaseModel):
-    """任务元数据。"""
-
-    value: str = Field(description="任务名称")
-    agents: list[AgentMetadata] = Field(default_factory=list, description="Agent列表(空数组表示无第三级)")
+    id: str = Field(description="提示词唯一标识")
+    label_key: str = Field(description="前端国际化标签键")
+    label: str | None = Field(default=None, description="自定义显示名称")
 
 
-class ModeMetadata(BaseModel):
-    """模式元数据。"""
+class PromptCategoryMetadata(BaseModel):
+    """提示词分类元数据。"""
 
-    value: str = Field(description="模式名称")
-    tasks: list[TaskMetadata] = Field(default_factory=list, description="任务列表")
+    id: str = Field(description="分类标识")
+    label_key: str = Field(description="前端国际化标签键")
+    prompts: list[PromptMetadata] = Field(default_factory=list, description="提示词列表")
 
 
 class PromptChainsMetadataResponse(BaseModel):
     """提示词链元数据响应。"""
 
-    modes: list[ModeMetadata] = Field(default_factory=list, description="模式列表")
+    categories: list[PromptCategoryMetadata] = Field(default_factory=list, description="分类列表")
 
 
 class CompiledEntryResponse(BaseModel):
     """编译后的条目响应。"""
 
+    name: str = Field(description="条目名称")
     role: str = Field(description="角色类型")
     content: str = Field(description="编译后的内容")
     token_count: int = Field(ge=0, description="Token计数")

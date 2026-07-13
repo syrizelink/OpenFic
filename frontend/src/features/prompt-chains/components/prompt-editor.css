@@ -1,11 +1,14 @@
 .prompt-editor-shell {
+  --prompt-editor-max-content-width: 960px;
+
   box-sizing: border-box;
   width: 100%;
   height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 24px;
+  padding-block: 24px;
+  padding-inline: max(24px, calc((100% - var(--prompt-editor-max-content-width)) / 2));
   overflow: hidden;
 }
 

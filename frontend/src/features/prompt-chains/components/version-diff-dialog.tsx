@@ -41,9 +41,7 @@ import type { PromptEntry } from "@/lib/prompt-chain.types";
 interface VersionDiffDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  modeName: string;
-  taskName: string;
-  agentName: string | null;
+  promptId: string;
   baseVersionId: string;
   compareVersionId: string;
 }
@@ -201,9 +199,7 @@ function computeEntryDiffs(baseEntries: PromptEntry[], compareEntries: PromptEnt
 export function VersionDiffDialog({
   open,
   onOpenChange,
-  modeName,
-  taskName,
-  agentName,
+  promptId,
   baseVersionId,
   compareVersionId,
 }: VersionDiffDialogProps) {
@@ -216,8 +212,8 @@ export function VersionDiffDialog({
     isLoading: isLoadingBase,
     error: errorBase,
   } = useQuery({
-    queryKey: ["promptChainVersion", modeName, taskName, agentName, baseVersionId],
-    queryFn: () => fetchPromptChainVersion(modeName, taskName, baseVersionId, agentName),
+    queryKey: ["promptChainVersion", promptId, baseVersionId],
+    queryFn: () => fetchPromptChainVersion(promptId, baseVersionId),
     enabled: open && !!baseVersionId,
   });
 
@@ -226,8 +222,8 @@ export function VersionDiffDialog({
     isLoading: isLoadingCompare,
     error: errorCompare,
   } = useQuery({
-    queryKey: ["promptChainVersion", modeName, taskName, agentName, compareVersionId],
-    queryFn: () => fetchPromptChainVersion(modeName, taskName, compareVersionId, agentName),
+    queryKey: ["promptChainVersion", promptId, compareVersionId],
+    queryFn: () => fetchPromptChainVersion(promptId, compareVersionId),
     enabled: open && !!compareVersionId,
   });
 

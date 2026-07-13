@@ -7,6 +7,8 @@ import pytest
 from fastapi import status
 from httpx import AsyncClient
 
+from app.storage.services import prompt_chain_service
+
 
 @pytest.mark.asyncio
 async def test_list_agent_definitions(client: AsyncClient):
@@ -80,6 +82,7 @@ async def test_get_nonexistent_agent_definition(client: AsyncClient):
 async def test_create_custom_agent_definition(
     client: AsyncClient,
     isolated_prompts_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     body = {
         "key": "custom-bot",
@@ -102,30 +105,39 @@ async def test_create_custom_agent_definition(
     assert data["enabled_skills"] == ["skill-a", "skill-b"]
     assert data["delegatable_agents"] == ["explorer"]
 
-    assert not (isolated_prompts_dir / "assistant" / "agent" / "custom-bot.yaml").exists()
-    assert not Path(
-        "backend/app/prompts/assistant/agent/custom-bot.yaml"
-    ).exists()
+    assert not (isolated_prompts_dir / "custom-agents" / "custom-bot.yaml").exists()
 
     latest_response = await client.get(
-        "/api/v1/prompt-chains/assistant/agent/versions/latest",
-        params={"agent_name": "custom-bot"},
+        "/api/v1/prompt-chains/custom-agent--custom-bot/versions/latest",
     )
     assert latest_response.status_code == status.HTTP_200_OK
     latest_data = latest_response.json()
     assert latest_data["version"]["version_number"] == 1
-    assert latest_data["version"]["agent_name"] == "custom-bot"
+    assert latest_data["version"]["prompt_id"] == "custom-agent--custom-bot"
     assert len(latest_data["entries"]) > 0
 
-    metadata_response = await client.get("/api/v1/prompt-chains/metadata")
+    def fail_on_default_version_lookup(_prompt_id: str):
+        raise AssertionError("自定义智能体不应加载 YAML 默认版本")
+
+    monkeypatch.setattr(
+        prompt_chain_service,
+        "_load_default_version_with_entries",
+        fail_on_default_version_lookup,
+    )
+    versions_response = await client.get(
+        "/api/v1/prompt-chains/custom-agent--custom-bot/versions",
+    )
+    assert versions_response.status_code == status.HTTP_200_OK
+    assert [version["version_number"] for version in versions_response.json()] == [1]
+
+    metadata_response = await client.get("/api/v1/prompt-chains/categories")
     assert metadata_response.status_code == status.HTTP_200_OK
-    assistant_mode = next(
-        mode for mode in metadata_response.json()["modes"] if mode["value"] == "assistant"
+    custom_agents = next(
+        category
+        for category in metadata_response.json()["categories"]
+        if category["id"] == "custom-agents"
     )
-    agent_task = next(
-        task for task in assistant_mode["tasks"] if task["value"] == "agent"
-    )
-    assert any(agent["value"] == "custom-bot" for agent in agent_task["agents"])
+    assert any(prompt["id"] == "custom-agent--custom-bot" for prompt in custom_agents["prompts"])
 
 
 @pytest.mark.asyncio

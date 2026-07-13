@@ -53,14 +53,14 @@ class LongTermSummaryPrompt:
 
 async def _get_prompt_entries(
     session: AsyncSession,
-    task_name: str,
+    prompt_id: str,
 ) -> list[EntryInput]:
     result = await prompt_chain_service.get_latest_version_with_entries_or_default(
-        session, "memory", task_name, None
+        session, prompt_id
     )
     entries = [entry for entry in result.entries if entry.is_enabled]
     if not entries:
-        raise NotFoundError(f"提示词链 memory/{task_name} 没有条目")
+        raise NotFoundError(f"提示词链 {prompt_id} 没有条目")
     return [
         EntryInput(
             role=entry.role,
@@ -75,11 +75,11 @@ async def _get_prompt_entries(
 async def _build_prompt_messages(
     session: AsyncSession,
     *,
-    task_name: str,
+    prompt_id: str,
     target_xml: str,
 ) -> list[SystemMessage]:
     compiler = PromptChainCompiler()
-    compile_result = await compiler.compile(entries=await _get_prompt_entries(session, task_name))
+    compile_result = await compiler.compile(entries=await _get_prompt_entries(session, prompt_id))
 
     messages = [
         SystemMessage(content=entry.content)
@@ -152,7 +152,7 @@ async def build_chapter_summary_prompt(
 
     messages = await _build_prompt_messages(
         session,
-        task_name="mid_range_summary",
+        prompt_id="memory-chapter-summary",
         target_xml=_chapter_target_message(chapter),
     )
     return ChapterSummaryPrompt(messages=messages)
@@ -211,7 +211,7 @@ async def build_long_term_summary_prompt(
 
     messages = await _build_prompt_messages(
         session,
-        task_name="far_range_summary",
+        prompt_id="memory-range-summary",
         target_xml=_summaries_target_message(summaries_text),
     )
     return LongTermSummaryPrompt(messages=messages, summaries_text=summaries_text)
