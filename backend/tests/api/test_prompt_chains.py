@@ -7,122 +7,221 @@ from httpx import AsyncClient
 
 
 class TestPromptChainAPI:
-    async def test_metadata_excludes_legacy_assistant_chat(
+    async def test_metadata_groups_flat_prompt_ids(
         self,
         client: AsyncClient,
         isolated_prompts_dir: Path,
     ) -> None:
         custom_yaml = isolated_prompts_dir / "assistant" / "agent" / "legacy-custom.yaml"
+        custom_yaml.parent.mkdir(parents=True)
         custom_yaml.write_text("entries: []\n", encoding="utf-8")
 
-        response = await client.get("/api/v1/prompt-chains/metadata")
+        response = await client.get("/api/v1/prompt-chains/categories")
 
         assert response.status_code == 200
-        assistant = next(
-            mode for mode in response.json()["modes"] if mode["value"] == "assistant"
-        )
-        task_names = {task["value"] for task in assistant["tasks"]}
-        assert "chat" not in task_names
-        assert "agent" in task_names
-        agent_task = next(task for task in assistant["tasks"] if task["value"] == "agent")
-        assert all(agent["value"] != "legacy-custom" for agent in agent_task["agents"])
+        categories = {category["id"]: category for category in response.json()["categories"]}
+
+        assert set(categories) == {
+            "session",
+            "memory",
+            "builtin-agents",
+            "custom-agents",
+        }
+        assert {
+            prompt["id"] for prompt in categories["session"]["prompts"]
+        } == {"session-title", "session-compaction"}
+        assert {
+            prompt["id"] for prompt in categories["memory"]["prompts"]
+        } == {"memory-chapter-summary", "memory-range-summary"}
+        assert "builtin-agent--explorer" in {
+            prompt["id"] for prompt in categories["builtin-agents"]["prompts"]
+        }
+        assert categories["custom-agents"]["prompts"] == []
 
     async def test_get_latest_agent_version_uses_default_yaml(self, client: AsyncClient) -> None:
         response = await client.get(
-            "/api/v1/prompt-chains/assistant/agent/versions/latest",
-            params={"agent_name": "explorer"},
+            "/api/v1/prompt-chains/builtin-agent--explorer/versions/latest",
         )
 
         assert response.status_code == 200
         data = response.json()
         assert data["version"]["version_number"] == 0
-        assert data["version"]["agent_name"] == "explorer"
+        assert data["version"]["prompt_id"] == "builtin-agent--explorer"
         assert len(data["entries"]) > 0
         assert all("finish_subagent" not in entry["content"] for entry in data["entries"])
 
+    async def test_get_default_version_returns_yaml_after_creating_version(
+        self,
+        client: AsyncClient,
+    ) -> None:
+        prompt_id = "session-title"
+        default_response = await client.get(
+            f"/api/v1/prompt-chains/{prompt_id}/versions/default",
+        )
+
+        assert default_response.status_code == 200
+        default_data = default_response.json()
+
+        create_response = await client.post(
+            f"/api/v1/prompt-chains/{prompt_id}/versions",
+            json={
+                "parent_version_id": "default",
+                "entries": [
+                    {
+                        **entry,
+                        "content": f"{entry['content']}\n自定义版本内容",
+                    }
+                    for entry in default_data["entries"]
+                ],
+            },
+        )
+        assert create_response.status_code == 201
+
+        response = await client.get(
+            f"/api/v1/prompt-chains/{prompt_id}/versions/default",
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["version"]["id"] == "default"
+        assert data["version"]["version_number"] == 0
+        assert all("自定义版本内容" not in entry["content"] for entry in data["entries"])
+
+    async def test_diff_version_against_default_yaml(self, client: AsyncClient) -> None:
+        prompt_id = "session-title"
+        default_response = await client.get(
+            f"/api/v1/prompt-chains/{prompt_id}/versions/default",
+        )
+        assert default_response.status_code == 200
+        default_data = default_response.json()
+
+        create_response = await client.post(
+            f"/api/v1/prompt-chains/{prompt_id}/versions",
+            json={
+                "parent_version_id": "default",
+                "entries": [
+                    {
+                        **entry,
+                        "content": f"{entry['content']}\n自定义版本内容",
+                    }
+                    for entry in default_data["entries"]
+                ],
+            },
+        )
+        assert create_response.status_code == 201
+        version_id = create_response.json()["version"]["id"]
+
+        response = await client.get(
+            f"/api/v1/prompt-chains/{prompt_id}/versions/default/diff/{version_id}",
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["base_version"]["id"] == "default"
+        assert data["compare_version"]["id"] == version_id
+        assert data["diffs"]
+
+    async def test_list_versions_includes_default_version(self, client: AsyncClient) -> None:
+        prompt_id = "session-title"
+        latest_response = await client.get(
+            f"/api/v1/prompt-chains/{prompt_id}/versions/latest",
+        )
+        assert latest_response.status_code == 200
+
+        create_response = await client.post(
+            f"/api/v1/prompt-chains/{prompt_id}/versions",
+            json={
+                "parent_version_id": "default",
+                "entries": latest_response.json()["entries"],
+            },
+        )
+        assert create_response.status_code == 201
+
+        response = await client.get(f"/api/v1/prompt-chains/{prompt_id}/versions")
+
+        assert response.status_code == 200
+        assert [version["version_number"] for version in response.json()] == [1, 0]
+        assert response.json()[-1]["id"] == "default"
+
     async def test_compile_agent_version_uses_default_yaml(self, client: AsyncClient) -> None:
         response = await client.post(
-            "/api/v1/prompt-chains/assistant/agent/compile",
-            params={"agent_name": "explorer"},
-            json={"project_id": None, "chapter_id": None},
+            "/api/v1/prompt-chains/builtin-agent--explorer/compile",
+            json={},
         )
 
         assert response.status_code == 200
         data = response.json()
         assert data["total_tokens"] >= 0
         assert len(data["entries"]) > 0
+        assert all(entry["name"] for entry in data["entries"])
 
-    async def test_compile_latest_chapter_uses_last_volume_last_chapter(
-        self,
-        client: AsyncClient,
-        monkeypatch,
-    ) -> None:
-        from app.macro.compiler import CompileResult, CompiledEntry
-        import app.macro.compiler as compiler_module
-
-        compile_calls: list[dict] = []
-
-        class FakeCompiler:
-            def __init__(self, _session):
-                pass
-
-            async def compile(self, *, entries, project_id, chapter_id):
-                compile_calls.append(
-                    {
-                        "project_id": project_id,
-                        "chapter_id": chapter_id,
-                    }
-                )
-                return CompileResult(
-                    entries=[
-                        CompiledEntry(
-                            role="system",
-                            content=f"chapter_id={chapter_id}",
-                            token_count=1,
-                        )
-                    ],
-                    total_tokens=1,
-                )
-
-        monkeypatch.setattr(compiler_module, "PromptChainCompiler", FakeCompiler)
-
-        project_response = await client.post(
-            "/api/v1/projects",
-            data={"title": "测试小说"},
+    async def test_create_version_uses_flat_prompt_id(self, client: AsyncClient) -> None:
+        latest_response = await client.get(
+            "/api/v1/prompt-chains/session-title/versions/latest",
         )
-        assert project_response.status_code == 201
-        project_id = project_response.json()["id"]
-        first_volume = (
-            await client.get(f"/api/v1/projects/{project_id}/volumes")
-        ).json()[0]
-        second_volume_response = await client.post(
-            f"/api/v1/projects/{project_id}/volumes",
-            json={"title": "第二卷"},
-        )
-        assert second_volume_response.status_code == 201
-        second_volume = second_volume_response.json()
-
-        for index in range(3):
-            response = await client.post(
-                f"/api/v1/projects/{project_id}/chapters",
-                json={"volume_id": first_volume["id"], "title": f"第一卷第{index + 1}章"},
-            )
-            assert response.status_code == 201
-        last_chapter_id = None
-        for index in range(2):
-            response = await client.post(
-                f"/api/v1/projects/{project_id}/chapters",
-                json={"volume_id": second_volume["id"], "title": f"第二卷第{index + 1}章"},
-            )
-            assert response.status_code == 201
-            last_chapter_id = response.json()["id"]
+        latest_data = latest_response.json()
 
         response = await client.post(
-            "/api/v1/prompt-chains/assistant/agent/compile",
-            params={"agent_name": "explorer"},
-            json={"project_id": project_id, "chapter_id": "latest"},
+            "/api/v1/prompt-chains/session-title/versions",
+            json={
+                "parent_version_id": "default",
+                "entries": latest_data["entries"],
+            },
+        )
+
+        assert response.status_code == 201
+        assert response.json()["version"]["prompt_id"] == "session-title"
+
+    async def test_search_version_entries_returns_name_and_content_matches(
+        self,
+        client: AsyncClient,
+    ) -> None:
+        version_response = await client.post(
+            "/api/v1/prompt-chains/session-title/versions",
+            json={
+                "parent_version_id": "default",
+                "entries": [
+                    {
+                        "name": "系统规则",
+                        "role": "system",
+                        "content": "第一行\n包含关键字的内容",
+                        "order_index": 0,
+                        "is_enabled": True,
+                        "token_count": 0,
+                    },
+                    {
+                        "name": "关键字条目",
+                        "role": "user",
+                        "content": "普通内容",
+                        "order_index": 1,
+                        "is_enabled": True,
+                        "token_count": 0,
+                    },
+                ],
+            },
+        )
+        assert version_response.status_code == 201
+        version_id = version_response.json()["version"]["id"]
+
+        response = await client.get(
+            f"/api/v1/prompt-chains/session-title/versions/{version_id}/search",
+            params={"q": "关键字"},
         )
 
         assert response.status_code == 200
-        assert compile_calls == [{"project_id": project_id, "chapter_id": last_chapter_id}]
-        assert response.json()["entries"][0]["content"] == f"chapter_id={last_chapter_id}"
+        data = response.json()
+        assert data["total_entries"] == 2
+        assert data["total_matches"] == 2
+        results_by_name = {item["entry_name"]: item for item in data["results"]}
+        assert results_by_name["系统规则"]["matches"] == [
+            {
+                "line_number": 2,
+                "line_text": "包含关键字的内容",
+            },
+        ]
+        assert results_by_name["关键字条目"]["matches"] == [
+            {
+                "line_number": 0,
+                "line_text": "关键字条目",
+            },
+        ]

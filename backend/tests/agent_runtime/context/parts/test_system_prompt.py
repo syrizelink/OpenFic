@@ -57,9 +57,7 @@ async def test_system_prompt_loads_agent_prompt_chain_key(make_state, mock_sessi
 
     mocked_get.assert_awaited_once_with(
         mock_session,
-        mode_name="assistant",
-        task_name="agent",
-        agent_name="explorer",
+        prompt_id="builtin-agent--explorer",
     )
 
 

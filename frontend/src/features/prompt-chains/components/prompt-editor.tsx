@@ -7,7 +7,6 @@
 import { Flex, TextField, Separator, Text } from "@radix-ui/themes";
 import Placeholder from "@tiptap/extension-placeholder";
 import { useEditor, EditorContent } from "@tiptap/react";
-import type { Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Terminal, Bot, User } from "lucide-react";
 import { useEffect, useRef, useCallback, useState } from "react";
@@ -18,20 +17,13 @@ import { useTranslation } from "react-i18next";
 import { ContextMenu } from "@/components";
 import { LabeledSelect } from "@/components/select";
 import { htmlToNewlines, newlinesToHtml } from "@/lib/html-utils";
-import type { MacroNode as MacroNodeType } from "@/lib/macro";
 import type { PromptEntryData } from "@/lib/prompt-chain.types";
 import { countTokens } from "@/lib/tiktoken-utils";
-
-import { MacroAutocomplete } from "../extensions/macro-autocomplete";
-import { MacroInputRule } from "../extensions/macro-input-rule";
-import { MacroNode } from "../extensions/macro-node";
 
 interface PromptEditorProps {
   entry: PromptEntryData;
   onUpdate: (updates: Partial<PromptEntryData>) => void;
   onUpdateWithId?: (entryId: string, updates: Partial<PromptEntryData>) => void;
-  onMacroSelect?: (macro: MacroNodeType | null) => void;
-  editorRef?: React.RefObject<Editor | null>;
   isMobile?: boolean;
 }
 
@@ -39,8 +31,6 @@ export function PromptEditor({
   entry,
   onUpdate,
   onUpdateWithId,
-  onMacroSelect,
-  editorRef,
   isMobile = false,
 }: PromptEditorProps) {
   const { t } = useTranslation();
@@ -116,9 +106,6 @@ export function PromptEditor({
       Placeholder.configure({
         placeholder: t("promptChains.contentPlaceholder"),
       }),
-      MacroNode,
-      MacroInputRule,
-      MacroAutocomplete,
     ],
     // 从数据库加载时，将换行符转换为 HTML（<p></p> 格式）供 Tiptap 显示
     content: entry.content ? newlinesToHtml(entry.content) : "",
@@ -157,30 +144,6 @@ export function PromptEditor({
         },
         html,
       );
-    },
-    onSelectionUpdate: ({ editor }) => {
-      // 检测是否选中了宏节点
-      const { selection } = editor.state;
-
-      // 检查当前选中位置的节点
-      let selectedMacroNode: MacroNodeType | null = null;
-
-      editor.state.doc.nodesBetween(selection.from, selection.to, (node, pos) => {
-        if (node.type.name === "macroNode") {
-          const macroData = node.attrs.macroData ? JSON.parse(node.attrs.macroData) : { args: [] };
-
-          selectedMacroNode = {
-            name: node.attrs.macroName,
-            args: macroData.args || [],
-            raw: node.attrs.macroRaw,
-            start: pos,
-            end: pos + node.nodeSize,
-          };
-          return false; // 停止遍历
-        }
-      });
-
-      onMacroSelect?.(selectedMacroNode);
     },
   });
 
@@ -249,13 +212,6 @@ export function PromptEditor({
     },
     [editor, onUpdate, onUpdateWithId],
   );
-
-  // 设置 editorRef
-  useEffect(() => {
-    if (editorRef) {
-      editorRef.current = editor;
-    }
-  }, [editor, editorRef]);
 
   // 监听 entry.id 变化，在切换条目前保存旧条目的内容
   useEffect(() => {

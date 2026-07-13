@@ -58,9 +58,7 @@ async def test_list_by_version_uses_stable_tiebreakers(session):
     session.add(
         PromptChainVersion(
             id="version-ordering",
-            mode_name="assistant",
-            task_name="agent",
-            agent_name="writer",
+            prompt_id="builtin-agent--writer",
             version_hash="verorder",
             version_number=1,
             is_active=True,

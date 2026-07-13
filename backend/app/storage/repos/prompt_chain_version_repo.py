@@ -45,20 +45,11 @@ async def get_by_hash(
 
 async def list_by_chain_key(
     session: AsyncSession,
-    mode_name: str,
-    task_name: str,
-    agent_name: str | None = None,
+    prompt_id: str,
     active_only: bool = False,
 ) -> list[PromptChainVersion]:
     """获取某个提示词链的所有版本。"""
-    conditions = [
-        col(PromptChainVersion.mode_name) == mode_name,
-        col(PromptChainVersion.task_name) == task_name,
-    ]
-    if agent_name:
-        conditions.append(col(PromptChainVersion.agent_name) == agent_name)
-    else:
-        conditions.append(col(PromptChainVersion.agent_name).is_(None))
+    conditions = [col(PromptChainVersion.prompt_id) == prompt_id]
 
     if active_only:
         conditions.append(col(PromptChainVersion.is_active).is_(True))
@@ -75,20 +66,13 @@ async def list_by_chain_key(
 
 async def get_latest_version(
     session: AsyncSession,
-    mode_name: str,
-    task_name: str,
-    agent_name: str | None = None,
+    prompt_id: str,
 ) -> PromptChainVersion | None:
     """获取最新的活跃版本。"""
     conditions = [
-        col(PromptChainVersion.mode_name) == mode_name,
-        col(PromptChainVersion.task_name) == task_name,
+        col(PromptChainVersion.prompt_id) == prompt_id,
         col(PromptChainVersion.is_active).is_(True),
     ]
-    if agent_name:
-        conditions.append(col(PromptChainVersion.agent_name) == agent_name)
-    else:
-        conditions.append(col(PromptChainVersion.agent_name).is_(None))
 
     result = await session.execute(
         select(PromptChainVersion)
@@ -101,19 +85,10 @@ async def get_latest_version(
 
 async def get_max_version_number(
     session: AsyncSession,
-    mode_name: str,
-    task_name: str,
-    agent_name: str | None = None,
+    prompt_id: str,
 ) -> int:
     """获取某个提示词链的最大版本号。"""
-    conditions = [
-        col(PromptChainVersion.mode_name) == mode_name,
-        col(PromptChainVersion.task_name) == task_name,
-    ]
-    if agent_name:
-        conditions.append(col(PromptChainVersion.agent_name) == agent_name)
-    else:
-        conditions.append(col(PromptChainVersion.agent_name).is_(None))
+    conditions = [col(PromptChainVersion.prompt_id) == prompt_id]
 
     result = await session.execute(
         select(col(PromptChainVersion.version_number))
@@ -127,21 +102,14 @@ async def get_max_version_number(
 
 async def deactivate_versions_after(
     session: AsyncSession,
-    mode_name: str,
-    task_name: str,
-    agent_name: str | None,
+    prompt_id: str,
     from_version_number: int,
 ) -> None:
     """将某个版本号之后的所有版本标记为非活跃。"""
     conditions = [
-        col(PromptChainVersion.mode_name) == mode_name,
-        col(PromptChainVersion.task_name) == task_name,
+        col(PromptChainVersion.prompt_id) == prompt_id,
         col(PromptChainVersion.version_number) > from_version_number,
     ]
-    if agent_name:
-        conditions.append(col(PromptChainVersion.agent_name) == agent_name)
-    else:
-        conditions.append(col(PromptChainVersion.agent_name).is_(None))
 
     await session.execute(
         sa_update(PromptChainVersion)
@@ -173,9 +141,7 @@ async def delete(session: AsyncSession, version_id: str) -> bool:
 
 async def delete_by_chain_key(
     session: AsyncSession,
-    mode_name: str,
-    task_name: str,
-    agent_name: str | None = None,
+    prompt_id: str,
 ) -> int:
     """
     删除某个提示词链的所有版本。
@@ -187,14 +153,7 @@ async def delete_by_chain_key(
     """
     from app.storage.models.prompt_entry import PromptEntry
 
-    conditions = [
-        col(PromptChainVersion.mode_name) == mode_name,
-        col(PromptChainVersion.task_name) == task_name,
-    ]
-    if agent_name:
-        conditions.append(col(PromptChainVersion.agent_name) == agent_name)
-    else:
-        conditions.append(col(PromptChainVersion.agent_name).is_(None))
+    conditions = [col(PromptChainVersion.prompt_id) == prompt_id]
 
     version_ids = await session.execute(
         select(col(PromptChainVersion.id)).where(and_(*conditions))

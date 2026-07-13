@@ -69,16 +69,6 @@ interface PromptChainWorkingCopy {
 }
 
 /**
- * 工作目录设置
- */
-interface WorkDirSettings {
-  id: string; // 固定为 "default"
-  projectId: string | null;
-  chapterId: string | null; // null 表示最新章节
-  updatedAt: Date;
-}
-
-/**
  * OpenFic 本地数据库
  */
 class OpenFicDB extends Dexie {
@@ -86,7 +76,6 @@ class OpenFicDB extends Dexie {
   projectTabs!: EntityTable<ProjectTabs, "projectId">;
   userPreferences!: EntityTable<UserPreference, "key">;
   promptChainWorkingCopies!: EntityTable<PromptChainWorkingCopy, "chainId">;
-  workDirSettings!: EntityTable<WorkDirSettings, "id">;
 
   constructor() {
     super("OpenFicDB");
@@ -113,6 +102,13 @@ class OpenFicDB extends Dexie {
       userPreferences: "key, updatedAt",
       promptChainWorkingCopies: "chainId, updatedAt",
       workDirSettings: "id, updatedAt",
+    });
+
+    this.version(5).stores({
+      projectLastChapters: "projectId, updatedAt",
+      projectTabs: "projectId, updatedAt",
+      userPreferences: "key, updatedAt",
+      promptChainWorkingCopies: "chainId, updatedAt",
     });
   }
 }
@@ -299,44 +295,6 @@ export async function deletePromptChainWorkingCopy(chainId: string): Promise<voi
   }
 }
 
-// ==================== 工作目录设置 ====================
-
-/**
- * 获取工作目录设置
- */
-export async function getWorkDirSettings(): Promise<{
-  projectId: string | null;
-  chapterId: string | null;
-} | null> {
-  try {
-    const record = await db.workDirSettings.get("default");
-    if (!record) return null;
-    return { projectId: record.projectId, chapterId: record.chapterId };
-  } catch {
-    console.error("获取工作目录设置失败");
-    return null;
-  }
-}
-
-/**
- * 保存工作目录设置
- */
-export async function saveWorkDirSettings(
-  projectId: string | null,
-  chapterId: string | null,
-): Promise<void> {
-  try {
-    await db.workDirSettings.put({
-      id: "default",
-      projectId,
-      chapterId,
-      updatedAt: new Date(),
-    });
-  } catch {
-    console.error("保存工作目录设置失败");
-  }
-}
-
 // 导出类型
 export type {
   EditorTabRecord,
@@ -344,5 +302,4 @@ export type {
   UserPreference,
   PromptEntryData,
   PromptChainWorkingCopy,
-  WorkDirSettings,
 };

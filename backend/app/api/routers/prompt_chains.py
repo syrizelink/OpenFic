@@ -1,25 +1,28 @@
 # -*- coding: utf-8 -*-
-"""
-Prompt Chains Router - 提示词链 API。
-"""
+"""提示词链 API。"""
+
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.prompt_chain import (
-    CreateVersionRequest,
-    PromptChainVersionResponse,
-    PromptEntryResponse,
-    VersionWithEntriesResponse,
-    PromptChainsMetadataResponse,
-    CompileRequest,
     CompiledEntryResponse,
     CompileResponse,
-    VersionDiffResponse,
+    CreateVersionRequest,
     EntryDiffResponse,
+    PromptChainVersionResponse,
+    PromptChainsMetadataResponse,
+    PromptEntryResponse,
+    PromptEntrySearchMatch,
+    PromptEntrySearchResponse,
+    PromptEntrySearchResult,
+    VersionDiffResponse,
+    VersionWithEntriesResponse,
 )
 from app.core.errors import NotFoundError, ValidationError
+from app.macro.compiler import EntryInput, PromptChainCompiler
 from app.storage.database import get_session
 from app.storage.services import prompt_chain_service
 from app.storage.services.prompt_chain_service import PromptEntryData
@@ -27,364 +30,208 @@ from app.storage.services.prompt_chain_service import PromptEntryData
 router = APIRouter(prefix="/prompt-chains", tags=["prompt-chains"])
 
 
-@router.get(
-    "/metadata",
-    response_model=PromptChainsMetadataResponse,
-    summary="获取提示词链元数据",
-)
-async def get_metadata(
+def _version_response(result: prompt_chain_service.VersionWithEntries) -> VersionWithEntriesResponse:
+    return VersionWithEntriesResponse(
+        version=PromptChainVersionResponse.model_validate(result.version),
+        entries=[PromptEntryResponse.model_validate(entry) for entry in result.entries],
+    )
+
+
+@router.get("/categories", response_model=PromptChainsMetadataResponse, summary="获取提示词分类")
+async def get_categories(
     session: AsyncSession = Depends(get_session),
 ) -> PromptChainsMetadataResponse:
-    """
-    获取所有提示词链的元数据,用于构建导航菜单。
-
-    返回分层结构: mode > task > agent
-
-    Args:
-        session: 数据库session。
-
-    Returns:
-        元数据响应。
-    """
     metadata = await prompt_chain_service.get_prompt_chains_metadata(session)
     return PromptChainsMetadataResponse.model_validate(metadata)
 
 
-@router.get(
-    "/{mode_name}/{task_name}/versions",
-    response_model=list[PromptChainVersionResponse],
-    summary="获取版本列表",
-)
+@router.get("/{prompt_id}/versions", response_model=list[PromptChainVersionResponse], summary="获取版本列表")
 async def list_versions(
-    mode_name: str,
-    task_name: str,
-    agent_name: str | None = Query(None, description="Agent名称（可选）"),
+    prompt_id: str,
     active_only: bool = False,
     session: AsyncSession = Depends(get_session),
 ) -> list[PromptChainVersionResponse]:
-    """
-    获取提示词链的所有版本。
-
-    默认状态（数据库中无记录）返回空列表。
-
-    Args:
-        mode_name: 模式名称。
-        task_name: 任务名称。
-        agent_name: Agent名称（可选）。
-        active_only: 是否仅获取活跃版本。
-        session: 数据库session。
-
-    Returns:
-        版本列表。
-    """
-    versions = await prompt_chain_service.list_versions(
-        session, mode_name, task_name, agent_name, active_only
-    )
-    return [PromptChainVersionResponse.model_validate(v) for v in versions]
+    versions = await prompt_chain_service.list_versions(session, prompt_id, active_only)
+    return [PromptChainVersionResponse.model_validate(version) for version in versions]
 
 
-@router.get(
-    "/{mode_name}/{task_name}/versions/latest",
-    response_model=VersionWithEntriesResponse,
-    summary="获取最新版本",
-)
+@router.get("/{prompt_id}/versions/latest", response_model=VersionWithEntriesResponse, summary="获取最新版本")
 async def get_latest_version(
-    mode_name: str,
-    task_name: str,
-    agent_name: str | None = Query(None, description="Agent名称（可选）"),
+    prompt_id: str,
     session: AsyncSession = Depends(get_session),
 ) -> VersionWithEntriesResponse:
-    """
-    获取最新的活跃版本及其条目。
-
-    如果数据库中没有用户创建的版本，返回 YAML 中的默认内容，
-    此时 version.versionNumber 为 0 表示默认状态。
-
-    Args:
-        mode_name: 模式名称。
-        task_name: 任务名称。
-        agent_name: Agent名称（可选）。
-        session: 数据库session。
-
-    Returns:
-        版本及其条目。
-    """
     try:
-        result = await prompt_chain_service.get_latest_version_with_entries_or_default(
-            session, mode_name, task_name, agent_name
-        )
+        result = await prompt_chain_service.get_latest_version_with_entries_or_default(session, prompt_id)
+        return _version_response(result)
+    except NotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
-        return VersionWithEntriesResponse(
-            version=PromptChainVersionResponse.model_validate(result.version),
-            entries=[PromptEntryResponse.model_validate(e) for e in result.entries],
-        )
-    except NotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+@router.get("/{prompt_id}/versions/{version_id}", response_model=VersionWithEntriesResponse, summary="获取指定版本")
+async def get_version(
+    prompt_id: str,
+    version_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> VersionWithEntriesResponse:
+    try:
+        result = await prompt_chain_service.get_version_with_entries(session, version_id, prompt_id)
+        if result.version.prompt_id != prompt_id:
+            raise NotFoundError(f"版本不属于提示词链: {prompt_id}")
+        return _version_response(result)
+    except NotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.get(
-    "/{mode_name}/{task_name}/versions/{version_id}",
-    response_model=VersionWithEntriesResponse,
-    summary="获取指定版本",
+    "/{prompt_id}/versions/{version_id}/search",
+    response_model=PromptEntrySearchResponse,
+    summary="搜索提示词版本条目",
 )
-async def get_version(
-    mode_name: str,
-    task_name: str,
+async def search_version_entries(
+    prompt_id: str,
     version_id: str,
-    agent_name: str | None = Query(None, description="Agent名称（可选）"),
+    q: Annotated[str, Query(min_length=1, description="搜索关键词")],
     session: AsyncSession = Depends(get_session),
-) -> VersionWithEntriesResponse:
-    """
-    获取指定版本及其条目。
-
-    Args:
-        mode_name: 模式名称。
-        task_name: 任务名称。
-        version_id: 版本ID。
-        agent_name: Agent名称（可选）。
-        session: 数据库session。
-
-    Returns:
-        版本及其条目。
-    """
+) -> PromptEntrySearchResponse:
+    """搜索指定提示词版本的条目名称和内容。"""
     try:
-        result = await prompt_chain_service.get_version_with_entries(
-            session, version_id
+        result = await prompt_chain_service.search_version_entries(session, prompt_id, version_id, q)
+        return PromptEntrySearchResponse(
+            results=[
+                PromptEntrySearchResult(
+                    entry_id=item.entry_id,
+                    entry_name=item.entry_name,
+                    role=item.role,
+                    matches=[
+                        PromptEntrySearchMatch(
+                            line_number=match.line_number,
+                            line_text=match.line_text,
+                        )
+                        for match in item.matches
+                    ],
+                )
+                for item in result.results
+            ],
+            total_entries=result.total_entries,
+            total_matches=result.total_matches,
         )
-
-        return VersionWithEntriesResponse(
-            version=PromptChainVersionResponse.model_validate(result.version),
-            entries=[PromptEntryResponse.model_validate(e) for e in result.entries],
-        )
-    except NotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except NotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.post(
-    "/{mode_name}/{task_name}/versions",
+    "/{prompt_id}/versions",
     response_model=VersionWithEntriesResponse,
     status_code=status.HTTP_201_CREATED,
     summary="创建新版本",
 )
 async def create_version(
-    mode_name: str,
-    task_name: str,
+    prompt_id: str,
     request: CreateVersionRequest,
-    agent_name: str | None = Query(None, description="Agent名称（可选）"),
     session: AsyncSession = Depends(get_session),
 ) -> VersionWithEntriesResponse:
-    """
-    创建新版本。
-
-    如果是第一次保存（parent_version_id 为 "default"），创建 v1。
-    如果父版本不是最新版本，会将后续版本标记为非活跃。
-
-    Args:
-        mode_name: 模式名称。
-        task_name: 任务名称。
-        request: 创建请求。
-        agent_name: Agent名称（可选）。
-        session: 数据库session。
-
-    Returns:
-        新创建的版本及其条目。
-    """
     try:
-        is_first_save = request.parent_version_id == "default"
-
-        if is_first_save:
-            result = await prompt_chain_service.create_first_version(
-                session, mode_name, task_name, agent_name,
-                [PromptEntryData(**e.model_dump()) for e in request.entries],
-                request.note
-            )
+        entries = [PromptEntryData(**entry.model_dump()) for entry in request.entries]
+        if request.parent_version_id == "default":
+            result = await prompt_chain_service.create_first_version(session, prompt_id, entries, request.note)
         else:
-            entries = [PromptEntryData(**e.model_dump()) for e in request.entries]
             result = await prompt_chain_service.create_new_version(
-                session, mode_name, task_name, agent_name,
-                request.parent_version_id, entries, request.note
+                session,
+                prompt_id,
+                request.parent_version_id,
+                entries,
+                request.note,
             )
-
         await session.commit()
-
-        logger.info(f"创建新版本: v{result.version.version_number}")
-
-        return VersionWithEntriesResponse(
-            version=PromptChainVersionResponse.model_validate(result.version),
-            entries=[PromptEntryResponse.model_validate(e) for e in result.entries],
-        )
-    except NotFoundError as e:
+        logger.info(f"创建提示词版本: prompt_id={prompt_id}, version={result.version.version_number}")
+        return _version_response(result)
+    except (NotFoundError, ValidationError) as exc:
         await session.rollback()
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except ValidationError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
         await session.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except Exception as e:
-        await session.rollback()
-        logger.error(f"创建版本失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="创建失败",
-        )
+        logger.exception(f"创建提示词版本失败: prompt_id={prompt_id}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建失败") from exc
 
 
-@router.post(
-    "/{mode_name}/{task_name}/compile",
-    response_model=CompileResponse,
-    summary="编译提示词链",
-)
+@router.post("/{prompt_id}/compile", response_model=CompileResponse, summary="编译提示词链")
 async def compile_prompt_chain(
-    mode_name: str,
-    task_name: str,
-    request: CompileRequest,
-    agent_name: str | None = Query(None, description="Agent名称（可选）"),
+    prompt_id: str,
     session: AsyncSession = Depends(get_session),
 ) -> CompileResponse:
-    """
-    编译提示词链，将宏替换为实际值。
-
-    Args:
-        mode_name: 模式名称。
-        task_name: 任务名称。
-        request: 编译请求（包含 project_id 和 chapter_id）。
-        agent_name: Agent名称（可选）。
-        session: 数据库session。
-
-    Returns:
-        编译后的提示词列表。
-    """
-    from app.macro.compiler import PromptChainCompiler, EntryInput
-    from app.storage.services import chapter_service
-
     try:
-        result = await prompt_chain_service.get_latest_version_with_entries_or_default(
-            session, mode_name, task_name, agent_name
+        result = await prompt_chain_service.get_latest_version_with_entries_or_default(session, prompt_id)
+        compiler = PromptChainCompiler()
+        enabled_entries = sorted(
+            (entry for entry in result.entries if entry.is_enabled),
+            key=lambda entry: entry.order_index,
         )
-
-        entry_inputs = [
-            EntryInput(
-                role=e.role,
-                content=e.content,
-                order_index=e.order_index,
-                is_enabled=e.is_enabled,
-            )
-            for e in result.entries
-        ]
-
-        chapter_id: str | None = None
-        if request.chapter_id and request.project_id:
-            try:
-                if request.chapter_id == "latest":
-                    chapter_tree = await chapter_service.list_chapters(
-                        session, request.project_id
-                    )
-                    ordered_chapters = [
-                        chapter
-                        for group in chapter_tree.volumes
-                        for chapter in group.chapters
-                    ]
-                    if ordered_chapters:
-                        chapter_id = ordered_chapters[-1].id
-                else:
-                    await chapter_service.get_chapter(session, request.chapter_id)
-                    chapter_id = request.chapter_id
-            except Exception as e:
-                logger.warning(f"获取章节失败: {e}，跳过章节上下文")
-
-        compiler = PromptChainCompiler(session)
-        compile_result = await compiler.compile(
-            entries=entry_inputs,
-            project_id=request.project_id,
-            chapter_id=chapter_id,
+        compiled = await compiler.compile(
+            [
+                EntryInput(
+                    role=entry.role,
+                    content=entry.content,
+                    order_index=entry.order_index,
+                    is_enabled=entry.is_enabled,
+                )
+                for entry in enabled_entries
+            ]
         )
-
         return CompileResponse(
             entries=[
                 CompiledEntryResponse(
-                    role=e.role,
-                    content=e.content,
-                    token_count=e.token_count,
+                    name=source_entry.name,
+                    role=compiled_entry.role,
+                    content=compiled_entry.content,
+                    token_count=compiled_entry.token_count,
                 )
-                for e in compile_result.entries
+                for source_entry, compiled_entry in zip(enabled_entries, compiled.entries, strict=True)
             ],
-            total_tokens=compile_result.total_tokens,
+            total_tokens=compiled.total_tokens,
         )
-    except NotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        logger.error(f"编译提示词链失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"编译失败: {str(e)}",
-        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.get(
-    "/{mode_name}/{task_name}/versions/{version_id}/diff/{compare_version_id}",
+    "/{prompt_id}/versions/{version_id}/diff/{compare_version_id}",
     response_model=VersionDiffResponse,
     summary="对比两个版本的差异",
 )
 async def diff_versions(
-    mode_name: str,
-    task_name: str,
+    prompt_id: str,
     version_id: str,
     compare_version_id: str,
-    agent_name: str | None = Query(None, description="Agent名称（可选）"),
     session: AsyncSession = Depends(get_session),
 ) -> VersionDiffResponse:
-    """
-    对比两个版本之间的差异。
-
-    Args:
-        mode_name: 模式名称。
-        task_name: 任务名称。
-        version_id: 基准版本ID。
-        compare_version_id: 对比版本ID。
-        agent_name: Agent名称（可选）。
-        session: 数据库session。
-
-    Returns:
-        版本差异信息。
-    """
-
     try:
-        base_result = await prompt_chain_service.get_version_with_entries(
-            session, version_id
-        )
+        base_result = await prompt_chain_service.get_version_with_entries(session, version_id, prompt_id)
         compare_result = await prompt_chain_service.get_version_with_entries(
-            session, compare_version_id
+            session, compare_version_id, prompt_id
         )
+        if base_result.version.prompt_id != prompt_id or compare_result.version.prompt_id != prompt_id:
+            raise NotFoundError(f"版本不属于提示词链: {prompt_id}")
 
-        base_entries_map = {e.uid: e for e in base_result.entries}
-        compare_entries_map = {e.uid: e for e in compare_result.entries}
-
+        base_entries = {entry.uid: entry for entry in base_result.entries}
+        compare_entries = {entry.uid: entry for entry in compare_result.entries}
         diffs = []
-
-        all_entry_uids = set(base_entries_map.keys()) | set(compare_entries_map.keys())
-
-        for entry_uid in all_entry_uids:
-            base_entry = base_entries_map.get(entry_uid)
-            compare_entry = compare_entries_map.get(entry_uid)
-
+        for entry_uid in set(base_entries) | set(compare_entries):
+            base_entry = base_entries.get(entry_uid)
+            compare_entry = compare_entries.get(entry_uid)
             if base_entry and compare_entry:
-                if (
-                    base_entry.name != compare_entry.name
-                    or base_entry.role != compare_entry.role
-                    or base_entry.content != compare_entry.content
-                    or base_entry.is_enabled != compare_entry.is_enabled
-                    or base_entry.order_index != compare_entry.order_index
+                if any(
+                    getattr(base_entry, field) != getattr(compare_entry, field)
+                    for field in ("name", "role", "content", "is_enabled", "order_index")
                 ):
                     diffs.append(
                         EntryDiffResponse(
                             entry_id=entry_uid,
                             change_type="modified",
                             base_entry=PromptEntryResponse.model_validate(base_entry),
-                            compare_entry=PromptEntryResponse.model_validate(
-                                compare_entry
-                            ),
+                            compare_entry=PromptEntryResponse.model_validate(compare_entry),
                         )
                     )
-            elif base_entry and not compare_entry:
+            elif base_entry:
                 diffs.append(
                     EntryDiffResponse(
                         entry_id=entry_uid,
@@ -393,7 +240,7 @@ async def diff_versions(
                         compare_entry=None,
                     )
                 )
-            elif not base_entry and compare_entry:
+            elif compare_entry:
                 diffs.append(
                     EntryDiffResponse(
                         entry_id=entry_uid,
@@ -402,74 +249,24 @@ async def diff_versions(
                         compare_entry=PromptEntryResponse.model_validate(compare_entry),
                     )
                 )
-
         return VersionDiffResponse(
             base_version=PromptChainVersionResponse.model_validate(base_result.version),
-            compare_version=PromptChainVersionResponse.model_validate(
-                compare_result.version
-            ),
+            compare_version=PromptChainVersionResponse.model_validate(compare_result.version),
             diffs=diffs,
         )
-    except NotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        logger.error(f"对比版本失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"对比失败: {str(e)}",
-        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
-@router.post(
-    "/{mode_name}/{task_name}/reset",
-    response_model=VersionWithEntriesResponse,
-    status_code=status.HTTP_200_OK,
-    summary="重置提示词链到默认状态",
-)
+@router.post("/{prompt_id}/reset", response_model=VersionWithEntriesResponse, summary="重置提示词链")
 async def reset_to_default(
-    mode_name: str,
-    task_name: str,
-    agent_name: str | None = Query(None, description="Agent名称（可选）"),
+    prompt_id: str,
     session: AsyncSession = Depends(get_session),
 ) -> VersionWithEntriesResponse:
-    """
-    重置提示词链到默认状态。
-
-    删除数据库中该类型提示词链的所有版本和条目，
-    然后从 YAML 配置文件加载默认内容并返回内存默认版本。
-
-    Args:
-        mode_name: 模式名称。
-        task_name: 任务名称。
-        agent_name: Agent名称（可选）。
-        session: 数据库session。
-
-    Returns:
-        重置后的版本及其条目。
-    """
     try:
-        result = await prompt_chain_service.reset_to_default(
-            session, mode_name, task_name, agent_name
-        )
-
+        result = await prompt_chain_service.reset_to_default(session, prompt_id)
         await session.commit()
-
-        logger.info(
-            f"重置提示词链到默认: {mode_name}/{task_name}"
-            + (f"/{agent_name}" if agent_name else "")
-        )
-
-        return VersionWithEntriesResponse(
-            version=PromptChainVersionResponse.model_validate(result.version),
-            entries=[PromptEntryResponse.model_validate(e) for e in result.entries],
-        )
-    except NotFoundError as e:
+        return _version_response(result)
+    except NotFoundError as exc:
         await session.rollback()
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        await session.rollback()
-        logger.error(f"重置提示词链失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"重置失败: {str(e)}",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

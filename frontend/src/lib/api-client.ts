@@ -833,13 +833,6 @@ export async function fetchChapterContext(
   return response.data;
 }
 
-/**
- * 上下文字段响应（纯文本）
- */
-export interface ContextFieldResponse {
-  content: string;
-}
-
 export type SummaryStatus = "not_generated" | "queued" | "running" | "ready" | "failed";
 
 export interface LongTermSummaryListItem {
@@ -1269,78 +1262,6 @@ export async function enqueueSummary(
 
 export async function cancelBackgroundJob(jobId: string, reason: string): Promise<void> {
   await apiClient.post(`/background/jobs/${jobId}/cancel`, { reason });
-}
-
-/**
- * 获取近场上下文
- */
-export async function fetchNearField(
-  projectId: string,
-  currentOrder: number,
-): Promise<ContextFieldResponse> {
-  const response = await apiClient.get<ContextFieldResponse>(
-    `/projects/${projectId}/chapter-context/near`,
-    {
-      params: {
-        current_order: currentOrder,
-      },
-    },
-  );
-  return response.data;
-}
-
-/**
- * 获取中场上下文
- */
-export async function fetchMiddleField(
-  projectId: string,
-  currentOrder: number,
-): Promise<ContextFieldResponse> {
-  const response = await apiClient.get<ContextFieldResponse>(
-    `/projects/${projectId}/chapter-context/middle`,
-    {
-      params: {
-        current_order: currentOrder,
-      },
-    },
-  );
-  return response.data;
-}
-
-/**
- * 获取远场上下文
- */
-export async function fetchFarField(
-  projectId: string,
-  currentOrder: number,
-): Promise<ContextFieldResponse> {
-  const response = await apiClient.get<ContextFieldResponse>(
-    `/projects/${projectId}/chapter-context/far`,
-    {
-      params: {
-        current_order: currentOrder,
-      },
-    },
-  );
-  return response.data;
-}
-
-/**
- * 获取最新章节内容
- */
-export async function fetchLatestField(
-  projectId: string,
-  currentOrder: number,
-): Promise<ContextFieldResponse> {
-  const response = await apiClient.get<ContextFieldResponse>(
-    `/projects/${projectId}/chapter-context/latest`,
-    {
-      params: {
-        current_order: currentOrder,
-      },
-    },
-  );
-  return response.data;
 }
 
 // ============================================
@@ -1838,23 +1759,23 @@ export async function fetchModels(): Promise<Model[]> {
 import type {
   PromptChainVersion,
   PromptEntry,
+  PromptEntrySearchResponse,
   VersionWithEntries,
   CreateVersionRequest,
+  PromptCategoryMetadata,
   PromptChainsMetadata,
 } from "./prompt-chain.types";
 
 function transformPromptChainVersion(raw: Record<string, unknown>): PromptChainVersion {
   return {
     id: raw.id as string,
-    modeName: raw.mode_name as string,
-    taskName: raw.task_name as string,
-    agentName: raw.agent_name as string | null,
+    promptId: raw.prompt_id as string,
     versionHash: raw.version_hash as string,
     versionNumber: raw.version_number as number,
     parentVersionId: raw.parent_version_id as string | null,
     isActive: raw.is_active as boolean,
     note: raw.note as string | null,
-    createdAt: raw.created_at as string,
+    createdAt: normalizeUtcDateString(raw.created_at),
   };
 }
 
@@ -1869,8 +1790,8 @@ function transformPromptEntry(raw: Record<string, unknown>): PromptEntry {
     orderIndex: raw.order_index as number,
     isEnabled: raw.is_enabled as boolean,
     tokenCount: raw.token_count as number,
-    createdAt: raw.created_at as string,
-    updatedAt: raw.updated_at as string,
+    createdAt: normalizeUtcDateString(raw.created_at),
+    updatedAt: normalizeUtcDateString(raw.updated_at),
   };
 }
 
@@ -1878,17 +1799,11 @@ function transformPromptEntry(raw: Record<string, unknown>): PromptEntry {
  * 获取版本列表
  */
 export async function fetchPromptChainVersions(
-  modeName: string,
-  taskName: string,
-  agentName?: string | null,
+  promptId: string,
   activeOnly: boolean = false,
 ): Promise<PromptChainVersion[]> {
-  const params = {
-    ...(agentName ? { agent_name: agentName } : {}),
-    active_only: activeOnly,
-  };
-  const response = await apiClient.get(`/prompt-chains/${modeName}/${taskName}/versions`, {
-    params,
+  const response = await apiClient.get(`/prompt-chains/${promptId}/versions`, {
+    params: { active_only: activeOnly },
   });
   return (response.data as Record<string, unknown>[]).map(transformPromptChainVersion);
 }
@@ -1896,15 +1811,8 @@ export async function fetchPromptChainVersions(
 /**
  * 获取最新版本
  */
-export async function fetchLatestPromptChainVersion(
-  modeName: string,
-  taskName: string,
-  agentName?: string | null,
-): Promise<VersionWithEntries> {
-  const params = agentName ? { agent_name: agentName } : {};
-  const response = await apiClient.get(`/prompt-chains/${modeName}/${taskName}/versions/latest`, {
-    params,
-  });
+export async function fetchLatestPromptChainVersion(promptId: string): Promise<VersionWithEntries> {
+  const response = await apiClient.get(`/prompt-chains/${promptId}/versions/latest`);
   return {
     version: transformPromptChainVersion(response.data.version),
     entries: (response.data.entries as Record<string, unknown>[]).map(transformPromptEntry),
@@ -1915,19 +1823,36 @@ export async function fetchLatestPromptChainVersion(
  * 获取指定版本
  */
 export async function fetchPromptChainVersion(
-  modeName: string,
-  taskName: string,
+  promptId: string,
   versionId: string,
-  agentName?: string | null,
 ): Promise<VersionWithEntries> {
-  const params = agentName ? { agent_name: agentName } : {};
-  const response = await apiClient.get(
-    `/prompt-chains/${modeName}/${taskName}/versions/${versionId}`,
-    { params },
-  );
+  const response = await apiClient.get(`/prompt-chains/${promptId}/versions/${versionId}`);
   return {
     version: transformPromptChainVersion(response.data.version),
     entries: (response.data.entries as Record<string, unknown>[]).map(transformPromptEntry),
+  };
+}
+
+export async function searchPromptChainVersionEntries(
+  promptId: string,
+  versionId: string,
+  query: string,
+): Promise<PromptEntrySearchResponse> {
+  const response = await apiClient.get(`/prompt-chains/${promptId}/versions/${versionId}/search`, {
+    params: { q: query },
+  });
+  return {
+    results: response.data.results.map((result: Record<string, unknown>) => ({
+      entryId: result.entry_id as string,
+      entryName: result.entry_name as string,
+      role: result.role as "system" | "user" | "assistant",
+      matches: (result.matches as Record<string, unknown>[]).map((match) => ({
+        lineNumber: match.line_number as number,
+        lineText: match.line_text as string,
+      })),
+    })),
+    totalEntries: response.data.total_entries as number,
+    totalMatches: response.data.total_matches as number,
   };
 }
 
@@ -1935,13 +1860,9 @@ export async function fetchPromptChainVersion(
  * 创建新版本
  */
 export async function createPromptChainVersion(
-  modeName: string,
-  taskName: string,
+  promptId: string,
   request: CreateVersionRequest,
-  agentName?: string | null,
 ): Promise<VersionWithEntries> {
-  const params = agentName ? { agent_name: agentName } : {};
-
   // 转换为后端期望的格式（snake_case）
   const requestData = {
     parent_version_id: request.parentVersionId,
@@ -1949,34 +1870,20 @@ export async function createPromptChainVersion(
     note: request.note,
   };
 
-  const response = await apiClient.post(
-    `/prompt-chains/${modeName}/${taskName}/versions`,
-    requestData,
-    { params },
-  );
+  const response = await apiClient.post(`/prompt-chains/${promptId}/versions`, requestData);
   return {
     version: transformPromptChainVersion(response.data.version),
     entries: (response.data.entries as Record<string, unknown>[]).map(transformPromptEntry),
   };
 }
 
-import type { CompileRequest, CompileResponse } from "./prompt-chain.types";
+import type { CompileResponse } from "./prompt-chain.types";
 
 /**
- * 编译提示词链（解析宏）
+ * 编译提示词链
  */
-export async function compilePromptChain(
-  modeName: string,
-  taskName: string,
-  request: CompileRequest,
-  agentName?: string | null,
-): Promise<CompileResponse> {
-  const params = agentName ? { agent_name: agentName } : {};
-  const response = await apiClient.post<CompileResponse>(
-    `/prompt-chains/${modeName}/${taskName}/compile`,
-    request,
-    { params },
-  );
+export async function compilePromptChain(promptId: string): Promise<CompileResponse> {
+  const response = await apiClient.post<CompileResponse>(`/prompt-chains/${promptId}/compile`, {});
   return response.data;
 }
 
@@ -1984,8 +1891,38 @@ export async function compilePromptChain(
  * 获取提示词链元数据
  */
 export async function fetchPromptChainsMetadata(): Promise<PromptChainsMetadata> {
-  const response = await apiClient.get<PromptChainsMetadata>("/prompt-chains/metadata");
+  const response = await apiClient.get<unknown>("/prompt-chains/categories");
+  if (!isPromptChainsMetadata(response.data)) {
+    throw new Error("提示词分类响应格式无效");
+  }
   return response.data;
+}
+
+function isPromptChainsMetadata(value: unknown): value is PromptChainsMetadata {
+  if (!value || typeof value !== "object") return false;
+  const categories = (value as { categories?: unknown }).categories;
+  return Array.isArray(categories) && categories.every(isPromptCategoryMetadata);
+}
+
+function isPromptCategoryMetadata(value: unknown): value is PromptCategoryMetadata {
+  if (!value || typeof value !== "object") return false;
+  const category = value as { id?: unknown; label_key?: unknown; prompts?: unknown };
+  return (
+    typeof category.id === "string" &&
+    typeof category.label_key === "string" &&
+    Array.isArray(category.prompts) &&
+    category.prompts.every(isPromptMetadata)
+  );
+}
+
+function isPromptMetadata(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const prompt = value as { id?: unknown; label_key?: unknown; label?: unknown };
+  return (
+    typeof prompt.id === "string" &&
+    typeof prompt.label_key === "string" &&
+    (typeof prompt.label === "string" || prompt.label === null)
+  );
 }
 
 import type { VersionDiff } from "./prompt-chain.types";
@@ -1994,16 +1931,12 @@ import type { VersionDiff } from "./prompt-chain.types";
  * 获取两个版本之间的差异
  */
 export async function fetchVersionDiff(
-  modeName: string,
-  taskName: string,
+  promptId: string,
   baseVersionId: string,
   compareVersionId: string,
-  agentName?: string | null,
 ): Promise<VersionDiff> {
-  const params = agentName ? { agent_name: agentName } : {};
   const response = await apiClient.get(
-    `/prompt-chains/${modeName}/${taskName}/versions/${baseVersionId}/diff/${compareVersionId}`,
-    { params },
+    `/prompt-chains/${promptId}/versions/${baseVersionId}/diff/${compareVersionId}`,
   );
 
   return {
@@ -2022,15 +1955,8 @@ export async function fetchVersionDiff(
   };
 }
 
-export async function resetPromptChain(
-  modeName: string,
-  taskName: string,
-  agentName?: string | null,
-): Promise<VersionWithEntries> {
-  const params = agentName ? { agent_name: agentName } : {};
-  const response = await apiClient.post(`/prompt-chains/${modeName}/${taskName}/reset`, null, {
-    params,
-  });
+export async function resetPromptChain(promptId: string): Promise<VersionWithEntries> {
+  const response = await apiClient.post(`/prompt-chains/${promptId}/reset`, null);
 
   return {
     version: transformPromptChainVersion(response.data.version),

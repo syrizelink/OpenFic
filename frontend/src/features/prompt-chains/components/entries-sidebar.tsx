@@ -22,16 +22,26 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Box, Flex, Text, IconButton, Switch } from "@radix-ui/themes";
-import { GripVertical, Trash2, User, Bot, Terminal } from "lucide-react";
-import React, { useRef } from "react";
+import { Box, Flex, Text, IconButton, Switch, Tooltip } from "@radix-ui/themes";
+import { GripVertical, RotateCcw, Trash2, User, Bot, Terminal } from "lucide-react";
+import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { PromptEntryData } from "@/lib/prompt-chain.types";
+import type {
+  PromptCategoryMetadata,
+  PromptChainVersion,
+  PromptEntryData,
+} from "@/lib/prompt-chain.types";
 
 import { EntriesToolbar } from "./entries-toolbar";
+import { PromptSelector } from "./prompt-selector";
+import { ResetConfirmDialog } from "./reset-confirm-dialog";
+import { SaveConfirmDialog } from "./save-confirm-dialog";
 
 interface EntriesSidebarProps {
+  promptCategories: PromptCategoryMetadata[];
+  selectedPromptId: string | null;
+  onPromptChange: (promptId: string) => void;
   entries: PromptEntryData[];
   selectedEntryId: string | null;
   onSelectEntry: (entryId: string) => void;
@@ -39,10 +49,24 @@ interface EntriesSidebarProps {
   onDeleteEntry: (entryId: string) => void;
   onReorderEntries: (entries: PromptEntryData[]) => void;
   onCreateEntry: () => void;
+  currentVersion: PromptChainVersion | null;
+  versions: PromptChainVersion[];
+  onSave: (note?: string) => void;
+  onReset: () => void;
+  onCompile: () => void;
+  isLoading: boolean;
+  isResetting: boolean;
+  isSaving: boolean;
+  isCompiling: boolean;
+  hasUnsavedChanges: boolean;
+  isDefault: boolean;
   highlightEntryId: string | null;
 }
 
 export function EntriesSidebar({
+  promptCategories,
+  selectedPromptId,
+  onPromptChange,
   entries,
   selectedEntryId,
   onSelectEntry,
@@ -50,11 +74,25 @@ export function EntriesSidebar({
   onDeleteEntry,
   onReorderEntries,
   onCreateEntry,
+  currentVersion,
+  versions,
+  onSave,
+  onReset,
+  onCompile,
+  isLoading,
+  isResetting,
+  isSaving,
+  isCompiling,
+  hasUnsavedChanges,
+  isDefault,
   highlightEntryId,
 }: EntriesSidebarProps) {
   const { t } = useTranslation();
   const listRef = useRef<HTMLDivElement>(null);
   const entryRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const canCompile = !hasUnsavedChanges && !isLoading && !isCompiling && !!currentVersion;
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -94,23 +132,89 @@ export function EntriesSidebar({
     }
   };
 
+  const sidebarControls = (
+    <Box
+      p="3"
+      style={{ borderBottom: "1px solid var(--gray-a5)" }}
+    >
+      <Flex
+        direction="column"
+        gap="2"
+      >
+        <Flex
+          align="center"
+          gap="1"
+        >
+          <Box style={{ flex: 1, minWidth: 0 }}>
+            <PromptSelector
+              categories={promptCategories}
+              value={selectedPromptId}
+              onChange={onPromptChange}
+            />
+          </Box>
+
+          {(!isDefault || hasUnsavedChanges) && (
+            <Tooltip content={t("promptChains.resetToDefault")}>
+              <IconButton
+                variant="ghost"
+                size="2"
+                aria-label={t("promptChains.resetToDefault")}
+                onClick={() => setIsResetDialogOpen(true)}
+                disabled={isLoading || isResetting || isSaving}
+              >
+                <RotateCcw size={16} />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Flex>
+
+        <EntriesToolbar
+          promptId={selectedPromptId ?? ""}
+          versionId={currentVersion?.id ?? ""}
+          onEntrySelect={handleSelectWithScroll}
+          onCreateEntry={onCreateEntry}
+          onCompile={onCompile}
+          canCompile={canCompile}
+          onSave={() => setIsSaveDialogOpen(true)}
+          canSave={!isLoading && !isResetting && !isSaving && !!currentVersion && hasUnsavedChanges}
+        />
+      </Flex>
+    </Box>
+  );
+
+  const confirmationDialogs = (
+    <>
+      <SaveConfirmDialog
+        open={isSaveDialogOpen}
+        onOpenChange={setIsSaveDialogOpen}
+        currentVersion={currentVersion}
+        versions={versions}
+        onConfirm={onSave}
+      />
+      <ResetConfirmDialog
+        open={isResetDialogOpen}
+        onOpenChange={setIsResetDialogOpen}
+        onConfirm={() => {
+          onReset();
+          setIsResetDialogOpen(false);
+        }}
+        isLoading={isResetting}
+      />
+    </>
+  );
+
   // 如果没有条目，显示空状态
   if (entries.length === 0) {
     return (
       <Box
         style={{
-          borderRight: "1px solid var(--gray-a5)",
           background: "var(--color-background)",
           overflow: "auto",
           display: "flex",
           flexDirection: "column",
         }}
       >
-        <EntriesToolbar
-          entries={entries}
-          onEntrySelect={handleSelectWithScroll}
-          onCreateEntry={onCreateEntry}
-        />
+        {sidebarControls}
         <Box
           style={{
             flex: 1,
@@ -125,9 +229,10 @@ export function EntriesSidebar({
             color="gray"
             align="center"
           >
-            {t("promptChains.selectModeAndTask")}
+            {t("promptChains.selectPrompt")}
           </Text>
         </Box>
+        {confirmationDialogs}
       </Box>
     );
   }
@@ -136,19 +241,13 @@ export function EntriesSidebar({
     <Box
       style={{
         height: "100%",
-        borderRight: "1px solid var(--gray-a5)",
         background: "var(--color-background)",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
       }}
     >
-      {/* 工具栏 */}
-      <EntriesToolbar
-        entries={entries}
-        onEntrySelect={handleSelectWithScroll}
-        onCreateEntry={onCreateEntry}
-      />
+      {sidebarControls}
 
       {/* 条目列表 */}
       <Box
@@ -185,6 +284,7 @@ export function EntriesSidebar({
           </SortableContext>
         </DndContext>
       </Box>
+      {confirmationDialogs}
     </Box>
   );
 }

@@ -72,6 +72,12 @@ button[data-state="closed"] {
   box-shadow: none;
 }
 
+.rt-TextFieldRoot:where(:has(.rt-TextFieldInput:focus)),
+.rt-TextFieldRoot:where(:focus-within),
+.rt-TextAreaRoot:where(:focus-within) {
+  outline-width: 1px;
+}
+
 .rt-SelectItem[data-highlighted],
 .dark .rt-SelectItem[data-highlighted],
 .radix-themes.dark .rt-SelectItem[data-highlighted] {

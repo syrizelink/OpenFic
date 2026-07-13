@@ -61,11 +61,7 @@ async def handle_session_title(context: JobContext) -> dict[str, str] | None:
         compiled_message = await compile_canonical_mentions(seed_message, session)
         messages = await build_chat_messages(
             session,
-            mode_name="background",
-            task_name="session_title",
-            agent_name=None,
-            project_id=metadata.project_id,
-            chapter_id=None,
+            prompt_id="session-title",
             runtime=ChatRuntime(current_message=compiled_message),
         )
         return resolved, messages

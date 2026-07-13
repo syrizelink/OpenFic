@@ -1,117 +1,184 @@
 /**
  * Entries Toolbar Component
  *
- * 条目列表工具栏，包含搜索框和新建按钮
+ * 条目列表工具栏，包含搜索和操作按钮。
  */
 
-import { Box, Flex, TextField, IconButton, Tooltip } from "@radix-ui/themes";
-import { Search, Plus, X } from "lucide-react";
-import { useState } from "react";
+import { Box, Flex, IconButton, Tooltip } from "@radix-ui/themes";
+import { Play, Plus, Save, Search } from "lucide-react";
+import { motion } from "motion/react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { PromptEntryData } from "@/lib/prompt-chain.types";
+import "./entries-toolbar.css";
 
 import { EntrySearch } from "./entry-search";
 
 interface EntriesToolbarProps {
-  entries: PromptEntryData[];
+  promptId: string;
+  versionId: string;
   onEntrySelect: (entryId: string) => void;
   onCreateEntry: () => void;
+  onCompile: () => void;
+  canCompile: boolean;
+  onSave: () => void;
+  canSave: boolean;
 }
 
-export function EntriesToolbar({ entries, onEntrySelect, onCreateEntry }: EntriesToolbarProps) {
+export function EntriesToolbar({
+  promptId,
+  versionId,
+  onEntrySelect,
+  onCreateEntry,
+  onCompile,
+  canCompile,
+  onSave,
+  canSave,
+}: EntriesToolbarProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const handleQueryChange = (value: string) => {
-    setQuery(value);
-    if (value.trim()) {
-      setSearchOpen(true);
-    }
-  };
+  useEffect(() => {
+    if (!searchExpanded || !searchContainerRef.current) return;
+    searchContainerRef.current.querySelector("input")?.focus();
+  }, [searchExpanded]);
 
-  const handleSelect = (entryId: string) => {
-    onEntrySelect(entryId);
-    setQuery("");
-    setSearchOpen(false);
-  };
+  const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(event.target.value);
+    if (event.target.value.trim()) setSearchOpen(true);
+  }, []);
+
+  const handleSearchToggle = useCallback(() => {
+    setSearchExpanded((previous) => {
+      if (previous) {
+        setSearchOpen(false);
+        return false;
+      }
+      return true;
+    });
+    if (!searchExpanded && query.trim()) setSearchOpen(true);
+  }, [query, searchExpanded]);
+
+  const handleSearchBlur = useCallback(() => {
+    if (!query.trim()) setSearchExpanded(false);
+  }, [query]);
+
+  const handlePopoverOpenChange = useCallback((open: boolean) => {
+    setSearchOpen(open);
+    if (!open) setSearchExpanded(false);
+  }, []);
+
+  const handleSelect = useCallback(
+    (entryId: string) => {
+      onEntrySelect(entryId);
+      setQuery("");
+      setSearchOpen(false);
+      setSearchExpanded(false);
+    },
+    [onEntrySelect],
+  );
 
   return (
-    <Box
-      style={{
-        padding: "12px",
-        borderBottom: "1px solid var(--gray-a5)",
-        background: "var(--color-background)",
-      }}
-    >
+    <Box className="prompt-chain-entries-toolbar">
       <Flex
-        gap="2"
+        gap="1"
         align="center"
+        className="prompt-chain-entries-toolbar-row"
       >
-        {/* 搜索框 */}
-        <EntrySearch
-          query={query}
-          entries={entries}
-          onSelect={handleSelect}
-          open={searchOpen}
-          onOpenChange={setSearchOpen}
+        <div
+          ref={searchContainerRef}
+          className="prompt-chain-entries-search"
+          data-expanded={searchExpanded}
         >
-          <Box style={{ flex: 1, minWidth: 0 }}>
-            <TextField.Root
-              size="2"
-              placeholder={t("promptChains.searchEntriesPlaceholder")}
-              value={query}
-              onChange={(e) => handleQueryChange(e.target.value)}
-              onFocus={() => {
-                if (query.trim()) {
-                  setSearchOpen(true);
-                }
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (query.trim()) {
-                  setSearchOpen(true);
-                }
-              }}
-              style={{ width: "100%" }}
-            >
-              <TextField.Slot>
-                <Search size={14} />
-              </TextField.Slot>
-              {query && (
-                <TextField.Slot>
-                  <IconButton
-                    variant="ghost"
-                    size="1"
-                    onClick={() => {
-                      setQuery("");
-                      setSearchOpen(false);
-                    }}
-                  >
-                    <X size={12} />
-                  </IconButton>
-                </TextField.Slot>
-              )}
-            </TextField.Root>
-          </Box>
-        </EntrySearch>
-
-        {/* 新建按钮 */}
-        <Tooltip content={t("promptChains.newEntry")}>
+          <EntrySearch
+            promptId={promptId}
+            versionId={versionId}
+            query={query}
+            open={searchOpen}
+            onOpenChange={handlePopoverOpenChange}
+            onNavigateToMatch={handleSelect}
+          >
+            <div className="prompt-chain-entries-search-popover-anchor" />
+          </EntrySearch>
           <IconButton
             variant="ghost"
             size="2"
-            aria-label={t("promptChains.newEntry")}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onCreateEntry();
-            }}
+            aria-label={t("promptChains.searchEntries")}
+            onClick={searchExpanded ? undefined : handleSearchToggle}
+            className="prompt-chain-entries-search-button"
+            data-expanded={searchExpanded}
           >
-            <Plus size={16} />
+            <Search size={16} />
           </IconButton>
-        </Tooltip>
+          <motion.div
+            animate={{ width: searchExpanded ? 200 : 0, opacity: searchExpanded ? 1 : 0 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            className="prompt-chain-entries-search-input-wrap"
+          >
+            <input
+              type="text"
+              value={query}
+              placeholder={t("promptChains.searchEntriesPlaceholder")}
+              onChange={handleSearchChange}
+              onFocus={() => {
+                if (query.trim()) setSearchOpen(true);
+              }}
+              onBlur={handleSearchBlur}
+              className="prompt-chain-entries-search-input"
+            />
+          </motion.div>
+        </div>
+
+        {!searchExpanded && (
+          <>
+            <Box className="prompt-chain-entries-toolbar-spacer" />
+            <Tooltip content={t("promptChains.newEntry")}>
+              <IconButton
+                variant="ghost"
+                size="2"
+                aria-label={t("promptChains.newEntry")}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onCreateEntry();
+                }}
+              >
+                <Plus size={16} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip
+              content={
+                canCompile ? t("promptChains.compile") : t("promptChains.compileRequiresSave")
+              }
+            >
+              <IconButton
+                variant="ghost"
+                size="2"
+                aria-label={t("promptChains.compile")}
+                onClick={onCompile}
+                disabled={!canCompile}
+              >
+                <Play size={16} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={t("promptChains.save")}>
+              <IconButton
+                variant="ghost"
+                size="2"
+                aria-label={t("promptChains.save")}
+                onClick={onSave}
+                disabled={!canSave}
+              >
+                <Save size={16} />
+              </IconButton>
+            </Tooltip>
+          </>
+        )}
       </Flex>
     </Box>
   );

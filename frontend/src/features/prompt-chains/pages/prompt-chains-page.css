@@ -1,12 +1,32 @@
-.prompt-chains-page-main {
-  height: calc(100vh - 60px);
+.rt-Box.prompt-chains-page-root {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.rt-Box.prompt-chains-page-main {
+  display: flex;
+  flex: 1;
   min-height: 0;
   position: relative;
+  overflow: hidden;
 }
 
 .prompt-chains-page-group,
-.prompt-chains-page-mobile-layout {
-  height: 100%;
+.prompt-chains-page-mobile-layout,
+.prompt-chains-page-sidebar-group {
+  flex: 1;
+  min-height: 0;
+}
+
+.prompt-chains-page-sidebar-group > [data-panel] {
+  min-height: 0;
+}
+
+.prompt-chains-page-sidebar-group > [data-panel][data-testid="version-history-sidebar"] {
+  transition: flex-grow 0.18s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .prompt-chains-page-panel-shell {
@@ -14,20 +34,51 @@
   overflow: hidden;
 }
 
-.prompt-chains-page-panel-shell--left {
-  border-right: 1px solid var(--gray-a4);
-  background: var(--color-background);
+.prompt-chains-page-sidebar-separator {
+  position: relative;
+  height: 1px;
+  flex-shrink: 0;
+  background: transparent;
+  cursor: row-resize;
+  overflow: visible;
+  z-index: 12;
 }
 
-.prompt-chains-page-panel-shell--right {
-  border-left: 1px solid var(--gray-a4);
-  background: var(--gray-a2);
+.prompt-chains-page-sidebar-separator--disabled {
+  cursor: default;
 }
 
-.prompt-chains-page-group .prompt-chains-page-panel-shell--left,
-.prompt-chains-page-group .prompt-chains-page-panel-shell--right {
-  border-right: none;
-  border-left: none;
+.prompt-chains-page-sidebar-separator::before {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 8px;
+  content: "";
+  transform: translateY(-50%);
+}
+
+.prompt-chains-page-sidebar-separator::after {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 0.3px;
+  background: var(--gray-a5);
+  content: "";
+  transform: translateY(-50%);
+  transition:
+    height 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.prompt-chains-page-sidebar-group
+  .prompt-chains-page-sidebar-separator[data-separator]:hover::after {
+  right: 0;
+  left: 0;
+  width: auto;
+  height: 4px;
+  background: var(--gray-a7);
 }
 
 .prompt-chains-page-editor-panel {
@@ -45,19 +96,22 @@
   color: var(--gray-a9);
 }
 
-.prompt-chains-page-mobile-sidebar,
-.prompt-chains-page-mobile-macro {
-  width: 300px;
-  flex-shrink: 0;
-}
-
-.prompt-chains-page-mobile-macro {
-  border-left: 1px solid var(--gray-a5);
-  background: var(--gray-a2);
-}
-
 .prompt-chains-page-mobile-layout {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.prompt-chains-page-mobile-topbar {
+  min-height: 44px;
+  border-bottom: 1px solid var(--gray-a4);
+  background: var(--color-background);
+}
+
+.prompt-chains-page-mobile-topbar-side {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
 }
 
 .prompt-chains-page-mobile-sidebar-overlay {

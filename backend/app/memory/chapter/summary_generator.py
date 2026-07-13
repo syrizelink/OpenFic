@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFoundError
 from app.macro.compiler import EntryInput, PromptChainCompiler
-from app.memory.chapter.sequence import global_order_index
 from app.memory.chapter.summary_tools import (
     make_chapter_summary_tool,
     make_long_term_summary_tool,
@@ -19,7 +18,7 @@ from app.memory.chapter.summary_tools import (
 from app.models.clients import LLMClient
 from app.storage.models.chapter import Chapter
 from app.storage.models.chapter_summary import ChapterSummary
-from app.storage.repos import chapter_repo, volume_repo
+from app.storage.repos import chapter_repo
 from app.storage.services import prompt_chain_service
 
 
@@ -54,14 +53,14 @@ class LongTermSummaryPrompt:
 
 async def _get_prompt_entries(
     session: AsyncSession,
-    task_name: str,
+    prompt_id: str,
 ) -> list[EntryInput]:
     result = await prompt_chain_service.get_latest_version_with_entries_or_default(
-        session, "memory", task_name, None
+        session, prompt_id
     )
     entries = [entry for entry in result.entries if entry.is_enabled]
     if not entries:
-        raise NotFoundError(f"提示词链 memory/{task_name} 没有条目")
+        raise NotFoundError(f"提示词链 {prompt_id} 没有条目")
     return [
         EntryInput(
             role=entry.role,
@@ -76,17 +75,11 @@ async def _get_prompt_entries(
 async def _build_prompt_messages(
     session: AsyncSession,
     *,
-    task_name: str,
-    project_id: str | None,
-    chapter_id: str | None,
+    prompt_id: str,
     target_xml: str,
 ) -> list[SystemMessage]:
-    compiler = PromptChainCompiler(session)
-    compile_result = await compiler.compile(
-        entries=await _get_prompt_entries(session, task_name),
-        project_id=project_id,
-        chapter_id=chapter_id,
-    )
+    compiler = PromptChainCompiler()
+    compile_result = await compiler.compile(entries=await _get_prompt_entries(session, prompt_id))
 
     messages = [
         SystemMessage(content=entry.content)
@@ -159,9 +152,7 @@ async def build_chapter_summary_prompt(
 
     messages = await _build_prompt_messages(
         session,
-        task_name="mid_range_summary",
-        project_id=chapter.project_id,
-        chapter_id=chapter.id,
+        prompt_id="memory-chapter-summary",
         target_xml=_chapter_target_message(chapter),
     )
     return ChapterSummaryPrompt(messages=messages)
@@ -218,21 +209,9 @@ async def build_long_term_summary_prompt(
     if not summaries_text:
         raise NotFoundError("没有可聚合的章节摘要")
 
-    project_id = chapters[0].project_id if chapters else None
-    anchor_chapter_id: str | None = None
-    if chapters:
-        volumes = await volume_repo.list_by_project(session, project_id or "")
-        order_map = global_order_index(chapters, volumes)
-        latest_chapter = max(
-            chapters, key=lambda ch: order_map.get(ch.id, -1), default=None
-        )
-        if latest_chapter is not None:
-            anchor_chapter_id = latest_chapter.id
     messages = await _build_prompt_messages(
         session,
-        task_name="far_range_summary",
-        project_id=project_id,
-        chapter_id=anchor_chapter_id,
+        prompt_id="memory-range-summary",
         target_xml=_summaries_target_message(summaries_text),
     )
     return LongTermSummaryPrompt(messages=messages, summaries_text=summaries_text)

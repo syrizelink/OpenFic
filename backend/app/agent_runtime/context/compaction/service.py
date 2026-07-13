@@ -240,9 +240,7 @@ async def _build_messages(
 ) -> list[BaseMessage]:
     version = await prompt_chain_service.get_latest_version_with_entries_or_default(
         db_session,
-        mode_name="assistant",
-        task_name="compaction",
-        agent_name=None,
+        prompt_id="session-compaction",
     )
     entries = sorted(
         (entry for entry in version.entries if entry.is_enabled),
