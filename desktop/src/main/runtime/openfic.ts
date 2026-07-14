@@ -9,6 +9,8 @@ import { createOpenFicInstallCommand, createOpenFicProbeCommand, createOpenFicSe
 
 export type OpenFicRuntimeStep = "create-venv" | "install-uv" | "install-openfic";
 
+const ANSI_ESCAPE_SEQUENCE = new RegExp(`${String.fromCharCode(0x1b)}\\[[0-9;]*[A-Za-z]`, "g");
+
 function getVenvDir(runtimeDir: string): string {
   return path.join(runtimeDir, "venv");
 }
@@ -68,7 +70,7 @@ function forwardLines(
 }
 
 function stripAnsi(value: string): string {
-  return value.replace(/\u001b\[[0-9;]*[A-Za-z]/g, "");
+  return value.replace(ANSI_ESCAPE_SEQUENCE, "");
 }
 
 function run(command: string, args: string[], cwd: string, onStdoutLine?: (line: string) => void): Promise<void> {

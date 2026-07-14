@@ -1,10 +1,9 @@
-import type { BrowserWindow as BrowserWindowType } from "electron";
+import { app, BrowserWindow, shell } from "electron";
 import { appendFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const electron = require("electron") as typeof import("electron");
-
-const { app, BrowserWindow, shell } = electron;
+const preloadPath = fileURLToPath(new URL("../preload/preload.mjs", import.meta.url));
 
 function writeWindowLog(message: string): void {
   try {
@@ -16,7 +15,7 @@ function writeWindowLog(message: string): void {
   }
 }
 
-function attachWindowDiagnostics(window: BrowserWindowType, name: string): void {
+function attachWindowDiagnostics(window: BrowserWindow, name: string): void {
   window.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
     writeWindowLog(`${name} did-fail-load code=${errorCode} url=${validatedURL} error=${errorDescription}`);
   });
@@ -34,19 +33,19 @@ function attachWindowDiagnostics(window: BrowserWindowType, name: string): void 
   });
 }
 
-function applyShellWindowPresentation(window: BrowserWindowType): void {
+function applyShellWindowPresentation(window: BrowserWindow): void {
   window.setResizable(true);
   window.setMinimumSize(960, 640);
   window.setSize(1280, 800);
   window.center();
 }
 
-export function loadMainApp(window: BrowserWindowType): void {
+export function loadMainApp(window: BrowserWindow): void {
   applyShellWindowPresentation(window);
   void window.loadURL("app://setup/ui.html");
 }
 
-export function createMainWindow(): BrowserWindowType {
+export function createMainWindow(): BrowserWindow {
   const window = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -57,7 +56,7 @@ export function createMainWindow(): BrowserWindowType {
       contextIsolation: true,
       sandbox: false,
       webviewTag: true,
-      preload: path.join(__dirname, "..", "preload", "preload.js"),
+      preload: preloadPath,
     },
   });
 

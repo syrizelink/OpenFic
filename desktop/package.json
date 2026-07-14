@@ -2,7 +2,7 @@
   "name": "openfic-desktop",
   "private": true,
   "version": "0.6.2",
-  "type": "commonjs",
+  "type": "module",
   "main": "dist/main/main.js",
   "packageManager": "pnpm@11.8.0",
   "scripts": {
@@ -11,7 +11,7 @@
     "build:main": "tsc -p tsconfig.main.json",
     "build:setup": "vp build",
     "type-check": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "lint": "eslint . --ext .js,.jsx,.mjs,.ts,.tsx,.mts",
     "package": "electron-builder --config electron-builder.yml"
   },
   "dependencies": {

@@ -1,11 +1,9 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "module": "CommonJS",
-    "moduleResolution": "Node",
     "outDir": "dist",
     "rootDir": "src",
     "types": ["node", "electron"]
   },
-  "include": ["src/main/**/*.ts", "src/preload/**/*.ts", "src/shared/**/*.ts"]
+  "include": ["src/main/**/*.ts", "src/preload/**/*.mts", "src/shared/**/*.ts"]
 }

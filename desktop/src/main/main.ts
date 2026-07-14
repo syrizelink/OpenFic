@@ -1,4 +1,4 @@
-import type { BrowserWindow } from "electron";
+import { app, dialog, Menu, type BrowserWindow } from "electron";
 import { appendFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { registerAppScheme, handleAppProtocol, setRuntimeConfig } from "./protocol.js";
@@ -11,10 +11,6 @@ import { ensureOpenFicRuntime, startLocalOpenFicBackend } from "./runtime/openfi
 import { stopBackendProcess, type BackendProcessHandle } from "./process.js";
 import type { InitializeAppResult } from "../shared/ipc.js";
 import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
-
-const electron = require("electron") as typeof import("electron");
-
-const { app, dialog, Menu } = electron;
 
 function writeStartupLog(message: string): void {
   try {
