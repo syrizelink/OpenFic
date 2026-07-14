@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/syrizelink/OpenFic/compare/v0.7.0...v0.7.1) (2026-07-14)
+
+
+### 🐛 问题修复
+
+* **release:** 统一跨平台产物命名 ([#100](https://github.com/syrizelink/OpenFic/issues/100)) ([56def22](https://github.com/syrizelink/OpenFic/commit/56def22bf42fa660b0b1459929c7f928f1e02c09))
+
 ## [0.7.0](https://github.com/syrizelink/OpenFic/compare/v0.6.2...v0.7.0) (2026-07-14)
 
 
