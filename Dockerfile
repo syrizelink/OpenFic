@@ -3,7 +3,10 @@
 # ---- 前端构建：固定到构建平台（amd64）一次构建，产物与架构无关 ----
 FROM --platform=$BUILDPLATFORM node:22-slim AS frontend
 WORKDIR /build
-RUN corepack enable
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && corepack enable
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile --store-dir /pnpm/store

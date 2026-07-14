@@ -164,10 +164,10 @@ jobs:
         include:
           - runner: ubuntu-latest
             platform: linux/amd64
-            suffix: amd64
+            suffix: linux-x86_64
           - runner: ubuntu-24.04-arm
             platform: linux/arm64
-            suffix: arm64
+            suffix: linux-aarch64
     runs-on: ${{ matrix.runner }}
     env:
       BUILDX_NO_DEFAULT_ATTESTATIONS: true
@@ -215,16 +215,16 @@ jobs:
 
           docker buildx imagetools create \
             -t "${IMAGE}:latest" \
-            "${IMAGE}:latest-amd64" \
-            "${IMAGE}:latest-arm64"
+            "${IMAGE}:latest-linux-x86_64" \
+            "${IMAGE}:latest-linux-aarch64"
           docker buildx imagetools create \
             -t "${IMAGE}:${VERSION}" \
-            "${IMAGE}:${VERSION}-amd64" \
-            "${IMAGE}:${VERSION}-arm64"
+            "${IMAGE}:${VERSION}-linux-x86_64" \
+            "${IMAGE}:${VERSION}-linux-aarch64"
           docker buildx imagetools create \
             -t "${IMAGE}:${MAJOR_MINOR}" \
-            "${IMAGE}:${MAJOR_MINOR}-amd64" \
-            "${IMAGE}:${MAJOR_MINOR}-arm64"
+            "${IMAGE}:${MAJOR_MINOR}-linux-x86_64" \
+            "${IMAGE}:${MAJOR_MINOR}-linux-aarch64"
 
   # ---------------------------------------------------------------- desktop
   desktop:
@@ -235,25 +235,26 @@ jobs:
         include:
           - os: windows-latest
             electron_args: '--win --x64'
-            publish_update: true
-            artifact_name: desktop-win-x64
-          - os: ubuntu-latest
+            artifact_name: windows-update-x86_64
+          - os: windows-11-arm
+            electron_args: '--win --arm64'
+            artifact_name: windows-update-aarch64
+          - os: ubuntu-24.04
             electron_args: '--linux --x64'
-            publish_update: false
-            artifact_name: desktop-linux-x64
+            artifact_name: desktop-linux-x86_64
           - os: ubuntu-24.04-arm
             electron_args: '--linux --arm64'
-            publish_update: false
-            artifact_name: desktop-linux-arm64
-          - os: macos-14
+            artifact_name: desktop-linux-aarch64
+          - os: macos-15-intel
+            electron_args: '--mac --x64'
+            artifact_name: desktop-mac-x86_64
+          - os: macos-15
             electron_args: '--mac --arm64'
-            publish_update: false
-            artifact_name: desktop-mac-arm64
+            artifact_name: desktop-mac-aarch64
     runs-on: ${{ matrix.os }}
     env:
       ELECTRON_CACHE: ${{ github.workspace }}/.electron-cache
       ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.electron-builder-cache
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -298,31 +299,16 @@ jobs:
       - name: 构建 Electron 安装包
         working-directory: desktop
         run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.electron_args }} --publish never
-      - name: 构建 Windows ARM64 安装包
-        if: ${{ matrix.publish_update }}
+      - name: 统一安装包架构命名
         working-directory: desktop
-        run: pnpm exec electron-builder --config electron-builder.yml --win --arm64 --publish never
-      - name: 整理 Windows 自动更新产物
-        if: ${{ matrix.publish_update }}
-        working-directory: desktop
-        run: node scripts/prepare-windows-update.mjs
-      - name: 发布 Windows 自动更新产物
-        if: ${{ matrix.publish_update }}
-        shell: bash
-        run: |
-          gh release upload "${{ needs.context.outputs.release_tag }}" \
-            desktop/dist-electron/OpenFic-*-win-setup.exe \
-            desktop/dist-electron/OpenFic-*-win-setup.exe.blockmap \
-            desktop/dist-electron/OpenFic-*-win.zip \
-            desktop/dist-electron/latest.yml \
-            --clobber
+        run: node scripts/normalize-artifact-names.mjs
 
       - uses: actions/upload-artifact@v7
-        if: ${{ !matrix.publish_update }}
         with:
           name: ${{ matrix.artifact_name }}
           path: |
             desktop/dist-electron/*.exe
+            desktop/dist-electron/*.blockmap
             desktop/dist-electron/*.AppImage
             desktop/dist-electron/*.tar.gz
             desktop/dist-electron/*.zip
@@ -340,10 +326,38 @@ jobs:
             .electron-builder-cache
           key: ${{ steps.electron-cache.outputs.cache-primary-key }}
 
-  # ---------------------------------------------------------------- release
-  publish-release:
+  desktop-windows-update:
     needs: [context, desktop]
     if: ${{ always() && needs.desktop.result == 'success' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: windows-update-*
+          merge-multiple: true
+          path: desktop/dist-electron
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: 整理 Windows 自动更新产物
+        working-directory: desktop
+        run: node scripts/prepare-windows-update.mjs
+      - name: 发布 Windows 自动更新产物
+        run: |
+          gh release upload "${{ needs.context.outputs.release_tag }}" \
+            desktop/dist-electron/OpenFic-*-win-*-setup.exe \
+            desktop/dist-electron/OpenFic-*-win-*-setup.exe.blockmap \
+            desktop/dist-electron/OpenFic-*-win-*.zip \
+            desktop/dist-electron/latest*.yml \
+            --clobber
+
+  # ---------------------------------------------------------------- release
+  publish-release:
+    needs: [context, desktop, desktop-windows-update]
+    if: ${{ always() && needs.desktop.result == 'success' && needs.desktop-windows-update.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v8

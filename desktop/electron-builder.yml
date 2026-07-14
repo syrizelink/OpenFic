@@ -21,7 +21,7 @@ extraResources:
       - "**/*"
 
 win:
-  artifactName: OpenFic-${version}-${arch}-win.${ext}
+  artifactName: OpenFic-${version}-win-${arch}.${ext}
   target:
     - target: nsis
       arch:
@@ -35,22 +35,24 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-  artifactName: OpenFic-${version}-${arch}-win-setup.${ext}
+  artifactName: OpenFic-${version}-win-${arch}-setup.${ext}
 
 mac:
-  artifactName: OpenFic-${version}-${arch}-mac.${ext}
+  artifactName: OpenFic-${version}-mac-${arch}.${ext}
   target:
     - target: dmg
       arch:
+        - x64
         - arm64
     - target: zip
       arch:
+        - x64
         - arm64
   category: public.app-category.productivity
   identity: null
 
 linux:
-  artifactName: OpenFic-${version}-${arch}-linux.${ext}
+  artifactName: OpenFic-${version}-linux-${arch}.${ext}
   target:
     - target: AppImage
       arch:

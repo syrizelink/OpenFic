@@ -15,7 +15,7 @@ extraResources:
       - "**/*"
 
 win:
-  artifactName: OpenFic-${version}-${arch}-win.${ext}
+  artifactName: OpenFic-${version}-win-${arch}.${ext}
   target:
     - target: nsis
       arch:
@@ -25,7 +25,7 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-  artifactName: OpenFic-${version}-${arch}-win-setup.${ext}
+  artifactName: OpenFic-${version}-win-${arch}-setup.${ext}
 
 publish:
   provider: generic
