@@ -5,7 +5,7 @@
     "useDefineForClassFields": true,
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "types": ["@farmfe/core/client"],
+    "types": ["vite-plus/client"],
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
 

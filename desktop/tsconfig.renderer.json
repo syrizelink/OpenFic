@@ -4,7 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
-    "types": ["react", "react-dom"]
+    "types": ["react", "react-dom", "vite-plus/client"]
   },
   "include": ["src/ui/**/*.ts", "src/ui/**/*.tsx", "src/ui/**/*.d.ts", "src/shared/**/*.ts"]
 }

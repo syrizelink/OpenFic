@@ -15,7 +15,7 @@ concurrency:
 
 env:
   PYTHON_VERSION: '3.12'
-  NODE_VERSION: '22'
+  NODE_VERSION: '22.18.0'
   PNPM_VERSION: '11.8.0'
   UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
 

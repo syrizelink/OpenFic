@@ -25,5 +25,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["farm.config.ts"]
+  "include": ["vite.config.ts"]
 }

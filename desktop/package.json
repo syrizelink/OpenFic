@@ -9,7 +9,7 @@
     "dev": "pnpm build:setup && pnpm build:main && electron .",
     "build": "pnpm build:setup && pnpm build:main",
     "build:main": "tsc -p tsconfig.main.json",
-    "build:setup": "farm build",
+    "build:setup": "vp build",
     "type-check": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "package": "electron-builder --config electron-builder.yml"
@@ -23,9 +23,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
-    "@farmfe/cli": "^1.0.5",
-    "@farmfe/core": "^1.7.11",
-    "@farmfe/plugin-react": "^1.2.6",
+    "@vitejs/plugin-react": "^6.0.3",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -36,6 +34,7 @@
     "eslint": "^9.39.4",
     "globals": "^16.5.0",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.59.2"
+    "typescript-eslint": "^8.59.2",
+    "vite-plus": "^0.2.4"
   }
 }
