@@ -6,7 +6,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
-import wordsCount from "words-count";
+import wordsCountModule from "words-count";
 
 import { toast } from "@/components";
 import { TitleInput, EditorToolbar, Spinner, type EditorToolbarExtraAction } from "@/components";
@@ -28,6 +28,12 @@ import { useTabsStore } from "../store/use-tabs-store";
 import { FindReplacePanel } from "./find-replace-panel";
 
 const MANUAL_SAVE_EVENT = "openfic:chapter-editor-manual-save";
+
+interface WordsCountModule {
+  wordsCount: (text: string) => number;
+}
+
+const wordsCount = (wordsCountModule as unknown as WordsCountModule).wordsCount;
 
 interface ChapterEditorProps {
   chapterId: string | null;
