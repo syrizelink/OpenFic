@@ -8,16 +8,16 @@ function getOpenFicCliPath(venvPythonPath: string): string {
     ? venvPythonPath.replace(/python\.exe$/i, "openfic.exe")
     : venvPythonPath.replace(/python$/i, "openfic");
 }
-export function createOpenFicProbeCommand(venvPythonPath: string): SpawnCommand {
+export function createOpenFicVersionCommand(venvPythonPath: string): SpawnCommand {
   return {
     command: venvPythonPath,
-    args: ["-m", "pip", "show", "openfic"],
+    args: ["-c", 'from importlib.metadata import version; print(version("openfic"))'],
   };
 }
 
-export function createOpenFicInstallCommand(venvPythonPath: string): Omit<SpawnCommand, "command"> {
+export function createOpenFicInstallCommand(venvPythonPath: string, version: string): Omit<SpawnCommand, "command"> {
   return {
-    args: ["pip", "install", "--python", venvPythonPath, "openfic"],
+    args: ["pip", "install", "--python", venvPythonPath, `openfic==${version}`],
   };
 }
 

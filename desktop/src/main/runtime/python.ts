@@ -1,7 +1,9 @@
+import { spawn } from "node:child_process";
 import { access, mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { downloadFile, extractTarGz } from "./archive.js";
 import { resolvePythonAsset } from "./python-assets.js";
+import { matchesPortablePythonVersion } from "./python-version.js";
 
 const electron = require("electron") as typeof import("electron");
 
@@ -10,6 +12,7 @@ const { app } = electron;
 export interface PortablePython {
   pythonPath: string;
   rootDir: string;
+  wasReplaced: boolean;
 }
 
 export interface DownloadProgress {
@@ -52,6 +55,24 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(value >= 100 ? 0 : 1)} ${unit}`;
 }
 
+function readPythonVersion(pythonPath: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const child = spawn(pythonPath, ["--version"], {
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let output = "";
+    child.stdout.on("data", (chunk: Buffer | string) => {
+      output += typeof chunk === "string" ? chunk : chunk.toString("utf8");
+    });
+    child.stderr.on("data", (chunk: Buffer | string) => {
+      output += typeof chunk === "string" ? chunk : chunk.toString("utf8");
+    });
+    child.on("error", () => resolve(null));
+    child.on("exit", (code) => resolve(code === 0 ? output.trim() || null : null));
+  });
+}
+
 export async function ensurePortablePython(
   runtimeDir: string,
   onPhase: (phase: "download" | "extract", message: string) => void,
@@ -59,9 +80,15 @@ export async function ensurePortablePython(
 ): Promise<PortablePython> {
   const rootDir = getPortablePythonRoot(runtimeDir);
   const pythonPath = getPortablePythonPath(rootDir);
-  if (await pathExists(pythonPath)) return { pythonPath, rootDir };
-
   const asset = resolvePythonAsset();
+  if (await pathExists(pythonPath)) {
+    const installedVersion = await readPythonVersion(pythonPath);
+    if (installedVersion && matchesPortablePythonVersion(installedVersion, asset.version)) {
+      return { pythonPath, rootDir, wasReplaced: false };
+    }
+    await rm(rootDir, { recursive: true, force: true });
+  }
+
   const archivePath = path.join(runtimeDir, `python-${asset.version}-${asset.target}.tar.gz`);
   await mkdir(runtimeDir, { recursive: true });
 
@@ -77,7 +104,7 @@ export async function ensurePortablePython(
 
   await rm(archivePath, { force: true });
 
-  return { pythonPath, rootDir };
+  return { pythonPath, rootDir, wasReplaced: true };
 }
 
 export function describeDownloadProgress(progress: DownloadProgress): string {

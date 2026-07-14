@@ -9,6 +9,7 @@ import { waitForBackend } from "./health.js";
 import { ensurePortablePython, resolveRuntimeDir } from "./runtime/python.js";
 import { ensureOpenFicRuntime, startLocalOpenFicBackend } from "./runtime/openfic.js";
 import { stopBackendProcess, type BackendProcessHandle } from "./process.js";
+import { initializeUpdater } from "./updater.js";
 import type { InitializeAppResult } from "../shared/ipc.js";
 import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
 
@@ -82,8 +83,8 @@ function openMainWindow(): void {
 async function startLocalBackend(installDir: string | null): Promise<void> {
   const runtimeDir = resolveRuntimeDir(installDir);
   const python = await ensurePortablePython(runtimeDir, () => undefined, () => undefined);
-  const runtime = await ensureOpenFicRuntime(python, runtimeDir, () => undefined);
-  const backend = await startLocalOpenFicBackend(runtime.venvPythonPath);
+  const runtime = await ensureOpenFicRuntime(python, runtimeDir, app.getVersion(), () => undefined);
+  const backend = await startLocalOpenFicBackend(runtime.venvPythonPath, app.getVersion());
   setBackend(backend);
   setBackendBaseUrl(backend.baseUrl);
 }
@@ -92,17 +93,19 @@ function getActiveInstance(config: DesktopConfig): DesktopInstance | null {
   return config.instances.find((instance) => instance.id === config.activeInstanceId) ?? config.instances[0] ?? null;
 }
 
-async function activateInstance(config: DesktopConfig, instance: DesktopInstance): Promise<void> {
+async function activateInstance(config: DesktopConfig, instance: DesktopInstance): Promise<string | null> {
   activeInstanceId = instance.id;
   if (instance.mode === "remote") {
     if (!instance.remoteUrl) throw new Error("远程实例缺少后端地址");
-    await waitForBackend(instance.remoteUrl, 10_000);
+    const health = await waitForBackend(instance.remoteUrl, 10_000);
     clearBackend();
     setBackendBaseUrl(instance.remoteUrl);
-    return;
+    if (health.version === app.getVersion()) return null;
+    return `远程实例版本为 ${health.version ?? "未知"}，桌面端版本为 ${app.getVersion()}，部分功能可能不兼容。`;
   }
 
   await startLocalBackend(instance.installDir);
+  return null;
 }
 
 async function switchInstance(instanceId: string): Promise<InitializeAppResult> {
@@ -111,9 +114,9 @@ async function switchInstance(instanceId: string): Promise<InitializeAppResult> 
   const instance = config.instances.find((item) => item.id === instanceId);
   if (!instance) throw new Error("实例不存在");
 
-  await activateInstance(config, instance);
+  const compatibilityWarning = await activateInstance(config, instance);
   await writeDesktopConfig({ ...config, activeInstanceId: instance.id });
-  return { status: "ready", activeInstanceId: instance.id };
+  return { status: "ready", activeInstanceId: instance.id, compatibilityWarning: compatibilityWarning ?? undefined };
 }
 
 async function pingInstance(instance: DesktopInstance): Promise<number> {
@@ -145,11 +148,11 @@ async function initializeApp(): Promise<InitializeAppResult> {
   if (!instance) return { status: "needs-setup" };
 
   try {
-    await activateInstance(config, instance);
+    const compatibilityWarning = await activateInstance(config, instance);
     if (config.activeInstanceId !== instance.id) {
       await writeDesktopConfig({ ...config, activeInstanceId: instance.id });
     }
-    return { status: "ready", activeInstanceId: instance.id };
+    return { status: "ready", activeInstanceId: instance.id, compatibilityWarning: compatibilityWarning ?? undefined };
   } catch (err) {
     writeStartupLog(`backend failed: ${err instanceof Error ? err.message : String(err)}`);
     return {
@@ -178,6 +181,9 @@ async function bootstrap(): Promise<void> {
 
   writeStartupLog("opening shell window");
   openMainWindow();
+  if (mainWindow) {
+    initializeUpdater(mainWindow);
+  }
 }
 
 const gotLock = app.requestSingleInstanceLock();

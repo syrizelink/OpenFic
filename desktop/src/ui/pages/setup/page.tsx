@@ -12,7 +12,7 @@ import {
   X,
 } from "lucide-react";
 import type { DesktopConfig } from "../../../shared/config";
-import type { SetupProgressEvent, SetupStep } from "../../../shared/ipc";
+import type { InitializeAppResult, SetupProgressEvent, SetupStep } from "../../../shared/ipc";
 import "./setup.css";
 
 type WizardStep = "mode" | "remote" | "local-directory" | "local-installing" | "local-success";
@@ -53,7 +53,7 @@ const INITIAL_STEPS: StepState = {
 
 interface SetupPageProps {
   initialStep?: "mode" | "remote";
-  onFinished: () => void;
+  onFinished: (result?: InitializeAppResult) => void;
 }
 
 function createInstanceId(): string {
@@ -195,8 +195,8 @@ export function SetupPage({ initialStep = "mode", onFinished }: SetupPageProps) 
           instances: previousConfig?.instances ?? [existingInstance],
         };
         await window.openficDesktop.saveConfig(config);
-        await window.openficDesktop.switchInstance(existingInstance.id);
-        onFinished();
+        const result = await window.openficDesktop.switchInstance(existingInstance.id);
+        onFinished(result);
         return;
       }
 
@@ -213,8 +213,8 @@ export function SetupPage({ initialStep = "mode", onFinished }: SetupPageProps) 
         instances: [...(previousConfig?.instances ?? []), instance],
       };
       await window.openficDesktop.saveConfig(config);
-      await window.openficDesktop.switchInstance(instance.id);
-      onFinished();
+      const result = await window.openficDesktop.switchInstance(instance.id);
+      onFinished(result);
     } catch (err) {
       setRemoteError(err instanceof Error ? err.message : "无法连接到该地址");
     } finally {
@@ -241,8 +241,8 @@ export function SetupPage({ initialStep = "mode", onFinished }: SetupPageProps) 
         instances: [...(previousConfig?.instances ?? []), instance],
       };
       await window.openficDesktop.saveConfig(config);
-      await window.openficDesktop.switchInstance(instance.id);
-      onFinished();
+      const result = await window.openficDesktop.switchInstance(instance.id);
+      onFinished(result);
     } catch (err) {
       setStartError(err instanceof Error ? err.message : "启动后端失败");
     } finally {

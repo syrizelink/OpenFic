@@ -20,9 +20,9 @@ export interface StartBackendOptions {
 }
 
 export function getBackendLogPath(): string {
-  const logsDir = path.join(app.getPath("userData"), "logs");
-  mkdirSync(logsDir, { recursive: true });
-  return path.join(logsDir, "backend.log");
+  const logDir = path.join(process.env.APPDATA ?? app.getPath("userData"), "openfic-desktop");
+  mkdirSync(logDir, { recursive: true });
+  return path.join(logDir, "backend.log");
 }
 
 export function startBackendProcess(options: StartBackendOptions): BackendProcessHandle {

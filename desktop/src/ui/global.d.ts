@@ -4,6 +4,7 @@ import type {
   InitializeAppResult,
   PingInstanceResult,
   SetupProgressEvent,
+  UpdateState,
 } from "../shared/ipc";
 import type { DesktopInstance } from "../shared/config";
 
@@ -28,7 +29,12 @@ declare global {
       minimizeWindow: () => Promise<void>;
       toggleMaximizeWindow: () => Promise<void>;
       closeWindow: () => Promise<void>;
+      getUpdateState: () => Promise<UpdateState>;
+      checkForUpdate: () => Promise<void>;
+      downloadUpdate: () => Promise<void>;
+      installUpdate: () => Promise<void>;
       onSetupProgress: (handler: (event: SetupProgressEvent) => void) => () => void;
+      onUpdateState: (handler: (state: UpdateState) => void) => () => void;
     };
   }
 }

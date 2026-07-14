@@ -228,27 +228,32 @@ jobs:
 
   # ---------------------------------------------------------------- desktop
   desktop:
-    needs: [context, build-frontend]
+    needs: [context, build-frontend, pypi]
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: windows-latest
             electron_args: '--win --x64'
+            publish: always
             artifact_name: desktop-win-x64
           - os: ubuntu-latest
             electron_args: '--linux --x64'
+            publish: never
             artifact_name: desktop-linux-x64
           - os: ubuntu-24.04-arm
             electron_args: '--linux --arm64'
+            publish: never
             artifact_name: desktop-linux-arm64
           - os: macos-14
             electron_args: '--mac --arm64'
+            publish: never
             artifact_name: desktop-mac-arm64
     runs-on: ${{ matrix.os }}
     env:
       ELECTRON_CACHE: ${{ github.workspace }}/.electron-cache
       ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.electron-builder-cache
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -292,9 +297,10 @@ jobs:
         run: pnpm build
       - name: 构建 Electron 安装包
         working-directory: desktop
-        run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.electron_args }}
+        run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.electron_args }} --publish ${{ matrix.publish }}
 
       - uses: actions/upload-artifact@v7
+        if: ${{ matrix.publish == 'never' }}
         with:
           name: ${{ matrix.artifact_name }}
           path: |
@@ -303,7 +309,6 @@ jobs:
             desktop/dist-electron/*.tar.gz
             desktop/dist-electron/*.zip
             desktop/dist-electron/*.dmg
-            desktop/dist-electron/*.blockmap
       - uses: actions/cache/save@v5
         if: ${{ steps.pnpm-cache.outputs.cache-hit != 'true' }}
         with:

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent } from "react";
-import { Link2, Link2Off, Minus, Plus, RefreshCw, Square, Star, Trash2, X } from "lucide-react";
+import { Download, Link2, Link2Off, Minus, Plus, RefreshCw, Square, Star, Trash2, X } from "lucide-react";
 import type { DesktopConfig, DesktopInstance } from "../../shared/config";
+import type { UpdateState } from "../../shared/ipc";
 
 interface DesktopHeaderProps {
   activeInstanceId: string | null;
@@ -9,6 +10,8 @@ interface DesktopHeaderProps {
   onAddInstance: () => void;
   onSaveConfig: (config: DesktopConfig) => Promise<void>;
   onSwitchInstance: (instanceId: string) => Promise<void>;
+  updateState: UpdateState;
+  onUpdateAction: () => void;
 }
 
 type PingState =
@@ -33,7 +36,16 @@ function sortInstances(instances: DesktopInstance[]): DesktopInstance[] {
   return [...instances].sort((left, right) => Number(Boolean(right.favorite)) - Number(Boolean(left.favorite)));
 }
 
-export function DesktopHeader({ activeInstanceId, config, disabled, onAddInstance, onSaveConfig, onSwitchInstance }: DesktopHeaderProps) {
+export function DesktopHeader({
+  activeInstanceId,
+  config,
+  disabled,
+  onAddInstance,
+  onSaveConfig,
+  onSwitchInstance,
+  updateState,
+  onUpdateAction,
+}: DesktopHeaderProps) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [panelVisible, setPanelVisible] = useState(false);
   const [pingStates, setPingStates] = useState<Record<string, PingState>>({});
@@ -138,8 +150,23 @@ export function DesktopHeader({ activeInstanceId, config, disabled, onAddInstanc
   return (
     <header className="desktop-header">
       <div className="desktop-titlebar-brand">OpenFic</div>
-      <div className="desktop-titlebar-actions">
-        <div className="instance-switcher" ref={rootRef}>
+        <div className="desktop-titlebar-actions">
+          {updateState.status !== "unsupported" ? (
+            <button
+              className="titlebar-button"
+              aria-label={updateState.status === "available" || updateState.status === "downloaded" ? "查看更新" : "检查更新"}
+              type="button"
+              disabled={updateState.status === "checking" || updateState.status === "downloading"}
+              onClick={onUpdateAction}
+            >
+              {updateState.status === "available" || updateState.status === "downloaded" ? (
+                <Download size={15} strokeWidth={2} />
+              ) : (
+                <RefreshCw size={15} strokeWidth={2} />
+              )}
+            </button>
+          ) : null}
+          <div className="instance-switcher" ref={rootRef}>
           <button
             className="titlebar-button titlebar-link-button"
             data-connected={hasUsableRuntime}

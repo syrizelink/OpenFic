@@ -3,7 +3,9 @@ import { DesktopHeader } from "./components/header";
 import { BootPage } from "./pages/boot/page";
 import { FrontendPage } from "./pages/frontend/page";
 import { SetupPage } from "./pages/setup/page";
+import { DesktopNotices } from "./components/desktop-notices";
 import type { DesktopConfig } from "../shared/config";
+import type { UpdateState } from "../shared/ipc";
 
 type ShellState = "booting" | "setup" | "frontend";
 type Appearance = "light" | "dark";
@@ -45,7 +47,10 @@ export function App() {
   const [setupInitialStep, setSetupInitialStep] = useState<SetupInitialStep>("mode");
   const [frontendReadyPartition, setFrontendReadyPartition] = useState<string | null>(null);
   const [shellAppearance, setShellAppearance] = useState<ShellAppearance>({ appearance: "light" });
+  const [compatibilityWarning, setCompatibilityWarning] = useState<string | null>(null);
+  const [updateState, setUpdateState] = useState<UpdateState>({ status: "idle" });
   const frontendWebviewRef = useRef<HTMLElement | null>(null);
+  const hasScheduledUpdateCheck = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,6 +63,7 @@ export function App() {
         setConfig(nextConfig);
         setActiveInstanceId(result.activeInstanceId ?? nextConfig?.activeInstanceId ?? null);
         setError(result.message ?? null);
+        setCompatibilityWarning(result.compatibilityWarning ?? null);
         setShellState(result.status === "ready" ? "frontend" : "setup");
       } catch (err) {
         if (cancelled) return;
@@ -70,6 +76,24 @@ export function App() {
 
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (shellState !== "frontend" || hasScheduledUpdateCheck.current) return;
+    hasScheduledUpdateCheck.current = true;
+    void window.openficDesktop.checkForUpdate();
+  }, [shellState]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void window.openficDesktop.getUpdateState().then((state) => {
+      if (!cancelled) setUpdateState(state);
+    });
+    const dispose = window.openficDesktop.onUpdateState(setUpdateState);
+    return () => {
+      cancelled = true;
+      dispose();
     };
   }, []);
 
@@ -111,9 +135,10 @@ export function App() {
     return nextConfig;
   };
 
-  const showFrontend = async () => {
+  const showFrontend = async (result?: { compatibilityWarning?: string }) => {
     const nextConfig = await refreshConfig();
     setError(null);
+    setCompatibilityWarning(result?.compatibilityWarning ?? null);
     setWebviewKey((key) => key + 1);
     setActiveInstanceId(nextConfig?.activeInstanceId ?? null);
     setShellState("frontend");
@@ -135,6 +160,7 @@ export function App() {
     const result = await window.openficDesktop.switchInstance(instanceId);
     const nextConfig = await refreshConfig();
     setActiveInstanceId(result.activeInstanceId ?? nextConfig?.activeInstanceId ?? instanceId);
+    setCompatibilityWarning(result.compatibilityWarning ?? null);
     setWebviewKey((key) => key + 1);
     setShellState(result.status === "ready" ? "frontend" : "setup");
   };
@@ -187,14 +213,26 @@ export function App() {
         onAddInstance={handleAddInstance}
         onSaveConfig={handleSaveConfig}
         onSwitchInstance={handleSwitchInstance}
+        updateState={updateState}
+        onUpdateAction={() => {
+          if (updateState.status === "available" || updateState.status === "downloaded") return;
+          void window.openficDesktop.checkForUpdate();
+        }}
       />
       <section className="desktop-content">
         {shellState === "booting" ? <BootPage error={error} /> : null}
-        {shellState === "setup" ? <SetupPage onFinished={() => void showFrontend()} initialStep={setupInitialStep} /> : null}
+        {shellState === "setup" ? <SetupPage onFinished={(result) => void showFrontend(result)} initialStep={setupInitialStep} /> : null}
         {shellState === "frontend" && frontendReadyPartition ? (
           <FrontendPage webviewKey={webviewKey} partition={frontendReadyPartition} webviewRef={frontendWebviewRef} />
         ) : null}
       </section>
+      <DesktopNotices
+        compatibilityWarning={compatibilityWarning}
+        updateState={updateState}
+        onCheckForUpdate={() => void window.openficDesktop.checkForUpdate()}
+        onDownloadUpdate={() => void window.openficDesktop.downloadUpdate()}
+        onInstallUpdate={() => void window.openficDesktop.installUpdate()}
+      />
     </main>
   );
 }

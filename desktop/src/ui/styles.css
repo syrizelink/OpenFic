@@ -33,6 +33,113 @@ body {
   min-height: 0;
 }
 
+.desktop-notices {
+  position: fixed;
+  top: 60px;
+  right: 18px;
+  z-index: 30;
+  display: grid;
+  width: min(370px, calc(100vw - 36px));
+  gap: 10px;
+  -webkit-app-region: no-drag;
+}
+
+.desktop-notice {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--gray-a5);
+  border-radius: 12px;
+  background: var(--color-panel-solid);
+  box-shadow: 0 14px 34px var(--gray-a6);
+}
+
+.desktop-notice-update,
+.desktop-notice-error {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.desktop-notice-warning {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  border-color: var(--amber-a6, rgba(217, 119, 6, 0.35));
+  color: var(--amber-11, #a16207);
+}
+
+.desktop-notice-error {
+  border-color: var(--red-a6, rgba(220, 38, 38, 0.35));
+}
+
+.desktop-notice-copy {
+  min-width: 0;
+}
+
+.desktop-notice p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.desktop-notice-title {
+  margin-bottom: 3px !important;
+  color: var(--gray-12);
+  font-size: 13px !important;
+  font-weight: 650;
+}
+
+.desktop-notice-warning p {
+  color: inherit;
+}
+
+.desktop-notice-primary,
+.desktop-notice-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  border-radius: 7px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.desktop-notice-primary {
+  border: 0;
+  background: var(--accent-9);
+  color: var(--accent-contrast);
+}
+
+.desktop-notice-secondary {
+  border: 1px solid var(--gray-a5);
+  background: transparent;
+  color: var(--gray-12);
+}
+
+.desktop-notice-primary:hover,
+.desktop-notice-secondary:hover {
+  filter: brightness(0.97);
+}
+
+.desktop-update-progress {
+  grid-column: 1 / -1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--gray-a4);
+}
+
+.desktop-update-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-9);
+  transition: width 160ms ease;
+}
+
 .content-page {
   height: 100%;
 }

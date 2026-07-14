@@ -19,6 +19,11 @@ export const IpcChannels = {
   minimizeWindow: "window:minimize",
   toggleMaximizeWindow: "window:toggle-maximize",
   closeWindow: "window:close",
+  getUpdateState: "update:get-state",
+  checkForUpdate: "update:check",
+  downloadUpdate: "update:download",
+  installUpdate: "update:install",
+  updateState: "update:state",
 } as const;
 
 export type SetupStep =
@@ -80,5 +85,17 @@ export interface CheckDirectoryEmptyResult {
 export interface InitializeAppResult {
   status: "ready" | "needs-setup";
   activeInstanceId?: string | null;
+  message?: string;
+  compatibilityWarning?: string;
+}
+
+export type UpdateStatus = "unsupported" | "idle" | "checking" | "available" | "downloading" | "downloaded" | "not-available" | "error";
+
+export interface UpdateState {
+  status: UpdateStatus;
+  version?: string;
+  progress?: number;
+  transferred?: number;
+  total?: number;
   message?: string;
 }

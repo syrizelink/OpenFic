@@ -21,6 +21,7 @@ import { installLocalRuntime, startLocalBackendFromInstall } from "./runtime/set
 import { getDefaultInstallDir } from "./runtime/python.js";
 import type { BackendProcessHandle } from "./process.js";
 import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
+import { checkForUpdates, downloadUpdate, getUpdateState, installUpdate } from "./updater.js";
 
 const electron = require("electron") as typeof import("electron");
 
@@ -60,6 +61,10 @@ export function registerIpc(context: IpcContext): void {
   });
 
   ipcMain.handle(IpcChannels.initializeApp, () => context.initializeApp());
+  ipcMain.handle(IpcChannels.getUpdateState, () => getUpdateState());
+  ipcMain.handle(IpcChannels.checkForUpdate, () => checkForUpdates());
+  ipcMain.handle(IpcChannels.downloadUpdate, () => downloadUpdate());
+  ipcMain.handle(IpcChannels.installUpdate, () => installUpdate());
 
   ipcMain.handle(IpcChannels.ensureInstanceSession, (_event, request: EnsureInstanceSessionRequest) => {
     ensureAppProtocolForPartition(request.partition);

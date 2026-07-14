@@ -12,6 +12,7 @@ import {
   type SetupProgressEvent,
   type StartLocalBackendRequest,
   type SwitchInstanceRequest,
+  type UpdateState,
 } from "../shared/ipc.js";
 import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
 import path from "node:path";
@@ -47,10 +48,19 @@ const desktopApi = {
   minimizeWindow: (): Promise<void> => ipcRenderer.invoke(IpcChannels.minimizeWindow),
   toggleMaximizeWindow: (): Promise<void> => ipcRenderer.invoke(IpcChannels.toggleMaximizeWindow),
   closeWindow: (): Promise<void> => ipcRenderer.invoke(IpcChannels.closeWindow),
+  getUpdateState: (): Promise<UpdateState> => ipcRenderer.invoke(IpcChannels.getUpdateState),
+  checkForUpdate: (): Promise<void> => ipcRenderer.invoke(IpcChannels.checkForUpdate),
+  downloadUpdate: (): Promise<void> => ipcRenderer.invoke(IpcChannels.downloadUpdate),
+  installUpdate: (): Promise<void> => ipcRenderer.invoke(IpcChannels.installUpdate),
   onSetupProgress: (handler: (event: SetupProgressEvent) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: SetupProgressEvent) => handler(payload);
     ipcRenderer.on(IpcChannels.setupProgress, listener);
     return () => ipcRenderer.off(IpcChannels.setupProgress, listener);
+  },
+  onUpdateState: (handler: (state: UpdateState) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: UpdateState) => handler(payload);
+    ipcRenderer.on(IpcChannels.updateState, listener);
+    return () => ipcRenderer.off(IpcChannels.updateState, listener);
   },
 };
 

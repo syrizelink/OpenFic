@@ -4,6 +4,10 @@ import { describeDownloadProgress, ensurePortablePython, resolveRuntimeDir } fro
 import { ensureOpenFicRuntime, resolveVenvPythonPath, startLocalOpenFicBackend } from "./openfic.js";
 import type { BackendProcessHandle } from "../process.js";
 
+const electron = require("electron") as typeof import("electron");
+
+const { app } = electron;
+
 function emitProgress(webContents: WebContents, event: SetupProgressEvent): void {
   webContents.send(IpcChannels.setupProgress, event);
 }
@@ -44,7 +48,7 @@ export async function installLocalRuntime(webContents: WebContents, installDir: 
     },
   );
 
-  await ensureOpenFicRuntime(python, runtimeDir, (step, message) => beginStep(step, message));
+  await ensureOpenFicRuntime(python, runtimeDir, app.getVersion(), (step, message) => beginStep(step, message));
 
   if (currentStep) markDone(webContents, currentStep);
 
@@ -53,5 +57,5 @@ export async function installLocalRuntime(webContents: WebContents, installDir: 
 
 export async function startLocalBackendFromInstall(installDir: string): Promise<BackendProcessHandle> {
   const runtimeDir = resolveRuntimeDir(installDir);
-  return startLocalOpenFicBackend(resolveVenvPythonPath(runtimeDir));
+  return startLocalOpenFicBackend(resolveVenvPythonPath(runtimeDir), app.getVersion());
 }
