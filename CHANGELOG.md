@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/syrizelink/OpenFic/compare/v0.6.2...v0.7.0) (2026-07-14)
+
+
+### ✨ 新功能
+
+* **desktop:** 支持应用内自动更新 ([#99](https://github.com/syrizelink/OpenFic/issues/99)) ([bcd6eb9](https://github.com/syrizelink/OpenFic/commit/bcd6eb94fe846c4237b89ffdad87d620ec7706b0))
+
+
+### 🔧 杂项
+
+* **build:** 迁移前端与桌面端构建至 Vite+ ([#97](https://github.com/syrizelink/OpenFic/issues/97)) ([c77fd90](https://github.com/syrizelink/OpenFic/commit/c77fd907ce9a0a55eac24e3fc49094c03c188a25))
+
 ## [0.6.2](https://github.com/syrizelink/OpenFic/compare/v0.6.1...v0.6.2) (2026-07-13)
 
 
