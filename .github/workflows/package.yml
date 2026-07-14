@@ -228,27 +228,32 @@ jobs:
 
   # ---------------------------------------------------------------- desktop
   desktop:
-    needs: [context, build-frontend]
+    needs: [context, build-frontend, pypi]
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: windows-latest
             electron_args: '--win --x64'
+            publish_update: true
             artifact_name: desktop-win-x64
           - os: ubuntu-latest
             electron_args: '--linux --x64'
+            publish_update: false
             artifact_name: desktop-linux-x64
           - os: ubuntu-24.04-arm
             electron_args: '--linux --arm64'
+            publish_update: false
             artifact_name: desktop-linux-arm64
           - os: macos-14
             electron_args: '--mac --arm64'
+            publish_update: false
             artifact_name: desktop-mac-arm64
     runs-on: ${{ matrix.os }}
     env:
       ELECTRON_CACHE: ${{ github.workspace }}/.electron-cache
       ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.electron-builder-cache
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -292,9 +297,28 @@ jobs:
         run: pnpm build
       - name: 构建 Electron 安装包
         working-directory: desktop
-        run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.electron_args }}
+        run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.electron_args }} --publish never
+      - name: 构建 Windows ARM64 安装包
+        if: ${{ matrix.publish_update }}
+        working-directory: desktop
+        run: pnpm exec electron-builder --config electron-builder.yml --win --arm64 --publish never
+      - name: 整理 Windows 自动更新产物
+        if: ${{ matrix.publish_update }}
+        working-directory: desktop
+        run: node scripts/prepare-windows-update.mjs
+      - name: 发布 Windows 自动更新产物
+        if: ${{ matrix.publish_update }}
+        shell: bash
+        run: |
+          gh release upload "${{ needs.context.outputs.release_tag }}" \
+            desktop/dist-electron/OpenFic-*-win-setup.exe \
+            desktop/dist-electron/OpenFic-*-win-setup.exe.blockmap \
+            desktop/dist-electron/OpenFic-*-win.zip \
+            desktop/dist-electron/latest.yml \
+            --clobber
 
       - uses: actions/upload-artifact@v7
+        if: ${{ !matrix.publish_update }}
         with:
           name: ${{ matrix.artifact_name }}
           path: |
@@ -303,7 +327,6 @@ jobs:
             desktop/dist-electron/*.tar.gz
             desktop/dist-electron/*.zip
             desktop/dist-electron/*.dmg
-            desktop/dist-electron/*.blockmap
       - uses: actions/cache/save@v5
         if: ${{ steps.pnpm-cache.outputs.cache-hit != 'true' }}
         with:
@@ -320,7 +343,7 @@ jobs:
   # ---------------------------------------------------------------- release
   publish-release:
     needs: [context, desktop]
-    if: always() && needs.desktop.result != 'failure'
+    if: ${{ always() && needs.desktop.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v8

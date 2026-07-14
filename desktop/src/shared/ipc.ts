@@ -12,13 +12,22 @@ export const IpcChannels = {
   switchInstance: "instance:switch",
   pingInstance: "instance:ping",
   selectDirectory: "dialog:select-directory",
-  checkDirectoryEmpty: "directory:check-empty",
+  inspectLocalRuntime: "setup:inspect-local-runtime",
   setupProgress: "setup:progress",
+  getStartupProgress: "app:get-startup-progress",
+  startupProgress: "app:startup-progress",
   closeSetup: "setup:close",
   showSetup: "shell:show-setup",
   minimizeWindow: "window:minimize",
   toggleMaximizeWindow: "window:toggle-maximize",
   closeWindow: "window:close",
+  getUpdateState: "update:get-state",
+  checkForUpdate: "update:check",
+  downloadUpdate: "update:download",
+  cancelUpdateDownload: "update:cancel-download",
+  installUpdate: "update:install",
+  openUpdateRelease: "update:open-release",
+  updateState: "update:state",
 } as const;
 
 export type SetupStep =
@@ -68,17 +77,56 @@ export interface StartLocalBackendRequest {
   installDir: string;
 }
 
-export interface CheckDirectoryEmptyRequest {
-  path: string;
+export interface InspectLocalRuntimeRequest {
+  installDir: string;
 }
 
-export interface CheckDirectoryEmptyResult {
-  exists: boolean;
-  empty: boolean;
+export interface InspectLocalRuntimeResult {
+  status: "missing" | "incomplete" | "ready";
+  message: string;
+  configuredInstance: DesktopInstance | null;
 }
 
 export interface InitializeAppResult {
   status: "ready" | "needs-setup";
   activeInstanceId?: string | null;
+  message?: string;
+  compatibilityWarning?: string;
+}
+
+export type StartupStep =
+  | "load-config"
+  | "check-runtime"
+  | "update-python"
+  | "update-openfic"
+  | "start-backend"
+  | "initialize-backend"
+  | "initialize-database"
+  | "complete-backend-startup"
+  | "check-health"
+  | "connect-remote"
+  | "verify-remote"
+  | "check-compatibility"
+  | "ready";
+
+export interface StartupProgressEvent {
+  step: StartupStep;
+  status: "running" | "done" | "failed";
+  title: string;
+  message: string;
+  /** Overall startup progress as a 0..1 fraction. */
+  progress: number;
+}
+
+export type UpdateStatus = "unsupported" | "idle" | "checking" | "available" | "downloading" | "downloaded" | "not-available" | "error";
+
+export interface UpdateState {
+  status: UpdateStatus;
+  version?: string;
+  releaseNotes?: string;
+  progress?: number;
+  transferred?: number;
+  total?: number;
+  bytesPerSecond?: number;
   message?: string;
 }

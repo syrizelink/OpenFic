@@ -1,12 +1,11 @@
 import { dialog, ipcMain, type BrowserWindow } from "electron";
-import { readdir, stat } from "node:fs/promises";
 import {
   IpcChannels,
-  type CheckDirectoryEmptyRequest,
-  type CheckDirectoryEmptyResult,
   type CheckRemoteRequest,
   type EnsureInstanceSessionRequest,
   type InitializeAppResult,
+  type InspectLocalRuntimeRequest,
+  type InspectLocalRuntimeResult,
   type InstallRuntimeRequest,
   type PingInstanceRequest,
   type PingInstanceResult,
@@ -17,8 +16,11 @@ import {
 import { readDesktopConfig, writeDesktopConfig } from "./config.js";
 import { waitForBackend } from "./health.js";
 import { ensureAppProtocolForPartition } from "./protocol.js";
-import { installLocalRuntime, startLocalBackendFromInstall } from "./runtime/setup-runner.js";
+import { findLocalInstanceByInstallDir, normalizeInstallDir } from "./local-instance.js";
+import { inspectLocalRuntime, installLocalRuntime, startLocalBackendFromInstall } from "./runtime/setup-runner.js";
 import { getDefaultInstallDir } from "./runtime/python.js";
+import { cancelUpdateDownload, checkForUpdates, downloadUpdate, getUpdateState, installUpdate, openUpdateRelease } from "./updater.js";
+import { createStartupProgressTracker, getStartupProgress } from "./startup-progress.js";
 import type { BackendProcessHandle } from "./process.js";
 import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
 
@@ -32,19 +34,8 @@ export interface IpcContext {
   onConfigSaved: (config: DesktopConfig) => void;
 }
 
-async function isDirectoryEmpty(dirPath: string): Promise<CheckDirectoryEmptyResult> {
-  try {
-    const info = await stat(dirPath);
-    if (!info.isDirectory()) return { exists: false, empty: false };
-  } catch {
-    return { exists: false, empty: false };
-  }
-  try {
-    const entries = await readdir(dirPath);
-    return { exists: true, empty: entries.length === 0 };
-  } catch {
-    return { exists: true, empty: false };
-  }
+function createInstanceId(): string {
+  return `instance-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export function registerIpc(context: IpcContext): void {
@@ -56,15 +47,43 @@ export function registerIpc(context: IpcContext): void {
   });
 
   ipcMain.handle(IpcChannels.initializeApp, () => context.initializeApp());
+  ipcMain.handle(IpcChannels.getStartupProgress, () => getStartupProgress());
+  ipcMain.handle(IpcChannels.getUpdateState, () => getUpdateState());
+  ipcMain.handle(IpcChannels.checkForUpdate, () => checkForUpdates());
+  ipcMain.handle(IpcChannels.downloadUpdate, () => downloadUpdate());
+  ipcMain.handle(IpcChannels.cancelUpdateDownload, () => cancelUpdateDownload());
+  ipcMain.handle(IpcChannels.installUpdate, () => installUpdate());
+  ipcMain.handle(IpcChannels.openUpdateRelease, () => openUpdateRelease());
 
   ipcMain.handle(IpcChannels.ensureInstanceSession, (_event, request: EnsureInstanceSessionRequest) => {
-    ensureAppProtocolForPartition(request.partition);
+    return ensureAppProtocolForPartition(request.partition);
   });
 
   ipcMain.handle(IpcChannels.getDefaultInstallDir, () => getDefaultInstallDir());
 
   ipcMain.handle(IpcChannels.checkRemote, async (_event, request: CheckRemoteRequest) => {
-    await waitForBackend(request.url, 10_000);
+    const startupProgress = createStartupProgressTracker((progress) => {
+      _event.sender.send(IpcChannels.startupProgress, progress);
+    });
+    startupProgress.begin({
+      step: "connect-remote",
+      title: "连接 OpenFic 服务",
+      message: `正在连接 ${request.url}`,
+      progress: 0.3,
+    });
+    try {
+      await waitForBackend(request.url, 10_000);
+      startupProgress.begin({
+        step: "verify-remote",
+        title: "验证服务状态",
+        message: "远程服务已响应",
+        progress: 0.7,
+      });
+      startupProgress.complete();
+    } catch (error) {
+      startupProgress.fail(error);
+      throw error;
+    }
   });
 
   ipcMain.handle(IpcChannels.switchInstance, (_event, request: SwitchInstanceRequest) =>
@@ -88,8 +107,15 @@ export function registerIpc(context: IpcContext): void {
     return result.filePaths[0];
   });
 
-  ipcMain.handle(IpcChannels.checkDirectoryEmpty, async (_event, request: CheckDirectoryEmptyRequest) =>
-    isDirectoryEmpty(request.path),
+  ipcMain.handle(
+    IpcChannels.inspectLocalRuntime,
+    async (_event, request: InspectLocalRuntimeRequest): Promise<InspectLocalRuntimeResult> => {
+      const [runtime, config] = await Promise.all([inspectLocalRuntime(request.installDir), readDesktopConfig()]);
+      return {
+        ...runtime,
+        configuredInstance: findLocalInstanceByInstallDir(config, request.installDir),
+      };
+    },
   );
 
   ipcMain.handle(IpcChannels.installRuntime, async (_event, request: InstallRuntimeRequest) => {
@@ -99,9 +125,51 @@ export function registerIpc(context: IpcContext): void {
   });
 
   ipcMain.handle(IpcChannels.startLocalBackend, async (_event, request: StartLocalBackendRequest) => {
-    const backend = await startLocalBackendFromInstall(request.installDir);
-    context.setBackend(backend);
-    context.setBackendBaseUrl(backend.baseUrl);
+    const window = context.shellWindow();
+    if (!window) throw new Error("shell window is not available");
+    const startupProgress = createStartupProgressTracker((progress) => {
+      window.webContents.send(IpcChannels.startupProgress, progress);
+    });
+    try {
+      const backend = await startLocalBackendFromInstall(request.installDir, startupProgress);
+      context.setBackend(backend);
+      context.setBackendBaseUrl(backend.baseUrl);
+      const previousConfig = await readDesktopConfig();
+      const existingInstance = findLocalInstanceByInstallDir(previousConfig, request.installDir);
+      const instance: DesktopInstance = existingInstance ?? {
+        id: createInstanceId(),
+        name: "Local",
+        mode: "local",
+        remoteUrl: null,
+        autoStartLocal: true,
+        installDir: request.installDir,
+      };
+      const normalizedInstallDir = normalizeInstallDir(request.installDir);
+      const nextConfig: DesktopConfig = {
+        activeInstanceId: instance.id,
+        instances: [
+          ...(previousConfig?.instances ?? []).filter(
+            (candidate) =>
+              candidate.mode !== "local" ||
+              candidate.installDir === null ||
+              normalizeInstallDir(candidate.installDir) !== normalizedInstallDir,
+          ),
+          instance,
+        ],
+      };
+      await writeDesktopConfig(nextConfig);
+      context.onConfigSaved(nextConfig);
+      startupProgress.begin({
+        step: "ready",
+        title: "服务已就绪",
+        message: "OpenFic 已准备完成",
+        progress: 1,
+      });
+      startupProgress.complete();
+    } catch (error) {
+      startupProgress.fail(error);
+      throw error;
+    }
   });
 
   ipcMain.handle(IpcChannels.closeSetup, async () => undefined);

@@ -3,9 +3,10 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { RuntimeConfigResponse } from "../shared/config.js";
+import { configureSystemProxy } from "./proxy.js";
 
 let runtimeConfig: RuntimeConfigResponse | null = null;
-const registeredPartitions = new Set<string>();
+const registeredPartitions = new Map<string, Promise<void>>();
 
 export function setRuntimeConfig(config: RuntimeConfigResponse): void {
   runtimeConfig = config;
@@ -73,8 +74,15 @@ export function handleAppProtocol(): void {
   protocol.handle("app", handleAppRequest);
 }
 
-export function ensureAppProtocolForPartition(partition: string): void {
-  if (!partition || registeredPartitions.has(partition)) return;
-  session.fromPartition(partition).protocol.handle("app", handleAppRequest);
-  registeredPartitions.add(partition);
+export function ensureAppProtocolForPartition(partition: string): Promise<void> {
+  if (!partition) return Promise.resolve();
+  const registered = registeredPartitions.get(partition);
+  if (registered) return registered;
+
+  const targetSession = session.fromPartition(partition);
+  const registration = configureSystemProxy(targetSession).then(() => {
+    targetSession.protocol.handle("app", handleAppRequest);
+  });
+  registeredPartitions.set(partition, registration);
+  return registration;
 }

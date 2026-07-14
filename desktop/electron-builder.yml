@@ -4,6 +4,12 @@ productName: OpenFic
 directories:
   output: dist-electron
 
+publish:
+  provider: github
+  owner: syrizelink
+  repo: OpenFic
+  releaseType: release
+
 files:
   - dist/**/*
   - package.json
@@ -15,20 +21,24 @@ extraResources:
       - "**/*"
 
 win:
+  artifactName: OpenFic-${version}-${arch}-win.${ext}
   target:
     - target: nsis
       arch:
         - x64
+        - arm64
     - target: zip
       arch:
         - x64
+        - arm64
 
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-  artifactName: OpenFic-${version}-win-setup.${ext}
+  artifactName: OpenFic-${version}-${arch}-win-setup.${ext}
 
 mac:
+  artifactName: OpenFic-${version}-${arch}-mac.${ext}
   target:
     - target: dmg
       arch:
@@ -40,6 +50,7 @@ mac:
   identity: null
 
 linux:
+  artifactName: OpenFic-${version}-${arch}-linux.${ext}
   target:
     - target: AppImage
       arch:

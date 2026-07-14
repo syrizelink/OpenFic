@@ -1,9 +1,11 @@
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite-plus";
 
 const srcPath = fileURLToPath(new URL("./src", import.meta.url));
+const frontendVersion = (JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string }).version;
 
 function cacheFontResponseHeaders(): Plugin {
   return {
@@ -20,6 +22,9 @@ function cacheFontResponseHeaders(): Plugin {
 }
 
 export default defineConfig({
+  define: {
+    __OPENFIC_FRONTEND_VERSION__: JSON.stringify(frontendVersion),
+  },
   plugins: [react(), cacheFontResponseHeaders()],
   resolve: {
     alias: {

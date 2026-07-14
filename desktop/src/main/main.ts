@@ -9,6 +9,10 @@ import { waitForBackend } from "./health.js";
 import { ensurePortablePython, resolveRuntimeDir } from "./runtime/python.js";
 import { ensureOpenFicRuntime, startLocalOpenFicBackend } from "./runtime/openfic.js";
 import { stopBackendProcess, type BackendProcessHandle } from "./process.js";
+import { initializeUpdater } from "./updater.js";
+import { configureDefaultSystemProxy } from "./proxy.js";
+import { createStartupProgressTracker, type StartupProgressTracker } from "./startup-progress.js";
+import { IpcChannels } from "../shared/ipc.js";
 import type { InitializeAppResult } from "../shared/ipc.js";
 import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
 
@@ -75,11 +79,71 @@ function openMainWindow(): void {
   attachWindowLifecycle(mainWindow);
 }
 
-async function startLocalBackend(installDir: string | null): Promise<void> {
+function createStartupProgress(): StartupProgressTracker {
+  return createStartupProgressTracker((progress) => {
+    mainWindow?.webContents.send(IpcChannels.startupProgress, progress);
+  });
+}
+
+async function startLocalBackend(installDir: string | null, startupProgress: StartupProgressTracker): Promise<void> {
   const runtimeDir = resolveRuntimeDir(installDir);
-  const python = await ensurePortablePython(runtimeDir, () => undefined, () => undefined);
-  const runtime = await ensureOpenFicRuntime(python, runtimeDir, () => undefined);
-  const backend = await startLocalOpenFicBackend(runtime.venvPythonPath);
+  startupProgress.begin({
+    step: "check-runtime",
+    title: "检查运行环境",
+    message: "正在检查 Python 与 OpenFic 运行环境",
+    progress: 0.15,
+  });
+  let pythonWasUpdated = false;
+  const python = await ensurePortablePython(
+    runtimeDir,
+    (phase, message) => {
+      pythonWasUpdated = true;
+      startupProgress.begin({
+        step: "update-python",
+        title: phase === "download" ? "更新 Python 运行环境" : "修复 Python 运行环境",
+        message,
+        progress: phase === "download" ? 0.22 : 0.32,
+      });
+    },
+    ({ received, total }) => {
+      const fraction = total > 0 ? received / total : 0;
+      startupProgress.update({
+        step: "update-python",
+        title: "更新 Python 运行环境",
+        message: total > 0 ? `正在下载 Python · ${Math.round(fraction * 100)}%` : "正在下载 Python",
+        progress: 0.22 + fraction * 0.1,
+      });
+    },
+  );
+  if (!pythonWasUpdated) {
+    startupProgress.update({
+      step: "check-runtime",
+      title: "检查运行环境",
+      message: "Python 运行环境已就绪",
+      progress: 0.3,
+    });
+  }
+
+  let runtimeWasUpdated = false;
+  const runtime = await ensureOpenFicRuntime(python, runtimeDir, app.getVersion(), (step, message) => {
+    runtimeWasUpdated = true;
+    startupProgress.begin({
+      step: "update-openfic",
+      title: step === "install-openfic" ? "更新 OpenFic 后端" : "更新本地运行环境",
+      message,
+      progress: step === "install-openfic" ? 0.45 : 0.38,
+    });
+  });
+  if (!runtimeWasUpdated) {
+    startupProgress.update({
+      step: "check-runtime",
+      title: "检查运行环境",
+      message: "运行环境已就绪",
+      progress: 0.5,
+    });
+  }
+
+  const backend = await startLocalOpenFicBackend(runtime.venvPythonPath, app.getVersion(), startupProgress);
   setBackend(backend);
   setBackendBaseUrl(backend.baseUrl);
 }
@@ -88,28 +152,76 @@ function getActiveInstance(config: DesktopConfig): DesktopInstance | null {
   return config.instances.find((instance) => instance.id === config.activeInstanceId) ?? config.instances[0] ?? null;
 }
 
-async function activateInstance(config: DesktopConfig, instance: DesktopInstance): Promise<void> {
+async function activateInstance(
+  config: DesktopConfig,
+  instance: DesktopInstance,
+  startupProgress: StartupProgressTracker,
+): Promise<string | null> {
   activeInstanceId = instance.id;
   if (instance.mode === "remote") {
     if (!instance.remoteUrl) throw new Error("远程实例缺少后端地址");
-    await waitForBackend(instance.remoteUrl, 10_000);
+    startupProgress.begin({
+      step: "connect-remote",
+      title: "连接 OpenFic 服务",
+      message: `正在连接 ${instance.remoteUrl}`,
+      progress: 0.3,
+    });
+    const health = await waitForBackend(instance.remoteUrl, 10_000);
+    startupProgress.begin({
+      step: "verify-remote",
+      title: "验证服务状态",
+      message: "远程服务已响应，正在验证版本",
+      progress: 0.7,
+    });
     clearBackend();
     setBackendBaseUrl(instance.remoteUrl);
-    return;
+    startupProgress.begin({
+      step: "check-compatibility",
+      title: "检查版本兼容性",
+      message: "正在比较桌面端与后端版本",
+      progress: 0.85,
+    });
+    if (health.version === app.getVersion()) return null;
+    return `远程实例版本为 ${health.version ?? "未知"}，桌面端版本为 ${app.getVersion()}，部分功能可能不兼容。`;
   }
 
-  await startLocalBackend(instance.installDir);
+  await startLocalBackend(instance.installDir, startupProgress);
+  return null;
 }
 
 async function switchInstance(instanceId: string): Promise<InitializeAppResult> {
-  const config = await readDesktopConfig();
-  if (!config) return { status: "needs-setup" };
-  const instance = config.instances.find((item) => item.id === instanceId);
-  if (!instance) throw new Error("实例不存在");
-
-  await activateInstance(config, instance);
-  await writeDesktopConfig({ ...config, activeInstanceId: instance.id });
-  return { status: "ready", activeInstanceId: instance.id };
+  const startupProgress = createStartupProgress();
+  startupProgress.begin({
+    step: "load-config",
+    title: "读取实例配置",
+    message: "正在查找目标 OpenFic 实例",
+    progress: 0.1,
+  });
+  try {
+    const config = await readDesktopConfig();
+    if (!config) throw new Error("未找到 OpenFic 实例配置");
+    const instance = config.instances.find((item) => item.id === instanceId);
+    if (!instance) throw new Error("实例不存在");
+    startupProgress.update({
+      step: "load-config",
+      title: "读取实例配置",
+      message: `正在切换到 ${instance.name}`,
+      progress: 0.1,
+    });
+    const compatibilityWarning = await activateInstance(config, instance, startupProgress);
+    await writeDesktopConfig({ ...config, activeInstanceId: instance.id });
+    startupProgress.begin({
+      step: "ready",
+      title: "服务已就绪",
+      message: "OpenFic 已准备完成",
+      progress: 1,
+    });
+    startupProgress.complete();
+    return { status: "ready", activeInstanceId: instance.id, compatibilityWarning: compatibilityWarning ?? undefined };
+  } catch (error) {
+    startupProgress.fail(error);
+    throw error;
+  }
 }
 
 async function pingInstance(instance: DesktopInstance): Promise<number> {
@@ -130,27 +242,43 @@ function installMenu(): void {
 }
 
 async function initializeApp(): Promise<InitializeAppResult> {
-  const config = await readDesktopConfig();
-  writeStartupLog(`config loaded: ${config ? `${config.instances.length} instances` : "none"}`);
-
-  if (!config || config.instances.length === 0) {
-    return { status: "needs-setup" };
-  }
-
-  const instance = getActiveInstance(config);
-  if (!instance) return { status: "needs-setup" };
-
+  const startupProgress = createStartupProgress();
+  startupProgress.begin({
+    step: "load-config",
+    title: "读取本地配置",
+    message: "正在查找已有 OpenFic 实例",
+    progress: 0.05,
+  });
   try {
-    await activateInstance(config, instance);
+    const config = await readDesktopConfig();
+    writeStartupLog(`config loaded: ${config ? `${config.instances.length} instances` : "none"}`);
+    if (!config || config.instances.length === 0) {
+      startupProgress.complete("尚未配置 OpenFic 实例");
+      return { status: "needs-setup" };
+    }
+    const instance = getActiveInstance(config);
+    if (!instance) {
+      startupProgress.complete("尚未找到活动实例");
+      return { status: "needs-setup" };
+    }
+    const compatibilityWarning = await activateInstance(config, instance, startupProgress);
     if (config.activeInstanceId !== instance.id) {
       await writeDesktopConfig({ ...config, activeInstanceId: instance.id });
     }
-    return { status: "ready", activeInstanceId: instance.id };
+    startupProgress.begin({
+      step: "ready",
+      title: "服务已就绪",
+      message: "OpenFic 已准备完成",
+      progress: 1,
+    });
+    startupProgress.complete();
+    return { status: "ready", activeInstanceId: instance.id, compatibilityWarning: compatibilityWarning ?? undefined };
   } catch (err) {
     writeStartupLog(`backend failed: ${err instanceof Error ? err.message : String(err)}`);
+    startupProgress.fail(err);
     return {
       status: "needs-setup",
-      activeInstanceId: instance.id,
+      activeInstanceId: null,
       message: err instanceof Error ? err.message : String(err),
     };
   }
@@ -158,6 +286,8 @@ async function initializeApp(): Promise<InitializeAppResult> {
 
 async function bootstrap(): Promise<void> {
   writeStartupLog("bootstrap start");
+  await configureDefaultSystemProxy();
+  writeStartupLog("system proxy configured");
   handleAppProtocol();
   writeStartupLog("protocol handler installed");
   installMenu();
@@ -174,6 +304,7 @@ async function bootstrap(): Promise<void> {
 
   writeStartupLog("opening shell window");
   openMainWindow();
+  if (mainWindow) await initializeUpdater(mainWindow);
 }
 
 const gotLock = app.requestSingleInstanceLock();

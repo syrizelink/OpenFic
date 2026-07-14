@@ -3,27 +3,31 @@ interface SpawnCommand {
   args: string[];
 }
 
-function getOpenFicCliPath(venvPythonPath: string): string {
+export function resolveOpenFicCliPath(venvPythonPath: string): string {
   return process.platform === "win32"
     ? venvPythonPath.replace(/python\.exe$/i, "openfic.exe")
     : venvPythonPath.replace(/python$/i, "openfic");
 }
-export function createOpenFicProbeCommand(venvPythonPath: string): SpawnCommand {
+export function createOpenFicVersionCommand(venvPythonPath: string): SpawnCommand {
   return {
     command: venvPythonPath,
-    args: ["-m", "pip", "show", "openfic"],
+    args: ["-c", 'from importlib.metadata import version; print(version("openfic"))'],
   };
 }
 
-export function createOpenFicInstallCommand(venvPythonPath: string): Omit<SpawnCommand, "command"> {
+export function createOpenFicInstallCommand(
+  venvPythonPath: string,
+  version: string,
+  forceReinstall = false,
+): Omit<SpawnCommand, "command"> {
   return {
-    args: ["pip", "install", "--python", venvPythonPath, "openfic"],
+    args: ["pip", "install", "--python", venvPythonPath, ...(forceReinstall ? ["--reinstall"] : []), `openfic==${version}`],
   };
 }
 
 export function createOpenFicServeCommand(venvPythonPath: string, port: number): SpawnCommand {
   return {
-    command: getOpenFicCliPath(venvPythonPath),
+    command: resolveOpenFicCliPath(venvPythonPath),
     args: ["serve", "--host", "127.0.0.1", "--port", String(port)],
   };
 }

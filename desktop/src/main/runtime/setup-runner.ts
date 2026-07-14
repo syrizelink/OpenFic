@@ -1,8 +1,15 @@
-import type { WebContents } from "electron";
+import { app, type WebContents } from "electron";
+import { stat } from "node:fs/promises";
 import { IpcChannels, type SetupProgressEvent } from "../../shared/ipc.js";
-import { describeDownloadProgress, ensurePortablePython, resolveRuntimeDir } from "./python.js";
-import { ensureOpenFicRuntime, resolveVenvPythonPath, startLocalOpenFicBackend } from "./openfic.js";
+import { describeDownloadProgress, ensurePortablePython, inspectPortablePython, resolveRuntimeDir } from "./python.js";
+import {
+  ensureOpenFicRuntime,
+  inspectOpenFicRuntime,
+  resolveVenvPythonPath,
+  startLocalOpenFicBackend,
+} from "./openfic.js";
 import type { BackendProcessHandle } from "../process.js";
+import type { StartupProgressTracker } from "../startup-progress.js";
 
 function emitProgress(webContents: WebContents, event: SetupProgressEvent): void {
   webContents.send(IpcChannels.setupProgress, event);
@@ -44,14 +51,45 @@ export async function installLocalRuntime(webContents: WebContents, installDir: 
     },
   );
 
-  await ensureOpenFicRuntime(python, runtimeDir, (step, message) => beginStep(step, message));
+  await ensureOpenFicRuntime(python, runtimeDir, app.getVersion(), (step, message) => beginStep(step, message));
 
   if (currentStep) markDone(webContents, currentStep);
 
   return runtimeDir;
 }
 
-export async function startLocalBackendFromInstall(installDir: string): Promise<BackendProcessHandle> {
+export interface LocalRuntimeInspection {
+  status: "missing" | "incomplete" | "ready";
+  message: string;
+}
+
+export async function inspectLocalRuntime(installDir: string): Promise<LocalRuntimeInspection> {
   const runtimeDir = resolveRuntimeDir(installDir);
-  return startLocalOpenFicBackend(resolveVenvPythonPath(runtimeDir));
+  try {
+    if (!(await stat(runtimeDir)).isDirectory()) {
+      return { status: "incomplete", message: "运行环境路径不是目录" };
+    }
+  } catch {
+    return { status: "missing", message: "尚未安装本地运行环境" };
+  }
+
+  const python = await inspectPortablePython(runtimeDir);
+  if (!python.complete) return { status: "incomplete", message: python.message };
+
+  const openfic = await inspectOpenFicRuntime(runtimeDir, app.getVersion());
+  if (!openfic.complete) return { status: "incomplete", message: openfic.message };
+
+  return { status: "ready", message: openfic.message };
+}
+
+export async function startLocalBackendFromInstall(
+  installDir: string,
+  startupProgress?: StartupProgressTracker,
+): Promise<BackendProcessHandle> {
+  const inspection = await inspectLocalRuntime(installDir);
+  if (inspection.status !== "ready") {
+    throw new Error(`本地运行环境不完整：${inspection.message}。请先修复运行环境。`);
+  }
+  const runtimeDir = resolveRuntimeDir(installDir);
+  return startLocalOpenFicBackend(resolveVenvPythonPath(runtimeDir), app.getVersion(), startupProgress);
 }

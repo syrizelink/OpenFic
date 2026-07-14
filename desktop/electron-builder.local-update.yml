@@ -1,0 +1,34 @@
+appId: com.openfic.app
+productName: OpenFic
+
+directories:
+  output: dist-electron
+
+files:
+  - dist/**/*
+  - package.json
+
+extraResources:
+  - from: ../frontend/dist
+    to: frontend-dist
+    filter:
+      - "**/*"
+
+win:
+  artifactName: OpenFic-${version}-${arch}-win.${ext}
+  target:
+    - target: nsis
+      arch:
+        - x64
+        - arm64
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  artifactName: OpenFic-${version}-${arch}-win-setup.${ext}
+
+publish:
+  provider: generic
+  url: http://127.0.0.1:4567
+  updaterCacheDirName: openfic-desktop-updater
+  useMultipleRangeRequest: false

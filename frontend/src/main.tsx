@@ -39,6 +39,8 @@ const queryClient = new QueryClient({
   },
 });
 
+const FRONTEND_VERSION = __OPENFIC_FRONTEND_VERSION__;
+
 const DashboardPage = lazy(() =>
   import("./features/dashboard/pages/dashboard-page").then((module) => ({
     default: module.DashboardPage,
@@ -106,7 +108,6 @@ function AppContent({
 function Root() {
   const [appearance, setAppearance] = useState<"light" | "dark">("light");
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [version, setVersion] = useState("");
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState(false);
 
@@ -123,7 +124,7 @@ function Root() {
       try {
         await loadRuntimeConfig();
 
-        const [health, settings] = await Promise.all([
+        const [, settings] = await Promise.all([
           checkHealth(),
           queryClient.fetchQuery({
             queryKey: ["settings"],
@@ -139,7 +140,6 @@ function Root() {
 
         if (mounted) {
           setSettings(settings);
-          setVersion(health.version);
           setAppearance(settings.theme);
           setIsReady(true);
         }
@@ -191,7 +191,7 @@ function Root() {
             ) : (
               <AppContent
                 appearance={appearance}
-                version={version}
+                version={FRONTEND_VERSION}
                 setAppearance={setAppearance}
                 toggleTheme={toggleTheme}
               />
