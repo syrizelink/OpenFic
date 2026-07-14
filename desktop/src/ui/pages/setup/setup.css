@@ -139,6 +139,12 @@
   gap: 18px;
 }
 
+.setup-startup-error {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
 .setup-field {
   display: flex;
   flex-direction: column;
@@ -269,9 +275,9 @@
 /* busy / status states */
 .setup-status {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 16px;
+  justify-content: center;
+  gap: 8px;
   padding: 8px 0 4px;
 }
 

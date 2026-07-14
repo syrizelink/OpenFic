@@ -1,3 +1,4 @@
+import { net } from "electron";
 import { createWriteStream } from "node:fs";
 import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
@@ -11,7 +12,7 @@ export async function downloadFile(
   onProgress?: (received: number, total: number) => void,
 ): Promise<void> {
   await mkdir(path.dirname(outputPath), { recursive: true });
-  const response = await fetch(url);
+  const response = await net.fetch(url);
   if (!response.ok || !response.body) {
     throw new Error(`failed to download ${url}: ${response.status}`);
   }

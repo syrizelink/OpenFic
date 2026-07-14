@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useState, type CSSProperties, type MouseEvent } from "react";
 import { Link2, Link2Off, Minus, Plus, RefreshCw, Square, Star, Trash2, X } from "lucide-react";
 import type { DesktopConfig, DesktopInstance } from "../../shared/config";
+import type { UpdateState } from "../../shared/ipc";
 
 interface DesktopHeaderProps {
   activeInstanceId: string | null;
@@ -9,6 +10,11 @@ interface DesktopHeaderProps {
   onAddInstance: () => void;
   onSaveConfig: (config: DesktopConfig) => Promise<void>;
   onSwitchInstance: (instanceId: string) => Promise<void>;
+  instancePanelOpen: boolean;
+  onInstancePanelOpenChange: (open: boolean) => void;
+  canCheckForUpdates: boolean;
+  updateState: UpdateState;
+  onUpdateAction: () => void;
 }
 
 type PingState =
@@ -33,14 +39,46 @@ function sortInstances(instances: DesktopInstance[]): DesktopInstance[] {
   return [...instances].sort((left, right) => Number(Boolean(right.favorite)) - Number(Boolean(left.favorite)));
 }
 
-export function DesktopHeader({ activeInstanceId, config, disabled, onAddInstance, onSaveConfig, onSwitchInstance }: DesktopHeaderProps) {
-  const [panelOpen, setPanelOpen] = useState(false);
+export function DesktopHeader({
+  activeInstanceId,
+  config,
+  disabled,
+  onAddInstance,
+  onSaveConfig,
+  onSwitchInstance,
+  instancePanelOpen,
+  onInstancePanelOpenChange,
+  canCheckForUpdates,
+  updateState,
+  onUpdateAction,
+}: DesktopHeaderProps) {
   const [panelVisible, setPanelVisible] = useState(false);
   const [pingStates, setPingStates] = useState<Record<string, PingState>>({});
   const [switchingId, setSwitchingId] = useState<string | null>(null);
-  const rootRef = useRef<HTMLDivElement | null>(null);
   const instances = sortInstances(config?.instances ?? []);
   const hasUsableRuntime = instances.some((instance) => pingStates[instance.id]?.status === "ok") || Boolean(activeInstanceId);
+  const updateProgress = Math.min(Math.max(updateState.progress ?? 0, 0), 1);
+  const updateProgressStyle = { "--update-progress": String(updateProgress) } as CSSProperties;
+  const isCheckingForUpdate = updateState.status === "checking";
+  const isDownloadingUpdate = updateState.status === "downloading";
+  const updateIconState = isCheckingForUpdate
+    ? "checking"
+    : isDownloadingUpdate
+      ? "downloading"
+      : updateState.status === "available" || updateState.status === "downloaded"
+        ? "available"
+        : updateState.status === "error"
+          ? "error"
+          : "idle";
+  const updateAriaLabel = isDownloadingUpdate
+    ? `正在下载更新，${Math.round(updateProgress * 100)}%`
+    : isCheckingForUpdate
+      ? "正在检查更新"
+      : updateIconState === "available"
+        ? "发现更新"
+        : updateIconState === "error"
+          ? "更新失败，点击重试"
+          : "检查更新";
 
   const refreshPings = () => {
     if (!instances.length) return;
@@ -66,40 +104,32 @@ export function DesktopHeader({ activeInstanceId, config, disabled, onAddInstanc
   };
 
   useEffect(() => {
-    if (panelOpen) refreshPings();
-  }, [panelOpen, config?.activeInstanceId, instances.length]);
+    if (instancePanelOpen) refreshPings();
+  }, [instancePanelOpen, config?.activeInstanceId, instances.length]);
 
   useEffect(() => {
-    if (panelOpen) {
+    if (instancePanelOpen) {
       setPanelVisible(true);
       return;
     }
 
     const timeout = window.setTimeout(() => setPanelVisible(false), 160);
     return () => window.clearTimeout(timeout);
-  }, [panelOpen]);
-
-  useEffect(() => {
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setPanelOpen(false);
-    };
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, []);
+  }, [instancePanelOpen]);
 
   const handleSwitch = async (instanceId: string) => {
     if (instanceId === activeInstanceId || switchingId) return;
     setSwitchingId(instanceId);
     try {
       await onSwitchInstance(instanceId);
-      setPanelOpen(false);
+      onInstancePanelOpenChange(false);
     } finally {
       setSwitchingId(null);
     }
   };
 
   const handleAddInstance = () => {
-    setPanelOpen(false);
+    onInstancePanelOpenChange(false);
     onAddInstance();
   };
 
@@ -131,7 +161,7 @@ export function DesktopHeader({ activeInstanceId, config, disabled, onAddInstanc
     await onSaveConfig(nextConfig);
     if (config.activeInstanceId === instance.id && nextActiveInstanceId) {
       await onSwitchInstance(nextActiveInstanceId);
-      setPanelOpen(false);
+      onInstancePanelOpenChange(false);
     }
   };
 
@@ -139,14 +169,32 @@ export function DesktopHeader({ activeInstanceId, config, disabled, onAddInstanc
     <header className="desktop-header">
       <div className="desktop-titlebar-brand">OpenFic</div>
       <div className="desktop-titlebar-actions">
-        <div className="instance-switcher" ref={rootRef}>
+        <button
+          className="titlebar-button titlebar-update-button"
+          data-update-state={updateIconState}
+          aria-label={updateAriaLabel}
+          aria-busy={isCheckingForUpdate || isDownloadingUpdate}
+          type="button"
+          disabled={!canCheckForUpdates}
+          onClick={onUpdateAction}
+        >
+          {isCheckingForUpdate ? <RefreshCw className="titlebar-update-checking" size={15} strokeWidth={2} /> : null}
+          {isDownloadingUpdate ? (
+            <svg className="titlebar-update-progress" style={updateProgressStyle} viewBox="0 0 20 20" aria-hidden="true">
+              <circle className="titlebar-update-progress-track" cx="10" cy="10" r="7" />
+              <circle className="titlebar-update-progress-value" cx="10" cy="10" r="7" />
+            </svg>
+          ) : null}
+          {!isCheckingForUpdate && !isDownloadingUpdate ? <RefreshCw size={15} strokeWidth={2} /> : null}
+        </button>
+        <div className="instance-switcher">
           <button
             className="titlebar-button titlebar-link-button"
             data-connected={hasUsableRuntime}
             aria-label="实例"
             type="button"
             disabled={disabled}
-            onClick={() => setPanelOpen((open) => !open)}
+            onClick={() => onInstancePanelOpenChange(!instancePanelOpen)}
           >
             {hasUsableRuntime ? <Link2 size={15} strokeWidth={2} /> : <Link2Off size={15} strokeWidth={2} />}
           </button>
@@ -154,12 +202,12 @@ export function DesktopHeader({ activeInstanceId, config, disabled, onAddInstanc
             <>
               <button
                 className="instance-panel-scrim"
-                data-state={panelOpen ? "open" : "closed"}
+                data-state={instancePanelOpen ? "open" : "closed"}
                 type="button"
                 aria-label="关闭实例面板"
-                onClick={() => setPanelOpen(false)}
+                onClick={() => onInstancePanelOpenChange(false)}
               />
-              <div className="instance-panel" data-state={panelOpen ? "open" : "closed"} role="dialog" aria-label="实例">
+              <div className="instance-panel" data-state={instancePanelOpen ? "open" : "closed"} role="dialog" aria-label="实例">
                 <div className="instance-panel-head">
                   <div>
                     <p className="instance-panel-title">切换实例</p>

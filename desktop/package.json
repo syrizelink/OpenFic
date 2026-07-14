@@ -12,23 +12,27 @@
     "build:setup": "vp build",
     "type-check": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
     "lint": "eslint . --ext .js,.jsx,.mjs,.ts,.tsx,.mts",
-    "package": "electron-builder --config electron-builder.yml"
+    "package": "electron-builder --config electron-builder.yml",
+    "package:local-update": "node scripts/package-local-update.mjs",
+    "serve:local-update": "node scripts/serve-local-update.mjs"
   },
   "dependencies": {
     "@radix-ui/themes": "^3.3.0",
+    "electron-updater": "^6.8.9",
     "lucide-react": "^1.22.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "react-markdown": "^10.1.0",
     "scheduler": "^0.27.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
-    "@vitejs/plugin-react": "^6.0.3",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.59.2",
     "@typescript-eslint/parser": "^8.59.2",
+    "@vitejs/plugin-react": "^6.0.3",
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8",
     "eslint": "^9.39.4",

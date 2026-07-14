@@ -14,12 +14,31 @@ export interface StartBackendOptions {
   args: string[];
   port: number;
   dataDir?: string;
+  environment?: NodeJS.ProcessEnv;
+  onOutputLine?: (line: string) => void;
 }
 
 export function getBackendLogPath(): string {
   const logsDir = path.join(app.getPath("userData"), "logs");
   mkdirSync(logsDir, { recursive: true });
   return path.join(logsDir, "backend.log");
+}
+
+function observeOutputLines(stream: NodeJS.ReadableStream, onLine: (line: string) => void): void {
+  let buffer = "";
+  stream.on("data", (chunk: Buffer | string) => {
+    buffer += (typeof chunk === "string" ? chunk : chunk.toString("utf8")).replace(/\r/g, "\n");
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      const text = line.trim();
+      if (text) onLine(text);
+    }
+  });
+  stream.on("end", () => {
+    const text = buffer.trim();
+    if (text) onLine(text);
+  });
 }
 
 export function startBackendProcess(options: StartBackendOptions): BackendProcessHandle {
@@ -34,12 +53,17 @@ export function startBackendProcess(options: StartBackendOptions): BackendProces
       OPENFIC_SERVER_HOST: "127.0.0.1",
       OPENFIC_SERVER_PORT: String(options.port),
       OPENFIC_DATA_DIR: dataDir,
+      ...options.environment,
     },
     windowsHide: true,
   });
 
   child.stdout.pipe(logStream);
   child.stderr.pipe(logStream);
+  if (options.onOutputLine) {
+    observeOutputLines(child.stdout, options.onOutputLine);
+    observeOutputLines(child.stderr, options.onOutputLine);
+  }
 
   return {
     process: child,

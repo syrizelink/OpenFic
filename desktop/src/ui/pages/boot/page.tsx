@@ -1,19 +1,18 @@
+import { StartupProgress } from "../../components/startup-progress";
+import type { StartupProgressEvent } from "../../../shared/ipc";
+
 interface BootPageProps {
   error: string | null;
+  progress: StartupProgressEvent | null;
 }
 
-export function BootPage({ error }: BootPageProps) {
+export function BootPage({ error, progress }: BootPageProps) {
   return (
-    <section className="content-page content-page-centered">
-      <section className="setup-card">
-        <p className="eyebrow">OpenFic Desktop</p>
-        <h1>正在准备 OpenFic</h1>
-        <p className="description">正在检查现有配置与后端状态。</p>
-        <div className="boot-state">
-          <div className="boot-spinner" aria-hidden="true" />
-          {error ? <p className="error">{error}</p> : null}
-        </div>
-      </section>
+    <section className="content-page content-page-centered startup-page">
+      <div className="boot-state">
+        <StartupProgress bare progress={progress} />
+        {error ? <p className="error">{error}</p> : null}
+      </div>
     </section>
   );
 }
