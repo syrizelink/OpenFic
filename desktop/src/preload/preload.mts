@@ -1,3 +1,5 @@
+import { contextBridge, ipcRenderer } from "electron";
+import { fileURLToPath } from "node:url";
 import {
   IpcChannels,
   type CheckDirectoryEmptyRequest,
@@ -14,11 +16,6 @@ import {
   type SwitchInstanceRequest,
 } from "../shared/ipc.js";
 import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
-import path from "node:path";
-
-const electron = require("electron") as typeof import("electron");
-
-const { contextBridge, ipcRenderer } = electron;
 
 const desktopApi = {
   getConfig: (): Promise<DesktopConfig | null> => ipcRenderer.invoke(IpcChannels.getConfig),
@@ -43,7 +40,7 @@ const desktopApi = {
     ipcRenderer.invoke(IpcChannels.checkDirectoryEmpty, { path: dirPath } satisfies CheckDirectoryEmptyRequest),
   closeSetup: (): Promise<void> => ipcRenderer.invoke(IpcChannels.closeSetup),
   showSetup: (): Promise<void> => ipcRenderer.invoke(IpcChannels.showSetup),
-  frontendHostPreloadPath: path.join(__dirname, "frontend-host-preload.js"),
+  frontendHostPreloadPath: fileURLToPath(new URL("./frontend-host-preload.mjs", import.meta.url)),
   minimizeWindow: (): Promise<void> => ipcRenderer.invoke(IpcChannels.minimizeWindow),
   toggleMaximizeWindow: (): Promise<void> => ipcRenderer.invoke(IpcChannels.toggleMaximizeWindow),
   closeWindow: (): Promise<void> => ipcRenderer.invoke(IpcChannels.closeWindow),

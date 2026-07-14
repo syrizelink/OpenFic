@@ -1,11 +1,8 @@
+import { app, net, protocol, session } from "electron";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { RuntimeConfigResponse } from "../shared/config.js";
-
-const electron = require("electron") as typeof import("electron");
-
-const { app, net, protocol, session } = electron;
 
 let runtimeConfig: RuntimeConfigResponse | null = null;
 const registeredPartitions = new Set<string>();

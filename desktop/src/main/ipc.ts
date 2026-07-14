@@ -1,4 +1,4 @@
-import type { BrowserWindow } from "electron";
+import { dialog, ipcMain, type BrowserWindow } from "electron";
 import { readdir, stat } from "node:fs/promises";
 import {
   IpcChannels,
@@ -21,10 +21,6 @@ import { installLocalRuntime, startLocalBackendFromInstall } from "./runtime/set
 import { getDefaultInstallDir } from "./runtime/python.js";
 import type { BackendProcessHandle } from "./process.js";
 import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
-
-const electron = require("electron") as typeof import("electron");
-
-const { ipcMain, dialog } = electron;
 
 export interface IpcContext {
   shellWindow: () => BrowserWindow | null;

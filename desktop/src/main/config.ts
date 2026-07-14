@@ -1,10 +1,7 @@
+import { app } from "electron";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { defaultDesktopConfig, type DesktopConfig, type DesktopInstance } from "../shared/config.js";
-
-const electron = require("electron") as typeof import("electron");
-
-const { app } = electron;
 
 function getConfigPath(): string {
   return path.join(app.getPath("userData"), "config.json");
