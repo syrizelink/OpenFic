@@ -4,8 +4,8 @@ import path from "node:path";
 
 const outputDirectory = path.resolve(process.argv[2] ?? "dist-electron");
 const packageJson = JSON.parse(await readFile(path.resolve("package.json"), "utf8"));
-const version = packageJson.version;
-const architectures = ["x64", "arm64"];
+const version = process.env.OPENFIC_UPDATE_VERSION ?? packageJson.version;
+const architectures = ["x86_64", "aarch64"];
 
 async function exists(filePath) {
   try {
@@ -34,17 +34,45 @@ for (const fileName of [universalInstaller, `${universalInstaller}.blockmap`]) {
 }
 
 const files = await Promise.all(
-  architectures.map((arch) => getFileInfo(`OpenFic-${version}-${arch}-win-setup.exe`)),
+  architectures.map(async (architecture) => ({
+    architecture,
+    ...(await getFileInfo(`OpenFic-${version}-win-${architecture}-setup.exe`)),
+  })),
 );
-const primaryFile = files[0];
-const latestYml = [
+const releaseDate = new Date().toISOString();
+
+function createUpdateInfo(file, compatibilityArchitecture) {
+  const url = compatibilityArchitecture ? `${file.fileName}?arch=${compatibilityArchitecture}` : file.fileName;
+  return [
+    `version: ${version}`,
+    "files:",
+    `  - url: ${url}`,
+    `    sha512: ${file.sha512}`,
+    `    size: ${file.size}`,
+    `path: ${url}`,
+    `sha512: ${file.sha512}`,
+    `releaseDate: '${releaseDate}'`,
+    "",
+  ].join("\n");
+}
+
+const legacyArchitectures = ["x64", "arm64"];
+const legacyLatestYml = [
   `version: ${version}`,
   "files:",
-  ...files.flatMap((file) => [`  - url: ${file.fileName}`, `    sha512: ${file.sha512}`, `    size: ${file.size}`]),
-  `path: ${primaryFile.fileName}`,
-  `sha512: ${primaryFile.sha512}`,
-  `releaseDate: '${new Date().toISOString()}'`,
+  ...files.flatMap((file, index) => [
+    `  - url: ${file.fileName}?arch=${legacyArchitectures[index]}`,
+    `    sha512: ${file.sha512}`,
+    `    size: ${file.size}`,
+  ]),
+  `path: ${files[0].fileName}?arch=${legacyArchitectures[0]}`,
+  `sha512: ${files[0].sha512}`,
+  `releaseDate: '${releaseDate}'`,
   "",
 ].join("\n");
 
-await writeFile(path.join(outputDirectory, "latest.yml"), latestYml, "utf8");
+await Promise.all([
+  // Older clients select Windows assets by x64/arm64 substring; query aliases retain that compatibility.
+  writeFile(path.join(outputDirectory, "latest.yml"), legacyLatestYml, "utf8"),
+  ...files.map((file) => writeFile(path.join(outputDirectory, `latest-win-${file.architecture}.yml`), createUpdateInfo(file), "utf8")),
+]);

@@ -56,4 +56,5 @@ await run([
   "never",
   ...versionConfig,
 ]);
+await runNode(["scripts/normalize-artifact-names.mjs"]);
 await runNode(["scripts/prepare-windows-update.mjs"]);

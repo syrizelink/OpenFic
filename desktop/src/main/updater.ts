@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import electronUpdater, { CancellationToken, NsisUpdater, type ProgressInfo, type UpdateInfo } from "electron-updater";
 import { IpcChannels, type UpdateState } from "../shared/ipc.js";
-import { isAutoUpdateSupported } from "./update-support.js";
+import { getUpdateArchitectureName, isAutoUpdateSupported } from "./update-support.js";
 import { configureSystemProxy } from "./proxy.js";
 
 const { autoUpdater } = electronUpdater;
@@ -80,8 +80,16 @@ export async function initializeUpdater(window: BrowserWindow): Promise<void> {
     return;
   }
 
+  const updateArchitecture = getUpdateArchitectureName({ platform: process.platform, arch: process.arch });
+  if (!updateArchitecture) {
+    publishState({ status: "unsupported" });
+    return;
+  }
+
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
+  autoUpdater.channel = `latest-win-${updateArchitecture}`;
+  autoUpdater.allowDowngrade = false;
   configurePortableInstallDirectory();
   autoUpdater.on("checking-for-update", () => publishState({ status: "checking" }));
   autoUpdater.on("update-available", onUpdateAvailable);

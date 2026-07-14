@@ -12,7 +12,7 @@
     "build:setup": "vp build",
     "type-check": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
     "lint": "eslint . --ext .js,.jsx,.mjs,.ts,.tsx,.mts",
-    "package": "electron-builder --config electron-builder.yml",
+    "package": "electron-builder --config electron-builder.yml && node scripts/normalize-artifact-names.mjs",
     "package:local-update": "node scripts/package-local-update.mjs",
     "serve:local-update": "node scripts/serve-local-update.mjs"
   },
