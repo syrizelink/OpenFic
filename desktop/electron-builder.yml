@@ -19,6 +19,8 @@ extraResources:
     to: frontend-dist
     filter:
       - "**/*"
+  - from: resources/app-update.yml
+    to: app-update.yml
 
 win:
   artifactName: OpenFic-${version}-win-${arch}.${ext}

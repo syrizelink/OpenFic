@@ -12,6 +12,7 @@ let shellWindow: BrowserWindow | null = null;
 let updateState: UpdateState = { status: "idle" };
 let initialized = false;
 let downloadCancellationToken: CancellationToken | null = null;
+const releaseNotesByVersion = new Map<string, string>();
 
 function publishState(nextState: UpdateState): void {
   updateState = nextState;
@@ -22,7 +23,7 @@ function describeError(error: Error): string {
   return error.message || "更新服务暂时不可用";
 }
 
-function getReleaseNotes(info: UpdateInfo): string | undefined {
+function getUpdaterReleaseNotes(info: UpdateInfo): string | undefined {
   if (typeof info.releaseNotes === "string") return info.releaseNotes.trim() || undefined;
   if (!Array.isArray(info.releaseNotes)) return undefined;
   const notes = info.releaseNotes
@@ -31,8 +32,36 @@ function getReleaseNotes(info: UpdateInfo): string | undefined {
   return notes.length ? notes.join("\n\n") : undefined;
 }
 
-function onUpdateAvailable(info: UpdateInfo): void {
-  publishState({ status: "available", version: info.version, releaseNotes: getReleaseNotes(info) });
+async function getReleaseNotes(info: UpdateInfo): Promise<string | undefined> {
+  const cachedReleaseNotes = releaseNotesByVersion.get(info.version);
+  if (cachedReleaseNotes) return cachedReleaseNotes;
+
+  try {
+    const response = await autoUpdater.netSession.fetch(
+      `https://api.github.com/repos/syrizelink/OpenFic/releases/tags/v${encodeURIComponent(info.version)}`,
+      { headers: { Accept: "application/vnd.github+json" } },
+    );
+    if (!response.ok) return getUpdaterReleaseNotes(info);
+
+    const release = (await response.json()) as { body?: unknown };
+    const releaseNotes = typeof release.body === "string" && release.body.trim() ? release.body.trim() : getUpdaterReleaseNotes(info);
+    if (releaseNotes) releaseNotesByVersion.set(info.version, releaseNotes);
+    return releaseNotes;
+  } catch {
+    const releaseNotes = getUpdaterReleaseNotes(info);
+    if (releaseNotes) releaseNotesByVersion.set(info.version, releaseNotes);
+    return releaseNotes;
+  }
+}
+
+async function enrichReleaseNotes(info: UpdateInfo): Promise<void> {
+  const releaseNotes = await getReleaseNotes(info);
+  if (
+    updateState.version === info.version
+    && ["available", "downloading", "downloaded"].includes(updateState.status)
+  ) {
+    publishState({ ...updateState, releaseNotes });
+  }
 }
 
 function onDownloadProgress(progress: ProgressInfo): void {
@@ -44,10 +73,6 @@ function onDownloadProgress(progress: ProgressInfo): void {
     total: progress.total,
     bytesPerSecond: progress.bytesPerSecond,
   });
-}
-
-function onUpdateCancelled(info: UpdateInfo): void {
-  publishState({ status: "available", version: info.version, releaseNotes: getReleaseNotes(info) });
 }
 
 function canUseAutoUpdater(): boolean {
@@ -92,11 +117,17 @@ export async function initializeUpdater(window: BrowserWindow): Promise<void> {
   autoUpdater.allowDowngrade = false;
   configurePortableInstallDirectory();
   autoUpdater.on("checking-for-update", () => publishState({ status: "checking" }));
-  autoUpdater.on("update-available", onUpdateAvailable);
+  autoUpdater.on("update-available", (info) => {
+    publishState({ status: "available", version: info.version, releaseNotes: getUpdaterReleaseNotes(info) });
+    void enrichReleaseNotes(info);
+  });
   autoUpdater.on("update-not-available", () => publishState({ status: "not-available" }));
   autoUpdater.on("download-progress", onDownloadProgress);
-  autoUpdater.on("update-cancelled", onUpdateCancelled);
-  autoUpdater.on("update-downloaded", (info) => publishState({ status: "downloaded", version: info.version, releaseNotes: getReleaseNotes(info) }));
+  autoUpdater.on("update-cancelled", (info) => {
+    publishState({ status: "available", version: info.version, releaseNotes: releaseNotesByVersion.get(info.version) ?? getUpdaterReleaseNotes(info) });
+    void enrichReleaseNotes(info);
+  });
+  autoUpdater.on("update-downloaded", (info) => publishState({ status: "downloaded", version: info.version, releaseNotes: releaseNotesByVersion.get(info.version) ?? getUpdaterReleaseNotes(info) }));
   autoUpdater.on("error", (error) => publishState({ status: "error", message: describeError(error) }));
   publishState({ status: "idle" });
 }

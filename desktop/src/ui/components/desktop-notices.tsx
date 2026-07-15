@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, ChevronRight, Download, ExternalLink, PackageSearch, RefreshCw, RotateCcw, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 import type { UpdateState } from "../../shared/ipc";
 
 interface DesktopNoticesProps {
@@ -32,6 +34,7 @@ function ReleaseNotes({ releaseNotes }: { releaseNotes: string }) {
   return (
     <div className="desktop-release-notes-content">
       <ReactMarkdown
+        rehypePlugins={[rehypeRaw, rehypeSanitize]}
         components={{
           a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a>,
         }}
