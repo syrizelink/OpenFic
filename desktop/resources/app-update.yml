@@ -1,0 +1,4 @@
+provider: github
+owner: syrizelink
+repo: OpenFic
+releaseType: release
