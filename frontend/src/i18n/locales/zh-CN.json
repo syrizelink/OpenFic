@@ -32,6 +32,7 @@
   },
   "topbar": {
     "projects": "项目",
+    "recentProjects": "最近打开的项目",
     "workspace": "世界书",
     "characters": "角色",
     "promptChains": "提示词",

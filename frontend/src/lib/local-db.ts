@@ -7,6 +7,12 @@
 
 import Dexie, { type EntityTable } from "dexie";
 
+import {
+  getRandomRecentProjectColor,
+  insertRecentProject,
+  type RecentProject,
+} from "./recent-projects";
+
 /**
  * 项目最后访问的章节记录
  */
@@ -76,6 +82,7 @@ class OpenFicDB extends Dexie {
   projectTabs!: EntityTable<ProjectTabs, "projectId">;
   userPreferences!: EntityTable<UserPreference, "key">;
   promptChainWorkingCopies!: EntityTable<PromptChainWorkingCopy, "chainId">;
+  recentProjects!: EntityTable<RecentProject, "slot">;
 
   constructor() {
     super("OpenFicDB");
@@ -109,6 +116,14 @@ class OpenFicDB extends Dexie {
       projectTabs: "projectId, updatedAt",
       userPreferences: "key, updatedAt",
       promptChainWorkingCopies: "chainId, updatedAt",
+    });
+
+    this.version(6).stores({
+      projectLastChapters: "projectId, updatedAt",
+      projectTabs: "projectId, updatedAt",
+      userPreferences: "key, updatedAt",
+      promptChainWorkingCopies: "chainId, updatedAt",
+      recentProjects: "slot, projectId, openedAt",
     });
   }
 }
@@ -244,6 +259,61 @@ export async function deletePreference(key: string): Promise<void> {
     await db.userPreferences.delete(key);
   } catch {
     console.error("删除用户偏好失败");
+  }
+}
+
+// ==================== 最近项目 ====================
+
+/**
+ * 获取三个固定槽位中的最近项目记录。
+ */
+export async function getRecentProjects(): Promise<RecentProject[]> {
+  try {
+    return await db.recentProjects.orderBy("slot").toArray();
+  } catch {
+    console.error("获取最近项目失败");
+    return [];
+  }
+}
+
+/**
+ * 将项目置于首槽位，并将原有记录依次后移。
+ */
+export async function openRecentProject(
+  projectId: string,
+  title: string,
+): Promise<RecentProject[] | null> {
+  try {
+    return await db.transaction("rw", db.recentProjects, async () => {
+      const recentProjects = await db.recentProjects.orderBy("slot").toArray();
+      const recentProject = recentProjects.find((project) => project.projectId === projectId);
+      const nextProjects = insertRecentProject(recentProjects, {
+        projectId,
+        title,
+        color: recentProject?.color ?? getRandomRecentProjectColor(recentProjects),
+      });
+
+      await db.recentProjects.clear();
+      await db.recentProjects.bulkPut(nextProjects);
+
+      return nextProjects;
+    });
+  } catch {
+    console.error("保存最近项目失败");
+    return null;
+  }
+}
+
+/**
+ * 移除指定槽位的最近项目，不移动其他槽位。
+ */
+export async function removeRecentProject(slot: number): Promise<boolean> {
+  try {
+    await db.recentProjects.delete(slot);
+    return true;
+  } catch {
+    console.error("移除最近项目失败");
+    return false;
   }
 }
 
