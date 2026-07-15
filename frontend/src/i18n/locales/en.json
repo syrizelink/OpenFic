@@ -32,6 +32,7 @@
   },
   "topbar": {
     "projects": "Projects",
+    "recentProjects": "Recently opened projects",
     "workspace": "World Book",
     "characters": "Characters",
     "promptChains": "Prompt",

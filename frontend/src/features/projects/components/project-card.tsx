@@ -83,18 +83,49 @@ export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
 
       {/* 项目信息 */}
       <Box>
+        <Text
+          size="3"
+          weight="bold"
+          style={{ display: "block" }}
+          truncate
+        >
+          {project.title}
+        </Text>
+
         <Flex
-          justify="between"
-          align="start"
-          mb="1"
+          gap="2"
+          align="center"
         >
           <Text
-            size="3"
-            weight="bold"
-            style={{ flex: 1 }}
-            truncate
+            size="1"
+            color="gray"
           >
-            {project.title}
+            {project.wordCount.toLocaleString()} {t("projects.words")}
+          </Text>
+          <Text
+            size="1"
+            color="gray"
+          >
+            ·
+          </Text>
+          <Text
+            size="1"
+            color="gray"
+          >
+            {project.chapterCount} {t("projects.chapters")}
+          </Text>
+        </Flex>
+
+        <Flex
+          justify="between"
+          align="center"
+          mt="1"
+        >
+          <Text
+            size="1"
+            color="gray"
+          >
+            {formatRelativeTime(project.updatedAt)}
           </Text>
           <Flex
             gap="3"
@@ -127,38 +158,6 @@ export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
             </Tooltip>
           </Flex>
         </Flex>
-
-        <Flex
-          gap="2"
-          align="center"
-        >
-          <Text
-            size="1"
-            color="gray"
-          >
-            {project.wordCount.toLocaleString()} {t("projects.words")}
-          </Text>
-          <Text
-            size="1"
-            color="gray"
-          >
-            ·
-          </Text>
-          <Text
-            size="1"
-            color="gray"
-          >
-            {project.chapterCount} {t("projects.chapters")}
-          </Text>
-        </Flex>
-
-        <Text
-          size="1"
-          color="gray"
-          mt="1"
-        >
-          {formatRelativeTime(project.updatedAt)}
-        </Text>
       </Box>
     </MotionCard>
   );
