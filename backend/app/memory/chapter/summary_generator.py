@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Structured summary generation using tool calls."""
 
+import json
 from dataclasses import dataclass
 from typing import Any
 from xml.sax.saxutils import escape
@@ -18,7 +19,7 @@ from app.memory.chapter.summary_tools import (
 from app.models.clients import LLMClient
 from app.storage.models.chapter import Chapter
 from app.storage.models.chapter_summary import ChapterSummary
-from app.storage.repos import chapter_repo
+from app.storage.repos import chapter_repo, chapter_summary_repo
 from app.storage.services import prompt_chain_service
 
 
@@ -72,11 +73,10 @@ async def _get_prompt_entries(
     ]
 
 
-async def _build_prompt_messages(
+async def _build_system_messages(
     session: AsyncSession,
     *,
     prompt_id: str,
-    target_xml: str,
 ) -> list[SystemMessage]:
     compiler = PromptChainCompiler()
     compile_result = await compiler.compile(entries=await _get_prompt_entries(session, prompt_id))
@@ -86,25 +86,51 @@ async def _build_prompt_messages(
         for entry in compile_result.entries
         if entry.role == "system" and entry.content
     ]
-    messages.append(SystemMessage(content=target_xml))
     return messages
 
 
-def _chapter_target_message(chapter: Chapter) -> str:
+def _xml_tag(name: str, value: str) -> str:
+    return f"<{name}>{escape(value)}</{name}>"
+
+
+def _summary_list_value(value: str) -> str:
+    try:
+        items = json.loads(value)
+    except json.JSONDecodeError:
+        return ""
+    return value if isinstance(items, list) and items else ""
+
+
+def _previous_chapter_message(chapter: Chapter, summary: ChapterSummary | None) -> str:
+    parts = [
+        _xml_tag("title", chapter.title) if chapter.title else "",
+        _xml_tag("start_time", summary.start_time) if summary and summary.start_time else "",
+        _xml_tag("end_time", summary.end_time) if summary and summary.end_time else "",
+        _xml_tag("characters", _summary_list_value(summary.characters_json)) if summary else "",
+        _xml_tag("locations", _summary_list_value(summary.locations_json)) if summary else "",
+        _xml_tag("content", chapter.content) if chapter.content else "",
+    ]
+    content = "\n  ".join(part for part in parts if part)
     return (
-        "<target>\n"
-        f"  <chapter_title>{escape(chapter.title)}</chapter_title>\n"
-        f"  <chapter_content>{escape(chapter.content)}</chapter_content>\n"
-        "</target>"
+        "以下部分是上一个章节的有关内容，用以帮助你连贯的理解剧情信息，该部分与你要总结的内容**无关**。\n"
+        "<previous_chapter>\n"
+        f"  {content}\n"
+        "</previous_chapter>"
+    )
+
+
+def _target_chapter_message(chapter: Chapter) -> str:
+    return (
+        "以下部分是你需要总结的章节内容。\n"
+        "<target_chapter>\n"
+        f"  {_xml_tag('title', chapter.title)}\n"
+        f"  {_xml_tag('content', chapter.content)}\n"
+        "</target_chapter>"
     )
 
 
 def _summaries_target_message(chapter_summaries: str) -> str:
-    return (
-        "<target>\n"
-        f"  <summaries>{escape(chapter_summaries)}</summaries>\n"
-        "</target>"
-    )
+    return "以下部分是你需要总结的摘要内容\n" f"{chapter_summaries}"
 
 
 def _usage_token_count(usage: dict[str, Any] | None, fallback_text: str) -> int:
@@ -133,15 +159,6 @@ def _clean_text(value: Any) -> str:
     return str(value or "").strip()
 
 
-async def generate_chapter_summary(
-    session: AsyncSession,
-    llm_client: LLMClient,
-    chapter_id: str,
-) -> GeneratedChapterSummary:
-    prompt = await build_chapter_summary_prompt(session, chapter_id)
-    return await generate_chapter_summary_from_prompt(llm_client, prompt)
-
-
 async def build_chapter_summary_prompt(
     session: AsyncSession,
     chapter_id: str,
@@ -150,11 +167,16 @@ async def build_chapter_summary_prompt(
     if not chapter:
         raise NotFoundError(f"章节不存在: {chapter_id}")
 
-    messages = await _build_prompt_messages(
+    messages = await _build_system_messages(
         session,
         prompt_id="memory-chapter-summary",
-        target_xml=_chapter_target_message(chapter),
     )
+    chapters = await chapter_repo.list_by_volume(session, chapter.volume_id)
+    previous_chapter = next((item for item in reversed(chapters) if item.order < chapter.order), None)
+    if previous_chapter:
+        previous_summary = await chapter_summary_repo.get_by_chapter_id(session, previous_chapter.id)
+        messages.append(SystemMessage(content=_previous_chapter_message(previous_chapter, previous_summary)))
+    messages.append(SystemMessage(content=_target_chapter_message(chapter)))
     return ChapterSummaryPrompt(messages=messages)
 
 
@@ -182,16 +204,6 @@ async def generate_chapter_summary_from_prompt(
     )
 
 
-async def generate_long_term_summary(
-    session: AsyncSession,
-    llm_client: LLMClient,
-    chapter_summaries: list[ChapterSummary],
-    chapters: list[Chapter],
-) -> GeneratedLongTermSummary:
-    prompt = await build_long_term_summary_prompt(session, chapter_summaries, chapters)
-    return await generate_long_term_summary_from_prompt(llm_client, prompt)
-
-
 async def build_long_term_summary_prompt(
     session: AsyncSession,
     chapter_summaries: list[ChapterSummary],
@@ -199,21 +211,37 @@ async def build_long_term_summary_prompt(
 ) -> LongTermSummaryPrompt:
     chapter_by_id = {chapter.id: chapter for chapter in chapters}
     parts: list[str] = []
-    for item in sorted(chapter_summaries, key=lambda summary: summary.chapter_order or 0):
+    for index, item in enumerate(
+        sorted(chapter_summaries, key=lambda summary: summary.chapter_order or 0),
+        start=1,
+    ):
         chapter = chapter_by_id.get(item.chapter_id or "")
         title = chapter.title if chapter else f"第{item.chapter_order}章"
+        characters = _summary_list_value(item.characters_json)
+        locations = _summary_list_value(item.locations_json)
+        summary_parts = [
+            _xml_tag("title", title),
+            _xml_tag("start_time", item.start_time) if item.start_time else "",
+            _xml_tag("end_time", item.end_time) if item.end_time else "",
+            _xml_tag("characters", characters) if characters else "",
+            _xml_tag("locations", locations) if locations else "",
+            _xml_tag("content", item.summary),
+        ]
+        content = "\n    ".join(part for part in summary_parts if part)
         parts.append(
-            f"<chapter{item.chapter_order}>\n{title}\n时间：{item.start_time} - {item.end_time}\n人物：{item.characters_json}\n地点：{item.locations_json}\n摘要：{item.summary}\n</chapter{item.chapter_order}>"
+            f"  <sum{index}>\n"
+            f"    {content}\n"
+            f"  </sum{index}>"
         )
-    summaries_text = "\n\n".join(parts)
-    if not summaries_text:
+    if not parts:
         raise NotFoundError("没有可聚合的章节摘要")
+    summaries_text = "<target_summaries>\n" + "\n".join(parts) + "\n</target_summaries>"
 
-    messages = await _build_prompt_messages(
+    messages = await _build_system_messages(
         session,
         prompt_id="memory-range-summary",
-        target_xml=_summaries_target_message(summaries_text),
     )
+    messages.append(SystemMessage(content=_summaries_target_message(summaries_text)))
     return LongTermSummaryPrompt(messages=messages, summaries_text=summaries_text)
 
 
