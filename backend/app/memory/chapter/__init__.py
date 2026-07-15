@@ -8,10 +8,6 @@ from app.memory.chapter.context_builder import (
     BuiltContext,
     ContextPart,
 )
-from app.memory.chapter.summary_generator import (
-    generate_chapter_summary,
-    generate_long_term_summary,
-)
 from app.memory.chapter.summary_service import (
     get_chapter_summary,
     list_chapter_summaries,
@@ -24,9 +20,6 @@ __all__ = [
     "build_context",
     "BuiltContext",
     "ContextPart",
-    # Summary Generator
-    "generate_chapter_summary",
-    "generate_long_term_summary",
     # Summary Service
     "get_chapter_summary",
     "list_chapter_summaries",
