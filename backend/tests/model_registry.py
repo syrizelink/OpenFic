@@ -19,7 +19,7 @@ def register_sqlmodel_models() -> None:
     )
     from app.models.entities.model import Model
     from app.models.entities.model_provider import ModelProvider
-    from app.storage.models.agent_audit_log import AgentAuditLog
+    from app.storage.models.llm_audit_log import LLMAuditLog
     from app.storage.models.agent_memory import AgentMemory
     from app.storage.models.agent_rule import AgentRule
     from app.storage.models.character import Character
@@ -49,7 +49,7 @@ def register_sqlmodel_models() -> None:
     from app.storage.models.writing_activity_event import WritingActivityEvent
 
     _ = (
-        AgentAuditLog,
+        LLMAuditLog,
         AgentMemory,
         AgentRule,
         AgentRunMessage,

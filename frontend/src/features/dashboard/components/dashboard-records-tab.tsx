@@ -24,13 +24,15 @@ import { useTranslation } from "react-i18next";
 
 import { PromptChainDialog, Spinner } from "@/components";
 import type { PromptChainDialogEntry } from "@/components";
+import { fetchAgentDefinitions } from "@/features/settings/lib/agent-definitions-api";
 
 import { fetchDashboardRecordPrompt } from "../lib/dashboard-api";
 import {
   formatDateTime,
   formatNumber,
   formatSeconds,
-  getAgentLabel,
+  getCategoryLabel,
+  getOperationLabel,
   getStatusLabel,
 } from "../lib/dashboard-formatters";
 import type {
@@ -109,29 +111,26 @@ function getPromptEntries(requestMessages: string | null | undefined): PromptCha
   });
 }
 
-function formatOutputContent(
-  record: DashboardAuditRecord,
-  t: ReturnType<typeof useTranslation>["t"],
-): string {
-  const sections: string[] = [];
-  if (record.responseContent) {
-    sections.push(`${t("dashboard.records.outputSectionContent")}\n${record.responseContent}`);
-  }
+interface ToolCallEntry {
+  name: string | null;
+  content: string;
+}
 
-  const toolCalls = parseJson(record.responseToolCalls);
-  if (toolCalls) {
-    sections.push(
-      `${t("dashboard.records.outputSectionToolCalls")}\n${typeof toolCalls === "string" ? toolCalls : JSON.stringify(toolCalls, null, 2)}`,
-    );
-  }
+function getToolCallEntries(value: string | null): ToolCallEntry[] {
+  const parsed = parseJson(value);
+  if (parsed === null) return [];
 
-  if (record.errorMessage || record.errorType) {
-    sections.push(
-      `${t("dashboard.records.outputSectionError")}\n${record.errorMessage || record.errorType}`,
-    );
-  }
+  const toolCalls = Array.isArray(parsed) ? parsed : [parsed];
+  return toolCalls.map((toolCall) => ({
+    name: isRecord(toolCall) && typeof toolCall.name === "string" ? toolCall.name : null,
+    content: stringifyContent(toolCall),
+  }));
+}
 
-  return sections.join("\n\n");
+function hasErrorDetails(record: DashboardAuditRecord): boolean {
+  return Boolean(
+    record.errorMessage || record.errorType || typeof record.errorStatusCode === "number",
+  );
 }
 
 function getStatusColor(status: string): "green" | "red" | "gray" {
@@ -231,11 +230,21 @@ export function DashboardRecordsTab({
     queryFn: () => fetchDashboardRecordPrompt(inputRecord?.id ?? ""),
     enabled: !!inputRecord,
   });
+  const { data: agentDefinitions = [] } = useQuery({
+    queryKey: ["agent-definitions"],
+    queryFn: fetchAgentDefinitions,
+    staleTime: 5 * 60 * 1000,
+  });
+  const agentNamesByKey = useMemo(
+    () => new Map(agentDefinitions.map((definition) => [definition.key, definition.display_name])),
+    [agentDefinitions],
+  );
   const promptEntries = useMemo(
     () => getPromptEntries(promptQuery.data?.requestMessages),
     [promptQuery.data?.requestMessages],
   );
-  const outputContent = outputRecord ? formatOutputContent(outputRecord, t) : "";
+  const toolCallEntries = outputRecord ? getToolCallEntries(outputRecord.responseToolCalls) : [];
+  const errorDetails = outputRecord ? hasErrorDetails(outputRecord) : false;
   const recordTotal = data?.records.total ?? 0;
   const visiblePages = getVisiblePages(query.page, totalPages);
 
@@ -267,7 +276,7 @@ export function DashboardRecordsTab({
                 </th>
                 <th>{t("dashboard.records.columnProject")}</th>
                 <th>{t("dashboard.records.columnModel")}</th>
-                <th>{t("dashboard.records.columnAgent")}</th>
+                <th>{t("dashboard.records.columnOperation")}</th>
                 <th>
                   <SortableHeader
                     label={t("dashboard.records.columnLatency")}
@@ -308,6 +317,11 @@ export function DashboardRecordsTab({
             <tbody>
               {data?.records.items.map((record) => {
                 const hasFailed = isFailedRecord(record);
+                const recordHasErrorDetails = hasErrorDetails(record);
+                const operationLabel =
+                  record.category === "agent"
+                    ? (agentNamesByKey.get(record.operation) ?? record.operation)
+                    : getOperationLabel(record.operation);
                 return (
                   <tr key={record.id}>
                     <td className="dashboard-record-time">{formatDateTime(record.createdAt)}</td>
@@ -321,7 +335,7 @@ export function DashboardRecordsTab({
                         {record.modelName || record.modelId}
                       </span>
                     </td>
-                    <td>{getAgentLabel(record.agentNode)}</td>
+                    <td>{`${getCategoryLabel(record.category)} / ${operationLabel}`}</td>
                     <td>{formatSeconds(record.latencyMs)}</td>
                     <td>{formatSeconds(record.firstTokenMs)}</td>
                     <td className="dashboard-record-token-cell">
@@ -357,7 +371,7 @@ export function DashboardRecordsTab({
                         aria-label={t("dashboard.records.viewOutput")}
                         className="dashboard-record-icon-button"
                         color="gray"
-                        disabled={hasFailed}
+                        disabled={hasFailed && !recordHasErrorDetails}
                         size="1"
                         variant="ghost"
                         onClick={() => setOutputRecord(record)}
@@ -475,7 +489,90 @@ export function DashboardRecordsTab({
           </Dialog.Description>
           <ScrollArea className="dashboard-output-scroll-area">
             <Box className="dashboard-output-content">
-              {outputContent || <Text color="gray">{t("dashboard.records.noOutput")}</Text>}
+              {outputRecord?.responseContent ? (
+                <section className="dashboard-output-section">
+                  <div className="dashboard-output-section-header">
+                    <Text
+                      as="p"
+                      className="dashboard-output-section-title"
+                      size="1"
+                      weight="medium"
+                    >
+                      {t("dashboard.records.outputSectionContent")}
+                    </Text>
+                  </div>
+                  <pre className="dashboard-output-text">{outputRecord.responseContent}</pre>
+                </section>
+              ) : null}
+
+              {toolCallEntries.length > 0 ? (
+                <section className="dashboard-output-section">
+                  <div className="dashboard-output-section-header">
+                    <Text
+                      as="p"
+                      className="dashboard-output-section-title"
+                      size="1"
+                      weight="medium"
+                    >
+                      {t("dashboard.records.outputSectionToolCalls")}
+                    </Text>
+                  </div>
+                  <div className="dashboard-output-tool-call-list">
+                    {toolCallEntries.map((toolCall, index) => (
+                      <details
+                        className="dashboard-output-tool-call"
+                        key={`${toolCall.name ?? "tool-call"}-${index}`}
+                      >
+                        <summary className="dashboard-output-tool-call-summary">
+                          {toolCall.name ||
+                            t("dashboard.records.toolCallFallback", { index: index + 1 })}
+                        </summary>
+                        <pre className="dashboard-output-json">{toolCall.content}</pre>
+                      </details>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {outputRecord && errorDetails ? (
+                <section className="dashboard-output-section dashboard-output-error-card">
+                  <div className="dashboard-output-section-header">
+                    <Text
+                      as="p"
+                      className="dashboard-output-section-title"
+                      size="1"
+                      weight="medium"
+                    >
+                      {t("dashboard.records.outputSectionError")}
+                    </Text>
+                    <div className="dashboard-output-error-meta">
+                      <span className="dashboard-output-error-type">
+                        {outputRecord.errorType || t("dashboard.records.unknownError")}
+                      </span>
+                      {typeof outputRecord.errorStatusCode === "number" ? (
+                        <Badge
+                          color="red"
+                          size="1"
+                          variant="soft"
+                        >
+                          {t("dashboard.records.httpStatus", {
+                            statusCode: outputRecord.errorStatusCode,
+                          })}
+                        </Badge>
+                      ) : null}
+                    </div>
+                  </div>
+                  {outputRecord.errorMessage ? (
+                    <pre className="dashboard-output-json">
+                      {stringifyContent(outputRecord.errorMessage)}
+                    </pre>
+                  ) : null}
+                </section>
+              ) : null}
+
+              {!outputRecord?.responseContent && toolCallEntries.length === 0 && !errorDetails ? (
+                <Text color="gray">{t("dashboard.records.noOutput")}</Text>
+              ) : null}
             </Box>
           </ScrollArea>
           <Flex

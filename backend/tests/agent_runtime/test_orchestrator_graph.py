@@ -52,7 +52,7 @@ def test_session_runner_uses_session_id_as_parent_thread_id():
     config = runner._build_runtime_config(
         runtime_session=object(),
         runtime_context={},
-        audit_collector=object(),
+        audit_context=object(),
     )
 
     assert config["configurable"]["thread_id"] == "session-parent"

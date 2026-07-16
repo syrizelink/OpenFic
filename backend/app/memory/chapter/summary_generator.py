@@ -6,10 +6,11 @@ from dataclasses import dataclass
 from typing import Any
 from xml.sax.saxutils import escape
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.audit import AuditContext
 from app.core.errors import NotFoundError
 from app.macro.compiler import EntryInput, PromptChainCompiler
 from app.memory.chapter.summary_tools import (
@@ -183,13 +184,31 @@ async def build_chapter_summary_prompt(
 async def generate_chapter_summary_from_prompt(
     llm_client: LLMClient,
     prompt: ChapterSummaryPrompt,
+    *,
+    audit_context: AuditContext,
+    model_id: str,
+    model_provider: str | None,
+    model_name: str | None,
 ) -> GeneratedChapterSummary:
     llm_client.bind_tools([make_chapter_summary_tool()])
     logger.info("生成结构化章节摘要")
-    response = await llm_client.generate_with_tools(
-        [*prompt.messages, HumanMessage(content="请调用 emit_chapter_summary 输出结果。")],
-        timeout=120,
-    )
+    messages: list[BaseMessage] = [
+        *prompt.messages,
+        HumanMessage(content="请调用 emit_chapter_summary 输出结果。"),
+    ]
+    async with audit_context.llm_call(
+        operation="chapter_summary",
+        model_id=model_id,
+        model_provider=model_provider,
+        model_name=model_name,
+        request_messages=messages,
+    ) as audit:
+        response = await llm_client.generate_with_tools(messages, timeout=120)
+        audit.record_response(
+            content=response.content,
+            tool_calls=response.tool_calls,
+            usage=response.usage,
+        )
     args = _first_tool_args(response.tool_calls, "emit_chapter_summary")
     summary = _clean_text(args.get("summary"))
     if not summary:
@@ -248,13 +267,31 @@ async def build_long_term_summary_prompt(
 async def generate_long_term_summary_from_prompt(
     llm_client: LLMClient,
     prompt: LongTermSummaryPrompt,
+    *,
+    audit_context: AuditContext,
+    model_id: str,
+    model_provider: str | None,
+    model_name: str | None,
 ) -> GeneratedLongTermSummary:
     llm_client.bind_tools([make_long_term_summary_tool()])
     logger.info("生成结构化远期摘要")
-    response = await llm_client.generate_with_tools(
-        [*prompt.messages, HumanMessage(content="请调用 emit_long_term_summary 输出结果。")],
-        timeout=120,
-    )
+    messages: list[BaseMessage] = [
+        *prompt.messages,
+        HumanMessage(content="请调用 emit_long_term_summary 输出结果。"),
+    ]
+    async with audit_context.llm_call(
+        operation="long_term_summary",
+        model_id=model_id,
+        model_provider=model_provider,
+        model_name=model_name,
+        request_messages=messages,
+    ) as audit:
+        response = await llm_client.generate_with_tools(messages, timeout=120)
+        audit.record_response(
+            content=response.content,
+            tool_calls=response.tool_calls,
+            usage=response.usage,
+        )
     args = _first_tool_args(response.tool_calls, "emit_long_term_summary")
     summary = _clean_text(args.get("summary"))
     if not summary:

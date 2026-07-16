@@ -2,7 +2,8 @@ export interface DashboardQueryParams {
   projectId?: string;
   modelProvider?: string;
   modelId?: string;
-  agentNode?: string;
+  category?: string;
+  operation?: string;
   status?: string;
   taskId?: string;
   sessionId?: string;
@@ -64,7 +65,8 @@ export interface DashboardAuditRecord {
   projectTitle: string | null;
   chapterId: string | null;
   revisionId: string | null;
-  agentNode: string;
+  category: string;
+  operation: string;
   modelId: string;
   modelProvider: string | null;
   modelName: string | null;
@@ -99,7 +101,8 @@ export interface DashboardFilterOptions {
   projectIds: string[];
   modelProviders: string[];
   modelIds: string[];
-  agentNodes: string[];
+  categories: string[];
+  operations: string[];
   statuses: string[];
   projectOptions: DashboardFilterOptionItem[];
   modelOptions: DashboardFilterOptionItem[];

@@ -1,4 +1,4 @@
-"""Queued persistence for agent runtime audit logs."""
+"""Queued persistence for LLM audit logs."""
 
 from __future__ import annotations
 
@@ -9,14 +9,14 @@ from sqlalchemy import func, select
 from sqlmodel import col
 
 from app.storage.database import create_session
-from app.storage.models.agent_audit_log import AgentAuditLog
+from app.storage.models.llm_audit_log import LLMAuditLog
 
 
 class AuditQueue:
-    """Serialize audit writes to reduce contention on the backing store."""
+    """Serializes audit writes to reduce backing-store contention."""
 
     def __init__(self) -> None:
-        self._queue: asyncio.Queue[AgentAuditLog | None] = asyncio.Queue()
+        self._queue: asyncio.Queue[LLMAuditLog | None] = asyncio.Queue()
         self._worker: asyncio.Task[None] | None = None
         self._sequence_lock = asyncio.Lock()
         self._sequence_cache: dict[str, int] = {}
@@ -24,8 +24,8 @@ class AuditQueue:
     def start(self) -> None:
         if self._worker is not None and not self._worker.done():
             return
-        self._worker = asyncio.create_task(self._run(), name="agent-runtime-audit-queue")
-        logger.info("Agent runtime audit queue started")
+        self._worker = asyncio.create_task(self._run(), name="llm-audit-queue")
+        logger.info("LLM audit queue started")
 
     async def stop(self) -> None:
         if self._worker is None:
@@ -34,9 +34,9 @@ class AuditQueue:
         await self._queue.put(None)
         await self._worker
         self._worker = None
-        logger.info("Agent runtime audit queue stopped")
+        logger.info("LLM audit queue stopped")
 
-    async def enqueue(self, audit_log: AgentAuditLog) -> None:
+    async def enqueue(self, audit_log: LLMAuditLog) -> None:
         if self._worker is None or self._worker.done():
             self.start()
         await self._queue.put(audit_log)
@@ -58,16 +58,13 @@ class AuditQueue:
             session = await create_session()
             async with session:
                 result = await session.execute(
-                    select(func.max(col(AgentAuditLog.call_sequence))).where(
-                        col(AgentAuditLog.session_id) == session_id
+                    select(func.max(col(LLMAuditLog.call_sequence))).where(
+                        col(LLMAuditLog.session_id) == session_id
                     )
                 )
-                value = result.scalar_one_or_none()
-                return int(value or 0)
+                return int(result.scalar_one_or_none() or 0)
         except Exception as exc:
-            logger.error(
-                f"failed to load audit call sequence: session_id={session_id}, error={exc}"
-            )
+            logger.error(f"failed to load audit call sequence: session_id={session_id}, error={exc}")
             return 0
 
     async def _run(self) -> None:
@@ -78,12 +75,11 @@ class AuditQueue:
                     return
                 await self._write(audit_log)
             except Exception as exc:
-                log_id = getattr(audit_log, "id", None)
-                logger.error(f"failed to write audit log: id={log_id}, error={exc}")
+                logger.error(f"failed to write audit log: id={getattr(audit_log, 'id', None)}, error={exc}")
             finally:
                 self._queue.task_done()
 
-    async def _write(self, audit_log: AgentAuditLog) -> None:
+    async def _write(self, audit_log: LLMAuditLog) -> None:
         session = await create_session()
         async with session:
             session.add(audit_log)
@@ -101,7 +97,7 @@ async def stop_audit_queue() -> None:
     await audit_queue.stop()
 
 
-async def enqueue_audit_log(audit_log: AgentAuditLog) -> None:
+async def enqueue_audit_log(audit_log: LLMAuditLog) -> None:
     await audit_queue.enqueue(audit_log)
 
 

@@ -17,7 +17,7 @@ from app.agent_runtime.context.compaction.window import (
     select_compaction_window,
 )
 from app.agent_runtime.context.helpers import compile_canonical_mentions
-from app.agent_runtime.audit.collector import AuditCollector
+from app.audit import AuditContext
 from app.agent_runtime.graph.orchestrator.graph import build_orchestrator_graph
 from app.agent_runtime.graph.react_agent import _to_history_dict
 from app.agent_runtime.graph.state import AgentRuntimeState
@@ -387,7 +387,7 @@ class SessionRunner:
         *,
         runtime_session: AsyncSession,
         runtime_context: dict[str, Any],
-        audit_collector: AuditCollector,
+        audit_context: AuditContext,
     ) -> RunnableConfig:
         async def _noop_node_event_sink(_payload: dict[str, Any]) -> None:
             return None
@@ -403,7 +403,7 @@ class SessionRunner:
                 "thread_id": self.session_id,
                 "db_session": runtime_session,
                 "runtime_context": runtime_context,
-                "audit_collector": audit_collector,
+                "audit_context": audit_context,
                 "node_event_sink": node_event_sink,
                 "retry_event_sink": self._emit_retry_event,
                 "agent_event_sink": self._emit_agent_event,
@@ -635,7 +635,7 @@ class SessionRunner:
         runtime_session = await create_session()
         runtime_context: dict[str, Any] = {}
         self._persister = self._make_persister()
-        audit_collector = AuditCollector(
+        audit_context = AuditContext(
             session_id=self.session_id,
             task_id=self.task_id,
             project_id=self.project_id,
@@ -643,7 +643,7 @@ class SessionRunner:
         config = self._build_runtime_config(
             runtime_session=runtime_session,
             runtime_context=runtime_context,
-            audit_collector=audit_collector,
+            audit_context=audit_context,
         )
         self._cancel_event.clear()
         reason: Literal["done", "cancelled", "error"] = "done"
@@ -669,7 +669,7 @@ class SessionRunner:
                 )
                 state_user_request = ""
 
-            audit_collector.set_revision_id(revision.id)
+            audit_context.set_revision_id(revision.id)
 
             initial_state = {
                 "session_id": self.session_id,
@@ -929,16 +929,16 @@ class SessionRunner:
         await self.inject_message(user_request, user_message.id)
 
         runtime_context: dict[str, Any] = {}
-        audit_collector = AuditCollector(
+        audit_context = AuditContext(
             session_id=self.session_id,
             task_id=self.task_id,
             project_id=self.project_id,
         )
-        audit_collector.set_revision_id(revision.id)
+        audit_context.set_revision_id(revision.id)
         config = self._build_runtime_config(
             runtime_session=runtime_session,
             runtime_context=runtime_context,
-            audit_collector=audit_collector,
+            audit_context=audit_context,
         )
         self._cancel_event.clear()
 
@@ -1060,19 +1060,19 @@ class SessionRunner:
         revision_id = values.get("current_revision_id")
         revision_id = revision_id if isinstance(revision_id, str) and revision_id else None
         runtime_context: dict[str, Any] = {}
-        audit_collector = AuditCollector(
+        audit_context = AuditContext(
             session_id=self.session_id,
             task_id=self.task_id,
             project_id=self.project_id,
         )
         if revision_id:
-            audit_collector.set_revision_id(revision_id)
+            audit_context.set_revision_id(revision_id)
         if self._persister is None:
             self._persister = self._make_persister()
         config = self._build_runtime_config(
             runtime_session=runtime_session,
             runtime_context=runtime_context,
-            audit_collector=audit_collector,
+            audit_context=audit_context,
         )
         self._cancel_event.clear()
 

@@ -50,7 +50,7 @@ from app.api.routers import (
     world_info,
     world_info_entries,
 )
-from app.agent_runtime.audit.queue import start_audit_queue, stop_audit_queue
+from app.audit import start_audit_queue, stop_audit_queue
 from app.agent_runtime.runner.checkpointer import close_checkpointer, init_checkpointer
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.background.runtime.supervisor import (

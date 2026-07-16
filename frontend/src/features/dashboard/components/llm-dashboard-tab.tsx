@@ -59,7 +59,7 @@ export function LlmDashboardTab({ data, isLoading }: LlmDashboardTabProps) {
     <section className="dashboard-tab-panel">
       <section className="dashboard-metric-grid dashboard-llm-metric-grid">
         <MetricCard
-          label={t("dashboard.metrics.agentCalls")}
+          label={t("dashboard.metrics.llmCalls")}
           value={summary?.callsTotal ?? 0}
           valueFormat={{ maximumFractionDigits: 0 }}
           hintParts={[

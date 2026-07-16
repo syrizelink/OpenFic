@@ -46,7 +46,7 @@ def test_runtime_config_keeps_api_key_outside_persisted_state():
     config = runner._build_runtime_config(
         runtime_session=MagicMock(),
         runtime_context={},
-        audit_collector=MagicMock(),
+        audit_context=MagicMock(),
     )
 
     assert config["configurable"]["model_config"]["api_key"] == "sk-runtime"
@@ -197,7 +197,7 @@ async def test_initial_state_does_not_include_context_anchor_state():
     assert captured_config.get("recursion_limit") == 1000
     assert configurable.get("db_session") is not None
     assert configurable.get("runtime_context") == {}
-    assert configurable.get("audit_collector") is not None
+    assert configurable.get("audit_context") is not None
     assert "context_anchor_persistence_sink" not in configurable
     assert "context_anchor_order" not in begin_revision.await_args.kwargs
 

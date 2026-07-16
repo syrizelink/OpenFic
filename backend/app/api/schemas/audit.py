@@ -18,8 +18,8 @@ class ToolCallResult(BaseModel):
     latency_ms: int = Field(default=0, description="耗时（毫秒）")
 
 
-class AgentAuditLogResponse(BaseModel):
-    """Agent审计日志响应。"""
+class LLMAuditLogResponse(BaseModel):
+    """LLM 审计日志响应。"""
 
     id: str = Field(description="审计记录ID")
     created_at: datetime = Field(description="创建时间")
@@ -38,7 +38,8 @@ class AgentAuditLogResponse(BaseModel):
     chapter_id: str | None = Field(default=None, description="章节ID")
     revision_id: str | None = Field(default=None, description="Revision ID")
 
-    agent_node: str = Field(description="Agent节点名称")
+    category: str = Field(description="调用分类")
+    operation: str = Field(description="调用操作")
     call_sequence: int | None = Field(default=None, description="调用顺序号")
 
     model_id: str = Field(description="模型ID")
@@ -74,10 +75,10 @@ class AgentAuditLogResponse(BaseModel):
     tool_calls_failed_count: int = Field(default=0, description="失败工具调用数")
 
 
-class AgentAuditLogListResponse(BaseModel):
-    """Agent审计日志列表响应。"""
+class LLMAuditLogListResponse(BaseModel):
+    """LLM 审计日志列表响应。"""
 
-    items: list[AgentAuditLogResponse] = Field(description="审计日志列表")
+    items: list[LLMAuditLogResponse] = Field(description="审计日志列表")
     total: int = Field(description="总数")
 
 

@@ -972,8 +972,10 @@
       "allModels": "All Models",
       "provider": "Provider",
       "allProviders": "All Providers",
-      "agent": "Agent",
-      "allRoles": "All Roles",
+      "category": "Category",
+      "allCategories": "All Categories",
+      "operation": "Operation",
+      "allOperations": "All Operations",
       "status": "Status",
       "allStatuses": "All Statuses",
       "startDate": "Start Date",
@@ -981,7 +983,7 @@
       "endDate": "End Date",
       "endDatePlaceholder": "Select end date",
       "search": "Search",
-      "searchPlaceholder": "Search models, agents, or error messages",
+      "searchPlaceholder": "Search models, operations, or error messages",
       "reset": "Reset Filters",
       "all": "All",
       "clearDate": "Clear date"
@@ -991,7 +993,7 @@
       "columnTime": "Time",
       "columnProject": "Project",
       "columnModel": "Model",
-      "columnAgent": "Agent",
+      "columnOperation": "Operation",
       "columnLatency": "Latency",
       "columnFirstToken": "First Token",
       "columnInput": "Input (Cache)",
@@ -1011,15 +1013,18 @@
       "pageList": "Page list",
       "inputDialogTitle": "Input Prompt",
       "outputDialogTitle": "Output Content",
-      "outputDialogDescription": "Model output and tool calls",
+      "outputDialogDescription": "Model output, tool calls, and error details",
       "noOutput": "No output content",
       "unknownProject": "Unknown project",
       "outputSectionContent": "Content",
       "outputSectionToolCalls": "Tool calls",
-      "outputSectionError": "Error"
+      "outputSectionError": "Error",
+      "toolCallFallback": "Tool Call #{{index}}",
+      "unknownError": "Unknown error",
+      "httpStatus": "HTTP {{statusCode}}"
     },
     "metrics": {
-      "agentCalls": "Agent Calls",
+      "llmCalls": "LLM Calls",
       "completedPrefix": "Completed ",
       "completedSuffix": " calls",
       "tokenConsumption": "Token Consumption",
@@ -1101,6 +1106,16 @@
       "writer": "Content Writer",
       "actor": "Task Actor",
       "reviewer": "Revision Reviewer"
+    },
+    "categoryLabels": {
+      "agent": "Agent",
+      "memory": "Memory",
+      "session": "Session"
+    },
+    "operationLabels": {
+      "chapterSummary": "Chapter Summary",
+      "longTermSummary": "Range Summary",
+      "sessionTitle": "Session Title"
     }
   },
   "summary": {

@@ -1,20 +1,24 @@
+import asyncio
 from unittest.mock import Mock, patch
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 from langchain_core.tools import StructuredTool
 from langgraph.errors import GraphInterrupt
+from langgraph.types import RetryPolicy
 from pydantic import BaseModel
 
 from app.agent_runtime.graph.react_agent import create_react_agent
 from app.agent_runtime.tools.base import AgentTool, HookContext, HookResult
 from app.agent_runtime.types import ReactAgentConfig, TerminationCondition
+from app.core.errors import ProviderAuthError
 
 
 class _AuditProbe:
     def __init__(self) -> None:
         self.responses: list[dict] = []
         self.tools: list[dict] = []
+        self.errors: list[dict] = []
         self.finished: list[str] = []
 
     async def __aenter__(self):
@@ -29,6 +33,9 @@ class _AuditProbe:
 
     def record_tool_call(self, **kwargs):
         self.tools.append(kwargs)
+
+    def record_error(self, **kwargs):
+        self.errors.append(kwargs)
 
     async def finish(self, status: str = "success"):
         self.finished.append(status)
@@ -78,8 +85,8 @@ class _ApprovalInterruptTool(AgentTool):
 @pytest.mark.asyncio
 async def test_react_agent_records_audit_for_model_and_tool_call() -> None:
     audit = _AuditProbe()
-    collector = Mock()
-    collector.llm_call.return_value = audit
+    audit_context = Mock()
+    audit_context.llm_call.return_value = audit
     model = Mock()
     model.bind_tools.return_value = model
     response = AIMessage(
@@ -126,7 +133,7 @@ async def test_react_agent_records_audit_for_model_and_tool_call() -> None:
             },
             config={
                 "configurable": {
-                    "audit_collector": collector,
+                    "audit_context": audit_context,
                     "runtime_state": {
                         "model_config": {
                             "provider_type": "openai",
@@ -137,9 +144,9 @@ async def test_react_agent_records_audit_for_model_and_tool_call() -> None:
             },
         )
 
-    collector.llm_call.assert_called_once()
-    _, kwargs = collector.llm_call.call_args
-    assert kwargs["agent_node"] == "writer"
+    audit_context.llm_call.assert_called_once()
+    _, kwargs = audit_context.llm_call.call_args
+    assert kwargs["operation"] == "writer"
     assert kwargs["model_id"] == "gpt-test"
     assert kwargs["model_provider"] == "openai"
     assert audit.responses[0]["usage"]["total_tokens"] == 16
@@ -150,10 +157,199 @@ async def test_react_agent_records_audit_for_model_and_tool_call() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("error", "error_type", "status_code"),
+    [
+        (ProviderAuthError("invalid provider key"), "ProviderAuthError", 401),
+        (RuntimeError("unexpected runtime failure"), "RuntimeError", None),
+    ],
+)
+async def test_react_agent_records_model_errors_in_audit(
+    monkeypatch: pytest.MonkeyPatch,
+    error: Exception,
+    error_type: str,
+    status_code: int | None,
+) -> None:
+    monkeypatch.setattr(
+        "app.agent_runtime.graph.react_agent.LLM_RETRY_POLICY",
+        RetryPolicy(max_attempts=1),
+    )
+    audit = _AuditProbe()
+    audit_context = Mock()
+    audit_context.llm_call.return_value = audit
+    model = Mock()
+    model.bind_tools.return_value = model
+    config = ReactAgentConfig(
+        name="writer",
+        tools=[],
+        termination=TerminationCondition(mode="no_tool_call"),
+    )
+    graph = create_react_agent(config, model=model)
+
+    async def _mock_invoke(*_args, **_kwargs):
+        raise error
+
+    with (
+        patch(
+            "app.agent_runtime.graph.react_agent._invoke_model",
+            side_effect=_mock_invoke,
+        ),
+        pytest.raises(type(error), match=str(error)),
+    ):
+        await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="go")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            },
+            config={
+                "configurable": {
+                    "audit_context": audit_context,
+                    "runtime_state": {
+                        "model_config": {
+                            "provider_type": "openai",
+                            "model_id": "gpt-test",
+                        }
+                    },
+                }
+            },
+        )
+
+    assert audit.errors == [
+        {
+            "error_type": error_type,
+            "error_message": str(error),
+            "error_status_code": status_code,
+        }
+    ]
+    assert audit.finished == ["error"]
+
+
+@pytest.mark.asyncio
+async def test_react_agent_records_unhandled_tool_errors_in_audit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.agent_runtime.graph.react_agent.LLM_RETRY_POLICY",
+        RetryPolicy(max_attempts=1),
+    )
+    audit = _AuditProbe()
+    audit_context = Mock()
+    audit_context.llm_call.return_value = audit
+
+    async def _raise_tool_error() -> str:
+        raise RuntimeError("tool runtime failure")
+
+    tool = StructuredTool.from_function(
+        coroutine=_raise_tool_error,
+        name="fail_tool",
+        description="fails",
+    )
+    model = Mock()
+    model.bind_tools.return_value = model
+    config = ReactAgentConfig(
+        name="writer",
+        tools=[tool],
+        termination=TerminationCondition(mode="no_tool_call"),
+    )
+    graph = create_react_agent(config, model=model)
+    response = AIMessage(
+        content="",
+        tool_calls=[{"id": "call_1", "name": "fail_tool", "args": {}}],
+    )
+
+    async def _mock_invoke(*_args, **_kwargs):
+        return response
+
+    with (
+        patch(
+            "app.agent_runtime.graph.react_agent._invoke_model",
+            side_effect=_mock_invoke,
+        ),
+        pytest.raises(RuntimeError, match="tool runtime failure"),
+    ):
+        await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="go")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            },
+            config={
+                "configurable": {
+                    "audit_context": audit_context,
+                    "runtime_state": {
+                        "model_config": {
+                            "provider_type": "openai",
+                            "model_id": "gpt-test",
+                        }
+                    },
+                }
+            },
+        )
+
+    assert audit.errors == [
+        {
+            "error_type": "RuntimeError",
+            "error_message": "tool runtime failure",
+            "error_status_code": None,
+        }
+    ]
+    assert audit.finished == ["error"]
+
+
+@pytest.mark.asyncio
+async def test_react_agent_records_first_token_latency_from_stream() -> None:
+    audit = _AuditProbe()
+    audit_context = Mock()
+    audit_context.llm_call.return_value = audit
+
+    class _StreamingModel:
+        def bind_tools(self, _tools):
+            return self
+
+        async def astream(self, _messages):
+            await asyncio.sleep(0.01)
+            yield AIMessageChunk(content="done")
+
+    config = ReactAgentConfig(
+        name="writer",
+        tools=[],
+        termination=TerminationCondition(mode="no_tool_call"),
+        max_iterations=2,
+    )
+    graph = create_react_agent(config, model=_StreamingModel())
+
+    await graph.ainvoke(
+        {
+            "messages": [HumanMessage(content="go")],
+            "iteration_count": 0,
+            "is_done": False,
+            "final_output": None,
+        },
+        config={
+            "configurable": {
+                "audit_context": audit_context,
+                "runtime_state": {
+                    "model_config": {
+                        "provider_type": "openai",
+                        "model_id": "gpt-test",
+                    }
+                },
+            }
+        },
+    )
+
+    assert audit.responses[0]["first_token_ms"] is not None
+    assert audit.responses[0]["first_token_ms"] >= 1
+
+
+@pytest.mark.asyncio
 async def test_react_agent_finishes_audit_when_tool_approval_interrupts() -> None:
     audit = _AuditProbe()
-    collector = Mock()
-    collector.llm_call.return_value = audit
+    audit_context = Mock()
+    audit_context.llm_call.return_value = audit
     model = Mock()
     model.bind_tools.return_value = model
     response = AIMessage(
@@ -197,7 +393,7 @@ async def test_react_agent_finishes_audit_when_tool_approval_interrupts() -> Non
             },
             config={
                 "configurable": {
-                    "audit_collector": collector,
+                    "audit_context": audit_context,
                     "runtime_state": {
                         "model_config": {
                             "provider_type": "openai",

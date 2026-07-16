@@ -13,7 +13,7 @@ from app.agent_runtime.agents.definitions import (
     AgentDefinition,
     load_agent_definition,
 )
-from app.agent_runtime.audit.collector import AuditCollector
+from app.audit import AuditContext
 from app.agent_runtime.agents.tool_categories import get_tool_names_for_categories
 from app.agent_runtime.graph.react_agent import create_react_agent
 from app.agent_runtime.model_config import to_client_model_config
@@ -355,7 +355,7 @@ class SubagentRunner:
         graph: Any,
         graph_input: Any,
         runtime_state: dict[str, Any],
-        audit_collector: AuditCollector,
+        audit_context: AuditContext,
     ) -> dict[str, Any]:
         translator = EventTranslator(
             row.child_thread_id,
@@ -389,7 +389,7 @@ class SubagentRunner:
                         "thread_id": row.child_thread_id,
                         "db_session": runtime_session,
                         "runtime_state": runtime_state,
-                        "audit_collector": audit_collector,
+                        "audit_context": audit_context,
                         "agent_event_sink": agent_event_sink,
                         "compaction_usage_sink": compaction_usage_sink,
                     },
@@ -874,7 +874,7 @@ class SubagentRunner:
             }
         else:
             graph_input = Command(resume=resume_payload)
-        audit_collector = AuditCollector(
+        audit_context = AuditContext(
             session_id=row.child_thread_id,
             task_id=row.parent_task_id,
             parent_session_id=row.parent_session_id,
@@ -888,7 +888,7 @@ class SubagentRunner:
                 graph,
                 graph_input,
                 runtime_state,
-                audit_collector,
+                audit_context,
             )
         except Exception as exc:
             refreshed = await self._complete_request(

@@ -1035,8 +1035,10 @@
       "allModels": "全部模型",
       "provider": "提供商",
       "allProviders": "全部提供商",
-      "agent": "Agent",
-      "allRoles": "全部角色",
+      "category": "类型",
+      "allCategories": "全部类型",
+      "operation": "操作",
+      "allOperations": "全部操作",
       "status": "状态",
       "allStatuses": "全部状态",
       "startDate": "开始日期",
@@ -1044,7 +1046,7 @@
       "endDate": "结束日期",
       "endDatePlaceholder": "选择结束日期",
       "search": "搜索",
-      "searchPlaceholder": "搜索模型、Agent 或错误信息",
+      "searchPlaceholder": "搜索模型、操作或错误信息",
       "reset": "重置筛选",
       "all": "全部",
       "clearDate": "清除日期"
@@ -1054,7 +1056,7 @@
       "columnTime": "时间",
       "columnProject": "项目",
       "columnModel": "模型",
-      "columnAgent": "Agent",
+      "columnOperation": "操作",
       "columnLatency": "用时",
       "columnFirstToken": "首字",
       "columnInput": "输入（缓存）",
@@ -1074,15 +1076,18 @@
       "pageList": "页码列表",
       "inputDialogTitle": "输入提示词",
       "outputDialogTitle": "输出内容",
-      "outputDialogDescription": "模型输出与工具调用",
+      "outputDialogDescription": "模型输出、工具调用与错误详情",
       "noOutput": "没有输出内容",
       "unknownProject": "未知项目",
-      "outputSectionContent": "Content",
-      "outputSectionToolCalls": "Tool calls",
-      "outputSectionError": "Error"
+      "outputSectionContent": "输出",
+      "outputSectionToolCalls": "工具调用",
+      "outputSectionError": "错误",
+      "toolCallFallback": "工具调用 #{{index}}",
+      "unknownError": "未知错误",
+      "httpStatus": "HTTP {{statusCode}}"
     },
     "metrics": {
-      "agentCalls": "Agent 调用次数",
+      "llmCalls": "LLM 调用次数",
       "completedPrefix": "完成 ",
       "completedSuffix": " 次",
       "tokenConsumption": "Token 消耗",
@@ -1164,6 +1169,16 @@
       "writer": "正文写作",
       "actor": "任务执行",
       "reviewer": "审阅修改"
+    },
+    "categoryLabels": {
+      "agent": "智能体",
+      "memory": "记忆",
+      "session": "会话"
+    },
+    "operationLabels": {
+      "chapterSummary": "章节摘要",
+      "longTermSummary": "区间摘要",
+      "sessionTitle": "会话标题"
     }
   },
   "summary": {

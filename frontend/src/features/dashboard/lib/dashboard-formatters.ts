@@ -38,7 +38,7 @@ export function getStatusLabel(value: string): string {
   return value;
 }
 
-export function getAgentLabel(value: string): string {
+export function getOperationLabel(value: string): string {
   if (value === "primary") return i18n.t("dashboard.agentLabels.primary");
   if (value === "explorer") return i18n.t("dashboard.agentLabels.explorer");
   if (value === "composer") return i18n.t("dashboard.agentLabels.composer");
@@ -46,6 +46,16 @@ export function getAgentLabel(value: string): string {
   if (value === "writer") return i18n.t("dashboard.agentLabels.writer");
   if (value === "actor") return i18n.t("dashboard.agentLabels.actor");
   if (value === "reviewer") return i18n.t("dashboard.agentLabels.reviewer");
+  if (value === "chapter_summary") return i18n.t("dashboard.operationLabels.chapterSummary");
+  if (value === "long_term_summary") return i18n.t("dashboard.operationLabels.longTermSummary");
+  if (value === "session_title") return i18n.t("dashboard.operationLabels.sessionTitle");
+  return value;
+}
+
+export function getCategoryLabel(value: string): string {
+  if (value === "agent") return i18n.t("dashboard.categoryLabels.agent");
+  if (value === "memory") return i18n.t("dashboard.categoryLabels.memory");
+  if (value === "session") return i18n.t("dashboard.categoryLabels.session");
   return value;
 }
 

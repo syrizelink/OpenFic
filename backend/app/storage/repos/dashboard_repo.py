@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import ColumnElement
 from sqlmodel import col
 
-from app.storage.models.agent_audit_log import AgentAuditLog
+from app.storage.models.llm_audit_log import LLMAuditLog
 from app.storage.models.project import Project
 
 
@@ -23,7 +23,8 @@ class DashboardFilters:
     project_id: str | None = None
     model_provider: str | None = None
     model_id: str | None = None
-    agent_node: str | None = None
+    category: str | None = None
+    operation: str | None = None
     status: str | None = None
     task_id: str | None = None
     session_id: str | None = None
@@ -97,7 +98,8 @@ class DashboardRecordRow:
     project_title: str | None
     chapter_id: str | None
     revision_id: str | None
-    agent_node: str
+    category: str
+    operation: str
     model_id: str
     model_provider: str | None
     model_name: str | None
@@ -133,46 +135,50 @@ class FilterOptionRow:
 
 
 SORT_COLUMNS = {
-    "created_at": AgentAuditLog.created_at,
-    "tokens_input": AgentAuditLog.tokens_input,
-    "tokens_output": AgentAuditLog.tokens_output,
-    "tokens_total": AgentAuditLog.tokens_total,
-    "latency_ms": AgentAuditLog.latency_ms,
-    "first_token_ms": AgentAuditLog.first_token_ms,
-    "tool_calls_count": AgentAuditLog.tool_calls_count,
+    "created_at": LLMAuditLog.created_at,
+    "tokens_input": LLMAuditLog.tokens_input,
+    "tokens_output": LLMAuditLog.tokens_output,
+    "tokens_total": LLMAuditLog.tokens_total,
+    "latency_ms": LLMAuditLog.latency_ms,
+    "first_token_ms": LLMAuditLog.first_token_ms,
+    "tool_calls_count": LLMAuditLog.tool_calls_count,
 }
 
 
 def _conditions(filters: DashboardFilters) -> list[ColumnElement[bool]]:
     conditions: list[ColumnElement[bool]] = []
     if filters.project_id:
-        conditions.append(col(AgentAuditLog.project_id) == filters.project_id)
+        conditions.append(col(LLMAuditLog.project_id) == filters.project_id)
     if filters.model_provider:
-        conditions.append(col(AgentAuditLog.model_provider) == filters.model_provider)
+        conditions.append(col(LLMAuditLog.model_provider) == filters.model_provider)
     if filters.model_id:
-        conditions.append(col(AgentAuditLog.model_id) == filters.model_id)
-    if filters.agent_node:
-        conditions.append(col(AgentAuditLog.agent_node) == filters.agent_node)
+        conditions.append(col(LLMAuditLog.model_id) == filters.model_id)
+    if filters.category:
+        conditions.append(col(LLMAuditLog.category) == filters.category)
+    if filters.operation:
+        conditions.append(col(LLMAuditLog.operation) == filters.operation)
     if filters.status:
-        conditions.append(col(AgentAuditLog.status) == filters.status)
+        conditions.append(col(LLMAuditLog.status) == filters.status)
     if filters.task_id:
-        conditions.append(col(AgentAuditLog.task_id) == filters.task_id)
+        conditions.append(col(LLMAuditLog.task_id) == filters.task_id)
     if filters.session_id:
-        conditions.append(col(AgentAuditLog.session_id) == filters.session_id)
+        conditions.append(col(LLMAuditLog.session_id) == filters.session_id)
     if filters.start_at:
-        conditions.append(col(AgentAuditLog.created_at) >= filters.start_at)
+        conditions.append(col(LLMAuditLog.created_at) >= filters.start_at)
     if filters.end_at:
-        conditions.append(col(AgentAuditLog.created_at) <= filters.end_at)
+        conditions.append(col(LLMAuditLog.created_at) <= filters.end_at)
     if filters.search:
         like_value = f"%{filters.search}%"
         conditions.append(
             or_(
-                col(AgentAuditLog.id).contains(filters.search),
-                col(AgentAuditLog.model_id).contains(filters.search),
-                col(AgentAuditLog.model_name).like(like_value),
-                col(AgentAuditLog.task_id).like(like_value),
-                col(AgentAuditLog.session_id).like(like_value),
-                col(AgentAuditLog.error_message).like(like_value),
+                col(LLMAuditLog.id).contains(filters.search),
+                col(LLMAuditLog.model_id).contains(filters.search),
+                col(LLMAuditLog.model_name).like(like_value),
+                col(LLMAuditLog.category).like(like_value),
+                col(LLMAuditLog.operation).like(like_value),
+                col(LLMAuditLog.task_id).like(like_value),
+                col(LLMAuditLog.session_id).like(like_value),
+                col(LLMAuditLog.error_message).like(like_value),
             )
         )
     return conditions
@@ -191,20 +197,20 @@ async def list_metric_rows(
 ) -> list[DashboardMetricRow]:
     """获取聚合所需的轻量字段，避免反复扫描和加载大文本列。"""
     query = select(
-        col(AgentAuditLog.id),
-        col(AgentAuditLog.created_at),
-        col(AgentAuditLog.project_id),
+        col(LLMAuditLog.id),
+        col(LLMAuditLog.created_at),
+        col(LLMAuditLog.project_id),
         col(Project.title).label("project_title"),
-        col(AgentAuditLog.model_id),
-        col(AgentAuditLog.model_name),
-        col(AgentAuditLog.tokens_input),
-        col(AgentAuditLog.tokens_output),
-        col(AgentAuditLog.tokens_total),
-        col(AgentAuditLog.latency_ms),
-        col(AgentAuditLog.first_token_ms),
-        col(AgentAuditLog.status),
+        col(LLMAuditLog.model_id),
+        col(LLMAuditLog.model_name),
+        col(LLMAuditLog.tokens_input),
+        col(LLMAuditLog.tokens_output),
+        col(LLMAuditLog.tokens_total),
+        col(LLMAuditLog.latency_ms),
+        col(LLMAuditLog.first_token_ms),
+        col(LLMAuditLog.status),
     )
-    query = query.outerjoin(Project, col(Project.id) == col(AgentAuditLog.project_id))
+    query = query.outerjoin(Project, col(Project.id) == col(LLMAuditLog.project_id))
     result = await session.execute(_apply_filters(query, filters))
     return [
         DashboardMetricRow(
@@ -227,7 +233,7 @@ async def list_metric_rows(
 
 async def count_records(session: AsyncSession, filters: DashboardFilters) -> int:
     """统计筛选后的记录数。"""
-    query = select(func.count(col(AgentAuditLog.id)))
+    query = select(func.count(col(LLMAuditLog.id)))
     return (await session.execute(_apply_filters(query, filters))).scalar_one()
 
 
@@ -240,40 +246,41 @@ async def list_records(
     sort_order: str,
 ) -> list[DashboardRecordRow]:
     """获取筛选后的审计记录。"""
-    sort_column = SORT_COLUMNS.get(sort_by, AgentAuditLog.created_at)
+    sort_column = SORT_COLUMNS.get(sort_by, LLMAuditLog.created_at)
     order_expression = (
         col(sort_column).asc() if sort_order == "asc" else col(sort_column).desc()
     )
     query = (
         select(
-            col(AgentAuditLog.id),
-            col(AgentAuditLog.created_at),
-            col(AgentAuditLog.task_id),
-            col(AgentAuditLog.session_id),
-            col(AgentAuditLog.project_id),
+            col(LLMAuditLog.id),
+            col(LLMAuditLog.created_at),
+            col(LLMAuditLog.task_id),
+            col(LLMAuditLog.session_id),
+            col(LLMAuditLog.project_id),
             col(Project.title).label("project_title"),
-            col(AgentAuditLog.chapter_id),
-            col(AgentAuditLog.revision_id),
-            col(AgentAuditLog.agent_node),
-            col(AgentAuditLog.model_id),
-            col(AgentAuditLog.model_provider),
-            col(AgentAuditLog.model_name),
-            col(AgentAuditLog.tokens_input),
-            col(AgentAuditLog.tokens_output),
-            col(AgentAuditLog.tokens_total),
-            col(AgentAuditLog.token_cache),
-            col(AgentAuditLog.latency_ms),
-            col(AgentAuditLog.first_token_ms),
-            col(AgentAuditLog.status),
-            col(AgentAuditLog.error_type),
-            col(AgentAuditLog.error_message),
-            col(AgentAuditLog.error_status_code),
-            col(AgentAuditLog.tool_calls_count),
-            col(AgentAuditLog.response_content),
-            col(AgentAuditLog.response_tool_calls),
+            col(LLMAuditLog.chapter_id),
+            col(LLMAuditLog.revision_id),
+            col(LLMAuditLog.category),
+            col(LLMAuditLog.operation),
+            col(LLMAuditLog.model_id),
+            col(LLMAuditLog.model_provider),
+            col(LLMAuditLog.model_name),
+            col(LLMAuditLog.tokens_input),
+            col(LLMAuditLog.tokens_output),
+            col(LLMAuditLog.tokens_total),
+            col(LLMAuditLog.token_cache),
+            col(LLMAuditLog.latency_ms),
+            col(LLMAuditLog.first_token_ms),
+            col(LLMAuditLog.status),
+            col(LLMAuditLog.error_type),
+            col(LLMAuditLog.error_message),
+            col(LLMAuditLog.error_status_code),
+            col(LLMAuditLog.tool_calls_count),
+            col(LLMAuditLog.response_content),
+            col(LLMAuditLog.response_tool_calls),
         )
-        .outerjoin(Project, col(Project.id) == col(AgentAuditLog.project_id))
-        .order_by(order_expression, col(AgentAuditLog.id).desc())
+        .outerjoin(Project, col(Project.id) == col(LLMAuditLog.project_id))
+        .order_by(order_expression, col(LLMAuditLog.id).desc())
         .limit(limit)
         .offset(offset)
     )
@@ -288,7 +295,8 @@ async def list_records(
             project_title=row.project_title,
             chapter_id=row.chapter_id,
             revision_id=row.revision_id,
-            agent_node=row.agent_node,
+            category=row.category,
+            operation=row.operation,
             model_id=row.model_id,
             model_provider=row.model_provider,
             model_name=row.model_name,
@@ -316,9 +324,9 @@ async def get_record_prompt(
 ) -> DashboardRecordPromptRow | None:
     """获取单条审计记录的输入提示词。"""
     query = select(
-        col(AgentAuditLog.id),
-        col(AgentAuditLog.request_messages),
-    ).where(col(AgentAuditLog.id) == record_id)
+        col(LLMAuditLog.id),
+        col(LLMAuditLog.request_messages),
+    ).where(col(LLMAuditLog.id) == record_id)
     row = (await session.execute(query)).first()
     if row is None:
         return None
@@ -333,7 +341,7 @@ async def list_distinct_values(
     column_name: str,
 ) -> list[str]:
     """获取字段去重值。"""
-    column = getattr(AgentAuditLog, column_name)
+    column = getattr(LLMAuditLog, column_name)
     query = select(column).where(column.is_not(None)).distinct().order_by(column)
     result = await session.execute(query)
     return [value for value in result.scalars().all() if value]
@@ -343,11 +351,11 @@ async def list_project_filter_options(session: AsyncSession) -> list[FilterOptio
     """获取项目筛选显示项。"""
     query: Any = (
         select(
-            col(AgentAuditLog.project_id).label("value"),
-            func.coalesce(col(Project.title), col(AgentAuditLog.project_id)).label("label"),
+            col(LLMAuditLog.project_id).label("value"),
+            func.coalesce(col(Project.title), col(LLMAuditLog.project_id)).label("label"),
         )
-        .outerjoin(Project, col(Project.id) == col(AgentAuditLog.project_id))
-        .where(col(AgentAuditLog.project_id).is_not(None))
+        .outerjoin(Project, col(Project.id) == col(LLMAuditLog.project_id))
+        .where(col(LLMAuditLog.project_id).is_not(None))
         .distinct()
         .order_by("label")
     )
@@ -359,10 +367,10 @@ async def list_model_filter_options(session: AsyncSession) -> list[FilterOptionR
     """获取模型筛选显示项。"""
     query: Any = (
         select(
-            col(AgentAuditLog.model_id).label("value"),
-            func.coalesce(col(AgentAuditLog.model_name), col(AgentAuditLog.model_id)).label("label"),
+            col(LLMAuditLog.model_id).label("value"),
+            func.coalesce(col(LLMAuditLog.model_name), col(LLMAuditLog.model_id)).label("label"),
         )
-        .where(col(AgentAuditLog.model_id).is_not(None))
+        .where(col(LLMAuditLog.model_id).is_not(None))
         .distinct()
         .order_by("label")
     )

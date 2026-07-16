@@ -9,7 +9,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.storage.models.agent_audit_log import AgentAuditLog
+from app.storage.models.llm_audit_log import LLMAuditLog
 
 
 @pytest.mark.asyncio
@@ -24,10 +24,10 @@ async def test_llm_dashboard_records_include_output_details(
     )
     project_id = project_response.json()["id"]
 
-    audit_log = AgentAuditLog(
+    audit_log = LLMAuditLog(
         created_at=datetime(2026, 5, 9, 7, 30, tzinfo=UTC),
         project_id=project_id,
-        agent_node="writer",
+        operation="writer",
         model_id="test-model",
         model_provider="openai-compatible",
         model_name="Test Model",
@@ -68,9 +68,9 @@ async def test_llm_dashboard_record_prompt_returns_request_messages(
         data={"title": "测试小说"},
     )
     project_id = project_response.json()["id"]
-    audit_log = AgentAuditLog(
+    audit_log = LLMAuditLog(
         project_id=project_id,
-        agent_node="writer",
+        operation="writer",
         model_id="test-model",
         request_messages='[{"role":"system","content":"系统提示"}]',
         tokens_input=12,
@@ -90,6 +90,119 @@ async def test_llm_dashboard_record_prompt_returns_request_messages(
 
 
 @pytest.mark.asyncio
+async def test_llm_dashboard_filters_summary_operations(
+    client: AsyncClient,
+    session: AsyncSession,
+) -> None:
+    project_response = await client.post("/api/v1/projects", data={"title": "测试小说"})
+    project_id = project_response.json()["id"]
+    session.add_all(
+        [
+            LLMAuditLog(
+                project_id=project_id,
+                operation="writer",
+                model_id="test-model",
+                status="success",
+            ),
+            LLMAuditLog(
+                project_id=project_id,
+                operation="chapter_summary",
+                model_id="test-model",
+                status="success",
+            ),
+        ]
+    )
+    await session.commit()
+
+    response = await client.get(
+        "/api/v1/dashboard/llm-api/records",
+        params={"operation": "chapter_summary"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["options"]["operations"] == ["chapter_summary", "writer"]
+    assert [item["operation"] for item in response.json()["records"]["items"]] == [
+        "chapter_summary"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_llm_dashboard_filters_records_by_category(
+    client: AsyncClient,
+    session: AsyncSession,
+) -> None:
+    project_response = await client.post("/api/v1/projects", data={"title": "测试小说"})
+    project_id = project_response.json()["id"]
+    session.add_all(
+        [
+            LLMAuditLog(
+                project_id=project_id,
+                category="agent",
+                operation="writer",
+                model_id="test-model",
+                status="success",
+            ),
+            LLMAuditLog(
+                project_id=project_id,
+                category="memory",
+                operation="chapter_summary",
+                model_id="test-model",
+                status="success",
+            ),
+        ]
+    )
+    await session.commit()
+
+    response = await client.get(
+        "/api/v1/dashboard/llm-api/records",
+        params={"category": "memory"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["options"]["categories"] == ["agent", "memory"]
+    assert [item["category"] for item in payload["records"]["items"]] == ["memory"]
+
+
+@pytest.mark.asyncio
+async def test_llm_dashboard_searches_category_and_operation(
+    client: AsyncClient,
+    session: AsyncSession,
+) -> None:
+    project_response = await client.post("/api/v1/projects", data={"title": "测试小说"})
+    project_id = project_response.json()["id"]
+    session.add_all(
+        [
+            LLMAuditLog(
+                project_id=project_id,
+                category="agent",
+                operation="writer",
+                model_id="test-model",
+                status="success",
+            ),
+            LLMAuditLog(
+                project_id=project_id,
+                category="memory",
+                operation="chapter_summary",
+                model_id="test-model",
+                status="success",
+            ),
+        ]
+    )
+    await session.commit()
+
+    response = await client.get(
+        "/api/v1/dashboard/llm-api/records",
+        params={"search": "chapter_summary"},
+    )
+
+    assert response.status_code == 200
+    assert [item["operation"] for item in response.json()["records"]["items"]] == [
+        "chapter_summary"
+    ]
+
+
+@pytest.mark.asyncio
 async def test_llm_dashboard_stats_include_model_trends_and_project_breakdown(
     client: AsyncClient,
     session: AsyncSession,
@@ -101,30 +214,30 @@ async def test_llm_dashboard_stats_include_model_trends_and_project_breakdown(
     project_b_id = project_b_response.json()["id"]
     session.add_all(
         [
-            AgentAuditLog(
+            LLMAuditLog(
                 created_at=datetime(2026, 5, 8, 7, 30, tzinfo=UTC),
                 project_id=project_a_id,
-                agent_node="writer",
+                operation="writer",
                 model_id="model-a",
                 model_name="模型 A",
                 tokens_total=100,
                 latency_ms=800,
                 status="success",
             ),
-            AgentAuditLog(
+            LLMAuditLog(
                 created_at=datetime(2026, 5, 9, 7, 30, tzinfo=UTC),
                 project_id=project_a_id,
-                agent_node="writer",
+                operation="writer",
                 model_id="model-a",
                 model_name="模型 A",
                 tokens_total=60,
                 latency_ms=1000,
                 status="success",
             ),
-            AgentAuditLog(
+            LLMAuditLog(
                 created_at=datetime(2026, 5, 9, 8, 30, tzinfo=UTC),
                 project_id=project_b_id,
-                agent_node="reviewer",
+                operation="reviewer",
                 model_id="model-b",
                 model_name="模型 B",
                 tokens_total=40,
