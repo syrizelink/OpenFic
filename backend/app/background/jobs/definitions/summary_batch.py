@@ -6,6 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from app.audit import AuditContext
 from app.background.jobs import service as job_service
 from app.background.jobs import repos as job_repo
 from app.background.jobs.base import JobDefinition
@@ -235,7 +236,24 @@ async def _process_chapter_item(context: JobContext, item: BackgroundJobItem, me
     await _update_batch_progress(context.session, context, message=PROGRESS_MSG_CHAPTER_GENERATING)
     await job_service.commit_and_notify(context.session)
     prompt = await summary_generator.build_chapter_summary_prompt(context.session, chapter_id)
-    result = await summary_generator.generate_chapter_summary_from_prompt(resolved.client, prompt)
+    result = await summary_generator.generate_chapter_summary_from_prompt(
+        resolved.client,
+        prompt,
+        audit_context=AuditContext(
+            project_id=row.project_id,
+            category="memory",
+            chapter_id=row.chapter_id,
+            metadata={
+                "background_job_id": context.job_id,
+                "background_job_item_id": item.id,
+                "summary_id": row.id,
+                "summary_type": "chapter",
+            },
+        ),
+        model_id=getattr(resolved.model, "model_id", resolved.model.id),
+        model_provider=getattr(getattr(resolved, "provider", None), "provider_type", None),
+        model_name=getattr(resolved.model, "name", None),
+    )
     row = await summary_service.save_chapter_summary_result(
         context.session,
         chapter_id,
@@ -370,7 +388,25 @@ async def _process_long_term_item(context: JobContext, item: BackgroundJobItem, 
     await _update_batch_progress(context.session, context, message=PROGRESS_MSG_LONG_TERM_GENERATING)
     await job_service.commit_and_notify(context.session)
     prompt = await summary_generator.build_long_term_summary_prompt(context.session, source, chapters)
-    result = await summary_generator.generate_long_term_summary_from_prompt(resolved.client, prompt)
+    result = await summary_generator.generate_long_term_summary_from_prompt(
+        resolved.client,
+        prompt,
+        audit_context=AuditContext(
+            project_id=row.project_id,
+            category="memory",
+            metadata={
+                "background_job_id": context.job_id,
+                "background_job_item_id": item.id,
+                "summary_id": row.id,
+                "summary_type": "long_term",
+                "start_order": start_order,
+                "end_order": end_order,
+            },
+        ),
+        model_id=getattr(resolved.model, "model_id", resolved.model.id),
+        model_provider=getattr(getattr(resolved, "provider", None), "provider_type", None),
+        model_name=getattr(resolved.model, "name", None),
+    )
     refreshed_window = await summary_service.load_long_term_summary_window(
         context.session, project_id, start_order, end_order
     )

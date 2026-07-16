@@ -700,7 +700,7 @@ async def test_subagent_runner_collects_subagent_audit_logs_with_parent_metadata
     class FakeGraph:
         async def astream_events(self, initial_state, config=None, version=None):
             assert config is not None
-            audit_collector = config["configurable"]["audit_collector"]
+            audit_context = config["configurable"]["audit_context"]
             yield {
                 "event": "on_chain_start",
                 "name": "writer",
@@ -713,8 +713,8 @@ async def test_subagent_runner_collects_subagent_audit_logs_with_parent_metadata
                 "tags": ["subagent_child"],
                 "data": {},
             }
-            async with audit_collector.llm_call(
-                agent_node="writer",
+            async with audit_context.llm_call(
+                operation="writer",
                 model_id="gpt-test",
                 model_provider="openai",
                 request_messages=[],
@@ -752,7 +752,7 @@ async def test_subagent_runner_collects_subagent_audit_logs_with_parent_metadata
                 "final_output": None,
             }
 
-    monkeypatch.setattr("app.agent_runtime.audit.collector.enqueue_audit_log", fake_enqueue)
+    monkeypatch.setattr("app.audit.context.enqueue_audit_log", fake_enqueue)
     monkeypatch.setattr("app.agent_runtime.runner.subagent_runner.emit", fake_emit)
     monkeypatch.setattr(
         "app.agent_runtime.runner.subagent_runner.create_chat_model",
@@ -783,7 +783,7 @@ async def test_subagent_runner_collects_subagent_audit_logs_with_parent_metadata
     assert audit_log.task_id == "task-1"
     assert audit_log.parent_session_id == "parent-session"
     assert audit_log.child_run_id == row.id
-    assert audit_log.agent_node == "writer"
+    assert audit_log.operation == "writer"
 
 
 @pytest.mark.asyncio

@@ -28,7 +28,8 @@ class DashboardFilterOptionsResult:
     project_ids: list[str]
     model_providers: list[str]
     model_ids: list[str]
-    agent_nodes: list[str]
+    categories: list[str]
+    operations: list[str]
     statuses: list[str]
     project_options: list[dashboard_repo.FilterOptionRow]
     model_options: list[dashboard_repo.FilterOptionRow]
@@ -57,7 +58,8 @@ def build_filters(
     project_id: str | None = None,
     model_provider: str | None = None,
     model_id: str | None = None,
-    agent_node: str | None = None,
+    category: str | None = None,
+    operation: str | None = None,
     status: str | None = None,
     task_id: str | None = None,
     session_id: str | None = None,
@@ -70,7 +72,8 @@ def build_filters(
         project_id=project_id,
         model_provider=model_provider,
         model_id=model_id,
-        agent_node=agent_node,
+        category=category,
+        operation=operation,
         status=status,
         task_id=task_id,
         session_id=session_id,
@@ -141,7 +144,8 @@ async def get_filter_options(session: AsyncSession) -> DashboardFilterOptionsRes
             session, "model_provider"
         ),
         model_ids=await dashboard_repo.list_distinct_values(session, "model_id"),
-        agent_nodes=await dashboard_repo.list_distinct_values(session, "agent_node"),
+        categories=await dashboard_repo.list_distinct_values(session, "category"),
+        operations=await dashboard_repo.list_distinct_values(session, "operation"),
         statuses=await dashboard_repo.list_distinct_values(session, "status"),
         project_options=await dashboard_repo.list_project_filter_options(session),
         model_options=await dashboard_repo.list_model_filter_options(session),

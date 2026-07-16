@@ -14,6 +14,7 @@ import "./settings-dialog.css";
 import { applyCodeFontFamily, applyFontFamily, loadConfiguredFonts } from "@/lib/font-utils";
 import { OVERALL_INDEX_STATUS_QUERY_KEY } from "@/lib/index-status";
 
+import { AdvancedSettings } from "../components/advanced-settings";
 import { AgentDefinitionsSettings } from "../components/agent-definitions-settings";
 import { AgentToolsSettings } from "../components/agent-tools-settings";
 import { ConnectionsSettings } from "../components/connections-settings";
@@ -68,6 +69,7 @@ const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
   rules: "settings.rules",
   skills: "settings.skills",
   agents: "settings.agents",
+  advanced: "settings.advanced",
 };
 
 export function SettingsContent({
@@ -215,7 +217,8 @@ export function SettingsContent({
     activeCategory === "connections" ||
     activeCategory === "models" ||
     activeCategory === "index" ||
-    activeCategory === "agent-tools";
+    activeCategory === "agent-tools" ||
+    activeCategory === "advanced";
   const isMobileListView = isMobile && mobileView === "list";
   const isMobileSubpageDetail =
     isMobile && mobileView === "detail" && isSplitPanelCategory && mobileSubpage === "detail";
@@ -262,6 +265,10 @@ export function SettingsContent({
         removeQuery(["models"]);
         removeQuery(["model-providers"]);
         removeQuery(["model-provider-catalog"]);
+      }
+      if (category === "advanced") {
+        removeQuery(["settings"]);
+        removeQuery(["audit-details-storage"]);
       }
     },
     [queryClient],
@@ -412,6 +419,7 @@ export function SettingsContent({
                 isAgentSettingsLockLoading={isAgentSettingsLockLoading}
               />
             ) : null}
+            {activeCategory === "advanced" ? <AdvancedSettings /> : null}
           </>
         ) : null}
       </Box>

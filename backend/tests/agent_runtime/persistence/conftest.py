@@ -3,7 +3,7 @@
 
 注意：此处刻意逐个导入具体模型而不使用 ``import app.storage.models``。
 ``app.storage.models.__init__`` 当前会触发 ``app.agent_runtime`` 包初始化，
-后者与 ``app.agent_runtime.audit.collector`` 之间存在潜在循环导入；
+后者与 ``app.audit.context`` 之间存在潜在循环导入；
 通过仅导入用到的模型模块，可以避免该循环并保证 ``SQLModel.metadata``
 中只注册测试需要的表。
 

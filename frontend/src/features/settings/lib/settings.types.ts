@@ -44,6 +44,7 @@ export interface Settings {
   defaultRerankModel: string;
   agentBypassToolApproval: boolean;
   agentToolPermissions: AgentToolPermission[];
+  auditPersistDetails: boolean;
 }
 
 /** 设置响应（后端格式） */
@@ -67,6 +68,7 @@ export interface SettingsResponse {
     tool_name: string;
     mode: AgentToolPermissionMode;
   }>;
+  audit_persist_details: boolean;
 }
 
 /** 设置更新请求 */
@@ -90,6 +92,12 @@ export interface SettingsUpdateRequest {
     tool_name: string;
     mode: AgentToolPermissionMode;
   }>;
+  audit_persist_details?: boolean;
+}
+
+export interface AuditDetailsStorage {
+  detailRecordsCount: number;
+  detailBytes: number;
 }
 
 /** 字体选项 */

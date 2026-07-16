@@ -56,7 +56,8 @@ interface RawDashboardAuditRecord {
   project_title: string | null;
   chapter_id: string | null;
   revision_id: string | null;
-  agent_node: string;
+  category: string;
+  operation: string;
   model_id: string;
   model_provider: string | null;
   model_name: string | null;
@@ -71,6 +72,8 @@ interface RawDashboardAuditRecord {
   error_message: string | null;
   error_status_code: number | null;
   tool_calls_count: number;
+  has_request_messages: boolean;
+  tool_references: string | null;
   response_content: string | null;
   response_tool_calls: string | null;
 }
@@ -91,7 +94,8 @@ interface RawDashboardFilterOptions {
   project_ids: string[];
   model_providers: string[];
   model_ids: string[];
-  agent_nodes: string[];
+  categories: string[];
+  operations: string[];
   statuses: string[];
   project_options: RawDashboardFilterOptionItem[];
   model_options: RawDashboardFilterOptionItem[];
@@ -182,7 +186,8 @@ function transformRecord(raw: RawDashboardAuditRecord): DashboardAuditRecord {
     projectTitle: raw.project_title,
     chapterId: raw.chapter_id,
     revisionId: raw.revision_id,
-    agentNode: raw.agent_node,
+    category: raw.category,
+    operation: raw.operation,
     modelId: raw.model_id,
     modelProvider: raw.model_provider,
     modelName: raw.model_name,
@@ -197,6 +202,8 @@ function transformRecord(raw: RawDashboardAuditRecord): DashboardAuditRecord {
     errorMessage: raw.error_message,
     errorStatusCode: raw.error_status_code,
     toolCallsCount: raw.tool_calls_count,
+    hasRequestMessages: raw.has_request_messages,
+    toolReferences: raw.tool_references,
     responseContent: raw.response_content,
     responseToolCalls: raw.response_tool_calls,
   };
@@ -223,7 +230,8 @@ function transformOptions(raw: RawDashboardFilterOptions): DashboardFilterOption
     projectIds: raw.project_ids,
     modelProviders: raw.model_providers,
     modelIds: raw.model_ids,
-    agentNodes: raw.agent_nodes,
+    categories: raw.categories,
+    operations: raw.operations,
     statuses: raw.statuses,
     projectOptions: raw.project_options.map((option) => ({
       value: option.value,
@@ -259,7 +267,8 @@ export async function fetchLlmDashboardStats(
       project_id: query.projectId || undefined,
       model_provider: query.modelProvider || undefined,
       model_id: query.modelId || undefined,
-      agent_node: query.agentNode || undefined,
+      category: query.category || undefined,
+      operation: query.operation || undefined,
       status: query.status || undefined,
       start_at: query.startAt || undefined,
       end_at: query.endAt || undefined,
@@ -283,7 +292,8 @@ export async function fetchLlmDashboardRecords(
       project_id: query.projectId || undefined,
       model_provider: query.modelProvider || undefined,
       model_id: query.modelId || undefined,
-      agent_node: query.agentNode || undefined,
+      category: query.category || undefined,
+      operation: query.operation || undefined,
       status: query.status || undefined,
       task_id: query.taskId || undefined,
       session_id: query.sessionId || undefined,

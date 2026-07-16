@@ -56,11 +56,11 @@ def stub_agent_audit_queue(monkeypatch):
         return 1
 
     monkeypatch.setattr(
-        "app.agent_runtime.audit.collector.enqueue_audit_log",
+        "app.audit.context.enqueue_audit_log",
         fake_enqueue_audit_log,
     )
     monkeypatch.setattr(
-        "app.agent_runtime.audit.collector.next_call_sequence",
+        "app.audit.context.next_call_sequence",
         fake_next_call_sequence,
     )
 
@@ -76,7 +76,7 @@ def test_build_runtime_config_passes_compaction_sinks_to_graph():
     config = runner._build_runtime_config(
         runtime_session=object(),  # type: ignore[arg-type]
         runtime_context={},
-        audit_collector=object(),  # type: ignore[arg-type]
+        audit_context=object(),  # type: ignore[arg-type]
     )
 
     configurable = config["configurable"]
@@ -432,7 +432,7 @@ async def test_run_consumes_queued_follow_up_before_turn_finishes(
     monkeypatch.setattr(real_persister, "persist_node_event", noop_node_event)
     monkeypatch.setattr(runner, "_make_persister", lambda: real_persister)
 
-    from app.agent_runtime.audit import stop_audit_queue
+    from app.audit import stop_audit_queue
 
     try:
         await runner.run("help")

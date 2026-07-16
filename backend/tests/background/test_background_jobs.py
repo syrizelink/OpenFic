@@ -2,6 +2,7 @@ from collections import deque
 from datetime import UTC, datetime, timedelta
 import asyncio
 import builtins
+import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -440,8 +441,12 @@ async def test_session_title_compiles_mentions_before_prompt_build(tmp_path):
 
         fake_resolved = SimpleNamespace(
             client=SimpleNamespace(
-                generate=AsyncMock(return_value=SimpleNamespace(content="标题测试")),
-            )
+                generate=AsyncMock(
+                    return_value=SimpleNamespace(content="标题测试", usage={})
+                ),
+            ),
+            model=SimpleNamespace(model_id="gpt-test", name="GPT Test"),
+            provider=SimpleNamespace(provider_type="openai-compatible"),
         )
 
         with patch(
@@ -458,6 +463,83 @@ async def test_session_title_compiles_mentions_before_prompt_build(tmp_path):
 
         assert captured["current_message"] == compiled_text
         assert result == {"title": "标题测试", "task_id": task.id}
+    finally:
+        if context is not None and context.session is not session:
+            await context.session.close()
+        await session.close()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_session_title_records_audited_model_call(tmp_path, monkeypatch):
+    engine, factory = await _configure_file_database(tmp_path)
+    session = factory()
+    context: JobContext | None = None
+    enqueued = []
+    try:
+        project = Project(title="项目", description="")
+        task = Task(
+            project_id=project.id,
+            title="临时标题",
+            mode="agent",
+            agent_session_id="session-title-audit",
+        )
+        session.add_all([project, task])
+        await session.commit()
+        job = await background_service.submit_job(
+            session,
+            job_type="session_title",
+            payload={"task_id": task.id, "seed_message": "请命名这个会话"},
+            context={"project_id": project.id, "model_policy": "light_model"},
+            subject_type="task",
+            subject_id=task.id,
+        )
+        await session.commit()
+        context = JobContext(
+            session=session,
+            job=job,
+            publisher=BackgroundEventPublisher(RecordingTransport()),
+        )
+
+        async def fake_enqueue(audit_log):
+            enqueued.append(audit_log)
+
+        fake_resolved = SimpleNamespace(
+            client=SimpleNamespace(
+                generate=AsyncMock(
+                    return_value=SimpleNamespace(
+                        content="标题测试",
+                        usage={"input_tokens": 12, "output_tokens": 8},
+                    )
+                )
+            ),
+            model=SimpleNamespace(id="model-record", model_id="gpt-test", name="GPT Test"),
+            provider=SimpleNamespace(provider_type="openai-compatible"),
+        )
+        monkeypatch.setattr("app.audit.context.enqueue_audit_log", fake_enqueue)
+        with patch(
+            "app.background.jobs.definitions.session_title.resolve_background_llm",
+            AsyncMock(return_value=fake_resolved),
+        ), patch(
+            "app.background.jobs.definitions.session_title.build_chat_messages",
+            AsyncMock(return_value=[]),
+        ):
+            result = await handle_session_title(context)
+
+        assert result == {"title": "标题测试", "task_id": task.id}
+        assert len(enqueued) == 1
+        audit_log = enqueued[0]
+        assert audit_log.category == "session"
+        assert audit_log.operation == "session_title"
+        assert audit_log.project_id == project.id
+        assert audit_log.task_id == task.id
+        assert audit_log.session_id == "session-title-audit"
+        assert audit_log.model_id == "gpt-test"
+        assert audit_log.tokens_total == 20
+        assert json.loads(audit_log.extra_data or "{}") == {
+            "background_job_id": job.id,
+            "seed_message": "请命名这个会话",
+        }
     finally:
         if context is not None and context.session is not session:
             await context.session.close()
@@ -1392,7 +1474,7 @@ async def test_summary_batch_aggregates_window_with_skipped_first_chapter(tmp_pa
             assert len(source) == summary_service.LONG_TERM_SUMMARY_INTERVAL - 1
             return "prompt"
 
-        async def fake_generate(_client, _prompt):
+        async def fake_generate(_client, _prompt, **_audit_kwargs):
             return FakeLongTermSummaryResult()
 
         monkeypatch.setattr(summary_batch_definition, "resolve_background_llm", fake_resolve_background_llm)
@@ -1461,7 +1543,7 @@ async def test_summary_batch_persists_running_status_before_generation(tmp_path,
             summary = "章节摘要"
             token_count = 12
 
-        async def fake_generate(_client, _prompt):
+        async def fake_generate(_client, _prompt, **_audit_kwargs):
             return FakeChapterSummaryResult()
 
         class FakeResolvedModel:
@@ -1526,7 +1608,7 @@ async def test_summary_batch_progress_event_contains_aggregated_batch_progress(t
         async def fake_build_prompt(_session, _chapter_id: str):
             return "prompt"
 
-        async def fake_generate(_client, _prompt):
+        async def fake_generate(_client, _prompt, **_audit_kwargs):
             return FakeChapterSummaryResult()
 
         monkeypatch.setattr(summary_batch_definition, "resolve_background_llm", fake_resolve_background_llm)
@@ -1591,7 +1673,7 @@ async def test_summary_batch_emits_item_progress_and_terminal_events(tmp_path, m
         async def fake_build_prompt(_session, _chapter_id: str):
             return "prompt"
 
-        async def fake_generate(_client, _prompt):
+        async def fake_generate(_client, _prompt, **_audit_kwargs):
             return FakeChapterSummaryResult()
 
         monkeypatch.setattr(summary_batch_definition, "resolve_background_llm", fake_resolve_background_llm)

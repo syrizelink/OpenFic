@@ -20,9 +20,16 @@ from app.api.agent_settings_lock import require_agent_settings_unlocked
 from app.api.schemas.setting import (
     AgentSettingsLockResponse,
     AgentToolPermissionItem,
+    AuditDetailsStorageResponse,
+    ClearAuditDetailsResponse,
     SettingsResponse,
     SettingsUpdateRequest,
 )
+from app.audit.queue import (
+    AUDIT_DETAILS_PERSISTENCE_SETTING_KEY,
+    set_audit_details_persistence,
+)
+from app.audit.repo import LLMAuditLogRepo
 from app.retrieval.chapter_index import (
     DEFAULT_INDEX_AUTO_STRATEGY,
     DEFAULT_INDEX_CHUNK_OVERLAP,
@@ -58,6 +65,7 @@ SETTING_KEY_CODE_FONT_FAMILY = "code_font_family"
 SETTING_KEY_DEFAULT_MODEL = "default_model"
 SETTING_KEY_LIGHT_MODEL = "light_model"
 SETTING_KEY_DEFAULT_EMBEDDING_MODEL = "default_embedding_model"
+SETTING_KEY_AUDIT_PERSIST_DETAILS = AUDIT_DETAILS_PERSISTENCE_SETTING_KEY
 # 默认值
 DEFAULT_SETTINGS = {
     SETTING_KEY_LANGUAGE: "zh-CN",
@@ -78,6 +86,7 @@ DEFAULT_SETTINGS = {
     SETTING_KEY_DEFAULT_RERANK_MODEL: DEFAULT_INDEX_RERANK_MODEL,
     SETTING_KEY_AGENT_BYPASS_TOOL_APPROVAL: "false",
     SETTING_KEY_AGENT_TOOL_PERMISSIONS: "[]",
+    SETTING_KEY_AUDIT_PERSIST_DETAILS: "false",
 }
 
 
@@ -288,6 +297,13 @@ async def get_settings(
             default=False,
         ),
         agent_tool_permissions=agent_tool_permissions,
+        audit_persist_details=_parse_bool_setting(
+            settings_dict.get(
+                SETTING_KEY_AUDIT_PERSIST_DETAILS,
+                DEFAULT_SETTINGS[SETTING_KEY_AUDIT_PERSIST_DETAILS],
+            ),
+            default=False,
+        ),
     )
 
 
@@ -344,6 +360,7 @@ async def update_settings(
     settings_to_update: dict[str, str] = {}
     index_config_changed = False
     index_contract_changed = False
+    next_audit_details_persistence: bool | None = None
 
     if request.language is not None:
         settings_to_update[SETTING_KEY_LANGUAGE] = request.language
@@ -436,6 +453,12 @@ async def update_settings(
             [item.model_dump(mode="json") for item in request.agent_tool_permissions],
             ensure_ascii=False,
         )
+    if request.audit_persist_details is not None:
+        settings_to_update[SETTING_KEY_AUDIT_PERSIST_DETAILS] = json.dumps(
+            request.audit_persist_details,
+            ensure_ascii=False,
+        )
+        next_audit_details_persistence = request.audit_persist_details
 
     # 分块参数或嵌入模型变更会使现有索引失效，需要标记重建。
     if index_contract_changed:
@@ -445,6 +468,8 @@ async def update_settings(
     # 批量更新
     if settings_to_update:
         await setting_repo.bulk_upsert(session, settings_to_update)
+    if next_audit_details_persistence is not None:
+        set_audit_details_persistence(next_audit_details_persistence)
 
     # 索引配置变更后通知前端刷新索引状态。
     if index_config_changed:
@@ -452,3 +477,33 @@ async def update_settings(
 
     # 返回更新后的完整设置
     return await get_settings(session)
+
+
+@router.get(
+    "/audit-details/storage",
+    response_model=AuditDetailsStorageResponse,
+    summary="获取 LLM 调用详情存储概览",
+)
+async def get_audit_details_storage(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AuditDetailsStorageResponse:
+    storage = await LLMAuditLogRepo(session).get_details_storage()
+    return AuditDetailsStorageResponse(
+        detail_records_count=storage.detail_records_count,
+        detail_bytes=storage.detail_bytes,
+    )
+
+
+@router.delete(
+    "/audit-details",
+    response_model=ClearAuditDetailsResponse,
+    summary="清空 LLM 调用详情",
+)
+async def clear_audit_details(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ClearAuditDetailsResponse:
+    cleared = await LLMAuditLogRepo(session).clear_details()
+    return ClearAuditDetailsResponse(
+        cleared_records_count=cleared.cleared_records_count,
+        cleared_detail_bytes=cleared.cleared_detail_bytes,
+    )

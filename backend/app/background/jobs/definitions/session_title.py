@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from app.audit import AuditContext
 from app.background.events.types import EVENT_TASK_TITLE_UPDATED
 from app.background.jobs import service as job_service
 from app.background.jobs.base import JobDefinition
@@ -70,7 +71,34 @@ async def handle_session_title(context: JobContext) -> dict[str, str] | None:
     if resolved is None or messages is None:
         return None
     await context.check_cancelled()
-    response = await resolved.client.generate(messages, timeout=60)
+
+    async def load_task_audit_context(session, _job):
+        task = await task_repo.get_by_id(session, payload.task_id)
+        if task is None:
+            return None
+        return AuditContext(
+            project_id=metadata.project_id,
+            category="session",
+            task_id=task.id,
+            session_id=task.agent_session_id,
+            metadata={
+                "background_job_id": context.job_id,
+                "seed_message": seed_message,
+            },
+        )
+
+    audit_context = await context.with_short_session(load_task_audit_context)
+    if audit_context is None:
+        return None
+    async with audit_context.llm_call(
+        operation="session_title",
+        model_id=resolved.model.model_id,
+        model_provider=resolved.provider.provider_type,
+        model_name=resolved.model.name,
+        request_messages=messages,
+    ) as audit:
+        response = await resolved.client.generate(messages, timeout=60)
+        audit.record_response(content=response.content, usage=response.usage)
     await context.check_cancelled()
     title = _clean_title(response.content)
     if not title:

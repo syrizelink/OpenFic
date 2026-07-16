@@ -19,6 +19,20 @@ class AgentSettingsLockResponse(BaseModel):
     is_locked: bool = Field(..., description="是否存在未结束的 Agent 或子智能体会话")
 
 
+class AuditDetailsStorageResponse(BaseModel):
+    """LLM 调用详情的存储概览。"""
+
+    detail_records_count: int = Field(description="包含详情的调用记录数")
+    detail_bytes: int = Field(description="详情字段 UTF-8 字节数估算")
+
+
+class ClearAuditDetailsResponse(BaseModel):
+    """清空 LLM 调用详情的结果。"""
+
+    cleared_records_count: int = Field(description="已清空详情的调用记录数")
+    cleared_detail_bytes: int = Field(description="已清空详情字段的 UTF-8 字节数估算")
+
+
 class SettingsResponse(BaseModel):
     """设置响应。"""
 
@@ -50,6 +64,7 @@ class SettingsResponse(BaseModel):
     agent_tool_permissions: list[AgentToolPermissionItem] = Field(
         default_factory=list, description="Agent 工具权限设置"
     )
+    audit_persist_details: bool = Field(default=False, description="是否持久化 LLM 调用详情")
 
 
 class SettingsUpdateRequest(BaseModel):
@@ -86,4 +101,7 @@ class SettingsUpdateRequest(BaseModel):
     )
     agent_tool_permissions: list[AgentToolPermissionItem] | None = Field(
         default=None, description="Agent 工具权限设置"
+    )
+    audit_persist_details: bool | None = Field(
+        default=None, description="是否持久化 LLM 调用详情"
     )

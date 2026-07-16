@@ -50,7 +50,8 @@ from app.api.routers import (
     world_info,
     world_info_entries,
 )
-from app.agent_runtime.audit.queue import start_audit_queue, stop_audit_queue
+from app.audit import start_audit_queue, stop_audit_queue
+from app.audit.queue import load_audit_details_persistence
 from app.agent_runtime.runner.checkpointer import close_checkpointer, init_checkpointer
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.background.runtime.supervisor import (
@@ -257,6 +258,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.warning(f"已重置 {cleared_tasks} 个遗留的运行中任务状态")
     await _seed_builtin_models()
     await init_checkpointer()
+    await load_audit_details_persistence()
     start_audit_queue()
     await start_background_runtime()
     _print_startup_banner(app_settings.app_version)

@@ -10,7 +10,7 @@ from app.background.jobs.models import (
     BackgroundJobEvent,
     BackgroundJobItem,
 )
-from app.storage.models.agent_audit_log import AgentAuditLog
+from app.storage.models.llm_audit_log import LLMAuditLog
 from app.storage.models.agent_memory import AgentMemory
 from app.storage.models.agent_rule import AgentRule
 from app.agent_runtime.persistence.model import AgentContextCompaction, AgentRunMessage
@@ -43,7 +43,7 @@ from app.storage.models.world_info import WorldInfo
 from app.storage.models.world_info_entry import WorldInfoEntry
 
 __all__ = [
-    "AgentAuditLog",
+    "LLMAuditLog",
     "AgentMemory",
     "AgentRule",
     "AgentContextCompaction",

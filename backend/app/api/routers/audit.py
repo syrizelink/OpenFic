@@ -9,18 +9,18 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.audit import (
-    AgentAuditLogListResponse,
-    AgentAuditLogResponse,
+    LLMAuditLogListResponse,
+    LLMAuditLogResponse,
     TaskAuditAggregation,
     ToolCallResult,
 )
-from app.agent_runtime.audit.repo import AgentAuditLogRepo
+from app.audit.repo import LLMAuditLogRepo
 from app.storage.database import get_session
 
 router = APIRouter(tags=["Audit"])
 
 
-def serialize_audit_log(log) -> AgentAuditLogResponse:
+def serialize_audit_log(log) -> LLMAuditLogResponse:
     """序列化审计日志。"""
     request_messages = None
     if log.request_messages:
@@ -28,6 +28,13 @@ def serialize_audit_log(log) -> AgentAuditLogResponse:
             request_messages = json.loads(log.request_messages)
         except json.JSONDecodeError:
             request_messages = None
+
+    tool_references = None
+    if log.tool_references:
+        try:
+            tool_references = json.loads(log.tool_references)
+        except json.JSONDecodeError:
+            tool_references = None
 
     response_tool_calls = None
     if log.response_tool_calls:
@@ -45,7 +52,7 @@ def serialize_audit_log(log) -> AgentAuditLogResponse:
         except (json.JSONDecodeError, TypeError):
             tool_call_results = None
 
-    return AgentAuditLogResponse(
+    return LLMAuditLogResponse(
         id=log.id,
         created_at=log.created_at,
         task_id=log.task_id,
@@ -55,12 +62,14 @@ def serialize_audit_log(log) -> AgentAuditLogResponse:
         project_id=log.project_id,
         chapter_id=log.chapter_id,
         revision_id=log.revision_id,
-        agent_node=log.agent_node,
+        category=log.category,
+        operation=log.operation,
         call_sequence=log.call_sequence,
         model_id=log.model_id,
         model_provider=log.model_provider,
         model_name=log.model_name,
         request_messages=request_messages,
+        tool_references=tool_references,
         response_content=log.response_content,
         response_tool_calls=response_tool_calls,
         tool_call_results=tool_call_results,
@@ -80,16 +89,16 @@ def serialize_audit_log(log) -> AgentAuditLogResponse:
     )
 
 
-@router.get("/tasks/{task_id}/audit-logs", response_model=AgentAuditLogListResponse)
+@router.get("/tasks/{task_id}/audit-logs", response_model=LLMAuditLogListResponse)
 async def list_task_audit_logs(
     task_id: str,
     session: AsyncSession = Depends(get_session),
-) -> AgentAuditLogListResponse:
+) -> LLMAuditLogListResponse:
     """获取Task的所有审计日志。"""
-    repo = AgentAuditLogRepo(session)
+    repo = LLMAuditLogRepo(session)
     logs = await repo.list_by_task(task_id)
     items = [serialize_audit_log(log) for log in logs]
-    return AgentAuditLogListResponse(items=items, total=len(items))
+    return LLMAuditLogListResponse(items=items, total=len(items))
 
 
 @router.get("/tasks/{task_id}/audit-aggregation", response_model=TaskAuditAggregation)
@@ -98,7 +107,7 @@ async def get_task_audit_aggregation(
     session: AsyncSession = Depends(get_session),
 ) -> TaskAuditAggregation:
     """获取Task级别的审计聚合数据。"""
-    repo = AgentAuditLogRepo(session)
+    repo = LLMAuditLogRepo(session)
     aggregation = await repo.aggregate_by_task(task_id)
     if not aggregation:
         raise HTTPException(
@@ -119,26 +128,26 @@ async def get_task_audit_aggregation(
 
 
 @router.get(
-    "/audit-logs/session/{session_id}", response_model=AgentAuditLogListResponse
+    "/audit-logs/session/{session_id}", response_model=LLMAuditLogListResponse
 )
 async def list_session_audit_logs(
     session_id: str,
     db_session: AsyncSession = Depends(get_session),
-) -> AgentAuditLogListResponse:
+) -> LLMAuditLogListResponse:
     """获取Agent会话的所有审计日志。"""
-    repo = AgentAuditLogRepo(db_session)
+    repo = LLMAuditLogRepo(db_session)
     logs = await repo.list_by_session(session_id)
     items = [serialize_audit_log(log) for log in logs]
-    return AgentAuditLogListResponse(items=items, total=len(items))
+    return LLMAuditLogListResponse(items=items, total=len(items))
 
 
-@router.get("/audit-logs/{audit_id}", response_model=AgentAuditLogResponse)
+@router.get("/audit-logs/{audit_id}", response_model=LLMAuditLogResponse)
 async def get_audit_log(
     audit_id: str,
     session: AsyncSession = Depends(get_session),
-) -> AgentAuditLogResponse:
+) -> LLMAuditLogResponse:
     """获取单条审计日志详情。"""
-    repo = AgentAuditLogRepo(session)
+    repo = LLMAuditLogRepo(session)
     log = await repo.get_by_id(audit_id)
     if not log:
         raise HTTPException(

@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel
 
+from app.audit import AuditContext
 from app.background.events.types import EVENT_CHAPTER_SUMMARY_UPDATED, EVENT_LONG_TERM_SUMMARY_UPDATED
 from app.background.jobs import service as job_service
 from app.background.jobs.base import JobDefinition
@@ -62,7 +63,7 @@ async def handle_chapter_summary(context: JobContext) -> dict[str, str] | None:
         except BackgroundModelUnavailableError as exc:
             await _mark_chapter_failed(context, payload.chapter_id, str(exc), session=session, job=job)
             await job_service.mark_skipped(session, context.publisher, job, reason=str(exc))
-            return None, None
+            return None, None, None
         row = await summary_service.mark_chapter_summary_running(
             session, payload.chapter_id, job.id, resolved.model.id
         )
@@ -76,15 +77,31 @@ async def handle_chapter_summary(context: JobContext) -> dict[str, str] | None:
             message=PROGRESS_MSG_CHAPTER_GENERATING,
         )
         prompt = await summary_generator.build_chapter_summary_prompt(session, payload.chapter_id)
-        return resolved, prompt
+        return resolved, prompt, row
 
-    resolved, prompt = await context.with_short_session(prepare_generation)
-    if resolved is None or prompt is None:
+    resolved, prompt, summary_row = await context.with_short_session(prepare_generation)
+    if resolved is None or prompt is None or summary_row is None:
         return None
     model_id = resolved.model.id
     await context.check_cancelled()
 
-    result = await summary_generator.generate_chapter_summary_from_prompt(resolved.client, prompt)
+    result = await summary_generator.generate_chapter_summary_from_prompt(
+        resolved.client,
+        prompt,
+        audit_context=AuditContext(
+            project_id=metadata.project_id,
+            category="memory",
+            chapter_id=payload.chapter_id,
+            metadata={
+                "background_job_id": context.job_id,
+                "summary_id": summary_row.id,
+                "summary_type": "chapter",
+            },
+        ),
+        model_id=getattr(resolved.model, "model_id", resolved.model.id),
+        model_provider=getattr(getattr(resolved, "provider", None), "provider_type", None),
+        model_name=getattr(resolved.model, "name", None),
+    )
     await context.check_cancelled()
 
     async def save_result(session, job):
@@ -141,7 +158,7 @@ async def handle_long_term_summary(context: JobContext) -> dict[str, str] | None
         )
         if window is None:
             await job_service.mark_skipped(session, context.publisher, job, reason=ERROR_MSG_INSUFFICIENT_SOURCE)
-            return None, None, None
+            return None, None, None, None
         source = window.source_summaries
         chapters = await chapter_repo.list_by_project(session, payload.project_id)
         try:
@@ -165,7 +182,7 @@ async def handle_long_term_summary(context: JobContext) -> dict[str, str] | None
             )
             await summary_service.mark_summary_failed(session, row, str(exc))
             await job_service.mark_skipped(session, context.publisher, job, reason=str(exc))
-            return None, None, None
+            return None, None, None, None
 
         row = await summary_service.create_or_update_long_term_summary(
             session,
@@ -190,15 +207,32 @@ async def handle_long_term_summary(context: JobContext) -> dict[str, str] | None
             message=PROGRESS_MSG_LONG_TERM_GENERATING,
         )
         prompt = await summary_generator.build_long_term_summary_prompt(session, source, chapters)
-        return resolved, source, prompt
+        return resolved, source, prompt, row
 
-    resolved, source, prompt = await context.with_short_session(prepare_generation)
-    if resolved is None or source is None or prompt is None:
+    resolved, source, prompt, summary_row = await context.with_short_session(prepare_generation)
+    if resolved is None or source is None or prompt is None or summary_row is None:
         return None
     model_id = resolved.model.id
     await context.check_cancelled()
 
-    result = await summary_generator.generate_long_term_summary_from_prompt(resolved.client, prompt)
+    result = await summary_generator.generate_long_term_summary_from_prompt(
+        resolved.client,
+        prompt,
+        audit_context=AuditContext(
+            project_id=payload.project_id,
+            category="memory",
+            metadata={
+                "background_job_id": context.job_id,
+                "summary_id": summary_row.id,
+                "summary_type": "long_term",
+                "start_order": payload.start_order,
+                "end_order": payload.end_order,
+            },
+        ),
+        model_id=getattr(resolved.model, "model_id", resolved.model.id),
+        model_provider=getattr(getattr(resolved, "provider", None), "provider_type", None),
+        model_name=getattr(resolved.model, "name", None),
+    )
     await context.check_cancelled()
 
     async def save_result(session, job):

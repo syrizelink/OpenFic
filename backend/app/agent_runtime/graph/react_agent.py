@@ -19,6 +19,7 @@ from langchain_core.messages.tool import ToolCall
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
 from langgraph._internal._constants import CONF, CONFIG_KEY_RUNTIME
+from langgraph.errors import GraphInterrupt
 from langgraph.graph import END, START, StateGraph
 from langgraph.runtime import Runtime
 from langgraph.types import RetryPolicy
@@ -43,7 +44,7 @@ from app.agent_runtime.tool_call_recovery import (
 )
 
 if TYPE_CHECKING:
-    from app.agent_runtime.audit.collector import LLMCallAudit
+    from app.audit import LLMCallAudit
     from app.agent_runtime.graph.state import AgentRuntimeState
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -69,8 +70,21 @@ class ReactState(TypedDict):
 # ---------------------------------------------------------------------------
 
 async def _invoke_model(model: Any, messages: list[BaseMessage]) -> AIMessage:
-    """Call the LLM. Module-level to allow patching in tests."""
-    return await model.ainvoke(messages)
+    """Stream the LLM response and retain the first chunk latency for auditing."""
+    start_time = time.perf_counter()
+    first_token_ms: int | None = None
+    response: AIMessage | None = None
+
+    async for chunk in model.astream(messages):
+        if first_token_ms is None:
+            first_token_ms = int((time.perf_counter() - start_time) * 1000)
+        response = chunk if response is None else response + chunk
+
+    if response is None:
+        raise ValueError("LLM流式调用未返回响应")
+
+    object.__setattr__(response, "_openfic_first_token_ms", first_token_ms)
+    return response
 
 
 RetryEventSink = Callable[[dict[str, Any]], Awaitable[None]]
@@ -163,6 +177,24 @@ def _extract_usage(message: AIMessage) -> dict[str, Any] | None:
             if usage_dict:
                 return usage_dict
     return None
+
+
+def _error_status_code(exc: BaseException) -> int | None:
+    status_code = getattr(exc, "status_code", None)
+    if isinstance(status_code, int):
+        return status_code
+
+    response = getattr(exc, "response", None)
+    status_code = getattr(response, "status_code", None)
+    return status_code if isinstance(status_code, int) else None
+
+
+def _record_audit_error(audit: LLMCallAudit, exc: BaseException) -> None:
+    audit.record_error(
+        error_type=exc.__class__.__name__,
+        error_message=str(exc),
+        error_status_code=_error_status_code(exc),
+    )
 
 
 def _tool_result_payload(value: Any) -> tuple[dict[str, Any], bool]:
@@ -471,20 +503,21 @@ def create_react_agent(
         configurable: dict[str, Any],
         messages: list[BaseMessage],
     ) -> LLMCallAudit | None:
-        audit_collector = configurable.get("audit_collector")
-        if audit_collector is None:
+        audit_context = configurable.get("audit_context")
+        if audit_context is None:
             return None
         runtime_state = configurable.get("runtime_state") or {}
         model_cfg = runtime_state.get("model_config") if isinstance(runtime_state, dict) else {}
         if not isinstance(model_cfg, dict):
             model_cfg = {}
 
-        audit = audit_collector.llm_call(
-            agent_node=react_config.name,
+        audit = audit_context.llm_call(
+            operation=react_config.name,
             model_id=str(model_cfg.get("model_id") or ""),
             model_provider=model_cfg.get("provider_type"),
             model_name=model_cfg.get("model_id"),
             request_messages=messages,
+            tools=tools,
         )
         await audit.__aenter__()
         return audit
@@ -651,6 +684,7 @@ def create_react_agent(
             response = await _invoke_model(bound_model or model, messages)
         except Exception as exc:
             if audit is not None:
+                _record_audit_error(audit, exc)
                 await _finish_active_audit(status="error")
             session_id = runtime_state.get("session_id") if isinstance(runtime_state, Mapping) else None
             current_attempt = _get_node_attempt(config)
@@ -686,6 +720,7 @@ def create_react_agent(
                 content=response.content if isinstance(response.content, str) else str(response.content),
                 tool_calls=cast(list[dict[str, Any]], response.tool_calls or []),
                 usage=_extract_usage(response),
+                first_token_ms=getattr(response, "_openfic_first_token_ms", None),
             )
             if not response.tool_calls:
                 await _finish_active_audit()
@@ -824,6 +859,14 @@ def create_react_agent(
             await _finish_active_audit()
             audit_finished = True
             return update
+        except GraphInterrupt:
+            raise
+        except Exception as exc:
+            if active_audit is not None:
+                _record_audit_error(active_audit, exc)
+            await _finish_active_audit(status="error")
+            audit_finished = True
+            raise
         finally:
             if not audit_finished:
                 await _finish_active_audit()

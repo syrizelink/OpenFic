@@ -2,7 +2,7 @@ import { Card, IconButton, TextField } from "@radix-ui/themes";
 import { ListRestart } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { getAgentLabel, getStatusLabel } from "../lib/dashboard-formatters";
+import { getCategoryLabel, getStatusLabel } from "../lib/dashboard-formatters";
 import type { DashboardQueryParams } from "../lib/dashboard.types";
 import { DashboardDatePicker } from "./dashboard-date-picker";
 import { DashboardSelectFilter } from "./dashboard-select-filter";
@@ -18,7 +18,7 @@ interface DashboardFiltersProps {
     modelProviders: string[];
     modelIds: string[];
     modelOptions: Array<{ value: string; label: string }>;
-    agentNodes: string[];
+    categories: string[];
     statuses: string[];
   };
   searchInput: string;
@@ -93,13 +93,13 @@ export function DashboardFilters({
                 />
               </label>
               <label className="dashboard-filter-field">
-                <span className="dashboard-filter-label">{t("dashboard.filters.agent")}</span>
+                <span className="dashboard-filter-label">{t("dashboard.filters.category")}</span>
                 <DashboardSelectFilter
-                  value={query.agentNode}
-                  placeholder={t("dashboard.filters.allRoles")}
-                  options={options?.agentNodes ?? []}
-                  onChange={(agentNode) => updateQuery({ agentNode })}
-                  labelForValue={getAgentLabel}
+                  value={query.category}
+                  placeholder={t("dashboard.filters.allCategories")}
+                  options={options?.categories ?? []}
+                  onChange={(category) => updateQuery({ category })}
+                  labelForValue={getCategoryLabel}
                 />
               </label>
               <label className="dashboard-filter-field">
@@ -228,13 +228,13 @@ export function DashboardFilters({
             />
           </label>
           <label className="dashboard-filter-field">
-            <span className="dashboard-filter-label">{t("dashboard.filters.agent")}</span>
+            <span className="dashboard-filter-label">{t("dashboard.filters.category")}</span>
             <DashboardSelectFilter
-              value={query.agentNode}
-              placeholder={t("dashboard.filters.allRoles")}
-              options={options?.agentNodes ?? []}
-              onChange={(agentNode) => updateQuery({ agentNode })}
-              labelForValue={getAgentLabel}
+              value={query.category}
+              placeholder={t("dashboard.filters.allCategories")}
+              options={options?.categories ?? []}
+              onChange={(category) => updateQuery({ category })}
+              labelForValue={getCategoryLabel}
             />
           </label>
           <label className="dashboard-filter-field">

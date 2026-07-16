@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage
 
-from app.agent_runtime.audit.collector import AuditCollector
+from app.audit import AuditContext
 
 
 @pytest.mark.asyncio
@@ -18,9 +18,9 @@ async def test_audit_request_messages_are_pretty_json(
     async def fake_enqueue(audit_log: Any) -> None:
         enqueued.append(audit_log)
 
-    monkeypatch.setattr("app.agent_runtime.audit.collector.enqueue_audit_log", fake_enqueue)
+    monkeypatch.setattr("app.audit.context.enqueue_audit_log", fake_enqueue)
 
-    collector = AuditCollector(project_id="project-1")
+    context = AuditContext(project_id="project-1")
     messages: list[BaseMessage] = [
         SystemMessage(content="提示词：\n"),
         AIMessage(
@@ -38,8 +38,8 @@ async def test_audit_request_messages_are_pretty_json(
         ),
     ]
 
-    async with collector.llm_call(
-        agent_node="writer",
+    async with context.llm_call(
+        operation="writer",
         model_id="model-1",
         request_messages=messages,
     ):
@@ -66,13 +66,13 @@ async def test_audit_records_openai_cached_tokens(
     async def fake_enqueue(audit_log: Any) -> None:
         enqueued.append(audit_log)
 
-    monkeypatch.setattr("app.agent_runtime.audit.collector.enqueue_audit_log", fake_enqueue)
+    monkeypatch.setattr("app.audit.context.enqueue_audit_log", fake_enqueue)
 
-    collector = AuditCollector(project_id="project-1")
+    context = AuditContext(project_id="project-1")
     request_messages: list[BaseMessage] = [SystemMessage(content="prompt")]
 
-    async with collector.llm_call(
-        agent_node="writer",
+    async with context.llm_call(
+        operation="writer",
         model_id="model-1",
         request_messages=request_messages,
     ) as audit:
@@ -103,13 +103,13 @@ async def test_audit_records_subagent_parent_metadata(
     async def fake_next_call_sequence(_session_id: str | None) -> int:
         return 1
 
-    monkeypatch.setattr("app.agent_runtime.audit.collector.enqueue_audit_log", fake_enqueue)
+    monkeypatch.setattr("app.audit.context.enqueue_audit_log", fake_enqueue)
     monkeypatch.setattr(
-        "app.agent_runtime.audit.collector.next_call_sequence",
+        "app.audit.context.next_call_sequence",
         fake_next_call_sequence,
     )
 
-    collector = AuditCollector(
+    context = AuditContext(
         project_id="project-1",
         session_id="child-thread-1",
         task_id="task-1",
@@ -117,8 +117,8 @@ async def test_audit_records_subagent_parent_metadata(
         child_run_id="child-run-1",
     )
 
-    async with collector.llm_call(
-        agent_node="writer",
+    async with context.llm_call(
+        operation="writer",
         model_id="model-1",
     ):
         pass
