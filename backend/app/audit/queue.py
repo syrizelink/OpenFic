@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 from loguru import logger
 from sqlalchemy import func, select
@@ -10,6 +11,24 @@ from sqlmodel import col
 
 from app.storage.database import create_session
 from app.storage.models.llm_audit_log import LLMAuditLog
+from app.storage.repos import setting_repo
+
+
+AUDIT_DETAILS_PERSISTENCE_SETTING_KEY = "audit_persist_details"
+
+
+def persist_audit_details(audit_log: LLMAuditLog, should_persist: bool) -> LLMAuditLog:
+    """Remove heavy audit payloads while retaining aggregate metrics."""
+    if should_persist:
+        return audit_log
+
+    audit_log.request_messages = None
+    audit_log.tool_references = None
+    audit_log.response_content = None
+    audit_log.response_tool_calls = None
+    audit_log.tool_call_results = None
+    audit_log.extra_data = None
+    return audit_log
 
 
 class AuditQueue:
@@ -20,6 +39,10 @@ class AuditQueue:
         self._worker: asyncio.Task[None] | None = None
         self._sequence_lock = asyncio.Lock()
         self._sequence_cache: dict[str, int] = {}
+        self._persist_details = False
+
+    def set_persist_details(self, should_persist: bool) -> None:
+        self._persist_details = should_persist
 
     def start(self) -> None:
         if self._worker is not None and not self._worker.done():
@@ -39,7 +62,7 @@ class AuditQueue:
     async def enqueue(self, audit_log: LLMAuditLog) -> None:
         if self._worker is None or self._worker.done():
             self.start()
-        await self._queue.put(audit_log)
+        await self._queue.put(persist_audit_details(audit_log, self._persist_details))
 
     async def next_call_sequence(self, session_id: str | None) -> int:
         if not session_id:
@@ -95,6 +118,27 @@ def start_audit_queue() -> None:
 
 async def stop_audit_queue() -> None:
     await audit_queue.stop()
+
+
+def set_audit_details_persistence(should_persist: bool) -> None:
+    audit_queue.set_persist_details(should_persist)
+
+
+async def load_audit_details_persistence() -> None:
+    session = await create_session()
+    try:
+        setting = await setting_repo.get_by_key(session, AUDIT_DETAILS_PERSISTENCE_SETTING_KEY)
+        if setting is None:
+            set_audit_details_persistence(False)
+            return
+
+        try:
+            value = json.loads(setting.value)
+        except json.JSONDecodeError:
+            value = setting.value.strip().lower() in {"true", "1", "yes", "on"}
+        set_audit_details_persistence(bool(value))
+    finally:
+        await session.close()
 
 
 async def enqueue_audit_log(audit_log: LLMAuditLog) -> None:

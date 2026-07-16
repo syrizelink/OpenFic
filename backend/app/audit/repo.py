@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 from loguru import logger
-from sqlalchemy import case, func, select
+from sqlalchemy import LargeBinary, case, cast, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -34,6 +34,18 @@ class TaskAggregation:
     duration_ms: int
     tool_calls_grand_total: int
     has_error: bool
+
+
+@dataclass
+class AuditDetailsStorage:
+    detail_records_count: int
+    detail_bytes: int
+
+
+@dataclass
+class ClearedAuditDetails:
+    cleared_records_count: int
+    cleared_detail_bytes: int
 
 
 class LLMAuditLogRepo:
@@ -156,3 +168,64 @@ class LLMAuditLogRepo:
             await self.session.delete(log)
         await self.session.flush()
         return len(logs)
+
+    @staticmethod
+    def _has_detail_columns():
+        return or_(
+            col(LLMAuditLog.request_messages).is_not(None),
+            col(LLMAuditLog.tool_references).is_not(None),
+            col(LLMAuditLog.response_content).is_not(None),
+            col(LLMAuditLog.response_tool_calls).is_not(None),
+            col(LLMAuditLog.tool_call_results).is_not(None),
+            col(LLMAuditLog.extra_data).is_not(None),
+        )
+
+    @staticmethod
+    def _detail_bytes_expression():
+        return (
+            func.coalesce(func.length(cast(col(LLMAuditLog.request_messages), LargeBinary)), 0)
+            + func.coalesce(func.length(cast(col(LLMAuditLog.tool_references), LargeBinary)), 0)
+            + func.coalesce(func.length(cast(col(LLMAuditLog.response_content), LargeBinary)), 0)
+            + func.coalesce(func.length(cast(col(LLMAuditLog.response_tool_calls), LargeBinary)), 0)
+            + func.coalesce(func.length(cast(col(LLMAuditLog.tool_call_results), LargeBinary)), 0)
+            + func.coalesce(func.length(cast(col(LLMAuditLog.extra_data), LargeBinary)), 0)
+        )
+
+    async def get_details_storage(self) -> AuditDetailsStorage:
+        has_detail_columns = self._has_detail_columns()
+        result = await self.session.execute(
+            select(
+                func.coalesce(func.sum(case((has_detail_columns, 1), else_=0)), 0).label(
+                    "detail_records_count"
+                ),
+                func.coalesce(func.sum(self._detail_bytes_expression()), 0).label("detail_bytes"),
+            )
+        )
+        row = result.one()
+        return AuditDetailsStorage(
+            detail_records_count=int(row.detail_records_count),
+            detail_bytes=int(row.detail_bytes),
+        )
+
+    async def clear_details(self) -> ClearedAuditDetails:
+        storage = await self.get_details_storage()
+        if storage.detail_records_count == 0:
+            return ClearedAuditDetails(0, 0)
+
+        await self.session.execute(
+            update(LLMAuditLog)
+            .where(self._has_detail_columns())
+            .values(
+                request_messages=None,
+                tool_references=None,
+                response_content=None,
+                response_tool_calls=None,
+                tool_call_results=None,
+                extra_data=None,
+            )
+        )
+        await self.session.flush()
+        return ClearedAuditDetails(
+            cleared_records_count=storage.detail_records_count,
+            cleared_detail_bytes=storage.detail_bytes,
+        )

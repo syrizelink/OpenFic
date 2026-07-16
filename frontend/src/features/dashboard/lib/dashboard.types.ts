@@ -81,6 +81,8 @@ export interface DashboardAuditRecord {
   errorMessage: string | null;
   errorStatusCode: number | null;
   toolCallsCount: number;
+  hasRequestMessages: boolean;
+  toolReferences: string | null;
   responseContent: string | null;
   responseToolCalls: string | null;
 }

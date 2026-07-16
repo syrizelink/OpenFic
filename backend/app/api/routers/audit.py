@@ -29,6 +29,13 @@ def serialize_audit_log(log) -> LLMAuditLogResponse:
         except json.JSONDecodeError:
             request_messages = None
 
+    tool_references = None
+    if log.tool_references:
+        try:
+            tool_references = json.loads(log.tool_references)
+        except json.JSONDecodeError:
+            tool_references = None
+
     response_tool_calls = None
     if log.response_tool_calls:
         try:
@@ -62,6 +69,7 @@ def serialize_audit_log(log) -> LLMAuditLogResponse:
         model_provider=log.model_provider,
         model_name=log.model_name,
         request_messages=request_messages,
+        tool_references=tool_references,
         response_content=log.response_content,
         response_tool_calls=response_tool_calls,
         tool_call_results=tool_call_results,

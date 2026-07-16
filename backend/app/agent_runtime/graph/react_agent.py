@@ -517,6 +517,7 @@ def create_react_agent(
             model_provider=model_cfg.get("provider_type"),
             model_name=model_cfg.get("model_id"),
             request_messages=messages,
+            tools=tools,
         )
         await audit.__aenter__()
         return audit

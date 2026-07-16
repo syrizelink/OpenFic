@@ -33,6 +33,7 @@ class LLMAuditLog(SQLModel, table=True):
     model_name: str | None = Field(default=None, max_length=100)
 
     request_messages: str | None = Field(default=None)
+    tool_references: str | None = Field(default=None)
     response_content: str | None = Field(default=None)
     response_tool_calls: str | None = Field(default=None)
     tool_call_results: str | None = Field(default=None)

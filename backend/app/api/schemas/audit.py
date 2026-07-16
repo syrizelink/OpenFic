@@ -49,6 +49,9 @@ class LLMAuditLogResponse(BaseModel):
     request_messages: list[dict] | None = Field(
         default=None, description="请求消息列表"
     )
+    tool_references: list[dict] | None = Field(
+        default=None, description="请求携带的工具定义列表"
+    )
     response_content: str | None = Field(default=None, description="响应内容")
     response_tool_calls: list[dict] | None = Field(
         default=None, description="响应工具调用列表"

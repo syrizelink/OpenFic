@@ -7,6 +7,7 @@ import {
   Package,
   Settings as SettingsIcon,
   ShieldAlert,
+  SlidersHorizontal,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -18,7 +19,8 @@ export type SettingsCategory =
   | "agent-tools"
   | "rules"
   | "skills"
-  | "agents";
+  | "agents"
+  | "advanced";
 
 interface SettingsCategoryItem {
   id: SettingsCategory;
@@ -66,5 +68,10 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     id: "agents",
     icon: <Bot size={16} />,
     labelKey: "settings.agents",
+  },
+  {
+    id: "advanced",
+    icon: <SlidersHorizontal size={16} />,
+    labelKey: "settings.advanced",
   },
 ];

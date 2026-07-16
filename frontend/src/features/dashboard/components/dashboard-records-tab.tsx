@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Info,
   ScanSearch,
+  Wrench,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -25,6 +26,7 @@ import { useTranslation } from "react-i18next";
 import { PromptChainDialog, Spinner } from "@/components";
 import type { PromptChainDialogEntry } from "@/components";
 import { fetchAgentDefinitions } from "@/features/settings/lib/agent-definitions-api";
+import { fetchSettings } from "@/features/settings/lib/settings-api";
 
 import { fetchDashboardRecordPrompt } from "../lib/dashboard-api";
 import {
@@ -127,9 +129,27 @@ function getToolCallEntries(value: string | null): ToolCallEntry[] {
   }));
 }
 
+function getToolReferenceEntries(value: string | null): ToolCallEntry[] {
+  const parsed = parseJson(value);
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed.map((tool) => ({
+    name: isRecord(tool) && typeof tool.name === "string" ? tool.name : null,
+    content: stringifyContent(tool),
+  }));
+}
+
 function hasErrorDetails(record: DashboardAuditRecord): boolean {
   return Boolean(
     record.errorMessage || record.errorType || typeof record.errorStatusCode === "number",
+  );
+}
+
+function hasOutputDetails(record: DashboardAuditRecord): boolean {
+  return Boolean(
+    record.responseContent ||
+    getToolCallEntries(record.responseToolCalls).length > 0 ||
+    hasErrorDetails(record),
   );
 }
 
@@ -224,6 +244,7 @@ export function DashboardRecordsTab({
 }: DashboardRecordsTabProps) {
   const { t } = useTranslation();
   const [inputRecord, setInputRecord] = useState<DashboardAuditRecord | null>(null);
+  const [toolRecord, setToolRecord] = useState<DashboardAuditRecord | null>(null);
   const [outputRecord, setOutputRecord] = useState<DashboardAuditRecord | null>(null);
   const promptQuery = useQuery({
     queryKey: ["dashboard", "llm-api", "record-prompt", inputRecord?.id],
@@ -235,6 +256,10 @@ export function DashboardRecordsTab({
     queryFn: fetchAgentDefinitions,
     staleTime: 5 * 60 * 1000,
   });
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: fetchSettings,
+  });
   const agentNamesByKey = useMemo(
     () => new Map(agentDefinitions.map((definition) => [definition.key, definition.display_name])),
     [agentDefinitions],
@@ -243,8 +268,10 @@ export function DashboardRecordsTab({
     () => getPromptEntries(promptQuery.data?.requestMessages),
     [promptQuery.data?.requestMessages],
   );
+  const toolReferenceEntries = toolRecord ? getToolReferenceEntries(toolRecord.toolReferences) : [];
   const toolCallEntries = outputRecord ? getToolCallEntries(outputRecord.responseToolCalls) : [];
   const errorDetails = outputRecord ? hasErrorDetails(outputRecord) : false;
+  const shouldShowDetails = settings?.auditPersistDetails ?? false;
   const recordTotal = data?.records.total ?? 0;
   const visiblePages = getVisiblePages(query.page, totalPages);
 
@@ -310,14 +337,25 @@ export function DashboardRecordsTab({
                   />
                 </th>
                 <th>{t("dashboard.records.columnStatus")}</th>
-                <th className="dashboard-record-action-divider">{t("dashboard.records.input")}</th>
-                <th className="dashboard-record-action-heading">{t("dashboard.records.output")}</th>
+                {shouldShowDetails ? (
+                  <>
+                    <th className="dashboard-record-action-divider">
+                      {t("dashboard.records.tools")}
+                    </th>
+                    <th className="dashboard-record-action-heading">
+                      {t("dashboard.records.input")}
+                    </th>
+                    <th className="dashboard-record-action-heading">
+                      {t("dashboard.records.output")}
+                    </th>
+                  </>
+                ) : null}
               </tr>
             </thead>
             <tbody>
               {data?.records.items.map((record) => {
                 const hasFailed = isFailedRecord(record);
-                const recordHasErrorDetails = hasErrorDetails(record);
+                const hasOutput = hasOutputDetails(record);
                 const operationLabel =
                   record.category === "agent"
                     ? (agentNamesByKey.get(record.operation) ?? record.operation)
@@ -354,31 +392,49 @@ export function DashboardRecordsTab({
                         {getStatusLabel(record.status)}
                       </Badge>
                     </td>
-                    <td className="dashboard-record-action-cell dashboard-record-action-divider">
-                      <IconButton
-                        aria-label={t("dashboard.records.viewInput")}
-                        className="dashboard-record-icon-button"
-                        color="gray"
-                        size="1"
-                        variant="ghost"
-                        onClick={() => setInputRecord(record)}
-                      >
-                        <ScanSearch size={15} />
-                      </IconButton>
-                    </td>
-                    <td className="dashboard-record-action-cell">
-                      <IconButton
-                        aria-label={t("dashboard.records.viewOutput")}
-                        className="dashboard-record-icon-button"
-                        color="gray"
-                        disabled={hasFailed && !recordHasErrorDetails}
-                        size="1"
-                        variant="ghost"
-                        onClick={() => setOutputRecord(record)}
-                      >
-                        <Info size={15} />
-                      </IconButton>
-                    </td>
+                    {shouldShowDetails ? (
+                      <>
+                        <td className="dashboard-record-action-cell dashboard-record-action-divider">
+                          <IconButton
+                            aria-label={t("dashboard.records.viewTools")}
+                            className="dashboard-record-icon-button"
+                            color="gray"
+                            disabled={getToolReferenceEntries(record.toolReferences).length === 0}
+                            size="1"
+                            variant="ghost"
+                            onClick={() => setToolRecord(record)}
+                          >
+                            <Wrench size={15} />
+                          </IconButton>
+                        </td>
+                        <td className="dashboard-record-action-cell">
+                          <IconButton
+                            aria-label={t("dashboard.records.viewInput")}
+                            className="dashboard-record-icon-button"
+                            color="gray"
+                            disabled={!record.hasRequestMessages}
+                            size="1"
+                            variant="ghost"
+                            onClick={() => setInputRecord(record)}
+                          >
+                            <ScanSearch size={15} />
+                          </IconButton>
+                        </td>
+                        <td className="dashboard-record-action-cell">
+                          <IconButton
+                            aria-label={t("dashboard.records.viewOutput")}
+                            className="dashboard-record-icon-button"
+                            color="gray"
+                            disabled={!hasOutput}
+                            size="1"
+                            variant="ghost"
+                            onClick={() => setOutputRecord(record)}
+                          >
+                            <Info size={15} />
+                          </IconButton>
+                        </td>
+                      </>
+                    ) : null}
                   </tr>
                 );
               })}
@@ -474,6 +530,59 @@ export function DashboardRecordsTab({
         title={t("dashboard.records.inputDialogTitle")}
         description={getRecordDescription(inputRecord, t)}
       />
+
+      <Dialog.Root
+        open={!!toolRecord}
+        onOpenChange={(open) => !open && setToolRecord(null)}
+      >
+        <Dialog.Content className="dashboard-output-dialog-content">
+          <Dialog.Title>{t("dashboard.records.toolsDialogTitle")}</Dialog.Title>
+          <Dialog.Description
+            size="2"
+            mb="4"
+          >
+            {t("dashboard.records.toolsDialogDescription")}
+          </Dialog.Description>
+          <ScrollArea className="dashboard-output-scroll-area">
+            <Box className="dashboard-output-content">
+              {toolReferenceEntries.length > 0 ? (
+                <section className="dashboard-output-section">
+                  <div className="dashboard-output-tool-call-list">
+                    {toolReferenceEntries.map((tool, index) => (
+                      <details
+                        className="dashboard-output-tool-call"
+                        key={`${tool.name ?? "tool-reference"}-${index}`}
+                        open={toolReferenceEntries.length === 1}
+                      >
+                        <summary className="dashboard-output-tool-call-summary">
+                          {tool.name ||
+                            t("dashboard.records.toolReferenceFallback", { index: index + 1 })}
+                        </summary>
+                        <pre className="dashboard-output-json">{tool.content}</pre>
+                      </details>
+                    ))}
+                  </div>
+                </section>
+              ) : (
+                <Text color="gray">{t("dashboard.records.noTools")}</Text>
+              )}
+            </Box>
+          </ScrollArea>
+          <Flex
+            justify="end"
+            mt="4"
+          >
+            <Dialog.Close>
+              <Button
+                color="gray"
+                variant="soft"
+              >
+                {t("common.close")}
+              </Button>
+            </Dialog.Close>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
 
       <Dialog.Root
         open={!!outputRecord}

@@ -17,6 +17,10 @@ def test_serialize_audit_log_includes_subagent_parent_metadata() -> None:
         operation="writer",
         model_id="gpt-test",
         status="success",
+        tool_references=(
+            '[{"name":"lookup_chapter","description":"查找章节",'
+            '"parameters":{"chapter_id":{"type":"string"}}}]'
+        ),
     )
 
     response = serialize_audit_log(audit_log)
@@ -25,3 +29,10 @@ def test_serialize_audit_log_includes_subagent_parent_metadata() -> None:
     assert response.child_run_id == "child-run-1"
     assert response.category == "agent"
     assert response.operation == "writer"
+    assert response.tool_references == [
+        {
+            "name": "lookup_chapter",
+            "description": "查找章节",
+            "parameters": {"chapter_id": {"type": "string"}},
+        }
+    ]

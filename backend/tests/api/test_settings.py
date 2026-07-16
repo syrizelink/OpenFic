@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.encryption import EncryptionService
 from app.models.repos import model_provider_repo, model_repo
+from app.audit.queue import audit_queue
+from app.storage.models.llm_audit_log import LLMAuditLog
 from app.storage.models.retrieval_index import RetrievalIndex
 from app.storage.models.retrieval_chapter_index_state import RetrievalChapterIndexState
 from app.storage.repos import setting_repo
@@ -81,6 +83,7 @@ async def test_get_settings_default(client: AsyncClient) -> None:
     assert data["default_rerank_model"] == ""
     assert data["agent_bypass_tool_approval"] is False
     assert data["agent_tool_permissions"] == EXPECTED_AGENT_TOOL_PERMISSIONS
+    assert data["audit_persist_details"] is False
 
 
 @pytest.mark.asyncio
@@ -336,6 +339,111 @@ async def test_update_settings_agent_bypass_tool_approval(client: AsyncClient) -
     follow_up = await client.get("/api/v1/settings")
     assert follow_up.status_code == 200
     assert follow_up.json()["agent_bypass_tool_approval"] is True
+
+
+@pytest.mark.asyncio
+async def test_update_settings_audit_persist_details(client: AsyncClient) -> None:
+    """审计详情记录开关应可持久化。"""
+    response = await client.put(
+        "/api/v1/settings",
+        json={"audit_persist_details": False},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["audit_persist_details"] is False
+
+    follow_up = await client.get("/api/v1/settings")
+    assert follow_up.status_code == 200
+    assert follow_up.json()["audit_persist_details"] is False
+
+    await client.put(
+        "/api/v1/settings",
+        json={"audit_persist_details": True},
+    )
+
+
+@pytest.mark.asyncio
+async def test_audit_persistence_memory_state_does_not_change_when_settings_write_fails(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """设置写入失败时，内存中的审计开关必须保持原值。"""
+    audit_queue.set_persist_details(True)
+
+    async def fail_bulk_upsert(*_args, **_kwargs):
+        raise RuntimeError("settings write failed")
+
+    monkeypatch.setattr("app.api.routers.settings.setting_repo.bulk_upsert", fail_bulk_upsert)
+
+    with pytest.raises(RuntimeError, match="settings write failed"):
+        await client.put(
+            "/api/v1/settings",
+            json={"audit_persist_details": False},
+        )
+
+    assert audit_queue._persist_details is True
+
+
+@pytest.mark.asyncio
+async def test_audit_details_storage_and_clear_preserve_metrics(
+    client: AsyncClient,
+    session: AsyncSession,
+) -> None:
+    """清空详情不应删除调用统计，并应返回 UTF-8 字节占用。"""
+    audit_log = LLMAuditLog(
+        id="audit-detail-1",
+        project_id="project-1",
+        operation="writer",
+        model_id="model-1",
+        status="success",
+        request_messages='[{"content":"输入"}]',
+        tool_references='[{"name":"tool"}]',
+        response_content="输出",
+        response_tool_calls='[{"name":"tool"}]',
+        tool_call_results='[{"result":"完成"}]',
+        extra_data='{"source":"test"}',
+        tokens_total=42,
+        latency_ms=120,
+        tool_calls_count=1,
+    )
+    session.add(audit_log)
+    await session.flush()
+
+    storage_response = await client.get("/api/v1/settings/audit-details/storage")
+
+    assert storage_response.status_code == 200
+    storage = storage_response.json()
+    assert storage["detail_records_count"] == 1
+    assert storage["detail_bytes"] == sum(
+        len(value.encode("utf-8"))
+        for value in (
+            audit_log.request_messages,
+            audit_log.tool_references,
+            audit_log.response_content,
+            audit_log.response_tool_calls,
+            audit_log.tool_call_results,
+            audit_log.extra_data,
+        )
+        if value is not None
+    )
+
+    clear_response = await client.delete("/api/v1/settings/audit-details")
+
+    assert clear_response.status_code == 200
+    assert clear_response.json() == {
+        "cleared_records_count": 1,
+        "cleared_detail_bytes": storage["detail_bytes"],
+    }
+    await session.refresh(audit_log)
+    assert audit_log.request_messages is None
+    assert audit_log.tool_references is None
+    assert audit_log.response_content is None
+    assert audit_log.response_tool_calls is None
+    assert audit_log.tool_call_results is None
+    assert audit_log.extra_data is None
+    assert audit_log.tokens_total == 42
+    assert audit_log.latency_ms == 120
+    assert audit_log.tool_calls_count == 1
 
 
 @pytest.mark.asyncio

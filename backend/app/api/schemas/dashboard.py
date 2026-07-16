@@ -74,6 +74,8 @@ class DashboardAuditRecord(BaseModel):
     error_message: str | None = Field(default=None, description="错误信息")
     error_status_code: int | None = Field(default=None, description="HTTP 错误码")
     tool_calls_count: int = Field(description="工具调用数")
+    has_request_messages: bool = Field(description="是否存在可查看的输入提示词")
+    tool_references: str | None = Field(default=None, description="请求携带的工具定义 JSON")
     response_content: str | None = Field(default=None, description="模型输出文本")
     response_tool_calls: str | None = Field(default=None, description="模型工具调用 JSON")
 

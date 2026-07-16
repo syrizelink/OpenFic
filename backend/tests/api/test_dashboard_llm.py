@@ -32,6 +32,7 @@ async def test_llm_dashboard_records_include_output_details(
         model_provider="openai-compatible",
         model_name="Test Model",
         request_messages='[{"role":"system","content":"系统提示"},{"role":"user","content":"用户提示"}]',
+        tool_references='[{"name":"edit_chapter","description":"编辑章节","parameters":{"content":{"type":"string"}}}]',
         response_content="模型输出正文",
         response_tool_calls='[{"name":"edit_chapter","args":{"chapter_ref":{"type":"order","value":1}}}]',
         tokens_input=120,
@@ -53,8 +54,51 @@ async def test_llm_dashboard_records_include_output_details(
     assert record["project_title"] == "测试小说"
     assert record["token_cache"] == 20
     assert "request_messages" not in record
+    assert record["has_request_messages"] is True
     assert record["response_content"] == "模型输出正文"
     assert record["response_tool_calls"] == audit_log.response_tool_calls
+    assert record["tool_references"] == audit_log.tool_references
+
+
+@pytest.mark.asyncio
+async def test_llm_dashboard_records_indicate_when_input_details_are_unavailable(
+    client: AsyncClient,
+    session: AsyncSession,
+) -> None:
+    """调用记录列表应标识输入详情是否可查看。"""
+    project_response = await client.post(
+        "/api/v1/projects",
+        data={"title": "测试小说"},
+    )
+    project_id = project_response.json()["id"]
+    session.add_all(
+        [
+            LLMAuditLog(
+                project_id=project_id,
+                operation="writer",
+                model_id="with-input",
+                request_messages='[{"role":"user","content":"提示"}]',
+                status="success",
+            ),
+            LLMAuditLog(
+                project_id=project_id,
+                operation="writer",
+                model_id="without-input",
+                request_messages="",
+                status="success",
+            ),
+        ]
+    )
+    await session.commit()
+
+    response = await client.get("/api/v1/dashboard/llm-api/records")
+
+    assert response.status_code == 200
+    records_by_model = {
+        record["model_id"]: record for record in response.json()["records"]["items"]
+    }
+    assert records_by_model["with-input"]["has_request_messages"] is True
+    assert records_by_model["without-input"]["has_request_messages"] is False
 
 
 @pytest.mark.asyncio

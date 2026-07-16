@@ -9,7 +9,9 @@ from types import TracebackType
 from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.tools import BaseTool
 from loguru import logger
+from pydantic import BaseModel
 
 from app.audit.queue import enqueue_audit_log, next_call_sequence
 from app.core.ids import generate_id
@@ -72,6 +74,40 @@ def normalize_usage_tokens(usage: dict[str, Any] | None) -> dict[str, int]:
     }
 
 
+def _inline_local_schema_references(
+    schema: Any,
+    definitions: dict[str, Any],
+    resolving: frozenset[str] = frozenset(),
+) -> Any:
+    if isinstance(schema, list):
+        return [_inline_local_schema_references(item, definitions, resolving) for item in schema]
+    if not isinstance(schema, dict):
+        return schema
+
+    reference = schema.get("$ref")
+    if isinstance(reference, str) and reference.startswith("#/$defs/"):
+        definition_name = reference.removeprefix("#/$defs/")
+        definition = definitions.get(definition_name)
+        if isinstance(definition, dict) and definition_name not in resolving:
+            resolved_definition = _inline_local_schema_references(
+                definition,
+                definitions,
+                resolving | {definition_name},
+            )
+            sibling_fields = {
+                key: _inline_local_schema_references(value, definitions, resolving)
+                for key, value in schema.items()
+                if key != "$ref"
+            }
+            return {**resolved_definition, **sibling_fields}
+
+    return {
+        key: _inline_local_schema_references(value, definitions, resolving)
+        for key, value in schema.items()
+        if key != "$defs"
+    }
+
+
 @dataclass
 class ToolCallRecord:
     tool_name: str
@@ -99,6 +135,7 @@ class LLMCallRecord:
     model_provider: str | None = None
     model_name: str | None = None
     request_messages: list[dict[str, Any]] = field(default_factory=list)
+    tool_references: list[dict[str, Any]] = field(default_factory=list)
     response_content: str = ""
     response_tool_calls: list[dict[str, Any]] = field(default_factory=list)
     tool_call_records: list[ToolCallRecord] = field(default_factory=list)
@@ -141,6 +178,7 @@ class AuditContext:
         model_provider: str | None = None,
         model_name: str | None = None,
         request_messages: list[BaseMessage] | list[dict[str, Any]] | None = None,
+        tools: list[BaseTool] | None = None,
     ) -> LLMCallAudit:
         return LLMCallAudit(
             context=self,
@@ -149,6 +187,7 @@ class AuditContext:
             model_provider=model_provider,
             model_name=model_name,
             request_messages=request_messages,
+            tools=tools,
         )
 
     def set_revision_id(self, revision_id: str) -> None:
@@ -178,6 +217,7 @@ class LLMCallAudit:
         model_provider: str | None,
         model_name: str | None,
         request_messages: list[BaseMessage] | list[dict[str, Any]] | None,
+        tools: list[BaseTool] | None,
     ) -> None:
         self.context = context
         self.operation = operation
@@ -185,6 +225,7 @@ class LLMCallAudit:
         self.model_provider = model_provider
         self.model_name = model_name
         self.request_messages = request_messages
+        self.tools = tools
         self.record: LLMCallRecord | None = None
         self._finished = False
 
@@ -205,6 +246,7 @@ class LLMCallAudit:
             model_provider=self.model_provider,
             model_name=self.model_name,
             request_messages=self._serialize_messages(self.request_messages),
+            tool_references=self._serialize_tools(self.tools),
             start_time=time.time(),
         )
         return self
@@ -256,6 +298,32 @@ class LLMCallAudit:
             elif isinstance(message, dict):
                 messages_data.append(message)
         return messages_data
+
+    @staticmethod
+    def _serialize_tools(tools: list[BaseTool] | None) -> list[dict[str, Any]]:
+        def get_tool_parameters(tool: BaseTool) -> dict[str, Any]:
+            args_schema = tool.args_schema
+            if not (isinstance(args_schema, type) and issubclass(args_schema, BaseModel)):
+                return tool.args
+
+            schema = args_schema.model_json_schema()
+            properties = schema.get("properties")
+            if not isinstance(properties, dict):
+                return tool.args
+            definitions = schema.get("$defs")
+            return _inline_local_schema_references(
+                properties,
+                definitions if isinstance(definitions, dict) else {},
+            )
+
+        return [
+            {
+                "name": tool.name,
+                "description": tool.description,
+                "parameters": get_tool_parameters(tool),
+            }
+            for tool in tools or []
+        ]
 
     def record_response(
         self,
@@ -357,6 +425,7 @@ class LLMCallAudit:
             model_provider=record.model_provider,
             model_name=record.model_name,
             request_messages=_pretty_json(record.request_messages) if record.request_messages else None,
+            tool_references=_pretty_json(record.tool_references) if record.tool_references else None,
             response_content=record.response_content or None,
             response_tool_calls=_pretty_json(record.response_tool_calls) if record.response_tool_calls else None,
             tool_call_results=_pretty_json(tool_call_results) if tool_call_results else None,

@@ -149,6 +149,7 @@ async def test_react_agent_records_audit_for_model_and_tool_call() -> None:
     assert kwargs["operation"] == "writer"
     assert kwargs["model_id"] == "gpt-test"
     assert kwargs["model_provider"] == "openai"
+    assert kwargs["tools"] == config.tools
     assert audit.responses[0]["usage"]["total_tokens"] == 16
     assert audit.tools[0]["tool_name"] == "submit_result"
     assert audit.tools[0]["tool_args"] == {"result": "done"}

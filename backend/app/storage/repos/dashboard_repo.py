@@ -114,6 +114,8 @@ class DashboardRecordRow:
     error_message: str | None
     error_status_code: int | None
     tool_calls_count: int
+    has_request_messages: bool
+    tool_references: str | None
     response_content: str | None
     response_tool_calls: str | None
 
@@ -276,6 +278,10 @@ async def list_records(
             col(LLMAuditLog.error_message),
             col(LLMAuditLog.error_status_code),
             col(LLMAuditLog.tool_calls_count),
+            (
+                func.coalesce(func.length(func.trim(col(LLMAuditLog.request_messages))), 0) > 0
+            ).label("has_request_messages"),
+            col(LLMAuditLog.tool_references),
             col(LLMAuditLog.response_content),
             col(LLMAuditLog.response_tool_calls),
         )
@@ -311,6 +317,8 @@ async def list_records(
             error_message=row.error_message,
             error_status_code=row.error_status_code,
             tool_calls_count=row.tool_calls_count or 0,
+            has_request_messages=bool(row.has_request_messages),
+            tool_references=row.tool_references,
             response_content=row.response_content,
             response_tool_calls=row.response_tool_calls,
         )

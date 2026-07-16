@@ -7,6 +7,7 @@ export const SETTINGS_ROUTE_CATEGORIES = [
   "rules",
   "skills",
   "agents",
+  "advanced",
 ] as const;
 
 export const MODEL_SETTINGS_TABS = ["llm", "embedding", "rerank"] as const;

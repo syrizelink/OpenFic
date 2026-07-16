@@ -72,6 +72,8 @@ interface RawDashboardAuditRecord {
   error_message: string | null;
   error_status_code: number | null;
   tool_calls_count: number;
+  has_request_messages: boolean;
+  tool_references: string | null;
   response_content: string | null;
   response_tool_calls: string | null;
 }
@@ -200,6 +202,8 @@ function transformRecord(raw: RawDashboardAuditRecord): DashboardAuditRecord {
     errorMessage: raw.error_message,
     errorStatusCode: raw.error_status_code,
     toolCallsCount: raw.tool_calls_count,
+    hasRequestMessages: raw.has_request_messages,
+    toolReferences: raw.tool_references,
     responseContent: raw.response_content,
     responseToolCalls: raw.response_tool_calls,
   };

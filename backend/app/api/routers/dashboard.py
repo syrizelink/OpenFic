@@ -64,6 +64,8 @@ def _serialize_record(record: DashboardRecordRow) -> DashboardAuditRecord:
         error_message=record.error_message,
         error_status_code=record.error_status_code,
         tool_calls_count=record.tool_calls_count,
+        has_request_messages=record.has_request_messages,
+        tool_references=record.tool_references,
         response_content=record.response_content,
         response_tool_calls=record.response_tool_calls,
     )

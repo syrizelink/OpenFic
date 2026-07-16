@@ -8,6 +8,7 @@ import { apiClient } from "@/lib/api-client";
 
 import type {
   AgentToolMetadata,
+  AuditDetailsStorage,
   Settings,
   SettingsResponse,
   SettingsUpdateRequest,
@@ -42,6 +43,7 @@ export function transformSettings(raw: SettingsResponse): Settings {
       toolName: item.tool_name,
       mode: item.mode,
     })),
+    auditPersistDetails: raw.audit_persist_details ?? false,
   };
 }
 
@@ -76,4 +78,19 @@ export async function fetchAgentTools(): Promise<AgentToolMetadata[]> {
     description: tool.description,
     isReadonly: tool.is_readonly,
   }));
+}
+
+export async function fetchAuditDetailsStorage(): Promise<AuditDetailsStorage> {
+  const response = await apiClient.get<{
+    detail_records_count: number;
+    detail_bytes: number;
+  }>("/settings/audit-details/storage");
+  return {
+    detailRecordsCount: response.data.detail_records_count,
+    detailBytes: response.data.detail_bytes,
+  };
+}
+
+export async function clearAuditDetails(): Promise<void> {
+  await apiClient.delete("/settings/audit-details");
 }
