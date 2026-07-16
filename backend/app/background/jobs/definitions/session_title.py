@@ -70,6 +70,9 @@ async def handle_session_title(context: JobContext) -> dict[str, str] | None:
     resolved, messages = await context.with_short_session(prepare_generation)
     if resolved is None or messages is None:
         return None
+    model_id = resolved.model.model_id
+    model_provider = resolved.provider.provider_type
+    model_name = resolved.model.name
     await context.check_cancelled()
 
     async def load_task_audit_context(session, _job):
@@ -92,9 +95,9 @@ async def handle_session_title(context: JobContext) -> dict[str, str] | None:
         return None
     async with audit_context.llm_call(
         operation="session_title",
-        model_id=resolved.model.model_id,
-        model_provider=resolved.provider.provider_type,
-        model_name=resolved.model.name,
+        model_id=model_id,
+        model_provider=model_provider,
+        model_name=model_name,
         request_messages=messages,
     ) as audit:
         response = await resolved.client.generate(messages, timeout=60)

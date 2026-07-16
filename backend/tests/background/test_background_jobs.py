@@ -46,6 +46,7 @@ from app.background.transport.base import BackgroundTransport
 from app.background.transport.messages import BackgroundEventMessage, JobNotification
 from app.background.transport.zmq import ZmqBackgroundTransport
 from app.memory.chapter import summary_service
+from app.models.entities.model import Model
 from app.storage import database
 from app.storage.models.chapter import Chapter
 from app.storage.models.chapter_summary import ChapterSummary
@@ -540,6 +541,70 @@ async def test_session_title_records_audited_model_call(tmp_path, monkeypatch):
             "background_job_id": job.id,
             "seed_message": "请命名这个会话",
         }
+    finally:
+        if context is not None and context.session is not session:
+            await context.session.close()
+        await session.close()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_session_title_keeps_audit_model_metadata_after_short_session_closes(tmp_path, monkeypatch):
+    engine, factory = await _configure_file_database(tmp_path)
+    session = factory()
+    context: JobContext | None = None
+    try:
+        project = Project(title="项目", description="")
+        task = Task(project_id=project.id, title="临时标题", mode="agent")
+        model = Model(
+            name="GPT Test",
+            provider_id="provider-test",
+            model_id="gpt-test",
+        )
+        session.add_all([project, task, model])
+        await session.commit()
+        job = await background_service.submit_job(
+            session,
+            job_type="session_title",
+            payload={"task_id": task.id, "seed_message": "请命名这个会话"},
+            context={"project_id": project.id, "model_policy": "light_model"},
+            subject_type="task",
+            subject_id=task.id,
+        )
+        await session.commit()
+        context = JobContext(
+            session=session,
+            job=job,
+            publisher=BackgroundEventPublisher(RecordingTransport()),
+        )
+
+        async def fake_resolve_background_llm(resolver_session, **_kwargs):
+            resolved_model = await resolver_session.get(Model, model.id)
+            assert resolved_model is not None
+            return SimpleNamespace(
+                client=SimpleNamespace(
+                    generate=AsyncMock(
+                        return_value=SimpleNamespace(content="标题测试", usage={})
+                    )
+                ),
+                model=resolved_model,
+                provider=SimpleNamespace(provider_type="openai-compatible"),
+            )
+
+        async def fake_enqueue(_audit_log):
+            return None
+
+        monkeypatch.setattr("app.audit.context.enqueue_audit_log", fake_enqueue)
+        with patch(
+            "app.background.jobs.definitions.session_title.resolve_background_llm",
+            AsyncMock(side_effect=fake_resolve_background_llm),
+        ), patch(
+            "app.background.jobs.definitions.session_title.build_chat_messages",
+            AsyncMock(return_value=[]),
+        ):
+            result = await handle_session_title(context)
+
+        assert result == {"title": "标题测试", "task_id": task.id}
     finally:
         if context is not None and context.session is not session:
             await context.session.close()
