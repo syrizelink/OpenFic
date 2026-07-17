@@ -6,6 +6,7 @@ import i18n from "@/i18n";
 import type {
   AgentForkResponse,
   AgentSessionCreateResponse,
+  ReasoningEffort,
   TokenUsageState,
 } from "@/lib/agent.types";
 
@@ -18,6 +19,7 @@ interface AgentSidebarProps {
   projectId: string;
   scrollToBottomKey?: string | null;
   modelId: string;
+  reasoningEffort?: ReasoningEffort;
   agentKey?: string;
   inputValue: string;
   onClearInput: () => void;
@@ -50,6 +52,7 @@ export function useAgentSidebar({
   projectId,
   scrollToBottomKey,
   modelId,
+  reasoningEffort,
   agentKey,
   inputValue,
   onClearInput,
@@ -90,6 +93,7 @@ export function useAgentSidebar({
   } = useAgentSession({
     projectId,
     modelId,
+    reasoningEffort,
     agentKey,
     maxIterations: 5,
     onTokenUsage,

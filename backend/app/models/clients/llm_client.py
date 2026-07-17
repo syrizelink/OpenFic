@@ -24,12 +24,10 @@ from loguru import logger
 
 from app.core.errors import LLMTimeoutError
 from app.models.clients.deepseek_payload import patch_deepseek_reasoning_payload
-from app.models.clients.model_factory import ModelConfig, create_chat_model
+from app.models.clients.model_factory import ModelConfig, ReasoningEffort, create_chat_model
 
 
 DEFAULT_LLM_TIMEOUT = 120
-
-
 _patch_deepseek_reasoning_payload = patch_deepseek_reasoning_payload
 
 
@@ -41,15 +39,16 @@ class LLMConfig:
     base_url: str
     api_key: str
     model_id: str
-    temperature: float | None = None
-    top_p: float | None = None
-    top_k: int | None = None
+    temperature: float | None = 1.0
+    top_p: float | None = 1.0
+    top_k: int | None = 0
+    min_p: float | None = 0.0
+    top_a: float | None = 0.0
     max_tokens: int | None = None
-    frequency_penalty: float | None = None
-    presence_penalty: float | None = None
-    deepseek_reasoning_effort: str | None = None
-    deepseek_thinking_type: str | None = None
-    use_openai_compatible: bool = True
+    frequency_penalty: float | None = 0.0
+    presence_penalty: float | None = 0.0
+    repetition_penalty: float | None = 1.0
+    reasoning_effort: ReasoningEffort | None = None
     request_timeout: int = DEFAULT_LLM_TIMEOUT
 
 
@@ -105,12 +104,13 @@ class LLMClient:
                 temperature=config.temperature,
                 top_p=config.top_p,
                 top_k=config.top_k,
+                min_p=config.min_p,
+                top_a=config.top_a,
                 max_tokens=config.max_tokens,
                 frequency_penalty=config.frequency_penalty,
                 presence_penalty=config.presence_penalty,
-                deepseek_reasoning_effort=config.deepseek_reasoning_effort,
-                deepseek_thinking_type=config.deepseek_thinking_type,
-                use_openai_compatible=config.use_openai_compatible,
+                repetition_penalty=config.repetition_penalty,
+                reasoning_effort=config.reasoning_effort,
             )
         )
 

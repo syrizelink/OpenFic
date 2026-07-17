@@ -3,12 +3,22 @@
 Model Service - 模型业务逻辑层。
 """
 
-import json
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFoundError
 from app.models.entities.model import Model
+from app.models.clients.model_params import (
+    DEFAULT_CONTEXT_LENGTH,
+    DEFAULT_FREQUENCY_PENALTY,
+    DEFAULT_MIN_P,
+    DEFAULT_PRESENCE_PENALTY,
+    DEFAULT_REPETITION_PENALTY,
+    DEFAULT_TEMPERATURE,
+    DEFAULT_TOP_A,
+    DEFAULT_TOP_K,
+    DEFAULT_TOP_P,
+    with_default,
+)
 from app.models.repos import model_repo
 from app.storage.repos import retrieval_index_repo
 
@@ -74,19 +84,16 @@ class ModelService:
         model_id: str,
         task_type: str = "llm",
         remark: str = "",
-        tags: list[str] | None = None,
-        temperature: float | None = None,
-        top_p: float | None = None,
-        top_k: int | None = None,
-        min_p: float | None = None,
-        top_a: float | None = None,
-        frequency_penalty: float | None = None,
-        presence_penalty: float | None = None,
-        repetition_penalty: float | None = None,
+        temperature: float | None = DEFAULT_TEMPERATURE,
+        top_p: float | None = DEFAULT_TOP_P,
+        top_k: int | None = DEFAULT_TOP_K,
+        min_p: float | None = DEFAULT_MIN_P,
+        top_a: float | None = DEFAULT_TOP_A,
+        frequency_penalty: float | None = DEFAULT_FREQUENCY_PENALTY,
+        presence_penalty: float | None = DEFAULT_PRESENCE_PENALTY,
+        repetition_penalty: float | None = DEFAULT_REPETITION_PENALTY,
         max_tokens: int | None = None,
-        context_length: int | None = 128000,
-        deepseek_reasoning_effort: str | None = None,
-        deepseek_thinking_type: str | None = None,
+        context_length: int = DEFAULT_CONTEXT_LENGTH,
         dimensions: int | None = None,
     ) -> Model:
         """
@@ -99,7 +106,6 @@ class ModelService:
             model_id: 从提供商获取的模型 ID。
             task_type: 任务类型（llm、embedding 或 rerank）。
             remark: 备注。
-            tags: 标签列表。
             temperature: Temperature 参数（LLM）。
             top_p: Top P 参数（LLM）。
             top_k: Top K 参数（LLM）。
@@ -113,7 +119,31 @@ class ModelService:
         Returns:
             创建的模型实例。
         """
-        tags_json = json.dumps(tags or [])
+        if await model_repo.exists_by_name(session, name):
+            raise ValueError("模型名称已存在")
+
+        if task_type != "llm":
+            temperature = None
+            top_p = None
+            top_k = None
+            min_p = None
+            top_a = None
+            frequency_penalty = None
+            presence_penalty = None
+            repetition_penalty = None
+        else:
+            temperature = with_default(temperature, DEFAULT_TEMPERATURE)
+            top_p = with_default(top_p, DEFAULT_TOP_P)
+            top_k = with_default(top_k, DEFAULT_TOP_K)
+            min_p = with_default(min_p, DEFAULT_MIN_P)
+            top_a = with_default(top_a, DEFAULT_TOP_A)
+            frequency_penalty = with_default(
+                frequency_penalty, DEFAULT_FREQUENCY_PENALTY
+            )
+            presence_penalty = with_default(presence_penalty, DEFAULT_PRESENCE_PENALTY)
+            repetition_penalty = with_default(
+                repetition_penalty, DEFAULT_REPETITION_PENALTY
+            )
 
         model = await model_repo.create(
             session=session,
@@ -122,7 +152,6 @@ class ModelService:
             model_id=model_id,
             task_type=task_type,
             remark=remark,
-            tags=tags_json,
             temperature=temperature,
             top_p=top_p,
             top_k=top_k,
@@ -132,9 +161,7 @@ class ModelService:
             presence_penalty=presence_penalty,
             repetition_penalty=repetition_penalty,
             max_tokens=max_tokens,
-            context_length=context_length or 128000,
-            deepseek_reasoning_effort=deepseek_reasoning_effort,
-            deepseek_thinking_type=deepseek_thinking_type,
+            context_length=context_length,
             dimensions=dimensions,
         )
         await session.commit()
@@ -149,7 +176,6 @@ class ModelService:
         provider_id: str | None = None,
         model_identifier: str | None = None,
         task_type: str | None = None,
-        tags: list[str] | None = None,
         temperature: float | None = None,
         top_p: float | None = None,
         top_k: int | None = None,
@@ -160,8 +186,6 @@ class ModelService:
         repetition_penalty: float | None = None,
         max_tokens: int | None = None,
         context_length: int | None = None,
-        deepseek_reasoning_effort: str | None = None,
-        deepseek_thinking_type: str | None = None,
         dimensions: int | None = None,
     ) -> Model:
         """
@@ -175,7 +199,6 @@ class ModelService:
             provider_id: 关联的提供商 ID。
             model_identifier: 从提供商获取的模型 ID。
             task_type: 任务类型。
-            tags: 标签列表。
             temperature: Temperature 参数。
             top_p: Top P 参数。
             top_k: Top K 参数。
@@ -195,8 +218,10 @@ class ModelService:
         existing = await self.get_model_by_id(session, model_id)
         if existing.is_builtin:
             raise ValueError("内置模型不允许编辑")
-        tags_json = json.dumps(tags) if tags is not None else None
-
+        if name is not None and await model_repo.exists_by_name(
+            session, name, exclude_model_id=model_id
+        ):
+            raise ValueError("模型名称已存在")
         if await retrieval_index_repo.exists_by_embedding_model_ref_id(session, model_id):
             protected_changes = []
             if provider_id is not None and provider_id != existing.provider_id:
@@ -219,7 +244,6 @@ class ModelService:
             provider_id=provider_id,
             model_identifier=model_identifier,
             task_type=task_type,
-            tags=tags_json,
             temperature=temperature,
             top_p=top_p,
             top_k=top_k,
@@ -230,8 +254,6 @@ class ModelService:
             repetition_penalty=repetition_penalty,
             max_tokens=max_tokens,
             context_length=context_length,
-            deepseek_reasoning_effort=deepseek_reasoning_effort,
-            deepseek_thinking_type=deepseek_thinking_type,
             dimensions=dimensions,
         )
 
@@ -263,14 +285,3 @@ class ModelService:
             raise NotFoundError(f"Model with id {model_id} not found")
         await session.commit()
 
-    async def get_all_tags(self, session: AsyncSession) -> list[str]:
-        """
-        获取所有已使用的标签。
-
-        Args:
-            session: 数据库 session。
-
-        Returns:
-            标签列表（去重并排序）。
-        """
-        return await model_repo.get_all_tags(session)

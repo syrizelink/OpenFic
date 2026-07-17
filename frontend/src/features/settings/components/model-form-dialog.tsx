@@ -9,7 +9,6 @@ import { z } from "zod";
 import { Spinner } from "@/components";
 import { ModelIdSelect } from "@/components/model-id-select";
 import { LabeledSelect } from "@/components/select";
-import { TagInput } from "@/components/tag-input";
 import type {
   AvailableModel,
   Model,
@@ -23,7 +22,6 @@ import {
   fetchModelProviderCatalogModels,
   fetchProviders,
   fetchProviderModels,
-  fetchTags,
 } from "../lib/model-api";
 import {
   isSelectableModelProviderForTask,
@@ -40,19 +38,16 @@ const modelSchema = z.object({
   providerId: z.string().min(1, "providerRequired"),
   modelId: z.string().min(1, "modelIdRequired"),
   remark: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  temperature: z.number().min(0).max(2).nullable().optional(),
-  topP: z.number().min(0).max(1).nullable().optional(),
-  topK: z.number().min(0).nullable().optional(),
-  minP: z.number().min(0).max(1).nullable().optional(),
-  topA: z.number().min(0).max(1).nullable().optional(),
-  frequencyPenalty: z.number().min(-2).max(2).nullable().optional(),
-  presencePenalty: z.number().min(-2).max(2).nullable().optional(),
-  repetitionPenalty: z.number().min(0).max(2).nullable().optional(),
-  maxTokens: z.number().min(-1).nullable().optional(),
-  contextLength: z.number().min(1).nullable().optional(),
-  deepseekReasoningEffort: z.enum(["high", "max"]),
-  deepseekThinkingType: z.enum(["enabled", "disabled"]),
+  temperature: z.number().min(0).max(2),
+  topP: z.number().min(0).max(1),
+  topK: z.number().int().min(0).max(128),
+  minP: z.number().min(0).max(1),
+  topA: z.number().min(0).max(1),
+  frequencyPenalty: z.number().min(-2).max(2),
+  presencePenalty: z.number().min(-2).max(2),
+  repetitionPenalty: z.number().min(0).max(2),
+  maxTokens: z.number().min(1).nullable().optional(),
+  contextLength: z.number().int().min(0).max(2000000),
   dimensions: z.number().min(1).max(4096).nullable().optional(),
 });
 
@@ -62,6 +57,7 @@ interface ModelFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   model?: Model;
+  models: Model[];
   onSubmit: (data: ModelCreateRequest | ModelUpdateRequest) => Promise<void>;
   isSubmitting: boolean;
   isAgentSettingsLocked: boolean;
@@ -71,6 +67,7 @@ export function ModelFormDialog({
   open,
   onOpenChange,
   model,
+  models,
   onSubmit,
   isSubmitting,
   isAgentSettingsLocked,
@@ -98,19 +95,16 @@ export function ModelFormDialog({
       providerId: "",
       modelId: "",
       remark: "",
-      tags: [],
-      temperature: null,
-      topP: null,
-      topK: null,
-      minP: null,
-      topA: null,
-      frequencyPenalty: null,
-      presencePenalty: null,
-      repetitionPenalty: null,
+      temperature: 1,
+      topP: 1,
+      topK: 0,
+      minP: 0,
+      topA: 0,
+      frequencyPenalty: 0,
+      presencePenalty: 0,
+      repetitionPenalty: 1,
       maxTokens: null,
       contextLength: 128000,
-      deepseekReasoningEffort: "high",
-      deepseekThinkingType: "enabled",
       dimensions: null,
     },
   });
@@ -126,19 +120,16 @@ export function ModelFormDialog({
           providerId: model.providerId || "",
           modelId: model.modelId || "",
           remark: model.remark || "",
-          tags: model.tags || [],
-          temperature: model.temperature ?? null,
-          topP: model.topP ?? null,
-          topK: model.topK ?? null,
-          minP: model.minP ?? null,
-          topA: model.topA ?? null,
-          frequencyPenalty: model.frequencyPenalty ?? null,
-          presencePenalty: model.presencePenalty ?? null,
-          repetitionPenalty: model.repetitionPenalty ?? null,
+          temperature: model.temperature ?? 1,
+          topP: model.topP ?? 1,
+          topK: model.topK ?? 0,
+          minP: model.minP ?? 0,
+          topA: model.topA ?? 0,
+          frequencyPenalty: model.frequencyPenalty ?? 0,
+          presencePenalty: model.presencePenalty ?? 0,
+          repetitionPenalty: model.repetitionPenalty ?? 1,
           maxTokens: model.maxTokens ?? null,
           contextLength: model.contextLength ?? 128000,
-          deepseekReasoningEffort: model.deepseekReasoningEffort ?? "high",
-          deepseekThinkingType: model.deepseekThinkingType ?? "enabled",
           dimensions: model.dimensions ?? null,
         });
       } else {
@@ -149,19 +140,16 @@ export function ModelFormDialog({
           providerId: "",
           modelId: "",
           remark: "",
-          tags: [],
-          temperature: null,
-          topP: null,
-          topK: null,
-          minP: null,
-          topA: null,
-          frequencyPenalty: null,
-          presencePenalty: null,
-          repetitionPenalty: null,
+          temperature: 1,
+          topP: 1,
+          topK: 0,
+          minP: 0,
+          topA: 0,
+          frequencyPenalty: 0,
+          presencePenalty: 0,
+          repetitionPenalty: 1,
           maxTokens: null,
           contextLength: 128000,
-          deepseekReasoningEffort: "high",
-          deepseekThinkingType: "enabled",
           dimensions: null,
         });
       }
@@ -178,17 +166,12 @@ export function ModelFormDialog({
 
   const providerId = useWatch({ control, name: "providerId" });
   const taskType = useWatch({ control, name: "taskType" });
+  const name = useWatch({ control, name: "name" });
+  const hasDuplicateName = models.some((entry) => entry.id !== model?.id && entry.name === name);
   // 获取提供商列表
   const { data: providers } = useQuery({
     queryKey: ["model-providers"],
     queryFn: fetchProviders,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  // 获取已使用的标签
-  const { data: existingTags } = useQuery({
-    queryKey: ["model-tags"],
-    queryFn: fetchTags,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -204,7 +187,6 @@ export function ModelFormDialog({
     () => providers?.find((p) => p.id === providerId),
     [providers, providerId],
   );
-  const isDeepSeekProvider = selectedProvider?.providerType === "deepseek";
   const selectedCatalogProviderType = useMemo(
     () => (selectedProvider ? resolveProviderCatalogType(selectedProvider) : null),
     [selectedProvider],
@@ -298,27 +280,34 @@ export function ModelFormDialog({
     });
   }, [loadCatalogModelsForProvider, open, selectedProvider, taskType]);
 
-  // 当提供商或任务类型改变时，清空当前模型选择
+  // 仅在创建表单没有提供商时清空模型选择。
+  // 编辑表单的 reset() 会在 watch 值同步前触发，不能据此清空已保存的模型 ID。
   useEffect(() => {
-    if (!providerId) {
+    if (!providerId && !isEditing) {
       queueMicrotask(() => {
         setValue("modelId", "");
         setAvailableModels([]);
         setModelsError("");
         setModelOptionsSource(null);
       });
-      return;
     }
+  }, [isEditing, providerId, setValue]);
 
-    const isInitialEditingValue =
-      isEditing && model?.providerId === providerId && model?.taskType === taskType;
+  const handleProviderChange = useCallback(
+    (nextProviderId: string) => {
+      setValue("providerId", nextProviderId);
+      setValue("modelId", "");
+    },
+    [setValue],
+  );
 
-    if (!isInitialEditingValue) {
-      queueMicrotask(() => {
-        setValue("modelId", "");
-      });
-    }
-  }, [isEditing, model?.providerId, model?.taskType, providerId, setValue, taskType]);
+  const handleTaskTypeChange = useCallback(
+    (nextTaskType: string) => {
+      setValue("taskType", nextTaskType as TaskType);
+      setValue("modelId", "");
+    },
+    [setValue],
+  );
 
   useEffect(() => {
     if (taskType !== "embedding" || !selectedProviderSupportsEmbeddingDimensions) {
@@ -333,8 +322,17 @@ export function ModelFormDialog({
       if (modelName && !getValues("name")) {
         setValue("name", modelName);
       }
+      const catalogModel = availableModels.find((entry) => entry.id === modelId);
+      if (
+        catalogModel?.source === "catalog" &&
+        typeof catalogModel.contextWindow === "number" &&
+        catalogModel.contextWindow >= 0 &&
+        catalogModel.contextWindow <= 2000000
+      ) {
+        setValue("contextLength", catalogModel.contextWindow);
+      }
     },
-    [getValues, setValue],
+    [availableModels, getValues, setValue],
   );
 
   // 提交表单
@@ -347,23 +345,16 @@ export function ModelFormDialog({
         provider_id: data.providerId,
         model_id: data.modelId,
         remark: data.remark || "",
-        tags: data.tags || [],
-        temperature: data.taskType === "llm" ? (data.temperature ?? 0) : null,
-        top_p: data.taskType === "llm" ? (data.topP ?? 1) : null,
-        top_k: data.taskType === "llm" ? (data.topK ?? 0) : null,
-        min_p: data.taskType === "llm" ? (data.minP ?? 0) : null,
-        top_a: data.taskType === "llm" ? (data.topA ?? 0) : null,
-        frequency_penalty: data.taskType === "llm" ? (data.frequencyPenalty ?? 0) : null,
-        presence_penalty: data.taskType === "llm" ? (data.presencePenalty ?? 0) : null,
-        repetition_penalty: data.taskType === "llm" ? (data.repetitionPenalty ?? 0) : null,
-        max_tokens: data.taskType === "llm" ? (data.maxTokens ?? 0) : null,
-        context_length: data.taskType === "llm" ? (data.contextLength ?? 128000) : 128000,
-        deepseek_reasoning_effort:
-          data.taskType === "llm" && isDeepSeekProvider && data.deepseekThinkingType === "enabled"
-            ? data.deepseekReasoningEffort
-            : null,
-        deepseek_thinking_type:
-          data.taskType === "llm" && isDeepSeekProvider ? data.deepseekThinkingType : null,
+        temperature: data.taskType === "llm" ? data.temperature : null,
+        top_p: data.taskType === "llm" ? data.topP : null,
+        top_k: data.taskType === "llm" ? data.topK : null,
+        min_p: data.taskType === "llm" ? data.minP : null,
+        top_a: data.taskType === "llm" ? data.topA : null,
+        frequency_penalty: data.taskType === "llm" ? data.frequencyPenalty : null,
+        presence_penalty: data.taskType === "llm" ? data.presencePenalty : null,
+        repetition_penalty: data.taskType === "llm" ? data.repetitionPenalty : null,
+        max_tokens: data.taskType === "llm" ? data.maxTokens : null,
+        context_length: data.taskType === "llm" ? data.contextLength : 128000,
         dimensions:
           data.taskType === "embedding" && selectedProviderSupportsEmbeddingDimensions
             ? data.dimensions
@@ -378,7 +369,7 @@ export function ModelFormDialog({
         throw error;
       }
     },
-    [isDeepSeekProvider, onSubmit, reset, selectedProviderSupportsEmbeddingDimensions],
+    [onSubmit, reset, selectedProviderSupportsEmbeddingDimensions],
   );
 
   const handleOpenChange = useCallback(
@@ -454,9 +445,18 @@ export function ModelFormDialog({
                       {...field}
                       placeholder={t("models.namePlaceholder")}
                       disabled={isAgentSettingsLocked}
+                      color={hasDuplicateName ? "red" : undefined}
                     />
                   )}
                 />
+                {hasDuplicateName && (
+                  <Text
+                    size="1"
+                    color="red"
+                  >
+                    {t("models.nameDuplicate")}
+                  </Text>
+                )}
                 {errors.name && (
                   <Text
                     size="1"
@@ -496,7 +496,7 @@ export function ModelFormDialog({
                         { value: "embedding", label: t("models.taskTypeEmbedding") },
                         { value: "rerank", label: t("models.taskTypeRerank") },
                       ]}
-                      onChange={field.onChange}
+                      onChange={handleTaskTypeChange}
                       triggerStyle={{ width: "100%" }}
                       placeholder={t("models.taskTypePlaceholder")}
                       disabled={isAgentSettingsLocked}
@@ -541,7 +541,7 @@ export function ModelFormDialog({
                         value: p.id,
                         label: getProviderOptionLabel(p),
                       }))}
-                      onChange={field.onChange}
+                      onChange={handleProviderChange}
                       triggerStyle={{ width: "100%" }}
                       placeholder={t("models.providerPlaceholder")}
                       disabled={isAgentSettingsLocked}
@@ -700,35 +700,13 @@ export function ModelFormDialog({
                 />
               </Flex>
 
-              {/* 标签 */}
-              <Controller
-                name="tags"
-                control={control}
-                render={({ field }) => (
-                  <TagInput
-                    tags={field.value || []}
-                    onChange={field.onChange}
-                    label={t("models.tags")}
-                    placeholder={t("models.tagsPlaceholder")}
-                    existingTags={existingTags}
-                    existingTagsLabel={
-                      existingTags && existingTags.length > 0 ? t("models.existingTags") : undefined
-                    }
-                    disabled={isAgentSettingsLocked}
-                  />
-                )}
-              />
-
               <Separator size="4" />
 
               {/* 高级参数 - 仅 LLM 模式 */}
               {taskType === "llm" && (
                 <AdvancedParamsSection
                   control={control}
-                  getValues={getValues}
-                  setValue={setValue}
                   modelId={model?.id}
-                  isDeepSeekProvider={isDeepSeekProvider}
                 />
               )}
 
@@ -751,7 +729,7 @@ export function ModelFormDialog({
                 </Dialog.Close>
                 <Button
                   type="submit"
-                  disabled={isAgentSettingsLocked || isSubmitting}
+                  disabled={isAgentSettingsLocked || isSubmitting || hasDuplicateName}
                 >
                   {isSubmitting ? <Spinner size={18} /> : null}
                   {isEditing ? t("common.save") : t("common.create")}

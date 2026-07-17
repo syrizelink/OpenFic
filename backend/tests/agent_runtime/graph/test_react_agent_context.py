@@ -586,6 +586,27 @@ def test_to_history_dict_uses_openfic_response_metadata_for_internal_history_fie
     assert tool_out["name"] == "read_chapter"
 
 
+def test_to_history_dict_normalizes_ai_message_chunk_role() -> None:
+    from langchain_core.messages import AIMessageChunk
+
+    from app.agent_runtime.graph.react_agent import _to_history_dict
+
+    # _invoke_model 累加流式分片后返回 AIMessageChunk（AIMessage 子类），
+    # 其 .type 为 "AIMessageChunk" 而非 "ai"，必须仍映射为 assistant。
+    chunk = AIMessageChunk(
+        content="hello",
+        tool_calls=[{"id": "c1", "name": "noop", "args": {}}],
+        additional_kwargs={"reasoning_content": "思考"},
+    )
+
+    out = _to_history_dict(chunk)
+
+    assert out["role"] == "assistant"
+    assert out["content"] == "hello"
+    assert out["tool_calls"][0]["id"] == "c1"
+    assert out["additional_kwargs"] == {"reasoning_content": "思考"}
+
+
 class _QueueFollowUpTool(BaseTool):
     name: str = "submit_result"
     description: str = "submit"

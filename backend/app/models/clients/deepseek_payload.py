@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Shared DeepSeek payload helpers."""
+"""DeepSeek payload helpers."""
 
 from typing import Any, cast
 
@@ -7,7 +7,7 @@ from langchain_core.messages import AIMessage
 
 
 def patch_deepseek_reasoning_payload(input_: Any, payload: dict[str, Any]) -> None:
-    """Propagate reasoning_content back into DeepSeek chat/completions payload."""
+    """Preserve DeepSeek reasoning content when continuing tool-call messages."""
     if isinstance(input_, list):
         source_messages = input_
     elif hasattr(input_, "to_messages"):

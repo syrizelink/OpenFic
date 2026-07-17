@@ -13,7 +13,6 @@ export { ContextMenu } from "./context-menu";
 export type { ContextMenuItem, ContextMenuPosition } from "./context-menu";
 export { LabeledSelect, SearchableSelect, SimpleSelect } from "./select";
 export type { SelectOption, LabeledSelectProps, SearchableSelectProps } from "./select";
-export { TagInput } from "./tag-input";
 export { AutocompletePopover } from "./autocomplete-popover";
 export type { AutocompleteItem, AutocompletePopoverProps } from "./autocomplete-popover";
 export { GlobalLoading } from "./global-loading";

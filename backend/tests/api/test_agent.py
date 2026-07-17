@@ -344,9 +344,61 @@ class TestAgentAPI:
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["model_updated"] is True
-        resolve_model_config.assert_awaited_once_with(session, "next-model-record")
+        resolve_model_config.assert_awaited_once_with(session, "next-model-record", None)
         assert runner.model_config == next_model_config
         runner.run.assert_called_once_with(user_request="使用新模型继续")
+
+    async def test_send_agent_message_updates_reasoning_effort_for_current_model(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session.add(
+            Task(
+                id="task-reasoning-effort",
+                project_id=target["project_id"],
+                title="推理强度",
+                mode="agent",
+                agent_session_id="session-reasoning-effort",
+            )
+        )
+        await session.commit()
+
+        runner = SessionRunner(
+            session_id="session-reasoning-effort",
+            task_id="task-reasoning-effort",
+            model_config={
+                "max_context_tokens": 8000,
+                "model_id": "reasoning-model",
+                "model_record_id": target["model_id"],
+            },
+            project_id=target["project_id"],
+        )
+        runner.can_continue = AsyncMock(return_value=False)
+        runner.run = MagicMock(return_value=AsyncMock())
+        _SESSION_RUNNERS["session-reasoning-effort"] = runner
+
+        resolved_config = {
+            "max_context_tokens": 8000,
+            "model_id": "reasoning-model",
+            "reasoning_effort": "high",
+        }
+        with patch(
+            "app.api.routers.agent_runtime._resolve_model_config",
+            AsyncMock(return_value=resolved_config),
+        ) as resolve_model_config, patch(
+            "app.api.routers.agent_runtime._launch_task",
+            AsyncMock(),
+        ):
+            response = await client.post(
+                "/api/v1/agent/sessions/session-reasoning-effort/message",
+                json={"message": "提高推理强度", "reasoning_effort": "high"},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        resolve_model_config.assert_awaited_once_with(session, target["model_id"], "high")
+        assert runner.model_config == resolved_config
 
     async def test_send_agent_message_keeps_interrupted_run_model(
         self,

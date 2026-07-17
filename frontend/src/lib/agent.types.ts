@@ -230,6 +230,7 @@ export interface AgentSessionCreateRequest {
   model_id: string;
   max_iterations?: number;
   agent_key?: string;
+  reasoning_effort?: ReasoningEffort;
 }
 
 export interface AgentSessionCreateResponse {
@@ -259,7 +260,10 @@ export interface AgentSessionStateResponse {
 export interface AgentSendMessageRequest {
   message: string;
   model_id?: string;
+  reasoning_effort?: ReasoningEffort;
 }
+
+export type ReasoningEffort = "low" | "medium" | "high" | "xhigh" | "max";
 
 export type AgentPendingMessageAction = "queued" | "cancelled" | "consumed";
 

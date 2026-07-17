@@ -1724,7 +1724,6 @@ function transformModel(raw: ModelResponse): Model {
     providerId: raw.provider_id,
     modelId: raw.model_id,
     taskType: raw.task_type,
-    tags: raw.tags,
     temperature: raw.temperature,
     topP: raw.top_p,
     topK: raw.top_k,
@@ -1735,8 +1734,6 @@ function transformModel(raw: ModelResponse): Model {
     repetitionPenalty: raw.repetition_penalty,
     maxTokens: raw.max_tokens,
     contextLength: raw.context_length ?? 128000,
-    deepseekReasoningEffort: raw.deepseek_reasoning_effort,
-    deepseekThinkingType: raw.deepseek_thinking_type,
     dimensions: raw.dimensions,
     isBuiltin: raw.is_builtin ?? false,
     createdAt: raw.created_at,
@@ -2131,6 +2128,7 @@ import type {
   AgentRollbackResponse,
   AgentCancelResponse,
   AgentQuestionAnswerResponse,
+  ReasoningEffort,
   SubagentSessionPayload,
 } from "./agent.types";
 
@@ -2238,10 +2236,12 @@ export async function sendAgentMessage(
   sessionId: string,
   message: string,
   modelId?: string,
+  reasoningEffort?: ReasoningEffort,
 ): Promise<AgentSendMessageResponse> {
   const request: AgentSendMessageRequest = {
     message,
     ...(modelId ? { model_id: modelId } : {}),
+    ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
   };
   const response = await apiClient.post(`/agent/sessions/${sessionId}/message`, request);
   const data = response.data as Record<string, unknown>;

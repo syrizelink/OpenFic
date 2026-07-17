@@ -8,6 +8,7 @@ FastEmbed client tests - 内置 fastembed 客户端的 provider 路由逻辑。
 
 import sys
 import types
+import warnings
 
 import pytest
 
@@ -123,7 +124,12 @@ def test_embedding_client_forces_openai_compatible_for_non_builtin_provider():
 
     from langchain_openai import OpenAIEmbeddings
 
-    assert isinstance(client._get_embeddings(), OpenAIEmbeddings)
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        warnings.simplefilter("always")
+        embeddings = client._get_embeddings()
+
+    assert isinstance(embeddings, OpenAIEmbeddings)
+    assert not caught_warnings
 
 
 def test_rerank_client_forces_openai_compatible_for_non_builtin_provider():

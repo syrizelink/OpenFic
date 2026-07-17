@@ -92,10 +92,10 @@ class SessionRunner:
     @staticmethod
     def _validate_model_config(model_config: dict) -> None:
         val = model_config.get("max_context_tokens") if model_config else None
-        if not isinstance(val, int) or val <= 0:
+        if not isinstance(val, int) or val < 0:
             raise ContextBuildError(
                 "config",
-                "model_config.max_context_tokens must be a positive int",
+                "model_config.max_context_tokens must be a non-negative int",
             )
 
     def update_model_config(self, model_config: dict) -> None:

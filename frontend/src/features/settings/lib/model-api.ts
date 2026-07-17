@@ -20,7 +20,6 @@ import type {
   ModelResponse,
   TaskType,
   ModelUpdateRequest,
-  TagsResponse,
 } from "@/lib/model.types";
 
 interface ModelProviderCatalogProviderResponse {
@@ -146,7 +145,6 @@ function transformModel(raw: ModelResponse): Model {
     providerId: raw.provider_id,
     modelId: raw.model_id,
     taskType: raw.task_type,
-    tags: raw.tags,
     temperature: raw.temperature,
     topP: raw.top_p,
     topK: raw.top_k,
@@ -157,8 +155,6 @@ function transformModel(raw: ModelResponse): Model {
     repetitionPenalty: raw.repetition_penalty,
     maxTokens: raw.max_tokens,
     contextLength: raw.context_length ?? 128000,
-    deepseekReasoningEffort: raw.deepseek_reasoning_effort,
-    deepseekThinkingType: raw.deepseek_thinking_type,
     dimensions: raw.dimensions,
     isBuiltin: raw.is_builtin ?? false,
     createdAt: raw.created_at,
@@ -375,12 +371,4 @@ export async function updateModel(id: string, data: ModelUpdateRequest): Promise
  */
 export async function deleteModel(id: string): Promise<void> {
   await apiClient.delete(`/models/${id}`);
-}
-
-/**
- * 获取所有标签
- */
-export async function fetchTags(): Promise<string[]> {
-  const response = await apiClient.get<TagsResponse>("/models/tags");
-  return response.data.tags;
 }

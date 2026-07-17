@@ -146,11 +146,12 @@ async def _build_model_config_from_record(session: Any, record_id: str) -> dict[
         "temperature": model.temperature,
         "top_p": model.top_p,
         "top_k": model.top_k,
+        "min_p": model.min_p,
+        "top_a": model.top_a,
         "max_tokens": model.max_tokens,
         "frequency_penalty": model.frequency_penalty,
         "presence_penalty": model.presence_penalty,
-        "deepseek_reasoning_effort": model.deepseek_reasoning_effort,
-        "deepseek_thinking_type": model.deepseek_thinking_type,
+        "repetition_penalty": model.repetition_penalty,
     }
 
 
@@ -174,6 +175,9 @@ async def _resolve_agent_model_config(
     if record_id:
         resolved = await _build_model_config_from_record(session, record_id)
         if resolved is not None:
+            reasoning_effort = inherited_config.get("reasoning_effort")
+            if isinstance(reasoning_effort, str):
+                resolved["reasoning_effort"] = reasoning_effort
             return resolved
     return dict(inherited_config)
 

@@ -35,6 +35,7 @@ import type {
   AgentForkResponse,
   AgentSessionCreateResponse,
   AgentMessage,
+  ReasoningEffort,
   TokenUsageState,
 } from "@/lib/agent.types";
 import {
@@ -87,6 +88,7 @@ export interface AssistantSidebarHandle {
 
 const ASSISTANT_MODEL_STORAGE_KEY = "openfic.agent.selectedModelId";
 const ASSISTANT_AGENT_STORAGE_KEY = "openfic.agent.selectedAgentKey";
+const ASSISTANT_REASONING_EFFORT_STORAGE_KEY = "openfic.agent.reasoningEffort";
 const DEFAULT_CONTEXT_LENGTH = 128000;
 
 const CONTEXT_MID_FIELD_CHAPTER_COUNT = 10;
@@ -138,6 +140,21 @@ function createSessionTotalUsageState(
     tokenOutput: 0,
     tokenCache: 0,
   };
+}
+
+function getStoredReasoningEffort(modelId: string): ReasoningEffort {
+  if (typeof window === "undefined" || !modelId) return "medium";
+  try {
+    const stored = JSON.parse(
+      window.localStorage.getItem(ASSISTANT_REASONING_EFFORT_STORAGE_KEY) ?? "{}",
+    ) as Record<string, string>;
+    const value = stored[modelId];
+    return ["low", "medium", "high", "xhigh", "max"].includes(value)
+      ? (value as ReasoningEffort)
+      : "medium";
+  } catch {
+    return "medium";
+  }
 }
 
 function getSubagentStatusLabel(
@@ -328,6 +345,9 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       () => llmModelOptions.find((model) => getModelValue(model) === effectiveModelId),
       [effectiveModelId, llmModelOptions],
     );
+    const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>(() =>
+      getStoredReasoningEffort(effectiveModelId),
+    );
     const isToolApprovalBypassEnabled = settings?.agentBypassToolApproval ?? false;
     const agentSidebarRef = useRef<ReturnType<typeof useAgentSidebar> | null>(null);
 
@@ -354,6 +374,10 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         window.localStorage.setItem(ASSISTANT_AGENT_STORAGE_KEY, selectedAgentKey);
       }
     }, [selectedAgentKey]);
+
+    useEffect(() => {
+      setReasoningEffort(getStoredReasoningEffort(effectiveModelId));
+    }, [effectiveModelId]);
 
     const handleAgentTaskTitleUpdated = useCallback(
       (taskId: string, title: string, updatedAt?: string) => {
@@ -539,6 +563,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       projectId,
       scrollToBottomKey: currentTaskId,
       modelId: effectiveModelId,
+      reasoningEffort: currentModel?.reasoning === true ? reasoningEffort : undefined,
       agentKey: effectiveAgentKey,
       inputValue,
       onClearInput: () => setInputValue(""),
@@ -1042,6 +1067,27 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       window.localStorage.setItem(ASSISTANT_MODEL_STORAGE_KEY, nextModelId);
     }, []);
 
+    const handleReasoningEffortChange = useCallback(
+      (nextReasoningEffort: ReasoningEffort) => {
+        if (!effectiveModelId) return;
+        setReasoningEffort(nextReasoningEffort);
+        const stored = (() => {
+          try {
+            return JSON.parse(
+              window.localStorage.getItem(ASSISTANT_REASONING_EFFORT_STORAGE_KEY) ?? "{}",
+            ) as Record<string, ReasoningEffort>;
+          } catch {
+            return {};
+          }
+        })();
+        window.localStorage.setItem(
+          ASSISTANT_REASONING_EFFORT_STORAGE_KEY,
+          JSON.stringify({ ...stored, [effectiveModelId]: nextReasoningEffort }),
+        );
+      },
+      [effectiveModelId],
+    );
+
     const handleAgentChange = useCallback((nextAgentKey: string) => {
       setSelectedAgentKey(nextAgentKey);
       window.localStorage.setItem(ASSISTANT_AGENT_STORAGE_KEY, nextAgentKey);
@@ -1481,6 +1527,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
               projectId={projectId}
               modelId={effectiveModelId}
               models={llmModelOptions}
+              reasoningEffort={currentModel?.reasoning === true ? reasoningEffort : undefined}
               isSending={isSendingMessage}
               disabled={isViewingSubagent || isLoadingTask}
               pendingMessage={isViewingSubagent ? null : agentSidebar.pendingMessage}
@@ -1494,6 +1541,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
               }
               onOpenMentionChapter={onOpenMentionChapter}
               onModelChange={handleModelChange}
+              onReasoningEffortChange={handleReasoningEffortChange}
               agentKey={effectiveAgentKey}
               agentOptions={agentSelectorOptions}
               onAgentChange={handleAgentChange}

@@ -15,6 +15,7 @@ import type {
   AgentSessionCreateResponse,
   AgentSessionStatus,
   AgentEvent,
+  ReasoningEffort,
 } from "@/lib/agent.types";
 import type { TokenUsageState } from "@/lib/agent.types";
 import type { AgentForkResponse } from "@/lib/agent.types";
@@ -130,6 +131,7 @@ function getAgentApiErrorMessage(error: unknown, fallback: string): string {
 interface UseAgentSessionOptions {
   projectId: string;
   modelId: string;
+  reasoningEffort?: ReasoningEffort;
   agentKey?: string;
   maxIterations?: number;
   onTokenUsage?: (sessionId: string, usage: TokenUsageState) => void;
@@ -154,6 +156,7 @@ interface UseAgentSessionOptions {
 export function useAgentSession({
   projectId,
   modelId,
+  reasoningEffort,
   agentKey,
   maxIterations = 5,
   onTokenUsage,
@@ -585,6 +588,7 @@ export function useAgentSession({
         const createResponse = await createAgentSession({
           project_id: projectId,
           model_id: modelId,
+          ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
           max_iterations: maxIterations,
           ...(agentKey ? { agent_key: agentKey } : {}),
         });
@@ -616,6 +620,7 @@ export function useAgentSession({
       onSessionCreated,
       projectId,
       queryClient,
+      reasoningEffort,
       updateTranscriptState,
       agentKey,
     ],
@@ -649,7 +654,12 @@ export function useAgentSession({
         }
         await joinAgentSession(activeSessionId);
         const nextModelId = modelId === activeModelIdRef.current ? undefined : modelId;
-        const response = await sendAgentMessage(activeSessionId, message, nextModelId);
+        const response = await sendAgentMessage(
+          activeSessionId,
+          message,
+          nextModelId,
+          reasoningEffort,
+        );
         if (response.model_updated && nextModelId) activeModelIdRef.current = nextModelId;
         if (response.queued && response.pending_message) {
           syncPendingMessageState(createPendingUserMessage(response.pending_message));
@@ -665,7 +675,14 @@ export function useAgentSession({
         toast.error(i18n.t("assistant.sendMessageFailed"));
       }
     },
-    [attachAgentSocket, modelId, sessionId, syncPendingMessageState, updateTranscriptState],
+    [
+      attachAgentSocket,
+      modelId,
+      reasoningEffort,
+      sessionId,
+      syncPendingMessageState,
+      updateTranscriptState,
+    ],
   );
 
   const compactSession = useCallback(async () => {

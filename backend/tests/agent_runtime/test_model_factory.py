@@ -32,7 +32,7 @@ def test_create_chat_model_openai_returns_chat_openai():
     assert model.model_name == "gpt-4o"
 
 
-def test_create_chat_model_anthropic_uses_openai_compatible_client():
+def test_create_chat_model_anthropic_uses_native_client():
     config = ModelConfig(
         provider_type="anthropic",
         base_url="",
@@ -41,9 +41,9 @@ def test_create_chat_model_anthropic_uses_openai_compatible_client():
     )
     model = create_chat_model(config)
 
-    from langchain_openai import ChatOpenAI
+    from langchain_anthropic import ChatAnthropic
 
-    assert isinstance(model, ChatOpenAI)
+    assert isinstance(model, ChatAnthropic)
 
 
 def test_create_chat_model_with_temperature():
@@ -56,6 +56,66 @@ def test_create_chat_model_with_temperature():
     )
     model = create_chat_model(config)
     assert model.temperature == 0.7
+
+
+def test_create_chat_model_omits_default_advanced_params_from_request():
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai",
+            base_url="https://api.openai.com/v1",
+            api_key="sk-test",
+            model_id="gpt-4o",
+            temperature=1.0,
+            top_p=1.0,
+            top_k=0,
+            frequency_penalty=0.0,
+            presence_penalty=0.0,
+            repetition_penalty=1.0,
+            min_p=0.0,
+            top_a=0.0,
+        )
+    )
+
+    assert model._default_params == {  # type: ignore[attr-defined]
+        "model": "gpt-4o",
+        "stream": False,
+    }
+
+
+def test_create_chat_model_sends_non_default_advanced_params():
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai",
+            base_url="https://api.openai.com/v1",
+            api_key="sk-test",
+            model_id="gpt-4o",
+            temperature=0.7,
+            top_p=0.9,
+            top_k=32,
+            frequency_penalty=0.2,
+            presence_penalty=0.1,
+            repetition_penalty=1.1,
+            min_p=0.05,
+            top_a=0.1,
+            reasoning_effort="high",
+        )
+    )
+
+    assert model._default_params == {  # type: ignore[attr-defined]
+        "model": "gpt-4o",
+        "stream": False,
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "frequency_penalty": 0.2,
+        "presence_penalty": 0.1,
+        "reasoning_effort": "high",
+        "extra_body": {
+            "top_k": 32,
+            "repetition_penalty": 1.1,
+            "min_p": 0.05,
+            "top_a": 0.1,
+        },
+    }
 
 
 def test_create_chat_model_disables_provider_internal_retries_for_openai_like_models():
@@ -102,7 +162,7 @@ def test_create_chat_model_disables_provider_internal_retries_for_mistral():
     assert model.max_retries == 0
 
 
-def test_create_chat_model_disables_retries_for_google_genai():
+def test_create_chat_model_configures_google_genai_retries():
     config = ModelConfig(
         provider_type="google-genai",
         base_url="",
@@ -110,7 +170,7 @@ def test_create_chat_model_disables_retries_for_google_genai():
         model_id="gemini-2.0-flash",
     )
     model = create_chat_model(config)
-    assert model.max_retries == 0
+    assert model.max_retries == 1
 
 
 def test_create_chat_model_unknown_provider_falls_back_to_openai():
@@ -126,39 +186,36 @@ def test_create_chat_model_unknown_provider_falls_back_to_openai():
     assert isinstance(model, ChatOpenAI)
 
 
-def test_create_chat_model_forces_openai_compatible_for_non_builtin_provider():
+def test_create_chat_model_uses_native_client_for_configured_provider():
     config = ModelConfig(
         provider_type="anthropic",
         base_url="https://api.anthropic.com",
         api_key="sk-ant-test",
         model_id="claude-sonnet-4-6",
-        use_openai_compatible=True,
     )
 
     model = create_chat_model(config)
 
-    from langchain_openai import ChatOpenAI
+    from langchain_anthropic import ChatAnthropic
 
-    assert isinstance(model, ChatOpenAI)
-    assert model.openai_api_base == "https://api.anthropic.com"
+    assert isinstance(model, ChatAnthropic)
+    assert model.anthropic_api_url == "https://api.anthropic.com"
 
 
-def test_create_chat_model_deepseek_uses_openai_compatible_client():
+def test_create_chat_model_deepseek_uses_native_client():
     config = ModelConfig(
         provider_type="deepseek",
         base_url="https://api.deepseek.com",
         api_key="sk-test",
         model_id="deepseek-v4-flash",
-        deepseek_reasoning_effort="high",
-        deepseek_thinking_type="enabled",
     )
     model = create_chat_model(config)
-    from langchain_openai import ChatOpenAI
+    from langchain_deepseek import ChatDeepSeek
 
-    assert isinstance(model, ChatOpenAI)
+    assert isinstance(model, ChatDeepSeek)
 
 
-def test_create_chat_model_openrouter_uses_openai_compatible_client():
+def test_create_chat_model_openrouter_uses_native_client():
     config = ModelConfig(
         provider_type="openrouter",
         base_url="https://openrouter.ai/api/v1",
@@ -168,12 +225,12 @@ def test_create_chat_model_openrouter_uses_openai_compatible_client():
 
     model = create_chat_model(config)
 
-    from langchain_openai import ChatOpenAI
+    from langchain_openrouter import ChatOpenRouter
 
-    assert isinstance(model, ChatOpenAI)
+    assert isinstance(model, ChatOpenRouter)
 
 
-def test_create_chat_model_groq_uses_openai_compatible_client():
+def test_create_chat_model_groq_uses_native_client():
     config = ModelConfig(
         provider_type="groq",
         base_url="https://api.groq.com/openai/v1",
@@ -183,12 +240,12 @@ def test_create_chat_model_groq_uses_openai_compatible_client():
 
     model = create_chat_model(config)
 
-    from langchain_openai import ChatOpenAI
+    from langchain_groq import ChatGroq
 
-    assert isinstance(model, ChatOpenAI)
+    assert isinstance(model, ChatGroq)
 
 
-def test_create_chat_model_cohere_uses_openai_compatible_client():
+def test_create_chat_model_cohere_uses_native_client():
     config = ModelConfig(
         provider_type="cohere",
         base_url="https://api.cohere.com/v2",
@@ -198,12 +255,12 @@ def test_create_chat_model_cohere_uses_openai_compatible_client():
 
     model = create_chat_model(config)
 
-    from langchain_openai import ChatOpenAI
+    from langchain_cohere import ChatCohere
 
-    assert isinstance(model, ChatOpenAI)
+    assert isinstance(model, ChatCohere)
 
 
-def test_create_chat_model_ollama_uses_openai_compatible_client():
+def test_create_chat_model_ollama_uses_native_client():
     config = ModelConfig(
         provider_type="ollama",
         base_url="http://localhost:11434",
@@ -213,12 +270,12 @@ def test_create_chat_model_ollama_uses_openai_compatible_client():
 
     model = create_chat_model(config)
 
-    from langchain_openai import ChatOpenAI
+    from langchain_ollama import ChatOllama
 
-    assert isinstance(model, ChatOpenAI)
+    assert isinstance(model, ChatOllama)
 
 
-def test_create_chat_model_amazon_nova_uses_openai_compatible_client():
+def test_create_chat_model_amazon_nova_uses_native_client():
     config = ModelConfig(
         provider_type="amazon-nova",
         base_url="https://api.nova.amazon.com/v1",
@@ -228,6 +285,6 @@ def test_create_chat_model_amazon_nova_uses_openai_compatible_client():
 
     model = create_chat_model(config)
 
-    from langchain_openai import ChatOpenAI
+    from langchain_amazon_nova import ChatAmazonNova
 
-    assert isinstance(model, ChatOpenAI)
+    assert isinstance(model, ChatAmazonNova)

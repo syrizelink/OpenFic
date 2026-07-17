@@ -15,15 +15,15 @@ def test_missing_max_context_tokens_raises() -> None:
     assert exc.value.part == "config"
 
 
-def test_zero_max_context_tokens_raises() -> None:
-    with pytest.raises(ContextBuildError) as exc:
-        SessionRunner(
-            session_id="s1",
-            task_id="task_test",
-            model_config={"max_context_tokens": 0},
-            project_id="p1",
-        )
-    assert exc.value.part == "config"
+def test_zero_max_context_tokens_disables_context_compaction() -> None:
+    runner = SessionRunner(
+        session_id="s1",
+        task_id="task_test",
+        model_config={"max_context_tokens": 0},
+        project_id="p1",
+    )
+
+    assert runner.model_config["max_context_tokens"] == 0
 
 
 def test_valid_config_constructs_ok() -> None:
