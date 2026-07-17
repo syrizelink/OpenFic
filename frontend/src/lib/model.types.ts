@@ -101,7 +101,6 @@ export interface Model {
   providerId: string;
   modelId: string;
   taskType: TaskType;
-  tags: string[];
   temperature: number | null;
   topP: number | null;
   topK: number | null;
@@ -112,8 +111,6 @@ export interface Model {
   repetitionPenalty: number | null;
   maxTokens: number | null;
   contextLength: number;
-  deepseekReasoningEffort: "high" | "max" | null;
-  deepseekThinkingType: "enabled" | "disabled" | null;
   dimensions: number | null;
   isBuiltin: boolean;
   createdAt: string;
@@ -128,7 +125,6 @@ export interface ModelResponse {
   provider_id: string;
   model_id: string;
   task_type: TaskType;
-  tags: string[];
   temperature: number | null;
   top_p: number | null;
   top_k: number | null;
@@ -139,8 +135,6 @@ export interface ModelResponse {
   repetition_penalty: number | null;
   max_tokens: number | null;
   context_length: number;
-  deepseek_reasoning_effort: "high" | "max" | null;
-  deepseek_thinking_type: "enabled" | "disabled" | null;
   dimensions: number | null;
   is_builtin?: boolean;
   created_at: string;
@@ -154,7 +148,6 @@ export interface ModelCreateRequest {
   model_id: string;
   task_type?: TaskType;
   remark?: string;
-  tags?: string[];
   temperature?: number | null;
   top_p?: number | null;
   top_k?: number | null;
@@ -165,8 +158,6 @@ export interface ModelCreateRequest {
   repetition_penalty?: number | null;
   max_tokens?: number | null;
   context_length?: number | null;
-  deepseek_reasoning_effort?: "high" | "max" | null;
-  deepseek_thinking_type?: "enabled" | "disabled" | null;
   dimensions?: number | null;
 }
 
@@ -177,7 +168,6 @@ export interface ModelUpdateRequest {
   provider_id?: string;
   model_id?: string;
   task_type?: TaskType;
-  tags?: string[];
   temperature?: number | null;
   top_p?: number | null;
   top_k?: number | null;
@@ -188,14 +178,7 @@ export interface ModelUpdateRequest {
   repetition_penalty?: number | null;
   max_tokens?: number | null;
   context_length?: number | null;
-  deepseek_reasoning_effort?: "high" | "max" | null;
-  deepseek_thinking_type?: "enabled" | "disabled" | null;
   dimensions?: number | null;
-}
-
-/** 标签响应 */
-export interface TagsResponse {
-  tags: string[];
 }
 
 export interface ModelProviderCatalogProvider {

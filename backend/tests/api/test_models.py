@@ -34,7 +34,6 @@ async def test_create_model(client: AsyncClient, session: AsyncSession):
         "provider_id": provider.id,
         "model_id": "gpt-4",
         "remark": "Test model",
-        "tags": ["test", "gpt"],
         "temperature": 0.7,
     }
 
@@ -45,7 +44,110 @@ async def test_create_model(client: AsyncClient, session: AsyncSession):
     assert data["name"] == "GPT-4"
     assert data["model_id"] == "gpt-4"
     assert data["temperature"] == 0.7
-    assert "test" in data["tags"]
+    assert "tags" not in data
+
+
+@pytest.mark.asyncio
+async def test_create_model_rejects_duplicate_name(
+    client: AsyncClient, session: AsyncSession
+):
+    """创建模型时拒绝与已有模型同名的名称。"""
+    from app.core.encryption import EncryptionService
+    from app.settings import settings
+
+    provider = await model_provider_repo.create(
+        session=session,
+        name="Test Provider",
+        url="https://api.example.com",
+        api_key_encrypted=EncryptionService(settings.encryption_key).encrypt("test-key"),
+        provider_type="openai",
+    )
+    await model_repo.create(
+        session=session,
+        name="GPT-4",
+        provider_id=provider.id,
+        model_id="gpt-4",
+    )
+    await session.commit()
+
+    response = await client.post(
+        "/api/v1/models",
+        json={
+            "name": "GPT-4",
+            "provider_id": provider.id,
+            "model_id": "gpt-4o",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "模型名称已存在"
+
+
+@pytest.mark.asyncio
+async def test_create_model_uses_normalized_advanced_parameter_defaults(
+    client: AsyncClient, session: AsyncSession
+):
+    from app.core.encryption import EncryptionService
+    from app.settings import settings
+
+    provider = await model_provider_repo.create(
+        session=session,
+        name="Test Provider",
+        url="https://api.example.com",
+        api_key_encrypted=EncryptionService(settings.encryption_key).encrypt("test-key"),
+        provider_type="openai",
+    )
+    await session.commit()
+
+    response = await client.post(
+        "/api/v1/models",
+        json={
+            "name": "Default Model",
+            "provider_id": provider.id,
+            "model_id": "gpt-4o",
+        },
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["temperature"] == 1.0
+    assert data["top_p"] == 1.0
+    assert data["top_k"] == 0
+    assert data["frequency_penalty"] == 0.0
+    assert data["presence_penalty"] == 0.0
+    assert data["repetition_penalty"] == 1.0
+    assert data["min_p"] == 0.0
+    assert data["top_a"] == 0.0
+    assert data["context_length"] == 128000
+
+
+@pytest.mark.asyncio
+async def test_create_model_rejects_context_length_above_two_million(
+    client: AsyncClient, session: AsyncSession
+):
+    from app.core.encryption import EncryptionService
+    from app.settings import settings
+
+    provider = await model_provider_repo.create(
+        session=session,
+        name="Test Provider",
+        url="https://api.example.com",
+        api_key_encrypted=EncryptionService(settings.encryption_key).encrypt("test-key"),
+        provider_type="openai",
+    )
+    await session.commit()
+
+    response = await client.post(
+        "/api/v1/models",
+        json={
+            "name": "Oversized Context Model",
+            "provider_id": provider.id,
+            "model_id": "gpt-4o",
+            "context_length": 2000001,
+        },
+    )
+
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio
@@ -207,6 +309,76 @@ async def test_update_model(client: AsyncClient, session: AsyncSession):
 
 
 @pytest.mark.asyncio
+async def test_update_model_rejects_duplicate_name(
+    client: AsyncClient, session: AsyncSession
+):
+    """编辑模型时拒绝与其他模型同名的名称。"""
+    from app.core.encryption import EncryptionService
+    from app.settings import settings
+
+    provider = await model_provider_repo.create(
+        session=session,
+        name="Test Provider",
+        url="https://api.example.com",
+        api_key_encrypted=EncryptionService(settings.encryption_key).encrypt("test-key"),
+        provider_type="openai",
+    )
+    existing_model = await model_repo.create(
+        session=session,
+        name="Existing Model",
+        provider_id=provider.id,
+        model_id="existing-model",
+    )
+    target_model = await model_repo.create(
+        session=session,
+        name="Target Model",
+        provider_id=provider.id,
+        model_id="target-model",
+    )
+    await session.commit()
+
+    response = await client.put(
+        f"/api/v1/models/{target_model.id}",
+        json={"name": existing_model.name},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "模型名称已存在"
+
+
+@pytest.mark.asyncio
+async def test_update_model_allows_its_existing_name(
+    client: AsyncClient, session: AsyncSession
+):
+    """编辑模型时允许保留自身原有名称。"""
+    from app.core.encryption import EncryptionService
+    from app.settings import settings
+
+    provider = await model_provider_repo.create(
+        session=session,
+        name="Test Provider",
+        url="https://api.example.com",
+        api_key_encrypted=EncryptionService(settings.encryption_key).encrypt("test-key"),
+        provider_type="openai",
+    )
+    model = await model_repo.create(
+        session=session,
+        name="Existing Model",
+        provider_id=provider.id,
+        model_id="existing-model",
+    )
+    await session.commit()
+
+    response = await client.put(
+        f"/api/v1/models/{model.id}",
+        json={"name": model.name, "remark": "Updated remark"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == model.name
+
+
+@pytest.mark.asyncio
 async def test_delete_model(client: AsyncClient, session: AsyncSession):
     """测试删除模型。"""
     from app.core.encryption import EncryptionService
@@ -239,45 +411,3 @@ async def test_delete_model(client: AsyncClient, session: AsyncSession):
     assert deleted_model is None
 
 
-@pytest.mark.asyncio
-async def test_get_all_tags(client: AsyncClient, session: AsyncSession):
-    """测试获取所有标签。"""
-    from app.core.encryption import EncryptionService
-    from app.settings import settings
-    import json
-
-    encryption_service = EncryptionService(settings.encryption_key)
-    encrypted_key = encryption_service.encrypt("test-key")
-
-    provider = await model_provider_repo.create(
-        session=session,
-        name="Test Provider",
-        url="https://api.example.com",
-        api_key_encrypted=encrypted_key,
-        provider_type="openai",
-    )
-
-    await model_repo.create(
-        session=session,
-        name="Model 1",
-        provider_id=provider.id,
-        model_id="model-1",
-        tags=json.dumps(["tag1", "tag2"]),
-    )
-    await model_repo.create(
-        session=session,
-        name="Model 2",
-        provider_id=provider.id,
-        model_id="model-2",
-        tags=json.dumps(["tag2", "tag3"]),
-    )
-    await session.commit()
-
-    response = await client.get("/api/v1/models/tags")
-    assert response.status_code == 200
-
-    data = response.json()
-    assert "tags" in data
-    assert "tag1" in data["tags"]
-    assert "tag2" in data["tags"]
-    assert "tag3" in data["tags"]

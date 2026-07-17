@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from app.agent_runtime.types import DEFAULT_AGENT_MAX_ITERATIONS
 from app.api.schemas.task import TaskMessage
+from app.models.clients.model_params import ReasoningEffort
 
 class AgentSessionCreateRequest(BaseModel):
     """创建 Agent 会话请求。"""
@@ -24,6 +25,10 @@ class AgentSessionCreateRequest(BaseModel):
     agent_key: str = Field(
         default="primary",
         description="主智能体标识，用于选择启用的 primary agent",
+    )
+    reasoning_effort: ReasoningEffort | None = Field(
+        default=None,
+        description="当前会话推理强度，仅 reasoning 模型可用",
     )
 
     model_config = {"extra": "forbid"}
@@ -47,6 +52,10 @@ class AgentSendMessageRequest(BaseModel):
 
     message: str = Field(..., description="用户消息内容")
     model_id: str | None = Field(default=None, description="下一轮执行使用的模型ID")
+    reasoning_effort: ReasoningEffort | None = Field(
+        default=None,
+        description="当前轮推理强度，仅 reasoning 模型可用",
+    )
 
 
 class AgentPendingMessageResponse(BaseModel):

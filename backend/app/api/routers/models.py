@@ -3,7 +3,6 @@
 Model Router - 模型 API。
 """
 
-import json
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -15,7 +14,6 @@ from app.api.schemas.model import (
     ModelResponse,
     ModelUpdateRequest,
     TaskType,
-    TagsResponse,
 )
 from app.api.agent_settings_lock import require_agent_settings_unlocked
 from app.core.errors import NotFoundError
@@ -45,7 +43,6 @@ def _to_response(m) -> ModelResponse:
         provider_id=m.provider_id,
         model_id=m.model_id,
         task_type=_require_task_type(m.task_type),
-        tags=json.loads(m.tags),
         temperature=m.temperature,
         top_p=m.top_p,
         top_k=m.top_k,
@@ -56,8 +53,6 @@ def _to_response(m) -> ModelResponse:
         repetition_penalty=m.repetition_penalty,
         max_tokens=m.max_tokens,
         context_length=m.context_length,
-        deepseek_reasoning_effort=m.deepseek_reasoning_effort,
-        deepseek_thinking_type=m.deepseek_thinking_type,
         dimensions=m.dimensions,
         is_builtin=m.is_builtin,
         created_at=m.created_at.isoformat(),
@@ -99,30 +94,6 @@ async def get_models(
             models = all_models
 
     return [_to_response(m) for m in models]
-
-
-@router.get(
-    "/tags",
-    response_model=TagsResponse,
-    summary="获取所有标签",
-)
-async def get_tags(
-    session: Annotated[AsyncSession, Depends(get_session)],
-    service: Annotated[ModelService, Depends(get_model_service)],
-) -> TagsResponse:
-    """
-    获取所有已使用的标签。
-
-    Args:
-        session: 数据库 session。
-        service: 模型服务。
-
-    Returns:
-        标签列表。
-    """
-    tags = await service.get_all_tags(session)
-    return TagsResponse(tags=tags)
-
 
 @router.get(
     "/{model_id}",
@@ -180,28 +151,28 @@ async def create_model(
     await require_agent_settings_unlocked(session)
     logger.info(f"创建模型: {request.name}")
 
-    model = await service.create_model(
-        session=session,
-        name=request.name,
-        provider_id=request.provider_id,
-        model_id=request.model_id,
-        task_type=request.task_type,
-        remark=request.remark,
-        tags=request.tags,
-        temperature=request.temperature,
-        top_p=request.top_p,
-        top_k=request.top_k,
-        min_p=request.min_p,
-        top_a=request.top_a,
-        frequency_penalty=request.frequency_penalty,
-        presence_penalty=request.presence_penalty,
-        repetition_penalty=request.repetition_penalty,
-        max_tokens=request.max_tokens,
-        context_length=request.context_length,
-        deepseek_reasoning_effort=request.deepseek_reasoning_effort,
-        deepseek_thinking_type=request.deepseek_thinking_type,
-        dimensions=request.dimensions,
-    )
+    try:
+        model = await service.create_model(
+            session=session,
+            name=request.name,
+            provider_id=request.provider_id,
+            model_id=request.model_id,
+            task_type=request.task_type,
+            remark=request.remark,
+            temperature=request.temperature,
+            top_p=request.top_p,
+            top_k=request.top_k,
+            min_p=request.min_p,
+            top_a=request.top_a,
+            frequency_penalty=request.frequency_penalty,
+            presence_penalty=request.presence_penalty,
+            repetition_penalty=request.repetition_penalty,
+            max_tokens=request.max_tokens,
+            context_length=request.context_length,
+            dimensions=request.dimensions,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
     return _to_response(model)
 
@@ -244,7 +215,6 @@ async def update_model(
             provider_id=request.provider_id,
             model_identifier=request.model_id,
             task_type=request.task_type,
-            tags=request.tags,
             temperature=request.temperature,
             top_p=request.top_p,
             top_k=request.top_k,
@@ -255,8 +225,6 @@ async def update_model(
             repetition_penalty=request.repetition_penalty,
             max_tokens=request.max_tokens,
             context_length=request.context_length,
-            deepseek_reasoning_effort=request.deepseek_reasoning_effort,
-            deepseek_thinking_type=request.deepseek_thinking_type,
             dimensions=request.dimensions,
         )
 

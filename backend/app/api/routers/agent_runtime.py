@@ -66,6 +66,7 @@ from app.core.encryption import EncryptionService
 from app.core.errors import NotFoundError
 from app.core.ids import generate_id
 from app.models.repos import model_provider_repo, model_repo
+from app.models.catalog import ModelProviderCatalogService
 from app.settings import settings
 from app.background.jobs.session_title_jobs import enqueue_session_title_job
 from app.background.jobs import service as background_service
@@ -268,7 +269,7 @@ def _is_valid_model_config(model_config: object) -> TypeGuard[dict[str, object]]
     if not isinstance(model_config, dict):
         return False
     max_context_tokens = model_config.get("max_context_tokens")
-    return isinstance(max_context_tokens, int) and max_context_tokens > 0
+    return isinstance(max_context_tokens, int) and max_context_tokens >= 0
 
 
 def _build_subagent_state_response(
@@ -369,7 +370,14 @@ async def _get_runner(session_id: str, session: AsyncSession | None = None) -> S
         raise NotFoundError(f"会话不存在: {session_id}")
     model_record_id = restored_model_config.get("model_record_id")
     if isinstance(model_record_id, str) and model_record_id:
-        runner.model_config = await _resolve_model_config(session, model_record_id)
+        restored_reasoning_effort = restored_model_config.get("reasoning_effort")
+        runner.model_config = await _resolve_model_config(
+            session,
+            model_record_id,
+            restored_reasoning_effort
+            if isinstance(restored_reasoning_effort, str)
+            else None,
+        )
     else:
         runner.model_config = await _resolve_legacy_model_config(
             session,
@@ -387,8 +395,10 @@ async def _get_runner(session_id: str, session: AsyncSession | None = None) -> S
     return runner
 
 
-def _build_model_config(model, provider, api_key: str) -> dict:
-    return {
+async def _build_model_config(
+    model, provider, api_key: str, reasoning_effort: str | None = None
+) -> dict:
+    model_config = {
         "model_record_id": model.id,
         "provider_type": provider.provider_type,
         "base_url": provider.url,
@@ -398,15 +408,23 @@ def _build_model_config(model, provider, api_key: str) -> dict:
         "temperature": model.temperature,
         "top_p": model.top_p,
         "top_k": model.top_k,
+        "min_p": model.min_p,
+        "top_a": model.top_a,
         "max_tokens": model.max_tokens,
         "frequency_penalty": model.frequency_penalty,
         "presence_penalty": model.presence_penalty,
-        "deepseek_reasoning_effort": model.deepseek_reasoning_effort,
-        "deepseek_thinking_type": model.deepseek_thinking_type,
+        "repetition_penalty": model.repetition_penalty,
     }
+    if reasoning_effort and await ModelProviderCatalogService().supports_provider_model_reasoning(
+        provider.provider_type, provider.url, model.model_id
+    ):
+        model_config["reasoning_effort"] = reasoning_effort
+    return model_config
 
 
-async def _resolve_model_config(session: AsyncSession, model_id: str) -> dict:
+async def _resolve_model_config(
+    session: AsyncSession, model_id: str, reasoning_effort: str | None = None
+) -> dict:
     model = await model_repo.get_by_id(session, model_id)
     if model is None:
         raise NotFoundError(f"模型不存在：{model_id}")
@@ -421,7 +439,7 @@ async def _resolve_model_config(session: AsyncSession, model_id: str) -> dict:
     except Exception as exc:
         raise ValueError("API密钥解密失败") from exc
 
-    return _build_model_config(model, provider, api_key)
+    return await _build_model_config(model, provider, api_key, reasoning_effort)
 
 
 async def _resolve_legacy_model_config(
@@ -678,7 +696,9 @@ async def create_agent_session(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"智能体 '{request.agent_key}' 不是主智能体 (kind != primary)",
             )
-        model_config = await _resolve_model_config(session, request.model_id)
+        model_config = await _resolve_model_config(
+            session, request.model_id, request.reasoning_effort
+        )
         session_id = f"agent_{generate_id()}"
         task = await task_service.create_task(
             session=session,
@@ -757,7 +777,11 @@ async def send_agent_message(
     model_updated = False
     if body.model_id and not can_continue:
         try:
-            runner.update_model_config(await _resolve_model_config(session, body.model_id))
+            runner.update_model_config(
+                await _resolve_model_config(
+                    session, body.model_id, body.reasoning_effort
+                )
+            )
             model_updated = True
         except NotFoundError as exc:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
@@ -766,6 +790,14 @@ async def send_agent_message(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(exc),
             ) from exc
+    elif body.reasoning_effort is not None:
+        model_record_id = runner.model_config.get("model_record_id")
+        if isinstance(model_record_id, str) and model_record_id:
+            runner.update_model_config(
+                await _resolve_model_config(
+                    session, model_record_id, body.reasoning_effort
+                )
+            )
     if can_continue:
         coro = runner.continue_with_user_message(body.message)
     else:

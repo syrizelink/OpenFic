@@ -174,6 +174,28 @@ def _build_service(tmp_path: Path) -> ModelProviderCatalogService:
 
 
 @pytest.mark.asyncio
+async def test_catalog_service_identifies_reasoning_models(tmp_path: Path) -> None:
+    service = _build_service(tmp_path)
+
+    assert await service.supports_reasoning("openai", "gpt-4.1") is True
+    assert await service.supports_reasoning("openai", "gpt-4o-mini") is False
+    assert await service.supports_reasoning("unknown", "gpt-4.1") is False
+
+
+@pytest.mark.asyncio
+async def test_catalog_service_identifies_reasoning_for_openai_compatible_provider(
+    tmp_path: Path,
+) -> None:
+    service = _build_service(tmp_path)
+
+    assert await service.supports_provider_model_reasoning(
+        "openai-compatible",
+        "https://api.openai.com/v1",
+        "gpt-4.1",
+    ) is True
+
+
+@pytest.mark.asyncio
 async def test_catalog_service_uses_bundled_snapshot_until_refresh(tmp_path: Path) -> None:
     service = _build_service(tmp_path)
 

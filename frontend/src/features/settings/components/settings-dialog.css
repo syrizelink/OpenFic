@@ -194,6 +194,32 @@
   outline-offset: 2px;
 }
 
+.advanced-params-info-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--gray-9);
+  cursor: help;
+  transition: color 140ms ease;
+}
+
+.advanced-params-info-button:hover,
+.advanced-params-info-button:focus-visible {
+  background: transparent;
+  color: var(--gray-12);
+}
+
+.advanced-params-info-button:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: 2px;
+}
+
 .agent-definitions-layout {
   flex: 1 1 auto;
   min-height: 0;

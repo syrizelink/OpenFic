@@ -405,13 +405,19 @@ async def _invoke_tool(
 
 def _to_history_dict(m: BaseMessage) -> dict:
     """把 LangChain BaseMessage 反向转成 build_context 期望的 history dict。"""
-    role_map = {
-        "system": "system",
-        "human": "user",
-        "ai": "assistant",
-        "tool": "tool",
-    }
-    role = role_map.get(m.type, m.type)
+    # 用 isinstance 判断而非 m.type 字符串：流式累加产生的 *Chunk 子类
+    # （如 AIMessageChunk）的 .type 是类名（"AIMessageChunk"）而非 "ai"，
+    # 会导致 role 映射失败。
+    if isinstance(m, ToolMessage):
+        role = "tool"
+    elif isinstance(m, AIMessage):
+        role = "assistant"
+    elif isinstance(m, HumanMessage):
+        role = "user"
+    elif isinstance(m, SystemMessage):
+        role = "system"
+    else:
+        role = m.type
     response_metadata = getattr(m, "response_metadata", None)
     response_metadata = response_metadata if isinstance(response_metadata, dict) else {}
     metadata: dict[str, Any] = {"part": "history"}

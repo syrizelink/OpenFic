@@ -4,7 +4,7 @@
  * 模型设置面板，管理和配置 AI 模型。
  */
 
-import { Box, Flex, Text, Button, IconButton, Badge, Tabs, Tooltip } from "@radix-ui/themes";
+import { Box, Flex, Text, Button, IconButton, Badge, Tabs } from "@radix-ui/themes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Edit } from "lucide-react";
 import { useState, useCallback, useEffect, useMemo } from "react";
@@ -199,7 +199,6 @@ export function ModelsSettings({
     mutationFn: createModel,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["models"] });
-      queryClient.invalidateQueries({ queryKey: ["model-tags"] });
       setFormOpen(false);
       toast.success(t("models.createSuccess"));
     },
@@ -213,7 +212,6 @@ export function ModelsSettings({
     mutationFn: ({ id, data }: { id: string; data: ModelUpdateRequest }) => updateModel(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["models"] });
-      queryClient.invalidateQueries({ queryKey: ["model-tags"] });
       setFormOpen(false);
       setEditingModel(null);
       toast.success(t("models.updateSuccess"));
@@ -228,7 +226,6 @@ export function ModelsSettings({
     mutationFn: deleteModel,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["models"] });
-      queryClient.invalidateQueries({ queryKey: ["model-tags"] });
       setDeletingModel(null);
       toast.success(t("models.deleteSuccess"));
     },
@@ -406,17 +403,13 @@ export function ModelsSettings({
 
         {/* 新建按钮 */}
         <Flex>
-          <Tooltip content={!hasProviders ? t("models.noProvidersTooltip") : undefined}>
-            <span>
-              <Button
-                onClick={handleCreate}
-                disabled={isAgentSettingsLocked || !hasProviders}
-              >
-                <Plus size={16} />
-                {t("models.newModel")}
-              </Button>
-            </span>
-          </Tooltip>
+          <Button
+            onClick={handleCreate}
+            disabled={isAgentSettingsLocked || !hasProviders}
+          >
+            <Plus size={16} />
+            {t("models.newModel")}
+          </Button>
         </Flex>
 
         {/* Tab导航 */}
@@ -557,24 +550,6 @@ export function ModelsSettings({
                       )}
                     </Flex>
                   </Flex>
-
-                  {/* 标签 */}
-                  {model.tags.length > 0 && (
-                    <Flex
-                      gap="2"
-                      wrap="wrap"
-                    >
-                      {model.tags.map((tag) => (
-                        <Badge
-                          key={tag}
-                          size="1"
-                          variant="soft"
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                    </Flex>
-                  )}
                 </Flex>
                 {index < filteredModels.length - 1 && (
                   <Box
@@ -612,6 +587,7 @@ export function ModelsSettings({
         open={formOpen}
         onOpenChange={setFormOpen}
         model={editingModel || undefined}
+        models={models ?? []}
         onSubmit={handleSubmit}
         isSubmitting={createMutation.isPending || updateMutation.isPending}
         isAgentSettingsLocked={isAgentSettingsLocked}

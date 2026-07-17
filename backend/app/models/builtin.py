@@ -106,7 +106,6 @@ async def seed_builtin_models(session: AsyncSession) -> None:
                 provider_id=BUILTIN_PROVIDER_ID,
                 model_id=spec.model_id,
                 task_type=spec.task_type,
-                tags="[]",
                 dimensions=spec.dimensions,
                 is_builtin=True,
             )

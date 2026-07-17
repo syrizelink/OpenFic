@@ -139,7 +139,7 @@ class EmbeddingClient:
                 # 非OpenAI官方端点通常不支持token数组输入与base64编码：
                 # 发送原始文本并使用float格式，避免空响应/解码失败。
                 "check_embedding_ctx_length": False,
-                "encoding_format": "float",
+                "model_kwargs": {"encoding_format": "float"},
             }
             if config.dimensions is not None:
                 openai_kwargs["dimensions"] = config.dimensions

@@ -8,6 +8,10 @@ from datetime import UTC, datetime
 from sqlmodel import Field, SQLModel
 
 from app.core.ids import generate_id
+from app.models.clients.model_params import (
+    DEFAULT_CONTEXT_LENGTH,
+    MAX_CONTEXT_LENGTH,
+)
 
 
 class Model(SQLModel, table=True):
@@ -21,7 +25,6 @@ class Model(SQLModel, table=True):
         provider_id: 关联的提供商 ID。
         model_id: 从提供商获取的模型 ID。
         task_type: 任务类型（llm、embedding 或 rerank）。
-        tags: 标签（JSON 格式的字符串列表）。
         temperature: Temperature 参数（LLM 专用）。
         top_p: Top P 参数（LLM 专用）。
         top_k: Top K 参数（LLM 专用）。
@@ -32,8 +35,6 @@ class Model(SQLModel, table=True):
         repetition_penalty: Repetition Penalty 参数（LLM 专用）。
         max_tokens: Max Tokens 参数（LLM 专用）。
         context_length: 上下文长度（LLM 专用）。
-        deepseek_reasoning_effort: DeepSeek 推理强度（DeepSeek 专用，high 或 max）。
-        deepseek_thinking_type: DeepSeek thinking 开关（DeepSeek 专用，enabled 或 disabled）。
         dimensions: Embedding 维度（Embedding 专用）。
         created_at: 创建时间。
         updated_at: 上次修改时间。
@@ -54,25 +55,16 @@ class Model(SQLModel, table=True):
         index=True,
         description="Task type: llm, embedding, or rerank",
     )
-    tags: str = Field(
-        default="[]", description="JSON array of tags for categorization"
-    )
-
-    # LLM parameters (nullable, use provider/model defaults if None)
     temperature: float | None = Field(default=None, ge=0.0, le=2.0)
     top_p: float | None = Field(default=None, ge=0.0, le=1.0)
-    top_k: int | None = Field(default=None, ge=0)
+    top_k: int | None = Field(default=None, ge=0, le=128)
     min_p: float | None = Field(default=None, ge=0.0, le=1.0)
     top_a: float | None = Field(default=None, ge=0.0, le=1.0)
     frequency_penalty: float | None = Field(default=None, ge=-2.0, le=2.0)
     presence_penalty: float | None = Field(default=None, ge=-2.0, le=2.0)
     repetition_penalty: float | None = Field(default=None, ge=0.0, le=2.0)
     max_tokens: int | None = Field(default=None, ge=1)
-    context_length: int = Field(default=128000, ge=1)
-
-    # DeepSeek parameters (only applied when provider_type is deepseek)
-    deepseek_reasoning_effort: str | None = Field(default=None, max_length=20)
-    deepseek_thinking_type: str | None = Field(default=None, max_length=20)
+    context_length: int = Field(default=DEFAULT_CONTEXT_LENGTH, ge=0, le=MAX_CONTEXT_LENGTH)
 
     # Embedding parameters (nullable)
     dimensions: int | None = Field(default=None, ge=1, description="Embedding dimensions")

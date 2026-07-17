@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import { ModelIdSelect, Spinner, type ModelIdSelectOption } from "@/components";
 import { SimpleSelect, type SelectOption } from "@/components/select";
 import { ProviderIcon } from "@/features/settings/lib/provider-icons";
-import type { AgentPendingMessage, AgentSessionStatus } from "@/lib/agent.types";
+import type { AgentPendingMessage, AgentSessionStatus, ReasoningEffort } from "@/lib/agent.types";
 
 import { AgentComposerEditor, type AgentComposerSuggestionState } from "./agent-composer-editor";
 import { AgentIndexStatusIndicator } from "./agent-index-status-indicator";
@@ -21,6 +21,7 @@ interface AgentInputProps {
   value: string;
   modelId: string;
   models: ModelIdSelectOption[];
+  reasoningEffort?: ReasoningEffort;
   agentKey?: string;
   agentOptions: SelectOption[];
   isSending: boolean;
@@ -31,6 +32,7 @@ interface AgentInputProps {
   onSend: () => void;
   onAbort: () => void;
   onModelChange: (modelId: string) => void;
+  onReasoningEffortChange?: (reasoningEffort: ReasoningEffort) => void;
   onAgentChange?: (agentKey: string) => void;
   onGoToSettings: () => void;
   agentStatus?: AgentSessionStatus;
@@ -52,6 +54,7 @@ export function AgentInput({
   value,
   modelId,
   models,
+  reasoningEffort,
   agentKey,
   agentOptions,
   isSending,
@@ -62,6 +65,7 @@ export function AgentInput({
   onSend,
   onAbort,
   onModelChange,
+  onReasoningEffortChange,
   onAgentChange,
   onGoToSettings,
   agentStatus,
@@ -110,6 +114,14 @@ export function AgentInput({
       iconPath={selectedModel.providerIconPath}
     />
   ) : null;
+  const shouldShowReasoningEffort = selectedModel?.reasoning === true;
+  const reasoningEffortOptions: SelectOption[] = [
+    { value: "low", label: "Low" },
+    { value: "medium", label: "Medium" },
+    { value: "high", label: "High" },
+    { value: "xhigh", label: "Xhigh" },
+    { value: "max", label: "Max" },
+  ];
 
   useLayoutEffect(() => {
     const container = inputContainerRef.current;
@@ -348,28 +360,52 @@ export function AgentInput({
                     />
                   </Box>
                 ) : null}
-                <Box
-                  className="ai-sidebar-model-selector"
-                  style={{ flex: "0 1 auto", minWidth: 0 }}
+                <Flex
+                  align="center"
+                  gap="2"
+                  className="ai-sidebar-model-reasoning-group"
                 >
-                  <ModelIdSelect
-                    value={modelId}
-                    models={models}
-                    onChange={onModelChange}
-                    editable={false}
-                    allowCustomValue={false}
-                    compact
-                    triggerPrefix={modelTriggerPrefix}
-                    hideTriggerChevron
-                    triggerClassName="ai-sidebar-inline-select-trigger"
-                    triggerStyle={{
-                      fontSize: "12px",
-                      border: "none",
-                      background: "transparent",
-                      boxShadow: "none",
-                    }}
-                  />
-                </Box>
+                  <Box
+                    className="ai-sidebar-model-selector"
+                    style={{ flex: "0 1 auto", minWidth: 0 }}
+                  >
+                    <ModelIdSelect
+                      value={modelId}
+                      models={models}
+                      onChange={onModelChange}
+                      editable={false}
+                      allowCustomValue={false}
+                      compact
+                      triggerPrefix={modelTriggerPrefix}
+                      hideTriggerChevron
+                      triggerClassName="ai-sidebar-inline-select-trigger"
+                      triggerStyle={{
+                        fontSize: "12px",
+                        border: "none",
+                        background: "transparent",
+                        boxShadow: "none",
+                      }}
+                    />
+                  </Box>
+                  {shouldShowReasoningEffort && reasoningEffort && onReasoningEffortChange ? (
+                    <Box className="ai-sidebar-reasoning-effort-selector">
+                      <SimpleSelect
+                        value={reasoningEffort}
+                        options={reasoningEffortOptions}
+                        onChange={(value) => onReasoningEffortChange(value as ReasoningEffort)}
+                        size="1"
+                        hideTriggerChevron
+                        triggerClassName="ai-sidebar-inline-select-trigger ai-sidebar-reasoning-effort-trigger"
+                        triggerStyle={{
+                          fontSize: "12px",
+                          border: "none",
+                          background: "transparent",
+                          boxShadow: "none",
+                        }}
+                      />
+                    </Box>
+                  ) : null}
+                </Flex>
               </>
             )}
           </Flex>

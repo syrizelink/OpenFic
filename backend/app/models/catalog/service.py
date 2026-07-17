@@ -140,6 +140,26 @@ class ModelProviderCatalogService:
             models=models,
         )
 
+    async def supports_reasoning(self, provider_type: str, model_id: str) -> bool:
+        try:
+            models = await self.get_provider_models(provider_type, "llm")
+        except KeyError:
+            return False
+        return any(
+            model.model_id == model_id
+            and isinstance(model.metadata, dict)
+            and model.metadata.get("reasoning") is True
+            for model in models.models
+        )
+
+    async def supports_provider_model_reasoning(
+        self, provider_type: str, url: str, model_id: str
+    ) -> bool:
+        catalog_match = await self.match_saved_provider(provider_type, url)
+        if catalog_match is None:
+            return False
+        return await self.supports_reasoning(catalog_match.catalog_provider_type, model_id)
+
     async def refresh(self) -> None:
         try:
             raw_payload = await self._load_refresh_payload()

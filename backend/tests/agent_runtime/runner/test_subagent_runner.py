@@ -127,6 +127,7 @@ async def test_resolve_agent_model_config_prefers_configured_default_setting(
                 "api_key": "parent-key",
                 "model_id": "model-parent",
                 "max_context_tokens": 8000,
+                "reasoning_effort": "high",
             },
         )
 
@@ -135,6 +136,7 @@ async def test_resolve_agent_model_config_prefers_configured_default_setting(
     assert resolved["base_url"] == "https://default.example.com"
     assert resolved["api_key"] == "provider-key"
     assert resolved["max_context_tokens"] == 64000
+    assert resolved["reasoning_effort"] == "high"
 
 
 @pytest.mark.asyncio

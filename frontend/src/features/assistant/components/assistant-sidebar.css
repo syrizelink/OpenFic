@@ -274,6 +274,32 @@
   align-items: center;
 }
 
+.ai-sidebar-model-reasoning-group {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.ai-sidebar-reasoning-effort-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-4px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.ai-sidebar-input-area:hover .ai-sidebar-reasoning-effort-selector,
+.ai-sidebar-input-area:focus-within .ai-sidebar-reasoning-effort-selector,
+.ai-sidebar-model-reasoning-group:has(.ai-sidebar-reasoning-effort-trigger[data-state="open"])
+  .ai-sidebar-reasoning-effort-selector {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
 .ai-sidebar-model-selector {
   min-width: 0;
 }
@@ -282,6 +308,7 @@
   min-height: 24px;
   border-radius: 999px;
   color: var(--gray-12);
+  cursor: pointer;
   transition:
     color 120ms ease,
     opacity 120ms ease,
@@ -318,6 +345,28 @@
 .rt-reset.ai-sidebar-inline-select-trigger .select-trigger-content,
 .rt-reset.ai-sidebar-inline-select-trigger .select-option-label,
 .rt-reset.ai-sidebar-inline-select-trigger .rt-Text {
+  color: var(--gray-12);
+}
+
+.rt-reset.ai-sidebar-reasoning-effort-trigger,
+.rt-reset.ai-sidebar-reasoning-effort-trigger .select-trigger-content,
+.rt-reset.ai-sidebar-reasoning-effort-trigger .select-option-label,
+.rt-reset.ai-sidebar-reasoning-effort-trigger .rt-Text {
+  color: var(--gray-10);
+}
+
+.rt-reset.ai-sidebar-reasoning-effort-trigger:hover,
+.rt-reset.ai-sidebar-reasoning-effort-trigger:focus-visible,
+.rt-reset.ai-sidebar-reasoning-effort-trigger[data-state="open"],
+.rt-reset.ai-sidebar-reasoning-effort-trigger:hover .select-trigger-content,
+.rt-reset.ai-sidebar-reasoning-effort-trigger:hover .select-option-label,
+.rt-reset.ai-sidebar-reasoning-effort-trigger:hover .rt-Text,
+.rt-reset.ai-sidebar-reasoning-effort-trigger:focus-visible .select-trigger-content,
+.rt-reset.ai-sidebar-reasoning-effort-trigger:focus-visible .select-option-label,
+.rt-reset.ai-sidebar-reasoning-effort-trigger:focus-visible .rt-Text,
+.rt-reset.ai-sidebar-reasoning-effort-trigger[data-state="open"] .select-trigger-content,
+.rt-reset.ai-sidebar-reasoning-effort-trigger[data-state="open"] .select-option-label,
+.rt-reset.ai-sidebar-reasoning-effort-trigger[data-state="open"] .rt-Text {
   color: var(--gray-12);
 }
 
