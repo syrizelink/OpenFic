@@ -65,8 +65,6 @@ import {
   getCharacterPayload,
   getNoteItemList,
   getNotePayload,
-  getPlanCountDetail,
-  getPlanTopicDetail,
   getRangeSummaryList,
   getReadChapterDetail,
   getStreamingData,
@@ -92,13 +90,6 @@ export interface ToolDescriptor {
   getDetail?: (message: AgentMessage) => string | undefined;
   defaultExpanded?: (message: AgentMessage) => boolean;
   render?: (message: AgentMessage) => ReactNode;
-}
-
-function getPlanDetailForDisplayKind(
-  message: AgentMessage,
-  detailKind: ReturnType<typeof getPlanToolDisplayConfig>["detailKind"],
-): string | undefined {
-  return detailKind === "count" ? getPlanCountDetail(message) : getPlanTopicDetail(message);
 }
 
 function getVolumeRefLabel(message: AgentMessage, key: string): string | undefined {
@@ -567,54 +558,15 @@ const TOOL_REGISTRY = {
     getTitle: () => i18n.t("assistant.tools.deleteCharacter"),
     getDetail: (message) => getCharacterPayload(message).name,
   },
-  create_plan: {
-    toolName: "create_plan",
+  write_plan: {
+    toolName: "write_plan",
     group: "plan",
-    tag: "create",
+    tag: "write",
     isExplore: false,
-    contentMode: getPlanToolDisplayConfig("create_plan").contentMode,
+    contentMode: getPlanToolDisplayConfig().contentMode,
     icon: ListOrdered,
-    getTitle: () => i18n.t("assistant.tools.createPlan"),
-    getDetail: (message) =>
-      getPlanDetailForDisplayKind(message, getPlanToolDisplayConfig("create_plan").detailKind),
-    defaultExpanded: () => getPlanToolDisplayConfig("create_plan").defaultExpanded,
-    render: (message) => <PlanToolMessage message={message} />,
-  },
-  update_plan: {
-    toolName: "update_plan",
-    group: "plan",
-    tag: "update",
-    isExplore: false,
-    contentMode: getPlanToolDisplayConfig("update_plan").contentMode,
-    icon: ListOrdered,
-    getTitle: () => i18n.t("assistant.tools.updatePlan"),
-    getDetail: (message) =>
-      getPlanDetailForDisplayKind(message, getPlanToolDisplayConfig("update_plan").detailKind),
-    defaultExpanded: () => getPlanToolDisplayConfig("update_plan").defaultExpanded,
-    render: (message) => <PlanToolMessage message={message} />,
-  },
-  get_plan: {
-    toolName: "get_plan",
-    group: "plan",
-    tag: "read",
-    isExplore: false,
-    contentMode: getPlanToolDisplayConfig("get_plan").contentMode,
-    icon: ListOrdered,
-    getTitle: () => i18n.t("assistant.tools.getPlan"),
-    getDetail: (message) =>
-      getPlanDetailForDisplayKind(message, getPlanToolDisplayConfig("get_plan").detailKind),
-    render: (message) => <PlanToolMessage message={message} />,
-  },
-  list_plan: {
-    toolName: "list_plan",
-    group: "plan",
-    tag: "list",
-    isExplore: false,
-    contentMode: getPlanToolDisplayConfig("list_plan").contentMode,
-    icon: ListOrdered,
-    getTitle: () => i18n.t("assistant.tools.listPlan"),
-    getDetail: (message) =>
-      getPlanDetailForDisplayKind(message, getPlanToolDisplayConfig("list_plan").detailKind),
+    getTitle: () => i18n.t("assistant.tools.writePlan"),
+    defaultExpanded: () => getPlanToolDisplayConfig().defaultExpanded,
     render: (message) => <PlanToolMessage message={message} />,
   },
   activate_skill: {

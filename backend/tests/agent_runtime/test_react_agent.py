@@ -27,25 +27,15 @@ async def _async_add_numbers(a: int, b: int) -> int:
     return _add_numbers(a, b)
 
 
-def _create_plan_tool(executed_calls: list[dict[str, object]]) -> StructuredTool:
-    async def _async_create_plan(
-        topic: str,
-        description: str,
-        todos: list[dict[str, str]],
-    ) -> str:
-        executed_calls.append(
-            {
-                "topic": topic,
-                "description": description,
-                "todos": todos,
-            }
-        )
-        return "created"
+def _write_plan_tool(executed_calls: list[dict[str, object]]) -> StructuredTool:
+    async def _async_write_plan(todos: list[dict[str, str]]) -> str:
+        executed_calls.append({"todos": todos})
+        return "written"
 
     return StructuredTool.from_function(
-        coroutine=_async_create_plan,
-        name="create_plan",
-        description="create plan",
+        coroutine=_async_write_plan,
+        name="write_plan",
+        description="write plan",
     )
 
 
@@ -422,19 +412,18 @@ async def test_react_agent_raises_when_tool_success_lacks_termination_tool():
 
 
 @pytest.mark.asyncio
-async def test_react_agent_recovers_malformed_create_plan_todos_invalid_tool_call():
+async def test_react_agent_recovers_malformed_write_plan_todos_invalid_tool_call():
     executed_calls: list[dict[str, object]] = []
     config = ReactAgentConfig(
         name="composer",
-        tools=[_create_plan_tool(executed_calls)],
-        termination=TerminationCondition(mode="tool_success", tool_name="create_plan"),
+        tools=[_write_plan_tool(executed_calls)],
+        termination=TerminationCondition(mode="tool_success", tool_name="write_plan"),
         max_iterations=1,
     )
     graph = create_react_agent(config)
     malformed_args = (
-        '{"topic":"Rewrite","description":"Make a plan","todos":'
-        '[{"title":"Beat 1","content":"line1\nline2"},'
-        '{"title":"Beat 2","content":"done"}]}'
+        '{"todos":[{"content":"line1\nline2","status":"pending","priority":"high"},'
+        '{"content":"done","status":"completed","priority":"low"}]}'
     )
 
     async def _mock_invoke(*args, **kwargs):
@@ -443,7 +432,7 @@ async def test_react_agent_recovers_malformed_create_plan_todos_invalid_tool_cal
             invalid_tool_calls=[
                 invalid_tool_call(
                     id="call_1",
-                    name="create_plan",
+                    name="write_plan",
                     args=malformed_args,
                     error="invalid json in todos array",
                 )
@@ -460,11 +449,9 @@ async def test_react_agent_recovers_malformed_create_plan_todos_invalid_tool_cal
 
     assert result["is_done"] is True
     assert result["final_output"] == {
-        "topic": "Rewrite",
-        "description": "Make a plan",
         "todos": [
-            {"title": "Beat 1", "content": "line1\nline2"},
-            {"title": "Beat 2", "content": "done"},
+            {"content": "line1\nline2", "status": "pending", "priority": "high"},
+            {"content": "done", "status": "completed", "priority": "low"},
         ],
     }
     assert executed_calls == [result["final_output"]]
@@ -475,7 +462,7 @@ async def test_react_agent_emits_tool_error_for_unrecoverable_invalid_tool_call_
     executed_calls: list[dict[str, object]] = []
     config = ReactAgentConfig(
         name="composer",
-        tools=[_create_plan_tool(executed_calls)],
+        tools=[_write_plan_tool(executed_calls)],
         termination=TerminationCondition(mode="no_tool_call"),
         max_iterations=1,
     )
@@ -487,7 +474,7 @@ async def test_react_agent_emits_tool_error_for_unrecoverable_invalid_tool_call_
             invalid_tool_calls=[
                 invalid_tool_call(
                     id="call_1",
-                    name="create_plan",
+                    name="write_plan",
                     args="<<<<",
                     error="invalid json",
                 )
@@ -506,7 +493,7 @@ async def test_react_agent_emits_tool_error_for_unrecoverable_invalid_tool_call_
     assert isinstance(result["messages"][-1], ToolMessage)
     assert result["messages"][-1].tool_call_id == "call_1"
     assert '"reason": "malformed_tool_call"' in result["messages"][-1].content
-    assert "create_plan" in result["messages"][-1].content
+    assert "write_plan" in result["messages"][-1].content
 
 
 @pytest.mark.asyncio
@@ -514,7 +501,7 @@ async def test_react_agent_synthesizes_tool_call_id_for_unrecoverable_invalid_to
     executed_calls: list[dict[str, object]] = []
     config = ReactAgentConfig(
         name="composer",
-        tools=[_create_plan_tool(executed_calls)],
+        tools=[_write_plan_tool(executed_calls)],
         termination=TerminationCondition(mode="no_tool_call"),
         max_iterations=1,
     )
@@ -525,7 +512,7 @@ async def test_react_agent_synthesizes_tool_call_id_for_unrecoverable_invalid_to
             content="",
             invalid_tool_calls=[
                 {
-                    "name": "create_plan",
+                    "name": "write_plan",
                     "args": "<<<<",
                     "error": "invalid json",
                     "type": "invalid_tool_call",

@@ -7,6 +7,7 @@ import { MessageCardShell } from "../../shared/message-shell";
 import {
   getClarificationPromptData,
   getClarificationPromptKey,
+  type ClarificationAnswerItem,
   type ClarificationPromptData,
 } from "./clarification-flow-state";
 import {
@@ -17,7 +18,7 @@ import { useClarificationQuestionFlow } from "./use-clarification-question-flow"
 
 interface ClarificationMessageCardProps {
   message: Pick<AgentMessage, "questions" | "payload" | "correlationId">;
-  onSubmitQuestionAnswer?: (actionId: string, answer: string) => void;
+  onSubmitQuestionAnswer?: (actionId: string, answer: ClarificationAnswerItem[]) => void;
 }
 
 export function ClarificationMessageCard({
@@ -39,7 +40,7 @@ export function ClarificationMessageCard({
 
 interface ClarificationMessageCardContentProps {
   prompt: ClarificationPromptData;
-  onSubmitQuestionAnswer?: (actionId: string, answer: string) => void;
+  onSubmitQuestionAnswer?: (actionId: string, answer: ClarificationAnswerItem[]) => void;
 }
 
 function ClarificationMessageCardContent({

@@ -4,6 +4,12 @@ import pytest
 from pydantic import BaseModel
 
 from app.agent_runtime.tools.base import AgentTool, HookContext, HookResult
+from app.agent_runtime.tools.impls.orchestration.notify_subagent import (
+    NotifySubagentInput,
+)
+from app.agent_runtime.tools.impls.orchestration.recycle_subagent import (
+    RecycleSubagentInput,
+)
 from app.agent_runtime.tools.registry import ToolRegistry
 
 
@@ -100,6 +106,27 @@ def test_get_tools_unknown_name_raises():
     ToolRegistry._tools = {}
     with pytest.raises(KeyError):
         ToolRegistry.get_tools(names=["nonexistent"], state=_make_state())
+
+
+def test_notify_subagent_input_accepts_dispatch_id_and_prompt():
+    parsed = NotifySubagentInput(
+        dispatch_id="dispatch-1",
+        prompt="继续检查遗漏的边界情况",
+    )
+
+    assert parsed.dispatch_id == "dispatch-1"
+    assert parsed.prompt == "继续检查遗漏的边界情况"
+
+
+def test_recycle_subagent_input_accepts_dispatch_id_and_reason():
+    parsed = RecycleSubagentInput(
+        dispatch_id="dispatch-1",
+        reason="任务已完成",
+    )
+
+    assert parsed.dispatch_id == "dispatch-1"
+    assert parsed.reason == "任务已完成"
+    assert "dispatch_id" in RecycleSubagentInput.model_json_schema()["required"]
 
 
 def _collect_schema_property_nodes(

@@ -1500,10 +1500,7 @@
       "moveChapterSuccess": "章节已移动到目标卷末尾。",
       "noNoteEditInfo": "未返回笔记编辑信息",
       "noNoteEditInfoDescription": "这次编辑没有返回可显示的笔记信息。",
-      "topic": "主题",
       "noPlanSteps": "没有返回计划步骤。",
-      "collapsePlanDescription": "收起计划说明",
-      "expandPlanDescription": "展开计划说明",
       "noPlanContent": "未返回计划内容",
       "noPlanContentDescription": "这次工具结果没有返回可显示的计划数据。",
       "dispatchInstruction": "已根据指令委派：",
@@ -1540,17 +1537,16 @@
         "running": "进行中",
         "completed": "已完成"
       },
-      "planStatus": {
-        "pending": "未开始",
-        "in_progress": "进行中",
-        "completed": "已完成"
+      "planPriority": {
+        "low": "低优先级",
+        "medium": "中优先级",
+        "high": "高优先级"
       },
       "outlineBeat": "情节点 {{index}}",
       "outlineTone": "情绪基调：{{tone}}",
       "outlineNote": "备注：{{note}}",
       "asked": "已询问",
       "asking": "询问",
-      "planCount": "{{count}} 个计划",
       "outlineCount": "{{count}} 个情节点",
       "orderedReference": "第{{value}}{{unit}}",
       "volumeDisplay": "第{{order}}卷 · {{title}}",
@@ -1606,10 +1602,7 @@
       "worldEntryCount": "{{count}} 个条目",
       "noWorldEntryInfo": "未返回世界书条目信息",
       "noWorldEntryInfoDescription": "这次工具结果没有返回可显示的世界书条目信息。",
-      "createPlan": "创建计划",
-      "updatePlan": "更新计划",
-      "getPlan": "读取计划",
-      "listPlan": "计划列表",
+      "writePlan": "写入计划",
       "targetVolume": "目标卷",
       "cascadeDeleteChapters": "级联删除章节",
       "yes": "是",
@@ -1620,11 +1613,6 @@
       "find": "查找",
       "replaceWith": "替换为",
       "result": "结果",
-      "collapsePlanSteps": "收起步骤内容",
-      "expandPlanSteps": "展开步骤内容",
-      "completedSteps": "{{count}} 个已完成的步骤",
-      "pendingSteps": "{{count}} 个未开始的步骤",
-      "remainingSteps": "{{count}} 个后续步骤",
       "toolApprovalQuestion": "是否允许调用 {{toolName}}？"
     }
   },

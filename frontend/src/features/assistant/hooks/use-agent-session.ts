@@ -64,6 +64,7 @@ import {
   hasRunningAsyncSubagent,
   shouldJoinLoadedAgentSession,
 } from "./use-agent-session-reconnect";
+import type { ClarificationAnswerItem } from "../components/agent/message-blocks/messages/special/clarification-flow-state";
 
 function isUserTextMessage(message: AgentMessage | undefined): message is AgentMessage {
   return Boolean(
@@ -814,7 +815,7 @@ export function useAgentSession({
   );
 
   const submitQuestionAnswer = useCallback(
-    async (actionId: string, answer: string) => {
+    async (actionId: string, answer: ClarificationAnswerItem[]) => {
       if (!sessionId) {
         toast.error(i18n.t("assistant.sessionNotFound"));
         return;

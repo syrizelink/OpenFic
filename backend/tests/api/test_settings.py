@@ -20,7 +20,6 @@ from app.storage.repos import setting_repo
 EXPECTED_AGENT_TOOL_PERMISSIONS = [
     {"tool_name": "ask_user", "mode": "allow"},
     {"tool_name": "create_character", "mode": "ask"},
-    {"tool_name": "create_plan", "mode": "ask"},
     {"tool_name": "create_volume", "mode": "ask"},
     {"tool_name": "create_world_entry", "mode": "ask"},
     {"tool_name": "delete_chapter", "mode": "ask"},
@@ -31,10 +30,8 @@ EXPECTED_AGENT_TOOL_PERMISSIONS = [
     {"tool_name": "edit_character", "mode": "ask"},
     {"tool_name": "edit_volume", "mode": "ask"},
     {"tool_name": "edit_world_entry", "mode": "ask"},
-    {"tool_name": "get_plan", "mode": "allow"},
     {"tool_name": "list_chapters", "mode": "allow"},
     {"tool_name": "list_characters", "mode": "allow"},
-    {"tool_name": "list_plan", "mode": "allow"},
     {"tool_name": "list_volumes", "mode": "allow"},
     {"tool_name": "list_world_entries", "mode": "allow"},
     {"tool_name": "move_chapter_to_volume", "mode": "ask"},
@@ -45,8 +42,8 @@ EXPECTED_AGENT_TOOL_PERMISSIONS = [
     {"tool_name": "read_world_entry", "mode": "allow"},
     {"tool_name": "search_chapters", "mode": "allow"},
     {"tool_name": "update_index", "mode": "allow"},
-    {"tool_name": "update_plan", "mode": "ask"},
     {"tool_name": "write_chapter", "mode": "ask"},
+    {"tool_name": "write_plan", "mode": "ask"},
 ]
 
 

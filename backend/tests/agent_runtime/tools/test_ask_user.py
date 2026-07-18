@@ -49,25 +49,31 @@ class TestAskUser:
         payload = mock_interrupt.call_args[0][0]
         assert payload["type"] == "ask_user"
         assert len(payload["questions"]) == 1
+        serialized_payload = json.loads(json.dumps(payload))
+        assert serialized_payload["questions"] == _valid_input()["questions"]
 
     async def test_ask_user_returns_response_after_resume(self):
         from app.agent_runtime.tools.impls.interaction.ask_user import AskUserTool
 
         tool = AskUserTool(_state=_make_state())
-        mock_response = [{"label": "风格选择", "answer": "正式"}]
+        interrupt_response = {
+            "action_type": "clarification",
+            "action_id": "question-1",
+            "answer": [{"question": "风格选择", "answer": "正式"}],
+        }
 
         with patch("app.agent_runtime.tools.impls.interaction.ask_user.interrupt") as mock_interrupt:
-            mock_interrupt.return_value = mock_response
+            mock_interrupt.return_value = interrupt_response
             result = await tool.ainvoke(_valid_input())
 
         data = json.loads(result)
-        assert data == mock_response
+        assert data == interrupt_response["answer"]
 
-    async def test_ask_user_validation_too_many_questions(self):
+    async def test_ask_user_accepts_more_than_five_questions(self):
         from app.agent_runtime.tools.impls.interaction.ask_user import AskUserTool
 
         tool = AskUserTool(_state=_make_state())
-        bad_input = {
+        tool_input = {
             "questions": [
                 {
                     "title": f"Q{i}",
@@ -80,15 +86,24 @@ class TestAskUser:
                 for i in range(6)
             ]
         }
-        result = await tool.ainvoke(bad_input)
-        data = json.loads(result)
-        assert "error" in data
+        interrupt_response = {
+            "action_type": "clarification",
+            "action_id": "question-1",
+            "answer": [{"question": "Q0", "answer": "A"}],
+        }
 
-    async def test_ask_user_validation_too_many_options(self):
+        with patch("app.agent_runtime.tools.impls.interaction.ask_user.interrupt") as mock_interrupt:
+            mock_interrupt.return_value = interrupt_response
+            result = await tool.ainvoke(tool_input)
+
+        assert json.loads(result) == interrupt_response["answer"]
+        assert len(mock_interrupt.call_args[0][0]["questions"]) == 6
+
+    async def test_ask_user_accepts_more_than_three_options(self):
         from app.agent_runtime.tools.impls.interaction.ask_user import AskUserTool
 
         tool = AskUserTool(_state=_make_state())
-        bad_input = {
+        tool_input = {
             "questions": [
                 {
                     "title": "Q",
@@ -102,6 +117,15 @@ class TestAskUser:
                 }
             ]
         }
-        result = await tool.ainvoke(bad_input)
-        data = json.loads(result)
-        assert "error" in data
+        interrupt_response = {
+            "action_type": "clarification",
+            "action_id": "question-1",
+            "answer": [{"question": "Q", "answer": "D"}],
+        }
+
+        with patch("app.agent_runtime.tools.impls.interaction.ask_user.interrupt") as mock_interrupt:
+            mock_interrupt.return_value = interrupt_response
+            result = await tool.ainvoke(tool_input)
+
+        assert json.loads(result) == interrupt_response["answer"]
+        assert len(mock_interrupt.call_args[0][0]["questions"][0]["options"]) == 4

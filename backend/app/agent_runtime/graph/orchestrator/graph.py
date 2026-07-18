@@ -35,8 +35,7 @@ from app.models.clients.model_factory import ModelConfig, create_chat_model
 DEFAULT_PRIMARY_TOOL_CATEGORIES = (
     "orchestration",
     "interaction",
-    "plan_read",
-    "plan_write",
+    "plan",
     "chapter_read",
     "summary_read",
     "world_read",

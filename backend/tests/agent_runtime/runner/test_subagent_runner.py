@@ -1258,7 +1258,7 @@ async def test_subagent_runner_emits_child_tool_result_for_tool_error_before_int
                         tool_calls=[
                             {
                                 "id": "call-create-plan",
-                                "name": "create_plan",
+                                "name": "write_plan",
                                 "args": {"value": "plan child beats"},
                             }
                         ],
@@ -1267,7 +1267,7 @@ async def test_subagent_runner_emits_child_tool_result_for_tool_error_before_int
             }
             yield {
                 "event": "on_tool_start",
-                "name": "create_plan",
+                "name": "write_plan",
                 "run_id": "child-tool-approval",
                 "tags": ["subagent_child"],
                 "data": {"input": {"value": "plan child beats"}},
@@ -1275,7 +1275,7 @@ async def test_subagent_runner_emits_child_tool_result_for_tool_error_before_int
             }
             yield {
                 "event": "on_tool_error",
-                "name": "create_plan",
+                "name": "write_plan",
                 "run_id": "child-tool-approval",
                 "tags": ["subagent_child"],
                 "data": {
@@ -1295,7 +1295,7 @@ async def test_subagent_runner_emits_child_tool_result_for_tool_error_before_int
                                 tool_calls=[
                                     {
                                         "id": "call-create-plan",
-                                        "name": "create_plan",
+                                        "name": "write_plan",
                                         "args": {"value": "plan child beats"},
                                     }
                                 ],
@@ -1313,7 +1313,7 @@ async def test_subagent_runner_emits_child_tool_result_for_tool_error_before_int
                                     "value": {
                                         "type": "tool_approval",
                                         "approval_id": "approval-create-plan",
-                                        "tool_name": "create_plan",
+                                        "tool_name": "write_plan",
                                         "tool_call_id": "call-create-plan",
                                         "message": "需要审批",
                                     },
@@ -1369,7 +1369,7 @@ async def test_subagent_runner_emits_child_tool_result_for_tool_error_before_int
     assert len(child_tool_results) == 1
     assert child_tool_results[0]["session_id"] == "child-thread-tool-error"
     assert child_tool_results[0]["tool_call_id"] == "call-create-plan"
-    assert child_tool_results[0]["tool"] == "create_plan"
+    assert child_tool_results[0]["tool"] == "write_plan"
     assert child_tool_results[0]["input"] == {"value": "plan child beats"}
 
 

@@ -82,20 +82,12 @@ export interface AskUserQuestionAnswerPair {
 }
 
 export type PlanStatus = "pending" | "in_progress" | "completed";
+export type PlanPriority = "low" | "medium" | "high";
 
 export interface PlanTodoPayload {
-  id?: string;
-  title: string;
   content: string;
   status: PlanStatus;
-}
-
-export interface PlanPayload {
-  id?: string;
-  topic: string;
-  description: string;
-  status: PlanStatus;
-  todos: PlanTodoPayload[];
+  priority: PlanPriority;
 }
 
 export type ToolMessageContentMode = "expandable" | "static" | "hidden";
@@ -112,12 +104,6 @@ export const TODO_STATUS_LABELS: Record<TodoStatus, string> = {
   pending: i18n.t("assistant.tools.todoStatus.pending"),
   running: i18n.t("assistant.tools.todoStatus.running"),
   completed: i18n.t("assistant.tools.todoStatus.completed"),
-};
-
-export const PLAN_STATUS_LABELS: Record<PlanStatus, string> = {
-  pending: i18n.t("assistant.tools.planStatus.pending"),
-  in_progress: i18n.t("assistant.tools.planStatus.in_progress"),
-  completed: i18n.t("assistant.tools.planStatus.completed"),
 };
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -166,10 +152,6 @@ export function asPlanStatus(value: unknown): PlanStatus | undefined {
   return value === "pending" || value === "in_progress" || value === "completed"
     ? value
     : undefined;
-}
-
-export function getPlanStatusLabel(status: PlanStatus | undefined): string | undefined {
-  return status ? PLAN_STATUS_LABELS[status] : undefined;
 }
 
 export function formatValue(value: unknown): string | undefined {
@@ -439,90 +421,29 @@ export function resolveToolMessageVisibilityState(input: {
   };
 }
 
-function toPlanTodoPayload(value: unknown, index: number): PlanTodoPayload | null {
+function toPlanTodoPayload(value: unknown): PlanTodoPayload | null {
   if (!isRecord(value)) return null;
-  const title = asString(value.title);
   const content = asString(value.content);
-  if (!title || !content) return null;
+  const priority = value.priority;
+  if (!content || (priority !== "low" && priority !== "medium" && priority !== "high")) return null;
   return {
-    id: asString(value.id) ?? `plan-todo-${index}`,
-    title,
     content,
     status: asPlanStatus(value.status) ?? "pending",
+    priority,
   };
 }
 
-function toPlanPayload(value: Record<string, unknown>): PlanPayload {
-  return {
-    id: asString(value.id),
-    topic: asString(value.topic) ?? "",
-    description: asString(value.description) ?? "",
-    status: asPlanStatus(value.status) ?? "pending",
-    todos: asRecordArray(value.todos)
-      .map((todo, index) => toPlanTodoPayload(todo, index))
-      .filter((todo): todo is PlanTodoPayload => Boolean(todo)),
-  };
-}
-
-function getDraftPlanPayload(message: AgentMessage): PlanPayload | null {
-  const data = getStreamingData(message);
-  const topic = asString(data.topic);
-  const description = asString(data.description);
-  const todos = Array.isArray(data.todos)
-    ? data.todos.flatMap((todo, index) => {
-        if (!isRecord(todo)) return [];
-        const title = asString(todo.title);
-        const content = asString(todo.content);
-        if (!title || !content) return [];
-        return [
-          {
-            id: `draft-plan-todo-${index}`,
-            title,
-            content,
-            status: "pending" as const,
-          },
-        ];
-      })
-    : [];
-  if (!topic && !description && todos.length === 0) return null;
-  return {
-    id: asString(data.id),
-    topic: topic ?? "",
-    description: description ?? "",
-    status: asPlanStatus(data.status) ?? "pending",
-    todos,
-  };
-}
-
-export function getPlanPayload(message: AgentMessage): PlanPayload | null {
+export function getPlanTodos(message: AgentMessage): PlanTodoPayload[] {
   const resultData = getToolResultData(message);
   if (isRecord(resultData) && isRecord(resultData.plan)) {
-    return toPlanPayload(resultData.plan);
+    return asRecordArray(resultData.plan.todos)
+      .map(toPlanTodoPayload)
+      .filter((todo): todo is PlanTodoPayload => Boolean(todo));
   }
-  const data = getToolData(message);
-  if (isRecord(data.plan)) return toPlanPayload(data.plan);
-  return getDraftPlanPayload(message);
-}
-
-export function getPlanList(message: AgentMessage): PlanPayload[] {
-  const resultData = getToolResultData(message);
-  if (isRecord(resultData) && Array.isArray(resultData.plans)) {
-    return resultData.plans.filter(isRecord).map(toPlanPayload);
-  }
-  const data = getToolData(message);
-  if (Array.isArray(data.plans)) {
-    return data.plans.filter(isRecord).map(toPlanPayload);
-  }
-  return [];
-}
-
-export function getPlanCountDetail(message: AgentMessage): string | undefined {
-  const count = getPlanList(message).length;
-  return i18n.t("assistant.tools.planCount", { count });
-}
-
-export function getPlanTopicDetail(message: AgentMessage): string | undefined {
-  return getPlanPayload(message)?.topic || undefined;
+  const data = getStreamingData(message);
+  return asRecordArray(data.todos)
+    .map(toPlanTodoPayload)
+    .filter((todo): todo is PlanTodoPayload => Boolean(todo));
 }
 
 export function formatOutlineDetail(message: AgentMessage): string | undefined {
