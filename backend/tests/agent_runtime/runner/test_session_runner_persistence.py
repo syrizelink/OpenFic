@@ -1,5 +1,6 @@
 """SessionRunner 与持久化层的集成测试。"""
 
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -802,10 +803,9 @@ async def test_sync_dispatch_subagent_continues_primary_run_until_done(
                         "id": "dispatch-1",
                         "name": "dispatch_subagent",
                         "args": {
-                            "agent_key": "writer",
-                            "task": "write scene",
-                            "input": {},
-                            "metadata": {},
+                            "agent_type": "writer",
+                            "description": "Write a scene",
+                            "prompt": "write scene",
                         },
                     }
                 ],
@@ -937,3 +937,13 @@ async def test_sync_dispatch_subagent_continues_primary_run_until_done(
     )
     assert len(child_runs) == 1
     assert child_runs[0].status == "completed"
+    assert child_runs[0].request_json["description"] == "Write a scene"
+    dispatch_item = next(
+        item
+        for item in items
+        if item.role == "tool" and item.tool_name == "dispatch_subagent"
+    )
+    dispatch_result = json.loads(dispatch_item.content)
+    assert dispatch_result["dispatch_id"] == child_runs[0].dispatch_id
+    assert dispatch_result["agent_number"] == child_runs[0].metadata_json["agent_number"]
+    assert dispatch_result["result"] == "writer completed"

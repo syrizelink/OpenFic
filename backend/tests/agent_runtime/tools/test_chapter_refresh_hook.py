@@ -30,8 +30,7 @@ async def test_chapter_refresh_hook_emits_parent_refresh_event(monkeypatch) -> N
             output=json.dumps(
                 {
                     "success": True,
-                    "tool_name": "write_chapter",
-                    "chapter": {"id": "chapter-1"},
+                    "metadata": {"chapter_diff": {"chapter_id": "chapter-1"}},
                 },
                 ensure_ascii=False,
             ),

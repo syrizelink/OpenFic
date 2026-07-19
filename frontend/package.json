@@ -64,7 +64,7 @@
     "js-tiktoken": "^1.0.21",
     "katex": "0.16.45",
     "lowlight": "^3.3.0",
-    "lucide-react": "^0.562.0",
+    "lucide-react": "^1.25.0",
     "motion": "^12.38.0",
     "radix-ui": "^1.4.3",
     "react": "^19.2.6",

@@ -260,14 +260,9 @@ async def test_create_character_returns_diff() -> None:
         result = await tool.ainvoke({"name": "林舟", "description": "主角"})
 
     data = json.loads(result)
+    assert set(data) == {"success", "metadata"}
     assert data["success"] is True
-    assert data["tool_name"] == "create_character"
-    assert data["character"] == {
-        "id": "char-1",
-        "name": "林舟",
-        "description": "主角",
-    }
-    assert data["character_diff"] == {
+    assert data["metadata"]["character_diff"] == {
         "operation": "create",
         "character_id": "char-1",
         "character_name": "林舟",
@@ -331,10 +326,10 @@ async def test_edit_character_replaces_description_text() -> None:
         )
 
     data = json.loads(result)
+    assert set(data) == {"success", "metadata"}
     assert data["success"] is True
-    assert data["tool_name"] == "edit_character"
-    assert data["character_diff"]["operation"] == "edit"
-    assert data["character_diff"]["sections"][0]["lines"] == [
+    assert data["metadata"]["character_diff"]["operation"] == "edit"
+    assert data["metadata"]["character_diff"]["sections"][0]["lines"] == [
         {
             "type": "removed",
             "before_line_number": 1,
@@ -380,16 +375,12 @@ async def test_delete_character_removes_name() -> None:
 
         result = await tool.ainvoke({"name": "林舟"})
 
-    assert json.loads(result) == {
-        "type": "ok",
-        "success": True,
-        "tool_name": "delete_character",
-        "revision_id": "rev-1",
-        "affected_characters": ["char-1"],
-        "character_id": "char-1",
-        "name": "林舟",
-        "message": "角色已删除",
-    }
+    data = json.loads(result)
+    assert set(data) == {"success", "metadata"}
+    assert data["success"] is True
+    assert data["metadata"]["character_diff"]["operation"] == "delete"
+    assert data["metadata"]["character_diff"]["character_id"] == "char-1"
+    assert data["metadata"]["character_diff"]["character_name"] == "林舟"
 
 
 @pytest.mark.asyncio
@@ -519,18 +510,10 @@ async def test_create_world_entry_returns_diff() -> None:
         result = await tool.ainvoke({"title": "主角", "content": "林舟"})
 
     data = json.loads(result)
+    assert set(data) == {"success", "metadata"}
     assert data["success"] is True
-    assert data["tool_name"] == "create_world_entry"
-    assert data["world_entry"] == {
-        "id": "e1",
-        "title": "主角",
-        "uid": 1,
-        "order": 1,
-        "content": "林舟",
-        "token_count": 2,
-        "is_enabled": True,
-    }
-    assert data["world_entry_diff"] == {
+    assert data["metadata"]["world_info_id"] == "world-1"
+    assert data["metadata"]["world_entry_diff"] == {
         "operation": "create",
         "entry_id": "e1",
         "entry_title": "主角",
@@ -624,10 +607,10 @@ async def test_edit_world_entry_returns_diff() -> None:
         )
 
     data = json.loads(result)
+    assert set(data) == {"success", "metadata"}
     assert data["success"] is True
-    assert data["tool_name"] == "edit_world_entry"
-    assert data["world_entry_diff"]["operation"] == "edit"
-    assert data["world_entry_diff"]["sections"] == [
+    assert data["metadata"]["world_entry_diff"]["operation"] == "edit"
+    assert data["metadata"]["world_entry_diff"]["sections"] == [
         {
             "type": "content",
             "lines": [
@@ -711,16 +694,10 @@ async def test_delete_world_entry_removes_title() -> None:
 
         result = await tool.ainvoke({"title": "主角"})
 
-    assert json.loads(result) == {
-        "type": "ok",
-        "success": True,
-        "tool_name": "delete_world_entry",
-        "revision_id": "rev-1",
-        "world_info_id": "world-1",
-        "affected_world_entries": ["e1"],
-        "entry_id": "e1",
-        "title": "主角",
-        "uid": 1,
-        "order": 1,
-        "message": "世界书条目已删除",
-    }
+    data = json.loads(result)
+    assert set(data) == {"success", "metadata"}
+    assert data["success"] is True
+    assert data["metadata"]["world_info_id"] == "world-1"
+    assert data["metadata"]["world_entry_diff"]["operation"] == "delete"
+    assert data["metadata"]["world_entry_diff"]["entry_id"] == "e1"
+    assert data["metadata"]["world_entry_diff"]["entry_title"] == "主角"

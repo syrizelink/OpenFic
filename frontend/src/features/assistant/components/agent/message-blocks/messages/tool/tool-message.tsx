@@ -55,15 +55,28 @@ export function ToolErrorIndicator({ errorMessage }: ToolErrorIndicatorProps) {
 }
 
 function isChapterDiffTool(message: AgentMessage): boolean {
-  return message.toolName === "write_chapter" || message.toolName === "edit_chapter";
+  return (
+    message.toolName === "write_chapter" ||
+    message.toolName === "edit_chapter" ||
+    message.toolName === "delete_chapter"
+  );
 }
 
 function isNoteDiffTool(message: AgentMessage): boolean {
-  return message.toolName === "write_note" || message.toolName === "edit_note";
+  return (
+    message.toolName === "write_note" ||
+    message.toolName === "edit_note" ||
+    message.toolName === "delete_note" ||
+    message.toolName === "move_note"
+  );
 }
 
 function isWorldEntryDiffTool(message: AgentMessage): boolean {
-  return message.toolName === "create_world_entry" || message.toolName === "edit_world_entry";
+  return (
+    message.toolName === "create_world_entry" ||
+    message.toolName === "edit_world_entry" ||
+    message.toolName === "delete_world_entry"
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -92,7 +105,9 @@ function getNoteDiffPreview(message: AgentMessage): {
 } | null {
   const data = getToolResultDataRecord(message);
   if (!data) return null;
-  const rawPreview = data.note_diff;
+  const metadata = data.metadata;
+  if (!isRecord(metadata)) return null;
+  const rawPreview = metadata.note_diff;
   if (!isRecord(rawPreview) || !Array.isArray(rawPreview.sections)) return null;
   return {
     note_title: asString(rawPreview.note_title),
@@ -129,7 +144,9 @@ function getWorldEntryDiffPreview(message: AgentMessage): {
 } | null {
   const data = getToolResultDataRecord(message);
   if (!data) return null;
-  const rawPreview = data.world_entry_diff;
+  const metadata = data.metadata;
+  if (!isRecord(metadata)) return null;
+  const rawPreview = metadata.world_entry_diff;
   if (!isRecord(rawPreview) || !Array.isArray(rawPreview.sections)) return null;
   return {
     entry_title: asString(rawPreview.entry_title),

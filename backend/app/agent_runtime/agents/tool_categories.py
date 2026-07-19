@@ -11,8 +11,7 @@ TOOL_CATEGORIES: Mapping[str, tuple[str, ...]] = MappingProxyType(
             "recycle_subagent",
         ),
         "interaction": ("ask_user",),
-        "plan_read": ("get_plan", "list_plan"),
-        "plan_write": ("create_plan", "update_plan"),
+        "plan": ("write_plan",),
         "chapter_read": (
             "list_volumes",
             "list_chapters",
@@ -46,6 +45,8 @@ TOOL_CATEGORIES: Mapping[str, tuple[str, ...]] = MappingProxyType(
             "delete_note",
             "move_note",
             "create_note_category",
+            "edit_note_category",
+            "delete_note_category",
         ),
         "chapter_write": (
             "write_chapter",
@@ -63,8 +64,7 @@ TOOL_CATEGORY_DISPLAY: Mapping[str, str] = MappingProxyType(
     {
         "orchestration": "委派子任务",
         "interaction": "提问",
-        "plan_read": "计划读取",
-        "plan_write": "计划编辑",
+        "plan": "计划",
         "chapter_read": "章节读取",
         "summary_read": "摘要读取",
         "character_read": "角色读取",

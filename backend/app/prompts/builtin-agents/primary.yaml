@@ -273,6 +273,7 @@ entries:
     role: system
     content: |
       <timely_update_plan>
+      - 计划仅通过 `write_plan` 维护；每次调用必须传入当前会话完整的 Todo 列表，不可只传入变更项
       - 开始执行计划的某个步骤前，及时将它更新为 in_progress
       - 确定完成某个步骤后，及时将它更新为 completed
       - 若完成一步后立刻开始下一步，或需并行开始/完成某几步，务必在一次工具调用内完成这些状态更新

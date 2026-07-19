@@ -10,9 +10,9 @@ from app.storage.repos import chapter_repo, volume_repo
 
 
 class ListChaptersInput(BaseModel):
-    volume_ref: VolumeRef = Field(description="要列出章节的目标卷")
+    volume_ref: VolumeRef = Field(description="目标卷")
     offset: int = Field(description="分页偏移，从 0 开始")
-    limit: int = Field(description="本次返回的最大章节数")
+    limit: int = Field(description="返回的最大章节数")
 
 
 class ListChaptersItem(BaseModel):
@@ -24,7 +24,7 @@ class ListChaptersItem(BaseModel):
 @ToolRegistry.register
 class ListChaptersTool(AgentTool):
     name: str = "list_chapters"
-    description: str = "列出指定卷内的章节列表，返回卷内序号和标题"
+    description: str = "列出指定卷内的所有章节"
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ListChaptersInput
 

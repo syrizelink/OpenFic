@@ -2,7 +2,7 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["typescript", "oxc", "react"],
   "jsPlugins": ["eslint-plugin-react-refresh"],
-  "ignorePatterns": ["dist", "node_modules"],
+  "ignorePatterns": ["dist", "node_modules", "**/*.test.ts", "**/*.test.tsx"],
   "categories": {
     "correctness": "error"
   },

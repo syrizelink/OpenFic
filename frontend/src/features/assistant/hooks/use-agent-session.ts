@@ -31,6 +31,7 @@ import {
   submitAgentToolApproval,
 } from "@/lib/api-client";
 
+import type { ClarificationAnswerItem } from "../components/agent/message-blocks/messages/special/clarification-flow-state";
 import { joinAgentSession, subscribeAgentSessionEvents } from "../lib/agent-socket";
 import {
   applyAgentTranscriptEventToLiveState,
@@ -814,7 +815,7 @@ export function useAgentSession({
   );
 
   const submitQuestionAnswer = useCallback(
-    async (actionId: string, answer: string) => {
+    async (actionId: string, answer: ClarificationAnswerItem[]) => {
       if (!sessionId) {
         toast.error(i18n.t("assistant.sessionNotFound"));
         return;

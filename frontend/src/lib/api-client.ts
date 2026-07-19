@@ -2128,6 +2128,7 @@ import type {
   AgentRollbackResponse,
   AgentCancelResponse,
   AgentQuestionAnswerResponse,
+  ClarificationAnswerItem,
   ReasoningEffort,
   SubagentSessionPayload,
 } from "./agent.types";
@@ -2272,7 +2273,7 @@ export async function compactAgentSession(sessionId: string): Promise<AgentCompa
 export async function submitAgentQuestionAnswer(
   sessionId: string,
   actionId: string,
-  answer: string,
+  answer: ClarificationAnswerItem[],
 ): Promise<AgentQuestionAnswerResponse | void> {
   const response = await apiClient.post(`/agent/sessions/${sessionId}/question-answer`, {
     action_id: actionId,

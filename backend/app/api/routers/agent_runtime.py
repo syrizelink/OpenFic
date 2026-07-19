@@ -39,6 +39,7 @@ from app.agent_runtime.runner.checkpointer import (
 from app.agent_runtime.runner.session_runner import SessionRunner
 from app.agent_runtime.runner.subagent_runner import SubagentRunner
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
+from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buffer
 from app.agent_runtime.tools import ToolRegistry
 from app.agent_runtime.tools.impls.orchestration.common import ensure_child_processing
 from app.api.schemas.agent import (
@@ -87,32 +88,29 @@ DEFAULT_AGENT_SESSION_TITLE_PATTERN = re.compile(
 
 TOOL_DISPLAY_ORDER = {
     "ask_user": 0,
-    "get_plan": 1,
-    "list_plan": 2,
-    "create_plan": 3,
-    "update_plan": 4,
-    "read_chapter": 5,
-    "list_chapters": 6,
-    "list_volumes": 7,
-    "write_chapter": 8,
-    "edit_chapter": 9,
-    "delete_chapter": 10,
-    "create_volume": 11,
-    "edit_volume": 12,
-    "delete_volume": 13,
-    "move_chapter_to_volume": 14,
-    "list_characters": 15,
-    "read_character": 16,
-    "create_character": 17,
-    "edit_character": 18,
-    "delete_character": 19,
-    "list_world_entries": 20,
-    "read_world_entry": 21,
-    "create_world_entry": 22,
-    "edit_world_entry": 23,
-    "delete_world_entry": 24,
-    "activate_skill": 25,
-    "reference_skill": 26,
+    "write_plan": 1,
+    "read_chapter": 2,
+    "list_chapters": 3,
+    "list_volumes": 4,
+    "write_chapter": 5,
+    "edit_chapter": 6,
+    "delete_chapter": 7,
+    "create_volume": 8,
+    "edit_volume": 9,
+    "delete_volume": 10,
+    "move_chapter_to_volume": 11,
+    "list_characters": 12,
+    "read_character": 13,
+    "create_character": 14,
+    "edit_character": 15,
+    "delete_character": 16,
+    "list_world_entries": 17,
+    "read_world_entry": 18,
+    "create_world_entry": 19,
+    "edit_world_entry": 20,
+    "delete_world_entry": 21,
+    "activate_skill": 22,
+    "reference_skill": 23,
 }
 
 TOOL_DISPLAY_METADATA = {
@@ -120,21 +118,9 @@ TOOL_DISPLAY_METADATA = {
         "name": "Ask",
         "description": "向用户提问以获取继续执行所需的信息。",
     },
-    "get_plan": {
-        "name": "Get Plan",
-        "description": "读取指定共享计划及其 Todo 列表。",
-    },
-    "list_plan": {
-        "name": "List Plans",
-        "description": "列出当前父子会话共享的全部计划。",
-    },
-    "create_plan": {
-        "name": "Create Plan",
-        "description": "创建一个共享计划并初始化 Todo 列表。",
-    },
-    "update_plan": {
-        "name": "Update Plan",
-        "description": "按旧 Todo 切片精确替换共享计划中的 Todo 列表。",
+    "write_plan": {
+        "name": "Write Plan",
+        "description": "全量覆盖当前会话的计划 Todo 列表。",
     },
     "read_chapter": {
         "name": "Read",
@@ -980,7 +966,7 @@ async def submit_agent_question_answer(
     payload = {
         "action_type": "clarification",
         "action_id": body.action_id,
-        "answer": body.answer,
+        "answer": [item.model_dump(mode="json") for item in body.answer],
     }
     await _launch_task(
         db_session_factory=status_session_factory,
@@ -1164,6 +1150,10 @@ async def rollback_agent_session(
         revision_id=request.revision_id,
     )
     await session.commit()
+
+    replay_buffer = get_agent_event_replay_buffer()
+    async with replay_buffer.session_lock(session_id):
+        replay_buffer.clear_session_unlocked(session_id)
 
     if result.restored_checkpoint_id:
         try:

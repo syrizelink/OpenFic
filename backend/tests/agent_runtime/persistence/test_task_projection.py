@@ -576,7 +576,7 @@ async def test_projects_interrupted_tool_preview_as_completed_tool_message(
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="tool",
-        content='{"type":"preview","success":true,"reason":"approval_preview","data":{"chapter":{"title":"第一章"},"chapter_diff":{"operation":"create","sections":[]}}}',
+        content='{"type":"preview","success":true,"reason":"approval_preview","chapter":{"title":"第一章"},"metadata":{"chapter_diff":{"operation":"create","sections":[]}}}',
         status="aborted",
         tool_call_id="call_write",
         tool_name="write_chapter",
@@ -588,7 +588,7 @@ async def test_projects_interrupted_tool_preview_as_completed_tool_message(
     assert len(tool_messages) == 1
     assert tool_messages[0].message_status == "completed"
     assert tool_messages[0].payload["tool_result"]["reason"] == "approval_preview"
-    assert tool_messages[0].payload["tool_result"]["data"]["chapter_diff"]["operation"] == "create"
+    assert tool_messages[0].payload["tool_result"]["data"]["metadata"]["chapter_diff"]["operation"] == "create"
 
 
 @pytest.mark.asyncio
@@ -621,7 +621,7 @@ async def test_projects_completed_write_tool_result_keeps_chapter_diff_for_reloa
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="tool",
-        content='{"type":"ok","success":true,"tool_name":"write_chapter","message":"章节已写入","word_count":2,"chapter":{"id":"chapter_1","title":"第一章","content":"正文","order":1},"chapter_diff":{"operation":"create","chapter_id":"chapter_1","chapter_title":"第一章","order":1,"sections":[{"type":"content","lines":[{"type":"added","before_line_number":null,"after_line_number":1,"text":"正文"}]}]},"affected_chapters":["chapter_1"]}',
+        content='{"type":"ok","success":true,"tool_name":"write_chapter","message":"章节已写入","word_count":2,"chapter":{"id":"chapter_1","title":"第一章","content":"正文","order":1},"metadata":{"chapter_diff":{"operation":"create","chapter_id":"chapter_1","chapter_title":"第一章","order":1,"sections":[{"type":"content","lines":[{"type":"added","before_line_number":null,"after_line_number":1,"text":"正文"}]}]}},"affected_chapters":["chapter_1"]}',
         status="complete",
         tool_call_id="call_write",
         tool_name="write_chapter",
@@ -633,6 +633,6 @@ async def test_projects_completed_write_tool_result_keeps_chapter_diff_for_reloa
     assert len(tool_messages) == 1
     assert tool_messages[0].payload["tool_result"]["data"]["word_count"] == 2
     assert tool_messages[0].payload["tool_result"]["data"]["chapter"]["id"] == "chapter_1"
-    assert tool_messages[0].payload["tool_result"]["data"]["chapter_diff"]["operation"] == "create"
-    assert tool_messages[0].payload["tool_result"]["data"]["chapter_diff"]["chapter_id"] == "chapter_1"
-    assert tool_messages[0].payload["tool_result"]["data"]["chapter_diff"]["sections"][0]["type"] == "content"
+    assert tool_messages[0].payload["tool_result"]["data"]["metadata"]["chapter_diff"]["operation"] == "create"
+    assert tool_messages[0].payload["tool_result"]["data"]["metadata"]["chapter_diff"]["chapter_id"] == "chapter_1"
+    assert tool_messages[0].payload["tool_result"]["data"]["metadata"]["chapter_diff"]["sections"][0]["type"] == "content"

@@ -1,9 +1,15 @@
-import type { AgentMessage, ClarificationQuestion } from "../../../../../../../lib/agent.types";
+import type {
+  AgentMessage,
+  ClarificationAnswerItem,
+  ClarificationQuestion,
+} from "../../../../../../../lib/agent.types";
 
 export const CUSTOM_CLARIFICATION_ANSWER = "__custom__";
 
 export type ClarificationAnswers = Record<number, string>;
 export type ClarificationCustomAnswers = Record<number, string>;
+
+export type { ClarificationAnswerItem };
 
 export interface ClarificationPromptData {
   actionId: string;
@@ -68,17 +74,15 @@ export function canSubmitClarificationAnswers(
   );
 }
 
-export function buildClarificationAnswerText(
+export function buildClarificationAnswerItems(
   questions: ClarificationQuestion[],
   answers: ClarificationAnswers,
   customAnswers: ClarificationCustomAnswers,
-): string | null {
+): ClarificationAnswerItem[] | null {
   if (!canSubmitClarificationAnswers(questions, answers, customAnswers)) return null;
 
-  return questions
-    .map((question, index) => {
-      const answer = resolveClarificationAnswer(answers, customAnswers, index) ?? "";
-      return `${index + 1}. ${question.title}\n${answer}`;
-    })
-    .join("\n\n");
+  return questions.map((question, index) => {
+    const answer = resolveClarificationAnswer(answers, customAnswers, index) ?? "";
+    return { question: question.title, answer };
+  });
 }

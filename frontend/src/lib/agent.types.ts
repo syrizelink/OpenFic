@@ -120,6 +120,11 @@ export interface ClarificationQuestion {
   options: ClarificationOption[];
 }
 
+export interface ClarificationAnswerItem {
+  question: string;
+  answer: string;
+}
+
 export interface TokenUsageState {
   tokenInput: number;
   tokenOutput: number;

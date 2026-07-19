@@ -1,10 +1,11 @@
 import { useState } from "react";
 
 import {
-  buildClarificationAnswerText,
+  buildClarificationAnswerItems,
   canSubmitClarificationAnswers,
   isClarificationStepComplete,
   type ClarificationAnswers,
+  type ClarificationAnswerItem,
   type ClarificationCustomAnswers,
   type ClarificationPromptData,
 } from "./clarification-flow-state";
@@ -27,7 +28,7 @@ export interface ClarificationQuestionFlowModel {
 }
 
 interface UseClarificationQuestionFlowOptions {
-  onSubmitQuestionAnswer?: (actionId: string, answer: string) => void;
+  onSubmitQuestionAnswer?: (actionId: string, answer: ClarificationAnswerItem[]) => void;
 }
 
 export function useClarificationQuestionFlow(
@@ -50,10 +51,10 @@ export function useClarificationQuestionFlow(
   const isLastStep = currentStep === prompt.questions.length - 1;
 
   const handleSubmit = () => {
-    const answerText = buildClarificationAnswerText(prompt.questions, answers, customAnswers);
-    if (!answerText) return;
+    const answerItems = buildClarificationAnswerItems(prompt.questions, answers, customAnswers);
+    if (!answerItems) return;
 
-    onSubmitQuestionAnswer?.(prompt.actionId, answerText);
+    onSubmitQuestionAnswer?.(prompt.actionId, answerItems);
     setAnswers({});
     setCustomAnswers({});
     setCurrentStep(0);

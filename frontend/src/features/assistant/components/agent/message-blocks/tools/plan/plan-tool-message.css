@@ -1,48 +1,8 @@
 .agent-plan-panel.rt-Box {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
   padding: 12px;
   border: 1px solid var(--gray-a4);
   border-radius: 12px;
   background: var(--color-panel);
-}
-
-.agent-plan-top-row.rt-Box {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
-
-.agent-plan-topic-label {
-  flex: 0 0 auto;
-  color: var(--gray-10);
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.agent-plan-topic-value {
-  min-width: 0;
-  flex: 1 1 auto;
-  color: var(--gray-12);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.agent-plan-description {
-  color: var(--gray-11);
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.agent-plan-description-shell {
-  overflow: hidden;
-}
-
-.agent-plan-description-shell .agent-plan-description {
-  padding-left: 10px;
-  border-left: 1px solid var(--gray-a5);
 }
 
 .agent-plan-list {
@@ -73,9 +33,9 @@
   align-items: center;
   justify-content: center;
   margin-top: 1px;
-  border: 1px solid var(--gray-a6);
+  border: 1px solid var(--gray-a4);
   border-radius: 3px;
-  background: color-mix(in srgb, var(--gray-3) 84%, transparent);
+  background: var(--gray-1);
   color: var(--gray-10);
 }
 
@@ -83,22 +43,54 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 0;
   font-family: "JetBrainsMapleMono", monospace;
   font-size: 11px;
   line-height: 1;
 }
 
 .agent-plan-marker[data-status="in_progress"] {
-  border-color: color-mix(in srgb, var(--amber-7) 45%, var(--gray-a6));
-  background: color-mix(in srgb, var(--amber-3) 42%, transparent);
-  color: var(--amber-11);
+  border-color: var(--gray-a7);
+  background: var(--gray-a3);
+  color: var(--gray-11);
+}
+
+.agent-plan-marker[data-status="in_progress"]::after {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--gray-11);
+  content: "";
+  animation: agent-plan-progress-pulse 1.4s ease-in-out infinite;
 }
 
 .agent-plan-marker[data-status="completed"] {
-  border-color: color-mix(in srgb, var(--green-7) 45%, var(--gray-a6));
-  background: color-mix(in srgb, var(--green-3) 38%, transparent);
-  color: var(--green-11);
+  border-color: var(--gray-a7);
+  background: var(--gray-a3);
+  color: var(--gray-11);
+}
+
+.agent-plan-item[data-status="pending"] .agent-plan-item-title,
+.agent-plan-item[data-status="completed"] .agent-plan-item-title {
+  color: var(--gray-10);
+}
+
+.agent-plan-item[data-status="completed"] .agent-plan-item-title {
+  text-decoration: line-through;
+  text-decoration-color: var(--gray-a7);
+  text-decoration-thickness: 1px;
+}
+
+@keyframes agent-plan-progress-pulse {
+  50% {
+    opacity: 0.42;
+    transform: scale(0.72);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-plan-marker[data-status="in_progress"]::after {
+    animation: none;
+  }
 }
 
 .agent-plan-item-main {
@@ -124,72 +116,20 @@
   line-height: 1.6;
 }
 
-.agent-plan-item-toggle {
+.agent-plan-priority {
   display: inline-flex;
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--gray-10);
-  cursor: pointer;
-  transition:
-    color 120ms ease-out,
-    background-color 120ms ease-out;
-}
-
-.agent-plan-item-toggle:hover,
-.agent-plan-item-toggle:focus-visible {
-  background: color-mix(in srgb, var(--gray-3) 84%, transparent);
-  color: var(--gray-12);
-  outline: none;
-}
-
-.agent-plan-item-toggle svg {
-  transition: transform 120ms ease-out;
-}
-
-.agent-plan-item-toggle[data-expanded="true"] svg {
-  transform: rotate(180deg);
-}
-
-.agent-plan-item-content {
-  padding-left: 10px;
-  border-left: 1px solid var(--gray-a5);
-  color: var(--gray-10);
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.agent-plan-item-content-shell {
-  overflow: hidden;
-}
-
-.agent-plan-marker[data-summary="true"] {
-  border-style: dashed;
-  background: color-mix(in srgb, var(--gray-3) 76%, transparent);
+  width: 16px;
+  height: 19px;
   color: var(--gray-10);
 }
 
-.agent-plan-summary-main {
-  min-width: 0;
-  flex: 1 1 auto;
+.agent-plan-priority[data-priority="high"] {
+  color: var(--red-10);
 }
 
-.agent-plan-summary-label {
-  display: block;
-  color: var(--gray-10);
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.agent-plan-empty {
-  color: var(--gray-10);
-  font-size: 12px;
-  line-height: 1.6;
+.agent-plan-priority[data-priority="medium"] {
+  color: var(--amber-10);
 }

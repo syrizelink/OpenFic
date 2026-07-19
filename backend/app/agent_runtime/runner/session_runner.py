@@ -62,6 +62,29 @@ def _format_utc_iso_datetime(value: datetime | str | None) -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _interrupt_payloads(state: object) -> list[dict[str, Any]]:
+    tasks = getattr(state, "tasks", None) or []
+    payloads: list[dict[str, Any]] = []
+    for task in tasks:
+        interrupts = getattr(task, "interrupts", None) or []
+        for interrupt_obj in interrupts:
+            value = getattr(interrupt_obj, "value", None)
+            if not isinstance(value, dict):
+                continue
+            payload = dict(value)
+            if payload.get("type") == "tool_approval":
+                interrupt_id = getattr(interrupt_obj, "id", None)
+                if (
+                    isinstance(interrupt_id, str)
+                    and interrupt_id
+                ):
+                    payload["interrupt_id"] = interrupt_id
+                    payload["approval_id"] = interrupt_id
+                    payload["id"] = interrupt_id
+            payloads.append(payload)
+    return payloads
+
+
 class SessionRunner:
     def __init__(
         self,
@@ -248,6 +271,72 @@ class SessionRunner:
         finally:
             await status_session.close()
         await self._clear_replay_session()
+
+    async def _emit_pending_interrupts(self, state: object) -> None:
+        interrupt_payloads = _interrupt_payloads(state)
+        for interrupt_payload in interrupt_payloads:
+            preview_items = interrupt_payload.get("tool_result_previews")
+            previewed_tool_call_ids: set[str] = set()
+            if isinstance(preview_items, list):
+                for preview_item in preview_items:
+                    if not isinstance(preview_item, dict):
+                        continue
+                    tool_call_id = preview_item.get("tool_call_id")
+                    tool_name = preview_item.get("tool_name")
+                    preview = preview_item.get("preview")
+                    if (
+                        isinstance(tool_call_id, str)
+                        and tool_call_id
+                        and isinstance(tool_name, str)
+                        and tool_name
+                        and isinstance(preview, dict)
+                    ):
+                        previewed_tool_call_ids.add(tool_call_id)
+                        await self._emit_agent_event(
+                            "agent:tool_result",
+                            {
+                                "session_id": self.session_id,
+                                "tool_call_id": tool_call_id,
+                                "tool": tool_name,
+                                "input": preview_item.get("args") or {},
+                                "output": preview,
+                            },
+                        )
+            if self._persister is not None:
+                await self._persister.apply_interrupt_preview(interrupt_payload)
+
+            tool_call_id = interrupt_payload.get("tool_call_id")
+            tool_name = interrupt_payload.get("tool_name")
+            tool_result_preview = interrupt_payload.get("tool_result_preview")
+            if (
+                isinstance(tool_call_id, str)
+                and tool_call_id
+                and isinstance(tool_name, str)
+                and tool_name
+                and isinstance(tool_result_preview, dict)
+                and tool_call_id not in previewed_tool_call_ids
+            ):
+                await self._emit_agent_event(
+                    "agent:tool_result",
+                    {
+                        "session_id": self.session_id,
+                        "tool_call_id": tool_call_id,
+                        "tool": tool_name,
+                        "input": interrupt_payload.get("args") or {},
+                        "output": tool_result_preview,
+                    },
+                )
+
+        if interrupt_payloads:
+            interrupt_payload = interrupt_payloads[0]
+            await emit(
+                "agent:interrupt",
+                {
+                    "session_id": self.session_id,
+                    **interrupt_payload,
+                },
+                room=self._room,
+            )
 
     async def _current_root_checkpoint_id(self, graph: CompiledStateGraph) -> str | None:
         state = await graph.aget_state({"configurable": {"thread_id": self.session_id}})
@@ -763,19 +852,7 @@ class SessionRunner:
                 await status_session.commit()
             finally:
                 await status_session.close()
-            tasks = state.tasks
-            if tasks and hasattr(tasks[0], "interrupts") and tasks[0].interrupts:
-                interrupt_value = tasks[0].interrupts[0].value
-                if self._persister is not None:
-                    await self._persister.apply_interrupt_preview(interrupt_value)
-                await emit(
-                    "agent:interrupt",
-                    {
-                        "session_id": self.session_id,
-                        **interrupt_value,
-                    },
-                    room=self._room,
-                )
+            await self._emit_pending_interrupts(state)
             await self._clear_replay_session()
         else:
             status_session = await create_session()
@@ -1019,19 +1096,7 @@ class SessionRunner:
                 await status_session.commit()
             finally:
                 await status_session.close()
-            tasks = state.tasks
-            if tasks and hasattr(tasks[0], "interrupts") and tasks[0].interrupts:
-                interrupt_value = tasks[0].interrupts[0].value
-                if self._persister is not None:
-                    await self._persister.apply_interrupt_preview(interrupt_value)
-                await emit(
-                    "agent:interrupt",
-                    {
-                        "session_id": self.session_id,
-                        **interrupt_value,
-                    },
-                    room=self._room,
-                )
+            await self._emit_pending_interrupts(state)
             await self._clear_replay_session()
         else:
             status_session = await create_session()
@@ -1078,8 +1143,18 @@ class SessionRunner:
 
         reason: Literal["done", "cancelled", "error"] = "done"
         try:
+            resume_value: dict[str, Any] | dict[str, dict[str, Any]] = payload
+            if payload.get("action_type") == "tool_approval":
+                state = await graph.aget_state(
+                    {"configurable": {"thread_id": self.session_id}}
+                )
+                interrupt_payloads = _interrupt_payloads(state)
+                if interrupt_payloads:
+                    resume_value = {
+                        interrupt_payloads[0]["approval_id"]: payload,
+                    }
             async for event in graph.astream_events(
-                Command(resume=payload), config=config, version="v2"
+                Command(resume=resume_value), config=config, version="v2"
             ):
                 event_dict = cast(dict[str, Any], event)
                 if self._cancel_event.is_set():
@@ -1146,19 +1221,7 @@ class SessionRunner:
                 await status_session.commit()
             finally:
                 await status_session.close()
-            tasks = state.tasks
-            if tasks and hasattr(tasks[0], "interrupts") and tasks[0].interrupts:
-                interrupt_value = tasks[0].interrupts[0].value
-                if self._persister is not None:
-                    await self._persister.apply_interrupt_preview(interrupt_value)
-                await emit(
-                    "agent:interrupt",
-                    {
-                        "session_id": self.session_id,
-                        **interrupt_value,
-                    },
-                    room=self._room,
-                )
+            await self._emit_pending_interrupts(state)
             await self._clear_replay_session()
         else:
             status_session = await create_session()

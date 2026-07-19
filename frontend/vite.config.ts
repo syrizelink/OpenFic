@@ -29,7 +29,7 @@ export default defineConfig({
   define: {
     __OPENFIC_FRONTEND_VERSION__: JSON.stringify(frontendVersion),
   },
-  plugins: [react(), cacheFontResponseHeaders()],
+  plugins: [...(react() as unknown as Plugin[]), cacheFontResponseHeaders()],
   resolve: {
     alias: {
       "@": srcPath,

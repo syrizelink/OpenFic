@@ -30,7 +30,7 @@ class DeleteChapterInput(BaseModel):
 @ToolRegistry.register
 class DeleteChapterTool(AgentTool):
     name: str = "delete_chapter"
-    description: str = "删除指定卷内章节，后续卷内章节序号自动调整"
+    description: str = "删除指定章节，删除后，卷内章节序号会自动调整"
     access_level: str = "write"
     args_schema: type[BaseModel] = DeleteChapterInput
 
@@ -78,14 +78,15 @@ class DeleteChapterTool(AgentTool):
             await session.commit()
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "title": match.title,
-                    "order": match.order,
-                    "affected_chapters": affected,
-                    "message": "章节已删除",
+                    "metadata": {
+                        "chapter_diff": {
+                            "operation": "delete",
+                            "chapter_id": match.id,
+                            "chapter_title": match.title,
+                            "order": match.order,
+                        }
+                    },
                 },
                 ensure_ascii=False,
             )

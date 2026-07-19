@@ -55,21 +55,15 @@ async def test_history_preserves_tool_call_id_for_tool_role():
     assert result[0].tool_call_id == "call_abc"
 
 
-async def test_history_compacts_chapter_write_tool_result_for_llm_context():
+async def test_history_preserves_chapter_write_tool_result():
     raw = [{
         "role": "tool",
         "name": "write_chapter",
         "content": json.dumps(
             {
-                "type": "ok",
                 "success": True,
-                "tool_name": "write_chapter",
-                "revision_id": "rev-1",
                 "word_count": 2,
-                "chapter": {"id": "chap-1", "title": "第一章", "content": "正文"},
-                "chapter_diff": {"operation": "create", "sections": []},
-                "affected_chapters": ["chap-1"],
-                "message": "章节已写入",
+                "metadata": {"chapter_diff": {"operation": "create", "sections": []}},
             },
             ensure_ascii=False,
         ),
@@ -79,9 +73,30 @@ async def test_history_compacts_chapter_write_tool_result_for_llm_context():
     assert result[0].role == "tool"
     assert json.loads(result[0].content) == {
         "success": True,
-        "tool_name": "write_chapter",
         "word_count": 2,
-        "message": "章节已写入",
+        "metadata": {"chapter_diff": {"operation": "create", "sections": []}},
+    }
+
+
+async def test_history_preserves_edit_chapter_success_result():
+    raw = [{
+        "role": "tool",
+        "name": "edit_chapter",
+        "content": json.dumps(
+            {
+                "success": True,
+                "metadata": {"chapter_diff": {"operation": "update"}},
+            },
+            ensure_ascii=False,
+        ),
+        "tool_call_id": "call_abc",
+    }]
+
+    result = await build_history(raw)
+
+    assert json.loads(result[0].content) == {
+        "success": True,
+        "metadata": {"chapter_diff": {"operation": "update"}},
     }
 
 

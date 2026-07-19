@@ -31,8 +31,10 @@ async def test_world_entry_refresh_hook_emits_parent_refresh_event(monkeypatch) 
             output=json.dumps(
                 {
                     "success": True,
-                    "tool_name": "edit_world_entry",
-                    "world_entry": {"id": "entry-1"},
+                    "metadata": {
+                        "world_info_id": "world-1",
+                        "world_entry_diff": {"entry_id": "entry-1"},
+                    },
                 },
                 ensure_ascii=False,
             ),
@@ -102,9 +104,10 @@ async def test_world_entry_refresh_hook_marks_delete_operation(monkeypatch) -> N
             output=json.dumps(
                 {
                     "success": True,
-                    "tool_name": "delete_world_entry",
-                    "world_info_id": "world-1",
-                    "entry_id": "entry-1",
+                    "metadata": {
+                        "world_info_id": "world-1",
+                        "world_entry_diff": {"entry_id": "entry-1"},
+                    },
                 },
                 ensure_ascii=False,
             ),

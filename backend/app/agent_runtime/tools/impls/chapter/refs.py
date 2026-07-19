@@ -8,10 +8,10 @@ from app.agent_runtime.tools.errors import ToolExecutionError
 
 class ChapterRef(BaseModel):
     type: Literal["order", "title"] = Field(
-        description="章节定位方式：order 表示卷内序号，title 表示章节标题",
+        description="章节定位方式：order 表示卷内章节序号，title 表示章节标题",
     )
     value: int | str = Field(
-        description="与 type 对应的章节定位值；order 时传整数，title 时传精确标题",
+        description="与 type 对应的章节定位值；type 为 order 时传入整数序号，type 为 title 时传入精确的章节标题",
     )
 
     @field_validator("value", mode="before")
@@ -27,7 +27,7 @@ class VolumeRef(BaseModel):
         description="卷定位方式：order 表示卷序号，title 表示卷标题",
     )
     value: int | str = Field(
-        description="与 type 对应的卷定位值；order 时传整数，title 时传精确标题",
+        description="与 type 对应的卷定位值；type 为 order 时传入整数序号，type 为 title 时传入精确的卷标题",
     )
 
     @field_validator("value", mode="before")

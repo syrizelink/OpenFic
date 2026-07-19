@@ -196,21 +196,18 @@ class AgentChildRunRequest(SQLModel, table=True):
 
 
 class PlanRecord(SQLModel, table=True):
-    """Shared plan row scoped to one parent/subagent session tree."""
+    """Plan row owned by exactly one agent session."""
 
     __tablename__ = "plans"
 
     id: str = Field(default_factory=generate_id, primary_key=True)
-    scope_id: str = Field(index=True, max_length=64)
-    topic: str = Field(max_length=200)
-    description: str = Field(default="", sa_column=Column(Text, nullable=False, default=""))
-    status: str = Field(default="pending", index=True, max_length=20)
+    session_id: str = Field(unique=True, max_length=64)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class PlanTodoRecord(SQLModel, table=True):
-    """Ordered todo row under one shared plan."""
+    """Ordered todo row under one session plan."""
 
     __tablename__ = "plan_todos"
     __table_args__ = (
@@ -223,9 +220,9 @@ class PlanTodoRecord(SQLModel, table=True):
 
     id: str = Field(default_factory=generate_id, primary_key=True)
     plan_id: str = Field(index=True, foreign_key="plans.id", max_length=64)
-    title: str = Field(default="", sa_column=Column(Text, nullable=False, default=""))
-    content: str = Field(default="", sa_column=Column(Text, nullable=False, default=""))
+    content: str = Field(sa_column=Column(Text, nullable=False))
     status: str = Field(default="pending", index=True, max_length=20)
+    priority: str = Field(default="medium", max_length=20)
     sort_index: int = Field(index=True, ge=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

@@ -15,7 +15,7 @@ class UpdateIndexInput(BaseModel):
 @ToolRegistry.register
 class UpdateIndexTool(AgentTool):
     name: str = "update_index"
-    description: str = "更新当前项目的章节检索索引（索引所有未就绪章节）。适用于索引非最新时主动更新。"
+    description: str = "更新章节向量索引（索引所有未就绪章节），适用于索引非最新时主动更新。"
     access_level: str = "write"
     args_schema: type[BaseModel] = UpdateIndexInput
 

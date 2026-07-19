@@ -51,7 +51,7 @@ SEARCH_CHAPTERS_CONFIDENCE_THRESHOLD = 0.3
 
 
 class SearchChaptersInput(BaseModel):
-    query: str = Field(description="用于检索项目章节内容的查询文本")
+    query: str = Field(description="检索语句")
     force: bool = Field(
         default=False,
         description="是否忽略索引非最新状态，强制基于现有索引检索",
@@ -275,7 +275,7 @@ def _group_results(
 @ToolRegistry.register
 class SearchChaptersTool(AgentTool):
     name: str = "search_chapters"
-    description: str = "按查询文本检索当前项目的章节内容，并按章节分组返回匹配片段。"
+    description: str = "基于向量的自然语言检索，按 query 检索当前项目的章节内容"
     access_level: str = "readonly"
     args_schema: type[BaseModel] = SearchChaptersInput
 

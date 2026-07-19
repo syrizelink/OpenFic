@@ -7,7 +7,6 @@ from app.agent_runtime.revisions import (
     images_by_id,
     record_agent_activity_for_change,
     record_chapter_diffs,
-    serialize_chapter,
 )
 from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.tools.errors import ToolExecutionError
@@ -91,13 +90,16 @@ class MoveChapterToVolumeTool(AgentTool):
             await session.commit()
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "chapter": serialize_chapter(moved),
-                    "affected_chapters": affected,
-                    "message": "章节已移动到目标卷末尾",
+                    "metadata": {
+                        "chapter_diff": {
+                            "operation": "move",
+                            "chapter_id": moved.id,
+                            "chapter_title": moved.title,
+                            "order": moved.order,
+                            "volume_id": moved.volume_id,
+                        }
+                    },
                 },
                 ensure_ascii=False,
             )

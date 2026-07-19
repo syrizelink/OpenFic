@@ -50,7 +50,9 @@ function normalizeDiffSectionType(value: unknown): ChapterDiffSectionType | null
 function getWorldEntryDiffPreview(message: AgentMessage): WorldEntryDiffPreview | null {
   const data = getToolResultData(message);
   if (!isRecord(data)) return null;
-  const rawPreview = data.world_entry_diff;
+  const metadata = data.metadata;
+  if (!isRecord(metadata)) return null;
+  const rawPreview = metadata.world_entry_diff;
   if (!isRecord(rawPreview) || !Array.isArray(rawPreview.sections)) return null;
 
   return {

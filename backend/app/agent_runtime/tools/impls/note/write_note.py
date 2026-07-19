@@ -4,6 +4,7 @@
 """
 
 import json
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -37,6 +38,60 @@ class WriteNoteTool(AgentTool):
     description: str = "在指定分类（可省略）下创建新笔记"
     access_level: str = "write"
     args_schema: type[BaseModel] = WriteNoteInput
+
+    async def build_interrupt_preview(self, args: dict[str, Any]) -> dict | None:
+        session = self.get_runtime_db_session()
+        title = args.get("title")
+        content = args.get("content")
+        if session is None or not isinstance(title, str) or not isinstance(content, str):
+            return None
+
+        category_id: str | None = None
+        category_ref = args.get("category_ref")
+        if category_ref is not None:
+            if not isinstance(category_ref, dict):
+                return None
+            ref = CategoryRef.model_validate(category_ref)
+            if ref.id is not None:
+                category = await note_category_repo.get_by_id(session, ref.id)
+                if category is None or category.project_id != self.project_id:
+                    return None
+            else:
+                categories = await note_category_repo.list_by_project(session, self.project_id)
+                try:
+                    category = resolve_category_from_list(categories, ref)
+                except ToolExecutionError:
+                    return None
+            category_id = category.id
+
+        notes = await note_repo.list_by_project(session, self.project_id, include_hidden=False)
+        unique_title = generate_unique_title(
+            title,
+            {note.title for note in notes if note.category_id == category_id},
+        )
+        diff_lines = [
+            {
+                "type": "added",
+                "before_line_number": None,
+                "after_line_number": line_number,
+                "text": line,
+            }
+            for line_number, line in enumerate(content.splitlines(), start=1)
+        ]
+        return {
+            "type": "preview",
+            "success": True,
+            "reason": "approval_preview",
+            "message": "笔记创建待审批",
+            "metadata": {
+                "note_diff": {
+                    "operation": "create",
+                    "note_title": unique_title,
+                    "category_id": category_id,
+                    "sections": [{"type": "content", "lines": diff_lines}],
+                }
+            },
+        }
 
     async def _execute(
         self,
@@ -92,7 +147,7 @@ class WriteNoteTool(AgentTool):
                     session, self.project_id, include_hidden=True
                 )
             )
-            affected = await record_note_diffs(
+            await record_note_diffs(
                 session,
                 revision_id=revision_id,
                 project_id=self.project_id,
@@ -115,6 +170,7 @@ class WriteNoteTool(AgentTool):
                 "sections": [{"type": "content", "lines": diff_lines}],
                 "note_id": note.id,
                 "note_title": note.title,
+                "category_id": note.category_id,
             }
 
             from app.background.jobs import service as background_service
@@ -122,20 +178,8 @@ class WriteNoteTool(AgentTool):
             await background_service.commit_and_notify(session)
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "note": {
-                        "id": note.id,
-                        "title": note.title,
-                        "category_id": note.category_id,
-                    },
-                    "note_diff": note_diff,
-                    "affected_notes": affected,
-                    "message": f"笔记已创建: {note.title}"
-                    if unique_title != title
-                    else "笔记已创建",
+                    "metadata": {"note_diff": note_diff},
                 },
                 ensure_ascii=False,
             )

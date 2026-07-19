@@ -25,7 +25,7 @@ def _build_delegatable_subagent_lines(
         if delegatable and agent_key not in delegatable:
             continue
         description = definition.description.strip() or "未提供职责描述。"
-        lines.append(f"- `{agent_key}` ({definition.display_name})：{description}")
+        lines.append(f"- {agent_key}：{description}")
     return lines
 
 
@@ -42,7 +42,7 @@ def build_dispatch_subagent_description_hook(
     def hook(tool: AgentTool) -> None:
         if tool.name != "dispatch_subagent" or not lines:
             return
-        suffix = "当前可委派的子代理（使用 `agent_key` 调用）：\n" + "\n".join(lines)
+        suffix = "当前可委派的 agent（使用`agent_type`指定）：\n" + "\n".join(lines)
         tool.description = f"{tool.description.rstrip()}\n\n{suffix}"
 
     return hook

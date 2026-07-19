@@ -4,6 +4,7 @@
 """
 
 import json
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -38,6 +39,42 @@ class CreateNoteCategoryTool(AgentTool):
     description: str = "在指定父分类下创建新分类"
     access_level: str = "write"
     args_schema: type[BaseModel] = CreateNoteCategoryInput
+
+    async def build_interrupt_preview(self, args: dict[str, Any]) -> dict | None:
+        session = self.get_runtime_db_session()
+        title = args.get("title")
+        parent_ref = args.get("parent_ref")
+        if (
+            session is None
+            or not isinstance(title, str)
+            or (parent_ref is not None and not isinstance(parent_ref, dict))
+        ):
+            return None
+        parent_id: str | None = None
+        if parent_ref is not None:
+            ref = CategoryRef.model_validate(parent_ref)
+            if ref.id is not None:
+                parent = await note_category_repo.get_by_id(session, ref.id)
+                if parent is None or parent.project_id != self.project_id:
+                    return None
+            else:
+                categories = await note_category_repo.list_by_project(session, self.project_id)
+                try:
+                    parent = resolve_category_from_list(categories, ref)
+                except ToolExecutionError:
+                    return None
+            parent_id = parent.id
+        categories = await note_category_repo.list_by_project(session, self.project_id)
+        unique_title = generate_unique_title(
+            title,
+            {category.title for category in categories if category.parent_id == parent_id},
+        )
+        return {
+            "type": "preview",
+            "success": True,
+            "reason": "approval_preview",
+            "metadata": {"category": {"title": unique_title, "parent_id": parent_id}},
+        }
 
     async def _execute(
         self,
@@ -82,7 +119,7 @@ class CreateNoteCategoryTool(AgentTool):
             after = note_category_images_by_id(
                 await note_category_repo.list_by_project(session, self.project_id)
             )
-            affected = await record_note_category_diffs(
+            await record_note_category_diffs(
                 session,
                 revision_id=revision_id,
                 project_id=self.project_id,
@@ -95,19 +132,14 @@ class CreateNoteCategoryTool(AgentTool):
             await background_service.commit_and_notify(session)
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "category": {
-                        "id": category.id,
-                        "title": category.title,
-                        "parent_id": category.parent_id,
+                    "metadata": {
+                        "category": {
+                            "id": category.id,
+                            "title": category.title,
+                            "parent_id": category.parent_id,
+                        }
                     },
-                    "affected_note_categories": affected,
-                    "message": f"分类已创建: {category.title}"
-                    if unique_title != title
-                    else "分类已创建",
                 },
                 ensure_ascii=False,
             )

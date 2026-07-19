@@ -25,7 +25,7 @@ class ListNotesTool(AgentTool):
     name: str = "list_notes"
     description: str = (
         "列出指定分类路径下的直接子项（笔记和子分类，不递归）。"
-        "'/' 表示根层级，返回根下的笔记和一级分类"
+        "'/' 表示根层级，返回根下的笔记和分类"
     )
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ListNotesInput

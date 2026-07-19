@@ -7,7 +7,10 @@ from app.agent_runtime.context.parts.history import build_history
 from app.agent_runtime.context.parts.rules import build_rules
 from app.agent_runtime.context.parts.skills import build_skills
 from app.agent_runtime.context.parts.system_prompt import build_system_prompt
-from app.agent_runtime.context.processors.filter import filter_invalid
+from app.agent_runtime.context.processors.filter import (
+    filter_invalid,
+    filter_tool_result_metadata,
+)
 from app.agent_runtime.context.processors.sanitize import sanitize_surrogates
 from app.agent_runtime.context.processors.to_langchain import to_langchain_messages
 from app.agent_runtime.context.types import ContextMessage
@@ -67,4 +70,4 @@ def _is_history(message: ContextMessage) -> bool:
 def _process(parts: list[ContextMessage]) -> list[ContextMessage]:
     parts = filter_invalid(parts)
     parts = sanitize_surrogates(parts)
-    return parts
+    return filter_tool_result_metadata(parts)

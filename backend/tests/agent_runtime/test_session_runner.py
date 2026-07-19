@@ -140,6 +140,326 @@ async def test_run_emits_done_with_created_at():
 
 
 @pytest.mark.asyncio
+async def test_run_emits_preview_for_each_parallel_tool_approval_interrupt():
+    runner = SessionRunner(
+        session_id="sess_parallel_approval",
+        task_id="task_parallel_approval",
+        model_config={
+            "provider_type": "openai",
+            "model_id": "gpt",
+            "api_key": "k",
+            "base_url": "",
+            "max_context_tokens": 8000,
+        },
+    )
+    first_preview = {
+        "type": "preview",
+        "success": True,
+        "metadata": {"note_diff": {"operation": "create", "sections": []}},
+    }
+    second_preview = {
+        "type": "preview",
+        "success": True,
+        "metadata": {"character_diff": {"operation": "create", "sections": []}},
+    }
+    interrupts = (
+        SimpleNamespace(
+            id="shared-interrupt",
+            value={
+                "type": "tool_approval",
+                "tool_name": "write_note",
+                "tool_call_id": "call-note",
+                "tool_result_preview": first_preview,
+            },
+        ),
+        SimpleNamespace(
+            id="shared-interrupt",
+            value={
+                "type": "tool_approval",
+                "tool_name": "create_character",
+                "tool_call_id": "call-character",
+                "tool_result_preview": second_preview,
+            },
+        ),
+    )
+
+    class _Graph:
+        async def astream_events(self, *args, **kwargs):
+            if False:
+                yield None
+
+        async def aget_state(self, *args, **kwargs):
+            return SimpleNamespace(
+                next=("tools",),
+                tasks=(
+                    SimpleNamespace(interrupts=(interrupts[0],)),
+                    SimpleNamespace(interrupts=(interrupts[1],)),
+                ),
+                values={},
+                config={"configurable": {}},
+            )
+
+    fake_session = MagicMock(close=AsyncMock(), commit=AsyncMock())
+    fake_persister = MagicMock(
+        handle=AsyncMock(),
+        mark_user_sent=AsyncMock(),
+        finalize=AsyncMock(),
+        apply_interrupt_preview=AsyncMock(),
+    )
+    persisted_message = SimpleNamespace(
+        id="msg_parallel_approval",
+        seq=0,
+        created_at=datetime.now(UTC),
+    )
+
+    with patch.object(runner, "_get_graph", AsyncMock(return_value=_Graph())), \
+         patch.object(runner, "_prepare_run_persistence", AsyncMock(return_value=[])), \
+         patch.object(runner, "_persist_user_message", AsyncMock(return_value=persisted_message)), \
+         patch(
+             "app.agent_runtime.runner.session_runner.begin_user_revision",
+             AsyncMock(return_value=SimpleNamespace(id="rev_parallel_approval")),
+         ), \
+         patch("app.agent_runtime.runner.session_runner.finalize_revision_status", AsyncMock()), \
+         patch("app.agent_runtime.runner.session_runner.emit", new=AsyncMock()) as emit_mock, \
+         patch(
+             "app.agent_runtime.runner.session_runner.create_session",
+             AsyncMock(return_value=fake_session),
+         ), \
+         patch.object(runner, "_make_persister", MagicMock(return_value=fake_persister)):
+        await runner.run(user_request="create note and character")
+
+    preview_payloads = [call.args[0] for call in fake_persister.apply_interrupt_preview.await_args_list]
+    assert [payload["tool_call_id"] for payload in preview_payloads] == [
+        "call-note",
+        "call-character",
+    ]
+    assert [payload["approval_id"] for payload in preview_payloads] == [
+        "shared-interrupt",
+        "shared-interrupt",
+    ]
+    preview_result_payloads = [
+        call.args[1]
+        for call in emit_mock.await_args_list
+        if call.args and call.args[0] == "agent:tool_result"
+    ]
+    assert [payload["output"] for payload in preview_result_payloads] == [
+        first_preview,
+        second_preview,
+    ]
+    interrupt_payloads = [
+        call.args[1]
+        for call in emit_mock.await_args_list
+        if call.args and call.args[0] == "agent:interrupt"
+    ]
+    assert [payload["approval_id"] for payload in interrupt_payloads] == ["shared-interrupt"]
+    approval_flow_events = [
+        call.args[0]
+        for call in emit_mock.await_args_list
+        if call.args and call.args[0] in {"agent:tool_result", "agent:interrupt"}
+    ]
+    assert approval_flow_events == ["agent:tool_result", "agent:tool_result", "agent:interrupt"]
+
+
+@pytest.mark.asyncio
+async def test_run_emits_each_preview_carried_by_first_approval_interrupt():
+    runner = SessionRunner(
+        session_id="sess_batch_preview",
+        task_id="task_batch_preview",
+        model_config={
+            "provider_type": "openai",
+            "model_id": "gpt",
+            "api_key": "k",
+            "base_url": "",
+            "max_context_tokens": 8000,
+        },
+    )
+    preview_items = [
+        {
+            "tool_call_id": "call-volume",
+            "tool_name": "create_volume",
+            "args": {"title": "新卷"},
+            "preview": {"type": "preview", "metadata": {"volume": {"title": "新卷"}}},
+        },
+        {
+            "tool_call_id": "call-category",
+            "tool_name": "create_note_category",
+            "args": {"title": "新分类"},
+            "preview": {"type": "preview", "metadata": {"category": {"title": "新分类"}}},
+        },
+    ]
+
+    class _Graph:
+        async def astream_events(self, *args, **kwargs):
+            if False:
+                yield None
+
+        async def aget_state(self, *args, **kwargs):
+            return SimpleNamespace(
+                next=("tools",),
+                tasks=(
+                    SimpleNamespace(
+                        interrupts=(
+                            SimpleNamespace(
+                                id="interrupt-volume",
+                                value={
+                                    "type": "tool_approval",
+                                    "tool_name": "create_volume",
+                                    "tool_call_id": "call-volume",
+                                    "tool_result_preview": preview_items[0]["preview"],
+                                    "tool_result_previews": preview_items,
+                                },
+                            ),
+                        )
+                    ),
+                ),
+                values={},
+                config={"configurable": {}},
+            )
+
+    fake_session = MagicMock(close=AsyncMock(), commit=AsyncMock())
+    fake_persister = MagicMock(
+        handle=AsyncMock(),
+        mark_user_sent=AsyncMock(),
+        finalize=AsyncMock(),
+        apply_interrupt_preview=AsyncMock(),
+    )
+    persisted_message = SimpleNamespace(
+        id="msg_batch_preview",
+        seq=0,
+        created_at=datetime.now(UTC),
+    )
+
+    with patch.object(runner, "_get_graph", AsyncMock(return_value=_Graph())), \
+         patch.object(runner, "_prepare_run_persistence", AsyncMock(return_value=[])), \
+         patch.object(runner, "_persist_user_message", AsyncMock(return_value=persisted_message)), \
+         patch(
+             "app.agent_runtime.runner.session_runner.begin_user_revision",
+             AsyncMock(return_value=SimpleNamespace(id="rev_batch_preview")),
+         ), \
+         patch("app.agent_runtime.runner.session_runner.finalize_revision_status", AsyncMock()), \
+         patch("app.agent_runtime.runner.session_runner.emit", new=AsyncMock()) as emit_mock, \
+         patch(
+             "app.agent_runtime.runner.session_runner.create_session",
+             AsyncMock(return_value=fake_session),
+         ), \
+         patch.object(runner, "_make_persister", MagicMock(return_value=fake_persister)):
+        await runner.run(user_request="create volume and category")
+
+    preview_results = [
+        call.args[1]
+        for call in emit_mock.await_args_list
+        if call.args and call.args[0] == "agent:tool_result"
+    ]
+    assert [payload["tool_call_id"] for payload in preview_results] == [
+        "call-volume",
+        "call-category",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_resume_targets_the_approved_parallel_tool_interrupt():
+    runner = SessionRunner(
+        session_id="sess_resume_parallel_approval",
+        task_id="task_resume_parallel_approval",
+        model_config={
+            "provider_type": "openai",
+            "model_id": "gpt",
+            "api_key": "k",
+            "base_url": "",
+            "max_context_tokens": 8000,
+        },
+    )
+    captured: dict = {}
+
+    second_preview = {
+        "type": "preview",
+        "success": True,
+        "metadata": {"character_diff": {"operation": "create", "sections": []}},
+    }
+
+    class _Graph:
+        def __init__(self) -> None:
+            self.state_reads = 0
+
+        async def astream_events(self, command, *args, **kwargs):
+            captured["command"] = command
+            if False:
+                yield None
+
+        async def aget_state(self, *args, **kwargs):
+            self.state_reads += 1
+            if self.state_reads == 1:
+                return SimpleNamespace(
+                    next=("tools",),
+                    tasks=(),
+                    values={"current_revision_id": "rev_parallel_approval"},
+                )
+            return SimpleNamespace(
+                next=("tools",),
+                tasks=(
+                    SimpleNamespace(
+                        interrupts=(
+                            SimpleNamespace(
+                                id="shared-interrupt",
+                                value={
+                                    "type": "tool_approval",
+                                    "tool_name": "create_character",
+                                    "tool_call_id": "call-character",
+                                    "tool_result_preview": second_preview,
+                                },
+                            ),
+                        )
+                    ),
+                ),
+                values={"current_revision_id": "rev_parallel_approval"},
+            )
+
+    fake_session = MagicMock(close=AsyncMock(), commit=AsyncMock())
+    fake_persister = MagicMock(
+        handle=AsyncMock(),
+        finalize=AsyncMock(),
+        apply_interrupt_preview=AsyncMock(),
+    )
+
+    with patch.object(runner, "_get_graph", AsyncMock(return_value=_Graph())), \
+         patch("app.agent_runtime.runner.session_runner.finalize_revision_status", AsyncMock()), \
+         patch("app.agent_runtime.runner.session_runner.emit", new=AsyncMock()) as emit_mock, \
+         patch(
+             "app.agent_runtime.runner.session_runner.create_session",
+             AsyncMock(return_value=fake_session),
+         ), \
+         patch.object(runner, "_make_persister", MagicMock(return_value=fake_persister)):
+        await runner.resume(
+            {
+                "action_type": "tool_approval",
+                "approval_id": "shared-interrupt",
+                "approved": True,
+            }
+        )
+
+    assert isinstance(captured["command"], Command)
+    assert captured["command"].resume == {
+        "shared-interrupt": {
+            "action_type": "tool_approval",
+            "approval_id": "shared-interrupt",
+            "approved": True,
+        }
+    }
+    preview_result_payloads = [
+        call.args[1]
+        for call in emit_mock.await_args_list
+        if call.args and call.args[0] == "agent:tool_result"
+    ]
+    assert [payload["output"] for payload in preview_result_payloads] == [second_preview]
+    interrupt_payloads = [
+        call.args[1]
+        for call in emit_mock.await_args_list
+        if call.args and call.args[0] == "agent:interrupt"
+    ]
+    assert [payload["approval_id"] for payload in interrupt_payloads] == ["shared-interrupt"]
+
+
+@pytest.mark.asyncio
 async def test_initial_state_does_not_include_context_anchor_state():
     runner = SessionRunner(
         session_id="sess_ctx_001",

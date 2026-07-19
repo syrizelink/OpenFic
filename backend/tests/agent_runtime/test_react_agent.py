@@ -1,9 +1,12 @@
 import asyncio
+import json
 from unittest.mock import AsyncMock, patch
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.messages.tool import invalid_tool_call
 from langchain_core.tools import StructuredTool
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.types import Command
 from pydantic import BaseModel
 
 from app.agent_runtime.tools.base import AgentTool, HookResult
@@ -27,25 +30,15 @@ async def _async_add_numbers(a: int, b: int) -> int:
     return _add_numbers(a, b)
 
 
-def _create_plan_tool(executed_calls: list[dict[str, object]]) -> StructuredTool:
-    async def _async_create_plan(
-        topic: str,
-        description: str,
-        todos: list[dict[str, str]],
-    ) -> str:
-        executed_calls.append(
-            {
-                "topic": topic,
-                "description": description,
-                "todos": todos,
-            }
-        )
-        return "created"
+def _write_plan_tool(executed_calls: list[dict[str, object]]) -> StructuredTool:
+    async def _async_write_plan(todos: list[dict[str, str]]) -> str:
+        executed_calls.append({"todos": todos})
+        return "written"
 
     return StructuredTool.from_function(
-        coroutine=_async_create_plan,
-        name="create_plan",
-        description="create plan",
+        coroutine=_async_write_plan,
+        name="write_plan",
+        description="write plan",
     )
 
 
@@ -73,6 +66,17 @@ def _sync_add_tool() -> StructuredTool:
     )
 
 
+def _metadata_tool() -> StructuredTool:
+    async def _async_edit() -> str:
+        return '{"success":true,"metadata":{"chapter_diff":{"chapter_id":"chap-1"}}}'
+
+    return StructuredTool.from_function(
+        coroutine=_async_edit,
+        name="edit_chapter",
+        description="edit",
+    )
+
+
 def test_react_state_is_valid_typed_dict():
     state: ReactState = {
         "messages": [],
@@ -89,7 +93,7 @@ def test_create_react_agent_returns_compiled_graph(dummy_tool):
         tools=[dummy_tool],
         termination=TerminationCondition(mode="no_tool_call"),
     )
-    graph = create_react_agent(config)
+    graph = create_react_agent(config, checkpointer=InMemorySaver())
     assert graph is not None
     assert hasattr(graph, "ainvoke")
 
@@ -100,7 +104,7 @@ def test_create_react_agent_with_tool_success_termination(submit_tool):
         tools=[submit_tool],
         termination=TerminationCondition(mode="tool_success", tool_name="submit_result"),
     )
-    graph = create_react_agent(config)
+    graph = create_react_agent(config, checkpointer=InMemorySaver())
     assert graph is not None
 
 
@@ -274,6 +278,46 @@ async def test_react_agent_executes_tool_call_and_stops():
 
 
 @pytest.mark.asyncio
+async def test_react_agent_keeps_tool_result_metadata_in_graph_state():
+    config = ReactAgentConfig(
+        name="test",
+        tools=[_metadata_tool()],
+        termination=TerminationCondition(mode="no_tool_call"),
+        max_iterations=2,
+    )
+    graph = create_react_agent(config)
+    observed_messages: list[list] = []
+    responses = [
+        AIMessage(content="", tool_calls=[{"id": "call_1", "name": "edit_chapter", "args": {}}]),
+        AIMessage(content="done"),
+    ]
+
+    async def mock_invoke(_model, messages):
+        observed_messages.append(messages)
+        return responses.pop(0)
+
+    with patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=mock_invoke):
+        result = await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="编辑章节")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            }
+        )
+
+    state_tool_message = result["messages"][-2]
+    assert isinstance(state_tool_message, ToolMessage)
+    assert json.loads(state_tool_message.content) == {
+        "success": True,
+        "metadata": {"chapter_diff": {"chapter_id": "chap-1"}},
+    }
+    model_tool_message = observed_messages[1][-1]
+    assert isinstance(model_tool_message, ToolMessage)
+    assert model_tool_message.content == '{"success": true}'
+
+
+@pytest.mark.asyncio
 async def test_react_agent_streams_tool_events_for_frontend():
     config = ReactAgentConfig(
         name="test",
@@ -422,19 +466,18 @@ async def test_react_agent_raises_when_tool_success_lacks_termination_tool():
 
 
 @pytest.mark.asyncio
-async def test_react_agent_recovers_malformed_create_plan_todos_invalid_tool_call():
+async def test_react_agent_recovers_malformed_write_plan_todos_invalid_tool_call():
     executed_calls: list[dict[str, object]] = []
     config = ReactAgentConfig(
         name="composer",
-        tools=[_create_plan_tool(executed_calls)],
-        termination=TerminationCondition(mode="tool_success", tool_name="create_plan"),
+        tools=[_write_plan_tool(executed_calls)],
+        termination=TerminationCondition(mode="tool_success", tool_name="write_plan"),
         max_iterations=1,
     )
     graph = create_react_agent(config)
     malformed_args = (
-        '{"topic":"Rewrite","description":"Make a plan","todos":'
-        '[{"title":"Beat 1","content":"line1\nline2"},'
-        '{"title":"Beat 2","content":"done"}]}'
+        '{"todos":[{"content":"line1\nline2","status":"pending","priority":"high"},'
+        '{"content":"done","status":"completed","priority":"low"}]}'
     )
 
     async def _mock_invoke(*args, **kwargs):
@@ -443,7 +486,7 @@ async def test_react_agent_recovers_malformed_create_plan_todos_invalid_tool_cal
             invalid_tool_calls=[
                 invalid_tool_call(
                     id="call_1",
-                    name="create_plan",
+                    name="write_plan",
                     args=malformed_args,
                     error="invalid json in todos array",
                 )
@@ -460,11 +503,9 @@ async def test_react_agent_recovers_malformed_create_plan_todos_invalid_tool_cal
 
     assert result["is_done"] is True
     assert result["final_output"] == {
-        "topic": "Rewrite",
-        "description": "Make a plan",
         "todos": [
-            {"title": "Beat 1", "content": "line1\nline2"},
-            {"title": "Beat 2", "content": "done"},
+            {"content": "line1\nline2", "status": "pending", "priority": "high"},
+            {"content": "done", "status": "completed", "priority": "low"},
         ],
     }
     assert executed_calls == [result["final_output"]]
@@ -475,7 +516,7 @@ async def test_react_agent_emits_tool_error_for_unrecoverable_invalid_tool_call_
     executed_calls: list[dict[str, object]] = []
     config = ReactAgentConfig(
         name="composer",
-        tools=[_create_plan_tool(executed_calls)],
+        tools=[_write_plan_tool(executed_calls)],
         termination=TerminationCondition(mode="no_tool_call"),
         max_iterations=1,
     )
@@ -487,7 +528,7 @@ async def test_react_agent_emits_tool_error_for_unrecoverable_invalid_tool_call_
             invalid_tool_calls=[
                 invalid_tool_call(
                     id="call_1",
-                    name="create_plan",
+                    name="write_plan",
                     args="<<<<",
                     error="invalid json",
                 )
@@ -506,7 +547,7 @@ async def test_react_agent_emits_tool_error_for_unrecoverable_invalid_tool_call_
     assert isinstance(result["messages"][-1], ToolMessage)
     assert result["messages"][-1].tool_call_id == "call_1"
     assert '"reason": "malformed_tool_call"' in result["messages"][-1].content
-    assert "create_plan" in result["messages"][-1].content
+    assert "write_plan" in result["messages"][-1].content
 
 
 @pytest.mark.asyncio
@@ -514,7 +555,7 @@ async def test_react_agent_synthesizes_tool_call_id_for_unrecoverable_invalid_to
     executed_calls: list[dict[str, object]] = []
     config = ReactAgentConfig(
         name="composer",
-        tools=[_create_plan_tool(executed_calls)],
+        tools=[_write_plan_tool(executed_calls)],
         termination=TerminationCondition(mode="no_tool_call"),
         max_iterations=1,
     )
@@ -525,7 +566,7 @@ async def test_react_agent_synthesizes_tool_call_id_for_unrecoverable_invalid_to
             content="",
             invalid_tool_calls=[
                 {
-                    "name": "create_plan",
+                    "name": "write_plan",
                     "args": "<<<<",
                     "error": "invalid json",
                     "type": "invalid_tool_call",
@@ -619,3 +660,113 @@ async def test_react_agent_passes_runtime_config_and_tool_call_id_to_agent_tools
 
     assert captured[0].tool_call_id == "call_1"
     assert captured[0].config["configurable"]["db_session"] == "session"
+
+
+class ApprovalInput(BaseModel):
+    value: str
+
+
+async def _approval_hook(ctx) -> HookResult:
+    return HookResult(
+        proceed=False,
+        interrupt_payload={
+            "type": "tool_approval",
+            "tool_name": ctx.tool_name,
+            "args": ctx.args,
+        },
+    )
+
+
+class ApprovalTool(AgentTool):
+    name: str = "approval_tool"
+    description: str = "requires approval"
+    access_level: str = "write"
+    args_schema: type[BaseModel] = ApprovalInput
+
+    async def build_interrupt_preview(self, args: dict[str, object]) -> dict | None:
+        if self.config is None:
+            return None
+        return {
+            "type": "preview",
+            "success": True,
+            "metadata": {"value": args["value"]},
+        }
+
+    async def _execute(self, value: str) -> str:
+        return json.dumps({"success": True, "value": value})
+
+
+@pytest.mark.asyncio
+async def test_react_agent_previews_all_parallel_tool_calls_and_resumes_each_approval() -> None:
+    response = AIMessage(
+        content="",
+        tool_calls=[
+            {"id": f"call_{index}", "name": "approval_tool", "args": {"value": str(index)}}
+            for index in range(1, 6)
+        ],
+    )
+    config = ReactAgentConfig(
+        name="test",
+        tools=[ApprovalTool(_pre_hooks=[_approval_hook])],
+        termination=TerminationCondition(mode="no_tool_call"),
+        max_iterations=1,
+    )
+    graph = create_react_agent(config, checkpointer=InMemorySaver())
+
+    async def _mock_invoke(*args, **kwargs):
+        return response
+
+    with patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke):
+        config = {"configurable": {"db_session": object(), "thread_id": "parallel-approval"}}
+        await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="run both")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            },
+            config=config,
+        )
+        state = await graph.aget_state(config)
+
+    interrupts = [
+        interrupt
+        for task in state.tasks
+        for interrupt in getattr(task, "interrupts", ())
+    ]
+    assert [interrupt.value["tool_call_id"] for interrupt in interrupts] == ["call_1"]
+    assert len({interrupt.id for interrupt in interrupts}) == 1
+    assert [preview["tool_call_id"] for preview in interrupts[0].value["tool_result_previews"]] == [
+        f"call_{index}" for index in range(1, 6)
+    ]
+
+    for index in range(1, 6):
+        await graph.ainvoke(
+            Command(
+                resume={
+                    interrupts[0].id: {
+                        "action_type": "tool_approval",
+                        "approval_id": interrupts[0].id,
+                        "approved": True,
+                    }
+                }
+            ),
+            config=config,
+        )
+        resumed_state = await graph.aget_state(config)
+        interrupts = [
+            interrupt
+            for task in resumed_state.tasks
+            for interrupt in getattr(task, "interrupts", ())
+        ]
+        if index < 5:
+            assert [interrupt.value["tool_call_id"] for interrupt in interrupts] == [
+                f"call_{index + 1}"
+            ]
+        else:
+            assert resumed_state.next == ()
+
+    tool_messages = [message for message in resumed_state.values["messages"] if isinstance(message, ToolMessage)]
+    assert [json.loads(message.content)["value"] for message in tool_messages] == [
+        str(index) for index in range(1, 6)
+    ]

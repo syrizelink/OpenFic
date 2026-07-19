@@ -23,9 +23,11 @@ from langgraph.errors import GraphInterrupt
 from langgraph.graph import END, START, StateGraph
 from langgraph.runtime import Runtime
 from langgraph.types import RetryPolicy
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.types import ReactAgentConfig
 from app.agent_runtime.context import build_context, build_context_parts
+from app.agent_runtime.context.processors.filter import filter_tool_result_metadata_content
 from app.agent_runtime.context.helpers import compile_canonical_mentions
 from app.agent_runtime.context.compaction.config import AUTO_TRIGGER_RATIO
 from app.agent_runtime.context.compaction.service import CompactionError, compact_window
@@ -46,7 +48,6 @@ from app.agent_runtime.tool_call_recovery import (
 if TYPE_CHECKING:
     from app.audit import LLMCallAudit
     from app.agent_runtime.graph.state import AgentRuntimeState
-    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 # ---------------------------------------------------------------------------
@@ -63,6 +64,7 @@ class ReactState(TypedDict):
     iteration_count: int
     is_done: bool
     final_output: Any
+    tool_call_cursor: int
 
 
 # ---------------------------------------------------------------------------
@@ -360,6 +362,28 @@ async def _isolate_dispatch_config(
     return isolated, session
 
 
+async def _isolate_tool_config(
+    config: RunnableConfig | None,
+) -> tuple[RunnableConfig | None, Any | None]:
+    if not isinstance(config, dict):
+        return config, None
+    configurable = config.get("configurable")
+    if not isinstance(configurable, dict):
+        return config, None
+    current_session = configurable.get("db_session")
+    if not isinstance(current_session, AsyncSession):
+        return config, None
+
+    from app.storage.database import create_session
+
+    session = await create_session()
+    isolated = cast(RunnableConfig, dict(config))
+    isolated_configurable = dict(configurable)
+    isolated_configurable["db_session"] = session
+    isolated["configurable"] = isolated_configurable
+    return isolated, session
+
+
 def _clone_agent_tool_for_dispatch(tool_instance: BaseTool) -> BaseTool:
     if not all(
         hasattr(tool_instance, attr)
@@ -586,7 +610,20 @@ def create_react_agent(
                     db_session=db_session,
                 )
         else:
-            messages = list(state["messages"])
+            messages = [
+                ToolMessage(
+                    content=(
+                        filter_tool_result_metadata_content(message.content)
+                        if isinstance(message.content, str)
+                        else message.content
+                    ),
+                    tool_call_id=message.tool_call_id,
+                    name=message.name,
+                )
+                if isinstance(message, ToolMessage)
+                else message
+                for message in state["messages"]
+            ]
 
         transient_parts: list[ContextMessage] = []
         transient_messages: list[BaseMessage] = []
@@ -734,6 +771,7 @@ def create_react_agent(
         update: dict[str, Any] = {
             "messages": [response],
             "iteration_count": state["iteration_count"] + 1,
+            "tool_call_cursor": 0,
         }
         if drained_injected_user_message:
             update["is_done"] = False
@@ -742,9 +780,20 @@ def create_react_agent(
 
     async def tools_exec(state: ReactState, config: Optional[RunnableConfig] = None) -> dict:
         """Execute tool calls from the last AI message."""
-        last_message = cast(AIMessage, state["messages"][-1])
-        tool_calls: list[ToolCall] = list(last_message.tool_calls or [])
-
+        last_message = next(
+            (
+                message
+                for message in reversed(state["messages"])
+                if isinstance(message, AIMessage) and message.tool_calls
+            ),
+            None,
+        )
+        if last_message is None:
+            return {"messages": [], "tool_call_cursor": 0}
+        tool_calls: list[ToolCall] = list(last_message.tool_calls)
+        cursor = state.get("tool_call_cursor", 0)
+        if cursor >= len(tool_calls):
+            return {"messages": [], "tool_call_cursor": 0}
         new_messages: list[BaseMessage] = []
         is_done = False
         final_output = None
@@ -754,7 +803,7 @@ def create_react_agent(
         if isinstance(dispatch_state, dict):
             dispatch_state["_dispatch_subagent_count"] = 0
 
-        async def execute_one(tc: ToolCall, *, isolate_dispatch: bool) -> dict[str, Any]:
+        async def execute_one(tc: ToolCall) -> dict[str, Any]:
             tool_name = tc["name"]
             tool_args = tc["args"]
             tool_id = tc["id"]
@@ -762,8 +811,6 @@ def create_react_agent(
             tool_result_payload: dict[str, Any] = {}
             tool_success = False
             message: ToolMessage
-
-            # Check if this is the termination tool
             if is_malformed_tool_call(tc):
                 tool_result_payload = build_malformed_tool_call_error(tc)
                 message = ToolMessage(
@@ -782,26 +829,13 @@ def create_react_agent(
 
             tool_instance = tool_map.get(tool_name)
             if tool_instance:
-                invoke_config = config
-                isolated_session = None
-                if isolate_dispatch:
-                    tool_instance = _clone_agent_tool_for_dispatch(tool_instance)
-                    invoke_config, isolated_session = await _isolate_dispatch_config(config)
-                try:
-                    result = await _invoke_tool(tool_instance, tool_args, tc, invoke_config)
-                finally:
-                    if isolated_session is not None:
-                        await _close_maybe(isolated_session)
+                result = await _invoke_tool(tool_instance, tool_args, tc, config)
                 tool_result_payload, tool_success = _tool_result_payload(result)
                 message = ToolMessage(content=str(result), tool_call_id=tool_id)
             else:
-                tool_result_payload = {
-                    "error": f"tool '{tool_name}' not found.",
-                }
-                tool_success = False
+                tool_result_payload = {"error": f"tool '{tool_name}' not found."}
                 message = ToolMessage(
-                    content=f"Error: tool '{tool_name}' not found.",
-                    tool_call_id=tool_id,
+                    content=f"Error: tool '{tool_name}' not found.", tool_call_id=tool_id
                 )
             return {
                 "tool_name": tool_name,
@@ -811,6 +845,39 @@ def create_react_agent(
                 "success": tool_success,
                 "latency_ms": int((time.perf_counter() - started_at) * 1000),
             }
+
+        async def build_pending_previews(tool_calls: list[ToolCall]) -> list[dict[str, Any]]:
+            previews: list[dict[str, Any]] = []
+            for tool_call in tool_calls:
+                tool_instance = tool_map.get(tool_call["name"])
+                if not isinstance(tool_instance, BaseTool):
+                    continue
+                preview_builder = getattr(tool_instance, "build_interrupt_preview", None)
+                if not callable(preview_builder):
+                    continue
+                tool_instance = _clone_agent_tool_for_dispatch(tool_instance)
+                invoke_config, isolated_session = await _isolate_tool_config(config)
+                try:
+                    object.__setattr__(tool_instance, "_config", invoke_config)
+                    preview_builder = getattr(tool_instance, "build_interrupt_preview", None)
+                    preview = (
+                        await preview_builder(tool_call["args"])
+                        if callable(preview_builder)
+                        else None
+                    )
+                finally:
+                    if isolated_session is not None:
+                        await _close_maybe(isolated_session)
+                if isinstance(preview, dict):
+                    previews.append(
+                        {
+                            "tool_call_id": tool_call["id"],
+                            "tool_name": tool_call["name"],
+                            "args": tool_call["args"],
+                            "preview": preview,
+                        }
+                    )
+            return previews
 
         async def record_outcome(outcome: dict[str, Any]) -> None:
             nonlocal is_done, final_output
@@ -824,7 +891,6 @@ def create_react_agent(
             ):
                 is_done = True
                 final_output = outcome["tool_args"]
-
             if active_audit is not None:
                 active_audit.record_tool_call(
                     tool_name=tool_name,
@@ -835,33 +901,24 @@ def create_react_agent(
                 )
 
         try:
-            index = 0
-            while index < len(tool_calls):
-                tc = tool_calls[index]
-                if tc["name"] != "dispatch_subagent":
-                    await record_outcome(await execute_one(tc, isolate_dispatch=False))
-                    index += 1
-                    continue
+            try:
+                await record_outcome(await execute_one(tool_calls[cursor]))
+            except GraphInterrupt as interrupt:
+                if cursor == 0:
+                    previews = await build_pending_previews(tool_calls)
+                    if previews and interrupt.args and interrupt.args[0]:
+                        interrupt_value = interrupt.args[0][0].value
+                        if isinstance(interrupt_value, dict):
+                            interrupt_value["tool_result_previews"] = previews
+                raise
 
-                dispatch_group: list[ToolCall] = []
-                while index < len(tool_calls) and tool_calls[index]["name"] == "dispatch_subagent":
-                    dispatch_group.append(tool_calls[index])
-                    index += 1
-
-                outcomes = await asyncio.gather(
-                    *[
-                        execute_one(dispatch_tc, isolate_dispatch=True)
-                        for dispatch_tc in dispatch_group
-                    ]
-                )
-                for outcome in outcomes:
-                    await record_outcome(outcome)
-
-            update: dict[str, Any] = {"messages": new_messages}
+            update: dict[str, Any] = {
+                "messages": new_messages,
+                "tool_call_cursor": cursor + 1,
+            }
             if is_done:
                 update["is_done"] = True
                 update["final_output"] = final_output
-
             await _finish_active_audit()
             audit_finished = True
             return update
@@ -901,7 +958,20 @@ def create_react_agent(
 
         return "llm_call"
 
-    async def route_after_tools(state: ReactState) -> Literal["llm_call", "__end__"]:
+    async def route_after_tools(state: ReactState) -> Literal["tools_exec", "llm_call", "__end__"]:
+        last_message = next(
+            (
+                message
+                for message in reversed(state["messages"])
+                if isinstance(message, AIMessage) and message.tool_calls
+            ),
+            None,
+        )
+        if (
+            last_message is not None
+            and state.get("tool_call_cursor", 0) < len(last_message.tool_calls)
+        ):
+            return "tools_exec"
         if inject_queue is not None and not inject_queue.empty():
             return "llm_call"
         if state.get("is_done"):
@@ -932,7 +1002,7 @@ def create_react_agent(
     graph.add_conditional_edges(
         "tools_exec",
         route_after_tools,
-        {"llm_call": "llm_call", "__end__": END},
+        {"tools_exec": "tools_exec", "llm_call": "llm_call", "__end__": END},
     )
 
     compiled = graph.compile(checkpointer=checkpointer)

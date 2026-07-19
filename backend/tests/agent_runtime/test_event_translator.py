@@ -201,7 +201,7 @@ def test_translate_chat_model_stream_synthesizes_tool_call_id_without_model_id()
                         {
                             "index": 0,
                             "id": None,
-                            "name": "create_plan",
+                            "name": "write_plan",
                             "args": "<<<<",
                         }
                     ],
@@ -219,7 +219,7 @@ def test_translate_chat_model_stream_synthesizes_tool_call_id_without_model_id()
                 content="",
                 invalid_tool_calls=[
                     {
-                        "name": "create_plan",
+                        "name": "write_plan",
                         "args": "<<<<",
                         "error": "invalid json",
                         "type": "invalid_tool_call",
@@ -239,7 +239,7 @@ def test_translate_chat_model_stream_synthesizes_tool_call_id_without_model_id()
     assert isinstance(synthesized_id, str) and synthesized_id
     assert end_result["name"] == "agent:tool_result"
     assert end_result["data"]["tool_call_id"] == synthesized_id
-    assert end_result["data"]["tool"] == "create_plan"
+    assert end_result["data"]["tool"] == "write_plan"
     assert end_result["data"]["input"] == "<<<<"
     assert end_result["data"]["output"]["reason"] == "malformed_tool_call"
     assert end_result["data"]["output"]["success"] is False

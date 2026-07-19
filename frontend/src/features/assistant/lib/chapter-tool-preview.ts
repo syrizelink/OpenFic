@@ -66,7 +66,9 @@ export function getPreviewChapterRecord(message: AgentMessage): Record<string, u
 export function getChapterDiffPreview(message: AgentMessage): ChapterDiffPreview | null {
   const data = getToolResultDataRecord(message);
   if (!data) return null;
-  const rawPreview = data.chapter_diff;
+  const metadata = data.metadata;
+  if (!isRecord(metadata)) return null;
+  const rawPreview = metadata.chapter_diff;
   if (!isRecord(rawPreview) || !Array.isArray(rawPreview.sections)) return null;
 
   return {

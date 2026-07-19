@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import type { AgentQuestionSpecialPanel } from "../../agent-special-panels-state";
 import {
   getClarificationPromptKey,
+  type ClarificationAnswerItem,
   type ClarificationPromptData,
 } from "../messages/special/clarification-flow-state";
 import {
@@ -16,7 +17,7 @@ import { SpecialPanelShell } from "./special-panel-shell";
 
 interface ClarificationSpecialPanelProps {
   panel: AgentQuestionSpecialPanel;
-  onSubmitQuestionAnswer?: (actionId: string, answer: string) => void;
+  onSubmitQuestionAnswer?: (actionId: string, answer: ClarificationAnswerItem[]) => void;
   readOnly?: boolean;
 }
 
@@ -39,7 +40,7 @@ export function ClarificationSpecialPanel({
 interface ClarificationSpecialPanelContentProps {
   prompt: ClarificationPromptData;
   summary: string;
-  onSubmitQuestionAnswer?: (actionId: string, answer: string) => void;
+  onSubmitQuestionAnswer?: (actionId: string, answer: ClarificationAnswerItem[]) => void;
   readOnly?: boolean;
 }
 

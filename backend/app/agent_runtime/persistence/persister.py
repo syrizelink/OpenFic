@@ -349,8 +349,22 @@ class MessagePersister:
             await session.close()
 
     async def apply_interrupt_preview(self, payload: dict) -> None:
+        preview_items = payload.get("tool_result_previews")
+        if isinstance(preview_items, list):
+            for preview_item in preview_items:
+                if not isinstance(preview_item, dict):
+                    continue
+                await self.apply_interrupt_preview(
+                    {
+                        "tool_call_id": preview_item.get("tool_call_id"),
+                        "tool_name": preview_item.get("tool_name"),
+                        "tool_result_preview": preview_item.get("preview"),
+                    }
+                )
+
         tool_call_id = payload.get("tool_call_id")
         tool_result_preview = payload.get("tool_result_preview")
+        tool_name = payload.get("tool_name")
         if not isinstance(tool_call_id, str) or not tool_call_id:
             return
         if not isinstance(tool_result_preview, dict):
@@ -358,12 +372,28 @@ class MessagePersister:
 
         session = self._make_session()
         try:
-            await repo.update_latest_tool_message_content(
-                session,
-                session_id=self.session_id,
-                tool_call_id=tool_call_id,
-                content=json.dumps(tool_result_preview, ensure_ascii=False),
-            )
+            content = json.dumps(tool_result_preview, ensure_ascii=False)
+            try:
+                await repo.update_latest_tool_message_content(
+                    session,
+                    session_id=self.session_id,
+                    tool_call_id=tool_call_id,
+                    content=content,
+                )
+            except PersistenceWriteError as exc:
+                if "tool message not found" not in str(exc):
+                    raise
+                await repo.insert_message(
+                    session,
+                    session_id=self.session_id,
+                    task_id=self.task_id,
+                    project_id=self.project_id,
+                    role="tool",
+                    status="complete",
+                    content=content,
+                    tool_call_id=tool_call_id,
+                    tool_name=tool_name if isinstance(tool_name, str) else None,
+                )
         finally:
             await session.close()
 

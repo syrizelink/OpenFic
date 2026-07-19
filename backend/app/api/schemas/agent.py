@@ -111,7 +111,16 @@ class AgentQuestionAnswerRequest(BaseModel):
     """提交 Agent 澄清问题回答请求。"""
 
     action_id: str = Field(..., description="澄清请求ID")
-    answer: str = Field(..., min_length=1, description="澄清问题回答")
+    answer: list["AgentQuestionAnswerItem"] = Field(
+        ..., min_length=1, description="澄清问题回答"
+    )
+
+
+class AgentQuestionAnswerItem(BaseModel):
+    """单个澄清问题回答。"""
+
+    question: str = Field(..., min_length=1, description="问题标题")
+    answer: str = Field(..., min_length=1, description="选项标签或用户输入")
 
 
 class AgentToolApprovalRequest(BaseModel):

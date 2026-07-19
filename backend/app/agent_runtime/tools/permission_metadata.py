@@ -19,20 +19,8 @@ _PERMISSION_METADATA_BY_TOOL_NAME = {
         permission_key="ask_user",
         default_mode="allow",
     ),
-    "get_plan": ToolPermissionMetadata(
-        permission_key="get_plan",
-        default_mode="allow",
-    ),
-    "list_plan": ToolPermissionMetadata(
-        permission_key="list_plan",
-        default_mode="allow",
-    ),
-    "create_plan": ToolPermissionMetadata(
-        permission_key="create_plan",
-        default_mode="ask",
-    ),
-    "update_plan": ToolPermissionMetadata(
-        permission_key="update_plan",
+    "write_plan": ToolPermissionMetadata(
+        permission_key="write_plan",
         default_mode="ask",
     ),
     "read_chapter": ToolPermissionMetadata(

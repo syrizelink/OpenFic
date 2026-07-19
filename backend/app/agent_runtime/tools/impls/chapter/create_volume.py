@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -19,19 +20,44 @@ def serialize_volume(volume: Volume) -> dict[str, int | str | None]:
 
 
 class CreateVolumeInput(BaseModel):
-    title: str = Field(description="新卷标题")
+    title: str = Field(description="卷标题")
     description: str | None = Field(
         default=None,
-        description="可选的新卷说明",
+        description="卷说明，可选",
     )
 
 
 @ToolRegistry.register
 class CreateVolumeTool(AgentTool):
     name: str = "create_volume"
-    description: str = "在项目末尾创建一个新卷"
+    description: str = "创建一个新卷"
     access_level: str = "write"
     args_schema: type[BaseModel] = CreateVolumeInput
+
+    async def build_interrupt_preview(self, args: dict[str, Any]) -> dict | None:
+        session = self.get_runtime_db_session()
+        title = args.get("title")
+        description = args.get("description")
+        if (
+            session is None
+            or not isinstance(title, str)
+            or (description is not None and not isinstance(description, str))
+        ):
+            return None
+        max_order = await volume_repo.get_max_order(session, self.project_id)
+        return {
+            "type": "preview",
+            "success": True,
+            "reason": "approval_preview",
+            "metadata": {
+                "volume": {
+                    "order": max_order + 1,
+                    "title": title,
+                    "description": description,
+                    "chapter_count": 0,
+                }
+            },
+        }
 
     async def _execute(self, title: str, description: str | None = None) -> str:
         session = await create_session()
@@ -48,12 +74,8 @@ class CreateVolumeTool(AgentTool):
             await session.commit()
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": self._state.get("current_revision_id"),
-                    "volume": serialize_volume(volume),
-                    "message": "卷已创建",
+                    "metadata": {"volume": serialize_volume(volume)},
                 },
                 ensure_ascii=False,
             )

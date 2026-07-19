@@ -10,7 +10,6 @@ from app.agent_runtime.revisions import (
     images_by_id,
     record_agent_activity_for_change,
     record_chapter_diffs,
-    serialize_chapter,
 )
 from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.tools.impls.chapter.diff_preview import (
@@ -40,23 +39,23 @@ def count_words(text: str) -> int:
 
 
 class EditChapterInput(BaseModel):
-    volume_ref: VolumeRef = Field(description="目标章节所在的卷")
-    chapter_ref: ChapterRef = Field(description="要编辑的目标章节")
+    volume_ref: VolumeRef = Field(description="目标卷")
+    chapter_ref: ChapterRef = Field(description="目标章节")
     new_title: str | None = Field(
         default=None,
-        description="可选的新章节标题；仅改标题时填写该字段",
+        description="新章节标题，可选；仅在修改标题时填写",
     )
     old_content: str | None = Field(
         default=None,
-        description="要查找并替换的原始文本；修改正文时必填",
+        description="要查找并替换的原始文本；仅在修改正文时填写",
     )
     new_content: str | None = Field(
         default=None,
-        description="用于替换 old_content 的新文本；修改正文时必填",
+        description="用于替换 old_content 的新文本；仅在修改正文时填写",
     )
     replace_all: bool = Field(
         default=False,
-        description="是否替换命中的全部 old_content；false 时只替换第一处",
+        description="是否替换命中的全部 old_content，false 时只替换首个匹配项",
     )
 
     @field_validator("new_content", mode="after")
@@ -172,15 +171,9 @@ class EditChapterTool(AgentTool):
             await background_service.commit_and_notify(session)
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
                     "word_count": match.word_count,
-                    "chapter": serialize_chapter(match),
-                    "chapter_diff": chapter_diff,
-                    "affected_chapters": affected,
-                    "message": "章节已编辑",
+                    "metadata": {"chapter_diff": chapter_diff},
                 },
                 ensure_ascii=False,
             )

@@ -13,16 +13,14 @@ from app.storage.repos import chapter_repo, volume_repo
 
 
 class ReadChapterInput(BaseModel):
-    volume_ref: VolumeRef = Field(description="要读取的目标卷")
-    chapter_ref: ChapterRef = Field(description="要读取的目标章节")
+    volume_ref: VolumeRef = Field(description="目标卷")
+    chapter_ref: ChapterRef = Field(description="卷内的目标章节")
 
 
 class ReadChapterOutput(BaseModel):
     order: int
     title: str
-    content: str = Field(
-        description="带行号的章节内容。章节内从 1 开始编号，每个原始换行都会拆分为单独一行，格式为 `行号|内容`",
-    )
+    content: str
     word_count: int
 
 
@@ -39,7 +37,8 @@ def format_chapter_content_with_line_numbers(content: str) -> str:
 class ReadChapterTool(AgentTool):
     name: str = "read_chapter"
     description: str = (
-        "读取指定卷内章节的完整内容，通过卷内序号或标题定位章节。"
+        "读取指定卷内章节的完整内容"
+        "必须使用 volume_ref 指定目标卷，并使用 chapter_ref 指定目标章节"
         "返回的 content 会按章节内从 1 开始的行号格式化，每个原始换行都会拆分为单独一行，格式为 `行号|内容`"
     )
     access_level: str = "readonly"

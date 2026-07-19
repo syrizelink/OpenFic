@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -57,14 +58,6 @@ class CharacterPreview:
     id: str
     name: str
     description: str
-
-
-def _serialize_character(character: Character) -> dict:
-    return {
-        "id": character.id,
-        "name": character.name,
-        "description": character.description,
-    }
 
 
 def _preview_from_character(character: Character) -> CharacterPreview:
@@ -127,10 +120,9 @@ def _build_character_diff(
         lines = _diff_lines(before.description, after.description) if before.description != after.description else []
     return {
         "operation": operation,
-        "character_id": target.id,
         "character_name": target.name,
         "sections": [{"type": "content", "lines": lines}],
-    }
+    } | ({"character_id": target.id} if target.id else {})
 
 
 async def _list_project_characters(session, project_id: str) -> list[Character]:
@@ -231,6 +223,25 @@ class CreateCharacterTool(AgentTool):
     access_level: str = "write"
     args_schema: type[BaseModel] = CreateCharacterInput
 
+    async def build_interrupt_preview(self, args: dict[str, Any]) -> dict | None:
+        session = self.get_runtime_db_session()
+        name = args.get("name")
+        description = args.get("description")
+        if session is None or not isinstance(name, str) or not isinstance(description, str):
+            return None
+        try:
+            normalized_name = await _ensure_name_available(session, self.project_id, name)
+        except ToolExecutionError:
+            return None
+        after = CharacterPreview(id="", name=normalized_name, description=description)
+        return {
+            "type": "preview",
+            "success": True,
+            "reason": "approval_preview",
+            "message": "角色创建待审批",
+            "metadata": {"character_diff": _build_character_diff(None, after)},
+        }
+
     async def _execute(self, name: str, description: str) -> str:
         revision_id = _require_revision_id(self._state)
         session = await create_session()
@@ -242,7 +253,7 @@ class CreateCharacterTool(AgentTool):
                 name=normalized_name,
                 description=description,
             )
-            affected_characters = await record_character_diffs(
+            await record_character_diffs(
                 session,
                 revision_id=revision_id,
                 project_id=self.project_id,
@@ -253,14 +264,10 @@ class CreateCharacterTool(AgentTool):
             character_preview = _preview_from_character(character)
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "affected_characters": affected_characters,
-                    "character": _serialize_character(character),
-                    "character_diff": _build_character_diff(None, character_preview),
-                    "message": "角色已创建",
+                    "metadata": {
+                        "character_diff": _build_character_diff(None, character_preview),
+                    },
                 },
                 ensure_ascii=False,
             )
@@ -277,6 +284,57 @@ class EditCharacterTool(AgentTool):
     description: str = "编辑当前项目角色的名称或描述。修改描述时使用查找替换模式。"
     access_level: str = "write"
     args_schema: type[BaseModel] = EditCharacterInput
+
+    async def build_interrupt_preview(self, args: dict[str, Any]) -> dict | None:
+        session = self.get_runtime_db_session()
+        name = args.get("name")
+        new_name = args.get("new_name")
+        old_description = args.get("old_description")
+        new_description = args.get("new_description")
+        if (
+            session is None
+            or not isinstance(name, str)
+            or (new_name is not None and not isinstance(new_name, str))
+            or (old_description is not None and not isinstance(old_description, str))
+            or (new_description is not None and not isinstance(new_description, str))
+        ):
+            return None
+        try:
+            character = await _resolve_character_by_name(session, self.project_id, name)
+            before = _preview_from_character(character)
+            description = before.description
+            if old_description is not None and new_description is not None:
+                if old_description not in description:
+                    return None
+                description = (
+                    description.replace(old_description, new_description)
+                    if bool(args.get("replace_all"))
+                    else description.replace(old_description, new_description, 1)
+                )
+            updated_name = (
+                await _ensure_name_available(
+                    session,
+                    self.project_id,
+                    new_name,
+                    exclude_character_id=character.id,
+                )
+                if new_name is not None
+                else before.name
+            )
+        except ToolExecutionError:
+            return None
+        after = CharacterPreview(
+            id=before.id,
+            name=updated_name,
+            description=description,
+        )
+        return {
+            "type": "preview",
+            "success": True,
+            "reason": "approval_preview",
+            "message": "角色修改待审批",
+            "metadata": {"character_diff": _build_character_diff(before, after)},
+        }
 
     async def _execute(
         self,
@@ -315,7 +373,7 @@ class EditCharacterTool(AgentTool):
                 name=normalized_new_name,
                 description=description if description != before.description else None,
             )
-            affected_characters = await record_character_diffs(
+            await record_character_diffs(
                 session,
                 revision_id=revision_id,
                 project_id=self.project_id,
@@ -326,14 +384,10 @@ class EditCharacterTool(AgentTool):
             after = _preview_from_character(updated)
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "affected_characters": affected_characters,
-                    "character": _serialize_character(updated),
-                    "character_diff": _build_character_diff(before, after),
-                    "message": "角色已编辑",
+                    "metadata": {
+                        "character_diff": _build_character_diff(before, after),
+                    },
                 },
                 ensure_ascii=False,
             )
@@ -361,7 +415,7 @@ class DeleteCharacterTool(AgentTool):
             before = _preview_from_character(character)
             before_images = character_images_by_id([character])
             await character_service.delete_character(session, character.id)
-            affected_characters = await record_character_diffs(
+            await record_character_diffs(
                 session,
                 revision_id=revision_id,
                 project_id=self.project_id,
@@ -371,14 +425,10 @@ class DeleteCharacterTool(AgentTool):
             await session.commit()
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "affected_characters": affected_characters,
-                    "character_id": before.id,
-                    "name": before.name,
-                    "message": "角色已删除",
+                    "metadata": {
+                        "character_diff": _build_character_diff(before, None),
+                    },
                 },
                 ensure_ascii=False,
             )

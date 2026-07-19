@@ -103,7 +103,7 @@ class MoveNoteTool(AgentTool):
                     session, self.project_id, include_hidden=True
                 )
             )
-            affected = await record_note_diffs(
+            await record_note_diffs(
                 session,
                 revision_id=revision_id,
                 project_id=self.project_id,
@@ -115,21 +115,17 @@ class MoveNoteTool(AgentTool):
             await background_service.commit_and_notify(session)
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "note": {
-                        "id": moved.id,
-                        "title": moved.title,
-                        "category_id": moved_category_id,
+                    "metadata": {
+                        "note_diff": {
+                            "operation": "move",
+                            "note_id": moved.id,
+                            "note_title": moved.title,
+                            "category_id": moved_category_id,
+                            "target_category_id": target_category_id,
+                            "target_category_title": target_category_title,
+                        }
                     },
-                    "target_category": {
-                        "id": target_category_id,
-                        "title": target_category_title,
-                    } if target_category_id else None,
-                    "affected_notes": affected,
-                    "message": "笔记已移动",
                 },
                 ensure_ascii=False,
             )

@@ -1,3 +1,7 @@
+import json
+from dataclasses import replace
+from typing import Any
+
 from app.agent_runtime.context.types import ContextMessage
 
 _DROPPED_KINDS = {"thinking", "reasoning", "ui_only"}
@@ -60,3 +64,42 @@ def filter_invalid(parts: list[ContextMessage]) -> list[ContextMessage]:
                 keep[i] = False
 
     return [m for m, k in zip(parts, keep) if k]
+
+
+def filter_tool_result_metadata(parts: list[ContextMessage]) -> list[ContextMessage]:
+    """移除仅供界面消费的工具结果 metadata，避免将其发送给模型。"""
+    result: list[ContextMessage] = []
+    for message in parts:
+        if message.role != "tool":
+            result.append(message)
+            continue
+        visible_content = filter_tool_result_metadata_content(message.content)
+        if visible_content == message.content:
+            result.append(message)
+            continue
+        result.append(
+            replace(
+                message,
+                content=visible_content,
+            )
+        )
+    return result
+
+
+def _parse_tool_result(content: str) -> dict[str, Any] | None:
+    try:
+        payload = json.loads(content)
+    except (TypeError, ValueError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def filter_tool_result_metadata_content(content: str) -> str:
+    """返回可发送给模型的工具结果内容。"""
+    payload = _parse_tool_result(content)
+    if payload is None or "metadata" not in payload:
+        return content
+    return json.dumps(
+        {key: value for key, value in payload.items() if key != "metadata"},
+        ensure_ascii=False,
+    )

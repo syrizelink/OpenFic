@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -22,20 +23,20 @@ class ListWorldEntriesInput(BaseModel):
 
 
 class ReadWorldEntryInput(BaseModel):
-    title: str = Field(description="要读取的世界书条目标题")
+    title: str = Field(description="条目标题")
 
 
 class CreateWorldEntryInput(BaseModel):
-    title: str = Field(description="新世界书条目标题")
-    content: str = Field(description="新世界书条目内容")
+    title: str = Field(description="条目标题")
+    content: str = Field(description="条目内容")
 
 
 class EditWorldEntryInput(BaseModel):
-    title: str = Field(description="要编辑的世界书条目标题")
-    new_title: str | None = Field(default=None, description="可选的新条目标题")
+    title: str = Field(description="条目标题")
+    new_title: str | None = Field(default=None, description="新条目标题，可选")
     old_content: str | None = Field(default=None, description="要查找并替换的原始文本")
     new_content: str | None = Field(default=None, description="用于替换 old_content 的新文本")
-    replace_all: bool = Field(default=False, description="是否替换命中的全部 old_content")
+    replace_all: bool = Field(default=False, description="是否替换命中的全部 old_content，false 时只替换首个匹配项")
 
     @field_validator("new_content", mode="after")
     @classmethod
@@ -49,7 +50,7 @@ class EditWorldEntryInput(BaseModel):
 
 
 class DeleteWorldEntryInput(BaseModel):
-    title: str = Field(description="要删除的世界书条目标题")
+    title: str = Field(description="条目标题")
 
 
 @dataclass(frozen=True)
@@ -61,18 +62,6 @@ class WorldEntryPreview:
     content: str
     token_count: int
     is_enabled: bool
-
-
-def _serialize_world_entry(entry: WorldInfoEntry) -> dict:
-    return {
-        "id": entry.id,
-        "title": entry.name,
-        "uid": entry.uid,
-        "order": entry.order,
-        "content": entry.content,
-        "token_count": getattr(entry, "token_count", 0),
-        "is_enabled": getattr(entry, "is_enabled", True),
-    }
 
 
 def _preview_from_entry(entry: WorldInfoEntry) -> WorldEntryPreview:
@@ -139,10 +128,9 @@ def _build_world_entry_diff(
         lines = _diff_lines(before.content, after.content) if before.content != after.content else []
     return {
         "operation": operation,
-        "entry_id": target.id,
         "entry_title": target.title,
         "sections": [{"type": "content", "lines": lines}],
-    }
+    } | ({"entry_id": target.id} if target.id else {})
 
 
 async def _get_project_world_info(session, project_id: str):
@@ -196,7 +184,7 @@ def _require_revision_id(state: dict) -> str:
 @ToolRegistry.register
 class ListWorldEntriesTool(AgentTool):
     name: str = "list_world_entries"
-    description: str = "获取当前项目绑定世界书中的启用条目标题列表。"
+    description: str = "获取项目世界书中启用的设定条目列表"
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ListWorldEntriesInput
 
@@ -223,7 +211,7 @@ class ListWorldEntriesTool(AgentTool):
 @ToolRegistry.register
 class ReadWorldEntryTool(AgentTool):
     name: str = "read_world_entry"
-    description: str = "根据标题读取当前项目世界书中的单个条目内容。"
+    description: str = "读取项目世界书中指定的设定条目内容"
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ReadWorldEntryInput
 
@@ -248,9 +236,37 @@ class ReadWorldEntryTool(AgentTool):
 @ToolRegistry.register
 class CreateWorldEntryTool(AgentTool):
     name: str = "create_world_entry"
-    description: str = "在当前项目绑定世界书中创建条目。"
+    description: str = "在项目世界书中创建设定条目"
     access_level: str = "write"
     args_schema: type[BaseModel] = CreateWorldEntryInput
+
+    async def build_interrupt_preview(self, args: dict[str, Any]) -> dict | None:
+        session = self.get_runtime_db_session()
+        title = args.get("title")
+        content = args.get("content")
+        if session is None or not isinstance(title, str) or not isinstance(content, str):
+            return None
+        try:
+            world_info = await _get_project_world_info(session, self.project_id)
+            normalized_title = await _ensure_title_available(session, world_info.id, title)
+        except ToolExecutionError:
+            return None
+        after = WorldEntryPreview(
+            id="",
+            title=normalized_title,
+            uid=0,
+            order=0,
+            content=content,
+            token_count=0,
+            is_enabled=True,
+        )
+        return {
+            "type": "preview",
+            "success": True,
+            "reason": "approval_preview",
+            "message": "世界书条目创建待审批",
+            "metadata": {"world_entry_diff": _build_world_entry_diff(None, after)},
+        }
 
     async def _execute(self, title: str, content: str) -> str:
         revision_id = _require_revision_id(self._state)
@@ -265,7 +281,7 @@ class CreateWorldEntryTool(AgentTool):
                 content=content,
                 is_enabled=True,
             )
-            affected_world_entries = await record_world_entry_diffs(
+            await record_world_entry_diffs(
                 session,
                 revision_id=revision_id,
                 project_id=self.project_id,
@@ -276,15 +292,11 @@ class CreateWorldEntryTool(AgentTool):
             entry_preview = _preview_from_entry(entry)
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "world_info_id": world_info.id,
-                    "affected_world_entries": affected_world_entries,
-                    "world_entry": _serialize_world_entry(entry),
-                    "world_entry_diff": _build_world_entry_diff(None, entry_preview),
-                    "message": "世界书条目已创建",
+                    "metadata": {
+                        "world_info_id": world_info.id,
+                        "world_entry_diff": _build_world_entry_diff(None, entry_preview),
+                    },
                 },
                 ensure_ascii=False,
             )
@@ -298,9 +310,65 @@ class CreateWorldEntryTool(AgentTool):
 @ToolRegistry.register
 class EditWorldEntryTool(AgentTool):
     name: str = "edit_world_entry"
-    description: str = "编辑当前项目世界书条目的标题或内容。修改内容时使用查找替换模式。"
+    description: str = "编辑项目世界书中的设定条目"
     access_level: str = "write"
     args_schema: type[BaseModel] = EditWorldEntryInput
+
+    async def build_interrupt_preview(self, args: dict[str, Any]) -> dict | None:
+        session = self.get_runtime_db_session()
+        title = args.get("title")
+        new_title = args.get("new_title")
+        old_content = args.get("old_content")
+        new_content = args.get("new_content")
+        if (
+            session is None
+            or not isinstance(title, str)
+            or (new_title is not None and not isinstance(new_title, str))
+            or (old_content is not None and not isinstance(old_content, str))
+            or (new_content is not None and not isinstance(new_content, str))
+        ):
+            return None
+        try:
+            world_info = await _get_project_world_info(session, self.project_id)
+            entry = await _resolve_entry_by_title(session, world_info.id, title)
+            before = _preview_from_entry(entry)
+            content = before.content
+            if old_content is not None and new_content is not None:
+                if old_content not in content:
+                    return None
+                content = (
+                    content.replace(old_content, new_content)
+                    if bool(args.get("replace_all"))
+                    else content.replace(old_content, new_content, 1)
+                )
+            updated_title = (
+                await _ensure_title_available(
+                    session,
+                    world_info.id,
+                    new_title,
+                    exclude_entry_id=entry.id,
+                )
+                if new_title is not None
+                else before.title
+            )
+        except ToolExecutionError:
+            return None
+        after = WorldEntryPreview(
+            id=before.id,
+            title=updated_title,
+            uid=before.uid,
+            order=before.order,
+            content=content,
+            token_count=before.token_count,
+            is_enabled=before.is_enabled,
+        )
+        return {
+            "type": "preview",
+            "success": True,
+            "reason": "approval_preview",
+            "message": "世界书条目修改待审批",
+            "metadata": {"world_entry_diff": _build_world_entry_diff(before, after)},
+        }
 
     async def _execute(
         self,
@@ -340,7 +408,7 @@ class EditWorldEntryTool(AgentTool):
                 name=normalized_new_title,
                 content=content if content != before.content else None,
             )
-            affected_world_entries = await record_world_entry_diffs(
+            await record_world_entry_diffs(
                 session,
                 revision_id=revision_id,
                 project_id=self.project_id,
@@ -351,15 +419,11 @@ class EditWorldEntryTool(AgentTool):
             after = _preview_from_entry(updated)
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "world_info_id": world_info.id,
-                    "affected_world_entries": affected_world_entries,
-                    "world_entry": _serialize_world_entry(updated),
-                    "world_entry_diff": _build_world_entry_diff(before, after),
-                    "message": "世界书条目已编辑",
+                    "metadata": {
+                        "world_info_id": world_info.id,
+                        "world_entry_diff": _build_world_entry_diff(before, after),
+                    },
                 },
                 ensure_ascii=False,
             )
@@ -375,7 +439,7 @@ class EditWorldEntryTool(AgentTool):
 @ToolRegistry.register
 class DeleteWorldEntryTool(AgentTool):
     name: str = "delete_world_entry"
-    description: str = "根据标题删除当前项目世界书中的单个条目。"
+    description: str = "删除项目世界书中指定的设定条目"
     access_level: str = "write"
     args_schema: type[BaseModel] = DeleteWorldEntryInput
 
@@ -388,7 +452,7 @@ class DeleteWorldEntryTool(AgentTool):
             before = _preview_from_entry(entry)
             before_images = world_entry_images_by_id([entry], project_id=self.project_id)
             await world_info_entry_service.delete_entry(session, entry.id)
-            affected_world_entries = await record_world_entry_diffs(
+            await record_world_entry_diffs(
                 session,
                 revision_id=revision_id,
                 project_id=self.project_id,
@@ -398,17 +462,11 @@ class DeleteWorldEntryTool(AgentTool):
             await session.commit()
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "world_info_id": world_info.id,
-                    "affected_world_entries": affected_world_entries,
-                    "entry_id": before.id,
-                    "title": before.title,
-                    "uid": before.uid,
-                    "order": before.order,
-                    "message": "世界书条目已删除",
+                    "metadata": {
+                        "world_info_id": world_info.id,
+                        "world_entry_diff": _build_world_entry_diff(before, None),
+                    },
                 },
                 ensure_ascii=False,
             )

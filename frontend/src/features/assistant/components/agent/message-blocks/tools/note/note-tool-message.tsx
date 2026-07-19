@@ -53,7 +53,9 @@ function getToolResultDataRecord(message: AgentMessage): Record<string, unknown>
 function getNoteDiffPreview(message: AgentMessage): NoteDiffPreview | null {
   const data = getToolResultDataRecord(message);
   if (!data) return null;
-  const rawPreview = data.note_diff;
+  const metadata = data.metadata;
+  if (!isRecord(metadata)) return null;
+  const rawPreview = metadata.note_diff;
   if (!isRecord(rawPreview) || !Array.isArray(rawPreview.sections)) return null;
 
   return {

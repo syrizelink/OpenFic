@@ -63,17 +63,72 @@ def _build_diff_lines(before: str, after: str) -> list[dict[str, Any]]:
 
 
 class EditNoteInput(BaseModel):
-    note_ref: NoteRef = Field(description="要编辑的笔记引用")
+    note_ref: NoteRef = Field(description="目标笔记")
     old_content: str = Field(description="要查找并替换的原始文本")
-    new_content: str = Field(description="用于替换的新文本")
+    new_content: str = Field(description="用于替换 old_content 的新文本")
 
 
 @ToolRegistry.register
 class EditNoteTool(AgentTool):
     name: str = "edit_note"
-    description: str = "编辑笔记内容，使用查找替换模式"
+    description: str = "编辑指定笔记的内容"
     access_level: str = "write"
     args_schema: type[BaseModel] = EditNoteInput
+
+    async def build_interrupt_preview(self, args: dict[str, Any]) -> dict | None:
+        session = self.get_runtime_db_session()
+        note_ref = args.get("note_ref")
+        old_content = args.get("old_content")
+        new_content = args.get("new_content")
+        if (
+            session is None
+            or not isinstance(note_ref, dict)
+            or not isinstance(old_content, str)
+            or not isinstance(new_content, str)
+        ):
+            return None
+
+        ref = NoteRef.model_validate(note_ref)
+        if ref.id is not None:
+            note = await note_repo.get_by_id(session, ref.id)
+            if note is None:
+                return None
+        else:
+            notes = await note_repo.list_by_project(session, self.project_id, include_hidden=False)
+            categories = await note_category_repo.list_by_project(session, self.project_id)
+            try:
+                note = resolve_note_from_list(notes, ref, categories=categories)
+            except ToolExecutionError:
+                return None
+
+        if (
+            note.project_id != self.project_id
+            or note.is_locked
+            or note.is_hidden
+            or old_content not in note.content
+        ):
+            return None
+
+        preview_content = note.content.replace(old_content, new_content)
+        return {
+            "type": "preview",
+            "success": True,
+            "reason": "approval_preview",
+            "message": "笔记修改待审批",
+            "metadata": {
+                "note_diff": {
+                    "operation": "update",
+                    "note_id": note.id,
+                    "note_title": note.title,
+                    "sections": [
+                        {
+                            "type": "content",
+                            "lines": _build_diff_lines(note.content, preview_content),
+                        }
+                    ],
+                }
+            },
+        }
 
     async def _execute(
         self,
@@ -123,7 +178,7 @@ class EditNoteTool(AgentTool):
                     session, self.project_id, include_hidden=True
                 )
             )
-            affected = await record_note_diffs(
+            await record_note_diffs(
                 session,
                 revision_id=revision_id,
                 project_id=self.project_id,
@@ -144,17 +199,8 @@ class EditNoteTool(AgentTool):
             await background_service.commit_and_notify(session)
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "note": {
-                        "id": note.id,
-                        "title": note.title,
-                    },
-                    "note_diff": note_diff,
-                    "affected_notes": affected,
-                    "message": "笔记已编辑",
+                    "metadata": {"note_diff": note_diff},
                 },
                 ensure_ascii=False,
             )

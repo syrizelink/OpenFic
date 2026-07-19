@@ -1,5 +1,6 @@
 """MessagePersister 测试 — 正常路径。"""
 
+import json
 from datetime import UTC, datetime
 
 import pytest
@@ -92,6 +93,59 @@ async def test_persister_persists_non_streaming_chat_model_end_output(
     assert items[0].status == "complete"
     assert items[0].content == "final non-stream answer"
     assert items[0].agent_id == "composer"
+
+
+@pytest.mark.asyncio
+async def test_persister_inserts_missing_batch_approval_preview_tool_messages(
+    db_session: AsyncSession, db_session_factory, sample_task
+):
+    session_id = "session-batch-approval-preview"
+    persister = MessagePersister(
+        session_id=session_id,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        db_session_factory=db_session_factory,
+    )
+    preview = {
+        "type": "preview",
+        "success": True,
+        "reason": "approval_preview",
+        "metadata": {"volume": {"title": "新卷"}},
+    }
+
+    await persister.apply_interrupt_preview(
+        {
+            "tool_call_id": "call-current",
+            "tool_name": "create_volume",
+            "tool_result_preview": preview,
+            "tool_result_previews": [
+                {
+                    "tool_call_id": "call-next",
+                    "tool_name": "create_note_category",
+                    "preview": preview,
+                }
+            ],
+        }
+    )
+
+    messages = await repo.list_by_session(db_session, session_id)
+    assert [(message.tool_call_id, message.tool_name) for message in messages] == [
+        ("call-next", "create_note_category"),
+        ("call-current", "create_volume"),
+    ]
+    assert all(message.content == json.dumps(preview, ensure_ascii=False) for message in messages)
+
+    await persister.apply_interrupt_preview(
+        {
+            "tool_call_id": "call-next",
+            "tool_name": "create_note_category",
+            "tool_result_preview": {**preview, "message": "待审批"},
+        }
+    )
+
+    messages = await repo.list_by_session(db_session, session_id)
+    assert len(messages) == 2
+    assert json.loads(messages[0].content)["message"] == "待审批"
 
 
 @pytest.mark.asyncio
@@ -229,8 +283,8 @@ async def test_persister_persists_subagent_tool_error_when_approval_interrupts(
                 content="",
                 tool_calls=[
                     {
-                        "id": "call-create-plan",
-                        "name": "create_plan",
+                        "id": "call-write-plan",
+                        "name": "write_plan",
                         "args": {"value": "plan child beats"},
                     }
                 ],
@@ -239,22 +293,22 @@ async def test_persister_persists_subagent_tool_error_when_approval_interrupts(
     })
     await p.handle({
         "event": "on_tool_start",
-        "name": "create_plan",
+        "name": "write_plan",
         "run_id": "child-tool-approval",
         "tags": ["subagent_child"],
         "data": {"input": {"value": "plan child beats"}},
-        "metadata": {"tool_call_id": "call-create-plan"},
+        "metadata": {"tool_call_id": "call-write-plan"},
     })
     await p.handle({
         "event": "on_tool_error",
-        "name": "create_plan",
+        "name": "write_plan",
         "run_id": "child-tool-approval",
         "tags": ["subagent_child"],
         "data": {
             "input": {"value": "plan child beats"},
             "error": RuntimeError("approval required"),
         },
-        "metadata": {"tool_call_id": "call-create-plan"},
+        "metadata": {"tool_call_id": "call-write-plan"},
     })
 
     items = await repo.list_by_session(db_session, sid)
@@ -262,13 +316,13 @@ async def test_persister_persists_subagent_tool_error_when_approval_interrupts(
     assert items[0].role == "assistant"
     tool_calls = items[0].tool_calls
     assert tool_calls is not None
-    assert tool_calls[0]["id"] == "call-create-plan"
-    assert tool_calls[0]["name"] == "create_plan"
+    assert tool_calls[0]["id"] == "call-write-plan"
+    assert tool_calls[0]["name"] == "write_plan"
     assert tool_calls[0]["args"] == {"value": "plan child beats"}
     assert items[1].role == "tool"
     assert items[1].status == "complete"
-    assert items[1].tool_call_id == "call-create-plan"
-    assert items[1].tool_name == "create_plan"
+    assert items[1].tool_call_id == "call-write-plan"
+    assert items[1].tool_name == "write_plan"
     assert "\"reason\": \"approval_preview\"" in items[1].content
 
 
@@ -444,10 +498,10 @@ async def test_persister_assistant_with_tool_calls(
 
 
 @pytest.mark.asyncio
-async def test_persister_recovers_malformed_create_plan_todos_for_reload(
+async def test_persister_recovers_malformed_write_plan_todos_for_reload(
     db_session: AsyncSession, db_session_factory, sample_task
 ):
-    sid = "child-session-invalid-create-plan"
+    sid = "child-session-invalid-write-plan"
     p = MessagePersister(
         session_id=sid,
         task_id=sample_task.id,
@@ -456,9 +510,8 @@ async def test_persister_recovers_malformed_create_plan_todos_for_reload(
         allow_subagent_child_events=True,
     )
     malformed_args = (
-        '{"topic":"Rewrite","description":"Make a plan","todos":'
-        '[{"title":"Beat 1","content":"line1\nline2"},'
-        '{"title":"Beat 2","content":"done"}]}'
+        '{"todos":[{"content":"line1\nline2","status":"pending","priority":"high"},'
+        '{"content":"done","status":"completed","priority":"low"}]}'
     )
 
     await p.handle({
@@ -483,8 +536,8 @@ async def test_persister_recovers_malformed_create_plan_todos_for_reload(
                 tool_call_chunks=[
                     {
                         "index": 0,
-                        "id": "call-create-plan",
-                        "name": "create_plan",
+                        "id": "call-write-plan",
+                        "name": "write_plan",
                         "args": malformed_args,
                     }
                 ],
@@ -500,8 +553,8 @@ async def test_persister_recovers_malformed_create_plan_todos_for_reload(
                 content="",
                 invalid_tool_calls=[
                     invalid_tool_call(
-                        id="call-create-plan",
-                        name="create_plan",
+                        id="call-write-plan",
+                        name="write_plan",
                         args=malformed_args,
                         error="invalid json in todos array",
                     )
@@ -515,14 +568,12 @@ async def test_persister_recovers_malformed_create_plan_todos_for_reload(
     assert items[0].role == "assistant"
     assert items[0].tool_calls == [
         {
-            "id": "call-create-plan",
-            "name": "create_plan",
+            "id": "call-write-plan",
+            "name": "write_plan",
             "args": {
-                "topic": "Rewrite",
-                "description": "Make a plan",
                 "todos": [
-                    {"title": "Beat 1", "content": "line1\nline2"},
-                    {"title": "Beat 2", "content": "done"},
+                    {"content": "line1\nline2", "status": "pending", "priority": "high"},
+                    {"content": "done", "status": "completed", "priority": "low"},
                 ],
             },
         }
@@ -533,7 +584,7 @@ async def test_persister_recovers_malformed_create_plan_todos_for_reload(
 async def test_persister_persists_unrecoverable_invalid_tool_call_with_synthesized_id(
     db_session: AsyncSession, db_session_factory, sample_task
 ):
-    sid = "child-session-invalid-create-plan-no-id"
+    sid = "child-session-invalid-write-plan-no-id"
     p = MessagePersister(
         session_id=sid,
         task_id=sample_task.id,
@@ -565,7 +616,7 @@ async def test_persister_persists_unrecoverable_invalid_tool_call_with_synthesiz
                     {
                         "index": 0,
                         "id": None,
-                        "name": "create_plan",
+                        "name": "write_plan",
                         "args": "<<<<",
                     }
                 ],
@@ -581,7 +632,7 @@ async def test_persister_persists_unrecoverable_invalid_tool_call_with_synthesiz
                 content="",
                 invalid_tool_calls=[
                     {
-                        "name": "create_plan",
+                        "name": "write_plan",
                         "args": "<<<<",
                         "error": "invalid json",
                         "type": "invalid_tool_call",
@@ -600,10 +651,10 @@ async def test_persister_persists_unrecoverable_invalid_tool_call_with_synthesiz
     assert len(assistant.tool_calls) == 1
     synthesized_id = assistant.tool_calls[0]["id"]
     assert isinstance(synthesized_id, str) and synthesized_id
-    assert assistant.tool_calls[0]["name"] == "create_plan"
+    assert assistant.tool_calls[0]["name"] == "write_plan"
     assert tool.role == "tool"
     assert tool.tool_call_id == synthesized_id
-    assert tool.tool_name == "create_plan"
+    assert tool.tool_name == "write_plan"
     assert '"reason": "malformed_tool_call"' in tool.content
 
 

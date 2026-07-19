@@ -73,7 +73,7 @@ async def _blocking_approval_hook(ctx: HookContext) -> HookResult:
 
 
 class _ApprovalInterruptTool(AgentTool):
-    name: str = "create_plan"
+    name: str = "write_plan"
     description: str = "interrupt before execution"
     access_level: str = "write"
     args_schema: type[BaseModel] = _InterruptInput
@@ -358,7 +358,7 @@ async def test_react_agent_finishes_audit_when_tool_approval_interrupts() -> Non
         tool_calls=[
             {
                 "id": "call_1",
-                "name": "create_plan",
+                "name": "write_plan",
                 "args": {"value": "plan child beats"},
             }
         ],
@@ -405,7 +405,7 @@ async def test_react_agent_finishes_audit_when_tool_approval_interrupts() -> Non
             },
         )
 
-    assert result["messages"][-1].tool_calls[0]["name"] == "create_plan"
-    assert audit.responses[0]["tool_calls"][0]["name"] == "create_plan"
+    assert result["messages"][-1].tool_calls[0]["name"] == "write_plan"
+    assert audit.responses[0]["tool_calls"][0]["name"] == "write_plan"
     assert audit.tools == []
     assert audit.finished == ["success"]

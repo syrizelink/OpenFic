@@ -106,16 +106,15 @@ def build_tool_result_preview(
     before: ChapterPreviewData | None,
     after: ChapterPreviewData | None,
 ) -> dict[str, Any]:
-    preview_data = {
-        "chapter": serialize_preview_chapter(after or before),
-        "chapter_diff": build_chapter_diff_preview(before, after),
-    }
     return {
         "type": "preview",
         "success": True,
         "reason": "approval_preview",
         "message": "章节修改待审批",
-        "data": preview_data,
+        "chapter": serialize_preview_chapter(after or before),
+        "metadata": {
+            "chapter_diff": build_chapter_diff_preview(before, after),
+        },
     }
 
 

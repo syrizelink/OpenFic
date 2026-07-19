@@ -34,6 +34,47 @@ def _response_metadata(row: AgentRunMessage) -> dict:
     return metadata
 
 
+def _order_tool_results_by_call_order(
+    rows: list[AgentRunMessage],
+) -> list[AgentRunMessage]:
+    """将同一 assistant 消息后的并行工具结果恢复为声明顺序。"""
+    ordered: list[AgentRunMessage] = []
+    index = 0
+    while index < len(rows):
+        row = rows[index]
+        ordered.append(row)
+        tool_calls = _tool_calls(row) if row.role == "assistant" else None
+        if not tool_calls:
+            index += 1
+            continue
+
+        tool_rows: list[AgentRunMessage] = []
+        next_index = index + 1
+        while next_index < len(rows) and rows[next_index].role == "tool":
+            tool_rows.append(rows[next_index])
+            next_index += 1
+
+        tool_rows_by_id = {
+            tool_row.tool_call_id: tool_row
+            for tool_row in tool_rows
+            if tool_row.tool_call_id
+        }
+        ordered.extend(
+            tool_rows_by_id[tool_call["id"]]
+            for tool_call in tool_calls
+            if tool_call.get("id") in tool_rows_by_id
+        )
+        ordered.extend(
+            tool_row
+            for tool_row in tool_rows
+            if tool_row.tool_call_id not in {
+                tool_call.get("id") for tool_call in tool_calls
+            }
+        )
+        index = next_index
+    return ordered
+
+
 async def load_history(
     db_session: AsyncSession, session_id: str
 ) -> list[BaseMessage]:
@@ -98,6 +139,8 @@ async def load_history(
                 continue
             seen_tool_ids.add(r.tool_call_id)
         filtered.append(r)
+
+    filtered = _order_tool_results_by_call_order(filtered)
 
     last_assistant_with_reasoning_idx: int | None = None
     for idx, r in enumerate(filtered):

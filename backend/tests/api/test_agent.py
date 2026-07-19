@@ -118,27 +118,9 @@ class TestAgentAPI:
                 "is_readonly": True,
             },
             {
-                "key": "get_plan",
-                "name": "Get Plan",
-                "description": "读取指定共享计划及其 Todo 列表。",
-                "is_readonly": True,
-            },
-            {
-                "key": "list_plan",
-                "name": "List Plans",
-                "description": "列出当前父子会话共享的全部计划。",
-                "is_readonly": True,
-            },
-            {
-                "key": "create_plan",
-                "name": "Create Plan",
-                "description": "创建一个共享计划并初始化 Todo 列表。",
-                "is_readonly": False,
-            },
-            {
-                "key": "update_plan",
-                "name": "Update Plan",
-                "description": "按旧 Todo 切片精确替换共享计划中的 Todo 列表。",
+                "key": "write_plan",
+                "name": "Write Plan",
+                "description": "全量覆盖当前会话的计划 Todo 列表。",
                 "is_readonly": False,
             },
             {
@@ -2130,7 +2112,10 @@ class TestAgentAPI:
         with patch("app.api.routers.agent_runtime.SessionRunner.resume", new=AsyncMock(return_value=None)) as mock_resume:
             response = await client.post(
                 f"/api/v1/agent/sessions/{session_id}/question-answer",
-                json={"action_id": "question-1", "answer": "回答澄清问题"},
+                json={
+                    "action_id": "question-1",
+                    "answer": [{"question": "风格选择", "answer": "正式"}],
+                },
             )
 
             assert response.status_code == status.HTTP_200_OK
@@ -2139,7 +2124,7 @@ class TestAgentAPI:
             mock_resume.assert_awaited_once_with({
                 "action_type": "clarification",
                 "action_id": "question-1",
-                "answer": "回答澄清问题",
+                "answer": [{"question": "风格选择", "answer": "正式"}],
             })
 
     async def test_rollback_session_uses_revision_id_and_restores_data(
@@ -2267,6 +2252,17 @@ class TestAgentAPI:
         delete_checkpoints_after_mock = AsyncMock()
         delete_checkpoints_for_thread_mock = AsyncMock()
         emit_mock = AsyncMock()
+        async with buffer.session_lock("sess-rollback"):
+            buffer.record_unlocked(
+                "agent:tool_call",
+                {
+                    "session_id": "sess-rollback",
+                    "run_id": "rolled-back-run",
+                    "tool_call_id": "rolled-back-tool",
+                    "tool": "write_chapter",
+                    "input": {"title": "不应重放"},
+                },
+            )
 
         with (
             patch(
@@ -2320,6 +2316,7 @@ class TestAgentAPI:
         )
         delete_checkpoints_for_thread_mock.assert_awaited_once_with(child.child_thread_id)
         replayed = buffer.replay_events_unlocked("sess-rollback")
+        assert all(event.name != "agent:tool_call" for event in replayed)
         rollback_statuses = [
             event.data
             for event in replayed

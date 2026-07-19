@@ -10,7 +10,6 @@ from app.agent_runtime.revisions import (
     images_by_id,
     record_agent_activity_for_change,
     record_chapter_diffs,
-    serialize_chapter,
 )
 from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.tools.impls.chapter.diff_preview import (
@@ -42,19 +41,19 @@ def count_words(text: str) -> int:
 
 
 class WriteChapterInput(BaseModel):
-    volume_ref: VolumeRef = Field(description="新章节要写入的目标卷")
-    title: str = Field(description="新章节标题")
-    content: str = Field(description="新章节正文内容")
+    volume_ref: VolumeRef = Field(description="目标卷")
+    title: str = Field(description="标题")
+    content: str = Field(description="正文内容")
     chapter_ref: ChapterRef | None = Field(
         default=None,
-        description="可选插入位置；不传时追加到卷末，传入时插入到该章节之前",
+        description="插入位置，可选；传入时章节会被插入到指定章节之前，否则会被追加到卷末",
     )
 
 
 @ToolRegistry.register
 class WriteChapterTool(AgentTool):
     name: str = "write_chapter"
-    description: str = "在指定卷内创建一个新章节。不传 chapter_ref 时追加到卷末，传入时按卷内位置插入"
+    description: str = "创建一个新章节"
     access_level: str = "write"
     args_schema: type[BaseModel] = WriteChapterInput
 
@@ -151,15 +150,9 @@ class WriteChapterTool(AgentTool):
             )
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
                     "word_count": chapter.word_count,
-                    "chapter": serialize_chapter(chapter),
-                    "chapter_diff": chapter_diff,
-                    "affected_chapters": affected,
-                    "message": "章节已写入",
+                    "metadata": {"chapter_diff": chapter_diff},
                 },
                 ensure_ascii=False,
             )
