@@ -5,6 +5,8 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.messages.tool import invalid_tool_call
 from langchain_core.tools import StructuredTool
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.types import Command
 from pydantic import BaseModel
 
 from app.agent_runtime.tools.base import AgentTool, HookResult
@@ -91,7 +93,7 @@ def test_create_react_agent_returns_compiled_graph(dummy_tool):
         tools=[dummy_tool],
         termination=TerminationCondition(mode="no_tool_call"),
     )
-    graph = create_react_agent(config)
+    graph = create_react_agent(config, checkpointer=InMemorySaver())
     assert graph is not None
     assert hasattr(graph, "ainvoke")
 
@@ -102,7 +104,7 @@ def test_create_react_agent_with_tool_success_termination(submit_tool):
         tools=[submit_tool],
         termination=TerminationCondition(mode="tool_success", tool_name="submit_result"),
     )
-    graph = create_react_agent(config)
+    graph = create_react_agent(config, checkpointer=InMemorySaver())
     assert graph is not None
 
 
@@ -658,3 +660,113 @@ async def test_react_agent_passes_runtime_config_and_tool_call_id_to_agent_tools
 
     assert captured[0].tool_call_id == "call_1"
     assert captured[0].config["configurable"]["db_session"] == "session"
+
+
+class ApprovalInput(BaseModel):
+    value: str
+
+
+async def _approval_hook(ctx) -> HookResult:
+    return HookResult(
+        proceed=False,
+        interrupt_payload={
+            "type": "tool_approval",
+            "tool_name": ctx.tool_name,
+            "args": ctx.args,
+        },
+    )
+
+
+class ApprovalTool(AgentTool):
+    name: str = "approval_tool"
+    description: str = "requires approval"
+    access_level: str = "write"
+    args_schema: type[BaseModel] = ApprovalInput
+
+    async def build_interrupt_preview(self, args: dict[str, object]) -> dict | None:
+        if self.config is None:
+            return None
+        return {
+            "type": "preview",
+            "success": True,
+            "metadata": {"value": args["value"]},
+        }
+
+    async def _execute(self, value: str) -> str:
+        return json.dumps({"success": True, "value": value})
+
+
+@pytest.mark.asyncio
+async def test_react_agent_previews_all_parallel_tool_calls_and_resumes_each_approval() -> None:
+    response = AIMessage(
+        content="",
+        tool_calls=[
+            {"id": f"call_{index}", "name": "approval_tool", "args": {"value": str(index)}}
+            for index in range(1, 6)
+        ],
+    )
+    config = ReactAgentConfig(
+        name="test",
+        tools=[ApprovalTool(_pre_hooks=[_approval_hook])],
+        termination=TerminationCondition(mode="no_tool_call"),
+        max_iterations=1,
+    )
+    graph = create_react_agent(config, checkpointer=InMemorySaver())
+
+    async def _mock_invoke(*args, **kwargs):
+        return response
+
+    with patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke):
+        config = {"configurable": {"db_session": object(), "thread_id": "parallel-approval"}}
+        await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="run both")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            },
+            config=config,
+        )
+        state = await graph.aget_state(config)
+
+    interrupts = [
+        interrupt
+        for task in state.tasks
+        for interrupt in getattr(task, "interrupts", ())
+    ]
+    assert [interrupt.value["tool_call_id"] for interrupt in interrupts] == ["call_1"]
+    assert len({interrupt.id for interrupt in interrupts}) == 1
+    assert [preview["tool_call_id"] for preview in interrupts[0].value["tool_result_previews"]] == [
+        f"call_{index}" for index in range(1, 6)
+    ]
+
+    for index in range(1, 6):
+        await graph.ainvoke(
+            Command(
+                resume={
+                    interrupts[0].id: {
+                        "action_type": "tool_approval",
+                        "approval_id": interrupts[0].id,
+                        "approved": True,
+                    }
+                }
+            ),
+            config=config,
+        )
+        resumed_state = await graph.aget_state(config)
+        interrupts = [
+            interrupt
+            for task in resumed_state.tasks
+            for interrupt in getattr(task, "interrupts", ())
+        ]
+        if index < 5:
+            assert [interrupt.value["tool_call_id"] for interrupt in interrupts] == [
+                f"call_{index + 1}"
+            ]
+        else:
+            assert resumed_state.next == ()
+
+    tool_messages = [message for message in resumed_state.values["messages"] if isinstance(message, ToolMessage)]
+    assert [json.loads(message.content)["value"] for message in tool_messages] == [
+        str(index) for index in range(1, 6)
+    ]

@@ -1343,6 +1343,8 @@
       "reviewer": "Reviewing changes..."
     },
     "applyingChanges": "Applying changes...",
+    "waitingForApproval": "Waiting for approval...",
+    "waitingForAnswer": "Waiting for an answer...",
     "toolApprovalRequiredFallback": "Tool call requires approval",
     "agentRunFailed": "Agent run failed",
     "agentConnectionFailed": "Agent connection failed: {{error}}",

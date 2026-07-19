@@ -1406,6 +1406,8 @@
       "reviewer": "正在审核修改..."
     },
     "applyingChanges": "正在应用修改...",
+    "waitingForApproval": "正在等待审批...",
+    "waitingForAnswer": "正在等待回答...",
     "toolApprovalRequiredFallback": "工具调用需要审批",
     "agentRunFailed": "Agent 运行失败",
     "agentConnectionFailed": "Agent 连接失败：{{error}}",

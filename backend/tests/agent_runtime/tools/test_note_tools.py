@@ -370,6 +370,101 @@ async def test_write_note_creates_note_and_returns_success() -> None:
     assert data["metadata"]["note_diff"]["sections"][0]["type"] == "content"
 
 
+async def test_write_note_builds_approval_diff_preview() -> None:
+    from app.agent_runtime.tools.impls.note.write_note import WriteNoteTool
+
+    runtime_session = AsyncMock()
+    tool = WriteNoteTool(_state=_make_state())
+    object.__setattr__(tool, "_config", {"configurable": {"db_session": runtime_session}})
+
+    with patch(
+        "app.agent_runtime.tools.impls.note.write_note.note_repo.list_by_project",
+        AsyncMock(return_value=[]),
+    ):
+        preview = await tool.build_interrupt_preview(
+            {"title": "新笔记", "content": "第一行\n第二行"}
+        )
+
+    assert preview is not None
+    assert preview["type"] == "preview"
+    assert preview["success"] is True
+    assert preview["reason"] == "approval_preview"
+    assert preview["metadata"]["note_diff"] == {
+        "operation": "create",
+        "note_title": "新笔记",
+        "category_id": None,
+        "sections": [
+            {
+                "type": "content",
+                "lines": [
+                    {
+                        "type": "added",
+                        "before_line_number": None,
+                        "after_line_number": 1,
+                        "text": "第一行",
+                    },
+                    {
+                        "type": "added",
+                        "before_line_number": None,
+                        "after_line_number": 2,
+                        "text": "第二行",
+                    },
+                ],
+            }
+        ],
+    }
+
+
+async def test_edit_note_builds_approval_diff_preview() -> None:
+    from app.agent_runtime.tools.impls.note.edit_note import EditNoteTool
+
+    runtime_session = AsyncMock()
+    note = _make_note(note_id="note-1", title="测试笔记", content="旧内容")
+    tool = EditNoteTool(_state=_make_state())
+    object.__setattr__(tool, "_config", {"configurable": {"db_session": runtime_session}})
+
+    with patch(
+        "app.agent_runtime.tools.impls.note.edit_note.note_repo.get_by_id",
+        AsyncMock(return_value=note),
+    ):
+        preview = await tool.build_interrupt_preview(
+            {
+                "note_ref": {"id": "note-1"},
+                "old_content": "旧内容",
+                "new_content": "新内容",
+            }
+        )
+
+    assert preview is not None
+    assert preview["type"] == "preview"
+    assert preview["success"] is True
+    assert preview["reason"] == "approval_preview"
+    assert preview["metadata"]["note_diff"] == {
+        "operation": "update",
+        "note_id": "note-1",
+        "note_title": "测试笔记",
+        "sections": [
+            {
+                "type": "content",
+                "lines": [
+                    {
+                        "type": "removed",
+                        "before_line_number": 1,
+                        "after_line_number": None,
+                        "text": "旧内容",
+                    },
+                    {
+                        "type": "added",
+                        "before_line_number": None,
+                        "after_line_number": 1,
+                        "text": "新内容",
+                    },
+                ],
+            }
+        ],
+    }
+
+
 async def test_move_note_rejects_locked_note() -> None:
     from app.agent_runtime.tools.impls.note.move_note import MoveNoteTool
 
@@ -484,5 +579,31 @@ async def test_create_note_category_returns_success_and_metadata() -> None:
         "success": True,
         "metadata": {
             "category": {"id": "cat-new", "title": "新分类", "parent_id": "cat-1"}
+        },
+    }
+
+
+async def test_create_note_category_builds_approval_preview() -> None:
+    from app.agent_runtime.tools.impls.note.create_note_category import CreateNoteCategoryTool
+
+    runtime_session = AsyncMock()
+    tool = CreateNoteCategoryTool(_state=_make_state())
+    object.__setattr__(tool, "_config", {"configurable": {"db_session": runtime_session}})
+
+    with patch(
+        "app.agent_runtime.tools.impls.note.create_note_category.note_category_repo.list_by_project",
+        AsyncMock(return_value=[_make_category(category_id="cat-1", title="已有分类")]),
+    ):
+        preview = await tool.build_interrupt_preview({"title": "新分类"})
+
+    assert preview == {
+        "type": "preview",
+        "success": True,
+        "reason": "approval_preview",
+        "metadata": {
+            "category": {
+                "title": "新分类",
+                "parent_id": None,
+            }
         },
     }

@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -127,10 +128,9 @@ def _build_world_entry_diff(
         lines = _diff_lines(before.content, after.content) if before.content != after.content else []
     return {
         "operation": operation,
-        "entry_id": target.id,
         "entry_title": target.title,
         "sections": [{"type": "content", "lines": lines}],
-    }
+    } | ({"entry_id": target.id} if target.id else {})
 
 
 async def _get_project_world_info(session, project_id: str):
@@ -240,6 +240,34 @@ class CreateWorldEntryTool(AgentTool):
     access_level: str = "write"
     args_schema: type[BaseModel] = CreateWorldEntryInput
 
+    async def build_interrupt_preview(self, args: dict[str, Any]) -> dict | None:
+        session = self.get_runtime_db_session()
+        title = args.get("title")
+        content = args.get("content")
+        if session is None or not isinstance(title, str) or not isinstance(content, str):
+            return None
+        try:
+            world_info = await _get_project_world_info(session, self.project_id)
+            normalized_title = await _ensure_title_available(session, world_info.id, title)
+        except ToolExecutionError:
+            return None
+        after = WorldEntryPreview(
+            id="",
+            title=normalized_title,
+            uid=0,
+            order=0,
+            content=content,
+            token_count=0,
+            is_enabled=True,
+        )
+        return {
+            "type": "preview",
+            "success": True,
+            "reason": "approval_preview",
+            "message": "世界书条目创建待审批",
+            "metadata": {"world_entry_diff": _build_world_entry_diff(None, after)},
+        }
+
     async def _execute(self, title: str, content: str) -> str:
         revision_id = _require_revision_id(self._state)
         session = await create_session()
@@ -285,6 +313,62 @@ class EditWorldEntryTool(AgentTool):
     description: str = "编辑项目世界书中的设定条目"
     access_level: str = "write"
     args_schema: type[BaseModel] = EditWorldEntryInput
+
+    async def build_interrupt_preview(self, args: dict[str, Any]) -> dict | None:
+        session = self.get_runtime_db_session()
+        title = args.get("title")
+        new_title = args.get("new_title")
+        old_content = args.get("old_content")
+        new_content = args.get("new_content")
+        if (
+            session is None
+            or not isinstance(title, str)
+            or (new_title is not None and not isinstance(new_title, str))
+            or (old_content is not None and not isinstance(old_content, str))
+            or (new_content is not None and not isinstance(new_content, str))
+        ):
+            return None
+        try:
+            world_info = await _get_project_world_info(session, self.project_id)
+            entry = await _resolve_entry_by_title(session, world_info.id, title)
+            before = _preview_from_entry(entry)
+            content = before.content
+            if old_content is not None and new_content is not None:
+                if old_content not in content:
+                    return None
+                content = (
+                    content.replace(old_content, new_content)
+                    if bool(args.get("replace_all"))
+                    else content.replace(old_content, new_content, 1)
+                )
+            updated_title = (
+                await _ensure_title_available(
+                    session,
+                    world_info.id,
+                    new_title,
+                    exclude_entry_id=entry.id,
+                )
+                if new_title is not None
+                else before.title
+            )
+        except ToolExecutionError:
+            return None
+        after = WorldEntryPreview(
+            id=before.id,
+            title=updated_title,
+            uid=before.uid,
+            order=before.order,
+            content=content,
+            token_count=before.token_count,
+            is_enabled=before.is_enabled,
+        )
+        return {
+            "type": "preview",
+            "success": True,
+            "reason": "approval_preview",
+            "message": "世界书条目修改待审批",
+            "metadata": {"world_entry_diff": _build_world_entry_diff(before, after)},
+        }
 
     async def _execute(
         self,

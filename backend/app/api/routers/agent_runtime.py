@@ -39,6 +39,7 @@ from app.agent_runtime.runner.checkpointer import (
 from app.agent_runtime.runner.session_runner import SessionRunner
 from app.agent_runtime.runner.subagent_runner import SubagentRunner
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
+from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buffer
 from app.agent_runtime.tools import ToolRegistry
 from app.agent_runtime.tools.impls.orchestration.common import ensure_child_processing
 from app.api.schemas.agent import (
@@ -1149,6 +1150,10 @@ async def rollback_agent_session(
         revision_id=request.revision_id,
     )
     await session.commit()
+
+    replay_buffer = get_agent_event_replay_buffer()
+    async with replay_buffer.session_lock(session_id):
+        replay_buffer.clear_session_unlocked(session_id)
 
     if result.restored_checkpoint_id:
         try:

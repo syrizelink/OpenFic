@@ -466,6 +466,34 @@ async def test_create_volume_appends_to_project() -> None:
     mock_session.commit.assert_called_once()
 
 
+async def test_create_volume_builds_approval_preview() -> None:
+    from app.agent_runtime.tools.impls.chapter.create_volume import CreateVolumeTool
+
+    runtime_session = AsyncMock()
+    tool = CreateVolumeTool(_state=_make_state())
+    object.__setattr__(tool, "_config", {"configurable": {"db_session": runtime_session}})
+
+    with patch(
+        "app.agent_runtime.tools.impls.chapter.create_volume.volume_repo.get_max_order",
+        AsyncMock(return_value=2),
+    ):
+        preview = await tool.build_interrupt_preview({"title": "第三卷", "description": "终局"})
+
+    assert preview == {
+        "type": "preview",
+        "success": True,
+        "reason": "approval_preview",
+        "metadata": {
+            "volume": {
+                "order": 3,
+                "title": "第三卷",
+                "description": "终局",
+                "chapter_count": 0,
+            }
+        },
+    }
+
+
 async def test_edit_volume_updates_title_and_description() -> None:
     from app.agent_runtime.tools.impls.chapter.edit_volume import EditVolumeTool
 
@@ -502,6 +530,41 @@ async def test_edit_volume_updates_title_and_description() -> None:
         },
     }
     update_volume.assert_awaited_once_with(mock_session, volume)
+
+
+async def test_edit_volume_builds_approval_preview() -> None:
+    from app.agent_runtime.tools.impls.chapter.edit_volume import EditVolumeTool
+
+    runtime_session = AsyncMock()
+    volume = _make_volume(title="旧卷", description="旧描述")
+    tool = EditVolumeTool(_state=_make_state())
+    object.__setattr__(tool, "_config", {"configurable": {"db_session": runtime_session}})
+
+    with patch(
+        "app.agent_runtime.tools.impls.chapter.edit_volume.volume_repo.list_by_project",
+        AsyncMock(return_value=[volume]),
+    ):
+        preview = await tool.build_interrupt_preview(
+            {
+                "volume_ref": {"type": "title", "value": "旧卷"},
+                "new_title": "新卷",
+                "new_description": "新描述",
+            }
+        )
+
+    assert preview == {
+        "type": "preview",
+        "success": True,
+        "reason": "approval_preview",
+        "metadata": {
+            "volume": {
+                "order": 1,
+                "title": "新卷",
+                "description": "新描述",
+                "chapter_count": 2,
+            }
+        },
+    }
 
 
 async def test_delete_volume_requires_cascade_for_non_empty_volume() -> None:

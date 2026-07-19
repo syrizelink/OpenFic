@@ -1,5 +1,6 @@
 import json
 from datetime import UTC, datetime
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -36,6 +37,37 @@ class EditVolumeTool(AgentTool):
     description: str = "编辑指定卷的标题或说明"
     access_level: str = "write"
     args_schema: type[BaseModel] = EditVolumeInput
+
+    async def build_interrupt_preview(self, args: dict[str, Any]) -> dict | None:
+        session = self.get_runtime_db_session()
+        volume_ref = args.get("volume_ref")
+        new_title = args.get("new_title")
+        new_description = args.get("new_description")
+        if (
+            session is None
+            or not isinstance(volume_ref, dict)
+            or (new_title is not None and not isinstance(new_title, str))
+            or (new_description is not None and not isinstance(new_description, str))
+        ):
+            return None
+        volume = resolve_volume_from_list(
+            await volume_repo.list_by_project(session, self.project_id),
+            VolumeRef.model_validate(volume_ref),
+        )
+        return {
+            "type": "preview",
+            "success": True,
+            "reason": "approval_preview",
+            "metadata": {
+                "volume": {
+                    **serialize_volume(volume),
+                    "title": new_title if new_title is not None else volume.title,
+                    "description": (
+                        new_description if new_description is not None else volume.description
+                    ),
+                }
+            },
+        }
 
     async def _execute(
         self,

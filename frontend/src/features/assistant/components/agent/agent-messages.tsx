@@ -430,8 +430,8 @@ export function AgentMessages({
     [collapsedNodeIds, messageBlocks],
   );
   const toolbarTargets = useMemo(
-    () => getAgentRoundToolbarTargets(messageBlocks, visibleMessageBlocks, { isRunning }),
-    [isRunning, messageBlocks, visibleMessageBlocks],
+    () => getAgentRoundToolbarTargets(messageBlocks, visibleMessageBlocks, { isRunning, status }),
+    [isRunning, messageBlocks, status, visibleMessageBlocks],
   );
   const toolbarTargetByAnchorId = useMemo(
     () => new Map(toolbarTargets.map((target) => [target.anchorBlockId, target])),
@@ -676,9 +676,8 @@ export function AgentMessages({
           );
         })}
 
-        {isRunning && status === "running" && currentStage && (
-          <AgentStatusMessage content={currentStage} />
-        )}
+        {(status === "running" || status === "waiting_answer" || status === "waiting_approval") &&
+          currentStage && <AgentStatusMessage content={currentStage} />}
         <Box
           ref={bottomRef}
           className="agent-message-bottom-anchor"

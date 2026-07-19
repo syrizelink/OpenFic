@@ -116,6 +116,17 @@ function isPendingApprovalToolMessage(
   return Boolean(approvalToolName && message.toolName === approvalToolName);
 }
 
+function isApprovalForToolMessage(
+  approvalMessage: AgentMessage,
+  toolMessage: AgentMessage,
+): boolean {
+  if (approvalMessage.type !== "approval" || toolMessage.type !== "tool") return false;
+  const approvalToolCallId = approvalMessage.toolApproval?.tool_call_id;
+  if (approvalToolCallId) return approvalToolCallId === getMessageToolCallId(toolMessage);
+  const approvalToolName = approvalMessage.toolApproval?.tool_name;
+  return Boolean(approvalToolName && approvalToolName === toolMessage.toolName);
+}
+
 function isSameToolMessageByFallback(item: AgentMessage, message: AgentMessage): boolean {
   if (item.type !== "tool" || message.type !== "tool") return false;
   if (!item.isStreaming && item.status !== "running") return false;
@@ -642,9 +653,7 @@ export function applyAgentTranscriptEvent(
 
     if (message.type === "approval") {
       const previewToolMessage = options.approvalPreviewFactory?.(message) ?? null;
-      const stopped = stopTranscriptStreamingMessages(clearRetryMessages(baseMessages)).filter(
-        (item) => item.type !== "approval" && item.type !== "tool_approval",
-      );
+      const stopped = stopTranscriptStreamingMessages(clearRetryMessages(baseMessages));
       const withoutPendingTool = previewToolMessage
         ? stopped
         : stopped.filter((item) => !isPendingApprovalToolMessage(item, message));
@@ -658,7 +667,7 @@ export function applyAgentTranscriptEvent(
           messages: nextMessages,
           status: "waiting_approval",
           isRunning: false,
-          currentStage: "",
+          currentStage: i18n.t("assistant.waitingForApproval"),
         },
         message,
       };
@@ -676,7 +685,7 @@ export function applyAgentTranscriptEvent(
           ),
           status: "waiting_answer",
           isRunning: false,
-          currentStage: "",
+          currentStage: i18n.t("assistant.waitingForAnswer"),
         },
         message,
       };
@@ -686,7 +695,7 @@ export function applyAgentTranscriptEvent(
       const nextMessages = upsertTranscriptStreamingMessage(
         clearRetryMessages(
           stopStreamingReasoning(stopStreamingAssistantOutput(baseMessages)),
-        ).filter((item) => item.type !== "approval" && item.type !== "tool_approval"),
+        ).filter((item) => !isApprovalForToolMessage(item, message)),
         message,
       );
       return {

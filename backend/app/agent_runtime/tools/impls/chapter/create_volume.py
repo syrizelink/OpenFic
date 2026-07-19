@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -32,6 +33,31 @@ class CreateVolumeTool(AgentTool):
     description: str = "创建一个新卷"
     access_level: str = "write"
     args_schema: type[BaseModel] = CreateVolumeInput
+
+    async def build_interrupt_preview(self, args: dict[str, Any]) -> dict | None:
+        session = self.get_runtime_db_session()
+        title = args.get("title")
+        description = args.get("description")
+        if (
+            session is None
+            or not isinstance(title, str)
+            or (description is not None and not isinstance(description, str))
+        ):
+            return None
+        max_order = await volume_repo.get_max_order(session, self.project_id)
+        return {
+            "type": "preview",
+            "success": True,
+            "reason": "approval_preview",
+            "metadata": {
+                "volume": {
+                    "order": max_order + 1,
+                    "title": title,
+                    "description": description,
+                    "chapter_count": 0,
+                }
+            },
+        }
 
     async def _execute(self, title: str, description: str | None = None) -> str:
         session = await create_session()

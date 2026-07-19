@@ -23,6 +23,10 @@ export function AgentSpecialPanels({
   const variant = getAgentSpecialPanelVariant(embedded);
 
   if (panels.length === 0) return null;
+  const firstApprovalIndex = panels.findIndex((panel) => panel.kind === "approval");
+  const visiblePanels = panels.filter(
+    (panel, index) => panel.kind !== "approval" || index === firstApprovalIndex,
+  );
 
   return (
     <Flex
@@ -41,7 +45,7 @@ export function AgentSpecialPanels({
         filter: embedded ? "none" : undefined,
       }}
     >
-      {panels.map((panel) => {
+      {visiblePanels.map((panel) => {
         if (panel.kind === "question") {
           return (
             <ClarificationSpecialPanel

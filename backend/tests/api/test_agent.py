@@ -2252,6 +2252,17 @@ class TestAgentAPI:
         delete_checkpoints_after_mock = AsyncMock()
         delete_checkpoints_for_thread_mock = AsyncMock()
         emit_mock = AsyncMock()
+        async with buffer.session_lock("sess-rollback"):
+            buffer.record_unlocked(
+                "agent:tool_call",
+                {
+                    "session_id": "sess-rollback",
+                    "run_id": "rolled-back-run",
+                    "tool_call_id": "rolled-back-tool",
+                    "tool": "write_chapter",
+                    "input": {"title": "不应重放"},
+                },
+            )
 
         with (
             patch(
@@ -2305,6 +2316,7 @@ class TestAgentAPI:
         )
         delete_checkpoints_for_thread_mock.assert_awaited_once_with(child.child_thread_id)
         replayed = buffer.replay_events_unlocked("sess-rollback")
+        assert all(event.name != "agent:tool_call" for event in replayed)
         rollback_statuses = [
             event.data
             for event in replayed

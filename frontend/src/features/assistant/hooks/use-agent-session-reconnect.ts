@@ -70,10 +70,18 @@ export function getLoadedAgentSessionState({
     return { status: "error", isRunning: false, currentStage: "" };
   }
   if (lastMessage.type === "clarification" || lastMessage.type === "question") {
-    return { status: "waiting_answer", isRunning: false, currentStage: "" };
+    return {
+      status: "waiting_answer",
+      isRunning: false,
+      currentStage: i18n.t("assistant.waitingForAnswer"),
+    };
   }
   if (lastMessage.type === "tool_approval" || lastMessage.type === "approval") {
-    return { status: "waiting_approval", isRunning: false, currentStage: "" };
+    return {
+      status: "waiting_approval",
+      isRunning: false,
+      currentStage: i18n.t("assistant.waitingForApproval"),
+    };
   }
   return { status: "idle", isRunning: false, currentStage: "" };
 }

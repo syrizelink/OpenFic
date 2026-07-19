@@ -75,6 +75,61 @@ class EditNoteTool(AgentTool):
     access_level: str = "write"
     args_schema: type[BaseModel] = EditNoteInput
 
+    async def build_interrupt_preview(self, args: dict[str, Any]) -> dict | None:
+        session = self.get_runtime_db_session()
+        note_ref = args.get("note_ref")
+        old_content = args.get("old_content")
+        new_content = args.get("new_content")
+        if (
+            session is None
+            or not isinstance(note_ref, dict)
+            or not isinstance(old_content, str)
+            or not isinstance(new_content, str)
+        ):
+            return None
+
+        ref = NoteRef.model_validate(note_ref)
+        if ref.id is not None:
+            note = await note_repo.get_by_id(session, ref.id)
+            if note is None:
+                return None
+        else:
+            notes = await note_repo.list_by_project(session, self.project_id, include_hidden=False)
+            categories = await note_category_repo.list_by_project(session, self.project_id)
+            try:
+                note = resolve_note_from_list(notes, ref, categories=categories)
+            except ToolExecutionError:
+                return None
+
+        if (
+            note.project_id != self.project_id
+            or note.is_locked
+            or note.is_hidden
+            or old_content not in note.content
+        ):
+            return None
+
+        preview_content = note.content.replace(old_content, new_content)
+        return {
+            "type": "preview",
+            "success": True,
+            "reason": "approval_preview",
+            "message": "笔记修改待审批",
+            "metadata": {
+                "note_diff": {
+                    "operation": "update",
+                    "note_id": note.id,
+                    "note_title": note.title,
+                    "sections": [
+                        {
+                            "type": "content",
+                            "lines": _build_diff_lines(note.content, preview_content),
+                        }
+                    ],
+                }
+            },
+        }
+
     async def _execute(
         self,
         note_ref: dict,
