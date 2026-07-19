@@ -21,8 +21,6 @@ export interface AgentToolPermission {
 
 export interface AgentToolMetadata {
   key: string;
-  name: string;
-  description: string;
   isReadonly: boolean;
 }
 

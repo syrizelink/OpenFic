@@ -15,110 +15,46 @@ SETTING_KEY_AGENT_TOOL_PERMISSIONS = "agent_tool_permissions"
 SETTING_KEY_AGENT_BYPASS_TOOL_APPROVAL = "agent_bypass_tool_approval"
 
 _PERMISSION_METADATA_BY_TOOL_NAME = {
-    "ask_user": ToolPermissionMetadata(
-        permission_key="ask_user",
-        default_mode="allow",
-    ),
-    "write_plan": ToolPermissionMetadata(
-        permission_key="write_plan",
-        default_mode="ask",
-    ),
-    "read_chapter": ToolPermissionMetadata(
-        permission_key="read_chapter",
-        default_mode="allow",
-    ),
-    "search_chapters": ToolPermissionMetadata(
-        permission_key="search_chapters",
-        default_mode="allow",
-    ),
-    "update_index": ToolPermissionMetadata(
-        permission_key="update_index",
-        default_mode="allow",
-    ),
-    "list_chapters": ToolPermissionMetadata(
-        permission_key="list_chapters",
-        default_mode="allow",
-    ),
-    "list_volumes": ToolPermissionMetadata(
-        permission_key="list_volumes",
-        default_mode="allow",
-    ),
-    "read_chapter_summaries": ToolPermissionMetadata(
-        permission_key="read_chapter_summaries",
-        default_mode="allow",
-    ),
-    "read_range_summaries": ToolPermissionMetadata(
-        permission_key="read_range_summaries",
-        default_mode="allow",
-    ),
-    "list_characters": ToolPermissionMetadata(
-        permission_key="list_characters",
-        default_mode="allow",
-    ),
-    "read_character": ToolPermissionMetadata(
-        permission_key="read_character",
-        default_mode="allow",
-    ),
-    "create_character": ToolPermissionMetadata(
-        permission_key="create_character",
-        default_mode="ask",
-    ),
-    "edit_character": ToolPermissionMetadata(
-        permission_key="edit_character",
-        default_mode="ask",
-    ),
-    "delete_character": ToolPermissionMetadata(
-        permission_key="delete_character",
-        default_mode="ask",
-    ),
-    "list_world_entries": ToolPermissionMetadata(
-        permission_key="list_world_entries",
-        default_mode="allow",
-    ),
-    "read_world_entry": ToolPermissionMetadata(
-        permission_key="read_world_entry",
-        default_mode="allow",
-    ),
-    "create_world_entry": ToolPermissionMetadata(
-        permission_key="create_world_entry",
-        default_mode="ask",
-    ),
-    "edit_world_entry": ToolPermissionMetadata(
-        permission_key="edit_world_entry",
-        default_mode="ask",
-    ),
-    "delete_world_entry": ToolPermissionMetadata(
-        permission_key="delete_world_entry",
-        default_mode="ask",
-    ),
-    "write_chapter": ToolPermissionMetadata(
-        permission_key="write_chapter",
-        default_mode="ask",
-    ),
-    "edit_chapter": ToolPermissionMetadata(
-        permission_key="edit_chapter",
-        default_mode="ask",
-    ),
-    "delete_chapter": ToolPermissionMetadata(
-        permission_key="delete_chapter",
-        default_mode="ask",
-    ),
-    "create_volume": ToolPermissionMetadata(
-        permission_key="create_volume",
-        default_mode="ask",
-    ),
-    "edit_volume": ToolPermissionMetadata(
-        permission_key="edit_volume",
-        default_mode="ask",
-    ),
-    "delete_volume": ToolPermissionMetadata(
-        permission_key="delete_volume",
-        default_mode="ask",
-    ),
-    "move_chapter_to_volume": ToolPermissionMetadata(
-        permission_key="move_chapter_to_volume",
-        default_mode="ask",
-    ),
+    "activate_skill": ToolPermissionMetadata("activate_skill", "allow"),
+    "ask_user": ToolPermissionMetadata("ask_user", "allow"),
+    "create_character": ToolPermissionMetadata("create_character", "ask"),
+    "create_note_category": ToolPermissionMetadata("create_note_category", "ask"),
+    "create_volume": ToolPermissionMetadata("create_volume", "ask"),
+    "create_world_entry": ToolPermissionMetadata("create_world_entry", "ask"),
+    "delete_chapter": ToolPermissionMetadata("delete_chapter", "ask"),
+    "delete_character": ToolPermissionMetadata("delete_character", "ask"),
+    "delete_note": ToolPermissionMetadata("delete_note", "ask"),
+    "delete_note_category": ToolPermissionMetadata("delete_note_category", "ask"),
+    "delete_volume": ToolPermissionMetadata("delete_volume", "ask"),
+    "delete_world_entry": ToolPermissionMetadata("delete_world_entry", "ask"),
+    "dispatch_subagent": ToolPermissionMetadata("dispatch_subagent", "allow"),
+    "edit_chapter": ToolPermissionMetadata("edit_chapter", "ask"),
+    "edit_character": ToolPermissionMetadata("edit_character", "ask"),
+    "edit_note": ToolPermissionMetadata("edit_note", "ask"),
+    "edit_note_category": ToolPermissionMetadata("edit_note_category", "ask"),
+    "edit_volume": ToolPermissionMetadata("edit_volume", "ask"),
+    "edit_world_entry": ToolPermissionMetadata("edit_world_entry", "ask"),
+    "list_chapters": ToolPermissionMetadata("list_chapters", "allow"),
+    "list_characters": ToolPermissionMetadata("list_characters", "allow"),
+    "list_notes": ToolPermissionMetadata("list_notes", "allow"),
+    "list_volumes": ToolPermissionMetadata("list_volumes", "allow"),
+    "list_world_entries": ToolPermissionMetadata("list_world_entries", "allow"),
+    "move_chapter_to_volume": ToolPermissionMetadata("move_chapter_to_volume", "ask"),
+    "move_note": ToolPermissionMetadata("move_note", "ask"),
+    "notify_subagent": ToolPermissionMetadata("notify_subagent", "allow"),
+    "read_chapter": ToolPermissionMetadata("read_chapter", "allow"),
+    "read_chapter_summaries": ToolPermissionMetadata("read_chapter_summaries", "allow"),
+    "read_character": ToolPermissionMetadata("read_character", "allow"),
+    "read_note": ToolPermissionMetadata("read_note", "allow"),
+    "read_range_summaries": ToolPermissionMetadata("read_range_summaries", "allow"),
+    "read_world_entry": ToolPermissionMetadata("read_world_entry", "allow"),
+    "recycle_subagent": ToolPermissionMetadata("recycle_subagent", "allow"),
+    "reference_skill": ToolPermissionMetadata("reference_skill", "allow"),
+    "search_chapters": ToolPermissionMetadata("search_chapters", "allow"),
+    "update_index": ToolPermissionMetadata("update_index", "allow"),
+    "write_chapter": ToolPermissionMetadata("write_chapter", "ask"),
+    "write_note": ToolPermissionMetadata("write_note", "ask"),
+    "write_plan": ToolPermissionMetadata("write_plan", "ask"),
 }
 
 

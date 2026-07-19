@@ -113,146 +113,162 @@ class TestAgentAPI:
         assert response.json() == [
             {
                 "key": "ask_user",
-                "name": "Ask",
-                "description": "向用户提问以获取继续执行所需的信息。",
                 "is_readonly": True,
             },
             {
                 "key": "write_plan",
-                "name": "Write Plan",
-                "description": "全量覆盖当前会话的计划 Todo 列表。",
                 "is_readonly": False,
             },
             {
-                "key": "read_chapter",
-                "name": "Read",
-                "description": "读取指定章节内容供 Agent 参考。",
+                "key": "dispatch_subagent",
                 "is_readonly": True,
             },
             {
-                "key": "list_chapters",
-                "name": "List",
-                "description": "列出指定卷内章节供 Agent 定位上下文。",
+                "key": "notify_subagent",
+                "is_readonly": True,
+            },
+            {
+                "key": "recycle_subagent",
                 "is_readonly": True,
             },
             {
                 "key": "list_volumes",
-                "name": "List Volumes",
-                "description": "列出项目卷信息供 Agent 定位章节。",
+                "is_readonly": True,
+            },
+            {
+                "key": "list_chapters",
+                "is_readonly": True,
+            },
+            {
+                "key": "read_chapter",
+                "is_readonly": True,
+            },
+            {
+                "key": "search_chapters",
+                "is_readonly": True,
+            },
+            {
+                "key": "update_index",
+                "is_readonly": False,
+            },
+            {
+                "key": "read_chapter_summaries",
+                "is_readonly": True,
+            },
+            {
+                "key": "read_range_summaries",
                 "is_readonly": True,
             },
             {
                 "key": "write_chapter",
-                "name": "Write",
-                "description": "在指定卷内创建章节。",
                 "is_readonly": False,
             },
             {
                 "key": "edit_chapter",
-                "name": "Edit",
-                "description": "精确替换现有章节的标题或正文片段。",
                 "is_readonly": False,
             },
             {
                 "key": "delete_chapter",
-                "name": "Delete",
-                "description": "删除指定章节。",
                 "is_readonly": False,
             },
             {
                 "key": "create_volume",
-                "name": "Create Volume",
-                "description": "在项目末尾创建新卷。",
                 "is_readonly": False,
             },
             {
                 "key": "edit_volume",
-                "name": "Edit Volume",
-                "description": "编辑指定卷的标题或说明。",
                 "is_readonly": False,
             },
             {
                 "key": "delete_volume",
-                "name": "Delete Volume",
-                "description": "删除指定卷。",
                 "is_readonly": False,
             },
             {
                 "key": "move_chapter_to_volume",
-                "name": "Move Chapter",
-                "description": "将指定章节移动到目标卷末尾。",
+                "is_readonly": False,
+            },
+            {
+                "key": "list_notes",
+                "is_readonly": True,
+            },
+            {
+                "key": "read_note",
+                "is_readonly": True,
+            },
+            {
+                "key": "write_note",
+                "is_readonly": False,
+            },
+            {
+                "key": "edit_note",
+                "is_readonly": False,
+            },
+            {
+                "key": "delete_note",
+                "is_readonly": False,
+            },
+            {
+                "key": "move_note",
+                "is_readonly": False,
+            },
+            {
+                "key": "create_note_category",
+                "is_readonly": False,
+            },
+            {
+                "key": "edit_note_category",
+                "is_readonly": False,
+            },
+            {
+                "key": "delete_note_category",
                 "is_readonly": False,
             },
             {
                 "key": "list_characters",
-                "name": "List Characters",
-                "description": "列出当前项目角色名称。",
                 "is_readonly": True,
             },
             {
                 "key": "read_character",
-                "name": "Read Character",
-                "description": "根据名称读取角色描述。",
                 "is_readonly": True,
             },
             {
                 "key": "create_character",
-                "name": "Create Character",
-                "description": "在当前项目中创建角色。",
                 "is_readonly": False,
             },
             {
                 "key": "edit_character",
-                "name": "Edit Character",
-                "description": "编辑角色的名称或描述。",
                 "is_readonly": False,
             },
             {
                 "key": "delete_character",
-                "name": "Delete Character",
-                "description": "删除指定角色。",
                 "is_readonly": False,
             },
             {
                 "key": "list_world_entries",
-                "name": "List World Entries",
-                "description": "列出当前项目世界书条目标题。",
                 "is_readonly": True,
             },
             {
                 "key": "read_world_entry",
-                "name": "Read World Entry",
-                "description": "根据标题读取世界书条目内容。",
                 "is_readonly": True,
             },
             {
                 "key": "create_world_entry",
-                "name": "Create World Entry",
-                "description": "在当前项目世界书中创建条目。",
                 "is_readonly": False,
             },
             {
                 "key": "edit_world_entry",
-                "name": "Edit World Entry",
-                "description": "编辑世界书条目的标题或内容。",
                 "is_readonly": False,
             },
             {
                 "key": "delete_world_entry",
-                "name": "Delete World Entry",
-                "description": "删除指定世界书条目。",
                 "is_readonly": False,
             },
             {
                 "key": "activate_skill",
-                "name": "Activate Skill",
-                "description": "获取指定技能的完整内容与参考文档列表。",
                 "is_readonly": True,
             },
             {
                 "key": "reference_skill",
-                "name": "Reference Skill",
-                "description": "读取指定技能的某个参考文档内容。",
                 "is_readonly": True,
             },
         ]

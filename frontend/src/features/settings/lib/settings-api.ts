@@ -67,15 +67,11 @@ export async function fetchAgentTools(): Promise<AgentToolMetadata[]> {
   const response = await apiClient.get<
     Array<{
       key: string;
-      name: string;
-      description: string;
       is_readonly: boolean;
     }>
   >("/agent/tools");
   return response.data.map((tool) => ({
     key: tool.key,
-    name: tool.name,
-    description: tool.description,
     isReadonly: tool.is_readonly,
   }));
 }

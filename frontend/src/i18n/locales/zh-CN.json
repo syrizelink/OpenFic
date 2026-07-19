@@ -285,8 +285,8 @@
       "noModelsMessage": "暂无可用模型，",
       "noModelsAction": "前往添加",
       "openRetrievalIndex": "索引",
-      "toolApprovalBypassOn": "工具审批已放行",
-      "toolApprovalBypassOff": "工具审批未放行",
+      "toolApprovalBypassOn": "自动工具审批已启用，权限请求将自动放行",
+      "toolApprovalBypassOff": "自动工具审批已禁用，点击启用以自动放行权限请求",
       "attachmentDisabled": "附件功能即将推出",
       "webSearchDisabled": "联网功能即将推出",
       "imageDisabled": "图片功能即将推出",
@@ -552,6 +552,168 @@
     "agentToolsDescription": "配置 Agent 调用各个工具时的默认权限策略。",
     "agentToolsEmpty": "当前没有可配置的工具。",
     "agentToolsLoadFailed": "工具列表加载失败。",
+    "agentTool": {
+      "askUser": {
+        "name": "提问",
+        "description": "向你提问以获取所需的信息"
+      },
+      "writePlan": {
+        "name": "计划",
+        "description": "为会话写入待办列表以组织完成工作"
+      },
+      "readChapter": {
+        "name": "读取章节",
+        "description": "读取指定章节内容"
+      },
+      "searchChapters": {
+        "name": "搜索章节",
+        "description": "用于章节内容的，基于向量的自然语义检索"
+      },
+      "updateIndex": {
+        "name": "更新索引",
+        "description": "更新章节的语义向量索引"
+      },
+      "listChapters": {
+        "name": "列出章节",
+        "description": "列出指定卷内的所有章节"
+      },
+      "listVolumes": {
+        "name": "列出分卷",
+        "description": "列出所有分卷信息"
+      },
+      "readChapterSummaries": {
+        "name": "读取章节摘要",
+        "description": "读取指定章节的摘要内容"
+      },
+      "readRangeSummaries": {
+        "name": "读取区间摘要",
+        "description": "读取指定章节范围的区间摘要内容"
+      },
+      "writeChapter": {
+        "name": "创建章节",
+        "description": "在卷内创建章节"
+      },
+      "editChapter": {
+        "name": "编辑章节",
+        "description": "编辑章节标题或内容"
+      },
+      "deleteChapter": {
+        "name": "删除章节",
+        "description": "在卷内删除一个章节"
+      },
+      "createVolume": {
+        "name": "创建分卷",
+        "description": "创建一个新分卷"
+      },
+      "editVolume": {
+        "name": "编辑分卷",
+        "description": "编辑分卷的标题或说明"
+      },
+      "deleteVolume": {
+        "name": "删除分卷",
+        "description": "删除指定分卷"
+      },
+      "moveChapterToVolume": {
+        "name": "移动章节",
+        "description": "将章节移动到目标分卷末尾"
+      },
+      "listNotes": {
+        "name": "列出笔记",
+        "description": "列出目录下所有笔记及分类"
+      },
+      "readNote": {
+        "name": "读取笔记",
+        "description": "读取一个指定笔记的内容"
+      },
+      "writeNote": {
+        "name": "创建笔记",
+        "description": "在指定目录中创建笔记"
+      },
+      "editNote": {
+        "name": "编辑笔记",
+        "description": "编辑笔记的标题或内容"
+      },
+      "deleteNote": {
+        "name": "删除笔记",
+        "description": "删除一个指定的笔记"
+      },
+      "moveNote": {
+        "name": "移动笔记",
+        "description": "将笔记移动至指定分类"
+      },
+      "createNoteCategory": {
+        "name": "创建笔记分类",
+        "description": "在指定目录中创建笔记分类"
+      },
+      "editNoteCategory": {
+        "name": "编辑笔记分类",
+        "description": "编辑一个笔记分类的名称"
+      },
+      "deleteNoteCategory": {
+        "name": "删除笔记分类",
+        "description": "删除一个指定的笔记分类"
+      },
+      "listCharacters": {
+        "name": "列出角色",
+        "description": "列出所有角色信息"
+      },
+      "readCharacter": {
+        "name": "读取角色",
+        "description": "读取一个指定角色的信息"
+      },
+      "createCharacter": {
+        "name": "创建角色",
+        "description": "创建一个新角色"
+      },
+      "editCharacter": {
+        "name": "编辑角色",
+        "description": "编辑一个指定角色的名称或描述"
+      },
+      "deleteCharacter": {
+        "name": "删除角色",
+        "description": "删除一个指定角色"
+      },
+      "listWorldEntries": {
+        "name": "列出世界书条目",
+        "description": "列出所有启用的世界书条目"
+      },
+      "readWorldEntry": {
+        "name": "读取世界书条目",
+        "description": "读取一个指定的世界书条目内容"
+      },
+      "createWorldEntry": {
+        "name": "创建世界书条目",
+        "description": "在当前项目世界书中创建一个条目。"
+      },
+      "editWorldEntry": {
+        "name": "编辑世界书条目",
+        "description": "编辑一个世界书条目的标题或内容。"
+      },
+      "deleteWorldEntry": {
+        "name": "删除世界书条目",
+        "description": "删除一个指定的世界书条目"
+      },
+      "dispatchSubagent": {
+        "name": "派发子智能体",
+        "description": "派发一个子智能体独立工作并完成任务"
+      },
+      "notifySubagent": {
+        "name": "通知子智能体",
+        "description": "向子智能体发送补充信息"
+      },
+      "recycleSubagent": {
+        "name": "回收子智能体",
+        "description": "结束并回收指定子智能体"
+      },
+      "activateSkill": {
+        "name": "启用技能",
+        "description": "获取指定技能的完整内容与参考文档列表"
+      },
+      "referenceSkill": {
+        "name": "引用技能参考文档",
+        "description": "读取指定技能的某个参考文档内容"
+      }
+    },
     "language": "语言",
     "theme": "主题",
     "themeLight": "浅色",

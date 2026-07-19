@@ -89,129 +89,45 @@ DEFAULT_AGENT_SESSION_TITLE_PATTERN = re.compile(
 TOOL_DISPLAY_ORDER = {
     "ask_user": 0,
     "write_plan": 1,
-    "read_chapter": 2,
-    "list_chapters": 3,
-    "list_volumes": 4,
-    "write_chapter": 5,
-    "edit_chapter": 6,
-    "delete_chapter": 7,
-    "create_volume": 8,
-    "edit_volume": 9,
-    "delete_volume": 10,
-    "move_chapter_to_volume": 11,
-    "list_characters": 12,
-    "read_character": 13,
-    "create_character": 14,
-    "edit_character": 15,
-    "delete_character": 16,
-    "list_world_entries": 17,
-    "read_world_entry": 18,
-    "create_world_entry": 19,
-    "edit_world_entry": 20,
-    "delete_world_entry": 21,
-    "activate_skill": 22,
-    "reference_skill": 23,
+    "dispatch_subagent": 2,
+    "notify_subagent": 3,
+    "recycle_subagent": 4,
+    "list_volumes": 5,
+    "list_chapters": 6,
+    "read_chapter": 7,
+    "search_chapters": 8,
+    "update_index": 9,
+    "read_chapter_summaries": 10,
+    "read_range_summaries": 11,
+    "write_chapter": 12,
+    "edit_chapter": 13,
+    "delete_chapter": 14,
+    "create_volume": 15,
+    "edit_volume": 16,
+    "delete_volume": 17,
+    "move_chapter_to_volume": 18,
+    "list_notes": 19,
+    "read_note": 20,
+    "write_note": 21,
+    "edit_note": 22,
+    "delete_note": 23,
+    "move_note": 24,
+    "create_note_category": 25,
+    "edit_note_category": 26,
+    "delete_note_category": 27,
+    "list_characters": 28,
+    "read_character": 29,
+    "create_character": 30,
+    "edit_character": 31,
+    "delete_character": 32,
+    "list_world_entries": 33,
+    "read_world_entry": 34,
+    "create_world_entry": 35,
+    "edit_world_entry": 36,
+    "delete_world_entry": 37,
+    "activate_skill": 38,
+    "reference_skill": 39,
 }
-
-TOOL_DISPLAY_METADATA = {
-    "ask_user": {
-        "name": "Ask",
-        "description": "向用户提问以获取继续执行所需的信息。",
-    },
-    "write_plan": {
-        "name": "Write Plan",
-        "description": "全量覆盖当前会话的计划 Todo 列表。",
-    },
-    "read_chapter": {
-        "name": "Read",
-        "description": "读取指定章节内容供 Agent 参考。",
-    },
-    "list_chapters": {
-        "name": "List",
-        "description": "列出指定卷内章节供 Agent 定位上下文。",
-    },
-    "list_volumes": {
-        "name": "List Volumes",
-        "description": "列出项目卷信息供 Agent 定位章节。",
-    },
-    "write_chapter": {
-        "name": "Write",
-        "description": "在指定卷内创建章节。",
-    },
-    "edit_chapter": {
-        "name": "Edit",
-        "description": "精确替换现有章节的标题或正文片段。",
-    },
-    "delete_chapter": {
-        "name": "Delete",
-        "description": "删除指定章节。",
-    },
-    "create_volume": {
-        "name": "Create Volume",
-        "description": "在项目末尾创建新卷。",
-    },
-    "edit_volume": {
-        "name": "Edit Volume",
-        "description": "编辑指定卷的标题或说明。",
-    },
-    "delete_volume": {
-        "name": "Delete Volume",
-        "description": "删除指定卷。",
-    },
-    "move_chapter_to_volume": {
-        "name": "Move Chapter",
-        "description": "将指定章节移动到目标卷末尾。",
-    },
-    "list_characters": {
-        "name": "List Characters",
-        "description": "列出当前项目角色名称。",
-    },
-    "read_character": {
-        "name": "Read Character",
-        "description": "根据名称读取角色描述。",
-    },
-    "create_character": {
-        "name": "Create Character",
-        "description": "在当前项目中创建角色。",
-    },
-    "edit_character": {
-        "name": "Edit Character",
-        "description": "编辑角色的名称或描述。",
-    },
-    "delete_character": {
-        "name": "Delete Character",
-        "description": "删除指定角色。",
-    },
-    "list_world_entries": {
-        "name": "List World Entries",
-        "description": "列出当前项目世界书条目标题。",
-    },
-    "read_world_entry": {
-        "name": "Read World Entry",
-        "description": "根据标题读取世界书条目内容。",
-    },
-    "create_world_entry": {
-        "name": "Create World Entry",
-        "description": "在当前项目世界书中创建条目。",
-    },
-    "edit_world_entry": {
-        "name": "Edit World Entry",
-        "description": "编辑世界书条目的标题或内容。",
-    },
-    "delete_world_entry": {
-        "name": "Delete World Entry",
-        "description": "删除指定世界书条目。",
-    },
-    "activate_skill": {
-        "name": "Activate Skill",
-        "description": "获取指定技能的完整内容与参考文档列表。",
-    },
-    "reference_skill": {
-        "name": "Reference Skill",
-        "description": "读取指定技能的某个参考文档内容。",
-    },
-}
-
 
 def _build_default_agent_session_title(created_at: datetime) -> str:
     timestamp = created_at.astimezone(UTC).isoformat(timespec="milliseconds")
@@ -652,13 +568,10 @@ async def list_agent_tools() -> list[AgentToolMetadataResponse]:
     items_by_key: dict[str, AgentToolMetadataResponse] = {}
 
     for tool in ToolRegistry.get_tools(state={"session_id": "", "project_id": ""}):
-        display = TOOL_DISPLAY_METADATA.get(tool.name)
-        if display is None:
+        if tool.name not in TOOL_DISPLAY_ORDER:
             continue
         items_by_key[tool.name] = AgentToolMetadataResponse(
             key=tool.name,
-            name=display["name"],
-            description=display["description"],
             is_readonly=tool.access_level == "readonly",
         )
 
