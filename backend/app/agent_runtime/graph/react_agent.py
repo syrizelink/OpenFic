@@ -612,7 +612,11 @@ def create_react_agent(
         else:
             messages = [
                 ToolMessage(
-                    content=filter_tool_result_metadata_content(message.content),
+                    content=(
+                        filter_tool_result_metadata_content(message.content)
+                        if isinstance(message.content, str)
+                        else message.content
+                    ),
                     tool_call_id=message.tool_call_id,
                     name=message.name,
                 )

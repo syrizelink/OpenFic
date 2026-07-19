@@ -342,6 +342,7 @@ async def test_edit_chapter_resolves_inside_volume() -> None:
     data = json.loads(result)
     assert data == {
         "success": True,
+        "word_count": 4,
         "metadata": {
             "chapter_diff": {
                 "operation": "update",

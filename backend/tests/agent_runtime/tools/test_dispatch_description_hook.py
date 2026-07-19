@@ -63,7 +63,7 @@ def test_dispatch_description_hook_appends_delegatable_agent_list():
         build_hooks=[hook],
     )[0]
 
-    assert "当前可委派的子代理" in tool.description
-    assert "`explorer` (Explorer)" in tool.description
-    assert "`custom-bot` (Custom Bot)" in tool.description
-    assert "`writer` (Writer)" not in tool.description
+    assert "当前可委派的 agent（使用`agent_type`指定）" in tool.description
+    assert "- explorer：负责信息搜集、上下文梳理与证据查找" in tool.description
+    assert "- custom-bot：负责自定义扩展任务。" in tool.description
+    assert "- writer：" not in tool.description
