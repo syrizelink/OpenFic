@@ -285,8 +285,8 @@
       "noModelsMessage": "No available models,",
       "noModelsAction": "go add one",
       "openRetrievalIndex": "Index",
-      "toolApprovalBypassOn": "Tool approvals bypassed",
-      "toolApprovalBypassOff": "Tool approvals required",
+      "toolApprovalBypassOn": "Automatic tool approval is enabled. Permission requests will be approved automatically.",
+      "toolApprovalBypassOff": "Automatic tool approval is disabled. Click to enable it to automatically approve permission requests.",
       "attachmentDisabled": "Attachment coming soon",
       "webSearchDisabled": "Web search coming soon",
       "imageDisabled": "Image coming soon",
@@ -552,6 +552,168 @@
     "agentToolsDescription": "Configure the default permission strategy for each Agent tool.",
     "agentToolsEmpty": "No configurable tools are available.",
     "agentToolsLoadFailed": "Failed to load tool list.",
+    "agentTool": {
+      "askUser": {
+        "name": "Ask",
+        "description": "Ask you for the information needed."
+      },
+      "writePlan": {
+        "name": "Plan",
+        "description": "Write a to-do list for the session to organize the work."
+      },
+      "readChapter": {
+        "name": "Read Chapter",
+        "description": "Read the content of a specified chapter."
+      },
+      "searchChapters": {
+        "name": "Search Chapters",
+        "description": "Perform vector-based semantic search across chapter content."
+      },
+      "updateIndex": {
+        "name": "Update Index",
+        "description": "Update the semantic vector index for chapters."
+      },
+      "listChapters": {
+        "name": "List Chapters",
+        "description": "List all chapters in a specified volume."
+      },
+      "listVolumes": {
+        "name": "List Volumes",
+        "description": "List information for all volumes."
+      },
+      "readChapterSummaries": {
+        "name": "Read Chapter Summaries",
+        "description": "Read the summary of a specified chapter."
+      },
+      "readRangeSummaries": {
+        "name": "Read Range Summaries",
+        "description": "Read the range summary for a specified chapter range."
+      },
+      "writeChapter": {
+        "name": "Create Chapter",
+        "description": "Create a chapter in a volume."
+      },
+      "editChapter": {
+        "name": "Edit Chapter",
+        "description": "Edit a chapter's title or content."
+      },
+      "deleteChapter": {
+        "name": "Delete Chapter",
+        "description": "Delete a chapter from a volume."
+      },
+      "createVolume": {
+        "name": "Create Volume",
+        "description": "Create a new volume."
+      },
+      "editVolume": {
+        "name": "Edit Volume",
+        "description": "Edit a volume's title or description."
+      },
+      "deleteVolume": {
+        "name": "Delete Volume",
+        "description": "Delete a specified volume."
+      },
+      "moveChapterToVolume": {
+        "name": "Move Chapter",
+        "description": "Move a specified chapter to the end of a target volume."
+      },
+      "listNotes": {
+        "name": "List Notes",
+        "description": "List all notes and categories in a directory."
+      },
+      "readNote": {
+        "name": "Read Note",
+        "description": "Read the content of a specified note."
+      },
+      "writeNote": {
+        "name": "Create Note",
+        "description": "Create a note in a specified directory."
+      },
+      "editNote": {
+        "name": "Edit Note",
+        "description": "Edit a specified note's title or content."
+      },
+      "deleteNote": {
+        "name": "Delete Note",
+        "description": "Delete a specified note."
+      },
+      "moveNote": {
+        "name": "Move Note",
+        "description": "Move a note to a specified category."
+      },
+      "createNoteCategory": {
+        "name": "Create Note Category",
+        "description": "Create a note category in a specified directory."
+      },
+      "editNoteCategory": {
+        "name": "Edit Note Category",
+        "description": "Edit a note category's name."
+      },
+      "deleteNoteCategory": {
+        "name": "Delete Note Category",
+        "description": "Delete a specified note category."
+      },
+      "listCharacters": {
+        "name": "List Characters",
+        "description": "List information for all characters."
+      },
+      "readCharacter": {
+        "name": "Read Character",
+        "description": "Read information for a specified character."
+      },
+      "createCharacter": {
+        "name": "Create Character",
+        "description": "Create a new character."
+      },
+      "editCharacter": {
+        "name": "Edit Character",
+        "description": "Edit a specified character's name or description."
+      },
+      "deleteCharacter": {
+        "name": "Delete Character",
+        "description": "Delete a specified character."
+      },
+      "listWorldEntries": {
+        "name": "List World Entries",
+        "description": "List all enabled worldbook entries."
+      },
+      "readWorldEntry": {
+        "name": "Read World Entry",
+        "description": "Read the content of a specified worldbook entry."
+      },
+      "createWorldEntry": {
+        "name": "Create World Entry",
+        "description": "Create an entry in the current project's worldbook."
+      },
+      "editWorldEntry": {
+        "name": "Edit World Entry",
+        "description": "Edit a worldbook entry's title or content."
+      },
+      "deleteWorldEntry": {
+        "name": "Delete World Entry",
+        "description": "Delete a specified worldbook entry."
+      },
+      "dispatchSubagent": {
+        "name": "Dispatch Subagent",
+        "description": "Dispatch a subagent to work independently and complete a task."
+      },
+      "notifySubagent": {
+        "name": "Notify Subagent",
+        "description": "Send supplementary information to a subagent."
+      },
+      "recycleSubagent": {
+        "name": "Recycle Subagent",
+        "description": "End and recycle a specified subagent."
+      },
+      "activateSkill": {
+        "name": "Activate Skill",
+        "description": "Retrieve a skill's full content and reference document list."
+      },
+      "referenceSkill": {
+        "name": "Reference Skill",
+        "description": "Read a specified reference document for a skill."
+      }
+    },
     "language": "Language",
     "theme": "Theme",
     "themeLight": "Light",

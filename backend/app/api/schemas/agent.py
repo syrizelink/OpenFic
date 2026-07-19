@@ -131,11 +131,9 @@ class AgentToolApprovalRequest(BaseModel):
 
 
 class AgentToolMetadataResponse(BaseModel):
-    """Agent 工具元数据。"""
+    """Agent 工具权限元数据。"""
 
-    name: str = Field(..., description="工具名称")
     key: str = Field(..., description="权限配置键")
-    description: str = Field(..., description="工具描述")
     is_readonly: bool = Field(..., description="是否只读")
 
 
