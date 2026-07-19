@@ -31,6 +31,7 @@ def _to_response(skill) -> SkillResponse:
         content=skill.content,
         is_enabled=skill.is_enabled,
         is_complete=skill_service.is_skill_complete(skill),
+        source=skill.source,
         created_at=skill.created_at,
         updated_at=skill.updated_at,
     )
@@ -123,6 +124,8 @@ async def get_skill(
         return _to_response(skill)
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    except skill_service.SkillValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
 @router.patch("/skills/{skill_db_id}", response_model=SkillResponse)
@@ -173,3 +176,5 @@ async def delete_skill(
         await skill_service.delete_skill(session, skill_db_id)
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    except skill_service.SkillValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))

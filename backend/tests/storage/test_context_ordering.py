@@ -1,4 +1,6 @@
 from datetime import UTC, datetime
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -51,6 +53,49 @@ async def test_list_enabled_skills_by_ids_preserves_requested_order_and_filters(
     )
 
     assert [item.id for item in result] == ["skill-b", "skill-a"]
+
+
+async def test_list_enabled_skills_by_ids_includes_enabled_builtin_skill(session):
+    result = await skill_service.list_enabled_skills_by_ids(
+        session,
+        ["builtin-skill--continue-chapter"],
+    )
+
+    assert [(item.id, item.name) for item in result] == [
+        ("builtin-skill--continue-chapter", "章节续写")
+    ]
+
+
+async def test_list_skills_uses_custom_skill_offset_after_builtin_skills(session):
+    builtin_skill = SimpleNamespace(
+        id="builtin-skill--first",
+        name="内置 Skill",
+        summary="简介",
+        content="内容",
+        is_enabled=True,
+        source="builtin",
+        references=(),
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        updated_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+
+    with patch(
+        "app.storage.services.skill_service.load_builtin_skills",
+        return_value=(builtin_skill,),
+    ), patch(
+        "app.storage.services.skill_service.skill_repo.list_by_ids",
+        AsyncMock(return_value=[]),
+    ), patch(
+        "app.storage.services.skill_service.skill_repo.get_total",
+        AsyncMock(return_value=100),
+    ), patch(
+        "app.storage.services.skill_service.skill_repo.list_page",
+        AsyncMock(return_value=[]),
+    ) as list_page:
+        result = await skill_service.list_skills(session, page=10, page_size=5)
+
+    assert result.total == 101
+    list_page.assert_awaited_once_with(session, offset=44, limit=5)
 
 
 async def test_list_by_version_uses_stable_tiebreakers(session):

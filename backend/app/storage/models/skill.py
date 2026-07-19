@@ -20,3 +20,7 @@ class Skill(SQLModel, table=True):
     is_enabled: bool = Field(default=False, index=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+    @property
+    def source(self) -> str:
+        return "custom"

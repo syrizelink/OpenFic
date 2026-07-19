@@ -104,9 +104,10 @@ packages = ["app"]
 "alembic.ini" = "alembic.ini"
 "LICENSE" = "LICENSE"
 "frontend" = "frontend"
+"app/skills" = "app/skills"
 
 [tool.hatch.build.targets.sdist]
-force-include = { "alembic.ini" = "alembic.ini", "../LICENSE" = "LICENSE", "frontend" = "frontend" }
+force-include = { "alembic.ini" = "alembic.ini", "../LICENSE" = "LICENSE", "frontend" = "frontend", "app/skills" = "app/skills" }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

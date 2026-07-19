@@ -44,6 +44,22 @@ async def test_create_and_list_reference_docs(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_builtin_skill_reference_docs_are_loaded_from_yaml(client: AsyncClient) -> None:
+    skill_id = "builtin-skill--continue-chapter"
+
+    list_response = await client.get(f"/api/v1/skills/{skill_id}/reference-docs")
+    assert list_response.status_code == 200
+    items = list_response.json()
+    assert [item["title"] for item in items] == ["续写检查清单", "上下文读取指引"]
+
+    create_response = await client.post(
+        f"/api/v1/skills/{skill_id}/reference-docs",
+        json={"title": "不可新增", "content": ""},
+    )
+    assert create_response.status_code == 400
+
+
+@pytest.mark.asyncio
 async def test_update_reference_doc(client: AsyncClient) -> None:
     skill_db_id = await _create_skill(client)
     create_response = await client.post(

@@ -29,6 +29,7 @@ class SkillResponse(BaseModel):
     content: str
     is_enabled: bool
     is_complete: bool
+    source: str
     created_at: datetime
     updated_at: datetime
 

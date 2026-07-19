@@ -16,6 +16,7 @@ from app.api.agent_settings_lock import require_agent_settings_unlocked
 from app.core.errors import NotFoundError
 from app.storage.database import get_session
 from app.storage.services import skill_reference_doc_service
+from app.storage.services import skill_service
 
 router = APIRouter(tags=["skill-reference-docs"])
 
@@ -53,6 +54,8 @@ async def create_reference_doc(
         return _to_response(doc)
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    except skill_service.SkillValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
 @router.get(
@@ -68,6 +71,8 @@ async def list_reference_docs(
         return [_to_response(doc) for doc in docs]
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    except skill_service.SkillValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
 @router.patch(
@@ -92,6 +97,8 @@ async def update_reference_doc(
         return _to_response(doc)
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    except skill_service.SkillValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
 @router.delete(
@@ -108,3 +115,5 @@ async def delete_reference_doc(
         await skill_reference_doc_service.delete_reference_doc(session, skill_db_id, doc_id)
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    except skill_service.SkillValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))

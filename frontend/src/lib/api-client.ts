@@ -316,6 +316,7 @@ function transformSkill(raw: Record<string, unknown>): Skill {
     content: raw.content as string,
     isEnabled: raw.is_enabled as boolean,
     isComplete: raw.is_complete as boolean,
+    source: raw.source as "builtin" | "custom",
     createdAt: raw.created_at as string,
     updatedAt: raw.updated_at as string,
   };

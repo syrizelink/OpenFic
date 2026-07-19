@@ -8,7 +8,6 @@ from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.storage.database import create_session
-from app.storage.repos import skill_reference_doc_repo
 from app.storage.services import skill_service
 
 SKILL_TOOL_NAMES: tuple[str, ...] = ("activate_skill", "reference_skill")
@@ -41,7 +40,7 @@ def _agent_key_from_state(state: dict) -> str:
     return state.get("active_agent") or state.get("agent_key") or "primary"
 
 
-async def _resolve_authorized_skill(session, state: dict, skill_name: str):
+async def _resolve_authorized_skill(session: AsyncSession, state: dict, skill_name: str):
     normalized = skill_name.strip()
     if not normalized:
         raise ToolExecutionError("技能名称不能为空")
@@ -74,7 +73,7 @@ class ActivateSkillTool(AgentTool):
         session = await create_session()
         try:
             skill = await _resolve_authorized_skill(session, self._state, skill_name)
-            docs = await skill_reference_doc_repo.list_by_skill(session, skill.id)
+            docs = await skill_service.list_reference_docs(session, skill.id)
         finally:
             await session.close()
 
@@ -104,7 +103,7 @@ class ReferenceSkillTool(AgentTool):
         session = await create_session()
         try:
             skill = await _resolve_authorized_skill(session, self._state, skill_name)
-            docs = await skill_reference_doc_repo.list_by_skill(session, skill.id)
+            docs = await skill_service.list_reference_docs(session, skill.id)
         finally:
             await session.close()
 

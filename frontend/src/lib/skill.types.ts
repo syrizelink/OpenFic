@@ -7,6 +7,7 @@ export interface Skill {
   content: string;
   isEnabled: boolean;
   isComplete: boolean;
+  source: "builtin" | "custom";
   createdAt: string;
   updatedAt: string;
 }

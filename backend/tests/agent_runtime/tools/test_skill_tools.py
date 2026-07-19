@@ -85,7 +85,7 @@ def _patch_env(definition, skill, docs):
             AsyncMock(side_effect=_list_by_ids),
         ),
         patch(
-            "app.agent_runtime.tools.impls.skill.skill.skill_reference_doc_repo.list_by_skill",
+            "app.agent_runtime.tools.impls.skill.skill.skill_service.list_reference_docs",
             AsyncMock(return_value=docs),
         ),
     ]
@@ -124,6 +124,41 @@ async def test_activate_skill_no_references():
 
     assert "<skill_references>" not in result
     assert "<skill_content name=\"pdf-processing\">" in result
+
+
+@pytest.mark.asyncio
+async def test_builtin_skill_tools_read_content_and_references_from_yaml(monkeypatch):
+    from app.agent_runtime.tools.impls.skill.skill import ActivateSkillTool, ReferenceSkillTool
+    import app.storage.database as database
+    import app.storage.services.skill_service as skill_service
+
+    session = AsyncMock()
+    monkeypatch.setattr(database, "create_session", AsyncMock(return_value=session))
+    monkeypatch.setattr(
+        "app.agent_runtime.tools.impls.skill.skill.create_session",
+        AsyncMock(return_value=session),
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.tools.impls.skill.skill.load_agent_definition",
+        AsyncMock(return_value=_definition(["builtin-skill--continue-chapter"])),
+    )
+    monkeypatch.setattr("app.storage.repos.skill_repo.list_by_ids", AsyncMock(return_value=[]))
+
+    with patch(
+        "app.agent_runtime.tools.impls.skill.skill.skill_service.list_enabled_skills_by_ids",
+        skill_service.list_enabled_skills_by_ids,
+    ), patch(
+        "app.agent_runtime.tools.impls.skill.skill.skill_service.list_reference_docs",
+        skill_service.list_reference_docs,
+    ):
+        activated = await ActivateSkillTool(_state=_make_state()).ainvoke({"skill_name": "章节续写"})
+        referenced = await ReferenceSkillTool(_state=_make_state()).ainvoke(
+            {"skill_name": "章节续写", "reference_name": "续写检查清单"}
+        )
+
+    assert "## 执行要求" in activated
+    assert "<ref>续写检查清单</ref>" in activated
+    assert "当前叙事视角是否与目标章节一致。" in referenced
 
 
 @pytest.mark.asyncio
