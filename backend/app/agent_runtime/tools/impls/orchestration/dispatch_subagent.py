@@ -131,11 +131,10 @@ class DispatchSubagentTool(AgentTool):
         if not definition.enabled or definition.kind != "subagent":
             raise ToolExecutionError(f"agent is not an enabled subagent: {agent_key}")
 
-        if primary_def.delegatable_agents:
-            if agent_key not in primary_def.delegatable_agents:
-                raise ToolExecutionError(
-                    f"agent '{agent_key}' is not in the delegatable agents whitelist"
-                )
+        if agent_key not in primary_def.delegatable_agents:
+            raise ToolExecutionError(
+                f"agent '{agent_key}' is not in the delegatable agents whitelist"
+            )
 
     async def _create_child_run(
         self,

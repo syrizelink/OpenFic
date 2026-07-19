@@ -10,8 +10,8 @@ import {
   TextField,
   Dialog,
   IconButton,
-  Select,
   Badge,
+  Tooltip,
 } from "@radix-ui/themes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -19,6 +19,7 @@ import {
   Copy,
   Crown,
   ExternalLink,
+  Info,
   MoreHorizontal,
   Plus,
   RefreshCw,
@@ -30,7 +31,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 
-import { ModelIdSelect, type ModelIdSelectOption } from "@/components";
+import { LabeledSelect, ModelIdSelect, type ModelIdSelectOption } from "@/components";
 import { ContextMenu, type ContextMenuItem, toast, ConfirmDialog, Spinner } from "@/components";
 import { fetchSkills } from "@/lib/api-client";
 import type { Skill } from "@/lib/skill.types";
@@ -125,7 +126,8 @@ interface AgentFormProps {
   toolCategoryOptions: AgentToolCategoryResponse[];
   skills: Skill[];
   onCloseSettings?: () => void;
-  onUpdated: () => void;
+  onKindPreviewChange: (key: string, kind: AgentDefinitionResponse["kind"] | null) => void;
+  onUpdated: (definition?: AgentDefinitionResponse) => void;
   isAgentSettingsLocked: boolean;
 }
 
@@ -137,6 +139,7 @@ function AgentForm({
   toolCategoryOptions,
   skills,
   onCloseSettings,
+  onKindPreviewChange,
   onUpdated,
   isAgentSettingsLocked,
 }: AgentFormProps) {
@@ -146,6 +149,7 @@ function AgentForm({
 
   const [formDisplayName, setFormDisplayName] = useState(def.display_name);
   const [formDescription, setFormDescription] = useState(def.description);
+  const [formKind, setFormKind] = useState(def.kind);
   const [formModelId, setFormModelId] = useState(getEffectiveModelSelection(def.model_id));
   const [formEnabledToolCategories, setFormEnabledToolCategories] = useState<string[]>([
     ...getEnabledToolCategoriesForAgent(def.kind, def.enabled_tool_categories),
@@ -155,6 +159,8 @@ function AgentForm({
     ...def.delegatable_agents,
   ]);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
+  useEffect(() => () => onKindPreviewChange(def.key, null), [def.key, onKindPreviewChange]);
 
   const allSubagents = useMemo(
     () => definitions.filter((d) => d.kind === "subagent" && d.enabled),
@@ -176,6 +182,7 @@ function AgentForm({
     return (
       formDisplayName !== def.display_name ||
       formDescription !== def.description ||
+      formKind !== def.kind ||
       formModelId !== getEffectiveModelSelection(def.model_id) ||
       JSON.stringify(formEnabledToolCategories) !==
         JSON.stringify(getEnabledToolCategoriesForAgent(def.kind, def.enabled_tool_categories)) ||
@@ -186,19 +193,22 @@ function AgentForm({
     def,
     formDescription,
     formDisplayName,
+    formKind,
     formModelId,
     formEnabledToolCategories,
     formEnabledSkills,
     formDelegatableAgents,
   ]);
 
-  const isPrimary = def.kind === "primary";
+  const isPrimary = formKind === "primary";
+  const hasDelegationCapability = formEnabledToolCategories.includes("orchestration");
+  const canChangeKind = def.source === "custom";
   const selectableToolCategoryOptions = useMemo(
     () =>
       toolCategoryOptions.filter(
-        (option) => def.kind !== "subagent" || !SUBAGENT_RESTRICTED_TOOL_CATEGORIES.has(option.key),
+        (option) => formKind !== "subagent" || !SUBAGENT_RESTRICTED_TOOL_CATEGORIES.has(option.key),
       ),
-    [def.kind, toolCategoryOptions],
+    [formKind, toolCategoryOptions],
   );
 
   const updateMutation = useMutation({
@@ -206,14 +216,18 @@ function AgentForm({
       return updateAgentDefinition(def.key, {
         display_name: formDisplayName,
         description: formDescription,
+        ...(canChangeKind ? { kind: formKind } : {}),
         model_id: formModelId,
-        enabled_tool_categories: formEnabledToolCategories,
+        enabled_tool_categories: getEnabledToolCategoriesForAgent(
+          formKind,
+          formEnabledToolCategories,
+        ),
         enabled_skills: formEnabledSkills,
-        delegatable_agents: formDelegatableAgents,
+        delegatable_agents: isPrimary ? formDelegatableAgents : [],
       });
     },
-    onSuccess: () => {
-      onUpdated();
+    onSuccess: (definition) => {
+      onUpdated(definition);
       toast.success(t("common.saveSuccess"));
     },
     onError: () => toast.error(t("settings.agentsSaveFailed")),
@@ -242,6 +256,21 @@ function AgentForm({
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
     );
   }, []);
+
+  const handleKindChange = useCallback(
+    (kind: string) => {
+      const nextKind = kind as "primary" | "subagent";
+      setFormKind(nextKind);
+      onKindPreviewChange(def.key, nextKind);
+      if (nextKind === "subagent") {
+        setFormEnabledToolCategories((categories) =>
+          getEnabledToolCategoriesForAgent(nextKind, categories),
+        );
+        setFormDelegatableAgents([]);
+      }
+    },
+    [def.key, onKindPreviewChange],
+  );
 
   const handleToggleToolCategory = useCallback((key: string) => {
     setFormEnabledToolCategories((prev) =>
@@ -282,6 +311,51 @@ function AgentForm({
           disabled={isAgentSettingsLocked}
         />
       </Flex>
+
+      {canChangeKind ? (
+        <Flex
+          direction="column"
+          gap="1"
+        >
+          <Flex
+            align="center"
+            gap="1"
+          >
+            <Text
+              size="1"
+              weight="medium"
+            >
+              {t("settings.agentsKind")}
+            </Text>
+            <Tooltip
+              content={
+                <Flex
+                  direction="column"
+                  gap="1"
+                >
+                  <Text size="1">{t("settings.agentsKindPrimaryDescription")}</Text>
+                  <Text size="1">{t("settings.agentsKindSubagentDescription")}</Text>
+                </Flex>
+              }
+            >
+              <button
+                type="button"
+                className="agent-definition-kind-info-button"
+                aria-label={t("settings.agentsKindTooltipLabel")}
+              >
+                <Info size={14} />
+              </button>
+            </Tooltip>
+          </Flex>
+          <LabeledSelect
+            value={formKind}
+            options={getAgentKindOptions()}
+            onChange={handleKindChange}
+            disabled={isAgentSettingsLocked}
+            triggerStyle={{ width: "100%" }}
+          />
+        </Flex>
+      ) : null}
 
       <Flex
         direction="column"
@@ -430,7 +504,7 @@ function AgentForm({
         )}
       </Flex>
 
-      {isPrimary && (
+      {isPrimary && hasDelegationCapability && (
         <Flex
           direction="column"
           gap="2"
@@ -502,7 +576,7 @@ function AgentForm({
             size="2"
             color="gray"
           >
-            {t("settings.agentsPromptChainLocationPrefix", { agent: def.key })}
+            {t("settings.agentsPromptChainLocationPrefix", { agent: def.display_name })}
           </Text>
           <button
             type="button"
@@ -570,6 +644,11 @@ interface AgentDefinitionsSettingsProps {
   isAgentSettingsLockLoading: boolean;
 }
 
+interface AgentKindPreview {
+  key: string;
+  kind: AgentDefinitionResponse["kind"];
+}
+
 export function AgentDefinitionsSettings({
   onCloseSettings,
   mobilePage,
@@ -580,7 +659,6 @@ export function AgentDefinitionsSettings({
   isAgentSettingsLockLoading,
 }: AgentDefinitionsSettingsProps) {
   const { t } = useTranslation();
-  const agentKindOptions = getAgentKindOptions();
   const queryClient = useQueryClient();
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -591,6 +669,7 @@ export function AgentDefinitionsSettings({
   const [newKey, setNewKey] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [kindPreview, setKindPreview] = useState<AgentKindPreview | null>(null);
   const [menuState, setMenuState] = useState<AgentListMenuState | null>(null);
   const [confirmResetKey, setConfirmResetKey] = useState<string | null>(null);
   const [confirmDeleteKey, setConfirmDeleteKey] = useState<string | null>(null);
@@ -725,6 +804,29 @@ export function AgentDefinitionsSettings({
   const invalidateDefs = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["agent-definitions"] });
   }, [queryClient]);
+
+  const updateDefinitionInList = useCallback(
+    (updatedDefinition?: AgentDefinitionResponse) => {
+      if (updatedDefinition) {
+        queryClient.setQueryData<AgentDefinitionResponse[]>(["agent-definitions"], (current) =>
+          current?.map((definition) =>
+            definition.key === updatedDefinition.key ? updatedDefinition : definition,
+          ),
+        );
+        setKindPreview((current) => (current?.key === updatedDefinition.key ? null : current));
+        return;
+      }
+      invalidateDefs();
+    },
+    [invalidateDefs, queryClient],
+  );
+
+  const handleKindPreviewChange = useCallback(
+    (key: string, kind: AgentDefinitionResponse["kind"] | null) => {
+      setKindPreview(kind ? { key, kind } : null);
+    },
+    [],
+  );
 
   const closeCreateDialog = useCallback(() => {
     setIsCreating(false);
@@ -932,112 +1034,125 @@ export function AgentDefinitionsSettings({
     isAgentSettingsLocked,
   ]);
 
-  const renderAgentListItem = (def: AgentDefinitionResponse) => (
-    <div
-      key={def.key}
-      role="button"
-      tabIndex={0}
-      className={`agent-definition-item${effectiveSelectedKey === def.key ? " agent-definition-item--active" : ""}${menuState?.key === def.key ? " agent-definition-item--menu-open" : ""}`}
-      onClick={() => {
-        setSelectedKey(def.key);
-        if (isMobile) handleMobilePageChange("detail");
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
+  const renderAgentListItem = (def: AgentDefinitionResponse) => {
+    const displayKind = kindPreview?.key === def.key ? kindPreview.kind : def.kind;
+
+    return (
+      <div
+        key={def.key}
+        role="button"
+        tabIndex={0}
+        className={`agent-definition-item${effectiveSelectedKey === def.key ? " agent-definition-item--active" : ""}${menuState?.key === def.key ? " agent-definition-item--menu-open" : ""}`}
+        onClick={() => {
           setSelectedKey(def.key);
           if (isMobile) handleMobilePageChange("detail");
-        }
-      }}
-      onContextMenu={(event) => {
-        event.preventDefault();
-        openMenuAt(def.key, { x: event.clientX, y: event.clientY });
-      }}
-    >
-      <Flex
-        direction="column"
-        gap="1"
-        className="agent-definition-item-content"
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setSelectedKey(def.key);
+            if (isMobile) handleMobilePageChange("detail");
+          }
+        }}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          openMenuAt(def.key, { x: event.clientX, y: event.clientY });
+        }}
       >
         <Flex
-          align="start"
-          justify="between"
-          gap="2"
-          className="agent-definition-item-row"
+          direction="column"
+          gap="1"
+          className="agent-definition-item-content"
         >
           <Flex
-            align="center"
+            align="start"
+            justify="between"
             gap="2"
-            className="agent-definition-item-title-row"
+            className="agent-definition-item-row"
           >
-            <span
-              className="agent-definition-kind-icon"
-              aria-label={getAgentKindLabel(def.kind)}
-              title={getAgentKindLabel(def.kind)}
+            <Flex
+              align="center"
+              gap="2"
+              className="agent-definition-item-title-row"
             >
-              {def.kind === "primary" ? <Crown size={14} /> : <Bot size={14} />}
-            </span>
-            <Text
-              size="2"
-              truncate
-              weight={effectiveSelectedKey === def.key ? "medium" : "regular"}
-            >
-              {def.display_name}
-            </Text>
-            {def.source === "builtin" ? (
-              <Badge
-                size="1"
-                variant="soft"
-                color="green"
+              <span
+                className="agent-definition-kind-icon"
+                aria-label={getAgentKindLabel(displayKind)}
+                title={getAgentKindLabel(displayKind)}
               >
-                {t("settings.agentsBuiltin")}
-              </Badge>
-            ) : null}
-          </Flex>
+                {displayKind === "primary" ? <Crown size={14} /> : <Bot size={14} />}
+              </span>
+              <Text
+                size="2"
+                truncate
+                weight={effectiveSelectedKey === def.key ? "medium" : "regular"}
+              >
+                {def.display_name}
+              </Text>
+              {displayKind === "primary" ? (
+                <Badge
+                  size="1"
+                  variant="soft"
+                  color="yellow"
+                >
+                  {t("settings.agentsPrimaryBadge")}
+                </Badge>
+              ) : null}
+              {def.source === "builtin" ? (
+                <Badge
+                  size="1"
+                  variant="soft"
+                  color="green"
+                >
+                  {t("settings.agentsBuiltin")}
+                </Badge>
+              ) : null}
+            </Flex>
 
-          <Flex
-            align="center"
-            gap="1"
-            className="agent-definition-item-actions"
-          >
-            <Switch
-              size="1"
-              checked={def.enabled}
-              disabled={isAgentSettingsLocked || toggleMutation.isPending}
-              onClick={(event) => event.stopPropagation()}
-              onCheckedChange={(checked) => {
-                void toggleMutation.mutateAsync({ key: def.key, enabled: checked === true });
-              }}
-            />
-            <IconButton
-              type="button"
-              variant="ghost"
-              color="gray"
-              size="1"
-              className="agent-definition-item-menu"
-              aria-label={t("settings.agentsMenu")}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const rect = event.currentTarget.getBoundingClientRect();
-                openMenuAt(def.key, { x: rect.right, y: rect.bottom + 4 });
-              }}
-              disabled={isAgentSettingsLocked}
+            <Flex
+              align="center"
+              gap="1"
+              className="agent-definition-item-actions"
             >
-              <MoreHorizontal size={14} />
-            </IconButton>
+              <Switch
+                size="1"
+                checked={def.enabled}
+                disabled={isAgentSettingsLocked || toggleMutation.isPending}
+                onClick={(event) => event.stopPropagation()}
+                onCheckedChange={(checked) => {
+                  void toggleMutation.mutateAsync({ key: def.key, enabled: checked === true });
+                }}
+              />
+              <IconButton
+                type="button"
+                variant="ghost"
+                color="gray"
+                size="1"
+                className="agent-definition-item-menu"
+                aria-label={t("settings.agentsMenu")}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  openMenuAt(def.key, { x: rect.right, y: rect.bottom + 4 });
+                }}
+                disabled={isAgentSettingsLocked}
+              >
+                <MoreHorizontal size={14} />
+              </IconButton>
+            </Flex>
           </Flex>
+          <Text
+            size="1"
+            color="gray"
+            className="agent-definition-item-description"
+          >
+            {def.description || t("settings.agentsNoDescription")}
+          </Text>
         </Flex>
-        <Text
-          size="1"
-          color="gray"
-          className="agent-definition-item-description"
-        >
-          {def.description || t("settings.agentsNoDescription")}
-        </Text>
-      </Flex>
-    </div>
-  );
+      </div>
+    );
+  };
 
   const listContent = (
     <Box
@@ -1161,7 +1276,8 @@ export function AgentDefinitionsSettings({
       toolCategoryOptions={toolCategoryOptions}
       skills={skills}
       onCloseSettings={onCloseSettings}
-      onUpdated={invalidateDefs}
+      onKindPreviewChange={handleKindPreviewChange}
+      onUpdated={updateDefinitionInList}
       isAgentSettingsLocked={isAgentSettingsLocked}
     />
   );
@@ -1318,29 +1434,43 @@ export function AgentDefinitionsSettings({
               direction="column"
               gap="1"
             >
-              <Text
-                size="1"
-                weight="medium"
+              <Flex
+                align="center"
+                gap="1"
               >
-                {t("settings.agentsKind")}
-              </Text>
-              <Select.Root
-                value={newKind}
-                onValueChange={(value) => setNewKind(value as "primary" | "subagent")}
-                disabled={isAgentSettingsLocked}
-              >
-                <Select.Trigger style={{ width: "100%" }} />
-                <Select.Content>
-                  {agentKindOptions.map((opt) => (
-                    <Select.Item
-                      key={opt.value}
-                      value={opt.value}
+                <Text
+                  size="1"
+                  weight="medium"
+                >
+                  {t("settings.agentsKind")}
+                </Text>
+                <Tooltip
+                  content={
+                    <Flex
+                      direction="column"
+                      gap="1"
                     >
-                      {opt.label}
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Root>
+                      <Text size="1">{t("settings.agentsKindPrimaryDescription")}</Text>
+                      <Text size="1">{t("settings.agentsKindSubagentDescription")}</Text>
+                    </Flex>
+                  }
+                >
+                  <button
+                    type="button"
+                    className="agent-definition-kind-info-button"
+                    aria-label={t("settings.agentsKindTooltipLabel")}
+                  >
+                    <Info size={14} />
+                  </button>
+                </Tooltip>
+              </Flex>
+              <LabeledSelect
+                value={newKind}
+                options={getAgentKindOptions()}
+                onChange={(value) => setNewKind(value as "primary" | "subagent")}
+                disabled={isAgentSettingsLocked}
+                triggerStyle={{ width: "100%" }}
+              />
             </Flex>
           </Flex>
 

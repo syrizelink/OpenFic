@@ -22,7 +22,7 @@ def _build_delegatable_subagent_lines(
             continue
         if definition.kind != "subagent" or not definition.enabled:
             continue
-        if delegatable and agent_key not in delegatable:
+        if agent_key not in delegatable:
             continue
         description = definition.description.strip() or "未提供职责描述。"
         lines.append(f"- {agent_key}：{description}")
