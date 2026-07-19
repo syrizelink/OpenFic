@@ -81,9 +81,8 @@ export function buildClarificationAnswerItems(
 ): ClarificationAnswerItem[] | null {
   if (!canSubmitClarificationAnswers(questions, answers, customAnswers)) return null;
 
-  return questions
-    .map((question, index) => {
-      const answer = resolveClarificationAnswer(answers, customAnswers, index) ?? "";
-      return { question: question.title, answer };
-    });
+  return questions.map((question, index) => {
+    const answer = resolveClarificationAnswer(answers, customAnswers, index) ?? "";
+    return { question: question.title, answer };
+  });
 }

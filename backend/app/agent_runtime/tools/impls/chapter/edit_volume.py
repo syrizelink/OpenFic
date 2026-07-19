@@ -12,14 +12,14 @@ from app.storage.repos import volume_repo
 
 
 class EditVolumeInput(BaseModel):
-    volume_ref: VolumeRef = Field(description="要编辑的目标卷")
+    volume_ref: VolumeRef = Field(description="目标卷")
     new_title: str | None = Field(
         default=None,
-        description="可选的新卷标题",
+        description="卷标题",
     )
     new_description: str | None = Field(
         default=None,
-        description="可选的新卷说明",
+        description="卷说明",
     )
 
     @field_validator("new_description", mode="after")
@@ -58,12 +58,8 @@ class EditVolumeTool(AgentTool):
             await session.commit()
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": self._state.get("current_revision_id"),
-                    "volume": serialize_volume(volume),
-                    "message": "卷已编辑",
+                    "metadata": {"volume": serialize_volume(volume)},
                 },
                 ensure_ascii=False,
             )

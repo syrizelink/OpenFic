@@ -63,15 +63,15 @@ def _build_diff_lines(before: str, after: str) -> list[dict[str, Any]]:
 
 
 class EditNoteInput(BaseModel):
-    note_ref: NoteRef = Field(description="要编辑的笔记引用")
+    note_ref: NoteRef = Field(description="目标笔记")
     old_content: str = Field(description="要查找并替换的原始文本")
-    new_content: str = Field(description="用于替换的新文本")
+    new_content: str = Field(description="用于替换 old_content 的新文本")
 
 
 @ToolRegistry.register
 class EditNoteTool(AgentTool):
     name: str = "edit_note"
-    description: str = "编辑笔记内容，使用查找替换模式"
+    description: str = "编辑指定笔记的内容"
     access_level: str = "write"
     args_schema: type[BaseModel] = EditNoteInput
 
@@ -123,7 +123,7 @@ class EditNoteTool(AgentTool):
                     session, self.project_id, include_hidden=True
                 )
             )
-            affected = await record_note_diffs(
+            await record_note_diffs(
                 session,
                 revision_id=revision_id,
                 project_id=self.project_id,
@@ -144,17 +144,8 @@ class EditNoteTool(AgentTool):
             await background_service.commit_and_notify(session)
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "note": {
-                        "id": note.id,
-                        "title": note.title,
-                    },
-                    "note_diff": note_diff,
-                    "affected_notes": affected,
-                    "message": "笔记已编辑",
+                    "metadata": {"note_diff": note_diff},
                 },
                 ensure_ascii=False,
             )

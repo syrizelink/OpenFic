@@ -50,7 +50,9 @@ function normalizeDiffSectionType(value: unknown): ChapterDiffSectionType | null
 function getCharacterDiffPreview(message: AgentMessage): CharacterDiffPreview | null {
   const data = getToolResultData(message);
   if (!isRecord(data)) return null;
-  const rawPreview = data.character_diff;
+  const metadata = data.metadata;
+  if (!isRecord(metadata)) return null;
+  const rawPreview = metadata.character_diff;
   if (!isRecord(rawPreview) || !Array.isArray(rawPreview.sections)) return null;
 
   return {

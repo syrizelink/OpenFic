@@ -82,7 +82,7 @@ class CreateNoteCategoryTool(AgentTool):
             after = note_category_images_by_id(
                 await note_category_repo.list_by_project(session, self.project_id)
             )
-            affected = await record_note_category_diffs(
+            await record_note_category_diffs(
                 session,
                 revision_id=revision_id,
                 project_id=self.project_id,
@@ -95,19 +95,14 @@ class CreateNoteCategoryTool(AgentTool):
             await background_service.commit_and_notify(session)
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "category": {
-                        "id": category.id,
-                        "title": category.title,
-                        "parent_id": category.parent_id,
+                    "metadata": {
+                        "category": {
+                            "id": category.id,
+                            "title": category.title,
+                            "parent_id": category.parent_id,
+                        }
                     },
-                    "affected_note_categories": affected,
-                    "message": f"分类已创建: {category.title}"
-                    if unique_title != title
-                    else "分类已创建",
                 },
                 ensure_ascii=False,
             )

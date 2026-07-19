@@ -3,11 +3,25 @@ import {
   Bot,
   BotMessageSquare,
   BotOff,
+  BookSearch,
+  BookMarked,
+  UserRoundPen,
+  UserRoundX,
   FilePenLine,
   FileSearch,
+  FileXCorner,
   FileText,
+  FolderPen,
+  FolderX,
+  Summary,
   ListOrdered,
-  MessageSquareWarning,
+  MessageCircleQuestionMark,
+  NotebookPen,
+  Notebook,
+  Network,
+  PenOff,
+  ListTodo,
+  PenLine,
   Sparkles,
   Trash2,
 } from "lucide-react";
@@ -140,7 +154,7 @@ const TOOL_REGISTRY = {
     tag: "clarification",
     isExplore: false,
     contentMode: "expandable",
-    icon: MessageSquareWarning,
+    icon: MessageCircleQuestionMark,
     getTitle: (message) => getAskUserTitle(message),
     getDetail: (message) => getAskUserQuestionCountDetail(message),
     render: (message) => <AskUserToolMessage message={message} />,
@@ -186,7 +200,7 @@ const TOOL_REGISTRY = {
     tag: "delete",
     isExplore: false,
     contentMode: "hidden",
-    icon: Trash2,
+    icon: FileXCorner,
     getTitle: () => i18n.t("assistant.tools.deleteChapter"),
     getDetail: (message) => {
       const chapter = getChapterPayload(message);
@@ -220,7 +234,7 @@ const TOOL_REGISTRY = {
     tag: "read",
     isExplore: true,
     contentMode: "hidden",
-    icon: BookOpen,
+    icon: Notebook,
     getTitle: () => i18n.t("assistant.tools.readNote"),
     getDetail: (message) =>
       getNotePayload(message).title ?? formatNoteRefLabel(getToolRef(message, "note_ref")),
@@ -231,7 +245,7 @@ const TOOL_REGISTRY = {
     tag: "write",
     isExplore: false,
     contentMode: "expandable",
-    icon: FilePenLine,
+    icon: NotebookPen,
     getTitle: () => i18n.t("assistant.tools.writeNote"),
     getDetail: (message) => getNotePayload(message).title,
     defaultExpanded: () => true,
@@ -243,7 +257,7 @@ const TOOL_REGISTRY = {
     tag: "edit",
     isExplore: false,
     contentMode: "expandable",
-    icon: FilePenLine,
+    icon: NotebookPen,
     getTitle: () => i18n.t("assistant.tools.editNote"),
     getDetail: (message) =>
       getNotePayload(message).title ?? formatNoteRefLabel(getToolRef(message, "note_ref")),
@@ -273,8 +287,11 @@ const TOOL_REGISTRY = {
       const note = getNotePayload(message);
       const noteLabel = note.title ?? formatNoteRefLabel(getToolRef(message, "note_ref"));
       const data = message.toolResult?.data;
+      const metadata = isRecord(data) && isRecord(data.metadata) ? data.metadata : null;
+      const noteDiff = isRecord(metadata?.note_diff) ? metadata.note_diff : null;
       const target = isRecord(data) && isRecord(data.target_category) ? data.target_category : null;
       const targetLabel =
+        asString(noteDiff?.target_category_title) ??
         asString(target?.title) ??
         formatCategoryRefLabel(getToolRef(message, "target_category_ref")) ??
         i18n.t("assistant.tools.rootLevel");
@@ -288,12 +305,15 @@ const TOOL_REGISTRY = {
     tag: "write",
     isExplore: false,
     contentMode: "hidden",
-    icon: FilePenLine,
+    icon: FolderPen,
     getTitle: () => i18n.t("assistant.tools.createCategory"),
     getDetail: (message) => {
       const data = getToolResultData(message);
       if (isRecord(data) && isRecord(data.category)) {
         return asString(data.category.title);
+      }
+      if (isRecord(data) && isRecord(data.metadata) && isRecord(data.metadata.category)) {
+        return asString(data.metadata.category.title);
       }
       return asString(getStreamingData(message).title);
     },
@@ -319,7 +339,7 @@ const TOOL_REGISTRY = {
     tag: "search",
     isExplore: true,
     contentMode: "hidden",
-    icon: FileSearch,
+    icon: BookSearch,
     getTitle: () => i18n.t("assistant.tools.searchChapters"),
     getDetail: (message) => {
       const data = getToolResultData(message);
@@ -338,7 +358,7 @@ const TOOL_REGISTRY = {
     tag: "update-index",
     isExplore: false,
     contentMode: "hidden",
-    icon: FileSearch,
+    icon: Network,
     getTitle: () => i18n.t("assistant.tools.updateIndex"),
   },
   list_volumes: {
@@ -362,7 +382,7 @@ const TOOL_REGISTRY = {
     tag: "create",
     isExplore: false,
     contentMode: "hidden",
-    icon: FileText,
+    icon: FolderPen,
     getTitle: () => i18n.t("assistant.tools.createVolume"),
     getDetail: (message) =>
       getVolumePayload(message)?.title ?? asString(getStreamingData(message).title),
@@ -373,7 +393,7 @@ const TOOL_REGISTRY = {
     tag: "edit",
     isExplore: false,
     contentMode: "hidden",
-    icon: FilePenLine,
+    icon: FolderPen,
     getTitle: () => i18n.t("assistant.tools.editVolume"),
     getDetail: (message) => {
       const sourceLabel = getVolumeRefLabel(message, "volume_ref");
@@ -389,7 +409,7 @@ const TOOL_REGISTRY = {
     tag: "delete",
     isExplore: false,
     contentMode: "hidden",
-    icon: Trash2,
+    icon: FolderX,
     getTitle: () => i18n.t("assistant.tools.deleteVolume"),
     getDetail: (message) => getVolumeRefLabel(message, "volume_ref"),
   },
@@ -416,7 +436,7 @@ const TOOL_REGISTRY = {
     tag: "chapter-summary",
     isExplore: true,
     contentMode: "hidden",
-    icon: FileSearch,
+    icon: Summary,
     getTitle: () => i18n.t("assistant.tools.chapterSummaries"),
     getDetail: (message) => {
       const summaries = getChapterSummaryList(message);
@@ -431,7 +451,7 @@ const TOOL_REGISTRY = {
     tag: "range-summary",
     isExplore: true,
     contentMode: "hidden",
-    icon: FileText,
+    icon: Summary,
     getTitle: () => i18n.t("assistant.tools.rangeSummaries"),
     getDetail: (message) => {
       const summaries = getRangeSummaryList(message);
@@ -496,7 +516,7 @@ const TOOL_REGISTRY = {
     tag: "world-entry-create",
     isExplore: false,
     contentMode: "expandable",
-    icon: FilePenLine,
+    icon: PenLine,
     getTitle: () => i18n.t("assistant.tools.createWorldEntry"),
     getDetail: (message) => getWorldEntryPayload(message).title,
     defaultExpanded: () => true,
@@ -508,7 +528,7 @@ const TOOL_REGISTRY = {
     tag: "world-entry-edit",
     isExplore: false,
     contentMode: "expandable",
-    icon: FilePenLine,
+    icon: PenLine,
     getTitle: () => i18n.t("assistant.tools.editWorldEntry"),
     getDetail: (message) => getWorldEntryPayload(message).title,
     defaultExpanded: () => true,
@@ -520,7 +540,7 @@ const TOOL_REGISTRY = {
     tag: "world-entry-delete",
     isExplore: false,
     contentMode: "hidden",
-    icon: Trash2,
+    icon: PenOff,
     getTitle: () => i18n.t("assistant.tools.deleteWorldEntry"),
     getDetail: (message) => getWorldEntryPayload(message).title,
   },
@@ -530,7 +550,7 @@ const TOOL_REGISTRY = {
     tag: "character-create",
     isExplore: false,
     contentMode: "expandable",
-    icon: FilePenLine,
+    icon: UserRoundPen,
     getTitle: () => i18n.t("assistant.tools.createCharacter"),
     getDetail: (message) => getCharacterPayload(message).name,
     defaultExpanded: () => true,
@@ -542,7 +562,7 @@ const TOOL_REGISTRY = {
     tag: "character-edit",
     isExplore: false,
     contentMode: "expandable",
-    icon: FilePenLine,
+    icon: UserRoundPen,
     getTitle: () => i18n.t("assistant.tools.editCharacter"),
     getDetail: (message) => getCharacterPayload(message).name,
     defaultExpanded: () => true,
@@ -554,7 +574,7 @@ const TOOL_REGISTRY = {
     tag: "character-delete",
     isExplore: false,
     contentMode: "hidden",
-    icon: Trash2,
+    icon: UserRoundX,
     getTitle: () => i18n.t("assistant.tools.deleteCharacter"),
     getDetail: (message) => getCharacterPayload(message).name,
   },
@@ -564,7 +584,7 @@ const TOOL_REGISTRY = {
     tag: "write",
     isExplore: false,
     contentMode: getPlanToolDisplayConfig().contentMode,
-    icon: ListOrdered,
+    icon: ListTodo,
     getTitle: () => i18n.t("assistant.tools.writePlan"),
     defaultExpanded: () => getPlanToolDisplayConfig().defaultExpanded,
     render: (message) => <PlanToolMessage message={message} />,
@@ -586,7 +606,7 @@ const TOOL_REGISTRY = {
     tag: "reference",
     isExplore: false,
     contentMode: "hidden",
-    icon: BookOpen,
+    icon: BookMarked,
     getTitle: () => i18n.t("assistant.tools.referenceSkill"),
     getDetail: (message) => {
       const skillName = getSkillArg(message, "skill_name");

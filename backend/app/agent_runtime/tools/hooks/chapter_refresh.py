@@ -23,26 +23,12 @@ def _parse_output(output: str | None) -> dict[str, Any] | None:
 
 
 def _extract_chapter_id(result: dict[str, Any]) -> str | None:
-    chapter = result.get("chapter")
-    if isinstance(chapter, dict):
-        chapter_id = chapter.get("id")
+    metadata = result.get("metadata")
+    chapter_diff = metadata.get("chapter_diff") if isinstance(metadata, dict) else None
+    if isinstance(chapter_diff, dict):
+        chapter_id = chapter_diff.get("chapter_id")
         if isinstance(chapter_id, str) and chapter_id:
             return chapter_id
-
-    data = result.get("data")
-    if isinstance(data, dict):
-        chapter = data.get("chapter")
-        if isinstance(chapter, dict):
-            chapter_id = chapter.get("id")
-            if isinstance(chapter_id, str) and chapter_id:
-                return chapter_id
-        chapter_id = data.get("chapter_id")
-        if isinstance(chapter_id, str) and chapter_id:
-            return chapter_id
-
-    chapter_id = result.get("chapter_id")
-    if isinstance(chapter_id, str) and chapter_id:
-        return chapter_id
     return None
 
 

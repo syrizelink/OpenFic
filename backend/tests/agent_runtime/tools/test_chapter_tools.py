@@ -220,15 +220,13 @@ async def test_write_chapter_appends_to_volume_and_returns_volume_id() -> None:
                 }
             )
 
-    data = _assert_success_payload(result, "write_chapter")
-    assert data["message"] == "章节已写入"
+    data = json.loads(result)
+    assert set(data) == {"success", "word_count", "metadata"}
+    assert data["success"] is True
     assert data["word_count"] == 3
-    assert data["chapter"]["id"] == "chap-new"
-    assert data["chapter"]["volume_id"] == "vol-1"
-    assert data["chapter_diff"]["operation"] == "create"
-    assert data["chapter_diff"]["chapter_id"] == "chap-new"
-    assert [section["type"] for section in data["chapter_diff"]["sections"]] == ["title", "content"]
-    assert data["affected_chapters"] == ["chap-new"]
+    assert data["metadata"]["chapter_diff"]["operation"] == "create"
+    assert data["metadata"]["chapter_diff"]["chapter_id"] == "chap-new"
+    assert [section["type"] for section in data["metadata"]["chapter_diff"]["sections"]] == ["title", "content"]
     mock_repo.get_max_order.assert_awaited_once_with(mock_session, "vol-1")
     created_chapter = mock_repo.create.call_args[0][1]
     assert created_chapter.id == "chap-new"
@@ -289,12 +287,13 @@ async def test_write_chapter_insert_order_shifts_within_volume() -> None:
                 }
             )
 
-    data = _assert_success_payload(result, "write_chapter")
-    assert data["message"] == "章节已写入"
+    data = json.loads(result)
+    assert set(data) == {"success", "word_count", "metadata"}
+    assert data["success"] is True
     assert data["word_count"] == 4
-    assert data["chapter"]["order"] == 2
-    assert data["chapter_diff"]["operation"] == "create"
-    assert [section["type"] for section in data["chapter_diff"]["sections"]] == ["title", "content"]
+    assert data["metadata"]["chapter_diff"]["operation"] == "create"
+    assert data["metadata"]["chapter_diff"]["order"] == 2
+    assert [section["type"] for section in data["metadata"]["chapter_diff"]["sections"]] == ["title", "content"]
     mock_repo.shift_orders.assert_awaited_once_with(mock_session, "vol-1", 2, 5, 1)
 
 
@@ -340,15 +339,37 @@ async def test_edit_chapter_resolves_inside_volume() -> None:
                 }
             )
 
-    data = _assert_success_payload(result, "edit_chapter")
-    assert data["message"] == "章节已编辑"
-    assert data["word_count"] == 4
-    assert data["chapter"]["title"] == "新标题"
-    assert data["chapter"]["volume_id"] == "vol-1"
-    assert data["chapter_diff"]["operation"] == "update"
-    assert data["chapter_diff"]["chapter_id"] == "chap-1"
-    assert data["chapter_diff"]["sections"][0]["type"] == "title"
-    assert data["affected_chapters"] == ["chap-1"]
+    data = json.loads(result)
+    assert data == {
+        "success": True,
+        "metadata": {
+            "chapter_diff": {
+                "operation": "update",
+                "chapter_id": "chap-1",
+                "chapter_title": "新标题",
+                "order": 1,
+                "sections": [
+                    {
+                        "type": "title",
+                        "lines": [
+                            {
+                                "type": "removed",
+                                "before_line_number": 1,
+                                "after_line_number": None,
+                                "text": "旧标题",
+                            },
+                            {
+                                "type": "added",
+                                "before_line_number": None,
+                                "after_line_number": 1,
+                                "text": "新标题",
+                            },
+                        ],
+                    }
+                ],
+            }
+        },
+    }
     mock_repo.list_by_volume.assert_awaited_once_with(mock_session, "vol-1")
 
 
@@ -391,7 +412,15 @@ async def test_delete_chapter_delegates_to_chapter_service() -> None:
                 }
             )
 
-    _assert_success_payload(result, "delete_chapter")
+    data = json.loads(result)
+    assert set(data) == {"success", "metadata"}
+    assert data["success"] is True
+    assert data["metadata"]["chapter_diff"] == {
+        "operation": "delete",
+        "chapter_id": "chap-1",
+        "chapter_title": "第一章",
+        "order": 2,
+    }
     mock_chapter_service.delete_chapter.assert_awaited_once_with(
         mock_session,
         "chap-1",
@@ -422,8 +451,10 @@ async def test_create_volume_appends_to_project() -> None:
         ) as create_volume:
             result = await tool.ainvoke({"title": "第三卷", "description": "终局"})
 
-    data = _assert_success_payload(result, "create_volume")
-    assert data["volume"] == {
+    data = json.loads(result)
+    assert set(data) == {"success", "metadata"}
+    assert data["success"] is True
+    assert data["metadata"]["volume"] == {
         "order": 3,
         "title": "第三卷",
         "description": "终局",
@@ -459,9 +490,17 @@ async def test_edit_volume_updates_title_and_description() -> None:
                 }
             )
 
-    data = _assert_success_payload(result, "edit_volume")
-    assert data["volume"]["title"] == "新卷"
-    assert data["volume"]["description"] == "新描述"
+    assert json.loads(result) == {
+        "success": True,
+        "metadata": {
+            "volume": {
+                "order": 1,
+                "title": "新卷",
+                "description": "新描述",
+                "chapter_count": 2,
+            }
+        },
+    }
     update_volume.assert_awaited_once_with(mock_session, volume)
 
 
@@ -489,6 +528,33 @@ async def test_delete_volume_requires_cascade_for_non_empty_volume() -> None:
     assert "error" in data
     assert "cascade=true" in data["error"]
     mock_session.rollback.assert_called_once()
+
+
+async def test_delete_volume_returns_success_only() -> None:
+    from app.agent_runtime.tools.impls.chapter.delete_volume import DeleteVolumeTool
+
+    volume = _make_volume(chapter_count=0)
+    tool = DeleteVolumeTool(_state=_make_state())
+
+    with patch("app.agent_runtime.tools.impls.chapter.delete_volume.create_session") as mock_cs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        with patch(
+            "app.agent_runtime.tools.impls.chapter.delete_volume.volume_repo.list_by_project",
+            AsyncMock(return_value=[volume]),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.delete_volume.chapter_repo.count_by_volume",
+            AsyncMock(return_value=0),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.delete_volume.volume_service.delete_volume",
+            AsyncMock(),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.delete_volume.refresh_project_stats",
+            AsyncMock(),
+        ):
+            result = await tool.ainvoke({"volume_ref": {"type": "order", "value": 1}})
+
+    assert json.loads(result) == {"success": True}
 
 
 async def test_move_chapter_to_volume_appends_to_target_volume() -> None:
@@ -538,9 +604,16 @@ async def test_move_chapter_to_volume_appends_to_target_volume() -> None:
                     }
                 )
 
-    data = _assert_success_payload(result, "move_chapter_to_volume")
-    assert data["chapter"]["volume_id"] == "vol-2"
-    assert data["chapter"]["order"] == 4
+    data = json.loads(result)
+    assert set(data) == {"success", "metadata"}
+    assert data["success"] is True
+    assert data["metadata"]["chapter_diff"] == {
+        "operation": "move",
+        "chapter_id": "chap-1",
+        "chapter_title": "第一章",
+        "order": 4,
+        "volume_id": "vol-2",
+    }
     move_chapter.assert_awaited_once_with(
         mock_session,
         "chap-1",

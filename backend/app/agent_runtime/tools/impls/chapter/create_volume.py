@@ -19,17 +19,17 @@ def serialize_volume(volume: Volume) -> dict[str, int | str | None]:
 
 
 class CreateVolumeInput(BaseModel):
-    title: str = Field(description="新卷标题")
+    title: str = Field(description="卷标题")
     description: str | None = Field(
         default=None,
-        description="可选的新卷说明",
+        description="卷说明，可选",
     )
 
 
 @ToolRegistry.register
 class CreateVolumeTool(AgentTool):
     name: str = "create_volume"
-    description: str = "在项目末尾创建一个新卷"
+    description: str = "创建一个新卷"
     access_level: str = "write"
     args_schema: type[BaseModel] = CreateVolumeInput
 
@@ -48,12 +48,8 @@ class CreateVolumeTool(AgentTool):
             await session.commit()
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": self._state.get("current_revision_id"),
-                    "volume": serialize_volume(volume),
-                    "message": "卷已创建",
+                    "metadata": {"volume": serialize_volume(volume)},
                 },
                 ensure_ascii=False,
             )

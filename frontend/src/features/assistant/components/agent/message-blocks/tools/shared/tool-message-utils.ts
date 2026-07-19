@@ -453,6 +453,8 @@ export function formatOutlineDetail(message: AgentMessage): string | undefined {
 
 export function getChapterPayload(message: AgentMessage): ChapterPayload {
   const data = getToolData(message);
+  const metadata = isRecord(data.metadata) ? data.metadata : null;
+  const chapterDiff = isRecord(metadata?.chapter_diff) ? metadata.chapter_diff : null;
   const chapterData = isRecord(data.chapter) ? data.chapter : data;
   const toolArgs = message.toolArgs ?? {};
   const id =
@@ -460,9 +462,11 @@ export function getChapterPayload(message: AgentMessage): ChapterPayload {
       ? chapterData.id
       : typeof chapterData.chapter_id === "string"
         ? chapterData.chapter_id
-        : typeof toolArgs.chapter_id === "string"
-          ? toolArgs.chapter_id
-          : undefined;
+        : asString(chapterDiff?.chapter_id)
+          ? asString(chapterDiff?.chapter_id)
+          : typeof toolArgs.chapter_id === "string"
+            ? toolArgs.chapter_id
+            : undefined;
   const chapterRef = isRecord(toolArgs.chapter_ref) ? toolArgs.chapter_ref : null;
   const chapterRefTitle = chapterRef?.type === "title" ? asString(chapterRef.value) : undefined;
   return {
@@ -470,11 +474,12 @@ export function getChapterPayload(message: AgentMessage): ChapterPayload {
     title:
       typeof chapterData.title === "string"
         ? chapterData.title
-        : typeof toolArgs.title === "string"
-          ? toolArgs.title
-          : typeof toolArgs.new_title === "string"
-            ? toolArgs.new_title
-            : chapterRefTitle,
+        : (asString(chapterDiff?.chapter_title) ??
+          (typeof toolArgs.title === "string"
+            ? toolArgs.title
+            : typeof toolArgs.new_title === "string"
+              ? toolArgs.new_title
+              : chapterRefTitle)),
     content:
       typeof chapterData.content === "string"
         ? chapterData.content
@@ -482,9 +487,9 @@ export function getChapterPayload(message: AgentMessage): ChapterPayload {
           ? toolArgs.content
           : undefined,
     chapter_id: id,
-    order: asNumber(chapterData.order),
+    order: asNumber(chapterData.order) ?? asNumber(chapterDiff?.order),
     word_count: asNumber(chapterData.word_count),
-    volume_id: asString(chapterData.volume_id),
+    volume_id: asString(chapterData.volume_id) ?? asString(chapterDiff?.volume_id),
   };
 }
 
@@ -515,6 +520,9 @@ export function getVolumePayload(message: AgentMessage): VolumePayload | null {
   }
   const data = getToolData(message);
   if (isRecord(data.volume)) return toVolumePayload(data.volume);
+  if (isRecord(data.metadata) && isRecord(data.metadata.volume)) {
+    return toVolumePayload(data.metadata.volume);
+  }
   return null;
 }
 
@@ -531,6 +539,9 @@ export function getVolumeList(message: AgentMessage): VolumePayload[] {
 
 export function getNotePayload(message: AgentMessage): NotePayload {
   const resultData = getToolResultData(message);
+  const metadata =
+    isRecord(resultData) && isRecord(resultData.metadata) ? resultData.metadata : null;
+  const noteDiff = isRecord(metadata?.note_diff) ? metadata.note_diff : null;
   if (isRecord(resultData) && isRecord(resultData.note)) {
     const note = resultData.note;
     return {
@@ -551,9 +562,11 @@ export function getNotePayload(message: AgentMessage): NotePayload {
   const toolArgs = message.toolArgs ?? {};
   const noteRef = isRecord(toolArgs.note_ref) ? toolArgs.note_ref : null;
   return {
-    id: asString(noteRef?.id),
-    title: asString(streamingData.title) ?? asString(noteRef?.title),
+    id: asString(noteDiff?.note_id) ?? asString(noteRef?.id),
+    title:
+      asString(noteDiff?.note_title) ?? asString(streamingData.title) ?? asString(noteRef?.title),
     content: asString(streamingData.content),
+    category_id: asString(noteDiff?.category_id) ?? null,
   };
 }
 
@@ -625,10 +638,10 @@ export function getWorldEntryPayload(message: AgentMessage): WorldInfoEntryPaylo
   const data = getToolData(message);
   const entryData =
     isRecord(resultData) && isRecord(resultData.world_entry) ? resultData.world_entry : data;
+  const metadata =
+    isRecord(resultData) && isRecord(resultData.metadata) ? resultData.metadata : null;
   const diff =
-    isRecord(resultData) && isRecord(resultData.world_entry_diff)
-      ? resultData.world_entry_diff
-      : null;
+    isRecord(metadata) && isRecord(metadata.world_entry_diff) ? metadata.world_entry_diff : null;
   return {
     title:
       asString(entryData.title) ??
@@ -661,8 +674,10 @@ export function getCharacterPayload(message: AgentMessage): CharacterPayload {
   const data = getToolData(message);
   const characterData =
     isRecord(resultData) && isRecord(resultData.character) ? resultData.character : data;
+  const metadata =
+    isRecord(resultData) && isRecord(resultData.metadata) ? resultData.metadata : null;
   const diff =
-    isRecord(resultData) && isRecord(resultData.character_diff) ? resultData.character_diff : null;
+    isRecord(metadata) && isRecord(metadata.character_diff) ? metadata.character_diff : null;
   return {
     name:
       asString(characterData.name) ??

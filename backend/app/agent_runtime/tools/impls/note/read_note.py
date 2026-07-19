@@ -19,13 +19,13 @@ from app.storage.repos import note_category_repo, note_repo
 
 
 class ReadNoteInput(BaseModel):
-    note_ref: NoteRef = Field(description="要读取的笔记引用")
+    note_ref: NoteRef = Field(description="目标笔记")
 
 
 @ToolRegistry.register
 class ReadNoteTool(AgentTool):
     name: str = "read_note"
-    description: str = "读取单条笔记的完整内容"
+    description: str = "读取指定笔记的完整内容"
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ReadNoteInput
 

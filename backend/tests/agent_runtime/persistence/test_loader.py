@@ -175,6 +175,59 @@ async def test_load_history_pairs_assistant_with_tool(
 
 
 @pytest.mark.asyncio
+async def test_load_history_orders_tool_results_by_assistant_tool_call_order(
+    db_session: AsyncSession,
+    sample_task,
+) -> None:
+    sid = "session_parallel_tools"
+    await repo.insert_message(
+        db_session,
+        session_id=sid,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="assistant",
+        content="",
+        status="complete",
+        tool_calls=[
+            {"id": "call_1", "name": "dispatch_subagent", "args": {"agent": "writer"}},
+            {"id": "call_2", "name": "dispatch_subagent", "args": {"agent": "reviewer"}},
+        ],
+    )
+    # 并行工具按实际完成顺序入库：call_2 比 call_1 先完成。
+    await repo.insert_message(
+        db_session,
+        session_id=sid,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="tool",
+        content="review complete",
+        status="complete",
+        tool_call_id="call_2",
+        tool_name="dispatch_subagent",
+    )
+    await repo.insert_message(
+        db_session,
+        session_id=sid,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="tool",
+        content="draft complete",
+        status="complete",
+        tool_call_id="call_1",
+        tool_name="dispatch_subagent",
+    )
+
+    messages = await load_history(db_session, sid)
+
+    assert isinstance(messages[0], AIMessage)
+    assert [
+        message.tool_call_id
+        for message in messages[1:]
+        if isinstance(message, ToolMessage)
+    ] == ["call_1", "call_2"]
+
+
+@pytest.mark.asyncio
 async def test_load_history_adds_openfic_response_metadata_for_seq_and_tool_name(
     db_session: AsyncSession, sample_task
 ):
@@ -383,7 +436,7 @@ async def test_load_history_preserves_full_write_tool_result_payload(
                 "revision_id": "rev-1",
                 "word_count": 2,
                 "chapter": {"id": "chap-1", "title": "第一章", "content": "正文"},
-                "chapter_diff": {"operation": "create", "sections": []},
+                "metadata": {"chapter_diff": {"operation": "create", "sections": []}},
                 "affected_chapters": ["chap-1"],
                 "message": "章节已写入",
             },
@@ -408,7 +461,7 @@ async def test_load_history_preserves_full_write_tool_result_payload(
         "revision_id": "rev-1",
         "word_count": 2,
         "chapter": {"id": "chap-1", "title": "第一章", "content": "正文"},
-        "chapter_diff": {"operation": "create", "sections": []},
+        "metadata": {"chapter_diff": {"operation": "create", "sections": []}},
         "affected_chapters": ["chap-1"],
         "message": "章节已写入",
     }

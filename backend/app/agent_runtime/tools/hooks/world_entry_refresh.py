@@ -28,28 +28,23 @@ def _parse_output(output: str | None) -> dict[str, Any] | None:
 
 
 def _extract_entry_id(result: dict[str, Any]) -> str | None:
-    world_entry = result.get("world_entry")
-    if isinstance(world_entry, dict):
-        entry_id = world_entry.get("id")
-        if isinstance(entry_id, str) and entry_id:
-            return entry_id
-
-    world_entry_diff = result.get("world_entry_diff")
+    metadata = result.get("metadata")
+    world_entry_diff = (
+        metadata.get("world_entry_diff") if isinstance(metadata, dict) else None
+    )
     if isinstance(world_entry_diff, dict):
         entry_id = world_entry_diff.get("entry_id")
         if isinstance(entry_id, str) and entry_id:
             return entry_id
 
-    entry_id = result.get("entry_id")
-    if isinstance(entry_id, str) and entry_id:
-        return entry_id
     return None
 
 
 def _extract_world_info_id(result: dict[str, Any], state: dict[str, Any]) -> str | None:
-    world_info_id = result.get("world_info_id")
-    if isinstance(world_info_id, str) and world_info_id:
-        return world_info_id
+    metadata = result.get("metadata")
+    metadata_world_info_id = metadata.get("world_info_id") if isinstance(metadata, dict) else None
+    if isinstance(metadata_world_info_id, str) and metadata_world_info_id:
+        return metadata_world_info_id
 
     state_world_info_id = state.get("world_info_id")
     if isinstance(state_world_info_id, str) and state_world_info_id:

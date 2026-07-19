@@ -112,6 +112,78 @@ async def test_edit_note_rejects_locked_note() -> None:
     assert "已锁定" in data["error"]
 
 
+async def test_edit_note_returns_success_and_diff_metadata() -> None:
+    from app.agent_runtime.tools.impls.note.edit_note import EditNoteTool
+
+    note = _make_note(note_id="note-1", title="测试笔记", content="旧内容")
+    tool = EditNoteTool(_state=_make_state())
+
+    with patch(
+        "app.agent_runtime.tools.impls.note.edit_note.create_session"
+    ) as mock_cs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        with (
+            patch(
+                "app.agent_runtime.tools.impls.note.edit_note.note_repo.get_by_id",
+                AsyncMock(return_value=note),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.edit_note.note_repo.list_by_project",
+                AsyncMock(side_effect=[[note], [note]]),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.edit_note.note_repo.update_note",
+                AsyncMock(),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.edit_note.record_note_diffs",
+                AsyncMock(return_value=["note-1"]),
+            ),
+            patch(
+                "app.background.jobs.service.commit_and_notify",
+                AsyncMock(),
+            ),
+        ):
+            result = await tool.ainvoke(
+                {
+                    "note_ref": {"id": "note-1"},
+                    "old_content": "旧内容",
+                    "new_content": "新内容",
+                }
+            )
+
+    assert json.loads(result) == {
+        "success": True,
+        "metadata": {
+            "note_diff": {
+                "operation": "update",
+                "note_id": "note-1",
+                "note_title": "测试笔记",
+                "sections": [
+                    {
+                        "type": "content",
+                        "lines": [
+                            {
+                                "type": "removed",
+                                "before_line_number": 1,
+                                "after_line_number": None,
+                                "text": "旧内容",
+                            },
+                            {
+                                "type": "added",
+                                "before_line_number": None,
+                                "after_line_number": 1,
+                                "text": "新内容",
+                            },
+                        ],
+                    }
+                ],
+            }
+        },
+    }
+
+
 async def test_delete_note_rejects_hidden_note() -> None:
     from app.agent_runtime.tools.impls.note.delete_note import DeleteNoteTool
 
@@ -156,6 +228,45 @@ async def test_delete_note_rejects_locked_note() -> None:
     data = json.loads(result)
     assert "error" in data
     assert "已锁定" in data["error"]
+
+
+async def test_delete_note_returns_success_and_diff_metadata() -> None:
+    from app.agent_runtime.tools.impls.note.delete_note import DeleteNoteTool
+
+    note = _make_note(note_id="note-1", title="测试笔记", content="测试内容")
+    tool = DeleteNoteTool(_state=_make_state())
+
+    with patch("app.agent_runtime.tools.impls.note.delete_note.create_session") as mock_cs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        with (
+            patch(
+                "app.agent_runtime.tools.impls.note.delete_note.note_repo.get_by_id",
+                AsyncMock(return_value=note),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.delete_note.note_repo.list_by_project",
+                AsyncMock(side_effect=[[note], []]),
+            ),
+            patch("app.agent_runtime.tools.impls.note.delete_note.note_repo.delete", AsyncMock()),
+            patch(
+                "app.agent_runtime.tools.impls.note.delete_note.record_note_diffs",
+                AsyncMock(return_value=["note-1"]),
+            ),
+            patch("app.background.jobs.service.commit_and_notify", AsyncMock()),
+        ):
+            result = await tool.ainvoke({"note_ref": {"id": "note-1"}})
+
+    assert json.loads(result) == {
+        "success": True,
+        "metadata": {
+            "note_diff": {
+                "operation": "delete",
+                "note_id": "note-1",
+                "note_title": "测试笔记",
+            }
+        },
+    }
 
 
 async def test_list_notes_returns_only_visible_notes() -> None:
@@ -250,13 +361,13 @@ async def test_write_note_creates_note_and_returns_success() -> None:
             mock_session.close.assert_called_once()
 
     data = json.loads(result)
-    assert data["type"] == "ok"
+    assert set(data) == {"success", "metadata"}
     assert data["success"] is True
-    assert data["tool_name"] == "write_note"
-    assert data["note"]["title"] == "新笔记"
-    assert data["revision_id"] == "rev-1"
-    assert data["note_diff"]["operation"] == "create"
-    assert data["note_diff"]["sections"][0]["type"] == "content"
+    assert data["metadata"]["note_diff"]["operation"] == "create"
+    assert data["metadata"]["note_diff"]["note_id"] == "note-new"
+    assert data["metadata"]["note_diff"]["note_title"] == "新笔记"
+    assert data["metadata"]["note_diff"]["category_id"] is None
+    assert data["metadata"]["note_diff"]["sections"][0]["type"] == "content"
 
 
 async def test_move_note_rejects_locked_note() -> None:
@@ -282,3 +393,96 @@ async def test_move_note_rejects_locked_note() -> None:
     data = json.loads(result)
     assert "error" in data
     assert "已锁定" in data["error"]
+
+
+async def test_move_note_returns_success_and_metadata() -> None:
+    from app.agent_runtime.tools.impls.note.move_note import MoveNoteTool
+
+    note = _make_note(note_id="note-1", title="测试笔记", category_id="cat-1")
+    category = _make_category(category_id="cat-2", title="目标分类")
+    moved = _make_note(note_id="note-1", title="测试笔记", category_id="cat-2")
+    tool = MoveNoteTool(_state=_make_state())
+
+    with patch("app.agent_runtime.tools.impls.note.move_note.create_session") as mock_cs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        with (
+            patch(
+                "app.agent_runtime.tools.impls.note.move_note.note_repo.get_by_id",
+                AsyncMock(return_value=note),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.move_note.note_category_repo.get_by_id",
+                AsyncMock(return_value=category),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.move_note.note_repo.list_by_project",
+                AsyncMock(side_effect=[[note], [moved]]),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.move_note.note_service.move_item",
+                AsyncMock(return_value=moved),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.move_note.record_note_diffs",
+                AsyncMock(return_value=["note-1"]),
+            ),
+            patch("app.background.jobs.service.commit_and_notify", AsyncMock()),
+        ):
+            result = await tool.ainvoke(
+                {"note_ref": {"id": "note-1"}, "target_category_ref": {"id": "cat-2"}}
+            )
+
+    assert json.loads(result) == {
+        "success": True,
+        "metadata": {
+            "note_diff": {
+                "operation": "move",
+                "note_id": "note-1",
+                "note_title": "测试笔记",
+                "category_id": "cat-2",
+                "target_category_id": "cat-2",
+                "target_category_title": "目标分类",
+            }
+        },
+    }
+
+
+async def test_create_note_category_returns_success_and_metadata() -> None:
+    from app.agent_runtime.tools.impls.note.create_note_category import CreateNoteCategoryTool
+
+    created = _make_category(category_id="cat-new", title="新分类", parent_id="cat-1")
+    tool = CreateNoteCategoryTool(_state=_make_state())
+
+    with patch(
+        "app.agent_runtime.tools.impls.note.create_note_category.create_session"
+    ) as mock_cs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        with (
+            patch(
+                "app.agent_runtime.tools.impls.note.create_note_category.note_category_repo.get_by_id",
+                AsyncMock(return_value=_make_category()),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.create_note_category.note_category_repo.list_by_project",
+                AsyncMock(side_effect=[[_make_category()], [_make_category(), created]]),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.create_note_category.note_category_repo.create",
+                AsyncMock(return_value=created),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.create_note_category.record_note_category_diffs",
+                AsyncMock(return_value=["cat-new"]),
+            ),
+            patch("app.background.jobs.service.commit_and_notify", AsyncMock()),
+        ):
+            result = await tool.ainvoke({"title": "新分类", "parent_ref": {"id": "cat-1"}})
+
+    assert json.loads(result) == {
+        "success": True,
+        "metadata": {
+            "category": {"id": "cat-new", "title": "新分类", "parent_id": "cat-1"}
+        },
+    }

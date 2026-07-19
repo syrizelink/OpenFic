@@ -1,18 +1,9 @@
-import json
-from collections.abc import Mapping
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.context.helpers import compile_canonical_mentions
 from app.agent_runtime.context.types import ContextMessage
-
-
-_COMPACT_TOOL_RESULT_NAMES = {
-    "write_chapter",
-    "edit_chapter",
-}
-
 
 def _is_context_history_message(raw: dict) -> bool:
     display_channel = raw.get("display_channel", raw.get("displayChannel"))
@@ -21,49 +12,6 @@ def _is_context_history_message(raw: dict) -> bool:
 
     message_type = raw.get("message_type", raw.get("messageType"))
     return message_type in {None, "", "message"}
-
-
-def _compact_tool_result_content(
-    content: Any,
-    *,
-    tool_name: str | None = None,
-) -> str:
-    if not isinstance(content, str):
-        return str(content)
-
-    parsed = _parse_tool_result(content)
-    if parsed is None:
-        return content
-
-    effective_tool_name = tool_name or _string_value(parsed.get("tool_name"))
-    if effective_tool_name not in _COMPACT_TOOL_RESULT_NAMES:
-        return content
-
-    error = _string_value(parsed.get("error"))
-    compact = {
-        "success": False if error else bool(parsed.get("success")),
-        "tool_name": effective_tool_name,
-        "message": (
-            _string_value(parsed.get("message"))
-            or _string_value(parsed.get("reason"))
-            or error
-        ),
-    }
-    word_count = parsed.get("word_count")
-    if isinstance(word_count, int) and not isinstance(word_count, bool):
-        compact["word_count"] = word_count
-    return json.dumps(compact, ensure_ascii=False)
-
-
-def _parse_tool_result(content: str) -> dict[str, Any] | None:
-    try:
-        parsed = json.loads(content)
-    except (TypeError, ValueError):
-        return None
-    if not isinstance(parsed, Mapping):
-        return None
-    return dict(parsed)
-
 
 def _string_value(value: Any) -> str | None:
     return value if isinstance(value, str) and value else None
@@ -112,9 +60,7 @@ async def build_history(
         name = name or metadata_tool_name
         metadata = _history_metadata(raw, tool_name=name if role == "tool" else None)
         content = raw.get("content", "")
-        if role == "tool":
-            content = _compact_tool_result_content(content, tool_name=name)
-        elif role == "user" and db_session is not None and isinstance(content, str) and "<of-mention" in content:
+        if role == "user" and db_session is not None and isinstance(content, str) and "<of-mention" in content:
             content = await compile_canonical_mentions(content, db_session)
         result.append(ContextMessage(
             role=role,

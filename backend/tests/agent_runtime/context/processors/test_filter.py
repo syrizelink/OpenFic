@@ -1,6 +1,9 @@
 from typing import Literal
 
-from app.agent_runtime.context.processors.filter import filter_invalid
+from app.agent_runtime.context.processors.filter import (
+    filter_invalid,
+    filter_tool_result_metadata_content,
+)
 from app.agent_runtime.context.types import ContextMessage
 
 ContextRole = Literal["system", "user", "assistant", "tool"]
@@ -75,3 +78,9 @@ def test_drops_orphan_tool_response_when_assistant_dropped() -> None:
     tool.tool_call_id = "c1"
     out = filter_invalid([asst, tool])
     assert out == []
+
+
+def test_tool_result_metadata_content_keeps_success_result() -> None:
+    content = '{"success":true,"metadata":{"note_diff":{"note_id":"note-1"}}}'
+
+    assert filter_tool_result_metadata_content(content) == '{"success": true}'

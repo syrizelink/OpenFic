@@ -59,14 +59,6 @@ class CharacterPreview:
     description: str
 
 
-def _serialize_character(character: Character) -> dict:
-    return {
-        "id": character.id,
-        "name": character.name,
-        "description": character.description,
-    }
-
-
 def _preview_from_character(character: Character) -> CharacterPreview:
     return CharacterPreview(
         id=character.id,
@@ -242,7 +234,7 @@ class CreateCharacterTool(AgentTool):
                 name=normalized_name,
                 description=description,
             )
-            affected_characters = await record_character_diffs(
+            await record_character_diffs(
                 session,
                 revision_id=revision_id,
                 project_id=self.project_id,
@@ -253,14 +245,10 @@ class CreateCharacterTool(AgentTool):
             character_preview = _preview_from_character(character)
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "affected_characters": affected_characters,
-                    "character": _serialize_character(character),
-                    "character_diff": _build_character_diff(None, character_preview),
-                    "message": "角色已创建",
+                    "metadata": {
+                        "character_diff": _build_character_diff(None, character_preview),
+                    },
                 },
                 ensure_ascii=False,
             )
@@ -315,7 +303,7 @@ class EditCharacterTool(AgentTool):
                 name=normalized_new_name,
                 description=description if description != before.description else None,
             )
-            affected_characters = await record_character_diffs(
+            await record_character_diffs(
                 session,
                 revision_id=revision_id,
                 project_id=self.project_id,
@@ -326,14 +314,10 @@ class EditCharacterTool(AgentTool):
             after = _preview_from_character(updated)
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "affected_characters": affected_characters,
-                    "character": _serialize_character(updated),
-                    "character_diff": _build_character_diff(before, after),
-                    "message": "角色已编辑",
+                    "metadata": {
+                        "character_diff": _build_character_diff(before, after),
+                    },
                 },
                 ensure_ascii=False,
             )
@@ -361,7 +345,7 @@ class DeleteCharacterTool(AgentTool):
             before = _preview_from_character(character)
             before_images = character_images_by_id([character])
             await character_service.delete_character(session, character.id)
-            affected_characters = await record_character_diffs(
+            await record_character_diffs(
                 session,
                 revision_id=revision_id,
                 project_id=self.project_id,
@@ -371,14 +355,10 @@ class DeleteCharacterTool(AgentTool):
             await session.commit()
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "affected_characters": affected_characters,
-                    "character_id": before.id,
-                    "name": before.name,
-                    "message": "角色已删除",
+                    "metadata": {
+                        "character_diff": _build_character_diff(before, None),
+                    },
                 },
                 ensure_ascii=False,
             )

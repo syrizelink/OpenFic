@@ -29,9 +29,7 @@ class ReadChapterSummariesInput(BaseModel):
 @ToolRegistry.register
 class ReadChapterSummariesTool(AgentTool):
     name: str = "read_chapter_summaries"
-    description: str = """读取章节摘要
-    
-    章节摘要是一个章节剧情的概括和总结"""
+    description: str = """读取章节摘要"""
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ReadChapterSummariesInput
 

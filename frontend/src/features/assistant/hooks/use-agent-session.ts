@@ -31,6 +31,7 @@ import {
   submitAgentToolApproval,
 } from "@/lib/api-client";
 
+import type { ClarificationAnswerItem } from "../components/agent/message-blocks/messages/special/clarification-flow-state";
 import { joinAgentSession, subscribeAgentSessionEvents } from "../lib/agent-socket";
 import {
   applyAgentTranscriptEventToLiveState,
@@ -64,7 +65,6 @@ import {
   hasRunningAsyncSubagent,
   shouldJoinLoadedAgentSession,
 } from "./use-agent-session-reconnect";
-import type { ClarificationAnswerItem } from "../components/agent/message-blocks/messages/special/clarification-flow-state";
 
 function isUserTextMessage(message: AgentMessage | undefined): message is AgentMessage {
   return Boolean(

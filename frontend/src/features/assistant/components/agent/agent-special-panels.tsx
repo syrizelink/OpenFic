@@ -1,8 +1,8 @@
 import { Flex } from "@radix-ui/themes";
 
 import { type AgentSpecialPanel, getAgentSpecialPanelVariant } from "./agent-special-panels-state";
-import { ClarificationSpecialPanel } from "./message-blocks/panels/clarification-special-panel";
 import type { ClarificationAnswerItem } from "./message-blocks/messages/special/clarification-flow-state";
+import { ClarificationSpecialPanel } from "./message-blocks/panels/clarification-special-panel";
 import { ToolApprovalSpecialPanel } from "./message-blocks/panels/tool-approval-special-panel";
 
 interface AgentSpecialPanelsProps {

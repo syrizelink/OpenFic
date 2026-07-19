@@ -26,6 +26,7 @@ from langgraph.types import RetryPolicy
 
 from app.agent_runtime.types import ReactAgentConfig
 from app.agent_runtime.context import build_context, build_context_parts
+from app.agent_runtime.context.processors.filter import filter_tool_result_metadata_content
 from app.agent_runtime.context.helpers import compile_canonical_mentions
 from app.agent_runtime.context.compaction.config import AUTO_TRIGGER_RATIO
 from app.agent_runtime.context.compaction.service import CompactionError, compact_window
@@ -586,7 +587,16 @@ def create_react_agent(
                     db_session=db_session,
                 )
         else:
-            messages = list(state["messages"])
+            messages = [
+                ToolMessage(
+                    content=filter_tool_result_metadata_content(message.content),
+                    tool_call_id=message.tool_call_id,
+                    name=message.name,
+                )
+                if isinstance(message, ToolMessage)
+                else message
+                for message in state["messages"]
+            ]
 
         transient_parts: list[ContextMessage] = []
         transient_messages: list[BaseMessage] = []
@@ -793,7 +803,11 @@ def create_react_agent(
                     if isolated_session is not None:
                         await _close_maybe(isolated_session)
                 tool_result_payload, tool_success = _tool_result_payload(result)
-                message = ToolMessage(content=str(result), tool_call_id=tool_id)
+                result_content = str(result)
+                message = ToolMessage(
+                    content=result_content,
+                    tool_call_id=tool_id,
+                )
             else:
                 tool_result_payload = {
                     "error": f"tool '{tool_name}' not found.",

@@ -30,7 +30,8 @@ def _extract_note_id(result: dict[str, Any]) -> str | None:
         if isinstance(note_id, str) and note_id:
             return note_id
 
-    note_diff = result.get("note_diff")
+    metadata = result.get("metadata")
+    note_diff = metadata.get("note_diff") if isinstance(metadata, dict) else None
     if isinstance(note_diff, dict):
         note_id = note_diff.get("note_id")
         if isinstance(note_id, str) and note_id:

@@ -1,4 +1,5 @@
 import asyncio
+import json
 from unittest.mock import AsyncMock, patch
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
@@ -60,6 +61,17 @@ def _sync_add_tool() -> StructuredTool:
         _add_numbers,
         name="add_numbers",
         description="add",
+    )
+
+
+def _metadata_tool() -> StructuredTool:
+    async def _async_edit() -> str:
+        return '{"success":true,"metadata":{"chapter_diff":{"chapter_id":"chap-1"}}}'
+
+    return StructuredTool.from_function(
+        coroutine=_async_edit,
+        name="edit_chapter",
+        description="edit",
     )
 
 
@@ -261,6 +273,46 @@ async def test_react_agent_executes_tool_call_and_stops():
         })
         assert result["is_done"] is True
         assert result["iteration_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_react_agent_keeps_tool_result_metadata_in_graph_state():
+    config = ReactAgentConfig(
+        name="test",
+        tools=[_metadata_tool()],
+        termination=TerminationCondition(mode="no_tool_call"),
+        max_iterations=2,
+    )
+    graph = create_react_agent(config)
+    observed_messages: list[list] = []
+    responses = [
+        AIMessage(content="", tool_calls=[{"id": "call_1", "name": "edit_chapter", "args": {}}]),
+        AIMessage(content="done"),
+    ]
+
+    async def mock_invoke(_model, messages):
+        observed_messages.append(messages)
+        return responses.pop(0)
+
+    with patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=mock_invoke):
+        result = await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="编辑章节")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            }
+        )
+
+    state_tool_message = result["messages"][-2]
+    assert isinstance(state_tool_message, ToolMessage)
+    assert json.loads(state_tool_message.content) == {
+        "success": True,
+        "metadata": {"chapter_diff": {"chapter_id": "chap-1"}},
+    }
+    model_tool_message = observed_messages[1][-1]
+    assert isinstance(model_tool_message, ToolMessage)
+    assert model_tool_message.content == '{"success": true}'
 
 
 @pytest.mark.asyncio

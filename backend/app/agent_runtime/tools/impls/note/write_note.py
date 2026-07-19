@@ -92,7 +92,7 @@ class WriteNoteTool(AgentTool):
                     session, self.project_id, include_hidden=True
                 )
             )
-            affected = await record_note_diffs(
+            await record_note_diffs(
                 session,
                 revision_id=revision_id,
                 project_id=self.project_id,
@@ -115,6 +115,7 @@ class WriteNoteTool(AgentTool):
                 "sections": [{"type": "content", "lines": diff_lines}],
                 "note_id": note.id,
                 "note_title": note.title,
+                "category_id": note.category_id,
             }
 
             from app.background.jobs import service as background_service
@@ -122,20 +123,8 @@ class WriteNoteTool(AgentTool):
             await background_service.commit_and_notify(session)
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "note": {
-                        "id": note.id,
-                        "title": note.title,
-                        "category_id": note.category_id,
-                    },
-                    "note_diff": note_diff,
-                    "affected_notes": affected,
-                    "message": f"笔记已创建: {note.title}"
-                    if unique_title != title
-                    else "笔记已创建",
+                    "metadata": {"note_diff": note_diff},
                 },
                 ensure_ascii=False,
             )

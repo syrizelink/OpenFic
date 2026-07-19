@@ -24,7 +24,7 @@ from app.storage.repos import note_category_repo, note_repo
 
 
 class DeleteNoteInput(BaseModel):
-    note_ref: NoteRef = Field(description="要删除的笔记引用")
+    note_ref: NoteRef = Field(description="目标笔记")
 
 
 @ToolRegistry.register
@@ -73,7 +73,7 @@ class DeleteNoteTool(AgentTool):
                     session, self.project_id, include_hidden=True
                 )
             )
-            affected = await record_note_diffs(
+            await record_note_diffs(
                 session,
                 revision_id=revision_id,
                 project_id=self.project_id,
@@ -86,13 +86,14 @@ class DeleteNoteTool(AgentTool):
             await background_service.commit_and_notify(session)
             return json.dumps(
                 {
-                    "type": "ok",
                     "success": True,
-                    "tool_name": self.name,
-                    "revision_id": revision_id,
-                    "title": old_title,
-                    "affected_notes": affected,
-                    "message": "笔记已删除",
+                    "metadata": {
+                        "note_diff": {
+                            "operation": "delete",
+                            "note_id": note.id,
+                            "note_title": old_title,
+                        }
+                    },
                 },
                 ensure_ascii=False,
             )
