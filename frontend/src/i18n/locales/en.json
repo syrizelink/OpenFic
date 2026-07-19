@@ -1508,6 +1508,8 @@
       "moveNote": "Move note",
       "rootLevel": "Root level",
       "createCategory": "Create category",
+      "editCategory": "Rename category",
+      "deleteCategory": "Delete category",
       "listChapters": "Chapter list",
       "chapterCount": "{{count}} chapters",
       "searchChapters": "Search chapters",

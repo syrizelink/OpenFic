@@ -8,9 +8,7 @@ import {
   UserRoundPen,
   UserRoundX,
   FilePenLine,
-  FileSearch,
   FileXCorner,
-  FileText,
   FolderPen,
   FolderX,
   Summary,
@@ -316,6 +314,42 @@ const TOOL_REGISTRY = {
         return asString(data.metadata.category.title);
       }
       return asString(getStreamingData(message).title);
+    },
+  },
+  edit_note_category: {
+    toolName: "edit_note_category",
+    group: "note",
+    tag: "edit",
+    isExplore: false,
+    contentMode: "hidden",
+    icon: FolderPen,
+    getTitle: () => i18n.t("assistant.tools.editCategory"),
+    getDetail: (message) => {
+      const sourceLabel = formatCategoryRefLabel(getToolRef(message, "category_ref"));
+      const data = getToolResultData(message);
+      const metadata = isRecord(data) && isRecord(data.metadata) ? data.metadata : null;
+      const category = isRecord(metadata?.category) ? metadata.category : null;
+      const targetLabel =
+        asString(category?.title) ?? asString(getStreamingData(message).new_title);
+      if (sourceLabel && targetLabel) return `${sourceLabel} \u2192 ${targetLabel}`;
+      return targetLabel ?? sourceLabel;
+    },
+  },
+  delete_note_category: {
+    toolName: "delete_note_category",
+    group: "note",
+    tag: "delete",
+    isExplore: false,
+    contentMode: "hidden",
+    icon: FolderX,
+    getTitle: () => i18n.t("assistant.tools.deleteCategory"),
+    getDetail: (message) => {
+      const data = getToolResultData(message);
+      const metadata = isRecord(data) && isRecord(data.metadata) ? data.metadata : null;
+      const category = isRecord(metadata?.category) ? metadata.category : null;
+      return (
+        asString(category?.title) ?? formatCategoryRefLabel(getToolRef(message, "category_ref"))
+      );
     },
   },
   list_chapters: {

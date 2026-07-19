@@ -1571,6 +1571,8 @@
       "moveNote": "移动笔记",
       "rootLevel": "根层级",
       "createCategory": "创建分类",
+      "editCategory": "重命名分类",
+      "deleteCategory": "删除分类",
       "listChapters": "章节列表",
       "chapterCount": "{{count}} 个章节",
       "searchChapters": "章节搜索",

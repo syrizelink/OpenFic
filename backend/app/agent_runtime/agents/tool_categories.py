@@ -45,6 +45,8 @@ TOOL_CATEGORIES: Mapping[str, tuple[str, ...]] = MappingProxyType(
             "delete_note",
             "move_note",
             "create_note_category",
+            "edit_note_category",
+            "delete_note_category",
         ),
         "chapter_write": (
             "write_chapter",

@@ -607,3 +607,271 @@ async def test_create_note_category_builds_approval_preview() -> None:
             }
         },
     }
+
+
+async def test_edit_note_category_returns_success_and_rename_metadata() -> None:
+    from app.agent_runtime.tools.impls.note.edit_note_category import EditNoteCategoryTool
+
+    category = _make_category(category_id="cat-1", title="旧分类")
+    renamed_category = _make_category(category_id="cat-1", title="新分类")
+    tool = EditNoteCategoryTool(_state=_make_state())
+
+    with patch(
+        "app.agent_runtime.tools.impls.note.edit_note_category.create_session"
+    ) as mock_cs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        with (
+            patch(
+                "app.agent_runtime.tools.impls.note.edit_note_category.note_category_repo.get_by_id",
+                AsyncMock(return_value=category),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.edit_note_category.note_category_repo.list_by_project",
+                AsyncMock(side_effect=[[category], [renamed_category]]),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.edit_note_category.note_category_repo.update_category",
+                AsyncMock(return_value=renamed_category),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.edit_note_category.record_note_category_diffs",
+                AsyncMock(return_value=["cat-1"]),
+            ),
+            patch("app.background.jobs.service.commit_and_notify", AsyncMock()),
+        ):
+            result = await tool.ainvoke(
+                {"category_ref": {"id": "cat-1"}, "new_title": "新分类"}
+            )
+
+    assert json.loads(result) == {
+        "success": True,
+        "metadata": {
+            "category": {
+                "id": "cat-1",
+                "title": "新分类",
+                "previous_title": "旧分类",
+                "parent_id": None,
+            }
+        },
+    }
+
+
+async def test_edit_note_category_builds_approval_preview() -> None:
+    from app.agent_runtime.tools.impls.note.edit_note_category import EditNoteCategoryTool
+
+    runtime_session = AsyncMock()
+    tool = EditNoteCategoryTool(_state=_make_state())
+    object.__setattr__(tool, "_config", {"configurable": {"db_session": runtime_session}})
+
+    with patch(
+        "app.agent_runtime.tools.impls.note.edit_note_category.note_category_repo.get_by_id",
+        AsyncMock(return_value=_make_category(category_id="cat-1", title="旧分类")),
+    ), patch(
+        "app.agent_runtime.tools.impls.note.edit_note_category.note_category_repo.list_by_project",
+        AsyncMock(return_value=[_make_category(category_id="cat-1", title="旧分类")]),
+    ):
+        preview = await tool.build_interrupt_preview(
+            {"category_ref": {"id": "cat-1"}, "new_title": "新分类"}
+        )
+
+    assert preview == {
+        "type": "preview",
+        "success": True,
+        "reason": "approval_preview",
+        "metadata": {
+            "category": {
+                "id": "cat-1",
+                "title": "新分类",
+                "previous_title": "旧分类",
+                "parent_id": None,
+            }
+        },
+    }
+
+
+async def test_edit_note_category_rejects_duplicate_sibling_title() -> None:
+    from app.agent_runtime.tools.impls.note.edit_note_category import EditNoteCategoryTool
+
+    category = _make_category(category_id="cat-1", title="旧分类")
+    existing_sibling = _make_category(category_id="cat-2", title="新分类")
+    tool = EditNoteCategoryTool(_state=_make_state())
+
+    with patch(
+        "app.agent_runtime.tools.impls.note.edit_note_category.create_session"
+    ) as mock_cs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        with (
+            patch(
+                "app.agent_runtime.tools.impls.note.edit_note_category.note_category_repo.get_by_id",
+                AsyncMock(return_value=category),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.edit_note_category.note_category_repo.list_by_project",
+                AsyncMock(return_value=[category, existing_sibling]),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.edit_note_category.note_category_repo.update_category",
+                AsyncMock(),
+            ) as update_category,
+            patch(
+                "app.agent_runtime.tools.impls.note.edit_note_category.record_note_category_diffs",
+                AsyncMock(return_value=["cat-1"]),
+            ),
+            patch("app.background.jobs.service.commit_and_notify", AsyncMock()),
+        ):
+            result = await tool.ainvoke(
+                {"category_ref": {"id": "cat-1"}, "new_title": "新分类"}
+            )
+
+    assert json.loads(result)["error"] == "同级分类已存在同名标题: 新分类"
+    update_category.assert_not_awaited()
+
+
+async def test_edit_note_category_rejects_category_from_another_project() -> None:
+    from app.agent_runtime.tools.impls.note.edit_note_category import EditNoteCategoryTool
+
+    tool = EditNoteCategoryTool(_state=_make_state())
+    category = _make_category(project_id="proj-other")
+
+    with patch(
+        "app.agent_runtime.tools.impls.note.edit_note_category.create_session"
+    ) as mock_cs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        with patch(
+            "app.agent_runtime.tools.impls.note.edit_note_category.note_category_repo.get_by_id",
+            AsyncMock(return_value=category),
+        ):
+            result = await tool.ainvoke(
+                {"category_ref": {"id": "cat-1"}, "new_title": "新分类"}
+            )
+
+    assert json.loads(result)["error"] == "分类不属于当前项目"
+
+
+async def test_delete_note_category_cascades_and_records_revisions() -> None:
+    from app.agent_runtime.tools.impls.note.delete_note_category import (
+        DeleteNoteCategoryTool,
+    )
+
+    category = _make_category(category_id="cat-1", title="待删除")
+    note = _make_note(note_id="note-1", title="分类内笔记", category_id="cat-1")
+    tool = DeleteNoteCategoryTool(_state=_make_state())
+
+    with patch(
+        "app.agent_runtime.tools.impls.note.delete_note_category.create_session"
+    ) as mock_cs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        with (
+            patch(
+                "app.agent_runtime.tools.impls.note.delete_note_category.note_category_repo.get_by_id",
+                AsyncMock(return_value=category),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.delete_note_category.note_category_repo.list_by_project",
+                AsyncMock(side_effect=[[category], []]),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.delete_note_category.note_repo.list_by_project",
+                AsyncMock(side_effect=[[note], []]),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.delete_note_category.note_service.delete_category",
+                AsyncMock(),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.delete_note_category.record_note_category_diffs",
+                AsyncMock(return_value=["cat-1"]),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.delete_note_category.record_note_diffs",
+                AsyncMock(return_value=["note-1"]),
+            ),
+            patch("app.background.jobs.service.commit_and_notify", AsyncMock()),
+        ):
+            result = await tool.ainvoke({"category_ref": {"id": "cat-1"}})
+
+    assert json.loads(result) == {
+        "success": True,
+        "metadata": {
+            "category": {
+                "id": "cat-1",
+                "title": "待删除",
+            }
+        },
+    }
+
+
+async def test_delete_note_category_builds_cascade_approval_preview() -> None:
+    from app.agent_runtime.tools.impls.note.delete_note_category import (
+        DeleteNoteCategoryTool,
+    )
+
+    runtime_session = AsyncMock()
+    tool = DeleteNoteCategoryTool(_state=_make_state())
+    object.__setattr__(tool, "_config", {"configurable": {"db_session": runtime_session}})
+
+    with (
+        patch(
+            "app.agent_runtime.tools.impls.note.delete_note_category.note_category_repo.get_by_id",
+            AsyncMock(return_value=_make_category(category_id="cat-1", title="待删除")),
+        ),
+        patch(
+            "app.agent_runtime.tools.impls.note.delete_note_category.note_category_repo.list_by_project",
+            AsyncMock(
+                return_value=[
+                    _make_category(category_id="cat-1", title="待删除"),
+                    _make_category(category_id="cat-2", title="子分类", parent_id="cat-1"),
+                ]
+            ),
+        ),
+        patch(
+            "app.agent_runtime.tools.impls.note.delete_note_category.note_repo.list_by_project",
+            AsyncMock(
+                return_value=[
+                    _make_note(note_id="note-1", title="分类内笔记", category_id="cat-1"),
+                    _make_note(note_id="note-2", title="子分类笔记", category_id="cat-2"),
+                ]
+            ),
+        ),
+    ):
+        preview = await tool.build_interrupt_preview({"category_ref": {"id": "cat-1"}})
+
+    assert preview == {
+        "type": "preview",
+        "success": True,
+        "reason": "approval_preview",
+        "metadata": {
+            "category": {
+                "id": "cat-1",
+                "title": "待删除",
+            },
+            "affected_category_count": 2,
+            "affected_note_count": 2,
+        },
+    }
+
+
+async def test_delete_note_category_rejects_category_from_another_project() -> None:
+    from app.agent_runtime.tools.impls.note.delete_note_category import (
+        DeleteNoteCategoryTool,
+    )
+
+    tool = DeleteNoteCategoryTool(_state=_make_state())
+    category = _make_category(project_id="proj-other")
+
+    with patch(
+        "app.agent_runtime.tools.impls.note.delete_note_category.create_session"
+    ) as mock_cs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        with patch(
+            "app.agent_runtime.tools.impls.note.delete_note_category.note_category_repo.get_by_id",
+            AsyncMock(return_value=category),
+        ):
+            result = await tool.ainvoke({"category_ref": {"id": "cat-1"}})
+
+    assert json.loads(result)["error"] == "分类不属于当前项目"
