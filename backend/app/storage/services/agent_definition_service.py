@@ -50,6 +50,15 @@ def _normalize_enabled_tool_categories(
     ]
 
 
+def _normalize_delegatable_agents(
+    kind: str,
+    agent_keys: list[str] | None,
+) -> list[str]:
+    if kind != "primary":
+        return []
+    return agent_keys or []
+
+
 async def list_definitions(
     session: AsyncSession,
 ) -> list[AgentDefinition]:
@@ -107,7 +116,7 @@ async def create_definition(
         metadata_json=metadata or {},
         enabled=True,
         source="custom",
-        delegatable_agents=delegatable_agents or [],
+        delegatable_agents=_normalize_delegatable_agents(kind, delegatable_agents),
     )
     return await agent_definition_repo.create(session, record)
 
@@ -146,6 +155,11 @@ async def update_definition(
     enabled: bool | None = None,
     delegatable_agents: list[str] | None = None,
 ) -> AgentDefinitionRecord:
+    if kind is not None and key in _BUILTIN_KEYS:
+        default = get_default_agent_definition(key)
+        if kind != default.kind:
+            raise ValidationError(f"内置智能体类型不可修改: {key}")
+
     record = await agent_definition_repo.get_by_key(session, key)
     if record is None:
         try:
@@ -176,11 +190,18 @@ async def update_definition(
     if enabled is not None:
         record.enabled = enabled
     if delegatable_agents is not None:
-        record.delegatable_agents = delegatable_agents
+        record.delegatable_agents = _normalize_delegatable_agents(
+            record.kind,
+            delegatable_agents,
+        )
 
     record.enabled_tool_categories = _normalize_enabled_tool_categories(
         record.kind,
         record.enabled_tool_categories or [],
+    )
+    record.delegatable_agents = _normalize_delegatable_agents(
+        record.kind,
+        record.delegatable_agents,
     )
 
     return await agent_definition_repo.update(session, record)

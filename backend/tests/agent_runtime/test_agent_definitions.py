@@ -19,7 +19,17 @@ def test_default_agent_definitions_include_primary_and_six_subagents():
         "actor",
         "reviewer",
     )
-    for key in DEFAULT_AGENT_KEYS:
+    primary = get_default_agent_definition("primary")
+    assert primary.delegatable_agents == (
+        "explorer",
+        "composer",
+        "auditor",
+        "writer",
+        "actor",
+        "reviewer",
+    )
+
+    for key in DEFAULT_AGENT_KEYS[1:]:
         definition = get_default_agent_definition(key)
         assert definition.key == key
         assert definition.prompt_agent_name == key

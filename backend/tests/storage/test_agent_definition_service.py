@@ -159,7 +159,7 @@ async def test_update_custom_definition():
                 key="edit-me",
                 display_name="Edit Me",
                 description="Before update",
-                kind="subagent",
+                kind="primary",
                 prompt_agent_name="edit-me",
                 model_id=None,
                 enabled_tool_categories=[],
@@ -247,7 +247,7 @@ async def test_update_definition_excludes_restricted_categories_when_becoming_su
                 enabled_tool_categories=["orchestration", "interaction", "chapter_read"],
                 enabled_skills=[],
                 metadata={},
-                delegatable_agents=[],
+                delegatable_agents=["explorer", "writer"],
             )
             await session.commit()
 
@@ -258,6 +258,28 @@ async def test_update_definition_excludes_restricted_categories_when_becoming_su
             )
 
         assert record.enabled_tool_categories == ["chapter_read"]
+        assert record.delegatable_agents == []
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_update_builtin_definition_rejects_kind_change():
+    from app.storage.services import agent_definition_service
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
+    factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+
+    try:
+        async with factory() as session:
+            with pytest.raises(ValidationError, match="类型不可修改"):
+                await agent_definition_service.update_definition(
+                    session,
+                    key="reviewer",
+                    kind="primary",
+                )
     finally:
         await engine.dispose()
 

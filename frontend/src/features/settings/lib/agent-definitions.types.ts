@@ -71,8 +71,8 @@ const AGENT_KIND_LABEL_KEYS: Record<string, string> = {
 
 export function getAgentKindOptions(): Array<{ value: "primary" | "subagent"; label: string }> {
   return [
-    { value: "primary", label: i18n.t("settings.agentsKindPrimaryOption") },
-    { value: "subagent", label: i18n.t("settings.agentsKindSubagentOption") },
+    { value: "primary", label: i18n.t("settings.agentsKindPrimary") },
+    { value: "subagent", label: i18n.t("settings.agentsKindSubagent") },
   ];
 }
 

@@ -64,6 +64,14 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             ),
             enabled_skills=(),
             metadata=MappingProxyType({}),
+            delegatable_agents=(
+                "explorer",
+                "composer",
+                "auditor",
+                "writer",
+                "actor",
+                "reviewer",
+            ),
         ),
         "explorer": AgentDefinition(
             key="explorer",

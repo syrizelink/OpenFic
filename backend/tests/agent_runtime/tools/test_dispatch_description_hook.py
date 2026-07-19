@@ -67,3 +67,31 @@ def test_dispatch_description_hook_appends_delegatable_agent_list():
     assert "- explorer：负责信息搜集、上下文梳理与证据查找" in tool.description
     assert "- custom-bot：负责自定义扩展任务。" in tool.description
     assert "- writer：" not in tool.description
+
+
+def test_dispatch_description_hook_omits_agents_when_primary_has_no_delegatable_agents():
+    primary = AgentDefinition(
+        key="primary",
+        display_name="Orchestrator",
+        description="primary",
+        kind="primary",
+        prompt_agent_name="orchestrator",
+        model_id=None,
+        enabled_tool_categories=("orchestration",),
+        enabled_skills=(),
+        metadata=MappingProxyType({}),
+    )
+    hook = build_dispatch_subagent_description_hook(
+        agent_definitions={
+            "primary": primary,
+            "explorer": get_default_agent_definition("explorer"),
+        },
+        primary_agent_key="primary",
+    )
+    tool = ToolRegistry.get_tools(
+        names=["dispatch_subagent"],
+        state=_make_state(),
+        build_hooks=[hook],
+    )[0]
+
+    assert "当前可委派的 agent" not in tool.description
