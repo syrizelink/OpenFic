@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.7.3](https://github.com/syrizelink/OpenFic/compare/v0.7.2...v0.7.3) (2026-07-19)
+
+
+### 🐛 问题修复
+
+* **agent:** 修复子智能体派发配置 ([#111](https://github.com/syrizelink/OpenFic/issues/111)) ([8906741](https://github.com/syrizelink/OpenFic/commit/89067410aee4246a7a912e61bfba46f50aeef946))
+* **backend:** 修复会话标题生成异常 ([#108](https://github.com/syrizelink/OpenFic/issues/108)) ([429ee53](https://github.com/syrizelink/OpenFic/commit/429ee53f10f6f9cd3723b758259c833b4d708316))
+
+
+### ♻️ 代码重构
+
+* **agent:** 重构 Agent 工具上下文与中断恢复链路 ([#110](https://github.com/syrizelink/OpenFic/issues/110)) ([5ab5a2b](https://github.com/syrizelink/OpenFic/commit/5ab5a2bc722267ff0e7af7e13e5b1f1c4bc2de78))
+* **dashboard:** 调用记录详情存储优化并记录工具引用 ([#107](https://github.com/syrizelink/OpenFic/issues/107)) ([c25b2c1](https://github.com/syrizelink/OpenFic/commit/c25b2c16673e860e8e0df3d614cec5169f3a2ff7))
+* **model:** 统一高级参数配置 ([#109](https://github.com/syrizelink/OpenFic/issues/109)) ([f672970](https://github.com/syrizelink/OpenFic/commit/f672970f13567721b2ce6d731419e0ee1214a2e4))
+
+
+### 🔧 杂项
+
+* **agent:** 本地化适配工具权限展示文案 ([#112](https://github.com/syrizelink/OpenFic/issues/112)) ([362c129](https://github.com/syrizelink/OpenFic/commit/362c12903beee21373e9db124f6fafb5b08dfb41))
+* **backend:** 调整摘要上下文结构 ([#106](https://github.com/syrizelink/OpenFic/issues/106)) ([6b2cf6d](https://github.com/syrizelink/OpenFic/commit/6b2cf6d8376e61daee7902a796dcda73342ade28))
+* **frontend:** 添加最近打开项目入口 ([#104](https://github.com/syrizelink/OpenFic/issues/104)) ([16d6f4b](https://github.com/syrizelink/OpenFic/commit/16d6f4bb5b45edee3e1876c95e0783aea15a2f91))
+
 ## [0.7.2](https://github.com/syrizelink/OpenFic/compare/v0.7.1...v0.7.2) (2026-07-15)
 
 
