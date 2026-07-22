@@ -1,4 +1,4 @@
-import { BookOpen, FileText, Folder, ScrollText, StickyNote, UserRound } from "lucide-react";
+import { BookOpen, FileText, Folder, ScrollText, NotebookText, UserRound } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
@@ -20,12 +20,12 @@ interface AgentMentionSuggestionsProps {
 }
 
 function getItemIcon(kind: AssistantMentionCandidate["kind"]) {
-  if (kind === "volume") return <BookOpen size={12} />;
-  if (kind === "note") return <StickyNote size={12} />;
-  if (kind === "note_category") return <Folder size={12} />;
-  if (kind === "world_info_entry") return <ScrollText size={12} />;
-  if (kind === "character") return <UserRound size={12} />;
-  return <FileText size={12} />;
+  if (kind === "volume") return <BookOpen size={14} />;
+  if (kind === "note") return <NotebookText size={14} />;
+  if (kind === "note_category") return <Folder size={14} />;
+  if (kind === "world_info_entry") return <ScrollText size={14} />;
+  if (kind === "character") return <UserRound size={14} />;
+  return <FileText size={14} />;
 }
 
 function getItemMeta(

@@ -1,4 +1,12 @@
-import { BookOpen, FileText, Folder, Quote, ScrollText, StickyNote, UserRound } from "lucide-react";
+import {
+  BookOpen,
+  FileText,
+  Folder,
+  Quote,
+  ScrollText,
+  NotebookText,
+  UserRound,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { AssistantMentionKind } from "@/features/assistant/lib/mention-text";
@@ -6,13 +14,13 @@ import type { AssistantMentionKind } from "@/features/assistant/lib/mention-text
 import "./agent-mentions.css";
 
 function getMentionIcon(kind: AssistantMentionKind): ReactNode {
-  if (kind === "volume") return <BookOpen size={12} />;
-  if (kind === "chapter") return <FileText size={12} />;
-  if (kind === "note") return <StickyNote size={12} />;
-  if (kind === "note_category") return <Folder size={12} />;
-  if (kind === "world_info_entry") return <ScrollText size={12} />;
-  if (kind === "character") return <UserRound size={12} />;
-  return <Quote size={12} />;
+  if (kind === "volume") return <BookOpen size={14} />;
+  if (kind === "chapter") return <FileText size={14} />;
+  if (kind === "note") return <NotebookText size={14} />;
+  if (kind === "note_category") return <Folder size={14} />;
+  if (kind === "world_info_entry") return <ScrollText size={14} />;
+  if (kind === "character") return <UserRound size={14} />;
+  return <Quote size={14} />;
 }
 
 export function MentionChip({

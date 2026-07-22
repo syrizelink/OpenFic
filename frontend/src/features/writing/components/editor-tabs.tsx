@@ -30,7 +30,7 @@ import {
   FileText,
   Lock,
   Plus,
-  StickyNote,
+  NotebookText,
   Unlock,
   X,
   XCircle,
@@ -113,12 +113,12 @@ const SortableTabItem = memo(function SortableTabItem({
         {/* 类型图标 */}
         {tab.type === "chapter" ? (
           <FileText
-            size={12}
+            size={14}
             style={{ flexShrink: 0, marginRight: 4, opacity: 0.6 }}
           />
         ) : (
-          <StickyNote
-            size={12}
+          <NotebookText
+            size={14}
             style={{ flexShrink: 0, marginRight: 4, opacity: 0.6 }}
           />
         )}
