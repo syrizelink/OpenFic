@@ -35,8 +35,13 @@ async def test_builtin_skill_is_listed_first_and_toggle_persists(client: AsyncCl
     list_response = await client.get("/api/v1/skills")
     assert list_response.status_code == 200
     items = list_response.json()["items"]
-    builtin = next(item for item in items if item["id"] == "builtin-skill--continue-chapter")
-    assert items[0]["id"] == builtin["id"]
+    builtin_items = [item for item in items if item["source"] == "builtin"]
+    assert builtin_items
+    builtin = builtin_items[0]
+    assert all(
+        item["source"] == "builtin" for item in items[: len(builtin_items)]
+    )
+    assert all(item["source"] != "builtin" for item in items[len(builtin_items) :])
     assert builtin["source"] == "builtin"
     assert builtin["is_enabled"] is True
 
@@ -48,16 +53,22 @@ async def test_builtin_skill_is_listed_first_and_toggle_persists(client: AsyncCl
     refreshed_builtin = next(
         item
         for item in refreshed.json()["items"]
-        if item["id"] == "builtin-skill--continue-chapter"
+        if item["id"] == builtin["id"]
     )
     assert refreshed_builtin["is_enabled"] is False
-    assert refreshed.json()["total"] == 1
-    assert sum(item["id"] == "builtin-skill--continue-chapter" for item in refreshed.json()["items"]) == 1
+    assert refreshed.json()["total"] == len(builtin_items)
+    assert sum(item["id"] == builtin["id"] for item in refreshed.json()["items"]) == 1
 
 
 @pytest.mark.asyncio
 async def test_builtin_skill_cannot_be_updated_or_deleted(client: AsyncClient) -> None:
-    skill_id = "builtin-skill--continue-chapter"
+    list_response = await client.get("/api/v1/skills")
+    assert list_response.status_code == 200
+    skill_id = next(
+        item["id"]
+        for item in list_response.json()["items"]
+        if item["source"] == "builtin"
+    )
 
     update_response = await client.patch(f"/api/v1/skills/{skill_id}", json={"name": "已修改"})
     assert update_response.status_code == 400
