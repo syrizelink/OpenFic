@@ -31,6 +31,53 @@ async def test_create_and_list_skills(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_builtin_skill_is_listed_first_and_toggle_persists(client: AsyncClient) -> None:
+    list_response = await client.get("/api/v1/skills")
+    assert list_response.status_code == 200
+    items = list_response.json()["items"]
+    builtin_items = [item for item in items if item["source"] == "builtin"]
+    assert builtin_items
+    builtin = builtin_items[0]
+    assert all(
+        item["source"] == "builtin" for item in items[: len(builtin_items)]
+    )
+    assert all(item["source"] != "builtin" for item in items[len(builtin_items) :])
+    assert builtin["source"] == "builtin"
+    assert builtin["is_enabled"] is True
+
+    toggle_response = await client.post(f"/api/v1/skills/{builtin['id']}/toggle")
+    assert toggle_response.status_code == 200
+    assert toggle_response.json()["is_enabled"] is False
+
+    refreshed = await client.get("/api/v1/skills")
+    refreshed_builtin = next(
+        item
+        for item in refreshed.json()["items"]
+        if item["id"] == builtin["id"]
+    )
+    assert refreshed_builtin["is_enabled"] is False
+    assert refreshed.json()["total"] == len(builtin_items)
+    assert sum(item["id"] == builtin["id"] for item in refreshed.json()["items"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_builtin_skill_cannot_be_updated_or_deleted(client: AsyncClient) -> None:
+    list_response = await client.get("/api/v1/skills")
+    assert list_response.status_code == 200
+    skill_id = next(
+        item["id"]
+        for item in list_response.json()["items"]
+        if item["source"] == "builtin"
+    )
+
+    update_response = await client.patch(f"/api/v1/skills/{skill_id}", json={"name": "已修改"})
+    assert update_response.status_code == 400
+
+    delete_response = await client.delete(f"/api/v1/skills/{skill_id}")
+    assert delete_response.status_code == 400
+
+
+@pytest.mark.asyncio
 async def test_create_skill_with_empty_name(client: AsyncClient) -> None:
     response = await client.post(
         "/api/v1/skills",

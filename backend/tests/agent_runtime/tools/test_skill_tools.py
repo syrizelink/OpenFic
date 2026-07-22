@@ -85,7 +85,7 @@ def _patch_env(definition, skill, docs):
             AsyncMock(side_effect=_list_by_ids),
         ),
         patch(
-            "app.agent_runtime.tools.impls.skill.skill.skill_reference_doc_repo.list_by_skill",
+            "app.agent_runtime.tools.impls.skill.skill.skill_service.list_reference_docs",
             AsyncMock(return_value=docs),
         ),
     ]
@@ -124,6 +124,50 @@ async def test_activate_skill_no_references():
 
     assert "<skill_references>" not in result
     assert "<skill_content name=\"pdf-processing\">" in result
+
+
+@pytest.mark.asyncio
+async def test_builtin_skill_tools_read_content_and_references_from_yaml(monkeypatch):
+    from app.agent_runtime.tools.impls.skill.skill import ActivateSkillTool, ReferenceSkillTool
+    from app.skills import load_builtin_skills
+    import app.storage.database as database
+    import app.storage.services.skill_service as skill_service
+
+    builtin_skill = next(
+        skill
+        for skill in load_builtin_skills()
+        if skill.is_enabled and skill.references
+    )
+    reference = builtin_skill.references[0]
+    session = AsyncMock()
+    monkeypatch.setattr(database, "create_session", AsyncMock(return_value=session))
+    monkeypatch.setattr(
+        "app.agent_runtime.tools.impls.skill.skill.create_session",
+        AsyncMock(return_value=session),
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.tools.impls.skill.skill.load_agent_definition",
+        AsyncMock(return_value=_definition([builtin_skill.id])),
+    )
+    monkeypatch.setattr("app.storage.repos.skill_repo.list_by_ids", AsyncMock(return_value=[]))
+
+    with patch(
+        "app.agent_runtime.tools.impls.skill.skill.skill_service.list_enabled_skills_by_ids",
+        skill_service.list_enabled_skills_by_ids,
+    ), patch(
+        "app.agent_runtime.tools.impls.skill.skill.skill_service.list_reference_docs",
+        skill_service.list_reference_docs,
+    ):
+        activated = await ActivateSkillTool(_state=_make_state()).ainvoke(
+            {"skill_name": builtin_skill.name}
+        )
+        referenced = await ReferenceSkillTool(_state=_make_state()).ainvoke(
+            {"skill_name": builtin_skill.name, "reference_name": reference.title}
+        )
+
+    assert builtin_skill.content.strip() in activated
+    assert f"<ref>{reference.title}</ref>" in activated
+    assert reference.content.strip() in referenced
 
 
 @pytest.mark.asyncio
