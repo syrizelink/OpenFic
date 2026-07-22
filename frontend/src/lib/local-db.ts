@@ -74,6 +74,18 @@ interface PromptChainWorkingCopy {
   updatedAt: Date;
 }
 
+export type WritingWorkingCopyType = "chapter" | "note";
+
+export interface WritingWorkingCopy {
+  id: string;
+  entityId: string;
+  type: WritingWorkingCopyType;
+  title: string;
+  content: string;
+  baseUpdatedAt: string;
+  updatedAt: Date;
+}
+
 /**
  * OpenFic 本地数据库
  */
@@ -82,6 +94,7 @@ class OpenFicDB extends Dexie {
   projectTabs!: EntityTable<ProjectTabs, "projectId">;
   userPreferences!: EntityTable<UserPreference, "key">;
   promptChainWorkingCopies!: EntityTable<PromptChainWorkingCopy, "chainId">;
+  writingWorkingCopies!: EntityTable<WritingWorkingCopy, "id">;
   recentProjects!: EntityTable<RecentProject, "slot">;
 
   constructor() {
@@ -125,11 +138,41 @@ class OpenFicDB extends Dexie {
       promptChainWorkingCopies: "chainId, updatedAt",
       recentProjects: "slot, projectId, openedAt",
     });
+
+    this.version(7).stores({
+      projectLastChapters: "projectId, updatedAt",
+      projectTabs: "projectId, updatedAt",
+      userPreferences: "key, updatedAt",
+      promptChainWorkingCopies: "chainId, updatedAt",
+      writingWorkingCopies: "id, entityId, type, updatedAt",
+      recentProjects: "slot, projectId, openedAt",
+    });
   }
 }
 
 // 单例数据库实例
 export const db = new OpenFicDB();
+
+const writingWorkingCopyOperations = new Map<string, Promise<void>>();
+
+function enqueueWritingWorkingCopyOperation<T>(
+  id: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const previous = writingWorkingCopyOperations.get(id) ?? Promise.resolve();
+  const next = previous.then(operation);
+  const settled = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  writingWorkingCopyOperations.set(id, settled);
+  void settled.finally(() => {
+    if (writingWorkingCopyOperations.get(id) === settled) {
+      writingWorkingCopyOperations.delete(id);
+    }
+  });
+  return next;
+}
 
 // ==================== 项目最后访问章节 ====================
 
@@ -362,6 +405,107 @@ export async function deletePromptChainWorkingCopy(chainId: string): Promise<voi
     await db.promptChainWorkingCopies.delete(chainId);
   } catch {
     console.error("删除Working Copy失败");
+  }
+}
+
+// ==================== 写作 Working Copy ====================
+
+function getWritingWorkingCopyId(type: WritingWorkingCopyType, entityId: string): string {
+  return `${type}:${entityId}`;
+}
+
+export async function getWritingWorkingCopy(
+  type: WritingWorkingCopyType,
+  entityId: string,
+): Promise<WritingWorkingCopy | null> {
+  const id = getWritingWorkingCopyId(type, entityId);
+  try {
+    await writingWorkingCopyOperations.get(id);
+    return (await db.writingWorkingCopies.get(id)) ?? null;
+  } catch {
+    console.error("获取写作草稿失败");
+    return null;
+  }
+}
+
+export async function saveWritingWorkingCopy(
+  workingCopy: Omit<WritingWorkingCopy, "id">,
+): Promise<WritingWorkingCopy> {
+  const record: WritingWorkingCopy = {
+    ...workingCopy,
+    id: getWritingWorkingCopyId(workingCopy.type, workingCopy.entityId),
+  };
+
+  try {
+    await enqueueWritingWorkingCopyOperation(record.id, () =>
+      db.transaction("rw", db.writingWorkingCopies, async () => {
+        const current = await db.writingWorkingCopies.get(record.id);
+        if (!current || record.updatedAt.getTime() >= current.updatedAt.getTime()) {
+          await db.writingWorkingCopies.put(record);
+        }
+      }),
+    );
+  } catch {
+    console.error("保存写作草稿失败");
+  }
+
+  return record;
+}
+
+export async function deleteWritingWorkingCopy(
+  type: WritingWorkingCopyType,
+  entityId: string,
+): Promise<void> {
+  const id = getWritingWorkingCopyId(type, entityId);
+  try {
+    await enqueueWritingWorkingCopyOperation(id, () => db.writingWorkingCopies.delete(id));
+  } catch {
+    console.error("删除写作草稿失败");
+  }
+}
+
+export async function deleteWritingWorkingCopyIfUpdatedAt(
+  type: WritingWorkingCopyType,
+  entityId: string,
+  updatedAt: Date,
+): Promise<void> {
+  const id = getWritingWorkingCopyId(type, entityId);
+  try {
+    await enqueueWritingWorkingCopyOperation(id, () =>
+      db.transaction("rw", db.writingWorkingCopies, async () => {
+        const workingCopy = await db.writingWorkingCopies.get(id);
+        if (workingCopy?.updatedAt.getTime() === updatedAt.getTime()) {
+          await db.writingWorkingCopies.delete(id);
+        }
+      }),
+    );
+  } catch {
+    console.error("清理过期写作草稿失败");
+  }
+}
+
+export async function deleteWritingWorkingCopyIfMatches(
+  type: WritingWorkingCopyType,
+  entityId: string,
+  draft: Pick<WritingWorkingCopy, "title" | "content">,
+  updatedAt: Date,
+): Promise<void> {
+  const id = getWritingWorkingCopyId(type, entityId);
+  try {
+    await enqueueWritingWorkingCopyOperation(id, () =>
+      db.transaction("rw", db.writingWorkingCopies, async () => {
+        const workingCopy = await db.writingWorkingCopies.get(id);
+        if (
+          workingCopy?.title === draft.title &&
+          workingCopy.content === draft.content &&
+          workingCopy.updatedAt.getTime() === updatedAt.getTime()
+        ) {
+          await db.writingWorkingCopies.delete(id);
+        }
+      }),
+    );
+  } catch {
+    console.error("清理写作草稿失败");
   }
 }
 

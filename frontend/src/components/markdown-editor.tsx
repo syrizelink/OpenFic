@@ -109,7 +109,7 @@ export function MarkdownEditor({
     if (content === contentSyncedRef.current) return;
 
     contentSyncedRef.current = content;
-    currentEditor.commands.setContent(content, { emitUpdate: false });
+    currentEditor.commands.setContent(content, { contentType: "markdown", emitUpdate: false });
   }, [content]);
 
   useHotkeys(

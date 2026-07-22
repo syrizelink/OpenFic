@@ -16,14 +16,25 @@ import {
   buildLineRangeMentionTag,
 } from "@/features/assistant/lib/mention-text";
 import { useScrollbarAutoHide } from "@/hooks/use-scrollbar-auto-hide";
+import { fetchChapter } from "@/lib/api-client";
 import type { Chapter } from "@/lib/chapter.types";
 import { htmlToNewlines, newlinesToHtml } from "@/lib/html-utils";
 import { createToastThrottler } from "@/lib/ui-utils";
 
 import { useAutoSave } from "../hooks/use-auto-save";
-import { useChapter, useUpdateChapter } from "../hooks/use-chapters";
+import { useUpdateChapter } from "../hooks/use-chapters";
+import { useWritingEditorEntity } from "../hooks/use-writing-editor-entity";
+import {
+  useWritingWorkingCopy,
+  type WritingDraft,
+  type WritingWorkingCopyController,
+} from "../hooks/use-writing-working-copy";
 import { createChapterEditorDraft, isChapterEditorDraftDirty } from "../lib/chapter-editor-draft";
 import { createEditorExtensions } from "../lib/editor-config";
+import {
+  getNextWritingWorkingCopyTimestamp,
+  isRemoteWritingEntityNewer,
+} from "../lib/writing-working-copy";
 import { useTabsStore } from "../store/use-tabs-store";
 import { FindReplacePanel } from "./find-replace-panel";
 
@@ -44,41 +55,56 @@ interface ChapterEditorProps {
   onOpenSummary?: () => void;
 }
 
-function ChapterEditorInner({
-  chapter,
-  onChapterUpdate,
-  onAddToConversation,
-  projectId,
-  isAgentLocked = false,
-  onOpenSummary,
-}: {
+interface ChapterEditorContentProps {
   chapter: Chapter;
+  initialDraft: WritingDraft;
+  initialDraftUpdatedAt: Date;
+  workingCopy: WritingWorkingCopyController;
   onChapterUpdate?: (chapter: Chapter) => void;
   onAddToConversation?: (markup: string) => void;
   projectId?: string;
   isAgentLocked?: boolean;
   onOpenSummary?: () => void;
-}) {
+}
+
+function ChapterEditorContent({
+  chapter,
+  initialDraft,
+  initialDraftUpdatedAt,
+  workingCopy,
+  onChapterUpdate,
+  onAddToConversation,
+  projectId,
+  isAgentLocked = false,
+  onOpenSummary,
+}: ChapterEditorContentProps) {
   const { t } = useTranslation();
   const updateMutation = useUpdateChapter();
   const { containerRef, scrollbarProps } = useScrollbarAutoHide();
   const editorContentRef = useRef<HTMLDivElement>(null);
   const { updateTabTitle } = useTabsStore();
   const navigate = useNavigate();
+  const { clearWorkingCopy, persistWorkingCopy } = workingCopy;
 
-  const [title, setTitle] = useState(chapter.title);
-  const titleRef = useRef(chapter.title);
+  const [title, setTitle] = useState(initialDraft.title);
+  const titleRef = useRef(initialDraft.title);
   const lastSavedDraftRef = useRef(
     createChapterEditorDraft({
       title: chapter.title,
       content: chapter.content,
     }),
   );
-  const [hasChanges, setHasChanges] = useState(false);
+  const [hasChanges, setHasChanges] = useState(
+    isChapterEditorDraftDirty(lastSavedDraftRef.current, initialDraft),
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [findReplaceMode, setFindReplaceMode] = useState<"closed" | "find" | "replace">("closed");
-  const [wordCount, setWordCount] = useState(() => wordsCount(chapter.content || ""));
+  const [wordCount, setWordCount] = useState(() => wordsCount(initialDraft.content));
   const saveStatus = isSaving ? "saving" : hasChanges ? "unsaved" : "saved";
+  const latestDraftRef = useRef(initialDraft);
+  const latestDraftUpdatedAtRef = useRef(initialDraftUpdatedAt);
+  const hasChangesRef = useRef(isChapterEditorDraftDirty(lastSavedDraftRef.current, initialDraft));
+  const baseUpdatedAtRef = useRef(chapter.updatedAt);
 
   const showLockedToast = useMemo(
     () => createToastThrottler(t("writing.agentLockedChapterEdit")),
@@ -139,18 +165,37 @@ function ChapterEditorInner({
     setFindReplaceMode("replace");
   }, [isAgentLocked, showLockedToast]);
 
-  const updateDirtyState = useCallback((nextTitle: string, nextHtmlContent: string) => {
-    const nextDraft = createChapterEditorDraft({
-      title: nextTitle,
-      content: htmlToNewlines(nextHtmlContent),
-    });
-    setHasChanges(isChapterEditorDraftDirty(lastSavedDraftRef.current, nextDraft));
-    return nextDraft;
-  }, []);
+  const persistDraft = useCallback(
+    (draft: WritingDraft) => {
+      latestDraftUpdatedAtRef.current = getNextWritingWorkingCopyTimestamp(
+        latestDraftUpdatedAtRef.current,
+      );
+      persistWorkingCopy(draft, baseUpdatedAtRef.current, latestDraftUpdatedAtRef.current);
+    },
+    [persistWorkingCopy],
+  );
+
+  const updateDirtyState = useCallback(
+    (nextTitle: string, nextHtmlContent: string) => {
+      const nextDraft = createChapterEditorDraft({
+        title: nextTitle,
+        content: htmlToNewlines(nextHtmlContent),
+      });
+      const isDirty = isChapterEditorDraftDirty(lastSavedDraftRef.current, nextDraft);
+      latestDraftRef.current = nextDraft;
+      hasChangesRef.current = isDirty;
+      setHasChanges(isDirty);
+      if (isDirty) {
+        persistDraft(nextDraft);
+      }
+      return { draft: nextDraft, isDirty };
+    },
+    [persistDraft],
+  );
 
   const syncDirtyStateFromEditor = useCallback(
     (editorInstance: { getHTML: () => string }) => {
-      updateDirtyState(titleRef.current, editorInstance.getHTML());
+      return updateDirtyState(titleRef.current, editorInstance.getHTML());
     },
     [updateDirtyState],
   );
@@ -171,7 +216,7 @@ function ChapterEditorInner({
       },
     }),
     editable: !isAgentLocked,
-    content: chapter.content ? newlinesToHtml(chapter.content) : "",
+    content: initialDraft.content ? newlinesToHtml(initialDraft.content) : "",
     onUpdate: ({ editor }) => {
       if (isAgentLocked) return;
       syncDirtyStateFromEditor(editor);
@@ -190,15 +235,13 @@ function ChapterEditorInner({
         return;
       }
 
-      const htmlContent = editor.getHTML();
-      const draftToSave = createChapterEditorDraft({
-        title,
-        content: htmlToNewlines(htmlContent),
-      });
-      const currentWordCount = wordsCount(editor.getText());
+      const draftToSave = latestDraftRef.current;
+      const draftUpdatedAt = latestDraftUpdatedAtRef.current;
+      const currentWordCount = wordsCount(draftToSave.content);
 
       setIsSaving(true);
       try {
+        persistWorkingCopy(draftToSave, baseUpdatedAtRef.current, draftUpdatedAt);
         const updatedChapter = await updateMutation.mutateAsync({
           chapterId: chapter.id,
           data: {
@@ -211,6 +254,8 @@ function ChapterEditorInner({
           title: updatedChapter.title,
           content: updatedChapter.content,
         });
+        baseUpdatedAtRef.current = updatedChapter.updatedAt;
+        void clearWorkingCopy(draftToSave, draftUpdatedAt);
         syncDirtyStateFromEditor(editor);
         onChapterUpdate?.(updatedChapter);
 
@@ -231,8 +276,9 @@ function ChapterEditorInner({
       showLockedToast,
       syncDirtyStateFromEditor,
       t,
-      title,
       updateMutation,
+      clearWorkingCopy,
+      persistWorkingCopy,
     ],
   );
 
@@ -255,34 +301,25 @@ function ChapterEditorInner({
   }, [editor, isAgentLocked]);
 
   useEffect(() => {
-    if (!editor || hasChanges) return;
-
-    const nextTitle = chapter.title;
-    const nextContent = chapter.content ? newlinesToHtml(chapter.content) : "";
-    const currentContent = editor.getHTML();
-    lastSavedDraftRef.current = createChapterEditorDraft({
-      title: nextTitle,
-      content: chapter.content,
-    });
-
-    if (title !== nextTitle) {
-      titleRef.current = nextTitle;
-      queueMicrotask(() => {
-        setTitle(nextTitle);
-        updateTabTitle(chapter.id, nextTitle);
-      });
-    }
-
-    if (currentContent !== nextContent) {
-      editor.commands.setContent(nextContent, { emitUpdate: false });
-      queueMicrotask(() => {
-        setWordCount(wordsCount(editor.getText()));
-      });
-    }
-  }, [editor, chapter.title, chapter.content, chapter.id, hasChanges, title, updateTabTitle]);
+    return () => {
+      if (hasChangesRef.current) {
+        persistWorkingCopy(
+          latestDraftRef.current,
+          baseUpdatedAtRef.current,
+          latestDraftUpdatedAtRef.current,
+        );
+      }
+    };
+  }, [persistWorkingCopy]);
 
   useEffect(() => {
-    if (!editor || !isAgentLocked) return;
+    if (
+      !editor ||
+      hasChanges ||
+      !isRemoteWritingEntityNewer(chapter.updatedAt, baseUpdatedAtRef.current)
+    ) {
+      return;
+    }
 
     const nextTitle = chapter.title;
     const nextContent = chapter.content ? newlinesToHtml(chapter.content) : "";
@@ -291,6 +328,9 @@ function ChapterEditorInner({
       title: nextTitle,
       content: chapter.content,
     });
+    latestDraftRef.current = lastSavedDraftRef.current;
+    latestDraftUpdatedAtRef.current = new Date(chapter.updatedAt);
+    baseUpdatedAtRef.current = chapter.updatedAt;
 
     if (title !== nextTitle) {
       titleRef.current = nextTitle;
@@ -306,16 +346,22 @@ function ChapterEditorInner({
         setWordCount(wordsCount(editor.getText()));
       });
     }
-
-    queueMicrotask(() => {
-      setHasChanges(false);
-    });
-  }, [editor, chapter.title, chapter.content, chapter.id, isAgentLocked, title, updateTabTitle]);
+  }, [
+    editor,
+    chapter.title,
+    chapter.content,
+    chapter.id,
+    chapter.updatedAt,
+    hasChanges,
+    title,
+    updateTabTitle,
+  ]);
 
   useAutoSave({
     onSave: handleSave,
     hasChanges,
     enabled: !isAgentLocked,
+    interval: 3000,
   });
 
   useHotkeys(
@@ -367,7 +413,17 @@ function ChapterEditorInner({
     if (editor) {
       updateDirtyState(newTitle, editor.getHTML());
     } else {
-      setHasChanges(newTitle !== lastSavedDraftRef.current.title);
+      const draft = createChapterEditorDraft({
+        title: newTitle,
+        content: latestDraftRef.current.content,
+      });
+      latestDraftRef.current = draft;
+      const isDirty = draft.title !== lastSavedDraftRef.current.title;
+      hasChangesRef.current = isDirty;
+      setHasChanges(isDirty);
+      if (isDirty) {
+        persistDraft(draft);
+      }
     }
     updateTabTitle(chapter.id, newTitle);
   };
@@ -535,7 +591,11 @@ export function ChapterEditor({
   onOpenSummary,
 }: ChapterEditorProps) {
   const { t } = useTranslation();
-  const { data: chapter, isLoading } = useChapter(chapterId);
+  const { data, isFetching, isLoading } = useWritingEditorEntity({
+    type: "chapter",
+    entityId: chapterId,
+    fetchEntity: fetchChapter,
+  });
 
   if (!chapterId) {
     return (
@@ -554,7 +614,7 @@ export function ChapterEditor({
     );
   }
 
-  if (isLoading || !chapter) {
+  if (isLoading || isFetching || !data) {
     return (
       <Flex
         align="center"
@@ -567,9 +627,42 @@ export function ChapterEditor({
   }
 
   return (
-    <ChapterEditorInner
-      key={chapter.id}
+    <ChapterEditorWorkingCopy
+      key={`${data.entity.id}:${data.draftUpdatedAt.getTime()}`}
+      chapter={data.entity}
+      initialDraft={data.draft}
+      initialDraftUpdatedAt={data.draftUpdatedAt}
+      onChapterUpdate={onChapterUpdate}
+      onAddToConversation={onAddToConversation}
+      projectId={projectId}
+      isAgentLocked={isAgentLocked}
+      onOpenSummary={onOpenSummary}
+    />
+  );
+}
+
+function ChapterEditorWorkingCopy({
+  chapter,
+  initialDraft,
+  initialDraftUpdatedAt,
+  onChapterUpdate,
+  onAddToConversation,
+  projectId,
+  isAgentLocked,
+  onOpenSummary,
+}: Omit<ChapterEditorContentProps, "workingCopy">) {
+  const workingCopy = useWritingWorkingCopy({
+    type: "chapter",
+    entityId: chapter.id,
+  });
+
+  return (
+    <ChapterEditorContent
+      key={`${chapter.id}:${initialDraftUpdatedAt.getTime()}`}
       chapter={chapter}
+      initialDraft={initialDraft}
+      initialDraftUpdatedAt={initialDraftUpdatedAt}
+      workingCopy={workingCopy}
       onChapterUpdate={onChapterUpdate}
       onAddToConversation={onAddToConversation}
       projectId={projectId}

@@ -4,7 +4,7 @@ import { Flex, Text } from "@radix-ui/themes";
 import {
   Folder,
   FolderOpen,
-  StickyNote,
+  NotebookText,
   Lock,
   EyeOff,
   MoreHorizontal,
@@ -239,7 +239,7 @@ export const NoteTreeItem = memo(function NoteTreeItem({
   );
 
   const iconSize = 14;
-  const Icon = data.type === "category" ? (data.isExpanded ? FolderOpen : Folder) : StickyNote;
+  const Icon = data.type === "category" ? (data.isExpanded ? FolderOpen : Folder) : NotebookText;
 
   const handleRowClick = useCallback(() => {
     if (longPressTriggeredRef.current) {
