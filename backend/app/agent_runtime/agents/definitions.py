@@ -1,4 +1,4 @@
-"""Default PA/SA agent definitions."""
+"""Default primary and subagent definitions."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -29,8 +29,9 @@ class AgentDefinition:
 
 
 DEFAULT_AGENT_KEYS: tuple[str, ...] = (
-    "primary",
-    "explorer",
+    "build",
+    "plan",
+    "explore",
     "composer",
     "auditor",
     "writer",
@@ -41,12 +42,12 @@ DEFAULT_AGENT_KEYS: tuple[str, ...] = (
 
 DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
     {
-        "primary": AgentDefinition(
-            key="primary",
-            display_name="Orchestrator",
-            description="负责任务拆解、调度子智能体并整合最终结果。",
+        "build": AgentDefinition(
+            key="build",
+            display_name="Build",
+            description="负责执行通用任务，并在需要时调度子智能体完成工作。",
             kind="primary",
-            prompt_agent_name="primary",
+            prompt_agent_name="build",
             model_id=None,
             enabled_tool_categories=(
                 "orchestration",
@@ -65,7 +66,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             enabled_skills=(),
             metadata=MappingProxyType({}),
             delegatable_agents=(
-                "explorer",
+                "explore",
                 "composer",
                 "auditor",
                 "writer",
@@ -73,12 +74,40 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "reviewer",
             ),
         ),
-        "explorer": AgentDefinition(
-            key="explorer",
-            display_name="Explorer",
+        "plan": AgentDefinition(
+            key="plan",
+            display_name="Plan",
+            description="负责系统写作的规划、委派、审查与交付。",
+            kind="primary",
+            prompt_agent_name="plan",
+            model_id=None,
+            enabled_tool_categories=(
+                "orchestration",
+                "interaction",
+                "plan",
+                "chapter_read",
+                "summary_read",
+                "world_read",
+                "note_read",
+                "character_read",
+            ),
+            enabled_skills=(),
+            metadata=MappingProxyType({}),
+            delegatable_agents=(
+                "explore",
+                "composer",
+                "auditor",
+                "writer",
+                "actor",
+                "reviewer",
+            ),
+        ),
+        "explore": AgentDefinition(
+            key="explore",
+            display_name="Explore",
             description="负责信息搜集、上下文梳理与证据查找",
             kind="subagent",
-            prompt_agent_name="explorer",
+            prompt_agent_name="explore",
             model_id=None,
             enabled_tool_categories=(
                 "chapter_read",

@@ -297,7 +297,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         const matched = primaryAgents.find((d) => d.key === selectedAgentKey);
         if (matched) return matched.key;
       }
-      const fallback = primaryAgents.find((d) => d.key === "primary");
+      const fallback = primaryAgents.find((d) => d.key === "build");
       if (fallback) return fallback.key;
       if (primaryAgents.length > 0) return primaryAgents[0].key;
       return "";
@@ -861,6 +861,10 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
           agentSidebar.loadSession(sessionId, agentMessages, {
             reconnect: true,
             isRemoteRunning,
+            primaryAgentKey:
+              typeof bundle.sessionState?.state.agent_key === "string"
+                ? bundle.sessionState.state.agent_key
+                : undefined,
           });
           setActiveSubagents(bundle.activeSubagentRows);
           setCurrentTaskId(fullTask.id);

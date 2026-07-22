@@ -17,19 +17,22 @@ async def test_list_agent_definitions(client: AsyncClient):
     data = response.json()
     assert "definitions" in data
     keys = {d["key"] for d in data["definitions"]}
-    assert "explorer" in keys
+    assert "explore" in keys
     assert "writer" in keys
-    primary = next(d for d in data["definitions"] if d["kind"] == "primary")
-    assert "description" in primary
-    assert primary["enabled_skills"] == []
+    build = next(d for d in data["definitions"] if d["key"] == "build")
+    plan = next(d for d in data["definitions"] if d["key"] == "plan")
+    assert build["kind"] == "primary"
+    assert plan["kind"] == "primary"
+    assert build["enabled_skills"] == []
+    assert plan["enabled_skills"] == []
 
 
 @pytest.mark.asyncio
 async def test_get_agent_definition(client: AsyncClient):
-    response = await client.get("/api/v1/agent-definitions/explorer")
+    response = await client.get("/api/v1/agent-definitions/explore")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
-    assert data["key"] == "explorer"
+    assert data["key"] == "explore"
     assert data["source"] == "builtin"
     assert data["kind"] == "subagent"
     assert "description" in data
@@ -94,7 +97,7 @@ async def test_create_custom_agent_definition(
         "enabled_tool_categories": ["chapter_read"],
         "enabled_skills": ["skill-a", "skill-b"],
         "metadata": {},
-        "delegatable_agents": ["explorer"],
+        "delegatable_agents": ["explore"],
     }
     response = await client.post("/api/v1/agent-definitions", json=body)
     assert response.status_code == status.HTTP_201_CREATED
@@ -103,7 +106,7 @@ async def test_create_custom_agent_definition(
     assert data["source"] == "custom"
     assert data["description"] == "Custom description"
     assert data["enabled_skills"] == ["skill-a", "skill-b"]
-    assert data["delegatable_agents"] == ["explorer"]
+    assert data["delegatable_agents"] == ["explore"]
 
     assert not (isolated_prompts_dir / "custom-agents" / "custom-bot.yaml").exists()
 
@@ -174,7 +177,7 @@ async def test_update_custom_agent_definition(client: AsyncClient):
         "display_name": "Edited Bot",
         "description": "After update",
         "enabled_skills": ["skill-z"],
-        "delegatable_agents": ["explorer", "writer"],
+        "delegatable_agents": ["explore", "writer"],
     }
     response = await client.put("/api/v1/agent-definitions/edit-me", json=update_body)
     assert response.status_code == status.HTTP_200_OK
@@ -182,7 +185,7 @@ async def test_update_custom_agent_definition(client: AsyncClient):
     assert data["display_name"] == "Edited Bot"
     assert data["description"] == "After update"
     assert data["enabled_skills"] == ["skill-z"]
-    assert data["delegatable_agents"] == ["explorer", "writer"]
+    assert data["delegatable_agents"] == ["explore", "writer"]
 
 
 @pytest.mark.asyncio
@@ -252,5 +255,5 @@ async def test_delete_nonexistent_agent_definition(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_delete_builtin_agent_definition_rejected(client: AsyncClient):
-    response = await client.delete("/api/v1/agent-definitions/primary")
+    response = await client.delete("/api/v1/agent-definitions/build")
     assert response.status_code == status.HTTP_400_BAD_REQUEST

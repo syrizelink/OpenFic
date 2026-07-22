@@ -92,7 +92,7 @@ class SessionRunner:
         task_id: str,
         model_config: dict,
         project_id: str = "",
-        agent_key: str = "primary",
+        agent_key: str = "build",
     ):
         self._validate_model_config(model_config)
         self.session_id = session_id
@@ -669,7 +669,7 @@ class SessionRunner:
                 "user_request": "",
                 "current_revision_id": None,
             })
-            agent_name = state.get("active_agent") or state.get("agent_key") or "primary"
+            agent_name = state.get("active_agent") or state.get("agent_key") or "build"
             parts = await build_context_parts(
                 state,
                 agent_name,

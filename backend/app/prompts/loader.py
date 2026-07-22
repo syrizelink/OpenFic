@@ -11,8 +11,9 @@ from app.storage.services.prompt_chain_service import PromptEntryData
 
 PROMPTS_DIR = Path(__file__).parent
 _BUILTIN_AGENT_NAMES = (
-    "primary",
-    "explorer",
+    "build",
+    "plan",
+    "explore",
     "composer",
     "auditor",
     "writer",

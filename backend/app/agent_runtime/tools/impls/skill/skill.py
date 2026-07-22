@@ -37,7 +37,7 @@ class ReferenceSkillInput(BaseModel):
 
 
 def _agent_key_from_state(state: dict) -> str:
-    return state.get("active_agent") or state.get("agent_key") or "primary"
+    return state.get("active_agent") or state.get("agent_key") or "build"
 
 
 async def _resolve_authorized_skill(session: AsyncSession, state: dict, skill_name: str):

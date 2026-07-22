@@ -6,15 +6,17 @@ export interface AgentMessageBlockProps {
 }
 
 export function getAgentName(agent: AgentType): string {
-  return i18n.t(`assistant.agentNames.${agent}`);
+  const translated = i18n.t(`assistant.agentNames.${agent}`);
+  return translated === `assistant.agentNames.${agent}` ? agent : translated;
 }
 
-export const AGENT_NAMES: Record<AgentType, string> = {
-  primary: getAgentName("primary"),
-  explorer: getAgentName("explorer"),
+export const AGENT_NAMES = {
+  build: getAgentName("build"),
+  plan: getAgentName("plan"),
+  explore: getAgentName("explore"),
   composer: getAgentName("composer"),
   auditor: getAgentName("auditor"),
   writer: getAgentName("writer"),
   actor: getAgentName("actor"),
   reviewer: getAgentName("reviewer"),
-};
+} as const;

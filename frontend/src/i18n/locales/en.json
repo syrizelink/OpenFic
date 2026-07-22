@@ -1060,8 +1060,9 @@
       "sessionCompaction": "Context Compaction",
       "memoryChapterSummary": "Chapter Summary",
       "memoryRangeSummary": "Range Summary",
-      "builtinAgentPrimary": "Orchestrator",
-      "builtinAgentExplorer": "Explore",
+      "builtinAgentBuild": "Build",
+      "builtinAgentPlan": "Plan",
+      "builtinAgentExplore": "Explore",
       "builtinAgentComposer": "Composer",
       "builtinAgentAuditor": "Auditor",
       "builtinAgentWriter": "Writer",
@@ -1281,8 +1282,9 @@
       "running": "Running"
     },
     "agentLabels": {
-      "primary": "Primary Agent",
-      "explorer": "Research Explorer",
+      "build": "General Execution",
+      "plan": "System Writing",
+      "explore": "Research Explore",
       "composer": "Task Composer",
       "auditor": "Plan Auditor",
       "writer": "Content Writer",
@@ -1500,8 +1502,9 @@
     "collapseToolMessage": "Collapse tool message",
     "expandToolMessage": "Expand tool message",
     "agentStatus": {
-      "primary": "Coordinating tasks...",
-      "explorer": "Exploring information...",
+      "build": "Executing task...",
+      "plan": "Planning system writing...",
+      "explore": "Exploring information...",
       "composer": "Organizing the writing task...",
       "writer": "Generating content...",
       "reviewer": "Reviewing changes..."
@@ -1567,8 +1570,9 @@
       "approve": "Run"
     },
     "agentNames": {
-      "primary": "Primary Agent",
-      "explorer": "Research Explorer",
+      "build": "General Execution",
+      "plan": "System Writing",
+      "explore": "Research Explore",
       "composer": "Task Organizer",
       "auditor": "Plan Auditor",
       "writer": "Content Creator",

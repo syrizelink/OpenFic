@@ -31,7 +31,7 @@ async def test_projects_runtime_messages_to_task_messages(
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="assistant",
-        agent_id="explorer",
+        agent_id="explore",
         content="需要补充信息",
         reasoning="我需要先确认走向。",
         reasoning_duration_ms=2450,
@@ -110,7 +110,7 @@ async def test_projects_node_events_to_hidden_task_messages(
             "phase": "start",
             "node_status": "running",
             "current_node": "composer",
-            "previous_node": "explorer",
+            "previous_node": "explore",
         },
     )
     await repo.insert_message(
@@ -130,7 +130,7 @@ async def test_projects_node_events_to_hidden_task_messages(
             "phase": "end",
             "node_status": "completed",
             "current_node": None,
-            "previous_node": "explorer",
+            "previous_node": "explore",
         },
     )
 
@@ -145,14 +145,14 @@ async def test_projects_node_events_to_hidden_task_messages(
         "phase": "start",
         "status": "running",
         "current_node": "composer",
-        "previous_node": "explorer",
+        "previous_node": "explore",
     }
     assert messages[1].payload == {
         "node": "composer",
         "phase": "end",
         "status": "completed",
         "current_node": None,
-        "previous_node": "explorer",
+        "previous_node": "explore",
     }
 
 
@@ -324,13 +324,13 @@ async def test_projects_interrupted_ask_user_before_node_end(
         project_id=sample_task.project_id,
         role="system",
         status="complete",
-        agent_id="explorer",
+        agent_id="explore",
         message_type="node_start",
         display_channel="hidden",
         metadata={
             "kind": "agent_node",
             "event_type": "node_start",
-            "node": "explorer",
+            "node": "explore",
             "phase": "start",
             "node_status": "running",
         },
@@ -341,7 +341,7 @@ async def test_projects_interrupted_ask_user_before_node_end(
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="assistant",
-        agent_id="explorer",
+        agent_id="explore",
         content="需要确认方向",
         status="complete",
     )
@@ -352,13 +352,13 @@ async def test_projects_interrupted_ask_user_before_node_end(
         project_id=sample_task.project_id,
         role="system",
         status="complete",
-        agent_id="explorer",
+        agent_id="explore",
         message_type="node_end",
         display_channel="hidden",
         metadata={
             "kind": "agent_node",
             "event_type": "node_end",
-            "node": "explorer",
+            "node": "explore",
             "phase": "end",
             "node_status": "error",
         },
@@ -381,13 +381,13 @@ async def test_projects_interrupted_ask_user_before_node_end(
         project_id=sample_task.project_id,
         role="system",
         status="complete",
-        agent_id="explorer",
+        agent_id="explore",
         message_type="node_start",
         display_channel="hidden",
         metadata={
             "kind": "agent_node",
             "event_type": "node_start",
-            "node": "explorer",
+            "node": "explore",
             "phase": "start",
             "node_status": "running",
         },

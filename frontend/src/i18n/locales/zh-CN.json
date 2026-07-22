@@ -1060,8 +1060,9 @@
       "sessionCompaction": "上下文压缩",
       "memoryChapterSummary": "章节摘要",
       "memoryRangeSummary": "区间摘要",
-      "builtinAgentPrimary": "Orchestrator",
-      "builtinAgentExplorer": "Explore",
+      "builtinAgentBuild": "Build",
+      "builtinAgentPlan": "Plan",
+      "builtinAgentExplore": "Explore",
       "builtinAgentComposer": "Composer",
       "builtinAgentAuditor": "Auditor",
       "builtinAgentWriter": "Writer",
@@ -1344,8 +1345,9 @@
       "running": "进行中"
     },
     "agentLabels": {
-      "primary": "主代理",
-      "explorer": "信息探索",
+      "build": "通用执行",
+      "plan": "系统写作",
+      "explore": "信息探索",
       "composer": "规划编排",
       "auditor": "计划审查",
       "writer": "正文写作",
@@ -1563,8 +1565,9 @@
     "collapseToolMessage": "收起工具消息",
     "expandToolMessage": "展开工具消息",
     "agentStatus": {
-      "primary": "正在协调任务...",
-      "explorer": "正在探索信息...",
+      "build": "正在执行任务...",
+      "plan": "正在规划系统写作...",
+      "explore": "正在探索信息...",
       "composer": "正在组织创作任务...",
       "writer": "正在创作内容...",
       "reviewer": "正在审核修改..."
@@ -1630,8 +1633,9 @@
       "approve": "执行"
     },
     "agentNames": {
-      "primary": "主代理",
-      "explorer": "信息探索",
+      "build": "通用执行",
+      "plan": "系统写作",
+      "explore": "信息探索",
       "composer": "任务组织",
       "auditor": "计划审查",
       "writer": "内容创作",

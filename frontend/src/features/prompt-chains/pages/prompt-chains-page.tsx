@@ -28,7 +28,7 @@ import { usePromptChain } from "../hooks/use-prompt-chain";
 
 const MotionBox = motion.create(Box);
 
-const DEFAULT_PROMPT_ID = "builtin-agent--explorer";
+const DEFAULT_PROMPT_ID = "builtin-agent--explore";
 const VERSION_HISTORY_COLLAPSED_SIZE = 36;
 const VERSION_HISTORY_MIN_SIZE = 72;
 

@@ -27,7 +27,7 @@ UI_ONLY_MESSAGE_TYPES = {
 UI_ONLY_EVENT_TYPES = {"clarification", "tool_approval_required"}
 
 AGENT_TOOL_NAMES: dict[str, set[str]] = {
-    "explorer": {"ask_user", "confirm_plan", "use_skill", "uninstall_skill"},
+    "explore": {"ask_user", "confirm_plan", "use_skill", "uninstall_skill"},
     "designer": {"confirm_outline", "use_skill", "uninstall_skill"},
     "writer": {"read_chapter", "create_chapter", "write_chapter", "edit_chapter", "delete_chapter", "use_skill", "uninstall_skill"},
     "reviewer": {"review_feedback", "use_skill", "uninstall_skill"},

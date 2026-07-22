@@ -77,12 +77,13 @@ function getEventPayload(event: AgentEvent): Record<string, unknown> {
 }
 
 export function getStageTextForAgentKey(agent?: string): string | null {
-  if (agent === "primary") return i18n.t("assistant.agentStatus.primary");
-  if (agent === "explorer") return i18n.t("assistant.agentStatus.explorer");
+  if (agent === "build") return i18n.t("assistant.agentStatus.build");
+  if (agent === "plan") return i18n.t("assistant.agentStatus.plan");
+  if (agent === "explore") return i18n.t("assistant.agentStatus.explore");
   if (agent === "composer") return i18n.t("assistant.agentStatus.composer");
   if (agent === "writer") return i18n.t("assistant.agentStatus.writer");
   if (agent === "reviewer") return i18n.t("assistant.agentStatus.reviewer");
-  return null;
+  return agent || null;
 }
 
 export function getStageTextForStageKey(stage?: string): string | null {

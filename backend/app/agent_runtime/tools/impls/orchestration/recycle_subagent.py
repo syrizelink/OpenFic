@@ -49,8 +49,8 @@ class RecycleSubagentTool(AgentTool):
         dispatch_id: str,
         reason: str = "",
     ) -> str:
-        ensure_primary(self._state)
         configurable = get_configurable(self.config)
+        await ensure_primary(self._state, configurable.get("session_factory"))
         row = await resolve_child_run(
             parent_session_id=self.session_id,
             session_factory=configurable.get("session_factory"),

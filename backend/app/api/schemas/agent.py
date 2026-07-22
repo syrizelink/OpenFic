@@ -23,7 +23,7 @@ class AgentSessionCreateRequest(BaseModel):
         description="最大迭代次数",
     )
     agent_key: str = Field(
-        default="primary",
+        default="build",
         description="主智能体标识，用于选择启用的 primary agent",
     )
     reasoning_effort: ReasoningEffort | None = Field(

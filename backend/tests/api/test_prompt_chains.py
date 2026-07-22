@@ -33,20 +33,20 @@ class TestPromptChainAPI:
         assert {
             prompt["id"] for prompt in categories["memory"]["prompts"]
         } == {"memory-chapter-summary", "memory-range-summary"}
-        assert "builtin-agent--explorer" in {
+        assert "builtin-agent--explore" in {
             prompt["id"] for prompt in categories["builtin-agents"]["prompts"]
         }
         assert categories["custom-agents"]["prompts"] == []
 
     async def test_get_latest_agent_version_uses_default_yaml(self, client: AsyncClient) -> None:
         response = await client.get(
-            "/api/v1/prompt-chains/builtin-agent--explorer/versions/latest",
+            "/api/v1/prompt-chains/builtin-agent--explore/versions/latest",
         )
 
         assert response.status_code == 200
         data = response.json()
         assert data["version"]["version_number"] == 0
-        assert data["version"]["prompt_id"] == "builtin-agent--explorer"
+        assert data["version"]["prompt_id"] == "builtin-agent--explore"
         assert len(data["entries"]) > 0
         assert all("finish_subagent" not in entry["content"] for entry in data["entries"])
 
@@ -145,7 +145,7 @@ class TestPromptChainAPI:
 
     async def test_compile_agent_version_uses_default_yaml(self, client: AsyncClient) -> None:
         response = await client.post(
-            "/api/v1/prompt-chains/builtin-agent--explorer/compile",
+            "/api/v1/prompt-chains/builtin-agent--explore/compile",
             json={},
         )
 

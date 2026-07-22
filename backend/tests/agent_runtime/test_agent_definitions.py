@@ -4,24 +4,27 @@ from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 
 
-def test_default_agent_definitions_include_primary_and_six_subagents():
+def test_default_agent_definitions_include_two_primary_agents_and_six_subagents():
     from app.agent_runtime.agents.definitions import (
         DEFAULT_AGENT_KEYS,
         get_default_agent_definition,
     )
 
     assert DEFAULT_AGENT_KEYS == (
-        "primary",
-        "explorer",
+        "build",
+        "plan",
+        "explore",
         "composer",
         "auditor",
         "writer",
         "actor",
         "reviewer",
     )
-    primary = get_default_agent_definition("primary")
-    assert primary.delegatable_agents == (
-        "explorer",
+    build = get_default_agent_definition("build")
+    assert build.kind == "primary"
+    assert build.prompt_agent_name == "build"
+    assert build.delegatable_agents == (
+        "explore",
         "composer",
         "auditor",
         "writer",
@@ -29,7 +32,19 @@ def test_default_agent_definitions_include_primary_and_six_subagents():
         "reviewer",
     )
 
-    for key in DEFAULT_AGENT_KEYS[1:]:
+    plan = get_default_agent_definition("plan")
+    assert plan.kind == "primary"
+    assert plan.prompt_agent_name == "plan"
+    assert plan.delegatable_agents == (
+        "explore",
+        "composer",
+        "auditor",
+        "writer",
+        "actor",
+        "reviewer",
+    )
+
+    for key in DEFAULT_AGENT_KEYS[2:]:
         definition = get_default_agent_definition(key)
         assert definition.key == key
         assert definition.prompt_agent_name == key
@@ -104,7 +119,7 @@ async def test_load_custom_agent_definition_has_source_custom():
                     metadata_json={},
                     enabled=True,
                     source="custom",
-                    delegatable_agents=["explorer"],
+                    delegatable_agents=["explore"],
                 )
             )
             await session.commit()
@@ -113,7 +128,7 @@ async def test_load_custom_agent_definition_has_source_custom():
 
         assert definition.source == "custom"
         assert definition.enabled_skills == ("skill-custom",)
-        assert definition.delegatable_agents == ("explorer",)
+        assert definition.delegatable_agents == ("explore",)
     finally:
         await engine.dispose()
 
@@ -132,9 +147,9 @@ async def test_load_agent_definition_falls_back_to_default_when_db_row_missing()
 
     try:
         async with factory() as session:
-            definition = await load_agent_definition(session, "explorer")
+            definition = await load_agent_definition(session, "explore")
 
-        assert definition == get_default_agent_definition("explorer")
+        assert definition == get_default_agent_definition("explore")
     finally:
         await engine.dispose()
 
@@ -153,10 +168,10 @@ async def test_load_all_agent_definitions_merges_defaults_and_db_overrides():
         async with factory() as session:
             session.add(
                 AgentDefinitionRecord(
-                    key="explorer",
-                    display_name="Custom Explorer",
+                    key="explore",
+                    display_name="Custom Explore",
                     kind="subagent",
-                    prompt_agent_name="explorer",
+                    prompt_agent_name="explore",
                     model_id=None,
                     enabled_tool_categories=["chapter_read"],
                     enabled_skills=[],
@@ -184,9 +199,10 @@ async def test_load_all_agent_definitions_merges_defaults_and_db_overrides():
 
             definitions = await load_all_agent_definitions(session)
 
-        assert "primary" in definitions
-        assert definitions["explorer"].display_name == "Custom Explorer"
-        assert definitions["explorer"].enabled is False
+        assert "build" in definitions
+        assert "plan" in definitions
+        assert definitions["explore"].display_name == "Custom Explore"
+        assert definitions["explore"].enabled is False
         assert definitions["custom-bot"].source == "custom"
     finally:
         await engine.dispose()

@@ -32,7 +32,7 @@ def test_dispatch_description_hook_appends_delegatable_agent_list():
         enabled_tool_categories=("orchestration",),
         enabled_skills=(),
         metadata=MappingProxyType({}),
-        delegatable_agents=("explorer", "custom-bot"),
+        delegatable_agents=("explore", "custom-bot"),
     )
     custom_bot = AgentDefinition(
         key="custom-bot",
@@ -48,7 +48,7 @@ def test_dispatch_description_hook_appends_delegatable_agent_list():
     )
     agent_definitions = {
         "primary": primary,
-        "explorer": get_default_agent_definition("explorer"),
+        "explore": get_default_agent_definition("explore"),
         "writer": get_default_agent_definition("writer"),
         "custom-bot": custom_bot,
     }
@@ -64,7 +64,7 @@ def test_dispatch_description_hook_appends_delegatable_agent_list():
     )[0]
 
     assert "当前可委派的 agent（使用`agent_type`指定）" in tool.description
-    assert "- explorer：负责信息搜集、上下文梳理与证据查找" in tool.description
+    assert "- explore：负责信息搜集、上下文梳理与证据查找" in tool.description
     assert "- custom-bot：负责自定义扩展任务。" in tool.description
     assert "- writer：" not in tool.description
 
@@ -84,7 +84,7 @@ def test_dispatch_description_hook_omits_agents_when_primary_has_no_delegatable_
     hook = build_dispatch_subagent_description_hook(
         agent_definitions={
             "primary": primary,
-            "explorer": get_default_agent_definition("explorer"),
+            "explore": get_default_agent_definition("explore"),
         },
         primary_agent_key="primary",
     )
