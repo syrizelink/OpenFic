@@ -1113,7 +1113,7 @@ async def test_manual_compact_builds_window_and_returns_metrics_without_revision
     assert state["project_id"] == "proj_manual_compact_001"
     assert state["model_config"]["max_context_tokens"] == 8000
     assert state["active_agent"] is None
-    assert agent_name == "primary"
+    assert agent_name == "build"
     assert node_messages == [node_message]
     assert db_session is fake_session
     list_by_session.assert_awaited_once_with(fake_session, "sess_manual_compact_001")

@@ -465,21 +465,14 @@ async def get_prompt_chains_metadata(session: AsyncSession) -> dict:
 
     返回按业务类别分组的单级提示词列表。
     """
+    from app.agent_runtime.agents.definitions import DEFAULT_AGENT_KEYS
     from app.prompts import get_prompt_chains_metadata as get_yaml_metadata
     from app.storage.repos import agent_definition_repo
 
     custom_agents: list[tuple[str, str]] = []
     records = await agent_definition_repo.list_all(session)
     for record in records:
-        if record.source == "custom" and record.key not in (
-            "primary",
-            "explorer",
-            "composer",
-            "auditor",
-            "writer",
-            "actor",
-            "reviewer",
-        ):
+        if record.source == "custom" and record.key not in DEFAULT_AGENT_KEYS:
             custom_agents.append((record.key, record.display_name))
 
     return get_yaml_metadata(custom_agents=custom_agents)

@@ -23,12 +23,15 @@ async def test_list_definitions_includes_builtins():
             defs = await agent_definition_service.list_definitions(session)
             keys = {d.key for d in defs}
 
-        assert "explorer" in keys
+        assert "explore" in keys
         assert "writer" in keys
         assert any(d.kind == "primary" for d in defs)
-        assert all(d.source == "builtin" for d in defs if d.key in (
-            "orchestrator", "explorer", "composer", "auditor", "writer", "actor", "reviewer"
-        ))
+        assert all(
+            d.source == "builtin"
+            for d in defs
+            if d.key
+            in ("build", "plan", "explore", "composer", "auditor", "writer", "actor", "reviewer")
+        )
     finally:
         await engine.dispose()
 
@@ -175,14 +178,14 @@ async def test_update_custom_definition():
                 display_name="Edited",
                 description="After update",
                 enabled_skills=["skill-c"],
-                delegatable_agents=["explorer", "writer"],
+                delegatable_agents=["explore", "writer"],
             )
             await session.commit()
 
             assert record.display_name == "Edited"
             assert record.description == "After update"
             assert record.enabled_skills == ["skill-c"]
-            assert record.delegatable_agents == ["explorer", "writer"]
+            assert record.delegatable_agents == ["explore", "writer"]
     finally:
         await engine.dispose()
 
@@ -247,7 +250,7 @@ async def test_update_definition_excludes_restricted_categories_when_becoming_su
                 enabled_tool_categories=["orchestration", "interaction", "chapter_read"],
                 enabled_skills=[],
                 metadata={},
-                delegatable_agents=["explorer", "writer"],
+                delegatable_agents=["explore", "writer"],
             )
             await session.commit()
 
@@ -448,15 +451,15 @@ async def test_delete_removes_delegatable_reference_from_primaries():
         async with factory() as session:
             session.add(
                 AgentDefinitionRecord(
-                    key="primary",
+                    key="build",
                     display_name="Primary",
                     description="",
                     kind="primary",
-                    prompt_agent_name="primary",
+                    prompt_agent_name="build",
                     enabled_tool_categories=[],
                     enabled_skills=[],
                     source="builtin",
-                    delegatable_agents=["explorer", "target-bot"],
+                    delegatable_agents=["explore", "target-bot"],
                 )
             )
             await agent_definition_service.create_definition(
@@ -477,9 +480,9 @@ async def test_delete_removes_delegatable_reference_from_primaries():
             await agent_definition_service.delete_definition(session, "target-bot")
             await session.commit()
 
-            primary = await agent_definition_repo.get_by_key(session, "primary")
-            assert primary is not None
-            assert "target-bot" not in primary.delegatable_agents
-            assert "explorer" in primary.delegatable_agents
+            build = await agent_definition_repo.get_by_key(session, "build")
+            assert build is not None
+            assert "target-bot" not in build.delegatable_agents
+            assert "explore" in build.delegatable_agents
     finally:
         await engine.dispose()

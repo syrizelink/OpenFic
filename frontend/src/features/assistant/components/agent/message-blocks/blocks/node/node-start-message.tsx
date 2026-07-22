@@ -2,9 +2,9 @@ import { Box } from "@radix-ui/themes";
 import { useEffect, useState } from "react";
 
 import i18n from "@/i18n";
-import type { AgentMessage, AgentType } from "@/lib/agent.types";
+import type { AgentMessage } from "@/lib/agent.types";
 
-import { AGENT_NAMES, getAgentName } from "../../../agent-message.types";
+import { getAgentName } from "../../../agent-message.types";
 import { formatElapsedDuration } from "../../shared/message-duration";
 
 interface NodeStartMessageProps {
@@ -16,16 +16,11 @@ interface NodeStartMessageProps {
   onToggle?: () => void;
 }
 
-function isAgentType(value: unknown): value is AgentType {
-  return typeof value === "string" && value in AGENT_NAMES;
-}
-
 function getAgentLabel(message: AgentMessage): string {
-  if (isAgentType(message.agent)) return getAgentName(message.agent);
+  if (message.agent) return getAgentName(message.agent);
 
   const payloadNode = message.payload?.node;
-  if (isAgentType(payloadNode)) return getAgentName(payloadNode);
-  if (typeof payloadNode === "string" && payloadNode.trim()) return payloadNode.trim();
+  if (typeof payloadNode === "string" && payloadNode.trim()) return getAgentName(payloadNode);
 
   return i18n.t("assistant.agentNames.unknown");
 }

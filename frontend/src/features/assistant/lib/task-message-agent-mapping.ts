@@ -12,7 +12,7 @@ function isHiddenSystemReminderContent(content: string): boolean {
   return /^<system-reminder\b/i.test(content.trim());
 }
 
-const SUBAGENT_AGENT_IDS = new Set(["explorer", "composer", "writer", "reviewer"]);
+const SUBAGENT_AGENT_IDS = new Set(["explore", "composer", "writer", "reviewer"]);
 const SUBAGENT_ORCHESTRATION_TOOL_NAMES = new Set([
   "dispatch_subagent",
   "notify_subagent",

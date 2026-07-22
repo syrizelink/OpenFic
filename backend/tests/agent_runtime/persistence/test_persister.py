@@ -697,7 +697,7 @@ async def test_persister_persists_node_events_as_hidden_system_messages(
         "phase": "start",
         "status": "running",
         "current_node": "composer",
-        "previous_node": "explorer",
+        "previous_node": "explore",
     })
     await p.persist_node_event({
         "session_id": sid,
@@ -705,7 +705,7 @@ async def test_persister_persists_node_events_as_hidden_system_messages(
         "phase": "end",
         "status": "completed",
         "current_node": None,
-        "previous_node": "explorer",
+        "previous_node": "explore",
     })
 
     items = await repo.list_by_session(db_session, sid)
@@ -721,7 +721,7 @@ async def test_persister_persists_node_events_as_hidden_system_messages(
         "phase": "start",
         "node_status": "running",
         "current_node": "composer",
-        "previous_node": "explorer",
+        "previous_node": "explore",
     }
     assert items[1].metadata["event_type"] == "node_end"
     assert items[1].metadata["node_status"] == "completed"

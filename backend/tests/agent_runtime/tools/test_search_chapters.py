@@ -229,8 +229,9 @@ def test_search_chapters_expands_from_chapter_read_for_default_agents() -> None:
     assert "search_chapters" in get_tool_names_for_categories(["chapter_read"])
 
     for agent_key in (
-        "primary",
-        "explorer",
+        "build",
+        "plan",
+        "explore",
         "composer",
         "auditor",
         "writer",

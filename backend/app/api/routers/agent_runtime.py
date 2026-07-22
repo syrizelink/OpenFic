@@ -148,7 +148,7 @@ def _build_seed_state(
     task_id: str,
     project_id: str,
     model_config: dict,
-    agent_key: str = "primary",
+    agent_key: str = "build",
     current_revision_id: str | None = None,
 ) -> dict:
     return {

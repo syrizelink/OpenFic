@@ -6,14 +6,7 @@
 
 import type { TaskMessage } from "./task.types";
 
-export type AgentType =
-  | "primary"
-  | "explorer"
-  | "composer"
-  | "auditor"
-  | "writer"
-  | "actor"
-  | "reviewer";
+export type AgentType = string;
 
 export type SubagentDispatchStatus =
   | "queued"

@@ -39,8 +39,9 @@ export function getStatusLabel(value: string): string {
 }
 
 export function getOperationLabel(value: string): string {
-  if (value === "primary") return i18n.t("dashboard.agentLabels.primary");
-  if (value === "explorer") return i18n.t("dashboard.agentLabels.explorer");
+  if (value === "build") return i18n.t("dashboard.agentLabels.build");
+  if (value === "plan") return i18n.t("dashboard.agentLabels.plan");
+  if (value === "explore") return i18n.t("dashboard.agentLabels.explore");
   if (value === "composer") return i18n.t("dashboard.agentLabels.composer");
   if (value === "auditor") return i18n.t("dashboard.agentLabels.auditor");
   if (value === "writer") return i18n.t("dashboard.agentLabels.writer");

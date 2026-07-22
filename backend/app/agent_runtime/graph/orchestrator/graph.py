@@ -42,7 +42,7 @@ DEFAULT_PRIMARY_TOOL_CATEGORIES = (
 )
 
 
-async def _primary_tool_names(config: RunnableConfig | None, agent_key: str = "primary") -> list[str]:
+async def _primary_tool_names(config: RunnableConfig | None, agent_key: str = "build") -> list[str]:
     configurable = config.get("configurable", {}) if isinstance(config, dict) else {}
     db_session = configurable.get("db_session") if isinstance(configurable, dict) else None
     if db_session is None:
@@ -55,7 +55,7 @@ async def _primary_tool_names(config: RunnableConfig | None, agent_key: str = "p
 
 async def _primary_build_hooks(
     config: RunnableConfig | None,
-    agent_key: str = "primary",
+    agent_key: str = "build",
 ):
     configurable = config.get("configurable", {}) if isinstance(config, dict) else {}
     db_session = configurable.get("db_session") if isinstance(configurable, dict) else None
@@ -92,7 +92,7 @@ async def primary_node(
         raise ValueError("Agent 运行时模型配置不可用")
     model_config = ModelConfig(**to_client_model_config(runtime_model_config))
     model = create_chat_model(model_config)
-    agent_key = state.get("agent_key", "primary")
+    agent_key = state.get("agent_key", "build")
     tool_state = dict(state)
     tool_state["model_config"] = dict(runtime_model_config)
     tool_state["active_agent"] = agent_key

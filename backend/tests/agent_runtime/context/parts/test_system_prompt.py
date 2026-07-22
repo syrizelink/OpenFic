@@ -53,11 +53,11 @@ async def test_system_prompt_loads_agent_prompt_chain_key(make_state, mock_sessi
         "app.agent_runtime.context.parts.system_prompt.prompt_chain_service.get_latest_version_with_entries_or_default",
         AsyncMock(return_value=version),
     ) as mocked_get:
-        await build_system_prompt(state, "explorer", mock_session)
+        await build_system_prompt(state, "explore", mock_session)
 
     mocked_get.assert_awaited_once_with(
         mock_session,
-        prompt_id="builtin-agent--explorer",
+        prompt_id="builtin-agent--explore",
     )
 
 

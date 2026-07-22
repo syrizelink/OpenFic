@@ -32,7 +32,7 @@ def test_build_orchestrator_graph_has_only_primary_runtime_node():
     graph_data = graph.get_graph()
     node_names = set(graph_data.nodes.keys())
     assert "primary" in node_names
-    assert not {"explorer", "composer", "auditor", "writer", "actor", "reviewer"} & node_names
+    assert not {"explore", "composer", "auditor", "writer", "actor", "reviewer"} & node_names
 
     start_edges = [edge for edge in graph_data.edges if _edge_source(edge) == "__start__"]
     end_edges = [edge for edge in graph_data.edges if _edge_target(edge) == "__end__"]
@@ -140,7 +140,7 @@ async def test_orchestrator_resumes_all_parallel_tool_approvals_once() -> None:
         "task_id": "task-1",
         "project_id": "project-1",
         "model_config": runtime_config["configurable"]["model_config"],
-        "agent_key": "primary",
+        "agent_key": "build",
         "messages": [],
         "user_request": "run both",
         "is_completed": False,

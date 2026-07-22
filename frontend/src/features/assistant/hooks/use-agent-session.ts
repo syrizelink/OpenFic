@@ -365,8 +365,8 @@ export function useAgentSession({
 
       const result = applyAgentTranscriptEventToLiveState(transcriptStateRef.current, event, {
         approvalPreviewFactory: createApprovalPreviewToolMessage,
-        defaultRunningStage: AGENT_STAGE_TEXT.primary,
-        fallbackAgent: "primary",
+        defaultRunningStage: agentKey || AGENT_STAGE_TEXT.build,
+        fallbackAgent: agentKey || "build",
         getStageTextForAgent: getStageTextForAgentKey,
         getStageTextForStage: getStageTextForStageKey,
         keepRunningOnCompleted: hasRunningAsyncSubagent,
@@ -483,6 +483,7 @@ export function useAgentSession({
       }
     },
     [
+      agentKey,
       commitTranscriptState,
       invalidateChapterQueries,
       invalidateNoteQueries,
@@ -517,7 +518,10 @@ export function useAgentSession({
             error,
             attempt: transportRetryAttemptRef.current,
             currentStage: transcriptStateRef.current.currentStage,
-            fallbackStage: getBestEffortContinueStage(transcriptStateRef.current.messages),
+            fallbackStage: getBestEffortContinueStage(
+              transcriptStateRef.current.messages,
+              agentKey,
+            ),
             preservedStatus: transcriptStateRef.current.status,
           });
           commitTranscriptState(next);
@@ -527,7 +531,7 @@ export function useAgentSession({
         },
       );
     },
-    [commitTranscriptState, handleEvent],
+    [agentKey, commitTranscriptState, handleEvent],
   );
 
   const disconnectTransport = useCallback(() => {
@@ -545,6 +549,7 @@ export function useAgentSession({
         transcriptStateRef.current.status === "running" ||
         transcriptStateRef.current.status === "waiting_answer" ||
         transcriptStateRef.current.status === "waiting_approval",
+      primaryAgentKey: agentKey,
     });
     if (!shouldJoinLoadedAgentSession(loadedState)) return;
 
@@ -559,7 +564,7 @@ export function useAgentSession({
         error: normalizedError,
         attempt: transportRetryAttemptRef.current,
         currentStage: transcriptStateRef.current.currentStage,
-        fallbackStage: getBestEffortContinueStage(transcriptStateRef.current.messages),
+        fallbackStage: getBestEffortContinueStage(transcriptStateRef.current.messages, agentKey),
         preservedStatus: loadedState.status,
       });
       commitTranscriptState(next);
@@ -567,7 +572,7 @@ export function useAgentSession({
         toast.error(i18n.t("assistant.agentConnectionFailed", { error: normalizedError.message }));
       }
     }
-  }, [attachAgentSocket, commitTranscriptState, sessionId]);
+  }, [agentKey, attachAgentSocket, commitTranscriptState, sessionId]);
 
   const startSession = useCallback(
     async (userRequest: string) => {
@@ -583,7 +588,7 @@ export function useAgentSession({
           messages: [createOptimisticUserMessage(userRequest)],
           status: "running",
           isRunning: true,
-          currentStage: AGENT_STAGE_TEXT.primary,
+          currentStage: agentKey || AGENT_STAGE_TEXT.build,
         });
 
         const createResponse = await createAgentSession({
@@ -614,6 +619,7 @@ export function useAgentSession({
       }
     },
     [
+      agentKey,
       attachAgentSocket,
       commitTranscriptState,
       maxIterations,
@@ -623,7 +629,6 @@ export function useAgentSession({
       queryClient,
       reasoningEffort,
       updateTranscriptState,
-      agentKey,
     ],
   );
 
@@ -647,7 +652,7 @@ export function useAgentSession({
           messages: current.messages.filter((item) => item.type !== "error"),
           status: "running",
           isRunning: true,
-          currentStage: getBestEffortContinueStage(current.messages),
+          currentStage: getBestEffortContinueStage(current.messages, agentKey),
         }));
 
         if (!socketUnsubscribeRef.current) {
@@ -677,6 +682,7 @@ export function useAgentSession({
       }
     },
     [
+      agentKey,
       attachAgentSocket,
       modelId,
       reasoningEffort,
@@ -835,7 +841,7 @@ export function useAgentSession({
           ),
           status: "running",
           isRunning: true,
-          currentStage: getBestEffortContinueStage(current.messages),
+          currentStage: getBestEffortContinueStage(current.messages, agentKey),
         }));
         if (!socketUnsubscribeRef.current) {
           attachAgentSocket(sessionId);
@@ -853,7 +859,7 @@ export function useAgentSession({
         toast.error(i18n.t("assistant.submitAnswerFailed"));
       }
     },
-    [attachAgentSocket, sessionId, updateTranscriptState],
+    [agentKey, attachAgentSocket, sessionId, updateTranscriptState],
   );
 
   const resetSession = useCallback(() => {
@@ -905,6 +911,7 @@ export function useAgentSession({
       options: {
         reconnect?: boolean;
         isRemoteRunning?: boolean;
+        primaryAgentKey?: string;
       } = {},
     ) => {
       sessionIdRef.current = existingSessionId;
@@ -921,6 +928,7 @@ export function useAgentSession({
       const loadedState = getLoadedAgentSessionState({
         messages: existingMessages,
         isRemoteRunning: options.isRemoteRunning,
+        primaryAgentKey: options.primaryAgentKey ?? agentKey,
       });
       commitTranscriptState({
         messages: existingMessages,
@@ -940,7 +948,10 @@ export function useAgentSession({
             error: normalizedError,
             attempt: transportRetryAttemptRef.current,
             currentStage: transcriptStateRef.current.currentStage,
-            fallbackStage: getBestEffortContinueStage(transcriptStateRef.current.messages),
+            fallbackStage: getBestEffortContinueStage(
+              transcriptStateRef.current.messages,
+              options.primaryAgentKey ?? agentKey,
+            ),
             preservedStatus: loadedState.status,
           });
           commitTranscriptState(next);
@@ -952,7 +963,13 @@ export function useAgentSession({
         });
       }
     },
-    [attachAgentSocket, commitTranscriptState, syncCompactingState, syncPendingMessageState],
+    [
+      agentKey,
+      attachAgentSocket,
+      commitTranscriptState,
+      syncCompactingState,
+      syncPendingMessageState,
+    ],
   );
 
   const cancelPendingMessage = useCallback(async (): Promise<string | null> => {

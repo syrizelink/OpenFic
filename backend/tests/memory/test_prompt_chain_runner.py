@@ -265,7 +265,7 @@ def test_compact_task_history_drops_clarification_panel_between_tool_pair() -> N
         TaskMessage(
             task_id="task-1",
             role="assistant",
-            agent_id="explorer",
+            agent_id="explore",
             content="你的想法很明确，我这边还需要确认几个细节：",
             tool_calls=json.dumps(
                 [{"id": "call-ask", "name": "ask_user", "args": {"questions": []}}],
@@ -275,14 +275,14 @@ def test_compact_task_history_drops_clarification_panel_between_tool_pair() -> N
         TaskMessage(
             task_id="task-1",
             role="assistant",
-            agent_id="explorer",
+            agent_id="explore",
             content="需要澄清：穿越后进入什么样的世界？",
             message_metadata=json.dumps({"event_type": "clarification"}, ensure_ascii=False),
         ),
         TaskMessage(
             task_id="task-1",
             role="tool",
-            agent_id="explorer",
+            agent_id="explore",
             content=json.dumps(
                 {
                     "success": True,
@@ -295,7 +295,7 @@ def test_compact_task_history_drops_clarification_panel_between_tool_pair() -> N
         ),
     ]
 
-    compact = _compact_task_history(messages, current_agent_name="explorer")
+    compact = _compact_task_history(messages, current_agent_name="explore")
 
     assert [message["role"] for message in compact] == ["assistant", "tool"]
     assert compact[0]["tool_calls"][0]["id"] == "call-ask"

@@ -49,7 +49,7 @@ def test_orchestrator_state_extends_agent_runtime_state():
         "task_id": "task_001",
         "project_id": "proj_001",
         "model_config": {"provider_type": "openai", "model_id": "gpt-4o", "api_key": "sk-test", "base_url": ""},
-        "active_agent": "explorer",
+        "active_agent": "explore",
         "is_completed": False,
         "error": None,
         "retry_count": 0,
@@ -58,6 +58,6 @@ def test_orchestrator_state_extends_agent_runtime_state():
         "current_revision_id": "rev_001",
         "parent_thread_id": "sess_001",
     }
-    assert state["active_agent"] == "explorer"
+    assert state["active_agent"] == "explore"
     assert state["parent_thread_id"] == "sess_001"
     assert "handoff_context" not in state

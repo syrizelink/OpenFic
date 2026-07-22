@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.agents.definitions import (
+    DEFAULT_AGENT_KEYS,
     AgentDefinition,
     agent_definition_from_record,
     get_default_agent_definition,
@@ -17,9 +18,7 @@ from app.agent_runtime.persistence.model import AgentDefinitionRecord
 from app.core.errors import NotFoundError, ValidationError
 from app.storage.repos import agent_definition_repo
 
-_BUILTIN_KEYS = frozenset(
-    ("primary", "explorer", "composer", "auditor", "writer", "actor", "reviewer")
-)
+_BUILTIN_KEYS = frozenset(DEFAULT_AGENT_KEYS)
 _SUBAGENT_RESTRICTED_TOOL_CATEGORIES = frozenset(("orchestration", "interaction"))
 
 

@@ -591,13 +591,13 @@ class TestAgentAPI:
                 "project_id": target["project_id"],
                 "model_id": target["model_id"],
                 "max_iterations": 5,
-                "agent_key": "primary",
+                "agent_key": "build",
             },
         )
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert data["agent_key"] == "primary"
+        assert data["agent_key"] == "build"
         assert data["status"] == "created"
 
     async def test_create_agent_session_with_default_agent_key(self, client: AsyncClient) -> None:
@@ -614,7 +614,7 @@ class TestAgentAPI:
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert data["agent_key"] == "primary"
+        assert data["agent_key"] == "build"
 
     async def test_create_agent_session_rejects_non_primary_agent_key(self, client: AsyncClient) -> None:
         target = await _seed_agent_target(client)
@@ -638,10 +638,10 @@ class TestAgentAPI:
         resp = await client.post(
             "/api/v1/agent-definitions",
             json={
-                "key": "primary",
-                "display_name": "Primary Agent",
+                "key": "build",
+                "display_name": "Build",
                 "kind": "primary",
-                "prompt_agent_name": "primary",
+                "prompt_agent_name": "build",
                 "enabled_tool_categories": ["orchestration", "interaction", "chapter_read"],
                 "enabled_skills": [],
                 "metadata": {},
@@ -650,7 +650,7 @@ class TestAgentAPI:
         assert resp.status_code == status.HTTP_201_CREATED
 
         resp = await client.put(
-            "/api/v1/agent-definitions/primary",
+            "/api/v1/agent-definitions/build",
             json={"enabled": False},
         )
         assert resp.status_code == status.HTTP_200_OK
@@ -661,7 +661,7 @@ class TestAgentAPI:
                 "project_id": target["project_id"],
                 "model_id": target["model_id"],
                 "max_iterations": 5,
-                "agent_key": "primary",
+                "agent_key": "build",
             },
         )
 
@@ -677,7 +677,7 @@ class TestAgentAPI:
                 "key": "custom-primary",
                 "display_name": "Custom Primary",
                 "kind": "primary",
-                "prompt_agent_name": "primary",
+                "prompt_agent_name": "custom-primary",
                 "enabled_tool_categories": ["orchestration", "interaction", "chapter_read"],
                 "enabled_skills": [],
                 "metadata": {},

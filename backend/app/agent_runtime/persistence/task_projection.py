@@ -12,7 +12,7 @@ from app.agent_runtime.persistence.types import PersistedMessage
 from app.api.schemas.task import TaskMessage
 
 
-SUBAGENT_AGENT_IDS = {"explorer", "composer", "auditor", "writer", "actor", "reviewer"}
+SUBAGENT_AGENT_IDS = {"explore", "composer", "auditor", "writer", "actor", "reviewer"}
 SUBAGENT_ORCHESTRATION_TOOL_NAMES = {
     "dispatch_subagent",
     "notify_subagent",

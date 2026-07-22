@@ -218,7 +218,7 @@ export function useSubagentSession(
       pendingApprovalEvent
         ? applyAgentTranscriptEventToLiveState(nextState, pendingApprovalEvent, {
             approvalPreviewFactory: createApprovalPreviewToolMessage,
-            defaultRunningStage: getStageTextForAgentKey("primary") || "",
+            defaultRunningStage: getStageTextForAgentKey(payload.agentKey) || payload.agentKey,
             fallbackAgent: payload.agentKey,
             getStageTextForAgent: getStageTextForAgentKey,
             getStageTextForStage: getStageTextForStageKey,
@@ -312,7 +312,8 @@ export function useSubagentSession(
 
         const result = applyAgentTranscriptEventToLiveState(transcriptStateRef.current, event, {
           approvalPreviewFactory: createApprovalPreviewToolMessage,
-          defaultRunningStage: getStageTextForAgentKey("primary") || "",
+          defaultRunningStage:
+            getStageTextForAgentKey(session?.agentKey) || session?.agentKey || "",
           fallbackAgent: session?.agentKey,
           getStageTextForAgent: getStageTextForAgentKey,
           getStageTextForStage: getStageTextForStageKey,

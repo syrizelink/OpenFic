@@ -8,6 +8,7 @@ from typing import Any
 from langchain_core.runnables import RunnableConfig
 from loguru import logger
 
+from app.agent_runtime.agents.definitions import load_agent_definition
 from app.agent_runtime.persistence import repo as message_repo
 from app.agent_runtime.persistence.types import PersistedMessage
 from app.agent_runtime.persistence.child_runs import (
@@ -90,9 +91,22 @@ def get_configurable(config: RunnableConfig | None) -> dict[str, Any]:
     return configurable if isinstance(configurable, dict) else {}
 
 
-def ensure_primary(state: dict[str, Any]) -> None:
-    if state.get("active_agent") != "primary":
-        raise ToolExecutionError("this orchestration tool may only be called by primary")
+async def ensure_primary(
+    state: dict[str, Any],
+    session_factory: Any | None,
+) -> None:
+    active_agent = state.get("active_agent")
+    if not isinstance(active_agent, str) or not active_agent:
+        raise ToolExecutionError("this orchestration tool may only be called by a primary agent")
+    session = await open_session(session_factory)
+    try:
+        definition = await load_agent_definition(session, active_agent)
+    except KeyError as exc:
+        raise ToolExecutionError("this orchestration tool may only be called by a primary agent") from exc
+    finally:
+        await close_session(session)
+    if not definition.enabled or definition.kind != "primary":
+        raise ToolExecutionError("this orchestration tool may only be called by a primary agent")
 
 
 def build_subagent_identity_payload(row: AgentChildRun) -> dict[str, Any]:
