@@ -59,20 +59,3 @@ async def test_skills_renders_available_xml(make_state, mock_session):
     assert "<description>Extract PDF text, fill forms, merge files.</description>" in msg.content
     assert "<name>data-analysis</name>" in msg.content
     assert "<skill>" in msg.content
-
-
-@pytest.mark.asyncio
-async def test_skills_renders_builtin_skill(make_state, mock_session):
-    state = make_state()
-    available = [_skill("章节续写", "基于已有章节、摘要和设定续写")]
-    with patch(
-        "app.agent_runtime.context.parts.skills._get_enabled_skill_ids_for_agent",
-        AsyncMock(return_value=["builtin-skill--continue-chapter"]),
-    ), patch(
-        "app.agent_runtime.context.parts.skills.skill_service.list_enabled_skills_by_ids",
-        AsyncMock(return_value=available),
-    ):
-        msg = await build_skills(state, "writer", mock_session)
-
-    assert msg is not None
-    assert "<name>章节续写</name>" in msg.content

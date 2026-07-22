@@ -129,9 +129,16 @@ async def test_activate_skill_no_references():
 @pytest.mark.asyncio
 async def test_builtin_skill_tools_read_content_and_references_from_yaml(monkeypatch):
     from app.agent_runtime.tools.impls.skill.skill import ActivateSkillTool, ReferenceSkillTool
+    from app.skills import load_builtin_skills
     import app.storage.database as database
     import app.storage.services.skill_service as skill_service
 
+    builtin_skill = next(
+        skill
+        for skill in load_builtin_skills()
+        if skill.is_enabled and skill.references
+    )
+    reference = builtin_skill.references[0]
     session = AsyncMock()
     monkeypatch.setattr(database, "create_session", AsyncMock(return_value=session))
     monkeypatch.setattr(
@@ -140,7 +147,7 @@ async def test_builtin_skill_tools_read_content_and_references_from_yaml(monkeyp
     )
     monkeypatch.setattr(
         "app.agent_runtime.tools.impls.skill.skill.load_agent_definition",
-        AsyncMock(return_value=_definition(["builtin-skill--continue-chapter"])),
+        AsyncMock(return_value=_definition([builtin_skill.id])),
     )
     monkeypatch.setattr("app.storage.repos.skill_repo.list_by_ids", AsyncMock(return_value=[]))
 
@@ -151,14 +158,16 @@ async def test_builtin_skill_tools_read_content_and_references_from_yaml(monkeyp
         "app.agent_runtime.tools.impls.skill.skill.skill_service.list_reference_docs",
         skill_service.list_reference_docs,
     ):
-        activated = await ActivateSkillTool(_state=_make_state()).ainvoke({"skill_name": "章节续写"})
+        activated = await ActivateSkillTool(_state=_make_state()).ainvoke(
+            {"skill_name": builtin_skill.name}
+        )
         referenced = await ReferenceSkillTool(_state=_make_state()).ainvoke(
-            {"skill_name": "章节续写", "reference_name": "续写检查清单"}
+            {"skill_name": builtin_skill.name, "reference_name": reference.title}
         )
 
-    assert "## 执行要求" in activated
-    assert "<ref>续写检查清单</ref>" in activated
-    assert "当前叙事视角是否与目标章节一致。" in referenced
+    assert builtin_skill.content.strip() in activated
+    assert f"<ref>{reference.title}</ref>" in activated
+    assert reference.content.strip() in referenced
 
 
 @pytest.mark.asyncio

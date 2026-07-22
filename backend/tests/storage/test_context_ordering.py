@@ -9,6 +9,7 @@ from app.storage.models.prompt_entry import PromptEntry
 from app.storage.models.skill import Skill
 from app.storage.repos import prompt_entry_repo
 from app.storage.services import skill_service
+from app.skills import load_builtin_skills
 
 
 pytestmark = pytest.mark.asyncio
@@ -56,13 +57,15 @@ async def test_list_enabled_skills_by_ids_preserves_requested_order_and_filters(
 
 
 async def test_list_enabled_skills_by_ids_includes_enabled_builtin_skill(session):
+    builtin_skill = next(skill for skill in load_builtin_skills() if skill.is_enabled)
+
     result = await skill_service.list_enabled_skills_by_ids(
         session,
-        ["builtin-skill--continue-chapter"],
+        [builtin_skill.id],
     )
 
     assert [(item.id, item.name) for item in result] == [
-        ("builtin-skill--continue-chapter", "章节续写")
+        (builtin_skill.id, builtin_skill.name)
     ]
 
 
