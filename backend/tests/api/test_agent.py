@@ -2374,7 +2374,18 @@ class TestAgentAPI:
                 project_id="proj-rollback-created",
                 title="第一卷",
                 order=1,
-                chapter_count=1,
+                chapter_count=2,
+            )
+        )
+        session.add(
+            Chapter(
+                id="chap-existing-rollback",
+                project_id="proj-rollback-created",
+                volume_id="vol-rollback-created",
+                title="已有章节",
+                content="已有内容",
+                word_count=4,
+                order=1,
             )
         )
         session.add(
@@ -2416,7 +2427,7 @@ class TestAgentAPI:
                 title="新章节",
                 content="新内容",
                 word_count=3,
-                order=1,
+                order=2,
             )
         )
         session.add(
@@ -2472,6 +2483,10 @@ class TestAgentAPI:
             and call.args[1].get("chapter_id") == "chap-created-rollback"
             for call in emit_mock.await_args_list
         )
+        volume = await session.get(Volume, "vol-rollback-created")
+        assert volume is not None
+        await session.refresh(volume)
+        assert volume.chapter_count == 1
 
     async def test_rollback_rejects_checkpoint_id_request_body(
         self,

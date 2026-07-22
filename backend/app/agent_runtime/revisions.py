@@ -44,6 +44,7 @@ from app.storage.repos import (
     world_info_entry_repo,
 )
 from app.storage.services import writing_activity_service
+from app.storage.services.volume_service import refresh_volume_chapter_count
 from app.storage.services.version_control_service import refresh_project_stats
 
 
@@ -896,6 +897,7 @@ async def rollback_revision_for_session(
     rollback_revision = await revision_repo.create(session, rollback_revision)
 
     affected: list[str] = []
+    affected_volume_ids: set[str] = set()
     deletes = [item for item in restore_by_chapter.values() if not item.exists]
     upserts = [item for item in restore_by_chapter.values() if item.exists]
     for snapshot in [*deletes, *upserts]:
@@ -903,6 +905,10 @@ async def rollback_revision_for_session(
         current = await chapter_repo.get_by_id(session, snapshot.chapter_id)
         before_image = _image_from_chapter(current) if current is not None else None
         after_image = _image_from_snapshot(snapshot)
+        if before_image is not None:
+            affected_volume_ids.add(before_image.volume_id)
+        if after_image is not None:
+            affected_volume_ids.add(after_image.volume_id)
         if after_image is None:
             if current is not None:
                 await chapter_repo.delete(session, current)
@@ -949,6 +955,9 @@ async def rollback_revision_for_session(
                 before=before_image,
                 after=after_image,
             )
+
+    for volume_id in affected_volume_ids:
+        await refresh_volume_chapter_count(session, volume_id)
 
     affected_note_categories: list[str] = []
     cat_deletes = [item for item in restore_by_category.values() if not item.exists]
