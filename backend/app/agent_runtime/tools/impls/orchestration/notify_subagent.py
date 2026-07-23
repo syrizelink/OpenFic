@@ -16,6 +16,7 @@ from app.agent_runtime.tools.impls.orchestration.common import (
     close_session,
     ensure_child_processing,
     ensure_primary,
+    emit_subagent_tool_preview,
     get_configurable,
     make_subagent_runner,
     open_session,
@@ -80,7 +81,9 @@ class NotifySubagentTool(AgentTool):
                 or resolution.child_run.last_assistant_content
             )
             if not assistant_content:
-                raise ToolExecutionError("subagent turn completed without assistant content")
+                raise ToolExecutionError(
+                    "subagent turn completed without assistant content"
+                )
             return assistant_content
 
     async def _execute(
@@ -98,8 +101,12 @@ class NotifySubagentTool(AgentTool):
         if not row.is_active:
             raise ToolExecutionError("subagent thread is inactive")
         current_revision_id = self._state.get("current_revision_id")
-        parent_revision_id = current_revision_id if isinstance(current_revision_id, str) else None
-        pre_request_checkpoint_id = await latest_checkpoint_id_for_thread(row.child_thread_id)
+        parent_revision_id = (
+            current_revision_id if isinstance(current_revision_id, str) else None
+        )
+        pre_request_checkpoint_id = await latest_checkpoint_id_for_thread(
+            row.child_thread_id
+        )
 
         session = await open_session(configurable.get("session_factory"))
         try:
@@ -135,6 +142,14 @@ class NotifySubagentTool(AgentTool):
         runner = make_subagent_runner(state=self._state, configurable=configurable)
         await runner.publish_parent_subagent_status(row.id)
         pending_approval = getattr(row, "pending_approval_json", None)
+        await emit_subagent_tool_preview(
+            configurable=configurable,
+            parent_session_id=self.session_id,
+            tool_call_id=self.tool_call_id,
+            tool_name=self.name,
+            tool_args={"dispatch_id": dispatch_id, "prompt": prompt},
+            row=row,
+        )
         assistant_content = await self._wait_for_assistant_content(
             configurable=configurable,
             child_run_id=row.id,

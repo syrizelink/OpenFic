@@ -61,6 +61,7 @@ export function getSubagentTargetLabel(message: AgentMessage): string {
     "agent",
     "agent_name",
     "target_agent",
+    "agent_type",
   ]);
   const agentNumber = pickSubagentString(records, ["agent_number"]);
   return formatSubagentDisplayLabel(agentKey, agentNumber);

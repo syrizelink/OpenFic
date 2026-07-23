@@ -37,7 +37,7 @@ function getStatusLabel(
 
 export function ActiveSubagentList({ items, title, onOpen }: ActiveSubagentListProps) {
   const { t } = useTranslation();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   if (items.length === 0) return null;
 

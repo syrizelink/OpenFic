@@ -1,5 +1,37 @@
 import type { AgentMessage } from "@/lib/agent.types";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function preserveSubagentPreviewIdentity(
+  previous: Record<string, unknown> | undefined,
+  next: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!previous || !next) return next;
+  if (previous.type !== "preview") return next;
+  if (typeof previous.agent_key !== "string" || typeof next.agent_key === "string") return next;
+
+  const previousData = isRecord(previous.data) ? previous.data : null;
+  const nextData = isRecord(next.data) ? next.data : null;
+  const identity = {
+    agent_key: previous.agent_key,
+    ...(typeof previous.agent_number === "string" ? { agent_number: previous.agent_number } : {}),
+  };
+  return {
+    ...next,
+    ...identity,
+    ...(previousData && nextData
+      ? {
+          data: {
+            ...nextData,
+            ...identity,
+          },
+        }
+      : {}),
+  };
+}
+
 function isStreamingDeltaMessage(message: AgentMessage): boolean {
   return Boolean(message.payload?.is_delta && ["text", "reasoning", "tool"].includes(message.type));
 }
@@ -56,7 +88,7 @@ export function mergeStreamingMessage(previous: AgentMessage, message: AgentMess
       message.status === "running"
         ? (message.partialToolArgs ?? previous.partialToolArgs)
         : undefined,
-    toolResult: message.toolResult ?? previous.toolResult,
+    toolResult: preserveSubagentPreviewIdentity(previous.toolResult, message.toolResult),
     toolSuccess: message.toolSuccess ?? previous.toolSuccess,
     isStreaming: message.status === "running" ? true : false,
     thinkingDurationMs: message.thinkingDurationMs ?? previous.thinkingDurationMs,

@@ -58,6 +58,7 @@ function getToolEventStatus(
   _toolName: string,
   result: Record<string, unknown>,
 ): AgentEvent["status"] {
+  if (result.type === "preview") return "running";
   return result.success === false ? "error" : "completed";
 }
 

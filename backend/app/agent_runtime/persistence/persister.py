@@ -10,6 +10,11 @@ from typing import Literal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.persistence import repo
+from app.agent_runtime.persistence.child_runs import (
+    get_child_run_agent_number,
+    get_child_run_for_parent_dispatch_id,
+    get_child_run_for_parent_tool_call,
+)
 from app.agent_runtime.persistence.errors import PersistenceWriteError
 from app.agent_runtime.runner.event_scope import is_subagent_child_event
 from app.agent_runtime.tool_call_recovery import (
@@ -39,6 +44,7 @@ class _PendingTool:
     run_id: str
     tool_call_id: str
     tool_name: str
+    args: dict[str, object]
 
 
 class MessagePersister:
@@ -66,10 +72,7 @@ class MessagePersister:
         self._previewed_tool_runs: set[str] = set()
 
     async def handle(self, event: dict) -> None:
-        if (
-            is_subagent_child_event(event)
-            and not self._allow_subagent_child_events
-        ):
+        if is_subagent_child_event(event) and not self._allow_subagent_child_events:
             return
 
         kind = event.get("event")
@@ -121,9 +124,9 @@ class MessagePersister:
         if isinstance(content, str) and content:
             buf.content_parts.append(content)
 
-        reasoning = (
-            getattr(chunk, "additional_kwargs", {}) or {}
-        ).get("reasoning_content")
+        reasoning = (getattr(chunk, "additional_kwargs", {}) or {}).get(
+            "reasoning_content"
+        )
         if reasoning:
             chunk_received_at = datetime.now(UTC)
             if buf.reasoning_started_at is None:
@@ -155,7 +158,9 @@ class MessagePersister:
 
         output = event.get("data", {}).get("output")
         content = "".join(buf.content_parts) or self._extract_output_content(output)
-        reasoning = "".join(buf.reasoning_parts) or self._extract_output_reasoning(output)
+        reasoning = "".join(buf.reasoning_parts) or self._extract_output_reasoning(
+            output
+        )
         reasoning_duration_ms = self._get_reasoning_duration_ms(buf)
         tool_calls = self._reconcile_tool_calls(buf.tool_call_chunks, run_id=run_id)
         if not tool_calls:
@@ -193,12 +198,14 @@ class MessagePersister:
         tool_name = event.get("name") or ""
         meta = event.get("metadata") or {}
         tool_call_id = (
-            meta.get("tool_call_id")
-            or meta.get("tool_call", {}).get("id")
-            or run_id
+            meta.get("tool_call_id") or meta.get("tool_call", {}).get("id") or run_id
         )
+        input_data = event.get("data", {}).get("input")
         self._pending_tools[run_id] = _PendingTool(
-            run_id=run_id, tool_call_id=tool_call_id, tool_name=tool_name
+            run_id=run_id,
+            tool_call_id=tool_call_id,
+            tool_name=tool_name,
+            args=input_data if isinstance(input_data, dict) else {},
         )
 
     async def _on_tool_end(self, event: dict) -> None:
@@ -397,9 +404,7 @@ class MessagePersister:
         finally:
             await session.close()
 
-    async def finalize(
-        self, reason: Literal["done", "cancelled", "error"]
-    ) -> None:
+    async def finalize(self, reason: Literal["done", "cancelled", "error"]) -> None:
         """run/resume 结束时把 buffer 里未提交的 partial / aborted 写库。"""
         try:
             for run_id, buf in list(self._assistant_buffers.items()):
@@ -437,10 +442,14 @@ class MessagePersister:
             for pending in list(self._pending_tools.values()):
                 if pending.run_id in self._previewed_tool_runs:
                     continue
+                content = await self._cancelled_subagent_tool_result(
+                    pending,
+                    reason=reason,
+                )
                 await self._write(
                     role="tool",
                     status="aborted",
-                    content="[中断] 工具执行未完成",
+                    content=content or "[中断] 工具执行未完成",
                     tool_call_id=pending.tool_call_id,
                     tool_name=pending.tool_name,
                 )
@@ -453,6 +462,48 @@ class MessagePersister:
             raise PersistenceWriteError(
                 f"persister finalize failed reason={reason}"
             ) from e
+
+    async def _cancelled_subagent_tool_result(
+        self,
+        pending: _PendingTool,
+        *,
+        reason: Literal["done", "cancelled", "error"],
+    ) -> str | None:
+        if reason != "cancelled" or pending.tool_name not in {
+            "dispatch_subagent",
+            "notify_subagent",
+        }:
+            return None
+
+        session = self._make_session()
+        try:
+            child_run = await get_child_run_for_parent_tool_call(
+                session,
+                parent_session_id=self.session_id,
+                tool_call_id=pending.tool_call_id,
+            )
+            if child_run is None and pending.tool_name == "notify_subagent":
+                dispatch_id = pending.args.get("dispatch_id")
+                if isinstance(dispatch_id, str) and dispatch_id:
+                    child_run = await get_child_run_for_parent_dispatch_id(
+                        session,
+                        parent_session_id=self.session_id,
+                        dispatch_id=dispatch_id,
+                    )
+        finally:
+            await session.close()
+        if child_run is None or not child_run.is_active:
+            return None
+
+        return json.dumps(
+            {
+                "dispatch_id": child_run.dispatch_id,
+                "agent_key": child_run.agent_key,
+                "agent_number": get_child_run_agent_number(child_run.metadata_json),
+                "error": "subagent 会话已被用户中断，要通知其继续工作请使用 notify_subagent",
+            },
+            ensure_ascii=False,
+        )
 
     @staticmethod
     def _get_reasoning_duration_ms(buf: _AssistantBuffer) -> int | None:

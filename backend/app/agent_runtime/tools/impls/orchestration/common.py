@@ -97,16 +97,22 @@ async def ensure_primary(
 ) -> None:
     active_agent = state.get("active_agent")
     if not isinstance(active_agent, str) or not active_agent:
-        raise ToolExecutionError("this orchestration tool may only be called by a primary agent")
+        raise ToolExecutionError(
+            "this orchestration tool may only be called by a primary agent"
+        )
     session = await open_session(session_factory)
     try:
         definition = await load_agent_definition(session, active_agent)
     except KeyError as exc:
-        raise ToolExecutionError("this orchestration tool may only be called by a primary agent") from exc
+        raise ToolExecutionError(
+            "this orchestration tool may only be called by a primary agent"
+        ) from exc
     finally:
         await close_session(session)
     if not definition.enabled or definition.kind != "primary":
-        raise ToolExecutionError("this orchestration tool may only be called by a primary agent")
+        raise ToolExecutionError(
+            "this orchestration tool may only be called by a primary agent"
+        )
 
 
 def build_subagent_identity_payload(row: AgentChildRun) -> dict[str, Any]:
@@ -119,6 +125,42 @@ def build_subagent_identity_payload(row: AgentChildRun) -> dict[str, Any]:
     if metadata:
         payload["metadata"] = metadata
     return payload
+
+
+async def emit_subagent_tool_preview(
+    *,
+    configurable: dict[str, Any],
+    parent_session_id: str,
+    tool_call_id: str | None,
+    tool_name: str,
+    tool_args: dict[str, Any],
+    row: AgentChildRun,
+) -> None:
+    if not tool_call_id:
+        return
+    event_sink = configurable.get("agent_event_sink")
+    if not callable(event_sink):
+        return
+
+    preview = {
+        "type": "preview",
+        "success": True,
+        "dispatch_id": row.dispatch_id,
+        **build_subagent_identity_payload(row),
+    }
+    await maybe_await(
+        event_sink(
+            "agent:tool_result",
+            {
+                "session_id": parent_session_id,
+                "tool_call_id": tool_call_id,
+                "tool": tool_name,
+                "input": tool_args,
+                "output": preview,
+                "is_preview": True,
+            },
+        )
+    )
 
 
 def make_subagent_runner(
@@ -259,7 +301,9 @@ async def ensure_child_processing(
                 )
 
     task = asyncio.create_task(_run())
-    registered = await registry.try_register_child(parent_session_id, child_run_id, task)
+    registered = await registry.try_register_child(
+        parent_session_id, child_run_id, task
+    )
     if registered:
         return True
     task.cancel()
@@ -286,7 +330,9 @@ async def wait_for_request_resolution(
             if request.status == "completed":
                 return ChildRequestResolution(child_run=child_run, request=request)
             if request.status == "cancelled":
-                raise ToolExecutionError(request.error or "subagent request was cancelled")
+                raise ToolExecutionError(
+                    request.error or "subagent request was cancelled"
+                )
             if request.status == "error":
                 raise ToolExecutionError(request.error or "subagent request failed")
             if not child_run.is_active:

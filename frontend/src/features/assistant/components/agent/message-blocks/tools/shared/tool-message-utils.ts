@@ -406,6 +406,7 @@ export function resolveToolMessageVisibilityState(input: {
   hasContent: boolean;
   hasDetail: boolean;
   errorMessage?: string;
+  showDetailOnError?: boolean;
 }): ToolMessageVisibilityState {
   const isRunning = Boolean(input.message.isStreaming || input.message.status === "running");
   const hasError = Boolean(input.errorMessage);
@@ -416,7 +417,7 @@ export function resolveToolMessageVisibilityState(input: {
     canExpand,
     showStaticContent: !hasError && input.hasContent && input.contentMode === "static",
     showErrorIndicator: hasError,
-    showDetail: !hasError && input.hasDetail,
+    showDetail: input.hasDetail && (!hasError || input.showDetailOnError === true),
     showExpandButton: !hasError && canExpand,
   };
 }

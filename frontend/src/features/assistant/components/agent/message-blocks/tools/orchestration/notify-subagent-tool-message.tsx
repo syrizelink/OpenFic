@@ -13,7 +13,7 @@ interface NotifySubagentToolMessageProps {
 }
 
 export function NotifySubagentToolMessage({ message }: NotifySubagentToolMessageProps) {
-  const notifyMessage = getSubagentInstructionText(message, ["message"]);
+  const notifyMessage = getSubagentInstructionText(message, ["prompt", "message"]);
   if (!notifyMessage) return null;
   return (
     <ToolBody>

@@ -1,9 +1,12 @@
 """Task API projection for agent runtime messages."""
 
+import json
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.persistence import repo
+from app.agent_runtime.persistence.child_runs import create_child_run
 from app.agent_runtime.persistence.task_projection import (
     load_task_messages_for_agent_session,
 )
@@ -80,9 +83,7 @@ async def test_projects_runtime_messages_to_task_messages(
     ]
     assert messages[4].payload["tool_call_id"] == "call_ask"
     assert messages[4].payload["tool_name"] == "ask_user"
-    assert messages[4].payload["tool_args"] == {
-        "questions": [{"title": "剧情走向？"}]
-    }
+    assert messages[4].payload["tool_args"] == {"questions": [{"title": "剧情走向？"}]}
     assert messages[4].payload["tool_result"]["data"] == {"answer": "按原著"}
 
 
@@ -308,6 +309,120 @@ async def test_projection_filters_subagent_internal_rows_from_parent_session(
     ]
     assert messages[1].message_type == "tool"
     assert messages[1].payload["tool_name"] == "dispatch_subagent"
+
+
+@pytest.mark.asyncio
+async def test_projects_subagent_identity_for_orchestration_tool_results(
+    db_session: AsyncSession,
+    sample_task,
+) -> None:
+    session_id = "session_projection_subagent_identity"
+    dispatch_id = "dispatch-writer"
+    await repo.insert_message(
+        db_session,
+        session_id=session_id,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="assistant",
+        agent_id="primary",
+        content="",
+        status="complete",
+        tool_calls=[
+            {
+                "id": "call-dispatch",
+                "name": "dispatch_subagent",
+                "args": {
+                    "agent_type": "writer",
+                    "description": "续写场景",
+                    "prompt": "请续写这一场景。",
+                },
+            },
+            {
+                "id": "call-notify",
+                "name": "notify_subagent",
+                "args": {
+                    "dispatch_id": dispatch_id,
+                    "prompt": "继续完善冲突。",
+                },
+            },
+            {
+                "id": "call-recycle",
+                "name": "recycle_subagent",
+                "args": {
+                    "dispatch_id": dispatch_id,
+                    "reason": "任务完成",
+                },
+            },
+        ],
+    )
+    await create_child_run(
+        db_session,
+        parent_session_id=session_id,
+        parent_task_id=sample_task.id,
+        parent_thread_id=session_id,
+        child_thread_id=f"{session_id}:child:{dispatch_id}",
+        agent_key="writer",
+        dispatch_id=dispatch_id,
+        tool_call_id="call-dispatch",
+        request={"task": "请续写这一场景。"},
+        metadata={"agent_number": "#1001"},
+    )
+    for tool_call_id, tool_name, result in [
+        (
+            "call-dispatch",
+            "dispatch_subagent",
+            {"dispatch_id": dispatch_id, "agent_number": "#1001", "result": "完成"},
+        ),
+        (
+            "call-notify",
+            "notify_subagent",
+            {"dispatch_id": dispatch_id, "agent_number": "#1001", "result": "已继续"},
+        ),
+        (
+            "call-recycle",
+            "recycle_subagent",
+            {"dispatch_id": dispatch_id, "recycled": True},
+        ),
+    ]:
+        await repo.insert_message(
+            db_session,
+            session_id=session_id,
+            task_id=sample_task.id,
+            project_id=sample_task.project_id,
+            role="tool",
+            content=json.dumps(result, ensure_ascii=False),
+            status="complete",
+            tool_call_id=tool_call_id,
+            tool_name=tool_name,
+        )
+
+    messages = await load_task_messages_for_agent_session(db_session, session_id)
+
+    tool_messages = [message for message in messages if message.message_type == "tool"]
+    assert len(tool_messages) == 3
+    assert [message.payload["tool_args"] for message in tool_messages] == [
+        {
+            "agent_type": "writer",
+            "description": "续写场景",
+            "prompt": "请续写这一场景。",
+        },
+        {"dispatch_id": dispatch_id, "prompt": "继续完善冲突。"},
+        {"dispatch_id": dispatch_id, "reason": "任务完成"},
+    ]
+    assert [
+        message.payload["tool_result"]["agent_key"] for message in tool_messages
+    ] == [
+        "writer",
+        "writer",
+        "writer",
+    ]
+    assert [
+        message.payload["tool_result"]["agent_number"] for message in tool_messages
+    ] == [
+        "#1001",
+        "#1001",
+        "#1001",
+    ]
 
 
 @pytest.mark.asyncio
@@ -543,7 +658,9 @@ async def test_projects_resumed_tool_call_as_single_tool_message(
     assert tool_messages[0].payload["tool_name"] == "write_chapter"
     assert tool_messages[0].payload["tool_args"] == {"title": "第一章"}
     assert tool_messages[0].payload["tool_result"]["success"] is True
-    assert tool_messages[0].payload["tool_result"]["data"] == {"chapter_id": "chapter_1"}
+    assert tool_messages[0].payload["tool_result"]["data"] == {
+        "chapter_id": "chapter_1"
+    }
 
 
 @pytest.mark.asyncio
@@ -588,7 +705,12 @@ async def test_projects_interrupted_tool_preview_as_completed_tool_message(
     assert len(tool_messages) == 1
     assert tool_messages[0].message_status == "completed"
     assert tool_messages[0].payload["tool_result"]["reason"] == "approval_preview"
-    assert tool_messages[0].payload["tool_result"]["data"]["metadata"]["chapter_diff"]["operation"] == "create"
+    assert (
+        tool_messages[0].payload["tool_result"]["data"]["metadata"]["chapter_diff"][
+            "operation"
+        ]
+        == "create"
+    )
 
 
 @pytest.mark.asyncio
@@ -632,7 +754,24 @@ async def test_projects_completed_write_tool_result_keeps_chapter_diff_for_reloa
     tool_messages = [message for message in messages if message.message_type == "tool"]
     assert len(tool_messages) == 1
     assert tool_messages[0].payload["tool_result"]["data"]["word_count"] == 2
-    assert tool_messages[0].payload["tool_result"]["data"]["chapter"]["id"] == "chapter_1"
-    assert tool_messages[0].payload["tool_result"]["data"]["metadata"]["chapter_diff"]["operation"] == "create"
-    assert tool_messages[0].payload["tool_result"]["data"]["metadata"]["chapter_diff"]["chapter_id"] == "chapter_1"
-    assert tool_messages[0].payload["tool_result"]["data"]["metadata"]["chapter_diff"]["sections"][0]["type"] == "content"
+    assert (
+        tool_messages[0].payload["tool_result"]["data"]["chapter"]["id"] == "chapter_1"
+    )
+    assert (
+        tool_messages[0].payload["tool_result"]["data"]["metadata"]["chapter_diff"][
+            "operation"
+        ]
+        == "create"
+    )
+    assert (
+        tool_messages[0].payload["tool_result"]["data"]["metadata"]["chapter_diff"][
+            "chapter_id"
+        ]
+        == "chapter_1"
+    )
+    assert (
+        tool_messages[0].payload["tool_result"]["data"]["metadata"]["chapter_diff"][
+            "sections"
+        ][0]["type"]
+        == "content"
+    )
