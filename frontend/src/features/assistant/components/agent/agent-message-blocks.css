@@ -127,26 +127,13 @@
 }
 
 .agent-user-message-preview-text {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
-  max-height: calc(1.35em * 4);
+  display: block;
   font-size: inherit;
   white-space: pre-wrap;
 }
 
-.agent-user-message-preview--expanded .agent-user-message-preview-text {
-  display: block;
-  overflow: visible;
-  -webkit-line-clamp: unset;
-  line-clamp: unset;
-  max-height: none;
-}
-
-.agent-user-message-preview--expanded {
-  overflow: visible;
+.agent-user-message-content-viewport {
+  overflow: hidden;
 }
 
 .agent-user-message-expand-overlay {
@@ -173,9 +160,9 @@
 
 .agent-user-message-collapse-indicator {
   display: flex;
+  overflow: hidden;
   align-items: center;
   justify-content: center;
-  margin-top: 6px;
   color: var(--gray-11);
 }
 
