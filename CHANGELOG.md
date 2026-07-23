@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.4](https://github.com/syrizelink/OpenFic/compare/v0.7.3...v0.7.4) (2026-07-23)
+
+
+### 🐛 问题修复
+
+* **agent:** 优化用户消息展开动画 ([#120](https://github.com/syrizelink/OpenFic/issues/120)) ([00d9cc8](https://github.com/syrizelink/OpenFic/commit/00d9cc89a12984462f5a8eb80d0b3d372aa22446))
+* **agent:** 修复回滚时卷章节数不同步的问题 ([#117](https://github.com/syrizelink/OpenFic/issues/117)) ([0e9bf90](https://github.com/syrizelink/OpenFic/commit/0e9bf908fb4f323f8737bcd7866ac54c4130e669))
+* **agent:** 修复流式消息底部跟随失效的问题 ([#119](https://github.com/syrizelink/OpenFic/issues/119)) ([d79d3ed](https://github.com/syrizelink/OpenFic/commit/d79d3edc1e6e967dd20752645bc52c0e95fe6bb8))
+* **agent:** 完善子智能体工具状态展示 ([#118](https://github.com/syrizelink/OpenFic/issues/118)) ([a908536](https://github.com/syrizelink/OpenFic/commit/a9085361cc32b46cc689c51a8d400c03ba0a1592))
+* **frontend:** 防止写作编辑内容丢失 ([#116](https://github.com/syrizelink/OpenFic/issues/116)) ([06698db](https://github.com/syrizelink/OpenFic/commit/06698dbb1a400b3cebadc7f237527dc53aa0e0e5))
+
+
+### 🔧 杂项
+
+* **agent:** 调整内置智能体定义 ([#115](https://github.com/syrizelink/OpenFic/issues/115)) ([3dcdbb8](https://github.com/syrizelink/OpenFic/commit/3dcdbb82255e79a10059b69f8c3a41d966a8ed5e))
+* **skill:** 添加内置写作技能 ([#113](https://github.com/syrizelink/OpenFic/issues/113)) ([664d126](https://github.com/syrizelink/OpenFic/commit/664d12632b63b8c363bc3ead66a1197a8ff56826))
+
 ## [0.7.3](https://github.com/syrizelink/OpenFic/compare/v0.7.2...v0.7.3) (2026-07-19)
 
 
