@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.persistence import repo
+from app.agent_runtime.persistence.child_runs import (
+    get_child_run_agent_number,
+    list_child_runs_for_parent,
+)
 from app.agent_runtime.persistence.types import PersistedMessage
 from app.api.schemas.task import TaskMessage
 
@@ -18,6 +22,12 @@ SUBAGENT_ORCHESTRATION_TOOL_NAMES = {
     "notify_subagent",
     "recycle_subagent",
 }
+
+
+class SubagentIdentitySource(Protocol):
+    dispatch_id: str
+    agent_key: str
+    metadata_json: dict[str, Any]
 
 
 def _message_status(status: str) -> str:
@@ -201,7 +211,43 @@ def _append_projected_tool_message(
     )
 
 
-def _project_rows(rows: list[PersistedMessage]) -> list[TaskMessage]:
+def _subagent_identity_by_dispatch_id(
+    child_runs: list[SubagentIdentitySource],
+) -> dict[str, dict[str, str]]:
+    identities: dict[str, dict[str, str]] = {}
+    for child_run in child_runs:
+        identity = {"agent_key": child_run.agent_key}
+        agent_number = get_child_run_agent_number(child_run.metadata_json)
+        if agent_number:
+            identity["agent_number"] = agent_number
+        identities[child_run.dispatch_id] = identity
+    return identities
+
+
+def _with_subagent_identity(
+    tool_result: dict[str, Any],
+    tool_args: dict[str, Any],
+    *,
+    tool_name: str | None,
+    identities_by_dispatch_id: dict[str, dict[str, str]],
+) -> dict[str, Any]:
+    if tool_name not in SUBAGENT_ORCHESTRATION_TOOL_NAMES:
+        return tool_result
+
+    dispatch_id = tool_result.get("dispatch_id") or tool_args.get("dispatch_id")
+    if not isinstance(dispatch_id, str) or not dispatch_id:
+        return tool_result
+    identity = identities_by_dispatch_id.get(dispatch_id)
+    if identity is None:
+        return tool_result
+    return {**tool_result, **identity}
+
+
+def _project_rows(
+    rows: list[PersistedMessage],
+    *,
+    identities_by_dispatch_id: dict[str, dict[str, str]] | None = None,
+) -> list[TaskMessage]:
     if _has_dispatch_subagent(rows):
         subagent_tool_call_ids = _subagent_tool_call_ids(rows)
         rows = [
@@ -307,6 +353,12 @@ def _project_rows(rows: list[PersistedMessage]) -> list[TaskMessage]:
         if row.role == "tool":
             tool_args = tool_args_by_id.get(row.tool_call_id or "", {})
             tool_result = _tool_result(row)
+            tool_result = _with_subagent_identity(
+                tool_result,
+                tool_args,
+                tool_name=row.tool_name,
+                identities_by_dispatch_id=identities_by_dispatch_id or {},
+            )
             _append_projected_tool_message(
                 projected,
                 projected_tool_index_by_id,
@@ -339,4 +391,12 @@ async def load_task_messages_for_agent_session(
     session_id: str,
 ) -> list[TaskMessage]:
     rows = await repo.list_by_session(session, session_id)
-    return _project_rows(rows)
+    child_runs = (
+        await list_child_runs_for_parent(session, session_id)
+        if _has_dispatch_subagent(rows)
+        else []
+    )
+    return _project_rows(
+        rows,
+        identities_by_dispatch_id=_subagent_identity_by_dispatch_id(child_runs),
+    )

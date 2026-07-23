@@ -46,6 +46,19 @@ const CANCELLED_TOOL_RESULT: Record<string, unknown> = {
   metadata: { interrupted: true },
 };
 
+function cancelledToolResult(message: AgentMessage): Record<string, unknown> {
+  const preview = message.toolResult;
+  if (!preview || preview.type !== "preview" || typeof preview.agent_key !== "string") {
+    return CANCELLED_TOOL_RESULT;
+  }
+  return {
+    ...CANCELLED_TOOL_RESULT,
+    dispatch_id: preview.dispatch_id,
+    agent_key: preview.agent_key,
+    ...(typeof preview.agent_number === "string" ? { agent_number: preview.agent_number } : {}),
+  };
+}
+
 function getActiveNodeStart(messages: AgentMessage[]): AgentMessage | null {
   let activeNode: AgentMessage | null = null;
   for (const message of messages) {
@@ -109,6 +122,7 @@ export function stopStreamingToolMessages(
       return message;
     hasRunningTool = true;
     const isError = status === "error";
+    const toolResult = isError ? cancelledToolResult(message) : message.toolResult;
     return {
       ...message,
       status,
@@ -118,10 +132,10 @@ export function stopStreamingToolMessages(
         ? {
             ...(message.payload ?? {}),
             success: false,
-            tool_result: CANCELLED_TOOL_RESULT,
+            tool_result: toolResult,
           }
         : message.payload,
-      toolResult: isError ? CANCELLED_TOOL_RESULT : message.toolResult,
+      toolResult,
       content: isError ? i18n.t("assistant.userAbortedToolCall") : message.content,
     };
   });
@@ -135,6 +149,7 @@ function markLastUnresolvedToolCancelled(messages: AgentMessage[]): AgentMessage
   if (lastTool.status === "error" || lastTool.toolResult) return messages;
 
   const next = [...messages];
+  const toolResult = cancelledToolResult(lastTool);
   next[lastToolIndex] = {
     ...lastTool,
     status: "error",
@@ -143,9 +158,9 @@ function markLastUnresolvedToolCancelled(messages: AgentMessage[]): AgentMessage
     payload: {
       ...(lastTool.payload ?? {}),
       success: false,
-      tool_result: CANCELLED_TOOL_RESULT,
+      tool_result: toolResult,
     },
-    toolResult: CANCELLED_TOOL_RESULT,
+    toolResult,
     content: i18n.t("assistant.userAbortedToolCall"),
   };
   return next;

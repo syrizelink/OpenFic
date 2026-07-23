@@ -22,6 +22,7 @@ from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.tools.impls.orchestration.common import (
     close_session,
     ensure_child_processing,
+    emit_subagent_tool_preview,
     get_configurable,
     make_subagent_runner,
     open_session,
@@ -121,7 +122,9 @@ class DispatchSubagentTool(AgentTool):
 
         count = int(self._state.get("_dispatch_subagent_count") or 0)
         if count >= MAX_DISPATCHES_PER_TURN:
-            raise ToolExecutionError("dispatch_subagent allows at most 10 dispatches per PA turn")
+            raise ToolExecutionError(
+                "dispatch_subagent allows at most 10 dispatches per PA turn"
+            )
         self._state["_dispatch_subagent_count"] = count + 1
 
         try:
@@ -246,7 +249,9 @@ class DispatchSubagentTool(AgentTool):
                 or resolution.child_run.last_assistant_content
             )
             if not assistant_content:
-                raise ToolExecutionError("subagent turn completed without assistant content")
+                raise ToolExecutionError(
+                    "subagent turn completed without assistant content"
+                )
             return assistant_content
 
     async def _execute(
@@ -310,15 +315,36 @@ class DispatchSubagentTool(AgentTool):
         }
 
         pending_approval = getattr(row, "pending_approval_json", None)
-        assistant_content = await self._wait_for_assistant_content(
+        await emit_subagent_tool_preview(
             configurable=configurable,
-            child_run_id=row.id,
-            request_id=request_id or "",
-            runner=runner,
-            start_processing=not (
-                isinstance(pending_approval, dict) and pending_approval
-            ),
+            parent_session_id=self.session_id,
+            tool_call_id=self.tool_call_id,
+            tool_name=self.name,
+            tool_args={
+                "agent_type": agent_type,
+                "description": description,
+                "prompt": prompt,
+            },
+            row=row,
         )
+        try:
+            assistant_content = await self._wait_for_assistant_content(
+                configurable=configurable,
+                child_run_id=row.id,
+                request_id=request_id or "",
+                runner=runner,
+                start_processing=not (
+                    isinstance(pending_approval, dict) and pending_approval
+                ),
+            )
+        except ToolExecutionError as exc:
+            return json.dumps(
+                {
+                    **base_payload,
+                    "error": str(exc),
+                },
+                ensure_ascii=False,
+            )
         payload = {
             **base_payload,
             "result": assistant_content,

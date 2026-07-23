@@ -136,10 +136,15 @@ async def isolated_db(monkeypatch):
                 order=1,
             )
         )
-        session.add(Task(
-            id="task_x", project_id="proj_x",
-            title="t", mode="agent", agent_session_id="session_x",
-        ))
+        session.add(
+            Task(
+                id="task_x",
+                project_id="proj_x",
+                title="t",
+                mode="agent",
+                agent_session_id="session_x",
+            )
+        )
         await session.commit()
     yield factory
     await engine.dispose()
@@ -151,8 +156,13 @@ async def test_session_runner_clears_pending_on_run_start(isolated_db):
     factory = isolated_db
     async with factory() as s:
         await repo.insert_message(
-            s, session_id="s_x", task_id="task_x", project_id="proj_x",
-            role="user", content="orphan-pending", status="pending",
+            s,
+            session_id="s_x",
+            task_id="task_x",
+            project_id="proj_x",
+            role="user",
+            content="orphan-pending",
+            status="pending",
         )
 
     runner = SessionRunner(
@@ -174,13 +184,20 @@ async def test_drain_inject_queue_marks_user_sent(isolated_db):
     sid = "s_x"
     async with factory() as s:
         m = await repo.insert_message(
-            s, session_id=sid, task_id="task_x", project_id="proj_x",
-            role="user", content="hi", status="pending",
+            s,
+            session_id=sid,
+            task_id="task_x",
+            project_id="proj_x",
+            role="user",
+            content="hi",
+            status="pending",
         )
 
     runner = SessionRunner(
-        session_id=sid, task_id="task_x",
-        model_config={"max_context_tokens": 8000}, project_id="proj_x",
+        session_id=sid,
+        task_id="task_x",
+        model_config={"max_context_tokens": 8000},
+        project_id="proj_x",
     )
     runner._persister = runner._make_persister()
     await runner._inject_queue.put((m.id, "user", "hi"))
@@ -343,8 +360,7 @@ async def test_drain_inject_queue_emits_consumed_and_user_text_for_pending_messa
     text_index = next(
         index
         for index, (name, payload) in enumerate(emitted)
-        if name == "agent:text"
-        and payload.get("message_id") == pending["message_id"]
+        if name == "agent:text" and payload.get("message_id") == pending["message_id"]
     )
     assert queued_index < consumed_index < text_index
 
@@ -446,15 +462,15 @@ async def test_run_consumes_queued_follow_up_before_turn_finishes(
         items = await repo.list_by_session(session, "session_x")
 
     user_messages = [
-        (item.role, item.content, item.status)
-        for item in items
-        if item.role == "user"
+        (item.role, item.content, item.status) for item in items if item.role == "user"
     ]
     assert user_messages == [
         ("user", "help", "sent"),
         ("user", persisted_follow_up, "sent"),
     ]
-    assert not [item for item in items if item.role == "user" and item.status == "pending"]
+    assert not [
+        item for item in items if item.role == "user" and item.status == "pending"
+    ]
     assert runner._queued_user_messages == {}
 
 
@@ -483,22 +499,28 @@ async def test_injected_follow_up_persists_after_assistant_reply(
     await runner._persist_user_message("help")
     await runner.queue_pending_user_message(raw_follow_up)
     queued_message_id = next(iter(runner._queued_user_messages))
-    await persister.handle({
-        "event": "on_chain_start",
-        "name": "writer",
-        "tags": ["agent_node"],
-        "data": {},
-    })
-    await persister.handle({
-        "event": "on_chat_model_start",
-        "run_id": "run-1",
-        "data": {},
-    })
-    await persister.handle({
-        "event": "on_chat_model_end",
-        "run_id": "run-1",
-        "data": {"output": AIMessage(content="reply1")},
-    })
+    await persister.handle(
+        {
+            "event": "on_chain_start",
+            "name": "writer",
+            "tags": ["agent_node"],
+            "data": {},
+        }
+    )
+    await persister.handle(
+        {
+            "event": "on_chat_model_start",
+            "run_id": "run-1",
+            "data": {},
+        }
+    )
+    await persister.handle(
+        {
+            "event": "on_chat_model_end",
+            "run_id": "run-1",
+            "data": {"output": AIMessage(content="reply1")},
+        }
+    )
     drained = await runner._drain_inject_queue()
     assert drained == [("user", persisted_follow_up, queued_message_id)]
 
@@ -547,11 +569,14 @@ async def test_run_persists_messages_end_to_end(isolated_db, monkeypatch):
                 tasks: list = []
                 values: dict = {}
                 config = {"configurable": {}}
+
             return _S()
 
     runner = SessionRunner(
-        session_id="s_x", task_id="task_x",
-        model_config={"max_context_tokens": 8000}, project_id="proj_x",
+        session_id="s_x",
+        task_id="task_x",
+        model_config={"max_context_tokens": 8000},
+        project_id="proj_x",
     )
 
     async def fake_get_graph():
@@ -562,12 +587,16 @@ async def test_run_persists_messages_end_to_end(isolated_db, monkeypatch):
 
     async with factory() as s:
         items = await repo.list_by_session(s, "s_x")
-    assert any(m.role == "assistant" and m.status == "complete" and m.content == "hello"
-               for m in items)
+    assert any(
+        m.role == "assistant" and m.status == "complete" and m.content == "hello"
+        for m in items
+    )
 
 
 @pytest.mark.asyncio
-async def test_run_emits_and_persists_cumulative_task_token_usage(isolated_db, monkeypatch):
+async def test_run_emits_and_persists_cumulative_task_token_usage(
+    isolated_db, monkeypatch
+):
     from langchain_core.messages import AIMessage
 
     from app.storage.models.task import Task
@@ -682,7 +711,9 @@ async def test_run_emits_and_persists_cumulative_task_token_usage(isolated_db, m
             "context_length": 8000,
         },
     ]
-    assert [payload for name, payload in captured_events if name == "agent:task_usage_delta"] == [
+    assert [
+        payload for name, payload in captured_events if name == "agent:task_usage_delta"
+    ] == [
         {
             "session_id": "s_usage",
             "task_id": "task_x",
@@ -750,7 +781,9 @@ async def test_emit_persisted_task_usage_events_preserves_compaction_usage_kind(
             "usage_kind": "compaction",
         }
     ]
-    assert [payload for name, payload in captured_events if name == "agent:task_usage_delta"] == [
+    assert [
+        payload for name, payload in captured_events if name == "agent:task_usage_delta"
+    ] == [
         {
             "session_id": "s_compaction_usage",
             "task_id": "task_x",
@@ -921,13 +954,20 @@ async def test_sync_dispatch_subagent_continues_primary_run_until_done(
         and isinstance(payload, dict)
         and payload.get("tool_call_id") == "dispatch-1"
     ]
-    assert len(dispatch_results) == 1
+    assert len(dispatch_results) == 2
+    preview_result, final_result = dispatch_results
 
     async with factory() as session:
         items = await repo.list_by_session(session, "session_x")
         child_runs = (
-            await session.execute(select(AgentChildRun).order_by(AgentChildRun.created_at.asc()))
-        ).scalars().all()
+            (
+                await session.execute(
+                    select(AgentChildRun).order_by(AgentChildRun.created_at.asc())
+                )
+            )
+            .scalars()
+            .all()
+        )
 
     assert any(
         item.role == "tool"
@@ -938,6 +978,15 @@ async def test_sync_dispatch_subagent_continues_primary_run_until_done(
     assert len(child_runs) == 1
     assert child_runs[0].status == "completed"
     assert child_runs[0].request_json["description"] == "Write a scene"
+    assert preview_result["output"] == {
+        "type": "preview",
+        "success": True,
+        "dispatch_id": child_runs[0].dispatch_id,
+        "agent_key": "writer",
+        "agent_number": child_runs[0].metadata_json["agent_number"],
+        "metadata": {"agent_number": child_runs[0].metadata_json["agent_number"]},
+    }
+    assert json.loads(final_result["output"])["result"] == "writer completed"
     dispatch_item = next(
         item
         for item in items
@@ -945,5 +994,7 @@ async def test_sync_dispatch_subagent_continues_primary_run_until_done(
     )
     dispatch_result = json.loads(dispatch_item.content)
     assert dispatch_result["dispatch_id"] == child_runs[0].dispatch_id
-    assert dispatch_result["agent_number"] == child_runs[0].metadata_json["agent_number"]
+    assert (
+        dispatch_result["agent_number"] == child_runs[0].metadata_json["agent_number"]
+    )
     assert dispatch_result["result"] == "writer completed"

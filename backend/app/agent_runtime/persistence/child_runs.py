@@ -35,9 +35,7 @@ TERMINAL_CHILD_RUN_STATUSES = {"completed", "error", "cancelled"}
 TERMINAL_CHILD_RUN_REQUEST_STATUSES = {"completed", "error", "cancelled"}
 SUBAGENT_AGENT_NUMBER_MIN = 1000
 SUBAGENT_AGENT_NUMBER_MAX = 9999
-SUBAGENT_AGENT_NUMBER_SPACE = (
-    SUBAGENT_AGENT_NUMBER_MAX - SUBAGENT_AGENT_NUMBER_MIN + 1
-)
+SUBAGENT_AGENT_NUMBER_SPACE = SUBAGENT_AGENT_NUMBER_MAX - SUBAGENT_AGENT_NUMBER_MIN + 1
 _PARENT_SUBAGENT_NUMBER_LOCKS: dict[str, asyncio.Lock] = {}
 _PARENT_SUBAGENT_NUMBER_LOCKS_GUARD = asyncio.Lock()
 
@@ -227,6 +225,42 @@ async def get_waiting_child_run_for_tool_call(
     return result.scalar_one_or_none()
 
 
+async def get_child_run_for_parent_tool_call(
+    session: AsyncSession,
+    *,
+    parent_session_id: str,
+    tool_call_id: str,
+) -> AgentChildRun | None:
+    result = await session.execute(
+        select(AgentChildRun)
+        .where(
+            col(AgentChildRun.parent_session_id) == parent_session_id,
+            col(AgentChildRun.tool_call_id) == tool_call_id,
+        )
+        .order_by(col(AgentChildRun.created_at).desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_child_run_for_parent_dispatch_id(
+    session: AsyncSession,
+    *,
+    parent_session_id: str,
+    dispatch_id: str,
+) -> AgentChildRun | None:
+    result = await session.execute(
+        select(AgentChildRun)
+        .where(
+            col(AgentChildRun.parent_session_id) == parent_session_id,
+            col(AgentChildRun.dispatch_id) == dispatch_id,
+        )
+        .order_by(col(AgentChildRun.created_at).desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 async def get_child_run_for_parent(
     session: AsyncSession,
     *,
@@ -377,7 +411,9 @@ def _initial_request_status(child_run_status: str) -> str:
         return "error"
     if child_run_status == "cancelled":
         return "cancelled"
-    raise ValueError(f"unsupported child run status for request initialization: {child_run_status}")
+    raise ValueError(
+        f"unsupported child run status for request initialization: {child_run_status}"
+    )
 
 
 async def _next_child_request_seq(session: AsyncSession, child_run_id: str) -> int:
@@ -533,7 +569,9 @@ async def rollback_child_runs_for_parent_revisions(
         else:
             row.is_active = True
             row.status = "completed" if previous is not None else "queued"
-            row.last_assistant_content = previous.assistant_content if previous else None
+            row.last_assistant_content = (
+                previous.assistant_content if previous else None
+            )
             row.last_completed_at = previous.completed_at if previous else None
             row.error = None
 
@@ -592,7 +630,9 @@ async def complete_child_run_request(
 ) -> AgentChildRunRequest:
     _ensure_status(status, CHILD_RUN_REQUEST_STATUSES, "child run request status")
     if status not in TERMINAL_CHILD_RUN_REQUEST_STATUSES:
-        raise ValueError(f"child run request must complete with terminal status: {status}")
+        raise ValueError(
+            f"child run request must complete with terminal status: {status}"
+        )
 
     request_row = await session.get(AgentChildRunRequest, request_id)
     if request_row is None:
@@ -617,7 +657,9 @@ async def complete_child_run_request(
     row.last_completed_at = now
     row.updated_at = now
 
-    pending_exists = await _child_has_pending_requests(session, row.id, exclude_request_id=request_id)
+    pending_exists = await _child_has_pending_requests(
+        session, row.id, exclude_request_id=request_id
+    )
     if status == "completed" and pending_exists and row.is_active:
         row.status = "queued"
     else:

@@ -8,6 +8,7 @@ from app.agent_runtime.persistence.child_runs import recycle_child_run
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.tools.impls.orchestration.common import (
+    build_subagent_identity_payload,
     close_session,
     ensure_primary,
     get_configurable,
@@ -27,6 +28,7 @@ class RecycleSubagentInput(BaseModel):
         default="",
         description="可选，关闭原因；会作为子代理回收时的错误/结束信息，对用户可见，应尽可能简要",
     )
+
 
 @ToolRegistry.register
 class RecycleSubagentTool(AgentTool):
@@ -60,6 +62,7 @@ class RecycleSubagentTool(AgentTool):
             return json.dumps(
                 {
                     "dispatch_id": row.dispatch_id,
+                    **build_subagent_identity_payload(row),
                     "recycled": True,
                 },
                 ensure_ascii=False,
@@ -82,6 +85,7 @@ class RecycleSubagentTool(AgentTool):
         return json.dumps(
             {
                 "dispatch_id": recycled.dispatch_id,
+                **build_subagent_identity_payload(recycled),
                 "recycled": True,
             },
             ensure_ascii=False,

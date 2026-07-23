@@ -86,6 +86,11 @@
   transition: color 120ms ease-out;
 }
 
+.agent-message-shell-detail--error,
+.agent-tool-card .agent-message-shell-detail--error {
+  color: var(--red-11);
+}
+
 .agent-message-shell-expand-button,
 .agent-tool-card .agent-tool-expand-button {
   margin-left: 0;

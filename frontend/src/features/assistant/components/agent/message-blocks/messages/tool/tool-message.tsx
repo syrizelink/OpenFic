@@ -234,6 +234,7 @@ export function ToolMessage({ message }: ToolMessageProps) {
     hasContent: Boolean(content),
     hasDetail: Boolean(detail),
     errorMessage,
+    showDetailOnError: descriptor?.group === "orchestration",
   });
   const titleClassName = joinClassNames(
     "agent-tool-title",
@@ -287,11 +288,25 @@ export function ToolMessage({ message }: ToolMessageProps) {
           >
             {title}
           </Text>
+          {!usesDiffHeader && visibilityState.showDetail && detail ? (
+            <Text
+              size="1"
+              color="gray"
+              className={joinClassNames(
+                "agent-tool-detail",
+                "agent-message-shell-detail",
+                visibilityState.showErrorIndicator && "agent-message-shell-detail--error",
+              )}
+            >
+              {detail}
+            </Text>
+          ) : null}
           {showMeta ? (
             <MessageBlockMeta>
               {visibilityState.showErrorIndicator && errorMessage ? (
                 <ToolErrorIndicator errorMessage={errorMessage} />
-              ) : usesDiffHeader ? (
+              ) : null}
+              {usesDiffHeader ? (
                 <AnimatePresence initial={false}>
                   {showCollapsedDiffMeta ? (
                     <motion.div
@@ -344,14 +359,6 @@ export function ToolMessage({ message }: ToolMessageProps) {
                     </motion.div>
                   ) : null}
                 </AnimatePresence>
-              ) : visibilityState.showDetail && detail ? (
-                <Text
-                  size="1"
-                  color="gray"
-                  className="agent-tool-detail agent-message-shell-detail"
-                >
-                  {detail}
-                </Text>
               ) : null}
               {visibilityState.showExpandButton ? (
                 <MessageExpandButton

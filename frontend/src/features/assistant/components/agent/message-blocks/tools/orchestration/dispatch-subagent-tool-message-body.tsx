@@ -13,7 +13,7 @@ interface DispatchSubagentToolMessageBodyProps {
 }
 
 export function DispatchSubagentToolMessageBody({ message }: DispatchSubagentToolMessageBodyProps) {
-  const task = getSubagentInstructionText(message, ["task"]);
+  const task = getSubagentInstructionText(message, ["prompt", "task"]);
   if (!task) return null;
   return (
     <ToolBody>
