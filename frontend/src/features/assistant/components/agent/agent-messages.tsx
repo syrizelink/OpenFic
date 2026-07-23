@@ -14,6 +14,7 @@ import type { AgentMessage as AgentMessageType } from "@/lib/agent.types";
 
 import { AgentMessageRenderer } from "./agent-message-renderer";
 import {
+  getStreamingFollowSignal,
   hasPendingLoadedSessionBottomRestore,
   resolveFollowBottomStateOnScroll,
   shouldAutoScrollOnFrameChange,
@@ -190,16 +191,7 @@ export function AgentMessages({
   );
   const [pendingForkTarget, setPendingForkTarget] = useState<AgentRoundToolbarTarget | null>(null);
   const [collapsedNodeIds, setCollapsedNodeIds] = useState<Set<string>>(() => new Set());
-  const latestMessage = messages.at(-1);
-  const streamFollowSignal = [
-    messages.length,
-    latestMessage?.id ?? "",
-    latestMessage?.type ?? "",
-    latestMessage?.status ?? "",
-    latestMessage?.content?.length ?? 0,
-    latestMessage?.toolArgsText?.length ?? 0,
-    latestMessage?.isStreaming ? 1 : 0,
-  ].join(":");
+  const streamFollowSignal = getStreamingFollowSignal(messages);
 
   const getScrollContainer = useCallback(
     () => scrollContainerRef.current ?? bottomRef.current?.closest(".ai-sidebar-messages"),
@@ -278,6 +270,7 @@ export function AgentMessages({
         previous: viewportMetricsRef.current,
         next: nextViewport,
         wasFollowingBottom: shouldFollowBottomRef.current,
+        isAutoScrollPending: streamingScrollRafRef.current !== null,
       });
       viewportMetricsRef.current = nextViewport;
     };
