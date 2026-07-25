@@ -8,7 +8,7 @@
 
 中文 | [English](./README_EN.md)
 
-**OpenFic** 是一款专为小说创作打造的跨平台、用户友好、AI Native 的一站式 Vibe Wrting 工具，构建设定、设计角色、定制工作流，让Agent适应你的写作流程，而非反之。
+**OpenFic** 是一款专为小说创作打造的跨平台、用户友好、AI Native 的一站式 Vibe Writing 工具，构建设定、设计角色、定制工作流，让Agent适应你的写作流程，而非反之。
 
 ![Demo Screenshot](./demo.png)
 
