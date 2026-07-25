@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.7.4](https://github.com/syrizelink/OpenFic/compare/v0.7.3...v0.7.4) (2026-07-25)
+
+
+### 🐛 问题修复
+
+* **agent:** 优化会话运行状态提示 ([#122](https://github.com/syrizelink/OpenFic/issues/122)) ([04c6e2e](https://github.com/syrizelink/OpenFic/commit/04c6e2e6639c21594a90c9d5d9a5fe607c7a9dcc))
+* **agent:** 优化用户消息展开动画 ([#120](https://github.com/syrizelink/OpenFic/issues/120)) ([00d9cc8](https://github.com/syrizelink/OpenFic/commit/00d9cc89a12984462f5a8eb80d0b3d372aa22446))
+* **agent:** 修复回滚时卷章节数不同步的问题 ([#117](https://github.com/syrizelink/OpenFic/issues/117)) ([0e9bf90](https://github.com/syrizelink/OpenFic/commit/0e9bf908fb4f323f8737bcd7866ac54c4130e669))
+* **agent:** 修复异常消息导致的僵尸会话 ([#123](https://github.com/syrizelink/OpenFic/issues/123)) ([84b95fe](https://github.com/syrizelink/OpenFic/commit/84b95fec91a65679d4f7a729515c4012b011af06))
+* **agent:** 修复流式消息底部跟随失效的问题 ([#119](https://github.com/syrizelink/OpenFic/issues/119)) ([d79d3ed](https://github.com/syrizelink/OpenFic/commit/d79d3edc1e6e967dd20752645bc52c0e95fe6bb8))
+* **agent:** 完善子智能体工具状态展示 ([#118](https://github.com/syrizelink/OpenFic/issues/118)) ([a908536](https://github.com/syrizelink/OpenFic/commit/a9085361cc32b46cc689c51a8d400c03ba0a1592))
+* **frontend:** 防止写作编辑内容丢失 ([#116](https://github.com/syrizelink/OpenFic/issues/116)) ([06698db](https://github.com/syrizelink/OpenFic/commit/06698dbb1a400b3cebadc7f237527dc53aa0e0e5))
+
+
+### 📚 文档
+
+* **readme:** 同步项目文档内容 ([#124](https://github.com/syrizelink/OpenFic/issues/124)) ([736779c](https://github.com/syrizelink/OpenFic/commit/736779cebea82f1c69e699d887a6a76c9cda2ef8))
+
+
+### 🔧 杂项
+
+* **agent:** 调整内置智能体定义 ([#115](https://github.com/syrizelink/OpenFic/issues/115)) ([3dcdbb8](https://github.com/syrizelink/OpenFic/commit/3dcdbb82255e79a10059b69f8c3a41d966a8ed5e))
+* **agent:** 调整内置智能体提示词 ([#121](https://github.com/syrizelink/OpenFic/issues/121)) ([211c7b0](https://github.com/syrizelink/OpenFic/commit/211c7b04f687bac675c6700ebe503fb598b4e73a))
+* **skill:** 添加内置写作技能 ([#113](https://github.com/syrizelink/OpenFic/issues/113)) ([664d126](https://github.com/syrizelink/OpenFic/commit/664d12632b63b8c363bc3ead66a1197a8ff56826))
+
 ## [0.7.3](https://github.com/syrizelink/OpenFic/compare/v0.7.2...v0.7.3) (2026-07-19)
 
 
