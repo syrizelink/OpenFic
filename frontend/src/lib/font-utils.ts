@@ -4,7 +4,22 @@
  * 字体应用工具函数
  */
 
+import {
+  SYSTEM_CODE_FONT_FAMILY,
+  SYSTEM_FONT_FAMILY,
+} from "@/features/settings/lib/settings.types";
+
 import { publishDesktopAppearance } from "./desktop-appearance-bridge";
+
+const appFontFallbacks =
+  '"SourceHanSerifCN-VF", "SourceHanSansCN-VF", "ChillKai", "Source Han Serif SC", "Noto Serif CJK SC", Georgia, "PingFang SC", "Microsoft YaHei", serif';
+const codeFontFallbacks =
+  '"JetBrainsMapleMono", ui-monospace, "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace';
+
+function buildFontStack(fontFamily: string, systemFontFamily: string, fallbacks: string): string {
+  if (fontFamily === systemFontFamily) return `${systemFontFamily}, ${fallbacks}`;
+  return `"${fontFamily}", ${fallbacks}`;
+}
 
 /**
  * 应用字体到页面
@@ -12,7 +27,7 @@ import { publishDesktopAppearance } from "./desktop-appearance-bridge";
  */
 export function applyFontFamily(fontFamily: string): void {
   // 构建完整的字体栈
-  const fontStack = `"${fontFamily}", "SourceHanSerifCN-VF", "SourceHanSansCN-VF", "ChillKai", "Source Han Serif SC", "Noto Serif CJK SC", Georgia, "PingFang SC", "Microsoft YaHei", serif`;
+  const fontStack = buildFontStack(fontFamily, SYSTEM_FONT_FAMILY, appFontFallbacks);
 
   // 应用到文档根元素
   document.documentElement.style.fontFamily = fontStack;
@@ -33,7 +48,7 @@ export function applyFontFamily(fontFamily: string): void {
  */
 export function applyCodeFontFamily(codeFontFamily: string): void {
   // 构建完整的代码字体栈
-  const fontStack = `"${codeFontFamily}", "JetBrainsMapleMono", ui-monospace, "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace`;
+  const fontStack = buildFontStack(codeFontFamily, SYSTEM_CODE_FONT_FAMILY, codeFontFallbacks);
 
   // 更新 CSS 变量
   const radixThemesEl = document.querySelector(".radix-themes");
@@ -53,9 +68,11 @@ export async function loadConfiguredFonts(
 ): Promise<void> {
   if (!("fonts" in document)) return;
 
-  await Promise.all([
-    document.fonts.load(`1em "${fontFamily}"`),
-    document.fonts.load(`1em "${codeFontFamily}"`),
-  ]);
+  const configuredFonts = [fontFamily, codeFontFamily].filter(
+    (font) => font !== SYSTEM_FONT_FAMILY && font !== SYSTEM_CODE_FONT_FAMILY,
+  );
+  if (!configuredFonts.length) return;
+
+  await Promise.all(configuredFonts.map((font) => document.fonts.load(`1em "${font}"`)));
   await document.fonts.ready;
 }

@@ -11,7 +11,7 @@ import { LabeledSelect } from "@/components/select";
 import { supportedLanguages, type LanguageCode } from "@/i18n";
 
 import type { Settings, ThemeMode } from "../lib/settings.types";
-import { CODE_FONT_OPTIONS, getFontOptions } from "../lib/settings.types";
+import { getCodeFontOptions, getFontOptions } from "../lib/settings.types";
 
 interface GeneralSettingsProps {
   /** 当前设置 */
@@ -104,7 +104,7 @@ export function GeneralSettings({
         <LabeledSelect
           label={t("settings.codeFontFamily")}
           value={settings.codeFontFamily || "JetBrainsMapleMono"}
-          options={CODE_FONT_OPTIONS}
+          options={getCodeFontOptions(t)}
           onChange={handleCodeFontChange}
           disabled={isSaving}
           triggerStyle={{ width: 200 }}
