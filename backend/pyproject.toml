@@ -104,7 +104,6 @@ packages = ["app"]
 "alembic.ini" = "alembic.ini"
 "LICENSE" = "LICENSE"
 "frontend" = "frontend"
-"app/skills" = "app/skills"
 
 [tool.hatch.build.targets.sdist]
 force-include = { "alembic.ini" = "alembic.ini", "../LICENSE" = "LICENSE", "frontend" = "frontend", "app/skills" = "app/skills" }
