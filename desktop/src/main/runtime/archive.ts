@@ -6,15 +6,27 @@ import { pipeline } from "node:stream/promises";
 import { spawn } from "node:child_process";
 import { Transform } from "node:stream";
 
-export async function downloadFile(
-  url: string,
+const FIRST_BYTE_TIMEOUT_MS = 8_000;
+
+type FetchResponse = Awaited<ReturnType<typeof net.fetch>>;
+
+async function fetchWithFirstByteTimeout(url: string): Promise<FetchResponse> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FIRST_BYTE_TIMEOUT_MS);
+  try {
+    return await net.fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function streamResponseToPath(
+  response: FetchResponse,
   outputPath: string,
   onProgress?: (received: number, total: number) => void,
 ): Promise<void> {
-  await mkdir(path.dirname(outputPath), { recursive: true });
-  const response = await net.fetch(url);
   if (!response.ok || !response.body) {
-    throw new Error(`failed to download ${url}: ${response.status}`);
+    throw new Error(`download responded with status ${response.status}`);
   }
 
   const total = Number(response.headers.get("content-length") ?? 0);
@@ -34,6 +46,29 @@ export async function downloadFile(
   });
 
   await pipeline(response.body, counting, createWriteStream(outputPath));
+}
+
+export async function downloadFile(
+  urls: string[],
+  outputPath: string,
+  onProgress?: (received: number, total: number) => void,
+): Promise<void> {
+  if (urls.length === 0) throw new Error("no download urls provided");
+  await mkdir(path.dirname(outputPath), { recursive: true });
+
+  let lastError: unknown;
+  for (const url of urls) {
+    try {
+      const response = await fetchWithFirstByteTimeout(url);
+      await streamResponseToPath(response, outputPath, onProgress);
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      lastError = new Error(`failed to download ${url}: ${message}`);
+      await rm(outputPath, { force: true });
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
 export async function extractTarGz(

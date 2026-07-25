@@ -111,7 +111,7 @@ export async function ensurePortablePython(
   await mkdir(runtimeDir, { recursive: true });
 
   onPhase("download", `下载 Python ${asset.version}`);
-  await downloadFile(asset.url, archivePath, (received, total) => onDownload({ received, total }));
+  await downloadFile(asset.urls, archivePath, (received, total) => onDownload({ received, total }));
 
   onPhase("extract", "解压 Python");
   await extractTarGz(archivePath, rootDir);
