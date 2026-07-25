@@ -25,6 +25,7 @@ import {
   shouldTrackStreamingFollowBottom,
   type ScrollViewportMetrics,
 } from "./agent-messages-scroll";
+import { getAgentRunningStatus } from "./agent-running-status";
 import { AgentStatusMessage } from "./agent-status-message";
 import {
   buildAgentMessageBlocks,
@@ -192,6 +193,11 @@ export function AgentMessages({
   const [pendingForkTarget, setPendingForkTarget] = useState<AgentRoundToolbarTarget | null>(null);
   const [collapsedNodeIds, setCollapsedNodeIds] = useState<Set<string>>(() => new Set());
   const streamFollowSignal = getStreamingFollowSignal(messages);
+  const runningStatus = useMemo(() => getAgentRunningStatus(messages), [messages]);
+  const statusMessage =
+    status === "running" && runningStatus
+      ? t(`assistant.runningStatus.${runningStatus}`)
+      : currentStage;
 
   const getScrollContainer = useCallback(
     () => scrollContainerRef.current ?? bottomRef.current?.closest(".ai-sidebar-messages"),
@@ -670,7 +676,7 @@ export function AgentMessages({
         })}
 
         {(status === "running" || status === "waiting_answer" || status === "waiting_approval") &&
-          currentStage && <AgentStatusMessage content={currentStage} />}
+          statusMessage && <AgentStatusMessage content={statusMessage} />}
         <Box
           ref={bottomRef}
           className="agent-message-bottom-anchor"

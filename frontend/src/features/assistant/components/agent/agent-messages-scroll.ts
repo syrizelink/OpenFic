@@ -25,7 +25,6 @@ export function getStreamingFollowSignal(messages: readonly StreamingFollowMessa
 }
 
 const FOLLOW_BOTTOM_THRESHOLD_PX = 80;
-const PROGRAMMATIC_SCROLL_EPSILON_PX = 1;
 
 export function getDistanceFromBottom({
   scrollHeight,
@@ -70,16 +69,7 @@ export function resolveFollowBottomStateOnScroll({
     previous.scrollHeight !== next.scrollHeight || previous.clientHeight !== next.clientHeight;
 
   if (!frameChanged) return isAtBottomNow;
-
-  // Layout changes can temporarily increase the distance from bottom before the
-  // follow-bottom RAF runs. Preserve follow intent unless the user actually
-  // moved upward beyond the non-user clamp expected from the new frame.
-  const nextMaxScrollTop = Math.max(0, next.scrollHeight - next.clientHeight);
-  const expectedScrollTopWithoutUser = Math.min(previous.scrollTop, nextMaxScrollTop);
-  const userScrolledUp =
-    next.scrollTop < expectedScrollTopWithoutUser - PROGRAMMATIC_SCROLL_EPSILON_PX;
-
-  return !userScrolledUp;
+  return true;
 }
 
 export function hasPendingLoadedSessionBottomRestore(
