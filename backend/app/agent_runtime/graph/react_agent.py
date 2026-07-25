@@ -14,7 +14,13 @@ import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, TypedDict, cast
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
 from langchain_core.messages.tool import ToolCall
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
@@ -27,7 +33,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.types import ReactAgentConfig
 from app.agent_runtime.context import build_context, build_context_parts
-from app.agent_runtime.context.processors.filter import filter_tool_result_metadata_content
+from app.agent_runtime.context.processors.filter import (
+    filter_tool_result_metadata_content,
+)
 from app.agent_runtime.context.helpers import compile_canonical_mentions
 from app.agent_runtime.context.compaction.config import AUTO_TRIGGER_RATIO
 from app.agent_runtime.context.compaction.service import CompactionError, compact_window
@@ -54,7 +62,10 @@ if TYPE_CHECKING:
 # State
 # ---------------------------------------------------------------------------
 
-def _add_messages(left: list[BaseMessage], right: list[BaseMessage]) -> list[BaseMessage]:
+
+def _add_messages(
+    left: list[BaseMessage], right: list[BaseMessage]
+) -> list[BaseMessage]:
     """Simple message list reducer — appends new messages."""
     return left + right
 
@@ -71,8 +82,9 @@ class ReactState(TypedDict):
 # Module-level helper (exposed for mocking in tests)
 # ---------------------------------------------------------------------------
 
+
 async def _invoke_model(model: Any, messages: list[BaseMessage]) -> AIMessage:
-    """Stream the LLM response and retain the first chunk latency for auditing."""
+    """Stream the LLM response and normalize it for checkpoint persistence."""
     start_time = time.perf_counter()
     first_token_ms: int | None = None
     response: AIMessage | None = None
@@ -85,8 +97,17 @@ async def _invoke_model(model: Any, messages: list[BaseMessage]) -> AIMessage:
     if response is None:
         raise ValueError("LLM流式调用未返回响应")
 
-    object.__setattr__(response, "_openfic_first_token_ms", first_token_ms)
-    return response
+    normalized = AIMessage(
+        content=response.content,
+        additional_kwargs=dict(response.additional_kwargs or {}),
+        response_metadata=dict(response.response_metadata or {}),
+        tool_calls=recover_message_tool_calls(response),
+        usage_metadata=response.usage_metadata,
+        id=response.id,
+        name=response.name,
+    )
+    object.__setattr__(normalized, "_openfic_first_token_ms", first_token_ms)
+    return normalized
 
 
 RetryEventSink = Callable[[dict[str, Any]], Awaitable[None]]
@@ -112,7 +133,9 @@ def _get_runtime(config: RunnableConfig | None) -> Runtime[Any] | None:
 
 def _get_node_attempt(config: RunnableConfig | None) -> int:
     runtime = _get_runtime(config)
-    execution_info = getattr(runtime, "execution_info", None) if runtime is not None else None
+    execution_info = (
+        getattr(runtime, "execution_info", None) if runtime is not None else None
+    )
     attempt = getattr(execution_info, "node_attempt", None)
     return attempt if isinstance(attempt, int) and attempt > 0 else 1
 
@@ -127,7 +150,10 @@ def _should_retry_on(policy: RetryPolicy, exc: Exception) -> bool:
     if isinstance(retry_on, type):
         return isinstance(exc, retry_on)
     if isinstance(retry_on, Sequence):
-        return any(isinstance(exc, cast(type[BaseException], exc_type)) for exc_type in retry_on)
+        return any(
+            isinstance(exc, cast(type[BaseException], exc_type))
+            for exc_type in retry_on
+        )
     if callable(retry_on):
         return bool(retry_on(exc))
     return False
@@ -146,14 +172,16 @@ async def _emit_retry_event(
     if sink is None or not session_id:
         return
     try:
-        await sink({
-            "session_id": session_id,
-            "node": node,
-            "attempt": attempt,
-            "max_attempts": max_attempts,
-            "error_type": exc.__class__.__name__,
-            "error_message": str(exc),
-        })
+        await sink(
+            {
+                "session_id": session_id,
+                "node": node,
+                "attempt": attempt,
+                "max_attempts": max_attempts,
+                "error_type": exc.__class__.__name__,
+                "error_message": str(exc),
+            }
+        )
     except Exception:
         return
 
@@ -288,16 +316,16 @@ async def maybe_auto_compact(
         error_event_emitted = True
         await _emit_auto_compaction_error(event_sink, state=state, error=error)
 
-    history = [
-        part for part in parts if (part.metadata or {}).get("part") == "history"
-    ]
+    history = [part for part in parts if (part.metadata or {}).get("part") == "history"]
     try:
         compactions = await compaction_repo.list_by_session(
             db_session,
             str(state.get("session_id") or ""),
         )
     except Exception as exc:
-        error = CompactionError("compaction_load_failed", "压缩状态加载失败，当前请求已中止")
+        error = CompactionError(
+            "compaction_load_failed", "压缩状态加载失败，当前请求已中止"
+        )
         await emit_error_once(error)
         raise error from exc
 
@@ -312,7 +340,9 @@ async def maybe_auto_compact(
         await emit_error_once(error)
         raise error from exc
     except Exception as exc:
-        error = CompactionError("compaction_window_failed", "压缩窗口选择失败，当前请求已中止")
+        error = CompactionError(
+            "compaction_window_failed", "压缩窗口选择失败，当前请求已中止"
+        )
         await emit_error_once(error)
         raise error from exc
 
@@ -386,8 +416,7 @@ async def _isolate_tool_config(
 
 def _clone_agent_tool_for_dispatch(tool_instance: BaseTool) -> BaseTool:
     if not all(
-        hasattr(tool_instance, attr)
-        for attr in ("_state", "_pre_hooks", "_post_hooks")
+        hasattr(tool_instance, attr) for attr in ("_state", "_pre_hooks", "_post_hooks")
     ):
         return tool_instance
     try:
@@ -407,9 +436,7 @@ async def _invoke_tool(
     config: RunnableConfig | None = None,
 ) -> Any:
     func = getattr(tool_instance, "func", None)
-    if func is not None and getattr(
-        tool_instance, "coroutine", None
-    ) is None:
+    if func is not None and getattr(tool_instance, "coroutine", None) is None:
         return func(**tool_args)
     tool_config: RunnableConfig | None = config
     if tool_call is not None:
@@ -488,6 +515,7 @@ def _to_history_dict(m: BaseMessage) -> dict:
 # Factory
 # ---------------------------------------------------------------------------
 
+
 def create_react_agent(
     config: ReactAgentConfig,
     model: Any | None = None,
@@ -537,7 +565,9 @@ def create_react_agent(
         if audit_context is None:
             return None
         runtime_state = configurable.get("runtime_state") or {}
-        model_cfg = runtime_state.get("model_config") if isinstance(runtime_state, dict) else {}
+        model_cfg = (
+            runtime_state.get("model_config") if isinstance(runtime_state, dict) else {}
+        )
         if not isinstance(model_cfg, dict):
             model_cfg = {}
 
@@ -556,7 +586,9 @@ def create_react_agent(
     # Nodes
     # ------------------------------------------------------------------
 
-    async def llm_call(state: ReactState, config: Optional[RunnableConfig] = None) -> dict:
+    async def llm_call(
+        state: ReactState, config: Optional[RunnableConfig] = None
+    ) -> dict:
         """Call the LLM with bound tools."""
         nonlocal active_audit
         configurable = cast(
@@ -667,7 +699,9 @@ def create_react_agent(
                             and isinstance(content, str)
                             and "<of-mention" in content
                         ):
-                            compiled_content = await compile_canonical_mentions(content, db_session)
+                            compiled_content = await compile_canonical_mentions(
+                                content, db_session
+                            )
                         drained_injected_user_message = True
                         transient_parts.append(
                             ContextMessage(
@@ -676,7 +710,9 @@ def create_react_agent(
                                 metadata={"part": "runtime"},
                             )
                         )
-                        transient_messages.append(HumanMessage(content=compiled_content))
+                        transient_messages.append(
+                            HumanMessage(content=compiled_content)
+                        )
 
         if (
             termination.mode == "tool_success"
@@ -684,7 +720,10 @@ def create_react_agent(
             and state["iteration_count"] > 0
         ):
             last_state_message = state["messages"][-1] if state["messages"] else None
-            if isinstance(last_state_message, AIMessage) and not last_state_message.tool_calls:
+            if (
+                isinstance(last_state_message, AIMessage)
+                and not last_state_message.tool_calls
+            ):
                 termination_hint = (
                     f"Call the `{termination.tool_name}` tool to finish this step. "
                     "Do not answer in plain text."
@@ -729,11 +768,14 @@ def create_react_agent(
             if audit is not None:
                 _record_audit_error(audit, exc)
                 await _finish_active_audit(status="error")
-            session_id = runtime_state.get("session_id") if isinstance(runtime_state, Mapping) else None
+            session_id = (
+                runtime_state.get("session_id")
+                if isinstance(runtime_state, Mapping)
+                else None
+            )
             current_attempt = _get_node_attempt(config)
-            if (
-                current_attempt < LLM_RETRY_POLICY.max_attempts
-                and _should_retry_on(LLM_RETRY_POLICY, exc)
+            if current_attempt < LLM_RETRY_POLICY.max_attempts and _should_retry_on(
+                LLM_RETRY_POLICY, exc
             ):
                 await _emit_retry_event(
                     config,
@@ -752,15 +794,16 @@ def create_react_agent(
                 id_seed=f"{react_config.name}:{state['iteration_count']}",
             ),
         )
-        if (
-            isinstance(getattr(response, "tool_calls", None), list)
-            or isinstance(getattr(response, "invalid_tool_calls", None), list)
+        if isinstance(getattr(response, "tool_calls", None), list) or isinstance(
+            getattr(response, "invalid_tool_calls", None), list
         ):
             response.tool_calls = recovered_tool_calls
 
         if audit is not None:
             audit.record_response(
-                content=response.content if isinstance(response.content, str) else str(response.content),
+                content=response.content
+                if isinstance(response.content, str)
+                else str(response.content),
                 tool_calls=cast(list[dict[str, Any]], response.tool_calls or []),
                 usage=_extract_usage(response),
                 first_token_ms=getattr(response, "_openfic_first_token_ms", None),
@@ -778,7 +821,9 @@ def create_react_agent(
             update["final_output"] = None
         return update
 
-    async def tools_exec(state: ReactState, config: Optional[RunnableConfig] = None) -> dict:
+    async def tools_exec(
+        state: ReactState, config: Optional[RunnableConfig] = None
+    ) -> dict:
         """Execute tool calls from the last AI message."""
         last_message = next(
             (
@@ -835,7 +880,8 @@ def create_react_agent(
             else:
                 tool_result_payload = {"error": f"tool '{tool_name}' not found."}
                 message = ToolMessage(
-                    content=f"Error: tool '{tool_name}' not found.", tool_call_id=tool_id
+                    content=f"Error: tool '{tool_name}' not found.",
+                    tool_call_id=tool_id,
                 )
             return {
                 "tool_name": tool_name,
@@ -846,20 +892,26 @@ def create_react_agent(
                 "latency_ms": int((time.perf_counter() - started_at) * 1000),
             }
 
-        async def build_pending_previews(tool_calls: list[ToolCall]) -> list[dict[str, Any]]:
+        async def build_pending_previews(
+            tool_calls: list[ToolCall],
+        ) -> list[dict[str, Any]]:
             previews: list[dict[str, Any]] = []
             for tool_call in tool_calls:
                 tool_instance = tool_map.get(tool_call["name"])
                 if not isinstance(tool_instance, BaseTool):
                     continue
-                preview_builder = getattr(tool_instance, "build_interrupt_preview", None)
+                preview_builder = getattr(
+                    tool_instance, "build_interrupt_preview", None
+                )
                 if not callable(preview_builder):
                     continue
                 tool_instance = _clone_agent_tool_for_dispatch(tool_instance)
                 invoke_config, isolated_session = await _isolate_tool_config(config)
                 try:
                     object.__setattr__(tool_instance, "_config", invoke_config)
-                    preview_builder = getattr(tool_instance, "build_interrupt_preview", None)
+                    preview_builder = getattr(
+                        tool_instance, "build_interrupt_preview", None
+                    )
                     preview = (
                         await preview_builder(tool_call["args"])
                         if callable(preview_builder)
@@ -938,7 +990,9 @@ def create_react_agent(
     # Routing
     # ------------------------------------------------------------------
 
-    async def route_after_llm(state: ReactState) -> Literal["llm_call", "tools_exec", "__end__"]:
+    async def route_after_llm(
+        state: ReactState,
+    ) -> Literal["llm_call", "tools_exec", "__end__"]:
         """Route after LLM call."""
         last_message = state["messages"][-1]
         if hasattr(last_message, "tool_calls") and last_message.tool_calls:
@@ -958,7 +1012,9 @@ def create_react_agent(
 
         return "llm_call"
 
-    async def route_after_tools(state: ReactState) -> Literal["tools_exec", "llm_call", "__end__"]:
+    async def route_after_tools(
+        state: ReactState,
+    ) -> Literal["tools_exec", "llm_call", "__end__"]:
         last_message = next(
             (
                 message
@@ -967,9 +1023,8 @@ def create_react_agent(
             ),
             None,
         )
-        if (
-            last_message is not None
-            and state.get("tool_call_cursor", 0) < len(last_message.tool_calls)
+        if last_message is not None and state.get("tool_call_cursor", 0) < len(
+            last_message.tool_calls
         ):
             return "tools_exec"
         if inject_queue is not None and not inject_queue.empty():

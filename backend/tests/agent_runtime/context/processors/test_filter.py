@@ -80,6 +80,34 @@ def test_drops_orphan_tool_response_when_assistant_dropped() -> None:
     assert out == []
 
 
+def test_drops_tool_response_separated_from_its_assistant_tool_call() -> None:
+    asst = _h("assistant", "calling")
+    asst.tool_calls = [{"id": "c1", "name": "x", "args": {}}]
+    intervening = _h("assistant", "plain response")
+    tool = _h("tool", "result")
+    tool.tool_call_id = "c1"
+
+    out = filter_invalid([asst, intervening, tool])
+
+    assert [message.content for message in out] == ["plain response"]
+
+
+def test_keeps_all_contiguous_parallel_tool_responses() -> None:
+    asst = _h("assistant", "calling")
+    asst.tool_calls = [
+        {"id": "c1", "name": "first", "args": {}},
+        {"id": "c2", "name": "second", "args": {}},
+    ]
+    first_tool = _h("tool", "first result")
+    first_tool.tool_call_id = "c2"
+    second_tool = _h("tool", "second result")
+    second_tool.tool_call_id = "c1"
+
+    out = filter_invalid([asst, first_tool, second_tool])
+
+    assert out == [asst, first_tool, second_tool]
+
+
 def test_tool_result_metadata_content_keeps_success_result() -> None:
     content = '{"success":true,"metadata":{"note_diff":{"note_id":"note-1"}}}'
 

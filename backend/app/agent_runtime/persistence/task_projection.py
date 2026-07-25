@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from typing import Any, Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -212,7 +213,7 @@ def _append_projected_tool_message(
 
 
 def _subagent_identity_by_dispatch_id(
-    child_runs: list[SubagentIdentitySource],
+    child_runs: Sequence[SubagentIdentitySource],
 ) -> dict[str, dict[str, str]]:
     identities: dict[str, dict[str, str]] = {}
     for child_run in child_runs:

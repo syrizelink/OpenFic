@@ -1,6 +1,7 @@
 """DB 历史 → ReAct 子图初始 messages。"""
 
 import json
+from typing import Literal, cast
 
 from langchain_core.messages import (
     AIMessage,
@@ -15,6 +16,8 @@ from sqlmodel import col
 
 from app.agent_runtime.persistence.errors import PersistenceLoadError
 from app.agent_runtime.persistence.model import AgentRunMessage
+from app.agent_runtime.context.processors.filter import filter_invalid
+from app.agent_runtime.context.types import ContextMessage
 
 
 def _is_llm_history_message(row: AgentRunMessage) -> bool:
@@ -67,22 +70,19 @@ def _order_tool_results_by_call_order(
         ordered.extend(
             tool_row
             for tool_row in tool_rows
-            if tool_row.tool_call_id not in {
-                tool_call.get("id") for tool_call in tool_calls
-            }
+            if tool_row.tool_call_id
+            not in {tool_call.get("id") for tool_call in tool_calls}
         )
         index = next_index
     return ordered
 
 
-async def load_history(
-    db_session: AsyncSession, session_id: str
-) -> list[BaseMessage]:
+async def load_history(db_session: AsyncSession, session_id: str) -> list[BaseMessage]:
     """加载 session 历史，转成 LangChain BaseMessage 列表。
 
     规则：
     - 跳过 status=pending 的 user
-    - 配对兜底：孤立 tool 行整条丢弃；assistant.tool_calls 中 id 找不到对应 tool 行的项被剔除
+    - 配对兜底：仅保留 assistant 工具调用及其连续的完整 tool 响应组
     - reasoning 仅注入最近一条 assistant 的 additional_kwargs["reasoning_content"]
     - partial / aborted 仍作为合法历史保留
     """
@@ -116,7 +116,11 @@ async def load_history(
 
     selected_tool_rows: dict[str, AgentRunMessage] = {}
     for r in rows:
-        if r.role != "tool" or not r.tool_call_id or r.tool_call_id not in tool_call_id_set:
+        if (
+            r.role != "tool"
+            or not r.tool_call_id
+            or r.tool_call_id not in tool_call_id_set
+        ):
             continue
         existing = selected_tool_rows.get(r.tool_call_id)
         if existing is None:
@@ -129,7 +133,6 @@ async def load_history(
             continue
         selected_tool_rows[r.tool_call_id] = r
 
-    seen_tool_ids: set[str] = set()
     filtered: list[AgentRunMessage] = []
     for r in rows:
         if r.role == "tool":
@@ -137,57 +140,68 @@ async def load_history(
                 continue
             if selected_tool_rows.get(r.tool_call_id) is not r:
                 continue
-            seen_tool_ids.add(r.tool_call_id)
         filtered.append(r)
 
     filtered = _order_tool_results_by_call_order(filtered)
 
+    history_parts = [
+        ContextMessage(
+            role=cast(Literal["system", "user", "assistant", "tool"], row.role),
+            content=row.content,
+            name=row.tool_name if row.role == "tool" else None,
+            tool_call_id=row.tool_call_id,
+            tool_calls=_tool_calls(row),
+            metadata={"part": "history", "row": row},
+        )
+        for row in filtered
+        if row.role in {"system", "user", "assistant", "tool"}
+    ]
+    history_parts = filter_invalid(history_parts)
+
+    def history_row(part: ContextMessage) -> AgentRunMessage:
+        return cast(AgentRunMessage, (part.metadata or {})["row"])
+
     last_assistant_with_reasoning_idx: int | None = None
-    for idx, r in enumerate(filtered):
-        if r.role == "assistant" and r.reasoning:
+    for idx, part in enumerate(history_parts):
+        row = history_row(part)
+        if part.role == "assistant" and row.reasoning:
             last_assistant_with_reasoning_idx = idx
 
     messages: list[BaseMessage] = []
-    for idx, r in enumerate(filtered):
-        if r.role == "system":
+    for idx, part in enumerate(history_parts):
+        row = history_row(part)
+        if part.role == "system":
             messages.append(
                 SystemMessage(
-                    content=r.content,
-                    response_metadata=_response_metadata(r),
+                    content=part.content,
+                    response_metadata=_response_metadata(row),
                 )
             )
-        elif r.role == "user":
+        elif part.role == "user":
             messages.append(
                 HumanMessage(
-                    content=r.content,
-                    response_metadata=_response_metadata(r),
+                    content=part.content,
+                    response_metadata=_response_metadata(row),
                 )
             )
-        elif r.role == "assistant":
-            cleaned_tool_calls = []
-            row_tool_calls = _tool_calls(r)
-            if row_tool_calls:
-                for tc in row_tool_calls:
-                    tc_id = tc.get("id")
-                    if tc_id and tc_id in seen_tool_ids:
-                        cleaned_tool_calls.append(tc)
+        elif part.role == "assistant":
             kwargs: dict = {}
-            if idx == last_assistant_with_reasoning_idx and r.reasoning:
-                kwargs["reasoning_content"] = r.reasoning
+            if idx == last_assistant_with_reasoning_idx and row.reasoning:
+                kwargs["reasoning_content"] = row.reasoning
             ai_msg = AIMessage(
-                content=r.content,
-                tool_calls=cleaned_tool_calls,
+                content=part.content,
+                tool_calls=part.tool_calls or [],
                 additional_kwargs=kwargs,
-                response_metadata=_response_metadata(r),
+                response_metadata=_response_metadata(row),
             )
             messages.append(ai_msg)
-        elif r.role == "tool":
+        elif part.role == "tool":
             messages.append(
                 ToolMessage(
-                    content=r.content,
-                    tool_call_id=r.tool_call_id or "",
-                    name=r.tool_name or "",
-                    response_metadata=_response_metadata(r),
+                    content=part.content,
+                    tool_call_id=part.tool_call_id or "",
+                    name=part.name or "",
+                    response_metadata=_response_metadata(row),
                 )
             )
     return messages

@@ -2,7 +2,7 @@ import asyncio
 import json
 from unittest.mock import AsyncMock, patch
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, ToolMessage
 from langchain_core.messages.tool import invalid_tool_call
 from langchain_core.tools import StructuredTool
 from langgraph.checkpoint.memory import InMemorySaver
@@ -11,7 +11,12 @@ from pydantic import BaseModel
 
 from app.agent_runtime.tools.base import AgentTool, HookResult
 from app.agent_runtime.types import TerminationCondition, ReactAgentConfig
-from app.agent_runtime.graph.react_agent import create_react_agent, ReactState, _invoke_tool
+from app.agent_runtime.graph.react_agent import (
+    _invoke_model,
+    _invoke_tool,
+    create_react_agent,
+    ReactState,
+)
 
 
 def _submit_result(result: str) -> str:
@@ -87,6 +92,39 @@ def test_react_state_is_valid_typed_dict():
     assert state["iteration_count"] == 0
 
 
+@pytest.mark.asyncio
+async def test_invoke_model_normalizes_recoverable_invalid_tool_calls_to_ai_message() -> (
+    None
+):
+    class StreamingModel:
+        async def astream(self, _messages):
+            yield AIMessageChunk(
+                content="",
+                invalid_tool_calls=[
+                    invalid_tool_call(
+                        id="call_edit_note",
+                        name="edit_note",
+                        args='{"note_ref":{"path":"/outline"},"content":"updated"}',
+                        error="invalid json",
+                    )
+                ],
+            )
+
+    response = await _invoke_model(
+        StreamingModel(), [HumanMessage(content="Update the note")]
+    )
+
+    assert type(response) is AIMessage
+    assert len(response.tool_calls) == 1
+    assert response.tool_calls[0]["id"] == "call_edit_note"
+    assert response.tool_calls[0]["name"] == "edit_note"
+    assert response.tool_calls[0]["args"] == {
+        "note_ref": {"path": "/outline"},
+        "content": "updated",
+    }
+    assert response.invalid_tool_calls == []
+
+
 def test_create_react_agent_returns_compiled_graph(dummy_tool):
     config = ReactAgentConfig(
         name="test",
@@ -102,7 +140,9 @@ def test_create_react_agent_with_tool_success_termination(submit_tool):
     config = ReactAgentConfig(
         name="test",
         tools=[submit_tool],
-        termination=TerminationCondition(mode="tool_success", tool_name="submit_result"),
+        termination=TerminationCondition(
+            mode="tool_success", tool_name="submit_result"
+        ),
     )
     graph = create_react_agent(config, checkpointer=InMemorySaver())
     assert graph is not None
@@ -120,13 +160,18 @@ def test_react_agent_terminates_on_no_tool_call(dummy_tool):
         return AIMessage(content="Done, no tools needed.")
 
     async def _run():
-        with patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke):
-            result = await graph.ainvoke({
-                "messages": [HumanMessage(content="Hello")],
-                "iteration_count": 0,
-                "is_done": False,
-                "final_output": None,
-            })
+        with patch(
+            "app.agent_runtime.graph.react_agent._invoke_model",
+            side_effect=_mock_invoke,
+        ):
+            result = await graph.ainvoke(
+                {
+                    "messages": [HumanMessage(content="Hello")],
+                    "iteration_count": 0,
+                    "is_done": False,
+                    "final_output": None,
+                }
+            )
             assert result["is_done"] is True
 
     asyncio.run(_run())
@@ -137,29 +182,42 @@ async def test_react_agent_terminates_on_tool_success():
     config = ReactAgentConfig(
         name="test",
         tools=[_submit_tool()],
-        termination=TerminationCondition(mode="tool_success", tool_name="submit_result"),
+        termination=TerminationCondition(
+            mode="tool_success", tool_name="submit_result"
+        ),
     )
     graph = create_react_agent(config)
 
     async def _mock_invoke(*args, **kwargs):
         return AIMessage(
             content="",
-            tool_calls=[{"id": "call_1", "name": "submit_result", "args": {"result": "analysis complete"}}],
+            tool_calls=[
+                {
+                    "id": "call_1",
+                    "name": "submit_result",
+                    "args": {"result": "analysis complete"},
+                }
+            ],
         )
 
     with (
-        patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke),
+        patch(
+            "app.agent_runtime.graph.react_agent._invoke_model",
+            side_effect=_mock_invoke,
+        ),
         patch(
             "app.agent_runtime.graph.react_agent.build_context",
             new=AsyncMock(return_value=[HumanMessage(content="Use a tool")]),
         ),
     ):
-        result = await graph.ainvoke({
-            "messages": [HumanMessage(content="Analyze this")],
-            "iteration_count": 0,
-            "is_done": False,
-            "final_output": None,
-        })
+        result = await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="Analyze this")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            }
+        )
         assert result["is_done"] is True
         assert result["final_output"] == {"result": "analysis complete"}
 
@@ -188,7 +246,9 @@ async def test_react_agent_emits_retry_event_for_retryable_llm_failure():
             raise result
         return result
 
-    with patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke):
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke
+    ):
         result = await graph.ainvoke(
             {
                 "messages": [HumanMessage(content="Hello")],
@@ -222,7 +282,9 @@ async def test_react_agent_executes_termination_tool_on_final_iteration():
     config = ReactAgentConfig(
         name="test",
         tools=[_submit_tool()],
-        termination=TerminationCondition(mode="tool_success", tool_name="submit_result"),
+        termination=TerminationCondition(
+            mode="tool_success", tool_name="submit_result"
+        ),
         max_iterations=1,
     )
     graph = create_react_agent(config)
@@ -230,16 +292,22 @@ async def test_react_agent_executes_termination_tool_on_final_iteration():
     async def _mock_invoke(*args, **kwargs):
         return AIMessage(
             content="",
-            tool_calls=[{"id": "call_1", "name": "submit_result", "args": {"result": "done"}}],
+            tool_calls=[
+                {"id": "call_1", "name": "submit_result", "args": {"result": "done"}}
+            ],
         )
 
-    with patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke):
-        result = await graph.ainvoke({
-            "messages": [HumanMessage(content="Analyze this")],
-            "iteration_count": 0,
-            "is_done": False,
-            "final_output": None,
-        })
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke
+    ):
+        result = await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="Analyze this")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            }
+        )
 
     assert result["is_done"] is True
     assert result["iteration_count"] == 1
@@ -263,16 +331,27 @@ async def test_react_agent_executes_tool_call_and_stops():
         call_count += 1
         return AIMessage(
             content="",
-            tool_calls=[{"id": f"call_{call_count}", "name": "add_numbers", "args": {"a": 1, "b": 2}}],
+            tool_calls=[
+                {
+                    "id": f"call_{call_count}",
+                    "name": "add_numbers",
+                    "args": {"a": 1, "b": 2},
+                }
+            ],
         )
 
-    with patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=mock_invoke_with_tools):
-        result = await graph.ainvoke({
-            "messages": [HumanMessage(content="Keep calling tools")],
-            "iteration_count": 0,
-            "is_done": False,
-            "final_output": None,
-        })
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model",
+        side_effect=mock_invoke_with_tools,
+    ):
+        result = await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="Keep calling tools")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            }
+        )
         assert result["is_done"] is True
         assert result["iteration_count"] == 2
 
@@ -288,7 +367,10 @@ async def test_react_agent_keeps_tool_result_metadata_in_graph_state():
     graph = create_react_agent(config)
     observed_messages: list[list] = []
     responses = [
-        AIMessage(content="", tool_calls=[{"id": "call_1", "name": "edit_chapter", "args": {}}]),
+        AIMessage(
+            content="",
+            tool_calls=[{"id": "call_1", "name": "edit_chapter", "args": {}}],
+        ),
         AIMessage(content="done"),
     ]
 
@@ -296,7 +378,9 @@ async def test_react_agent_keeps_tool_result_metadata_in_graph_state():
         observed_messages.append(messages)
         return responses.pop(0)
 
-    with patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=mock_invoke):
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model", side_effect=mock_invoke
+    ):
         result = await graph.ainvoke(
             {
                 "messages": [HumanMessage(content="编辑章节")],
@@ -322,19 +406,26 @@ async def test_react_agent_streams_tool_events_for_frontend():
     config = ReactAgentConfig(
         name="test",
         tools=[_submit_tool()],
-        termination=TerminationCondition(mode="tool_success", tool_name="submit_result"),
+        termination=TerminationCondition(
+            mode="tool_success", tool_name="submit_result"
+        ),
     )
     graph = create_react_agent(config)
 
     async def _mock_invoke(*args, **kwargs):
         return AIMessage(
             content="",
-            tool_calls=[{"id": "call_1", "name": "submit_result", "args": {"result": "done"}}],
+            tool_calls=[
+                {"id": "call_1", "name": "submit_result", "args": {"result": "done"}}
+            ],
         )
 
     tool_events = []
     with (
-        patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke),
+        patch(
+            "app.agent_runtime.graph.react_agent._invoke_model",
+            side_effect=_mock_invoke,
+        ),
         patch(
             "app.agent_runtime.graph.react_agent.build_context",
             new=AsyncMock(return_value=[HumanMessage(content="Use a tool")]),
@@ -353,7 +444,10 @@ async def test_react_agent_streams_tool_events_for_frontend():
                 tool_events.append(event)
 
     assert [event["event"] for event in tool_events] == ["on_tool_start", "on_tool_end"]
-    assert [event["name"] for event in tool_events] == ["submit_result", "submit_result"]
+    assert [event["name"] for event in tool_events] == [
+        "submit_result",
+        "submit_result",
+    ]
     assert tool_events[0]["metadata"]["tool_call_id"] == "call_1"
     assert tool_events[1]["metadata"]["tool_call_id"] == "call_1"
     assert tool_events[0]["data"]["input"] == {"result": "done"}
@@ -365,7 +459,9 @@ async def test_react_agent_continues_after_auxiliary_tool_until_termination_tool
     config = ReactAgentConfig(
         name="test",
         tools=[_add_tool(), _submit_tool()],
-        termination=TerminationCondition(mode="tool_success", tool_name="submit_result"),
+        termination=TerminationCondition(
+            mode="tool_success", tool_name="submit_result"
+        ),
         max_iterations=3,
     )
     graph = create_react_agent(config)
@@ -373,24 +469,32 @@ async def test_react_agent_continues_after_auxiliary_tool_until_termination_tool
     responses = [
         AIMessage(
             content="",
-            tool_calls=[{"id": "call_1", "name": "add_numbers", "args": {"a": 1, "b": 2}}],
+            tool_calls=[
+                {"id": "call_1", "name": "add_numbers", "args": {"a": 1, "b": 2}}
+            ],
         ),
         AIMessage(
             content="",
-            tool_calls=[{"id": "call_2", "name": "submit_result", "args": {"result": "done"}}],
+            tool_calls=[
+                {"id": "call_2", "name": "submit_result", "args": {"result": "done"}}
+            ],
         ),
     ]
 
     async def _mock_invoke(*args, **kwargs):
         return responses.pop(0)
 
-    with patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke):
-        result = await graph.ainvoke({
-            "messages": [HumanMessage(content="Use a helper first")],
-            "iteration_count": 0,
-            "is_done": False,
-            "final_output": None,
-        })
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke
+    ):
+        result = await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="Use a helper first")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            }
+        )
 
     assert result["is_done"] is True
     assert result["iteration_count"] == 2
@@ -402,7 +506,9 @@ async def test_react_agent_ignores_no_tool_response_until_termination_tool():
     config = ReactAgentConfig(
         name="test",
         tools=[_add_tool(), _submit_tool()],
-        termination=TerminationCondition(mode="tool_success", tool_name="submit_result"),
+        termination=TerminationCondition(
+            mode="tool_success", tool_name="submit_result"
+        ),
         max_iterations=4,
     )
     graph = create_react_agent(config)
@@ -410,25 +516,33 @@ async def test_react_agent_ignores_no_tool_response_until_termination_tool():
     responses = [
         AIMessage(
             content="",
-            tool_calls=[{"id": "call_1", "name": "add_numbers", "args": {"a": 1, "b": 2}}],
+            tool_calls=[
+                {"id": "call_1", "name": "add_numbers", "args": {"a": 1, "b": 2}}
+            ],
         ),
         AIMessage(content="I reviewed the intermediate result."),
         AIMessage(
             content="",
-            tool_calls=[{"id": "call_2", "name": "submit_result", "args": {"result": "done"}}],
+            tool_calls=[
+                {"id": "call_2", "name": "submit_result", "args": {"result": "done"}}
+            ],
         ),
     ]
 
     async def _mock_invoke(*args, **kwargs):
         return responses.pop(0)
 
-    with patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke):
-        result = await graph.ainvoke({
-            "messages": [HumanMessage(content="Use a helper first")],
-            "iteration_count": 0,
-            "is_done": False,
-            "final_output": None,
-        })
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke
+    ):
+        result = await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="Use a helper first")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            }
+        )
 
     assert result["is_done"] is True
     assert result["iteration_count"] == 3
@@ -440,7 +554,9 @@ async def test_react_agent_raises_when_tool_success_lacks_termination_tool():
     config = ReactAgentConfig(
         name="test",
         tools=[_add_tool(), _submit_tool()],
-        termination=TerminationCondition(mode="tool_success", tool_name="submit_result"),
+        termination=TerminationCondition(
+            mode="tool_success", tool_name="submit_result"
+        ),
         max_iterations=2,
     )
     graph = create_react_agent(config)
@@ -454,15 +570,20 @@ async def test_react_agent_raises_when_tool_success_lacks_termination_tool():
         return responses.pop(0)
 
     with (
-        patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke),
+        patch(
+            "app.agent_runtime.graph.react_agent._invoke_model",
+            side_effect=_mock_invoke,
+        ),
         pytest.raises(RuntimeError, match="submit_result"),
     ):
-        await graph.ainvoke({
-            "messages": [HumanMessage(content="Use the submit tool")],
-            "iteration_count": 0,
-            "is_done": False,
-            "final_output": None,
-        })
+        await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="Use the submit tool")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            }
+        )
 
 
 @pytest.mark.asyncio
@@ -493,13 +614,17 @@ async def test_react_agent_recovers_malformed_write_plan_todos_invalid_tool_call
             ],
         )
 
-    with patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke):
-        result = await graph.ainvoke({
-            "messages": [HumanMessage(content="Create a plan")],
-            "iteration_count": 0,
-            "is_done": False,
-            "final_output": None,
-        })
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke
+    ):
+        result = await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="Create a plan")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            }
+        )
 
     assert result["is_done"] is True
     assert result["final_output"] == {
@@ -535,13 +660,17 @@ async def test_react_agent_emits_tool_error_for_unrecoverable_invalid_tool_call_
             ],
         )
 
-    with patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke):
-        result = await graph.ainvoke({
-            "messages": [HumanMessage(content="Create a plan")],
-            "iteration_count": 0,
-            "is_done": False,
-            "final_output": None,
-        })
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke
+    ):
+        result = await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="Create a plan")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            }
+        )
 
     assert executed_calls == []
     assert isinstance(result["messages"][-1], ToolMessage)
@@ -574,13 +703,17 @@ async def test_react_agent_synthesizes_tool_call_id_for_unrecoverable_invalid_to
             ],
         )
 
-    with patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke):
-        result = await graph.ainvoke({
-            "messages": [HumanMessage(content="Create a plan")],
-            "iteration_count": 0,
-            "is_done": False,
-            "final_output": None,
-        })
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke
+    ):
+        result = await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="Create a plan")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            }
+        )
 
     assistant_message = result["messages"][-2]
     tool_message = result["messages"][-1]
@@ -626,18 +759,25 @@ async def test_react_agent_passes_runtime_config_and_tool_call_id_to_agent_tools
     config = ReactAgentConfig(
         name="test",
         tools=[CaptureConfigTool(_post_hooks=[post_hook])],
-        termination=TerminationCondition(mode="tool_success", tool_name="capture_config"),
+        termination=TerminationCondition(
+            mode="tool_success", tool_name="capture_config"
+        ),
     )
     graph = create_react_agent(config)
 
     async def _mock_invoke(*args, **kwargs):
         return AIMessage(
             content="",
-            tool_calls=[{"id": "call_1", "name": "capture_config", "args": {"value": "done"}}],
+            tool_calls=[
+                {"id": "call_1", "name": "capture_config", "args": {"value": "done"}}
+            ],
         )
 
     with (
-        patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke),
+        patch(
+            "app.agent_runtime.graph.react_agent._invoke_model",
+            side_effect=_mock_invoke,
+        ),
         patch(
             "app.agent_runtime.graph.react_agent.build_context",
             new=AsyncMock(return_value=[HumanMessage(content="Use a tool")]),
@@ -697,11 +837,17 @@ class ApprovalTool(AgentTool):
 
 
 @pytest.mark.asyncio
-async def test_react_agent_previews_all_parallel_tool_calls_and_resumes_each_approval() -> None:
+async def test_react_agent_previews_all_parallel_tool_calls_and_resumes_each_approval() -> (
+    None
+):
     response = AIMessage(
         content="",
         tool_calls=[
-            {"id": f"call_{index}", "name": "approval_tool", "args": {"value": str(index)}}
+            {
+                "id": f"call_{index}",
+                "name": "approval_tool",
+                "args": {"value": str(index)},
+            }
             for index in range(1, 6)
         ],
     )
@@ -716,8 +862,12 @@ async def test_react_agent_previews_all_parallel_tool_calls_and_resumes_each_app
     async def _mock_invoke(*args, **kwargs):
         return response
 
-    with patch("app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke):
-        config = {"configurable": {"db_session": object(), "thread_id": "parallel-approval"}}
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke
+    ):
+        config = {
+            "configurable": {"db_session": object(), "thread_id": "parallel-approval"}
+        }
         await graph.ainvoke(
             {
                 "messages": [HumanMessage(content="run both")],
@@ -736,9 +886,10 @@ async def test_react_agent_previews_all_parallel_tool_calls_and_resumes_each_app
     ]
     assert [interrupt.value["tool_call_id"] for interrupt in interrupts] == ["call_1"]
     assert len({interrupt.id for interrupt in interrupts}) == 1
-    assert [preview["tool_call_id"] for preview in interrupts[0].value["tool_result_previews"]] == [
-        f"call_{index}" for index in range(1, 6)
-    ]
+    assert [
+        preview["tool_call_id"]
+        for preview in interrupts[0].value["tool_result_previews"]
+    ] == [f"call_{index}" for index in range(1, 6)]
 
     for index in range(1, 6):
         await graph.ainvoke(
@@ -766,7 +917,11 @@ async def test_react_agent_previews_all_parallel_tool_calls_and_resumes_each_app
         else:
             assert resumed_state.next == ()
 
-    tool_messages = [message for message in resumed_state.values["messages"] if isinstance(message, ToolMessage)]
+    tool_messages = [
+        message
+        for message in resumed_state.values["messages"]
+        if isinstance(message, ToolMessage)
+    ]
     assert [json.loads(message.content)["value"] for message in tool_messages] == [
         str(index) for index in range(1, 6)
     ]

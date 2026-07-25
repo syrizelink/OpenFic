@@ -1,6 +1,4 @@
-import importlib
 import json
-import sys
 from collections.abc import Iterator
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -24,13 +22,6 @@ def _make_state() -> dict:
     }
 
 
-def _reload_all_tool_impls() -> None:
-    for module_name in list(sys.modules):
-        if module_name.startswith("app.agent_runtime.tools.impls"):
-            del sys.modules[module_name]
-    importlib.import_module("app.agent_runtime.tools.impls")
-
-
 @pytest.fixture(autouse=True)
 def _restore_registry() -> Iterator[None]:
     original = dict(ToolRegistry._tools)
@@ -50,7 +41,6 @@ def _fake_session():
 
 @pytest.mark.asyncio
 async def test_write_plan_tool_returns_success_status_after_replacing_session_todos() -> None:
-    _reload_all_tool_impls()
     session = _fake_session()
     snapshot = {
         "todos": [
@@ -90,7 +80,6 @@ async def test_write_plan_tool_returns_success_status_after_replacing_session_to
 
 
 def test_write_plan_schema_requires_complete_todo_values() -> None:
-    _reload_all_tool_impls()
     tool = ToolRegistry.get_tools(names=["write_plan"], state=_make_state())[0]
 
     schema = tool.args_schema.model_json_schema()
@@ -116,8 +105,6 @@ def test_write_plan_todo_input_accepts_complete_values() -> None:
 
 
 def test_write_plan_is_registered() -> None:
-    _reload_all_tool_impls()
-
     registered_names = set(ToolRegistry.list_names())
 
     assert "write_plan" in registered_names

@@ -16,16 +16,14 @@ def _kind(m: ContextMessage) -> str | None:
 
 
 def filter_invalid(parts: list[ContextMessage]) -> list[ContextMessage]:
-    """过滤无效的 history 消息，保护工具调用配对。p1-p5 原样保留。"""
-    # 第一轮：标记基础有效性
+    """过滤无效 history，并保留符合工具调用协议的连续消息组。"""
     keep: list[bool] = []
     for m in parts:
         if not _is_history(m):
             keep.append(True)
             continue
-        if (
-            (not m.content or not m.content.strip())
-            and not (m.role == "assistant" and m.tool_calls)
+        if (not m.content or not m.content.strip()) and not (
+            m.role == "assistant" and m.tool_calls
         ):
             keep.append(False)
             continue
@@ -34,34 +32,79 @@ def filter_invalid(parts: list[ContextMessage]) -> list[ContextMessage]:
             continue
         keep.append(True)
 
-    # 第二轮：处理孤立的 assistant.tool_calls
-    # 收集仍保留的 assistant 工具调用 id 集合 与 tool 响应 id 集合
-    assistant_call_ids: set[str] = set()
-    tool_response_ids: set[str] = set()
-    for m, k in zip(parts, keep):
-        if not k or not _is_history(m):
-            continue
-        if m.role == "assistant" and m.tool_calls:
-            for c in m.tool_calls:
-                cid = c.get("id")
-                if cid:
-                    assistant_call_ids.add(cid)
-        elif m.role == "tool" and m.tool_call_id:
-            tool_response_ids.add(m.tool_call_id)
+    pending_assistant_index: int | None = None
+    pending_assistant: ContextMessage | None = None
+    pending_tool_call_ids: set[str] = set()
+    pending_tool_indices: list[int] = []
 
-    orphan_call_ids = assistant_call_ids - tool_response_ids
+    def drop_pending_group() -> None:
+        nonlocal \
+            pending_assistant_index, \
+            pending_assistant, \
+            pending_tool_call_ids, \
+            pending_tool_indices
+        if pending_assistant_index is not None and pending_assistant is not None:
+            completed_tool_call_ids = {
+                parts[tool_index].tool_call_id
+                for tool_index in pending_tool_indices
+                if parts[tool_index].tool_call_id
+            }
+            completed_tool_calls = [
+                tool_call
+                for tool_call in pending_assistant.tool_calls or []
+                if tool_call.get("id") in completed_tool_call_ids
+            ]
+            if completed_tool_calls:
+                parts[pending_assistant_index] = replace(
+                    pending_assistant,
+                    tool_calls=completed_tool_calls,
+                )
+            else:
+                keep[pending_assistant_index] = False
+                for tool_index in pending_tool_indices:
+                    keep[tool_index] = False
+        pending_assistant_index = None
+        pending_assistant = None
+        pending_tool_call_ids = set()
+        pending_tool_indices = []
 
-    # 第三轮：丢弃孤立 assistant 与孤立 tool 响应
-    for i, m in enumerate(parts):
-        if not keep[i] or not _is_history(m):
+    for index, message in enumerate(parts):
+        if not keep[index] or not _is_history(message):
+            drop_pending_group()
             continue
-        if m.role == "assistant" and m.tool_calls:
-            ids = {c.get("id") for c in m.tool_calls if c.get("id")}
-            if ids and ids.issubset(orphan_call_ids):
-                keep[i] = False
-        elif m.role == "tool" and m.tool_call_id:
-            if m.tool_call_id not in assistant_call_ids:
-                keep[i] = False
+
+        if pending_assistant_index is not None:
+            if message.role == "tool" and message.tool_call_id in pending_tool_call_ids:
+                pending_tool_call_ids.remove(message.tool_call_id)
+                pending_tool_indices.append(index)
+                if not pending_tool_call_ids:
+                    pending_assistant_index = None
+                    pending_assistant = None
+                    pending_tool_indices = []
+                continue
+            drop_pending_group()
+
+        if message.role == "assistant" and message.tool_calls:
+            tool_call_ids = [
+                tool_call_id
+                for tool_call in message.tool_calls
+                if isinstance(tool_call_id := tool_call.get("id"), str) and tool_call_id
+            ]
+            if len(tool_call_ids) != len(message.tool_calls) or len(
+                set(tool_call_ids)
+            ) != len(tool_call_ids):
+                keep[index] = False
+                continue
+            pending_assistant_index = index
+            pending_assistant = message
+            pending_tool_call_ids = set(tool_call_ids)
+            pending_tool_indices = []
+            continue
+
+        if message.role == "tool":
+            keep[index] = False
+
+    drop_pending_group()
 
     return [m for m, k in zip(parts, keep) if k]
 

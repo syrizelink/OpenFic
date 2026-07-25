@@ -35,7 +35,7 @@ class WriteNoteInput(BaseModel):
 @ToolRegistry.register
 class WriteNoteTool(AgentTool):
     name: str = "write_note"
-    description: str = "在指定分类（可省略）下创建新笔记"
+    description: str = "在指定分类（可省略）下创建新笔记，该工具无法覆盖式创建，当创建同名笔记时，会添加不重复序号的新笔记"
     access_level: str = "write"
     args_schema: type[BaseModel] = WriteNoteInput
 
