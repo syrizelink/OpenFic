@@ -130,10 +130,12 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "chapter_read",
                 "summary_read",
                 "world_read",
+                "world_write",
                 "plan",
                 "note_read",
                 "note_write",
-                "character_read"
+                "character_read",
+                "character_write"
             ),
             enabled_skills=(),
             metadata=MappingProxyType({}),
@@ -184,11 +186,12 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             prompt_agent_name="actor",
             model_id=None,
             enabled_tool_categories=(
+                "plan",
                 "chapter_read",
+                "chapter_write",
                 "summary_read",
                 "world_read",
-                "plan",
-                "chapter_write",
+                "world_write",
                 "note_read",
                 "note_write",
                 "character_read",
@@ -209,7 +212,8 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "summary_read",
                 "world_read",
                 "plan",
-                "character_read"
+                "character_read",
+                "note_read"
             ),
             enabled_skills=(),
             metadata=MappingProxyType({}),
