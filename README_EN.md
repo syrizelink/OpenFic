@@ -70,12 +70,9 @@ pip install openfic
 openfic serve
 ```
 
-### 🖥 Desktop App (Experimental)
+### 🖥 Desktop App
 
-> [!WARNING]  
-> The desktop app is still unstable, may contain unknown issues, and does not support auto-update yet.
-
-Download the desktop app from <https://github.com/syrizelink/OpenFic/releases> and run it natively on your system.
+Download the desktop app from [the Release Page](https://github.com/syrizelink/OpenFic/releases) and run it natively on your system.
 
 ## Contributing
 
@@ -90,3 +87,22 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed contribution guidelines.
 ## License
 
 [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+
+## Community
+
+[LINUX DO](https://linux.do/)
+
+## Acknowledgements
+
+- [SillyTavern](https://github.com/SillyTavern/SillyTavern) - inspiration
+- [oh-story-claudecode](https://github.com/worldwonderer/oh-story-claudecode) - reference for the built-in writing Skill
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=syrizelink%2FOpenFic&type=date&legend=top-left">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=syrizelink/OpenFic&type=date&theme=dark&legend=top-left&sealed_token=Z1KB-Zqklc4RUR8xUtQtgNsD1i4NQIjICp0kmQ_P-zryrDf6EnJi2crYZPaKRNPdoq3luSS44AgHf79arGbJ6752xnZFhdtj2J0dSd1xLIflwxH2lgUWwA" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=syrizelink/OpenFic&type=date&legend=top-left&sealed_token=Z1KB-Zqklc4RUR8xUtQtgNsD1i4NQIjICp0kmQ_P-zryrDf6EnJi2crYZPaKRNPdoq3luSS44AgHf79arGbJ6752xnZFhdtj2J0dSd1xLIflwxH2lgUWwA" />
+    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=syrizelink/OpenFic&type=date&legend=top-left&sealed_token=Z1KB-Zqklc4RUR8xUtQtgNsD1i4NQIjICp0kmQ_P-zryrDf6EnJi2crYZPaKRNPdoq3luSS44AgHf79arGbJ6752xnZFhdtj2J0dSd1xLIflwxH2lgUWwA" />
+  </picture>
+</a>

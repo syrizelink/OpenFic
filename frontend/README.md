@@ -12,10 +12,11 @@
 
 ![Demo Screenshot](./demo.png)
 
+
 ## 何时使用
 
 > [!Tip]  
-> _OpenFic 的设计理念是让 Agent 深度参与小说创作过程，而不是替你一键生成没有灵魂的文字，它首先是用户友好的小说写作工具，其次才是面向写作的 AI Agent 系统。_
+> *OpenFic 的设计理念是让 Agent 深度参与小说创作过程，而不是替你一键生成没有灵魂的文字，它首先是用户友好的小说写作工具，其次才是面向写作的 AI Agent 系统。*
 
 #### 它适合这些场景：
 
@@ -31,6 +32,7 @@
 - 主要需要短篇文案、社媒内容或一次性的通用文本生成
 - 你不打算维护复杂的设定信息，也不需要长期上下文和写作流程管理
 
+
 ## 特性
 
 - 🚀**开箱即用**：使用 Docker 或 pip 快速安装，或是直接使用桌面版，无需复杂配置
@@ -43,6 +45,7 @@
 - 🧠**语义化检索**：基于向量的 Agentic RAG，让 Agent 能够在百万字级别的项目中高效检索过往信息
 - ⚖️**成本优先**：多层上下文管理，智能压缩、动态截断、稳定缓存，尽可能降低使用成本
 
+
 ## 快速开始
 
 ### 🐳 Docker（推荐）
@@ -52,6 +55,7 @@
 ```bash
 docker run -d -p 8000:8000 -v "openfic:/data" --name openfic ghcr.io/syrizelink/openfic:latest
 ```
+
 
 ### 🐍 Python pip
 
@@ -70,12 +74,10 @@ pip install openfic
 openfic serve
 ```
 
-### 🖥桌面应用 (实验性)
 
-> [!Warning]  
-> 桌面版仍不稳定，可能存在未知问题，并且暂不支持自动更新
+### 🖥桌面应用
 
-前往 <https://github.com/syrizelink/OpenFic/releases> 下载桌面应用，在你的系统上原生运行，而无需额外步骤。
+前往 [Release Page](https://github.com/syrizelink/OpenFic/releases) 下载桌面应用，在你的系统上原生运行，而无需额外步骤。
 
 ## 贡献
 
@@ -87,6 +89,26 @@ openfic serve
 
 查看 [CONTRIBUTING.md](./CONTRIBUTING.md) 获取详细的贡献指南。
 
+
 ## 许可证
 
 [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+
+## 社区
+
+[LINUX DO](https://linux.do/)
+
+## 致谢
+
+- [SillyTavern](https://github.com/SillyTavern/SillyTavern) - 灵感来源
+- [oh-story-claudecode](https://github.com/worldwonderer/oh-story-claudecode) - 内置写作Skill参考
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=syrizelink%2FOpenFic&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=syrizelink/OpenFic&type=date&theme=dark&legend=top-left&sealed_token=Z1KB-Zqklc4RUR8xUtQtgNsD1i4NQIjICp0kmQ_P-zryrDf6EnJi2crYZPaKRNPdoq3luSS44AgHf79arGbJ6752xnZFhdtj2J0dSd1xLIflwxH2lgUWwA" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=syrizelink/OpenFic&type=date&legend=top-left&sealed_token=Z1KB-Zqklc4RUR8xUtQtgNsD1i4NQIjICp0kmQ_P-zryrDf6EnJi2crYZPaKRNPdoq3luSS44AgHf79arGbJ6752xnZFhdtj2J0dSd1xLIflwxH2lgUWwA" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=syrizelink/OpenFic&type=date&legend=top-left&sealed_token=Z1KB-Zqklc4RUR8xUtQtgNsD1i4NQIjICp0kmQ_P-zryrDf6EnJi2crYZPaKRNPdoq3luSS44AgHf79arGbJ6752xnZFhdtj2J0dSd1xLIflwxH2lgUWwA" />
+ </picture>
+</a>

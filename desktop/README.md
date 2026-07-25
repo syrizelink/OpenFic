@@ -75,12 +75,9 @@ openfic serve
 ```
 
 
-### 🖥桌面应用 (实验性)
+### 🖥桌面应用
 
-> [!Warning]  
-> 桌面版仍不稳定，可能存在未知问题，并且暂不支持自动更新
-
-前往 <https://github.com/syrizelink/OpenFic/releases> 下载桌面应用，在你的系统上原生运行，而无需额外步骤。
+前往 [Release Page](https://github.com/syrizelink/OpenFic/releases) 下载桌面应用，在你的系统上原生运行，而无需额外步骤。
 
 ## 贡献
 
@@ -96,3 +93,22 @@ openfic serve
 ## 许可证
 
 [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+
+## 社区
+
+[LINUX DO](https://linux.do/)
+
+## 致谢
+
+- [SillyTavern](https://github.com/SillyTavern/SillyTavern) - 灵感来源
+- [oh-story-claudecode](https://github.com/worldwonderer/oh-story-claudecode) - 内置写作Skill参考
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=syrizelink%2FOpenFic&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=syrizelink/OpenFic&type=date&theme=dark&legend=top-left&sealed_token=Z1KB-Zqklc4RUR8xUtQtgNsD1i4NQIjICp0kmQ_P-zryrDf6EnJi2crYZPaKRNPdoq3luSS44AgHf79arGbJ6752xnZFhdtj2J0dSd1xLIflwxH2lgUWwA" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=syrizelink/OpenFic&type=date&legend=top-left&sealed_token=Z1KB-Zqklc4RUR8xUtQtgNsD1i4NQIjICp0kmQ_P-zryrDf6EnJi2crYZPaKRNPdoq3luSS44AgHf79arGbJ6752xnZFhdtj2J0dSd1xLIflwxH2lgUWwA" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=syrizelink/OpenFic&type=date&legend=top-left&sealed_token=Z1KB-Zqklc4RUR8xUtQtgNsD1i4NQIjICp0kmQ_P-zryrDf6EnJi2crYZPaKRNPdoq3luSS44AgHf79arGbJ6752xnZFhdtj2J0dSd1xLIflwxH2lgUWwA" />
+ </picture>
+</a>
