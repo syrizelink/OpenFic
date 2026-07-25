@@ -1,14 +1,21 @@
 import { Box, Flex } from "@radix-ui/themes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import { ChartNoAxesCombined, Globe, LibraryBig, UserRound, Workflow } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router";
 
+import { toast } from "@/components";
 import { saveLanguagePreference, supportedLanguages, type LanguageCode } from "@/i18n";
 import { apiClient, fetchProject } from "@/lib/api-client";
-import { getRecentProjects, openRecentProject, removeRecentProject } from "@/lib/local-db";
+import {
+  getRecentProjects,
+  openRecentProject,
+  removeRecentProject,
+  removeRecentProjectByProjectId,
+} from "@/lib/local-db";
 import type { RecentProject } from "@/lib/recent-projects";
 
 import { useAppShell } from "./app-shell-context";
@@ -77,7 +84,7 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
     prevAppearanceRef.current = appearance;
   }, [appearance, shouldAnimateTheme]);
 
-  const { data: currentProject } = useQuery({
+  const { data: currentProject, error: currentProjectError } = useQuery({
     queryKey: ["project", projectId],
     queryFn: () => fetchProject(projectId!),
     enabled: !!projectId,
@@ -92,6 +99,21 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
   useEffect(() => {
     if (!projectId) lastOpenedProjectIdRef.current = null;
   }, [projectId]);
+
+  useEffect(() => {
+    if (!projectId || !axios.isAxiosError(currentProjectError)) return;
+    if (currentProjectError.response?.status !== 404) return;
+
+    void (async () => {
+      await queryClient.cancelQueries({ queryKey: ["recent-projects"] });
+      queryClient.setQueryData<RecentProject[]>(["recent-projects"], (projects) =>
+        projects?.filter((project) => project.projectId !== projectId),
+      );
+      await removeRecentProjectByProjectId(projectId);
+      toast.error(t("projects.projectUnavailable"));
+      navigate("/", { replace: true });
+    })();
+  }, [currentProjectError, navigate, projectId, queryClient, t]);
 
   useEffect(() => {
     if (!currentProject || lastOpenedProjectIdRef.current === currentProject.id) return;

@@ -76,6 +76,7 @@
     "updateFailed": "Update failed. Please try again.",
     "createFailed": "Creation failed. Please try again.",
     "projectDeleted": "Project deleted",
+    "projectUnavailable": "This project has been deleted and cannot be opened.",
     "deleteFailed": "Delete failed. Please try again."
   },
   "characters": {

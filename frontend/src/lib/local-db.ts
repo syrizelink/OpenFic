@@ -360,6 +360,18 @@ export async function removeRecentProject(slot: number): Promise<boolean> {
   }
 }
 
+/**
+ * 移除指定项目的最近打开记录。
+ */
+export async function removeRecentProjectByProjectId(projectId: string): Promise<boolean> {
+  try {
+    return (await db.recentProjects.where("projectId").equals(projectId).delete()) > 0;
+  } catch {
+    console.error("移除项目的最近打开记录失败");
+    return false;
+  }
+}
+
 // ==================== 提示词链Working Copy ====================
 
 /**
