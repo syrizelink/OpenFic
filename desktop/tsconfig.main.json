@@ -5,5 +5,5 @@
     "rootDir": "src",
     "types": ["node", "electron"]
   },
-  "include": ["src/main/**/*.ts", "src/preload/**/*.mts", "src/shared/**/*.ts"]
+  "include": ["src/main/**/*.ts", "src/preload/**/*.mts", "src/preload/**/*.cts", "src/shared/**/*.ts"]
 }

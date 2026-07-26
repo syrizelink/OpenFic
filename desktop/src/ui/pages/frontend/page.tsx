@@ -1,9 +1,9 @@
-import { type RefObject } from "react";
+import { type Ref } from "react";
 
 interface FrontendPageProps {
   webviewKey: number;
   partition: string;
-  webviewRef: RefObject<HTMLElement | null>;
+  webviewRef: Ref<HTMLElement>;
 }
 
 export function FrontendPage({ webviewKey, partition, webviewRef }: FrontendPageProps) {

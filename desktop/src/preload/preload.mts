@@ -42,7 +42,7 @@ const desktopApi = {
     ipcRenderer.invoke(IpcChannels.inspectLocalRuntime, { installDir } satisfies InspectLocalRuntimeRequest),
   closeSetup: (): Promise<void> => ipcRenderer.invoke(IpcChannels.closeSetup),
   showSetup: (): Promise<void> => ipcRenderer.invoke(IpcChannels.showSetup),
-  frontendHostPreloadPath: fileURLToPath(new URL("./frontend-host-preload.mjs", import.meta.url)),
+  frontendHostPreloadPath: fileURLToPath(new URL("./frontend-host-preload.cjs", import.meta.url)),
   minimizeWindow: (): Promise<void> => ipcRenderer.invoke(IpcChannels.minimizeWindow),
   toggleMaximizeWindow: (): Promise<void> => ipcRenderer.invoke(IpcChannels.toggleMaximizeWindow),
   closeWindow: (): Promise<void> => ipcRenderer.invoke(IpcChannels.closeWindow),

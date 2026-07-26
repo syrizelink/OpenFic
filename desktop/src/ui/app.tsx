@@ -79,7 +79,7 @@ export function App() {
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [instancePanelOpen, setInstancePanelOpen] = useState(false);
   const [startupProgress, setStartupProgress] = useState<StartupProgressEvent | null>(null);
-  const frontendWebviewRef = useRef<HTMLElement | null>(null);
+  const [frontendWebview, setFrontendWebview] = useState<HTMLElement | null>(null);
   const lastAutoUpdateCheck = useRef<string | null>(null);
   const automaticallyOpenedUpdate = useRef<string | null>(null);
   const activeInstance = config?.instances.find((instance) => instance.id === activeInstanceId) ?? null;
@@ -150,8 +150,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const webview = frontendWebviewRef.current;
-    if (!webview) return;
+    if (!frontendWebview) return;
 
     const handleIpcMessage = (event: Event) => {
       const { channel, args } = event as WebviewIpcMessageEvent;
@@ -166,9 +165,9 @@ export function App() {
       }));
     };
 
-    webview.addEventListener("ipc-message", handleIpcMessage);
-    return () => webview.removeEventListener("ipc-message", handleIpcMessage);
-  }, [webviewKey]);
+    frontendWebview.addEventListener("ipc-message", handleIpcMessage);
+    return () => frontendWebview.removeEventListener("ipc-message", handleIpcMessage);
+  }, [frontendWebview]);
 
   const refreshConfig = async () => {
     const nextConfig = await window.openficDesktop.getConfig();
@@ -368,7 +367,7 @@ export function App() {
           />
         ) : null}
         {shellState === "frontend" && frontendReadyPartition ? (
-          <FrontendPage webviewKey={webviewKey} partition={frontendReadyPartition} webviewRef={frontendWebviewRef} />
+          <FrontendPage webviewKey={webviewKey} partition={frontendReadyPartition} webviewRef={setFrontendWebview} />
         ) : null}
       </section>
       <DesktopNotices
