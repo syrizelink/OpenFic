@@ -16,7 +16,7 @@ import { useTranslation } from "react-i18next";
 
 import { ContextMenu } from "@/components";
 import { LabeledSelect } from "@/components/select";
-import { htmlToNewlines, newlinesToHtml } from "@/lib/html-utils";
+import { newlinesToHtml } from "@/lib/html-utils";
 import type { PromptEntryData } from "@/lib/prompt-chain.types";
 import { countTokens } from "@/lib/tiktoken-utils";
 
@@ -34,20 +34,28 @@ export function PromptEditor({
   isMobile = false,
 }: PromptEditorProps) {
   const { t } = useTranslation();
-  // 防抖定时器引用
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 上一次的 entry.id，用于检测条目切换
   const lastEntryIdRef = useRef<string | undefined>(entry.id);
+  // Tiptap 事件处理函数在初始化后不会随 React props 更新，需通过 ref 使用最新上下文。
+  const currentEntryIdRef = useRef(entry.id ?? "");
+  const onUpdateRef = useRef(onUpdate);
+  const onUpdateWithIdRef = useRef(onUpdateWithId);
   // 是否正在从外部设置内容（避免循环更新）
   const isSettingContentRef = useRef(false);
+  // 最近一次从编辑器同步到父组件的条目内容，避免父组件回显重置光标。
+  const lastSyncedEntryRef = useRef({ id: entry.id, content: entry.content });
   // 上次保存的内容（用于判断是否有未保存的更改，存储 HTML 格式用于与编辑器内容比较）
-  const lastSavedContentRef = useRef<string>(entry.content ? newlinesToHtml(entry.content) : "");
+  const lastSavedContentRef = useRef<string>(
+    entry.content ? newlinesToHtml(entry.content, true) : "",
+  );
   // 编辑器内容容器引用（用于右键菜单）
   const editorContentRef = useRef<HTMLDivElement>(null);
   // 当前token数
   const [tokenCount, setTokenCount] = useState<number>(entry.token_count || 0);
-  // 是否有未保存的更改
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  currentEntryIdRef.current = entry.id ?? "";
+  onUpdateRef.current = onUpdate;
+  onUpdateWithIdRef.current = onUpdateWithId;
 
   // 角色选项（使用prefix来显示图标）
   const roleOptions = [
@@ -56,35 +64,24 @@ export function PromptEditor({
     { value: "assistant", label: t("promptChains.roleAssistant"), prefix: <Bot size={14} /> },
   ];
 
-  // 防抖的更新函数
-  const debouncedUpdate = useCallback(
-    (updates: Partial<PromptEntryData>, savedContentHtml?: string) => {
-      // 清除之前的定时器
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-
-      // 设置新的定时器（2秒防抖）
-      debounceTimerRef.current = setTimeout(() => {
-        onUpdate(updates);
-        debounceTimerRef.current = null;
-        // 更新保存状态
-        if (updates.content !== undefined) {
-          lastSavedContentRef.current = savedContentHtml ?? newlinesToHtml(updates.content);
-          setHasUnsavedChanges(false);
-        }
-      }, 2000);
-    },
-    [onUpdate],
-  );
-
   // 立即更新（用于非内容字段，如角色、名称）
-  const immediateUpdate = useCallback(
-    (updates: Partial<PromptEntryData>) => {
-      onUpdate(updates);
-    },
-    [onUpdate],
-  );
+  const immediateUpdate = useCallback((updates: Partial<PromptEntryData>) => {
+    if (onUpdateWithIdRef.current) {
+      onUpdateWithIdRef.current(currentEntryIdRef.current, updates);
+      return;
+    }
+
+    onUpdateRef.current(updates);
+  }, []);
+
+  const updateEntry = useCallback((entryId: string, updates: Partial<PromptEntryData>) => {
+    if (onUpdateWithIdRef.current) {
+      onUpdateWithIdRef.current(entryId, updates);
+      return;
+    }
+
+    onUpdateRef.current(updates);
+  }, []);
 
   // 创建编辑器实例
   const editor = useEditor({
@@ -108,7 +105,10 @@ export function PromptEditor({
       }),
     ],
     // 从数据库加载时，将换行符转换为 HTML（<p></p> 格式）供 Tiptap 显示
-    content: entry.content ? newlinesToHtml(entry.content) : "",
+    content: entry.content ? newlinesToHtml(entry.content, true) : "",
+    parseOptions: {
+      preserveWhitespace: "full",
+    },
     editorProps: {
       attributes: {
         class: "prompt-editor-content",
@@ -120,30 +120,22 @@ export function PromptEditor({
         return;
       }
 
-      // 获取编辑器的 HTML 格式（包含 <p></p> 标签）
+      // 直接从 Tiptap 文档导出纯文本，避免对 HTML 做有损的二次解析。
       const html = editor.getHTML();
-      // 转换为换行符格式保存到数据库
-      const content = htmlToNewlines(html);
+      const content = editor.getText({ blockSeparator: "\n" });
 
-      // 使用 getText() 获取纯文本并计算 token 数（使用tiktoken）
-      const text = editor.getText();
-      const calculatedTokenCount = countTokens(text);
+      const calculatedTokenCount = countTokens(content);
       // 实时更新token数显示
       setTokenCount(calculatedTokenCount);
-      onUpdate({ token_count: calculatedTokenCount });
 
-      // 检查是否有未保存的更改（比较 HTML 格式，因为编辑器内部使用 HTML）
-      const hasChanges = html !== lastSavedContentRef.current;
-      setHasUnsavedChanges(hasChanges || debounceTimerRef.current !== null);
-
-      // 使用防抖更新（保存换行符格式到数据库）
-      debouncedUpdate(
-        {
-          content: content,
-          token_count: calculatedTokenCount,
-        },
-        html,
-      );
+      // 版本保存依赖父级 entries 状态，正文必须在当前事件中同步更新。
+      const entryId = currentEntryIdRef.current;
+      lastSyncedEntryRef.current = { id: entryId, content };
+      updateEntry(entryId, {
+        content: content,
+        token_count: calculatedTokenCount,
+      });
+      lastSavedContentRef.current = html;
     },
   });
 
@@ -151,66 +143,44 @@ export function PromptEditor({
   const saveNow = useCallback(() => {
     if (!editor || isSettingContentRef.current) return;
 
-    // 清除防抖定时器
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
-
     // 获取当前编辑器内容
     const html = editor.getHTML();
-    const content = htmlToNewlines(html);
-    const text = editor.getText();
-    const calculatedTokenCount = countTokens(text);
+    const content = editor.getText({ blockSeparator: "\n" });
+    const calculatedTokenCount = countTokens(content);
 
     // 立即更新
-    onUpdate({
+    lastSyncedEntryRef.current = { id: currentEntryIdRef.current, content };
+    updateEntry(currentEntryIdRef.current, {
       content: content,
       token_count: calculatedTokenCount,
     });
 
     // 更新保存状态
     lastSavedContentRef.current = html;
-    setHasUnsavedChanges(false);
     setTokenCount(calculatedTokenCount);
-  }, [editor, onUpdate]);
+  }, [editor, updateEntry]);
 
   // 带条目ID的保存函数（用于切换条目时保存旧条目）
   const saveNowWithId = useCallback(
     (targetEntryId: string) => {
       if (!editor || isSettingContentRef.current) return;
 
-      // 清除防抖定时器
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = null;
-      }
-
       // 获取当前编辑器内容
       const html = editor.getHTML();
-      const content = htmlToNewlines(html);
-      const text = editor.getText();
-      const calculatedTokenCount = countTokens(text);
+      const content = editor.getText({ blockSeparator: "\n" });
+      const calculatedTokenCount = countTokens(content);
 
-      // 使用 onUpdateWithId 保存指定条目的内容
-      if (onUpdateWithId) {
-        onUpdateWithId(targetEntryId, {
-          content: content,
-          token_count: calculatedTokenCount,
-        });
-      } else {
-        onUpdate({
-          content: content,
-          token_count: calculatedTokenCount,
-        });
-      }
+      lastSyncedEntryRef.current = { id: targetEntryId, content };
+      updateEntry(targetEntryId, {
+        content: content,
+        token_count: calculatedTokenCount,
+      });
 
       // 更新保存状态
       lastSavedContentRef.current = html;
-      setHasUnsavedChanges(false);
       setTokenCount(calculatedTokenCount);
     },
-    [editor, onUpdate, onUpdateWithId],
+    [editor, updateEntry],
   );
 
   // 监听 entry.id 变化，在切换条目前保存旧条目的内容
@@ -226,8 +196,7 @@ export function PromptEditor({
       // 获取当前编辑器内容（HTML 格式）
       const currentEditorContent = editor.getHTML();
       // 直接检查当前内容是否与已保存的内容不同
-      const hasChanges =
-        currentEditorContent !== lastSavedContentRef.current || debounceTimerRef.current !== null;
+      const hasChanges = currentEditorContent !== lastSavedContentRef.current;
 
       if (hasChanges) {
         // 调用保存函数（setState 在 useCallback 内部，不会触发警告）
@@ -243,32 +212,36 @@ export function PromptEditor({
   useEffect(() => {
     if (!editor) return;
 
-    // 检测条目切换（entry.id 变化）
-    const isEntryChanged = lastEntryIdRef.current !== entry.id;
+    const isLocalContentEcho =
+      lastSyncedEntryRef.current.id === entry.id &&
+      lastSyncedEntryRef.current.content === entry.content;
+    if (isLocalContentEcho) return;
 
     // 获取当前编辑器内容（HTML 格式）
     const currentEditorContent = editor.getHTML();
     // 从数据库加载的内容是换行符格式，需要转换为 HTML 供编辑器显示
-    const newContentHtml = entry.content ? newlinesToHtml(entry.content) : "";
-
-    // 正在编辑当前条目时，父组件的旧 content 不应回灌覆盖 Tiptap 中的新输入。
-    if (!isEntryChanged && debounceTimerRef.current !== null) return;
+    const newContentHtml = entry.content ? newlinesToHtml(entry.content, true) : "";
 
     // 只有在内容真正不同时才更新（避免循环更新）
-    if (currentEditorContent !== newContentHtml || isEntryChanged) {
+    if (currentEditorContent !== newContentHtml) {
       isSettingContentRef.current = true;
       // 使用 queueMicrotask 将 setContent 延迟到微任务中，避免在 React 渲染周期中调用 flushSync
       queueMicrotask(() => {
-        editor.commands.setContent(newContentHtml);
+        editor.commands.setContent(newContentHtml, {
+          emitUpdate: false,
+          parseOptions: {
+            preserveWhitespace: "full",
+          },
+        });
         // 使用 setTimeout 确保 onUpdate 不会立即触发，并更新状态
         setTimeout(() => {
           isSettingContentRef.current = false;
+          lastSyncedEntryRef.current = { id: entry.id, content: entry.content };
           // 更新保存状态（保存 HTML 格式用于比较，因为编辑器内部使用 HTML）
           lastSavedContentRef.current = newContentHtml;
-          setHasUnsavedChanges(false);
           // 重新计算token数
           if (editor) {
-            const text = editor.getText();
+            const text = editor.getText({ blockSeparator: "\n" });
             setTokenCount(countTokens(text));
           }
         }, 0);
@@ -293,15 +266,6 @@ export function PromptEditor({
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [saveNow]);
-
-  // 清理防抖定时器
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, []);
 
   return (
     <div className="prompt-editor-shell">
@@ -381,13 +345,13 @@ export function PromptEditor({
             {t("promptChains.tokenCount")}: {tokenCount}
           </Text>
 
-          {/* 右侧：保存状态 */}
+          {/* 右侧：工作副本同步状态 */}
           <Text
             size="2"
-            color={hasUnsavedChanges ? "amber" : "green"}
-            weight={hasUnsavedChanges ? "medium" : "regular"}
+            color="green"
+            weight="regular"
           >
-            {hasUnsavedChanges ? t("promptChains.unsavedChanges") : t("promptChains.saved")}
+            {t("promptChains.saved")}
           </Text>
         </Flex>
       </div>

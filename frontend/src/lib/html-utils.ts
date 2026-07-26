@@ -60,19 +60,19 @@ function decodeHtmlEntities(text: string): string {
  * 2. 按换行符分割段落，每段用 <p></p> 包裹
  *
  * @param text 纯文本内容，使用换行符分隔段落
+ * @param preserveWhitespace 是否保留仅含空白字符的段落
  * @returns HTML 内容，包含 <p></p> 段落标签
  */
-export function newlinesToHtml(text: string): string {
+export function newlinesToHtml(text: string, preserveWhitespace = false): string {
   if (!text) return "";
 
   // 按换行分割成段落（保留空行）
   const paragraphs = text.split("\n");
 
-  // 构建 HTML（保留空段落，转换为空的 <p></p> 标签）
+  // 构建 HTML（保留空段落，转换为空的 <p></p> 标签）。
   const htmlParts: string[] = [];
   for (const p of paragraphs) {
-    if (!p.trim()) {
-      // 空段落，保留为空的 <p></p> 标签以保持换行
+    if (!preserveWhitespace && !p.trim()) {
       htmlParts.push("<p></p>");
     } else {
       htmlParts.push(`<p>${escapeHtml(p)}</p>`);

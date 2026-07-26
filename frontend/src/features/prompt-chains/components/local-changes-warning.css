@@ -1,0 +1,19 @@
+.prompt-chain-local-changes-warning {
+  margin-top: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--amber-a6);
+  border-radius: var(--radius-2);
+  background: var(--amber-a3);
+}
+
+.prompt-chain-local-changes-warning-icon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--amber-10);
+}
+
+.prompt-chain-local-changes-warning-text {
+  min-width: 0;
+  color: var(--amber-11);
+  line-height: var(--line-height-2);
+}

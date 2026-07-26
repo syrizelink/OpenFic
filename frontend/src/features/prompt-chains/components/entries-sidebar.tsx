@@ -34,6 +34,7 @@ import type {
 } from "@/lib/prompt-chain.types";
 
 import { EntriesToolbar } from "./entries-toolbar";
+import { LocalChangesWarning } from "./local-changes-warning";
 import { PromptSelector } from "./prompt-selector";
 import { ResetConfirmDialog } from "./reset-confirm-dialog";
 import { SaveConfirmDialog } from "./save-confirm-dialog";
@@ -178,6 +179,7 @@ export function EntriesSidebar({
           onSave={() => setIsSaveDialogOpen(true)}
           canSave={!isLoading && !isResetting && !isSaving && !!currentVersion && hasUnsavedChanges}
         />
+        <LocalChangesWarning hasUnsavedChanges={hasUnsavedChanges} />
       </Flex>
     </Box>
   );
