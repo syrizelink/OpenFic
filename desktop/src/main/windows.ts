@@ -1,9 +1,16 @@
-import { app, BrowserWindow, shell } from "electron";
+import { app, BrowserWindow, screen, shell } from "electron";
 import { appendFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readWindowState, saveWindowStateSync, type WindowState } from "./window-state.js";
 
 const preloadPath = fileURLToPath(new URL("../preload/preload.mjs", import.meta.url));
+
+const DEFAULT_WIDTH = 1280;
+const DEFAULT_HEIGHT = 800;
+const MIN_WIDTH = 960;
+const MIN_HEIGHT = 640;
+const SAVE_DEBOUNCE_MS = 500;
 
 function writeWindowLog(message: string): void {
   try {
@@ -33,22 +40,112 @@ function attachWindowDiagnostics(window: BrowserWindow, name: string): void {
   });
 }
 
-function applyShellWindowPresentation(window: BrowserWindow): void {
-  window.setResizable(true);
-  window.setMinimumSize(960, 640);
-  window.setSize(1280, 800);
-  window.center();
+interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface WindowLayout {
+  width: number;
+  height: number;
+  x?: number;
+  y?: number;
+  isMaximized: boolean;
+  needsCenter: boolean;
+}
+
+function isBoundsVisible(bounds: Rect): boolean {
+  return screen.getAllDisplays().some((display) => {
+    const displayBounds = display.bounds;
+    return (
+      bounds.x < displayBounds.x + displayBounds.width &&
+      bounds.x + bounds.width > displayBounds.x &&
+      bounds.y < displayBounds.y + displayBounds.height &&
+      bounds.y + bounds.height > displayBounds.y
+    );
+  });
+}
+
+function resolveWindowLayout(state: WindowState | null): WindowLayout {
+  if (
+    state &&
+    state.width >= MIN_WIDTH &&
+    state.height >= MIN_HEIGHT &&
+    isBoundsVisible(state)
+  ) {
+    return {
+      width: state.width,
+      height: state.height,
+      x: state.x,
+      y: state.y,
+      isMaximized: state.isMaximized,
+      needsCenter: false,
+    };
+  }
+  return {
+    width: DEFAULT_WIDTH,
+    height: DEFAULT_HEIGHT,
+    isMaximized: false,
+    needsCenter: true,
+  };
+}
+
+function readNormalBounds(window: BrowserWindow): Rect {
+  const [x, y] = window.getPosition();
+  const [width, height] = window.getSize();
+  return { x, y, width, height };
+}
+
+function attachWindowStateTracking(window: BrowserWindow): void {
+  let normalBounds = readNormalBounds(window);
+  let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const captureNormalBounds = (): void => {
+    if (window.isMaximized()) return;
+    normalBounds = readNormalBounds(window);
+  };
+
+  const scheduleSave = (): void => {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      saveTimer = null;
+      saveWindowStateSync({ ...normalBounds, isMaximized: window.isMaximized() });
+    }, SAVE_DEBOUNCE_MS);
+  };
+
+  window.on("resize", () => {
+    captureNormalBounds();
+    scheduleSave();
+  });
+  window.on("move", () => {
+    captureNormalBounds();
+    scheduleSave();
+  });
+  window.on("maximize", () => scheduleSave());
+  window.on("unmaximize", () => {
+    captureNormalBounds();
+    scheduleSave();
+  });
+  window.on("close", () => {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    saveWindowStateSync({ ...normalBounds, isMaximized: window.isMaximized() });
+  });
 }
 
 export function loadMainApp(window: BrowserWindow): void {
-  applyShellWindowPresentation(window);
   void window.loadURL("app://setup/ui.html");
 }
 
 export function createMainWindow(): BrowserWindow {
-  const window = new BrowserWindow({
-    width: 1280,
-    height: 800,
+  const layout = resolveWindowLayout(readWindowState());
+  const options: Electron.BrowserWindowConstructorOptions = {
+    width: layout.width,
+    height: layout.height,
     frame: false,
     show: false,
     titleBarStyle: "hidden",
@@ -58,7 +155,17 @@ export function createMainWindow(): BrowserWindow {
       webviewTag: true,
       preload: preloadPath,
     },
-  });
+  };
+  if (layout.x !== undefined && layout.y !== undefined) {
+    options.x = layout.x;
+    options.y = layout.y;
+  }
+
+  const window = new BrowserWindow(options);
+
+  window.setResizable(true);
+  window.setMinimumSize(MIN_WIDTH, MIN_HEIGHT);
+  if (layout.needsCenter) window.center();
 
   window.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
@@ -66,7 +173,13 @@ export function createMainWindow(): BrowserWindow {
   });
   attachWindowDiagnostics(window, "main");
 
-  window.once("ready-to-show", () => window.show());
+  window.once("ready-to-show", () => {
+    if (layout.isMaximized) window.maximize();
+    window.show();
+  });
+
+  attachWindowStateTracking(window);
+
   loadMainApp(window);
   return window;
 }
