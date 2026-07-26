@@ -289,3 +289,31 @@ def test_create_chat_model_amazon_nova_uses_native_client():
     from langchain_amazon_nova import ChatAmazonNova
 
     assert isinstance(model, ChatAmazonNova)
+
+
+def test_create_chat_model_openai_compatible_enables_stream_usage_for_custom_base_url():
+    config = ModelConfig(
+        provider_type="openai-compatible",
+        base_url="https://custom.api/v1",
+        api_key="sk-test",
+        model_id="custom-model",
+    )
+    model = create_chat_model(config)
+
+    from langchain_openai import ChatOpenAI
+    assert isinstance(model, ChatOpenAI)
+    assert model.stream_usage is True
+
+
+def test_create_chat_model_deepseek_enables_stream_usage():
+    config = ModelConfig(
+        provider_type="deepseek",
+        base_url="https://api.deepseek.com",
+        api_key="sk-test",
+        model_id="deepseek-v4-flash",
+    )
+    model = create_chat_model(config)
+
+    from langchain_deepseek import ChatDeepSeek
+    assert isinstance(model, ChatDeepSeek)
+    assert model.stream_usage is True
