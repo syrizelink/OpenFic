@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📕 项目文档
+    url: https://github.com/syrizelink/OpenFic#readme
+    about: 请先查阅项目说明和已有 Issue。

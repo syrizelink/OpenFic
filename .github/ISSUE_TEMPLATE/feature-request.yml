@@ -1,0 +1,39 @@
+name: 功能建议
+description: 提出改进建议或新功能
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 改进建议 / 新功能描述
+      description: |
+        对于您提出的问题详细描述希望添加的新功能，包括其使用场景
+        如果可以，也请您附上“为什么需要”、“在什么场景下需要”的回答
+        如果您尚未更新到最新版本，请优先更新，有时您的建议已被实现
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: OpenFic 版本
+      placeholder: "如: v0.7.5"
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 补充信息
+      description: 可附上原型、截图、参考链接或其他上下文。
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前检查
+      options:
+        - label: 我已搜索现有 Issue，未发现重复建议
+          required: true

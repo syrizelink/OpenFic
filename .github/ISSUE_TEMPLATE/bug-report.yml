@@ -1,0 +1,80 @@
+name: Bug反馈
+description: 报告使用过程中遇到的Bug
+labels:
+  - bug
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      placeholder: |
+        在什么情况下出现了什么问题？
+        预期行为: ...
+        实际行为: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        复现步骤：
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志、截图或录屏
+      description: |
+        请上传或粘贴已脱敏的错误日志、截图或录屏；
+        为确保您的隐私安全，请注意不要包含密钥、令牌或其它个人信息。
+      render: shell
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: OpenFic 版本
+      placeholder: "如: v0.7.5"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: system
+    attributes:
+      label: 运行系统
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - 其他
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 运行平台
+      options:
+        - 桌面端
+        - Python包
+        - Docker镜像
+        - 其他
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前检查
+      options:
+        - label: 我已搜索现有 Issue，未发现重复问题
+          required: true
+        - label: 我确认未在内容中包含密钥、令牌或其他敏感信息
+          required: true

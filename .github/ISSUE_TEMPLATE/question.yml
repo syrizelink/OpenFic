@@ -1,0 +1,38 @@
+name: 其它问题
+description: 询问或提出其它有关问题
+labels:
+  - question
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: 问题描述
+      description: 请清晰、准确地描述您的问题
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: OpenFic 版本
+      placeholder: "如: v0.7.5"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 补充信息
+      description: |
+        请上传或粘贴已脱敏的错误日志、截图或录屏；
+        为确保您的隐私安全，请注意不要包含密钥、令牌或其它个人信息。
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前检查
+      options:
+        - label: 我已搜索现有 Issue，未发现重复问题
+          required: true
