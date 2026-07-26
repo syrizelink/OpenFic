@@ -62,11 +62,18 @@ class BackgroundWorker:
     async def run(self) -> None:
         logger.bind(worker_id=self.worker_id).info("Background worker started")
         while not self._stop_event.is_set():
-            notification = await self.transport.receive_job(timeout_ms=500)
-            if notification and notification.job_id:
-                await self._run_job(notification.job_id)
-                continue
-            await self._run_pending_once()
+            try:
+                notification = await self.transport.receive_job(timeout_ms=500)
+                if notification and notification.job_id:
+                    await self._run_job(notification.job_id)
+                else:
+                    await self._run_pending_once()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.bind(worker_id=self.worker_id).opt(exception=True).error(
+                    f"background worker iteration failed: {exc}"
+                )
             with suppress(asyncio.TimeoutError):
                 await asyncio.wait_for(
                     self._stop_event.wait(), timeout=self.scan_interval_seconds

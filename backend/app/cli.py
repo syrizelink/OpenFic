@@ -7,13 +7,24 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import os
 from pathlib import Path
+import sys
 
 from app.logging import configure_standard_logging
 
 _DEFAULT_HOST = "127.0.0.1"
 _DEFAULT_PORT = 8000
+
+
+def _configure_asyncio_event_loop_policy() -> None:
+    """Use a selector loop because pyzmq requires add_reader on Windows."""
+    if sys.platform != "win32":
+        return
+    policy_class = getattr(asyncio, "WindowsSelectorEventLoopPolicy", None)
+    if policy_class is not None:
+        asyncio.set_event_loop_policy(policy_class())
 
 
 def _ensure_data_dir() -> None:
@@ -40,6 +51,7 @@ def handle_version(_args: argparse.Namespace) -> None:
 
 def handle_serve(args: argparse.Namespace) -> None:
     _ensure_data_dir()
+    _configure_asyncio_event_loop_policy()
     configure_standard_logging()
     os.environ["OPENFIC_SERVER_HOST"] = args.host
     os.environ["OPENFIC_SERVER_PORT"] = str(args.port)

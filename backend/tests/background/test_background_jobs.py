@@ -180,6 +180,24 @@ class FailingEventTransport(RecordingTransport):
         raise RuntimeError("event transport unavailable")
 
 
+@pytest.mark.asyncio
+async def test_worker_continues_after_transport_error():
+    worker = BackgroundWorker(
+        worker_id="worker-1",
+        transport=RecordingTransport(),
+        scan_interval_seconds=0,
+    )
+    worker.transport.receive_job = AsyncMock(
+        side_effect=[RuntimeError("transport unavailable"), None]
+    )
+    worker._run_pending_once = AsyncMock(side_effect=worker.stop)
+
+    await worker.run()
+
+    assert worker.transport.receive_job.await_count == 2
+    worker._run_pending_once.assert_awaited_once()
+
+
 class _FakeBackgroundSupervisor:
     def __init__(self, transport: RecordingTransport) -> None:
         self._publisher = BackgroundEventPublisher(transport)
