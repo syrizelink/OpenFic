@@ -82,6 +82,7 @@ async def test_get_settings_default(client: AsyncClient) -> None:
     assert data["theme"] == "light"
     assert data["font_family"] == "SourceHanSerifCN-VF"
     assert data["code_font_family"] == "JetBrainsMapleMono"
+    assert data["ui_scale"] == 100
     assert data["default_model"] == ""
     assert data["light_model"] == ""
     assert data["default_embedding_model"] == ""
@@ -134,6 +135,28 @@ async def test_update_settings_font(client: AsyncClient) -> None:
     assert response.status_code == 200
     data = response.json()
     assert data["font_family"] == "SourceHanSansCN-VF"
+
+
+@pytest.mark.asyncio
+async def test_update_settings_ui_scale(client: AsyncClient) -> None:
+    """测试更新界面缩放设置。"""
+    response = await client.put(
+        "/api/v1/settings",
+        json={"ui_scale": 125},
+    )
+    assert response.status_code == 200
+    assert response.json()["ui_scale"] == 125
+
+    # 持久化验证
+    response = await client.get("/api/v1/settings")
+    assert response.json()["ui_scale"] == 125
+
+    # 超出范围的值被 schema 拒绝
+    response = await client.put(
+        "/api/v1/settings",
+        json={"ui_scale": 300},
+    )
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio

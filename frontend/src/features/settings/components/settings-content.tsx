@@ -13,6 +13,7 @@ import "./settings-dialog.css";
 
 import { applyCodeFontFamily, applyFontFamily, loadConfiguredFonts } from "@/lib/font-utils";
 import { OVERALL_INDEX_STATUS_QUERY_KEY } from "@/lib/index-status";
+import { applyUiScale } from "@/lib/ui-scale";
 
 import { AdvancedSettings } from "../components/advanced-settings";
 import { AgentDefinitionsSettings } from "../components/agent-definitions-settings";
@@ -130,7 +131,8 @@ export function SettingsContent({
   useEffect(() => {
     if (serverSettings?.fontFamily) applyFontFamily(serverSettings.fontFamily);
     if (serverSettings?.codeFontFamily) applyCodeFontFamily(serverSettings.codeFontFamily);
-  }, [serverSettings?.fontFamily, serverSettings?.codeFontFamily]);
+    if (serverSettings?.uiScale) applyUiScale(serverSettings.uiScale);
+  }, [serverSettings?.fontFamily, serverSettings?.codeFontFamily, serverSettings?.uiScale]);
 
   useEffect(() => {
     function handleResize() {
@@ -159,6 +161,7 @@ export function SettingsContent({
         theme: settings.theme,
         font_family: settings.fontFamily,
         code_font_family: settings.codeFontFamily,
+        ui_scale: settings.uiScale,
         agent_tool_permissions: settings.agentToolPermissions.map((item) => ({
           tool_name: item.toolName,
           mode: item.mode,
@@ -184,6 +187,7 @@ export function SettingsContent({
         onAppearanceChange(previousSettings.theme);
         applyFontFamily(previousSettings.fontFamily);
         applyCodeFontFamily(previousSettings.codeFontFamily);
+        applyUiScale(previousSettings.uiScale);
         void loadConfiguredFonts(previousSettings.fontFamily, previousSettings.codeFontFamily);
       }
 
@@ -203,6 +207,7 @@ export function SettingsContent({
       onAppearanceChange(newSettings.theme);
       applyFontFamily(newSettings.fontFamily);
       applyCodeFontFamily(newSettings.codeFontFamily);
+      applyUiScale(newSettings.uiScale);
       void loadConfiguredFonts(newSettings.fontFamily, newSettings.codeFontFamily);
       setEditedSettings(newSettings);
       saveMutation.mutate(newSettings);

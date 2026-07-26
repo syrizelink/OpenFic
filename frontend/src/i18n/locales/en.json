@@ -721,6 +721,8 @@
     "themeDark": "Dark",
     "fontFamily": "Font",
     "codeFontFamily": "Code Font",
+    "uiScale": "Interface zoom",
+    "uiScaleHint": "Scale up the whole interface and text, useful on high-resolution screens",
     "fontOptionSystemDefault": "System default",
     "fontOptionSourceHanSerif": "Source Han Serif",
     "fontOptionSourceHanSans": "Source Han Sans",

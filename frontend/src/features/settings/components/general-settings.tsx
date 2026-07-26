@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 
 import { LabeledSelect } from "@/components/select";
 import { supportedLanguages, type LanguageCode } from "@/i18n";
+import { UI_SCALE_OPTIONS, normalizeUiScale } from "@/lib/ui-scale";
 
 import type { Settings, ThemeMode } from "../lib/settings.types";
 import { getCodeFontOptions, getFontOptions } from "../lib/settings.types";
@@ -46,6 +47,11 @@ export function GeneralSettings({
   /** 更新代码字体 */
   const handleCodeFontChange = (codeFontFamily: string) => {
     onSettingsChange({ ...settings, codeFontFamily });
+  };
+
+  /** 更新界面缩放 */
+  const handleUiScaleChange = (uiScale: string) => {
+    onSettingsChange({ ...settings, uiScale: normalizeUiScale(uiScale) });
   };
 
   return (
@@ -109,6 +115,30 @@ export function GeneralSettings({
           disabled={isSaving}
           triggerStyle={{ width: 200 }}
         />
+
+        {/* 界面缩放设置 */}
+        <Flex
+          direction="column"
+          gap="1"
+        >
+          <LabeledSelect
+            label={t("settings.uiScale")}
+            value={String(normalizeUiScale(settings.uiScale))}
+            options={UI_SCALE_OPTIONS.map((scale) => ({
+              value: String(scale),
+              label: `${scale}%`,
+            }))}
+            onChange={handleUiScaleChange}
+            disabled={isSaving}
+            triggerStyle={{ width: 200 }}
+          />
+          <Text
+            size="1"
+            color="gray"
+          >
+            {t("settings.uiScaleHint")}
+          </Text>
+        </Flex>
       </Flex>
     </Box>
   );

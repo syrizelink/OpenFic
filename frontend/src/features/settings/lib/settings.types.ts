@@ -30,6 +30,7 @@ export interface Settings {
   theme: ThemeMode;
   fontFamily: string;
   codeFontFamily: string;
+  uiScale: number;
   defaultModel: string;
   lightModel: string;
   defaultEmbeddingModel: string;
@@ -51,6 +52,7 @@ export interface SettingsResponse {
   theme: string;
   font_family: string;
   code_font_family?: string;
+  ui_scale?: number;
   default_model: string;
   light_model: string;
   default_embedding_model: string;
@@ -75,6 +77,7 @@ export interface SettingsUpdateRequest {
   theme?: string;
   font_family?: string;
   code_font_family?: string;
+  ui_scale?: number;
   default_model?: string;
   light_model?: string;
   default_embedding_model?: string;

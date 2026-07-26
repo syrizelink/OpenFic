@@ -20,6 +20,7 @@ import { getOrCreateRoot } from "./lib/get-or-create-root";
 import { loadRuntimeConfig } from "./lib/runtime-config";
 import { connectSocket } from "./lib/socket-client";
 import { preloadTiktokenEncoding } from "./lib/tiktoken-utils";
+import { applyUiScale } from "./lib/ui-scale";
 import { registerSW } from "./pwa/register-sw";
 
 import "streamdown/styles.css";
@@ -136,6 +137,7 @@ function Root() {
 
         applyFontFamily(settings.fontFamily);
         applyCodeFontFamily(settings.codeFontFamily);
+        applyUiScale(settings.uiScale);
         await loadConfiguredFonts(settings.fontFamily, settings.codeFontFamily);
 
         if (mounted) {

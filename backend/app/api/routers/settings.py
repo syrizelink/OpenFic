@@ -62,6 +62,7 @@ SETTING_KEY_LANGUAGE = "language"
 SETTING_KEY_THEME = "theme"
 SETTING_KEY_FONT_FAMILY = "font_family"
 SETTING_KEY_CODE_FONT_FAMILY = "code_font_family"
+SETTING_KEY_UI_SCALE = "ui_scale"
 SETTING_KEY_DEFAULT_MODEL = "default_model"
 SETTING_KEY_LIGHT_MODEL = "light_model"
 SETTING_KEY_DEFAULT_EMBEDDING_MODEL = "default_embedding_model"
@@ -72,6 +73,7 @@ DEFAULT_SETTINGS = {
     SETTING_KEY_THEME: "light",
     SETTING_KEY_FONT_FAMILY: "SourceHanSerifCN-VF",
     SETTING_KEY_CODE_FONT_FAMILY: "JetBrainsMapleMono",
+    SETTING_KEY_UI_SCALE: "100",
     SETTING_KEY_DEFAULT_MODEL: "",
     SETTING_KEY_LIGHT_MODEL: "",
     SETTING_KEY_DEFAULT_EMBEDDING_MODEL: "",
@@ -239,6 +241,13 @@ async def get_settings(
         code_font_family=settings_dict.get(
             SETTING_KEY_CODE_FONT_FAMILY, DEFAULT_SETTINGS[SETTING_KEY_CODE_FONT_FAMILY]
         ),
+        ui_scale=_parse_int_setting(
+            settings_dict.get(
+                SETTING_KEY_UI_SCALE,
+                DEFAULT_SETTINGS[SETTING_KEY_UI_SCALE],
+            ),
+            default=100,
+        ),
         default_model=settings_dict.get(
             SETTING_KEY_DEFAULT_MODEL, DEFAULT_SETTINGS[SETTING_KEY_DEFAULT_MODEL]
         ),
@@ -370,6 +379,8 @@ async def update_settings(
         settings_to_update[SETTING_KEY_FONT_FAMILY] = request.font_family
     if request.code_font_family is not None:
         settings_to_update[SETTING_KEY_CODE_FONT_FAMILY] = request.code_font_family
+    if request.ui_scale is not None:
+        settings_to_update[SETTING_KEY_UI_SCALE] = str(min(200, max(50, request.ui_scale)))
     if request.default_model is not None:
         settings_to_update[SETTING_KEY_DEFAULT_MODEL] = request.default_model
     if request.light_model is not None:

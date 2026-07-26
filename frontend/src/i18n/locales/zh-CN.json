@@ -721,6 +721,8 @@
     "themeDark": "深色",
     "fontFamily": "字体",
     "codeFontFamily": "代码字体",
+    "uiScale": "界面缩放",
+    "uiScaleHint": "放大整体界面与文字，适合高分辨率屏幕",
     "fontOptionSystemDefault": "系统默认",
     "fontOptionSourceHanSerif": "思源宋体",
     "fontOptionSourceHanSans": "思源黑体",

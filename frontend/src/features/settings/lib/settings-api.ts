@@ -5,6 +5,7 @@
  */
 
 import { apiClient } from "@/lib/api-client";
+import { DEFAULT_UI_SCALE, normalizeUiScale } from "@/lib/ui-scale";
 
 import type {
   AgentToolMetadata,
@@ -28,6 +29,7 @@ export function transformSettings(raw: SettingsResponse): Settings {
     theme: raw.theme as Settings["theme"],
     fontFamily: getSupportedFontFamily(raw.font_family),
     codeFontFamily: getSupportedCodeFontFamily(raw.code_font_family || DEFAULT_CODE_FONT_FAMILY),
+    uiScale: normalizeUiScale(raw.ui_scale ?? DEFAULT_UI_SCALE),
     defaultModel: raw.default_model || "",
     lightModel: raw.light_model || "",
     defaultEmbeddingModel: raw.default_embedding_model || "",
