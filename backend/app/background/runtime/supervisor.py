@@ -106,10 +106,16 @@ class BackgroundSupervisor:
     async def _run_event_bridge(self) -> None:
         assert self._transport is not None
         while not self._stop_event.is_set():
-            message = await self._transport.receive_event(timeout_ms=500)
-            if message is None:
-                continue
-            await self._emit_socket_background_event(message)
+            try:
+                message = await self._transport.receive_event(timeout_ms=500)
+                if message is not None:
+                    await self._emit_socket_background_event(message)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.opt(exception=True).error(
+                    f"background event bridge iteration failed: {exc}"
+                )
 
     async def _recover_stale_jobs(self) -> None:
         assert self._transport is not None

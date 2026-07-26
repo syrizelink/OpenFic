@@ -18,13 +18,15 @@ _DEFAULT_HOST = "127.0.0.1"
 _DEFAULT_PORT = 8000
 
 
-def _configure_asyncio_event_loop_policy() -> None:
-    """Use a selector loop because pyzmq requires add_reader on Windows."""
-    if sys.platform != "win32":
-        return
-    policy_class = getattr(asyncio, "WindowsSelectorEventLoopPolicy", None)
-    if policy_class is not None:
-        asyncio.set_event_loop_policy(policy_class())
+def _windows_selector_loop_factory() -> asyncio.AbstractEventLoop:
+    return asyncio.SelectorEventLoop()
+
+
+def _get_uvicorn_loop_factory() -> str:
+    """Use a selector loop on Windows because pyzmq requires add_reader."""
+    if sys.platform == "win32":
+        return "app.cli:_windows_selector_loop_factory"
+    return "auto"
 
 
 def _ensure_data_dir() -> None:
@@ -51,7 +53,6 @@ def handle_version(_args: argparse.Namespace) -> None:
 
 def handle_serve(args: argparse.Namespace) -> None:
     _ensure_data_dir()
-    _configure_asyncio_event_loop_policy()
     configure_standard_logging()
     os.environ["OPENFIC_SERVER_HOST"] = args.host
     os.environ["OPENFIC_SERVER_PORT"] = str(args.port)
@@ -62,6 +63,7 @@ def handle_serve(args: argparse.Namespace) -> None:
         "app.main:app",
         host=args.host,
         port=args.port,
+        loop=_get_uvicorn_loop_factory(),
         log_level="info",
         log_config=None,
         access_log=False,
