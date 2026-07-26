@@ -4,14 +4,7 @@
  * 提供商相关的工具函数。
  */
 
-import type {
-  ModelProvider,
-  ModelProviderCatalogProvider,
-  ProviderType,
-  TaskType,
-} from "@/lib/model.types";
-
-const ALL_TASK_TYPES: TaskType[] = ["llm", "embedding", "rerank"];
+import type { ModelProvider, ModelProviderCatalogProvider, ProviderType } from "@/lib/model.types";
 
 const EMBEDDING_DIMENSIONS_SUPPORTED_PROVIDER_TYPES = new Set<ProviderType>([
   "openai",
@@ -25,25 +18,14 @@ export function supportsEmbeddingDimensions(providerType: string): boolean {
   return EMBEDDING_DIMENSIONS_SUPPORTED_PROVIDER_TYPES.has(providerType);
 }
 
-export function isSelectableModelProviderForTask(
-  provider: Pick<ModelProvider, "providerType" | "supportedTaskTypes" | "isBuiltin">,
-  taskType: TaskType,
-): boolean {
-  if (provider.isBuiltin) {
-    return false;
-  }
-
-  return (
-    provider.providerType === "openai-compatible" || provider.supportedTaskTypes.includes(taskType)
-  );
+export function isSelectableModelProvider(provider: Pick<ModelProvider, "isBuiltin">): boolean {
+  return !provider.isBuiltin;
 }
 
 export function hasSelectableModelProvider(
-  providers: Array<Pick<ModelProvider, "providerType" | "supportedTaskTypes" | "isBuiltin">>,
+  providers: Array<Pick<ModelProvider, "isBuiltin">>,
 ): boolean {
-  return providers.some((provider) =>
-    ALL_TASK_TYPES.some((taskType) => isSelectableModelProviderForTask(provider, taskType)),
-  );
+  return providers.some(isSelectableModelProvider);
 }
 
 /**

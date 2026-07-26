@@ -24,7 +24,7 @@ import {
   fetchProviderModels,
 } from "../lib/model-api";
 import {
-  isSelectableModelProviderForTask,
+  isSelectableModelProvider,
   resolveProviderCatalogType,
   resolveProviderDisplayName,
   supportsEmbeddingDimensions,
@@ -175,13 +175,11 @@ export function ModelFormDialog({
     staleTime: 5 * 60 * 1000,
   });
 
-  // 根据任务类型过滤提供商（openai-compatible始终显示）
+  // 模型目录可能缺少实际支持的任务类型，因此只排除内置提供商。
   const filteredProviders = useMemo(() => {
     if (!providers) return [];
-    return providers.filter((provider) =>
-      isSelectableModelProviderForTask(provider, taskType as TaskType),
-    );
-  }, [providers, taskType]);
+    return providers.filter(isSelectableModelProvider);
+  }, [providers]);
 
   const selectedProvider = useMemo(
     () => providers?.find((p) => p.id === providerId),
