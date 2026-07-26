@@ -330,7 +330,7 @@ async def shift_orders(
     """
     批量调整排序序号。
 
-    用于章节移动时调整其他章节的顺序。
+    用于章节移动时调整其他章节的顺序。通过两阶段更新避免唯一索引冲突。
 
     Args:
         session: 数据库 session。
@@ -339,16 +339,15 @@ async def shift_orders(
         end_order: 结束序号（包含）。
         delta: 调整量（+1 或 -1）。
     """
-    await session.execute(
-        update(Chapter)
-        .where(
+    result = await session.execute(
+        select(Chapter).where(
             col(Chapter.volume_id) == volume_id,
             col(Chapter.order) >= start_order,
             col(Chapter.order) <= end_order,
         )
-        .values(order=col(Chapter.order) + delta)
     )
-    await session.flush()
+    orders = {chapter.id: chapter.order + delta for chapter in result.scalars().all()}
+    await update_orders(session, orders)
 
 
 async def delete_by_project(session: AsyncSession, project_id: str) -> None:

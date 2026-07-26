@@ -294,6 +294,35 @@ async def test_delete_chapter_updates_orders_and_stats(client: AsyncClient) -> N
 
 
 @pytest.mark.asyncio
+async def test_delete_reordered_chapter_updates_orders(client: AsyncClient) -> None:
+    """测试删除章节时能安全收紧已重排章节的顺序。"""
+    project_id, volume_id = await _create_project(client)
+    chapters = [
+        await _create_chapter(client, project_id, volume_id, title=f"第{i + 1}章")
+        for i in range(4)
+    ]
+    reordered_ids = [
+        chapters[0]["id"],
+        chapters[2]["id"],
+        chapters[1]["id"],
+        chapters[3]["id"],
+    ]
+    reorder_response = await client.post(
+        "/api/v1/chapters/reorder",
+        json={"volume_id": volume_id, "chapter_ids": reordered_ids},
+    )
+    assert reorder_response.status_code == 200
+
+    response = await client.delete(f"/api/v1/chapters/{chapters[0]['id']}")
+
+    assert response.status_code == 204
+    tree = (await client.get(f"/api/v1/projects/{project_id}/chapters")).json()
+    items = tree["volumes"][0]["chapters"]
+    assert [item["id"] for item in items] == reordered_ids[1:]
+    assert [item["order"] for item in items] == [1, 2, 3]
+
+
+@pytest.mark.asyncio
 async def test_delete_chapter_removes_summary_and_affected_long_term_summaries(
     client: AsyncClient, session
 ) -> None:

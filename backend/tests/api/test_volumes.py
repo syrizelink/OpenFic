@@ -196,16 +196,66 @@ async def test_move_chapter_to_volume_appends_to_target(
     assert [chapter["order"] for chapter in target_chapters] == [1, 2]
 
     events = (
-        await session.execute(
-            select(WritingActivityEvent).where(
-                col(WritingActivityEvent.chapter_id) == source_chapter_ids[0],
-                col(WritingActivityEvent.operation) == "move_to_volume",
+        (
+            await session.execute(
+                select(WritingActivityEvent).where(
+                    col(WritingActivityEvent.chapter_id) == source_chapter_ids[0],
+                    col(WritingActivityEvent.operation) == "move_to_volume",
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(events) == 1
     assert events[0].source == "user"
     assert events[0].word_delta == 0
+
+
+@pytest.mark.asyncio
+async def test_move_reordered_chapter_to_volume_updates_source_orders(
+    client: AsyncClient,
+) -> None:
+    project_id = await _create_project(client)
+    source_volume = await _default_volume(client, project_id)
+    target_response = await client.post(
+        f"/api/v1/projects/{project_id}/volumes",
+        json={"title": "第二卷"},
+    )
+    target_volume = target_response.json()
+    chapters = []
+    for title in ["第一章", "第二章", "第三章", "第四章"]:
+        response = await client.post(
+            f"/api/v1/projects/{project_id}/chapters",
+            json={"volume_id": source_volume["id"], "title": title},
+        )
+        assert response.status_code == 201
+        chapters.append(response.json())
+    reordered_ids = [
+        chapters[0]["id"],
+        chapters[2]["id"],
+        chapters[1]["id"],
+        chapters[3]["id"],
+    ]
+    reorder_response = await client.post(
+        "/api/v1/chapters/reorder",
+        json={"volume_id": source_volume["id"], "chapter_ids": reordered_ids},
+    )
+    assert reorder_response.status_code == 200
+
+    response = await client.post(
+        f"/api/v1/chapters/{chapters[0]['id']}/move-to-volume",
+        json={"volume_id": target_volume["id"]},
+    )
+
+    assert response.status_code == 200
+    tree = (await client.get(f"/api/v1/projects/{project_id}/chapters")).json()
+    source_chapters = tree["volumes"][0]["chapters"]
+    target_chapters = tree["volumes"][1]["chapters"]
+    assert [chapter["id"] for chapter in source_chapters] == reordered_ids[1:]
+    assert [chapter["order"] for chapter in source_chapters] == [1, 2, 3]
+    assert [chapter["id"] for chapter in target_chapters] == [chapters[0]["id"]]
+    assert [chapter["order"] for chapter in target_chapters] == [1]
 
 
 @pytest.mark.asyncio
