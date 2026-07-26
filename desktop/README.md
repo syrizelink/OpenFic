@@ -4,6 +4,7 @@
 ![License](https://img.shields.io/badge/License-Apache_2.0-red)
 ![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)
 ![GitHub Release](https://img.shields.io/github/v/release/syrizelink/OpenFic?logo=githubactions&logoColor=white&color=yellow)
+![Release Downloads](https://img.shields.io/github/downloads/syrizelink/OpenFic/total?logo=github&logoColor=white&label=Release%20downloads&color=yellow)
 ![PyPI - Version](https://img.shields.io/pypi/v/openfic?logo=pypi&logoColor=white&color=green)
 
 中文 | [English](./README_EN.md)
@@ -89,26 +90,30 @@ openfic serve
 
 查看 [CONTRIBUTING.md](./CONTRIBUTING.md) 获取详细的贡献指南。
 
+## Star History
 
-## 许可证
+<a href="https://www.star-history.com/?repos=syrizelink%2FOpenFic&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=syrizelink/OpenFic&type=date&theme=dark&legend=top-left&sealed_token=JHQpP1A05gPA9RleC2GLLnXJ5mg_nQHq_VosoaeQPU2yPGneRUJNEyxaEy--2atezknlCUb5HxLE0HB31gJAOr1ezJZHYW92VUSlWh0Ej0bkt4Q3AWVUHQ" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=syrizelink/OpenFic&type=date&legend=top-left&sealed_token=JHQpP1A05gPA9RleC2GLLnXJ5mg_nQHq_VosoaeQPU2yPGneRUJNEyxaEy--2atezknlCUb5HxLE0HB31gJAOr1ezJZHYW92VUSlWh0Ej0bkt4Q3AWVUHQ" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=syrizelink/OpenFic&type=date&legend=top-left&sealed_token=JHQpP1A05gPA9RleC2GLLnXJ5mg_nQHq_VosoaeQPU2yPGneRUJNEyxaEy--2atezknlCUb5HxLE0HB31gJAOr1ezJZHYW92VUSlWh0Ej0bkt4Q3AWVUHQ" />
+ </picture>
+</a>
 
-[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+## Repobeats
 
-## 社区
-
-[LINUX DO](https://linux.do/)
+![Repobeats](https://repobeats.axiom.co/api/embed/a3b67d74bb71044ef2385d65bc469090ee3e0fe6.svg "Repobeats analytics image")
 
 ## 致谢
 
 - [SillyTavern](https://github.com/SillyTavern/SillyTavern) - 灵感来源
 - [oh-story-claudecode](https://github.com/worldwonderer/oh-story-claudecode) - 内置写作Skill参考
 
-## Star History
+## 社区
 
-<a href="https://www.star-history.com/?repos=syrizelink%2FOpenFic&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=syrizelink/OpenFic&type=date&theme=dark&legend=top-left&sealed_token=Z1KB-Zqklc4RUR8xUtQtgNsD1i4NQIjICp0kmQ_P-zryrDf6EnJi2crYZPaKRNPdoq3luSS44AgHf79arGbJ6752xnZFhdtj2J0dSd1xLIflwxH2lgUWwA" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=syrizelink/OpenFic&type=date&legend=top-left&sealed_token=Z1KB-Zqklc4RUR8xUtQtgNsD1i4NQIjICp0kmQ_P-zryrDf6EnJi2crYZPaKRNPdoq3luSS44AgHf79arGbJ6752xnZFhdtj2J0dSd1xLIflwxH2lgUWwA" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=syrizelink/OpenFic&type=date&legend=top-left&sealed_token=Z1KB-Zqklc4RUR8xUtQtgNsD1i4NQIjICp0kmQ_P-zryrDf6EnJi2crYZPaKRNPdoq3luSS44AgHf79arGbJ6752xnZFhdtj2J0dSd1xLIflwxH2lgUWwA" />
- </picture>
-</a>
+[LINUX DO](https://linux.do/)
+
+
+## 许可证
+
+[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
