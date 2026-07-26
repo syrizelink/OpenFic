@@ -14,6 +14,18 @@ export function getApiBaseUrl(): string {
   return "/api/v1";
 }
 
+/**
+ * Resolves a backend-provided root-relative URL for the desktop webview.
+ * Browser deployments keep root-relative URLs so the frontend origin serves them.
+ */
+export function resolveBackendUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (!url.startsWith("/") || url.startsWith("//")) return url;
+
+  const backendBaseUrl = getRuntimeConfig()?.backendBaseUrl;
+  return backendBaseUrl ? `${backendBaseUrl}${url}` : url;
+}
+
 function getApiUrl(path: string): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return `${getApiBaseUrl().replace(/\/+$/, "")}${normalizedPath}`;
@@ -101,7 +113,7 @@ function transformProject(raw: Record<string, unknown>): Project {
     description: raw.description as string | null,
     wordCount: raw.word_count as number,
     chapterCount: raw.chapter_count as number,
-    coverUrl: raw.cover_url as string | null,
+    coverUrl: resolveBackendUrl(raw.cover_url as string | null | undefined),
     createdAt: raw.created_at as string,
     updatedAt: raw.updated_at as string,
   };
@@ -181,7 +193,7 @@ function transformCharacter(raw: Record<string, unknown>): Character {
     projectId: raw.project_id as string,
     name: raw.name as string,
     description: (raw.description as string) || "",
-    imageUrl: raw.image_url as string | null,
+    imageUrl: resolveBackendUrl(raw.image_url as string | null | undefined),
     isFavorited: raw.is_favorited as boolean,
     createdAt: raw.created_at as string,
     updatedAt: raw.updated_at as string,
@@ -193,7 +205,7 @@ function transformCharacterListItem(raw: Record<string, unknown>): CharacterList
     id: raw.id as string,
     projectId: raw.project_id as string,
     name: raw.name as string,
-    imageUrl: raw.image_url as string | null,
+    imageUrl: resolveBackendUrl(raw.image_url as string | null | undefined),
     tokenCount: raw.token_count as number,
     isFavorited: raw.is_favorited as boolean,
     createdAt: raw.created_at as string,

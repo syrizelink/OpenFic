@@ -2,11 +2,8 @@
  * 导入 API - TXT 文件导入相关接口。
  */
 
-import axios from "axios";
-
 import i18n from "@/i18n";
-
-const API_BASE = "/api/v1";
+import { apiClient, getApiBaseUrl } from "@/lib/api-client";
 
 /** 预览章节信息 */
 export interface PreviewChapter {
@@ -41,7 +38,7 @@ export async function previewTxtFile(file: File): Promise<ImportPreviewResponse>
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await axios.post<ImportPreviewResponse>(`${API_BASE}/import/preview`, formData, {
+  const response = await apiClient.post<ImportPreviewResponse>("/import/preview", formData, {
     headers: {
       "Content-Type": "multipart/form-data",
     },
@@ -77,7 +74,7 @@ export async function confirmImport(
     formData.append("cover", cover);
   }
 
-  const response = await axios.post<ImportConfirmResponse>(`${API_BASE}/import/confirm`, formData, {
+  const response = await apiClient.post<ImportConfirmResponse>("/import/confirm", formData, {
     headers: {
       "Content-Type": "multipart/form-data",
     },
@@ -141,7 +138,7 @@ export async function confirmImportStream(
     formData.append("cover", cover);
   }
 
-  const response = await fetch(`${API_BASE}/import/confirm-stream`, {
+  const response = await fetch(`${getApiBaseUrl()}/import/confirm-stream`, {
     method: "POST",
     body: formData,
   });

@@ -1,11 +1,13 @@
+import { getApiBaseUrl, resolveBackendUrl } from "@/lib/api-client";
+
 export function getProviderIconUrl(iconPath?: string | null): string | null {
   if (!iconPath) {
     return null;
   }
 
   if (iconPath.startsWith("/")) {
-    return iconPath;
+    return resolveBackendUrl(iconPath);
   }
 
-  return `/api/v1/${iconPath.replace(/^\/+/, "")}`;
+  return `${getApiBaseUrl()}/${iconPath.replace(/^\/+/, "")}`;
 }
