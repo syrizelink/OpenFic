@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -35,6 +36,14 @@ def test_uvicorn_loads_windows_selector_loop_factory() -> None:
         assert isinstance(loop, cli.asyncio.SelectorEventLoop)
     finally:
         loop.close()
+
+
+def test_dev_command_loads_windows_selector_loop_factory() -> None:
+    justfile = Path(__file__).resolve().parents[1] / "justfile"
+    content = justfile.read_text(encoding="utf-8")
+
+    assert 'if os() == "windows"' in content
+    assert "--loop app.cli:_windows_selector_loop_factory" in content
 
 
 def test_handle_serve_passes_loop_factory_to_uvicorn(monkeypatch) -> None:

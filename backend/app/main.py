@@ -123,9 +123,26 @@ async def _seed_builtin_models() -> None:
 
 
 def _get_server_bind() -> tuple[str, int]:
-    host = getenv("OPENFIC_SERVER_HOST", app_settings.host)
-    port = int(getenv("OPENFIC_SERVER_PORT", str(app_settings.port)))
-    return host, port
+    host = getenv("OPENFIC_SERVER_HOST")
+    port = getenv("OPENFIC_SERVER_PORT")
+
+    if host is None:
+        host = _get_command_line_option("--host") or app_settings.host
+    if port is None:
+        port = _get_command_line_option("--port") or str(app_settings.port)
+
+    return host, int(port)
+
+
+def _get_command_line_option(option: str) -> str | None:
+    option_with_value = f"{option}="
+    for index, argument in enumerate(sys.argv):
+        if argument.startswith(option_with_value):
+            return argument.removeprefix(option_with_value)
+        if argument == option and index + 1 < len(sys.argv):
+            return sys.argv[index + 1]
+
+    return None
 
 
 def _list_network_ipv4_addresses() -> list[str]:

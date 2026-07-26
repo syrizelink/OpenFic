@@ -5,6 +5,30 @@ import pytest
 import app.main as main
 
 
+def test_get_server_bind_reads_uvicorn_command_line_options(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("OPENFIC_SERVER_HOST", raising=False)
+    monkeypatch.delenv("OPENFIC_SERVER_PORT", raising=False)
+    monkeypatch.setattr(
+        main.sys,
+        "argv",
+        ["uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8001"],
+    )
+
+    assert main._get_server_bind() == ("127.0.0.1", 8001)
+
+
+def test_get_server_bind_prioritizes_openfic_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENFIC_SERVER_HOST", "0.0.0.0")
+    monkeypatch.setenv("OPENFIC_SERVER_PORT", "9000")
+    monkeypatch.setattr(
+        main.sys,
+        "argv",
+        ["uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8001"],
+    )
+
+    assert main._get_server_bind() == ("0.0.0.0", 9000)
+
+
 @pytest.mark.asyncio
 async def test_lifespan_refreshes_catalog_in_background_and_cancels_on_shutdown(
     monkeypatch: pytest.MonkeyPatch,
