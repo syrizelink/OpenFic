@@ -817,6 +817,11 @@ class TestAgentAPI:
             for call in emit_mock.await_args_list
             if call.args and call.args[0] == "background:event"
         ]
+        lock_payloads = [
+            call.args[1]
+            for call in emit_mock.await_args_list
+            if call.args and call.args[0] == "agent:settings_lock_changed"
+        ]
         assert any(
             payload.get("type") == "task_run_status_updated"
             and payload.get("task_id") == task_id
@@ -828,6 +833,14 @@ class TestAgentAPI:
             and payload.get("task_id") == task_id
             and payload.get("is_running") is False
             for payload in status_payloads
+        )
+        assert any(
+            payload.get("session_id") == session_id and payload.get("is_running") is True
+            for payload in lock_payloads
+        )
+        assert any(
+            payload.get("session_id") == session_id and payload.get("is_running") is False
+            for payload in lock_payloads
         )
 
     async def test_get_session_state_reports_active_background_run(

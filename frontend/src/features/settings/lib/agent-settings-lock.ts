@@ -1,7 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
+import { useEffect } from "react";
 
 import { apiClient } from "@/lib/api-client";
+import { getSocket } from "@/lib/socket-client";
 
 export const AGENT_SETTINGS_LOCK_QUERY_KEY = ["agent-settings-lock"] as const;
 
@@ -19,10 +21,27 @@ export async function fetchAgentSettingsLock(): Promise<boolean> {
 }
 
 export function useAgentSettingsLock() {
-  return useQuery({
+  const queryClient = useQueryClient();
+  const query = useQuery({
     queryKey: AGENT_SETTINGS_LOCK_QUERY_KEY,
     queryFn: fetchAgentSettingsLock,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
+
+  useEffect(() => {
+    const socket = getSocket();
+    const handleLockStateChanged = () => {
+      void queryClient.invalidateQueries({ queryKey: AGENT_SETTINGS_LOCK_QUERY_KEY });
+    };
+
+    socket.on("agent:settings_lock_changed", handleLockStateChanged);
+    return () => {
+      socket.off("agent:settings_lock_changed", handleLockStateChanged);
+    };
+  }, [queryClient]);
+
+  return query;
 }
 
 export function isAgentSettingsLockedError(error: unknown): boolean {

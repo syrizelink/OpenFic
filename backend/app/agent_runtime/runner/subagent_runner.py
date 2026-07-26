@@ -754,6 +754,14 @@ class SubagentRunner:
                 room=background_project_room(self.project_id),
             )
 
+        await emit(
+            "agent:settings_lock_changed",
+            {
+                "session_id": parent_session_id,
+                "is_running": is_running,
+            },
+        )
+
     async def _mark_child_running(self, child_run_id: str) -> AgentChildRun:
         session = await _open_session(self.session_factory)
         try:

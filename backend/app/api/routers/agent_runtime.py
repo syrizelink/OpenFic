@@ -411,6 +411,14 @@ async def _set_task_running_state(
             room=background_project_room(project_id),
         )
 
+    await emit(
+        "agent:settings_lock_changed",
+        {
+            "session_id": session_id,
+            "is_running": is_running,
+        },
+    )
+
 
 def _make_status_session_factory(session: AsyncSession) -> Callable[[], AsyncSession]:
     if session.bind is None:
@@ -1211,6 +1219,10 @@ async def cancel_agent_session(
         await finalize_revision_status(session, revision.id, "cancelled")
     await task_service.update_task(session, task.id, is_running=False)
     await session.commit()
+    await emit(
+        "agent:settings_lock_changed",
+        {"session_id": session_id, "is_running": False},
+    )
     return AgentCancelResponse(
         success=True,
         session_id=session_id,

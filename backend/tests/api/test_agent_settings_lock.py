@@ -4,7 +4,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.agent_runtime.persistence.child_runs import create_child_run
 from app.api.routers.agent_runtime import _SESSION_RUNNERS
@@ -213,15 +213,20 @@ async def test_cancelling_waiting_agent_session_releases_settings_lock(
     runner = MagicMock(project_id=task.project_id, model_config={})
     _SESSION_RUNNERS[task.agent_session_id or ""] = runner
     try:
-        cancel_response = await client.post(
-            f"/api/v1/agent/sessions/{task.agent_session_id}/cancel",
-        )
+        with patch("app.api.routers.agent_runtime.emit", new=AsyncMock()) as emit_mock:
+            cancel_response = await client.post(
+                f"/api/v1/agent/sessions/{task.agent_session_id}/cancel",
+            )
         lock_response = await client.get("/api/v1/settings/agent-session-lock")
     finally:
         _SESSION_RUNNERS.pop(task.agent_session_id or "", None)
 
     assert cancel_response.status_code == 200
     runner.cancel.assert_called_once_with()
+    emit_mock.assert_awaited_once_with(
+        "agent:settings_lock_changed",
+        {"session_id": task.agent_session_id, "is_running": False},
+    )
     assert lock_response.json() == {"is_locked": False}
     await session.refresh(task)
     await session.refresh(revision)
