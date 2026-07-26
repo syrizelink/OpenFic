@@ -76,6 +76,8 @@ def _openai_compatible_kwargs(config: ModelConfig) -> dict[str, Any]:
         presence_penalty=_non_default(config.presence_penalty, DEFAULT_PRESENCE_PENALTY),
         reasoning_effort=config.reasoning_effort,
         max_retries=0,
+        # 流式响应默认不携带 usage，需显式开启才能统计 token 消耗
+        stream_usage=True,
     )
     extra_body = {
         name: value
@@ -148,6 +150,7 @@ def create_chat_model(config: ModelConfig) -> BaseChatModel:
             max_tokens=config.max_tokens,
             reasoning_effort=config.reasoning_effort,
             max_retries=0,
+            stream_usage=True,
         ))
 
     if provider == "mistral":
@@ -179,6 +182,7 @@ def create_chat_model(config: ModelConfig) -> BaseChatModel:
                 config.presence_penalty, DEFAULT_PRESENCE_PENALTY
             ),
             max_retries=0,
+            stream_usage=True,
         ))
 
     if provider == "groq":

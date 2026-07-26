@@ -118,6 +118,39 @@ def test_create_chat_model_sends_non_default_advanced_params():
     }
 
 
+def test_create_chat_model_enables_stream_usage_for_openai_like_models():
+    config = ModelConfig(
+        provider_type="openai",
+        base_url="https://api.openai.com/v1",
+        api_key="sk-test",
+        model_id="gpt-4o",
+    )
+    model = create_chat_model(config)
+    assert model.stream_usage is True
+
+
+def test_create_chat_model_enables_stream_usage_for_deepseek():
+    config = ModelConfig(
+        provider_type="deepseek",
+        base_url="https://api.deepseek.com",
+        api_key="sk-test",
+        model_id="deepseek-v4-flash",
+    )
+    model = create_chat_model(config)
+    assert model.stream_usage is True
+
+
+def test_create_chat_model_enables_stream_usage_for_openrouter():
+    config = ModelConfig(
+        provider_type="openrouter",
+        base_url="https://openrouter.ai/api/v1",
+        api_key="sk-or-test",
+        model_id="openai/gpt-4o-mini",
+    )
+    model = create_chat_model(config)
+    assert model.stream_usage is True
+
+
 def test_create_chat_model_disables_provider_internal_retries_for_openai_like_models():
     config = ModelConfig(
         provider_type="openai",
