@@ -42,6 +42,11 @@ import { EntryEditor } from "../components/entry-editor";
 import { EntryList } from "../components/entry-list";
 import { ImportWorldInfoDialog } from "../components/import-world-info-dialog";
 import { useWorldInfoStore } from "../store/use-world-info-store";
+import {
+  mergeWorldInfoEntryOrder,
+  updateWorldInfoEntryBrief,
+  updateWorldInfoEntryBriefs,
+} from "./world-info-entry-cache";
 
 const LAST_PROJECT_KEY = "worldInfo.lastProjectId";
 const LAST_ENTRY_KEY = "worldInfo.lastEntryId";
@@ -151,7 +156,6 @@ export function WorldInfoPage() {
 
   useEffect(() => {
     setCurrentWorldInfo(projectWorldInfo?.id ?? null);
-    setOptimisticEntries(null);
   }, [projectWorldInfo?.id, setCurrentWorldInfo]);
 
   useEffect(() => {
@@ -183,16 +187,7 @@ export function WorldInfoPage() {
     gcTime: 0,
   });
 
-  // 使用本地状态管理条目列表，实现乐观更新
-  const [optimisticEntries, setOptimisticEntries] = useState<WorldInfoEntryBrief[] | null>(null);
-
-  // 派生最终的 entries：优先使用乐观更新，否则使用查询数据
-  const entries = useMemo(() => {
-    if (optimisticEntries !== null) {
-      return optimisticEntries;
-    }
-    return entriesData?.items ?? [];
-  }, [optimisticEntries, entriesData?.items]);
+  const entries = useMemo(() => entriesData?.items ?? [], [entriesData?.items]);
 
   useEffect(() => {
     const restoreEntry = async () => {
@@ -270,29 +265,41 @@ export function WorldInfoPage() {
   // 切换条目启用状态
   const toggleEntryMutation = useMutation({
     mutationFn: (entryId: string) => toggleWorldInfoEntry(entryId),
-    onSuccess: (updatedEntry) => {
+    mutationKey: ["world-info-entry-toggle", currentWorldInfoId],
+    scope: { id: `world-info-entry-state-${currentWorldInfoId ?? ""}` },
+    onMutate: async (entryId) => {
+      const queryKey = ["world-info-entries", currentWorldInfoId] as const;
+      await queryClient.cancelQueries({ queryKey });
+      const previousEntries = queryClient.getQueryData<WorldInfoEntryBriefListResponse>(queryKey);
+
+      queryClient.setQueryData(queryKey, (data: WorldInfoEntryBriefListResponse | undefined) =>
+        updateWorldInfoEntryBrief(data, entryId, (entry) => ({
+          ...entry,
+          isEnabled: !entry.isEnabled,
+        })),
+      );
+
+      return { previousEntries, queryKey };
+    },
+    onSuccess: (updatedEntry, _entryId, context) => {
       toast.success(t("worldInfo.entryStatusUpdated"));
-      setOptimisticEntries(null);
       const brief = extractBrief(updatedEntry);
       queryClient.setQueryData(
-        ["world-info-entries", currentWorldInfoId],
+        context.queryKey,
         (oldData: WorldInfoEntryBriefListResponse | undefined) => {
-          if (!oldData) return oldData;
-
-          return {
-            ...oldData,
-            items: oldData.items.map((entry) => (entry.id === updatedEntry.id ? brief : entry)),
-          };
+          return updateWorldInfoEntryBrief(oldData, updatedEntry.id, () => brief);
         },
       );
+      queryClient.setQueryData(["world-info-entry-detail", updatedEntry.id], updatedEntry);
     },
-    onError: () => {
+    onError: (_error, _entryId, context) => {
       toast.error(t("worldInfo.entryStatusUpdateFailed"));
-      setOptimisticEntries(null);
-      queryClient.invalidateQueries({
-        queryKey: ["world-info-entries", currentWorldInfoId],
-      });
+      if (context?.previousEntries) {
+        queryClient.setQueryData(context.queryKey, context.previousEntries);
+      }
     },
+    onSettled: (_data, _error, _entryId, context) =>
+      context ? queryClient.invalidateQueries({ queryKey: context.queryKey }) : undefined,
   });
 
   // 删除条目
@@ -300,7 +307,6 @@ export function WorldInfoPage() {
     mutationFn: (entryId: string) => deleteWorldInfoEntry(entryId),
     onSuccess: () => {
       toast.success(t("worldInfo.entryDeleted"));
-      setOptimisticEntries(null);
       queryClient.invalidateQueries({
         queryKey: ["world-info-entries", currentWorldInfoId],
       });
@@ -349,25 +355,9 @@ export function WorldInfoPage() {
   /** 处理切换条目启用状态 */
   const handleToggleEntry = useCallback(
     (entryId: string) => {
-      const baseEntries = optimisticEntries ?? entries;
-      const nextEntries = baseEntries.map((entry) =>
-        entry.id === entryId ? { ...entry, isEnabled: !entry.isEnabled } : entry,
-      );
-      setOptimisticEntries(nextEntries);
-      queryClient.setQueryData(
-        ["world-info-entries", currentWorldInfoId],
-        (oldData: WorldInfoEntryBriefListResponse | undefined) => {
-          if (!oldData) return oldData;
-
-          return {
-            ...oldData,
-            items: nextEntries,
-          };
-        },
-      );
       toggleEntryMutation.mutate(entryId);
     },
-    [currentWorldInfoId, entries, optimisticEntries, queryClient, toggleEntryMutation],
+    [toggleEntryMutation],
   );
 
   /** 处理删除条目确认 */
@@ -386,7 +376,6 @@ export function WorldInfoPage() {
   /** 乐观更新条目顺序 */
   const handleReorderEntries = useCallback(
     (reorderedEntries: WorldInfoEntryBrief[]) => {
-      setOptimisticEntries(reorderedEntries);
       queryClient.setQueryData(
         ["world-info-entries", currentWorldInfoId],
         (oldData: WorldInfoEntryBriefListResponse | undefined) => {
@@ -400,7 +389,7 @@ export function WorldInfoPage() {
           }
           return {
             ...oldData,
-            items: reorderedEntries,
+            items: mergeWorldInfoEntryOrder(oldData, reorderedEntries)?.items ?? oldData.items,
           };
         },
       );
@@ -419,7 +408,6 @@ export function WorldInfoPage() {
 
         const updatedEntries = await reorderWorldInfoEntries(currentWorldInfoId!, orders);
         toast.success(t("worldInfo.entryOrderUpdated"));
-        setOptimisticEntries(null);
         const briefEntries = updatedEntries.map(extractBrief);
         queryClient.setQueryData(
           ["world-info-entries", currentWorldInfoId],
@@ -427,14 +415,13 @@ export function WorldInfoPage() {
             if (!oldData) return oldData;
             return {
               ...oldData,
-              items: briefEntries,
+              items: mergeWorldInfoEntryOrder(oldData, briefEntries)?.items ?? oldData.items,
             };
           },
         );
       } catch (error) {
         console.error("Failed to save drag order:", error);
         toast.error(t("worldInfo.entryOrderUpdateFailed"));
-        setOptimisticEntries(null);
         queryClient.invalidateQueries({
           queryKey: ["world-info-entries", currentWorldInfoId],
         });
@@ -487,7 +474,6 @@ export function WorldInfoPage() {
       batchDeleteWorldInfoEntries(currentWorldInfoId, entryIds)
         .then((count) => {
           toast.success(t("worldInfo.batchDeleted", { count }));
-          setOptimisticEntries(null);
           setCurrentEntry(null);
           queryClient.invalidateQueries({
             queryKey: ["world-info-entries", currentWorldInfoId],
@@ -500,31 +486,42 @@ export function WorldInfoPage() {
     [currentWorldInfoId, queryClient, setCurrentEntry, t],
   );
 
+  const batchToggleMutation = useMutation({
+    mutationFn: ({ entryIds, isEnabled }: { entryIds: string[]; isEnabled: boolean }) =>
+      batchToggleWorldInfoEntries(currentWorldInfoId!, entryIds, isEnabled),
+    mutationKey: ["world-info-entry-batch-toggle", currentWorldInfoId],
+    scope: { id: `world-info-entry-state-${currentWorldInfoId ?? ""}` },
+    onMutate: async ({ entryIds, isEnabled }) => {
+      const queryKey = ["world-info-entries", currentWorldInfoId] as const;
+      await queryClient.cancelQueries({ queryKey });
+      const previousEntries = queryClient.getQueryData<WorldInfoEntryBriefListResponse>(queryKey);
+
+      queryClient.setQueryData(queryKey, (data: WorldInfoEntryBriefListResponse | undefined) =>
+        updateWorldInfoEntryBriefs(data, entryIds, (entry) => ({ ...entry, isEnabled })),
+      );
+
+      return { previousEntries, queryKey };
+    },
+    onSuccess: (count) => {
+      toast.success(t("worldInfo.batchToggled", { count }));
+    },
+    onError: (_error, _variables, context) => {
+      toast.error(t("worldInfo.entryStatusUpdateFailed"));
+      if (context?.previousEntries) {
+        queryClient.setQueryData(context.queryKey, context.previousEntries);
+      }
+    },
+    onSettled: (_data, _error, _variables, context) =>
+      context ? queryClient.invalidateQueries({ queryKey: context.queryKey }) : undefined,
+  });
+
   /** 批量切换条目开关 */
   const handleBatchToggle = useCallback(
     (entryIds: string[], isEnabled: boolean) => {
       if (!currentWorldInfoId) return;
-
-      const idSet = new Set(entryIds);
-      const nextEntries = entries.map((entry) =>
-        idSet.has(entry.id) ? { ...entry, isEnabled } : entry,
-      );
-      setOptimisticEntries(nextEntries);
-
-      batchToggleWorldInfoEntries(currentWorldInfoId, entryIds, isEnabled)
-        .then((count) => {
-          toast.success(t("worldInfo.batchToggled", { count }));
-          setOptimisticEntries(null);
-        })
-        .catch(() => {
-          toast.error(t("worldInfo.entryStatusUpdateFailed"));
-          setOptimisticEntries(null);
-          queryClient.invalidateQueries({
-            queryKey: ["world-info-entries", currentWorldInfoId],
-          });
-        });
+      batchToggleMutation.mutate({ entryIds, isEnabled });
     },
-    [currentWorldInfoId, entries, queryClient, t],
+    [batchToggleMutation, currentWorldInfoId],
   );
 
   /** 处理从搜索面板导航到匹配行 */
