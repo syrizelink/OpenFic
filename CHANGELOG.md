@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.7.5](https://github.com/syrizelink/OpenFic/compare/v0.7.4...v0.7.5) (2026-07-26)
+
+
+### 🐛 问题修复
+
+* **agent:** 修复会话结束后设置仍锁定的问题 ([#137](https://github.com/syrizelink/OpenFic/issues/137)) ([103c392](https://github.com/syrizelink/OpenFic/commit/103c392043f2eb246a974e431e40d0e15058a391))
+* **backend:** 修复 Ollama Cloud 地址覆盖导致的模型调用失败问题 ([#146](https://github.com/syrizelink/OpenFic/issues/146)) ([b5d116d](https://github.com/syrizelink/OpenFic/commit/b5d116d065dfa9db24ee8635a8d97b6cb8e2e9cd))
+* **backend:** 修复 Windows 后台任务队列阻塞的问题 ([#147](https://github.com/syrizelink/OpenFic/issues/147)) ([cf1ffa1](https://github.com/syrizelink/OpenFic/commit/cf1ffa1e0c7b47e1c38c7a7019bcb8e91f38791f))
+* **desktop:** 为桌面端运行环境添加国内下载源 ([#126](https://github.com/syrizelink/OpenFic/issues/126)) ([5ba142e](https://github.com/syrizelink/OpenFic/commit/5ba142e50d5fef9f6f425d56cc5612264fe09d14))
+* **frontend:** 修复世界书开关状态错乱的问题 ([#138](https://github.com/syrizelink/OpenFic/issues/138)) ([7d5eb27](https://github.com/syrizelink/OpenFic/commit/7d5eb27da67edb5fdb3cc0aed4649a10892c08ae))
+* **frontend:** 修复已删除项目仍可打开的问题 ([#129](https://github.com/syrizelink/OpenFic/issues/129)) ([0542e8f](https://github.com/syrizelink/OpenFic/commit/0542e8faeab65ae34292ac6d329a61e7772a4e68))
+* **frontend:** 修复提示词编辑内容丢失和本地修改提示缺失的问题 ([#140](https://github.com/syrizelink/OpenFic/issues/140)) ([954d552](https://github.com/syrizelink/OpenFic/commit/954d5529c5941ac3172cf5a3b6b1d1cb636431db))
+* **frontend:** 修复桌面端后端资源地址解析异常 ([#136](https://github.com/syrizelink/OpenFic/issues/136)) ([09c570f](https://github.com/syrizelink/OpenFic/commit/09c570f4ac0b96b88427eed48de76da80ef9e525))
+* **frontend:** 取消提供商任务类型筛选 ([#143](https://github.com/syrizelink/OpenFic/issues/143)) ([f582c8e](https://github.com/syrizelink/OpenFic/commit/f582c8ef1b4bd98e3e3ee4f461fb4e0341f7ed23))
+* **storage:** 修复章节排序更新冲突 ([#141](https://github.com/syrizelink/OpenFic/issues/141)) ([dade8e8](https://github.com/syrizelink/OpenFic/commit/dade8e899dbddf6ae8ab8eae190aa1a3e81be034))
+
+
+### 🔧 杂项
+
+* **frontend:** 添加系统默认字体选项 ([#128](https://github.com/syrizelink/OpenFic/issues/128)) ([3980ee2](https://github.com/syrizelink/OpenFic/commit/3980ee2af3d85c66016b0d2ada45c7058596ef8c))
+
 ## [0.7.4](https://github.com/syrizelink/OpenFic/compare/v0.7.3...v0.7.4) (2026-07-25)
 
 
