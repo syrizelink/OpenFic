@@ -231,6 +231,7 @@
     },
     "words": "字",
     "notes": "笔记",
+    "rules": "规则",
     "newNote": "新建笔记",
     "untitledNote": "未命名笔记",
     "deleteNoteConfirm": "确定要删除「{{title}}」吗？此操作不可撤销。",
@@ -413,6 +414,22 @@
         "rebuildSuccess": "索引重建任务已提交",
         "rebuildFailed": "索引重建失败"
       }
+    },
+    "projectRules": {
+      "hint": "仅对当前项目生效",
+      "newRule": "新建规则",
+      "empty": "暂无项目规则，点击右上角新建",
+      "loadFailed": "加载项目规则失败",
+      "untitled": "未命名规则",
+      "editTitle": "编辑项目规则",
+      "title": "标题",
+      "titlePlaceholder": "输入规则标题",
+      "content": "内容",
+      "contentPlaceholder": "输入规则内容，将注入当前项目的 AI 对话上下文",
+      "saving": "保存中…",
+      "deleteTitle": "删除规则",
+      "deleteDescription": "删除后无法恢复，确定要删除这条项目规则吗？",
+      "agentLocked": "Agent 会话运行中，无法修改项目规则"
     }
   },
   "editor": {

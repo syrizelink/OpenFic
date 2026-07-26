@@ -515,6 +515,86 @@ export async function reorderAgentRules(ruleIds: string[]): Promise<AgentRule[]>
 }
 
 // ============================================
+// Project Rules API
+// ============================================
+
+import type {
+  ProjectRule,
+  ProjectRuleCreate,
+  ProjectRuleUpdate,
+  ProjectRuleListResponse,
+  ProjectRuleListParams,
+} from "./project-rule.types";
+
+function transformProjectRule(raw: Record<string, unknown>): ProjectRule {
+  return {
+    id: raw.id as string,
+    projectId: raw.project_id as string,
+    title: raw.title as string,
+    content: raw.content as string,
+    orderIndex: (raw.order_index as number) ?? 0,
+    createdAt: raw.created_at as string,
+    updatedAt: raw.updated_at as string,
+  };
+}
+
+export async function fetchProjectRules(
+  projectId: string,
+  params?: ProjectRuleListParams,
+): Promise<ProjectRuleListResponse> {
+  const response = await apiClient.get(`/projects/${projectId}/rules`, {
+    params: {
+      page: params?.page ?? 1,
+      page_size: params?.pageSize ?? 100,
+    },
+  });
+  const data = response.data;
+  return {
+    items: (data.items as Record<string, unknown>[]).map(transformProjectRule),
+    total: data.total,
+    page: data.page,
+    pageSize: data.page_size,
+  };
+}
+
+export async function createProjectRule(
+  projectId: string,
+  data: ProjectRuleCreate,
+): Promise<ProjectRule> {
+  const response = await apiClient.post(`/projects/${projectId}/rules`, {
+    title: data.title,
+    content: data.content,
+  });
+  return transformProjectRule(response.data);
+}
+
+export async function updateProjectRule(
+  projectId: string,
+  ruleId: string,
+  data: ProjectRuleUpdate,
+): Promise<ProjectRule> {
+  const response = await apiClient.patch(`/projects/${projectId}/rules/${ruleId}`, {
+    title: data.title,
+    content: data.content,
+  });
+  return transformProjectRule(response.data);
+}
+
+export async function deleteProjectRule(projectId: string, ruleId: string): Promise<void> {
+  await apiClient.delete(`/projects/${projectId}/rules/${ruleId}`);
+}
+
+export async function reorderProjectRules(
+  projectId: string,
+  ruleIds: string[],
+): Promise<ProjectRule[]> {
+  const response = await apiClient.post(`/projects/${projectId}/rules/reorder`, {
+    rule_ids: ruleIds,
+  });
+  return (response.data as Record<string, unknown>[]).map(transformProjectRule);
+}
+
+// ============================================
 // Agent Memories API
 // ============================================
 

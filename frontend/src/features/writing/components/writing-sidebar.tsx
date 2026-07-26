@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useWritingStore } from "../store/use-writing-store";
 import { ChapterSidebar } from "./chapter-sidebar";
 import { NoteSidebar } from "./note-sidebar";
+import { ProjectRulesSidebar } from "./project-rules-sidebar";
 
 interface WritingSidebarProps {
   projectId: string;
@@ -47,12 +48,13 @@ export function WritingSidebar({
       >
         <SegmentedControl.Root
           value={sidebarView}
-          onValueChange={(value) => setSidebarView(value as "chapters" | "notes")}
+          onValueChange={(value) => setSidebarView(value as "chapters" | "notes" | "rules")}
           size="2"
           style={{ width: "100%" }}
         >
           <SegmentedControl.Item value="chapters">{t("writing.chapters")}</SegmentedControl.Item>
           <SegmentedControl.Item value="notes">{t("writing.notes")}</SegmentedControl.Item>
+          <SegmentedControl.Item value="rules">{t("writing.rules")}</SegmentedControl.Item>
         </SegmentedControl.Root>
       </div>
 
@@ -66,11 +68,17 @@ export function WritingSidebar({
           initialCurrentChapterNavigationKey={initialCurrentChapterNavigationKey}
           onOpenSummary={onOpenSummary}
         />
-      ) : (
+      ) : sidebarView === "notes" ? (
         <NoteSidebar
           projectId={projectId}
           onNoteSelect={onNoteSelect}
           onAddToConversation={onAddToConversation}
+          isAgentLocked={isAgentLocked}
+          compact={compact}
+        />
+      ) : (
+        <ProjectRulesSidebar
+          projectId={projectId}
           isAgentLocked={isAgentLocked}
           compact={compact}
         />

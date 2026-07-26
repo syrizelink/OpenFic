@@ -40,6 +40,7 @@ from app.api.routers import (
     models,
     notes,
     projects,
+    project_rules,
     prompt_chains,
     retrieval_index,
     settings,
@@ -344,6 +345,7 @@ def create_app() -> FastAPI:
     app.include_router(skills.router, prefix=app_settings.api_v1_prefix)
     app.include_router(skill_reference_docs.router, prefix=app_settings.api_v1_prefix)
     app.include_router(agent_rules.router, prefix=app_settings.api_v1_prefix)
+    app.include_router(project_rules.router, prefix=app_settings.api_v1_prefix)
     app.include_router(agent_memories.router, prefix=app_settings.api_v1_prefix)
     app.include_router(chapter_context.router, prefix=app_settings.api_v1_prefix)
     app.include_router(tasks.router, prefix=app_settings.api_v1_prefix)

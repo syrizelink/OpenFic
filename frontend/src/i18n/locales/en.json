@@ -231,6 +231,7 @@
     },
     "words": "words",
     "notes": "Notes",
+    "rules": "Rules",
     "newNote": "New Note",
     "untitledNote": "Untitled Note",
     "deleteNoteConfirm": "Are you sure you want to delete \"{{title}}\"? This action cannot be undone.",
@@ -413,6 +414,22 @@
         "rebuildSuccess": "Index rebuild job submitted",
         "rebuildFailed": "Failed to rebuild index"
       }
+    },
+    "projectRules": {
+      "hint": "Applies to this project only",
+      "newRule": "New rule",
+      "empty": "No project rules yet. Click the button above to create one.",
+      "loadFailed": "Failed to load project rules",
+      "untitled": "Untitled rule",
+      "editTitle": "Edit project rule",
+      "title": "Title",
+      "titlePlaceholder": "Enter rule title",
+      "content": "Content",
+      "contentPlaceholder": "Enter rule content. It will be injected into AI conversations for this project.",
+      "saving": "Saving…",
+      "deleteTitle": "Delete rule",
+      "deleteDescription": "This cannot be undone. Delete this project rule?",
+      "agentLocked": "Agent session is running; project rules cannot be modified"
     }
   },
   "editor": {

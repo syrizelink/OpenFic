@@ -35,6 +35,7 @@ from app.api.routers import (
     models,
     notes,
     projects,
+    project_rules,
     prompt_chains,
     retrieval_index,
     skills,
@@ -75,6 +76,7 @@ def _create_test_app() -> FastAPI:
     test_app.include_router(prompt_chains.router, prefix="/api/v1")
     test_app.include_router(agent_definitions.router, prefix="/api/v1")
     test_app.include_router(agent_rules.router, prefix="/api/v1")
+    test_app.include_router(project_rules.router, prefix="/api/v1")
     test_app.include_router(retrieval_index.router, prefix="/api/v1")
     test_app.include_router(retrieval_index.global_router, prefix="/api/v1")
     test_app.include_router(skills.router, prefix="/api/v1")
