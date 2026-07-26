@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.7.6](https://github.com/syrizelink/OpenFic/compare/v0.7.5...v0.7.6) (2026-07-26)
+
+
+### 🐛 问题修复
+
+* **backend:** 修复Windows上后台任务事件无法实时同步的问题 ([#148](https://github.com/syrizelink/OpenFic/issues/148)) ([f4e83e1](https://github.com/syrizelink/OpenFic/commit/f4e83e1c2e8affb07029750c64d2d6bd0f1779b3))
+* **backend:** 修复开发服务器运行时配置异常 ([#152](https://github.com/syrizelink/OpenFic/issues/152)) ([e5e93ec](https://github.com/syrizelink/OpenFic/commit/e5e93ec324ca28ae0e6e06e698c59e97367da7b8))
+* **backend:** 修复部分提供商流式 token 用量缺失的问题 ([#158](https://github.com/syrizelink/OpenFic/issues/158)) ([16376e9](https://github.com/syrizelink/OpenFic/commit/16376e9baa618cc91ce74217f5a354e74ec01d9f))
+* **desktop:** 修复桌面端主题与字体无法跟随前端同步的问题 ([#157](https://github.com/syrizelink/OpenFic/issues/157)) ([a2f8ebf](https://github.com/syrizelink/OpenFic/commit/a2f8ebf495a67fa68d30c181fcdcdc6bd4afe70f))
+
+
+### 📚 文档
+
+* 更新 README 章节结构 ([#155](https://github.com/syrizelink/OpenFic/issues/155)) ([154fab7](https://github.com/syrizelink/OpenFic/commit/154fab748fd17b448cba173821234b7bc0acf70c))
+
+
+### 🔧 杂项
+
+* **desktop:** 添加窗口状态记忆能力 ([#159](https://github.com/syrizelink/OpenFic/issues/159)) ([eb0e1a4](https://github.com/syrizelink/OpenFic/commit/eb0e1a4816bcd6d9b0682a8c96190eb52e3fc3a6))
+* 添加结构化 Issue 模板 ([#156](https://github.com/syrizelink/OpenFic/issues/156)) ([9e3b8ad](https://github.com/syrizelink/OpenFic/commit/9e3b8ad04912331507efa742d9963b7f1ed72883))
+
 ## [0.7.5](https://github.com/syrizelink/OpenFic/compare/v0.7.4...v0.7.5) (2026-07-26)
 
 
