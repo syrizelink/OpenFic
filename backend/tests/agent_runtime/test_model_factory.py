@@ -260,19 +260,20 @@ def test_create_chat_model_cohere_uses_native_client():
     assert isinstance(model, ChatCohere)
 
 
-def test_create_chat_model_ollama_uses_native_client():
+def test_create_chat_model_ollama_uses_openai_compatible_client():
     config = ModelConfig(
         provider_type="ollama",
-        base_url="http://localhost:11434",
+        base_url="https://ollama.com/v1",
         api_key="ollama-test",
-        model_id="llama3.2",
+        model_id="glm-5",
     )
 
     model = create_chat_model(config)
 
-    from langchain_ollama import ChatOllama
+    from langchain_openai import ChatOpenAI
 
-    assert isinstance(model, ChatOllama)
+    assert isinstance(model, ChatOpenAI)
+    assert str(model.root_client.base_url) == "https://ollama.com/v1/"
 
 
 def test_create_chat_model_amazon_nova_uses_native_client():

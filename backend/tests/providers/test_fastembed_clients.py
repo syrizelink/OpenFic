@@ -111,14 +111,14 @@ def test_rerank_client_accepts_builtin_provider():
     assert client.config.provider_type == "builtin"
 
 
-def test_embedding_client_forces_openai_compatible_for_non_builtin_provider():
+def test_embedding_client_uses_openai_compatible_for_ollama_even_when_not_forced():
     client = EmbeddingClient(
         EmbeddingConfig(
-            provider_type="cohere",
-            base_url="https://api.cohere.com/v2",
+            provider_type="ollama",
+            base_url="https://ollama.com/v1",
             api_key="test-key",
-            model_id="embed-v4.0",
-            use_openai_compatible=True,
+            model_id="embeddinggemma",
+            use_openai_compatible=False,
         )
     )
 

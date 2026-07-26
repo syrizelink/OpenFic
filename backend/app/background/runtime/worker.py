@@ -221,7 +221,7 @@ class BackgroundWorker:
         try:
             job = await job_repo.get_job(session, job_id)
             if job is not None:
-                await self._run_lifecycle_hook(session, publisher, job, "cancelled", reason)
+                await self._run_lifecycle_hook_safely(session, publisher, job, "cancelled", reason)
                 await job_service.mark_cancelled(session, publisher, job, reason=reason)
                 await job_service.commit_and_notify(session)
         finally:
@@ -234,7 +234,7 @@ class BackgroundWorker:
         try:
             job = await job_repo.get_job(session, job_id)
             if job is not None:
-                await self._run_lifecycle_hook(session, publisher, job, "timeout", error_message)
+                await self._run_lifecycle_hook_safely(session, publisher, job, "timeout", error_message)
                 await job_service.mark_timeout(session, publisher, job, error_message=error_message)
                 await job_service.commit_and_notify(session)
         finally:
@@ -248,12 +248,12 @@ class BackgroundWorker:
             job = await job_repo.get_job(session, job_id)
             if job is not None:
                 if job.status == JOB_STATUS_CANCEL_REQUESTED:
-                    await self._run_lifecycle_hook(session, publisher, job, "cancelled", job.cancel_reason or error_message)
+                    await self._run_lifecycle_hook_safely(session, publisher, job, "cancelled", job.cancel_reason or error_message)
                     await job_service.mark_cancelled(session, publisher, job, reason=job.cancel_reason or error_message)
                 elif job.attempt_count < job.max_attempts:
                     await job_service.schedule_retry(session, publisher, job, reason=error_message)
                 else:
-                    await self._run_lifecycle_hook(session, publisher, job, "failed", error_message)
+                    await self._run_lifecycle_hook_safely(session, publisher, job, "failed", error_message)
                     await job_service.mark_failed(
                         session,
                         publisher,
@@ -264,6 +264,22 @@ class BackgroundWorker:
         finally:
             with suppress(Exception):
                 await session.close()
+
+    async def _run_lifecycle_hook_safely(
+        self,
+        session,
+        publisher: BackgroundEventPublisher,
+        job,
+        hook_name: str,
+        reason: str,
+    ) -> None:
+        try:
+            await self._run_lifecycle_hook(session, publisher, job, hook_name, reason)
+        except Exception as exc:
+            logger.bind(job_id=job.id, worker_id=self.worker_id).opt(exception=True).error(
+                f"background job {hook_name} hook failed: {exc}"
+            )
+            await session.rollback()
 
     async def _run_lifecycle_hook(
         self,

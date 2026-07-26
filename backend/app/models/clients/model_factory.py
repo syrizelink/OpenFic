@@ -209,18 +209,6 @@ def create_chat_model(config: ModelConfig) -> BaseChatModel:
             cohere_kwargs["model_kwargs"] = {"max_tokens": config.max_tokens}
         return ChatCohere(**cohere_kwargs)
 
-    if provider == "ollama":
-        from langchain_ollama import ChatOllama
-
-        return ChatOllama(**_compact_kwargs(
-            model=config.model_id,
-            base_url=config.base_url or None,
-            temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
-            top_p=_non_default(config.top_p, DEFAULT_TOP_P),
-            top_k=_non_default(config.top_k, DEFAULT_TOP_K),
-            num_predict=config.max_tokens,
-        ))
-
     if provider == "amazon-nova":
         from langchain_amazon_nova import ChatAmazonNova
 

@@ -75,7 +75,7 @@ class EmbeddingClient:
             "builtin"
             if config.provider_type == "builtin"
             else "openai-compatible"
-            if config.use_openai_compatible
+            if config.use_openai_compatible or config.provider_type == "ollama"
             else config.provider_type
         )
 
@@ -99,14 +99,6 @@ class EmbeddingClient:
             self._embeddings = MistralAIEmbeddings(
                 model=config.model_id,
                 api_key=cast(Any, config.api_key),
-            )
-        elif provider == "ollama":
-            from langchain_ollama import OllamaEmbeddings
-
-            self._embeddings = OllamaEmbeddings(
-                model=config.model_id,
-                base_url=config.base_url,
-                dimensions=config.dimensions,
             )
         elif provider == "cohere":
             from langchain_cohere import CohereEmbeddings

@@ -273,22 +273,6 @@ async def handle_retrieval_chapter_index_batch(context: JobContext) -> dict[str,
             ),
         }
 
-    model = await model_repo.get_by_id(
-        context.session, metadata.embedding_model_ref_id
-    )
-    if model is None or model.task_type != "embedding":
-        raise ValueError("default_embedding_model 不存在或不是 embedding 模型")
-
-    embedding_client = await _maybe_await(
-        _build_embedding_client(context.session, metadata.embedding_model_ref_id)
-    )
-    service = ChapterIndexIntegrationService()
-
-    async def mark_chapter_running(chapter_id: str) -> None:
-        item = item_map.get(chapter_id)
-        if item is not None and item.status == JOB_STATUS_PENDING:
-            await _mark_item_running(context.session, item)
-
     # 按 INDEX_BATCH_CHUNK_SIZE 拆分为子批次，每批独立提交事务并推送进度。
     # 这样前端能看到增量更新（如 10/101 → 20/101 → …），而非只在全完成时跳到 100%。
     #
@@ -296,6 +280,22 @@ async def handle_retrieval_chapter_index_batch(context: JobContext) -> dict[str,
     # 都会终止整个任务：当前批次标记失败后，剩余未处理章节统一标记失败，
     # 以便用户发现问题后重新发起完整索引。
     try:
+        model = await model_repo.get_by_id(
+            context.session, metadata.embedding_model_ref_id
+        )
+        if model is None or model.task_type != "embedding":
+            raise ValueError("default_embedding_model 不存在或不是 embedding 模型")
+
+        embedding_client = await _maybe_await(
+            _build_embedding_client(context.session, metadata.embedding_model_ref_id)
+        )
+        service = ChapterIndexIntegrationService()
+
+        async def mark_chapter_running(chapter_id: str) -> None:
+            item = item_map.get(chapter_id)
+            if item is not None and item.status == JOB_STATUS_PENDING:
+                await _mark_item_running(context.session, item)
+
         async for progress in service.stream_index_chapters(
             context.session,
             chapter_ids=chapter_ids,

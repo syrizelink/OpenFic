@@ -101,6 +101,21 @@ def _sample_modelsdev_payload() -> dict[str, object]:
                 }
             },
         },
+        "ollama-cloud": {
+            "id": "ollama-cloud",
+            "name": "Ollama Cloud",
+            "api": "https://ollama.com/v1",
+            "models": {
+                "glm-5": {
+                    "id": "glm-5",
+                    "name": "glm-5",
+                    "family": "glm",
+                    "release_date": "2026-02-11",
+                    "reasoning": True,
+                    "tool_call": True,
+                }
+            },
+        },
         "upstage": {
             "id": "upstage",
             "name": "Upstage",
@@ -160,7 +175,7 @@ def _build_service(tmp_path: Path) -> ModelProviderCatalogService:
     )
     _write_json(source_snapshot_path, raw_payload)
 
-    for provider_id in ["openai", "nvidia", "openrouter", "upstage"]:
+    for provider_id in ["openai", "nvidia", "openrouter", "ollama-cloud", "upstage"]:
         (bundled_logo_dir / provider_id).mkdir(parents=True, exist_ok=True)
         (bundled_logo_dir / provider_id / "logo.svg").write_text(
             f"<svg>{provider_id}</svg>", encoding="utf-8"
@@ -203,11 +218,12 @@ async def test_catalog_service_uses_bundled_snapshot_until_refresh(tmp_path: Pat
 
     assert [provider.provider_type for provider in providers] == [
         "nvidia-ai-endpoints",
+        "ollama",
         "openai",
         "openrouter",
         "upstage",
     ]
-    assert providers[1].icon_path == _OPENAI_ICON_URL
+    assert providers[2].icon_path == _OPENAI_ICON_URL
 
 
 @pytest.mark.asyncio
@@ -233,6 +249,16 @@ async def test_catalog_service_refreshes_cache_and_keeps_last_successful_cache_o
     openai_provider = await service.get_provider("openai")
     assert openai_provider.default_url == "https://api.openai.com/v1"
     assert openai_provider.model_counts == {"llm": 2, "embedding": 1, "rerank": 0}
+
+
+@pytest.mark.asyncio
+async def test_catalog_service_uses_modelsdev_url_for_ollama(tmp_path: Path) -> None:
+    service = _build_service(tmp_path)
+
+    provider = await service.get_provider("ollama")
+
+    assert provider.default_url == "https://ollama.com/v1"
+    assert provider.api == "https://ollama.com/v1"
 
 
 @pytest.mark.asyncio

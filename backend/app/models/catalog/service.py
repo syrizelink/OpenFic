@@ -26,7 +26,6 @@ from app.settings import BACKEND_DATA_DIR
 class _ProviderDefinition:
     provider_type: str
     models_dev_provider_id: str
-    default_url: str | None = None
 
 
 _CATALOG_DIR = Path(__file__).resolve().parent
@@ -37,30 +36,18 @@ _CATALOG_ICON_PATH_TEMPLATE = "/icons/model/catalog/{provider_id}.svg"
 _SNAPSHOT_SCHEMA_VERSION = 4
 
 _PROVIDER_DEFINITIONS: tuple[_ProviderDefinition, ...] = (
-    _ProviderDefinition("openai", "openai", "https://api.openai.com/v1"),
-    _ProviderDefinition("anthropic", "anthropic", "https://api.anthropic.com"),
-    _ProviderDefinition(
-        "google-genai",
-        "google",
-        "https://generativelanguage.googleapis.com",
-    ),
-    _ProviderDefinition("ollama", "ollama-cloud", "http://localhost:11434"),
-    _ProviderDefinition("groq", "groq", "https://api.groq.com/openai/v1"),
-    _ProviderDefinition(
-        "huggingface",
-        "huggingface",
-        "https://router.huggingface.co/v1",
-    ),
-    _ProviderDefinition("mistral", "mistral", "https://api.mistral.ai/v1"),
-    _ProviderDefinition(
-        "nvidia-ai-endpoints",
-        "nvidia",
-        "https://integrate.api.nvidia.com/v1",
-    ),
-    _ProviderDefinition("cohere", "cohere", "https://api.cohere.com/v2"),
-    _ProviderDefinition("openrouter", "openrouter", "https://openrouter.ai/api/v1"),
-    _ProviderDefinition("amazon-nova", "nova", "https://api.nova.amazon.com/v1"),
-    _ProviderDefinition("deepseek", "deepseek", "https://api.deepseek.com"),
+    _ProviderDefinition("openai", "openai"),
+    _ProviderDefinition("anthropic", "anthropic"),
+    _ProviderDefinition("google-genai", "google"),
+    _ProviderDefinition("ollama", "ollama-cloud"),
+    _ProviderDefinition("groq", "groq"),
+    _ProviderDefinition("huggingface", "huggingface"),
+    _ProviderDefinition("mistral", "mistral"),
+    _ProviderDefinition("nvidia-ai-endpoints", "nvidia"),
+    _ProviderDefinition("cohere", "cohere"),
+    _ProviderDefinition("openrouter", "openrouter"),
+    _ProviderDefinition("amazon-nova", "nova"),
+    _ProviderDefinition("deepseek", "deepseek"),
 )
 
 _PROVIDER_BY_TYPE = {definition.provider_type: definition for definition in _PROVIDER_DEFINITIONS}
@@ -271,16 +258,11 @@ class ModelProviderCatalogService:
     ) -> CatalogProviderSummary:
         counts = dict(provider_payload.get("model_counts") or {})
         provider_type = str(provider_payload.get("provider_type") or "")
-        definition = _PROVIDER_BY_TYPE.get(provider_type)
         models_dev_provider_id = provider_payload.get("models_dev_provider_id")
         return CatalogProviderSummary(
             provider_type=provider_type,
             display_name=str(provider_payload.get("display_name") or provider_type),
-            default_url=(
-                definition.default_url
-                if definition is not None
-                else provider_payload.get("default_url")
-            ),
+            default_url=provider_payload.get("api"),
             api=provider_payload.get("api"),
             icon_path=(
                 self._icon_path_for(str(models_dev_provider_id))
@@ -323,11 +305,7 @@ class ModelProviderCatalogService:
             provider_payload = {
                 "provider_type": provider_type,
                 "display_name": display_name,
-                "default_url": (
-                    definition.default_url
-                    if definition is not None
-                    else raw_provider.get("api")
-                ),
+                "default_url": raw_provider.get("api"),
                 "api": raw_provider.get("api"),
                 "icon_path": self._icon_path_for(models_dev_provider_id),
                 "models_dev_provider_id": models_dev_provider_id,

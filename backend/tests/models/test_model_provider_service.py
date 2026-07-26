@@ -101,7 +101,7 @@ async def test_create_provider_uses_catalog_api_for_directory_provider(monkeypat
                 (),
                 {
                     "api": "https://api.upstage.ai",
-                    "default_url": "https://api.upstage.ai/v1/solar",
+                    "default_url": "https://api.upstage.ai",
                 },
             )()
 
@@ -131,7 +131,7 @@ async def test_create_provider_uses_catalog_api_for_directory_provider(monkeypat
         provider_type="upstage",
     )
 
-    assert captured["url"] == "https://api.upstage.ai/v1/solar"
+    assert captured["url"] == "https://api.upstage.ai"
 
 
 @pytest.mark.asyncio

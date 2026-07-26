@@ -17,7 +17,6 @@ from app.models.adapters.openai_compat_family import (
     GroqAdapter,
     HuggingFaceAdapter,
     NvidiaAIEndpointsAdapter,
-    OllamaAdapter,
 )
 from app.models.adapters.openai_compatible import OpenAICompatibleAdapter
 from app.models.adapters.openrouter import OpenRouterAdapter
@@ -33,7 +32,6 @@ __all__ = [
     "HuggingFaceAdapter",
     "MistralAdapter",
     "NvidiaAIEndpointsAdapter",
-    "OllamaAdapter",
     "OpenAIAdapter",
     "OpenAICompatibleAdapter",
     "OpenRouterAdapter",

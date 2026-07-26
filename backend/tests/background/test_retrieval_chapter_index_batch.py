@@ -391,6 +391,34 @@ async def test_retrieval_chapter_index_batch_saves_failed_state(
 
 
 @pytest.mark.asyncio
+async def test_retrieval_chapter_index_batch_marks_states_failed_when_embedding_client_creation_fails(
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    job, item, state, _ = await _seed_job(session)
+
+    async def fail_build_embedding_client(_session, _model_ref_id):
+        raise RuntimeError("embedding client unavailable")
+
+    monkeypatch.setattr(definition, "_build_embedding_client", fail_build_embedding_client)
+    context = JobContext(
+        session=session,
+        job=job,
+        publisher=BackgroundEventPublisher(),
+    )
+    context.check_cancelled = _noop_check_cancelled  # type: ignore[method-assign]
+
+    with pytest.raises(RuntimeError, match="embedding client unavailable"):
+        await definition.handle_retrieval_chapter_index_batch(context)
+
+    await session.refresh(item)
+    await session.refresh(state)
+    assert item.status == JOB_STATUS_FAILED
+    assert state.status == "failed"
+    assert state.error_message == "索引中止：embedding client unavailable"
+
+
+@pytest.mark.asyncio
 async def test_retrieval_chapter_index_batch_rejects_stale_embedding_model_metadata(
     session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,

@@ -136,7 +136,7 @@ class ModelProviderService:
         except KeyError:
             return url
 
-        return catalog_provider.default_url or catalog_provider.api or url
+        return catalog_provider.api or url
 
     async def update_provider(
         self,

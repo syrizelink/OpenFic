@@ -47,7 +47,6 @@ dependencies = [
     "langchain-huggingface>=1.2.2",
     "langchain-mistralai>=1.1.1",
     "langchain-nvidia-ai-endpoints>=1.4.0",
-    "langchain-ollama>=1.0.1",
     "langchain-openai>=1.1.6",
     "langchain-openrouter>=0.2.3",
     "langgraph>=1.0.8",

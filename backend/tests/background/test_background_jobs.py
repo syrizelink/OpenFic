@@ -133,6 +133,10 @@ async def _failure_hook(context: JobContext, reason: str) -> None:
     )
 
 
+async def _failing_failure_hook(_context: JobContext, _reason: str) -> None:
+    raise RuntimeError("failure hook failed")
+
+
 async def _cancelled_hook(context: JobContext, reason: str) -> None:
     await background_service.append_event(
         context.session,
@@ -884,6 +888,43 @@ async def test_worker_runs_failure_hook_after_rollback(tmp_path):
         assert stored.status == "failed"
         assert any(event.event_type == "failure_hook_ran" for event in events)
         assert any(event.type == "failure_hook_ran" for event in transport.events)
+    finally:
+        await session.close()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_worker_marks_job_failed_when_failure_hook_raises(tmp_path):
+    engine, factory = await _configure_file_database(tmp_path)
+    session = factory()
+    try:
+        get_job_registry().register(
+            JobDefinition(
+                type="failing_hook_job",
+                name="Failing hook job",
+                description="Fails while finalizing a failed job.",
+                input_model=_NoopInput,
+                handler=_failing_handler,
+                on_failed=_failing_failure_hook,
+            )
+        )
+        job = await job_repo.create_job(
+            session,
+            BackgroundJob(type="failing_hook_job", payload_json='{"value":"x"}'),
+        )
+        await background_service.commit_and_notify(session)
+
+        worker = BackgroundWorker(
+            worker_id="worker-1",
+            transport=RecordingTransport(),
+            scan_interval_seconds=1,
+        )
+        with patch.object(JobContext, "check_cancelled", new_callable=AsyncMock):
+            await worker._run_job(job.id)
+
+        session.expire(job)
+        await session.refresh(job)
+        assert job.status == JOB_STATUS_FAILED
     finally:
         await session.close()
         await engine.dispose()
