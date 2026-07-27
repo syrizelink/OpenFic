@@ -12,6 +12,7 @@ from app.agent_runtime.tools.impls.chapter.refs import (
     resolve_chapter_from_list,
     resolve_volume_from_list,
 )
+from app.agent_runtime.tools.text_match import fuzzy_replace
 from app.storage.models.chapter import Chapter
 from app.storage.models.volume import Volume
 from app.storage.repos import chapter_repo, volume_repo
@@ -165,12 +166,12 @@ async def build_edit_chapter_tool_result_preview(
     updated_title = new_title if new_title is not None else before.title
     updated_content = before.content
     if old_content is not None and new_content is not None:
-        if old_content not in updated_content:
+        replace_result = fuzzy_replace(
+            updated_content, old_content, new_content, replace_all=replace_all
+        )
+        if replace_result is None:
             return None
-        if replace_all:
-            updated_content = updated_content.replace(old_content, new_content)
-        else:
-            updated_content = updated_content.replace(old_content, new_content, 1)
+        updated_content = replace_result.new_content
 
     after = ChapterPreviewData(
         id=before.id,

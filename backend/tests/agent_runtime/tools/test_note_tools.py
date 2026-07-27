@@ -875,3 +875,19 @@ async def test_delete_note_category_rejects_category_from_another_project() -> N
             result = await tool.ainvoke({"category_ref": {"id": "cat-1"}})
 
     assert json.loads(result)["error"] == "分类不属于当前项目"
+
+
+def test_edit_note_input_rejects_empty_old_content() -> None:
+    # Regression: an empty old_content previously passed model validation but
+    # made fuzzy_replace raise. It must be rejected early.
+    import pytest
+    from pydantic import ValidationError
+
+    from app.agent_runtime.tools.impls.note.edit_note import EditNoteInput
+
+    with pytest.raises(ValidationError):
+        EditNoteInput.model_validate({
+            "note_ref": {"id": "note-1"},
+            "old_content": "",
+            "new_content": "x",
+        })

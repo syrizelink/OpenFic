@@ -24,6 +24,7 @@ from app.agent_runtime.tools.impls.chapter.refs import (
     resolve_volume_from_list,
 )
 from app.agent_runtime.tools.registry import ToolRegistry
+from app.agent_runtime.tools.text_match import fuzzy_replace
 from app.storage.database import create_session
 from app.storage.repos import chapter_repo, volume_repo
 from app.storage.services.version_control_service import refresh_project_stats
@@ -57,6 +58,13 @@ class EditChapterInput(BaseModel):
         default=False,
         description="是否替换命中的全部 old_content，false 时只替换首个匹配项",
     )
+
+    @field_validator("old_content", mode="after")
+    @classmethod
+    def reject_empty_old_content(cls, v):
+        if v is not None and v == "":
+            raise ValueError("old_content 不能为空字符串")
+        return v
 
     @field_validator("new_content", mode="after")
     @classmethod
@@ -132,12 +140,12 @@ class EditChapterTool(AgentTool):
             if new_title is not None:
                 match.title = new_title
             if old_content is not None and new_content is not None:
-                if old_content not in match.content:
+                replace_result = fuzzy_replace(
+                    match.content, old_content, new_content, replace_all=replace_all
+                )
+                if replace_result is None:
                     raise ToolExecutionError("未在章节内容中找到要替换的文本")
-                if replace_all:
-                    match.content = match.content.replace(old_content, new_content)
-                else:
-                    match.content = match.content.replace(old_content, new_content, 1)
+                match.content = replace_result.new_content
                 match.word_count = count_words(match.content)
             await chapter_repo.update_chapter(session, match)
             chapter_diff = build_chapter_diff_preview(

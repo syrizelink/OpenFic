@@ -7,7 +7,7 @@ import json
 from difflib import SequenceMatcher
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.revisions import (
@@ -21,6 +21,7 @@ from app.agent_runtime.tools.impls.note.refs import (
     resolve_note_from_list,
 )
 from app.agent_runtime.tools.registry import ToolRegistry
+from app.agent_runtime.tools.text_match import fuzzy_replace
 from app.storage.database import create_session
 from app.storage.repos import note_category_repo, note_repo
 
@@ -67,6 +68,13 @@ class EditNoteInput(BaseModel):
     old_content: str = Field(description="要查找并替换的原始文本")
     new_content: str = Field(description="用于替换 old_content 的新文本")
 
+    @field_validator("old_content", mode="after")
+    @classmethod
+    def reject_empty_old_content(cls, v: str) -> str:
+        if v == "":
+            raise ValueError("old_content 不能为空字符串")
+        return v
+
 
 @ToolRegistry.register
 class EditNoteTool(AgentTool):
@@ -105,11 +113,15 @@ class EditNoteTool(AgentTool):
             note.project_id != self.project_id
             or note.is_locked
             or note.is_hidden
-            or old_content not in note.content
         ):
             return None
 
-        preview_content = note.content.replace(old_content, new_content)
+        preview_result = fuzzy_replace(
+            note.content, old_content, new_content, replace_all=True
+        )
+        if preview_result is None:
+            return None
+        preview_content = preview_result.new_content
         return {
             "type": "preview",
             "success": True,
@@ -162,16 +174,18 @@ class EditNoteTool(AgentTool):
             if note.is_hidden:
                 raise ToolExecutionError("该笔记已隐藏")
 
-            if old_content not in note.content:
-                raise ToolExecutionError("未在笔记内容中找到要替换的文本")
-
             before = note_images_by_id(
                 await note_repo.list_by_project(
                     session, self.project_id, include_hidden=True
                 )
             )
             before_content = note.content
-            note.content = note.content.replace(old_content, new_content)
+            replace_result = fuzzy_replace(
+                note.content, old_content, new_content, replace_all=True
+            )
+            if replace_result is None:
+                raise ToolExecutionError("未在笔记内容中找到要替换的文本")
+            note.content = replace_result.new_content
             await note_repo.update_note(session, note)
             after = note_images_by_id(
                 await note_repo.list_by_project(
