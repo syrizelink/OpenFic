@@ -11,6 +11,7 @@ permissions:
 jobs:
   validate:
     name: Validate template
+    if: "!startsWith(github.event.pull_request.head.ref, 'release-please--')"
     runs-on: ubuntu-latest
     steps:
       - name: Validate title and description
