@@ -4,6 +4,7 @@
 """
 
 import json
+from datetime import UTC, datetime
 from difflib import SequenceMatcher
 from typing import Any
 
@@ -186,6 +187,7 @@ class EditNoteTool(AgentTool):
             if replace_result is None:
                 raise ToolExecutionError("未在笔记内容中找到要替换的文本")
             note.content = replace_result.new_content
+            note.updated_at = datetime.now(UTC)
             await note_repo.update_note(session, note)
             after = note_images_by_id(
                 await note_repo.list_by_project(

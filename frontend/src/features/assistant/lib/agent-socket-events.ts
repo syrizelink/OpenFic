@@ -296,6 +296,7 @@ export function toAgentEvent(
         session_id: getString(data.session_id),
         project_id: getString(data.project_id),
         chapter_id: getString(data.chapter_id),
+        operation: getString(data.operation),
       },
     };
   }
@@ -311,6 +312,7 @@ export function toAgentEvent(
         session_id: getString(data.session_id),
         project_id: getString(data.project_id),
         note_id: getString(data.note_id),
+        operation: getString(data.operation),
       },
     };
   }

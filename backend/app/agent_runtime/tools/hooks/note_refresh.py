@@ -11,6 +11,11 @@ from app.socket.handlers import agent_session_room
 from loguru import logger
 
 NOTE_WRITE_TOOL_NAMES = frozenset(TOOL_CATEGORIES["note_write"])
+NOTE_TOOL_OPERATIONS = {
+    "create_note": "create",
+    "edit_note": "edit",
+    "delete_note": "delete",
+}
 
 
 def _parse_output(output: str | None) -> dict[str, Any] | None:
@@ -58,6 +63,7 @@ async def note_refresh_post_hook(context: HookContext) -> HookResult:
     payload: dict[str, Any] = {
         "session_id": target_session_id,
         "project_id": project_id,
+        "operation": NOTE_TOOL_OPERATIONS.get(context.tool_name, "update"),
         "created_at": datetime.now(UTC).isoformat(),
     }
     note_id = _extract_note_id(result)

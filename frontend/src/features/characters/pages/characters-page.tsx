@@ -28,6 +28,7 @@ import { CharacterEditor } from "../components/character-editor";
 import { CharacterList } from "../components/character-list";
 import { CharacterProfileDialog } from "../components/character-profile-dialog";
 import { useCharactersStore } from "../store/use-characters-store";
+import { shouldShowCharacterEditorLoading } from "./character-editor-loading-state";
 
 import "./characters-page.css";
 
@@ -145,7 +146,7 @@ export function CharactersPage() {
     }
   }, [characters, currentCharacterId, setCurrentCharacter]);
 
-  const { data: selectedCharacter, isFetching: isCharacterLoading } = useQuery({
+  const { data: selectedCharacter, isLoading: isCharacterLoading } = useQuery({
     queryKey: ["character", currentCharacterId, selectedCharacterLoadVersion],
     queryFn: () => fetchCharacter(currentCharacterId!),
     enabled: !!currentCharacterId,
@@ -321,7 +322,7 @@ export function CharactersPage() {
       key={selectedCharacter?.id ?? "empty"}
       character={selectedCharacter ?? null}
       isSaving={updateMutation.isPending}
-      isLoading={isCharacterLoading}
+      isLoading={shouldShowCharacterEditorLoading(Boolean(selectedCharacter), isCharacterLoading)}
       isAgentLocked={Boolean(currentProjectId && assistantState.isAgentRunning)}
       onSave={async (data) => {
         if (!selectedCharacter) return;

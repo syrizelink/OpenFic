@@ -56,6 +56,11 @@ async def chapter_refresh_post_hook(context: HookContext) -> HookResult:
     if chapter_id:
         payload["chapter_id"] = chapter_id
 
+    metadata = result.get("metadata")
+    chapter_diff = metadata.get("chapter_diff") if isinstance(metadata, dict) else None
+    if isinstance(chapter_diff, dict) and isinstance(chapter_diff.get("operation"), str):
+        payload["operation"] = chapter_diff["operation"]
+
     await emit(
         "agent:chapter_refresh",
         payload,

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
 
 import {
   deleteWritingWorkingCopyIfUpdatedAt,
@@ -53,6 +53,22 @@ interface UseWritingEditorEntityOptions<TEntity extends WritingEditorEntity> {
   type: WritingWorkingCopyType;
   entityId: string | null;
   fetchEntity: (entityId: string) => Promise<TEntity>;
+}
+
+export function invalidateWritingEditorEntityQueries(
+  queryClient: QueryClient,
+  type: WritingWorkingCopyType,
+  entityId?: string,
+): void {
+  void queryClient.invalidateQueries({
+    queryKey: entityId ? ["writing-editor", type, entityId] : ["writing-editor", type],
+  });
+}
+
+export function shouldShowWritingEditorLoading<TEntity>(
+  data: TEntity | undefined,
+): data is undefined {
+  return data === undefined;
 }
 
 export function useWritingEditorEntity<TEntity extends WritingEditorEntity>({

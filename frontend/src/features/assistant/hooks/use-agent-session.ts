@@ -8,6 +8,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState, useCallback, useEffect, useRef } from "react";
 
 import { toast } from "@/components";
+import { useCharactersStore } from "@/features/characters/store/use-characters-store";
+import { useWorldInfoStore } from "@/features/world-info/store/use-world-info-store";
+import { invalidateWritingEditorEntityQueries } from "@/features/writing/hooks/use-writing-editor-entity";
+import { useTabsStore } from "@/features/writing/store/use-tabs-store";
 import i18n from "@/i18n";
 import type {
   AgentMessage,
@@ -30,6 +34,8 @@ import {
   cancelAgentSession,
   submitAgentToolApproval,
 } from "@/lib/api-client";
+import type { CharacterListResponse } from "@/lib/character.types";
+import type { WorldInfoEntryBriefListResponse } from "@/lib/world-info.types";
 
 import type { ClarificationAnswerItem } from "../components/agent/message-blocks/messages/special/clarification-flow-state";
 import { joinAgentSession, subscribeAgentSessionEvents } from "../lib/agent-socket";
@@ -47,6 +53,7 @@ import {
   type AgentTranscriptState,
 } from "../lib/agent-transcript-state";
 import { createApprovalPreviewToolMessage } from "../lib/chapter-tool-preview";
+import { removeListItemFromCache } from "../lib/entity-list-cache";
 import {
   applyPendingUserMessageEvent,
   createPendingUserMessage,
@@ -200,22 +207,36 @@ export function useAgentSession({
   }, []);
 
   const invalidateChapterQueries = useCallback(
-    (targetChapterId?: string) => {
+    (targetChapterId?: string, operation?: string) => {
       queryClient.invalidateQueries({ queryKey: ["volume-tree", projectId] });
+      if (operation === "delete") {
+        if (targetChapterId) {
+          void queryClient.cancelQueries({
+            queryKey: ["chapter", targetChapterId],
+            exact: true,
+          });
+        }
+        queryClient.invalidateQueries({ queryKey: ["projects"] });
+        return;
+      }
       if (targetChapterId) {
         queryClient.invalidateQueries({ queryKey: ["chapter", targetChapterId] });
       }
+      invalidateWritingEditorEntityQueries(queryClient, "chapter", targetChapterId);
       queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
     [projectId, queryClient],
   );
 
   const invalidateNoteQueries = useCallback(
-    (targetNoteId?: string) => {
+    (targetNoteId?: string, operation?: string) => {
       queryClient.invalidateQueries({ queryKey: ["note-tree", projectId] });
+      if (operation === "delete") return;
+
       if (targetNoteId) {
         queryClient.invalidateQueries({ queryKey: ["note", targetNoteId] });
       }
+      invalidateWritingEditorEntityQueries(queryClient, "note", targetNoteId);
     },
     [projectId, queryClient],
   );
@@ -230,7 +251,7 @@ export function useAgentSession({
       if (!targetEntryId) return;
 
       if (operation === "delete") {
-        queryClient.removeQueries({
+        void queryClient.cancelQueries({
           queryKey: ["world-info-entry-detail", targetEntryId],
           exact: true,
         });
@@ -257,7 +278,7 @@ export function useAgentSession({
       if (!targetCharacterId) return;
 
       if (operation === "delete") {
-        queryClient.removeQueries({
+        void queryClient.cancelQueries({
           queryKey: ["character", targetCharacterId],
         });
         return;
@@ -457,14 +478,24 @@ export function useAgentSession({
       if (message?.type === "chapter_refresh") {
         const targetChapterId =
           typeof message.payload?.chapter_id === "string" ? message.payload.chapter_id : undefined;
-        invalidateChapterQueries(targetChapterId);
+        const operation =
+          typeof message.payload?.operation === "string" ? message.payload.operation : undefined;
+        if (operation === "delete" && targetChapterId) {
+          useTabsStore.getState().removeTabsByReference("chapter", targetChapterId);
+        }
+        invalidateChapterQueries(targetChapterId, operation);
         return;
       }
 
       if (message?.type === "note_refresh") {
         const targetNoteId =
           typeof message.payload?.note_id === "string" ? message.payload.note_id : undefined;
-        invalidateNoteQueries(targetNoteId);
+        const operation =
+          typeof message.payload?.operation === "string" ? message.payload.operation : undefined;
+        if (operation === "delete" && targetNoteId) {
+          useTabsStore.getState().removeTabsByReference("note", targetNoteId);
+        }
+        invalidateNoteQueries(targetNoteId, operation);
         return;
       }
 
@@ -483,6 +514,20 @@ export function useAgentSession({
           typeof message.payload?.entry_id === "string" ? message.payload.entry_id : undefined;
         const operation =
           typeof message.payload?.operation === "string" ? message.payload.operation : undefined;
+        if (
+          operation === "delete" &&
+          targetEntryId &&
+          useWorldInfoStore.getState().currentEntryId === targetEntryId
+        ) {
+          if (targetWorldInfoId) {
+            queryClient.setQueryData(
+              ["world-info-entries", targetWorldInfoId],
+              (data: WorldInfoEntryBriefListResponse | undefined) =>
+                removeListItemFromCache(data, targetEntryId),
+            );
+          }
+          useWorldInfoStore.getState().setCurrentEntry(null);
+        }
         invalidateWorldEntryQueries(targetWorldInfoId, targetEntryId, operation);
         return;
       }
@@ -494,6 +539,18 @@ export function useAgentSession({
             : undefined;
         const operation =
           typeof message.payload?.operation === "string" ? message.payload.operation : undefined;
+        if (
+          operation === "delete" &&
+          targetCharacterId &&
+          useCharactersStore.getState().currentCharacterId === targetCharacterId
+        ) {
+          queryClient.setQueryData(
+            ["characters", projectId],
+            (data: CharacterListResponse | undefined) =>
+              removeListItemFromCache(data, targetCharacterId),
+          );
+          useCharactersStore.getState().setCurrentCharacter(null);
+        }
         invalidateCharacterQueries(targetCharacterId, operation);
         return;
       }
@@ -526,6 +583,8 @@ export function useAgentSession({
       onTokenUsage,
       onTaskUsageDelta,
       onTaskUsageSnapshot,
+      projectId,
+      queryClient,
       syncCompactingState,
       syncPendingMessageState,
       updateTranscriptState,

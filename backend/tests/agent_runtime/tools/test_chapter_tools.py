@@ -1,6 +1,7 @@
 """Tests for Agent chapter and volume tools."""
 
 import json
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -372,6 +373,8 @@ async def test_edit_chapter_resolves_inside_volume() -> None:
         },
     }
     mock_repo.list_by_volume.assert_awaited_once_with(mock_session, "vol-1")
+    assert isinstance(chapter.updated_at, datetime)
+    assert chapter.updated_at.tzinfo is UTC
 
 
 async def test_delete_chapter_delegates_to_chapter_service() -> None:

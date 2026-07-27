@@ -84,3 +84,36 @@ async def test_chapter_refresh_hook_ignores_non_mutation_or_failed_output(monkey
     )
 
     assert captured == []
+
+
+@pytest.mark.asyncio
+async def test_chapter_refresh_hook_marks_delete_operation(monkeypatch) -> None:
+    from app.agent_runtime.tools.hooks.chapter_refresh import chapter_refresh_post_hook
+
+    captured: list[tuple[str, dict, str | None]] = []
+
+    async def fake_emit(event: str, data: dict, *, room: str | None = None) -> None:
+        captured.append((event, data, room))
+
+    monkeypatch.setattr("app.agent_runtime.tools.hooks.chapter_refresh.emit", fake_emit)
+
+    await chapter_refresh_post_hook(
+        HookContext(
+            tool_name="delete_chapter",
+            access_level="write",
+            args={},
+            state={"session_id": "session-1", "project_id": "project-1"},
+            output=json.dumps(
+                {
+                    "success": True,
+                    "metadata": {
+                        "chapter_diff": {"operation": "delete", "chapter_id": "chapter-1"}
+                    },
+                },
+                ensure_ascii=False,
+            ),
+        )
+    )
+
+    assert captured[0][1]["operation"] == "delete"
+    assert captured[0][1]["chapter_id"] == "chapter-1"

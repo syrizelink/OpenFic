@@ -23,7 +23,10 @@ import { createToastThrottler } from "@/lib/ui-utils";
 
 import { useAutoSave } from "../hooks/use-auto-save";
 import { useUpdateChapter } from "../hooks/use-chapters";
-import { useWritingEditorEntity } from "../hooks/use-writing-editor-entity";
+import {
+  shouldShowWritingEditorLoading,
+  useWritingEditorEntity,
+} from "../hooks/use-writing-editor-entity";
 import {
   useWritingWorkingCopy,
   type WritingDraft,
@@ -591,7 +594,7 @@ export function ChapterEditor({
   onOpenSummary,
 }: ChapterEditorProps) {
   const { t } = useTranslation();
-  const { data, isFetching, isLoading } = useWritingEditorEntity({
+  const { data } = useWritingEditorEntity({
     type: "chapter",
     entityId: chapterId,
     fetchEntity: fetchChapter,
@@ -614,7 +617,7 @@ export function ChapterEditor({
     );
   }
 
-  if (isLoading || isFetching || !data) {
+  if (shouldShowWritingEditorLoading(data)) {
     return (
       <Flex
         align="center"

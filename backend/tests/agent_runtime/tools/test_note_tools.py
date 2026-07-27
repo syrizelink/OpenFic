@@ -1,6 +1,7 @@
 """Tests for Agent note tools."""
 
 import json
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
@@ -182,6 +183,8 @@ async def test_edit_note_returns_success_and_diff_metadata() -> None:
             }
         },
     }
+    assert isinstance(note.updated_at, datetime)
+    assert note.updated_at.tzinfo is UTC
 
 
 async def test_delete_note_rejects_hidden_note() -> None:

@@ -20,6 +20,8 @@ import type {
   WorldInfoEntryBriefListResponse,
 } from "@/lib/world-info.types";
 
+import { resolveRemoteEntryEditorState } from "./entry-editor-state";
+
 interface EntryEditorProps {
   /** 条目数据 */
   entry: WorldInfoEntry;
@@ -169,6 +171,28 @@ export function EntryEditor({
       }
     };
   }, [flushSave]);
+
+  useEffect(() => {
+    const nextState = resolveRemoteEntryEditorState(
+      {
+        name: savedNameRef.current,
+        content: savedContentRef.current,
+        tokenCount,
+      },
+      {
+        name: entry.name,
+        content: entry.content,
+        tokenCount: entry.tokenCount || 0,
+      },
+      hasChangesRef.current,
+    );
+    if (hasChangesRef.current) return;
+
+    savedNameRef.current = nextState.name;
+    savedContentRef.current = nextState.content;
+    setName(nextState.name);
+    setTokenCount(nextState.tokenCount);
+  }, [entry.content, entry.name, entry.tokenCount, tokenCount]);
 
   useEffect(() => {
     if (scrollToLine == null || scrollToLine < 1 || scrolledRef.current) return;

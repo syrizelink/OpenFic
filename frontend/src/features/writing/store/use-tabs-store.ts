@@ -31,11 +31,26 @@ interface TabsActions {
   updateTabTitle: (tabId: string, title: string) => void;
   syncTabsWithChapters: (chapters: { id: string; title: string }[]) => void;
   syncTabs: (items: { id: string; title: string }[], type: "chapter" | "note") => void;
+  removeTabsByReference: (type: "chapter" | "note", refId: string) => void;
   showEmptyTab: () => void;
   reorderTabs: (activeId: string, overId: string) => void;
 }
 
 type TabsStore = TabsState & TabsActions;
+
+export function removeTabsByReference(
+  tabs: EditorTab[],
+  activeTabId: string | null,
+  type: "chapter" | "note",
+  refId: string,
+): { tabs: EditorTab[]; activeTabId: string | null } {
+  const nextTabs = tabs.filter((tab) => tab.type !== type || tab.refId !== refId);
+  const nextActiveTabId = nextTabs.some((tab) => tab.id === activeTabId)
+    ? activeTabId
+    : (nextTabs[0]?.id ?? null);
+
+  return { tabs: nextTabs, activeTabId: nextActiveTabId };
+}
 
 function toRecord(tab: EditorTab): EditorTabRecord {
   return {
@@ -319,6 +334,15 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
       });
       persistTabs(currentProjectId, newTabs, newActiveId);
     }
+  },
+
+  removeTabsByReference: (type, refId) => {
+    const { tabs, activeTabId, currentProjectId } = get();
+    const next = removeTabsByReference(tabs, activeTabId, type, refId);
+    if (next.tabs.length === tabs.length) return;
+
+    set(next);
+    persistTabs(currentProjectId, next.tabs, next.activeTabId);
   },
 
   reorderTabs: (activeId, overId) => {

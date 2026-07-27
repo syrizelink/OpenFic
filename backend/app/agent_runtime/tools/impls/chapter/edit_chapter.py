@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
@@ -147,6 +148,7 @@ class EditChapterTool(AgentTool):
                     raise ToolExecutionError("未在章节内容中找到要替换的文本")
                 match.content = replace_result.new_content
                 match.word_count = count_words(match.content)
+            match.updated_at = datetime.now(UTC)
             await chapter_repo.update_chapter(session, match)
             chapter_diff = build_chapter_diff_preview(
                 before_match,

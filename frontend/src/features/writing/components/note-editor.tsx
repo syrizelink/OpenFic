@@ -10,7 +10,10 @@ import { createToastThrottler } from "@/lib/ui-utils";
 
 import { useAutoSave } from "../hooks/use-auto-save";
 import { useUpdateNote } from "../hooks/use-notes";
-import { useWritingEditorEntity } from "../hooks/use-writing-editor-entity";
+import {
+  shouldShowWritingEditorLoading,
+  useWritingEditorEntity,
+} from "../hooks/use-writing-editor-entity";
 import {
   useWritingWorkingCopy,
   type WritingDraft,
@@ -250,7 +253,7 @@ function NoteEditorContent({
 
 export function NoteEditor(props: NoteEditorProps) {
   const { t } = useTranslation();
-  const { data, isFetching, isLoading } = useWritingEditorEntity({
+  const { data } = useWritingEditorEntity({
     type: "note",
     entityId: props.noteId,
     fetchEntity: fetchNote,
@@ -273,7 +276,7 @@ export function NoteEditor(props: NoteEditorProps) {
     );
   }
 
-  if (isLoading || isFetching || !data) {
+  if (shouldShowWritingEditorLoading(data)) {
     return (
       <Flex
         align="center"
