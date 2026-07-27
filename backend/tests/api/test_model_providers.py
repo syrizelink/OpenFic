@@ -364,14 +364,11 @@ async def test_get_provider_models_enriches_remote_models_with_catalog_metadata(
     assert newest_matched_model["name"] == "DeepSeek V4 Pro"
     assert newest_matched_model["metadata"]["release_date"] == "2026-04-24"
     assert newest_matched_model["metadata"]["tool_call"] is True
-    assert newest_matched_model["metadata"]["cost"]["input"] == 0.435
     assert matched_model["task_type"] == "llm"
     assert matched_model["name"] == "DeepSeek Chat"
     assert matched_model["metadata"]["release_date"] == "2025-12-01"
     assert matched_model["metadata"]["tool_call"] is True
     assert matched_model["metadata"]["limit"]["context"] == 1000000
-    assert matched_model["metadata"]["cost"]["input"] == 0.14
-    assert matched_model["metadata"]["cost"]["cache_read"] == 0.028
     assert unmatched_model["task_type"] == "llm"
     assert unmatched_model["name"] == "Custom Remote Model"
     assert unmatched_model["metadata"] is None

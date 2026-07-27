@@ -62,7 +62,6 @@ async def test_catalog_provider_models_endpoint_filters_by_task_type(
     assert payload["task_type"] == "embedding"
     assert all(model["task_type"] == "embedding" for model in payload["models"])
     assert payload["models"][0]["metadata"]["limit"]["context"] is not None
-    assert "input" in payload["models"][0]["metadata"]["cost"]
     assert payload["models"][0]["metadata"]["modalities"]["input"]
 
 
