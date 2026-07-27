@@ -901,6 +901,14 @@ async def test_sync_dispatch_subagent_continues_primary_run_until_done(
         lambda **_kwargs: _FakeSubagentRunner(),
     )
 
+    async def no_checkpoint_id(_thread_id: str) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "app.agent_runtime.tools.impls.orchestration.dispatch_subagent.latest_checkpoint_id_for_thread",
+        no_checkpoint_id,
+    )
+
     class _GraphWrapper:
         def __init__(self) -> None:
             self._graph = build_orchestrator_graph()

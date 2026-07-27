@@ -371,7 +371,7 @@ async def test_get_provider_models_enriches_remote_models_with_catalog_metadata(
     assert matched_model["metadata"]["tool_call"] is True
     assert matched_model["metadata"]["limit"]["context"] == 1000000
     assert matched_model["metadata"]["cost"]["input"] == 0.14
-    assert matched_model["metadata"]["cost"]["cache_read"] == 0.0028
+    assert matched_model["metadata"]["cost"]["cache_read"] == 0.028
     assert unmatched_model["task_type"] == "llm"
     assert unmatched_model["name"] == "Custom Remote Model"
     assert unmatched_model["metadata"] is None

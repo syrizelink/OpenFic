@@ -58,6 +58,7 @@ async def test_lifespan_refreshes_catalog_in_background_and_cancels_on_shutdown(
     monkeypatch.setattr(main, "_reset_task_running_state", reset_task_state)
     monkeypatch.setattr(main, "_seed_builtin_models", do_nothing)
     monkeypatch.setattr(main, "init_checkpointer", do_nothing)
+    monkeypatch.setattr(main, "load_audit_details_persistence", do_nothing)
     monkeypatch.setattr(main, "start_audit_queue", lambda: None)
     monkeypatch.setattr(main, "start_background_runtime", do_nothing)
     monkeypatch.setattr(main, "_print_startup_banner", lambda _: None)
