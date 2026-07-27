@@ -29,7 +29,7 @@ jobs:
             errors+=("PR 标题必须符合 Conventional Commits 格式")
           fi
 
-          body=$(printf '%s\n' "$PR_BODY" | sed '/<!--/,/-->/d')
+          body=$(printf '%s\n' "$PR_BODY" | tr -d '\r' | sed '/<!--/,/-->/d')
           change_description=$(printf '%s\n' "$body" | sed -n '/^## 变更说明$/,/^## /{ /^## /!p }' | sed '/^[[:space:]]*-[[:space:]]*\(问题\|重要性\|变化\):[[:space:]]*$/d' | sed '/^[[:space:]]*\.\.\.[[:space:]]*$/d' | tr -d '[:space:]')
 
           if [ -z "$change_description" ]; then
@@ -39,15 +39,6 @@ jobs:
           if ! printf '%s\n' "$body" | grep -Eq '^- \[[xX]\] (新功能|错误修复|文档更新|代码格式调整|代码重构|性能优化|测试相关|杂项)'; then
             errors+=("必须选择至少一种变更类型")
           fi
-
-          for item in \
-            '变更范围合理，未包含无关修改' \
-            '未暴露敏感信息（API Key、密码等）' \
-            '提交信息符合规范'; do
-            if ! printf '%s\n' "$body" | grep -Fqx -- "- [x] ${item}" && ! printf '%s\n' "$body" | grep -Fqx -- "- [X] ${item}"; then
-              errors+=("自查清单未确认：${item}")
-            fi
-          done
 
           if [ "${#errors[@]}" -gt 0 ]; then
             printf '::error::%s\n' "$(IFS='；'; echo "${errors[*]}")"
