@@ -1,0 +1,184 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: '22.18.0'
+  PNPM_VERSION: '11.8.0'
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      desktop: ${{ steps.filter.outputs.desktop }}
+    steps:
+      - id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          backend=false
+          frontend=false
+          desktop=false
+
+          while IFS= read -r file; do
+            case "$file" in
+              backend/*|Dockerfile|.github/workflows/pr-check.yml)
+                backend=true
+                ;;
+            esac
+
+            case "$file" in
+              frontend/*|Dockerfile|.github/workflows/pr-check.yml)
+                frontend=true
+                ;;
+            esac
+
+            case "$file" in
+              desktop/*|frontend/*|.github/workflows/pr-check.yml)
+                desktop=true
+                ;;
+            esac
+          done < <(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" --jq '.[].filename')
+
+          {
+            echo "backend=${backend}"
+            echo "frontend=${frontend}"
+            echo "desktop=${desktop}"
+          } >> "$GITHUB_OUTPUT"
+
+  backend:
+    name: Backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --frozen
+      - name: Run lint
+        working-directory: backend
+        run: uv run ruff check .
+      - name: Run type check
+        working-directory: backend
+        run: uv run ty check app
+      - name: Run tests
+        working-directory: backend
+        run: uv run pytest
+      - name: Build package
+        working-directory: backend
+        run: uv build
+
+  frontend:
+    name: Frontend
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - name: Check formatting
+        working-directory: frontend
+        run: pnpm format:check
+      - name: Run lint
+        working-directory: frontend
+        run: pnpm lint
+      - name: Run type check
+        working-directory: frontend
+        run: pnpm type-check
+      - name: Build frontend
+        working-directory: frontend
+        run: pnpm build
+
+  desktop:
+    name: Desktop
+    needs: changes
+    if: needs.changes.outputs.desktop == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: |
+            desktop/pnpm-lock.yaml
+            frontend/pnpm-lock.yaml
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: pnpm install --frozen-lockfile
+      - name: Run lint
+        working-directory: desktop
+        run: pnpm lint
+      - name: Run type check
+        working-directory: desktop
+        run: pnpm type-check
+      - name: Build desktop
+        working-directory: desktop
+        run: pnpm build
+
+  summary:
+    name: Summary
+    if: always()
+    needs: [changes, backend, frontend, desktop]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify checks
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          DESKTOP_RESULT: ${{ needs.desktop.result }}
+        run: |
+          for result in "$CHANGES_RESULT" "$BACKEND_RESULT" "$FRONTEND_RESULT" "$DESKTOP_RESULT"; do
+            if [ "$result" = 'failure' ] || [ "$result" = 'cancelled' ]; then
+              exit 1
+            fi
+          done

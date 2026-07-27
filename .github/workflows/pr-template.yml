@@ -1,0 +1,54 @@
+name: PR Template Check
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  validate:
+    name: Validate template
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate title and description
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -o pipefail
+          shopt -s nocasematch
+
+          errors=()
+          title_pattern='^(feat|fix|build|chore|ci|docs|style|refactor|perf|test)(\([^)]+\))?!?: .+'
+
+          if ! [[ "$PR_TITLE" =~ $title_pattern ]]; then
+            errors+=("PR 标题必须符合 Conventional Commits 格式")
+          fi
+
+          body=$(printf '%s\n' "$PR_BODY" | sed '/<!--/,/-->/d')
+          change_description=$(printf '%s\n' "$body" | sed -n '/^## 变更说明$/,/^## /{ /^## /!p }' | sed '/^[[:space:]]*-[[:space:]]*\(问题\|重要性\|变化\):[[:space:]]*$/d' | sed '/^[[:space:]]*\.\.\.[[:space:]]*$/d' | tr -d '[:space:]')
+
+          if [ -z "$change_description" ]; then
+            errors+=("变更说明必须填写实际内容")
+          fi
+
+          if ! printf '%s\n' "$body" | grep -Eq '^- \[[xX]\] (新功能|错误修复|文档更新|代码格式调整|代码重构|性能优化|测试相关|杂项)'; then
+            errors+=("必须选择至少一种变更类型")
+          fi
+
+          for item in \
+            '变更范围合理，未包含无关修改' \
+            '未暴露敏感信息（API Key、密码等）' \
+            '提交信息符合规范'; do
+            if ! printf '%s\n' "$body" | grep -Fqx -- "- [x] ${item}" && ! printf '%s\n' "$body" | grep -Fqx -- "- [X] ${item}"; then
+              errors+=("自查清单未确认：${item}")
+            fi
+          done
+
+          if [ "${#errors[@]}" -gt 0 ]; then
+            printf '::error::%s\n' "$(IFS='；'; echo "${errors[*]}")"
+            exit 1
+          fi
