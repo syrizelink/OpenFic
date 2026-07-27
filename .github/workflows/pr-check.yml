@@ -21,6 +21,7 @@ env:
 jobs:
   changes:
     name: Detect changes
+    if: "!startsWith(github.event.pull_request.head.ref, 'release-please--')"
     runs-on: ubuntu-latest
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
@@ -65,7 +66,7 @@ jobs:
   backend:
     name: Backend
     needs: changes
-    if: needs.changes.outputs.backend == 'true'
+    if: "!startsWith(github.event.pull_request.head.ref, 'release-please--') && needs.changes.outputs.backend == 'true'"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -103,7 +104,7 @@ jobs:
   frontend:
     name: Frontend
     needs: changes
-    if: needs.changes.outputs.frontend == 'true'
+    if: "!startsWith(github.event.pull_request.head.ref, 'release-please--') && needs.changes.outputs.frontend == 'true'"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -134,7 +135,7 @@ jobs:
   desktop:
     name: Desktop
     needs: changes
-    if: needs.changes.outputs.desktop == 'true'
+    if: "!startsWith(github.event.pull_request.head.ref, 'release-please--') && needs.changes.outputs.desktop == 'true'"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -166,7 +167,7 @@ jobs:
 
   summary:
     name: Summary
-    if: always()
+    if: "always() && !startsWith(github.event.pull_request.head.ref, 'release-please--')"
     needs: [changes, backend, frontend, desktop]
     runs-on: ubuntu-latest
     steps:

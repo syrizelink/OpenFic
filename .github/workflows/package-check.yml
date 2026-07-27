@@ -20,6 +20,7 @@ env:
 jobs:
   frontend:
     name: Frontend package
+    if: "!startsWith(github.event.pull_request.head.ref, 'release-please--')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -44,6 +45,7 @@ jobs:
 
   python:
     name: Python package
+    if: "!startsWith(github.event.pull_request.head.ref, 'release-please--')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -68,6 +70,7 @@ jobs:
 
   docker:
     name: Docker (${{ matrix.platform }})
+    if: "!startsWith(github.event.pull_request.head.ref, 'release-please--')"
     strategy:
       fail-fast: false
       matrix:
@@ -91,6 +94,7 @@ jobs:
   desktop:
     name: Desktop (${{ matrix.os }} ${{ matrix.arch }})
     needs: frontend
+    if: "!startsWith(github.event.pull_request.head.ref, 'release-please--')"
     strategy:
       fail-fast: false
       matrix:
@@ -145,7 +149,7 @@ jobs:
 
   summary:
     name: Summary
-    if: always()
+    if: "always() && !startsWith(github.event.pull_request.head.ref, 'release-please--')"
     needs: [frontend, python, docker, desktop]
     runs-on: ubuntu-latest
     steps:
