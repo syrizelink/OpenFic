@@ -282,6 +282,19 @@ async def test_create_character_returns_diff() -> None:
     }
 
 
+def test_edit_character_input_rejects_empty_old_description() -> None:
+    from pydantic import ValidationError
+
+    from app.agent_runtime.tools.impls.context.character import EditCharacterInput
+
+    with pytest.raises(ValidationError):
+        EditCharacterInput.model_validate({
+            "name": "林舟",
+            "old_description": "",
+            "new_description": "x",
+        })
+
+
 @pytest.mark.asyncio
 async def test_edit_character_replaces_description_text() -> None:
     from app.agent_runtime.tools.impls.context.character import EditCharacterTool
@@ -556,6 +569,19 @@ async def test_create_world_entry_rejects_duplicate_title() -> None:
         result = await tool.ainvoke({"title": "主角", "content": "林舟"})
 
     assert json.loads(result) == {"error": "世界书条目标题已存在: 主角"}
+
+
+def test_edit_world_entry_input_rejects_empty_old_content() -> None:
+    from pydantic import ValidationError
+
+    from app.agent_runtime.tools.impls.context.world_entry import EditWorldEntryInput
+
+    with pytest.raises(ValidationError):
+        EditWorldEntryInput.model_validate({
+            "title": "主角",
+            "old_content": "",
+            "new_content": "x",
+        })
 
 
 @pytest.mark.asyncio

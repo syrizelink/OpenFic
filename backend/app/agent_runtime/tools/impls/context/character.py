@@ -12,6 +12,7 @@ from app.agent_runtime.revisions import (
 from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.tools.registry import ToolRegistry
+from app.agent_runtime.tools.text_match import fuzzy_replace
 from app.storage.database import create_session
 from app.storage.models.character import Character
 from app.storage.repos import character_repo
@@ -37,6 +38,13 @@ class EditCharacterInput(BaseModel):
     old_description: str | None = Field(default=None, description="要查找并替换的原始描述文本")
     new_description: str | None = Field(default=None, description="用于替换 old_description 的新描述文本")
     replace_all: bool = Field(default=False, description="是否替换命中的全部 old_description")
+
+    @field_validator("old_description", mode="after")
+    @classmethod
+    def reject_empty_old_description(cls, v):
+        if v is not None and v == "":
+            raise ValueError("old_description 不能为空字符串")
+        return v
 
     @field_validator("new_description", mode="after")
     @classmethod
@@ -304,13 +312,13 @@ class EditCharacterTool(AgentTool):
             before = _preview_from_character(character)
             description = before.description
             if old_description is not None and new_description is not None:
-                if old_description not in description:
-                    return None
-                description = (
-                    description.replace(old_description, new_description)
-                    if bool(args.get("replace_all"))
-                    else description.replace(old_description, new_description, 1)
+                replace_result = fuzzy_replace(
+                    description, old_description, new_description,
+                    replace_all=bool(args.get("replace_all")),
                 )
+                if replace_result is None:
+                    return None
+                description = replace_result.new_content
             updated_name = (
                 await _ensure_name_available(
                     session,
@@ -351,13 +359,13 @@ class EditCharacterTool(AgentTool):
             before = _preview_from_character(character)
             description = character.description
             if old_description is not None and new_description is not None:
-                if old_description not in description:
-                    raise ToolExecutionError("未在角色描述中找到要替换的文本")
-                description = (
-                    description.replace(old_description, new_description)
-                    if replace_all
-                    else description.replace(old_description, new_description, 1)
+                replace_result = fuzzy_replace(
+                    description, old_description, new_description,
+                    replace_all=replace_all,
                 )
+                if replace_result is None:
+                    raise ToolExecutionError("未在角色描述中找到要替换的文本")
+                description = replace_result.new_content
             normalized_new_name = None
             if new_name is not None:
                 normalized_new_name = await _ensure_name_available(

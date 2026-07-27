@@ -12,6 +12,7 @@ from app.agent_runtime.revisions import (
 from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.tools.registry import ToolRegistry
+from app.agent_runtime.tools.text_match import fuzzy_replace
 from app.storage.database import create_session
 from app.storage.models.world_info_entry import WorldInfoEntry
 from app.storage.repos import world_info_entry_repo, world_info_repo
@@ -37,6 +38,13 @@ class EditWorldEntryInput(BaseModel):
     old_content: str | None = Field(default=None, description="要查找并替换的原始文本")
     new_content: str | None = Field(default=None, description="用于替换 old_content 的新文本")
     replace_all: bool = Field(default=False, description="是否替换命中的全部 old_content，false 时只替换首个匹配项")
+
+    @field_validator("old_content", mode="after")
+    @classmethod
+    def reject_empty_old_content(cls, v):
+        if v is not None and v == "":
+            raise ValueError("old_content 不能为空字符串")
+        return v
 
     @field_validator("new_content", mode="after")
     @classmethod
@@ -334,13 +342,13 @@ class EditWorldEntryTool(AgentTool):
             before = _preview_from_entry(entry)
             content = before.content
             if old_content is not None and new_content is not None:
-                if old_content not in content:
-                    return None
-                content = (
-                    content.replace(old_content, new_content)
-                    if bool(args.get("replace_all"))
-                    else content.replace(old_content, new_content, 1)
+                replace_result = fuzzy_replace(
+                    content, old_content, new_content,
+                    replace_all=bool(args.get("replace_all")),
                 )
+                if replace_result is None:
+                    return None
+                content = replace_result.new_content
             updated_title = (
                 await _ensure_title_available(
                     session,
@@ -386,13 +394,12 @@ class EditWorldEntryTool(AgentTool):
             before = _preview_from_entry(entry)
             content = entry.content
             if old_content is not None and new_content is not None:
-                if old_content not in content:
-                    raise ToolExecutionError("未在世界书条目内容中找到要替换的文本")
-                content = (
-                    content.replace(old_content, new_content)
-                    if replace_all
-                    else content.replace(old_content, new_content, 1)
+                replace_result = fuzzy_replace(
+                    content, old_content, new_content, replace_all=replace_all
                 )
+                if replace_result is None:
+                    raise ToolExecutionError("未在世界书条目内容中找到要替换的文本")
+                content = replace_result.new_content
             normalized_new_title = None
             if new_title is not None:
                 normalized_new_title = await _ensure_title_available(
