@@ -323,8 +323,7 @@ class TestAgentAPI:
             model_config={"max_context_tokens": 8000, "model_id": "previous-model"},
             project_id=target["project_id"],
         )
-        runner.can_continue = AsyncMock(return_value=False)
-        runner.run = MagicMock(return_value=AsyncMock())
+        runner.run = MagicMock(return_value=object())
         _SESSION_RUNNERS["session-model-switch"] = runner
 
         next_model_config = {"max_context_tokens": 32000, "model_id": "next-model"}
@@ -373,8 +372,7 @@ class TestAgentAPI:
             },
             project_id=target["project_id"],
         )
-        runner.can_continue = AsyncMock(return_value=False)
-        runner.run = MagicMock(return_value=AsyncMock())
+        runner.run = MagicMock(return_value=object())
         _SESSION_RUNNERS["session-reasoning-effort"] = runner
 
         resolved_config = {
@@ -398,7 +396,7 @@ class TestAgentAPI:
         resolve_model_config.assert_awaited_once_with(session, target["model_id"], "high")
         assert runner.model_config == resolved_config
 
-    async def test_send_agent_message_keeps_interrupted_run_model(
+    async def test_send_agent_message_updates_model_for_paused_session(
         self,
         client: AsyncClient,
         session,
@@ -422,13 +420,13 @@ class TestAgentAPI:
             model_config=original_model_config,
             project_id=target["project_id"],
         )
-        runner.can_continue = AsyncMock(return_value=True)
-        runner.continue_with_user_message = MagicMock(return_value=AsyncMock())
+        runner.run = MagicMock(return_value=object())
         _SESSION_RUNNERS["session-model-resume"] = runner
 
+        next_model_config = {"max_context_tokens": 32000, "model_id": "new-model"}
         with patch(
             "app.api.routers.agent_runtime._resolve_model_config",
-            AsyncMock(),
+            AsyncMock(return_value=next_model_config),
         ) as resolve_model_config, patch(
             "app.api.routers.agent_runtime._launch_task",
             AsyncMock(),
@@ -439,10 +437,10 @@ class TestAgentAPI:
             )
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["model_updated"] is False
-        resolve_model_config.assert_not_awaited()
-        assert runner.model_config == original_model_config
-        runner.continue_with_user_message.assert_called_once_with("继续原任务")
+        assert response.json()["model_updated"] is True
+        resolve_model_config.assert_awaited_once_with(session, "new-model-record", None)
+        assert runner.model_config == next_model_config
+        runner.run.assert_called_once_with(user_request="继续原任务")
 
     async def test_send_agent_message_queues_without_updating_model(
         self,
@@ -1291,14 +1289,6 @@ class TestAgentAPI:
         session.add(revision)
         await session.commit()
 
-        class FakeGraph:
-            async def aget_state(self, config):
-                return SimpleNamespace(
-                    next=("primary",),
-                    values={"current_revision_id": revision.id},
-                    config={"configurable": {}},
-                )
-
         fake_registry = SimpleNamespace(
             cancel=AsyncMock(return_value=True),
             register=AsyncMock(),
@@ -1306,22 +1296,10 @@ class TestAgentAPI:
             is_running=AsyncMock(return_value=False),
             is_parent_running=AsyncMock(return_value=False),
         )
-        runner = _SESSION_RUNNERS[session_id]
-
-        with patch.object(
-            runner,
-            "_get_graph",
-            AsyncMock(return_value=FakeGraph()),
-        ), patch(
-            "app.storage.repos.revision_repo.get_by_id",
-            AsyncMock(return_value=SimpleNamespace(id=revision.id, status="cancelled")),
-        ), patch(
+        with patch(
             "app.api.routers.agent_runtime.get_agent_run_registry",
             return_value=fake_registry,
         ), patch(
-            "app.api.routers.agent_runtime.SessionRunner.continue_with_user_message",
-            new=AsyncMock(return_value=None),
-        ) as mock_continue, patch(
             "app.api.routers.agent_runtime.SessionRunner.run",
             new=AsyncMock(return_value=None),
         ) as mock_run:
@@ -1338,7 +1316,6 @@ class TestAgentAPI:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["success"] is True
         await asyncio.sleep(0.05)
-        mock_continue.assert_not_awaited()
         mock_run.assert_awaited_once_with(user_request="取消上一轮后重新开始")
 
     async def test_get_session_state_rehydrates_persisted_session_without_runner(
@@ -1731,7 +1708,7 @@ class TestAgentAPI:
         mock_run.assert_awaited_once_with(user_request="帮我继续这一轮")
         assert session_id in _SESSION_RUNNERS
 
-    async def test_send_message_continues_unfinished_graph_without_restarting(
+    async def test_send_message_starts_new_run_for_paused_graph(
         self,
         client: AsyncClient,
     ) -> None:
@@ -1747,24 +1724,7 @@ class TestAgentAPI:
         )
         session_id = session_response.json()["session_id"]
 
-        class FakeGraph:
-            async def aget_state(self, config):
-                return SimpleNamespace(
-                    next=("primary",),
-                    values={"current_revision_id": "rev-existing"},
-                )
-
-        with patch.object(
-            _SESSION_RUNNERS[session_id],
-            "_get_graph",
-            AsyncMock(return_value=FakeGraph()),
-        ), patch(
-            "app.storage.repos.revision_repo.get_by_id",
-            AsyncMock(return_value=SimpleNamespace(status="interrupted")),
-        ), patch(
-            "app.api.routers.agent_runtime.SessionRunner.continue_with_user_message",
-            new=AsyncMock(return_value=None),
-        ) as mock_continue, patch(
+        with patch(
             "app.api.routers.agent_runtime.SessionRunner.run",
             new=AsyncMock(return_value=None),
         ) as mock_run:
@@ -1776,8 +1736,7 @@ class TestAgentAPI:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["success"] is True
         await asyncio.sleep(0.05)
-        mock_continue.assert_awaited_once_with("根据当前审核继续处理")
-        mock_run.assert_not_awaited()
+        mock_run.assert_awaited_once_with(user_request="根据当前审核继续处理")
 
     async def test_send_message_queues_follow_up_while_parent_run_is_active(
         self,
@@ -1799,10 +1758,6 @@ class TestAgentAPI:
 
         with patch.object(
             runner,
-            "can_continue",
-            AsyncMock(return_value=False),
-        ), patch.object(
-            runner,
             "queue_pending_user_message",
             new=AsyncMock(return_value={
                 "message_id": "msg_pending_1",
@@ -1814,9 +1769,6 @@ class TestAgentAPI:
             "app.api.routers.agent_runtime.get_agent_run_registry",
             return_value=fake_registry,
         ), patch(
-            "app.api.routers.agent_runtime.SessionRunner.continue_with_user_message",
-            new=AsyncMock(return_value=None),
-        ) as mock_continue, patch(
             "app.api.routers.agent_runtime.SessionRunner.run",
             new=AsyncMock(return_value=None),
         ) as mock_run:
@@ -1835,7 +1787,6 @@ class TestAgentAPI:
         }
         await asyncio.sleep(0.05)
         mock_queue.assert_awaited_once_with("补充要求：保留上一段语气")
-        mock_continue.assert_not_awaited()
         mock_run.assert_not_awaited()
 
     async def test_cancel_pending_message_restores_message_content(

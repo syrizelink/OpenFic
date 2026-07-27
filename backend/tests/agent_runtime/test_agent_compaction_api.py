@@ -62,13 +62,11 @@ def _registry(*, running: bool = False):
     )
 
 
-def _message_runner(*, can_continue: bool = False):
+def _message_runner():
     return SimpleNamespace(
         session_id="sess_compaction_api",
         task_id="task_compaction_api",
         project_id="proj_compaction_api",
-        can_continue=AsyncMock(return_value=can_continue),
-        continue_with_user_message=MagicMock(return_value=object()),
         queue_pending_user_message=AsyncMock(
             return_value={
                 "message_id": "msg_pending_1",
@@ -332,7 +330,7 @@ async def test_launch_continuation_replaces_current_registry_slot_without_gap() 
 async def test_send_message_queues_when_manual_compaction_running_even_if_interrupted(
     client: AsyncClient,
 ) -> None:
-    runner = _message_runner(can_continue=True)
+    runner = _message_runner()
     registry = _registry(running=True)
 
     with patch(
@@ -363,17 +361,15 @@ async def test_send_message_queues_when_manual_compaction_running_even_if_interr
     }
     registry.is_running.assert_awaited_once_with("sess_compaction_api")
     runner.queue_pending_user_message.assert_awaited_once_with("压缩期间追加需求")
-    runner.can_continue.assert_not_awaited()
-    runner.continue_with_user_message.assert_not_called()
     runner.run.assert_not_called()
     launch_task.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_send_message_continues_interrupted_session_when_not_running(
+async def test_send_message_starts_new_run_when_paused_session_is_not_running(
     client: AsyncClient,
 ) -> None:
-    runner = _message_runner(can_continue=True)
+    runner = _message_runner()
     registry = _registry(running=False)
 
     with patch(
@@ -398,10 +394,8 @@ async def test_send_message_continues_interrupted_session_when_not_running(
     assert response.json()["success"] is True
     assert response.json()["queued"] is False
     registry.is_running.assert_awaited_once_with("sess_compaction_api")
-    runner.can_continue.assert_awaited_once_with()
-    runner.continue_with_user_message.assert_called_once_with("继续被中断的会话")
     runner.queue_pending_user_message.assert_not_awaited()
-    runner.run.assert_not_called()
+    runner.run.assert_called_once_with(user_request="继续被中断的会话")
     launch_task.assert_awaited_once()
 
 
@@ -409,7 +403,7 @@ async def test_send_message_continues_interrupted_session_when_not_running(
 async def test_send_message_queues_ordinary_running_session(
     client: AsyncClient,
 ) -> None:
-    runner = _message_runner(can_continue=False)
+    runner = _message_runner()
     registry = _registry(running=True)
 
     with patch(
@@ -435,8 +429,6 @@ async def test_send_message_queues_ordinary_running_session(
     assert response.json()["queued"] is True
     registry.is_running.assert_awaited_once_with("sess_compaction_api")
     runner.queue_pending_user_message.assert_awaited_once_with("运行中追加需求")
-    runner.can_continue.assert_not_awaited()
-    runner.continue_with_user_message.assert_not_called()
     runner.run.assert_not_called()
     launch_task.assert_not_awaited()
 

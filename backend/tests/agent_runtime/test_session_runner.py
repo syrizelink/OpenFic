@@ -1,10 +1,14 @@
 from datetime import UTC, datetime
 from types import SimpleNamespace
+from typing import TypedDict
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from langchain_core.messages import HumanMessage
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.errors import GraphRecursionError
+from langgraph.graph import START, StateGraph
+from langgraph.types import interrupt
 from langgraph.types import Command
 
 from app.agent_runtime.context.types import ContextMessage
@@ -554,56 +558,10 @@ async def test_start_new_run_restarts_without_handoff_payload():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("revision_status", "expected"),
-    [
-        ("interrupted", True),
-        ("cancelled", False),
-        ("completed", False),
-    ],
-)
-async def test_can_continue_requires_interrupted_revision_status(
-    revision_status: str,
-    expected: bool,
-):
+async def test_run_starts_new_turns_after_interrupted_graph_without_concurrent_revision_writes():
     runner = SessionRunner(
-        session_id="sess_can_continue_001",
-        task_id="task_can_continue_001",
-        model_config={
-            "provider_type": "openai",
-            "model_id": "gpt",
-            "api_key": "k",
-            "base_url": "",
-            "max_context_tokens": 8000,
-        },
-    )
-
-    class _Graph:
-        async def aget_state(self, config):
-            return SimpleNamespace(
-                next=("primary",),
-                tasks=(),
-                values={"current_revision_id": "rev_1"},
-                config={"configurable": {}},
-            )
-
-    fake_session = MagicMock(close=AsyncMock())
-
-    with patch.object(runner, "_get_graph", AsyncMock(return_value=_Graph())), patch(
-        "app.storage.repos.revision_repo.get_by_id",
-        AsyncMock(return_value=SimpleNamespace(status=revision_status)),
-    ), patch(
-        "app.agent_runtime.runner.session_runner.create_session",
-        AsyncMock(return_value=fake_session),
-    ):
-        assert await runner.can_continue() is expected
-
-
-@pytest.mark.asyncio
-async def test_continue_with_user_message_resumes_checkpoint_with_command_update():
-    runner = SessionRunner(
-        session_id="sess_resume_001",
-        task_id="task_resume_001",
+        session_id="sess_paused_new_turn_001",
+        task_id="task_paused_new_turn_001",
         model_config={
             "provider_type": "openai",
             "model_id": "gpt",
@@ -613,85 +571,65 @@ async def test_continue_with_user_message_resumes_checkpoint_with_command_update
         },
         project_id="proj_001",
     )
-    captured: dict = {}
- 
-    class _Graph:
-        def __init__(self) -> None:
-            self.calls = 0
- 
-        async def astream_events(self, state, config, version):
-            captured["state"] = state
-            captured["config"] = config
-            if False:
-                yield None
- 
-        async def aget_state(self, config):
-            self.calls += 1
-            if self.calls == 1:
-                return SimpleNamespace(
-                    next=("primary",),
-                    tasks=(),
-                    values={
-                        "current_revision_id": "rev_prev",
-                    },
-                    config={"configurable": {}},
-                )
-            return SimpleNamespace(next=(), tasks=(), values={}, config={"configurable": {}})
- 
-    fake_runtime_session = MagicMock(close=AsyncMock())
-    fake_revision_session = MagicMock(close=AsyncMock(), commit=AsyncMock())
-    fake_status_session = MagicMock(close=AsyncMock(), commit=AsyncMock())
-    persisted_message = SimpleNamespace(id="msg_2", seq=2)
+
+    class _State(TypedDict):
+        current_revision_id: str
+        user_request: str
+
+    async def primary(_state: _State) -> None:
+        interrupt({"type": "ask_user"})
+
+    builder = StateGraph(_State)
+    builder.add_node("primary", primary)
+    builder.add_edge(START, "primary")
+    graph = builder.compile(checkpointer=InMemorySaver())
+    config = {"configurable": {"thread_id": runner.session_id}}
+    await graph.ainvoke(
+        {"current_revision_id": "rev_initial", "user_request": "初始消息"},
+        config=config,
+    )
+
+    fake_session = MagicMock(close=AsyncMock(), commit=AsyncMock())
     fake_persister = MagicMock(
         handle=AsyncMock(),
         finalize=AsyncMock(),
         persist_node_event=AsyncMock(),
         apply_interrupt_preview=AsyncMock(),
     )
-    raw_message = '<of-mention chapter_id="chap_1" label="旧章节" />'
-    compiled_message = " @chapter:修订卷/修订章节 "
 
-    with patch(
-        "app.agent_runtime.runner.session_runner.compile_canonical_mentions",
-        AsyncMock(return_value=compiled_message),
-        create=True,
-    ), patch.object(runner, "_get_graph", AsyncMock(return_value=_Graph())), patch.object(
+    with patch.object(runner, "_get_graph", AsyncMock(return_value=graph)), patch.object(
         runner,
-        "_persist_user_message",
-        AsyncMock(return_value=persisted_message),
+        "_prepare_run_persistence",
+        AsyncMock(return_value=[]),
     ), patch.object(
         runner,
-        "_emit_user_message",
-        AsyncMock(),
+        "_begin_user_turn",
+        AsyncMock(
+            side_effect=[
+                (SimpleNamespace(id="msg_1"), SimpleNamespace(id="rev_1")),
+                (SimpleNamespace(id="msg_2"), SimpleNamespace(id="rev_2")),
+            ]
+        ),
     ), patch(
-        "app.agent_runtime.runner.session_runner.begin_user_revision",
-        AsyncMock(return_value=SimpleNamespace(id="rev_new")),
-    ) as begin_revision, patch(
+        "app.agent_runtime.runner.session_runner.create_session",
+        AsyncMock(return_value=fake_session),
+    ), patch(
         "app.agent_runtime.runner.session_runner.finalize_revision_status",
         AsyncMock(),
     ), patch(
         "app.agent_runtime.runner.session_runner.emit",
         AsyncMock(),
-    ), patch(
-        "app.agent_runtime.runner.session_runner.create_session",
-        AsyncMock(side_effect=[fake_runtime_session, fake_revision_session, fake_status_session]),
     ), patch.object(
         runner,
         "_make_persister",
         MagicMock(return_value=fake_persister),
     ):
-        await runner.continue_with_user_message(raw_message)
+        await runner.run("第一条新消息")
+        await runner.run("第二条新消息")
 
-    assert isinstance(captured["state"], Command)
-    assert captured["state"].resume is None
-    assert set(captured["state"]._update_as_tuples()) == {
-        ("current_revision_id", "rev_new"),
-        ("user_request", compiled_message),
-    }
-    assert captured["config"]["configurable"]["runtime_context"] == {}
-    assert "context_anchor_order" not in begin_revision.await_args.kwargs
-    queued = runner._inject_queue.get_nowait()
-    assert queued == ("msg_2", "user", raw_message)
+    state = await graph.aget_state(config)
+    assert state.values["current_revision_id"] == "rev_2"
+    assert state.next == ("primary",)
 
 
 @pytest.mark.asyncio
@@ -858,89 +796,6 @@ async def test_run_emits_error_and_marks_revision_failed_on_runtime_exception():
     )
  
  
-@pytest.mark.asyncio
-async def test_continue_with_user_message_emits_error_on_runtime_exception():
-    runner = SessionRunner(
-        session_id="sess_continue_error_001",
-        task_id="task_continue_error_001",
-        model_config={
-            "provider_type": "openai",
-            "model_id": "gpt",
-            "api_key": "k",
-            "base_url": "",
-            "max_context_tokens": 8000,
-        },
-        project_id="proj_001",
-    )
-
-    class _Graph:
-        async def astream_events(self, *_args, **_kwargs):
-            raise GraphRecursionError("Continue recursion limit reached")
-            if False:
-                yield None
-
-        async def aget_state(self, _config):
-            return SimpleNamespace(
-                next=("primary",),
-                tasks=(),
-                values={"current_revision_id": "rev_prev"},
-                config={"configurable": {}},
-            )
-
-    fake_runtime_session = MagicMock(close=AsyncMock())
-    fake_status_session = MagicMock(close=AsyncMock(), commit=AsyncMock())
-    fake_persister = MagicMock(
-        handle=AsyncMock(),
-        finalize=AsyncMock(),
-        persist_node_event=AsyncMock(),
-    )
-
-    with patch.object(runner, "_get_graph", AsyncMock(return_value=_Graph())), patch.object(
-        runner,
-        "_begin_user_turn",
-        AsyncMock(return_value=(SimpleNamespace(id="msg_2"), SimpleNamespace(id="rev_continue_1"))),
-    ), patch.object(
-        runner,
-        "inject_message",
-        AsyncMock(),
-    ), patch(
-        "app.agent_runtime.runner.session_runner.create_session",
-        AsyncMock(side_effect=[fake_runtime_session, fake_status_session]),
-    ), patch(
-        "app.agent_runtime.runner.session_runner.finalize_revision_status",
-        AsyncMock(),
-    ) as finalize_revision_status, patch(
-        "app.agent_runtime.runner.session_runner.emit",
-        AsyncMock(),
-    ) as emit_mock, patch.object(
-        runner,
-        "_make_persister",
-        MagicMock(return_value=fake_persister),
-    ), patch.object(
-        runner,
-        "_clear_replay_session",
-        AsyncMock(),
-    ):
-        with pytest.raises(GraphRecursionError):
-            await runner.continue_with_user_message("继续执行")
-
-    fake_persister.finalize.assert_awaited_once_with(reason="error")
-    finalize_revision_status.assert_awaited_once_with(
-        fake_status_session,
-        "rev_continue_1",
-        "failed",
-    )
-    emit_mock.assert_any_await(
-        "agent:error",
-        {
-            "session_id": "sess_continue_error_001",
-            "type": "runtime_failure",
-            "reason": "Continue recursion limit reached",
-        },
-        room=runner._room,
-    )
-
-
 @pytest.mark.asyncio
 async def test_resume_emits_error_and_marks_revision_failed_on_runtime_exception():
     runner = SessionRunner(

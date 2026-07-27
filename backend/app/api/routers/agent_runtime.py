@@ -680,9 +680,8 @@ async def send_agent_message(
             model_updated=False,
             pending_message=AgentPendingMessageResponse(**pending_message),
         )
-    can_continue = await runner.can_continue()
     model_updated = False
-    if body.model_id and not can_continue:
+    if body.model_id:
         try:
             runner.update_model_config(
                 await _resolve_model_config(
@@ -705,10 +704,7 @@ async def send_agent_message(
                     session, model_record_id, body.reasoning_effort
                 )
             )
-    if can_continue:
-        coro = runner.continue_with_user_message(body.message)
-    else:
-        coro = runner.run(user_request=body.message)
+    coro = runner.run(user_request=body.message)
     await _launch_task(
         db_session_factory=status_session_factory,
         session_id=session_id,
