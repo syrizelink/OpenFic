@@ -20,6 +20,7 @@ export const AGENT_SOCKET_EVENTS = [
   "agent:chapter_refresh",
   "agent:note_refresh",
   "agent:world_entry_refresh",
+  "agent:character_refresh",
   "agent:compaction_start",
   "agent:compaction_success",
   "agent:compaction_error",
@@ -326,6 +327,22 @@ export function toAgentEvent(
         project_id: getString(data.project_id),
         world_info_id: getString(data.world_info_id),
         entry_id: getString(data.entry_id),
+        operation: getString(data.operation),
+      },
+    };
+  }
+
+  if (eventName === "agent:character_refresh") {
+    return {
+      type: "character_refresh",
+      role: "system",
+      status: "completed",
+      display: "hidden",
+      created_at: getString(data.created_at),
+      payload: {
+        session_id: getString(data.session_id),
+        project_id: getString(data.project_id),
+        character_id: getString(data.character_id),
         operation: getString(data.operation),
       },
     };

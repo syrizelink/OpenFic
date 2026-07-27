@@ -81,6 +81,7 @@ export type AgentMessageType =
   | "chapter_refresh"
   | "note_refresh"
   | "world_entry_refresh"
+  | "character_refresh"
   | "task_completed"
   | "user_request"
   | "agent_thinking"

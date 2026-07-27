@@ -13,6 +13,7 @@ interface CharacterEditorProps {
   character: Character | null;
   isSaving?: boolean;
   isLoading?: boolean;
+  isAgentLocked?: boolean;
   onSave: (data: { name: string; description: string }) => Promise<void> | void;
 }
 
@@ -20,6 +21,7 @@ export function CharacterEditor({
   character,
   isSaving = false,
   isLoading = false,
+  isAgentLocked = false,
   onSave,
 }: CharacterEditorProps) {
   const { t } = useTranslation();
@@ -94,11 +96,27 @@ export function CharacterEditor({
   }, [flushSave]);
 
   useEffect(() => {
+    if (!character) return;
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    setName(character.name);
+    setDescription(character.description);
+    setTokenCount(countTokens(character.description));
+    latestValueRef.current = {
+      name: character.name,
+      description: character.description,
+    };
+    hasChangesRef.current = false;
+    setHasChanges(false);
+  }, [character]);
+
+  useEffect(() => {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      if (hasChangesRef.current) void flushSave();
     };
-  }, [flushSave]);
+  }, []);
 
   if (isLoading) {
     return (
@@ -150,6 +168,7 @@ export function CharacterEditor({
       wordCount={tokenCount}
       wordCountLabel={t("characters.tokenCount")}
       editorRef={editorRef}
+      isLocked={isAgentLocked}
     />
   );
 }

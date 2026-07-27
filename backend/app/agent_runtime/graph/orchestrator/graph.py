@@ -23,6 +23,7 @@ from app.agent_runtime.model_config import to_client_model_config
 from app.agent_runtime.tools import ToolRegistry
 from app.agent_runtime.tools.impls.skill.skill import skill_tool_names_for_definition
 from app.agent_runtime.tools.hooks.auth import auth_hook
+from app.agent_runtime.tools.hooks.character_refresh import character_refresh_post_hook
 from app.agent_runtime.tools.hooks.chapter_refresh import chapter_refresh_post_hook
 from app.agent_runtime.tools.hooks.dispatch_description import (
     build_dispatch_subagent_description_hook,
@@ -106,7 +107,12 @@ async def primary_node(
                 state=tool_state,
                 build_hooks=await _primary_build_hooks(config, agent_key=agent_key),
                 pre_hooks=[auth_hook],
-                post_hooks=[chapter_refresh_post_hook, note_refresh_post_hook, world_entry_refresh_post_hook],
+                post_hooks=[
+                    chapter_refresh_post_hook,
+                    note_refresh_post_hook,
+                    world_entry_refresh_post_hook,
+                    character_refresh_post_hook,
+                ],
             ),
         ),
         termination=TerminationCondition(mode="no_tool_call"),

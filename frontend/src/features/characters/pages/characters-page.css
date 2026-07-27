@@ -231,12 +231,6 @@
   background: var(--color-background);
 }
 
-.characters-page-mobile-topbar-side {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-}
-
 .characters-page-mobile-sidebar-backdrop {
   position: absolute;
   inset: 0;
@@ -255,6 +249,20 @@
   border-right: 1px solid var(--gray-a4);
   background: var(--color-background);
   will-change: transform;
+}
+
+.characters-page-mobile-assistant-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--color-background);
+  visibility: visible;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.characters-page-mobile-assistant-overlay[data-open="true"] {
+  pointer-events: auto;
 }
 
 .characters-right-empty {

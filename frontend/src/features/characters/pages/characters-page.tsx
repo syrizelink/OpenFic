@@ -1,6 +1,6 @@
 import { AlertDialog, Box, Button, Flex, IconButton, Tooltip, Text } from "@radix-ui/themes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { List } from "lucide-react";
+import { Bot, List } from "lucide-react";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -9,6 +9,8 @@ import { useSearchParams } from "react-router";
 
 import { toast } from "@/components/toast";
 import { MobileAppSidebarTrigger } from "@/features/app-shell";
+import { AssistantSidebar } from "@/features/assistant";
+import type { AssistantSidebarState } from "@/features/assistant";
 import {
   batchDeleteCharacters,
   batchFavoriteCharacters,
@@ -73,6 +75,11 @@ export function CharactersPage() {
     null,
   );
   const [isMobile, setIsMobile] = useState(false);
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+  const [assistantState, setAssistantState] = useState<AssistantSidebarState>({
+    agentStatus: "idle",
+    isAgentRunning: false,
+  });
   const [selectedCharacterLoadVersion, setSelectedCharacterLoadVersion] = useState(0);
 
   useEffect(() => {
@@ -324,6 +331,7 @@ export function CharactersPage() {
       character={selectedCharacter ?? null}
       isSaving={updateMutation.isPending}
       isLoading={isCharacterLoading}
+      isAgentLocked={Boolean(currentProjectId && assistantState.isAgentRunning)}
       onSave={async (data) => {
         if (!selectedCharacter) return;
         await updateMutation.mutateAsync({ characterId: selectedCharacter.id, data });
@@ -364,11 +372,19 @@ export function CharactersPage() {
 
           <Panel
             id="characters-right"
-            defaultSize={350}
-            minSize={260}
-            maxSize={450}
+            defaultSize={500}
+            minSize={300}
+            maxSize={600}
             collapsible={false}
-          ></Panel>
+          >
+            <Box className="characters-panel">
+              <AssistantSidebar
+                key={currentProjectId}
+                projectId={currentProjectId}
+                onStateChange={setAssistantState}
+              />
+            </Box>
+          </Panel>
         </Group>
       ) : currentProjectId ? (
         <Box className="characters-page-body characters-page-body--mobile">
@@ -397,7 +413,16 @@ export function CharactersPage() {
                 </Tooltip>
               </Flex>
 
-              <Box className="characters-page-mobile-topbar-side" />
+              <Tooltip content={t("assistant.mobileTitle")}>
+                <IconButton
+                  variant="ghost"
+                  size="2"
+                  aria-label={t("assistant.mobileTitle")}
+                  onClick={() => setIsAssistantOpen(true)}
+                >
+                  <Bot size={18} />
+                </IconButton>
+              </Tooltip>
             </Flex>
 
             <Box className="characters-page-content-fill">{editorContent}</Box>
@@ -447,6 +472,25 @@ export function CharactersPage() {
             {t("characters.noProjectHint")}
           </Text>
         </Flex>
+      )}
+
+      {isMobile && currentProjectId && (
+        <MotionBox
+          initial={false}
+          animate={{ x: isAssistantOpen ? 0 : "100%" }}
+          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+          className="characters-page-mobile-assistant-overlay"
+          data-open={isAssistantOpen}
+          aria-hidden={!isAssistantOpen}
+        >
+          <AssistantSidebar
+            key={currentProjectId}
+            projectId={currentProjectId}
+            onStateChange={setAssistantState}
+            onClose={() => setIsAssistantOpen(false)}
+            isMobileOverlay
+          />
+        </MotionBox>
       )}
 
       <CharacterProfileDialog

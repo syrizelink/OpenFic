@@ -249,6 +249,25 @@ export function useAgentSession({
     [queryClient],
   );
 
+  const invalidateCharacterQueries = useCallback(
+    (targetCharacterId?: string, operation?: string) => {
+      queryClient.invalidateQueries({ queryKey: ["characters", projectId] });
+      if (!targetCharacterId) return;
+
+      if (operation === "delete") {
+        queryClient.removeQueries({
+          queryKey: ["character", targetCharacterId],
+        });
+        return;
+      }
+
+      queryClient.invalidateQueries({
+        queryKey: ["character", targetCharacterId],
+      });
+    },
+    [projectId, queryClient],
+  );
+
   const commitTranscriptState = useCallback((nextState: AgentTranscriptState) => {
     syncAgentTranscriptLiveState(transcriptStateRef.current, nextState);
     setMessages(nextState.messages);
@@ -466,11 +485,23 @@ export function useAgentSession({
         return;
       }
 
+      if (message?.type === "character_refresh") {
+        const targetCharacterId =
+          typeof message.payload?.character_id === "string"
+            ? message.payload.character_id
+            : undefined;
+        const operation =
+          typeof message.payload?.operation === "string" ? message.payload.operation : undefined;
+        invalidateCharacterQueries(targetCharacterId, operation);
+        return;
+      }
+
       if (message?.type === "completed" && result.state.status !== "running") {
         ignoredApprovalIdsRef.current.clear();
         invalidateChapterQueries();
         invalidateNoteQueries();
         invalidateWorldEntryQueries();
+        invalidateCharacterQueries();
         return;
       }
 
@@ -486,6 +517,7 @@ export function useAgentSession({
       agentKey,
       commitTranscriptState,
       invalidateChapterQueries,
+      invalidateCharacterQueries,
       invalidateNoteQueries,
       invalidateWorldEntryQueries,
       onTaskTitleUpdated,
@@ -1029,6 +1061,7 @@ export function useAgentSession({
           invalidateChapterQueries();
           invalidateNoteQueries();
           invalidateWorldEntryQueries();
+          invalidateCharacterQueries();
 
           toast.success(i18n.t("assistant.rollbackSuccess"));
 
@@ -1052,6 +1085,7 @@ export function useAgentSession({
       isRunning,
       messages,
       invalidateChapterQueries,
+      invalidateCharacterQueries,
       invalidateNoteQueries,
       invalidateWorldEntryQueries,
     ],
