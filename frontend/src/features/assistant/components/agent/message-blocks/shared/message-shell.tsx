@@ -3,6 +3,8 @@ import { ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
+import { useAppShell } from "@/features/app-shell/components/app-shell-context";
+
 import "./message-shell.css";
 import { joinClassNames } from "./message-shell-utils";
 
@@ -243,10 +245,13 @@ export function MessageBlockContent({
 }
 
 export function UserMessageShell({ children, className }: UserMessageShellProps) {
+  const { isMobile } = useAppShell();
+
   return (
     <Flex
       justify="end"
       className={joinClassNames("agent-message-user-shell-row", className)}
+      data-width={isMobile ? "100%" : undefined}
     >
       <Box className="agent-user-message-shell">{children}</Box>
     </Flex>

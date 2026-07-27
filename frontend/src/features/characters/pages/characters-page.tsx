@@ -8,8 +8,7 @@ import { Group, Panel, Separator } from "react-resizable-panels";
 import { useSearchParams } from "react-router";
 
 import { toast } from "@/components/toast";
-import { MobileAppSidebarTrigger } from "@/features/app-shell";
-import { AssistantSidebar } from "@/features/assistant";
+import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
 import type { AssistantSidebarState } from "@/features/assistant";
 import {
   batchDeleteCharacters,
@@ -62,6 +61,7 @@ export function CharactersPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const { isMobile, openAssistantSidebar } = useAppShell();
   const {
     currentProjectId,
     currentCharacterId,
@@ -74,20 +74,11 @@ export function CharactersPage() {
   const [deleteCharacterTarget, setDeleteCharacterTarget] = useState<CharacterListItem | null>(
     null,
   );
-  const [isMobile, setIsMobile] = useState(false);
-  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [assistantState, setAssistantState] = useState<AssistantSidebarState>({
     agentStatus: "idle",
     isAgentRunning: false,
   });
   const [selectedCharacterLoadVersion, setSelectedCharacterLoadVersion] = useState(0);
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
 
   const { data: projectsData } = useQuery({
     queryKey: ["projects", "characters-page"],
@@ -378,10 +369,10 @@ export function CharactersPage() {
             collapsible={false}
           >
             <Box className="characters-panel">
-              <AssistantSidebar
-                key={currentProjectId}
+              <AssistantSidebarHost
                 projectId={currentProjectId}
                 onStateChange={setAssistantState}
+                isMobileOverlay={false}
               />
             </Box>
           </Panel>
@@ -418,7 +409,7 @@ export function CharactersPage() {
                   variant="ghost"
                   size="2"
                   aria-label={t("assistant.mobileTitle")}
-                  onClick={() => setIsAssistantOpen(true)}
+                  onClick={openAssistantSidebar}
                 >
                   <Bot size={18} />
                 </IconButton>
@@ -475,22 +466,11 @@ export function CharactersPage() {
       )}
 
       {isMobile && currentProjectId && (
-        <MotionBox
-          initial={false}
-          animate={{ x: isAssistantOpen ? 0 : "100%" }}
-          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-          className="characters-page-mobile-assistant-overlay"
-          data-open={isAssistantOpen}
-          aria-hidden={!isAssistantOpen}
-        >
-          <AssistantSidebar
-            key={currentProjectId}
-            projectId={currentProjectId}
-            onStateChange={setAssistantState}
-            onClose={() => setIsAssistantOpen(false)}
-            isMobileOverlay
-          />
-        </MotionBox>
+        <AssistantSidebarHost
+          projectId={currentProjectId}
+          onStateChange={setAssistantState}
+          isMobileOverlay
+        />
       )}
 
       <CharacterProfileDialog

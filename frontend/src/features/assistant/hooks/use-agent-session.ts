@@ -181,6 +181,8 @@ export function useAgentSession({
   const suppressNextErrorAfterCompactionErrorRef = useRef(false);
   const transcriptStateRef = useRef(createAgentTranscriptLiveState());
   const transportRetryAttemptRef = useRef(0);
+  const projectIdRef = useRef(projectId);
+  projectIdRef.current = projectId;
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [pendingMessage, setPendingMessage] = useState<AgentPendingMessage | null>(null);
@@ -631,6 +633,7 @@ export function useAgentSession({
           ...(agentKey ? { agent_key: agentKey } : {}),
         });
 
+        if (projectIdRef.current !== projectId) return;
         onSessionCreated?.(createResponse);
         sessionIdRef.current = createResponse.session_id;
         activeModelIdRef.current = modelId;
@@ -638,8 +641,10 @@ export function useAgentSession({
         queryClient.invalidateQueries({ queryKey: ["tasks", projectId], exact: false });
         attachAgentSocket(createResponse.session_id);
         await joinAgentSession(createResponse.session_id);
+        if (projectIdRef.current !== projectId) return;
         await sendAgentMessage(createResponse.session_id, userRequest);
       } catch (error) {
+        if (projectIdRef.current !== projectId) return;
         console.error("Failed to start agent session:", error);
         updateTranscriptState((current) => ({
           ...current,
@@ -900,13 +905,20 @@ export function useAgentSession({
     suppressSocketEventsAfterAbortRef.current = false;
     transportRetryAttemptRef.current = 0;
     suppressNextErrorAfterCompactionErrorRef.current = false;
+    ignoredApprovalIdsRef.current.clear();
+    manualCompactionPreviousStateRef.current = null;
     syncPendingMessageState(null);
     syncCompactingState(false);
+    setIsRollbacking(false);
     setSessionId(null);
     commitTranscriptState(createAgentTranscriptLiveState());
     socketUnsubscribeRef.current?.();
     socketUnsubscribeRef.current = null;
   }, [commitTranscriptState, syncCompactingState, syncPendingMessageState]);
+
+  useEffect(() => {
+    resetSession();
+  }, [projectId, resetSession]);
 
   const abortSession = useCallback(async () => {
     const activeSessionId = sessionId;

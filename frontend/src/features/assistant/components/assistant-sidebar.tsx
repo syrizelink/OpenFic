@@ -668,6 +668,13 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       let cancelled = false;
       queueMicrotask(() => {
         if (cancelled) return;
+        setInputValue("");
+        setView("tasks");
+        setIsLoadingTask(false);
+        setCurrentTaskId(null);
+        setCurrentTaskTitle("");
+        setSummaryWarningOpen(false);
+        pendingSendActionRef.current = null;
         setConversationState(createConversationStackState(""));
         setActiveSubagents([]);
         setSessionTotalUsage(createSessionTotalUsageState());

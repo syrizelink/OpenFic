@@ -110,6 +110,10 @@
   width: min(100%, 85vw);
 }
 
+.agent-message-user-shell-row[data-width="100%"] .agent-user-message-shell {
+  width: 100%;
+}
+
 .agent-user-message-preview {
   position: relative;
   overflow: hidden;

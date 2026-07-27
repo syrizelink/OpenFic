@@ -169,11 +169,7 @@ export function AgentInput({
 
   return (
     <Box className="ai-sidebar-input-area">
-      <motion.div
-        layout
-        className="ai-sidebar-input-stage"
-        transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-      >
+      <div className="ai-sidebar-input-stage">
         <AnimatePresence initial={false}>
           {mentionSuggestions ? (
             <AgentMentionSuggestions
@@ -202,12 +198,10 @@ export function AgentInput({
           ) : null}
         </AnimatePresence>
 
-        <motion.div
+        <div
           ref={inputContainerRef}
-          layout
           className="ai-sidebar-input-container"
           data-mode={bodyMode}
-          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
         >
           <AnimatePresence
             initial={false}
@@ -271,8 +265,8 @@ export function AgentInput({
               </motion.div>
             )}
           </AnimatePresence>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
 
       {readOnly ? null : (
         <Flex

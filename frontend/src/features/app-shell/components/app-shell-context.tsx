@@ -2,6 +2,8 @@ import { createContext, useContext } from "react";
 
 import type { SettingsDialogRoute } from "@/features/settings/lib/settings-route";
 
+import type { AssistantSidebarHostRegistration } from "./assistant-sidebar-host-state";
+
 interface AppShellContextValue {
   isMobile: boolean;
   isSidebarOpen: boolean;
@@ -11,6 +13,12 @@ interface AppShellContextValue {
   toggleSidebar: () => void;
   openSettings: (route?: SettingsDialogRoute) => void;
   closeSettings: () => void;
+  appendToAssistant: (markup: string) => void;
+  isAssistantSidebarOpen: boolean;
+  openAssistantSidebar: () => void;
+  closeAssistantSidebar: () => void;
+  registerAssistantSidebarHost: (registration: AssistantSidebarHostRegistration) => void;
+  clearAssistantSidebarHost: (id: string) => void;
 }
 
 export const AppShellContext = createContext<AppShellContextValue | null>(null);

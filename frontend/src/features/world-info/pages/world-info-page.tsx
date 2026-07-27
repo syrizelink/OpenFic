@@ -16,8 +16,7 @@ import { useSearchParams } from "react-router";
 import "./world-info-page.css";
 
 import { toast } from "@/components/toast";
-import { MobileAppSidebarTrigger } from "@/features/app-shell";
-import { AssistantSidebar } from "@/features/assistant";
+import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
 import type { AssistantSidebarState } from "@/features/assistant";
 import {
   fetchWorldInfoByProject,
@@ -69,9 +68,12 @@ export function WorldInfoPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const { closeAssistantSidebar, isMobile, openAssistantSidebar } = useAppShell();
 
   const {
     currentWorldInfoId,
+    currentProjectId,
+    setCurrentProject,
     setCurrentWorldInfo,
     currentEntryId,
     setCurrentEntry,
@@ -96,16 +98,6 @@ export function WorldInfoPage() {
     agentStatus: "idle",
     isAgentRunning: false,
   });
-  const [isMobile, setIsMobile] = useState(false);
-  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
-  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
 
   // 从 URL 参数初始化状态
   useEffect(() => {
@@ -138,11 +130,11 @@ export function WorldInfoPage() {
           : null) ??
         projects[0]?.id ??
         null;
-      setCurrentProjectId(nextProjectId);
+      setCurrentProject(nextProjectId);
     };
 
     void initProject();
-  }, [currentProjectId, projectIdFromUrl, projects]);
+  }, [currentProjectId, projectIdFromUrl, projects, setCurrentProject]);
 
   useEffect(() => {
     if (currentProjectId) void setPreference(LAST_PROJECT_KEY, currentProjectId);
@@ -175,7 +167,6 @@ export function WorldInfoPage() {
     queryFn: () => fetchWorldInfoEntries(currentWorldInfoId!, { page: 1, pageSize: 500 }),
     enabled: !!currentWorldInfoId,
     staleTime: 0,
-    gcTime: 0,
   });
 
   // 获取当前选中条目的完整数据
@@ -184,7 +175,6 @@ export function WorldInfoPage() {
     queryFn: () => fetchWorldInfoEntry(currentEntryId!),
     enabled: !!currentEntryId,
     staleTime: 0,
-    gcTime: 0,
   });
 
   const entries = useMemo(() => entriesData?.items ?? [], [entriesData?.items]);
@@ -324,13 +314,12 @@ export function WorldInfoPage() {
 
   const handleSelectProject = useCallback(
     (projectId: string) => {
-      setCurrentProjectId(projectId || null);
-      setCurrentEntry(null);
+      setCurrentProject(projectId || null);
       setIsCreatingEntry(false);
       setSidebarOpen(false);
-      setIsAssistantOpen(false);
+      closeAssistantSidebar();
     },
-    [setCurrentEntry, setSidebarOpen],
+    [closeAssistantSidebar, setCurrentProject, setSidebarOpen],
   );
 
   /** 处理创建条目 */
@@ -584,10 +573,9 @@ export function WorldInfoPage() {
   );
 
   const agentSidebarContent = currentProjectId ? (
-    <AssistantSidebar
+    <AssistantSidebarHost
       projectId={currentProjectId}
       onStateChange={setAssistantState}
-      onClose={() => setIsAssistantOpen(false)}
       isMobileOverlay={isMobile}
     />
   ) : (
@@ -802,7 +790,7 @@ export function WorldInfoPage() {
                       variant="ghost"
                       size="2"
                       aria-label={t("assistant.mobileTitle")}
-                      onClick={() => setIsAssistantOpen(true)}
+                      onClick={openAssistantSidebar}
                     >
                       <Bot size={18} />
                     </IconButton>
@@ -865,18 +853,7 @@ export function WorldInfoPage() {
         </Flex>
       </Flex>
 
-      {isMobile && currentProjectId && (
-        <MotionBox
-          initial={false}
-          animate={{ x: isAssistantOpen ? 0 : "100%" }}
-          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-          className="world-info-page-mobile-assistant-overlay"
-          data-open={isAssistantOpen}
-          aria-hidden={!isAssistantOpen}
-        >
-          {agentSidebarContent}
-        </MotionBox>
-      )}
+      {isMobile && currentProjectId ? agentSidebarContent : null}
 
       <ImportWorldInfoDialog
         open={importDialogOpen}

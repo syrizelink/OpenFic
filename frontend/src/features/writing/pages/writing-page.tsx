@@ -8,9 +8,8 @@ import { useParams } from "react-router";
 
 import "./writing-page.css";
 
-import { MobileAppSidebarTrigger } from "@/features/app-shell";
-import { AssistantSidebar } from "@/features/assistant";
-import type { AssistantSidebarHandle, AssistantSidebarState } from "@/features/assistant";
+import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
+import type { AssistantSidebarState } from "@/features/assistant";
 import { getLastChapterId, setLastChapterId } from "@/lib/local-db";
 
 import { ChapterEditor } from "../components/chapter-editor";
@@ -34,6 +33,8 @@ const SummaryPanel = lazy(() =>
 export function WritingPage() {
   const { t } = useTranslation();
   const { projectId } = useParams<{ projectId: string }>();
+  const { appendToAssistant, isAssistantSidebarOpen, isMobile, openAssistantSidebar } =
+    useAppShell();
 
   const { setCurrentChapter, hydrateSidebarView } = useWritingStore();
   const {
@@ -67,16 +68,13 @@ export function WritingPage() {
 
   const isPageLoading = !isTabsLoaded || isChaptersLoading;
 
-  const [isMobile, setIsMobile] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [hasOpenedSummary, setHasOpenedSummary] = useState(false);
   const [assistantState, setAssistantState] = useState<AssistantSidebarState>({
     agentStatus: "idle",
     isAgentRunning: false,
   });
-  const assistantSidebarRef = useRef<AssistantSidebarHandle | null>(null);
 
   const isAgentLocked = useMemo(
     () => assistantState.isAgentRunning,
@@ -87,16 +85,6 @@ export function WritingPage() {
   useEffect(() => {
     void hydrateSidebarView();
   }, [hydrateSidebarView]);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
 
   const allChapters = useMemo(
     () => chaptersData?.volumes.flatMap((volume) => volume.chapters) ?? [],
@@ -316,17 +304,17 @@ export function WritingPage() {
     (markup: string) => {
       if (!markup.trim()) return;
 
-      if (isMobile && !isAssistantOpen) {
-        setIsAssistantOpen(true);
+      if (isMobile && !isAssistantSidebarOpen) {
+        openAssistantSidebar();
         window.requestAnimationFrame(() => {
-          assistantSidebarRef.current?.appendToComposer(markup);
+          appendToAssistant(markup);
         });
         return;
       }
 
-      assistantSidebarRef.current?.appendToComposer(markup);
+      appendToAssistant(markup);
     },
-    [isAssistantOpen, isMobile],
+    [appendToAssistant, isAssistantSidebarOpen, isMobile, openAssistantSidebar],
   );
 
   const handleOpenSummary = useCallback(() => {
@@ -428,11 +416,11 @@ export function WritingPage() {
               collapsible={false}
             >
               <Box className="writing-page-sidebar writing-page-sidebar--right">
-                <AssistantSidebar
-                  ref={assistantSidebarRef}
+                <AssistantSidebarHost
                   projectId={projectId}
                   onStateChange={setAssistantState}
                   onOpenMentionChapter={handleChapterSelect}
+                  isMobileOverlay={false}
                 />
               </Box>
             </Panel>
@@ -469,7 +457,7 @@ export function WritingPage() {
                     variant="ghost"
                     size="2"
                     aria-label={t("assistant.mobileTitle")}
-                    onClick={() => setIsAssistantOpen(true)}
+                    onClick={openAssistantSidebar}
                   >
                     <Bot size={18} />
                   </IconButton>
@@ -539,23 +527,12 @@ export function WritingPage() {
       </Box>
 
       {isMobile && (
-        <MotionBox
-          initial={false}
-          animate={{ x: isAssistantOpen ? 0 : "100%" }}
-          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-          className="writing-page-mobile-assistant-overlay"
-          data-open={isAssistantOpen}
-          aria-hidden={!isAssistantOpen}
-        >
-          <AssistantSidebar
-            ref={assistantSidebarRef}
-            projectId={projectId}
-            onStateChange={setAssistantState}
-            onOpenMentionChapter={handleChapterSelect}
-            onClose={() => setIsAssistantOpen(false)}
-            isMobileOverlay
-          />
-        </MotionBox>
+        <AssistantSidebarHost
+          projectId={projectId}
+          onStateChange={setAssistantState}
+          onOpenMentionChapter={handleChapterSelect}
+          isMobileOverlay
+        />
       )}
 
       {hasOpenedSummary && (

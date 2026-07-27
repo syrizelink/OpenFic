@@ -7,6 +7,8 @@
 import { create } from "zustand";
 
 interface WorldInfoStoreState {
+  /** 当前项目 ID */
+  currentProjectId: string | null;
   /** 当前选中的世界书 ID */
   currentWorldInfoId: string | null;
   /** 当前选中的条目 ID */
@@ -32,6 +34,8 @@ interface WorldInfoStoreState {
 }
 
 interface WorldInfoStoreActions {
+  /** 设置当前项目 */
+  setCurrentProject: (projectId: string | null) => void;
   /** 设置当前世界书 */
   setCurrentWorldInfo: (worldInfoId: string | null) => void;
   /** 设置当前选中的条目 */
@@ -60,6 +64,7 @@ interface WorldInfoStoreActions {
 type WorldInfoStore = WorldInfoStoreState & WorldInfoStoreActions;
 
 const initialState: WorldInfoStoreState = {
+  currentProjectId: null,
   currentWorldInfoId: null,
   currentEntryId: null,
   searchQuery: "",
@@ -75,6 +80,7 @@ const initialState: WorldInfoStoreState = {
 export const useWorldInfoStore = create<WorldInfoStore>((set, get) => ({
   ...initialState,
 
+  setCurrentProject: (projectId) => set({ currentProjectId: projectId, currentEntryId: null }),
   setCurrentWorldInfo: (worldInfoId) => set({ currentWorldInfoId: worldInfoId }),
   setCurrentEntry: (entryId) => set({ currentEntryId: entryId }),
   setSearchQuery: (query) => set({ searchQuery: query }),
