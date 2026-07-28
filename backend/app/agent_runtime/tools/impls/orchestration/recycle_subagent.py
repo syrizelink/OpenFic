@@ -5,6 +5,7 @@ import json
 from pydantic import BaseModel, Field
 
 from app.agent_runtime.persistence.child_runs import recycle_child_run
+from app.agent_runtime.runner.checkpointer import delete_checkpoints_for_thread
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.tools.impls.orchestration.common import (
@@ -79,6 +80,7 @@ class RecycleSubagentTool(AgentTool):
             )
         finally:
             await close_session(session)
+        await delete_checkpoints_for_thread(recycled.child_thread_id)
 
         runner = make_subagent_runner(state=self._state, configurable=configurable)
         await runner.publish_parent_subagent_status(recycled.id)

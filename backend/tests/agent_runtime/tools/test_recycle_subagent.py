@@ -1,5 +1,7 @@
 import json
 from types import SimpleNamespace
+from typing import Any, cast
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -18,6 +20,7 @@ async def test_recycle_subagent_returns_subagent_identity(
 
     row = SimpleNamespace(
         id="child-run-1",
+        child_thread_id="parent:child:writer",
         dispatch_id="dispatch-writer",
         agent_key="writer",
         metadata_json={"agent_number": "#1001"},
@@ -49,16 +52,21 @@ async def test_recycle_subagent_returns_subagent_identity(
     monkeypatch.setattr(recycle_module, "open_session", open_session)
     monkeypatch.setattr(recycle_module, "close_session", noop)
     monkeypatch.setattr(recycle_module, "recycle_child_run", recycle_child_run)
+    delete_checkpoints = AsyncMock(return_value=2)
+    monkeypatch.setattr(recycle_module, "delete_checkpoints_for_thread", delete_checkpoints)
     monkeypatch.setattr(recycle_module, "get_agent_run_registry", lambda: Registry())
     monkeypatch.setattr(
         recycle_module, "make_subagent_runner", lambda **_kwargs: Runner()
     )
-    tool = RecycleSubagentTool(
-        _state={
-            "session_id": "parent",
-            "project_id": "project-1",
-            "active_agent": "primary",
-        }
+    tool = cast(
+        Any,
+        RecycleSubagentTool(
+            _state={
+                "session_id": "parent",
+                "project_id": "project-1",
+                "active_agent": "primary",
+            }
+        ),
     )
 
     result = json.loads(
@@ -72,3 +80,7 @@ async def test_recycle_subagent_returns_subagent_identity(
         "metadata": {"agent_number": "#1001"},
         "recycled": True,
     }
+    if is_active:
+        delete_checkpoints.assert_awaited_once_with(row.child_thread_id)
+    else:
+        delete_checkpoints.assert_not_awaited()

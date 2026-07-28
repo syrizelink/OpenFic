@@ -3,13 +3,17 @@ import sqlite3
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import AsyncMock
 
 import app.agent_runtime.runner.checkpointer as checkpointer_mod
 import aiosqlite
+from langchain_core.runnables import RunnableConfig
+from langgraph.checkpoint.base import Checkpoint
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 import pytest
 from app.agent_runtime.runner.checkpointer import (
+    cleanup_unreachable_checkpoints,
     close_checkpointer,
     delete_checkpoints_after_for_thread,
     delete_checkpoints_for_thread,
@@ -18,6 +22,8 @@ from app.agent_runtime.runner.checkpointer import (
     reset_checkpointer,
 )
 from app.agent_runtime.tools.impls.interaction.ask_user import Question, QuestionOption
+from app.agent_runtime.persistence.child_runs import create_child_run
+from app.storage.models.task import Task
 
 
 @pytest.mark.asyncio
@@ -30,30 +36,36 @@ async def test_get_checkpointer_restores_legacy_question_checkpoint(monkeypatch,
         conn = await aiosqlite.connect(db_path)
         legacy_checkpointer = AsyncSqliteSaver(conn)
         await legacy_checkpointer.setup()
-        config = {
-            "configurable": {
-                "thread_id": "legacy-question-session",
-                "checkpoint_ns": "",
-            }
-        }
-        checkpoint = {
-            "v": 2,
-            "id": "legacy-question-checkpoint",
-            "ts": "2026-07-12T00:00:00+00:00",
-            "channel_values": {
-                "pending_question": Question(
-                    title="继续方式",
-                    description="请选择后续处理方式。",
-                    options=[
-                        QuestionOption(label="继续", description="继续执行"),
-                        QuestionOption(label="暂停", description="暂停执行"),
-                    ],
-                )
+        config = cast(
+            RunnableConfig,
+            {
+                "configurable": {
+                    "thread_id": "legacy-question-session",
+                    "checkpoint_ns": "",
+                }
             },
-            "channel_versions": {},
-            "versions_seen": {},
-            "pending_sends": [],
-        }
+        )
+        checkpoint = cast(
+            Checkpoint,
+            {
+                "v": 2,
+                "id": "legacy-question-checkpoint",
+                "ts": "2026-07-12T00:00:00+00:00",
+                "channel_values": {
+                    "pending_question": Question(
+                        title="继续方式",
+                        description="请选择后续处理方式。",
+                        options=[
+                            QuestionOption(label="继续", description="继续执行"),
+                            QuestionOption(label="暂停", description="暂停执行"),
+                        ],
+                    )
+                },
+                "channel_versions": {},
+                "versions_seen": {},
+                "pending_sends": [],
+            },
+        )
         await legacy_checkpointer.aput(config, checkpoint, {}, {})
         await conn.close()
 
@@ -70,7 +82,9 @@ async def test_get_checkpointer_restores_legacy_question_checkpoint(monkeypatch,
 
 
 @pytest.mark.asyncio
-async def test_get_checkpointer_removes_api_keys_from_legacy_checkpoints():
+async def test_get_checkpointer_removes_api_keys_from_legacy_checkpoints(
+    monkeypatch: pytest.MonkeyPatch,
+):
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "test_checkpoints.db")
         os.environ["AGENT_CHECKPOINT_DB"] = db_path
@@ -79,30 +93,41 @@ async def test_get_checkpointer_removes_api_keys_from_legacy_checkpoints():
         conn = await aiosqlite.connect(db_path)
         legacy_checkpointer = AsyncSqliteSaver(conn)
         await legacy_checkpointer.setup()
-        config = {
-            "configurable": {
-                "thread_id": "legacy-session",
-                "checkpoint_ns": "",
-            }
-        }
-        checkpoint = {
-            "v": 2,
-            "id": "legacy-checkpoint",
-            "ts": "2026-07-12T00:00:00+00:00",
-            "channel_values": {
-                "model_config": {
-                    "model_record_id": "model-1",
-                    "model_id": "gpt-test",
-                    "api_key": "legacy-secret",
+        config = cast(
+            RunnableConfig,
+            {
+                "configurable": {
+                    "thread_id": "legacy-session",
+                    "checkpoint_ns": "",
                 }
             },
-            "channel_versions": {},
-            "versions_seen": {},
-            "pending_sends": [],
-        }
+        )
+        checkpoint = cast(
+            Checkpoint,
+            {
+                "v": 2,
+                "id": "legacy-checkpoint",
+                "ts": "2026-07-12T00:00:00+00:00",
+                "channel_values": {
+                    "model_config": {
+                        "model_record_id": "model-1",
+                        "model_id": "gpt-test",
+                        "api_key": "legacy-secret",
+                    }
+                },
+                "channel_versions": {},
+                "versions_seen": {},
+                "pending_sends": [],
+            },
+        )
         await legacy_checkpointer.aput(config, checkpoint, {}, {})
         await conn.close()
 
+        async def fail_full_checkpoint_scan(*args, **kwargs):
+            raise AssertionError("full checkpoint scan should not run")
+            yield
+
+        monkeypatch.setattr(AsyncSqliteSaver, "alist", fail_full_checkpoint_scan)
         checkpointer = await get_checkpointer()
         persisted = await checkpointer.aget_tuple(config)
 
@@ -110,6 +135,55 @@ async def test_get_checkpointer_removes_api_keys_from_legacy_checkpoints():
         assert "api_key" not in persisted.checkpoint["channel_values"]["model_config"]
 
         del os.environ["AGENT_CHECKPOINT_DB"]
+        await reset_checkpointer()
+
+
+@pytest.mark.asyncio
+async def test_get_checkpointer_runs_legacy_api_key_migration_once(
+    monkeypatch,
+    tmp_path,
+):
+    db_path = tmp_path / "test_checkpoints.db"
+    monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(db_path))
+    await reset_checkpointer()
+
+    try:
+        await get_checkpointer()
+        await reset_checkpointer()
+        list_legacy_configs = AsyncMock()
+        monkeypatch.setattr(
+            checkpointer_mod,
+            "_list_legacy_api_key_checkpoint_configs",
+            list_legacy_configs,
+        )
+
+        await get_checkpointer()
+
+        list_legacy_configs.assert_not_awaited()
+    finally:
+        await reset_checkpointer()
+
+
+@pytest.mark.asyncio
+async def test_get_checkpointer_does_not_scan_all_checkpoints_without_legacy_api_keys(
+    monkeypatch,
+    tmp_path,
+):
+    db_path = tmp_path / "test_checkpoints.db"
+    monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(db_path))
+    await reset_checkpointer()
+
+    async def fail_full_checkpoint_scan(*args, **kwargs):
+        raise AssertionError("full checkpoint scan should not run")
+        yield
+
+    monkeypatch.setattr(AsyncSqliteSaver, "alist", fail_full_checkpoint_scan)
+
+    try:
+        checkpointer = await get_checkpointer()
+
+        assert checkpointer is not None
+    finally:
         await reset_checkpointer()
 
 
@@ -312,6 +386,115 @@ async def test_delete_checkpoints_after_for_thread_keeps_cutoff_and_clears_subgr
 async def test_delete_checkpoints_after_for_thread_noops_on_empty_args():
     assert await delete_checkpoints_after_for_thread("", "cp-001") == 0
     assert await delete_checkpoints_after_for_thread("session-a", "") == 0
+
+
+async def test_cleanup_unreachable_checkpoints_preserves_reachable_session_tree(
+    client,
+    session,
+    monkeypatch,
+    tmp_path,
+):
+    db_path = tmp_path / "test_checkpoints.db"
+    monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(db_path))
+    await reset_checkpointer()
+    parent_session_id = "agent-root"
+    task = Task(
+        id="task-root",
+        project_id="project-root",
+        title="Root session",
+        mode="agent",
+        agent_session_id=parent_session_id,
+    )
+    session.add(task)
+    await session.commit()
+    child = await create_child_run(
+        session,
+        parent_session_id=parent_session_id,
+        parent_task_id=task.id,
+        parent_thread_id=parent_session_id,
+        child_thread_id="agent-root:child:completed",
+        agent_key="writer",
+        dispatch_id="completed",
+        tool_call_id="tool-completed",
+        request={"task": "write", "input": {}, "metadata": {}},
+        status="completed",
+    )
+    nested_child = await create_child_run(
+        session,
+        parent_session_id=child.child_thread_id,
+        parent_task_id=task.id,
+        parent_thread_id=child.child_thread_id,
+        child_thread_id="agent-root:child:completed:child:nested",
+        agent_key="reviewer",
+        dispatch_id="nested",
+        tool_call_id="tool-nested",
+        request={"task": "review", "input": {}, "metadata": {}},
+        status="completed",
+    )
+    await create_child_run(
+        session,
+        parent_session_id="deleted-agent-root",
+        parent_task_id="deleted-task",
+        parent_thread_id="deleted-agent-root",
+        child_thread_id="deleted-agent-root:child:orphan",
+        agent_key="writer",
+        dispatch_id="orphan",
+        tool_call_id="tool-orphan",
+        request={"task": "write", "input": {}, "metadata": {}},
+        status="completed",
+    )
+
+    checkpointer = await get_checkpointer()
+    reachable_thread_ids = {
+        parent_session_id,
+        child.child_thread_id,
+        nested_child.child_thread_id,
+    }
+    orphan_thread_ids = {
+        "deleted-agent-root",
+        "deleted-agent-root:child:orphan",
+        "unrelated-thread",
+    }
+    for index, thread_id in enumerate([*reachable_thread_ids, *orphan_thread_ids]):
+        checkpoint_id = f"checkpoint-{index}"
+        await checkpointer.conn.execute(
+            "INSERT INTO checkpoints(thread_id, checkpoint_ns, checkpoint_id) VALUES (?, ?, ?)",
+            (thread_id, "", checkpoint_id),
+        )
+        await checkpointer.conn.execute(
+            "INSERT INTO writes(thread_id, checkpoint_ns, checkpoint_id, task_id, idx, channel) VALUES (?, ?, ?, ?, ?, ?)",
+            (thread_id, "", checkpoint_id, "task", 0, "messages"),
+        )
+    await checkpointer.conn.commit()
+
+    deleted_rows = await cleanup_unreachable_checkpoints(session, checkpointer)
+
+    assert deleted_rows == 6
+    cursor = await checkpointer.conn.execute(
+        "SELECT thread_id FROM checkpoints UNION SELECT thread_id FROM writes"
+    )
+    try:
+        remaining_thread_ids = {row[0] for row in await cursor.fetchall()}
+    finally:
+        await cursor.close()
+    assert remaining_thread_ids == reachable_thread_ids
+    await reset_checkpointer()
+
+
+async def test_cleanup_unreachable_checkpoints_noops_for_empty_checkpoint_store(
+    client,
+    session,
+    monkeypatch,
+    tmp_path,
+):
+    db_path = tmp_path / "test_checkpoints.db"
+    monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(db_path))
+    await reset_checkpointer()
+
+    try:
+        assert await cleanup_unreachable_checkpoints(session, await get_checkpointer()) == 0
+    finally:
+        await reset_checkpointer()
 
 
 async def test_reset_checkpointer_closes_existing_connection(monkeypatch):

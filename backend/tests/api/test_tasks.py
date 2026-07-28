@@ -9,6 +9,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.modes import AgentMode
+from app.agent_runtime.persistence.child_runs import create_child_run
 from app.agent_runtime.persistence import repo as agent_run_repo
 from app.storage.services import task_service
 
@@ -268,6 +269,50 @@ class TestTaskAPI:
 
         get_response = await client.get(f"/api/v1/tasks/{task.id}")
         assert get_response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_delete_task_deletes_descendant_subagent_checkpoints(
+        self,
+        client: AsyncClient,
+        session: AsyncSession,
+    ) -> None:
+        task, _project_id, _chapter_id = await self.create_agent_task(client, session)
+        parent_session_id = task.agent_session_id or ""
+        child = await create_child_run(
+            session,
+            parent_session_id=parent_session_id,
+            parent_task_id=task.id,
+            parent_thread_id=parent_session_id,
+            child_thread_id=f"{parent_session_id}:child:writer",
+            agent_key="writer",
+            dispatch_id="dispatch-writer",
+            tool_call_id="tool-call-writer",
+            request={"task": "write", "input": {}, "metadata": {}},
+        )
+        grandchild = await create_child_run(
+            session,
+            parent_session_id=child.child_thread_id,
+            parent_task_id=task.id,
+            parent_thread_id=child.child_thread_id,
+            child_thread_id=f"{child.child_thread_id}:child:reviewer",
+            agent_key="reviewer",
+            dispatch_id="dispatch-reviewer",
+            tool_call_id="tool-call-reviewer",
+            request={"task": "review", "input": {}, "metadata": {}},
+        )
+        await session.commit()
+
+        with patch(
+            "app.api.routers.tasks.delete_checkpoints_for_thread",
+            new=AsyncMock(return_value=2),
+        ) as delete_checkpoints:
+            response = await client.delete(f"/api/v1/tasks/{task.id}")
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert delete_checkpoints.await_args_list == [
+            ((grandchild.child_thread_id,), {}),
+            ((child.child_thread_id,), {}),
+            ((parent_session_id,), {}),
+        ]
 
     async def test_delete_task_rejects_running_task(
         self,

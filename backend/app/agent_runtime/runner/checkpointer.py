@@ -1,14 +1,20 @@
 import os
 import shutil
 from pathlib import Path
+
 import aiosqlite
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import Checkpoint, copy_checkpoint
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 import app.settings as app_settings
 from app.agent_runtime.model_config import without_api_key
+from app.agent_runtime.persistence.model import AgentChildRun
+from app.storage.models.task import Task
 
 _checkpointer: AsyncSqliteSaver | None = None
 
@@ -16,6 +22,9 @@ _ALLOWED_MSGPACK_MODULES = (
     ("app.agent_runtime.tools.impls.interaction.ask_user", "Question"),
     ("app.agent_runtime.tools.impls.interaction.ask_user", "QuestionOption"),
 )
+_LEGACY_API_KEY_MARKER = b"api_key"
+_LEGACY_API_KEY_MIGRATION = "remove_plaintext_api_keys_v1"
+_CHECKPOINT_CLEANUP_BATCH_SIZE = 500
 
 
 def _default_db_path() -> Path:
@@ -74,8 +83,14 @@ async def _remove_api_keys_from_existing_checkpoints(
     checkpointer: AsyncSqliteSaver,
 ) -> None:
     """Rewrite legacy Agent checkpoints that persisted plaintext API keys."""
+    if await _has_completed_legacy_api_key_migration(checkpointer):
+        return
+
     checkpoints: list[tuple[RunnableConfig, Checkpoint]] = []
-    async for item in checkpointer.alist(None):
+    for config in await _list_legacy_api_key_checkpoint_configs(checkpointer):
+        item = await checkpointer.aget_tuple(config)
+        if item is None:
+            continue
         channel_values = item.checkpoint.get("channel_values")
         if not isinstance(channel_values, dict):
             continue
@@ -95,6 +110,70 @@ async def _remove_api_keys_from_existing_checkpoints(
             {},
             checkpoint.get("channel_versions", {}),
         )
+
+    await _mark_legacy_api_key_migration_completed(checkpointer)
+
+
+async def _has_completed_legacy_api_key_migration(
+    checkpointer: AsyncSqliteSaver,
+) -> bool:
+    cursor = await checkpointer.conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS openfic_checkpoint_migrations (
+            name TEXT PRIMARY KEY
+        )
+        """
+    )
+    await cursor.close()
+    cursor = await checkpointer.conn.execute(
+        "SELECT 1 FROM openfic_checkpoint_migrations WHERE name = ?",
+        (_LEGACY_API_KEY_MIGRATION,),
+    )
+    try:
+        return await cursor.fetchone() is not None
+    finally:
+        await cursor.close()
+
+
+async def _list_legacy_api_key_checkpoint_configs(
+    checkpointer: AsyncSqliteSaver,
+) -> list[RunnableConfig]:
+    cursor = await checkpointer.conn.execute(
+        """
+        SELECT thread_id, checkpoint_ns, checkpoint_id
+        FROM checkpoints
+        WHERE instr(checkpoint, ?) > 0
+        """,
+        (_LEGACY_API_KEY_MARKER,),
+    )
+    try:
+        rows = await cursor.fetchall()
+    finally:
+        await cursor.close()
+
+    return [
+        {
+            "configurable": {
+                "thread_id": thread_id,
+                "checkpoint_ns": checkpoint_ns,
+                "checkpoint_id": checkpoint_id,
+            }
+        }
+        for thread_id, checkpoint_ns, checkpoint_id in rows
+    ]
+
+
+async def _mark_legacy_api_key_migration_completed(
+    checkpointer: AsyncSqliteSaver,
+) -> None:
+    cursor = await checkpointer.conn.execute(
+        "INSERT INTO openfic_checkpoint_migrations (name) VALUES (?)",
+        (_LEGACY_API_KEY_MIGRATION,),
+    )
+    try:
+        await checkpointer.conn.commit()
+    finally:
+        await cursor.close()
 
 
 async def delete_checkpoints_for_thread(thread_id: str) -> int:
@@ -142,6 +221,84 @@ async def delete_checkpoints_after_for_thread(
         return conn.total_changes - before
     finally:
         await conn.close()
+
+
+async def cleanup_unreachable_checkpoints(
+    session: AsyncSession,
+    checkpointer: AsyncSqliteSaver,
+) -> int:
+    reachable_thread_ids = await _list_reachable_checkpoint_thread_ids(session)
+    checkpoint_thread_ids = await _list_checkpoint_thread_ids(checkpointer)
+    unreachable_thread_ids = checkpoint_thread_ids - reachable_thread_ids
+    if not unreachable_thread_ids:
+        return 0
+
+    deleted_rows = 0
+    thread_ids = list(unreachable_thread_ids)
+    for index in range(0, len(thread_ids), _CHECKPOINT_CLEANUP_BATCH_SIZE):
+        batch = thread_ids[index : index + _CHECKPOINT_CLEANUP_BATCH_SIZE]
+        placeholders = ", ".join("?" for _ in batch)
+        before = checkpointer.conn.total_changes
+        await checkpointer.conn.execute(
+            f"DELETE FROM writes WHERE thread_id IN ({placeholders})",
+            tuple(batch),
+        )
+        await checkpointer.conn.execute(
+            f"DELETE FROM checkpoints WHERE thread_id IN ({placeholders})",
+            tuple(batch),
+        )
+        deleted_rows += checkpointer.conn.total_changes - before
+    await checkpointer.conn.commit()
+    return deleted_rows
+
+
+async def _list_reachable_checkpoint_thread_ids(session: AsyncSession) -> set[str]:
+    task_result = await session.execute(
+        select(col(Task.agent_session_id)).where(
+            col(Task.agent_session_id).is_not(None),
+            col(Task.agent_session_id) != "",
+        )
+    )
+    reachable_thread_ids = {
+        session_id
+        for session_id in task_result.scalars().all()
+        if isinstance(session_id, str) and session_id
+    }
+    if not reachable_thread_ids:
+        return reachable_thread_ids
+
+    child_run_result = await session.execute(
+        select(
+            col(AgentChildRun.parent_session_id),
+            col(AgentChildRun.child_thread_id),
+        )
+    )
+    children_by_parent: dict[str, set[str]] = {}
+    for parent_session_id, child_thread_id in child_run_result.all():
+        if not parent_session_id or not child_thread_id:
+            continue
+        children_by_parent.setdefault(parent_session_id, set()).add(child_thread_id)
+
+    pending_thread_ids = list(reachable_thread_ids)
+    while pending_thread_ids:
+        parent_session_id = pending_thread_ids.pop()
+        for child_thread_id in children_by_parent.get(parent_session_id, set()):
+            if child_thread_id in reachable_thread_ids:
+                continue
+            reachable_thread_ids.add(child_thread_id)
+            pending_thread_ids.append(child_thread_id)
+
+    return reachable_thread_ids
+
+
+async def _list_checkpoint_thread_ids(checkpointer: AsyncSqliteSaver) -> set[str]:
+    cursor = await checkpointer.conn.execute(
+        "SELECT thread_id FROM checkpoints UNION SELECT thread_id FROM writes"
+    )
+    try:
+        return {row[0] for row in await cursor.fetchall() if row[0]}
+    finally:
+        await cursor.close()
 
 
 async def latest_checkpoint_id_for_thread(thread_id: str) -> str | None:

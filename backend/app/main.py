@@ -52,7 +52,12 @@ from app.api.routers import (
 )
 from app.audit import start_audit_queue, stop_audit_queue
 from app.audit.queue import load_audit_details_persistence
-from app.agent_runtime.runner.checkpointer import close_checkpointer, init_checkpointer
+from app.agent_runtime.runner.checkpointer import (
+    cleanup_unreachable_checkpoints,
+    close_checkpointer,
+    get_checkpointer,
+    init_checkpointer,
+)
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.background.runtime.supervisor import (
     start_background_runtime,
@@ -120,6 +125,20 @@ async def _seed_builtin_models() -> None:
         await seed_builtin_models(session)
     finally:
         await session.close()
+
+
+async def _cleanup_unreachable_checkpoints() -> None:
+    session = await create_session()
+    try:
+        deleted_rows = await cleanup_unreachable_checkpoints(
+            session,
+            await get_checkpointer(),
+        )
+    finally:
+        await session.close()
+
+    if deleted_rows:
+        logger.info(f"Deleted {deleted_rows} unreachable checkpoint rows at startup")
 
 
 def _get_server_bind() -> tuple[str, int]:
@@ -275,6 +294,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.warning(f"已重置 {cleared_tasks} 个遗留的运行中任务状态")
     await _seed_builtin_models()
     await init_checkpointer()
+    await _cleanup_unreachable_checkpoints()
     await load_audit_details_persistence()
     start_audit_queue()
     await start_background_runtime()

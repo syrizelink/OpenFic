@@ -8,6 +8,7 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.modes import AgentMode
+from app.agent_runtime.persistence.child_runs import list_child_runs_for_parent
 from app.agent_runtime.persistence.task_projection import load_task_messages_for_agent_session
 from app.agent_runtime.runner.checkpointer import delete_checkpoints_for_thread
 
@@ -30,14 +31,32 @@ def _require_agent_mode(mode: str) -> AgentMode:
     return cast(AgentMode, mode)
 
 
-async def _cleanup_task_checkpoints(session_id: str | None) -> None:
+async def _list_descendant_child_thread_ids(
+    session: AsyncSession,
+    parent_session_id: str,
+) -> list[str]:
+    child_thread_ids: list[str] = []
+    for child_run in await list_child_runs_for_parent(session, parent_session_id):
+        child_thread_ids.extend(
+            await _list_descendant_child_thread_ids(session, child_run.child_thread_id)
+        )
+        child_thread_ids.append(child_run.child_thread_id)
+    return child_thread_ids
+
+
+async def _cleanup_task_checkpoints(
+    session: AsyncSession,
+    session_id: str | None,
+) -> None:
     if not session_id:
         return
-    deleted_rows = await delete_checkpoints_for_thread(session_id)
-    logger.bind(session_id=session_id).info(
-        "Deleted {} checkpoint rows for task cleanup",
-        deleted_rows,
-    )
+    thread_ids = [*await _list_descendant_child_thread_ids(session, session_id), session_id]
+    for thread_id in thread_ids:
+        deleted_rows = await delete_checkpoints_for_thread(thread_id)
+        logger.bind(session_id=session_id, thread_id=thread_id).info(
+            "Deleted {} checkpoint rows for task cleanup",
+            deleted_rows,
+        )
 
 
 @router.get("/tasks/{task_id}", response_model=TaskResponse)
@@ -191,7 +210,7 @@ async def delete_task(
             )
         await task_service.delete_task(session, task_id)
         await session.commit()
-        await _cleanup_task_checkpoints(task.agent_session_id)
+        await _cleanup_task_checkpoints(session, task.agent_session_id)
     except HTTPException:
         raise
     except NotFoundError as e:
@@ -220,7 +239,7 @@ async def delete_all_tasks(
 
         await session.commit()
         for task in deletable_tasks:
-            await _cleanup_task_checkpoints(task.agent_session_id)
+            await _cleanup_task_checkpoints(session, task.agent_session_id)
         deleted_count = len(deletable_tasks)
         logger.info(
             f"已删除项目 {project_id} 下的 {deleted_count} 个任务，跳过 {skipped_running_count} 个运行中任务"
