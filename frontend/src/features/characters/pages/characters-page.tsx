@@ -159,7 +159,14 @@ export function CharactersPage() {
       queryClient.setQueryData(
         ["characters", updated.projectId],
         (old: CharacterListResponse | undefined) => {
-          if (!old) return old;
+          if (!old) {
+            return {
+              items: [updated],
+              total: 1,
+              page: 1,
+              pageSize: 100,
+            };
+          }
           const exists = old.items.some((character) => character.id === updated.id);
           const items = exists
             ? old.items.map((character) => (character.id === updated.id ? updated : character))
@@ -181,9 +188,13 @@ export function CharactersPage() {
         name: t("characters.untitledCharacter"),
       }),
     onSuccess: (character) => {
+      upsertCharacterCache(toCharacterListItem(character));
+      queryClient.setQueryData(
+        ["character", character.id, selectedCharacterLoadVersion],
+        character,
+      );
       queryClient.invalidateQueries({ queryKey: ["characters", currentProjectId] });
       setCurrentCharacter(character.id);
-      setSelectedCharacterLoadVersion((prev) => prev + 1);
       toast.success(t("characters.created"));
     },
   });
