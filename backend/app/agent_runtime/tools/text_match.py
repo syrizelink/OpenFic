@@ -141,6 +141,28 @@ class FuzzyReplaceResult:
     used_fuzzy_match: bool
 
 
+def _query_had_stripped_trailing_whitespace(text: str) -> bool:
+    """Return whether normalization stripped trailing whitespace from the
+    last line of ``text`` (already LF-normalized).
+
+    Stripping the query's last line can turn it into a *prefix* of a longer
+    run in the content -- e.g. query ``"foo "`` matching the ``"foo"`` head
+    of ``"foobar"`` -- which would let a sloppy query silently rewrite text
+    the agent never quoted, so such matches must be boundary-checked. Only the
+    final line's trailing whitespace matters: a query ending in a newline
+    keeps that newline verbatim in normalized form, so it cannot create a
+    prefix.
+    """
+    last_line = text.rsplit("\n", 1)[-1]
+    return bool(last_line) and last_line != last_line.rstrip()
+
+
+def _match_end_is_whitespace_or_end(content: str, pos: int, length: int) -> bool:
+    """Return whether ``pos`` is at or past the end of ``content`` or points at
+    a whitespace character."""
+    return pos >= length or content[pos].isspace()
+
+
 def fuzzy_replace(
     content: str,
     old_text: str,
@@ -187,16 +209,35 @@ def fuzzy_replace(
     if not fuzzy_old_text:
         return None
 
+    # When the query's trailing whitespace was stripped by normalization,
+    # ``fuzzy_old_text`` may be a *prefix* of a longer run in the content --
+    # e.g. query ``"foo "`` matches the ``"foo"`` head of ``"foobar"`` --
+    # which would let a sloppy query silently rewrite text the agent never
+    # quoted. Guard such matches: the content must continue with whitespace
+    # (or end) right after the match, so the stripped trailing whitespace still
+    # aligns with real whitespace in the original. Otherwise the match is a
+    # prefix artifact and is skipped; if none survive, the call is "not found".
+    boundary_check = _query_had_stripped_trailing_whitespace(old_text)
+    fuzzy_len = len(fuzzy_old_text)
+    content_len = len(fuzzy_content)
+
     replacements: list[tuple[int, int, str]] = []
     start = 0
     while True:
         idx = fuzzy_content.find(fuzzy_old_text, start)
         if idx == -1:
             break
-        replacements.append((idx, len(fuzzy_old_text), new_text))
+        match_end = idx + fuzzy_len
+        if boundary_check and not _match_end_is_whitespace_or_end(
+            fuzzy_content, match_end, content_len
+        ):
+            # Prefix artifact: keep scanning for a genuine occurrence.
+            start = idx + 1
+            continue
+        replacements.append((idx, fuzzy_len, new_text))
         if not replace_all:
             break
-        start = idx + len(fuzzy_old_text)
+        start = match_end
 
     if not replacements:
         return None

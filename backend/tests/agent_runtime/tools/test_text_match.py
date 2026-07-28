@@ -257,3 +257,76 @@ def test_replace_all_fuzzy_many_matches_is_linear() -> None:
     assert result is not None
     assert result.used_fuzzy_match is True
     assert result.new_content == "\n".join("b" for _ in range(n))
+
+
+# ---------------------------------------------------------------------------
+# fuzzy_replace - stripped trailing whitespace must not match a prefix
+# ---------------------------------------------------------------------------
+
+
+def test_query_trailing_space_does_not_match_prefix() -> None:
+    # Regression: the agent quoted "foo " but the content is "foobar" with no
+    # space after "foo". Stripping the query's trailing space used to turn it
+    # into a prefix match, rewriting "foo" and leaving the dangling "bar"
+    # appended to the new text ("Xbar"). It must now be reported as not found.
+    assert fuzzy_replace("foobar", "foo ", "X") is None
+
+
+def test_query_trailing_space_does_not_match_prefix_cjk() -> None:
+    # The exact scenario from the bug report: "角色代号：foo " (trailing space)
+    # must not match the "角色代号：foo" head of "角色代号：foobar".
+    assert (
+        fuzzy_replace("角色代号：foobar", "角色代号：foo ", "角色代号：已修正") is None
+    )
+
+
+def test_query_trailing_space_aligns_with_content_trailing_ws() -> None:
+    # The content has trailing NBSP after "foo"; the agent used a regular
+    # trailing space. After normalization both collapse, and the match ends at
+    # the end of content -- a genuine boundary, not a prefix artifact -- so the
+    # replacement is allowed. The boundary guard must not over-reject here.
+    result = fuzzy_replace("foo\u00a0", "foo ", "X")
+    assert result == FuzzyReplaceResult("X", used_fuzzy_match=True)
+
+
+def test_query_trailing_space_aligns_with_content_interior_ws() -> None:
+    # The content has an interior NBSP (foo + NBSP + bar); the agent's trailing
+    # space aligns with that whitespace after "foo", so the match is genuine.
+    # Only "foo" is rewritten; the whitespace and "bar" are preserved.
+    result = fuzzy_replace("foo\u00a0bar", "foo ", "X")
+    assert result == FuzzyReplaceResult("X bar", used_fuzzy_match=True)
+
+
+def test_query_trailing_space_skips_prefix_keeps_genuine_single() -> None:
+    # replace_all=False: the leftmost "代号：foo" is a prefix of "代号：foobar"
+    # (artifact) and must be skipped; the genuine occurrence on line 2 (followed
+    # by trailing NBSP, which aligns with the query's trailing space) is matched
+    # instead, and the prefix line is left untouched.
+    content = "角色代号：foobar\n代号：foo\u00a0"
+    result = fuzzy_replace(content, "代号：foo ", "代号：已修正")
+    assert result == FuzzyReplaceResult(
+        "角色代号：foobar\n代号：已修正", used_fuzzy_match=True
+    )
+
+
+def test_query_trailing_space_skips_prefix_keeps_genuine_replace_all() -> None:
+    # replace_all=True: line 1 (interior NBSP) and line 3 (trailing NBSP) are
+    # genuine matches; line 2 ("foobar") is a prefix artifact and is skipped,
+    # so its text is preserved verbatim.
+    content = "foo\u00a0bar\nfoobar\nfoo\u00a0"
+    result = fuzzy_replace(content, "foo ", "X", replace_all=True)
+    assert result == FuzzyReplaceResult("X bar\nfoobar\nX", used_fuzzy_match=True)
+
+
+def test_query_without_trailing_space_still_matches_prefix_normally() -> None:
+    # No trailing whitespace is stripped from the query, so the boundary guard
+    # is not engaged. A genuine fuzzy match (smart quote) still works even
+    # though the normalized query is a prefix of the longer content line.
+    result = fuzzy_replace("a\u201cb\u201drest", '"b"', "X")
+    assert result == FuzzyReplaceResult("aXrest", used_fuzzy_match=True)
+
+
+def test_query_trailing_space_replace_all_all_artifacts_returns_none() -> None:
+    # Every occurrence of "foo" is a prefix of a longer run, so none survive the
+    # boundary guard; the call is "not found" rather than corrupting content.
+    assert fuzzy_replace("foobar\nfoobaz", "foo ", "X", replace_all=True) is None
