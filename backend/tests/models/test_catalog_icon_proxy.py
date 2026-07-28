@@ -3,8 +3,6 @@
 Catalog icon proxy service tests.
 """
 
-import asyncio
-
 import httpx
 import pytest
 
@@ -23,53 +21,103 @@ class _FakeClient:
 
 
 @pytest.mark.asyncio
-async def test_concurrent_first_requests_share_single_probe() -> None:
-    service = CatalogIconProxyService()
-    calls = {"openai": {"models": 0, "js": 0}, "anthropic": {"models": 0, "js": 0}}
+async def test_fetches_jsdelivr_before_models_dev_for_each_icon() -> None:
+    calls: list[str] = []
 
     async def responder(url: str) -> httpx.Response:
         if "providers/openai/logo.svg" in url:
-            calls["openai"]["js"] += 1
+            calls.append("jsdelivr:openai")
             return httpx.Response(200, text="<svg>openai-js</svg>")
         if "models.dev/logos/openai.svg" in url:
-            calls["openai"]["models"] += 1
-            await asyncio.sleep(0.02)
-            return httpx.Response(200, text="<svg>openai-models</svg>")
+            raise AssertionError("jsDelivr success must not probe Models.dev")
         if "providers/anthropic/logo.svg" in url:
-            calls["anthropic"]["js"] += 1
-            return httpx.Response(200, text="<svg>anthropic-js</svg>")
+            calls.append("jsdelivr:anthropic")
+            return httpx.Response(404, text="not found")
         if "models.dev/logos/anthropic.svg" in url:
-            calls["anthropic"]["models"] += 1
-            return httpx.Response(200, text="<svg>anthropic-models</svg>")
+            calls.append("models_dev:anthropic")
+            return httpx.Response(200, text="<svg>anthropic-default</svg>")
+        if "providers/deepseek/logo.svg" in url:
+            calls.append("jsdelivr:deepseek")
+            return httpx.Response(200, text="<svg>deepseek-js</svg>")
+        if "models.dev/logos/deepseek.svg" in url:
+            raise AssertionError("each icon must use its own source decision")
         raise AssertionError(f"Unexpected URL {url}")
 
-    service._client = _FakeClient(responder)  # type: ignore[assignment]
+    service = CatalogIconProxyService(client=_FakeClient(responder))
 
-    first, second = await asyncio.gather(
-        service.fetch_icon("openai"),
-        service.fetch_icon("anthropic"),
-    )
+    openai = await service.fetch_icon("openai")
+    anthropic = await service.fetch_icon("anthropic")
+    deepseek = await service.fetch_icon("deepseek")
 
-    assert first.source == "jsdelivr"
-    assert second.source == "jsdelivr"
-    assert service.winner == "jsdelivr"
-    assert calls == {
-        "openai": {"models": 1, "js": 1},
-        "anthropic": {"models": 0, "js": 1},
-    }
+    assert openai.source == "jsdelivr"
+    assert anthropic.source == "models_dev"
+    assert deepseek.source == "jsdelivr"
+    assert calls == [
+        "jsdelivr:openai",
+        "jsdelivr:anthropic",
+        "models_dev:anthropic",
+        "jsdelivr:deepseek",
+    ]
 
 
 @pytest.mark.asyncio
-async def test_404_falls_back_without_switching_global_winner() -> None:
-    service = CatalogIconProxyService()
+async def test_unavailable_icon_sources_return_local_default_icon() -> None:
+    calls: list[str] = []
+
+    async def responder(url: str) -> httpx.Response:
+        if "providers/chutes/logo.svg" in url:
+            calls.append("jsdelivr")
+            return httpx.Response(404, text="not found")
+        if "models.dev/logos/chutes.svg" in url:
+            calls.append("models_dev")
+            raise httpx.ConnectTimeout("Models.dev is unreachable")
+        raise AssertionError(f"Unexpected URL {url}")
+
+    service = CatalogIconProxyService(client=_FakeClient(responder))
+
+    result = await service.fetch_icon("chutes")
+
+    assert result.source == "default"
+    assert b'viewBox="0 0 24 24"' in result.content
+    assert b'M9.8132 15.9038L9 18.75L8.1868 15.9038' in result.content
+    assert calls == ["jsdelivr", "models_dev"]
+
+
+@pytest.mark.asyncio
+async def test_models_dev_failure_skips_later_fallback_requests() -> None:
+    calls: list[str] = []
+
+    async def responder(url: str) -> httpx.Response:
+        if "providers/chutes/logo.svg" in url:
+            calls.append("jsdelivr:chutes")
+            return httpx.Response(404, text="not found")
+        if "providers/clarifai/logo.svg" in url:
+            calls.append("jsdelivr:clarifai")
+            return httpx.Response(404, text="not found")
+        if "models.dev/logos/chutes.svg" in url:
+            calls.append("models_dev:chutes")
+            raise httpx.ConnectTimeout("Models.dev is unreachable")
+        if "models.dev/logos/clarifai.svg" in url:
+            raise AssertionError("unavailable Models.dev source must be skipped")
+        raise AssertionError(f"Unexpected URL {url}")
+
+    service = CatalogIconProxyService(client=_FakeClient(responder))
+
+    first = await service.fetch_icon("chutes")
+    second = await service.fetch_icon("clarifai")
+
+    assert first.source == "default"
+    assert second.source == "default"
+    assert calls == ["jsdelivr:chutes", "models_dev:chutes", "jsdelivr:clarifai"]
+
+
+@pytest.mark.asyncio
+async def test_404_falls_back_to_models_dev_without_affecting_other_icons() -> None:
     calls = {"anthropic": {"models": 0, "js": 0}, "deepseek": {"models": 0, "js": 0}}
 
     async def responder(url: str) -> httpx.Response:
         if "providers/openai/logo.svg" in url:
             return httpx.Response(200, text="<svg>openai-js</svg>")
-        if "models.dev/logos/openai.svg" in url:
-            await asyncio.sleep(0.02)
-            return httpx.Response(200, text="<svg>openai-models</svg>")
         if "providers/anthropic/logo.svg" in url:
             calls["anthropic"]["js"] += 1
             return httpx.Response(404, text="not found")
@@ -84,7 +132,7 @@ async def test_404_falls_back_without_switching_global_winner() -> None:
             return httpx.Response(200, text="<svg>deepseek-models</svg>")
         raise AssertionError(f"Unexpected URL {url}")
 
-    service._client = _FakeClient(responder)  # type: ignore[assignment]
+    service = CatalogIconProxyService(client=_FakeClient(responder))
 
     first = await service.fetch_icon("openai")
     second = await service.fetch_icon("anthropic")
@@ -93,7 +141,6 @@ async def test_404_falls_back_without_switching_global_winner() -> None:
     assert first.source == "jsdelivr"
     assert second.source == "models_dev"
     assert third.source == "jsdelivr"
-    assert service.winner == "jsdelivr"
     assert calls == {
         "anthropic": {"models": 1, "js": 1},
         "deepseek": {"models": 0, "js": 1},

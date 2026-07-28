@@ -4,10 +4,11 @@
  * 提供商图标工具。
  */
 
-import { ReactSVG } from "react-svg";
+import { useEffect, useRef, useState } from "react";
 
 import { Spinner } from "@/components";
 
+import { scheduleProviderIconRequest } from "./provider-icon-request-queue";
 import { getProviderIconUrl } from "./provider-icon-url";
 
 /**
@@ -19,6 +20,8 @@ interface ProviderIconProps {
 }
 
 function prepareProviderSvg(svg: SVGSVGElement, size: number): void {
+  const inheritsNoFill = svg.getAttribute("fill") === "none";
+
   svg
     .querySelectorAll("script, foreignObject, image, use, iframe, object, embed, link, style")
     .forEach((element) => element.remove());
@@ -33,7 +36,10 @@ function prepareProviderSvg(svg: SVGSVGElement, size: number): void {
       }
     }
 
-    if (element.getAttribute("fill") !== "none") {
+    if (
+      element.getAttribute("fill") !== "none" &&
+      (element.hasAttribute("fill") || !inheritsNoFill)
+    ) {
       element.setAttribute("fill", "currentColor");
     }
     if (element.hasAttribute("stroke")) {
@@ -50,6 +56,45 @@ function prepareProviderSvg(svg: SVGSVGElement, size: number): void {
 
 export function ProviderIcon({ iconPath, size = 20 }: ProviderIconProps) {
   const iconUrl = getProviderIconUrl(iconPath);
+  const svgContainerRef = useRef<HTMLSpanElement>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!iconUrl) return;
+
+    const abortController = new AbortController();
+    const svgContainer = svgContainerRef.current;
+
+    svgContainer?.replaceChildren();
+    setIsLoading(true);
+
+    const cancelRequest = scheduleProviderIconRequest(async () => {
+      try {
+        const response = await fetch(iconUrl, { signal: abortController.signal });
+        if (!response.ok) throw new Error(`Failed to load provider icon: ${response.status}`);
+
+        const document = new DOMParser().parseFromString(await response.text(), "image/svg+xml");
+        const svg = document.documentElement;
+        if (!(svg instanceof SVGSVGElement)) throw new Error("Provider icon is not an SVG");
+
+        prepareProviderSvg(svg, size);
+        if (!abortController.signal.aborted) {
+          svgContainerRef.current?.replaceChildren(svg);
+        }
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          svgContainerRef.current?.replaceChildren();
+        }
+      } finally {
+        if (!abortController.signal.aborted) setIsLoading(false);
+      }
+    });
+
+    return () => {
+      abortController.abort();
+      cancelRequest();
+    };
+  }, [iconUrl, size]);
 
   if (!iconUrl) {
     return null;
@@ -67,20 +112,16 @@ export function ProviderIcon({ iconPath, size = 20 }: ProviderIconProps) {
         flexShrink: 0,
       }}
     >
-      <ReactSVG
-        beforeInjection={(svg) => prepareProviderSvg(svg, size)}
-        evalScripts="never"
-        fallback={() => null}
-        loading={() => <Spinner size={12} />}
-        src={iconUrl}
+      {isLoading ? <Spinner size={12} /> : null}
+      <span
+        ref={svgContainerRef}
         style={{
-          display: "inline-flex",
-          width: size,
-          height: size,
+          display: isLoading ? "none" : "inline-flex",
+          width: isLoading ? undefined : size,
+          height: isLoading ? undefined : size,
           alignItems: "center",
           justifyContent: "center",
         }}
-        wrapper="span"
       />
     </span>
   );

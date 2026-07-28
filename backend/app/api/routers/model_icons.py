@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request
 from starlette.responses import Response
 
-from app.models.catalog.icon_proxy import CatalogIconProxyError, CatalogIconProxyService
+from app.models.catalog.icon_proxy import CatalogIconProxyService
 
 router = APIRouter(prefix="/icons/model", tags=["model-icons"])
 
@@ -29,10 +29,7 @@ async def get_catalog_provider_icon(
     if not provider_id:
         raise HTTPException(status_code=404, detail="Catalog provider icon not found")
 
-    try:
-        payload = await service.fetch_icon(provider_id)
-    except CatalogIconProxyError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+    payload = await service.fetch_icon(provider_id)
 
     return Response(
         content=payload.content,
