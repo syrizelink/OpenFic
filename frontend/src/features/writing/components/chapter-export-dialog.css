@@ -1,0 +1,241 @@
+.rt-DialogContent.chapter-export-dialog-content {
+  width: min(1280px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+}
+
+.rt-DialogContent.chapter-export-dialog-content[data-step="exporting"],
+.rt-DialogContent.chapter-export-dialog-content[data-step="complete"],
+.rt-DialogContent.chapter-export-dialog-content[data-step="error"] {
+  width: min(600px, calc(100vw - 32px));
+}
+
+.chapter-export-dialog-description {
+  margin-bottom: var(--space-4);
+}
+
+.chapter-export-dialog-layout {
+  position: relative;
+  height: min(600px, 62vh);
+  min-height: 360px;
+  overflow: hidden;
+  border: 1px solid var(--gray-a4);
+  border-radius: var(--radius-3);
+}
+
+.chapter-export-mobile-section-tabs {
+  display: none;
+}
+
+.chapter-export-tree-panel {
+  display: flex;
+  width: 40%;
+  min-width: 280px;
+  flex-direction: column;
+  border-right: 1px solid var(--gray-a4);
+  background: var(--gray-1);
+}
+
+.chapter-export-project-row,
+.chapter-export-volume-row,
+.chapter-export-chapter-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.chapter-export-project-row {
+  min-height: 46px;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--gray-a4);
+  background: var(--gray-2);
+}
+
+.chapter-export-tree {
+  flex: 1;
+}
+
+.chapter-export-volume-row {
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--gray-a3);
+  background: var(--gray-2);
+}
+
+.chapter-export-chapter-row {
+  min-height: 42px;
+  padding: 0 var(--space-3) 0 calc(var(--space-3) + 20px);
+  border-bottom: 1px solid var(--gray-a2);
+}
+
+.chapter-export-row-checkbox {
+  flex: 0 0 auto;
+}
+
+.chapter-export-tree-button {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  width: auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: inherit;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--gray-11);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.chapter-export-volume-row:hover,
+.chapter-export-chapter-row:hover,
+.chapter-export-chapter-row:has(.chapter-export-tree-button[data-active="true"]) {
+  background: var(--accent-a3);
+  color: var(--gray-12);
+}
+
+.chapter-export-tree-button span {
+  overflow: hidden;
+  flex: 1;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chapter-export-tree-button small {
+  color: var(--gray-9);
+}
+
+.chapter-export-chevron {
+  flex: 0 0 auto;
+  transition: transform 150ms ease;
+}
+
+.chapter-export-chevron[data-expanded="true"] {
+  transform: rotate(90deg);
+}
+
+.chapter-export-preview-panel {
+  min-width: 0;
+  flex: 1;
+  overflow: auto;
+  background: var(--color-background);
+}
+
+.chapter-export-preview-empty,
+.chapter-export-state {
+  min-height: 260px;
+  padding: var(--space-6);
+}
+
+.chapter-export-preview-empty {
+  height: 100%;
+  color: var(--gray-8);
+}
+
+.chapter-export-preview-content {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5);
+}
+
+.chapter-export-preview-body {
+  padding-top: var(--space-3);
+  color: var(--gray-12);
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.chapter-export-empty {
+  display: block;
+  padding: var(--space-5);
+  text-align: center;
+}
+
+.chapter-export-state {
+  justify-content: center;
+}
+
+.chapter-export-progress.rt-ProgressRoot {
+  flex: 0 0 calc(var(--space-2) * 0.75);
+  height: calc(var(--space-2) * 0.75);
+  width: min(440px, 100%);
+}
+
+.chapter-export-spinner {
+  animation: chapter-export-spin 900ms linear infinite;
+  color: var(--accent-9);
+}
+
+.chapter-export-success-icon {
+  color: var(--green-9);
+}
+
+.chapter-export-error-icon {
+  color: var(--red-9);
+}
+
+.chapter-export-file-name {
+  max-width: 100%;
+  overflow: hidden;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--gray-a4);
+  border-radius: var(--radius-2);
+  background: var(--gray-2);
+  color: var(--gray-12);
+  font-size: var(--font-size-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes chapter-export-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 767px) {
+  .rt-DialogContent.chapter-export-dialog-content {
+    width: calc(100vw - 20px);
+  }
+
+  .chapter-export-dialog-layout {
+    height: min(640px, 66vh);
+    display: block;
+    padding-top: 42px;
+  }
+
+  .chapter-export-mobile-section-tabs {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    left: var(--space-2);
+    z-index: 1;
+    display: block;
+  }
+
+  .chapter-export-tree-panel {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    border-right: 0;
+  }
+
+  .chapter-export-preview-panel {
+    display: none;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .chapter-export-dialog-layout[data-mobile-section="preview"] .chapter-export-tree-panel {
+    display: none;
+  }
+
+  .chapter-export-dialog-layout[data-mobile-section="preview"] .chapter-export-preview-panel {
+    display: block;
+  }
+}

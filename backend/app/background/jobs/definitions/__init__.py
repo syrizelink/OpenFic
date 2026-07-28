@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 from app.background.jobs.constants import (
     JOB_TYPE_CHAPTER_SUMMARY,
+    JOB_TYPE_CHAPTER_EXPORT,
     JOB_TYPE_LONG_TERM_SUMMARY,
     JOB_TYPE_RETRIEVAL_CHAPTER_INDEX_BATCH,
     JOB_TYPE_SESSION_TITLE,
@@ -44,12 +45,19 @@ def register_retrieval_chapter_index_batch_job() -> None:
     get_job_registry().register(RETRIEVAL_CHAPTER_INDEX_BATCH_JOB)
 
 
+def register_chapter_export_job() -> None:
+    from app.background.jobs.definitions.chapter_export import CHAPTER_EXPORT_JOB
+
+    get_job_registry().register(CHAPTER_EXPORT_JOB)
+
+
 _REGISTRARS: dict[str, Callable[[], None]] = {
     JOB_TYPE_SESSION_TITLE: register_session_title_job,
     JOB_TYPE_CHAPTER_SUMMARY: register_chapter_summary_job,
     JOB_TYPE_LONG_TERM_SUMMARY: register_long_term_summary_job,
     JOB_TYPE_SUMMARY_BATCH: register_summary_batch_job,
     JOB_TYPE_RETRIEVAL_CHAPTER_INDEX_BATCH: register_retrieval_chapter_index_batch_job,
+    JOB_TYPE_CHAPTER_EXPORT: register_chapter_export_job,
 }
 
 

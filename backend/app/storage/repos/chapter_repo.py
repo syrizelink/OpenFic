@@ -14,6 +14,28 @@ from app.storage.models.chapter import Chapter
 from app.storage.models.volume import Volume
 
 
+async def list_export_metadata_by_project(
+    session: AsyncSession,
+    project_id: str,
+) -> list[tuple[str, str, str, int]]:
+    """按导出顺序读取章节元数据，不加载正文。"""
+    result = await session.execute(
+        select(
+            col(Chapter.id),
+            col(Chapter.volume_id),
+            col(Chapter.title),
+            col(Chapter.word_count),
+        )
+        .join(Volume, col(Chapter.volume_id) == col(Volume.id))
+        .where(col(Chapter.project_id) == project_id)
+        .order_by(col(Volume.order).asc(), col(Chapter.order).asc())
+    )
+    return [
+        (chapter_id, volume_id, title, word_count)
+        for chapter_id, volume_id, title, word_count in result.all()
+    ]
+
+
 async def create(session: AsyncSession, chapter: Chapter) -> Chapter:
     """
     创建章节。

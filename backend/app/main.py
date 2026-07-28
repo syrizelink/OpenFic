@@ -30,6 +30,7 @@ from app.api.routers import (
     background,
     characters,
     chapter_context,
+    chapter_exports,
     chapters,
     dashboard,
     health,
@@ -64,6 +65,7 @@ from app.background.runtime.supervisor import (
     stop_background_runtime,
 )
 from app.core.storage import ensure_character_images_dir, ensure_covers_dir
+from app.chapter_export.service import cleanup_chapter_export_files
 from app.models.builtin import seed_builtin_models
 from app.models.catalog import ModelProviderCatalogService
 from app.settings import settings as app_settings
@@ -139,6 +141,16 @@ async def _cleanup_unreachable_checkpoints() -> None:
 
     if deleted_rows:
         logger.info(f"Deleted {deleted_rows} unreachable checkpoint rows at startup")
+
+
+async def _cleanup_chapter_export_files() -> None:
+    session = await create_session()
+    try:
+        deleted_files = await cleanup_chapter_export_files(session)
+        if deleted_files:
+            logger.info(f"Deleted {deleted_files} expired or unreachable chapter export files")
+    finally:
+        await session.close()
 
 
 def _get_server_bind() -> tuple[str, int]:
@@ -295,6 +307,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await _seed_builtin_models()
     await init_checkpointer()
     await _cleanup_unreachable_checkpoints()
+    await _cleanup_chapter_export_files()
     await load_audit_details_persistence()
     start_audit_queue()
     await start_background_runtime()
@@ -366,6 +379,7 @@ def create_app() -> FastAPI:
     app.include_router(agent_rules.router, prefix=app_settings.api_v1_prefix)
     app.include_router(agent_memories.router, prefix=app_settings.api_v1_prefix)
     app.include_router(chapter_context.router, prefix=app_settings.api_v1_prefix)
+    app.include_router(chapter_exports.router, prefix=app_settings.api_v1_prefix)
     app.include_router(tasks.router, prefix=app_settings.api_v1_prefix)
     app.include_router(
         agent_runtime.router, prefix=f"{app_settings.api_v1_prefix}/agent"

@@ -103,6 +103,9 @@ class BackgroundSupervisor:
     def cancel_running_index_batch(self, job_id: str) -> bool:
         return any(worker.cancel_running_index_batch(job_id) for worker in self._workers)
 
+    def cancel_running_chapter_export(self, job_id: str) -> bool:
+        return any(worker.cancel_running_chapter_export(job_id) for worker in self._workers)
+
     async def _run_event_bridge(self) -> None:
         assert self._transport is not None
         while not self._stop_event.is_set():

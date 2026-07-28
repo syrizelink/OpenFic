@@ -25,6 +25,7 @@ import {
 } from "../hooks/use-volumes";
 import { useTabsStore } from "../store/use-tabs-store";
 import { useWritingStore } from "../store/use-writing-store";
+import { ChapterExportDialog } from "./chapter-export-dialog";
 import {
   findVolumeIdForChapter,
   getInitialCurrentChapterVolumeIdToExpand,
@@ -108,6 +109,7 @@ export function ChapterSidebar({
   const [renamingVolumeId, setRenamingVolumeId] = useState<string | null>(null);
   const [editingVolume, setEditingVolume] = useState<VolumeWithChapters | null>(null);
   const [editingVolumeDescription, setEditingVolumeDescription] = useState("");
+  const [chapterExportOpen, setChapterExportOpen] = useState(false);
   const [localTitleOverrides, setLocalTitleOverrides] = useState<Record<string, string>>({});
   const [scrollRequest, setScrollRequest] = useState<GroupedVolumeListScrollRequest | null>(null);
   const defaultExpansionAppliedProjectRef = useRef<string | null>(null);
@@ -550,6 +552,7 @@ export function ChapterSidebar({
         onChapterSelect={handleChapterSelect}
         onCreateChapter={handleCreateChapter}
         onCreateVolume={handleCreateVolume}
+        onExport={() => setChapterExportOpen(true)}
         onSaveOrder={handleSaveOrder}
         onCancelOrder={handleCancelOrder}
         isSavingOrder={reorderChaptersMutation.isPending}
@@ -629,6 +632,13 @@ export function ChapterSidebar({
         }}
         onConfirm={handleConfirmMoveChapter}
         loading={moveChapterToVolumeMutation.isPending}
+      />
+
+      <ChapterExportDialog
+        open={chapterExportOpen}
+        onOpenChange={setChapterExportOpen}
+        projectId={projectId}
+        volumes={volumes}
       />
 
       <Dialog.Root
