@@ -9,6 +9,7 @@ import { Plugin } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import { createLowlight, common } from "lowlight";
 
+import { serializeClipboardMarkdown } from "./editor-clipboard";
 import { createEditorShortcuts, type EditorShortcutCallbacks } from "./editor-shortcuts";
 
 export type { EditorShortcutCallbacks } from "./editor-shortcuts";
@@ -81,7 +82,7 @@ const MarkdownClipboard = Extension.create({
               return "";
             }
             const content = slice.content.toJSON() as JSONContent[];
-            return editor.markdown.serialize({ type: "doc", content });
+            return serializeClipboardMarkdown(editor.markdown, { type: "doc", content });
           },
         },
       }),
@@ -103,7 +104,7 @@ export function createMarkdownEditorExtensions(options: MarkdownEditorExtensions
     }),
     TableKit,
     TaskList,
-    TaskItem,
+    TaskItem.configure({ nested: true }),
     CodeBlockLowlight.configure({
       lowlight: createLowlight(common),
     }),
