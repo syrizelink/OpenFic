@@ -7,10 +7,10 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-import tiktoken
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFoundError
+from app.core.utils.tiktoken import get_encoding
 from app.storage.models.world_info_entry import WorldInfoEntry
 from app.storage.repos import world_info_entry_repo
 from app.storage.services.world_info_service import get_world_info
@@ -95,8 +95,7 @@ def _build_entry_name(comment: object, uid: int) -> str:
 def _calculate_token_count(content: str) -> int:
     """计算条目内容的 token 数。"""
     try:
-        encoding = tiktoken.get_encoding("cl100k_base")
-        return len(encoding.encode(content))
+        return len(get_encoding("cl100k_base").encode(content))
     except Exception:
         return len(content) // 4
 

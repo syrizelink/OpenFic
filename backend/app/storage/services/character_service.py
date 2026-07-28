@@ -4,12 +4,12 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-import tiktoken
 from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, NotFoundError
 from app.core.storage import delete_character_image, save_character_image
+from app.core.utils.tiktoken import get_encoding
 from app.storage.models.character import Character
 from app.storage.repos import character_repo, project_repo
 
@@ -65,8 +65,7 @@ def make_available_name(base_name: str, existing_names: list[str]) -> str:
 def calculate_token_count(content: str) -> int:
     """计算文本 Token 数。"""
     try:
-        encoding = tiktoken.get_encoding("cl100k_base")
-        return len(encoding.encode(content))
+        return len(get_encoding("cl100k_base").encode(content))
     except Exception:
         return len(content) // 2
 

@@ -1,3 +1,7 @@
+import tiktoken.load
+import tiktoken.registry
+import pytest
+
 from app.agent_runtime.model_config import to_client_model_config
 from app.models.clients.model_factory import create_chat_model, ModelConfig
 
@@ -28,6 +32,7 @@ def test_create_chat_model_openai_returns_chat_openai():
     model = create_chat_model(config)
 
     from langchain_openai import ChatOpenAI
+
     assert isinstance(model, ChatOpenAI)
     assert model.model_name == "gpt-4o"
 
@@ -183,6 +188,7 @@ def test_create_chat_model_unknown_provider_falls_back_to_openai():
     model = create_chat_model(config)
 
     from langchain_openai import ChatOpenAI
+
     assert isinstance(model, ChatOpenAI)
 
 
@@ -301,6 +307,7 @@ def test_create_chat_model_openai_compatible_enables_stream_usage_for_custom_bas
     model = create_chat_model(config)
 
     from langchain_openai import ChatOpenAI
+
     assert isinstance(model, ChatOpenAI)
     assert model.stream_usage is True
 
@@ -315,5 +322,31 @@ def test_create_chat_model_deepseek_enables_stream_usage():
     model = create_chat_model(config)
 
     from langchain_deepseek import ChatDeepSeek
+
     assert isinstance(model, ChatDeepSeek)
     assert model.stream_usage is True
+
+
+def test_create_chat_model_deepseek_uses_bundled_tiktoken_encoding(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("TIKTOKEN_CACHE_DIR", str(tmp_path / "tiktoken-cache"))
+    monkeypatch.setattr(tiktoken.registry, "ENCODINGS", {})
+
+    def fail_if_network_requested(_: str) -> bytes:
+        raise AssertionError(
+            "LangChain token counting must not request network resources"
+        )
+
+    monkeypatch.setattr(tiktoken.load, "read_file", fail_if_network_requested)
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="deepseek",
+            base_url="https://api.deepseek.com",
+            api_key="sk-test",
+            model_id="deepseek-chat",
+        )
+    )
+
+    assert model.get_token_ids("OpenFic 离线 token 测试")

@@ -3,6 +3,7 @@ from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 
+from app.core.utils.tiktoken import seed_bundled_encodings
 from app.models.clients.deepseek_payload import patch_deepseek_reasoning_payload
 from app.models.clients.model_params import (
     DEFAULT_FREQUENCY_PENALTY,
@@ -94,6 +95,7 @@ def _openai_compatible_kwargs(config: ModelConfig) -> dict[str, Any]:
 
 
 def create_chat_model(config: ModelConfig) -> BaseChatModel:
+    seed_bundled_encodings()
     provider = config.provider_type
 
     if provider == "anthropic":
