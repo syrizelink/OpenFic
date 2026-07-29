@@ -24,7 +24,7 @@ from app.agent_runtime.runner.checkpointer import get_checkpointer, reset_checkp
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.agent_runtime.runner.session_runner import SessionRunner
 from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buffer
-from app.api.routers.agent_runtime import _SESSION_RUNNERS
+from app.api.routers.agent_runtime import _SESSION_RUNNERS, _build_model_config
 from app.socket.handlers import agent_session_room, agent_subagents_room
 from app.storage.models.chapter import Chapter
 from app.storage.models.commit import Commit
@@ -106,6 +106,54 @@ async def _seed_agent_target(client: AsyncClient) -> dict[str, str]:
 
 @pytest.mark.asyncio
 class TestAgentAPI:
+    async def test_build_model_config_allows_reasoning_effort_for_uncataloged_model(self) -> None:
+        model = SimpleNamespace(
+            id="uncataloged-model-record",
+            model_id="new-reasoning-model",
+            context_length=128000,
+            temperature=1.0,
+            top_p=1.0,
+            top_k=0,
+            min_p=0.0,
+            top_a=0.0,
+            max_tokens=None,
+            frequency_penalty=0.0,
+            presence_penalty=0.0,
+            repetition_penalty=1.0,
+        )
+        provider = SimpleNamespace(
+            provider_type="anthropic",
+            url="https://api.anthropic.com",
+        )
+
+        config = await _build_model_config(model, provider, "sk-test", "high")
+
+        assert config["reasoning_effort"] == "high"
+
+    async def test_build_model_config_omits_disabled_reasoning_effort(self) -> None:
+        model = SimpleNamespace(
+            id="reasoning-model-record",
+            model_id="reasoning-model",
+            context_length=128000,
+            temperature=1.0,
+            top_p=1.0,
+            top_k=0,
+            min_p=0.0,
+            top_a=0.0,
+            max_tokens=None,
+            frequency_penalty=0.0,
+            presence_penalty=0.0,
+            repetition_penalty=1.0,
+        )
+        provider = SimpleNamespace(
+            provider_type="openai-compatible",
+            url="https://custom.api/v1",
+        )
+
+        config = await _build_model_config(model, provider, "sk-test", "off")
+
+        assert "reasoning_effort" not in config
+
     async def test_list_agent_tools_success(self, client: AsyncClient) -> None:
         response = await client.get("/api/v1/agent/tools")
 
@@ -390,6 +438,57 @@ class TestAgentAPI:
             response = await client.post(
                 "/api/v1/agent/sessions/session-reasoning-effort/message",
                 json={"message": "提高推理强度", "reasoning_effort": "high"},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        resolve_model_config.assert_awaited_once_with(session, target["model_id"], "high")
+        assert runner.model_config == resolved_config
+
+    async def test_send_agent_message_allows_reasoning_effort_for_uncataloged_model(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session.add(
+            Task(
+                id="task-uncataloged-reasoning-effort",
+                project_id=target["project_id"],
+                title="目录外推理强度",
+                mode="agent",
+                agent_session_id="session-uncataloged-reasoning-effort",
+            )
+        )
+        await session.commit()
+
+        runner = SessionRunner(
+            session_id="session-uncataloged-reasoning-effort",
+            task_id="task-uncataloged-reasoning-effort",
+            model_config={
+                "max_context_tokens": 8000,
+                "model_id": "uncataloged-model",
+                "model_record_id": target["model_id"],
+            },
+            project_id=target["project_id"],
+        )
+        runner.run = MagicMock(return_value=object())
+        _SESSION_RUNNERS["session-uncataloged-reasoning-effort"] = runner
+
+        resolved_config = {
+            "max_context_tokens": 8000,
+            "model_id": "uncataloged-model",
+            "reasoning_effort": "high",
+        }
+        with patch(
+            "app.api.routers.agent_runtime._resolve_model_config",
+            AsyncMock(return_value=resolved_config),
+        ) as resolve_model_config, patch(
+            "app.api.routers.agent_runtime._launch_task",
+            AsyncMock(),
+        ):
+            response = await client.post(
+                "/api/v1/agent/sessions/session-uncataloged-reasoning-effort/message",
+                json={"message": "使用新模型推理", "reasoning_effort": "high"},
             )
 
         assert response.status_code == status.HTTP_200_OK
@@ -2533,14 +2632,23 @@ class TestAgentAPI:
 
         with patch(
             "app.api.routers.agent_runtime._resolve_model_config",
-            AsyncMock(return_value={"max_context_tokens": 128000}),
-        ), patch(
+            AsyncMock(
+                return_value={
+                    "max_context_tokens": 128000,
+                    "reasoning_effort": "high",
+                }
+            ),
+        ) as resolve_model_config, patch(
             "app.agent_runtime.runner.session_runner.SessionRunner.materialize_state",
             AsyncMock(return_value="fork-cp"),
         ) as materialize_state:
             response = await client.post(
                 "/api/v1/agent/sessions/sess-fork-source/fork",
-                json={"source_revision_id": revision.id, "model_id": "model-fork"},
+                json={
+                    "source_revision_id": revision.id,
+                    "model_id": "model-fork",
+                    "reasoning_effort": "high",
+                },
             )
 
         assert response.status_code == status.HTTP_200_OK
@@ -2552,5 +2660,7 @@ class TestAgentAPI:
         state_values = materialize_state.await_args.args[0]
         assert state_values["session_id"] == data["session_id"]
         assert state_values["current_revision_id"] is None
+        assert state_values["model_config"]["reasoning_effort"] == "high"
+        resolve_model_config.assert_awaited_once_with(session, "model-fork", "high")
         fork_task = await session.get(Task, data["task_id"])
         assert fork_task is not None

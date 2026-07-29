@@ -234,6 +234,10 @@ class AgentForkRequest(BaseModel):
 
     source_revision_id: str = Field(..., description="分叉来源用户消息 revision ID")
     model_id: str = Field(..., description="Fork 会话后续使用的模型 ID")
+    reasoning_effort: ReasoningEffort | None = Field(
+        default=None,
+        description="Fork 会话后续使用的推理强度",
+    )
 
     model_config = {"extra": "forbid"}
 

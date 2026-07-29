@@ -2312,10 +2312,12 @@ export async function forkAgentSession(
   sessionId: string,
   sourceRevisionId: string,
   modelId: string,
+  reasoningEffort?: ReasoningEffort,
 ): Promise<AgentForkResponse> {
   const response = await apiClient.post(`/agent/sessions/${sessionId}/fork`, {
     source_revision_id: sourceRevisionId,
     model_id: modelId,
+    ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
   });
   return response.data;
 }

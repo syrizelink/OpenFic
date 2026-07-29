@@ -67,7 +67,6 @@ from app.core.encryption import EncryptionService
 from app.core.errors import NotFoundError
 from app.core.ids import generate_id
 from app.models.repos import model_provider_repo, model_repo
-from app.models.catalog import ModelProviderCatalogService
 from app.settings import settings
 from app.background.jobs.session_title_jobs import enqueue_session_title_job
 from app.background.jobs import service as background_service
@@ -317,9 +316,7 @@ async def _build_model_config(
         "presence_penalty": model.presence_penalty,
         "repetition_penalty": model.repetition_penalty,
     }
-    if reasoning_effort and await ModelProviderCatalogService().supports_provider_model_reasoning(
-        provider.provider_type, provider.url, model.model_id
-    ):
+    if reasoning_effort and reasoning_effort != "off":
         model_config["reasoning_effort"] = reasoning_effort
     return model_config
 
@@ -1149,7 +1146,11 @@ async def fork_agent_session(
 
     fork_session_id: str | None = None
     try:
-        model_config = await _resolve_model_config(session, request.model_id)
+        model_config = await _resolve_model_config(
+            session,
+            request.model_id,
+            request.reasoning_effort,
+        )
         result = await fork_agent_session_at_revision(
             session,
             source_session_id=session_id,

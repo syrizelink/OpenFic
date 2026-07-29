@@ -149,7 +149,7 @@ function getStoredReasoningEffort(modelId: string): ReasoningEffort {
       window.localStorage.getItem(ASSISTANT_REASONING_EFFORT_STORAGE_KEY) ?? "{}",
     ) as Record<string, string>;
     const value = stored[modelId];
-    return ["low", "medium", "high", "xhigh", "max"].includes(value)
+    return ["off", "low", "medium", "high", "xhigh", "max"].includes(value)
       ? (value as ReasoningEffort)
       : "medium";
   } catch {
@@ -563,7 +563,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       projectId,
       scrollToBottomKey: currentTaskId,
       modelId: effectiveModelId,
-      reasoningEffort: currentModel?.reasoning === true ? reasoningEffort : undefined,
+      reasoningEffort,
       agentKey: effectiveAgentKey,
       inputValue,
       onClearInput: () => setInputValue(""),
@@ -1538,7 +1538,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
               projectId={projectId}
               modelId={effectiveModelId}
               models={llmModelOptions}
-              reasoningEffort={currentModel?.reasoning === true ? reasoningEffort : undefined}
+              reasoningEffort={reasoningEffort}
               isSending={isSendingMessage}
               disabled={isViewingSubagent || isLoadingTask}
               pendingMessage={isViewingSubagent ? null : agentSidebar.pendingMessage}

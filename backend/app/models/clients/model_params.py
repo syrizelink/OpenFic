@@ -1,7 +1,7 @@
 from typing import Final, Literal, TypeVar
 
 
-ReasoningEffort = Literal["low", "medium", "high", "xhigh", "max"]
+ReasoningEffort = Literal["off", "low", "medium", "high", "xhigh", "max"]
 
 DEFAULT_TEMPERATURE: Final = 1.0
 DEFAULT_TOP_P: Final = 1.0
@@ -16,7 +16,7 @@ MAX_CONTEXT_LENGTH: Final = 2_000_000
 DEFAULT_REASONING_EFFORT: Final[ReasoningEffort] = "medium"
 
 REASONING_EFFORT_VALUES: Final[frozenset[str]] = frozenset(
-    {"low", "medium", "high", "xhigh", "max"}
+    {"off", "low", "medium", "high", "xhigh", "max"}
 )
 
 T = TypeVar("T")

@@ -123,6 +123,158 @@ def test_create_chat_model_sends_non_default_advanced_params():
     }
 
 
+def test_create_chat_model_omits_disabled_reasoning_effort():
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openai-compatible",
+            base_url="https://custom.api/v1",
+            api_key="sk-test",
+            model_id="new-reasoning-model",
+            reasoning_effort="off",
+        )
+    )
+
+    assert model._default_params == {  # type: ignore[attr-defined]
+        "model": "new-reasoning-model",
+        "stream": False,
+    }
+
+
+def test_create_chat_model_deepseek_omits_disabled_reasoning_effort():
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="deepseek",
+            base_url="https://api.deepseek.com",
+            api_key="sk-test",
+            model_id="deepseek-reasoner",
+            reasoning_effort="off",
+        )
+    )
+
+    assert "reasoning_effort" not in model._default_params  # type: ignore[attr-defined]
+
+
+def test_create_chat_model_maps_anthropic_reasoning_effort():
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="anthropic",
+            base_url="",
+            api_key="sk-ant-test",
+            model_id="claude-sonnet-4-6",
+            reasoning_effort="xhigh",
+        )
+    )
+
+    assert model.effort == "xhigh"
+
+
+def test_create_chat_model_maps_google_reasoning_effort():
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="google-genai",
+            base_url="",
+            api_key="sk-google-test",
+            model_id="gemini-3-pro-preview",
+            reasoning_effort="max",
+        )
+    )
+
+    assert model.thinking_level == "high"
+
+
+def test_create_chat_model_maps_openrouter_reasoning_effort():
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="openrouter",
+            base_url="https://openrouter.ai/api/v1",
+            api_key="sk-or-test",
+            model_id="openai/gpt-5.2",
+            reasoning_effort="high",
+        )
+    )
+
+    assert model._default_params["reasoning"] == {"effort": "high"}  # type: ignore[attr-defined]
+
+
+def test_create_chat_model_maps_groq_reasoning_effort():
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="groq",
+            base_url="https://api.groq.com/openai/v1",
+            api_key="gsk_test",
+            model_id="openai/gpt-oss-120b",
+            reasoning_effort="max",
+        )
+    )
+
+    assert model._default_params["reasoning_effort"] == "high"  # type: ignore[attr-defined]
+
+
+def test_create_chat_model_maps_cohere_reasoning_effort():
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="cohere",
+            base_url="https://api.cohere.com/v2",
+            api_key="cohere-test",
+            model_id="command-a-reasoning-08-2025",
+            reasoning_effort="medium",
+        )
+    )
+
+    assert model._default_params["thinking"] == {  # type: ignore[attr-defined]
+        "type": "enabled",
+        "token_budget": 4096,
+    }
+
+
+def test_create_chat_model_maps_amazon_nova_reasoning_effort():
+    model = create_chat_model(
+        ModelConfig(
+            provider_type="amazon-nova",
+            base_url="https://api.nova.amazon.com/v1",
+            api_key="nova-test",
+            model_id="nova-2-pro-v1",
+            reasoning_effort="max",
+        )
+    )
+
+    assert model._default_params["reasoning_effort"] == "high"  # type: ignore[attr-defined]
+
+
+def test_create_chat_model_passes_reasoning_effort_to_mistral():
+    mistral_model = create_chat_model(
+        ModelConfig(
+            provider_type="mistral",
+            base_url="https://api.mistral.ai",
+            api_key="sk-mistral-test",
+            model_id="magistral-medium",
+            reasoning_effort="high",
+        )
+    )
+    assert mistral_model._default_params["reasoning_effort"] == "high"  # type: ignore[attr-defined]
+
+
+def test_create_chat_model_enables_nvidia_thinking_mode():
+    nvidia_model = create_chat_model(
+        ModelConfig(
+            provider_type="nvidia-ai-endpoints",
+            base_url="https://integrate.api.nvidia.com/v1",
+            api_key="nvapi-test",
+            model_id="moonshotai/kimi-k2.5",
+            reasoning_effort="high",
+        )
+    )
+
+    assert getattr(nvidia_model, "kwargs") == {"thinking_mode": True}
+    bound_model = getattr(nvidia_model, "bound")
+    payload = bound_model._get_payload(  # type: ignore[no-untyped-call]
+        [{"role": "user", "content": "test"}],
+        stop=None,
+        **getattr(nvidia_model, "kwargs"),
+    )
+    assert payload["chat_template_kwargs"] == {"thinking": True}
+
+
 def test_create_chat_model_disables_provider_internal_retries_for_openai_like_models():
     config = ModelConfig(
         provider_type="openai",

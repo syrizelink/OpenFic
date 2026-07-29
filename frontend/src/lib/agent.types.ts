@@ -262,7 +262,7 @@ export interface AgentSendMessageRequest {
   reasoning_effort?: ReasoningEffort;
 }
 
-export type ReasoningEffort = "low" | "medium" | "high" | "xhigh" | "max";
+export type ReasoningEffort = "off" | "low" | "medium" | "high" | "xhigh" | "max";
 
 export type AgentPendingMessageAction = "queued" | "cancelled" | "consumed";
 

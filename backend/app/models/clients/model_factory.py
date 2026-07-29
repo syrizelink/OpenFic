@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 from typing import Any
 
-from langchain_core.language_models import BaseChatModel
+from langchain_core.language_models import LanguageModelInput
+from langchain_core.messages import BaseMessage
+from langchain_core.runnables import Runnable
 
 from app.core.utils.tiktoken import seed_bundled_encodings
 from app.models.clients.deepseek_payload import patch_deepseek_reasoning_payload
@@ -63,6 +65,18 @@ def _non_default(value: Any, default: Any) -> Any | None:
     return value if is_non_default(value, default) else None
 
 
+def _enabled_reasoning_effort(config: ModelConfig) -> ReasoningEffort | None:
+    return config.reasoning_effort if config.reasoning_effort != "off" else None
+
+
+def _three_level_reasoning_effort(
+    reasoning_effort: ReasoningEffort | None,
+) -> str | None:
+    if reasoning_effort is None:
+        return None
+    return "high" if reasoning_effort in {"xhigh", "max"} else reasoning_effort
+
+
 def _openai_compatible_kwargs(config: ModelConfig) -> dict[str, Any]:
     kwargs = _compact_kwargs(
         model=config.model_id,
@@ -75,7 +89,7 @@ def _openai_compatible_kwargs(config: ModelConfig) -> dict[str, Any]:
             config.frequency_penalty, DEFAULT_FREQUENCY_PENALTY
         ),
         presence_penalty=_non_default(config.presence_penalty, DEFAULT_PRESENCE_PENALTY),
-        reasoning_effort=config.reasoning_effort,
+        reasoning_effort=_enabled_reasoning_effort(config),
         max_retries=0,
         stream_usage=True,
     )
@@ -94,9 +108,10 @@ def _openai_compatible_kwargs(config: ModelConfig) -> dict[str, Any]:
     return kwargs
 
 
-def create_chat_model(config: ModelConfig) -> BaseChatModel:
+def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseMessage]:
     seed_bundled_encodings()
     provider = config.provider_type
+    reasoning_effort = _enabled_reasoning_effort(config)
 
     if provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
@@ -109,6 +124,7 @@ def create_chat_model(config: ModelConfig) -> BaseChatModel:
             top_p=_non_default(config.top_p, DEFAULT_TOP_P),
             top_k=_non_default(config.top_k, DEFAULT_TOP_K),
             max_tokens=config.max_tokens or 4096,
+            effort=reasoning_effort,
             max_retries=0,
         ))
 
@@ -122,6 +138,7 @@ def create_chat_model(config: ModelConfig) -> BaseChatModel:
             top_p=_non_default(config.top_p, DEFAULT_TOP_P),
             top_k=_non_default(config.top_k, DEFAULT_TOP_K),
             max_output_tokens=config.max_tokens,
+            thinking_level=_three_level_reasoning_effort(reasoning_effort),
             max_retries=1,
         )
         if config.base_url:
@@ -149,7 +166,7 @@ def create_chat_model(config: ModelConfig) -> BaseChatModel:
             base_url=config.base_url or None,
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             max_tokens=config.max_tokens,
-            reasoning_effort=config.reasoning_effort,
+            reasoning_effort=reasoning_effort,
             max_retries=0,
             stream_usage=True,
         ))
@@ -157,14 +174,18 @@ def create_chat_model(config: ModelConfig) -> BaseChatModel:
     if provider == "mistral":
         from langchain_mistralai import ChatMistralAI
 
-        return ChatMistralAI(**_compact_kwargs(
+        mistral_kwargs = _compact_kwargs(
             model=config.model_id,
             api_key=config.api_key,
+            base_url=config.base_url or None,
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             top_p=_non_default(config.top_p, DEFAULT_TOP_P),
             max_tokens=config.max_tokens,
             max_retries=0,
-        ))
+        )
+        if reasoning_effort:
+            mistral_kwargs["model_kwargs"] = {"reasoning_effort": reasoning_effort}
+        return ChatMistralAI(**mistral_kwargs)
 
     if provider == "openrouter":
         from langchain_openrouter import ChatOpenRouter
@@ -182,6 +203,7 @@ def create_chat_model(config: ModelConfig) -> BaseChatModel:
             presence_penalty=_non_default(
                 config.presence_penalty, DEFAULT_PRESENCE_PENALTY
             ),
+            reasoning={"effort": reasoning_effort} if reasoning_effort else None,
             max_retries=0,
         ))
 
@@ -194,6 +216,7 @@ def create_chat_model(config: ModelConfig) -> BaseChatModel:
             base_url=config.base_url or None,
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             max_tokens=config.max_tokens,
+            reasoning_effort=_three_level_reasoning_effort(reasoning_effort),
             max_retries=0,
         )
         if config.top_p is not None:
@@ -203,6 +226,23 @@ def create_chat_model(config: ModelConfig) -> BaseChatModel:
     if provider == "cohere":
         from langchain_cohere import ChatCohere
 
+        class ChatCohereWithThinking(ChatCohere):
+            @property
+            def _default_params(self) -> dict[str, Any]:
+                params = super()._default_params
+                if reasoning_effort:
+                    params["thinking"] = {
+                        "type": "enabled",
+                        "token_budget": {
+                            "low": 1024,
+                            "medium": 4096,
+                            "high": 8192,
+                            "xhigh": 16384,
+                            "max": 16384,
+                        }[reasoning_effort],
+                    }
+                return params
+
         cohere_kwargs = _compact_kwargs(
             model=config.model_id,
             cohere_api_key=config.api_key,
@@ -211,7 +251,7 @@ def create_chat_model(config: ModelConfig) -> BaseChatModel:
         )
         if config.max_tokens is not None:
             cohere_kwargs["model_kwargs"] = {"max_tokens": config.max_tokens}
-        return ChatCohere(**cohere_kwargs)
+        return ChatCohereWithThinking(**cohere_kwargs)
 
     if provider == "amazon-nova":
         from langchain_amazon_nova import ChatAmazonNova
@@ -223,20 +263,23 @@ def create_chat_model(config: ModelConfig) -> BaseChatModel:
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             top_p=_non_default(config.top_p, DEFAULT_TOP_P),
             max_tokens=config.max_tokens,
+            reasoning_effort=_three_level_reasoning_effort(reasoning_effort),
             max_retries=0,
         ))
 
     if provider == "nvidia-ai-endpoints":
         from langchain_nvidia_ai_endpoints import ChatNVIDIA
 
-        return ChatNVIDIA(**_compact_kwargs(
+        nvidia_kwargs = _compact_kwargs(
             model=config.model_id,
             api_key=config.api_key,
             base_url=config.base_url or None,
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             top_p=_non_default(config.top_p, DEFAULT_TOP_P),
             max_completion_tokens=config.max_tokens,
-        ))
+        )
+        model = ChatNVIDIA(**nvidia_kwargs)
+        return model.with_thinking_mode(enabled=True) if reasoning_effort else model
 
     # OpenAI-compatible fallback (openai, huggingface, openai-compatible, unknown)
     from langchain_openai import ChatOpenAI

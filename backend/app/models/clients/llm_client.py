@@ -10,15 +10,16 @@ import time
 from dataclasses import dataclass
 import json
 import re
-from typing import AsyncGenerator, Any, Mapping, cast
+from typing import AsyncGenerator, Any, Mapping, Protocol, cast
 
-from langchain_core.language_models import BaseChatModel
+from langchain_core.language_models import LanguageModelInput
 from langchain_core.messages import (
     AIMessage,
     HumanMessage,
     SystemMessage,
     BaseMessage,
 )
+from langchain_core.runnables import Runnable
 from langchain_core.tools import BaseTool
 from loguru import logger
 
@@ -29,6 +30,13 @@ from app.models.clients.model_factory import ModelConfig, ReasoningEffort, creat
 
 DEFAULT_LLM_TIMEOUT = 120
 _patch_deepseek_reasoning_payload = patch_deepseek_reasoning_payload
+
+
+class ToolBindableModel(Protocol):
+    def bind_tools(
+        self,
+        tools: list[BaseTool],
+    ) -> Runnable[LanguageModelInput, AIMessage]: ...
 
 
 @dataclass
@@ -86,10 +94,10 @@ class LLMClient:
             config: LLM配置。
         """
         self.config = config
-        self._llm: BaseChatModel | None = None
-        self._llm_with_tools: BaseChatModel | None = None
+        self._llm: Runnable[LanguageModelInput, BaseMessage] | None = None
+        self._llm_with_tools: Runnable[LanguageModelInput, AIMessage] | None = None
 
-    def _get_llm(self) -> BaseChatModel:
+    def _get_llm(self) -> Runnable[LanguageModelInput, BaseMessage]:
         """获取或创建LangChain LLM实例。"""
         if self._llm is not None:
             return self._llm
@@ -560,6 +568,6 @@ class LLMClient:
             返回self以支持链式调用。
         """
         llm = self._get_llm()
-        self._llm_with_tools = cast(BaseChatModel, llm.bind_tools(tools))
+        self._llm_with_tools = cast(ToolBindableModel, llm).bind_tools(tools)
         logger.info(f"已绑定 {len(tools)} 个工具到LLM")
         return self

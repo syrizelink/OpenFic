@@ -1179,7 +1179,12 @@ export function useAgentSession({
       }
 
       try {
-        const result = await forkAgentSession(activeSessionId, sourceRevisionId, modelId);
+        const result = await forkAgentSession(
+          activeSessionId,
+          sourceRevisionId,
+          modelId,
+          reasoningEffort,
+        );
         queryClient.invalidateQueries({ queryKey: ["tasks", projectId], exact: false });
         toast.success(i18n.t("assistant.forkSuccess"));
         return result;
@@ -1189,7 +1194,7 @@ export function useAgentSession({
         return null;
       }
     },
-    [isRollbacking, isRunning, modelId, projectId, queryClient, sessionId],
+    [isRollbacking, isRunning, modelId, projectId, queryClient, reasoningEffort, sessionId],
   );
 
   return {
