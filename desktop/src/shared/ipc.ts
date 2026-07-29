@@ -28,6 +28,7 @@ export const IpcChannels = {
   installUpdate: "update:install",
   openUpdateRelease: "update:open-release",
   updateState: "update:state",
+  exportLogs: "logs:export",
 } as const;
 
 export type SetupStep =

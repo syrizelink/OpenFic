@@ -53,6 +53,7 @@ const desktopApi = {
   cancelUpdateDownload: (): Promise<void> => ipcRenderer.invoke(IpcChannels.cancelUpdateDownload),
   installUpdate: (): Promise<void> => ipcRenderer.invoke(IpcChannels.installUpdate),
   openUpdateRelease: (): Promise<void> => ipcRenderer.invoke(IpcChannels.openUpdateRelease),
+  exportLogs: (): Promise<string | null> => ipcRenderer.invoke(IpcChannels.exportLogs),
   onSetupProgress: (handler: (event: SetupProgressEvent) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: SetupProgressEvent) => handler(payload);
     ipcRenderer.on(IpcChannels.setupProgress, listener);

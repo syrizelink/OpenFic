@@ -2,6 +2,7 @@ import { app } from "electron";
 import { spawn } from "node:child_process";
 import { access, mkdir, rm } from "node:fs/promises";
 import path from "node:path";
+import { appendLog } from "../logging.js";
 import { downloadFile, extractTarGz } from "./archive.js";
 import { resolvePythonAsset } from "./python-assets.js";
 import { matchesPortablePythonVersion } from "./python-version.js";
@@ -59,18 +60,28 @@ function formatBytes(bytes: number): string {
 
 function readPythonVersion(pythonPath: string): Promise<string | null> {
   return new Promise((resolve) => {
+    appendLog("runtime", `检查 Python 版本：${pythonPath} --version`);
     const child = spawn(pythonPath, ["--version"], {
+      env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],
     });
     let output = "";
     const appendOutput = (chunk: Buffer | string) => {
-      output += typeof chunk === "string" ? chunk : chunk.toString("utf8");
+      const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
+      output += text;
+      appendLog("runtime", text);
     };
     child.stdout.on("data", appendOutput);
     child.stderr.on("data", appendOutput);
-    child.on("error", () => resolve(null));
-    child.on("exit", (code) => resolve(code === 0 ? output.trim() || null : null));
+    child.on("error", (error) => {
+      appendLog("runtime", `检查 Python 版本失败：${error.message}`);
+      resolve(null);
+    });
+    child.on("exit", (code) => {
+      appendLog("runtime", code === 0 ? "检查 Python 版本完成" : `检查 Python 版本失败：退出码 ${code}`);
+      resolve(code === 0 ? output.trim() || null : null);
+    });
   });
 }
 
@@ -96,11 +107,14 @@ export async function ensurePortablePython(
   const rootDir = getPortablePythonRoot(runtimeDir);
   const pythonPath = getPortablePythonPath(rootDir);
   const asset = resolvePythonAsset();
+  appendLog("runtime", `开始检查便携式 Python：${rootDir}`);
   if (await pathExists(pythonPath)) {
     const installedVersion = await readPythonVersion(pythonPath);
     if (installedVersion && matchesPortablePythonVersion(installedVersion, asset.version)) {
+      appendLog("runtime", `便携式 Python 已就绪：${installedVersion}`);
       return { pythonPath, rootDir, wasReplaced: false };
     }
+    appendLog("runtime", "便携式 Python 版本不匹配或不可用，删除现有文件");
     await rm(rootDir, { recursive: true, force: true });
   }
 
@@ -111,10 +125,17 @@ export async function ensurePortablePython(
   await mkdir(runtimeDir, { recursive: true });
 
   onPhase("download", `下载 Python ${asset.version}`);
-  await downloadFile(asset.urls, archivePath, (received, total) => onDownload({ received, total }));
+  appendLog("runtime", `开始下载 Python ${asset.version}`);
+  await downloadFile(
+    asset.urls,
+    archivePath,
+    (received, total) => onDownload({ received, total }),
+    (message) => appendLog("runtime", message),
+  );
 
   onPhase("extract", "解压 Python");
-  await extractTarGz(archivePath, rootDir);
+  appendLog("runtime", "开始解压 Python");
+  await extractTarGz(archivePath, rootDir, (message) => appendLog("runtime", message));
 
   if (!(await pathExists(pythonPath))) {
     throw new Error(`portable Python not found after extraction: ${pythonPath}`);
@@ -122,6 +143,7 @@ export async function ensurePortablePython(
 
   await rm(archivePath, { force: true });
 
+  appendLog("runtime", "便携式 Python 安装完成");
   return { pythonPath, rootDir, wasReplaced: true };
 }
 

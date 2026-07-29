@@ -14,6 +14,7 @@ import {
   resolveOpenFicCliPath,
 } from "./openfic-commands.js";
 import type { StartupProgressTracker } from "../startup-progress.js";
+import { appendLog, createLogStream } from "../logging.js";
 
 export type OpenFicRuntimeStep = "create-venv" | "install-uv" | "install-openfic";
 
@@ -22,6 +23,10 @@ const DEFAULT_PYPI_INDEX_URL = "https://pypi.org/simple/";
 const TSINGHUA_PYPI_INDEX_URL = "https://pypi.tuna.tsinghua.edu.cn/simple/";
 const PYPI_INDEX_PROBE_TIMEOUT_MS = 5_000;
 const PYPI_INDEX_PROBE_PACKAGE = "openfic";
+const UTF8_PYTHON_ENVIRONMENT = {
+  PYTHONIOENCODING: "utf-8",
+  PYTHONUTF8: "1",
+};
 
 interface PypiIndexProbe {
   indexUrl: string;
@@ -61,7 +66,7 @@ async function pathExists(filePath: string): Promise<boolean> {
 
 function forwardLines(
   stream: NodeJS.ReadableStream | null,
-  writer: NodeJS.WriteStream,
+  logStream: NodeJS.WritableStream,
   onLine?: (line: string) => void,
 ): void {
   if (!stream) return;
@@ -69,7 +74,7 @@ function forwardLines(
   let buffer = "";
   stream.on("data", (chunk: Buffer | string) => {
     const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
-    writer.write(text);
+    logStream.write(text);
     buffer += text.replace(/\r/g, "\n");
 
     const lines = buffer.split("\n");
@@ -83,6 +88,7 @@ function forwardLines(
   stream.on("end", () => {
     const trimmed = buffer.trim();
     if (trimmed) onLine?.(trimmed);
+    logStream.end();
   });
 }
 
@@ -95,16 +101,25 @@ async function probePypiIndex(indexUrl: string, expectedVersion: string): Promis
   const timeout = setTimeout(() => controller.abort(), PYPI_INDEX_PROBE_TIMEOUT_MS);
   const startedAt = performance.now();
   try {
+    appendLog("runtime", `探测 Python 包索引：${indexUrl}`);
     const response = await net.fetch(`${indexUrl}${PYPI_INDEX_PROBE_PACKAGE}/`, {
       cache: "no-store",
       signal: controller.signal,
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      appendLog("runtime", `Python 包索引响应异常：${indexUrl}，状态码 ${response.status}`);
+      return null;
+    }
     const packageIndex = await response.text();
     const elapsedMs = performance.now() - startedAt;
-    if (!packageIndex.includes(`openfic-${expectedVersion}`)) return null;
+    if (!packageIndex.includes(`openfic-${expectedVersion}`)) {
+      appendLog("runtime", `Python 包索引未找到 OpenFic ${expectedVersion}：${indexUrl}`);
+      return null;
+    }
+    appendLog("runtime", `Python 包索引可用：${indexUrl}，耗时 ${Math.round(elapsedMs)}ms`);
     return { indexUrl, elapsedMs };
-  } catch {
+  } catch (error) {
+    appendLog("runtime", `Python 包索引探测失败：${indexUrl}：${error instanceof Error ? error.message : String(error)}`);
     return null;
   } finally {
     clearTimeout(timeout);
@@ -122,6 +137,7 @@ async function getFastestPypiEnvironment(expectedVersion: string): Promise<NodeJ
   }
 
   const indexUrl = fastestProbe?.indexUrl ?? DEFAULT_PYPI_INDEX_URL;
+  appendLog("runtime", `使用 Python 包索引：${indexUrl}`);
   const proxyEnvironment = await getSystemProxyEnvironment(indexUrl);
   return {
     ...proxyEnvironment,
@@ -136,54 +152,96 @@ function run(
   command: string,
   args: string[],
   cwd: string,
-  onStdoutLine?: (line: string) => void,
+  onOutputLine?: (line: string) => void,
   environment?: NodeJS.ProcessEnv,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
+    appendLog("runtime", `执行命令：${command} ${args.join(" ")}`);
+    let lastOutputLine = "";
     const child = spawn(command, args, {
       cwd,
-      env: { ...process.env, ...environment },
+      env: { ...process.env, ...UTF8_PYTHON_ENVIRONMENT, ...environment },
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],
     });
-    forwardLines(child.stdout, process.stdout, (line) => {
+    const handleOutput = (line: string) => {
       const text = stripAnsi(line).trim();
-      if (text) onStdoutLine?.(text);
+      if (!text) return;
+      lastOutputLine = text;
+      onOutputLine?.(text);
+    };
+    forwardLines(child.stdout, createLogStream("runtime"), handleOutput);
+    forwardLines(child.stderr, createLogStream("runtime"), handleOutput);
+    child.on("error", (error) => {
+      appendLog("runtime", `命令启动失败：${error.message}`);
+      reject(error);
     });
-    forwardLines(child.stderr, process.stderr);
-    child.on("error", reject);
     child.on("exit", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`${command} ${args.join(" ")} exited with code ${code}`));
+      if (code === 0) {
+        appendLog("runtime", "命令执行完成");
+        resolve();
+        return;
+      }
+      const outputDetail = lastOutputLine ? `：${lastOutputLine}` : "";
+      const error = new Error(`${command} ${args.join(" ")} exited with code ${code}${outputDetail}`);
+      appendLog("runtime", `命令执行失败：${error.message}`);
+      reject(error);
     });
   });
 }
 
 function readOutput(command: string, args: string[], cwd: string): Promise<string | null> {
   return new Promise((resolve) => {
+    appendLog("runtime", `检查命令：${command} ${args.join(" ")}`);
     const child = spawn(command, args, {
       cwd,
+      env: { ...process.env, ...UTF8_PYTHON_ENVIRONMENT },
       windowsHide: true,
-      stdio: ["ignore", "pipe", "ignore"],
+      stdio: ["ignore", "pipe", "pipe"],
     });
     let output = "";
-    child.stdout.on("data", (chunk: Buffer | string) => {
-      output += typeof chunk === "string" ? chunk : chunk.toString("utf8");
+    const collectOutput = (chunk: Buffer | string) => {
+      const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
+      output += text;
+    };
+    child.stdout.on("data", collectOutput);
+    child.stdout.pipe(createLogStream("runtime"));
+    child.stderr.pipe(createLogStream("runtime"));
+    child.on("error", (error) => {
+      appendLog("runtime", `检查命令启动失败：${error.message}`);
+      resolve(null);
     });
-    child.on("error", () => resolve(null));
-    child.on("exit", (code) => resolve(code === 0 ? output.trim() || null : null));
+    child.on("exit", (code) => {
+      if (code === 0) {
+        appendLog("runtime", "检查命令执行完成");
+        resolve(output.trim() || null);
+        return;
+      }
+      appendLog("runtime", `检查命令执行失败：退出码 ${code}`);
+      resolve(null);
+    });
   });
 }
 
 function succeeds(command: string, args: string[], cwd: string): Promise<boolean> {
   return new Promise((resolve) => {
+    appendLog("runtime", `检查命令：${command} ${args.join(" ")}`);
     const child = spawn(command, args, {
       cwd,
+      env: { ...process.env, ...UTF8_PYTHON_ENVIRONMENT },
       windowsHide: true,
-      stdio: "ignore",
+      stdio: ["ignore", "pipe", "pipe"],
     });
-    child.on("error", () => resolve(false));
-    child.on("exit", (code) => resolve(code === 0));
+    child.stdout.pipe(createLogStream("runtime"));
+    child.stderr.pipe(createLogStream("runtime"));
+    child.on("error", (error) => {
+      appendLog("runtime", `检查命令启动失败：${error.message}`);
+      resolve(false);
+    });
+    child.on("exit", (code) => {
+      appendLog("runtime", code === 0 ? "检查命令执行完成" : `检查命令执行失败：退出码 ${code}`);
+      resolve(code === 0);
+    });
   });
 }
 
@@ -232,13 +290,18 @@ export async function ensureOpenFicRuntime(
   let pypiEnvironment: Promise<NodeJS.ProcessEnv> | null = null;
   const getPypiEnvironment = () => (pypiEnvironment ??= getFastestPypiEnvironment(expectedVersion));
 
+  appendLog("runtime", `开始检查 OpenFic 运行环境：${runtimeDir}`);
   await mkdir(runtimeDir, { recursive: true });
 
-  if (python.wasReplaced) await rm(venvDir, { recursive: true, force: true });
+  if (python.wasReplaced) {
+    appendLog("runtime", "便携式 Python 已更新，删除现有虚拟环境");
+    await rm(venvDir, { recursive: true, force: true });
+  }
 
   const venvIsUsable =
     (await pathExists(venvPythonPath)) && Boolean(await readOutput(venvPythonPath, ["--version"], runtimeDir));
   if (!venvIsUsable) {
+    appendLog("runtime", "虚拟环境不存在或不可用，开始创建");
     await rm(venvDir, { recursive: true, force: true });
     onProgress("create-venv", "创建 OpenFic 运行环境");
     await run(python.pythonPath, ["-m", "venv", venvDir], runtimeDir);
@@ -246,6 +309,7 @@ export async function ensureOpenFicRuntime(
 
   const uvIsUsable = (await pathExists(uvPath)) && Boolean(await readOutput(uvPath, ["--version"], runtimeDir));
   if (!uvIsUsable) {
+    appendLog("runtime", "uv 不存在或不可用，开始安装");
     onProgress("install-uv", "安装 uv");
     const packageIndexEnvironment = await getPypiEnvironment();
     await run(
@@ -263,6 +327,10 @@ export async function ensureOpenFicRuntime(
   const openFicCliIsUsable =
     (await pathExists(openFicCliPath)) && (await succeeds(openFicCliPath, ["--help"], runtimeDir));
   if (installedVersion !== expectedVersion || !openFicCliIsUsable) {
+    appendLog(
+      "runtime",
+      installedVersion ? `OpenFic 后端需要更新：${installedVersion} -> ${expectedVersion}` : "OpenFic 后端尚未安装",
+    );
     onProgress("install-openfic", installedVersion ? "更新 OpenFic 后端" : "安装 OpenFic 后端");
     const packageIndexEnvironment = await getPypiEnvironment();
     const installCommand = createOpenFicInstallCommand(
@@ -279,6 +347,7 @@ export async function ensureOpenFicRuntime(
     );
   }
 
+  appendLog("runtime", "OpenFic 运行环境检查完成");
   return { uvPath, venvPythonPath };
 }
 

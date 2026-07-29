@@ -1,4 +1,5 @@
 import { session, type Session } from "electron";
+import { appendLog } from "./logging.js";
 
 const configuredSessions = new WeakMap<Session, Promise<void>>();
 const LOCAL_BYPASS_HOSTS = ["localhost", "127.0.0.1"];
@@ -9,7 +10,7 @@ export function configureSystemProxy(targetSession: Session): Promise<void> {
   if (configured) return configured;
 
   const configuration = targetSession.setProxy({ mode: "system" }).catch((error: unknown) => {
-    console.warn("Unable to configure the system proxy:", error);
+    appendLog("startup", `配置系统代理失败：${error instanceof Error ? error.message : String(error)}`);
   });
   configuredSessions.set(targetSession, configuration);
   return configuration;

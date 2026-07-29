@@ -1,4 +1,5 @@
-import { dialog, ipcMain, type BrowserWindow } from "electron";
+import { app, dialog, ipcMain, type BrowserWindow } from "electron";
+import path from "node:path";
 import {
   IpcChannels,
   type CheckRemoteRequest,
@@ -21,6 +22,7 @@ import { inspectLocalRuntime, installLocalRuntime, startLocalBackendFromInstall 
 import { getDefaultInstallDir } from "./runtime/python.js";
 import { cancelUpdateDownload, checkForUpdates, downloadUpdate, getUpdateState, installUpdate, openUpdateRelease } from "./updater.js";
 import { createStartupProgressTracker, getStartupProgress } from "./startup-progress.js";
+import { exportLogs } from "./logging.js";
 import type { BackendProcessHandle } from "./process.js";
 import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
 
@@ -54,6 +56,33 @@ export function registerIpc(context: IpcContext): void {
   ipcMain.handle(IpcChannels.cancelUpdateDownload, () => cancelUpdateDownload());
   ipcMain.handle(IpcChannels.installUpdate, () => installUpdate());
   ipcMain.handle(IpcChannels.openUpdateRelease, () => openUpdateRelease());
+  ipcMain.handle(IpcChannels.exportLogs, async () => {
+    const defaultPath = path.join(
+      app.getPath("downloads"),
+      `openfic-backend-logs-${new Date().toISOString().replace(/[:.]/g, "-")}.zip`,
+    );
+    const window = context.shellWindow();
+    const result = window
+      ? await dialog.showSaveDialog(window, {
+          defaultPath,
+          filters: [{ name: "ZIP 压缩包", extensions: ["zip"] }],
+          title: "导出后端日志",
+        })
+      : await dialog.showSaveDialog({
+          defaultPath,
+          filters: [{ name: "ZIP 压缩包", extensions: ["zip"] }],
+          title: "导出后端日志",
+        });
+    if (result.canceled || !result.filePath) return null;
+
+    try {
+      return await exportLogs(result.filePath);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      dialog.showErrorBox("导出后端日志失败", message);
+      throw error;
+    }
+  });
 
   ipcMain.handle(IpcChannels.ensureInstanceSession, (_event, request: EnsureInstanceSessionRequest) => {
     return ensureAppProtocolForPartition(request.partition);

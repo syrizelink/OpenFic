@@ -1,6 +1,4 @@
 import { app, dialog, Menu, type BrowserWindow } from "electron";
-import { appendFileSync, mkdirSync } from "node:fs";
-import path from "node:path";
 import { registerAppScheme, handleAppProtocol, setRuntimeConfig } from "./protocol.js";
 import { createMainWindow } from "./windows.js";
 import { readDesktopConfig, writeDesktopConfig } from "./config.js";
@@ -13,17 +11,12 @@ import { initializeUpdater } from "./updater.js";
 import { configureDefaultSystemProxy } from "./proxy.js";
 import { createStartupProgressTracker, type StartupProgressTracker } from "./startup-progress.js";
 import { IpcChannels } from "../shared/ipc.js";
+import { appendLog } from "./logging.js";
 import type { InitializeAppResult } from "../shared/ipc.js";
 import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
 
 function writeStartupLog(message: string): void {
-  try {
-    const logDir = path.join(process.env.APPDATA ?? app.getPath("userData"), "openfic-desktop");
-    mkdirSync(logDir, { recursive: true });
-    appendFileSync(path.join(logDir, "startup.log"), `[${new Date().toISOString()}] ${message}\n`, "utf8");
-  } catch {
-    // Ignore logging failures during startup diagnostics.
-  }
+  appendLog("startup", message);
 }
 
 let mainWindow: BrowserWindow | null = null;
@@ -185,7 +178,12 @@ async function activateInstance(
     return `远程实例版本为 ${health.version ?? "未知"}，桌面端版本为 ${app.getVersion()}，部分功能可能不兼容。`;
   }
 
-  await startLocalBackend(instance.installDir, startupProgress);
+  try {
+    await startLocalBackend(instance.installDir, startupProgress);
+  } catch (error) {
+    appendLog("runtime", `本地运行环境更新或启动失败：${error instanceof Error ? error.message : String(error)}`);
+    throw error;
+  }
   return null;
 }
 

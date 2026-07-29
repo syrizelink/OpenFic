@@ -37,6 +37,7 @@ declare global {
       cancelUpdateDownload: () => Promise<void>;
       installUpdate: () => Promise<void>;
       openUpdateRelease: () => Promise<void>;
+      exportLogs: () => Promise<string | null>;
       onSetupProgress: (handler: (event: SetupProgressEvent) => void) => () => void;
       onStartupProgress: (handler: (event: StartupProgressEvent) => void) => () => void;
       onUpdateState: (handler: (state: UpdateState) => void) => () => void;

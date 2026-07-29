@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties, type MouseEvent } from "react";
-import { Link2, Link2Off, Minus, Plus, RefreshCw, Square, Star, Trash2, X } from "lucide-react";
+import { Bug, Link2, Link2Off, LoaderCircle, Minus, Plus, RefreshCw, Square, Star, Trash2, X } from "lucide-react";
 import type { DesktopConfig, DesktopInstance } from "../../shared/config";
 import type { UpdateState } from "../../shared/ipc";
 
@@ -55,6 +55,7 @@ export function DesktopHeader({
   const [panelVisible, setPanelVisible] = useState(false);
   const [pingStates, setPingStates] = useState<Record<string, PingState>>({});
   const [switchingId, setSwitchingId] = useState<string | null>(null);
+  const [isExportingLogs, setIsExportingLogs] = useState(false);
   const instances = sortInstances(config?.instances ?? []);
   const hasUsableRuntime = instances.some((instance) => pingStates[instance.id]?.status === "ok") || Boolean(activeInstanceId);
   const updateProgress = Math.min(Math.max(updateState.progress ?? 0, 0), 1);
@@ -165,10 +166,33 @@ export function DesktopHeader({
     }
   };
 
+  const handleExportLogs = async () => {
+    if (isExportingLogs) return;
+    setIsExportingLogs(true);
+    try {
+      await window.openficDesktop.exportLogs();
+    } catch {
+      // The main process presents an actionable error dialog.
+    } finally {
+      setIsExportingLogs(false);
+    }
+  };
+
   return (
     <header className="desktop-header">
       <div className="desktop-titlebar-brand">OpenFic</div>
       <div className="desktop-titlebar-actions">
+        <button
+          className="titlebar-button"
+          aria-label="导出调试日志"
+          aria-busy={isExportingLogs}
+          title="导出调试日志"
+          type="button"
+          disabled={isExportingLogs}
+          onClick={() => void handleExportLogs()}
+        >
+          {isExportingLogs ? <LoaderCircle className="titlebar-exporting" size={15} strokeWidth={2} /> : <Bug size={15} strokeWidth={2} />}
+        </button>
         <button
           className="titlebar-button titlebar-update-button"
           data-update-state={updateIconState}

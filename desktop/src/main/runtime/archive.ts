@@ -52,6 +52,7 @@ export async function downloadFile(
   urls: string[],
   outputPath: string,
   onProgress?: (received: number, total: number) => void,
+  onLog?: (message: string) => void,
 ): Promise<void> {
   if (urls.length === 0) throw new Error("no download urls provided");
   await mkdir(path.dirname(outputPath), { recursive: true });
@@ -59,11 +60,14 @@ export async function downloadFile(
   let lastError: unknown;
   for (const url of urls) {
     try {
+      onLog?.(`下载文件：${url}`);
       const response = await fetchWithFirstByteTimeout(url);
       await streamResponseToPath(response, outputPath, onProgress);
+      onLog?.(`文件下载完成：${url}`);
       return;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      onLog?.(`文件下载失败：${url}：${message}`);
       lastError = new Error(`failed to download ${url}: ${message}`);
       await rm(outputPath, { force: true });
     }

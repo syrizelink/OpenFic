@@ -1,8 +1,7 @@
-import { app, BrowserWindow, screen, shell } from "electron";
-import { appendFileSync, mkdirSync } from "node:fs";
-import path from "node:path";
+import { BrowserWindow, screen, shell } from "electron";
 import { fileURLToPath } from "node:url";
 import { readWindowState, saveWindowStateSync, type WindowState } from "./window-state.js";
+import { appendLog } from "./logging.js";
 
 const preloadPath = fileURLToPath(new URL("../preload/preload.mjs", import.meta.url));
 
@@ -13,13 +12,7 @@ const MIN_HEIGHT = 640;
 const SAVE_DEBOUNCE_MS = 500;
 
 function writeWindowLog(message: string): void {
-  try {
-    const logDir = path.join(process.env.APPDATA ?? app.getPath("userData"), "openfic-desktop");
-    mkdirSync(logDir, { recursive: true });
-    appendFileSync(path.join(logDir, "startup.log"), `[${new Date().toISOString()}] ${message}\n`, "utf8");
-  } catch {
-    // Ignore diagnostics logging failures.
-  }
+  appendLog("startup", message);
 }
 
 function attachWindowDiagnostics(window: BrowserWindow, name: string): void {

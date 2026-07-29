@@ -537,6 +537,10 @@ body {
   animation: titlebar-update-spin 820ms linear infinite;
 }
 
+.titlebar-exporting {
+  animation: titlebar-update-spin 820ms linear infinite;
+}
+
 .titlebar-update-progress {
   width: 17px;
   height: 17px;
@@ -1011,6 +1015,10 @@ h1 {
   }
 
   .titlebar-update-checking {
+    animation: none;
+  }
+
+  .titlebar-exporting {
     animation: none;
   }
 }

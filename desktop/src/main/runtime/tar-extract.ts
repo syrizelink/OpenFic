@@ -24,16 +24,43 @@ function resolveArchiveLinkPath(outputDir: string, entryPath: string, linkName: 
   }
 }
 
-async function extractWithSystemTar(archivePath: string, outputDir: string): Promise<void> {
+function logProcessOutput(stream: NodeJS.ReadableStream, onLog?: (message: string) => void): void {
+  let buffer = "";
+  stream.on("data", (chunk: Buffer | string) => {
+    buffer += (typeof chunk === "string" ? chunk : chunk.toString("utf8")).replace(/\r/g, "\n");
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (line.trim()) onLog?.(line);
+    }
+  });
+  stream.on("end", () => {
+    if (buffer.trim()) onLog?.(buffer);
+  });
+}
+
+async function extractWithSystemTar(archivePath: string, outputDir: string, onLog?: (message: string) => void): Promise<void> {
   await new Promise<void>((resolve, reject) => {
+    onLog?.(`执行解压命令：tar -xzf ${archivePath} -C ${outputDir}`);
     const child = spawn("tar", ["-xzf", archivePath, "-C", outputDir], {
       windowsHide: true,
-      stdio: ["ignore", "ignore", "inherit"],
+      stdio: ["ignore", "pipe", "pipe"],
     });
-    child.once("error", reject);
+    logProcessOutput(child.stdout, onLog);
+    logProcessOutput(child.stderr, onLog);
+    child.once("error", (error) => {
+      onLog?.(`解压命令启动失败：${error.message}`);
+      reject(error);
+    });
     child.once("exit", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`tar exited with code ${code}`));
+      if (code === 0) {
+        onLog?.("解压命令执行完成");
+        resolve();
+        return;
+      }
+      const error = new Error(`tar exited with code ${code}`);
+      onLog?.(`解压命令执行失败：${error.message}`);
+      reject(error);
     });
   });
 }
@@ -69,14 +96,15 @@ async function extractWithBuiltInTar(archivePath: string, outputDir: string): Pr
   await pipeline(createReadStream(archivePath), createGunzip(), archive);
 }
 
-export async function extractTarGz(archivePath: string, outputDir: string): Promise<void> {
+export async function extractTarGz(archivePath: string, outputDir: string, onLog?: (message: string) => void): Promise<void> {
   await rm(outputDir, { recursive: true, force: true });
   await mkdir(outputDir, { recursive: true });
 
   try {
-    await extractWithSystemTar(archivePath, outputDir);
+    await extractWithSystemTar(archivePath, outputDir, onLog);
   } catch (error) {
     if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error;
+    onLog?.("未找到系统 tar，改用内置解压器");
     await rm(outputDir, { recursive: true, force: true });
     await mkdir(outputDir, { recursive: true });
     await extractWithBuiltInTar(archivePath, outputDir);

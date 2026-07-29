@@ -10,6 +10,7 @@ import {
 } from "./openfic.js";
 import type { BackendProcessHandle } from "../process.js";
 import type { StartupProgressTracker } from "../startup-progress.js";
+import { appendLog, getLogPath } from "../logging.js";
 
 function emitProgress(webContents: WebContents, event: SetupProgressEvent): void {
   webContents.send(IpcChannels.setupProgress, event);
@@ -37,25 +38,34 @@ export async function installLocalRuntime(webContents: WebContents, installDir: 
     emitProgress(webContents, { step, status: "running", message });
   };
 
-  const python = await ensurePortablePython(
-    runtimeDir,
-    (phase, message) => beginStep(phase === "download" ? "download-python" : "extract-python", message),
-    ({ received, total }) => {
-      const fraction = total > 0 ? received / total : undefined;
-      emitProgress(webContents, {
-        step: "download-python",
-        status: "running",
-        message: `下载 Python · ${describeDownloadProgress({ received, total })}`,
-        progress: fraction,
-      });
-    },
-  );
+  appendLog("runtime", `开始安装运行环境：${runtimeDir}`);
+  try {
+    const python = await ensurePortablePython(
+      runtimeDir,
+      (phase, message) => beginStep(phase === "download" ? "download-python" : "extract-python", message),
+      ({ received, total }) => {
+        const fraction = total > 0 ? received / total : undefined;
+        emitProgress(webContents, {
+          step: "download-python",
+          status: "running",
+          message: `下载 Python · ${describeDownloadProgress({ received, total })}`,
+          progress: fraction,
+        });
+      },
+    );
 
-  await ensureOpenFicRuntime(python, runtimeDir, app.getVersion(), (step, message) => beginStep(step, message));
+    await ensureOpenFicRuntime(python, runtimeDir, app.getVersion(), (step, message) => beginStep(step, message));
 
-  if (currentStep) markDone(webContents, currentStep);
-
-  return runtimeDir;
+    if (currentStep) markDone(webContents, currentStep);
+    appendLog("runtime", "运行环境安装完成");
+    return runtimeDir;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const logPath = getLogPath("runtime");
+    appendLog("runtime", `运行环境安装失败：${message}`);
+    if (currentStep) emitProgress(webContents, { step: currentStep, status: "failed", message });
+    throw new Error(`${message}。运行环境日志：${logPath}`);
+  }
 }
 
 export interface LocalRuntimeInspection {
