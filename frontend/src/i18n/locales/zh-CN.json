@@ -299,7 +299,6 @@
       "cancelExport": "取消导出",
       "success": "导出完成",
       "successInfo": "共导出 {{volumes}} 卷、{{chapters}} 章、{{words}} 字",
-      "downloadLocation": "文件已下载到浏览器默认下载目录（受浏览器设置影响）",
       "downloadAgain": "再次下载",
       "errorTitle": "导出未完成",
       "failed": "导出失败，请重试。",

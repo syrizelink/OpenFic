@@ -299,7 +299,6 @@
       "cancelExport": "Cancel export",
       "success": "Export complete",
       "successInfo": "Exported {{volumes}} volumes, {{chapters}} chapters, and {{words}} words",
-      "downloadLocation": "The file was downloaded to your browser's default download location.",
       "downloadAgain": "Download again",
       "errorTitle": "Export not completed",
       "failed": "The export failed. Please try again.",

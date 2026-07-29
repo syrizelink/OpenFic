@@ -1,5 +1,5 @@
 .rt-DialogContent.chapter-export-dialog-content {
-  width: min(1280px, calc(100vw - 32px));
+  width: min(1080px, calc(100vw - 32px));
   max-width: calc(100vw - 32px);
 }
 

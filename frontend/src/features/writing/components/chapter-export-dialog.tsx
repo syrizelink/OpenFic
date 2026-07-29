@@ -357,7 +357,7 @@ export function ChapterExportDialog({
       <Dialog.Content
         className="chapter-export-dialog-content"
         data-step={step}
-        maxWidth="1280px"
+        maxWidth="1080px"
       >
         <Dialog.Title>{t(`${EXPORT_I18N_KEY}.title`)}</Dialog.Title>
         {step === "selecting" && (
@@ -617,12 +617,6 @@ export function ChapterExportDialog({
               })}
             </Text>
             <div className="chapter-export-file-name">{exportJob.filename}</div>
-            <Text
-              size="1"
-              color="gray"
-            >
-              {t(`${EXPORT_I18N_KEY}.downloadLocation`)}
-            </Text>
           </Flex>
         )}
 
