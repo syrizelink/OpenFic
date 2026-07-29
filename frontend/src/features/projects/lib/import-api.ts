@@ -12,9 +12,16 @@ export interface PreviewChapter {
   content_preview: string;
 }
 
+/** 预览卷信息 */
+export interface PreviewVolume {
+  title: string;
+  chapter_count: number;
+  chapters: PreviewChapter[];
+}
+
 /** 导入预览响应 */
 export interface ImportPreviewResponse {
-  chapters: PreviewChapter[];
+  volumes: PreviewVolume[];
   total_word_count: number;
   chapter_count: number;
   detected_encoding: string;

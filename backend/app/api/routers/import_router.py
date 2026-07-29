@@ -15,6 +15,7 @@ from app.api.schemas.import_schema import (
     ImportConfirmResponse,
     ImportPreviewResponse,
     PreviewChapter,
+    PreviewVolume,
 )
 from app.core.txt_parser import parse_txt_content
 from app.storage.database import get_session
@@ -76,17 +77,24 @@ async def preview_txt_file(
     result = parse_txt_content(content)
 
     # 转换为预览响应
-    preview_chapters = [
-        PreviewChapter(
-            title=chapter.title,
-            word_count=chapter.word_count,
-            content_preview=chapter.content[:200] if chapter.content else "",
+    preview_volumes = [
+        PreviewVolume(
+            title=volume.title,
+            chapter_count=len(volume.chapters),
+            chapters=[
+                PreviewChapter(
+                    title=chapter.title,
+                    word_count=chapter.word_count,
+                    content_preview=chapter.content[:200] if chapter.content else "",
+                )
+                for chapter in volume.chapters
+            ],
         )
-        for chapter in result.chapters
+        for volume in result.volumes
     ]
 
     return ImportPreviewResponse(
-        chapters=preview_chapters,
+        volumes=preview_volumes,
         total_word_count=result.total_word_count,
         chapter_count=result.chapter_count,
         detected_encoding=result.detected_encoding,
@@ -159,7 +167,7 @@ async def confirm_import(
     # 解析文件
     parse_result = parse_txt_content(content)
 
-    if not parse_result.chapters:
+    if not parse_result.volumes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="文件解析失败，未能识别任何章节",
@@ -172,7 +180,7 @@ async def confirm_import(
             title=title,
             description=description,
             cover_file=cover,
-            chapters=parse_result.chapters,
+            volumes=parse_result.volumes,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -237,11 +245,11 @@ async def confirm_import_stream(
 
             parse_result = parse_txt_content(content)
 
-            if not parse_result.chapters:
+            if not parse_result.volumes:
                 yield f"data: {json.dumps({'type': 'error', 'message': '文件解析失败，未能识别任何章节'})}\n\n"
                 return
 
-            total_chapters = len(parse_result.chapters)
+            total_chapters = parse_result.chapter_count
 
             # 进度：创建项目
             yield f"data: {json.dumps({'type': 'progress', 'stage': 'creating_project', 'progress': 25})}\n\n"
@@ -252,7 +260,7 @@ async def confirm_import_stream(
                 title=title_clean,
                 description=description,
                 cover_file=cover,
-                chapters=parse_result.chapters,
+                volumes=parse_result.volumes,
             )
 
             # 进度：保存章节（模拟进度，实际已在批量插入中完成）

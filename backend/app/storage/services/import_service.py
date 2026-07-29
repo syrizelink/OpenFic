@@ -10,13 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.editor_content_limits import validate_editor_content
 from app.core.storage import save_cover_file
-from app.core.txt_parser import ParsedChapter
+from app.core.txt_parser import ParsedVolume
 from app.storage.models.chapter import Chapter
 from app.storage.models.project import Project
 from app.storage.models.volume import Volume
 from app.storage.repos import project_repo
 from app.storage.services import writing_activity_service
-from app.storage.services.volume_service import DEFAULT_VOLUME_TITLE
 
 
 @dataclass
@@ -34,7 +33,7 @@ async def confirm_import(
     title: str,
     description: str | None,
     cover_file: UploadFile | None,
-    chapters: list[ParsedChapter],
+    volumes: list[ParsedVolume],
 ) -> ImportResult:
     """
     确认导入，创建项目和所有章节。
@@ -44,16 +43,18 @@ async def confirm_import(
         title: 书名。
         description: 简介，可选。
         cover_file: 封面文件，可选。
-        chapters: 解析后的章节列表。
+        volumes: 解析后的卷列表。
 
     Returns:
         导入结果。
     """
-    for chapter in chapters:
-        validate_editor_content(chapter.content)
+    for parsed_volume in volumes:
+        for chapter in parsed_volume.chapters:
+            validate_editor_content(chapter.content)
 
     # 计算总字数
-    total_word_count = sum(c.word_count for c in chapters)
+    chapters = [chapter for volume in volumes for chapter in volume.chapters]
+    total_word_count = sum(chapter.word_count for chapter in chapters)
 
     # 创建项目
     project = Project(
@@ -64,14 +65,17 @@ async def confirm_import(
     )
     project = await project_repo.create(session, project)
 
-    volume = Volume(
-        project_id=project.id,
-        title=DEFAULT_VOLUME_TITLE,
-        description=None,
-        order=1,
-        chapter_count=len(chapters),
-    )
-    session.add(volume)
+    volume_objects = [
+        Volume(
+            project_id=project.id,
+            title=parsed_volume.title,
+            description=None,
+            order=order,
+            chapter_count=len(parsed_volume.chapters),
+        )
+        for order, parsed_volume in enumerate(volumes, start=1)
+    ]
+    session.add_all(volume_objects)
     await session.flush()
 
     # 如果提供了封面文件，保存封面
@@ -88,9 +92,10 @@ async def confirm_import(
             title=parsed_chapter.title,
             content=parsed_chapter.content,
             word_count=parsed_chapter.word_count,
-            order=order,
+            order=chapter_order,
         )
-        for order, parsed_chapter in enumerate(chapters, start=1)
+        for volume, parsed_volume in zip(volume_objects, volumes, strict=True)
+        for chapter_order, parsed_chapter in enumerate(parsed_volume.chapters, start=1)
     ]
 
     # 批量插入所有章节

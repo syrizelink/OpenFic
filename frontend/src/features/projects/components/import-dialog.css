@@ -26,10 +26,92 @@
   display: block;
 }
 
-.import-dialog-preview-scroll {
-  height: 240px;
+.import-dialog-preview-panel {
+  height: clamp(260px, 42vh, 336px);
   border: 1px solid var(--gray-5);
   border-radius: var(--radius-2);
+  overflow: hidden;
+}
+
+.import-dialog-volume-list {
+  height: 100%;
+}
+
+.import-dialog-volume-group + .import-dialog-volume-group {
+  border-top: 1px solid var(--gray-4);
+}
+
+.import-dialog-volume-header {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: var(--color-panel);
+  color: var(--gray-12);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: background-color 0.15s;
+}
+
+.import-dialog-volume-header:hover {
+  background: var(--gray-3);
+}
+
+.import-dialog-volume-header:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: -2px;
+}
+
+.import-dialog-volume-group[data-expanded="true"] .import-dialog-volume-header {
+  background: var(--gray-2);
+}
+
+.import-dialog-volume-chevron {
+  color: var(--gray-9);
+  transition: transform 0.15s;
+}
+
+.import-dialog-volume-chevron[data-expanded="false"] {
+  transform: rotate(-90deg);
+}
+
+.import-dialog-volume-index {
+  color: var(--gray-9);
+  font-size: var(--font-size-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.import-dialog-volume-title,
+.import-dialog-volume-meta,
+.import-dialog-preview-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-dialog-volume-title {
+  font-size: var(--font-size-2);
+  font-weight: var(--font-weight-medium);
+}
+
+.import-dialog-volume-meta {
+  color: var(--gray-10);
+  font-size: var(--font-size-1);
+  white-space: nowrap;
+}
+
+.import-dialog-volume-chapters {
+  border-top: 1px solid var(--gray-4);
+  background: var(--gray-1);
+}
+
+.import-dialog-chapter-index {
+  flex: 0 0 2ch;
+  font-variant-numeric: tabular-nums;
 }
 
 .import-dialog-preview-row--bordered {

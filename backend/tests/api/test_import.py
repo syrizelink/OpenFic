@@ -22,7 +22,8 @@ async def test_preview_txt_simple(client: AsyncClient) -> None:
     assert data["chapter_count"] >= 1
     assert data["total_word_count"] > 0
     assert data["detected_encoding"] == "utf-8"
-    assert len(data["chapters"]) >= 1
+    assert len(data["volumes"]) == 1
+    assert len(data["volumes"][0]["chapters"]) >= 1
 
 
 @pytest.mark.asyncio
@@ -53,7 +54,9 @@ async def test_preview_txt_with_chapters(client: AsyncClient) -> None:
     assert data["chapter_count"] >= 2  # 至少解析出 2 个章节
     assert data["total_word_count"] > 0
     # 验证章节标题包含关键字
-    titles = [ch["title"] for ch in data["chapters"]]
+    titles = [
+        chapter["title"] for volume in data["volumes"] for chapter in volume["chapters"]
+    ]
     assert any("第一章" in t for t in titles)
     assert any("第二章" in t for t in titles)
 
@@ -158,6 +161,105 @@ async def test_confirm_import(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_import_txt_with_volume_titles(client: AsyncClient) -> None:
+    """卷标题与下一目录标题之间没有正文时，应按卷导入章节。"""
+    first_chapter = "第一卷的第一章正文。" * 60
+    second_chapter = "第一卷的第二章正文。" * 60
+    third_chapter = "第二卷的第一章正文。" * 60
+    content = f"""第一卷 初入江湖
+第一章 出山
+
+{first_chapter}
+
+第二章 相逢
+
+{second_chapter}
+
+第二卷 风云再起
+第一章 入城
+
+{third_chapter}
+"""
+    files = {"file": ("volumes.txt", content.encode("utf-8"), "text/plain")}
+
+    preview_response = await client.post("/api/v1/import/preview", files=files)
+
+    assert preview_response.status_code == 200
+    preview = preview_response.json()
+    assert [volume["title"] for volume in preview["volumes"]] == [
+        "第一卷 初入江湖",
+        "第二卷 风云再起",
+    ]
+    assert [chapter["title"] for chapter in preview["volumes"][0]["chapters"]] == [
+        "第一章 出山",
+        "第二章 相逢",
+    ]
+    assert [chapter["title"] for chapter in preview["volumes"][1]["chapters"]] == [
+        "第一章 入城",
+    ]
+    assert preview["chapter_count"] == 3
+
+    import_response = await client.post(
+        "/api/v1/import/confirm",
+        files=files,
+        data={"title": "分卷测试小说"},
+    )
+
+    assert import_response.status_code == 201
+    project_id = import_response.json()["project_id"]
+    tree_response = await client.get(f"/api/v1/projects/{project_id}/chapters")
+
+    assert tree_response.status_code == 200
+    volumes = tree_response.json()["volumes"]
+    assert [volume["title"] for volume in volumes] == [
+        "第一卷 初入江湖",
+        "第二卷 风云再起",
+    ]
+    assert [volume["chapter_count"] for volume in volumes] == [2, 1]
+    assert [chapter["order"] for chapter in volumes[0]["chapters"]] == [1, 2]
+    assert [chapter["order"] for chapter in volumes[1]["chapters"]] == [1]
+
+
+@pytest.mark.asyncio
+async def test_preview_creates_explicit_volume_when_following_chapter_is_unrecognized(
+    client: AsyncClient,
+) -> None:
+    """显式卷标题后的未识别章节也应归入新卷。"""
+    first_chapter = "第一章正文。" * 200
+    second_chapter = "未命名章节正文。" * 200
+    content = f"""第一卷 第一卷
+前言
+作品简介
+
+第一章 灵眸少年（一）
+
+{first_chapter}
+
+第二卷 未命名卷
+未命名章节
+
+{second_chapter}
+"""
+    files = {"file": ("explicit-volumes.txt", content.encode("utf-8"), "text/plain")}
+
+    response = await client.post("/api/v1/import/preview", files=files)
+
+    assert response.status_code == 200
+    preview = response.json()
+    assert [volume["title"] for volume in preview["volumes"]] == [
+        "第一卷 第一卷",
+        "第二卷 未命名卷",
+    ]
+    assert [chapter["title"] for chapter in preview["volumes"][0]["chapters"]] == [
+        "前言",
+        "第一章 灵眸少年（一）",
+    ]
+    assert [chapter["title"] for chapter in preview["volumes"][1]["chapters"]] == [
+        "未命名章节",
+    ]
+
+
+@pytest.mark.asyncio
 async def test_confirm_import_empty_title(client: AsyncClient) -> None:
     """测试导入时标题为空。"""
     content = "简单内容"
@@ -249,5 +351,5 @@ async def test_preview_gb18030_preserves_original_text(client: AsyncClient) -> N
     data = response.json()
 
     assert data["detected_encoding"].lower() == "gb18030"
-    assert data["chapters"][0]["title"] == "第一章 扩展字符测试"
-    assert data["chapters"][0]["content_preview"] == "这里有扩展字：𠮷。"
+    assert data["volumes"][0]["chapters"][0]["title"] == "第一章 扩展字符测试"
+    assert data["volumes"][0]["chapters"][0]["content_preview"] == "这里有扩展字：𠮷。"

@@ -13,14 +13,22 @@ import {
   Box,
   TextField,
   TextArea,
-  ScrollArea,
   Badge,
   Progress,
   Card,
 } from "@radix-ui/themes";
-import { Upload, FileText, ChevronLeft, ChevronRight, Check, AlertCircle } from "lucide-react";
-import { useState, useCallback, useRef } from "react";
+import {
+  Upload,
+  FileText,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  AlertCircle,
+} from "lucide-react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { GroupedVirtuoso } from "react-virtuoso";
 
 import { Spinner } from "@/components";
 
@@ -50,6 +58,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
   // 文件和解析结果
   const [file, setFile] = useState<File | null>(null);
   const [previewData, setPreviewData] = useState<ImportPreviewResponse | null>(null);
+  const [expandedVolumeIndexes, setExpandedVolumeIndexes] = useState<number[]>([0]);
 
   // 项目信息
   const [title, setTitle] = useState("");
@@ -77,6 +86,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
     setError(null);
     setFile(null);
     setPreviewData(null);
+    setExpandedVolumeIndexes([0]);
     setTitle("");
     setDescription("");
     setCover(null);
@@ -115,6 +125,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
       try {
         const result = await previewTxtFile(selectedFile);
         setPreviewData(result);
+        setExpandedVolumeIndexes([0]);
         setTitle(selectedFile.name.replace(/\.txt$/i, ""));
         setStep("preview");
       } catch (err) {
@@ -190,6 +201,31 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
       maximumFractionDigits: count >= 10000 ? 1 : 0,
     }).format(count);
   };
+
+  const handleToggleVolume = (volumeIndex: number) => {
+    setExpandedVolumeIndexes((currentIndexes) =>
+      currentIndexes.includes(volumeIndex)
+        ? currentIndexes.filter((index) => index !== volumeIndex)
+        : [...currentIndexes, volumeIndex],
+    );
+  };
+
+  const previewGroupCounts = useMemo(
+    () =>
+      previewData?.volumes.map((volume, volumeIndex) =>
+        expandedVolumeIndexes.includes(volumeIndex) ? volume.chapters.length : 0,
+      ) ?? [],
+    [expandedVolumeIndexes, previewData?.volumes],
+  );
+  const previewChapters = useMemo(
+    () =>
+      previewData?.volumes.flatMap((volume, volumeIndex) =>
+        expandedVolumeIndexes.includes(volumeIndex)
+          ? volume.chapters.map((chapter, chapterIndex) => ({ chapter, chapterIndex, volumeIndex }))
+          : [],
+      ) ?? [],
+    [expandedVolumeIndexes, previewData?.volumes],
+  );
 
   const getImportStageText = () => {
     switch (importStage) {
@@ -334,7 +370,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
                   </Card>
                 </Flex>
 
-                {/* 章节预览列表 */}
+                {/* 分卷章节预览 */}
                 <Text
                   size="2"
                   weight="medium"
@@ -343,42 +379,107 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
                 >
                   {t("import.chapterPreview")}
                 </Text>
-                <ScrollArea className="import-dialog-preview-scroll">
-                  <Box p="2">
-                    {previewData.chapters.map((chapter, index) => (
-                      <Flex
-                        key={index}
-                        align="center"
-                        gap="2"
-                        py="2"
-                        px="2"
-                        className={
-                          index < previewData.chapters.length - 1
-                            ? "import-dialog-preview-row--bordered"
-                            : undefined
-                        }
-                      >
-                        <FileText
-                          size={16}
-                          color="var(--gray-9)"
-                        />
-                        <Text
-                          size="2"
-                          className="import-dialog-preview-title"
-                          truncate
+                <Box className="import-dialog-preview-panel">
+                  <GroupedVirtuoso
+                    className="import-dialog-volume-list"
+                    groupCounts={previewGroupCounts}
+                    overscan={6}
+                    groupContent={(volumeIndex) => {
+                      const volume = previewData.volumes[volumeIndex];
+                      if (!volume) return null;
+
+                      const wordCount = volume.chapters.reduce(
+                        (total, chapter) => total + chapter.word_count,
+                        0,
+                      );
+                      const isExpanded = expandedVolumeIndexes.includes(volumeIndex);
+
+                      return (
+                        <Box
+                          className="import-dialog-volume-group"
+                          data-expanded={isExpanded ? "true" : "false"}
                         >
-                          {chapter.title}
-                        </Text>
-                        <Badge
-                          size="1"
-                          color="gray"
+                          <button
+                            type="button"
+                            className="import-dialog-volume-header"
+                            aria-expanded={isExpanded}
+                            aria-controls={`import-volume-${volumeIndex}`}
+                            onClick={() => handleToggleVolume(volumeIndex)}
+                          >
+                            <ChevronDown
+                              size={16}
+                              className="import-dialog-volume-chevron"
+                              data-expanded={isExpanded ? "true" : "false"}
+                            />
+                            <span className="import-dialog-volume-index">{volumeIndex + 1}</span>
+                            <span
+                              className="import-dialog-volume-title"
+                              title={volume.title}
+                            >
+                              {volume.title}
+                            </span>
+                            <span className="import-dialog-volume-meta">
+                              {volume.chapter_count} {t("projects.chapters")} ·{" "}
+                              {formatWordCount(wordCount)} {t("projects.words")}
+                            </span>
+                          </button>
+                        </Box>
+                      );
+                    }}
+                    itemContent={(chapterListIndex) => {
+                      const previewChapter = previewChapters[chapterListIndex];
+                      if (!previewChapter) return null;
+
+                      const { chapter, chapterIndex, volumeIndex } = previewChapter;
+                      const volume = previewData.volumes[volumeIndex];
+                      if (!volume) return null;
+
+                      return (
+                        <Box
+                          px="3"
+                          className="import-dialog-volume-chapters"
                         >
-                          {chapter.word_count} {t("projects.words")}
-                        </Badge>
-                      </Flex>
-                    ))}
-                  </Box>
-                </ScrollArea>
+                          <Flex
+                            align="center"
+                            gap="2"
+                            py="2"
+                            className={
+                              chapterIndex < volume.chapters.length - 1
+                                ? "import-dialog-preview-row--bordered"
+                                : undefined
+                            }
+                          >
+                            <Text
+                              size="1"
+                              color="gray"
+                              className="import-dialog-chapter-index"
+                            >
+                              {chapterIndex + 1}
+                            </Text>
+                            <FileText
+                              size={15}
+                              color="var(--gray-9)"
+                            />
+                            <Text
+                              size="2"
+                              className="import-dialog-preview-title"
+                              truncate
+                              title={chapter.title}
+                            >
+                              {chapter.title}
+                            </Text>
+                            <Badge
+                              size="1"
+                              color="gray"
+                            >
+                              {formatWordCount(chapter.word_count)} {t("projects.words")}
+                            </Badge>
+                          </Flex>
+                        </Box>
+                      );
+                    }}
+                  />
+                </Box>
 
                 {previewData.chapter_count === 1 && (
                   <Flex

@@ -25,10 +25,18 @@ class ParsedChapter:
 
 
 @dataclass
+class ParsedVolume:
+    """解析后的单个卷。"""
+
+    title: str
+    chapters: list[ParsedChapter] = field(default_factory=list)
+
+
+@dataclass
 class ParseResult:
     """TXT 解析结果。"""
 
-    chapters: list[ParsedChapter] = field(default_factory=list)
+    volumes: list[ParsedVolume] = field(default_factory=list)
     total_word_count: int = 0
     chapter_count: int = 0
     detected_encoding: str = "utf-8"
@@ -139,6 +147,12 @@ TOC_RULES: list[tuple[str, re.Pattern[str]]] = [
     ),
 ]
 
+VOLUME_TITLE_PATTERN = re.compile(
+    r"^[ \t　]{0,4}(?:第\s{0,4}[\d〇零一二两三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟]+?"
+    r"\s{0,4}卷|卷[\d〇零一二两三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟]{1,8}).{0,30}$",
+    re.MULTILINE,
+)
+
 
 def _detect_encoding(content: bytes) -> str:
     """
@@ -188,6 +202,25 @@ def _count_words(text: str) -> int:
     numbers = len(re.findall(r"\d+", text))
 
     return chinese_chars + english_words + numbers
+
+
+def _create_fallback_chapter(content: str) -> ParsedChapter | None:
+    """将未识别的文本按首行标题回退为单个章节。"""
+    content = content.strip()
+    if not content:
+        return None
+
+    lines = content.split("\n", 1)
+    title = lines[0].strip() if len(lines[0].strip()) <= 50 else "正文"
+    chapter_content = (
+        lines[1].strip() if title != "正文" and len(lines) > 1 else content
+    )
+
+    return ParsedChapter(
+        title=title or "正文",
+        content=re.sub(r"^[\n\s]+", "　　", chapter_content),
+        word_count=_count_words(chapter_content),
+    )
 
 
 # _text_to_html 函数已移除
@@ -266,9 +299,35 @@ def parse_txt_content(content: bytes) -> ParseResult:
     # 选择最佳目录规则
     toc_pattern = _select_best_toc_rule(text)
 
-    chapters: list[ParsedChapter] = []
+    volumes: list[ParsedVolume] = []
+    default_volume: ParsedVolume | None = None
 
-    if toc_pattern is None:
+    def get_default_volume() -> ParsedVolume:
+        nonlocal default_volume
+        if default_volume is None:
+            default_volume = ParsedVolume(title="第一卷")
+            volumes.append(default_volume)
+        return default_volume
+
+    toc_matches = list(toc_pattern.finditer(text)) if toc_pattern else []
+    volume_matches = list(VOLUME_TITLE_PATTERN.finditer(text))
+    toc_matches = [
+        match
+        for match in toc_matches
+        if not any(
+            match.start() < volume_match.end() and volume_match.start() < match.end()
+            for volume_match in volume_matches
+        )
+    ]
+    matches = sorted(
+        [
+            *[(match, False) for match in toc_matches],
+            *[(match, True) for match in volume_matches],
+        ],
+        key=lambda item: item[0].start(),
+    )
+
+    if not matches:
         # 没有识别到章节，整个内容作为一个章节
         content_stripped = text.strip()
         if content_stripped:
@@ -282,7 +341,7 @@ def parse_txt_content(content: bytes) -> ParseResult:
                 title = "正文"
                 chapter_content = content_stripped
 
-            chapters.append(
+            get_default_volume().chapters.append(
                 ParsedChapter(
                     title=title,
                     content=chapter_content,  # 直接使用换行符格式，不转换为 HTML
@@ -290,72 +349,70 @@ def parse_txt_content(content: bytes) -> ParseResult:
                 )
             )
     else:
-        # 使用正则切分章节
-        matches = list(toc_pattern.finditer(text))
+        # 处理第一个目录标题之前的内容（可能是序言/简介）
+        first_match_start = matches[0][0].start()
+        if first_match_start > 100:  # 前面内容超过 100 字符才作为序言
+            preface_content = text[:first_match_start].strip()
+            if preface_content:
+                word_count = _count_words(preface_content)
+                if word_count > 50:  # 序言至少 50 字
+                    get_default_volume().chapters.append(
+                        ParsedChapter(
+                            title="前言",
+                            content=preface_content,  # 直接使用换行符格式，不转换为 HTML
+                            word_count=word_count,
+                        )
+                    )
 
-        if not matches:
-            # 没有匹配，整个内容作为一个章节
-            content_stripped = text.strip()
-            if content_stripped:
-                word_count = _count_words(content_stripped)
-            chapters.append(
+        current_volume: ParsedVolume | None = None
+
+        # 处理每个目录标题
+        for i, (match, is_explicit_volume) in enumerate(matches):
+            title = match.group().strip()
+
+            # 获取标题内容（从标题结束到下一个目录标题开始）
+            content_start = match.end()
+            if i + 1 < len(matches):
+                content_end = matches[i + 1][0].start()
+            else:
+                content_end = len(text)
+
+            chapter_content = text[content_start:content_end].strip()
+
+            if is_explicit_volume or not chapter_content:
+                current_volume = ParsedVolume(title=title)
+                volumes.append(current_volume)
+                fallback_chapter = _create_fallback_chapter(chapter_content)
+                if fallback_chapter:
+                    current_volume.chapters.append(fallback_chapter)
+                continue
+
+            # 移除内容开头的标题重复
+            if chapter_content.startswith(title):
+                chapter_content = chapter_content[len(title) :].strip()
+
+            # 清理内容开头的空白和换行
+            chapter_content = re.sub(r"^[\n\s]+", "　　", chapter_content)
+
+            word_count = _count_words(chapter_content)
+
+            if current_volume is None:
+                current_volume = get_default_volume()
+
+            current_volume.chapters.append(
                 ParsedChapter(
-                    title="正文",
-                    content=content_stripped,  # 直接使用换行符格式，不转换为 HTML
+                    title=title,
+                    content=chapter_content,  # 直接使用换行符格式，不转换为 HTML
                     word_count=word_count,
                 )
             )
-        else:
-            # 处理第一个章节之前的内容（可能是序言/简介）
-            first_match_start = matches[0].start()
-            if first_match_start > 100:  # 前面内容超过 100 字符才作为序言
-                preface_content = text[:first_match_start].strip()
-                if preface_content:
-                    word_count = _count_words(preface_content)
-                    if word_count > 50:  # 序言至少 50 字
-                        chapters.append(
-                            ParsedChapter(
-                                title="前言",
-                                content=preface_content,  # 直接使用换行符格式，不转换为 HTML
-                                word_count=word_count,
-                            )
-                        )
-
-            # 处理每个章节
-            for i, match in enumerate(matches):
-                title = match.group().strip()
-
-                # 获取章节内容（从标题结束到下一个章节开始）
-                content_start = match.end()
-                if i + 1 < len(matches):
-                    content_end = matches[i + 1].start()
-                else:
-                    content_end = len(text)
-
-                chapter_content = text[content_start:content_end].strip()
-
-                # 移除内容开头的标题重复
-                if chapter_content.startswith(title):
-                    chapter_content = chapter_content[len(title) :].strip()
-
-                # 清理内容开头的空白和换行
-                chapter_content = re.sub(r"^[\n\s]+", "　　", chapter_content)
-
-                word_count = _count_words(chapter_content)
-
-                chapters.append(
-                    ParsedChapter(
-                        title=title,
-                        content=chapter_content,  # 直接使用换行符格式，不转换为 HTML
-                        word_count=word_count,
-                    )
-                )
 
     # 计算总字数
-    total_word_count = sum(c.word_count for c in chapters)
+    chapters = [chapter for volume in volumes for chapter in volume.chapters]
+    total_word_count = sum(chapter.word_count for chapter in chapters)
 
     return ParseResult(
-        chapters=chapters,
+        volumes=volumes,
         total_word_count=total_word_count,
         chapter_count=len(chapters),
         detected_encoding=encoding,
