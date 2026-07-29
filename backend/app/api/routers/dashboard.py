@@ -3,7 +3,7 @@
 Dashboard Router - LLM API 统计仪表盘 API。
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -38,10 +38,15 @@ from app.storage.services import writing_activity_service
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
 
+def _as_utc(value: datetime) -> datetime:
+    """将 SQLite 返回的无时区 UTC 时间恢复为带时区时间。"""
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
 def _serialize_record(record: DashboardRecordRow) -> DashboardAuditRecord:
     return DashboardAuditRecord(
         id=record.id,
-        created_at=record.created_at,
+        created_at=_as_utc(record.created_at),
         task_id=record.task_id,
         session_id=record.session_id,
         project_id=record.project_id,

@@ -52,6 +52,7 @@ async def test_llm_dashboard_records_include_output_details(
     assert response.status_code == 200
     record = response.json()["records"]["items"][0]
     assert record["project_title"] == "测试小说"
+    assert record["created_at"] == "2026-05-09T07:30:00Z"
     assert record["token_cache"] == 20
     assert "request_messages" not in record
     assert record["has_request_messages"] is True
