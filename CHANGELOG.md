@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.8.0](https://github.com/syrizelink/OpenFic/compare/v0.7.6...v0.8.0) (2026-07-29)
+
+
+### ✨ 新功能
+
+* **backend:** 为编辑工具引入模糊匹配与归一化机制 ([#165](https://github.com/syrizelink/OpenFic/issues/165)) ([5805078](https://github.com/syrizelink/OpenFic/commit/580507862debbe66d7ea221fc6deb339da71c211))
+* **import:** 支持 TXT 分卷导入 ([#197](https://github.com/syrizelink/OpenFic/issues/197)) ([4c781ce](https://github.com/syrizelink/OpenFic/commit/4c781ce36a2baa4b5b1f8d2e82e51b72b659f28f))
+* **writing:** 支持章节导出 ([#195](https://github.com/syrizelink/OpenFic/issues/195)) ([44171e8](https://github.com/syrizelink/OpenFic/commit/44171e86010c858540b2a23e78e11d01e1ef5532))
+
+
+### 🐛 问题修复
+
+* **agent:** 修复工具刷新失效问题 ([#185](https://github.com/syrizelink/OpenFic/issues/185)) ([905aae2](https://github.com/syrizelink/OpenFic/commit/905aae2574d2dd2dc15ffd771d0aa00f0cdc0c3e))
+* **agent:** 修复跨页面切换导致的侧边栏状态丢失问题 ([#178](https://github.com/syrizelink/OpenFic/issues/178)) ([22b9a37](https://github.com/syrizelink/OpenFic/commit/22b9a37c018ab64828cc7fdb97cbc1fa2b923d7e))
+* **agent:** 清理不可达的会话检查点 ([#184](https://github.com/syrizelink/OpenFic/issues/184)) ([8908120](https://github.com/syrizelink/OpenFic/commit/890812052a3542dd5a1e799753206d67f108cf54))
+* **agent:** 避免中断会话普通消息状态冲突 ([#177](https://github.com/syrizelink/OpenFic/issues/177)) ([787669b](https://github.com/syrizelink/OpenFic/commit/787669b51dc6a6a1e6b34184a6acf3e38504d854))
+* **backend:** 修复离线环境下的分词表加载失败的问题 ([#187](https://github.com/syrizelink/OpenFic/issues/187)) ([169d40b](https://github.com/syrizelink/OpenFic/commit/169d40b7410ef238f18cb669936e17473b7696cd))
+* **ci:** 移除 PR 自查清单强制校验 ([#180](https://github.com/syrizelink/OpenFic/issues/180)) ([54df8c1](https://github.com/syrizelink/OpenFic/commit/54df8c1635f8ff1d7ba37f2289649ab0758af9bd))
+* **ci:** 跳过发布 PR 检查 ([#174](https://github.com/syrizelink/OpenFic/issues/174)) ([2286422](https://github.com/syrizelink/OpenFic/commit/22864220d8f9732255587c3c921e0b21132a5d2d))
+* **desktop:** 优化运行时连接流程 ([#199](https://github.com/syrizelink/OpenFic/issues/199)) ([83c78ad](https://github.com/syrizelink/OpenFic/commit/83c78ad119f3cc0c083fb15312af19673d3b4340))
+* **desktop:** 修复系统缺失 tar 导致运行环境安装失败的问题 ([#188](https://github.com/syrizelink/OpenFic/issues/188)) ([9685c19](https://github.com/syrizelink/OpenFic/commit/9685c19d4058a3083a29d54dc00455110ab768de))
+* **desktop:** 完善运行环境调试信息处理 ([#196](https://github.com/syrizelink/OpenFic/issues/196)) ([39f3e55](https://github.com/syrizelink/OpenFic/commit/39f3e55653e30d2cba7dece7425839a4ebae4d75))
+* **frontend:** 修复编辑器剪贴板换行处理 ([#189](https://github.com/syrizelink/OpenFic/issues/189)) ([95daf32](https://github.com/syrizelink/OpenFic/commit/95daf32c59fc4931dd52dec07f7737e76661b676))
+* **providers:** 避免图标请求阻塞连接操作 ([#183](https://github.com/syrizelink/OpenFic/issues/183)) ([70d9419](https://github.com/syrizelink/OpenFic/commit/70d9419832496b519ad629abf062fde3063d7b70))
+
+
+### 🔧 杂项
+
+* **agent:** 补充角色页 Agent 侧边栏 ([#176](https://github.com/syrizelink/OpenFic/issues/176)) ([ad4988e](https://github.com/syrizelink/OpenFic/commit/ad4988e85adedcc96911fca85338eff48daad488))
+* **backend:** 为 OpenAI Compatible 提供商添加思考强度支持 ([#192](https://github.com/syrizelink/OpenFic/issues/192)) ([195615f](https://github.com/syrizelink/OpenFic/commit/195615f4e22f0c33442e96d072a726de7363599d))
+* **editor:** 新增单条正文内容长度限制 ([#193](https://github.com/syrizelink/OpenFic/issues/193)) ([cb87f42](https://github.com/syrizelink/OpenFic/commit/cb87f42a8803584e664519696ddce6aca6883def))
+
+
+### 👷 CI/CD
+
+* 添加 PR 检查工作流 ([#172](https://github.com/syrizelink/OpenFic/issues/172)) ([17ce3f7](https://github.com/syrizelink/OpenFic/commit/17ce3f752348dd0c965ae9b6c360b48cedd7e22d))
+
 ## [0.7.6](https://github.com/syrizelink/OpenFic/compare/v0.7.5...v0.7.6) (2026-07-26)
 
 
