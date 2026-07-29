@@ -1882,7 +1882,7 @@ wheels = [
 
 [[package]]
 name = "openfic"
-version = "0.7.6"
+version = "0.8.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiocache" },
