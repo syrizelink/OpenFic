@@ -35,6 +35,7 @@ from app.agent_runtime.model_config import without_api_key
 from app.agent_runtime.runner.checkpointer import (
     delete_checkpoints_after_for_thread,
     delete_checkpoints_for_thread,
+    get_checkpointer,
 )
 from app.agent_runtime.runner.session_runner import SessionRunner
 from app.agent_runtime.runner.subagent_runner import SubagentRunner
@@ -249,7 +250,11 @@ async def _cancel_subagent_session_tree(
             await status_publisher.publish_parent_subagent_status(row.id)
 
 
-async def _get_runner(session_id: str, session: AsyncSession | None = None) -> SessionRunner:
+async def _get_runner(
+    session_id: str,
+    session: AsyncSession | None = None,
+    model_config: dict | None = None,
+) -> SessionRunner:
     runner = _SESSION_RUNNERS.get(session_id)
     if runner is not None:
         return runner
@@ -270,7 +275,9 @@ async def _get_runner(session_id: str, session: AsyncSession | None = None) -> S
     if not _is_valid_model_config(restored_model_config):
         raise NotFoundError(f"会话不存在: {session_id}")
     model_record_id = restored_model_config.get("model_record_id")
-    if isinstance(model_record_id, str) and model_record_id:
+    if model_config is not None:
+        runner.model_config = model_config
+    elif isinstance(model_record_id, str) and model_record_id:
         restored_reasoning_effort = restored_model_config.get("reasoning_effort")
         runner.model_config = await _resolve_model_config(
             session,
@@ -291,7 +298,16 @@ async def _get_runner(session_id: str, session: AsyncSession | None = None) -> S
         )
     restored_agent_key = values.get("agent_key")
     if isinstance(restored_agent_key, str) and restored_agent_key:
-        runner.agent_key = restored_agent_key
+        try:
+            await _validate_primary_agent(session, restored_agent_key)
+        except HTTPException:
+            await graph.aupdate_state(
+                {"configurable": {"thread_id": session_id}},
+                {"agent_key": "build"},
+                as_node="primary",
+            )
+        else:
+            runner.agent_key = restored_agent_key
     _SESSION_RUNNERS[session_id] = runner
     return runner
 
@@ -319,6 +335,26 @@ async def _build_model_config(
     if reasoning_effort and reasoning_effort != "off":
         model_config["reasoning_effort"] = reasoning_effort
     return model_config
+
+
+async def _validate_primary_agent(session: AsyncSession, agent_key: str) -> None:
+    try:
+        definition = await load_agent_definition(session, agent_key)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"主智能体不存在: {agent_key}",
+        ) from exc
+    if not definition.enabled:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"主智能体 '{agent_key}' 已被禁用",
+        )
+    if definition.kind != "primary":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"智能体 '{agent_key}' 不是主智能体 (kind != primary)",
+        )
 
 
 async def _resolve_model_config(
@@ -660,7 +696,21 @@ async def send_agent_message(
     body: AgentSendMessageRequest,
     session: AsyncSession = Depends(get_session),
 ) -> AgentSendMessageResponse:
-    runner = await _get_runner(session_id, session)
+    requested_model_config: dict | None = None
+    if body.model_id and session_id not in _SESSION_RUNNERS:
+        try:
+            requested_model_config = await _resolve_model_config(
+                session, body.model_id, body.reasoning_effort
+            )
+        except NotFoundError as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(exc),
+            ) from exc
+
+    runner = await _get_runner(session_id, session, requested_model_config)
     registry = get_agent_run_registry()
     task = await task_service.get_task(session, runner.task_id)
     status_session_factory = _make_status_session_factory(session)
@@ -680,10 +730,12 @@ async def send_agent_message(
     model_updated = False
     if body.model_id:
         try:
-            runner.update_model_config(
-                await _resolve_model_config(
+            if requested_model_config is None:
+                requested_model_config = await _resolve_model_config(
                     session, body.model_id, body.reasoning_effort
                 )
+            runner.update_model_config(
+                requested_model_config
             )
             model_updated = True
         except NotFoundError as exc:
@@ -701,6 +753,9 @@ async def send_agent_message(
                     session, model_record_id, body.reasoning_effort
                 )
             )
+    if body.agent_key:
+        await _validate_primary_agent(session, body.agent_key)
+        runner.agent_key = body.agent_key
     coro = runner.run(user_request=body.message)
     await _launch_task(
         db_session_factory=status_session_factory,
@@ -944,17 +999,19 @@ async def submit_agent_tool_approval(
 @router.get("/sessions/{session_id}", response_model=AgentSessionStateResponse)
 async def get_agent_session_state(
     session_id: str,
-    session: AsyncSession = Depends(get_session),
 ) -> AgentSessionStateResponse:
-    runner = await _get_runner(session_id, session)
-    graph = await runner._get_graph()
-    state = await graph.aget_state({"configurable": {"thread_id": session_id}})
+    checkpointer = await get_checkpointer()
+    checkpoint = await checkpointer.aget_tuple(
+        {"configurable": {"thread_id": session_id}}
+    )
+    checkpoint_values = checkpoint.checkpoint.get("channel_values") if checkpoint else None
+    state_values = dict(checkpoint_values) if isinstance(checkpoint_values, dict) else {}
     is_running = await get_agent_run_registry().is_running(session_id)
-    if not state.values and not is_running:
+    if not state_values and not is_running:
         raise NotFoundError(f"会话不存在: {session_id}")
     return AgentSessionStateResponse(
         session_id=session_id,
-        state=dict(state.values or {}),
+        state=state_values,
         is_running=is_running,
     )
 

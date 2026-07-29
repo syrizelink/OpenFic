@@ -2300,11 +2300,13 @@ export async function sendAgentMessage(
   message: string,
   modelId?: string,
   reasoningEffort?: ReasoningEffort,
+  agentKey?: string,
 ): Promise<AgentSendMessageResponse> {
   const request: AgentSendMessageRequest = {
     message,
     ...(modelId ? { model_id: modelId } : {}),
     ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
+    ...(agentKey ? { agent_key: agentKey } : {}),
   };
   const response = await apiClient.post(`/agent/sessions/${sessionId}/message`, request);
   const data = response.data as Record<string, unknown>;

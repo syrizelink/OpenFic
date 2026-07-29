@@ -52,6 +52,7 @@ class AgentSendMessageRequest(BaseModel):
 
     message: str = Field(..., description="用户消息内容")
     model_id: str | None = Field(default=None, description="下一轮执行使用的模型ID")
+    agent_key: str | None = Field(default=None, description="下一轮执行使用的主智能体标识")
     reasoning_effort: ReasoningEffort | None = Field(
         default=None,
         description="当前轮推理强度，仅 reasoning 模型可用",

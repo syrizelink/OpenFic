@@ -259,6 +259,7 @@ export interface AgentSessionStateResponse {
 export interface AgentSendMessageRequest {
   message: string;
   model_id?: string;
+  agent_key?: string;
   reasoning_effort?: ReasoningEffort;
 }
 

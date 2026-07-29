@@ -761,6 +761,7 @@ export function useAgentSession({
           message,
           nextModelId,
           reasoningEffort,
+          agentKey,
         );
         if (response.model_updated && nextModelId) activeModelIdRef.current = nextModelId;
         if (response.queued && response.pending_message) {

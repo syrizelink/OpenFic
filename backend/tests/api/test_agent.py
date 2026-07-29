@@ -100,6 +100,7 @@ async def _seed_agent_target(client: AsyncClient) -> dict[str, str]:
     return {
         "project_id": project_id,
         "chapter_id": chapter_id,
+        "provider_id": provider_id,
         "model_id": model_id,
     }
 
@@ -392,6 +393,183 @@ class TestAgentAPI:
         resolve_model_config.assert_awaited_once_with(session, "next-model-record", None)
         assert runner.model_config == next_model_config
         runner.run.assert_called_once_with(user_request="使用新模型继续")
+
+    async def test_send_agent_message_uses_requested_primary_agent_for_next_run(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        definition_response = await client.post(
+            "/api/v1/agent-definitions",
+            json={
+                "key": "custom-primary",
+                "display_name": "Custom Primary",
+                "kind": "primary",
+                "prompt_agent_name": "custom-primary",
+                "enabled_tool_categories": ["orchestration", "interaction", "chapter_read"],
+                "enabled_skills": [],
+                "metadata": {},
+            },
+        )
+        assert definition_response.status_code == status.HTTP_201_CREATED
+        session.add(
+            Task(
+                id="task-agent-switch",
+                project_id=target["project_id"],
+                title="主智能体切换",
+                mode="agent",
+                agent_session_id="session-agent-switch",
+            )
+        )
+        await session.commit()
+
+        runner = SessionRunner(
+            session_id="session-agent-switch",
+            task_id="task-agent-switch",
+            model_config={"max_context_tokens": 8000, "model_id": "test-model"},
+            project_id=target["project_id"],
+            agent_key="build",
+        )
+        runner.run = MagicMock(return_value=object())
+        _SESSION_RUNNERS["session-agent-switch"] = runner
+
+        with patch(
+            "app.api.routers.agent_runtime._launch_task",
+            AsyncMock(),
+        ):
+            response = await client.post(
+                "/api/v1/agent/sessions/session-agent-switch/message",
+                json={"message": "切换主智能体继续", "agent_key": "custom-primary"},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert runner.agent_key == "custom-primary"
+        runner.run.assert_called_once_with(user_request="切换主智能体继续")
+
+    async def test_send_agent_message_falls_back_after_persisted_primary_agent_deleted(
+        self,
+        client: AsyncClient,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        definition_response = await client.post(
+            "/api/v1/agent-definitions",
+            json={
+                "key": "custom-primary",
+                "display_name": "Custom Primary",
+                "kind": "primary",
+                "prompt_agent_name": "custom-primary",
+                "enabled_tool_categories": ["orchestration", "interaction", "chapter_read"],
+                "enabled_skills": [],
+                "metadata": {},
+            },
+        )
+        assert definition_response.status_code == status.HTTP_201_CREATED
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={
+                "project_id": target["project_id"],
+                "model_id": target["model_id"],
+                "agent_key": "custom-primary",
+                "max_iterations": 5,
+            },
+        )
+        session_id = session_response.json()["session_id"]
+
+        delete_response = await client.delete("/api/v1/agent-definitions/custom-primary")
+        assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+        _SESSION_RUNNERS.clear()
+
+        with patch(
+            "app.api.routers.agent_runtime._launch_task",
+            AsyncMock(side_effect=lambda **kwargs: kwargs["coro"].close()),
+        ):
+            response = await client.post(
+                f"/api/v1/agent/sessions/{session_id}/message",
+                json={"message": "继续旧会话"},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert _SESSION_RUNNERS[session_id].agent_key == "build"
+
+    async def test_send_agent_message_rejects_deleted_primary_agent(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session.add(
+            Task(
+                id="task-deleted-agent",
+                project_id=target["project_id"],
+                title="已删除主智能体",
+                mode="agent",
+                agent_session_id="session-deleted-agent",
+            )
+        )
+        await session.commit()
+        runner = SessionRunner(
+            session_id="session-deleted-agent",
+            task_id="task-deleted-agent",
+            model_config={"max_context_tokens": 8000, "model_id": "test-model"},
+            project_id=target["project_id"],
+        )
+        _SESSION_RUNNERS["session-deleted-agent"] = runner
+
+        response = await client.post(
+            "/api/v1/agent/sessions/session-deleted-agent/message",
+            json={"message": "使用已删除主智能体", "agent_key": "deleted-primary"},
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "主智能体不存在: deleted-primary"
+
+    async def test_send_agent_message_uses_new_model_after_deleted_model_session_rehydration(
+        self,
+        client: AsyncClient,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={
+                "project_id": target["project_id"],
+                "model_id": target["model_id"],
+                "max_iterations": 5,
+            },
+        )
+        assert session_response.status_code == status.HTTP_200_OK
+        session_id = session_response.json()["session_id"]
+
+        new_model_response = await client.post(
+            "/api/v1/models",
+            json={
+                "name": "新测试模型",
+                "provider_id": target["provider_id"],
+                "model_id": "gpt-4.1-mini",
+                "temperature": 0.7,
+                "max_tokens": 2000,
+                "context_length": 32000,
+            },
+        )
+        assert new_model_response.status_code == status.HTTP_201_CREATED
+        new_model_id = new_model_response.json()["id"]
+
+        delete_response = await client.delete(f"/api/v1/models/{target['model_id']}")
+        assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+        _SESSION_RUNNERS.clear()
+
+        with patch(
+            "app.api.routers.agent_runtime._launch_task",
+            AsyncMock(side_effect=lambda **kwargs: kwargs["coro"].close()),
+        ):
+            response = await client.post(
+                f"/api/v1/agent/sessions/{session_id}/message",
+                json={"message": "使用新模型继续", "model_id": new_model_id},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["model_updated"] is True
+        assert _SESSION_RUNNERS[session_id].model_config["model_record_id"] == new_model_id
 
     async def test_send_agent_message_updates_reasoning_effort_for_current_model(
         self,
@@ -956,17 +1134,9 @@ class TestAgentAPI:
         )
         session_id = session_response.json()["session_id"]
 
-        class FakeGraph:
-            async def aget_state(self, config):
-                return SimpleNamespace(values={"session_id": session_id})
-
         fake_registry = SimpleNamespace(is_running=AsyncMock(return_value=True))
 
-        with patch.object(
-            _SESSION_RUNNERS[session_id],
-            "_get_graph",
-            AsyncMock(return_value=FakeGraph()),
-        ), patch(
+        with patch(
             "app.api.routers.agent_runtime.get_agent_run_registry",
             return_value=fake_registry,
         ):
@@ -975,7 +1145,7 @@ class TestAgentAPI:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["session_id"] == session_id
-        assert data["state"] == {"session_id": session_id}
+        assert data["state"]["session_id"] == session_id
         assert data["is_running"] is True
         fake_registry.is_running.assert_awaited_once_with(session_id)
 
@@ -1417,7 +1587,7 @@ class TestAgentAPI:
         await asyncio.sleep(0.05)
         mock_run.assert_awaited_once_with(user_request="取消上一轮后重新开始")
 
-    async def test_get_session_state_rehydrates_persisted_session_without_runner(
+    async def test_get_session_state_reads_persisted_session_without_runner(
         self,
         client: AsyncClient,
     ) -> None:
@@ -1441,10 +1611,34 @@ class TestAgentAPI:
         assert data["session_id"] == session_id
         assert data["is_running"] is False
         assert data["state"]["model_config"]["model_id"] == "gpt-3.5-turbo"
-        assert session_id in _SESSION_RUNNERS
-        assert _SESSION_RUNNERS[session_id].model_config["api_key"] == "test_api_key"
+        assert session_id not in _SESSION_RUNNERS
 
-    async def test_get_session_state_rehydrates_legacy_model_config_without_record_id(
+    async def test_get_session_state_allows_deleted_model_without_runner(
+        self,
+        client: AsyncClient,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={
+                "project_id": target["project_id"],
+                "model_id": target["model_id"],
+                "max_iterations": 5,
+            },
+        )
+        session_id = session_response.json()["session_id"]
+
+        delete_response = await client.delete(f"/api/v1/models/{target['model_id']}")
+        assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+        _SESSION_RUNNERS.clear()
+
+        response = await client.get(f"/api/v1/agent/sessions/{session_id}")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["state"]["model_config"]["model_record_id"] == target["model_id"]
+        assert session_id not in _SESSION_RUNNERS
+
+    async def test_get_session_state_reads_legacy_model_config_without_record_id(
         self,
         client: AsyncClient,
     ) -> None:
@@ -1473,7 +1667,8 @@ class TestAgentAPI:
         response = await client.get(f"/api/v1/agent/sessions/{session_id}")
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["state"]["model_config"]["model_record_id"] == target["model_id"]
+        assert "model_record_id" not in response.json()["state"]["model_config"]
+        assert session_id not in _SESSION_RUNNERS
 
     async def test_agent_checkpoint_and_session_state_do_not_contain_api_key(
         self,
