@@ -2,7 +2,6 @@ import { contextBridge, ipcRenderer } from "electron";
 import { fileURLToPath } from "node:url";
 import {
   IpcChannels,
-  type CheckRemoteRequest,
   type EnsureInstanceSessionRequest,
   type InitializeAppResult,
   type InspectLocalRuntimeRequest,
@@ -24,6 +23,7 @@ const desktopApi = {
   saveConfig: (config: DesktopConfig): Promise<void> =>
     ipcRenderer.invoke(IpcChannels.saveConfig, { config } satisfies SaveConfigRequest),
   initializeApp: (): Promise<InitializeAppResult> => ipcRenderer.invoke(IpcChannels.initializeApp),
+  cancelStartup: (): Promise<void> => ipcRenderer.invoke(IpcChannels.cancelStartup),
   ensureInstanceSession: (partition: string): Promise<void> =>
     ipcRenderer.invoke(IpcChannels.ensureInstanceSession, { partition } satisfies EnsureInstanceSessionRequest),
   getDefaultInstallDir: (): Promise<string> => ipcRenderer.invoke(IpcChannels.getDefaultInstallDir),
@@ -31,8 +31,6 @@ const desktopApi = {
     ipcRenderer.invoke(IpcChannels.installRuntime, { installDir } satisfies InstallRuntimeRequest),
   startLocalBackend: (installDir: string): Promise<void> =>
     ipcRenderer.invoke(IpcChannels.startLocalBackend, { installDir } satisfies StartLocalBackendRequest),
-  checkRemote: (url: string): Promise<void> =>
-    ipcRenderer.invoke(IpcChannels.checkRemote, { url } satisfies CheckRemoteRequest),
   switchInstance: (instanceId: string): Promise<InitializeAppResult> =>
     ipcRenderer.invoke(IpcChannels.switchInstance, { instanceId } satisfies SwitchInstanceRequest),
   pingInstance: (instance: DesktopInstance): Promise<PingInstanceResult> =>
@@ -40,8 +38,6 @@ const desktopApi = {
   selectDirectory: (): Promise<string | null> => ipcRenderer.invoke(IpcChannels.selectDirectory),
   inspectLocalRuntime: (installDir: string): Promise<InspectLocalRuntimeResult> =>
     ipcRenderer.invoke(IpcChannels.inspectLocalRuntime, { installDir } satisfies InspectLocalRuntimeRequest),
-  closeSetup: (): Promise<void> => ipcRenderer.invoke(IpcChannels.closeSetup),
-  showSetup: (): Promise<void> => ipcRenderer.invoke(IpcChannels.showSetup),
   frontendHostPreloadPath: fileURLToPath(new URL("./frontend-host-preload.cjs", import.meta.url)),
   minimizeWindow: (): Promise<void> => ipcRenderer.invoke(IpcChannels.minimizeWindow),
   toggleMaximizeWindow: (): Promise<void> => ipcRenderer.invoke(IpcChannels.toggleMaximizeWindow),

@@ -82,6 +82,7 @@ export function App() {
   const [frontendWebview, setFrontendWebview] = useState<HTMLElement | null>(null);
   const lastAutoUpdateCheck = useRef<string | null>(null);
   const automaticallyOpenedUpdate = useRef<string | null>(null);
+  const startupRequestId = useRef(0);
   const activeInstance = config?.instances.find((instance) => instance.id === activeInstanceId) ?? null;
   const frontendPartition = activeInstanceId ? `persist:openfic-${activeInstanceId}` : "persist:openfic";
   const canCheckForUpdates = shellState === "frontend" && activeInstance !== null && updateState.status !== "unsupported";
@@ -93,19 +94,20 @@ export function App() {
     });
 
     const initialize = async () => {
+      const requestId = ++startupRequestId.current;
       try {
         const currentProgress = await window.openficDesktop.getStartupProgress();
-        if (!cancelled) setStartupProgress(currentProgress);
+        if (!cancelled && requestId === startupRequestId.current) setStartupProgress(currentProgress);
         const result = await window.openficDesktop.initializeApp();
         const nextConfig = await window.openficDesktop.getConfig();
-        if (cancelled) return;
+        if (cancelled || requestId !== startupRequestId.current) return;
         setConfig(nextConfig);
         setActiveInstanceId(result.activeInstanceId ?? nextConfig?.activeInstanceId ?? null);
         setError(result.message ?? null);
         setCompatibilityWarning(result.compatibilityWarning ?? null);
         setShellState(result.status === "ready" ? "frontend" : "setup");
       } catch (err) {
-        if (cancelled) return;
+        if (cancelled || requestId !== startupRequestId.current) return;
         setError(err instanceof Error ? err.message : "初始化失败");
         setShellState("setup");
       }
@@ -176,8 +178,9 @@ export function App() {
     return nextConfig;
   };
 
-  const showFrontend = async (result?: { compatibilityWarning?: string }) => {
+  const showFrontend = async (result?: { compatibilityWarning?: string }, requestId?: number) => {
     const nextConfig = await refreshConfig();
+    if (requestId !== undefined && requestId !== startupRequestId.current) return;
     setError(null);
     setCompatibilityWarning(result?.compatibilityWarning ?? null);
     setWebviewKey((key) => key + 1);
@@ -199,6 +202,7 @@ export function App() {
   };
 
   const handleSwitchInstance = async (instanceId: string) => {
+    const requestId = ++startupRequestId.current;
     setError(null);
     setCompatibilityWarning(null);
     setUpdateDialogOpen(false);
@@ -207,17 +211,32 @@ export function App() {
     try {
       const result = await window.openficDesktop.switchInstance(instanceId);
       const nextConfig = await refreshConfig();
+      if (requestId !== startupRequestId.current) return;
       setActiveInstanceId(result.activeInstanceId ?? nextConfig?.activeInstanceId ?? instanceId);
       setCompatibilityWarning(result.compatibilityWarning ?? null);
       setWebviewKey((key) => key + 1);
       setShellState(result.status === "ready" ? "frontend" : "setup");
     } catch (err) {
+      if (requestId !== startupRequestId.current) return;
       setError(err instanceof Error ? err.message : "切换实例失败");
       setShellState("setup");
     }
   };
 
+  const handleCancelStartup = async () => {
+    startupRequestId.current += 1;
+    await window.openficDesktop.cancelStartup();
+    const nextConfig = await window.openficDesktop.getConfig();
+    setError(null);
+    setConfig(nextConfig);
+    setActiveInstanceId(nextConfig?.activeInstanceId ?? null);
+    setStartupProgress(null);
+    setSetupInitialStep("mode");
+    setShellState("setup");
+  };
+
   const handleConnectRemote = async (url: string) => {
+    const requestId = ++startupRequestId.current;
     const normalizedUrl = normalizeRemoteUrl(url);
     setError(null);
     setCompatibilityWarning(null);
@@ -227,6 +246,7 @@ export function App() {
     setShellState("booting");
     try {
       const previousConfig = await window.openficDesktop.getConfig();
+      if (requestId !== startupRequestId.current) return;
       const existingInstance = previousConfig?.instances.find(
         (instance) => instance.mode === "remote" && instance.remoteUrl && normalizeRemoteUrl(instance.remoteUrl) === normalizedUrl,
       );
@@ -239,15 +259,18 @@ export function App() {
         installDir: null,
       };
       const nextConfig: DesktopConfig = {
-        activeInstanceId: instance.id,
+        activeInstanceId: previousConfig?.activeInstanceId ?? null,
         instances: existingInstance
           ? previousConfig?.instances ?? [instance]
           : [...(previousConfig?.instances ?? []), instance],
       };
       await window.openficDesktop.saveConfig(nextConfig);
+      if (requestId !== startupRequestId.current) return;
       const result = await window.openficDesktop.switchInstance(instance.id);
-      await showFrontend(result);
+      if (requestId !== startupRequestId.current) return;
+      await showFrontend(result, requestId);
     } catch (err) {
+      if (requestId !== startupRequestId.current) return;
       setError(err instanceof Error ? err.message : "无法连接到该地址");
       setSetupInitialStep("remote");
       setShellState("setup");
@@ -255,6 +278,7 @@ export function App() {
   };
 
   const handleStartLocal = async (installDir: string) => {
+    const requestId = ++startupRequestId.current;
     setError(null);
     setCompatibilityWarning(null);
     setUpdateDialogOpen(false);
@@ -263,8 +287,10 @@ export function App() {
     setShellState("booting");
     try {
       await window.openficDesktop.startLocalBackend(installDir);
-      await showFrontend();
+      if (requestId !== startupRequestId.current) return;
+      await showFrontend(undefined, requestId);
     } catch (err) {
+      if (requestId !== startupRequestId.current) return;
       setError(err instanceof Error ? err.message : "启动后端失败");
       setSetupInitialStep("local-directory");
       setShellState("setup");
@@ -334,7 +360,7 @@ export function App() {
       <DesktopHeader
         activeInstanceId={activeInstanceId}
         config={config}
-        disabled={shellState !== "frontend"}
+        disabled={shellState === "booting"}
         onAddInstance={handleAddInstance}
         onSaveConfig={handleSaveConfig}
         onSwitchInstance={handleSwitchInstance}
@@ -354,15 +380,20 @@ export function App() {
         }}
       />
       <section className="desktop-content">
-        {shellState === "booting" ? <BootPage error={error} progress={startupProgress} /> : null}
+        {shellState === "booting" ? (
+          <BootPage error={error} progress={startupProgress} onCancel={() => void handleCancelStartup()} />
+        ) : null}
         {shellState === "setup" ? (
           <SetupPage
             initialError={error}
             initialInstallDir={setupInitialInstallDir}
             initialStep={setupInitialStep}
             initialRemoteUrl={setupInitialRemoteUrl}
+            instances={config?.instances ?? []}
+            activeInstanceId={activeInstanceId}
             onClearError={() => setError(null)}
             onConnectRemote={(url) => void handleConnectRemote(url)}
+            onConnectInstance={(instanceId) => void handleSwitchInstance(instanceId)}
             onStartLocal={(installDir) => void handleStartLocal(installDir)}
           />
         ) : null}

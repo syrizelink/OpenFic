@@ -7,11 +7,13 @@ import {
   CircleCheck,
   FolderOpen,
   HardDriveDownload,
+  Link2,
   RefreshCw,
   Server,
   X,
 } from "lucide-react";
 import type { InspectLocalRuntimeResult, SetupProgressEvent, SetupStep } from "../../../shared/ipc";
+import type { DesktopInstance } from "../../../shared/config";
 import "./setup.css";
 
 type WizardStep = "mode" | "remote" | "local-directory" | "local-installing" | "local-success";
@@ -61,9 +63,17 @@ interface SetupPageProps {
   initialError?: string | null;
   initialInstallDir?: string | null;
   initialRemoteUrl?: string | null;
+  instances: DesktopInstance[];
+  activeInstanceId: string | null;
   onClearError: () => void;
   onConnectRemote: (url: string) => void;
+  onConnectInstance: (instanceId: string) => void;
   onStartLocal: (installDir: string) => void;
+}
+
+function getInstanceDetail(instance: DesktopInstance): string {
+  if (instance.mode === "remote") return instance.remoteUrl ?? "未设置服务地址";
+  return instance.installDir ? getRuntimeDisplayPath(instance.installDir) : "未设置运行环境目录";
 }
 
 function applyProgress(prev: StepState, event: SetupProgressEvent): StepState {
@@ -90,8 +100,11 @@ export function SetupPage({
   initialError,
   initialInstallDir,
   initialRemoteUrl,
+  instances,
+  activeInstanceId,
   onClearError,
   onConnectRemote,
+  onConnectInstance,
   onStartLocal,
 }: SetupPageProps) {
   const [step, setStep] = useState<WizardStep>(initialStep);
@@ -222,33 +235,69 @@ export function SetupPage({
             </div>
           ) : null}
           {step === "mode" ? (
-            <div className="setup-choices">
-              <button className="setup-choice" type="button" onClick={() => selectMode("remote")}>
-                <span className="setup-choice-icon">
-                  <Server size={20} strokeWidth={2} />
-                </span>
-                <span className="setup-choice-body">
-                  <strong>连接到已有服务</strong>
-                  <span>连接到已有运行中的 OpenFic 后端服务</span>
-                </span>
-                <span className="setup-choice-arrow">
-                  前往连接
-                  <ArrowRight size={15} strokeWidth={2} />
-                </span>
-              </button>
-              <button className="setup-choice" type="button" onClick={() => selectMode("local-directory")}>
-                <span className="setup-choice-icon">
-                  <HardDriveDownload size={20} strokeWidth={2} />
-                </span>
-                <span className="setup-choice-body">
-                  <strong>设置本地运行环境</strong>
-                  <span>在本地下载、安装并启动 OpenFic 服务</span>
-                </span>
-                <span className="setup-choice-arrow">
-                  前往设置
-                  <ArrowRight size={15} strokeWidth={2} />
-                </span>
-              </button>
+            <div className="setup-mode-content">
+              <div className="setup-choices">
+                <button className="setup-choice" type="button" onClick={() => selectMode("remote")}>
+                  <span className="setup-choice-icon">
+                    <Server size={20} strokeWidth={2} />
+                  </span>
+                  <span className="setup-choice-body">
+                    <strong>连接到已有服务</strong>
+                    <span>连接到已有运行中的 OpenFic 后端服务</span>
+                  </span>
+                  <span className="setup-choice-arrow">
+                    前往连接
+                    <ArrowRight size={15} strokeWidth={2} />
+                  </span>
+                </button>
+                <button className="setup-choice" type="button" onClick={() => selectMode("local-directory")}>
+                  <span className="setup-choice-icon">
+                    <HardDriveDownload size={20} strokeWidth={2} />
+                  </span>
+                  <span className="setup-choice-body">
+                    <strong>设置本地运行环境</strong>
+                    <span>在本地下载、安装并启动 OpenFic 服务</span>
+                  </span>
+                  <span className="setup-choice-arrow">
+                    前往设置
+                    <ArrowRight size={15} strokeWidth={2} />
+                  </span>
+                </button>
+              </div>
+              {instances.length ? (
+                <section className="setup-configured-instances" aria-label="已配置的实例">
+                  <div className="setup-configured-instances-heading">
+                    <h2>已配置的实例</h2>
+                    <span>{instances.length}</span>
+                  </div>
+                  <div className="setup-configured-instance-list">
+                    {instances.map((instance) => {
+                      const isActive = instance.id === activeInstanceId;
+                      return (
+                        <button
+                          className="setup-configured-instance"
+                          type="button"
+                          key={instance.id}
+                          data-active={isActive}
+                          onClick={() => onConnectInstance(instance.id)}
+                        >
+                          <span className="setup-configured-instance-icon">
+                            <Link2 size={16} strokeWidth={2} />
+                          </span>
+                          <span className="setup-configured-instance-copy">
+                            <strong>{instance.name}</strong>
+                            <span title={getInstanceDetail(instance)}>{getInstanceDetail(instance)}</span>
+                          </span>
+                          <span className="setup-configured-instance-action">
+                            {isActive ? "重新连接" : "连接"}
+                            <ArrowRight size={15} strokeWidth={2} />
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              ) : null}
             </div>
           ) : null}
 
@@ -332,6 +381,10 @@ export function SetupPage({
                   disabled={!installDir || runtimeChecking || !runtimeInspection}
                   onClick={() => {
                     if (runtimeIsReady) {
+                      if (configuredInstance) {
+                        onConnectInstance(configuredInstance.id);
+                        return;
+                      }
                       onStartLocal(installDir);
                       return;
                     }

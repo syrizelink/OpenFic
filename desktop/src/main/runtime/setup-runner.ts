@@ -11,6 +11,7 @@ import {
 import type { BackendProcessHandle } from "../process.js";
 import type { StartupProgressTracker } from "../startup-progress.js";
 import { appendLog, getLogPath } from "../logging.js";
+import { throwIfAborted } from "../health.js";
 
 function emitProgress(webContents: WebContents, event: SetupProgressEvent): void {
   webContents.send(IpcChannels.setupProgress, event);
@@ -95,11 +96,14 @@ export async function inspectLocalRuntime(installDir: string): Promise<LocalRunt
 export async function startLocalBackendFromInstall(
   installDir: string,
   startupProgress?: StartupProgressTracker,
+  signal?: AbortSignal,
 ): Promise<BackendProcessHandle> {
+  throwIfAborted(signal);
   const inspection = await inspectLocalRuntime(installDir);
   if (inspection.status !== "ready") {
     throw new Error(`本地运行环境不完整：${inspection.message}。请先修复运行环境。`);
   }
+  throwIfAborted(signal);
   const runtimeDir = resolveRuntimeDir(installDir);
-  return startLocalOpenFicBackend(resolveVenvPythonPath(runtimeDir), app.getVersion(), startupProgress);
+  return startLocalOpenFicBackend(resolveVenvPythonPath(runtimeDir), app.getVersion(), startupProgress, signal);
 }

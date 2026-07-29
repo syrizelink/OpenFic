@@ -888,6 +888,30 @@ h1 {
   gap: 14px;
 }
 
+.boot-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.boot-cancel-button {
+  border: 0;
+  background: transparent;
+  color: var(--gray-11);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.boot-cancel-button:hover {
+  color: var(--gray-12);
+}
+
+.boot-cancel-button:focus-visible {
+  outline: 2px solid var(--gray-a8);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
 .startup-page {
   padding: 32px;
 }

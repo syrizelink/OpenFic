@@ -5,7 +5,7 @@ import path from "node:path";
 import { findFreePort } from "../ports.js";
 import { startBackendProcess, stopBackendProcess, type BackendProcessHandle } from "../process.js";
 import { configureDefaultSystemProxy, getSystemProxyEnvironment } from "../proxy.js";
-import { waitForBackend } from "../health.js";
+import { throwIfAborted, waitForBackend } from "../health.js";
 import type { PortablePython, RuntimeIntegrityCheck } from "./python.js";
 import {
   createOpenFicInstallCommand,
@@ -353,24 +353,45 @@ export async function ensureOpenFicRuntime(
 
 const STARTUP_LOG_MILESTONES = [
   {
+    text: "Loaded ENCRYPTION_KEY from .key file",
+    step: "start-backend",
+    title: "启动 OpenFic 服务",
+    message: "正在启动服务器进程...",
+    progress: 0.64,
+  },
+  {
     text: "Starting OpenFic",
     step: "initialize-backend",
-    title: "初始化应用服务",
-    message: "正在加载 OpenFic 服务",
+    title: "启动 OpenFic 服务",
+    message: "正在启动 OpenFic 服务...",
     progress: 0.7,
+  },
+  {
+    text: "Database initialization or migration started",
+    step: "initialize-database",
+    title: "启动 OpenFic 服务",
+    message: "正在初始化数据库...",
+    progress: 0.76,
   },
   {
     text: "Database initialization or migration completed",
     step: "initialize-database",
-    title: "初始化数据库",
-    message: "数据库初始化或迁移已完成",
+    title: "启动 OpenFic 服务",
+    message: "已完成数据库初始化及迁移",
     progress: 0.82,
+  },
+  {
+    text: "Background supervisor started",
+    step: "complete-backend-startup",
+    title: "启动 OpenFic 服务",
+    message: "正在启动内部后台任务服务...",
+    progress: 0.88,
   },
   {
     text: "Application startup complete",
     step: "complete-backend-startup",
-    title: "完成应用启动",
-    message: "应用服务已完成初始化",
+    title: "启动 OpenFic 服务",
+    message: "OpenFic 服务已完成初始化",
     progress: 0.92,
   },
 ] as const;
@@ -379,7 +400,9 @@ export async function startLocalOpenFicBackend(
   venvPythonPath: string,
   expectedVersion: string,
   startupProgress?: StartupProgressTracker,
+  signal?: AbortSignal,
 ): Promise<BackendProcessHandle> {
+  throwIfAborted(signal);
   startupProgress?.begin({
     step: "start-backend",
     title: "启动 OpenFic 服务",
@@ -387,24 +410,30 @@ export async function startLocalOpenFicBackend(
     progress: 0.6,
   });
   const port = await findFreePort();
+  throwIfAborted(signal);
   const command = createOpenFicServeCommand(venvPythonPath, port);
   const proxyEnvironment = await getSystemProxyEnvironment("https://pypi.org/");
-  let healthFallbackStarted = false;
+  throwIfAborted(signal);
   let healthFallbackTimer: NodeJS.Timeout | null = null;
+  let latestMilestone: (typeof STARTUP_LOG_MILESTONES)[number] | null = null;
 
   const beginHealthFallback = () => {
-    if (healthFallbackStarted) return;
-    healthFallbackStarted = true;
-    startupProgress?.begin({
-      step: "check-health",
-      title: "检查服务状态",
-      message: "启动阶段停留较久，正在主动检查服务响应",
-      progress: 0.96,
+    if (latestMilestone) {
+      startupProgress?.update({
+        ...latestMilestone,
+        message: "启动时间较长，仍在等待应用服务响应",
+      });
+      return;
+    }
+    startupProgress?.update({
+      step: "start-backend",
+      title: "启动 OpenFic 服务",
+      message: "启动时间较长，仍在等待应用服务响应",
+      progress: 0.6,
     });
   };
 
   const scheduleHealthFallback = () => {
-    if (healthFallbackStarted) return;
     if (healthFallbackTimer) clearTimeout(healthFallbackTimer);
     healthFallbackTimer = setTimeout(beginHealthFallback, 5_000);
   };
@@ -415,9 +444,9 @@ export async function startLocalOpenFicBackend(
     port,
     environment: proxyEnvironment,
     onOutputLine: (line) => {
-      if (healthFallbackStarted) return;
       const milestone = STARTUP_LOG_MILESTONES.find((candidate) => line.includes(candidate.text));
       if (!milestone) return;
+      latestMilestone = milestone;
       startupProgress?.begin(milestone);
       scheduleHealthFallback();
     },
@@ -425,11 +454,11 @@ export async function startLocalOpenFicBackend(
 
   scheduleHealthFallback();
   try {
-    const health = await waitForBackend(handle.baseUrl, { process: handle.process });
+    const health = await waitForBackend(handle.baseUrl, { process: handle.process, signal });
     if (healthFallbackTimer) clearTimeout(healthFallbackTimer);
     startupProgress?.begin({
       step: "check-health",
-      title: "检查服务状态",
+      title: "启动 OpenFic 服务",
       message: "服务已响应，正在验证版本",
       progress: 0.98,
     });

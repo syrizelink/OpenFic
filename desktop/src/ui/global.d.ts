@@ -15,17 +15,15 @@ declare global {
       getConfig: () => Promise<DesktopConfig | null>;
       saveConfig: (config: DesktopConfig) => Promise<void>;
       initializeApp: () => Promise<InitializeAppResult>;
+      cancelStartup: () => Promise<void>;
       ensureInstanceSession: (partition: string) => Promise<void>;
       getDefaultInstallDir: () => Promise<string>;
       installRuntime: (installDir: string) => Promise<void>;
       startLocalBackend: (installDir: string) => Promise<void>;
-      checkRemote: (url: string) => Promise<void>;
       switchInstance: (instanceId: string) => Promise<InitializeAppResult>;
       pingInstance: (instance: DesktopInstance) => Promise<PingInstanceResult>;
       selectDirectory: () => Promise<string | null>;
       inspectLocalRuntime: (installDir: string) => Promise<InspectLocalRuntimeResult>;
-      closeSetup: () => Promise<void>;
-      showSetup: () => Promise<void>;
       frontendHostPreloadPath: string;
       minimizeWindow: () => Promise<void>;
       toggleMaximizeWindow: () => Promise<void>;

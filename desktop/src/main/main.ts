@@ -3,7 +3,7 @@ import { registerAppScheme, handleAppProtocol, setRuntimeConfig } from "./protoc
 import { createMainWindow } from "./windows.js";
 import { readDesktopConfig, writeDesktopConfig } from "./config.js";
 import { registerIpc } from "./ipc.js";
-import { waitForBackend } from "./health.js";
+import { throwIfAborted, waitForBackend } from "./health.js";
 import { ensurePortablePython, resolveRuntimeDir } from "./runtime/python.js";
 import { ensureOpenFicRuntime, startLocalOpenFicBackend } from "./runtime/openfic.js";
 import { stopBackendProcess, type BackendProcessHandle } from "./process.js";
@@ -23,6 +23,7 @@ let mainWindow: BrowserWindow | null = null;
 let backendHandle: BackendProcessHandle | null = null;
 let activeInstanceId: string | null = null;
 let isQuitting = false;
+let startupAbortController: AbortController | null = null;
 
 writeStartupLog("process start");
 registerAppScheme();
@@ -78,7 +79,27 @@ function createStartupProgress(): StartupProgressTracker {
   });
 }
 
-async function startLocalBackend(installDir: string | null, startupProgress: StartupProgressTracker): Promise<void> {
+function beginStartupOperation(): AbortController {
+  startupAbortController?.abort();
+  const controller = new AbortController();
+  startupAbortController = controller;
+  return controller;
+}
+
+function finishStartupOperation(controller: AbortController): void {
+  if (startupAbortController === controller) startupAbortController = null;
+}
+
+function cancelStartup(): void {
+  startupAbortController?.abort();
+}
+
+async function startLocalBackend(
+  installDir: string | null,
+  startupProgress: StartupProgressTracker,
+  signal: AbortSignal,
+): Promise<void> {
+  throwIfAborted(signal);
   const runtimeDir = resolveRuntimeDir(installDir);
   startupProgress.begin({
     step: "check-runtime",
@@ -108,6 +129,7 @@ async function startLocalBackend(installDir: string | null, startupProgress: Sta
       });
     },
   );
+  throwIfAborted(signal);
   if (!pythonWasUpdated) {
     startupProgress.update({
       step: "check-runtime",
@@ -127,6 +149,7 @@ async function startLocalBackend(installDir: string | null, startupProgress: Sta
       progress: step === "install-openfic" ? 0.45 : 0.38,
     });
   });
+  throwIfAborted(signal);
   if (!runtimeWasUpdated) {
     startupProgress.update({
       step: "check-runtime",
@@ -136,7 +159,7 @@ async function startLocalBackend(installDir: string | null, startupProgress: Sta
     });
   }
 
-  const backend = await startLocalOpenFicBackend(runtime.venvPythonPath, app.getVersion(), startupProgress);
+  const backend = await startLocalOpenFicBackend(runtime.venvPythonPath, app.getVersion(), startupProgress, signal);
   setBackend(backend);
   setBackendBaseUrl(backend.baseUrl);
 }
@@ -149,7 +172,9 @@ async function activateInstance(
   config: DesktopConfig,
   instance: DesktopInstance,
   startupProgress: StartupProgressTracker,
+  signal: AbortSignal,
 ): Promise<string | null> {
+  throwIfAborted(signal);
   activeInstanceId = instance.id;
   if (instance.mode === "remote") {
     if (!instance.remoteUrl) throw new Error("远程实例缺少后端地址");
@@ -159,7 +184,8 @@ async function activateInstance(
       message: `正在连接 ${instance.remoteUrl}`,
       progress: 0.3,
     });
-    const health = await waitForBackend(instance.remoteUrl, 10_000);
+    const health = await waitForBackend(instance.remoteUrl, { timeoutMs: 10_000, signal });
+    throwIfAborted(signal);
     startupProgress.begin({
       step: "verify-remote",
       title: "验证服务状态",
@@ -167,6 +193,7 @@ async function activateInstance(
       progress: 0.7,
     });
     clearBackend();
+    throwIfAborted(signal);
     setBackendBaseUrl(instance.remoteUrl);
     startupProgress.begin({
       step: "check-compatibility",
@@ -179,7 +206,7 @@ async function activateInstance(
   }
 
   try {
-    await startLocalBackend(instance.installDir, startupProgress);
+    await startLocalBackend(instance.installDir, startupProgress, signal);
   } catch (error) {
     appendLog("runtime", `本地运行环境更新或启动失败：${error instanceof Error ? error.message : String(error)}`);
     throw error;
@@ -188,6 +215,7 @@ async function activateInstance(
 }
 
 async function switchInstance(instanceId: string): Promise<InitializeAppResult> {
+  const controller = beginStartupOperation();
   const startupProgress = createStartupProgress();
   startupProgress.begin({
     step: "load-config",
@@ -206,8 +234,10 @@ async function switchInstance(instanceId: string): Promise<InitializeAppResult> 
       message: `正在切换到 ${instance.name}`,
       progress: 0.1,
     });
-    const compatibilityWarning = await activateInstance(config, instance, startupProgress);
+    const compatibilityWarning = await activateInstance(config, instance, startupProgress, controller.signal);
+    throwIfAborted(controller.signal);
     await writeDesktopConfig({ ...config, activeInstanceId: instance.id });
+    throwIfAborted(controller.signal);
     startupProgress.begin({
       step: "ready",
       title: "服务已就绪",
@@ -217,8 +247,11 @@ async function switchInstance(instanceId: string): Promise<InitializeAppResult> 
     startupProgress.complete();
     return { status: "ready", activeInstanceId: instance.id, compatibilityWarning: compatibilityWarning ?? undefined };
   } catch (error) {
-    startupProgress.fail(error);
+    if (controller.signal.aborted) startupProgress.complete("已取消连接");
+    else startupProgress.fail(error);
     throw error;
+  } finally {
+    finishStartupOperation(controller);
   }
 }
 
@@ -240,6 +273,7 @@ function installMenu(): void {
 }
 
 async function initializeApp(): Promise<InitializeAppResult> {
+  const controller = beginStartupOperation();
   const startupProgress = createStartupProgress();
   startupProgress.begin({
     step: "load-config",
@@ -259,7 +293,8 @@ async function initializeApp(): Promise<InitializeAppResult> {
       startupProgress.complete("尚未找到活动实例");
       return { status: "needs-setup" };
     }
-    const compatibilityWarning = await activateInstance(config, instance, startupProgress);
+    const compatibilityWarning = await activateInstance(config, instance, startupProgress, controller.signal);
+    throwIfAborted(controller.signal);
     if (config.activeInstanceId !== instance.id) {
       await writeDesktopConfig({ ...config, activeInstanceId: instance.id });
     }
@@ -272,6 +307,10 @@ async function initializeApp(): Promise<InitializeAppResult> {
     startupProgress.complete();
     return { status: "ready", activeInstanceId: instance.id, compatibilityWarning: compatibilityWarning ?? undefined };
   } catch (err) {
+    if (controller.signal.aborted) {
+      startupProgress.complete("已取消连接");
+      return { status: "needs-setup" };
+    }
     writeStartupLog(`backend failed: ${err instanceof Error ? err.message : String(err)}`);
     startupProgress.fail(err);
     return {
@@ -279,6 +318,8 @@ async function initializeApp(): Promise<InitializeAppResult> {
       activeInstanceId: null,
       message: err instanceof Error ? err.message : String(err),
     };
+  } finally {
+    finishStartupOperation(controller);
   }
 }
 
@@ -294,7 +335,10 @@ async function bootstrap(): Promise<void> {
     shellWindow: () => mainWindow,
     setBackend,
     setBackendBaseUrl,
+    beginStartupOperation,
+    finishStartupOperation,
     initializeApp,
+    cancelStartup,
     switchInstance,
     pingInstance,
     onConfigSaved,

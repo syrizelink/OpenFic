@@ -11,6 +11,14 @@ export interface BackendHealth {
 interface WaitForBackendOptions {
   process?: ChildProcess;
   timeoutMs?: number;
+  signal?: AbortSignal;
+}
+
+export function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  const error = new Error("连接已取消");
+  error.name = "AbortError";
+  throw error;
 }
 
 export function parseBackendHealth(value: unknown): BackendHealth | null {
@@ -41,6 +49,7 @@ export async function waitForBackend(
 ): Promise<BackendHealth> {
   const timeoutMs = typeof options === "number" ? options : (options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   const backendProcess = typeof options === "number" ? undefined : options.process;
+  const externalSignal = typeof options === "number" ? undefined : options.signal;
   const healthUrl = `${baseUrl.replace(/\/+$/, "")}/api/v1/health`;
   const controller = new AbortController();
   let processError: Error | null = null;
@@ -58,6 +67,9 @@ export async function waitForBackend(
     throw createBackendExitError(healthUrl, backendProcess.exitCode, backendProcess.signalCode);
   }
 
+  const abortWait = () => controller.abort();
+  throwIfAborted(externalSignal);
+  externalSignal?.addEventListener("abort", abortWait, { once: true });
   backendProcess?.once("exit", onExit);
   backendProcess?.once("error", onError);
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -91,10 +103,12 @@ export async function waitForBackend(
       });
     }
 
+    throwIfAborted(externalSignal);
     if (processError) throw processError;
     throw new Error(`backend health check timeout: ${healthUrl}`);
   } finally {
     clearTimeout(timeout);
+    externalSignal?.removeEventListener("abort", abortWait);
     backendProcess?.off("exit", onExit);
     backendProcess?.off("error", onError);
   }

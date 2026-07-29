@@ -2,7 +2,6 @@ import { app, dialog, ipcMain, type BrowserWindow } from "electron";
 import path from "node:path";
 import {
   IpcChannels,
-  type CheckRemoteRequest,
   type EnsureInstanceSessionRequest,
   type InitializeAppResult,
   type InspectLocalRuntimeRequest,
@@ -15,7 +14,6 @@ import {
   type SwitchInstanceRequest,
 } from "../shared/ipc.js";
 import { readDesktopConfig, writeDesktopConfig } from "./config.js";
-import { waitForBackend } from "./health.js";
 import { ensureAppProtocolForPartition } from "./protocol.js";
 import { findLocalInstanceByInstallDir, normalizeInstallDir } from "./local-instance.js";
 import { inspectLocalRuntime, installLocalRuntime, startLocalBackendFromInstall } from "./runtime/setup-runner.js";
@@ -30,7 +28,10 @@ export interface IpcContext {
   shellWindow: () => BrowserWindow | null;
   setBackend: (handle: BackendProcessHandle) => void;
   setBackendBaseUrl: (url: string) => void;
+  beginStartupOperation: () => AbortController;
+  finishStartupOperation: (controller: AbortController) => void;
   initializeApp: () => Promise<InitializeAppResult>;
+  cancelStartup: () => void;
   switchInstance: (instanceId: string) => Promise<InitializeAppResult>;
   pingInstance: (instance: DesktopInstance) => Promise<number>;
   onConfigSaved: (config: DesktopConfig) => void;
@@ -49,6 +50,7 @@ export function registerIpc(context: IpcContext): void {
   });
 
   ipcMain.handle(IpcChannels.initializeApp, () => context.initializeApp());
+  ipcMain.handle(IpcChannels.cancelStartup, () => context.cancelStartup());
   ipcMain.handle(IpcChannels.getStartupProgress, () => getStartupProgress());
   ipcMain.handle(IpcChannels.getUpdateState, () => getUpdateState());
   ipcMain.handle(IpcChannels.checkForUpdate, () => checkForUpdates());
@@ -89,31 +91,6 @@ export function registerIpc(context: IpcContext): void {
   });
 
   ipcMain.handle(IpcChannels.getDefaultInstallDir, () => getDefaultInstallDir());
-
-  ipcMain.handle(IpcChannels.checkRemote, async (_event, request: CheckRemoteRequest) => {
-    const startupProgress = createStartupProgressTracker((progress) => {
-      _event.sender.send(IpcChannels.startupProgress, progress);
-    });
-    startupProgress.begin({
-      step: "connect-remote",
-      title: "连接 OpenFic 服务",
-      message: `正在连接 ${request.url}`,
-      progress: 0.3,
-    });
-    try {
-      await waitForBackend(request.url, 10_000);
-      startupProgress.begin({
-        step: "verify-remote",
-        title: "验证服务状态",
-        message: "远程服务已响应",
-        progress: 0.7,
-      });
-      startupProgress.complete();
-    } catch (error) {
-      startupProgress.fail(error);
-      throw error;
-    }
-  });
 
   ipcMain.handle(IpcChannels.switchInstance, (_event, request: SwitchInstanceRequest) =>
     context.switchInstance(request.instanceId),
@@ -156,11 +133,12 @@ export function registerIpc(context: IpcContext): void {
   ipcMain.handle(IpcChannels.startLocalBackend, async (_event, request: StartLocalBackendRequest) => {
     const window = context.shellWindow();
     if (!window) throw new Error("shell window is not available");
+    const controller = context.beginStartupOperation();
     const startupProgress = createStartupProgressTracker((progress) => {
       window.webContents.send(IpcChannels.startupProgress, progress);
     });
     try {
-      const backend = await startLocalBackendFromInstall(request.installDir, startupProgress);
+      const backend = await startLocalBackendFromInstall(request.installDir, startupProgress, controller.signal);
       context.setBackend(backend);
       context.setBackendBaseUrl(backend.baseUrl);
       const previousConfig = await readDesktopConfig();
@@ -196,13 +174,14 @@ export function registerIpc(context: IpcContext): void {
       });
       startupProgress.complete();
     } catch (error) {
-      startupProgress.fail(error);
+      if (controller.signal.aborted) startupProgress.complete("已取消连接");
+      else startupProgress.fail(error);
       throw error;
+    } finally {
+      context.finishStartupOperation(controller);
     }
   });
 
-  ipcMain.handle(IpcChannels.closeSetup, async () => undefined);
-  ipcMain.handle(IpcChannels.showSetup, async () => undefined);
   ipcMain.handle(IpcChannels.minimizeWindow, async () => {
     context.shellWindow()?.minimize();
   });

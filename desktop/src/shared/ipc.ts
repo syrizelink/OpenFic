@@ -4,11 +4,11 @@ export const IpcChannels = {
   getConfig: "config:get",
   saveConfig: "config:save",
   initializeApp: "app:initialize",
+  cancelStartup: "app:cancel-startup",
   ensureInstanceSession: "app:ensure-instance-session",
   getDefaultInstallDir: "app:default-install-dir",
   installRuntime: "setup:install-runtime",
   startLocalBackend: "setup:start-local-backend",
-  checkRemote: "setup:check-remote",
   switchInstance: "instance:switch",
   pingInstance: "instance:ping",
   selectDirectory: "dialog:select-directory",
@@ -16,8 +16,6 @@ export const IpcChannels = {
   setupProgress: "setup:progress",
   getStartupProgress: "app:get-startup-progress",
   startupProgress: "app:startup-progress",
-  closeSetup: "setup:close",
-  showSetup: "shell:show-setup",
   minimizeWindow: "window:minimize",
   toggleMaximizeWindow: "window:toggle-maximize",
   closeWindow: "window:close",
@@ -48,10 +46,6 @@ export interface SetupProgressEvent {
 
 export interface SaveConfigRequest {
   config: DesktopConfig;
-}
-
-export interface CheckRemoteRequest {
-  url: string;
 }
 
 export interface EnsureInstanceSessionRequest {
