@@ -159,21 +159,14 @@ export function CharactersPage() {
       queryClient.setQueryData(
         ["characters", updated.projectId],
         (old: CharacterListResponse | undefined) => {
-          if (!old) {
-            return {
-              items: [updated],
-              total: 1,
-              page: 1,
-              pageSize: 100,
-            };
-          }
+          if (!old) return old;
           const exists = old.items.some((character) => character.id === updated.id);
           const items = exists
             ? old.items.map((character) => (character.id === updated.id ? updated : character))
             : [updated, ...old.items];
           return {
             ...old,
-            items: sortCharacters(items),
+            items: sortCharacters(items).slice(0, old.pageSize),
             total: exists ? old.total : old.total + 1,
           };
         },
