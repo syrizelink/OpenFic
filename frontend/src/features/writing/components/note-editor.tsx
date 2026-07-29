@@ -4,7 +4,13 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { MarkdownEditor, Spinner } from "@/components";
+import { toast } from "@/components/toast";
 import { fetchNote } from "@/lib/api-client";
+import {
+  getEditorContentLimit,
+  MAX_EDITOR_CONTENT_CHARACTERS,
+  MAX_EDITOR_CONTENT_LINES,
+} from "@/lib/editor-content-limits";
 import type { Note } from "@/lib/note.types";
 import { createToastThrottler } from "@/lib/ui-utils";
 
@@ -76,6 +82,24 @@ function NoteEditorContent({
     content: note.content,
   });
   const baseUpdatedAtRef = useRef(note.updatedAt);
+  const rejectedContentRef = useRef<string | null>(null);
+
+  const showContentLimitToast = useCallback(
+    (content: string) => {
+      if (rejectedContentRef.current === content) return;
+      rejectedContentRef.current = content;
+      const { lineCount, characterCount } = getEditorContentLimit(content);
+      toast.error(
+        t("common.editorContentTooLarge", {
+          lineCount,
+          characterCount,
+          maxLines: MAX_EDITOR_CONTENT_LINES,
+          maxCharacters: MAX_EDITOR_CONTENT_CHARACTERS,
+        }),
+      );
+    },
+    [t],
+  );
 
   const persistDraft = useCallback(
     (draft: WritingDraft) => {
@@ -95,6 +119,15 @@ function NoteEditorContent({
 
     const draftToSave = latestDraftRef.current;
     const draftUpdatedAt = latestDraftUpdatedAtRef.current;
+    const contentLimit = getEditorContentLimit(draftToSave.content);
+    if (!contentLimit.isWithinLimit) {
+      persistWorkingCopy(draftToSave, baseUpdatedAtRef.current, draftUpdatedAt);
+      hasChangesRef.current = true;
+      setHasChanges(true);
+      showContentLimitToast(draftToSave.content);
+      return;
+    }
+    rejectedContentRef.current = null;
 
     setIsSaving(true);
     try {
@@ -131,6 +164,7 @@ function NoteEditorContent({
     note.id,
     persistWorkingCopy,
     showLockedToast,
+    showContentLimitToast,
     updateMutation,
     updateTabTitle,
   ]);

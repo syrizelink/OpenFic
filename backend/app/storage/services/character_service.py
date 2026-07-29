@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.editor_content_limits import validate_editor_content
 from app.core.errors import ConflictError, NotFoundError
 from app.core.storage import delete_character_image, save_character_image
 from app.core.utils.tiktoken import get_encoding
@@ -78,6 +79,7 @@ async def create_character(
     image_file: UploadFile | None = None,
 ) -> Character:
     """创建角色。"""
+    validate_editor_content(description)
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
         raise NotFoundError(f"项目不存在: {project_id}")
@@ -181,6 +183,7 @@ async def update_character(
             raise ConflictError("角色名称已存在")
         character.name = next_name
     if description is not None:
+        validate_editor_content(description)
         character.description = description
     if is_favorited is not None:
         character.is_favorited = is_favorited

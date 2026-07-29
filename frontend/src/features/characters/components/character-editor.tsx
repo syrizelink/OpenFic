@@ -4,7 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { MarkdownEditor, Spinner } from "@/components";
+import { toast } from "@/components/toast";
 import type { Character } from "@/lib/character.types";
+import {
+  getEditorContentLimit,
+  MAX_EDITOR_CONTENT_CHARACTERS,
+  MAX_EDITOR_CONTENT_LINES,
+} from "@/lib/editor-content-limits";
 import { countTokens } from "@/lib/tiktoken-utils";
 
 const AUTO_SAVE_DELAY = 1500;
@@ -37,15 +43,40 @@ export function CharacterEditor({
   });
   const hasChangesRef = useRef(false);
   const isSavingRef = useRef(false);
+  const rejectedContentRef = useRef<string | null>(null);
+
+  const showContentLimitToast = useCallback(
+    (content: string) => {
+      if (rejectedContentRef.current === content) return;
+      rejectedContentRef.current = content;
+      const { lineCount, characterCount } = getEditorContentLimit(content);
+      toast.error(
+        t("common.editorContentTooLarge", {
+          lineCount,
+          characterCount,
+          maxLines: MAX_EDITOR_CONTENT_LINES,
+          maxCharacters: MAX_EDITOR_CONTENT_CHARACTERS,
+        }),
+      );
+    },
+    [t],
+  );
 
   const flushSave = useCallback(async () => {
     if (!character || isSavingRef.current || !hasChangesRef.current) return;
     const nextName = latestValueRef.current.name.trim();
     if (!nextName) return;
+    const description = latestValueRef.current.description;
+    const contentLimit = getEditorContentLimit(description);
+    if (!contentLimit.isWithinLimit) {
+      showContentLimitToast(description);
+      return;
+    }
+    rejectedContentRef.current = null;
 
     isSavingRef.current = true;
     try {
-      await onSave({ name: nextName, description: latestValueRef.current.description });
+      await onSave({ name: nextName, description });
       hasChangesRef.current = false;
       setHasChanges(false);
     } catch {
@@ -54,7 +85,7 @@ export function CharacterEditor({
     } finally {
       isSavingRef.current = false;
     }
-  }, [character, onSave]);
+  }, [character, onSave, showContentLimitToast]);
 
   const scheduleSave = useCallback(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);

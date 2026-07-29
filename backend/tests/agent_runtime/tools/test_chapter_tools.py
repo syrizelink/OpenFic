@@ -5,6 +5,10 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
+from app.agent_runtime.tools.errors import ToolExecutionError
+
 
 def _make_state() -> dict:
     return {
@@ -234,6 +238,66 @@ async def test_write_chapter_appends_to_volume_and_returns_volume_id() -> None:
     assert created_chapter.volume_id == "vol-1"
     assert created_chapter.order == 4
     refresh_volume_count.assert_awaited_once_with(mock_session, "vol-1")
+
+
+async def test_write_chapter_rejects_over_limit_content_without_creating() -> None:
+    from app.agent_runtime.tools.impls.chapter.write_chapter import WriteChapterTool
+
+    tool = WriteChapterTool(_state=_make_state())
+
+    with patch(
+        "app.agent_runtime.tools.impls.chapter.write_chapter.chapter_repo.create",
+        AsyncMock(),
+    ) as create_chapter:
+        result = await tool.ainvoke(
+            {
+                "volume_ref": {"type": "order", "value": 1},
+                "title": "超限章节",
+                "content": "\n".join("内容" for _ in range(2001)),
+            }
+        )
+
+    assert "内容超出限制" in json.loads(result)["error"]
+    create_chapter.assert_not_awaited()
+
+
+async def test_edit_chapter_rejects_over_limit_replacement_without_updating_repo() -> None:
+    from app.agent_runtime.tools.impls.chapter.edit_chapter import EditChapterTool
+
+    volume = _make_volume()
+    chapter = _make_chapter(content="原内容")
+    tool = EditChapterTool(_state=_make_state())
+
+    with patch("app.agent_runtime.tools.impls.chapter.edit_chapter.create_session") as mock_cs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        with (
+            patch(
+                "app.agent_runtime.tools.impls.chapter.edit_chapter.volume_repo.list_by_project",
+                AsyncMock(return_value=[volume]),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.chapter.edit_chapter.chapter_repo.list_by_project",
+                AsyncMock(return_value=[chapter]),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.chapter.edit_chapter.chapter_repo.list_by_volume",
+                AsyncMock(return_value=[chapter]),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.chapter.edit_chapter.chapter_repo.update_chapter",
+                AsyncMock(),
+            ) as update_chapter,
+        ):
+            with pytest.raises(ToolExecutionError, match="内容超出限制"):
+                await tool._execute(
+                    volume_ref={"type": "order", "value": 1},
+                    chapter_ref={"type": "order", "value": 1},
+                    old_content="原内容",
+                    new_content="\n".join("内容" for _ in range(2001)),
+                )
+
+    update_chapter.assert_not_awaited()
 
 
 async def test_write_chapter_insert_order_shifts_within_volume() -> None:

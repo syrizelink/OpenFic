@@ -166,13 +166,16 @@ async def confirm_import(
         )
 
     # 调用服务层执行导入
-    result = await import_service.confirm_import(
-        session=session,
-        title=title,
-        description=description,
-        cover_file=cover,
-        chapters=parse_result.chapters,
-    )
+    try:
+        result = await import_service.confirm_import(
+            session=session,
+            title=title,
+            description=description,
+            cover_file=cover,
+            chapters=parse_result.chapters,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
     return ImportConfirmResponse(
         project_id=result.project_id,

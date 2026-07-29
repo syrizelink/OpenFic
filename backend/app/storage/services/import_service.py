@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.editor_content_limits import validate_editor_content
 from app.core.storage import save_cover_file
 from app.core.txt_parser import ParsedChapter
 from app.storage.models.chapter import Chapter
@@ -48,6 +49,9 @@ async def confirm_import(
     Returns:
         导入结果。
     """
+    for chapter in chapters:
+        validate_editor_content(chapter.content)
+
     # 计算总字数
     total_word_count = sum(c.word_count for c in chapters)
 

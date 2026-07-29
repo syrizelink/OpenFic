@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 from app.agent_runtime.tools.base import AgentTool
+from app.core.editor_content_limits import EditorContentLimitError, validate_editor_content
 from app.agent_runtime.revisions import (
     current_revision_id_from_state,
     images_by_id,
@@ -147,6 +148,10 @@ class EditChapterTool(AgentTool):
                 if replace_result is None:
                     raise ToolExecutionError("未在章节内容中找到要替换的文本")
                 match.content = replace_result.new_content
+                try:
+                    validate_editor_content(match.content)
+                except EditorContentLimitError as exc:
+                    raise ToolExecutionError(str(exc)) from exc
                 match.word_count = count_words(match.content)
             match.updated_at = datetime.now(UTC)
             await chapter_repo.update_chapter(session, match)

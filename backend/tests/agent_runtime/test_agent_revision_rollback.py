@@ -11,6 +11,7 @@ from app.storage.models.chapter import Chapter
 from app.storage.models.character import Character
 from app.storage.models.note import Note, NoteCategory
 from app.storage.models.project import Project
+from app.storage.models.revision_chapter_snapshot import RevisionChapterSnapshot
 from app.storage.models.task import Task
 from app.storage.models.volume import Volume
 from app.storage.models.world_info import WorldInfo
@@ -446,6 +447,79 @@ async def test_rollback_revision_restores_chapters_and_messages(revision_db):
     assert rolled_back is not None
     assert rolled_back.status == "rolled_back"
     assert task is not None
+
+
+@pytest.mark.asyncio
+async def test_rollback_rejects_oversized_chapter_snapshot_before_mutating(revision_db):
+    from app.agent_runtime.revisions import (
+        begin_user_revision,
+        rollback_revision_for_session,
+    )
+    from app.storage.repos import chapter_repo, revision_chapter_snapshot_repo, revision_repo
+
+    async with revision_db() as session:
+        user = await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="恢复超限章节",
+        )
+        target_revision = await begin_user_revision(
+            session,
+            project_id="proj-1",
+            task_id="task-1",
+            agent_session_id="sess-1",
+            user_message_id=user.id,
+            user_message_seq=user.seq,
+            message="用户消息: 恢复超限章节",
+            pre_run_checkpoint_id="cp-before",
+            graph_thread_id="sess-1",
+        )
+        await revision_chapter_snapshot_repo.create(
+            session,
+            RevisionChapterSnapshot(
+                revision_id=target_revision.id,
+                chapter_id="chap-1",
+                project_id="proj-1",
+                exists=True,
+                title="第一章",
+                content="\n".join("超限内容" for _ in range(2001)),
+                word_count=0,
+                chapter_order=1,
+            ),
+        )
+        chapter = await chapter_repo.get_by_id(session, "chap-1")
+        assert chapter is not None
+        chapter.content = "回滚前内容"
+        await chapter_repo.update_chapter(session, chapter)
+        await session.commit()
+
+    async with revision_db() as session:
+        with pytest.raises(ValueError, match="内容超出限制"):
+            await rollback_revision_for_session(
+                session,
+                agent_session_id="sess-1",
+                revision_id=target_revision.id,
+            )
+        await session.commit()
+
+    async with revision_db() as session:
+        chapter = await chapter_repo.get_by_id(session, "chap-1")
+        target_after = await revision_repo.get_by_id(session, target_revision.id)
+        revisions = await revision_repo.list_by_agent_session_from_seq(
+            session,
+            "sess-1",
+            target_revision.user_message_seq,
+        )
+
+    assert chapter is not None
+    assert chapter.content == "回滚前内容"
+    assert target_after is not None
+    assert target_after.status != "rolled_back"
+    assert all(revision.revision_type != "rollback" for revision in revisions)
 
 
 @pytest.mark.asyncio

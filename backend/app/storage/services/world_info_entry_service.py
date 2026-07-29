@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.editor_content_limits import validate_editor_content
 from app.core.errors import NotFoundError
 from app.core.utils.tiktoken import get_encoding
 from app.storage.models.world_info_entry import WorldInfoEntry
@@ -205,6 +206,9 @@ async def import_entries(
     if mode not in {"append", "overwrite"}:
         raise ValueError(f"不支持的导入模式: {mode}")
 
+    for entry in entries:
+        validate_editor_content(entry.content)
+
     if mode == "overwrite":
         await world_info_entry_repo.delete_by_world_info(session, world_info_id)
         existing_entries: list[WorldInfoEntry] = []
@@ -281,6 +285,8 @@ async def create_entry(
     Raises:
         NotFoundError: 世界书不存在。
     """
+    validate_editor_content(content)
+
     # 检查世界书是否存在
     await get_world_info(session, world_info_id)
 
@@ -392,6 +398,7 @@ async def update_entry(
             exclude_entry_id=entry.id,
         )
     if content is not None:
+        validate_editor_content(content)
         entry.content = content
     if token_count is not None:
         entry.token_count = token_count

@@ -20,6 +20,7 @@
     "copied": "已复制",
     "saveSuccess": "保存成功",
     "saveFailed": "保存失败",
+    "editorContentTooLarge": "内容超出限制：当前 {{lineCount}} 行、{{characterCount}} 字符；最多允许 {{maxLines}} 行且 {{maxCharacters}} 字符。请拆分内容后重试。",
     "deleteSuccess": "已删除",
     "deleteFailed": "删除失败",
     "optional": "可选",

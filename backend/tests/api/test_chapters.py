@@ -86,6 +86,25 @@ async def test_create_chapter_empty_content(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_create_chapter_rejects_content_over_line_limit(client: AsyncClient) -> None:
+    project_id, volume_id = await _create_project(client)
+
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/chapters",
+        json={
+            "volume_id": volume_id,
+            "title": "超限章节",
+            "content": "\n".join("内容" for _ in range(2001)),
+        },
+    )
+
+    assert response.status_code == 400
+    assert "内容超出限制" in response.json()["detail"]
+    tree = (await client.get(f"/api/v1/projects/{project_id}/chapters")).json()
+    assert tree["total_chapters"] == 0
+
+
+@pytest.mark.asyncio
 async def test_create_chapter_validation_errors(client: AsyncClient) -> None:
     """测试创建章节时的校验错误。"""
     project_id, volume_id = await _create_project(client)
@@ -253,6 +272,28 @@ async def test_get_and_update_chapter(client: AsyncClient) -> None:
     assert data["title"] == "新标题"
     assert data["content"] == "新内容"
     assert data["word_count"] == 200
+
+
+@pytest.mark.asyncio
+async def test_update_chapter_rejects_content_over_line_limit(client: AsyncClient) -> None:
+    project_id, volume_id = await _create_project(client)
+    chapter = await _create_chapter(
+        client,
+        project_id,
+        volume_id,
+        title="原章节",
+        content="原内容",
+    )
+
+    response = await client.patch(
+        f"/api/v1/chapters/{chapter['id']}",
+        json={"content": "\n".join("内容" for _ in range(2001))},
+    )
+
+    assert response.status_code == 400
+    assert "内容超出限制" in response.json()["detail"]
+    unchanged = await client.get(f"/api/v1/chapters/{chapter['id']}")
+    assert unchanged.json()["content"] == "原内容"
 
 
 @pytest.mark.asyncio

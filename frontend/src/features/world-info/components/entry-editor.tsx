@@ -13,6 +13,11 @@ import { useTranslation } from "react-i18next";
 import { MarkdownEditor } from "@/components";
 import { toast } from "@/components/toast";
 import { updateWorldInfoEntry } from "@/lib/api-client";
+import {
+  getEditorContentLimit,
+  MAX_EDITOR_CONTENT_CHARACTERS,
+  MAX_EDITOR_CONTENT_LINES,
+} from "@/lib/editor-content-limits";
 import { countTokens } from "@/lib/tiktoken-utils";
 import type {
   WorldInfoEntry,
@@ -63,6 +68,24 @@ export function EntryEditor({
   const isSavingRef = useRef(false);
   const editorRef = useRef<Editor | null>(null);
   const scrolledRef = useRef(false);
+  const rejectedContentRef = useRef<string | null>(null);
+
+  const showContentLimitToast = useCallback(
+    (content: string) => {
+      if (rejectedContentRef.current === content) return;
+      rejectedContentRef.current = content;
+      const { lineCount, characterCount } = getEditorContentLimit(content);
+      toast.error(
+        t("common.editorContentTooLarge", {
+          lineCount,
+          characterCount,
+          maxLines: MAX_EDITOR_CONTENT_LINES,
+          maxCharacters: MAX_EDITOR_CONTENT_CHARACTERS,
+        }),
+      );
+    },
+    [t],
+  );
 
   const updateCaches = useCallback(
     (updated: WorldInfoEntry) => {
@@ -96,6 +119,14 @@ export function EntryEditor({
 
     const content = savedContentRef.current;
     const newName = savedNameRef.current.trim();
+    const contentLimit = getEditorContentLimit(content);
+    if (!contentLimit.isWithinLimit) {
+      showContentLimitToast(content);
+      isSavingRef.current = false;
+      setIsSaving(false);
+      return;
+    }
+    rejectedContentRef.current = null;
     const hasDuplicateName = entries.some((item) => item.id !== entry.id && item.name === newName);
     if (hasDuplicateName) {
       toast.error(t("worldInfo.duplicateEntryName"));
@@ -120,7 +151,7 @@ export function EntryEditor({
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [entries, entry.id, t, updateCaches]);
+  }, [entries, entry.id, showContentLimitToast, t, updateCaches]);
 
   const triggerAutoSave = useCallback(() => {
     if (saveTimerRef.current) {

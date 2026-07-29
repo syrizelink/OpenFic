@@ -11,6 +11,7 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 from app.agent_runtime.tools.base import AgentTool
+from app.core.editor_content_limits import EditorContentLimitError, validate_editor_content
 from app.agent_runtime.revisions import (
     current_revision_id_from_state,
     note_images_by_id,
@@ -123,6 +124,10 @@ class EditNoteTool(AgentTool):
         if preview_result is None:
             return None
         preview_content = preview_result.new_content
+        try:
+            validate_editor_content(preview_content)
+        except EditorContentLimitError:
+            return None
         return {
             "type": "preview",
             "success": True,
@@ -187,6 +192,10 @@ class EditNoteTool(AgentTool):
             if replace_result is None:
                 raise ToolExecutionError("未在笔记内容中找到要替换的文本")
             note.content = replace_result.new_content
+            try:
+                validate_editor_content(note.content)
+            except EditorContentLimitError as exc:
+                raise ToolExecutionError(str(exc)) from exc
             note.updated_at = datetime.now(UTC)
             await note_repo.update_note(session, note)
             after = note_images_by_id(

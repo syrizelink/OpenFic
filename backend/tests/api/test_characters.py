@@ -74,6 +74,21 @@ async def test_create_character_generates_numbered_name_when_duplicate(client: A
 
 
 @pytest.mark.asyncio
+async def test_create_character_rejects_description_over_line_limit(client: AsyncClient) -> None:
+    project_id = await create_project(client, "角色长度限制项目")
+
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/characters",
+        data={"name": "超限角色", "description": "\n".join("内容" for _ in range(2001))},
+    )
+
+    assert response.status_code == 400
+    assert "内容超出限制" in response.json()["detail"]
+    characters = (await client.get(f"/api/v1/projects/{project_id}/characters")).json()
+    assert characters["total"] == 0
+
+
+@pytest.mark.asyncio
 async def test_update_character_rejects_duplicate_name(client: AsyncClient) -> None:
     project_id = await create_project(client, "重名更新项目")
     first = await create_character(client, project_id, "林夏")
@@ -86,6 +101,24 @@ async def test_update_character_rejects_duplicate_name(client: AsyncClient) -> N
 
     assert response.status_code == 409
     assert response.json()["detail"] == "角色名称已存在"
+
+
+@pytest.mark.asyncio
+async def test_update_character_rejects_description_over_line_limit(
+    client: AsyncClient,
+) -> None:
+    project_id = await create_project(client, "角色更新长度限制项目")
+    character = await create_character(client, project_id, "原角色", "原描述")
+
+    response = await client.patch(
+        f"/api/v1/characters/{character['id']}",
+        data={"description": "\n".join("内容" for _ in range(2001))},
+    )
+
+    assert response.status_code == 400
+    assert "内容超出限制" in response.json()["detail"]
+    unchanged = await client.get(f"/api/v1/characters/{character['id']}")
+    assert unchanged.json()["description"] == "原描述"
 
 
 @pytest.mark.asyncio

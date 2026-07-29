@@ -3,6 +3,8 @@
 Import API 测试。
 """
 
+import json
+
 import pytest
 from httpx import AsyncClient
 
@@ -165,6 +167,56 @@ async def test_confirm_import_empty_title(client: AsyncClient) -> None:
     response = await client.post("/api/v1/import/confirm", files=files, data=data)
     # 422 是 Pydantic 验证错误，400 是业务验证错误，两者都可接受
     assert response.status_code in (400, 422)
+
+
+@pytest.mark.asyncio
+async def test_confirm_import_rejects_over_limit_content_before_project_creation(
+    client: AsyncClient,
+) -> None:
+    projects_before = (await client.get("/api/v1/projects")).json()["total"]
+    files = {
+        "file": (
+            "over-limit.txt",
+            ("内容" * 100001).encode("utf-8"),
+            "text/plain",
+        )
+    }
+
+    response = await client.post(
+        "/api/v1/import/confirm",
+        files=files,
+        data={"title": "超限导入"},
+    )
+
+    assert response.status_code == 400
+    assert "内容超出限制" in response.json()["detail"]
+    projects_after = (await client.get("/api/v1/projects")).json()["total"]
+    assert projects_after == projects_before
+
+
+@pytest.mark.asyncio
+async def test_confirm_import_stream_rejects_over_limit_chapter_before_project_creation(
+    client: AsyncClient,
+) -> None:
+    projects_before = (await client.get("/api/v1/projects")).json()["total"]
+    content = "\n".join(["内容" * 51, *("内容" for _ in range(2000))])
+
+    response = await client.post(
+        "/api/v1/import/confirm-stream",
+        files={"file": ("over-limit.txt", content.encode("utf-8"), "text/plain")},
+        data={"title": "超限流式导入"},
+    )
+
+    events = [
+        json.loads(line.removeprefix("data: "))
+        for line in response.text.splitlines()
+        if line.startswith("data: ")
+    ]
+    error_event = next(event for event in events if event["type"] == "error")
+    assert error_event["type"] == "error"
+    assert "内容超出限制" in error_event["message"]
+    projects_after = (await client.get("/api/v1/projects")).json()["total"]
+    assert projects_after == projects_before
 
 
 @pytest.mark.asyncio

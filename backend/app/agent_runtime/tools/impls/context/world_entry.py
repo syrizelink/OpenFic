@@ -10,6 +10,7 @@ from app.agent_runtime.revisions import (
     world_entry_images_by_id,
 )
 from app.agent_runtime.tools.base import AgentTool
+from app.core.editor_content_limits import EditorContentLimitError, validate_editor_content
 from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.agent_runtime.tools.text_match import fuzzy_replace
@@ -255,6 +256,10 @@ class CreateWorldEntryTool(AgentTool):
         if session is None or not isinstance(title, str) or not isinstance(content, str):
             return None
         try:
+            validate_editor_content(content)
+        except EditorContentLimitError:
+            return None
+        try:
             world_info = await _get_project_world_info(session, self.project_id)
             normalized_title = await _ensure_title_available(session, world_info.id, title)
         except ToolExecutionError:
@@ -278,6 +283,10 @@ class CreateWorldEntryTool(AgentTool):
 
     async def _execute(self, title: str, content: str) -> str:
         revision_id = _require_revision_id(self._state)
+        try:
+            validate_editor_content(content)
+        except EditorContentLimitError as exc:
+            raise ToolExecutionError(str(exc)) from exc
         session = await create_session()
         try:
             world_info = await _get_project_world_info(session, self.project_id)
@@ -308,6 +317,8 @@ class CreateWorldEntryTool(AgentTool):
                 },
                 ensure_ascii=False,
             )
+        except ToolExecutionError:
+            raise
         except Exception:
             await session.rollback()
             raise
@@ -349,6 +360,7 @@ class EditWorldEntryTool(AgentTool):
                 if replace_result is None:
                     return None
                 content = replace_result.new_content
+                validate_editor_content(content)
             updated_title = (
                 await _ensure_title_available(
                     session,
@@ -359,7 +371,7 @@ class EditWorldEntryTool(AgentTool):
                 if new_title is not None
                 else before.title
             )
-        except ToolExecutionError:
+        except (EditorContentLimitError, ToolExecutionError):
             return None
         after = WorldEntryPreview(
             id=before.id,
@@ -400,6 +412,10 @@ class EditWorldEntryTool(AgentTool):
                 if replace_result is None:
                     raise ToolExecutionError("未在世界书条目内容中找到要替换的文本")
                 content = replace_result.new_content
+                try:
+                    validate_editor_content(content)
+                except EditorContentLimitError as exc:
+                    raise ToolExecutionError(str(exc)) from exc
             normalized_new_title = None
             if new_title is not None:
                 normalized_new_title = await _ensure_title_available(

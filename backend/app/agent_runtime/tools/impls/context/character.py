@@ -10,6 +10,7 @@ from app.agent_runtime.revisions import (
     record_character_diffs,
 )
 from app.agent_runtime.tools.base import AgentTool
+from app.core.editor_content_limits import EditorContentLimitError, validate_editor_content
 from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.agent_runtime.tools.text_match import fuzzy_replace
@@ -238,6 +239,10 @@ class CreateCharacterTool(AgentTool):
         if session is None or not isinstance(name, str) or not isinstance(description, str):
             return None
         try:
+            validate_editor_content(description)
+        except EditorContentLimitError:
+            return None
+        try:
             normalized_name = await _ensure_name_available(session, self.project_id, name)
         except ToolExecutionError:
             return None
@@ -252,6 +257,10 @@ class CreateCharacterTool(AgentTool):
 
     async def _execute(self, name: str, description: str) -> str:
         revision_id = _require_revision_id(self._state)
+        try:
+            validate_editor_content(description)
+        except EditorContentLimitError as exc:
+            raise ToolExecutionError(str(exc)) from exc
         session = await create_session()
         try:
             normalized_name = await _ensure_name_available(session, self.project_id, name)
@@ -279,6 +288,8 @@ class CreateCharacterTool(AgentTool):
                 },
                 ensure_ascii=False,
             )
+        except ToolExecutionError:
+            raise
         except Exception:
             await session.rollback()
             raise
@@ -319,6 +330,7 @@ class EditCharacterTool(AgentTool):
                 if replace_result is None:
                     return None
                 description = replace_result.new_content
+                validate_editor_content(description)
             updated_name = (
                 await _ensure_name_available(
                     session,
@@ -329,7 +341,7 @@ class EditCharacterTool(AgentTool):
                 if new_name is not None
                 else before.name
             )
-        except ToolExecutionError:
+        except (EditorContentLimitError, ToolExecutionError):
             return None
         after = CharacterPreview(
             id=before.id,
@@ -366,6 +378,10 @@ class EditCharacterTool(AgentTool):
                 if replace_result is None:
                     raise ToolExecutionError("未在角色描述中找到要替换的文本")
                 description = replace_result.new_content
+                try:
+                    validate_editor_content(description)
+                except EditorContentLimitError as exc:
+                    raise ToolExecutionError(str(exc)) from exc
             normalized_new_name = None
             if new_name is not None:
                 normalized_new_name = await _ensure_name_available(

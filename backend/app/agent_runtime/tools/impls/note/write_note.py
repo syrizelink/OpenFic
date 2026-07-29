@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.agent_runtime.tools.base import AgentTool
+from app.core.editor_content_limits import EditorContentLimitError, validate_editor_content
 from app.agent_runtime.revisions import (
     current_revision_id_from_state,
     note_images_by_id,
@@ -44,6 +45,10 @@ class WriteNoteTool(AgentTool):
         title = args.get("title")
         content = args.get("content")
         if session is None or not isinstance(title, str) or not isinstance(content, str):
+            return None
+        try:
+            validate_editor_content(content)
+        except EditorContentLimitError:
             return None
 
         category_id: str | None = None
@@ -102,6 +107,10 @@ class WriteNoteTool(AgentTool):
         revision_id = current_revision_id_from_state(self._state)
         if revision_id is None:
             raise ToolExecutionError("缺少当前 revision，无法执行笔记写入")
+        try:
+            validate_editor_content(content)
+        except EditorContentLimitError as exc:
+            raise ToolExecutionError(str(exc)) from exc
         session = await create_session()
         try:
             category_id: str | None = None

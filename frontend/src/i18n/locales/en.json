@@ -20,6 +20,7 @@
     "copied": "Copied",
     "saveSuccess": "Saved successfully",
     "saveFailed": "Save failed",
+    "editorContentTooLarge": "Content exceeds the limit: {{lineCount}} lines and {{characterCount}} characters. The maximum is {{maxLines}} lines and {{maxCharacters}} characters. Split the content and try again.",
     "deleteSuccess": "Deleted",
     "deleteFailed": "Delete failed",
     "optional": "Optional",

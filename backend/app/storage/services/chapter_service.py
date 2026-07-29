@@ -10,6 +10,7 @@ from typing import Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.editor_content_limits import validate_editor_content
 from app.core.errors import NotFoundError
 from app.storage.models.chapter import Chapter
 from app.storage.models.volume import Volume
@@ -158,6 +159,8 @@ async def create_chapter(
     Raises:
         NotFoundError: 项目不存在。
     """
+    validate_editor_content(content)
+
     # 检查项目是否存在
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
@@ -457,6 +460,7 @@ async def update_chapter(
 
     content_changed = False
     if content is not None and content != chapter.content:
+        validate_editor_content(content)
         chapter.content = content
         # 优先使用前端传递的字数，否则后端计算
         chapter.word_count = (

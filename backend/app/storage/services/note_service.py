@@ -9,6 +9,7 @@ from typing import Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.editor_content_limits import validate_editor_content
 from app.core.errors import NotFoundError
 from app.storage.models.note import Note, NoteCategory
 from app.storage.repos import (
@@ -67,6 +68,7 @@ async def create_note(
     title: str,
     content: str = "",
 ) -> Note:
+    validate_editor_content(content)
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
         raise NotFoundError(f"项目不存在: {project_id}")
@@ -164,6 +166,7 @@ async def update_note(
         changed = True
 
     if content is not None and content != note.content:
+        validate_editor_content(content)
         note.content = content
         changed = True
 

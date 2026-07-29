@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agent_runtime.persistence import compaction_repo, repo as message_repo
 from app.agent_runtime.persistence.child_runs import rollback_child_runs_for_parent_revisions
 from app.agent_runtime.persistence.model import AgentRunMessage
+from app.core.editor_content_limits import validate_editor_content
 from app.core.errors import NotFoundError
 from app.storage.models.chapter import Chapter
 from app.storage.models.character import Character
@@ -873,6 +874,19 @@ async def rollback_revision_for_session(
             restored_message_content = user_message.content
     if not restored_message_content and target.message.startswith("用户消息:"):
         restored_message_content = target.message.removeprefix("用户消息:").strip()
+
+    for snapshot in restore_by_chapter.values():
+        if snapshot.exists:
+            validate_editor_content(snapshot.content or "")
+    for snapshot in restore_by_note.values():
+        if snapshot.exists:
+            validate_editor_content(snapshot.content or "")
+    for snapshot in restore_by_world_entry.values():
+        if snapshot.exists:
+            validate_editor_content(snapshot.content or "")
+    for snapshot in restore_by_character.values():
+        if snapshot.exists:
+            validate_editor_content(snapshot.description or "")
 
     rollback_revision = Revision(
         project_id=target.project_id,

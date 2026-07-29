@@ -282,6 +282,25 @@ async def test_create_character_returns_diff() -> None:
     }
 
 
+@pytest.mark.asyncio
+async def test_create_character_rejects_over_limit_description_without_creating() -> None:
+    from app.agent_runtime.tools.impls.context.character import CreateCharacterTool
+
+    tool = CreateCharacterTool(_state={**_make_state(), "current_revision_id": "rev-1"})
+
+    with patch(
+        "app.agent_runtime.tools.impls.context.character.character_service"
+    ) as mock_character_service:
+        mock_character_service.create_character = AsyncMock()
+
+        result = await tool.ainvoke(
+            {"name": "林舟", "description": "\n".join("内容" for _ in range(2001))}
+        )
+
+    assert "内容超出限制" in json.loads(result)["error"]
+    mock_character_service.create_character.assert_not_awaited()
+
+
 def test_edit_character_input_rejects_empty_old_description() -> None:
     from pydantic import ValidationError
 
@@ -356,6 +375,42 @@ async def test_edit_character_replaces_description_text() -> None:
             "text": "主角与旧友",
         },
     ]
+
+
+@pytest.mark.asyncio
+async def test_edit_character_rejects_over_limit_replacement_without_updating() -> None:
+    from app.agent_runtime.tools.impls.context.character import EditCharacterTool
+
+    tool = EditCharacterTool(_state={**_make_state(), "current_revision_id": "rev-1"})
+    character = SimpleNamespace(
+        id="char-1",
+        project_id="proj-1",
+        name="林舟",
+        description="旧内容",
+        is_favorited=False,
+    )
+
+    with patch(
+        "app.agent_runtime.tools.impls.context.character.create_session"
+    ) as mock_cs, patch(
+        "app.agent_runtime.tools.impls.context.character.character_repo"
+    ) as mock_character_repo, patch(
+        "app.agent_runtime.tools.impls.context.character.character_service"
+    ) as mock_character_service:
+        mock_cs.return_value = AsyncMock()
+        mock_character_repo.list_by_project = AsyncMock(return_value=([character], 1))
+        mock_character_service.update_character = AsyncMock()
+
+        result = await tool.ainvoke(
+            {
+                "name": "林舟",
+                "old_description": "旧内容",
+                "new_description": "\n".join("内容" for _ in range(2001)),
+            }
+        )
+
+    assert "内容超出限制" in json.loads(result)["error"]
+    mock_character_service.update_character.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -571,6 +626,25 @@ async def test_create_world_entry_rejects_duplicate_title() -> None:
     assert json.loads(result) == {"error": "世界书条目标题已存在: 主角"}
 
 
+@pytest.mark.asyncio
+async def test_create_world_entry_rejects_over_limit_content_without_creating() -> None:
+    from app.agent_runtime.tools.impls.context.world_entry import CreateWorldEntryTool
+
+    tool = CreateWorldEntryTool(_state={**_make_state(), "current_revision_id": "rev-1"})
+
+    with patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_service"
+    ) as mock_entry_service:
+        mock_entry_service.create_entry = AsyncMock()
+
+        result = await tool.ainvoke(
+            {"title": "主角", "content": "\n".join("内容" for _ in range(2001))}
+        )
+
+    assert "内容超出限制" in json.loads(result)["error"]
+    mock_entry_service.create_entry.assert_not_awaited()
+
+
 def test_edit_world_entry_input_rejects_empty_old_content() -> None:
     from pydantic import ValidationError
 
@@ -655,6 +729,48 @@ async def test_edit_world_entry_returns_diff() -> None:
             ],
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_edit_world_entry_rejects_over_limit_replacement_without_updating() -> None:
+    from app.agent_runtime.tools.impls.context.world_entry import EditWorldEntryTool
+
+    tool = EditWorldEntryTool(_state={**_make_state(), "current_revision_id": "rev-1"})
+    entry = SimpleNamespace(
+        id="e1",
+        world_info_id="world-1",
+        name="主角",
+        uid=1,
+        order=1,
+        content="旧内容",
+        token_count=2,
+        is_enabled=True,
+    )
+
+    with patch(
+        "app.agent_runtime.tools.impls.context.world_entry.create_session"
+    ) as mock_cs, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_repo"
+    ) as mock_world_repo, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_repo"
+    ) as mock_entry_repo, patch(
+        "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_service"
+    ) as mock_entry_service:
+        mock_cs.return_value = AsyncMock()
+        mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
+        mock_entry_repo.list_by_world_info = AsyncMock(return_value=[entry])
+        mock_entry_service.update_entry = AsyncMock()
+
+        result = await tool.ainvoke(
+            {
+                "title": "主角",
+                "old_content": "旧内容",
+                "new_content": "\n".join("内容" for _ in range(2001)),
+            }
+        )
+
+    assert "内容超出限制" in json.loads(result)["error"]
+    mock_entry_service.update_entry.assert_not_awaited()
 
 
 @pytest.mark.asyncio

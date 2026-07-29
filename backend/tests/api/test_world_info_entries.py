@@ -3,6 +3,8 @@
 WorldInfo Entry API 测试。
 """
 
+import json
+
 import pytest
 from httpx import AsyncClient
 
@@ -39,6 +41,21 @@ async def test_create_entry(client: AsyncClient, world_info_id: str) -> None:
     assert data["is_enabled"] is True
     assert data["uid"] == 1
     assert data["order"] == 1
+
+
+@pytest.mark.asyncio
+async def test_create_entry_rejects_content_over_line_limit(
+    client: AsyncClient, world_info_id: str
+) -> None:
+    response = await client.post(
+        f"/api/v1/world-info/{world_info_id}/entries",
+        json={"name": "超限条目", "content": "\n".join("内容" for _ in range(2001))},
+    )
+
+    assert response.status_code == 400
+    assert "内容超出限制" in response.json()["detail"]
+    entries = (await client.get(f"/api/v1/world-info/{world_info_id}/entries")).json()
+    assert entries["total"] == 0
 
 
 @pytest.mark.asyncio
@@ -154,6 +171,27 @@ async def test_update_entry(client: AsyncClient, world_info_id: str) -> None:
 
 
 @pytest.mark.asyncio
+async def test_update_entry_rejects_content_over_line_limit(
+    client: AsyncClient, world_info_id: str
+) -> None:
+    create_response = await client.post(
+        f"/api/v1/world-info/{world_info_id}/entries",
+        json={"name": "原条目", "content": "原内容"},
+    )
+    entry_id = create_response.json()["id"]
+
+    response = await client.patch(
+        f"/api/v1/world-info-entries/{entry_id}",
+        json={"content": "\n".join("内容" for _ in range(2001))},
+    )
+
+    assert response.status_code == 400
+    assert "内容超出限制" in response.json()["detail"]
+    unchanged = await client.get(f"/api/v1/world-info-entries/{entry_id}")
+    assert unchanged.json()["content"] == "原内容"
+
+
+@pytest.mark.asyncio
 async def test_delete_entry(client: AsyncClient, world_info_id: str) -> None:
     """测试删除条目。"""
     create_resp = await client.post(
@@ -256,6 +294,51 @@ async def test_import_world_info_entries_stream_overwrite_clears_existing_entrie
     list_response = await client.get(f"/api/v1/world-info/{world_info_id}/entries")
     items = list_response.json()["items"]
     assert [item["name"] for item in items] == ["背景"]
+
+
+@pytest.mark.asyncio
+async def test_import_world_info_entries_stream_overwrite_rejects_oversized_content(
+    client: AsyncClient, world_info_id: str
+) -> None:
+    await client.post(
+        f"/api/v1/world-info/{world_info_id}/entries",
+        json={"name": "原有条目", "content": "原有内容"},
+    )
+    content = json.dumps(
+        {
+            "entries": {
+                "0": {
+                    "uid": 0,
+                    "comment": "超限条目",
+                    "content": "\n".join("内容" for _ in range(2001)),
+                    "disable": False,
+                    "order": 100,
+                }
+            }
+        }
+    ).encode("utf-8")
+
+    response = await client.post(
+        f"/api/v1/world-info/{world_info_id}/entries/import-stream?mode=overwrite",
+        files={"file": ("worldbook.json", content, "application/json")},
+    )
+
+    assert response.status_code == 200
+    events = [
+        json.loads(line.removeprefix("data: "))
+        for line in response.text.splitlines()
+        if line.startswith("data: ")
+    ]
+    assert any(
+        event["type"] == "error" and "内容超出限制" in event["message"]
+        for event in events
+    )
+    assert all(event["type"] != "complete" for event in events)
+    list_response = await client.get(f"/api/v1/world-info/{world_info_id}/entries")
+    items = list_response.json()["items"]
+    assert [item["name"] for item in items] == ["原有条目"]
+    entry_response = await client.get(f"/api/v1/world-info-entries/{items[0]['id']}")
+    assert entry_response.json()["content"] == "原有内容"
 
 
 @pytest.mark.asyncio

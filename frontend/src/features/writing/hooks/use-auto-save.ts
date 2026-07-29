@@ -70,6 +70,10 @@ export function useAutoSave({
     return clearTimer;
   }, [resetTimer, clearTimer]);
 
+  useEffect(() => {
+    if (lastSaveTime !== null) resetTimer();
+  }, [lastSaveTime, resetTimer]);
+
   // 页面离开前保存
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {

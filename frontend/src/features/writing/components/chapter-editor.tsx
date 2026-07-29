@@ -18,6 +18,11 @@ import {
 import { useScrollbarAutoHide } from "@/hooks/use-scrollbar-auto-hide";
 import { fetchChapter } from "@/lib/api-client";
 import type { Chapter } from "@/lib/chapter.types";
+import {
+  getEditorContentLimit,
+  MAX_EDITOR_CONTENT_CHARACTERS,
+  MAX_EDITOR_CONTENT_LINES,
+} from "@/lib/editor-content-limits";
 import { htmlToNewlines, newlinesToHtml } from "@/lib/html-utils";
 import { createToastThrottler } from "@/lib/ui-utils";
 
@@ -111,6 +116,25 @@ function ChapterEditorContent({
 
   const showLockedToast = useMemo(
     () => createToastThrottler(t("writing.agentLockedChapterEdit")),
+    [t],
+  );
+  const rejectedContentRef = useRef<string | null>(null);
+
+  const showContentLimitToast = useCallback(
+    (content: string) => {
+      if (rejectedContentRef.current === content) return false;
+      rejectedContentRef.current = content;
+      const { lineCount, characterCount } = getEditorContentLimit(content);
+      toast.error(
+        t("common.editorContentTooLarge", {
+          lineCount,
+          characterCount,
+          maxLines: MAX_EDITOR_CONTENT_LINES,
+          maxCharacters: MAX_EDITOR_CONTENT_CHARACTERS,
+        }),
+      );
+      return true;
+    },
     [t],
   );
 
@@ -240,6 +264,15 @@ function ChapterEditorContent({
 
       const draftToSave = latestDraftRef.current;
       const draftUpdatedAt = latestDraftUpdatedAtRef.current;
+      const contentLimit = getEditorContentLimit(draftToSave.content);
+      if (!contentLimit.isWithinLimit) {
+        persistWorkingCopy(draftToSave, baseUpdatedAtRef.current, draftUpdatedAt);
+        hasChangesRef.current = true;
+        setHasChanges(true);
+        showContentLimitToast(draftToSave.content);
+        return;
+      }
+      rejectedContentRef.current = null;
       const currentWordCount = wordsCount(draftToSave.content);
 
       setIsSaving(true);
@@ -282,6 +315,7 @@ function ChapterEditorContent({
       updateMutation,
       clearWorkingCopy,
       persistWorkingCopy,
+      showContentLimitToast,
     ],
   );
 

@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.agent_runtime.tools.base import AgentTool
+from app.core.editor_content_limits import EditorContentLimitError, validate_editor_content
 from app.agent_runtime.revisions import (
     current_revision_id_from_state,
     images_by_id,
@@ -65,6 +66,10 @@ class WriteChapterTool(AgentTool):
         content = args.get("content")
         if not isinstance(title, str) or not isinstance(content, str):
             return None
+        try:
+            validate_editor_content(content)
+        except EditorContentLimitError:
+            return None
         volume_ref = args.get("volume_ref")
         if isinstance(volume_ref, VolumeRef):
             volume_ref = volume_ref.model_dump()
@@ -90,6 +95,10 @@ class WriteChapterTool(AgentTool):
         revision_id = current_revision_id_from_state(self._state)
         if revision_id is None:
             raise ToolExecutionError("缺少当前 revision，无法执行章节写入")
+        try:
+            validate_editor_content(content)
+        except EditorContentLimitError as exc:
+            raise ToolExecutionError(str(exc)) from exc
         session = await create_session()
         try:
             volume = resolve_volume_from_list(

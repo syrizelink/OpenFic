@@ -34,6 +34,21 @@ async def test_create_note(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_create_note_rejects_content_over_line_limit(client: AsyncClient) -> None:
+    project_id, _ = await _create_project(client)
+
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/notes",
+        json={"title": "超限笔记", "content": "\n".join("内容" for _ in range(2001))},
+    )
+
+    assert response.status_code == 400
+    assert "内容超出限制" in response.json()["detail"]
+    notes = (await client.get(f"/api/v1/projects/{project_id}/notes")).json()
+    assert notes["total_notes"] == 0
+
+
+@pytest.mark.asyncio
 async def test_create_note_in_category(client: AsyncClient) -> None:
     project_id, _ = await _create_project(client)
     cat_resp = await client.post(
@@ -85,6 +100,26 @@ async def test_update_note(client: AsyncClient) -> None:
     assert resp.status_code == 200
     assert resp.json()["title"] == "新标题"
     assert resp.json()["content"] == "旧内容"
+
+
+@pytest.mark.asyncio
+async def test_update_note_rejects_content_over_line_limit(client: AsyncClient) -> None:
+    project_id, _ = await _create_project(client)
+    create = await client.post(
+        f"/api/v1/projects/{project_id}/notes",
+        json={"title": "原笔记", "content": "原内容"},
+    )
+    note_id = create.json()["id"]
+
+    response = await client.patch(
+        f"/api/v1/notes/{note_id}",
+        json={"content": "\n".join("内容" for _ in range(2001))},
+    )
+
+    assert response.status_code == 400
+    assert "内容超出限制" in response.json()["detail"]
+    unchanged = await client.get(f"/api/v1/notes/{note_id}")
+    assert unchanged.json()["content"] == "原内容"
 
 
 @pytest.mark.asyncio
@@ -187,6 +222,19 @@ async def test_create_category_third_level_rejected(client: AsyncClient) -> None
         json={"title": "三级", "parent_id": c2_id},
     )
     assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_create_category_rejects_missing_parent(client: AsyncClient) -> None:
+    project_id, _ = await _create_project(client)
+
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/note-categories",
+        json={"title": "无效父分类", "parent_id": "missing-parent"},
+    )
+
+    assert response.status_code == 400
+    assert "父分类不存在" in response.json()["detail"]
 
 
 @pytest.mark.asyncio

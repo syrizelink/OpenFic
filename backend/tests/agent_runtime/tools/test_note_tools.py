@@ -4,6 +4,10 @@ import json
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
+from app.agent_runtime.tools.errors import ToolExecutionError
+
 
 def _make_state() -> dict:
     return {
@@ -131,7 +135,7 @@ async def test_edit_note_returns_success_and_diff_metadata() -> None:
             ),
             patch(
                 "app.agent_runtime.tools.impls.note.edit_note.note_repo.list_by_project",
-                AsyncMock(side_effect=[[note], [note]]),
+                AsyncMock(return_value=[note]),
             ),
             patch(
                 "app.agent_runtime.tools.impls.note.edit_note.note_repo.update_note",
@@ -185,6 +189,39 @@ async def test_edit_note_returns_success_and_diff_metadata() -> None:
     }
     assert isinstance(note.updated_at, datetime)
     assert note.updated_at.tzinfo is UTC
+
+
+async def test_edit_note_rejects_over_limit_replace_all_without_updating_repo() -> None:
+    from app.agent_runtime.tools.impls.note.edit_note import EditNoteTool
+
+    note = _make_note(content="原\n原")
+    tool = EditNoteTool(_state=_make_state())
+
+    with patch("app.agent_runtime.tools.impls.note.edit_note.create_session") as mock_cs:
+        mock_session = AsyncMock()
+        mock_cs.return_value = mock_session
+        with (
+            patch(
+                "app.agent_runtime.tools.impls.note.edit_note.note_repo.get_by_id",
+                AsyncMock(return_value=note),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.edit_note.note_repo.list_by_project",
+                AsyncMock(return_value=[note]),
+            ),
+            patch(
+                "app.agent_runtime.tools.impls.note.edit_note.note_repo.update_note",
+                AsyncMock(),
+            ) as update_note,
+        ):
+            with pytest.raises(ToolExecutionError, match="内容超出限制"):
+                await tool._execute(
+                    note_ref={"id": "note-1"},
+                    old_content="原",
+                    new_content="\n".join("内容" for _ in range(1001)),
+                )
+
+    update_note.assert_not_awaited()
 
 
 async def test_delete_note_rejects_hidden_note() -> None:
@@ -371,6 +408,26 @@ async def test_write_note_creates_note_and_returns_success() -> None:
     assert data["metadata"]["note_diff"]["note_title"] == "新笔记"
     assert data["metadata"]["note_diff"]["category_id"] is None
     assert data["metadata"]["note_diff"]["sections"][0]["type"] == "content"
+
+
+async def test_write_note_rejects_over_limit_content_without_creating() -> None:
+    from app.agent_runtime.tools.impls.note.write_note import WriteNoteTool
+
+    tool = WriteNoteTool(_state=_make_state())
+
+    with patch(
+        "app.agent_runtime.tools.impls.note.write_note.note_repo.create",
+        AsyncMock(),
+    ) as create_note:
+        result = await tool.ainvoke(
+            {
+                "title": "超限笔记",
+                "content": "\n".join("内容" for _ in range(2001)),
+            }
+        )
+
+    assert "内容超出限制" in json.loads(result)["error"]
+    create_note.assert_not_awaited()
 
 
 async def test_write_note_builds_approval_diff_preview() -> None:
