@@ -67,6 +67,10 @@ jobs:
       - name: Build Python package
         working-directory: backend
         run: uv build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: backend-dist
+          path: backend/dist/*.whl
 
   docker:
     name: Docker (${{ matrix.platform }})
@@ -93,7 +97,7 @@ jobs:
 
   desktop:
     name: Desktop (${{ matrix.os }} ${{ matrix.arch }})
-    needs: frontend
+    needs: [frontend, python]
     if: "!startsWith(github.event.pull_request.head.ref, 'release-please--')"
     strategy:
       fail-fast: false
@@ -124,6 +128,11 @@ jobs:
         with:
           name: frontend-dist
           path: frontend/dist
+      - uses: actions/download-artifact@v8
+        if: matrix.os == 'macos-15'
+        with:
+          name: backend-dist
+          path: backend-dist
       - uses: pnpm/action-setup@v6
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -144,10 +153,10 @@ jobs:
         working-directory: desktop
         run: pnpm build
       - name: Smoke test macOS runtime
-        if: runner.os == 'macOS'
+        if: matrix.os == 'macos-15'
         working-directory: desktop
         timeout-minutes: 20
-        run: pnpm exec electron tests/main/runtime-smoke.mjs
+        run: pnpm exec electron tests/main/runtime-smoke.mjs ../backend-dist/openfic-*.whl
       - name: Build desktop package
         working-directory: desktop
         run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.target }} --${{ matrix.arch }} --publish never

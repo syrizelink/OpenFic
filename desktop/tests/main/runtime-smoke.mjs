@@ -1,12 +1,34 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { app } from "electron";
 import { stopBackendProcess } from "../../dist/main/process.js";
-import { ensureOpenFicRuntime, startLocalOpenFicBackend } from "../../dist/main/runtime/openfic.js";
+import { startLocalOpenFicBackend } from "../../dist/main/runtime/openfic.js";
 import { ensurePortablePython } from "../../dist/main/runtime/python.js";
 
 const BACKEND_STOP_TIMEOUT_MS = 15_000;
+
+function run(command, args, cwd) {
+  return new Promise((resolve, reject) => {
+    const process = spawn(command, args, { cwd, stdio: "inherit" });
+    process.on("error", reject);
+    process.on("exit", (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(new Error(`${command} ${args.join(" ")} exited with code ${code}`));
+    });
+  });
+}
+
+async function getWheelPath() {
+  const wheelPath = process.argv[2];
+  if (!wheelPath?.endsWith(".whl")) throw new Error("OpenFic wheel path is required");
+  await access(wheelPath);
+  return path.resolve(wheelPath);
+}
 
 async function waitForBackendProcessToStop(backend, timeoutMs) {
   if (backend.process.exitCode !== null || backend.process.signalCode !== null) return;
@@ -43,6 +65,9 @@ async function readDesktopVersion() {
 async function smokeTestRuntime() {
   const userDataDir = await mkdtemp(path.join(os.tmpdir(), "openfic-runtime-smoke-"));
   const runtimeDir = path.join(userDataDir, "runtime");
+  const venvDir = path.join(runtimeDir, "venv");
+  const venvPythonPath = path.join(venvDir, "bin", "python");
+  const uvPath = path.join(venvDir, "bin", "uv");
   let backend = null;
 
   app.setPath("userData", userDataDir);
@@ -51,10 +76,11 @@ async function smokeTestRuntime() {
     await app.whenReady();
     const python = await ensurePortablePython(runtimeDir, (phase, message) => console.log(`${phase}: ${message}`), () => {});
     const expectedVersion = await readDesktopVersion();
-    console.log(`Installing OpenFic runtime ${expectedVersion}`);
-    const { venvPythonPath } = await ensureOpenFicRuntime(python, runtimeDir, expectedVersion, (step, message) => {
-      console.log(`${step}: ${message}`);
-    });
+    const wheelPath = await getWheelPath();
+    console.log(`Installing OpenFic runtime ${expectedVersion} from ${wheelPath}`);
+    await run(python.pythonPath, ["-m", "venv", venvDir], runtimeDir);
+    await run(venvPythonPath, ["-m", "pip", "install", "uv"], runtimeDir);
+    await run(uvPath, ["pip", "install", "--python", venvPythonPath, wheelPath], runtimeDir);
 
     backend = await startLocalOpenFicBackend(venvPythonPath, expectedVersion);
     console.log(`OpenFic runtime smoke test passed: ${backend.baseUrl}`);

@@ -33,6 +33,7 @@ dependencies = [
     "charset-normalizer>=3.4.7",
     "cryptography>=46.0.3",
     "fastapi>=0.127.0",
+    "greenlet>=3.0.0",
     "gunicorn>=23.0.0",
     "itsdangerous>=2.2.0",
     "json-repair>=0.60.1",
