@@ -242,6 +242,71 @@ def test_whitespace_old_text_exact_match_replace_all() -> None:
 
 
 # ---------------------------------------------------------------------------
+# fuzzy_replace - escaped whitespace fallback
+# ---------------------------------------------------------------------------
+
+
+def test_escaped_newlines_replace_blank_lines() -> None:
+    result = fuzzy_replace("11\n\n11\n\n111", r"\n\n", r"\n", replace_all=True)
+    assert result == FuzzyReplaceResult("11\n11\n111", used_fuzzy_match=False)
+
+
+@pytest.mark.parametrize(
+    ("old_text", "actual_old_text", "new_text", "expected_new_text"),
+    [
+        (r"\n", "\n", r"\t", "\t"),
+        (r"\t", "\t", r"\r", "\n"),
+        (r"\r", "\r", r"\n", "\n"),
+    ],
+)
+def test_escaped_whitespace_sequences_are_decoded_for_search_and_replacement(
+    old_text: str,
+    actual_old_text: str,
+    new_text: str,
+    expected_new_text: str,
+) -> None:
+    result = fuzzy_replace(f"before{actual_old_text}after", old_text, new_text)
+    assert result == FuzzyReplaceResult(
+        f"before{expected_new_text}after", used_fuzzy_match=False
+    )
+
+
+@pytest.mark.parametrize(
+    ("content", "old_text"),
+    [
+        ("start\n end", r"\n "),
+        ("start \nend", r" \n"),
+    ],
+)
+def test_escaped_newline_with_surrounding_space_replaces_as_whitespace(
+    content: str,
+    old_text: str,
+) -> None:
+    result = fuzzy_replace(content, old_text, "0")
+    assert result == FuzzyReplaceResult("start0end", used_fuzzy_match=False)
+
+
+@pytest.mark.parametrize(
+    ("old_text", "new_text"),
+    [
+        (r"\n", r"\t"),
+        (r"\t", r"\r"),
+        (r"\r", r"\n"),
+    ],
+)
+def test_literal_escaped_whitespace_takes_precedence_over_fallback(
+    old_text: str,
+    new_text: str,
+) -> None:
+    result = fuzzy_replace(old_text, old_text, new_text)
+    assert result == FuzzyReplaceResult(new_text, used_fuzzy_match=False)
+
+
+def test_mixed_text_and_escaped_newline_is_not_decoded() -> None:
+    assert fuzzy_replace("start\nend", r"start\nend", "X") is None
+
+
+# ---------------------------------------------------------------------------
 # fuzzy_replace - replace_all fuzzy path must be linear (regression)
 # ---------------------------------------------------------------------------
 

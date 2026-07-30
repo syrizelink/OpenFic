@@ -163,6 +163,48 @@ def _match_end_is_whitespace_or_end(content: str, pos: int, length: int) -> bool
     return pos >= length or content[pos].isspace()
 
 
+def _decode_escaped_whitespace(text: str) -> str | None:
+    """Decode an escaped whitespace-only value produced by tool-calling models."""
+    decoded: list[str] = []
+    found_escape = False
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char.isspace():
+            decoded.append(char)
+            index += 1
+            continue
+        if char != "\\" or index + 1 >= len(text):
+            return None
+        escaped = text[index + 1]
+        replacement = {"n": "\n", "r": "\r", "t": "\t"}.get(escaped)
+        if replacement is None:
+            return None
+        decoded.append(replacement)
+        found_escape = True
+        index += 2
+    return "".join(decoded) if found_escape else None
+
+
+def _replace_escaped_whitespace(
+    content: str,
+    old_text: str,
+    new_text: str,
+    *,
+    replace_all: bool,
+) -> FuzzyReplaceResult | None:
+    decoded_old_text = _decode_escaped_whitespace(old_text)
+    if decoded_old_text is None:
+        return None
+    decoded_new_text = _decode_escaped_whitespace(new_text) or new_text
+    return fuzzy_replace(
+        content,
+        decoded_old_text,
+        decoded_new_text,
+        replace_all=replace_all,
+    )
+
+
 def fuzzy_replace(
     content: str,
     old_text: str,
@@ -207,7 +249,9 @@ def fuzzy_replace(
     # position -- corrupting content with ``replace_all=False`` and looping
     # forever with ``replace_all=True``. Treat it as "not found".
     if not fuzzy_old_text:
-        return None
+        return _replace_escaped_whitespace(
+            content, old_text, new_text, replace_all=replace_all
+        )
 
     # When the query's trailing whitespace was stripped by normalization,
     # ``fuzzy_old_text`` may be a *prefix* of a longer run in the content --
@@ -240,7 +284,9 @@ def fuzzy_replace(
         start = match_end
 
     if not replacements:
-        return None
+        return _replace_escaped_whitespace(
+            content, old_text, new_text, replace_all=replace_all
+        )
 
     new_content = _apply_replacements_preserving_unchanged(
         content, fuzzy_content, replacements
