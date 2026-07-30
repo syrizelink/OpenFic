@@ -56,7 +56,9 @@ const wordsCount = (wordsCountModule as unknown as WordsCountModule).wordsCount;
 
 interface ChapterEditorProps {
   chapterId: string | null;
+  scrollTop?: number;
   onChapterUpdate?: (chapter: Chapter) => void;
+  onScrollPositionChange?: (chapterId: string, scrollTop: number) => void;
   onAddToConversation?: (markup: string) => void;
   projectId?: string;
   isAgentLocked?: boolean;
@@ -65,10 +67,12 @@ interface ChapterEditorProps {
 
 interface ChapterEditorContentProps {
   chapter: Chapter;
+  scrollTop: number;
   initialDraft: WritingDraft;
   initialDraftUpdatedAt: Date;
   workingCopy: WritingWorkingCopyController;
   onChapterUpdate?: (chapter: Chapter) => void;
+  onScrollPositionChange?: (chapterId: string, scrollTop: number) => void;
   onAddToConversation?: (markup: string) => void;
   projectId?: string;
   isAgentLocked?: boolean;
@@ -77,10 +81,12 @@ interface ChapterEditorContentProps {
 
 function ChapterEditorContent({
   chapter,
+  scrollTop,
   initialDraft,
   initialDraftUpdatedAt,
   workingCopy,
   onChapterUpdate,
+  onScrollPositionChange,
   onAddToConversation,
   projectId,
   isAgentLocked = false,
@@ -90,6 +96,9 @@ function ChapterEditorContent({
   const updateMutation = useUpdateChapter();
   const { containerRef, scrollbarProps } = useScrollbarAutoHide();
   const editorContentRef = useRef<HTMLDivElement>(null);
+  const initialScrollTopRef = useRef(scrollTop);
+  const latestScrollTopRef = useRef(scrollTop);
+  const scrollPositionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { updateTabTitle } = useTabsStore();
   const navigate = useNavigate();
   const { clearWorkingCopy, persistWorkingCopy } = workingCopy;
@@ -192,6 +201,33 @@ function ChapterEditorContent({
     setFindReplaceMode("replace");
   }, [isAgentLocked, showLockedToast]);
 
+  const flushScrollPosition = useCallback(() => {
+    if (scrollPositionTimerRef.current) {
+      clearTimeout(scrollPositionTimerRef.current);
+      scrollPositionTimerRef.current = null;
+    }
+    const scrollPosition = containerRef.current?.scrollTop ?? latestScrollTopRef.current;
+    latestScrollTopRef.current = scrollPosition;
+    onScrollPositionChange?.(chapter.id, scrollPosition);
+  }, [chapter.id, containerRef, onScrollPositionChange]);
+
+  const handleEditorScroll = useCallback(() => {
+    const scrollPosition = containerRef.current?.scrollTop;
+    if (scrollPosition === undefined) return;
+
+    latestScrollTopRef.current = scrollPosition;
+    if (scrollPositionTimerRef.current) return;
+
+    scrollPositionTimerRef.current = setTimeout(() => {
+      scrollPositionTimerRef.current = null;
+      onScrollPositionChange?.(chapter.id, latestScrollTopRef.current);
+    }, 250);
+  }, [chapter.id, containerRef, onScrollPositionChange]);
+
+  useEffect(() => {
+    return flushScrollPosition;
+  }, [flushScrollPosition]);
+
   const persistDraft = useCallback(
     (draft: WritingDraft) => {
       latestDraftUpdatedAtRef.current = getNextWritingWorkingCopyTimestamp(
@@ -253,6 +289,31 @@ function ChapterEditorContent({
       setWordCount(wordsCount(editor.getText()));
     },
   });
+
+  useEffect(() => {
+    if (!editor) return;
+
+    let restoreFrameId: number | null = null;
+    const frameId = window.requestAnimationFrame(() => {
+      restoreFrameId = window.requestAnimationFrame(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+        const restoredScrollTop = Math.min(initialScrollTopRef.current, maxScrollTop);
+        container.scrollTop = restoredScrollTop;
+        latestScrollTopRef.current = restoredScrollTop;
+        if (restoredScrollTop !== initialScrollTopRef.current) {
+          onScrollPositionChange?.(chapter.id, restoredScrollTop);
+        }
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      if (restoreFrameId !== null) window.cancelAnimationFrame(restoreFrameId);
+    };
+  }, [chapter.id, containerRef, editor, onScrollPositionChange]);
 
   const handleSave = useCallback(
     async (isManualSave = false) => {
@@ -549,6 +610,7 @@ function ChapterEditorContent({
         onWheel={scrollbarProps.onWheel}
         onMouseMove={scrollbarProps.onMouseMove}
         onMouseLeave={scrollbarProps.onMouseLeave}
+        onScroll={handleEditorScroll}
         onClick={isAgentLocked ? showLockedToast : undefined}
       >
         <Box
@@ -621,7 +683,9 @@ function ChapterEditorContent({
 
 export function ChapterEditor({
   chapterId,
+  scrollTop = 0,
   onChapterUpdate,
+  onScrollPositionChange,
   onAddToConversation,
   projectId,
   isAgentLocked = false,
@@ -667,9 +731,11 @@ export function ChapterEditor({
     <ChapterEditorWorkingCopy
       key={`${data.entity.id}:${data.draftUpdatedAt.getTime()}`}
       chapter={data.entity}
+      scrollTop={scrollTop}
       initialDraft={data.draft}
       initialDraftUpdatedAt={data.draftUpdatedAt}
       onChapterUpdate={onChapterUpdate}
+      onScrollPositionChange={onScrollPositionChange}
       onAddToConversation={onAddToConversation}
       projectId={projectId}
       isAgentLocked={isAgentLocked}
@@ -680,9 +746,11 @@ export function ChapterEditor({
 
 function ChapterEditorWorkingCopy({
   chapter,
+  scrollTop,
   initialDraft,
   initialDraftUpdatedAt,
   onChapterUpdate,
+  onScrollPositionChange,
   onAddToConversation,
   projectId,
   isAgentLocked,
@@ -697,10 +765,12 @@ function ChapterEditorWorkingCopy({
     <ChapterEditorContent
       key={`${chapter.id}:${initialDraftUpdatedAt.getTime()}`}
       chapter={chapter}
+      scrollTop={scrollTop}
       initialDraft={initialDraft}
       initialDraftUpdatedAt={initialDraftUpdatedAt}
       workingCopy={workingCopy}
       onChapterUpdate={onChapterUpdate}
+      onScrollPositionChange={onScrollPositionChange}
       onAddToConversation={onAddToConversation}
       projectId={projectId}
       isAgentLocked={isAgentLocked}

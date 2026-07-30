@@ -128,6 +128,14 @@ export function CharacterEditor({
 
   useEffect(() => {
     if (!character) return;
+
+    if (hasChangesRef.current) return;
+
+    const hasSameContent =
+      latestValueRef.current.name === character.name &&
+      latestValueRef.current.description === character.description;
+    if (hasSameContent) return;
+
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;

@@ -7,9 +7,11 @@ import { useTranslation } from "react-i18next";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { useSearchParams } from "react-router";
 
+import { PanelLayoutLoading } from "@/components";
 import { toast } from "@/components/toast";
 import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
 import type { AssistantSidebarState } from "@/features/assistant";
+import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
 import {
   batchDeleteCharacters,
   batchFavoriteCharacters,
@@ -34,6 +36,8 @@ import "./characters-page.css";
 
 const LAST_PROJECT_KEY = "characters.lastProjectId";
 const LAST_CHARACTER_KEY = "characters.lastCharacterId";
+const PANEL_LAYOUT_KEY = "panel-layout.characters";
+const PANEL_IDS = ["characters-list", "characters-editor", "characters-right"];
 const MotionBox = motion.create(Box);
 const MOBILE_SIDEBAR_WIDTH = 320;
 
@@ -80,6 +84,7 @@ export function CharactersPage() {
     isAgentRunning: false,
   });
   const [selectedCharacterLoadVersion, setSelectedCharacterLoadVersion] = useState(0);
+  const panelLayout = usePersistedPanelLayout(PANEL_LAYOUT_KEY, PANEL_IDS, !isMobile);
   const isCreatingCharacterRef = useRef(false);
   const skipCharacterRestoreProjectIdRef = useRef<string | null>(null);
 
@@ -403,10 +408,12 @@ export function CharactersPage() {
       className="characters-page"
       direction="column"
     >
-      {currentProjectId && !isMobile ? (
+      {currentProjectId && !isMobile && panelLayout.isLoaded ? (
         <Group
           orientation="horizontal"
           className="characters-page-body"
+          defaultLayout={panelLayout.defaultLayout}
+          onLayoutChanged={panelLayout.onLayoutChanged}
         >
           <Panel
             id="characters-list"
@@ -445,7 +452,7 @@ export function CharactersPage() {
             </Box>
           </Panel>
         </Group>
-      ) : currentProjectId ? (
+      ) : currentProjectId && isMobile ? (
         <Box className="characters-page-body characters-page-body--mobile">
           <Box className="characters-panel characters-editor-shell characters-editor-shell--mobile">
             <Flex
@@ -510,6 +517,8 @@ export function CharactersPage() {
             </MotionBox>
           </Box>
         </Box>
+      ) : currentProjectId ? (
+        <PanelLayoutLoading />
       ) : (
         <Flex
           className="characters-project-empty"

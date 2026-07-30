@@ -8,3 +8,8 @@
 @import "./overrides/sonner.css";
 
 @layer tokens, base, utilities;
+@layer base {
+  .panel-layout-loading {
+    min-height: 0;
+  }
+}

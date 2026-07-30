@@ -108,8 +108,17 @@ export function MarkdownEditor({
     if (!currentEditor) return;
     if (content === contentSyncedRef.current) return;
 
+    const { from, to } = currentEditor.state.selection;
+    const wasFocused = currentEditor.isFocused;
     contentSyncedRef.current = content;
     currentEditor.commands.setContent(content, { contentType: "markdown", emitUpdate: false });
+    if (!wasFocused) return;
+
+    const maxPosition = Math.max(1, currentEditor.state.doc.content.size);
+    currentEditor.commands.setTextSelection({
+      from: Math.min(from, maxPosition),
+      to: Math.min(to, maxPosition),
+    });
   }, [content]);
 
   useHotkeys(

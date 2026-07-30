@@ -15,8 +15,9 @@ import "./prompt-chains-page.css";
 import { useSearchParams } from "react-router";
 import { v4 as uuidv4 } from "uuid";
 
-import { ConfirmDialog, PromptChainDialog } from "@/components";
-import { MobileAppSidebarTrigger } from "@/features/app-shell";
+import { ConfirmDialog, PanelLayoutLoading, PromptChainDialog } from "@/components";
+import { MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
+import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
 import { fetchPromptChainsMetadata, compilePromptChain, resetPromptChain } from "@/lib/api-client";
 import type { PromptEntryData, CompileResponse } from "@/lib/prompt-chain.types";
 import type { PromptChainsMetadata } from "@/lib/prompt-chain.types";
@@ -31,6 +32,8 @@ const MotionBox = motion.create(Box);
 const DEFAULT_PROMPT_ID = "builtin-agent--explore";
 const VERSION_HISTORY_COLLAPSED_SIZE = 36;
 const VERSION_HISTORY_MIN_SIZE = 72;
+const PANEL_LAYOUT_KEY = "panel-layout.prompt-chains";
+const PANEL_IDS = ["left-sidebar", "editor"];
 
 function getInitialPromptSelection(searchParams: URLSearchParams): string {
   return searchParams.get("prompt") || DEFAULT_PROMPT_ID;
@@ -81,21 +84,11 @@ export function PromptChainsPage() {
   // 重置相关状态
   const [isResetting, setIsResetting] = useState(false);
 
-  // 响应式检测
-  const [isMobile, setIsMobile] = useState(false);
+  const { isMobile } = useAppShell();
   const [mobileEntriesOpen, setMobileEntriesOpen] = useState(false);
   const [isVersionHistoryCollapsed, setIsVersionHistoryCollapsed] = useState(false);
   const versionHistoryPanelRef = useRef<PanelImperativeHandle | null>(null);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
+  const panelLayout = usePersistedPanelLayout(PANEL_LAYOUT_KEY, PANEL_IDS, !isMobile);
 
   // 加载元数据
   useEffect(() => {
@@ -349,10 +342,12 @@ export function PromptChainsPage() {
     <Box className="prompt-chains-page-root">
       {/* 主内容区 - resizable panels */}
       <Box className="prompt-chains-page-main">
-        {!isMobile ? (
+        {!isMobile && panelLayout.isLoaded ? (
           <Group
             orientation="horizontal"
             className="prompt-chains-page-group"
+            defaultLayout={panelLayout.defaultLayout}
+            onLayoutChanged={panelLayout.onLayoutChanged}
           >
             {/* 左侧边栏：条目列表 */}
             <Panel
@@ -402,7 +397,7 @@ export function PromptChainsPage() {
               </div>
             </Panel>
           </Group>
-        ) : (
+        ) : isMobile ? (
           <Flex className="prompt-chains-page-mobile-layout">
             <Flex
               align="center"
@@ -458,6 +453,8 @@ export function PromptChainsPage() {
               )}
             </div>
           </Flex>
+        ) : (
+          <PanelLayoutLoading />
         )}
 
         {isMobile && (

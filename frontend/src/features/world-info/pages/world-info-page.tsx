@@ -15,9 +15,11 @@ import { useSearchParams } from "react-router";
 
 import "./world-info-page.css";
 
+import { PanelLayoutLoading } from "@/components";
 import { toast } from "@/components/toast";
 import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
 import type { AssistantSidebarState } from "@/features/assistant";
+import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
 import {
   fetchWorldInfoByProject,
   fetchProjects,
@@ -49,6 +51,8 @@ import {
 
 const LAST_PROJECT_KEY = "worldInfo.lastProjectId";
 const LAST_ENTRY_KEY = "worldInfo.lastEntryId";
+const PANEL_LAYOUT_KEY = "panel-layout.world-info";
+const PANEL_IDS = ["left-sidebar", "editor", "right-sidebar"];
 const MotionBox = motion.create(Box);
 const MOBILE_SIDEBAR_WIDTH = 320;
 
@@ -85,6 +89,7 @@ export function WorldInfoPage() {
   // 删除确认对话框状态
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<WorldInfoEntryBrief | null>(null);
+  const panelLayout = usePersistedPanelLayout(PANEL_LAYOUT_KEY, PANEL_IDS, !isMobile);
 
   // 排序状态
   type SortField = "order" | "uid" | "tokenCount" | "name";
@@ -767,10 +772,12 @@ export function WorldInfoPage() {
           direction="column"
           style={{ height: "100%", minHeight: 0 }}
         >
-          {!isMobile && currentProjectId ? (
+          {!isMobile && currentProjectId && panelLayout.isLoaded ? (
             <Group
               orientation="horizontal"
               className="world-info-page-group"
+              defaultLayout={panelLayout.defaultLayout}
+              onLayoutChanged={panelLayout.onLayoutChanged}
             >
               <Panel
                 id="left-sidebar"
@@ -812,7 +819,7 @@ export function WorldInfoPage() {
                 </Box>
               </Panel>
             </Group>
-          ) : currentProjectId ? (
+          ) : currentProjectId && isMobile ? (
             <Flex className="world-info-page-mobile-layout">
               <Box className="world-info-page-editor-shell world-info-page-editor-shell--mobile">
                 <Flex
@@ -882,6 +889,8 @@ export function WorldInfoPage() {
                 </MotionBox>
               </Box>
             </Flex>
+          ) : currentProjectId ? (
+            <PanelLayoutLoading />
           ) : (
             <Flex
               align="center"

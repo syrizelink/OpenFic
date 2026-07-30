@@ -18,6 +18,7 @@ export type { AutocompleteItem, AutocompletePopoverProps } from "./autocomplete-
 export { GlobalLoading } from "./global-loading";
 export { Spinner } from "./spinner";
 export type { SpinnerProps } from "./spinner";
+export { PanelLayoutLoading } from "./panel-layout-loading";
 export { ModelIdSelect } from "./model-id-select";
 export type { ModelIdSelectOption } from "./model-id-select";
 export { getModelValue } from "./model-id-select";

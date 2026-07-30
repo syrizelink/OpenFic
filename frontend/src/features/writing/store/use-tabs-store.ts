@@ -29,6 +29,7 @@ interface TabsActions {
   setActiveTab: (tabId: string | null) => void;
   toggleLock: (tabId: string) => void;
   updateTabTitle: (tabId: string, title: string) => void;
+  updateTabScrollPosition: (tabId: string, scrollTop: number) => void;
   syncTabsWithChapters: (chapters: { id: string; title: string }[]) => void;
   syncTabs: (items: { id: string; title: string }[], type: "chapter" | "note") => void;
   removeTabsByReference: (type: "chapter" | "note", refId: string) => void;
@@ -59,18 +60,21 @@ function toRecord(tab: EditorTab): EditorTabRecord {
     type: tab.type,
     title: tab.title,
     isLocked: tab.isLocked,
+    scrollTop: tab.scrollTop,
   };
 }
 
 function fromRecord(record: EditorTabRecord): EditorTab {
   const type = (record.type as "chapter" | "note") || "chapter";
   const refId = record.refId ?? record.chapterId ?? null;
+  const scrollTop = Number.isFinite(record.scrollTop) ? Math.max(0, record.scrollTop!) : 0;
   return {
     id: record.id,
     type,
     refId,
     title: record.title,
     isLocked: record.isLocked,
+    scrollTop,
   };
 }
 
@@ -149,6 +153,7 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
       refId,
       title,
       isLocked: false,
+      scrollTop: 0,
     };
     newTabs.push(newTab);
 
@@ -167,6 +172,7 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
       refId,
       title,
       isLocked: false,
+      scrollTop: 0,
     };
 
     set({
@@ -195,6 +201,7 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
         refId: null,
         title: "",
         isLocked: false,
+        scrollTop: 0,
       };
       set({
         tabs: [emptyTab],
@@ -242,6 +249,7 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
         refId: null,
         title: "",
         isLocked: false,
+        scrollTop: 0,
       };
       set({
         tabs: [emptyTab],
@@ -273,6 +281,7 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
       refId: null,
       title: "",
       isLocked: false,
+      scrollTop: 0,
     };
 
     const newTabs = [...tabs, emptyTab];
@@ -293,6 +302,21 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
   updateTabTitle: (tabId, title) => {
     const { tabs, activeTabId, currentProjectId } = get();
     const newTabs = tabs.map((t) => (t.id === tabId ? { ...t, title } : t));
+    set({ tabs: newTabs });
+    persistTabs(currentProjectId, newTabs, activeTabId);
+  },
+
+  updateTabScrollPosition: (tabId, scrollTop) => {
+    if (!Number.isFinite(scrollTop)) return;
+
+    const { tabs, activeTabId, currentProjectId } = get();
+    const nextScrollTop = Math.max(0, scrollTop);
+    const tab = tabs.find((item) => item.id === tabId);
+    if (!tab || tab.type !== "chapter" || tab.scrollTop === nextScrollTop) return;
+
+    const newTabs = tabs.map((item) =>
+      item.id === tabId ? { ...item, scrollTop: nextScrollTop } : item,
+    );
     set({ tabs: newTabs });
     persistTabs(currentProjectId, newTabs, activeTabId);
   },

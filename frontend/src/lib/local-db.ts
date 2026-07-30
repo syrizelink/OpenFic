@@ -32,6 +32,7 @@ interface EditorTabRecord {
   type?: string;
   title: string;
   isLocked: boolean;
+  scrollTop?: number;
 }
 
 interface ProjectTabs {

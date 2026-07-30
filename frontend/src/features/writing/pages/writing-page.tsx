@@ -8,8 +8,10 @@ import { useParams } from "react-router";
 
 import "./writing-page.css";
 
+import { PanelLayoutLoading } from "@/components";
 import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
 import type { AssistantSidebarState } from "@/features/assistant";
+import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
 import { getLastChapterId, setLastChapterId } from "@/lib/local-db";
 
 import { ChapterEditor } from "../components/chapter-editor";
@@ -26,6 +28,8 @@ import { useWritingStore } from "../store/use-writing-store";
 
 const MotionBox = motion.create(Box);
 const MOBILE_SIDEBAR_WIDTH = 320;
+const PANEL_LAYOUT_KEY = "panel-layout.writing";
+const PANEL_IDS = ["left-sidebar", "editor", "right-sidebar"];
 const SummaryPanel = lazy(() =>
   import("../components/summary-panel").then((module) => ({ default: module.SummaryPanel })),
 );
@@ -45,10 +49,12 @@ export function WritingPage() {
     closeAllTabs,
     showEmptyTab,
     setCurrentProject,
+    updateTabScrollPosition,
   } = useTabsStore();
   const activeTabId = useActiveTabId();
   const tabs = useTabs();
   const isTabsLoaded = useTabsLoaded();
+  const panelLayout = usePersistedPanelLayout(PANEL_LAYOUT_KEY, PANEL_IDS, !isMobile);
 
   const activeTab = useMemo(() => tabs.find((t) => t.id === activeTabId), [tabs, activeTabId]);
   const activeRefId = useMemo(() => activeTab?.refId ?? null, [activeTab]);
@@ -58,6 +64,7 @@ export function WritingPage() {
     () => (activeTab?.type === "chapter" ? activeTab.refId : null),
     [activeTab],
   );
+  const activeChapterScrollTop = activeTab?.type === "chapter" ? activeTab.scrollTop : 0;
 
   const createMutation = useCreateChapter(projectId ?? "");
   const createVolumeMutation = useCreateVolume(projectId ?? "");
@@ -254,6 +261,13 @@ export function WritingPage() {
     [handleSelectItem],
   );
 
+  const handleChapterScrollPositionChange = useCallback(
+    (chapterId: string, scrollTop: number) => {
+      updateTabScrollPosition(`chapter:${chapterId}`, scrollTop);
+    },
+    [updateTabScrollPosition],
+  );
+
   const handleNoteSelect = useCallback(
     (noteId: string, noteTitle: string) => {
       handleSelectItem(noteId, noteTitle, "note");
@@ -348,10 +362,12 @@ export function WritingPage() {
       <PageLoadingOverlay isLoading={isPageLoading} />
 
       <Box className="writing-page-shell">
-        {!isMobile ? (
+        {!isMobile && panelLayout.isLoaded ? (
           <Group
             orientation="horizontal"
             className="writing-page-group"
+            defaultLayout={panelLayout.defaultLayout}
+            onLayoutChanged={panelLayout.onLayoutChanged}
           >
             <Panel
               id="left-sidebar"
@@ -388,8 +404,10 @@ export function WritingPage() {
                     ) : (
                       <ChapterEditor
                         chapterId={activeRefId}
+                        scrollTop={activeChapterScrollTop}
                         projectId={projectId}
                         isAgentLocked={isAgentLocked}
+                        onScrollPositionChange={handleChapterScrollPositionChange}
                         onAddToConversation={
                           isViewingSubagent ? undefined : handleAddToConversation
                         }
@@ -425,7 +443,7 @@ export function WritingPage() {
               </Box>
             </Panel>
           </Group>
-        ) : (
+        ) : isMobile ? (
           <Flex className="writing-page-mobile-layout">
             <div className="writing-page-editor-shell writing-page-editor-shell--mobile">
               <Flex
@@ -475,8 +493,10 @@ export function WritingPage() {
                   ) : (
                     <ChapterEditor
                       chapterId={activeRefId}
+                      scrollTop={activeChapterScrollTop}
                       projectId={projectId}
                       isAgentLocked={isAgentLocked}
+                      onScrollPositionChange={handleChapterScrollPositionChange}
                       onOpenSummary={handleOpenSummary}
                     />
                   )
@@ -523,6 +543,8 @@ export function WritingPage() {
               </MotionBox>
             </div>
           </Flex>
+        ) : (
+          <PanelLayoutLoading />
         )}
       </Box>
 
