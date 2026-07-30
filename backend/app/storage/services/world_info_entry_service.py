@@ -22,16 +22,6 @@ class WorldInfoEntryNameConflictError(ValueError):
 
 
 @dataclass
-class WorldInfoEntryListResult:
-    """世界书条目列表结果。"""
-
-    items: list[WorldInfoEntry]
-    total: int
-    page: int
-    page_size: int
-
-
-@dataclass
 class WorldInfoImportEntry:
     """归一化后的世界书导入条目。"""
 
@@ -106,9 +96,7 @@ async def _get_existing_entry_names(
     world_info_id: str,
     exclude_entry_id: str | None = None,
 ) -> set[str]:
-    entries = await world_info_entry_repo.list_by_world_info(
-        session, world_info_id, offset=0, limit=10000
-    )
+    entries = await world_info_entry_repo.list_all_by_world_info(session, world_info_id)
     return {entry.name for entry in entries if entry.id != exclude_entry_id}
 
 
@@ -213,9 +201,7 @@ async def import_entries(
         await world_info_entry_repo.delete_by_world_info(session, world_info_id)
         existing_entries: list[WorldInfoEntry] = []
     else:
-        existing_entries = await world_info_entry_repo.list_by_world_info(
-            session, world_info_id, offset=0, limit=10000
-        )
+        existing_entries = await world_info_entry_repo.list_all_by_world_info(session, world_info_id)
 
     existing_by_name = {entry.name: entry for entry in existing_entries}
     max_uid = await world_info_entry_repo.get_max_uid(session, world_info_id)
@@ -332,20 +318,15 @@ async def get_entry(session: AsyncSession, entry_id: str) -> WorldInfoEntry:
 async def list_entries(
     session: AsyncSession,
     world_info_id: str,
-    page: int = 1,
-    page_size: int = 100,
-) -> WorldInfoEntryListResult:
+) -> list[WorldInfoEntry]:
     """
     获取世界书条目列表。
 
     Args:
         session: 数据库 session。
         world_info_id: 世界书 ID。
-        page: 页码（从 1 开始）。
-        page_size: 每页数量。
-
     Returns:
-        条目列表结果。
+        条目列表。
 
     Raises:
         NotFoundError: 世界书不存在。
@@ -353,14 +334,7 @@ async def list_entries(
     # 检查世界书是否存在
     await get_world_info(session, world_info_id)
 
-    offset = (page - 1) * page_size
-    items = await world_info_entry_repo.list_by_world_info(
-        session, world_info_id, offset=offset, limit=page_size
-    )
-    total = await world_info_entry_repo.count_by_world_info(session, world_info_id)
-    return WorldInfoEntryListResult(
-        items=items, total=total, page=page, page_size=page_size
-    )
+    return await world_info_entry_repo.list_all_by_world_info(session, world_info_id)
 
 
 async def update_entry(
@@ -421,7 +395,7 @@ async def delete_all_entries(session: AsyncSession, world_info_id: str) -> int:
         删除的条目数量。
     """
     await get_world_info(session, world_info_id)
-    entries = await world_info_entry_repo.list_by_world_info(session, world_info_id)
+    entries = await world_info_entry_repo.list_all_by_world_info(session, world_info_id)
     count = len(entries)
     await world_info_entry_repo.delete_by_world_info(session, world_info_id)
     return count
@@ -526,15 +500,11 @@ async def reorder_entries(
     """
     if not orders:
         # 如果没有需要更新的条目，返回所有条目
-        return await world_info_entry_repo.list_by_world_info(
-            session, world_info_id, offset=0, limit=10000
-        )
+        return await world_info_entry_repo.list_all_by_world_info(session, world_info_id)
 
     # 验证所有条目ID是否存在且属于该世界书
     entry_ids = list(orders.keys())
-    entries = await world_info_entry_repo.list_by_world_info(
-        session, world_info_id, offset=0, limit=10000
-    )
+    entries = await world_info_entry_repo.list_all_by_world_info(session, world_info_id)
     entry_map = {entry.id: entry for entry in entries}
 
     for entry_id in entry_ids:
@@ -572,9 +542,7 @@ async def reorder_entries(
         await session.refresh(entry)
 
     # 返回所有条目，按新顺序排序
-    all_entries = await world_info_entry_repo.list_by_world_info(
-        session, world_info_id, offset=0, limit=10000
-    )
+    all_entries = await world_info_entry_repo.list_all_by_world_info(session, world_info_id)
     return sorted(all_entries, key=lambda e: e.order)
 
 

@@ -37,8 +37,6 @@ class CharacterListResponse(BaseModel):
 
     items: list[CharacterListItemResponse] = Field(description="角色列表")
     total: int = Field(description="总数")
-    page: int = Field(description="当前页码")
-    page_size: int = Field(description="每页数量")
 
 
 class CharacterSearchMatch(BaseModel):

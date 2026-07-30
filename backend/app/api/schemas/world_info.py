@@ -126,8 +126,6 @@ class WorldInfoEntryBriefListResponse(BaseModel):
 
     items: list[WorldInfoEntryBriefResponse] = Field(description="条目列表")
     total: int = Field(description="总数")
-    page: int = Field(description="当前页码")
-    page_size: int = Field(description="每页数量")
 
 
 class WorldInfoImportPreviewEntry(BaseModel):

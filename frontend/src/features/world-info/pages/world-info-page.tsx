@@ -8,7 +8,7 @@ import { Box, Flex, Text, Dialog, Button, Skeleton, IconButton, Tooltip } from "
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bot, List } from "lucide-react";
 import { motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Panel, Group, Separator } from "react-resizable-panels";
 import { useSearchParams } from "react-router";
@@ -93,6 +93,7 @@ export function WorldInfoPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [isCreatingEntry, setIsCreatingEntry] = useState(false);
   const [scrollToLine, setScrollToLine] = useState<number | null>(null);
+  const skipEntryRestoreWorldInfoIdRef = useRef<string | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [assistantState, setAssistantState] = useState<AssistantSidebarState>({
     agentStatus: "idle",
@@ -158,13 +159,19 @@ export function WorldInfoPage() {
   }, [currentProjectId, setCurrentEntry, setCurrentWorldInfo]);
 
   useEffect(() => {
+    if (skipEntryRestoreWorldInfoIdRef.current !== currentWorldInfoId) {
+      skipEntryRestoreWorldInfoIdRef.current = null;
+    }
+  }, [currentWorldInfoId]);
+
+  useEffect(() => {
     if (currentEntryId) void setPreference(LAST_ENTRY_KEY, currentEntryId);
   }, [currentEntryId]);
 
   // 获取条目列表（轻量，不含 content）
   const { data: entriesData, isLoading: entriesLoading } = useQuery({
     queryKey: ["world-info-entries", currentWorldInfoId],
-    queryFn: () => fetchWorldInfoEntries(currentWorldInfoId!, { page: 1, pageSize: 500 }),
+    queryFn: () => fetchWorldInfoEntries(currentWorldInfoId!),
     enabled: !!currentWorldInfoId,
     staleTime: 0,
   });
@@ -181,7 +188,13 @@ export function WorldInfoPage() {
 
   useEffect(() => {
     const restoreEntry = async () => {
-      if (!currentWorldInfoId || currentEntryId || entries.length === 0) return;
+      if (
+        !currentWorldInfoId ||
+        currentEntryId ||
+        entries.length === 0 ||
+        skipEntryRestoreWorldInfoIdRef.current === currentWorldInfoId
+      )
+        return;
       const cachedEntryId = await getPreference(LAST_ENTRY_KEY);
       if (cachedEntryId && entries.some((entry) => entry.id === cachedEntryId)) {
         setCurrentEntry(cachedEntryId);
@@ -214,6 +227,44 @@ export function WorldInfoPage() {
     [],
   );
 
+  const removeEntryCaches = useCallback(
+    async (worldInfoId: string, entryIds: string[]) => {
+      const deletedEntryIds = new Set(entryIds);
+      await queryClient.cancelQueries({
+        queryKey: ["world-info-entries", worldInfoId],
+        exact: true,
+      });
+      await Promise.all(
+        entryIds.map((entryId) =>
+          queryClient.cancelQueries({
+            queryKey: ["world-info-entry-detail", entryId],
+            exact: true,
+          }),
+        ),
+      );
+      queryClient.setQueryData(
+        ["world-info-entries", worldInfoId],
+        (oldData: WorldInfoEntryBriefListResponse | undefined) => {
+          if (!oldData) return oldData;
+          const items = oldData.items.filter((entry) => !deletedEntryIds.has(entry.id));
+          if (items.length === oldData.items.length) return oldData;
+          return {
+            ...oldData,
+            items,
+            total: oldData.total - (oldData.items.length - items.length),
+          };
+        },
+      );
+      entryIds.forEach((entryId) => {
+        queryClient.removeQueries({
+          queryKey: ["world-info-entry-detail", entryId],
+          exact: true,
+        });
+      });
+    },
+    [queryClient],
+  );
+
   // 创建条目
   const createEntryMutation = useMutation({
     mutationFn: (name: string) =>
@@ -229,8 +280,6 @@ export function WorldInfoPage() {
             return {
               items: [brief],
               total: 1,
-              page: 1,
-              pageSize: 500,
             };
           }
 
@@ -295,14 +344,17 @@ export function WorldInfoPage() {
   // 删除条目
   const deleteEntryMutation = useMutation({
     mutationFn: (entryId: string) => deleteWorldInfoEntry(entryId),
-    onSuccess: () => {
-      toast.success(t("worldInfo.entryDeleted"));
+    onSuccess: async (_data, entryId) => {
+      if (!currentWorldInfoId) return;
+      if (useWorldInfoStore.getState().currentEntryId === entryId) {
+        skipEntryRestoreWorldInfoIdRef.current = currentWorldInfoId;
+        setCurrentEntry(null);
+      }
+      await removeEntryCaches(currentWorldInfoId, [entryId]);
       queryClient.invalidateQueries({
         queryKey: ["world-info-entries", currentWorldInfoId],
       });
-      if (entryToDelete && currentEntryId === entryToDelete.id) {
-        setCurrentEntry(null);
-      }
+      toast.success(t("worldInfo.entryDeleted"));
       setEntryToDelete(null);
       setDeleteDialogOpen(false);
     },
@@ -372,8 +424,6 @@ export function WorldInfoPage() {
             return {
               items: reorderedEntries,
               total: reorderedEntries.length,
-              page: 1,
-              pageSize: 500,
             };
           }
           return {
@@ -458,21 +508,25 @@ export function WorldInfoPage() {
 
   /** 批量删除条目 */
   const handleBatchDelete = useCallback(
-    (entryIds: string[]) => {
+    async (entryIds: string[]) => {
       if (!currentWorldInfoId) return;
-      batchDeleteWorldInfoEntries(currentWorldInfoId, entryIds)
-        .then((count) => {
-          toast.success(t("worldInfo.batchDeleted", { count }));
+      try {
+        const count = await batchDeleteWorldInfoEntries(currentWorldInfoId, entryIds);
+        const currentEntryId = useWorldInfoStore.getState().currentEntryId;
+        if (currentEntryId && entryIds.includes(currentEntryId)) {
+          skipEntryRestoreWorldInfoIdRef.current = currentWorldInfoId;
           setCurrentEntry(null);
-          queryClient.invalidateQueries({
-            queryKey: ["world-info-entries", currentWorldInfoId],
-          });
-        })
-        .catch(() => {
-          toast.error(t("worldInfo.deleteFailed"));
+        }
+        await removeEntryCaches(currentWorldInfoId, entryIds);
+        queryClient.invalidateQueries({
+          queryKey: ["world-info-entries", currentWorldInfoId],
         });
+        toast.success(t("worldInfo.batchDeleted", { count }));
+      } catch {
+        toast.error(t("worldInfo.deleteFailed"));
+      }
     },
-    [currentWorldInfoId, queryClient, setCurrentEntry, t],
+    [currentWorldInfoId, queryClient, removeEntryCaches, setCurrentEntry, t],
   );
 
   const batchToggleMutation = useMutation({
@@ -630,7 +684,7 @@ export function WorldInfoPage() {
         />
       </Flex>
     </Box>
-  ) : selectedEntry ? (
+  ) : currentEntryId && selectedEntry ? (
     <EntryEditor
       key={selectedEntry.id}
       entry={selectedEntry}

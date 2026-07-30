@@ -135,10 +135,7 @@ def _build_character_diff(
 
 
 async def _list_project_characters(session, project_id: str) -> list[Character]:
-    characters, _ = await character_repo.list_by_project(
-        session, project_id, page=1, page_size=10000
-    )
-    return characters
+    return await character_repo.list_all_by_project(session, project_id)
 
 
 async def _resolve_character_by_name(session, project_id: str, name: str) -> Character:

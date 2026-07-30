@@ -7,6 +7,9 @@ import json
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.storage.models.world_info_entry import WorldInfoEntry
 
 
 @pytest.fixture
@@ -133,6 +136,33 @@ async def test_list_entries(client: AsyncClient, world_info_id: str) -> None:
     data = response.json()
     assert len(data["items"]) == 3
     assert data["total"] == 3
+
+
+@pytest.mark.asyncio
+async def test_list_entries_returns_all_world_info_entries(
+    client: AsyncClient,
+    session: AsyncSession,
+    world_info_id: str,
+) -> None:
+    session.add_all(
+        [
+            WorldInfoEntry(
+                world_info_id=world_info_id,
+                uid=index + 1,
+                name=f"条目 {index + 1}",
+                order=index + 1,
+            )
+            for index in range(101)
+        ]
+    )
+    await session.flush()
+
+    response = await client.get(f"/api/v1/world-info/{world_info_id}/entries")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 101
+    assert len(data["items"]) == 101
 
 
 @pytest.mark.asyncio

@@ -64,19 +64,13 @@ def to_list_item_response(character: Character) -> CharacterListItemResponse:
 async def list_project_characters(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
-    page: Annotated[int, Query(ge=1, description="页码")] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100, description="每页数量")] = 50,
 ) -> CharacterListResponse:
     """获取项目角色列表。"""
     try:
-        result = await character_service.list_characters_by_project(
-            session, project_id, page=page, page_size=page_size
-        )
+        characters = await character_service.list_characters_by_project(session, project_id)
         return CharacterListResponse(
-            items=[to_list_item_response(character) for character in result.items],
-            total=result.total,
-            page=result.page,
-            page_size=result.page_size,
+            items=[to_list_item_response(character) for character in characters],
+            total=len(characters),
         )
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

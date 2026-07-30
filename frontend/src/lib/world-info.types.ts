@@ -67,14 +67,6 @@ export interface WorldInfoEntryUpdate {
 export interface WorldInfoEntryBriefListResponse {
   items: WorldInfoEntryBrief[];
   total: number;
-  page: number;
-  pageSize: number;
-}
-
-/** 条目列表请求参数 */
-export interface WorldInfoEntryListParams {
-  page?: number;
-  pageSize?: number;
 }
 
 export interface WorldInfoImportPreviewEntry {

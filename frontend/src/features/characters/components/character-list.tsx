@@ -45,6 +45,7 @@ interface CharacterListProps {
   currentProjectId: string;
   selectedCharacterId: string | null;
   isLoading?: boolean;
+  isCreating?: boolean;
   onSelectProject: (projectId: string) => void;
   onCreateCharacter: () => void;
   onSelectCharacter: (characterId: string) => void;
@@ -129,6 +130,7 @@ export function CharacterList({
   currentProjectId,
   selectedCharacterId,
   isLoading = false,
+  isCreating = false,
   onSelectProject,
   onCreateCharacter,
   onSelectCharacter,
@@ -586,6 +588,7 @@ export function CharacterList({
                 <IconButton
                   size="2"
                   variant="soft"
+                  disabled={isCreating}
                   onClick={onCreateCharacter}
                   style={{ width: "100%" }}
                 >
@@ -666,6 +669,7 @@ export function CharacterList({
               <Button
                 size="2"
                 variant="soft"
+                disabled={isCreating}
                 onClick={onCreateCharacter}
               >
                 {t("characters.newCharacter")}

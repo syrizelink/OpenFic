@@ -59,7 +59,7 @@ async def test_create_world_entry_builds_approval_diff_preview() -> None:
             AsyncMock(return_value=_make_world_info()),
         ),
         patch(
-            "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_repo.list_by_world_info",
+            "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_repo.list_all_by_world_info",
             AsyncMock(return_value=[]),
         ),
     ):
@@ -102,7 +102,7 @@ async def test_edit_world_entry_builds_approval_diff_preview() -> None:
             AsyncMock(return_value=_make_world_info()),
         ),
         patch(
-            "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_repo.list_by_world_info",
+            "app.agent_runtime.tools.impls.context.world_entry.world_info_entry_repo.list_all_by_world_info",
             AsyncMock(return_value=[entry]),
         ),
     ):
@@ -148,8 +148,8 @@ async def test_create_character_builds_approval_diff_preview() -> None:
     object.__setattr__(tool, "_config", {"configurable": {"db_session": runtime_session}})
 
     with patch(
-        "app.agent_runtime.tools.impls.context.character.character_repo.list_by_project",
-        AsyncMock(return_value=([], 0)),
+        "app.agent_runtime.tools.impls.context.character.character_repo.list_all_by_project",
+        AsyncMock(return_value=[]),
     ):
         preview = await tool.build_interrupt_preview({"name": "新角色", "description": "角色描述"})
 
@@ -185,8 +185,8 @@ async def test_edit_character_builds_approval_diff_preview() -> None:
     object.__setattr__(tool, "_config", {"configurable": {"db_session": runtime_session}})
 
     with patch(
-        "app.agent_runtime.tools.impls.context.character.character_repo.list_by_project",
-        AsyncMock(return_value=([character], 1)),
+        "app.agent_runtime.tools.impls.context.character.character_repo.list_all_by_project",
+        AsyncMock(return_value=[character]),
     ):
         preview = await tool.build_interrupt_preview(
             {"name": "旧角色", "old_description": "旧描述", "new_description": "新描述"}

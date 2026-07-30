@@ -153,9 +153,7 @@ async def _resolve_entry_by_title(session, world_info_id: str, title: str) -> Wo
     normalized_title = title.strip()
     if not normalized_title:
         raise ToolExecutionError("世界书条目标题不能为空")
-    entries = await world_info_entry_repo.list_by_world_info(
-        session, world_info_id, offset=0, limit=10000
-    )
+    entries = await world_info_entry_repo.list_all_by_world_info(session, world_info_id)
     matches = [entry for entry in entries if entry.name == normalized_title]
     if not matches:
         raise ToolExecutionError(f"世界书条目不存在: {normalized_title}")
@@ -173,9 +171,7 @@ async def _ensure_title_available(
     normalized_title = title.strip()
     if not normalized_title:
         raise ToolExecutionError("世界书条目标题不能为空")
-    entries = await world_info_entry_repo.list_by_world_info(
-        session, world_info_id, offset=0, limit=10000
-    )
+    entries = await world_info_entry_repo.list_all_by_world_info(session, world_info_id)
     if any(
         entry.name == normalized_title and entry.id != exclude_entry_id for entry in entries
     ):

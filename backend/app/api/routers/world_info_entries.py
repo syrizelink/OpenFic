@@ -253,8 +253,6 @@ async def create_entry(
 async def list_entries(
     world_info_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
-    page: Annotated[int, Query(ge=1, description="页码")] = 1,
-    page_size: Annotated[int, Query(ge=1, le=500, description="每页数量")] = 100,
 ) -> WorldInfoEntryBriefListResponse:
     """
     获取世界书的条目列表（轻量，不含 content）。
@@ -262,9 +260,6 @@ async def list_entries(
     Args:
         world_info_id: 世界书 ID。
         session: 数据库 session。
-        page: 页码。
-        page_size: 每页数量。
-
     Returns:
         条目轻量列表。
 
@@ -272,14 +267,10 @@ async def list_entries(
         HTTPException: 世界书不存在。
     """
     try:
-        result = await world_info_entry_service.list_entries(
-            session, world_info_id, page=page, page_size=page_size
-        )
+        entries = await world_info_entry_service.list_entries(session, world_info_id)
         return WorldInfoEntryBriefListResponse(
-            items=[_entry_to_brief_response(e) for e in result.items],
-            total=result.total,
-            page=result.page,
-            page_size=result.page_size,
+            items=[_entry_to_brief_response(entry) for entry in entries],
+            total=len(entries),
         )
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

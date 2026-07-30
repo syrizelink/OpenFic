@@ -77,9 +77,8 @@ import type {
   Character,
   CharacterCreate,
   CharacterListItem,
-  CharacterListParams,
-  CharacterListResponse,
   CharacterSearchResponse,
+  CharacterListResponse,
   CharacterUpdate,
 } from "./character.types";
 import type { AssistantMentionCandidate } from "./mention.types";
@@ -262,22 +261,12 @@ function transformCharacterListItem(raw: Record<string, unknown>): CharacterList
   };
 }
 
-export async function fetchCharactersByProject(
-  projectId: string,
-  params?: CharacterListParams,
-): Promise<CharacterListResponse> {
-  const response = await apiClient.get(`/projects/${projectId}/characters`, {
-    params: {
-      page: params?.page ?? 1,
-      page_size: params?.pageSize ?? 100,
-    },
-  });
+export async function fetchCharactersByProject(projectId: string): Promise<CharacterListResponse> {
+  const response = await apiClient.get(`/projects/${projectId}/characters`);
   const data = response.data;
   return {
     items: (data.items as Record<string, unknown>[]).map(transformCharacterListItem),
     total: data.total,
-    page: data.page,
-    pageSize: data.page_size,
   };
 }
 
@@ -1341,7 +1330,6 @@ import type {
   WorldInfoEntryCreate,
   WorldInfoEntryUpdate,
   WorldInfoEntryBriefListResponse,
-  WorldInfoEntryListParams,
   WorldInfoEntrySearchResponse,
 } from "./world-info.types";
 
@@ -1432,20 +1420,12 @@ export async function deleteWorldInfo(worldInfoId: string): Promise<void> {
  */
 export async function fetchWorldInfoEntries(
   worldInfoId: string,
-  params?: WorldInfoEntryListParams,
 ): Promise<WorldInfoEntryBriefListResponse> {
-  const response = await apiClient.get(`/world-info/${worldInfoId}/entries`, {
-    params: {
-      page: params?.page ?? 1,
-      page_size: params?.pageSize ?? 100,
-    },
-  });
+  const response = await apiClient.get(`/world-info/${worldInfoId}/entries`);
   const data = response.data;
   return {
     items: (data.items as Record<string, unknown>[]).map(transformWorldInfoEntryBrief),
     total: data.total,
-    page: data.page,
-    pageSize: data.page_size,
   };
 }
 

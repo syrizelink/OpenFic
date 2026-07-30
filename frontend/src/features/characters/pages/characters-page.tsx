@@ -2,7 +2,7 @@ import { AlertDialog, Box, Button, Flex, IconButton, Tooltip, Text } from "@radi
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bot, List } from "lucide-react";
 import { motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { useSearchParams } from "react-router";
@@ -80,6 +80,8 @@ export function CharactersPage() {
     isAgentRunning: false,
   });
   const [selectedCharacterLoadVersion, setSelectedCharacterLoadVersion] = useState(0);
+  const isCreatingCharacterRef = useRef(false);
+  const skipCharacterRestoreProjectIdRef = useRef<string | null>(null);
 
   const { data: projectsData } = useQuery({
     queryKey: ["projects", "characters-page"],
@@ -112,9 +114,15 @@ export function CharactersPage() {
     if (currentProjectId) void setPreference(LAST_PROJECT_KEY, currentProjectId);
   }, [currentProjectId]);
 
+  useEffect(() => {
+    if (skipCharacterRestoreProjectIdRef.current !== currentProjectId) {
+      skipCharacterRestoreProjectIdRef.current = null;
+    }
+  }, [currentProjectId]);
+
   const { data: charactersData, isLoading: isCharactersLoading } = useQuery({
     queryKey: ["characters", currentProjectId],
-    queryFn: () => fetchCharactersByProject(currentProjectId!, { page: 1, pageSize: 100 }),
+    queryFn: () => fetchCharactersByProject(currentProjectId!),
     enabled: !!currentProjectId,
     staleTime: 0,
   });
@@ -123,7 +131,13 @@ export function CharactersPage() {
 
   useEffect(() => {
     const restoreCharacter = async () => {
-      if (!currentProjectId || currentCharacterId || characters.length === 0) return;
+      if (
+        !currentProjectId ||
+        currentCharacterId ||
+        characters.length === 0 ||
+        skipCharacterRestoreProjectIdRef.current === currentProjectId
+      )
+        return;
       const cachedCharacterId = await getPreference(LAST_CHARACTER_KEY);
       const nextCharacterId =
         (cachedCharacterId && characters.some((character) => character.id === cachedCharacterId)
@@ -166,11 +180,40 @@ export function CharactersPage() {
             : [updated, ...old.items];
           return {
             ...old,
-            items: sortCharacters(items).slice(0, old.pageSize),
+            items: sortCharacters(items),
             total: exists ? old.total : old.total + 1,
           };
         },
       );
+    },
+    [queryClient],
+  );
+
+  const removeCharacterCaches = useCallback(
+    async (projectId: string, characterIds: string[]) => {
+      const deletedCharacterIds = new Set(characterIds);
+      await queryClient.cancelQueries({ queryKey: ["characters", projectId], exact: true });
+      await Promise.all(
+        characterIds.map((characterId) =>
+          queryClient.cancelQueries({ queryKey: ["character", characterId] }),
+        ),
+      );
+      queryClient.setQueryData(
+        ["characters", projectId],
+        (old: CharacterListResponse | undefined) => {
+          if (!old) return old;
+          const items = old.items.filter((character) => !deletedCharacterIds.has(character.id));
+          if (items.length === old.items.length) return old;
+          return {
+            ...old,
+            items,
+            total: old.total - (old.items.length - items.length),
+          };
+        },
+      );
+      characterIds.forEach((characterId) => {
+        queryClient.removeQueries({ queryKey: ["character", characterId] });
+      });
     },
     [queryClient],
   );
@@ -190,7 +233,16 @@ export function CharactersPage() {
       setCurrentCharacter(character.id);
       toast.success(t("characters.created"));
     },
+    onSettled: () => {
+      isCreatingCharacterRef.current = false;
+    },
   });
+
+  const handleCreateCharacter = () => {
+    if (isCreatingCharacterRef.current) return;
+    isCreatingCharacterRef.current = true;
+    createMutation.mutate();
+  };
 
   const updateMutation = useMutation({
     mutationFn: ({
@@ -245,9 +297,14 @@ export function CharactersPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (characterId: string) => deleteCharacter(characterId),
-    onSuccess: () => {
+    onSuccess: async (_data, characterId) => {
+      if (!currentProjectId) return;
+      if (useCharactersStore.getState().currentCharacterId === characterId) {
+        skipCharacterRestoreProjectIdRef.current = currentProjectId;
+        setCurrentCharacter(null);
+      }
+      await removeCharacterCaches(currentProjectId, [characterId]);
       queryClient.invalidateQueries({ queryKey: ["characters", currentProjectId] });
-      setCurrentCharacter(null);
       setDeleteCharacterTarget(null);
       toast.success(t("characters.deleted"));
     },
@@ -255,10 +312,15 @@ export function CharactersPage() {
 
   const batchDeleteMutation = useMutation({
     mutationFn: (characterIds: string[]) => batchDeleteCharacters(currentProjectId!, characterIds),
-    onSuccess: (_deletedCount, characterIds) => {
-      queryClient.invalidateQueries({ queryKey: ["characters", currentProjectId] });
-      if (currentCharacterId && characterIds.includes(currentCharacterId))
+    onSuccess: async (_deletedCount, characterIds) => {
+      if (!currentProjectId) return;
+      const currentCharacterId = useCharactersStore.getState().currentCharacterId;
+      if (currentCharacterId && characterIds.includes(currentCharacterId)) {
+        skipCharacterRestoreProjectIdRef.current = currentProjectId;
         setCurrentCharacter(null);
+      }
+      await removeCharacterCaches(currentProjectId, characterIds);
+      queryClient.invalidateQueries({ queryKey: ["characters", currentProjectId] });
       toast.success(t("characters.deleted"));
     },
   });
@@ -304,10 +366,11 @@ export function CharactersPage() {
       projectId={currentProjectId ?? ""}
       selectedCharacterId={currentCharacterId}
       isLoading={isCharactersLoading}
+      isCreating={createMutation.isPending}
       projects={projects}
       currentProjectId={currentProjectId ?? ""}
       onSelectProject={handleSelectProject}
-      onCreateCharacter={() => createMutation.mutate()}
+      onCreateCharacter={handleCreateCharacter}
       onSelectCharacter={handleSelectCharacter}
       onEditProfile={setProfileCharacter}
       onDeleteCharacter={setDeleteCharacterTarget}

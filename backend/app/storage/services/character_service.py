@@ -16,16 +16,6 @@ from app.storage.repos import character_repo, project_repo
 
 
 @dataclass
-class CharacterListResult:
-    """角色列表结果。"""
-
-    items: list[Character]
-    total: int
-    page: int
-    page_size: int
-
-
-@dataclass
 class CharacterSearchMatch:
     """角色搜索匹配项。"""
 
@@ -108,16 +98,13 @@ async def get_character(session: AsyncSession, character_id: str) -> Character:
 async def list_characters_by_project(
     session: AsyncSession,
     project_id: str,
-    page: int = 1,
-    page_size: int = 50,
-) -> CharacterListResult:
+) -> list[Character]:
     """按项目获取角色列表。"""
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
         raise NotFoundError(f"项目不存在: {project_id}")
 
-    items, total = await character_repo.list_by_project(session, project_id, page, page_size)
-    return CharacterListResult(items=items, total=total, page=page, page_size=page_size)
+    return await character_repo.list_all_by_project(session, project_id)
 
 
 async def search_characters(

@@ -78,6 +78,16 @@ async def list_by_project(
     return list(result.scalars().all()), total
 
 
+async def list_all_by_project(session: AsyncSession, project_id: str) -> list[Character]:
+    """按项目获取全部角色列表。"""
+    result = await session.execute(
+        select(Character)
+        .where(col(Character.project_id) == project_id)
+        .order_by(col(Character.is_favorited).desc(), col(Character.updated_at).desc())
+    )
+    return list(result.scalars().all())
+
+
 async def update(session: AsyncSession, character: Character) -> Character:
     """更新角色。"""
     session.add(character)

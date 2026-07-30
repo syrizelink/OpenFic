@@ -7,6 +7,9 @@ from pathlib import Path
 import pytest
 from httpx import AsyncClient
 from PIL import Image
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.storage.models.character import Character
 
 
 def make_image_file(color: str = "red") -> bytes:
@@ -156,6 +159,28 @@ async def test_list_characters_orders_by_updated_at_desc(client: AsyncClient) ->
     assert response.status_code == 200
     names = [item["name"] for item in response.json()["items"]]
     assert names == ["最近编辑", second["name"]]
+
+
+@pytest.mark.asyncio
+async def test_list_characters_returns_all_project_characters(
+    client: AsyncClient,
+    session: AsyncSession,
+) -> None:
+    project_id = await create_project(client, "完整角色列表项目")
+    session.add_all(
+        [
+            Character(project_id=project_id, name=f"角色 {index}")
+            for index in range(101)
+        ]
+    )
+    await session.flush()
+
+    response = await client.get(f"/api/v1/projects/{project_id}/characters")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 101
+    assert len(data["items"]) == 101
 
 
 @pytest.mark.asyncio

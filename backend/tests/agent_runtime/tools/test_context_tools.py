@@ -185,7 +185,7 @@ async def test_list_characters_returns_project_character_names() -> None:
     ) as mock_character_repo:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
-        mock_character_repo.list_by_project = AsyncMock(return_value=(characters, 2))
+        mock_character_repo.list_all_by_project = AsyncMock(return_value=characters)
 
         result = await tool.ainvoke({})
 
@@ -218,7 +218,7 @@ async def test_read_character_reads_description_by_name() -> None:
     ) as mock_character_repo:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
-        mock_character_repo.list_by_project = AsyncMock(return_value=(characters, 1))
+        mock_character_repo.list_all_by_project = AsyncMock(return_value=characters)
 
         result = await tool.ainvoke({"name": "林舟"})
 
@@ -253,7 +253,7 @@ async def test_create_character_returns_diff() -> None:
     ) as mock_record_diffs:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
-        mock_character_repo.list_by_project = AsyncMock(return_value=([], 0))
+        mock_character_repo.list_all_by_project = AsyncMock(return_value=[])
         mock_character_service.create_character = AsyncMock(return_value=created)
         mock_record_diffs.return_value = ["char-1"]
 
@@ -345,7 +345,7 @@ async def test_edit_character_replaces_description_text() -> None:
     ) as mock_record_diffs:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
-        mock_character_repo.list_by_project = AsyncMock(return_value=([character], 1))
+        mock_character_repo.list_all_by_project = AsyncMock(return_value=[character])
         mock_character_service.update_character = AsyncMock(return_value=updated_character)
         mock_record_diffs.return_value = ["char-1"]
 
@@ -398,7 +398,7 @@ async def test_edit_character_rejects_over_limit_replacement_without_updating() 
         "app.agent_runtime.tools.impls.context.character.character_service"
     ) as mock_character_service:
         mock_cs.return_value = AsyncMock()
-        mock_character_repo.list_by_project = AsyncMock(return_value=([character], 1))
+        mock_character_repo.list_all_by_project = AsyncMock(return_value=[character])
         mock_character_service.update_character = AsyncMock()
 
         result = await tool.ainvoke(
@@ -437,7 +437,7 @@ async def test_delete_character_removes_name() -> None:
     ) as mock_record_diffs:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
-        mock_character_repo.list_by_project = AsyncMock(return_value=([character], 1))
+        mock_character_repo.list_all_by_project = AsyncMock(return_value=[character])
         mock_character_service.delete_character = AsyncMock(return_value=None)
         mock_record_diffs.return_value = ["char-1"]
 
@@ -502,7 +502,7 @@ async def test_read_world_entry_reads_content_by_title() -> None:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
         mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
-        mock_entry_repo.list_by_world_info = AsyncMock(return_value=entries)
+        mock_entry_repo.list_all_by_world_info = AsyncMock(return_value=entries)
 
         result = await tool.ainvoke({"title": "主角"})
 
@@ -534,7 +534,7 @@ async def test_read_world_entry_rejects_duplicate_titles() -> None:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
         mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
-        mock_entry_repo.list_by_world_info = AsyncMock(return_value=entries)
+        mock_entry_repo.list_all_by_world_info = AsyncMock(return_value=entries)
 
         result = await tool.ainvoke({"title": "主角"})
 
@@ -571,7 +571,7 @@ async def test_create_world_entry_returns_diff() -> None:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
         mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
-        mock_entry_repo.list_by_world_info = AsyncMock(return_value=[])
+        mock_entry_repo.list_all_by_world_info = AsyncMock(return_value=[])
         mock_entry_service.create_entry = AsyncMock(return_value=created)
         mock_record_diffs.return_value = ["e1"]
 
@@ -617,7 +617,7 @@ async def test_create_world_entry_rejects_duplicate_title() -> None:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
         mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
-        mock_entry_repo.list_by_world_info = AsyncMock(
+        mock_entry_repo.list_all_by_world_info = AsyncMock(
             return_value=[SimpleNamespace(id="e1", name="主角", uid=1, order=1, content="")]
         )
 
@@ -698,7 +698,7 @@ async def test_edit_world_entry_returns_diff() -> None:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
         mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
-        mock_entry_repo.list_by_world_info = AsyncMock(return_value=[entry])
+        mock_entry_repo.list_all_by_world_info = AsyncMock(return_value=[entry])
         mock_entry_service.update_entry = AsyncMock(return_value=updated_entry)
         mock_record_diffs.return_value = ["e1"]
 
@@ -758,7 +758,7 @@ async def test_edit_world_entry_rejects_over_limit_replacement_without_updating(
     ) as mock_entry_service:
         mock_cs.return_value = AsyncMock()
         mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
-        mock_entry_repo.list_by_world_info = AsyncMock(return_value=[entry])
+        mock_entry_repo.list_all_by_world_info = AsyncMock(return_value=[entry])
         mock_entry_service.update_entry = AsyncMock()
 
         result = await tool.ainvoke(
@@ -793,7 +793,7 @@ async def test_edit_world_entry_rejects_duplicate_new_title() -> None:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
         mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
-        mock_entry_repo.list_by_world_info = AsyncMock(return_value=entries)
+        mock_entry_repo.list_all_by_world_info = AsyncMock(return_value=entries)
 
         result = await tool.ainvoke({"title": "主角", "new_title": "反派"})
 
@@ -830,7 +830,7 @@ async def test_delete_world_entry_removes_title() -> None:
         mock_session = AsyncMock()
         mock_cs.return_value = mock_session
         mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
-        mock_entry_repo.list_by_world_info = AsyncMock(return_value=[entry])
+        mock_entry_repo.list_all_by_world_info = AsyncMock(return_value=[entry])
         mock_entry_service.delete_entry = AsyncMock(return_value=None)
         mock_record_diffs.return_value = ["e1"]
 

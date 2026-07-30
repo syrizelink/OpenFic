@@ -38,13 +38,6 @@ export interface CharacterUpdate {
 export interface CharacterListResponse {
   items: CharacterListItem[];
   total: number;
-  page: number;
-  pageSize: number;
-}
-
-export interface CharacterListParams {
-  page?: number;
-  pageSize?: number;
 }
 
 export interface CharacterSearchMatch {
