@@ -24,6 +24,34 @@ def test_translate_chat_model_stream():
     assert result["data"]["session_id"] == "sess_001"
 
 
+def test_translate_chat_model_stream_extracts_anthropic_text_content_blocks():
+    translator = EventTranslator(session_id="sess_001")
+    event = {
+        "event": "on_chat_model_stream",
+        "data": {
+            "chunk": type(
+                "Chunk",
+                (),
+                {
+                    "content": [
+                        {"type": "thinking", "thinking": "分析中"},
+                        {"type": "text", "text": "可见回复"},
+                    ]
+                },
+            )()
+        },
+        "name": "ChatAnthropic",
+        "tags": [],
+    }
+
+    result = translator.translate(event)
+
+    assert isinstance(result, list)
+    assert [item["name"] for item in result] == ["agent:reasoning", "agent:token"]
+    assert result[0]["data"]["content"] == "分析中"
+    assert result[1]["data"]["content"] == "可见回复"
+
+
 def test_translate_ignores_subagent_child_events():
     translator = EventTranslator(session_id="sess_001")
     event = {

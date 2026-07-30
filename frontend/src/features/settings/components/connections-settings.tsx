@@ -244,7 +244,8 @@ export function ConnectionsSettings({
                           weight="medium"
                         >
                           {connection.name ||
-                            (connection.providerType === "openai-compatible"
+                            (connection.providerType === "openai-compatible" ||
+                            connection.providerType === "anthropic-compatible"
                               ? connection.url
                               : null) ||
                             resolveProviderDisplayName(connection)}
@@ -261,8 +262,8 @@ export function ConnectionsSettings({
                           {connection.catalogMatch?.displayName ||
                             getProviderDisplayName(connection.providerType)}
                         </Text>
-                        {/* 仅未匹配目录的 OpenAI Compatible 连接显示自定义 URL。 */}
-                        {connection.providerType === "openai-compatible" &&
+                        {(connection.providerType === "openai-compatible" ||
+                          connection.providerType === "anthropic-compatible") &&
                           !connection.catalogMatch && (
                             <>
                               <Text

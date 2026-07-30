@@ -61,6 +61,14 @@ export function getModelValue(model: ModelIdSelectOption): string {
   return model.value ?? model.id;
 }
 
+export function shouldShowCustomModelOption(
+  allowCustomValue: boolean,
+  searchQuery: string,
+  filteredModelCount: number,
+): boolean {
+  return allowCustomValue && Boolean(searchQuery.trim()) && filteredModelCount === 0;
+}
+
 const PRICE_FORMATTER = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 0,
   maximumFractionDigits: 4,
@@ -197,8 +205,11 @@ export function ModelIdSelect({
     };
   }, [isListReady, isLoading, open]);
 
-  const showCustomOption =
-    allowCustomValue && searchQuery.trim() && filteredModels.length === 0 && models.length > 0;
+  const showCustomOption = shouldShowCustomModelOption(
+    allowCustomValue,
+    searchQuery,
+    filteredModels.length,
+  );
 
   const handleSelectModel = (model: ModelIdSelectOption) => {
     const nextValue = getModelValue(model);
@@ -451,30 +462,38 @@ export function ModelIdSelect({
                     </Text>
                   </MotionBox>
                 ) : null}
-                <Flex
-                  align="center"
-                  justify="center"
-                  direction="column"
-                  gap="2"
-                  style={{ height: placeholderHeight, padding: 20 }}
-                >
-                  <Text
-                    size={labelSize}
-                    color="gray"
+                {showCustomOption ? (
+                  <CustomModelOption
+                    modelId={searchQuery}
+                    onSelect={handleUseCustom}
+                    itemPadding={itemPadding}
+                  />
+                ) : (
+                  <Flex
                     align="center"
+                    justify="center"
+                    direction="column"
+                    gap="2"
+                    style={{ height: placeholderHeight, padding: 20 }}
                   >
-                    {t("models.noModelsAvailable")}
-                  </Text>
-                  {allowCustomValue ? (
                     <Text
-                      size="1"
+                      size={labelSize}
                       color="gray"
                       align="center"
                     >
-                      {t("models.manualInputHint")}
+                      {t("models.noModelsAvailable")}
                     </Text>
-                  ) : null}
-                </Flex>
+                    {allowCustomValue ? (
+                      <Text
+                        size="1"
+                        color="gray"
+                        align="center"
+                      >
+                        {t("models.manualInputHint")}
+                      </Text>
+                    ) : null}
+                  </Flex>
+                )}
               </Flex>
             ) : (
               <Flex direction="column">
@@ -503,40 +522,11 @@ export function ModelIdSelect({
                 ) : null}
 
                 {showCustomOption ? (
-                  <MotionBox
-                    onClick={handleUseCustom}
-                    style={{
-                      padding: itemPadding,
-                      cursor: "pointer",
-                      borderBottom:
-                        filteredModels.length > 0 ? "1px solid var(--gray-a3)" : undefined,
-                      backgroundColor: "var(--blue-a2)",
-                    }}
-                    whileHover={{ backgroundColor: "var(--blue-a3)" }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={{ duration: 0.15 }}
-                  >
-                    <Flex
-                      direction="column"
-                      gap="1"
-                    >
-                      <Text
-                        size="2"
-                        weight="medium"
-                        color="blue"
-                      >
-                        {t("models.useCustomModelId", {
-                          modelId: searchQuery,
-                        })}
-                      </Text>
-                      <Text
-                        size="1"
-                        color="gray"
-                      >
-                        {t("models.customModelIdHint")}
-                      </Text>
-                    </Flex>
-                  </MotionBox>
+                  <CustomModelOption
+                    modelId={searchQuery}
+                    onSelect={handleUseCustom}
+                    itemPadding={itemPadding}
+                  />
                 ) : null}
 
                 {filteredModels.map((model, index) => {
@@ -677,5 +667,48 @@ export function ModelIdSelect({
         </Box>
       </Popover.Content>
     </Popover.Root>
+  );
+}
+
+interface CustomModelOptionProps {
+  modelId: string;
+  onSelect: () => void;
+  itemPadding: string;
+}
+
+function CustomModelOption({ modelId, onSelect, itemPadding }: CustomModelOptionProps) {
+  const { t } = useTranslation();
+
+  return (
+    <MotionBox
+      onClick={onSelect}
+      style={{
+        padding: itemPadding,
+        cursor: "pointer",
+        backgroundColor: "var(--blue-a2)",
+      }}
+      whileHover={{ backgroundColor: "var(--blue-a3)" }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ duration: 0.15 }}
+    >
+      <Flex
+        direction="column"
+        gap="1"
+      >
+        <Text
+          size="2"
+          weight="medium"
+          color="blue"
+        >
+          {t("models.useCustomModelId", { modelId })}
+        </Text>
+        <Text
+          size="1"
+          color="gray"
+        >
+          {t("models.customModelIdHint")}
+        </Text>
+      </Flex>
+    </MotionBox>
   );
 }

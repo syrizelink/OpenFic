@@ -89,6 +89,80 @@ async def test_get_available_models_uses_openai_compatible_adapter_for_catalog_p
 
 
 @pytest.mark.asyncio
+async def test_validate_anthropic_compatible_connection_uses_its_adapter(monkeypatch):
+    encryption_service = EncryptionService("id-hEPdEELwlgep9FQhcYQtX7ow188l7WHwy65qOZGQ=")
+    service = ModelProviderService(encryption_service)
+    requested_provider_types: list[str] = []
+
+    def get_adapter(cls, provider_type: str):
+        requested_provider_types.append(provider_type)
+        return _FakeAdapter()
+
+    monkeypatch.setattr(AdapterRegistry, "get_adapter", classmethod(get_adapter))
+
+    models = await service.validate_and_get_models(
+        "anthropic-compatible",
+        "https://gateway.example/v1",
+        "test-key",
+    )
+
+    assert models == [{"id": "llm-1", "name": "LLM 1"}]
+    assert requested_provider_types == ["anthropic-compatible"]
+
+
+@pytest.mark.asyncio
+async def test_validate_native_anthropic_connection_keeps_openai_compatible_discovery(
+    monkeypatch,
+):
+    encryption_service = EncryptionService("id-hEPdEELwlgep9FQhcYQtX7ow188l7WHwy65qOZGQ=")
+    service = ModelProviderService(encryption_service)
+    requested_provider_types: list[str] = []
+
+    def get_adapter(cls, provider_type: str):
+        requested_provider_types.append(provider_type)
+        return _FakeAdapter()
+
+    monkeypatch.setattr(AdapterRegistry, "get_adapter", classmethod(get_adapter))
+
+    await service.validate_and_get_models(
+        "anthropic",
+        "https://api.anthropic.com",
+        "test-key",
+    )
+
+    assert requested_provider_types == ["anthropic", "openai-compatible"]
+
+
+@pytest.mark.asyncio
+async def test_get_available_models_uses_anthropic_compatible_adapter(monkeypatch):
+    encryption_service = EncryptionService("id-hEPdEELwlgep9FQhcYQtX7ow188l7WHwy65qOZGQ=")
+    service = ModelProviderService(encryption_service)
+    provider = ModelProvider(
+        name="Anthropic Compatible",
+        url="https://gateway.example/v1",
+        api_key_encrypted=encryption_service.encrypt("test-key"),
+        provider_type="anthropic-compatible",
+    )
+    requested_provider_types: list[str] = []
+
+    def get_adapter(cls, provider_type: str):
+        requested_provider_types.append(provider_type)
+        return _FakeAdapter()
+
+    def is_supported(cls, provider_type: str, task_type: str) -> bool:
+        requested_provider_types.append(provider_type)
+        return task_type == "llm"
+
+    monkeypatch.setattr(AdapterRegistry, "get_adapter", classmethod(get_adapter))
+    monkeypatch.setattr(AdapterRegistry, "is_supported", classmethod(is_supported))
+
+    models = await service.get_available_models(provider, "llm")
+
+    assert models == [{"id": "llm-1", "name": "LLM 1"}]
+    assert requested_provider_types == ["anthropic-compatible", "anthropic-compatible"]
+
+
+@pytest.mark.asyncio
 async def test_create_provider_uses_catalog_api_for_directory_provider(monkeypatch):
     encryption_service = EncryptionService("id-hEPdEELwlgep9FQhcYQtX7ow188l7WHwy65qOZGQ=")
     service = ModelProviderService(encryption_service)

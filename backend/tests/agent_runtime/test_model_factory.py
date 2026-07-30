@@ -51,6 +51,25 @@ def test_create_chat_model_anthropic_uses_native_client():
     assert isinstance(model, ChatAnthropic)
 
 
+def test_create_chat_model_anthropic_compatible_uses_anthropic_client_with_custom_url():
+    config = ModelConfig(
+        provider_type="anthropic-compatible",
+        base_url="https://gateway.example/v1",
+        api_key="test-key",
+        model_id="custom-claude",
+        reasoning_effort="high",
+    )
+
+    model = create_chat_model(config)
+
+    from langchain_anthropic import ChatAnthropic
+
+    assert isinstance(model, ChatAnthropic)
+    assert model.anthropic_api_url == "https://gateway.example/v1"
+    assert model.effort == "high"
+    assert model.max_retries == 0
+
+
 def test_create_chat_model_with_temperature():
     config = ModelConfig(
         provider_type="openai",

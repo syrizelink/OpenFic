@@ -30,6 +30,12 @@ const OPENAI_COMPATIBLE_OPTION: ProviderIdSelectOption = {
   iconPath: null,
 };
 
+const ANTHROPIC_COMPATIBLE_OPTION: ProviderIdSelectOption = {
+  value: "anthropic-compatible",
+  label: "Anthropic Compatible",
+  iconPath: null,
+};
+
 export function ProviderIdSelect({
   value,
   onChange,
@@ -49,8 +55,10 @@ export function ProviderIdSelect({
       iconPath: provider.iconPath,
     }));
 
-    if (!catalogOptions.some((option) => option.value === OPENAI_COMPATIBLE_OPTION.value)) {
-      catalogOptions.push(OPENAI_COMPATIBLE_OPTION);
+    for (const compatibleOption of [OPENAI_COMPATIBLE_OPTION, ANTHROPIC_COMPATIBLE_OPTION]) {
+      if (!catalogOptions.some((option) => option.value === compatibleOption.value)) {
+        catalogOptions.push(compatibleOption);
+      }
     }
 
     return catalogOptions.sort((left, right) => left.label.localeCompare(right.label));

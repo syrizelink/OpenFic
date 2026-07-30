@@ -46,6 +46,7 @@ export function getProviderDisplayName(providerType: string): string {
     "amazon-nova": "Amazon Nova",
     deepseek: "DeepSeek",
     "openai-compatible": "OpenAI Compatible",
+    "anthropic-compatible": "Anthropic Compatible",
     builtin: "Builtin",
   };
 
@@ -59,7 +60,7 @@ export function getProviderUrl(
   providerType: string,
   catalogProviders?: ModelProviderCatalogProvider[],
 ): string | null {
-  if (providerType === "openai-compatible") {
+  if (providerType === "openai-compatible" || providerType === "anthropic-compatible") {
     return null;
   }
 
@@ -70,7 +71,10 @@ export function getProviderUrl(
 }
 
 export function resolveProviderCatalogType(provider: ModelProvider): string | null {
-  if (provider.providerType === "openai-compatible") {
+  if (
+    provider.providerType === "openai-compatible" ||
+    provider.providerType === "anthropic-compatible"
+  ) {
     return provider.catalogMatch?.catalogProviderType ?? null;
   }
 

@@ -9,6 +9,7 @@ from typing import Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent_runtime.content_blocks import extract_reasoning_content, extract_text_content
 from app.agent_runtime.persistence import repo
 from app.agent_runtime.persistence.child_runs import (
     get_child_run_agent_number,
@@ -120,13 +121,13 @@ class MessagePersister:
         if chunk is None:
             return
 
-        content = getattr(chunk, "content", "") or ""
-        if isinstance(content, str) and content:
+        content = extract_text_content(getattr(chunk, "content", ""))
+        if content:
             buf.content_parts.append(content)
 
-        reasoning = (getattr(chunk, "additional_kwargs", {}) or {}).get(
-            "reasoning_content"
-        )
+        reasoning = (getattr(chunk, "additional_kwargs", {}) or {}).get("reasoning_content")
+        if not isinstance(reasoning, str) or not reasoning:
+            reasoning = extract_reasoning_content(getattr(chunk, "content", None))
         if reasoning:
             chunk_received_at = datetime.now(UTC)
             if buf.reasoning_started_at is None:
@@ -302,8 +303,7 @@ class MessagePersister:
 
     @staticmethod
     def _extract_output_content(output: object | None) -> str:
-        content = getattr(output, "content", "")
-        return content if isinstance(content, str) else ""
+        return extract_text_content(getattr(output, "content", ""))
 
     @staticmethod
     def _extract_output_reasoning(output: object | None) -> str | None:
@@ -325,7 +325,7 @@ class MessagePersister:
                 if isinstance(value, str) and value:
                     return value
 
-        return None
+        return extract_reasoning_content(getattr(output, "content", None))
 
     @staticmethod
     def _extract_output_tool_calls(

@@ -125,6 +125,22 @@ async def test_invoke_model_normalizes_recoverable_invalid_tool_calls_to_ai_mess
     assert response.invalid_tool_calls == []
 
 
+@pytest.mark.asyncio
+async def test_invoke_model_extracts_anthropic_text_content_blocks() -> None:
+    class StreamingModel:
+        async def astream(self, _messages):
+            yield AIMessageChunk(
+                content=[
+                    {"type": "thinking", "thinking": "分析中"},
+                    {"type": "text", "text": "可见回复"},
+                ]
+            )
+
+    response = await _invoke_model(StreamingModel(), [HumanMessage(content="Hello")])
+
+    assert response.content == "可见回复"
+
+
 def test_create_react_agent_returns_compiled_graph(dummy_tool):
     config = ReactAgentConfig(
         name="test",

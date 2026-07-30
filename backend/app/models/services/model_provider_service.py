@@ -128,7 +128,7 @@ class ModelProviderService:
         return provider
 
     async def _resolve_provider_url(self, provider_type: str, url: str) -> str:
-        if provider_type == "openai-compatible":
+        if provider_type in {"openai-compatible", "anthropic-compatible"}:
             return url
 
         try:
@@ -259,7 +259,12 @@ class ModelProviderService:
         url = await self._resolve_provider_url(provider_type, url)
 
         # 使用统一的Adapter获取模型
-        adapter = AdapterRegistry.get_adapter("openai-compatible")
+        runtime_provider_type = (
+            "anthropic-compatible"
+            if provider_type == "anthropic-compatible"
+            else "openai-compatible"
+        )
+        adapter = AdapterRegistry.get_adapter(runtime_provider_type)
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -294,7 +299,11 @@ class ModelProviderService:
         )
 
         # 检查是否支持
-        runtime_provider_type = "openai-compatible"
+        runtime_provider_type = (
+            "anthropic-compatible"
+            if provider.provider_type == "anthropic-compatible"
+            else "openai-compatible"
+        )
         if not AdapterRegistry.is_supported(runtime_provider_type, task_type):
             raise ValueError(
                 f"Provider '{provider.provider_type}' does not support task_type '{task_type}'"
