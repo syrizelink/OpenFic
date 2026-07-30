@@ -3,13 +3,17 @@ import { appendLog } from "./logging.js";
 
 const configuredSessions = new WeakMap<Session, Promise<void>>();
 const LOCAL_BYPASS_HOSTS = ["localhost", "127.0.0.1"];
+const SYSTEM_PROXY_BYPASS_RULES = "<local>,127.0.0.1/8";
 const INVALID_NO_PROXY_HOSTS = new Set(["::1", "[::1]"]);
 
 export function configureSystemProxy(targetSession: Session): Promise<void> {
   const configured = configuredSessions.get(targetSession);
   if (configured) return configured;
 
-  const configuration = targetSession.setProxy({ mode: "system" }).catch((error: unknown) => {
+  const configuration = targetSession.setProxy({
+    mode: "system",
+    proxyBypassRules: SYSTEM_PROXY_BYPASS_RULES,
+  }).catch((error: unknown) => {
     appendLog("startup", `配置系统代理失败：${error instanceof Error ? error.message : String(error)}`);
   });
   configuredSessions.set(targetSession, configuration);
