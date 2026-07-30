@@ -10,7 +10,7 @@ import type { IndexAutoStrategy, IndexMode } from "@/lib/index-status";
 export type LanguageCode = "zh-CN" | "en";
 
 /** 支持的主题 */
-export type ThemeMode = "light" | "dark";
+export type ThemeMode = "light" | "dark" | "system";
 
 export type AgentToolPermissionMode = "allow" | "ask" | "deny";
 

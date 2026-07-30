@@ -1,6 +1,8 @@
 import { Dialog } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 
+import type { ThemeMode } from "../lib/settings.types";
+
 import "./settings-dialog.css";
 
 import type { SettingsDialogRoute } from "../lib/settings-route";
@@ -8,7 +10,8 @@ import { SettingsContent } from "./settings-content";
 
 interface SettingsDialogProps {
   appearance: "light" | "dark";
-  onAppearanceChange: (appearance: "light" | "dark") => void;
+  themeMode: ThemeMode;
+  onThemeModeChange: (mode: ThemeMode) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   route?: SettingsDialogRoute;
@@ -16,7 +19,8 @@ interface SettingsDialogProps {
 
 export function SettingsDialog({
   appearance,
-  onAppearanceChange,
+  themeMode,
+  onThemeModeChange,
   open,
   onOpenChange,
   route,
@@ -43,7 +47,8 @@ export function SettingsDialog({
         <SettingsContent
           key={routeKey}
           appearance={appearance}
-          onAppearanceChange={onAppearanceChange}
+          themeMode={themeMode}
+          onThemeModeChange={onThemeModeChange}
           onClose={() => onOpenChange(false)}
           route={route}
         />

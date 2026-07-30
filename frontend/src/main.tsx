@@ -10,7 +10,7 @@ import { AppLayout } from "./features/app-shell";
 import { CharactersPage } from "./features/characters";
 import { PromptChainsPage } from "./features/prompt-chains";
 import { fetchSettings } from "./features/settings/lib/settings-api";
-import type { Settings } from "./features/settings/lib/settings.types";
+import type { Settings, ThemeMode } from "./features/settings/lib/settings.types";
 import { WorldInfoPage } from "./features/world-info";
 import { WritingPage } from "./features/writing";
 import { checkHealth } from "./lib/api-client";
@@ -49,13 +49,15 @@ const DashboardPage = lazy(() =>
 
 function AppContent({
   appearance,
+  themeMode,
   version,
-  setAppearance,
+  setThemeMode,
   toggleTheme,
 }: {
   appearance: "light" | "dark";
+  themeMode: ThemeMode;
   version: string;
-  setAppearance: (appearance: "light" | "dark") => void;
+  setThemeMode: (mode: ThemeMode) => void;
   toggleTheme: () => void;
 }) {
   return (
@@ -65,8 +67,9 @@ function AppContent({
           element={
             <AppLayout
               appearance={appearance}
+              themeMode={themeMode}
               version={version}
-              onAppearanceChange={setAppearance}
+              onThemeModeChange={setThemeMode}
               onToggleTheme={toggleTheme}
             />
           }
@@ -105,14 +108,47 @@ function AppContent({
   );
 }
 
+function useSystemPrefersDark(): boolean {
+  const [prefersDark, setPrefersDark] = useState(
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (event: MediaQueryListEvent) => {
+      setPrefersDark(event.matches);
+    };
+    mq.addEventListener("change", handler);
+    // Sync on mount in case the initial lazy value is stale
+    setPrefersDark(mq.matches);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  return prefersDark;
+}
+
+const THEME_CYCLE: ThemeMode[] = ["light", "dark", "system"];
+
+function resolveAppearance(themeMode: ThemeMode, systemPrefersDark: boolean): "light" | "dark" {
+  if (themeMode === "system") {
+    return systemPrefersDark ? "dark" : "light";
+  }
+  return themeMode;
+}
+
 function Root() {
-  const [appearance, setAppearance] = useState<"light" | "dark">("light");
+  const [themeMode, setThemeMode] = useState<ThemeMode>("light");
   const [settings, setSettings] = useState<Settings | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState(false);
+  const systemPrefersDark = useSystemPrefersDark();
+  const appearance = resolveAppearance(themeMode, systemPrefersDark);
 
   const toggleTheme = () => {
-    setAppearance((prev) => (prev === "light" ? "dark" : "light"));
+    setThemeMode((prev) => {
+      const idx = THEME_CYCLE.indexOf(prev);
+      return THEME_CYCLE[(idx + 1) % THEME_CYCLE.length];
+    });
   };
 
   useEffect(() => {
@@ -140,7 +176,7 @@ function Root() {
 
         if (mounted) {
           setSettings(settings);
-          setAppearance(settings.theme);
+          setThemeMode((settings.theme as ThemeMode) ?? "light");
           setIsReady(true);
         }
       } catch {
@@ -191,8 +227,9 @@ function Root() {
             ) : (
               <AppContent
                 appearance={appearance}
+                themeMode={themeMode}
                 version={FRONTEND_VERSION}
-                setAppearance={setAppearance}
+                setThemeMode={setThemeMode}
                 toggleTheme={toggleTheme}
               />
             )}

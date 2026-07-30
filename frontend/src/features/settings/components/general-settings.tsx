@@ -83,10 +83,11 @@ export function GeneralSettings({
             value={settings.theme}
             onValueChange={handleThemeChange}
             disabled={isSaving}
-            style={{ width: 200 }}
+            style={{ width: 260 }}
           >
             <SegmentedControl.Item value="light">{t("settings.themeLight")}</SegmentedControl.Item>
             <SegmentedControl.Item value="dark">{t("settings.themeDark")}</SegmentedControl.Item>
+            <SegmentedControl.Item value="system">{t("settings.themeSystem")}</SegmentedControl.Item>
           </SegmentedControl.Root>
         </Flex>
 

@@ -5,6 +5,7 @@ import { AssistantSidebar } from "@/features/assistant";
 import type { AssistantSidebarHandle } from "@/features/assistant";
 import { SettingsDialog } from "@/features/settings";
 import type { SettingsDialogRoute } from "@/features/settings/lib/settings-route";
+import type { ThemeMode } from "@/features/settings/lib/settings.types";
 
 import { AppShellContext } from "./app-shell-context";
 import { AppSidebar } from "./app-sidebar";
@@ -24,15 +25,17 @@ import { StatusBar } from "./status-bar";
 
 interface AppLayoutProps {
   appearance: "light" | "dark";
+  themeMode: ThemeMode;
   version: string;
-  onAppearanceChange: (appearance: "light" | "dark") => void;
+  onThemeModeChange: (mode: ThemeMode) => void;
   onToggleTheme: () => void;
 }
 
 export function AppLayout({
   appearance,
+  themeMode,
   version,
-  onAppearanceChange,
+  onThemeModeChange,
   onToggleTheme,
 }: AppLayoutProps) {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
@@ -161,6 +164,7 @@ export function AppLayout({
         <div className="app-layout-body">
           <AppSidebar
             appearance={appearance}
+            themeMode={themeMode}
             onToggleTheme={onToggleTheme}
           />
 
@@ -197,7 +201,8 @@ export function AppLayout({
 
         <SettingsDialog
           appearance={appearance}
-          onAppearanceChange={onAppearanceChange}
+          themeMode={themeMode}
+          onThemeModeChange={onThemeModeChange}
           open={isSettingsOpen}
           onOpenChange={setIsSettingsOpen}
           route={settingsRoute}

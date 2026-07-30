@@ -1,5 +1,5 @@
 import { IconButton, Tooltip, DropdownMenu } from "@radix-ui/themes";
-import { Languages, Moon, Settings, Sun } from "lucide-react";
+import { Languages, Moon, Monitor, Settings, Sun } from "lucide-react";
 import { motion } from "motion/react";
 
 import {
@@ -9,7 +9,7 @@ import {
 } from "./app-sidebar.constants";
 
 interface SidebarActionsProps {
-  appearance: "light" | "dark";
+  themeMode: "light" | "dark" | "system";
   isExpanded: boolean;
   shouldAnimateTheme: boolean;
   languageLabel: string;
@@ -23,8 +23,21 @@ interface SidebarActionsProps {
   onOpenSettings: () => void;
 }
 
+function themeIcon(mode: "light" | "dark" | "system") {
+  const size = SIDEBAR_ICON_SIZE;
+  const color = "currentColor";
+  switch (mode) {
+    case "light":
+      return <Moon size={size} color={color} />;
+    case "dark":
+      return <Sun size={size} color={color} />;
+    case "system":
+      return <Monitor size={size} color={color} />;
+  }
+}
+
 export function SidebarActions({
-  appearance,
+  themeMode,
   isExpanded,
   shouldAnimateTheme,
   languageLabel,
@@ -94,7 +107,7 @@ export function SidebarActions({
             style={sidebarActionButtonStyle}
           >
             <motion.div
-              key={shouldAnimateTheme ? appearance : "static"}
+              key={shouldAnimateTheme ? themeMode : "static"}
               initial={shouldAnimateTheme ? { rotate: -90, opacity: 0 } : false}
               animate={{ rotate: 0, opacity: 1 }}
               transition={{ duration: 0.2 }}
@@ -104,17 +117,7 @@ export function SidebarActions({
                 justifyContent: "center",
               }}
             >
-              {appearance === "light" ? (
-                <Moon
-                  size={SIDEBAR_ICON_SIZE}
-                  color="currentColor"
-                />
-              ) : (
-                <Sun
-                  size={SIDEBAR_ICON_SIZE}
-                  color="currentColor"
-                />
-              )}
+              {themeIcon(themeMode)}
             </motion.div>
           </IconButton>
         </Tooltip>

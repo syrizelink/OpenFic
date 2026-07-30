@@ -27,6 +27,7 @@ import {
 import { RecentProjectsNav } from "./recent-projects-nav";
 import { SidebarActions } from "./sidebar-actions";
 import { SidebarBrand } from "./sidebar-brand";
+import type { ThemeMode } from "@/features/settings/lib/settings.types";
 import { SidebarNav } from "./sidebar-nav";
 
 const MotionBox = motion.create(Box);
@@ -34,10 +35,11 @@ const MotionFlex = motion.create(Flex);
 
 interface AppSidebarProps {
   appearance: "light" | "dark";
+  themeMode: ThemeMode;
   onToggleTheme: () => void;
 }
 
-export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
+export function AppSidebar({ appearance, themeMode, onToggleTheme }: AppSidebarProps) {
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -369,16 +371,18 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
                 transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
               >
                 <SidebarActions
-                  appearance={appearance}
+                  themeMode={themeMode}
                   isExpanded={isMobile || isExpanded}
                   shouldAnimateTheme={shouldAnimateTheme}
                   languageLabel={t("topbar.language")}
                   settingsLabel={t("topbar.settings")}
                   toggleThemeLabel={t("topbar.toggleTheme")}
                   themeTooltip={
-                    appearance === "light"
+                    themeMode === "light"
                       ? t("topbar.toggleDarkMode")
-                      : t("topbar.toggleLightMode")
+                      : themeMode === "dark"
+                        ? t("topbar.toggleSystemMode")
+                        : t("topbar.toggleLightMode")
                   }
                   languages={supportedLanguages.map((lang) => ({
                     code: lang.code,

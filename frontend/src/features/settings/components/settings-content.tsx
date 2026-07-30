@@ -32,7 +32,7 @@ import {
   DEFAULT_SETTINGS_ROUTE_CATEGORY,
   type ModelSettingsTab,
 } from "../lib/settings-route";
-import type { Settings, SettingsUpdateRequest } from "../lib/settings.types";
+import type { Settings, SettingsUpdateRequest, ThemeMode } from "../lib/settings.types";
 
 const MotionBox = motion.create(Box);
 
@@ -52,7 +52,8 @@ const mobilePageVariants = {
 
 interface SettingsContentProps {
   appearance: "light" | "dark";
-  onAppearanceChange: (appearance: "light" | "dark") => void;
+  themeMode: ThemeMode;
+  onThemeModeChange: (mode: ThemeMode) => void;
   onClose: () => void;
   route?: {
     category: SettingsCategory;
@@ -74,7 +75,8 @@ const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
 
 export function SettingsContent({
   appearance,
-  onAppearanceChange,
+  themeMode,
+  onThemeModeChange,
   onClose,
   route,
 }: SettingsContentProps) {
@@ -148,9 +150,9 @@ export function SettingsContent({
       ...serverSettings,
       ...editedSettings,
       language: (editedSettings.language ?? i18n.language) as Settings["language"],
-      theme: editedSettings.theme ?? appearance,
+      theme: (editedSettings.theme ?? themeMode) as ThemeMode,
     };
-  }, [serverSettings, editedSettings, i18n.language, appearance]);
+  }, [serverSettings, editedSettings, i18n.language, themeMode]);
 
   const saveMutation = useMutation({
     mutationFn: async (settings: Settings) => {
@@ -181,7 +183,7 @@ export function SettingsContent({
         setEditedSettings({});
         void i18n.changeLanguage(previousSettings.language);
         saveLanguagePreference(previousSettings.language);
-        onAppearanceChange(previousSettings.theme);
+        onThemeModeChange(previousSettings.theme as ThemeMode);
         applyFontFamily(previousSettings.fontFamily);
         applyCodeFontFamily(previousSettings.codeFontFamily);
         void loadConfiguredFonts(previousSettings.fontFamily, previousSettings.codeFontFamily);
@@ -200,14 +202,14 @@ export function SettingsContent({
     (newSettings: Settings) => {
       void i18n.changeLanguage(newSettings.language);
       saveLanguagePreference(newSettings.language);
-      onAppearanceChange(newSettings.theme);
+      onThemeModeChange(newSettings.theme as ThemeMode);
       applyFontFamily(newSettings.fontFamily);
       applyCodeFontFamily(newSettings.codeFontFamily);
       void loadConfiguredFonts(newSettings.fontFamily, newSettings.codeFontFamily);
       setEditedSettings(newSettings);
       saveMutation.mutate(newSettings);
     },
-    [i18n, onAppearanceChange, saveMutation],
+    [i18n, onThemeModeChange, saveMutation],
   );
 
   const isSplitPanelCategory =
