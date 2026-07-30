@@ -146,6 +146,20 @@ jobs:
       - name: Build desktop package
         working-directory: desktop
         run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.target }} --${{ matrix.arch }} --publish never
+      - name: Run macOS runtime tests
+        if: runner.os == 'macOS'
+        working-directory: desktop
+        run: node --test tests/main/*.test.mjs
+      - name: Verify macOS disk images
+        if: runner.os == 'macOS'
+        working-directory: desktop
+        run: |
+          shopt -s nullglob
+          dmg_files=(dist-electron/*.dmg)
+          ((${#dmg_files[@]}))
+          for dmg_file in "${dmg_files[@]}"; do
+            hdiutil verify "$dmg_file"
+          done
 
   summary:
     name: Summary

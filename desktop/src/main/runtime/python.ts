@@ -38,7 +38,7 @@ export function getPortablePythonRoot(runtimeDir: string): string {
 
 export function getPortablePythonPath(rootDir: string): string {
   if (process.platform === "win32") return path.join(rootDir, "python", "python.exe");
-  return path.join(rootDir, "python", "install", "bin", "python3");
+  return path.join(rootDir, "python", "bin", "python3");
 }
 
 async function pathExists(filePath: string): Promise<boolean> {
