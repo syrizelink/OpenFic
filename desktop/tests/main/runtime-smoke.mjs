@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { app } from "electron";
@@ -34,6 +34,12 @@ async function stopBackend(backend) {
   }
 }
 
+async function readDesktopVersion() {
+  const packageJson = JSON.parse(await readFile(new URL("../../package.json", import.meta.url), "utf8"));
+  if (typeof packageJson.version !== "string") throw new Error("desktop package version is missing");
+  return packageJson.version;
+}
+
 async function smokeTestRuntime() {
   const userDataDir = await mkdtemp(path.join(os.tmpdir(), "openfic-runtime-smoke-"));
   const runtimeDir = path.join(userDataDir, "runtime");
@@ -44,7 +50,7 @@ async function smokeTestRuntime() {
   try {
     await app.whenReady();
     const python = await ensurePortablePython(runtimeDir, (phase, message) => console.log(`${phase}: ${message}`), () => {});
-    const expectedVersion = app.getVersion();
+    const expectedVersion = await readDesktopVersion();
     console.log(`Installing OpenFic runtime ${expectedVersion}`);
     const { venvPythonPath } = await ensureOpenFicRuntime(python, runtimeDir, expectedVersion, (step, message) => {
       console.log(`${step}: ${message}`);
