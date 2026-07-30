@@ -143,13 +143,14 @@ jobs:
       - name: Build desktop application
         working-directory: desktop
         run: pnpm build
+      - name: Smoke test macOS runtime
+        if: runner.os == 'macOS'
+        working-directory: desktop
+        timeout-minutes: 20
+        run: pnpm exec electron tests/main/runtime-smoke.mjs
       - name: Build desktop package
         working-directory: desktop
         run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.target }} --${{ matrix.arch }} --publish never
-      - name: Run macOS runtime tests
-        if: runner.os == 'macOS'
-        working-directory: desktop
-        run: node --test tests/main/*.test.mjs
       - name: Verify macOS disk images
         if: runner.os == 'macOS'
         working-directory: desktop
