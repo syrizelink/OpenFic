@@ -59,6 +59,41 @@ async def test_persister_normal_chat_model_stream(
 
 
 @pytest.mark.asyncio
+async def test_persister_extracts_anthropic_text_content_blocks(
+    db_session: AsyncSession, db_session_factory, sample_task
+):
+    sid = "session_anthropic_content_blocks"
+    p = MessagePersister(
+        session_id=sid,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        db_session_factory=db_session_factory,
+    )
+
+    await p.handle({"event": "on_chat_model_start", "data": {}})
+    await p.handle({
+        "event": "on_chat_model_stream",
+        "data": {
+            "chunk": AIMessageChunk(
+                content=[
+                    {"type": "thinking", "thinking": "分析中"},
+                    {"type": "text", "text": "可见回复"},
+                ]
+            )
+        },
+    })
+    await p.handle({
+        "event": "on_chat_model_end",
+        "data": {"output": AIMessage(content=[{"type": "text", "text": "可见回复"}])},
+    })
+
+    items = await repo.list_by_session(db_session, sid)
+    assert len(items) == 1
+    assert items[0].content == "可见回复"
+    assert items[0].reasoning == "分析中"
+
+
+@pytest.mark.asyncio
 async def test_persister_persists_non_streaming_chat_model_end_output(
     db_session: AsyncSession, db_session_factory, sample_task
 ):

@@ -1,5 +1,6 @@
 from langchain_core.messages import ToolMessage
 
+from app.agent_runtime.content_blocks import extract_reasoning_content, extract_text_content
 from app.agent_runtime.runner.event_scope import is_subagent_child_event
 from app.agent_runtime.tool_call_recovery import (
     build_malformed_tool_call_error,
@@ -46,7 +47,7 @@ class EventTranslator:
                     }
                 )
             events.extend(self._extract_streaming_tool_call_events(event, chunk))
-            content = getattr(chunk, "content", "") if chunk else ""
+            content = extract_text_content(getattr(chunk, "content", "") if chunk else "")
             if content:
                 events.append(
                     {
@@ -252,7 +253,7 @@ class EventTranslator:
                 if isinstance(value, str) and value:
                     return value
 
-        return ""
+        return extract_reasoning_content(getattr(chunk, "content", None))
 
     @staticmethod
     def _extract_usage(output: object | None) -> dict | None:

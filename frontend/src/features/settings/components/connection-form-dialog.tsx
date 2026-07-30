@@ -13,6 +13,10 @@ import { validateProvider } from "../lib/model-api";
 import { ProviderIcon } from "../lib/provider-icons";
 import { getProviderUrl } from "../lib/provider-utils";
 
+function isCustomUrlProvider(providerType: string): boolean {
+  return providerType === "openai-compatible" || providerType === "anthropic-compatible";
+}
+
 const connectionSchema = z
   .object({
     name: z.string().optional(),
@@ -22,8 +26,7 @@ const connectionSchema = z
   })
   .refine(
     (data) => {
-      // 如果是 OpenAI 兼容模式，URL 是必需的
-      if (data.providerType === "openai-compatible") {
+      if (isCustomUrlProvider(data.providerType)) {
         return data.url && data.url.trim().length > 0;
       }
       // 其他模式，URL 会自动填充，不需要验证
@@ -101,9 +104,8 @@ export function ConnectionFormDialog({
   useEffect(() => {
     if (!providerType) return;
 
-    if (providerType === "openai-compatible") {
-      // 切换到 OpenAI 兼容模式时，清空 URL（除非是编辑模式且原本就是 OpenAI 兼容）
-      if (!isEditing || connection?.providerType !== "openai-compatible") {
+    if (isCustomUrlProvider(providerType)) {
+      if (!isEditing || connection?.providerType !== providerType) {
         setValue("url", "");
       }
     }
@@ -111,7 +113,7 @@ export function ConnectionFormDialog({
 
   // 当提供商类型改变时，自动设置固定 URL
   useEffect(() => {
-    if (!providerType || providerType === "openai-compatible") {
+    if (!providerType || isCustomUrlProvider(providerType)) {
       return;
     }
 
@@ -234,7 +236,7 @@ export function ConnectionFormDialog({
 
   const canValidate = useMemo(() => {
     if (!providerType) return false;
-    if (providerType === "openai-compatible" && (!url || !url.trim())) return false;
+    if (isCustomUrlProvider(providerType) && (!url || !url.trim())) return false;
     if (!isEditing && !apiKey) return false;
     return true;
   }, [providerType, url, isEditing, apiKey]);
@@ -359,8 +361,7 @@ export function ConnectionFormDialog({
               </Flex>
             </Flex>
 
-            {/* 服务 URL - 仅 OpenAI 兼容模式显示 */}
-            {providerType === "openai-compatible" && (
+            {isCustomUrlProvider(providerType) && (
               <Flex
                 direction="column"
                 gap="2"

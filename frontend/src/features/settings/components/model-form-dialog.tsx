@@ -613,7 +613,8 @@ export function ModelFormDialog({
                     {t(`models.${errors.modelId.message}`)}
                   </Text>
                 )}
-                {selectedProvider?.providerType === "openai-compatible" &&
+                {(selectedProvider?.providerType === "openai-compatible" ||
+                  selectedProvider?.providerType === "anthropic-compatible") &&
                   !selectedCatalogProviderType &&
                   !loadingModels && (
                     <Text

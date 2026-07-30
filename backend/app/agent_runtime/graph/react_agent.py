@@ -31,6 +31,7 @@ from langgraph.runtime import Runtime
 from langgraph.types import RetryPolicy
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent_runtime.content_blocks import extract_text_content
 from app.agent_runtime.types import ReactAgentConfig
 from app.agent_runtime.context import build_context, build_context_parts
 from app.agent_runtime.context.processors.filter import (
@@ -98,7 +99,7 @@ async def _invoke_model(model: Any, messages: list[BaseMessage]) -> AIMessage:
         raise ValueError("LLM流式调用未返回响应")
 
     normalized = AIMessage(
-        content=response.content,
+        content=extract_text_content(response.content),
         additional_kwargs=dict(response.additional_kwargs or {}),
         response_metadata=dict(response.response_metadata or {}),
         tool_calls=recover_message_tool_calls(response),

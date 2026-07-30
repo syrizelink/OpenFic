@@ -113,7 +113,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
     provider = config.provider_type
     reasoning_effort = _enabled_reasoning_effort(config)
 
-    if provider == "anthropic":
+    if provider in {"anthropic", "anthropic-compatible"}:
         from langchain_anthropic import ChatAnthropic
 
         return ChatAnthropic(**_compact_kwargs(

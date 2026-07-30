@@ -7,6 +7,7 @@ Adapters Module - Provider适配器模块。
 
 from app.models.adapters.base import BaseAdapter
 from app.models.adapters.anthropic import AnthropicAdapter
+from app.models.adapters.anthropic_compatible import AnthropicCompatibleAdapter
 from app.models.adapters.deepseek import DeepSeekAdapter
 from app.models.adapters.google_genai import GoogleGenAIAdapter
 from app.models.adapters.mistral import MistralAdapter
@@ -25,6 +26,7 @@ __all__ = [
     "BaseAdapter",
     "AmazonNovaAdapter",
     "AnthropicAdapter",
+    "AnthropicCompatibleAdapter",
     "CohereAdapter",
     "DeepSeekAdapter",
     "GoogleGenAIAdapter",

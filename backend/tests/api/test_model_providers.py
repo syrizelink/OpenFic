@@ -248,6 +248,55 @@ async def test_validate_provider_invalid_credentials(
 
 
 @pytest.mark.asyncio
+async def test_validate_anthropic_compatible_provider_succeeds_without_model_discovery(
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/api/v1/model-providers/validate",
+        json={
+            "provider_type": "anthropic-compatible",
+            "url": "https://gateway.example/v1",
+            "api_key": "test-key",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": True,
+        "message": "连接验证成功，但该提供商可能不支持模型列表 API",
+        "models": [],
+    }
+
+
+@pytest.mark.asyncio
+async def test_get_anthropic_compatible_provider_models_returns_empty_success(
+    client: AsyncClient,
+    session: AsyncSession,
+):
+    from app.core.encryption import EncryptionService
+    from app.settings import settings
+
+    encrypted_key = EncryptionService(settings.encryption_key).encrypt("test-key")
+    provider = await model_provider_repo.create(
+        session=session,
+        name="Anthropic Compatible",
+        url="https://gateway.example/v1",
+        api_key_encrypted=encrypted_key,
+        provider_type="anthropic-compatible",
+    )
+    await session.commit()
+
+    response = await client.get(f"/api/v1/model-providers/{provider.id}/models")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": True,
+        "message": "该提供商可能不支持模型列表 API",
+        "models": [],
+    }
+
+
+@pytest.mark.asyncio
 async def test_create_openrouter_provider(client: AsyncClient, session: AsyncSession):
     """测试创建 OpenRouter 提供商。"""
     # 使用 FormData 格式（与 API 定义一致）
