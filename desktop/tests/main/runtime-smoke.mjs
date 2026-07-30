@@ -58,6 +58,14 @@ async function smokeTestRuntime() {
 
     backend = await startLocalOpenFicBackend(venvPythonPath, expectedVersion);
     console.log(`OpenFic runtime smoke test passed: ${backend.baseUrl}`);
+  } catch (error) {
+    const backendLogPath = path.join(userDataDir, "logs", "backend.log");
+    try {
+      console.error(`Backend log:\n${await readFile(backendLogPath, "utf8")}`);
+    } catch {
+      // The backend may fail before its logger has written a file.
+    }
+    throw error;
   } finally {
     if (backend) {
       await stopBackend(backend);
