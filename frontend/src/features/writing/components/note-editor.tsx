@@ -34,25 +34,31 @@ import { useTabsStore } from "../store/use-tabs-store";
 
 interface NoteEditorProps {
   noteId: string | null;
+  scrollTop?: number;
   projectId?: string;
   isAgentLocked?: boolean;
+  onScrollPositionChange?: (noteId: string, scrollTop: number) => void;
   onAddToConversation?: (markup: string) => void;
 }
 
 interface NoteEditorContentProps {
   note: Note;
+  scrollTop: number;
   initialDraft: WritingDraft;
   initialDraftUpdatedAt: Date;
   workingCopy: WritingWorkingCopyController;
   isAgentLocked?: boolean;
+  onScrollPositionChange?: (noteId: string, scrollTop: number) => void;
 }
 
 function NoteEditorContent({
   note,
+  scrollTop,
   initialDraft,
   initialDraftUpdatedAt,
   workingCopy,
   isAgentLocked = false,
+  onScrollPositionChange,
 }: NoteEditorContentProps) {
   const { t } = useTranslation();
   const updateMutation = useUpdateNote(note.projectId);
@@ -244,6 +250,13 @@ function NoteEditorContent({
     [persistDraft, title],
   );
 
+  const handleScrollPositionChange = useCallback(
+    (nextScrollTop: number) => {
+      onScrollPositionChange?.(note.id, nextScrollTop);
+    },
+    [note.id, onScrollPositionChange],
+  );
+
   const lockedBanner = note.isLocked ? (
     <Flex
       px="4"
@@ -281,6 +294,8 @@ function NoteEditorContent({
       onLockedAction={showLockedToast}
       placeholder={t("writing.noteContentPlaceholder")}
       lockedBanner={lockedBanner}
+      scrollTop={scrollTop}
+      onScrollPositionChange={handleScrollPositionChange}
     />
   );
 }
@@ -326,18 +341,22 @@ export function NoteEditor(props: NoteEditorProps) {
     <NoteEditorWorkingCopy
       key={`${data.entity.id}:${data.draftUpdatedAt.getTime()}`}
       note={data.entity}
+      scrollTop={props.scrollTop ?? 0}
       initialDraft={data.draft}
       initialDraftUpdatedAt={data.draftUpdatedAt}
       isAgentLocked={props.isAgentLocked ?? false}
+      onScrollPositionChange={props.onScrollPositionChange}
     />
   );
 }
 
 function NoteEditorWorkingCopy({
   note,
+  scrollTop,
   initialDraft,
   initialDraftUpdatedAt,
   isAgentLocked,
+  onScrollPositionChange,
 }: Omit<NoteEditorContentProps, "workingCopy">) {
   const workingCopy = useWritingWorkingCopy({
     type: "note",
@@ -348,10 +367,12 @@ function NoteEditorWorkingCopy({
     <NoteEditorContent
       key={`${note.id}:${initialDraftUpdatedAt.getTime()}`}
       note={note}
+      scrollTop={scrollTop}
       initialDraft={initialDraft}
       initialDraftUpdatedAt={initialDraftUpdatedAt}
       workingCopy={workingCopy}
       isAgentLocked={isAgentLocked}
+      onScrollPositionChange={onScrollPositionChange}
     />
   );
 }

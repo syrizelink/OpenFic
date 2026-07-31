@@ -64,7 +64,7 @@ export function WritingPage() {
     () => (activeTab?.type === "chapter" ? activeTab.refId : null),
     [activeTab],
   );
-  const activeChapterScrollTop = activeTab?.type === "chapter" ? activeTab.scrollTop : 0;
+  const activeEditorScrollTop = activeTab?.scrollTop ?? 0;
 
   const createMutation = useCreateChapter(projectId ?? "");
   const createVolumeMutation = useCreateVolume(projectId ?? "");
@@ -261,11 +261,25 @@ export function WritingPage() {
     [handleSelectItem],
   );
 
-  const handleChapterScrollPositionChange = useCallback(
-    (chapterId: string, scrollTop: number) => {
-      updateTabScrollPosition(`chapter:${chapterId}`, scrollTop);
+  const handleEditorScrollPositionChange = useCallback(
+    (type: "chapter" | "note", entityId: string, scrollTop: number) => {
+      updateTabScrollPosition(`${type}:${entityId}`, scrollTop);
     },
     [updateTabScrollPosition],
+  );
+
+  const handleChapterScrollPositionChange = useCallback(
+    (chapterId: string, scrollTop: number) => {
+      handleEditorScrollPositionChange("chapter", chapterId, scrollTop);
+    },
+    [handleEditorScrollPositionChange],
+  );
+
+  const handleNoteScrollPositionChange = useCallback(
+    (noteId: string, scrollTop: number) => {
+      handleEditorScrollPositionChange("note", noteId, scrollTop);
+    },
+    [handleEditorScrollPositionChange],
   );
 
   const handleNoteSelect = useCallback(
@@ -398,13 +412,15 @@ export function WritingPage() {
                     activeType === "note" ? (
                       <NoteEditor
                         noteId={activeRefId}
+                        scrollTop={activeEditorScrollTop}
                         projectId={projectId}
                         isAgentLocked={isAgentLocked}
+                        onScrollPositionChange={handleNoteScrollPositionChange}
                       />
                     ) : (
                       <ChapterEditor
                         chapterId={activeRefId}
-                        scrollTop={activeChapterScrollTop}
+                        scrollTop={activeEditorScrollTop}
                         projectId={projectId}
                         isAgentLocked={isAgentLocked}
                         onScrollPositionChange={handleChapterScrollPositionChange}
@@ -487,13 +503,15 @@ export function WritingPage() {
                   activeType === "note" ? (
                     <NoteEditor
                       noteId={activeRefId}
+                      scrollTop={activeEditorScrollTop}
                       projectId={projectId}
                       isAgentLocked={isAgentLocked}
+                      onScrollPositionChange={handleNoteScrollPositionChange}
                     />
                   ) : (
                     <ChapterEditor
                       chapterId={activeRefId}
-                      scrollTop={activeChapterScrollTop}
+                      scrollTop={activeEditorScrollTop}
                       projectId={projectId}
                       isAgentLocked={isAgentLocked}
                       onScrollPositionChange={handleChapterScrollPositionChange}

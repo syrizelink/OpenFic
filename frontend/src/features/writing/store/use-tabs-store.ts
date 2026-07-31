@@ -312,7 +312,7 @@ export const useTabsStore = create<TabsStore>()((set, get) => ({
     const { tabs, activeTabId, currentProjectId } = get();
     const nextScrollTop = Math.max(0, scrollTop);
     const tab = tabs.find((item) => item.id === tabId);
-    if (!tab || tab.type !== "chapter" || tab.scrollTop === nextScrollTop) return;
+    if (!tab || tab.scrollTop === nextScrollTop) return;
 
     const newTabs = tabs.map((item) =>
       item.id === tabId ? { ...item, scrollTop: nextScrollTop } : item,
