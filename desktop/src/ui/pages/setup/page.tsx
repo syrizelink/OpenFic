@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { InspectLocalRuntimeResult, SetupProgressEvent, SetupStep } from "../../../shared/ipc";
 import type { DesktopInstance } from "../../../shared/config";
+import { useTranslation } from "react-i18next";
 import "./setup.css";
 
 type WizardStep = "mode" | "remote" | "local-directory" | "local-installing" | "local-success";
@@ -36,12 +37,20 @@ const STEP_ORDER: SetupStep[] = [
   "install-openfic",
 ];
 
-const STEP_TITLE: Record<SetupStep, string> = {
-  "download-python": "下载 Python",
-  "extract-python": "解压 Python",
-  "create-venv": "创建运行环境",
-  "install-uv": "安装 uv",
-  "install-openfic": "安装 OpenFic",
+const STEP_TITLE_KEYS: Record<SetupStep, string> = {
+  "download-python": "desktop.setup.downloadPython",
+  "extract-python": "desktop.setup.extractPython",
+  "create-venv": "desktop.setup.createRuntime",
+  "install-uv": "desktop.setup.installUv",
+  "install-openfic": "desktop.setup.installOpenFic",
+};
+
+const STEP_DETAIL_KEYS: Record<SetupStep, string> = {
+  "download-python": "desktop.setup.downloadPythonDetail",
+  "extract-python": "desktop.setup.extractPythonDetail",
+  "create-venv": "desktop.setup.createRuntimeDetail",
+  "install-uv": "desktop.setup.installUvDetail",
+  "install-openfic": "desktop.setup.installOpenFicDetail",
 };
 
 const INITIAL_STEPS: StepState = {
@@ -71,9 +80,13 @@ interface SetupPageProps {
   onStartLocal: (installDir: string) => void;
 }
 
-function getInstanceDetail(instance: DesktopInstance): string {
-  if (instance.mode === "remote") return instance.remoteUrl ?? "未设置服务地址";
-  return instance.installDir ? getRuntimeDisplayPath(instance.installDir) : "未设置运行环境目录";
+function getInstanceDetail(
+  instance: DesktopInstance,
+  remoteAddressNotSet: string,
+  runtimeDirectoryNotSet: string,
+): string {
+  if (instance.mode === "remote") return instance.remoteUrl ?? remoteAddressNotSet;
+  return instance.installDir ? getRuntimeDisplayPath(instance.installDir) : runtimeDirectoryNotSet;
 }
 
 function applyProgress(prev: StepState, event: SetupProgressEvent): StepState {
@@ -107,6 +120,7 @@ export function SetupPage({
   onConnectInstance,
   onStartLocal,
 }: SetupPageProps) {
+  const { t } = useTranslation();
   const [step, setStep] = useState<WizardStep>(initialStep);
   const [remoteUrl, setRemoteUrl] = useState(initialRemoteUrl ?? "http://127.0.0.1:8000");
   const [installDir, setInstallDir] = useState("");
@@ -177,7 +191,7 @@ export function SetupPage({
       await window.openficDesktop.installRuntime(installDir);
       setStep("local-success");
     } catch (err) {
-      setInstallError(err instanceof Error ? err.message : "安装失败");
+      setInstallError(err instanceof Error ? err.message : t("desktop.setup.installFailed"));
     }
   };
 
@@ -200,11 +214,11 @@ export function SetupPage({
   const configuredInstance = runtimeInspection?.configuredInstance ?? null;
   const primaryActionLabel = runtimeIsReady
     ? configuredInstance
-      ? "使用已有实例"
-      : "使用已有运行环境"
+      ? t("desktop.setup.useExistingInstance")
+      : t("desktop.setup.useExistingRuntime")
     : runtimeNeedsRepair
-      ? "修复运行环境"
-      : "开始安装";
+      ? t("desktop.setup.repairRuntime")
+      : t("desktop.setup.beginInstall");
 
   return (
     <section className="content-page content-page-centered">
@@ -214,13 +228,15 @@ export function SetupPage({
             {canGoBack ? (
               <button className="setup-back" type="button" onClick={goBack}>
                 <ChevronLeft size={16} strokeWidth={2} />
-                返回
+                {t("desktop.common.back")}
               </button>
             ) : null}
             <div className="setup-heading">
               {EYEBROW[step] ? <p className="eyebrow">{EYEBROW[step]}</p> : null}
-              <h1>{TITLE[step]}</h1>
-              {DESCRIPTION[step] ? <p className="description">{DESCRIPTION[step]}</p> : null}
+              <h1>{TITLE_KEYS[step] ? t(TITLE_KEYS[step]) : ""}</h1>
+              {DESCRIPTION_KEYS[step] ? (
+                <p className="description">{t(DESCRIPTION_KEYS[step])}</p>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -242,11 +258,11 @@ export function SetupPage({
                     <Server size={20} strokeWidth={2} />
                   </span>
                   <span className="setup-choice-body">
-                    <strong>连接到已有服务</strong>
-                    <span>连接到已有运行中的 OpenFic 后端服务</span>
+                    <strong>{t("desktop.setup.connectExistingService")}</strong>
+                    <span>{t("desktop.setup.connectExistingServiceDescription")}</span>
                   </span>
                   <span className="setup-choice-arrow">
-                    前往连接
+                    {t("desktop.setup.goToConnection")}
                     <ArrowRight size={15} strokeWidth={2} />
                   </span>
                 </button>
@@ -255,19 +271,19 @@ export function SetupPage({
                     <HardDriveDownload size={20} strokeWidth={2} />
                   </span>
                   <span className="setup-choice-body">
-                    <strong>设置本地运行环境</strong>
-                    <span>在本地下载、安装并启动 OpenFic 服务</span>
+                    <strong>{t("desktop.setup.setUpLocalRuntime")}</strong>
+                    <span>{t("desktop.setup.setUpLocalRuntimeDescription")}</span>
                   </span>
                   <span className="setup-choice-arrow">
-                    前往设置
+                    {t("desktop.setup.goToSetup")}
                     <ArrowRight size={15} strokeWidth={2} />
                   </span>
                 </button>
               </div>
               {instances.length ? (
-                <section className="setup-configured-instances" aria-label="已配置的实例">
+                <section className="setup-configured-instances" aria-label={t("desktop.setup.configuredInstances")}>
                   <div className="setup-configured-instances-heading">
-                    <h2>已配置的实例</h2>
+                    <h2>{t("desktop.setup.configuredInstances")}</h2>
                     <span>{instances.length}</span>
                   </div>
                   <div className="setup-configured-instance-list">
@@ -286,10 +302,22 @@ export function SetupPage({
                           </span>
                           <span className="setup-configured-instance-copy">
                             <strong>{instance.name}</strong>
-                            <span title={getInstanceDetail(instance)}>{getInstanceDetail(instance)}</span>
+                            <span
+                              title={getInstanceDetail(
+                                instance,
+                                t("desktop.setup.remoteAddressNotSet"),
+                                t("desktop.setup.runtimeDirectoryNotSet"),
+                              )}
+                            >
+                              {getInstanceDetail(
+                                instance,
+                                t("desktop.setup.remoteAddressNotSet"),
+                                t("desktop.setup.runtimeDirectoryNotSet"),
+                              )}
+                            </span>
                           </span>
                           <span className="setup-configured-instance-action">
-                            {isActive ? "重新连接" : "连接"}
+                            {isActive ? t("desktop.setup.reconnect") : t("desktop.setup.connect")}
                             <ArrowRight size={15} strokeWidth={2} />
                           </span>
                         </button>
@@ -304,7 +332,7 @@ export function SetupPage({
           {step === "remote" ? (
             <div className="setup-form">
               <label className="setup-field">
-                <span className="setup-field-label">后端服务地址</span>
+                <span className="setup-field-label">{t("desktop.setup.backendServiceAddress")}</span>
                 <input
                   value={remoteUrl}
                   onChange={(event) => {
@@ -325,7 +353,7 @@ export function SetupPage({
                   disabled={!remoteUrl.trim()}
                   onClick={() => onConnectRemote(remoteUrl)}
                 >
-                  连接
+                  {t("desktop.setup.connect")}
                 </button>
               </div>
             </div>
@@ -334,14 +362,14 @@ export function SetupPage({
           {step === "local-directory" ? (
             <div className="setup-form">
               <div className="setup-field">
-                <span className="setup-field-label">运行环境目录</span>
+                <span className="setup-field-label">{t("desktop.setup.runtimeDirectory")}</span>
                 <div className="setup-dir-row">
                   <span className="setup-dir-value" data-empty={!installDir} title={getRuntimeDisplayPath(installDir)}>
-                    {getRuntimeDisplayPath(installDir) || "正在读取默认目录…"}
+                    {getRuntimeDisplayPath(installDir) || t("desktop.setup.readingDefaultDirectory")}
                   </span>
                   <button className="setup-secondary-button" type="button" onClick={() => void pickDirectory()}>
                     <FolderOpen size={15} strokeWidth={2} style={{ verticalAlign: "-2px", marginRight: 6 }} />
-                    选择目录
+                    {t("desktop.setup.selectDirectory")}
                   </button>
                 </div>
               </div>
@@ -349,28 +377,28 @@ export function SetupPage({
               {runtimeChecking ? (
                 <div className="setup-status">
                   <div className="setup-step-spinner" style={{ width: 18, height: 18, borderWidth: 2 }} />
-                  <span className="setup-status-text">正在检查已有运行环境…</span>
+                  <span className="setup-status-text">{t("desktop.setup.checkingExistingRuntime")}</span>
                 </div>
               ) : null}
 
               {runtimeIsReady && configuredInstance ? (
                 <div className="setup-alert setup-alert-success">
                   <Check size={16} strokeWidth={2.5} className="setup-alert-icon" />
-                  <span>此目录已有已配置且完整的本地实例“{configuredInstance.name}”，将直接启动该实例。</span>
+                  <span>{t("desktop.setup.configuredRuntimeFound", { name: configuredInstance.name })}</span>
                 </div>
               ) : null}
 
               {runtimeIsReady && !configuredInstance ? (
                 <div className="setup-alert setup-alert-success">
                   <Check size={16} strokeWidth={2.5} className="setup-alert-icon" />
-                  <span>检测到完整的本地运行环境，启动后将添加为本地实例。</span>
+                  <span>{t("desktop.setup.runtimeFound")}</span>
                 </div>
               ) : null}
 
               {runtimeNeedsRepair ? (
                 <div className="setup-alert setup-alert-warning">
                   <AlertTriangle size={16} strokeWidth={2} className="setup-alert-icon" />
-                  <span>检测到不完整的本地运行环境：{runtimeInspection.message}。继续将修复缺失或损坏的组件。</span>
+                  <span>{t("desktop.setup.incompleteRuntimeFound", { message: runtimeInspection.message })}</span>
                 </div>
               ) : null}
 
@@ -424,9 +452,9 @@ export function SetupPage({
                         ) : null}
                       </div>
                       <div className="setup-step-body">
-                        <span className="setup-step-title">{STEP_TITLE[stepKey]}</span>
+                        <span className="setup-step-title">{t(STEP_TITLE_KEYS[stepKey])}</span>
                         {(entry.status === "running" || entry.status === "failed") && !showProgress ? (
-                          <span className="setup-step-detail">{entry.message}</span>
+                          <span className="setup-step-detail">{entry.status === "failed" ? entry.message : t(STEP_DETAIL_KEYS[stepKey])}</span>
                         ) : null}
                         {showProgress ? (
                           <div className="setup-progress">
@@ -437,7 +465,7 @@ export function SetupPage({
                               />
                             </div>
                             <div className="setup-progress-meta">
-                              <span>{entry.message}</span>
+                              <span>{t(STEP_DETAIL_KEYS[stepKey])}</span>
                               <span>{Math.round((entry.progress ?? 0) * 100)}%</span>
                             </div>
                           </div>
@@ -457,7 +485,7 @@ export function SetupPage({
                   <div className="setup-actions">
                     <button className="primary-button" type="button" onClick={() => void beginInstall()}>
                       <RefreshCw size={15} strokeWidth={2} style={{ verticalAlign: "-2px", marginRight: 6 }} />
-                      重试
+                      {t("desktop.setup.retry")}
                     </button>
                   </div>
                 </>
@@ -471,9 +499,9 @@ export function SetupPage({
                 <CircleCheck size={34} strokeWidth={2} />
               </span>
               <div>
-                <p className="setup-success-title">安装完成</p>
+                <p className="setup-success-title">{t("desktop.setup.installComplete")}</p>
                 <p className="setup-success-desc">
-                  OpenFic 运行环境已就绪，开始体验吧
+                  {t("desktop.setup.runtimeReady")}
                 </p>
               </div>
               <div className="setup-actions" style={{ width: "100%", justifyContent: "center" }}>
@@ -482,7 +510,7 @@ export function SetupPage({
                   type="button"
                   onClick={() => onStartLocal(installDir)}
                 >
-                  开始使用
+                  {t("desktop.setup.getStarted")}
                 </button>
               </div>
             </div>
@@ -501,18 +529,18 @@ const EYEBROW: Record<WizardStep, string> = {
   "local-success": "",
 };
 
-const TITLE: Record<WizardStep, string> = {
-  mode: "开始使用 OpenFic",
-  remote: "连接到已有服务",
-  "local-directory": "选择安装目录",
-  "local-installing": "正在安装运行环境",
+const TITLE_KEYS: Record<WizardStep, string> = {
+  mode: "desktop.setup.welcome",
+  remote: "desktop.setup.connectExistingService",
+  "local-directory": "desktop.setup.selectInstallDirectory",
+  "local-installing": "desktop.setup.installingRuntime",
   "local-success": "",
 };
 
-const DESCRIPTION: Record<WizardStep, string> = {
+const DESCRIPTION_KEYS: Record<WizardStep, string> = {
   mode: "",
   remote: "",
   "local-directory": "",
-  "local-installing": "请保持窗口开启，安装完成后将自动进入下一步。",
+  "local-installing": "desktop.setup.keepWindowOpen",
   "local-success": "",
 };

@@ -3,6 +3,7 @@ import { AlertTriangle, ChevronRight, Download, ExternalLink, PackageSearch, Ref
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
+import { useTranslation } from "react-i18next";
 import type { UpdateState } from "../../shared/ipc";
 
 interface DesktopNoticesProps {
@@ -57,9 +58,10 @@ export function DesktopNotices({
   onCloseCompatibilityWarning,
   onCloseUpdateDialog,
 }: DesktopNoticesProps) {
+  const { t } = useTranslation();
   const [updatePanelVisible, setUpdatePanelVisible] = useState(false);
   const [releaseNotesOpen, setReleaseNotesOpen] = useState(true);
-  const releaseNotes = getReleaseNotesText(updateState.releaseNotes, "本次更新包含稳定性改进与体验优化。");
+  const releaseNotes = getReleaseNotesText(updateState.releaseNotes, t("desktop.notices.releaseNotesFallback"));
   const hasVersionDetails = ["available", "downloading", "downloaded"].includes(updateState.status);
 
   useEffect(() => {
@@ -85,7 +87,7 @@ export function DesktopNotices({
             <button
               className="desktop-notice-warning-dismiss"
               type="button"
-              aria-label="关闭兼容性提示"
+              aria-label={t("desktop.notices.closeCompatibilityWarning")}
               onClick={onCloseCompatibilityWarning}
             >
               <X size={16} strokeWidth={2} />
@@ -99,25 +101,30 @@ export function DesktopNotices({
             className="desktop-update-panel-scrim"
             data-state={updateDialogOpen ? "open" : "closed"}
             type="button"
-            aria-label="关闭更新面板"
+            aria-label={t("desktop.notices.closeUpdatePanel")}
             onClick={onCloseUpdateDialog}
           />
           <aside className="desktop-notice desktop-notice-update desktop-update-panel" data-state={updateDialogOpen ? "open" : "closed"} role="status" aria-live="polite">
             {!hasVersionDetails ? (
-              <button className="desktop-notice-dismiss" type="button" aria-label="关闭更新提示" onClick={onCloseUpdateDialog}>
+              <button
+                className="desktop-notice-dismiss"
+                type="button"
+                aria-label={t("desktop.notices.closeUpdateNotice")}
+                onClick={onCloseUpdateDialog}
+              >
                 <X size={16} strokeWidth={2} />
               </button>
             ) : null}
             {updateState.status === "checking" || updateState.status === "idle" ? (
               <div className="desktop-update-simple-state">
-                <p className="desktop-notice-title">正在检查更新</p>
-                <p>正在连接更新服务，请稍候。</p>
+                <p className="desktop-notice-title">{t("desktop.notices.updateChecking")}</p>
+                <p>{t("desktop.notices.updateCheckingDescription")}</p>
               </div>
             ) : null}
             {updateState.status === "not-available" ? (
               <div className="desktop-update-simple-state">
-                <p className="desktop-notice-title">已是最新版本</p>
-                <p>当前安装的 OpenFic 已是最新版本。</p>
+                <p className="desktop-notice-title">{t("desktop.notices.appUpToDate")}</p>
+                <p>{t("desktop.notices.appUpToDateDescription")}</p>
               </div>
             ) : null}
             {hasVersionDetails ? (
@@ -125,9 +132,14 @@ export function DesktopNotices({
                 <div className="desktop-update-heading">
                   <p className="desktop-notice-title">
                     <PackageSearch size={16} strokeWidth={2} aria-hidden="true" />
-                    发现新版本 <span>v{updateState.version}</span>
+                    {t("desktop.notices.updateFound")} <span>v{updateState.version}</span>
                   </p>
-                  <button className="desktop-notice-dismiss" type="button" aria-label="关闭更新提示" onClick={onCloseUpdateDialog}>
+                  <button
+                    className="desktop-notice-dismiss"
+                    type="button"
+                    aria-label={t("desktop.notices.closeUpdateNotice")}
+                    onClick={onCloseUpdateDialog}
+                  >
                     <X size={16} strokeWidth={2} />
                   </button>
                 </div>
@@ -139,11 +151,11 @@ export function DesktopNotices({
                       aria-expanded={releaseNotesOpen}
                       onClick={() => setReleaseNotesOpen((open) => !open)}
                     >
-                      <span>更新日志</span>
+                      <span>{t("desktop.notices.releaseNotes")}</span>
                       <ChevronRight size={16} strokeWidth={2} />
                     </button>
                     <button className="desktop-release-details" type="button" onClick={onOpenRelease}>
-                      查看详情
+                      {t("desktop.notices.viewDetails")}
                       <ExternalLink size={12} strokeWidth={2} aria-hidden="true" />
                     </button>
                   </div>
@@ -156,7 +168,7 @@ export function DesktopNotices({
                 <footer className="desktop-update-footer">
                   <button className="desktop-notice-primary" type="button" onClick={onDownloadUpdate}>
                     <Download size={15} strokeWidth={2} />
-                    开始下载
+                    {t("desktop.notices.startDownload")}
                   </button>
                 </footer>
               </>
@@ -164,11 +176,18 @@ export function DesktopNotices({
             {updateState.status === "downloading" ? (
               <section className="desktop-download-state">
                 <div className="desktop-download-heading">
-                  <span>下载中</span>
-                  <button type="button" onClick={onCancelDownload}>取消</button>
+                  <span>{t("desktop.notices.downloading")}</span>
+                  <button type="button" onClick={onCancelDownload}>
+                    {t("desktop.common.cancel")}
+                  </button>
                   <strong>{Math.round((updateState.progress ?? 0) * 100)}%</strong>
                 </div>
-                <div className="desktop-update-progress" aria-label={`下载进度 ${Math.round((updateState.progress ?? 0) * 100)}%`}>
+                <div
+                  className="desktop-update-progress"
+                  aria-label={t("desktop.notices.downloadProgress", {
+                    progress: Math.round((updateState.progress ?? 0) * 100),
+                  })}
+                >
                   <span style={{ width: `${Math.min(Math.max(updateState.progress ?? 0, 0), 1) * 100}%` }} />
                 </div>
                 <div className="desktop-download-metrics">
@@ -181,17 +200,17 @@ export function DesktopNotices({
               <footer className="desktop-update-footer">
                 <button className="desktop-notice-primary" type="button" onClick={onInstallUpdate}>
                   <RotateCcw size={15} strokeWidth={2} />
-                  重启并安装
+                  {t("desktop.notices.restartAndInstall")}
                 </button>
               </footer>
             ) : null}
             {updateState.status === "error" ? (
               <div className="desktop-update-simple-state">
-                <p className="desktop-notice-title">检查更新失败</p>
-                <p>{updateState.message ?? "更新服务暂时不可用。"}</p>
+                <p className="desktop-notice-title">{t("desktop.notices.updateCheckFailed")}</p>
+                <p>{updateState.message ?? t("desktop.notices.updateServiceUnavailable")}</p>
                 <button className="desktop-notice-secondary" type="button" onClick={onCheckForUpdate}>
                   <RefreshCw size={15} strokeWidth={2} />
-                  重试
+                  {t("desktop.notices.retry")}
                 </button>
               </div>
             ) : null}

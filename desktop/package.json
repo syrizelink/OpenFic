@@ -19,9 +19,11 @@
   "dependencies": {
     "@radix-ui/themes": "^3.3.0",
     "electron-updater": "^6.8.9",
+    "i18next": "^25.10.10",
     "lucide-react": "^1.22.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "react-i18next": "^16.6.6",
     "react-markdown": "^10.1.0",
     "rehype-raw": "^7.0.0",
     "rehype-sanitize": "^6.0.0",

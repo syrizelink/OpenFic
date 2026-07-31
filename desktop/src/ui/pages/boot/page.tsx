@@ -1,5 +1,6 @@
 import { StartupProgress } from "../../components/startup-progress";
 import type { StartupProgressEvent } from "../../../shared/ipc";
+import { useTranslation } from "react-i18next";
 
 interface BootPageProps {
   error: string | null;
@@ -8,6 +9,7 @@ interface BootPageProps {
 }
 
 export function BootPage({ error, progress, onCancel }: BootPageProps) {
+  const { t } = useTranslation();
   return (
     <section className="content-page content-page-centered startup-page">
       <div className="boot-state">
@@ -15,7 +17,7 @@ export function BootPage({ error, progress, onCancel }: BootPageProps) {
         {error ? <p className="error">{error}</p> : null}
         <div className="boot-actions">
           <button className="boot-cancel-button" type="button" onClick={onCancel}>
-            取消连接
+            {t("desktop.boot.cancelConnection")}
           </button>
         </div>
       </div>

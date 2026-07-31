@@ -4,6 +4,7 @@ import { DesktopNotices } from "./components/desktop-notices";
 import { BootPage } from "./pages/boot/page";
 import { FrontendPage } from "./pages/frontend/page";
 import { SetupPage } from "./pages/setup/page";
+import i18n, { isDesktopLanguage } from "./i18n";
 import type { DesktopConfig } from "../shared/config";
 import type { StartupProgressEvent, UpdateState } from "../shared/ipc";
 
@@ -77,11 +78,11 @@ function normalizeRemoteUrl(url: string): string {
   }
 }
 
-function getRemoteInstanceName(url: string): string {
+function getRemoteInstanceName(url: string, fallback: string): string {
   try {
-    return new URL(url).host || "Remote";
+    return new URL(url).host || fallback;
   } catch {
-    return url || "Remote";
+    return url || fallback;
   }
 }
 
@@ -134,7 +135,7 @@ export function App() {
         setShellState(result.status === "ready" ? "frontend" : "setup");
       } catch (err) {
         if (cancelled || requestId !== startupRequestId.current) return;
-        setError(err instanceof Error ? err.message : "初始化失败");
+        setError(err instanceof Error ? err.message : i18n.t("desktop.app.initializeFailed"));
         setShellState("setup");
       }
     };
@@ -189,6 +190,10 @@ export function App() {
           fontFamily: payload.fontFamily ?? current.fontFamily,
           codeFontFamily: payload.codeFontFamily ?? current.codeFontFamily,
         }));
+        return;
+      }
+      if (channel === "openfic:language" && isDesktopLanguage(payload)) {
+        void i18n.changeLanguage(payload);
         return;
       }
       if (channel === "openfic:zoom-factor" && isZoomFactor(payload)) {
@@ -272,7 +277,7 @@ export function App() {
       setShellState(result.status === "ready" ? "frontend" : "setup");
     } catch (err) {
       if (requestId !== startupRequestId.current) return;
-      setError(err instanceof Error ? err.message : "切换实例失败");
+      setError(err instanceof Error ? err.message : i18n.t("desktop.app.switchInstanceFailed"));
       setShellState("setup");
     }
   };
@@ -306,7 +311,7 @@ export function App() {
       );
       const instance = existingInstance ?? {
         id: createInstanceId(),
-        name: getRemoteInstanceName(normalizedUrl),
+        name: getRemoteInstanceName(normalizedUrl, i18n.t("desktop.app.remoteInstanceFallback")),
         mode: "remote" as const,
         remoteUrl: normalizedUrl,
         autoStartLocal: false,
@@ -325,7 +330,7 @@ export function App() {
       await showFrontend(result, requestId);
     } catch (err) {
       if (requestId !== startupRequestId.current) return;
-      setError(err instanceof Error ? err.message : "无法连接到该地址");
+      setError(err instanceof Error ? err.message : i18n.t("desktop.app.connectRemoteFailed"));
       setSetupInitialStep("remote");
       setShellState("setup");
     }
@@ -345,7 +350,7 @@ export function App() {
       await showFrontend(undefined, requestId);
     } catch (err) {
       if (requestId !== startupRequestId.current) return;
-      setError(err instanceof Error ? err.message : "启动后端失败");
+      setError(err instanceof Error ? err.message : i18n.t("desktop.app.startLocalFailed"));
       setSetupInitialStep("local-directory");
       setShellState("setup");
     }

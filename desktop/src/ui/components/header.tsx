@@ -1,5 +1,6 @@
 import { useEffect, useEffectEvent, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { Link2, Link2Off, Minus, Plus, RefreshCw, Square, Star, Trash2, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { DesktopConfig, DesktopInstance } from "../../shared/config";
 import type { UpdateState } from "../../shared/ipc";
 
@@ -76,15 +77,15 @@ function isMenuShortcut(value: unknown): value is MenuShortcut {
   ].includes(value);
 }
 
-function getInstanceLabel(instance: DesktopInstance): string {
-  if (instance.mode === "local") return "本地";
+function getInstanceLabel(instance: DesktopInstance, local: string): string {
+  if (instance.mode === "local") return local;
   return instance.remoteUrl ?? "";
 }
 
-function getLatencyText(state: PingState): string {
+function getLatencyText(state: PingState, unavailable: string): string {
   if (state.status === "checking") return "…";
   if (state.status === "ok") return `${state.latencyMs}ms`;
-  if (state.status === "failed") return "不可用";
+  if (state.status === "failed") return unavailable;
   return "-";
 }
 
@@ -106,6 +107,7 @@ export function DesktopHeader({
   updateState,
   onUpdateAction,
 }: DesktopHeaderProps) {
+  const { t } = useTranslation();
   const [panelVisible, setPanelVisible] = useState(false);
   const [pingStates, setPingStates] = useState<Record<string, PingState>>({});
   const [switchingId, setSwitchingId] = useState<string | null>(null);
@@ -130,14 +132,14 @@ export function DesktopHeader({
           ? "error"
           : "idle";
   const updateAriaLabel = isDownloadingUpdate
-    ? `正在下载更新，${Math.round(updateProgress * 100)}%`
+    ? t("desktop.header.updateDownloading", { progress: Math.round(updateProgress * 100) })
     : isCheckingForUpdate
-      ? "正在检查更新"
+      ? t("desktop.header.updateChecking")
       : updateIconState === "available"
-        ? "发现更新"
+        ? t("desktop.header.updateAvailable")
         : updateIconState === "error"
-          ? "更新失败，点击重试"
-          : "检查更新";
+          ? t("desktop.header.updateFailedRetry")
+          : t("desktop.header.checkForUpdates");
 
   const refreshPings = () => {
     if (!instances.length) return;
@@ -156,7 +158,7 @@ export function DesktopHeader({
         .catch((err) => {
           setPingStates((current) => ({
             ...current,
-            [instance.id]: { status: "failed", message: err instanceof Error ? err.message : "连接失败" },
+            [instance.id]: { status: "failed", message: err instanceof Error ? err.message : t("desktop.header.connectionFailed") },
           }));
         });
     }
@@ -364,7 +366,7 @@ export function DesktopHeader({
     <header className="desktop-header">
       <div className="desktop-titlebar-left">
         <div className="desktop-titlebar-brand">OpenFic</div>
-        <nav className="desktop-menu-bar" aria-label="应用菜单" ref={menuBarRef}>
+        <nav className="desktop-menu-bar" aria-label={t("desktop.header.appMenu")} ref={menuBarRef}>
           <div className="desktop-menu">
             <button
               className="desktop-menu-trigger"
@@ -373,43 +375,72 @@ export function DesktopHeader({
               aria-haspopup="menu"
               onClick={() => toggleMenu("window")}
             >
-              窗口(W)
+              {t("desktop.header.windowMenu")}
             </button>
             {visibleMenu === "window" ? (
-              <div className="desktop-menu-panel" data-state={openMenu === "window" ? "open" : "closed"} role="menu" aria-label="窗口">
+              <div
+                className="desktop-menu-panel"
+                data-state={openMenu === "window" ? "open" : "closed"}
+                role="menu"
+                aria-label={t("desktop.header.windowMenu")}
+              >
                 <button className="desktop-menu-item" type="button" role="menuitem" onClick={() => void window.openficDesktop.reloadWindow()}>
-                  重载
+                  {t("desktop.header.reload")}
                 </button>
                 <span className="desktop-menu-separator" role="separator" />
-                <button className="desktop-menu-item" type="button" role="menuitem" onClick={() => { setOpenMenu(null); void window.openficDesktop.minimizeWindow(); }}>
-                  <span>最小化</span>
+                <button
+                  className="desktop-menu-item"
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpenMenu(null);
+                    void window.openficDesktop.minimizeWindow();
+                  }}
+                >
+                  <span>{t("desktop.header.minimize")}</span>
                   <span className="desktop-menu-item-shortcut">Ctrl+M</span>
                 </button>
-                <button className="desktop-menu-item" type="button" role="menuitem" onClick={() => { setOpenMenu(null); void window.openficDesktop.toggleMaximizeWindow(); }}>
-                  <span>切换最大化</span>
+                <button
+                  className="desktop-menu-item"
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpenMenu(null);
+                    void window.openficDesktop.toggleMaximizeWindow();
+                  }}
+                >
+                  <span>{t("desktop.header.toggleMaximize")}</span>
                   <span className="desktop-menu-item-shortcut">Ctrl+Shift+M</span>
                 </button>
-                <button className="desktop-menu-item" type="button" role="menuitem" onClick={() => { setOpenMenu(null); void window.openficDesktop.toggleFullScreen(); }}>
-                  <span>切换全屏</span>
+                <button
+                  className="desktop-menu-item"
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpenMenu(null);
+                    void window.openficDesktop.toggleFullScreen();
+                  }}
+                >
+                  <span>{t("desktop.header.toggleFullscreen")}</span>
                   <span className="desktop-menu-item-shortcut">F11</span>
                 </button>
                 <span className="desktop-menu-separator" role="separator" />
                 <button className="desktop-menu-item" type="button" role="menuitem" onClick={() => void handleChangeZoom("in")}>
-                  <span>放大</span>
+                  <span>{t("desktop.header.zoomIn")}</span>
                   <span className="desktop-menu-item-shortcut">Ctrl++</span>
                 </button>
                 <button className="desktop-menu-item" type="button" role="menuitem" onClick={() => void handleChangeZoom("out")}>
-                  <span>缩小</span>
+                  <span>{t("desktop.header.zoomOut")}</span>
                   <span className="desktop-menu-item-shortcut">Ctrl+-</span>
                 </button>
                 <button className="desktop-menu-item" type="button" role="menuitem" onClick={() => void handleChangeZoom("reset")}>
-                  <span>重置缩放</span>
+                  <span>{t("desktop.header.resetZoom")}</span>
                   <span className="desktop-menu-item-shortcut">Ctrl+0</span>
                   <span className="desktop-menu-item-value">{Math.round(zoomFactor * 100)}%</span>
                 </button>
                 <span className="desktop-menu-separator" role="separator" />
                 <button className="desktop-menu-item" type="button" role="menuitem" onClick={() => void window.openficDesktop.closeWindow()}>
-                  <span>退出 OpenFic</span>
+                  <span>{t("desktop.header.quitApp")}</span>
                   <span className="desktop-menu-item-shortcut">Ctrl+Q</span>
                 </button>
               </div>
@@ -423,15 +454,20 @@ export function DesktopHeader({
               aria-haspopup="menu"
               onClick={() => toggleMenu("instance")}
             >
-              实例(I)
+              {t("desktop.header.instanceMenu")}
             </button>
             {visibleMenu === "instance" ? (
-              <div className="desktop-menu-panel" data-state={openMenu === "instance" ? "open" : "closed"} role="menu" aria-label="实例">
+              <div
+                className="desktop-menu-panel"
+                data-state={openMenu === "instance" ? "open" : "closed"}
+                role="menu"
+                aria-label={t("desktop.header.instance")}
+              >
                 <button className="desktop-menu-item" type="button" role="menuitem" disabled={disabled} onClick={handleAddInstance}>
-                  添加实例
+                  {t("desktop.header.addInstance")}
                 </button>
                 <button className="desktop-menu-item" type="button" role="menuitem" disabled={disabled} onClick={handleOpenSetup}>
-                  管理实例
+                  {t("desktop.header.manageInstances")}
                 </button>
               </div>
             ) : null}
@@ -444,25 +480,30 @@ export function DesktopHeader({
               aria-haspopup="menu"
               onClick={() => toggleMenu("help")}
             >
-              帮助(H)
+              {t("desktop.header.helpMenu")}
             </button>
             {visibleMenu === "help" ? (
-              <div className="desktop-menu-panel" data-state={openMenu === "help" ? "open" : "closed"} role="menu" aria-label="帮助">
+              <div
+                className="desktop-menu-panel"
+                data-state={openMenu === "help" ? "open" : "closed"}
+                role="menu"
+                aria-label={t("desktop.header.helpMenu")}
+              >
                 <button className="desktop-menu-item" type="button" role="menuitem" onClick={() => handleHelpAction(window.openficDesktop.openProjectHome)}>
-                  项目主页
+                  {t("desktop.header.projectHome")}
                 </button>
                 <button className="desktop-menu-item" type="button" role="menuitem" onClick={() => handleHelpAction(window.openficDesktop.reportBug)}>
-                  反馈 Bug
+                  {t("desktop.header.reportBug")}
                 </button>
                 <button className="desktop-menu-item" type="button" role="menuitem" onClick={() => handleHelpAction(window.openficDesktop.suggestFeature)}>
-                  提出建议
+                  {t("desktop.header.suggestFeature")}
                 </button>
                 <span className="desktop-menu-separator" role="separator" />
                 <button className="desktop-menu-item" type="button" role="menuitem" onClick={() => void handleExportLogs()}>
-                  导出调试日志
+                  {t("desktop.header.exportDebugLogs")}
                 </button>
                 <button className="desktop-menu-item" type="button" role="menuitem" onClick={() => handleHelpAction(window.openficDesktop.toggleDevTools)}>
-                  <span>切换开发者工具</span>
+                  <span>{t("desktop.header.toggleDevTools")}</span>
                   <span className="desktop-menu-item-shortcut">F12</span>
                 </button>
               </div>
@@ -475,7 +516,7 @@ export function DesktopHeader({
           className="desktop-menu-scrim"
           data-state={openMenu ? "open" : "closed"}
           type="button"
-          aria-label="关闭菜单"
+          aria-label={t("desktop.header.closeMenu")}
           onClick={() => setOpenMenu(null)}
         />
       ) : null}
@@ -502,7 +543,7 @@ export function DesktopHeader({
           <button
             className="titlebar-button titlebar-link-button"
             data-connected={hasUsableRuntime}
-            aria-label="实例"
+            aria-label={t("desktop.header.instance")}
             type="button"
             disabled={disabled}
             onClick={() => onInstancePanelOpenChange(!instancePanelOpen)}
@@ -515,17 +556,27 @@ export function DesktopHeader({
                 className="instance-panel-scrim"
                 data-state={instancePanelOpen ? "open" : "closed"}
                 type="button"
-                aria-label="关闭实例面板"
+                aria-label={t("desktop.header.closeInstancePanel")}
                 onClick={() => onInstancePanelOpenChange(false)}
               />
-              <div className="instance-panel" data-state={instancePanelOpen ? "open" : "closed"} role="dialog" aria-label="实例">
+              <div
+                className="instance-panel"
+                data-state={instancePanelOpen ? "open" : "closed"}
+                role="dialog"
+                aria-label={t("desktop.header.instance")}
+              >
                 <div className="instance-panel-head">
                   <div>
-                    <p className="instance-panel-title">切换实例</p>
+                    <p className="instance-panel-title">{t("desktop.header.switchInstance")}</p>
                   </div>
-                  <button className="instance-icon-button" type="button" aria-label="刷新" onClick={refreshPings}>
+                  <button
+                    className="instance-icon-button"
+                    type="button"
+                    aria-label={t("desktop.header.refresh")}
+                    onClick={refreshPings}
+                  >
                     <RefreshCw size={14} strokeWidth={2} />
-                    刷新
+                    {t("desktop.header.refresh")}
                   </button>
                 </div>
                 <div className="instance-list">
@@ -547,17 +598,21 @@ export function DesktopHeader({
                         >
                           <span className="instance-name-line">
                             <span className="instance-label-wrap">
-                              <strong title={getInstanceLabel(instance)}>{getInstanceLabel(instance)}</strong>
-                              {active ? <span className="instance-current-badge">当前</span> : null}
+                              <strong title={getInstanceLabel(instance, t("desktop.header.local"))}>
+                                {getInstanceLabel(instance, t("desktop.header.local"))}
+                              </strong>
+                              {active ? <span className="instance-current-badge">{t("desktop.header.current")}</span> : null}
                             </span>
-                            <span>{getLatencyText(pingState)}</span>
+                            <span>{getLatencyText(pingState, t("desktop.header.unavailable"))}</span>
                           </span>
                         </button>
                         <span className="instance-row-actions">
                           <button
                             className="instance-action-button"
                             type="button"
-                            aria-label={instance.favorite ? "取消收藏" : "收藏"}
+                            aria-label={
+                              instance.favorite ? t("desktop.header.unfavorite") : t("desktop.header.favorite")
+                            }
                             data-active={Boolean(instance.favorite)}
                             onClick={(event) => void toggleFavorite(event, instance)}
                           >
@@ -566,7 +621,7 @@ export function DesktopHeader({
                           <button
                             className="instance-action-button"
                             type="button"
-                            aria-label="删除实例"
+                            aria-label={t("desktop.header.deleteInstance")}
                             disabled={instances.length <= 1}
                             onClick={(event) => void deleteInstance(event, instance)}
                           >
@@ -579,19 +634,34 @@ export function DesktopHeader({
                 </div>
                 <button className="instance-add" type="button" onClick={handleAddInstance}>
                   <Plus size={15} strokeWidth={2} />
-                  添加实例
+                  {t("desktop.header.addInstance")}
                 </button>
               </div>
             </>
           ) : null}
         </div>
-        <button className="titlebar-button" aria-label="最小化" type="button" onClick={() => void window.openficDesktop.minimizeWindow()}>
+        <button
+          className="titlebar-button"
+          aria-label={t("desktop.header.minimizeWindow")}
+          type="button"
+          onClick={() => void window.openficDesktop.minimizeWindow()}
+        >
           <Minus size={15} strokeWidth={2} />
         </button>
-        <button className="titlebar-button" aria-label="最大化" type="button" onClick={() => void window.openficDesktop.toggleMaximizeWindow()}>
+        <button
+          className="titlebar-button"
+          aria-label={t("desktop.header.maximizeWindow")}
+          type="button"
+          onClick={() => void window.openficDesktop.toggleMaximizeWindow()}
+        >
           <Square size={14} strokeWidth={2} />
         </button>
-        <button className="titlebar-button titlebar-button-close" aria-label="关闭" type="button" onClick={() => void window.openficDesktop.closeWindow()}>
+        <button
+          className="titlebar-button titlebar-button-close"
+          aria-label={t("desktop.header.closeWindow")}
+          type="button"
+          onClick={() => void window.openficDesktop.closeWindow()}
+        >
           <X size={16} strokeWidth={2} />
         </button>
       </div>

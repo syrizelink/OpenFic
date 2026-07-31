@@ -61,4 +61,7 @@ contextBridge.exposeInMainWorld("openficDesktopHost", {
   publishAppearance: (payload: unknown): void => {
     ipcRenderer.sendToHost("openfic:appearance", payload);
   },
+  publishLanguage: (language: unknown): void => {
+    ipcRenderer.sendToHost("openfic:language", language);
+  },
 });
