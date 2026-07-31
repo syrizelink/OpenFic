@@ -56,6 +56,45 @@
   overflow-y: auto;
 }
 
+.skills-settings-list,
+.skills-settings-editor-scroll,
+.rt-TextAreaRoot.skills-settings-skill-content .rt-TextAreaInput,
+.rt-TextAreaRoot.skills-settings-refdoc-editor-content .rt-TextAreaInput {
+  scrollbar-width: thin;
+  scrollbar-color: var(--gray-a5) transparent;
+}
+
+.skills-settings-list::-webkit-scrollbar,
+.skills-settings-editor-scroll::-webkit-scrollbar,
+.rt-TextAreaRoot.skills-settings-skill-content .rt-TextAreaInput::-webkit-scrollbar,
+.rt-TextAreaRoot.skills-settings-refdoc-editor-content .rt-TextAreaInput::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.skills-settings-list::-webkit-scrollbar-track,
+.skills-settings-editor-scroll::-webkit-scrollbar-track,
+.rt-TextAreaRoot.skills-settings-skill-content .rt-TextAreaInput::-webkit-scrollbar-track,
+.rt-TextAreaRoot.skills-settings-refdoc-editor-content .rt-TextAreaInput::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.skills-settings-list::-webkit-scrollbar-thumb,
+.skills-settings-editor-scroll::-webkit-scrollbar-thumb,
+.rt-TextAreaRoot.skills-settings-skill-content .rt-TextAreaInput::-webkit-scrollbar-thumb,
+.rt-TextAreaRoot.skills-settings-refdoc-editor-content .rt-TextAreaInput::-webkit-scrollbar-thumb {
+  background: var(--gray-a5);
+  border-radius: 4px;
+}
+
+.skills-settings-list::-webkit-scrollbar-thumb:hover,
+.skills-settings-editor-scroll::-webkit-scrollbar-thumb:hover,
+.rt-TextAreaRoot.skills-settings-skill-content .rt-TextAreaInput::-webkit-scrollbar-thumb:hover,
+.rt-TextAreaRoot.skills-settings-refdoc-editor-content
+  .rt-TextAreaInput::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-a7);
+}
+
 .skills-settings-list-body {
   width: 100%;
   min-width: 0;
@@ -335,6 +374,40 @@
 
 .skills-settings-refdocs-empty {
   padding: 6px 8px;
+}
+
+.rt-DialogContent.skills-settings-refdoc-dialog {
+  display: flex;
+  width: min(900px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  height: min(70vh, calc(100vh - 64px));
+  max-height: calc(100vh - 64px);
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.rt-Box.skills-settings-refdoc-dialog-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.rt-Flex.skills-settings-refdoc-editor {
+  flex: 1;
+  min-height: 0;
+}
+
+.rt-TextAreaRoot.skills-settings-refdoc-editor-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.rt-TextAreaRoot.skills-settings-refdoc-editor-content .rt-TextAreaInput {
+  height: 100%;
+  min-height: 0;
+  resize: none;
 }
 
 .rt-Box.skills-settings-mobile-page {

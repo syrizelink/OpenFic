@@ -433,6 +433,11 @@ export async function toggleSkill(skillDbId: string): Promise<Skill> {
   return transformSkill(response.data);
 }
 
+export async function forkSkill(skillDbId: string): Promise<Skill> {
+  const response = await apiClient.post(`/skills/${skillDbId}/fork`);
+  return transformSkill(response.data);
+}
+
 export async function deleteSkill(skillDbId: string): Promise<void> {
   await apiClient.delete(`/skills/${skillDbId}`);
 }

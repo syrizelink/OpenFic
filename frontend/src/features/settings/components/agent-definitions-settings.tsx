@@ -284,7 +284,10 @@ function AgentForm({
     );
   }, []);
 
-  const selectableSkills = useMemo(() => skills.filter((skill) => skill.name.trim()), [skills]);
+  const selectableSkills = useMemo(
+    () => skills.filter((skill) => skill.name.trim() && skill.isEnabled),
+    [skills],
+  );
 
   return (
     <Flex
@@ -473,7 +476,7 @@ function AgentForm({
             gap="2"
           >
             {selectableSkills.map((skill) => {
-              const disabled = isAgentSettingsLocked || !skill.isEnabled || !skill.isComplete;
+              const disabled = isAgentSettingsLocked || !skill.isComplete;
               return (
                 <label
                   key={skill.id}

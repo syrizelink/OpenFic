@@ -1828,6 +1828,7 @@
       "referenceDocsEmpty": "No reference docs",
       "renameReferenceDoc": "Rename Reference Doc",
       "editReferenceDoc": "Edit Reference Doc",
+      "previewReferenceDoc": "Preview Reference Doc",
       "deleteReferenceDoc": "Delete Reference Doc",
       "deleteReferenceDocDescription": "This cannot be undone.",
       "referenceDocTitle": "Title",
@@ -1836,6 +1837,7 @@
       "referenceDocCreated": "Reference doc created",
       "referenceDocRenamed": "Renamed",
       "referenceDocRenameFailed": "Rename failed",
+      "forkedSkill": "Skill fork created",
       "tokens": "tokens",
       "importDialog": {
         "invalidFileType": "Only .md / .zip files and folders are supported",

@@ -1891,6 +1891,7 @@
       "referenceDocsEmpty": "暂无参考文档",
       "renameReferenceDoc": "重命名参考文档",
       "editReferenceDoc": "编辑参考文档",
+      "previewReferenceDoc": "预览参考文档",
       "deleteReferenceDoc": "删除参考文档",
       "deleteReferenceDocDescription": "删除后无法恢复。",
       "referenceDocTitle": "标题",
@@ -1899,6 +1900,7 @@
       "referenceDocCreated": "已创建参考文档",
       "referenceDocRenamed": "已重命名",
       "referenceDocRenameFailed": "重命名失败",
+      "forkedSkill": "已创建技能副本",
       "tokens": "tokens",
       "importDialog": {
         "invalidFileType": "仅支持 .md / .zip 文件与文件夹",

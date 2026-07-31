@@ -16,6 +16,7 @@ from app.skills import (
     load_builtin_skills,
 )
 from app.storage.models.skill import Skill
+from app.storage.models.skill_reference_doc import SkillReferenceDoc
 from app.storage.repos import skill_reference_doc_repo, skill_repo
 
 
@@ -146,6 +147,28 @@ async def create_skill(
     if skill.is_enabled and not is_skill_complete(skill):
         raise SkillValidationError("Skill 信息未完整填写，无法启用。")
     return await skill_repo.create(session, skill)
+
+
+async def fork_skill(session: AsyncSession, skill_db_id: str) -> Skill:
+    source = await get_skill(session, skill_db_id)
+    fork = await create_skill(
+        session,
+        name=f"{source.name}- Fork",
+        summary=source.summary,
+        content=source.content,
+    )
+    reference_docs = await list_reference_docs(session, skill_db_id)
+    for reference_doc in reference_docs:
+        await skill_reference_doc_repo.create(
+            session,
+            SkillReferenceDoc(
+                skill_db_id=fork.id,
+                title=reference_doc.title,
+                content=reference_doc.content,
+                tokens=reference_doc.tokens,
+            ),
+        )
+    return fork
 
 
 async def get_skill(session: AsyncSession, skill_db_id: str) -> SkillData:

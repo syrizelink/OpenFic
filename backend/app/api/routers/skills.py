@@ -166,6 +166,26 @@ async def toggle_skill(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
+@router.post(
+    "/skills/{skill_db_id}/fork",
+    response_model=SkillResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def fork_skill(
+    skill_db_id: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> SkillResponse:
+    try:
+        await require_agent_settings_unlocked(session)
+        logger.info(f"复制 Skill: skill_db_id={skill_db_id}")
+        skill = await skill_service.fork_skill(session, skill_db_id)
+        return _to_response(skill)
+    except NotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    except skill_service.SkillValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
 @router.delete("/skills/{skill_db_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_skill(
     skill_db_id: str,

@@ -150,6 +150,82 @@ async def test_create_skill_dedupes_duplicate_name(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_fork_skill_copies_custom_skill_and_reference_docs(client: AsyncClient) -> None:
+    create_response = await client.post(
+        "/api/v1/skills",
+        json={
+            "name": "原技能",
+            "summary": "原简述",
+            "content": "原技能内容",
+            "is_enabled": True,
+        },
+    )
+    source = create_response.json()
+    await client.post(
+        f"/api/v1/skills/{source['id']}/reference-docs",
+        json={"title": "参考文档一", "content": "参考内容一"},
+    )
+    await client.post(
+        f"/api/v1/skills/{source['id']}/reference-docs",
+        json={"title": "参考文档二", "content": "参考内容二"},
+    )
+
+    fork_response = await client.post(f"/api/v1/skills/{source['id']}/fork")
+
+    assert fork_response.status_code == 201
+    fork = fork_response.json()
+    assert fork["id"] != source["id"]
+    assert fork["name"] == "原技能- Fork"
+    assert fork["summary"] == source["summary"]
+    assert fork["content"] == source["content"]
+    assert fork["source"] == "custom"
+    assert fork["is_enabled"] is False
+
+    fork_docs_response = await client.get(f"/api/v1/skills/{fork['id']}/reference-docs")
+    assert fork_docs_response.status_code == 200
+    assert [
+        (doc["title"], doc["content"]) for doc in fork_docs_response.json()
+    ] == [
+        ("参考文档一", "参考内容一"),
+        ("参考文档二", "参考内容二"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_fork_skill_copies_builtin_skill_and_reference_docs(client: AsyncClient) -> None:
+    list_response = await client.get("/api/v1/skills")
+    builtin_skills = [
+        item for item in list_response.json()["items"] if item["source"] == "builtin"
+    ]
+    source = None
+    source_docs = []
+    for skill in builtin_skills:
+        docs_response = await client.get(f"/api/v1/skills/{skill['id']}/reference-docs")
+        if docs_response.json():
+            source = skill
+            source_docs = docs_response.json()
+            break
+
+    assert source is not None
+
+    fork_response = await client.post(f"/api/v1/skills/{source['id']}/fork")
+
+    assert fork_response.status_code == 201
+    fork = fork_response.json()
+    assert fork["name"] == f"{source['name']}- Fork"
+    assert fork["summary"] == source["summary"]
+    assert fork["content"] == source["content"]
+    assert fork["source"] == "custom"
+    assert fork["is_enabled"] is False
+
+    fork_docs_response = await client.get(f"/api/v1/skills/{fork['id']}/reference-docs")
+    assert fork_docs_response.status_code == 200
+    assert [
+        (doc["title"], doc["content"]) for doc in fork_docs_response.json()
+    ] == [(doc["title"], doc["content"]) for doc in source_docs]
+
+
+@pytest.mark.asyncio
 async def test_update_skill_name_conflict(client: AsyncClient) -> None:
     await client.post(
         "/api/v1/skills",
