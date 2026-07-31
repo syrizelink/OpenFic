@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.8.1](https://github.com/syrizelink/OpenFic/compare/v0.8.0...v0.8.1) (2026-07-31)
+
+
+### 🐛 问题修复
+
+* **agent:** 修复旧会话配置无法恢复的问题 ([#202](https://github.com/syrizelink/OpenFic/issues/202)) ([ac9a59b](https://github.com/syrizelink/OpenFic/commit/ac9a59bea251a6bed4fb4ffcde005e74ee665151))
+* **agent:** 修复编辑工具转义空白匹配失败的问题 ([#214](https://github.com/syrizelink/OpenFic/issues/214)) ([649b87b](https://github.com/syrizelink/OpenFic/commit/649b87b801458bfd3b1c44e84215a299b8eaa174))
+* **agent:** 修复重启后会话设置持续锁定的问题 ([#216](https://github.com/syrizelink/OpenFic/issues/216)) ([33555ff](https://github.com/syrizelink/OpenFic/commit/33555ff2c4d3a369938fd95e22fe64f276320a64))
+* **dashboard:** 修复调用记录时间未转换时区的问题 ([#204](https://github.com/syrizelink/OpenFic/issues/204)) ([da977a8](https://github.com/syrizelink/OpenFic/commit/da977a8311b8effbed9506f204bb97eb2d8af6d7))
+* **desktop:** 修复 macOS 运行时与安装包校验异常 ([#215](https://github.com/syrizelink/OpenFic/issues/215)) ([8ebac44](https://github.com/syrizelink/OpenFic/commit/8ebac44ab083b00b2de394f740badcc45c8773a0))
+* **desktop:** 修复本地后端 Socket 代理连接失败的问题 ([#209](https://github.com/syrizelink/OpenFic/issues/209)) ([7ffbd78](https://github.com/syrizelink/OpenFic/commit/7ffbd78ea937e45a93d4faa571ef1434050f9f98))
+* **frontend:** 新建角色后自动切换标签 ([#191](https://github.com/syrizelink/OpenFic/issues/191)) ([8f35b51](https://github.com/syrizelink/OpenFic/commit/8f35b51b38670982764b7615d64106d9944329ee))
+
+
+### 🔧 杂项
+
+* **editor:** 优化编辑器体验 ([#219](https://github.com/syrizelink/OpenFic/issues/219)) ([f3554d4](https://github.com/syrizelink/OpenFic/commit/f3554d47ea549dffebda9ad4f2289dc904cdfa6f))
+* **provider:** 新增 Anthropic Compatible 提供商 ([#208](https://github.com/syrizelink/OpenFic/issues/208)) ([2000f79](https://github.com/syrizelink/OpenFic/commit/2000f79d522bd4140994bc3ce1c59799f85baa30))
+* **skills:** 优化技能配置体验 ([#218](https://github.com/syrizelink/OpenFic/issues/218)) ([d7976c5](https://github.com/syrizelink/OpenFic/commit/d7976c583bdd3bf6d3a67c9efc3231b941d4c167))
+* 优化角色和世界书列表体验 ([#212](https://github.com/syrizelink/OpenFic/issues/212)) ([191ed05](https://github.com/syrizelink/OpenFic/commit/191ed05888ced345ca4a0b78f58dfacc8b832ab4))
+
 ## [0.8.0](https://github.com/syrizelink/OpenFic/compare/v0.7.6...v0.8.0) (2026-07-29)
 
 
