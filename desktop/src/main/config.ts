@@ -26,7 +26,8 @@ function isDesktopConfig(value: unknown): value is DesktopConfig {
   return (
     (typeof candidate.activeInstanceId === "string" || candidate.activeInstanceId === null) &&
     Array.isArray(candidate.instances) &&
-    candidate.instances.every(isDesktopInstance)
+    candidate.instances.every(isDesktopInstance) &&
+    (candidate.zoomFactor === undefined || (typeof candidate.zoomFactor === "number" && Number.isFinite(candidate.zoomFactor)))
   );
 }
 

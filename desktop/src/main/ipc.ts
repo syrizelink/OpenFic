@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain, type BrowserWindow } from "electron";
+import { app, dialog, ipcMain, shell, type BrowserWindow } from "electron";
 import path from "node:path";
 import {
   IpcChannels,
@@ -10,10 +10,11 @@ import {
   type PingInstanceRequest,
   type PingInstanceResult,
   type SaveConfigRequest,
+  type SaveZoomFactorRequest,
   type StartLocalBackendRequest,
   type SwitchInstanceRequest,
 } from "../shared/ipc.js";
-import { readDesktopConfig, writeDesktopConfig } from "./config.js";
+import { createDefaultConfig, readDesktopConfig, writeDesktopConfig } from "./config.js";
 import { ensureAppProtocolForPartition } from "./protocol.js";
 import { findLocalInstanceByInstallDir, normalizeInstallDir } from "./local-instance.js";
 import { inspectLocalRuntime, installLocalRuntime, startLocalBackendFromInstall } from "./runtime/setup-runner.js";
@@ -23,6 +24,18 @@ import { createStartupProgressTracker, getStartupProgress } from "./startup-prog
 import { exportLogs } from "./logging.js";
 import type { BackendProcessHandle } from "./process.js";
 import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
+
+const PROJECT_HOME_URL = "https://github.com/syrizelink/OpenFic";
+const BUG_REPORT_URL = `${PROJECT_HOME_URL}/issues/new?template=bug-report.yml`;
+const FEATURE_SUGGESTION_URL = `${PROJECT_HOME_URL}/issues/new?template=feature-request.yml`;
+const MIN_ZOOM_FACTOR = 0.7;
+const MAX_ZOOM_FACTOR = 2.0;
+const DEFAULT_ZOOM_FACTOR = 1.1;
+
+function normalizeZoomFactor(zoomFactor: number): number {
+  const clampedZoomFactor = Math.min(MAX_ZOOM_FACTOR, Math.max(MIN_ZOOM_FACTOR, zoomFactor));
+  return Math.round(clampedZoomFactor * 10) / 10;
+}
 
 export interface IpcContext {
   shellWindow: () => BrowserWindow | null;
@@ -42,11 +55,38 @@ function createInstanceId(): string {
 }
 
 export function registerIpc(context: IpcContext): void {
+  let pendingZoomSave = Promise.resolve();
+
+  const saveZoomFactor = async (zoomFactor: number): Promise<number> => {
+    const clampedZoomFactor = normalizeZoomFactor(zoomFactor);
+    const save = pendingZoomSave.then(async () => {
+      const config = await readDesktopConfig();
+      await writeDesktopConfig({ ...(config ?? createDefaultConfig()), zoomFactor: clampedZoomFactor });
+    });
+    pendingZoomSave = save.catch(() => undefined);
+    await save;
+    context.shellWindow()?.webContents.send(IpcChannels.zoomFactorChanged, clampedZoomFactor);
+    return clampedZoomFactor;
+  };
+
   ipcMain.handle(IpcChannels.getConfig, () => readDesktopConfig());
 
   ipcMain.handle(IpcChannels.saveConfig, async (_event, request: SaveConfigRequest) => {
-    await writeDesktopConfig(request.config);
-    context.onConfigSaved(request.config);
+    await pendingZoomSave;
+    const previousConfig = await readDesktopConfig();
+    const nextConfig = { ...request.config, zoomFactor: previousConfig?.zoomFactor };
+    await writeDesktopConfig(nextConfig);
+    context.onConfigSaved(nextConfig);
+  });
+
+  ipcMain.handle(IpcChannels.getZoomFactor, async () => {
+    await pendingZoomSave;
+    return normalizeZoomFactor((await readDesktopConfig())?.zoomFactor ?? DEFAULT_ZOOM_FACTOR);
+  });
+
+  ipcMain.handle(IpcChannels.saveZoomFactor, async (_event, request: SaveZoomFactorRequest) => {
+    if (!Number.isFinite(request.zoomFactor)) return;
+    return saveZoomFactor(request.zoomFactor);
   });
 
   ipcMain.handle(IpcChannels.initializeApp, () => context.initializeApp());
@@ -141,6 +181,7 @@ export function registerIpc(context: IpcContext): void {
       const backend = await startLocalBackendFromInstall(request.installDir, startupProgress, controller.signal);
       context.setBackend(backend);
       context.setBackendBaseUrl(backend.baseUrl);
+      await pendingZoomSave;
       const previousConfig = await readDesktopConfig();
       const existingInstance = findLocalInstanceByInstallDir(previousConfig, request.installDir);
       const instance: DesktopInstance = existingInstance ?? {
@@ -163,6 +204,7 @@ export function registerIpc(context: IpcContext): void {
           ),
           instance,
         ],
+        zoomFactor: previousConfig?.zoomFactor,
       };
       await writeDesktopConfig(nextConfig);
       context.onConfigSaved(nextConfig);
@@ -194,7 +236,27 @@ export function registerIpc(context: IpcContext): void {
     }
     window.maximize();
   });
+  ipcMain.handle(IpcChannels.toggleFullScreen, async () => {
+    const window = context.shellWindow();
+    if (!window) return;
+    window.setFullScreen(!window.isFullScreen());
+  });
+  ipcMain.handle(IpcChannels.reloadWindow, () => {
+    context.shellWindow()?.webContents.reload();
+  });
+  ipcMain.handle(IpcChannels.toggleDevTools, () => {
+    const webContents = context.shellWindow()?.webContents;
+    if (!webContents) return;
+    if (webContents.isDevToolsOpened()) {
+      webContents.closeDevTools();
+      return;
+    }
+    webContents.openDevTools({ mode: "detach", title: "OpenFic 开发者工具" });
+  });
   ipcMain.handle(IpcChannels.closeWindow, async () => {
     context.shellWindow()?.close();
   });
+  ipcMain.handle(IpcChannels.openProjectHome, () => shell.openExternal(PROJECT_HOME_URL));
+  ipcMain.handle(IpcChannels.reportBug, () => shell.openExternal(BUG_REPORT_URL));
+  ipcMain.handle(IpcChannels.suggestFeature, () => shell.openExternal(FEATURE_SUGGESTION_URL));
 }

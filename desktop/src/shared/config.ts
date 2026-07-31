@@ -13,6 +13,7 @@ export interface DesktopInstance {
 export interface DesktopConfig {
   activeInstanceId: string | null;
   instances: DesktopInstance[];
+  zoomFactor?: number;
 }
 
 export interface RuntimeConfigResponse {

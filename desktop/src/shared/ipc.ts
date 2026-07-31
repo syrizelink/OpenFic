@@ -18,6 +18,9 @@ export const IpcChannels = {
   startupProgress: "app:startup-progress",
   minimizeWindow: "window:minimize",
   toggleMaximizeWindow: "window:toggle-maximize",
+  toggleFullScreen: "window:toggle-full-screen",
+  reloadWindow: "window:reload",
+  toggleDevTools: "window:toggle-dev-tools",
   closeWindow: "window:close",
   getUpdateState: "update:get-state",
   checkForUpdate: "update:check",
@@ -27,6 +30,12 @@ export const IpcChannels = {
   openUpdateRelease: "update:open-release",
   updateState: "update:state",
   exportLogs: "logs:export",
+  openProjectHome: "help:open-project-home",
+  reportBug: "help:report-bug",
+  suggestFeature: "help:suggest-feature",
+  getZoomFactor: "zoom:get-factor",
+  saveZoomFactor: "zoom:save-factor",
+  zoomFactorChanged: "zoom:changed",
 } as const;
 
 export type SetupStep =
@@ -46,6 +55,10 @@ export interface SetupProgressEvent {
 
 export interface SaveConfigRequest {
   config: DesktopConfig;
+}
+
+export interface SaveZoomFactorRequest {
+  zoomFactor: number;
 }
 
 export interface EnsureInstanceSessionRequest {

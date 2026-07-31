@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webFrame } from "electron";
 import { fileURLToPath } from "node:url";
 import {
   IpcChannels,
@@ -10,6 +10,7 @@ import {
   type PingInstanceRequest,
   type PingInstanceResult,
   type SaveConfigRequest,
+  type SaveZoomFactorRequest,
   type SetupProgressEvent,
   type StartupProgressEvent,
   type StartLocalBackendRequest,
@@ -17,6 +18,45 @@ import {
   type UpdateState,
 } from "../shared/ipc.js";
 import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
+
+const MIN_ZOOM_FACTOR = 0.7;
+const MAX_ZOOM_FACTOR = 2.0;
+const ZOOM_STEP = 0.1;
+
+function clampZoomFactor(zoomFactor: number): number {
+  return Math.round(Math.min(MAX_ZOOM_FACTOR, Math.max(MIN_ZOOM_FACTOR, zoomFactor)) * 10) / 10;
+}
+
+function applyZoomFactor(zoomFactor: number, shouldSave: boolean): void {
+  const nextZoomFactor = clampZoomFactor(zoomFactor);
+  webFrame.setZoomFactor(nextZoomFactor);
+  if (shouldSave) {
+    void ipcRenderer.invoke(IpcChannels.saveZoomFactor, { zoomFactor: nextZoomFactor } satisfies SaveZoomFactorRequest);
+  }
+}
+
+function enableCtrlWheelZoom(): void {
+  void ipcRenderer.invoke(IpcChannels.getZoomFactor).then((zoomFactor: unknown) => {
+    if (typeof zoomFactor !== "number" || !Number.isFinite(zoomFactor)) return;
+    applyZoomFactor(zoomFactor, false);
+  });
+  window.addEventListener(
+    "wheel",
+    (event) => {
+      if (!event.ctrlKey || event.deltaY === 0) return;
+      event.preventDefault();
+      applyZoomFactor(webFrame.getZoomFactor() + (event.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP), true);
+    },
+    { capture: true, passive: false },
+  );
+}
+
+enableCtrlWheelZoom();
+
+ipcRenderer.on(IpcChannels.zoomFactorChanged, (_event, zoomFactor: unknown) => {
+  if (typeof zoomFactor !== "number" || !Number.isFinite(zoomFactor)) return;
+  applyZoomFactor(zoomFactor, false);
+});
 
 const desktopApi = {
   getConfig: (): Promise<DesktopConfig | null> => ipcRenderer.invoke(IpcChannels.getConfig),
@@ -41,6 +81,9 @@ const desktopApi = {
   frontendHostPreloadPath: fileURLToPath(new URL("./frontend-host-preload.cjs", import.meta.url)),
   minimizeWindow: (): Promise<void> => ipcRenderer.invoke(IpcChannels.minimizeWindow),
   toggleMaximizeWindow: (): Promise<void> => ipcRenderer.invoke(IpcChannels.toggleMaximizeWindow),
+  toggleFullScreen: (): Promise<void> => ipcRenderer.invoke(IpcChannels.toggleFullScreen),
+  reloadWindow: (): Promise<void> => ipcRenderer.invoke(IpcChannels.reloadWindow),
+  toggleDevTools: (): Promise<void> => ipcRenderer.invoke(IpcChannels.toggleDevTools),
   closeWindow: (): Promise<void> => ipcRenderer.invoke(IpcChannels.closeWindow),
   getUpdateState: (): Promise<UpdateState> => ipcRenderer.invoke(IpcChannels.getUpdateState),
   getStartupProgress: (): Promise<StartupProgressEvent | null> => ipcRenderer.invoke(IpcChannels.getStartupProgress),
@@ -50,6 +93,23 @@ const desktopApi = {
   installUpdate: (): Promise<void> => ipcRenderer.invoke(IpcChannels.installUpdate),
   openUpdateRelease: (): Promise<void> => ipcRenderer.invoke(IpcChannels.openUpdateRelease),
   exportLogs: (): Promise<string | null> => ipcRenderer.invoke(IpcChannels.exportLogs),
+  openProjectHome: (): Promise<void> => ipcRenderer.invoke(IpcChannels.openProjectHome),
+  reportBug: (): Promise<void> => ipcRenderer.invoke(IpcChannels.reportBug),
+  suggestFeature: (): Promise<void> => ipcRenderer.invoke(IpcChannels.suggestFeature),
+  getZoomFactor: (): Promise<number> => ipcRenderer.invoke(IpcChannels.getZoomFactor),
+  saveZoomFactor: async (zoomFactor: number): Promise<void> => {
+    const savedZoomFactor = await ipcRenderer.invoke(IpcChannels.saveZoomFactor, {
+      zoomFactor: clampZoomFactor(zoomFactor),
+    } satisfies SaveZoomFactorRequest);
+    if (typeof savedZoomFactor === "number" && Number.isFinite(savedZoomFactor)) applyZoomFactor(savedZoomFactor, false);
+  },
+  onZoomFactorChanged: (handler: (zoomFactor: number) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, zoomFactor: unknown) => {
+      if (typeof zoomFactor === "number" && Number.isFinite(zoomFactor)) handler(zoomFactor);
+    };
+    ipcRenderer.on(IpcChannels.zoomFactorChanged, listener);
+    return () => ipcRenderer.off(IpcChannels.zoomFactorChanged, listener);
+  },
   onSetupProgress: (handler: (event: SetupProgressEvent) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: SetupProgressEvent) => handler(payload);
     ipcRenderer.on(IpcChannels.setupProgress, listener);

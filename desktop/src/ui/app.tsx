@@ -28,6 +28,32 @@ interface WebviewIpcMessageEvent extends Event {
   args: unknown[];
 }
 
+const MENU_SHORTCUTS = new Set([
+  "menu-window",
+  "menu-instance",
+  "menu-help",
+  "minimize-window",
+  "toggle-maximize",
+  "toggle-full-screen",
+  "zoom-in",
+  "zoom-out",
+  "reset-zoom",
+  "close-window",
+  "toggle-dev-tools",
+]);
+
+interface FrontendWebviewElement extends HTMLElement {
+  send: (channel: string, ...args: unknown[]) => void;
+}
+
+function isMenuShortcut(value: unknown): value is string {
+  return typeof value === "string" && MENU_SHORTCUTS.has(value);
+}
+
+function isZoomFactor(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
 function isDesktopAppearancePayload(value: unknown): value is DesktopAppearancePayload {
   if (!value || typeof value !== "object") return false;
   const candidate = value as DesktopAppearancePayload;
@@ -156,19 +182,47 @@ export function App() {
 
     const handleIpcMessage = (event: Event) => {
       const { channel, args } = event as WebviewIpcMessageEvent;
-      if (channel !== "openfic:appearance") return;
       const payload = args[0];
-      if (!isDesktopAppearancePayload(payload)) return;
+      if (channel === "openfic:appearance" && isDesktopAppearancePayload(payload)) {
+        setShellAppearance((current) => ({
+          appearance: payload.appearance ?? current.appearance,
+          fontFamily: payload.fontFamily ?? current.fontFamily,
+          codeFontFamily: payload.codeFontFamily ?? current.codeFontFamily,
+        }));
+        return;
+      }
+      if (channel === "openfic:zoom-factor" && isZoomFactor(payload)) {
+        void window.openficDesktop.saveZoomFactor(payload);
+        return;
+      }
+      if (channel === "openfic:menu-shortcut" && isMenuShortcut(payload)) {
+        window.dispatchEvent(new CustomEvent("openfic:menu-shortcut", { detail: payload }));
+      }
+    };
 
-      setShellAppearance((current) => ({
-        appearance: payload.appearance ?? current.appearance,
-        fontFamily: payload.fontFamily ?? current.fontFamily,
-        codeFontFamily: payload.codeFontFamily ?? current.codeFontFamily,
-      }));
+    const restoreZoomFactor = () => {
+      void window.openficDesktop.getZoomFactor().then((zoomFactor) => {
+        (frontendWebview as FrontendWebviewElement).send("openfic:zoom-factor", zoomFactor);
+      });
     };
 
     frontendWebview.addEventListener("ipc-message", handleIpcMessage);
-    return () => frontendWebview.removeEventListener("ipc-message", handleIpcMessage);
+    frontendWebview.addEventListener("did-finish-load", restoreZoomFactor);
+    restoreZoomFactor();
+    return () => {
+      frontendWebview.removeEventListener("ipc-message", handleIpcMessage);
+      frontendWebview.removeEventListener("did-finish-load", restoreZoomFactor);
+    };
+  }, [frontendWebview]);
+
+  useEffect(() => {
+    if (!frontendWebview) return;
+
+    const handleZoomFactor = (zoomFactor: number) => {
+      (frontendWebview as FrontendWebviewElement).send("openfic:zoom-factor", zoomFactor);
+    };
+
+    return window.openficDesktop.onZoomFactorChanged(handleZoomFactor);
   }, [frontendWebview]);
 
   const refreshConfig = async () => {
@@ -362,6 +416,7 @@ export function App() {
         config={config}
         disabled={shellState === "booting"}
         onAddInstance={handleAddInstance}
+        onOpenSetup={() => handleShowSetup()}
         onSaveConfig={handleSaveConfig}
         onSwitchInstance={handleSwitchInstance}
         instancePanelOpen={instancePanelOpen}

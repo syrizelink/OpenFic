@@ -27,6 +27,9 @@ declare global {
       frontendHostPreloadPath: string;
       minimizeWindow: () => Promise<void>;
       toggleMaximizeWindow: () => Promise<void>;
+      toggleFullScreen: () => Promise<void>;
+      reloadWindow: () => Promise<void>;
+      toggleDevTools: () => Promise<void>;
       closeWindow: () => Promise<void>;
       getUpdateState: () => Promise<UpdateState>;
       getStartupProgress: () => Promise<StartupProgressEvent | null>;
@@ -36,6 +39,12 @@ declare global {
       installUpdate: () => Promise<void>;
       openUpdateRelease: () => Promise<void>;
       exportLogs: () => Promise<string | null>;
+      openProjectHome: () => Promise<void>;
+      reportBug: () => Promise<void>;
+      suggestFeature: () => Promise<void>;
+      getZoomFactor: () => Promise<number>;
+      saveZoomFactor: (zoomFactor: number) => Promise<void>;
+      onZoomFactorChanged: (handler: (zoomFactor: number) => void) => () => void;
       onSetupProgress: (handler: (event: SetupProgressEvent) => void) => () => void;
       onStartupProgress: (handler: (event: StartupProgressEvent) => void) => () => void;
       onUpdateState: (handler: (state: UpdateState) => void) => () => void;
