@@ -58,9 +58,10 @@ def handle_serve(args: argparse.Namespace) -> None:
     os.environ["OPENFIC_SERVER_PORT"] = str(args.port)
 
     import uvicorn
+    from app.main import app as asgi_app, fastapi_app
 
-    uvicorn.run(
-        "app.main:app",
+    config = uvicorn.Config(
+        asgi_app,
         host=args.host,
         port=args.port,
         loop=_get_uvicorn_loop_factory(),
@@ -68,6 +69,9 @@ def handle_serve(args: argparse.Namespace) -> None:
         log_config=None,
         access_log=False,
     )
+    server = uvicorn.Server(config)
+    fastapi_app.state.uvicorn_server = server
+    server.run()
 
 
 def build_parser() -> argparse.ArgumentParser:

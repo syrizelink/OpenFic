@@ -3,7 +3,11 @@ import { spawn } from "node:child_process";
 import { access, mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { findFreePort } from "../ports.js";
-import { startBackendProcess, stopBackendProcess, type BackendProcessHandle } from "../process.js";
+import {
+  abortStartingBackendProcess,
+  startBackendProcess,
+  type BackendProcessHandle,
+} from "../process.js";
 import { configureDefaultSystemProxy, getSystemProxyEnvironment } from "../proxy.js";
 import { throwIfAborted, waitForBackend } from "../health.js";
 import type { PortablePython, RuntimeIntegrityCheck } from "./python.js";
@@ -463,13 +467,13 @@ export async function startLocalOpenFicBackend(
       progress: 0.98,
     });
     if (health.version !== expectedVersion) {
-      stopBackendProcess(handle);
+      abortStartingBackendProcess(handle);
       throw new Error(`本地后端版本不匹配：期望 ${expectedVersion}，实际 ${health.version ?? "未知"}`);
     }
     return handle;
   } catch (error) {
     if (healthFallbackTimer) clearTimeout(healthFallbackTimer);
-    stopBackendProcess(handle);
+    abortStartingBackendProcess(handle);
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`${message}。日志路径：${handle.logPath}`);
   }

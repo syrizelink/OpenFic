@@ -6,7 +6,7 @@ import { registerIpc } from "./ipc.js";
 import { throwIfAborted, waitForBackend } from "./health.js";
 import { ensurePortablePython, resolveRuntimeDir } from "./runtime/python.js";
 import { ensureOpenFicRuntime, startLocalOpenFicBackend } from "./runtime/openfic.js";
-import { stopBackendProcess, type BackendProcessHandle } from "./process.js";
+import { forceStopBackendProcess, stopBackendProcess, type BackendProcessHandle } from "./process.js";
 import { initializeUpdater } from "./updater.js";
 import { configureDefaultSystemProxy } from "./proxy.js";
 import { createStartupProgressTracker, type StartupProgressTracker } from "./startup-progress.js";
@@ -40,13 +40,13 @@ function setBackend(handle: BackendProcessHandle): void {
       app.quit();
     }
   });
-  if (previousHandle && previousHandle !== handle) stopBackendProcess(previousHandle);
+  if (previousHandle && previousHandle !== handle) void stopBackendProcess(previousHandle);
 }
 
 function clearBackend(): void {
   const previousHandle = backendHandle;
   backendHandle = null;
-  if (previousHandle) stopBackendProcess(previousHandle);
+  if (previousHandle) void stopBackendProcess(previousHandle);
 }
 
 function setBackendBaseUrl(url: string): void {
@@ -370,18 +370,26 @@ if (!gotLock) {
     app.quit();
   });
 
-  app.on("before-quit", () => {
+  app.on("before-quit", (event) => {
+    if (isQuitting) return;
+    const handle = backendHandle;
+    if (!handle) {
+      isQuitting = true;
+      return;
+    }
+
+    event.preventDefault();
     isQuitting = true;
-    stopBackendProcess(backendHandle);
+    void stopBackendProcess(handle).finally(() => app.quit());
   });
 
-  process.on("exit", () => stopBackendProcess(backendHandle));
+  process.on("exit", () => forceStopBackendProcess(backendHandle));
   process.on("SIGINT", () => {
-    stopBackendProcess(backendHandle);
+    forceStopBackendProcess(backendHandle);
     process.exit(0);
   });
   process.on("SIGTERM", () => {
-    stopBackendProcess(backendHandle);
+    forceStopBackendProcess(backendHandle);
     process.exit(0);
   });
 

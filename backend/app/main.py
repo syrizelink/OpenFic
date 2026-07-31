@@ -52,6 +52,7 @@ from app.api.routers import (
     world_info_entries,
 )
 from app.audit import start_audit_queue, stop_audit_queue
+from app.agent_runtime.persistence.child_runs import cancel_interrupted_child_runs
 from app.audit.queue import load_audit_details_persistence
 from app.agent_runtime.runner.checkpointer import (
     cleanup_unreachable_checkpoints,
@@ -117,6 +118,16 @@ async def _reset_task_running_state() -> int:
         cleared = await task_service.clear_running_tasks(session)
         await session.commit()
         return cleared
+    finally:
+        await session.close()
+
+
+async def _reset_interrupted_child_run_state() -> int:
+    session = await create_session()
+    try:
+        cancelled = await cancel_interrupted_child_runs(session)
+        await session.commit()
+        return cancelled
     finally:
         await session.close()
 
@@ -304,6 +315,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     cleared_tasks = await _reset_task_running_state()
     if cleared_tasks:
         logger.warning(f"已重置 {cleared_tasks} 个遗留的运行中任务状态")
+    cancelled_child_runs = await _reset_interrupted_child_run_state()
+    if cancelled_child_runs:
+        logger.warning(f"已取消 {cancelled_child_runs} 个因服务重启中断的子 Agent 任务")
     await _seed_builtin_models()
     await init_checkpointer()
     await _cleanup_unreachable_checkpoints()
@@ -327,6 +341,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         cancelled_runs = await get_agent_run_registry().cancel_all()
         if cancelled_runs:
             logger.info(f"已取消 {cancelled_runs} 个运行中的 Agent 任务")
+        cancelled_child_runs = await _reset_interrupted_child_run_state()
+        if cancelled_child_runs:
+            logger.info(f"已取消 {cancelled_child_runs} 个中断的子 Agent 任务")
         cleared_tasks = await _reset_task_running_state()
         if cleared_tasks:
             logger.info(f"已清理 {cleared_tasks} 个任务的运行状态")

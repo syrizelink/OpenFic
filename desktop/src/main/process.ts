@@ -1,11 +1,19 @@
 import { app } from "electron";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import {
+  abortBackendStartup,
+  requestBackendStop,
+  type BackendStopHandle,
+} from "./backend-stop.js";
 import { appendLog, createLogStream, getLogPath } from "./logging.js";
 
-export interface BackendProcessHandle {
+export interface BackendProcessHandle extends BackendStopHandle {
   process: ChildProcessWithoutNullStreams;
   baseUrl: string;
   logPath: string;
+  shutdownToken: string;
+  stopPromise?: Promise<void>;
 }
 
 export interface StartBackendOptions {
@@ -44,6 +52,7 @@ export function startBackendProcess(options: StartBackendOptions): BackendProces
   const stdoutLog = createLogStream("backend");
   const stderrLog = createLogStream("backend");
   let logsClosed = false;
+  const shutdownToken = randomUUID();
 
   const closeLogs = () => {
     if (logsClosed) return;
@@ -61,6 +70,7 @@ export function startBackendProcess(options: StartBackendOptions): BackendProces
       OPENFIC_SERVER_HOST: "127.0.0.1",
       OPENFIC_SERVER_PORT: String(options.port),
       OPENFIC_DATA_DIR: dataDir,
+      OPENFIC_SHUTDOWN_TOKEN: shutdownToken,
       PYTHONIOENCODING: "utf-8",
       PYTHONUTF8: "1",
       ...options.environment,
@@ -87,10 +97,11 @@ export function startBackendProcess(options: StartBackendOptions): BackendProces
     process: child,
     baseUrl: `http://127.0.0.1:${options.port}`,
     logPath,
+    shutdownToken,
   };
 }
 
-export function stopBackendProcess(handle: BackendProcessHandle | null): void {
+export function forceStopBackendProcess(handle: BackendProcessHandle | null): void {
   if (!handle || handle.process.killed) return;
 
   appendLog("backend", `请求停止后端进程：pid=${handle.process.pid ?? "unknown"}`);
@@ -104,4 +115,32 @@ export function stopBackendProcess(handle: BackendProcessHandle | null): void {
   }
 
   handle.process.kill("SIGTERM");
+}
+
+export function abortStartingBackendProcess(handle: BackendProcessHandle | null): void {
+  abortBackendStartup(handle, (startingHandle) =>
+    forceStopBackendProcess(startingHandle as BackendProcessHandle),
+  );
+}
+
+async function requestGracefulBackendShutdown(handle: BackendStopHandle): Promise<void> {
+  const response = await fetch(`${handle.baseUrl}/api/v1/health/shutdown`, {
+    method: "POST",
+    headers: { "X-OpenFic-Shutdown-Token": handle.shutdownToken },
+  });
+  if (!response.ok) throw new Error(`graceful backend shutdown rejected: ${response.status}`);
+}
+
+export function stopBackendProcess(handle: BackendProcessHandle | null): Promise<void> {
+  if (!handle) return Promise.resolve();
+  if (handle.stopPromise) return handle.stopPromise;
+
+  appendLog("backend", `请求优雅停止后端进程：pid=${handle.process.pid ?? "unknown"}`);
+  handle.stopPromise = requestBackendStop(handle, {
+    requestGracefulShutdown: requestGracefulBackendShutdown,
+    forceStop: (stopHandle) => forceStopBackendProcess(stopHandle as BackendProcessHandle),
+    scheduleFallback: (callback, delayMs) => setTimeout(callback, delayMs),
+    cancelFallback: (timeout) => clearTimeout(timeout as NodeJS.Timeout),
+  });
+  return handle.stopPromise;
 }

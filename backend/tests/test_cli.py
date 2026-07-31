@@ -47,7 +47,9 @@ def test_dev_command_loads_windows_selector_loop_factory() -> None:
 
 
 def test_handle_serve_passes_loop_factory_to_uvicorn(monkeypatch) -> None:
-    uvicorn_run = Mock()
+    uvicorn_config = Mock()
+    uvicorn_server = Mock()
+    fastapi_app = SimpleNamespace(state=SimpleNamespace())
     monkeypatch.setattr(cli, "_ensure_data_dir", Mock())
     monkeypatch.setattr(cli, "configure_standard_logging", Mock())
     monkeypatch.setattr(
@@ -55,8 +57,22 @@ def test_handle_serve_passes_loop_factory_to_uvicorn(monkeypatch) -> None:
         "_get_uvicorn_loop_factory",
         Mock(return_value="app.cli:_windows_selector_loop_factory"),
     )
-    monkeypatch.setitem(sys.modules, "uvicorn", SimpleNamespace(run=uvicorn_run))
+    monkeypatch.setitem(
+        sys.modules,
+        "uvicorn",
+        SimpleNamespace(
+            Config=Mock(return_value=uvicorn_config),
+            Server=Mock(return_value=uvicorn_server),
+        ),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "app.main",
+        SimpleNamespace(app=object(), fastapi_app=fastapi_app),
+    )
 
     cli.handle_serve(type("Args", (), {"host": "127.0.0.1", "port": 8000})())
 
-    assert uvicorn_run.call_args.kwargs["loop"] == "app.cli:_windows_selector_loop_factory"
+    assert sys.modules["uvicorn"].Config.call_args.kwargs["loop"] == "app.cli:_windows_selector_loop_factory"
+    assert fastapi_app.state.uvicorn_server is uvicorn_server
+    uvicorn_server.run.assert_called_once_with()

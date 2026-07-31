@@ -736,6 +736,38 @@ async def cancel_child_run(
     return row
 
 
+async def cancel_interrupted_child_runs(session: AsyncSession) -> int:
+    """Finalize non-resumable child runs left behind by a server restart."""
+    result = await session.execute(
+        select(AgentChildRun).where(
+            col(AgentChildRun.is_active).is_(True),
+            col(AgentChildRun.status).in_(("queued", "running", "waiting_user")),
+        )
+    )
+    rows = list(result.scalars().all())
+    if not rows:
+        return 0
+
+    now = datetime.now(UTC)
+    for row in rows:
+        await _cancel_open_child_run_requests(
+            session,
+            child_run_id=row.id,
+            now=now,
+            error="server restarted",
+        )
+        row.status = "cancelled"
+        row.pending_approval_id = None
+        row.pending_approval_json = None
+        row.completed_at = now
+        row.last_completed_at = now
+        row.error = "server restarted"
+        row.updated_at = now
+
+    await session.flush()
+    return len(rows)
+
+
 async def recycle_child_run(
     session: AsyncSession,
     child_run_id: str,
