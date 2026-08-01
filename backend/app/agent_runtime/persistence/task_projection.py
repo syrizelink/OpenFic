@@ -302,6 +302,9 @@ def _project_rows(
             payload = {"kind": "user_request"}
             if isinstance(revision_id, str) and revision_id:
                 payload["revision_id"] = revision_id
+            attachments = row.metadata.get("attachments")
+            if isinstance(attachments, list):
+                payload["attachments"] = attachments
             projected.append(
                 _base_message(
                     row,

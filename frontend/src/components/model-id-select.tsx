@@ -32,6 +32,7 @@ const MotionBox = motion.create(Box);
 export interface ModelIdSelectOption extends AvailableModel {
   value?: string;
   providerIconPath?: string | null;
+  isCatalogMatched?: boolean;
 }
 
 interface ModelIdSelectProps {

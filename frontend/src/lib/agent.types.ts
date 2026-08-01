@@ -174,6 +174,7 @@ export interface AgentMessage {
   isCheckpoint?: boolean;
 
   content?: string;
+  attachments?: AgentImageAttachment[];
   agent?: AgentType;
   isDraft?: boolean;
 
@@ -258,9 +259,22 @@ export interface AgentSessionStateResponse {
 
 export interface AgentSendMessageRequest {
   message: string;
+  attachments?: string[];
   model_id?: string;
   agent_key?: string;
   reasoning_effort?: ReasoningEffort;
+}
+
+export interface AgentImageAttachment {
+  id: string;
+  sessionId: string;
+  storageName: string;
+  fileName: string;
+  mimeType: "image/jpeg" | "image/png" | "image/webp";
+  sizeBytes: number;
+  width: number;
+  height: number;
+  url: string;
 }
 
 export type ReasoningEffort = "off" | "low" | "medium" | "high" | "xhigh" | "max";
@@ -351,6 +365,7 @@ export interface AgentRollbackResponse {
   affected_note_categories: string[];
   affected_world_entries: string[];
   restored_message_content: string;
+  restored_attachments: AgentImageAttachment[];
 }
 
 export interface AgentCancelResponse {

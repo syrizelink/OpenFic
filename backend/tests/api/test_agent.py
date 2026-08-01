@@ -2,6 +2,7 @@
 """Agent API 测试。"""
 
 import asyncio
+import io
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -12,6 +13,7 @@ import pytest
 import pytest_asyncio
 from fastapi import status
 from httpx import AsyncClient
+from PIL import Image
 
 from app.agent_runtime.persistence import repo as message_repo
 from app.agent_runtime.persistence.child_runs import (
@@ -25,6 +27,7 @@ from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.agent_runtime.runner.session_runner import SessionRunner
 from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buffer
 from app.api.routers.agent_runtime import _SESSION_RUNNERS, _build_model_config
+from app.settings import settings
 from app.socket.handlers import agent_session_room, agent_subagents_room
 from app.storage.models.chapter import Chapter
 from app.storage.models.commit import Commit
@@ -105,8 +108,88 @@ async def _seed_agent_target(client: AsyncClient) -> dict[str, str]:
     }
 
 
+def _image_bytes() -> bytes:
+    buffer = io.BytesIO()
+    Image.new("RGB", (2, 3), color="white").save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
 @pytest.mark.asyncio
 class TestAgentAPI:
+    async def test_upload_agent_image_attachment_returns_session_owned_metadata(
+        self,
+        client: AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={"project_id": target["project_id"], "model_id": target["model_id"]},
+        )
+        session_id = session_response.json()["session_id"]
+        monkeypatch.setattr(settings, "agent_attachments_dir", tmp_path / "agent-attachments", raising=False)
+
+        response = await client.post(
+            f"/api/v1/agent/sessions/{session_id}/attachments",
+            files={"image": ("reference.png", _image_bytes(), "image/png")},
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        attachment = response.json()
+        assert attachment["id"]
+        assert attachment["session_id"] == session_id
+        assert attachment["file_name"] == "reference.png"
+        assert attachment["mime_type"] == "image/png"
+        assert attachment["width"] == 2
+        assert attachment["height"] == 3
+        assert attachment["url"].startswith("/agent-attachments/")
+        assert settings.agent_attachments_dir.joinpath(attachment["storage_name"]).is_file()
+
+    async def test_send_agent_message_passes_session_attachment_metadata_to_runner(
+        self,
+        client: AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={"project_id": target["project_id"], "model_id": target["model_id"]},
+        )
+        session_id = session_response.json()["session_id"]
+        monkeypatch.setattr(settings, "agent_attachments_dir", tmp_path / "agent-attachments")
+        attachment_response = await client.post(
+            f"/api/v1/agent/sessions/{session_id}/attachments",
+            files={"image": ("reference.png", _image_bytes(), "image/png")},
+        )
+        attachment = attachment_response.json()
+        runner = _SESSION_RUNNERS[session_id]
+        runner.run = MagicMock(return_value=object())
+
+        with patch("app.api.routers.agent_runtime._launch_task", AsyncMock()):
+            response = await client.post(
+                f"/api/v1/agent/sessions/{session_id}/message",
+                json={"message": "请描述", "attachments": [attachment["id"]]},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        runner.run.assert_called_once_with(
+            user_request="请描述",
+            attachments=[
+                {
+                    "id": attachment["id"],
+                    "storage_name": attachment["storage_name"],
+                    "file_name": "reference.png",
+                    "mime_type": "image/png",
+                    "size_bytes": attachment["size_bytes"],
+                    "width": 2,
+                    "height": 3,
+                    "url": attachment["url"],
+                }
+            ],
+        )
+
     async def test_build_model_config_allows_reasoning_effort_for_uncataloged_model(self) -> None:
         model = SimpleNamespace(
             id="uncataloged-model-record",

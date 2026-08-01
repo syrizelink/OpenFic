@@ -21,6 +21,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 
 from app.agent_runtime.persistence.model import (
+    AgentAttachment,
     AgentChildRun,
     AgentChildRunRequest,
     AgentContextCompaction,
@@ -44,6 +45,7 @@ _PERSISTENCE_TABLES = [
     _table(Chapter),
     _table(Task),
     _table(AgentRunMessage),
+    _table(AgentAttachment),
     _table(AgentContextCompaction),
     _table(AgentChildRun),
     _table(AgentChildRunRequest),

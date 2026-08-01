@@ -102,6 +102,8 @@ class SessionRunner:
         self._graph: CompiledStateGraph | None = None
         self._inject_queue: asyncio.Queue[tuple[str | None, str, str]] = asyncio.Queue()
         self._queued_user_messages: dict[str, tuple[str, datetime]] = {}
+        self._queued_user_message_attachments: dict[str, list[dict[str, Any]]] = {}
+        self._injected_user_message_attachments: dict[str, list[dict[str, Any]]] = {}
         self._cancelled_user_message_ids: set[str] = set()
         self._cancel_event = asyncio.Event()
         self._translator = EventTranslator(session_id)
@@ -134,6 +136,7 @@ class SessionRunner:
         self,
         content: str,
         *,
+        attachments: list[dict[str, Any]] | None = None,
         message_id: str | None = None,
         created_at: datetime | None = None,
     ):
@@ -147,6 +150,7 @@ class SessionRunner:
                 role="user",
                 status="sent",
                 content=content,
+                metadata={"attachments": attachments} if attachments else None,
                 message_id=message_id,
                 created_at=created_at,
             )
@@ -159,6 +163,7 @@ class SessionRunner:
         content: str,
         revision_id: str,
         *,
+        attachments: list[dict[str, Any]] | None = None,
         created_at: str | None = None,
     ) -> None:
         data = {
@@ -169,7 +174,11 @@ class SessionRunner:
             "status": "completed",
             "display": "list",
             "content": content,
-            "payload": {"kind": "user_request", "revision_id": revision_id},
+            "payload": {
+                "kind": "user_request",
+                "revision_id": revision_id,
+                **({"attachments": attachments} if attachments else {}),
+            },
             "revision_id": revision_id,
             "is_checkpoint": True,
         }
@@ -181,6 +190,7 @@ class SessionRunner:
         *,
         message_id: str,
         action: Literal["queued", "consumed", "cancelled"],
+        attachments: list[dict[str, Any]] | None = None,
         created_at: str | None = None,
     ) -> None:
         data = {
@@ -195,6 +205,7 @@ class SessionRunner:
                 "content": content,
                 "action": action,
                 "created_at": created_at or datetime.now(UTC).isoformat(),
+                **({"attachments": attachments} if attachments else {}),
             },
         }
         await self._emit_agent_event("agent:pending_message", data)
@@ -498,6 +509,7 @@ class SessionRunner:
                 "compaction_usage_sink": self._emit_persisted_task_usage_events,
                 "inject_queue": self._inject_queue,
                 "inject_message_consumed_sink": self._mark_injected_user_message_sent,
+                "inject_message_attachments": self._get_injected_user_message_attachments,
                 "model_config": self.model_config,
             }
         }
@@ -511,9 +523,11 @@ class SessionRunner:
         queued = self._queued_user_messages.pop(message_id, None)
         if queued is not None:
             content, created_at = queued
+            attachments = self._queued_user_message_attachments.pop(message_id, [])
             created_at_iso = _format_utc_iso_datetime(created_at)
             await self._emit_pending_user_message(
                 content,
+                attachments=attachments,
                 message_id=message_id,
                 action="consumed",
                 created_at=created_at_iso,
@@ -521,11 +535,13 @@ class SessionRunner:
             await self._persist_user_message(
                 content,
                 message_id=message_id,
+                attachments=attachments,
                 created_at=created_at,
             )
             await self._emit_runtime_user_message(
                 content,
                 message_id=message_id,
+                attachments=attachments,
                 created_at=created_at_iso,
             )
             return True
@@ -539,6 +555,7 @@ class SessionRunner:
         content: str,
         *,
         message_id: str,
+        attachments: list[dict[str, Any]] | None = None,
         created_at: str | None = None,
     ) -> None:
         data = {
@@ -550,7 +567,10 @@ class SessionRunner:
             "status": "completed",
             "display": "list",
             "content": content,
-            "payload": {"kind": "user_request"},
+            "payload": {
+                "kind": "user_request",
+                **({"attachments": attachments} if attachments else {}),
+            },
             "is_checkpoint": False,
         }
         await self._emit_agent_event("agent:text", data)
@@ -576,9 +596,11 @@ class SessionRunner:
         *,
         graph: CompiledStateGraph,
         user_request: str,
+        attachments: list[dict[str, Any]] | None = None,
     ) -> tuple[Any, Any]:
         pre_run_checkpoint_id = await self._current_root_checkpoint_id(graph)
-        user_message = await self._persist_user_message(user_request)
+        persistence_kwargs = {"attachments": attachments} if attachments else {}
+        user_message = await self._persist_user_message(user_request, **persistence_kwargs)
 
         revision_session = await create_session()
         try:
@@ -603,6 +625,7 @@ class SessionRunner:
         await self._emit_user_message(
             user_request,
             revision.id,
+            attachments=attachments,
             created_at=emitted_created_at,
         )
         return user_message, revision
@@ -666,6 +689,7 @@ class SessionRunner:
                 "error": None,
                 "retry_count": 0,
                 "user_request": "",
+                "user_attachments": [],
                 "current_revision_id": None,
             })
             agent_name = state.get("active_agent") or state.get("agent_key") or "build"
@@ -718,6 +742,7 @@ class SessionRunner:
     async def run(
         self,
         user_request: str,
+        attachments: list[dict[str, Any]] | None = None,
         user_message_id: str | None = None,
     ) -> None:
         runtime_session = await create_session()
@@ -747,6 +772,7 @@ class SessionRunner:
                 _user_message, revision = await self._begin_user_turn(
                     graph=graph,
                     user_request=user_request,
+                    attachments=attachments,
                 )
                 state_user_request = compiled_user_request
             else:
@@ -770,6 +796,7 @@ class SessionRunner:
                 "error": None,
                 "retry_count": 0,
                 "user_request": state_user_request,
+                "user_attachments": attachments or [],
                 "current_revision_id": revision.id,
                 "messages": history_messages,
             }
@@ -870,21 +897,37 @@ class SessionRunner:
             )
             await self._clear_replay_session()
 
-    async def inject_message(self, content: str, message_id: str) -> None:
+    async def inject_message(
+        self,
+        content: str,
+        message_id: str,
+        attachments: list[dict[str, Any]] | None = None,
+    ) -> None:
+        self._injected_user_message_attachments[message_id] = attachments or []
         await self._inject_queue.put((message_id, "user", content))
 
-    async def queue_pending_user_message(self, content: str) -> dict[str, str]:
+    def _get_injected_user_message_attachments(self, message_id: str) -> list[dict[str, Any]]:
+        return list(self._injected_user_message_attachments.get(message_id, []))
+
+    async def queue_pending_user_message(
+        self,
+        content: str,
+        *,
+        attachments: list[dict[str, Any]] | None = None,
+    ) -> dict[str, str]:
         message_id = generate_id()
         created_at = datetime.now(UTC)
         self._queued_user_messages[message_id] = (content, created_at)
+        self._queued_user_message_attachments[message_id] = attachments or []
         created_at_iso = _format_utc_iso_datetime(created_at)
         await self._emit_pending_user_message(
             content,
             message_id=message_id,
             action="queued",
+            attachments=attachments,
             created_at=created_at_iso,
         )
-        await self.inject_message(content, message_id)
+        await self.inject_message(content, message_id, attachments)
         return {
             "message_id": message_id,
             "content": content,
@@ -897,11 +940,13 @@ class SessionRunner:
             return None
         self._cancelled_user_message_ids.add(message_id)
         content, created_at = queued
+        attachments = self._queued_user_message_attachments.pop(message_id, [])
         created_at_iso = _format_utc_iso_datetime(created_at)
         await self._emit_pending_user_message(
             content,
             message_id=message_id,
             action="cancelled",
+            attachments=attachments,
             created_at=created_at_iso,
         )
         return {
@@ -930,12 +975,21 @@ class SessionRunner:
             return None
 
         message_id, content, created_at = pending
+        attachments = self._queued_user_message_attachments.get(message_id, [])
         created_at_iso = _format_utc_iso_datetime(created_at)
-        await self._persist_user_message(
-            content,
-            message_id=message_id,
-            created_at=created_at,
-        )
+        if attachments:
+            await self._persist_user_message(
+                content,
+                attachments=attachments,
+                message_id=message_id,
+                created_at=created_at,
+            )
+        else:
+            await self._persist_user_message(
+                content,
+                message_id=message_id,
+                created_at=created_at,
+            )
 
         self._queued_user_messages.pop(message_id, None)
         next_queue: asyncio.Queue[tuple[str | None, str, str]] = asyncio.Queue()
@@ -946,16 +1000,20 @@ class SessionRunner:
             await next_queue.put((queued_message_id, role, queued_content))
         self._inject_queue = next_queue
 
+        pending_event_kwargs = {"attachments": attachments} if attachments else {}
         await self._emit_pending_user_message(
             content,
             message_id=message_id,
             action="consumed",
             created_at=created_at_iso,
+            **pending_event_kwargs,
         )
+        runtime_event_kwargs = {"attachments": attachments} if attachments else {}
         await self._emit_runtime_user_message(
             content,
             message_id=message_id,
             created_at=created_at_iso,
+            **runtime_event_kwargs,
         )
         return message_id, content
 
@@ -967,6 +1025,8 @@ class SessionRunner:
     def cancel(self) -> None:
         self._cancel_event.set()
         self._queued_user_messages.clear()
+        self._queued_user_message_attachments.clear()
+        self._injected_user_message_attachments.clear()
         self._cancelled_user_message_ids.clear()
         self._inject_queue = asyncio.Queue()
 

@@ -8,8 +8,9 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 from langchain_core.tools import BaseTool
 
 from app.agent_runtime.context.compaction.service import CompactionError
+from app.agent_runtime.context.compaction.window import CompactionNoWindowError
 from app.agent_runtime.context.types import ContextMessage
-from app.agent_runtime.graph.react_agent import create_react_agent, maybe_auto_compact
+from app.agent_runtime.graph.react_agent import _to_history_dict, create_react_agent, maybe_auto_compact
 from app.agent_runtime.persistence.errors import PersistenceLoadError
 from app.agent_runtime.types import ReactAgentConfig, TerminationCondition
 
@@ -232,6 +233,53 @@ async def test_auto_compaction_wraps_unhandled_compact_window_error() -> None:
             },
         )
     ]
+
+
+@pytest.mark.asyncio
+async def test_auto_compaction_skips_when_no_history_window_is_available() -> None:
+    events: list[tuple[str, dict]] = []
+
+    async def event_sink(name: str, payload: dict) -> None:
+        events.append((name, payload))
+
+    with (
+        patch(
+            "app.agent_runtime.graph.react_agent.count_context_tokens",
+            return_value=9,
+        ),
+        patch(
+            "app.agent_runtime.graph.react_agent.compaction_repo.list_by_session",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.agent_runtime.graph.react_agent.select_compaction_window",
+            side_effect=CompactionNoWindowError(),
+        ),
+    ):
+        compacted = await maybe_auto_compact(
+            state=_auto_compaction_state(),
+            agent_name="writer",
+            parts=_compaction_parts(),
+            db_session=AsyncMock(),
+            event_sink=event_sink,
+            usage_sink=_noop_usage_sink,
+        )
+
+    assert compacted is False
+    assert events == []
+
+
+def test_history_conversion_does_not_serialize_image_base64() -> None:
+    history = _to_history_dict(
+        HumanMessage(
+            content=[
+                {"type": "text", "text": "请描述图片"},
+                {"type": "image", "base64": "x" * 10_000, "mime_type": "image/png"},
+            ]
+        )
+    )
+
+    assert history["content"] == "请描述图片"
 
 
 def test_auto_compaction_runs_before_main_model_and_rebuilds_context() -> None:
@@ -584,6 +632,22 @@ def test_to_history_dict_uses_openfic_response_metadata_for_internal_history_fie
         "tool_name": "read_chapter",
     }
     assert tool_out["name"] == "read_chapter"
+
+
+def test_to_history_dict_preserves_only_openfic_attachment_metadata() -> None:
+    from app.agent_runtime.graph.react_agent import _to_history_dict
+
+    message = HumanMessage(
+        content="图片请求",
+        additional_kwargs={
+            "openfic_attachments": [{"id": "image-1"}],
+            "unrelated": "must-not-persist",
+        },
+    )
+
+    assert _to_history_dict(message)["additional_kwargs"] == {
+        "openfic_attachments": [{"id": "image-1"}]
+    }
 
 
 def test_to_history_dict_normalizes_ai_message_chunk_role() -> None:

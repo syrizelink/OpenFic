@@ -1,15 +1,31 @@
 import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
-import { ArrowUp, CircleUserRound, ExternalLink, ShieldCheck, Square } from "lucide-react";
+import {
+  ArrowUp,
+  CircleUserRound,
+  ExternalLink,
+  ImagePlus,
+  ShieldCheck,
+  Square,
+  X,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ModelIdSelect, Spinner, type ModelIdSelectOption } from "@/components";
+import { toast } from "@/components";
 import { SimpleSelect, type SelectOption } from "@/components/select";
 import { ProviderIcon } from "@/features/settings/lib/provider-icons";
 import type { AgentPendingMessage, AgentSessionStatus, ReasoningEffort } from "@/lib/agent.types";
 
+import {
+  getAgentImageFiles,
+  hasLeftAgentImageDropZone,
+  modelAllowsAgentImages,
+  type PendingAgentImageAttachment,
+  validateAgentImageFiles,
+} from "../../lib/agent-image-attachments";
 import { AgentComposerEditor, type AgentComposerSuggestionState } from "./agent-composer-editor";
 import { AgentIndexStatusIndicator } from "./agent-index-status-indicator";
 import { canSendAgentInput, getAgentInputBodyMode, isAgentInputLocked } from "./agent-input-state";
@@ -19,6 +35,7 @@ import { AgentPendingMessageCard } from "./pending-message-card";
 interface AgentInputProps {
   projectId: string;
   value: string;
+  attachments: PendingAgentImageAttachment[];
   modelId: string;
   models: ModelIdSelectOption[];
   reasoningEffort?: ReasoningEffort;
@@ -29,6 +46,7 @@ interface AgentInputProps {
   isModelsLoading: boolean;
   modelsError: boolean;
   onChange: (value: string) => void;
+  onAttachmentsChange: (attachments: PendingAgentImageAttachment[]) => void;
   onSend: () => void;
   onAbort: () => void;
   onModelChange: (modelId: string) => void;
@@ -46,12 +64,14 @@ interface AgentInputProps {
   forceSpecialPanels?: boolean;
   readOnly?: boolean;
   readOnlyMessage?: ReactNode;
+  onUploadAttachments: (files: File[]) => Promise<void>;
   [ignoredModeSelectorProp: string]: unknown;
 }
 
 export function AgentInput({
   projectId,
   value,
+  attachments,
   modelId,
   models,
   reasoningEffort,
@@ -62,6 +82,7 @@ export function AgentInput({
   isModelsLoading,
   modelsError,
   onChange,
+  onAttachmentsChange,
   onSend,
   onAbort,
   onModelChange,
@@ -79,10 +100,11 @@ export function AgentInput({
   forceSpecialPanels = false,
   readOnly = false,
   readOnlyMessage,
+  onUploadAttachments,
 }: AgentInputProps) {
   const { t } = useTranslation();
   const bodyMode = getAgentInputBodyMode(agentStatus, Boolean(specialPanels), forceSpecialPanels);
-  const hasContent = value.trim().length > 0;
+  const hasContent = value.trim().length > 0 || attachments.length > 0;
   const hasPendingMessage = pendingMessage !== null;
   const isComposerLocked = isAgentInputLocked({
     disabled,
@@ -107,6 +129,12 @@ export function AgentInput({
   const selectedModel = useMemo(
     () => models.find((model) => model.value === modelId || model.id === modelId),
     [modelId, models],
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDraggingImages, setIsDraggingImages] = useState(false);
+  const canAttachImages = modelAllowsAgentImages(
+    selectedModel?.inputModalities,
+    selectedModel?.isCatalogMatched === true,
   );
   const modelTriggerPrefix = selectedModel ? (
     <ProviderIcon
@@ -160,12 +188,66 @@ export function AgentInput({
     };
   }, [bodyMode, isComposerLocked, readOnly]);
 
+  useEffect(() => {
+    if (!isDraggingImages) return;
+
+    const clearDraggingImages = () => setIsDraggingImages(false);
+    window.addEventListener("dragend", clearDraggingImages);
+    window.addEventListener("drop", clearDraggingImages);
+    return () => {
+      window.removeEventListener("dragend", clearDraggingImages);
+      window.removeEventListener("drop", clearDraggingImages);
+    };
+  }, [isDraggingImages]);
+
   const getPlaceholder = () => {
     if (agentStatus === "waiting_answer")
       return t("writing.aiSidebar.inputPlaceholderWaitingAnswer");
     if (agentStatus === "waiting_approval")
       return t("writing.aiSidebar.inputPlaceholderWaitingApproval");
     return t("writing.aiSidebar.inputPlaceholder");
+  };
+
+  const handleFiles = async (files: File[]) => {
+    const error = validateAgentImageFiles(files, attachments.length);
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    await onUploadAttachments(files);
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    const files = getAgentImageFiles(event.dataTransfer);
+    if (files.length === 0) return;
+    event.preventDefault();
+    setIsDraggingImages(false);
+    if (!canAttachImages) {
+      toast.error("当前模型不支持图片输入");
+      return;
+    }
+    void handleFiles(files);
+  };
+
+  const handlePastedFiles = (dataTransfer: DataTransfer) => {
+    const files = getAgentImageFiles(dataTransfer);
+    if (files.length === 0) return;
+    if (!canAttachImages) {
+      toast.error("当前模型不支持图片输入");
+      return;
+    }
+    void handleFiles(files);
+  };
+
+  const handleDroppedFiles = (dataTransfer: DataTransfer) => {
+    setIsDraggingImages(false);
+    handlePastedFiles(dataTransfer);
+  };
+
+  const handleRemoveAttachment = (id: string) => {
+    const attachment = attachments.find((item) => item.id === id);
+    if (attachment) URL.revokeObjectURL(attachment.previewUrl);
+    onAttachmentsChange(attachments.filter((item) => item.id !== id));
   };
 
   return (
@@ -203,6 +285,23 @@ export function AgentInput({
           ref={inputContainerRef}
           className="ai-sidebar-input-container"
           data-mode={bodyMode}
+          data-dragging-images={isDraggingImages || undefined}
+          onDragEnter={(event) => {
+            if (event.dataTransfer.types.includes("Files")) setIsDraggingImages(true);
+          }}
+          onDragOver={(event) => {
+            if (getAgentImageFiles(event.dataTransfer).length > 0) event.preventDefault();
+          }}
+          onDragLeave={(event) => {
+            if (
+              hasLeftAgentImageDropZone(event.relatedTarget, (target) =>
+                event.currentTarget.contains(target),
+              )
+            ) {
+              setIsDraggingImages(false);
+            }
+          }}
+          onDrop={handleDrop}
         >
           <AnimatePresence
             initial={false}
@@ -253,6 +352,32 @@ export function AgentInput({
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
               >
+                {attachments.length > 0 ? (
+                  <div className="agent-image-attachment-strip">
+                    {attachments.map((attachment) => (
+                      <div
+                        key={attachment.id}
+                        className="agent-image-attachment-preview"
+                      >
+                        <img
+                          src={attachment.previewUrl}
+                          alt={
+                            attachment.file?.name ??
+                            attachment.uploadedAttachment?.fileName ??
+                            "图片"
+                          }
+                        />
+                        <button
+                          type="button"
+                          aria-label={`移除图片 ${attachment.file?.name ?? attachment.uploadedAttachment?.fileName ?? ""}`}
+                          onClick={() => handleRemoveAttachment(attachment.id)}
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 <AgentComposerEditor
                   projectId={projectId}
                   placeholder={getPlaceholder()}
@@ -260,6 +385,8 @@ export function AgentInput({
                   disabled={isComposerLocked}
                   onOpenMentionChapter={onOpenMentionChapter}
                   onMentionSuggestionsChange={setMentionSuggestions}
+                  onPasteFiles={handlePastedFiles}
+                  onDropFiles={handleDroppedFiles}
                   onChange={onChange}
                   onSubmit={onSend}
                 />
@@ -411,6 +538,29 @@ export function AgentInput({
           >
             <AgentIndexStatusIndicator projectId={projectId} />
 
+            <input
+              ref={fileInputRef}
+              className="agent-image-attachment-input"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              multiple
+              onChange={(event) => {
+                void handleFiles(Array.from(event.target.files ?? []));
+                event.target.value = "";
+              }}
+            />
+            <Tooltip content={canAttachImages ? "添加图片" : "当前模型不支持图片输入"}>
+              <IconButton
+                type="button"
+                variant="ghost"
+                size="1"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!canAttachImages || isComposerLocked}
+                aria-label="添加图片"
+              >
+                <ImagePlus size={15} />
+              </IconButton>
+            </Tooltip>
             <Tooltip
               content={
                 toolApprovalBypassEnabled

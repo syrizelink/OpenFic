@@ -39,6 +39,24 @@ class AgentRunMessage(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
+class AgentAttachment(SQLModel, table=True):
+    """Agent 用户消息的图片附件。"""
+
+    __tablename__ = "agent_attachments"
+
+    id: str = Field(default_factory=generate_id, primary_key=True)
+    session_id: str = Field(index=True, max_length=64)
+    task_id: str = Field(index=True, foreign_key="tasks.id", max_length=64)
+    project_id: str = Field(index=True, default="", max_length=64)
+    storage_name: str = Field(max_length=500, unique=True)
+    file_name: str = Field(max_length=255)
+    mime_type: str = Field(max_length=50)
+    size_bytes: int = Field(ge=0)
+    width: int = Field(ge=1)
+    height: int = Field(ge=1)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
+
+
 class AgentContextCompaction(SQLModel, table=True):
     """Agent context compaction range persisted per session."""
 

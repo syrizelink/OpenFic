@@ -65,6 +65,7 @@ from app.background.runtime.supervisor import (
     start_background_runtime,
     stop_background_runtime,
 )
+from app.agent_runtime.attachments import ensure_agent_attachments_dir
 from app.core.storage import ensure_character_images_dir, ensure_covers_dir
 from app.chapter_export.service import cleanup_chapter_export_files
 from app.models.builtin import seed_builtin_models
@@ -415,6 +416,13 @@ def create_app() -> FastAPI:
         "/character-images",
         StaticFiles(directory=str(character_images_dir)),
         name="character_images",
+    )
+
+    agent_attachments_dir = ensure_agent_attachments_dir()
+    app.mount(
+        "/agent-attachments",
+        StaticFiles(directory=str(agent_attachments_dir)),
+        name="agent_attachments",
     )
 
     # 挂载前端构建产物；开发环境未构建时跳过，避免后端启动失败。

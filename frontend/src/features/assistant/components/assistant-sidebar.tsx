@@ -51,6 +51,10 @@ import "./assistant-sidebar.css";
 
 import { useSubagentSession } from "../hooks/use-subagent-session";
 import { useTasks, useUpdateTask } from "../hooks/use-tasks";
+import {
+  createRestoredPendingAgentAttachments,
+  type PendingAgentImageAttachment,
+} from "../lib/agent-image-attachments";
 import { loadAgentTaskBundle } from "../lib/agent-task-bundle";
 import {
   createConversationStackState,
@@ -255,6 +259,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
     );
     const [activeSubagents, setActiveSubagents] = useState<ActiveSubagentState[]>([]);
     const [inputValue, setInputValue] = useState("");
+    const [pendingAttachments, setPendingAttachments] = useState<PendingAgentImageAttachment[]>([]);
     const [view, setView] = useState<AssistantView>("tasks");
     const [isLoadingTask, setIsLoadingTask] = useState(false);
     const [currentTaskTitle, setCurrentTaskTitle] = useState<string>("");
@@ -566,7 +571,22 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       reasoningEffort,
       agentKey: effectiveAgentKey,
       inputValue,
+      attachments: pendingAttachments,
       onClearInput: () => setInputValue(""),
+      onClearAttachments: () => {
+        pendingAttachments.forEach((attachment) => {
+          if (attachment.file) URL.revokeObjectURL(attachment.previewUrl);
+        });
+        setPendingAttachments([]);
+      },
+      onRestoreAttachments: (attachments) => {
+        setPendingAttachments((current) => {
+          current.forEach((attachment) => {
+            if (attachment.file) URL.revokeObjectURL(attachment.previewUrl);
+          });
+          return createRestoredPendingAgentAttachments(attachments);
+        });
+      },
       onSetInputValue: (value) => setInputValue(value),
       onOpenMentionChapter,
       onTokenUsage: handleConversationTokenUsage,
@@ -1020,7 +1040,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
     }, [inputValue, agentSidebar]);
 
     const handleSend = useCallback(() => {
-      if (!inputValue.trim()) return;
+      if (!inputValue.trim() && pendingAttachments.length === 0) return;
       if (!hasIncompleteContextSummaries) {
         performSend();
         return;
@@ -1028,7 +1048,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
 
       pendingSendActionRef.current = performSend;
       setSummaryWarningOpen(true);
-    }, [hasIncompleteContextSummaries, inputValue, performSend]);
+    }, [hasIncompleteContextSummaries, inputValue, pendingAttachments.length, performSend]);
 
     const handleConfirmSummaryWarning = useCallback(() => {
       setSummaryWarningOpen(false);
@@ -1535,6 +1555,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                 )
               }
               value={inputValue}
+              attachments={pendingAttachments}
               projectId={projectId}
               modelId={effectiveModelId}
               models={llmModelOptions}
@@ -1545,6 +1566,17 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
               isModelsLoading={isModelsLoading}
               modelsError={!!modelsError}
               onChange={setInputValue}
+              onAttachmentsChange={setPendingAttachments}
+              onUploadAttachments={async (files) => {
+                setPendingAttachments((current) => [
+                  ...current,
+                  ...files.map((file) => ({
+                    id: crypto.randomUUID(),
+                    file,
+                    previewUrl: URL.createObjectURL(file),
+                  })),
+                ]);
+              }}
               onSend={isViewingSubagent ? () => undefined : handleSend}
               onAbort={isViewingSubagent ? () => undefined : handleAbort}
               onCancelPendingMessage={

@@ -267,6 +267,71 @@
   padding: 12px;
 }
 
+.ai-sidebar-input-container[data-dragging-images="true"] {
+  outline: 1px dashed var(--accent-8);
+  outline-offset: 3px;
+}
+
+.agent-image-attachment-input {
+  display: none;
+}
+
+.agent-image-attachment-strip,
+.agent-user-message-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.agent-image-attachment-strip {
+  padding: 2px 2px 8px;
+}
+
+.agent-image-attachment-preview {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  overflow: hidden;
+  border: 1px solid var(--gray-6);
+  border-radius: 6px;
+  background: var(--gray-3);
+}
+
+.agent-image-attachment-preview img,
+.agent-user-message-images img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.agent-image-attachment-preview button {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  color: white;
+  background: rgba(0, 0, 0, 0.64);
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  place-items: center;
+}
+
+.agent-user-message-images {
+  margin-bottom: 8px;
+}
+
+.agent-user-message-images a {
+  display: block;
+  width: 96px;
+  height: 96px;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
 .ai-sidebar-model-selector {
   border-radius: 999px;
   align-self: stretch;

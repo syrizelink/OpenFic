@@ -11,7 +11,7 @@ def register_sqlmodel_models() -> None:
     makes simple in-memory DB setup much slower and less predictable.
     """
 
-    from app.agent_runtime.persistence.model import AgentRunMessage
+    from app.agent_runtime.persistence.model import AgentAttachment, AgentRunMessage
     from app.background.jobs.models import (
         BackgroundJob,
         BackgroundJobEvent,
@@ -52,6 +52,7 @@ def register_sqlmodel_models() -> None:
         LLMAuditLog,
         AgentMemory,
         AgentRule,
+        AgentAttachment,
         AgentRunMessage,
         BackgroundJob,
         BackgroundJobEvent,

@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
 from app.agent_runtime.persistence import compaction_repo, repo as message_repo
+from app.agent_runtime.attachments import copy_attachments_for_fork
 from app.agent_runtime.persistence.model import AgentRunMessage
 from app.agent_runtime.model_config import without_api_key
 from app.core.errors import NotFoundError
@@ -72,6 +73,7 @@ def _build_fork_state(
         "error": None,
         "retry_count": 0,
         "user_request": "",
+        "user_attachments": [],
         "current_revision_id": None,
     }
     return state
@@ -83,9 +85,16 @@ def _clone_message_row(
     session_id: str,
     task_id: str,
     seq: int,
+    attachments_by_source_id: dict[str, dict[str, Any]],
 ) -> AgentRunMessage:
     metadata = dict(row.metadata or {})
     metadata.pop("revision_id", None)
+    attachments = metadata.get("attachments")
+    if isinstance(attachments, list):
+        metadata["attachments"] = [
+            attachments_by_source_id.get(item.get("id"), item) if isinstance(item, dict) else item
+            for item in attachments
+        ]
     return AgentRunMessage(
         id=generate_id(),
         session_id=session_id,
@@ -154,6 +163,22 @@ async def fork_agent_session_at_revision(
         mode=cast(Literal["agent"], source_task.mode),
         agent_session_id=fork_session_id,
     )
+    source_attachment_ids = {
+        attachment.get("id")
+        for row in rows_to_clone
+        for attachments in [row.metadata.get("attachments")]
+        if isinstance(attachments, list)
+        for attachment in attachments
+        if isinstance(attachment, dict) and isinstance(attachment.get("id"), str)
+    }
+    attachments_by_source_id = await copy_attachments_for_fork(
+        session,
+        source_session_id=source_session_id,
+        target_session_id=fork_session_id,
+        target_task_id=fork_task.id,
+        project_id=source_task.project_id,
+        attachment_ids=source_attachment_ids,
+    )
 
     for index, row in enumerate(rows_to_clone):
         session.add(
@@ -162,6 +187,7 @@ async def fork_agent_session_at_revision(
                 session_id=fork_session_id,
                 task_id=fork_task.id,
                 seq=index,
+                attachments_by_source_id=attachments_by_source_id,
             )
         )
 

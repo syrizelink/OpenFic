@@ -10,6 +10,7 @@ from typing import Literal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.persistence import compaction_repo, repo as message_repo
+from app.agent_runtime.attachments import delete_attachments_for_message_ids
 from app.agent_runtime.persistence.child_runs import rollback_child_runs_for_parent_revisions
 from app.agent_runtime.persistence.model import AgentRunMessage
 from app.core.editor_content_limits import validate_editor_content
@@ -110,6 +111,7 @@ class AgentRollbackResult:
     affected_world_entries: list[str]
     affected_characters: list[str]
     restored_message_content: str
+    restored_attachments: list[dict]
     restored_checkpoint_id: str | None
     child_checkpoint_boundaries: list[tuple[str, str | None]]
     affected_child_run_ids: list[str]
@@ -868,10 +870,20 @@ async def rollback_revision_for_session(
             )
 
     restored_message_content = ""
+    restored_attachments: list[dict] = []
     if target.user_message_id:
         user_message = await session.get(AgentRunMessage, target.user_message_id)
         if user_message is not None:
             restored_message_content = user_message.content
+            try:
+                metadata = json.loads(user_message.message_metadata or "{}")
+            except (TypeError, ValueError):
+                metadata = {}
+            attachments = metadata.get("attachments") if isinstance(metadata, dict) else None
+            if isinstance(attachments, list):
+                restored_attachments = [
+                    attachment for attachment in attachments if isinstance(attachment, dict)
+                ]
     if not restored_message_content and target.message.startswith("用户消息:"):
         restored_message_content = target.message.removeprefix("用户消息:").strip()
 
@@ -1118,7 +1130,37 @@ async def rollback_revision_for_session(
         agent_session_id,
         target.user_message_seq,
     )
+    removed_messages = [
+        row for row in await message_repo.list_by_session(session, agent_session_id)
+        if row.seq >= target.user_message_seq
+    ]
+    removed_attachment_ids = {
+        attachment.get("id")
+        for row in removed_messages
+        for attachment in [row.metadata.get("attachments")]
+        if isinstance(attachment, list)
+        for attachment in attachment
+        if isinstance(attachment, dict) and isinstance(attachment.get("id"), str)
+    }
+    restored_attachment_ids = {
+        attachment.get("id")
+        for attachment in restored_attachments
+        if isinstance(attachment.get("id"), str)
+    }
+    retained_attachment_ids = {
+        attachment.get("id")
+        for row in await message_repo.list_by_session(session, agent_session_id)
+        if row.seq < target.user_message_seq
+        for attachments in [row.metadata.get("attachments")]
+        if isinstance(attachments, list)
+        for attachment in attachments
+        if isinstance(attachment, dict) and isinstance(attachment.get("id"), str)
+    }
     await message_repo.delete_from_seq(session, agent_session_id, target.user_message_seq)
+    await delete_attachments_for_message_ids(
+        session,
+        attachment_ids=removed_attachment_ids - retained_attachment_ids - restored_attachment_ids,
+    )
     child_rollback_result = await rollback_child_runs_for_parent_revisions(
         session,
         parent_revision_ids=[revision.id for revision in revisions],
@@ -1148,6 +1190,7 @@ async def rollback_revision_for_session(
         affected_world_entries=list(dict.fromkeys(affected_world_entries)),
         affected_characters=list(dict.fromkeys(affected_characters)),
         restored_message_content=restored_message_content,
+        restored_attachments=restored_attachments,
         restored_checkpoint_id=target.pre_run_checkpoint_id,
         child_checkpoint_boundaries=child_rollback_result.checkpoint_boundaries,
         affected_child_run_ids=child_rollback_result.child_run_ids,

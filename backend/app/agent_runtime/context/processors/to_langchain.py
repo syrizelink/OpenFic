@@ -17,7 +17,14 @@ def to_langchain_messages(parts: list[ContextMessage]) -> list[BaseMessage]:
         if p.role == "system":
             out.append(SystemMessage(content=p.content))
         elif p.role == "user":
-            out.append(HumanMessage(content=p.content))
+            if p.attachments:
+                content: list[dict] = []
+                if p.content:
+                    content.append({"type": "text", "text": p.content})
+                content.extend(p.attachments)
+                out.append(HumanMessage(content=content))
+            else:
+                out.append(HumanMessage(content=p.content))
         elif p.role == "assistant":
             out.append(
                 AIMessage(

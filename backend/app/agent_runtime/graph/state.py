@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import Any, TypedDict
 
 
 class AgentRuntimeState(TypedDict):
@@ -12,4 +12,5 @@ class AgentRuntimeState(TypedDict):
     error: str | None
     retry_count: int
     user_request: str
+    user_attachments: list[dict[str, Any]]
     current_revision_id: str | None

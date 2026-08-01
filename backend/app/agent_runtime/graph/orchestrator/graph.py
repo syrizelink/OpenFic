@@ -72,11 +72,17 @@ async def _primary_build_hooks(
     ]
 
 
-def _primary_messages(state: OrchestratorState) -> list[BaseMessage]:
+async def _primary_messages(state: OrchestratorState) -> list[BaseMessage]:
     messages = list(state.get("messages") or [])
     user_request = state.get("user_request") or ""
-    if user_request:
-        messages.append(HumanMessage(content=user_request))
+    attachments = state.get("user_attachments") or []
+    if user_request or attachments:
+        messages.append(
+            HumanMessage(
+                content=user_request,
+                additional_kwargs={"openfic_attachments": attachments} if attachments else {},
+            )
+        )
     return messages
 
 
@@ -128,7 +134,7 @@ async def primary_node(
     effective_state["active_agent"] = agent_key
     await react_graph.ainvoke(
         {
-            "messages": _primary_messages(state),
+            "messages": await _primary_messages(state),
             "iteration_count": 0,
             "is_done": False,
             "final_output": None,

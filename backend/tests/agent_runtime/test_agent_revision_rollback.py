@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 
+from app.agent_runtime.persistence.model import AgentAttachment
 from app.agent_runtime.persistence import repo as message_repo
 from app.storage.models.chapter import Chapter
 from app.storage.models.character import Character
@@ -447,6 +448,76 @@ async def test_rollback_revision_restores_chapters_and_messages(revision_db):
     assert rolled_back is not None
     assert rolled_back.status == "rolled_back"
     assert task is not None
+
+
+@pytest.mark.asyncio
+async def test_rollback_preserves_target_message_attachments_for_resending(revision_db):
+    from app.agent_runtime.revisions import (
+        begin_user_revision,
+        rollback_revision_for_session,
+    )
+
+    attachment_metadata = {
+        "id": "attachment-1",
+        "storage_name": "sess-1/attachment-1.png",
+        "file_name": "reference.png",
+        "mime_type": "image/png",
+        "size_bytes": 12,
+        "width": 2,
+        "height": 3,
+        "url": "/agent-attachments/sess-1/attachment-1.png",
+    }
+    async with revision_db() as session:
+        session.add(
+            AgentAttachment(
+                id="attachment-1",
+                session_id="sess-1",
+                task_id="task-1",
+                project_id="proj-1",
+                storage_name="sess-1/attachment-1.png",
+                file_name="reference.png",
+                mime_type="image/png",
+                size_bytes=12,
+                width=2,
+                height=3,
+            )
+        )
+        user_message = await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="请参考图片",
+            metadata={"attachments": [attachment_metadata]},
+        )
+        revision = await begin_user_revision(
+            session,
+            project_id="proj-1",
+            task_id="task-1",
+            agent_session_id="sess-1",
+            user_message_id=user_message.id,
+            user_message_seq=user_message.seq,
+            message="用户消息: 请参考图片",
+            pre_run_checkpoint_id="cp-before",
+            graph_thread_id="sess-1",
+        )
+        await session.commit()
+
+    async with revision_db() as session:
+        result = await rollback_revision_for_session(
+            session,
+            agent_session_id="sess-1",
+            revision_id=revision.id,
+        )
+        await session.commit()
+
+    assert result.restored_message_content == "请参考图片"
+    assert result.restored_attachments == [attachment_metadata]
+
+    async with revision_db() as session:
+        assert await session.get(AgentAttachment, "attachment-1") is not None
 
 
 @pytest.mark.asyncio

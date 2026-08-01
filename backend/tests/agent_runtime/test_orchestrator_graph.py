@@ -2,7 +2,7 @@ import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 from pydantic import BaseModel
@@ -38,6 +38,30 @@ def test_build_orchestrator_graph_has_only_primary_runtime_node():
     end_edges = [edge for edge in graph_data.edges if _edge_target(edge) == "__end__"]
     assert any(_edge_target(edge) == "primary" for edge in start_edges)
     assert any(_edge_source(edge) == "primary" for edge in end_edges)
+
+
+@pytest.mark.asyncio
+async def test_primary_messages_preserves_attachment_metadata_without_embedding_image_data() -> None:
+    from app.agent_runtime.graph.orchestrator.graph import _primary_messages
+
+    attachment = {
+        "id": "attachment-1",
+        "storage_name": "session-1/reference.png",
+        "mime_type": "image/png",
+    }
+
+    messages = await _primary_messages(
+        {
+            "messages": [],
+            "user_request": "请描述图片",
+            "user_attachments": [attachment],
+        }
+    )
+
+    assert len(messages) == 1
+    assert isinstance(messages[0], HumanMessage)
+    assert messages[0].content == "请描述图片"
+    assert messages[0].additional_kwargs == {"openfic_attachments": [attachment]}
 
 
 def test_session_runner_constructor_no_longer_accepts_mode():

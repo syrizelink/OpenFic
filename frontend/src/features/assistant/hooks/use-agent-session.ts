@@ -14,6 +14,7 @@ import { invalidateWritingEditorEntityQueries } from "@/features/writing/hooks/u
 import { useTabsStore } from "@/features/writing/store/use-tabs-store";
 import i18n from "@/i18n";
 import type {
+  AgentImageAttachment,
   AgentMessage,
   AgentPendingMessage,
   AgentSessionCreateResponse,
@@ -32,6 +33,7 @@ import {
   submitAgentQuestionAnswer,
   rollbackAgentRevision,
   cancelAgentSession,
+  uploadAgentImageAttachment,
   submitAgentToolApproval,
 } from "@/lib/api-client";
 import type { CharacterListResponse } from "@/lib/character.types";
@@ -90,6 +92,11 @@ function createOptimisticUserMessage(content: string): AgentMessage {
     content,
     isDraft: true,
   };
+}
+
+interface RollbackInputRestore {
+  content: string;
+  attachments: AgentImageAttachment[];
 }
 
 function hasApprovalMessage(messages: AgentMessage[]): boolean {
@@ -668,7 +675,10 @@ export function useAgentSession({
   }, [agentKey, attachAgentSocket, commitTranscriptState, sessionId]);
 
   const startSession = useCallback(
-    async (userRequest: string) => {
+    async (
+      userRequest: string,
+      attachments?: Array<{ file?: File; uploadedAttachment?: AgentImageAttachment }>,
+    ) => {
       if (!modelId) {
         toast.error(i18n.t("writing.aiSidebar.noModelSelected"));
         return;
@@ -701,7 +711,23 @@ export function useAgentSession({
         attachAgentSocket(createResponse.session_id);
         await joinAgentSession(createResponse.session_id);
         if (projectIdRef.current !== projectId) return;
-        await sendAgentMessage(createResponse.session_id, userRequest);
+        const uploadedAttachments = attachments?.length
+          ? await Promise.all(
+              attachments.flatMap((attachment) =>
+                attachment.file
+                  ? [uploadAgentImageAttachment(createResponse.session_id, attachment.file)]
+                  : [],
+              ),
+            )
+          : undefined;
+        await sendAgentMessage(
+          createResponse.session_id,
+          userRequest,
+          undefined,
+          undefined,
+          undefined,
+          uploadedAttachments,
+        );
       } catch (error) {
         if (projectIdRef.current !== projectId) return;
         console.error("Failed to start agent session:", error);
@@ -729,7 +755,10 @@ export function useAgentSession({
   );
 
   const sendMessage = useCallback(
-    async (message: string) => {
+    async (
+      message: string,
+      attachments?: Array<{ file?: File; uploadedAttachment?: AgentImageAttachment }>,
+    ) => {
       const activeSessionId = sessionIdRef.current ?? sessionId;
       if (!activeSessionId) {
         toast.error(i18n.t("assistant.sessionNotFound"));
@@ -755,6 +784,19 @@ export function useAgentSession({
           attachAgentSocket(activeSessionId);
         }
         await joinAgentSession(activeSessionId);
+        const uploadedAttachments = attachments?.length
+          ? await Promise.all(
+              attachments.flatMap((attachment) =>
+                attachment.file
+                  ? [uploadAgentImageAttachment(activeSessionId, attachment.file)]
+                  : [],
+              ),
+            )
+          : undefined;
+        const existingAttachments = attachments?.flatMap((attachment) =>
+          attachment.uploadedAttachment ? [attachment.uploadedAttachment] : [],
+        );
+        const messageAttachments = [...(existingAttachments ?? []), ...(uploadedAttachments ?? [])];
         const nextModelId = modelId === activeModelIdRef.current ? undefined : modelId;
         const response = await sendAgentMessage(
           activeSessionId,
@@ -762,6 +804,7 @@ export function useAgentSession({
           nextModelId,
           reasoningEffort,
           agentKey,
+          messageAttachments.length > 0 ? messageAttachments : undefined,
         );
         if (response.model_updated && nextModelId) activeModelIdRef.current = nextModelId;
         if (response.queued && response.pending_message) {
@@ -1099,7 +1142,7 @@ export function useAgentSession({
   }, [sessionId, syncPendingMessageState]);
 
   const rollbackToRevision = useCallback(
-    async (messageId: string): Promise<string | null> => {
+    async (messageId: string): Promise<RollbackInputRestore | null> => {
       if (!sessionId || isRollbacking || isRunning || isCompactingRef.current) {
         toast.error(i18n.t("assistant.rollbackImpossible"));
         return null;
@@ -1137,7 +1180,10 @@ export function useAgentSession({
 
           toast.success(i18n.t("assistant.rollbackSuccess"));
 
-          return result.restored_message_content;
+          return {
+            content: result.restored_message_content,
+            attachments: result.restored_attachments,
+          };
         } else {
           toast.error(i18n.t("assistant.rollbackFailed"));
           return null;

@@ -2168,6 +2168,7 @@ import type {
   AgentSessionCreateRequest,
   AgentSessionCreateResponse,
   AgentForkResponse,
+  AgentImageAttachment,
   AgentPendingMessage,
   AgentSendMessageRequest,
   AgentSendMessageResponse,
@@ -2286,12 +2287,14 @@ export async function sendAgentMessage(
   modelId?: string,
   reasoningEffort?: ReasoningEffort,
   agentKey?: string,
+  attachments?: AgentImageAttachment[],
 ): Promise<AgentSendMessageResponse> {
   const request: AgentSendMessageRequest = {
     message,
     ...(modelId ? { model_id: modelId } : {}),
     ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
     ...(agentKey ? { agent_key: agentKey } : {}),
+    ...(attachments?.length ? { attachments: attachments.map((attachment) => attachment.id) } : {}),
   };
   const response = await apiClient.post(`/agent/sessions/${sessionId}/message`, request);
   const data = response.data as Record<string, unknown>;
@@ -2302,6 +2305,29 @@ export async function sendAgentMessage(
     queued: data.queued === true,
     model_updated: data.model_updated === true,
     pending_message: transformPendingAgentMessage(data.pending_message),
+  };
+}
+
+export async function uploadAgentImageAttachment(
+  sessionId: string,
+  image: File,
+): Promise<AgentImageAttachment> {
+  const formData = new FormData();
+  formData.append("image", image);
+  const response = await apiClient.post(`/agent/sessions/${sessionId}/attachments`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  const raw = response.data as Record<string, unknown>;
+  return {
+    id: String(raw.id ?? ""),
+    sessionId: String(raw.session_id ?? sessionId),
+    storageName: String(raw.storage_name ?? ""),
+    fileName: String(raw.file_name ?? ""),
+    mimeType: raw.mime_type as AgentImageAttachment["mimeType"],
+    sizeBytes: Number(raw.size_bytes ?? 0),
+    width: Number(raw.width ?? 0),
+    height: Number(raw.height ?? 0),
+    url: resolveBackendUrl(String(raw.url ?? "")) ?? "",
   };
 }
 
@@ -2341,7 +2367,49 @@ export async function rollbackAgentRevision(
   const response = await apiClient.post(`/agent/sessions/${sessionId}/rollback`, {
     revision_id: revisionId,
   });
-  return response.data;
+  const data = response.data as Record<string, unknown>;
+  return {
+    success: data.success === true,
+    session_id: String(data.session_id ?? sessionId),
+    revision_id: typeof data.revision_id === "string" ? data.revision_id : null,
+    affected_chapters: Array.isArray(data.affected_chapters)
+      ? data.affected_chapters.filter((item): item is string => typeof item === "string")
+      : [],
+    affected_notes: Array.isArray(data.affected_notes)
+      ? data.affected_notes.filter((item): item is string => typeof item === "string")
+      : [],
+    affected_note_categories: Array.isArray(data.affected_note_categories)
+      ? data.affected_note_categories.filter((item): item is string => typeof item === "string")
+      : [],
+    affected_world_entries: Array.isArray(data.affected_world_entries)
+      ? data.affected_world_entries.filter((item): item is string => typeof item === "string")
+      : [],
+    restored_message_content: String(data.restored_message_content ?? ""),
+    restored_attachments: Array.isArray(data.restored_attachments)
+      ? data.restored_attachments.flatMap((attachment) => {
+          if (!isRecord(attachment)) return [];
+          if (
+            typeof attachment.id !== "string" ||
+            typeof attachment.url !== "string" ||
+            typeof attachment.mime_type !== "string"
+          )
+            return [];
+          return [
+            {
+              id: attachment.id,
+              sessionId: String(attachment.session_id ?? sessionId),
+              storageName: String(attachment.storage_name ?? ""),
+              fileName: String(attachment.file_name ?? ""),
+              mimeType: attachment.mime_type as AgentImageAttachment["mimeType"],
+              sizeBytes: Number(attachment.size_bytes ?? 0),
+              width: Number(attachment.width ?? 0),
+              height: Number(attachment.height ?? 0),
+              url: resolveBackendUrl(attachment.url) ?? "",
+            },
+          ];
+        })
+      : [],
+  };
 }
 
 export async function forkAgentSession(

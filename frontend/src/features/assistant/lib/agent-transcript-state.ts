@@ -6,6 +6,7 @@ import {
   stopStreamingReasoningForAgentEvent,
   stopStreamingToolMessages,
 } from "../hooks/use-agent-session-message-state";
+import { normalizeAgentImageAttachments } from "./agent-image-attachments";
 import { parseUtcTimestamp } from "./date-utils";
 import { clearRetryMessages, upsertRetryMessage } from "./retry-message-state";
 import { mergeStreamingMessage } from "./streaming-message-merge";
@@ -403,6 +404,7 @@ function normalizeTranscriptEvent(event: AgentEvent): AgentMessage | null {
     correlationId: event.correlation_id,
     timestamp,
     content: event.content,
+    attachments: normalizeAgentImageAttachments(payload.attachments),
     agent: (event.agent as AgentMessage["agent"]) || undefined,
     revisionId: event.revision_id,
     isCheckpoint: event.is_checkpoint ?? event.isCheckpoint,

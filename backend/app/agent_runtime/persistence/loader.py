@@ -37,6 +37,15 @@ def _response_metadata(row: AgentRunMessage) -> dict:
     return metadata
 
 
+def _user_additional_kwargs(row: AgentRunMessage) -> dict:
+    try:
+        metadata = json.loads(row.message_metadata or "{}")
+    except (TypeError, ValueError):
+        return {}
+    attachments = metadata.get("attachments") if isinstance(metadata, dict) else None
+    return {"openfic_attachments": attachments} if isinstance(attachments, list) else {}
+
+
 def _order_tool_results_by_call_order(
     rows: list[AgentRunMessage],
 ) -> list[AgentRunMessage]:
@@ -181,6 +190,7 @@ async def load_history(db_session: AsyncSession, session_id: str) -> list[BaseMe
             messages.append(
                 HumanMessage(
                     content=part.content,
+                    additional_kwargs=_user_additional_kwargs(row),
                     response_metadata=_response_metadata(row),
                 )
             )

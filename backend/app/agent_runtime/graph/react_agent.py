@@ -32,6 +32,7 @@ from langgraph.types import RetryPolicy
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.content_blocks import extract_text_content
+from app.agent_runtime.attachments import build_image_content_blocks
 from app.agent_runtime.types import ReactAgentConfig
 from app.agent_runtime.context import build_context, build_context_parts
 from app.agent_runtime.context.processors.filter import (
@@ -336,10 +337,8 @@ async def maybe_auto_compact(
             compactions,
             max_context_tokens,
         )
-    except CompactionNoWindowError as exc:
-        error = CompactionError("no_compactable_window", "没有可压缩的上下文窗口")
-        await emit_error_once(error)
-        raise error from exc
+    except CompactionNoWindowError:
+        return False
     except Exception as exc:
         error = CompactionError(
             "compaction_window_failed", "压缩窗口选择失败，当前请求已中止"
@@ -481,9 +480,18 @@ def _to_history_dict(m: BaseMessage) -> dict:
         metadata["tool_name"] = tool_name
     out: dict = {
         "role": role,
-        "content": m.content if isinstance(m.content, str) else str(m.content),
+        "content": extract_text_content(m.content),
         "metadata": metadata,
     }
+    if isinstance(m, HumanMessage):
+        additional_kwargs = getattr(m, "additional_kwargs", None)
+        attachments = (
+            additional_kwargs.get("openfic_attachments")
+            if isinstance(additional_kwargs, dict)
+            else None
+        )
+        if isinstance(attachments, list):
+            out["additional_kwargs"] = {"openfic_attachments": attachments}
     if isinstance(m, AIMessage) and m.tool_calls:
         out["tool_calls"] = list(m.tool_calls)
     if isinstance(m, AIMessage):
@@ -601,6 +609,9 @@ def create_react_agent(
         inject_message_consumed_sink = configurable.get("inject_message_consumed_sink")
         if not callable(inject_message_consumed_sink):
             inject_message_consumed_sink = None
+        inject_message_attachments = configurable.get("inject_message_attachments")
+        if not callable(inject_message_attachments):
+            inject_message_attachments = None
         agent_event_sink = configurable.get("agent_event_sink")
         if not callable(agent_event_sink):
             agent_event_sink = None
@@ -704,15 +715,30 @@ def create_react_agent(
                                 content, db_session
                             )
                         drained_injected_user_message = True
+                        attachment_metadata = (
+                            inject_message_attachments(message_id)
+                            if isinstance(message_id, str) and inject_message_attachments is not None
+                            else []
+                        )
+                        attachments = await build_image_content_blocks(attachment_metadata)
                         transient_parts.append(
                             ContextMessage(
                                 role="user",
                                 content=compiled_content,
                                 metadata={"part": "runtime"},
+                                attachments=attachments,
                             )
                         )
-                        transient_messages.append(
-                            HumanMessage(content=compiled_content)
+                        transient_messages.extend(
+                            to_langchain_messages(
+                                [
+                                    ContextMessage(
+                                        role="user",
+                                        content=compiled_content,
+                                        attachments=attachments,
+                                    )
+                                ]
+                            )
                         )
 
         if (

@@ -5,7 +5,11 @@ import type { Editor } from "@tiptap/react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent as ReactKeyboardEvent } from "react";
+import type {
+  ClipboardEvent as ReactClipboardEvent,
+  DragEvent as ReactDragEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 
 import type { AssistantMentionCandidate } from "@/features/assistant/lib/mention-text";
 import {
@@ -44,6 +48,8 @@ interface AgentComposerEditorProps {
   disabled: boolean;
   onOpenMentionChapter?: (chapterId: string, chapterTitle: string) => void;
   onMentionSuggestionsChange?: (state: AgentComposerSuggestionState | null) => void;
+  onPasteFiles?: (dataTransfer: DataTransfer) => void;
+  onDropFiles?: (dataTransfer: DataTransfer) => void;
   onChange: (value: string) => void;
   onSubmit: () => void;
 }
@@ -60,6 +66,13 @@ function createClosedMentionQueryState(): MentionQueryState {
     replaceFrom: -1,
     visible: false,
   };
+}
+
+function hasFiles(dataTransfer: DataTransfer): boolean {
+  return (
+    dataTransfer.files.length > 0 ||
+    Array.from(dataTransfer.items).some((item) => item.kind === "file")
+  );
 }
 
 function docToCanonicalText(doc: ProseMirrorNode): string {
@@ -139,6 +152,8 @@ export function AgentComposerEditor({
   disabled,
   onOpenMentionChapter,
   onMentionSuggestionsChange,
+  onPasteFiles,
+  onDropFiles,
   onChange,
   onSubmit,
 }: AgentComposerEditorProps) {
@@ -338,6 +353,26 @@ export function AgentComposerEditor({
     [editor, onSubmit, suggestionItems.length, suggestionStatus],
   );
 
+  const handlePasteCapture = (event: ReactClipboardEvent<HTMLDivElement>) => {
+    if (!onPasteFiles || !hasFiles(event.clipboardData)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onPasteFiles(event.clipboardData);
+  };
+
+  const handleDragOverCapture = (event: ReactDragEvent<HTMLDivElement>) => {
+    if (!hasFiles(event.dataTransfer)) return;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  const handleDropCapture = (event: ReactDragEvent<HTMLDivElement>) => {
+    if (!onDropFiles || !hasFiles(event.dataTransfer)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onDropFiles(event.dataTransfer);
+  };
+
   useEffect(() => {
     if (!editor) return;
     updateMentionQuery(editor);
@@ -381,6 +416,9 @@ export function AgentComposerEditor({
       className="agent-composer-editor"
       data-disabled={disabled}
       onKeyDownCapture={handleEditorKeyDownCapture}
+      onPasteCapture={handlePasteCapture}
+      onDragOverCapture={handleDragOverCapture}
+      onDropCapture={handleDropCapture}
     >
       <EditorContent editor={editor} />
     </div>

@@ -4,6 +4,7 @@ import type React from "react";
 import { toast } from "@/components";
 import i18n from "@/i18n";
 import type {
+  AgentImageAttachment,
   AgentForkResponse,
   AgentSessionCreateResponse,
   ReasoningEffort,
@@ -11,6 +12,7 @@ import type {
 } from "@/lib/agent.types";
 
 import { useAgentSession } from "../../hooks/use-agent-session";
+import type { PendingAgentImageAttachment } from "../../lib/agent-image-attachments";
 import { AgentMessages } from "./agent-messages";
 import { AgentSpecialPanels } from "./agent-special-panels";
 import { getAgentSpecialPanels, type AgentSpecialPanel } from "./agent-special-panels-state";
@@ -22,7 +24,10 @@ interface AgentSidebarProps {
   reasoningEffort?: ReasoningEffort;
   agentKey?: string;
   inputValue: string;
+  attachments: PendingAgentImageAttachment[];
   onClearInput: () => void;
+  onClearAttachments: () => void;
+  onRestoreAttachments?: (attachments: AgentImageAttachment[]) => void;
   onSetInputValue?: (value: string) => void;
   onOpenMentionChapter?: (chapterId: string, chapterTitle: string) => void;
   onTokenUsage?: (sessionId: string, usage: TokenUsageState) => void;
@@ -55,7 +60,10 @@ export function useAgentSidebar({
   reasoningEffort,
   agentKey,
   inputValue,
+  attachments,
   onClearInput,
+  onClearAttachments,
+  onRestoreAttachments,
   onSetInputValue,
   onOpenMentionChapter,
   onTokenUsage,
@@ -116,7 +124,7 @@ export function useAgentSidebar({
       toast.error(i18n.t("writing.aiSidebar.cannotSendPendingMessage"));
       return;
     }
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() && attachments.length === 0) return;
     if (!modelId) {
       toast.error(i18n.t("writing.aiSidebar.noModelSelected"));
       return;
@@ -124,13 +132,14 @@ export function useAgentSidebar({
 
     const messageToSend = inputValue;
     onClearInput();
+    onClearAttachments();
 
     if (agentSessionId) {
-      await sendAgentMessage(messageToSend);
+      await sendAgentMessage(messageToSend, attachments);
       return;
     }
 
-    await startAgentSession(messageToSend);
+    await startAgentSession(messageToSend, attachments);
   }, [
     inputValue,
     agentStatus,
@@ -140,6 +149,8 @@ export function useAgentSidebar({
     sendAgentMessage,
     startAgentSession,
     pendingMessage,
+    attachments,
+    onClearAttachments,
   ]);
 
   const handleCancelPendingMessage = useCallback(async (): Promise<void> => {
@@ -152,12 +163,13 @@ export function useAgentSidebar({
   const handleRollback = useCallback(
     async (messageId: string): Promise<string | null> => {
       const result = await rollbackAgentRevision(messageId);
-      if (result && onSetInputValue) {
-        onSetInputValue(result);
+      if (result) {
+        onSetInputValue?.(result.content);
+        onRestoreAttachments?.(result.attachments);
       }
-      return result;
+      return result?.content ?? null;
     },
-    [rollbackAgentRevision, onSetInputValue],
+    [rollbackAgentRevision, onRestoreAttachments, onSetInputValue],
   );
 
   const handleFork = useCallback(

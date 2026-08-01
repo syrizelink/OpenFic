@@ -10,11 +10,17 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import TypeGuard, cast
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.agent_runtime.agents.definitions import load_agent_definition
+from app.agent_runtime.attachments import (
+    get_agent_attachment_url,
+    load_session_attachments,
+    save_agent_image_attachment,
+    serialize_agent_attachment,
+)
 from app.agent_runtime.context.compaction.service import CompactionError
 from app.agent_runtime.persistence.child_runs import get_child_run_by_pending_approval
 from app.agent_runtime.persistence.child_runs import (
@@ -47,6 +53,7 @@ from app.api.schemas.agent import (
     AgentCancelPendingMessageRequest,
     AgentCancelPendingMessageResponse,
     AgentCancelResponse,
+    AgentAttachmentResponse,
     AgentCompactionResponse,
     AgentForkRequest,
     AgentForkResponse,
@@ -162,6 +169,7 @@ def _build_seed_state(
         "error": None,
         "retry_count": 0,
         "user_request": "",
+        "user_attachments": [],
         "current_revision_id": current_revision_id,
         "messages": [],
     }
@@ -690,12 +698,49 @@ async def create_agent_session(
         )
 
 
+@router.post(
+    "/sessions/{session_id}/attachments",
+    response_model=AgentAttachmentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_agent_attachment(
+    session_id: str,
+    image: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
+) -> AgentAttachmentResponse:
+    """上传一张仅供指定 Agent 会话使用的图片附件。"""
+    task = await task_service.get_task_by_agent_session_id(session, session_id)
+    try:
+        attachment = await save_agent_image_attachment(
+            session,
+            session_id=session_id,
+            task_id=task.id,
+            project_id=task.project_id,
+            image_file=image,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return AgentAttachmentResponse(
+        id=attachment.id,
+        session_id=attachment.session_id,
+        storage_name=attachment.storage_name,
+        file_name=attachment.file_name,
+        mime_type=attachment.mime_type,
+        size_bytes=attachment.size_bytes,
+        width=attachment.width,
+        height=attachment.height,
+        url=get_agent_attachment_url(attachment.storage_name),
+    )
+
+
 @router.post("/sessions/{session_id}/message", response_model=AgentSendMessageResponse)
 async def send_agent_message(
     session_id: str,
     body: AgentSendMessageRequest,
     session: AsyncSession = Depends(get_session),
 ) -> AgentSendMessageResponse:
+    if not body.message.strip() and not body.attachments:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="消息或图片不能为空")
     requested_model_config: dict | None = None
     if body.model_id and session_id not in _SESSION_RUNNERS:
         try:
@@ -711,6 +756,15 @@ async def send_agent_message(
             ) from exc
 
     runner = await _get_runner(session_id, session, requested_model_config)
+    try:
+        attachments = await load_session_attachments(
+            session,
+            session_id=session_id,
+            attachment_ids=body.attachments,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    attachment_metadata = [serialize_agent_attachment(attachment) for attachment in attachments]
     registry = get_agent_run_registry()
     task = await task_service.get_task(session, runner.task_id)
     status_session_factory = _make_status_session_factory(session)
@@ -718,7 +772,8 @@ async def send_agent_message(
         await enqueue_session_title_job(session, task, body.message)
         await background_service.commit_and_notify(session)
     if await registry.is_running(session_id):
-        pending_message = await runner.queue_pending_user_message(body.message)
+        queue_kwargs = {"attachments": attachment_metadata} if attachment_metadata else {}
+        pending_message = await runner.queue_pending_user_message(body.message, **queue_kwargs)
         return AgentSendMessageResponse(
             success=True,
             session_id=session_id,
@@ -756,7 +811,8 @@ async def send_agent_message(
     if body.agent_key:
         await _validate_primary_agent(session, body.agent_key)
         runner.agent_key = body.agent_key
-    coro = runner.run(user_request=body.message)
+    run_kwargs = {"attachments": attachment_metadata} if attachment_metadata else {}
+    coro = runner.run(user_request=body.message, **run_kwargs)
     await _launch_task(
         db_session_factory=status_session_factory,
         session_id=session_id,
@@ -1186,6 +1242,33 @@ async def rollback_agent_session(
         affected_note_categories=result.affected_note_categories,
         affected_world_entries=result.affected_world_entries,
         restored_message_content=result.restored_message_content,
+        restored_attachments=[
+            AgentAttachmentResponse(
+                id=attachment["id"],
+                session_id=session_id,
+                storage_name=attachment["storage_name"],
+                file_name=attachment["file_name"],
+                mime_type=attachment["mime_type"],
+                size_bytes=attachment["size_bytes"],
+                width=attachment["width"],
+                height=attachment["height"],
+                url=attachment["url"],
+            )
+            for attachment in result.restored_attachments
+            if all(
+                key in attachment
+                for key in (
+                    "id",
+                    "storage_name",
+                    "file_name",
+                    "mime_type",
+                    "size_bytes",
+                    "width",
+                    "height",
+                    "url",
+                )
+            )
+        ],
     )
 
 

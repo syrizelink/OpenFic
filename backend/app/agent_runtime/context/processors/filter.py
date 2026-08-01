@@ -22,7 +22,7 @@ def filter_invalid(parts: list[ContextMessage]) -> list[ContextMessage]:
         if not _is_history(m):
             keep.append(True)
             continue
-        if (not m.content or not m.content.strip()) and not (
+        if (not m.content or not m.content.strip()) and not m.attachments and not (
             m.role == "assistant" and m.tool_calls
         ):
             keep.append(False)

@@ -88,7 +88,8 @@ export function useLlmModelOptions(): UseLlmModelOptionsResult {
         inputPricePerMillion: catalogModel?.inputPricePerMillion ?? null,
         outputPricePerMillion: catalogModel?.outputPricePerMillion ?? null,
         cacheReadPricePerMillion: catalogModel?.cacheReadPricePerMillion ?? null,
-        source: catalogModel?.source ?? "catalog",
+        source: catalogModel?.source ?? "remote",
+        isCatalogMatched: Boolean(catalogModel),
         providerIconPath,
       };
     });

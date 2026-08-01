@@ -47,10 +47,25 @@ class AgentSessionCreateResponse(BaseModel):
     agent_key: str = Field(..., description="当前会话使用的主智能体标识")
 
 
+class AgentAttachmentResponse(BaseModel):
+    """Agent 图片附件元数据。"""
+
+    id: str = Field(..., description="附件 ID")
+    session_id: str = Field(..., description="所属会话 ID")
+    storage_name: str = Field(..., description="服务端存储相对路径")
+    file_name: str = Field(..., description="原始文件名")
+    mime_type: str = Field(..., description="图片 MIME 类型")
+    size_bytes: int = Field(..., description="文件大小")
+    width: int = Field(..., description="图片宽度")
+    height: int = Field(..., description="图片高度")
+    url: str = Field(..., description="图片展示地址")
+
+
 class AgentSendMessageRequest(BaseModel):
     """发送用户消息请求。"""
 
-    message: str = Field(..., description="用户消息内容")
+    message: str = Field(default="", description="用户消息内容")
+    attachments: list[str] = Field(default_factory=list, description="图片附件 ID 列表")
     model_id: str | None = Field(default=None, description="下一轮执行使用的模型ID")
     agent_key: str | None = Field(default=None, description="下一轮执行使用的主智能体标识")
     reasoning_effort: ReasoningEffort | None = Field(
@@ -228,6 +243,10 @@ class AgentRollbackResponse(BaseModel):
         default_factory=list, description="受影响的世界书条目ID列表"
     )
     restored_message_content: str = Field(..., description="恢复的消息内容")
+    restored_attachments: list[AgentAttachmentResponse] = Field(
+        default_factory=list,
+        description="恢复到输入框的图片附件",
+    )
 
 
 class AgentForkRequest(BaseModel):

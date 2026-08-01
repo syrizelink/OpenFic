@@ -3,6 +3,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.context.helpers import compile_canonical_mentions
+from app.agent_runtime.attachments import build_image_content_blocks
 from app.agent_runtime.context.types import ContextMessage
 
 def _is_context_history_message(raw: dict) -> bool:
@@ -62,15 +63,25 @@ async def build_history(
         content = raw.get("content", "")
         if role == "user" and db_session is not None and isinstance(content, str) and "<of-mention" in content:
             content = await compile_canonical_mentions(content, db_session)
+        additional_kwargs = (
+            raw.get("additional_kwargs") if isinstance(raw.get("additional_kwargs"), dict) else None
+        )
+        attachment_metadata = (
+            additional_kwargs.get("openfic_attachments") if additional_kwargs is not None else None
+        )
+        attachments = (
+            await build_image_content_blocks(attachment_metadata)
+            if role == "user" and isinstance(attachment_metadata, list)
+            else None
+        )
         result.append(ContextMessage(
             role=role,
             content=content,
             name=name,
             tool_call_id=raw.get("tool_call_id"),
             tool_calls=raw.get("tool_calls"),
-            additional_kwargs=raw.get("additional_kwargs")
-            if isinstance(raw.get("additional_kwargs"), dict)
-            else None,
+            additional_kwargs=additional_kwargs,
             metadata=metadata,
+            attachments=attachments,
         ))
     return result

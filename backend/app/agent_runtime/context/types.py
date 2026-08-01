@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 
 @dataclass
@@ -11,3 +11,4 @@ class ContextMessage:
     tool_calls: list[dict] | None = None
     additional_kwargs: dict | None = None
     metadata: dict | None = None
+    attachments: list[dict[str, Any]] | None = None
