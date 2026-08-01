@@ -322,6 +322,15 @@
       "attachmentDisabled": "Attachment coming soon",
       "webSearchDisabled": "Web search coming soon",
       "imageDisabled": "Image coming soon",
+      "modelImageInputUnsupported": "The current model does not support image input",
+      "imageAttachmentLimit": "A message can contain up to {{count}} images",
+      "unsupportedImageType": "Only PNG, JPEG, and WebP images are supported",
+      "imageTooLarge": "Each image must not exceed 10 MB",
+      "dropImageAttachments": "Drop here to add attachments",
+      "imageFallbackAlt": "Image",
+      "userUploadedImage": "User-uploaded image",
+      "viewImage": "View image {{fileName}}",
+      "removeImage": "Remove image {{fileName}}",
       "recentTasks": "Recent tasks",
       "viewAll": "View all",
       "noTasks": "No conversations yet",
@@ -1167,7 +1176,10 @@
     "summary": "{{count}} messages, about {{tokens}} tokens",
     "searchPlaceholder": "Search prompt content",
     "loading": "Loading prompt chain",
-    "emptyContent": "Empty content"
+    "emptyContent": "Empty content",
+    "imageAttachments": "Image attachments",
+    "viewImage": "View image #{{index}}",
+    "imageAlt": "Image attachment #{{index}}"
   },
   "dashboard": {
     "title": "Dashboard",

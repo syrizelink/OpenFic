@@ -13,8 +13,12 @@ from langchain_core.messages import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.persistence import repo
-from app.agent_runtime.attachments import build_image_content_blocks
-from app.agent_runtime.attachments import copy_attachments_for_fork
+from app.agent_runtime.attachments import (
+    build_image_content_blocks,
+    cleanup_orphaned_agent_attachment_files,
+    copy_attachments_for_fork,
+    delete_attachments_for_task,
+)
 from app.agent_runtime.persistence.model import AgentAttachment
 from app.agent_runtime.persistence.loader import load_history
 
@@ -168,6 +172,103 @@ async def test_copy_attachments_for_fork_creates_session_owned_copy(
     assert copied["source-image"]["id"] != "source-image"
     assert copied["source-image"]["storage_name"].startswith("fork/")
     assert (tmp_path / copied["source-image"]["storage_name"]).read_bytes() == b"source-image"
+
+
+@pytest.mark.asyncio
+async def test_delete_attachments_for_task_removes_files_and_records(
+    db_session: AsyncSession,
+    sample_task,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "agent_attachments_dir", tmp_path)
+    storage_name = "session-1/image.png"
+    path = tmp_path / storage_name
+    path.parent.mkdir()
+    path.write_bytes(b"image-data")
+    db_session.add(
+        AgentAttachment(
+            id="attachment-1",
+            session_id="session-1",
+            task_id=sample_task.id,
+            project_id=sample_task.project_id,
+            storage_name=storage_name,
+            file_name="image.png",
+            mime_type="image/png",
+            size_bytes=10,
+            width=2,
+            height=3,
+        )
+    )
+    await db_session.commit()
+
+    deleted = await delete_attachments_for_task(db_session, task_id=sample_task.id)
+    await db_session.commit()
+
+    assert deleted >= 1
+    assert not path.exists()
+    assert not path.parent.exists()
+    assert await db_session.get(AgentAttachment, "attachment-1") is None
+
+
+@pytest.mark.asyncio
+async def test_cleanup_orphaned_agent_attachment_files_keeps_recorded_files(
+    db_session: AsyncSession,
+    sample_task,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "agent_attachments_dir", tmp_path)
+    session_id = sample_task.agent_session_id or "session_test"
+    kept_path = tmp_path / session_id / "kept.png"
+    orphan_path = tmp_path / "orphan-session" / "orphan.png"
+    kept_path.parent.mkdir()
+    orphan_path.parent.mkdir()
+    kept_path.write_bytes(b"kept")
+    orphan_path.write_bytes(b"orphan")
+    db_session.add(
+        AgentAttachment(
+            id="attachment-kept",
+            session_id=session_id,
+            task_id=sample_task.id,
+            project_id=sample_task.project_id,
+            storage_name=f"{session_id}/kept.png",
+            file_name="kept.png",
+            mime_type="image/png",
+            size_bytes=4,
+            width=2,
+            height=3,
+        )
+    )
+    await db_session.commit()
+
+    deleted = await cleanup_orphaned_agent_attachment_files(db_session)
+
+    assert deleted >= 1
+    assert kept_path.exists()
+    assert not orphan_path.exists()
+    assert not orphan_path.parent.exists()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_orphaned_agent_attachment_files_removes_empty_deleted_session_directory(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "agent_attachments_dir", tmp_path)
+    deleted_session_dir = tmp_path / "deleted-session"
+    deleted_session_dir.mkdir()
+
+    await cleanup_orphaned_agent_attachment_files(db_session)
+
+    assert not deleted_session_dir.exists()
 
 
 @pytest.mark.asyncio

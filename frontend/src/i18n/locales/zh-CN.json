@@ -322,6 +322,15 @@
       "attachmentDisabled": "附件功能即将推出",
       "webSearchDisabled": "联网功能即将推出",
       "imageDisabled": "图片功能即将推出",
+      "modelImageInputUnsupported": "当前模型不支持图片输入",
+      "imageAttachmentLimit": "单条消息最多添加 {{count}} 张图片",
+      "unsupportedImageType": "仅支持 PNG、JPEG 或 WebP 图片",
+      "imageTooLarge": "单张图片不能超过 10 MB",
+      "dropImageAttachments": "拖拽至此以添加附件",
+      "imageFallbackAlt": "图片",
+      "userUploadedImage": "用户上传图片",
+      "viewImage": "查看图片 {{fileName}}",
+      "removeImage": "移除图片 {{fileName}}",
       "recentTasks": "最近任务",
       "viewAll": "查看全部",
       "noTasks": "还没有任何会话记录",
@@ -1230,7 +1239,10 @@
     "summary": "共 {{count}} 条消息，约 {{tokens}} tokens",
     "searchPlaceholder": "搜索提示词内容",
     "loading": "正在载入提示词",
-    "emptyContent": "空内容"
+    "emptyContent": "空内容",
+    "imageAttachments": "图片附件",
+    "viewImage": "查看图片 #{{index}}",
+    "imageAlt": "图片附件 #{{index}}"
   },
   "dashboard": {
     "title": "仪表盘",

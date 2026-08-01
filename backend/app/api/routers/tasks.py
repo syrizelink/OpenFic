@@ -8,6 +8,7 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.modes import AgentMode
+from app.agent_runtime.attachments import delete_attachments_for_task
 from app.agent_runtime.persistence.child_runs import list_child_runs_for_parent
 from app.agent_runtime.persistence.task_projection import load_task_messages_for_agent_session
 from app.agent_runtime.runner.checkpointer import delete_checkpoints_for_thread
@@ -208,6 +209,7 @@ async def delete_task(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="任务运行中，不能删除",
             )
+        await delete_attachments_for_task(session, task_id=task.id)
         await task_service.delete_task(session, task_id)
         await session.commit()
         await _cleanup_task_checkpoints(session, task.agent_session_id)
@@ -235,6 +237,7 @@ async def delete_all_tasks(
         skipped_running_count = len(tasks) - len(deletable_tasks)
 
         for task in deletable_tasks:
+            await delete_attachments_for_task(session, task_id=task.id)
             await task_service.delete_task(session, task.id)
 
         await session.commit()

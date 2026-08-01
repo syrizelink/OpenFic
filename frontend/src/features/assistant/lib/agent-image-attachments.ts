@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 import type { AgentImageAttachment } from "@/lib/agent.types";
 
 export const MAX_AGENT_IMAGE_ATTACHMENTS = 20;
@@ -42,13 +43,15 @@ export function hasLeftAgentImageDropZone(
 
 export function validateAgentImageFiles(files: File[], existingCount: number): string | null {
   if (existingCount + files.length > MAX_AGENT_IMAGE_ATTACHMENTS) {
-    return `单条消息最多添加 ${MAX_AGENT_IMAGE_ATTACHMENTS} 张图片`;
+    return i18n.t("writing.aiSidebar.imageAttachmentLimit", {
+      count: MAX_AGENT_IMAGE_ATTACHMENTS,
+    });
   }
   for (const file of files) {
     if (!SUPPORTED_AGENT_IMAGE_TYPES.has(file.type)) {
-      return "仅支持 PNG、JPEG 或 WebP 图片";
+      return i18n.t("writing.aiSidebar.unsupportedImageType");
     }
-    if (file.size > MAX_AGENT_IMAGE_BYTES) return "单张图片不能超过 10 MB";
+    if (file.size > MAX_AGENT_IMAGE_BYTES) return i18n.t("writing.aiSidebar.imageTooLarge");
   }
   return null;
 }

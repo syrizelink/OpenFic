@@ -80,3 +80,54 @@
   background: var(--yellow-a5);
   color: inherit;
 }
+
+.prompt-chain-dialog-attachments {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--gray-a4);
+}
+
+.prompt-chain-dialog-attachments-title {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--gray-11);
+}
+
+.prompt-chain-dialog-image-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.prompt-chain-dialog-image-trigger {
+  display: block;
+  width: 80px;
+  height: 80px;
+  padding: 0;
+  overflow: hidden;
+  appearance: none;
+  cursor: zoom-in;
+  background: var(--gray-a3);
+  border: 1px solid var(--gray-a5);
+  border-radius: var(--radius-2);
+}
+
+.prompt-chain-dialog-image-trigger:hover {
+  background: var(--gray-a4);
+}
+
+.prompt-chain-dialog-image-trigger:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: 2px;
+}
+
+.prompt-chain-dialog-image-trigger img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.PhotoView-Portal.prompt-chain-dialog-photo-viewer {
+  z-index: 10000;
+}

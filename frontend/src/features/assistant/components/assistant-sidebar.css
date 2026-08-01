@@ -267,13 +267,37 @@
   padding: 12px;
 }
 
-.ai-sidebar-input-container[data-dragging-images="true"] {
-  outline: 1px dashed var(--accent-8);
-  outline-offset: 3px;
+.ai-sidebar-input-container {
+  position: relative;
 }
 
-.agent-image-attachment-input {
-  display: none;
+.agent-image-drop-overlay {
+  position: absolute;
+  z-index: 2;
+  inset: -4px;
+  display: grid;
+  pointer-events: none;
+  color: var(--accent-11);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-align: center;
+  background: color-mix(in srgb, var(--color-panel-solid) 82%, transparent);
+  border: 1px dashed var(--accent-8);
+  border-radius: 10px;
+  opacity: 0;
+  place-items: center;
+  transition: opacity 120ms ease-out;
+}
+
+.agent-image-drop-overlay-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-sidebar-input-container[data-dragging-images="true"] .agent-image-drop-overlay {
+  opacity: 1;
 }
 
 .agent-image-attachment-strip,
@@ -284,10 +308,11 @@
 }
 
 .agent-image-attachment-strip {
-  padding: 2px 2px 8px;
+  padding: 4px 4px 0px;
 }
 
-.agent-image-attachment-preview {
+.agent-image-attachment-preview,
+.agent-user-message-images .agent-image-preview-trigger {
   position: relative;
   width: 52px;
   height: 52px;
@@ -304,7 +329,19 @@
   object-fit: cover;
 }
 
-.agent-image-attachment-preview button {
+.agent-image-preview-trigger {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  cursor: zoom-in;
+  background: transparent;
+  border: 0;
+  border-radius: inherit;
+}
+
+.agent-image-attachment-remove {
   position: absolute;
   top: 2px;
   right: 2px;
@@ -317,19 +354,24 @@
   border: 0;
   border-radius: 50%;
   cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease;
   place-items: center;
+}
+
+.agent-image-attachment-preview:hover .agent-image-attachment-remove,
+.agent-image-attachment-preview:focus-within .agent-image-attachment-remove {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .agent-image-attachment-remove {
+    opacity: 1;
+  }
 }
 
 .agent-user-message-images {
   margin-bottom: 8px;
-}
-
-.agent-user-message-images a {
-  display: block;
-  width: 96px;
-  height: 96px;
-  overflow: hidden;
-  border-radius: 6px;
 }
 
 .ai-sidebar-model-selector {

@@ -1,6 +1,10 @@
 import { ChevronDown } from "lucide-react";
 import { motion } from "motion/react";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { PhotoProvider, PhotoView } from "react-photo-view";
+
+import "react-photo-view/dist/react-photo-view.css";
 
 import type { AgentMessage } from "@/lib/agent.types";
 
@@ -29,6 +33,7 @@ interface UserMessageMeasurements {
 }
 
 export function UserRequestMessage({ message, onOpenMentionChapter }: UserRequestMessageProps) {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isPointerInside, setIsPointerInside] = useState(false);
   const [suppressCollapsedOverlay, setSuppressCollapsedOverlay] = useState(false);
@@ -100,10 +105,6 @@ export function UserRequestMessage({ message, onOpenMentionChapter }: UserReques
     setIsPointerInside(false);
   }, []);
 
-  const handleImageClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    event.stopPropagation();
-  };
-
   return (
     <UserMessageShell>
       <MessageCardShell
@@ -121,22 +122,30 @@ export function UserRequestMessage({ message, onOpenMentionChapter }: UserReques
         aria-expanded={isClamped ? isExpanded : undefined}
       >
         {message.attachments?.length ? (
-          <div className="agent-user-message-images">
-            {message.attachments.map((attachment) => (
-              <a
-                key={attachment.id}
-                href={attachment.url}
-                target="_blank"
-                rel="noreferrer"
-                onClick={handleImageClick}
-              >
-                <img
+          <PhotoProvider>
+            <div className="agent-user-message-images">
+              {message.attachments.map((attachment) => (
+                <PhotoView
+                  key={attachment.id}
                   src={attachment.url}
-                  alt={attachment.fileName || "用户上传图片"}
-                />
-              </a>
-            ))}
-          </div>
+                >
+                  <button
+                    type="button"
+                    className="agent-image-preview-trigger"
+                    aria-label={t("writing.aiSidebar.viewImage", {
+                      fileName: attachment.fileName,
+                    })}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <img
+                      src={attachment.url}
+                      alt={attachment.fileName || t("writing.aiSidebar.userUploadedImage")}
+                    />
+                  </button>
+                </PhotoView>
+              ))}
+            </div>
+          </PhotoProvider>
         ) : null}
         <motion.div
           className="agent-user-message-content-viewport"

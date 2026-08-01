@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import io
 import base64
+import io
 from pathlib import Path
+import shutil
 from typing import Any
 
 import aiofiles
@@ -177,6 +178,90 @@ async def delete_attachments_for_message_ids(
     for attachment in attachments:
         (root / attachment.storage_name).unlink(missing_ok=True)
     await session.execute(delete(AgentAttachment).where(col(AgentAttachment.id).in_(attachment_ids)))
+
+
+async def delete_attachments_for_task(
+    session: AsyncSession,
+    *,
+    task_id: str,
+) -> int:
+    """删除任务所有 Agent 附件的文件与记录。"""
+    from app.agent_runtime.persistence.model import AgentAttachment
+
+    result = await session.execute(
+        select(AgentAttachment).where(col(AgentAttachment.task_id) == task_id)
+    )
+    attachments = list(result.scalars())
+    root = ensure_agent_attachments_dir()
+    directories: set[Path] = set()
+    for attachment in attachments:
+        path = root / attachment.storage_name
+        path.unlink(missing_ok=True)
+        directories.update(path.parents)
+    await session.execute(delete(AgentAttachment).where(col(AgentAttachment.task_id) == task_id))
+    _remove_empty_attachment_directories(root, directories)
+    return len(attachments)
+
+
+async def cleanup_orphaned_agent_attachment_files(session: AsyncSession) -> int:
+    """先删除失效会话目录，再清理现存会话的孤儿文件。"""
+    from app.agent_runtime.persistence.model import (
+        AgentAttachment,
+        AgentChildRun,
+        AgentRunMessage,
+    )
+    from app.storage.models.task import Task
+
+    root = settings.agent_attachments_dir
+    root.mkdir(parents=True, exist_ok=True)
+    result = await session.execute(select(AgentAttachment))
+    attachments = list(result.scalars())
+    storage_names = {attachment.storage_name for attachment in attachments}
+    message_result = await session.execute(select(AgentRunMessage))
+    active_session_ids = {
+        message.session_id for message in message_result.scalars()
+    }
+    task_result = await session.execute(select(Task))
+    active_session_ids.update(
+        task.agent_session_id
+        for task in task_result.scalars()
+        if task.agent_session_id is not None
+    )
+    child_run_result = await session.execute(select(AgentChildRun))
+    active_session_ids.update(
+        child_run.child_thread_id for child_run in child_run_result.scalars()
+    )
+    deleted_files = 0
+    directories: set[Path] = set()
+
+    for session_dir in root.iterdir():
+        if not session_dir.is_dir() or session_dir.name in active_session_ids:
+            continue
+        deleted_files += sum(1 for path in session_dir.rglob("*") if path.is_file())
+        shutil.rmtree(session_dir)
+
+    file_paths = [path for path in root.rglob("*") if path.is_file()]
+    for path in file_paths:
+        storage_name = path.relative_to(root).as_posix()
+        if storage_name in storage_names:
+            continue
+        path.unlink(missing_ok=True)
+        deleted_files += 1
+        directories.update(path.parents)
+
+    _remove_empty_attachment_directories(root, directories)
+
+    return deleted_files
+
+
+def _remove_empty_attachment_directories(root: Path, directories: set[Path]) -> None:
+    for directory in sorted(directories, key=lambda item: len(item.parts), reverse=True):
+        if directory == root:
+            continue
+        try:
+            directory.rmdir()
+        except OSError:
+            continue
 
 
 def _image_metadata(content: bytes) -> tuple[str, str, int, int]:

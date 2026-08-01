@@ -262,10 +262,15 @@ class TestTaskAPI:
             "app.api.routers.tasks.delete_checkpoints_for_thread",
             new=AsyncMock(return_value=2),
         ) as delete_checkpoints:
-            response = await client.delete(f"/api/v1/tasks/{task.id}")
+            with patch(
+                "app.api.routers.tasks.delete_attachments_for_task",
+                new=AsyncMock(return_value=1),
+            ) as delete_attachments:
+                response = await client.delete(f"/api/v1/tasks/{task.id}")
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
         delete_checkpoints.assert_awaited_once_with(task.agent_session_id)
+        delete_attachments.assert_awaited_once_with(session, task_id=task.id)
 
         get_response = await client.get(f"/api/v1/tasks/{task.id}")
         assert get_response.status_code == status.HTTP_404_NOT_FOUND

@@ -2,8 +2,8 @@ import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import {
   ArrowUp,
   CircleUserRound,
+  CloudUpload,
   ExternalLink,
-  ImagePlus,
   ShieldCheck,
   Square,
   X,
@@ -12,6 +12,9 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { PhotoProvider, PhotoView } from "react-photo-view";
+
+import "react-photo-view/dist/react-photo-view.css";
 
 import { ModelIdSelect, Spinner, type ModelIdSelectOption } from "@/components";
 import { toast } from "@/components";
@@ -130,7 +133,6 @@ export function AgentInput({
     () => models.find((model) => model.value === modelId || model.id === modelId),
     [modelId, models],
   );
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDraggingImages, setIsDraggingImages] = useState(false);
   const canAttachImages = modelAllowsAgentImages(
     selectedModel?.inputModalities,
@@ -223,7 +225,7 @@ export function AgentInput({
     event.preventDefault();
     setIsDraggingImages(false);
     if (!canAttachImages) {
-      toast.error("当前模型不支持图片输入");
+      toast.error(t("writing.aiSidebar.modelImageInputUnsupported"));
       return;
     }
     void handleFiles(files);
@@ -233,7 +235,7 @@ export function AgentInput({
     const files = getAgentImageFiles(dataTransfer);
     if (files.length === 0) return;
     if (!canAttachImages) {
-      toast.error("当前模型不支持图片输入");
+      toast.error(t("writing.aiSidebar.modelImageInputUnsupported"));
       return;
     }
     void handleFiles(files);
@@ -303,6 +305,15 @@ export function AgentInput({
           }}
           onDrop={handleDrop}
         >
+          <div
+            className="agent-image-drop-overlay"
+            aria-hidden="true"
+          >
+            <span className="agent-image-drop-overlay-content">
+              <CloudUpload size={16} />
+              {t("writing.aiSidebar.dropImageAttachments")}
+            </span>
+          </div>
           <AnimatePresence
             initial={false}
             mode="wait"
@@ -353,30 +364,43 @@ export function AgentInput({
                 transition={{ duration: 0.18, ease: "easeOut" }}
               >
                 {attachments.length > 0 ? (
-                  <div className="agent-image-attachment-strip">
-                    {attachments.map((attachment) => (
-                      <div
-                        key={attachment.id}
-                        className="agent-image-attachment-preview"
-                      >
-                        <img
-                          src={attachment.previewUrl}
-                          alt={
-                            attachment.file?.name ??
-                            attachment.uploadedAttachment?.fileName ??
-                            "图片"
-                          }
-                        />
-                        <button
-                          type="button"
-                          aria-label={`移除图片 ${attachment.file?.name ?? attachment.uploadedAttachment?.fileName ?? ""}`}
-                          onClick={() => handleRemoveAttachment(attachment.id)}
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                  <PhotoProvider>
+                    <div className="agent-image-attachment-strip">
+                      {attachments.map((attachment) => {
+                        const fileName =
+                          attachment.file?.name ??
+                          attachment.uploadedAttachment?.fileName ??
+                          t("writing.aiSidebar.imageFallbackAlt");
+                        return (
+                          <div
+                            key={attachment.id}
+                            className="agent-image-attachment-preview"
+                          >
+                            <PhotoView src={attachment.previewUrl}>
+                              <button
+                                type="button"
+                                className="agent-image-preview-trigger"
+                                aria-label={t("writing.aiSidebar.viewImage", { fileName })}
+                              >
+                                <img
+                                  src={attachment.previewUrl}
+                                  alt={fileName}
+                                />
+                              </button>
+                            </PhotoView>
+                            <button
+                              type="button"
+                              className="agent-image-attachment-remove"
+                              aria-label={t("writing.aiSidebar.removeImage", { fileName })}
+                              onClick={() => handleRemoveAttachment(attachment.id)}
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </PhotoProvider>
                 ) : null}
                 <AgentComposerEditor
                   projectId={projectId}
@@ -538,29 +562,6 @@ export function AgentInput({
           >
             <AgentIndexStatusIndicator projectId={projectId} />
 
-            <input
-              ref={fileInputRef}
-              className="agent-image-attachment-input"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              multiple
-              onChange={(event) => {
-                void handleFiles(Array.from(event.target.files ?? []));
-                event.target.value = "";
-              }}
-            />
-            <Tooltip content={canAttachImages ? "添加图片" : "当前模型不支持图片输入"}>
-              <IconButton
-                type="button"
-                variant="ghost"
-                size="1"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={!canAttachImages || isComposerLocked}
-                aria-label="添加图片"
-              >
-                <ImagePlus size={15} />
-              </IconButton>
-            </Tooltip>
             <Tooltip
               content={
                 toolApprovalBypassEnabled

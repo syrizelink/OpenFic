@@ -24,7 +24,6 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { PromptChainDialog, Spinner } from "@/components";
-import type { PromptChainDialogEntry } from "@/components";
 import { fetchAgentDefinitions } from "@/features/settings/lib/agent-definitions-api";
 import { fetchSettings } from "@/features/settings/lib/settings-api";
 
@@ -37,6 +36,7 @@ import {
   getOperationLabel,
   getStatusLabel,
 } from "../lib/dashboard-formatters";
+import { getPromptEntries } from "../lib/dashboard-prompt-content";
 import type {
   DashboardAuditRecord,
   DashboardQueryParams,
@@ -83,34 +83,6 @@ function stringifyContent(value: unknown): string {
   }
   if (value === null || value === undefined) return "";
   return JSON.stringify(value, null, 2);
-}
-
-function getPromptEntries(requestMessages: string | null | undefined): PromptChainDialogEntry[] {
-  const parsed = parseJson(requestMessages ?? null);
-  if (!Array.isArray(parsed)) return [];
-
-  return parsed.map((item, index) => {
-    if (!isRecord(item)) {
-      return {
-        role: "unknown",
-        content: stringifyContent(item),
-        name: `#${index + 1}`,
-      };
-    }
-
-    const role = typeof item.role === "string" ? item.role : "unknown";
-    const content = stringifyContent(item.content);
-    const toolCalls =
-      Array.isArray(item.tool_calls) && item.tool_calls.length > 0
-        ? `\n\nTool calls:\n${JSON.stringify(item.tool_calls, null, 2)}`
-        : "";
-
-    return {
-      role,
-      content: `${content}${toolCalls}`,
-      name: `#${index + 1}`,
-    };
-  });
 }
 
 interface ToolCallEntry {

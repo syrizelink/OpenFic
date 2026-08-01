@@ -3,15 +3,18 @@ import { Bot, ChevronDown, Search, Terminal, User } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { PhotoProvider, PhotoView } from "react-photo-view";
 
 import { Spinner } from "@/components";
 import { countTokens } from "@/lib/tiktoken-utils";
 
 import "./prompt-chain-dialog.css";
+import "react-photo-view/dist/react-photo-view.css";
 
 export interface PromptChainDialogEntry {
   role: string;
   content: string;
+  imageUrls?: string[];
   name?: string;
 }
 
@@ -79,6 +82,7 @@ export function PromptChainDialog({
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedIndexes, setExpandedIndexes] = useState<Set<number>>(new Set());
   const [countedEntries, setCountedEntries] = useState<CountedPromptEntry[]>([]);
+  const [dialogContent, setDialogContent] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!open || isLoading) return;
@@ -127,7 +131,10 @@ export function PromptChainDialog({
       open={open}
       onOpenChange={handleOpenChange}
     >
-      <Dialog.Content className="prompt-chain-dialog-content">
+      <Dialog.Content
+        ref={setDialogContent}
+        className="prompt-chain-dialog-content"
+      >
         <Flex
           justify="between"
           align="start"
@@ -249,11 +256,52 @@ export function PromptChainDialog({
                     </button>
                     {isExpanded ? (
                       <Box className="prompt-chain-dialog-entry-content">
-                        {entry.content ? (
-                          highlightContent(entry.content, searchQuery)
-                        ) : (
+                        {entry.content ? highlightContent(entry.content, searchQuery) : null}
+                        {entry.imageUrls?.length ? (
+                          <section
+                            className="prompt-chain-dialog-attachments"
+                            aria-label={t("promptChainDialog.imageAttachments")}
+                          >
+                            <Text
+                              className="prompt-chain-dialog-attachments-title"
+                              size="1"
+                              weight="medium"
+                            >
+                              {t("promptChainDialog.imageAttachments")}
+                            </Text>
+                            <PhotoProvider
+                              className="prompt-chain-dialog-photo-viewer"
+                              portalContainer={dialogContent ?? undefined}
+                            >
+                              <div className="prompt-chain-dialog-image-list">
+                                {entry.imageUrls.map((imageUrl, imageIndex) => (
+                                  <PhotoView
+                                    key={`${entry.role}-${index}-${imageIndex}`}
+                                    src={imageUrl}
+                                  >
+                                    <button
+                                      type="button"
+                                      className="prompt-chain-dialog-image-trigger"
+                                      aria-label={t("promptChainDialog.viewImage", {
+                                        index: imageIndex + 1,
+                                      })}
+                                    >
+                                      <img
+                                        src={imageUrl}
+                                        alt={t("promptChainDialog.imageAlt", {
+                                          index: imageIndex + 1,
+                                        })}
+                                      />
+                                    </button>
+                                  </PhotoView>
+                                ))}
+                              </div>
+                            </PhotoProvider>
+                          </section>
+                        ) : null}
+                        {!entry.content && !entry.imageUrls?.length ? (
                           <Text color="gray">{t("promptChainDialog.emptyContent")}</Text>
-                        )}
+                        ) : null}
                       </Box>
                     ) : null}
                   </Box>
