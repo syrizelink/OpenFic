@@ -432,6 +432,67 @@ async def test_delete_chapter_removes_summary_and_affected_long_term_summaries(
 
 
 @pytest.mark.asyncio
+async def test_delete_chapter_in_later_volume_keeps_prior_long_term_summaries(
+    client: AsyncClient, session
+) -> None:
+    project_id, first_volume_id = await _create_project(client)
+    second_volume_response = await client.post(
+        f"/api/v1/projects/{project_id}/volumes",
+        json={"title": "第二卷"},
+    )
+    assert second_volume_response.status_code == 201
+    second_volume_id = second_volume_response.json()["id"]
+
+    for order in range(10):
+        await _create_chapter(
+            client,
+            project_id,
+            first_volume_id,
+            title=f"第{order + 1}章",
+            content="内容",
+            word_count=800,
+        )
+    second_volume_chapters = [
+        await _create_chapter(
+            client,
+            project_id,
+            second_volume_id,
+            title=f"第{order + 1}章",
+            content="内容",
+            word_count=800,
+        )
+        for order in range(10)
+    ]
+
+    for start_order, end_order in ((1, 10), (11, 20)):
+        session.add(
+            ChapterSummary(
+                project_id=project_id,
+                summary_type=SUMMARY_TYPE_LONG_TERM,
+                status=SUMMARY_STATUS_READY,
+                start_order=start_order,
+                end_order=end_order,
+                summary=f"区间摘要{start_order}-{end_order}",
+            )
+        )
+    await session.commit()
+
+    response = await client.delete(
+        f"/api/v1/chapters/{second_volume_chapters[0]['id']}"
+    )
+
+    assert response.status_code == 204
+    long_term_list = await client.get(
+        f"/api/v1/projects/{project_id}/chapter-context/summaries/long-term"
+    )
+    assert long_term_list.status_code == 200
+    assert [
+        (item["start_order"], item["end_order"])
+        for item in long_term_list.json()["items"]
+    ] == [(1, 10)]
+
+
+@pytest.mark.asyncio
 async def test_delete_project_cascades_chapters_and_volumes(
     client: AsyncClient,
 ) -> None:

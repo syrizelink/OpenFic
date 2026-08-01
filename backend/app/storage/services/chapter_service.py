@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.editor_content_limits import validate_editor_content
 from app.core.errors import NotFoundError
+from app.memory.chapter.sequence import global_order_index
 from app.storage.models.chapter import Chapter
 from app.storage.models.volume import Volume
 from app.storage.repos import (
@@ -529,7 +530,10 @@ async def delete_chapter(
     chapter = await get_chapter(session, chapter_id)
     project_id = chapter.project_id
     volume_id = chapter.volume_id
-    deleted_order = chapter.order
+    deleted_volume_order = chapter.order
+    chapters = await chapter_repo.list_by_project(session, project_id)
+    volumes = await volume_repo.list_by_project(session, project_id)
+    deleted_global_order = global_order_index(chapters, volumes)[chapter_id]
     old_title = chapter.title
     old_word_count = chapter.word_count
 
@@ -553,7 +557,7 @@ async def delete_chapter(
             for summary in long_term_summaries
             if summary.start_order is not None
             and summary.end_order is not None
-            and summary.end_order >= deleted_order
+            and summary.end_order >= deleted_global_order
         }
     )
     if affected_ranges:
@@ -581,10 +585,10 @@ async def delete_chapter(
 
     # 调整后续章节的顺序
     max_order = await chapter_repo.get_max_order(session, volume_id)
-    if deleted_order <= max_order:
-        # 将所有 order > deleted_order 的章节 order 减 1
+    if deleted_volume_order <= max_order:
+        # 将所有 order > deleted_volume_order 的章节 order 减 1
         await chapter_repo.shift_orders(
-            session, volume_id, deleted_order + 1, max_order, -1
+            session, volume_id, deleted_volume_order + 1, max_order, -1
         )
 
     # 更新项目统计
