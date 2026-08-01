@@ -24,6 +24,7 @@ from app.api.schemas.chapter import (
 )
 from app.background.jobs import service as background_service
 from app.core.errors import NotFoundError
+from app.google_drive.service import schedule_project_sync
 from app.storage.database import get_session
 from app.storage.services import chapter_service
 
@@ -62,6 +63,7 @@ async def create_chapter(
             content=data.content,
             word_count=data.word_count,
         )
+        await schedule_project_sync(session, project_id)
         await background_service.commit_and_notify(session)
         return ChapterResponse.model_validate(chapter)
     except NotFoundError as e:
@@ -170,6 +172,7 @@ async def update_chapter(
             content=data.content,
             word_count=data.word_count,
         )
+        await schedule_project_sync(session, chapter.project_id)
         await background_service.commit_and_notify(session)
         return ChapterResponse.model_validate(chapter)
     except NotFoundError as e:
@@ -199,7 +202,9 @@ async def delete_chapter(
     """
     try:
         logger.info(f"删除章节: {chapter_id}")
+        chapter = await chapter_service.get_chapter(session, chapter_id)
         await chapter_service.delete_chapter(session, chapter_id)
+        await schedule_project_sync(session, chapter.project_id)
         await background_service.commit_and_notify(session)
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -234,6 +239,8 @@ async def reorder_chapters(
         chapters = await chapter_service.reorder_chapters(
             session, data.volume_id, data.chapter_ids
         )
+        if chapters:
+            await schedule_project_sync(session, chapters[0].project_id)
         await background_service.commit_and_notify(session)
         return [ChapterListItem.model_validate(chapter) for chapter in chapters]
     except NotFoundError as e:
@@ -295,6 +302,7 @@ async def move_chapter_to_volume(
             chapter_id=chapter_id,
             volume_id=data.volume_id,
         )
+        await schedule_project_sync(session, chapter.project_id)
         await background_service.commit_and_notify(session)
         return ChapterResponse.model_validate(chapter)
     except NotFoundError as e:

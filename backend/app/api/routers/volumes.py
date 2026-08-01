@@ -16,7 +16,9 @@ from app.api.schemas.volume import (
     VolumeUpdate,
 )
 from app.core.errors import NotFoundError, ValidationError
+from app.google_drive.service import schedule_project_sync
 from app.storage.database import get_session
+from app.storage.repos import volume_repo
 from app.storage.services import volume_service
 
 router = APIRouter(tags=["volumes"])
@@ -42,6 +44,7 @@ async def create_volume(
             title=data.title,
             description=data.description,
         )
+        await schedule_project_sync(session, project_id)
         return VolumeResponse.model_validate(volume)
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -93,6 +96,9 @@ async def update_volume(
 ) -> VolumeResponse:
     """更新卷名或说明。"""
     try:
+        existing = await volume_repo.get_by_id(session, volume_id)
+        if existing is None:
+            raise NotFoundError(f"卷不存在: {volume_id}")
         description = (
             data.description
             if "description" in data.model_fields_set
@@ -104,6 +110,7 @@ async def update_volume(
             title=data.title,
             description=description,
         )
+        await schedule_project_sync(session, existing.project_id)
         return VolumeResponse.model_validate(volume)
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -121,7 +128,11 @@ async def delete_volume(
 ) -> Response:
     """删除卷，非空卷默认返回 409。"""
     try:
+        existing = await volume_repo.get_by_id(session, volume_id)
+        if existing is None:
+            raise NotFoundError(f"卷不存在: {volume_id}")
         await volume_service.delete_volume(session, volume_id, cascade=cascade)
+        await schedule_project_sync(session, existing.project_id)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -141,7 +152,11 @@ async def move_volume(
 ) -> VolumeResponse:
     """调整卷在项目内的位置。"""
     try:
+        existing = await volume_repo.get_by_id(session, volume_id)
+        if existing is None:
+            raise NotFoundError(f"卷不存在: {volume_id}")
         volume = await volume_service.move_volume(session, volume_id, data.new_order)
+        await schedule_project_sync(session, existing.project_id)
         return VolumeResponse.model_validate(volume)
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

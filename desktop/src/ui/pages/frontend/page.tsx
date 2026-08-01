@@ -15,6 +15,7 @@ export function FrontendPage({ webviewKey, partition, webviewRef }: FrontendPage
         className="frontend-webview"
         src="app://openfic/"
         partition={partition}
+        allowpopups
         preload={window.openficDesktop.frontendHostPreloadPath}
       />
     </section>

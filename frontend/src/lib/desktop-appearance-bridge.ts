@@ -17,9 +17,9 @@ declare global {
 }
 
 export function publishDesktopAppearance(payload: DesktopAppearancePayload): void {
-  window.openficDesktopHost?.publishAppearance(payload);
+  window.openficDesktopHost?.publishAppearance?.(payload);
 }
 
 export function publishDesktopLanguage(language: LanguageCode): void {
-  window.openficDesktopHost?.publishLanguage(language);
+  window.openficDesktopHost?.publishLanguage?.(language);
 }

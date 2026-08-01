@@ -35,6 +35,7 @@ dependencies = [
     "fastapi>=0.127.0",
     "greenlet>=3.0.0",
     "gunicorn>=23.0.0",
+    "httpx>=0.27.0",
     "itsdangerous>=2.2.0",
     "json-repair>=0.60.1",
     "lancedb>=0.26.0",

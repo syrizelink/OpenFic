@@ -69,6 +69,25 @@ async def upsert(session: AsyncSession, key: str, value: str) -> Setting:
         return setting
 
 
+async def delete_by_key(session: AsyncSession, key: str) -> bool:
+    """
+    根据键名删除设置。
+
+    Args:
+        session: 数据库 session。
+        key: 设置键名。
+
+    Returns:
+        是否删除了记录。
+    """
+    existing = await get_by_key(session, key)
+    if existing is None:
+        return False
+    await session.delete(existing)
+    await session.flush()
+    return True
+
+
 async def bulk_upsert(session: AsyncSession, settings: dict[str, str]) -> list[Setting]:
     """
     批量创建或更新设置。
