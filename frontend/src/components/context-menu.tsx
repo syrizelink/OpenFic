@@ -87,7 +87,7 @@ export function ContextMenu({
   } | null>(null);
   const mobileLongPressTimerRef = useRef<number | null>(null);
   const suppressNextEditorContextMenuRef = useRef(false);
-  const editorInputModeRestoreRef = useRef<string | null>(null);
+  const editorInputModeRestoreRef = useRef<string | null | undefined>(undefined);
 
   // 判断使用哪种模式
   const isEditorMode = !!editor && !!containerRef;
@@ -171,6 +171,7 @@ export function ContextMenu({
     const editorElement = editor?.view.dom;
     if (!editorElement) return;
 
+    if (editorInputModeRestoreRef.current !== undefined) return;
     editorInputModeRestoreRef.current = editorElement.getAttribute("inputmode");
     editorElement.setAttribute("inputmode", "none");
   }, [editor]);
@@ -180,12 +181,13 @@ export function ContextMenu({
     if (!editorElement) return;
 
     const previousInputMode = editorInputModeRestoreRef.current;
+    if (previousInputMode === undefined) return;
     if (previousInputMode === null) {
       editorElement.removeAttribute("inputmode");
     } else {
       editorElement.setAttribute("inputmode", previousInputMode);
     }
-    editorInputModeRestoreRef.current = null;
+    editorInputModeRestoreRef.current = undefined;
   }, [editor]);
 
   useEffect(
@@ -208,7 +210,6 @@ export function ContextMenu({
 
       clearMobilePointer();
       setInternalPosition(null);
-      suppressEditorKeyboard();
       mobilePointerRef.current = {
         pointerId: event.pointerId,
         x: event.clientX,
@@ -221,6 +222,7 @@ export function ContextMenu({
       mobileLongPressTimerRef.current = window.setTimeout(() => {
         if (!mobilePointerRef.current) return;
         mobilePointerRef.current.isLongPress = true;
+        suppressEditorKeyboard();
         editor?.view.dom.blur();
       }, MOBILE_POINTER_LONG_PRESS_MS);
     };
