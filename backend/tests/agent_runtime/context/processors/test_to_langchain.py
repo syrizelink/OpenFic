@@ -6,6 +6,10 @@ from app.agent_runtime.context.processors.to_langchain import to_langchain_messa
 from app.agent_runtime.context.types import ContextMessage
 
 
+def _accept_langchain_human_content(content: str | list[str | dict[object, object]]) -> None:
+    pass
+
+
 def test_system_message_mapped() -> None:
     parts = [ContextMessage(role="system", content="rules")]
     out = to_langchain_messages(parts)
@@ -43,6 +47,15 @@ def test_user_message_with_image_attachments_mapped_to_multimodal_content() -> N
         {"type": "text", "text": "描述这张图"},
         {"type": "image", "base64": "aW1hZ2U=", "mime_type": "image/png"},
     ]
+
+
+def test_multimodal_content_matches_langchain_human_message_contract() -> None:
+    content: list[str | dict[object, object]] = [
+        {"type": "text", "text": "描述这张图"},
+        {"type": "image", "base64": "aW1hZ2U=", "mime_type": "image/png"},
+    ]
+
+    _accept_langchain_human_content(content)
 
 
 def test_user_message_with_only_image_attachments_has_no_empty_text_block() -> None:

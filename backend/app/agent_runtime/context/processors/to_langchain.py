@@ -1,3 +1,5 @@
+from typing import Any
+
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
@@ -18,7 +20,7 @@ def to_langchain_messages(parts: list[ContextMessage]) -> list[BaseMessage]:
             out.append(SystemMessage(content=p.content))
         elif p.role == "user":
             if p.attachments:
-                content: list[dict] = []
+                content: list[str | dict[Any, Any]] = []
                 if p.content:
                     content.append({"type": "text", "text": p.content})
                 content.extend(p.attachments)
