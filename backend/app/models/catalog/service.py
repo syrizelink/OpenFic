@@ -34,6 +34,21 @@ _CACHE_DIR = BACKEND_DATA_DIR / "model_provider_catalog"
 _MODELS_DEV_API_URL = "https://models.dev/api.json"
 _CATALOG_ICON_PATH_TEMPLATE = "/icons/model/catalog/{provider_id}.svg"
 _SNAPSHOT_SCHEMA_VERSION = 4
+_STATIC_PROVIDER_URLS: dict[str, str] = {
+    "anthropic": "https://api.anthropic.com",
+    "cerebras": "https://api.cerebras.ai/v1",
+    "cohere": "https://api.cohere.com/v2",
+    "deepinfra": "https://api.deepinfra.com/v1/openai",
+    "google-genai": "https://generativelanguage.googleapis.com",
+    "groq": "https://api.groq.com/openai/v1",
+    "mistral": "https://api.mistral.ai/v1",
+    "openai": "https://api.openai.com/v1",
+    "togetherai": "https://api.together.ai/v1",
+    "v0": "https://api.v0.dev/v1",
+    "venice": "https://api.venice.ai/api/v1",
+    "vercel": "https://ai-gateway.vercel.sh/v1",
+    "xai": "https://api.x.ai/v1",
+}
 
 _PROVIDER_DEFINITIONS: tuple[_ProviderDefinition, ...] = (
     _ProviderDefinition("openai", "openai"),
@@ -94,7 +109,7 @@ class ModelProviderCatalogService:
     async def list_providers(self) -> list[CatalogProviderSummary]:
         snapshot, _, _ = self._load_current_snapshot()
         providers = [
-            self._provider_summary_from_payload(provider)
+            self._provider_summary_from_payload(provider, resolve_static_url=True)
             for provider in snapshot.get("providers", [])
         ]
         return sorted(providers, key=lambda provider: provider.provider_type)
@@ -150,7 +165,13 @@ class ModelProviderCatalogService:
     async def refresh(self) -> None:
         try:
             raw_payload = await self._load_refresh_payload()
-            normalized_snapshot = self._build_normalized_snapshot(raw_payload)
+            normalized_snapshot = self._build_normalized_snapshot(
+                raw_payload,
+                {
+                    **self._bundled_provider_urls(),
+                    **_STATIC_PROVIDER_URLS,
+                },
+            )
             last_refreshed_at = datetime.now(UTC).isoformat()
             self._write_json_atomic(self.cache_snapshot_path, normalized_snapshot)
             self._write_json_atomic(
@@ -254,16 +275,21 @@ class ModelProviderCatalogService:
         return None
 
     def _provider_summary_from_payload(
-        self, provider_payload: dict[str, Any]
+        self,
+        provider_payload: dict[str, Any],
+        resolve_static_url: bool = False,
     ) -> CatalogProviderSummary:
         counts = dict(provider_payload.get("model_counts") or {})
         provider_type = str(provider_payload.get("provider_type") or "")
+        api_url = provider_payload.get("api") or provider_payload.get("default_url")
+        if resolve_static_url and (not isinstance(api_url, str) or not api_url.strip()):
+            api_url = _STATIC_PROVIDER_URLS.get(provider_type)
         models_dev_provider_id = provider_payload.get("models_dev_provider_id")
         return CatalogProviderSummary(
             provider_type=provider_type,
             display_name=str(provider_payload.get("display_name") or provider_type),
-            default_url=provider_payload.get("api"),
-            api=provider_payload.get("api"),
+            default_url=api_url,
+            api=api_url,
             icon_path=(
                 self._icon_path_for(str(models_dev_provider_id))
                 if models_dev_provider_id
@@ -274,8 +300,13 @@ class ModelProviderCatalogService:
             model_counts=counts,
         )
 
-    def _build_normalized_snapshot(self, raw_payload: dict[str, Any]) -> dict[str, Any]:
+    def _build_normalized_snapshot(
+        self,
+        raw_payload: dict[str, Any],
+        bundled_provider_urls: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         providers: list[dict[str, Any]] = []
+        bundled_provider_urls = bundled_provider_urls or {}
 
         for raw_provider_key, raw_provider in sorted(raw_payload.items()):
             if not isinstance(raw_provider, dict):
@@ -289,6 +320,9 @@ class ModelProviderCatalogService:
                 else models_dev_provider_id
             )
             display_name = str(raw_provider.get("name") or provider_type)
+            api_url = raw_provider.get("api")
+            if not isinstance(api_url, str) or not api_url.strip():
+                api_url = bundled_provider_urls.get(provider_type)
             models_payload = raw_provider.get("models")
             if not isinstance(models_payload, dict):
                 models_payload = {}
@@ -305,8 +339,8 @@ class ModelProviderCatalogService:
             provider_payload = {
                 "provider_type": provider_type,
                 "display_name": display_name,
-                "default_url": raw_provider.get("api"),
-                "api": raw_provider.get("api"),
+                "default_url": api_url,
+                "api": api_url,
                 "icon_path": self._icon_path_for(models_dev_provider_id),
                 "models_dev_provider_id": models_dev_provider_id,
                 "supported_task_types": self._supported_task_types_for(
@@ -321,6 +355,20 @@ class ModelProviderCatalogService:
             "schema_version": _SNAPSHOT_SCHEMA_VERSION,
             "providers": providers,
         }
+
+    def _bundled_provider_urls(self) -> dict[str, str]:
+        bundled_snapshot = self._read_json(self.bundled_snapshot_path)
+        provider_urls: dict[str, str] = {}
+
+        for provider in bundled_snapshot.get("providers", []):
+            if not isinstance(provider, dict):
+                continue
+            provider_type = provider.get("provider_type")
+            api_url = provider.get("api") or provider.get("default_url")
+            if isinstance(provider_type, str) and isinstance(api_url, str) and api_url.strip():
+                provider_urls[provider_type] = api_url
+
+        return provider_urls
 
     def _normalize_model(self, model_id: str, raw_model: dict[str, Any]) -> dict[str, Any]:
         display_name = str(raw_model.get("name") or model_id)

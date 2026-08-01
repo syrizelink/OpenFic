@@ -18,7 +18,7 @@ def _write_json(path: Path, payload: object) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
-def _sample_modelsdev_payload() -> dict[str, object]:
+def _sample_modelsdev_payload() -> dict[str, dict[str, object]]:
     return {
         "openai": {
             "id": "openai",
@@ -249,6 +249,113 @@ async def test_catalog_service_refreshes_cache_and_keeps_last_successful_cache_o
     openai_provider = await service.get_provider("openai")
     assert openai_provider.default_url == "https://api.openai.com/v1"
     assert openai_provider.model_counts == {"llm": 2, "embedding": 1, "rerank": 0}
+
+
+@pytest.mark.asyncio
+async def test_catalog_service_preserves_bundled_urls_when_refresh_payload_omits_them(
+    tmp_path: Path,
+) -> None:
+    service = _build_service(tmp_path)
+    expected_urls = {
+        provider.provider_type: provider.default_url
+        for provider in await service.list_providers()
+    }
+
+    source_payload = _sample_modelsdev_payload()
+    for provider in source_payload.values():
+        provider.pop("api")
+
+    assert service.source_snapshot_path is not None
+    _write_json(service.source_snapshot_path, source_payload)
+    await service.refresh()
+
+    refreshed_providers = await service.list_providers()
+    assert {
+        provider.provider_type: provider.default_url for provider in refreshed_providers
+    } == expected_urls
+    assert {provider.provider_type: provider.api for provider in refreshed_providers} == expected_urls
+
+
+@pytest.mark.asyncio
+async def test_catalog_service_fills_known_static_url_when_refresh_payload_omits_api(
+    tmp_path: Path,
+) -> None:
+    service = _build_service(tmp_path)
+    source_payload = {
+        "cerebras": {
+            "id": "cerebras",
+            "name": "Cerebras",
+            "models": {},
+        }
+    }
+
+    assert service.source_snapshot_path is not None
+    _write_json(service.source_snapshot_path, source_payload)
+    await service.refresh()
+
+    provider = next(
+        provider
+        for provider in await service.list_providers()
+        if provider.provider_type == "cerebras"
+    )
+    assert provider.default_url == "https://api.cerebras.ai/v1"
+    assert provider.api == "https://api.cerebras.ai/v1"
+
+
+@pytest.mark.asyncio
+async def test_catalog_service_fills_known_static_url_from_existing_cache(
+    tmp_path: Path,
+) -> None:
+    service = _build_service(tmp_path)
+    _write_json(
+        service.cache_snapshot_path,
+        {
+            "schema_version": 4,
+            "providers": [
+                {
+                    "provider_type": "cerebras",
+                    "display_name": "Cerebras",
+                    "default_url": None,
+                    "api": None,
+                    "icon_path": None,
+                    "models_dev_provider_id": "cerebras",
+                    "supported_task_types": ["llm"],
+                    "model_counts": {"llm": 0, "embedding": 0, "rerank": 0},
+                    "models": [],
+                }
+            ],
+        },
+    )
+
+    provider = next(
+        provider
+        for provider in await service.list_providers()
+        if provider.provider_type == "cerebras"
+    )
+    assert provider.default_url == "https://api.cerebras.ai/v1"
+    assert provider.api == "https://api.cerebras.ai/v1"
+
+
+@pytest.mark.asyncio
+async def test_catalog_service_keeps_dynamic_provider_url_empty_when_refresh_payload_omits_api(
+    tmp_path: Path,
+) -> None:
+    service = _build_service(tmp_path)
+    source_payload = {
+        "azure": {
+            "id": "azure",
+            "name": "Azure",
+            "models": {},
+        }
+    }
+
+    assert service.source_snapshot_path is not None
+    _write_json(service.source_snapshot_path, source_payload)
+    await service.refresh()
+
+    provider = await service.get_provider("azure")
+    assert provider.default_url is None
+    assert provider.api is None
 
 
 @pytest.mark.asyncio

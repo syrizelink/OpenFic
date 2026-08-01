@@ -13,30 +13,19 @@ import { validateProvider } from "../lib/model-api";
 import { ProviderIcon } from "../lib/provider-icons";
 import { getProviderUrl } from "../lib/provider-utils";
 
-function isCustomUrlProvider(providerType: string): boolean {
-  return providerType === "openai-compatible" || providerType === "anthropic-compatible";
+function requiresProviderUrl(
+  providerType: string,
+  catalogProviders?: ModelProviderCatalogProvider[],
+): boolean {
+  return Boolean(providerType) && !getProviderUrl(providerType, catalogProviders);
 }
 
-const connectionSchema = z
-  .object({
-    name: z.string().optional(),
-    url: z.string().optional(), // URL 现在是可选的，因为固定提供商会自动填充
-    apiKey: z.string().optional(),
-    providerType: z.string().min(1, "providerTypeRequired"),
-  })
-  .refine(
-    (data) => {
-      if (isCustomUrlProvider(data.providerType)) {
-        return data.url && data.url.trim().length > 0;
-      }
-      // 其他模式，URL 会自动填充，不需要验证
-      return true;
-    },
-    {
-      message: "urlRequired",
-      path: ["url"],
-    },
-  );
+const connectionSchema = z.object({
+  name: z.string().optional(),
+  url: z.string().optional(),
+  apiKey: z.string().optional(),
+  providerType: z.string().min(1, "providerTypeRequired"),
+});
 
 type ConnectionFormData = z.infer<typeof connectionSchema>;
 
@@ -100,20 +89,20 @@ export function ConnectionFormDialog({
     [catalogProviders, providerType],
   );
 
-  // 切换到 OpenAI-compatible 时只清空一次 URL，不要在每次输入时重置。
+  // 切换到需要用户提供地址的提供商时，只清空一次 URL。
   useEffect(() => {
     if (!providerType) return;
 
-    if (isCustomUrlProvider(providerType)) {
+    if (requiresProviderUrl(providerType, catalogProviders)) {
       if (!isEditing || connection?.providerType !== providerType) {
         setValue("url", "");
       }
     }
-  }, [providerType, setValue, isEditing, connection]);
+  }, [providerType, catalogProviders, setValue, isEditing, connection]);
 
   // 当提供商类型改变时，自动设置固定 URL
   useEffect(() => {
-    if (!providerType || isCustomUrlProvider(providerType)) {
+    if (!providerType || requiresProviderUrl(providerType, catalogProviders)) {
       return;
     }
 
@@ -236,10 +225,10 @@ export function ConnectionFormDialog({
 
   const canValidate = useMemo(() => {
     if (!providerType) return false;
-    if (isCustomUrlProvider(providerType) && (!url || !url.trim())) return false;
+    if (requiresProviderUrl(providerType, catalogProviders) && (!url || !url.trim())) return false;
     if (!isEditing && !apiKey) return false;
     return true;
-  }, [providerType, url, isEditing, apiKey]);
+  }, [providerType, catalogProviders, url, isEditing, apiKey]);
 
   return (
     <Dialog.Root
@@ -361,7 +350,7 @@ export function ConnectionFormDialog({
               </Flex>
             </Flex>
 
-            {isCustomUrlProvider(providerType) && (
+            {requiresProviderUrl(providerType, catalogProviders) && (
               <Flex
                 direction="column"
                 gap="2"
