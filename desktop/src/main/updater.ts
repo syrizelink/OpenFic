@@ -23,6 +23,11 @@ function describeError(error: Error): string {
   return error.message || "更新服务暂时不可用";
 }
 
+function isMissingUpdateMetadataError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes(`${autoUpdater.channel}.yml`) && /\b404\b/.test(message);
+}
+
 function getUpdaterReleaseNotes(info: UpdateInfo): string | undefined {
   if (typeof info.releaseNotes === "string") return info.releaseNotes.trim() || undefined;
   if (!Array.isArray(info.releaseNotes)) return undefined;
@@ -146,6 +151,11 @@ export async function checkForUpdates(): Promise<void> {
   try {
     await autoUpdater.checkForUpdates();
   } catch (error) {
+    // A release may be visible before CI uploads its architecture-specific metadata.
+    if (isMissingUpdateMetadataError(error)) {
+      publishState({ status: "not-available" });
+      return;
+    }
     publishState({ status: "error", message: describeError(error instanceof Error ? error : new Error(String(error))) });
   }
 }
