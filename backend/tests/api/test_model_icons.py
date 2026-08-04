@@ -5,8 +5,24 @@ Catalog model icon API tests.
 
 import httpx
 import pytest
+import pytest_asyncio
 import respx
 from httpx import AsyncClient
+
+from app.models.catalog import CatalogIconProxyService
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def live_catalog_icon_proxy(_test_app):
+    """Use a real HTTP client only for tests that intercept icon requests."""
+    previous_service = _test_app.state.catalog_icon_proxy_service
+    service = CatalogIconProxyService()
+    _test_app.state.catalog_icon_proxy_service = service
+    try:
+        yield
+    finally:
+        _test_app.state.catalog_icon_proxy_service = previous_service
+        await service.aclose()
 
 
 @pytest.mark.asyncio

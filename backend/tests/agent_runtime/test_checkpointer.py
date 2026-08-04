@@ -1,3 +1,4 @@
+from contextlib import closing
 import os
 import sqlite3
 import tempfile
@@ -238,12 +239,14 @@ async def test_get_checkpointer_migrates_legacy_db_and_removes_old_backend_file(
         data_dir.mkdir(parents=True, exist_ok=True)
 
         legacy_runtime_path = legacy_root_dir / "langgraph_checkpoints.db"
-        sqlite3.connect(legacy_runtime_path).execute("CREATE TABLE marker (id INTEGER)")
-        sqlite3.connect(legacy_runtime_path).close()
+        with closing(sqlite3.connect(legacy_runtime_path)) as conn:
+            conn.execute("CREATE TABLE marker (id INTEGER)")
+            conn.commit()
 
         legacy_backend_path = data_dir / "agent_checkpoints.db"
-        sqlite3.connect(legacy_backend_path).execute("CREATE TABLE stale (id INTEGER)")
-        sqlite3.connect(legacy_backend_path).close()
+        with closing(sqlite3.connect(legacy_backend_path)) as conn:
+            conn.execute("CREATE TABLE stale (id INTEGER)")
+            conn.commit()
 
         monkeypatch.delenv("AGENT_CHECKPOINT_DB", raising=False)
         monkeypatch.setattr(checkpointer_mod.app_settings, "BACKEND_DIR", backend_dir)
@@ -257,7 +260,7 @@ async def test_get_checkpointer_migrates_legacy_db_and_removes_old_backend_file(
         assert not legacy_runtime_path.exists()
         assert not legacy_backend_path.exists()
 
-        with sqlite3.connect(target_path) as conn:
+        with closing(sqlite3.connect(target_path)) as conn:
             assert conn.execute(
                 "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'marker'"
             ).fetchone() == ("marker",)
@@ -288,7 +291,7 @@ async def test_delete_checkpoints_for_thread_removes_matching_rows_only():
         await reset_checkpointer()
         await get_checkpointer()
 
-        with sqlite3.connect(db_path) as conn:
+        with closing(sqlite3.connect(db_path)) as conn:
             conn.execute(
                 "INSERT INTO checkpoints(thread_id, checkpoint_ns, checkpoint_id) VALUES (?, ?, ?)",
                 ("session-a", "", "cp-a"),
@@ -310,7 +313,7 @@ async def test_delete_checkpoints_for_thread_removes_matching_rows_only():
         deleted_rows = await delete_checkpoints_for_thread("session-a")
 
         assert deleted_rows == 2
-        with sqlite3.connect(db_path) as conn:
+        with closing(sqlite3.connect(db_path)) as conn:
             assert conn.execute(
                 "SELECT COUNT(*) FROM checkpoints WHERE thread_id = ?",
                 ("session-a",),
@@ -339,7 +342,7 @@ async def test_delete_checkpoints_after_for_thread_keeps_cutoff_and_clears_subgr
         await reset_checkpointer()
         await get_checkpointer()
 
-        with sqlite3.connect(db_path) as conn:
+        with closing(sqlite3.connect(db_path)) as conn:
             conn.execute(
                 "INSERT INTO checkpoints(thread_id, checkpoint_ns, checkpoint_id) VALUES (?, ?, ?)",
                 ("session-a", "", "cp-001"),
@@ -370,7 +373,7 @@ async def test_delete_checkpoints_after_for_thread_keeps_cutoff_and_clears_subgr
         deleted_rows = await delete_checkpoints_after_for_thread("session-a", "cp-001")
 
         assert deleted_rows == 4
-        with sqlite3.connect(db_path) as conn:
+        with closing(sqlite3.connect(db_path)) as conn:
             remaining = conn.execute(
                 "SELECT checkpoint_ns, checkpoint_id FROM checkpoints WHERE thread_id = ? ORDER BY checkpoint_id",
                 ("session-a",),

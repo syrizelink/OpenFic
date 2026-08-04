@@ -10,6 +10,7 @@ from collections.abc import AsyncGenerator
 from pathlib import Path
 import shutil
 
+import httpx
 import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
@@ -56,9 +57,21 @@ TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 _per_test_session: AsyncSession | None = None
 
 
+class _NotFoundIconHttpClient:
+    """Avoid network-client setup for tests that do not exercise icon fetching."""
+
+    async def get(self, url: str) -> httpx.Response:
+        return httpx.Response(404, request=httpx.Request("GET", url))
+
+    async def aclose(self) -> None:
+        pass
+
+
 def _create_test_app() -> FastAPI:
     test_app = FastAPI()
-    test_app.state.catalog_icon_proxy_service = CatalogIconProxyService()
+    test_app.state.catalog_icon_proxy_service = CatalogIconProxyService(
+        client=_NotFoundIconHttpClient()
+    )
     test_app.include_router(model_icons.router)
     test_app.include_router(health.router, prefix="/api/v1")
     test_app.include_router(projects.router, prefix="/api/v1")
@@ -146,15 +159,7 @@ async def client(_test_app: FastAPI, db_engine) -> AsyncGenerator[AsyncClient, N
         _per_test_session = None
 
 
-@pytest_asyncio.fixture(autouse=True)
-async def _reset_icon_proxy(_test_app: FastAPI):
-    """每次测试前重置图标代理，避免 session-shared 状态泄漏。"""
-    _test_app.state.catalog_icon_proxy_service = CatalogIconProxyService()
-    yield
-    await _test_app.state.catalog_icon_proxy_service.aclose()
-
-
-@pytest_asyncio.fixture(autouse=True)
+@pytest_asyncio.fixture
 async def isolated_prompts_dir(monkeypatch, tmp_path: Path) -> AsyncGenerator[Path, None]:
     """每个测试使用隔离的 prompts 目录，避免污染仓库内 YAML。"""
     import app.prompts.loader as prompt_loader
