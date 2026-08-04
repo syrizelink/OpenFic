@@ -64,6 +64,15 @@ async def delete_by_task(session: AsyncSession, task_id: str) -> None:
     await session.flush()
 
 
+async def delete_by_task_ids(session: AsyncSession, task_ids: list[str]) -> None:
+    if not task_ids:
+        return
+    await session.execute(
+        sql_delete(TaskMessage).where(col(TaskMessage.task_id).in_(task_ids))
+    )
+    await session.flush()
+
+
 async def delete_after_created_at(
     session: AsyncSession,
     task_id: str,

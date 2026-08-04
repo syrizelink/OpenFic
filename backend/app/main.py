@@ -77,7 +77,7 @@ from app.models.builtin import seed_builtin_models
 from app.models.catalog import ModelProviderCatalogService
 from app.settings import settings as app_settings
 from app.socket import init_socketio
-from app.storage.database import close_db, create_session, init_db
+from app.storage.database import close_db, create_session, init_db, vacuum_database_if_needed
 from app.storage.services import task_service
 
 
@@ -181,6 +181,23 @@ async def _cleanup_orphaned_agent_attachment_files() -> None:
             logger.info(f"Deleted {deleted_files} orphaned agent attachment files at startup")
     finally:
         await session.close()
+
+
+async def _cleanup_orphaned_task_data() -> None:
+    session = await create_session()
+    try:
+        deleted_rows = await task_service.cleanup_orphaned_task_data(session)
+        await session.commit()
+        if deleted_rows:
+            logger.info(f"Deleted {deleted_rows} orphaned task runtime rows at startup")
+    finally:
+        await session.close()
+
+
+async def _vacuum_main_database() -> None:
+    await close_db()
+    if await vacuum_database_if_needed():
+        logger.info("Vacuumed main database after startup cleanup")
 
 
 def _get_server_bind() -> tuple[str, int]:
@@ -342,6 +359,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await _cleanup_unreachable_checkpoints()
     await _cleanup_chapter_export_files()
     await _cleanup_orphaned_agent_attachment_files()
+    await _cleanup_orphaned_task_data()
+    await _vacuum_main_database()
     await load_audit_details_persistence()
     start_audit_queue()
     await start_background_runtime()

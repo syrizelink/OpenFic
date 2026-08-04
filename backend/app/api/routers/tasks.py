@@ -45,13 +45,19 @@ async def _list_descendant_child_thread_ids(
     return child_thread_ids
 
 
-async def _cleanup_task_checkpoints(
+async def _list_task_checkpoint_thread_ids(
     session: AsyncSession,
     session_id: str | None,
-) -> None:
+) -> list[str]:
     if not session_id:
-        return
-    thread_ids = [*await _list_descendant_child_thread_ids(session, session_id), session_id]
+        return []
+    return [*await _list_descendant_child_thread_ids(session, session_id), session_id]
+
+
+async def _delete_checkpoint_threads(
+    session_id: str | None,
+    thread_ids: list[str],
+) -> None:
     for thread_id in thread_ids:
         deleted_rows = await delete_checkpoints_for_thread(thread_id)
         logger.bind(session_id=session_id, thread_id=thread_id).info(
@@ -209,10 +215,14 @@ async def delete_task(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="任务运行中，不能删除",
             )
+        checkpoint_thread_ids = await _list_task_checkpoint_thread_ids(
+            session,
+            task.agent_session_id,
+        )
         await delete_attachments_for_task(session, task_id=task.id)
         await task_service.delete_task(session, task_id)
         await session.commit()
-        await _cleanup_task_checkpoints(session, task.agent_session_id)
+        await _delete_checkpoint_threads(task.agent_session_id, checkpoint_thread_ids)
     except HTTPException:
         raise
     except NotFoundError as e:
@@ -236,13 +246,24 @@ async def delete_all_tasks(
         deletable_tasks = [task for task in tasks if not task.is_running]
         skipped_running_count = len(tasks) - len(deletable_tasks)
 
+        checkpoint_thread_ids_by_session = {
+            task.agent_session_id: await _list_task_checkpoint_thread_ids(
+                session,
+                task.agent_session_id,
+            )
+            for task in deletable_tasks
+            if task.agent_session_id
+        }
         for task in deletable_tasks:
             await delete_attachments_for_task(session, task_id=task.id)
             await task_service.delete_task(session, task.id)
 
         await session.commit()
         for task in deletable_tasks:
-            await _cleanup_task_checkpoints(session, task.agent_session_id)
+            await _delete_checkpoint_threads(
+                task.agent_session_id,
+                checkpoint_thread_ids_by_session.get(task.agent_session_id, []),
+            )
         deleted_count = len(deletable_tasks)
         logger.info(
             f"已删除项目 {project_id} 下的 {deleted_count} 个任务，跳过 {skipped_running_count} 个运行中任务"

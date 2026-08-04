@@ -3,8 +3,25 @@
 Project API 测试。
 """
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
+
+from app.agent_runtime.persistence import repo as agent_run_repo
+from app.agent_runtime.persistence.child_runs import create_child_run
+from app.agent_runtime.persistence.model import (
+    AgentChildRun,
+    AgentChildRunRequest,
+    AgentContextCompaction,
+    AgentRunMessage,
+    PlanRecord,
+    PlanTodoRecord,
+)
+from app.storage.models.task import Task
+from app.storage.models.task_message import TaskMessage
+from app.storage.services import task_service
 
 
 @pytest.mark.asyncio
@@ -198,6 +215,111 @@ async def test_delete_project(client: AsyncClient) -> None:
     # 确认已删除
     get_response = await client.get(f"/api/v1/projects/{project_id}")
     assert get_response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_project_deletes_tasks_and_runtime_data(client, session) -> None:
+    create_response = await client.post("/api/v1/projects", data={"title": "待删除项目"})
+    project_id = create_response.json()["id"]
+    task = await task_service.create_task(
+        session,
+        project_id=project_id,
+        title="待删除任务",
+        mode="agent",
+        agent_session_id="project-delete-session",
+    )
+    await create_child_run(
+        session,
+        parent_session_id="project-delete-session",
+        parent_task_id=task.id,
+        parent_thread_id="project-delete-session",
+        child_thread_id="project-delete-session:child:writer",
+        agent_key="writer",
+        dispatch_id="writer",
+        tool_call_id="tool-writer",
+        request={"task": "write", "input": {}, "metadata": {}},
+    )
+    await agent_run_repo.insert_message(
+        session,
+        session_id="project-delete-session",
+        task_id=task.id,
+        project_id=project_id,
+        role="assistant",
+        content="runtime message",
+        status="completed",
+    )
+    session.add(
+        TaskMessage(
+            id="project-delete-message",
+            task_id=task.id,
+            role="assistant",
+            content="legacy runtime message",
+            tool_calls="[]",
+            message_metadata="{}",
+        )
+    )
+    session.add_all(
+        [
+            AgentContextCompaction(
+                session_id="project-delete-session",
+                task_id=task.id,
+                project_id=project_id,
+                start_seq=0,
+                end_seq=1,
+                summary="runtime summary",
+                trigger="manual",
+            ),
+            PlanRecord(id="project-delete-plan", session_id="project-delete-session"),
+            PlanTodoRecord(
+                id="project-delete-todo",
+                plan_id="project-delete-plan",
+                content="runtime todo",
+                sort_index=0,
+            ),
+        ]
+    )
+    await session.commit()
+
+    with patch(
+        "app.api.routers.projects.delete_checkpoints_for_thread",
+        new=AsyncMock(return_value=0),
+    ) as delete_checkpoints:
+        response = await client.delete(f"/api/v1/projects/{project_id}")
+
+    assert response.status_code == 204
+    assert delete_checkpoints.await_count == 2
+    for model in (
+        Task,
+        TaskMessage,
+        AgentRunMessage,
+        AgentChildRun,
+        AgentChildRunRequest,
+        AgentContextCompaction,
+        PlanRecord,
+        PlanTodoRecord,
+    ):
+        result = await session.execute(select(model))
+        assert result.scalars().all() == []
+
+
+@pytest.mark.asyncio
+async def test_delete_project_rejects_running_tasks(client, session) -> None:
+    create_response = await client.post("/api/v1/projects", data={"title": "运行中项目"})
+    project_id = create_response.json()["id"]
+    task = await task_service.create_task(
+        session,
+        project_id=project_id,
+        title="运行中任务",
+        mode="agent",
+        agent_session_id="running-project-session",
+    )
+    task.is_running = True
+    await session.commit()
+
+    response = await client.delete(f"/api/v1/projects/{project_id}")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "项目存在运行中任务，不能删除"
 
 
 @pytest.mark.asyncio

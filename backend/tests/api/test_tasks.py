@@ -6,11 +6,21 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi import status
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.modes import AgentMode
 from app.agent_runtime.persistence.child_runs import create_child_run
 from app.agent_runtime.persistence import repo as agent_run_repo
+from app.agent_runtime.persistence.model import (
+    AgentChildRun,
+    AgentChildRunRequest,
+    AgentContextCompaction,
+    AgentRunMessage,
+    PlanRecord,
+    PlanTodoRecord,
+)
+from app.storage.models.llm_audit_log import LLMAuditLog
 from app.storage.services import task_service
 
 
@@ -275,6 +285,85 @@ class TestTaskAPI:
         get_response = await client.get(f"/api/v1/tasks/{task.id}")
         assert get_response.status_code == status.HTTP_404_NOT_FOUND
 
+    async def test_delete_task_cleans_runtime_data_but_keeps_audit_logs(
+        self,
+        client: AsyncClient,
+        session: AsyncSession,
+    ) -> None:
+        task, project_id, _chapter_id = await self.create_agent_task(client, session)
+        await create_child_run(
+            session,
+            parent_session_id=task.agent_session_id or "",
+            parent_task_id=task.id,
+            parent_thread_id=task.agent_session_id or "",
+            child_thread_id="session-task-api:child:writer",
+            agent_key="writer",
+            dispatch_id="writer",
+            tool_call_id="tool-writer",
+            request={"task": "write", "input": {}, "metadata": {}},
+        )
+        await agent_run_repo.insert_message(
+            session,
+            session_id=task.agent_session_id or "",
+            task_id=task.id,
+            project_id=project_id,
+            role="assistant",
+            content="runtime message",
+            status="completed",
+        )
+        session.add_all(
+            [
+                AgentContextCompaction(
+                    session_id=task.agent_session_id or "",
+                    task_id=task.id,
+                    project_id=project_id,
+                    start_seq=0,
+                    end_seq=1,
+                    summary="runtime summary",
+                    trigger="manual",
+                ),
+                PlanRecord(id="plan-task", session_id=task.agent_session_id or ""),
+                PlanTodoRecord(
+                    id="todo-task",
+                    plan_id="plan-task",
+                    content="runtime todo",
+                    sort_index=0,
+                ),
+                LLMAuditLog(
+                    id="audit-task",
+                    task_id=task.id,
+                    session_id=task.agent_session_id,
+                    project_id=project_id,
+                    operation="build",
+                    model_id="test-model",
+                    status="success",
+                ),
+            ]
+        )
+        await session.commit()
+
+        with patch(
+            "app.api.routers.tasks.delete_checkpoints_for_thread",
+            new=AsyncMock(return_value=0),
+        ):
+            response = await client.delete(f"/api/v1/tasks/{task.id}")
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        for model in (
+            AgentRunMessage,
+            AgentChildRun,
+            AgentChildRunRequest,
+            AgentContextCompaction,
+            PlanRecord,
+            PlanTodoRecord,
+        ):
+            result = await session.execute(select(model))
+            assert result.scalars().all() == []
+        audit_result = await session.execute(
+            select(LLMAuditLog).where(LLMAuditLog.id == "audit-task")
+        )
+        assert audit_result.scalar_one_or_none() is not None
+
     async def test_delete_task_deletes_descendant_subagent_checkpoints(
         self,
         client: AsyncClient,
@@ -360,6 +449,46 @@ class TestTaskAPI:
             mode="agent",
             agent_session_id="session-idle",
         )
+        await agent_run_repo.insert_message(
+            session,
+            session_id="session-idle",
+            task_id=idle_task.id,
+            project_id=project_id,
+            role="assistant",
+            content="idle runtime message",
+            status="completed",
+        )
+        await create_child_run(
+            session,
+            parent_session_id="session-idle",
+            parent_task_id=idle_task.id,
+            parent_thread_id="session-idle",
+            child_thread_id="session-idle:child:writer",
+            agent_key="writer",
+            dispatch_id="idle-writer",
+            tool_call_id="idle-tool-writer",
+            request={"task": "write", "input": {}, "metadata": {}},
+        )
+        session.add_all(
+            [
+                AgentContextCompaction(
+                    session_id="session-idle",
+                    task_id=idle_task.id,
+                    project_id=project_id,
+                    start_seq=0,
+                    end_seq=1,
+                    summary="idle summary",
+                    trigger="manual",
+                ),
+                PlanRecord(id="idle-plan", session_id="session-idle"),
+                PlanTodoRecord(
+                    id="idle-todo",
+                    plan_id="idle-plan",
+                    content="idle todo",
+                    sort_index=0,
+                ),
+            ]
+        )
         await session.commit()
 
         with patch(
@@ -373,9 +502,22 @@ class TestTaskAPI:
             "deleted_count": 1,
             "skipped_running_count": 1,
         }
-        delete_checkpoints.assert_awaited_once_with(idle_task.agent_session_id)
+        assert delete_checkpoints.await_args_list == [
+            (("session-idle:child:writer",), {}),
+            ((idle_task.agent_session_id,), {}),
+        ]
 
         running_response = await client.get(f"/api/v1/tasks/{running_task.id}")
         idle_response = await client.get(f"/api/v1/tasks/{idle_task.id}")
         assert running_response.status_code == status.HTTP_200_OK
         assert idle_response.status_code == status.HTTP_404_NOT_FOUND
+        for model in (
+            AgentRunMessage,
+            AgentChildRun,
+            AgentChildRunRequest,
+            AgentContextCompaction,
+            PlanRecord,
+            PlanTodoRecord,
+        ):
+            result = await session.execute(select(model))
+            assert result.scalars().all() == []
