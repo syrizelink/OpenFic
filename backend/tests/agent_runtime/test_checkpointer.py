@@ -12,6 +12,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import Checkpoint
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 import pytest
+from sqlalchemy import select
 from app.agent_runtime.runner.checkpointer import (
     cleanup_unreachable_checkpoints,
     close_checkpointer,
@@ -19,10 +20,15 @@ from app.agent_runtime.runner.checkpointer import (
     delete_checkpoints_for_thread,
     get_checkpointer,
     init_checkpointer,
+    prune_checkpoints_for_thread,
+    prune_reachable_checkpoints,
     reset_checkpointer,
+    vacuum_checkpoint_database,
 )
 from app.agent_runtime.tools.impls.interaction.ask_user import Question, QuestionOption
 from app.agent_runtime.persistence.child_runs import create_child_run
+from app.agent_runtime.persistence.model import AgentChildRunRequest
+from app.storage.models.revision import Revision
 from app.storage.models.task import Task
 
 
@@ -495,6 +501,282 @@ async def test_cleanup_unreachable_checkpoints_noops_for_empty_checkpoint_store(
         assert await cleanup_unreachable_checkpoints(session, await get_checkpointer()) == 0
     finally:
         await reset_checkpointer()
+
+
+async def test_prune_checkpoints_for_thread_keeps_latest_and_rollback_boundaries(
+    client,
+    session,
+    monkeypatch,
+    tmp_path,
+):
+    db_path = tmp_path / "test_checkpoints.db"
+    monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(db_path))
+    await reset_checkpointer()
+    task = Task(
+        id="task-root",
+        project_id="project-root",
+        title="Root session",
+        mode="agent",
+        agent_session_id="agent-root",
+    )
+    session.add(task)
+    await session.commit()
+
+    checkpointer = await get_checkpointer()
+    rows = [
+        ("", "cp-001", None),
+        ("", "cp-002", "cp-001"),
+        ("", "cp-003", "cp-002"),
+        ("primary:child", "cp-004", None),
+        ("primary:child", "cp-005", "cp-004"),
+    ]
+    for namespace, checkpoint_id, parent_checkpoint_id in rows:
+        await checkpointer.conn.execute(
+            "INSERT INTO checkpoints(thread_id, checkpoint_ns, checkpoint_id, parent_checkpoint_id) "
+            "VALUES (?, ?, ?, ?)",
+            ("agent-root", namespace, checkpoint_id, parent_checkpoint_id),
+        )
+        await checkpointer.conn.execute(
+            "INSERT INTO writes(thread_id, checkpoint_ns, checkpoint_id, task_id, idx, channel) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            ("agent-root", namespace, checkpoint_id, "task", 0, "messages"),
+        )
+    await checkpointer.conn.commit()
+
+    deleted_rows = await prune_checkpoints_for_thread(
+        checkpointer,
+        "agent-root",
+        {"cp-002"},
+    )
+
+    assert deleted_rows == 4
+    cursor = await checkpointer.conn.execute(
+        "SELECT checkpoint_ns, checkpoint_id FROM checkpoints "
+        "WHERE thread_id = ? ORDER BY checkpoint_id",
+        ("agent-root",),
+    )
+    try:
+        assert await cursor.fetchall() == [
+            ("", "cp-002"),
+            ("", "cp-003"),
+            ("primary:child", "cp-005"),
+        ]
+    finally:
+        await cursor.close()
+    cursor = await checkpointer.conn.execute(
+        "SELECT checkpoint_ns, checkpoint_id FROM writes "
+        "WHERE thread_id = ? ORDER BY checkpoint_id",
+        ("agent-root",),
+    )
+    try:
+        assert await cursor.fetchall() == [
+            ("", "cp-002"),
+            ("", "cp-003"),
+            ("primary:child", "cp-005"),
+        ]
+    finally:
+        await cursor.close()
+    await reset_checkpointer()
+
+
+async def test_prune_reachable_checkpoints_keeps_revision_and_child_boundaries(
+    client,
+    session,
+    monkeypatch,
+    tmp_path,
+):
+    db_path = tmp_path / "test_checkpoints.db"
+    monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(db_path))
+    await reset_checkpointer()
+    task = Task(
+        id="task-root",
+        project_id="project-root",
+        title="Root session",
+        mode="agent",
+        agent_session_id="agent-root",
+    )
+    session.add(task)
+    revision = Revision(
+        id="revision-root",
+        project_id=task.project_id,
+        task_id=task.id,
+        message="root boundary",
+        agent_session_id="agent-root",
+        status="completed",
+        revision_type="agent",
+        pre_run_checkpoint_id="root-002",
+        graph_thread_id="agent-root",
+        is_checkpoint=True,
+        project_snapshot_title="Root session",
+    )
+    session.add(revision)
+    await session.commit()
+    child = await create_child_run(
+        session,
+        parent_session_id="agent-root",
+        parent_task_id=task.id,
+        parent_thread_id="agent-root",
+        child_thread_id="agent-root:child:writer",
+        agent_key="writer",
+        dispatch_id="writer",
+        tool_call_id="tool-writer",
+        request={"task": "write", "input": {}, "metadata": {}},
+    )
+    request_result = await session.execute(
+        select(AgentChildRunRequest).where(
+            AgentChildRunRequest.child_run_id == child.id
+        )
+    )
+    child_request = request_result.scalar_one()
+    child_request.pre_request_checkpoint_id = "child-002"
+    await session.commit()
+
+    checkpointer = await get_checkpointer()
+    for thread_id, checkpoint_ids in {
+        "agent-root": ("root-001", "root-002", "root-003"),
+        child.child_thread_id: ("child-001", "child-002", "child-003"),
+    }.items():
+        for checkpoint_id in checkpoint_ids:
+            await checkpointer.conn.execute(
+                "INSERT INTO checkpoints(thread_id, checkpoint_ns, checkpoint_id) VALUES (?, ?, ?)",
+                (thread_id, "", checkpoint_id),
+            )
+    await checkpointer.conn.commit()
+
+    deleted_rows = await prune_reachable_checkpoints(session, checkpointer)
+
+    assert deleted_rows == 2
+    cursor = await checkpointer.conn.execute(
+        "SELECT thread_id, checkpoint_id FROM checkpoints ORDER BY thread_id, checkpoint_id"
+    )
+    try:
+        assert await cursor.fetchall() == [
+            ("agent-root", "root-002"),
+            ("agent-root", "root-003"),
+            (child.child_thread_id, "child-002"),
+            (child.child_thread_id, "child-003"),
+        ]
+    finally:
+        await cursor.close()
+    await reset_checkpointer()
+
+
+async def test_cleanup_unreachable_checkpoints_removes_inactive_child_thread(
+    client,
+    session,
+    monkeypatch,
+    tmp_path,
+):
+    db_path = tmp_path / "test_checkpoints.db"
+    monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(db_path))
+    await reset_checkpointer()
+    task = Task(
+        id="task-root",
+        project_id="project-root",
+        title="Root session",
+        mode="agent",
+        agent_session_id="agent-root",
+    )
+    session.add(task)
+    await session.commit()
+    active_child = await create_child_run(
+        session,
+        parent_session_id="agent-root",
+        parent_task_id=task.id,
+        parent_thread_id="agent-root",
+        child_thread_id="agent-root:child:active",
+        agent_key="writer",
+        dispatch_id="active",
+        tool_call_id="tool-active",
+        request={"task": "write", "input": {}, "metadata": {}},
+    )
+    inactive_child = await create_child_run(
+        session,
+        parent_session_id="agent-root",
+        parent_task_id=task.id,
+        parent_thread_id="agent-root",
+        child_thread_id="agent-root:child:inactive",
+        agent_key="writer",
+        dispatch_id="inactive",
+        tool_call_id="tool-inactive",
+        request={"task": "write", "input": {}, "metadata": {}},
+    )
+    inactive_child.is_active = False
+    await session.commit()
+
+    checkpointer = await get_checkpointer()
+    for thread_id in ("agent-root", active_child.child_thread_id, inactive_child.child_thread_id):
+        await checkpointer.conn.execute(
+            "INSERT INTO checkpoints(thread_id, checkpoint_ns, checkpoint_id) VALUES (?, ?, ?)",
+            (thread_id, "", f"checkpoint-{thread_id}"),
+        )
+        await checkpointer.conn.execute(
+            "INSERT INTO writes(thread_id, checkpoint_ns, checkpoint_id, task_id, idx, channel) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (thread_id, "", f"checkpoint-{thread_id}", "task", 0, "messages"),
+        )
+    await checkpointer.conn.commit()
+
+    deleted_rows = await cleanup_unreachable_checkpoints(session, checkpointer)
+
+    assert deleted_rows == 2
+    cursor = await checkpointer.conn.execute(
+        "SELECT thread_id FROM checkpoints ORDER BY thread_id"
+    )
+    try:
+        assert await cursor.fetchall() == [
+            ("agent-root",),
+            (active_child.child_thread_id,),
+        ]
+    finally:
+        await cursor.close()
+    cursor = await checkpointer.conn.execute("SELECT thread_id FROM writes ORDER BY thread_id")
+    try:
+        assert await cursor.fetchall() == [
+            ("agent-root",),
+            (active_child.child_thread_id,),
+        ]
+    finally:
+        await cursor.close()
+    await reset_checkpointer()
+
+
+async def test_vacuum_checkpoint_database_only_runs_above_free_space_threshold(
+    monkeypatch,
+    tmp_path,
+):
+    db_path = tmp_path / "test_checkpoints.db"
+    monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(db_path))
+    await reset_checkpointer()
+    checkpointer = await get_checkpointer()
+    await checkpointer.conn.execute("PRAGMA page_size = 4096")
+    await checkpointer.conn.execute("PRAGMA journal_mode = DELETE")
+    await checkpointer.conn.execute("CREATE TABLE test_data (value BLOB)")
+    await checkpointer.conn.execute(
+        "INSERT INTO test_data(value) VALUES (zeroblob(131072))"
+    )
+    await checkpointer.conn.execute("DELETE FROM test_data")
+    await checkpointer.conn.commit()
+    await reset_checkpointer()
+
+    assert await vacuum_checkpoint_database(min_free_bytes=1) is True
+
+
+async def test_vacuum_checkpoint_database_skips_small_free_space(
+    monkeypatch,
+    tmp_path,
+):
+    db_path = tmp_path / "test_checkpoints.db"
+    monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(db_path))
+    await reset_checkpointer()
+    checkpointer = await get_checkpointer()
+    await checkpointer.conn.execute("CREATE TABLE test_data (value BLOB)")
+    await checkpointer.conn.execute("INSERT INTO test_data(value) VALUES (zeroblob(4096))")
+    await checkpointer.conn.execute("DELETE FROM test_data")
+    await checkpointer.conn.commit()
+    await reset_checkpointer()
+
+    assert await vacuum_checkpoint_database() is False
 
 
 async def test_reset_checkpointer_closes_existing_connection(monkeypatch):

@@ -59,6 +59,8 @@ from app.agent_runtime.runner.checkpointer import (
     close_checkpointer,
     get_checkpointer,
     init_checkpointer,
+    prune_reachable_checkpoints,
+    vacuum_checkpoint_database,
 )
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.background.runtime.supervisor import (
@@ -147,15 +149,18 @@ async def _seed_builtin_models() -> None:
 async def _cleanup_unreachable_checkpoints() -> None:
     session = await create_session()
     try:
-        deleted_rows = await cleanup_unreachable_checkpoints(
-            session,
-            await get_checkpointer(),
-        )
+        checkpointer = await get_checkpointer()
+        deleted_rows = await cleanup_unreachable_checkpoints(session, checkpointer)
+        deleted_rows += await prune_reachable_checkpoints(session, checkpointer)
     finally:
         await session.close()
 
     if deleted_rows:
-        logger.info(f"Deleted {deleted_rows} unreachable checkpoint rows at startup")
+        logger.info(f"Deleted {deleted_rows} checkpoint rows during startup cleanup")
+    await close_checkpointer()
+    if await vacuum_checkpoint_database():
+        logger.info("Vacuumed checkpoint database after startup cleanup")
+    await init_checkpointer()
 
 
 async def _cleanup_chapter_export_files() -> None:

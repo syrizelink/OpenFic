@@ -13,7 +13,8 @@ from sqlmodel import col
 
 import app.settings as app_settings
 from app.agent_runtime.model_config import without_api_key
-from app.agent_runtime.persistence.model import AgentChildRun
+from app.agent_runtime.persistence.model import AgentChildRun, AgentChildRunRequest
+from app.storage.models.revision import Revision
 from app.storage.models.task import Task
 
 _checkpointer: AsyncSqliteSaver | None = None
@@ -25,6 +26,7 @@ _ALLOWED_MSGPACK_MODULES = (
 _LEGACY_API_KEY_MARKER = b"api_key"
 _LEGACY_API_KEY_MIGRATION = "remove_plaintext_api_keys_v1"
 _CHECKPOINT_CLEANUP_BATCH_SIZE = 500
+_VACUUM_MIN_FREE_BYTES = 64 * 1024 * 1024
 
 
 def _default_db_path() -> Path:
@@ -223,6 +225,50 @@ async def delete_checkpoints_after_for_thread(
         await conn.close()
 
 
+async def prune_checkpoints_for_thread(
+    checkpointer: AsyncSqliteSaver,
+    thread_id: str,
+    retained_checkpoint_ids: set[str],
+) -> int:
+    """Retain the latest checkpoint in each namespace and explicit rollback points."""
+    if not thread_id:
+        return 0
+
+    cursor = await checkpointer.conn.execute(
+        "SELECT checkpoint_ns, checkpoint_id FROM checkpoints WHERE thread_id = ?",
+        (thread_id,),
+    )
+    try:
+        checkpoint_rows = await cursor.fetchall()
+    finally:
+        await cursor.close()
+    if not checkpoint_rows:
+        return 0
+
+    latest_by_namespace: dict[str, str] = {}
+    for checkpoint_ns, checkpoint_id in checkpoint_rows:
+        if checkpoint_id and checkpoint_id > latest_by_namespace.get(checkpoint_ns, ""):
+            latest_by_namespace[checkpoint_ns] = checkpoint_id
+    retained_ids = set(latest_by_namespace.values()) | retained_checkpoint_ids
+    placeholders = ", ".join("?" for _ in retained_ids)
+    before = checkpointer.conn.total_changes
+    await checkpointer.conn.execute("BEGIN")
+    try:
+        await checkpointer.conn.execute(
+            f"DELETE FROM writes WHERE thread_id = ? AND checkpoint_id NOT IN ({placeholders})",
+            (thread_id, *retained_ids),
+        )
+        await checkpointer.conn.execute(
+            f"DELETE FROM checkpoints WHERE thread_id = ? AND checkpoint_id NOT IN ({placeholders})",
+            (thread_id, *retained_ids),
+        )
+        await checkpointer.conn.commit()
+    except Exception:
+        await checkpointer.conn.rollback()
+        raise
+    return checkpointer.conn.total_changes - before
+
+
 async def cleanup_unreachable_checkpoints(
     session: AsyncSession,
     checkpointer: AsyncSqliteSaver,
@@ -271,7 +317,7 @@ async def _list_reachable_checkpoint_thread_ids(session: AsyncSession) -> set[st
         select(
             col(AgentChildRun.parent_session_id),
             col(AgentChildRun.child_thread_id),
-        )
+        ).where(col(AgentChildRun.is_active).is_(True))
     )
     children_by_parent: dict[str, set[str]] = {}
     for parent_session_id, child_thread_id in child_run_result.all():
@@ -289,6 +335,107 @@ async def _list_reachable_checkpoint_thread_ids(session: AsyncSession) -> set[st
             pending_thread_ids.append(child_thread_id)
 
     return reachable_thread_ids
+
+
+async def prune_reachable_checkpoints(
+    session: AsyncSession,
+    checkpointer: AsyncSqliteSaver,
+) -> int:
+    """Prune internal history while preserving recovery and rollback checkpoints."""
+    reachable_thread_ids = await _list_reachable_checkpoint_thread_ids(session)
+    return await _prune_checkpoint_threads(session, checkpointer, reachable_thread_ids)
+
+
+async def _prune_checkpoint_threads(
+    session: AsyncSession,
+    checkpointer: AsyncSqliteSaver,
+    thread_ids: set[str],
+) -> int:
+    if not thread_ids:
+        return 0
+
+    retained_checkpoint_ids = await _list_retained_checkpoint_ids(session, thread_ids)
+    deleted_rows = 0
+    for thread_id in thread_ids:
+        deleted_rows += await prune_checkpoints_for_thread(
+            checkpointer,
+            thread_id,
+            retained_checkpoint_ids.get(thread_id, set()),
+        )
+    return deleted_rows
+
+
+async def _list_retained_checkpoint_ids(
+    session: AsyncSession,
+    thread_ids: set[str],
+) -> dict[str, set[str]]:
+    retained_ids: dict[str, set[str]] = {}
+    if not thread_ids:
+        return retained_ids
+
+    revision_result = await session.execute(
+        select(
+            col(Revision.graph_thread_id),
+            col(Revision.pre_run_checkpoint_id),
+        ).where(
+            col(Revision.graph_thread_id).in_(thread_ids),
+            col(Revision.pre_run_checkpoint_id).is_not(None),
+        )
+    )
+    for thread_id, checkpoint_id in revision_result.all():
+        if thread_id and checkpoint_id:
+            retained_ids.setdefault(thread_id, set()).add(checkpoint_id)
+
+    child_request_result = await session.execute(
+        select(
+            col(AgentChildRun.child_thread_id),
+            col(AgentChildRunRequest.pre_request_checkpoint_id),
+        )
+        .join(
+            AgentChildRunRequest,
+            col(AgentChildRunRequest.child_run_id) == col(AgentChildRun.id),
+        )
+        .where(
+            col(AgentChildRun.is_active).is_(True),
+            col(AgentChildRun.child_thread_id).in_(thread_ids),
+            col(AgentChildRunRequest.pre_request_checkpoint_id).is_not(None),
+        )
+    )
+    for thread_id, checkpoint_id in child_request_result.all():
+        if thread_id and checkpoint_id:
+            retained_ids.setdefault(thread_id, set()).add(checkpoint_id)
+
+    return retained_ids
+
+
+async def vacuum_checkpoint_database(
+    min_free_bytes: int = _VACUUM_MIN_FREE_BYTES,
+) -> bool:
+    """Reclaim file space after cleanup when enough SQLite pages are free."""
+    db_path = _get_db_path()
+    if not Path(db_path).exists():
+        return False
+
+    conn = await aiosqlite.connect(db_path)
+    try:
+        page_size_cursor = await conn.execute("PRAGMA page_size")
+        try:
+            page_size_row = await page_size_cursor.fetchone()
+        finally:
+            await page_size_cursor.close()
+        free_list_cursor = await conn.execute("PRAGMA freelist_count")
+        try:
+            free_list_row = await free_list_cursor.fetchone()
+        finally:
+            await free_list_cursor.close()
+        page_size = int(page_size_row[0]) if page_size_row else 0
+        free_pages = int(free_list_row[0]) if free_list_row else 0
+        if page_size * free_pages < min_free_bytes:
+            return False
+        await conn.execute("VACUUM")
+        return True
+    finally:
+        await conn.close()
 
 
 async def _list_checkpoint_thread_ids(checkpointer: AsyncSqliteSaver) -> set[str]:
