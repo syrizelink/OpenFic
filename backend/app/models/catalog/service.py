@@ -119,7 +119,7 @@ class ModelProviderCatalogService:
         provider = self._find_provider(snapshot, provider_type)
         if provider is None:
             raise KeyError(provider_type)
-        return self._provider_summary_from_payload(provider)
+        return self._provider_summary_from_payload(provider, resolve_static_url=True)
 
     async def get_provider_models(
         self, provider_type: str, task_type: str
