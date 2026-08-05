@@ -1,13 +1,17 @@
 import { io, type Socket } from "socket.io-client";
 
+import { publishSocketDiagnostic, type SocketDiagnosticPayload } from "./desktop-appearance-bridge";
 import { getRuntimeConfig } from "./runtime-config";
 
 export type SocketConnectionStatus = "connected" | "disconnected";
+
+const DEFAULT_CONNECTION_TIMEOUT_MS = 30_000;
 
 interface SocketClientState {
   socket: Socket | null;
   socketUrl: string | undefined;
   connectPromise: Promise<Socket> | null;
+  connectionStartedAt: number | null;
   connectionStatus: SocketConnectionStatus;
   statusListeners: Set<() => void>;
   statusBoundSocket: Socket | null;
@@ -24,6 +28,7 @@ function getSocketState(): SocketClientState {
     socket: null,
     socketUrl: undefined,
     connectPromise: null,
+    connectionStartedAt: null,
     connectionStatus: "disconnected",
     statusListeners: new Set<() => void>(),
     statusBoundSocket: null,
@@ -48,13 +53,58 @@ export function subscribeSocketConnectionStatus(listener: () => void): () => voi
   return () => state.statusListeners.delete(listener);
 }
 
+function getSocketTransport(socket: Socket): string | undefined {
+  return socket.io.engine?.transport.name;
+}
+
+function getConnectionDuration(): number | undefined {
+  const startedAt = getSocketState().connectionStartedAt;
+  return startedAt === null ? undefined : Date.now() - startedAt;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function reportSocketDiagnostic(
+  event: SocketDiagnosticPayload["event"],
+  socket: Socket,
+  details: Omit<SocketDiagnosticPayload, "event" | "transport" | "url"> = {},
+): void {
+  publishSocketDiagnostic({
+    event,
+    url: getSocketState().socketUrl ?? window.location.origin,
+    transport: getSocketTransport(socket),
+    ...details,
+  });
+}
+
 function bindConnectionStatus(socket: Socket): void {
   const state = getSocketState();
   if (state.statusBoundSocket === socket) return;
   state.statusBoundSocket = socket;
-  socket.on("connect", () => setConnectionStatus("connected"));
-  socket.on("disconnect", () => setConnectionStatus("disconnected"));
-  socket.on("connect_error", () => setConnectionStatus("disconnected"));
+  socket.on("connect", () => {
+    setConnectionStatus("connected");
+    reportSocketDiagnostic("connected", socket, { durationMs: getConnectionDuration() });
+    state.connectionStartedAt = null;
+  });
+  socket.on("disconnect", (reason) => {
+    setConnectionStatus("disconnected");
+    reportSocketDiagnostic("disconnected", socket, { active: socket.active, message: reason });
+  });
+  socket.on("connect_error", (error) => {
+    setConnectionStatus("disconnected");
+    reportSocketDiagnostic("connect-error", socket, {
+      active: socket.active,
+      message: getErrorMessage(error),
+    });
+  });
+  socket.io.on("reconnect_attempt", (attempt) => {
+    reportSocketDiagnostic("reconnect-attempt", socket, { attempt });
+  });
+  socket.io.on("reconnect_failed", () => {
+    reportSocketDiagnostic("reconnect-failed", socket, { active: socket.active });
+  });
 }
 
 function getSocketUrl(): string | undefined {
@@ -81,6 +131,7 @@ export function getSocket(): Socket {
     state.socket = null;
     state.socketUrl = undefined;
     state.connectPromise = null;
+    state.connectionStartedAt = null;
     state.statusBoundSocket = null;
     setConnectionStatus("disconnected");
   }
@@ -91,11 +142,13 @@ export function getSocket(): Socket {
           path: "/socket.io",
           autoConnect: false,
           transports: ["websocket", "polling"],
+          tryAllTransports: true,
         })
       : io({
           path: "/socket.io",
           autoConnect: false,
           transports: ["websocket", "polling"],
+          tryAllTransports: true,
         });
     state.socketUrl = nextSocketUrl;
     bindConnectionStatus(state.socket);
@@ -105,7 +158,13 @@ export function getSocket(): Socket {
   return state.socket;
 }
 
-export function connectSocket({ force = false }: { force?: boolean } = {}): Promise<Socket> {
+export function connectSocket({
+  force = false,
+  timeoutMs = DEFAULT_CONNECTION_TIMEOUT_MS,
+}: {
+  force?: boolean;
+  timeoutMs?: number;
+} = {}): Promise<Socket> {
   const state = getSocketState();
   const activeSocket = getSocket();
   if (activeSocket.connected) return Promise.resolve(activeSocket);
@@ -113,16 +172,19 @@ export function connectSocket({ force = false }: { force?: boolean } = {}): Prom
     if (force && activeSocket.active) {
       // Cancel a pending automatic backoff before an explicit user action.
       activeSocket.disconnect();
+      state.connectionStartedAt = Date.now();
+      reportSocketDiagnostic("connect-start", activeSocket, { active: activeSocket.active });
       activeSocket.connect();
     }
     return state.connectPromise;
   }
 
-  state.connectPromise = new Promise<Socket>((resolve, reject) => {
+  state.connectionStartedAt = Date.now();
+  reportSocketDiagnostic("connect-start", activeSocket, { active: activeSocket.active });
+  const connectPromise = new Promise<Socket>((resolve, reject) => {
     const cleanup = () => {
       window.clearTimeout(timeout);
       activeSocket.off("connect", onConnect);
-      activeSocket.off("connect_error", onError);
     };
 
     const onConnect = () => {
@@ -130,22 +192,31 @@ export function connectSocket({ force = false }: { force?: boolean } = {}): Prom
       resolve(activeSocket);
     };
 
-    const onError = (error: Error) => {
-      cleanup();
-      reject(error);
-    };
-
-    activeSocket.once("connect", onConnect);
-    activeSocket.once("connect_error", onError);
     const timeout = window.setTimeout(() => {
       cleanup();
-      reject(new Error("WebSocket 连接超时"));
-    }, 5000);
+      const error = new Error(`Socket 连接超时（${Math.ceil(timeoutMs / 1000)} 秒）`);
+      reportSocketDiagnostic("connection-timeout", activeSocket, {
+        active: activeSocket.active,
+        durationMs: getConnectionDuration(),
+        message: error.message,
+      });
+      activeSocket.disconnect();
+      reject(error);
+    }, timeoutMs);
+
+    activeSocket.once("connect", onConnect);
     if (force && activeSocket.active) activeSocket.disconnect();
     activeSocket.connect();
-  }).finally(() => {
-    state.connectPromise = null;
   });
+  state.connectPromise = connectPromise;
+  void connectPromise.then(
+    () => {
+      if (state.connectPromise === connectPromise) state.connectPromise = null;
+    },
+    () => {
+      if (state.connectPromise === connectPromise) state.connectPromise = null;
+    },
+  );
 
-  return state.connectPromise;
+  return connectPromise;
 }

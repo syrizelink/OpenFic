@@ -7,6 +7,7 @@ import {
   type InspectLocalRuntimeRequest,
   type InspectLocalRuntimeResult,
   type InstallRuntimeRequest,
+  type LogFrontendDiagnosticRequest,
   type PingInstanceRequest,
   type PingInstanceResult,
   type SaveConfigRequest,
@@ -93,6 +94,8 @@ const desktopApi = {
   installUpdate: (): Promise<void> => ipcRenderer.invoke(IpcChannels.installUpdate),
   openUpdateRelease: (): Promise<void> => ipcRenderer.invoke(IpcChannels.openUpdateRelease),
   exportLogs: (): Promise<string | null> => ipcRenderer.invoke(IpcChannels.exportLogs),
+  logFrontendDiagnostic: (message: string): Promise<void> =>
+    ipcRenderer.invoke(IpcChannels.logFrontendDiagnostic, { message } satisfies LogFrontendDiagnosticRequest),
   openProjectHome: (): Promise<void> => ipcRenderer.invoke(IpcChannels.openProjectHome),
   reportBug: (): Promise<void> => ipcRenderer.invoke(IpcChannels.reportBug),
   suggestFeature: (): Promise<void> => ipcRenderer.invoke(IpcChannels.suggestFeature),

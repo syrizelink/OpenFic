@@ -18,6 +18,16 @@ interface DesktopAppearancePayload {
   codeFontFamily?: string;
 }
 
+interface SocketDiagnosticPayload {
+  active?: boolean;
+  attempt?: number;
+  durationMs?: number;
+  event: string;
+  message?: string;
+  transport?: string;
+  url?: string;
+}
+
 interface ShellAppearance {
   appearance: Appearance;
   fontFamily?: string;
@@ -27,6 +37,26 @@ interface ShellAppearance {
 interface WebviewIpcMessageEvent extends Event {
   channel: string;
   args: unknown[];
+}
+
+interface WebviewConsoleMessageEvent extends Event {
+  level: number;
+  line: number;
+  message: string;
+  sourceId: string;
+}
+
+interface WebviewFailLoadEvent extends Event {
+  errorCode: number;
+  errorDescription: string;
+  validatedURL: string;
+}
+
+interface WebviewRenderProcessGoneEvent extends Event {
+  details: {
+    exitCode: number;
+    reason: string;
+  };
 }
 
 const MENU_SHORTCUTS = new Set([
@@ -41,6 +71,16 @@ const MENU_SHORTCUTS = new Set([
   "reset-zoom",
   "close-window",
   "toggle-dev-tools",
+]);
+
+const SOCKET_DIAGNOSTIC_EVENTS = new Set([
+  "connect-start",
+  "connect-error",
+  "reconnect-attempt",
+  "reconnect-failed",
+  "connected",
+  "disconnected",
+  "connection-timeout",
 ]);
 
 interface FrontendWebviewElement extends HTMLElement {
@@ -63,6 +103,37 @@ function isDesktopAppearancePayload(value: unknown): value is DesktopAppearanceP
     (candidate.fontFamily === undefined || typeof candidate.fontFamily === "string") &&
     (candidate.codeFontFamily === undefined || typeof candidate.codeFontFamily === "string")
   );
+}
+
+function isSocketDiagnosticPayload(value: unknown): value is SocketDiagnosticPayload {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as SocketDiagnosticPayload;
+  return (
+    SOCKET_DIAGNOSTIC_EVENTS.has(candidate.event) &&
+    (candidate.active === undefined || typeof candidate.active === "boolean") &&
+    (candidate.attempt === undefined || Number.isFinite(candidate.attempt)) &&
+    (candidate.durationMs === undefined || Number.isFinite(candidate.durationMs)) &&
+    (candidate.message === undefined || typeof candidate.message === "string") &&
+    (candidate.transport === undefined || typeof candidate.transport === "string") &&
+    (candidate.url === undefined || typeof candidate.url === "string")
+  );
+}
+
+function writeFrontendDiagnostic(message: string): void {
+  void window.openficDesktop.logFrontendDiagnostic(message).catch(() => undefined);
+}
+
+function formatSocketDiagnostic(payload: SocketDiagnosticPayload): string {
+  const details = [
+    `event=${payload.event}`,
+    payload.url ? `url=${payload.url}` : null,
+    payload.transport ? `transport=${payload.transport}` : null,
+    payload.active === undefined ? null : `active=${payload.active}`,
+    payload.attempt === undefined ? null : `attempt=${payload.attempt}`,
+    payload.durationMs === undefined ? null : `durationMs=${payload.durationMs}`,
+    payload.message ? `message=${payload.message}` : null,
+  ].filter((value): value is string => value !== null);
+  return `socket ${details.join(" ")}`;
 }
 
 function normalizeRemoteUrl(url: string): string {
@@ -196,6 +267,10 @@ export function App() {
         void i18n.changeLanguage(payload);
         return;
       }
+      if (channel === "openfic:socket-diagnostic" && isSocketDiagnosticPayload(payload)) {
+        writeFrontendDiagnostic(formatSocketDiagnostic(payload));
+        return;
+      }
       if (channel === "openfic:zoom-factor" && isZoomFactor(payload)) {
         void window.openficDesktop.saveZoomFactor(payload);
         return;
@@ -217,6 +292,33 @@ export function App() {
     return () => {
       frontendWebview.removeEventListener("ipc-message", handleIpcMessage);
       frontendWebview.removeEventListener("did-finish-load", restoreZoomFactor);
+    };
+  }, [frontendWebview]);
+
+  useEffect(() => {
+    if (!frontendWebview) return;
+
+    const handleConsoleMessage = (event: Event) => {
+      const { level, line, message, sourceId } = event as WebviewConsoleMessageEvent;
+      if (!/\b(socket|websocket|engine\.io)\b/i.test(message)) return;
+      writeFrontendDiagnostic(`webview console level=${level} source=${sourceId}:${line} message=${message}`);
+    };
+    const handleFailLoad = (event: Event) => {
+      const { errorCode, errorDescription, validatedURL } = event as WebviewFailLoadEvent;
+      writeFrontendDiagnostic(`webview did-fail-load code=${errorCode} url=${validatedURL} error=${errorDescription}`);
+    };
+    const handleRenderProcessGone = (event: Event) => {
+      const { details } = event as WebviewRenderProcessGoneEvent;
+      writeFrontendDiagnostic(`webview render-process-gone reason=${details.reason} exitCode=${details.exitCode}`);
+    };
+
+    frontendWebview.addEventListener("console-message", handleConsoleMessage);
+    frontendWebview.addEventListener("did-fail-load", handleFailLoad);
+    frontendWebview.addEventListener("render-process-gone", handleRenderProcessGone);
+    return () => {
+      frontendWebview.removeEventListener("console-message", handleConsoleMessage);
+      frontendWebview.removeEventListener("did-fail-load", handleFailLoad);
+      frontendWebview.removeEventListener("render-process-gone", handleRenderProcessGone);
     };
   }, [frontendWebview]);
 

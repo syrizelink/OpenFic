@@ -7,6 +7,7 @@ import {
   type InspectLocalRuntimeRequest,
   type InspectLocalRuntimeResult,
   type InstallRuntimeRequest,
+  type LogFrontendDiagnosticRequest,
   type PingInstanceRequest,
   type PingInstanceResult,
   type SaveConfigRequest,
@@ -21,7 +22,7 @@ import { inspectLocalRuntime, installLocalRuntime, startLocalBackendFromInstall 
 import { getDefaultInstallDir } from "./runtime/python.js";
 import { cancelUpdateDownload, checkForUpdates, downloadUpdate, getUpdateState, installUpdate, openUpdateRelease } from "./updater.js";
 import { createStartupProgressTracker, getStartupProgress } from "./startup-progress.js";
-import { exportLogs } from "./logging.js";
+import { appendLog, exportLogs } from "./logging.js";
 import type { BackendProcessHandle } from "./process.js";
 import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
 
@@ -124,6 +125,11 @@ export function registerIpc(context: IpcContext): void {
       dialog.showErrorBox("导出后端日志失败", message);
       throw error;
     }
+  });
+
+  ipcMain.handle(IpcChannels.logFrontendDiagnostic, (_event, request: LogFrontendDiagnosticRequest) => {
+    if (typeof request?.message !== "string") return;
+    appendLog("connect", request.message.slice(0, 4_000));
   });
 
   ipcMain.handle(IpcChannels.ensureInstanceSession, (_event, request: EnsureInstanceSessionRequest) => {

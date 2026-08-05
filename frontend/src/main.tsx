@@ -40,6 +40,7 @@ const queryClient = new QueryClient({
 });
 
 const FRONTEND_VERSION = __OPENFIC_FRONTEND_VERSION__;
+const INITIALIZATION_TIMEOUT_MS = 30_000;
 
 const DashboardPage = lazy(() =>
   import("./features/dashboard/pages/dashboard-page").then((module) => ({
@@ -131,7 +132,7 @@ function Root() {
             queryFn: fetchSettings,
           }),
           preloadTiktokenEncoding(),
-          connectSocket(),
+          connectSocket({ timeoutMs: INITIALIZATION_TIMEOUT_MS }),
         ]);
 
         applyFontFamily(settings.fontFamily);
@@ -145,8 +146,8 @@ function Root() {
         }
       } catch {
         if (mounted) {
-          // Check for timeout (30s)
-          if (Date.now() - startTime > 30000) {
+          // Socket.IO retries transports and reconnects within this deadline.
+          if (Date.now() - startTime >= INITIALIZATION_TIMEOUT_MS) {
             setError(true);
             return;
           }

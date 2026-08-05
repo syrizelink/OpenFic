@@ -39,6 +39,7 @@ declare global {
       installUpdate: () => Promise<void>;
       openUpdateRelease: () => Promise<void>;
       exportLogs: () => Promise<string | null>;
+      logFrontendDiagnostic: (message: string) => Promise<void>;
       openProjectHome: () => Promise<void>;
       reportBug: () => Promise<void>;
       suggestFeature: () => Promise<void>;
