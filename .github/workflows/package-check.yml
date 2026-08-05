@@ -334,8 +334,12 @@ jobs:
           launch_and_verify AppImage "$app_image_log" "$app_image_user_data_dir" "${app_images[0]}" "${app_image_args[@]}" --user-data-dir="$app_image_user_data_dir"
 
           tar -xzf "${tar_files[0]}" -C "$install_dir"
-          mapfile -t tarball_applications < <(find "$install_dir" -type f -name OpenFic -perm -111)
-          ((${#tarball_applications[@]} == 1))
+          mapfile -t tarball_applications < <(find "$install_dir" -type f -name openfic-desktop -perm -111)
+          if ((${#tarball_applications[@]} != 1)); then
+            echo "Expected one executable named openfic-desktop, found ${#tarball_applications[@]}"
+            find "$install_dir" -maxdepth 3 -type f -printf '%m %p\n' | sort
+            exit 1
+          fi
           launch_and_verify tar.gz "$tarball_log" "$tarball_user_data_dir" "${tarball_applications[0]}" "${application_args[@]}" --user-data-dir="$tarball_user_data_dir"
       - name: Install and launch macOS application
         if: runner.os == 'macOS'
