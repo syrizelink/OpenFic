@@ -35,6 +35,7 @@ interface IndexSettingsGlobalConfigProps {
   onEnabledProjectsChange: (projectIds: string[]) => void;
   onChunkSizeChange: (value: string) => void;
   onChunkOverlapChange: (value: string) => void;
+  onChunkConfigBlur: () => void;
   isAgentSettingsLocked: boolean;
 }
 
@@ -54,6 +55,7 @@ export function IndexSettingsGlobalConfig({
   onEnabledProjectsChange,
   onChunkSizeChange,
   onChunkOverlapChange,
+  onChunkConfigBlur,
   isAgentSettingsLocked,
 }: IndexSettingsGlobalConfigProps) {
   const { t } = useTranslation();
@@ -164,6 +166,7 @@ export function IndexSettingsGlobalConfig({
             min={1}
             unit={t("index.unitCharacters")}
             onChange={onChunkSizeChange}
+            onBlur={onChunkConfigBlur}
             disabled={isAgentSettingsLocked}
           />
           <LabeledNumberInput
@@ -172,6 +175,7 @@ export function IndexSettingsGlobalConfig({
             min={0}
             unit={t("index.unitCharacters")}
             onChange={onChunkOverlapChange}
+            onBlur={onChunkConfigBlur}
             disabled={isAgentSettingsLocked}
           />
         </Box>
@@ -186,6 +190,7 @@ function LabeledNumberInput({
   min,
   unit,
   onChange,
+  onBlur,
   disabled,
 }: {
   label: string;
@@ -193,6 +198,7 @@ function LabeledNumberInput({
   min: number;
   unit: string;
   onChange: (value: string) => void;
+  onBlur: () => void;
   disabled: boolean;
 }) {
   return (
@@ -210,6 +216,7 @@ function LabeledNumberInput({
         type="number"
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        onBlur={onBlur}
         min={min}
         unit={unit}
         unitSide="right"

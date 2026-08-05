@@ -380,7 +380,7 @@ export function IndexSettings({
     setChunkOverlap(String(settings.indexChunkOverlap));
   }
 
-  // 分块参数防抖自动保存：输入停止 800ms 后校验并保存。
+  // 分块参数防抖自动保存：输入停止 400ms 后校验并保存。
   const chunkSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     return () => {
@@ -391,15 +391,15 @@ export function IndexSettings({
     };
   }, []);
 
-  const scheduleChunkSave = useCallback(() => {
-    if (isAgentSettingsLocked) return;
-    if (chunkSaveTimerRef.current !== null) {
-      clearTimeout(chunkSaveTimerRef.current);
-    }
-    chunkSaveTimerRef.current = setTimeout(() => {
-      chunkSaveTimerRef.current = null;
-      const size = Number.parseInt(chunkSize, 10);
-      const overlap = Number.parseInt(chunkOverlap, 10);
+  const saveChunkConfig = useCallback(
+    (nextChunkSize: string, nextChunkOverlap: string) => {
+      if (isAgentSettingsLocked) return;
+      if (chunkSaveTimerRef.current !== null) {
+        clearTimeout(chunkSaveTimerRef.current);
+        chunkSaveTimerRef.current = null;
+      }
+      const size = Number.parseInt(nextChunkSize, 10);
+      const overlap = Number.parseInt(nextChunkOverlap, 10);
       if (Number.isNaN(size) || size < 1) return;
       if (Number.isNaN(overlap) || overlap < 0 || overlap >= size) return;
       if (size === settings?.indexChunkSize && overlap === settings?.indexChunkOverlap) return;
@@ -407,15 +407,28 @@ export function IndexSettings({
         index_chunk_size: size,
         index_chunk_overlap: overlap,
       });
-    }, 800);
-  }, [
-    chunkSize,
-    chunkOverlap,
-    isAgentSettingsLocked,
-    settings?.indexChunkSize,
-    settings?.indexChunkOverlap,
-    updateSettingsMutation,
-  ]);
+    },
+    [
+      isAgentSettingsLocked,
+      settings?.indexChunkSize,
+      settings?.indexChunkOverlap,
+      updateSettingsMutation,
+    ],
+  );
+
+  const scheduleChunkSave = useCallback(
+    (nextChunkSize: string, nextChunkOverlap: string) => {
+      if (isAgentSettingsLocked) return;
+      if (chunkSaveTimerRef.current !== null) {
+        clearTimeout(chunkSaveTimerRef.current);
+      }
+      chunkSaveTimerRef.current = setTimeout(() => {
+        chunkSaveTimerRef.current = null;
+        saveChunkConfig(nextChunkSize, nextChunkOverlap);
+      }, 400);
+    },
+    [isAgentSettingsLocked, saveChunkConfig],
+  );
 
   useEffect(() => {
     if (!isAgentSettingsLocked) return;
@@ -549,13 +562,14 @@ export function IndexSettings({
           onChunkSizeChange={(value) => {
             if (isAgentSettingsLocked) return;
             setChunkSize(value);
-            scheduleChunkSave();
+            scheduleChunkSave(value, chunkOverlap);
           }}
           onChunkOverlapChange={(value) => {
             if (isAgentSettingsLocked) return;
             setChunkOverlap(value);
-            scheduleChunkSave();
+            scheduleChunkSave(chunkSize, value);
           }}
+          onChunkConfigBlur={() => saveChunkConfig(chunkSize, chunkOverlap)}
           isAgentSettingsLocked={isAgentSettingsLocked}
         />
 
