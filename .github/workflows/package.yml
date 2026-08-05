@@ -302,6 +302,39 @@ jobs:
       - name: 统一安装包架构命名
         working-directory: desktop
         run: node scripts/normalize-artifact-names.mjs
+      - name: 校验 Windows 安装包完整性
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          archives=(desktop/dist-electron/*.zip)
+          ((${#archives[@]}))
+          for archive in "${archives[@]}"; do
+            7z t "$archive"
+          done
+      - name: 校验 Linux 安装包完整性
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          zip_files=(desktop/dist-electron/*.zip)
+          tar_files=(desktop/dist-electron/*.tar.gz)
+          ((${#zip_files[@]} && ${#tar_files[@]}))
+          for zip_file in "${zip_files[@]}"; do unzip -t "$zip_file"; done
+          for tar_file in "${tar_files[@]}"; do tar -tzf "$tar_file" >/dev/null; done
+      - name: 校验 macOS 安装包完整性
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          zip_files=(desktop/dist-electron/*.zip)
+          dmg_files=(desktop/dist-electron/*.dmg)
+          ((${#zip_files[@]} && ${#dmg_files[@]}))
+          for zip_file in "${zip_files[@]}"; do unzip -t "$zip_file"; done
+          for dmg_file in "${dmg_files[@]}"; do hdiutil verify "$dmg_file"; done
 
       - uses: actions/upload-artifact@v7
         with:

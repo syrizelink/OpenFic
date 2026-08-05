@@ -8,6 +8,8 @@ import { startLocalOpenFicBackend } from "../../dist/main/runtime/openfic.js";
 import { ensurePortablePython } from "../../dist/main/runtime/python.js";
 
 const BACKEND_STOP_TIMEOUT_MS = 15_000;
+const TEMP_DIRECTORY_REMOVE_RETRIES = 5;
+const TEMP_DIRECTORY_REMOVE_RETRY_DELAY_MS = 200;
 
 function run(command, args, cwd) {
   return new Promise((resolve, reject) => {
@@ -96,7 +98,12 @@ async function smokeTestRuntime() {
     if (backend) {
       await stopBackend(backend);
     }
-    await rm(userDataDir, { recursive: true, force: true });
+    await rm(userDataDir, {
+      recursive: true,
+      force: true,
+      maxRetries: TEMP_DIRECTORY_REMOVE_RETRIES,
+      retryDelay: TEMP_DIRECTORY_REMOVE_RETRY_DELAY_MS,
+    });
   }
 }
 

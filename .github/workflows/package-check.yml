@@ -160,13 +160,37 @@ jobs:
       - name: Build desktop package
         working-directory: desktop
         run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.target }} --${{ matrix.arch }} --publish never
+      - name: Verify Windows ZIP archives
+        if: runner.os == 'Windows'
+        working-directory: desktop
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          zip_files=(dist-electron/*.zip)
+          ((${#zip_files[@]}))
+          for zip_file in "${zip_files[@]}"; do 7z t "$zip_file"; done
+      - name: Verify Linux archives
+        if: runner.os == 'Linux'
+        working-directory: desktop
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          zip_files=(dist-electron/*.zip)
+          tar_files=(dist-electron/*.tar.gz)
+          ((${#zip_files[@]} && ${#tar_files[@]}))
+          for zip_file in "${zip_files[@]}"; do unzip -t "$zip_file"; done
+          for tar_file in "${tar_files[@]}"; do tar -tzf "$tar_file" >/dev/null; done
       - name: Verify macOS disk images
         if: runner.os == 'macOS'
         working-directory: desktop
         run: |
           shopt -s nullglob
+          zip_files=(dist-electron/*.zip)
           dmg_files=(dist-electron/*.dmg)
-          ((${#dmg_files[@]}))
+          ((${#zip_files[@]} && ${#dmg_files[@]}))
+          for zip_file in "${zip_files[@]}"; do unzip -t "$zip_file"; done
           for dmg_file in "${dmg_files[@]}"; do
             hdiutil verify "$dmg_file"
           done

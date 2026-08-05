@@ -25,14 +25,8 @@ extraResources:
 win:
   artifactName: OpenFic-${version}-win-${arch}.${ext}
   target:
-    - target: nsis
-      arch:
-        - x64
-        - arm64
-    - target: zip
-      arch:
-        - x64
-        - arm64
+    - nsis
+    - zip
 
 nsis:
   oneClick: false
@@ -42,26 +36,14 @@ nsis:
 mac:
   artifactName: OpenFic-${version}-mac-${arch}.${ext}
   target:
-    - target: dmg
-      arch:
-        - x64
-        - arm64
-    - target: zip
-      arch:
-        - x64
-        - arm64
+    - dmg
+    - zip
   category: public.app-category.productivity
   identity: null
 
 linux:
   artifactName: OpenFic-${version}-linux-${arch}.${ext}
   target:
-    - target: AppImage
-      arch:
-        - x64
-        - arm64
-    - target: tar.gz
-      arch:
-        - x64
-        - arm64
+    - AppImage
+    - tar.gz
   category: Utility
