@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.9.1](https://github.com/syrizelink/OpenFic/compare/v0.9.0...v0.9.1) (2026-08-05)
+
+
+### 🐛 问题修复
+
+* **agent:** 修复 ask_user 问题面板内容无法滚动的问题 ([#249](https://github.com/syrizelink/OpenFic/issues/249)) ([2921d0a](https://github.com/syrizelink/OpenFic/commit/2921d0aa743aaf418d07277bed9f59af67508f57))
+* **backend:** 修复测试夹具重复初始化导致后端测试耗时过长的问题 ([#241](https://github.com/syrizelink/OpenFic/issues/241)) ([a355e7f](https://github.com/syrizelink/OpenFic/commit/a355e7f16a5afc14da98cc238fc4a021a9e73973))
+* **desktop:** 修复 Socket 首次连接失败导致启动中断的问题 ([#248](https://github.com/syrizelink/OpenFic/issues/248)) ([7b84765](https://github.com/syrizelink/OpenFic/commit/7b847652037b165f3f7129e59c3564ce617a290c))
+* **desktop:** 修复启动时窗口延迟显示的问题 ([#246](https://github.com/syrizelink/OpenFic/issues/246)) ([6d0e05f](https://github.com/syrizelink/OpenFic/commit/6d0e05f97753a3bcdd329be6f9a311b07714b4b6))
+* **desktop:** 修复更新元数据缺失导致检查报错的问题 ([#239](https://github.com/syrizelink/OpenFic/issues/239)) ([3b77aab](https://github.com/syrizelink/OpenFic/commit/3b77aabe38134b34f46331d687fd0ca7ba4e8217))
+* **index:** 修复分块配置保存使用旧输入值的问题 ([#250](https://github.com/syrizelink/OpenFic/issues/250)) ([ed75ce4](https://github.com/syrizelink/OpenFic/commit/ed75ce46a9be88a6044277d74abf5fe11123bf16))
+
+
+### 👷 CI/CD
+
+* **desktop:** 修复多架构构建导致发布包损坏的问题 ([#247](https://github.com/syrizelink/OpenFic/issues/247)) ([7ffe8cd](https://github.com/syrizelink/OpenFic/commit/7ffe8cd1a254e2c2b892bb806d6c83e75edd156f))
+
 ## [0.9.0](https://github.com/syrizelink/OpenFic/compare/v0.8.1...v0.9.0) (2026-08-04)
 
 
