@@ -109,12 +109,24 @@ jobs:
           - os: windows-11-arm
             target: --win
             arch: arm64
+          - os: ubuntu-22.04
+            target: --linux
+            arch: x64
+            linux_appimage_args: ''
+            linux_application_args: ''
+            linux_appimage_uses_fuse: true
           - os: ubuntu-24.04
             target: --linux
             arch: x64
+            linux_appimage_args: --appimage-extract-and-run --no-sandbox
+            linux_application_args: --no-sandbox
+            linux_appimage_uses_fuse: false
           - os: ubuntu-24.04-arm
             target: --linux
             arch: arm64
+            linux_appimage_args: --appimage-extract-and-run --no-sandbox
+            linux_application_args: --no-sandbox
+            linux_appimage_uses_fuse: false
           - os: macos-15-intel
             target: --mac
             arch: x64
@@ -227,7 +239,7 @@ jobs:
             }
             Remove-Item -LiteralPath $installDirectory, $userDataDirectory, $standardOutput, $standardError -Recurse -Force -ErrorAction SilentlyContinue
           }
-      - name: Launch Linux AppImage
+      - name: Launch Linux packages
         if: runner.os == 'Linux'
         working-directory: desktop
         timeout-minutes: 5
@@ -236,37 +248,86 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
           app_images=(dist-electron/OpenFic-*-linux-*.AppImage)
+          tar_files=(dist-electron/OpenFic-*-linux-*.tar.gz)
           ((${#app_images[@]} == 1))
-          if ! command -v xvfb-run >/dev/null; then
+          ((${#tar_files[@]} == 1))
+          packages=()
+          if ! command -v Xvfb >/dev/null; then packages+=(xvfb); fi
+          if ! command -v xdotool >/dev/null; then packages+=(xdotool); fi
+          if [[ '${{ matrix.linux_appimage_uses_fuse }}' == true ]]; then packages+=(fuse libfuse2); fi
+          if ((${#packages[@]})); then
             sudo apt-get update
-            sudo apt-get install --yes xvfb
+            sudo apt-get install --yes "${packages[@]}"
           fi
 
-          user_data_dir=$(mktemp -d)
-          app_log=$(mktemp)
-          app_pid=""
+          read -r -a app_image_args <<< "${{ matrix.linux_appimage_args }}"
+          read -r -a application_args <<< "${{ matrix.linux_application_args }}"
+          install_dir=$(mktemp -d)
+          app_image_user_data_dir=$(mktemp -d)
+          tarball_user_data_dir=$(mktemp -d)
+          app_image_log=$(mktemp)
+          tarball_log=$(mktemp)
+          xvfb_log=$(mktemp)
+          xvfb_pid=""
+          app_pids=()
 
           cleanup() {
-            if [[ -n "$app_pid" ]] && kill -0 "$app_pid" 2>/dev/null; then
-              kill "$app_pid" || true
+            for app_pid in "${app_pids[@]}"; do
+              if kill -0 "$app_pid" 2>/dev/null; then kill -- "-$app_pid" || true; fi
               wait "$app_pid" || true
-            fi
-            rm -rf "$user_data_dir" "$app_log"
+            done
+            if [[ -n "$xvfb_pid" ]] && kill -0 "$xvfb_pid" 2>/dev/null; then kill "$xvfb_pid" || true; fi
+            wait "$xvfb_pid" 2>/dev/null || true
+            rm -rf "$install_dir" "$app_image_user_data_dir" "$tarball_user_data_dir" "$app_image_log" "$tarball_log" "$xvfb_log"
           }
           trap cleanup EXIT
 
-          chmod +x "${app_images[0]}"
+          export DISPLAY=:99
+          Xvfb "$DISPLAY" -screen 0 1280x800x24 > "$xvfb_log" 2>&1 &
+          xvfb_pid=$!
+          sleep 1
+          if ! kill -0 "$xvfb_pid" 2>/dev/null; then
+            cat "$xvfb_log"
+            exit 1
+          fi
 
-          xvfb-run --auto-servernum "${app_images[0]}" --appimage-extract-and-run --no-sandbox --user-data-dir="$user_data_dir" > "$app_log" 2>&1 &
-          app_pid=$!
-          for _ in {1..10}; do
-            if ! kill -0 "$app_pid" 2>/dev/null; then
-              cat "$app_log"
-              wait "$app_pid"
+          launch_and_verify() {
+            local package_name="$1"
+            local log_path="$2"
+            local user_data_dir="$3"
+            shift 3
+
+            setsid "$@" > "$log_path" 2>&1 &
+            local app_pid=$!
+            app_pids+=("$app_pid")
+            local window_visible=false
+            for _ in {1..10}; do
+              if ! kill -0 "$app_pid" 2>/dev/null; then
+                cat "$log_path"
+                if [[ -d "$user_data_dir/logs" ]]; then find "$user_data_dir/logs" -type f -name '*.log' -exec sh -c 'echo "--- $1"; cat "$1"' _ {} \;; fi
+                wait "$app_pid"
+                exit 1
+              fi
+              if xdotool search --onlyvisible --name 'OpenFic' >/dev/null 2>&1; then window_visible=true; fi
+              sleep 1
+            done
+            if [[ "$window_visible" != true ]]; then
+              cat "$log_path"
+              if [[ -d "$user_data_dir/logs" ]]; then find "$user_data_dir/logs" -type f -name '*.log' -exec sh -c 'echo "--- $1"; cat "$1"' _ {} \;; fi
+              echo "$package_name started but did not show an OpenFic window"
               exit 1
             fi
-            sleep 1
-          done
+            kill -- "-$app_pid"
+            wait "$app_pid" || true
+          }
+
+          chmod +x "${app_images[0]}"
+          launch_and_verify AppImage "$app_image_log" "$app_image_user_data_dir" "${app_images[0]}" "${app_image_args[@]}" --user-data-dir="$app_image_user_data_dir"
+
+          tar -xzf "${tar_files[0]}" -C "$install_dir"
+          mapfile -t tarball_applications < <(find "$install_dir" -type f -name OpenFic -perm -111)
+          ((${#tarball_applications[@]} == 1))
+          launch_and_verify tar.gz "$tarball_log" "$tarball_user_data_dir" "${tarball_applications[0]}" "${application_args[@]}" --user-data-dir="$tarball_user_data_dir"
       - name: Install and launch macOS application
         if: runner.os == 'macOS'
         working-directory: desktop
