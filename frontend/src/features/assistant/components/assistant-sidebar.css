@@ -704,6 +704,25 @@
   background: var(--color-surface);
 }
 
+.agent-special-panel-stack[data-embedded="true"] .agent-special-panel-question {
+  display: flex;
+  max-height: calc(100dvh - 220px);
+  flex-direction: column;
+}
+
+.agent-special-panel-question .agent-special-panel-content {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.agent-special-panel-stack[data-embedded="true"] .agent-special-question-content {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .agent-special-panel-heading {
   margin-bottom: 8px;
   color: var(--gray-12);

@@ -56,7 +56,7 @@ export function SpecialPanelShell({
           {summary}
         </Text>
       ) : null}
-      {content ? <Box>{content}</Box> : null}
+      {content ? <Box className="agent-special-panel-content">{content}</Box> : null}
       {actions ? (
         <Flex
           gap="2"
