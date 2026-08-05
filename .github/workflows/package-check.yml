@@ -192,6 +192,81 @@ jobs:
           for dmg_file in "${dmg_files[@]}"; do
             hdiutil verify "$dmg_file"
           done
+      - name: Install and launch Windows application
+        if: runner.os == 'Windows'
+        working-directory: desktop
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = @(Get-ChildItem -LiteralPath 'dist-electron' -Filter 'OpenFic-*-win-${{ matrix.arch }}-setup.exe')
+          if ($installer.Count -ne 1) { throw "Expected one Windows installer, found $($installer.Count)" }
+
+          $installDirectory = Join-Path $env:RUNNER_TEMP "openfic-${{ matrix.arch }}-$env:GITHUB_RUN_ID"
+          $userDataDirectory = Join-Path $env:RUNNER_TEMP "openfic-user-data-${{ matrix.arch }}-$env:GITHUB_RUN_ID"
+          $standardOutput = Join-Path $env:RUNNER_TEMP "openfic-${{ matrix.arch }}.out.log"
+          $standardError = Join-Path $env:RUNNER_TEMP "openfic-${{ matrix.arch }}.err.log"
+          $application = Join-Path $installDirectory 'OpenFic.exe'
+          $process = $null
+
+          try {
+            & $installer[0].FullName /S "/D=$installDirectory"
+            if ($LASTEXITCODE -ne 0) { throw "Windows installer exited with code $LASTEXITCODE" }
+            if (-not (Test-Path -LiteralPath $application)) { throw "Installed application was not found: $application" }
+
+            $process = Start-Process -FilePath $application -ArgumentList "--user-data-dir=$userDataDirectory" -RedirectStandardOutput $standardOutput -RedirectStandardError $standardError -PassThru
+            Start-Sleep -Seconds 10
+            if ($process.HasExited) {
+              Get-Content -LiteralPath $standardOutput, $standardError -ErrorAction SilentlyContinue
+              throw "Installed application exited before the startup check completed with code $($process.ExitCode)"
+            }
+          } finally {
+            if ($null -ne $process -and -not $process.HasExited) {
+              Stop-Process -Id $process.Id -Force
+              $process.WaitForExit(10000) | Out-Null
+            }
+            Remove-Item -LiteralPath $installDirectory, $userDataDirectory, $standardOutput, $standardError -Recurse -Force -ErrorAction SilentlyContinue
+          }
+      - name: Launch Linux AppImage
+        if: runner.os == 'Linux'
+        working-directory: desktop
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          app_images=(dist-electron/OpenFic-*-linux-*.AppImage)
+          ((${#app_images[@]} == 1))
+          if ! command -v xvfb-run >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install --yes xvfb
+          fi
+
+          user_data_dir=$(mktemp -d)
+          app_log=$(mktemp)
+          app_pid=""
+
+          cleanup() {
+            if [[ -n "$app_pid" ]] && kill -0 "$app_pid" 2>/dev/null; then
+              kill "$app_pid" || true
+              wait "$app_pid" || true
+            fi
+            rm -rf "$user_data_dir" "$app_log"
+          }
+          trap cleanup EXIT
+
+          chmod +x "${app_images[0]}"
+
+          xvfb-run --auto-servernum "${app_images[0]}" --appimage-extract-and-run --user-data-dir="$user_data_dir" > "$app_log" 2>&1 &
+          app_pid=$!
+          for _ in {1..10}; do
+            if ! kill -0 "$app_pid" 2>/dev/null; then
+              cat "$app_log"
+              wait "$app_pid"
+              exit 1
+            fi
+            sleep 1
+          done
       - name: Install and launch macOS application
         if: runner.os == 'macOS'
         working-directory: desktop
