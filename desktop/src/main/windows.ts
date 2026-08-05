@@ -10,6 +10,7 @@ const DEFAULT_HEIGHT = 800;
 const MIN_WIDTH = 960;
 const MIN_HEIGHT = 640;
 const SAVE_DEBOUNCE_MS = 500;
+const WINDOW_SHOW_FALLBACK_MS = 600;
 
 function writeWindowLog(message: string): void {
   appendLog("startup", message);
@@ -141,6 +142,7 @@ export function createMainWindow(): BrowserWindow {
     height: layout.height,
     frame: false,
     show: false,
+    backgroundColor: "#ffffff",
     titleBarStyle: "hidden",
     webPreferences: {
       contextIsolation: true,
@@ -166,13 +168,30 @@ export function createMainWindow(): BrowserWindow {
   });
   attachWindowDiagnostics(window, "main");
 
-  window.once("ready-to-show", () => {
+  let showTimer: ReturnType<typeof setTimeout> | null = null;
+  let hasShown = false;
+  const showWindow = () => {
+    if (window.isDestroyed() || hasShown) return;
+
+    hasShown = true;
+    if (showTimer) {
+      clearTimeout(showTimer);
+      showTimer = null;
+    }
     if (layout.isMaximized) window.maximize();
     window.show();
+  };
+
+  window.once("ready-to-show", () => {
+    showWindow();
+  });
+  window.once("closed", () => {
+    if (showTimer) clearTimeout(showTimer);
   });
 
   attachWindowStateTracking(window);
 
   loadMainApp(window);
+  showTimer = setTimeout(showWindow, WINDOW_SHOW_FALLBACK_MS);
   return window;
 }
