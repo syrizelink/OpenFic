@@ -112,21 +112,13 @@ jobs:
           - os: ubuntu-22.04
             target: --linux
             arch: x64
-            linux_appimage_args: ''
-            linux_application_args: ''
-            linux_appimage_uses_fuse: true
-          - os: ubuntu-24.04
-            target: --linux
-            arch: x64
             linux_appimage_args: --appimage-extract-and-run --no-sandbox
             linux_application_args: --no-sandbox
-            linux_appimage_uses_fuse: false
           - os: ubuntu-24.04-arm
             target: --linux
             arch: arm64
             linux_appimage_args: --appimage-extract-and-run --no-sandbox
             linux_application_args: --no-sandbox
-            linux_appimage_uses_fuse: false
           - os: macos-15-intel
             target: --mac
             arch: x64
@@ -254,7 +246,6 @@ jobs:
           packages=()
           if ! command -v Xvfb >/dev/null; then packages+=(xvfb); fi
           if ! command -v xdotool >/dev/null; then packages+=(xdotool); fi
-          if [[ '${{ matrix.linux_appimage_uses_fuse }}' == true ]]; then packages+=(fuse libfuse2); fi
           if ((${#packages[@]})); then
             sudo apt-get update
             sudo apt-get install --yes "${packages[@]}"
@@ -271,10 +262,29 @@ jobs:
           xvfb_pid=""
           app_pids=()
 
+          stop_application() {
+            local app_pid="$1"
+            if kill -0 "$app_pid" 2>/dev/null; then kill "$app_pid" || true; fi
+            for _ in {1..5}; do
+              if ! kill -0 "$app_pid" 2>/dev/null; then break; fi
+              sleep 1
+            done
+            if kill -0 "$app_pid" 2>/dev/null; then kill -9 "$app_pid" || true; fi
+            wait "$app_pid" || true
+          }
+
+          print_diagnostics() {
+            local log_path="$1"
+            local user_data_dir="$2"
+            cat "$log_path" || true
+            if [[ -d "$user_data_dir/logs" ]]; then
+              find "$user_data_dir/logs" -type f -name '*.log' -exec sh -c 'echo "--- $1"; cat "$1"' _ {} \;
+            fi
+          }
+
           cleanup() {
             for app_pid in "${app_pids[@]}"; do
-              if kill -0 "$app_pid" 2>/dev/null; then kill -- "-$app_pid" || true; fi
-              wait "$app_pid" || true
+              stop_application "$app_pid"
             done
             if [[ -n "$xvfb_pid" ]] && kill -0 "$xvfb_pid" 2>/dev/null; then kill "$xvfb_pid" || true; fi
             wait "$xvfb_pid" 2>/dev/null || true
@@ -297,28 +307,27 @@ jobs:
             local user_data_dir="$3"
             shift 3
 
-            setsid "$@" > "$log_path" 2>&1 &
+            "$@" > "$log_path" 2>&1 &
             local app_pid=$!
             app_pids+=("$app_pid")
             local window_visible=false
             for _ in {1..10}; do
               if ! kill -0 "$app_pid" 2>/dev/null; then
-                cat "$log_path"
-                if [[ -d "$user_data_dir/logs" ]]; then find "$user_data_dir/logs" -type f -name '*.log' -exec sh -c 'echo "--- $1"; cat "$1"' _ {} \;; fi
-                wait "$app_pid"
-                exit 1
+                local exit_code=0
+                wait "$app_pid" || exit_code=$?
+                print_diagnostics "$log_path" "$user_data_dir"
+                echo "$package_name exited before the startup check completed with code $exit_code"
+                return 1
               fi
               if xdotool search --onlyvisible --name 'OpenFic' >/dev/null 2>&1; then window_visible=true; fi
               sleep 1
             done
             if [[ "$window_visible" != true ]]; then
-              cat "$log_path"
-              if [[ -d "$user_data_dir/logs" ]]; then find "$user_data_dir/logs" -type f -name '*.log' -exec sh -c 'echo "--- $1"; cat "$1"' _ {} \;; fi
+              print_diagnostics "$log_path" "$user_data_dir"
               echo "$package_name started but did not show an OpenFic window"
-              exit 1
+              return 1
             fi
-            kill -- "-$app_pid"
-            wait "$app_pid" || true
+            stop_application "$app_pid"
           }
 
           chmod +x "${app_images[0]}"
