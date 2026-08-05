@@ -210,8 +210,8 @@ jobs:
           $process = $null
 
           try {
-            & $installer[0].FullName /S "/D=$installDirectory"
-            if ($LASTEXITCODE -ne 0) { throw "Windows installer exited with code $LASTEXITCODE" }
+            $installerProcess = Start-Process -FilePath $installer[0].FullName -ArgumentList @('/S', '/currentuser', "/D=$installDirectory") -Wait -PassThru
+            if ($installerProcess.ExitCode -ne 0) { throw "Windows installer exited with code $($installerProcess.ExitCode)" }
             if (-not (Test-Path -LiteralPath $application)) { throw "Installed application was not found: $application" }
 
             $process = Start-Process -FilePath $application -ArgumentList "--user-data-dir=$userDataDirectory" -RedirectStandardOutput $standardOutput -RedirectStandardError $standardError -PassThru
@@ -257,7 +257,7 @@ jobs:
 
           chmod +x "${app_images[0]}"
 
-          xvfb-run --auto-servernum "${app_images[0]}" --appimage-extract-and-run --user-data-dir="$user_data_dir" > "$app_log" 2>&1 &
+          xvfb-run --auto-servernum "${app_images[0]}" --appimage-extract-and-run --no-sandbox --user-data-dir="$user_data_dir" > "$app_log" 2>&1 &
           app_pid=$!
           for _ in {1..10}; do
             if ! kill -0 "$app_pid" 2>/dev/null; then
