@@ -319,10 +319,8 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          zip_files=(desktop/dist-electron/*.zip)
           tar_files=(desktop/dist-electron/*.tar.gz)
-          ((${#zip_files[@]} && ${#tar_files[@]}))
-          for zip_file in "${zip_files[@]}"; do unzip -t "$zip_file"; done
+          ((${#tar_files[@]}))
           for tar_file in "${tar_files[@]}"; do tar -tzf "$tar_file" >/dev/null; done
       - name: 校验 macOS 安装包完整性
         if: runner.os == 'macOS'

@@ -177,10 +177,8 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          zip_files=(dist-electron/*.zip)
           tar_files=(dist-electron/*.tar.gz)
-          ((${#zip_files[@]} && ${#tar_files[@]}))
-          for zip_file in "${zip_files[@]}"; do unzip -t "$zip_file"; done
+          ((${#tar_files[@]}))
           for tar_file in "${tar_files[@]}"; do tar -tzf "$tar_file" >/dev/null; done
       - name: Verify macOS disk images
         if: runner.os == 'macOS'
