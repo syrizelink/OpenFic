@@ -6,21 +6,15 @@
 
 import {
   DndContext,
-  closestCenter,
-  KeyboardSensor,
+  DragOverlay,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
   type DragMoveEvent,
 } from "@dnd-kit/core";
-import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import {
   Box,
   Flex,
@@ -48,7 +42,9 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
+import { Virtuoso } from "react-virtuoso";
 
 import { ProjectSelectField } from "@/components";
 import { ContextMenu, type ContextMenuItem } from "@/components/context-menu";
@@ -56,6 +52,13 @@ import type { Project } from "@/lib/project.types";
 import type { WorldInfoEntryBrief } from "@/lib/world-info.types";
 
 import { useWorldInfoStore } from "../store/use-world-info-store";
+import {
+  ENTRY_LIST_ITEM_HEIGHT,
+  getAutoScrollSpeed,
+  getDragTargetIndex,
+  getEntryDragOffset,
+  reorderEntries,
+} from "./entry-list-drag";
 import { EntryListItem } from "./entry-list-item";
 import { EntrySearchPopover } from "./entry-search-popover";
 
@@ -64,8 +67,7 @@ type SortField = "order" | "uid" | "tokenCount" | "name";
 /** 排序方向 */
 type SortDirection = "asc" | "desc";
 
-const AUTO_SCROLL_EDGE_THRESHOLD = 56;
-const AUTO_SCROLL_MAX_SPEED = 18;
+const VIRTUAL_LIST_OVERSCAN = 320;
 
 interface EntryListProps {
   projects: Project[];
@@ -86,8 +88,8 @@ interface EntryListProps {
   onPinEntry: (entry: WorldInfoEntryBrief) => void;
   /** 重新排序条目回调（乐观更新） */
   onReorderEntries: (reorderedEntries: WorldInfoEntryBrief[]) => void;
-  /** 保存拖拽排序回调 */
-  onSaveDragOrder?: (changes: Array<{ id: string; newOrder: number }>) => Promise<void> | void;
+  /** 保存单条拖拽排序回调 */
+  onSaveDragOrder?: (entryId: string, newOrder: number) => Promise<void> | void;
   /** 是否正在加载 */
   isLoading?: boolean;
   /** 排序字段 */
@@ -139,8 +141,23 @@ export function EntryList({
   const [batchDeleteDialogOpen, setBatchDeleteDialogOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(false);
+  const [activeEntryId, setActiveEntryId] = useState<string | null>(null);
+  const [dragState, setDragState] = useState<{
+    activeIndex: number;
+    targetIndex: number;
+  } | null>(null);
+  const [dropPending, setDropPending] = useState<{
+    entryId: string;
+    targetIndex: number;
+    dy: number;
+  } | null>(null);
+  const [landingEntryId, setLandingEntryId] = useState<string | null>(null);
+  const dragTargetIndexRef = useRef<number | null>(null);
+  const draggedEntriesRef = useRef<WorldInfoEntryBrief[] | null>(null);
+  const lastDragClientYRef = useRef(0);
+  const overlayNodeRef = useRef<HTMLDivElement | null>(null);
   const [, startTransition] = useTransition();
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLElement | null>(null);
   const autoScrollFrameRef = useRef<number | null>(null);
   const autoScrollSpeedRef = useRef(0);
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
@@ -151,13 +168,12 @@ export function EntryList({
         distance: 8,
       },
     }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
   );
 
+  const [localEntries, setLocalEntries] = useState<WorldInfoEntryBrief[] | null>(null);
+
   const sortedEntries = useMemo(() => {
-    const result = [...entries].sort((a, b) => {
+    const result = [...(localEntries ?? entries)].sort((a, b) => {
       let comparison = 0;
       switch (sortField) {
         case "order":
@@ -177,9 +193,27 @@ export function EntryList({
     });
 
     return result;
-  }, [entries, sortField, sortDirection]);
+  }, [entries, localEntries, sortField, sortDirection]);
 
-  const entryIds = useMemo(() => sortedEntries.map((entry) => entry.id), [sortedEntries]);
+  // 查询数据更新后，放弃本地重排覆盖，回到查询数据
+  useEffect(() => {
+    setLocalEntries(null);
+  }, [entries]);
+
+  const activeEntry = useMemo(
+    () => draggedEntriesRef.current?.find((entry) => entry.id === activeEntryId) ?? null,
+    [activeEntryId],
+  );
+
+  const updateDragTargetIndex = useCallback((targetIndex: number) => {
+    if (dragTargetIndexRef.current === targetIndex) return;
+
+    dragTargetIndexRef.current = targetIndex;
+    setDragState((current) => {
+      if (!current || current.targetIndex === targetIndex) return current;
+      return { ...current, targetIndex };
+    });
+  }, []);
 
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -231,8 +265,8 @@ export function EntryList({
   }, [searchExpanded]);
 
   const shouldShowDragHandle = useMemo(() => {
-    return !isMultiSelect && sortField === "order";
-  }, [isMultiSelect, sortField]);
+    return !isMultiSelect && sortField === "order" && sortDirection === "asc";
+  }, [isMultiSelect, sortDirection, sortField]);
 
   const handleContextMenu = useCallback((entryId: string, position: ContextMenuPosition) => {
     setContextMenuPos(position);
@@ -359,53 +393,143 @@ export function EntryList({
     handleBatchDeleteClick,
   ]);
 
+  const stopAutoScroll = useCallback(() => {
+    autoScrollSpeedRef.current = 0;
+    if (autoScrollFrameRef.current !== null) {
+      cancelAnimationFrame(autoScrollFrameRef.current);
+      autoScrollFrameRef.current = null;
+    }
+  }, []);
+
+  const clearDragState = useCallback(() => {
+    setActiveEntryId(null);
+    dragTargetIndexRef.current = null;
+    draggedEntriesRef.current = null;
+    setDragState(null);
+    setDropPending(null);
+    setLandingEntryId(null);
+  }, []);
+
+  const startAutoScroll = useCallback(() => {
+    if (autoScrollFrameRef.current !== null) return;
+
+    const step = () => {
+      autoScrollFrameRef.current = null;
+      const scrollContainer = scrollContainerRef.current;
+      const speed = autoScrollSpeedRef.current;
+      if (!scrollContainer || speed === 0) return;
+
+      const nextScrollTop = scrollContainer.scrollTop + speed;
+      const maxScrollTop = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+      const clampedScrollTop = Math.max(0, Math.min(nextScrollTop, maxScrollTop));
+      if (clampedScrollTop === scrollContainer.scrollTop) {
+        autoScrollSpeedRef.current = 0;
+        return;
+      }
+
+      scrollContainer.scrollTop = clampedScrollTop;
+      updateDragTargetIndex(
+        getDragTargetIndex({
+          containerTop: scrollContainer.getBoundingClientRect().top,
+          scrollTop: clampedScrollTop,
+          clientY: lastDragClientYRef.current,
+          itemCount: draggedEntriesRef.current?.length ?? sortedEntries.length,
+        }),
+      );
+      autoScrollFrameRef.current = requestAnimationFrame(step);
+    };
+
+    autoScrollFrameRef.current = requestAnimationFrame(step);
+  }, [sortedEntries.length, updateDragTargetIndex]);
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
-      autoScrollSpeedRef.current = 0;
+      stopAutoScroll();
+      const { active } = event;
+      const draggedEntries = draggedEntriesRef.current;
+      const newIndex = dragTargetIndexRef.current;
+      if (!shouldShowDragHandle || !draggedEntries || newIndex === null) {
+        clearDragState();
+        return;
+      }
 
-      if (!shouldShowDragHandle) return;
+      const reordered = reorderEntries(draggedEntries, String(active.id), newIndex);
+      if (!reordered) {
+        clearDragState();
+        return;
+      }
 
-      const { active, over } = event;
-      if (!over || active.id === over.id) return;
+      const scrollContainer = scrollContainerRef.current;
+      const slotTop = scrollContainer
+        ? scrollContainer.getBoundingClientRect().top +
+          newIndex * ENTRY_LIST_ITEM_HEIGHT -
+          scrollContainer.scrollTop
+        : undefined;
+      const pointerTop = lastDragClientYRef.current - ENTRY_LIST_ITEM_HEIGHT / 2;
+      const dy = slotTop != null ? pointerTop - slotTop : 0;
 
-      const oldIndex = sortedEntries.findIndex((entry) => entry.id === active.id);
-      const newIndex = sortedEntries.findIndex((entry) => entry.id === over.id);
-      if (oldIndex === -1 || newIndex === -1) return;
+      flushSync(() => {
+        setDragState(null);
+        setLocalEntries(reordered);
+        onReorderEntries(reordered);
+      });
 
-      const reordered = arrayMove(sortedEntries, oldIndex, newIndex).map((entry, index) => ({
-        ...entry,
-        order: index + 1,
-      }));
-
-      onReorderEntries(reordered);
+      // 保持源项隐藏，直到 Virtuoso 应用重排后再在目标槽位揭示并滑入
+      setDropPending({ entryId: String(active.id), targetIndex: newIndex, dy });
 
       if (onSaveDragOrder) {
-        const changes = reordered.map((entry) => ({ id: entry.id, newOrder: entry.order }));
-        setTimeout(() => {
-          const result = onSaveDragOrder(changes);
-          if (result instanceof Promise) {
-            result.catch((error) => {
-              console.error("Failed to save drag order:", error);
-            });
-          }
-        }, 0);
+        void Promise.resolve(onSaveDragOrder(String(active.id), newIndex + 1)).catch((error) => {
+          console.error("Failed to save drag order:", error);
+        });
+      }
+    },
+    [clearDragState, onReorderEntries, onSaveDragOrder, shouldShowDragHandle, stopAutoScroll],
+  );
+
+  const handleDragStart = useCallback(
+    (event: DragStartEvent) => {
+      stopAutoScroll();
+      clearDragState();
+      setActiveEntryId(String(event.active.id));
+      draggedEntriesRef.current = sortedEntries;
+      const activeIndex = sortedEntries.findIndex((entry) => entry.id === event.active.id);
+      dragTargetIndexRef.current = activeIndex;
+      setDragState({ activeIndex, targetIndex: activeIndex });
+      lastDragClientYRef.current = event.active.rect.current.initial?.top ?? 0;
+    },
+    [clearDragState, sortedEntries, stopAutoScroll],
+  );
+
+  const handleDragCancel = useCallback(() => {
+    stopAutoScroll();
+    clearDragState();
+  }, [clearDragState, stopAutoScroll]);
+
+  const handleKeyboardReorder = useCallback(
+    (entryId: string, direction: -1 | 1) => {
+      if (!shouldShowDragHandle) return;
+
+      const currentIndex = sortedEntries.findIndex((entry) => entry.id === entryId);
+      const newIndex = Math.max(0, Math.min(sortedEntries.length - 1, currentIndex + direction));
+      const reordered = reorderEntries(sortedEntries, entryId, newIndex);
+      if (!reordered) return;
+
+      onReorderEntries(reordered);
+      if (onSaveDragOrder) {
+        void Promise.resolve(
+          onSaveDragOrder(entryId, reordered[newIndex]?.order ?? newIndex + 1),
+        ).catch((error) => {
+          console.error("Failed to save keyboard order:", error);
+        });
       }
     },
     [onReorderEntries, onSaveDragOrder, shouldShowDragHandle, sortedEntries],
   );
 
-  const handleDragStart = useCallback(() => {
-    autoScrollSpeedRef.current = 0;
-  }, []);
-
-  const handleDragCancel = useCallback(() => {
-    autoScrollSpeedRef.current = 0;
-  }, []);
-
   const handleDragMove = useCallback(
     (event: DragMoveEvent) => {
       if (!shouldShowDragHandle) {
-        autoScrollSpeedRef.current = 0;
+        stopAutoScroll();
         return;
       }
 
@@ -413,62 +537,70 @@ export function EntryList({
       const translatedRect = event.active.rect.current.translated;
 
       if (!scrollContainer || !translatedRect) {
-        autoScrollSpeedRef.current = 0;
+        stopAutoScroll();
         return;
       }
 
       const containerRect = scrollContainer.getBoundingClientRect();
-      const distanceToTop = translatedRect.top - containerRect.top;
-      const distanceToBottom = containerRect.bottom - translatedRect.bottom;
-
-      if (distanceToTop < AUTO_SCROLL_EDGE_THRESHOLD) {
-        const ratio = (AUTO_SCROLL_EDGE_THRESHOLD - distanceToTop) / AUTO_SCROLL_EDGE_THRESHOLD;
-        autoScrollSpeedRef.current = -Math.max(4, Math.round(AUTO_SCROLL_MAX_SPEED * ratio));
+      lastDragClientYRef.current = translatedRect.top + translatedRect.height / 2;
+      updateDragTargetIndex(
+        getDragTargetIndex({
+          containerTop: containerRect.top,
+          scrollTop: scrollContainer.scrollTop,
+          clientY: lastDragClientYRef.current,
+          itemCount: draggedEntriesRef.current?.length ?? sortedEntries.length,
+        }),
+      );
+      const speed = getAutoScrollSpeed({
+        containerTop: containerRect.top,
+        containerBottom: containerRect.bottom,
+        itemTop: translatedRect.top,
+        itemBottom: translatedRect.bottom,
+      });
+      autoScrollSpeedRef.current = speed;
+      if (speed === 0) {
+        stopAutoScroll();
         return;
       }
-
-      if (distanceToBottom < AUTO_SCROLL_EDGE_THRESHOLD) {
-        const ratio = (AUTO_SCROLL_EDGE_THRESHOLD - distanceToBottom) / AUTO_SCROLL_EDGE_THRESHOLD;
-        autoScrollSpeedRef.current = Math.max(4, Math.round(AUTO_SCROLL_MAX_SPEED * ratio));
-        return;
-      }
-
-      autoScrollSpeedRef.current = 0;
+      startAutoScroll();
     },
-    [shouldShowDragHandle],
+    [
+      shouldShowDragHandle,
+      sortedEntries.length,
+      startAutoScroll,
+      stopAutoScroll,
+      updateDragTargetIndex,
+    ],
   );
 
   useEffect(() => {
-    const step = () => {
-      const scrollContainer = scrollContainerRef.current;
-      const speed = autoScrollSpeedRef.current;
-
-      if (!scrollContainer || speed === 0) {
-        autoScrollFrameRef.current = requestAnimationFrame(step);
-        return;
-      }
-
-      const nextScrollTop = scrollContainer.scrollTop + speed;
-      const maxScrollTop = scrollContainer.scrollHeight - scrollContainer.clientHeight;
-      const clampedScrollTop = Math.max(0, Math.min(nextScrollTop, maxScrollTop));
-
-      if (clampedScrollTop === scrollContainer.scrollTop) {
-        autoScrollSpeedRef.current = 0;
-      } else {
-        scrollContainer.scrollTop = clampedScrollTop;
-      }
-
-      autoScrollFrameRef.current = requestAnimationFrame(step);
-    };
-
-    autoScrollFrameRef.current = requestAnimationFrame(step);
-
     return () => {
-      if (autoScrollFrameRef.current !== null) {
-        cancelAnimationFrame(autoScrollFrameRef.current);
-      }
+      stopAutoScroll();
+      clearDragState();
     };
-  }, []);
+  }, [clearDragState, stopAutoScroll]);
+
+  useEffect(() => {
+    if (!dropPending) return;
+    const { entryId, dy, targetIndex } = dropPending;
+    if (sortedEntries[targetIndex]?.id !== entryId) return;
+
+    setDropPending(null);
+    setActiveEntryId(null);
+    setLandingEntryId(entryId);
+    if (dy !== 0) {
+      queueMicrotask(() => {
+        flushSync(() => {});
+        const el = document.querySelector<HTMLDivElement>(`[data-entry-id="${entryId}"]`);
+        el?.animate([{ transform: `translateY(${dy}px)` }, { transform: "translateY(0px)" }], {
+          duration: 140,
+          easing: "ease",
+          fill: "both",
+        });
+      });
+    }
+    window.setTimeout(() => setLandingEntryId(null), 180);
+  }, [dropPending, sortedEntries]);
 
   function getSortIcon(field: SortField) {
     if (sortField !== field) return null;
@@ -720,129 +852,146 @@ export function EntryList({
           </Flex>
         </Box>
 
-        <Box
-          ref={scrollContainerRef}
-          style={{
-            flex: 1,
-            width: "100%",
-            minWidth: 0,
-            overflowY: "auto",
-            overflowX: "hidden",
-            overscrollBehavior: "contain",
-            WebkitOverflowScrolling: "touch",
-          }}
-        >
-          <Box
-            style={{
-              width: "100%",
-              minWidth: 0,
-              overflowX: "hidden",
-              contain: "layout style",
-            }}
+        {isLoading ? (
+          <Flex
+            direction="column"
+            style={{ flex: 1 }}
+            gap="0"
           >
-            {isLoading ? (
-              <Flex
-                direction="column"
-                gap="0"
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Box
+                key={i}
+                p="3"
+                style={{ borderBottom: "1px solid var(--gray-a5)" }}
               >
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <Box
-                    key={i}
-                    p="3"
-                    style={{ borderBottom: "1px solid var(--gray-a5)" }}
-                  >
-                    <Flex
-                      align="center"
-                      gap="2"
-                      justify="between"
-                    >
-                      <Box style={{ width: 16, flexShrink: 0 }}>
-                        <Skeleton
-                          width="16px"
-                          height="16px"
-                        />
-                      </Box>
-                      <Flex
-                        direction="column"
-                        gap="1"
-                        style={{ flex: 1, minWidth: 0 }}
-                      >
-                        <Skeleton
-                          height="14px"
-                          width={`${50 + (i % 4) * 12}%`}
-                          style={{ maxWidth: 200 }}
-                        />
-                        <Skeleton
-                          height="12px"
-                          width="48px"
-                        />
-                      </Flex>
-                      <Skeleton
-                        width="28px"
-                        height="16px"
-                        style={{ borderRadius: 999 }}
-                      />
-                    </Flex>
+                <Flex
+                  align="center"
+                  gap="2"
+                  justify="between"
+                >
+                  <Box style={{ width: 16, flexShrink: 0 }}>
+                    <Skeleton
+                      width="16px"
+                      height="16px"
+                    />
                   </Box>
-                ))}
-              </Flex>
-            ) : sortedEntries.length === 0 ? (
-              <Flex
-                direction="column"
-                align="center"
-                justify="center"
-                py="6"
-                gap="2"
-              >
-                <Text
-                  size="2"
-                  color="gray"
-                >
-                  {searchQuery.trim() ? t("worldInfo.noEntriesFound") : t("worldInfo.noEntries")}
-                </Text>
-              </Flex>
-            ) : (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleDragStart}
-                onDragMove={handleDragMove}
-                onDragEnd={handleDragEnd}
-                onDragCancel={handleDragCancel}
-                modifiers={[restrictToVerticalAxis, restrictToParentElement]}
-                autoScroll={false}
-              >
-                <SortableContext
-                  items={entryIds}
-                  strategy={verticalListSortingStrategy}
-                  disabled={!shouldShowDragHandle}
-                >
                   <Flex
                     direction="column"
-                    width="100%"
-                    style={{ minWidth: 0 }}
+                    gap="1"
+                    style={{ flex: 1, minWidth: 0 }}
                   >
-                    {sortedEntries.map((entry) => (
-                      <EntryListItem
-                        key={entry.id}
-                        entry={entry}
-                        isSelected={currentEntryId === entry.id}
-                        showDragHandle={shouldShowDragHandle}
-                        isMultiSelect={isMultiSelect}
-                        isChecked={selectedIds.has(entry.id)}
-                        onCheckChange={handleCheckEntry}
-                        onClick={onSelectEntry}
-                        onToggle={onToggleEntry}
-                        onLongPressStart={handleLongPressStart}
-                        onContextMenu={handleContextMenu}
-                      />
-                    ))}
+                    <Skeleton
+                      height="14px"
+                      width={`${50 + (i % 4) * 12}%`}
+                      style={{ maxWidth: 200 }}
+                    />
+                    <Skeleton
+                      height="12px"
+                      width="48px"
+                    />
                   </Flex>
-                </SortableContext>
-              </DndContext>
-            )}
-          </Box>
-        </Box>
+                  <Skeleton
+                    width="28px"
+                    height="16px"
+                    style={{ borderRadius: 999 }}
+                  />
+                </Flex>
+              </Box>
+            ))}
+          </Flex>
+        ) : sortedEntries.length === 0 ? (
+          <Flex
+            direction="column"
+            align="center"
+            justify="center"
+            style={{ flex: 1 }}
+            py="6"
+            gap="2"
+          >
+            <Text
+              size="2"
+              color="gray"
+            >
+              {searchQuery.trim() ? t("worldInfo.noEntriesFound") : t("worldInfo.noEntries")}
+            </Text>
+          </Flex>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragMove={handleDragMove}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+            modifiers={[restrictToVerticalAxis]}
+            autoScroll={false}
+          >
+            <Virtuoso
+              data={sortedEntries}
+              computeItemKey={(_, entry) => entry.id}
+              fixedItemHeight={ENTRY_LIST_ITEM_HEIGHT}
+              overscan={VIRTUAL_LIST_OVERSCAN}
+              scrollerRef={(element) => {
+                scrollContainerRef.current = element instanceof HTMLElement ? element : null;
+              }}
+              style={{
+                flex: 1,
+                width: "100%",
+                minWidth: 0,
+                overscrollBehavior: "contain",
+                WebkitOverflowScrolling: "touch",
+              }}
+              itemContent={(index, entry) => {
+                const projectionOffset = dragState
+                  ? getEntryDragOffset({
+                      entryIndex: index,
+                      activeIndex: dragState.activeIndex,
+                      targetIndex: dragState.targetIndex,
+                    })
+                  : 0;
+                return (
+                  <EntryListItem
+                    key={entry.id}
+                    entry={entry}
+                    isSelected={currentEntryId === entry.id}
+                    showDragHandle={shouldShowDragHandle}
+                    isMultiSelect={isMultiSelect}
+                    isChecked={selectedIds.has(entry.id)}
+                    isDragSource={activeEntryId === entry.id}
+                    isDragActive={dragState !== null}
+                    isLanding={landingEntryId === entry.id}
+                    dragOffset={projectionOffset}
+                    onCheckChange={handleCheckEntry}
+                    onClick={onSelectEntry}
+                    onToggle={onToggleEntry}
+                    onKeyboardReorder={handleKeyboardReorder}
+                    onLongPressStart={handleLongPressStart}
+                    onContextMenu={handleContextMenu}
+                  />
+                );
+              }}
+            />
+            <DragOverlay dropAnimation={null}>
+              {activeEntry ? (
+                <Box
+                  ref={overlayNodeRef}
+                  style={{ width: scrollContainerRef.current?.clientWidth }}
+                >
+                  <EntryListItem
+                    entry={activeEntry}
+                    isSelected={currentEntryId === activeEntry.id}
+                    showDragHandle
+                    isDragOverlay
+                    onClick={() => undefined}
+                    onToggle={() => undefined}
+                    onKeyboardReorder={() => undefined}
+                    onLongPressStart={() => undefined}
+                    onContextMenu={() => undefined}
+                  />
+                </Box>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        )}
       </Flex>
 
       <ContextMenu

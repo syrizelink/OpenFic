@@ -57,12 +57,6 @@ class WorldInfoEntryMoveRequest(BaseModel):
     new_order: int = Field(ge=1, description="新排序位置")
 
 
-class WorldInfoEntryReorderRequest(BaseModel):
-    """批量重新排序世界书条目请求。"""
-
-    orders: dict[str, int] = Field(description="条目ID到新排序位置的映射")
-
-
 class WorldInfoEntryBatchToggleRequest(BaseModel):
     """批量切换条目开关请求。"""
 

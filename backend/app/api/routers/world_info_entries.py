@@ -20,7 +20,6 @@ from app.api.schemas.world_info import (
     WorldInfoEntryBriefResponse,
     WorldInfoEntryCreate,
     WorldInfoEntryMoveRequest,
-    WorldInfoEntryReorderRequest,
     WorldInfoEntryResponse,
     WorldInfoEntrySearchMatch,
     WorldInfoEntrySearchResponse,
@@ -405,14 +404,14 @@ async def delete_entry(
 
 @router.post(
     "/world-info-entries/{entry_id}/move",
-    response_model=WorldInfoEntryResponse,
+    response_model=WorldInfoEntryBriefResponse,
     summary="移动条目",
 )
 async def move_entry(
     entry_id: str,
     data: WorldInfoEntryMoveRequest,
     session: Annotated[AsyncSession, Depends(get_session)],
-) -> WorldInfoEntryResponse:
+) -> WorldInfoEntryBriefResponse:
     """
     移动世界书条目到新位置。
 
@@ -432,43 +431,7 @@ async def move_entry(
         entry = await world_info_entry_service.move_entry(
             session, entry_id, data.new_order
         )
-        return _entry_to_response(entry)
-    except NotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-
-@router.post(
-    "/world-info/{world_info_id}/entries/reorder",
-    response_model=list[WorldInfoEntryResponse],
-    summary="批量重新排序条目",
-)
-async def reorder_entries(
-    world_info_id: str,
-    data: WorldInfoEntryReorderRequest,
-    session: Annotated[AsyncSession, Depends(get_session)],
-) -> list[WorldInfoEntryResponse]:
-    """
-    批量重新排序世界书条目。
-
-    Args:
-        world_info_id: 世界书 ID。
-        data: 重新排序请求数据，包含条目ID到新排序位置的映射。
-        session: 数据库 session。
-
-    Returns:
-        更新后的条目列表，按新顺序排序。
-
-    Raises:
-        HTTPException: 条目不存在或排序位置无效。
-    """
-    try:
-        logger.info(f"批量重新排序条目: world_info_id={world_info_id}, orders={data.orders}")
-        entries = await world_info_entry_service.reorder_entries(
-            session, world_info_id, data.orders
-        )
-        return [_entry_to_response(entry) for entry in entries]
+        return _entry_to_brief_response(entry)
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except ValueError as e:

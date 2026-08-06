@@ -1497,24 +1497,11 @@ export async function deleteAllWorldInfoEntries(
 export async function moveWorldInfoEntry(
   entryId: string,
   newOrder: number,
-): Promise<WorldInfoEntry> {
+): Promise<WorldInfoEntryBrief> {
   const response = await apiClient.post(`/world-info-entries/${entryId}/move`, {
     new_order: newOrder,
   });
-  return transformWorldInfoEntry(response.data);
-}
-
-/**
- * 批量重新排序世界书条目
- */
-export async function reorderWorldInfoEntries(
-  worldInfoId: string,
-  orders: Record<string, number>,
-): Promise<WorldInfoEntry[]> {
-  const response = await apiClient.post(`/world-info/${worldInfoId}/entries/reorder`, {
-    orders,
-  });
-  return response.data.map(transformWorldInfoEntry);
+  return transformWorldInfoEntryBrief(response.data);
 }
 
 /**

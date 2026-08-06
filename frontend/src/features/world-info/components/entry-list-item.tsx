@@ -4,8 +4,7 @@
  * 世界书条目列表项组件，支持拖拽排序。
  */
 
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { useDraggable } from "@dnd-kit/core";
 import { Box, Flex, Text, Switch, Checkbox } from "@radix-ui/themes";
 import { GripVertical } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -13,6 +12,12 @@ import { useTranslation } from "react-i18next";
 
 import { formatRelativeTime } from "@/lib/time-utils";
 import type { WorldInfoEntryBrief } from "@/lib/world-info.types";
+
+import {
+  ENTRY_LIST_ITEM_HEIGHT,
+  getEntryListTransition,
+  shouldHideDraggedEntry,
+} from "./entry-list-drag";
 
 interface EntryListItemProps {
   /** 条目数据 */
@@ -25,6 +30,16 @@ interface EntryListItemProps {
   isMultiSelect?: boolean;
   /** 是否复选框已勾选 */
   isChecked?: boolean;
+  /** 当前是否为拖拽源 */
+  isDragSource?: boolean;
+  /** 拖拽投影是否活跃 */
+  isDragActive?: boolean;
+  /** 是否正在落位滑入 */
+  isLanding?: boolean;
+  /** 拖拽时的列表项位移 */
+  dragOffset?: number;
+  /** 是否作为拖拽覆盖层渲染 */
+  isDragOverlay?: boolean;
   /** 复选框状态变化回调 */
   onCheckChange?: (entryId: string) => void;
   /** 点击回调 */
@@ -35,6 +50,8 @@ interface EntryListItemProps {
   onLongPressStart: () => void;
   /** 右键菜单回调 */
   onContextMenu: (entryId: string, position: { x: number; y: number }) => void;
+  /** 键盘调整排序 */
+  onKeyboardReorder: (entryId: string, direction: -1 | 1) => void;
 }
 
 function EntryListItemComponent({
@@ -43,11 +60,17 @@ function EntryListItemComponent({
   showDragHandle,
   isMultiSelect = false,
   isChecked = false,
+  isDragSource = false,
+  isDragActive = false,
+  isLanding = false,
+  dragOffset = 0,
+  isDragOverlay = false,
   onCheckChange,
   onClick,
   onToggle,
   onLongPressStart,
   onContextMenu,
+  onKeyboardReorder,
 }: EntryListItemProps) {
   const { t } = useTranslation();
   const [isHandlePressed, setIsHandlePressed] = useState(false);
@@ -58,9 +81,9 @@ function EntryListItemComponent({
   const longPressPositionRef = useRef<{ x: number; y: number } | null>(null);
   const suppressContextMenuRef = useRef(false);
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: entry.id,
-    disabled: !showDragHandle,
+    disabled: !showDragHandle || isDragOverlay,
   });
 
   const setCombinedRef = useCallback(
@@ -78,29 +101,42 @@ function EntryListItemComponent({
   // 缓存样式对象
   const style = useMemo(
     () => ({
-      transform: CSS.Transform.toString(transform),
-      transition: transition
-        ? `${transition}, background-color 0.08s ease, color 0.08s ease, opacity 0.08s ease`
-        : "background-color 0.08s ease, color 0.08s ease, opacity 0.08s ease",
-      opacity: isDragging || isPressed ? 0.5 : 1,
-      borderBottom: "1px solid var(--gray-a5)",
+      transform: dragOffset === 0 ? undefined : `translateY(${dragOffset}px)`,
+      transition: getEntryListTransition(isDragActive),
+      opacity: shouldHideDraggedEntry({ isDragSource }) ? 0 : isPressed ? 0.5 : 1,
+      borderBottom: isSelected
+        ? "1px solid var(--gray-6)"
+        : "1px solid var(--gray-a5)",
       background: isDarkPressed
         ? "var(--gray-12)"
         : isSelected
           ? "var(--accent-a3)"
           : "transparent",
       cursor: "pointer",
+      height: ENTRY_LIST_ITEM_HEIGHT,
       width: "100%",
       minWidth: 0,
       overflow: "hidden",
       contain: "layout style" as const,
+      position: isLanding ? ("relative" as const) : undefined,
+      zIndex: isLanding ? 1 : undefined,
+      boxShadow: isLanding ? "0 4px 12px var(--gray-a5)" : undefined,
       touchAction: isDragging ? "none" : "pan-y",
       userSelect: "none" as const,
       WebkitUserSelect: "none" as const,
       WebkitTouchCallout: "none" as const,
       WebkitTapHighlightColor: "transparent",
     }),
-    [transform, transition, isDragging, isPressed, isDarkPressed, isSelected],
+    [
+      isDragActive,
+      dragOffset,
+      isDragging,
+      isDragSource,
+      isPressed,
+      isDarkPressed,
+      isSelected,
+      isLanding,
+    ],
   );
 
   useEffect(() => {
@@ -183,6 +219,16 @@ function EntryListItemComponent({
     [listeners, resetPressState],
   );
 
+  const handleDragHandleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+      e.preventDefault();
+      e.stopPropagation();
+      onKeyboardReorder(entry.id, e.key === "ArrowUp" ? -1 : 1);
+    },
+    [entry.id, onKeyboardReorder],
+  );
+
   const handleContentPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (e.pointerType === "mouse" || e.button !== 0) return;
@@ -251,6 +297,7 @@ function EntryListItemComponent({
   return (
     <Box
       ref={setCombinedRef}
+      data-entry-id={entry.id}
       style={style}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
@@ -295,7 +342,8 @@ function EntryListItemComponent({
               touchAction: "none",
             }}
             onClick={(e) => e.stopPropagation()}
-            onPointerDown={handleDragHandlePointerDown}
+            onPointerDown={isDragOverlay ? undefined : handleDragHandlePointerDown}
+            onKeyDown={handleDragHandleKeyDown}
             onContextMenu={handleHandleContextMenu}
           >
             <GripVertical size={16} />
@@ -390,5 +438,8 @@ export const EntryListItem = memo(
     prev.isSelected === next.isSelected &&
     prev.showDragHandle === next.showDragHandle &&
     prev.isMultiSelect === next.isMultiSelect &&
-    prev.isChecked === next.isChecked,
+    prev.isChecked === next.isChecked &&
+    prev.isDragSource === next.isDragSource &&
+    prev.dragOffset === next.dragOffset &&
+    prev.isDragOverlay === next.isDragOverlay,
 );

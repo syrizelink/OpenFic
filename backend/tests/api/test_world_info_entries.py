@@ -166,6 +166,27 @@ async def test_list_entries_returns_all_world_info_entries(
 
 
 @pytest.mark.asyncio
+async def test_move_entry_returns_brief_item(client: AsyncClient, world_info_id: str) -> None:
+    entry_ids = []
+    for index in range(3):
+        response = await client.post(
+            f"/api/v1/world-info/{world_info_id}/entries",
+            json={"name": f"移动条目 {index + 1}", "content": "正文"},
+        )
+        entry_ids.append(response.json()["id"])
+
+    response = await client.post(
+        f"/api/v1/world-info-entries/{entry_ids[0]}/move",
+        json={"new_order": 3},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == entry_ids[0]
+    assert response.json()["order"] == 3
+    assert "content" not in response.json()
+
+
+@pytest.mark.asyncio
 async def test_get_entry(client: AsyncClient, world_info_id: str) -> None:
     """测试获取单个条目。"""
     create_resp = await client.post(

@@ -28,7 +28,7 @@ import {
   createWorldInfoEntry,
   toggleWorldInfoEntry,
   deleteWorldInfoEntry,
-  reorderWorldInfoEntries,
+  moveWorldInfoEntry,
   batchDeleteWorldInfoEntries,
   batchToggleWorldInfoEntries,
 } from "@/lib/api-client";
@@ -441,28 +441,12 @@ export function WorldInfoPage() {
     [currentWorldInfoId, queryClient],
   );
 
-  /** 批量保存拖拽排序 */
+  /** 保存单条拖拽排序 */
   const handleSaveDragOrder = useCallback(
-    async (changes: Array<{ id: string; newOrder: number }>) => {
+    async (entryId: string, newOrder: number) => {
       try {
-        const orders: Record<string, number> = {};
-        changes.forEach((change) => {
-          orders[change.id] = change.newOrder;
-        });
-
-        const updatedEntries = await reorderWorldInfoEntries(currentWorldInfoId!, orders);
+        await moveWorldInfoEntry(entryId, newOrder);
         toast.success(t("worldInfo.entryOrderUpdated"));
-        const briefEntries = updatedEntries.map(extractBrief);
-        queryClient.setQueryData(
-          ["world-info-entries", currentWorldInfoId],
-          (oldData: WorldInfoEntryBriefListResponse | undefined) => {
-            if (!oldData) return oldData;
-            return {
-              ...oldData,
-              items: mergeWorldInfoEntryOrder(oldData, briefEntries)?.items ?? oldData.items,
-            };
-          },
-        );
       } catch (error) {
         console.error("Failed to save drag order:", error);
         toast.error(t("worldInfo.entryOrderUpdateFailed"));
@@ -471,7 +455,7 @@ export function WorldInfoPage() {
         });
       }
     },
-    [currentWorldInfoId, queryClient, t, extractBrief],
+    [currentWorldInfoId, queryClient, t],
   );
 
   /** 处理排序切换 */
@@ -504,9 +488,7 @@ export function WorldInfoPage() {
       }));
 
       handleReorderEntries(pinnedEntries);
-      void handleSaveDragOrder(
-        pinnedEntries.map((item) => ({ id: item.id, newOrder: item.order })),
-      );
+      void handleSaveDragOrder(entry.id, 1);
     },
     [entries, handleReorderEntries, handleSaveDragOrder],
   );
