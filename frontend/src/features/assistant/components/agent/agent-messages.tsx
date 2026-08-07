@@ -112,6 +112,19 @@ function isRollbackableUserMessage(message: AgentMessageType): boolean {
   );
 }
 
+function getCurrentRoundStartedAt(messages: AgentMessageType[]): number | undefined {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (
+      (message.type === "user_request" || (message.type === "text" && message.role === "user")) &&
+      Number.isFinite(message.timestamp)
+    ) {
+      return message.timestamp;
+    }
+  }
+  return undefined;
+}
+
 function isAgentBlockDisplayMessage(
   message: BlockDisplayMessage,
 ): message is AgentBlockDisplayMessage {
@@ -178,6 +191,7 @@ const AgentBlockContent = memo(
 interface AgentMessagesFooterContext {
   statusMessage: string;
   showStatus: boolean;
+  roundStartedAt?: number;
   bottomRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -188,7 +202,12 @@ const AgentMessagesFooter = memo(function AgentMessagesFooter({
 }) {
   return (
     <>
-      {context.showStatus ? <AgentStatusMessage content={context.statusMessage} /> : null}
+      {context.showStatus ? (
+        <AgentStatusMessage
+          content={context.statusMessage}
+          startedAt={context.roundStartedAt}
+        />
+      ) : null}
       <Box
         ref={context.bottomRef}
         className="agent-message-bottom-anchor"
@@ -236,9 +255,10 @@ export function AgentMessages({
   const [collapsedNodeIds, setCollapsedNodeIds] = useState<Set<string>>(() => new Set());
   const streamFollowSignal = getStreamingFollowSignal(messages);
   const runningStatus = useMemo(() => getAgentRunningStatus(messages), [messages]);
+  const roundStartedAt = useMemo(() => getCurrentRoundStartedAt(messages), [messages]);
   const statusMessage =
-    status === "running" && runningStatus
-      ? t(`assistant.runningStatus.${runningStatus}`)
+    status === "running"
+      ? t(`assistant.runningStatus.${runningStatus ?? "considering"}`)
       : currentStage;
 
   const getScrollContainer = useCallback(
@@ -731,9 +751,10 @@ export function AgentMessages({
       showStatus:
         (status === "running" || status === "waiting_answer" || status === "waiting_approval") &&
         Boolean(statusMessage),
+      roundStartedAt,
       bottomRef,
     }),
-    [status, statusMessage],
+    [roundStartedAt, status, statusMessage],
   );
 
   return (

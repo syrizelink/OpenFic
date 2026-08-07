@@ -1047,8 +1047,20 @@
   gap: 12px;
 }
 
-.agent-status-message .text-shimmer {
+.agent-status-message {
+  width: 100%;
   margin-top: 8px;
+}
+
+.agent-status-message .text-shimmer {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.agent-status-message-timer {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
 }
 
 .ai-sidebar-textarea {

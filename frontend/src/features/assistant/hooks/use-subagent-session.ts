@@ -38,9 +38,7 @@ import { joinSubagentSession, subscribeSubagentSessionEvents } from "../lib/suba
 import { buildAgentMessagesFromTaskMessages } from "../lib/task-message-agent-mapping";
 import { shouldSuppressAgentErrorAfterCompactionError } from "./use-agent-session-message-state";
 
-function resolveStageText(stage?: string): string {
-  return getStageTextForAgentKey(stage) || stage || "";
-}
+const DEFAULT_RUNNING_STAGE = i18n.t("assistant.runningStatus.considering");
 
 function toSessionStatus(payload: SubagentSessionPayload | null): AgentSessionStatus {
   if (!payload) return "idle";
@@ -141,7 +139,7 @@ export function useSubagentSession(
     (event: AgentEvent) => {
       const result = applyAgentTranscriptEventToLiveState(transcriptStateRef.current, event, {
         approvalPreviewFactory: createApprovalPreviewToolMessage,
-        defaultRunningStage: getStageTextForAgentKey(session?.agentKey) || session?.agentKey || "",
+        defaultRunningStage: DEFAULT_RUNNING_STAGE,
         fallbackAgent: session?.agentKey,
         getStageTextForAgent: getStageTextForAgentKey,
         getStageTextForStage: getStageTextForStageKey,
@@ -284,7 +282,7 @@ export function useSubagentSession(
       messages: nextMessages,
       status: toSessionStatus(payload),
       isRunning: payload.isRunning,
-      currentStage: payload.isRunning ? resolveStageText(payload.agentKey) : "",
+      currentStage: payload.isRunning ? DEFAULT_RUNNING_STAGE : "",
     });
     const pendingApprovalEvent = createPendingApprovalEvent(
       payload.pendingApproval,
@@ -295,7 +293,7 @@ export function useSubagentSession(
       pendingApprovalEvent
         ? applyAgentTranscriptEventToLiveState(nextState, pendingApprovalEvent, {
             approvalPreviewFactory: createApprovalPreviewToolMessage,
-            defaultRunningStage: getStageTextForAgentKey(payload.agentKey) || payload.agentKey,
+            defaultRunningStage: DEFAULT_RUNNING_STAGE,
             fallbackAgent: payload.agentKey,
             getStageTextForAgent: getStageTextForAgentKey,
             getStageTextForStage: getStageTextForStageKey,
