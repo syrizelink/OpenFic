@@ -104,9 +104,7 @@ function EntryListItemComponent({
       transform: dragOffset === 0 ? undefined : `translateY(${dragOffset}px)`,
       transition: getEntryListTransition(isDragActive),
       opacity: shouldHideDraggedEntry({ isDragSource }) ? 0 : isPressed ? 0.5 : 1,
-      borderBottom: isSelected
-        ? "1px solid var(--gray-6)"
-        : "1px solid var(--gray-a5)",
+      borderBottom: isSelected ? "1px solid var(--gray-6)" : "1px solid var(--gray-a5)",
       background: isDarkPressed
         ? "var(--gray-12)"
         : isSelected
