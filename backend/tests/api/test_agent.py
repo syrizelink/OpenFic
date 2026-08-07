@@ -14,6 +14,7 @@ import pytest_asyncio
 from fastapi import status
 from httpx import AsyncClient
 from PIL import Image
+from sqlalchemy import select
 
 from app.agent_runtime.persistence import repo as message_repo
 from app.agent_runtime.persistence.child_runs import (
@@ -21,6 +22,7 @@ from app.agent_runtime.persistence.child_runs import (
     create_child_run,
     record_child_run_pending_approval,
 )
+from app.agent_runtime.persistence.model import AgentChildRunRequest
 from app.agent_runtime.revisions import begin_user_revision
 from app.agent_runtime.runner.checkpointer import get_checkpointer, reset_checkpointer
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
@@ -1597,6 +1599,142 @@ class TestAgentAPI:
             )
         finally:
             buffer.clear_all()
+
+    async def test_cancel_subagent_session_cancels_child_task_and_marks_cancelled(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={
+                "project_id": target["project_id"],
+
+                "model_id": target["model_id"],
+                "max_iterations": 5,
+            },
+        )
+        payload = session_response.json()
+        parent_session_id = payload["session_id"]
+        task_id = payload["task_id"]
+
+        child = await create_child_run(
+            session,
+            parent_session_id=parent_session_id,
+            parent_task_id=task_id,
+            parent_thread_id=parent_session_id,
+            child_thread_id=f"{parent_session_id}:child:cancel",
+            agent_key="writer",
+            dispatch_id="dispatch-cancel",
+            tool_call_id="tool-call-cancel",
+            request={"task": "write", "input": {}, "metadata": {}},
+            status="running",
+        )
+
+        task_started = asyncio.Event()
+        task_finished = asyncio.Event()
+
+        async def fake_child() -> None:
+            task_started.set()
+            try:
+                await asyncio.sleep(60)
+            finally:
+                task_finished.set()
+
+        child_task = asyncio.create_task(fake_child())
+        await get_agent_run_registry().register_child(
+            parent_session_id, child.id, child_task
+        )
+        try:
+            await task_started.wait()
+
+            emit_mock = AsyncMock()
+            with patch(
+                "app.api.routers.agent_runtime.emit",
+                new=emit_mock,
+            ), patch(
+                "app.agent_runtime.runner.subagent_runner.emit",
+                new=emit_mock,
+            ):
+                response = await client.post(
+                    f"/api/v1/agent/sessions/{parent_session_id}/subagents/{child.id}/cancel"
+                )
+
+            assert response.status_code == status.HTTP_200_OK
+            assert response.json()["success"] is True
+
+            await asyncio.wait_for(task_finished.wait(), timeout=2)
+            assert child_task.cancelled() is True
+
+            await session.refresh(child)
+            assert child.status == "cancelled"
+            assert child.is_active is True
+            assert child.error == "user cancelled subagent"
+
+            request_row = (
+                await session.execute(
+                    select(AgentChildRunRequest).where(
+                        AgentChildRunRequest.child_run_id == child.id
+                    )
+                )
+            ).scalar_one()
+            assert request_row.status == "cancelled"
+            assert request_row.error == "user cancelled subagent"
+        finally:
+            get_agent_run_registry().unregister_child(parent_session_id, child.id)
+
+    async def test_cancel_subagent_session_returns_404_for_unknown_child(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        response = await client.post(
+            "/api/v1/agent/sessions/unknown-parent/subagents/unknown-child/cancel"
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_cancel_subagent_session_is_noop_for_terminal_child(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={
+                "project_id": target["project_id"],
+
+                "model_id": target["model_id"],
+                "max_iterations": 5,
+            },
+        )
+        payload = session_response.json()
+        parent_session_id = payload["session_id"]
+        task_id = payload["task_id"]
+
+        child = await create_child_run(
+            session,
+            parent_session_id=parent_session_id,
+            parent_task_id=task_id,
+            parent_thread_id=parent_session_id,
+            child_thread_id=f"{parent_session_id}:child:terminal",
+            agent_key="writer",
+            dispatch_id="dispatch-terminal",
+            tool_call_id="tool-call-terminal",
+            request={"task": "write", "input": {}, "metadata": {}},
+            status="completed",
+        )
+
+        response = await client.post(
+            f"/api/v1/agent/sessions/{parent_session_id}/subagents/{child.id}/cancel"
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["success"] is True
+
+        await session.refresh(child)
+        assert child.status == "completed"
+        assert child.error is None
 
     async def test_cancel_session_starts_new_run_after_cancelled_revision(
         self,

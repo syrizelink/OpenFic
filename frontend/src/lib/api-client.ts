@@ -2266,6 +2266,24 @@ export async function fetchSubagentSession(childRunId: string): Promise<Subagent
 }
 
 /**
+ * 取消单个 subagent 会话（中断其任务与重试，主会话继续）。
+ */
+export async function cancelSubagentSession(
+  parentSessionId: string,
+  childRunId: string,
+): Promise<AgentCancelResponse> {
+  const response = await apiClient.post(
+    `/agent/sessions/${parentSessionId}/subagents/${childRunId}/cancel`,
+  );
+  const data = response.data as Record<string, unknown>;
+  return {
+    success: data.success === true,
+    session_id: String(data.session_id ?? childRunId),
+    message: String(data.message ?? ""),
+  };
+}
+
+/**
  * 发送用户消息并运行 Agent 会话。结果通过 Socket.IO 推送。
  */
 export async function sendAgentMessage(

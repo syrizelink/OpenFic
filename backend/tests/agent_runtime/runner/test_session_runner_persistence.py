@@ -401,7 +401,7 @@ async def test_run_consumes_queued_follow_up_before_turn_finishes(
     )
     model_call_count = {"value": 0}
 
-    async def fake_invoke_model(_model, _messages):
+    async def fake_invoke_model(_model, _messages, **_kwargs):
         model_call_count["value"] += 1
         if model_call_count["value"] == 1:
             await runner.queue_pending_user_message(raw_follow_up)
@@ -826,7 +826,7 @@ async def test_sync_dispatch_subagent_continues_primary_run_until_done(
             )
         ]
 
-    async def fake_invoke_model(_model, _messages):
+    async def fake_invoke_model(_model, _messages, **_kwargs):
         model_call_count["value"] += 1
         if model_call_count["value"] == 1:
             return AIMessage(

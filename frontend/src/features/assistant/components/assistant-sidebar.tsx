@@ -1509,6 +1509,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                       : undefined
                   }
                   onRollback={async () => null}
+                  onAbortRetry={subagentSession.cancelSession}
                   onAtBottomChange={setIsMessagesAtBottom}
                   scrollToBottomFnRef={scrollToBottomFnRef}
                 />

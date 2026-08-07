@@ -7,6 +7,31 @@
   min-width: 0;
 }
 
+.agent-retry-timer {
+  flex: 0 0 auto;
+  margin-left: auto;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-retry-cancel-button {
+  flex: 0 0 auto;
+}
+
+@keyframes agentRetrySpinCycle {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  44% {
+    transform: rotate(360deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 .agent-status-message-title[data-status-tone="retry"] {
   color: var(--amber-11);
 }
@@ -25,6 +50,7 @@
 
 .agent-status-message-icon[data-status-tone="retry"] {
   color: var(--amber-10);
+  animation: agentRetrySpinCycle 1.8s ease-in-out infinite;
 }
 
 .agent-status-message-icon[data-status-tone="error"] {
@@ -110,6 +136,20 @@
 .agent-status-message-detail {
   display: block;
   white-space: pre-wrap;
+}
+
+.agent-retry-error-prefix {
+  flex: 0 0 auto;
+}
+
+.agent-retry-error-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-width: 0;
+  word-break: break-word;
+  cursor: default;
 }
 
 .agent-status-message-summary {

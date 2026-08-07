@@ -100,6 +100,7 @@ interface AgentMessagesProps {
   onRollback: (messageId: string) => Promise<string | null>;
   onFork?: (sourceRevisionId: string) => Promise<void>;
   onOpenMentionChapter?: (chapterId: string, chapterTitle: string) => void;
+  onAbortRetry?: () => void;
   onAtBottomChange?: (isAtBottom: boolean) => void;
   scrollToBottomFnRef?: React.MutableRefObject<(() => void) | null>;
 }
@@ -131,10 +132,15 @@ function areBlockMessageListsEqual(previous: BlockDisplayMessage[], next: BlockD
 interface AgentBlockContentProps {
   messages: BlockDisplayMessage[];
   onOpenMentionChapter?: (chapterId: string, chapterTitle: string) => void;
+  onAbortRetry?: () => void;
 }
 
 const AgentBlockContent = memo(
-  function AgentBlockContent({ messages, onOpenMentionChapter }: AgentBlockContentProps) {
+  function AgentBlockContent({
+    messages,
+    onOpenMentionChapter,
+    onAbortRetry,
+  }: AgentBlockContentProps) {
     const agentMessages = useMemo(() => messages.filter(isAgentBlockDisplayMessage), [messages]);
     const displayItems = useMemo(() => buildAgentDisplayItems(agentMessages), [agentMessages]);
 
@@ -156,6 +162,7 @@ const AgentBlockContent = memo(
               key={item.id}
               message={item.message}
               onOpenMentionChapter={onOpenMentionChapter}
+              onAbortRetry={onAbortRetry}
             />
           ),
         )}
@@ -164,7 +171,8 @@ const AgentBlockContent = memo(
   },
   (prev, next) =>
     areBlockMessageListsEqual(prev.messages, next.messages) &&
-    prev.onOpenMentionChapter === next.onOpenMentionChapter,
+    prev.onOpenMentionChapter === next.onOpenMentionChapter &&
+    prev.onAbortRetry === next.onAbortRetry,
 );
 
 interface AgentMessagesFooterContext {
@@ -199,6 +207,7 @@ export function AgentMessages({
   onRollback,
   onFork,
   onOpenMentionChapter,
+  onAbortRetry,
   onAtBottomChange,
   scrollToBottomFnRef,
 }: AgentMessagesProps) {
@@ -692,6 +701,7 @@ export function AgentMessages({
           <AgentBlockContent
             messages={block.messages}
             onOpenMentionChapter={onOpenMentionChapter}
+            onAbortRetry={onAbortRetry}
           />
         </Box>
         {toolbarTarget ? renderAgentRoundToolbar(toolbarTarget) : null}

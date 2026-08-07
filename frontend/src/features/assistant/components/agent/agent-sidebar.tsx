@@ -213,6 +213,7 @@ export function useAgentSidebar({
         onRollback={handleRollback}
         onFork={handleFork}
         onOpenMentionChapter={onOpenMentionChapter}
+        onAbortRetry={abortAgentSession}
         onAtBottomChange={onAtBottomChange}
         scrollToBottomFnRef={scrollToBottomFnRef}
       />

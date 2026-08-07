@@ -9,7 +9,11 @@ import type {
   SubagentSessionPayload,
   TokenUsageState,
 } from "@/lib/agent.types";
-import { fetchSubagentSession, submitAgentToolApproval } from "@/lib/api-client";
+import {
+  fetchSubagentSession,
+  submitAgentToolApproval,
+  cancelSubagentSession,
+} from "@/lib/api-client";
 import type { TaskListItem } from "@/lib/task.types";
 
 import {
@@ -24,6 +28,7 @@ import {
   type AgentTranscriptState,
 } from "../lib/agent-transcript-state";
 import { createApprovalPreviewToolMessage } from "../lib/chapter-tool-preview";
+import { clearRetryMessages } from "../lib/retry-message-state";
 import {
   createStreamingDeltaCoalescer,
   isStreamingDeltaEvent,
@@ -228,6 +233,28 @@ export function useSubagentSession(
     [commitTranscriptState, session?.parentSessionId],
   );
 
+  const cancelSession = useCallback(async () => {
+    const parentSessionId = session?.parentSessionId;
+    if (!parentSessionId || !childRunId) return;
+    try {
+      await cancelSubagentSession(parentSessionId, childRunId);
+    } catch (error) {
+      console.error("Failed to cancel subagent session:", error);
+      toast.error(i18n.t("assistant.cancelSubagentFailed"));
+      return;
+    }
+    commitTranscriptState({
+      ...transcriptStateRef.current,
+      messages: clearRetryMessages(transcriptStateRef.current.messages),
+      status: "error",
+      isRunning: false,
+      currentStage: "",
+    });
+    setSession((current) =>
+      current ? { ...current, status: "cancelled", isRunning: false, isActive: false } : current,
+    );
+  }, [childRunId, commitTranscriptState, session?.parentSessionId]);
+
   const load = useCallback(async () => {
     if (!childRunId) {
       setSession(null);
@@ -418,5 +445,6 @@ export function useSubagentSession(
     tokenUsage,
     load,
     handleToolApproval,
+    cancelSession,
   };
 }

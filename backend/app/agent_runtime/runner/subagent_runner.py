@@ -389,6 +389,9 @@ class SubagentRunner:
                 child_payload,
             )
 
+        async def retry_event_sink(payload: dict[str, Any]) -> None:
+            await agent_event_sink("agent:retry", payload)
+
         async def compaction_usage_sink(payload: dict[str, Any]) -> None:
             normalized = self._normalize_usage_event(row.child_thread_id, payload)
             normalized["parent_session_id"] = row.parent_session_id
@@ -406,6 +409,7 @@ class SubagentRunner:
                         "runtime_state": runtime_state,
                         "audit_context": audit_context,
                         "agent_event_sink": agent_event_sink,
+                        "retry_event_sink": retry_event_sink,
                         "compaction_usage_sink": compaction_usage_sink,
                     },
                 },

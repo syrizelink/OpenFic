@@ -13,6 +13,7 @@ from sqlmodel import SQLModel
 
 from app.agent_runtime.persistence import repo
 from app.agent_runtime.persistence.child_runs import (
+    cancel_child_run,
     complete_child_run_request,
     create_child_run,
     enqueue_child_run_request,
@@ -1892,3 +1893,50 @@ async def test_subagent_runner_does_not_emit_parent_dispatch_result_for_sync_com
         and isinstance(payload.get("created_at"), str)
         and payload.get("created_at")
     ]
+
+
+@pytest.mark.asyncio
+async def test_wait_for_request_resolution_raises_on_cancelled_request() -> None:
+    from app.agent_runtime.tools.errors import ToolExecutionError
+    from app.agent_runtime.tools.impls.orchestration.common import (
+        wait_for_request_resolution,
+    )
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
+    factory = sessionmaker(  # type: ignore[call-overload]
+        engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+    try:
+        async with factory() as session:
+            row = await create_child_run(
+                session,
+                parent_session_id="parent-session",
+                parent_task_id="task-1",
+                parent_thread_id="parent-session",
+                child_thread_id="child-thread-cancel",
+                agent_key="writer",
+                dispatch_id="dispatch-cancel",
+                tool_call_id="tool-call-cancel",
+                request={"task": "write"},
+                status="running",
+            )
+            request_row = await get_child_run_request_by_seq(
+                session,
+                child_run_id=row.id,
+                seq=0,
+            )
+            assert request_row is not None
+            await cancel_child_run(session, row.id, error="user cancelled subagent")
+
+        with pytest.raises(ToolExecutionError, match="user cancelled subagent"):
+            await wait_for_request_resolution(
+                session_factory=factory,
+                child_run_id=row.id,
+                request_id=request_row.id,
+            )
+    finally:
+        await engine.dispose()

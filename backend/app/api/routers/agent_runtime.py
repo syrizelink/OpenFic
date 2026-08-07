@@ -27,6 +27,7 @@ from app.agent_runtime.persistence.child_runs import (
     TERMINAL_CHILD_RUN_STATUSES,
     count_pending_child_run_requests,
     cancel_child_run,
+    get_child_run_for_parent,
     list_active_child_runs,
     list_child_runs_for_parent,
 )
@@ -1147,6 +1148,58 @@ async def get_subagent_session(
         created_at=row.created_at,
         updated_at=row.updated_at,
         messages=messages,
+    )
+
+
+@router.post(
+    "/sessions/{parent_session_id}/subagents/{child_run_id}/cancel",
+    response_model=AgentCancelResponse,
+)
+async def cancel_subagent_session(
+    parent_session_id: str,
+    child_run_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> AgentCancelResponse:
+    """取消单个 subagent 会话。
+
+    中断其当前任务（含重试退避）并把 open requests 标记为 cancelled，
+    主会话侧的 wait_for_request_resolution 感知后继续主流程。
+    """
+    row = await get_child_run_for_parent(
+        session,
+        parent_session_id=parent_session_id,
+        child_run_id=child_run_id,
+    )
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="subagent session not found",
+        )
+    if not row.is_active or row.status in TERMINAL_CHILD_RUN_STATUSES:
+        return AgentCancelResponse(
+            success=True,
+            session_id=child_run_id,
+            message="子代理会话已结束",
+        )
+
+    await cancel_child_run(
+        session,
+        child_run_id,
+        error="user cancelled subagent",
+    )
+    await get_agent_run_registry().cancel_child(parent_session_id, child_run_id)
+    await session.commit()
+
+    status_publisher = SubagentRunner(
+        session_factory=_make_status_session_factory(session),
+        model_config={},
+        project_id="",
+    )
+    await status_publisher.publish_parent_subagent_status(child_run_id)
+    return AgentCancelResponse(
+        success=True,
+        session_id=child_run_id,
+        message="子代理会话已取消",
     )
 
 

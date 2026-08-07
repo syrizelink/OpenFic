@@ -17,6 +17,7 @@ from app.agent_runtime.graph.react_agent import (
     create_react_agent,
     ReactState,
 )
+from app.settings import settings
 
 
 def _submit_result(result: str) -> str:
@@ -239,7 +240,11 @@ async def test_react_agent_terminates_on_tool_success():
 
 
 @pytest.mark.asyncio
-async def test_react_agent_emits_retry_event_for_retryable_llm_failure():
+async def test_react_agent_emits_retry_event_for_retryable_llm_failure(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(settings, "llm_retry_base_interval", 0.0)
+    monkeypatch.setattr(settings, "llm_retry_max_interval", 0.0)
     config = ReactAgentConfig(
         name="writer",
         tools=[],
@@ -251,8 +256,11 @@ async def test_react_agent_emits_retry_event_for_retryable_llm_failure():
     async def _retry_event_sink(payload: dict) -> None:
         retry_events.append(payload)
 
+    class _UpstreamError(Exception):
+        status_code = 503
+
     responses = [
-        Exception("temporary upstream failure"),
+        _UpstreamError("temporary upstream failure"),
         AIMessage(content="final answer"),
     ]
 
@@ -287,10 +295,91 @@ async def test_react_agent_emits_retry_event_for_retryable_llm_failure():
             "node": "writer",
             "attempt": 2,
             "max_attempts": 5,
-            "error_type": "Exception",
+            "error_type": "_UpstreamError",
             "error_message": "temporary upstream failure",
+            "error_category": "http",
+            "retry_in_ms": 0,
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_react_agent_retry_leaves_clean_checkpoint_and_history(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(settings, "llm_retry_base_interval", 0.0)
+    monkeypatch.setattr(settings, "llm_retry_max_interval", 0.0)
+
+    class _UpstreamError(Exception):
+        status_code = 503
+
+    class _FlakyModel:
+        def __init__(self, responses):
+            self._responses = list(responses)
+
+        def bind_tools(self, tools):
+            return self
+
+        def astream(self, messages):
+            return self._astream()
+
+        async def _astream(self):
+            item = self._responses.pop(0)
+            if isinstance(item, Exception):
+                raise item
+            yield item
+
+    retry_events: list[dict] = []
+
+    async def _retry_event_sink(payload: dict) -> None:
+        retry_events.append(payload)
+
+    config = ReactAgentConfig(
+        name="writer",
+        tools=[],
+        termination=TerminationCondition(mode="no_tool_call"),
+    )
+    thread_id = "retry-thread-1"
+    graph = create_react_agent(
+        config,
+        model=_FlakyModel(
+            [
+                _UpstreamError("upstream boom"),
+                AIMessage(content="final answer"),
+            ]
+        ),
+        checkpointer=InMemorySaver(),
+    )
+
+    result = await graph.ainvoke(
+        {
+            "messages": [HumanMessage(content="Hello")],
+            "iteration_count": 0,
+            "is_done": False,
+            "final_output": None,
+        },
+        config={
+            "configurable": {
+                "runtime_state": {"session_id": "sess_retry"},
+                "thread_id": thread_id,
+                "retry_event_sink": _retry_event_sink,
+            },
+        },
+    )
+
+    assert result["is_done"] is True
+    assert len(result["messages"]) == 2
+    assert result["messages"][1].content == "final answer"
+    assert len(retry_events) == 1
+    assert retry_events[0]["attempt"] == 2
+
+    checkpoint = await graph.aget_state({"configurable": {"thread_id": thread_id}})
+    checkpoint_messages = checkpoint.values.get("messages", [])
+    assert [message.content for message in checkpoint_messages] == [
+        "Hello",
+        "final answer",
+    ]
+    assert checkpoint.values.get("iteration_count") == 1
 
 
 @pytest.mark.asyncio
@@ -390,7 +479,7 @@ async def test_react_agent_keeps_tool_result_metadata_in_graph_state():
         AIMessage(content="done"),
     ]
 
-    async def mock_invoke(_model, messages):
+    async def mock_invoke(_model, messages, **_kwargs):
         observed_messages.append(messages)
         return responses.pop(0)
 

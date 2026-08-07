@@ -20,10 +20,12 @@ interface AgentMessageRendererProps {
   isNodeCollapsed?: boolean;
   onToggleNode?: () => void;
   onOpenMentionChapter?: (chapterId: string, chapterTitle: string) => void;
+  onAbortRetry?: () => void;
 }
 
 interface AgentMessageComponentProps {
   message: RenderableDisplayMessage;
+  onAbort?: () => void;
 }
 
 const messageComponentMap: Partial<
@@ -45,6 +47,7 @@ function AgentMessageRendererView({
   isNodeCollapsed,
   onToggleNode,
   onOpenMentionChapter,
+  onAbortRetry,
 }: AgentMessageRendererProps) {
   if (message.type === "node_start") {
     return (
@@ -79,7 +82,12 @@ function AgentMessageRendererView({
   const MessageComponent = messageComponentMap[message.type];
   if (!MessageComponent) return null;
 
-  return <MessageComponent message={message} />;
+  return (
+    <MessageComponent
+      message={message}
+      onAbort={onAbortRetry}
+    />
+  );
 }
 
 function areAgentMessageRendererPropsEqual(
@@ -93,7 +101,8 @@ function areAgentMessageRendererPropsEqual(
     prev.nodeElapsedBaseMs === next.nodeElapsedBaseMs &&
     prev.isNodeCollapsed === next.isNodeCollapsed &&
     Boolean(prev.onToggleNode) === Boolean(next.onToggleNode) &&
-    prev.onOpenMentionChapter === next.onOpenMentionChapter
+    prev.onOpenMentionChapter === next.onOpenMentionChapter &&
+    prev.onAbortRetry === next.onAbortRetry
   );
 }
 

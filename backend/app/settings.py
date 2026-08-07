@@ -105,6 +105,15 @@ class Settings(BaseSettings):
     background_zmq_job_endpoint: str = "inproc://background-jobs"
     background_zmq_event_endpoint: str = "inproc://background-events"
 
+    # LLM invocation timeouts & retries
+    llm_connect_timeout: float = 10.0
+    llm_total_timeout: float = 300.0
+    llm_chunk_timeout: float = 120.0
+    llm_retry_max_attempts: int = 5
+    llm_retry_base_interval: float = 2.0
+    llm_retry_max_interval: float = 30.0
+    llm_empty_response_retries: int = 2
+
     # Security - Encryption key for sensitive data (API keys, etc.)
     encryption_key: str = _ensure_encryption_key()
 

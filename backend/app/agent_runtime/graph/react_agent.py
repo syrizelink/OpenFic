@@ -11,7 +11,7 @@ import asyncio
 import inspect
 import json
 import time
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, TypedDict, cast
 
 from langchain_core.messages import (
@@ -24,10 +24,9 @@ from langchain_core.messages import (
 from langchain_core.messages.tool import ToolCall
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
-from langgraph._internal._constants import CONF, CONFIG_KEY_RUNTIME
+from langgraph._internal._constants import CONF
 from langgraph.errors import GraphInterrupt
 from langgraph.graph import END, START, StateGraph
-from langgraph.runtime import Runtime
 from langgraph.types import RetryPolicy
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -48,6 +47,13 @@ from app.agent_runtime.context.compaction.window import (
 )
 from app.agent_runtime.context.processors.to_langchain import to_langchain_messages
 from app.agent_runtime.context.types import ContextMessage
+from app.agent_runtime.graph.llm_invoke import (
+    EmptyResponseError,
+    RetryEventSink,
+    _TimedStream,
+    invoke_model_with_retry,
+    load_llm_invoke_settings,
+)
 from app.agent_runtime.persistence import compaction_repo
 from app.agent_runtime.tool_call_recovery import (
     build_malformed_tool_call_error,
@@ -85,19 +91,30 @@ class ReactState(TypedDict):
 # ---------------------------------------------------------------------------
 
 
-async def _invoke_model(model: Any, messages: list[BaseMessage]) -> AIMessage:
+async def _invoke_model(
+    model: Any,
+    messages: list[BaseMessage],
+    *,
+    chunk_timeout: float | None = None,
+    total_timeout: float | None = None,
+) -> AIMessage:
     """Stream the LLM response and normalize it for checkpoint persistence."""
     start_time = time.perf_counter()
     first_token_ms: int | None = None
     response: AIMessage | None = None
 
-    async for chunk in model.astream(messages):
+    stream = _TimedStream(
+        model.astream(messages),
+        chunk_timeout=chunk_timeout,
+        total_timeout=total_timeout,
+    )
+    async for chunk in stream:
         if first_token_ms is None:
             first_token_ms = int((time.perf_counter() - start_time) * 1000)
         response = chunk if response is None else response + chunk
 
     if response is None:
-        raise ValueError("LLM流式调用未返回响应")
+        raise EmptyResponseError("LLM流式调用未返回响应")
 
     normalized = AIMessage(
         content=extract_text_content(response.content),
@@ -112,13 +129,9 @@ async def _invoke_model(model: Any, messages: list[BaseMessage]) -> AIMessage:
     return normalized
 
 
-RetryEventSink = Callable[[dict[str, Any]], Awaitable[None]]
-
-LLM_RETRY_POLICY = RetryPolicy(
-    max_attempts=5,
-    initial_interval=1.0,
-    backoff_factor=2.0,
-)
+# 节点级重试已禁用：超时与重试统一由模型调用层（invoke_model_with_retry）处理，
+# 避免双层重试叠加。保留常量名以便测试禁用兜底重试。
+LLM_RETRY_POLICY = RetryPolicy(max_attempts=1)
 
 
 def _get_configurable(config: RunnableConfig | None) -> dict[str, Any]:
@@ -128,64 +141,9 @@ def _get_configurable(config: RunnableConfig | None) -> dict[str, Any]:
     return configurable if isinstance(configurable, dict) else {}
 
 
-def _get_runtime(config: RunnableConfig | None) -> Runtime[Any] | None:
-    runtime = _get_configurable(config).get(CONFIG_KEY_RUNTIME)
-    return runtime if isinstance(runtime, Runtime) else None
-
-
-def _get_node_attempt(config: RunnableConfig | None) -> int:
-    runtime = _get_runtime(config)
-    execution_info = (
-        getattr(runtime, "execution_info", None) if runtime is not None else None
-    )
-    attempt = getattr(execution_info, "node_attempt", None)
-    return attempt if isinstance(attempt, int) and attempt > 0 else 1
-
-
 def _get_retry_event_sink(config: RunnableConfig | None) -> RetryEventSink | None:
     value = _get_configurable(config).get("retry_event_sink")
     return value if callable(value) else None
-
-
-def _should_retry_on(policy: RetryPolicy, exc: Exception) -> bool:
-    retry_on = policy.retry_on
-    if isinstance(retry_on, type):
-        return isinstance(exc, retry_on)
-    if isinstance(retry_on, Sequence):
-        return any(
-            isinstance(exc, cast(type[BaseException], exc_type))
-            for exc_type in retry_on
-        )
-    if callable(retry_on):
-        return bool(retry_on(exc))
-    return False
-
-
-async def _emit_retry_event(
-    config: RunnableConfig | None,
-    *,
-    session_id: str | None,
-    node: str,
-    attempt: int,
-    max_attempts: int,
-    exc: Exception,
-) -> None:
-    sink = _get_retry_event_sink(config)
-    if sink is None or not session_id:
-        return
-    try:
-        await sink(
-            {
-                "session_id": session_id,
-                "node": node,
-                "attempt": attempt,
-                "max_attempts": max_attempts,
-                "error_type": exc.__class__.__name__,
-                "error_message": str(exc),
-            }
-        )
-    except Exception:
-        return
 
 
 def _extract_usage(message: AIMessage) -> dict[str, Any] | None:
@@ -790,28 +748,24 @@ def create_react_agent(
         audit = await _start_audit(configurable, messages)
         active_audit = audit
         try:
-            response = await _invoke_model(bound_model or model, messages)
-        except Exception as exc:
-            if audit is not None:
-                _record_audit_error(audit, exc)
-                await _finish_active_audit(status="error")
             session_id = (
                 runtime_state.get("session_id")
                 if isinstance(runtime_state, Mapping)
                 else None
             )
-            current_attempt = _get_node_attempt(config)
-            if current_attempt < LLM_RETRY_POLICY.max_attempts and _should_retry_on(
-                LLM_RETRY_POLICY, exc
-            ):
-                await _emit_retry_event(
-                    config,
-                    session_id=session_id if isinstance(session_id, str) else None,
-                    node=react_config.name,
-                    attempt=current_attempt + 1,
-                    max_attempts=LLM_RETRY_POLICY.max_attempts,
-                    exc=exc,
-                )
+            response = await invoke_model_with_retry(
+                bound_model or model,
+                messages,
+                invoke=_invoke_model,
+                settings=load_llm_invoke_settings(),
+                session_id=session_id if isinstance(session_id, str) else None,
+                node=react_config.name,
+                retry_event_sink=_get_retry_event_sink(config),
+            )
+        except Exception as exc:
+            if audit is not None:
+                _record_audit_error(audit, exc)
+                await _finish_active_audit(status="error")
             raise
 
         recovered_tool_calls = cast(

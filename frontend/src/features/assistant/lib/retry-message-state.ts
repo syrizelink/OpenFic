@@ -12,5 +12,11 @@ export function upsertRetryMessage(
   messages: AgentMessage[],
   retryMessage: AgentMessage,
 ): AgentMessage[] {
-  return [...clearRetryMessages(messages), retryMessage];
+  const index = messages.findIndex(isRetryMessage);
+  if (index === -1) {
+    return [...messages, retryMessage];
+  }
+  const next = [...messages];
+  next[index] = retryMessage;
+  return next;
 }

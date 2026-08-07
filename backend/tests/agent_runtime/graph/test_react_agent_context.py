@@ -340,7 +340,7 @@ def test_auto_compaction_runs_before_main_model_and_rebuilds_context() -> None:
         assert session_id == "s1"
         return []
 
-    async def _mock_invoke(_model, messages):
+    async def _mock_invoke(_model, messages, **_kwargs):
         model_messages.extend(messages)
         return AIMessage(
             content="",
@@ -460,7 +460,7 @@ def test_auto_compaction_stays_silent_below_threshold() -> None:
     async def event_sink(name: str, payload: dict) -> None:
         events.append((name, payload))
 
-    async def _mock_invoke(_model, _messages):
+    async def _mock_invoke(_model, _messages, **_kwargs):
         return AIMessage(content="done")
 
     with (
@@ -541,7 +541,7 @@ def test_llm_call_marks_consumed_injected_user_messages_sent() -> None:
     consume_sink = AsyncMock()
     observed_messages: list[HumanMessage | SystemMessage | AIMessage] = []
 
-    async def _mock_invoke(_model, messages):
+    async def _mock_invoke(_model, messages, **_kwargs):
         observed_messages.extend(messages)
         return AIMessage(content="done")
 
@@ -713,7 +713,7 @@ def test_tool_success_path_continues_with_pending_follow_up_before_ending() -> N
         ),
     ])
 
-    async def _mock_invoke(_model, messages):
+    async def _mock_invoke(_model, messages, **_kwargs):
         observed_human_contents.append(
             [
                 message.content

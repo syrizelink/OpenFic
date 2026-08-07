@@ -219,6 +219,8 @@ export function toAgentEvent(
     const maxAttempts = Number(data.max_attempts ?? 0);
     const errorType = getString(data.error_type);
     const errorMessage = getString(data.error_message) || i18n.t("assistant.upstreamFailure");
+    const retryInMs = Number(data.retry_in_ms);
+    const errorCategory = getString(data.error_category);
     const id = `retry:${sessionId}`;
     return {
       id,
@@ -235,6 +237,8 @@ export function toAgentEvent(
         max_attempts: maxAttempts,
         error_type: errorType,
         error_message: errorMessage,
+        ...(Number.isFinite(retryInMs) && retryInMs > 0 ? { retry_in_ms: retryInMs } : {}),
+        ...(errorCategory ? { error_category: errorCategory } : {}),
       },
     };
   }
