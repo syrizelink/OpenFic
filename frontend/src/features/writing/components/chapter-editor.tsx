@@ -63,6 +63,8 @@ interface ChapterEditorProps {
   projectId?: string;
   isAgentLocked?: boolean;
   onOpenSummary?: () => void;
+  onSelectionChange?: (hasSelection: boolean) => void;
+  addSelectionToConversationRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 interface ChapterEditorContentProps {
@@ -77,6 +79,8 @@ interface ChapterEditorContentProps {
   projectId?: string;
   isAgentLocked?: boolean;
   onOpenSummary?: () => void;
+  onSelectionChange?: (hasSelection: boolean) => void;
+  addSelectionToConversationRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 function ChapterEditorContent({
@@ -91,6 +95,8 @@ function ChapterEditorContent({
   projectId,
   isAgentLocked = false,
   onOpenSummary,
+  onSelectionChange,
+  addSelectionToConversationRef,
 }: ChapterEditorContentProps) {
   const { t } = useTranslation();
   const updateMutation = useUpdateChapter();
@@ -526,6 +532,58 @@ function ChapterEditorContent({
     updateTabTitle(chapter.id, newTitle);
   };
 
+  const addSelectionToConversation = useCallback(() => {
+    if (!editor || !onAddToConversation) return;
+
+    const chapterLabel = chapter.title.trim() || t("writing.untitledChapter");
+    const { from, to } = editor.state.selection;
+    const selectedText =
+      from === to ? "" : editor.state.doc.textBetween(from, to, "\n", "\n").trim();
+    if (!selectedText) return;
+
+    const textBeforeSelection = editor.state.doc.textBetween(0, from, "\n", "\n");
+    const textBeforeSelectionEnd = editor.state.doc.textBetween(0, to, "\n", "\n");
+    const startLine = textBeforeSelection.split("\n").length;
+    const endLine = textBeforeSelectionEnd.split("\n").length;
+
+    onAddToConversation(
+      buildLineRangeMentionTag({
+        chapterId: chapter.id,
+        startLine,
+        endLine,
+        label: `${chapterLabel} L${startLine}-${endLine}`,
+        snapshotText: selectedText,
+      }),
+    );
+
+    editor.commands.setTextSelection(from);
+    const domSelection = window.getSelection();
+    if (domSelection?.anchorNode && editor.view.dom.contains(domSelection.anchorNode)) {
+      domSelection.removeAllRanges();
+    }
+  }, [chapter.id, chapter.title, editor, onAddToConversation, t]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const reportSelection = () => {
+      onSelectionChange?.(editor.state.selection.from !== editor.state.selection.to);
+    };
+    reportSelection();
+    editor.on("selectionUpdate", reportSelection);
+    return () => {
+      editor.off("selectionUpdate", reportSelection);
+      onSelectionChange?.(false);
+    };
+  }, [editor, onSelectionChange]);
+
+  useEffect(() => {
+    if (!addSelectionToConversationRef) return;
+    addSelectionToConversationRef.current = addSelectionToConversation;
+    return () => {
+      addSelectionToConversationRef.current = null;
+    };
+  }, [addSelectionToConversation, addSelectionToConversationRef]);
+
   const editorExtraItems = useCallback(() => {
     if (!editor || !onAddToConversation) return [];
 
@@ -550,25 +608,11 @@ function ChapterEditorContent({
             );
             return;
           }
-
-          const textBeforeSelection = editor.state.doc.textBetween(0, from, "\n", "\n");
-          const textBeforeSelectionEnd = editor.state.doc.textBetween(0, to, "\n", "\n");
-          const startLine = textBeforeSelection.split("\n").length;
-          const endLine = textBeforeSelectionEnd.split("\n").length;
-
-          onAddToConversation(
-            buildLineRangeMentionTag({
-              chapterId: chapter.id,
-              startLine,
-              endLine,
-              label: `${chapterLabel} L${startLine}-${endLine}`,
-              snapshotText: selectedText,
-            }),
-          );
+          addSelectionToConversation();
         },
       },
     ];
-  }, [chapter.id, chapter.title, editor, onAddToConversation, t]);
+  }, [addSelectionToConversation, chapter.id, chapter.title, editor, onAddToConversation, t]);
 
   const editorMaxWidth = 800;
 
@@ -690,6 +734,8 @@ export function ChapterEditor({
   projectId,
   isAgentLocked = false,
   onOpenSummary,
+  onSelectionChange,
+  addSelectionToConversationRef,
 }: ChapterEditorProps) {
   const { t } = useTranslation();
   const { data } = useWritingEditorEntity({
@@ -740,6 +786,8 @@ export function ChapterEditor({
       projectId={projectId}
       isAgentLocked={isAgentLocked}
       onOpenSummary={onOpenSummary}
+      onSelectionChange={onSelectionChange}
+      addSelectionToConversationRef={addSelectionToConversationRef}
     />
   );
 }
@@ -755,6 +803,8 @@ function ChapterEditorWorkingCopy({
   projectId,
   isAgentLocked,
   onOpenSummary,
+  onSelectionChange,
+  addSelectionToConversationRef,
 }: Omit<ChapterEditorContentProps, "workingCopy">) {
   const workingCopy = useWritingWorkingCopy({
     type: "chapter",
@@ -775,6 +825,8 @@ function ChapterEditorWorkingCopy({
       projectId={projectId}
       isAgentLocked={isAgentLocked}
       onOpenSummary={onOpenSummary}
+      onSelectionChange={onSelectionChange}
+      addSelectionToConversationRef={addSelectionToConversationRef}
     />
   );
 }

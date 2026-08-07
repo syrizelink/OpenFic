@@ -1,5 +1,5 @@
 import { Box, Flex, IconButton, Tooltip } from "@radix-ui/themes";
-import { Bot, List } from "lucide-react";
+import { Bot, List, MessageSquareQuote } from "lucide-react";
 import { motion } from "motion/react";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -78,6 +78,8 @@ export function WritingPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [hasOpenedSummary, setHasOpenedSummary] = useState(false);
+  const [hasEditorSelection, setHasEditorSelection] = useState(false);
+  const addSelectionToConversationRef = useRef<(() => void) | null>(null);
   const [assistantState, setAssistantState] = useState<AssistantSidebarState>({
     agentStatus: "idle",
     isAgentRunning: false,
@@ -486,16 +488,33 @@ export function WritingPage() {
                   </Tooltip>
                 </Flex>
 
-                <Tooltip content={t("assistant.mobileTitle")}>
-                  <IconButton
-                    variant="ghost"
-                    size="2"
-                    aria-label={t("assistant.mobileTitle")}
-                    onClick={openAssistantSidebar}
-                  >
-                    <Bot size={18} />
-                  </IconButton>
-                </Tooltip>
+                <Flex
+                  align="center"
+                  gap="1"
+                >
+                  {!isViewingSubagent && hasEditorSelection && (
+                    <Tooltip content={t("editor.addSelectedToConversation")}>
+                      <IconButton
+                        variant="ghost"
+                        size="2"
+                        aria-label={t("editor.addSelectedToConversation")}
+                        onClick={() => addSelectionToConversationRef.current?.()}
+                      >
+                        <MessageSquareQuote size={18} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  <Tooltip content={t("assistant.mobileTitle")}>
+                    <IconButton
+                      variant="ghost"
+                      size="2"
+                      aria-label={t("assistant.mobileTitle")}
+                      onClick={openAssistantSidebar}
+                    >
+                      <Bot size={18} />
+                    </IconButton>
+                  </Tooltip>
+                </Flex>
               </Flex>
 
               <Box className="writing-page-content-fill">
@@ -516,6 +535,9 @@ export function WritingPage() {
                       isAgentLocked={isAgentLocked}
                       onScrollPositionChange={handleChapterScrollPositionChange}
                       onOpenSummary={handleOpenSummary}
+                      onAddToConversation={isViewingSubagent ? undefined : handleAddToConversation}
+                      onSelectionChange={setHasEditorSelection}
+                      addSelectionToConversationRef={addSelectionToConversationRef}
                     />
                   )
                 ) : (
