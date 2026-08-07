@@ -18,6 +18,7 @@ import { AdvancedSettings } from "../components/advanced-settings";
 import { AgentDefinitionsSettings } from "../components/agent-definitions-settings";
 import { AgentToolsSettings } from "../components/agent-tools-settings";
 import { ConnectionsSettings } from "../components/connections-settings";
+import { DriveSettings } from "../components/drive-settings";
 import { GeneralSettings } from "../components/general-settings";
 import { IndexSettings } from "../components/index-settings";
 import { ModelsSettings } from "../components/models-settings";
@@ -65,6 +66,7 @@ const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
   connections: "settings.connections",
   models: "settings.models",
   index: "settings.index",
+  sync: "settings.sync",
   "agent-tools": "settings.agentTools",
   rules: "settings.rules",
   skills: "settings.skills",
@@ -217,6 +219,7 @@ export function SettingsContent({
     activeCategory === "connections" ||
     activeCategory === "models" ||
     activeCategory === "index" ||
+    activeCategory === "sync" ||
     activeCategory === "agent-tools" ||
     activeCategory === "advanced";
   const isMobileListView = isMobile && mobileView === "list";
@@ -250,6 +253,10 @@ export function SettingsContent({
         removeQuery(["models"]);
         removeQuery(["projects", "all-for-index"]);
         removeQuery(OVERALL_INDEX_STATUS_QUERY_KEY);
+      }
+      if (category === "sync") {
+        removeQuery(["drive-config"]);
+        removeQuery(["drive-project-status"]);
       }
       if (category === "agent-tools") {
         removeQuery(["settings"]);
@@ -376,6 +383,7 @@ export function SettingsContent({
                 isAgentSettingsLockLoading={isAgentSettingsLockLoading}
               />
             ) : null}
+            {activeCategory === "sync" ? <DriveSettings /> : null}
             {activeCategory === "agent-tools" ? (
               <AgentToolsSettings
                 settings={displaySettings}

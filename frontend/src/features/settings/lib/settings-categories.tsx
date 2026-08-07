@@ -2,6 +2,7 @@ import {
   Brain,
   Bot,
   Cable,
+  Cloud,
   Database,
   FileText,
   Package,
@@ -16,6 +17,7 @@ export type SettingsCategory =
   | "connections"
   | "models"
   | "index"
+  | "sync"
   | "agent-tools"
   | "rules"
   | "skills"
@@ -48,6 +50,11 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     id: "index",
     icon: <Database size={16} />,
     labelKey: "settings.index",
+  },
+  {
+    id: "sync",
+    icon: <Cloud size={16} />,
+    labelKey: "settings.sync",
   },
   {
     id: "agent-tools",

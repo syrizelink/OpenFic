@@ -33,6 +33,7 @@ from app.api.routers import (
     chapter_exports,
     chapters,
     dashboard,
+    drive,
     health,
     import_router,
     model_icons,
@@ -73,6 +74,10 @@ from app.agent_runtime.attachments import (
 )
 from app.core.storage import ensure_character_images_dir, ensure_covers_dir
 from app.chapter_export.service import cleanup_chapter_export_files
+from app.google_drive.scheduler import (
+    start_drive_sync_scheduler,
+    stop_drive_sync_scheduler,
+)
 from app.models.builtin import seed_builtin_models
 from app.models.catalog import ModelProviderCatalogService
 from app.settings import settings as app_settings
@@ -364,6 +369,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await load_audit_details_persistence()
     start_audit_queue()
     await start_background_runtime()
+    await start_drive_sync_scheduler()
     _print_startup_banner(app_settings.app_version)
     catalog_refresh_task = asyncio.create_task(
         ModelProviderCatalogService().refresh(),
@@ -388,6 +394,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.info(f"已清理 {cleared_tasks} 个任务的运行状态")
         await stop_background_runtime()
         await stop_audit_queue()
+        await stop_drive_sync_scheduler()
         await app.state.catalog_icon_proxy_service.aclose()
         await close_checkpointer()
         await close_db()
@@ -443,6 +450,7 @@ def create_app() -> FastAPI:
     app.include_router(audit.router, prefix=app_settings.api_v1_prefix)
     app.include_router(background.router, prefix=app_settings.api_v1_prefix)
     app.include_router(dashboard.router, prefix=app_settings.api_v1_prefix)
+    app.include_router(drive.router, prefix=app_settings.api_v1_prefix)
     app.include_router(model_icons.router)
 
     # 挂载静态文件服务（封面图片）

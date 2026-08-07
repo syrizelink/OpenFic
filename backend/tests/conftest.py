@@ -29,6 +29,7 @@ from app.api.routers import (
     chapter_exports,
     chapters,
     dashboard,
+    drive,
     health,
     import_router,
     model_icons,
@@ -99,6 +100,7 @@ def _create_test_app() -> FastAPI:
     test_app.include_router(agent_runtime.router, prefix="/api/v1/agent")
     test_app.include_router(background.router, prefix="/api/v1")
     test_app.include_router(dashboard.router, prefix="/api/v1")
+    test_app.include_router(drive.router, prefix="/api/v1")
     register_exception_handlers(test_app)
     return test_app
 
