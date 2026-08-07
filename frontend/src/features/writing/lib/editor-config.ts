@@ -45,7 +45,7 @@ const PlainTextClipboard = Extension.create({
         props: {
           handlePaste(_view, event) {
             const text = event.clipboardData?.getData("text/plain");
-            if (text === undefined) {
+            if (!text) {
               return false;
             }
 
@@ -62,15 +62,19 @@ const PlainTextClipboard = Extension.create({
 });
 
 export function createPlainTextPasteContent(text: string): JSONContent[] {
-  return text
-    .replace(/\r\n?/g, "\n")
-    .split("\n")
-    .map((line) => {
-      if (!line) {
-        return { type: "paragraph" };
-      }
-      return { type: "paragraph", content: [{ type: "text", text: line }] };
-    });
+  const normalized = text.replace(/\r\n?/g, "\n");
+  const lines = normalized.split("\n");
+
+  if (lines.length === 1) {
+    return [{ type: "text", text: lines[0] ?? "" }];
+  }
+
+  return lines.map((line) => {
+    if (!line) {
+      return { type: "paragraph" };
+    }
+    return { type: "paragraph", content: [{ type: "text", text: line }] };
+  });
 }
 
 /**

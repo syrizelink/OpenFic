@@ -28,6 +28,17 @@ function normalizeMarkExclusions(content: JSONContent | JSONContent[]): JSONCont
   });
 }
 
+function unwrapSingleParagraph(content: JSONContent[]): JSONContent[] | null {
+  if (content.length !== 1) {
+    return null;
+  }
+  const node = content[0];
+  if (node.type !== "paragraph" || !node.content?.length) {
+    return null;
+  }
+  return node.content;
+}
+
 const MarkdownClipboard = Extension.create({
   name: "markdownClipboard",
   priority: 1000,
@@ -74,7 +85,9 @@ const MarkdownClipboard = Extension.create({
             if (!json.content?.length) {
               return false;
             }
-            editor.commands.insertContent(normalizeMarkExclusions(json.content));
+            const parsed = normalizeMarkExclusions(json.content);
+            const content = unwrapSingleParagraph(parsed) ?? parsed;
+            editor.commands.insertContent(content);
             return true;
           },
           clipboardTextSerializer(slice) {
