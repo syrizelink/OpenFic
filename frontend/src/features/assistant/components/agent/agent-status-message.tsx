@@ -10,6 +10,7 @@ export function AgentStatusMessage({ content }: AgentStatusMessageProps) {
       <Flex
         align="center"
         gap="2"
+        className="agent-status-message"
       >
         <span
           className="text-shimmer"

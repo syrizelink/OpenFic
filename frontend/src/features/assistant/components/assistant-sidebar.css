@@ -221,7 +221,8 @@
   overflow-y: auto;
   padding: 12px;
   box-sizing: border-box;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--gray-6) transparent;
 }
 
 .ai-sidebar-messages > :not(.agent-message-bottom-anchor) + :not(.agent-message-bottom-anchor) {
@@ -229,7 +230,20 @@
 }
 
 .ai-sidebar-messages::-webkit-scrollbar {
-  display: none;
+  width: 6px;
+}
+
+.ai-sidebar-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ai-sidebar-messages::-webkit-scrollbar-thumb {
+  background-color: var(--gray-6);
+  border-radius: 3px;
+}
+
+.ai-sidebar-messages::-webkit-scrollbar-thumb:hover {
+  background-color: var(--gray-7);
 }
 
 .ai-sidebar-messages > * {
@@ -1031,6 +1045,10 @@
 .ai-sidebar-loading-state {
   height: 100%;
   gap: 12px;
+}
+
+.agent-status-message .text-shimmer {
+  margin-top: 8px;
 }
 
 .ai-sidebar-textarea {
