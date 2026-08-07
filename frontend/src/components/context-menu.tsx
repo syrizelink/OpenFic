@@ -11,9 +11,13 @@ import type { Editor } from "@tiptap/react";
 import { Scissors, Copy, Clipboard } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useState, useCallback, useEffect, useLayoutEffect, useId, useRef } from "react";
+import { useState, useCallback, useEffect, useLayoutEffect, useId, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+
+import { readClipboardText, writeClipboardText } from "@/lib/clipboard";
+
+import { toast } from "./toast";
 
 const MOBILE_POINTER_LONG_PRESS_MS = 280;
 const MOBILE_POINTER_MOVE_TOLERANCE = 8;
@@ -92,6 +96,12 @@ export function ContextMenu({
   // 判断使用哪种模式
   const isEditorMode = !!editor && !!containerRef;
 
+  // 触摸设备（coarse pointer）上编辑器直接使用系统菜单，不启用自定义编辑器菜单
+  const editorMenuDisabled = useMemo(
+    () => isEditorMode && window.matchMedia("(pointer: coarse)").matches,
+    [isEditorMode],
+  );
+
   // 使用内部位置（编辑器模式）或外部位置（手动模式）
   const position = isEditorMode ? internalPosition : (externalPosition ?? null);
   const onClose = useCallback(() => {
@@ -125,7 +135,7 @@ export function ContextMenu({
   // 编辑器模式：处理右键点击
   const handleContextMenu = useCallback(
     (e: MouseEvent) => {
-      if (!isEditorMode || !containerRef?.current) return;
+      if (!isEditorMode || editorMenuDisabled || !containerRef?.current) return;
       if (suppressNextEditorContextMenuRef.current) {
         suppressNextEditorContextMenuRef.current = false;
         e.preventDefault();
@@ -140,12 +150,12 @@ export function ContextMenu({
       e.preventDefault();
       setInternalPosition({ x: e.clientX, y: e.clientY });
     },
-    [isEditorMode, containerRef],
+    [isEditorMode, editorMenuDisabled, containerRef],
   );
 
   // 编辑器模式：监听容器右键事件
   useEffect(() => {
-    if (!isEditorMode || !containerRef?.current) return;
+    if (!isEditorMode || editorMenuDisabled || !containerRef?.current) return;
 
     const container = containerRef.current;
     container.addEventListener("contextmenu", handleContextMenu);
@@ -153,7 +163,7 @@ export function ContextMenu({
     return () => {
       container.removeEventListener("contextmenu", handleContextMenu);
     };
-  }, [isEditorMode, containerRef, handleContextMenu]);
+  }, [isEditorMode, editorMenuDisabled, containerRef, handleContextMenu]);
 
   const clearMobileLongPressTimer = useCallback(() => {
     if (mobileLongPressTimerRef.current !== null) {
@@ -199,7 +209,7 @@ export function ContextMenu({
   );
 
   useEffect(() => {
-    if (!isEditorMode || !containerRef?.current) return;
+    if (!isEditorMode || editorMenuDisabled || !containerRef?.current) return;
 
     const container = containerRef.current;
 
@@ -294,6 +304,7 @@ export function ContextMenu({
     clearMobilePointer,
     containerRef,
     editor,
+    editorMenuDisabled,
     isEditorMode,
     restoreEditorKeyboard,
     suppressEditorKeyboard,
@@ -307,39 +318,44 @@ export function ContextMenu({
     const hasSelection = editor.state.selection.from !== editor.state.selection.to;
 
     // 处理剪切
-    const handleCut = () => {
+    const handleCut = async () => {
       const { from, to } = editor.state.selection;
       const selectedText = editor.state.doc.textBetween(from, to, " ");
 
       if (selectedText) {
-        navigator.clipboard.writeText(selectedText);
-        editor.chain().focus().deleteSelection().run();
+        const copied = await writeClipboardText(selectedText);
+        if (!copied) {
+          toast.error(t("editor.copyFailed"));
+          return;
+        }
+        editor.chain().deleteSelection().run();
       }
-      onClose();
     };
 
     // 处理复制
-    const handleCopy = () => {
+    const handleCopy = async () => {
       const { from, to } = editor.state.selection;
       const selectedText = editor.state.doc.textBetween(from, to, " ");
 
       if (selectedText) {
-        navigator.clipboard.writeText(selectedText);
+        const copied = await writeClipboardText(selectedText);
+        if (!copied) {
+          toast.error(t("editor.copyFailed"));
+        }
       }
-      onClose();
     };
 
     // 处理粘贴
     const handlePaste = async () => {
-      try {
-        const text = await navigator.clipboard.readText();
-        if (text) {
-          editor.chain().focus().insertContent(text).run();
-        }
-      } catch {
-        // 剪贴板访问被拒绝
+      const result = await readClipboardText();
+      if (!result.ok) {
+        toast.error(
+          result.reason === "unavailable" ? t("editor.pasteUnavailable") : t("editor.pasteFailed"),
+        );
+        return;
       }
-      onClose();
+      if (!result.text) return;
+      editor.chain().insertContent(result.text).run();
     };
 
     const baseItems = [
@@ -415,10 +431,12 @@ export function ContextMenu({
 
   // 点击菜单项
   const handleItemClick = useCallback(
-    (item: ContextMenuItem, e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (!item.disabled) {
+    (item: ContextMenuItem, event: { stopPropagation: () => void }) => {
+      event.stopPropagation();
+      if (item.disabled) return;
+      try {
         item.onClick();
+      } finally {
         onClose();
       }
     },
@@ -519,7 +537,7 @@ export function ContextMenu({
                   }}
                   onMouseEnter={() => !item.disabled && setHoveredItem(item.id)}
                   onMouseLeave={() => setHoveredItem(null)}
-                  onClick={(e) => handleItemClick(item, e)}
+                  onPointerUp={(e) => handleItemClick(item, e)}
                 >
                   <Flex
                     align="center"
