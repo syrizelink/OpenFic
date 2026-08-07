@@ -480,6 +480,9 @@
     "cut": "Cut",
     "copy": "Copy",
     "paste": "Paste",
+    "copyFailed": "Copy failed, check clipboard permission",
+    "pasteFailed": "Unable to read clipboard, check clipboard permission",
+    "pasteUnavailable": "Clipboard reading requires HTTPS, access the app over HTTPS",
     "addToConversation": "Add to Conversation",
     "addSelectedToConversation": "Add Selected Content to Conversation"
   },
