@@ -1,9 +1,9 @@
 import { Box } from "@radix-ui/themes";
 import { memo } from "react";
 
-import { StreamingMarkdown } from "@/components";
 import type { AgentMessage } from "@/lib/agent.types";
 
+import { AgentMarkdownContent } from "../../../agent-markdown-content";
 import { MessageCardShell } from "../../shared/message-shell";
 
 interface AgentOutputMessageProps {
@@ -15,7 +15,7 @@ function AgentOutputMessageView({ message }: AgentOutputMessageProps) {
     <MessageCardShell isStreaming={message.isStreaming || undefined}>
       {message.content ? (
         <Box className="agent-output-content">
-          <StreamingMarkdown
+          <AgentMarkdownContent
             content={message.content}
             isStreaming={message.isStreaming}
             className="agent-markdown-content"

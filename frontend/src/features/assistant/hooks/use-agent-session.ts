@@ -61,6 +61,10 @@ import {
   createPendingUserMessage,
 } from "../lib/pending-user-message-state";
 import { clearRetryMessages } from "../lib/retry-message-state";
+import {
+  createStreamingDeltaCoalescer,
+  isStreamingDeltaEvent,
+} from "../lib/streaming-delta-coalescer";
 import { applyTransportReconnectState } from "./agent-session-transport-state";
 import {
   cancelStreamingAgentMessages,
@@ -210,6 +214,8 @@ export function useAgentSession({
     return () => {
       socketUnsubscribeRef.current?.();
       socketUnsubscribeRef.current = null;
+      deltaCoalescerRef.current?.dispose();
+      deltaCoalescerRef.current = null;
     };
   }, []);
 
@@ -324,6 +330,34 @@ export function useAgentSession({
     setIsCompacting(nextIsCompacting);
   }, []);
 
+  const applyTranscriptEvent = useCallback(
+    (event: AgentEvent) => {
+      const result = applyAgentTranscriptEventToLiveState(transcriptStateRef.current, event, {
+        approvalPreviewFactory: createApprovalPreviewToolMessage,
+        defaultRunningStage: agentKey || AGENT_STAGE_TEXT.build,
+        fallbackAgent: agentKey || "build",
+        getStageTextForAgent: getStageTextForAgentKey,
+        getStageTextForStage: getStageTextForStageKey,
+        keepRunningOnCompleted: hasRunningAsyncSubagent,
+      });
+      commitTranscriptState(result.state);
+      return result;
+    },
+    [agentKey, commitTranscriptState],
+  );
+
+  const applyTranscriptEventRef = useRef(applyTranscriptEvent);
+  applyTranscriptEventRef.current = applyTranscriptEvent;
+
+  const deltaCoalescerRef = useRef<ReturnType<typeof createStreamingDeltaCoalescer> | null>(null);
+  if (deltaCoalescerRef.current === null) {
+    deltaCoalescerRef.current = createStreamingDeltaCoalescer((events) => {
+      for (const event of events) {
+        applyTranscriptEventRef.current(event);
+      }
+    });
+  }
+
   const handleEvent = useCallback(
     (event: AgentEvent) => {
       if (suppressSocketEventsAfterAbortRef.current && shouldSuppressAgentEventAfterAbort(event))
@@ -338,6 +372,12 @@ export function useAgentSession({
       ) {
         return;
       }
+
+      if (isStreamingDeltaEvent(event)) {
+        deltaCoalescerRef.current?.push(event);
+        return;
+      }
+      deltaCoalescerRef.current?.flush();
 
       if (event.type === "pending_message") {
         const action = typeof payload.action === "string" ? payload.action : "";
@@ -412,16 +452,7 @@ export function useAgentSession({
         return;
       }
 
-      const result = applyAgentTranscriptEventToLiveState(transcriptStateRef.current, event, {
-        approvalPreviewFactory: createApprovalPreviewToolMessage,
-        defaultRunningStage: agentKey || AGENT_STAGE_TEXT.build,
-        fallbackAgent: agentKey || "build",
-        getStageTextForAgent: getStageTextForAgentKey,
-        getStageTextForStage: getStageTextForStageKey,
-        keepRunningOnCompleted: hasRunningAsyncSubagent,
-      });
-
-      commitTranscriptState(result.state);
+      const result = applyTranscriptEvent(event);
 
       if (event.type === "compaction") {
         syncCompactingState(event.status === "running");
@@ -580,8 +611,7 @@ export function useAgentSession({
       }
     },
     [
-      agentKey,
-      commitTranscriptState,
+      applyTranscriptEvent,
       invalidateChapterQueries,
       invalidateCharacterQueries,
       invalidateNoteQueries,

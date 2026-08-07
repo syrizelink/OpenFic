@@ -8,6 +8,7 @@ import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { Check, Copy, GitFork, RotateCcw } from "lucide-react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Virtuoso } from "react-virtuoso";
 
 import { ConfirmDialog, toast } from "@/components";
 import type { AgentMessage as AgentMessageType } from "@/lib/agent.types";
@@ -33,11 +34,12 @@ import {
   getVisibleAgentMessageBlocks,
   type AgentRoundToolbarTarget,
 } from "./display/agent-message-blocks";
+import type { AgentMessageBlock } from "./display/agent-message-blocks";
 import { buildAgentDisplayItems } from "./display/agent-message-display-items";
-import { normalizeDisplayMessages } from "./display/display-message-normalization";
 
 import "./agent-message-blocks.css";
 
+import { normalizeDisplayMessages } from "./display/display-message-normalization";
 import type {
   AgentBlockDisplayMessage,
   BlockDisplayMessage,
@@ -45,6 +47,14 @@ import type {
 import { ExplorationMessage } from "./message-blocks/blocks/exploration/exploration-message";
 
 const COPY_FEEDBACK_MS = 1200;
+const MIN_BOTTOM_RESTORE_ATTEMPTS = 6;
+const MAX_BOTTOM_RESTORE_ATTEMPTS = 120;
+
+function estimateAgentBlockHeight(block: AgentMessageBlock): number {
+  if (block.type === "node") return 120;
+  if (block.type === "user") return 100;
+  return 120 + block.messages.length * 90;
+}
 
 function getTimestampParts(timestamp: number, timeZone?: string): Record<string, string> {
   const formatter = new Intl.DateTimeFormat("en-CA", {
@@ -157,6 +167,28 @@ const AgentBlockContent = memo(
     prev.onOpenMentionChapter === next.onOpenMentionChapter,
 );
 
+interface AgentMessagesFooterContext {
+  statusMessage: string;
+  showStatus: boolean;
+  bottomRef: React.RefObject<HTMLDivElement | null>;
+}
+
+const AgentMessagesFooter = memo(function AgentMessagesFooter({
+  context,
+}: {
+  context: AgentMessagesFooterContext;
+}) {
+  return (
+    <>
+      {context.showStatus ? <AgentStatusMessage content={context.statusMessage} /> : null}
+      <Box
+        ref={context.bottomRef}
+        className="agent-message-bottom-anchor"
+      />
+    </>
+  );
+});
+
 export function AgentMessages({
   messages,
   isRunning,
@@ -178,6 +210,7 @@ export function AgentMessages({
   const isRestoringLoadedSessionBottomRef = useRef(false);
   const pendingLoadedSessionRestoreKeyRef = useRef<string | null | undefined>(null);
   const restoreAttemptRef = useRef(0);
+  const lastRestoreScrollHeightRef = useRef(0);
   const resizeFrameRef = useRef<{ scrollHeight: number; clientHeight: number } | null>(null);
   const viewportMetricsRef = useRef<ScrollViewportMetrics | null>(null);
   const previousIsRunningRef = useRef(isRunning);
@@ -236,13 +269,22 @@ export function AgentMessages({
       const activeContainer = getScrollContainer();
       if (!(activeContainer instanceof HTMLElement)) return;
       restoreAttemptRef.current += 1;
+      const previousScrollHeight = lastRestoreScrollHeightRef.current;
       scrollContainerToBottom(activeContainer);
+      lastRestoreScrollHeightRef.current = activeContainer.scrollHeight;
       const isAtBottom = shouldFollowBottom({
         scrollHeight: activeContainer.scrollHeight,
         scrollTop: activeContainer.scrollTop,
         clientHeight: activeContainer.clientHeight,
       });
-      if (isAtBottom) {
+      const isStable = previousScrollHeight === activeContainer.scrollHeight;
+      const hasContent = activeContainer.scrollHeight > 0;
+      if (
+        isAtBottom &&
+        hasContent &&
+        restoreAttemptRef.current >= MIN_BOTTOM_RESTORE_ATTEMPTS &&
+        (isStable || restoreAttemptRef.current >= MAX_BOTTOM_RESTORE_ATTEMPTS)
+      ) {
         isRestoringLoadedSessionBottomRef.current = false;
         pendingLoadedSessionRestoreKeyRef.current = null;
         return;
@@ -253,10 +295,9 @@ export function AgentMessages({
   }, [getScrollContainer, scrollContainerToBottom, scrollToBottomKey]);
 
   useEffect(() => {
-    const sentinel = bottomRef.current;
-    const container = sentinel?.closest(".ai-sidebar-messages");
+    const container =
+      scrollContainerRef.current ?? contentRef.current?.closest(".ai-sidebar-messages");
     if (!(container instanceof HTMLElement)) return;
-    scrollContainerRef.current = container;
 
     const handleScroll = () => {
       const nextViewport = {
@@ -542,6 +583,149 @@ export function AgentMessages({
     );
   };
 
+  const renderBlock = (block: AgentMessageBlock) => {
+    const toolbarTarget = toolbarTargetByAnchorId.get(block.id);
+    if (block.type === "node") {
+      const message = block.messages[0];
+      if (!message || message.type !== "node_start") return null;
+      const nodeId = block.nodeId ?? message.id;
+      const isCollapsed = collapsedNodeIds.has(nodeId);
+      return (
+        <Box
+          className="agent-message-block-stack"
+          data-block-type="node"
+        >
+          <Box
+            className="agent-message-block"
+            data-block-type="node"
+          >
+            <AgentMessageRenderer
+              message={message}
+              nodeStartedAt={block.nodeStartedAt}
+              nodeEndedAt={block.nodeEndedAt}
+              nodeElapsedBaseMs={block.nodeElapsedBaseMs}
+              isNodeCollapsed={isCollapsed}
+              onToggleNode={() => toggleNodeCollapsed(nodeId)}
+              onOpenMentionChapter={onOpenMentionChapter}
+            />
+          </Box>
+          {toolbarTarget ? renderAgentRoundToolbar(toolbarTarget) : null}
+        </Box>
+      );
+    }
+
+    if (block.type === "user") {
+      const message = block.messages[0];
+      if (!message || message.type !== "user_request") return null;
+      const canShowRollback = isRollbackableUserMessage(message) && !isRollbacking && !isRunning;
+      const copyActionId = `copy:${block.id}`;
+      const isCopied = copiedActionId === copyActionId;
+      const timestampText = formatAgentToolbarTimestamp(message.timestamp);
+      return (
+        <Box
+          className="agent-message-block"
+          data-block-type="user"
+        >
+          <AgentMessageRenderer
+            message={message}
+            onOpenMentionChapter={onOpenMentionChapter}
+          />
+          <Flex
+            className="agent-message-block-toolbar"
+            data-align="right"
+            align="center"
+            gap="1"
+          >
+            {timestampText ? (
+              <Text
+                size="1"
+                className="agent-message-block-toolbar-timestamp"
+              >
+                {timestampText}
+              </Text>
+            ) : null}
+            <Tooltip content={isCopied ? t("common.copied") : t("common.copy")}>
+              <IconButton
+                size="1"
+                variant="ghost"
+                color={isCopied ? "green" : "gray"}
+                aria-label={
+                  isCopied ? t("assistant.userMessageCopied") : t("assistant.copyUserMessage")
+                }
+                className="agent-message-block-toolbar-button"
+                data-copied={isCopied ? "true" : undefined}
+                onClick={() =>
+                  copyText(message.content ?? "", t("assistant.noUserMessageToCopy"), copyActionId)
+                }
+              >
+                {isCopied ? <Check size={13} /> : <Copy size={13} />}
+              </IconButton>
+            </Tooltip>
+            {canShowRollback && (
+              <Tooltip content={t("assistant.rollbackToHere")}>
+                <IconButton
+                  size="1"
+                  variant="ghost"
+                  color="gray"
+                  aria-label={t("assistant.rollbackToHere")}
+                  className="agent-message-block-toolbar-button"
+                  onClick={() => setPendingRollbackMessage(message)}
+                >
+                  <RotateCcw size={13} />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Flex>
+        </Box>
+      );
+    }
+
+    return (
+      <Box
+        className="agent-message-block-stack"
+        data-block-type="agent"
+      >
+        <Box
+          className="agent-message-block"
+          data-block-type="agent"
+        >
+          <AgentBlockContent
+            messages={block.messages}
+            onOpenMentionChapter={onOpenMentionChapter}
+          />
+        </Box>
+        {toolbarTarget ? renderAgentRoundToolbar(toolbarTarget) : null}
+      </Box>
+    );
+  };
+
+  const [scrollParent, setScrollParent] = useState<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    const container = contentRef.current?.closest(".ai-sidebar-messages");
+    if (!(container instanceof HTMLElement)) return;
+    scrollContainerRef.current = container;
+    setScrollParent(container);
+    if (isRestoringLoadedSessionBottomRef.current) {
+      scheduleLoadedSessionBottomRestore();
+    }
+  }, [scheduleLoadedSessionBottomRestore]);
+
+  const heightEstimates = useMemo(
+    () => visibleMessageBlocks.map(estimateAgentBlockHeight),
+    [visibleMessageBlocks],
+  );
+
+  const footerContext = useMemo<AgentMessagesFooterContext>(
+    () => ({
+      statusMessage,
+      showStatus:
+        (status === "running" || status === "waiting_answer" || status === "waiting_approval") &&
+        Boolean(statusMessage),
+      bottomRef,
+    }),
+    [status, statusMessage],
+  );
+
   return (
     <Box
       className="agent-messages-root"
@@ -551,136 +735,18 @@ export function AgentMessages({
         ref={contentRef}
         className="agent-message-scroll-content"
       >
-        {visibleMessageBlocks.map((block) => {
-          const toolbarTarget = toolbarTargetByAnchorId.get(block.id);
-          if (block.type === "node") {
-            const message = block.messages[0];
-            if (!message || message.type !== "node_start") return null;
-            const nodeId = block.nodeId ?? message.id;
-            const isCollapsed = collapsedNodeIds.has(nodeId);
-            return (
-              <Box
-                key={block.id}
-                className="agent-message-block-stack"
-                data-block-type="node"
-              >
-                <Box
-                  className="agent-message-block"
-                  data-block-type="node"
-                >
-                  <AgentMessageRenderer
-                    message={message}
-                    nodeStartedAt={block.nodeStartedAt}
-                    nodeEndedAt={block.nodeEndedAt}
-                    nodeElapsedBaseMs={block.nodeElapsedBaseMs}
-                    isNodeCollapsed={isCollapsed}
-                    onToggleNode={() => toggleNodeCollapsed(nodeId)}
-                    onOpenMentionChapter={onOpenMentionChapter}
-                  />
-                </Box>
-                {toolbarTarget ? renderAgentRoundToolbar(toolbarTarget) : null}
-              </Box>
-            );
-          }
-
-          if (block.type === "user") {
-            const message = block.messages[0];
-            if (!message || message.type !== "user_request") return null;
-            const canShowRollback =
-              isRollbackableUserMessage(message) && !isRollbacking && !isRunning;
-            const copyActionId = `copy:${block.id}`;
-            const isCopied = copiedActionId === copyActionId;
-            const timestampText = formatAgentToolbarTimestamp(message.timestamp);
-            return (
-              <Box
-                key={block.id}
-                className="agent-message-block"
-                data-block-type="user"
-              >
-                <AgentMessageRenderer
-                  message={message}
-                  onOpenMentionChapter={onOpenMentionChapter}
-                />
-                <Flex
-                  className="agent-message-block-toolbar"
-                  data-align="right"
-                  align="center"
-                  gap="1"
-                >
-                  {timestampText ? (
-                    <Text
-                      size="1"
-                      className="agent-message-block-toolbar-timestamp"
-                    >
-                      {timestampText}
-                    </Text>
-                  ) : null}
-                  <Tooltip content={isCopied ? t("common.copied") : t("common.copy")}>
-                    <IconButton
-                      size="1"
-                      variant="ghost"
-                      color={isCopied ? "green" : "gray"}
-                      aria-label={
-                        isCopied ? t("assistant.userMessageCopied") : t("assistant.copyUserMessage")
-                      }
-                      className="agent-message-block-toolbar-button"
-                      data-copied={isCopied ? "true" : undefined}
-                      onClick={() =>
-                        copyText(
-                          message.content ?? "",
-                          t("assistant.noUserMessageToCopy"),
-                          copyActionId,
-                        )
-                      }
-                    >
-                      {isCopied ? <Check size={13} /> : <Copy size={13} />}
-                    </IconButton>
-                  </Tooltip>
-                  {canShowRollback && (
-                    <Tooltip content={t("assistant.rollbackToHere")}>
-                      <IconButton
-                        size="1"
-                        variant="ghost"
-                        color="gray"
-                        aria-label={t("assistant.rollbackToHere")}
-                        className="agent-message-block-toolbar-button"
-                        onClick={() => setPendingRollbackMessage(message)}
-                      >
-                        <RotateCcw size={13} />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                </Flex>
-              </Box>
-            );
-          }
-
-          return (
-            <Box
-              key={block.id}
-              className="agent-message-block-stack"
-              data-block-type="agent"
-            >
-              <Box
-                className="agent-message-block"
-                data-block-type="agent"
-              >
-                <AgentBlockContent
-                  messages={block.messages}
-                  onOpenMentionChapter={onOpenMentionChapter}
-                />
-              </Box>
-              {toolbarTarget ? renderAgentRoundToolbar(toolbarTarget) : null}
-            </Box>
-          );
-        })}
-
-        {(status === "running" || status === "waiting_answer" || status === "waiting_approval") &&
-          statusMessage && <AgentStatusMessage content={statusMessage} />}
-        <Box
-          ref={bottomRef}
-          className="agent-message-bottom-anchor"
-        />
+        {scrollParent ? (
+          <Virtuoso
+            customScrollParent={scrollParent}
+            data={visibleMessageBlocks}
+            computeItemKey={(_index, block) => block.id}
+            itemContent={(_index, block) => renderBlock(block)}
+            heightEstimates={heightEstimates}
+            increaseViewportBy={{ top: 600, bottom: 600 }}
+            context={footerContext}
+            components={{ Footer: AgentMessagesFooter }}
+          />
+        ) : null}
       </Box>
       <ConfirmDialog
         open={Boolean(pendingRollbackMessage)}

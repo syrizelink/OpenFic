@@ -3,10 +3,10 @@ import { Brain } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { StreamingMarkdown } from "@/components";
 import type { AgentMessage } from "@/lib/agent.types";
 
 import { getReasoningDurationMs } from "../../../../../lib/streaming-message-merge";
+import { AgentMarkdownContent } from "../../../agent-markdown-content";
 import { formatElapsedDuration } from "../../shared/message-duration";
 import {
   MessageBlockContent,
@@ -128,7 +128,7 @@ export function AgentThinkingMessage({ message }: AgentThinkingMessageProps) {
       >
         <Box className="agent-tool-body agent-reasoning-body">
           <Box className="agent-tool-block-content agent-reasoning-content">
-            <StreamingMarkdown
+            <AgentMarkdownContent
               content={content}
               isStreaming={isRunning}
               className="agent-markdown-content"

@@ -1,0 +1,10 @@
+.virtualized-markdown {
+  position: relative;
+  width: 100%;
+}
+
+.virtualized-markdown-block {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
