@@ -311,7 +311,7 @@ jobs:
             local app_pid=$!
             app_pids+=("$app_pid")
             local window_visible=false
-            for _ in {1..10}; do
+            for _ in {1..30}; do
               if ! kill -0 "$app_pid" 2>/dev/null; then
                 local exit_code=0
                 wait "$app_pid" || exit_code=$?
