@@ -69,9 +69,10 @@
 
 .active-subagent-panel-list {
   margin: 0;
+  max-height: calc(5 * 30px + 4px);
   padding: 0;
   list-style: none;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .active-subagent-panel-list-item + .active-subagent-panel-list-item {

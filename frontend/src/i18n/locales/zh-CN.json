@@ -348,7 +348,7 @@
       "unfavorite": "取消收藏",
       "taskRunning": "会话运行中",
       "activeSubagents": "活跃子代理",
-      "activeSubagentsCount": "{{count}}个活跃的智能体",
+      "activeSubagentsCount": "{{count}} 个活跃的智能体",
       "returnToPrimary": "返回主会话",
       "subagentReadOnly": "子智能体会话是只读的，如需继续交互请",
       "subagentInactive": "已结束",
