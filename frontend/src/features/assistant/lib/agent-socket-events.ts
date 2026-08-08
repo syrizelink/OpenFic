@@ -475,6 +475,9 @@ export function toAgentEvent(
         payload: {
           action_id: actionId,
           questions: Array.isArray(data.questions) ? data.questions : [],
+          batch_id: getString(data.batch_id),
+          batch_index: typeof data.batch_index === "number" ? data.batch_index : undefined,
+          batch_total: typeof data.batch_total === "number" ? data.batch_total : undefined,
         },
       };
     }
@@ -507,6 +510,9 @@ export function toAgentEvent(
         message:
           getString(data.message) || i18n.t("assistant.tools.toolApprovalQuestion", { toolName }),
         interrupt_behavior: data.interrupt_behavior === "cancel" ? "cancel" : "block",
+        batch_id: getString(data.batch_id),
+        batch_index: typeof data.batch_index === "number" ? data.batch_index : undefined,
+        batch_total: typeof data.batch_total === "number" ? data.batch_total : undefined,
         payload: {
           approval_id: approvalId,
           tool_name: toolName,
@@ -516,6 +522,9 @@ export function toAgentEvent(
           message:
             getString(data.message) || i18n.t("assistant.tools.toolApprovalQuestion", { toolName }),
           interrupt_behavior: data.interrupt_behavior === "cancel" ? "cancel" : "block",
+          batch_id: getString(data.batch_id),
+          batch_index: typeof data.batch_index === "number" ? data.batch_index : undefined,
+          batch_total: typeof data.batch_total === "number" ? data.batch_total : undefined,
         },
       };
     }

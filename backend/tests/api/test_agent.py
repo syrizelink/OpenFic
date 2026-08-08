@@ -2622,6 +2622,46 @@ class TestAgentAPI:
                 "answer": [{"question": "风格选择", "answer": "正式"}],
             })
 
+    async def test_submit_interrupt_batch_launches_single_resume(self, client: AsyncClient) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={
+                "project_id": target["project_id"],
+                "model_id": target["model_id"],
+                "max_iterations": 5,
+            },
+        )
+        session_id = session_response.json()["session_id"]
+        responses = [
+            {
+                "interrupt_id": "approval-1",
+                "action_type": "tool_approval",
+                "approval_id": "approval-1",
+                "approved": True,
+            },
+            {
+                "interrupt_id": "question-1",
+                "action_type": "clarification",
+                "action_id": "question-1",
+                "answer": [{"question": "风格", "answer": "正式"}],
+            },
+        ]
+
+        with patch(
+            "app.api.routers.agent_runtime.SessionRunner.resume_interrupt_batch",
+            new=AsyncMock(return_value=None),
+        ) as mock_resume:
+            response = await client.post(
+                f"/api/v1/agent/sessions/{session_id}/interrupt-resume",
+                json={"batch_id": "batch-1", "responses": responses},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["success"] is True
+        await asyncio.sleep(0.05)
+        mock_resume.assert_awaited_once_with("batch-1", responses)
+
     async def test_rollback_session_uses_revision_id_and_restores_data(
         self,
         client: AsyncClient,

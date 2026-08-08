@@ -8,6 +8,7 @@ factory to get its own loop instance.
 from __future__ import annotations
 
 import asyncio
+import copy
 import inspect
 import json
 import time
@@ -27,7 +28,7 @@ from langchain_core.tools import BaseTool
 from langgraph._internal._constants import CONF
 from langgraph.errors import GraphInterrupt
 from langgraph.graph import END, START, StateGraph
-from langgraph.types import RetryPolicy
+from langgraph.types import Overwrite, RetryPolicy, Send
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.content_blocks import extract_text_content
@@ -78,12 +79,18 @@ def _add_messages(
     return left + right
 
 
-class ReactState(TypedDict):
+class ReactState(TypedDict, total=False):
     messages: Annotated[list[BaseMessage], _add_messages]
     iteration_count: int
     is_done: bool
     final_output: Any
-    tool_call_cursor: int
+    tool_index: int
+    tool_call: ToolCall
+    tool_batch_offset: int
+    tool_dispatch_denied: bool
+    tool_phase: Literal["prepare", "execute"]
+    tool_outcomes: Annotated[list[dict[str, Any]], _add_messages]
+    tool_prepared_outcomes: Annotated[list[dict[str, Any]], _add_messages]
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +139,7 @@ async def _invoke_model(
 # 节点级重试已禁用：超时与重试统一由模型调用层（invoke_model_with_retry）处理，
 # 避免双层重试叠加。保留常量名以便测试禁用兜底重试。
 LLM_RETRY_POLICY = RetryPolicy(max_attempts=1)
+TOOL_BATCH_SIZE = 10
 
 
 def _get_configurable(config: RunnableConfig | None) -> dict[str, Any]:
@@ -377,6 +385,22 @@ def _clone_agent_tool_for_dispatch(tool_instance: BaseTool) -> BaseTool:
         hasattr(tool_instance, attr) for attr in ("_state", "_pre_hooks", "_post_hooks")
     ):
         return tool_instance
+    try:
+        cloned = copy.copy(tool_instance)
+        runtime_state = getattr(tool_instance, "runtime_state", None)
+        pre_hooks = getattr(tool_instance, "pre_hooks", None)
+        post_hooks = getattr(tool_instance, "post_hooks", None)
+        if isinstance(runtime_state, dict):
+            object.__setattr__(cloned, "runtime_state", dict(runtime_state))
+        if isinstance(pre_hooks, list):
+            object.__setattr__(cloned, "pre_hooks", list(pre_hooks))
+        if isinstance(post_hooks, list):
+            object.__setattr__(cloned, "post_hooks", list(post_hooks))
+        object.__setattr__(cloned, "_config", None)
+        object.__setattr__(cloned, "_tool_call_id", None)
+        return cloned
+    except Exception:
+        pass
     try:
         return tool_instance.__class__(
             _state=getattr(tool_instance, "_state", {}) or {},
@@ -795,17 +819,280 @@ def create_react_agent(
         update: dict[str, Any] = {
             "messages": [response],
             "iteration_count": state["iteration_count"] + 1,
-            "tool_call_cursor": 0,
+            "tool_outcomes": Overwrite([]),
+            "tool_prepared_outcomes": Overwrite([]),
+            "tool_phase": "prepare",
         }
         if drained_injected_user_message:
             update["is_done"] = False
             update["final_output"] = None
         return update
 
-    async def tools_exec(
+    async def tool_exec(
         state: ReactState, config: Optional[RunnableConfig] = None
     ) -> dict:
-        """Execute tool calls from the last AI message."""
+        """Execute one tool call in an isolated fan-out branch."""
+        tool_call = state.get("tool_call")
+        if not isinstance(tool_call, dict):
+            return {"tool_outcomes": []}
+
+        tool_name = str(tool_call.get("name") or "")
+        tool_args = tool_call.get("args")
+        tool_args = tool_args if isinstance(tool_args, dict) else {}
+        tool_id = str(tool_call.get("id") or "")
+        tool_index = int(state.get("tool_index") or 0)
+        started_at = time.perf_counter()
+        phase = state.get("tool_phase") or "execute"
+        source_outcomes = (
+            state.get("tool_prepared_outcomes", [])
+            if phase == "execute"
+            else []
+        )
+        prepared_outcome = next(
+            (
+                outcome
+                for outcome in source_outcomes
+                if outcome.get("tool_call_id") == tool_id
+            ),
+            None,
+        )
+
+        def outcome_update(outcome: dict[str, Any]) -> dict[str, Any]:
+            key = "tool_prepared_outcomes" if phase == "prepare" else "tool_outcomes"
+            return {key: [outcome]}
+
+        if state.get("tool_dispatch_denied"):
+            payload = {
+                "error": "dispatch_subagent allows at most 10 dispatches per PA turn"
+            }
+            result = json.dumps(payload, ensure_ascii=False)
+            return outcome_update(
+                {
+                        "index": tool_index,
+                        "tool_call_id": tool_id,
+                        "tool_name": tool_name,
+                        "tool_args": tool_args,
+                        "message": ToolMessage(
+                            content=result,
+                            tool_call_id=tool_id,
+                            name=tool_name,
+                        ),
+                        "payload": payload,
+                        "success": False,
+                        "latency_ms": int((time.perf_counter() - started_at) * 1000),
+                }
+            )
+
+        if is_malformed_tool_call(tool_call):
+            payload = build_malformed_tool_call_error(tool_call)
+            result = json.dumps(payload, ensure_ascii=False)
+            return outcome_update(
+                {
+                        "index": tool_index,
+                        "tool_call_id": tool_id,
+                        "tool_name": tool_name,
+                        "tool_args": tool_args,
+                        "message": ToolMessage(
+                            content=result,
+                            tool_call_id=tool_id,
+                            name=tool_name,
+                        ),
+                        "payload": payload,
+                        "success": False,
+                        "latency_ms": int((time.perf_counter() - started_at) * 1000),
+                }
+            )
+
+        tool_instance = tool_map.get(tool_name)
+        if tool_instance is None:
+            payload = {"error": f"tool '{tool_name}' not found."}
+            result = f"Error: tool '{tool_name}' not found."
+            return outcome_update(
+                {
+                        "index": tool_index,
+                        "tool_call_id": tool_id,
+                        "tool_name": tool_name,
+                        "tool_args": tool_args,
+                        "message": ToolMessage(
+                            content=result,
+                            tool_call_id=tool_id,
+                            name=tool_name,
+                        ),
+                        "payload": payload,
+                        "success": False,
+                        "latency_ms": int((time.perf_counter() - started_at) * 1000),
+                }
+            )
+
+        if phase == "prepare" and not getattr(tool_instance, "_pre_hooks", []):
+            payload = {"__openfic_prepared": True}
+            result = json.dumps(payload)
+            return outcome_update(
+                {
+                    "index": tool_index,
+                    "tool_call_id": tool_id,
+                    "tool_name": tool_name,
+                    "tool_args": tool_args,
+                    "message": ToolMessage(
+                        content=result,
+                        tool_call_id=tool_id,
+                        name=tool_name,
+                    ),
+                    "payload": payload,
+                    "success": True,
+                    "latency_ms": int((time.perf_counter() - started_at) * 1000),
+                }
+            )
+
+        if (
+            phase == "execute"
+            and prepared_outcome is not None
+            and (
+                getattr(tool_instance, "execute_during_prepare", False)
+                or not bool(prepared_outcome.get("success"))
+            )
+        ):
+            return {"tool_outcomes": [prepared_outcome]}
+
+        tool_instance = _clone_agent_tool_for_dispatch(tool_instance)
+        isolated_config, isolated_session = await _isolate_tool_config(config)
+        try:
+            invoke_config = dict(isolated_config or {})
+            metadata = dict(invoke_config.get("metadata") or {})
+            metadata["tool_call_id"] = tool_id
+            metadata["tool_call"] = tool_call
+            metadata["openfic_phase"] = phase
+            if phase == "execute":
+                metadata["openfic_skip_pre_hooks"] = True
+            invoke_config["metadata"] = metadata
+            if phase == "prepare" and not getattr(
+                tool_instance, "emit_prepare_events", False
+            ):
+                if hasattr(tool_instance, "_pre_hooks"):
+                    result = await tool_instance._arun(
+                        config=cast(RunnableConfig, invoke_config),
+                        **tool_args,
+                    )
+                else:
+                    result = json.dumps({"__openfic_prepared": True})
+            else:
+                result = await _invoke_tool(
+                    tool_instance,
+                    tool_args,
+                    tool_call,
+                    cast(RunnableConfig, invoke_config),
+                )
+        except GraphInterrupt as interrupt:
+            preview_builder = getattr(tool_instance, "build_interrupt_preview", None)
+            if callable(preview_builder) and interrupt.args and interrupt.args[0]:
+                interrupt_value = interrupt.args[0][0].value
+                if isinstance(interrupt_value, dict):
+                    preview = await preview_builder(tool_args)
+                    if isinstance(preview, dict):
+                        interrupt_value["tool_result_preview"] = preview
+                        interrupt_value.setdefault("tool_call_id", tool_id)
+                        interrupt_value.setdefault("tool_name", tool_name)
+                        interrupt_value.setdefault("args", tool_args)
+                        interrupt_value.setdefault("tool_index", tool_index)
+            await _finish_active_audit()
+            raise
+        except Exception as exc:
+            if active_audit is not None:
+                _record_audit_error(active_audit, exc)
+            await _finish_active_audit(status="error")
+            raise
+        finally:
+            if isolated_session is not None:
+                await _close_maybe(isolated_session)
+
+        payload, success = _tool_result_payload(result)
+        if phase == "prepare" and not getattr(
+            tool_instance, "execute_during_prepare", False
+        ):
+            if not success:
+                prepared_payload = payload
+                prepared_result = result
+            else:
+                prepared_payload = {"__openfic_prepared": True}
+                prepared_result = json.dumps(prepared_payload)
+            payload = prepared_payload
+            result = prepared_result
+        outcome = {
+                    "index": tool_index,
+                    "tool_call_id": tool_id,
+                    "tool_name": tool_name,
+                    "tool_args": tool_args,
+                    "message": ToolMessage(
+                        content=str(result),
+                        tool_call_id=tool_id,
+                        name=tool_name,
+                    ),
+                    "payload": payload,
+                    "success": success,
+                    "latency_ms": int((time.perf_counter() - started_at) * 1000),
+                }
+        if phase == "prepare" and not success:
+            return outcome_update(outcome)
+        return outcome_update(outcome)
+
+    async def tools_join(
+        state: ReactState, _config: Optional[RunnableConfig] = None
+    ) -> dict:
+        """Join parallel tool results and restore model call order."""
+        outcomes = sorted(
+            state.get("tool_outcomes", []), key=lambda outcome: outcome["index"]
+        )
+        if state.get("tool_phase") == "prepare":
+            return {
+                "tool_outcomes": Overwrite([]),
+                "tool_phase": "execute",
+            }
+        messages = [outcome["message"] for outcome in outcomes]
+        is_done = False
+        final_output = None
+        for outcome in outcomes:
+            tool_name = outcome["tool_name"]
+            success = bool(outcome["success"])
+            if (
+                not is_done
+                and termination.mode == "tool_success"
+                and termination.tool_name == tool_name
+                and success
+            ):
+                is_done = True
+                final_output = outcome["tool_args"]
+            if active_audit is not None:
+                active_audit.record_tool_call(
+                    tool_name=tool_name,
+                    tool_args=outcome["tool_args"],
+                    tool_result=outcome["payload"],
+                    success=success,
+                    latency_ms=outcome["latency_ms"],
+                )
+
+        await _finish_active_audit()
+        update: dict[str, Any] = {
+            "messages": messages,
+            "tool_outcomes": Overwrite([]),
+            "tool_prepared_outcomes": Overwrite([]),
+            "tool_phase": "prepare",
+        }
+        if is_done:
+            update["is_done"] = True
+            update["final_output"] = final_output
+        return update
+
+    # ------------------------------------------------------------------
+    # Routing
+    # ------------------------------------------------------------------
+
+    async def dispatch_tools(
+        state: ReactState, config: Optional[RunnableConfig] = None
+    ) -> dict:
+        del state, config
+        return {}
+
+    def route_tool_batch(state: ReactState) -> list[Send]:
         last_message = next(
             (
                 message
@@ -815,169 +1102,49 @@ def create_react_agent(
             None,
         )
         if last_message is None:
-            return {"messages": [], "tool_call_cursor": 0}
-        tool_calls: list[ToolCall] = list(last_message.tool_calls)
-        cursor = state.get("tool_call_cursor", 0)
-        if cursor >= len(tool_calls):
-            return {"messages": [], "tool_call_cursor": 0}
-        new_messages: list[BaseMessage] = []
-        is_done = False
-        final_output = None
-        audit_finished = False
-        dispatch_tool = tool_map.get("dispatch_subagent")
-        dispatch_state = getattr(dispatch_tool, "_state", None)
-        if isinstance(dispatch_state, dict):
-            dispatch_state["_dispatch_subagent_count"] = 0
+            return []
+        if len(last_message.tool_calls) > TOOL_BATCH_SIZE:
+            raise RuntimeError(
+                f"Agent 单轮最多调用 {TOOL_BATCH_SIZE} 个工具，实际收到 "
+                f"{len(last_message.tool_calls)} 个"
+            )
 
-        async def execute_one(tc: ToolCall) -> dict[str, Any]:
-            tool_name = tc["name"]
-            tool_args = tc["args"]
-            tool_id = tc["id"]
-            started_at = time.perf_counter()
-            tool_result_payload: dict[str, Any] = {}
-            tool_success = False
-            message: ToolMessage
-            if is_malformed_tool_call(tc):
-                tool_result_payload = build_malformed_tool_call_error(tc)
-                message = ToolMessage(
-                    content=json.dumps(tool_result_payload, ensure_ascii=False),
-                    tool_call_id=tool_id,
-                    name=tool_name,
+        dispatch_count = 0
+        sends: list[Send] = []
+        for slot in range(TOOL_BATCH_SIZE):
+            index = slot
+            tool_call = (
+                last_message.tool_calls[index]
+                if index < len(last_message.tool_calls)
+                else None
+            )
+            denied = False
+            if tool_call is not None and tool_call["name"] == "dispatch_subagent":
+                denied = dispatch_count >= 10
+                dispatch_count += 1
+            sends.append(
+                Send(
+                    f"tool_exec_{slot}",
+                    {
+                        "tool_index": index,
+                        "tool_call": tool_call,
+                        "tool_dispatch_denied": denied,
+                        "tool_phase": state.get("tool_phase", "prepare"),
+                        "tool_prepared_outcomes": state.get(
+                            "tool_prepared_outcomes", []
+                        ),
+                    },
                 )
-                return {
-                    "tool_name": tool_name,
-                    "tool_args": tool_args,
-                    "message": message,
-                    "payload": tool_result_payload,
-                    "success": False,
-                    "latency_ms": int((time.perf_counter() - started_at) * 1000),
-                }
-
-            tool_instance = tool_map.get(tool_name)
-            if tool_instance:
-                result = await _invoke_tool(tool_instance, tool_args, tc, config)
-                tool_result_payload, tool_success = _tool_result_payload(result)
-                message = ToolMessage(content=str(result), tool_call_id=tool_id)
-            else:
-                tool_result_payload = {"error": f"tool '{tool_name}' not found."}
-                message = ToolMessage(
-                    content=f"Error: tool '{tool_name}' not found.",
-                    tool_call_id=tool_id,
-                )
-            return {
-                "tool_name": tool_name,
-                "tool_args": tool_args,
-                "message": message,
-                "payload": tool_result_payload,
-                "success": tool_success,
-                "latency_ms": int((time.perf_counter() - started_at) * 1000),
-            }
-
-        async def build_pending_previews(
-            tool_calls: list[ToolCall],
-        ) -> list[dict[str, Any]]:
-            previews: list[dict[str, Any]] = []
-            for tool_call in tool_calls:
-                tool_instance = tool_map.get(tool_call["name"])
-                if not isinstance(tool_instance, BaseTool):
-                    continue
-                preview_builder = getattr(
-                    tool_instance, "build_interrupt_preview", None
-                )
-                if not callable(preview_builder):
-                    continue
-                tool_instance = _clone_agent_tool_for_dispatch(tool_instance)
-                invoke_config, isolated_session = await _isolate_tool_config(config)
-                try:
-                    object.__setattr__(tool_instance, "_config", invoke_config)
-                    preview_builder = getattr(
-                        tool_instance, "build_interrupt_preview", None
-                    )
-                    preview = (
-                        await preview_builder(tool_call["args"])
-                        if callable(preview_builder)
-                        else None
-                    )
-                finally:
-                    if isolated_session is not None:
-                        await _close_maybe(isolated_session)
-                if isinstance(preview, dict):
-                    previews.append(
-                        {
-                            "tool_call_id": tool_call["id"],
-                            "tool_name": tool_call["name"],
-                            "args": tool_call["args"],
-                            "preview": preview,
-                        }
-                    )
-            return previews
-
-        async def record_outcome(outcome: dict[str, Any]) -> None:
-            nonlocal is_done, final_output
-            new_messages.append(outcome["message"])
-            tool_name = outcome["tool_name"]
-            tool_success = bool(outcome["success"])
-            if (
-                termination.mode == "tool_success"
-                and termination.tool_name == tool_name
-                and tool_success
-            ):
-                is_done = True
-                final_output = outcome["tool_args"]
-            if active_audit is not None:
-                active_audit.record_tool_call(
-                    tool_name=tool_name,
-                    tool_args=outcome["tool_args"],
-                    tool_result=outcome["payload"],
-                    success=tool_success,
-                    latency_ms=outcome["latency_ms"],
-                )
-
-        try:
-            try:
-                await record_outcome(await execute_one(tool_calls[cursor]))
-            except GraphInterrupt as interrupt:
-                if cursor == 0:
-                    previews = await build_pending_previews(tool_calls)
-                    if previews and interrupt.args and interrupt.args[0]:
-                        interrupt_value = interrupt.args[0][0].value
-                        if isinstance(interrupt_value, dict):
-                            interrupt_value["tool_result_previews"] = previews
-                raise
-
-            update: dict[str, Any] = {
-                "messages": new_messages,
-                "tool_call_cursor": cursor + 1,
-            }
-            if is_done:
-                update["is_done"] = True
-                update["final_output"] = final_output
-            await _finish_active_audit()
-            audit_finished = True
-            return update
-        except GraphInterrupt:
-            raise
-        except Exception as exc:
-            if active_audit is not None:
-                _record_audit_error(active_audit, exc)
-            await _finish_active_audit(status="error")
-            audit_finished = True
-            raise
-        finally:
-            if not audit_finished:
-                await _finish_active_audit()
-
-    # ------------------------------------------------------------------
-    # Routing
-    # ------------------------------------------------------------------
+            )
+        return sends
 
     async def route_after_llm(
         state: ReactState,
-    ) -> Literal["llm_call", "tools_exec", "__end__"]:
+    ) -> Literal["dispatch_tools", "llm_call", "__end__"]:
         """Route after LLM call."""
         last_message = state["messages"][-1]
         if hasattr(last_message, "tool_calls") and last_message.tool_calls:
-            return "tools_exec"
+            return "dispatch_tools"
 
         if inject_queue is not None and not inject_queue.empty():
             return "llm_call"
@@ -995,22 +1162,14 @@ def create_react_agent(
 
     async def route_after_tools(
         state: ReactState,
-    ) -> Literal["tools_exec", "llm_call", "__end__"]:
-        last_message = next(
-            (
-                message
-                for message in reversed(state["messages"])
-                if isinstance(message, AIMessage) and message.tool_calls
-            ),
-            None,
-        )
-        if last_message is not None and state.get("tool_call_cursor", 0) < len(
-            last_message.tool_calls
-        ):
-            return "tools_exec"
+    ) -> Literal["dispatch_tools", "llm_call", "__end__"]:
+        if state.get("tool_phase") == "execute":
+            return "dispatch_tools"
         if inject_queue is not None and not inject_queue.empty():
             return "llm_call"
-        if state.get("is_done"):
+        if state.get("is_done") and inject_queue is None:
+            return "__end__"
+        if state.get("is_done") and inject_queue is not None and inject_queue.empty():
             return "__end__"
         if state["iteration_count"] >= max_iterations:
             return "__end__"
@@ -1027,18 +1186,34 @@ def create_react_agent(
         llm_call,
         retry_policy=LLM_RETRY_POLICY,
     )
-    graph.add_node("tools_exec", tools_exec)
+    graph.add_node("dispatch_tools", dispatch_tools)
+    for slot in range(TOOL_BATCH_SIZE):
+        graph.add_node(f"tool_exec_{slot}", tool_exec)
+    graph.add_node("tools_join", tools_join)
 
     graph.add_edge(START, "llm_call")
     graph.add_conditional_edges(
         "llm_call",
         route_after_llm,
-        {"llm_call": "llm_call", "tools_exec": "tools_exec", "__end__": END},
+        {
+            "llm_call": "llm_call",
+            "dispatch_tools": "dispatch_tools",
+            "__end__": END,
+        },
+    )
+    graph.add_conditional_edges("dispatch_tools", route_tool_batch)
+    graph.add_edge(
+        [f"tool_exec_{slot}" for slot in range(TOOL_BATCH_SIZE)],
+        "tools_join",
     )
     graph.add_conditional_edges(
-        "tools_exec",
+        "tools_join",
         route_after_tools,
-        {"tools_exec": "tools_exec", "llm_call": "llm_call", "__end__": END},
+        {
+            "llm_call": "llm_call",
+            "dispatch_tools": "dispatch_tools",
+            "__end__": END,
+        },
     )
 
     compiled = graph.compile(checkpointer=checkpointer)
@@ -1049,6 +1224,20 @@ def create_react_agent(
     async def _wrapped_ainvoke(*args, **kwargs):
         result = await _original_ainvoke(*args, **kwargs)
         if "__interrupt__" in result:
+            outcomes = sorted(
+                result.get("tool_outcomes", []),
+                key=lambda outcome: outcome["index"],
+            )
+            if active_audit is not None:
+                for outcome in outcomes:
+                    active_audit.record_tool_call(
+                        tool_name=outcome["tool_name"],
+                        tool_args=outcome["tool_args"],
+                        tool_result=outcome["payload"],
+                        success=bool(outcome["success"]),
+                        latency_ms=outcome["latency_ms"],
+                    )
+                await _finish_active_audit()
             return result
         if termination.mode == "tool_success" and not result.get("is_done"):
             expected_tool = termination.tool_name or "the configured termination tool"

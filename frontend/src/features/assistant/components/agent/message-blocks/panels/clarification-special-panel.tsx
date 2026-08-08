@@ -3,6 +3,7 @@ import { HelpCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { AgentQuestionSpecialPanel } from "../../agent-special-panels-state";
+import type { AgentSpecialPanel } from "../../agent-special-panels-state";
 import {
   getClarificationPromptKey,
   type ClarificationAnswerItem,
@@ -18,40 +19,62 @@ import { SpecialPanelShell } from "./special-panel-shell";
 interface ClarificationSpecialPanelProps {
   panel: AgentQuestionSpecialPanel;
   onSubmitQuestionAnswer?: (actionId: string, answer: ClarificationAnswerItem[]) => void;
+  onBatchDecision?: (
+    panel: AgentSpecialPanel,
+    decision: { answer: ClarificationAnswerItem[] },
+  ) => void;
   readOnly?: boolean;
 }
 
 export function ClarificationSpecialPanel({
   panel,
   onSubmitQuestionAnswer,
+  onBatchDecision,
   readOnly = false,
 }: ClarificationSpecialPanelProps) {
   return (
     <ClarificationSpecialPanelContent
       key={getClarificationPromptKey(panel.prompt)}
+      panel={panel}
       prompt={panel.prompt}
       summary={panel.summary}
       readOnly={readOnly}
       onSubmitQuestionAnswer={onSubmitQuestionAnswer}
+      onBatchDecision={onBatchDecision}
     />
   );
 }
 
 interface ClarificationSpecialPanelContentProps {
+  panel: AgentQuestionSpecialPanel;
   prompt: ClarificationPromptData;
   summary: string;
   onSubmitQuestionAnswer?: (actionId: string, answer: ClarificationAnswerItem[]) => void;
+  onBatchDecision?: (
+    panel: AgentSpecialPanel,
+    decision: { answer: ClarificationAnswerItem[] },
+  ) => void;
   readOnly?: boolean;
 }
 
 function ClarificationSpecialPanelContent({
+  panel,
   prompt,
   summary,
   onSubmitQuestionAnswer,
+  onBatchDecision,
   readOnly = false,
 }: ClarificationSpecialPanelContentProps) {
   const { t } = useTranslation();
-  const model = useClarificationQuestionFlow(prompt, { onSubmitQuestionAnswer });
+  const model = useClarificationQuestionFlow(prompt, {
+    onSubmitQuestionAnswer: (actionId, answer) => {
+      if (onBatchDecision) {
+        onBatchDecision(panel, { answer });
+        return;
+      }
+      onSubmitQuestionAnswer?.(actionId, answer);
+    },
+  });
   const content = readOnly ? (
     <Flex
       direction="column"
@@ -106,6 +129,11 @@ function ClarificationSpecialPanelContent({
       icon={<HelpCircle size={15} />}
       title={t("assistant.specialPanels.clarificationTitle")}
       summary={summary}
+      progress={
+        panel.batchIndex !== undefined && panel.batchTotal !== undefined
+          ? `${panel.batchIndex + 1}/${panel.batchTotal}`
+          : undefined
+      }
       content={content}
       actions={readOnly ? undefined : <ClarificationQuestionActions model={model} />}
     />

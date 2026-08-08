@@ -71,6 +71,8 @@ class AgentTool(BaseTool):
     )
     _config: RunnableConfig | None = None
     _tool_call_id: str | None = None
+    execute_during_prepare: bool = False
+    emit_prepare_events: bool = False
 
     @property
     def _state(self) -> dict[str, Any]:
@@ -151,6 +153,8 @@ class AgentTool(BaseTool):
         validated_args = dict(kwargs)
         metadata = runtime_config.get("metadata") if isinstance(runtime_config, dict) else None
         metadata_dict = metadata if isinstance(metadata, dict) else {}
+        phase = metadata_dict.get("openfic_phase")
+        skip_pre_hooks = metadata_dict.get("openfic_skip_pre_hooks") is True
         tool_call_id = metadata_dict.get("tool_call_id")
         tool_call = metadata_dict.get("tool_call")
         hook_args = (
@@ -173,31 +177,35 @@ class AgentTool(BaseTool):
             tool_call_id=self.tool_call_id,
         )
 
-        for hook in self._pre_hooks:
-            hook_result = await hook(hook_ctx)
-            if not hook_result.proceed:
-                from langgraph.types import interrupt
+        if not skip_pre_hooks:
+            for hook in self._pre_hooks:
+                hook_result = await hook(hook_ctx)
+                if not hook_result.proceed:
+                    from langgraph.types import interrupt
 
-                resume_value = interrupt(
-                    await self._finalize_interrupt_payload(
-                        hook_result.interrupt_payload,
-                        args=validated_args,
+                    resume_value = interrupt(
+                        await self._finalize_interrupt_payload(
+                            hook_result.interrupt_payload,
+                            args=validated_args,
+                        )
                     )
-                )
-                if (
-                    isinstance(hook_result.interrupt_payload, dict)
-                    and hook_result.interrupt_payload.get("type") == "tool_approval"
-                    and isinstance(resume_value, dict)
-                    and resume_value.get("approved") is False
-                ):
-                    return json.dumps(
-                        {
-                            "error": "工具调用已被用户拒绝",
-                            "approval_id": resume_value.get("approval_id"),
-                            "tool_name": self.name,
-                        },
-                        ensure_ascii=False,
-                    )
+                    if (
+                        isinstance(hook_result.interrupt_payload, dict)
+                        and hook_result.interrupt_payload.get("type") == "tool_approval"
+                        and isinstance(resume_value, dict)
+                        and resume_value.get("approved") is False
+                    ):
+                        return json.dumps(
+                            {
+                                "error": "工具调用已被用户拒绝",
+                                "approval_id": resume_value.get("approval_id"),
+                                "tool_name": self.name,
+                            },
+                            ensure_ascii=False,
+                        )
+
+        if phase == "prepare" and not self.execute_during_prepare:
+            return json.dumps({"__openfic_prepared": True}, ensure_ascii=False)
 
         try:
             execute = getattr(self, "_execute", None)

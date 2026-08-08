@@ -10,6 +10,10 @@ interface AgentSpecialPanelsProps {
   embedded?: boolean;
   onApproveTool?: (approvalId: string, approved: boolean) => void;
   onSubmitQuestionAnswer?: (actionId: string, answer: ClarificationAnswerItem[]) => void;
+  onBatchDecision?: (
+    panel: AgentSpecialPanel,
+    decision: { approved?: boolean; answer?: ClarificationAnswerItem[] },
+  ) => void;
   readOnly?: boolean;
 }
 
@@ -18,15 +22,14 @@ export function AgentSpecialPanels({
   embedded = false,
   onApproveTool,
   onSubmitQuestionAnswer,
+  onBatchDecision,
   readOnly = false,
 }: AgentSpecialPanelsProps) {
   const variant = getAgentSpecialPanelVariant(embedded);
 
   if (panels.length === 0) return null;
-  const firstApprovalIndex = panels.findIndex((panel) => panel.kind === "approval");
-  const visiblePanels = panels.filter(
-    (panel, index) => panel.kind !== "approval" || index === firstApprovalIndex,
-  );
+  const batchPanels = panels.filter((panel) => panel.batchId);
+  const visiblePanels = batchPanels.length > 0 ? batchPanels.slice(0, 1) : panels.slice(0, 1);
 
   return (
     <Flex
@@ -53,6 +56,7 @@ export function AgentSpecialPanels({
               panel={panel}
               readOnly={readOnly}
               onSubmitQuestionAnswer={onSubmitQuestionAnswer}
+              onBatchDecision={panel.batchId ? onBatchDecision : undefined}
             />
           );
         }
@@ -63,6 +67,7 @@ export function AgentSpecialPanels({
             panel={panel}
             readOnly={readOnly}
             onApproveTool={onApproveTool}
+            onBatchDecision={panel.batchId ? onBatchDecision : undefined}
           />
         );
       })}

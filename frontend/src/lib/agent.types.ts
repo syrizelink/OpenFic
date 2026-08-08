@@ -199,6 +199,9 @@ export interface AgentMessage {
   toolResult?: Record<string, unknown>;
   toolSuccess?: boolean;
   toolApproval?: ToolApprovalData;
+  interruptBatchId?: string;
+  interruptBatchIndex?: number;
+  interruptBatchTotal?: number;
 
   isStreaming?: boolean;
   thinkingDurationMs?: number;
@@ -339,6 +342,9 @@ export interface AgentEvent {
   approval_id?: string;
   message?: string;
   interrupt_behavior?: "cancel" | "block";
+  batch_id?: string;
+  batch_index?: number;
+  batch_total?: number;
   error?: string;
   error_type?: string;
   error_node?: string;
@@ -348,6 +354,15 @@ export interface AgentEvent {
   is_checkpoint?: boolean;
   isCheckpoint?: boolean;
   is_continuation?: boolean;
+}
+
+export interface AgentInterruptBatchResponse {
+  interrupt_id: string;
+  action_type: "tool_approval" | "clarification";
+  approval_id?: string;
+  approved?: boolean;
+  action_id?: string;
+  answer?: ClarificationAnswerItem[];
 }
 
 export interface AgentQuestionAnswerResponse {

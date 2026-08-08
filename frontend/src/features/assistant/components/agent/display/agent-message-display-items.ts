@@ -60,9 +60,17 @@ function hasPendingDisplayMessage(messages: AgentBlockDisplayMessage[]): boolean
   );
 }
 
+function getDisplayMessageIdentity(message: AgentBlockDisplayMessage): string {
+  if (message.id) return message.id;
+  if (message.correlationId) return `correlation:${message.correlationId}`;
+  const toolCallId = message.payload?.tool_call_id;
+  if (typeof toolCallId === "string" && toolCallId) return `tool-call:${toolCallId}`;
+  return `${message.type}:${message.timestamp}`;
+}
+
 function pushMessageItem(items: AgentDisplayItem[], message: AgentBlockDisplayMessage): void {
   items.push({
-    id: `message:${items.length}`,
+    id: `message:${getDisplayMessageIdentity(message)}`,
     type: "message",
     message,
   });
@@ -131,7 +139,7 @@ function pushExplorationItem(
     return;
   }
   items.push({
-    id: `exploration:${items.length}`,
+    id: `exploration:${getDisplayMessageIdentity(explorationMessages[0])}`,
     type: "exploration",
     messages: explorationMessages,
     summary: buildExplorationSummary(explorationMessages),

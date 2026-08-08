@@ -41,6 +41,8 @@ class AskUserTool(AgentTool):
         "- 无论是否给出选项，系统都会自动添加`自行输入答案`的选项提供给用户，因此在提出一个开放式问题时，不要包含`其它`或类似的兜底选项"
     )
     access_level: str = "readonly"
+    execute_during_prepare: bool = True
+    emit_prepare_events: bool = True
     args_schema: type[BaseModel] = AskUserInput
 
     async def _execute(self, questions: list[Question]) -> str:

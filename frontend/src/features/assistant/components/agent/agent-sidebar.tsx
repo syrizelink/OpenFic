@@ -97,6 +97,7 @@ export function useAgentSidebar({
     forkFromRevision: forkAgentFromRevision,
     handleToolApproval: handleAgentToolApproval,
     submitQuestionAnswer: submitAgentQuestionAnswer,
+    handleBatchDecision,
     abortSession: abortAgentSession,
   } = useAgentSession({
     projectId,
@@ -228,6 +229,10 @@ export function useAgentSidebar({
             : undefined
         }
         onSubmitQuestionAnswer={submitAgentQuestionAnswer}
+        onBatchDecision={(panel, decision) => {
+          const message = agentMessages.find((item) => item.id === panel.id);
+          if (message) void handleBatchDecision(message, decision);
+        }}
       />
     ),
   };

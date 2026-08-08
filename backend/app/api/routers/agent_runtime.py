@@ -60,6 +60,7 @@ from app.api.schemas.agent import (
     AgentForkResponse,
     AgentPendingMessageResponse,
     AgentQuestionAnswerRequest,
+    AgentInterruptResumeRequest,
     AgentRollbackRequest,
     AgentRollbackResponse,
     ActiveSubagentStateResponse,
@@ -1002,6 +1003,25 @@ async def submit_agent_question_answer(
         coro=runner.resume(payload),
     )
     return {"success": True, "session_id": session_id, "message": "已提交澄清回答"}
+
+
+@router.post("/sessions/{session_id}/interrupt-resume")
+async def submit_agent_interrupt_resume(
+    session_id: str,
+    body: AgentInterruptResumeRequest,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    runner = await _get_runner(session_id, session)
+    status_session_factory = _make_status_session_factory(session)
+    responses = [item.model_dump(mode="json", exclude_none=True) for item in body.responses]
+    await _launch_task(
+        db_session_factory=status_session_factory,
+        session_id=session_id,
+        task_id=runner.task_id,
+        project_id=runner.project_id,
+        coro=runner.resume_interrupt_batch(body.batch_id, responses),
+    )
+    return {"success": True, "session_id": session_id, "message": "已提交并行中断响应"}
 
 
 @router.post("/sessions/{session_id}/tool-approval")

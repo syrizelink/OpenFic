@@ -217,14 +217,18 @@ async def test_orchestrator_resumes_all_parallel_tool_approvals_once() -> None:
                 for task in state.tasks
                 for interrupt in getattr(task, "interrupts", ())
             ]
-            assert [interrupt.value["tool_call_id"] for interrupt in interrupts] == ["call_1"]
+            assert {
+                interrupt.value["tool_call_id"] for interrupt in interrupts
+            } == {f"call_{index}" for index in range(1, 6)}
+            pending_interrupts = list(interrupts)
             for index in range(1, 6):
+                interrupt = pending_interrupts.pop(0)
                 async for _event in graph.astream_events(
                     Command(
                         resume={
-                            interrupts[0].id: {
+                            interrupt.id: {
                                 "action_type": "tool_approval",
-                                "approval_id": interrupts[0].id,
+                                "approval_id": interrupt.id,
                                 "approved": True,
                             }
                         }
@@ -240,9 +244,7 @@ async def test_orchestrator_resumes_all_parallel_tool_approvals_once() -> None:
                     for interrupt in getattr(task, "interrupts", ())
                 ]
                 if index < 5:
-                    assert [interrupt.value["tool_call_id"] for interrupt in interrupts] == [
-                        f"call_{index + 1}"
-                    ]
+                    assert len(interrupts) == 5 - index
                 else:
                     assert resumed_state.next == ()
     finally:

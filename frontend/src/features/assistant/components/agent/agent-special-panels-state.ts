@@ -13,6 +13,9 @@ export interface AgentApprovalSpecialPanel {
   kind: "approval";
   approval: ToolApprovalData;
   summary: string;
+  batchIndex?: number;
+  batchTotal?: number;
+  batchId?: string;
 }
 
 export interface AgentQuestionSpecialPanel {
@@ -20,6 +23,9 @@ export interface AgentQuestionSpecialPanel {
   kind: "question";
   prompt: ClarificationPromptData;
   summary: string;
+  batchIndex?: number;
+  batchTotal?: number;
+  batchId?: string;
 }
 
 export type AgentSpecialPanel = AgentApprovalSpecialPanel | AgentQuestionSpecialPanel;
@@ -74,33 +80,51 @@ function getQuestionSummary(prompt: ClarificationPromptData): string {
 }
 
 export function getAgentSpecialPanels(messages: AgentMessage[]): AgentSpecialPanel[] {
-  return messages.reduce<AgentSpecialPanel[]>((panels, message) => {
-    if (!isVisibleActiveSpecialPanelMessage(message)) return panels;
+  return messages
+    .reduce<AgentSpecialPanel[]>((panels, message) => {
+      if (!isVisibleActiveSpecialPanelMessage(message)) return panels;
 
-    if (message.type === "question") {
-      const prompt = getClarificationPromptData(message);
-      if (prompt.questions.length === 0) return panels;
+      if (message.type === "question") {
+        const prompt = getClarificationPromptData(message);
+        if (prompt.questions.length === 0) return panels;
 
-      panels.push({
-        id: message.id,
-        kind: "question",
-        prompt,
-        summary: getQuestionSummary(prompt),
-      });
+        panels.push({
+          id: message.id,
+          kind: "question",
+          prompt,
+          summary: getQuestionSummary(prompt),
+          batchIndex: message.interruptBatchIndex,
+          batchTotal: message.interruptBatchTotal,
+          batchId: message.interruptBatchId,
+        });
+        return panels;
+      }
+
+      if (
+        (message.type === "approval" || message.type === "tool_approval") &&
+        message.toolApproval
+      ) {
+        panels.push({
+          id: message.id,
+          kind: "approval",
+          approval: message.toolApproval,
+          summary: getApprovalSummary(
+            message.toolApproval.tool_name,
+            message.toolApproval.tool_args,
+          ),
+          batchIndex: message.interruptBatchIndex,
+          batchTotal: message.interruptBatchTotal,
+          batchId: message.interruptBatchId,
+        });
+      }
+
       return panels;
-    }
-
-    if ((message.type === "approval" || message.type === "tool_approval") && message.toolApproval) {
-      panels.push({
-        id: message.id,
-        kind: "approval",
-        approval: message.toolApproval,
-        summary: getApprovalSummary(message.toolApproval.tool_name, message.toolApproval.tool_args),
-      });
-    }
-
-    return panels;
-  }, []);
+    }, [])
+    .sort(
+      (left, right) =>
+        (left.batchIndex ?? Number.MAX_SAFE_INTEGER) -
+        (right.batchIndex ?? Number.MAX_SAFE_INTEGER),
+    );
 }
 
 export function getAgentSpecialPanelVariant(embedded: boolean): AgentSpecialPanelVariant {

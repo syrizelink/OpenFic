@@ -31,6 +31,7 @@ import {
   forkAgentSession,
   sendAgentMessage,
   submitAgentQuestionAnswer,
+  submitAgentInterruptBatch,
   rollbackAgentRevision,
   cancelAgentSession,
   uploadAgentImageAttachment,
@@ -187,6 +188,11 @@ export function useAgentSession({
   const queryClient = useQueryClient();
   const socketUnsubscribeRef = useRef<(() => void) | null>(null);
   const ignoredApprovalIdsRef = useRef<Set<string>>(new Set());
+  const interruptBatchRef = useRef<{
+    batchId: string;
+    panels: AgentMessage[];
+    decisions: Record<string, Record<string, unknown>>;
+  } | null>(null);
   const suppressSocketEventsAfterAbortRef = useRef(false);
   const sessionIdRef = useRef<string | null>(null);
   const activeModelIdRef = useRef<string | null>(null);
@@ -453,6 +459,24 @@ export function useAgentSession({
       }
 
       const result = applyTranscriptEvent(event);
+      const message = result.message;
+
+      if (message?.interruptBatchId && typeof message.interruptBatchTotal === "number") {
+        const batchId = message.interruptBatchId;
+        const batchMessages = transcriptStateRef.current.messages
+          .filter((item) => item.interruptBatchId === batchId)
+          .sort(
+            (left, right) => (left.interruptBatchIndex ?? 0) - (right.interruptBatchIndex ?? 0),
+          );
+        interruptBatchRef.current = {
+          batchId,
+          panels: batchMessages,
+          decisions:
+            interruptBatchRef.current?.batchId === batchId
+              ? interruptBatchRef.current.decisions
+              : {},
+        };
+      }
 
       if (event.type === "compaction") {
         syncCompactingState(event.status === "running");
@@ -512,7 +536,6 @@ export function useAgentSession({
         }
       }
 
-      const message = result.message;
       if (message?.type === "chapter_refresh") {
         const targetChapterId =
           typeof message.payload?.chapter_id === "string" ? message.payload.chapter_id : undefined;
@@ -1032,6 +1055,66 @@ export function useAgentSession({
     [agentKey, attachAgentSocket, sessionId, updateTranscriptState],
   );
 
+  const handleBatchDecision = useCallback(
+    async (
+      panel: AgentMessage,
+      decision: { approved?: boolean; answer?: ClarificationAnswerItem[] },
+    ) => {
+      const batchId = panel.interruptBatchId;
+      if (!batchId || panel.interruptBatchTotal === undefined) return;
+      const current = interruptBatchRef.current;
+      if (!current || current.batchId !== batchId) return;
+      const interruptId = panel.correlationId || panel.id;
+      current.decisions[interruptId] = {
+        interrupt_id: interruptId,
+        action_type: panel.type === "approval" ? "tool_approval" : "clarification",
+        ...(panel.type === "approval"
+          ? { approval_id: interruptId, approved: decision.approved }
+          : { action_id: interruptId, answer: decision.answer }),
+      };
+      const decisionCount = Object.keys(current.decisions).length;
+      const batchTotal = panel.interruptBatchTotal ?? current.panels.length;
+      updateTranscriptState((state) => ({
+        ...state,
+        messages: state.messages.map((item) =>
+          item.id === panel.id ? { ...item, status: "completed" } : item,
+        ),
+        status: decisionCount < batchTotal ? state.status : "running",
+        isRunning: decisionCount >= batchTotal,
+      }));
+      if (current.panels.length < batchTotal || decisionCount < batchTotal) return;
+      try {
+        await submitAgentInterruptBatch(
+          sessionId || "",
+          batchId,
+          Object.values(current.decisions).map((item) => ({
+            interrupt_id: String(item.interrupt_id),
+            action_type: item.action_type as "tool_approval" | "clarification",
+            approval_id: typeof item.approval_id === "string" ? item.approval_id : undefined,
+            approved: typeof item.approved === "boolean" ? item.approved : undefined,
+            action_id: typeof item.action_id === "string" ? item.action_id : undefined,
+            answer: Array.isArray(item.answer) ? item.answer : undefined,
+          })),
+        );
+        interruptBatchRef.current = null;
+      } catch (error) {
+        console.error("Interrupt batch resume failed:", error);
+        updateTranscriptState((state) => ({
+          ...state,
+          messages: state.messages.map((item) =>
+            item.interruptBatchId === batchId ? { ...item, status: "pending" } : item,
+          ),
+          status: current.panels.some((item) => item.type === "approval")
+            ? "waiting_approval"
+            : "waiting_answer",
+          isRunning: false,
+        }));
+        toast.error(i18n.t("assistant.toolApprovalFailed"));
+      }
+    },
+    [sessionId, updateTranscriptState],
+  );
+
   const resetSession = useCallback(() => {
     sessionIdRef.current = null;
     activeModelIdRef.current = null;
@@ -1295,6 +1378,7 @@ export function useAgentSession({
     forkFromRevision,
     handleToolApproval,
     submitQuestionAnswer,
+    handleBatchDecision,
     abortSession,
   };
 }

@@ -942,6 +942,116 @@ class ApprovalTool(AgentTool):
 
 
 @pytest.mark.asyncio
+async def test_react_agent_does_not_execute_tool_after_approval_is_rejected() -> None:
+    executed: list[str] = []
+
+    class RejectableTool(ApprovalTool):
+        async def _execute(self, value: str) -> str:
+            executed.append(value)
+            return await super()._execute(value)
+
+    graph = create_react_agent(
+        ReactAgentConfig(
+            name="test",
+            tools=[RejectableTool(_pre_hooks=[_approval_hook])],
+            termination=TerminationCondition(mode="no_tool_call"),
+            max_iterations=1,
+        ),
+        checkpointer=InMemorySaver(),
+    )
+
+    async def invoke_model(*_args, **_kwargs):
+        return AIMessage(
+            content="",
+            tool_calls=[
+                {"id": "call_reject", "name": "approval_tool", "args": {"value": "x"}}
+            ],
+        )
+
+    config = {"configurable": {"thread_id": "reject-approval"}}
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model",
+        side_effect=invoke_model,
+    ):
+        await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="run")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            },
+            config=config,
+        )
+        state = await graph.aget_state(config)
+        pending = [
+            interrupt
+            for task in state.tasks
+            for interrupt in getattr(task, "interrupts", ())
+        ]
+        await graph.ainvoke(
+            Command(
+                resume={
+                    pending[0].id: {
+                        "action_type": "tool_approval",
+                        "approval_id": pending[0].id,
+                        "approved": False,
+                    }
+                }
+            ),
+            config=config,
+        )
+
+    assert executed == []
+
+
+@pytest.mark.asyncio
+async def test_react_agent_rejects_more_than_ten_tool_calls_before_execution() -> None:
+    executed: list[str] = []
+
+    class CountingTool(AgentTool):
+        name: str = "counting_tool"
+        description: str = "counting"
+        args_schema: type[BaseModel] = ApprovalInput
+
+        async def _execute(self, value: str) -> str:
+            executed.append(value)
+            return json.dumps({"success": True, "value": value})
+
+    graph = create_react_agent(
+        ReactAgentConfig(
+            name="test",
+            tools=[CountingTool()],
+            termination=TerminationCondition(mode="no_tool_call"),
+            max_iterations=1,
+        )
+    )
+
+    async def invoke_model(*_args, **_kwargs):
+        return AIMessage(
+            content="",
+            tool_calls=[
+                {"id": f"call_{index}", "name": "counting_tool", "args": {"value": str(index)}}
+                for index in range(11)
+            ],
+        )
+
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model",
+        side_effect=invoke_model,
+    ), pytest.raises(RuntimeError, match="最多调用 10 个工具"):
+        await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="run")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            }
+        )
+
+    assert executed == []
+
+
+@pytest.mark.asyncio
 async def test_react_agent_previews_all_parallel_tool_calls_and_resumes_each_approval() -> (
     None
 ):
@@ -989,20 +1099,20 @@ async def test_react_agent_previews_all_parallel_tool_calls_and_resumes_each_app
         for task in state.tasks
         for interrupt in getattr(task, "interrupts", ())
     ]
-    assert [interrupt.value["tool_call_id"] for interrupt in interrupts] == ["call_1"]
-    assert len({interrupt.id for interrupt in interrupts}) == 1
-    assert [
-        preview["tool_call_id"]
-        for preview in interrupts[0].value["tool_result_previews"]
-    ] == [f"call_{index}" for index in range(1, 6)]
+    assert {
+        interrupt.value["tool_call_id"] for interrupt in interrupts
+    } == {f"call_{index}" for index in range(1, 6)}
+    assert len({interrupt.id for interrupt in interrupts}) == 5
+    pending_interrupts = list(interrupts)
 
-    for index in range(1, 6):
+    for _index in range(1, 6):
+        interrupt = pending_interrupts.pop(0)
         await graph.ainvoke(
             Command(
                 resume={
-                    interrupts[0].id: {
+                    interrupt.id: {
                         "action_type": "tool_approval",
-                        "approval_id": interrupts[0].id,
+                        "approval_id": interrupt.id,
                         "approved": True,
                     }
                 }
@@ -1015,10 +1125,8 @@ async def test_react_agent_previews_all_parallel_tool_calls_and_resumes_each_app
             for task in resumed_state.tasks
             for interrupt in getattr(task, "interrupts", ())
         ]
-        if index < 5:
-            assert [interrupt.value["tool_call_id"] for interrupt in interrupts] == [
-                f"call_{index + 1}"
-            ]
+        if _index < 5:
+            assert len(resumed_state.next) == 5 - _index
         else:
             assert resumed_state.next == ()
 

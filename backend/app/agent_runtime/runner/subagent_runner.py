@@ -213,6 +213,13 @@ def _interrupt_id(interrupt_obj: Any, value: dict[str, Any]) -> str:
     return "child-approval"
 
 
+def _interrupt_resume_id(payload: dict[str, Any]) -> str | None:
+    action_type = payload.get("action_type")
+    key = "approval_id" if action_type == "tool_approval" else "action_id"
+    value = payload.get(key)
+    return value if isinstance(value, str) and value else None
+
+
 def _last_assistant_content(messages: list[BaseMessage]) -> str | None:
     for message in reversed(messages):
         if isinstance(message, AIMessage) and isinstance(message.content, str):
@@ -402,6 +409,7 @@ class SubagentRunner:
                 graph_input,
                 config={
                     "recursion_limit": DEFAULT_AGENT_RECURSION_LIMIT,
+                    "max_concurrency": 10,
                     "tags": [SUBAGENT_CHILD_EVENT_TAG],
                     "configurable": {
                         "thread_id": row.child_thread_id,
@@ -818,6 +826,8 @@ class SubagentRunner:
             "agent_key": row.agent_key,
             "dispatch_id": row.dispatch_id,
         }
+        if value.get("type") == "ask_user":
+            approval_request["action_id"] = approval_id
         session = await _open_session(self.session_factory)
         try:
             updated_row = await record_child_run_pending_approval(
@@ -939,7 +949,8 @@ class SubagentRunner:
             approval_request = pending_result.get("approval_request")
             if isinstance(approval_request, dict) and approval_request:
                 await self._emit_child_interrupt(row, approval_request)
-            return pending_result
+                return pending_result
+            return {"error": "subagent interrupt payload missing"}
 
         assistant_content = _last_assistant_content(result_state.get("messages") or [])
         if assistant_content is None:

@@ -9,6 +9,7 @@ interface SpecialPanelShellProps {
   kind: "approval" | "question";
   summary?: ReactNode;
   title: string;
+  progress?: string;
 }
 
 export function SpecialPanelShell({
@@ -19,6 +20,7 @@ export function SpecialPanelShell({
   kind,
   summary,
   title,
+  progress,
 }: SpecialPanelShellProps) {
   const panelClassName = ["agent-special-panel", `agent-special-panel-${kind}`, className]
     .filter(Boolean)
@@ -46,6 +48,14 @@ export function SpecialPanelShell({
           >
             {title}
           </Text>
+          {progress ? (
+            <Text
+              size="1"
+              color="gray"
+            >
+              {progress}
+            </Text>
+          ) : null}
         </Flex>
       </Flex>
       {summary ? (

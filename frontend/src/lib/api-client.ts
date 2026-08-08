@@ -2162,6 +2162,7 @@ import type {
   AgentSessionStateResponse,
   AgentRollbackResponse,
   AgentCancelResponse,
+  AgentInterruptBatchResponse,
   AgentQuestionAnswerResponse,
   ClarificationAnswerItem,
   ReasoningEffort,
@@ -2439,6 +2440,17 @@ export async function submitAgentToolApproval(
   await apiClient.post(`/agent/sessions/${sessionId}/tool-approval`, {
     approval_id: approvalId,
     approved,
+  });
+}
+
+export async function submitAgentInterruptBatch(
+  sessionId: string,
+  batchId: string,
+  responses: AgentInterruptBatchResponse[],
+): Promise<void> {
+  await apiClient.post(`/agent/sessions/${sessionId}/interrupt-resume`, {
+    batch_id: batchId,
+    responses,
   });
 }
 

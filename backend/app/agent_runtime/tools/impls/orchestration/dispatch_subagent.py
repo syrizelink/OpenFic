@@ -120,13 +120,6 @@ class DispatchSubagentTool(AgentTool):
         if primary_def is None or primary_def.kind != "primary":
             raise ToolExecutionError("dispatch_subagent may only be called by primary")
 
-        count = int(self._state.get("_dispatch_subagent_count") or 0)
-        if count >= MAX_DISPATCHES_PER_TURN:
-            raise ToolExecutionError(
-                "dispatch_subagent allows at most 10 dispatches per PA turn"
-            )
-        self._state["_dispatch_subagent_count"] = count + 1
-
         try:
             definition = await self._load_definition(agent_key, configurable)
         except KeyError as exc:

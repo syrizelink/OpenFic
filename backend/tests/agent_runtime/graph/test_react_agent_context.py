@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
+from langchain_core.tools import StructuredTool
 
 from app.agent_runtime.context.compaction.service import CompactionError
 from app.agent_runtime.context.compaction.window import CompactionNoWindowError
@@ -100,6 +101,157 @@ def test_llm_call_uses_build_context_when_config_provided() -> None:
     assert kwargs["agent_name"] == "writer"
     assert kwargs["state"]["transient_context_key"] == "v2"
     assert "transient_context_key" not in runtime_state
+
+
+@pytest.mark.asyncio
+async def test_react_agent_executes_tool_calls_in_parallel() -> None:
+    started: set[str] = set()
+    all_started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def run_tool(name: str) -> str:
+        started.add(name)
+        if len(started) == 2:
+            all_started.set()
+        await release.wait()
+        return name
+
+    async def first_tool() -> str:
+        return await run_tool("first")
+
+    async def second_tool() -> str:
+        return await run_tool("second")
+
+    tools = [
+        StructuredTool.from_function(
+            coroutine=first_tool,
+            name="first_tool",
+            description="first",
+        ),
+        StructuredTool.from_function(
+            coroutine=second_tool,
+            name="second_tool",
+            description="second",
+        ),
+    ]
+    model = Mock()
+    model.bind_tools.return_value = model
+    responses = iter(
+        [
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {"id": "call-1", "name": "first_tool", "args": {}},
+                    {"id": "call-2", "name": "second_tool", "args": {}},
+                ],
+            ),
+            AIMessage(content="finished"),
+        ]
+    )
+
+    async def invoke_model(*_args, **_kwargs):
+        return next(responses)
+
+    config = ReactAgentConfig(
+        name="writer",
+        tools=tools,
+        termination=TerminationCondition(mode="no_tool_call"),
+        max_iterations=3,
+    )
+
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model",
+        side_effect=invoke_model,
+    ):
+        graph = create_react_agent(config, model=model)
+        task = asyncio.create_task(
+            graph.ainvoke(
+                {
+                    "messages": [HumanMessage(content="go")],
+                    "iteration_count": 0,
+                    "is_done": False,
+                    "final_output": None,
+                }
+            )
+        )
+        await asyncio.wait_for(all_started.wait(), timeout=1)
+        release.set()
+        result = await asyncio.wait_for(task, timeout=1)
+
+    tool_messages = [
+        message
+        for message in result["messages"]
+        if isinstance(message, ToolMessage)
+    ]
+    assert [message.tool_call_id for message in tool_messages] == ["call-1", "call-2"]
+
+
+@pytest.mark.asyncio
+async def test_react_agent_preserves_tool_call_order_when_tools_finish_out_of_order() -> None:
+    async def first_tool() -> str:
+        await asyncio.sleep(0.02)
+        return "first"
+
+    async def second_tool() -> str:
+        await asyncio.sleep(0)
+        return "second"
+
+    tools = [
+        StructuredTool.from_function(
+            coroutine=first_tool,
+            name="first_tool",
+            description="first",
+        ),
+        StructuredTool.from_function(
+            coroutine=second_tool,
+            name="second_tool",
+            description="second",
+        ),
+    ]
+    model = Mock()
+    model.bind_tools.return_value = model
+    responses = iter(
+        [
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {"id": "call-1", "name": "first_tool", "args": {}},
+                    {"id": "call-2", "name": "second_tool", "args": {}},
+                ],
+            ),
+            AIMessage(content="finished"),
+        ]
+    )
+
+    async def invoke_model(*_args, **_kwargs):
+        return next(responses)
+
+    config = ReactAgentConfig(
+        name="writer",
+        tools=tools,
+        termination=TerminationCondition(mode="no_tool_call"),
+        max_iterations=3,
+    )
+
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model",
+        side_effect=invoke_model,
+    ):
+        result = await create_react_agent(config, model=model).ainvoke(
+            {
+                "messages": [HumanMessage(content="go")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            }
+        )
+
+    tool_messages = [
+        message
+        for message in result["messages"]
+        if isinstance(message, ToolMessage)
+    ]
+    assert [message.tool_call_id for message in tool_messages] == ["call-1", "call-2"]
 
 
 async def _noop_event_sink(_name: str, _payload: dict) -> None:
