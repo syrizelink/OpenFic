@@ -3,6 +3,7 @@ export const SETTINGS_ROUTE_CATEGORIES = [
   "connections",
   "models",
   "index",
+  "context",
   "agent-tools",
   "rules",
   "skills",

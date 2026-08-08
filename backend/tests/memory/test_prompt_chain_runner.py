@@ -2,11 +2,23 @@
 """Prompt chain runner history compaction tests."""
 
 import json
-from unittest.mock import AsyncMock
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from app.memory import prompt_chain_runner
 from app.memory.prompt_chain_runner import ChatRuntime, _compact_task_history, _compact_task_history_message, build_chat_messages
 from app.storage.models.task_message import TaskMessage
+
+
+@pytest.fixture(autouse=True)
+def _compress_setting_disabled() -> None:
+    with patch(
+        "app.agent_runtime.context.processors.compress.setting_repo.get_by_key",
+        new=AsyncMock(return_value=None),
+    ):
+        yield
 
 
 def test_compact_assistant_tool_calls_preserves_tool_input() -> None:
@@ -408,6 +420,57 @@ async def test_build_chat_messages_injects_handoff_without_task_history(monkeypa
         "<skill>技能上下文</skill>",
         "<workflow_handoff>只交接产物</workflow_handoff>",
         "写作请求",
+    ]
+
+
+async def test_build_chat_messages_merges_consecutive_system_messages_when_enabled(
+    monkeypatch,
+) -> None:
+    version = type(
+        "Version",
+        (),
+        {
+            "entries": [
+                type(
+                    "Entry",
+                    (),
+                    {"role": "system", "content": "系统提示一", "order_index": 0, "is_enabled": True},
+                )(),
+                type(
+                    "Entry",
+                    (),
+                    {"role": "system", "content": "系统提示二", "order_index": 1, "is_enabled": True},
+                )(),
+            ]
+        },
+    )()
+    monkeypatch.setattr(
+        prompt_chain_runner.prompt_chain_service,
+        "get_latest_version_with_entries_or_default",
+        AsyncMock(return_value=version),
+    )
+
+    class FakeCompiler:
+        async def compile(self, *, entries):
+            return type("CompileResult", (), {"entries": entries})()
+
+    monkeypatch.setattr(prompt_chain_runner, "PromptChainCompiler", lambda: FakeCompiler())
+
+    with patch(
+        "app.agent_runtime.context.processors.compress.setting_repo.get_by_key",
+        new=AsyncMock(
+            return_value=SimpleNamespace(key="compress_system_prompts", value="true")
+        ),
+    ):
+        messages = await build_chat_messages(
+            AsyncMock(),
+            prompt_id="session-title",
+            runtime=ChatRuntime(current_message="写一段"),
+        )
+
+    assert messages == [
+        {"role": "system", "content": "系统提示一\n\n系统提示二"},
+        {"role": "user", "content": "写一段"},
     ]
 
 

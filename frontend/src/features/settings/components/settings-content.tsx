@@ -18,6 +18,7 @@ import { AdvancedSettings } from "../components/advanced-settings";
 import { AgentDefinitionsSettings } from "../components/agent-definitions-settings";
 import { AgentToolsSettings } from "../components/agent-tools-settings";
 import { ConnectionsSettings } from "../components/connections-settings";
+import { ContextSettings } from "../components/context-settings";
 import { GeneralSettings } from "../components/general-settings";
 import { IndexSettings } from "../components/index-settings";
 import { ModelsSettings } from "../components/models-settings";
@@ -65,6 +66,7 @@ const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
   connections: "settings.connections",
   models: "settings.models",
   index: "settings.index",
+  context: "settings.context",
   "agent-tools": "settings.agentTools",
   rules: "settings.rules",
   skills: "settings.skills",
@@ -217,6 +219,7 @@ export function SettingsContent({
     activeCategory === "connections" ||
     activeCategory === "models" ||
     activeCategory === "index" ||
+    activeCategory === "context" ||
     activeCategory === "agent-tools" ||
     activeCategory === "advanced";
   const isMobileListView = isMobile && mobileView === "list";
@@ -265,6 +268,9 @@ export function SettingsContent({
         removeQuery(["models"]);
         removeQuery(["model-providers"]);
         removeQuery(["model-provider-catalog"]);
+      }
+      if (category === "context") {
+        removeQuery(["settings"]);
       }
       if (category === "advanced") {
         removeQuery(["settings"]);
@@ -376,6 +382,7 @@ export function SettingsContent({
                 isAgentSettingsLockLoading={isAgentSettingsLockLoading}
               />
             ) : null}
+            {activeCategory === "context" ? <ContextSettings /> : null}
             {activeCategory === "agent-tools" ? (
               <AgentToolsSettings
                 settings={displaySettings}

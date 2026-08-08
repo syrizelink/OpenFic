@@ -65,6 +65,10 @@ class SettingsResponse(BaseModel):
         default_factory=list, description="Agent 工具权限设置"
     )
     audit_persist_details: bool = Field(default=False, description="是否持久化 LLM 调用详情")
+    compress_system_prompts: bool = Field(
+        default=False,
+        description="是否将连续的 system 消息合并为一条",
+    )
 
 
 class SettingsUpdateRequest(BaseModel):
@@ -104,4 +108,8 @@ class SettingsUpdateRequest(BaseModel):
     )
     audit_persist_details: bool | None = Field(
         default=None, description="是否持久化 LLM 调用详情"
+    )
+    compress_system_prompts: bool | None = Field(
+        default=None,
+        description="是否将连续的 system 消息合并为一条",
     )

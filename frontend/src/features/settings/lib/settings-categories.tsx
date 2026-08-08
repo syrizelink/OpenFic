@@ -4,6 +4,7 @@ import {
   Cable,
   Database,
   FileText,
+  MessagesSquare,
   Package,
   Settings as SettingsIcon,
   ShieldAlert,
@@ -16,6 +17,7 @@ export type SettingsCategory =
   | "connections"
   | "models"
   | "index"
+  | "context"
   | "agent-tools"
   | "rules"
   | "skills"
@@ -48,6 +50,11 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     id: "index",
     icon: <Database size={16} />,
     labelKey: "settings.index",
+  },
+  {
+    id: "context",
+    icon: <MessagesSquare size={16} />,
+    labelKey: "settings.context",
   },
   {
     id: "agent-tools",

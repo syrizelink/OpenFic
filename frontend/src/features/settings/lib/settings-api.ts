@@ -44,6 +44,7 @@ export function transformSettings(raw: SettingsResponse): Settings {
       mode: item.mode,
     })),
     auditPersistDetails: raw.audit_persist_details ?? false,
+    compressSystemPrompts: raw.compress_system_prompts ?? false,
   };
 }
 

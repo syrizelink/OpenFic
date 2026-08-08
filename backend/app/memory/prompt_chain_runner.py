@@ -11,6 +11,10 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent_runtime.context.processors.compress import (
+    is_compress_system_prompts_enabled,
+    merge_consecutive_system_dicts,
+)
 from app.macro.compiler import EntryInput, PromptChainCompiler
 from app.storage.repos import task_message_repo
 from app.storage.services import prompt_chain_service
@@ -315,5 +319,8 @@ async def build_chat_messages(
         last_user = _last_user_message_content(messages)
         if last_user != runtime.current_message:
             messages.append({"role": "user", "content": runtime.current_message})
+
+    if await is_compress_system_prompts_enabled(session):
+        messages = merge_consecutive_system_dicts(messages)
 
     return messages

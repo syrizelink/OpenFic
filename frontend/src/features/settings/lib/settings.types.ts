@@ -43,6 +43,7 @@ export interface Settings {
   agentBypassToolApproval: boolean;
   agentToolPermissions: AgentToolPermission[];
   auditPersistDetails: boolean;
+  compressSystemPrompts: boolean;
 }
 
 /** 设置响应（后端格式） */
@@ -67,6 +68,7 @@ export interface SettingsResponse {
     mode: AgentToolPermissionMode;
   }>;
   audit_persist_details: boolean;
+  compress_system_prompts: boolean;
 }
 
 /** 设置更新请求 */
@@ -91,6 +93,7 @@ export interface SettingsUpdateRequest {
     mode: AgentToolPermissionMode;
   }>;
   audit_persist_details?: boolean;
+  compress_system_prompts?: boolean;
 }
 
 export interface AuditDetailsStorage {

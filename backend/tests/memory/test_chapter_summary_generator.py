@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +14,8 @@ from app.storage.models.chapter import Chapter
 from app.storage.models.chapter_summary import ChapterSummary
 from app.storage.models.project import Project
 from app.storage.models.volume import Volume
+
+
 @pytest.mark.asyncio
 async def test_build_chapter_summary_prompt_includes_previous_chapter_and_target(
     session: AsyncSession,
@@ -160,3 +165,84 @@ async def test_build_long_term_summary_prompt_omits_default_context(session: Asy
     )
     assert all("{{getmem" not in message.content for message in prompt.messages)
     assert all("{{getworld}}" not in message.content for message in prompt.messages)
+
+
+@pytest.mark.asyncio
+async def test_build_chapter_summary_prompt_merges_system_messages_when_enabled(
+    session: AsyncSession,
+) -> None:
+    project = Project(title="项目", description="")
+    session.add(project)
+    await session.flush()
+    volume = Volume(project_id=project.id, title="第一卷", order=1, chapter_count=2)
+    session.add(volume)
+    await session.flush()
+    previous_chapter = Chapter(
+        project_id=project.id,
+        volume_id=volume.id,
+        title="第一章",
+        content="上一章原文",
+        order=1,
+    )
+    target_chapter = Chapter(
+        project_id=project.id,
+        volume_id=volume.id,
+        title="第二章",
+        content="本章原文",
+        order=2,
+    )
+    session.add_all([previous_chapter, target_chapter])
+    await session.flush()
+
+    with patch(
+        "app.agent_runtime.context.processors.compress.setting_repo.get_by_key",
+        new=AsyncMock(
+            return_value=SimpleNamespace(key="compress_system_prompts", value="true")
+        ),
+    ):
+        prompt = await build_chapter_summary_prompt(session, target_chapter.id)
+
+    assert len(prompt.messages) == 1
+    assert "<previous_chapter>" in prompt.messages[0].content
+    assert "<target_chapter>" in prompt.messages[0].content
+
+
+@pytest.mark.asyncio
+async def test_build_long_term_summary_prompt_merges_system_messages_when_enabled(
+    session: AsyncSession,
+) -> None:
+    project = Project(title="项目", description="")
+    session.add(project)
+    await session.flush()
+    volume = Volume(project_id=project.id, title="第一卷", order=1, chapter_count=1)
+    session.add(volume)
+    await session.flush()
+    chapter = Chapter(
+        project_id=project.id,
+        volume_id=volume.id,
+        title="第一章",
+        content="章节原文",
+        order=1,
+    )
+    session.add(chapter)
+    await session.flush()
+    summary = ChapterSummary(
+        project_id=project.id,
+        summary_type="chapter",
+        status="ready",
+        chapter_id=chapter.id,
+        volume_id=volume.id,
+        chapter_order=1,
+        summary="章节摘要",
+    )
+
+    with patch(
+        "app.agent_runtime.context.processors.compress.setting_repo.get_by_key",
+        new=AsyncMock(
+            return_value=SimpleNamespace(key="compress_system_prompts", value="true")
+        ),
+    ):
+        prompt = await build_long_term_summary_prompt(session, [summary], [chapter])
+
+    assert len(prompt.messages) == 1
+    assert "<target_summaries>" in prompt.messages[0].content

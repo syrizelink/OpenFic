@@ -10,6 +10,10 @@ from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent_runtime.context.processors.compress import (
+    is_compress_system_prompts_enabled,
+    merge_consecutive_system_messages,
+)
 from app.audit import AuditContext
 from app.core.errors import NotFoundError
 from app.macro.compiler import EntryInput, PromptChainCompiler
@@ -178,6 +182,8 @@ async def build_chapter_summary_prompt(
         previous_summary = await chapter_summary_repo.get_by_chapter_id(session, previous_chapter.id)
         messages.append(SystemMessage(content=_previous_chapter_message(previous_chapter, previous_summary)))
     messages.append(SystemMessage(content=_target_chapter_message(chapter)))
+    if await is_compress_system_prompts_enabled(session):
+        messages = merge_consecutive_system_messages(messages)
     return ChapterSummaryPrompt(messages=messages)
 
 
@@ -261,6 +267,8 @@ async def build_long_term_summary_prompt(
         prompt_id="memory-range-summary",
     )
     messages.append(SystemMessage(content=_summaries_target_message(summaries_text)))
+    if await is_compress_system_prompts_enabled(session):
+        messages = merge_consecutive_system_messages(messages)
     return LongTermSummaryPrompt(messages=messages, summaries_text=summaries_text)
 
 

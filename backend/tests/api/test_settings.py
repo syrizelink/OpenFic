@@ -95,6 +95,7 @@ async def test_get_settings_default(client: AsyncClient) -> None:
     assert data["agent_bypass_tool_approval"] is False
     assert data["agent_tool_permissions"] == EXPECTED_AGENT_TOOL_PERMISSIONS
     assert data["audit_persist_details"] is False
+    assert data["compress_system_prompts"] is False
 
 
 @pytest.mark.asyncio
@@ -371,6 +372,33 @@ async def test_update_settings_audit_persist_details(client: AsyncClient) -> Non
         "/api/v1/settings",
         json={"audit_persist_details": True},
     )
+
+
+@pytest.mark.asyncio
+async def test_update_settings_compress_system_prompts(client: AsyncClient) -> None:
+    """压缩系统提示词开关应可持久化。"""
+    response = await client.put(
+        "/api/v1/settings",
+        json={"compress_system_prompts": False},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["compress_system_prompts"] is False
+
+    follow_up = await client.get("/api/v1/settings")
+    assert follow_up.status_code == 200
+    assert follow_up.json()["compress_system_prompts"] is False
+
+    enabled = await client.put(
+        "/api/v1/settings",
+        json={"compress_system_prompts": True},
+    )
+    assert enabled.status_code == 200
+    assert enabled.json()["compress_system_prompts"] is True
+
+    enabled_follow_up = await client.get("/api/v1/settings")
+    assert enabled_follow_up.status_code == 200
+    assert enabled_follow_up.json()["compress_system_prompts"] is True
 
 
 @pytest.mark.asyncio

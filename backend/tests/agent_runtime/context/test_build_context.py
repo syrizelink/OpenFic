@@ -1,5 +1,6 @@
 import json
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from typing import cast
 from unittest.mock import AsyncMock, patch
 
@@ -7,6 +8,9 @@ import pytest
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 
 from app.agent_runtime.context import ContextBuildError, build_context
+from app.agent_runtime.context.processors.compress import (
+    SETTING_KEY_COMPRESS_SYSTEM_PROMPTS,
+)
 from app.agent_runtime.persistence.errors import PersistenceLoadError
 from app.agent_runtime.graph.state import AgentRuntimeState
 from app.agent_runtime.persistence.compaction_types import PersistedCompaction
@@ -28,6 +32,15 @@ def base_state() -> AgentRuntimeState:
         "installed_skill_ids": [],
         "current_revision_id": None,
     })
+
+
+@pytest.fixture(autouse=True)
+def _compress_setting_disabled() -> None:
+    with patch(
+        "app.agent_runtime.context.processors.compress.setting_repo.get_by_key",
+        new=AsyncMock(return_value=None),
+    ):
+        yield
 
 
 @pytest.mark.asyncio
@@ -239,6 +252,137 @@ async def test_filters_chapter_write_metadata_for_live_llm_context(
         "success": True,
         "word_count": 2,
     }
+
+
+@pytest.mark.asyncio
+async def test_build_context_merges_consecutive_system_messages_when_enabled(
+    base_state: AgentRuntimeState,
+) -> None:
+    with (
+        patch(
+            "app.agent_runtime.context.build_context.build_system_prompt",
+            new=AsyncMock(
+                return_value=[
+                    ContextMessage(role="system", content="A", metadata={"part": "system_prompt"}),
+                    ContextMessage(role="system", content="B", metadata={"part": "system_prompt"}),
+                ]
+            ),
+        ), patch(
+            "app.agent_runtime.context.build_context.build_rules",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "app.agent_runtime.context.build_context.build_skills",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "app.agent_runtime.context.build_context.compaction_repo.list_by_session",
+            new=AsyncMock(return_value=[]),
+        ), patch(
+            "app.agent_runtime.context.processors.compress.setting_repo.get_by_key",
+            new=AsyncMock(
+                return_value=SimpleNamespace(key=SETTING_KEY_COMPRESS_SYSTEM_PROMPTS, value="true")
+            ),
+        ),
+    ):
+        out = await build_context(
+            state=base_state,
+            agent_name="writer",
+            node_messages=[{"role": "user", "content": "hi", "metadata": {"part": "history"}}],
+            db_session=AsyncMock(),
+        )
+
+    assert len(out) == 2
+    assert isinstance(out[0], SystemMessage)
+    assert out[0].content == "A\n\nB"
+    assert isinstance(out[1], HumanMessage)
+    assert out[1].content == "hi"
+
+
+@pytest.mark.asyncio
+async def test_build_context_keeps_non_consecutive_system_messages_when_enabled(
+    base_state: AgentRuntimeState,
+) -> None:
+    with (
+        patch(
+            "app.agent_runtime.context.build_context.build_system_prompt",
+            new=AsyncMock(
+                return_value=[
+                    ContextMessage(role="system", content="A", metadata={"part": "system_prompt"}),
+                    ContextMessage(role="user", content="mid", metadata={"part": "system_prompt"}),
+                    ContextMessage(role="system", content="B", metadata={"part": "system_prompt"}),
+                ]
+            ),
+        ), patch(
+            "app.agent_runtime.context.build_context.build_rules",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "app.agent_runtime.context.build_context.build_skills",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "app.agent_runtime.context.build_context.compaction_repo.list_by_session",
+            new=AsyncMock(return_value=[]),
+        ), patch(
+            "app.agent_runtime.context.processors.compress.setting_repo.get_by_key",
+            new=AsyncMock(
+                return_value=SimpleNamespace(key=SETTING_KEY_COMPRESS_SYSTEM_PROMPTS, value="true")
+            ),
+        ),
+    ):
+        out = await build_context(
+            state=base_state,
+            agent_name="writer",
+            node_messages=[{"role": "user", "content": "hi", "metadata": {"part": "history"}}],
+            db_session=AsyncMock(),
+        )
+
+    assert [type(m).__name__ for m in out] == [
+        "SystemMessage",
+        "HumanMessage",
+        "SystemMessage",
+        "HumanMessage",
+    ]
+    assert out[0].content == "A"
+    assert out[2].content == "B"
+
+
+@pytest.mark.asyncio
+async def test_build_context_preserves_system_messages_when_disabled(
+    base_state: AgentRuntimeState,
+) -> None:
+    with (
+        patch(
+            "app.agent_runtime.context.build_context.build_system_prompt",
+            new=AsyncMock(
+                return_value=[
+                    ContextMessage(role="system", content="A", metadata={"part": "system_prompt"}),
+                    ContextMessage(role="system", content="B", metadata={"part": "system_prompt"}),
+                ]
+            ),
+        ), patch(
+            "app.agent_runtime.context.build_context.build_rules",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "app.agent_runtime.context.build_context.build_skills",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "app.agent_runtime.context.build_context.compaction_repo.list_by_session",
+            new=AsyncMock(return_value=[]),
+        ), patch(
+            "app.agent_runtime.context.processors.compress.setting_repo.get_by_key",
+            new=AsyncMock(return_value=None),
+        ),
+    ):
+        out = await build_context(
+            state=base_state,
+            agent_name="writer",
+            node_messages=[{"role": "user", "content": "hi", "metadata": {"part": "history"}}],
+            db_session=AsyncMock(),
+        )
+
+    assert len(out) == 3
+    assert isinstance(out[0], SystemMessage)
+    assert out[0].content == "A"
+    assert isinstance(out[1], SystemMessage)
+    assert out[1].content == "B"
 
 
 @pytest.mark.asyncio

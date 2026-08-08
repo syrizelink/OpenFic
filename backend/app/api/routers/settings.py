@@ -15,6 +15,9 @@ from app.agent_runtime.tools.permission_metadata import (
     SETTING_KEY_AGENT_TOOL_PERMISSIONS,
     get_default_agent_tool_permissions,
 )
+from app.agent_runtime.context.processors.compress import (
+    SETTING_KEY_COMPRESS_SYSTEM_PROMPTS,
+)
 from app.agent_runtime.session_activity import has_active_agent_sessions
 from app.api.agent_settings_lock import require_agent_settings_unlocked
 from app.api.schemas.setting import (
@@ -87,6 +90,7 @@ DEFAULT_SETTINGS = {
     SETTING_KEY_AGENT_BYPASS_TOOL_APPROVAL: "false",
     SETTING_KEY_AGENT_TOOL_PERMISSIONS: "[]",
     SETTING_KEY_AUDIT_PERSIST_DETAILS: "false",
+    SETTING_KEY_COMPRESS_SYSTEM_PROMPTS: "false",
 }
 
 
@@ -304,6 +308,13 @@ async def get_settings(
             ),
             default=False,
         ),
+        compress_system_prompts=_parse_bool_setting(
+            settings_dict.get(
+                SETTING_KEY_COMPRESS_SYSTEM_PROMPTS,
+                DEFAULT_SETTINGS[SETTING_KEY_COMPRESS_SYSTEM_PROMPTS],
+            ),
+            default=False,
+        ),
     )
 
 
@@ -459,6 +470,11 @@ async def update_settings(
             ensure_ascii=False,
         )
         next_audit_details_persistence = request.audit_persist_details
+    if request.compress_system_prompts is not None:
+        settings_to_update[SETTING_KEY_COMPRESS_SYSTEM_PROMPTS] = json.dumps(
+            request.compress_system_prompts,
+            ensure_ascii=False,
+        )
 
     # 分块参数或嵌入模型变更会使现有索引失效，需要标记重建。
     if index_contract_changed:
