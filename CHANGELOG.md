@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/syrizelink/OpenFic/compare/v0.9.2...v0.10.0) (2026-08-08)
+
+
+### ✨ 新功能
+
+* **agent:** 支持规则全局与项目作用域 ([#269](https://github.com/syrizelink/OpenFic/issues/269)) ([0fb578a](https://github.com/syrizelink/OpenFic/commit/0fb578aa9c7ace66436f71331029dc82a76b316f))
+
 ## [0.9.2](https://github.com/syrizelink/OpenFic/compare/v0.9.1...v0.9.2) (2026-08-08)
 
 
