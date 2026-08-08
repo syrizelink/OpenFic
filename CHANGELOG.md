@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.9.2](https://github.com/syrizelink/OpenFic/compare/v0.9.1...v0.9.2) (2026-08-08)
+
+
+### 🐛 问题修复
+
+* **agent_runtime:** 修复 LLM 调用无超时保护且盲目重试导致会话卡死的问题 ([#261](https://github.com/syrizelink/OpenFic/issues/261)) ([46535a0](https://github.com/syrizelink/OpenFic/commit/46535a0dbd652aad50369657d8e297aad3f4b48f))
+* **agent:** 修复中断暂停状态的会话无法恢复的问题 ([#267](https://github.com/syrizelink/OpenFic/issues/267)) ([6029bc3](https://github.com/syrizelink/OpenFic/commit/6029bc37a53cff4054ed08f7dcca626b29398453))
+* **agent:** 修复工具调用未并行执行的问题 ([#266](https://github.com/syrizelink/OpenFic/issues/266)) ([aefcd90](https://github.com/syrizelink/OpenFic/commit/aefcd90f1004f2bf8af887ff785d8532eb982492))
+* **agent:** 限制智能体列表高度并支持滚动 ([#268](https://github.com/syrizelink/OpenFic/issues/268)) ([fa44696](https://github.com/syrizelink/OpenFic/commit/fa44696ea94d7b65c16e6d07f7a88642e3e8a7b2))
+* **frontend:** 修复仪表盘图表日期范围与标签重叠的问题 ([#264](https://github.com/syrizelink/OpenFic/issues/264)) ([e3996ba](https://github.com/syrizelink/OpenFic/commit/e3996ba34703bb7e92b86b7e03f3feb6e98fe3c8))
+* **frontend:** 修复同行内粘贴文本被拆分换行的问题 ([#258](https://github.com/syrizelink/OpenFic/issues/258)) ([45c3d6a](https://github.com/syrizelink/OpenFic/commit/45c3d6a19950dfd9f57c4d9bd3164f428453bba5))
+* **frontend:** 修复移动端编辑器菜单点击无效导致复制粘贴不可用的问题 ([#260](https://github.com/syrizelink/OpenFic/issues/260)) ([ba4ba07](https://github.com/syrizelink/OpenFic/commit/ba4ba07c0e00723e400ec476d714abc476492174))
+
+
+### ⚡ 性能优化
+
+* **frontend:** 虚拟化 Agent 消息列表并合并流式增量渲染 ([#257](https://github.com/syrizelink/OpenFic/issues/257)) ([87aa448](https://github.com/syrizelink/OpenFic/commit/87aa448add26bce1dfb9dc925a6db72473d63ebd))
+* **world-info:** 虚拟化世界书条目列表并优化拖拽排序 ([#254](https://github.com/syrizelink/OpenFic/issues/254)) ([ad94f34](https://github.com/syrizelink/OpenFic/commit/ad94f340c043999d5f8d6dc25580c559cec7edb0))
+
+
+### 🔧 杂项
+
+* **agent:** 添加会话计时器 ([#262](https://github.com/syrizelink/OpenFic/issues/262)) ([70e9652](https://github.com/syrizelink/OpenFic/commit/70e96528066389d7cb30329be6bbcd2d455f34e3))
+* 添加压缩系统提示词选项 ([#263](https://github.com/syrizelink/OpenFic/issues/263)) ([5dbc83d](https://github.com/syrizelink/OpenFic/commit/5dbc83d2ef45ef341cd71b295664194a1934642d))
+
 ## [0.9.1](https://github.com/syrizelink/OpenFic/compare/v0.9.0...v0.9.1) (2026-08-05)
 
 
