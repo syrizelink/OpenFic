@@ -175,6 +175,19 @@ async def isolated_prompts_dir(monkeypatch, tmp_path: Path) -> AsyncGenerator[Pa
         shutil.rmtree(prompts_dir, ignore_errors=True)
 
 
+def pytest_sessionfinish(session, exitstatus):
+    """关闭全局 checkpoint 连接，避免 aiosqlite 非守护线程阻止进程退出。"""
+    import asyncio
+
+    from app.agent_runtime.runner import checkpointer
+
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(checkpointer.close_checkpointer())
+    finally:
+        loop.close()
+
+
 @pytest_asyncio.fixture
 async def session(client: AsyncClient) -> AsyncGenerator[AsyncSession, None]:
     """向后兼容：从 app 覆盖中获取与 client 相同的数据库会话。"""
