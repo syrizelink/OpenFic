@@ -499,8 +499,8 @@ export function AgentMessages({
     [collapsedNodeIds, messageBlocks],
   );
   const toolbarTargets = useMemo(
-    () => getAgentRoundToolbarTargets(messageBlocks, visibleMessageBlocks, { isRunning, status }),
-    [isRunning, messageBlocks, status, visibleMessageBlocks],
+    () => getAgentRoundToolbarTargets(messageBlocks, visibleMessageBlocks),
+    [messageBlocks, visibleMessageBlocks],
   );
   const toolbarTargetByAnchorId = useMemo(
     () => new Map(toolbarTargets.map((target) => [target.anchorBlockId, target])),

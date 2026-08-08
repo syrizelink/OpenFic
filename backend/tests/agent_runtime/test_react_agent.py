@@ -20,6 +20,10 @@ from app.agent_runtime.graph.react_agent import (
 from app.settings import settings
 
 
+async def _proceed_hook(_ctx) -> HookResult:
+    return HookResult()
+
+
 def _submit_result(result: str) -> str:
     return f"submitted: {result}"
 
@@ -909,6 +913,75 @@ async def test_react_agent_passes_runtime_config_and_tool_call_id_to_agent_tools
 
 class ApprovalInput(BaseModel):
     value: str
+
+
+@pytest.mark.asyncio
+async def test_react_agent_attaches_tool_metadata_to_ask_user_interrupt() -> None:
+    from app.agent_runtime.tools.impls.interaction.ask_user import AskUserTool
+
+    graph = create_react_agent(
+        ReactAgentConfig(
+            name="test",
+            tools=[AskUserTool(_pre_hooks=[_proceed_hook])],
+            termination=TerminationCondition(mode="no_tool_call"),
+            max_iterations=1,
+        ),
+        checkpointer=InMemorySaver(),
+    )
+
+    async def invoke_model(*_args, **_kwargs):
+        return AIMessage(
+            content="",
+            tool_calls=[
+                {
+                    "id": "call_ask",
+                    "name": "ask_user",
+                    "args": {
+                        "questions": [
+                            {
+                                "title": "剧情走向？",
+                                "description": "请选择下一段的展开方向。",
+                                "options": [],
+                            }
+                        ]
+                    },
+                }
+            ],
+        )
+
+    config = {"configurable": {"thread_id": "ask-user-interrupt"}}
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model",
+        side_effect=invoke_model,
+    ):
+        await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="继续" )],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            },
+            config=config,
+        )
+
+    state = await graph.aget_state(config)
+    pending = [
+        pending_interrupt
+        for task in state.tasks
+        for pending_interrupt in getattr(task, "interrupts", ())
+    ]
+    assert len(pending) == 1
+    assert pending[0].value["tool_call_id"] == "call_ask"
+    assert pending[0].value["tool_name"] == "ask_user"
+    assert pending[0].value["args"] == {
+        "questions": [
+            {
+                "title": "剧情走向？",
+                "description": "请选择下一段的展开方向。",
+                "options": [],
+            }
+        ]
+    }
 
 
 async def _approval_hook(ctx) -> HookResult:

@@ -1,4 +1,4 @@
-import type { AgentMessage, AgentSessionStatus } from "@/lib/agent.types";
+import type { AgentMessage } from "@/lib/agent.types";
 
 import type { BlockDisplayMessage } from "./display-message-types";
 
@@ -24,11 +24,6 @@ export interface AgentRoundToolbarTarget {
   sourceRevisionId?: string;
   copyContent: string;
   timestamp?: number;
-}
-
-interface AgentRoundToolbarOptions {
-  isRunning?: boolean;
-  status?: AgentSessionStatus;
 }
 
 interface BuildAgentMessageBlocksOptions {
@@ -258,16 +253,7 @@ function getLatestAssistantToolbarTimestamp(blocks: AgentMessageBlock[]): number
 export function getAgentRoundToolbarTargets(
   blocks: AgentMessageBlock[],
   visibleBlocks: AgentMessageBlock[],
-  options: AgentRoundToolbarOptions = {},
 ): AgentRoundToolbarTarget[] {
-  if (
-    options.isRunning ||
-    options.status === "waiting_approval" ||
-    options.status === "waiting_answer"
-  ) {
-    return [];
-  }
-
   const roundOrder: string[] = [];
   const rounds = new Map<
     string,

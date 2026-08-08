@@ -1084,12 +1084,35 @@ async def get_agent_session_state(
     checkpoint_values = checkpoint.checkpoint.get("channel_values") if checkpoint else None
     state_values = dict(checkpoint_values) if isinstance(checkpoint_values, dict) else {}
     is_running = await get_agent_run_registry().is_running(session_id)
-    if not state_values and not is_running:
+    interrupts: list[dict] = []
+    if checkpoint is not None:
+        for pending_write in checkpoint.pending_writes or []:
+            if len(pending_write) < 3 or pending_write[1] != "__interrupt__":
+                continue
+            values = pending_write[2]
+            if not isinstance(values, list):
+                continue
+            for interrupt in values:
+                value = getattr(interrupt, "value", None)
+                interrupt_id = getattr(interrupt, "id", None)
+                if not isinstance(value, dict) or not isinstance(interrupt_id, str):
+                    continue
+                payload = dict(value)
+                payload["interrupt_id"] = interrupt_id
+                if payload.get("type") == "tool_approval":
+                    payload["approval_id"] = interrupt_id
+                    payload["id"] = interrupt_id
+                elif payload.get("type") == "ask_user":
+                    payload["action_id"] = interrupt_id
+                    payload["id"] = interrupt_id
+                interrupts.append(payload)
+    if not state_values and not is_running and not interrupts:
         raise NotFoundError(f"会话不存在: {session_id}")
     return AgentSessionStateResponse(
         session_id=session_id,
         state=state_values,
         is_running=is_running,
+        interrupts=interrupts,
     )
 
 

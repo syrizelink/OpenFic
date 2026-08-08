@@ -11,7 +11,7 @@ from app.agent_runtime.modes import AgentMode
 from app.agent_runtime.attachments import delete_attachments_for_task
 from app.agent_runtime.persistence.child_runs import list_child_runs_for_parent
 from app.agent_runtime.persistence.task_projection import load_task_messages_for_agent_session
-from app.agent_runtime.runner.checkpointer import delete_checkpoints_for_thread
+from app.agent_runtime.runner.checkpointer import delete_checkpoints_for_thread, get_checkpointer
 
 from app.api.schemas.task import (
     TaskListItem,
@@ -52,6 +52,19 @@ async def _list_task_checkpoint_thread_ids(
     if not session_id:
         return []
     return [*await _list_descendant_child_thread_ids(session, session_id), session_id]
+
+
+async def _has_pending_interrupt(checkpointer, session_id: str | None) -> bool:
+    if not session_id:
+        return False
+    checkpoint = await checkpointer.aget_tuple({"configurable": {"thread_id": session_id}})
+    return any(
+        len(pending_write) >= 3
+        and pending_write[1] == "__interrupt__"
+        and isinstance(pending_write[2], list)
+        and pending_write[2]
+        for pending_write in checkpoint.pending_writes or []
+    ) if checkpoint is not None else False
 
 
 async def _delete_checkpoint_threads(
@@ -128,6 +141,11 @@ async def list_tasks(
             search_query=search,
             favorited_only=favorited,
         )
+        checkpointer = await get_checkpointer()
+        pending_interrupts = {
+            task.id: await _has_pending_interrupt(checkpointer, task.agent_session_id)
+            for task in result.items
+        }
 
         items = [
             TaskListItem(
@@ -139,7 +157,7 @@ async def list_tasks(
                 token_output=task.token_output,
                 token_cache=task.token_cache,
                 context_input_tokens=task.context_input_tokens,
-                is_running=task.is_running,
+                is_running=task.is_running or pending_interrupts[task.id],
                 is_favorited=task.is_favorited,
                 created_at=task.created_at,
                 updated_at=task.updated_at,

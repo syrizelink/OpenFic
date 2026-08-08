@@ -51,6 +51,29 @@ export function getLoadedAgentSessionState({
   isRemoteRunning?: boolean;
   primaryAgentKey?: string;
 }): LoadedAgentSessionState {
+  const pendingQuestion = messages.find(
+    (message) => message.type === "question" && message.status === "pending",
+  );
+  if (pendingQuestion) {
+    return {
+      status: "waiting_answer",
+      isRunning: false,
+      currentStage: i18n.t("assistant.waitingForAnswer"),
+    };
+  }
+  const pendingApproval = messages.find(
+    (message) =>
+      (message.type === "approval" || message.type === "tool_approval") &&
+      message.status === "pending",
+  );
+  if (pendingApproval) {
+    return {
+      status: "waiting_approval",
+      isRunning: false,
+      currentStage: i18n.t("assistant.waitingForApproval"),
+    };
+  }
+
   if (isRemoteRunning) {
     return {
       status: "running",

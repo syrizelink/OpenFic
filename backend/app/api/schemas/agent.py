@@ -185,6 +185,7 @@ class AgentSessionStateResponse(BaseModel):
     session_id: str = Field(..., description="会话ID")
     state: dict = Field(..., description="状态信息")
     is_running: bool = Field(default=False, description="会话是否仍有后台运行任务")
+    interrupts: list[dict] = Field(default_factory=list, description="待处理的可恢复中断")
 
 
 class ActiveSubagentStateResponse(BaseModel):

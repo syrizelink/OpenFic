@@ -711,6 +711,10 @@ export function applyAgentTranscriptEvent(
     }
 
     if (message.type === "tool") {
+      const isInterruptPreview = message.payload?.is_interrupt_preview === true;
+      const shouldKeepRunning =
+        !isInterruptPreview &&
+        (message.status === "running" || message.isStreaming || state.status === "running");
       const nextMessages = upsertTranscriptStreamingMessage(
         clearRetryMessages(
           stopStreamingReasoning(stopStreamingAssistantOutput(baseMessages)),
@@ -724,10 +728,12 @@ export function applyAgentTranscriptEvent(
           status:
             message.status === "error"
               ? "running"
-              : message.status === "running" || message.isStreaming
-                ? "running"
-                : state.status,
-          isRunning: message.status === "running" || message.isStreaming ? true : state.isRunning,
+              : isInterruptPreview
+                ? "waiting_approval"
+                : shouldKeepRunning
+                  ? "running"
+                  : state.status,
+          isRunning: shouldKeepRunning,
           currentStage: stageText || state.currentStage,
         },
         message,

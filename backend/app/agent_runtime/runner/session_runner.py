@@ -341,6 +341,8 @@ class SessionRunner:
                                 "tool": tool_name,
                                 "input": preview_item.get("args") or {},
                                 "output": preview,
+                                "is_preview": True,
+                                "is_interrupt_preview": True,
                             },
                         )
             if self._persister is not None:
@@ -365,6 +367,8 @@ class SessionRunner:
                         "tool": tool_name,
                         "input": interrupt_payload.get("args") or {},
                         "output": tool_result_preview,
+                        "is_preview": True,
+                        "is_interrupt_preview": True,
                     },
                 )
 

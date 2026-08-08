@@ -522,6 +522,56 @@ async def test_projects_interrupted_ask_user_before_node_end(
 
 
 @pytest.mark.asyncio
+async def test_projects_pending_ask_user_preview_as_running_tool_message(
+    db_session: AsyncSession,
+    sample_task,
+) -> None:
+    sid = "session_pending_ask_user_projection"
+    questions = [{"title": "剧情走向？", "description": "请选择下一段方向", "options": []}]
+    await repo.insert_message(
+        db_session,
+        session_id=sid,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="assistant",
+        status="complete",
+        tool_calls=[
+            {
+                "id": "call_ask",
+                "name": "ask_user",
+                "args": {"questions": questions},
+            }
+        ],
+    )
+    await repo.insert_message(
+        db_session,
+        session_id=sid,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="tool",
+        status="aborted",
+        content=json.dumps(
+            {
+                "type": "preview",
+                "success": True,
+                "reason": "ask_user_pending",
+                "questions": questions,
+            },
+            ensure_ascii=False,
+        ),
+        tool_call_id="call_ask",
+        tool_name="ask_user",
+    )
+
+    messages = await load_task_messages_for_agent_session(db_session, sid)
+    tool_message = next(message for message in messages if message.message_type == "tool")
+    assert tool_message.message_status == "running"
+    assert tool_message.payload["tool_name"] == "ask_user"
+    assert tool_message.payload["tool_args"] == {"questions": questions}
+    assert tool_message.payload["tool_result"]["reason"] == "ask_user_pending"
+
+
+@pytest.mark.asyncio
 async def test_projects_resumed_tool_call_as_single_tool_message(
     db_session: AsyncSession,
     sample_task,

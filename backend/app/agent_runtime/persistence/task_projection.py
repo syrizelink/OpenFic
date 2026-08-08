@@ -74,6 +74,8 @@ def _tool_result(row: PersistedMessage) -> dict[str, Any]:
 
 
 def _tool_message_status(row: PersistedMessage, tool_result: dict[str, Any]) -> str:
+    if tool_result.get("reason") == "ask_user_pending":
+        return "running"
     if tool_result.get("reason") == "approval_preview":
         return "completed"
     return _message_status(row.status)
@@ -357,6 +359,12 @@ def _project_rows(
         if row.role == "tool":
             tool_args = tool_args_by_id.get(row.tool_call_id or "", {})
             tool_result = _tool_result(row)
+            if (
+                row.tool_name == "ask_user"
+                and not tool_args
+                and isinstance(tool_result.get("questions"), list)
+            ):
+                tool_args = {"questions": tool_result["questions"]}
             tool_result = _with_subagent_identity(
                 tool_result,
                 tool_args,

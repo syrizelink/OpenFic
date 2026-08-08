@@ -372,6 +372,18 @@ class MessagePersister:
         tool_call_id = payload.get("tool_call_id")
         tool_result_preview = payload.get("tool_result_preview")
         tool_name = payload.get("tool_name")
+        if payload.get("type") == "ask_user" and not isinstance(tool_result_preview, dict):
+            questions = payload.get("questions")
+            if not isinstance(questions, list):
+                args = payload.get("args")
+                questions = args.get("questions") if isinstance(args, dict) else None
+            if isinstance(questions, list):
+                tool_result_preview = {
+                    "type": "preview",
+                    "success": True,
+                    "reason": "ask_user_pending",
+                    "questions": questions,
+                }
         if not isinstance(tool_call_id, str) or not tool_call_id:
             return
         if not isinstance(tool_result_preview, dict):

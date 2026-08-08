@@ -258,6 +258,7 @@ export interface AgentSessionStateResponse {
   sessionId: string;
   state: Record<string, unknown>;
   isRunning: boolean;
+  interrupts: Record<string, unknown>[];
 }
 
 export interface AgentSendMessageRequest {

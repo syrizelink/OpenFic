@@ -1008,16 +1008,17 @@ def create_react_agent(
                 )
         except GraphInterrupt as interrupt:
             preview_builder = getattr(tool_instance, "build_interrupt_preview", None)
-            if callable(preview_builder) and interrupt.args and interrupt.args[0]:
+            if interrupt.args and interrupt.args[0]:
                 interrupt_value = interrupt.args[0][0].value
                 if isinstance(interrupt_value, dict):
-                    preview = await preview_builder(tool_args)
-                    if isinstance(preview, dict):
-                        interrupt_value["tool_result_preview"] = preview
-                        interrupt_value.setdefault("tool_call_id", tool_id)
-                        interrupt_value.setdefault("tool_name", tool_name)
-                        interrupt_value.setdefault("args", tool_args)
-                        interrupt_value.setdefault("tool_index", tool_index)
+                    interrupt_value.setdefault("tool_call_id", tool_id)
+                    interrupt_value.setdefault("tool_name", tool_name)
+                    interrupt_value.setdefault("args", tool_args)
+                    interrupt_value.setdefault("tool_index", tool_index)
+                    if callable(preview_builder):
+                        preview = await preview_builder(tool_args)
+                        if isinstance(preview, dict):
+                            interrupt_value["tool_result_preview"] = preview
             await _finish_active_audit()
             raise
         except Exception as exc:

@@ -1234,6 +1234,49 @@ class TestAgentAPI:
         assert data["is_running"] is True
         fake_registry.is_running.assert_awaited_once_with(session_id)
 
+    async def test_get_session_state_returns_pending_interrupts(
+        self,
+        client: AsyncClient,
+    ) -> None:
+        interrupt = SimpleNamespace(
+            id="interrupt-approval-1",
+            value={
+                "type": "tool_approval",
+                "tool_name": "edit_note",
+                "args": {"note_id": "note-1"},
+            },
+        )
+        fake_checkpointer = SimpleNamespace(
+            aget_tuple=AsyncMock(
+                return_value=SimpleNamespace(
+                    checkpoint={"channel_values": {"session_id": "session-interrupt"}},
+                    pending_writes=[("task-1", "__interrupt__", [interrupt])],
+                )
+            )
+        )
+        fake_registry = SimpleNamespace(is_running=AsyncMock(return_value=False))
+
+        with patch(
+            "app.api.routers.agent_runtime.get_checkpointer",
+            new=AsyncMock(return_value=fake_checkpointer),
+        ), patch(
+            "app.api.routers.agent_runtime.get_agent_run_registry",
+            return_value=fake_registry,
+        ):
+            response = await client.get("/api/v1/agent/sessions/session-interrupt")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["interrupts"] == [
+            {
+                "type": "tool_approval",
+                "tool_name": "edit_note",
+                "args": {"note_id": "note-1"},
+                "interrupt_id": "interrupt-approval-1",
+                "approval_id": "interrupt-approval-1",
+                "id": "interrupt-approval-1",
+            }
+        ]
+
     async def test_send_message_keeps_task_running_when_async_child_is_still_running(
         self,
         client: AsyncClient,

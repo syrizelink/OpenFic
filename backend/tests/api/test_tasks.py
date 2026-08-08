@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Task API contract tests for agent-runtime backed tasks."""
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -207,6 +208,39 @@ class TestTaskAPI:
         await session.commit()
 
         response = await client.get(f"/api/v1/projects/{project_id}/tasks")
+
+        assert response.status_code == status.HTTP_200_OK
+        items = {item["id"]: item for item in response.json()["items"]}
+        assert items[task.id]["is_running"] is True
+
+    async def test_list_tasks_treats_pending_interrupt_as_running(
+        self,
+        client: AsyncClient,
+        session: AsyncSession,
+    ) -> None:
+        task, project_id, _chapter_id = await self.create_agent_task(
+            client,
+            session,
+            title="等待用户输入的任务",
+        )
+        task.is_running = False
+        await session.commit()
+
+        fake_checkpointer = AsyncMock()
+        fake_checkpointer.aget_tuple.return_value = SimpleNamespace(
+            pending_writes=[
+                (
+                    "task-write",
+                    "__interrupt__",
+                    [SimpleNamespace(value={"type": "ask_user"})],
+                )
+            ]
+        )
+        with patch(
+            "app.api.routers.tasks.get_checkpointer",
+            new=AsyncMock(return_value=fake_checkpointer),
+        ):
+            response = await client.get(f"/api/v1/projects/{project_id}/tasks")
 
         assert response.status_code == status.HTTP_200_OK
         items = {item["id"]: item for item in response.json()["items"]}

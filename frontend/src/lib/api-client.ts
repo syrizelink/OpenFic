@@ -2191,6 +2191,11 @@ export async function fetchAgentSessionState(
         ? (data.state as Record<string, unknown>)
         : {},
     isRunning: data.is_running === true,
+    interrupts: Array.isArray(data.interrupts)
+      ? data.interrupts.filter((item): item is Record<string, unknown> =>
+          Boolean(item && typeof item === "object" && !Array.isArray(item)),
+        )
+      : [],
   };
 }
 

@@ -888,6 +888,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
           agentSidebar.loadSession(sessionId, agentMessages, {
             reconnect: true,
             isRemoteRunning,
+            pendingInterrupts: bundle.sessionState?.interrupts,
             primaryAgentKey:
               typeof bundle.sessionState?.state.agent_key === "string"
                 ? bundle.sessionState.state.agent_key

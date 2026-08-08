@@ -183,6 +183,8 @@ export function toAgentEvent(
         tool_args_text: typeof input === "string" ? input : JSON.stringify(input ?? {}),
         tool_result: result,
         success: toolSuccess,
+        is_preview: data.is_preview === true,
+        is_interrupt_preview: data.is_interrupt_preview === true,
       },
     };
   }

@@ -12,7 +12,35 @@ from langgraph.types import interrupt
 from langgraph.types import Command
 
 from app.agent_runtime.context.types import ContextMessage
-from app.agent_runtime.runner.session_runner import SessionRunner
+from app.agent_runtime.runner.session_runner import SessionRunner, _interrupt_payloads
+
+
+def test_interrupt_payloads_preserve_pending_resume_data() -> None:
+    state = SimpleNamespace(
+        tasks=(
+            SimpleNamespace(
+                interrupts=(
+                    SimpleNamespace(
+                        id="interrupt-1",
+                        value={
+                            "type": "ask_user",
+                            "questions": [{"title": "继续吗？"}],
+                        },
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    assert _interrupt_payloads(state) == [
+        {
+            "type": "ask_user",
+            "questions": [{"title": "继续吗？"}],
+            "interrupt_id": "interrupt-1",
+            "action_id": "interrupt-1",
+            "id": "interrupt-1",
+        }
+    ]
 
 
 def test_session_runner_init():
@@ -250,6 +278,7 @@ async def test_run_emits_preview_for_each_parallel_tool_approval_interrupt():
         first_preview,
         second_preview,
     ]
+    assert all(payload["is_preview"] is True for payload in preview_result_payloads)
     interrupt_payloads = [
         call.args[1]
         for call in emit_mock.await_args_list
