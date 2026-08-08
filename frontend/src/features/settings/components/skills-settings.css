@@ -43,6 +43,34 @@
   background: var(--color-background);
 }
 
+.rules-settings-scope-selector {
+  padding: 12px 12px 4px;
+  background: var(--color-background);
+}
+
+.rules-settings-scope-selector .rt-SelectTrigger {
+  width: 100%;
+}
+
+.rt-SelectContent.rules-settings-scope-content {
+  max-height: 240px;
+}
+
+.rules-settings-scope-content .rt-SelectItem {
+  padding-right: 4px;
+}
+
+.rules-settings-scope-badge {
+  flex-shrink: 0;
+}
+
+.rules-settings-copy-preview {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
 .skills-settings-toolbar-row {
   min-width: 0;
 }

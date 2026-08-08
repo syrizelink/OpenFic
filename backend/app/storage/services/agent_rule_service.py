@@ -7,8 +7,9 @@ from datetime import UTC, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFoundError
+from app.core.utils.tiktoken import count_tokens
 from app.storage.models.agent_rule import AgentRule
-from app.storage.repos import agent_rule_repo
+from app.storage.repos import agent_rule_repo, project_repo
 
 
 @dataclass
@@ -19,16 +20,33 @@ class AgentRuleListResult:
     page_size: int
 
 
+@dataclass
+class AgentRuleScope:
+    scope: str
+    project_id: str | None
+    title: str
+    rule_count: int
+
+
 async def create_rule(
     session: AsyncSession,
     *,
     title: str = "",
     content: str = "",
+    scope: str = "global",
+    project_id: str | None = None,
 ) -> AgentRule:
-    max_order = await agent_rule_repo.get_max_order_index(session)
+    if scope == "project":
+        if not project_id or await project_repo.get_by_id(session, project_id) is None:
+            raise ValueError("project 作用域必须指定有效的项目")
+    resolved_project_id = project_id if scope == "project" else None
+    max_order = await agent_rule_repo.get_max_order_index(session, scope, resolved_project_id)
     rule = AgentRule(
         title=title,
         content=content,
+        scope=scope,
+        project_id=resolved_project_id,
+        token_count=count_tokens(content),
         order_index=max_order + 1,
     )
     return await agent_rule_repo.create(session, rule)
@@ -45,13 +63,52 @@ async def list_rules(
     session: AsyncSession,
     page: int = 1,
     page_size: int = 100,
+    scope: str = "global",
+    project_id: str | None = None,
 ) -> AgentRuleListResult:
-    items, total = await agent_rule_repo.get_all(session, page, page_size)
+    resolved_project_id = project_id if scope == "project" else None
+    items, total = await agent_rule_repo.get_all(
+        session, page, page_size, scope, resolved_project_id
+    )
     return AgentRuleListResult(items=items, total=total, page=page, page_size=page_size)
 
 
-async def list_all_rules(session: AsyncSession) -> list[AgentRule]:
-    return await agent_rule_repo.get_all_ordered(session)
+async def list_all_rules(
+    session: AsyncSession,
+    project_id: str | None = None,
+) -> list[AgentRule]:
+    return await agent_rule_repo.get_all_ordered(session, project_id)
+
+
+async def list_scopes(
+    session: AsyncSession,
+    rules: list[AgentRule] | None = None,
+) -> list[AgentRuleScope]:
+    """返回规则作用域：全局置顶，其余按项目修改时间倒序。"""
+    if rules is None:
+        rules = await agent_rule_repo.get_all_for_scope_counts(session)
+    projects = await project_repo.list_all(session, offset=0, limit=1000)
+
+    counts: dict[str, int] = {}
+    for rule in rules:
+        key = "global" if rule.scope != "project" else f"project:{rule.project_id}"
+        counts[key] = counts.get(key, 0) + 1
+
+    global_count = counts.get("global", 0)
+    scopes: list[AgentRuleScope] = [
+        AgentRuleScope(scope="global", project_id=None, title="全局", rule_count=global_count)
+    ]
+    for project in projects:
+        key = f"project:{project.id}"
+        scopes.append(
+            AgentRuleScope(
+                scope="project",
+                project_id=project.id,
+                title=project.title,
+                rule_count=counts.get(key, 0),
+            )
+        )
+    return scopes
 
 
 async def update_rule(
@@ -66,6 +123,7 @@ async def update_rule(
         rule.title = title
     if content is not None:
         rule.content = content
+        rule.token_count = count_tokens(content)
     rule.updated_at = datetime.now(UTC)
     return await agent_rule_repo.update(session, rule)
 

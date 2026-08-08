@@ -5,10 +5,10 @@ from app.agent_runtime.context.types import ContextMessage
 from app.storage.services import agent_rule_service
 
 
-async def build_rules(db_session: AsyncSession) -> ContextMessage | None:
-    """构建 p3 Rules 上下文片段：列出所有用户规则；空列表返回 None；DB 失败抛 ContextBuildError。"""
+async def build_rules(db_session: AsyncSession, project_id: str | None = None) -> ContextMessage | None:
+    """构建 p3 Rules 上下文片段：列出所有全局规则以及当前项目规则；空列表返回 None；DB 失败抛 ContextBuildError。"""
     try:
-        rules = await agent_rule_service.list_all_rules(db_session)
+        rules = await agent_rule_service.list_all_rules(db_session, project_id)
     except Exception as e:
         raise ContextBuildError("rules", "failed to load rules", cause=e) from e
 

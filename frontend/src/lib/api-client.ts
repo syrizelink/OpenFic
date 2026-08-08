@@ -499,6 +499,7 @@ import type {
   AgentRuleUpdate,
   AgentRuleListResponse,
   AgentRuleListParams,
+  AgentRuleScopeListResponse,
 } from "./agent-rule.types";
 
 function transformAgentRule(raw: Record<string, unknown>): AgentRule {
@@ -506,9 +507,25 @@ function transformAgentRule(raw: Record<string, unknown>): AgentRule {
     id: raw.id as string,
     title: raw.title as string,
     content: raw.content as string,
+    scope: (raw.scope as string) ?? "global",
+    projectId: (raw.project_id as string | null) ?? null,
+    tokenCount: (raw.token_count as number) ?? 0,
     orderIndex: (raw.order_index as number) ?? 0,
     createdAt: raw.created_at as string,
     updatedAt: raw.updated_at as string,
+  };
+}
+
+export async function fetchAgentRuleScopes(): Promise<AgentRuleScopeListResponse> {
+  const response = await apiClient.get("/agent-rules/scopes");
+  const data = response.data;
+  return {
+    items: (data.items as Record<string, unknown>[]).map((raw) => ({
+      scope: raw.scope as string,
+      projectId: (raw.project_id as string | null) ?? null,
+      title: raw.title as string,
+      ruleCount: (raw.rule_count as number) ?? 0,
+    })),
   };
 }
 
@@ -519,6 +536,8 @@ export async function fetchAgentRules(
     params: {
       page: params?.page ?? 1,
       page_size: params?.pageSize ?? 100,
+      scope: params?.scope ?? "global",
+      project_id: params?.projectId ?? undefined,
     },
   });
   const data = response.data;
@@ -534,6 +553,8 @@ export async function createAgentRule(data: AgentRuleCreate): Promise<AgentRule>
   const response = await apiClient.post("/agent-rules", {
     title: data.title,
     content: data.content,
+    scope: data.scope ?? "global",
+    project_id: data.projectId ?? null,
   });
   return transformAgentRule(response.data);
 }

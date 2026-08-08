@@ -15,6 +15,16 @@ async def test_rules_returns_none_when_empty(mock_session):
 
 
 @pytest.mark.asyncio
+async def test_rules_returns_none_when_empty_for_project(mock_session):
+    with patch(
+        "app.agent_runtime.context.parts.rules.agent_rule_service.list_all_rules",
+        AsyncMock(return_value=[]),
+    ) as mock_list:
+        assert await build_rules(mock_session, project_id="proj-1") is None
+    mock_list.assert_awaited_once_with(mock_session, "proj-1")
+
+
+@pytest.mark.asyncio
 async def test_rules_renders_pseudo_xml(mock_session):
     rules = [
         SimpleNamespace(content="不要透露身份"),

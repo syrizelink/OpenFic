@@ -1867,6 +1867,13 @@
   "settingsExtra": {
     "rules": {
       "searchPlaceholder": "搜索规则...",
+      "scopePlaceholder": "选择作用域",
+      "globalScope": "全局",
+      "copyToScope": "复制到作用域",
+      "copySuccess": "已复制到作用域",
+      "copyTargetScope": "目标作用域",
+      "copyAction": "复制",
+      "emptyContent": "（无内容）",
       "newRule": "新建规则",
       "noSearchResults": "无匹配结果",
       "empty": "暂无规则",
@@ -1879,7 +1886,9 @@
       "menu": "规则菜单",
       "title": "标题",
       "titlePlaceholder": "输入规则标题，例如：回复语言",
+      "content": "内容",
       "contentPlaceholder": "输入规则内容，例如：回复时使用简体中文",
+      "tokens": "tokens",
       "saving": "保存中..."
     },
     "skills": {

@@ -1,4 +1,5 @@
 import {
+  Badge,
   Box,
   Button,
   Dialog,
@@ -11,7 +12,7 @@ import {
 } from "@radix-ui/themes";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Fuse from "fuse.js";
-import { MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react";
+import { Copy, MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -22,14 +23,22 @@ import {
   type ContextMenuItem,
   type ContextMenuPosition,
 } from "@/components/context-menu";
+import { SimpleSelect } from "@/components/select";
 import { toast } from "@/components/toast";
-import type { AgentRule, AgentRuleCreate, AgentRuleListResponse } from "@/lib/agent-rule.types";
+import type {
+  AgentRule,
+  AgentRuleCreate,
+  AgentRuleListResponse,
+  AgentRuleScope,
+} from "@/lib/agent-rule.types";
 import {
   createAgentRule,
   deleteAgentRule,
+  fetchAgentRuleScopes,
   fetchAgentRules,
   updateAgentRule,
 } from "@/lib/api-client";
+import { countTokens } from "@/lib/tiktoken-utils";
 
 import { AgentSettingsLockNotice } from "./agent-settings-lock-notice";
 
@@ -76,6 +85,16 @@ function toFormState(rule: AgentRule | null): RuleFormState {
   };
 }
 
+function scopeValue(scope: { scope: string; projectId: string | null }): string {
+  return scope.scope === "global" ? "global" : `project:${scope.projectId}`;
+}
+
+function parseScopeValue(value: string): { scope: string; projectId: string | null } {
+  if (value === "global") return { scope: "global", projectId: null };
+  const projectId = value.startsWith("project:") ? value.slice("project:".length) : null;
+  return { scope: "project", projectId };
+}
+
 export function RulesSettings({
   mobilePage,
   mobileDirection: controlledMobileDirection,
@@ -88,9 +107,12 @@ export function RulesSettings({
   const queryClient = useQueryClient();
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false);
+  const [copyRuleId, setCopyRuleId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [contextMenuPos, setContextMenuPos] = useState<ContextMenuPosition | null>(null);
   const [contextMenuRuleId, setContextMenuRuleId] = useState<string | null>(null);
+  const [selectedScope, setSelectedScope] = useState<string>("global");
   const [isMobile, setIsMobile] = useState(false);
   const [internalMobilePage, setInternalMobilePage] = useState<"list" | "detail">("list");
   const [internalMobileDirection, setInternalMobileDirection] = useState<1 | -1>(1);
@@ -105,13 +127,41 @@ export function RulesSettings({
   useEffect(() => {
     if (!isAgentSettingsLocked) return;
     setDeleteDialogOpen(false);
+    setCopyDialogOpen(false);
+    setCopyRuleId(null);
     setContextMenuPos(null);
     setContextMenuRuleId(null);
   }, [isAgentSettingsLocked]);
 
+  const { data: scopesData } = useQuery({
+    queryKey: ["agent-rule-scopes"],
+    queryFn: fetchAgentRuleScopes,
+  });
+
+  const scopes = useMemo(() => scopesData?.items ?? [], [scopesData?.items]);
+
+  useEffect(() => {
+    if (scopes.length === 0) return;
+    const exists = scopes.some((scope) => scopeValue(scope) === selectedScope);
+    if (!exists) setSelectedScope("global");
+  }, [scopes, selectedScope]);
+
+  const activeScope = useMemo(() => parseScopeValue(selectedScope), [selectedScope]);
+
+  const rulesQueryKey = useMemo(
+    () => ["agent-rules", activeScope.scope, activeScope.projectId],
+    [activeScope.scope, activeScope.projectId],
+  );
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ["agent-rules"],
-    queryFn: () => fetchAgentRules({ page: 1, pageSize: 100 }),
+    queryKey: rulesQueryKey,
+    queryFn: () =>
+      fetchAgentRules({
+        page: 1,
+        pageSize: 100,
+        scope: activeScope.scope,
+        projectId: activeScope.projectId,
+      }),
   });
 
   const rules = useMemo(() => data?.items ?? [], [data?.items]);
@@ -150,6 +200,10 @@ export function RulesSettings({
     () => rules.find((rule) => rule.id === effectiveSelectedRuleId) ?? null,
     [effectiveSelectedRuleId, rules],
   );
+  const copyRule = useMemo(
+    () => rules.find((rule) => rule.id === copyRuleId) ?? null,
+    [copyRuleId, rules],
+  );
   const currentMobilePage = mobilePage ?? internalMobilePage;
   const currentMobileDirection = controlledMobileDirection ?? internalMobileDirection;
 
@@ -169,9 +223,15 @@ export function RulesSettings({
   }, [onMobileDetailTitleChange, selectedRule]);
 
   const createMutation = useMutation({
-    mutationFn: (payload: AgentRuleCreate) => createAgentRule(payload),
+    mutationFn: (payload: AgentRuleCreate) =>
+      createAgentRule({
+        ...payload,
+        scope: activeScope.scope,
+        projectId: activeScope.projectId,
+      }),
     onSuccess: (createdRule) => {
-      queryClient.invalidateQueries({ queryKey: ["agent-rules"] });
+      queryClient.invalidateQueries({ queryKey: rulesQueryKey });
+      queryClient.invalidateQueries({ queryKey: ["agent-rule-scopes"] });
       setSelectedRuleId(createdRule.id);
       toast.success(t("settingsExtra.rules.newRule"));
     },
@@ -182,7 +242,7 @@ export function RulesSettings({
     mutationFn: ({ ruleId, payload }: { ruleId: string; payload: RuleFormState }) =>
       updateAgentRule(ruleId, payload),
     onSuccess: (updatedRule) => {
-      queryClient.setQueryData<AgentRuleListResponse>(["agent-rules"], (current) => {
+      queryClient.setQueryData<AgentRuleListResponse>(rulesQueryKey, (current) => {
         if (!current) return current;
         return {
           ...current,
@@ -196,10 +256,41 @@ export function RulesSettings({
   const deleteMutation = useMutation({
     mutationFn: (ruleId: string) => deleteAgentRule(ruleId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["agent-rules"] });
+      queryClient.invalidateQueries({ queryKey: rulesQueryKey });
+      queryClient.invalidateQueries({ queryKey: ["agent-rule-scopes"] });
       setDeleteDialogOpen(false);
       setContextMenuRuleId(null);
       toast.success(t("common.delete"));
+    },
+    onError: () => toast.error(t("common.error")),
+  });
+
+  const copyMutation = useMutation({
+    mutationFn: ({
+      ruleId,
+      target,
+    }: {
+      ruleId: string;
+      target: { scope: string; projectId: string | null };
+    }) => {
+      const rule = rules.find((item) => item.id === ruleId);
+      if (!rule) throw new Error("rule not found");
+      return createAgentRule({
+        title: rule.title,
+        content: rule.content,
+        scope: target.scope,
+        projectId: target.projectId,
+      });
+    },
+    onSuccess: (_copied, vars) => {
+      queryClient.invalidateQueries({
+        queryKey: ["agent-rules", vars.target.scope, vars.target.projectId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["agent-rule-scopes"] });
+      setCopyDialogOpen(false);
+      setCopyRuleId(null);
+      setContextMenuRuleId(null);
+      toast.success(t("settingsExtra.rules.copySuccess"));
     },
     onError: () => toast.error(t("common.error")),
   });
@@ -232,6 +323,16 @@ export function RulesSettings({
     if (!contextMenuRuleId || isAgentSettingsLocked) return [];
     return [
       {
+        id: "copy",
+        label: t("settingsExtra.rules.copyToScope"),
+        icon: Copy,
+        onClick: () => {
+          setCopyRuleId(contextMenuRuleId);
+          setCopyDialogOpen(true);
+          handleCloseContextMenu();
+        },
+      },
+      {
         id: "delete",
         label: t("common.delete"),
         icon: Trash2,
@@ -247,6 +348,31 @@ export function RulesSettings({
 
   const listContent = (
     <div className="skills-settings-list-container">
+      <Box className="rules-settings-scope-selector">
+        <SimpleSelect
+          value={selectedScope}
+          options={scopes.map((scope) => ({
+            value: scopeValue(scope),
+            label: scope.scope === "global" ? t("settingsExtra.rules.globalScope") : scope.title,
+            separatorAfter: scope.scope === "global",
+            suffix: (
+              <Badge
+                size="1"
+                variant="soft"
+                color="green"
+                radius="medium"
+                className="rules-settings-scope-badge"
+              >
+                {scope.ruleCount}
+              </Badge>
+            ),
+          }))}
+          onChange={setSelectedScope}
+          placeholder={t("settingsExtra.rules.scopePlaceholder")}
+          size="2"
+          contentClassName="rules-settings-scope-content"
+        />
+      </Box>
       <div className="skills-settings-toolbar">
         <Flex
           align="center"
@@ -474,6 +600,17 @@ export function RulesSettings({
             </Flex>
           </Dialog.Content>
         </Dialog.Root>
+
+        <CopyRuleDialog
+          open={copyDialogOpen}
+          onOpenChange={setCopyDialogOpen}
+          rule={copyRule}
+          scopes={scopes}
+          isAgentSettingsLocked={isAgentSettingsLocked}
+          onCopy={(target) => {
+            if (copyRuleId) copyMutation.mutate({ ruleId: copyRuleId, target });
+          }}
+        />
       </Flex>
     );
   }
@@ -539,6 +676,17 @@ export function RulesSettings({
           </Flex>
         </Dialog.Content>
       </Dialog.Root>
+
+      <CopyRuleDialog
+        open={copyDialogOpen}
+        onOpenChange={setCopyDialogOpen}
+        rule={copyRule}
+        scopes={scopes}
+        isAgentSettingsLocked={isAgentSettingsLocked}
+        onCopy={(target) => {
+          if (copyRuleId) copyMutation.mutate({ ruleId: copyRuleId, target });
+        }}
+      />
     </Flex>
   );
 }
@@ -642,6 +790,7 @@ function RuleEditor({ rule, onSave, isAgentSettingsLocked }: RuleEditorProps) {
   const [form, setForm] = useState<RuleFormState>(() => toFormState(rule));
   const [lastSaved, setLastSaved] = useState<string>(() => JSON.stringify(toFormState(rule)));
   const [isSaving, setIsSaving] = useState(false);
+  const tokenCount = useMemo(() => countTokens(form.content), [form.content]);
   const hasUnsavedChanges = JSON.stringify(form) !== lastSaved;
   const canSave =
     !isAgentSettingsLocked && hasUnsavedChanges && !isSaving && Boolean(form.title.trim());
@@ -686,6 +835,24 @@ function RuleEditor({ rule, onSave, isAgentSettingsLocked }: RuleEditorProps) {
           </Box>
 
           <Box>
+            <Flex
+              justify="between"
+              align="center"
+            >
+              <Text
+                size="2"
+                weight="medium"
+                as="label"
+              >
+                {t("settingsExtra.rules.content")}
+              </Text>
+              <Text
+                size="1"
+                color="gray"
+              >
+                {tokenCount} {t("settingsExtra.rules.tokens")}
+              </Text>
+            </Flex>
             <TextArea
               mt="2"
               value={form.content}
@@ -709,5 +876,139 @@ function RuleEditor({ rule, onSave, isAgentSettingsLocked }: RuleEditorProps) {
         </Button>
       </div>
     </div>
+  );
+}
+
+interface CopyRuleDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  rule: AgentRule | null;
+  scopes: AgentRuleScope[];
+  isAgentSettingsLocked: boolean;
+  onCopy: (target: { scope: string; projectId: string | null }) => void;
+}
+
+function CopyRuleDialog({
+  open,
+  onOpenChange,
+  rule,
+  scopes,
+  isAgentSettingsLocked,
+  onCopy,
+}: CopyRuleDialogProps) {
+  const { t } = useTranslation();
+  const defaultTarget = useMemo(() => {
+    if (!rule) return "global";
+    const ownValue = scopeValue({ scope: rule.scope, projectId: rule.projectId });
+    return scopes.find((scope) => scopeValue(scope) !== ownValue)
+      ? scopeValue(scopes.find((scope) => scopeValue(scope) !== ownValue)!)
+      : "global";
+  }, [rule, scopes]);
+  const [targetScope, setTargetScope] = useState(defaultTarget);
+
+  useEffect(() => {
+    if (!open) return;
+    setTargetScope(defaultTarget);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, rule?.id]);
+
+  const availableScopes = useMemo(() => {
+    if (!rule) return [];
+    const ownValue = scopeValue({ scope: rule.scope, projectId: rule.projectId });
+    return scopes.filter((scope) => scopeValue(scope) !== ownValue);
+  }, [rule, scopes]);
+
+  const target = parseScopeValue(targetScope);
+  const canCopy = availableScopes.length > 0 && !isAgentSettingsLocked;
+
+  return (
+    <Dialog.Root
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <Dialog.Content style={{ maxWidth: 480 }}>
+        <Dialog.Title>{t("settingsExtra.rules.copyToScope")}</Dialog.Title>
+        <Flex
+          direction="column"
+          gap="3"
+          mt="3"
+        >
+          <Box>
+            <Text
+              size="2"
+              weight="medium"
+            >
+              {t("settingsExtra.rules.title")}
+            </Text>
+            <Text
+              size="2"
+              mt="1"
+              as="div"
+              color="gray"
+            >
+              {rule?.title || t("settingsExtra.rules.untitled")}
+            </Text>
+          </Box>
+          <Box>
+            <Text
+              size="2"
+              weight="medium"
+            >
+              {t("settingsExtra.rules.content")}
+            </Text>
+            <Text
+              size="2"
+              mt="1"
+              as="div"
+              color="gray"
+              className="rules-settings-copy-preview"
+            >
+              {rule?.content || t("settingsExtra.rules.emptyContent")}
+            </Text>
+          </Box>
+          <Box>
+            <Text
+              size="2"
+              weight="medium"
+              mb="2"
+              as="div"
+            >
+              {t("settingsExtra.rules.copyTargetScope")}
+            </Text>
+            <SimpleSelect
+              value={targetScope}
+              options={availableScopes.map((scope) => ({
+                value: scopeValue(scope),
+                label:
+                  scope.scope === "global" ? t("settingsExtra.rules.globalScope") : scope.title,
+                separatorAfter: scope.scope === "global",
+              }))}
+              onChange={setTargetScope}
+              size="2"
+              contentClassName="rules-settings-scope-content"
+            />
+          </Box>
+        </Flex>
+        <Flex
+          justify="end"
+          gap="2"
+          mt="4"
+        >
+          <Button
+            variant="soft"
+            color="gray"
+            onClick={() => onOpenChange(false)}
+          >
+            {t("common.cancel")}
+          </Button>
+          <Button
+            disabled={!canCopy || !rule}
+            onClick={() => onCopy(target)}
+          >
+            {t("settingsExtra.rules.copyAction")}
+          </Button>
+        </Flex>
+      </Dialog.Content>
+    </Dialog.Root>
   );
 }

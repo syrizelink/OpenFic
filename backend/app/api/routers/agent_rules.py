@@ -12,6 +12,8 @@ from app.api.schemas.agent_rule import (
     AgentRuleListResponse,
     AgentRuleReorder,
     AgentRuleResponse,
+    AgentRuleScopeListResponse,
+    AgentRuleScopeResponse,
     AgentRuleUpdate,
 )
 from app.api.agent_settings_lock import require_agent_settings_unlocked
@@ -27,6 +29,9 @@ def _to_response(rule) -> AgentRuleResponse:
         id=rule.id,
         title=rule.title,
         content=rule.content,
+        scope=rule.scope,
+        project_id=rule.project_id,
+        token_count=rule.token_count,
         order_index=rule.order_index,
         created_at=rule.created_at,
         updated_at=rule.updated_at,
@@ -40,12 +45,35 @@ async def create_rule(
 ) -> AgentRuleResponse:
     await require_agent_settings_unlocked(session)
     logger.info("创建 AgentRule")
-    rule = await agent_rule_service.create_rule(
-        session,
-        title=data.title,
-        content=data.content,
-    )
+    try:
+        rule = await agent_rule_service.create_rule(
+            session,
+            title=data.title,
+            content=data.content,
+            scope=data.scope,
+            project_id=data.project_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     return _to_response(rule)
+
+
+@router.get("/agent-rules/scopes", response_model=AgentRuleScopeListResponse)
+async def list_scopes(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AgentRuleScopeListResponse:
+    scopes = await agent_rule_service.list_scopes(session)
+    return AgentRuleScopeListResponse(
+        items=[
+            AgentRuleScopeResponse(
+                scope=s.scope,
+                project_id=s.project_id,
+                title=s.title,
+                rule_count=s.rule_count,
+            )
+            for s in scopes
+        ]
+    )
 
 
 @router.get("/agent-rules", response_model=AgentRuleListResponse)
@@ -53,8 +81,16 @@ async def list_rules(
     session: Annotated[AsyncSession, Depends(get_session)],
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 50,
+    scope: Annotated[str, Query()] = "global",
+    project_id: Annotated[str | None, Query()] = None,
 ) -> AgentRuleListResponse:
-    result = await agent_rule_service.list_rules(session, page=page, page_size=page_size)
+    result = await agent_rule_service.list_rules(
+        session,
+        page=page,
+        page_size=page_size,
+        scope=scope,
+        project_id=project_id,
+    )
     return AgentRuleListResponse(
         items=[_to_response(rule) for rule in result.items],
         total=result.total,

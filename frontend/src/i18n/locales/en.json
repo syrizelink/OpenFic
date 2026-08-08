@@ -1804,6 +1804,13 @@
   "settingsExtra": {
     "rules": {
       "searchPlaceholder": "Search rules...",
+      "scopePlaceholder": "Select scope",
+      "globalScope": "Global",
+      "copyToScope": "Copy to scope",
+      "copySuccess": "Copied to scope",
+      "copyTargetScope": "Target scope",
+      "copyAction": "Copy",
+      "emptyContent": "(No content)",
       "newRule": "New Rule",
       "noSearchResults": "No matching results",
       "empty": "No rules yet",
@@ -1816,7 +1823,9 @@
       "menu": "Rule menu",
       "title": "Title",
       "titlePlaceholder": "Enter a rule title, e.g. Response Language",
+      "content": "Content",
       "contentPlaceholder": "Enter the rule content, e.g. Use Simplified Chinese in responses",
+      "tokens": "tokens",
       "saving": "Saving..."
     },
     "skills": {

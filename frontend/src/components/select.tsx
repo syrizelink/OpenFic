@@ -7,7 +7,7 @@
 
 import { Box, Button, Flex, Popover, ScrollArea, Select, Text, TextField } from "@radix-ui/themes";
 import { ChevronDown, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode, ComponentProps } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -21,6 +21,7 @@ export interface SelectOption {
   prefix?: ReactNode;
   suffix?: ReactNode;
   disabled?: boolean;
+  separatorAfter?: boolean;
 }
 
 export interface LabeledSelectProps {
@@ -42,6 +43,7 @@ export interface LabeledSelectProps {
   triggerPrefix?: ReactNode;
   hideTriggerChevron?: boolean;
   triggerClassName?: string;
+  contentClassName?: string;
 }
 
 export interface SearchableSelectProps extends LabeledSelectProps {
@@ -67,6 +69,7 @@ export function LabeledSelect({
   triggerLabelVisible = true,
   triggerPrefix,
   triggerClassName,
+  contentClassName,
 }: LabeledSelectProps) {
   const selectedOption = options.find((opt) => opt.value === value);
   const triggerLabel = selectedOption?.label || placeholder;
@@ -102,30 +105,35 @@ export function LabeledSelect({
           )}
         </Flex>
       </Select.Trigger>
-      <Select.Content position={contentPosition}>
+      <Select.Content
+        position={contentPosition}
+        className={contentClassName}
+      >
         {options.map((option) => (
-          <Select.Item
-            key={option.value}
-            value={option.value}
-            disabled={option.disabled}
-          >
-            <Flex
-              align="center"
-              gap="2"
-              justify="between"
-              className="select-option-row"
+          <Fragment key={option.value}>
+            <Select.Item
+              value={option.value}
+              disabled={option.disabled}
             >
               <Flex
                 align="center"
                 gap="2"
-                className="select-option-row__main"
+                justify="between"
+                className="select-option-row"
               >
-                {option.prefix}
-                {option.label}
+                <Flex
+                  align="center"
+                  gap="2"
+                  className="select-option-row__main"
+                >
+                  {option.prefix}
+                  {option.label}
+                </Flex>
+                {option.suffix}
               </Flex>
-              {option.suffix}
-            </Flex>
-          </Select.Item>
+            </Select.Item>
+            {option.separatorAfter ? <Select.Separator /> : null}
+          </Fragment>
         ))}
       </Select.Content>
     </Select.Root>
@@ -179,6 +187,7 @@ export function SimpleSelect({
   contentPosition = "popper",
   triggerPrefix,
   triggerClassName,
+  contentClassName,
 }: Omit<
   LabeledSelectProps,
   "label" | "labelSize" | "labelWeight" | "labelColor" | "layout" | "gap"
@@ -216,30 +225,35 @@ export function SimpleSelect({
           )}
         </Flex>
       </Select.Trigger>
-      <Select.Content position={contentPosition}>
+      <Select.Content
+        position={contentPosition}
+        className={contentClassName}
+      >
         {options.map((option) => (
-          <Select.Item
-            key={option.value}
-            value={option.value}
-            disabled={option.disabled}
-          >
-            <Flex
-              align="center"
-              gap="2"
-              justify="between"
-              className="select-option-row"
+          <Fragment key={option.value}>
+            <Select.Item
+              value={option.value}
+              disabled={option.disabled}
             >
               <Flex
                 align="center"
                 gap="2"
-                className="select-option-row__main"
+                justify="between"
+                className="select-option-row"
               >
-                {option.prefix}
-                {option.label}
+                <Flex
+                  align="center"
+                  gap="2"
+                  className="select-option-row__main"
+                >
+                  {option.prefix}
+                  {option.label}
+                </Flex>
+                {option.suffix}
               </Flex>
-              {option.suffix}
-            </Flex>
-          </Select.Item>
+            </Select.Item>
+            {option.separatorAfter ? <Select.Separator /> : null}
+          </Fragment>
         ))}
       </Select.Content>
     </Select.Root>

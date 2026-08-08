@@ -43,7 +43,7 @@ async def build_context_parts(
     parts: list[ContextMessage] = []
     if prompt_messages := await build_system_prompt(state, agent_name, db_session):
         parts.extend(prompt_messages)
-    if (m := await build_rules(db_session)) is not None:
+    if (m := await build_rules(db_session, state.get("project_id"))) is not None:
         parts.append(m)
     if (m := await build_skills(state, agent_name, db_session)) is not None:
         parts.append(m)
