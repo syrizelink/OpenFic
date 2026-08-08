@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 
 import { Spinner } from "@/components";
 
+import { getDashboardXAxisTickValues } from "../lib/dashboard-chart-axis";
 import type {
   DashboardBarDatum,
   DashboardChartAxisFormat,
@@ -146,6 +147,15 @@ function getXAxisFormat(option: DashboardChartModel): DashboardChartAxisFormat |
   return option.xAxisFormat;
 }
 
+function getXAxisTickValues(option: DashboardChartModel): string[] | undefined {
+  if (option.kind === "pie") return undefined;
+  if (option.kind === "bar")
+    return getDashboardXAxisTickValues(option.data.map((item) => item.label));
+  return getDashboardXAxisTickValues(
+    Array.from(new Set(option.data.flatMap((series) => series.data.map((item) => item.x)))),
+  );
+}
+
 interface TooltipContent {
   label: string;
   value: string;
@@ -259,6 +269,7 @@ export function ChartPanel({
   const areaBaselineValue = getChartMinValue(option);
   const valueFormat = (value: number) => formatChartValue(value, option.valueFormat);
   const xAxisFormat = (value: string | number) => formatAxisValue(value, getXAxisFormat(option));
+  const xAxisTickValues = getXAxisTickValues(option);
   const lineTooltip = ({ slice }: SliceTooltipProps<DashboardLineSeries>) => (
     <ChartTooltipRows
       rows={slice.points.map((point) => ({
@@ -364,7 +375,12 @@ export function ChartPanel({
                   }}
                   axisTop={null}
                   axisRight={null}
-                  axisBottom={{ tickSize: 0, tickPadding: 8, format: xAxisFormat }}
+                  axisBottom={{
+                    tickSize: 0,
+                    tickPadding: 8,
+                    format: xAxisFormat,
+                    tickValues: xAxisTickValues,
+                  }}
                   axisLeft={{
                     tickSize: 0,
                     tickPadding: 8,
@@ -401,7 +417,12 @@ export function ChartPanel({
                   borderWidth={0}
                   axisTop={null}
                   axisRight={null}
-                  axisBottom={{ tickSize: 0, tickPadding: 8, format: xAxisFormat }}
+                  axisBottom={{
+                    tickSize: 0,
+                    tickPadding: 8,
+                    format: xAxisFormat,
+                    tickValues: xAxisTickValues,
+                  }}
                   axisLeft={{
                     tickSize: 0,
                     tickPadding: 8,

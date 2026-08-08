@@ -15,6 +15,7 @@ import {
   fetchLlmDashboardStats,
   fetchWritingDashboard,
 } from "../lib/dashboard-api";
+import { getDefaultDashboardDateRange } from "../lib/dashboard-date-range";
 import { toIsoDateTime } from "../lib/dashboard-formatters";
 import type { DashboardQueryParams, WritingDashboardQueryParams } from "../lib/dashboard.types";
 
@@ -47,11 +48,12 @@ function getUserTimezone(): string | undefined {
 
 export function DashboardPage() {
   const { t } = useTranslation();
+  const defaultDateRange = useMemo(() => getDefaultDashboardDateRange(), []);
   const [activeTab, setActiveTab] = useState<DashboardTab>("writing");
   const [llmQuery, setLlmQuery] = useState<DashboardQueryParams>(defaultLlmQuery);
   const [searchInput, setSearchInput] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(defaultDateRange.startDate);
+  const [endDate, setEndDate] = useState(defaultDateRange.endDate);
   const [writingYear, setWritingYear] = useState(getCurrentYear);
   const isWritingTab = activeTab === "writing";
   const isLlmTab = activeTab === "llm";
@@ -146,8 +148,8 @@ export function DashboardPage() {
 
   const resetFilters = () => {
     setSearchInput("");
-    setStartDate("");
-    setEndDate("");
+    setStartDate(defaultDateRange.startDate);
+    setEndDate(defaultDateRange.endDate);
     setWritingYear(getCurrentYear());
     setLlmQuery(defaultLlmQuery);
   };
