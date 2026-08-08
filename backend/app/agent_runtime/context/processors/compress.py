@@ -1,7 +1,8 @@
 """System prompt compression processor for context building."""
 
+from collections.abc import Sequence
 from dataclasses import replace
-from typing import Any
+from typing import Any, TypeVar, cast
 
 from langchain_core.messages import BaseMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +14,8 @@ from app.storage.repos import setting_repo
 SETTING_KEY_COMPRESS_SYSTEM_PROMPTS = "compress_system_prompts"
 
 _SYSTEM_JOIN_SEPARATOR = "\n\n"
+
+TMessage = TypeVar("TMessage", bound=BaseMessage)
 
 
 async def compress_system_prompts_if_enabled(
@@ -83,14 +86,17 @@ def merge_consecutive_system_dicts(
 
 
 def merge_consecutive_system_messages(
-    messages: list[BaseMessage],
-) -> list[BaseMessage]:
+    messages: Sequence[TMessage],
+) -> list[TMessage]:
     """将 LangChain 消息列表中连续的 system 消息合并为一条。"""
-    out: list[BaseMessage] = []
+    out: list[TMessage] = []
     for message in messages:
         if out and isinstance(out[-1], SystemMessage) and isinstance(message, SystemMessage):
-            out[-1] = SystemMessage(
-                content=f"{out[-1].content}{_SYSTEM_JOIN_SEPARATOR}{message.content}"
+            out[-1] = cast(
+                TMessage,
+                SystemMessage(
+                    content=f"{out[-1].content}{_SYSTEM_JOIN_SEPARATOR}{message.content}"
+                ),
             )
         else:
             out.append(message)
