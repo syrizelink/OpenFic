@@ -952,6 +952,30 @@ def create_react_agent(
                 or not bool(prepared_outcome.get("success"))
             )
         ):
+            if not bool(prepared_outcome.get("success")):
+                tool_result_sink = _get_configurable(config).get("tool_result_sink")
+                if callable(tool_result_sink):
+                    rejected_payload = dict(prepared_outcome.get("payload") or {})
+                    rejected_payload.update(
+                        {
+                            "type": "fail",
+                            "success": False,
+                            "reason": "tool_error",
+                            "tool_call_id": tool_id,
+                            "tool_name": tool_name,
+                        }
+                    )
+                    await _maybe_await(
+                        tool_result_sink(
+                            {
+                                "session_id": _get_configurable(config).get("session_id"),
+                                "tool_call_id": tool_id,
+                                "tool_name": tool_name,
+                                "input": tool_args,
+                                "output": rejected_payload,
+                            }
+                        )
+                    )
             return {"tool_outcomes": [prepared_outcome]}
 
         tool_instance = _clone_agent_tool_for_dispatch(tool_instance)

@@ -944,6 +944,7 @@ class ApprovalTool(AgentTool):
 @pytest.mark.asyncio
 async def test_react_agent_does_not_execute_tool_after_approval_is_rejected() -> None:
     executed: list[str] = []
+    tool_results: list[dict] = []
 
     class RejectableTool(ApprovalTool):
         async def _execute(self, value: str) -> str:
@@ -969,6 +970,7 @@ async def test_react_agent_does_not_execute_tool_after_approval_is_rejected() ->
         )
 
     config = {"configurable": {"thread_id": "reject-approval"}}
+    config["configurable"]["tool_result_sink"] = tool_results.append
     with patch(
         "app.agent_runtime.graph.react_agent._invoke_model",
         side_effect=invoke_model,
@@ -1002,6 +1004,10 @@ async def test_react_agent_does_not_execute_tool_after_approval_is_rejected() ->
         )
 
     assert executed == []
+    assert len(tool_results) == 1
+    assert tool_results[0]["tool_call_id"] == "call_reject"
+    assert tool_results[0]["output"]["success"] is False
+    assert tool_results[0]["output"]["type"] == "fail"
 
 
 @pytest.mark.asyncio

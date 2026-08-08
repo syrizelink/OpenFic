@@ -252,6 +252,12 @@ class SessionRunner:
             buffer.record_unlocked(name, payload)
             await emit(name, payload, room=self._room)
 
+    async def _emit_tool_result(self, payload: dict[str, Any]) -> None:
+        payload = {"session_id": self.session_id, **payload}
+        if self._persister is not None:
+            await self._persister.apply_tool_result(payload)
+        await self._emit_agent_event("agent:tool_result", payload)
+
     async def _emit_retry_event(self, payload: dict[str, Any]) -> None:
         retry_payload = dict(payload)
         retry_payload["session_id"] = self.session_id
@@ -531,6 +537,7 @@ class SessionRunner:
                 "node_event_sink": node_event_sink,
                 "retry_event_sink": self._emit_retry_event,
                 "agent_event_sink": self._emit_agent_event,
+                "tool_result_sink": self._emit_tool_result,
                 "compaction_usage_sink": self._emit_persisted_task_usage_events,
                 "inject_queue": self._inject_queue,
                 "inject_message_consumed_sink": self._mark_injected_user_message_sent,
