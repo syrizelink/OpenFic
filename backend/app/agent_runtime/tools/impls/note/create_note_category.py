@@ -20,6 +20,7 @@ from app.agent_runtime.tools.impls.note.refs import (
     generate_unique_title,
     resolve_category_from_list,
 )
+from app.agent_runtime.tools.impls._locks import keyed_lock
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.storage.database import create_session
 from app.storage.models.note import NoteCategory
@@ -102,47 +103,48 @@ class CreateNoteCategoryTool(AgentTool):
                     raise ToolExecutionError("父分类不属于当前项目")
                 parent_id = parent.id
 
-            before = note_category_images_by_id(
-                await note_category_repo.list_by_project(session, self.project_id)
-            )
-            sibling_titles = {
-                c.title for c in before.values() if c.parent_id == parent_id
-            }
-            unique_title = generate_unique_title(title, sibling_titles)
+            async with await keyed_lock((self.project_id, parent_id)):
+                before = note_category_images_by_id(
+                    await note_category_repo.list_by_project(session, self.project_id)
+                )
+                sibling_titles = {
+                    c.title for c in before.values() if c.parent_id == parent_id
+                }
+                unique_title = generate_unique_title(title, sibling_titles)
 
-            category = NoteCategory(
-                project_id=self.project_id,
-                parent_id=parent_id,
-                title=unique_title,
-            )
-            category = await note_category_repo.create(session, category)
-            after = note_category_images_by_id(
-                await note_category_repo.list_by_project(session, self.project_id)
-            )
-            await record_note_category_diffs(
-                session,
-                revision_id=revision_id,
-                project_id=self.project_id,
-                before=before,
-                after=after,
-            )
+                category = NoteCategory(
+                    project_id=self.project_id,
+                    parent_id=parent_id,
+                    title=unique_title,
+                )
+                category = await note_category_repo.create(session, category)
+                after = note_category_images_by_id(
+                    await note_category_repo.list_by_project(session, self.project_id)
+                )
+                await record_note_category_diffs(
+                    session,
+                    revision_id=revision_id,
+                    project_id=self.project_id,
+                    before=before,
+                    after=after,
+                )
 
-            from app.background.jobs import service as background_service
+                from app.background.jobs import service as background_service
 
-            await background_service.commit_and_notify(session)
-            return json.dumps(
-                {
-                    "success": True,
-                    "metadata": {
-                        "category": {
-                            "id": category.id,
-                            "title": category.title,
-                            "parent_id": category.parent_id,
-                        }
+                await background_service.commit_and_notify(session)
+                return json.dumps(
+                    {
+                        "success": True,
+                        "metadata": {
+                            "category": {
+                                "id": category.id,
+                                "title": category.title,
+                                "parent_id": category.parent_id,
+                            }
+                        },
                     },
-                },
-                ensure_ascii=False,
-            )
+                    ensure_ascii=False,
+                )
         except ToolExecutionError:
             raise
         except Exception:

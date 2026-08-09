@@ -1,5 +1,6 @@
 """Tests for Agent chapter and volume tools."""
 
+import asyncio
 import json
 from datetime import UTC, datetime
 from types import SimpleNamespace
@@ -238,6 +239,90 @@ async def test_write_chapter_appends_to_volume_and_returns_volume_id() -> None:
     assert created_chapter.volume_id == "vol-1"
     assert created_chapter.order == 4
     refresh_volume_count.assert_awaited_once_with(mock_session, "vol-1")
+
+
+async def test_write_chapter_serializes_parallel_writes_per_volume() -> None:
+    from app.agent_runtime.tools.impls import _locks
+    from app.agent_runtime.tools.impls.chapter import write_chapter as wc
+
+    _locks._LOCKS.clear()
+    volume = _make_volume(chapter_count=3)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    call_count = 0
+
+    async def get_max_order(_session, _volume_id):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            entered.set()
+            await release.wait()
+        return 0
+
+    async def create_chapter(_session, chapter):
+        chapter.id = "chap-new"
+        return chapter
+
+    _locks._LOCKS.clear()
+
+    def make_tool():
+        return wc.WriteChapterTool(_state=_make_state())
+
+    with patch("app.agent_runtime.tools.impls.chapter.write_chapter.create_session") as mock_cs:
+        mock_cs.return_value = AsyncMock()
+        with patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.volume_repo.list_by_project",
+            AsyncMock(return_value=[volume]),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.chapter_repo"
+        ) as mock_repo, patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.record_chapter_diffs",
+            AsyncMock(return_value=["chap-new"]),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.record_agent_activity_for_change",
+            AsyncMock(),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.refresh_volume_chapter_count",
+            AsyncMock(),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.write_chapter.refresh_project_stats",
+            AsyncMock(),
+        ), patch(
+            "app.retrieval.chapter_index.safe_maybe_enqueue_auto_index", AsyncMock()
+        ), patch(
+            "app.retrieval.index_status.schedule_emit_index_status", lambda *_a, **_k: None
+        ), patch(
+            "app.background.jobs.service.commit_and_notify", AsyncMock()
+        ):
+            mock_repo.list_by_project = AsyncMock(return_value=[])
+            mock_repo.get_max_order = AsyncMock(side_effect=get_max_order)
+            mock_repo.create = AsyncMock(side_effect=create_chapter)
+
+            task1 = asyncio.create_task(
+                make_tool().ainvoke(
+                    {
+                        "volume_ref": {"type": "order", "value": 1},
+                        "title": "A",
+                        "content": "A",
+                    }
+                )
+            )
+            await entered.wait()
+            task2 = asyncio.create_task(
+                make_tool().ainvoke(
+                    {
+                        "volume_ref": {"type": "order", "value": 1},
+                        "title": "B",
+                        "content": "B",
+                    }
+                )
+            )
+            await asyncio.sleep(0.05)
+            assert not task2.done()
+            assert mock_repo.get_max_order.call_count == 1
+            release.set()
+            await asyncio.gather(task1, task2)
+            assert mock_repo.get_max_order.call_count == 2
 
 
 async def test_write_chapter_rejects_over_limit_content_without_creating() -> None:
@@ -532,6 +617,52 @@ async def test_create_volume_appends_to_project() -> None:
     assert volume_arg.project_id == "proj-1"
     assert volume_arg.order == 3
     mock_session.commit.assert_called_once()
+
+
+async def test_create_volume_serializes_parallel_writes_per_project() -> None:
+    from app.agent_runtime.tools.impls import _locks
+    from app.agent_runtime.tools.impls.chapter import create_volume as cv
+
+    _locks._LOCKS.clear()
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    call_count = 0
+
+    async def get_max_order(_session, _project_id):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            entered.set()
+            await release.wait()
+        return 0
+
+    async def create_volume(_session, volume):
+        volume.id = "vol-new"
+        return volume
+
+    def make_tool():
+        return cv.CreateVolumeTool(_state=_make_state())
+
+    with patch("app.agent_runtime.tools.impls.chapter.create_volume.create_session") as mock_cs:
+        mock_cs.return_value = AsyncMock()
+        with patch(
+            "app.agent_runtime.tools.impls.chapter.create_volume.volume_repo.get_max_order",
+            AsyncMock(side_effect=get_max_order),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.create_volume.volume_repo.create",
+            AsyncMock(side_effect=create_volume),
+        ):
+            task1 = asyncio.create_task(
+                make_tool().ainvoke({"title": "第一卷", "description": "A"})
+            )
+            await entered.wait()
+            task2 = asyncio.create_task(
+                make_tool().ainvoke({"title": "第二卷", "description": "B"})
+            )
+            await asyncio.sleep(0.05)
+            assert not task2.done()
+            release.set()
+            await asyncio.gather(task1, task2)
 
 
 async def test_create_volume_builds_approval_preview() -> None:

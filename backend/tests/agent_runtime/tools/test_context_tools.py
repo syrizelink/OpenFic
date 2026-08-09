@@ -1,3 +1,4 @@
+import asyncio
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -280,6 +281,54 @@ async def test_create_character_returns_diff() -> None:
             }
         ],
     }
+
+
+async def test_create_character_serializes_parallel_creates_per_project() -> None:
+    from app.agent_runtime.tools.impls import _locks
+    from app.agent_runtime.tools.impls.context import character as ch
+
+    _locks._LOCKS.clear()
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    call_count = 0
+
+    async def list_characters(*_args, **_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            entered.set()
+            await release.wait()
+        return []
+
+    created = SimpleNamespace(id="char-1", project_id="proj-1", name="林舟", description="主角")
+    ch_name = "app.agent_runtime.tools.impls.context.character"
+    with patch(f"{ch_name}.create_session") as mock_cs, patch(
+        f"{ch_name}.character_repo"
+    ) as mock_repo, patch(
+        f"{ch_name}.character_service"
+    ) as mock_service, patch(
+        f"{ch_name}.record_character_diffs", AsyncMock()
+    ):
+        mock_cs.return_value = AsyncMock()
+        mock_repo.list_all_by_project = AsyncMock(side_effect=list_characters)
+        mock_service.create_character = AsyncMock(return_value=created)
+
+        def make_tool():
+            return ch.CreateCharacterTool(
+                _state={**_make_state(), "current_revision_id": "rev-1"}
+            )
+
+        task1 = asyncio.create_task(
+            make_tool().ainvoke({"name": "林舟", "description": "主角"})
+        )
+        await entered.wait()
+        task2 = asyncio.create_task(
+            make_tool().ainvoke({"name": "林舟", "description": "主角"})
+        )
+        await asyncio.sleep(0.05)
+        assert not task2.done()
+        release.set()
+        await asyncio.gather(task1, task2)
 
 
 @pytest.mark.asyncio
@@ -599,6 +648,66 @@ async def test_create_world_entry_returns_diff() -> None:
             }
         ],
     }
+
+
+async def test_create_world_entry_serializes_parallel_creates_per_world() -> None:
+    from app.agent_runtime.tools.impls import _locks
+    from app.agent_runtime.tools.impls.context import world_entry as we
+
+    _locks._LOCKS.clear()
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    call_count = 0
+
+    async def list_entries(*_args, **_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            entered.set()
+            await release.wait()
+        return []
+
+    created = SimpleNamespace(
+        id="e1",
+        world_info_id="world-1",
+        uid=1,
+        name="主角",
+        order=1,
+        content="林舟",
+        token_count=2,
+        is_enabled=True,
+    )
+    we_name = "app.agent_runtime.tools.impls.context.world_entry"
+    with patch(f"{we_name}.create_session") as mock_cs, patch(
+        f"{we_name}.world_info_repo"
+    ) as mock_world_repo, patch(
+        f"{we_name}.world_info_entry_repo"
+    ) as mock_entry_repo, patch(
+        f"{we_name}.world_info_entry_service"
+    ) as mock_entry_service, patch(
+        f"{we_name}.record_world_entry_diffs", AsyncMock(return_value=["e1"])
+    ):
+        mock_cs.return_value = AsyncMock()
+        mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
+        mock_entry_repo.list_all_by_world_info = AsyncMock(side_effect=list_entries)
+        mock_entry_service.create_entry = AsyncMock(return_value=created)
+
+        def make_tool():
+            return we.CreateWorldEntryTool(
+                _state={**_make_state(), "current_revision_id": "rev-1"}
+            )
+
+        task1 = asyncio.create_task(
+            make_tool().ainvoke({"title": "主角", "content": "林舟"})
+        )
+        await entered.wait()
+        task2 = asyncio.create_task(
+            make_tool().ainvoke({"title": "配角", "content": "林舟"})
+        )
+        await asyncio.sleep(0.05)
+        assert not task2.done()
+        release.set()
+        await asyncio.gather(task1, task2)
 
 
 @pytest.mark.asyncio

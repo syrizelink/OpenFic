@@ -4,6 +4,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.agent_runtime.tools.base import AgentTool
+from app.agent_runtime.tools.impls._locks import keyed_lock
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.storage.database import create_session
 from app.storage.models.volume import Volume
@@ -62,23 +63,24 @@ class CreateVolumeTool(AgentTool):
     async def _execute(self, title: str, description: str | None = None) -> str:
         session = await create_session()
         try:
-            max_order = await volume_repo.get_max_order(session, self.project_id)
-            volume = Volume(
-                project_id=self.project_id,
-                title=title,
-                description=description,
-                order=max_order + 1,
-                chapter_count=0,
-            )
-            volume = await volume_repo.create(session, volume)
-            await session.commit()
-            return json.dumps(
-                {
-                    "success": True,
-                    "metadata": {"volume": serialize_volume(volume)},
-                },
-                ensure_ascii=False,
-            )
+            async with await keyed_lock(self.project_id):
+                max_order = await volume_repo.get_max_order(session, self.project_id)
+                volume = Volume(
+                    project_id=self.project_id,
+                    title=title,
+                    description=description,
+                    order=max_order + 1,
+                    chapter_count=0,
+                )
+                volume = await volume_repo.create(session, volume)
+                await session.commit()
+                return json.dumps(
+                    {
+                        "success": True,
+                        "metadata": {"volume": serialize_volume(volume)},
+                    },
+                    ensure_ascii=False,
+                )
         except Exception:
             await session.rollback()
             raise

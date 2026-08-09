@@ -21,6 +21,7 @@ from app.agent_runtime.tools.impls.note.refs import (
     generate_unique_title,
     resolve_category_from_list,
 )
+from app.agent_runtime.tools.impls._locks import keyed_lock
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.storage.database import create_session
 from app.storage.models.note import Note
@@ -129,69 +130,70 @@ class WriteNoteTool(AgentTool):
                     raise ToolExecutionError("目标分类不属于当前项目")
                 category_id = cat.id
 
-            notes = await note_repo.list_by_project(
-                session, self.project_id, include_hidden=False
-            )
-            sibling_titles = {
-                n.title for n in notes if n.category_id == category_id
-            }
-            unique_title = generate_unique_title(title, sibling_titles)
-
-            before = note_images_by_id(
-                await note_repo.list_by_project(
-                    session, self.project_id, include_hidden=True
+            async with await keyed_lock((self.project_id, category_id)):
+                notes = await note_repo.list_by_project(
+                    session, self.project_id, include_hidden=False
                 )
-            )
-            note = Note(
-                project_id=self.project_id,
-                category_id=category_id,
-                title=unique_title,
-                content=content,
-                is_locked=False,
-                is_hidden=False,
-            )
-            note = await note_repo.create(session, note)
-            after = note_images_by_id(
-                await note_repo.list_by_project(
-                    session, self.project_id, include_hidden=True
-                )
-            )
-            await record_note_diffs(
-                session,
-                revision_id=revision_id,
-                project_id=self.project_id,
-                before=before,
-                after=after,
-            )
-
-            content_lines = content.splitlines()
-            diff_lines = [
-                {
-                    "type": "added",
-                    "before_line_number": None,
-                    "after_line_number": i + 1,
-                    "text": line,
+                sibling_titles = {
+                    n.title for n in notes if n.category_id == category_id
                 }
-                for i, line in enumerate(content_lines)
-            ]
-            note_diff = {
-                "operation": "create",
-                "sections": [{"type": "content", "lines": diff_lines}],
-                "note_id": note.id,
-                "note_title": note.title,
-                "category_id": note.category_id,
-            }
+                unique_title = generate_unique_title(title, sibling_titles)
 
-            from app.background.jobs import service as background_service
+                before = note_images_by_id(
+                    await note_repo.list_by_project(
+                        session, self.project_id, include_hidden=True
+                    )
+                )
+                note = Note(
+                    project_id=self.project_id,
+                    category_id=category_id,
+                    title=unique_title,
+                    content=content,
+                    is_locked=False,
+                    is_hidden=False,
+                )
+                note = await note_repo.create(session, note)
+                after = note_images_by_id(
+                    await note_repo.list_by_project(
+                        session, self.project_id, include_hidden=True
+                    )
+                )
+                await record_note_diffs(
+                    session,
+                    revision_id=revision_id,
+                    project_id=self.project_id,
+                    before=before,
+                    after=after,
+                )
 
-            await background_service.commit_and_notify(session)
-            return json.dumps(
-                {
-                    "success": True,
-                    "metadata": {"note_diff": note_diff},
-                },
-                ensure_ascii=False,
-            )
+                content_lines = content.splitlines()
+                diff_lines = [
+                    {
+                        "type": "added",
+                        "before_line_number": None,
+                        "after_line_number": i + 1,
+                        "text": line,
+                    }
+                    for i, line in enumerate(content_lines)
+                ]
+                note_diff = {
+                    "operation": "create",
+                    "sections": [{"type": "content", "lines": diff_lines}],
+                    "note_id": note.id,
+                    "note_title": note.title,
+                    "category_id": note.category_id,
+                }
+
+                from app.background.jobs import service as background_service
+
+                await background_service.commit_and_notify(session)
+                return json.dumps(
+                    {
+                        "success": True,
+                        "metadata": {"note_diff": note_diff},
+                    },
+                    ensure_ascii=False,
+                )
         except ToolExecutionError:
             raise
         except Exception:

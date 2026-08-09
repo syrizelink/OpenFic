@@ -12,6 +12,7 @@ from app.agent_runtime.revisions import (
 from app.agent_runtime.tools.base import AgentTool
 from app.core.editor_content_limits import EditorContentLimitError, validate_editor_content
 from app.agent_runtime.tools.errors import ToolExecutionError
+from app.agent_runtime.tools.impls._locks import keyed_lock
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.agent_runtime.tools.text_match import fuzzy_replace
 from app.storage.database import create_session
@@ -286,33 +287,34 @@ class CreateWorldEntryTool(AgentTool):
         session = await create_session()
         try:
             world_info = await _get_project_world_info(session, self.project_id)
-            normalized_title = await _ensure_title_available(session, world_info.id, title)
-            entry = await world_info_entry_service.create_entry(
-                session,
-                world_info.id,
-                name=normalized_title,
-                content=content,
-                is_enabled=True,
-            )
-            await record_world_entry_diffs(
-                session,
-                revision_id=revision_id,
-                project_id=self.project_id,
-                before={},
-                after=world_entry_images_by_id([entry], project_id=self.project_id),
-            )
-            await session.commit()
-            entry_preview = _preview_from_entry(entry)
-            return json.dumps(
-                {
-                    "success": True,
-                    "metadata": {
-                        "world_info_id": world_info.id,
-                        "world_entry_diff": _build_world_entry_diff(None, entry_preview),
+            async with await keyed_lock(world_info.id):
+                normalized_title = await _ensure_title_available(session, world_info.id, title)
+                entry = await world_info_entry_service.create_entry(
+                    session,
+                    world_info.id,
+                    name=normalized_title,
+                    content=content,
+                    is_enabled=True,
+                )
+                await record_world_entry_diffs(
+                    session,
+                    revision_id=revision_id,
+                    project_id=self.project_id,
+                    before={},
+                    after=world_entry_images_by_id([entry], project_id=self.project_id),
+                )
+                await session.commit()
+                entry_preview = _preview_from_entry(entry)
+                return json.dumps(
+                    {
+                        "success": True,
+                        "metadata": {
+                            "world_info_id": world_info.id,
+                            "world_entry_diff": _build_world_entry_diff(None, entry_preview),
+                        },
                     },
-                },
-                ensure_ascii=False,
-            )
+                    ensure_ascii=False,
+                )
         except ToolExecutionError:
             raise
         except Exception:

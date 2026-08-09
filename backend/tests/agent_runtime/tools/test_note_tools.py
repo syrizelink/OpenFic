@@ -1,5 +1,6 @@
 """Tests for Agent note tools."""
 
+import asyncio
 import json
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -410,6 +411,52 @@ async def test_write_note_creates_note_and_returns_success() -> None:
     assert data["metadata"]["note_diff"]["sections"][0]["type"] == "content"
 
 
+async def test_write_note_serializes_parallel_creates_per_category() -> None:
+    from app.agent_runtime.tools.impls import _locks
+    from app.agent_runtime.tools.impls.note import write_note as wn
+
+    _locks._LOCKS.clear()
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    call_count = 0
+
+    async def list_notes(*_args, **_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            entered.set()
+            await release.wait()
+        return []
+
+    async def _fake_create(session, note):
+        note.id = "note-new"
+        return note
+
+    wn_name = "app.agent_runtime.tools.impls.note.write_note"
+    with patch(f"{wn_name}.create_session") as mock_cs:
+        mock_cs.return_value = AsyncMock()
+        with (
+            patch(f"{wn_name}.note_repo.list_by_project", AsyncMock(side_effect=list_notes)),
+            patch(f"{wn_name}.note_repo.create", AsyncMock(side_effect=_fake_create)),
+            patch(f"{wn_name}.record_note_diffs", AsyncMock(return_value=[])),
+            patch("app.background.jobs.service.commit_and_notify", AsyncMock()),
+        ):
+            def make_tool():
+                return wn.WriteNoteTool(_state=_make_state())
+
+            task1 = asyncio.create_task(
+                make_tool().ainvoke({"title": "新笔记", "content": "正文"})
+            )
+            await entered.wait()
+            task2 = asyncio.create_task(
+                make_tool().ainvoke({"title": "新笔记", "content": "正文"})
+            )
+            await asyncio.sleep(0.05)
+            assert not task2.done()
+            release.set()
+            await asyncio.gather(task1, task2)
+
+
 async def test_write_note_rejects_over_limit_content_without_creating() -> None:
     from app.agent_runtime.tools.impls.note.write_note import WriteNoteTool
 
@@ -641,6 +688,51 @@ async def test_create_note_category_returns_success_and_metadata() -> None:
             "category": {"id": "cat-new", "title": "新分类", "parent_id": "cat-1"}
         },
     }
+
+
+async def test_create_note_category_serializes_parallel_creates_per_parent() -> None:
+    from app.agent_runtime.tools.impls import _locks
+    from app.agent_runtime.tools.impls.note import create_note_category as cnc
+
+    _locks._LOCKS.clear()
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    call_count = 0
+
+    async def list_categories(*_args, **_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            entered.set()
+            await release.wait()
+        return []
+
+    cnc_name = "app.agent_runtime.tools.impls.note.create_note_category"
+    with patch(f"{cnc_name}.create_session") as mock_cs:
+        mock_cs.return_value = AsyncMock()
+        with patch(
+            f"{cnc_name}.note_category_repo.list_by_project",
+            AsyncMock(side_effect=list_categories),
+        ), patch(
+            f"{cnc_name}.note_category_repo.create",
+            AsyncMock(side_effect=lambda _s, cat: cat),
+        ), patch(
+            f"{cnc_name}.record_note_category_diffs", AsyncMock(return_value=[])
+        ), patch("app.background.jobs.service.commit_and_notify", AsyncMock()):
+            def make_tool():
+                return cnc.CreateNoteCategoryTool(_state=_make_state())
+
+            task1 = asyncio.create_task(
+                make_tool().ainvoke({"title": "新分类"})
+            )
+            await entered.wait()
+            task2 = asyncio.create_task(
+                make_tool().ainvoke({"title": "新分类"})
+            )
+            await asyncio.sleep(0.05)
+            assert not task2.done()
+            release.set()
+            await asyncio.gather(task1, task2)
 
 
 async def test_create_note_category_builds_approval_preview() -> None:

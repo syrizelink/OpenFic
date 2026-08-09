@@ -20,6 +20,7 @@ from app.agent_runtime.tools.impls.note.refs import (
     CategoryRef,
     resolve_category_from_list,
 )
+from app.agent_runtime.tools.impls._locks import keyed_lock
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.storage.database import create_session
 from app.storage.repos import note_category_repo
@@ -97,48 +98,49 @@ class EditNoteCategoryTool(AgentTool):
             if category.project_id != self.project_id:
                 raise ToolExecutionError("分类不属于当前项目")
 
-            before = note_category_images_by_id(
-                await note_category_repo.list_by_project(session, self.project_id)
-            )
-            if any(
-                item.title == new_title
-                and item.parent_id == category.parent_id
-                and item.id != category.id
-                for item in before.values()
-            ):
-                raise ToolExecutionError(f"同级分类已存在同名标题: {new_title}")
-            previous_title = category.title
-            category.title = new_title
-            category.updated_at = datetime.now(UTC)
-            category = await note_category_repo.update_category(session, category)
-            after = note_category_images_by_id(
-                await note_category_repo.list_by_project(session, self.project_id)
-            )
-            await record_note_category_diffs(
-                session,
-                revision_id=revision_id,
-                project_id=self.project_id,
-                before=before,
-                after=after,
-            )
+            async with await keyed_lock((self.project_id, category.parent_id)):
+                before = note_category_images_by_id(
+                    await note_category_repo.list_by_project(session, self.project_id)
+                )
+                if any(
+                    item.title == new_title
+                    and item.parent_id == category.parent_id
+                    and item.id != category.id
+                    for item in before.values()
+                ):
+                    raise ToolExecutionError(f"同级分类已存在同名标题: {new_title}")
+                previous_title = category.title
+                category.title = new_title
+                category.updated_at = datetime.now(UTC)
+                category = await note_category_repo.update_category(session, category)
+                after = note_category_images_by_id(
+                    await note_category_repo.list_by_project(session, self.project_id)
+                )
+                await record_note_category_diffs(
+                    session,
+                    revision_id=revision_id,
+                    project_id=self.project_id,
+                    before=before,
+                    after=after,
+                )
 
-            from app.background.jobs import service as background_service
+                from app.background.jobs import service as background_service
 
-            await background_service.commit_and_notify(session)
-            return json.dumps(
-                {
-                    "success": True,
-                    "metadata": {
-                        "category": {
-                            "id": category.id,
-                            "title": category.title,
-                            "previous_title": previous_title,
-                            "parent_id": category.parent_id,
-                        }
+                await background_service.commit_and_notify(session)
+                return json.dumps(
+                    {
+                        "success": True,
+                        "metadata": {
+                            "category": {
+                                "id": category.id,
+                                "title": category.title,
+                                "previous_title": previous_title,
+                                "parent_id": category.parent_id,
+                            }
+                        },
                     },
-                },
-                ensure_ascii=False,
-            )
+                    ensure_ascii=False,
+                )
         except ToolExecutionError:
             raise
         except Exception:

@@ -12,6 +12,7 @@ from app.agent_runtime.revisions import (
 from app.agent_runtime.tools.base import AgentTool
 from app.core.editor_content_limits import EditorContentLimitError, validate_editor_content
 from app.agent_runtime.tools.errors import ToolExecutionError
+from app.agent_runtime.tools.impls._locks import keyed_lock
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.agent_runtime.tools.text_match import fuzzy_replace
 from app.storage.database import create_session
@@ -260,31 +261,32 @@ class CreateCharacterTool(AgentTool):
             raise ToolExecutionError(str(exc)) from exc
         session = await create_session()
         try:
-            normalized_name = await _ensure_name_available(session, self.project_id, name)
-            character = await character_service.create_character(
-                session,
-                self.project_id,
-                name=normalized_name,
-                description=description,
-            )
-            await record_character_diffs(
-                session,
-                revision_id=revision_id,
-                project_id=self.project_id,
-                before={},
-                after=character_images_by_id([character]),
-            )
-            await session.commit()
-            character_preview = _preview_from_character(character)
-            return json.dumps(
-                {
-                    "success": True,
-                    "metadata": {
-                        "character_diff": _build_character_diff(None, character_preview),
+            async with await keyed_lock(self.project_id):
+                normalized_name = await _ensure_name_available(session, self.project_id, name)
+                character = await character_service.create_character(
+                    session,
+                    self.project_id,
+                    name=normalized_name,
+                    description=description,
+                )
+                await record_character_diffs(
+                    session,
+                    revision_id=revision_id,
+                    project_id=self.project_id,
+                    before={},
+                    after=character_images_by_id([character]),
+                )
+                await session.commit()
+                character_preview = _preview_from_character(character)
+                return json.dumps(
+                    {
+                        "success": True,
+                        "metadata": {
+                            "character_diff": _build_character_diff(None, character_preview),
+                        },
                     },
-                },
-                ensure_ascii=False,
-            )
+                    ensure_ascii=False,
+                )
         except ToolExecutionError:
             raise
         except Exception:
@@ -364,54 +366,55 @@ class EditCharacterTool(AgentTool):
         revision_id = _require_revision_id(self._state)
         session = await create_session()
         try:
-            character = await _resolve_character_by_name(session, self.project_id, name)
-            before = _preview_from_character(character)
-            description = character.description
-            if old_description is not None and new_description is not None:
-                replace_result = fuzzy_replace(
-                    description, old_description, new_description,
-                    replace_all=replace_all,
-                )
-                if replace_result is None:
-                    raise ToolExecutionError("未在角色描述中找到要替换的文本")
-                description = replace_result.new_content
-                try:
-                    validate_editor_content(description)
-                except EditorContentLimitError as exc:
-                    raise ToolExecutionError(str(exc)) from exc
-            normalized_new_name = None
-            if new_name is not None:
-                normalized_new_name = await _ensure_name_available(
+            async with await keyed_lock(self.project_id):
+                character = await _resolve_character_by_name(session, self.project_id, name)
+                before = _preview_from_character(character)
+                description = character.description
+                if old_description is not None and new_description is not None:
+                    replace_result = fuzzy_replace(
+                        description, old_description, new_description,
+                        replace_all=replace_all,
+                    )
+                    if replace_result is None:
+                        raise ToolExecutionError("未在角色描述中找到要替换的文本")
+                    description = replace_result.new_content
+                    try:
+                        validate_editor_content(description)
+                    except EditorContentLimitError as exc:
+                        raise ToolExecutionError(str(exc)) from exc
+                normalized_new_name = None
+                if new_name is not None:
+                    normalized_new_name = await _ensure_name_available(
+                        session,
+                        self.project_id,
+                        new_name,
+                        exclude_character_id=character.id,
+                    )
+                before_images = character_images_by_id([character])
+                updated = await character_service.update_character(
                     session,
-                    self.project_id,
-                    new_name,
-                    exclude_character_id=character.id,
+                    character.id,
+                    name=normalized_new_name,
+                    description=description if description != before.description else None,
                 )
-            before_images = character_images_by_id([character])
-            updated = await character_service.update_character(
-                session,
-                character.id,
-                name=normalized_new_name,
-                description=description if description != before.description else None,
-            )
-            await record_character_diffs(
-                session,
-                revision_id=revision_id,
-                project_id=self.project_id,
-                before=before_images,
-                after=character_images_by_id([updated]),
-            )
-            await session.commit()
-            after = _preview_from_character(updated)
-            return json.dumps(
-                {
-                    "success": True,
-                    "metadata": {
-                        "character_diff": _build_character_diff(before, after),
+                await record_character_diffs(
+                    session,
+                    revision_id=revision_id,
+                    project_id=self.project_id,
+                    before=before_images,
+                    after=character_images_by_id([updated]),
+                )
+                await session.commit()
+                after = _preview_from_character(updated)
+                return json.dumps(
+                    {
+                        "success": True,
+                        "metadata": {
+                            "character_diff": _build_character_diff(before, after),
+                        },
                     },
-                },
-                ensure_ascii=False,
-            )
+                    ensure_ascii=False,
+                )
         except ToolExecutionError:
             raise
         except Exception:
