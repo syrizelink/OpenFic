@@ -901,12 +901,17 @@ export function useAgentSession({
         return;
       }
 
+      const sessionWasRunning = transcriptStateRef.current.isRunning;
+      const optimisticMessage = sessionWasRunning ? null : createOptimisticUserMessage(message);
+
       try {
         suppressSocketEventsAfterAbortRef.current = false;
         transportRetryAttemptRef.current = 0;
         updateTranscriptState((current) => ({
           ...current,
-          messages: current.messages.filter((item) => item.type !== "error"),
+          messages: optimisticMessage
+            ? [...current.messages.filter((item) => item.type !== "error"), optimisticMessage]
+            : current.messages.filter((item) => item.type !== "error"),
           status: "running",
           isRunning: true,
           currentStage: getBestEffortContinueStage(current.messages, agentKey),
@@ -946,6 +951,9 @@ export function useAgentSession({
         console.error("Failed to send message:", error);
         updateTranscriptState((current) => ({
           ...current,
+          messages: optimisticMessage
+            ? current.messages.filter((item) => !(item.isDraft && item.content === message))
+            : current.messages,
           status: "error",
           isRunning: false,
           currentStage: "",

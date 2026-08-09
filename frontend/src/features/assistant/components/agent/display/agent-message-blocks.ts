@@ -164,6 +164,7 @@ export function buildAgentMessageBlocks(
         type: "user",
         messages: [message],
         sourceRevisionId: message.revisionId,
+        agentRoundId: activeAgentRoundId,
       });
       continue;
     }
@@ -253,6 +254,7 @@ function getLatestAssistantToolbarTimestamp(blocks: AgentMessageBlock[]): number
 export function getAgentRoundToolbarTargets(
   blocks: AgentMessageBlock[],
   visibleBlocks: AgentMessageBlock[],
+  isSessionRunning: boolean,
 ): AgentRoundToolbarTarget[] {
   const roundOrder: string[] = [];
   const rounds = new Map<
@@ -265,7 +267,7 @@ export function getAgentRoundToolbarTargets(
   >();
 
   for (const block of blocks) {
-    if (!block.agentRoundId || (block.type !== "agent" && block.type !== "node")) continue;
+    if (!block.agentRoundId) continue;
     let round = rounds.get(block.agentRoundId);
     if (!round) {
       round = { blocks: [], visibleBlocks: [], sourceRevisionId: block.sourceRevisionId };
@@ -285,15 +287,17 @@ export function getAgentRoundToolbarTargets(
     if (round) round.visibleBlocks.push(block);
   }
 
-  return roundOrder.flatMap((roundId) => {
+  return roundOrder.flatMap((roundId, index) => {
     const round = rounds.get(roundId);
     if (!round) return [];
     const hasAgentWork = round.blocks.some((block) => block.type === "agent");
     const isRunning = round.blocks.some(
       (block) => block.type === "agent" && hasRunningMessage(block),
     );
+    const isLastRound = index === roundOrder.length - 1;
     const anchorBlock = round.visibleBlocks.at(-1);
     if (!hasAgentWork || isRunning || !anchorBlock) return [];
+    if (isSessionRunning && isLastRound) return [];
 
     let copyContent = "";
     for (let index = round.blocks.length - 1; index >= 0; index -= 1) {
