@@ -154,26 +154,91 @@
   animation: setup-spin 0.7s linear infinite;
 }
 
-.data-confirm {
+.data-status-progress {
+  flex-wrap: wrap;
+}
+
+.data-progress-track {
+  flex-basis: 100%;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--gray-a4);
+  overflow: hidden;
+}
+
+.data-progress-bar {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent-9);
+  transition: width 0.2s ease;
+}
+
+.data-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 0.4);
+  animation: data-overlay-in 0.16s ease;
+}
+
+.data-dialog-overlay.is-closing {
+  animation: data-overlay-out 0.16s ease forwards;
+}
+
+.data-dialog {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 14px 16px;
-  border: 1px solid var(--amber-a5);
-  border-radius: 12px;
-  background: var(--amber-a3);
+  width: min(420px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 16px 18px;
+  border: 1px solid var(--gray-a6);
+  border-radius: 14px;
+  background: var(--color-panel-solid);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 0.25);
+  animation: data-dialog-in 0.18s ease;
 }
 
-.data-confirm-head {
+.data-dialog.is-closing {
+  animation: data-dialog-out 0.16s ease forwards;
+}
+
+@keyframes data-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes data-overlay-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes data-dialog-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes data-dialog-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(8px) scale(0.98); }
+}
+
+.data-dialog-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--amber-11, #b45309);
+  color: var(--gray-12);
   font-size: 13px;
   font-weight: 600;
 }
 
-.data-confirm-text {
+.data-dialog-text {
   margin: 0;
   color: var(--gray-12);
   font-size: 13px;
@@ -182,11 +247,30 @@
   white-space: pre-line;
 }
 
-.data-confirm-warning {
+.data-dialog-warning {
   margin: 0;
   color: var(--red-11, #b91c1c);
   font-size: 12px;
   line-height: 1.5;
+}
+
+.data-dialog-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.data-dialog-path {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--gray-a6);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--gray-11);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow-x: auto;
 }
 
 .data-check {
@@ -202,10 +286,14 @@
   accent-color: var(--accent-9);
 }
 
-.data-confirm-actions {
+.data-dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.data-dialog-actions .data-btn {
+  padding: 6px 14px;
 }
 
 .data-btn {
@@ -243,6 +331,70 @@
 .data-btn-primary:hover {
   border-color: var(--accent-10);
   background: var(--accent-10);
+}
+
+.data-instance-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.data-instance-item {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--gray-a6);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--gray-12);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.data-instance-item:hover {
+  border-color: var(--gray-a8);
+  background: var(--color-panel-solid);
+}
+
+.data-instance-item-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--gray-a4);
+  color: var(--gray-11);
+}
+
+.data-instance-item-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.data-instance-item-copy strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.data-instance-item-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--gray-10);
+  font-family: var(--code-font-family, monospace);
+  font-size: 11px;
+}
+
+.data-instance-item > svg {
+  color: var(--gray-10);
 }
 
 .data-actions {

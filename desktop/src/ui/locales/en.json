@@ -119,6 +119,8 @@
     "setUpLocalRuntimeDescription": "Download, install, and start OpenFic locally",
     "goToSetup": "Set up",
     "configuredInstances": "Configured instances",
+    "instanceSettings": "Data management",
+    "currentInstance": "Current",
     "reconnect": "Reconnect",
     "connect": "Connect",
     "backendServiceAddress": "Backend service address",
@@ -143,15 +145,18 @@
   },
   "data": {
     "title": "Data management",
-    "description": "Manage where this instance's works data (novels, characters, worldviews, chapters, covers, etc.) is stored, with backup, restore and migration support.",
+    "description": "Manage the data of the current instance. To prevent data loss, please ensure that you have backed up your data before changing the data directory or performing a restoration.",
     "noActiveInstance": "There is no instance with manageable data.",
+    "selectInstance": "Select an instance to manage:",
+    "installDirNotSet": "Install directory not set",
     "remoteUnsupported": "Data management is only available for local instances; remote instances store their data on the server.",
-    "backendRestartNote": "The backend service will be temporarily stopped and restarted during this operation, and the page will reload.",
+    "backendRestartNote": "To ensure data integrity, the backend service will be temporarily stopped during the operation. It will restart automatically upon completion.",
+    "backendStoppedNote": "The backend service has been stopped and will restart automatically when you return.",
     "close": "Close",
     "reading": "Reading data directory…",
     "currentLocation": "Current data directory",
     "defaultLocation": "Default",
-    "entries": "{{count}} entries",
+    "entries": "{{count}} files",
     "migrate": "Change data directory",
     "backup": "Back up data",
     "restore": "Restore data",
@@ -161,16 +166,34 @@
     "restoring": "Restoring data…",
     "confirmTitle": "Confirm action",
     "confirm": "Confirm",
-    "migrateConfirm": "Migrate current data to: {{to}}\nThe original directory ({{from}}) is kept after a successful migration; you can choose to delete it.",
-    "attachExistingConfirm": "The target directory already contains OpenFic data: {{path}}\nIt will be used directly and existing data will not be overwritten.",
-    "attachNonEmptyConfirm": "The target directory is not empty: {{path}}\nIt will be used directly and existing data will not be overwritten.",
-    "backupConfirm": "Back up current data to: {{path}}",
-    "restoreConfirm": "Restore the current data directory from: {{path}}\nThis replaces the contents of the current directory with the backup.",
+    "migrateConfirmBefore": "Migrate current data to the new directory:",
+    "attachExistingConfirmBefore": "The target directory already contains OpenFic data:",
+    "attachNonEmptyConfirmBefore": "Files already exist in the target directory. Please ensure the directory contains the correct instance data:",
+    "attachConfirmAfter": "It will be used directly and existing data will not be overwritten.",
+    "backupConfirmBefore": "Back up current data to the file:",
+    "restoreConfirmBefore": "Restore the current data directory from the backup:",
     "restoreWarning": "Restoring overwrites everything in the current data directory. Proceed with caution.",
     "deleteOldDir": "Delete the original data directory after migration",
     "migrateDone": "Data migrated to: {{path}}",
     "attachDone": "Switched to data directory: {{path}}",
     "backupDone": "Backup complete: {{path}}",
-    "restoreDone": "Data restored: {{path}}"
+    "restoreDone": "Data restored: {{path}}",
+    "progress": {
+      "backup": {
+        "copy": "Copying data…",
+        "pack": "Packaging backup…"
+      },
+      "restore": {
+        "extract": "Extracting backup…",
+        "verify": "Verifying backup…",
+        "rollback": "Backing up current data…",
+        "copy": "Writing data…",
+        "cleanup": "Cleaning directory…"
+      },
+      "migrate": {
+        "copy": "Copying data…",
+        "delete-old": "Deleting original directory…"
+      }
+    }
   }
 }

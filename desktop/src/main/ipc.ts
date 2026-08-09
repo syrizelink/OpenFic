@@ -1,9 +1,9 @@
-import { app, dialog, ipcMain, shell, type BrowserWindow } from "electron";
+import { app, dialog, ipcMain, session, shell, webContents, type BrowserWindow } from "electron";
 import path from "node:path";
 import {
   IpcChannels,
   type BackupDataRequest,
-  type DataOperationResult,
+  type DataProgressEvent,
   type EnsureInstanceSessionRequest,
   type GetDataInfoRequest,
   type InitializeAppResult,
@@ -17,7 +17,6 @@ import {
   type PingInstanceRequest,
   type PingInstanceResult,
   type RestoreDataRequest,
-  type RestoreDataResult,
   type SaveConfigRequest,
   type SaveZoomFactorRequest,
   type StartLocalBackendRequest,
@@ -73,38 +72,35 @@ function createInstanceId(): string {
   return `instance-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+const WEBVIEW_SHUTDOWN_WAIT_MS = 10_000;
+
+async function waitForInstanceWebViews(instanceId: string): Promise<void> {
+  const targetSession = session.fromPartition(`persist:openfic-${instanceId}`);
+  const guests = webContents
+    .getAllWebContents()
+    .filter((contents) => contents.session === targetSession && !contents.isDestroyed());
+  if (guests.length === 0) return;
+  await Promise.race([
+    Promise.all(
+      guests.map(
+        (contents) =>
+          new Promise<void>((resolve) => {
+            contents.once("destroyed", () => resolve());
+          }),
+      ),
+    ),
+    new Promise<void>((resolve) => setTimeout(resolve, WEBVIEW_SHUTDOWN_WAIT_MS)),
+  ]);
+}
+
 export function registerIpc(context: IpcContext): void {
   let pendingZoomSave = Promise.resolve();
 
-  async function withBackendRestart<T>(
-    instanceId: string,
-    operation: () => Promise<T>,
-  ): Promise<{ result: T; backendRestarted: boolean; restartError?: string }> {
+  async function withBackendRestart<T>(instanceId: string, operation: () => Promise<T>): Promise<T> {
+    await waitForInstanceWebViews(instanceId);
     const wasRunning = context.isBackendRunning();
     if (wasRunning) await context.stopActiveBackend();
-    let backendRestarted = false;
-    let restartError: string | undefined;
-    try {
-      const result = await operation();
-      if (wasRunning) {
-        try {
-          await context.switchInstance(instanceId);
-          backendRestarted = true;
-        } catch (error) {
-          restartError = error instanceof Error ? error.message : String(error);
-        }
-      }
-      return { result, backendRestarted, restartError };
-    } catch (error) {
-      if (wasRunning) {
-        try {
-          await context.switchInstance(instanceId);
-        } catch {
-          // Leave the app recoverable; the original error is surfaced to the caller.
-        }
-      }
-      throw error;
-    }
+    return operation();
   }
 
   const saveZoomFactor = async (zoomFactor: number): Promise<number> => {
@@ -269,57 +265,73 @@ export function registerIpc(context: IpcContext): void {
     const sourceDir = resolveDataDir(instance);
     const targetDir = path.resolve(request.newDataDir);
 
-    const { result, backendRestarted, restartError } = await withBackendRestart(request.instanceId, async () => {
+    const result = await withBackendRestart(request.instanceId, async () => {
       let migrated = false;
       let removedOldDir = false;
+      const emitProgress = (event: DataProgressEvent) =>
+        context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
       const targetInspection = await inspectDataDir(targetDir);
       if (!targetInspection.hasData) {
         appendLog("data", `开始迁移数据目录：${sourceDir} -> ${targetDir}`);
-        await migrateDataDir(sourceDir, targetDir);
+        await migrateDataDir(sourceDir, targetDir, (message) => appendLog("data", message), (phase, progress) =>
+          emitProgress({ operation: "migrate", phase, progress }),
+        );
         migrated = true;
         appendLog("data", `数据迁移完成：${targetDir}`);
+
+        const nextConfig: DesktopConfig = {
+          ...config,
+          instances: config.instances.map((item) =>
+            item.id === instance.id ? { ...item, dataDir: targetDir } : item,
+          ),
+        };
+        await writeDesktopConfig(nextConfig);
+        context.onConfigSaved(nextConfig);
+
         if (request.deleteOldDir && normalizeInstallDir(sourceDir) !== normalizeInstallDir(targetDir)) {
-          await removeDataDir(sourceDir);
-          removedOldDir = true;
-          appendLog("data", `已删除原数据目录：${sourceDir}`);
+          try {
+            emitProgress({ operation: "migrate", phase: "delete-old" });
+            await removeDataDir(sourceDir);
+            removedOldDir = true;
+            appendLog("data", `已删除原数据目录：${sourceDir}`);
+          } catch (error) {
+            appendLog("data", `删除原数据目录失败（迁移已成功）：${error instanceof Error ? error.message : String(error)}`);
+          }
         }
       }
-
-      const nextConfig: DesktopConfig = {
-        ...config,
-        instances: config.instances.map((item) =>
-          item.id === instance.id ? { ...item, dataDir: targetDir } : item,
-        ),
-      };
-      await writeDesktopConfig(nextConfig);
-      context.onConfigSaved(nextConfig);
       return { dataDir: targetDir, migrated, removedOldDir };
     });
-    return { ...result, backendRestarted, restartError };
+    return result;
   });
 
-  ipcMain.handle(IpcChannels.backupData, async (_event, request: BackupDataRequest): Promise<DataOperationResult> => {
+  ipcMain.handle(IpcChannels.backupData, async (_event, request: BackupDataRequest): Promise<void> => {
     const config = await readDesktopConfig();
     const instance = config?.instances.find((item) => item.id === request.instanceId);
     if (!instance) throw new Error("实例不存在");
-    const { backendRestarted, restartError } = await withBackendRestart(request.instanceId, async () => {
+    await withBackendRestart(request.instanceId, async () => {
+      const emitProgress = (event: DataProgressEvent) =>
+        context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
       appendLog("data", `开始备份数据目录：${resolveDataDir(instance)} -> ${request.targetPath}`);
-      await backupDataDir(resolveDataDir(instance), request.targetPath);
+      await backupDataDir(resolveDataDir(instance), request.targetPath, (message) => appendLog("data", message), (phase, progress) =>
+        emitProgress({ operation: "backup", phase, progress }),
+      );
       appendLog("data", `备份完成：${request.targetPath}`);
     });
-    return { backendRestarted, restartError };
   });
 
-  ipcMain.handle(IpcChannels.restoreData, async (_event, request: RestoreDataRequest): Promise<RestoreDataResult> => {
+  ipcMain.handle(IpcChannels.restoreData, async (_event, request: RestoreDataRequest): Promise<void> => {
     const config = await readDesktopConfig();
     const instance = config?.instances.find((item) => item.id === request.instanceId);
     if (!instance) throw new Error("实例不存在");
-    const { backendRestarted, restartError } = await withBackendRestart(request.instanceId, async () => {
+    await withBackendRestart(request.instanceId, async () => {
+      const emitProgress = (event: DataProgressEvent) =>
+        context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
       appendLog("data", `开始从备份还原数据：${request.sourcePath} -> ${resolveDataDir(instance)}`);
-      await restoreDataDir(request.sourcePath, resolveDataDir(instance));
+      await restoreDataDir(request.sourcePath, resolveDataDir(instance), (message) => appendLog("data", message), (phase, progress) =>
+        emitProgress({ operation: "restore", phase, progress }),
+      );
       appendLog("data", `数据还原完成：${resolveDataDir(instance)}`);
     });
-    return { backendRestarted, restartError };
   });
 
   ipcMain.handle(

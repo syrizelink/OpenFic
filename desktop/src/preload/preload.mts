@@ -4,7 +4,7 @@ import {
   IpcChannels,
   type BackupDataRequest,
   type DataInfo,
-  type DataOperationResult,
+  type DataProgressEvent,
   type EnsureInstanceSessionRequest,
   type GetDataInfoRequest,
   type InitializeAppResult,
@@ -19,7 +19,6 @@ import {
   type PingInstanceRequest,
   type PingInstanceResult,
   type RestoreDataRequest,
-  type RestoreDataResult,
   type SaveConfigRequest,
   type SaveZoomFactorRequest,
   type SetupProgressEvent,
@@ -96,9 +95,9 @@ const desktopApi = {
     ipcRenderer.invoke(IpcChannels.inspectDataDir, { dataDir } satisfies InspectDataDirRequest),
   migrateData: (instanceId: string, newDataDir: string, deleteOldDir: boolean): Promise<MigrateDataResult> =>
     ipcRenderer.invoke(IpcChannels.migrateData, { instanceId, newDataDir, deleteOldDir } satisfies MigrateDataRequest),
-  backupData: (instanceId: string, targetPath: string): Promise<DataOperationResult> =>
+  backupData: (instanceId: string, targetPath: string): Promise<void> =>
     ipcRenderer.invoke(IpcChannels.backupData, { instanceId, targetPath } satisfies BackupDataRequest),
-  restoreData: (instanceId: string, sourcePath: string): Promise<RestoreDataResult> =>
+  restoreData: (instanceId: string, sourcePath: string): Promise<void> =>
     ipcRenderer.invoke(IpcChannels.restoreData, { instanceId, sourcePath } satisfies RestoreDataRequest),
   inspectLocalRuntime: (installDir: string): Promise<InspectLocalRuntimeResult> =>
     ipcRenderer.invoke(IpcChannels.inspectLocalRuntime, { installDir } satisfies InspectLocalRuntimeRequest),
@@ -140,6 +139,11 @@ const desktopApi = {
     const listener = (_event: Electron.IpcRendererEvent, payload: SetupProgressEvent) => handler(payload);
     ipcRenderer.on(IpcChannels.setupProgress, listener);
     return () => ipcRenderer.off(IpcChannels.setupProgress, listener);
+  },
+  onDataProgress: (handler: (event: DataProgressEvent) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: DataProgressEvent) => handler(payload);
+    ipcRenderer.on(IpcChannels.dataProgress, listener);
+    return () => ipcRenderer.off(IpcChannels.dataProgress, listener);
   },
   onStartupProgress: (handler: (event: StartupProgressEvent) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: StartupProgressEvent) => handler(payload);

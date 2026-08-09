@@ -178,6 +178,7 @@ export function App() {
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [instancePanelOpen, setInstancePanelOpen] = useState(false);
   const [dataManagementPrevState, setDataManagementPrevState] = useState<ShellState | null>(null);
+  const [dataManagementInstanceId, setDataManagementInstanceId] = useState<string | null>(null);
   const [startupProgress, setStartupProgress] = useState<StartupProgressEvent | null>(null);
   const [frontendWebview, setFrontendWebview] = useState<HTMLElement | null>(null);
   const lastAutoUpdateCheck = useRef<string | null>(null);
@@ -362,12 +363,26 @@ export function App() {
   const handleOpenDataManagement = () => {
     setError(null);
     setDataManagementPrevState(shellState);
+    setDataManagementInstanceId(shellState === "frontend" ? activeInstanceId : null);
     setShellState("data");
   };
 
-  const handleCloseDataManagement = () => {
-    setShellState(dataManagementPrevState ?? "frontend");
+  const handleOpenDataManagementFor = (instanceId: string) => {
+    setError(null);
+    setDataManagementPrevState(shellState);
+    setDataManagementInstanceId(instanceId);
+    setShellState("data");
+  };
+
+  const handleCloseDataManagement = async () => {
+    const prevState = dataManagementPrevState ?? "frontend";
     setDataManagementPrevState(null);
+    setDataManagementInstanceId(null);
+    if (prevState === "frontend" && activeInstance?.mode === "local") {
+      await handleSwitchInstance(activeInstance.id);
+      return;
+    }
+    setShellState(prevState);
   };
 
   const handleAddInstance = () => {
@@ -571,6 +586,7 @@ export function App() {
             onClearError={() => setError(null)}
             onConnectRemote={(url) => void handleConnectRemote(url)}
             onConnectInstance={(instanceId) => void handleSwitchInstance(instanceId)}
+            onOpenDataManagementFor={handleOpenDataManagementFor}
             onStartLocal={(installDir) => void handleStartLocal(installDir)}
           />
         ) : null}
@@ -579,8 +595,10 @@ export function App() {
         ) : null}
         {shellState === "data" ? (
           <DataManagementPage
-            instance={activeInstance}
+            instanceId={dataManagementInstanceId}
+            instances={config?.instances ?? []}
             backendRunning={dataManagementPrevState === "frontend"}
+            onSelectInstance={setDataManagementInstanceId}
             onClose={handleCloseDataManagement}
             onConfigChanged={() => void refreshConfig()}
           />

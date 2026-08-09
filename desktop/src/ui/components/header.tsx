@@ -120,7 +120,6 @@ export function DesktopHeader({
   const menuBarRef = useRef<HTMLDivElement>(null);
   const instances = sortInstances(config?.instances ?? []);
   const hasUsableRuntime = instances.some((instance) => pingStates[instance.id]?.status === "ok") || Boolean(activeInstanceId);
-  const activeInstanceIsLocal = config?.instances.find((instance) => instance.id === activeInstanceId)?.mode === "local";
   const updateProgress = Math.min(Math.max(updateState.progress ?? 0, 0), 1);
   const updateProgressStyle = { "--update-progress": String(updateProgress) } as CSSProperties;
   const isCheckingForUpdate = updateState.status === "checking";
@@ -482,7 +481,7 @@ export function DesktopHeader({
                   className="desktop-menu-item"
                   type="button"
                   role="menuitem"
-                  disabled={disabled || !activeInstanceIsLocal}
+                  disabled={disabled}
                   onClick={handleOpenDataManagement}
                 >
                   {t("desktop.header.dataManagement")}

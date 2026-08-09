@@ -1,13 +1,12 @@
 import type { DesktopConfig } from "../shared/config";
 import type {
   DataInfo,
-  DataOperationResult,
+  DataProgressEvent,
   InspectDataDirResult,
   InspectLocalRuntimeResult,
   InitializeAppResult,
   MigrateDataResult,
   PingInstanceResult,
-  RestoreDataResult,
   SetupProgressEvent,
   StartupProgressEvent,
   UpdateState,
@@ -34,8 +33,8 @@ declare global {
       getDataInfo: (instanceId: string) => Promise<DataInfo>;
       inspectDataDir: (dataDir: string) => Promise<InspectDataDirResult>;
       migrateData: (instanceId: string, newDataDir: string, deleteOldDir: boolean) => Promise<MigrateDataResult>;
-      backupData: (instanceId: string, targetPath: string) => Promise<DataOperationResult>;
-      restoreData: (instanceId: string, sourcePath: string) => Promise<RestoreDataResult>;
+      backupData: (instanceId: string, targetPath: string) => Promise<void>;
+      restoreData: (instanceId: string, sourcePath: string) => Promise<void>;
       inspectLocalRuntime: (installDir: string) => Promise<InspectLocalRuntimeResult>;
       frontendHostPreloadPath: string;
       minimizeWindow: () => Promise<void>;
@@ -60,6 +59,7 @@ declare global {
       saveZoomFactor: (zoomFactor: number) => Promise<void>;
       onZoomFactorChanged: (handler: (zoomFactor: number) => void) => () => void;
       onSetupProgress: (handler: (event: SetupProgressEvent) => void) => () => void;
+      onDataProgress: (handler: (event: DataProgressEvent) => void) => () => void;
       onStartupProgress: (handler: (event: StartupProgressEvent) => void) => () => void;
       onUpdateState: (handler: (state: UpdateState) => void) => () => void;
     };

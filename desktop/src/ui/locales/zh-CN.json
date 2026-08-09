@@ -119,6 +119,8 @@
     "setUpLocalRuntimeDescription": "在本地下载、安装并启动 OpenFic 服务",
     "goToSetup": "前往设置",
     "configuredInstances": "已配置的实例",
+    "instanceSettings": "数据管理",
+    "currentInstance": "当前",
     "reconnect": "重新连接",
     "connect": "连接",
     "backendServiceAddress": "后端服务地址",
@@ -143,15 +145,18 @@
   },
   "data": {
     "title": "数据管理",
-    "description": "管理当前实例的作品数据（小说、角色、世界观、章节、封面等）所在位置，支持备份、还原与迁移。",
+    "description": "管理当前实例的数据，未防止数据丢失，在进行更换数据目录或还原前，请确保您已经备份了数据",
     "noActiveInstance": "当前没有可管理数据的实例。",
+    "selectInstance": "选择要管理数据的实例：",
+    "installDirNotSet": "未设置安装目录",
     "remoteUnsupported": "数据管理仅适用于本地实例，远程实例的数据保存在服务端。",
-    "backendRestartNote": "操作期间将临时停止并重启后端服务，页面会重新加载。",
+    "backendRestartNote": "为保证数据完整性，操作期间将临时停止后端服务，返回时会自动重启。",
+    "backendStoppedNote": "后端服务已停止，返回时将自动重新启动。",
     "close": "关闭",
     "reading": "正在读取数据目录…",
     "currentLocation": "当前数据目录",
     "defaultLocation": "默认位置",
-    "entries": "{{count}} 个条目",
+    "entries": "{{count}} 个文件",
     "migrate": "更换数据目录",
     "backup": "备份数据",
     "restore": "还原数据",
@@ -161,16 +166,34 @@
     "restoring": "正在还原数据…",
     "confirmTitle": "确认操作",
     "confirm": "确认",
-    "migrateConfirm": "将把当前数据迁移到新目录：{{to}}\n原目录（{{from}}）中的数据会在迁移成功后保留，可再选择是否删除。",
-    "attachExistingConfirm": "目标目录已包含 OpenFic 数据：{{path}}\n将直接切换到该数据目录，不会覆盖其中已有数据。",
-    "attachNonEmptyConfirm": "目标目录并非空目录：{{path}}\n将直接切换到该数据目录，不会覆盖其中已有数据。",
-    "backupConfirm": "将把当前数据备份到文件：{{path}}",
-    "restoreConfirm": "将用备份文件还原当前数据目录：{{path}}\n这会将当前数据目录中的内容替换为备份内容。",
+    "migrateConfirmBefore": "将把当前数据迁移到新目录：",
+    "attachExistingConfirmBefore": "目标目录已包含 OpenFic 数据：",
+    "attachNonEmptyConfirmBefore": "目标目录内已有文件，请确保目录内已包含正确的实例数据：",
+    "attachConfirmAfter": "将直接切换到该数据目录，不会覆盖其中已有数据。",
+    "backupConfirmBefore": "将把当前数据备份到文件：",
+    "restoreConfirmBefore": "将用备份文件还原当前数据目录：",
     "restoreWarning": "还原会覆盖当前数据目录中的全部内容，请谨慎操作。",
     "deleteOldDir": "迁移成功后删除原数据目录",
     "migrateDone": "数据已迁移到：{{path}}",
     "attachDone": "已切换到数据目录：{{path}}",
     "backupDone": "备份完成：{{path}}",
-    "restoreDone": "数据已还原：{{path}}"
+    "restoreDone": "数据已还原：{{path}}",
+    "progress": {
+      "backup": {
+        "copy": "正在复制数据…",
+        "pack": "正在打包备份文件…"
+      },
+      "restore": {
+        "extract": "正在解压备份…",
+        "verify": "正在校验备份…",
+        "rollback": "正在备份现有数据…",
+        "copy": "正在写入数据…",
+        "cleanup": "正在清理目录…"
+      },
+      "migrate": {
+        "copy": "正在复制数据…",
+        "delete-old": "正在删除原数据目录…"
+      }
+    }
   }
 }

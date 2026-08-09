@@ -1,6 +1,7 @@
 import type { EventEmitter } from "node:events";
 
 export const BACKEND_GRACEFUL_STOP_TIMEOUT_MS = 10_000;
+export const BACKEND_FORCE_STOP_WAIT_MS = 5_000;
 
 export interface BackendStopHandle {
   baseUrl: string;
@@ -32,17 +33,25 @@ export function requestBackendStop(
   return new Promise((resolve) => {
     let isStopped = false;
     const fallback = { timeout: undefined as unknown };
+    const forced = { timeout: undefined as unknown };
 
     const finish = () => {
       if (isStopped) return;
       isStopped = true;
       dependencies.cancelFallback(fallback.timeout);
+      dependencies.cancelFallback(forced.timeout);
       handle.process.off("exit", finish);
       resolve();
     };
     const forceStop = () => {
       dependencies.forceStop(handle);
-      finish();
+      dependencies.cancelFallback(fallback.timeout);
+      if (handle.process.killed) {
+        finish();
+        return;
+      }
+      handle.process.once("exit", finish);
+      forced.timeout = dependencies.scheduleFallback(finish, BACKEND_FORCE_STOP_WAIT_MS);
     };
 
     handle.process.once("exit", finish);

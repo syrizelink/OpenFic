@@ -43,6 +43,7 @@ export const IpcChannels = {
   migrateData: "data:migrate",
   backupData: "data:backup",
   restoreData: "data:restore",
+  dataProgress: "data:progress",
   selectSaveFile: "dialog:select-save-file",
   selectOpenFile: "dialog:select-open-file",
 } as const;
@@ -184,12 +185,7 @@ export interface MigrateDataRequest {
   deleteOldDir: boolean;
 }
 
-export interface DataOperationResult {
-  backendRestarted: boolean;
-  restartError?: string;
-}
-
-export interface MigrateDataResult extends DataOperationResult {
+export interface MigrateDataResult {
   dataDir: string;
   migrated: boolean;
   removedOldDir: boolean;
@@ -205,4 +201,11 @@ export interface RestoreDataRequest {
   sourcePath: string;
 }
 
-export type RestoreDataResult = DataOperationResult;
+export type DataOperationPhase = "extract" | "verify" | "rollback" | "copy" | "cleanup" | "pack" | "delete-old";
+
+export interface DataProgressEvent {
+  operation: "backup" | "restore" | "migrate";
+  phase: DataOperationPhase;
+  /** Overall progress of the current phase as a 0..1 fraction when available. */
+  progress?: number;
+}
