@@ -179,7 +179,7 @@ export function DataManagementPage({
         setNotice(
           `${result.migrated
             ? t("desktop.data.migrateDone", { path: result.dataDir })
-            : t("desktop.data.attachDone", { path: result.dataDir })}${backendStoppedNote}`,
+            : t("desktop.data.attachDone", { path: result.dataDir })}\n${backendStoppedNote}`,
         );
         onConfigChanged();
         await refresh();
@@ -189,13 +189,13 @@ export function DataManagementPage({
     if (confirm.kind === "backup") {
       await run(t("desktop.data.backingUp"), async () => {
         await window.openficDesktop.backupData(instance.id, confirm.path);
-        setNotice(`${t("desktop.data.backupDone", { path: confirm.path })}${backendStoppedNote}`);
+        setNotice(`${t("desktop.data.backupDone", { path: confirm.path })}\n${backendStoppedNote}`);
       });
       return;
     }
     await run(t("desktop.data.restoring"), async () => {
       await window.openficDesktop.restoreData(instance.id, confirm.path);
-      setNotice(`${t("desktop.data.restoreDone", { path: confirm.path })}${backendStoppedNote}`);
+      setNotice(`${t("desktop.data.restoreDone", { path: confirm.path })}\n${backendStoppedNote}`);
     });
   };
 

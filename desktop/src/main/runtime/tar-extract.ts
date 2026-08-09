@@ -1,12 +1,12 @@
 import { spawn } from "node:child_process";
 import { createReadStream, createWriteStream } from "node:fs";
-import { cp, mkdir, mkdtemp, readdir, rm, stat, symlink } from "node:fs/promises";
+import { cp, lstat, mkdir, mkdtemp, readdir, rm, stat, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { createGunzip } from "node:zlib";
 import { extract } from "tar-stream";
-import { BACKUP_MANIFEST_NAME, verifyBackupManifest } from "../backup-manifest.js";
+import { BACKUP_MANIFEST_NAME, hashFile, verifyBackupManifest } from "../backup-manifest.js";
 import type { DataOperationPhase } from "../../shared/ipc.js";
 
 const EXCLUDED_RUNTIME_ENTRIES = new Set([
@@ -38,8 +38,50 @@ function isLockError(error: unknown): boolean {
 
 export type DataPhaseReporter = (phase: DataOperationPhase, progress?: number) => void;
 
+const BACKUP_RETRY_ATTEMPTS = 5;
+const BACKUP_RETRY_BASE_DELAY_MS = 250;
+
+async function assertNoSymlink(entryPath: string): Promise<void> {
+  const info = await lstat(entryPath);
+  if (info.isSymbolicLink()) {
+    throw new Error(`拒绝处理符号链接：${entryPath}`);
+  }
+  if (info.isDirectory()) {
+    const entries = await readdir(entryPath, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isSymbolicLink()) {
+        throw new Error(`拒绝处理符号链接：${path.join(entryPath, entry.name)}`);
+      }
+      if (entry.isDirectory()) await assertNoSymlink(path.join(entryPath, entry.name));
+    }
+  }
+}
+
+export async function assertDirNoSymlink(dir: string): Promise<void> {
+  try {
+    await lstat(dir);
+  } catch {
+    return;
+  }
+  await assertNoSymlink(dir);
+}
+
+export async function copyWithRetry(sourcePath: string, targetPath: string): Promise<void> {
+  await assertNoSymlink(sourcePath);
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await cp(sourcePath, targetPath, { recursive: true });
+      return;
+    } catch (error) {
+      if (attempt >= BACKUP_RETRY_ATTEMPTS || !isLockError(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, BACKUP_RETRY_BASE_DELAY_MS * attempt));
+    }
+  }
+}
+
 export async function measureTreeSize(entryPath: string): Promise<number> {
-  const info = await stat(entryPath);
+  const info = await lstat(entryPath);
+  if (info.isSymbolicLink()) return 0;
   if (info.isDirectory()) {
     let total = 0;
     const entries = await readdir(entryPath, { withFileTypes: true });
@@ -58,7 +100,11 @@ export async function copyTree(
   onLog?: (message: string) => void,
   onBytesCopied?: (bytes: number) => void,
 ): Promise<void> {
-  const sourceStat = await stat(sourcePath);
+  const sourceStat = await lstat(sourcePath);
+  if (sourceStat.isSymbolicLink()) {
+    onLog?.(`跳过符号链接：${sourcePath}`);
+    return;
+  }
   if (sourceStat.isDirectory()) {
     await mkdir(targetPath, { recursive: true });
     const entries = await readdir(sourcePath, { withFileTypes: true });
@@ -175,6 +221,7 @@ export async function extractTarGz(
   outputDir: string,
   onLog?: (message: string) => void,
   onPhase?: DataPhaseReporter,
+  verifyBackup: boolean = true,
 ): Promise<void> {
   const stagingDir = await mkdtemp(path.join(os.tmpdir(), "openfic-restore-"));
   const rollbackDir = await mkdtemp(path.join(os.tmpdir(), "openfic-rollback-"));
@@ -182,12 +229,15 @@ export async function extractTarGz(
   try {
     onPhase?.("extract");
     await extractIntoDirectory(archivePath, stagingDir, onLog);
-    onPhase?.("verify");
-    await verifyBackupManifest(stagingDir);
+    if (verifyBackup) {
+      onPhase?.("verify");
+      await verifyBackupManifest(stagingDir);
+      await assertDirNoSymlink(outputDir);
+    }
     await copyTopLevelEntries(outputDir, rollbackDir, "rollback", onLog, onPhase);
     try {
       await copyTopLevelEntries(stagingDir, outputDir, "copy", onLog, onPhase);
-      await verifyRestoredFiles(stagingDir, outputDir);
+      if (verifyBackup) await verifyRestoredFiles(stagingDir, outputDir);
       onPhase?.("cleanup");
       await clearExtraEntries(outputDir, stagingDir, onLog);
     } catch (error) {
@@ -234,12 +284,16 @@ async function copyTopLevelEntries(
     return;
   }
   let total = 0;
-  const copyable: string[] = [];
+  const coreSizes = new Map<string, number>();
+  const copyable: { name: string; core: boolean }[] = [];
   for (const entry of entries) {
     if (isExcludedRuntimeEntry(entry.name)) continue;
     if (entry.name === BACKUP_MANIFEST_NAME) continue;
-    copyable.push(entry.name);
-    total += await measureTreeSize(path.join(sourceDir, entry.name));
+    const name = entry.name;
+    const size = await measureTreeSize(path.join(sourceDir, name));
+    copyable.push({ name, core: CORE_DATA_ENTRIES.has(name) });
+    if (CORE_DATA_ENTRIES.has(name)) coreSizes.set(name, size);
+    total += size;
   }
   let copied = 0;
   let lastRounded = -1;
@@ -250,11 +304,19 @@ async function copyTopLevelEntries(
       onPhase?.(phase, rounded / 100);
     }
   };
-  for (const name of copyable) {
-    await copyTree(path.join(sourceDir, name), path.join(targetDir, name), onLog, (bytes) => {
-      copied += bytes;
+  for (const { name, core } of copyable) {
+    const sourcePath = path.join(sourceDir, name);
+    const targetPath = path.join(targetDir, name);
+    if (core) {
+      await copyWithRetry(sourcePath, targetPath);
+      copied += coreSizes.get(name) ?? 0;
       report();
-    });
+    } else {
+      await copyTree(sourcePath, targetPath, onLog, (bytes) => {
+        copied += bytes;
+        report();
+      });
+    }
   }
   report();
 }
@@ -308,10 +370,10 @@ async function clearExtraEntries(dir: string, keepDir: string, onLog?: (message:
   }
 }
 
-const CORE_DATA_TOP_LEVEL_ENTRIES = new Set(["openfic.db", ".key", "covers"]);
+export const CORE_DATA_ENTRIES = new Set(["openfic.db", ".key", "covers"]);
 
 function isCoreDataPath(relativePath: string): boolean {
-  return CORE_DATA_TOP_LEVEL_ENTRIES.has(relativePath.split(/[\\/]/)[0]);
+  return CORE_DATA_ENTRIES.has(relativePath.split(/[\\/]/)[0]);
 }
 
 async function verifyRestoredFiles(referenceDir: string, targetDir: string): Promise<void> {
@@ -326,12 +388,6 @@ async function verifyRestoredFiles(referenceDir: string, targetDir: string): Pro
     const sourcePath = path.join(entry.parentPath, entry.name);
     const relativePath = path.relative(referenceDir, sourcePath);
     if (!isCoreDataPath(relativePath)) continue;
-    let expectedSize: number;
-    try {
-      expectedSize = (await stat(sourcePath)).size;
-    } catch {
-      continue;
-    }
     const targetPath = path.join(targetDir, relativePath);
     let targetStat;
     try {
@@ -339,8 +395,23 @@ async function verifyRestoredFiles(referenceDir: string, targetDir: string): Pro
     } catch {
       throw new Error(`还原校验失败：缺少文件 ${relativePath}`);
     }
+    let expectedSize: number;
+    try {
+      expectedSize = (await stat(sourcePath)).size;
+    } catch (error) {
+      throw new Error(`还原校验失败：无法读取备份文件 ${relativePath}：${error instanceof Error ? error.message : String(error)}`);
+    }
     if (targetStat.size !== expectedSize) {
       throw new Error(`还原校验失败：文件大小不一致 ${relativePath}（期望 ${expectedSize}，实际 ${targetStat.size}）`);
+    }
+    let expectedHash: string;
+    try {
+      expectedHash = await hashFile(sourcePath);
+    } catch (error) {
+      throw new Error(`还原校验失败：无法读取备份文件 ${relativePath}：${error instanceof Error ? error.message : String(error)}`);
+    }
+    if ((await hashFile(targetPath)) !== expectedHash) {
+      throw new Error(`还原校验失败：文件内容与备份不符 ${relativePath}`);
     }
   }
 }

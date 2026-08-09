@@ -135,7 +135,7 @@ export async function ensurePortablePython(
 
   onPhase("extract", "解压 Python");
   appendLog("runtime", "开始解压 Python");
-  await extractTarGz(archivePath, rootDir, (message) => appendLog("runtime", message));
+  await extractTarGz(archivePath, rootDir, (message) => appendLog("runtime", message), undefined, false);
 
   if (!(await pathExists(pythonPath))) {
     throw new Error(`portable Python not found after extraction: ${pythonPath}`);
