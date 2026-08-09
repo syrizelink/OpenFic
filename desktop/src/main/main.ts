@@ -7,6 +7,7 @@ import { throwIfAborted, waitForBackend } from "./health.js";
 import { ensurePortablePython, resolveRuntimeDir } from "./runtime/python.js";
 import { ensureOpenFicRuntime, startLocalOpenFicBackend } from "./runtime/openfic.js";
 import { forceStopBackendProcess, stopBackendProcess, type BackendProcessHandle } from "./process.js";
+import { resolveDataDir } from "./data-location.js";
 import { initializeUpdater } from "./updater.js";
 import { configureDefaultSystemProxy } from "./proxy.js";
 import { createStartupProgressTracker, type StartupProgressTracker } from "./startup-progress.js";
@@ -47,6 +48,16 @@ function clearBackend(): void {
   const previousHandle = backendHandle;
   backendHandle = null;
   if (previousHandle) void stopBackendProcess(previousHandle);
+}
+
+function isBackendRunning(): boolean {
+  return backendHandle !== null;
+}
+
+async function stopActiveBackend(): Promise<void> {
+  const handle = backendHandle;
+  backendHandle = null;
+  if (handle) await stopBackendProcess(handle);
 }
 
 function setBackendBaseUrl(url: string): void {
@@ -96,6 +107,7 @@ function cancelStartup(): void {
 
 async function startLocalBackend(
   installDir: string | null,
+  dataDir: string,
   startupProgress: StartupProgressTracker,
   signal: AbortSignal,
 ): Promise<void> {
@@ -159,7 +171,7 @@ async function startLocalBackend(
     });
   }
 
-  const backend = await startLocalOpenFicBackend(runtime.venvPythonPath, app.getVersion(), startupProgress, signal);
+  const backend = await startLocalOpenFicBackend(runtime.venvPythonPath, app.getVersion(), startupProgress, signal, dataDir);
   setBackend(backend);
   setBackendBaseUrl(backend.baseUrl);
 }
@@ -206,7 +218,7 @@ async function activateInstance(
   }
 
   try {
-    await startLocalBackend(instance.installDir, startupProgress, signal);
+    await startLocalBackend(instance.installDir, resolveDataDir(instance), startupProgress, signal);
   } catch (error) {
     appendLog("runtime", `本地运行环境更新或启动失败：${error instanceof Error ? error.message : String(error)}`);
     throw error;
@@ -342,6 +354,8 @@ async function bootstrap(): Promise<void> {
     switchInstance,
     pingInstance,
     onConfigSaved,
+    isBackendRunning,
+    stopActiveBackend,
   });
 
   writeStartupLog("opening shell window");

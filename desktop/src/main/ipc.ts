@@ -2,14 +2,22 @@ import { app, dialog, ipcMain, shell, type BrowserWindow } from "electron";
 import path from "node:path";
 import {
   IpcChannels,
+  type BackupDataRequest,
+  type DataOperationResult,
   type EnsureInstanceSessionRequest,
+  type GetDataInfoRequest,
   type InitializeAppResult,
+  type InspectDataDirRequest,
   type InspectLocalRuntimeRequest,
   type InspectLocalRuntimeResult,
   type InstallRuntimeRequest,
   type LogFrontendDiagnosticRequest,
+  type MigrateDataRequest,
+  type MigrateDataResult,
   type PingInstanceRequest,
   type PingInstanceResult,
+  type RestoreDataRequest,
+  type RestoreDataResult,
   type SaveConfigRequest,
   type SaveZoomFactorRequest,
   type StartLocalBackendRequest,
@@ -20,6 +28,14 @@ import { ensureAppProtocolForPartition } from "./protocol.js";
 import { findLocalInstanceByInstallDir, normalizeInstallDir } from "./local-instance.js";
 import { inspectLocalRuntime, installLocalRuntime, startLocalBackendFromInstall } from "./runtime/setup-runner.js";
 import { getDefaultInstallDir } from "./runtime/python.js";
+import { getDefaultDataDir, resolveDataDir } from "./data-location.js";
+import {
+  backupDataDir,
+  inspectDataDir,
+  migrateDataDir,
+  removeDataDir,
+  restoreDataDir,
+} from "./data-manager.js";
 import { cancelUpdateDownload, checkForUpdates, downloadUpdate, getUpdateState, installUpdate, openUpdateRelease } from "./updater.js";
 import { createStartupProgressTracker, getStartupProgress } from "./startup-progress.js";
 import { appendLog, exportLogs } from "./logging.js";
@@ -49,6 +65,8 @@ export interface IpcContext {
   switchInstance: (instanceId: string) => Promise<InitializeAppResult>;
   pingInstance: (instance: DesktopInstance) => Promise<number>;
   onConfigSaved: (config: DesktopConfig) => void;
+  isBackendRunning: () => boolean;
+  stopActiveBackend: () => Promise<void>;
 }
 
 function createInstanceId(): string {
@@ -57,6 +75,37 @@ function createInstanceId(): string {
 
 export function registerIpc(context: IpcContext): void {
   let pendingZoomSave = Promise.resolve();
+
+  async function withBackendRestart<T>(
+    instanceId: string,
+    operation: () => Promise<T>,
+  ): Promise<{ result: T; backendRestarted: boolean; restartError?: string }> {
+    const wasRunning = context.isBackendRunning();
+    if (wasRunning) await context.stopActiveBackend();
+    let backendRestarted = false;
+    let restartError: string | undefined;
+    try {
+      const result = await operation();
+      if (wasRunning) {
+        try {
+          await context.switchInstance(instanceId);
+          backendRestarted = true;
+        } catch (error) {
+          restartError = error instanceof Error ? error.message : String(error);
+        }
+      }
+      return { result, backendRestarted, restartError };
+    } catch (error) {
+      if (wasRunning) {
+        try {
+          await context.switchInstance(instanceId);
+        } catch {
+          // Leave the app recoverable; the original error is surfaced to the caller.
+        }
+      }
+      throw error;
+    }
+  }
 
   const saveZoomFactor = async (zoomFactor: number): Promise<number> => {
     const clampedZoomFactor = normalizeZoomFactor(zoomFactor);
@@ -159,6 +208,120 @@ export function registerIpc(context: IpcContext): void {
     return result.filePaths[0];
   });
 
+  ipcMain.handle(IpcChannels.selectSaveFile, async () => {
+    const window = context.shellWindow();
+    const defaultPath = path.join(
+      app.getPath("downloads"),
+      `openfic-data-backup-${new Date().toISOString().replace(/[:.]/g, "-")}.tar.gz`,
+    );
+    const options: Electron.SaveDialogOptions = {
+      defaultPath,
+      filters: [{ name: "OpenFic 数据备份", extensions: ["tar.gz"] }],
+      title: "备份作品数据",
+    };
+    const result = window
+      ? await dialog.showSaveDialog(window, options)
+      : await dialog.showSaveDialog(options);
+    if (result.canceled || !result.filePath) return null;
+    return result.filePath;
+  });
+
+  ipcMain.handle(IpcChannels.selectOpenFile, async () => {
+    const window = context.shellWindow();
+    const options: Electron.OpenDialogOptions = {
+      properties: ["openFile"],
+      filters: [{ name: "OpenFic 数据备份", extensions: ["tar.gz"] }],
+      title: "选择数据备份文件",
+    };
+    const result = window
+      ? await dialog.showOpenDialog(window, options)
+      : await dialog.showOpenDialog(options);
+    if (result.canceled || !result.filePaths.length) return null;
+    return result.filePaths[0];
+  });
+
+  ipcMain.handle(IpcChannels.getDefaultDataDir, () => getDefaultDataDir());
+
+  ipcMain.handle(IpcChannels.getDataInfo, async (_event, request: GetDataInfoRequest) => {
+    const config = await readDesktopConfig();
+    const instance = config?.instances.find((item) => item.id === request.instanceId);
+    if (!instance) throw new Error("实例不存在");
+    const dataDir = resolveDataDir(instance);
+    const inspection = await inspectDataDir(dataDir);
+    return {
+      dataDir,
+      isDefaultLocation: instance.dataDir === null,
+      hasData: inspection.hasData,
+      entryCount: inspection.entryCount,
+      sizeBytes: inspection.sizeBytes,
+    };
+  });
+
+  ipcMain.handle(IpcChannels.inspectDataDir, async (_event, request: InspectDataDirRequest) => {
+    return inspectDataDir(request.dataDir);
+  });
+
+  ipcMain.handle(IpcChannels.migrateData, async (_event, request: MigrateDataRequest): Promise<MigrateDataResult> => {
+    const config = await readDesktopConfig();
+    if (!config) throw new Error("未找到 OpenFic 实例配置");
+    const instance = config.instances.find((item) => item.id === request.instanceId);
+    if (!instance) throw new Error("实例不存在");
+    const sourceDir = resolveDataDir(instance);
+    const targetDir = path.resolve(request.newDataDir);
+
+    const { result, backendRestarted, restartError } = await withBackendRestart(request.instanceId, async () => {
+      let migrated = false;
+      let removedOldDir = false;
+      const targetInspection = await inspectDataDir(targetDir);
+      if (!targetInspection.hasData) {
+        appendLog("data", `开始迁移数据目录：${sourceDir} -> ${targetDir}`);
+        await migrateDataDir(sourceDir, targetDir);
+        migrated = true;
+        appendLog("data", `数据迁移完成：${targetDir}`);
+        if (request.deleteOldDir && normalizeInstallDir(sourceDir) !== normalizeInstallDir(targetDir)) {
+          await removeDataDir(sourceDir);
+          removedOldDir = true;
+          appendLog("data", `已删除原数据目录：${sourceDir}`);
+        }
+      }
+
+      const nextConfig: DesktopConfig = {
+        ...config,
+        instances: config.instances.map((item) =>
+          item.id === instance.id ? { ...item, dataDir: targetDir } : item,
+        ),
+      };
+      await writeDesktopConfig(nextConfig);
+      context.onConfigSaved(nextConfig);
+      return { dataDir: targetDir, migrated, removedOldDir };
+    });
+    return { ...result, backendRestarted, restartError };
+  });
+
+  ipcMain.handle(IpcChannels.backupData, async (_event, request: BackupDataRequest): Promise<DataOperationResult> => {
+    const config = await readDesktopConfig();
+    const instance = config?.instances.find((item) => item.id === request.instanceId);
+    if (!instance) throw new Error("实例不存在");
+    const { backendRestarted, restartError } = await withBackendRestart(request.instanceId, async () => {
+      appendLog("data", `开始备份数据目录：${resolveDataDir(instance)} -> ${request.targetPath}`);
+      await backupDataDir(resolveDataDir(instance), request.targetPath);
+      appendLog("data", `备份完成：${request.targetPath}`);
+    });
+    return { backendRestarted, restartError };
+  });
+
+  ipcMain.handle(IpcChannels.restoreData, async (_event, request: RestoreDataRequest): Promise<RestoreDataResult> => {
+    const config = await readDesktopConfig();
+    const instance = config?.instances.find((item) => item.id === request.instanceId);
+    if (!instance) throw new Error("实例不存在");
+    const { backendRestarted, restartError } = await withBackendRestart(request.instanceId, async () => {
+      appendLog("data", `开始从备份还原数据：${request.sourcePath} -> ${resolveDataDir(instance)}`);
+      await restoreDataDir(request.sourcePath, resolveDataDir(instance));
+      appendLog("data", `数据还原完成：${resolveDataDir(instance)}`);
+    });
+    return { backendRestarted, restartError };
+  });
+
   ipcMain.handle(
     IpcChannels.inspectLocalRuntime,
     async (_event, request: InspectLocalRuntimeRequest): Promise<InspectLocalRuntimeResult> => {
@@ -184,12 +347,17 @@ export function registerIpc(context: IpcContext): void {
       window.webContents.send(IpcChannels.startupProgress, progress);
     });
     try {
-      const backend = await startLocalBackendFromInstall(request.installDir, startupProgress, controller.signal);
+      const previousConfig = await readDesktopConfig();
+      const existingInstance = findLocalInstanceByInstallDir(previousConfig, request.installDir);
+      const backend = await startLocalBackendFromInstall(
+        request.installDir,
+        startupProgress,
+        controller.signal,
+        existingInstance ? resolveDataDir(existingInstance) : undefined,
+      );
       context.setBackend(backend);
       context.setBackendBaseUrl(backend.baseUrl);
       await pendingZoomSave;
-      const previousConfig = await readDesktopConfig();
-      const existingInstance = findLocalInstanceByInstallDir(previousConfig, request.installDir);
       const instance: DesktopInstance = existingInstance ?? {
         id: createInstanceId(),
         name: "Local",
@@ -197,6 +365,7 @@ export function registerIpc(context: IpcContext): void {
         remoteUrl: null,
         autoStartLocal: true,
         installDir: request.installDir,
+        dataDir: null,
       };
       const normalizedInstallDir = normalizeInstallDir(request.installDir);
       const nextConfig: DesktopConfig = {

@@ -7,6 +7,8 @@ export interface DesktopInstance {
   remoteUrl: string | null;
   autoStartLocal: boolean;
   installDir: string | null;
+  /** Works data directory. `null` means the default (current) location. */
+  dataDir: string | null;
   favorite?: boolean;
 }
 

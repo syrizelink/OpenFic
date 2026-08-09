@@ -16,7 +16,8 @@ function isDesktopInstance(value: unknown): value is DesktopInstance {
     (candidate.mode === "local" || candidate.mode === "remote") &&
     (typeof candidate.remoteUrl === "string" || candidate.remoteUrl === null) &&
     typeof candidate.autoStartLocal === "boolean" &&
-    (typeof candidate.installDir === "string" || candidate.installDir === null)
+    (typeof candidate.installDir === "string" || candidate.installDir === null) &&
+    (candidate.dataDir === undefined || typeof candidate.dataDir === "string" || candidate.dataDir === null)
   );
 }
 

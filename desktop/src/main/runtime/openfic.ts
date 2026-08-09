@@ -405,6 +405,7 @@ export async function startLocalOpenFicBackend(
   expectedVersion: string,
   startupProgress?: StartupProgressTracker,
   signal?: AbortSignal,
+  dataDir?: string,
 ): Promise<BackendProcessHandle> {
   throwIfAborted(signal);
   startupProgress?.begin({
@@ -446,6 +447,7 @@ export async function startLocalOpenFicBackend(
     command: command.command,
     args: command.args,
     port,
+    dataDir,
     environment: proxyEnvironment,
     onOutputLine: (line) => {
       const milestone = STARTUP_LOG_MILESTONES.find((candidate) => line.includes(candidate.text));

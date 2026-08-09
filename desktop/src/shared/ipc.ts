@@ -37,6 +37,14 @@ export const IpcChannels = {
   getZoomFactor: "zoom:get-factor",
   saveZoomFactor: "zoom:save-factor",
   zoomFactorChanged: "zoom:changed",
+  getDefaultDataDir: "data:get-default-dir",
+  getDataInfo: "data:get-info",
+  inspectDataDir: "data:inspect-dir",
+  migrateData: "data:migrate",
+  backupData: "data:backup",
+  restoreData: "data:restore",
+  selectSaveFile: "dialog:select-save-file",
+  selectOpenFile: "dialog:select-open-file",
 } as const;
 
 export type SetupStep =
@@ -143,3 +151,58 @@ export interface UpdateState {
   bytesPerSecond?: number;
   message?: string;
 }
+
+export interface DataInfo {
+  /** Resolved absolute path of the instance data directory. */
+  dataDir: string;
+  /** Whether the instance falls back to the default data location. */
+  isDefaultLocation: boolean;
+  hasData: boolean;
+  entryCount: number;
+  sizeBytes: number;
+}
+
+export interface InspectDataDirResult {
+  /** Whether the directory contains recognizable OpenFic data. */
+  valid: boolean;
+  hasData: boolean;
+  entryCount: number;
+  sizeBytes: number;
+}
+
+export interface GetDataInfoRequest {
+  instanceId: string;
+}
+
+export interface InspectDataDirRequest {
+  dataDir: string;
+}
+
+export interface MigrateDataRequest {
+  instanceId: string;
+  newDataDir: string;
+  deleteOldDir: boolean;
+}
+
+export interface DataOperationResult {
+  backendRestarted: boolean;
+  restartError?: string;
+}
+
+export interface MigrateDataResult extends DataOperationResult {
+  dataDir: string;
+  migrated: boolean;
+  removedOldDir: boolean;
+}
+
+export interface BackupDataRequest {
+  instanceId: string;
+  targetPath: string;
+}
+
+export interface RestoreDataRequest {
+  instanceId: string;
+  sourcePath: string;
+}
+
+export type RestoreDataResult = DataOperationResult;

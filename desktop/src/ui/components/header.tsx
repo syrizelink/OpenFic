@@ -10,6 +10,7 @@ interface DesktopHeaderProps {
   disabled: boolean;
   onAddInstance: () => void;
   onOpenSetup: () => void;
+  onOpenDataManagement: () => void;
   onSaveConfig: (config: DesktopConfig) => Promise<void>;
   onSwitchInstance: (instanceId: string) => Promise<void>;
   instancePanelOpen: boolean;
@@ -99,6 +100,7 @@ export function DesktopHeader({
   disabled,
   onAddInstance,
   onOpenSetup,
+  onOpenDataManagement,
   onSaveConfig,
   onSwitchInstance,
   instancePanelOpen,
@@ -118,6 +120,7 @@ export function DesktopHeader({
   const menuBarRef = useRef<HTMLDivElement>(null);
   const instances = sortInstances(config?.instances ?? []);
   const hasUsableRuntime = instances.some((instance) => pingStates[instance.id]?.status === "ok") || Boolean(activeInstanceId);
+  const activeInstanceIsLocal = config?.instances.find((instance) => instance.id === activeInstanceId)?.mode === "local";
   const updateProgress = Math.min(Math.max(updateState.progress ?? 0, 0), 1);
   const updateProgressStyle = { "--update-progress": String(updateProgress) } as CSSProperties;
   const isCheckingForUpdate = updateState.status === "checking";
@@ -230,6 +233,12 @@ export function DesktopHeader({
     onInstancePanelOpenChange(false);
     setOpenMenu(null);
     onOpenSetup();
+  };
+
+  const handleOpenDataManagement = () => {
+    onInstancePanelOpenChange(false);
+    setOpenMenu(null);
+    onOpenDataManagement();
   };
 
   const toggleFavorite = async (event: MouseEvent<HTMLButtonElement>, instance: DesktopInstance) => {
@@ -468,6 +477,15 @@ export function DesktopHeader({
                 </button>
                 <button className="desktop-menu-item" type="button" role="menuitem" disabled={disabled} onClick={handleOpenSetup}>
                   {t("desktop.header.manageInstances")}
+                </button>
+                <button
+                  className="desktop-menu-item"
+                  type="button"
+                  role="menuitem"
+                  disabled={disabled || !activeInstanceIsLocal}
+                  onClick={handleOpenDataManagement}
+                >
+                  {t("desktop.header.dataManagement")}
                 </button>
               </div>
             ) : null}

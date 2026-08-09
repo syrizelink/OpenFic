@@ -2,14 +2,24 @@ import { contextBridge, ipcRenderer, webFrame } from "electron";
 import { fileURLToPath } from "node:url";
 import {
   IpcChannels,
+  type BackupDataRequest,
+  type DataInfo,
+  type DataOperationResult,
   type EnsureInstanceSessionRequest,
+  type GetDataInfoRequest,
   type InitializeAppResult,
+  type InspectDataDirRequest,
+  type InspectDataDirResult,
   type InspectLocalRuntimeRequest,
   type InspectLocalRuntimeResult,
   type InstallRuntimeRequest,
   type LogFrontendDiagnosticRequest,
+  type MigrateDataRequest,
+  type MigrateDataResult,
   type PingInstanceRequest,
   type PingInstanceResult,
+  type RestoreDataRequest,
+  type RestoreDataResult,
   type SaveConfigRequest,
   type SaveZoomFactorRequest,
   type SetupProgressEvent,
@@ -77,6 +87,19 @@ const desktopApi = {
   pingInstance: (instance: DesktopInstance): Promise<PingInstanceResult> =>
     ipcRenderer.invoke(IpcChannels.pingInstance, { instance } satisfies PingInstanceRequest),
   selectDirectory: (): Promise<string | null> => ipcRenderer.invoke(IpcChannels.selectDirectory),
+  selectSaveFile: (): Promise<string | null> => ipcRenderer.invoke(IpcChannels.selectSaveFile),
+  selectOpenFile: (): Promise<string | null> => ipcRenderer.invoke(IpcChannels.selectOpenFile),
+  getDefaultDataDir: (): Promise<string> => ipcRenderer.invoke(IpcChannels.getDefaultDataDir),
+  getDataInfo: (instanceId: string): Promise<DataInfo> =>
+    ipcRenderer.invoke(IpcChannels.getDataInfo, { instanceId } satisfies GetDataInfoRequest),
+  inspectDataDir: (dataDir: string): Promise<InspectDataDirResult> =>
+    ipcRenderer.invoke(IpcChannels.inspectDataDir, { dataDir } satisfies InspectDataDirRequest),
+  migrateData: (instanceId: string, newDataDir: string, deleteOldDir: boolean): Promise<MigrateDataResult> =>
+    ipcRenderer.invoke(IpcChannels.migrateData, { instanceId, newDataDir, deleteOldDir } satisfies MigrateDataRequest),
+  backupData: (instanceId: string, targetPath: string): Promise<DataOperationResult> =>
+    ipcRenderer.invoke(IpcChannels.backupData, { instanceId, targetPath } satisfies BackupDataRequest),
+  restoreData: (instanceId: string, sourcePath: string): Promise<RestoreDataResult> =>
+    ipcRenderer.invoke(IpcChannels.restoreData, { instanceId, sourcePath } satisfies RestoreDataRequest),
   inspectLocalRuntime: (installDir: string): Promise<InspectLocalRuntimeResult> =>
     ipcRenderer.invoke(IpcChannels.inspectLocalRuntime, { installDir } satisfies InspectLocalRuntimeRequest),
   frontendHostPreloadPath: fileURLToPath(new URL("./frontend-host-preload.cjs", import.meta.url)),

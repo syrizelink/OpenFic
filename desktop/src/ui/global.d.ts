@@ -1,8 +1,13 @@
 import type { DesktopConfig } from "../shared/config";
 import type {
+  DataInfo,
+  DataOperationResult,
+  InspectDataDirResult,
   InspectLocalRuntimeResult,
   InitializeAppResult,
+  MigrateDataResult,
   PingInstanceResult,
+  RestoreDataResult,
   SetupProgressEvent,
   StartupProgressEvent,
   UpdateState,
@@ -23,6 +28,14 @@ declare global {
       switchInstance: (instanceId: string) => Promise<InitializeAppResult>;
       pingInstance: (instance: DesktopInstance) => Promise<PingInstanceResult>;
       selectDirectory: () => Promise<string | null>;
+      selectSaveFile: () => Promise<string | null>;
+      selectOpenFile: () => Promise<string | null>;
+      getDefaultDataDir: () => Promise<string>;
+      getDataInfo: (instanceId: string) => Promise<DataInfo>;
+      inspectDataDir: (dataDir: string) => Promise<InspectDataDirResult>;
+      migrateData: (instanceId: string, newDataDir: string, deleteOldDir: boolean) => Promise<MigrateDataResult>;
+      backupData: (instanceId: string, targetPath: string) => Promise<DataOperationResult>;
+      restoreData: (instanceId: string, sourcePath: string) => Promise<RestoreDataResult>;
       inspectLocalRuntime: (installDir: string) => Promise<InspectLocalRuntimeResult>;
       frontendHostPreloadPath: string;
       minimizeWindow: () => Promise<void>;
