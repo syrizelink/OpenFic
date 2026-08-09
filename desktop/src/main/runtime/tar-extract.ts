@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createReadStream, createWriteStream } from "node:fs";
-import { cp, lstat, mkdir, mkdtemp, readdir, rm, stat, symlink } from "node:fs/promises";
+import { cp, lstat, mkdir, mkdtemp, readdir, readlink, rm, stat, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -99,10 +99,21 @@ export async function copyTree(
   targetPath: string,
   onLog?: (message: string) => void,
   onBytesCopied?: (bytes: number) => void,
+  preserveSymlinks: boolean = false,
 ): Promise<void> {
   const sourceStat = await lstat(sourcePath);
   if (sourceStat.isSymbolicLink()) {
-    onLog?.(`跳过符号链接：${sourcePath}`);
+    if (!preserveSymlinks) {
+      onLog?.(`跳过符号链接：${sourcePath}`);
+      return;
+    }
+    const link = await readlink(sourcePath);
+    if (path.isAbsolute(link)) {
+      onLog?.(`跳过绝对路径符号链接：${sourcePath} -> ${link}`);
+      return;
+    }
+    await mkdir(path.dirname(targetPath), { recursive: true });
+    await symlink(link, targetPath);
     return;
   }
   if (sourceStat.isDirectory()) {
@@ -110,7 +121,7 @@ export async function copyTree(
     const entries = await readdir(sourcePath, { withFileTypes: true });
     for (const entry of entries) {
       if (isExcludedRuntimeEntry(entry.name)) continue;
-      await copyTree(path.join(sourcePath, entry.name), path.join(targetPath, entry.name), onLog, onBytesCopied);
+      await copyTree(path.join(sourcePath, entry.name), path.join(targetPath, entry.name), onLog, onBytesCopied, preserveSymlinks);
     }
     return;
   }
@@ -226,6 +237,7 @@ export async function extractTarGz(
   const stagingDir = await mkdtemp(path.join(os.tmpdir(), "openfic-restore-"));
   const rollbackDir = await mkdtemp(path.join(os.tmpdir(), "openfic-rollback-"));
   let rollbackKept = false;
+  const preserveSymlinks = !verifyBackup;
   try {
     onPhase?.("extract");
     await extractIntoDirectory(archivePath, stagingDir, onLog);
@@ -234,16 +246,16 @@ export async function extractTarGz(
       await verifyBackupManifest(stagingDir);
       await assertDirNoSymlink(outputDir);
     }
-    await copyTopLevelEntries(outputDir, rollbackDir, "rollback", onLog, onPhase);
+    await copyTopLevelEntries(outputDir, rollbackDir, "rollback", onLog, onPhase, preserveSymlinks);
     try {
-      await copyTopLevelEntries(stagingDir, outputDir, "copy", onLog, onPhase);
+      await copyTopLevelEntries(stagingDir, outputDir, "copy", onLog, onPhase, preserveSymlinks);
       if (verifyBackup) await verifyRestoredFiles(stagingDir, outputDir);
       onPhase?.("cleanup");
       await clearExtraEntries(outputDir, stagingDir, onLog);
     } catch (error) {
       try {
         await clearTopLevelEntries(outputDir, onLog);
-        await copyTopLevelEntries(rollbackDir, outputDir, "copy", onLog, onPhase);
+        await copyTopLevelEntries(rollbackDir, outputDir, "copy", onLog, onPhase, preserveSymlinks);
       } catch (rollbackError) {
         rollbackKept = true;
         const detail = rollbackError instanceof Error ? rollbackError.message : String(rollbackError);
@@ -276,6 +288,7 @@ async function copyTopLevelEntries(
   phase: DataOperationPhase,
   onLog?: (message: string) => void,
   onPhase?: DataPhaseReporter,
+  preserveSymlinks: boolean = false,
 ): Promise<void> {
   let entries;
   try {
@@ -315,7 +328,7 @@ async function copyTopLevelEntries(
       await copyTree(sourcePath, targetPath, onLog, (bytes) => {
         copied += bytes;
         report();
-      });
+      }, preserveSymlinks);
     }
   }
   report();
