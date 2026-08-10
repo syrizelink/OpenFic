@@ -231,7 +231,14 @@ class TestTimedStream:
         stream = _TimedStream(
             _SlowStream(["a", "b"], delay=0),
             chunk_timeout=1.0,
-            total_timeout=5.0,
+        )
+        assert [chunk async for chunk in stream] == ["a", "b"]
+
+    @pytest.mark.asyncio
+    async def test_allows_stream_to_exceed_previous_total_timeout(self) -> None:
+        stream = _TimedStream(
+            _SlowStream(["a", "b"], delay=0.1),
+            chunk_timeout=1.0,
         )
         assert [chunk async for chunk in stream] == ["a", "b"]
 
@@ -240,20 +247,8 @@ class TestTimedStream:
         stream = _TimedStream(
             _SlowStream(["a"], delay=0.2),
             chunk_timeout=0.05,
-            total_timeout=None,
         )
         with pytest.raises(LLMStreamTimeoutError, match="chunk idle"):
-            await stream.__anext__()
-
-    @pytest.mark.asyncio
-    async def test_total_timeout(self) -> None:
-        stream = _TimedStream(
-            _SlowStream(["a", "b"], delay=0.1),
-            chunk_timeout=1.0,
-            total_timeout=0.15,
-        )
-        assert await stream.__anext__() == "a"
-        with pytest.raises(LLMStreamTimeoutError, match="total timeout"):
             await stream.__anext__()
 
 
@@ -285,7 +280,7 @@ class TestInvokeModelWithRetry:
         assert result.content == "ok"
         assert len(calls) == 2
         assert calls[0]["chunk_timeout"] == _ZERO_BACKOFF.chunk_timeout
-        assert calls[0]["total_timeout"] == _ZERO_BACKOFF.total_timeout
+        assert "total_timeout" not in calls[0]
         assert events == [
             {
                 "session_id": "sess_001",

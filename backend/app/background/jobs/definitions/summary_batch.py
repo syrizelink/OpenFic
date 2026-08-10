@@ -595,7 +595,7 @@ SUMMARY_BATCH_JOB = JobDefinition(
     on_timeout=_handle_summary_batch_timeout,
     on_cancelled=_handle_summary_batch_cancelled,
     default_queue=JOB_QUEUE_LLM,
-    default_timeout_seconds=900,
+    default_timeout_seconds=None,
     default_max_attempts=1,
     supports_cancel=True,
 )

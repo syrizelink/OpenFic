@@ -80,7 +80,13 @@ def _three_level_reasoning_effort(
 def _request_timeout() -> tuple[float, float]:
     from app.settings import settings
 
-    return (settings.llm_connect_timeout, settings.llm_total_timeout)
+    return (settings.llm_connect_timeout, settings.llm_request_timeout)
+
+
+def _stream_chunk_timeout() -> float | None:
+    from app.settings import settings
+
+    return settings.llm_chunk_timeout
 
 
 def _openai_compatible_kwargs(config: ModelConfig) -> dict[str, Any]:
@@ -98,6 +104,7 @@ def _openai_compatible_kwargs(config: ModelConfig) -> dict[str, Any]:
         reasoning_effort=_enabled_reasoning_effort(config),
         max_retries=0,
         stream_usage=True,
+        stream_chunk_timeout=_stream_chunk_timeout(),
         timeout=_request_timeout(),
     )
     extra_body = {
@@ -177,6 +184,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             reasoning_effort=reasoning_effort,
             max_retries=0,
             stream_usage=True,
+            stream_chunk_timeout=_stream_chunk_timeout(),
             timeout=_request_timeout(),
         ))
 

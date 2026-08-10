@@ -69,7 +69,7 @@ async def resolve_background_llm(
                 frequency_penalty=model.frequency_penalty,
                 presence_penalty=model.presence_penalty,
                 repetition_penalty=model.repetition_penalty,
-                request_timeout=60,
+                request_timeout=int(settings.llm_request_timeout),
             )
         ),
         model=model,

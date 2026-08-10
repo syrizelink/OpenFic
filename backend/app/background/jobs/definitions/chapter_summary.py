@@ -369,7 +369,7 @@ CHAPTER_SUMMARY_JOB = JobDefinition(
     on_timeout=mark_chapter_summary_failed,
     on_cancelled=mark_chapter_summary_failed,
     default_queue=JOB_QUEUE_LLM,
-    default_timeout_seconds=180,
+    default_timeout_seconds=720,
     default_max_attempts=1,
     supports_cancel=True,
 )
@@ -385,7 +385,7 @@ LONG_TERM_SUMMARY_JOB = JobDefinition(
     on_timeout=mark_long_term_summary_failed,
     on_cancelled=mark_long_term_summary_failed,
     default_queue=JOB_QUEUE_LLM,
-    default_timeout_seconds=240,
+    default_timeout_seconds=720,
     default_max_attempts=1,
     supports_cancel=True,
 )

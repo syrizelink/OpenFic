@@ -2,13 +2,12 @@
 
 单一入口 ``invoke_model_with_retry`` 负责：错误分类、退避计算、
 重试事件发布与空响应重放；超时通过 ``_TimedStream`` 包装流式
-迭代器实现 chunk 空闲超时与总时长超时。
+迭代器实现 chunk 空闲超时。
 """
 
 from __future__ import annotations
 
 import asyncio
-import time
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -52,13 +51,12 @@ class EmptyResponseError(RuntimeError):
 
 
 class LLMStreamTimeoutError(TimeoutError):
-    """流式调用在 chunk 空闲或总时长上超时。"""
+    """流式调用在 chunk 空闲时超时。"""
 
 
 @dataclass(frozen=True)
 class LLMInvokeSettings:
     connect_timeout: float = 10.0
-    total_timeout: float = 300.0
     chunk_timeout: float = 120.0
     max_attempts: int = 5
     retry_base_interval: float = 2.0
@@ -71,7 +69,6 @@ def load_llm_invoke_settings() -> LLMInvokeSettings:
 
     return LLMInvokeSettings(
         connect_timeout=settings.llm_connect_timeout,
-        total_timeout=settings.llm_total_timeout,
         chunk_timeout=settings.llm_chunk_timeout,
         max_attempts=settings.llm_retry_max_attempts,
         retry_base_interval=settings.llm_retry_base_interval,
@@ -233,37 +230,20 @@ class _TimedStream:
         astream: Any,
         *,
         chunk_timeout: float | None,
-        total_timeout: float | None,
     ) -> None:
         self._iterator = astream.__aiter__()
         self._chunk_timeout = chunk_timeout
-        self._total_timeout = total_timeout
-        self._started = time.perf_counter()
 
     def __aiter__(self) -> _TimedStream:
         return self
 
     async def __anext__(self) -> Any:
         timeout = self._chunk_timeout
-        timed_out_by = "chunk"
-        if self._total_timeout is not None:
-            remaining = self._total_timeout - (time.perf_counter() - self._started)
-            if remaining <= 0:
-                raise LLMStreamTimeoutError(
-                    f"LLM stream exceeded total timeout of {self._total_timeout}s"
-                )
-            if timeout is None or remaining < timeout:
-                timeout = remaining
-                timed_out_by = "total"
         if timeout is None:
             return await self._iterator.__anext__()
         try:
             return await asyncio.wait_for(self._iterator.__anext__(), timeout=timeout)
         except TimeoutError as exc:
-            if timed_out_by == "total":
-                raise LLMStreamTimeoutError(
-                    f"LLM stream exceeded total timeout of {self._total_timeout}s"
-                ) from exc
             raise LLMStreamTimeoutError(
                 f"LLM stream chunk idle timeout after {timeout}s"
             ) from exc
@@ -320,7 +300,6 @@ async def invoke_model_with_retry(
                 model,
                 messages,
                 chunk_timeout=settings.chunk_timeout,
-                total_timeout=settings.total_timeout,
             )
         except asyncio.CancelledError:
             raise

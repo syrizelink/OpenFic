@@ -1695,6 +1695,10 @@ async def test_summary_batch_persists_running_status_before_generation(tmp_path,
         await engine.dispose()
 
 
+def test_summary_batch_has_no_fixed_outer_timeout():
+    assert summary_batch_definition.SUMMARY_BATCH_JOB.default_timeout_seconds is None
+
+
 @pytest.mark.asyncio
 async def test_summary_batch_progress_event_contains_aggregated_batch_progress(tmp_path, monkeypatch):
     engine, factory = await _configure_file_database(tmp_path)

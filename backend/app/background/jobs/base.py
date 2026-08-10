@@ -35,7 +35,7 @@ class JobDefinition:
     on_timeout: JobLifecycleHook | None = None
     on_cancelled: JobLifecycleHook | None = None
     default_queue: str = "default"
-    default_timeout_seconds: int = 300
+    default_timeout_seconds: int | None = 300
     default_max_attempts: int = 1
     supports_cancel: bool = False
     supports_batch: bool = False

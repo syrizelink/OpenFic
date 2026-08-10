@@ -35,6 +35,8 @@ def test_create_chat_model_openai_returns_chat_openai():
 
     assert isinstance(model, ChatOpenAI)
     assert model.model_name == "gpt-4o"
+    assert model.stream_chunk_timeout == 120.0
+    assert model.request_timeout == (10.0, 600.0)
 
 
 def test_create_chat_model_anthropic_uses_native_client():
@@ -379,7 +381,10 @@ def test_create_chat_model_uses_native_client_for_configured_provider():
     assert model.anthropic_api_url == "https://api.anthropic.com"
 
 
-def test_create_chat_model_deepseek_uses_native_client():
+def test_create_chat_model_deepseek_uses_native_client(monkeypatch):
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "llm_chunk_timeout", 77.0)
     config = ModelConfig(
         provider_type="deepseek",
         base_url="https://api.deepseek.com",
@@ -390,6 +395,7 @@ def test_create_chat_model_deepseek_uses_native_client():
     from langchain_deepseek import ChatDeepSeek
 
     assert isinstance(model, ChatDeepSeek)
+    assert model.stream_chunk_timeout == 77.0
 
 
 def test_create_chat_model_openrouter_uses_native_client():

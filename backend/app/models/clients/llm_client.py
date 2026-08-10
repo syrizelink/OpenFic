@@ -28,7 +28,7 @@ from app.models.clients.deepseek_payload import patch_deepseek_reasoning_payload
 from app.models.clients.model_factory import ModelConfig, ReasoningEffort, create_chat_model
 
 
-DEFAULT_LLM_TIMEOUT = 120
+DEFAULT_LLM_TIMEOUT = 600
 _patch_deepseek_reasoning_payload = patch_deepseek_reasoning_payload
 
 

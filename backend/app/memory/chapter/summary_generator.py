@@ -209,7 +209,7 @@ async def generate_chapter_summary_from_prompt(
         model_name=model_name,
         request_messages=messages,
     ) as audit:
-        response = await llm_client.generate_with_tools(messages, timeout=120)
+        response = await llm_client.generate_with_tools(messages)
         audit.record_response(
             content=response.content,
             tool_calls=response.tool_calls,
@@ -294,7 +294,7 @@ async def generate_long_term_summary_from_prompt(
         model_name=model_name,
         request_messages=messages,
     ) as audit:
-        response = await llm_client.generate_with_tools(messages, timeout=120)
+        response = await llm_client.generate_with_tools(messages)
         audit.record_response(
             content=response.content,
             tool_calls=response.tool_calls,

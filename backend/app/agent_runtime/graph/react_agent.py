@@ -103,7 +103,6 @@ async def _invoke_model(
     messages: list[BaseMessage],
     *,
     chunk_timeout: float | None = None,
-    total_timeout: float | None = None,
 ) -> AIMessage:
     """Stream the LLM response and normalize it for checkpoint persistence."""
     start_time = time.perf_counter()
@@ -113,7 +112,6 @@ async def _invoke_model(
     stream = _TimedStream(
         model.astream(messages),
         chunk_timeout=chunk_timeout,
-        total_timeout=total_timeout,
     )
     async for chunk in stream:
         if first_token_ms is None:

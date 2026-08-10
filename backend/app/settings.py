@@ -107,8 +107,8 @@ class Settings(BaseSettings):
 
     # LLM invocation timeouts & retries
     llm_connect_timeout: float = 10.0
-    llm_total_timeout: float = 300.0
     llm_chunk_timeout: float = 120.0
+    llm_request_timeout: float = 600.0
     llm_retry_max_attempts: int = 5
     llm_retry_base_interval: float = 2.0
     llm_retry_max_interval: float = 30.0

@@ -1,8 +1,11 @@
 from typing import Any
+from unittest.mock import AsyncMock
 
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
+import pytest
 
-from app.models.clients.llm_client import LLMClient, _patch_deepseek_reasoning_payload
+from app.core.errors import LLMTimeoutError
+from app.models.clients.llm_client import LLMClient, LLMConfig, _patch_deepseek_reasoning_payload
 
 
 def test_patch_deepseek_reasoning_payload_adds_reasoning_content() -> None:
@@ -67,3 +70,21 @@ def test_extract_usage_reads_response_metadata() -> None:
         "completion_tokens": 2,
         "total_tokens": 12,
     }
+
+
+@pytest.mark.asyncio
+async def test_generate_with_tools_uses_configured_request_timeout() -> None:
+    client = LLMClient(
+        LLMConfig(
+            provider_type="openai",
+            base_url="",
+            api_key="test",
+            model_id="test-model",
+            request_timeout=600,
+        )
+    )
+    client._llm_with_tools = AsyncMock()
+    client._llm_with_tools.ainvoke.side_effect = TimeoutError()
+
+    with pytest.raises(LLMTimeoutError, match="600s"):
+        await client.generate_with_tools([])
