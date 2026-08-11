@@ -17,8 +17,8 @@ def test_default_agent_definitions_include_two_primary_agents_and_six_subagents(
         "composer",
         "auditor",
         "writer",
-        "actor",
         "reviewer",
+        "actor",
     )
     build = get_default_agent_definition("build")
     assert build.kind == "primary"

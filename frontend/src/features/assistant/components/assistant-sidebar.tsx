@@ -24,12 +24,14 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { CircularProgress, ConfirmDialog, Spinner, toast, getModelValue } from "@/components";
+import { AgentBrandIcon } from "@/components/agent-brand-icon";
 import { useAppShell } from "@/features/app-shell";
 import { appendMentionMarkup } from "@/features/assistant/lib/mention-text";
 import { fetchAgentDefinitions } from "@/features/settings/lib/agent-definitions-api";
 import { fetchSettings, updateSettings } from "@/features/settings/lib/settings-api";
 import { useSummaryPanel } from "@/features/writing/hooks/use-summaries";
 import { useVolumeTree } from "@/features/writing/hooks/use-volumes";
+import { getAgentDisplayDescription, getAgentIconColor } from "@/lib/agent-branding";
 import type {
   ActiveSubagentState,
   AgentForkResponse,
@@ -1130,6 +1132,15 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         primaryAgents.map((d) => ({
           value: d.key,
           label: d.display_name || d.key,
+          description: getAgentDisplayDescription(d.key, d.description || "") || undefined,
+          labelColor: getAgentIconColor(d.color),
+          prefix: (
+            <AgentBrandIcon
+              color={d.color}
+              icon={d.icon}
+              size={14}
+            />
+          ),
         })),
       [primaryAgents],
     );

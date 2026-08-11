@@ -1,13 +1,5 @@
 import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
-import {
-  ArrowUp,
-  CircleUserRound,
-  CloudUpload,
-  ExternalLink,
-  ShieldCheck,
-  Square,
-  X,
-} from "lucide-react";
+import { ArrowUp, CloudUpload, ExternalLink, ShieldCheck, Square, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -489,13 +481,8 @@ export function AgentInput({
                       options={agentOptions}
                       onChange={onAgentChange}
                       size="1"
-                      triggerPrefix={
-                        <CircleUserRound
-                          size={14}
-                          aria-hidden="true"
-                        />
-                      }
                       hideTriggerChevron
+                      contentClassName="ai-sidebar-agent-select-content"
                       triggerClassName="ai-sidebar-inline-select-trigger ai-sidebar-agent-select-trigger"
                       triggerStyle={{
                         fontSize: "12px",

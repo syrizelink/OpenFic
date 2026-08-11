@@ -25,6 +25,14 @@ async def test_list_agent_definitions(client: AsyncClient):
     assert plan["kind"] == "primary"
     assert build["enabled_skills"] == []
     assert plan["enabled_skills"] == []
+    assert build["color"] == "blue"
+    assert build["icon"] == "pen-tool"
+    assert plan["color"] == "green"
+
+    ordered_keys = [d["key"] for d in data["definitions"]]
+    builtin_order = ("build", "plan", "explore", "composer", "auditor", "writer", "reviewer", "actor")
+    positions = [ordered_keys.index(key) for key in builtin_order]
+    assert positions == sorted(positions)
 
 
 @pytest.mark.asyncio
@@ -97,6 +105,8 @@ async def test_create_custom_agent_definition(
         "enabled_tool_categories": ["chapter_read"],
         "enabled_skills": ["skill-a", "skill-b"],
         "metadata": {},
+        "color": "green",
+        "icon": "sparkles",
         "delegatable_agents": ["explore"],
     }
     response = await client.post("/api/v1/agent-definitions", json=body)
@@ -106,6 +116,8 @@ async def test_create_custom_agent_definition(
     assert data["source"] == "custom"
     assert data["description"] == "Custom description"
     assert data["enabled_skills"] == ["skill-a", "skill-b"]
+    assert data["color"] == "green"
+    assert data["icon"] == "sparkles"
     assert data["delegatable_agents"] == ["explore"]
 
     assert not (isolated_prompts_dir / "custom-agents" / "custom-bot.yaml").exists()
@@ -177,6 +189,8 @@ async def test_update_custom_agent_definition(client: AsyncClient):
         "display_name": "Edited Bot",
         "description": "After update",
         "enabled_skills": ["skill-z"],
+        "color": "orange",
+        "icon": "wand",
         "delegatable_agents": ["explore", "writer"],
     }
     response = await client.put("/api/v1/agent-definitions/edit-me", json=update_body)
@@ -185,6 +199,8 @@ async def test_update_custom_agent_definition(client: AsyncClient):
     assert data["display_name"] == "Edited Bot"
     assert data["description"] == "After update"
     assert data["enabled_skills"] == ["skill-z"]
+    assert data["color"] == "orange"
+    assert data["icon"] == "wand"
     assert data["delegatable_agents"] == ["explore", "writer"]
 
 

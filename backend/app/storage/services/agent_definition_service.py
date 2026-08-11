@@ -18,7 +18,7 @@ from app.agent_runtime.persistence.model import AgentDefinitionRecord
 from app.core.errors import NotFoundError, ValidationError
 from app.storage.repos import agent_definition_repo
 
-_BUILTIN_KEYS = frozenset(DEFAULT_AGENT_KEYS)
+_BUILTIN_KEYS: tuple[str, ...] = DEFAULT_AGENT_KEYS
 _SUBAGENT_RESTRICTED_TOOL_CATEGORIES = frozenset(("orchestration", "interaction"))
 
 
@@ -92,6 +92,8 @@ async def create_definition(
     enabled_skills: list[str],
     metadata: dict[str, Any] | None,
     delegatable_agents: list[str] | None,
+    color: str | None = None,
+    icon: str | None = None,
 ) -> AgentDefinitionRecord:
     existing = await agent_definition_repo.get_by_key(session, key)
     if existing is not None:
@@ -115,6 +117,8 @@ async def create_definition(
         metadata_json=metadata or {},
         enabled=True,
         source="custom",
+        color=color,
+        icon=icon,
         delegatable_agents=_normalize_delegatable_agents(kind, delegatable_agents),
     )
     return await agent_definition_repo.create(session, record)
@@ -136,6 +140,8 @@ def _build_record(
         metadata_json=dict(default.metadata),
         enabled=default.enabled,
         source="builtin",
+        color=default.color,
+        icon=default.icon,
         delegatable_agents=list(default.delegatable_agents),
     )
 
@@ -153,6 +159,8 @@ async def update_definition(
     metadata: dict[str, Any] | None = None,
     enabled: bool | None = None,
     delegatable_agents: list[str] | None = None,
+    color: str | None = None,
+    icon: str | None = None,
 ) -> AgentDefinitionRecord:
     if kind is not None and key in _BUILTIN_KEYS:
         default = get_default_agent_definition(key)
@@ -188,6 +196,10 @@ async def update_definition(
         record.metadata_json = metadata
     if enabled is not None:
         record.enabled = enabled
+    if color is not None:
+        record.color = color
+    if icon is not None:
+        record.icon = icon
     if delegatable_agents is not None:
         record.delegatable_agents = _normalize_delegatable_agents(
             record.kind,

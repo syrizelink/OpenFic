@@ -59,6 +59,8 @@ async def test_create_custom_definition():
                 enabled_skills=["skill-a", "skill-b"],
                 metadata={},
                 delegatable_agents=[],
+                color="green",
+                icon="sparkles",
             )
             await session.commit()
 
@@ -66,6 +68,8 @@ async def test_create_custom_definition():
             assert record.source == "custom"
             assert record.description == "Custom description"
             assert record.enabled_skills == ["skill-a", "skill-b"]
+            assert record.color == "green"
+            assert record.icon == "sparkles"
             assert record.delegatable_agents == []
     finally:
         await engine.dispose()

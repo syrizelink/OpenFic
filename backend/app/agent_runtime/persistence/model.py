@@ -130,6 +130,8 @@ class AgentDefinitionRecord(SQLModel, table=True):
     enabled: bool = Field(default=True, index=True)
     order_index: int = Field(default=0, index=True)
     source: str = Field(default="builtin", max_length=20, index=True)
+    color: str | None = Field(default=None, max_length=20)
+    icon: str | None = Field(default=None, max_length=30)
     delegatable_agents: list[str] = Field(
         default_factory=list,
         sa_column=Column("delegatable_agents", JSON, nullable=False, default=list),

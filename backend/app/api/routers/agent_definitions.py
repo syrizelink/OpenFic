@@ -37,6 +37,8 @@ def _to_response(defn) -> AgentDefinitionResponse:
         metadata=dict(defn.metadata),
         enabled=defn.enabled,
         source=defn.source,
+        color=defn.color,
+        icon=defn.icon,
         delegatable_agents=list(defn.delegatable_agents),
     )
 
@@ -112,6 +114,8 @@ async def create_definition(
             enabled_skills=body.enabled_skills,
             metadata=body.metadata,
             delegatable_agents=body.delegatable_agents,
+            color=body.color,
+            icon=body.icon,
         )
         await prompt_chain_service.create_initial_custom_agent_version(
             session,
@@ -153,6 +157,8 @@ async def update_definition(
             metadata=body.metadata,
             enabled=body.enabled,
             delegatable_agents=body.delegatable_agents,
+            color=body.color,
+            icon=body.icon,
         )
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))

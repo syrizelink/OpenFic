@@ -331,6 +331,45 @@
   max-width: 560px;
 }
 
+.agent-branding-swatch,
+.agent-branding-icon-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--gray-a5);
+  background: transparent;
+  color: var(--gray-12);
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+
+.agent-branding-swatch {
+  border: 1px solid var(--gray-a3);
+  color: var(--gray-12);
+}
+
+.agent-branding-swatch[data-selected],
+.agent-branding-icon-option[data-selected] {
+  box-shadow: 0 0 0 2px var(--gray-a6);
+}
+
+.agent-branding-swatch:hover:not(:disabled),
+.agent-branding-icon-option:hover:not(:disabled) {
+  border-color: var(--gray-9);
+}
+
+.agent-branding-swatch:disabled,
+.agent-branding-icon-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .agent-definition-item {
   display: flex;
   flex-direction: column;

@@ -17,7 +17,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Bot,
   Copy,
-  Crown,
   ExternalLink,
   Info,
   MoreHorizontal,
@@ -33,6 +32,12 @@ import { useNavigate } from "react-router";
 
 import { LabeledSelect, ModelIdSelect, type ModelIdSelectOption } from "@/components";
 import { ContextMenu, type ContextMenuItem, toast, ConfirmDialog, Spinner } from "@/components";
+import { AgentBrandIcon } from "@/components/agent-brand-icon";
+import {
+  DEFAULT_AGENT_COLOR,
+  DEFAULT_AGENT_ICON,
+  getAgentDisplayDescription,
+} from "@/lib/agent-branding";
 import { fetchSkills } from "@/lib/api-client";
 import type { Skill } from "@/lib/skill.types";
 import { useLlmModelOptions } from "@/lib/use-llm-model-options";
@@ -61,6 +66,7 @@ import {
   SYSTEM_LIGHT_MODEL_REFERENCE,
 } from "../lib/agent-definitions.types";
 import { fetchSettings } from "../lib/settings-api";
+import { AgentBrandingPicker } from "./agent-branding-picker";
 import { AgentSettingsLockNotice } from "./agent-settings-lock-notice";
 
 const LIST_WIDTH = 280;
@@ -150,6 +156,8 @@ function AgentForm({
   const [formDisplayName, setFormDisplayName] = useState(def.display_name);
   const [formDescription, setFormDescription] = useState(def.description);
   const [formKind, setFormKind] = useState(def.kind);
+  const [formColor, setFormColor] = useState<string | null>(def.color ?? DEFAULT_AGENT_COLOR);
+  const [formIcon, setFormIcon] = useState<string | null>(def.icon ?? DEFAULT_AGENT_ICON);
   const [formModelId, setFormModelId] = useState(getEffectiveModelSelection(def.model_id));
   const [formEnabledToolCategories, setFormEnabledToolCategories] = useState<string[]>([
     ...getEnabledToolCategoriesForAgent(def.kind, def.enabled_tool_categories),
@@ -183,6 +191,8 @@ function AgentForm({
       formDisplayName !== def.display_name ||
       formDescription !== def.description ||
       formKind !== def.kind ||
+      formColor !== (def.color ?? DEFAULT_AGENT_COLOR) ||
+      formIcon !== (def.icon ?? DEFAULT_AGENT_ICON) ||
       formModelId !== getEffectiveModelSelection(def.model_id) ||
       JSON.stringify(formEnabledToolCategories) !==
         JSON.stringify(getEnabledToolCategoriesForAgent(def.kind, def.enabled_tool_categories)) ||
@@ -194,6 +204,8 @@ function AgentForm({
     formDescription,
     formDisplayName,
     formKind,
+    formColor,
+    formIcon,
     formModelId,
     formEnabledToolCategories,
     formEnabledSkills,
@@ -218,6 +230,8 @@ function AgentForm({
         description: formDescription,
         ...(canChangeKind ? { kind: formKind } : {}),
         model_id: formModelId,
+        color: formColor,
+        icon: formIcon,
         enabled_tool_categories: getEnabledToolCategoriesForAgent(
           formKind,
           formEnabledToolCategories,
@@ -379,6 +393,19 @@ function AgentForm({
           disabled={isAgentSettingsLocked}
         />
       </Flex>
+
+      {isPrimary ? (
+        <AgentBrandingPicker
+          color={formColor}
+          icon={formIcon}
+          onChange={(color, icon) => {
+            setFormColor(color);
+            setFormIcon(icon);
+          }}
+          disabled={isAgentSettingsLocked}
+          labelStyle={fieldLabelStyle}
+        />
+      ) : null}
 
       <Flex
         direction="column"
@@ -672,6 +699,8 @@ export function AgentDefinitionsSettings({
   const [newKey, setNewKey] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [newColor, setNewColor] = useState<string | null>(DEFAULT_AGENT_COLOR);
+  const [newIcon, setNewIcon] = useState<string | null>(DEFAULT_AGENT_ICON);
   const [kindPreview, setKindPreview] = useState<AgentKindPreview | null>(null);
   const [menuState, setMenuState] = useState<AgentListMenuState | null>(null);
   const [confirmResetKey, setConfirmResetKey] = useState<string | null>(null);
@@ -839,6 +868,8 @@ export function AgentDefinitionsSettings({
     setNewKey("");
     setNewDisplayName("");
     setNewDescription("");
+    setNewColor(DEFAULT_AGENT_COLOR);
+    setNewIcon(DEFAULT_AGENT_ICON);
   }, []);
 
   useEffect(() => {
@@ -857,6 +888,8 @@ export function AgentDefinitionsSettings({
     setNewKey("");
     setNewDisplayName("");
     setNewDescription("");
+    setNewColor(DEFAULT_AGENT_COLOR);
+    setNewIcon(DEFAULT_AGENT_ICON);
     setIsCreating(true);
   }, [isAgentSettingsLocked]);
 
@@ -869,6 +902,8 @@ export function AgentDefinitionsSettings({
       setNewKey(`${def.key}-copy`.replace(/[^a-z0-9-]/g, "").slice(0, 50));
       setNewDisplayName(`${def.display_name} ${t("settings.agentsCopySuffix")}`);
       setNewDescription(def.description);
+      setNewColor(def.color ?? DEFAULT_AGENT_COLOR);
+      setNewIcon(def.icon ?? DEFAULT_AGENT_ICON);
       setIsCreating(true);
     },
     [isAgentSettingsLocked, t],
@@ -890,6 +925,8 @@ export function AgentDefinitionsSettings({
         ),
         enabled_skills: sourceDefinition?.enabled_skills ?? [],
         metadata: sourceDefinition?.metadata ?? {},
+        color: newColor,
+        icon: newIcon,
         delegatable_agents: sourceDefinition?.delegatable_agents ?? [],
       };
       const created = await createAgentDefinition(data);
@@ -1083,7 +1120,15 @@ export function AgentDefinitionsSettings({
                 aria-label={getAgentKindLabel(displayKind)}
                 title={getAgentKindLabel(displayKind)}
               >
-                {displayKind === "primary" ? <Crown size={14} /> : <Bot size={14} />}
+                {displayKind === "primary" ? (
+                  <AgentBrandIcon
+                    color={def.color}
+                    icon={def.icon}
+                    size={14}
+                  />
+                ) : (
+                  <Bot size={14} />
+                )}
               </span>
               <Text
                 size="2"
@@ -1150,7 +1195,8 @@ export function AgentDefinitionsSettings({
             color="gray"
             className="agent-definition-item-description"
           >
-            {def.description || t("settings.agentsNoDescription")}
+            {getAgentDisplayDescription(def.key, def.description || "") ||
+              t("settings.agentsNoDescription")}
           </Text>
         </Flex>
       </div>
@@ -1475,6 +1521,18 @@ export function AgentDefinitionsSettings({
                 triggerStyle={{ width: "100%" }}
               />
             </Flex>
+
+            {newKind === "primary" ? (
+              <AgentBrandingPicker
+                color={newColor}
+                icon={newIcon}
+                onChange={(color, icon) => {
+                  setNewColor(color);
+                  setNewIcon(icon);
+                }}
+                disabled={isAgentSettingsLocked}
+              />
+            ) : null}
           </Flex>
 
           <Flex

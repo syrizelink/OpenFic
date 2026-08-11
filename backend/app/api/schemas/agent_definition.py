@@ -16,6 +16,8 @@ class AgentDefinitionResponse(BaseModel):
     metadata: dict = Field(default_factory=dict)
     enabled: bool = True
     source: str = "builtin"
+    color: str | None = None
+    icon: str | None = None
     delegatable_agents: list[str] = Field(default_factory=list)
 
 
@@ -29,6 +31,8 @@ class AgentDefinitionCreateRequest(BaseModel):
     enabled_tool_categories: list[str] = Field(default_factory=list)
     enabled_skills: list[str] = Field(default_factory=list)
     metadata: dict = Field(default_factory=dict)
+    color: str | None = Field(default=None, max_length=20)
+    icon: str | None = Field(default=None, max_length=30)
     delegatable_agents: list[str] = Field(default_factory=list)
 
     model_config = {"extra": "forbid"}
@@ -44,6 +48,8 @@ class AgentDefinitionUpdateRequest(BaseModel):
     enabled_skills: list[str] | None = None
     metadata: dict | None = None
     enabled: bool | None = None
+    color: str | None = Field(default=None, max_length=20)
+    icon: str | None = Field(default=None, max_length=30)
     delegatable_agents: list[str] | None = None
 
     model_config = {"extra": "forbid"}

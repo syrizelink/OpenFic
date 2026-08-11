@@ -25,6 +25,8 @@ class AgentDefinition:
     metadata: Mapping[str, Any]
     enabled: bool = True
     source: Literal["builtin", "custom"] = "builtin"
+    color: str | None = None
+    icon: str | None = None
     delegatable_agents: tuple[str, ...] = ()
 
 
@@ -35,8 +37,8 @@ DEFAULT_AGENT_KEYS: tuple[str, ...] = (
     "composer",
     "auditor",
     "writer",
-    "actor",
     "reviewer",
+    "actor",
 )
 
 
@@ -45,7 +47,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
         "build": AgentDefinition(
             key="build",
             display_name="Build",
-            description="负责执行通用任务，并在需要时调度子智能体完成工作。",
+            description="默认的 Agent，执行通用的写作任务，并在需要时调度子 Agent 完成工作",
             kind="primary",
             prompt_agent_name="build",
             model_id=None,
@@ -65,6 +67,8 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             ),
             enabled_skills=(),
             metadata=MappingProxyType({}),
+            color="blue",
+            icon="pen-tool",
             delegatable_agents=(
                 "explore",
                 "composer",
@@ -77,7 +81,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
         "plan": AgentDefinition(
             key="plan",
             display_name="Plan",
-            description="负责系统写作的规划、委派、审查与交付。",
+            description="专注于规划和协调，组织子 Agent 工作、审查与交付，负责执行系统写作的任务",
             kind="primary",
             prompt_agent_name="plan",
             model_id=None,
@@ -93,6 +97,8 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             ),
             enabled_skills=(),
             metadata=MappingProxyType({}),
+            color="green",
+            icon="list-checks",
             delegatable_agents=(
                 "explore",
                 "composer",
@@ -239,6 +245,8 @@ def agent_definition_from_record(record: AgentDefinitionRecord) -> AgentDefiniti
         metadata=MappingProxyType(dict(record.metadata_json or {})),
         enabled=record.enabled,
         source=cast(Literal["builtin", "custom"], record.source),
+        color=record.color,
+        icon=record.icon,
         delegatable_agents=tuple(record.delegatable_agents or ()),
     )
 
@@ -259,7 +267,7 @@ async def load_agent_definition(
 async def load_all_agent_definitions(
     session: AsyncSession,
 ) -> dict[str, AgentDefinition]:
-    definitions = dict(DEFAULT_AGENT_DEFINITIONS)
+    definitions = {key: DEFAULT_AGENT_DEFINITIONS[key] for key in DEFAULT_AGENT_KEYS}
     result = await session.execute(
         select(AgentDefinitionRecord).order_by(
             col(AgentDefinitionRecord.order_index),

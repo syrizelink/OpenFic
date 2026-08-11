@@ -18,6 +18,8 @@ export interface AgentDefinitionResponse {
   metadata: Record<string, unknown>;
   enabled: boolean;
   source: "builtin" | "custom";
+  color?: string | null;
+  icon?: string | null;
   delegatable_agents: string[];
 }
 
@@ -31,6 +33,8 @@ export interface AgentDefinitionCreateRequest {
   enabled_tool_categories: string[];
   enabled_skills: string[];
   metadata: Record<string, unknown>;
+  color?: string | null;
+  icon?: string | null;
   delegatable_agents: string[];
 }
 
@@ -44,6 +48,8 @@ export interface AgentDefinitionUpdateRequest {
   enabled_skills?: string[] | null;
   metadata?: Record<string, unknown> | null;
   enabled?: boolean | null;
+  color?: string | null;
+  icon?: string | null;
   delegatable_agents?: string[] | null;
 }
 
