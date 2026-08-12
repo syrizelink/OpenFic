@@ -14,7 +14,7 @@ def _pinyin_parts(text: str) -> tuple[str, ...]:
         for part in lazy_pinyin(
             text,
             style=Style.NORMAL,
-            errors=lambda characters: list(characters),
+            errors=lambda characters: characters,
         )
     )
 
