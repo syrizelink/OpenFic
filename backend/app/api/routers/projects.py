@@ -3,7 +3,7 @@
 Projects Router - 项目 CRUD API。
 """
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from loguru import logger
@@ -98,6 +98,14 @@ async def list_projects(
     session: Annotated[AsyncSession, Depends(get_session)],
     page: Annotated[int, Query(ge=1, description="页码")] = 1,
     page_size: Annotated[int, Query(ge=1, le=100, description="每页数量")] = 20,
+    search: Annotated[str | None, Query(description="按项目标题或简介搜索")] = None,
+    sort_by: Annotated[
+        Literal["updated_at", "created_at", "title"],
+        Query(description="排序字段"),
+    ] = "updated_at",
+    sort_order: Annotated[
+        Literal["asc", "desc"], Query(description="排序方向")
+    ] = "desc",
 ) -> ProjectListResponse:
     """
     获取项目列表，支持分页。
@@ -106,11 +114,21 @@ async def list_projects(
         session: 数据库 session。
         page: 页码，从 1 开始。
         page_size: 每页数量，最大 100。
+        search: 项目标题或简介搜索词。
+        sort_by: 排序字段，可选 updated_at、created_at、title。
+        sort_order: 排序方向，可选 asc、desc。
 
     Returns:
         项目列表。
     """
-    result = await project_service.list_projects(session, page=page, page_size=page_size)
+    result = await project_service.list_projects(
+        session,
+        page=page,
+        page_size=page_size,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
+    )
     return ProjectListResponse(
         items=[_project_to_response(p) for p in result.items],
         total=result.total,

@@ -78,7 +78,11 @@
     "createFailed": "创建失败，请重试",
     "projectDeleted": "项目已删除",
     "projectUnavailable": "该项目已被删除，无法打开",
-    "deleteFailed": "删除失败，请重试"
+    "deleteFailed": "删除失败，请重试",
+    "previousPage": "上一页",
+    "nextPage": "下一页",
+    "pageList": "项目页码列表",
+    "page": "第 {{page}} 页"
   },
   "characters": {
     "title": "角色",

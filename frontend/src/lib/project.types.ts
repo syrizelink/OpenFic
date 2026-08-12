@@ -52,4 +52,7 @@ export interface ProjectListResponse {
 export interface ProjectListParams {
   page?: number;
   pageSize?: number;
+  search?: string;
+  sortBy?: "updated_at" | "created_at" | "title";
+  sortOrder?: "asc" | "desc";
 }

@@ -127,6 +127,9 @@ export async function fetchProjects(params?: ProjectListParams): Promise<Project
     params: {
       page: params?.page ?? 1,
       page_size: params?.pageSize ?? 20,
+      search: params?.search?.trim() || undefined,
+      sort_by: params?.sortBy ?? "updated_at",
+      sort_order: params?.sortOrder ?? "desc",
     },
   });
   const data = response.data;

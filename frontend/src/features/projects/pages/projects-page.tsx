@@ -4,17 +4,15 @@
  * 项目列表主页面，整合所有项目管理功能。
  */
 
-import { Box, Container, Flex, Text, Grid } from "@radix-ui/themes";
+import { Box, Button, Container, Flex, Text, Grid } from "@radix-ui/themes";
 import { useQueryClient } from "@tanstack/react-query";
-import Fuse from "fuse.js";
-import { BookOpen } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useState, useMemo } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ConfirmDialog, Spinner, toast } from "@/components";
 import { MobileAppSidebarTrigger } from "@/features/app-shell";
-import { getPinyin, getInitials } from "@/lib/pinyin-search";
 import type { Project } from "@/lib/project.types";
 
 import { ImportDialog } from "../components/import-dialog";
@@ -32,19 +30,36 @@ import {
 import { useProjectsStore } from "../store/use-projects-store";
 
 const MotionBox = motion.create(Box);
+const PROJECTS_PAGE_SIZE = 40;
+
+function getVisiblePages(currentPage: number, totalPages: number): Array<number | "ellipsis"> {
+  if (totalPages <= 6) return Array.from({ length: totalPages }, (_, index) => index + 1);
+  if (currentPage <= 3) return [1, 2, 3, "ellipsis", totalPages - 1, totalPages];
+  if (currentPage >= totalPages - 2)
+    return [1, 2, "ellipsis", totalPages - 2, totalPages - 1, totalPages];
+  return [1, "ellipsis", currentPage - 1, currentPage, currentPage + 1, "ellipsis", totalPages];
+}
 
 export function ProjectsPage() {
   const { t } = useTranslation();
 
-  // 查询项目列表
-  const { data, isLoading, error } = useProjects();
+  // 本地 UI 状态
+  const { viewMode, searchQuery, sortBy, sortOrder } = useProjectsStore();
+  const [currentPage, setCurrentPage] = useState(1);
+  const hasMountedFilters = useRef(false);
+
+  // 服务端分页、搜索和排序
+  const { data, isLoading, isFetching, error } = useProjects({
+    page: currentPage,
+    pageSize: PROJECTS_PAGE_SIZE,
+    search: searchQuery.trim() || undefined,
+    sortBy,
+    sortOrder,
+  });
   const createMutation = useCreateProject();
   const updateMutation = useUpdateProject();
   const deleteMutation = useDeleteProject();
   const queryClient = useQueryClient();
-
-  // 本地 UI 状态
-  const { viewMode, searchQuery, sortBy, sortOrder } = useProjectsStore();
 
   // 对话框状态
   const [formDialogOpen, setFormDialogOpen] = useState(false);
@@ -65,85 +80,21 @@ export function ProjectsPage() {
     setImportDialogOpen(open);
   };
 
-  // 提取 items 引用，避免 React Compiler 依赖推断问题
-  const items = data?.items;
+  const items = data?.items ?? [];
+  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PROJECTS_PAGE_SIZE));
+  const activePage = Math.min(currentPage, totalPages);
 
-  // 为项目生成搜索索引
-  interface SearchableProject {
-    id: string;
-    title: string;
-    titlePinyin: string;
-    titleInitials: string;
-    description: string;
-    descriptionPinyin: string;
-    descriptionInitials: string;
-    original: Project;
-  }
-
-  const searchableProjects = useMemo((): SearchableProject[] => {
-    if (!items) return [];
-    return items.map((p) => ({
-      id: p.id,
-      title: p.title,
-      titlePinyin: getPinyin(p.title),
-      titleInitials: getInitials(p.title),
-      description: p.description ?? "",
-      descriptionPinyin: getPinyin(p.description ?? ""),
-      descriptionInitials: getInitials(p.description ?? ""),
-      original: p,
-    }));
-  }, [items]);
-
-  // 创建 Fuse 实例
-  const fuse = useMemo(() => {
-    return new Fuse(searchableProjects, {
-      keys: [
-        { name: "title", weight: 3 },
-        { name: "titlePinyin", weight: 2 },
-        { name: "titleInitials", weight: 2.5 },
-        { name: "description", weight: 1 },
-        { name: "descriptionPinyin", weight: 0.5 },
-        { name: "descriptionInitials", weight: 0.8 },
-      ],
-      threshold: 0.1,
-      ignoreLocation: true,
-      distance: 50,
-    });
-  }, [searchableProjects]);
-
-  // 过滤和排序项目
-  const filteredProjects = useMemo(() => {
-    if (!items) return [];
-
-    let filtered: Project[];
-
-    // 搜索过滤
-    if (searchQuery.trim()) {
-      const results = fuse.search(searchQuery);
-      filtered = results.map((r) => r.item.original);
-    } else {
-      filtered = [...items];
+  useEffect(() => {
+    if (!hasMountedFilters.current) {
+      hasMountedFilters.current = true;
+      return;
     }
+    setCurrentPage(1);
+  }, [searchQuery, sortBy, sortOrder]);
 
-    // 排序
-    filtered.sort((a, b) => {
-      let comparison = 0;
-      switch (sortBy) {
-        case "updated_at":
-          comparison = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-          break;
-        case "created_at":
-          comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-          break;
-        case "title":
-          comparison = a.title.localeCompare(b.title, "zh-CN");
-          break;
-      }
-      return sortOrder === "asc" ? -comparison : comparison;
-    });
-
-    return filtered;
-  }, [items, searchQuery, sortBy, sortOrder, fuse]);
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
   // 处理创建/编辑
   const handleOpenCreate = () => {
@@ -250,7 +201,7 @@ export function ProjectsPage() {
         )}
 
         {/* 空状态 */}
-        {!isLoading && !error && filteredProjects.length === 0 && (
+        {!isLoading && !error && items.length === 0 && (
           <MotionBox
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -293,7 +244,7 @@ export function ProjectsPage() {
         )}
 
         {/* 项目列表 */}
-        {!isLoading && !error && filteredProjects.length > 0 && (
+        {!isLoading && !error && items.length > 0 && (
           <Box mt="5">
             <AnimatePresence mode="wait">
               {viewMode === "grid" ? (
@@ -302,7 +253,7 @@ export function ProjectsPage() {
                   columns={{ initial: "2", sm: "3", md: "4", lg: "5" }}
                   gap="7"
                 >
-                  {filteredProjects.map((project) => (
+                  {items.map((project) => (
                     <ProjectCard
                       key={project.id}
                       project={project}
@@ -317,7 +268,7 @@ export function ProjectsPage() {
                   direction="column"
                   gap="3"
                 >
-                  {filteredProjects.map((project) => (
+                  {items.map((project) => (
                     <ProjectListItem
                       key={project.id}
                       project={project}
@@ -328,6 +279,85 @@ export function ProjectsPage() {
                 </Flex>
               )}
             </AnimatePresence>
+            {totalPages > 1 && (
+              <Flex
+                align="center"
+                justify="center"
+                gap="2"
+                mt="7"
+                pb="2"
+                wrap="wrap"
+                aria-label={t("projects.pageList")}
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  color="gray"
+                  size="2"
+                  style={{ margin: 0 }}
+                  disabled={activePage === 1 || isFetching}
+                  aria-label={t("projects.previousPage")}
+                  onClick={() => setCurrentPage(Math.max(1, activePage - 1))}
+                >
+                  <ChevronLeft
+                    size={16}
+                    aria-hidden="true"
+                  />
+                  {t("projects.previousPage")}
+                </Button>
+                {getVisiblePages(activePage, totalPages).map((page, index) =>
+                  page === "ellipsis" ? (
+                    <Flex
+                      key={`ellipsis-${index}`}
+                      align="center"
+                      justify="center"
+                      style={{ width: 32, height: 32, flexShrink: 0 }}
+                    >
+                      <Text
+                        size="2"
+                        color="gray"
+                        aria-hidden="true"
+                      >
+                        …
+                      </Text>
+                    </Flex>
+                  ) : (
+                    <Box
+                      key={page}
+                      style={{ width: 32, height: 32, flexShrink: 0 }}
+                    >
+                      <Button
+                        type="button"
+                        variant={page === activePage ? "soft" : "ghost"}
+                        size="2"
+                        style={{ width: "100%", height: "100%", margin: 0, padding: 0 }}
+                        disabled={page === activePage || isFetching}
+                        aria-label={t("projects.page", { page })}
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </Button>
+                    </Box>
+                  ),
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  color="gray"
+                  size="2"
+                  style={{ margin: 0 }}
+                  disabled={activePage === totalPages || isFetching}
+                  aria-label={t("projects.nextPage")}
+                  onClick={() => setCurrentPage(Math.min(totalPages, activePage + 1))}
+                >
+                  {t("projects.nextPage")}
+                  <ChevronRight
+                    size={16}
+                    aria-hidden="true"
+                  />
+                </Button>
+              </Flex>
+            )}
           </Box>
         )}
       </Container>

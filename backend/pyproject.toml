@@ -69,6 +69,7 @@ dependencies = [
     "tzdata>=2025.2",
     "uvicorn[standard]>=0.40.0",
     "fastembed>=0.8.0",
+    "pypinyin>=0.55.0",
 ]
 
 [project.scripts]

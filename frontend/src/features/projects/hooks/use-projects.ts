@@ -4,7 +4,7 @@
  * 使用 TanStack Query 管理项目数据的异步状态。
  */
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { fetchProjects, createProject, updateProject, deleteProject } from "@/lib/api-client";
 import { removeRecentProjectByProjectId } from "@/lib/local-db";
@@ -21,6 +21,7 @@ export function useProjects(params?: ProjectListParams) {
   return useQuery({
     queryKey: [...projectsQueryKey, params],
     queryFn: () => fetchProjects(params),
+    placeholderData: keepPreviousData,
   });
 }
 

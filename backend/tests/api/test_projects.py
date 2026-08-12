@@ -121,6 +121,63 @@ async def test_list_projects_pagination(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_list_projects_search_and_sort(client: AsyncClient) -> None:
+    """测试项目列表的服务端搜索和排序。"""
+    await client.post(
+        "/api/v1/projects",
+        data={"title": "Zeta 项目", "description": "包含目标词"},
+    )
+    await client.post(
+        "/api/v1/projects",
+        data={"title": "Alpha 项目", "description": "普通简介"},
+    )
+    await client.post(
+        "/api/v1/projects",
+        data={"title": "Beta 项目", "description": "另一个目标词"},
+    )
+
+    search_response = await client.get(
+        "/api/v1/projects?search=目标词&page=1&page_size=1",
+    )
+    assert search_response.status_code == 200
+    search_data = search_response.json()
+    assert search_data["total"] == 2
+    assert len(search_data["items"]) == 1
+
+    sort_response = await client.get(
+        "/api/v1/projects?sort_by=title&sort_order=asc&page_size=100",
+    )
+    assert sort_response.status_code == 200
+    assert [item["title"] for item in sort_response.json()["items"]] == [
+        "Alpha 项目",
+        "Beta 项目",
+        "Zeta 项目",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_list_projects_supports_pinyin_search_and_sort(client: AsyncClient) -> None:
+    """拼音搜索和标题排序应保持与旧客户端一致。"""
+    await client.post("/api/v1/projects", data={"title": "中篇项目"})
+    await client.post("/api/v1/projects", data={"title": "红星项目", "description": "银河故事"})
+    await client.post("/api/v1/projects", data={"title": "阿尔法项目"})
+
+    search_response = await client.get("/api/v1/projects?search=hxxm")
+    assert search_response.status_code == 200
+    assert [item["title"] for item in search_response.json()["items"]] == ["红星项目"]
+
+    sort_response = await client.get(
+        "/api/v1/projects?sort_by=title&sort_order=asc&page_size=100",
+    )
+    assert sort_response.status_code == 200
+    assert [item["title"] for item in sort_response.json()["items"]] == [
+        "阿尔法项目",
+        "红星项目",
+        "中篇项目",
+    ]
+
+
+@pytest.mark.asyncio
 async def test_get_project(client: AsyncClient) -> None:
     """测试获取项目详情。"""
     # 创建项目

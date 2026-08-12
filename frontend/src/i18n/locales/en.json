@@ -78,7 +78,11 @@
     "createFailed": "Creation failed. Please try again.",
     "projectDeleted": "Project deleted",
     "projectUnavailable": "This project has been deleted and cannot be opened.",
-    "deleteFailed": "Delete failed. Please try again."
+    "deleteFailed": "Delete failed. Please try again.",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "pageList": "Project page list",
+    "page": "Page {{page}}"
   },
   "characters": {
     "title": "Characters",

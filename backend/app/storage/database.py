@@ -11,9 +11,11 @@ from alembic import command
 from alembic.config import Config
 from loguru import logger
 from sqlalchemy import event
+from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.core.pinyin import to_pinyin, to_pinyin_initials
 from app.settings import settings
 
 _engine = None
@@ -31,6 +33,11 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
     cursor.execute("PRAGMA busy_timeout=30000")
     cursor.execute("PRAGMA synchronous=NORMAL")
     cursor.close()
+    dbapi_connection.create_function("pinyin_full", 1, to_pinyin, deterministic=True)
+    dbapi_connection.create_function("pinyin_initials", 1, to_pinyin_initials, deterministic=True)
+
+
+event.listen(Engine, "connect", _set_sqlite_pragma)
 
 
 def _get_engine():
@@ -46,7 +53,6 @@ def _get_engine():
             },
             pool_pre_ping=True,
         )
-        event.listen(_engine.sync_engine, "connect", _set_sqlite_pragma)
     return _engine
 
 
