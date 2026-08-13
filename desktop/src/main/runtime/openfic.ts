@@ -27,6 +27,7 @@ const DEFAULT_PYPI_INDEX_URL = "https://pypi.org/simple/";
 const TSINGHUA_PYPI_INDEX_URL = "https://pypi.tuna.tsinghua.edu.cn/simple/";
 const PYPI_INDEX_PROBE_TIMEOUT_MS = 5_000;
 const PYPI_INDEX_PROBE_PACKAGE = "openfic";
+const UV_SYSTEM_CERTS_HINT = "Consider enabling use of system TLS certificates";
 const UTF8_PYTHON_ENVIRONMENT = {
   PYTHONIOENCODING: "utf-8",
   PYTHONUTF8: "1",
@@ -161,7 +162,7 @@ function run(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     appendLog("runtime", `执行命令：${command} ${args.join(" ")}`);
-    let lastOutputLine = "";
+    const outputLines: string[] = [];
     const child = spawn(command, args, {
       cwd,
       env: { ...process.env, ...UTF8_PYTHON_ENVIRONMENT, ...environment },
@@ -171,7 +172,7 @@ function run(
     const handleOutput = (line: string) => {
       const text = stripAnsi(line).trim();
       if (!text) return;
-      lastOutputLine = text;
+      outputLines.push(text);
       onOutputLine?.(text);
     };
     forwardLines(child.stdout, createLogStream("runtime"), handleOutput);
@@ -186,7 +187,7 @@ function run(
         resolve();
         return;
       }
-      const outputDetail = lastOutputLine ? `：${lastOutputLine}` : "";
+      const outputDetail = outputLines.length ? `：${outputLines.join("\n")}` : "";
       const error = new Error(`${command} ${args.join(" ")} exited with code ${code}${outputDetail}`);
       appendLog("runtime", `命令执行失败：${error.message}`);
       reject(error);
@@ -247,6 +248,31 @@ function succeeds(command: string, args: string[], cwd: string): Promise<boolean
       resolve(code === 0);
     });
   });
+}
+
+async function runUvInstallWithSystemCertsRetry(
+  uvPath: string,
+  args: string[],
+  cwd: string,
+  onProgress: (step: OpenFicRuntimeStep, message: string) => void,
+  environment?: NodeJS.ProcessEnv,
+): Promise<void> {
+  try {
+    await run(uvPath, args, cwd, (line) => onProgress("install-openfic", line), environment);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes(UV_SYSTEM_CERTS_HINT)) {
+      appendLog("runtime", "检测到 TLS 证书错误，使用 --system-certs 重试");
+      await run(
+        uvPath,
+        ["--system-certs", ...args],
+        cwd,
+        (line) => onProgress("install-openfic", line),
+        environment,
+      );
+      return;
+    }
+    throw error;
+  }
 }
 
 export async function inspectOpenFicRuntime(
@@ -342,11 +368,11 @@ export async function ensureOpenFicRuntime(
       expectedVersion,
       installedVersion === expectedVersion && !openFicCliIsUsable,
     );
-    await run(
+    await runUvInstallWithSystemCertsRetry(
       uvPath,
       installCommand.args,
       runtimeDir,
-      (message) => onProgress("install-openfic", message),
+      onProgress,
       packageIndexEnvironment,
     );
   }
