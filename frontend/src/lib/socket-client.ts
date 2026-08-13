@@ -14,6 +14,7 @@ interface SocketClientState {
   connectPromise: Promise<Socket> | null;
   connectionStartedAt: number | null;
   lastConnectionError: string | null;
+  lastConnectionHttpStatus: number | undefined;
   lastConnectionTransport: string | undefined;
   connectionStatus: SocketConnectionStatus;
   statusListeners: Set<() => void>;
@@ -33,12 +34,14 @@ function getSocketState(): SocketClientState {
     connectPromise: null,
     connectionStartedAt: null,
     lastConnectionError: null,
+    lastConnectionHttpStatus: undefined,
     lastConnectionTransport: undefined,
     connectionStatus: "disconnected",
     statusListeners: new Set<() => void>(),
     statusBoundSocket: null,
   };
   window.__openficSocketClientState.lastConnectionError ??= null;
+  window.__openficSocketClientState.lastConnectionHttpStatus ??= undefined;
   window.__openficSocketClientState.lastConnectionTransport ??= undefined;
   return window.__openficSocketClientState;
 }
@@ -73,6 +76,32 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function getXhrHttpStatus(error: unknown): number | undefined {
+  const candidate = error as { description?: unknown };
+  return typeof candidate.description === "number" &&
+    Number.isFinite(candidate.description) &&
+    candidate.description > 0
+    ? candidate.description
+    : undefined;
+}
+
+function describeSocketHttpStatus(status: number): string {
+  if (status === 404) return i18n.t("common.socketProbeNotFound");
+  if (status === 403) return i18n.t("common.socketProbeForbidden");
+  return i18n.t("common.socketHttpStatus", { status });
+}
+
+async function probeSocketIoEndpoint(baseUrl: string): Promise<string | null> {
+  const url = `${baseUrl.replace(/\/+$/, "")}/socket.io/?EIO=4&transport=polling`;
+  try {
+    const response = await fetch(url, { method: "GET", cache: "no-store" });
+    if (response.ok) return i18n.t("common.socketProbeOk");
+    return describeSocketHttpStatus(response.status);
+  } catch {
+    return i18n.t("common.socketProbeFailed");
+  }
+}
+
 function reportSocketDiagnostic(
   event: SocketDiagnosticPayload["event"],
   socket: Socket,
@@ -92,6 +121,7 @@ function bindConnectionStatus(socket: Socket): void {
   state.statusBoundSocket = socket;
   socket.on("connect", () => {
     state.lastConnectionError = null;
+    state.lastConnectionHttpStatus = undefined;
     state.lastConnectionTransport = undefined;
     setConnectionStatus("connected");
     reportSocketDiagnostic("connected", socket, { durationMs: getConnectionDuration() });
@@ -104,6 +134,7 @@ function bindConnectionStatus(socket: Socket): void {
   socket.on("connect_error", (error) => {
     setConnectionStatus("disconnected");
     state.lastConnectionError = getErrorMessage(error);
+    state.lastConnectionHttpStatus = getXhrHttpStatus(error);
     state.lastConnectionTransport = getSocketTransport(socket);
     reportSocketDiagnostic("connect-error", socket, {
       active: socket.active,
@@ -134,6 +165,7 @@ export function getSocket(): Socket {
     state.socketUrl = undefined;
     state.connectPromise = null;
     state.connectionStartedAt = null;
+    state.lastConnectionHttpStatus = undefined;
     state.statusBoundSocket = null;
     setConnectionStatus("disconnected");
   }
@@ -182,6 +214,7 @@ export function connectSocket({
   }
 
   state.lastConnectionError = null;
+  state.lastConnectionHttpStatus = undefined;
   state.lastConnectionTransport = undefined;
   state.connectionStartedAt = Date.now();
   reportSocketDiagnostic("connect-start", activeSocket, { active: activeSocket.active });
@@ -196,18 +229,34 @@ export function connectSocket({
       resolve(activeSocket);
     };
 
-    const timeout = window.setTimeout(() => {
-      cleanup();
-      const details = [
-        state.lastConnectionError ??
+    const rejectWithDiagnosis = async () => {
+      const details: string[] = [];
+      if (state.lastConnectionHttpStatus) {
+        details.push(describeSocketHttpStatus(state.lastConnectionHttpStatus));
+      } else if (state.lastConnectionError) {
+        details.push(state.lastConnectionError);
+      } else {
+        details.push(
           i18n.t("common.socketConnectionTimeout", {
             seconds: Math.ceil(timeoutMs / 1000),
           }),
-        state.lastConnectionTransport
-          ? i18n.t("common.socketTransport", { transport: state.lastConnectionTransport })
-          : null,
-        state.socketUrl ? i18n.t("common.socketAddress", { address: state.socketUrl }) : null,
-      ].filter((detail): detail is string => Boolean(detail));
+        );
+      }
+
+      if (!state.lastConnectionHttpStatus && state.socketUrl) {
+        const probe = await probeSocketIoEndpoint(state.socketUrl);
+        if (probe) details.push(probe);
+      }
+
+      if (state.lastConnectionTransport) {
+        details.push(
+          i18n.t("common.socketTransport", { transport: state.lastConnectionTransport }),
+        );
+      }
+      if (state.socketUrl) {
+        details.push(i18n.t("common.socketAddress", { address: state.socketUrl }));
+      }
+
       const error = new Error(
         i18n.t("common.socketConnectionFailed", {
           details: details.join(i18n.t("common.errorDetailSeparator")),
@@ -220,6 +269,11 @@ export function connectSocket({
       });
       activeSocket.disconnect();
       reject(error);
+    };
+
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      void rejectWithDiagnosis();
     }, timeoutMs);
 
     activeSocket.once("connect", onConnect);

@@ -43,7 +43,9 @@
 
 .global-loading-error {
   margin: 0;
+  max-width: min(560px, 100%);
   line-height: 1.4;
+  text-align: center;
 }
 
 .global-loading-retry {
