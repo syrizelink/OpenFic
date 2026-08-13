@@ -137,7 +137,7 @@ async def _invoke_model(
 # 节点级重试已禁用：超时与重试统一由模型调用层（invoke_model_with_retry）处理，
 # 避免双层重试叠加。保留常量名以便测试禁用兜底重试。
 LLM_RETRY_POLICY = RetryPolicy(max_attempts=1)
-TOOL_BATCH_SIZE = 10
+TOOL_BATCH_SIZE = 20
 
 
 def _get_configurable(config: RunnableConfig | None) -> dict[str, Any]:
@@ -1112,8 +1112,65 @@ def create_react_agent(
     async def dispatch_tools(
         state: ReactState, config: Optional[RunnableConfig] = None
     ) -> dict:
-        del state, config
-        return {}
+        excess_outcomes: list[dict[str, Any]] = []
+        error_message = (
+            f"Agent 单轮最多调用 {TOOL_BATCH_SIZE} 个工具，"
+            "超出上限的工具调用未执行"
+        )
+        for message in reversed(state["messages"]):
+            if isinstance(message, AIMessage) and message.tool_calls:
+                for offset, tool_call in enumerate(
+                    message.tool_calls[TOOL_BATCH_SIZE:]
+                ):
+                    tool_name = str(tool_call.get("name") or "")
+                    tool_id = str(tool_call.get("id") or "")
+                    tool_args = tool_call.get("args")
+                    tool_args = tool_args if isinstance(tool_args, dict) else {}
+                    payload = {"error": error_message}
+                    result = json.dumps(payload, ensure_ascii=False)
+                    excess_outcomes.append(
+                        {
+                            "index": TOOL_BATCH_SIZE + offset,
+                            "tool_call_id": tool_id,
+                            "tool_name": tool_name,
+                            "tool_args": tool_args,
+                            "message": ToolMessage(
+                                content=result,
+                                tool_call_id=tool_id,
+                                name=tool_name,
+                            ),
+                            "payload": payload,
+                            "success": False,
+                            "latency_ms": 0,
+                        }
+                    )
+                break
+        if not excess_outcomes:
+            return {}
+        if state.get("tool_phase") == "execute":
+            tool_result_sink = _get_configurable(config).get("tool_result_sink")
+            if callable(tool_result_sink):
+                for outcome in excess_outcomes:
+                    output_payload = {
+                        "type": "fail",
+                        "success": False,
+                        "reason": "tool_error",
+                        "message": error_message,
+                        "tool_call_id": outcome["tool_call_id"],
+                        "tool_name": outcome["tool_name"],
+                    }
+                    result = tool_result_sink(
+                        {
+                            "session_id": _get_configurable(config).get("session_id"),
+                            "tool_call_id": outcome["tool_call_id"],
+                            "tool_name": outcome["tool_name"],
+                            "input": outcome["tool_args"],
+                            "output": output_payload,
+                        }
+                    )
+                    if inspect.isawaitable(result):
+                        await result
+        return {"tool_outcomes": excess_outcomes}
 
     def route_tool_batch(state: ReactState) -> list[Send]:
         last_message = next(
@@ -1126,12 +1183,6 @@ def create_react_agent(
         )
         if last_message is None:
             return []
-        if len(last_message.tool_calls) > TOOL_BATCH_SIZE:
-            raise RuntimeError(
-                f"Agent 单轮最多调用 {TOOL_BATCH_SIZE} 个工具，实际收到 "
-                f"{len(last_message.tool_calls)} 个"
-            )
-
         dispatch_count = 0
         sends: list[Send] = []
         for slot in range(TOOL_BATCH_SIZE):

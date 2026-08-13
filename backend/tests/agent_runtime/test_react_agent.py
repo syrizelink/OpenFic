@@ -1084,8 +1084,9 @@ async def test_react_agent_does_not_execute_tool_after_approval_is_rejected() ->
 
 
 @pytest.mark.asyncio
-async def test_react_agent_rejects_more_than_ten_tool_calls_before_execution() -> None:
+async def test_react_agent_rejects_more_than_twenty_tool_calls_before_execution() -> None:
     executed: list[str] = []
+    tool_results: list[dict] = []
 
     class CountingTool(AgentTool):
         name: str = "counting_tool"
@@ -1106,28 +1107,44 @@ async def test_react_agent_rejects_more_than_ten_tool_calls_before_execution() -
     )
 
     async def invoke_model(*_args, **_kwargs):
-        return AIMessage(
-            content="",
-            tool_calls=[
-                {"id": f"call_{index}", "name": "counting_tool", "args": {"value": str(index)}}
-                for index in range(11)
-            ],
-        )
+        if getattr(invoke_model, "calls", 0) == 0:
+            invoke_model.calls = 1
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {"id": f"call_{index}", "name": "counting_tool", "args": {"value": str(index)}}
+                    for index in range(21)
+                ],
+            )
+        return AIMessage(content="done")
 
+    config = {"configurable": {"thread_id": "excess-tool-calls"}}
+    config["configurable"]["tool_result_sink"] = tool_results.append
     with patch(
         "app.agent_runtime.graph.react_agent._invoke_model",
         side_effect=invoke_model,
-    ), pytest.raises(RuntimeError, match="最多调用 10 个工具"):
-        await graph.ainvoke(
+    ):
+        result = await graph.ainvoke(
             {
                 "messages": [HumanMessage(content="run")],
                 "iteration_count": 0,
                 "is_done": False,
                 "final_output": None,
-            }
+            },
+            config=config,
         )
 
-    assert executed == []
+    assert executed == [str(index) for index in range(20)]
+    error_message = next(
+        message
+        for message in result["messages"]
+        if isinstance(message, ToolMessage) and "最多调用" in message.content
+    )
+    assert error_message.tool_call_id == "call_20"
+    assert len(tool_results) == 1
+    assert tool_results[0]["tool_call_id"] == "call_20"
+    assert tool_results[0]["output"]["success"] is False
+    assert tool_results[0]["output"]["reason"] == "tool_error"
 
 
 @pytest.mark.asyncio
