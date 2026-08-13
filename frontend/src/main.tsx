@@ -42,6 +42,89 @@ const queryClient = new QueryClient({
 const FRONTEND_VERSION = __OPENFIC_FRONTEND_VERSION__;
 const INITIALIZATION_TIMEOUT_MS = 30_000;
 
+type InitializationStage = "health" | "settings" | "tiktoken" | "socket";
+
+class InitializationError extends Error {
+  readonly stage: InitializationStage;
+  readonly originalError: unknown;
+
+  constructor(stage: InitializationStage, originalError: unknown) {
+    super(getErrorDetail(originalError));
+    this.name = "InitializationError";
+    this.stage = stage;
+    this.originalError = originalError;
+  }
+}
+
+function getErrorDetail(error: unknown): string {
+  if (error instanceof Error) {
+    const candidate = error as Error & {
+      code?: unknown;
+      config?: { baseURL?: unknown; url?: unknown };
+      response?: { status?: number; statusText?: unknown };
+    };
+    const details = [candidate.message || candidate.name];
+
+    if (typeof candidate.code === "string" && candidate.code) {
+      details.push(i18n.t("common.initializationErrorCode", { code: candidate.code }));
+    }
+
+    if (candidate.response?.status) {
+      const statusText =
+        typeof candidate.response.statusText === "string" && candidate.response.statusText
+          ? ` ${candidate.response.statusText}`
+          : "";
+      details.push(
+        i18n.t("common.initializationHttpStatus", {
+          status: candidate.response.status,
+          statusText,
+        }),
+      );
+    }
+
+    const baseUrl = typeof candidate.config?.baseURL === "string" ? candidate.config.baseURL : "";
+    const requestUrl = typeof candidate.config?.url === "string" ? candidate.config.url : "";
+    if (baseUrl || requestUrl) {
+      details.push(
+        i18n.t("common.initializationAddress", {
+          address: `${baseUrl}${requestUrl}`,
+        }),
+      );
+    }
+
+    return details.join(i18n.t("common.errorDetailSeparator"));
+  }
+
+  if (typeof error === "string" && error) return error;
+  return i18n.t("common.initializationUnknownError");
+}
+
+function withInitializationStage<T>(stage: InitializationStage, promise: Promise<T>): Promise<T> {
+  return promise.catch((error: unknown) => {
+    throw new InitializationError(stage, error);
+  });
+}
+
+function getInitializationErrorMessage(error: unknown): string {
+  if (!(error instanceof InitializationError)) {
+    return i18n.t("common.initializationFailedWithReason", {
+      reason: getErrorDetail(error),
+    });
+  }
+
+  const stageLabels: Record<InitializationStage, string> = {
+    health: i18n.t("common.initializationHealth"),
+    settings: i18n.t("common.initializationSettings"),
+    tiktoken: i18n.t("common.initializationTiktoken"),
+    socket: i18n.t("common.initializationSocket"),
+  };
+
+  return i18n.t("common.initializationFailedWithStage", {
+    stage: stageLabels[error.stage],
+    reason: getErrorDetail(error.originalError),
+  });
+}
+
 const DashboardPage = lazy(() =>
   import("./features/dashboard/pages/dashboard-page").then((module) => ({
     default: module.DashboardPage,
@@ -110,7 +193,7 @@ function Root() {
   const [appearance, setAppearance] = useState<"light" | "dark">("light");
   const [settings, setSettings] = useState<Settings | null>(null);
   const [isReady, setIsReady] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const toggleTheme = () => {
     setAppearance((prev) => (prev === "light" ? "dark" : "light"));
@@ -126,13 +209,19 @@ function Root() {
         await loadRuntimeConfig();
 
         const [, settings] = await Promise.all([
-          checkHealth(),
-          queryClient.fetchQuery({
-            queryKey: ["settings"],
-            queryFn: fetchSettings,
-          }),
-          preloadTiktokenEncoding(),
-          connectSocket({ timeoutMs: INITIALIZATION_TIMEOUT_MS }),
+          withInitializationStage("health", checkHealth()),
+          withInitializationStage(
+            "settings",
+            queryClient.fetchQuery({
+              queryKey: ["settings"],
+              queryFn: fetchSettings,
+            }),
+          ),
+          withInitializationStage("tiktoken", preloadTiktokenEncoding()),
+          withInitializationStage(
+            "socket",
+            connectSocket({ timeoutMs: INITIALIZATION_TIMEOUT_MS }),
+          ),
         ]);
 
         applyFontFamily(settings.fontFamily);
@@ -144,11 +233,11 @@ function Root() {
           setAppearance(settings.theme);
           setIsReady(true);
         }
-      } catch {
+      } catch (initializationError) {
         if (mounted) {
           // Socket.IO retries transports and reconnects within this deadline.
           if (Date.now() - startTime >= INITIALIZATION_TIMEOUT_MS) {
-            setError(true);
+            setError(getInitializationErrorMessage(initializationError));
             return;
           }
           // Retry after 500ms

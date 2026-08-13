@@ -6,10 +6,10 @@
 
 import axios from "axios";
 
-import { getRuntimeConfig } from "./runtime-config";
+import { getConfiguredBackendBaseUrl, getRuntimeConfig } from "./runtime-config";
 
 export function getApiBaseUrl(): string {
-  const backendBaseUrl = getRuntimeConfig()?.backendBaseUrl;
+  const backendBaseUrl = getRuntimeConfig()?.backendBaseUrl ?? getConfiguredBackendBaseUrl();
   if (backendBaseUrl) return `${backendBaseUrl}/api/v1`;
   return "/api/v1";
 }
@@ -22,7 +22,7 @@ export function resolveBackendUrl(url: string | null | undefined): string | null
   if (!url) return null;
   if (!url.startsWith("/") || url.startsWith("//")) return url;
 
-  const backendBaseUrl = getRuntimeConfig()?.backendBaseUrl;
+  const backendBaseUrl = getRuntimeConfig()?.backendBaseUrl ?? getConfiguredBackendBaseUrl();
   return backendBaseUrl ? `${backendBaseUrl}${url}` : url;
 }
 

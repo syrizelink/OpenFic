@@ -1,4 +1,4 @@
-import { Box, Button, Flex } from "@radix-ui/themes";
+import { Box, Button, Flex, Text } from "@radix-ui/themes";
 import { RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -7,7 +7,7 @@ import { Spinner } from "./spinner";
 import "./global-loading.css";
 
 interface GlobalLoadingProps {
-  error?: boolean;
+  error?: string | null;
   onRetry?: () => void;
 }
 
@@ -18,19 +18,21 @@ interface GlobalLoadingProps {
  */
 export function GlobalLoading({ error, onRetry }: GlobalLoadingProps) {
   const { t } = useTranslation();
-  const spinnerLabel = error ? t("common.retryInitialization") : t("common.loading");
+  const hasError = Boolean(error);
+  const spinnerLabel = hasError ? t("common.retryInitialization") : t("common.loading");
 
   return (
     <Box className="global-loading-shell">
       <Flex
         className="global-loading-stage"
+        data-error={hasError ? "true" : "false"}
         direction="column"
         align="center"
         justify="center"
       >
         <Box
           className="global-loading-spinner-shell"
-          data-error={error ? "true" : "false"}
+          data-error={hasError ? "true" : "false"}
         >
           <Spinner
             className="global-loading-spinner"
@@ -39,7 +41,17 @@ export function GlobalLoading({ error, onRetry }: GlobalLoadingProps) {
           />
         </Box>
 
-        {error ? (
+        {hasError ? (
+          <Text
+            as="p"
+            className="global-loading-error"
+            size="2"
+          >
+            {error}
+          </Text>
+        ) : null}
+
+        {hasError ? (
           <Button
             className="global-loading-retry"
             onClick={onRetry}

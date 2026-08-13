@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import react from "@vitejs/plugin-react";
-import { defineConfig, type Plugin } from "vite-plus";
+import { defineConfig, loadEnv, type Plugin } from "vite-plus";
 
 const srcPath = fileURLToPath(new URL("./src", import.meta.url));
 const frontendVersion = (
@@ -25,50 +25,55 @@ function cacheFontResponseHeaders(): Plugin {
   };
 }
 
-export default defineConfig({
-  define: {
-    __OPENFIC_FRONTEND_VERSION__: JSON.stringify(frontendVersion),
-  },
-  plugins: [...(react() as unknown as Plugin[]), cacheFontResponseHeaders()],
-  resolve: {
-    alias: {
-      "@": srcPath,
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  const backendTarget = (env.VITE_BACKEND_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+
+  return {
+    define: {
+      __OPENFIC_FRONTEND_VERSION__: JSON.stringify(frontendVersion),
     },
-  },
-  build: {
-    outDir: "dist",
-    target: "esnext",
-  },
-  server: {
-    host: "127.0.0.1",
-    port: 9000,
-    cors: true,
-    proxy: {
-      "/api": {
-        target: "http://127.0.0.1:8000",
-        changeOrigin: true,
-      },
-      "/icons": {
-        target: "http://127.0.0.1:8000",
-        changeOrigin: true,
-      },
-      "/socket.io": {
-        target: "http://127.0.0.1:8000",
-        changeOrigin: true,
-        ws: true,
-      },
-      "/covers": {
-        target: "http://127.0.0.1:8000",
-        changeOrigin: true,
-      },
-      "/character-images": {
-        target: "http://127.0.0.1:8000",
-        changeOrigin: true,
-      },
-      "/agent-attachments": {
-        target: "http://127.0.0.1:8000",
-        changeOrigin: true,
+    plugins: [...(react() as unknown as Plugin[]), cacheFontResponseHeaders()],
+    resolve: {
+      alias: {
+        "@": srcPath,
       },
     },
-  },
+    build: {
+      outDir: "dist",
+      target: "esnext",
+    },
+    server: {
+      host: "127.0.0.1",
+      port: 9000,
+      cors: true,
+      proxy: {
+        "/api": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        "/icons": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        "/socket.io": {
+          target: backendTarget,
+          changeOrigin: true,
+          ws: true,
+        },
+        "/covers": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        "/character-images": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        "/agent-attachments": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+      },
+    },
+  };
 });

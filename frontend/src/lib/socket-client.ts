@@ -1,7 +1,8 @@
 import { io, type Socket } from "socket.io-client";
 
+import i18n from "../i18n";
 import { publishSocketDiagnostic, type SocketDiagnosticPayload } from "./desktop-appearance-bridge";
-import { getRuntimeConfig } from "./runtime-config";
+import { getConfiguredBackendBaseUrl, getRuntimeConfig } from "./runtime-config";
 
 export type SocketConnectionStatus = "connected" | "disconnected";
 
@@ -12,6 +13,8 @@ interface SocketClientState {
   socketUrl: string | undefined;
   connectPromise: Promise<Socket> | null;
   connectionStartedAt: number | null;
+  lastConnectionError: string | null;
+  lastConnectionTransport: string | undefined;
   connectionStatus: SocketConnectionStatus;
   statusListeners: Set<() => void>;
   statusBoundSocket: Socket | null;
@@ -29,10 +32,14 @@ function getSocketState(): SocketClientState {
     socketUrl: undefined,
     connectPromise: null,
     connectionStartedAt: null,
+    lastConnectionError: null,
+    lastConnectionTransport: undefined,
     connectionStatus: "disconnected",
     statusListeners: new Set<() => void>(),
     statusBoundSocket: null,
   };
+  window.__openficSocketClientState.lastConnectionError ??= null;
+  window.__openficSocketClientState.lastConnectionTransport ??= undefined;
   return window.__openficSocketClientState;
 }
 
@@ -84,6 +91,8 @@ function bindConnectionStatus(socket: Socket): void {
   if (state.statusBoundSocket === socket) return;
   state.statusBoundSocket = socket;
   socket.on("connect", () => {
+    state.lastConnectionError = null;
+    state.lastConnectionTransport = undefined;
     setConnectionStatus("connected");
     reportSocketDiagnostic("connected", socket, { durationMs: getConnectionDuration() });
     state.connectionStartedAt = null;
@@ -94,6 +103,8 @@ function bindConnectionStatus(socket: Socket): void {
   });
   socket.on("connect_error", (error) => {
     setConnectionStatus("disconnected");
+    state.lastConnectionError = getErrorMessage(error);
+    state.lastConnectionTransport = getSocketTransport(socket);
     reportSocketDiagnostic("connect-error", socket, {
       active: socket.active,
       message: getErrorMessage(error),
@@ -111,16 +122,7 @@ function getSocketUrl(): string | undefined {
   const runtimeBackendUrl = getRuntimeConfig()?.backendBaseUrl;
   if (runtimeBackendUrl) return runtimeBackendUrl;
 
-  const explicitBackendUrl = import.meta.env.VITE_BACKEND_URL as string | undefined;
-  if (explicitBackendUrl) return explicitBackendUrl.replace(/\/$/, "");
-
-  const { protocol, hostname, port } = window.location;
-  const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1";
-  if (isLocalHost && port !== "8000") {
-    return `${protocol}//${hostname}:8000`;
-  }
-
-  return undefined;
+  return getConfiguredBackendBaseUrl() ?? undefined;
 }
 
 export function getSocket(): Socket {
@@ -179,6 +181,8 @@ export function connectSocket({
     return state.connectPromise;
   }
 
+  state.lastConnectionError = null;
+  state.lastConnectionTransport = undefined;
   state.connectionStartedAt = Date.now();
   reportSocketDiagnostic("connect-start", activeSocket, { active: activeSocket.active });
   const connectPromise = new Promise<Socket>((resolve, reject) => {
@@ -194,7 +198,21 @@ export function connectSocket({
 
     const timeout = window.setTimeout(() => {
       cleanup();
-      const error = new Error(`Socket 连接超时（${Math.ceil(timeoutMs / 1000)} 秒）`);
+      const details = [
+        state.lastConnectionError ??
+          i18n.t("common.socketConnectionTimeout", {
+            seconds: Math.ceil(timeoutMs / 1000),
+          }),
+        state.lastConnectionTransport
+          ? i18n.t("common.socketTransport", { transport: state.lastConnectionTransport })
+          : null,
+        state.socketUrl ? i18n.t("common.socketAddress", { address: state.socketUrl }) : null,
+      ].filter((detail): detail is string => Boolean(detail));
+      const error = new Error(
+        i18n.t("common.socketConnectionFailed", {
+          details: details.join(i18n.t("common.errorDetailSeparator")),
+        }),
+      );
       reportSocketDiagnostic("connection-timeout", activeSocket, {
         active: activeSocket.active,
         durationMs: getConnectionDuration(),
