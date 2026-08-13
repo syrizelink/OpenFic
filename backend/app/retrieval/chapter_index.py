@@ -28,7 +28,9 @@ from app.retrieval.types import (
     RetrievalIndexContract,
 )
 from app.storage.models.chapter import Chapter
+from app.storage.models.project import Project
 from app.storage.models.retrieval_chapter_index_state import RetrievalChapterIndexState
+from app.storage.models.retrieval_index import RetrievalIndex
 from app.storage.repos import (
     chapter_repo,
     project_repo,
@@ -36,6 +38,7 @@ from app.storage.repos import (
     retrieval_index_repo,
     setting_repo,
 )
+from app.storage.repos.chapter_repo import ChapterIndexSource
 
 CHAPTER_INDEX_STATUS_NOT_INDEXED = "not_indexed"
 CHAPTER_INDEX_STATUS_QUEUED = "queued"
@@ -123,7 +126,9 @@ def chapter_document_id(chapter_id: str) -> str:
     return f"chapter:{chapter_id}"
 
 
-def _is_chapter_content_empty(chapter: Chapter) -> bool:
+def _is_chapter_content_empty(
+    chapter: ChapterIndexSource | Chapter,
+) -> bool:
     return not (chapter.content or "").strip()
 
 
@@ -286,7 +291,7 @@ class ProjectIndexStatus:
 
 
 def _effective_chapter_status(
-    chapter: Chapter,
+    chapter: ChapterIndexSource | Chapter,
     state: RetrievalChapterIndexState | None,
 ) -> str:
     """计算单章的有效索引状态（结合内容哈希实时判断是否过期）。"""
@@ -306,24 +311,19 @@ def _effective_chapter_status(
     return CHAPTER_INDEX_STATUS_NOT_INDEXED
 
 
-async def compute_project_index_status(
-    session: AsyncSession,
+def _summarize_project_status(
     *,
     project_id: str,
-    title: str | None = None,
+    title: str,
+    config: IndexSettingsConfig,
+    model: Model | None,
+    chapters: list[ChapterIndexSource],
+    project_index: RetrievalIndex | None,
+    states: dict[str, RetrievalChapterIndexState],
 ) -> ProjectIndexStatus:
-    """计算单个项目的索引状态汇总。
-
-    ``title`` 传入时直接使用；为 ``None`` 时按需查询项目标题。
-    """
-    config = await get_index_settings(session)
+    """将章节/索引/状态等数据聚合为单个项目的索引状态（纯内存计算，不访问 DB）。"""
     enabled = is_project_index_enabled(config, project_id)
-    chapters = await chapter_repo.list_by_project(session, project_id)
     total = len(chapters)
-
-    if title is None:
-        project = await project_repo.get_by_id(session, project_id)
-        title = project.title if project else ""
 
     if not enabled:
         return ProjectIndexStatus(
@@ -334,7 +334,6 @@ async def compute_project_index_status(
             total_chapters=total,
         )
 
-    model = await resolve_index_embedding_model(session, config)
     if model is None:
         return ProjectIndexStatus(
             project_id=project_id,
@@ -353,19 +352,11 @@ async def compute_project_index_status(
             total_chapters=0,
         )
 
-    index_key = chapter_index_key(project_id)
-    project_index = await retrieval_index_repo.get_by_index_key(session, index_key)
     # schema 升级：旧 schema_version 的索引整体需要重建，优先于其它状态判定。
     schema_outdated = (
         project_index is not None
         and project_index.schema_version < CURRENT_CHUNK_SCHEMA_VERSION
     )
-    states = {
-        state.chapter_id: state
-        for state in await retrieval_chapter_index_state_repo.list_by_project(
-            session, project_id=project_id, index_key=index_key
-        )
-    }
 
     indexed = 0
     pending = 0
@@ -426,6 +417,120 @@ async def compute_project_index_status(
         empty_content_count=empty_content,
         last_error=last_error,
     )
+
+
+async def compute_project_index_status(
+    session: AsyncSession,
+    *,
+    project_id: str,
+    title: str | None = None,
+    config: IndexSettingsConfig | None = None,
+    model: Model | None = None,
+) -> ProjectIndexStatus:
+    """计算单个项目的索引状态汇总。
+
+    ``title`` 传入时直接使用；为 ``None`` 时按需查询项目标题。
+    ``config`` / ``model`` 用于在批量计算时复用全局配置与 embedding 模型，缺省时自行读取。
+    """
+    if config is None:
+        config = await get_index_settings(session)
+    if title is None:
+        project = await project_repo.get_by_id(session, project_id)
+        title = project.title if project else ""
+    if model is None:
+        model = await resolve_index_embedding_model(session, config)
+
+    chapters = await chapter_repo.list_index_source_by_project(session, project_id)
+    if not is_project_index_enabled(config, project_id) or model is None or not chapters:
+        return _summarize_project_status(
+            project_id=project_id,
+            title=title,
+            config=config,
+            model=model,
+            chapters=chapters,
+            project_index=None,
+            states={},
+        )
+
+    index_key = chapter_index_key(project_id)
+    project_index = await retrieval_index_repo.get_by_index_key(session, index_key)
+    states = {
+        state.chapter_id: state
+        for state in await retrieval_chapter_index_state_repo.list_by_project(
+            session, project_id=project_id, index_key=index_key
+        )
+    }
+    return _summarize_project_status(
+        project_id=project_id,
+        title=title,
+        config=config,
+        model=model,
+        chapters=chapters,
+        project_index=project_index,
+        states=states,
+    )
+
+
+async def compute_projects_index_status(
+    session: AsyncSession,
+    *,
+    config: IndexSettingsConfig,
+    model: Model | None,
+    projects: list[Project],
+) -> list[ProjectIndexStatus]:
+    """批量计算多个项目的索引状态。
+
+    一次性批量查询所有项目的章节/索引/状态，再在内存中聚合，
+    避免整体状态接口按项目串行执行 N+1 次查询。
+    ``projects`` 中每个元素需提供 ``id`` 与 ``title`` 属性。
+    """
+    if not projects:
+        return []
+
+    if model is None:
+        return [
+            ProjectIndexStatus(
+                project_id=project.id,
+                enabled=True,
+                status=INDEX_STATUS_NOT_CONFIGURED,
+                title=project.title or "",
+                total_chapters=0,
+            )
+            for project in projects
+        ]
+
+    project_ids = [project.id for project in projects]
+    index_keys = {project_id: chapter_index_key(project_id) for project_id in project_ids}
+
+    chapters_by_project: dict[str, list[ChapterIndexSource]] = {}
+    for source in await chapter_repo.list_index_source_by_projects(session, project_ids):
+        chapters_by_project.setdefault(source.project_id, []).append(source)
+
+    indexes_by_key = {
+        index.index_key: index
+        for index in await retrieval_index_repo.get_by_index_keys(
+            session, list(index_keys.values())
+        )
+    }
+
+    states_by_index_key: dict[str, dict[str, RetrievalChapterIndexState]] = {}
+    for state in await retrieval_chapter_index_state_repo.list_by_index_keys(
+        session, list(index_keys.values())
+    ):
+        states_by_index_key.setdefault(state.index_key, {})[state.chapter_id] = state
+
+    return [
+        _summarize_project_status(
+            project_id=project.id,
+            title=project.title or "",
+            config=config,
+            model=model,
+            chapters=chapters_by_project.get(project.id, []),
+            project_index=indexes_by_key.get(index_keys[project.id]),
+            states=states_by_index_key.get(index_keys[project.id], {}),
+        )
+        for project in projects
+    ]
 
 
 @dataclass

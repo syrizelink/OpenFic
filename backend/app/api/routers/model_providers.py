@@ -59,8 +59,12 @@ async def _build_provider_response(
     service: ModelProviderService,
 ) -> ModelProviderResponse:
     catalog_match = await service.get_catalog_match(provider)
-    supported_task_types = await service.get_supported_task_types(provider)
-    icon_path = await service.get_effective_icon_path(provider)
+    supported_task_types = await service.get_supported_task_types(
+        provider, catalog_match=catalog_match
+    )
+    icon_path = await service.get_effective_icon_path(
+        provider, catalog_match=catalog_match
+    )
 
     return ModelProviderResponse(
         id=provider.id,

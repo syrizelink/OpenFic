@@ -251,3 +251,54 @@ async def test_reference_skill_rejects_unknown_reference():
         )
 
     assert "参考文档不存在" in json.loads(result)["error"]
+
+
+def test_load_builtin_skills_caches_until_skill_files_change(tmp_path, monkeypatch):
+    import app.skills.loader as loader
+
+    skills_dir = tmp_path / "skills"
+    skills_dir.mkdir()
+    (skills_dir / "skill-a.yaml").write_text("placeholder", encoding="utf-8")
+    (skills_dir / "skill-b.yaml").write_text("placeholder", encoding="utf-8")
+
+    loaded: list[str] = []
+
+    def fake_load(yaml_path):
+        loaded.append(yaml_path.name)
+        return SimpleNamespace(
+            id=f"builtin-skill--{yaml_path.stem}",
+            name=yaml_path.stem,
+            summary="s",
+            content="c",
+            is_enabled=True,
+            references=(),
+            created_at=None,
+            updated_at=None,
+            source="builtin",
+        )
+
+    monkeypatch.setattr(loader, "SKILLS_DIR", skills_dir)
+    monkeypatch.setattr(loader, "_load_builtin_skill", fake_load)
+    monkeypatch.setattr(loader, "_skills_cache", None)
+
+    first = loader.load_builtin_skills()
+    assert [skill.id for skill in first] == [
+        "builtin-skill--skill-a",
+        "builtin-skill--skill-b",
+    ]
+    assert loaded == ["skill-a.yaml", "skill-b.yaml"]
+
+    # 命中缓存，不再重新读取 YAML
+    second = loader.load_builtin_skills()
+    assert second == first
+    assert loaded == ["skill-a.yaml", "skill-b.yaml"]
+
+    # load_builtin_skill 复用缓存
+    skill = loader.load_builtin_skill("builtin-skill--skill-a")
+    assert skill is not None and skill.name == "skill-a"
+    assert len(loaded) == 2
+
+    # 修改文件内容使指纹变化，缓存失效后重新加载
+    (skills_dir / "skill-b.yaml").write_text("placeholder-longer", encoding="utf-8")
+    loader.load_builtin_skills()
+    assert len(loaded) == 4

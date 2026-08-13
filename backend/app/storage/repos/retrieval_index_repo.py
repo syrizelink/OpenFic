@@ -63,6 +63,18 @@ async def get_by_index_key(
     return result.scalar_one_or_none()
 
 
+async def get_by_index_keys(
+    session: AsyncSession, index_keys: list[str]
+) -> list[RetrievalIndex]:
+    """按多个 index_key 批量查询索引记录。"""
+    if not index_keys:
+        return []
+    result = await session.execute(
+        select(RetrievalIndex).where(col(RetrievalIndex.index_key).in_(index_keys))
+    )
+    return list(result.scalars().all())
+
+
 async def get_by_embedding_model_ref_id(
     session: AsyncSession, model_id: str
 ) -> list[RetrievalIndex]:

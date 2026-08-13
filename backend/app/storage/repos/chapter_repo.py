@@ -4,6 +4,7 @@ Chapter Repository - 章节数据访问层。
 """
 
 from datetime import UTC, datetime
+from typing import NamedTuple
 
 from sqlalchemy import case, delete as sql_delete
 from sqlalchemy import func, or_, select, update
@@ -12,6 +13,14 @@ from sqlmodel import col
 
 from app.storage.models.chapter import Chapter
 from app.storage.models.volume import Volume
+
+
+class ChapterIndexSource(NamedTuple):
+    """索引状态计算所需的轻量章节视图，仅含 id 与正文，避免加载整行。"""
+
+    project_id: str
+    id: str
+    content: str
 
 
 async def list_export_metadata_by_project(
@@ -99,6 +108,42 @@ async def list_by_project(
         .order_by(col(Volume.order).asc(), col(Chapter.order).asc())
     )
     return list(result.scalars().all())
+
+
+async def list_index_source_by_project(
+    session: AsyncSession,
+    project_id: str,
+) -> list[ChapterIndexSource]:
+    """仅读取章节 id 与正文，用于索引状态计算，避免加载整行。"""
+    result = await session.execute(
+        select(col(Chapter.id), col(Chapter.content))
+        .join(Volume, col(Chapter.volume_id) == col(Volume.id))
+        .where(col(Chapter.project_id) == project_id)
+        .order_by(col(Volume.order).asc(), col(Chapter.order).asc())
+    )
+    return [
+        ChapterIndexSource(project_id, chapter_id, content)
+        for chapter_id, content in result.all()
+    ]
+
+
+async def list_index_source_by_projects(
+    session: AsyncSession,
+    project_ids: list[str],
+) -> list[ChapterIndexSource]:
+    """批量读取多个项目下章节的 id 与正文，用于整体索引状态计算。"""
+    if not project_ids:
+        return []
+    result = await session.execute(
+        select(col(Chapter.project_id), col(Chapter.id), col(Chapter.content))
+        .join(Volume, col(Chapter.volume_id) == col(Volume.id))
+        .where(col(Chapter.project_id).in_(project_ids))
+        .order_by(col(Volume.order).asc(), col(Chapter.order).asc())
+    )
+    return [
+        ChapterIndexSource(project_id, chapter_id, content)
+        for project_id, chapter_id, content in result.all()
+    ]
 
 
 async def search_with_volume_by_project(

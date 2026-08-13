@@ -21,6 +21,7 @@ from app.retrieval.chapter_index import (
     INDEX_MODE_ALL,
     INDEX_MODE_OFF,
     compute_project_index_status,
+    compute_projects_index_status,
     enqueue_project_index_update,
     get_index_settings,
     is_project_index_enabled,
@@ -127,7 +128,8 @@ async def get_overall_retrieval_index_status(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> IndexOverallStatusResponse:
     config = await get_index_settings(session)
-    embedding_configured = await resolve_index_embedding_model(session, config) is not None
+    model = await resolve_index_embedding_model(session, config)
+    embedding_configured = model is not None
 
     projects: list[IndexProjectStatusResponse] = []
     total_chapters = 0
@@ -143,12 +145,12 @@ async def get_overall_retrieval_index_status(
             if config.mode == INDEX_MODE_ALL
             else set(config.enabled_projects)
         )
-        for project in all_projects:
-            if project.id not in enabled_ids:
-                continue
-            status_obj = await compute_project_index_status(
-                session, project_id=project.id, title=project.title
-            )
+        targets = [project for project in all_projects if project.id in enabled_ids]
+        # 批量查询各项目章节/索引/状态并内存聚合，避免按项目串行的 N+1 查询。
+        statuses = await compute_projects_index_status(
+            session, config=config, model=model, projects=targets
+        )
+        for status_obj in statuses:
             projects.append(_status_to_response(status_obj))
             total_chapters += status_obj.total_chapters
             indexed_count += status_obj.indexed_count

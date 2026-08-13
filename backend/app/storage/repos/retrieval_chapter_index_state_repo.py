@@ -42,6 +42,21 @@ async def list_by_project(
     return list(result.scalars().all())
 
 
+async def list_by_index_keys(
+    session: AsyncSession,
+    index_keys: list[str],
+) -> list[RetrievalChapterIndexState]:
+    """按多个 index_key 批量查询章节索引状态。"""
+    if not index_keys:
+        return []
+    result = await session.execute(
+        select(RetrievalChapterIndexState).where(
+            col(RetrievalChapterIndexState.index_key).in_(index_keys)
+        )
+    )
+    return list(result.scalars().all())
+
+
 async def queue_chapters_for_job(
     session: AsyncSession,
     *,

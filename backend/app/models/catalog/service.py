@@ -78,6 +78,11 @@ _EMBEDDING_FAMILIES = {
     "bge",
 }
 
+# 进程级 catalog snapshot 缓存：key 为 (快照文件路径, mtime)，避免每次请求重复解析大 JSON。
+_SNAPSHOT_CACHE: dict[
+    tuple[Path, int], tuple[dict[str, Any], str, str | None]
+] = {}
+
 
 class ModelProviderCatalogService:
     """Catalog access with bundled fallback and refreshable local cache."""
@@ -247,9 +252,14 @@ class ModelProviderCatalogService:
         return url.strip().lower().rstrip("/")
 
     def _load_current_snapshot(self) -> tuple[dict[str, Any], str, str | None]:
-        if self.cache_snapshot_path.exists():
+        cache_path = self.cache_snapshot_path
+        if cache_path.exists():
+            cache_mtime = cache_path.stat().st_mtime_ns
+            cached = _SNAPSHOT_CACHE.get((cache_path, cache_mtime))
+            if cached is not None:
+                return cached
             try:
-                snapshot = self._read_json(self.cache_snapshot_path)
+                snapshot = self._read_json(cache_path)
                 if not self._is_current_snapshot(snapshot):
                     raise ValueError("Catalog cache schema is outdated")
                 metadata = (
@@ -257,14 +267,23 @@ class ModelProviderCatalogService:
                     if self.cache_metadata_path.exists()
                     else {}
                 )
-                return snapshot, "cache", metadata.get("last_refreshed_at")
+                result = snapshot, "cache", metadata.get("last_refreshed_at")
+                _SNAPSHOT_CACHE[(cache_path, cache_mtime)] = result
+                return result
             except Exception as exc:
                 logger.warning("Failed to load catalog cache, falling back to bundled: {}", exc)
 
-        snapshot = self._read_json(self.bundled_snapshot_path)
+        bundled_path = self.bundled_snapshot_path
+        bundled_mtime = bundled_path.stat().st_mtime_ns
+        cached = _SNAPSHOT_CACHE.get((bundled_path, bundled_mtime))
+        if cached is not None:
+            return cached
+        snapshot = self._read_json(bundled_path)
         if not self._is_current_snapshot(snapshot):
             raise ValueError("Bundled catalog snapshot schema is outdated")
-        return snapshot, "bundled", None
+        result = snapshot, "bundled", None
+        _SNAPSHOT_CACHE[(bundled_path, bundled_mtime)] = result
+        return result
 
     def _find_provider(
         self, snapshot: dict[str, Any], provider_type: str

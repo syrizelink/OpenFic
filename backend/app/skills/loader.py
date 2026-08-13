@@ -119,8 +119,26 @@ def _load_builtin_skill(yaml_path: Path) -> BuiltinSkill | None:
     )
 
 
+def _skills_fingerprint() -> tuple[tuple[str, int, int], ...]:
+    """基于技能文件名、修改时间与大小生成指纹，用于缓存失效判断。"""
+    if not SKILLS_DIR.exists():
+        return ()
+    return tuple(
+        (str(path), path.stat().st_mtime_ns, path.stat().st_size)
+        for path in sorted(SKILLS_DIR.glob("*.yaml"))
+    )
+
+
+_skills_cache: tuple[tuple[tuple[str, int, int], ...], tuple[BuiltinSkill, ...]] | None = None
+
+
 def load_builtin_skills() -> tuple[BuiltinSkill, ...]:
-    """加载全部有效的内置 Skill，单个错误文件不会影响其余 Skill。"""
+    """加载全部有效的内置 Skill，单个错误文件不会影响其余 Skill（带进程级缓存）。"""
+    global _skills_cache
+    fingerprint = _skills_fingerprint()
+    if _skills_cache is not None and _skills_cache[0] == fingerprint:
+        return _skills_cache[1]
+
     if not SKILLS_DIR.exists():
         return ()
 
@@ -135,15 +153,17 @@ def load_builtin_skills() -> tuple[BuiltinSkill, ...]:
             continue
         ids.add(skill.id)
         skills.append(skill)
-    return tuple(skills)
+
+    cached = tuple(skills)
+    _skills_cache = (fingerprint, cached)
+    return cached
 
 
 def load_builtin_skill(skill_id: str) -> BuiltinSkill | None:
-    """按固定 ID 读取单个内置 Skill。"""
+    """按固定 ID 读取单个内置 Skill（复用内置 Skill 缓存）。"""
     if not skill_id.startswith(BUILTIN_SKILL_ID_PREFIX):
         return None
-    filename = skill_id.removeprefix(BUILTIN_SKILL_ID_PREFIX)
-    if not filename or Path(filename).name != filename:
-        return None
-    skill = _load_builtin_skill(SKILLS_DIR / f"{filename}.yaml")
-    return skill if skill is not None and skill.id == skill_id else None
+    for skill in load_builtin_skills():
+        if skill.id == skill_id:
+            return skill
+    return None

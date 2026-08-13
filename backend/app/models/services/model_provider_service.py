@@ -57,17 +57,27 @@ class ModelProviderService:
             provider.provider_type, provider.url
         )
 
-    async def get_supported_task_types(self, provider: ModelProvider) -> list[str]:
+    async def get_supported_task_types(
+        self,
+        provider: ModelProvider,
+        catalog_match: CatalogMatch | None = None,
+    ) -> list[str]:
         if provider.is_builtin:
             return ["embedding", "rerank"]
-        catalog_match = await self.get_catalog_match(provider)
+        if catalog_match is None:
+            catalog_match = await self.get_catalog_match(provider)
         return self.catalog_service.get_supported_task_types(
             provider.provider_type,
             catalog_match,
         )
 
-    async def get_effective_icon_path(self, provider: ModelProvider) -> str | None:
-        catalog_match = await self.get_catalog_match(provider)
+    async def get_effective_icon_path(
+        self,
+        provider: ModelProvider,
+        catalog_match: CatalogMatch | None = None,
+    ) -> str | None:
+        if catalog_match is None:
+            catalog_match = await self.get_catalog_match(provider)
         return catalog_match.icon_path if catalog_match else None
 
     async def get_provider_by_id(
