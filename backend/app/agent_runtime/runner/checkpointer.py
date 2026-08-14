@@ -16,6 +16,7 @@ from sqlmodel import col
 import app.settings as app_settings
 from app.agent_runtime.model_config import without_api_key
 from app.agent_runtime.persistence.model import AgentChildRun, AgentChildRunRequest
+from app.maintenance import maintenance_state
 from app.storage.models.revision import Revision
 from app.storage.models.task import Task
 
@@ -27,6 +28,7 @@ _ALLOWED_MSGPACK_MODULES = (
 )
 _LEGACY_API_KEY_MARKER = b"api_key"
 _LEGACY_API_KEY_MIGRATION = "remove_plaintext_api_keys_v1"
+_INCREMENTAL_AUTO_VACUUM_MIGRATION = "incremental_auto_vacuum_v1"
 _CHECKPOINT_CLEANUP_BATCH_SIZE = 500
 _VACUUM_MIN_FREE_BYTES = 64 * 1024 * 1024
 _INCREMENTAL_VACUUM_BATCH_BYTES = 64 * 1024 * 1024
@@ -71,12 +73,17 @@ def _get_db_path() -> str:
 async def get_checkpointer() -> AsyncSqliteSaver:
     global _checkpointer
     if _checkpointer is None:
+        if maintenance_state.is_checkpoint_locked():
+            raise RuntimeError(
+                "Checkpoint database maintenance is in progress; agent runs are temporarily unavailable"
+            )
         db_path = _get_db_path()
         db_path_exists = Path(db_path).exists()
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
         conn = await aiosqlite.connect(db_path)
         if not db_path_exists:
             await conn.execute("PRAGMA auto_vacuum = INCREMENTAL")
+            await _mark_incremental_auto_vacuum_migration_completed(conn)
         _checkpointer = AsyncSqliteSaver(
             conn,
             serde=JsonPlusSerializer(
@@ -181,6 +188,42 @@ async def _mark_legacy_api_key_migration_completed(
     )
     try:
         await checkpointer.conn.commit()
+    finally:
+        await cursor.close()
+
+
+async def _ensure_migrations_table(conn: aiosqlite.Connection) -> None:
+    cursor = await conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS openfic_checkpoint_migrations (
+            name TEXT PRIMARY KEY
+        )
+        """
+    )
+    await cursor.close()
+
+
+async def _has_migration_completed(conn: aiosqlite.Connection, name: str) -> bool:
+    cursor = await conn.execute(
+        "SELECT 1 FROM openfic_checkpoint_migrations WHERE name = ?",
+        (name,),
+    )
+    try:
+        return await cursor.fetchone() is not None
+    finally:
+        await cursor.close()
+
+
+async def _mark_incremental_auto_vacuum_migration_completed(
+    conn: aiosqlite.Connection,
+) -> None:
+    await _ensure_migrations_table(conn)
+    cursor = await conn.execute(
+        "INSERT INTO openfic_checkpoint_migrations (name) VALUES (?)",
+        (_INCREMENTAL_AUTO_VACUUM_MIGRATION,),
+    )
+    try:
+        await conn.commit()
     finally:
         await cursor.close()
 
@@ -457,12 +500,14 @@ async def migrate_checkpoint_database_to_incremental(
 
     conn = await aiosqlite.connect(db_path)
     try:
-        if await _get_pragma_int(conn, "auto_vacuum") == 2:
+        await _ensure_migrations_table(conn)
+        if await _has_migration_completed(conn, _INCREMENTAL_AUTO_VACUUM_MIGRATION):
             return False
 
         await conn.execute("PRAGMA auto_vacuum = INCREMENTAL")
         await conn.commit()
         await _run_full_vacuum(conn, progress_callback)
+        await _mark_incremental_auto_vacuum_migration_completed(conn)
         return True
     finally:
         await conn.close()

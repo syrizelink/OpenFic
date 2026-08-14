@@ -193,7 +193,7 @@ async def _run_startup_maintenance() -> None:
         maintenance_state.update(
             phase="pruning",
             message="Checkpoint pruning completed.",
-            progress=1.0,
+            progress=None,
             deleted_rows=deleted_rows,
         )
 
@@ -214,22 +214,34 @@ async def _run_startup_maintenance() -> None:
         await incremental_vacuum_checkpoint_database(
             progress_callback=_update_checkpoint_maintenance_progress,
         )
-        await init_checkpointer()
-
         maintenance_state.update(
             phase="cleanup",
             message="Cleaning auxiliary local data.",
             progress=None,
         )
+        await init_checkpointer()
+
         await _cleanup_chapter_export_files()
         await _cleanup_orphaned_agent_attachment_files()
         await _cleanup_orphaned_task_data()
         await _vacuum_main_database()
         await start_background_runtime()
         maintenance_state.complete()
-    except Exception as exc:
-        maintenance_state.fail(str(exc))
+    except Exception:
         logger.exception("Local database maintenance failed")
+        maintenance_state.fail("Local database maintenance failed")
+        await _restore_checkpointer_and_runtime()
+
+
+async def _restore_checkpointer_and_runtime() -> None:
+    """Best-effort recovery so a failed maintenance does not leave the backend degraded."""
+    try:
+        await init_checkpointer()
+        await start_background_runtime()
+    except Exception:
+        logger.exception(
+            "Failed to restore checkpointer/background runtime after maintenance failure"
+        )
 
 
 async def _cleanup_chapter_export_files() -> None:

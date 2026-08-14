@@ -120,6 +120,14 @@ class MaintenanceState:
                 ),
             )
 
+    def is_checkpoint_locked(self) -> bool:
+        """True while maintenance holds the checkpoint DB exclusively."""
+        with self._lock:
+            return (
+                self._snapshot.status == "running"
+                and self._snapshot.phase in {"migrating", "vacuuming"}
+            )
+
     def _elapsed_seconds(self) -> float:
         if self._started_at is None:
             return 0.0

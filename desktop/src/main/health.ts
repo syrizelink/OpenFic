@@ -2,6 +2,7 @@ import { net } from "electron";
 import type { ChildProcess } from "node:child_process";
 
 const DEFAULT_TIMEOUT_MS = 60_000;
+const MAINTENANCE_TIMEOUT_MS = 60 * 60_000;
 
 export interface BackendHealth {
   status: "healthy";
@@ -134,6 +135,7 @@ export interface BackendMaintenanceStatus {
 interface WaitForBackendMaintenanceOptions {
   process?: ChildProcess;
   signal?: AbortSignal;
+  timeoutMs?: number | null;
   onProgress?: (status: BackendMaintenanceStatus) => void;
 }
 
@@ -146,20 +148,10 @@ export function parseBackendMaintenanceStatus(value: unknown): BackendMaintenanc
     error?: unknown;
   };
   const statuses = new Set(["pending", "running", "ready", "failed"]);
-  const phases = new Set([
-    "pending",
-    "pruning",
-    "migrating",
-    "vacuuming",
-    "cleanup",
-    "ready",
-    "failed",
-  ]);
   if (
     typeof candidate.status !== "string" ||
     !statuses.has(candidate.status) ||
-    typeof candidate.phase !== "string" ||
-    !phases.has(candidate.phase)
+    typeof candidate.phase !== "string"
   ) {
     return null;
   }
@@ -186,7 +178,9 @@ export async function waitForBackendMaintenance(
 ): Promise<BackendMaintenanceStatus> {
   const statusUrl = `${baseUrl.replace(/\/+$/, "")}/api/v1/health/maintenance`;
   const controller = new AbortController();
+  const timeoutMs = options.timeoutMs ?? MAINTENANCE_TIMEOUT_MS;
   let processError: Error | null = null;
+  let timedOut = false;
 
   const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
     processError = createBackendExitError(statusUrl, code, signal);
@@ -197,6 +191,12 @@ export async function waitForBackendMaintenance(
     controller.abort();
   };
   const abortWait = () => controller.abort();
+  const timeout = timeoutMs === null
+    ? undefined
+    : setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, timeoutMs);
 
   options.signal?.addEventListener("abort", abortWait, { once: true });
   options.process?.once("exit", onExit);
@@ -231,22 +231,26 @@ export async function waitForBackendMaintenance(
       }
 
       await new Promise<void>((resolve) => {
-        const timer = setTimeout(resolve, 500);
-        controller.signal.addEventListener(
-          "abort",
-          () => {
-            clearTimeout(timer);
-            resolve();
-          },
-          { once: true },
-        );
+        const onAbort = () => {
+          clearTimeout(timer);
+          resolve();
+        };
+        const timer = setTimeout(() => {
+          controller.signal.removeEventListener("abort", onAbort);
+          resolve();
+        }, 500);
+        controller.signal.addEventListener("abort", onAbort, { once: true });
       });
     }
 
     throwIfAborted(options.signal);
     if (processError) throw processError;
+    if (timedOut) {
+      throw new Error(`backend maintenance timed out after ${timeoutMs}ms`);
+    }
     throw new Error(`backend maintenance status unavailable: ${statusUrl}`);
   } finally {
+    if (timeout) clearTimeout(timeout);
     options.signal?.removeEventListener("abort", abortWait);
     options.process?.off("exit", onExit);
     options.process?.off("error", onError);

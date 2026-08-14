@@ -493,7 +493,6 @@ export async function startLocalOpenFicBackend(
     const health = await waitForBackend(handle.baseUrl, {
       process: handle.process,
       signal,
-      timeoutMs: null,
     });
     if (healthFallbackTimer) clearTimeout(healthFallbackTimer);
     startupProgress?.begin({
@@ -513,18 +512,21 @@ export async function startLocalOpenFicBackend(
       progress: 0.92,
       indeterminate: true,
     });
+    let maintenanceProgress = 0.92;
     await waitForBackendMaintenance(handle.baseUrl, {
       process: handle.process,
       signal,
       onProgress: (maintenance) => {
+        const mapped =
+          maintenance.progress === null
+            ? 0.95
+            : 0.92 + maintenance.progress * 0.07;
+        maintenanceProgress = Math.max(maintenanceProgress, mapped);
         startupProgress?.update({
           step: "maintain-database",
           title: "维护本地数据库",
           message: "正在清理和压缩本地数据",
-          progress:
-            maintenance.progress === null
-              ? 0.95
-              : 0.92 + maintenance.progress * 0.07,
+          progress: maintenanceProgress,
           indeterminate: maintenance.progress === null,
           maintenancePhase: maintenance.phase,
         });
