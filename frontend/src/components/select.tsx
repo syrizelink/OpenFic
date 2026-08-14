@@ -22,6 +22,7 @@ export interface SelectOption {
   suffix?: ReactNode;
   description?: string;
   labelColor?: string;
+  fontFamily?: string;
   disabled?: boolean;
   separatorAfter?: boolean;
 }
@@ -44,7 +45,10 @@ function SelectOptionContent({ option, size }: { option: SelectOption; size: "1"
         <Text
           size={size}
           truncate
-          style={option.labelColor ? { color: option.labelColor } : undefined}
+          style={{
+            fontFamily: option.fontFamily,
+            ...(option.labelColor ? { color: option.labelColor } : undefined),
+          }}
         >
           {option.label}
         </Text>
@@ -67,7 +71,10 @@ function SelectOptionContent({ option, size }: { option: SelectOption; size: "1"
       <Text
         size={size}
         truncate
-        style={option.labelColor ? { color: option.labelColor } : undefined}
+        style={{
+          fontFamily: option.fontFamily,
+          ...(option.labelColor ? { color: option.labelColor } : undefined),
+        }}
       >
         {option.label}
       </Text>
@@ -169,6 +176,7 @@ export function LabeledSelect({
               size={size}
               color={selectedOption ? undefined : "gray"}
               className="select-option-label"
+              style={{ fontFamily: selectedOption?.fontFamily }}
             >
               {triggerLabel}
             </Text>
@@ -284,6 +292,7 @@ export function SimpleSelect({
               size={size}
               color={selectedOption ? undefined : "gray"}
               className="select-option-label"
+              style={{ fontFamily: selectedOption?.fontFamily }}
             >
               {triggerLabel}
             </Text>
@@ -385,6 +394,7 @@ export function SearchableSelect({
               size={size}
               color={selectedOption ? undefined : "gray"}
               className="select-option-label"
+              style={{ fontFamily: selectedOption?.fontFamily }}
             >
               {selectedOption?.label || placeholder}
             </Text>

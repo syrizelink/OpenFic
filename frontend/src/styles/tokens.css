@@ -1,34 +1,10 @@
-@font-face {
-  font-family: "SourceHanSansCN-VF";
-  src: url("/fonts/SourceHanSansCN-VF.ttf.woff2") format("woff2");
-  font-weight: 200 900;
-  font-style: normal;
-  font-display: block;
-}
-
-@font-face {
-  font-family: "SourceHanSerifCN-VF";
-  src: url("/fonts/SourceHanSerifCN-VF.ttf.woff2") format("woff2");
-  font-weight: 200 900;
-  font-style: normal;
-  font-display: block;
-}
-
-@font-face {
-  font-family: "JetBrainsMapleMono";
-  src: url("/fonts/JetBrainsMapleMono.woff2") format("woff2");
-  font-weight: 200 900;
-  font-style: normal;
-  font-display: swap;
-}
-
 :root {
   --app-font-family:
-    "SourceHanSerifCN-VF", "SourceHanSansCN-VF", "Source Han Serif SC",
-    "Noto Serif CJK SC", Georgia, "PingFang SC", "Microsoft YaHei", serif;
+    "Noto Serif SC Variable", "Noto Sans SC Variable", Georgia, "PingFang SC", "Microsoft YaHei",
+    serif;
   --code-font-family:
-    "JetBrainsMapleMono", ui-monospace, "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas,
-    "Courier New", monospace;
+    "JetBrains Mono Variable", ui-monospace, "SF Mono", Monaco, "Cascadia Code", "Roboto Mono",
+    Consolas, "Courier New", monospace;
   font-family: var(--app-font-family);
   line-height: 1.5;
   font-weight: 400;

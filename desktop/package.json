@@ -17,6 +17,17 @@
     "serve:local-update": "node scripts/serve-local-update.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/cascadia-code": "^5.3.0",
+    "@fontsource-variable/fira-code": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/noto-sans-sc": "^5.3.0",
+    "@fontsource-variable/noto-serif-sc": "^5.3.0",
+    "@fontsource-variable/roboto-mono": "^5.3.0",
+    "@fontsource-variable/source-code-pro": "^5.3.0",
+    "@fontsource/ma-shan-zheng": "^5.3.0",
+    "@fontsource/wdxl-lubrifont-sc": "^5.3.0",
+    "@fontsource/zcool-kuaile": "^5.3.0",
+    "@fontsource/zcool-xiaowei": "^5.3.0",
     "@radix-ui/themes": "^3.3.0",
     "electron-updater": "^6.8.9",
     "i18next": "^25.10.10",

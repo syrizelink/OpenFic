@@ -353,7 +353,7 @@
 
 .dashboard-metric-value {
   color: var(--gray-12);
-  font-family: var(--code-font-family, "JetBrainsMapleMono", monospace);
+  font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
   font-size: 24px;
   font-weight: 700;
   letter-spacing: -0.04em;
@@ -952,7 +952,7 @@
   margin: 0;
   padding: 12px;
   color: var(--gray-12);
-  font-family: var(--code-font-family, "JetBrainsMapleMono", monospace);
+  font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
   font-size: 12px;
   line-height: 1.7;
   white-space: pre-wrap;
@@ -975,7 +975,7 @@
   min-height: 38px;
   padding: 8px 12px;
   color: var(--gray-12);
-  font-family: var(--code-font-family, "JetBrainsMapleMono", monospace);
+  font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
   font-size: 12px;
   font-weight: 600;
   list-style: none;
@@ -1029,7 +1029,7 @@
 .dashboard-output-error-type {
   overflow: hidden;
   color: var(--red-11);
-  font-family: var(--code-font-family, "JetBrainsMapleMono", monospace);
+  font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
   font-size: 12px;
   font-weight: 600;
   text-overflow: ellipsis;

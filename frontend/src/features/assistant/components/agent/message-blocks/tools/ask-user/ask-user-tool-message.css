@@ -54,7 +54,7 @@
   justify-content: center;
   margin-top: 1px;
   color: var(--gray-10);
-  font-family: "JetBrainsMapleMono", monospace;
+  font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
   font-size: 11px;
   line-height: 1;
   background: var(--gray-a3);

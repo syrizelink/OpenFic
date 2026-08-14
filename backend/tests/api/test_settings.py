@@ -80,8 +80,8 @@ async def test_get_settings_default(client: AsyncClient) -> None:
     # 验证默认值
     assert data["language"] == "zh-CN"
     assert data["theme"] == "light"
-    assert data["font_family"] == "SourceHanSerifCN-VF"
-    assert data["code_font_family"] == "JetBrainsMapleMono"
+    assert data["font_family"] == "system-ui"
+    assert data["code_font_family"] == "ui-monospace"
     assert data["default_model"] == ""
     assert data["light_model"] == ""
     assert data["default_embedding_model"] == ""
@@ -110,7 +110,7 @@ async def test_update_settings_language(client: AsyncClient) -> None:
     assert data["language"] == "en"
     # 其他设置保持默认值
     assert data["theme"] == "light"
-    assert data["font_family"] == "SourceHanSerifCN-VF"
+    assert data["font_family"] == "system-ui"
 
 
 @pytest.mark.asyncio
@@ -130,11 +130,11 @@ async def test_update_settings_font(client: AsyncClient) -> None:
     """测试更新字体设置。"""
     response = await client.put(
         "/api/v1/settings",
-        json={"font_family": "SourceHanSansCN-VF"},
+        json={"font_family": "Noto Sans SC Variable"},
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["font_family"] == "SourceHanSansCN-VF"
+    assert data["font_family"] == "Noto Sans SC Variable"
 
 
 @pytest.mark.asyncio
@@ -145,14 +145,14 @@ async def test_update_settings_multiple(client: AsyncClient) -> None:
         json={
             "language": "en",
             "theme": "dark",
-            "font_family": "SourceHanSansCN-VF",
+            "font_family": "Noto Sans SC Variable",
         },
     )
     assert response.status_code == 200
     data = response.json()
     assert data["language"] == "en"
     assert data["theme"] == "dark"
-    assert data["font_family"] == "SourceHanSansCN-VF"
+    assert data["font_family"] == "Noto Sans SC Variable"
 
 
 @pytest.mark.asyncio
@@ -178,7 +178,7 @@ async def test_update_settings_partial(client: AsyncClient) -> None:
     # 先设置初始值
     await client.put(
         "/api/v1/settings",
-        json={"language": "en", "theme": "dark", "font_family": "SourceHanSansCN-VF"},
+        json={"language": "en", "theme": "dark", "font_family": "Noto Sans SC Variable"},
     )
 
     # 只更新语言
@@ -192,7 +192,7 @@ async def test_update_settings_partial(client: AsyncClient) -> None:
     assert data["language"] == "zh-CN"
     # 其他设置保持不变
     assert data["theme"] == "dark"
-    assert data["font_family"] == "SourceHanSansCN-VF"
+    assert data["font_family"] == "Noto Sans SC Variable"
 
 
 @pytest.mark.asyncio

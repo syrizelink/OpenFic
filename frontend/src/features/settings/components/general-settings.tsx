@@ -103,7 +103,7 @@ export function GeneralSettings({
         {/* 代码字体设置 */}
         <LabeledSelect
           label={t("settings.codeFontFamily")}
-          value={settings.codeFontFamily || "JetBrainsMapleMono"}
+          value={settings.codeFontFamily || "JetBrains Mono Variable"}
           options={getCodeFontOptions(t)}
           onChange={handleCodeFontChange}
           disabled={isSaving}

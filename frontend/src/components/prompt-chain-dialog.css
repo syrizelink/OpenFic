@@ -68,7 +68,7 @@
   padding: 12px 18px 12px 12px;
   border-top: 1px solid var(--gray-a4);
   color: var(--gray-12);
-  font-family: var(--code-font-family, "JetBrainsMapleMono", monospace);
+  font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
   font-size: 12px;
   line-height: 1.7;
   white-space: pre-wrap;

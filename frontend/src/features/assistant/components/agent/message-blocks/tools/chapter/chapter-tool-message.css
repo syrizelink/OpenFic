@@ -15,7 +15,7 @@
 
 .agent-chapter-tool-change {
   flex: 0 0 auto;
-  font-family: "JetBrainsMapleMono", monospace;
+  font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;

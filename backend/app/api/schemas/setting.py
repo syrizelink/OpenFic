@@ -38,8 +38,8 @@ class SettingsResponse(BaseModel):
 
     language: str = Field(default="zh-CN", description="语言")
     theme: str = Field(default="light", description="主题")
-    font_family: str = Field(default="SourceHanSerifCN-VF", description="字体")
-    code_font_family: str = Field(default="JetBrainsMapleMono", description="代码字体")
+    font_family: str = Field(default="system-ui", description="字体")
+    code_font_family: str = Field(default="ui-monospace", description="代码字体")
     default_model: str = Field(default="", description="默认模型 ID")
     light_model: str = Field(default="", description="轻量模型 ID")
     default_embedding_model: str = Field(default="", description="默认 Embedding 模型 ID")

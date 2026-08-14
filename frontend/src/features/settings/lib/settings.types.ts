@@ -105,6 +105,7 @@ export interface AuditDetailsStorage {
 export interface FontOption {
   value: string;
   label: string;
+  fontFamily: string;
 }
 
 export interface FontDefinition {
@@ -112,28 +113,37 @@ export interface FontDefinition {
   labelKey: string;
 }
 
-export const DEFAULT_FONT_FAMILY = "SourceHanSerifCN-VF";
-export const DEFAULT_CODE_FONT_FAMILY = "JetBrainsMapleMono";
+export const DEFAULT_FONT_FAMILY = "Noto Serif SC Variable";
+export const DEFAULT_CODE_FONT_FAMILY = "JetBrains Mono Variable";
 export const SYSTEM_FONT_FAMILY = "system-ui";
 export const SYSTEM_CODE_FONT_FAMILY = "ui-monospace";
 
 /** 可用字体列表 */
 export const FONT_OPTIONS: FontDefinition[] = [
   { value: SYSTEM_FONT_FAMILY, labelKey: "settings.fontOptionSystemDefault" },
-  { value: "SourceHanSerifCN-VF", labelKey: "settings.fontOptionSourceHanSerif" },
-  { value: "SourceHanSansCN-VF", labelKey: "settings.fontOptionSourceHanSans" },
+  { value: "Noto Serif SC Variable", labelKey: "settings.fontOptionNotoSerifSC" },
+  { value: "Noto Sans SC Variable", labelKey: "settings.fontOptionNotoSansSC" },
+  { value: "ZCOOL KuaiLe", labelKey: "settings.fontOptionZcoolKuaiLe" },
+  { value: "ZCOOL XiaoWei", labelKey: "settings.fontOptionZcoolXiaoWei" },
+  { value: "Ma Shan Zheng", labelKey: "settings.fontOptionMaShanZheng" },
+  { value: "WDXL Lubrifont SC", labelKey: "settings.fontOptionWdXlLubrifontSc" },
 ];
 
 /** 代码字体选项 */
 export const CODE_FONT_OPTIONS: FontDefinition[] = [
   { value: SYSTEM_CODE_FONT_FAMILY, labelKey: "settings.fontOptionSystemDefault" },
-  { value: DEFAULT_CODE_FONT_FAMILY, labelKey: "settings.fontOptionJetBrainsMapleMono" },
+  { value: "JetBrains Mono Variable", labelKey: "settings.fontOptionJetBrainsMono" },
+  { value: "Fira Code Variable", labelKey: "settings.fontOptionFiraCode" },
+  { value: "Roboto Mono Variable", labelKey: "settings.fontOptionRobotoMono" },
+  { value: "Source Code Pro Variable", labelKey: "settings.fontOptionSourceCodePro" },
+  { value: "Cascadia Code Variable", labelKey: "settings.fontOptionCascadiaCode" },
 ];
 
 export function getFontOptions(t: (key: string) => string): FontOption[] {
   return FONT_OPTIONS.map((option) => ({
     value: option.value,
     label: t(option.labelKey),
+    fontFamily: option.value,
   }));
 }
 
@@ -141,6 +151,7 @@ export function getCodeFontOptions(t: (key: string) => string): FontOption[] {
   return CODE_FONT_OPTIONS.map((option) => ({
     value: option.value,
     label: t(option.labelKey),
+    fontFamily: option.value,
   }));
 }
 

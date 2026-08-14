@@ -12,9 +12,9 @@ import {
 import { publishDesktopAppearance } from "./desktop-appearance-bridge";
 
 const appFontFallbacks =
-  '"SourceHanSerifCN-VF", "SourceHanSansCN-VF", "Source Han Serif SC", "Noto Serif CJK SC", Georgia, "PingFang SC", "Microsoft YaHei", serif';
+  '"Noto Serif SC Variable", "Noto Sans SC Variable", Georgia, "PingFang SC", "Microsoft YaHei", serif';
 const codeFontFallbacks =
-  '"JetBrainsMapleMono", ui-monospace, "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace';
+  '"JetBrains Mono Variable", ui-monospace, "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace';
 
 function buildFontStack(fontFamily: string, systemFontFamily: string, fallbacks: string): string {
   if (fontFamily === systemFontFamily) return `${systemFontFamily}, ${fallbacks}`;

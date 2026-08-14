@@ -24,6 +24,17 @@ import { connectSocket } from "./lib/socket-client";
 import { preloadTiktokenEncoding } from "./lib/tiktoken-utils";
 
 import "streamdown/styles.css";
+import "@fontsource-variable/cascadia-code";
+import "@fontsource-variable/fira-code";
+import "@fontsource-variable/jetbrains-mono";
+import "@fontsource-variable/noto-sans-sc";
+import "@fontsource-variable/noto-serif-sc";
+import "@fontsource-variable/roboto-mono";
+import "@fontsource-variable/source-code-pro";
+import "@fontsource/ma-shan-zheng";
+import "@fontsource/wdxl-lubrifont-sc";
+import "@fontsource/zcool-kuaile";
+import "@fontsource/zcool-xiaowei";
 import "./styles/index.css";
 
 import { registerSW } from "./pwa/register-sw";

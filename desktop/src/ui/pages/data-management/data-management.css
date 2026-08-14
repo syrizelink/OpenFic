@@ -103,7 +103,7 @@
   margin: 0;
   color: var(--gray-11);
   font-size: 12px;
-  font-family: var(--code-font-family, "JetBrainsMapleMono", monospace);
+  font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
   word-break: break-all;
 }
 

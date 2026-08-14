@@ -360,7 +360,7 @@
   border: 1px solid var(--gray-a6);
   background: var(--color-background);
   color: var(--gray-12);
-  font-family: var(--code-font-family, "JetBrainsMapleMono", monospace);
+  font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -548,7 +548,7 @@
 .setup-step-detail {
   color: var(--gray-11);
   font-size: 12px;
-  font-family: var(--code-font-family, "JetBrainsMapleMono", monospace);
+  font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
   min-height: 16px;
 }
 
@@ -579,7 +579,7 @@
   justify-content: space-between;
   color: var(--gray-10);
   font-size: 11px;
-  font-family: var(--code-font-family, "JetBrainsMapleMono", monospace);
+  font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
 }
 
 /* success */

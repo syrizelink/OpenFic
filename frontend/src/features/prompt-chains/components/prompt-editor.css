@@ -60,7 +60,7 @@
   width: 100%;
   min-height: 200px;
   outline: none;
-  font-family: var(--code-font-family, "JetBrainsMapleMono", ui-monospace, monospace);
+  font-family: var(--code-font-family, "JetBrains Mono Variable", ui-monospace, monospace);
   font-size: 14px;
   white-space: pre-wrap;
 }
@@ -73,7 +73,7 @@
 .prompt-editor-content p {
   margin: 0;
   color: inherit;
-  font-family: var(--code-font-family, "JetBrainsMapleMono", ui-monospace, monospace);
+  font-family: var(--code-font-family, "JetBrains Mono Variable", ui-monospace, monospace);
   font-size: 14px;
   line-height: 1.6;
 }
