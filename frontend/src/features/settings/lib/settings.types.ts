@@ -30,6 +30,8 @@ export interface Settings {
   theme: ThemeMode;
   fontFamily: string;
   codeFontFamily: string;
+  baseFontSize: number;
+  editorFontSize: number;
   defaultModel: string;
   lightModel: string;
   defaultEmbeddingModel: string;
@@ -52,6 +54,8 @@ export interface SettingsResponse {
   theme: string;
   font_family: string;
   code_font_family?: string;
+  base_font_size?: number;
+  editor_font_size?: number;
   default_model: string;
   light_model: string;
   default_embedding_model: string;
@@ -77,6 +81,8 @@ export interface SettingsUpdateRequest {
   theme?: string;
   font_family?: string;
   code_font_family?: string;
+  base_font_size?: number;
+  editor_font_size?: number;
   default_model?: string;
   light_model?: string;
   default_embedding_model?: string;

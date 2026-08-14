@@ -56,7 +56,7 @@
   outline: none;
   background: transparent;
   color: var(--gray-12);
-  font-size: var(--font-size-2);
+  font-size: var(--font-size-base);
   line-height: var(--line-height-2);
 }
 

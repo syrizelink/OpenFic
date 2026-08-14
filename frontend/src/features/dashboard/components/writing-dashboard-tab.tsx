@@ -47,19 +47,35 @@ const dashboardCalendarTextTheme = {
     domain: { line: { stroke: "var(--gray-a6)" } },
     ticks: {
       line: { stroke: "var(--gray-a6)" },
-      text: { fill: "var(--gray-11)", fontFamily: dashboardCalendarFontFamily, fontSize: 13 },
+      text: {
+        fill: "var(--gray-11)",
+        fontFamily: dashboardCalendarFontFamily,
+        fontSize: "var(--font-size-md)",
+      },
     },
     legend: {
-      text: { fill: "var(--gray-11)", fontFamily: dashboardCalendarFontFamily, fontSize: 13 },
+      text: {
+        fill: "var(--gray-11)",
+        fontFamily: dashboardCalendarFontFamily,
+        fontSize: "var(--font-size-md)",
+      },
     },
   },
   grid: { line: { stroke: "var(--gray-a4)" } },
   crosshair: { line: { stroke: "var(--gray-12)", strokeWidth: 1 } },
   legends: {
-    text: { fill: "var(--gray-11)", fontFamily: dashboardCalendarFontFamily, fontSize: 13 },
+    text: {
+      fill: "var(--gray-11)",
+      fontFamily: dashboardCalendarFontFamily,
+      fontSize: "var(--font-size-md)",
+    },
   },
   labels: {
-    text: { fill: "var(--gray-12)", fontFamily: dashboardCalendarFontFamily, fontSize: 13 },
+    text: {
+      fill: "var(--gray-12)",
+      fontFamily: dashboardCalendarFontFamily,
+      fontSize: "var(--font-size-md)",
+    },
   },
   tooltip: {
     container: {
@@ -67,7 +83,7 @@ const dashboardCalendarTextTheme = {
       background: "var(--color-panel-solid)",
       color: "var(--gray-12)",
       fontFamily: dashboardCalendarFontFamily,
-      fontSize: "13px",
+      fontSize: "var(--font-size-md)",
     },
   },
 };

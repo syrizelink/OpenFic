@@ -11,7 +11,7 @@
   background: transparent;
   color: var(--gray-9);
   font-family: inherit;
-  font-size: 14px;
+  font-size: var(--font-size-base);
   text-align: left;
   cursor: pointer;
   transition:
@@ -162,14 +162,14 @@
 
 .summary-volume-label {
   color: var(--gray-9);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   margin-right: 6px;
 }
 
 .summary-volume-meta {
   color: var(--gray-9);
   margin-right: 6px;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
 }
 
 .summary-range-separator {
@@ -265,7 +265,7 @@
   background: transparent;
   color: var(--gray-11);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--font-size-md);
   cursor: pointer;
 }
 

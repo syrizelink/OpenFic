@@ -28,6 +28,8 @@ export function transformSettings(raw: SettingsResponse): Settings {
     theme: raw.theme as Settings["theme"],
     fontFamily: getSupportedFontFamily(raw.font_family),
     codeFontFamily: getSupportedCodeFontFamily(raw.code_font_family || DEFAULT_CODE_FONT_FAMILY),
+    baseFontSize: raw.base_font_size ?? 14,
+    editorFontSize: raw.editor_font_size ?? 16,
     defaultModel: raw.default_model || "",
     lightModel: raw.light_model || "",
     defaultEmbeddingModel: raw.default_embedding_model || "",

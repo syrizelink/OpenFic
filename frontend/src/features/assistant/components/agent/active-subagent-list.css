@@ -56,7 +56,7 @@
   min-width: 0;
   line-height: 1.2;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   font-weight: 400;
   color: var(--gray-11);
 }
@@ -131,18 +131,18 @@
 }
 
 .active-subagent-row-agent {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
 }
 
 .active-subagent-row-status {
   color: var(--gray-10);
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
 }
 
 .active-subagent-row-queue {
   color: var(--gray-9);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
 }
 

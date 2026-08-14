@@ -9,8 +9,9 @@
   border-top: 1px solid var(--gray-a5);
   color: var(--gray-11);
   background: var(--gray-2);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   line-height: 1;
+  -webkit-user-select: none;
   user-select: none;
 }
 

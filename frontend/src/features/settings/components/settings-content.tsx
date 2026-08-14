@@ -11,7 +11,13 @@ import { saveLanguagePreference } from "@/i18n";
 
 import "./settings-dialog.css";
 
-import { applyCodeFontFamily, applyFontFamily, loadConfiguredFonts } from "@/lib/font-utils";
+import {
+  applyBaseFontSize,
+  applyCodeFontFamily,
+  applyEditorFontSize,
+  applyFontFamily,
+  loadConfiguredFonts,
+} from "@/lib/font-utils";
 import { OVERALL_INDEX_STATUS_QUERY_KEY } from "@/lib/index-status";
 
 import { AdvancedSettings } from "../components/advanced-settings";
@@ -132,7 +138,14 @@ export function SettingsContent({
   useEffect(() => {
     if (serverSettings?.fontFamily) applyFontFamily(serverSettings.fontFamily);
     if (serverSettings?.codeFontFamily) applyCodeFontFamily(serverSettings.codeFontFamily);
-  }, [serverSettings?.fontFamily, serverSettings?.codeFontFamily]);
+    if (serverSettings?.baseFontSize) applyBaseFontSize(serverSettings.baseFontSize);
+    if (serverSettings?.editorFontSize) applyEditorFontSize(serverSettings.editorFontSize);
+  }, [
+    serverSettings?.fontFamily,
+    serverSettings?.codeFontFamily,
+    serverSettings?.baseFontSize,
+    serverSettings?.editorFontSize,
+  ]);
 
   useEffect(() => {
     function handleResize() {
@@ -161,6 +174,8 @@ export function SettingsContent({
         theme: settings.theme,
         font_family: settings.fontFamily,
         code_font_family: settings.codeFontFamily,
+        base_font_size: settings.baseFontSize,
+        editor_font_size: settings.editorFontSize,
         agent_tool_permissions: settings.agentToolPermissions.map((item) => ({
           tool_name: item.toolName,
           mode: item.mode,
@@ -186,6 +201,8 @@ export function SettingsContent({
         onAppearanceChange(previousSettings.theme);
         applyFontFamily(previousSettings.fontFamily);
         applyCodeFontFamily(previousSettings.codeFontFamily);
+        applyBaseFontSize(previousSettings.baseFontSize);
+        applyEditorFontSize(previousSettings.editorFontSize);
         void loadConfiguredFonts(previousSettings.fontFamily, previousSettings.codeFontFamily);
       }
 
@@ -205,6 +222,8 @@ export function SettingsContent({
       onAppearanceChange(newSettings.theme);
       applyFontFamily(newSettings.fontFamily);
       applyCodeFontFamily(newSettings.codeFontFamily);
+      applyBaseFontSize(newSettings.baseFontSize);
+      applyEditorFontSize(newSettings.editorFontSize);
       void loadConfiguredFonts(newSettings.fontFamily, newSettings.codeFontFamily);
       setEditedSettings(newSettings);
       saveMutation.mutate(newSettings);

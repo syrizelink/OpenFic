@@ -141,7 +141,7 @@ export function TitleInput({
           border: "none",
           outline: "none",
           background: "transparent",
-          fontSize: "2rem",
+          fontSize: "calc(var(--font-size-editor) * 2)",
           fontWeight: 700,
           lineHeight: 1.3,
           color: "var(--gray-12)",

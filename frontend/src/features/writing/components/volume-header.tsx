@@ -70,7 +70,7 @@ function HeaderRenameInput({
         background: "transparent",
         color: "var(--gray-12)",
         fontFamily: "inherit",
-        fontSize: 14,
+        fontSize: "var(--font-size-base)",
         fontWeight: 600,
       }}
     />

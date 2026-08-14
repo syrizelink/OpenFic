@@ -5,6 +5,15 @@
   --code-font-family:
     "JetBrains Mono Variable", ui-monospace, "SF Mono", Monaco, "Cascadia Code", "Roboto Mono",
     Consolas, "Courier New", monospace;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 13px;
+  --font-size-base: 14px;
+  --font-size-lg: 15px;
+  --font-size-xl: 16px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 28px;
+  --font-size-editor: 16px;
   font-family: var(--app-font-family);
   line-height: 1.5;
   font-weight: 400;

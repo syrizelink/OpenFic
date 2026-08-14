@@ -338,7 +338,7 @@ export function AgentInput({
                     borderRadius: "10px",
                     background: "var(--gray-a3)",
                     color: "var(--gray-11)",
-                    fontSize: "12px",
+                    fontSize: "var(--font-size-sm)",
                     lineHeight: 1.5,
                   }}
                 >
@@ -485,7 +485,7 @@ export function AgentInput({
                       contentClassName="ai-sidebar-agent-select-content"
                       triggerClassName="ai-sidebar-inline-select-trigger ai-sidebar-agent-select-trigger"
                       triggerStyle={{
-                        fontSize: "12px",
+                        fontSize: "var(--font-size-sm)",
                         border: "none",
                         background: "transparent",
                         boxShadow: "none",
@@ -513,7 +513,7 @@ export function AgentInput({
                       hideTriggerChevron
                       triggerClassName="ai-sidebar-inline-select-trigger"
                       triggerStyle={{
-                        fontSize: "12px",
+                        fontSize: "var(--font-size-sm)",
                         border: "none",
                         background: "transparent",
                         boxShadow: "none",
@@ -530,7 +530,7 @@ export function AgentInput({
                         hideTriggerChevron
                         triggerClassName="ai-sidebar-inline-select-trigger ai-sidebar-reasoning-effort-trigger"
                         triggerStyle={{
-                          fontSize: "12px",
+                          fontSize: "var(--font-size-sm)",
                           border: "none",
                           background: "transparent",
                           boxShadow: "none",

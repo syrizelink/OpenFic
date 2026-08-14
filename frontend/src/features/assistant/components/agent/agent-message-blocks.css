@@ -82,6 +82,7 @@
 .agent-message-block-toolbar-timestamp {
   color: var(--gray-9);
   font-variant-numeric: tabular-nums;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -118,7 +119,7 @@
   position: relative;
   overflow: hidden;
   padding: 9px 10px;
-  font-size: 13px;
+  font-size: var(--font-size-md);
   line-height: 1.35;
 }
 
@@ -252,7 +253,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--gray-12);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -261,13 +262,13 @@
 .agent-node-divider-status {
   flex: 0 0 auto;
   color: var(--gray-10);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
 }
 
 .agent-node-divider-timer {
   flex: 0 0 auto;
   color: var(--gray-10);
   font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-variant-numeric: tabular-nums;
 }

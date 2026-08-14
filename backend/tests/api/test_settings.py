@@ -82,6 +82,8 @@ async def test_get_settings_default(client: AsyncClient) -> None:
     assert data["theme"] == "light"
     assert data["font_family"] == "system-ui"
     assert data["code_font_family"] == "ui-monospace"
+    assert data["base_font_size"] == 14
+    assert data["editor_font_size"] == 16
     assert data["default_model"] == ""
     assert data["light_model"] == ""
     assert data["default_embedding_model"] == ""
@@ -135,6 +137,30 @@ async def test_update_settings_font(client: AsyncClient) -> None:
     assert response.status_code == 200
     data = response.json()
     assert data["font_family"] == "Noto Sans SC Variable"
+
+
+@pytest.mark.asyncio
+async def test_update_settings_base_font_size(client: AsyncClient) -> None:
+    """测试更新基础字号设置。"""
+    response = await client.put(
+        "/api/v1/settings",
+        json={"base_font_size": 16},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["base_font_size"] == 16
+
+
+@pytest.mark.asyncio
+async def test_update_settings_editor_font_size(client: AsyncClient) -> None:
+    """测试更新编辑器字号设置。"""
+    response = await client.put(
+        "/api/v1/settings",
+        json={"editor_font_size": 18},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["editor_font_size"] == 18
 
 
 @pytest.mark.asyncio

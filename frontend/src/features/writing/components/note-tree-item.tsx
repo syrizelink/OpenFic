@@ -75,7 +75,7 @@ function RenameInput({
         outline: "none",
         background: "transparent",
         fontFamily: "inherit",
-        fontSize: "14px",
+        fontSize: "var(--font-size-base)",
         fontWeight: 500,
         lineHeight: "20px",
         color: "var(--gray-12)",

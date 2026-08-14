@@ -40,6 +40,8 @@ class SettingsResponse(BaseModel):
     theme: str = Field(default="light", description="主题")
     font_family: str = Field(default="system-ui", description="字体")
     code_font_family: str = Field(default="ui-monospace", description="代码字体")
+    base_font_size: int = Field(default=14, description="基础字号（px）")
+    editor_font_size: int = Field(default=16, description="编辑器字号（px）")
     default_model: str = Field(default="", description="默认模型 ID")
     light_model: str = Field(default="", description="轻量模型 ID")
     default_embedding_model: str = Field(default="", description="默认 Embedding 模型 ID")
@@ -78,6 +80,8 @@ class SettingsUpdateRequest(BaseModel):
     theme: str | None = Field(default=None, description="主题")
     font_family: str | None = Field(default=None, description="字体")
     code_font_family: str | None = Field(default=None, description="代码字体")
+    base_font_size: int | None = Field(default=None, description="基础字号（px）")
+    editor_font_size: int | None = Field(default=None, description="编辑器字号（px）")
     default_model: str | None = Field(default=None, description="默认模型 ID")
     light_model: str | None = Field(default=None, description="轻量模型 ID")
     default_embedding_model: str | None = Field(

@@ -5,13 +5,13 @@
 .agent-structured-content {
   max-width: 95vw;
   padding-left: 24px;
-  font-size: 13px;
+  font-size: var(--font-size-md);
   line-height: 1.7;
 }
 
 .agent-output-content {
   max-width: 95vw;
-  font-size: 13px;
+  font-size: var(--font-size-md);
   line-height: 1.7;
 }
 
@@ -48,6 +48,7 @@
   display: flex;
   width: 100%;
   min-width: 0;
+  -webkit-user-select: none;
   user-select: none;
   transition: background-color 120ms ease-out;
 }
@@ -124,7 +125,7 @@
   flex-direction: column;
   gap: 8px;
   color: var(--gray-12);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   line-height: 1.7;
 }
 
@@ -143,7 +144,7 @@
   overflow: auto;
   color: var(--gray-11);
   font-family: var(--code-font-family, monospace);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -264,7 +265,7 @@
   border-radius: 8px;
   background: white;
   color: var(--gray-12);
-  font-size: 14px;
+  font-size: var(--font-size-base);
   line-height: 1.4;
   word-break: break-word;
 }
@@ -292,7 +293,7 @@
   display: grid;
   pointer-events: none;
   color: var(--accent-11);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   font-weight: 500;
   letter-spacing: 0.01em;
   text-align: center;
@@ -562,7 +563,7 @@
 }
 
 .ai-sidebar-inline-select-trigger .select-option-label {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   line-height: 16px;
 }
 
@@ -810,7 +811,7 @@
 .agent-clarification-question-title {
   padding: 0;
   color: var(--gray-12);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   font-weight: 500;
   line-height: 1.5;
 }
@@ -869,13 +870,13 @@
 }
 
 .agent-clarification-option-label {
-  font-size: 13px;
+  font-size: var(--font-size-md);
   line-height: 1.4;
 }
 
 .agent-clarification-option-description {
   color: var(--gray-10);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   line-height: 1.45;
 }
 
@@ -1096,7 +1097,7 @@
   background: transparent;
   resize: none;
   color: var(--gray-12);
-  font-size: 14px;
+  font-size: var(--font-size-base);
   line-height: 1.4;
   font-family: inherit;
   max-height: 160px;
@@ -1107,7 +1108,7 @@
   position: relative;
   display: inline-block;
   color: var(--gray-9);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
 }
 
 .text-shimmer::after {

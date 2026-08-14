@@ -46,7 +46,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-3);
-  font-size: 16px;
+  font-size: var(--font-size-xl);
   font-weight: 700;
   line-height: 1;
 }

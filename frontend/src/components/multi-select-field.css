@@ -21,7 +21,7 @@
   border-radius: var(--radius-2);
   background: var(--color-panel-solid);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--font-size-md);
   line-height: 1.4;
   cursor: pointer;
 }
@@ -45,7 +45,7 @@
 }
 
 .multi-select-field__placeholder {
-  font-size: 13px;
+  font-size: var(--font-size-md);
   color: var(--gray-9);
 }
 
@@ -58,7 +58,7 @@
   border-radius: 999px;
   background: var(--gray-a3);
   color: var(--gray-12);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   line-height: 1.4;
 }
 
@@ -118,7 +118,7 @@
   min-height: 32px;
   padding: 6px 8px;
   border-radius: var(--radius-2);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   line-height: 1.4;
   cursor: pointer;
 }
@@ -142,5 +142,5 @@
 
 .multi-select-field__empty {
   padding: 10px;
-  font-size: 13px;
+  font-size: var(--font-size-md);
 }

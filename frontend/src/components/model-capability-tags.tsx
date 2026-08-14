@@ -145,7 +145,7 @@ export function ContextBadge({ label }: { label: string }) {
         color: "var(--gray-11)",
         background: "var(--gray-a3)",
         flexShrink: 0,
-        fontSize: 11,
+        fontSize: "var(--font-size-xs)",
         fontWeight: 600,
         lineHeight: 1,
       }}

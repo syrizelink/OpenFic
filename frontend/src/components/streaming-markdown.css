@@ -3,7 +3,7 @@
   max-width: 100%;
   color: inherit;
   font-family: var(--app-font-family, inherit);
-  font-size: inherit;
+  font-size: var(--font-size-base);
   font-weight: inherit;
   font-synthesis: style;
   line-height: 1.55;
@@ -226,7 +226,7 @@
   background: var(--gray-a2);
   color: var(--gray-12);
   font-family: var(--code-font-family, ui-monospace, monospace);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -444,7 +444,7 @@
   border-radius: 8px;
   background: var(--gray-a2);
   font-family: var(--code-font-family, ui-monospace, monospace);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   line-height: 1.65;
 }
 

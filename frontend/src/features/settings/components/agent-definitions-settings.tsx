@@ -151,7 +151,7 @@ function AgentForm({
 }: AgentFormProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const fieldLabelStyle = useMemo(() => ({ fontSize: 14 }), []);
+  const fieldLabelStyle = useMemo(() => ({ fontSize: "var(--font-size-base)" }), []);
 
   const [formDisplayName, setFormDisplayName] = useState(def.display_name);
   const [formDescription, setFormDescription] = useState(def.description);
@@ -463,7 +463,7 @@ function AgentForm({
                   borderRadius: 6,
                   border: "1px solid var(--gray-a5)",
                   cursor: isAgentSettingsLocked ? "not-allowed" : "pointer",
-                  fontSize: 13,
+                  fontSize: "var(--font-size-md)",
                 }}
               >
                 <Checkbox
@@ -516,7 +516,7 @@ function AgentForm({
                     border: "1px solid var(--gray-a5)",
                     cursor: disabled ? "not-allowed" : "pointer",
                     opacity: disabled ? 0.6 : 1,
-                    fontSize: 13,
+                    fontSize: "var(--font-size-md)",
                   }}
                   title={disabled ? t("settings.agentsSkillUnavailable") : skill.name}
                 >
@@ -569,7 +569,7 @@ function AgentForm({
                     borderRadius: 6,
                     border: "1px solid var(--gray-a5)",
                     cursor: isAgentSettingsLocked ? "not-allowed" : "pointer",
-                    fontSize: 13,
+                    fontSize: "var(--font-size-md)",
                   }}
                 >
                   <Checkbox

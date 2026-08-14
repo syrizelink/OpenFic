@@ -44,7 +44,7 @@
   align-items: center;
   justify-content: center;
   font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   line-height: 1;
 }
 
@@ -112,7 +112,7 @@
   min-width: 0;
   flex: 1 1 auto;
   color: var(--gray-12);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   line-height: 1.6;
 }
 

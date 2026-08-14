@@ -321,7 +321,7 @@ export function VersionDiffDialog({
         style={{
           background: isVisible ? bgColor : "var(--gray-a2)",
           minHeight: "20px",
-          fontSize: "12px",
+          fontSize: "var(--font-size-sm)",
           fontFamily: "var(--code-font-family, monospace)",
         }}
       >

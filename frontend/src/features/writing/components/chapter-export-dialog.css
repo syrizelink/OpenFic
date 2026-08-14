@@ -99,7 +99,7 @@
 .chapter-export-tree-button span {
   overflow: hidden;
   flex: 1;
-  font-size: 14px;
+  font-size: var(--font-size-base);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -187,7 +187,7 @@
   border-radius: var(--radius-2);
   background: var(--gray-2);
   color: var(--gray-12);
-  font-size: var(--font-size-2);
+  font-size: var(--font-size-base);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

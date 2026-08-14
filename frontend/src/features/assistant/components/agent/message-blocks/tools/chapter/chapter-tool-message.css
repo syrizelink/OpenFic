@@ -16,7 +16,7 @@
 .agent-chapter-tool-change {
   flex: 0 0 auto;
   font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
 }
@@ -90,7 +90,7 @@
   flex: 0 1 auto;
   overflow: hidden;
   color: var(--gray-12);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -118,7 +118,7 @@
   grid-template-columns: 46px minmax(0, 1fr);
   align-items: start;
   font-family: var(--code-font-family, monospace);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   line-height: 1.55;
   color: var(--gray-12);
 }
@@ -137,6 +137,7 @@
   padding: 4px 8px 4px 6px;
   color: var(--gray-10);
   text-align: right;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -158,6 +159,6 @@
 .agent-chapter-diff-empty {
   padding: 10px 12px;
   color: var(--gray-10);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   line-height: 1.55;
 }

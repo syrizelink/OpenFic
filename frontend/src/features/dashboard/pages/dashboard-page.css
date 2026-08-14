@@ -39,13 +39,13 @@
 
 .dashboard-title-eyebrow {
   color: var(--gray-10);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   letter-spacing: 0.08em;
 }
 
 .dashboard-title {
   color: var(--gray-12);
-  font-size: 28px;
+  font-size: var(--font-size-3xl);
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.15;
@@ -53,7 +53,7 @@
 
 .dashboard-subtitle {
   color: var(--gray-11);
-  font-size: 14px;
+  font-size: var(--font-size-base);
 }
 
 .dashboard-tab-nav {
@@ -98,7 +98,7 @@
 }
 
 .dashboard-tab-button span {
-  font-size: 15px;
+  font-size: var(--font-size-lg);
   font-weight: 400;
 }
 
@@ -234,7 +234,7 @@
 
 .dashboard-filter-label {
   color: var(--gray-11);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
 }
 
 .dashboard-filter-actions {
@@ -308,11 +308,11 @@
   --rdp-selected-border: 1px solid var(--gray-12);
   margin: 0;
   color: var(--gray-12);
-  font-size: 13px;
+  font-size: var(--font-size-md);
 }
 
 .dashboard-day-picker .rdp-caption_label {
-  font-size: 13px;
+  font-size: var(--font-size-md);
   font-weight: 700;
 }
 
@@ -348,13 +348,13 @@
 
 .dashboard-metric-label {
   color: var(--gray-10);
-  font-size: 13px;
+  font-size: var(--font-size-md);
 }
 
 .dashboard-metric-value {
   color: var(--gray-12);
   font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
-  font-size: 24px;
+  font-size: var(--font-size-2xl);
   font-weight: 700;
   letter-spacing: -0.04em;
   margin-top: 8px;
@@ -376,7 +376,7 @@
 
 .dashboard-metric-hint {
   color: var(--gray-10);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   margin-top: 6px;
 }
 
@@ -430,7 +430,7 @@
   color: var(--gray-11);
   background: transparent;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--font-size-md);
   text-align: center;
   cursor: pointer;
 }
@@ -448,7 +448,7 @@
 
 .dashboard-year-summary {
   color: var(--gray-12);
-  font-size: 16px;
+  font-size: var(--font-size-xl);
   font-weight: 700;
   line-height: 1.4;
 }
@@ -483,7 +483,7 @@
   justify-content: space-between;
   gap: 16px;
   color: var(--gray-12);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   line-height: 1.2;
 }
 
@@ -525,7 +525,7 @@
   background: var(--color-panel-solid);
   color: inherit;
   font-family: var(--app-font-family);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   line-height: 1.5;
   box-shadow: 0 4px 14px var(--black-a3);
   white-space: nowrap;
@@ -563,7 +563,7 @@
   overflow-y: auto;
   gap: 8px 14px;
   color: var(--gray-11);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   line-height: 1.2;
 }
 
@@ -653,13 +653,13 @@
 .dashboard-card-title,
 .dashboard-chart-title {
   color: var(--gray-12);
-  font-size: 15px;
+  font-size: var(--font-size-lg);
   font-weight: 700;
 }
 
 .dashboard-card-description {
   color: var(--gray-10);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
 }
 
 .dashboard-calendar-frame {
@@ -748,7 +748,7 @@
   place-items: center;
   height: 300px;
   color: var(--gray-10);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   text-align: center;
 }
 
@@ -797,7 +797,7 @@
   min-width: 1060px;
   border-collapse: collapse;
   font-family: var(--app-font-family);
-  font-size: 13px;
+  font-size: var(--font-size-md);
 }
 
 .dashboard-record-table th,
@@ -813,7 +813,7 @@
 .dashboard-record-table th {
   color: var(--gray-10);
   background: var(--gray-a2);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
 }
 
@@ -953,7 +953,7 @@
   padding: 12px;
   color: var(--gray-12);
   font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
@@ -976,7 +976,7 @@
   padding: 8px 12px;
   color: var(--gray-12);
   font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   list-style: none;
   cursor: pointer;
@@ -1030,7 +1030,7 @@
   overflow: hidden;
   color: var(--red-11);
   font-family: var(--code-font-family, "JetBrains Mono Variable", monospace);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1079,7 +1079,7 @@
   height: 28px;
   border-radius: var(--radius-2);
   color: var(--gray-11);
-  font-size: 13px;
+  font-size: var(--font-size-md);
 }
 
 .dashboard-pagination-page {
@@ -1106,6 +1106,7 @@
 
 .dashboard-pagination-ellipsis {
   color: var(--gray-9);
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -1318,6 +1319,6 @@
   }
 
   .dashboard-title {
-    font-size: 24px;
+    font-size: var(--font-size-2xl);
   }
 }

@@ -134,6 +134,7 @@ export function LabeledSelect({
   contentPosition = "popper",
   labelSize = "2",
   labelWeight = "medium",
+  labelColor,
   layout = "vertical",
   gap = "2",
   triggerLabelVisible = true,
@@ -218,6 +219,7 @@ export function LabeledSelect({
         <Text
           size={labelSize}
           weight={labelWeight}
+          color={labelColor}
         >
           {label}
         </Text>
@@ -234,6 +236,7 @@ export function LabeledSelect({
       <Text
         size={labelSize}
         weight={labelWeight}
+        color={labelColor}
       >
         {label}
       </Text>

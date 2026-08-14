@@ -36,7 +36,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   line-height: 1.4;
   color: inherit;
 }
@@ -62,7 +62,7 @@
   overflow-y: auto;
   outline: none;
   color: var(--gray-12);
-  font-size: 14px;
+  font-size: var(--font-size-base);
   line-height: 1.4;
   font-family: inherit;
   white-space: pre-wrap;
@@ -162,7 +162,7 @@
 .agent-mention-suggestion-title {
   display: inline;
   color: var(--gray-12);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   line-height: 1.3;
 }
 
@@ -170,13 +170,13 @@
   display: inline;
   margin-inline-start: 6px;
   color: var(--gray-10);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   line-height: 1.3;
 }
 
 .agent-mention-suggestion-state {
   padding: 11px 12px;
   color: var(--gray-10);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   line-height: 1.4;
 }

@@ -48,7 +48,7 @@
 .agent-message-shell-title,
 .agent-tool-card .agent-tool-title {
   color: var(--gray-11);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   line-height: 1.2;
   transition: color 120ms ease-out;
 }
@@ -80,7 +80,7 @@
   flex: 0 1 auto;
   overflow: hidden;
   color: var(--gray-10);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;

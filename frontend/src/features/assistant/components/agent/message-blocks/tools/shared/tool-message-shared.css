@@ -8,7 +8,7 @@
   flex-direction: column;
   gap: 8px;
   color: var(--gray-12);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   line-height: 1.7;
 }
 

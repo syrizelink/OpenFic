@@ -499,7 +499,7 @@ export function NoteSidebar({
                     border: "none",
                     outline: "none",
                     background: "transparent",
-                    fontSize: "var(--font-size-2)",
+                    fontSize: "var(--font-size-base)",
                     lineHeight: "var(--line-height-2)",
                     color: "var(--gray-12)",
                     padding: 0,

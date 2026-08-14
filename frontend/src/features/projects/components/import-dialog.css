@@ -81,7 +81,7 @@
 
 .import-dialog-volume-index {
   color: var(--gray-9);
-  font-size: var(--font-size-1);
+  font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -94,13 +94,13 @@
 }
 
 .import-dialog-volume-title {
-  font-size: var(--font-size-2);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
 }
 
 .import-dialog-volume-meta {
   color: var(--gray-10);
-  font-size: var(--font-size-1);
+  font-size: var(--font-size-sm);
   white-space: nowrap;
 }
 
