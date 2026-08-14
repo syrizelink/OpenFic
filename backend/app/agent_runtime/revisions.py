@@ -312,10 +312,12 @@ async def finalize_revision_status(
     session: AsyncSession,
     revision_id: str | None,
     status: str,
-) -> None:
+) -> bool:
     if not revision_id:
-        return
-    await revision_repo.update_status(session, revision_id, status)
+        return True
+    if status == "cancelled":
+        return await revision_repo.cancel_active_or_interrupted_revision(session, revision_id)
+    return await revision_repo.update_status_unless_cancelled(session, revision_id, status)
 
 
 async def record_chapter_diffs(

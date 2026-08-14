@@ -5,7 +5,9 @@ from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from loguru import logger
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col
 
 from app.agent_runtime.modes import AgentMode
 from app.agent_runtime.attachments import delete_attachments_for_task
@@ -21,6 +23,7 @@ from app.api.schemas.task import (
 )
 from app.core.errors import NotFoundError
 from app.storage.database import get_session
+from app.storage.models.revision import Revision
 from app.storage.services import task_service
 
 router = APIRouter(tags=["Tasks"])
@@ -146,6 +149,20 @@ async def list_tasks(
             task.id: await _has_pending_interrupt(checkpointer, task.agent_session_id)
             for task in result.items
         }
+        current_revision_ids = {
+            task.current_revision_id
+            for task in result.items
+            if task.current_revision_id is not None
+        }
+        cancelled_revision_ids: set[str] = set()
+        if current_revision_ids:
+            cancelled_revision_result = await session.execute(
+                select(col(Revision.id)).where(
+                    col(Revision.id).in_(current_revision_ids),
+                    col(Revision.status) == "cancelled",
+                )
+            )
+            cancelled_revision_ids = set(cancelled_revision_result.scalars().all())
 
         items = [
             TaskListItem(
@@ -157,7 +174,11 @@ async def list_tasks(
                 token_output=task.token_output,
                 token_cache=task.token_cache,
                 context_input_tokens=task.context_input_tokens,
-                is_running=task.is_running or pending_interrupts[task.id],
+                is_running=task.is_running
+                or (
+                    pending_interrupts[task.id]
+                    and task.current_revision_id not in cancelled_revision_ids
+                ),
                 is_favorited=task.is_favorited,
                 created_at=task.created_at,
                 updated_at=task.updated_at,

@@ -254,17 +254,26 @@ async def ensure_child_processing(
     child_run_id: str,
     runner: Any,
     resume_payload: dict[str, Any] | None = None,
+    clear_cancelled: bool = True,
 ) -> bool:
     registry = get_agent_run_registry()
     if await registry.is_child_running(parent_session_id, child_run_id):
+        return False
+    if not clear_cancelled and await registry.is_cancelled(parent_session_id):
         return False
     await _clear_child_processing_failure(
         parent_session_id=parent_session_id,
         child_run_id=child_run_id,
     )
 
+    start_gate = asyncio.Event()
+    started = False
+
     async def _run() -> None:
+        nonlocal started
         try:
+            await start_gate.wait()
+            started = True
             if resume_payload is None:
                 await runner.run(child_run_id)
             else:
@@ -290,9 +299,15 @@ async def ensure_child_processing(
                 child_run_id=child_run_id,
             ).opt(exception=True).error("Child processing crashed")
         finally:
-            await registry.unregister_child(parent_session_id, child_run_id)
+            current_task = asyncio.current_task()
+            if current_task is not None:
+                await registry.unregister_child(
+                    parent_session_id,
+                    child_run_id,
+                    current_task,
+                )
             on_finished = getattr(runner, "on_child_processing_finished", None)
-            if callable(on_finished):
+            if started and callable(on_finished):
                 await maybe_await(
                     on_finished(
                         parent_session_id=parent_session_id,
@@ -302,9 +317,18 @@ async def ensure_child_processing(
 
     task = asyncio.create_task(_run())
     registered = await registry.try_register_child(
-        parent_session_id, child_run_id, task
+        parent_session_id,
+        child_run_id,
+        task,
+        clear_cancelled=clear_cancelled,
     )
     if registered:
+        if not clear_cancelled and await registry.is_cancelled(parent_session_id):
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+            await registry.unregister_child(parent_session_id, child_run_id)
+            return False
+        start_gate.set()
         return True
     task.cancel()
     await asyncio.gather(task, return_exceptions=True)

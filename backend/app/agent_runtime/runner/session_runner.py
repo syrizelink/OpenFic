@@ -34,12 +34,14 @@ from app.agent_runtime.persistence.model import AgentRunMessage
 from app.agent_runtime.revisions import begin_user_revision, finalize_revision_status
 from app.agent_runtime.runner.checkpointer import get_checkpointer, prune_thread_checkpoints
 from app.agent_runtime.runner.event_translator import EventTranslator
+from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buffer
 from app.agent_runtime.types import DEFAULT_AGENT_RECURSION_LIMIT
 from app.core.ids import generate_id
 from app.socket import emit
 from app.socket.handlers import agent_session_room
 from app.storage.database import _get_session_factory, create_session
+from app.storage.repos import revision_repo
 from app.storage.services import task_service
 
 _HELD_EVENT_SESSION_IDS: ContextVar[frozenset[str]] = ContextVar(
@@ -912,19 +914,29 @@ class SessionRunner:
         if state.next:
             status_session = await create_session()
             try:
-                await finalize_revision_status(status_session, revision.id, "interrupted")
+                finalized = await finalize_revision_status(
+                    status_session, revision.id, "interrupted"
+                )
                 await status_session.commit()
             finally:
                 await status_session.close()
+            if not finalized:
+                await self._clear_replay_session()
+                return
             await self._emit_pending_interrupts(state)
             await self._clear_replay_session()
         else:
             status_session = await create_session()
             try:
-                await finalize_revision_status(status_session, revision.id, "completed")
+                finalized = await finalize_revision_status(
+                    status_session, revision.id, "completed"
+                )
                 await status_session.commit()
             finally:
                 await status_session.close()
+            if not finalized:
+                await self._clear_replay_session()
+                return
             await emit(
                 "agent:done",
                 {
@@ -1125,6 +1137,17 @@ class SessionRunner:
             audit_context=audit_context,
         )
         self._cancel_event.clear()
+        # The cancel endpoint commits this status before it signals in-memory
+        # runners. Together with the registry guard, this stops a queued resume
+        # task from clearing the cancellation signal and reviving the checkpoint.
+        if await get_agent_run_registry().is_cancelled(self.session_id):
+            await runtime_session.close()
+            return
+        if revision_id:
+            revision = await revision_repo.get_by_id(runtime_session, revision_id)
+            if revision is not None and revision.status == "cancelled":
+                await runtime_session.close()
+                return
 
         reason: Literal["done", "cancelled", "error"] = "done"
         try:
@@ -1253,19 +1276,29 @@ class SessionRunner:
         if state.next:
             status_session = await create_session()
             try:
-                await finalize_revision_status(status_session, revision_id, "interrupted")
+                finalized = await finalize_revision_status(
+                    status_session, revision_id, "interrupted"
+                )
                 await status_session.commit()
             finally:
                 await status_session.close()
+            if not finalized:
+                await self._clear_replay_session()
+                return
             await self._emit_pending_interrupts(state)
             await self._clear_replay_session()
         else:
             status_session = await create_session()
             try:
-                await finalize_revision_status(status_session, revision_id, "completed")
+                finalized = await finalize_revision_status(
+                    status_session, revision_id, "completed"
+                )
                 await status_session.commit()
             finally:
                 await status_session.close()
+            if not finalized:
+                await self._clear_replay_session()
+                return
             await emit(
                 "agent:done",
                 {

@@ -223,9 +223,18 @@ async def test_cancelling_waiting_agent_session_releases_settings_lock(
 
     assert cancel_response.status_code == 200
     runner.cancel.assert_called_once_with()
-    emit_mock.assert_awaited_once_with(
-        "agent:settings_lock_changed",
-        {"session_id": task.agent_session_id, "is_running": False},
+    emitted_payloads = [call.args for call in emit_mock.await_args_list]
+    assert any(
+        event_name == "background:event"
+        and payload.get("type") == "task_run_status_updated"
+        and payload.get("task_id") == task.id
+        and payload.get("is_running") is False
+        for event_name, payload, *_ in emitted_payloads
+    )
+    assert any(
+        event_name == "agent:settings_lock_changed"
+        and payload == {"session_id": task.agent_session_id, "is_running": False}
+        for event_name, payload, *_ in emitted_payloads
     )
     assert lock_response.json() == {"is_locked": False}
     await session.refresh(task)

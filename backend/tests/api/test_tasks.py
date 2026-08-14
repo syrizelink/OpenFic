@@ -22,6 +22,7 @@ from app.agent_runtime.persistence.model import (
     PlanTodoRecord,
 )
 from app.storage.models.llm_audit_log import LLMAuditLog
+from app.storage.models.revision import Revision
 from app.storage.services import task_service
 
 
@@ -245,6 +246,55 @@ class TestTaskAPI:
         assert response.status_code == status.HTTP_200_OK
         items = {item["id"]: item for item in response.json()["items"]}
         assert items[task.id]["is_running"] is True
+
+    async def test_list_tasks_ignores_pending_interrupt_for_cancelled_revision(
+        self,
+        client: AsyncClient,
+        session: AsyncSession,
+    ) -> None:
+        task, project_id, _chapter_id = await self.create_agent_task(
+            client,
+            session,
+            title="宸插彇娑堢殑浠诲姟",
+        )
+        revision = Revision(
+            project_id=task.project_id,
+            task_id=task.id,
+            message="cancelled approval",
+            agent_session_id=task.agent_session_id,
+            revision_type="agent",
+            status="cancelled",
+            is_checkpoint=True,
+            project_snapshot_title="Cancelled approval",
+            project_snapshot_word_count=0,
+            project_snapshot_chapter_count=0,
+        )
+        session.add(revision)
+        await session.flush()
+        task.current_revision_id = revision.id
+        task.is_running = False
+        session.add(task)
+        await session.commit()
+
+        fake_checkpointer = AsyncMock()
+        fake_checkpointer.aget_tuple.return_value = SimpleNamespace(
+            pending_writes=[
+                (
+                    "task-write",
+                    "__interrupt__",
+                    [SimpleNamespace(value={"type": "tool_approval"})],
+                )
+            ]
+        )
+        with patch(
+            "app.api.routers.tasks.get_checkpointer",
+            new=AsyncMock(return_value=fake_checkpointer),
+        ):
+            response = await client.get(f"/api/v1/projects/{project_id}/tasks")
+
+        assert response.status_code == status.HTTP_200_OK
+        items = {item["id"]: item for item in response.json()["items"]}
+        assert items[task.id]["is_running"] is False
 
     async def test_list_tasks_rejects_removed_mode_query(
         self,

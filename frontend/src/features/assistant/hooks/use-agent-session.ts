@@ -120,6 +120,22 @@ function removeApprovalMessageById(messages: AgentMessage[], approvalId: string)
   });
 }
 
+function clearPendingInterruptMessages(messages: AgentMessage[]): AgentMessage[] {
+  return messages.filter((message) => {
+    if (
+      message.type !== "approval" &&
+      message.type !== "tool_approval" &&
+      message.type !== "question" &&
+      message.type !== "clarification"
+    ) {
+      return true;
+    }
+    return (
+      message.status !== undefined && message.status !== "pending" && message.status !== "running"
+    );
+  });
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
@@ -1209,6 +1225,7 @@ export function useAgentSession({
     transportRetryAttemptRef.current = 0;
     suppressNextErrorAfterCompactionErrorRef.current = false;
     ignoredApprovalIdsRef.current.clear();
+    interruptBatchRef.current = null;
     manualCompactionPreviousStateRef.current = null;
     syncPendingMessageState(null);
     syncCompactingState(false);
@@ -1225,17 +1242,19 @@ export function useAgentSession({
 
   const abortSession = useCallback(async () => {
     const activeSessionId = sessionId;
-    if (
-      transcriptStateRef.current.status === "waiting_answer" ||
-      transcriptStateRef.current.status === "waiting_approval"
-    ) {
-      socketUnsubscribeRef.current?.();
-      socketUnsubscribeRef.current = null;
-      return;
-    }
+    const previousTranscriptState = {
+      ...transcriptStateRef.current,
+      messages: [...transcriptStateRef.current.messages],
+    };
+    const previousInterruptBatch = interruptBatchRef.current;
+    const previousPendingMessage = pendingMessageRef.current;
+    const previousIsCompacting = isCompactingRef.current;
+    const previousManualCompactionState = manualCompactionPreviousStateRef.current;
     suppressSocketEventsAfterAbortRef.current = true;
     transportRetryAttemptRef.current = 0;
     suppressNextErrorAfterCompactionErrorRef.current = false;
+    interruptBatchRef.current = null;
+    manualCompactionPreviousStateRef.current = null;
     socketUnsubscribeRef.current?.();
     socketUnsubscribeRef.current = null;
     syncPendingMessageState(null);
@@ -1244,7 +1263,9 @@ export function useAgentSession({
       abortCompactionTranscriptState(
         {
           ...current,
-          messages: clearRetryMessages(cancelStreamingAgentMessages(current.messages)),
+          messages: clearPendingInterruptMessages(
+            clearRetryMessages(cancelStreamingAgentMessages(current.messages)),
+          ),
         },
         activeSessionId ?? undefined,
       ),
@@ -1255,9 +1276,26 @@ export function useAgentSession({
         await cancelAgentSession(activeSessionId);
       } catch (error) {
         console.error("Failed to cancel agent session:", error);
+        interruptBatchRef.current = previousInterruptBatch;
+        manualCompactionPreviousStateRef.current = previousManualCompactionState;
+        suppressSocketEventsAfterAbortRef.current = false;
+        syncPendingMessageState(previousPendingMessage);
+        syncCompactingState(previousIsCompacting);
+        commitTranscriptState(previousTranscriptState);
+        attachAgentSocket(activeSessionId);
+        await joinAgentSession(activeSessionId).catch((joinError) => {
+          console.error("Failed to restore agent session connection:", joinError);
+        });
       }
     }
-  }, [sessionId, syncCompactingState, syncPendingMessageState, updateTranscriptState]);
+  }, [
+    attachAgentSocket,
+    commitTranscriptState,
+    sessionId,
+    syncCompactingState,
+    syncPendingMessageState,
+    updateTranscriptState,
+  ]);
 
   const loadSession = useCallback(
     (

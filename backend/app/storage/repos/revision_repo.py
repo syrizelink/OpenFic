@@ -214,6 +214,100 @@ async def update_status(
     return revision
 
 
+async def cancel_active_or_interrupted_revision(
+    session: AsyncSession,
+    revision_id: str,
+) -> bool:
+    """Atomically cancel a revision that is still resumable."""
+    from sqlalchemy import update as sql_update
+
+    now = datetime.now(UTC)
+    result = await session.execute(
+        sql_update(Revision)
+        .where(col(Revision.id) == revision_id)
+        .where(col(Revision.status).in_(("active", "interrupted")))
+        .values(status="cancelled", finished_at=now, updated_at=now)
+    )
+    await session.flush()
+    return cast("CursorResult[Any]", result).rowcount == 1
+
+
+async def update_status_unless_cancelled(
+    session: AsyncSession,
+    revision_id: str,
+    status: str,
+) -> bool:
+    """Update a revision without overwriting a committed cancellation."""
+    from sqlalchemy import update as sql_update
+
+    now = datetime.now(UTC)
+    values: dict[str, Any] = {
+        "status": status,
+        "updated_at": now,
+    }
+    if status in {"completed", "interrupted", "failed", "rollback", "rolled_back"}:
+        values["finished_at"] = now
+
+    result = await session.execute(
+        sql_update(Revision)
+        .where(col(Revision.id) == revision_id)
+        .where(col(Revision.status) != "cancelled")
+        .values(**values)
+    )
+    await session.flush()
+    return cast("CursorResult[Any]", result).rowcount == 1
+
+
+async def claim_interrupted_revision(session: AsyncSession, revision_id: str) -> bool:
+    """Atomically mark an interrupted revision active for a single resume."""
+    from sqlalchemy import update as sql_update
+
+    result = await session.execute(
+        sql_update(Revision)
+        .where(col(Revision.id) == revision_id)
+        .where(col(Revision.status) == "interrupted")
+        .values(status="active", finished_at=None, updated_at=datetime.now(UTC))
+    )
+    await session.flush()
+    return cast("CursorResult[Any]", result).rowcount == 1
+
+
+async def release_active_revision_claim(session: AsyncSession, revision_id: str) -> bool:
+    """Return a failed resume launch to its interrupted state without reviving a cancel."""
+    from sqlalchemy import update as sql_update
+
+    now = datetime.now(UTC)
+    result = await session.execute(
+        sql_update(Revision)
+        .where(col(Revision.id) == revision_id)
+        .where(col(Revision.status) == "active")
+        .values(status="interrupted", finished_at=now, updated_at=now)
+    )
+    await session.flush()
+    return cast("CursorResult[Any]", result).rowcount == 1
+
+
+async def recover_active_revisions_for_stopped_tasks(session: AsyncSession) -> int:
+    """Return orphaned active revisions to a resumable interrupted state."""
+    from sqlalchemy import update as sql_update
+
+    from app.storage.models.task import Task
+
+    now = datetime.now(UTC)
+    result = await session.execute(
+        sql_update(Revision)
+        .where(col(Revision.status) == "active")
+        .where(
+            col(Revision.task_id).in_(
+                select(col(Task.id)).where(col(Task.is_running).is_(False))
+            )
+        )
+        .values(status="interrupted", finished_at=now, updated_at=now)
+    )
+    await session.flush()
+    return cast("CursorResult[Any]", result).rowcount
+
+
 async def complete_active_revisions_by_session(
     session: AsyncSession,
     agent_session_id: str,

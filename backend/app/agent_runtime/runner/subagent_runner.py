@@ -1093,6 +1093,7 @@ class SubagentRunner:
                 parent_session_id=parent_session_id,
                 child_run_id=child_run_id,
                 runner=self,
+                clear_cancelled=False,
             )
             return
 

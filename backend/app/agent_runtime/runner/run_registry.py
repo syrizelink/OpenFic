@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import weakref
 
 from loguru import logger
 
@@ -11,11 +12,29 @@ class AgentRunRegistry:
     def __init__(self) -> None:
         self._tasks: dict[str, dict[str, asyncio.Task[None]]] = {}
         self._cancelled_sessions: set[str] = set()
+        # Lifecycle locks are only needed while a caller holds a reference to
+        # them. A weak table prevents every historical session id from being
+        # retained for the lifetime of the worker.
+        self._session_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = (
+            weakref.WeakValueDictionary()
+        )
         self._lock = asyncio.Lock()
 
-    async def register(self, session_id: str, task: asyncio.Task[None]) -> None:
+    def session_lock(self, session_id: str) -> asyncio.Lock:
+        """Serialize lifecycle transitions for one parent agent session."""
+
+        return self._session_locks.setdefault(session_id, asyncio.Lock())
+
+    async def register(
+        self,
+        session_id: str,
+        task: asyncio.Task[None],
+        *,
+        clear_cancelled: bool = True,
+    ) -> None:
         async with self._lock:
-            self._cancelled_sessions.discard(session_id)
+            if clear_cancelled:
+                self._cancelled_sessions.discard(session_id)
             session_tasks = self._tasks.setdefault(session_id, {})
             existing = session_tasks.get("__parent__")
             if existing is not None and not existing.done() and existing is not task:
@@ -42,9 +61,12 @@ class AgentRunRegistry:
         session_id: str,
         child_run_id: str,
         task: asyncio.Task[None],
+        *,
+        clear_cancelled: bool = True,
     ) -> None:
         async with self._lock:
-            self._cancelled_sessions.discard(session_id)
+            if clear_cancelled:
+                self._cancelled_sessions.discard(session_id)
             session_tasks = self._tasks.setdefault(session_id, {})
             existing = session_tasks.get(child_run_id)
             if existing is not None and not existing.done() and existing is not task:
@@ -60,13 +82,16 @@ class AgentRunRegistry:
         session_id: str,
         child_run_id: str,
         task: asyncio.Task[None],
+        *,
+        clear_cancelled: bool = True,
     ) -> bool:
         async with self._lock:
             session_tasks = self._tasks.setdefault(session_id, {})
             existing = session_tasks.get(child_run_id)
             if existing is not None and not existing.done() and existing is not task:
                 return False
-            self._cancelled_sessions.discard(session_id)
+            if clear_cancelled:
+                self._cancelled_sessions.discard(session_id)
             session_tasks[child_run_id] = task
             return True
 
@@ -83,10 +108,17 @@ class AgentRunRegistry:
                     return True
             return False
 
-    async def unregister_child(self, session_id: str, child_run_id: str) -> bool:
+    async def unregister_child(
+        self,
+        session_id: str,
+        child_run_id: str,
+        task: asyncio.Task[None] | None = None,
+    ) -> bool:
         async with self._lock:
             session_tasks = self._tasks.get(session_id)
             if not session_tasks or child_run_id not in session_tasks:
+                return False
+            if task is not None and session_tasks[child_run_id] is not task:
                 return False
             session_tasks.pop(child_run_id, None)
             if not session_tasks:
@@ -117,9 +149,27 @@ class AgentRunRegistry:
                 task.cancel()
             return True
 
-    async def mark_cancelled(self, session_id: str) -> None:
+    async def mark_cancelled(self, session_id: str) -> asyncio.Task[None] | None:
         async with self._lock:
             self._cancelled_sessions.add(session_id)
+            task = (self._tasks.get(session_id) or {}).get("__parent__")
+            if task is not None and not task.done():
+                return task
+            return None
+
+    async def cancel_task(self, session_id: str, task: asyncio.Task[None]) -> bool:
+        """Cancel only a task that is still the registered task for a session.
+
+        The identity check is important for cancellation requests that race a
+        newly registered run: a stale cancellation must not affect that run.
+        """
+
+        async with self._lock:
+            session_tasks = self._tasks.get(session_id) or {}
+            if task not in session_tasks.values() or task.done():
+                return False
+            task.cancel()
+            return True
 
     async def is_cancelled(self, session_id: str) -> bool:
         async with self._lock:

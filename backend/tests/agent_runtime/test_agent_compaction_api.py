@@ -8,6 +8,8 @@ from fastapi import status
 from httpx import AsyncClient
 
 from app.agent_runtime.context.compaction.service import CompactionError
+from app.agent_runtime.runner.run_registry import AgentRunRegistry
+from app.api.routers import agent_runtime
 from app.api.routers.agent_runtime import _SESSION_RUNNERS
 
 
@@ -59,6 +61,7 @@ def _registry(*, running: bool = False):
         register=AsyncMock(),
         unregister=AsyncMock(return_value=True),
         cancel=AsyncMock(),
+        is_cancelled=AsyncMock(return_value=False),
     )
 
 
@@ -115,6 +118,58 @@ async def test_manual_compaction_returns_structured_metrics(client: AsyncClient)
     runner.peek_next_pending_user_message.assert_not_called()
     launch_task.assert_not_awaited()
     assert set_running.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_manual_compaction_can_be_cancelled_while_model_call_is_waiting() -> None:
+    runner = _runner()
+    compact_started = asyncio.Event()
+    release_compact = asyncio.Event()
+
+    async def blocked_compact():
+        compact_started.set()
+        await release_compact.wait()
+        return {
+            "compaction_id": "cmp_api_1",
+            "start_seq": 2,
+            "end_seq": 7,
+        }
+
+    runner.compact = AsyncMock(side_effect=blocked_compact)
+    registry = AgentRunRegistry()
+    session = SimpleNamespace(bind=MagicMock())
+
+    with patch(
+        "app.api.routers.agent_runtime._ensure_agent_session_resumable",
+        AsyncMock(),
+    ), patch(
+        "app.api.routers.agent_runtime._set_task_running_state",
+        AsyncMock(),
+    ):
+        compaction_task = asyncio.create_task(
+            agent_runtime._run_agent_session_compaction(
+                session_id=runner.session_id,
+                session=session,
+                runner=runner,
+                registry=registry,
+            )
+        )
+        await asyncio.wait_for(compact_started.wait(), timeout=1)
+
+        lifecycle_lock = registry.session_lock(runner.session_id)
+        await asyncio.wait_for(lifecycle_lock.acquire(), timeout=1)
+        try:
+            parent_task = await registry.mark_cancelled(runner.session_id)
+            assert parent_task is compaction_task
+            assert await registry.cancel_task(runner.session_id, parent_task)
+        finally:
+            lifecycle_lock.release()
+
+        with pytest.raises(asyncio.CancelledError):
+            await compaction_task
+
+    runner.compact.assert_awaited_once_with()
+    assert not release_compact.is_set()
 
 
 @pytest.mark.asyncio

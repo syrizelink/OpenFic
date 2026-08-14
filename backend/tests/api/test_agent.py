@@ -28,15 +28,21 @@ from app.agent_runtime.runner.checkpointer import get_checkpointer, reset_checkp
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.agent_runtime.runner.session_runner import SessionRunner
 from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buffer
-from app.api.routers.agent_runtime import _SESSION_RUNNERS, _build_model_config
+from app.api.routers.agent_runtime import (
+    _SESSION_RUNNERS,
+    _build_model_config,
+    _launch_task,
+)
 from app.settings import settings
 from app.socket.handlers import agent_session_room, agent_subagents_room
 from app.storage.models.chapter import Chapter
 from app.storage.models.commit import Commit
 from app.storage.models.project import Project
+from app.storage.models.revision import Revision
 from app.storage.models.revision_chapter_snapshot import RevisionChapterSnapshot
 from app.storage.models.task import Task
 from app.storage.models.volume import Volume
+from app.storage.repos import revision_repo
 from app.storage.services import task_service
 
 
@@ -840,6 +846,7 @@ class TestAgentAPI:
             "app.api.routers.agent_runtime.get_agent_run_registry"
         ) as get_registry:
             get_registry.return_value.is_running = AsyncMock(return_value=True)
+            get_registry.return_value.is_cancelled = AsyncMock(return_value=False)
             response = await client.post(
                 "/api/v1/agent/sessions/session-model-pending/message",
                 json={"message": "排队消息", "model_id": "next-model-record"},
@@ -1219,7 +1226,10 @@ class TestAgentAPI:
         )
         session_id = session_response.json()["session_id"]
 
-        fake_registry = SimpleNamespace(is_running=AsyncMock(return_value=True))
+        fake_registry = SimpleNamespace(
+            is_running=AsyncMock(return_value=True),
+            is_cancelled=AsyncMock(return_value=False),
+        )
 
         with patch(
             "app.api.routers.agent_runtime.get_agent_run_registry",
@@ -1276,6 +1286,434 @@ class TestAgentAPI:
                 "id": "interrupt-approval-1",
             }
         ]
+
+    async def test_get_session_state_hides_interrupts_after_session_cancelled(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={"project_id": target["project_id"], "model_id": target["model_id"]},
+        )
+        payload = session_response.json()
+        session_id = payload["session_id"]
+        task = await task_service.get_task(session, payload["task_id"])
+        revision = Revision(
+            project_id=task.project_id,
+            task_id=task.id,
+            message="cancelled approval",
+            agent_session_id=session_id,
+            revision_type="agent",
+            status="cancelled",
+            is_checkpoint=True,
+            project_snapshot_title="Cancelled approval",
+            project_snapshot_word_count=0,
+            project_snapshot_chapter_count=0,
+        )
+        session.add(revision)
+        await session.flush()
+        task.current_revision_id = revision.id
+        session.add(task)
+        await session.commit()
+
+        interrupt = SimpleNamespace(
+            id="interrupt-approval-cancelled",
+            value={"type": "tool_approval", "tool_name": "edit_note", "args": {}},
+        )
+        fake_checkpointer = SimpleNamespace(
+            aget_tuple=AsyncMock(
+                return_value=SimpleNamespace(
+                    checkpoint={"channel_values": {"session_id": session_id}},
+                    pending_writes=[("task-1", "__interrupt__", [interrupt])],
+                )
+            )
+        )
+        fake_registry = SimpleNamespace(is_running=AsyncMock(return_value=False))
+
+        with patch(
+            "app.api.routers.agent_runtime.get_checkpointer",
+            new=AsyncMock(return_value=fake_checkpointer),
+        ), patch(
+            "app.api.routers.agent_runtime.get_agent_run_registry",
+            return_value=fake_registry,
+        ):
+            response = await client.get(f"/api/v1/agent/sessions/{session_id}")
+
+            task.is_running = True
+            session.add(task)
+            await session.commit()
+            fake_registry.is_running.return_value = True
+            running_response = await client.get(f"/api/v1/agent/sessions/{session_id}")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["is_running"] is False
+        assert response.json()["interrupts"] == []
+
+        assert running_response.status_code == status.HTTP_200_OK
+        assert running_response.json()["is_running"] is True
+        assert running_response.json()["interrupts"] == []
+        assert fake_registry.is_running.await_count == 2
+
+    async def test_tool_approval_does_not_resume_cancelled_session(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={"project_id": target["project_id"], "model_id": target["model_id"]},
+        )
+        payload = session_response.json()
+        session_id = payload["session_id"]
+        task = await task_service.get_task(session, payload["task_id"])
+        revision = Revision(
+            project_id=task.project_id,
+            task_id=task.id,
+            message="cancelled approval",
+            agent_session_id=session_id,
+            revision_type="agent",
+            status="cancelled",
+            is_checkpoint=True,
+            project_snapshot_title="Cancelled approval",
+            project_snapshot_word_count=0,
+            project_snapshot_chapter_count=0,
+        )
+        session.add(revision)
+        await session.flush()
+        task.current_revision_id = revision.id
+        session.add(task)
+        await session.commit()
+
+        with patch("app.api.routers.agent_runtime._launch_task", new=AsyncMock()) as launch_task:
+            response = await client.post(
+                f"/api/v1/agent/sessions/{session_id}/tool-approval",
+                json={"approval_id": "interrupt-approval-cancelled", "approved": False},
+            )
+
+        assert response.status_code == status.HTTP_409_CONFLICT
+        assert response.json()["detail"]["code"] == "session_cancelled"
+        launch_task.assert_not_awaited()
+
+    async def test_manual_compaction_does_not_resume_cancelled_session(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={"project_id": target["project_id"], "model_id": target["model_id"]},
+        )
+        payload = session_response.json()
+        session_id = payload["session_id"]
+        task = await task_service.get_task(session, payload["task_id"])
+        revision = Revision(
+            project_id=task.project_id,
+            task_id=task.id,
+            message="cancelled compaction",
+            agent_session_id=session_id,
+            revision_type="agent",
+            status="cancelled",
+            is_checkpoint=True,
+            project_snapshot_title="Cancelled compaction",
+            project_snapshot_word_count=0,
+            project_snapshot_chapter_count=0,
+        )
+        session.add(revision)
+        await session.flush()
+        task.current_revision_id = revision.id
+        task.is_running = False
+        session.add(task)
+        await session.commit()
+
+        runner = _SESSION_RUNNERS[session_id]
+        with patch.object(runner, "compact", new=AsyncMock()) as compact:
+            response = await client.post(f"/api/v1/agent/sessions/{session_id}/compaction")
+
+        assert response.status_code == status.HTTP_409_CONFLICT
+        assert response.json()["detail"]["code"] == "session_cancelled"
+        compact.assert_not_awaited()
+
+    async def test_resume_claims_interrupted_revision_once(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={"project_id": target["project_id"], "model_id": target["model_id"]},
+        )
+        payload = session_response.json()
+        session_id = payload["session_id"]
+        task = await task_service.get_task(session, payload["task_id"])
+        revision = Revision(
+            project_id=task.project_id,
+            task_id=task.id,
+            message="waiting for approval",
+            agent_session_id=session_id,
+            revision_type="agent",
+            status="interrupted",
+            is_checkpoint=True,
+            project_snapshot_title="Waiting approval",
+            project_snapshot_word_count=0,
+            project_snapshot_chapter_count=0,
+        )
+        session.add(revision)
+        await session.flush()
+        task.current_revision_id = revision.id
+        session.add(task)
+        await session.commit()
+
+        with patch("app.api.routers.agent_runtime._launch_task", new=AsyncMock()) as launch_task:
+            response = await client.post(
+                f"/api/v1/agent/sessions/{session_id}/tool-approval",
+                json={"approval_id": "approval-claim", "approved": True},
+            )
+            duplicate_response = await client.post(
+                f"/api/v1/agent/sessions/{session_id}/tool-approval",
+                json={"approval_id": "approval-claim", "approved": True},
+            )
+
+        await session.refresh(revision)
+        assert response.status_code == status.HTTP_200_OK
+        assert duplicate_response.status_code == status.HTTP_409_CONFLICT
+        assert duplicate_response.json()["detail"]["code"] == "session_not_resumable"
+        assert revision.status == "active"
+        launch_task.assert_awaited_once()
+        launch_task.await_args.kwargs["coro"].close()
+
+    async def test_resume_claim_holds_session_lock_before_new_message_can_start(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={"project_id": target["project_id"], "model_id": target["model_id"]},
+        )
+        payload = session_response.json()
+        session_id = payload["session_id"]
+        task = await task_service.get_task(session, payload["task_id"])
+        revision = Revision(
+            project_id=task.project_id,
+            task_id=task.id,
+            message="waiting for approval",
+            agent_session_id=session_id,
+            revision_type="agent",
+            status="interrupted",
+            is_checkpoint=True,
+            project_snapshot_title="Waiting approval",
+            project_snapshot_word_count=0,
+            project_snapshot_chapter_count=0,
+        )
+        session.add(revision)
+        await session.flush()
+        task.current_revision_id = revision.id
+        session.add(task)
+        await session.commit()
+
+        claim_entered = asyncio.Event()
+        release_claim = asyncio.Event()
+
+        async def blocked_claim(*args: Any, **kwargs: Any) -> tuple[str, bool]:
+            claim_entered.set()
+            await release_claim.wait()
+            return revision.id, True
+
+        with patch(
+            "app.api.routers.agent_runtime._claim_agent_session_resume",
+            new=blocked_claim,
+        ), patch(
+            "app.api.routers.agent_runtime.SessionRunner.resume",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "app.api.routers.agent_runtime.SessionRunner.run",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "app.api.routers.agent_runtime.emit",
+            new=AsyncMock(),
+        ):
+            resume_task = asyncio.create_task(
+                client.post(
+                    f"/api/v1/agent/sessions/{session_id}/tool-approval",
+                    json={"approval_id": "approval-lock-race", "approved": True},
+                )
+            )
+            await asyncio.wait_for(claim_entered.wait(), timeout=1)
+
+            message_task = asyncio.create_task(
+                client.post(
+                    f"/api/v1/agent/sessions/{session_id}/message",
+                    json={"message": "new message during resume"},
+                )
+            )
+            await asyncio.sleep(0.05)
+            assert not message_task.done()
+
+            release_claim.set()
+            resume_response = await resume_task
+            message_response = await message_task
+
+        assert resume_response.status_code == status.HTTP_200_OK
+        assert message_response.status_code == status.HTTP_200_OK
+
+    async def test_resume_launch_failure_releases_interrupted_revision_claim(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={"project_id": target["project_id"], "model_id": target["model_id"]},
+        )
+        payload = session_response.json()
+        session_id = payload["session_id"]
+        task = await task_service.get_task(session, payload["task_id"])
+        revision = Revision(
+            project_id=task.project_id,
+            task_id=task.id,
+            message="waiting for approval",
+            agent_session_id=session_id,
+            revision_type="agent",
+            status="interrupted",
+            is_checkpoint=True,
+            project_snapshot_title="Waiting approval",
+            project_snapshot_word_count=0,
+            project_snapshot_chapter_count=0,
+        )
+        session.add(revision)
+        await session.flush()
+        task.current_revision_id = revision.id
+        session.add(task)
+        await session.commit()
+
+        async def fail_launch(**kwargs: Any) -> None:
+            kwargs["coro"].close()
+            raise RuntimeError("launch failed")
+
+        with patch("app.api.routers.agent_runtime._launch_task", new=fail_launch):
+            with pytest.raises(RuntimeError, match="launch failed"):
+                await client.post(
+                    f"/api/v1/agent/sessions/{session_id}/tool-approval",
+                    json={"approval_id": "approval-claim", "approved": True},
+                )
+
+        await session.refresh(revision)
+        assert revision.status == "interrupted"
+
+    async def test_runner_finalizer_does_not_overwrite_cancelled_revision(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={"project_id": target["project_id"], "model_id": target["model_id"]},
+        )
+        payload = session_response.json()
+        task = await task_service.get_task(session, payload["task_id"])
+        revision = Revision(
+            project_id=task.project_id,
+            task_id=task.id,
+            message="cancelled revision",
+            agent_session_id=payload["session_id"],
+            revision_type="agent",
+            status="cancelled",
+            is_checkpoint=True,
+            project_snapshot_title="Cancelled revision",
+            project_snapshot_word_count=0,
+            project_snapshot_chapter_count=0,
+        )
+        session.add(revision)
+        await session.flush()
+
+        finalized = await revision_repo.update_status_unless_cancelled(
+            session,
+            revision.id,
+            "completed",
+        )
+        await session.commit()
+        await session.refresh(revision)
+
+        assert finalized is False
+        assert revision.status == "cancelled"
+
+    async def test_cancellation_does_not_overwrite_terminal_revision(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={"project_id": target["project_id"], "model_id": target["model_id"]},
+        )
+        payload = session_response.json()
+        task = await task_service.get_task(session, payload["task_id"])
+        revision = Revision(
+            project_id=task.project_id,
+            task_id=task.id,
+            message="completed revision",
+            agent_session_id=payload["session_id"],
+            revision_type="agent",
+            status="completed",
+            is_checkpoint=True,
+            project_snapshot_title="Completed revision",
+            project_snapshot_word_count=0,
+            project_snapshot_chapter_count=0,
+        )
+        session.add(revision)
+        await session.flush()
+
+        cancelled = await revision_repo.cancel_active_or_interrupted_revision(
+            session, revision.id
+        )
+
+        await session.commit()
+        await session.refresh(revision)
+        assert cancelled is False
+        assert revision.status == "completed"
+
+    async def test_startup_recovery_returns_orphaned_active_revision_to_interrupt(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={"project_id": target["project_id"], "model_id": target["model_id"]},
+        )
+        payload = session_response.json()
+        task = await task_service.get_task(session, payload["task_id"])
+        revision = Revision(
+            project_id=task.project_id,
+            task_id=task.id,
+            message="orphaned active revision",
+            agent_session_id=payload["session_id"],
+            revision_type="agent",
+            status="active",
+            is_checkpoint=True,
+            project_snapshot_title="Orphaned revision",
+            project_snapshot_word_count=0,
+            project_snapshot_chapter_count=0,
+        )
+        session.add(revision)
+        await session.flush()
+
+        recovered = await revision_repo.recover_active_revisions_for_stopped_tasks(session)
+        await session.commit()
+        await session.refresh(revision)
+
+        assert recovered == 1
+        assert revision.status == "interrupted"
 
     async def test_send_message_keeps_task_running_when_async_child_is_still_running(
         self,
@@ -1401,6 +1839,9 @@ class TestAgentAPI:
 
         fake_registry = SimpleNamespace(
             cancel=AsyncMock(return_value=True),
+        mark_cancelled=AsyncMock(return_value=None),
+        cancel_task=AsyncMock(return_value=False),
+            clear_cancelled=AsyncMock(),
             register=AsyncMock(),
             unregister=AsyncMock(return_value=True),
             is_running=AsyncMock(return_value=False),
@@ -1502,6 +1943,9 @@ class TestAgentAPI:
 
         fake_registry = SimpleNamespace(
             cancel=AsyncMock(return_value=True),
+        mark_cancelled=AsyncMock(return_value=None),
+        cancel_task=AsyncMock(return_value=False),
+            clear_cancelled=AsyncMock(),
             register=AsyncMock(),
             unregister=AsyncMock(return_value=True),
             is_running=AsyncMock(return_value=False),
@@ -1588,6 +2032,9 @@ class TestAgentAPI:
 
             fake_registry = SimpleNamespace(
                 cancel=AsyncMock(return_value=True),
+        mark_cancelled=AsyncMock(return_value=None),
+        cancel_task=AsyncMock(return_value=False),
+                clear_cancelled=AsyncMock(),
                 register=AsyncMock(),
                 unregister=AsyncMock(return_value=True),
                 is_running=AsyncMock(return_value=False),
@@ -1824,6 +2271,9 @@ class TestAgentAPI:
 
         fake_registry = SimpleNamespace(
             cancel=AsyncMock(return_value=True),
+        mark_cancelled=AsyncMock(return_value=None),
+        cancel_task=AsyncMock(return_value=False),
+            clear_cancelled=AsyncMock(),
             register=AsyncMock(),
             unregister=AsyncMock(return_value=True),
             is_running=AsyncMock(return_value=False),
@@ -1850,6 +2300,312 @@ class TestAgentAPI:
         assert response.json()["success"] is True
         await asyncio.sleep(0.05)
         mock_run.assert_awaited_once_with(user_request="取消上一轮后重新开始")
+
+    async def test_cancel_does_not_cancel_run_waiting_to_start(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={
+                "project_id": target["project_id"],
+                "model_id": target["model_id"],
+                "max_iterations": 5,
+            },
+        )
+        payload = session_response.json()
+        session_id = payload["session_id"]
+        task = await task_service.get_task(session, payload["task_id"])
+        revision = Revision(
+            project_id=task.project_id,
+            task_id=task.id,
+            message="active revision",
+            agent_session_id=session_id,
+            revision_type="agent",
+            status="active",
+            is_checkpoint=True,
+            project_snapshot_title="Active revision",
+            project_snapshot_word_count=0,
+            project_snapshot_chapter_count=0,
+        )
+        session.add(revision)
+        await session.flush()
+        task.current_revision_id = revision.id
+        session.add(task)
+        await session.commit()
+
+        finalize_entered = asyncio.Event()
+        release_finalize = asyncio.Event()
+        emit_entered = asyncio.Event()
+        release_emit = asyncio.Event()
+        run_started = asyncio.Event()
+        release_run = asyncio.Event()
+        run_saw_cancel = False
+        runner = _SESSION_RUNNERS[session_id]
+
+        async def block_finalize(*args: Any, **kwargs: Any) -> None:
+            finalize_entered.set()
+            await release_finalize.wait()
+
+        async def fake_run(self: SessionRunner, *, user_request: str, **kwargs: Any) -> None:
+            nonlocal run_saw_cancel
+            self._cancel_event.clear()
+            run_started.set()
+            await release_run.wait()
+            run_saw_cancel = self._cancel_event.is_set()
+
+        async def block_cancel_notification(
+            event_name: str, payload: dict[str, Any], **kwargs: Any
+        ) -> None:
+            if payload.get("is_running") is False:
+                emit_entered.set()
+                await release_emit.wait()
+
+        with patch(
+            "app.api.routers.agent_runtime.finalize_revision_status",
+            new=block_finalize,
+        ), patch(
+            "app.api.routers.agent_runtime.SessionRunner.run",
+            new=fake_run,
+        ), patch(
+            "app.api.routers.agent_runtime.emit",
+            new=block_cancel_notification,
+        ):
+            cancel_task = asyncio.create_task(
+                client.post(f"/api/v1/agent/sessions/{session_id}/cancel")
+            )
+            await finalize_entered.wait()
+            send_task = asyncio.create_task(
+                client.post(
+                    f"/api/v1/agent/sessions/{session_id}/message",
+                    json={"message": "start after cancel"},
+                )
+            )
+            await asyncio.sleep(0.05)
+            assert not run_started.is_set()
+            assert not send_task.done()
+
+            release_finalize.set()
+            await emit_entered.wait()
+            await asyncio.sleep(0.05)
+            assert not run_started.is_set()
+
+            release_emit.set()
+            cancel_response = await cancel_task
+            send_response = await send_task
+            assert cancel_response.status_code == status.HTTP_200_OK
+            assert send_response.status_code == status.HTTP_200_OK
+            await run_started.wait()
+            release_run.set()
+            await asyncio.sleep(0.05)
+
+        assert run_saw_cancel is False
+        assert runner._cancel_event.is_set() is False
+
+    async def test_launch_task_returns_when_cancelled_before_start(self) -> None:
+        registry = get_agent_run_registry()
+        state_update_entered = asyncio.Event()
+        release_state_update = asyncio.Event()
+
+        async def block_state_update(**kwargs: Any) -> None:
+            state_update_entered.set()
+            await release_state_update.wait()
+
+        async def should_not_run() -> None:
+            raise AssertionError("cancelled task must not enter its coroutine")
+
+        launch_task = asyncio.create_task(
+            _launch_task(
+                db_session_factory=lambda: None,
+                session_id="launch-race",
+                task_id="task-id",
+                project_id="project-id",
+                coro=should_not_run(),
+            )
+        )
+        try:
+            with patch(
+                "app.api.routers.agent_runtime._set_task_running_state",
+                new=block_state_update,
+            ):
+                await asyncio.wait_for(state_update_entered.wait(), timeout=1)
+                assert await registry.cancel("launch-race") is True
+                release_state_update.set()
+                await asyncio.wait_for(launch_task, timeout=1)
+        finally:
+            release_state_update.set()
+            if not launch_task.done():
+                launch_task.cancel()
+            await asyncio.gather(launch_task, return_exceptions=True)
+
+        assert await registry.is_running("launch-race") is False
+
+    async def test_cancel_succeeds_when_post_commit_cleanup_fails(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={
+                "project_id": target["project_id"],
+                "model_id": target["model_id"],
+                "max_iterations": 5,
+            },
+        )
+        payload = session_response.json()
+        session_id = payload["session_id"]
+        task = await task_service.get_task(session, payload["task_id"])
+        revision = Revision(
+            project_id=task.project_id,
+            task_id=task.id,
+            message="active revision",
+            agent_session_id=session_id,
+            revision_type="agent",
+            status="active",
+            is_checkpoint=True,
+            project_snapshot_title="Active revision",
+            project_snapshot_word_count=0,
+            project_snapshot_chapter_count=0,
+        )
+        session.add(revision)
+        await session.flush()
+        task.current_revision_id = revision.id
+        session.add(task)
+        await session.commit()
+
+        registry = get_agent_run_registry()
+        parent_task = asyncio.create_task(asyncio.Event().wait())
+        await registry.register(session_id, parent_task)
+
+        with patch(
+            "app.api.routers.agent_runtime._cancel_subagent_session_tree",
+            new=AsyncMock(side_effect=RuntimeError("cleanup failed")),
+        ), patch(
+            "app.api.routers.agent_runtime.emit",
+            new=AsyncMock(side_effect=RuntimeError("notification failed")),
+        ):
+            response = await client.post(f"/api/v1/agent/sessions/{session_id}/cancel")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["success"] is True
+        await session.refresh(task)
+        await session.refresh(revision)
+        assert task.is_running is False
+        assert revision.status == "cancelled"
+        await asyncio.gather(parent_task, return_exceptions=True)
+        assert parent_task.cancelled()
+
+    async def test_send_does_not_queue_after_concurrent_cancellation(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={
+                "project_id": target["project_id"],
+                "model_id": target["model_id"],
+                "max_iterations": 5,
+            },
+        )
+        payload = session_response.json()
+        session_id = payload["session_id"]
+        task = await task_service.get_task(session, payload["task_id"])
+        revision = Revision(
+            project_id=task.project_id,
+            task_id=task.id,
+            message="active revision",
+            agent_session_id=session_id,
+            revision_type="agent",
+            status="active",
+            is_checkpoint=True,
+            project_snapshot_title="Active revision",
+            project_snapshot_word_count=0,
+            project_snapshot_chapter_count=0,
+        )
+        session.add(revision)
+        await session.flush()
+        task.current_revision_id = revision.id
+        session.add(task)
+        await session.commit()
+
+        registry = get_agent_run_registry()
+        parent_task = asyncio.create_task(asyncio.Event().wait())
+        await registry.register(session_id, parent_task)
+        runner = _SESSION_RUNNERS[session_id]
+        finalize_entered = asyncio.Event()
+        release_finalize = asyncio.Event()
+
+        async def block_finalize(*args: Any, **kwargs: Any) -> None:
+            finalize_entered.set()
+            await release_finalize.wait()
+
+        queue_message = AsyncMock(
+            return_value={
+                "message_id": "should-not-queue",
+                "content": "消息",
+                "created_at": "2026-06-12T00:00:00+00:00",
+            }
+        )
+        launch_task = AsyncMock(side_effect=lambda **kwargs: kwargs["coro"].close())
+        cancel_request = None
+        send_request = None
+        try:
+            with (
+                patch(
+                    "app.api.routers.agent_runtime.finalize_revision_status",
+                    new=block_finalize,
+                ),
+                patch.object(runner, "queue_pending_user_message", new=queue_message),
+                patch(
+                    "app.api.routers.agent_runtime.SessionRunner.run",
+                    new=AsyncMock(return_value=None),
+                ),
+                patch("app.api.routers.agent_runtime._launch_task", new=launch_task),
+                patch(
+                    "app.api.routers.agent_runtime._cancel_subagent_session_tree",
+                    new=AsyncMock(),
+                ),
+                patch("app.api.routers.agent_runtime.emit", new=AsyncMock()),
+            ):
+                cancel_request = asyncio.create_task(
+                    client.post(f"/api/v1/agent/sessions/{session_id}/cancel")
+                )
+                await asyncio.wait_for(finalize_entered.wait(), timeout=1)
+
+                send_request = asyncio.create_task(
+                    client.post(
+                        f"/api/v1/agent/sessions/{session_id}/message",
+                        json={"message": "并发消息"},
+                    )
+                )
+                await asyncio.sleep(0.05)
+                assert not send_request.done()
+                queue_message.assert_not_awaited()
+
+                release_finalize.set()
+                cancel_response = await cancel_request
+                send_response = await send_request
+
+            assert cancel_response.status_code == status.HTTP_200_OK
+            assert send_response.status_code == status.HTTP_200_OK
+            queue_message.assert_not_awaited()
+            launch_task.assert_awaited_once()
+        finally:
+            release_finalize.set()
+            pending_requests = [request for request in (cancel_request, send_request) if request]
+            for request in pending_requests:
+                if not request.done():
+                    request.cancel()
+            await asyncio.gather(*pending_requests, return_exceptions=True)
+            if not parent_task.done():
+                parent_task.cancel()
+            await asyncio.gather(parent_task, return_exceptions=True)
 
     async def test_get_session_state_reads_persisted_session_without_runner(
         self,
@@ -2312,7 +3068,10 @@ class TestAgentAPI:
         )
         session_id = session_response.json()["session_id"]
         runner = _SESSION_RUNNERS[session_id]
-        fake_registry = SimpleNamespace(is_running=AsyncMock(return_value=True))
+        fake_registry = SimpleNamespace(
+            is_running=AsyncMock(return_value=True),
+            is_cancelled=AsyncMock(return_value=False),
+        )
 
         with patch.object(
             runner,
@@ -2456,6 +3215,24 @@ class TestAgentAPI:
                 "child_run_id": row.id,
             },
         )
+        task = await task_service.get_task(session, task_id)
+        revision = Revision(
+            project_id=task.project_id,
+            task_id=task.id,
+            message="active parent revision",
+            agent_session_id=session_id,
+            revision_type="agent",
+            status="active",
+            is_checkpoint=True,
+            project_snapshot_title="Active parent revision",
+            project_snapshot_word_count=0,
+            project_snapshot_chapter_count=0,
+        )
+        session.add(revision)
+        await session.flush()
+        task.current_revision_id = revision.id
+        session.add(task)
+        await session.commit()
 
         with patch(
             "app.api.routers.agent_runtime.SessionRunner.resume",
@@ -2559,6 +3336,184 @@ class TestAgentAPI:
         assert type(ensure_kwargs["runner"]).__name__ == "SubagentRunner"
         mock_launch_task.assert_not_awaited()
         mock_parent_resume.assert_not_awaited()
+
+    async def test_submit_tool_approval_keeps_active_parent_revision_on_child_launch_failure(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={"project_id": target["project_id"], "model_id": target["model_id"]},
+        )
+        payload = session_response.json()
+        session_id = payload["session_id"]
+        task_id = payload["task_id"]
+        row = await create_child_run(
+            session,
+            parent_session_id=session_id,
+            parent_task_id=task_id,
+            parent_thread_id=session_id,
+            child_thread_id=f"{session_id}:child:launch-failure",
+            agent_key="writer",
+            dispatch_id="dispatch-child-launch-failure",
+            tool_call_id="tool-call-child-launch-failure",
+            request={"task": "write", "input": {}, "metadata": {}},
+            status="waiting_user",
+        )
+        await record_child_run_pending_approval(
+            session,
+            row.id,
+            approval_id="approval-child-launch-failure",
+            approval_request={
+                "type": "tool_approval",
+                "approval_id": "approval-child-launch-failure",
+                "child_run_id": row.id,
+            },
+        )
+        task = await task_service.get_task(session, task_id)
+        revision = Revision(
+            project_id=task.project_id,
+            task_id=task.id,
+            message="active parent revision",
+            agent_session_id=session_id,
+            revision_type="agent",
+            status="active",
+            is_checkpoint=True,
+            project_snapshot_title="Active parent revision",
+            project_snapshot_word_count=0,
+            project_snapshot_chapter_count=0,
+        )
+        session.add(revision)
+        await session.flush()
+        task.current_revision_id = revision.id
+        session.add(task)
+        await session.commit()
+
+        async def fail_child_processing(**kwargs: Any) -> bool:
+            raise RuntimeError("child launch failed")
+
+        with patch(
+            "app.api.routers.agent_runtime.ensure_child_processing",
+            new=fail_child_processing,
+        ):
+            with pytest.raises(RuntimeError, match="child launch failed"):
+                await client.post(
+                    f"/api/v1/agent/sessions/{session_id}/tool-approval",
+                    json={"approval_id": "approval-child-launch-failure", "approved": True},
+                )
+
+        await session.refresh(revision)
+        assert revision.status == "active"
+        await session.refresh(task)
+        assert task.is_running is False
+
+    async def test_cancel_blocks_child_approval_before_it_marks_task_running(
+        self,
+        client: AsyncClient,
+        session,
+    ) -> None:
+        target = await _seed_agent_target(client)
+        session_response = await client.post(
+            "/api/v1/agent/sessions",
+            json={"project_id": target["project_id"], "model_id": target["model_id"]},
+        )
+        payload = session_response.json()
+        session_id = payload["session_id"]
+        task_id = payload["task_id"]
+        row = await create_child_run(
+            session,
+            parent_session_id=session_id,
+            parent_task_id=task_id,
+            parent_thread_id=session_id,
+            child_thread_id=f"{session_id}:child:cancel-race",
+            agent_key="writer",
+            dispatch_id="dispatch-child-cancel-race",
+            tool_call_id="tool-call-child-cancel-race",
+            request={"task": "write", "input": {}, "metadata": {}},
+            status="waiting_user",
+        )
+        await record_child_run_pending_approval(
+            session,
+            row.id,
+            approval_id="approval-child-cancel-race",
+            approval_request={
+                "type": "tool_approval",
+                "approval_id": "approval-child-cancel-race",
+                "child_run_id": row.id,
+            },
+        )
+        task = await task_service.get_task(session, task_id)
+        revision = Revision(
+            project_id=task.project_id,
+            task_id=task.id,
+            message="active parent revision",
+            agent_session_id=session_id,
+            revision_type="agent",
+            status="active",
+            is_checkpoint=True,
+            project_snapshot_title="Active parent revision",
+            project_snapshot_word_count=0,
+            project_snapshot_chapter_count=0,
+        )
+        session.add(revision)
+        await session.flush()
+        task.current_revision_id = revision.id
+        session.add(task)
+        await session.commit()
+
+        finalize_entered = asyncio.Event()
+        release_finalize = asyncio.Event()
+
+        async def block_finalize(
+            finalize_session,
+            revision_id: str,
+            revision_status: str,
+        ) -> None:
+            assert revision_id == revision.id
+            assert revision_status == "cancelled"
+            finalize_entered.set()
+            await release_finalize.wait()
+            revision.status = revision_status
+            finalize_session.add(revision)
+
+        with patch(
+            "app.api.routers.agent_runtime.finalize_revision_status",
+            new=block_finalize,
+        ), patch(
+            "app.api.routers.agent_runtime.ensure_child_processing",
+            new=AsyncMock(return_value=True),
+        ) as mock_ensure_child_processing, patch(
+            "app.api.routers.agent_runtime.emit",
+            new=AsyncMock(),
+        ):
+            cancel_task = asyncio.create_task(
+                client.post(f"/api/v1/agent/sessions/{session_id}/cancel")
+            )
+            await finalize_entered.wait()
+            approval_task = asyncio.create_task(
+                client.post(
+                    f"/api/v1/agent/sessions/{session_id}/tool-approval",
+                    json={"approval_id": "approval-child-cancel-race", "approved": True},
+                )
+            )
+            await asyncio.sleep(0.05)
+            assert not approval_task.done()
+            mock_ensure_child_processing.assert_not_awaited()
+
+            release_finalize.set()
+            cancel_response = await cancel_task
+            approval_response = await approval_task
+
+        assert cancel_response.status_code == status.HTTP_200_OK
+        assert approval_response.status_code == status.HTTP_409_CONFLICT
+        assert approval_response.json()["detail"]["code"] == "session_cancelled"
+        mock_ensure_child_processing.assert_not_awaited()
+        await session.refresh(task)
+        await session.refresh(revision)
+        assert task.is_running is False
+        assert revision.status == "cancelled"
 
     async def test_submit_tool_approval_for_sync_child_does_not_cancel_parent_wait_task(
         self,

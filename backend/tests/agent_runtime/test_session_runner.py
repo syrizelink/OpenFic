@@ -233,6 +233,77 @@ async def test_prune_thread_checkpoints_failure_is_silent():
 
 
 @pytest.mark.asyncio
+async def test_run_suppresses_terminal_events_when_revision_finalization_is_rejected():
+    runner = SessionRunner(
+        session_id="sess_cancelled_finalization",
+        task_id="task_cancelled_finalization",
+        model_config={
+            "provider_type": "openai",
+            "model_id": "gpt",
+            "api_key": "k",
+            "base_url": "",
+            "max_context_tokens": 8000,
+        },
+    )
+    interrupt = SimpleNamespace(
+        id="cancelled-interrupt",
+        value={"type": "tool_approval", "tool_name": "write_note", "args": {}},
+    )
+
+    class _Graph:
+        async def astream_events(self, *_args, **_kwargs):
+            if False:
+                yield None
+
+        async def aget_state(self, *_args, **_kwargs):
+            return SimpleNamespace(
+                next=("tools",),
+                tasks=(SimpleNamespace(interrupts=(interrupt,)),),
+                values={},
+                config={"configurable": {}},
+            )
+
+    fake_session = MagicMock(close=AsyncMock(), commit=AsyncMock())
+    fake_persister = MagicMock(
+        handle=AsyncMock(),
+        mark_user_sent=AsyncMock(),
+        finalize=AsyncMock(),
+        apply_interrupt_preview=AsyncMock(),
+    )
+    persisted_message = SimpleNamespace(
+        id="msg_cancelled_finalization",
+        seq=0,
+        created_at=datetime.now(UTC),
+    )
+
+    with (
+        patch.object(runner, "_get_graph", AsyncMock(return_value=_Graph())),
+        patch.object(runner, "_prepare_run_persistence", AsyncMock(return_value=[])),
+        patch.object(runner, "_persist_user_message", AsyncMock(return_value=persisted_message)),
+        patch(
+            "app.agent_runtime.runner.session_runner.begin_user_revision",
+            AsyncMock(return_value=SimpleNamespace(id="rev_cancelled_finalization")),
+        ),
+        patch(
+            "app.agent_runtime.runner.session_runner.finalize_revision_status",
+            AsyncMock(return_value=False),
+        ),
+        patch("app.agent_runtime.runner.session_runner.emit", new=AsyncMock()) as emit_mock,
+        patch(
+            "app.agent_runtime.runner.session_runner.create_session",
+            AsyncMock(return_value=fake_session),
+        ),
+        patch.object(runner, "_make_persister", MagicMock(return_value=fake_persister)),
+        patch.object(runner, "_clear_replay_session", AsyncMock()),
+    ):
+        await runner.run(user_request="hi")
+
+    event_names = [call.args[0] for call in emit_mock.await_args_list if call.args]
+    assert "agent:interrupt" not in event_names
+    assert "agent:done" not in event_names
+
+
+@pytest.mark.asyncio
 async def test_run_emits_preview_for_each_parallel_tool_approval_interrupt():
     runner = SessionRunner(
         session_id="sess_parallel_approval",
@@ -529,6 +600,7 @@ async def test_resume_targets_the_approved_parallel_tool_interrupt():
     with patch.object(runner, "_get_graph", AsyncMock(return_value=_Graph())), \
          patch("app.agent_runtime.runner.session_runner.finalize_revision_status", AsyncMock()), \
          patch("app.agent_runtime.runner.session_runner.emit", new=AsyncMock()), \
+         patch("app.agent_runtime.runner.session_runner.revision_repo.get_by_id", AsyncMock(return_value=None)), \
          patch(
              "app.agent_runtime.runner.session_runner.create_session",
              AsyncMock(return_value=fake_session),
@@ -617,6 +689,7 @@ async def test_resume_restores_all_parallel_interrupts_in_one_command() -> None:
 
     with patch.object(runner, "_get_graph", AsyncMock(return_value=_Graph())), \
          patch("app.agent_runtime.runner.session_runner.finalize_revision_status", AsyncMock()), \
+         patch("app.agent_runtime.runner.session_runner.revision_repo.get_by_id", AsyncMock(return_value=None)), \
          patch("app.agent_runtime.runner.session_runner.create_session", AsyncMock(return_value=fake_session)), \
          patch.object(runner, "_make_persister", MagicMock(return_value=fake_persister)):
         await runner.resume_interrupt_batch("batch-1", responses)
@@ -1011,6 +1084,9 @@ async def test_resume_emits_error_and_marks_revision_failed_on_runtime_exception
         runner,
         "_make_persister",
         MagicMock(return_value=fake_persister),
+    ), patch(
+        "app.agent_runtime.runner.session_runner.revision_repo.get_by_id",
+        AsyncMock(return_value=None),
     ), patch.object(
         runner,
         "_clear_replay_session",

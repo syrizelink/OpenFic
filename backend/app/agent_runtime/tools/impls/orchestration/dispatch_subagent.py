@@ -230,6 +230,7 @@ class DispatchSubagentTool(AgentTool):
                 parent_session_id=self.session_id,
                 child_run_id=child_run_id,
                 runner=runner,
+                clear_cancelled=False,
             )
         while True:
             resolution = await wait_for_request_resolution(

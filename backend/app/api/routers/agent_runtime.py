@@ -7,6 +7,7 @@ import asyncio
 import re
 import time
 from collections.abc import Callable
+from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime
 from typing import TypeGuard, cast
 
@@ -322,6 +323,100 @@ async def _get_runner(
     return runner
 
 
+async def _is_agent_session_cancelled(
+    session: AsyncSession,
+    session_id: str,
+) -> bool:
+    """Whether the current revision was terminally cancelled.
+
+    LangGraph keeps an interrupt checkpoint after a cancellation so that a
+    normal paused session can be restored.  A cancelled revision, however,
+    must never be resumed from that checkpoint.
+    """
+
+    try:
+        task = await task_service.get_task_by_agent_session_id(session, session_id)
+    except NotFoundError:
+        return False
+    if not task.current_revision_id:
+        return False
+    revision = await revision_repo.get_by_id(session, task.current_revision_id)
+    return revision is not None and revision.status == "cancelled"
+
+
+async def _ensure_agent_session_resumable(
+    session: AsyncSession,
+    session_id: str,
+) -> None:
+    if await _is_agent_session_cancelled(session, session_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "session_cancelled",
+                "message": "会话已取消，无法恢复待处理的审批或问答",
+            },
+        )
+
+
+async def _claim_agent_session_resume(
+    session: AsyncSession,
+    session_id: str,
+    *,
+    allow_active: bool = False,
+) -> tuple[str | None, bool]:
+    """Reserve the interrupted revision and report whether this request claimed it.
+
+    This conditional transition serializes a competing cancel or duplicate
+    resume across application workers before a runner task is launched.
+    """
+
+    task = await task_service.get_task_by_agent_session_id(session, session_id)
+    revision_id = task.current_revision_id
+    if not revision_id:
+        return None, False
+    if await revision_repo.claim_interrupted_revision(session, revision_id):
+        await session.commit()
+        return revision_id, True
+
+    revision = await revision_repo.get_by_id(session, revision_id)
+    if revision is not None and revision.status == "cancelled":
+        await _ensure_agent_session_resumable(session, session_id)
+    if allow_active and revision is not None and revision.status == "active":
+        return revision_id, False
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={
+            "code": "session_not_resumable",
+            "message": "会话当前不在可恢复的中断状态",
+        },
+    )
+
+
+@asynccontextmanager
+async def _agent_session_lifecycle_lock(registry, session_id: str):
+    """Serialize cancellation with starting or queuing a parent run."""
+
+    lock_factory = getattr(registry, "session_lock", None)
+    if callable(lock_factory):
+        async with lock_factory(session_id):
+            yield
+    else:
+        # Keep lightweight router tests with fake registries backwards-compatible.
+        yield
+
+
+async def _release_agent_session_resume_claim(
+    session: AsyncSession,
+    revision_id: str | None,
+) -> None:
+    """Make a claimed checkpoint resumable again when its launch fails."""
+
+    if not revision_id:
+        return
+    if await revision_repo.release_active_revision_claim(session, revision_id):
+        await session.commit()
+
+
 async def _build_model_config(
     model, provider, api_key: str, reasoning_effort: str | None = None
 ) -> dict:
@@ -480,46 +575,74 @@ async def _launch_task(
     task_id: str,
     project_id: str,
     coro,
+    clear_cancelled: bool = True,
+    lifecycle_lock_held: bool = False,
 ) -> None:
-    await _set_task_running_state(
-        db_session_factory=db_session_factory,
-        task_id=task_id,
-        session_id=session_id,
-        project_id=project_id,
-        is_running=True,
-    )
     registry = get_agent_run_registry()
 
+    start_gate = asyncio.Event()
+
     async def _run_and_cleanup() -> None:
+        started = False
         try:
+            await start_gate.wait()
+            started = True
             await coro
         except asyncio.CancelledError:
             logger.bind(session_id=session_id).info("Agent task cancelled")
         except Exception:
             logger.bind(session_id=session_id).opt(exception=True).error("Agent task failed")
         finally:
-            current_task = asyncio.current_task()
-            removed = False
-            if current_task is not None:
-                removed = await registry.unregister(session_id, current_task)
-            if removed:
-                try:
-                    if not await registry.is_running(session_id):
-                        await _set_task_running_state(
-                            db_session_factory=db_session_factory,
-                            task_id=task_id,
-                            session_id=session_id,
-                            project_id=project_id,
-                            is_running=False,
+            if not started:
+                close = getattr(coro, "close", None)
+                if callable(close):
+                    with suppress(Exception):
+                        close()
+            async with _agent_session_lifecycle_lock(registry, session_id):
+                current_task = asyncio.current_task()
+                removed = False
+                if current_task is not None:
+                    removed = await registry.unregister(session_id, current_task)
+                if removed:
+                    try:
+                        if not await registry.is_running(session_id):
+                            await _set_task_running_state(
+                                db_session_factory=db_session_factory,
+                                task_id=task_id,
+                                session_id=session_id,
+                                project_id=project_id,
+                                is_running=False,
+                            )
+                    except Exception:
+                        logger.bind(session_id=session_id).opt(exception=True).error(
+                            "Agent task running-state cleanup failed"
                         )
-                except Exception:
-                    logger.bind(session_id=session_id).opt(exception=True).error(
-                        "Agent task running-state cleanup failed"
-                    )
 
     task = asyncio.create_task(_run_and_cleanup())
+
+    async def _register_and_start() -> None:
+        if clear_cancelled:
+            await registry.register(session_id, task)
+        else:
+            await registry.register(session_id, task, clear_cancelled=False)
+        # Register before the task can enter SessionRunner.resume. A concurrent
+        # cancellation then either remains visible to the runner or cancels the
+        # registered task, instead of being erased by a late registration.
+        await _set_task_running_state(
+            db_session_factory=db_session_factory,
+            task_id=task_id,
+            session_id=session_id,
+            project_id=project_id,
+            is_running=True,
+        )
+        start_gate.set()
+
     try:
-        await registry.register(session_id, task)
+        if lifecycle_lock_held:
+            await _register_and_start()
+        else:
+            async with _agent_session_lifecycle_lock(registry, session_id):
+                await _register_and_start()
     except Exception:
         task.cancel()
         await _set_task_running_state(
@@ -576,24 +699,25 @@ async def _launch_continuation_task_replacing_current(
                 "Agent continuation task failed"
             )
         finally:
-            continuation_task = asyncio.current_task()
-            removed = False
-            if continuation_task is not None:
-                removed = await registry.unregister(session_id, continuation_task)
-            if removed:
-                try:
-                    if not await registry.is_running(session_id):
-                        await _set_task_running_state(
-                            db_session_factory=db_session_factory,
-                            task_id=task_id,
-                            session_id=session_id,
-                            project_id=project_id,
-                            is_running=False,
+            async with _agent_session_lifecycle_lock(registry, session_id):
+                continuation_task = asyncio.current_task()
+                removed = False
+                if continuation_task is not None:
+                    removed = await registry.unregister(session_id, continuation_task)
+                if removed:
+                    try:
+                        if not await registry.is_running(session_id):
+                            await _set_task_running_state(
+                                db_session_factory=db_session_factory,
+                                task_id=task_id,
+                                session_id=session_id,
+                                project_id=project_id,
+                                is_running=False,
+                            )
+                    except Exception:
+                        logger.bind(session_id=session_id).opt(exception=True).error(
+                            "Agent continuation running-state cleanup failed"
                         )
-                except Exception:
-                    logger.bind(session_id=session_id).opt(exception=True).error(
-                        "Agent continuation running-state cleanup failed"
-                    )
 
     task = asyncio.create_task(_run_and_cleanup())
     try:
@@ -773,17 +897,18 @@ async def send_agent_message(
     if _is_pending_agent_session_title(task.title):
         await enqueue_session_title_job(session, task, body.message)
         await background_service.commit_and_notify(session)
-    if await registry.is_running(session_id):
-        queue_kwargs = {"attachments": attachment_metadata} if attachment_metadata else {}
-        pending_message = await runner.queue_pending_user_message(body.message, **queue_kwargs)
-        return AgentSendMessageResponse(
-            success=True,
-            session_id=session_id,
-            message="Agent 消息已排队",
-            queued=True,
-            model_updated=False,
-            pending_message=AgentPendingMessageResponse(**pending_message),
-        )
+    async with _agent_session_lifecycle_lock(registry, session_id):
+        if await registry.is_running(session_id) and not await registry.is_cancelled(session_id):
+            queue_kwargs = {"attachments": attachment_metadata} if attachment_metadata else {}
+            pending_message = await runner.queue_pending_user_message(body.message, **queue_kwargs)
+            return AgentSendMessageResponse(
+                success=True,
+                session_id=session_id,
+                message="Agent 消息已排队",
+                queued=True,
+                model_updated=False,
+                pending_message=AgentPendingMessageResponse(**pending_message),
+            )
     model_updated = False
     if body.model_id:
         try:
@@ -863,15 +988,21 @@ async def compact_agent_session(
 ) -> AgentCompactionResponse:
     runner = await _get_runner(session_id, session)
     registry = get_agent_run_registry()
-    if await registry.is_running(session_id):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "code": "session_compacting",
-                "message": "会话运行中，不能手动压缩",
-            },
-        )
+    return await _run_agent_session_compaction(
+        session_id=session_id,
+        session=session,
+        runner=runner,
+        registry=registry,
+    )
 
+
+async def _run_agent_session_compaction(
+    *,
+    session_id: str,
+    session: AsyncSession,
+    runner: SessionRunner,
+    registry,
+) -> AgentCompactionResponse:
     current_task = asyncio.current_task()
     if current_task is None:
         raise HTTPException(
@@ -889,62 +1020,79 @@ async def compact_agent_session(
     status_session_factory = _make_status_session_factory(session)
 
     try:
-        registered = await registry.try_register_parent(session_id, current_task)
-        if not registered:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={
-                    "code": "session_compacting",
-                    "message": "会话运行中，不能手动压缩",
-                },
+        # Only serialize the lifecycle transition. The compaction task remains
+        # registered in the run registry after this block, so other LLM calls
+        # still see the session as running while cancellation can acquire the
+        # lifecycle lock and cancel this task.
+        async with _agent_session_lifecycle_lock(registry, session_id):
+            await _ensure_agent_session_resumable(session, session_id)
+            if await registry.is_running(session_id):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        "code": "session_compacting",
+                        "message": "会话运行中，不能手动压缩",
+                    },
+                )
+            registered = await registry.try_register_parent(session_id, current_task)
+            if not registered:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        "code": "session_compacting",
+                        "message": "会话运行中，不能手动压缩",
+                    },
+                )
+            await _set_task_running_state(
+                db_session_factory=status_session_factory,
+                task_id=runner.task_id,
+                session_id=session_id,
+                project_id=runner.project_id,
+                is_running=True,
             )
-        await _set_task_running_state(
-            db_session_factory=status_session_factory,
-            task_id=runner.task_id,
-            session_id=session_id,
-            project_id=runner.project_id,
-            is_running=True,
-        )
-        running_state_started = True
+            running_state_started = True
+
         try:
             result = await runner.compact()
-            pending_message = (
-                await runner.consume_next_pending_user_message_for_continuation()
-            )
-            if pending_message is not None:
-                message_id, content = pending_message
-                await _launch_continuation_task_replacing_current(
-                    db_session_factory=status_session_factory,
-                    session_id=session_id,
-                    task_id=runner.task_id,
-                    project_id=runner.project_id,
-                    registry=registry,
-                    current_task=current_task,
-                    coro=runner.run(
-                        user_request=content,
-                        user_message_id=message_id,
-                    ),
+            async with _agent_session_lifecycle_lock(registry, session_id):
+                pending_message = (
+                    await runner.consume_next_pending_user_message_for_continuation()
                 )
-                continuation_started = True
+                if pending_message is not None:
+                    message_id, content = pending_message
+                    await _launch_continuation_task_replacing_current(
+                        db_session_factory=status_session_factory,
+                        session_id=session_id,
+                        task_id=runner.task_id,
+                        project_id=runner.project_id,
+                        registry=registry,
+                        current_task=current_task,
+                        coro=runner.run(
+                            user_request=content,
+                            user_message_id=message_id,
+                        ),
+                    )
+                    continuation_started = True
         except CompactionError as exc:
             compaction_error = exc
     finally:
-        if registered:
-            removed = await registry.unregister(session_id, current_task)
-        if running_state_started and not continuation_started:
-            try:
-                if removed and not await registry.is_running(session_id):
-                    await _set_task_running_state(
-                        db_session_factory=status_session_factory,
-                        task_id=runner.task_id,
-                        session_id=session_id,
-                        project_id=runner.project_id,
-                        is_running=False,
+        async with _agent_session_lifecycle_lock(registry, session_id):
+            if registered:
+                removed = await registry.unregister(session_id, current_task)
+            if running_state_started and not continuation_started:
+                try:
+                    if removed and not await registry.is_running(session_id):
+                        await _set_task_running_state(
+                            db_session_factory=status_session_factory,
+                            task_id=runner.task_id,
+                            session_id=session_id,
+                            project_id=runner.project_id,
+                            is_running=False,
+                        )
+                except Exception:
+                    logger.bind(session_id=session_id).opt(exception=True).error(
+                        "Agent compaction running-state cleanup failed"
                     )
-            except Exception:
-                logger.bind(session_id=session_id).opt(exception=True).error(
-                    "Agent compaction running-state cleanup failed"
-                )
 
     if compaction_error is not None:
         error_status = (
@@ -988,6 +1136,7 @@ async def submit_agent_question_answer(
     body: AgentQuestionAnswerRequest,
     session: AsyncSession = Depends(get_session),
 ) -> dict:
+    await _ensure_agent_session_resumable(session, session_id)
     runner = await _get_runner(session_id, session)
     status_session_factory = _make_status_session_factory(session)
     payload = {
@@ -995,13 +1144,23 @@ async def submit_agent_question_answer(
         "action_id": body.action_id,
         "answer": [item.model_dump(mode="json") for item in body.answer],
     }
-    await _launch_task(
-        db_session_factory=status_session_factory,
-        session_id=session_id,
-        task_id=runner.task_id,
-        project_id=runner.project_id,
-        coro=runner.resume(payload),
-    )
+    registry = get_agent_run_registry()
+    async with _agent_session_lifecycle_lock(registry, session_id):
+        revision_id, claimed_revision = await _claim_agent_session_resume(session, session_id)
+        try:
+            await _launch_task(
+                db_session_factory=status_session_factory,
+                session_id=session_id,
+                task_id=runner.task_id,
+                project_id=runner.project_id,
+                coro=runner.resume(payload),
+                clear_cancelled=False,
+                lifecycle_lock_held=True,
+            )
+        except Exception:
+            if claimed_revision:
+                await _release_agent_session_resume_claim(session, revision_id)
+            raise
     return {"success": True, "session_id": session_id, "message": "已提交澄清回答"}
 
 
@@ -1011,16 +1170,27 @@ async def submit_agent_interrupt_resume(
     body: AgentInterruptResumeRequest,
     session: AsyncSession = Depends(get_session),
 ) -> dict:
+    await _ensure_agent_session_resumable(session, session_id)
     runner = await _get_runner(session_id, session)
     status_session_factory = _make_status_session_factory(session)
     responses = [item.model_dump(mode="json", exclude_none=True) for item in body.responses]
-    await _launch_task(
-        db_session_factory=status_session_factory,
-        session_id=session_id,
-        task_id=runner.task_id,
-        project_id=runner.project_id,
-        coro=runner.resume_interrupt_batch(body.batch_id, responses),
-    )
+    registry = get_agent_run_registry()
+    async with _agent_session_lifecycle_lock(registry, session_id):
+        revision_id, claimed_revision = await _claim_agent_session_resume(session, session_id)
+        try:
+            await _launch_task(
+                db_session_factory=status_session_factory,
+                session_id=session_id,
+                task_id=runner.task_id,
+                project_id=runner.project_id,
+                coro=runner.resume_interrupt_batch(body.batch_id, responses),
+                clear_cancelled=False,
+                lifecycle_lock_held=True,
+            )
+        except Exception:
+            if claimed_revision:
+                await _release_agent_session_resume_claim(session, revision_id)
+            raise
     return {"success": True, "session_id": session_id, "message": "已提交并行中断响应"}
 
 
@@ -1030,6 +1200,7 @@ async def submit_agent_tool_approval(
     body: AgentToolApprovalRequest,
     session: AsyncSession = Depends(get_session),
 ) -> dict:
+    await _ensure_agent_session_resumable(session, session_id)
     runner = await _get_runner(session_id, session)
     status_session_factory = _make_status_session_factory(session)
     payload = {
@@ -1042,40 +1213,86 @@ async def submit_agent_tool_approval(
         parent_session_id=session_id,
         approval_id=body.approval_id,
     )
+    registry = get_agent_run_registry()
     if child_run is not None:
-        subagent_runner = SubagentRunner(
-            session_factory=status_session_factory,
-            model_config=runner.model_config,
-            project_id=runner.project_id,
-        )
-        await _set_task_running_state(
-            db_session_factory=status_session_factory,
-            session_id=session_id,
-            task_id=runner.task_id,
-            project_id=runner.project_id,
-            is_running=True,
-        )
-        await ensure_child_processing(
-            parent_session_id=session_id,
-            child_run_id=child_run.id,
-            runner=subagent_runner,
-            resume_payload=payload,
-        )
+        async with _agent_session_lifecycle_lock(registry, session_id):
+            # The initial check above can race a cancellation. Recheck while holding
+            # the same lifecycle lock before marking the parent task as running.
+            await _ensure_agent_session_resumable(session, session_id)
+            revision_id, claimed_revision = await _claim_agent_session_resume(
+                session, session_id, allow_active=True
+            )
+            started = False
+            try:
+                subagent_runner = SubagentRunner(
+                    session_factory=status_session_factory,
+                    model_config=runner.model_config,
+                    project_id=runner.project_id,
+                )
+                await _set_task_running_state(
+                    db_session_factory=status_session_factory,
+                    session_id=session_id,
+                    task_id=runner.task_id,
+                    project_id=runner.project_id,
+                    is_running=True,
+                )
+                started = await ensure_child_processing(
+                    parent_session_id=session_id,
+                    child_run_id=child_run.id,
+                    runner=subagent_runner,
+                    resume_payload=payload,
+                    clear_cancelled=False,
+                )
+                if not started and await registry.is_cancelled(session_id):
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail={
+                            "code": "session_cancelled",
+                            "message": "会话已取消，无法恢复待处理的审批或问答",
+                        },
+                    )
+            except Exception:
+                if not started:
+                    try:
+                        await _set_task_running_state(
+                            db_session_factory=status_session_factory,
+                            session_id=session_id,
+                            task_id=runner.task_id,
+                            project_id=runner.project_id,
+                            is_running=False,
+                        )
+                    except Exception:
+                        logger.bind(session_id=session_id).opt(exception=True).error(
+                            "Child agent launch running-state rollback failed"
+                        )
+                if claimed_revision:
+                    await _release_agent_session_resume_claim(session, revision_id)
+                raise
         return {"success": True, "session_id": session_id, "message": "已提交工具审批"}
 
-    await _launch_task(
-        db_session_factory=status_session_factory,
-        session_id=session_id,
-        task_id=runner.task_id,
-        project_id=runner.project_id,
-        coro=runner.resume(payload),
-    )
+    async with _agent_session_lifecycle_lock(registry, session_id):
+        revision_id, claimed_revision = await _claim_agent_session_resume(session, session_id)
+        try:
+            await _launch_task(
+                db_session_factory=status_session_factory,
+                session_id=session_id,
+                task_id=runner.task_id,
+                project_id=runner.project_id,
+                coro=runner.resume(payload),
+                clear_cancelled=False,
+                lifecycle_lock_held=True,
+            )
+        except Exception:
+            if claimed_revision:
+                await _release_agent_session_resume_claim(session, revision_id)
+            raise
     return {"success": True, "session_id": session_id, "message": "已提交工具审批"}
 
 
 @router.get("/sessions/{session_id}", response_model=AgentSessionStateResponse)
 async def get_agent_session_state(
     session_id: str,
+    session: AsyncSession = Depends(get_session),
 ) -> AgentSessionStateResponse:
     checkpointer = await get_checkpointer()
     checkpoint = await checkpointer.aget_tuple(
@@ -1083,9 +1300,21 @@ async def get_agent_session_state(
     )
     checkpoint_values = checkpoint.checkpoint.get("channel_values") if checkpoint else None
     state_values = dict(checkpoint_values) if isinstance(checkpoint_values, dict) else {}
+    is_cancelled = await _is_agent_session_cancelled(session, session_id)
+    # A new run can be registered before it commits its new revision.  Keep
+    # the live registry state authoritative for running status during that
+    # transition, while still suppressing interrupts from the cancelled
+    # checkpoint below.
     is_running = await get_agent_run_registry().is_running(session_id)
+    if is_cancelled:
+        try:
+            task = await task_service.get_task_by_agent_session_id(session, session_id)
+        except NotFoundError:
+            task = None
+        if task is not None and not task.is_running:
+            is_running = False
     interrupts: list[dict] = []
-    if checkpoint is not None:
+    if checkpoint is not None and not is_cancelled:
         for pending_write in checkpoint.pending_writes or []:
             if len(pending_write) < 3 or pending_write[1] != "__interrupt__":
                 continue
@@ -1430,32 +1659,114 @@ async def cancel_agent_session(
     session: AsyncSession = Depends(get_session),
 ) -> AgentCancelResponse:
     runner = await _get_runner(session_id, session)
+    registry = get_agent_run_registry()
     status_session_factory = _make_status_session_factory(session)
     status_publisher = SubagentRunner(
         session_factory=status_session_factory,
         model_config=runner.model_config,
         project_id=runner.project_id,
     )
-    runner.cancel()
-    await _cancel_subagent_session_tree(
-        session,
-        root_session_id=session_id,
-        status_publisher=status_publisher,
-    )
-    task = await task_service.get_task_by_agent_session_id(session, session_id)
-    revision = (
-        await revision_repo.get_by_id(session, task.current_revision_id)
-        if task.current_revision_id
+    session_lock_factory = getattr(registry, "session_lock", None)
+    session_lock = (
+        session_lock_factory(session_id)
+        if callable(session_lock_factory)
         else None
     )
-    if revision is not None and revision.status in {"active", "interrupted"}:
-        await finalize_revision_status(session, revision.id, "cancelled")
-    await task_service.update_task(session, task.id, is_running=False)
-    await session.commit()
-    await emit(
-        "agent:settings_lock_changed",
-        {"session_id": session_id, "is_running": False},
-    )
+    if session_lock is not None:
+        await session_lock.acquire()
+    parent_task: asyncio.Task[None] | None = None
+    try:
+        parent_task = await registry.mark_cancelled(session_id)
+        task = await task_service.get_task_by_agent_session_id(session, session_id)
+        revision = (
+            await revision_repo.get_by_id(session, task.current_revision_id)
+            if task.current_revision_id
+            else None
+        )
+        if revision is not None and revision.status in {"active", "interrupted"}:
+            await finalize_revision_status(session, revision.id, "cancelled")
+        await task_service.update_task(session, task.id, is_running=False)
+        await session.commit()
+    except Exception:
+        if session_lock is not None:
+            session_lock.release()
+        await registry.clear_cancelled(session_id)
+        raise
+
+    # Commit the terminal state before signalling the runner. A resume that
+    # races with cancellation will now either observe the cancelled revision
+    # before it starts, or receive this cancellation signal afterwards.
+    try:
+        if parent_task is not None:
+            try:
+                await registry.cancel_task(session_id, parent_task)
+            except Exception:
+                logger.bind(session_id=session_id).opt(exception=True).error(
+                    "Agent parent task cancellation failed after terminal commit"
+                )
+
+        try:
+            runner.cancel()
+        except Exception:
+            logger.bind(session_id=session_id).opt(exception=True).error(
+                "Agent runner cancellation signal failed after terminal commit"
+            )
+
+        try:
+            await _cancel_subagent_session_tree(
+                session,
+                root_session_id=session_id,
+                status_publisher=status_publisher,
+            )
+            await session.commit()
+        except Exception:
+            with suppress(Exception):
+                await session.rollback()
+            logger.bind(session_id=session_id).opt(exception=True).error(
+                "Agent subagent cancellation cleanup failed after terminal commit"
+            )
+
+        # Keep notifications inside the lifecycle lock. Otherwise a new run
+        # can publish is_running=True and then be overwritten by this
+        # cancellation's stale is_running=False notification. The terminal
+        # database state is already committed, so notification failures must
+        # not turn a successful cancellation into an error response.
+        if task.project_id:
+            try:
+                await emit(
+                    "background:event",
+                    {
+                        "type": "task_run_status_updated",
+                        "job_type": "agent_runtime",
+                        "subject_type": "project",
+                        "subject_id": task.project_id,
+                        "project_id": task.project_id,
+                        "task_id": task.id,
+                        "agent_session_id": session_id,
+                        "is_running": False,
+                        "payload": {"is_running": False},
+                        "created_at": datetime.now(UTC).isoformat(),
+                        "updated_at": task.updated_at.isoformat(),
+                        "project_revision": time.time_ns(),
+                    },
+                    room=background_project_room(task.project_id),
+                )
+            except Exception:
+                logger.bind(session_id=session_id).opt(exception=True).error(
+                    "Agent task status notification failed after cancellation"
+                )
+        try:
+            await emit(
+                "agent:settings_lock_changed",
+                {"session_id": session_id, "is_running": False},
+            )
+        except Exception:
+            logger.bind(session_id=session_id).opt(exception=True).error(
+                "Agent settings-lock notification failed after cancellation"
+            )
+    finally:
+        if session_lock is not None:
+            session_lock.release()
     return AgentCancelResponse(
         success=True,
         session_id=session_id,

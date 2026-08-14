@@ -91,7 +91,7 @@ from app.maintenance import maintenance_state
 from app.settings import settings as app_settings
 from app.socket import init_socketio
 from app.storage.database import close_db, create_session, init_db, vacuum_database_if_needed
-from app.storage.repos import setting_repo
+from app.storage.repos import revision_repo, setting_repo
 from app.storage.services import task_service
 from app.storage.services.revision_content_backfill import backfill_revision_content_blobs
 from app.storage.services.revision_service import cleanup_orphaned_revision_data
@@ -140,6 +140,16 @@ async def _reset_task_running_state() -> int:
         cleared = await task_service.clear_running_tasks(session)
         await session.commit()
         return cleared
+    finally:
+        await session.close()
+
+
+async def _reset_active_revision_state() -> int:
+    session = await create_session()
+    try:
+        recovered = await revision_repo.recover_active_revisions_for_stopped_tasks(session)
+        await session.commit()
+        return recovered
     finally:
         await session.close()
 
@@ -625,6 +635,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     cleared_tasks = await _reset_task_running_state()
     if cleared_tasks:
         logger.warning(f"已重置 {cleared_tasks} 个遗留的运行中任务状态")
+    recovered_revisions = await _reset_active_revision_state()
+    if recovered_revisions:
+        logger.warning(f"已恢复 {recovered_revisions} 个遗留的 Agent revision 状态")
     cancelled_child_runs = await _reset_interrupted_child_run_state()
     if cancelled_child_runs:
         logger.warning(f"已取消 {cancelled_child_runs} 个因服务重启中断的子 Agent 任务")
