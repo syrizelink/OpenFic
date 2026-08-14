@@ -5,7 +5,8 @@ from os import getenv
 
 from fastapi import APIRouter, Header, HTTPException, Request, status
 
-from app.api.schemas.health import HealthResponse
+from app.api.schemas.health import HealthResponse, MaintenanceResponse
+from app.maintenance import maintenance_state
 from app.settings import settings
 
 router = APIRouter(prefix="/health", tags=["health"])
@@ -22,6 +23,13 @@ async def health_check() -> HealthResponse:
         status="healthy",
         version=settings.app_version,
     )
+
+
+@router.get("/maintenance", response_model=MaintenanceResponse)
+async def maintenance_check() -> MaintenanceResponse:
+    """Return the local database maintenance state."""
+    snapshot = maintenance_state.snapshot()
+    return MaintenanceResponse(**snapshot.__dict__)
 
 
 @router.post("/shutdown", status_code=status.HTTP_202_ACCEPTED)

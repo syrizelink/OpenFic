@@ -1,5 +1,7 @@
 import os
 import shutil
+import time
+from collections.abc import Callable
 from pathlib import Path
 
 import aiosqlite
@@ -27,6 +29,8 @@ _LEGACY_API_KEY_MARKER = b"api_key"
 _LEGACY_API_KEY_MIGRATION = "remove_plaintext_api_keys_v1"
 _CHECKPOINT_CLEANUP_BATCH_SIZE = 500
 _VACUUM_MIN_FREE_BYTES = 64 * 1024 * 1024
+_INCREMENTAL_VACUUM_BATCH_BYTES = 64 * 1024 * 1024
+CheckpointMaintenanceProgress = Callable[[str, float | None, int, int], None]
 
 
 def _default_db_path() -> Path:
@@ -68,8 +72,11 @@ async def get_checkpointer() -> AsyncSqliteSaver:
     global _checkpointer
     if _checkpointer is None:
         db_path = _get_db_path()
+        db_path_exists = Path(db_path).exists()
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
         conn = await aiosqlite.connect(db_path)
+        if not db_path_exists:
+            await conn.execute("PRAGMA auto_vacuum = INCREMENTAL")
         _checkpointer = AsyncSqliteSaver(
             conn,
             serde=JsonPlusSerializer(
@@ -408,34 +415,107 @@ async def _list_retained_checkpoint_ids(
     return retained_ids
 
 
-async def vacuum_checkpoint_database(
-    min_free_bytes: int = _VACUUM_MIN_FREE_BYTES,
+async def _get_pragma_int(conn: aiosqlite.Connection, pragma: str) -> int:
+    cursor = await conn.execute(f"PRAGMA {pragma}")
+    try:
+        row = await cursor.fetchone()
+    finally:
+        await cursor.close()
+    return int(row[0]) if row else 0
+
+
+async def _run_full_vacuum(
+    conn: aiosqlite.Connection,
+    progress_callback: CheckpointMaintenanceProgress | None = None,
+) -> None:
+    last_report_at = 0.0
+
+    def on_progress() -> int:
+        nonlocal last_report_at
+        now = time.monotonic()
+        if progress_callback is not None and now - last_report_at >= 0.5:
+            progress_callback("migrating", None, 0, 0)
+            last_report_at = now
+        return 0
+
+    if progress_callback is not None:
+        progress_callback("migrating", None, 0, 0)
+    await conn.set_progress_handler(on_progress, 10_000)
+    try:
+        await conn.execute("VACUUM")
+    finally:
+        await conn.set_progress_handler(lambda: 0, 0)
+
+
+async def migrate_checkpoint_database_to_incremental(
+    progress_callback: CheckpointMaintenanceProgress | None = None,
 ) -> bool:
-    """Reclaim file space after cleanup when enough SQLite pages are free."""
+    """Enable incremental auto-vacuum, rebuilding legacy databases once."""
     db_path = _get_db_path()
     if not Path(db_path).exists():
         return False
 
     conn = await aiosqlite.connect(db_path)
     try:
-        page_size_cursor = await conn.execute("PRAGMA page_size")
-        try:
-            page_size_row = await page_size_cursor.fetchone()
-        finally:
-            await page_size_cursor.close()
-        free_list_cursor = await conn.execute("PRAGMA freelist_count")
-        try:
-            free_list_row = await free_list_cursor.fetchone()
-        finally:
-            await free_list_cursor.close()
-        page_size = int(page_size_row[0]) if page_size_row else 0
-        free_pages = int(free_list_row[0]) if free_list_row else 0
-        if page_size * free_pages < min_free_bytes:
+        if await _get_pragma_int(conn, "auto_vacuum") == 2:
             return False
-        await conn.execute("VACUUM")
+
+        await conn.execute("PRAGMA auto_vacuum = INCREMENTAL")
+        await conn.commit()
+        await _run_full_vacuum(conn, progress_callback)
         return True
     finally:
         await conn.close()
+
+
+async def incremental_vacuum_checkpoint_database(
+    min_free_bytes: int = _VACUUM_MIN_FREE_BYTES,
+    batch_bytes: int = _INCREMENTAL_VACUUM_BATCH_BYTES,
+    progress_callback: CheckpointMaintenanceProgress | None = None,
+) -> bool:
+    """Reclaim free checkpoint pages in bounded incremental batches."""
+    db_path = _get_db_path()
+    if not Path(db_path).exists():
+        return False
+
+    conn = await aiosqlite.connect(db_path)
+    try:
+        if await _get_pragma_int(conn, "auto_vacuum") != 2:
+            return False
+
+        page_size = await _get_pragma_int(conn, "page_size")
+        total_free_pages = await _get_pragma_int(conn, "freelist_count")
+        if page_size * total_free_pages < min_free_bytes:
+            return False
+
+        batch_pages = max(1, batch_bytes // max(page_size, 1))
+        remaining_pages = total_free_pages
+        while remaining_pages > 0:
+            previous_remaining_pages = remaining_pages
+            await conn.execute(f"PRAGMA incremental_vacuum({batch_pages})")
+            await conn.commit()
+            remaining_pages = await _get_pragma_int(conn, "freelist_count")
+            reclaimed_pages = total_free_pages - remaining_pages
+            progress = reclaimed_pages / total_free_pages
+            if progress_callback is not None:
+                progress_callback(
+                    "vacuuming",
+                    progress,
+                    reclaimed_pages,
+                    total_free_pages,
+                )
+            if remaining_pages >= previous_remaining_pages:
+                break
+        return remaining_pages < total_free_pages
+    finally:
+        await conn.close()
+
+
+async def vacuum_checkpoint_database(
+    min_free_bytes: int = _VACUUM_MIN_FREE_BYTES,
+) -> bool:
+    """Backward-compatible alias for incremental checkpoint reclamation."""
+    return await incremental_vacuum_checkpoint_database(min_free_bytes=min_free_bytes)
 
 
 async def _list_checkpoint_thread_ids(checkpointer: AsyncSqliteSaver) -> set[str]:

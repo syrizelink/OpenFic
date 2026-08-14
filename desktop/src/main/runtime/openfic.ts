@@ -9,7 +9,11 @@ import {
   type BackendProcessHandle,
 } from "../process.js";
 import { configureDefaultSystemProxy, getSystemProxyEnvironment } from "../proxy.js";
-import { throwIfAborted, waitForBackend } from "../health.js";
+import {
+  throwIfAborted,
+  waitForBackend,
+  waitForBackendMaintenance,
+} from "../health.js";
 import type { PortablePython, RuntimeIntegrityCheck } from "./python.js";
 import {
   createOpenFicInstallCommand,
@@ -486,7 +490,11 @@ export async function startLocalOpenFicBackend(
 
   scheduleHealthFallback();
   try {
-    const health = await waitForBackend(handle.baseUrl, { process: handle.process, signal });
+    const health = await waitForBackend(handle.baseUrl, {
+      process: handle.process,
+      signal,
+      timeoutMs: null,
+    });
     if (healthFallbackTimer) clearTimeout(healthFallbackTimer);
     startupProgress?.begin({
       step: "check-health",
@@ -498,6 +506,31 @@ export async function startLocalOpenFicBackend(
       abortStartingBackendProcess(handle);
       throw new Error(`本地后端版本不匹配：期望 ${expectedVersion}，实际 ${health.version ?? "未知"}`);
     }
+    startupProgress?.begin({
+      step: "maintain-database",
+      title: "维护本地数据库",
+      message: "正在清理和压缩本地数据",
+      progress: 0.92,
+      indeterminate: true,
+    });
+    await waitForBackendMaintenance(handle.baseUrl, {
+      process: handle.process,
+      signal,
+      onProgress: (maintenance) => {
+        startupProgress?.update({
+          step: "maintain-database",
+          title: "维护本地数据库",
+          message: "正在清理和压缩本地数据",
+          progress:
+            maintenance.progress === null
+              ? 0.95
+              : 0.92 + maintenance.progress * 0.07,
+          indeterminate: maintenance.progress === null,
+          maintenancePhase: maintenance.phase,
+        });
+      },
+    });
+
     return handle;
   } catch (error) {
     if (healthFallbackTimer) clearTimeout(healthFallbackTimer);

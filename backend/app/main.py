@@ -59,8 +59,9 @@ from app.agent_runtime.runner.checkpointer import (
     close_checkpointer,
     get_checkpointer,
     init_checkpointer,
+    incremental_vacuum_checkpoint_database,
+    migrate_checkpoint_database_to_incremental,
     prune_reachable_checkpoints,
-    vacuum_checkpoint_database,
 )
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
 from app.background.runtime.supervisor import (
@@ -75,6 +76,7 @@ from app.core.storage import ensure_character_images_dir, ensure_covers_dir
 from app.chapter_export.service import cleanup_chapter_export_files
 from app.models.builtin import seed_builtin_models
 from app.models.catalog import ModelProviderCatalogService
+from app.maintenance import maintenance_state
 from app.settings import settings as app_settings
 from app.socket import init_socketio
 from app.storage.database import close_db, create_session, init_db, vacuum_database_if_needed
@@ -146,7 +148,7 @@ async def _seed_builtin_models() -> None:
         await session.close()
 
 
-async def _cleanup_unreachable_checkpoints() -> None:
+async def _cleanup_unreachable_checkpoints() -> int:
     session = await create_session()
     try:
         checkpointer = await get_checkpointer()
@@ -157,10 +159,77 @@ async def _cleanup_unreachable_checkpoints() -> None:
 
     if deleted_rows:
         logger.info(f"Deleted {deleted_rows} checkpoint rows during startup cleanup")
-    await close_checkpointer()
-    if await vacuum_checkpoint_database():
-        logger.info("Vacuumed checkpoint database after startup cleanup")
-    await init_checkpointer()
+    return deleted_rows
+
+
+def _update_checkpoint_maintenance_progress(
+    phase: str,
+    progress: float | None,
+    reclaimed_pages: int,
+    total_pages: int,
+) -> None:
+    maintenance_state.update(
+        phase=phase,
+        message=(
+            "Migrating checkpoint database to incremental auto-vacuum."
+            if phase == "migrating"
+            else "Reclaiming freed checkpoint pages."
+        ),
+        progress=progress,
+        reclaimed_pages=reclaimed_pages,
+        total_pages=total_pages,
+    )
+
+
+async def _run_startup_maintenance() -> None:
+    maintenance_state.start()
+    try:
+        maintenance_state.update(
+            phase="pruning",
+            message="Pruning obsolete checkpoints.",
+            progress=None,
+        )
+        deleted_rows = await _cleanup_unreachable_checkpoints()
+        maintenance_state.update(
+            phase="pruning",
+            message="Checkpoint pruning completed.",
+            progress=1.0,
+            deleted_rows=deleted_rows,
+        )
+
+        await close_checkpointer()
+        maintenance_state.update(
+            phase="migrating",
+            message="Migrating checkpoint database to incremental auto-vacuum.",
+            progress=None,
+        )
+        await migrate_checkpoint_database_to_incremental(
+            progress_callback=_update_checkpoint_maintenance_progress,
+        )
+        maintenance_state.update(
+            phase="vacuuming",
+            message="Reclaiming freed checkpoint pages.",
+            progress=None,
+        )
+        await incremental_vacuum_checkpoint_database(
+            progress_callback=_update_checkpoint_maintenance_progress,
+        )
+        await init_checkpointer()
+
+        maintenance_state.update(
+            phase="cleanup",
+            message="Cleaning auxiliary local data.",
+            progress=None,
+        )
+        await _cleanup_chapter_export_files()
+        await _cleanup_orphaned_agent_attachment_files()
+        await _cleanup_orphaned_task_data()
+        await _vacuum_main_database()
+        await start_background_runtime()
+        maintenance_state.complete()
+    except Exception as exc:
+        maintenance_state.fail(str(exc))
+        logger.exception("Local database maintenance failed")
 
 
 async def _cleanup_chapter_export_files() -> None:
@@ -355,15 +424,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if cancelled_child_runs:
         logger.warning(f"已取消 {cancelled_child_runs} 个因服务重启中断的子 Agent 任务")
     await _seed_builtin_models()
-    await init_checkpointer()
-    await _cleanup_unreachable_checkpoints()
-    await _cleanup_chapter_export_files()
-    await _cleanup_orphaned_agent_attachment_files()
-    await _cleanup_orphaned_task_data()
-    await _vacuum_main_database()
     await load_audit_details_persistence()
     start_audit_queue()
-    await start_background_runtime()
+    startup_maintenance_task = asyncio.create_task(
+        _run_startup_maintenance(),
+        name="startup-database-maintenance",
+    )
     _print_startup_banner(app_settings.app_version)
     catalog_refresh_task = asyncio.create_task(
         ModelProviderCatalogService().refresh(),
@@ -373,6 +439,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         logger.info(f"Shutting down {app_settings.app_name}")
+        if not startup_maintenance_task.done():
+            startup_maintenance_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await startup_maintenance_task
         if not catalog_refresh_task.done():
             catalog_refresh_task.cancel()
         with suppress(asyncio.CancelledError):

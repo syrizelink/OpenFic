@@ -16,6 +16,7 @@ const STARTUP_TITLE_KEYS: Record<StartupProgressEvent["step"], string> = {
   "initialize-database": "desktop.startup.startBackendTitle",
   "complete-backend-startup": "desktop.startup.startBackendTitle",
   "check-health": "desktop.startup.verifyServiceTitle",
+  "maintain-database": "desktop.startup.databaseMaintenanceTitle",
   "connect-remote": "desktop.startup.connectServiceTitle",
   "verify-remote": "desktop.startup.verifyServiceTitle",
   "check-compatibility": "desktop.startup.checkCompatibilityTitle",
@@ -32,17 +33,33 @@ const STARTUP_MESSAGE_KEYS: Record<StartupProgressEvent["step"], string> = {
   "initialize-database": "desktop.startup.startBackendMessage",
   "complete-backend-startup": "desktop.startup.startBackendMessage",
   "check-health": "desktop.startup.verifyServiceMessage",
+  "maintain-database": "desktop.startup.databaseMaintenanceMessage",
   "connect-remote": "desktop.startup.connectServiceMessage",
   "verify-remote": "desktop.startup.verifyServiceMessage",
   "check-compatibility": "desktop.startup.checkCompatibilityMessage",
   ready: "desktop.startup.serviceReadyMessage",
 };
 
+const MAINTENANCE_MESSAGE_KEYS: Record<NonNullable<StartupProgressEvent["maintenancePhase"]>, string> = {
+  pending: "desktop.startup.databaseMaintenanceMessage",
+  pruning: "desktop.startup.databasePruningMessage",
+  migrating: "desktop.startup.databaseMigrationMessage",
+  vacuuming: "desktop.startup.databaseVacuumMessage",
+  cleanup: "desktop.startup.databaseCleanupMessage",
+  ready: "desktop.startup.serviceReadyMessage",
+  failed: "desktop.startup.databaseMaintenanceFailedMessage",
+};
+
 export function StartupProgress({ progress, bare = false }: StartupProgressProps) {
   const { t } = useTranslation();
+  const indeterminate = progress?.indeterminate ?? false;
   const value = Math.round((progress?.progress ?? 0) * 100);
   const title = progress ? t(STARTUP_TITLE_KEYS[progress.step]) : t("desktop.startup.preparingApp");
-  const message = progress ? t(STARTUP_MESSAGE_KEYS[progress.step]) : t("desktop.startup.initializingService");
+  const message = progress?.maintenancePhase
+    ? t(MAINTENANCE_MESSAGE_KEYS[progress.maintenancePhase])
+    : progress
+      ? t(STARTUP_MESSAGE_KEYS[progress.step])
+      : t("desktop.startup.initializingService");
 
   return (
     <section
@@ -53,7 +70,7 @@ export function StartupProgress({ progress, bare = false }: StartupProgressProps
     >
       <div className="startup-progress-heading">
         <strong>{title}</strong>
-        <span>{value}%</span>
+        <span>{indeterminate ? "…" : `${value}%`}</span>
       </div>
       <div
         className="startup-progress-track"
@@ -61,7 +78,8 @@ export function StartupProgress({ progress, bare = false }: StartupProgressProps
         aria-label={title}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-valuenow={value}
+        aria-valuenow={indeterminate ? undefined : value}
+        data-indeterminate={indeterminate}
       >
         <span style={{ width: `${value}%` }} />
       </div>

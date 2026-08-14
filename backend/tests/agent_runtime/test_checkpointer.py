@@ -21,6 +21,8 @@ from app.agent_runtime.runner.checkpointer import (
     delete_checkpoints_for_thread,
     get_checkpointer,
     init_checkpointer,
+    incremental_vacuum_checkpoint_database,
+    migrate_checkpoint_database_to_incremental,
     prune_checkpoints_for_thread,
     prune_reachable_checkpoints,
     reset_checkpointer,

@@ -10,7 +10,7 @@ export interface BackendHealth {
 
 interface WaitForBackendOptions {
   process?: ChildProcess;
-  timeoutMs?: number;
+  timeoutMs?: number | null;
   signal?: AbortSignal;
 }
 
@@ -45,11 +45,12 @@ function isLoopbackUrl(url: string): boolean {
 
 export async function waitForBackend(
   baseUrl: string,
-  options: WaitForBackendOptions | number = DEFAULT_TIMEOUT_MS,
+  options: WaitForBackendOptions | number | null = DEFAULT_TIMEOUT_MS,
 ): Promise<BackendHealth> {
-  const timeoutMs = typeof options === "number" ? options : (options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-  const backendProcess = typeof options === "number" ? undefined : options.process;
-  const externalSignal = typeof options === "number" ? undefined : options.signal;
+  const timeoutMs =
+    typeof options === "number" ? options : (options?.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const backendProcess = typeof options === "number" || options === null ? undefined : options.process;
+  const externalSignal = typeof options === "number" || options === null ? undefined : options.signal;
   const healthUrl = `${baseUrl.replace(/\/+$/, "")}/api/v1/health`;
   const controller = new AbortController();
   let processError: Error | null = null;
@@ -72,7 +73,7 @@ export async function waitForBackend(
   externalSignal?.addEventListener("abort", abortWait, { once: true });
   backendProcess?.once("exit", onExit);
   backendProcess?.once("error", onError);
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const timeout = timeoutMs === null ? undefined : setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     while (!controller.signal.aborted) {
@@ -111,5 +112,143 @@ export async function waitForBackend(
     externalSignal?.removeEventListener("abort", abortWait);
     backendProcess?.off("exit", onExit);
     backendProcess?.off("error", onError);
+  }
+}
+
+export type BackendMaintenancePhase =
+  | "pending"
+  | "pruning"
+  | "migrating"
+  | "vacuuming"
+  | "cleanup"
+  | "ready"
+  | "failed";
+
+export interface BackendMaintenanceStatus {
+  status: "pending" | "running" | "ready" | "failed";
+  phase: BackendMaintenancePhase;
+  progress: number | null;
+  error: string | null;
+}
+
+interface WaitForBackendMaintenanceOptions {
+  process?: ChildProcess;
+  signal?: AbortSignal;
+  onProgress?: (status: BackendMaintenanceStatus) => void;
+}
+
+export function parseBackendMaintenanceStatus(value: unknown): BackendMaintenanceStatus | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as {
+    status?: unknown;
+    phase?: unknown;
+    progress?: unknown;
+    error?: unknown;
+  };
+  const statuses = new Set(["pending", "running", "ready", "failed"]);
+  const phases = new Set([
+    "pending",
+    "pruning",
+    "migrating",
+    "vacuuming",
+    "cleanup",
+    "ready",
+    "failed",
+  ]);
+  if (
+    typeof candidate.status !== "string" ||
+    !statuses.has(candidate.status) ||
+    typeof candidate.phase !== "string" ||
+    !phases.has(candidate.phase)
+  ) {
+    return null;
+  }
+  const progress = candidate.progress === null || candidate.progress === undefined
+    ? null
+    : typeof candidate.progress === "number" &&
+        Number.isFinite(candidate.progress) &&
+        candidate.progress >= 0 &&
+        candidate.progress <= 1
+      ? candidate.progress
+      : undefined;
+  if (progress === undefined) return null;
+  return {
+    status: candidate.status as BackendMaintenanceStatus["status"],
+    phase: candidate.phase as BackendMaintenancePhase,
+    progress,
+    error: typeof candidate.error === "string" ? candidate.error : null,
+  };
+}
+
+export async function waitForBackendMaintenance(
+  baseUrl: string,
+  options: WaitForBackendMaintenanceOptions = {},
+): Promise<BackendMaintenanceStatus> {
+  const statusUrl = `${baseUrl.replace(/\/+$/, "")}/api/v1/health/maintenance`;
+  const controller = new AbortController();
+  let processError: Error | null = null;
+
+  const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
+    processError = createBackendExitError(statusUrl, code, signal);
+    controller.abort();
+  };
+  const onError = (error: Error) => {
+    processError = new Error(`backend process failed during maintenance: ${statusUrl} (${error.message})`);
+    controller.abort();
+  };
+  const abortWait = () => controller.abort();
+
+  options.signal?.addEventListener("abort", abortWait, { once: true });
+  options.process?.once("exit", onExit);
+  options.process?.once("error", onError);
+
+  try {
+    while (!controller.signal.aborted) {
+      try {
+        const response = isLoopbackUrl(statusUrl)
+          ? await fetch(statusUrl, { signal: controller.signal })
+          : await net.fetch(statusUrl, { signal: controller.signal });
+        const maintenance = parseBackendMaintenanceStatus(
+          await response.json().catch(() => null),
+        );
+        if (response.ok && maintenance) {
+          options.onProgress?.(maintenance);
+          if (maintenance.status === "ready") return maintenance;
+          if (maintenance.status === "failed") {
+            const error = new Error(
+              maintenance.error ?? "backend database maintenance failed",
+            );
+            error.name = "BackendMaintenanceError";
+            throw error;
+          }
+        }
+      } catch (error) {
+        if (processError) throw processError;
+        if (error instanceof Error && error.name === "AbortError") break;
+        if (error instanceof Error && error.name === "BackendMaintenanceError") {
+          throw error;
+        }
+      }
+
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, 500);
+        controller.signal.addEventListener(
+          "abort",
+          () => {
+            clearTimeout(timer);
+            resolve();
+          },
+          { once: true },
+        );
+      });
+    }
+
+    throwIfAborted(options.signal);
+    if (processError) throw processError;
+    throw new Error(`backend maintenance status unavailable: ${statusUrl}`);
+  } finally {
+    options.signal?.removeEventListener("abort", abortWait);
+    options.process?.off("exit", onExit);
+    options.process?.off("error", onError);
   }
 }

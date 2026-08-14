@@ -87,6 +87,13 @@
     "connectServiceMessage": "Connecting to service",
     "checkCompatibilityTitle": "Checking version compatibility",
     "checkCompatibilityMessage": "Comparing desktop and backend versions",
+    "databaseMaintenanceTitle": "Maintaining local database",
+    "databaseMaintenanceMessage": "Preparing local database maintenance",
+    "databasePruningMessage": "Removing obsolete checkpoints",
+    "databaseMigrationMessage": "Migrating checkpoint database",
+    "databaseVacuumMessage": "Reclaiming freed checkpoint pages",
+    "databaseCleanupMessage": "Cleaning local data",
+    "databaseMaintenanceFailedMessage": "Local database maintenance failed",
     "serviceReadyTitle": "Service ready",
     "serviceReadyMessage": "OpenFic is ready"
   },

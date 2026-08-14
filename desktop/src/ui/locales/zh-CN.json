@@ -87,6 +87,13 @@
     "connectServiceMessage": "正在连接服务",
     "checkCompatibilityTitle": "检查版本兼容性",
     "checkCompatibilityMessage": "正在比较桌面端与后端版本",
+    "databaseMaintenanceTitle": "维护本地数据库",
+    "databaseMaintenanceMessage": "正在准备本地数据库维护",
+    "databasePruningMessage": "正在清理多余的 checkpoint",
+    "databaseMigrationMessage": "正在迁移 checkpoint 数据库",
+    "databaseVacuumMessage": "正在回收 checkpoint 空闲空间",
+    "databaseCleanupMessage": "正在清理本地数据",
+    "databaseMaintenanceFailedMessage": "本地数据库维护失败",
     "serviceReadyTitle": "服务已就绪",
     "serviceReadyMessage": "OpenFic 已准备完成"
   },

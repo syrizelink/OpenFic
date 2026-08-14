@@ -1,6 +1,9 @@
 import type { StartupProgressEvent } from "../shared/ipc.js";
 
-type ProgressUpdate = Pick<StartupProgressEvent, "step" | "title" | "message" | "progress">;
+type ProgressUpdate = Pick<
+  StartupProgressEvent,
+  "step" | "title" | "message" | "progress" | "indeterminate" | "maintenancePhase"
+>;
 
 export interface StartupProgressTracker {
   begin(update: ProgressUpdate): void;
@@ -51,7 +54,12 @@ export function createStartupProgressTracker(
     },
     fail(error) {
       if (!current) return;
-      publish({ ...current, message: errorMessage(error), status: "failed" });
+      publish({
+        ...current,
+        message: errorMessage(error),
+        status: "failed",
+        maintenancePhase: current.maintenancePhase ? "failed" : current.maintenancePhase,
+      });
     },
   };
 }

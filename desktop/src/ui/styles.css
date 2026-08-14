@@ -1099,6 +1099,25 @@ h1 {
   transition: width 220ms ease;
 }
 
+.startup-progress-track[data-indeterminate="true"] > span {
+  width: 35% !important;
+  animation: startup-progress-indeterminate 1.4s ease-in-out infinite;
+}
+
+@keyframes startup-progress-indeterminate {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  50% {
+    transform: translateX(180%);
+  }
+
+  100% {
+    transform: translateX(300%);
+  }
+}
+
 .startup-progress[data-status="failed"] .startup-progress-track > span {
   background: var(--red-9, #dc2626);
 }
