@@ -1,4 +1,5 @@
 import { Dialog } from "@radix-ui/themes";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import "./settings-dialog.css";
@@ -23,6 +24,17 @@ export function SettingsDialog({
 }: SettingsDialogProps) {
   const { t } = useTranslation();
   const routeKey = `${open ? "open" : "closed"}:${route?.category ?? "default"}:${route?.modelTab ?? ""}`;
+  const dropdownOpenAtPointerDownRef = useRef(false);
+
+  useEffect(() => {
+    const handlePointerDown = () => {
+      dropdownOpenAtPointerDownRef.current =
+        document.querySelector("[data-radix-select-viewport]") !== null ||
+        document.querySelector("[data-radix-popper-content-wrapper]") !== null;
+    };
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => document.removeEventListener("pointerdown", handlePointerDown, true);
+  }, []);
 
   return (
     <Dialog.Root
@@ -32,6 +44,12 @@ export function SettingsDialog({
       <Dialog.Content
         className="settings-dialog-surface"
         maxWidth="1180px"
+        onInteractOutside={(event) => {
+          if (dropdownOpenAtPointerDownRef.current) {
+            dropdownOpenAtPointerDownRef.current = false;
+            event.preventDefault();
+          }
+        }}
       >
         <Dialog.Title className="settings-dialog-visually-hidden">
           {t("topbar.settings")}
