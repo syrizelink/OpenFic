@@ -12,7 +12,7 @@ import {
 import { publishDesktopAppearance } from "./desktop-appearance-bridge";
 
 const appFontFallbacks =
-  '"SourceHanSerifCN-VF", "SourceHanSansCN-VF", "ChillKai", "Source Han Serif SC", "Noto Serif CJK SC", Georgia, "PingFang SC", "Microsoft YaHei", serif';
+  '"SourceHanSerifCN-VF", "SourceHanSansCN-VF", "Source Han Serif SC", "Noto Serif CJK SC", Georgia, "PingFang SC", "Microsoft YaHei", serif';
 const codeFontFallbacks =
   '"JetBrainsMapleMono", ui-monospace, "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace';
 

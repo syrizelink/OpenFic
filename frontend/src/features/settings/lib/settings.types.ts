@@ -122,7 +122,6 @@ export const FONT_OPTIONS: FontDefinition[] = [
   { value: SYSTEM_FONT_FAMILY, labelKey: "settings.fontOptionSystemDefault" },
   { value: "SourceHanSerifCN-VF", labelKey: "settings.fontOptionSourceHanSerif" },
   { value: "SourceHanSansCN-VF", labelKey: "settings.fontOptionSourceHanSans" },
-  { value: "ChillKai", labelKey: "settings.fontOptionChillKai" },
 ];
 
 /** 代码字体选项 */

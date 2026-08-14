@@ -226,7 +226,8 @@ function Root() {
 
         applyFontFamily(settings.fontFamily);
         applyCodeFontFamily(settings.codeFontFamily);
-        await loadConfiguredFonts(settings.fontFamily, settings.codeFontFamily);
+        // 字体加载失败不应阻塞初始化：回退到字体栈中的下一个字体即可。
+        void loadConfiguredFonts(settings.fontFamily, settings.codeFontFamily).catch(() => undefined);
 
         if (mounted) {
           setSettings(settings);
