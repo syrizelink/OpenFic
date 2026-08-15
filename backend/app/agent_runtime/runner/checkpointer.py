@@ -490,6 +490,35 @@ async def _get_pragma_int(conn: aiosqlite.Connection, pragma: str) -> int:
     return int(row[0]) if row else 0
 
 
+async def _truncate_checkpoint_wal(
+    conn: aiosqlite.Connection,
+    *,
+    max_attempts: int = 5,
+) -> None:
+    """Checkpoint and truncate the WAL before rebuilding the database.
+
+    ``PRAGMA wal_checkpoint(TRUNCATE)`` returns a ``(busy, log, checkpointed)``
+    row. A non-zero ``busy`` means a reader still holds the WAL, so the
+    checkpoint did not finish and ``VACUUM INTO`` could produce an incomplete
+    snapshot. Retry briefly, then fail instead of risking data loss.
+    """
+    for attempt in range(max_attempts):
+        cursor = await conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        try:
+            row = await cursor.fetchone()
+        finally:
+            await cursor.close()
+        busy = int(row[0]) if row and row[0] is not None else 0
+        if not busy:
+            return
+        if attempt < max_attempts - 1:
+            await asyncio.sleep(0.2 * (attempt + 1))
+    raise RuntimeError(
+        "Checkpoint WAL is busy after retries; another connection still holds "
+        "the checkpoint database"
+    )
+
+
 async def _run_full_vacuum(
     conn: aiosqlite.Connection,
     progress_callback: CheckpointMaintenanceProgress | None = None,
@@ -617,8 +646,7 @@ async def full_vacuum_checkpoint_database(
 
     conn = await aiosqlite.connect(db_path)
     try:
-        await conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-        await conn.commit()
+        await _truncate_checkpoint_wal(conn)
         page_size = await _get_pragma_int(conn, "page_size")
         live_pages = (
             await _get_pragma_int(conn, "page_count")
@@ -655,6 +683,10 @@ async def full_vacuum_checkpoint_database(
     except OSError:
         Path(target).unlink(missing_ok=True)
         raise
+    # The freshly VACUUMed file contains no WAL frames; drop the previous
+    # database's sidecar files so SQLite never replays stale WAL content.
+    Path(f"{db_path}-wal").unlink(missing_ok=True)
+    Path(f"{db_path}-shm").unlink(missing_ok=True)
     if progress_callback is not None:
         progress_callback("vacuuming", 1.0, estimated_target_bytes, estimated_target_bytes)
     return True
