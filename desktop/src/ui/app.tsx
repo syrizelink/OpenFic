@@ -174,6 +174,7 @@ export function App() {
   const [frontendReadyPartition, setFrontendReadyPartition] = useState<string | null>(null);
   const [shellAppearance, setShellAppearance] = useState<ShellAppearance>({ appearance: "light" });
   const [compatibilityWarning, setCompatibilityWarning] = useState<string | null>(null);
+  const [maintenanceWarning, setMaintenanceWarning] = useState<string | null>(null);
   const [updateState, setUpdateState] = useState<UpdateState>({ status: "idle" });
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [instancePanelOpen, setInstancePanelOpen] = useState(false);
@@ -352,6 +353,16 @@ export function App() {
     setShellState("frontend");
   };
 
+  const enterFrontend = (requestId?: number) => {
+    if (requestId !== undefined && requestId !== startupRequestId.current) return;
+    setMaintenanceWarning(null);
+    void showFrontend(undefined, requestId);
+  };
+
+  const handleAcknowledgeMaintenance = (requestId?: number) => {
+    enterFrontend(requestId);
+  };
+
   const handleShowSetup = (target: SetupInitialStep = "mode") => {
     setError(null);
     setSetupInitialStep(target);
@@ -394,6 +405,7 @@ export function App() {
     const requestId = ++startupRequestId.current;
     setError(null);
     setCompatibilityWarning(null);
+    setMaintenanceWarning(null);
     setUpdateDialogOpen(false);
     setStartupProgress(null);
     setShellState("booting");
@@ -403,6 +415,10 @@ export function App() {
       if (requestId !== startupRequestId.current) return;
       setActiveInstanceId(result.activeInstanceId ?? nextConfig?.activeInstanceId ?? instanceId);
       setCompatibilityWarning(result.compatibilityWarning ?? null);
+      if (result.maintenanceWarning) {
+        setMaintenanceWarning(result.maintenanceWarning);
+        return;
+      }
       setWebviewKey((key) => key + 1);
       setShellState(result.status === "ready" ? "frontend" : "setup");
     } catch (err) {
@@ -417,6 +433,7 @@ export function App() {
     await window.openficDesktop.cancelStartup();
     const nextConfig = await window.openficDesktop.getConfig();
     setError(null);
+    setMaintenanceWarning(null);
     setConfig(nextConfig);
     setActiveInstanceId(nextConfig?.activeInstanceId ?? null);
     setStartupProgress(null);
@@ -476,8 +493,12 @@ export function App() {
     setStartupProgress(null);
     setShellState("booting");
     try {
-      await window.openficDesktop.startLocalBackend(installDir);
+      const maintenanceWarning = await window.openficDesktop.startLocalBackend(installDir);
       if (requestId !== startupRequestId.current) return;
+      if (maintenanceWarning) {
+        setMaintenanceWarning(maintenanceWarning);
+        return;
+      }
       await showFrontend(undefined, requestId);
     } catch (err) {
       if (requestId !== startupRequestId.current) return;
@@ -573,7 +594,13 @@ export function App() {
       />
       <section className="desktop-content">
         {shellState === "booting" ? (
-          <BootPage error={error} progress={startupProgress} onCancel={() => void handleCancelStartup()} />
+          <BootPage
+            error={error}
+            progress={startupProgress}
+            maintenanceWarning={maintenanceWarning}
+            onCancel={() => void handleCancelStartup()}
+            onAcknowledgeMaintenance={() => handleAcknowledgeMaintenance()}
+          />
         ) : null}
         {shellState === "setup" ? (
           <SetupPage

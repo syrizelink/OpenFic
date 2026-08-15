@@ -23,7 +23,7 @@ declare global {
       ensureInstanceSession: (partition: string) => Promise<void>;
       getDefaultInstallDir: () => Promise<string>;
       installRuntime: (installDir: string) => Promise<void>;
-      startLocalBackend: (installDir: string) => Promise<void>;
+      startLocalBackend: (installDir: string) => Promise<string | null>;
       switchInstance: (instanceId: string) => Promise<InitializeAppResult>;
       pingInstance: (instance: DesktopInstance) => Promise<PingInstanceResult>;
       selectDirectory: () => Promise<string | null>;

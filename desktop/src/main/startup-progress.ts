@@ -2,8 +2,20 @@ import type { StartupProgressEvent } from "../shared/ipc.js";
 
 type ProgressUpdate = Pick<
   StartupProgressEvent,
-  "step" | "title" | "message" | "progress" | "indeterminate" | "maintenancePhase"
+  | "step"
+  | "title"
+  | "message"
+  | "progress"
+  | "indeterminate"
+  | "maintenancePhase"
+  | "maintenanceProgress"
+  | "maintenanceReclaimedBytes"
+  | "maintenanceTotalBytes"
+  | "maintenanceVmOps"
+  | "maintenanceElapsedSeconds"
 >;
+
+export type { ProgressUpdate };
 
 export interface StartupProgressTracker {
   begin(update: ProgressUpdate): void;

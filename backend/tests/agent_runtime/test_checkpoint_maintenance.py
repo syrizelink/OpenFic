@@ -9,6 +9,7 @@ from app.agent_runtime.runner.checkpointer import (
     migrate_checkpoint_database_to_incremental,
     reset_checkpointer,
 )
+from app.main import _friendly_maintenance_error
 
 
 @pytest.mark.asyncio
@@ -91,6 +92,17 @@ async def test_incremental_vacuum_reclaims_free_pages(
         batch_bytes=4096,
         progress_callback=lambda phase, *_: phases.append(phase),
     )
-
     assert phases
     assert set(phases) == {"vacuuming"}
+
+
+def test_friendly_maintenance_error_maps_disk_full() -> None:
+    message = _friendly_maintenance_error(
+        RuntimeError("database or disk is full")
+    )
+    assert "磁盘空间不足" in message
+
+
+def test_friendly_maintenance_error_keeps_other_errors() -> None:
+    message = _friendly_maintenance_error(RuntimeError("boom"))
+    assert "boom" in message

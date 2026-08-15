@@ -114,6 +114,7 @@ export interface InitializeAppResult {
   activeInstanceId?: string | null;
   message?: string;
   compatibilityWarning?: string;
+  maintenanceWarning?: string;
 }
 
 export type StartupStep =
@@ -150,6 +151,16 @@ export interface StartupProgressEvent {
     | "cleanup"
     | "ready"
     | "failed";
+  /** Backend maintenance internal progress (0..1), shown as text detail. */
+  maintenanceProgress?: number | null;
+  /** Backend maintenance reclaimed bytes (current), shown as text detail. */
+  maintenanceReclaimedBytes?: number | null;
+  /** Backend maintenance estimated total bytes, shown as text detail. */
+  maintenanceTotalBytes?: number | null;
+  /** Backend maintenance VACUUM VM operations, shown as text detail. */
+  maintenanceVmOps?: number | null;
+  /** Backend maintenance elapsed seconds, shown as text detail. */
+  maintenanceElapsedSeconds?: number | null;
 }
 
 export type UpdateStatus = "unsupported" | "idle" | "checking" | "available" | "downloading" | "downloaded" | "not-available" | "error";

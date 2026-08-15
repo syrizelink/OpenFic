@@ -98,7 +98,7 @@ export async function startLocalBackendFromInstall(
   startupProgress?: StartupProgressTracker,
   signal?: AbortSignal,
   dataDir?: string,
-): Promise<BackendProcessHandle> {
+): Promise<{ handle: BackendProcessHandle; maintenanceError: string | null }> {
   throwIfAborted(signal);
   const inspection = await inspectLocalRuntime(installDir);
   if (inspection.status !== "ready") {

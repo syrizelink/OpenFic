@@ -9,6 +9,7 @@ from os import getenv
 from pathlib import Path
 import socket
 import sys
+import time
 from typing import AsyncIterator
 
 from fastapi import FastAPI
@@ -55,12 +56,14 @@ from app.audit import start_audit_queue, stop_audit_queue
 from app.agent_runtime.persistence.child_runs import cancel_interrupted_child_runs
 from app.audit.queue import load_audit_details_persistence
 from app.agent_runtime.runner.checkpointer import (
+    checkpoint_free_page_bytes,
     cleanup_unreachable_checkpoints,
     close_checkpointer,
+    full_vacuum_checkpoint_database,
     get_checkpointer,
     init_checkpointer,
-    incremental_vacuum_checkpoint_database,
     migrate_checkpoint_database_to_incremental,
+    needs_incremental_auto_vacuum_migration,
     prune_reachable_checkpoints,
 )
 from app.agent_runtime.runner.run_registry import get_agent_run_registry
@@ -162,12 +165,23 @@ async def _cleanup_unreachable_checkpoints() -> int:
     return deleted_rows
 
 
+_vacuum_started_at: float | None = None
+_migrate_started_at: float | None = None
+
+
+def _emit_single_line_progress(message: str) -> None:
+    """输出维护进度行。以换行结尾，保证桌面端能实时按行解析。"""
+    sys.stdout.write(f"{message}\n")
+    sys.stdout.flush()
+
+
 def _update_checkpoint_maintenance_progress(
     phase: str,
     progress: float | None,
     reclaimed_pages: int,
     total_pages: int,
 ) -> None:
+    global _vacuum_started_at, _migrate_started_at
     maintenance_state.update(
         phase=phase,
         message=(
@@ -179,10 +193,46 @@ def _update_checkpoint_maintenance_progress(
         reclaimed_pages=reclaimed_pages,
         total_pages=total_pages,
     )
+    if phase == "migrating":
+        if _migrate_started_at is None:
+            _migrate_started_at = time.monotonic()
+        ops_label = f"{reclaimed_pages:,}" if reclaimed_pages else "..."
+        elapsed = time.monotonic() - _migrate_started_at
+        _emit_single_line_progress(
+            f"[maintenance] Migrating checkpoint database: "
+            f"{ops_label} VM ops, {elapsed:.1f}s elapsed"
+        )
+    elif phase == "vacuuming" and progress is None:
+        if _vacuum_started_at is None:
+            _vacuum_started_at = time.monotonic()
+        elapsed = time.monotonic() - _vacuum_started_at
+        ops_label = f"{reclaimed_pages:,}" if reclaimed_pages else "..."
+        _emit_single_line_progress(
+            f"[maintenance] Compacting checkpoint database: "
+            f"{ops_label} VM ops, {elapsed:.1f}s elapsed"
+        )
+    elif progress is not None:
+        percent = progress * 100
+        if phase == "vacuuming":
+            if _vacuum_started_at is None:
+                _vacuum_started_at = time.monotonic()
+            elapsed = time.monotonic() - _vacuum_started_at
+            size_gb = reclaimed_pages / (1024**3)
+            _emit_single_line_progress(
+                f"[maintenance] Compacting checkpoint database: "
+                f"{size_gb:.1f}/{total_pages / (1024**3):.1f}GB ({percent:.1f}%), {elapsed:.1f}s"
+            )
+        else:
+            _emit_single_line_progress(
+                f"[maintenance] Reclaiming freed checkpoint pages: "
+                f"{reclaimed_pages}/{total_pages} ({percent:.1f}%)"
+            )
 
 
 async def _run_startup_maintenance() -> None:
+    global _vacuum_started_at, _migrate_started_at
     maintenance_state.start()
+    logger.info("Local database maintenance started")
     try:
         maintenance_state.update(
             phase="pruning",
@@ -198,22 +248,50 @@ async def _run_startup_maintenance() -> None:
         )
 
         await close_checkpointer()
-        maintenance_state.update(
-            phase="migrating",
-            message="Migrating checkpoint database to incremental auto-vacuum.",
-            progress=None,
-        )
-        await migrate_checkpoint_database_to_incremental(
-            progress_callback=_update_checkpoint_maintenance_progress,
-        )
-        maintenance_state.update(
-            phase="vacuuming",
-            message="Reclaiming freed checkpoint pages.",
-            progress=None,
-        )
-        await incremental_vacuum_checkpoint_database(
-            progress_callback=_update_checkpoint_maintenance_progress,
-        )
+
+        # 阶段 1：必要时迁移到 INCREMENTAL（普通 VACUUM，set_progress_handler 监控 VM 操作数）
+        if await needs_incremental_auto_vacuum_migration():
+            maintenance_state.update(
+                phase="migrating",
+                message="Migrating checkpoint database to incremental auto-vacuum.",
+                progress=None,
+            )
+            logger.info("Migrating checkpoint database to incremental auto-vacuum")
+            _migrate_started_at = time.monotonic()
+            await migrate_checkpoint_database_to_incremental(
+                progress_callback=_update_checkpoint_maintenance_progress,
+            )
+            logger.info(
+                f"Migrated checkpoint database to incremental auto-vacuum in "
+                f"{time.monotonic() - _migrate_started_at:.1f}s"
+            )
+            _migrate_started_at = None
+        else:
+            logger.info("Checkpoint database already uses incremental auto-vacuum, skipping migration")
+
+        # 阶段 2：空页达到阈值才执行 VACUUM INTO 回收
+        free_bytes, live_bytes = await checkpoint_free_page_bytes()
+        free_ratio = free_bytes / live_bytes if live_bytes > 0 else 0.0
+        should_vacuum = free_bytes > 1024**3 or free_ratio > 0.3
+        if should_vacuum:
+            maintenance_state.update(
+                phase="vacuuming",
+                message="Reclaiming freed checkpoint pages.",
+                progress=None,
+            )
+            logger.info(
+                f"Reclaiming checkpoint free space: {free_bytes / (1024**3):.1f}GB free "
+                f"({free_ratio * 100:.0f}% of live data)"
+            )
+            await full_vacuum_checkpoint_database(
+                progress_callback=_update_checkpoint_maintenance_progress,
+            )
+        else:
+            logger.info(
+                f"Checkpoint free space below threshold, skipping vacuum "
+                f"({free_bytes / (1024**3):.1f}GB free, {free_ratio * 100:.0f}% of live data)"
+            )
+
         maintenance_state.update(
             phase="cleanup",
             message="Cleaning auxiliary local data.",
@@ -227,10 +305,31 @@ async def _run_startup_maintenance() -> None:
         await _vacuum_main_database()
         await start_background_runtime()
         maintenance_state.complete()
-    except Exception:
-        logger.exception("Local database maintenance failed")
-        maintenance_state.fail("Local database maintenance failed")
+        logger.info(
+            "Local database maintenance completed"
+            + (
+                f", vacuum took {time.monotonic() - _vacuum_started_at:.1f}s"
+                if _vacuum_started_at is not None
+                else ""
+            )
+        )
+        _vacuum_started_at = None
+    except Exception as exc:
+        message = _friendly_maintenance_error(exc)
+        logger.error("Local database maintenance failed: %s", message)
+        maintenance_state.fail(message)
         await _restore_checkpointer_and_runtime()
+
+
+def _friendly_maintenance_error(exc: Exception) -> str:
+    """将底层异常转换为对用户友好的维护失败说明。"""
+    text = str(exc).lower()
+    if "disk" in text or "space" in text or "full" in text:
+        return (
+            "磁盘空间不足，无法重整本地数据库。"
+            "请释放磁盘空间后重新启动应用重试。"
+        )
+    return f"本地数据库维护失败：{exc}"
 
 
 async def _restore_checkpointer_and_runtime() -> None:
@@ -438,10 +537,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await _seed_builtin_models()
     await load_audit_details_persistence()
     start_audit_queue()
-    startup_maintenance_task = asyncio.create_task(
-        _run_startup_maintenance(),
-        name="startup-database-maintenance",
-    )
+    await _run_startup_maintenance()
     _print_startup_banner(app_settings.app_version)
     catalog_refresh_task = asyncio.create_task(
         ModelProviderCatalogService().refresh(),
@@ -451,10 +547,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         logger.info(f"Shutting down {app_settings.app_name}")
-        if not startup_maintenance_task.done():
-            startup_maintenance_task.cancel()
-        with suppress(asyncio.CancelledError):
-            await startup_maintenance_task
         if not catalog_refresh_task.done():
             catalog_refresh_task.cancel()
         with suppress(asyncio.CancelledError):

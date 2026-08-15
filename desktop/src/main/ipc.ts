@@ -271,6 +271,12 @@ export function registerIpc(context: IpcContext): void {
       const emitProgress = (event: DataProgressEvent) =>
         context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
       const targetInspection = await inspectDataDir(targetDir);
+      const nextConfig: DesktopConfig = {
+        ...config,
+        instances: config.instances.map((item) =>
+          item.id === instance.id ? { ...item, dataDir: targetDir } : item,
+        ),
+      };
       if (!targetInspection.hasData) {
         appendLog("data", `开始迁移数据目录：${sourceDir} -> ${targetDir}`);
         await migrateDataDir(sourceDir, targetDir, (message) => appendLog("data", message), (phase, progress) =>
@@ -278,15 +284,6 @@ export function registerIpc(context: IpcContext): void {
         );
         migrated = true;
         appendLog("data", `数据迁移完成：${targetDir}`);
-
-        const nextConfig: DesktopConfig = {
-          ...config,
-          instances: config.instances.map((item) =>
-            item.id === instance.id ? { ...item, dataDir: targetDir } : item,
-          ),
-        };
-        await writeDesktopConfig(nextConfig);
-        context.onConfigSaved(nextConfig);
 
         if (request.deleteOldDir && normalizeInstallDir(sourceDir) !== normalizeInstallDir(targetDir)) {
           try {
@@ -298,7 +295,11 @@ export function registerIpc(context: IpcContext): void {
             appendLog("data", `删除原数据目录失败（迁移已成功）：${error instanceof Error ? error.message : String(error)}`);
           }
         }
+      } else {
+        appendLog("data", `切换数据目录（目标已含数据）：${sourceDir} -> ${targetDir}`);
       }
+      await writeDesktopConfig(nextConfig);
+      context.onConfigSaved(nextConfig);
       return { dataDir: targetDir, migrated, removedOldDir };
     });
     return result;
@@ -361,7 +362,7 @@ export function registerIpc(context: IpcContext): void {
     try {
       const previousConfig = await readDesktopConfig();
       const existingInstance = findLocalInstanceByInstallDir(previousConfig, request.installDir);
-      const backend = await startLocalBackendFromInstall(
+      const { handle: backend, maintenanceError } = await startLocalBackendFromInstall(
         request.installDir,
         startupProgress,
         controller.signal,
@@ -402,6 +403,7 @@ export function registerIpc(context: IpcContext): void {
         progress: 1,
       });
       startupProgress.complete();
+      return maintenanceError;
     } catch (error) {
       if (controller.signal.aborted) startupProgress.complete("已取消连接");
       else startupProgress.fail(error);

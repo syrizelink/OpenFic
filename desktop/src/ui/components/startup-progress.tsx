@@ -1,27 +1,22 @@
 import type { StartupProgressEvent } from "../../shared/ipc";
 import { useTranslation } from "react-i18next";
 
+function formatReduced(value: number): string {
+  return value.toFixed(1);
+}
+
+function renderMaintenanceDetail(
+  message: string,
+  ...details: Array<string | null>
+): string {
+  const parts = [message, ...details.filter((detail): detail is string => detail !== null)];
+  return parts.join(" · ");
+}
+
 interface StartupProgressProps {
   progress: StartupProgressEvent | null;
   bare?: boolean;
 }
-
-const STARTUP_TITLE_KEYS: Record<StartupProgressEvent["step"], string> = {
-  "load-config": "desktop.startup.loadConfigTitle",
-  "check-runtime": "desktop.startup.checkRuntimeTitle",
-  "update-python": "desktop.startup.updatePythonTitle",
-  "update-openfic": "desktop.startup.updateOpenFicTitle",
-  "start-backend": "desktop.startup.startBackendTitle",
-  "initialize-backend": "desktop.startup.startBackendTitle",
-  "initialize-database": "desktop.startup.startBackendTitle",
-  "complete-backend-startup": "desktop.startup.startBackendTitle",
-  "check-health": "desktop.startup.verifyServiceTitle",
-  "maintain-database": "desktop.startup.databaseMaintenanceTitle",
-  "connect-remote": "desktop.startup.connectServiceTitle",
-  "verify-remote": "desktop.startup.verifyServiceTitle",
-  "check-compatibility": "desktop.startup.checkCompatibilityTitle",
-  ready: "desktop.startup.serviceReadyTitle",
-};
 
 const STARTUP_MESSAGE_KEYS: Record<StartupProgressEvent["step"], string> = {
   "load-config": "desktop.startup.loadConfigMessage",
@@ -54,12 +49,38 @@ export function StartupProgress({ progress, bare = false }: StartupProgressProps
   const { t } = useTranslation();
   const indeterminate = progress?.indeterminate ?? false;
   const value = Math.round((progress?.progress ?? 0) * 100);
-  const title = progress ? t(STARTUP_TITLE_KEYS[progress.step]) : t("desktop.startup.preparingApp");
-  const message = progress?.maintenancePhase
-    ? t(MAINTENANCE_MESSAGE_KEYS[progress.maintenancePhase])
-    : progress
-      ? t(STARTUP_MESSAGE_KEYS[progress.step])
-      : t("desktop.startup.initializingService");
+  const title = progress ? t("desktop.startup.startBackendTitle") : t("desktop.startup.preparingApp");
+  const message =
+    progress?.message ??
+    (progress?.maintenancePhase
+      ? t(MAINTENANCE_MESSAGE_KEYS[progress.maintenancePhase])
+      : progress
+        ? t(STARTUP_MESSAGE_KEYS[progress.step])
+        : t("desktop.startup.initializingService"));
+  const maintenanceDetail =
+    progress?.maintenanceProgress != null
+      ? `${Math.round(Math.min(1, Math.max(0, progress.maintenanceProgress)) * 100)}%`
+      : null;
+  const sizeDetail =
+    progress?.maintenanceReclaimedBytes != null &&
+    progress?.maintenanceTotalBytes != null &&
+    progress.maintenanceTotalBytes > 0
+      ? `${formatReduced(progress.maintenanceReclaimedBytes / (1024 ** 3))}/${formatReduced(
+          progress.maintenanceTotalBytes / 1024 ** 3,
+        )}GB`
+      : null;
+  const vmOpsDetail =
+    progress?.maintenanceVmOps != null
+      ? `${progress.maintenanceVmOps.toLocaleString()} VM ops`
+      : null;
+  const elapsedDetail =
+    progress?.maintenanceElapsedSeconds != null
+      ? `${formatReduced(progress.maintenanceElapsedSeconds)}s`
+      : null;
+  const slowHint =
+    progress?.maintenancePhase === "migrating" || progress?.maintenancePhase === "vacuuming"
+      ? t("desktop.startup.databaseMaintenanceSlowHint")
+      : null;
 
   return (
     <section
@@ -83,7 +104,9 @@ export function StartupProgress({ progress, bare = false }: StartupProgressProps
       >
         <span style={{ width: `${value}%` }} />
       </div>
-      <p>{message}</p>
+      <p>
+        {renderMaintenanceDetail(message, sizeDetail, vmOpsDetail, elapsedDetail, maintenanceDetail, slowHint)}
+      </p>
     </section>
   );
 }

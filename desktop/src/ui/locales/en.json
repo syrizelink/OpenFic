@@ -94,11 +94,13 @@
     "databaseVacuumMessage": "Reclaiming freed checkpoint pages",
     "databaseCleanupMessage": "Cleaning local data",
     "databaseMaintenanceFailedMessage": "Local database maintenance failed",
+    "databaseMaintenanceSlowHint": " (Database rebuild may take longer depending on data size, please wait...)",
     "serviceReadyTitle": "Service ready",
     "serviceReadyMessage": "OpenFic is ready"
   },
   "boot": {
-    "cancelConnection": "Cancel connection"
+    "cancelConnection": "Cancel connection",
+    "acknowledgeMaintenance": "Got it, continue"
   },
   "setup": {
     "downloadPython": "Download Python",

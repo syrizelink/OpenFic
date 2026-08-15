@@ -94,11 +94,13 @@
     "databaseVacuumMessage": "正在回收 checkpoint 空闲空间",
     "databaseCleanupMessage": "正在清理本地数据",
     "databaseMaintenanceFailedMessage": "本地数据库维护失败",
+    "databaseMaintenanceSlowHint": "（重整数据库根据数据量可能耗费更长时间，请耐心等待...）",
     "serviceReadyTitle": "服务已就绪",
     "serviceReadyMessage": "OpenFic 已准备完成"
   },
   "boot": {
-    "cancelConnection": "取消连接"
+    "cancelConnection": "取消连接",
+    "acknowledgeMaintenance": "我知道了，继续"
   },
   "setup": {
     "downloadPython": "下载 Python",

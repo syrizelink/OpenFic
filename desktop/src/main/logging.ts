@@ -8,8 +8,15 @@ import { Writable } from "node:stream";
 const MAX_LOG_SIZE_BYTES = 10 * 1024 * 1024;
 const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 
+let logsDirOverride: string | null = null;
+
+/** 让日志目录跟随当前活动实例的数据目录；传 null 恢复默认 userData/logs。 */
+export function setLogsDir(dataDir: string | null): void {
+  logsDirOverride = dataDir;
+}
+
 function getLogsDir(): string {
-  const logsDir = path.join(app.getPath("userData"), "logs");
+  const logsDir = path.join(logsDirOverride ?? app.getPath("userData"), "logs");
   mkdirSync(logsDir, { recursive: true });
   return logsDir;
 }

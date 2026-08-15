@@ -7,12 +7,12 @@ import { throwIfAborted, waitForBackend } from "./health.js";
 import { ensurePortablePython, resolveRuntimeDir } from "./runtime/python.js";
 import { ensureOpenFicRuntime, startLocalOpenFicBackend } from "./runtime/openfic.js";
 import { forceStopBackendProcess, stopBackendProcess, type BackendProcessHandle } from "./process.js";
-import { resolveDataDir } from "./data-location.js";
+import { resolveActiveSessionDataDir, resolveDataDir } from "./data-location.js";
 import { initializeUpdater } from "./updater.js";
 import { configureDefaultSystemProxy } from "./proxy.js";
 import { createStartupProgressTracker, type StartupProgressTracker } from "./startup-progress.js";
 import { IpcChannels } from "../shared/ipc.js";
-import { appendLog } from "./logging.js";
+import { appendLog, setLogsDir } from "./logging.js";
 import type { InitializeAppResult } from "../shared/ipc.js";
 import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
 
@@ -110,7 +110,7 @@ async function startLocalBackend(
   dataDir: string,
   startupProgress: StartupProgressTracker,
   signal: AbortSignal,
-): Promise<void> {
+): Promise<string | null> {
   throwIfAborted(signal);
   const runtimeDir = resolveRuntimeDir(installDir);
   startupProgress.begin({
@@ -171,9 +171,16 @@ async function startLocalBackend(
     });
   }
 
-  const backend = await startLocalOpenFicBackend(runtime.venvPythonPath, app.getVersion(), startupProgress, signal, dataDir);
+  const { handle: backend, maintenanceError } = await startLocalOpenFicBackend(
+    runtime.venvPythonPath,
+    app.getVersion(),
+    startupProgress,
+    signal,
+    dataDir,
+  );
   setBackend(backend);
   setBackendBaseUrl(backend.baseUrl);
+  return maintenanceError;
 }
 
 function getActiveInstance(config: DesktopConfig): DesktopInstance | null {
@@ -185,9 +192,10 @@ async function activateInstance(
   instance: DesktopInstance,
   startupProgress: StartupProgressTracker,
   signal: AbortSignal,
-): Promise<string | null> {
+): Promise<{ compatibilityWarning: string | null; maintenanceWarning: string | null }> {
   throwIfAborted(signal);
   activeInstanceId = instance.id;
+  setLogsDir(instance.mode === "local" ? resolveDataDir(instance) : null);
   if (instance.mode === "remote") {
     if (!instance.remoteUrl) throw new Error("远程实例缺少后端地址");
     startupProgress.begin({
@@ -213,17 +221,20 @@ async function activateInstance(
       message: "正在比较桌面端与后端版本",
       progress: 0.85,
     });
-    if (health.version === app.getVersion()) return null;
-    return `远程实例版本为 ${health.version ?? "未知"}，桌面端版本为 ${app.getVersion()}，部分功能可能不兼容。`;
+    if (health.version === app.getVersion()) return { compatibilityWarning: null, maintenanceWarning: null };
+    return {
+      compatibilityWarning: `远程实例版本为 ${health.version ?? "未知"}，桌面端版本为 ${app.getVersion()}，部分功能可能不兼容。`,
+      maintenanceWarning: null,
+    };
   }
 
   try {
-    await startLocalBackend(instance.installDir, resolveDataDir(instance), startupProgress, signal);
+    const maintenanceWarning = await startLocalBackend(instance.installDir, resolveDataDir(instance), startupProgress, signal);
+    return { compatibilityWarning: null, maintenanceWarning };
   } catch (error) {
     appendLog("runtime", `本地运行环境更新或启动失败：${error instanceof Error ? error.message : String(error)}`);
     throw error;
   }
-  return null;
 }
 
 async function switchInstance(instanceId: string): Promise<InitializeAppResult> {
@@ -246,7 +257,7 @@ async function switchInstance(instanceId: string): Promise<InitializeAppResult> 
       message: `正在切换到 ${instance.name}`,
       progress: 0.1,
     });
-    const compatibilityWarning = await activateInstance(config, instance, startupProgress, controller.signal);
+    const { compatibilityWarning, maintenanceWarning } = await activateInstance(config, instance, startupProgress, controller.signal);
     throwIfAborted(controller.signal);
     await writeDesktopConfig({ ...config, activeInstanceId: instance.id });
     throwIfAborted(controller.signal);
@@ -257,7 +268,12 @@ async function switchInstance(instanceId: string): Promise<InitializeAppResult> 
       progress: 1,
     });
     startupProgress.complete();
-    return { status: "ready", activeInstanceId: instance.id, compatibilityWarning: compatibilityWarning ?? undefined };
+    return {
+      status: "ready",
+      activeInstanceId: instance.id,
+      compatibilityWarning: compatibilityWarning ?? undefined,
+      maintenanceWarning: maintenanceWarning ?? undefined,
+    };
   } catch (error) {
     if (controller.signal.aborted) startupProgress.complete("已取消连接");
     else startupProgress.fail(error);
@@ -305,7 +321,7 @@ async function initializeApp(): Promise<InitializeAppResult> {
       startupProgress.complete("尚未找到活动实例");
       return { status: "needs-setup" };
     }
-    const compatibilityWarning = await activateInstance(config, instance, startupProgress, controller.signal);
+    const { compatibilityWarning, maintenanceWarning } = await activateInstance(config, instance, startupProgress, controller.signal);
     throwIfAborted(controller.signal);
     if (config.activeInstanceId !== instance.id) {
       await writeDesktopConfig({ ...config, activeInstanceId: instance.id });
@@ -317,7 +333,12 @@ async function initializeApp(): Promise<InitializeAppResult> {
       progress: 1,
     });
     startupProgress.complete();
-    return { status: "ready", activeInstanceId: instance.id, compatibilityWarning: compatibilityWarning ?? undefined };
+    return {
+      status: "ready",
+      activeInstanceId: instance.id,
+      compatibilityWarning: compatibilityWarning ?? undefined,
+      maintenanceWarning: maintenanceWarning ?? undefined,
+    };
   } catch (err) {
     if (controller.signal.aborted) {
       startupProgress.complete("已取消连接");
@@ -368,6 +389,12 @@ const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
+  const activeSessionDataDir = resolveActiveSessionDataDir();
+  if (activeSessionDataDir) {
+    app.setPath("sessionData", activeSessionDataDir);
+    writeStartupLog(`session data redirected: ${activeSessionDataDir}`);
+  }
+
   app.on("second-instance", () => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();

@@ -1,7 +1,9 @@
+import asyncio
 import os
 import shutil
 import time
 from collections.abc import Callable
+from contextlib import suppress
 from pathlib import Path
 
 import aiosqlite
@@ -32,6 +34,7 @@ _INCREMENTAL_AUTO_VACUUM_MIGRATION = "incremental_auto_vacuum_v1"
 _CHECKPOINT_CLEANUP_BATCH_SIZE = 500
 _VACUUM_MIN_FREE_BYTES = 64 * 1024 * 1024
 _INCREMENTAL_VACUUM_BATCH_BYTES = 64 * 1024 * 1024
+_VACUUM_PROGRESS_STEP = 10
 CheckpointMaintenanceProgress = Callable[[str, float | None, int, int], None]
 
 
@@ -470,24 +473,85 @@ async def _get_pragma_int(conn: aiosqlite.Connection, pragma: str) -> int:
 async def _run_full_vacuum(
     conn: aiosqlite.Connection,
     progress_callback: CheckpointMaintenanceProgress | None = None,
+    phase: str = "migrating",
+    db_path: str | None = None,
 ) -> None:
+    vm_ops = 0
     last_report_at = 0.0
 
     def on_progress() -> int:
-        nonlocal last_report_at
+        nonlocal vm_ops, last_report_at
+        vm_ops += _VACUUM_PROGRESS_STEP
         now = time.monotonic()
-        if progress_callback is not None and now - last_report_at >= 0.5:
-            progress_callback("migrating", None, 0, 0)
+        if progress_callback is not None and now - last_report_at >= 1.0:
+            progress_callback(phase, None, vm_ops, 0)
             last_report_at = now
         return 0
 
     if progress_callback is not None:
-        progress_callback("migrating", None, 0, 0)
-    await conn.set_progress_handler(on_progress, 10_000)
+        progress_callback(phase, None, 0, 0)
+    if db_path:
+        folder = Path(db_path).parent
+        folder.mkdir(parents=True, exist_ok=True)
+        await conn.execute(
+            f"PRAGMA temp_store_directory = '{str(folder).replace(chr(39), chr(39)*2)}'"
+        )
+    # step 必须足够小：SQLite 的 progress handler 按 VM 指令数触发，
+    # VACUUM 期间总指令数有限，step 过大（如 10000）会导致完全不回调。
+    await conn.set_progress_handler(on_progress, _VACUUM_PROGRESS_STEP)
     try:
         await conn.execute("VACUUM")
     finally:
         await conn.set_progress_handler(lambda: 0, 0)
+
+
+async def _run_vacuum_into(
+    conn: aiosqlite.Connection,
+    target: str,
+    progress_callback: CheckpointMaintenanceProgress | None = None,
+    phase: str = "vacuuming",
+    db_path: str | None = None,
+) -> None:
+    if progress_callback is not None:
+        progress_callback(phase, 0.0, 0, 0)
+    if db_path:
+        folder = Path(db_path).parent
+        folder.mkdir(parents=True, exist_ok=True)
+        await conn.execute(
+            f"PRAGMA temp_store_directory = '{str(folder).replace(chr(39), chr(39)*2)}'"
+        )
+    await conn.execute(f"VACUUM INTO '{target.replace(chr(39), chr(39)*2)}'")
+
+
+async def needs_incremental_auto_vacuum_migration() -> bool:
+    """Return True if the checkpoint db still needs the INCREMENTAL migration."""
+    db_path = _get_db_path()
+    if not Path(db_path).exists():
+        return False
+    conn = await aiosqlite.connect(db_path)
+    try:
+        await _ensure_migrations_table(conn)
+        return not await _has_migration_completed(
+            conn, _INCREMENTAL_AUTO_VACUUM_MIGRATION
+        )
+    finally:
+        await conn.close()
+
+
+async def checkpoint_free_page_bytes() -> tuple[int, int]:
+    """Return (free_bytes, live_bytes) for the checkpoint db."""
+    db_path = _get_db_path()
+    if not Path(db_path).exists():
+        return 0, 0
+    conn = await aiosqlite.connect(db_path)
+    try:
+        page_size = await _get_pragma_int(conn, "page_size")
+        page_count = await _get_pragma_int(conn, "page_count")
+        freelist = await _get_pragma_int(conn, "freelist_count")
+    finally:
+        await conn.close()
+    live_pages = max(0, page_count - freelist)
+    return freelist * page_size, live_pages * page_size
 
 
 async def migrate_checkpoint_database_to_incremental(
@@ -506,11 +570,90 @@ async def migrate_checkpoint_database_to_incremental(
 
         await conn.execute("PRAGMA auto_vacuum = INCREMENTAL")
         await conn.commit()
-        await _run_full_vacuum(conn, progress_callback)
+        await _run_full_vacuum(conn, progress_callback, db_path=db_path)
         await _mark_incremental_auto_vacuum_migration_completed(conn)
         return True
     finally:
         await conn.close()
+
+
+async def full_vacuum_checkpoint_database(
+    progress_callback: CheckpointMaintenanceProgress | None = None,
+) -> bool:
+    """Rebuild checkpoint db into a fresh file via VACUUM INTO, then swap it in.
+
+    Unlike a plain VACUUM, this does not need to hold an exclusive lock on the
+    source database, so it is significantly faster and leaves the original file
+    untouched until the atomic replacement. Progress is reported by polling the
+    size of the growing target file, since VACUUM INTO does not invoke the
+    progress handler.
+    """
+    db_path = _get_db_path()
+    if not Path(db_path).exists():
+        return False
+
+    target = f"{db_path}.vacuuming"
+    Path(target).unlink(missing_ok=True)
+
+    conn = await aiosqlite.connect(db_path)
+    try:
+        await conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        await conn.commit()
+        page_size = await _get_pragma_int(conn, "page_size")
+        live_pages = (
+            await _get_pragma_int(conn, "page_count")
+            - await _get_pragma_int(conn, "freelist_count")
+        )
+    finally:
+        await conn.close()
+    estimated_target_bytes = max(1, live_pages * page_size)
+
+    conn = await aiosqlite.connect(db_path)
+    try:
+        monitor_task = asyncio.create_task(
+            _monitor_vacuum_into_target(
+                target,
+                estimated_target_bytes,
+                progress_callback,
+            )
+        )
+        try:
+            await _run_vacuum_into(conn, target, None, db_path=db_path)
+        except Exception:
+            # 写入目标文件失败（如磁盘空间不足），清理残留后向上抛出
+            Path(target).unlink(missing_ok=True)
+            raise
+        finally:
+            monitor_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await monitor_task
+    finally:
+        await conn.close()
+
+    try:
+        os.replace(target, db_path)
+    except OSError:
+        Path(target).unlink(missing_ok=True)
+        raise
+    if progress_callback is not None:
+        progress_callback("vacuuming", 1.0, estimated_target_bytes, estimated_target_bytes)
+    return True
+
+
+async def _monitor_vacuum_into_target(
+    target: str,
+    estimated_target_bytes: int,
+    progress_callback: CheckpointMaintenanceProgress | None,
+) -> None:
+    last_report_at = 0.0
+    while True:
+        current = Path(target).stat().st_size if Path(target).exists() else 0
+        now = time.monotonic()
+        if progress_callback is not None and now - last_report_at >= 0.5:
+            progress = min(1.0, current / estimated_target_bytes)
+            progress_callback("vacuuming", progress, current, estimated_target_bytes)
+            last_report_at = now
+        await asyncio.sleep(0.5)
 
 
 async def incremental_vacuum_checkpoint_database(
