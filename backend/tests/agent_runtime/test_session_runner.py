@@ -159,7 +159,8 @@ async def test_run_emits_done_with_created_at():
              "app.agent_runtime.runner.session_runner.create_session",
              AsyncMock(return_value=fake_session),
          ), \
-         patch.object(runner, "_make_persister", MagicMock(return_value=fake_persister)):
+         patch.object(runner, "_make_persister", MagicMock(return_value=fake_persister)), \
+         patch.object(runner, "_prune_thread_checkpoints", AsyncMock()) as prune_mock:
         await runner.run(user_request="hi")
 
     done_payloads = [
@@ -169,6 +170,66 @@ async def test_run_emits_done_with_created_at():
     ]
     assert done_payloads
     assert isinstance(done_payloads[-1].get("created_at"), str) and done_payloads[-1]["created_at"]
+    prune_mock.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_prune_thread_checkpoints_calls_prune_with_session_id():
+    runner = SessionRunner(
+        session_id="sess_prune_001",
+        task_id="task_prune_001",
+        model_config={
+            "provider_type": "openai",
+            "model_id": "gpt",
+            "api_key": "k",
+            "base_url": "",
+            "max_context_tokens": 8000,
+        },
+    )
+    fake_session = MagicMock(close=AsyncMock())
+    fake_checkpointer = MagicMock()
+
+    with patch(
+        "app.agent_runtime.runner.session_runner.create_session",
+        AsyncMock(return_value=fake_session),
+    ), patch(
+        "app.agent_runtime.runner.session_runner.get_checkpointer",
+        AsyncMock(return_value=fake_checkpointer),
+    ), patch(
+        "app.agent_runtime.runner.session_runner.prune_thread_checkpoints",
+        AsyncMock(return_value=0),
+    ) as prune_mock:
+        await runner._prune_thread_checkpoints()
+
+    prune_mock.assert_awaited_once_with(fake_session, fake_checkpointer, "sess_prune_001")
+    fake_session.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_prune_thread_checkpoints_failure_is_silent():
+    runner = SessionRunner(
+        session_id="sess_prune_fail",
+        task_id="task_prune_fail",
+        model_config={
+            "provider_type": "openai",
+            "model_id": "gpt",
+            "api_key": "k",
+            "base_url": "",
+            "max_context_tokens": 8000,
+        },
+    )
+    fake_session = MagicMock(close=AsyncMock())
+
+    with patch(
+        "app.agent_runtime.runner.session_runner.create_session",
+        AsyncMock(return_value=fake_session),
+    ), patch(
+        "app.agent_runtime.runner.session_runner.get_checkpointer",
+        AsyncMock(side_effect=RuntimeError("maintenance locked")),
+    ):
+        await runner._prune_thread_checkpoints()
+
+    fake_session.close.assert_awaited_once()
 
 
 @pytest.mark.asyncio

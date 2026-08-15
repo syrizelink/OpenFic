@@ -399,6 +399,26 @@ async def prune_reachable_checkpoints(
     return await _prune_checkpoint_threads(session, checkpointer, reachable_thread_ids)
 
 
+async def prune_thread_checkpoints(
+    session: AsyncSession,
+    checkpointer: AsyncSqliteSaver,
+    thread_id: str,
+) -> int:
+    """Prune one thread's internal history while preserving recovery and rollback checkpoints.
+
+    Applies the same retention rules as startup pruning: the latest checkpoint in
+    each namespace plus explicit rollback points for this thread.
+    """
+    if not thread_id:
+        return 0
+    retained_checkpoint_ids = await _list_retained_checkpoint_ids(session, {thread_id})
+    return await prune_checkpoints_for_thread(
+        checkpointer,
+        thread_id,
+        retained_checkpoint_ids.get(thread_id, set()),
+    )
+
+
 async def _prune_checkpoint_threads(
     session: AsyncSession,
     checkpointer: AsyncSqliteSaver,

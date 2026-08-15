@@ -8,6 +8,7 @@ from langchain_core.messages import BaseMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.context import ContextBuildError, build_context_parts
@@ -31,7 +32,7 @@ from app.agent_runtime.persistence import (
 )
 from app.agent_runtime.persistence.model import AgentRunMessage
 from app.agent_runtime.revisions import begin_user_revision, finalize_revision_status
-from app.agent_runtime.runner.checkpointer import get_checkpointer
+from app.agent_runtime.runner.checkpointer import get_checkpointer, prune_thread_checkpoints
 from app.agent_runtime.runner.event_translator import EventTranslator
 from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buffer
 from app.agent_runtime.types import DEFAULT_AGENT_RECURSION_LIMIT
@@ -902,6 +903,7 @@ class SessionRunner:
             raise
         finally:
             await runtime_session.close()
+            await self._prune_thread_checkpoints()
 
         # Check for interrupt after stream ends
         state = await graph.aget_state(
@@ -932,6 +934,27 @@ class SessionRunner:
                 room=self._room,
             )
             await self._clear_replay_session()
+
+    async def _prune_thread_checkpoints(self) -> None:
+        try:
+            session = await create_session()
+            try:
+                checkpointer = await get_checkpointer()
+                deleted_rows = await prune_thread_checkpoints(
+                    session,
+                    checkpointer,
+                    self.session_id,
+                )
+                if deleted_rows:
+                    logger.info(
+                        f"Pruned {deleted_rows} checkpoint rows for session {self.session_id}"
+                    )
+            finally:
+                await session.close()
+        except Exception:
+            logger.exception(
+                f"Failed to prune checkpoints for session {self.session_id}"
+            )
 
     async def inject_message(
         self,
