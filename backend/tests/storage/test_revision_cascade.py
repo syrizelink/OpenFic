@@ -1,4 +1,3 @@
-import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -109,7 +108,7 @@ async def test_delete_revision_data_by_project_cascades_and_gc_blobs(
     await _seed_two_revisions(session)
     assert await _blob_count(session) == 2
 
-    deleted = await delete_revision_data_by_project(session, "proj-1")
+    await delete_revision_data_by_project(session, "proj-1")
     await session.commit()
 
     # rev-1 + its commit + chapter snapshot removed; exclusive blob removed.
