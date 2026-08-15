@@ -44,12 +44,20 @@ class Commit(SQLModel, table=True):
     # 快照数据（存储变更前的状态）
     snapshot_title: str | None = Field(default=None, max_length=200)
     snapshot_content: str | None = Field(default=None)
+    snapshot_content_blob_id: str | None = Field(
+        default=None,
+        description="变更前正文的内容寻址 blob id(长文本时使用)",
+    )
     snapshot_word_count: int | None = Field(default=None)
     snapshot_order: int | None = Field(default=None)
 
     # 变更后的数据（用于 redo 或查看变更）
     new_title: str | None = Field(default=None, max_length=200)
     new_content: str | None = Field(default=None)
+    new_content_blob_id: str | None = Field(
+        default=None,
+        description="变更后正文的内容寻址 blob id(长文本时使用)",
+    )
     new_word_count: int | None = Field(default=None)
     new_order: int | None = Field(default=None)
 

@@ -26,6 +26,7 @@ from app.core.errors import NotFoundError
 from app.storage.models.task import Task
 from app.storage.models.task_message import TaskMessage
 from app.storage.repos import project_repo, task_message_repo, task_repo
+from app.storage.services.revision_service import delete_revision_data_by_tasks
 
 
 @dataclass
@@ -173,6 +174,7 @@ async def delete_task(session: AsyncSession, task_id: str) -> None:
         raise NotFoundError(f"任务不存在：{task_id}")
 
     await _delete_runtime_data_for_tasks(session, [task])
+    await delete_revision_data_by_tasks(session, [task_id])
     await task_repo.delete(session, task)
 
 
@@ -184,6 +186,7 @@ async def delete_all_tasks(session: AsyncSession, project_id: str) -> int:
 
     tasks = await task_repo.list_by_project(session, project_id)
     await _delete_runtime_data_for_tasks(session, tasks)
+    await delete_revision_data_by_tasks(session, [task.id for task in tasks])
     await task_repo.delete_by_project(session, project_id)
     return len(tasks)
 

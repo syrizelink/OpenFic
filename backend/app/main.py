@@ -84,6 +84,8 @@ from app.settings import settings as app_settings
 from app.socket import init_socketio
 from app.storage.database import close_db, create_session, init_db, vacuum_database_if_needed
 from app.storage.services import task_service
+from app.storage.services.revision_content_backfill import backfill_revision_content_blobs
+from app.storage.services.revision_service import cleanup_orphaned_revision_data
 
 
 ANSI_BOLD = "\033[1m"
@@ -167,6 +169,7 @@ async def _cleanup_unreachable_checkpoints() -> int:
 
 _vacuum_started_at: float | None = None
 _migrate_started_at: float | None = None
+_backfill_started_at: float | None = None
 
 
 def _emit_single_line_progress(message: str) -> None:
@@ -302,6 +305,8 @@ async def _run_startup_maintenance() -> None:
         await _cleanup_chapter_export_files()
         await _cleanup_orphaned_agent_attachment_files()
         await _cleanup_orphaned_task_data()
+        await _cleanup_orphaned_revision_data()
+        await _backfill_revision_content()
         await _vacuum_main_database()
         await start_background_runtime()
         maintenance_state.complete()
@@ -370,6 +375,74 @@ async def _cleanup_orphaned_task_data() -> None:
         await session.commit()
         if deleted_rows:
             logger.info(f"Deleted {deleted_rows} orphaned task runtime rows at startup")
+    finally:
+        await session.close()
+
+
+def _update_backfill_progress(
+    phase: str,
+    progress: float | None,
+    processed: int,
+    total: int,
+) -> None:
+    global _backfill_started_at
+    maintenance_state.update(
+        phase="backfilling",
+        message="Backfilling revision content into compressed blobs.",
+        progress=progress,
+        deleted_rows=processed,
+        total_pages=total,
+    )
+    if progress is None:
+        _backfill_started_at = time.monotonic()
+        _emit_single_line_progress(
+            f"[maintenance] Backfilling revision content: {total:,} rows"
+        )
+        return
+    if progress >= 1.0:
+        if _backfill_started_at is None:
+            _backfill_started_at = time.monotonic()
+        elapsed = time.monotonic() - _backfill_started_at
+        _backfill_started_at = None
+        if processed == 0 and total == 0:
+            _emit_single_line_progress(
+                "[maintenance] Backfill already completed, skipping."
+            )
+        else:
+            _emit_single_line_progress(
+                f"[maintenance] Backfill completed: {processed:,} rows rewritten "
+                f"in {elapsed:.1f}s"
+            )
+        return
+    if _backfill_started_at is None:
+        _backfill_started_at = time.monotonic()
+    elapsed = time.monotonic() - _backfill_started_at
+    percent = progress * 100
+    _emit_single_line_progress(
+        f"[maintenance] Backfilling revision content: {processed:,}/{total:,} "
+        f"({percent:.1f}%), {elapsed:.1f}s"
+    )
+
+
+async def _cleanup_orphaned_revision_data() -> int:
+    session = await create_session()
+    try:
+        deleted_rows = await cleanup_orphaned_revision_data(session)
+        await session.commit()
+        if deleted_rows:
+            logger.info(f"Deleted {deleted_rows} orphaned revision rows at startup")
+        return deleted_rows
+    finally:
+        await session.close()
+
+
+async def _backfill_revision_content() -> int:
+    session = await create_session()
+    try:
+        return await backfill_revision_content_blobs(
+            session,
+            progress_callback=_update_backfill_progress,
+        )
     finally:
         await session.close()
 

@@ -38,6 +38,7 @@ from app.storage.repos import (
     project_repo,
     revision_character_snapshot_repo,
     revision_chapter_snapshot_repo,
+    revision_content_blob_repo,
     revision_note_snapshot_repo,
     revision_repo,
     revision_world_entry_snapshot_repo,
@@ -148,7 +149,8 @@ def _image_from_snapshot(snapshot: RevisionChapterSnapshot) -> ChapterImage | No
     )
 
 
-def _snapshot_from_image(
+async def _snapshot_from_image(
+    session: AsyncSession,
     revision_id: str,
     project_id: str,
     chapter_id: str,
@@ -161,18 +163,18 @@ def _snapshot_from_image(
             project_id=project_id,
             exists=False,
         )
+    content, content_blob_id = await _store_content(session, image.content)
     return RevisionChapterSnapshot(
         revision_id=revision_id,
         chapter_id=image.id,
         project_id=image.project_id,
         exists=True,
         title=image.title,
-        content=image.content,
+        content=content,
+        content_blob_id=content_blob_id,
         word_count=image.word_count,
         chapter_order=image.order,
     )
-
-
 def _has_changed(before: ChapterImage | None, after: ChapterImage | None) -> bool:
     if before is None or after is None:
         return before is not after
@@ -193,27 +195,48 @@ def _operation(before: ChapterImage | None, after: ChapterImage | None) -> str:
     return "update"
 
 
-def _commit_from_images(
+async def _store_content(
+    session: AsyncSession,
+    content: str | None,
+) -> tuple[str | None, str | None]:
+    """Return (inline_value, blob_id).
+
+    Content at or above the inline threshold is stored once in the deduplicated,
+    compressed blob table and referenced by id; smaller values stay inline.
+    """
+    if content is None or len(content) < revision_content_blob_repo.INLINE_THRESHOLD:
+        return content, None
+    return None, await revision_content_blob_repo.put(session, content)
+
+
+async def _commit_from_images(
+    session: AsyncSession,
     revision_id: str,
     chapter_id: str,
     before: ChapterImage | None,
     after: ChapterImage | None,
 ) -> Commit:
+    snapshot_content, snapshot_content_blob_id = await _store_content(
+        session, before.content if before else None
+    )
+    new_content, new_content_blob_id = await _store_content(
+        session, after.content if after else None
+    )
     return Commit(
         revision_id=revision_id,
         chapter_id=chapter_id,
         operation=_operation(before, after),
         snapshot_title=before.title if before else None,
-        snapshot_content=before.content if before else None,
+        snapshot_content=snapshot_content,
+        snapshot_content_blob_id=snapshot_content_blob_id,
         snapshot_word_count=before.word_count if before else None,
         snapshot_order=before.order if before else None,
         new_title=after.title if after else None,
-        new_content=after.content if after else None,
+        new_content=new_content,
+        new_content_blob_id=new_content_blob_id,
         new_word_count=after.word_count if after else None,
         new_order=after.order if after else None,
     )
-
-
 def serialize_chapter(chapter: Chapter | ChapterImage) -> dict:
     created_at = getattr(chapter, "created_at", None)
     updated_at = getattr(chapter, "updated_at", None)
@@ -318,11 +341,11 @@ async def record_chapter_diffs(
         if not _has_changed(old, new):
             continue
         affected.append(chapter_id)
-        await commit_repo.create(session, _commit_from_images(revision_id, chapter_id, old, new))
+        await commit_repo.create(session, await _commit_from_images(session, revision_id, chapter_id, old, new))
         if chapter_id not in snapshotted:
             await revision_chapter_snapshot_repo.create(
                 session,
-                _snapshot_from_image(revision_id, project_id, chapter_id, old),
+                await _snapshot_from_image(session, revision_id, project_id, chapter_id, old),
             )
             snapshotted.add(chapter_id)
     return affected
@@ -358,7 +381,8 @@ def _image_from_note_snapshot(snapshot: RevisionNoteSnapshot) -> NoteImage | Non
     )
 
 
-def _snapshot_from_note_image(
+async def _snapshot_from_note_image(
+    session: AsyncSession,
     revision_id: str,
     project_id: str,
     note_id: str,
@@ -371,6 +395,7 @@ def _snapshot_from_note_image(
             project_id=project_id,
             exists=False,
         )
+    content, content_blob_id = await _store_content(session, image.content)
     return RevisionNoteSnapshot(
         revision_id=revision_id,
         note_id=image.id,
@@ -378,12 +403,11 @@ def _snapshot_from_note_image(
         exists=True,
         category_id=image.category_id,
         title=image.title,
-        content=image.content,
+        content=content,
+        content_blob_id=content_blob_id,
         is_locked=image.is_locked,
         is_hidden=image.is_hidden,
     )
-
-
 def _note_has_changed(before: NoteImage | None, after: NoteImage | None) -> bool:
     if before is None or after is None:
         return before is not after
@@ -422,7 +446,7 @@ async def record_note_diffs(
         if note_id not in snapshotted:
             await revision_note_snapshot_repo.create(
                 session,
-                _snapshot_from_note_image(revision_id, project_id, note_id, old),
+                await _snapshot_from_note_image(session, revision_id, project_id, note_id, old),
             )
             snapshotted.add(note_id)
     return affected
@@ -554,7 +578,8 @@ def _image_from_world_entry_snapshot(
     )
 
 
-def _snapshot_from_world_entry_image(
+async def _snapshot_from_world_entry_image(
+    session: AsyncSession,
     revision_id: str,
     project_id: str,
     entry_id: str,
@@ -567,6 +592,7 @@ def _snapshot_from_world_entry_image(
             project_id=project_id,
             exists=False,
         )
+    content, content_blob_id = await _store_content(session, image.content)
     return RevisionWorldEntrySnapshot(
         revision_id=revision_id,
         entry_id=image.id,
@@ -576,12 +602,11 @@ def _snapshot_from_world_entry_image(
         uid=image.uid,
         name=image.name,
         entry_order=image.order,
-        content=image.content,
+        content=content,
+        content_blob_id=content_blob_id,
         token_count=image.token_count,
         is_enabled=image.is_enabled,
     )
-
-
 def _world_entry_has_changed(
     before: WorldEntryImage | None,
     after: WorldEntryImage | None,
@@ -629,7 +654,7 @@ async def record_world_entry_diffs(
         if entry_id not in snapshotted:
             await revision_world_entry_snapshot_repo.create(
                 session,
-                _snapshot_from_world_entry_image(revision_id, project_id, entry_id, old),
+                await _snapshot_from_world_entry_image(session, revision_id, project_id, entry_id, old),
             )
             snapshotted.add(entry_id)
     return affected
@@ -659,7 +684,8 @@ def _image_from_character_snapshot(
     )
 
 
-def _snapshot_from_character_image(
+async def _snapshot_from_character_image(
+    session: AsyncSession,
     revision_id: str,
     project_id: str,
     character_id: str,
@@ -672,17 +698,17 @@ def _snapshot_from_character_image(
             project_id=project_id,
             exists=False,
         )
+    description, description_blob_id = await _store_content(session, image.description)
     return RevisionCharacterSnapshot(
         revision_id=revision_id,
         character_id=image.id,
         project_id=image.project_id,
         exists=True,
         name=image.name,
-        description=image.description,
+        description=description,
+        description_blob_id=description_blob_id,
         is_favorited=image.is_favorited,
     )
-
-
 def _character_has_changed(
     before: CharacterImage | None,
     after: CharacterImage | None,
@@ -722,7 +748,7 @@ async def record_character_diffs(
         if character_id not in snapshotted:
             await revision_character_snapshot_repo.create(
                 session,
-                _snapshot_from_character_image(revision_id, project_id, character_id, old),
+                await _snapshot_from_character_image(session, revision_id, project_id, character_id, old),
             )
             snapshotted.add(character_id)
     return affected
@@ -966,7 +992,8 @@ async def rollback_revision_for_session(
         if _has_changed(before_image, after_image):
             await commit_repo.create(
                 session,
-                _commit_from_images(
+                await _commit_from_images(
+                    session,
                     rollback_revision.id,
                     snapshot.chapter_id,
                     before_image,

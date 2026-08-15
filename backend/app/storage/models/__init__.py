@@ -29,6 +29,7 @@ from app.storage.models.revision_note_snapshot import (
     RevisionNoteSnapshot,
 )
 from app.storage.models.revision_world_entry_snapshot import RevisionWorldEntrySnapshot
+from app.storage.models.revision_content_blob import RevisionContentBlob
 from app.storage.models.retrieval_index import RetrievalIndex
 from app.storage.models.retrieval_chapter_index_state import RetrievalChapterIndexState
 from app.storage.models.skill import Skill
@@ -66,6 +67,7 @@ __all__ = [
     "Revision",
     "RevisionCharacterSnapshot",
     "RevisionChapterSnapshot",
+    "RevisionContentBlob",
     "RevisionNoteCategorySnapshot",
     "RevisionNoteSnapshot",
     "RevisionWorldEntrySnapshot",

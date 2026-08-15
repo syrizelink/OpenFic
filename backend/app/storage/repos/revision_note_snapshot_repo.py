@@ -9,6 +9,7 @@ from app.storage.models.revision_note_snapshot import (
     RevisionNoteCategorySnapshot,
     RevisionNoteSnapshot,
 )
+from app.storage.repos import revision_content_blob_repo
 
 
 async def create(
@@ -48,7 +49,14 @@ async def list_by_revision(
         .where(col(RevisionNoteSnapshot.revision_id) == revision_id)
         .order_by(col(RevisionNoteSnapshot.title).asc())
     )
-    return list(result.scalars().all())
+    snapshots = list(result.scalars().all())
+    await revision_content_blob_repo.hydrate_content(
+        session,
+        snapshots,
+        blob_id_attr="content_blob_id",
+        content_attr="content",
+    )
+    return snapshots
 
 
 async def create_category_snapshot(

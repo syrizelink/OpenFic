@@ -24,6 +24,10 @@ class RevisionChapterSnapshot(SQLModel, table=True):
     exists: bool = Field(default=True)
     title: str | None = Field(default=None, max_length=200)
     content: str | None = Field(default=None)
+    content_blob_id: str | None = Field(
+        default=None,
+        description="正文的内容寻址 blob id(长文本时使用)",
+    )
     word_count: int | None = Field(default=None)
     chapter_order: int | None = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)

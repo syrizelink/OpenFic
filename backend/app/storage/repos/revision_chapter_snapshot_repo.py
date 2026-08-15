@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
 from app.storage.models.revision_chapter_snapshot import RevisionChapterSnapshot
+from app.storage.repos import revision_content_blob_repo
 
 
 async def create(
@@ -45,4 +46,11 @@ async def list_by_revision(
         .where(col(RevisionChapterSnapshot.revision_id) == revision_id)
         .order_by(col(RevisionChapterSnapshot.chapter_order).asc())
     )
-    return list(result.scalars().all())
+    snapshots = list(result.scalars().all())
+    await revision_content_blob_repo.hydrate_content(
+        session,
+        snapshots,
+        blob_id_attr="content_blob_id",
+        content_attr="content",
+    )
+    return snapshots

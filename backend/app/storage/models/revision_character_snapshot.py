@@ -24,6 +24,10 @@ class RevisionCharacterSnapshot(SQLModel, table=True):
     exists: bool = Field(default=True)
     name: str | None = Field(default=None, max_length=200)
     description: str | None = Field(default=None)
+    description_blob_id: str | None = Field(
+        default=None,
+        description="角色描述的内容寻址 blob id(长文本时使用)",
+    )
     is_favorited: bool | None = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
