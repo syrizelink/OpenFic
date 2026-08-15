@@ -2,3 +2,7 @@ allowBuilds:
   core-js: false
   electron: true
   electron-builder: true
+  electron-winstaller: false
+
+overrides:
+  '@electron/get': ^5.1.0
