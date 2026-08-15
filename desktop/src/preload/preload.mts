@@ -79,8 +79,8 @@ const desktopApi = {
   getDefaultInstallDir: (): Promise<string> => ipcRenderer.invoke(IpcChannels.getDefaultInstallDir),
   installRuntime: (installDir: string): Promise<void> =>
     ipcRenderer.invoke(IpcChannels.installRuntime, { installDir } satisfies InstallRuntimeRequest),
-  startLocalBackend: (installDir: string): Promise<void> =>
-    ipcRenderer.invoke(IpcChannels.startLocalBackend, { installDir } satisfies StartLocalBackendRequest),
+  startLocalBackend: (installDir: string, dataDir?: string | null): Promise<string | null> =>
+    ipcRenderer.invoke(IpcChannels.startLocalBackend, { installDir, dataDir } satisfies StartLocalBackendRequest),
   switchInstance: (instanceId: string): Promise<InitializeAppResult> =>
     ipcRenderer.invoke(IpcChannels.switchInstance, { instanceId } satisfies SwitchInstanceRequest),
   pingInstance: (instance: DesktopInstance): Promise<PingInstanceResult> =>

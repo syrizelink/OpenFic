@@ -145,6 +145,12 @@
     "getStarted": "Get started",
     "welcome": "Welcome to OpenFic",
     "selectInstallDirectory": "Choose an installation directory",
+    "selectDataDirectory": "Choose a data directory",
+    "dataDirectoryDescription": "Your work data will be stored here. The default location is the application data directory.",
+    "dataDirectory": "Data directory",
+    "readingDefaultDataDirectory": "Reading default data directory...",
+    "continue": "Continue",
+    "startLocalInstance": "Start local instance",
     "installingRuntime": "Installing runtime",
     "keepWindowOpen": "Keep this window open. The next step will start automatically when installation is complete."
   },

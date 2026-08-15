@@ -145,6 +145,12 @@
     "getStarted": "开始使用",
     "welcome": "开始使用 OpenFic",
     "selectInstallDirectory": "选择安装目录",
+    "selectDataDirectory": "选择数据目录",
+    "dataDirectoryDescription": "作品数据将保存在此目录，默认使用应用数据目录。",
+    "dataDirectory": "数据目录",
+    "readingDefaultDataDirectory": "正在读取默认数据目录…",
+    "continue": "继续",
+    "startLocalInstance": "启动本地实例",
     "installingRuntime": "正在安装运行环境",
     "keepWindowOpen": "请保持窗口开启，安装完成后将自动进入下一步。"
   },

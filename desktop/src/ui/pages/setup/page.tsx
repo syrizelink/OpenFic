@@ -18,7 +18,7 @@ import type { DesktopInstance } from "../../../shared/config";
 import { useTranslation } from "react-i18next";
 import "./setup.css";
 
-type WizardStep = "mode" | "remote" | "local-directory" | "local-installing" | "local-success";
+type WizardStep = "mode" | "remote" | "local-directory" | "local-data" | "local-installing" | "local-success";
 
 type StepStatus = "pending" | "running" | "done" | "failed";
 
@@ -69,7 +69,7 @@ function getRuntimeDisplayPath(installDir: string): string {
 }
 
 interface SetupPageProps {
-  initialStep?: "mode" | "remote" | "local-directory" | "local-success";
+  initialStep?: "mode" | "remote" | "local-directory" | "local-data" | "local-success";
   initialError?: string | null;
   initialInstallDir?: string | null;
   initialRemoteUrl?: string | null;
@@ -79,7 +79,7 @@ interface SetupPageProps {
   onConnectRemote: (url: string) => void;
   onConnectInstance: (instanceId: string) => void;
   onOpenDataManagementFor: (instanceId: string) => void;
-  onStartLocal: (installDir: string) => void;
+  onStartLocal: (installDir: string, dataDir: string) => void;
 }
 
 function getInstanceDetail(
@@ -127,6 +127,7 @@ export function SetupPage({
   const [step, setStep] = useState<WizardStep>(initialStep);
   const [remoteUrl, setRemoteUrl] = useState(initialRemoteUrl ?? "http://127.0.0.1:8000");
   const [installDir, setInstallDir] = useState("");
+  const [dataDir, setDataDir] = useState("");
   const [runtimeInspection, setRuntimeInspection] = useState<InspectLocalRuntimeResult | null>(null);
   const [runtimeChecking, setRuntimeChecking] = useState(false);
   const [steps, setSteps] = useState<StepState>(INITIAL_STEPS);
@@ -136,11 +137,13 @@ export function SetupPage({
     let cancelled = false;
     void Promise.all([
       window.openficDesktop.getDefaultInstallDir(),
+      window.openficDesktop.getDefaultDataDir(),
       window.openficDesktop.getConfig(),
-    ]).then(([defaultDir, config]) => {
+    ]).then(([defaultDir, defaultDataDir, config]) => {
       if (cancelled) return;
       const localInstance = config?.instances.find((instance) => instance.mode === "local");
       setInstallDir(initialInstallDir ?? localInstance?.installDir ?? defaultDir);
+      setDataDir((current) => current || defaultDataDir);
       const activeInstance = config?.instances.find((instance) => instance.id === config.activeInstanceId);
       if (!initialRemoteUrl && activeInstance?.mode === "remote" && activeInstance.remoteUrl) {
         setRemoteUrl(activeInstance.remoteUrl);
@@ -185,6 +188,12 @@ export function SetupPage({
     if (picked) setInstallDir(picked);
   };
 
+  const pickDataDirectory = async () => {
+    onClearError();
+    const picked = await window.openficDesktop.selectDirectory();
+    if (picked) setDataDir(picked);
+  };
+
   const beginInstall = async () => {
     onClearError();
     setStep("local-installing");
@@ -202,6 +211,9 @@ export function SetupPage({
     if (step === "remote" || step === "local-directory") {
       onClearError();
       setStep("mode");
+    } else if (step === "local-data") {
+      onClearError();
+      setStep("local-directory");
     }
   };
 
@@ -210,15 +222,17 @@ export function SetupPage({
     setStep(nextStep);
   };
 
-  const canGoBack = step === "remote" || step === "local-directory";
+  const canGoBack = step === "remote" || step === "local-directory" || step === "local-data";
 
   const runtimeIsReady = runtimeInspection?.status === "ready";
   const runtimeNeedsRepair = runtimeInspection?.status === "incomplete";
   const configuredInstance = runtimeInspection?.configuredInstance ?? null;
-  const primaryActionLabel = runtimeIsReady
-    ? configuredInstance
-      ? t("desktop.setup.useExistingInstance")
-      : t("desktop.setup.useExistingRuntime")
+  const primaryActionLabel = runtimeIsReady && configuredInstance
+    ? t("desktop.setup.useExistingInstance")
+    : t("desktop.setup.continue");
+
+  const dataStepPrimaryActionLabel = runtimeIsReady
+    ? t("desktop.setup.startLocalInstance")
     : runtimeNeedsRepair
       ? t("desktop.setup.repairRuntime")
       : t("desktop.setup.beginInstall");
@@ -441,18 +455,48 @@ export function SetupPage({
                   type="button"
                   disabled={!installDir || runtimeChecking || !runtimeInspection}
                   onClick={() => {
+                    if (runtimeIsReady && configuredInstance) {
+                      onConnectInstance(configuredInstance.id);
+                      return;
+                    }
+                    setStep("local-data");
+                  }}
+                >
+                  {primaryActionLabel}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {step === "local-data" ? (
+            <div className="setup-form">
+              <div className="setup-field">
+                <span className="setup-field-label">{t("desktop.setup.dataDirectory")}</span>
+                <div className="setup-dir-row">
+                  <span className="setup-dir-value" data-empty={!dataDir} title={dataDir}>
+                    {dataDir || t("desktop.setup.readingDefaultDataDirectory")}
+                  </span>
+                  <button className="setup-secondary-button" type="button" onClick={() => void pickDataDirectory()}>
+                    <FolderOpen size={15} strokeWidth={2} style={{ verticalAlign: "-2px", marginRight: 6 }} />
+                    {t("desktop.setup.selectDirectory")}
+                  </button>
+                </div>
+              </div>
+
+              <div className="setup-actions">
+                <button
+                  className="primary-button"
+                  type="button"
+                  disabled={!dataDir}
+                  onClick={() => {
                     if (runtimeIsReady) {
-                      if (configuredInstance) {
-                        onConnectInstance(configuredInstance.id);
-                        return;
-                      }
-                      onStartLocal(installDir);
+                      onStartLocal(installDir, dataDir);
                       return;
                     }
                     void beginInstall();
                   }}
                 >
-                  {primaryActionLabel}
+                  {dataStepPrimaryActionLabel}
                 </button>
               </div>
             </div>
@@ -541,7 +585,7 @@ export function SetupPage({
                 <button
                   className="primary-button"
                   type="button"
-                  onClick={() => onStartLocal(installDir)}
+                  onClick={() => onStartLocal(installDir, dataDir)}
                 >
                   {t("desktop.setup.getStarted")}
                 </button>
@@ -558,6 +602,7 @@ const EYEBROW: Record<WizardStep, string> = {
   mode: "",
   remote: "",
   "local-directory": "",
+  "local-data": "",
   "local-installing": "",
   "local-success": "",
 };
@@ -566,6 +611,7 @@ const TITLE_KEYS: Record<WizardStep, string> = {
   mode: "desktop.setup.welcome",
   remote: "desktop.setup.connectExistingService",
   "local-directory": "desktop.setup.selectInstallDirectory",
+  "local-data": "desktop.setup.selectDataDirectory",
   "local-installing": "desktop.setup.installingRuntime",
   "local-success": "",
 };
@@ -574,6 +620,7 @@ const DESCRIPTION_KEYS: Record<WizardStep, string> = {
   mode: "",
   remote: "",
   "local-directory": "",
+  "local-data": "desktop.setup.dataDirectoryDescription",
   "local-installing": "desktop.setup.keepWindowOpen",
   "local-success": "",
 };

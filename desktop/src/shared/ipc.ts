@@ -97,6 +97,7 @@ export interface InstallRuntimeRequest {
 
 export interface StartLocalBackendRequest {
   installDir: string;
+  dataDir?: string | null;
 }
 
 export interface InspectLocalRuntimeRequest {

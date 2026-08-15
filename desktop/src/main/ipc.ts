@@ -27,7 +27,7 @@ import { ensureAppProtocolForPartition } from "./protocol.js";
 import { findLocalInstanceByInstallDir, normalizeInstallDir } from "./local-instance.js";
 import { inspectLocalRuntime, installLocalRuntime, startLocalBackendFromInstall } from "./runtime/setup-runner.js";
 import { getDefaultInstallDir } from "./runtime/python.js";
-import { getDefaultDataDir, resolveDataDir } from "./data-location.js";
+import { getDefaultDataDir, normalizeDataDir, resolveDataDir } from "./data-location.js";
 import {
   backupDataDir,
   inspectDataDir,
@@ -366,7 +366,7 @@ export function registerIpc(context: IpcContext): void {
         request.installDir,
         startupProgress,
         controller.signal,
-        existingInstance ? resolveDataDir(existingInstance) : undefined,
+        existingInstance ? resolveDataDir(existingInstance) : request.dataDir ?? undefined,
       );
       context.setBackend(backend);
       context.setBackendBaseUrl(backend.baseUrl);
@@ -378,7 +378,7 @@ export function registerIpc(context: IpcContext): void {
         remoteUrl: null,
         autoStartLocal: true,
         installDir: request.installDir,
-        dataDir: null,
+        dataDir: normalizeDataDir(request.dataDir),
       };
       const normalizedInstallDir = normalizeInstallDir(request.installDir);
       const nextConfig: DesktopConfig = {

@@ -490,7 +490,7 @@ export function App() {
     }
   };
 
-  const handleStartLocal = async (installDir: string) => {
+  const handleStartLocal = async (installDir: string, dataDir: string) => {
     const requestId = ++startupRequestId.current;
     setError(null);
     setCompatibilityWarning(null);
@@ -499,7 +499,7 @@ export function App() {
     setStartupProgress(null);
     setShellState("booting");
     try {
-      const maintenanceWarning = await window.openficDesktop.startLocalBackend(installDir);
+      const maintenanceWarning = await window.openficDesktop.startLocalBackend(installDir, dataDir);
       if (requestId !== startupRequestId.current) return;
       if (maintenanceWarning) {
         setMaintenanceWarning(maintenanceWarning);
@@ -620,7 +620,7 @@ export function App() {
             onConnectRemote={(url) => void handleConnectRemote(url)}
             onConnectInstance={(instanceId) => void handleSwitchInstance(instanceId)}
             onOpenDataManagementFor={handleOpenDataManagementFor}
-            onStartLocal={(installDir) => void handleStartLocal(installDir)}
+            onStartLocal={(installDir, dataDir) => void handleStartLocal(installDir, dataDir)}
           />
         ) : null}
         {shellState === "frontend" && frontendReadyPartition ? (
