@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import set_committed_value
+from sqlmodel import col
 
 from app.storage.models.revision_content_blob import RevisionContentBlob
 
@@ -71,7 +72,7 @@ async def get_many(session: AsyncSession, blob_ids: set[str]) -> dict[str, str]:
     if not blob_ids:
         return {}
     result = await session.execute(
-        select(RevisionContentBlob).where(RevisionContentBlob.id.in_(blob_ids))
+        select(RevisionContentBlob).where(col(RevisionContentBlob.id).in_(blob_ids))
     )
     return {
         blob.id: decompress_text(blob.data)

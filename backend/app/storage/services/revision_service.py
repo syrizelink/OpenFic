@@ -11,8 +11,9 @@ These functions centralize the cascade rules for revision history:
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
-from sqlalchemy import and_, delete, or_, select
+from sqlalchemy import Select, and_, delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -41,12 +42,12 @@ _REVISION_CHILD_MODELS = (
 
 # Every column that references a RevisionContentBlob id.
 _BLOB_REFERENCE_COLUMNS = (
-    (Commit, Commit.snapshot_content_blob_id),
-    (Commit, Commit.new_content_blob_id),
-    (RevisionChapterSnapshot, RevisionChapterSnapshot.content_blob_id),
-    (RevisionNoteSnapshot, RevisionNoteSnapshot.content_blob_id),
-    (RevisionCharacterSnapshot, RevisionCharacterSnapshot.description_blob_id),
-    (RevisionWorldEntrySnapshot, RevisionWorldEntrySnapshot.content_blob_id),
+    (Commit, col(Commit.snapshot_content_blob_id)),
+    (Commit, col(Commit.new_content_blob_id)),
+    (RevisionChapterSnapshot, col(RevisionChapterSnapshot.content_blob_id)),
+    (RevisionNoteSnapshot, col(RevisionNoteSnapshot.content_blob_id)),
+    (RevisionCharacterSnapshot, col(RevisionCharacterSnapshot.description_blob_id)),
+    (RevisionWorldEntrySnapshot, col(RevisionWorldEntrySnapshot.content_blob_id)),
 )
 
 _BLOB_GC_BATCH = 500
@@ -62,10 +63,10 @@ async def _gc_revision_blobs(session: AsyncSession, blob_ids: set[str]) -> int:
     ordered = list(blob_ids)
     for start in range(0, len(ordered), _BLOB_GC_BATCH):
         chunk = ordered[start : start + _BLOB_GC_BATCH]
-        stmt = delete(RevisionContentBlob).where(RevisionContentBlob.id.in_(chunk))
+        stmt = delete(RevisionContentBlob).where(col(RevisionContentBlob.id).in_(chunk))
         for _model, blob_col in _BLOB_REFERENCE_COLUMNS:
             referenced = select(blob_col).where(blob_col.is_not(None))
-            stmt = stmt.where(~RevisionContentBlob.id.in_(referenced))
+            stmt = stmt.where(~col(RevisionContentBlob.id).in_(referenced))
         result = await session.execute(stmt)
         deleted += int(getattr(result, "rowcount", 0) or 0)
     return deleted
@@ -73,7 +74,7 @@ async def _gc_revision_blobs(session: AsyncSession, blob_ids: set[str]) -> int:
 
 async def _delete_children_and_collect_blobs(
     session: AsyncSession,
-    revision_condition: Callable[[object], object],
+    revision_condition: Callable[[Any], Any],
 ) -> tuple[int, set[str]]:
     """Delete child rows matching ``revision_condition`` and collect blob ids.
 
@@ -91,7 +92,7 @@ async def _delete_children_and_collect_blobs(
             result = await session.execute(
                 select(blob_col).where(condition, blob_col.is_not(None))
             )
-            blob_ids.update(result.scalars().all())
+            blob_ids.update(blob_id for blob_id in result.scalars().all() if blob_id is not None)
 
         result = await session.execute(delete(model).where(condition))
         deleted_rows += int(getattr(result, "rowcount", 0) or 0)
@@ -101,7 +102,7 @@ async def _delete_children_and_collect_blobs(
 
 async def _delete_revision_data(
     session: AsyncSession,
-    revision_ids_subquery: object,
+    revision_ids_subquery: Select[Any],
 ) -> int:
     """Delete child rows, revisions, and now-unreferenced blobs for revisions
     selected by ``revision_ids_subquery``."""
@@ -111,7 +112,7 @@ async def _delete_revision_data(
     )
 
     result = await session.execute(
-        delete(Revision).where(Revision.id.in_(revision_ids_subquery))
+        delete(Revision).where(col(Revision.id).in_(revision_ids_subquery))
     )
     deleted_rows += int(getattr(result, "rowcount", 0) or 0)
 
@@ -125,7 +126,7 @@ async def delete_revision_data_by_project(
     project_id: str,
 ) -> int:
     """Cascade-delete all revision history owned by a project."""
-    revision_ids = select(Revision.id).where(Revision.project_id == project_id)
+    revision_ids = select(col(Revision.id)).where(col(Revision.project_id) == project_id)
     return await _delete_revision_data(session, revision_ids)
 
 
@@ -136,7 +137,7 @@ async def delete_revision_data_by_tasks(
     """Cascade-delete revision history owned by one or more tasks."""
     if not task_ids:
         return 0
-    revision_ids = select(Revision.id).where(Revision.task_id.in_(task_ids))
+    revision_ids = select(col(Revision.id)).where(col(Revision.task_id).in_(task_ids))
     return await _delete_revision_data(session, revision_ids)
 
 
@@ -169,7 +170,7 @@ async def cleanup_orphaned_revision_data(session: AsyncSession) -> int:
     )
 
     result = await session.execute(
-        delete(Revision).where(Revision.id.in_(orphan_revision_ids))
+        delete(Revision).where(col(Revision.id).in_(orphan_revision_ids))
     )
     deleted_rows += int(getattr(result, "rowcount", 0) or 0)
 

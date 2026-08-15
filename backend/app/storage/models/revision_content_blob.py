@@ -3,7 +3,7 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import LargeBinary
+from sqlalchemy import Column, LargeBinary
 from sqlmodel import Field, SQLModel
 
 
@@ -19,7 +19,7 @@ class RevisionContentBlob(SQLModel, table=True):
 
     id: str = Field(primary_key=True, description="sha256 hex of raw UTF-8 text")
     data: bytes = Field(
-        sa_column=LargeBinary, description="zlib-compressed raw text"
+        sa_column=Column(LargeBinary), description="zlib-compressed raw text"
     )
     raw_size: int = Field(description="size in bytes of the uncompressed text")
     created_at: datetime = Field(
