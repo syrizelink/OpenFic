@@ -54,8 +54,18 @@ async def _hydrate_commits(
     session: AsyncSession,
     commits: list[Commit],
 ) -> list[Commit]:
-    for commit in commits:
-        await _hydrate_commit(session, commit)
+    await revision_content_blob_repo.hydrate_content(
+        session,
+        commits,
+        blob_id_attr="snapshot_content_blob_id",
+        content_attr="snapshot_content",
+    )
+    await revision_content_blob_repo.hydrate_content(
+        session,
+        commits,
+        blob_id_attr="new_content_blob_id",
+        content_attr="new_content",
+    )
     return commits
 
 

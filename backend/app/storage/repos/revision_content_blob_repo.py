@@ -7,6 +7,7 @@ import hashlib
 import zlib
 
 from sqlalchemy import select
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import set_committed_value
 
@@ -41,15 +42,17 @@ async def put(session: AsyncSession, text: str | None) -> str | None:
     if not text or len(text) < INLINE_THRESHOLD:
         return None
     blob_id = blob_id_for_text(text)
-    if await session.get(RevisionContentBlob, blob_id) is None:
-        session.add(
-            RevisionContentBlob(
-                id=blob_id,
-                data=compress_text(text),
-                raw_size=len(text.encode("utf-8")),
-            )
+    raw = text.encode("utf-8")
+    statement = (
+        sqlite_insert(RevisionContentBlob)
+        .values(
+            id=blob_id,
+            data=zlib.compress(raw, level=_COMPRESS_LEVEL),
+            raw_size=len(raw),
         )
-        await session.flush()
+        .on_conflict_do_nothing(index_elements=[RevisionContentBlob.id])
+    )
+    await session.execute(statement)
     return blob_id
 
 

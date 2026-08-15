@@ -7,7 +7,7 @@ import { throwIfAborted, waitForBackend } from "./health.js";
 import { ensurePortablePython, resolveRuntimeDir } from "./runtime/python.js";
 import { ensureOpenFicRuntime, startLocalOpenFicBackend } from "./runtime/openfic.js";
 import { forceStopBackendProcess, stopBackendProcess, type BackendProcessHandle } from "./process.js";
-import { resolveActiveSessionDataDir, resolveDataDir } from "./data-location.js";
+import { resolveDataDir } from "./data-location.js";
 import { initializeUpdater } from "./updater.js";
 import { configureDefaultSystemProxy } from "./proxy.js";
 import { createStartupProgressTracker, type StartupProgressTracker } from "./startup-progress.js";
@@ -384,17 +384,13 @@ async function bootstrap(): Promise<void> {
   if (mainWindow) await initializeUpdater(mainWindow);
 }
 
+// Keep Chromium session data in Electron's default AppData location. Webviews
+// remain isolated per instance through their persist:openfic-<id> partitions.
 const gotLock = app.requestSingleInstanceLock();
 
 if (!gotLock) {
   app.quit();
 } else {
-  const activeSessionDataDir = resolveActiveSessionDataDir();
-  if (activeSessionDataDir) {
-    app.setPath("sessionData", activeSessionDataDir);
-    writeStartupLog(`session data redirected: ${activeSessionDataDir}`);
-  }
-
   app.on("second-instance", () => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();

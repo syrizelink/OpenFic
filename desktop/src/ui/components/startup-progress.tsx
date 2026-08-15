@@ -50,13 +50,11 @@ export function StartupProgress({ progress, bare = false }: StartupProgressProps
   const indeterminate = progress?.indeterminate ?? false;
   const value = Math.round((progress?.progress ?? 0) * 100);
   const title = progress ? t("desktop.startup.startBackendTitle") : t("desktop.startup.preparingApp");
-  const message =
-    progress?.message ??
-    (progress?.maintenancePhase
+  const message = progress
+    ? progress.maintenancePhase
       ? t(MAINTENANCE_MESSAGE_KEYS[progress.maintenancePhase])
-      : progress
-        ? t(STARTUP_MESSAGE_KEYS[progress.step])
-        : t("desktop.startup.initializingService"));
+      : t(STARTUP_MESSAGE_KEYS[progress.step])
+    : t("desktop.startup.initializingService");
   const maintenanceDetail =
     progress?.maintenanceProgress != null
       ? `${Math.round(Math.min(1, Math.max(0, progress.maintenanceProgress)) * 100)}%`

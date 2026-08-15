@@ -207,6 +207,12 @@ export function App() {
         setActiveInstanceId(result.activeInstanceId ?? nextConfig?.activeInstanceId ?? null);
         setError(result.message ?? null);
         setCompatibilityWarning(result.compatibilityWarning ?? null);
+        const maintenanceWarning = result.maintenanceWarning ?? null;
+        setMaintenanceWarning(maintenanceWarning);
+        if (maintenanceWarning) {
+          setShellState("booting");
+          return;
+        }
         setShellState(result.status === "ready" ? "frontend" : "setup");
       } catch (err) {
         if (cancelled || requestId !== startupRequestId.current) return;
