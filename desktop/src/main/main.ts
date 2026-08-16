@@ -1,5 +1,7 @@
 import { app, dialog, Menu, type BrowserWindow } from "electron";
+import { mkdir } from "node:fs/promises";
 import { registerAppScheme, handleAppProtocol, setRuntimeConfig } from "./protocol.js";
+import { getDevDataDir, isDevMode, DEV_INSTANCE_ID, startDevBackend } from "./runtime/dev-backend.js";
 import { createMainWindow } from "./windows.js";
 import { readDesktopConfig, writeDesktopConfig } from "./config.js";
 import { registerIpc } from "./ipc.js";
@@ -65,7 +67,7 @@ function setBackendBaseUrl(url: string): void {
 }
 
 function onConfigSaved(config: DesktopConfig): void {
-  activeInstanceId = config.activeInstanceId;
+  activeInstanceId = isDevMode() ? DEV_INSTANCE_ID : config.activeInstanceId;
 }
 
 function attachWindowLifecycle(window: BrowserWindow): void {
@@ -238,6 +240,46 @@ async function activateInstance(
 }
 
 async function switchInstance(instanceId: string): Promise<InitializeAppResult> {
+  if (isDevMode()) {
+    if (instanceId !== DEV_INSTANCE_ID) throw new Error("开发模式下仅支持源码后端实例");
+    const controller = beginStartupOperation();
+    const startupProgress = createStartupProgress();
+    startupProgress.begin({
+      step: "load-config",
+      title: "开发模式",
+      message: "正在重启本地开发后端",
+      progress: 0.1,
+    });
+    try {
+      await stopActiveBackend();
+      const devDataDir = getDevDataDir();
+      await mkdir(devDataDir, { recursive: true });
+      setLogsDir(devDataDir);
+      const { handle, baseUrl, maintenanceError } = await startDevBackend(startupProgress, controller.signal);
+      throwIfAborted(controller.signal);
+      setBackendBaseUrl(baseUrl);
+      if (handle) setBackend(handle);
+      activeInstanceId = DEV_INSTANCE_ID;
+      startupProgress.begin({
+        step: "ready",
+        title: "开发模式",
+        message: "OpenFic 开发后端已就绪",
+        progress: 1,
+      });
+      startupProgress.complete();
+      return {
+        status: "ready",
+        activeInstanceId: DEV_INSTANCE_ID,
+        maintenanceWarning: maintenanceError ?? undefined,
+      };
+    } catch (error) {
+      if (controller.signal.aborted) startupProgress.complete("已取消连接");
+      else startupProgress.fail(error);
+      throw error;
+    } finally {
+      finishStartupOperation(controller);
+    }
+  }
   const controller = beginStartupOperation();
   const startupProgress = createStartupProgress();
   startupProgress.begin({
@@ -300,7 +342,55 @@ function installMenu(): void {
   Menu.setApplicationMenu(null);
 }
 
+async function initializeDevApp(): Promise<InitializeAppResult> {
+  const controller = beginStartupOperation();
+  const startupProgress = createStartupProgress();
+  startupProgress.begin({
+    step: "load-config",
+    title: "开发模式",
+    message: "正在启动本地开发后端",
+    progress: 0.1,
+  });
+  try {
+    const devDataDir = getDevDataDir();
+    await mkdir(devDataDir, { recursive: true });
+    setLogsDir(devDataDir);
+    activeInstanceId = DEV_INSTANCE_ID;
+    const { handle, baseUrl, maintenanceError } = await startDevBackend(startupProgress, controller.signal);
+    throwIfAborted(controller.signal);
+    setBackendBaseUrl(baseUrl);
+    if (handle) setBackend(handle);
+    startupProgress.begin({
+      step: "ready",
+      title: "开发模式",
+      message: "OpenFic 开发后端已就绪",
+      progress: 1,
+    });
+    startupProgress.complete();
+    return {
+      status: "ready",
+      activeInstanceId: DEV_INSTANCE_ID,
+      maintenanceWarning: maintenanceError ?? undefined,
+    };
+  } catch (err) {
+    if (controller.signal.aborted) {
+      startupProgress.complete("已取消连接");
+      return { status: "needs-setup" };
+    }
+    writeStartupLog(`dev backend failed: ${err instanceof Error ? err.message : String(err)}`);
+    startupProgress.fail(err);
+    return {
+      status: "needs-setup",
+      activeInstanceId: null,
+      message: err instanceof Error ? err.message : String(err),
+    };
+  } finally {
+    finishStartupOperation(controller);
+  }
+}
+
 async function initializeApp(): Promise<InitializeAppResult> {
+  if (isDevMode()) return initializeDevApp();
   const controller = beginStartupOperation();
   const startupProgress = createStartupProgress();
   startupProgress.begin({
@@ -381,7 +471,7 @@ async function bootstrap(): Promise<void> {
 
   writeStartupLog("opening shell window");
   openMainWindow();
-  if (mainWindow) await initializeUpdater(mainWindow);
+  if (!isDevMode() && mainWindow) await initializeUpdater(mainWindow);
 }
 
 // Keep Chromium session data in Electron's default AppData location. Webviews

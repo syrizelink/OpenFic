@@ -2,6 +2,14 @@ import { app } from "electron";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { defaultDesktopConfig, type DesktopConfig, type DesktopInstance } from "../shared/config.js";
+import {
+  DEV_INSTANCE_ID,
+  createDevInstance,
+  isDevInstance,
+  isDevMode,
+  persistDevInstanceDataDir,
+  readDevInstanceDataDir,
+} from "./runtime/dev-backend.js";
 
 function getConfigPath(): string {
   return path.join(app.getPath("userData"), "config.json");
@@ -70,20 +78,45 @@ function migrateLegacyConfig(config: Omit<DesktopInstance, "id" | "name">): Desk
 }
 
 export async function readDesktopConfig(): Promise<DesktopConfig | null> {
+  let config: DesktopConfig | null;
   try {
     const raw = await readFile(getConfigPath(), "utf-8");
     const parsed = JSON.parse(raw) as unknown;
-    if (isDesktopConfig(parsed)) return parsed;
-    if (!isLegacyDesktopConfig(parsed)) return null;
-    const migrated = migrateLegacyConfig(parsed);
-    await writeDesktopConfig(migrated);
-    return migrated;
+    if (isDesktopConfig(parsed)) {
+      config = parsed;
+    } else if (isLegacyDesktopConfig(parsed)) {
+      config = migrateLegacyConfig(parsed);
+      await writeDesktopConfig(config);
+    } else {
+      config = null;
+    }
   } catch {
-    return null;
+    config = null;
   }
+  if (isDevMode()) {
+    const devInstance = await createDevInstance();
+    config = {
+      ...(config ?? createDefaultConfig()),
+      activeInstanceId: DEV_INSTANCE_ID,
+      instances: [...(config?.instances ?? []).filter((instance) => !isDevInstance(instance)), devInstance],
+    };
+  }
+  return config;
 }
 
 export async function writeDesktopConfig(config: DesktopConfig): Promise<void> {
+  if (isDevMode()) {
+    const devInstance = config.instances.find(isDevInstance);
+    if (devInstance?.dataDir) {
+      const currentDataDir = await readDevInstanceDataDir();
+      if (devInstance.dataDir !== currentDataDir) await persistDevInstanceDataDir(devInstance.dataDir);
+    }
+    config = {
+      ...config,
+      activeInstanceId: config.activeInstanceId === DEV_INSTANCE_ID ? null : config.activeInstanceId,
+      instances: config.instances.filter((instance) => !isDevInstance(instance)),
+    };
+  }
   const configPath = getConfigPath();
   await mkdir(path.dirname(configPath), { recursive: true });
   await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf-8");

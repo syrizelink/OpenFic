@@ -6,8 +6,10 @@
   "main": "dist/main/main.js",
   "packageManager": "pnpm@11.8.0",
   "scripts": {
-    "dev": "pnpm build:setup && pnpm build:main && electron .",
-    "build": "pnpm build:setup && pnpm build:main",
+    "dev": "pnpm build:frontend && pnpm build:setup && pnpm build:main && electron .",
+    "dev:local": "node scripts/dev-local.mjs",
+    "build": "pnpm build:frontend && pnpm build:setup && pnpm build:main",
+    "build:frontend": "pnpm --dir ../frontend build",
     "build:main": "tsc -p tsconfig.main.json",
     "build:setup": "vp build",
     "type-check": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
