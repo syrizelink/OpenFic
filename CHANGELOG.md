@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.10.0](https://github.com/syrizelink/OpenFic/compare/v0.9.2...v0.10.0) (2026-08-16)
+
+
+### ✨ 新功能
+
+* **agent:** 支持主 Agent 自定义标识（颜色与图标） ([#282](https://github.com/syrizelink/OpenFic/issues/282)) ([b802c4d](https://github.com/syrizelink/OpenFic/commit/b802c4d2543938a6fc61fc92c03754d3e9f8ae55))
+* **agent:** 支持规则全局与项目作用域 ([#269](https://github.com/syrizelink/OpenFic/issues/269)) ([0fb578a](https://github.com/syrizelink/OpenFic/commit/0fb578aa9c7ace66436f71331029dc82a76b316f))
+* **desktop:** 支持数据备份、迁移、还原与自定义数据目录 ([#275](https://github.com/syrizelink/OpenFic/issues/275)) ([23a1fac](https://github.com/syrizelink/OpenFic/commit/23a1fac7e14d9184ebf2e583a8d451ef068cb80a))
+* **fonts:** 引入 fontsource 字体支持 ([#294](https://github.com/syrizelink/OpenFic/issues/294)) ([c135ee3](https://github.com/syrizelink/OpenFic/commit/c135ee338975bf3330f179e3eba360ad12727a22))
+* **settings:** 支持自定义基础字号与编辑器字号 ([#300](https://github.com/syrizelink/OpenFic/issues/300)) ([ac6da38](https://github.com/syrizelink/OpenFic/commit/ac6da382907886940fb17121d4a2b5bf6742cbcc))
+* **telemetry:** 接入 PostHog 远程错误遥测 ([#305](https://github.com/syrizelink/OpenFic/issues/305)) ([08d47ae](https://github.com/syrizelink/OpenFic/commit/08d47aef1bd421993c3b2a952b69a2b468cbd8eb))
+
+
+### 🐛 问题修复
+
+* **agent:** 修复会话生命周期竞态导致取消和恢复异常的问题 ([#307](https://github.com/syrizelink/OpenFic/issues/307)) ([c1430df](https://github.com/syrizelink/OpenFic/commit/c1430df5a6a6181942f7327206bf51e3c5ba5bc2))
+* **agent:** 修复并行工具调用时唯一约束冲突的问题 ([#271](https://github.com/syrizelink/OpenFic/issues/271)) ([5dbe377](https://github.com/syrizelink/OpenFic/commit/5dbe3772a78ac56be85ae19ae23881185c20e4b4))
+* **agent:** 工具数量超限不再中断会话并返回错误结果 ([#293](https://github.com/syrizelink/OpenFic/issues/293)) ([b35a744](https://github.com/syrizelink/OpenFic/commit/b35a744e702e30a02b488f9948c433602ae3ff2a))
+* **backend:** 修复 LLM 长响应被超时中断的问题 ([#277](https://github.com/syrizelink/OpenFic/issues/277)) ([3259325](https://github.com/syrizelink/OpenFic/commit/32593253ba58143731dba5eb8f359b82234353c1))
+* **db:** 修复 checkpoints.db 体积膨胀导致无法启动的问题 ([#303](https://github.com/syrizelink/OpenFic/issues/303)) ([8c7cc10](https://github.com/syrizelink/OpenFic/commit/8c7cc1000ee2566845439be409eb4157c49e48cd))
+* **desktop:** uv 安装 TLS 证书错误时自动重试 ([#292](https://github.com/syrizelink/OpenFic/issues/292)) ([79bad9b](https://github.com/syrizelink/OpenFic/commit/79bad9b56e3a149aa0e66b3ba842ba8a9abe4736))
+* **frontend:** 修复 streamdown 流式渲染的最大更新深度崩溃问题 ([#272](https://github.com/syrizelink/OpenFic/issues/272)) ([ab4b9f5](https://github.com/syrizelink/OpenFic/commit/ab4b9f55c0e108998252747b0f54be6a5b62d2b4))
+* **frontend:** 修复卡初始化的问题并增强连接失败诊断信息 ([#287](https://github.com/syrizelink/OpenFic/issues/287)) ([04acb43](https://github.com/syrizelink/OpenFic/commit/04acb43764c2b1261a2de7b4ee2a27acfed4e03b))
+* **frontend:** 修复发送新消息后上一条 Assistant 轮次 toolbar 消失的问题 ([#273](https://github.com/syrizelink/OpenFic/issues/273)) ([ae8eda2](https://github.com/syrizelink/OpenFic/commit/ae8eda2d162e6e65057f20ecc1582055548789f7))
+* **frontend:** 收起下拉框时不再误关闭设置面板 ([#297](https://github.com/syrizelink/OpenFic/issues/297)) ([c4e0b47](https://github.com/syrizelink/OpenFic/commit/c4e0b479a5642c7804dbdf68d448b913605284a1))
+* **projects:** 修复项目列表加载不完全导致分页、搜索和排序失效的问题 ([#284](https://github.com/syrizelink/OpenFic/issues/284)) ([82af99e](https://github.com/syrizelink/OpenFic/commit/82af99e687ff0d57842a70489d39146eb5191059))
+
+
+### ⚡ 性能优化
+
+* **backend:** 优化检索索引状态与模型提供商列表接口性能 ([#291](https://github.com/syrizelink/OpenFic/issues/291)) ([c77b264](https://github.com/syrizelink/OpenFic/commit/c77b264eafc2c15e78793bd01d5cc32f6d7e4437))
+
+
+### ✅ 测试
+
+* **desktop:** 新增基于源码后端的本地开发模式 ([#304](https://github.com/syrizelink/OpenFic/issues/304)) ([84d63f1](https://github.com/syrizelink/OpenFic/commit/84d63f1aa6905896596818427f3f3275bcebc40e))
+* **frontend:** 新增 Agent 会话生命周期 E2E 测试 ([#308](https://github.com/syrizelink/OpenFic/issues/308)) ([9478baf](https://github.com/syrizelink/OpenFic/commit/9478baf2f46317bd859deb21042c0bb02ce55441))
+
 ## [0.9.2](https://github.com/syrizelink/OpenFic/compare/v0.9.1...v0.9.2) (2026-08-08)
 
 

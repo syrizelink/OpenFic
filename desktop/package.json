@@ -1,7 +1,7 @@
 {
   "name": "openfic-desktop",
   "private": true,
-  "version": "0.9.2",
+  "version": "0.10.0",
   "type": "module",
   "main": "dist/main/main.js",
   "packageManager": "pnpm@11.8.0",
