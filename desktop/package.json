@@ -34,6 +34,7 @@
     "electron-updater": "^6.8.9",
     "i18next": "^25.10.10",
     "lucide-react": "^1.22.0",
+    "posthog-node": "^5.49.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-i18next": "^16.6.6",

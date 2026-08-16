@@ -19,6 +19,7 @@ from app.agent_runtime.context.processors.compress import (
     SETTING_KEY_COMPRESS_SYSTEM_PROMPTS,
 )
 from app.agent_runtime.session_activity import has_active_agent_sessions
+from app.telemetry import SETTING_KEY_TELEMETRY_ENABLED, set_telemetry_enabled
 from app.api.agent_settings_lock import require_agent_settings_unlocked
 from app.api.schemas.setting import (
     AgentSettingsLockResponse,
@@ -97,6 +98,7 @@ DEFAULT_SETTINGS = {
     SETTING_KEY_AGENT_TOOL_PERMISSIONS: "[]",
     SETTING_KEY_AUDIT_PERSIST_DETAILS: "false",
     SETTING_KEY_COMPRESS_SYSTEM_PROMPTS: "false",
+    SETTING_KEY_TELEMETRY_ENABLED: "true",
 }
 
 
@@ -335,6 +337,13 @@ code_font_family=settings_dict.get(
             ),
             default=False,
         ),
+        telemetry_enabled=_parse_bool_setting(
+            settings_dict.get(
+                SETTING_KEY_TELEMETRY_ENABLED,
+                DEFAULT_SETTINGS[SETTING_KEY_TELEMETRY_ENABLED],
+            ),
+            default=True,
+        ),
     )
 
 
@@ -497,6 +506,11 @@ async def update_settings(
             request.compress_system_prompts,
             ensure_ascii=False,
         )
+    if request.telemetry_enabled is not None:
+        settings_to_update[SETTING_KEY_TELEMETRY_ENABLED] = json.dumps(
+            request.telemetry_enabled,
+            ensure_ascii=False,
+        )
 
     # 分块参数或嵌入模型变更会使现有索引失效，需要标记重建。
     if index_contract_changed:
@@ -508,6 +522,8 @@ async def update_settings(
         await setting_repo.bulk_upsert(session, settings_to_update)
     if next_audit_details_persistence is not None:
         set_audit_details_persistence(next_audit_details_persistence)
+    if request.telemetry_enabled is not None:
+        set_telemetry_enabled(request.telemetry_enabled)
 
     # 索引配置变更后通知前端刷新索引状态。
     if index_config_changed:

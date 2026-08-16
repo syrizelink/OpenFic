@@ -103,3 +103,17 @@ def register_exception_handlers(app: FastAPI) -> None:
             status_code=exc.status_code,
             content={"detail": exc.detail},
         )
+
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(
+        request: Request, exc: Exception
+    ) -> JSONResponse:
+        """处理未捕获异常：返回通用 500，并上报错误遥测。"""
+        logger.bind(
+            request_method=request.method,
+            request_path=request.url.path,
+        ).opt(exception=exc).error("unhandled exception")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": "Internal Server Error"},
+        )

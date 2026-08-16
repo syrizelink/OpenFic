@@ -1,0 +1,58 @@
+.app-crash-fallback-shell {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  background: var(--color-background);
+}
+
+.app-crash-fallback-stage {
+  width: 100%;
+  height: 100%;
+}
+
+.app-crash-fallback-title {
+  color: var(--red-11);
+  text-align: center;
+}
+
+.app-crash-fallback-message {
+  margin: 0;
+  max-width: min(560px, calc(100vw - 48px));
+  line-height: 1.5;
+  overflow-wrap: break-word;
+  text-align: center;
+}
+
+.app-crash-fallback-details {
+  width: min(720px, calc(100vw - 48px));
+  text-align: left;
+}
+
+.app-crash-fallback-details summary {
+  cursor: pointer;
+  color: var(--gray-11);
+  font-size: var(--font-size-1);
+  user-select: none;
+  padding: 6px 12px;
+  border-radius: var(--radius-2);
+  background: var(--gray-a3);
+}
+
+.app-crash-fallback-stack {
+  margin: 8px 0 0;
+  padding: 12px 14px;
+  max-height: 40vh;
+  overflow: auto;
+  border: 1px solid var(--gray-a5);
+  border-radius: var(--radius-3);
+  background: var(--gray-a2);
+  color: var(--gray-11);
+  font-family: var(--code-font-family, monospace);
+  font-size: var(--font-size-1);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

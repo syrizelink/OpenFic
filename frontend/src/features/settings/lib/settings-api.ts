@@ -47,6 +47,7 @@ export function transformSettings(raw: SettingsResponse): Settings {
     })),
     auditPersistDetails: raw.audit_persist_details ?? false,
     compressSystemPrompts: raw.compress_system_prompts ?? false,
+    telemetryEnabled: raw.telemetry_enabled ?? true,
   };
 }
 

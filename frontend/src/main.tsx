@@ -1,10 +1,11 @@
 import { Theme } from "@radix-ui/themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { lazy, StrictMode, Suspense, useState, useEffect } from "react";
+import { ErrorBoundary } from "react-error-boundary";
 import { BrowserRouter, Routes, Route } from "react-router";
 
 import App from "./App.tsx";
-import { GlobalLoading } from "./components";
+import { AppCrashFallback, GlobalLoading } from "./components";
 import { Toaster } from "./components/toaster";
 import { AppLayout } from "./features/app-shell";
 import { CharactersPage } from "./features/characters";
@@ -19,6 +20,7 @@ import { checkHealth } from "./lib/api-client";
 import { publishDesktopAppearance, publishDesktopLanguage } from "./lib/desktop-appearance-bridge";
 import { applyCodeFontFamily, applyFontFamily, loadConfiguredFonts } from "./lib/font-utils";
 import { getOrCreateRoot } from "./lib/get-or-create-root";
+import { captureException, initErrorTelemetry } from "./lib/posthog";
 import { loadRuntimeConfig } from "./lib/runtime-config";
 import { connectSocket } from "./lib/socket-client";
 import { preloadTiktokenEncoding } from "./lib/tiktoken-utils";
@@ -219,6 +221,7 @@ function Root() {
     const initializeApp = async () => {
       try {
         await loadRuntimeConfig();
+        void initErrorTelemetry();
 
         const [, settings] = await Promise.all([
           withInitializationStage("health", checkHealth()),
@@ -305,12 +308,17 @@ function Root() {
                 onRetry={() => window.location.reload()}
               />
             ) : (
-              <AppContent
-                appearance={appearance}
-                version={FRONTEND_VERSION}
-                setAppearance={setAppearance}
-                toggleTheme={toggleTheme}
-              />
+              <ErrorBoundary
+                FallbackComponent={AppCrashFallback}
+                onError={(err) => captureException(err, { source: "react-render" })}
+              >
+                <AppContent
+                  appearance={appearance}
+                  version={FRONTEND_VERSION}
+                  setAppearance={setAppearance}
+                  toggleTheme={toggleTheme}
+                />
+              </ErrorBoundary>
             )}
           </Theme>
           {isReady ? <Toaster appearance={appearance} /> : null}

@@ -31,6 +31,7 @@ export const IpcChannels = {
   updateState: "update:state",
   exportLogs: "logs:export",
   logFrontendDiagnostic: "logs:frontend-diagnostic",
+  reportError: "telemetry:report-error",
   openProjectHome: "help:open-project-home",
   reportBug: "help:report-bug",
   suggestFeature: "help:suggest-feature",
@@ -73,6 +74,12 @@ export interface SaveZoomFactorRequest {
 
 export interface LogFrontendDiagnosticRequest {
   message: string;
+}
+
+export interface ReportErrorPayload {
+  name: string;
+  message: string;
+  stack?: string;
 }
 
 export interface EnsureInstanceSessionRequest {

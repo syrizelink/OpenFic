@@ -15,6 +15,7 @@ import { configureDefaultSystemProxy } from "./proxy.js";
 import { createStartupProgressTracker, type StartupProgressTracker } from "./startup-progress.js";
 import { IpcChannels } from "../shared/ipc.js";
 import { appendLog, setLogsDir } from "./logging.js";
+import { captureException, captureExceptionImmediate, startErrorTelemetry, syncTelemetryEnabled } from "./telemetry.js";
 import type { InitializeAppResult } from "../shared/ipc.js";
 import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
 
@@ -29,6 +30,7 @@ let isQuitting = false;
 let startupAbortController: AbortController | null = null;
 
 writeStartupLog("process start");
+startErrorTelemetry();
 registerAppScheme();
 writeStartupLog("scheme registered");
 
@@ -63,7 +65,9 @@ async function stopActiveBackend(): Promise<void> {
 }
 
 function setBackendBaseUrl(url: string): void {
-  setRuntimeConfig({ backendBaseUrl: url.replace(/\/+$/, "") });
+  const normalized = url.replace(/\/+$/, "");
+  setRuntimeConfig({ backendBaseUrl: normalized });
+  void syncTelemetryEnabled(normalized);
 }
 
 function onConfigSaved(config: DesktopConfig): void {
@@ -522,10 +526,12 @@ if (!gotLock) {
 
   process.on("uncaughtException", (error) => {
     writeStartupLog(`uncaughtException: ${error.stack ?? error.message}`);
+    void captureExceptionImmediate(error);
     throw error;
   });
 
   process.on("unhandledRejection", (reason) => {
     writeStartupLog(`unhandledRejection: ${reason instanceof Error ? reason.stack ?? reason.message : String(reason)}`);
+    captureException(reason);
   });
 }

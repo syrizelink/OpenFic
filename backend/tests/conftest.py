@@ -11,6 +11,7 @@ from pathlib import Path
 import shutil
 
 import httpx
+import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
@@ -39,6 +40,7 @@ from app.api.routers import (
     projects,
     prompt_chains,
     retrieval_index,
+    runtime_config,
     skills,
     skill_reference_docs,
     settings,
@@ -91,6 +93,7 @@ def _create_test_app() -> FastAPI:
     test_app.include_router(agent_rules.router, prefix="/api/v1")
     test_app.include_router(retrieval_index.router, prefix="/api/v1")
     test_app.include_router(retrieval_index.global_router, prefix="/api/v1")
+    test_app.include_router(runtime_config.router, prefix="/api/v1")
     test_app.include_router(skills.router, prefix="/api/v1")
     test_app.include_router(skill_reference_docs.router, prefix="/api/v1")
     test_app.include_router(chapter_context.router, prefix="/api/v1")
@@ -107,6 +110,17 @@ async def _override_get_session() -> AsyncGenerator[AsyncSession, None]:
     if _per_test_session is None:
         raise RuntimeError("No active test session")
     yield _per_test_session
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _disable_error_telemetry():
+    """禁用错误遥测，避免测试触发真实 PostHog 网络请求。"""
+    import app.telemetry as telemetry
+    from app.settings import settings as app_settings
+
+    app_settings.posthog_api_key = ""
+    telemetry.set_telemetry_enabled(False)
+    yield
 
 
 @pytest_asyncio.fixture(scope="module")

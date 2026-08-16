@@ -16,6 +16,7 @@ import {
   type MigrateDataResult,
   type PingInstanceRequest,
   type PingInstanceResult,
+  type ReportErrorPayload,
   type RestoreDataRequest,
   type SaveConfigRequest,
   type SaveZoomFactorRequest,
@@ -38,6 +39,7 @@ import {
 import { cancelUpdateDownload, checkForUpdates, downloadUpdate, getUpdateState, installUpdate, openUpdateRelease } from "./updater.js";
 import { createStartupProgressTracker, getStartupProgress } from "./startup-progress.js";
 import { appendLog, exportLogs } from "./logging.js";
+import { captureException } from "./telemetry.js";
 import type { BackendProcessHandle } from "./process.js";
 import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
 
@@ -175,6 +177,14 @@ export function registerIpc(context: IpcContext): void {
   ipcMain.handle(IpcChannels.logFrontendDiagnostic, (_event, request: LogFrontendDiagnosticRequest) => {
     if (typeof request?.message !== "string") return;
     appendLog("connect", request.message.slice(0, 4_000));
+  });
+
+  ipcMain.on(IpcChannels.reportError, (_event, payload: ReportErrorPayload) => {
+    if (!payload || typeof payload.message !== "string") return;
+    const error = new Error(payload.message);
+    error.name = typeof payload.name === "string" ? payload.name : "Error";
+    if (typeof payload.stack === "string") error.stack = payload.stack;
+    captureException(error, { source: "shell-ui" });
   });
 
   ipcMain.handle(IpcChannels.ensureInstanceSession, (_event, request: EnsureInstanceSessionRequest) => {

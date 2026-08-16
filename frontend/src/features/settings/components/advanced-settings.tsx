@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ConfirmDialog, Spinner, toast } from "@/components";
+import { setTelemetryEnabled } from "@/lib/posthog";
 
 import {
   clearAuditDetails,
@@ -50,6 +51,13 @@ export function AdvancedSettings() {
         });
       }
 
+      if (previousSettings && patch.telemetry_enabled !== undefined) {
+        queryClient.setQueryData<Settings>(["settings"], {
+          ...previousSettings,
+          telemetryEnabled: patch.telemetry_enabled,
+        });
+      }
+
       return { previousSettings };
     },
     onSuccess: (nextSettings) => {
@@ -91,6 +99,38 @@ export function AdvancedSettings() {
         direction="column"
         gap="5"
       >
+        <Flex
+          align="center"
+          justify="between"
+          gap="4"
+        >
+          <Flex
+            direction="column"
+            gap="1"
+          >
+            <Text
+              size="2"
+              weight="medium"
+            >
+              {t("settings.advancedTelemetry")}
+            </Text>
+            <Text
+              size="1"
+              color="gray"
+            >
+              {t("settings.advancedTelemetryHint")}
+            </Text>
+          </Flex>
+          <Switch
+            checked={settings.telemetryEnabled}
+            aria-label={t("settings.advancedTelemetry")}
+            onCheckedChange={(checked) => {
+              setTelemetryEnabled(checked);
+              updateMutation.mutate({ telemetry_enabled: checked });
+            }}
+          />
+        </Flex>
+
         <Flex
           align="center"
           justify="between"

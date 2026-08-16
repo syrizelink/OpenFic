@@ -117,6 +117,10 @@ class Settings(BaseSettings):
     # Security - Encryption key for sensitive data (API keys, etc.)
     encryption_key: str = _ensure_encryption_key()
 
+    # Telemetry - PostHog error reporting (project API key, safe to expose)
+    posthog_api_key: str = "phc_kHbik4h8n5KHfZxyTbddA2p6y8zxRNGpsDBNycizyK68"
+    posthog_host: str = "https://us.i.posthog.com"
+
     @property
     def database_url(self) -> str:
         data_dir = BACKEND_DATA_DIR

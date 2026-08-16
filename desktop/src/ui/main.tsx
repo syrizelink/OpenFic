@@ -13,8 +13,11 @@ import "@fontsource/zcool-kuaile";
 import "@fontsource/zcool-xiaowei";
 import { App } from "./app";
 import "./i18n";
+import { installShellErrorTelemetry } from "./telemetry";
 import "../../../frontend/src/styles/index.css";
 import "./styles.css";
+
+installShellErrorTelemetry();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
