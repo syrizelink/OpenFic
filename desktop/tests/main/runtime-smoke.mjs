@@ -84,7 +84,8 @@ async function smokeTestRuntime() {
     await run(venvPythonPath, ["-m", "pip", "install", "uv"], runtimeDir);
     await run(uvPath, ["pip", "install", "--python", venvPythonPath, wheelPath], runtimeDir);
 
-    backend = await startLocalOpenFicBackend(venvPythonPath, expectedVersion);
+    const { handle } = await startLocalOpenFicBackend(venvPythonPath, expectedVersion);
+    backend = handle;
     console.log(`OpenFic runtime smoke test passed: ${backend.baseUrl}`);
   } catch (error) {
     const backendLogPath = path.join(userDataDir, "logs", "backend.log");
