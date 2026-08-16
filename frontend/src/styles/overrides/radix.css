@@ -85,6 +85,19 @@ button[data-state="closed"] {
   color: var(--gray-12);
 }
 
+.rt-SelectContent {
+  box-shadow:
+    0 0 0 1px var(--gray-a5),
+    0 8px 20px -14px var(--black-a6) !important;
+}
+
+.dark .rt-SelectContent,
+.radix-themes.dark .rt-SelectContent {
+  box-shadow:
+    0 0 0 1px var(--gray-a6),
+    0 10px 24px -16px var(--black-a9) !important;
+}
+
 .rt-IconButton.rt-variant-ghost {
   min-width: var(--icon-button-size);
   min-height: var(--icon-button-size);
