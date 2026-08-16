@@ -10,6 +10,7 @@
     "format:check": "oxfmt . --check",
     "lint": "oxlint .",
     "preview": "vp preview",
+    "test:e2e": "playwright test",
     "type-check": "oxlint . --type-aware --type-check"
   },
   "dependencies": {
@@ -104,6 +105,7 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/diff-match-patch": "^1.0.36",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",

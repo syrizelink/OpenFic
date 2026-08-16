@@ -21,3 +21,7 @@ dist-ssr
 *.sw?
 tsconfig.tsbuildinfo
 stats.html
+
+# Playwright
+test-results
+playwright-report
