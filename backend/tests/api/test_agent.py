@@ -2172,7 +2172,7 @@ class TestAgentAPI:
             assert request_row.status == "cancelled"
             assert request_row.error == "user cancelled subagent"
         finally:
-            get_agent_run_registry().unregister_child(parent_session_id, child.id)
+            await get_agent_run_registry().unregister_child(parent_session_id, child.id)
 
     async def test_cancel_subagent_session_returns_404_for_unknown_child(
         self,
