@@ -72,6 +72,11 @@ dependencies = [
     "uvicorn[standard]>=0.40.0",
     "fastembed>=0.8.0",
     "pypinyin>=0.55.0",
+    "tavily-python>=0.7.27",
+    "exa-py>=2.18.1",
+    "zai-sdk>=0.2.3",
+    "ddgs>=9.15.0",
+    "perplexityai>=0.43.3",
 ]
 
 [project.scripts]

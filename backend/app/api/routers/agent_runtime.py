@@ -138,6 +138,7 @@ TOOL_DISPLAY_ORDER = {
     "delete_world_entry": 37,
     "activate_skill": 38,
     "reference_skill": 39,
+    "web_search": 40,
 }
 
 def _build_default_agent_session_title(created_at: datetime) -> str:

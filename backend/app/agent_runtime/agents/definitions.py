@@ -54,6 +54,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             enabled_tool_categories=(
                 "orchestration",
                 "interaction",
+                "web_search",
                 "plan",
                 "chapter_read",
                 "chapter_write",
@@ -119,6 +120,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "chapter_read",
                 "summary_read",
                 "world_read",
+                "web_search",
                 "note_read",
                 "character_read"
             ),
