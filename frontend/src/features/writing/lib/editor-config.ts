@@ -21,18 +21,47 @@ import { SearchAndReplace } from "./search-and-replace";
 
 export type { EditorShortcutCallbacks } from "@/components/editor-shortcuts";
 
+const PARAGRAPH_INDENT = "\u3000\u3000";
+
 const TabIndent = Extension.create({
   name: "tabIndent",
 
   addKeyboardShortcuts() {
     return {
       Tab: ({ editor }) => {
-        editor.commands.insertContent("\u3000\u3000");
+        editor.commands.insertContent(PARAGRAPH_INDENT);
         return true;
       },
     };
   },
 });
+
+function createParagraphAutoIndent(shouldAutoIndent: () => boolean) {
+  return Extension.create({
+    name: "paragraphAutoIndent",
+
+    addKeyboardShortcuts() {
+      return {
+        Enter: ({ editor }) => {
+          if (!shouldAutoIndent()) {
+            return false;
+          }
+
+          const { $from } = editor.state.selection;
+          if (!$from.parent.isTextblock) {
+            return false;
+          }
+          if (!$from.parent.textContent.startsWith(PARAGRAPH_INDENT)) {
+            return false;
+          }
+
+          editor.chain().splitBlock().insertContent(PARAGRAPH_INDENT).run();
+          return true;
+        },
+      };
+    },
+  });
+}
 
 const PlainTextClipboard = Extension.create({
   name: "plainTextClipboard",
@@ -85,6 +114,8 @@ export interface EditorExtensionsOptions {
   placeholder?: string;
   /** 编辑器快捷键回调 */
   shortcuts?: EditorShortcutCallbacks;
+  /** 换行时是否继承当前段落的段首两格缩进 */
+  autoIndent?: () => boolean;
 }
 
 /**
@@ -102,7 +133,7 @@ export interface EditorExtensionsOptions {
  * - EditorShortcuts: 编辑器快捷键（Mod-f, Mod-h, Mod-s）
  */
 export function createEditorExtensions(options: EditorExtensionsOptions = {}) {
-  const { placeholder = "开始写作...", shortcuts } = options;
+  const { placeholder = "开始写作...", shortcuts, autoIndent } = options;
 
   const extensions = [
     Document,
@@ -121,6 +152,11 @@ export function createEditorExtensions(options: EditorExtensionsOptions = {}) {
   // 如果提供了快捷键回调，添加快捷键扩展
   if (shortcuts) {
     extensions.push(createEditorShortcuts(shortcuts));
+  }
+
+  // 如果启用了段落自动缩进，添加换行继承扩展
+  if (autoIndent) {
+    extensions.push(createParagraphAutoIndent(autoIndent));
   }
 
   return extensions;

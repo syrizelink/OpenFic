@@ -9,11 +9,13 @@ import {
   Settings as SettingsIcon,
   ShieldAlert,
   SlidersHorizontal,
+  Type,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
 export type SettingsCategory =
   | "general"
+  | "editor"
   | "connections"
   | "models"
   | "index"
@@ -35,6 +37,11 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     id: "general",
     icon: <SettingsIcon size={16} />,
     labelKey: "settings.general",
+  },
+  {
+    id: "editor",
+    icon: <Type size={16} />,
+    labelKey: "settings.editor",
   },
   {
     id: "connections",

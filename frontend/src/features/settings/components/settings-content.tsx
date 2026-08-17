@@ -25,6 +25,7 @@ import { AgentDefinitionsSettings } from "../components/agent-definitions-settin
 import { AgentToolsSettings } from "../components/agent-tools-settings";
 import { ConnectionsSettings } from "../components/connections-settings";
 import { ContextSettings } from "../components/context-settings";
+import { EditorSettings } from "../components/editor-settings";
 import { GeneralSettings } from "../components/general-settings";
 import { IndexSettings } from "../components/index-settings";
 import { ModelsSettings } from "../components/models-settings";
@@ -69,6 +70,7 @@ interface SettingsContentProps {
 
 const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
   general: "settings.general",
+  editor: "settings.editor",
   connections: "settings.connections",
   models: "settings.models",
   index: "settings.index",
@@ -235,6 +237,7 @@ export function SettingsContent({
     activeCategory === "agents" || activeCategory === "skills" || activeCategory === "rules";
   const shouldUseFormPagePadding =
     activeCategory === "general" ||
+    activeCategory === "editor" ||
     activeCategory === "connections" ||
     activeCategory === "models" ||
     activeCategory === "index" ||
@@ -257,6 +260,7 @@ export function SettingsContent({
       };
 
       if (category === "general") removeQuery(["settings"]);
+      if (category === "editor") removeQuery(["settings"]);
       if (category === "connections") {
         removeQuery(["model-providers"]);
         removeQuery(["model-provider-catalog"]);
@@ -381,6 +385,7 @@ export function SettingsContent({
                 onSettingsChange={handleSettingsChange}
               />
             ) : null}
+            {activeCategory === "editor" ? <EditorSettings /> : null}
             {activeCategory === "connections" ? (
               <ConnectionsSettings
                 isAgentSettingsLocked={isAgentSettingsLocked}

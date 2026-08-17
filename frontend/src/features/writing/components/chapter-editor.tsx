@@ -1,4 +1,5 @@
 import { Box, Flex, Text, IconButton } from "@radix-ui/themes";
+import { useQuery } from "@tanstack/react-query";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { AtSign, Globe, FileText } from "lucide-react";
 import { AnimatePresence } from "motion/react";
@@ -15,6 +16,7 @@ import {
   buildChapterMentionTag,
   buildLineRangeMentionTag,
 } from "@/features/assistant/lib/mention-text";
+import { fetchSettings } from "@/features/settings/lib/settings-api";
 import { useScrollbarAutoHide } from "@/hooks/use-scrollbar-auto-hide";
 import { fetchChapter } from "@/lib/api-client";
 import type { Chapter } from "@/lib/chapter.types";
@@ -108,6 +110,16 @@ function ChapterEditorContent({
   const { updateTabTitle } = useTabsStore();
   const navigate = useNavigate();
   const { clearWorkingCopy, persistWorkingCopy } = workingCopy;
+
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: fetchSettings,
+  });
+  const autoIndentRef = useRef(settings?.editorAutoIndent ?? false);
+
+  useEffect(() => {
+    autoIndentRef.current = settings?.editorAutoIndent ?? false;
+  }, [settings?.editorAutoIndent]);
 
   const [title, setTitle] = useState(initialDraft.title);
   const titleRef = useRef(initialDraft.title);
@@ -272,6 +284,7 @@ function ChapterEditorContent({
   const editor = useEditor({
     extensions: createEditorExtensions({
       placeholder: t("writing.contentPlaceholder"),
+      autoIndent: () => autoIndentRef.current,
       shortcuts: {
         onFind: openFind,
         onReplace: openReplace,

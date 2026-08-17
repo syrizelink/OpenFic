@@ -75,6 +75,10 @@ class SettingsResponse(BaseModel):
         default=True,
         description="是否启用 PostHog 错误遥测",
     )
+    editor_auto_indent: bool = Field(
+        default=False,
+        description="换行时若当前段落以两个全角空格开头，是否为下一段自动添加相同前缀",
+    )
 
 
 class SettingsUpdateRequest(BaseModel):
@@ -124,5 +128,9 @@ class SettingsUpdateRequest(BaseModel):
     telemetry_enabled: bool | None = Field(
         default=None,
         description="是否启用 PostHog 错误遥测",
+    )
+    editor_auto_indent: bool | None = Field(
+        default=None,
+        description="换行时若当前段落以两个全角空格开头，是否为下一段自动添加相同前缀",
     )
 
