@@ -98,7 +98,7 @@ async def test_get_settings_default(client: AsyncClient) -> None:
     assert data["agent_tool_permissions"] == EXPECTED_AGENT_TOOL_PERMISSIONS
     assert data["audit_persist_details"] is False
     assert data["compress_system_prompts"] is False
-    assert data["editor_auto_indent"] is False
+    assert data["editor_auto_indent"] is True
 
 
 @pytest.mark.asyncio
@@ -406,15 +406,15 @@ async def test_update_settings_editor_auto_indent(client: AsyncClient) -> None:
     """编辑器段落自动缩进开关应可持久化。"""
     response = await client.put(
         "/api/v1/settings",
-        json={"editor_auto_indent": True},
+        json={"editor_auto_indent": False},
     )
 
     assert response.status_code == 200
-    assert response.json()["editor_auto_indent"] is True
+    assert response.json()["editor_auto_indent"] is False
 
     follow_up = await client.get("/api/v1/settings")
     assert follow_up.status_code == 200
-    assert follow_up.json()["editor_auto_indent"] is True
+    assert follow_up.json()["editor_auto_indent"] is False
 
 
 @pytest.mark.asyncio

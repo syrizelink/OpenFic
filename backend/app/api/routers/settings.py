@@ -100,7 +100,7 @@ DEFAULT_SETTINGS = {
     SETTING_KEY_AUDIT_PERSIST_DETAILS: "false",
     SETTING_KEY_COMPRESS_SYSTEM_PROMPTS: "false",
     SETTING_KEY_TELEMETRY_ENABLED: "true",
-    SETTING_KEY_EDITOR_AUTO_INDENT: "false",
+    SETTING_KEY_EDITOR_AUTO_INDENT: "true",
 }
 
 
@@ -351,7 +351,7 @@ code_font_family=settings_dict.get(
                 SETTING_KEY_EDITOR_AUTO_INDENT,
                 DEFAULT_SETTINGS[SETTING_KEY_EDITOR_AUTO_INDENT],
             ),
-            default=False,
+            default=True,
         ),
     )
 
