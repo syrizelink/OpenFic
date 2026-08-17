@@ -64,6 +64,10 @@ class WebSearchTool(AgentTool):
         finally:
             await session.close()
 
+        if not config.enabled:
+            raise ToolExecutionError(
+                "联网搜索功能未启用，请在应用设置的「联网搜索」中开启"
+            )
         if not config.provider:
             raise ToolExecutionError(
                 "尚未配置联网搜索，请在应用设置中配置搜索 provider 与 API Key"

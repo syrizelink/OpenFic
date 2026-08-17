@@ -16,6 +16,7 @@ DEFAULT_WEB_SEARCH_MAX_RESULTS = 8
 
 
 class WebSearchSettings(BaseModel):
+    enabled: bool = False
     provider: str = ""
     api_key: str = ""
     extras: dict[str, str] = Field(default_factory=dict)
@@ -45,6 +46,7 @@ def parse_web_search_settings(raw_value: str | None) -> WebSearchSettings:
         return WebSearchSettings()
 
     provider = payload.get("provider")
+    enabled = payload.get("enabled")
     api_key = payload.get("api_key")
     extras: dict[str, str] = {}
     raw_extras = payload.get("extras")
@@ -54,6 +56,7 @@ def parse_web_search_settings(raw_value: str | None) -> WebSearchSettings:
                 extras[key] = value
 
     return WebSearchSettings(
+        enabled=enabled if isinstance(enabled, bool) else False,
         provider=provider if isinstance(provider, str) else "",
         api_key=_decrypt_api_key(api_key if isinstance(api_key, str) else ""),
         extras=extras,
@@ -69,6 +72,7 @@ def serialize_web_search_settings(web_search_settings: WebSearchSettings) -> str
             api_key = ""
     return json.dumps(
         {
+            "enabled": web_search_settings.enabled,
             "provider": web_search_settings.provider,
             "api_key": api_key,
             "extras": web_search_settings.extras,

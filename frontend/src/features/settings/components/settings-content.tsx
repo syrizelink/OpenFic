@@ -32,6 +32,7 @@ import { ModelsSettings } from "../components/models-settings";
 import { RulesSettings } from "../components/rules-settings";
 import { SettingsSidebar } from "../components/settings-sidebar";
 import { SkillsSettings } from "../components/skills-settings";
+import { WebSearchSettings } from "../components/web-search-settings";
 import { useAgentSettingsLock } from "../lib/agent-settings-lock";
 import { fetchAgentTools, fetchSettings, updateSettings } from "../lib/settings-api";
 import { SETTINGS_CATEGORY_ITEMS, type SettingsCategory } from "../lib/settings-categories";
@@ -76,6 +77,7 @@ const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
   index: "settings.index",
   context: "settings.context",
   "agent-tools": "settings.agentTools",
+  "web-search": "settings.webSearch",
   rules: "settings.rules",
   skills: "settings.skills",
   agents: "settings.agents",
@@ -243,6 +245,7 @@ export function SettingsContent({
     activeCategory === "index" ||
     activeCategory === "context" ||
     activeCategory === "agent-tools" ||
+    activeCategory === "web-search" ||
     activeCategory === "advanced";
   const isMobileListView = isMobile && mobileView === "list";
   const isMobileSubpageDetail =
@@ -280,6 +283,10 @@ export function SettingsContent({
       if (category === "agent-tools") {
         removeQuery(["settings"]);
         removeQuery(["agent-tools"]);
+      }
+      if (category === "web-search") {
+        removeQuery(["web-search-settings"]);
+        removeQuery(["web-search-providers"]);
       }
       if (category === "rules") removeQuery(["agent-rules"]);
       if (category === "skills") removeQuery(["skills"]);
@@ -416,6 +423,7 @@ export function SettingsContent({
                 onSettingsChange={handleSettingsChange}
               />
             ) : null}
+            {activeCategory === "web-search" ? <WebSearchSettings /> : null}
             {activeCategory === "rules" ? (
               <RulesSettings
                 mobilePage={mobileSubpage}

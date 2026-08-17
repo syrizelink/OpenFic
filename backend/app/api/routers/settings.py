@@ -6,7 +6,7 @@ Settings Router - 用户设置 API。
 import json
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +14,14 @@ from app.agent_runtime.tools.permission_metadata import (
     SETTING_KEY_AGENT_BYPASS_TOOL_APPROVAL,
     SETTING_KEY_AGENT_TOOL_PERMISSIONS,
     get_default_agent_tool_permissions,
+)
+from app.agent_runtime.tools.impls.web_search.config import (
+    load_web_search_config,
+    save_web_search_config,
+)
+from app.agent_runtime.tools.impls.web_search.providers import (
+    list_provider_metadata,
+    list_provider_names,
 )
 from app.agent_runtime.context.processors.compress import (
     SETTING_KEY_COMPRESS_SYSTEM_PROMPTS,
@@ -28,6 +36,9 @@ from app.api.schemas.setting import (
     ClearAuditDetailsResponse,
     SettingsResponse,
     SettingsUpdateRequest,
+    WebSearchProviderInfo,
+    WebSearchSettingsResponse,
+    WebSearchSettingsUpdateRequest,
 )
 from app.audit.queue import (
     AUDIT_DETAILS_PERSISTENCE_SETTING_KEY,
@@ -573,6 +584,85 @@ async def update_settings(
 
     # 返回更新后的完整设置
     return await get_settings(session)
+
+
+@router.get(
+    "/web-search/providers",
+    response_model=list[WebSearchProviderInfo],
+    summary="获取联网搜索 provider 列表",
+)
+async def get_web_search_providers() -> list[WebSearchProviderInfo]:
+    """返回后端支持的全部联网搜索 provider（按名称字母序）。"""
+    return [
+        WebSearchProviderInfo.model_validate(provider)
+        for provider in list_provider_metadata()
+    ]
+
+
+@router.get(
+    "/web-search",
+    response_model=WebSearchSettingsResponse,
+    summary="获取联网搜索设置",
+)
+async def get_web_search_settings(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> WebSearchSettingsResponse:
+    config = await load_web_search_config(session)
+    return WebSearchSettingsResponse(
+        enabled=config.enabled,
+        provider=config.provider,
+        has_api_key=bool(config.api_key),
+        extras=config.extras,
+    )
+
+
+@router.put(
+    "/web-search",
+    response_model=WebSearchSettingsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="更新联网搜索设置",
+)
+async def update_web_search_settings(
+    request: WebSearchSettingsUpdateRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> WebSearchSettingsResponse:
+    config = await load_web_search_config(session)
+
+    previous_provider = config.provider
+    if request.enabled is not None:
+        config.enabled = request.enabled
+    if request.provider is not None:
+        provider = request.provider.strip()
+        if provider and provider not in list_provider_names():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"不支持的搜索 provider: {provider}",
+            )
+        config.provider = provider
+    if request.api_key is not None:
+        config.api_key = request.api_key.strip()
+    if request.extras is not None:
+        valid_keys = {
+            field["key"]
+            for item in list_provider_metadata()
+            if item["name"] == config.provider
+            for field in item["fields"]
+        }
+        config.extras = {
+            key: value.strip()
+            for key, value in request.extras.items()
+            if key in valid_keys and isinstance(value, str) and value.strip()
+        }
+    elif config.provider != previous_provider:
+        config.extras = {}
+
+    await save_web_search_config(session, config)
+    return WebSearchSettingsResponse(
+        enabled=config.enabled,
+        provider=config.provider,
+        has_api_key=bool(config.api_key),
+        extras=config.extras,
+    )
 
 
 @router.get(

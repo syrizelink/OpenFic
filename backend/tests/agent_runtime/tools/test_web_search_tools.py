@@ -17,6 +17,7 @@ from app.agent_runtime.tools.impls.web_search.config import (
 )
 from app.agent_runtime.tools.impls.web_search.providers import (
     get_provider,
+    list_provider_metadata,
     list_provider_names,
 )
 from app.agent_runtime.tools.impls.web_search.providers.base import (
@@ -76,6 +77,26 @@ class TestProviderRegistry:
     def test_unknown_provider_returns_none(self) -> None:
         assert get_provider("unknown") is None
 
+    def test_provider_metadata_sorted_and_typed(self) -> None:
+        metadata = list_provider_metadata()
+        names = [item["name"] for item in metadata]
+        assert names == sorted(set(list_provider_names()))
+        assert {item["name"] for item in metadata} == set(list_provider_names())
+
+        by_name = {item["name"]: item for item in metadata}
+        assert by_name["ddgs"]["requires_api_key"] is False
+        assert by_name["searxng"]["requires_api_key"] is False
+        assert by_name["bing"]["requires_api_key"] is True
+        assert by_name["zhipu"]["requires_api_key"] is True
+
+        searxng_fields = {field["key"]: field for field in by_name["searxng"]["fields"]}
+        assert searxng_fields["searxng_base_url"]["field_type"] == "text"
+        assert searxng_fields["searxng_base_url"]["required"] is True
+
+        bing_fields = {field["key"]: field for field in by_name["bing"]["fields"]}
+        assert bing_fields["bing_mkt"]["field_type"] == "select"
+        assert "zh-CN" in bing_fields["bing_mkt"]["options"]
+
 
 class TestWebSearchConfig:
     def test_parse_missing_raw_returns_defaults(self) -> None:
@@ -87,21 +108,30 @@ class TestWebSearchConfig:
     def test_parse_decrypts_api_key(self) -> None:
         raw = json.dumps(
             {
+                "enabled": True,
                 "provider": "tavily",
                 "api_key": _encrypt("secret-key"),
                 "extras": {"doubao_model": "m1", "ignored": ""},
             }
         )
         parsed = parse_web_search_settings(raw)
+        assert parsed.enabled is True
         assert parsed.provider == "tavily"
         assert parsed.api_key == "secret-key"
         assert parsed.extras == {"doubao_model": "m1"}
 
+    def test_parse_missing_enabled_defaults_to_false(self) -> None:
+        raw = json.dumps({"provider": "tavily", "api_key": "", "extras": {}})
+        assert parse_web_search_settings(raw).enabled is False
+
     def test_serialize_encrypts_api_key_and_round_trips(self) -> None:
         raw = serialize_web_search_settings(
-            WebSearchSettings(provider="serper", api_key="plain-key", extras={"a": "b"})
+            WebSearchSettings(
+                enabled=True, provider="serper", api_key="plain-key", extras={"a": "b"}
+            )
         )
         payload = json.loads(raw)
+        assert payload["enabled"] is True
         assert payload["api_key"] != "plain-key"
         assert parse_web_search_settings(raw).api_key == "plain-key"
 
@@ -112,7 +142,7 @@ class TestWebSearchConfig:
 
 class TestWebSearchTool:
     @pytest.mark.asyncio
-    async def test_unconfigured_returns_error_message(self) -> None:
+    async def test_disabled_returns_error_message(self) -> None:
         tool = _make_tool()
         with patch(
             "app.agent_runtime.tools.impls.web_search.web_search.create_session"
@@ -127,13 +157,35 @@ class TestWebSearchTool:
 
         payload = json.loads(result)
         assert "error" in payload
+        assert "未启用" in payload["error"]
+        session.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_unconfigured_returns_error_message(self) -> None:
+        tool = _make_tool()
+        raw = json.dumps({"enabled": True, "provider": "", "api_key": "", "extras": {}})
+        with patch(
+            "app.agent_runtime.tools.impls.web_search.web_search.create_session"
+        ) as mock_cs:
+            session = AsyncMock()
+            mock_cs.return_value = session
+            with patch(
+                "app.agent_runtime.tools.impls.web_search.config.setting_repo.get_by_key",
+                AsyncMock(return_value=MagicMock(value=raw)),
+            ):
+                result = await tool.ainvoke({"query": "hello"})
+
+        payload = json.loads(result)
+        assert "error" in payload
         assert "尚未配置" in payload["error"]
         session.close.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_unsupported_provider_returns_error(self) -> None:
         tool = _make_tool()
-        raw = json.dumps({"provider": "unknown", "api_key": "", "extras": {}})
+        raw = json.dumps(
+            {"enabled": True, "provider": "unknown", "api_key": "", "extras": {}}
+        )
         with patch(
             "app.agent_runtime.tools.impls.web_search.web_search.create_session"
         ) as mock_cs:
@@ -153,7 +205,12 @@ class TestWebSearchTool:
     async def test_serper_end_to_end(self) -> None:
         tool = _make_tool()
         raw = json.dumps(
-            {"provider": "serper", "api_key": _encrypt("serper-key"), "extras": {}}
+            {
+                "enabled": True,
+                "provider": "serper",
+                "api_key": _encrypt("serper-key"),
+                "extras": {},
+            }
         )
         route = respx.post("https://google.serper.dev/search").mock(
             return_value=Response(
