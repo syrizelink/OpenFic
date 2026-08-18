@@ -25,6 +25,7 @@ import {
 } from "@/features/assistant/lib/mention-text";
 import { searchMentionCandidates } from "@/lib/api-client";
 
+import type { AgentInputHistoryDirection } from "../../lib/agent-input-history-state";
 import { MentionNode } from "./extensions/mention-node";
 import type { AssistantMentionNodeAttributes } from "./extensions/mention-node";
 
@@ -52,6 +53,7 @@ interface AgentComposerEditorProps {
   onDropFiles?: (dataTransfer: DataTransfer) => void;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  onHistoryNavigate?: (direction: AgentInputHistoryDirection) => boolean;
 }
 
 interface MentionQueryState {
@@ -156,6 +158,7 @@ export function AgentComposerEditor({
   onDropFiles,
   onChange,
   onSubmit,
+  onHistoryNavigate,
 }: AgentComposerEditorProps) {
   const isApplyingExternalValueRef = useRef(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -339,6 +342,31 @@ export function AgentComposerEditor({
 
   const handleEditorKeyDownCapture = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (
+        !disabled &&
+        !mentionQuery.visible &&
+        editor &&
+        !event.shiftKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.metaKey &&
+        (event.key === "ArrowUp" || event.key === "ArrowDown")
+      ) {
+        const { selection } = editor.state;
+        const isAtBoundary =
+          selection.empty &&
+          (event.key === "ArrowUp"
+            ? selection.from <= 1
+            : selection.to >= editor.state.doc.content.size - 1);
+        if (isAtBoundary) {
+          const direction = event.key === "ArrowUp" ? "older" : "newer";
+          if (onHistoryNavigate?.(direction)) {
+            event.preventDefault();
+            return;
+          }
+        }
+      }
+
       if (event.key !== "Enter") return;
       if (event.shiftKey) {
         if (!editor) return;
@@ -350,7 +378,15 @@ export function AgentComposerEditor({
       event.preventDefault();
       onSubmit();
     },
-    [editor, onSubmit, suggestionItems.length, suggestionStatus],
+    [
+      disabled,
+      editor,
+      mentionQuery.visible,
+      onHistoryNavigate,
+      onSubmit,
+      suggestionItems.length,
+      suggestionStatus,
+    ],
   );
 
   const handlePasteCapture = (event: ReactClipboardEvent<HTMLDivElement>) => {

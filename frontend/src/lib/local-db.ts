@@ -87,6 +87,13 @@ export interface WritingWorkingCopy {
   updatedAt: Date;
 }
 
+interface AgentInputHistory {
+  projectId: string;
+  entries: string[];
+  draft: string;
+  updatedAt: Date;
+}
+
 /**
  * OpenFic 本地数据库
  */
@@ -96,6 +103,7 @@ class OpenFicDB extends Dexie {
   userPreferences!: EntityTable<UserPreference, "key">;
   promptChainWorkingCopies!: EntityTable<PromptChainWorkingCopy, "chainId">;
   writingWorkingCopies!: EntityTable<WritingWorkingCopy, "id">;
+  agentInputHistories!: EntityTable<AgentInputHistory, "projectId">;
   recentProjects!: EntityTable<RecentProject, "slot">;
 
   constructor() {
@@ -146,6 +154,16 @@ class OpenFicDB extends Dexie {
       userPreferences: "key, updatedAt",
       promptChainWorkingCopies: "chainId, updatedAt",
       writingWorkingCopies: "id, entityId, type, updatedAt",
+      recentProjects: "slot, projectId, openedAt",
+    });
+
+    this.version(8).stores({
+      projectLastChapters: "projectId, updatedAt",
+      projectTabs: "projectId, updatedAt",
+      userPreferences: "key, updatedAt",
+      promptChainWorkingCopies: "chainId, updatedAt",
+      writingWorkingCopies: "id, entityId, type, updatedAt",
+      agentInputHistories: "projectId, updatedAt",
       recentProjects: "slot, projectId, openedAt",
     });
   }
@@ -262,6 +280,57 @@ export async function deleteProjectTabs(projectId: string): Promise<void> {
     await db.projectTabs.delete(projectId);
   } catch {
     console.error("删除项目标签页记录失败");
+  }
+}
+
+// ==================== Agent 输入历史 ====================
+
+/**
+ * 获取项目的 Agent 输入历史。
+ */
+export async function getAgentInputHistory(
+  projectId: string,
+): Promise<{ entries: string[]; draft: string }> {
+  try {
+    const record = await db.agentInputHistories.get(projectId);
+    return {
+      entries: record?.entries ?? [],
+      draft: record?.draft ?? "",
+    };
+  } catch {
+    console.error("获取 Agent 输入历史失败");
+    return { entries: [], draft: "" };
+  }
+}
+
+/**
+ * 保存项目的 Agent 输入历史和未发送草稿。
+ */
+export async function setAgentInputHistory(
+  projectId: string,
+  entries: string[],
+  draft = "",
+): Promise<void> {
+  try {
+    await db.agentInputHistories.put({
+      projectId,
+      entries,
+      draft,
+      updatedAt: new Date(),
+    });
+  } catch {
+    console.error("保存 Agent 输入历史失败");
+  }
+}
+
+/**
+ * 删除项目的 Agent 输入历史。
+ */
+export async function deleteAgentInputHistory(projectId: string): Promise<void> {
+  try {
+    await db.agentInputHistories.delete(projectId);
+  } catch {
+    console.error("删除 Agent 输入历史失败");
   }
 }
 
