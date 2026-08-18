@@ -23,6 +23,54 @@ export type { EditorShortcutCallbacks } from "@/components/editor-shortcuts";
 
 const PARAGRAPH_INDENT = "\u3000\u3000";
 
+const HALFWIDTH_PUNCTUATION_MAP: Record<string, string> = {
+  ",": "，",
+  ".": "。",
+  "?": "？",
+  "!": "！",
+  ":": "：",
+  ";": "；",
+  "(": "（",
+  ")": "）",
+};
+
+function countOccurrences(text: string, target: string): number {
+  let count = 0;
+  let index = text.indexOf(target);
+  while (index !== -1) {
+    count += 1;
+    index = text.indexOf(target, index + 1);
+  }
+  return count;
+}
+
+function convertHalfwidthPunctuation(text: string, precedingText: string): string {
+  let result = "";
+  let context = precedingText;
+
+  for (const char of text) {
+    if (char === '"') {
+      const open = countOccurrences(context, "“");
+      const close = countOccurrences(context, "”");
+      const converted = open > close ? "”" : "“";
+      result += converted;
+      context += converted;
+    } else if (char === "'") {
+      const open = countOccurrences(context, "‘");
+      const close = countOccurrences(context, "’");
+      const converted = open > close ? "’" : "‘";
+      result += converted;
+      context += converted;
+    } else {
+      const converted = HALFWIDTH_PUNCTUATION_MAP[char] ?? char;
+      result += converted;
+      context += converted;
+    }
+  }
+
+  return result;
+}
+
 const TabIndent = Extension.create({
   name: "tabIndent",
 
@@ -59,6 +107,35 @@ function createParagraphAutoIndent(shouldAutoIndent: () => boolean) {
           return true;
         },
       };
+    },
+  });
+}
+
+function createAutoConvertPunctuation(shouldConvert: () => boolean) {
+  return Extension.create({
+    name: "autoConvertPunctuation",
+
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          props: {
+            handleTextInput(view, from, to, text) {
+              if (!shouldConvert()) {
+                return false;
+              }
+
+              const precedingText = view.state.doc.textBetween(0, from);
+              const converted = convertHalfwidthPunctuation(text, precedingText);
+              if (converted === text) {
+                return false;
+              }
+
+              view.dispatch(view.state.tr.replaceWith(from, to, view.state.schema.text(converted)));
+              return true;
+            },
+          },
+        }),
+      ];
     },
   });
 }
@@ -116,6 +193,8 @@ export interface EditorExtensionsOptions {
   shortcuts?: EditorShortcutCallbacks;
   /** 换行时是否继承当前段落的段首两格缩进 */
   autoIndent?: () => boolean;
+  /** 输入时是否将半角标点符号转换为全角 */
+  autoConvertPunctuation?: () => boolean;
 }
 
 /**
@@ -133,7 +212,7 @@ export interface EditorExtensionsOptions {
  * - EditorShortcuts: 编辑器快捷键（Mod-f, Mod-h, Mod-s）
  */
 export function createEditorExtensions(options: EditorExtensionsOptions = {}) {
-  const { placeholder = "开始写作...", shortcuts, autoIndent } = options;
+  const { placeholder = "开始写作...", shortcuts, autoIndent, autoConvertPunctuation } = options;
 
   const extensions = [
     Document,
@@ -157,6 +236,11 @@ export function createEditorExtensions(options: EditorExtensionsOptions = {}) {
   // 如果启用了段落自动缩进，添加换行继承扩展
   if (autoIndent) {
     extensions.push(createParagraphAutoIndent(autoIndent));
+  }
+
+  // 如果启用了半角标点自动转换，添加输入转换扩展
+  if (autoConvertPunctuation) {
+    extensions.push(createAutoConvertPunctuation(autoConvertPunctuation));
   }
 
   return extensions;

@@ -116,10 +116,12 @@ function ChapterEditorContent({
     queryFn: fetchSettings,
   });
   const autoIndentRef = useRef(settings?.editorAutoIndent ?? false);
+  const autoConvertPunctuationRef = useRef(settings?.editorAutoConvertPunctuation ?? false);
 
   useEffect(() => {
     autoIndentRef.current = settings?.editorAutoIndent ?? false;
-  }, [settings?.editorAutoIndent]);
+    autoConvertPunctuationRef.current = settings?.editorAutoConvertPunctuation ?? false;
+  }, [settings?.editorAutoIndent, settings?.editorAutoConvertPunctuation]);
 
   const [title, setTitle] = useState(initialDraft.title);
   const titleRef = useRef(initialDraft.title);
@@ -285,6 +287,7 @@ function ChapterEditorContent({
     extensions: createEditorExtensions({
       placeholder: t("writing.contentPlaceholder"),
       autoIndent: () => autoIndentRef.current,
+      autoConvertPunctuation: () => autoConvertPunctuationRef.current,
       shortcuts: {
         onFind: openFind,
         onReplace: openReplace,

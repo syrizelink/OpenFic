@@ -28,6 +28,13 @@ export function EditorSettings() {
         });
       }
 
+      if (previousSettings && patch.editor_auto_convert_punctuation !== undefined) {
+        queryClient.setQueryData<Settings>(["settings"], {
+          ...previousSettings,
+          editorAutoConvertPunctuation: patch.editor_auto_convert_punctuation,
+        });
+      }
+
       return { previousSettings };
     },
     onSuccess: (nextSettings) => {
@@ -57,48 +64,98 @@ export function EditorSettings() {
   return (
     <Box>
       <Flex
-        align="center"
-        justify="between"
-        gap="4"
+        direction="column"
+        gap="5"
       >
         <Flex
-          direction="column"
-          gap="1"
+          align="center"
+          justify="between"
+          gap="4"
         >
           <Flex
-            align="center"
+            direction="column"
             gap="1"
           >
-            <Text
-              size="2"
-              weight="medium"
+            <Flex
+              align="center"
+              gap="1"
             >
-              {t("settings.editorAutoIndent")}
-            </Text>
-            <Tooltip content={t("settings.editorAutoIndentTooltip")}>
-              <button
-                type="button"
-                className="advanced-settings-info-button"
-                aria-label={t("settings.editorAutoIndentTooltipLabel")}
+              <Text
+                size="2"
+                weight="medium"
               >
-                <Info size={14} />
-              </button>
-            </Tooltip>
+                {t("settings.editorAutoIndent")}
+              </Text>
+              <Tooltip content={t("settings.editorAutoIndentTooltip")}>
+                <button
+                  type="button"
+                  className="advanced-settings-info-button"
+                  aria-label={t("settings.editorAutoIndentTooltipLabel")}
+                >
+                  <Info size={14} />
+                </button>
+              </Tooltip>
+            </Flex>
+            <Text
+              size="1"
+              color="gray"
+            >
+              {t("settings.editorAutoIndentHint")}
+            </Text>
           </Flex>
-          <Text
-            size="1"
-            color="gray"
-          >
-            {t("settings.editorAutoIndentHint")}
-          </Text>
+          <Switch
+            checked={settings.editorAutoIndent}
+            aria-label={t("settings.editorAutoIndent")}
+            onCheckedChange={(checked) => {
+              updateMutation.mutate({ editor_auto_indent: checked });
+            }}
+          />
         </Flex>
-        <Switch
-          checked={settings.editorAutoIndent}
-          aria-label={t("settings.editorAutoIndent")}
-          onCheckedChange={(checked) => {
-            updateMutation.mutate({ editor_auto_indent: checked });
-          }}
-        />
+
+        <Flex
+          align="center"
+          justify="between"
+          gap="4"
+        >
+          <Flex
+            direction="column"
+            gap="1"
+          >
+            <Flex
+              align="center"
+              gap="1"
+            >
+              <Text
+                size="2"
+                weight="medium"
+              >
+                {t("settings.editorAutoConvertPunctuation")}
+              </Text>
+              <Tooltip content={t("settings.editorAutoConvertPunctuationTooltipSymbols")}>
+                <button
+                  type="button"
+                  className="advanced-settings-info-button"
+                  aria-label={t("settings.editorAutoConvertPunctuationTooltipLabel")}
+                >
+                  <Info size={14} />
+                </button>
+              </Tooltip>
+            </Flex>
+            <Text
+              size="1"
+              color="gray"
+            >
+              {t("settings.editorAutoConvertPunctuationHint")}
+            </Text>
+          </Flex>
+          <Switch
+            checked={settings.editorAutoConvertPunctuation}
+            aria-label={t("settings.editorAutoConvertPunctuation")}
+            onCheckedChange={(checked) => {
+              updateMutation.mutate({ editor_auto_convert_punctuation: checked });
+            }}
+          />
+        </Flex>
       </Flex>
     </Box>
   );

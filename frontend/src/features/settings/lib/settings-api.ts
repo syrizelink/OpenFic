@@ -49,6 +49,7 @@ export function transformSettings(raw: SettingsResponse): Settings {
     compressSystemPrompts: raw.compress_system_prompts ?? false,
     telemetryEnabled: raw.telemetry_enabled ?? true,
     editorAutoIndent: raw.editor_auto_indent ?? true,
+    editorAutoConvertPunctuation: raw.editor_auto_convert_punctuation ?? false,
   };
 }
 

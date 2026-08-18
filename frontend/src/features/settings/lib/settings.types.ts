@@ -48,6 +48,7 @@ export interface Settings {
   compressSystemPrompts: boolean;
   telemetryEnabled: boolean;
   editorAutoIndent: boolean;
+  editorAutoConvertPunctuation: boolean;
 }
 
 /** 设置响应（后端格式） */
@@ -77,6 +78,7 @@ export interface SettingsResponse {
   compress_system_prompts: boolean;
   telemetry_enabled: boolean;
   editor_auto_indent?: boolean;
+  editor_auto_convert_punctuation?: boolean;
 }
 
 /** 设置更新请求 */
@@ -106,6 +108,7 @@ export interface SettingsUpdateRequest {
   compress_system_prompts?: boolean;
   telemetry_enabled?: boolean;
   editor_auto_indent?: boolean;
+  editor_auto_convert_punctuation?: boolean;
 }
 
 export interface AuditDetailsStorage {
