@@ -7,6 +7,8 @@ import { configureSystemProxy } from "./proxy.js";
 
 let runtimeConfig: RuntimeConfigResponse | null = null;
 const registeredPartitions = new Map<string, Promise<void>>();
+const SHARED_FONT_CSS_PATH = "/frontend-fonts.css";
+const SHARED_FONT_PREFIX = "/frontend-fonts/";
 
 export function setRuntimeConfig(config: RuntimeConfigResponse): void {
   runtimeConfig = config;
@@ -41,6 +43,24 @@ function resolveSetupStaticPath(rootDir: string, pathname: string): string {
   return path.join(resolvedRoot, "ui.html");
 }
 
+function resolveContainedPath(rootDir: string, relativePath: string): string | null {
+  const resolvedRoot = path.resolve(rootDir);
+  const candidate = path.resolve(resolvedRoot, relativePath);
+  const relativeToRoot = path.relative(resolvedRoot, candidate);
+  if (relativeToRoot.startsWith("..") || path.isAbsolute(relativeToRoot)) return null;
+  return existsSync(candidate) ? candidate : null;
+}
+
+function resolveSharedFontPath(pathname: string): string | null {
+  if (pathname === SHARED_FONT_CSS_PATH) {
+    return resolveContainedPath(getFrontendDistDir(), "font-faces.css");
+  }
+
+  if (!pathname.startsWith(SHARED_FONT_PREFIX)) return null;
+  const relativePath = decodeURIComponent(pathname.slice(SHARED_FONT_PREFIX.length));
+  return resolveContainedPath(path.join(getFrontendDistDir(), "fonts"), relativePath);
+}
+
 export function registerAppScheme(): void {
   protocol.registerSchemesAsPrivileged([
     {
@@ -56,18 +76,25 @@ export function registerAppScheme(): void {
 }
 
 async function handleAppRequest(request: Request): Promise<Response> {
-    const url = new URL(request.url);
+  const url = new URL(request.url);
 
-    if (url.pathname === "/runtime-config.json") {
-      return new Response(JSON.stringify(runtimeConfig), {
-        headers: { "content-type": "application/json; charset=utf-8" },
-      });
-    }
+  if (url.pathname === "/runtime-config.json") {
+    return new Response(JSON.stringify(runtimeConfig), {
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
+  }
 
-    const filePath = url.hostname === "setup"
+  if (url.hostname === "setup" && (url.pathname === SHARED_FONT_CSS_PATH || url.pathname.startsWith(SHARED_FONT_PREFIX))) {
+    const sharedFontPath = resolveSharedFontPath(url.pathname);
+    if (!sharedFontPath) return new Response("Not Found", { status: 404 });
+    return net.fetch(pathToFileURL(sharedFontPath).toString());
+  }
+
+  const filePath =
+    url.hostname === "setup"
       ? resolveSetupStaticPath(getSetupDistDir(), url.pathname)
       : resolveStaticPath(getFrontendDistDir(), url.pathname);
-    return net.fetch(pathToFileURL(filePath).toString());
+  return net.fetch(pathToFileURL(filePath).toString());
 }
 
 export function handleAppProtocol(): void {

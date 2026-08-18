@@ -10,6 +10,10 @@ publish:
   repo: OpenFic
   releaseType: release
 
+electronLanguages:
+  - en-US
+  - zh-CN
+
 files:
   - dist/**/*
   - package.json

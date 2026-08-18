@@ -42,6 +42,16 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: "dist",
       target: "esnext",
+      rolldownOptions: {
+        output: {
+          assetFileNames: (assetInfo) => {
+            const name = assetInfo.name ?? "";
+            return /\.(?:woff2?|ttf|otf|eot)$/i.test(name)
+              ? "fonts/[name][extname]"
+              : "assets/[name]-[hash][extname]";
+          },
+        },
+      },
     },
     server: {
       host: "127.0.0.1",

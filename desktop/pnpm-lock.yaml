@@ -11,75 +11,12 @@ importers:
 
   .:
     dependencies:
-      '@fontsource-variable/cascadia-code':
-        specifier: ^5.3.0
-        version: 5.3.0
-      '@fontsource-variable/fira-code':
-        specifier: ^5.3.0
-        version: 5.3.0
-      '@fontsource-variable/jetbrains-mono':
-        specifier: ^5.3.0
-        version: 5.3.0
-      '@fontsource-variable/noto-sans-sc':
-        specifier: ^5.3.0
-        version: 5.3.0
-      '@fontsource-variable/noto-serif-sc':
-        specifier: ^5.3.0
-        version: 5.3.0
-      '@fontsource-variable/roboto-mono':
-        specifier: ^5.3.0
-        version: 5.3.0
-      '@fontsource-variable/source-code-pro':
-        specifier: ^5.3.0
-        version: 5.3.0
-      '@fontsource/ma-shan-zheng':
-        specifier: ^5.3.0
-        version: 5.3.0
-      '@fontsource/wdxl-lubrifont-sc':
-        specifier: ^5.3.0
-        version: 5.3.0
-      '@fontsource/zcool-kuaile':
-        specifier: ^5.3.0
-        version: 5.3.0
-      '@fontsource/zcool-xiaowei':
-        specifier: ^5.3.0
-        version: 5.3.0
-      '@radix-ui/themes':
-        specifier: ^3.3.0
-        version: 3.3.0(@types/react-dom@19.2.4(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       electron-updater:
         specifier: ^6.8.9
         version: 6.8.9
-      i18next:
-        specifier: ^25.10.10
-        version: 25.10.10(typescript@5.9.3)
-      lucide-react:
-        specifier: ^1.22.0
-        version: 1.22.0(react@19.2.7)
       posthog-node:
         specifier: ^5.49.1
         version: 5.49.1
-      react:
-        specifier: ^19.2.6
-        version: 19.2.7
-      react-dom:
-        specifier: ^19.2.6
-        version: 19.2.7(react@19.2.7)
-      react-i18next:
-        specifier: ^16.6.6
-        version: 16.6.6(i18next@25.10.10(typescript@5.9.3))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)
-      react-markdown:
-        specifier: ^10.1.0
-        version: 10.1.0(@types/react@19.2.17)(react@19.2.7)
-      rehype-raw:
-        specifier: ^7.0.0
-        version: 7.0.0
-      rehype-sanitize:
-        specifier: ^6.0.0
-        version: 6.0.0
-      scheduler:
-        specifier: ^0.27.0
-        version: 0.27.0
       tar-stream:
         specifier: ^3.2.0
         version: 3.2.0
@@ -87,6 +24,9 @@ importers:
       '@eslint/js':
         specifier: ^9.39.4
         version: 9.39.4
+      '@radix-ui/themes':
+        specifier: ^3.3.0
+        version: 3.3.0(@types/react-dom@19.2.4(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@types/node':
         specifier: ^24.12.2
         version: 24.13.2
@@ -120,6 +60,33 @@ importers:
       globals:
         specifier: ^16.5.0
         version: 16.5.0
+      i18next:
+        specifier: ^25.10.10
+        version: 25.10.10(typescript@5.9.3)
+      lucide-react:
+        specifier: ^1.22.0
+        version: 1.22.0(react@19.2.7)
+      react:
+        specifier: ^19.2.6
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.2.6
+        version: 19.2.7(react@19.2.7)
+      react-i18next:
+        specifier: ^16.6.6
+        version: 16.6.6(i18next@25.10.10(typescript@5.9.3))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)
+      react-markdown:
+        specifier: ^10.1.0
+        version: 10.1.0(@types/react@19.2.17)(react@19.2.7)
+      rehype-raw:
+        specifier: ^7.0.0
+        version: 7.0.0
+      rehype-sanitize:
+        specifier: ^6.0.0
+        version: 6.0.0
+      scheduler:
+        specifier: ^0.27.0
+        version: 0.27.0
       typescript:
         specifier: ~5.9.3
         version: 5.9.3
@@ -253,39 +220,6 @@ packages:
 
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
-
-  '@fontsource-variable/cascadia-code@5.3.0':
-    resolution: {integrity: sha512-6I6M029Lum62MGmP0o+rXRrIBiIiptNDC4slPKLPUJiSB7NHZTLb+Ihk9G7jLvUfWziGXHJLjJPJLBzlEPjS1g==}
-
-  '@fontsource-variable/fira-code@5.3.0':
-    resolution: {integrity: sha512-ZhvHeknlicraKVSJBa1NrJnXDVByUkC407zwgELYfmnx3p9g8vwIPfQCxx8YD3K7dAeCdLuHJOHlpMfRsIcApQ==}
-
-  '@fontsource-variable/jetbrains-mono@5.3.0':
-    resolution: {integrity: sha512-F32xpS2NsGYoQi2ADSkKTgpJj7ozajsGgDJ8woTnqjmIB+dxDIqImjl4pXZVEExu8UFZ2ndhmX18EBS/hdz3Lw==}
-
-  '@fontsource-variable/noto-sans-sc@5.3.0':
-    resolution: {integrity: sha512-lNar1dF7Ik/lHNPo/7JWG0TolXY29LtsqYgMvEysooZ5bsO9uH4shJmRrwyJ3PjyTPljhpMJEK0jDuLSU4vJ1w==}
-
-  '@fontsource-variable/noto-serif-sc@5.3.0':
-    resolution: {integrity: sha512-7LcN2NEf4HDjoSkGWc79WqDDyMK8JvSPdA/gsHjJpZ8l9A9mcK/GQTazp3klmkBwJooy0eqeNvlmaZFXPupHrA==}
-
-  '@fontsource-variable/roboto-mono@5.3.0':
-    resolution: {integrity: sha512-h5r+KY/6qy8JEOj33JgcrFO81YAnvrc1EAwMpl/EPJLb2OIvOy0/jmB5M7qs7x/uXk5JUP5Ux4LrkeOK7faHkQ==}
-
-  '@fontsource-variable/source-code-pro@5.3.0':
-    resolution: {integrity: sha512-CxzAbqtNrQ6EQXTb9ovRZIRiOhFPcBQhNKla58K5UV6IMoL/ROkWxXDSBOa/frIDLuV4B5PLHI4R1e9SWVinYg==}
-
-  '@fontsource/ma-shan-zheng@5.3.0':
-    resolution: {integrity: sha512-3p0aUEYOFBa4mvHIRDksZZ9Uf35jQdq5mpwp6NZHiNYt/jDj/g83OwTAWjzy+9ZJAxYC9NLLobIKuW1BEcnv0Q==}
-
-  '@fontsource/wdxl-lubrifont-sc@5.3.0':
-    resolution: {integrity: sha512-2kBoLPga9AA3TaMbqm9+WPYIeeMOqWmzdlvKUpthLRwS/FVsMLed1TLI/j/nsAupXz1LUO0JTrTNHqcvBnTvKw==}
-
-  '@fontsource/zcool-kuaile@5.3.0':
-    resolution: {integrity: sha512-jn4vpQ6QSVEckUn7uk5a9XcZMxEksTRqljmeE1VKRGMjGd6VoXdMyLGSdnTXSVwZLCCEHaIcm/2cdQuwvasJ9w==}
-
-  '@fontsource/zcool-xiaowei@5.3.0':
-    resolution: {integrity: sha512-iRuUPl9ONFbYzi6JcEshpE4VedINyzQ4hv0Z5XEt0cB0pMPiQeqc2Qvv1NwJCNzkPwG02VCdcO+cF2K8ylYn2A==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -3836,28 +3770,6 @@ snapshots:
       react-dom: 19.2.7(react@19.2.7)
 
   '@floating-ui/utils@0.2.11': {}
-
-  '@fontsource-variable/cascadia-code@5.3.0': {}
-
-  '@fontsource-variable/fira-code@5.3.0': {}
-
-  '@fontsource-variable/jetbrains-mono@5.3.0': {}
-
-  '@fontsource-variable/noto-sans-sc@5.3.0': {}
-
-  '@fontsource-variable/noto-serif-sc@5.3.0': {}
-
-  '@fontsource-variable/roboto-mono@5.3.0': {}
-
-  '@fontsource-variable/source-code-pro@5.3.0': {}
-
-  '@fontsource/ma-shan-zheng@5.3.0': {}
-
-  '@fontsource/wdxl-lubrifont-sc@5.3.0': {}
-
-  '@fontsource/zcool-kuaile@5.3.0': {}
-
-  '@fontsource/zcool-xiaowei@5.3.0': {}
 
   '@humanfs/core@0.19.2':
     dependencies:

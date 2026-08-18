@@ -1,6 +1,5 @@
 import { AlertDialog, Button, Flex, Text } from "@radix-ui/themes";
 import { cjk } from "@streamdown/cjk";
-import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { mermaid } from "@streamdown/mermaid";
 import { useEffect, useRef, useState } from "react";
@@ -14,6 +13,8 @@ import {
 } from "streamdown";
 
 import "katex/dist/katex.min.css";
+
+import { createLimitedCodePlugin } from "@/lib/limited-code-highlighter";
 
 import { STREAMDOWN_REMARK_PLUGINS } from "./streaming-markdown-config";
 
@@ -34,7 +35,7 @@ const STREAMING_ANIMATION: AnimateOptions = {
 
 const STREAMDOWN_PLUGINS: PluginConfig = {
   cjk,
-  code,
+  code: createLimitedCodePlugin(),
   math,
   mermaid,
 };
