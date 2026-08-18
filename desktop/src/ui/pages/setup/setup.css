@@ -418,9 +418,17 @@
 }
 
 .setup-alert-error {
+  max-height: min(180px, 30vh);
+  overflow-y: auto;
+  align-items: flex-start;
   background: var(--red-a3);
   color: var(--red-11, #b91c1c);
   border: 1px solid var(--red-a5);
+}
+
+.setup-alert-error > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .setup-alert-success {
