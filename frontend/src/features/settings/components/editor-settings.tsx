@@ -35,6 +35,13 @@ export function EditorSettings() {
         });
       }
 
+      if (previousSettings && patch.editor_auto_pair_symbols !== undefined) {
+        queryClient.setQueryData<Settings>(["settings"], {
+          ...previousSettings,
+          editorAutoPairSymbols: patch.editor_auto_pair_symbols,
+        });
+      }
+
       return { previousSettings };
     },
     onSuccess: (nextSettings) => {
@@ -153,6 +160,51 @@ export function EditorSettings() {
             aria-label={t("settings.editorAutoConvertPunctuation")}
             onCheckedChange={(checked) => {
               updateMutation.mutate({ editor_auto_convert_punctuation: checked });
+            }}
+          />
+        </Flex>
+
+        <Flex
+          align="center"
+          justify="between"
+          gap="4"
+        >
+          <Flex
+            direction="column"
+            gap="1"
+          >
+            <Flex
+              align="center"
+              gap="1"
+            >
+              <Text
+                size="2"
+                weight="medium"
+              >
+                {t("settings.editorAutoPairSymbols")}
+              </Text>
+              <Tooltip content={t("settings.editorAutoPairSymbolsTooltipSymbols")}>
+                <button
+                  type="button"
+                  className="advanced-settings-info-button"
+                  aria-label={t("settings.editorAutoPairSymbolsTooltipLabel")}
+                >
+                  <Info size={14} />
+                </button>
+              </Tooltip>
+            </Flex>
+            <Text
+              size="1"
+              color="gray"
+            >
+              {t("settings.editorAutoPairSymbolsHint")}
+            </Text>
+          </Flex>
+          <Switch
+            checked={settings.editorAutoPairSymbols}
+            aria-label={t("settings.editorAutoPairSymbols")}
+            onCheckedChange={(checked) => {
+              updateMutation.mutate({ editor_auto_pair_symbols: checked });
             }}
           />
         </Flex>

@@ -11,7 +11,7 @@ import History from "@tiptap/extension-history";
 import Paragraph from "@tiptap/extension-paragraph";
 import Placeholder from "@tiptap/extension-placeholder";
 import Text from "@tiptap/extension-text";
-import { Plugin } from "@tiptap/pm/state";
+import { Plugin, TextSelection } from "@tiptap/pm/state";
 import { Extension } from "@tiptap/react";
 
 import { serializeClipboardText } from "@/components/editor-clipboard";
@@ -33,6 +33,69 @@ const HALFWIDTH_PUNCTUATION_MAP: Record<string, string> = {
   "(": "（",
   ")": "）",
 };
+
+export interface AutoPairSymbol {
+  open: string;
+  close: string;
+}
+
+const AUTO_PAIR_SYMBOLS: AutoPairSymbol[] = [
+  { open: "(", close: ")" },
+  { open: "[", close: "]" },
+  { open: "{", close: "}" },
+  { open: '"', close: '"' },
+  { open: "'", close: "'" },
+  { open: "（", close: "）" },
+  { open: "【", close: "】" },
+  { open: "「", close: "」" },
+  { open: "『", close: "』" },
+  { open: "《", close: "》" },
+  { open: "“", close: "”" },
+  { open: "‘", close: "’" },
+];
+
+const CONVERTED_AUTO_PAIR_SYMBOLS: Record<string, AutoPairSymbol> = {
+  "(": { open: "（", close: "）" },
+  '"': { open: "“", close: "”" },
+  "'": { open: "‘", close: "’" },
+};
+
+export function resolveAutoPairSymbol(
+  input: string,
+  shouldConvertPunctuation: boolean,
+): AutoPairSymbol | null {
+  const pair = AUTO_PAIR_SYMBOLS.find((candidate) => candidate.open === input);
+  if (!pair) return null;
+
+  if (shouldConvertPunctuation) {
+    return CONVERTED_AUTO_PAIR_SYMBOLS[input] ?? pair;
+  }
+
+  return pair;
+}
+
+function resolveAutoPairClosingSymbol(
+  input: string,
+  shouldConvertPunctuation: boolean,
+): string | null {
+  const pair = AUTO_PAIR_SYMBOLS.find((candidate) => candidate.close === input);
+  if (!pair) return null;
+
+  if (shouldConvertPunctuation) {
+    const convertedPair = CONVERTED_AUTO_PAIR_SYMBOLS[pair.open];
+    return convertedPair?.close ?? pair.close;
+  }
+
+  return pair.close;
+}
+
+export function getEmptyPairAtCursor(textBefore: string, textAfter: string): AutoPairSymbol | null {
+  const open = Array.from(textBefore).at(-1);
+  const close = Array.from(textAfter)[0];
+  if (!open || !close) return null;
+
+  return AUTO_PAIR_SYMBOLS.find((pair) => pair.open === open && pair.close === close) ?? null;
+}
 
 function countOccurrences(text: string, target: string): number {
   let count = 0;
@@ -140,6 +203,78 @@ function createAutoConvertPunctuation(shouldConvert: () => boolean) {
   });
 }
 
+function createAutoPairSymbols(shouldPair: () => boolean, shouldConvertPunctuation: () => boolean) {
+  return Extension.create({
+    name: "autoPairSymbols",
+
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          props: {
+            handleTextInput(view, from, to, text) {
+              if (!shouldPair() || from !== to || Array.from(text).length !== 1) {
+                return false;
+              }
+
+              const convertPunctuation = shouldConvertPunctuation();
+              const closingSymbol = resolveAutoPairClosingSymbol(text, convertPunctuation);
+              const textAfter = view.state.doc.textBetween(
+                from,
+                Math.min(from + 1, view.state.doc.content.size),
+              );
+              if (closingSymbol && textAfter === closingSymbol) {
+                view.dispatch(
+                  view.state.tr.setSelection(
+                    TextSelection.create(view.state.doc, from + closingSymbol.length),
+                  ),
+                );
+                return true;
+              }
+
+              const pair = resolveAutoPairSymbol(text, convertPunctuation);
+              if (!pair) return false;
+
+              const transaction = view.state.tr.replaceWith(
+                from,
+                to,
+                view.state.schema.text(`${pair.open}${pair.close}`),
+              );
+              transaction.setSelection(
+                TextSelection.create(transaction.doc, from + pair.open.length),
+              );
+              view.dispatch(transaction);
+              return true;
+            },
+            handleKeyDown(view, event) {
+              if (!shouldPair() || event.key !== "Backspace") return false;
+              if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return false;
+
+              const { selection } = view.state;
+              if (!selection.empty) return false;
+
+              const textBefore = view.state.doc.textBetween(0, selection.from);
+              const textAfter = view.state.doc.textBetween(
+                selection.from,
+                view.state.doc.content.size,
+              );
+              const pair = getEmptyPairAtCursor(textBefore, textAfter);
+              if (!pair) return false;
+
+              view.dispatch(
+                view.state.tr.delete(
+                  selection.from - pair.open.length,
+                  selection.from + pair.close.length,
+                ),
+              );
+              return true;
+            },
+          },
+        }),
+      ];
+    },
+  });
+}
+
 const PlainTextClipboard = Extension.create({
   name: "plainTextClipboard",
 
@@ -195,6 +330,8 @@ export interface EditorExtensionsOptions {
   autoIndent?: () => boolean;
   /** 输入时是否将半角标点符号转换为全角 */
   autoConvertPunctuation?: () => boolean;
+  /** 输入成对符号的左符号时是否自动补齐右符号 */
+  autoPairSymbols?: () => boolean;
 }
 
 /**
@@ -212,7 +349,13 @@ export interface EditorExtensionsOptions {
  * - EditorShortcuts: 编辑器快捷键（Mod-f, Mod-h, Mod-s）
  */
 export function createEditorExtensions(options: EditorExtensionsOptions = {}) {
-  const { placeholder = "开始写作...", shortcuts, autoIndent, autoConvertPunctuation } = options;
+  const {
+    placeholder = "开始写作...",
+    shortcuts,
+    autoIndent,
+    autoConvertPunctuation,
+    autoPairSymbols,
+  } = options;
 
   const extensions = [
     Document,
@@ -241,6 +384,13 @@ export function createEditorExtensions(options: EditorExtensionsOptions = {}) {
   // 如果启用了半角标点自动转换，添加输入转换扩展
   if (autoConvertPunctuation) {
     extensions.push(createAutoConvertPunctuation(autoConvertPunctuation));
+  }
+
+  // Tiptap 会反转扩展顺序注册 ProseMirror 插件，因此补全扩展必须最后加入。
+  if (autoPairSymbols) {
+    extensions.push(
+      createAutoPairSymbols(autoPairSymbols, autoConvertPunctuation ?? (() => false)),
+    );
   }
 
   return extensions;

@@ -117,11 +117,17 @@ function ChapterEditorContent({
   });
   const autoIndentRef = useRef(settings?.editorAutoIndent ?? false);
   const autoConvertPunctuationRef = useRef(settings?.editorAutoConvertPunctuation ?? false);
+  const autoPairSymbolsRef = useRef(settings?.editorAutoPairSymbols ?? false);
 
   useEffect(() => {
     autoIndentRef.current = settings?.editorAutoIndent ?? false;
     autoConvertPunctuationRef.current = settings?.editorAutoConvertPunctuation ?? false;
-  }, [settings?.editorAutoIndent, settings?.editorAutoConvertPunctuation]);
+    autoPairSymbolsRef.current = settings?.editorAutoPairSymbols ?? false;
+  }, [
+    settings?.editorAutoIndent,
+    settings?.editorAutoConvertPunctuation,
+    settings?.editorAutoPairSymbols,
+  ]);
 
   const [title, setTitle] = useState(initialDraft.title);
   const titleRef = useRef(initialDraft.title);
@@ -288,6 +294,7 @@ function ChapterEditorContent({
       placeholder: t("writing.contentPlaceholder"),
       autoIndent: () => autoIndentRef.current,
       autoConvertPunctuation: () => autoConvertPunctuationRef.current,
+      autoPairSymbols: () => autoPairSymbolsRef.current,
       shortcuts: {
         onFind: openFind,
         onReplace: openReplace,

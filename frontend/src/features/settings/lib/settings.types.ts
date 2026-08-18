@@ -49,6 +49,7 @@ export interface Settings {
   telemetryEnabled: boolean;
   editorAutoIndent: boolean;
   editorAutoConvertPunctuation: boolean;
+  editorAutoPairSymbols: boolean;
 }
 
 /** 设置响应（后端格式） */
@@ -79,6 +80,7 @@ export interface SettingsResponse {
   telemetry_enabled: boolean;
   editor_auto_indent?: boolean;
   editor_auto_convert_punctuation?: boolean;
+  editor_auto_pair_symbols?: boolean;
 }
 
 /** 设置更新请求 */
@@ -109,6 +111,7 @@ export interface SettingsUpdateRequest {
   telemetry_enabled?: boolean;
   editor_auto_indent?: boolean;
   editor_auto_convert_punctuation?: boolean;
+  editor_auto_pair_symbols?: boolean;
 }
 
 export interface AuditDetailsStorage {
