@@ -247,6 +247,20 @@ function pathContains(parent: string, child: string): boolean {
   return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
+export async function arePathsEqual(left: string, right: string): Promise<boolean> {
+  return pathEquals(await resolveForCompare(left), await resolveForCompare(right));
+}
+
+export async function isPathWithin(parent: string, child: string): Promise<boolean> {
+  return pathContains(await resolveForCompare(parent), await resolveForCompare(child));
+}
+
+export async function doPathsOverlap(left: string, right: string): Promise<boolean> {
+  const resolvedLeft = await resolveForCompare(left);
+  const resolvedRight = await resolveForCompare(right);
+  return pathEquals(resolvedLeft, resolvedRight) || pathContains(resolvedLeft, resolvedRight) || pathContains(resolvedRight, resolvedLeft);
+}
+
 export async function removeDataDir(dataDir: string): Promise<void> {
   await rm(dataDir, { recursive: true, force: true });
 }

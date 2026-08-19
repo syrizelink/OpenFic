@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { DesktopHeader } from "./components/header";
 import { DesktopNotices } from "./components/desktop-notices";
+import { InstanceDeletionDialog } from "./components/instance-deletion-dialog";
 import { BootPage } from "./pages/boot/page";
 import { DataManagementPage } from "./pages/data-management/page";
 import { FrontendPage, type FrontendWebviewElement } from "./pages/frontend/page";
@@ -195,6 +196,7 @@ export function App() {
   const [updateState, setUpdateState] = useState<UpdateState>({ status: "idle" });
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [instancePanelOpen, setInstancePanelOpen] = useState(false);
+  const [deletionInstanceId, setDeletionInstanceId] = useState<string | null>(null);
   const [dataManagementPrevState, setDataManagementPrevState] = useState<ShellState | null>(null);
   const [dataManagementInstanceId, setDataManagementInstanceId] = useState<string | null>(null);
   const [startupProgress, setStartupProgress] = useState<StartupProgressEvent | null>(null);
@@ -204,6 +206,7 @@ export function App() {
   const automaticallyOpenedUpdate = useRef<string | null>(null);
   const startupRequestId = useRef(0);
   const activeInstance = config?.instances.find((instance) => instance.id === activeInstanceId) ?? null;
+  const deletionInstance = config?.instances.find((instance) => instance.id === deletionInstanceId) ?? null;
   const frontendPartition = activeInstanceId ? `persist:openfic-${activeInstanceId}` : "persist:openfic";
   const canCheckForUpdates = shellState === "frontend" && activeInstance !== null && updateState.status !== "unsupported";
 
@@ -444,6 +447,13 @@ export function App() {
     handleShowSetup(hasLocalInstance ? "remote" : "mode");
   };
 
+  const handleRequestDeleteInstance = (instanceId: string) => {
+    if (!config?.instances.some((instance) => instance.id === instanceId)) return;
+    setError(null);
+    setInstancePanelOpen(false);
+    setDeletionInstanceId(instanceId);
+  };
+
   const handleSwitchInstance = async (instanceId: string) => {
     const requestId = ++startupRequestId.current;
     setError(null);
@@ -468,6 +478,41 @@ export function App() {
       if (requestId !== startupRequestId.current) return;
       setError(err instanceof Error ? err.message : i18n.t("desktop.app.switchInstanceFailed"));
       setShellState("setup");
+    }
+  };
+
+  const handleDeleteInstance = async (instanceId: string, deleteData: boolean) => {
+    const wasActive = activeInstanceId === instanceId;
+    if (wasActive) {
+      startupRequestId.current += 1;
+      setStartupProgress(null);
+      setShellState("booting");
+    }
+    try {
+      const result = await window.openficDesktop.deleteInstance(instanceId, deleteData);
+      setDeletionInstanceId(null);
+      await refreshConfig();
+      if (!wasActive) return;
+      if (result.nextActiveInstanceId) {
+        await handleSwitchInstance(result.nextActiveInstanceId);
+        return;
+      }
+      startupRequestId.current += 1;
+      setError(null);
+      setCompatibilityWarning(null);
+      setMaintenanceWarning(null);
+      setStartupProgress(null);
+      setSetupInitialStep("mode");
+      setShellState("setup");
+    } catch (error) {
+      await refreshConfig().catch(() => null);
+      if (wasActive) {
+        startupRequestId.current += 1;
+        setStartupProgress(null);
+        setSetupInitialStep("mode");
+        setShellState("setup");
+      }
+      throw error;
     }
   };
 
@@ -638,6 +683,7 @@ export function App() {
         onAddInstance={handleAddInstance}
         onOpenSetup={() => handleShowSetup()}
         onOpenDataManagement={handleOpenDataManagement}
+        onRequestDeleteInstance={handleRequestDeleteInstance}
         onSaveConfig={handleSaveConfig}
         onSwitchInstance={handleSwitchInstance}
         instancePanelOpen={instancePanelOpen}
@@ -676,6 +722,7 @@ export function App() {
             onClearError={() => setError(null)}
             onConnectRemote={(url) => void handleConnectRemote(url)}
             onConnectInstance={(instanceId) => void handleSwitchInstance(instanceId)}
+            onRequestDeleteInstance={handleRequestDeleteInstance}
             onOpenDataManagementFor={handleOpenDataManagementFor}
             onStartLocal={(installDir, dataDir) => void handleStartLocal(installDir, dataDir)}
           />
@@ -705,6 +752,12 @@ export function App() {
         onOpenRelease={() => void window.openficDesktop.openUpdateRelease()}
         onCloseCompatibilityWarning={() => setCompatibilityWarning(null)}
         onCloseUpdateDialog={() => setUpdateDialogOpen(false)}
+      />
+      <InstanceDeletionDialog
+        key={deletionInstanceId ?? "closed"}
+        instance={deletionInstance}
+        onClose={() => setDeletionInstanceId(null)}
+        onConfirm={handleDeleteInstance}
       />
     </main>
   );

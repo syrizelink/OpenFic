@@ -1,0 +1,204 @@
+.instance-deletion-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 0.4);
+  animation: instance-deletion-overlay-in 160ms ease;
+}
+
+.instance-deletion-overlay.is-closing {
+  animation: instance-deletion-overlay-out 160ms ease forwards;
+}
+
+.instance-deletion-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(440px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 18px;
+  border: 1px solid var(--gray-a6);
+  border-radius: 14px;
+  background: var(--color-panel-solid);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 0.25);
+  animation: instance-deletion-dialog-in 180ms ease;
+}
+
+.instance-deletion-dialog.is-closing {
+  animation: instance-deletion-dialog-out 160ms ease forwards;
+}
+
+.instance-deletion-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--red-11, #b91c1c);
+}
+
+.instance-deletion-head h2 {
+  margin: 0;
+  color: var(--gray-12);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.instance-deletion-description,
+.instance-deletion-status,
+.instance-deletion-remote {
+  margin: 0;
+  color: var(--gray-11);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.instance-deletion-details {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--gray-a5);
+  border-radius: 10px;
+  background: var(--gray-a2);
+}
+
+.instance-deletion-details p {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--gray-11);
+  font-family: var(--code-font-family, monospace);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.instance-deletion-label {
+  color: var(--gray-10);
+  font-size: 11px;
+}
+
+.instance-deletion-warning,
+.instance-deletion-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  color: var(--red-11, #b91c1c) !important;
+  font-family: inherit !important;
+  font-size: 12px !important;
+}
+
+.instance-deletion-warning svg,
+.instance-deletion-error svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.instance-deletion-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--gray-12);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.instance-deletion-check[data-disabled="true"] {
+  color: var(--gray-9);
+  cursor: not-allowed;
+}
+
+.instance-deletion-check input {
+  accent-color: var(--accent-9);
+}
+
+.instance-deletion-hint {
+  color: var(--gray-10) !important;
+  font-family: inherit !important;
+  font-size: 12px !important;
+}
+
+.instance-deletion-error {
+  margin: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--red-a5);
+  border-radius: 8px;
+  background: var(--red-a3);
+}
+
+.instance-deletion-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.instance-deletion-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 6px 14px;
+  border: 1px solid var(--gray-a6);
+  border-radius: 9px;
+  background: var(--color-surface);
+  color: var(--gray-12);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.instance-deletion-button:hover {
+  border-color: var(--gray-a8);
+  background: var(--color-panel-solid);
+}
+
+.instance-deletion-button:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: 2px;
+}
+
+.instance-deletion-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.instance-deletion-button-danger {
+  border-color: var(--red-9, #dc2626);
+  background: var(--red-9, #dc2626);
+  color: #fff;
+}
+
+.instance-deletion-button-danger:hover {
+  border-color: var(--red-10, #b91c1c);
+  background: var(--red-10, #b91c1c);
+}
+
+@keyframes instance-deletion-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes instance-deletion-overlay-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes instance-deletion-dialog-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes instance-deletion-dialog-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(8px) scale(0.98); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .instance-deletion-overlay,
+  .instance-deletion-dialog {
+    animation: none;
+  }
+}

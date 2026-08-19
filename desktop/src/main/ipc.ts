@@ -1,11 +1,16 @@
 import { app, dialog, ipcMain, session, shell, webContents, type BrowserWindow } from "electron";
+import { randomUUID } from "node:crypto";
+import { lstat, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import {
   IpcChannels,
   type BackupDataRequest,
   type DataProgressEvent,
+  type DeleteInstanceRequest,
+  type DeleteInstanceResult,
   type EnsureInstanceSessionRequest,
   type GetDataInfoRequest,
+  type GetInstanceDeletionInfoRequest,
   type InitializeAppResult,
   type InspectDataDirRequest,
   type InspectLocalRuntimeRequest,
@@ -27,11 +32,15 @@ import { createDefaultConfig, readDesktopConfig, writeDesktopConfig } from "./co
 import { ensureAppProtocolForPartition } from "./protocol.js";
 import { findLocalInstanceByInstallDir, normalizeInstallDir } from "./local-instance.js";
 import { inspectLocalRuntime, installLocalRuntime, startLocalBackendFromInstall } from "./runtime/setup-runner.js";
-import { getDefaultInstallDir } from "./runtime/python.js";
+import { getDefaultInstallDir, resolveRuntimeDir } from "./runtime/python.js";
+import { INSTANCE_DATA_ENTRIES } from "./runtime/tar-extract.js";
 import { getDefaultDataDir, normalizeDataDir, resolveDataDir } from "./data-location.js";
 import {
+  arePathsEqual,
   backupDataDir,
+  doPathsOverlap,
   inspectDataDir,
+  isPathWithin,
   migrateDataDir,
   removeDataDir,
   restoreDataDir,
@@ -49,16 +58,145 @@ const FEATURE_SUGGESTION_URL = `${PROJECT_HOME_URL}/issues/new?template=feature-
 const MIN_ZOOM_FACTOR = 0.7;
 const MAX_ZOOM_FACTOR = 2.0;
 const DEFAULT_ZOOM_FACTOR = 1.1;
+const DELETION_STAGE_SUFFIX = ".openfic-deleting-";
+
+interface LocalInstanceDeletionPaths {
+  dataDir: string;
+  runtimeDir: string;
+}
+
+interface StagedPath {
+  stagedPath: string;
+}
 
 function normalizeZoomFactor(zoomFactor: number): number {
   const clampedZoomFactor = Math.min(MAX_ZOOM_FACTOR, Math.max(MIN_ZOOM_FACTOR, zoomFactor));
   return Math.round(clampedZoomFactor * 10) / 10;
 }
 
+function getLocalInstanceDeletionPaths(instance: DesktopInstance): LocalInstanceDeletionPaths {
+  const installDir = instance.installDir ?? getDefaultInstallDir();
+  const dataDir = resolveDataDir(instance);
+  if (!path.isAbsolute(installDir) || !path.isAbsolute(dataDir)) {
+    throw new Error("实例目录必须是绝对路径");
+  }
+  return {
+    dataDir: path.resolve(dataDir),
+    runtimeDir: path.resolve(resolveRuntimeDir(installDir)),
+  };
+}
+
+async function isDataDirShared(
+  config: DesktopConfig,
+  instance: DesktopInstance,
+  instancePaths: LocalInstanceDeletionPaths,
+): Promise<boolean> {
+  for (const candidate of config.instances) {
+    if (candidate.id === instance.id || candidate.mode !== "local") continue;
+    const candidatePaths = getLocalInstanceDeletionPaths(candidate);
+    if (
+      await doPathsOverlap(instancePaths.dataDir, candidatePaths.dataDir) ||
+      await doPathsOverlap(instancePaths.dataDir, candidatePaths.runtimeDir)
+    ) return true;
+  }
+  return false;
+}
+
+async function isRuntimeDirShared(
+  config: DesktopConfig,
+  instance: DesktopInstance,
+  instancePaths: LocalInstanceDeletionPaths,
+): Promise<boolean> {
+  for (const candidate of config.instances) {
+    if (candidate.id === instance.id || candidate.mode !== "local") continue;
+    const candidatePaths = getLocalInstanceDeletionPaths(candidate);
+    if (
+      await doPathsOverlap(instancePaths.runtimeDir, candidatePaths.runtimeDir) ||
+      await doPathsOverlap(instancePaths.runtimeDir, candidatePaths.dataDir)
+    ) return true;
+  }
+  return false;
+}
+
+function isMissingPathError(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+
+async function stagePath(filePath: string, token: string): Promise<StagedPath | null> {
+  try {
+    await lstat(filePath);
+  } catch (error) {
+    if (isMissingPathError(error)) return null;
+    throw error;
+  }
+  const stagedPath = `${filePath}${DELETION_STAGE_SUFFIX}${token}`;
+  await rename(filePath, stagedPath);
+  return { stagedPath };
+}
+
+async function finalizeStagedPaths(stagedPaths: StagedPath[]): Promise<void> {
+  let firstError: unknown = null;
+  for (const stagedPath of stagedPaths) {
+    try {
+      await rm(stagedPath.stagedPath, { recursive: true, force: true });
+    } catch (error) {
+      appendLog("instance", `清理待删除资源失败：${stagedPath.stagedPath}：${error instanceof Error ? error.message : String(error)}`);
+      firstError ??= error;
+    }
+  }
+  if (firstError) throw firstError;
+}
+
+async function assertSafeRuntimeDataPaths(instancePaths: LocalInstanceDeletionPaths): Promise<void> {
+  const isDefaultDataDir = await arePathsEqual(instancePaths.dataDir, getDefaultDataDir());
+  const pathsOverlap = await doPathsOverlap(instancePaths.runtimeDir, instancePaths.dataDir);
+  const runtimeIsWithinData = await isPathWithin(instancePaths.dataDir, instancePaths.runtimeDir);
+  if (pathsOverlap && (!isDefaultDataDir || !runtimeIsWithinData)) {
+    throw new Error("实例的运行环境目录与数据目录重叠，无法安全删除");
+  }
+}
+
+async function stageInstanceResources(
+  instancePaths: LocalInstanceDeletionPaths,
+  deleteData: boolean,
+  runtimeDirShared: boolean,
+): Promise<StagedPath[]> {
+  const isDefaultDataDir = await arePathsEqual(instancePaths.dataDir, getDefaultDataDir());
+  await assertSafeRuntimeDataPaths(instancePaths);
+
+  const token = randomUUID();
+  const stagedPaths: StagedPath[] = [];
+  if (!runtimeDirShared) {
+    const stagedRuntime = await stagePath(instancePaths.runtimeDir, token);
+    if (stagedRuntime) stagedPaths.push(stagedRuntime);
+  }
+
+  if (!deleteData) return stagedPaths;
+  if (isDefaultDataDir) {
+    for (const entry of INSTANCE_DATA_ENTRIES) {
+      const stagedEntry = await stagePath(path.join(instancePaths.dataDir, entry), token);
+      if (stagedEntry) stagedPaths.push(stagedEntry);
+    }
+    return stagedPaths;
+  }
+
+  const stagedData = await stagePath(instancePaths.dataDir, token);
+  if (stagedData) stagedPaths.push(stagedData);
+  return stagedPaths;
+}
+
+function getNextActiveInstanceId(config: DesktopConfig, remainingInstances: DesktopInstance[]): string | null {
+  if (config.activeInstanceId && remainingInstances.some((instance) => instance.id === config.activeInstanceId)) {
+    return config.activeInstanceId;
+  }
+  return remainingInstances.find((instance) => instance.favorite)?.id ?? remainingInstances[0]?.id ?? null;
+}
+
 export interface IpcContext {
   shellWindow: () => BrowserWindow | null;
   setBackend: (handle: BackendProcessHandle) => void;
   setBackendBaseUrl: (url: string) => void;
+  setLogsDir: (dataDir: string | null) => void;
   beginStartupOperation: () => AbortController;
   finishStartupOperation: (controller: AbortController) => void;
   initializeApp: () => Promise<InitializeAppResult>;
@@ -95,8 +233,25 @@ async function waitForInstanceWebViews(instanceId: string): Promise<void> {
   ]);
 }
 
+async function clearInstanceSession(instanceId: string): Promise<void> {
+  const targetSession = session.fromPartition(`persist:openfic-${instanceId}`);
+  await targetSession.clearStorageData();
+  await targetSession.clearAuthCache();
+  await targetSession.clearCache();
+  await targetSession.closeAllConnections();
+}
+
 export function registerIpc(context: IpcContext): void {
-  let pendingZoomSave = Promise.resolve();
+  let pendingConfigMutation: Promise<void> = Promise.resolve();
+
+  function enqueueConfigMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const next = pendingConfigMutation.then(operation);
+    pendingConfigMutation = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    return next;
+  }
 
   async function withBackendRestart<T>(instanceId: string, operation: () => Promise<T>): Promise<T> {
     await waitForInstanceWebViews(instanceId);
@@ -107,34 +262,29 @@ export function registerIpc(context: IpcContext): void {
 
   const saveZoomFactor = async (zoomFactor: number): Promise<number> => {
     const clampedZoomFactor = normalizeZoomFactor(zoomFactor);
-    const save = pendingZoomSave.then(async () => {
-      const config = await readDesktopConfig();
-      await writeDesktopConfig({ ...(config ?? createDefaultConfig()), zoomFactor: clampedZoomFactor });
-    });
-    pendingZoomSave = save.catch(() => undefined);
-    await save;
+    const config = await readDesktopConfig();
+    await writeDesktopConfig({ ...(config ?? createDefaultConfig()), zoomFactor: clampedZoomFactor });
     context.shellWindow()?.webContents.send(IpcChannels.zoomFactorChanged, clampedZoomFactor);
     return clampedZoomFactor;
   };
 
   ipcMain.handle(IpcChannels.getConfig, () => readDesktopConfig());
 
-  ipcMain.handle(IpcChannels.saveConfig, async (_event, request: SaveConfigRequest) => {
-    await pendingZoomSave;
+  ipcMain.handle(IpcChannels.saveConfig, (_event, request: SaveConfigRequest) => enqueueConfigMutation(async () => {
     const previousConfig = await readDesktopConfig();
     const nextConfig = { ...request.config, zoomFactor: previousConfig?.zoomFactor };
     await writeDesktopConfig(nextConfig);
     context.onConfigSaved(nextConfig);
-  });
+  }));
 
   ipcMain.handle(IpcChannels.getZoomFactor, async () => {
-    await pendingZoomSave;
+    await pendingConfigMutation;
     return normalizeZoomFactor((await readDesktopConfig())?.zoomFactor ?? DEFAULT_ZOOM_FACTOR);
   });
 
-  ipcMain.handle(IpcChannels.saveZoomFactor, async (_event, request: SaveZoomFactorRequest) => {
+  ipcMain.handle(IpcChannels.saveZoomFactor, (_event, request: SaveZoomFactorRequest) => {
     if (!Number.isFinite(request.zoomFactor)) return;
-    return saveZoomFactor(request.zoomFactor);
+    return enqueueConfigMutation(() => saveZoomFactor(request.zoomFactor));
   });
 
   ipcMain.handle(IpcChannels.initializeApp, () => context.initializeApp());
@@ -193,8 +343,77 @@ export function registerIpc(context: IpcContext): void {
 
   ipcMain.handle(IpcChannels.getDefaultInstallDir, () => getDefaultInstallDir());
 
+  ipcMain.handle(IpcChannels.getInstanceDeletionInfo, async (_event, request: GetInstanceDeletionInfoRequest) => {
+    if (typeof request?.instanceId !== "string") throw new Error("无效的实例标识");
+    const config = await readDesktopConfig();
+    if (!config) throw new Error("未找到 OpenFic 实例配置");
+    const instance = config.instances.find((item) => item.id === request.instanceId);
+    if (!instance) throw new Error("实例不存在");
+    if (instance.mode !== "local") {
+      return { dataDir: null, dataDirShared: false, runtimeDir: null, runtimeDirShared: false };
+    }
+    const instancePaths = getLocalInstanceDeletionPaths(instance);
+    const [dataDirShared, runtimeDirShared] = await Promise.all([
+      isDataDirShared(config, instance, instancePaths),
+      isRuntimeDirShared(config, instance, instancePaths),
+    ]);
+    return {
+      dataDir: instancePaths.dataDir,
+      dataDirShared,
+      runtimeDir: instancePaths.runtimeDir,
+      runtimeDirShared,
+    };
+  });
+
+  ipcMain.handle(
+    IpcChannels.deleteInstance,
+    (_event, request: DeleteInstanceRequest) => enqueueConfigMutation(async (): Promise<DeleteInstanceResult> => {
+      if (typeof request?.instanceId !== "string" || typeof request.deleteData !== "boolean") {
+        throw new Error("无效的实例删除请求");
+      }
+      const config = await readDesktopConfig();
+      if (!config) throw new Error("未找到 OpenFic 实例配置");
+      const instance = config.instances.find((item) => item.id === request.instanceId);
+      if (!instance) throw new Error("实例不存在");
+      const instancePaths = instance.mode === "local" ? getLocalInstanceDeletionPaths(instance) : null;
+      const dataDirShared = instancePaths ? await isDataDirShared(config, instance, instancePaths) : false;
+      if (request.deleteData && dataDirShared) throw new Error("该数据目录正在被多个本地实例使用，无法清除");
+      const runtimeDirShared = instancePaths
+        ? await isRuntimeDirShared(config, instance, instancePaths)
+        : false;
+      if (instancePaths) await assertSafeRuntimeDataPaths(instancePaths);
+
+      appendLog("instance", `准备删除实例：${instance.name}（${instance.id}）`);
+      const remainingInstances = config.instances.filter((item) => item.id !== instance.id);
+      const nextActiveInstanceId = getNextActiveInstanceId(config, remainingInstances);
+      await waitForInstanceWebViews(instance.id);
+      if (config.activeInstanceId === instance.id) {
+        await context.stopActiveBackend();
+        context.setLogsDir(null);
+      }
+      await clearInstanceSession(instance.id);
+
+      let stagedPaths: StagedPath[] = [];
+      if (instancePaths) {
+        stagedPaths = await stageInstanceResources(instancePaths, request.deleteData, runtimeDirShared);
+        if (runtimeDirShared) {
+          appendLog("instance", `保留共享运行环境：${instancePaths.runtimeDir}`);
+        }
+      }
+      const nextConfig: DesktopConfig = {
+        ...config,
+        activeInstanceId: nextActiveInstanceId,
+        instances: remainingInstances,
+      };
+      await writeDesktopConfig(nextConfig);
+      context.onConfigSaved(nextConfig);
+      await finalizeStagedPaths(stagedPaths);
+      return { nextActiveInstanceId };
+    }),
+  );
+
   ipcMain.handle(IpcChannels.switchInstance, (_event, request: SwitchInstanceRequest) =>
-    context.switchInstance(request.instanceId),
+    enqueueConfigMutation(() => context.switchInstance(request.instanceId)),
   );
 
   ipcMain.handle(IpcChannels.pingInstance, async (_event, request: PingInstanceRequest): Promise<PingInstanceResult> => {
@@ -267,83 +486,89 @@ export function registerIpc(context: IpcContext): void {
     return inspectDataDir(request.dataDir);
   });
 
-  ipcMain.handle(IpcChannels.migrateData, async (_event, request: MigrateDataRequest): Promise<MigrateDataResult> => {
-    const config = await readDesktopConfig();
-    if (!config) throw new Error("未找到 OpenFic 实例配置");
-    const instance = config.instances.find((item) => item.id === request.instanceId);
-    if (!instance) throw new Error("实例不存在");
-    const sourceDir = resolveDataDir(instance);
-    const targetDir = path.resolve(request.newDataDir);
+  ipcMain.handle(IpcChannels.migrateData, (_event, request: MigrateDataRequest) =>
+    enqueueConfigMutation(async (): Promise<MigrateDataResult> => {
+      const config = await readDesktopConfig();
+      if (!config) throw new Error("未找到 OpenFic 实例配置");
+      const instance = config.instances.find((item) => item.id === request.instanceId);
+      if (!instance) throw new Error("实例不存在");
+      const sourceDir = resolveDataDir(instance);
+      const targetDir = path.resolve(request.newDataDir);
 
-    const result = await withBackendRestart(request.instanceId, async () => {
-      let migrated = false;
-      let removedOldDir = false;
-      const emitProgress = (event: DataProgressEvent) =>
-        context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
-      const targetInspection = await inspectDataDir(targetDir);
-      const nextConfig: DesktopConfig = {
-        ...config,
-        instances: config.instances.map((item) =>
-          item.id === instance.id ? { ...item, dataDir: targetDir } : item,
-        ),
-      };
-      if (!targetInspection.hasData) {
-        appendLog("data", `开始迁移数据目录：${sourceDir} -> ${targetDir}`);
-        await migrateDataDir(sourceDir, targetDir, (message) => appendLog("data", message), (phase, progress) =>
-          emitProgress({ operation: "migrate", phase, progress }),
-        );
-        migrated = true;
-        appendLog("data", `数据迁移完成：${targetDir}`);
+      const result = await withBackendRestart(request.instanceId, async () => {
+        let migrated = false;
+        let removedOldDir = false;
+        const emitProgress = (event: DataProgressEvent) =>
+          context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
+        const targetInspection = await inspectDataDir(targetDir);
+        const nextConfig: DesktopConfig = {
+          ...config,
+          instances: config.instances.map((item) =>
+            item.id === instance.id ? { ...item, dataDir: targetDir } : item,
+          ),
+        };
+        if (!targetInspection.hasData) {
+          appendLog("data", `开始迁移数据目录：${sourceDir} -> ${targetDir}`);
+          await migrateDataDir(sourceDir, targetDir, (message) => appendLog("data", message), (phase, progress) =>
+            emitProgress({ operation: "migrate", phase, progress }),
+          );
+          migrated = true;
+          appendLog("data", `数据迁移完成：${targetDir}`);
 
-        if (request.deleteOldDir && normalizeInstallDir(sourceDir) !== normalizeInstallDir(targetDir)) {
-          try {
-            emitProgress({ operation: "migrate", phase: "delete-old" });
-            await removeDataDir(sourceDir);
-            removedOldDir = true;
-            appendLog("data", `已删除原数据目录：${sourceDir}`);
-          } catch (error) {
-            appendLog("data", `删除原数据目录失败（迁移已成功）：${error instanceof Error ? error.message : String(error)}`);
+          if (request.deleteOldDir && normalizeInstallDir(sourceDir) !== normalizeInstallDir(targetDir)) {
+            try {
+              emitProgress({ operation: "migrate", phase: "delete-old" });
+              await removeDataDir(sourceDir);
+              removedOldDir = true;
+              appendLog("data", `已删除原数据目录：${sourceDir}`);
+            } catch (error) {
+              appendLog("data", `删除原数据目录失败（迁移已成功）：${error instanceof Error ? error.message : String(error)}`);
+            }
           }
+        } else {
+          appendLog("data", `切换数据目录（目标已含数据）：${sourceDir} -> ${targetDir}`);
         }
-      } else {
-        appendLog("data", `切换数据目录（目标已含数据）：${sourceDir} -> ${targetDir}`);
-      }
-      await writeDesktopConfig(nextConfig);
-      context.onConfigSaved(nextConfig);
-      return { dataDir: targetDir, migrated, removedOldDir };
-    });
-    return result;
-  });
+        await writeDesktopConfig(nextConfig);
+        context.onConfigSaved(nextConfig);
+        return { dataDir: targetDir, migrated, removedOldDir };
+      });
+      return result;
+    }),
+  );
 
-  ipcMain.handle(IpcChannels.backupData, async (_event, request: BackupDataRequest): Promise<void> => {
-    const config = await readDesktopConfig();
-    const instance = config?.instances.find((item) => item.id === request.instanceId);
-    if (!instance) throw new Error("实例不存在");
-    await withBackendRestart(request.instanceId, async () => {
-      const emitProgress = (event: DataProgressEvent) =>
-        context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
-      appendLog("data", `开始备份数据目录：${resolveDataDir(instance)} -> ${request.targetPath}`);
-      await backupDataDir(resolveDataDir(instance), request.targetPath, (message) => appendLog("data", message), (phase, progress) =>
-        emitProgress({ operation: "backup", phase, progress }),
-      );
-      appendLog("data", `备份完成：${request.targetPath}`);
-    });
-  });
+  ipcMain.handle(IpcChannels.backupData, (_event, request: BackupDataRequest) =>
+    enqueueConfigMutation(async (): Promise<void> => {
+      const config = await readDesktopConfig();
+      const instance = config?.instances.find((item) => item.id === request.instanceId);
+      if (!instance) throw new Error("实例不存在");
+      await withBackendRestart(request.instanceId, async () => {
+        const emitProgress = (event: DataProgressEvent) =>
+          context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
+        appendLog("data", `开始备份数据目录：${resolveDataDir(instance)} -> ${request.targetPath}`);
+        await backupDataDir(resolveDataDir(instance), request.targetPath, (message) => appendLog("data", message), (phase, progress) =>
+          emitProgress({ operation: "backup", phase, progress }),
+        );
+        appendLog("data", `备份完成：${request.targetPath}`);
+      });
+    }),
+  );
 
-  ipcMain.handle(IpcChannels.restoreData, async (_event, request: RestoreDataRequest): Promise<void> => {
-    const config = await readDesktopConfig();
-    const instance = config?.instances.find((item) => item.id === request.instanceId);
-    if (!instance) throw new Error("实例不存在");
-    await withBackendRestart(request.instanceId, async () => {
-      const emitProgress = (event: DataProgressEvent) =>
-        context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
-      appendLog("data", `开始从备份还原数据：${request.sourcePath} -> ${resolveDataDir(instance)}`);
-      await restoreDataDir(request.sourcePath, resolveDataDir(instance), (message) => appendLog("data", message), (phase, progress) =>
-        emitProgress({ operation: "restore", phase, progress }),
-      );
-      appendLog("data", `数据还原完成：${resolveDataDir(instance)}`);
-    });
-  });
+  ipcMain.handle(IpcChannels.restoreData, (_event, request: RestoreDataRequest) =>
+    enqueueConfigMutation(async (): Promise<void> => {
+      const config = await readDesktopConfig();
+      const instance = config?.instances.find((item) => item.id === request.instanceId);
+      if (!instance) throw new Error("实例不存在");
+      await withBackendRestart(request.instanceId, async () => {
+        const emitProgress = (event: DataProgressEvent) =>
+          context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
+        appendLog("data", `开始从备份还原数据：${request.sourcePath} -> ${resolveDataDir(instance)}`);
+        await restoreDataDir(request.sourcePath, resolveDataDir(instance), (message) => appendLog("data", message), (phase, progress) =>
+          emitProgress({ operation: "restore", phase, progress }),
+        );
+        appendLog("data", `数据还原完成：${resolveDataDir(instance)}`);
+      });
+    }),
+  );
 
   ipcMain.handle(
     IpcChannels.inspectLocalRuntime,
@@ -356,72 +581,75 @@ export function registerIpc(context: IpcContext): void {
     },
   );
 
-  ipcMain.handle(IpcChannels.installRuntime, async (_event, request: InstallRuntimeRequest) => {
-    const window = context.shellWindow();
-    if (!window) throw new Error("shell window is not available");
-    await installLocalRuntime(window.webContents, request.installDir);
-  });
+  ipcMain.handle(IpcChannels.installRuntime, (_event, request: InstallRuntimeRequest) =>
+    enqueueConfigMutation(async () => {
+      const window = context.shellWindow();
+      if (!window) throw new Error("shell window is not available");
+      await installLocalRuntime(window.webContents, request.installDir);
+    }),
+  );
 
-  ipcMain.handle(IpcChannels.startLocalBackend, async (_event, request: StartLocalBackendRequest) => {
-    const window = context.shellWindow();
-    if (!window) throw new Error("shell window is not available");
-    const controller = context.beginStartupOperation();
-    const startupProgress = createStartupProgressTracker((progress) => {
-      window.webContents.send(IpcChannels.startupProgress, progress);
-    });
-    try {
-      const previousConfig = await readDesktopConfig();
-      const existingInstance = findLocalInstanceByInstallDir(previousConfig, request.installDir);
-      const { handle: backend, maintenanceError } = await startLocalBackendFromInstall(
-        request.installDir,
-        startupProgress,
-        controller.signal,
-        existingInstance ? resolveDataDir(existingInstance) : request.dataDir ?? undefined,
-      );
-      context.setBackend(backend);
-      context.setBackendBaseUrl(backend.baseUrl);
-      await pendingZoomSave;
-      const instance: DesktopInstance = existingInstance ?? {
-        id: createInstanceId(),
-        name: "Local",
-        mode: "local",
-        remoteUrl: null,
-        autoStartLocal: true,
-        installDir: request.installDir,
-        dataDir: normalizeDataDir(request.dataDir),
-      };
-      const normalizedInstallDir = normalizeInstallDir(request.installDir);
-      const nextConfig: DesktopConfig = {
-        activeInstanceId: instance.id,
-        instances: [
-          ...(previousConfig?.instances ?? []).filter(
-            (candidate) =>
-              candidate.mode !== "local" ||
-              candidate.installDir === null ||
-              normalizeInstallDir(candidate.installDir) !== normalizedInstallDir,
-          ),
-          instance,
-        ],
-        zoomFactor: previousConfig?.zoomFactor,
-      };
-      await writeDesktopConfig(nextConfig);
-      context.onConfigSaved(nextConfig);
-      startupProgress.begin({
-        step: "ready",
-        title: "服务已就绪",
-        message: "OpenFic 已准备完成",
-        progress: 1,
+  ipcMain.handle(IpcChannels.startLocalBackend, (_event, request: StartLocalBackendRequest) =>
+    enqueueConfigMutation(async () => {
+      const window = context.shellWindow();
+      if (!window) throw new Error("shell window is not available");
+      const controller = context.beginStartupOperation();
+      const startupProgress = createStartupProgressTracker((progress) => {
+        window.webContents.send(IpcChannels.startupProgress, progress);
       });
-      startupProgress.complete();
-      return maintenanceError;
-    } catch (error) {
-      if (controller.signal.aborted) startupProgress.complete("已取消连接");
-      else startupProgress.fail(error);
-      throw error;
-    } finally {
-      context.finishStartupOperation(controller);
-    }
-  });
+      try {
+        const previousConfig = await readDesktopConfig();
+        const existingInstance = findLocalInstanceByInstallDir(previousConfig, request.installDir);
+        const { handle: backend, maintenanceError } = await startLocalBackendFromInstall(
+          request.installDir,
+          startupProgress,
+          controller.signal,
+          existingInstance ? resolveDataDir(existingInstance) : request.dataDir ?? undefined,
+        );
+        context.setBackend(backend);
+        context.setBackendBaseUrl(backend.baseUrl);
+        const instance: DesktopInstance = existingInstance ?? {
+          id: createInstanceId(),
+          name: "Local",
+          mode: "local",
+          remoteUrl: null,
+          autoStartLocal: true,
+          installDir: request.installDir,
+          dataDir: normalizeDataDir(request.dataDir),
+        };
+        const normalizedInstallDir = normalizeInstallDir(request.installDir);
+        const nextConfig: DesktopConfig = {
+          activeInstanceId: instance.id,
+          instances: [
+            ...(previousConfig?.instances ?? []).filter(
+              (candidate) =>
+                candidate.mode !== "local" ||
+                candidate.installDir === null ||
+                normalizeInstallDir(candidate.installDir) !== normalizedInstallDir,
+            ),
+            instance,
+          ],
+          zoomFactor: previousConfig?.zoomFactor,
+        };
+        await writeDesktopConfig(nextConfig);
+        context.onConfigSaved(nextConfig);
+        startupProgress.begin({
+          step: "ready",
+          title: "服务已就绪",
+          message: "OpenFic 已准备完成",
+          progress: 1,
+        });
+        startupProgress.complete();
+        return maintenanceError;
+      } catch (error) {
+        if (controller.signal.aborted) startupProgress.complete("已取消连接");
+        else startupProgress.fail(error);
+        throw error;
+      } finally {
+        context.finishStartupOperation(controller);
+      }
+    }),
+  );
 
   ipcMain.handle(IpcChannels.minimizeWindow, async () => {
     context.shellWindow()?.minimize();

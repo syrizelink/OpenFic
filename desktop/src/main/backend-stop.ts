@@ -5,7 +5,11 @@ export const BACKEND_FORCE_STOP_WAIT_MS = 5_000;
 
 export interface BackendStopHandle {
   baseUrl: string;
-  process: EventEmitter & { killed: boolean };
+  process: EventEmitter & {
+    killed: boolean;
+    exitCode?: number | null;
+    signalCode?: NodeJS.Signals | null;
+  };
   shutdownToken: string;
 }
 
@@ -28,9 +32,11 @@ export function requestBackendStop(
   handle: BackendStopHandle | null,
   dependencies: BackendStopDependencies,
 ): Promise<void> {
-  if (!handle || handle.process.killed) return Promise.resolve();
+  if (!handle) return Promise.resolve();
+  if (handle.process.exitCode !== null && handle.process.exitCode !== undefined) return Promise.resolve();
+  if (handle.process.signalCode !== null && handle.process.signalCode !== undefined) return Promise.resolve();
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let isStopped = false;
     const fallback = { timeout: undefined as unknown };
     const forced = { timeout: undefined as unknown };
@@ -43,15 +49,26 @@ export function requestBackendStop(
       handle.process.off("exit", finish);
       resolve();
     };
+    const fail = () => {
+      if (isStopped) return;
+      isStopped = true;
+      dependencies.cancelFallback(fallback.timeout);
+      dependencies.cancelFallback(forced.timeout);
+      handle.process.off("exit", finish);
+      reject(new Error("backend process did not exit after force stop"));
+    };
     const forceStop = () => {
       dependencies.forceStop(handle);
       dependencies.cancelFallback(fallback.timeout);
-      if (handle.process.killed) {
+      if (handle.process.exitCode !== null && handle.process.exitCode !== undefined) {
         finish();
         return;
       }
-      handle.process.once("exit", finish);
-      forced.timeout = dependencies.scheduleFallback(finish, BACKEND_FORCE_STOP_WAIT_MS);
+      if (handle.process.signalCode !== null && handle.process.signalCode !== undefined) {
+        finish();
+        return;
+      }
+      forced.timeout = dependencies.scheduleFallback(fail, BACKEND_FORCE_STOP_WAIT_MS);
     };
 
     handle.process.once("exit", finish);

@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Server,
   Settings,
+  Trash2,
   X,
 } from "lucide-react";
 import type { InspectLocalRuntimeResult, SetupProgressEvent, SetupStep } from "../../../shared/ipc";
@@ -78,6 +79,7 @@ interface SetupPageProps {
   onClearError: () => void;
   onConnectRemote: (url: string) => void;
   onConnectInstance: (instanceId: string) => void;
+  onRequestDeleteInstance: (instanceId: string) => void;
   onOpenDataManagementFor: (instanceId: string) => void;
   onStartLocal: (installDir: string, dataDir: string) => void;
 }
@@ -120,6 +122,7 @@ export function SetupPage({
   onClearError,
   onConnectRemote,
   onConnectInstance,
+  onRequestDeleteInstance,
   onOpenDataManagementFor,
   onStartLocal,
 }: SetupPageProps) {
@@ -348,6 +351,23 @@ export function SetupPage({
                                   <Settings size={13} strokeWidth={2} />
                                 </button>
                               ) : null}
+                              <button
+                                className="setup-configured-instance-settings setup-configured-instance-delete"
+                                type="button"
+                                title={t("desktop.instanceDeletion.title")}
+                                aria-label={t("desktop.instanceDeletion.title")}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onRequestDeleteInstance(instance.id);
+                                }}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.stopPropagation();
+                                  }
+                                }}
+                              >
+                                <Trash2 size={13} strokeWidth={2} />
+                              </button>
                             </span>
                             <span
                               title={getInstanceDetail(

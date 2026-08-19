@@ -161,6 +161,20 @@
     "back": "Back",
     "cancel": "Cancel"
   },
+  "instanceDeletion": {
+    "title": "Delete instance",
+    "description": "Delete the instance “{{name}}”? This action cannot be undone.",
+    "loading": "Checking instance data...",
+    "runtimeDirectory": "Runtime directory",
+    "dataDirectory": "Local data directory",
+    "runtimeWarning": "Deleting a local instance completely removes its runtime folder.",
+    "sharedRuntime": "This runtime directory is used by multiple local instances and will be preserved.",
+    "clearData": "Also clear local data",
+    "sharedData": "This data directory is used by multiple local instances and cannot be cleared.",
+    "remoteDescription": "Remote instance data is stored on the server and will not be deleted.",
+    "confirm": "Delete instance",
+    "deleting": "Deleting..."
+  },
   "data": {
     "title": "Data management",
     "description": "Manage the data of the current instance. To prevent data loss, please ensure that you have backed up your data before changing the data directory or performing a restoration.",

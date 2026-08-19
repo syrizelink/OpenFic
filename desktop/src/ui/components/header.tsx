@@ -15,6 +15,7 @@ interface DesktopHeaderProps {
   onAddInstance: () => void;
   onOpenSetup: () => void;
   onOpenDataManagement: () => void;
+  onRequestDeleteInstance: (instanceId: string) => void;
   onSaveConfig: (config: DesktopConfig) => Promise<void>;
   onSwitchInstance: (instanceId: string) => Promise<void>;
   instancePanelOpen: boolean;
@@ -109,6 +110,7 @@ export function DesktopHeader({
   onAddInstance,
   onOpenSetup,
   onOpenDataManagement,
+  onRequestDeleteInstance,
   onSaveConfig,
   onSwitchInstance,
   instancePanelOpen,
@@ -260,24 +262,11 @@ export function DesktopHeader({
     await onSaveConfig(nextConfig);
   };
 
-  const deleteInstance = async (event: MouseEvent<HTMLButtonElement>, instance: DesktopInstance) => {
+  const requestDeleteInstance = (event: MouseEvent<HTMLButtonElement>, instance: DesktopInstance) => {
     event.stopPropagation();
-    if (!config || config.instances.length <= 1) return;
-
-    const remainingInstances = config.instances.filter((item) => item.id !== instance.id);
-    const nextActiveInstanceId = config.activeInstanceId === instance.id
-      ? sortInstances(remainingInstances)[0]?.id ?? null
-      : config.activeInstanceId;
-    const nextConfig: DesktopConfig = {
-      activeInstanceId: nextActiveInstanceId,
-      instances: remainingInstances,
-    };
-
-    await onSaveConfig(nextConfig);
-    if (config.activeInstanceId === instance.id && nextActiveInstanceId) {
-      await onSwitchInstance(nextActiveInstanceId);
-      onInstancePanelOpenChange(false);
-    }
+    if (!config) return;
+    onInstancePanelOpenChange(false);
+    onRequestDeleteInstance(instance.id);
   };
 
   const handleExportLogs = async () => {
@@ -666,8 +655,7 @@ export function DesktopHeader({
                             className="instance-action-button"
                             type="button"
                             aria-label={t("desktop.header.deleteInstance")}
-                            disabled={instances.length <= 1}
-                            onClick={(event) => void deleteInstance(event, instance)}
+                            onClick={(event) => requestDeleteInstance(event, instance)}
                           >
                             <Trash2 size={15} strokeWidth={2} />
                           </button>

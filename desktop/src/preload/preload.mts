@@ -5,14 +5,18 @@ import {
   type BackupDataRequest,
   type DataInfo,
   type DataProgressEvent,
+  type DeleteInstanceRequest,
+  type DeleteInstanceResult,
   type EnsureInstanceSessionRequest,
   type GetDataInfoRequest,
+  type GetInstanceDeletionInfoRequest,
   type InitializeAppResult,
   type InspectDataDirRequest,
   type InspectDataDirResult,
   type InspectLocalRuntimeRequest,
   type InspectLocalRuntimeResult,
   type InstallRuntimeRequest,
+  type InstanceDeletionInfo,
   type LogFrontendDiagnosticRequest,
   type MigrateDataRequest,
   type MigrateDataResult,
@@ -84,6 +88,10 @@ const desktopApi = {
     ipcRenderer.invoke(IpcChannels.startLocalBackend, { installDir, dataDir } satisfies StartLocalBackendRequest),
   switchInstance: (instanceId: string): Promise<InitializeAppResult> =>
     ipcRenderer.invoke(IpcChannels.switchInstance, { instanceId } satisfies SwitchInstanceRequest),
+  getInstanceDeletionInfo: (instanceId: string): Promise<InstanceDeletionInfo> =>
+    ipcRenderer.invoke(IpcChannels.getInstanceDeletionInfo, { instanceId } satisfies GetInstanceDeletionInfoRequest),
+  deleteInstance: (instanceId: string, deleteData: boolean): Promise<DeleteInstanceResult> =>
+    ipcRenderer.invoke(IpcChannels.deleteInstance, { instanceId, deleteData } satisfies DeleteInstanceRequest),
   pingInstance: (instance: DesktopInstance): Promise<PingInstanceResult> =>
     ipcRenderer.invoke(IpcChannels.pingInstance, { instance } satisfies PingInstanceRequest),
   selectDirectory: (): Promise<string | null> => ipcRenderer.invoke(IpcChannels.selectDirectory),

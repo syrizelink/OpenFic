@@ -10,6 +10,8 @@ export const IpcChannels = {
   installRuntime: "setup:install-runtime",
   startLocalBackend: "setup:start-local-backend",
   switchInstance: "instance:switch",
+  getInstanceDeletionInfo: "instance:get-deletion-info",
+  deleteInstance: "instance:delete",
   pingInstance: "instance:ping",
   selectDirectory: "dialog:select-directory",
   inspectLocalRuntime: "setup:inspect-local-runtime",
@@ -88,6 +90,26 @@ export interface EnsureInstanceSessionRequest {
 
 export interface SwitchInstanceRequest {
   instanceId: string;
+}
+
+export interface GetInstanceDeletionInfoRequest {
+  instanceId: string;
+}
+
+export interface InstanceDeletionInfo {
+  dataDir: string | null;
+  dataDirShared: boolean;
+  runtimeDir: string | null;
+  runtimeDirShared: boolean;
+}
+
+export interface DeleteInstanceRequest {
+  instanceId: string;
+  deleteData: boolean;
+}
+
+export interface DeleteInstanceResult {
+  nextActiveInstanceId: string | null;
 }
 
 export interface PingInstanceRequest {

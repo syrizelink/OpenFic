@@ -2,7 +2,9 @@ import type { DesktopConfig } from "../shared/config";
 import type {
   DataInfo,
   DataProgressEvent,
+  DeleteInstanceResult,
   InspectDataDirResult,
+  InstanceDeletionInfo,
   InspectLocalRuntimeResult,
   InitializeAppResult,
   MigrateDataResult,
@@ -26,6 +28,8 @@ declare global {
       installRuntime: (installDir: string) => Promise<void>;
       startLocalBackend: (installDir: string, dataDir?: string | null) => Promise<string | null>;
       switchInstance: (instanceId: string) => Promise<InitializeAppResult>;
+      getInstanceDeletionInfo: (instanceId: string) => Promise<InstanceDeletionInfo>;
+      deleteInstance: (instanceId: string, deleteData: boolean) => Promise<DeleteInstanceResult>;
       pingInstance: (instance: DesktopInstance) => Promise<PingInstanceResult>;
       selectDirectory: () => Promise<string | null>;
       selectSaveFile: () => Promise<string | null>;

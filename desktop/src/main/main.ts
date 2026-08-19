@@ -462,6 +462,7 @@ async function bootstrap(): Promise<void> {
     shellWindow: () => mainWindow,
     setBackend,
     setBackendBaseUrl,
+    setLogsDir,
     beginStartupOperation,
     finishStartupOperation,
     initializeApp,

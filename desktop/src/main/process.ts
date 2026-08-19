@@ -13,6 +13,7 @@ export interface BackendProcessHandle extends BackendStopHandle {
   baseUrl: string;
   logPath: string;
   shutdownToken: string;
+  logsClosed: Promise<void>;
   stopPromise?: Promise<void>;
 }
 
@@ -52,13 +53,22 @@ export function startBackendProcess(options: StartBackendOptions): BackendProces
   const stdoutLog = createLogStream("backend");
   const stderrLog = createLogStream("backend");
   let logsClosed = false;
+  let resolveLogsClosed: (() => void) | null = null;
+  const logsClosedPromise = new Promise<void>((resolve) => {
+    resolveLogsClosed = resolve;
+  });
   const shutdownToken = randomUUID();
 
   const closeLogs = () => {
     if (logsClosed) return;
     logsClosed = true;
-    stdoutLog.end();
-    stderrLog.end();
+    let remaining = 2;
+    const markClosed = () => {
+      remaining -= 1;
+      if (remaining === 0) resolveLogsClosed?.();
+    };
+    stdoutLog.end(markClosed);
+    stderrLog.end(markClosed);
   };
 
   appendLog("backend", `启动后端命令：${options.command} ${options.args.join(" ")}`);
@@ -98,6 +108,7 @@ export function startBackendProcess(options: StartBackendOptions): BackendProces
     baseUrl: `http://127.0.0.1:${options.port}`,
     logPath,
     shutdownToken,
+    logsClosed: logsClosedPromise,
   };
 }
 
@@ -141,6 +152,9 @@ export function stopBackendProcess(handle: BackendProcessHandle | null): Promise
     forceStop: (stopHandle) => forceStopBackendProcess(stopHandle as BackendProcessHandle),
     scheduleFallback: (callback, delayMs) => setTimeout(callback, delayMs),
     cancelFallback: (timeout) => clearTimeout(timeout as NodeJS.Timeout),
-  });
+  }).then(() => Promise.race([
+    handle.logsClosed,
+    new Promise<void>((resolve) => setTimeout(resolve, 1_000)),
+  ]));
   return handle.stopPromise;
 }

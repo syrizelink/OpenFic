@@ -207,6 +207,10 @@
   background: var(--gray-a4);
 }
 
+.setup-configured-instance-delete:hover {
+  color: var(--red-11, #b91c1c);
+}
+
 .setup-configured-instance-copy span {
   color: var(--gray-10);
   font-family: var(--code-font-family, monospace);

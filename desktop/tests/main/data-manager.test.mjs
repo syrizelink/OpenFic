@@ -5,7 +5,10 @@ import path from "node:path";
 import test from "node:test";
 import {
   backupDataDir,
+  arePathsEqual,
+  doPathsOverlap,
   inspectDataDir,
+  isPathWithin,
   migrateDataDir,
   removeDataDir,
   restoreDataDir,
@@ -100,6 +103,21 @@ test("removeDataDir deletes the directory recursively", async () => {
     const dir = await createDataDir(base, "src");
     await removeDataDir(dir);
     await assert.rejects(stat(dir));
+  } finally {
+    await rm(base, { recursive: true, force: true });
+  }
+});
+
+test("path comparisons resolve aliases and parent-child overlap", async () => {
+  const base = await mkdtemp(path.join(os.tmpdir(), "openfic-data-"));
+  try {
+    const parent = path.join(base, "parent");
+    const child = path.join(parent, "child");
+    await mkdir(child, { recursive: true });
+
+    assert.equal(await arePathsEqual(parent, parent), true);
+    assert.equal(await isPathWithin(parent, child), true);
+    assert.equal(await doPathsOverlap(parent, child), true);
   } finally {
     await rm(base, { recursive: true, force: true });
   }
