@@ -3,7 +3,7 @@ import { DesktopHeader } from "./components/header";
 import { DesktopNotices } from "./components/desktop-notices";
 import { BootPage } from "./pages/boot/page";
 import { DataManagementPage } from "./pages/data-management/page";
-import { FrontendPage } from "./pages/frontend/page";
+import { FrontendPage, type FrontendWebviewElement } from "./pages/frontend/page";
 import { SetupPage } from "./pages/setup/page";
 import i18n, { isDesktopLanguage } from "./i18n";
 import type { DesktopConfig } from "../shared/config";
@@ -84,8 +84,25 @@ const SOCKET_DIAGNOSTIC_EVENTS = new Set([
   "connection-timeout",
 ]);
 
-interface FrontendWebviewElement extends HTMLElement {
-  send: (channel: string, ...args: unknown[]) => void;
+interface WebviewNavigationState {
+  canGoBack: boolean;
+  canGoForward: boolean;
+}
+
+const EMPTY_WEBVIEW_NAVIGATION: WebviewNavigationState = {
+  canGoBack: false,
+  canGoForward: false,
+};
+
+function getWebviewNavigationState(webview: FrontendWebviewElement): WebviewNavigationState {
+  try {
+    return {
+      canGoBack: webview.canGoBack(),
+      canGoForward: webview.canGoForward(),
+    };
+  } catch {
+    return EMPTY_WEBVIEW_NAVIGATION;
+  }
 }
 
 function isMenuShortcut(value: unknown): value is string {
@@ -181,7 +198,8 @@ export function App() {
   const [dataManagementPrevState, setDataManagementPrevState] = useState<ShellState | null>(null);
   const [dataManagementInstanceId, setDataManagementInstanceId] = useState<string | null>(null);
   const [startupProgress, setStartupProgress] = useState<StartupProgressEvent | null>(null);
-  const [frontendWebview, setFrontendWebview] = useState<HTMLElement | null>(null);
+  const [frontendWebview, setFrontendWebview] = useState<FrontendWebviewElement | null>(null);
+  const [webviewNavigation, setWebviewNavigation] = useState<WebviewNavigationState>(EMPTY_WEBVIEW_NAVIGATION);
   const lastAutoUpdateCheck = useRef<string | null>(null);
   const automaticallyOpenedUpdate = useRef<string | null>(null);
   const startupRequestId = useRef(0);
@@ -292,7 +310,7 @@ export function App() {
 
     const restoreZoomFactor = () => {
       void window.openficDesktop.getZoomFactor().then((zoomFactor) => {
-        (frontendWebview as FrontendWebviewElement).send("openfic:zoom-factor", zoomFactor);
+        frontendWebview.send("openfic:zoom-factor", zoomFactor);
       });
     };
 
@@ -302,6 +320,25 @@ export function App() {
     return () => {
       frontendWebview.removeEventListener("ipc-message", handleIpcMessage);
       frontendWebview.removeEventListener("did-finish-load", restoreZoomFactor);
+    };
+  }, [frontendWebview]);
+
+  useEffect(() => {
+    if (!frontendWebview) {
+      setWebviewNavigation(EMPTY_WEBVIEW_NAVIGATION);
+      return;
+    }
+
+    const syncNavigationState = () => {
+      setWebviewNavigation(getWebviewNavigationState(frontendWebview));
+    };
+    const navigationEvents = ["did-navigate", "did-navigate-in-page", "did-finish-load", "dom-ready"];
+
+    for (const eventName of navigationEvents) frontendWebview.addEventListener(eventName, syncNavigationState);
+    syncNavigationState();
+
+    return () => {
+      for (const eventName of navigationEvents) frontendWebview.removeEventListener(eventName, syncNavigationState);
     };
   }, [frontendWebview]);
 
@@ -336,7 +373,7 @@ export function App() {
     if (!frontendWebview) return;
 
     const handleZoomFactor = (zoomFactor: number) => {
-      (frontendWebview as FrontendWebviewElement).send("openfic:zoom-factor", zoomFactor);
+      frontendWebview.send("openfic:zoom-factor", zoomFactor);
     };
 
     return window.openficDesktop.onZoomFactorChanged(handleZoomFactor);
@@ -524,6 +561,22 @@ export function App() {
     if (!canCheckForUpdates) setUpdateDialogOpen(false);
   }, [canCheckForUpdates]);
 
+  const handleWebviewNavigation = (direction: "back" | "forward") => {
+    if (!frontendWebview) return;
+
+    try {
+      if (direction === "back") {
+        if (!frontendWebview.canGoBack()) return;
+        frontendWebview.goBack();
+        return;
+      }
+      if (!frontendWebview.canGoForward()) return;
+      frontendWebview.goForward();
+    } catch {
+      setWebviewNavigation(EMPTY_WEBVIEW_NAVIGATION);
+    }
+  };
+
   useEffect(() => {
     if (updateState.status !== "available") {
       automaticallyOpenedUpdate.current = null;
@@ -578,6 +631,10 @@ export function App() {
         activeInstanceId={activeInstanceId}
         config={config}
         disabled={shellState === "booting"}
+        canGoBack={shellState === "frontend" && webviewNavigation.canGoBack}
+        canGoForward={shellState === "frontend" && webviewNavigation.canGoForward}
+        onGoBack={() => handleWebviewNavigation("back")}
+        onGoForward={() => handleWebviewNavigation("forward")}
         onAddInstance={handleAddInstance}
         onOpenSetup={() => handleShowSetup()}
         onOpenDataManagement={handleOpenDataManagement}

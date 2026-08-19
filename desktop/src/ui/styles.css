@@ -492,22 +492,18 @@ body {
   min-height: 0;
 }
 
-.desktop-titlebar-brand {
-  display: block;
-  width: 24px;
-  height: 24px;
-  flex: 0 0 24px;
-  background-color: var(--gray-11);
-  mask: url("/openfic.svg") center / contain no-repeat;
-  -webkit-mask: url("/openfic.svg") center / contain no-repeat;
-}
-
 .desktop-titlebar-left {
   display: inline-flex;
   align-items: center;
   min-width: 0;
-  gap: 18px;
+  gap: 10px;
   -webkit-app-region: no-drag;
+}
+
+.desktop-navigation {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .desktop-menu-bar {
@@ -675,6 +671,7 @@ body {
 
 .titlebar-button:disabled:hover {
   background: transparent;
+  color: var(--gray-11);
 }
 
 .titlebar-update-checking {

@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent, useRef, useState, type CSSProperties, type MouseEvent } from "react";
-import { Link2, Link2Off, Minus, Plus, RefreshCw, Square, Star, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Link2, Link2Off, Minus, Plus, RefreshCw, Square, Star, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { DesktopConfig, DesktopInstance } from "../../shared/config";
 import type { UpdateState } from "../../shared/ipc";
@@ -8,6 +8,10 @@ interface DesktopHeaderProps {
   activeInstanceId: string | null;
   config: DesktopConfig | null;
   disabled: boolean;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  onGoBack: () => void;
+  onGoForward: () => void;
   onAddInstance: () => void;
   onOpenSetup: () => void;
   onOpenDataManagement: () => void;
@@ -98,6 +102,10 @@ export function DesktopHeader({
   activeInstanceId,
   config,
   disabled,
+  canGoBack,
+  canGoForward,
+  onGoBack,
+  onGoForward,
   onAddInstance,
   onOpenSetup,
   onOpenDataManagement,
@@ -373,11 +381,26 @@ export function DesktopHeader({
   return (
       <header className="desktop-header">
         <div className="desktop-titlebar-left">
-          <span
-            className="desktop-titlebar-brand"
-            role="img"
-            aria-label="OpenFic"
-          />
+          <nav className="desktop-navigation" aria-label={t("desktop.header.navigation")}>
+            <button
+              className="titlebar-button"
+              aria-label={t("desktop.header.goBack")}
+              type="button"
+              disabled={!canGoBack}
+              onClick={onGoBack}
+            >
+              <ArrowLeft size={15} strokeWidth={2} />
+            </button>
+            <button
+              className="titlebar-button"
+              aria-label={t("desktop.header.goForward")}
+              type="button"
+              disabled={!canGoForward}
+              onClick={onGoForward}
+            >
+              <ArrowRight size={15} strokeWidth={2} />
+            </button>
+          </nav>
           <nav className="desktop-menu-bar" aria-label={t("desktop.header.appMenu")} ref={menuBarRef}>
           <div className="desktop-menu">
             <button

@@ -1,9 +1,17 @@
 import { type Ref } from "react";
 
+export interface FrontendWebviewElement extends HTMLElement {
+  canGoBack: () => boolean;
+  goBack: () => void;
+  canGoForward: () => boolean;
+  goForward: () => void;
+  send: (channel: string, ...args: unknown[]) => void;
+}
+
 interface FrontendPageProps {
   webviewKey: number;
   partition: string;
-  webviewRef: Ref<HTMLElement>;
+  webviewRef: Ref<FrontendWebviewElement>;
 }
 
 export function FrontendPage({ webviewKey, partition, webviewRef }: FrontendPageProps) {
