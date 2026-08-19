@@ -223,7 +223,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             ),
             reasoning={"effort": reasoning_effort} if reasoning_effort else None,
             max_retries=0,
-            timeout=int(_request_timeout()[1]),
+            timeout=int(_request_timeout()[1] * 1000),
         ))
 
     if provider == "groq":

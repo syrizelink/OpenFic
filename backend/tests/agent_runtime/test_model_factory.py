@@ -398,7 +398,10 @@ def test_create_chat_model_deepseek_uses_native_client(monkeypatch):
     assert model.stream_chunk_timeout == 77.0
 
 
-def test_create_chat_model_openrouter_uses_native_client():
+def test_create_chat_model_openrouter_uses_native_client(monkeypatch):
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "llm_request_timeout", 600.0)
     config = ModelConfig(
         provider_type="openrouter",
         base_url="https://openrouter.ai/api/v1",
@@ -411,6 +414,7 @@ def test_create_chat_model_openrouter_uses_native_client():
     from langchain_openrouter import ChatOpenRouter
 
     assert isinstance(model, ChatOpenRouter)
+    assert model.request_timeout == 600000
 
 
 def test_create_chat_model_groq_uses_native_client():
