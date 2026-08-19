@@ -763,8 +763,22 @@
 }
 
 .agent-special-panel-heading {
+  justify-content: space-between;
   margin-bottom: 8px;
   color: var(--gray-12);
+}
+
+.agent-special-panel-heading-action {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.agent-special-panel[data-collapsed="true"] .agent-special-panel-heading {
+  margin-bottom: 4px;
+}
+
+.agent-special-panel[data-collapsed="true"] .agent-special-panel-summary {
+  margin-bottom: 0;
 }
 
 .agent-special-panel-title {

@@ -1813,6 +1813,8 @@
     },
     "specialPanels": {
       "clarificationTitle": "需要补充信息",
+      "collapseQuestionPanel": "收起提问面板",
+      "expandQuestionPanel": "展开提问面板",
       "approvalTitle": "需要审批",
       "deny": "拒绝",
       "approve": "执行"

@@ -5,7 +5,9 @@ interface SpecialPanelShellProps {
   actions?: ReactNode;
   className?: string;
   content?: ReactNode;
+  headingAction?: ReactNode;
   icon: ReactNode;
+  isCollapsed?: boolean;
   kind: "approval" | "question";
   summary?: ReactNode;
   title: string;
@@ -16,7 +18,9 @@ export function SpecialPanelShell({
   actions,
   className,
   content,
+  headingAction,
   icon,
+  isCollapsed = false,
   kind,
   summary,
   title,
@@ -29,6 +33,7 @@ export function SpecialPanelShell({
   return (
     <Box
       className={panelClassName}
+      data-collapsed={isCollapsed ? "true" : undefined}
       data-panel-kind={kind}
     >
       <Flex
@@ -57,6 +62,9 @@ export function SpecialPanelShell({
             </Text>
           ) : null}
         </Flex>
+        {headingAction ? (
+          <Box className="agent-special-panel-heading-action">{headingAction}</Box>
+        ) : null}
       </Flex>
       {summary ? (
         <Text
@@ -66,8 +74,10 @@ export function SpecialPanelShell({
           {summary}
         </Text>
       ) : null}
-      {content ? <Box className="agent-special-panel-content">{content}</Box> : null}
-      {actions ? (
+      {!isCollapsed && content ? (
+        <Box className="agent-special-panel-content">{content}</Box>
+      ) : null}
+      {!isCollapsed && actions ? (
         <Flex
           gap="2"
           justify="end"

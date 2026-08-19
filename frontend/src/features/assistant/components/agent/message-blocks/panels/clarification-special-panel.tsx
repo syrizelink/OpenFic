@@ -1,5 +1,6 @@
-import { Box, Flex, Text } from "@radix-ui/themes";
-import { HelpCircle } from "lucide-react";
+import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
+import { ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { AgentQuestionSpecialPanel } from "../../agent-special-panels-state";
@@ -66,6 +67,7 @@ function ClarificationSpecialPanelContent({
   readOnly = false,
 }: ClarificationSpecialPanelContentProps) {
   const { t } = useTranslation();
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const model = useClarificationQuestionFlow(prompt, {
     onSubmitQuestionAnswer: (actionId, answer) => {
       if (onBatchDecision) {
@@ -75,6 +77,9 @@ function ClarificationSpecialPanelContent({
       onSubmitQuestionAnswer?.(actionId, answer);
     },
   });
+  const collapseLabel = isCollapsed
+    ? t("assistant.specialPanels.expandQuestionPanel")
+    : t("assistant.specialPanels.collapseQuestionPanel");
   const content = readOnly ? (
     <Flex
       direction="column"
@@ -129,8 +134,24 @@ function ClarificationSpecialPanelContent({
       icon={<HelpCircle size={15} />}
       title={t("assistant.specialPanels.clarificationTitle")}
       summary={summary}
+      headingAction={
+        <Tooltip content={collapseLabel}>
+          <IconButton
+            variant="ghost"
+            color="gray"
+            size="1"
+            type="button"
+            aria-label={collapseLabel}
+            aria-expanded={!isCollapsed}
+            onClick={() => setIsCollapsed((current) => !current)}
+          >
+            {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+          </IconButton>
+        </Tooltip>
+      }
+      isCollapsed={isCollapsed}
       progress={
-        panel.batchIndex !== undefined && panel.batchTotal !== undefined
+        panel.batchIndex !== undefined && panel.batchTotal !== undefined && panel.batchTotal > 1
           ? `${panel.batchIndex + 1}/${panel.batchTotal}`
           : undefined
       }

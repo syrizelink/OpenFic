@@ -1750,6 +1750,8 @@
     },
     "specialPanels": {
       "clarificationTitle": "More information needed",
+      "collapseQuestionPanel": "Collapse question panel",
+      "expandQuestionPanel": "Expand question panel",
       "approvalTitle": "Approval required",
       "deny": "Deny",
       "approve": "Run"
