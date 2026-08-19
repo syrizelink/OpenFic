@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "openfic"
 version = "0.10.0"
-description = "Ready for adding."
+description = "An AI-native, cross-platform writing tool for fiction authors."
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.12,<3.14"
