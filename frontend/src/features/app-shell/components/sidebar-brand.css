@@ -1,0 +1,41 @@
+.sidebar-brand-logo {
+  display: block;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  background-color: var(--gray-11);
+  mask: url("/openfic.svg") center / contain no-repeat;
+  -webkit-mask: url("/openfic.svg") center / contain no-repeat;
+}
+
+.sidebar-brand-collapsed,
+.sidebar-brand-wordmark-wrapper {
+  display: flex;
+  align-items: center;
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.sidebar-brand-collapsed {
+  width: 40px;
+  height: 40px;
+  justify-content: center;
+}
+
+.sidebar-brand-wordmark-wrapper {
+  box-sizing: border-box;
+  left: 40px;
+  height: 40px;
+}
+
+.sidebar-brand-wordmark {
+  display: block;
+  width: 77px;
+  height: 24px;
+  flex: 0 0 auto;
+  background-color: var(--gray-11);
+  mask: url("/brand.svg") -28.12px center / 108.4px 24px no-repeat;
+  -webkit-mask: url("/brand.svg") -28.12px center / 108.4px 24px no-repeat;
+}

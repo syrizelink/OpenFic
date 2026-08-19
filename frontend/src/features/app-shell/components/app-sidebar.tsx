@@ -306,7 +306,6 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
               p="3"
             >
               <SidebarBrand
-                title={currentProject?.title ?? t("common.appName")}
                 isExpanded={isMobile || isExpanded}
                 isHovered={isLogoHovered}
                 expandLabel={t("topbar.expand")}

@@ -493,10 +493,13 @@ body {
 }
 
 .desktop-titlebar-brand {
-  color: var(--gray-11);
-  font-size: 13px;
-  font-weight: 650;
-  letter-spacing: 0.04em;
+  display: block;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  background-color: var(--gray-11);
+  mask: url("/openfic.svg") center / contain no-repeat;
+  -webkit-mask: url("/openfic.svg") center / contain no-repeat;
 }
 
 .desktop-titlebar-left {

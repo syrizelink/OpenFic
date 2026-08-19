@@ -28,6 +28,7 @@ extraResources:
     to: app-update.yml
 
 win:
+  icon: resources/icons/openfic.svg
   artifactName: OpenFic-${version}-win-${arch}.${ext}
   target:
     - nsis
@@ -39,6 +40,7 @@ nsis:
   artifactName: OpenFic-${version}-win-${arch}-setup.${ext}
 
 mac:
+  icon: resources/icons/openfic.svg
   artifactName: OpenFic-${version}-mac-${arch}.${ext}
   target:
     - dmg
@@ -47,6 +49,7 @@ mac:
   identity: null
 
 linux:
+  icon: resources/icons
   artifactName: OpenFic-${version}-linux-${arch}.${ext}
   synopsis: An AI-native writing tool for fiction authors
   description: OpenFic is an AI-native, cross-platform writing tool built for fiction authors.

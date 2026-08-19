@@ -1,12 +1,13 @@
-import { Box, Flex, Text, IconButton, Tooltip } from "@radix-ui/themes";
-import { BookOpen, PanelLeft } from "lucide-react";
+import { Box, Flex, IconButton, Tooltip } from "@radix-ui/themes";
+import { PanelLeft } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { KeyboardEvent, PointerEvent } from "react";
+
+import "./sidebar-brand.css";
 
 import {
   SIDEBAR_EXPANDED_WIDTH,
   SIDEBAR_ICON_ACTIVE_COLOR,
-  SIDEBAR_ICON_COLOR,
   SIDEBAR_ICON_SIZE,
   SIDEBAR_ITEM_HEIGHT,
   sidebarActionButtonStyle,
@@ -15,7 +16,6 @@ import {
 const MotionFlex = motion.create(Flex);
 
 interface SidebarBrandProps {
-  title: string;
   isExpanded: boolean;
   isHovered: boolean;
   expandLabel: string;
@@ -29,7 +29,6 @@ interface SidebarBrandProps {
 }
 
 export function SidebarBrand({
-  title,
   isExpanded,
   isHovered,
   expandLabel,
@@ -70,6 +69,9 @@ export function SidebarBrand({
             handleActivate();
           }
         }}
+        animate={{
+          width: isExpanded ? SIDEBAR_EXPANDED_WIDTH - 72 : SIDEBAR_ITEM_HEIGHT,
+        }}
         style={{
           minWidth: SIDEBAR_ITEM_HEIGHT,
           height: SIDEBAR_ITEM_HEIGHT,
@@ -79,23 +81,12 @@ export function SidebarBrand({
           backgroundColor: !isExpanded && isHovered ? "var(--gray-a3)" : "transparent",
           justifyContent: "flex-start",
           overflow: "hidden",
-        }}
-        animate={{
-          width: isExpanded ? SIDEBAR_EXPANDED_WIDTH - 72 : SIDEBAR_ITEM_HEIGHT,
+          position: "relative",
         }}
         transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
         whileTap={{ scale: 0.97 }}
       >
-        <Box
-          style={{
-            width: SIDEBAR_ITEM_HEIGHT,
-            height: SIDEBAR_ITEM_HEIGHT,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
+        <div className="sidebar-brand-collapsed">
           <AnimatePresence
             mode="wait"
             initial={false}
@@ -124,41 +115,27 @@ export function SidebarBrand({
                 transition={{ duration: 0.1 }}
                 style={{ display: "flex" }}
               >
-                <BookOpen
-                  size={SIDEBAR_ICON_SIZE}
-                  color="currentColor"
-                  style={{ color: SIDEBAR_ICON_COLOR }}
+                <span
+                  className="sidebar-brand-logo"
+                  aria-hidden="true"
                 />
               </motion.div>
             )}
           </AnimatePresence>
-        </Box>
+        </div>
 
-        <AnimatePresence initial={false}>
-          {isExpanded && (
-            <motion.div
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: 116 }}
-              exit={{ opacity: 0, width: 0 }}
-              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-              style={{ minWidth: 0, overflow: "hidden" }}
-            >
-              <Text
-                size="3"
-                weight="bold"
-                style={{
-                  display: "block",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  maxWidth: 116,
-                }}
-              >
-                {title}
-              </Text>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <motion.div
+          className="sidebar-brand-wordmark-wrapper"
+          initial={false}
+          animate={{ opacity: isExpanded ? 1 : 0 }}
+          transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+          aria-hidden={!isExpanded}
+        >
+          <span
+            className="sidebar-brand-wordmark"
+            aria-hidden="true"
+          />
+        </motion.div>
       </MotionFlex>
 
       {isExpanded && (
