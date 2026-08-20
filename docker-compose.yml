@@ -1,0 +1,11 @@
+services:
+  openfic:
+    image: ghcr.io/syrizelink/openfic:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - openfic:/data
+    restart: unless-stopped
+
+volumes:
+  openfic:
