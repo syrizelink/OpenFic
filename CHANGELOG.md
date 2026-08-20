@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.10.1](https://github.com/syrizelink/OpenFic/compare/v0.10.0...v0.10.1) (2026-08-20)
+
+
+### 🐛 问题修复
+
+* **desktop:** 修复 PyPI 镜像 wheel 文件 403 导致桌面更新失败的问题 ([#315](https://github.com/syrizelink/OpenFic/issues/315)) ([fd99c8b](https://github.com/syrizelink/OpenFic/commit/fd99c8b157be8251c3b3e4a21bfe4899b56c2fbe))
+* **desktop:** 限制 setup 错误内容高度 ([#314](https://github.com/syrizelink/OpenFic/issues/314)) ([adaefb9](https://github.com/syrizelink/OpenFic/commit/adaefb9b1b489597929654886807487a64cb7821))
+* **openrouter:** 修复 OpenRouter SDK 超时单位混淆导致请求卡住的问题 ([#319](https://github.com/syrizelink/OpenFic/issues/319)) ([422b951](https://github.com/syrizelink/OpenFic/commit/422b951204e25538e6df752573f5e2f3b4fc327a))
+
+
+### ⚡ 性能优化
+
+* **desktop:** 缩减桌面安装包体积 ([#313](https://github.com/syrizelink/OpenFic/issues/313)) ([0ecbc54](https://github.com/syrizelink/OpenFic/commit/0ecbc5440c7bf24585886f4743dfb037109460ee))
+
+
+### 📚 文档
+
+* 更新项目文档 ([#320](https://github.com/syrizelink/OpenFic/issues/320)) ([54f18e1](https://github.com/syrizelink/OpenFic/commit/54f18e1b1aa0bad44d178f68cd01fdeab0149e60))
+
+
+### 🔧 杂项
+
+* **agent:** 允许Agent会话记住输入历史和未发送草稿 ([#316](https://github.com/syrizelink/OpenFic/issues/316)) ([7c0b8f2](https://github.com/syrizelink/OpenFic/commit/7c0b8f27dbb52f895492a24ca1c799e8cd7a9823))
+* **branding:** 更新品牌图标与应用标识 ([#321](https://github.com/syrizelink/OpenFic/issues/321)) ([e73b900](https://github.com/syrizelink/OpenFic/commit/e73b900ccb8bd2486a7f1920cacc598cf6bf141a))
+* **desktop:** 支持实例删除 ([#324](https://github.com/syrizelink/OpenFic/issues/324)) ([128b057](https://github.com/syrizelink/OpenFic/commit/128b0576b1e94e93bde7ff9a51c9ce727f4751e1))
+* **desktop:** 添加桌面端前进后退导航 ([#323](https://github.com/syrizelink/OpenFic/issues/323)) ([70b4af7](https://github.com/syrizelink/OpenFic/commit/70b4af7ced68bf43c086def2ddd37a8a36fda2f2))
+* **editor:** 新增成对符号自动补齐设置 ([#317](https://github.com/syrizelink/OpenFic/issues/317)) ([d5322ca](https://github.com/syrizelink/OpenFic/commit/d5322ca5435ead0ff3d6624e55d6af436b05129e))
+* **editor:** 新增段落自动缩进设置 ([#311](https://github.com/syrizelink/OpenFic/issues/311)) ([4024a67](https://github.com/syrizelink/OpenFic/commit/4024a67de7afc02048420ab374143c75997928ea))
+* **editor:** 新增自动转换半角符号设置 ([#312](https://github.com/syrizelink/OpenFic/issues/312)) ([30fb71e](https://github.com/syrizelink/OpenFic/commit/30fb71e2ee050cc384c1635193db489f35582568))
+* **frontend:** 支持提问面板折叠 ([#322](https://github.com/syrizelink/OpenFic/issues/322)) ([1b0b253](https://github.com/syrizelink/OpenFic/commit/1b0b253e0415a2e6847a787a7f3cdcd6b80dff0d))
+* **vscode:** 添加 VS Code 开发任务配置 ([#309](https://github.com/syrizelink/OpenFic/issues/309)) ([94503b9](https://github.com/syrizelink/OpenFic/commit/94503b921f42ab8a61b98365889929d4979477b6))
+
 ## [0.10.0](https://github.com/syrizelink/OpenFic/compare/v0.9.2...v0.10.0) (2026-08-16)
 
 
