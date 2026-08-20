@@ -1,6 +1,4 @@
 import { app, dialog, ipcMain, session, shell, webContents, type BrowserWindow } from "electron";
-import { randomUUID } from "node:crypto";
-import { lstat, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import {
   IpcChannels,
@@ -58,15 +56,10 @@ const FEATURE_SUGGESTION_URL = `${PROJECT_HOME_URL}/issues/new?template=feature-
 const MIN_ZOOM_FACTOR = 0.7;
 const MAX_ZOOM_FACTOR = 2.0;
 const DEFAULT_ZOOM_FACTOR = 1.1;
-const DELETION_STAGE_SUFFIX = ".openfic-deleting-";
 
 interface LocalInstanceDeletionPaths {
   dataDir: string;
   runtimeDir: string;
-}
-
-interface StagedPath {
-  stagedPath: string;
 }
 
 function normalizeZoomFactor(zoomFactor: number): number {
@@ -118,35 +111,6 @@ async function isRuntimeDirShared(
   return false;
 }
 
-function isMissingPathError(error: unknown): boolean {
-  return error instanceof Error && "code" in error && error.code === "ENOENT";
-}
-
-async function stagePath(filePath: string, token: string): Promise<StagedPath | null> {
-  try {
-    await lstat(filePath);
-  } catch (error) {
-    if (isMissingPathError(error)) return null;
-    throw error;
-  }
-  const stagedPath = `${filePath}${DELETION_STAGE_SUFFIX}${token}`;
-  await rename(filePath, stagedPath);
-  return { stagedPath };
-}
-
-async function finalizeStagedPaths(stagedPaths: StagedPath[]): Promise<void> {
-  let firstError: unknown = null;
-  for (const stagedPath of stagedPaths) {
-    try {
-      await rm(stagedPath.stagedPath, { recursive: true, force: true });
-    } catch (error) {
-      appendLog("instance", `清理待删除资源失败：${stagedPath.stagedPath}：${error instanceof Error ? error.message : String(error)}`);
-      firstError ??= error;
-    }
-  }
-  if (firstError) throw firstError;
-}
-
 async function assertSafeRuntimeDataPaths(instancePaths: LocalInstanceDeletionPaths): Promise<void> {
   const isDefaultDataDir = await arePathsEqual(instancePaths.dataDir, getDefaultDataDir());
   const pathsOverlap = await doPathsOverlap(instancePaths.runtimeDir, instancePaths.dataDir);
@@ -156,33 +120,37 @@ async function assertSafeRuntimeDataPaths(instancePaths: LocalInstanceDeletionPa
   }
 }
 
-async function stageInstanceResources(
+async function removeInstanceResources(
   instancePaths: LocalInstanceDeletionPaths,
   deleteData: boolean,
   runtimeDirShared: boolean,
-): Promise<StagedPath[]> {
+): Promise<void> {
   const isDefaultDataDir = await arePathsEqual(instancePaths.dataDir, getDefaultDataDir());
   await assertSafeRuntimeDataPaths(instancePaths);
 
-  const token = randomUUID();
-  const stagedPaths: StagedPath[] = [];
+  const pathsToRemove: string[] = [];
   if (!runtimeDirShared) {
-    const stagedRuntime = await stagePath(instancePaths.runtimeDir, token);
-    if (stagedRuntime) stagedPaths.push(stagedRuntime);
+    pathsToRemove.push(instancePaths.runtimeDir);
   }
 
-  if (!deleteData) return stagedPaths;
-  if (isDefaultDataDir) {
-    for (const entry of INSTANCE_DATA_ENTRIES) {
-      const stagedEntry = await stagePath(path.join(instancePaths.dataDir, entry), token);
-      if (stagedEntry) stagedPaths.push(stagedEntry);
+  if (deleteData) {
+    if (isDefaultDataDir) {
+      pathsToRemove.push(...[...INSTANCE_DATA_ENTRIES].map((entry) => path.join(instancePaths.dataDir, entry)));
+    } else {
+      pathsToRemove.push(instancePaths.dataDir);
     }
-    return stagedPaths;
   }
 
-  const stagedData = await stagePath(instancePaths.dataDir, token);
-  if (stagedData) stagedPaths.push(stagedData);
-  return stagedPaths;
+  let firstError: unknown = null;
+  for (const filePath of pathsToRemove) {
+    try {
+      await removeDataDir(filePath);
+    } catch (error) {
+      appendLog("instance", `清理实例资源失败：${filePath}：${error instanceof Error ? error.message : String(error)}`);
+      firstError ??= error;
+    }
+  }
+  if (firstError) throw firstError;
 }
 
 function getNextActiveInstanceId(config: DesktopConfig, remainingInstances: DesktopInstance[]): string | null {
@@ -381,7 +349,6 @@ export function registerIpc(context: IpcContext): void {
       const runtimeDirShared = instancePaths
         ? await isRuntimeDirShared(config, instance, instancePaths)
         : false;
-      if (instancePaths) await assertSafeRuntimeDataPaths(instancePaths);
 
       appendLog("instance", `准备删除实例：${instance.name}（${instance.id}）`);
       const remainingInstances = config.instances.filter((item) => item.id !== instance.id);
@@ -393,13 +360,6 @@ export function registerIpc(context: IpcContext): void {
       }
       await clearInstanceSession(instance.id);
 
-      let stagedPaths: StagedPath[] = [];
-      if (instancePaths) {
-        stagedPaths = await stageInstanceResources(instancePaths, request.deleteData, runtimeDirShared);
-        if (runtimeDirShared) {
-          appendLog("instance", `保留共享运行环境：${instancePaths.runtimeDir}`);
-        }
-      }
       const nextConfig: DesktopConfig = {
         ...config,
         activeInstanceId: nextActiveInstanceId,
@@ -407,7 +367,16 @@ export function registerIpc(context: IpcContext): void {
       };
       await writeDesktopConfig(nextConfig);
       context.onConfigSaved(nextConfig);
-      await finalizeStagedPaths(stagedPaths);
+      if (instancePaths) {
+        if (runtimeDirShared) {
+          appendLog("instance", `保留共享运行环境：${instancePaths.runtimeDir}`);
+        }
+        try {
+          await removeInstanceResources(instancePaths, request.deleteData, runtimeDirShared);
+        } catch (error) {
+          appendLog("instance", `实例资源清理未完成：${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
       return { nextActiveInstanceId };
     }),
   );
