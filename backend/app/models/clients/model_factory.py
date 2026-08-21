@@ -20,6 +20,11 @@ from app.models.clients.model_params import (
     is_non_default,
     with_default,
 )
+from app.models.helpers.openrouter_attribution import (
+    OPENROUTER_APP_CATEGORIES,
+    OPENROUTER_APP_TITLE,
+    OPENROUTER_APP_URL,
+)
 
 
 @dataclass
@@ -212,6 +217,9 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             model=config.model_id,
             api_key=config.api_key,
             base_url=config.base_url or None,
+            app_url=OPENROUTER_APP_URL,
+            app_title=OPENROUTER_APP_TITLE,
+            app_categories=list(OPENROUTER_APP_CATEGORIES),
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             top_p=_non_default(config.top_p, DEFAULT_TOP_P),
             max_tokens=config.max_tokens,

@@ -20,6 +20,7 @@ from app.core.errors import (
     ValidationError,
 )
 from app.models.clients.client_factory import ClientFactory
+from app.models.helpers.openrouter_attribution import get_openrouter_attribution_headers
 
 
 DEFAULT_RERANK_TIMEOUT = 60
@@ -96,13 +97,16 @@ class RerankClient:
             async with ClientFactory.create_client(
                 timeout=float(self.config.request_timeout)
             ) as client:
+                headers = {
+                    "Authorization": f"Bearer {self.config.api_key}",
+                    "Content-Type": "application/json",
+                }
+                if self.config.provider_type == "openrouter":
+                    headers.update(get_openrouter_attribution_headers())
                 response = await client.post(
                     f"{self.config.base_url.rstrip('/')}/rerank",
                     json=payload,
-                    headers={
-                        "Authorization": f"Bearer {self.config.api_key}",
-                        "Content-Type": "application/json",
-                    },
+                    headers=headers,
                 )
         except httpx.TimeoutException as exc:
             raise ProviderTimeoutError("Rerank request timed out") from exc

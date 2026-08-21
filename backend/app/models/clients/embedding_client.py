@@ -12,6 +12,8 @@ from langchain_core.embeddings import Embeddings
 from loguru import logger
 from pydantic import SecretStr
 
+from app.models.helpers.openrouter_attribution import get_openrouter_attribution_headers
+
 
 @dataclass
 class EmbeddingConfig:
@@ -133,6 +135,8 @@ class EmbeddingClient:
                 "check_embedding_ctx_length": False,
                 "model_kwargs": {"encoding_format": "float"},
             }
+            if config.provider_type == "openrouter":
+                openai_kwargs["default_headers"] = get_openrouter_attribution_headers()
             if config.dimensions is not None:
                 openai_kwargs["dimensions"] = config.dimensions
 
