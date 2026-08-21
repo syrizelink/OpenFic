@@ -155,6 +155,10 @@ function transformModel(raw: ModelResponse): Model {
     repetitionPenalty: raw.repetition_penalty,
     maxTokens: raw.max_tokens,
     contextLength: raw.context_length ?? 128000,
+    inputPrice: raw.input_price ?? 0,
+    outputPrice: raw.output_price ?? 0,
+    cacheReadPrice: raw.cache_read_price ?? 0,
+    cacheWritePrice: raw.cache_write_price ?? 0,
     dimensions: raw.dimensions,
     isBuiltin: raw.is_builtin ?? false,
     createdAt: raw.created_at,
@@ -195,6 +199,7 @@ function transformCatalogModel(raw: ModelProviderCatalogModelResponse): ModelPro
     inputPricePerMillion: readNumericMetadataField(metadata?.cost, "input"),
     outputPricePerMillion: readNumericMetadataField(metadata?.cost, "output"),
     cacheReadPricePerMillion: readNumericMetadataField(metadata?.cost, "cache_read"),
+    cacheWritePricePerMillion: readNumericMetadataField(metadata?.cost, "cache_write"),
     source: "catalog",
   };
 }
@@ -219,6 +224,7 @@ function transformAvailableModel(
     inputPricePerMillion: readNumericMetadataField(metadata?.cost, "input"),
     outputPricePerMillion: readNumericMetadataField(metadata?.cost, "output"),
     cacheReadPricePerMillion: readNumericMetadataField(metadata?.cost, "cache_read"),
+    cacheWritePricePerMillion: readNumericMetadataField(metadata?.cost, "cache_write"),
     source,
   };
 }

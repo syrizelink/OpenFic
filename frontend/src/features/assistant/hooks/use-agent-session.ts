@@ -256,6 +256,7 @@ interface UseAgentSessionOptions {
     tokenInput: number;
     tokenOutput: number;
     tokenCache: number;
+    cost: number;
   }) => void;
   onTaskUsageDelta?: (payload: {
     sessionId: string;
@@ -263,6 +264,7 @@ interface UseAgentSessionOptions {
     tokenInput: number;
     tokenOutput: number;
     tokenCache: number;
+    cost: number;
   }) => void;
   onTaskTitleUpdated?: (taskId: string, title: string, updatedAt?: string) => void;
   onSessionCreated?: (session: AgentSessionCreateResponse) => void;
@@ -613,6 +615,7 @@ export function useAgentSession({
             tokenInput: Number(payload.token_input ?? 0),
             tokenOutput: Number(payload.token_output ?? 0),
             tokenCache: Number(payload.token_cache ?? 0),
+            cost: Number(payload.cost ?? 0),
           });
           return;
         }
@@ -626,6 +629,7 @@ export function useAgentSession({
             tokenInput: Number(payload.token_input ?? 0),
             tokenOutput: Number(payload.token_output ?? 0),
             tokenCache: Number(payload.token_cache ?? 0),
+            cost: Number(payload.cost ?? 0),
           });
           return;
         }

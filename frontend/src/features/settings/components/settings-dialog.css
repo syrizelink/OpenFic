@@ -220,6 +220,27 @@
   outline-offset: 2px;
 }
 
+.model-metadata-section-toggle {
+  justify-content: flex-start;
+}
+
+.model-metadata-section-header {
+  width: 100%;
+}
+
+.model-metadata-section-panel {
+  overflow: hidden;
+}
+
+.model-metadata-section-content {
+  padding-top: var(--space-4);
+}
+
+.model-metadata-section-grid {
+  padding-right: 4px;
+  padding-left: 4px;
+}
+
 .agent-definition-kind-info-button {
   display: inline-flex;
   align-items: center;

@@ -360,6 +360,7 @@ class TestSocketIntegration:
             "token_input": 100,
             "token_output": 40,
             "token_cache": 8,
+            "cost": 0.0,
         }
 
         await emit(

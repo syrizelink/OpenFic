@@ -621,6 +621,7 @@ async def test_subagent_runner_passes_compaction_sinks_to_child_graph(
                 "token_input": 11,
                 "token_output": 3,
                 "token_cache": 2,
+                "cost": 0.0,
                 "context_input_tokens": 11,
                 "context_length": 8000,
             },
@@ -1831,6 +1832,7 @@ async def test_subagent_runner_accumulates_parent_task_usage_and_persists_child_
         "token_input": 18,
         "token_output": 7,
         "token_cache": 3,
+        "cost": 0.0,
         "context_input_tokens": 18,
         "context_length": 8000,
     }
@@ -1842,6 +1844,7 @@ async def test_subagent_runner_accumulates_parent_task_usage_and_persists_child_
             "token_input": 18,
             "token_output": 7,
             "token_cache": 3,
+            "cost": 0.0,
         },
         "agent_session:parent-session",
     ) in emitted

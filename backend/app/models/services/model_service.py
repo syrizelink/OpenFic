@@ -94,6 +94,10 @@ class ModelService:
         repetition_penalty: float | None = DEFAULT_REPETITION_PENALTY,
         max_tokens: int | None = None,
         context_length: int = DEFAULT_CONTEXT_LENGTH,
+        input_price: float = 0.0,
+        output_price: float = 0.0,
+        cache_read_price: float = 0.0,
+        cache_write_price: float = 0.0,
         dimensions: int | None = None,
     ) -> Model:
         """
@@ -162,6 +166,10 @@ class ModelService:
             repetition_penalty=repetition_penalty,
             max_tokens=max_tokens,
             context_length=context_length,
+            input_price=input_price,
+            output_price=output_price,
+            cache_read_price=cache_read_price,
+            cache_write_price=cache_write_price,
             dimensions=dimensions,
         )
         await session.commit()
@@ -186,6 +194,10 @@ class ModelService:
         repetition_penalty: float | None = None,
         max_tokens: int | None = None,
         context_length: int | None = None,
+        input_price: float | None = None,
+        output_price: float | None = None,
+        cache_read_price: float | None = None,
+        cache_write_price: float | None = None,
         dimensions: int | None = None,
     ) -> Model:
         """
@@ -254,6 +266,10 @@ class ModelService:
             repetition_penalty=repetition_penalty,
             max_tokens=max_tokens,
             context_length=context_length,
+            input_price=input_price,
+            output_price=output_price,
+            cache_read_price=cache_read_price,
+            cache_write_price=cache_write_price,
             dimensions=dimensions,
         )
 

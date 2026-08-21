@@ -35,6 +35,10 @@ class Model(SQLModel, table=True):
         repetition_penalty: Repetition Penalty 参数（LLM 专用）。
         max_tokens: Max Tokens 参数（LLM 专用）。
         context_length: 上下文长度（LLM 专用）。
+        input_price: 普通输入价格（美元/百万 token）。
+        output_price: 输出价格（美元/百万 token）。
+        cache_read_price: 缓存读取价格（美元/百万 token）。
+        cache_write_price: 缓存写入价格（美元/百万 token）。
         dimensions: Embedding 维度（Embedding 专用）。
         created_at: 创建时间。
         updated_at: 上次修改时间。
@@ -65,6 +69,10 @@ class Model(SQLModel, table=True):
     repetition_penalty: float | None = Field(default=None, ge=0.0, le=2.0)
     max_tokens: int | None = Field(default=None, ge=1)
     context_length: int = Field(default=DEFAULT_CONTEXT_LENGTH, ge=0, le=MAX_CONTEXT_LENGTH)
+    input_price: float = Field(default=0.0, ge=0.0)
+    output_price: float = Field(default=0.0, ge=0.0)
+    cache_read_price: float = Field(default=0.0, ge=0.0)
+    cache_write_price: float = Field(default=0.0, ge=0.0)
 
     # Embedding parameters (nullable)
     dimensions: int | None = Field(default=None, ge=1, description="Embedding dimensions")

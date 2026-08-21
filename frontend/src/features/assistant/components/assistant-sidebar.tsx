@@ -105,6 +105,7 @@ interface SessionTotalUsageState {
   tokenInput: number;
   tokenOutput: number;
   tokenCache: number;
+  cost: number;
 }
 
 function upsertActiveSubagent(
@@ -145,6 +146,7 @@ function createSessionTotalUsageState(
     tokenInput: 0,
     tokenOutput: 0,
     tokenCache: 0,
+    cost: 0,
   };
 }
 
@@ -179,6 +181,23 @@ function getSubagentStatusLabel(
 function formatTokenCount(value: number): string {
   if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
   if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+  return String(value);
+}
+
+const COST_FORMATTER = new Intl.NumberFormat("en-US", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+const SMALL_COST_FORMATTER = new Intl.NumberFormat("en-US", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 3,
+});
+
+function formatCost(value: number): string {
+  return (value < 1 ? SMALL_COST_FORMATTER : COST_FORMATTER).format(value);
+}
+
+function formatDetailedCost(value: number): string {
   return String(value);
 }
 
@@ -425,6 +444,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
             tokenInput: fullTask.tokenInput,
             tokenOutput: fullTask.tokenOutput,
             tokenCache: fullTask.tokenCache,
+            cost: fullTask.cost,
             contextInputTokens: fullTask.contextInputTokens,
             isRunning: fullTask.isRunning,
             isFavorited: fullTask.isFavorited,
@@ -455,6 +475,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
             tokenInput: fullTask.tokenInput,
             tokenOutput: fullTask.tokenOutput,
             tokenCache: fullTask.tokenCache,
+            cost: fullTask.cost,
           });
           setConversationUsageBySession((current) => ({
             ...current,
@@ -510,6 +531,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         tokenInput: number;
         tokenOutput: number;
         tokenCache: number;
+        cost: number;
       }) => {
         setSessionTotalUsage((current) => {
           if (current.sessionId && current.sessionId !== payload.sessionId) return current;
@@ -519,6 +541,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
             tokenInput: payload.tokenInput,
             tokenOutput: payload.tokenOutput,
             tokenCache: payload.tokenCache,
+            cost: payload.cost,
           };
         });
       },
@@ -532,6 +555,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         tokenInput: number;
         tokenOutput: number;
         tokenCache: number;
+        cost: number;
       }) => {
         setSessionTotalUsage((current) => {
           if (current.sessionId && current.sessionId !== payload.sessionId) return current;
@@ -541,6 +565,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
             tokenInput: current.tokenInput + payload.tokenInput,
             tokenOutput: current.tokenOutput + payload.tokenOutput,
             tokenCache: current.tokenCache + payload.tokenCache,
+            cost: current.cost + payload.cost,
           };
         });
       },
@@ -648,8 +673,14 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         tokenInput: sessionTotalUsage.tokenInput,
         tokenOutput: sessionTotalUsage.tokenOutput,
         tokenCache: sessionTotalUsage.tokenCache,
+        cost: sessionTotalUsage.cost,
       }),
-      [sessionTotalUsage.tokenCache, sessionTotalUsage.tokenInput, sessionTotalUsage.tokenOutput],
+      [
+        sessionTotalUsage.cost,
+        sessionTotalUsage.tokenCache,
+        sessionTotalUsage.tokenInput,
+        sessionTotalUsage.tokenOutput,
+      ],
     );
 
     const contextUsagePercent = Math.min(
@@ -872,6 +903,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
             tokenInput: fullTask.tokenInput,
             tokenOutput: fullTask.tokenOutput,
             tokenCache: fullTask.tokenCache,
+            cost: fullTask.cost,
             contextInputTokens: fullTask.contextInputTokens,
             isRunning: fullTask.isRunning,
             isFavorited: fullTask.isFavorited,
@@ -920,6 +952,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
             tokenInput: fullTask.tokenInput,
             tokenOutput: fullTask.tokenOutput,
             tokenCache: fullTask.tokenCache,
+            cost: fullTask.cost,
           });
           setConversationUsageBySession((current) => ({
             ...current,
@@ -1430,6 +1463,26 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                   </Flex>
                 </Tooltip>
               </Flex>
+              {sessionTotalDisplay.cost > 0 ? (
+                <Tooltip
+                  content={t("assistant.totalCost", {
+                    cost: formatDetailedCost(sessionTotalDisplay.cost),
+                  })}
+                >
+                  <Flex
+                    align="center"
+                    className="ai-sidebar-cost ai-sidebar-token-metric"
+                  >
+                    <Text
+                      as="span"
+                      size="1"
+                      className="ai-sidebar-token-number"
+                    >
+                      $ {formatCost(sessionTotalDisplay.cost)}
+                    </Text>
+                  </Flex>
+                </Tooltip>
+              ) : null}
               <Flex
                 align="center"
                 className="ai-sidebar-context-wrap"

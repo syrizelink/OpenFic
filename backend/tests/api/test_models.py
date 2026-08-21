@@ -35,6 +35,10 @@ async def test_create_model(client: AsyncClient, session: AsyncSession):
         "model_id": "gpt-4",
         "remark": "Test model",
         "temperature": 0.7,
+        "input_price": 2.0,
+        "output_price": 8.0,
+        "cache_read_price": 0.5,
+        "cache_write_price": 1.0,
     }
 
     response = await client.post("/api/v1/models", json=request_data)
@@ -44,6 +48,10 @@ async def test_create_model(client: AsyncClient, session: AsyncSession):
     assert data["name"] == "GPT-4"
     assert data["model_id"] == "gpt-4"
     assert data["temperature"] == 0.7
+    assert data["input_price"] == 2.0
+    assert data["output_price"] == 8.0
+    assert data["cache_read_price"] == 0.5
+    assert data["cache_write_price"] == 1.0
     assert "tags" not in data
 
 

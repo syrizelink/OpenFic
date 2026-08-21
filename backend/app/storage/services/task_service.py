@@ -153,14 +153,16 @@ async def add_task_token_usage(
     token_input: int,
     token_output: int,
     token_cache: int,
+    cost: float = 0.0,
 ) -> Task:
-    """累加任务 token 统计，并保留最近一次上下文输入占用。"""
+    """累加任务 token 和费用统计，并保留最近一次上下文输入占用。"""
     task = await task_repo.add_token_usage(
         session,
         task_id,
         token_input=token_input,
         token_output=token_output,
         token_cache=token_cache,
+        cost=cost,
     )
     if task is None:
         raise NotFoundError(f"任务不存在：{task_id}")

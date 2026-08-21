@@ -37,6 +37,7 @@ interface AgentSidebarProps {
     tokenInput: number;
     tokenOutput: number;
     tokenCache: number;
+    cost: number;
   }) => void;
   onTaskUsageDelta?: (payload: {
     sessionId: string;
@@ -44,6 +45,7 @@ interface AgentSidebarProps {
     tokenInput: number;
     tokenOutput: number;
     tokenCache: number;
+    cost: number;
   }) => void;
   onTaskTitleUpdated?: (taskId: string, title: string, updatedAt?: string) => void;
   onForkCreated?: (response: AgentForkResponse) => void | Promise<void>;

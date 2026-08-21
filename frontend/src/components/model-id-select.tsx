@@ -86,21 +86,27 @@ function formatPricePerMillion(value: number | null | undefined): string | null 
 function formatModelPriceLine(
   model: Pick<
     AvailableModel,
-    "inputPricePerMillion" | "outputPricePerMillion" | "cacheReadPricePerMillion"
+    | "inputPricePerMillion"
+    | "outputPricePerMillion"
+    | "cacheReadPricePerMillion"
+    | "cacheWritePricePerMillion"
   >,
   labels: {
     input: string;
     output: string;
     cacheRead: string;
+    cacheWrite: string;
   },
 ): string | null {
   const inputPrice = formatPricePerMillion(model.inputPricePerMillion);
   const outputPrice = formatPricePerMillion(model.outputPricePerMillion);
   const cacheReadPrice = formatPricePerMillion(model.cacheReadPricePerMillion);
+  const cacheWritePrice = formatPricePerMillion(model.cacheWritePricePerMillion);
   const parts = [
     inputPrice ? `${inputPrice} ${labels.input}` : null,
     outputPrice ? `${outputPrice} ${labels.output}` : null,
     cacheReadPrice ? `${cacheReadPrice} ${labels.cacheRead}` : null,
+    cacheWritePrice ? `${cacheWritePrice} ${labels.cacheWrite}` : null,
   ].filter((part): part is string => Boolean(part));
 
   return parts.length > 0 ? parts.join(" · ") : null;
@@ -544,13 +550,15 @@ export function ModelIdSelect({
                           model.contextWindow !== null ||
                           model.inputPricePerMillion !== null ||
                           model.outputPricePerMillion !== null ||
-                          model.cacheReadPricePerMillion !== null;
+                          model.cacheReadPricePerMillion !== null ||
+                          model.cacheWritePricePerMillion !== null;
                   const showToolCallWarning =
                     taskType === "llm" && hasMetadata && model.toolCall === false;
                   const priceLine = formatModelPriceLine(model, {
                     input: t("models.priceInputLabel"),
                     output: t("models.priceOutputLabel"),
                     cacheRead: t("models.priceCacheReadLabel"),
+                    cacheWrite: t("models.priceCacheWriteLabel"),
                   });
 
                   return (

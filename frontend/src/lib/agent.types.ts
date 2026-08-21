@@ -41,6 +41,7 @@ export interface SubagentSessionPayload {
   tokenInput: number;
   tokenOutput: number;
   tokenCache: number;
+  cost: number;
   contextInputTokens: number;
   contextLength: number;
   pendingApproval?: Record<string, unknown> | null;

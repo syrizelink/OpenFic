@@ -675,7 +675,7 @@ async def test_run_emits_and_persists_cumulative_task_token_usage(
     runner = SessionRunner(
         session_id="s_usage",
         task_id="task_x",
-        model_config={"max_context_tokens": 8000},
+        model_config={"max_context_tokens": 8000, "output_price": 1000.0},
         project_id="proj_x",
     )
 
@@ -699,6 +699,7 @@ async def test_run_emits_and_persists_cumulative_task_token_usage(
             "token_input": 110,
             "token_output": 46,
             "token_cache": 10,
+            "cost": 0.006,
             "context_input_tokens": 10,
             "context_length": 8000,
         },
@@ -707,6 +708,7 @@ async def test_run_emits_and_persists_cumulative_task_token_usage(
             "token_input": 115,
             "token_output": 50,
             "token_cache": 11,
+            "cost": 0.01,
             "context_input_tokens": 5,
             "context_length": 8000,
         },
@@ -720,6 +722,7 @@ async def test_run_emits_and_persists_cumulative_task_token_usage(
             "token_input": 10,
             "token_output": 6,
             "token_cache": 2,
+            "cost": 0.006,
         },
         {
             "session_id": "s_usage",
@@ -727,6 +730,7 @@ async def test_run_emits_and_persists_cumulative_task_token_usage(
             "token_input": 5,
             "token_output": 4,
             "token_cache": 1,
+            "cost": 0.004,
         },
     ]
 
@@ -737,6 +741,7 @@ async def test_run_emits_and_persists_cumulative_task_token_usage(
         assert task.token_output == 50
         assert task.token_cache == 11
         assert task.context_input_tokens == 5
+        assert task.cost == 0.01
 
 
 @pytest.mark.asyncio
@@ -776,6 +781,7 @@ async def test_emit_persisted_task_usage_events_preserves_compaction_usage_kind(
             "token_input": 7,
             "token_output": 3,
             "token_cache": 2,
+            "cost": 0.0,
             "context_input_tokens": 7,
             "context_length": 8000,
             "usage_kind": "compaction",
@@ -790,6 +796,7 @@ async def test_emit_persisted_task_usage_events_preserves_compaction_usage_kind(
             "token_input": 7,
             "token_output": 3,
             "token_cache": 2,
+            "cost": 0.0,
             "usage_kind": "compaction",
         }
     ]

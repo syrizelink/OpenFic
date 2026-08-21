@@ -100,16 +100,6 @@ const PARAM_CONFIGS = [
     sliderStep: 0.01,
     inputStep: 0.01,
   },
-  {
-    name: "contextLength",
-    labelKey: "contextLength",
-    descKey: "contextLengthDesc",
-    defaultValue: 128000,
-    min: 1,
-    max: 2000000,
-    sliderStep: 1000,
-    inputStep: 1,
-  },
 ] as const;
 
 export function AdvancedParamsSection<T extends FieldValues>({

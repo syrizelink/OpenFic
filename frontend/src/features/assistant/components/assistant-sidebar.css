@@ -197,6 +197,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+.ai-sidebar-cost {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .agent-message-card {
   animation: agentCardSlideIn 0.3s ease-out;
 }

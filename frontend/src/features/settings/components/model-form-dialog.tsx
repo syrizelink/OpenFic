@@ -30,6 +30,7 @@ import {
   supportsEmbeddingDimensions,
 } from "../lib/provider-utils";
 import { AdvancedParamsSection } from "./advanced-params-section";
+import { ModelMetadataSection } from "./model-metadata-section";
 
 // 先定义 schema 和类型，以便在 ModelParamField 中使用
 const modelSchema = z.object({
@@ -48,6 +49,10 @@ const modelSchema = z.object({
   repetitionPenalty: z.number().min(0).max(2),
   maxTokens: z.number().min(1).nullable().optional(),
   contextLength: z.number().int().min(0).max(2000000),
+  inputPrice: z.number().min(0),
+  outputPrice: z.number().min(0),
+  cacheReadPrice: z.number().min(0),
+  cacheWritePrice: z.number().min(0),
   dimensions: z.number().min(1).max(4096).nullable().optional(),
 });
 
@@ -105,6 +110,10 @@ export function ModelFormDialog({
       repetitionPenalty: 1,
       maxTokens: null,
       contextLength: 128000,
+      inputPrice: 0,
+      outputPrice: 0,
+      cacheReadPrice: 0,
+      cacheWritePrice: 0,
       dimensions: null,
     },
   });
@@ -130,6 +139,10 @@ export function ModelFormDialog({
           repetitionPenalty: model.repetitionPenalty ?? 1,
           maxTokens: model.maxTokens ?? null,
           contextLength: model.contextLength ?? 128000,
+          inputPrice: model.inputPrice ?? 0,
+          outputPrice: model.outputPrice ?? 0,
+          cacheReadPrice: model.cacheReadPrice ?? 0,
+          cacheWritePrice: model.cacheWritePrice ?? 0,
           dimensions: model.dimensions ?? null,
         });
       } else {
@@ -150,6 +163,10 @@ export function ModelFormDialog({
           repetitionPenalty: 1,
           maxTokens: null,
           contextLength: 128000,
+          inputPrice: 0,
+          outputPrice: 0,
+          cacheReadPrice: 0,
+          cacheWritePrice: 0,
           dimensions: null,
         });
       }
@@ -322,13 +339,20 @@ export function ModelFormDialog({
       }
       const catalogModel = availableModels.find((entry) => entry.id === modelId);
       if (
-        catalogModel?.source === "catalog" &&
+        catalogModel &&
+        (catalogModel.source === "catalog" ||
+          catalogModel.contextWindow !== null ||
+          catalogModel.cost !== null) &&
         typeof catalogModel.contextWindow === "number" &&
         catalogModel.contextWindow >= 0 &&
         catalogModel.contextWindow <= 2000000
       ) {
         setValue("contextLength", catalogModel.contextWindow);
       }
+      setValue("inputPrice", catalogModel?.inputPricePerMillion ?? 0);
+      setValue("outputPrice", catalogModel?.outputPricePerMillion ?? 0);
+      setValue("cacheReadPrice", catalogModel?.cacheReadPricePerMillion ?? 0);
+      setValue("cacheWritePrice", catalogModel?.cacheWritePricePerMillion ?? 0);
     },
     [availableModels, getValues, setValue],
   );
@@ -353,6 +377,10 @@ export function ModelFormDialog({
         repetition_penalty: data.taskType === "llm" ? data.repetitionPenalty : null,
         max_tokens: data.taskType === "llm" ? data.maxTokens : null,
         context_length: data.taskType === "llm" ? data.contextLength : 128000,
+        input_price: data.taskType === "llm" ? data.inputPrice : 0,
+        output_price: data.taskType === "llm" ? data.outputPrice : 0,
+        cache_read_price: data.taskType === "llm" ? data.cacheReadPrice : 0,
+        cache_write_price: data.taskType === "llm" ? data.cacheWritePrice : 0,
         dimensions:
           data.taskType === "embedding" && selectedProviderSupportsEmbeddingDimensions
             ? data.dimensions
@@ -703,10 +731,17 @@ export function ModelFormDialog({
 
               {/* 高级参数 - 仅 LLM 模式 */}
               {taskType === "llm" && (
-                <AdvancedParamsSection
-                  control={control}
-                  modelId={model?.id}
-                />
+                <>
+                  <ModelMetadataSection
+                    control={control}
+                    modelId={model?.id}
+                    disabled={isAgentSettingsLocked}
+                  />
+                  <AdvancedParamsSection
+                    control={control}
+                    modelId={model?.id}
+                  />
+                </>
               )}
 
               {/* 操作按钮 */}

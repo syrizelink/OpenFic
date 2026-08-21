@@ -122,6 +122,7 @@ def register_handlers(sio: socketio.AsyncServer) -> None:
                         "token_input": int(task.token_input),
                         "token_output": int(task.token_output),
                         "token_cache": int(task.token_cache),
+                        "cost": float(task.cost),
                     },
                     to=sid,
                 )

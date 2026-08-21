@@ -107,6 +107,7 @@ async def get_task(
             token_output=task.token_output,
             token_cache=task.token_cache,
             context_input_tokens=task.context_input_tokens,
+            cost=task.cost,
             current_revision_id=task.current_revision_id,
             current_message_id=task.current_message_id,
             agent_session_id=task.agent_session_id,
@@ -174,6 +175,7 @@ async def list_tasks(
                 token_output=task.token_output,
                 token_cache=task.token_cache,
                 context_input_tokens=task.context_input_tokens,
+                cost=task.cost,
                 is_running=task.is_running
                 or (
                     pending_interrupts[task.id]
@@ -223,6 +225,7 @@ async def update_task(
             token_output=task.token_output,
             token_cache=task.token_cache,
             context_input_tokens=task.context_input_tokens,
+            cost=task.cost,
             current_revision_id=task.current_revision_id,
             current_message_id=task.current_message_id,
             agent_session_id=task.agent_session_id,

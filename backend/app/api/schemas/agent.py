@@ -228,6 +228,7 @@ class SubagentSessionResponse(BaseModel):
     token_input: int = Field(default=0, description="当前子会话最近一次输入 token")
     token_output: int = Field(default=0, description="当前子会话最近一次输出 token")
     token_cache: int = Field(default=0, description="当前子会话最近一次缓存 token")
+    cost: float = Field(default=0.0, description="当前子会话最近一次费用（美元）")
     context_input_tokens: int = Field(
         default=0,
         description="当前子会话最近一次上下文输入 token",

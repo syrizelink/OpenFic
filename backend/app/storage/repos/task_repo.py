@@ -20,8 +20,9 @@ async def add_token_usage(
     token_input: int,
     token_output: int,
     token_cache: int,
+    cost: float,
 ) -> Task | None:
-    """累加任务 token 统计，并记录本次调用输入 token 作为上下文占用。"""
+    """累加任务 token 和费用统计，并记录本次调用输入作为上下文占用。"""
     task = await get_by_id(session, task_id)
     if task is None:
         return None
@@ -30,6 +31,7 @@ async def add_token_usage(
     task.token_output += max(token_output, 0)
     task.token_cache += max(token_cache, 0)
     task.context_input_tokens = max(token_input, 0)
+    task.cost += max(cost, 0.0)
     session.add(task)
     await session.flush()
     await session.refresh(task)

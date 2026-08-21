@@ -32,6 +32,7 @@ export interface TaskListItem {
   tokenOutput: number;
   tokenCache: number;
   contextInputTokens: number;
+  cost: number;
   isRunning: boolean;
   isFavorited: boolean;
   createdAt: string;
@@ -48,6 +49,7 @@ export interface Task {
   tokenOutput: number;
   tokenCache: number;
   contextInputTokens: number;
+  cost: number;
   isRunning: boolean;
   currentRevisionId?: string | null;
   currentMessageId?: string | null;

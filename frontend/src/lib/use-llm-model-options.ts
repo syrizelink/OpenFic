@@ -85,9 +85,16 @@ export function useLlmModelOptions(): UseLlmModelOptionsResult {
         limit: catalogModel?.limit ?? null,
         cost: catalogModel?.cost ?? null,
         contextWindow: catalogModel?.contextWindow ?? model.contextLength,
-        inputPricePerMillion: catalogModel?.inputPricePerMillion ?? null,
-        outputPricePerMillion: catalogModel?.outputPricePerMillion ?? null,
-        cacheReadPricePerMillion: catalogModel?.cacheReadPricePerMillion ?? null,
+        inputPricePerMillion:
+          catalogModel?.inputPricePerMillion ?? (model.inputPrice > 0 ? model.inputPrice : null),
+        outputPricePerMillion:
+          catalogModel?.outputPricePerMillion ?? (model.outputPrice > 0 ? model.outputPrice : null),
+        cacheReadPricePerMillion:
+          catalogModel?.cacheReadPricePerMillion ??
+          (model.cacheReadPrice > 0 ? model.cacheReadPrice : null),
+        cacheWritePricePerMillion:
+          catalogModel?.cacheWritePricePerMillion ??
+          (model.cacheWritePrice > 0 ? model.cacheWritePrice : null),
         source: catalogModel?.source ?? "remote",
         isCatalogMatched: Boolean(catalogModel),
         providerIconPath,

@@ -132,6 +132,7 @@ class TestTaskAPI:
         task.token_output = 45
         task.token_cache = 6
         task.context_input_tokens = 78
+        task.cost = 0.28
         await session.commit()
 
         response = await client.get(f"/api/v1/tasks/{task.id}")
@@ -142,6 +143,7 @@ class TestTaskAPI:
         assert data["token_output"] == 45
         assert data["token_cache"] == 6
         assert data["context_input_tokens"] == 78
+        assert data["cost"] == 0.28
 
     async def test_get_task_returns_persisted_running_state(
         self,

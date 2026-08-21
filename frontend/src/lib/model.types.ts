@@ -83,6 +83,7 @@ export interface AvailableModel {
   inputPricePerMillion?: number | null;
   outputPricePerMillion?: number | null;
   cacheReadPricePerMillion?: number | null;
+  cacheWritePricePerMillion?: number | null;
   source?: "catalog" | "remote";
 }
 
@@ -111,6 +112,10 @@ export interface Model {
   repetitionPenalty: number | null;
   maxTokens: number | null;
   contextLength: number;
+  inputPrice: number;
+  outputPrice: number;
+  cacheReadPrice: number;
+  cacheWritePrice: number;
   dimensions: number | null;
   isBuiltin: boolean;
   createdAt: string;
@@ -135,6 +140,10 @@ export interface ModelResponse {
   repetition_penalty: number | null;
   max_tokens: number | null;
   context_length: number;
+  input_price: number;
+  output_price: number;
+  cache_read_price: number;
+  cache_write_price: number;
   dimensions: number | null;
   is_builtin?: boolean;
   created_at: string;
@@ -158,6 +167,10 @@ export interface ModelCreateRequest {
   repetition_penalty?: number | null;
   max_tokens?: number | null;
   context_length?: number | null;
+  input_price?: number | null;
+  output_price?: number | null;
+  cache_read_price?: number | null;
+  cache_write_price?: number | null;
   dimensions?: number | null;
 }
 
@@ -178,6 +191,10 @@ export interface ModelUpdateRequest {
   repetition_penalty?: number | null;
   max_tokens?: number | null;
   context_length?: number | null;
+  input_price?: number | null;
+  output_price?: number | null;
+  cache_read_price?: number | null;
+  cache_write_price?: number | null;
   dimensions?: number | null;
 }
 

@@ -68,6 +68,7 @@ function buildTaskSnapshot(payload: SubagentSessionPayload): TaskListItem {
     tokenInput: payload.tokenInput,
     tokenOutput: payload.tokenOutput,
     tokenCache: payload.tokenCache,
+    cost: payload.cost,
     contextInputTokens: payload.contextInputTokens,
     isRunning: payload.isRunning,
     isFavorited: false,

@@ -53,6 +53,10 @@ def _to_response(m) -> ModelResponse:
         repetition_penalty=m.repetition_penalty,
         max_tokens=m.max_tokens,
         context_length=m.context_length,
+        input_price=m.input_price,
+        output_price=m.output_price,
+        cache_read_price=m.cache_read_price,
+        cache_write_price=m.cache_write_price,
         dimensions=m.dimensions,
         is_builtin=m.is_builtin,
         created_at=m.created_at.isoformat(),
@@ -169,6 +173,10 @@ async def create_model(
             repetition_penalty=request.repetition_penalty,
             max_tokens=request.max_tokens,
             context_length=request.context_length,
+            input_price=request.input_price,
+            output_price=request.output_price,
+            cache_read_price=request.cache_read_price,
+            cache_write_price=request.cache_write_price,
             dimensions=request.dimensions,
         )
     except ValueError as e:
@@ -225,6 +233,10 @@ async def update_model(
             repetition_penalty=request.repetition_penalty,
             max_tokens=request.max_tokens,
             context_length=request.context_length,
+            input_price=request.input_price,
+            output_price=request.output_price,
+            cache_read_price=request.cache_read_price,
+            cache_write_price=request.cache_write_price,
             dimensions=request.dimensions,
         )
 

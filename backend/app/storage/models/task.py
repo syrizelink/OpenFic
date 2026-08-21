@@ -21,6 +21,7 @@ class Task(SQLModel, table=True):
         token_output: 输出 token 总数。
         token_cache: 缓存命中 token 总数。
         context_input_tokens: 上一次 LLM 调用的输入 token 数。
+        cost: LLM 调用累计费用（美元）。
         current_revision_id: 当前用户消息 checkpoint 对应的 revision ID。
         current_message_id: 当前最新用户消息 ID。
         agent_session_id: 关联的 Agent 会话 ID。
@@ -40,6 +41,7 @@ class Task(SQLModel, table=True):
     token_output: int = Field(default=0, ge=0)
     token_cache: int = Field(default=0, ge=0)
     context_input_tokens: int = Field(default=0, ge=0)
+    cost: float = Field(default=0.0, ge=0.0)
     current_revision_id: str | None = Field(default=None, index=True, foreign_key="revisions.id")
     current_message_id: str | None = Field(default=None, index=True)
     agent_session_id: str | None = Field(default=None, index=True, description="Agent会话ID")

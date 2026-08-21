@@ -121,6 +121,10 @@ async def create(
     repetition_penalty: float | None = DEFAULT_REPETITION_PENALTY,
     max_tokens: int | None = None,
     context_length: int = DEFAULT_CONTEXT_LENGTH,
+    input_price: float = 0.0,
+    output_price: float = 0.0,
+    cache_read_price: float = 0.0,
+    cache_write_price: float = 0.0,
     dimensions: int | None = None,
 ) -> Model:
     """
@@ -162,6 +166,10 @@ async def create(
         repetition_penalty=repetition_penalty,
         max_tokens=max_tokens,
         context_length=context_length,
+        input_price=input_price,
+        output_price=output_price,
+        cache_read_price=cache_read_price,
+        cache_write_price=cache_write_price,
         dimensions=dimensions,
     )
     session.add(model)
@@ -188,6 +196,10 @@ async def update(
     repetition_penalty: float | None = None,
     max_tokens: int | None = None,
     context_length: int | None = None,
+    input_price: float | None = None,
+    output_price: float | None = None,
+    cache_read_price: float | None = None,
+    cache_write_price: float | None = None,
     dimensions: int | None = None,
 ) -> Model | None:
     """
@@ -248,6 +260,14 @@ async def update(
         model.max_tokens = max_tokens
     if context_length is not None:
         model.context_length = context_length
+    if input_price is not None:
+        model.input_price = input_price
+    if output_price is not None:
+        model.output_price = output_price
+    if cache_read_price is not None:
+        model.cache_read_price = cache_read_price
+    if cache_write_price is not None:
+        model.cache_write_price = cache_write_price
     if dimensions is not None:
         model.dimensions = dimensions
 

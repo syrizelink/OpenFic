@@ -255,6 +255,7 @@ export function toAgentEvent(
         token_input: Number(data.token_input ?? 0),
         token_output: Number(data.token_output ?? 0),
         token_cache: Number(data.token_cache ?? 0),
+        cost: Number(data.cost ?? 0),
         context_input_tokens: Number(data.context_input_tokens ?? data.token_input ?? 0),
         context_length: Number(data.context_length ?? 128000),
       },
@@ -272,6 +273,7 @@ export function toAgentEvent(
         token_input: Number(data.token_input ?? 0),
         token_output: Number(data.token_output ?? 0),
         token_cache: Number(data.token_cache ?? 0),
+        cost: Number(data.cost ?? 0),
       },
     };
   }
