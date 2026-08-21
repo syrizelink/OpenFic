@@ -166,11 +166,12 @@ function createMentionNodeAttrs(
 function createCommandNodeAttrs(
   candidate: AssistantCommandCandidate,
 ): AssistantCommandNodeAttributes {
-  const commandRaw = buildSkillCommandTag(candidate.name);
+  const commandRaw = buildSkillCommandTag(candidate.id, candidate.name);
   return {
     commandKind: candidate.kind,
     commandLabel: candidate.name,
     commandRaw,
+    commandId: candidate.id,
     commandName: candidate.name,
   };
 }

@@ -80,13 +80,13 @@ async def test_skill_tool_names_for_definition_with_explicit_reference():
         AsyncMock(return_value=[]),
     ), patch(
         "app.agent_runtime.tools.impls.skill.skill.skill_service.list_enabled_skills",
-        AsyncMock(return_value=[_skill(name="显式引用技能")]),
+        AsyncMock(return_value=[_skill(id="skill-explicit", name="显式引用技能")]),
         create=True,
     ):
         result = await skill_tool_names_for_definition(
             _definition([]),
             AsyncMock(),
-            referenced_skill_names=["显式引用技能"],
+            referenced_skill_ids=["skill-explicit"],
         )
 
     assert result == (
@@ -220,9 +220,9 @@ async def test_activate_skill_rejects_unauthorized_skill():
 async def test_activate_skill_accepts_explicitly_referenced_global_skill():
     from app.agent_runtime.tools.impls.skill.skill import _resolve_authorized_skill
 
-    skill = _skill(name="显式引用技能")
+    skill = _skill(id="skill-explicit", name="显式引用技能")
     state = _make_state()
-    state["referenced_skill_names"] = [skill.name]
+    state["referenced_skill_ids"] = [skill.id]
     session = AsyncMock()
 
     with patch(

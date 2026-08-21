@@ -12,7 +12,7 @@ import copy
 import inspect
 import json
 import time
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Iterable, Mapping
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, TypedDict, cast
 
 from langchain_core.messages import (
@@ -38,7 +38,10 @@ from app.agent_runtime.context import build_context, build_context_parts
 from app.agent_runtime.context.processors.filter import (
     filter_tool_result_metadata_content,
 )
-from app.agent_runtime.context.helpers import compile_canonical_mentions
+from app.agent_runtime.context.helpers import (
+    compile_canonical_mentions,
+    extract_referenced_skill_ids,
+)
 from app.agent_runtime.context.compaction.config import AUTO_TRIGGER_RATIO
 from app.agent_runtime.context.compaction.service import CompactionError, compact_window
 from app.agent_runtime.context.compaction.tokens import count_context_tokens
@@ -505,6 +508,24 @@ def _to_history_dict(m: BaseMessage) -> dict:
 # ---------------------------------------------------------------------------
 
 
+def _runtime_skill_ids(runtime_state: Mapping[str, Any]) -> tuple[str, ...]:
+    values = runtime_state.get("referenced_skill_ids")
+    return _merge_skill_ids(values)
+
+
+def _merge_skill_ids(*groups: object) -> tuple[str, ...]:
+    merged: list[str] = []
+    for group in groups:
+        values = group if isinstance(group, (list, tuple, set)) else (group,)
+        for value in values:
+            if not isinstance(value, str):
+                continue
+            normalized = value.strip()
+            if normalized and normalized not in merged:
+                merged.append(normalized)
+    return tuple(merged)
+
+
 def create_react_agent(
     config: ReactAgentConfig,
     model: Any | None = None,
@@ -537,6 +558,13 @@ def create_react_agent(
     # Bind tools to model if provided
     bound_model = model.bind_tools(tools) if model else None
     active_audit: LLMCallAudit | None = None
+
+    def update_skill_tool_references(referenced_skill_ids: Iterable[str]) -> None:
+        values = list(referenced_skill_ids)
+        for tool in tools:
+            runtime_state = getattr(tool, "runtime_state", None)
+            if isinstance(runtime_state, dict):
+                runtime_state["referenced_skill_ids"] = values
 
     async def _finish_active_audit(status: str = "success") -> None:
         nonlocal active_audit
@@ -603,17 +631,15 @@ def create_react_agent(
             runtime_model_config = None
         drained_injected_user_message = False
         context_parts: list[ContextMessage] | None = None
-        effective_runtime_state: Mapping[str, Any] | None = None
+        effective_runtime_state: dict[str, Any] | None = None
+        injected_user_contents: list[str] = []
 
         if isinstance(runtime_state, Mapping) and db_session is not None:
             node_messages = [_to_history_dict(m) for m in state["messages"]]
             runtime_context = configurable.get("runtime_context")
-            effective_runtime_state = cast(
-                Mapping[str, Any],
-                {**runtime_state, **runtime_context}
-                if isinstance(runtime_context, Mapping)
-                else runtime_state,
-            )
+            effective_runtime_state = dict(runtime_state)
+            if isinstance(runtime_context, Mapping):
+                effective_runtime_state.update(runtime_context)
             model_config = effective_runtime_state.get("model_config")
             if (
                 isinstance(model_config, Mapping)
@@ -685,6 +711,11 @@ def create_react_agent(
                             consumed = await consumed
                         should_inject = consumed is not False
                     if should_inject:
+                        if (
+                            isinstance(content, str)
+                            and "<of-skill" in content
+                        ):
+                            injected_user_contents.append(content)
                         compiled_content = content
                         if (
                             db_session is not None
@@ -720,6 +751,28 @@ def create_react_agent(
                                 ]
                             )
                         )
+
+        if injected_user_contents and effective_runtime_state is not None:
+            injected_skill_ids = extract_referenced_skill_ids(injected_user_contents)
+            current_skill_ids = _runtime_skill_ids(effective_runtime_state)
+            merged_skill_ids = _merge_skill_ids(current_skill_ids, injected_skill_ids)
+            if merged_skill_ids != current_skill_ids:
+                effective_runtime_state["referenced_skill_ids"] = list(merged_skill_ids)
+                update_skill_tool_references(merged_skill_ids)
+                if context_parts is not None:
+                    context_parts = await build_context_parts(
+                        state=cast("AgentRuntimeState", effective_runtime_state),
+                        agent_name=react_config.name,
+                        node_messages=node_messages,
+                        db_session=cast("AsyncSession", db_session),
+                    )
+                else:
+                    messages = await build_context(
+                        state=cast("AgentRuntimeState", effective_runtime_state),
+                        agent_name=react_config.name,
+                        node_messages=node_messages,
+                        db_session=cast("AsyncSession", db_session),
+                    )
 
         if (
             termination.mode == "tool_success"

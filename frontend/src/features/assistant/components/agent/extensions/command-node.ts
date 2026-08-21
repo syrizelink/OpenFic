@@ -7,6 +7,7 @@ export interface AssistantCommandNodeAttributes {
   commandKind: string;
   commandLabel: string;
   commandRaw: string;
+  commandId: string;
   commandName: string;
 }
 
@@ -31,6 +32,7 @@ export const CommandNode = Node.create({
       commandKind: { default: "" },
       commandLabel: { default: "" },
       commandRaw: { default: "" },
+      commandId: { default: "" },
       commandName: { default: "" },
     };
   },
@@ -45,6 +47,7 @@ export const CommandNode = Node.create({
             commandKind: node.dataset.commandKind ?? "",
             commandLabel: node.dataset.commandLabel ?? "",
             commandRaw: node.dataset.commandRaw ?? "",
+            commandId: node.dataset.commandId ?? "",
             commandName: node.dataset.commandName ?? "",
           };
         },
@@ -60,6 +63,7 @@ export const CommandNode = Node.create({
         "data-command-kind": HTMLAttributes.commandKind || "",
         "data-command-label": HTMLAttributes.commandLabel || "",
         "data-command-raw": HTMLAttributes.commandRaw || "",
+        "data-command-id": HTMLAttributes.commandId || "",
         "data-command-name": HTMLAttributes.commandName || "",
       }),
       HTMLAttributes.commandLabel || "",

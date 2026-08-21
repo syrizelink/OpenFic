@@ -85,11 +85,17 @@ export function parseAssistantMarkup(text: string): AssistantMarkupSegment[] {
     }
 
     if (match.groups?.skillAttrs !== undefined) {
+      const attrs = parseCommandAttributes(match.groups.skillAttrs.trim());
+      if (!attrs.id?.trim()) {
+        segments.push(raw);
+        cursor = start + raw.length;
+        continue;
+      }
       segments.push({
         markup: "command",
         raw,
         kind: "skill",
-        attrs: parseCommandAttributes(match.groups.skillAttrs.trim()),
+        attrs,
         body: "",
       });
       cursor = start + raw.length;
@@ -151,6 +157,7 @@ function buildCommandHtml(token: AssistantCommandToken): string {
     `<span data-assistant-command="true"` +
     ` data-command-kind="${escapeHtmlAttr(token.kind)}"` +
     ` data-command-raw="${escapeHtmlAttr(token.raw)}"` +
+    ` data-command-id="${escapeHtmlAttr(token.attrs.id ?? "")}"` +
     ` data-command-label="${escapeHtmlAttr(token.attrs.name ?? token.kind)}"` +
     ` data-command-name="${escapeHtmlAttr(token.attrs.name ?? "")}"` +
     `></span>`

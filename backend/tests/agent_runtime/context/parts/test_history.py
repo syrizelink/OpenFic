@@ -159,7 +159,7 @@ async def test_history_preserves_user_xml_when_session_unavailable():
 async def test_history_compiles_skill_commands_for_llm_context_when_session_available():
     raw = [{
         "role": "user",
-        "content": '<of-skill name="小说人物设计" />',
+        "content": '<of-skill id="skill-1" name="小说人物设计" />',
     }]
 
     fake_session = object()

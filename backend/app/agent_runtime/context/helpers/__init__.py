@@ -6,7 +6,7 @@ from app.agent_runtime.context.helpers.canonical_mentions import (
 from app.agent_runtime.context.helpers.canonical_commands import (
     CanonicalSkillCommand,
     compile_canonical_commands,
-    extract_referenced_skill_names,
+    extract_referenced_skill_ids,
     parse_canonical_skill_commands,
 )
 
@@ -15,7 +15,7 @@ __all__ = [
     "CanonicalMention",
     "compile_canonical_commands",
     "compile_canonical_mentions",
-    "extract_referenced_skill_names",
+    "extract_referenced_skill_ids",
     "parse_canonical_skill_commands",
     "parse_canonical_mentions",
 ]

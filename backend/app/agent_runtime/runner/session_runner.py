@@ -17,7 +17,10 @@ from app.agent_runtime.context.compaction.window import (
     CompactionNoWindowError,
     select_compaction_window,
 )
-from app.agent_runtime.context.helpers import compile_canonical_mentions
+from app.agent_runtime.context.helpers import (
+    compile_canonical_mentions,
+    extract_referenced_skill_ids,
+)
 from app.audit import AuditContext
 from app.agent_runtime.graph.orchestrator.graph import build_orchestrator_graph
 from app.agent_runtime.graph.react_agent import _to_history_dict
@@ -803,6 +806,7 @@ class SessionRunner:
         try:
             history_messages = await self._prepare_run_persistence()
             graph = await self._get_graph()
+            referenced_skill_ids = extract_referenced_skill_ids([user_request])
             if user_message_id is None:
                 compiled_user_request = await self._compile_user_message_content(
                     user_request,
@@ -837,6 +841,7 @@ class SessionRunner:
                 "user_request": state_user_request,
                 "user_attachments": attachments or [],
                 "current_revision_id": revision.id,
+                "referenced_skill_ids": list(referenced_skill_ids),
                 "messages": history_messages,
             }
             async for event in graph.astream_events(

@@ -14,4 +14,4 @@ class AgentRuntimeState(TypedDict):
     user_request: str
     user_attachments: list[dict[str, Any]]
     current_revision_id: str | None
-    referenced_skill_names: NotRequired[list[str]]
+    referenced_skill_ids: NotRequired[list[str]]

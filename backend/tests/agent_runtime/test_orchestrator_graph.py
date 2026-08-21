@@ -86,14 +86,15 @@ async def test_primary_tool_names_forward_explicit_skill_references() -> None:
     ) as skill_tools:
         result = await _primary_tool_names(
             {"configurable": {"db_session": object()}},
-            referenced_skill_names=("显式引用技能",),
+            referenced_skill_ids=("skill-explicit",),
         )
 
     assert result == ["activate_skill", "reference_skill"]
     skill_tools.assert_awaited_once_with(
         skill_tools.call_args.args[0],
         skill_tools.call_args.args[1],
-        referenced_skill_names=("显式引用技能",),
+        referenced_skill_ids=("skill-explicit",),
+        allow_runtime_skill_references=False,
     )
 
 

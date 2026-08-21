@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Skill Repository - Skill 数据访问层。"""
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -78,6 +78,45 @@ async def list_enabled(session: AsyncSession) -> list[Skill]:
         .where(_custom_skill_filter(), col(Skill.is_enabled) == True)  # noqa: E712
         .order_by(col(Skill.created_at).asc(), col(Skill.id).asc())
     )
+    return list(result.scalars().all())
+
+
+async def search_enabled(
+    session: AsyncSession,
+    query: str,
+    *,
+    limit: int,
+) -> list[Skill]:
+    normalized_query = query.strip().lower()
+    name_expr = func.lower(func.coalesce(col(Skill.name), ""))
+    complete_filter = (
+        func.trim(col(Skill.name)) != "",
+        func.trim(col(Skill.summary)) != "",
+        func.trim(col(Skill.content)) != "",
+    )
+    stmt = select(Skill).where(
+        _custom_skill_filter(),
+        col(Skill.is_enabled) == True,  # noqa: E712
+        *complete_filter,
+    )
+    if normalized_query:
+        match_rank = case(
+            (name_expr == normalized_query, 0),
+            (name_expr.like(f"{normalized_query}%"), 1),
+            else_=2,
+        )
+        stmt = stmt.where(name_expr.contains(normalized_query)).order_by(
+            match_rank.asc(),
+            name_expr.asc(),
+            col(Skill.id).asc(),
+        )
+    else:
+        stmt = stmt.order_by(
+            col(Skill.updated_at).desc(),
+            name_expr.asc(),
+            col(Skill.id).asc(),
+        )
+    result = await session.execute(stmt.limit(limit))
     return list(result.scalars().all())
 
 

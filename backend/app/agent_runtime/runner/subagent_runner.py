@@ -16,6 +16,7 @@ from app.agent_runtime.agents.definitions import (
 )
 from app.audit import AuditContext
 from app.agent_runtime.agents.tool_categories import get_tool_names_for_categories
+from app.agent_runtime.context.helpers import extract_referenced_skill_ids
 from app.agent_runtime.graph.react_agent import create_react_agent
 from app.agent_runtime.model_config import to_client_model_config
 from app.agent_runtime.persistence import MessagePersister
@@ -74,6 +75,29 @@ _SUBAGENT_RESTRICTED_TOOL_NAMES = frozenset(
 
 def build_child_messages(history: list[BaseMessage], *, content: str) -> list[BaseMessage]:
     return [*history, HumanMessage(content=content)]
+
+
+def _get_referenced_skill_ids(runtime_state: dict[str, Any]) -> tuple[str, ...]:
+    existing = runtime_state.get("referenced_skill_ids")
+    existing_ids = _merge_skill_ids(existing)
+    content = runtime_state.get("user_request")
+    if not isinstance(content, str) or not content:
+        return existing_ids
+    extracted = extract_referenced_skill_ids([content])
+    return _merge_skill_ids(existing_ids, extracted)
+
+
+def _merge_skill_ids(*groups: object) -> tuple[str, ...]:
+    merged: list[str] = []
+    for group in groups:
+        values = group if isinstance(group, (list, tuple, set)) else (group,)
+        for value in values:
+            if not isinstance(value, str):
+                continue
+            normalized = value.strip()
+            if normalized and normalized not in merged:
+                merged.append(normalized)
+    return tuple(merged)
 
 
 async def _maybe_await(value: Any) -> Any:
@@ -298,7 +322,15 @@ class SubagentRunner:
         ]
         session = await _open_session(self.session_factory)
         try:
-            names.extend(await skill_tool_names_for_definition(definition, session))
+            referenced_skill_ids = _get_referenced_skill_ids(runtime_state)
+            runtime_state["referenced_skill_ids"] = list(referenced_skill_ids)
+            names.extend(
+                await skill_tool_names_for_definition(
+                    definition,
+                    session,
+                    referenced_skill_ids=referenced_skill_ids,
+                )
+            )
         finally:
             await _close_session(session)
         return ToolRegistry.get_tools(

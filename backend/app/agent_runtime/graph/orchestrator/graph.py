@@ -15,14 +15,17 @@ from app.agent_runtime.agents.definitions import (
     load_all_agent_definitions,
 )
 from app.agent_runtime.agents.tool_categories import get_tool_names_for_categories
-from app.agent_runtime.context.helpers import extract_referenced_skill_names
+from app.agent_runtime.context.helpers import extract_referenced_skill_ids
 from app.agent_runtime.graph.config import build_child_config, get_inject_queue
 from app.agent_runtime.graph.node_events import with_node_events
 from app.agent_runtime.graph.orchestrator.state import OrchestratorState
 from app.agent_runtime.graph.react_agent import create_react_agent
 from app.agent_runtime.model_config import to_client_model_config
 from app.agent_runtime.tools import ToolRegistry
-from app.agent_runtime.tools.impls.skill.skill import skill_tool_names_for_definition
+from app.agent_runtime.tools.impls.skill.skill import (
+    SKILL_TOOL_NAMES,
+    skill_tool_names_for_definition,
+)
 from app.agent_runtime.tools.hooks.auth import auth_hook
 from app.agent_runtime.tools.hooks.character_refresh import character_refresh_post_hook
 from app.agent_runtime.tools.hooks.chapter_refresh import chapter_refresh_post_hook
@@ -33,7 +36,6 @@ from app.agent_runtime.tools.hooks.note_refresh import note_refresh_post_hook
 from app.agent_runtime.tools.hooks.world_entry_refresh import world_entry_refresh_post_hook
 from app.agent_runtime.types import ReactAgentConfig, TerminationCondition
 from app.models.clients.model_factory import ModelConfig, create_chat_model
-from app.storage.services import skill_service
 
 DEFAULT_PRIMARY_TOOL_CATEGORIES = (
     "orchestration",
@@ -49,48 +51,59 @@ async def _primary_tool_names(
     config: RunnableConfig | None,
     agent_key: str = "build",
     *,
-    referenced_skill_names: tuple[str, ...] = (),
+    referenced_skill_ids: tuple[str, ...] = (),
+    allow_runtime_skill_references: bool = False,
 ) -> list[str]:
     configurable = config.get("configurable", {}) if isinstance(config, dict) else {}
     db_session = configurable.get("db_session") if isinstance(configurable, dict) else None
     if db_session is None:
-        return list(get_tool_names_for_categories(DEFAULT_PRIMARY_TOOL_CATEGORIES))
+        names = list(get_tool_names_for_categories(DEFAULT_PRIMARY_TOOL_CATEGORIES))
+        return [*names, *SKILL_TOOL_NAMES] if allow_runtime_skill_references else names
     definition = await load_agent_definition(db_session, agent_key)
     return list(get_tool_names_for_categories(definition.enabled_tool_categories)) + list(
         await skill_tool_names_for_definition(
             definition,
             db_session,
-            referenced_skill_names=referenced_skill_names,
+            referenced_skill_ids=referenced_skill_ids,
+            allow_runtime_skill_references=allow_runtime_skill_references,
         )
     )
 
 
-async def _primary_referenced_skill_names(
-    state: OrchestratorState,
-    config: RunnableConfig | None,
-) -> tuple[str, ...]:
-    configurable = config.get("configurable", {}) if isinstance(config, dict) else {}
-    db_session = configurable.get("db_session") if isinstance(configurable, dict) else None
-    if db_session is None:
-        return ()
-
+def _primary_referenced_skill_ids(state: OrchestratorState) -> tuple[str, ...]:
+    existing_ids = _state_skill_ids(state)
     texts: list[str] = []
     user_request = state.get("user_request") or ""
-    if isinstance(user_request, str) and user_request:
+    if not existing_ids and isinstance(user_request, str) and user_request:
         texts.append(user_request)
     for message in state.get("messages") or []:
         if not isinstance(message, HumanMessage):
             continue
         if isinstance(message.content, str) and message.content:
             texts.append(message.content)
-    if not any("<of-skill" in text or "@skill:" in text for text in texts):
-        return ()
-
-    globally_enabled = await skill_service.list_enabled_skills(db_session)
-    return extract_referenced_skill_names(
-        texts,
-        (skill.name for skill in globally_enabled),
+    if existing_ids and isinstance(user_request, str):
+        texts = [text for text in texts if text != user_request]
+    return _merge_unique(
+        existing_ids,
+        extract_referenced_skill_ids(texts),
     )
+
+
+def _state_skill_ids(state: OrchestratorState) -> tuple[str, ...]:
+    values = state.get("referenced_skill_ids")
+    if not isinstance(values, (list, tuple, set)):
+        return ()
+    return _merge_unique(value for value in values if isinstance(value, str))
+
+
+def _merge_unique(*groups) -> tuple[str, ...]:
+    values: list[str] = []
+    for group in groups:
+        for value in group:
+            normalized = value.strip()
+            if normalized and normalized not in values:
+                values.append(normalized)
+    return tuple(values)
 
 
 async def _primary_build_hooks(
@@ -139,11 +152,12 @@ async def primary_node(
     model_config = ModelConfig(**to_client_model_config(runtime_model_config))
     model = create_chat_model(model_config)
     agent_key = state.get("agent_key", "build")
-    referenced_skill_names = await _primary_referenced_skill_names(state, config)
+    referenced_skill_ids = _primary_referenced_skill_ids(state)
+    inject_queue = get_inject_queue(config)
     tool_state = dict(state)
     tool_state["model_config"] = dict(runtime_model_config)
     tool_state["active_agent"] = agent_key
-    tool_state["referenced_skill_names"] = list(referenced_skill_names)
+    tool_state["referenced_skill_ids"] = list(referenced_skill_ids)
 
     agent_config = ReactAgentConfig(
         name=agent_key,
@@ -153,7 +167,8 @@ async def primary_node(
                 names=await _primary_tool_names(
                     config,
                     agent_key=agent_key,
-                    referenced_skill_names=referenced_skill_names,
+                    referenced_skill_ids=referenced_skill_ids,
+                    allow_runtime_skill_references=inject_queue is not None,
                 ),
                 state=tool_state,
                 build_hooks=await _primary_build_hooks(config, agent_key=agent_key),
@@ -171,12 +186,13 @@ async def primary_node(
     react_graph = create_react_agent(
         agent_config,
         model=model,
-        inject_queue=get_inject_queue(config),
+        inject_queue=inject_queue,
     )
 
     effective_state = dict(state)
     effective_state["model_config"] = dict(runtime_model_config)
     effective_state["active_agent"] = agent_key
+    effective_state["referenced_skill_ids"] = list(referenced_skill_ids)
     await react_graph.ainvoke(
         {
             "messages": await _primary_messages(state),

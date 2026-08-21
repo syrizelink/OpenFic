@@ -19,14 +19,24 @@ async def skill_tool_names_for_definition(
     definition: AgentDefinition,
     db_session: AsyncSession,
     *,
-    referenced_skill_names: Iterable[str] = (),
+    referenced_skill_ids: Iterable[str] = (),
+    allow_runtime_skill_references: bool = False,
 ) -> tuple[str, ...]:
     """当 agent 存在实际可用技能时，才返回 skill 工具名；否则返回空。"""
     normalized_references = {
-        name.strip() for name in referenced_skill_names if isinstance(name, str) and name.strip()
+        skill_id.strip()
+        for skill_id in referenced_skill_ids
+        if isinstance(skill_id, str) and skill_id.strip()
     }
-    if not definition.enabled_skills and not normalized_references:
+    if (
+        not definition.enabled_skills
+        and not normalized_references
+        and not allow_runtime_skill_references
+    ):
         return ()
+
+    if allow_runtime_skill_references and not definition.enabled_skills and not normalized_references:
+        return SKILL_TOOL_NAMES
 
     available = []
     if definition.enabled_skills:
@@ -39,9 +49,9 @@ async def skill_tool_names_for_definition(
     if normalized_references:
         global_skills = await skill_service.list_enabled_skills(db_session)
         available.extend(
-            skill for skill in global_skills if skill.name.strip() in normalized_references
+            skill for skill in global_skills if skill.id.strip() in normalized_references
         )
-    return SKILL_TOOL_NAMES if available else ()
+    return SKILL_TOOL_NAMES if available or allow_runtime_skill_references else ()
 
 
 class ActivateSkillInput(BaseModel):
@@ -68,12 +78,25 @@ async def _resolve_authorized_skill(session: AsyncSession, state: dict, skill_na
         session,
         [skill_id for skill_id in definition.enabled_skills if skill_id],
     )
-    skill = next((s for s in available if s.name.strip() == normalized), None)
+    skill = next(
+        (s for s in available if s.name.strip() == normalized or s.id.strip() == normalized),
+        None,
+    )
     if skill is None:
-        referenced_names = state.get("referenced_skill_names")
-        if isinstance(referenced_names, (list, tuple, set)) and normalized in referenced_names:
+        referenced_ids = state.get("referenced_skill_ids")
+        if isinstance(referenced_ids, (list, tuple, set)) and normalized in referenced_ids:
             globally_enabled = await skill_service.list_enabled_skills(session)
-            skill = next((s for s in globally_enabled if s.name.strip() == normalized), None)
+            skill = next((s for s in globally_enabled if s.id.strip() == normalized), None)
+        elif isinstance(referenced_ids, (list, tuple, set)):
+            globally_enabled = await skill_service.list_enabled_skills(session)
+            skill = next(
+                (
+                    s
+                    for s in globally_enabled
+                    if s.id.strip() in referenced_ids and s.name.strip() == normalized
+                ),
+                None,
+            )
     if skill is None:
         raise ToolExecutionError(f"技能不在该智能体的可用列表中: {normalized}")
 

@@ -16,6 +16,7 @@ _ATTR_RE = re.compile(r'([A-Za-z_][A-Za-z0-9_]*)="([^"]*)"')
 @dataclass(frozen=True)
 class CanonicalSkillCommand:
     raw: str
+    skill_id: str
     name: str
 
 
@@ -29,9 +30,15 @@ def parse_canonical_skill_commands(text: str) -> list[str | CanonicalSkillComman
         if match.start() > cursor:
             parts.append(text[cursor : match.start()])
         attrs = _parse_attrs(match.group("attrs_self") or "")
+        skill_id = attrs.get("id", "").strip()
+        if not skill_id:
+            parts.append(match.group(0))
+            cursor = match.end()
+            continue
         parts.append(
             CanonicalSkillCommand(
                 raw=match.group(0),
+                skill_id=skill_id,
                 name=attrs.get("name", "").strip(),
             )
         )
@@ -54,35 +61,26 @@ def compile_canonical_commands(text: str) -> str:
         elif part.name:
             compiled.append(f"@skill:{part.name}")
         else:
-            compiled.append(part.raw)
+            compiled.append(f"@skill:{part.skill_id}")
     return "".join(compiled)
 
 
-def extract_referenced_skill_names(
+def extract_referenced_skill_ids(
     texts: Iterable[str],
-    available_names: Iterable[str],
 ) -> tuple[str, ...]:
-    names = tuple(dict.fromkeys(name.strip() for name in available_names if name.strip()))
-    if not names:
-        return ()
-
+    """提取 Skill 的稳定 ID；带 ID 的规范命令不依赖名称边界。"""
     referenced: list[str] = []
     for text in texts:
-        compiled = compile_canonical_commands(text)
-        cursor = 0
-        while (marker_start := compiled.find("@skill:", cursor)) >= 0:
-            suffix = compiled[marker_start + len("@skill:") :]
-            matches = [name for name in names if suffix.startswith(name)]
-            if matches:
-                name = max(matches, key=len)
-                if name not in referenced:
-                    referenced.append(name)
-                cursor = marker_start + len("@skill:") + len(name)
-            else:
-                cursor = marker_start + len("@skill:")
+        for part in parse_canonical_skill_commands(text):
+            if isinstance(part, CanonicalSkillCommand):
+                _append_unique(referenced, part.skill_id)
     return tuple(referenced)
+
+
+def _append_unique(values: list[str], value: str) -> None:
+    if value and value not in values:
+        values.append(value)
 
 
 def _parse_attrs(raw_attrs: str) -> dict[str, str]:
     return {key: html.unescape(value) for key, value in _ATTR_RE.findall(raw_attrs)}
-

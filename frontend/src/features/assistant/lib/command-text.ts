@@ -12,8 +12,10 @@ export interface AssistantCommandToken {
 
 const ATTR_RE = /([A-Za-z_][A-Za-z0-9_]*)="([^"]*)"/g;
 
-export function buildSkillCommandTag(name: string): string {
-  return `<of-skill name="${escapeCommandAttribute(name)}" />`;
+export function buildSkillCommandTag(id: string, name: string): string {
+  return (
+    `<of-skill id="${escapeCommandAttribute(id)}" ` + `name="${escapeCommandAttribute(name)}" />`
+  );
 }
 
 export function getCommandDisplayLabel(token: AssistantCommandToken): string {

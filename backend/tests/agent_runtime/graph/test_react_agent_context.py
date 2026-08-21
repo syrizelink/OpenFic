@@ -728,6 +728,81 @@ def test_llm_call_marks_consumed_injected_user_messages_sent() -> None:
     )
 
 
+def test_llm_call_updates_skill_references_for_injected_command() -> None:
+    from app.agent_runtime.tools.impls.skill.skill import ActivateSkillTool
+
+    runtime_state: dict[str, object] = {
+        "session_id": "s1",
+        "task_id": "t1",
+        "project_id": "p1",
+        "model_config": {"max_context_tokens": 8000},
+        "active_agent": "writer",
+        "is_completed": False,
+        "error": None,
+        "retry_count": 0,
+        "user_request": "hi",
+    }
+    skill_tool = ActivateSkillTool(_state=runtime_state)
+    config = ReactAgentConfig(
+        name="writer",
+        tools=[skill_tool],
+        termination=TerminationCondition(mode="no_tool_call"),
+        max_iterations=1,
+    )
+    injected_queue: asyncio.Queue[tuple[str | None, str, str]] = asyncio.Queue()
+    injected_queue.put_nowait(
+        (
+            "msg_pending_1",
+            "user",
+            '<of-skill id="skill-explicit" name="显式引用技能" />',
+        )
+    )
+
+    async def _mock_invoke(_model, _messages, **_kwargs):
+        return AIMessage(content="done")
+
+    with (
+        patch(
+            "app.agent_runtime.graph.react_agent._invoke_model",
+            side_effect=_mock_invoke,
+        ),
+        patch(
+            "app.storage.services.skill_service.list_enabled_skills",
+            new=AsyncMock(
+                return_value=[SimpleNamespace(id="skill-explicit", name="显式引用技能")]
+            ),
+        ),
+        patch(
+            "app.agent_runtime.graph.react_agent.build_context_parts",
+            new=AsyncMock(return_value=[]),
+            create=True,
+        ),
+    ):
+        model = Mock()
+        model.bind_tools.return_value = model
+        graph = create_react_agent(config, model=model, inject_queue=injected_queue)
+        asyncio.run(
+            graph.ainvoke(
+                {
+                    "messages": [HumanMessage(content="hi")],
+                    "iteration_count": 0,
+                    "is_done": False,
+                    "final_output": None,
+                },
+                config={
+                    "configurable": {
+                        "runtime_state": runtime_state,
+                        "db_session": AsyncMock(),
+                        "thread_id": "s1",
+                        "inject_message_consumed_sink": AsyncMock(return_value=True),
+                    }
+                },
+            )
+        )
+
+    assert skill_tool.runtime_state["referenced_skill_ids"] == ["skill-explicit"]
+
+
 def test_to_history_dict_preserves_reasoning_content() -> None:
     from app.agent_runtime.graph.react_agent import _to_history_dict
 

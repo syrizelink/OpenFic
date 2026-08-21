@@ -63,7 +63,7 @@ async def test_skills_renders_available_xml(make_state, mock_session):
 
 @pytest.mark.asyncio
 async def test_skills_appends_referenced_global_skill_after_agent_skills(make_state, mock_session):
-    state = make_state(user_request="请使用@skill:global-skill")
+    state = make_state(user_request="请继续")
     agent_skill = SimpleNamespace(
         id="agent-skill",
         name="agent-skill",
@@ -95,7 +95,12 @@ async def test_skills_appends_referenced_global_skill_after_agent_skills(make_st
             state,
             "writer",
             mock_session,
-            [{"role": "user", "content": '<of-skill name="global-skill" />'}],
+            [
+                {
+                    "role": "user",
+                    "content": '<of-skill id="global-skill-id" name="global-skill" />',
+                }
+            ],
         )
 
     assert msg is not None
@@ -106,7 +111,7 @@ async def test_skills_appends_referenced_global_skill_after_agent_skills(make_st
 
 @pytest.mark.asyncio
 async def test_skills_does_not_append_disabled_referenced_skill(make_state, mock_session):
-    state = make_state(user_request="请使用@skill:disabled-skill")
+    state = make_state(user_request="请继续")
     agent_skill = _skill("agent-skill", "默认技能", "内容")
 
     with patch(
@@ -124,7 +129,12 @@ async def test_skills_does_not_append_disabled_referenced_skill(make_state, mock
             state,
             "writer",
             mock_session,
-            [{"role": "user", "content": '<of-skill name="disabled-skill" />'}],
+            [
+                {
+                    "role": "user",
+                    "content": '<of-skill id="disabled-skill-id" name="disabled-skill" />',
+                }
+            ],
         )
 
     assert msg is not None

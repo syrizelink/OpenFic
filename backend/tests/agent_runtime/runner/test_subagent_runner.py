@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -218,6 +219,58 @@ async def test_subagent_runner_excludes_restricted_tools_from_definition(
     assert "recycle_subagent" not in captured["names"]
     assert "ask_user" not in captured["names"]
     assert "read_chapter" in captured["names"]
+
+
+@pytest.mark.asyncio
+async def test_subagent_runner_forwards_explicit_skill_ids_to_tool_registration(
+    db_session_factory,
+    monkeypatch,
+):
+    from app.agent_runtime.runner.subagent_runner import SubagentRunner
+
+    captured: dict[str, object] = {}
+
+    def fake_get_tools(*, names, **_kwargs):
+        captured["names"] = names
+        return []
+
+    async def fake_skill_tool_names(*_args, **kwargs):
+        captured["referenced_skill_ids"] = kwargs.get("referenced_skill_ids")
+        return ("activate_skill", "reference_skill")
+
+    monkeypatch.setattr(
+        "app.agent_runtime.runner.subagent_runner.ToolRegistry.get_tools",
+        fake_get_tools,
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.runner.subagent_runner.skill_tool_names_for_definition",
+        fake_skill_tool_names,
+    )
+    monkeypatch.setattr(
+        "app.storage.services.skill_service.list_enabled_skills",
+        AsyncMock(return_value=[SimpleNamespace(id="skill-explicit", name="显式引用技能")]),
+    )
+
+    runner = SubagentRunner(
+        session_factory=db_session_factory,
+        model_config={},
+        project_id="project-1",
+    )
+    definition = SimpleNamespace(
+        key="writer",
+        enabled=True,
+        kind="subagent",
+        enabled_tool_categories=(),
+        enabled_skills=(),
+    )
+    runtime_state = {
+        "user_request": '<of-skill id="skill-explicit" name="显式引用技能" />',
+    }
+
+    await runner._build_tools(definition, runtime_state)
+
+    assert captured["referenced_skill_ids"] == ("skill-explicit",)
+    assert runtime_state["referenced_skill_ids"] == ["skill-explicit"]
 
 
 @pytest.mark.asyncio

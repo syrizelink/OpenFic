@@ -249,13 +249,24 @@ async def search_enabled_skills(
     limit: int,
 ) -> list[SkillData]:
     normalized_query = query.strip().lower()
-    candidates = await list_enabled_skills(session)
+    result_limit = max(1, min(limit, 50))
+    custom_limit = min(result_limit, 10) if not normalized_query else result_limit
+    builtin_skills = await _load_builtin_skills_with_settings(session)
+    custom_skills = await skill_repo.search_enabled(
+        session,
+        normalized_query,
+        limit=custom_limit,
+    )
+    all_candidates: list[SkillData] = [*builtin_skills, *custom_skills]
+    candidates = [
+        skill for skill in all_candidates if skill.is_enabled and is_skill_complete(skill)
+    ]
     if not normalized_query:
         candidates.sort(
             key=lambda skill: (_as_utc_datetime(skill.updated_at), skill.name.lower()),
             reverse=True,
         )
-        return candidates[: min(limit, 10)]
+        return candidates[: min(result_limit, 10)]
 
     candidates = [skill for skill in candidates if normalized_query in skill.name.strip().lower()]
     candidates.sort(
@@ -264,7 +275,7 @@ async def search_enabled_skills(
             skill.name.lower(),
         )
     )
-    return candidates[: max(1, min(limit, 50))]
+    return candidates[:result_limit]
 
 
 def _skill_match_rank(name: str, normalized_query: str) -> int:

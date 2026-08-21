@@ -15,6 +15,7 @@ export function CommandNodeView({ node, selected }: NodeViewProps) {
     raw: String(node.attrs.commandRaw ?? ""),
     kind,
     attrs: {
+      id: String(node.attrs.commandId ?? ""),
       name: String(node.attrs.commandName ?? ""),
     },
     body: "",
