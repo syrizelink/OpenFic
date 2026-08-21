@@ -1143,8 +1143,9 @@ async def submit_agent_question_answer(
         "action_type": "clarification",
         "action_id": body.action_id,
         "answer": [item.model_dump(mode="json") for item in body.answer],
-        "skipped": body.skipped,
     }
+    if body.skipped:
+        payload["skipped"] = True
     registry = get_agent_run_registry()
     async with _agent_session_lifecycle_lock(registry, session_id):
         revision_id, claimed_revision = await _claim_agent_session_resume(session, session_id)

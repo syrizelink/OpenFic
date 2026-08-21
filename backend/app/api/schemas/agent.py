@@ -157,7 +157,7 @@ class AgentInterruptResponseItem(BaseModel):
         default=None,
         description="澄清问题回答",
     )
-    skipped: bool = Field(default=False, description="是否忽略本次提问")
+    skipped: bool | None = Field(default=None, description="是否忽略本次提问")
 
 
 class AgentInterruptResumeRequest(BaseModel):
