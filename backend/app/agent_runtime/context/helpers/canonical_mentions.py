@@ -6,6 +6,7 @@ import re
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent_runtime.context.helpers.canonical_commands import compile_canonical_commands
 from app.storage.repos.character_repo import get_by_id as get_character_by_id
 from app.storage.repos.chapter_repo import get_by_id as get_chapter_by_id
 from app.storage.repos.note_category_repo import (
@@ -211,7 +212,7 @@ async def compile_canonical_mentions(
 ) -> str:
     parts = parse_canonical_mentions(text)
     if len(parts) == 1 and parts[0] == text:
-        return text
+        return compile_canonical_commands(text)
 
     resolver = _MentionResolver(session)
     compiled: list[str] = []
@@ -231,7 +232,7 @@ async def compile_canonical_mentions(
 
         compiled.append(await _compile_compact_mention(part, resolver))
 
-    return "".join(compiled)
+    return compile_canonical_commands("".join(compiled))
 
 
 def _fallback_label(mention: CanonicalMention) -> str:

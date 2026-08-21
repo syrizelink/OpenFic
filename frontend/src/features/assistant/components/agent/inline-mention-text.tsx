@@ -1,9 +1,10 @@
 import { forwardRef } from "react";
 
+import { getCommandDisplayLabel } from "@/features/assistant/lib/command-text";
 import {
   getMentionNavigationTarget,
   getMentionDisplayLabel,
-  parseMentionText,
+  parseAssistantMarkup,
 } from "@/features/assistant/lib/mention-text";
 
 import { MentionChip } from "./mention-chip";
@@ -17,7 +18,7 @@ interface InlineMentionTextProps {
 
 export const InlineMentionText = forwardRef<HTMLSpanElement, InlineMentionTextProps>(
   function InlineMentionText({ text, className, singleLine = false, onOpenMentionChapter }, ref) {
-    const segments = parseMentionText(text);
+    const segments = parseAssistantMarkup(text);
     const classes = [
       "agent-inline-mention-text",
       singleLine ? "agent-inline-mention-text--single-line" : "",
@@ -34,6 +35,12 @@ export const InlineMentionText = forwardRef<HTMLSpanElement, InlineMentionTextPr
         {segments.map((segment, index) =>
           typeof segment === "string" ? (
             <span key={`text-${index}`}>{segment}</span>
+          ) : segment.markup === "command" ? (
+            <MentionChip
+              key={`command-${index}-${segment.raw}`}
+              kind={segment.kind}
+              label={getCommandDisplayLabel(segment)}
+            />
           ) : (
             <MentionChip
               key={`mention-${index}-${segment.raw}`}

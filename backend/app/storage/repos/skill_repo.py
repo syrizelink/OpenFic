@@ -72,6 +72,15 @@ async def list_page(
     return list(result.scalars().all())
 
 
+async def list_enabled(session: AsyncSession) -> list[Skill]:
+    result = await session.execute(
+        select(Skill)
+        .where(_custom_skill_filter(), col(Skill.is_enabled) == True)  # noqa: E712
+        .order_by(col(Skill.created_at).asc(), col(Skill.id).asc())
+    )
+    return list(result.scalars().all())
+
+
 async def list_by_names(session: AsyncSession, names: list[str]) -> list[Skill]:
     if not names:
         return []

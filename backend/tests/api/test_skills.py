@@ -95,6 +95,21 @@ async def test_create_skill_with_empty_name(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_create_skill_strips_name_whitespace(client: AsyncClient) -> None:
+    response = await client.post(
+        "/api/v1/skills",
+        json={
+            "name": "  可引用技能  ",
+            "summary": "简述",
+            "content": "技能内容",
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["name"] == "可引用技能"
+
+
+@pytest.mark.asyncio
 async def test_incomplete_skill_cannot_be_enabled(client: AsyncClient) -> None:
     response = await client.post(
         "/api/v1/skills",

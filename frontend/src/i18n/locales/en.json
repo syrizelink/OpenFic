@@ -1631,6 +1631,13 @@
       "loading": "Searching",
       "empty": "No matching content found"
     },
+    "commandKind": {
+      "skill": "Skill"
+    },
+    "commandSearch": {
+      "prompt": "Type freely",
+      "loading": "Searching"
+    },
     "thinkingTitle": "Reasoning",
     "collapseThinking": "Collapse reasoning",
     "expandThinking": "Expand reasoning",

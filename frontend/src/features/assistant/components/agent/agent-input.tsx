@@ -311,6 +311,7 @@ export function AgentInput({
             <AgentMentionSuggestions
               key="mention-suggestions"
               clearanceHeight={pendingClearanceHeight}
+              mode={mentionSuggestions.mode}
               items={mentionSuggestions.items}
               selectedIndex={mentionSuggestions.selectedIndex}
               status={mentionSuggestions.status}

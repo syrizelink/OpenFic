@@ -1,4 +1,5 @@
 import json
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -62,6 +63,38 @@ async def test_primary_messages_preserves_attachment_metadata_without_embedding_
     assert isinstance(messages[0], HumanMessage)
     assert messages[0].content == "请描述图片"
     assert messages[0].additional_kwargs == {"openfic_attachments": [attachment]}
+
+
+@pytest.mark.asyncio
+async def test_primary_tool_names_forward_explicit_skill_references() -> None:
+    from app.agent_runtime.graph.orchestrator.graph import _primary_tool_names
+
+    with patch(
+        "app.agent_runtime.graph.orchestrator.graph.load_agent_definition",
+        AsyncMock(
+            return_value=SimpleNamespace(
+                enabled_tool_categories=(),
+                enabled_skills=[],
+            )
+        ),
+    ), patch(
+        "app.agent_runtime.graph.orchestrator.graph.get_tool_names_for_categories",
+        return_value=(),
+    ), patch(
+        "app.agent_runtime.graph.orchestrator.graph.skill_tool_names_for_definition",
+        AsyncMock(return_value=("activate_skill", "reference_skill")),
+    ) as skill_tools:
+        result = await _primary_tool_names(
+            {"configurable": {"db_session": object()}},
+            referenced_skill_names=("显式引用技能",),
+        )
+
+    assert result == ["activate_skill", "reference_skill"]
+    skill_tools.assert_awaited_once_with(
+        skill_tools.call_args.args[0],
+        skill_tools.call_args.args[1],
+        referenced_skill_names=("显式引用技能",),
+    )
 
 
 def test_session_runner_constructor_no_longer_accepts_mode():

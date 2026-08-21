@@ -1,4 +1,4 @@
-from typing import Any, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 
 class AgentRuntimeState(TypedDict):
@@ -14,3 +14,4 @@ class AgentRuntimeState(TypedDict):
     user_request: str
     user_attachments: list[dict[str, Any]]
     current_revision_id: str | None
+    referenced_skill_names: NotRequired[list[str]]

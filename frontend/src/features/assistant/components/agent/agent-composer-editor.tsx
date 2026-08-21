@@ -11,6 +11,10 @@ import type {
   KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 
+import {
+  buildSkillCommandTag,
+  findActiveCommandQuery,
+} from "@/features/assistant/lib/command-text";
 import type { AssistantMentionCandidate } from "@/features/assistant/lib/mention-text";
 import {
   buildCharacterMentionTag,
@@ -21,24 +25,30 @@ import {
   buildWorldInfoEntryMentionTag,
   findActiveMentionQuery,
   mentionTextToHtml,
-  parseMentionText,
+  parseAssistantMarkup,
 } from "@/features/assistant/lib/mention-text";
-import { searchMentionCandidates } from "@/lib/api-client";
+import { searchCommands, searchMentionCandidates } from "@/lib/api-client";
+import type { AssistantCommandCandidate } from "@/lib/command.types";
 
 import type { AgentInputHistoryDirection } from "../../lib/agent-input-history-state";
+import { CommandNode } from "./extensions/command-node";
+import type { AssistantCommandNodeAttributes } from "./extensions/command-node";
 import { MentionNode } from "./extensions/mention-node";
 import type { AssistantMentionNodeAttributes } from "./extensions/mention-node";
 
 export type AgentComposerSuggestionStatus = "idle" | "loading" | "empty" | "ready";
+export type AgentComposerSuggestionMode = "mention" | "command";
+export type AgentComposerSuggestionItem = AssistantMentionCandidate | AssistantCommandCandidate;
 
-const EMPTY_MENTION_CANDIDATES: AssistantMentionCandidate[] = [];
+const EMPTY_SUGGESTION_ITEMS: AgentComposerSuggestionItem[] = [];
 
 export interface AgentComposerSuggestionState {
-  items: AssistantMentionCandidate[];
+  mode: AgentComposerSuggestionMode;
+  items: AgentComposerSuggestionItem[];
   selectedIndex: number;
   status: AgentComposerSuggestionStatus;
   onClose: () => void;
-  onSelect: (item: AssistantMentionCandidate, index: number) => void;
+  onSelect: (item: AgentComposerSuggestionItem, index: number) => void;
   onSelectedIndexChange: (index: number) => void;
 }
 
@@ -57,6 +67,7 @@ interface AgentComposerEditorProps {
 }
 
 interface MentionQueryState {
+  mode: AgentComposerSuggestionMode;
   query: string;
   replaceFrom: number;
   visible: boolean;
@@ -64,6 +75,7 @@ interface MentionQueryState {
 
 function createClosedMentionQueryState(): MentionQueryState {
   return {
+    mode: "mention",
     query: "",
     replaceFrom: -1,
     visible: false,
@@ -89,6 +101,10 @@ function docToCanonicalText(doc: ProseMirrorNode): string {
       }
       if (child.type.name === "assistantMention") {
         current += String(child.attrs.mentionRaw ?? "");
+        return;
+      }
+      if (child.type.name === "assistantCommand") {
+        current += String(child.attrs.commandRaw ?? "");
       }
     });
     paragraphs.push(current);
@@ -147,6 +163,18 @@ function createMentionNodeAttrs(
   };
 }
 
+function createCommandNodeAttrs(
+  candidate: AssistantCommandCandidate,
+): AssistantCommandNodeAttributes {
+  const commandRaw = buildSkillCommandTag(candidate.name);
+  return {
+    commandKind: candidate.kind,
+    commandLabel: candidate.name,
+    commandRaw,
+    commandName: candidate.name,
+  };
+}
+
 export function AgentComposerEditor({
   projectId,
   value,
@@ -166,27 +194,33 @@ export function AgentComposerEditor({
     createClosedMentionQueryState,
   );
 
-  const normalizedMentionQuery = mentionQuery.query.trim();
-  const shouldSearchMentionCandidates =
-    mentionQuery.visible && normalizedMentionQuery.length > 0 && projectId.trim().length > 0;
-  const { data: remoteMentionCandidates, isFetching: isSearchingMentionCandidates } = useQuery({
-    queryKey: ["assistant-mention-candidates", projectId, normalizedMentionQuery],
-    queryFn: ({ signal }) =>
-      searchMentionCandidates(projectId, normalizedMentionQuery, 20, undefined, signal),
-    enabled: shouldSearchMentionCandidates,
+  const normalizedQuery = mentionQuery.query.trim();
+  const shouldSearchSuggestionItems =
+    mentionQuery.visible &&
+    projectId.trim().length > 0 &&
+    (mentionQuery.mode === "command" || normalizedQuery.length > 0);
+  const { data: remoteSuggestionItems, isFetching: isSearchingSuggestionItems } = useQuery<
+    AgentComposerSuggestionItem[]
+  >({
+    queryKey: ["assistant-composer-candidates", projectId, mentionQuery.mode, normalizedQuery],
+    queryFn: ({ signal }): Promise<AgentComposerSuggestionItem[]> =>
+      mentionQuery.mode === "command"
+        ? searchCommands(projectId, normalizedQuery, 20, "skill", signal)
+        : searchMentionCandidates(projectId, normalizedQuery, 20, undefined, signal),
+    enabled: shouldSearchSuggestionItems,
     staleTime: 30 * 1000,
   });
-  const suggestionItems = shouldSearchMentionCandidates
-    ? (remoteMentionCandidates ?? EMPTY_MENTION_CANDIDATES)
-    : EMPTY_MENTION_CANDIDATES;
+  const suggestionItems = shouldSearchSuggestionItems
+    ? (remoteSuggestionItems ?? EMPTY_SUGGESTION_ITEMS)
+    : EMPTY_SUGGESTION_ITEMS;
   const suggestionStatus: AgentComposerSuggestionStatus | null = !mentionQuery.visible
     ? null
-    : normalizedMentionQuery.length === 0
-      ? "idle"
-      : isSearchingMentionCandidates
-        ? "loading"
-        : suggestionItems.length > 0
-          ? "ready"
+    : isSearchingSuggestionItems
+      ? "loading"
+      : suggestionItems.length > 0
+        ? "ready"
+        : normalizedQuery.length === 0 && mentionQuery.mode === "mention"
+          ? "idle"
           : "empty";
   const effectiveSelectedIndex =
     suggestionStatus === "ready" && suggestionItems.length > 0
@@ -215,6 +249,7 @@ export function AgentComposerEditor({
       MentionNode.configure({
         onOpenMentionChapter,
       }),
+      CommandNode,
     ],
     [onOpenMentionChapter, placeholder],
   );
@@ -276,13 +311,16 @@ export function AgentComposerEditor({
 
       const { from, $from } = selection;
       const textBefore = $from.parent.textBetween(0, $from.parentOffset, undefined, "\ufffc");
-      const activeQuery = findActiveMentionQuery(textBefore);
+      const activeCommandQuery = findActiveCommandQuery(textBefore);
+      const activeMentionQuery = findActiveMentionQuery(textBefore);
+      const activeQuery = activeCommandQuery ?? activeMentionQuery;
       if (!activeQuery) {
         setMentionQuery((current) => (current.visible ? createClosedMentionQueryState() : current));
         return;
       }
 
       setMentionQuery({
+        mode: activeCommandQuery ? "command" : "mention",
         query: activeQuery.query,
         replaceFrom: from - activeQuery.replaceLength,
         visible: true,
@@ -308,7 +346,7 @@ export function AgentComposerEditor({
 
   useEffect(() => {
     if (!editor) return;
-    const parsedSegments = parseMentionText(value);
+    const parsedSegments = parseAssistantMarkup(value);
     const hasOnlyMentions =
       parsedSegments.length > 0 &&
       parsedSegments.every((segment) => typeof segment !== "string" || !segment.trim());
@@ -323,18 +361,20 @@ export function AgentComposerEditor({
   }, []);
 
   const handleSelectSuggestion = useCallback(
-    (candidate: AssistantMentionCandidate, index: number) => {
+    (candidate: AgentComposerSuggestionItem, index: number) => {
       if (!editor || mentionQuery.replaceFrom < 0) return;
-      const attrs = createMentionNodeAttrs(candidate);
       const currentSelectionTo = editor.state.selection.from;
       setSelectedIndex(index);
-      editor
+      const chain = editor
         .chain()
         .focus()
-        .deleteRange({ from: mentionQuery.replaceFrom, to: currentSelectionTo })
-        .insertAssistantMention(attrs)
-        .insertContent(" ")
-        .run();
+        .deleteRange({ from: mentionQuery.replaceFrom, to: currentSelectionTo });
+      if (candidate.kind === "skill") {
+        chain.insertAssistantCommand(createCommandNodeAttrs(candidate));
+      } else {
+        chain.insertAssistantMention(createMentionNodeAttrs(candidate));
+      }
+      chain.insertContent(" ").run();
       closeSuggestions();
     },
     [closeSuggestions, editor, mentionQuery.replaceFrom],
@@ -423,6 +463,7 @@ export function AgentComposerEditor({
     }
 
     onMentionSuggestionsChange({
+      mode: mentionQuery.mode,
       items: suggestionItems,
       selectedIndex: effectiveSelectedIndex,
       status: suggestionStatus,
@@ -434,6 +475,7 @@ export function AgentComposerEditor({
     closeSuggestions,
     effectiveSelectedIndex,
     handleSelectSuggestion,
+    mentionQuery.mode,
     mentionQuery.visible,
     onMentionSuggestionsChange,
     suggestionItems,

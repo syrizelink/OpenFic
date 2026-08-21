@@ -81,6 +81,7 @@ import type {
   CharacterListResponse,
   CharacterUpdate,
 } from "./character.types";
+import type { AssistantCommandCandidate } from "./command.types";
 import type { AssistantMentionCandidate } from "./mention.types";
 import type {
   Project,
@@ -743,6 +744,15 @@ function transformMentionCandidate(raw: Record<string, unknown>): AssistantMenti
   };
 }
 
+function transformCommandCandidate(raw: Record<string, unknown>): AssistantCommandCandidate {
+  return {
+    kind: "skill",
+    id: raw.id as string,
+    name: raw.name as string,
+    description: raw.description as string,
+  };
+}
+
 /**
  * 获取卷-章节树
  */
@@ -767,6 +777,20 @@ export async function searchMentionCandidates(
     signal,
   });
   return ((response.data.items as Record<string, unknown>[]) ?? []).map(transformMentionCandidate);
+}
+
+export async function searchCommands(
+  projectId: string,
+  query: string,
+  limit = 20,
+  kind: "skill" = "skill",
+  signal?: AbortSignal,
+): Promise<AssistantCommandCandidate[]> {
+  const response = await apiClient.get<Record<string, unknown>>(`/projects/${projectId}/commands`, {
+    params: { query, limit, kind },
+    signal,
+  });
+  return ((response.data.items as Record<string, unknown>[]) ?? []).map(transformCommandCandidate);
 }
 
 /**

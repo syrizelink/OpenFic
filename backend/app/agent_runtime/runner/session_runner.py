@@ -620,7 +620,7 @@ class SessionRunner:
         *,
         db_session: AsyncSession | None = None,
     ) -> str:
-        if not content or "<of-mention" not in content:
+        if not content or ("<of-mention" not in content and "<of-skill" not in content):
             return content
         if db_session is not None:
             return await compile_canonical_mentions(content, db_session)

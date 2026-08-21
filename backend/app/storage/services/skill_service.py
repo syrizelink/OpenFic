@@ -137,7 +137,7 @@ async def create_skill(
     content: str = "",
     is_enabled: bool = False,
 ) -> Skill:
-    unique_name = await _ensure_unique_name(session, name)
+    unique_name = await _ensure_unique_name(session, name.strip())
     skill = Skill(
         name=unique_name,
         summary=summary,
@@ -232,6 +232,56 @@ async def list_enabled_skills_by_ids(
     return [skill_by_id[skill_id] for skill_id in ids if skill_id in skill_by_id]
 
 
+async def list_enabled_skills(session: AsyncSession) -> list[SkillData]:
+    builtin_skills = await _load_builtin_skills_with_settings(session)
+    custom_skills = await skill_repo.list_enabled(session)
+    return [
+        skill
+        for skill in [*builtin_skills, *custom_skills]
+        if skill.is_enabled and is_skill_complete(skill)
+    ]
+
+
+async def search_enabled_skills(
+    session: AsyncSession,
+    query: str,
+    *,
+    limit: int,
+) -> list[SkillData]:
+    normalized_query = query.strip().lower()
+    candidates = await list_enabled_skills(session)
+    if not normalized_query:
+        candidates.sort(
+            key=lambda skill: (_as_utc_datetime(skill.updated_at), skill.name.lower()),
+            reverse=True,
+        )
+        return candidates[: min(limit, 10)]
+
+    candidates = [skill for skill in candidates if normalized_query in skill.name.strip().lower()]
+    candidates.sort(
+        key=lambda skill: (
+            _skill_match_rank(skill.name, normalized_query),
+            skill.name.lower(),
+        )
+    )
+    return candidates[: max(1, min(limit, 50))]
+
+
+def _skill_match_rank(name: str, normalized_query: str) -> int:
+    normalized_name = name.strip().lower()
+    if normalized_name == normalized_query:
+        return 0
+    if normalized_name.startswith(normalized_query):
+        return 1
+    return 2
+
+
+def _as_utc_datetime(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 async def update_skill(
     session: AsyncSession,
     skill_db_id: str,
@@ -247,13 +297,14 @@ async def update_skill(
 
     assert isinstance(skill, Skill)
 
-    if name is not None and name != skill.name:
-        if name in {builtin_skill.name for builtin_skill in load_builtin_skills()}:
-            raise ConflictError(f"技能名称已存在: {name}")
-        matches = await skill_repo.list_by_names(session, [name])
+    normalized_name = name.strip() if name is not None else None
+    if normalized_name is not None and normalized_name != skill.name:
+        if normalized_name in {builtin_skill.name for builtin_skill in load_builtin_skills()}:
+            raise ConflictError(f"技能名称已存在: {normalized_name}")
+        matches = await skill_repo.list_by_names(session, [normalized_name])
         if any(other.id != skill.id for other in matches):
-            raise ConflictError(f"技能名称已存在: {name}")
-        skill.name = name
+            raise ConflictError(f"技能名称已存在: {normalized_name}")
+        skill.name = normalized_name
     if summary is not None:
         skill.summary = summary
     if content is not None:

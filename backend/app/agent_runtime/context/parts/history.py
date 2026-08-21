@@ -61,7 +61,12 @@ async def build_history(
         name = name or metadata_tool_name
         metadata = _history_metadata(raw, tool_name=name if role == "tool" else None)
         content = raw.get("content", "")
-        if role == "user" and db_session is not None and isinstance(content, str) and "<of-mention" in content:
+        if (
+            role == "user"
+            and db_session is not None
+            and isinstance(content, str)
+            and ("<of-mention" in content or "<of-skill" in content)
+        ):
             content = await compile_canonical_mentions(content, db_session)
         additional_kwargs = (
             raw.get("additional_kwargs") if isinstance(raw.get("additional_kwargs"), dict) else None

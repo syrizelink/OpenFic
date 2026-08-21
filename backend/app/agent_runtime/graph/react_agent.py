@@ -689,7 +689,7 @@ def create_react_agent(
                         if (
                             db_session is not None
                             and isinstance(content, str)
-                            and "<of-mention" in content
+                            and ("<of-mention" in content or "<of-skill" in content)
                         ):
                             compiled_content = await compile_canonical_mentions(
                                 content, db_session

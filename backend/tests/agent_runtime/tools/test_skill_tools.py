@@ -71,6 +71,30 @@ async def test_skill_tool_names_for_definition_with_skills():
     )
 
 
+@pytest.mark.asyncio
+async def test_skill_tool_names_for_definition_with_explicit_reference():
+    from app.agent_runtime.tools.impls.skill.skill import skill_tool_names_for_definition
+
+    with patch(
+        "app.agent_runtime.tools.impls.skill.skill.skill_service.list_enabled_skills_by_ids",
+        AsyncMock(return_value=[]),
+    ), patch(
+        "app.agent_runtime.tools.impls.skill.skill.skill_service.list_enabled_skills",
+        AsyncMock(return_value=[_skill(name="显式引用技能")]),
+        create=True,
+    ):
+        result = await skill_tool_names_for_definition(
+            _definition([]),
+            AsyncMock(),
+            referenced_skill_names=["显式引用技能"],
+        )
+
+    assert result == (
+        "activate_skill",
+        "reference_skill",
+    )
+
+
 def _patch_env(definition, skill, docs):
     def _list_by_ids(_session, _ids):
         return [skill]
@@ -190,6 +214,31 @@ async def test_activate_skill_rejects_unauthorized_skill():
         result = await tool.ainvoke({"skill_name": "pdf-processing"})
 
     assert "技能不在该智能体的可用列表中" in json.loads(result)["error"]
+
+
+@pytest.mark.asyncio
+async def test_activate_skill_accepts_explicitly_referenced_global_skill():
+    from app.agent_runtime.tools.impls.skill.skill import _resolve_authorized_skill
+
+    skill = _skill(name="显式引用技能")
+    state = _make_state()
+    state["referenced_skill_names"] = [skill.name]
+    session = AsyncMock()
+
+    with patch(
+        "app.agent_runtime.tools.impls.skill.skill.load_agent_definition",
+        AsyncMock(return_value=_definition([])),
+    ), patch(
+        "app.agent_runtime.tools.impls.skill.skill.skill_service.list_enabled_skills_by_ids",
+        AsyncMock(return_value=[]),
+    ), patch(
+        "app.agent_runtime.tools.impls.skill.skill.skill_service.list_enabled_skills",
+        AsyncMock(return_value=[skill]),
+        create=True,
+    ):
+        resolved = await _resolve_authorized_skill(session, state, skill.name)
+
+    assert resolved is skill
 
 
 @pytest.mark.asyncio

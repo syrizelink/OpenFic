@@ -1,6 +1,9 @@
 import type { AssistantMentionCandidate } from "@/lib/mention.types";
 import { pinyinMatch } from "@/lib/pinyin-search";
 
+import type { AssistantCommandToken } from "./command-text";
+import { parseCommandAttributes } from "./command-text";
+
 export type { AssistantMentionCandidate } from "@/lib/mention.types";
 
 export type AssistantMentionKind =
@@ -12,16 +15,18 @@ export type AssistantMentionKind =
   | "character";
 
 export interface AssistantMentionToken {
+  markup: "mention";
   raw: string;
   kind: AssistantMentionKind;
   attrs: Record<string, string>;
   body: string;
 }
 
-export type AssistantMentionSegment = string | AssistantMentionToken;
+export type AssistantMarkupSegment = string | AssistantMentionToken | AssistantCommandToken;
+export type AssistantMentionSegment = AssistantMarkupSegment;
 
-const MENTION_RE =
-  /<of-mention\b(?<attrsSelf>[^<>]*?)\s*\/>|<of-mention\b(?<attrsBlock>[^<>]*?)>(?<body>.*?)<\/of-mention\s*>/gs;
+const MARKUP_RE =
+  /<of-mention\b(?<attrsSelf>[^<>]*?)\s*\/>|<of-mention\b(?<attrsBlock>[^<>]*?)>(?<body>.*?)<\/of-mention\s*>|<of-skill\b(?<skillAttrs>[^<>]*?)\s*\/>/gs;
 const ATTR_RE = /([A-Za-z_][A-Za-z0-9_]*)="([^"]*)"/g;
 
 function inferMentionKind(attrs: Record<string, string>): AssistantMentionKind {
@@ -64,13 +69,13 @@ function parseAttrs(rawAttrs: string): Record<string, string> {
   }, {});
 }
 
-export function parseMentionText(text: string): AssistantMentionSegment[] {
-  if (!text || !text.includes("<of-mention")) return [text];
+export function parseAssistantMarkup(text: string): AssistantMarkupSegment[] {
+  if (!text || (!text.includes("<of-mention") && !text.includes("<of-skill"))) return [text];
 
-  const segments: AssistantMentionSegment[] = [];
+  const segments: AssistantMarkupSegment[] = [];
   let cursor = 0;
 
-  for (const match of text.matchAll(MENTION_RE)) {
+  for (const match of text.matchAll(MARKUP_RE)) {
     const start = match.index ?? 0;
     const raw = match[0];
     if (!raw) continue;
@@ -79,9 +84,22 @@ export function parseMentionText(text: string): AssistantMentionSegment[] {
       segments.push(text.slice(cursor, start));
     }
 
+    if (match.groups?.skillAttrs !== undefined) {
+      segments.push({
+        markup: "command",
+        raw,
+        kind: "skill",
+        attrs: parseCommandAttributes(match.groups.skillAttrs.trim()),
+        body: "",
+      });
+      cursor = start + raw.length;
+      continue;
+    }
+
     const attrs = parseAttrs((match.groups?.attrsSelf ?? match.groups?.attrsBlock ?? "").trim());
     const kind = inferMentionKind(attrs);
     segments.push({
+      markup: "mention",
       raw,
       kind,
       attrs,
@@ -95,6 +113,10 @@ export function parseMentionText(text: string): AssistantMentionSegment[] {
   }
 
   return segments;
+}
+
+export function parseMentionText(text: string): AssistantMentionSegment[] {
+  return parseAssistantMarkup(text);
 }
 
 function escapeHtml(text: string): string {
@@ -124,10 +146,21 @@ function buildMentionHtml(token: AssistantMentionToken): string {
   );
 }
 
+function buildCommandHtml(token: AssistantCommandToken): string {
+  return (
+    `<span data-assistant-command="true"` +
+    ` data-command-kind="${escapeHtmlAttr(token.kind)}"` +
+    ` data-command-raw="${escapeHtmlAttr(token.raw)}"` +
+    ` data-command-label="${escapeHtmlAttr(token.attrs.name ?? token.kind)}"` +
+    ` data-command-name="${escapeHtmlAttr(token.attrs.name ?? "")}"` +
+    `></span>`
+  );
+}
+
 export function mentionTextToHtml(text: string): string {
   if (!text) return "";
 
-  const segments = parseMentionText(text);
+  const segments = parseAssistantMarkup(text);
   const paragraphs: string[] = [""];
 
   const appendText = (value: string) => {
@@ -145,7 +178,8 @@ export function mentionTextToHtml(text: string): string {
       appendText(segment);
       return;
     }
-    paragraphs[paragraphs.length - 1] += buildMentionHtml(segment);
+    paragraphs[paragraphs.length - 1] +=
+      segment.markup === "command" ? buildCommandHtml(segment) : buildMentionHtml(segment);
   });
 
   return paragraphs.map((paragraph) => `<p>${paragraph}</p>`).join("");

@@ -5,15 +5,18 @@ import {
   Quote,
   ScrollText,
   NotebookText,
+  Package,
   UserRound,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
+import type { AssistantCommandKind } from "@/features/assistant/lib/command-text";
 import type { AssistantMentionKind } from "@/features/assistant/lib/mention-text";
 
 import "./agent-mentions.css";
 
-function getMentionIcon(kind: AssistantMentionKind): ReactNode {
+function getMentionIcon(kind: AssistantMentionKind | AssistantCommandKind): ReactNode {
+  if (kind === "skill") return <Package size={14} />;
   if (kind === "volume") return <BookOpen size={14} />;
   if (kind === "chapter") return <FileText size={14} />;
   if (kind === "note") return <NotebookText size={14} />;
@@ -29,7 +32,7 @@ export function MentionChip({
   selected = false,
   onClick,
 }: {
-  kind: AssistantMentionKind;
+  kind: AssistantMentionKind | AssistantCommandKind;
   label: string;
   selected?: boolean;
   onClick?: () => void;

@@ -45,7 +45,7 @@ async def build_context_parts(
         parts.extend(prompt_messages)
     if (m := await build_rules(db_session, state.get("project_id"))) is not None:
         parts.append(m)
-    if (m := await build_skills(state, agent_name, db_session)) is not None:
+    if (m := await build_skills(state, agent_name, db_session, node_messages)) is not None:
         parts.append(m)
     parts.extend(await build_history(node_messages, db_session))
 

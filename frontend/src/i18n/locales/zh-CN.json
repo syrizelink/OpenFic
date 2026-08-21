@@ -1694,6 +1694,13 @@
       "loading": "检索中",
       "empty": "未找到匹配内容"
     },
+    "commandKind": {
+      "skill": "技能"
+    },
+    "commandSearch": {
+      "prompt": "随心输入",
+      "loading": "检索中"
+    },
     "thinkingTitle": "推理",
     "collapseThinking": "收起推理内容",
     "expandThinking": "展开推理内容",

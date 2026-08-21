@@ -1,25 +1,37 @@
-import { BookOpen, FileText, Folder, ScrollText, NotebookText, UserRound } from "lucide-react";
+import {
+  BookOpen,
+  FileText,
+  Folder,
+  Package,
+  ScrollText,
+  NotebookText,
+  UserRound,
+} from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { AssistantMentionCandidate } from "@/features/assistant/lib/mention-text";
-
-import type { AgentComposerSuggestionStatus } from "./agent-composer-editor";
+import type {
+  AgentComposerSuggestionItem,
+  AgentComposerSuggestionMode,
+  AgentComposerSuggestionStatus,
+} from "./agent-composer-editor";
 
 interface AgentMentionSuggestionsProps {
   clearanceHeight: number;
-  items: AssistantMentionCandidate[];
+  mode: AgentComposerSuggestionMode;
+  items: AgentComposerSuggestionItem[];
   selectedIndex: number;
   status: AgentComposerSuggestionStatus;
   visible: boolean;
-  onSelect: (item: AssistantMentionCandidate, index: number) => void;
+  onSelect: (item: AgentComposerSuggestionItem, index: number) => void;
   onSelectedIndexChange: (index: number) => void;
   onClose: () => void;
 }
 
-function getItemIcon(kind: AssistantMentionCandidate["kind"]) {
+function getItemIcon(kind: AgentComposerSuggestionItem["kind"]) {
+  if (kind === "skill") return <Package size={14} />;
   if (kind === "volume") return <BookOpen size={14} />;
   if (kind === "note") return <NotebookText size={14} />;
   if (kind === "note_category") return <Folder size={14} />;
@@ -29,9 +41,11 @@ function getItemIcon(kind: AssistantMentionCandidate["kind"]) {
 }
 
 function getItemMeta(
-  item: AssistantMentionCandidate,
+  item: AgentComposerSuggestionItem,
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string {
+  if (item.kind === "skill") return item.description;
+
   const base =
     item.kind === "volume"
       ? t("assistant.mentionKind.volume")
@@ -51,15 +65,23 @@ function getItemMeta(
 
 function getStateMessage(
   status: AgentComposerSuggestionStatus,
+  mode: AgentComposerSuggestionMode,
   t: (key: string) => string,
 ): string {
-  if (status === "idle") return t("assistant.mentionSearch.idle");
-  if (status === "loading") return t("assistant.mentionSearch.loading");
-  return t("assistant.mentionSearch.empty");
+  if (mode === "command") {
+    if (status === "loading") return t("assistant.commandSearch.loading");
+    if (status === "empty") return t("assistant.mentionSearch.empty");
+    return t("assistant.commandSearch.prompt");
+  }
+  const keyPrefix = "assistant.mentionSearch";
+  if (status === "idle") return t(`${keyPrefix}.idle`);
+  if (status === "loading") return t(`${keyPrefix}.loading`);
+  return t(`${keyPrefix}.empty`);
 }
 
 export function AgentMentionSuggestions({
   clearanceHeight,
+  mode,
   items,
   selectedIndex,
   status,
@@ -70,16 +92,38 @@ export function AgentMentionSuggestions({
 }: AgentMentionSuggestionsProps) {
   const { t } = useTranslation();
   const listRef = useRef<HTMLDivElement>(null);
+  const shouldScrollSelectionRef = useRef(false);
   const normalizedClearanceHeight = Math.max(clearanceHeight, 0);
   const style = {
     "--ai-sidebar-mention-clearance-height": `${normalizedClearanceHeight}px`,
   } as CSSProperties;
 
   useEffect(() => {
-    if (!visible || status !== "ready" || !listRef.current) return;
-    const element = listRef.current.children[selectedIndex] as HTMLElement | undefined;
+    if (!visible || status !== "ready" || !listRef.current || !shouldScrollSelectionRef.current) {
+      return;
+    }
+    const element = listRef.current.querySelector<HTMLElement>(
+      `[data-suggestion-index="${selectedIndex}"]`,
+    );
     element?.scrollIntoView({ block: "nearest" });
+    shouldScrollSelectionRef.current = false;
   }, [selectedIndex, status, visible]);
+
+  const handleSelectedIndexChange = useCallback(
+    (index: number) => {
+      shouldScrollSelectionRef.current = true;
+      onSelectedIndexChange(index);
+    },
+    [onSelectedIndexChange],
+  );
+
+  const handleMouseEnter = useCallback(
+    (index: number) => {
+      shouldScrollSelectionRef.current = false;
+      onSelectedIndexChange(index);
+    },
+    [onSelectedIndexChange],
+  );
 
   useEffect(() => {
     if (!visible) return undefined;
@@ -91,13 +135,13 @@ export function AgentMentionSuggestions({
           if (!hasSelectableItems) break;
           event.preventDefault();
           event.stopPropagation();
-          onSelectedIndexChange((selectedIndex + 1) % items.length);
+          handleSelectedIndexChange((selectedIndex + 1) % items.length);
           break;
         case "ArrowUp":
           if (!hasSelectableItems) break;
           event.preventDefault();
           event.stopPropagation();
-          onSelectedIndexChange((selectedIndex - 1 + items.length) % items.length);
+          handleSelectedIndexChange((selectedIndex - 1 + items.length) % items.length);
           break;
         case "Enter":
         case "Tab":
@@ -118,9 +162,54 @@ export function AgentMentionSuggestions({
     return () => {
       document.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [items, onClose, onSelect, onSelectedIndexChange, selectedIndex, status, visible]);
+  }, [handleSelectedIndexChange, items, onClose, onSelect, selectedIndex, status, visible]);
 
   if (!visible) return null;
+
+  const hasCommandGroup = mode === "command" && status === "ready" && items.length > 0;
+  const suggestionContent =
+    status === "ready" && items.length > 0 ? (
+      <div
+        ref={listRef}
+        className="agent-mention-suggestions-list"
+      >
+        {hasCommandGroup && (
+          <div className="agent-command-suggestion-header">{t("assistant.commandKind.skill")}</div>
+        )}
+        {items.map((item, index) => (
+          <button
+            key={`${item.kind}-${item.id}`}
+            type="button"
+            className="agent-mention-suggestion-item"
+            data-suggestion-index={index}
+            data-selected={index === selectedIndex}
+            onClick={() => onSelect(item, index)}
+            onMouseEnter={() => handleMouseEnter(index)}
+          >
+            <span
+              className="agent-mention-suggestion-icon"
+              aria-hidden="true"
+            >
+              {getItemIcon(item.kind)}
+            </span>
+            <span className="agent-mention-suggestion-copy">
+              <span className="agent-mention-suggestion-title">
+                {item.kind === "skill" ? item.name : item.title}
+              </span>
+              <span className="agent-mention-suggestion-kind">{getItemMeta(item, t)}</span>
+            </span>
+          </button>
+        ))}
+        {hasCommandGroup && (
+          <div
+            className="agent-command-suggestion-divider"
+            aria-hidden="true"
+          />
+        )}
+      </div>
+    ) : (
+      <div className="agent-mention-suggestion-state">{getStateMessage(status, mode, t)}</div>
+    );
 
   return (
     <div
@@ -128,7 +217,10 @@ export function AgentMentionSuggestions({
       style={style}
     >
       <div className="ai-sidebar-mention-card-stack">
-        <div className="ai-sidebar-mention-card">
+        <div
+          className="ai-sidebar-mention-card"
+          data-variant={mode}
+        >
           <motion.div
             className="ai-sidebar-mention-card-body"
             initial={{ opacity: 0, height: 0 }}
@@ -136,36 +228,7 @@ export function AgentMentionSuggestions({
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
           >
-            {status === "ready" && items.length > 0 ? (
-              <div
-                ref={listRef}
-                className="agent-mention-suggestions-list"
-              >
-                {items.map((item, index) => (
-                  <button
-                    key={`${item.kind}-${item.id}`}
-                    type="button"
-                    className="agent-mention-suggestion-item"
-                    data-selected={index === selectedIndex}
-                    onClick={() => onSelect(item, index)}
-                    onMouseEnter={() => onSelectedIndexChange(index)}
-                  >
-                    <span
-                      className="agent-mention-suggestion-icon"
-                      aria-hidden="true"
-                    >
-                      {getItemIcon(item.kind)}
-                    </span>
-                    <span className="agent-mention-suggestion-copy">
-                      <span className="agent-mention-suggestion-title">{item.title}</span>
-                      <span className="agent-mention-suggestion-kind">{getItemMeta(item, t)}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="agent-mention-suggestion-state">{getStateMessage(status, t)}</div>
-            )}
+            {suggestionContent}
           </motion.div>
           <div
             aria-hidden="true"

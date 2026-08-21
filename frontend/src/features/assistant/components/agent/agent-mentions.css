@@ -112,6 +112,20 @@
   overflow: hidden;
 }
 
+.agent-command-suggestion-header {
+  padding: 8px 12px 3px;
+  color: var(--gray-10);
+  font-size: var(--font-size-sm);
+  line-height: 1.3;
+  text-align: left;
+}
+
+.agent-command-suggestion-divider {
+  height: 1px;
+  margin: 6px 12px 0;
+  background: var(--gray-a4);
+}
+
 .agent-mention-suggestions-list {
   max-height: calc(8 * 28px + 12px);
   padding: 6px;

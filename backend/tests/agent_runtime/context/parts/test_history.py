@@ -154,3 +154,20 @@ async def test_history_preserves_user_xml_when_session_unavailable():
     result = await build_history(raw)
 
     assert result[0].content == raw[0]["content"]
+
+
+async def test_history_compiles_skill_commands_for_llm_context_when_session_available():
+    raw = [{
+        "role": "user",
+        "content": '<of-skill name="小说人物设计" />',
+    }]
+
+    fake_session = object()
+    with patch(
+        "app.agent_runtime.context.parts.history.compile_canonical_mentions",
+        AsyncMock(return_value="@skill:小说人物设计"),
+    ) as compile_mock:
+        result = await build_history(raw, fake_session)
+
+    compile_mock.assert_awaited_once_with(raw[0]["content"], fake_session)
+    assert result[0].content == "@skill:小说人物设计"

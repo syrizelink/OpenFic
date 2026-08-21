@@ -12,6 +12,7 @@ export function MentionNodeView({ node, selected, extension }: NodeViewProps) {
   const kind = (node.attrs.mentionKind ?? "chapter") as AssistantMentionKind;
   const label = (node.attrs.mentionLabel ?? node.attrs.mentionRaw ?? kind) as string;
   const token: AssistantMentionToken = {
+    markup: "mention",
     raw: String(node.attrs.mentionRaw ?? ""),
     kind,
     attrs: {

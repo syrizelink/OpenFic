@@ -15,6 +15,7 @@ from app.agent_runtime.agents.definitions import (
     load_all_agent_definitions,
 )
 from app.agent_runtime.agents.tool_categories import get_tool_names_for_categories
+from app.agent_runtime.context.helpers import extract_referenced_skill_names
 from app.agent_runtime.graph.config import build_child_config, get_inject_queue
 from app.agent_runtime.graph.node_events import with_node_events
 from app.agent_runtime.graph.orchestrator.state import OrchestratorState
@@ -32,6 +33,7 @@ from app.agent_runtime.tools.hooks.note_refresh import note_refresh_post_hook
 from app.agent_runtime.tools.hooks.world_entry_refresh import world_entry_refresh_post_hook
 from app.agent_runtime.types import ReactAgentConfig, TerminationCondition
 from app.models.clients.model_factory import ModelConfig, create_chat_model
+from app.storage.services import skill_service
 
 DEFAULT_PRIMARY_TOOL_CATEGORIES = (
     "orchestration",
@@ -43,14 +45,51 @@ DEFAULT_PRIMARY_TOOL_CATEGORIES = (
 )
 
 
-async def _primary_tool_names(config: RunnableConfig | None, agent_key: str = "build") -> list[str]:
+async def _primary_tool_names(
+    config: RunnableConfig | None,
+    agent_key: str = "build",
+    *,
+    referenced_skill_names: tuple[str, ...] = (),
+) -> list[str]:
     configurable = config.get("configurable", {}) if isinstance(config, dict) else {}
     db_session = configurable.get("db_session") if isinstance(configurable, dict) else None
     if db_session is None:
         return list(get_tool_names_for_categories(DEFAULT_PRIMARY_TOOL_CATEGORIES))
     definition = await load_agent_definition(db_session, agent_key)
     return list(get_tool_names_for_categories(definition.enabled_tool_categories)) + list(
-        await skill_tool_names_for_definition(definition, db_session)
+        await skill_tool_names_for_definition(
+            definition,
+            db_session,
+            referenced_skill_names=referenced_skill_names,
+        )
+    )
+
+
+async def _primary_referenced_skill_names(
+    state: OrchestratorState,
+    config: RunnableConfig | None,
+) -> tuple[str, ...]:
+    configurable = config.get("configurable", {}) if isinstance(config, dict) else {}
+    db_session = configurable.get("db_session") if isinstance(configurable, dict) else None
+    if db_session is None:
+        return ()
+
+    texts: list[str] = []
+    user_request = state.get("user_request") or ""
+    if isinstance(user_request, str) and user_request:
+        texts.append(user_request)
+    for message in state.get("messages") or []:
+        if not isinstance(message, HumanMessage):
+            continue
+        if isinstance(message.content, str) and message.content:
+            texts.append(message.content)
+    if not any("<of-skill" in text or "@skill:" in text for text in texts):
+        return ()
+
+    globally_enabled = await skill_service.list_enabled_skills(db_session)
+    return extract_referenced_skill_names(
+        texts,
+        (skill.name for skill in globally_enabled),
     )
 
 
@@ -100,16 +139,22 @@ async def primary_node(
     model_config = ModelConfig(**to_client_model_config(runtime_model_config))
     model = create_chat_model(model_config)
     agent_key = state.get("agent_key", "build")
+    referenced_skill_names = await _primary_referenced_skill_names(state, config)
     tool_state = dict(state)
     tool_state["model_config"] = dict(runtime_model_config)
     tool_state["active_agent"] = agent_key
+    tool_state["referenced_skill_names"] = list(referenced_skill_names)
 
     agent_config = ReactAgentConfig(
         name=agent_key,
         tools=cast(
             list[BaseTool],
             ToolRegistry.get_tools(
-                names=await _primary_tool_names(config, agent_key=agent_key),
+                names=await _primary_tool_names(
+                    config,
+                    agent_key=agent_key,
+                    referenced_skill_names=referenced_skill_names,
+                ),
                 state=tool_state,
                 build_hooks=await _primary_build_hooks(config, agent_key=agent_key),
                 pre_hooks=[auth_hook],
