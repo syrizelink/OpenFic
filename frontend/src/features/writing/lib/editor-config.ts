@@ -11,7 +11,8 @@ import History from "@tiptap/extension-history";
 import Paragraph from "@tiptap/extension-paragraph";
 import Placeholder from "@tiptap/extension-placeholder";
 import Text from "@tiptap/extension-text";
-import { Plugin, TextSelection } from "@tiptap/pm/state";
+import { Plugin, TextSelection, type Transaction } from "@tiptap/pm/state";
+import type { EditorView } from "@tiptap/pm/view";
 import { Extension } from "@tiptap/react";
 
 import { serializeClipboardText } from "@/components/editor-clipboard";
@@ -134,6 +135,13 @@ function convertHalfwidthPunctuation(text: string, precedingText: string): strin
   return result;
 }
 
+function isCompositionTextInput(
+  view: Pick<EditorView, "composing">,
+  defaultTransaction: () => Transaction,
+): boolean {
+  return view.composing || defaultTransaction().getMeta("composition") !== undefined;
+}
+
 const TabIndent = Extension.create({
   name: "tabIndent",
 
@@ -182,8 +190,8 @@ function createAutoConvertPunctuation(shouldConvert: () => boolean) {
       return [
         new Plugin({
           props: {
-            handleTextInput(view, from, to, text) {
-              if (!shouldConvert()) {
+            handleTextInput(view, from, to, text, defaultTransaction) {
+              if (!shouldConvert() || isCompositionTextInput(view, defaultTransaction)) {
                 return false;
               }
 
@@ -211,8 +219,13 @@ function createAutoPairSymbols(shouldPair: () => boolean, shouldConvertPunctuati
       return [
         new Plugin({
           props: {
-            handleTextInput(view, from, to, text) {
-              if (!shouldPair() || from !== to || Array.from(text).length !== 1) {
+            handleTextInput(view, from, to, text, defaultTransaction) {
+              if (
+                !shouldPair() ||
+                from !== to ||
+                Array.from(text).length !== 1 ||
+                isCompositionTextInput(view, defaultTransaction)
+              ) {
                 return false;
               }
 
