@@ -69,6 +69,21 @@ class TestAskUser:
         data = json.loads(result)
         assert data == interrupt_response["answer"]
 
+    async def test_ask_user_returns_user_skipped_result(self):
+        from app.agent_runtime.tools.impls.interaction.ask_user import AskUserTool
+
+        tool = AskUserTool(_state=_make_state())
+        with patch("app.agent_runtime.tools.impls.interaction.ask_user.interrupt") as mock_interrupt:
+            mock_interrupt.return_value = {
+                "action_type": "clarification",
+                "action_id": "question-1",
+                "answer": [],
+                "skipped": True,
+            }
+            result = await tool.ainvoke(_valid_input())
+
+        assert json.loads(result) == {"status": "user_skipped", "error": "用户忽略了提问"}
+
     async def test_ask_user_accepts_more_than_five_questions(self):
         from app.agent_runtime.tools.impls.interaction.ask_user import AskUserTool
 

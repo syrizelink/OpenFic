@@ -10,6 +10,7 @@ interface AgentSpecialPanelsProps {
   embedded?: boolean;
   onApproveTool?: (approvalId: string, approved: boolean) => void;
   onSubmitQuestionAnswer?: (actionId: string, answer: ClarificationAnswerItem[]) => void;
+  onSkipQuestion?: (actionId: string) => void;
   onBatchDecision?: (
     panel: AgentSpecialPanel,
     decision: { approved?: boolean; answer?: ClarificationAnswerItem[] },
@@ -22,6 +23,7 @@ export function AgentSpecialPanels({
   embedded = false,
   onApproveTool,
   onSubmitQuestionAnswer,
+  onSkipQuestion,
   onBatchDecision,
   readOnly = false,
 }: AgentSpecialPanelsProps) {
@@ -56,6 +58,7 @@ export function AgentSpecialPanels({
               panel={panel}
               readOnly={readOnly}
               onSubmitQuestionAnswer={onSubmitQuestionAnswer}
+              onSkipQuestion={onSkipQuestion}
               onBatchDecision={panel.batchId ? onBatchDecision : undefined}
             />
           );

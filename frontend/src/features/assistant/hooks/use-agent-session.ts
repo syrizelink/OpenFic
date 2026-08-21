@@ -1117,7 +1117,7 @@ export function useAgentSession({
   );
 
   const submitQuestionAnswer = useCallback(
-    async (actionId: string, answer: ClarificationAnswerItem[]) => {
+    async (actionId: string, answer: ClarificationAnswerItem[], skipped = false) => {
       if (!sessionId) {
         toast.error(i18n.t("assistant.sessionNotFound"));
         return;
@@ -1143,7 +1143,7 @@ export function useAgentSession({
           attachAgentSocket(sessionId);
           await joinAgentSession(sessionId);
         }
-        await submitAgentQuestionAnswer(sessionId, actionId, answer);
+        await submitAgentQuestionAnswer(sessionId, actionId, answer, skipped);
       } catch (error) {
         console.error("Question answer failed:", error);
         updateTranscriptState((current) => ({
@@ -1161,7 +1161,7 @@ export function useAgentSession({
   const handleBatchDecision = useCallback(
     async (
       panel: AgentMessage,
-      decision: { approved?: boolean; answer?: ClarificationAnswerItem[] },
+      decision: { approved?: boolean; answer?: ClarificationAnswerItem[]; skipped?: boolean },
     ) => {
       const batchId = panel.interruptBatchId;
       if (!batchId || panel.interruptBatchTotal === undefined) return;
@@ -1173,7 +1173,7 @@ export function useAgentSession({
         action_type: panel.type === "approval" ? "tool_approval" : "clarification",
         ...(panel.type === "approval"
           ? { approval_id: interruptId, approved: decision.approved }
-          : { action_id: interruptId, answer: decision.answer }),
+          : { action_id: interruptId, answer: decision.answer, skipped: decision.skipped }),
       };
       const decisionCount = Object.keys(current.decisions).length;
       const batchTotal = panel.interruptBatchTotal ?? current.panels.length;
@@ -1197,6 +1197,7 @@ export function useAgentSession({
             approved: typeof item.approved === "boolean" ? item.approved : undefined,
             action_id: typeof item.action_id === "string" ? item.action_id : undefined,
             answer: Array.isArray(item.answer) ? item.answer : undefined,
+            skipped: item.skipped === true,
           })),
         );
         interruptBatchRef.current = null;

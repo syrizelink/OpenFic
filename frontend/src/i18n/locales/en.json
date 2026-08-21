@@ -1750,6 +1750,7 @@
       "previous": "Previous",
       "next": "Next",
       "submit": "Submit answers",
+      "ignore": "Ignore",
       "customInput": "Type your own answer",
       "customInputDescription": "Enter a custom answer",
       "customInputPlaceholder": "Enter a custom answer...",

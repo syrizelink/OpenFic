@@ -1137,6 +1137,9 @@ def create_react_agent(
             ):
                 is_done = True
                 final_output = outcome["tool_args"]
+            if not is_done and tool_name == "ask_user" and outcome["payload"].get("status") == "user_skipped":
+                is_done = True
+                final_output = outcome["payload"]
             if active_audit is not None:
                 active_audit.record_tool_call(
                     tool_name=tool_name,

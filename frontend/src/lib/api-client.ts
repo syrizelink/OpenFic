@@ -2408,10 +2408,12 @@ export async function submitAgentQuestionAnswer(
   sessionId: string,
   actionId: string,
   answer: ClarificationAnswerItem[],
+  skipped = false,
 ): Promise<AgentQuestionAnswerResponse | void> {
   const response = await apiClient.post(`/agent/sessions/${sessionId}/question-answer`, {
     action_id: actionId,
     answer,
+    skipped,
   });
   return response.data;
 }

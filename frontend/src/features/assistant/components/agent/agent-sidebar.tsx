@@ -229,6 +229,7 @@ export function useAgentSidebar({
             : undefined
         }
         onSubmitQuestionAnswer={submitAgentQuestionAnswer}
+        onSkipQuestion={(actionId) => void submitAgentQuestionAnswer(actionId, [], true)}
         onBatchDecision={(panel, decision) => {
           const message = agentMessages.find((item) => item.id === panel.id);
           if (message) void handleBatchDecision(message, decision);

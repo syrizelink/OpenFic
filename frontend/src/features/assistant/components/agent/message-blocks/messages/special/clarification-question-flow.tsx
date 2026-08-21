@@ -1,5 +1,6 @@
 import { Box, Button, Flex, Text } from "@radix-ui/themes";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { ClarificationQuestion } from "../../../../../../../lib/agent.types";
@@ -12,6 +13,7 @@ interface ClarificationQuestionBodyProps {
 }
 
 interface ClarificationQuestionActionsProps {
+  leadingAction?: ReactNode;
   model: ClarificationQuestionFlowModel;
 }
 
@@ -76,7 +78,10 @@ export function ClarificationQuestionBody({
   return bodyClassName ? <Box className={bodyClassName}>{content}</Box> : content;
 }
 
-export function ClarificationQuestionActions({ model }: ClarificationQuestionActionsProps) {
+export function ClarificationQuestionActions({
+  leadingAction,
+  model,
+}: ClarificationQuestionActionsProps) {
   const { t } = useTranslation();
   const { prompt } = model;
   if (prompt.questions.length === 0) return null;
@@ -88,12 +93,18 @@ export function ClarificationQuestionActions({ model }: ClarificationQuestionAct
         justify="between"
         style={{ width: "100%" }}
       >
-        <Text
-          size="1"
-          color="gray"
+        <Flex
+          align="center"
+          gap="2"
         >
-          {model.currentStep + 1} / {prompt.questions.length}
-        </Text>
+          {leadingAction}
+          <Text
+            size="1"
+            color="gray"
+          >
+            {model.currentStep + 1} / {prompt.questions.length}
+          </Text>
+        </Flex>
         <Flex gap="2">
           {model.currentStep > 0 && (
             <Button
@@ -133,7 +144,12 @@ export function ClarificationQuestionActions({ model }: ClarificationQuestionAct
   if (!model.canRenderSubmit) return null;
 
   return (
-    <Flex justify="end">
+    <Flex
+      align="center"
+      justify="between"
+      style={{ width: "100%" }}
+    >
+      {leadingAction}
       <Button
         size="1"
         onClick={model.handleSubmit}

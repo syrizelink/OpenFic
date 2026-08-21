@@ -1,4 +1,4 @@
-import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
+import { Box, Button, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -20,9 +20,10 @@ import { SpecialPanelShell } from "./special-panel-shell";
 interface ClarificationSpecialPanelProps {
   panel: AgentQuestionSpecialPanel;
   onSubmitQuestionAnswer?: (actionId: string, answer: ClarificationAnswerItem[]) => void;
+  onSkipQuestion?: (actionId: string) => void;
   onBatchDecision?: (
     panel: AgentSpecialPanel,
-    decision: { answer: ClarificationAnswerItem[] },
+    decision: { answer?: ClarificationAnswerItem[]; skipped?: boolean },
   ) => void;
   readOnly?: boolean;
 }
@@ -30,6 +31,7 @@ interface ClarificationSpecialPanelProps {
 export function ClarificationSpecialPanel({
   panel,
   onSubmitQuestionAnswer,
+  onSkipQuestion,
   onBatchDecision,
   readOnly = false,
 }: ClarificationSpecialPanelProps) {
@@ -41,6 +43,7 @@ export function ClarificationSpecialPanel({
       summary={panel.summary}
       readOnly={readOnly}
       onSubmitQuestionAnswer={onSubmitQuestionAnswer}
+      onSkipQuestion={onSkipQuestion}
       onBatchDecision={onBatchDecision}
     />
   );
@@ -51,9 +54,10 @@ interface ClarificationSpecialPanelContentProps {
   prompt: ClarificationPromptData;
   summary: string;
   onSubmitQuestionAnswer?: (actionId: string, answer: ClarificationAnswerItem[]) => void;
+  onSkipQuestion?: (actionId: string) => void;
   onBatchDecision?: (
     panel: AgentSpecialPanel,
-    decision: { answer: ClarificationAnswerItem[] },
+    decision: { answer?: ClarificationAnswerItem[]; skipped?: boolean },
   ) => void;
   readOnly?: boolean;
 }
@@ -63,6 +67,7 @@ function ClarificationSpecialPanelContent({
   prompt,
   summary,
   onSubmitQuestionAnswer,
+  onSkipQuestion,
   onBatchDecision,
   readOnly = false,
 }: ClarificationSpecialPanelContentProps) {
@@ -156,7 +161,31 @@ function ClarificationSpecialPanelContent({
           : undefined
       }
       content={content}
-      actions={readOnly ? undefined : <ClarificationQuestionActions model={model} />}
+      actions={
+        readOnly ? undefined : (
+          <ClarificationQuestionActions
+            model={model}
+            leadingAction={
+              <Button
+                variant="ghost"
+                color="gray"
+                size="1"
+                type="button"
+                className="agent-clarification-skip-button"
+                onClick={() => {
+                  if (onBatchDecision) {
+                    onBatchDecision(panel, { skipped: true });
+                    return;
+                  }
+                  onSkipQuestion?.(prompt.actionId);
+                }}
+              >
+                {t("assistant.clarification.ignore")}
+              </Button>
+            }
+          />
+        )
+      }
     />
   );
 }

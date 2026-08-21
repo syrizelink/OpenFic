@@ -1813,6 +1813,7 @@
       "previous": "上一步",
       "next": "下一步",
       "submit": "提交回答",
+      "ignore": "忽略",
       "customInput": "自行输入",
       "customInputDescription": "输入自定义回答",
       "customInputPlaceholder": "输入自定义回答...",

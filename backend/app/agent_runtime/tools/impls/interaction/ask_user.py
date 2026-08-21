@@ -51,5 +51,10 @@ class AskUserTool(AgentTool):
             "questions": [question.model_dump(mode="json") for question in questions],
         }
         response = interrupt(payload)
+        if isinstance(response, dict) and response.get("skipped") is True:
+            return json.dumps(
+                {"status": "user_skipped", "error": "用户忽略了提问"},
+                ensure_ascii=False,
+            )
         answers = response.get("answer") if isinstance(response, dict) else None
         return json.dumps(answers if isinstance(answers, list) else [], ensure_ascii=False)

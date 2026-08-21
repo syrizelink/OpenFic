@@ -364,6 +364,7 @@ export interface AgentInterruptBatchResponse {
   approved?: boolean;
   action_id?: string;
   answer?: ClarificationAnswerItem[];
+  skipped?: boolean;
 }
 
 export interface AgentQuestionAnswerResponse {

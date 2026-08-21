@@ -1,0 +1,9 @@
+.agent-clarification-skip-button {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.agent-clarification-skip-button:hover {
+  background: transparent;
+}
