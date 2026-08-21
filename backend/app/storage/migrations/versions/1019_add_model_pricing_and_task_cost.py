@@ -87,7 +87,7 @@ def _resolve_catalog_provider_type(
     if not isinstance(provider_type, str):
         return None
     if provider_type != "openai-compatible":
-        return provider_type if provider_type in provider_urls else None
+        return provider_type
 
     normalized_url = _normalize_api_url(provider_url)
     if not normalized_url:

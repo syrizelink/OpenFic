@@ -349,10 +349,16 @@ export function ModelFormDialog({
       ) {
         setValue("contextLength", catalogModel.contextWindow);
       }
-      setValue("inputPrice", catalogModel?.inputPricePerMillion ?? 0);
-      setValue("outputPrice", catalogModel?.outputPricePerMillion ?? 0);
-      setValue("cacheReadPrice", catalogModel?.cacheReadPricePerMillion ?? 0);
-      setValue("cacheWritePrice", catalogModel?.cacheWritePricePerMillion ?? 0);
+      setValue("inputPrice", catalogModel?.inputPricePerMillion ?? getValues("inputPrice"));
+      setValue("outputPrice", catalogModel?.outputPricePerMillion ?? getValues("outputPrice"));
+      setValue(
+        "cacheReadPrice",
+        catalogModel?.cacheReadPricePerMillion ?? getValues("cacheReadPrice"),
+      );
+      setValue(
+        "cacheWritePrice",
+        catalogModel?.cacheWritePricePerMillion ?? getValues("cacheWritePrice"),
+      );
     },
     [availableModels, getValues, setValue],
   );

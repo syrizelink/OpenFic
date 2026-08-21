@@ -14,7 +14,9 @@ def _non_negative_int(value: Any) -> int:
 def _nested_usage_value(usage: Mapping[str, Any], keys: tuple[str, ...]) -> int:
     for key in keys:
         if key in usage:
-            return _non_negative_int(usage[key])
+            value = _non_negative_int(usage[key])
+            if value > 0:
+                return value
 
     for details_key in ("input_token_details", "prompt_tokens_details"):
         details = usage.get(details_key)
@@ -22,7 +24,9 @@ def _nested_usage_value(usage: Mapping[str, Any], keys: tuple[str, ...]) -> int:
             continue
         for key in keys:
             if key in details:
-                return _non_negative_int(details[key])
+                value = _non_negative_int(details[key])
+                if value > 0:
+                    return value
     return 0
 
 

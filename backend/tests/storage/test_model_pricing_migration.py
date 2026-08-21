@@ -53,6 +53,22 @@ def test_backfill_model_metadata_from_bundled_catalog(tmp_path) -> None:
                                 },
                             }
                         ],
+                    },
+                    {
+                        "provider_type": "cerebras",
+                        "models": [
+                            {
+                                "model_id": "llama-3.1-8b",
+                                "task_type": "llm",
+                                "metadata": {
+                                    "limit": {"context": 128000},
+                                    "cost": {
+                                        "input": 0.6,
+                                        "output": 0.8,
+                                    },
+                                },
+                            }
+                        ],
                     }
                 ]
             }
@@ -68,6 +84,7 @@ def test_backfill_model_metadata_from_bundled_catalog(tmp_path) -> None:
                 "INSERT INTO model_providers (id, provider_type, url) VALUES "
                 "('openai-provider', 'openai', 'https://api.openai.com/v1'), "
                 "('compatible-provider', 'openai-compatible', 'https://api.openai.com/v1'), "
+                "('cerebras-provider', 'cerebras', 'https://api.cerebras.ai/v1'), "
                 "('unknown-provider', 'openai-compatible', 'https://unknown.example/v1')"
             )
         )
@@ -78,6 +95,7 @@ def test_backfill_model_metadata_from_bundled_catalog(tmp_path) -> None:
                 "output_price, cache_read_price, cache_write_price) VALUES "
                 "('standard-model', 'openai-provider', 'gpt-4o', 'llm', 128000, 0, 0, 0, 0), "
                 "('compatible-model', 'compatible-provider', 'gpt-4o', 'llm', 128000, 0, 0, 0, 0), "
+                "('cerebras-model', 'cerebras-provider', 'llama-3.1-8b', 'llm', 128000, 0, 0, 0, 0), "
                 "('unmatched-model', 'unknown-provider', 'gpt-4o', 'llm', 128000, 0, 0, 0, 0)"
             )
         )
@@ -92,6 +110,14 @@ def test_backfill_model_metadata_from_bundled_catalog(tmp_path) -> None:
         ).mappings().all()
 
     assert rows == [
+        {
+            "id": "cerebras-model",
+            "context_length": 128000,
+            "input_price": 0.6,
+            "output_price": 0.8,
+            "cache_read_price": 0.0,
+            "cache_write_price": 0.0,
+        },
         {
             "id": "compatible-model",
             "context_length": 200000,

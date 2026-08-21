@@ -1804,6 +1804,19 @@ async def test_subagent_runner_accumulates_parent_task_usage_and_persists_child_
         "app.agent_runtime.runner.subagent_runner.create_react_agent",
         lambda *_args, **_kwargs: FakeGraph(),
     )
+    monkeypatch.setattr(
+        "app.agent_runtime.runner.subagent_runner._resolve_agent_model_config",
+        AsyncMock(
+            return_value={
+                "provider_type": "openai",
+                "base_url": "",
+                "api_key": "key",
+                "model_id": "child-model",
+                "max_context_tokens": 16000,
+                "output_price": 10.0,
+            }
+        ),
+    )
 
     runner = SubagentRunner(
         session_factory=db_session_factory,
@@ -1813,6 +1826,7 @@ async def test_subagent_runner_accumulates_parent_task_usage_and_persists_child_
             "api_key": "key",
             "model_id": "gpt-test",
             "max_context_tokens": 8000,
+            "output_price": 1.0,
         },
         project_id="project-1",
     )
@@ -1827,14 +1841,15 @@ async def test_subagent_runner_accumulates_parent_task_usage_and_persists_child_
     assert task.token_output == 7
     assert task.token_cache == 3
     assert task.context_input_tokens == 18
+    assert task.cost == 0.00007
     assert child is not None
     assert child.metadata_json["token_usage"] == {
         "token_input": 18,
         "token_output": 7,
         "token_cache": 3,
-        "cost": 0.0,
+        "cost": 0.00007,
         "context_input_tokens": 18,
-        "context_length": 8000,
+        "context_length": 16000,
     }
     assert (
         "agent:task_usage_delta",
@@ -1844,7 +1859,7 @@ async def test_subagent_runner_accumulates_parent_task_usage_and_persists_child_
             "token_input": 18,
             "token_output": 7,
             "token_cache": 3,
-            "cost": 0.0,
+            "cost": 0.00007,
         },
         "agent_session:parent-session",
     ) in emitted
