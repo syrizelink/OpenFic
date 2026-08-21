@@ -45,6 +45,8 @@ from app.storage.models.volume import Volume
 from app.storage.repos import revision_repo
 from app.storage.services import task_service
 
+pytestmark = pytest.mark.usefixtures("fast_checkpoint_sqlite")
+
 
 @pytest_asyncio.fixture(autouse=True)
 async def reset_agent_runtime_globals(monkeypatch, tmp_path: Path):

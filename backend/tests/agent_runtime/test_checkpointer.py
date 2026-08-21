@@ -32,9 +32,13 @@ from app.agent_runtime.persistence.model import AgentChildRunRequest
 from app.storage.models.revision import Revision
 from app.storage.models.task import Task
 
+pytestmark = pytest.mark.usefixtures("fast_checkpoint_sqlite")
+
 
 @pytest.mark.asyncio
-async def test_get_checkpointer_restores_legacy_question_checkpoint(monkeypatch, tmp_path):
+async def test_get_checkpointer_restores_legacy_question_checkpoint(
+    monkeypatch, tmp_path
+):
     db_path = tmp_path / "test_checkpoints.db"
     monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(db_path))
     await reset_checkpointer()
@@ -501,7 +505,10 @@ async def test_cleanup_unreachable_checkpoints_noops_for_empty_checkpoint_store(
     await reset_checkpointer()
 
     try:
-        assert await cleanup_unreachable_checkpoints(session, await get_checkpointer()) == 0
+        assert (
+            await cleanup_unreachable_checkpoints(session, await get_checkpointer())
+            == 0
+        )
     finally:
         await reset_checkpointer()
 
@@ -708,7 +715,11 @@ async def test_cleanup_unreachable_checkpoints_removes_inactive_child_thread(
     await session.commit()
 
     checkpointer = await get_checkpointer()
-    for thread_id in ("agent-root", active_child.child_thread_id, inactive_child.child_thread_id):
+    for thread_id in (
+        "agent-root",
+        active_child.child_thread_id,
+        inactive_child.child_thread_id,
+    ):
         await checkpointer.conn.execute(
             "INSERT INTO checkpoints(thread_id, checkpoint_ns, checkpoint_id) VALUES (?, ?, ?)",
             (thread_id, "", f"checkpoint-{thread_id}"),
@@ -733,7 +744,9 @@ async def test_cleanup_unreachable_checkpoints_removes_inactive_child_thread(
         ]
     finally:
         await cursor.close()
-    cursor = await checkpointer.conn.execute("SELECT thread_id FROM writes ORDER BY thread_id")
+    cursor = await checkpointer.conn.execute(
+        "SELECT thread_id FROM writes ORDER BY thread_id"
+    )
     try:
         assert await cursor.fetchall() == [
             ("agent-root",),
@@ -756,7 +769,7 @@ async def test_vacuum_checkpoint_database_only_runs_above_free_space_threshold(
     await checkpointer.conn.execute("PRAGMA journal_mode = DELETE")
     await checkpointer.conn.execute("CREATE TABLE test_data (value BLOB)")
     await checkpointer.conn.execute(
-        "INSERT INTO test_data(value) VALUES (zeroblob(131072))"
+        "INSERT INTO test_data(value) VALUES (zeroblob(32768))"
     )
     await checkpointer.conn.execute("DELETE FROM test_data")
     await checkpointer.conn.commit()
@@ -774,7 +787,9 @@ async def test_vacuum_checkpoint_database_skips_small_free_space(
     await reset_checkpointer()
     checkpointer = await get_checkpointer()
     await checkpointer.conn.execute("CREATE TABLE test_data (value BLOB)")
-    await checkpointer.conn.execute("INSERT INTO test_data(value) VALUES (zeroblob(4096))")
+    await checkpointer.conn.execute(
+        "INSERT INTO test_data(value) VALUES (zeroblob(4096))"
+    )
     await checkpointer.conn.execute("DELETE FROM test_data")
     await checkpointer.conn.commit()
     await reset_checkpointer()

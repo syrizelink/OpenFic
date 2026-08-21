@@ -281,7 +281,7 @@ def test_create_chat_model_enables_nvidia_thinking_mode():
             provider_type="nvidia-ai-endpoints",
             base_url="https://integrate.api.nvidia.com/v1",
             api_key="nvapi-test",
-            model_id="moonshotai/kimi-k2.5",
+            model_id="deepseek-ai/deepseek-v4-pro",
             reasoning_effort="high",
         )
     )

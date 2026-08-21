@@ -8,6 +8,7 @@ def dummy_tool():
     def add_numbers(a: int, b: int) -> int:
         """Add two numbers together."""
         return a + b
+
     return add_numbers
 
 
@@ -17,4 +18,5 @@ def submit_tool():
     def submit_result(result: str) -> str:
         """Submit the final result to end the agent loop."""
         return f"Submitted: {result}"
+
     return submit_result
