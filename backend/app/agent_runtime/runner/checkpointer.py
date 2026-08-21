@@ -73,6 +73,17 @@ def _get_db_path() -> str:
     return str(target_path)
 
 
+async def _configure_checkpoint_connection(conn: aiosqlite.Connection) -> None:
+    for pragma in (
+        "PRAGMA journal_mode=WAL",
+        "PRAGMA synchronous=NORMAL",
+        "PRAGMA busy_timeout=30000",
+    ):
+        cursor = await conn.execute(pragma)
+        await cursor.close()
+    await conn.commit()
+
+
 async def get_checkpointer() -> AsyncSqliteSaver:
     global _checkpointer
     if _checkpointer is None:
@@ -87,6 +98,7 @@ async def get_checkpointer() -> AsyncSqliteSaver:
         if not db_path_exists:
             await conn.execute("PRAGMA auto_vacuum = INCREMENTAL")
             await _mark_incremental_auto_vacuum_migration_completed(conn)
+        await _configure_checkpoint_connection(conn)
         _checkpointer = AsyncSqliteSaver(
             conn,
             serde=JsonPlusSerializer(

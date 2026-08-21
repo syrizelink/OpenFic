@@ -1157,6 +1157,7 @@ class SessionRunner:
         reason: Literal["done", "cancelled", "error"] = "done"
         try:
             resume_value: dict[str, Any] | dict[str, dict[str, Any]] = payload
+            is_terminal_skip_resume = payload.get("skipped") is True
             if payload.get("action_type") == "interrupt_batch":
                 state = await graph.aget_state(
                     {"configurable": {"thread_id": self.session_id}}
@@ -1180,6 +1181,12 @@ class SessionRunner:
                     pending_by_id
                 ):
                     raise ValueError("必须一次提交本批全部并行中断响应")
+                is_terminal_skip_resume = any(
+                    isinstance(response, dict)
+                    and response.get("action_type") == "clarification"
+                    and response.get("skipped") is True
+                    for response in responses
+                )
                 resume_value = {
                     response["interrupt_id"]: response for response in responses
                 }
@@ -1217,8 +1224,14 @@ class SessionRunner:
                 if matching is None or not resume_id:
                     raise ValueError("待恢复的问题不存在或已处理")
                 resume_value = {resume_id: payload}
+            stream_options = (
+                {"durability": "exit"} if is_terminal_skip_resume else {}
+            )
             async for event in graph.astream_events(
-                Command(resume=resume_value), config=config, version="v2"
+                Command(resume=resume_value),
+                config=config,
+                version="v2",
+                **stream_options,
             ):
                 event_dict = cast(dict[str, Any], event)
                 if self._cancel_event.is_set():

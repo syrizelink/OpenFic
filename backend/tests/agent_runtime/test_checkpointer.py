@@ -213,6 +213,34 @@ async def test_get_checkpointer_creates_db():
         await reset_checkpointer()
 
 
+async def test_get_checkpointer_configures_concurrent_sqlite_writes(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    db_path = tmp_path / "test_checkpoints.db"
+    monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(db_path))
+    await reset_checkpointer()
+
+    try:
+        checkpointer = await get_checkpointer()
+        values: dict[str, object] = {}
+        for pragma in ("journal_mode", "synchronous", "busy_timeout"):
+            cursor = await checkpointer.conn.execute(f"PRAGMA {pragma}")
+            try:
+                row = await cursor.fetchone()
+            finally:
+                await cursor.close()
+            values[pragma] = row[0] if row else None
+
+        assert values == {
+            "journal_mode": "wal",
+            "synchronous": 1,
+            "busy_timeout": 30000,
+        }
+    finally:
+        await reset_checkpointer()
+
+
 async def test_get_checkpointer_uses_backend_data_default_path(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_root = Path(tmpdir)

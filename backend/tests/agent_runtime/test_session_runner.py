@@ -625,6 +625,79 @@ async def test_resume_targets_the_approved_parallel_tool_interrupt():
 
 
 @pytest.mark.asyncio
+async def test_resume_user_skip_uses_exit_durability():
+    runner = SessionRunner(
+        session_id="sess_resume_skip",
+        task_id="task_resume_skip",
+        model_config={
+            "provider_type": "openai",
+            "model_id": "gpt",
+            "api_key": "k",
+            "base_url": "",
+            "max_context_tokens": 8000,
+        },
+    )
+    captured: dict = {}
+
+    class _Graph:
+        def __init__(self) -> None:
+            self.state_reads = 0
+
+        async def astream_events(self, command, *args, **kwargs):
+            captured["command"] = command
+            captured["kwargs"] = kwargs
+            if False:
+                yield None
+
+        async def aget_state(self, *args, **kwargs):
+            self.state_reads += 1
+            if self.state_reads <= 2:
+                return SimpleNamespace(
+                    next=("tools",),
+                    tasks=(
+                        SimpleNamespace(
+                            interrupts=(
+                                SimpleNamespace(
+                                    id="question-1",
+                                    value={"type": "ask_user", "action_id": "question-1"},
+                                ),
+                            )
+                        ),
+                    ),
+                    values={"current_revision_id": "rev-skip"},
+                )
+            return SimpleNamespace(next=(), tasks=(), values={"current_revision_id": "rev-skip"})
+
+    fake_session = MagicMock(close=AsyncMock(), commit=AsyncMock())
+    fake_persister = MagicMock(handle=AsyncMock(), finalize=AsyncMock())
+
+    with patch.object(runner, "_get_graph", AsyncMock(return_value=_Graph())), \
+         patch(
+             "app.agent_runtime.runner.session_runner.finalize_revision_status",
+             AsyncMock(),
+         ), \
+         patch(
+             "app.agent_runtime.runner.session_runner.revision_repo.get_by_id",
+             AsyncMock(return_value=None),
+         ), \
+         patch(
+             "app.agent_runtime.runner.session_runner.create_session",
+             AsyncMock(return_value=fake_session),
+         ), \
+         patch.object(runner, "_make_persister", MagicMock(return_value=fake_persister)):
+        await runner.resume(
+            {
+                "action_type": "clarification",
+                "action_id": "question-1",
+                "answer": [],
+                "skipped": True,
+            }
+        )
+
+    assert captured["kwargs"]["durability"] == "exit"
+
+
+@pytest.mark.asyncio
 async def test_resume_restores_all_parallel_interrupts_in_one_command() -> None:
     runner = SessionRunner(
         session_id="sess_resume_batch",
