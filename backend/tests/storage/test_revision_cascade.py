@@ -42,6 +42,7 @@ async def cascade_session():
         await conn.run_sync(SQLModel.metadata.create_all)
     async with factory() as session:
         yield session
+    await engine.dispose()
 
 
 async def _blob_count(session: AsyncSession) -> int:

@@ -30,6 +30,7 @@ async def revision_backfill_session():
         await conn.run_sync(SQLModel.metadata.create_all)
     async with factory() as session:
         yield session
+    await engine.dispose()
 
 
 async def test_backfill_rewrites_long_text_and_dedupes(
