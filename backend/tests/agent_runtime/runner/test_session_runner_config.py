@@ -1,7 +1,7 @@
 import asyncio
 import weakref
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -100,6 +100,30 @@ async def test_child_resume_does_not_clear_session_cancellation(
     assert runner.called is False
     assert await registry.is_cancelled("session-cancelled") is True
     assert await registry.is_child_running("session-cancelled", "child-1") is False
+
+
+def test_runtime_config_provides_session_factory_for_parallel_tools(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = SessionRunner(
+        session_id="s1",
+        task_id="task_test",
+        model_config={"max_context_tokens": 8000},
+        project_id="p1",
+    )
+    session_factory = MagicMock()
+    monkeypatch.setattr(
+        "app.agent_runtime.runner.session_runner._get_session_factory",
+        lambda: session_factory,
+    )
+
+    config = runner._build_runtime_config(
+        runtime_session=AsyncMock(),
+        runtime_context={},
+        audit_context=SimpleNamespace(),
+    )
+
+    assert config["configurable"]["session_factory"] is session_factory
 
 
 @pytest.mark.asyncio

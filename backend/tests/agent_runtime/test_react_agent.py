@@ -911,6 +911,45 @@ async def test_react_agent_passes_runtime_config_and_tool_call_id_to_agent_tools
     assert captured[0].config["configurable"]["db_session"] == "session"
 
 
+@pytest.mark.asyncio
+async def test_react_agent_releases_runtime_db_transaction_after_context_build() -> None:
+    db_session = AsyncMock()
+    graph = create_react_agent(
+        ReactAgentConfig(
+            name="test",
+            tools=[],
+            termination=TerminationCondition(mode="no_tool_call"),
+        )
+    )
+
+    with (
+        patch(
+            "app.agent_runtime.graph.react_agent.build_context",
+            new=AsyncMock(return_value=[HumanMessage(content="Use the context")]),
+        ),
+        patch(
+            "app.agent_runtime.graph.react_agent._invoke_model",
+            new=AsyncMock(return_value=AIMessage(content="done")),
+        ),
+    ):
+        await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="Use the context")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            },
+            config={
+                "configurable": {
+                    "db_session": db_session,
+                    "runtime_state": {"active_agent": "writer"},
+                }
+            },
+        )
+
+    db_session.rollback.assert_awaited_once()
+
+
 class ApprovalInput(BaseModel):
     value: str
 

@@ -47,7 +47,10 @@ class ReadChapterTool(AgentTool):
     async def _execute(self, volume_ref: dict, chapter_ref: dict) -> str:
         volume = VolumeRef.model_validate(volume_ref)
         ref = ChapterRef.model_validate(chapter_ref)
-        session = await create_session()
+        session = self.get_runtime_db_session()
+        owns_session = session is None
+        if session is None:
+            session = await create_session()
         try:
             volumes = await volume_repo.list_by_project(session, self.project_id)
             resolved_volume = resolve_volume_from_list(volumes, volume)
@@ -60,4 +63,5 @@ class ReadChapterTool(AgentTool):
                 word_count=match.word_count,
             ).model_dump_json()
         finally:
-            await session.close()
+            if owns_session:
+                await session.close()

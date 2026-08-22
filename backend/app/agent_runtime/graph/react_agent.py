@@ -820,6 +820,11 @@ def create_react_agent(
         else:
             messages.extend(transient_messages)
 
+        if db_session is not None:
+            rollback = getattr(db_session, "rollback", None)
+            if callable(rollback):
+                await rollback()
+
         audit = await _start_audit(configurable, messages)
         active_audit = audit
         try:

@@ -137,6 +137,35 @@ async def test_list_chapters_uses_required_volume_ref_and_volume_pagination() ->
     list_by_volume.assert_awaited_once_with(mock_session, "vol-1", offset=5, limit=10)
 
 
+async def test_list_chapters_reuses_runtime_db_session() -> None:
+    from app.agent_runtime.tools.impls.chapter.list_chapters import ListChaptersTool
+
+    volume = _make_volume()
+    chapters = [_make_chapter(order=1, title="第一章")]
+    tool = ListChaptersTool(_state=_make_state())
+    runtime_session = AsyncMock()
+
+    with patch("app.agent_runtime.tools.impls.chapter.list_chapters.create_session") as mock_cs:
+        with patch(
+            "app.agent_runtime.tools.impls.chapter.list_chapters.volume_repo.list_by_project",
+            AsyncMock(return_value=[volume]),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.list_chapters.chapter_repo.list_by_volume",
+            AsyncMock(return_value=chapters),
+        ):
+            await tool.ainvoke(
+                {
+                    "volume_ref": {"type": "order", "value": 1},
+                    "offset": 0,
+                    "limit": 10,
+                },
+                config={"configurable": {"db_session": runtime_session}},
+            )
+
+    mock_cs.assert_not_called()
+    runtime_session.close.assert_not_awaited()
+
+
 async def test_read_chapter_resolves_chapter_inside_volume() -> None:
     from app.agent_runtime.tools.impls.chapter.read_chapter import ReadChapterTool
 
@@ -169,6 +198,36 @@ async def test_read_chapter_resolves_chapter_inside_volume() -> None:
         "word_count": 6,
     }
     list_by_volume.assert_awaited_once_with(mock_session, "vol-1")
+
+
+async def test_read_chapter_reuses_runtime_db_session() -> None:
+    from app.agent_runtime.tools.impls.chapter.read_chapter import ReadChapterTool
+
+    volume = _make_volume()
+    chapter = _make_chapter(order=2, title="第二章", content="内容", word_count=2)
+    tool = ReadChapterTool(_state=_make_state())
+    runtime_session = AsyncMock()
+
+    with patch(
+        "app.agent_runtime.tools.impls.chapter.read_chapter.create_session"
+    ) as mock_cs:
+        with patch(
+            "app.agent_runtime.tools.impls.chapter.read_chapter.volume_repo.list_by_project",
+            AsyncMock(return_value=[volume]),
+        ), patch(
+            "app.agent_runtime.tools.impls.chapter.read_chapter.chapter_repo.list_by_volume",
+            AsyncMock(return_value=[chapter]),
+        ):
+            await tool.ainvoke(
+                {
+                    "volume_ref": {"type": "order", "value": 1},
+                    "chapter_ref": {"type": "order", "value": 2},
+                },
+                config={"configurable": {"db_session": runtime_session}},
+            )
+
+    mock_cs.assert_not_called()
+    runtime_session.close.assert_not_awaited()
 
 
 async def test_write_chapter_appends_to_volume_and_returns_volume_id() -> None:

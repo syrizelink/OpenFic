@@ -29,7 +29,10 @@ class ListChaptersTool(AgentTool):
     args_schema: type[BaseModel] = ListChaptersInput
 
     async def _execute(self, volume_ref: dict, offset: int, limit: int) -> str:
-        session = await create_session()
+        session = self.get_runtime_db_session()
+        owns_session = session is None
+        if session is None:
+            session = await create_session()
         try:
             ref = VolumeRef.model_validate(volume_ref)
             volumes = await volume_repo.list_by_project(session, self.project_id)
@@ -47,4 +50,5 @@ class ListChaptersTool(AgentTool):
             ]
             return json.dumps(items, ensure_ascii=False)
         finally:
-            await session.close()
+            if owns_session:
+                await session.close()

@@ -462,6 +462,7 @@ class SubagentRunner:
                     "configurable": {
                         "thread_id": row.child_thread_id,
                         "db_session": runtime_session,
+                        "session_factory": self.session_factory or _get_session_factory(),
                         "runtime_state": runtime_state,
                         "audit_context": audit_context,
                         "agent_event_sink": agent_event_sink,

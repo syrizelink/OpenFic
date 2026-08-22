@@ -299,39 +299,40 @@ async def prune_checkpoints_for_thread(
     if not thread_id:
         return 0
 
-    cursor = await checkpointer.conn.execute(
-        "SELECT checkpoint_ns, checkpoint_id FROM checkpoints WHERE thread_id = ?",
-        (thread_id,),
-    )
-    try:
-        checkpoint_rows = await cursor.fetchall()
-    finally:
-        await cursor.close()
-    if not checkpoint_rows:
-        return 0
+    async with checkpointer.lock:
+        cursor = await checkpointer.conn.execute(
+            "SELECT checkpoint_ns, checkpoint_id FROM checkpoints WHERE thread_id = ?",
+            (thread_id,),
+        )
+        try:
+            checkpoint_rows = await cursor.fetchall()
+        finally:
+            await cursor.close()
+        if not checkpoint_rows:
+            return 0
 
-    latest_by_namespace: dict[str, str] = {}
-    for checkpoint_ns, checkpoint_id in checkpoint_rows:
-        if checkpoint_id and checkpoint_id > latest_by_namespace.get(checkpoint_ns, ""):
-            latest_by_namespace[checkpoint_ns] = checkpoint_id
-    retained_ids = set(latest_by_namespace.values()) | retained_checkpoint_ids
-    placeholders = ", ".join("?" for _ in retained_ids)
-    before = checkpointer.conn.total_changes
-    await checkpointer.conn.execute("BEGIN")
-    try:
-        await checkpointer.conn.execute(
-            f"DELETE FROM writes WHERE thread_id = ? AND checkpoint_id NOT IN ({placeholders})",
-            (thread_id, *retained_ids),
-        )
-        await checkpointer.conn.execute(
-            f"DELETE FROM checkpoints WHERE thread_id = ? AND checkpoint_id NOT IN ({placeholders})",
-            (thread_id, *retained_ids),
-        )
-        await checkpointer.conn.commit()
-    except Exception:
-        await checkpointer.conn.rollback()
-        raise
-    return checkpointer.conn.total_changes - before
+        latest_by_namespace: dict[str, str] = {}
+        for checkpoint_ns, checkpoint_id in checkpoint_rows:
+            if checkpoint_id and checkpoint_id > latest_by_namespace.get(checkpoint_ns, ""):
+                latest_by_namespace[checkpoint_ns] = checkpoint_id
+        retained_ids = set(latest_by_namespace.values()) | retained_checkpoint_ids
+        placeholders = ", ".join("?" for _ in retained_ids)
+        before = checkpointer.conn.total_changes
+        await checkpointer.conn.execute("BEGIN")
+        try:
+            await checkpointer.conn.execute(
+                f"DELETE FROM writes WHERE thread_id = ? AND checkpoint_id NOT IN ({placeholders})",
+                (thread_id, *retained_ids),
+            )
+            await checkpointer.conn.execute(
+                f"DELETE FROM checkpoints WHERE thread_id = ? AND checkpoint_id NOT IN ({placeholders})",
+                (thread_id, *retained_ids),
+            )
+            await checkpointer.conn.commit()
+        except Exception:
+            await checkpointer.conn.rollback()
+            raise
+        return checkpointer.conn.total_changes - before
 
 
 async def cleanup_unreachable_checkpoints(

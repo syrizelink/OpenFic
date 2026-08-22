@@ -57,6 +57,43 @@ async def test_missing_max_context_tokens_raises(base_state: AgentRuntimeState) 
 
 
 @pytest.mark.asyncio
+async def test_build_context_releases_read_transaction_between_database_phases(
+    base_state: AgentRuntimeState,
+) -> None:
+    db_session = AsyncMock()
+    with (
+        patch(
+            "app.agent_runtime.context.build_context.build_system_prompt",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.agent_runtime.context.build_context.build_rules",
+            new=AsyncMock(return_value=None),
+        ),
+        patch(
+            "app.agent_runtime.context.build_context.build_skills",
+            new=AsyncMock(return_value=None),
+        ),
+        patch(
+            "app.agent_runtime.context.build_context.build_history",
+            new=AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.agent_runtime.context.build_context.compaction_repo.list_by_session",
+            new=AsyncMock(return_value=[]),
+        ),
+    ):
+        await build_context(
+            state=base_state,
+            agent_name="writer",
+            node_messages=[],
+            db_session=db_session,
+        )
+
+    assert db_session.rollback.await_count == 6
+
+
+@pytest.mark.asyncio
 async def test_assembles_messages_in_order(base_state: AgentRuntimeState) -> None:
     sys_msgs = [
         ContextMessage(role="system", content="sys", metadata={"part": "system_prompt"}),

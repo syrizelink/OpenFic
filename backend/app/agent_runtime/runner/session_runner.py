@@ -547,6 +547,7 @@ class SessionRunner:
         async def _noop_node_event_sink(_payload: dict[str, Any]) -> None:
             return None
 
+        session_factory = _get_session_factory()
         node_event_sink = (
             self._persister.persist_node_event
             if self._persister is not None
@@ -558,6 +559,7 @@ class SessionRunner:
             "configurable": {
                 "thread_id": self.session_id,
                 "db_session": runtime_session,
+                "session_factory": session_factory,
                 "runtime_context": runtime_context,
                 "audit_context": audit_context,
                 "node_event_sink": node_event_sink,

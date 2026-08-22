@@ -1,3 +1,6 @@
+from collections.abc import Awaitable, Callable
+from typing import TypeVar
+
 from langchain_core.messages import BaseMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +20,19 @@ from app.agent_runtime.context.processors.to_langchain import to_langchain_messa
 from app.agent_runtime.context.types import ContextMessage
 from app.agent_runtime.graph.state import AgentRuntimeState
 from app.agent_runtime.persistence import compaction_repo
+
+T = TypeVar("T")
+
+
+async def _run_read_phase(
+    *,
+    db_session: AsyncSession,
+    operation: Callable[[], Awaitable[T]],
+) -> T:
+    try:
+        return await operation()
+    finally:
+        await db_session.rollback()
 
 
 async def build_context(
@@ -41,19 +57,42 @@ async def build_context_parts(
         raise ContextBuildError("config", "missing max_context_tokens in model_config")
 
     parts: list[ContextMessage] = []
-    if prompt_messages := await build_system_prompt(state, agent_name, db_session):
+    prompt_messages = await _run_read_phase(
+        db_session=db_session,
+        operation=lambda: build_system_prompt(state, agent_name, db_session),
+    )
+    if prompt_messages:
         parts.extend(prompt_messages)
-    if (m := await build_rules(db_session, state.get("project_id"))) is not None:
+    rules = await _run_read_phase(
+        db_session=db_session,
+        operation=lambda: build_rules(db_session, state.get("project_id")),
+    )
+    if rules is not None:
+        m = rules
         parts.append(m)
-    if (m := await build_skills(state, agent_name, db_session, node_messages)) is not None:
+    skills = await _run_read_phase(
+        db_session=db_session,
+        operation=lambda: build_skills(state, agent_name, db_session, node_messages),
+    )
+    if skills is not None:
+        m = skills
         parts.append(m)
-    parts.extend(await build_history(node_messages, db_session))
+    history_messages = await _run_read_phase(
+        db_session=db_session,
+        operation=lambda: build_history(node_messages, db_session),
+    )
+    parts.extend(history_messages)
 
     cleaned = _process(parts)
     static = [m for m in cleaned if not _is_history(m)]
     history = [m for m in cleaned if _is_history(m)]
     try:
-        compactions = await compaction_repo.list_by_session(db_session, state["session_id"])
+        compactions = await _run_read_phase(
+            db_session=db_session,
+            operation=lambda: compaction_repo.list_by_session(
+                db_session, state["session_id"]
+            ),
+        )
     except Exception as e:
         raise ContextBuildError(
             "compaction",
@@ -62,7 +101,10 @@ async def build_context_parts(
         ) from e
     overlaid_history = apply_compaction_overlay(history, compactions)
     result = static + overlaid_history
-    result = await compress_system_prompts_if_enabled(result, db_session)
+    result = await _run_read_phase(
+        db_session=db_session,
+        operation=lambda: compress_system_prompts_if_enabled(result, db_session),
+    )
     return result
 
 
