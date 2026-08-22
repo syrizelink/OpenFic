@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.10.2](https://github.com/syrizelink/OpenFic/compare/v0.10.1...v0.10.2) (2026-08-22)
+
+
+### 🐛 问题修复
+
+* **frontend:** 修复输入法组合输入的标点转换冲突 ([#333](https://github.com/syrizelink/OpenFic/issues/333)) ([70e63e8](https://github.com/syrizelink/OpenFic/commit/70e63e81bf022e82a806d065cfe0ee78fcf495ff))
+
+
+### ⚡ 性能优化
+
+* **test:** 加速后端测试执行 ([#331](https://github.com/syrizelink/OpenFic/issues/331)) ([338df55](https://github.com/syrizelink/OpenFic/commit/338df55405f3342e7585bcfdd5d793bb4b40790d))
+
+
+### 🔧 杂项
+
+* **agent:** 支持 Skill Command 引用 ([#329](https://github.com/syrizelink/OpenFic/issues/329)) ([82ed254](https://github.com/syrizelink/OpenFic/commit/82ed254d4c9ea622d55b114f688b7526afeba067))
+* **openrouter:** 添加应用归因 ([#332](https://github.com/syrizelink/OpenFic/issues/332)) ([a883a36](https://github.com/syrizelink/OpenFic/commit/a883a369707af3fe688616e4d118f754cb3f2dbb))
+* 允许在回复 ask_user 工具时选择忽略 ([#334](https://github.com/syrizelink/OpenFic/issues/334)) ([be518ed](https://github.com/syrizelink/OpenFic/commit/be518ed9a4490cf65caf94c65998be84594ae95d))
+* 完善模型费用统计与元数据配置 ([#335](https://github.com/syrizelink/OpenFic/issues/335)) ([546ef3a](https://github.com/syrizelink/OpenFic/commit/546ef3af15beaefb08a333172373407f48057857))
+
 ## [0.10.1](https://github.com/syrizelink/OpenFic/compare/v0.10.0...v0.10.1) (2026-08-20)
 
 
