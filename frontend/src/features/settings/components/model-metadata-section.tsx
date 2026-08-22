@@ -1,10 +1,12 @@
-import { Box, Button, Flex, Grid, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Box, Button, Flex, Grid, Text, Tooltip } from "@radix-ui/themes";
 import { ChevronDown, ChevronLeft, Info } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import type { Control, FieldValues, Path } from "react-hook-form";
 import { Controller } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+
+import { UnitTextField } from "@/components";
 
 interface ModelMetadataSectionProps<T extends FieldValues> {
   control: Control<T>;
@@ -13,18 +15,41 @@ interface ModelMetadataSectionProps<T extends FieldValues> {
 }
 
 const PRICE_FIELDS = [
-  { name: "inputPrice", labelKey: "inputPrice", descKey: "inputPriceDesc" },
-  { name: "outputPrice", labelKey: "outputPrice", descKey: "outputPriceDesc" },
-  { name: "cacheReadPrice", labelKey: "cacheReadPrice", descKey: "cacheReadPriceDesc" },
-  { name: "cacheWritePrice", labelKey: "cacheWritePrice", descKey: "cacheWritePriceDesc" },
+  {
+    name: "inputPrice",
+    labelKey: "inputPrice",
+    leftUnit: "$",
+    rightUnit: "/M tokens",
+  },
+  {
+    name: "outputPrice",
+    labelKey: "outputPrice",
+    leftUnit: "$",
+    rightUnit: "/M tokens",
+  },
+  {
+    name: "cacheReadPrice",
+    labelKey: "cacheReadPrice",
+    leftUnit: "$",
+    rightUnit: "/M tokens",
+  },
+  {
+    name: "cacheWritePrice",
+    labelKey: "cacheWritePrice",
+    leftUnit: "$",
+    rightUnit: "/M tokens",
+  },
 ] as const;
 
 function MetadataNumberField<T extends FieldValues>({
   control,
   name,
   label,
-  description,
   inputId,
+  unit,
+  unitSide,
+  leftUnit,
+  rightUnit,
   min = 0,
   max,
   step = "any",
@@ -33,8 +58,11 @@ function MetadataNumberField<T extends FieldValues>({
   control: Control<T>;
   name: Path<T>;
   label: string;
-  description: string;
   inputId: string;
+  unit?: string;
+  unitSide?: "left" | "right";
+  leftUnit?: string;
+  rightUnit?: string;
   min?: number;
   max?: number;
   step?: number | "any";
@@ -58,7 +86,7 @@ function MetadataNumberField<T extends FieldValues>({
         name={name}
         control={control}
         render={({ field }) => (
-          <TextField.Root
+          <UnitTextField
             id={inputId}
             type="number"
             min={min}
@@ -66,6 +94,10 @@ function MetadataNumberField<T extends FieldValues>({
             step={step}
             value={field.value ?? 0}
             disabled={disabled}
+            unit={unit}
+            unitSide={unitSide}
+            leftUnit={leftUnit}
+            rightUnit={rightUnit}
             onChange={(event) => {
               const value = event.target.value;
               field.onChange(value === "" ? 0 : Number(value));
@@ -73,12 +105,6 @@ function MetadataNumberField<T extends FieldValues>({
           />
         )}
       />
-      <Text
-        size="1"
-        color="gray"
-      >
-        {description}
-      </Text>
     </Flex>
   );
 }
@@ -118,6 +144,8 @@ export function ModelMetadataSection<T extends FieldValues>({
                   direction="column"
                   gap="1"
                 >
+                  <Text size="1">{t("models.metadataTooltipBasic")}</Text>
+                  <Text size="1">{t("models.metadataTooltipDefault")}</Text>
                   <Text size="1">{t("models.metadataTooltipContext")}</Text>
                   <Text size="1">{t("models.metadataTooltipPricing")}</Text>
                 </Flex>
@@ -166,8 +194,9 @@ export function ModelMetadataSection<T extends FieldValues>({
                   control={control}
                   name={"contextLength" as Path<T>}
                   label={t("models.contextLength")}
-                  description={t("models.contextLengthDesc")}
                   inputId={`context-length-${modelId || "new"}`}
+                  unit="tokens"
+                  unitSide="right"
                   disabled={disabled}
                   min={0}
                   max={2000000}
@@ -179,8 +208,9 @@ export function ModelMetadataSection<T extends FieldValues>({
                     control={control}
                     name={field.name as Path<T>}
                     label={t(`models.${field.labelKey}`)}
-                    description={t(`models.${field.descKey}`)}
                     inputId={`${field.name}-${modelId || "new"}`}
+                    leftUnit={field.leftUnit}
+                    rightUnit={field.rightUnit}
                     disabled={disabled}
                   />
                 ))}

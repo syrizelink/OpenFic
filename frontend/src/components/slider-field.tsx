@@ -59,7 +59,7 @@ export function SliderField<T extends FieldValues>({
             const displayValue = String(numValue);
             return (
               <TextField.Root
-                key={inputKey ? `${inputKey}-${numValue}` : undefined}
+                key={inputKey}
                 type="number"
                 step={inputStep}
                 min={min}
@@ -70,7 +70,16 @@ export function SliderField<T extends FieldValues>({
                   const numVal = val === "" ? defaultValue : Number(val);
                   field.onChange(numVal);
                 }}
-                onBlur={field.onBlur}
+                onBlur={(event) => {
+                  const value = Number(event.currentTarget.value);
+                  const boundedValue = Number.isFinite(value)
+                    ? Math.min(Math.max(value, min), max)
+                    : defaultValue;
+                  if (boundedValue !== numValue) {
+                    field.onChange(boundedValue);
+                  }
+                  field.onBlur();
+                }}
                 style={{ width: 80 }}
               />
             );
