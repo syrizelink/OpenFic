@@ -29,6 +29,7 @@ from langgraph._internal._constants import CONF
 from langgraph.errors import GraphInterrupt
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Overwrite, RetryPolicy, Send
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.content_blocks import extract_text_content
@@ -899,6 +900,19 @@ def create_react_agent(
         tool_index = int(state.get("tool_index") or 0)
         started_at = time.perf_counter()
         phase = state.get("tool_phase") or "execute"
+        configurable = _get_configurable(config)
+        runtime_state = configurable.get("runtime_state")
+        session_id = configurable.get("session_id")
+        if not session_id and isinstance(runtime_state, dict):
+            session_id = runtime_state.get("session_id")
+        logger.info(
+            "agent_tool_phase_start session_id={} tool_call_id={} tool={} index={} phase={}",
+            session_id,
+            tool_id,
+            tool_name,
+            tool_index,
+            phase,
+        )
         source_outcomes = (
             state.get("tool_prepared_outcomes", [])
             if phase == "execute"
@@ -1035,7 +1049,10 @@ def create_react_agent(
             return {"tool_outcomes": [prepared_outcome]}
 
         tool_instance = _clone_agent_tool_for_dispatch(tool_instance)
+        isolation_started_at = time.perf_counter()
         isolated_config, isolated_session = await _isolate_tool_config(config)
+        isolation_ms = int((time.perf_counter() - isolation_started_at) * 1000)
+        invoke_started_at = time.perf_counter()
         try:
             invoke_config = dict(isolated_config or {})
             metadata = dict(invoke_config.get("metadata") or {})
@@ -1062,7 +1079,19 @@ def create_react_agent(
                     tool_call,
                     cast(RunnableConfig, invoke_config),
                 )
+            invoke_ms = int((time.perf_counter() - invoke_started_at) * 1000)
         except GraphInterrupt as interrupt:
+            logger.info(
+                "agent_tool_phase_interrupt session_id={} tool_call_id={} tool={} "
+                "index={} phase={} isolation_ms={} total_ms={}",
+                session_id,
+                tool_id,
+                tool_name,
+                tool_index,
+                phase,
+                isolation_ms,
+                int((time.perf_counter() - started_at) * 1000),
+            )
             preview_builder = getattr(tool_instance, "build_interrupt_preview", None)
             if interrupt.args and interrupt.args[0]:
                 interrupt_value = interrupt.args[0][0].value
@@ -1078,6 +1107,17 @@ def create_react_agent(
             await _finish_active_audit()
             raise
         except Exception as exc:
+            logger.exception(
+                "agent_tool_phase_error session_id={} tool_call_id={} tool={} "
+                "index={} phase={} isolation_ms={} total_ms={}",
+                session_id,
+                tool_id,
+                tool_name,
+                tool_index,
+                phase,
+                isolation_ms,
+                int((time.perf_counter() - started_at) * 1000),
+            )
             if active_audit is not None:
                 _record_audit_error(active_audit, exc)
             await _finish_active_audit(status="error")
@@ -1086,6 +1126,19 @@ def create_react_agent(
             if isolated_session is not None:
                 await _close_maybe(isolated_session)
 
+        logger.info(
+            "agent_tool_phase_end session_id={} tool_call_id={} tool={} index={} phase={} "
+            "isolation_ms={} invoke_ms={} output_chars={} total_ms={}",
+            session_id,
+            tool_id,
+            tool_name,
+            tool_index,
+            phase,
+            isolation_ms,
+            invoke_ms,
+            len(result) if isinstance(result, str) else None,
+            int((time.perf_counter() - started_at) * 1000),
+        )
         payload, success = _tool_result_payload(result)
         if phase == "prepare" and not getattr(
             tool_instance, "execute_during_prepare", False
@@ -1120,10 +1173,23 @@ def create_react_agent(
         state: ReactState, _config: Optional[RunnableConfig] = None
     ) -> dict:
         """Join parallel tool results and restore model call order."""
+        started_at = time.perf_counter()
+        phase = state.get("tool_phase") or "execute"
+        outcome_key = "tool_prepared_outcomes" if phase == "prepare" else "tool_outcomes"
+        logger.info(
+            "agent_tools_join_start phase={} outcome_count={}",
+            phase,
+            len(state.get(outcome_key, [])),
+        )
         outcomes = sorted(
             state.get("tool_outcomes", []), key=lambda outcome: outcome["index"]
         )
-        if state.get("tool_phase") == "prepare":
+        if phase == "prepare":
+            logger.info(
+                "agent_tools_join_end phase={} total_ms={}",
+                phase,
+                int((time.perf_counter() - started_at) * 1000),
+            )
             return {
                 "tool_outcomes": Overwrite([]),
                 "tool_phase": "execute",
@@ -1154,7 +1220,15 @@ def create_react_agent(
                     latency_ms=outcome["latency_ms"],
                 )
 
+        audit_started_at = time.perf_counter()
         await _finish_active_audit()
+        logger.info(
+            "agent_tools_join_end phase={} outcome_count={} audit_ms={} total_ms={}",
+            phase,
+            len(outcomes),
+            int((time.perf_counter() - audit_started_at) * 1000),
+            int((time.perf_counter() - started_at) * 1000),
+        )
         update: dict[str, Any] = {
             "messages": messages,
             "tool_outcomes": Overwrite([]),
@@ -1244,6 +1318,12 @@ def create_react_agent(
         )
         if last_message is None:
             return []
+        logger.info(
+            "agent_tool_batch_route phase={} tool_call_count={} slot_count={}",
+            state.get("tool_phase") or "prepare",
+            len(last_message.tool_calls),
+            TOOL_BATCH_SIZE,
+        )
         dispatch_count = 0
         sends: list[Send] = []
         for slot in range(TOOL_BATCH_SIZE):

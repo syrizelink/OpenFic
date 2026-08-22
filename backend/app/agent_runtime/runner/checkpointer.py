@@ -1,4 +1,6 @@
 import asyncio
+from contextvars import ContextVar
+import json
 import os
 import shutil
 import time
@@ -10,7 +12,12 @@ import aiosqlite
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import Checkpoint, copy_checkpoint
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from langgraph.checkpoint.sqlite.aio import (
+    WRITES_IDX_MAP,
+    AsyncSqliteSaver,
+    get_checkpoint_metadata,
+)
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
@@ -36,6 +43,157 @@ _VACUUM_MIN_FREE_BYTES = 64 * 1024 * 1024
 _INCREMENTAL_VACUUM_BATCH_BYTES = 64 * 1024 * 1024
 _VACUUM_PROGRESS_STEP = 10
 CheckpointMaintenanceProgress = Callable[[str, float | None, int, int], None]
+
+
+class _TimedAsyncLock:
+    def __init__(self, lock: asyncio.Lock) -> None:
+        self._lock = lock
+        self._wait_ms: ContextVar[int] = ContextVar("checkpoint_lock_wait_ms", default=0)
+        self._section_started_at: ContextVar[float | None] = ContextVar(
+            "checkpoint_lock_section_started_at", default=None
+        )
+
+    async def __aenter__(self):
+        started_at = time.perf_counter()
+        await self._lock.acquire()
+        self._wait_ms.set(int((time.perf_counter() - started_at) * 1000))
+        self._section_started_at.set(time.perf_counter())
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        self._lock.release()
+        return False
+
+    def timings(self) -> tuple[int, int | None]:
+        section_started_at = self._section_started_at.get()
+        section_ms = (
+            int((time.perf_counter() - section_started_at) * 1000)
+            if section_started_at is not None
+            else None
+        )
+        return self._wait_ms.get(), section_ms
+
+
+class _DiagnosticAsyncSqliteSaver(AsyncSqliteSaver):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._diagnostic_lock = _TimedAsyncLock(self.lock)
+        self.lock = self._diagnostic_lock
+
+    async def aput(self, config, checkpoint, metadata, new_versions):
+        started_at = time.perf_counter()
+        setup_started_at = time.perf_counter()
+        await self.setup()
+        setup_ms = int((time.perf_counter() - setup_started_at) * 1000)
+        serialize_started_at = time.perf_counter()
+        type_, serialized_checkpoint = self.serde.dumps_typed(checkpoint)
+        serialized_metadata = json.dumps(
+            get_checkpoint_metadata(config, metadata), ensure_ascii=False
+        ).encode("utf-8", "ignore")
+        serialize_ms = int((time.perf_counter() - serialize_started_at) * 1000)
+        configurable = config["configurable"]
+        async with self.lock:
+            execute_started_at = time.perf_counter()
+            async with self.conn.execute(
+                "INSERT OR REPLACE INTO checkpoints "
+                "(thread_id, checkpoint_ns, checkpoint_id, parent_checkpoint_id, type, "
+                "checkpoint, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    str(configurable["thread_id"]),
+                    configurable["checkpoint_ns"],
+                    checkpoint["id"],
+                    configurable.get("checkpoint_id"),
+                    type_,
+                    serialized_checkpoint,
+                    serialized_metadata,
+                ),
+            ):
+                execute_ms = int((time.perf_counter() - execute_started_at) * 1000)
+                commit_started_at = time.perf_counter()
+                await self.conn.commit()
+                commit_ms = int((time.perf_counter() - commit_started_at) * 1000)
+        duration_ms = int((time.perf_counter() - started_at) * 1000)
+        lock_wait_ms, _ = self._diagnostic_lock.timings()
+        if duration_ms >= 100:
+            logger.info(
+                "checkpoint_aput_slow thread_id={} checkpoint_ns={} checkpoint_id={} "
+                "duration_ms={} setup_ms={} serialize_ms={} lock_wait_ms={} "
+                "execute_ms={} commit_ms={} checkpoint_bytes={} metadata_bytes={}",
+                configurable.get("thread_id"),
+                configurable.get("checkpoint_ns"),
+                checkpoint.get("id"),
+                duration_ms,
+                setup_ms,
+                serialize_ms,
+                lock_wait_ms,
+                execute_ms,
+                commit_ms,
+                len(serialized_checkpoint),
+                len(serialized_metadata),
+            )
+        return {
+            "configurable": {
+                "thread_id": configurable["thread_id"],
+                "checkpoint_ns": configurable["checkpoint_ns"],
+                "checkpoint_id": checkpoint["id"],
+            }
+        }
+
+    async def aput_writes(self, config, writes, task_id, task_path=""):
+        started_at = time.perf_counter()
+        setup_started_at = time.perf_counter()
+        await self.setup()
+        setup_ms = int((time.perf_counter() - setup_started_at) * 1000)
+        configurable = config["configurable"]
+        query = (
+            "INSERT OR REPLACE INTO writes (thread_id, checkpoint_ns, checkpoint_id, "
+            "task_id, idx, channel, type, value) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+            if all(w[0] in WRITES_IDX_MAP for w in writes)
+            else "INSERT OR IGNORE INTO writes (thread_id, checkpoint_ns, checkpoint_id, "
+            "task_id, idx, channel, type, value) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        )
+        async with self.lock:
+            serialize_started_at = time.perf_counter()
+            serialized_writes = [
+                (
+                    str(configurable["thread_id"]),
+                    str(configurable["checkpoint_ns"]),
+                    str(configurable["checkpoint_id"]),
+                    task_id,
+                    WRITES_IDX_MAP.get(channel, idx),
+                    channel,
+                    *self.serde.dumps_typed(value),
+                )
+                for idx, (channel, value) in enumerate(writes)
+            ]
+            serialize_ms = int((time.perf_counter() - serialize_started_at) * 1000)
+            execute_started_at = time.perf_counter()
+            async with self.conn.cursor() as cursor:
+                await cursor.executemany(query, serialized_writes)
+            execute_ms = int((time.perf_counter() - execute_started_at) * 1000)
+            commit_started_at = time.perf_counter()
+            await self.conn.commit()
+            commit_ms = int((time.perf_counter() - commit_started_at) * 1000)
+        duration_ms = int((time.perf_counter() - started_at) * 1000)
+        lock_wait_ms, _ = self._diagnostic_lock.timings()
+        if duration_ms >= 100:
+            logger.info(
+                "checkpoint_aput_writes_slow thread_id={} checkpoint_ns={} "
+                "checkpoint_id={} write_count={} duration_ms={} setup_ms={} "
+                "serialize_ms={} lock_wait_ms={} execute_ms={} commit_ms={} "
+                "value_bytes={}",
+                configurable.get("thread_id"),
+                configurable.get("checkpoint_ns"),
+                configurable.get("checkpoint_id"),
+                len(writes),
+                duration_ms,
+                setup_ms,
+                serialize_ms,
+                lock_wait_ms,
+                execute_ms,
+                commit_ms,
+                sum(len(row[-1]) for row in serialized_writes),
+            )
 
 
 def _default_db_path() -> Path:
@@ -99,7 +257,7 @@ async def get_checkpointer() -> AsyncSqliteSaver:
             await conn.execute("PRAGMA auto_vacuum = INCREMENTAL")
             await _mark_incremental_auto_vacuum_migration_completed(conn)
         await _configure_checkpoint_connection(conn)
-        _checkpointer = AsyncSqliteSaver(
+        _checkpointer = _DiagnosticAsyncSqliteSaver(
             conn,
             serde=JsonPlusSerializer(
                 allowed_msgpack_modules=_ALLOWED_MSGPACK_MODULES,

@@ -15,6 +15,7 @@ export function subscribeAgentSessionEvents(
   const activeSocket = getSocket();
   const connectError = (error: Error) => onError?.(error);
   let hasJoinedRoom = false;
+  const loggedToolStreamIds = new Set<string>();
   const joinedHandler = (data: unknown) => {
     if (!isRecord(data) || getString(data.session_id) !== sessionId) return;
     hasJoinedRoom = true;
@@ -30,7 +31,33 @@ export function subscribeAgentSessionEvents(
   const handlers = AGENT_SOCKET_EVENTS.map((eventName) => {
     const handler = (data: unknown) => {
       const event = toAgentEvent(eventName, sessionId, data);
-      if (event) onEvent(event);
+      if (event) {
+        const payload = event.payload ?? {};
+        const toolCallId = getString(payload.tool_call_id) || event.id || "";
+        const isToolCall = eventName === "agent:tool_call";
+        const isToolResult = eventName === "agent:tool_result";
+        const isFirstToolDelta =
+          isToolCall && payload.is_delta === true && !loggedToolStreamIds.has(toolCallId);
+        if (isFirstToolDelta) loggedToolStreamIds.add(toolCallId);
+        if (isToolResult) loggedToolStreamIds.delete(toolCallId);
+        if (isToolResult || (isToolCall && (payload.is_delta !== true || isFirstToolDelta))) {
+          const eventData = isRecord(data) ? data : {};
+          console.debug("[agent-diagnostic] socket_tool_event", {
+            sessionId,
+            eventName,
+            receivedAt: new Date().toISOString(),
+            eventId: event.id,
+            correlationId: event.correlation_id,
+            runId: eventData.run_id,
+            toolCallId,
+            toolName: payload.tool_name,
+            status: event.status,
+            isDelta: payload.is_delta === true,
+            hasToolResult: Boolean(payload.tool_result),
+          });
+        }
+        onEvent(event);
+      }
     };
     activeSocket.on(eventName, handler);
     return { eventName, handler };

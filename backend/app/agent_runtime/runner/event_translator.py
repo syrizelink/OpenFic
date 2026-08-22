@@ -1,4 +1,7 @@
+from time import perf_counter
+
 from langchain_core.messages import ToolMessage
+from loguru import logger
 
 from app.agent_runtime.content_blocks import extract_reasoning_content, extract_text_content
 from app.agent_runtime.runner.event_scope import is_subagent_child_event
@@ -21,6 +24,9 @@ class EventTranslator:
         self.session_id = session_id
         self._allow_subagent_child_events = allow_subagent_child_events
         self._streaming_tool_calls: dict[tuple[str, int], dict[str, str]] = {}
+        self._streaming_tool_call_started_at: dict[tuple[str, int], float] = {}
+        self._streaming_tool_call_times_by_id: dict[str, float] = {}
+        self._tool_started_at: dict[str, float] = {}
 
     def translate(self, event: dict) -> dict | list[dict] | None:
         if (
@@ -67,6 +73,26 @@ class EventTranslator:
 
         if kind == "on_tool_start":
             tool_call_id = self._extract_tool_call_id(event)
+            run_id = str(event.get("run_id") or "default")
+            started_at = perf_counter()
+            self._tool_started_at[run_id] = started_at
+            stream_started_at = self._streaming_tool_call_times_by_id.get(
+                tool_call_id or ""
+            )
+            stream_to_start_ms = (
+                int((started_at - stream_started_at) * 1000)
+                if stream_started_at is not None
+                else None
+            )
+            logger.info(
+                "agent_tool_start session_id={} run_id={} tool_call_id={} tool={} "
+                "stream_to_start_ms={}",
+                self.session_id,
+                run_id,
+                tool_call_id,
+                event.get("name"),
+                stream_to_start_ms,
+            )
             return {
                 "name": "agent:tool_call",
                 "data": {
@@ -82,6 +108,28 @@ class EventTranslator:
             output = self._normalize_tool_output(event.get("data", {}).get("output"))
             tool_call_id = self._extract_tool_call_id(event) or (
                 output.get("tool_call_id") if isinstance(output, dict) else None
+            )
+            run_id = str(event.get("run_id") or "default")
+            ended_at = perf_counter()
+            tool_started_at = self._tool_started_at.pop(run_id, None)
+            stream_started_at = self._streaming_tool_call_times_by_id.pop(
+                tool_call_id or "", None
+            )
+            logger.info(
+                "agent_tool_end session_id={} run_id={} tool_call_id={} tool={} "
+                "tool_duration_ms={} stream_to_end_ms={} output_type={} output_chars={}",
+                self.session_id,
+                run_id,
+                tool_call_id,
+                event.get("name"),
+                int((ended_at - tool_started_at) * 1000)
+                if tool_started_at is not None
+                else None,
+                int((ended_at - stream_started_at) * 1000)
+                if stream_started_at is not None
+                else None,
+                type(output).__name__,
+                len(output) if isinstance(output, str) else None,
             )
             return {
                 "name": "agent:tool_result",
@@ -157,9 +205,14 @@ class EventTranslator:
             index = raw.get("index")
             if not isinstance(index, int):
                 continue
+            stream_key = (run_id, index)
             state = self._streaming_tool_calls.setdefault(
-                (run_id, index), {"id": "", "name": "", "args_text": ""}
+                stream_key, {"id": "", "name": "", "args_text": ""}
             )
+            stream_started_at = self._streaming_tool_call_started_at.setdefault(
+                stream_key, perf_counter()
+            )
+            previous_tool_call_id = state.get("id")
             raw_id = raw.get("id")
             raw_name = raw.get("name")
             raw_args = raw.get("args")
@@ -182,6 +235,29 @@ class EventTranslator:
                 state["id"] = tool_call_id
             if not tool_call_id or not tool_name:
                 continue
+            if previous_tool_call_id != tool_call_id:
+                self._streaming_tool_call_times_by_id[tool_call_id] = stream_started_at
+                if previous_tool_call_id:
+                    logger.warning(
+                        "agent_tool_stream_id_changed session_id={} run_id={} index={} "
+                        "previous_tool_call_id={} tool_call_id={} tool={}",
+                        self.session_id,
+                        run_id,
+                        index,
+                        previous_tool_call_id,
+                        tool_call_id,
+                        tool_name,
+                    )
+                else:
+                    logger.info(
+                        "agent_tool_stream_start session_id={} run_id={} index={} "
+                        "tool_call_id={} tool={}",
+                        self.session_id,
+                        run_id,
+                        index,
+                        tool_call_id,
+                        tool_name,
+                    )
             events.append(
                 {
                     "name": "agent:tool_call",
@@ -229,6 +305,7 @@ class EventTranslator:
             key for key in self._streaming_tool_calls if key[0] == normalized_run_id
         ]:
             del self._streaming_tool_calls[key]
+            self._streaming_tool_call_started_at.pop(key, None)
 
     @staticmethod
     def _extract_reasoning_content(chunk: object | None) -> str:

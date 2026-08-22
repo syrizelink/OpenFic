@@ -1,6 +1,7 @@
 """MessagePersister 测试 — 正常路径。"""
 
 import json
+import logging
 from datetime import UTC, datetime
 
 import pytest
@@ -15,6 +16,29 @@ from app.agent_runtime.persistence.persister import MessagePersister
 
 def _stream_event(event: str, **data) -> dict:
     return {"event": event, **data}
+
+
+@pytest.mark.asyncio
+async def test_persister_session_close_diagnostic_log_uses_standard_logging(
+    caplog, db_session_factory, sample_task
+):
+    persister = MessagePersister(
+        session_id="session_diagnostic_log",
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        db_session_factory=db_session_factory,
+    )
+    caplog.set_level(logging.INFO, logger=persister_module.logger.name)
+
+    await persister._write(
+        role="tool",
+        status="complete",
+        content="{}",
+        tool_call_id="call-diagnostic",
+        tool_name="read_chapter",
+    )
+
+    assert "agent_message_session_close" in caplog.text
 
 
 @pytest.mark.asyncio

@@ -5,6 +5,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from time import perf_counter
 from typing import Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -336,8 +337,14 @@ class MessagePersister:
         return recover_message_tool_calls(output, id_seed=run_id)
 
     async def _write(self, **kwargs) -> None:
+        started_at = perf_counter()
+        diagnostic = kwargs.get("role") in {"assistant", "tool"}
         session = self._make_session()
+        session.sync_session.info["main_db_owner"] = (
+            f"agent_message:{self.session_id}:{kwargs.get('role')}"
+        )
         try:
+            repo_started_at = perf_counter()
             await repo.insert_message(
                 session,
                 session_id=self.session_id,
@@ -345,8 +352,22 @@ class MessagePersister:
                 project_id=self.project_id,
                 **kwargs,
             )
+            repo_ms = int((perf_counter() - repo_started_at) * 1000)
         finally:
+            close_started_at = perf_counter()
             await session.close()
+            if diagnostic:
+                logger.info(
+                    "agent_message_session_close session_id=%s role=%s tool_name=%s "
+                    "tool_call_id=%s repo_ms=%s close_ms=%s total_ms=%s",
+                    self.session_id,
+                    kwargs.get("role"),
+                    kwargs.get("tool_name"),
+                    kwargs.get("tool_call_id"),
+                    repo_ms if "repo_ms" in locals() else None,
+                    int((perf_counter() - close_started_at) * 1000),
+                    int((perf_counter() - started_at) * 1000),
+                )
 
     async def mark_user_sent(self, message_id: str) -> None:
         session = self._make_session()

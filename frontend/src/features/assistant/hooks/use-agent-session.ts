@@ -557,6 +557,19 @@ export function useAgentSession({
 
       const result = applyTranscriptEvent(event);
       const message = result.message;
+      if (event.type === "tool" && event.payload?.is_delta !== true) {
+        console.debug("[agent-diagnostic] transcript_tool_state", {
+          sessionId: sessionIdRef.current,
+          eventToolCallId: event.payload?.tool_call_id,
+          eventStatus: event.status,
+          runningToolIds: result.state.messages
+            .filter(
+              (item) =>
+                item.type === "tool" && (item.status === "running" || item.isStreaming === true),
+            )
+            .map((item) => item.payload?.tool_call_id),
+        });
+      }
 
       if (message?.interruptBatchId && typeof message.interruptBatchTotal === "number") {
         const batchId = message.interruptBatchId;

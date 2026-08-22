@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from time import perf_counter
 
 from loguru import logger
 from sqlalchemy import func, select
@@ -103,10 +104,38 @@ class AuditQueue:
                 self._queue.task_done()
 
     async def _write(self, audit_log: LLMAuditLog) -> None:
+        started_at = perf_counter()
+        logger.info(
+            "agent_audit_insert_start session_id={} audit_id={} call_sequence={} "
+            "request_chars={} tool_result_chars={}",
+            audit_log.session_id,
+            audit_log.id,
+            audit_log.call_sequence,
+            len(audit_log.request_messages or ""),
+            len(audit_log.tool_call_results or ""),
+        )
         session = await create_session()
-        async with session:
-            session.add(audit_log)
-            await session.commit()
+        session.sync_session.info["main_db_owner"] = f"agent_audit:{audit_log.session_id}"
+        try:
+            async with session:
+                session.add(audit_log)
+                commit_started_at = perf_counter()
+                await session.commit()
+                logger.info(
+                    "agent_audit_insert_end session_id={} audit_id={} commit_ms={} total_ms={}",
+                    audit_log.session_id,
+                    audit_log.id,
+                    int((perf_counter() - commit_started_at) * 1000),
+                    int((perf_counter() - started_at) * 1000),
+                )
+        except Exception:
+            logger.exception(
+                "agent_audit_insert_error session_id={} audit_id={} total_ms={}",
+                audit_log.session_id,
+                audit_log.id,
+                int((perf_counter() - started_at) * 1000),
+            )
+            raise
 
 
 audit_queue = AuditQueue()

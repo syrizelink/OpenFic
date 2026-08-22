@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from langchain_core.messages import ToolMessage
 from langchain_core.messages.ai import AIMessage
 
@@ -348,6 +350,55 @@ def test_translate_tool_end_normalizes_tool_message_output():
         "status": "error",
     }
     assert result["data"]["tool_call_id"] == "call_1"
+
+
+def test_translate_logs_tool_event_timing_boundaries():
+    translator = EventTranslator(session_id="sess_001")
+    stream_event = {
+        "event": "on_chat_model_stream",
+        "run_id": "model-run-1",
+        "data": {
+            "chunk": type(
+                "Chunk",
+                (),
+                {
+                    "content": "",
+                    "tool_call_chunks": [
+                        {
+                            "index": 0,
+                            "id": "call_read_1",
+                            "name": "read_chapter",
+                            "args": "",
+                        }
+                    ],
+                },
+            )()
+        },
+    }
+    tool_start_event = {
+        "event": "on_tool_start",
+        "run_id": "tool-run-1",
+        "name": "read_chapter",
+        "metadata": {"tool_call_id": "call_read_1"},
+        "data": {"input": {"chapter_ref": {"type": "order", "value": 1}}},
+    }
+    tool_end_event = {
+        "event": "on_tool_end",
+        "run_id": "tool-run-1",
+        "name": "read_chapter",
+        "metadata": {"tool_call_id": "call_read_1"},
+        "data": {"output": "{\"content\": \"chapter\"}"},
+    }
+
+    with patch("app.agent_runtime.runner.event_translator.logger.info") as log_info:
+        translator.translate(stream_event)
+        translator.translate(tool_start_event)
+        translator.translate(tool_end_event)
+
+    messages = [call.args[0] for call in log_info.call_args_list]
+    assert any(message.startswith("agent_tool_stream_start") for message in messages)
+    assert any(message.startswith("agent_tool_start") for message in messages)
+    assert any(message.startswith("agent_tool_end") for message in messages)
 
 
 def test_translate_unknown_event_returns_none():

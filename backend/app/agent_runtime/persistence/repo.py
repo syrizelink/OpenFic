@@ -2,8 +2,10 @@
 
 import json
 from datetime import UTC, datetime
+from time import perf_counter
 from typing import cast
 
+from loguru import logger
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -87,14 +89,28 @@ async def insert_message(
     created_at: datetime | None = None,
 ) -> PersistedMessage:
     """写入一条消息并 commit；返回 PersistedMessage（含分配的 seq）。"""
+    diagnostic = role in {"assistant", "tool"}
+    started_at = perf_counter()
+    if diagnostic:
+        logger.info(
+            "agent_message_insert_start session_id={} role={} tool_name={} "
+            "tool_call_id={} content_chars={}",
+            session_id,
+            role,
+            tool_name,
+            tool_call_id,
+            len(content),
+        )
     try:
         # 在写入前先把读路径的错误归一化为写错误，避免 PersistenceLoadError 泄露到写 API
+        seq_started_at = perf_counter()
         try:
             seq = await next_seq(session, session_id)
         except PersistenceLoadError as e:
             raise PersistenceWriteError(
                 f"insert_message failed to allocate seq for session {session_id}"
             ) from e
+        seq_ms = int((perf_counter() - seq_started_at) * 1000)
         now = created_at or datetime.now(UTC)
         row = AgentRunMessage(
             id=message_id or generate_id(),
@@ -119,11 +135,39 @@ async def insert_message(
             updated_at=now,
         )
         session.add(row)
+        commit_started_at = perf_counter()
         await session.commit()
+        commit_ms = int((perf_counter() - commit_started_at) * 1000)
+        refresh_started_at = perf_counter()
         await session.refresh(row)
+        refresh_ms = int((perf_counter() - refresh_started_at) * 1000)
+        if diagnostic:
+            logger.info(
+                "agent_message_insert_end session_id={} role={} tool_name={} "
+                "tool_call_id={} seq={} seq_ms={} commit_ms={} refresh_ms={} total_ms={}",
+                session_id,
+                role,
+                tool_name,
+                tool_call_id,
+                row.seq,
+                seq_ms,
+                commit_ms,
+                refresh_ms,
+                int((perf_counter() - started_at) * 1000),
+            )
         return _row_to_dto(row)
     except SQLAlchemyError as e:
         await session.rollback()
+        if diagnostic:
+            logger.exception(
+                "agent_message_insert_error session_id={} role={} tool_name={} "
+                "tool_call_id={} total_ms={}",
+                session_id,
+                role,
+                tool_name,
+                tool_call_id,
+                int((perf_counter() - started_at) * 1000),
+            )
         raise PersistenceWriteError(
             f"insert_message failed for session {session_id} role={role}"
         ) from e

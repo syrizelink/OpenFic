@@ -2,6 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from datetime import UTC, datetime
+from time import perf_counter
 from typing import Any, AsyncIterator, Literal, cast
 
 from langchain_core.messages import BaseMessage
@@ -257,11 +258,43 @@ class SessionRunner:
 
     async def _emit_agent_event(self, name: str, payload: dict) -> None:
         buffer = get_agent_event_replay_buffer()
+        diagnostic = name == "agent:tool_result" or (
+            name == "agent:tool_call" and payload.get("is_delta") is not True
+        )
+        lock_started_at = perf_counter() if diagnostic else 0.0
         async with self._event_session_lock():
             if name != "agent:retry":
                 buffer.clear_event_unlocked(self.session_id, "agent:retry")
             buffer.record_unlocked(name, payload)
+            emit_started_at = perf_counter() if diagnostic else 0.0
+            if diagnostic:
+                logger.info(
+                    "agent_socket_lock_acquired session_id={} event={} tool_call_id={} "
+                    "lock_wait_ms={}",
+                    self.session_id,
+                    name,
+                    payload.get("tool_call_id"),
+                    int((emit_started_at - lock_started_at) * 1000),
+                )
+                logger.info(
+                    "agent_socket_emit_start session_id={} event={} tool_call_id={} "
+                    "tool={} run_id={}",
+                    self.session_id,
+                    name,
+                    payload.get("tool_call_id"),
+                    payload.get("tool") or payload.get("tool_name"),
+                    payload.get("run_id"),
+                )
             await emit(name, payload, room=self._room)
+            if diagnostic:
+                logger.info(
+                    "agent_socket_emit_end session_id={} event={} tool_call_id={} "
+                    "emit_ms={}",
+                    self.session_id,
+                    name,
+                    payload.get("tool_call_id"),
+                    int((perf_counter() - emit_started_at) * 1000),
+                )
 
     async def _emit_tool_result(self, payload: dict[str, Any]) -> None:
         payload = {"session_id": self.session_id, **payload}
@@ -735,6 +768,7 @@ class SessionRunner:
 
     async def compact(self) -> dict[str, int | str]:
         session = await create_session()
+        session.sync_session.info["main_db_owner"] = f"agent_compact:{self.session_id}"
         try:
             history_messages = await load_history(session, self.session_id)
             node_messages = [_to_history_dict(message) for message in history_messages]
@@ -806,6 +840,7 @@ class SessionRunner:
         user_message_id: str | None = None,
     ) -> None:
         runtime_session = await create_session()
+        runtime_session.sync_session.info["main_db_owner"] = f"agent_runtime:{self.session_id}"
         runtime_context: dict[str, Any] = {}
         self._persister = self._make_persister()
         audit_context = AuditContext(
@@ -870,6 +905,7 @@ class SessionRunner:
                     reason = "cancelled"
                     break
 
+                event_received_at = perf_counter()
                 ws_events = self._translator.translate(event_dict)
                 if ws_events:
                     for ws_event in ws_events if isinstance(ws_events, list) else [ws_events]:
@@ -878,7 +914,35 @@ class SessionRunner:
                             await self._emit_persisted_task_usage_events(payload)
                             continue
                         await self._emit_agent_event(ws_event["name"], payload)
+                event_kind = event_dict.get("event")
+                diagnostic_event = event_kind in {"on_tool_start", "on_tool_end"}
+                persister_started_at = perf_counter() if diagnostic_event else 0.0
+                if diagnostic_event:
+                    metadata = event_dict.get("metadata") or {}
+                    metadata_tool_call = metadata.get("tool")
+                    metadata_tool_call_id = metadata.get("tool_call_id")
+                    if not metadata_tool_call_id and isinstance(metadata_tool_call, dict):
+                        metadata_tool_call_id = metadata_tool_call.get("id")
+                    logger.info(
+                        "agent_event_persist_start session_id={} event={} run_id={} "
+                        "tool={} tool_call_id={}",
+                        self.session_id,
+                        event_kind,
+                        event_dict.get("run_id"),
+                        event_dict.get("name"),
+                        metadata_tool_call_id,
+                    )
                 await self._persister.handle(event_dict)
+                if diagnostic_event:
+                    logger.info(
+                        "agent_event_persist_end session_id={} event={} run_id={} "
+                        "persister_ms={} event_total_ms={}",
+                        self.session_id,
+                        event_kind,
+                        event_dict.get("run_id"),
+                        int((perf_counter() - persister_started_at) * 1000),
+                        int((perf_counter() - event_received_at) * 1000),
+                    )
                 if event_dict.get("event") in {"on_chat_model_end", "on_tool_end"}:
                     await self._clear_replay_run(event_dict.get("run_id"))
 
@@ -1138,6 +1202,7 @@ class SessionRunner:
     async def resume(self, payload: dict) -> None:
         graph = await self._get_graph()
         runtime_session = await create_session()
+        runtime_session.sync_session.info["main_db_owner"] = f"agent_resume:{self.session_id}"
         snapshot = await graph.aget_state(
             {"configurable": {"thread_id": self.session_id}}
         )
