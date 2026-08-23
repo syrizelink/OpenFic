@@ -248,9 +248,24 @@ async def test_validate_provider_invalid_credentials(
 
 
 @pytest.mark.asyncio
-async def test_validate_anthropic_compatible_provider_succeeds_without_model_discovery(
+@respx.mock
+async def test_validate_anthropic_compatible_provider_discovers_models(
     client: AsyncClient,
 ):
+    route = respx.get("https://gateway.example/v1/models").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "id": "claude-3-5-sonnet-20241022",
+                        "display_name": "Claude 3.5 Sonnet",
+                    }
+                ]
+            },
+        )
+    )
+
     response = await client.post(
         "/api/v1/model-providers/validate",
         json={
@@ -263,18 +278,35 @@ async def test_validate_anthropic_compatible_provider_succeeds_without_model_dis
     assert response.status_code == 200
     assert response.json() == {
         "success": True,
-        "message": "连接验证成功，但该提供商可能不支持模型列表 API",
-        "models": [],
+        "message": "连接验证成功",
+        "models": [
+            {
+                "id": "claude-3-5-sonnet-20241022",
+                "name": "Claude 3.5 Sonnet",
+                "task_type": None,
+                "metadata": None,
+            }
+        ],
     }
+    assert route.calls[0].request.headers["x-api-key"] == "test-key"
+    assert route.calls[0].request.headers["anthropic-version"] == "2023-06-01"
 
 
 @pytest.mark.asyncio
-async def test_get_anthropic_compatible_provider_models_returns_empty_success(
+@respx.mock
+async def test_get_anthropic_compatible_provider_models_discovers_models(
     client: AsyncClient,
     session: AsyncSession,
 ):
     from app.core.encryption import EncryptionService
     from app.settings import settings
+
+    respx.get("https://gateway.example/v1/models").mock(
+        return_value=httpx.Response(
+            200,
+            json={"data": [{"id": "claude-3-5-haiku-20241022"}]},
+        )
+    )
 
     encrypted_key = EncryptionService(settings.encryption_key).encrypt("test-key")
     provider = await model_provider_repo.create(
@@ -291,8 +323,15 @@ async def test_get_anthropic_compatible_provider_models_returns_empty_success(
     assert response.status_code == 200
     assert response.json() == {
         "success": True,
-        "message": "该提供商可能不支持模型列表 API",
-        "models": [],
+        "message": "获取模型列表成功",
+        "models": [
+            {
+                "id": "claude-3-5-haiku-20241022",
+                "name": "claude-3-5-haiku-20241022",
+                "task_type": "llm",
+                "metadata": None,
+            }
+        ],
     }
 
 

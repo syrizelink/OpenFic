@@ -18,13 +18,25 @@ class _RecordingClient:
 
 
 @pytest.mark.asyncio
-async def test_anthropic_compatible_adapter_only_supports_llm_without_model_discovery() -> None:
+@pytest.mark.parametrize(
+    ("base_url", "expected_url"),
+    [
+        ("https://gateway.example/anthropic", "https://gateway.example/v1/models"),
+        ("https://gateway.example/claude/", "https://gateway.example/v1/models"),
+        ("https://gateway.example/v1/anthropic", "https://gateway.example/v1/models"),
+        ("https://gateway.example/v1/claude/", "https://gateway.example/v1/models"),
+        ("https://gateway.example/v1/", "https://gateway.example/v1/models"),
+    ],
+)
+async def test_anthropic_compatible_adapter_discovers_models_from_v1_endpoint(
+    base_url: str, expected_url: str
+) -> None:
     adapter = AdapterRegistry.get_adapter("anthropic-compatible")
     client = _RecordingClient()
 
     models = await adapter.get_llm_models(
         client,  # type: ignore[arg-type]
-        "https://gateway.example/v1",
+        base_url,
         "test-key",
     )
 
@@ -32,5 +44,5 @@ async def test_anthropic_compatible_adapter_only_supports_llm_without_model_disc
     assert adapter.supports_llm()
     assert not adapter.supports_embedding()
     assert not adapter.supports_rerank()
-    assert models == []
-    assert client.urls == []
+    assert models == [{"id": "unexpected-model", "name": "unexpected-model"}]
+    assert client.urls == [expected_url]

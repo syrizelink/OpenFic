@@ -44,7 +44,8 @@ class OpenAICompatibleAdapter(BaseAdapter):
         self, client: httpx.AsyncClient, base_url: str, api_key: str
     ) -> list[dict[str, str]]:
         """获取所有可用模型。"""
-        url = f"{self._normalize_url(base_url)}/models"
+        url = self._normalize_url(base_url)
+        url = f"{url}/models" if url.endswith("/v1") else f"{url}/v1/models"
         headers = self._build_auth_header(api_key) if api_key else {}
 
         try:
