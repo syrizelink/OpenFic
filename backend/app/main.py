@@ -23,6 +23,7 @@ from starlette.types import Scope
 from app.api.exceptions import register_exception_handlers
 from app.api.middleware import AccessLogMiddleware
 from app.api.routers import (
+    auth,
     agent_definitions,
     agent_memories,
     agent_rules,
@@ -54,6 +55,7 @@ from app.api.routers import (
     world_info,
     world_info_entries,
 )
+from app.auth import AuthMiddleware, AuthService
 from app.audit import start_audit_queue, stop_audit_queue
 from app.agent_runtime.persistence.child_runs import cancel_interrupted_child_runs
 from app.audit.queue import load_audit_details_persistence
@@ -683,6 +685,7 @@ def create_app() -> FastAPI:
         version=app_settings.app_version,
         lifespan=lifespan,
     )
+    app.state.auth_service = AuthService(app_settings.auth_password)
     app.state.catalog_icon_proxy_service = model_icons.CatalogIconProxyService()
 
     install_telemetry_sink()
@@ -690,7 +693,8 @@ def create_app() -> FastAPI:
     # CORS middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=[],
+        allow_origin_regex=".*",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -698,6 +702,7 @@ def create_app() -> FastAPI:
     app.add_middleware(AccessLogMiddleware)
 
     # Mount routers
+    app.include_router(auth.router, prefix=app_settings.api_v1_prefix)
     app.include_router(health.router, prefix=app_settings.api_v1_prefix)
     app.include_router(runtime_config.router, prefix=app_settings.api_v1_prefix)
     app.include_router(projects.router, prefix=app_settings.api_v1_prefix)
@@ -768,4 +773,8 @@ def create_app() -> FastAPI:
 
 fastapi_app = create_app()
 asgi_app = init_socketio(fastapi_app)
-app = asgi_app
+app = AuthMiddleware(
+    asgi_app,
+    fastapi_app.state.auth_service,
+    app_settings.api_v1_prefix,
+)

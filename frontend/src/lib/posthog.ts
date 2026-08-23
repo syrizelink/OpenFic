@@ -38,6 +38,7 @@ async function fetchRuntimeConfig(): Promise<RuntimeConfigResponse | null> {
   try {
     const response = await fetch(`${getApiBaseUrl()}/runtime-config`, {
       cache: "no-store",
+      credentials: "include",
     });
     if (!response.ok) return null;
     return (await response.json()) as RuntimeConfigResponse;

@@ -34,10 +34,23 @@ function getApiUrl(path: string): string {
 export const apiClient = axios.create({
   baseURL: getApiBaseUrl(),
   timeout: 120000,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
 });
+
+let isAuthenticationRedirecting = false;
+
+export function handleAuthenticationFailure(): void {
+  if (typeof window === "undefined" || isAuthenticationRedirecting) return;
+  isAuthenticationRedirecting = true;
+  window.location.reload();
+}
+
+function isAuthenticationRequest(url: string | undefined): boolean {
+  return url?.includes("/auth/") ?? false;
+}
 
 apiClient.interceptors.request.use((config) => {
   config.baseURL = getApiBaseUrl();
@@ -48,6 +61,9 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (error.response?.status === 401 && !isAuthenticationRequest(error.config?.url)) {
+      handleAuthenticationFailure();
+    }
     // 开发环境记录错误日志
     if (import.meta.env.DEV) {
       console.error("API Error:", error);
@@ -60,6 +76,40 @@ apiClient.interceptors.response.use(
 export interface HealthResponse {
   status: string;
   version: string;
+}
+
+export interface AuthStatusResponse {
+  enabled: boolean;
+  authenticated: boolean;
+}
+
+export interface AuthPreferencesResponse {
+  language: string;
+  theme: string;
+  font_family: string;
+  code_font_family: string;
+  base_font_size: number;
+  editor_font_size: number;
+}
+
+export interface AuthLoginRequest {
+  password: string;
+  trust_device: boolean;
+}
+
+export async function fetchAuthStatus(): Promise<AuthStatusResponse> {
+  const response = await apiClient.get<AuthStatusResponse>("/auth/status");
+  return response.data;
+}
+
+export async function fetchAuthPreferences(): Promise<AuthPreferencesResponse> {
+  const response = await apiClient.get<AuthPreferencesResponse>("/auth/preferences");
+  return response.data;
+}
+
+export async function loginWithPassword(payload: AuthLoginRequest): Promise<AuthStatusResponse> {
+  const response = await apiClient.post<AuthStatusResponse>("/auth/login", payload);
+  return response.data;
 }
 
 // 健康检查 API
@@ -1738,10 +1788,12 @@ export async function importWorldInfoEntriesStream(
     {
       method: "POST",
       body: formData,
+      credentials: "include",
     },
   );
 
   if (!response.ok) {
+    if (response.status === 401) handleAuthenticationFailure();
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 

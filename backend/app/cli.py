@@ -56,6 +56,9 @@ def handle_serve(args: argparse.Namespace) -> None:
     configure_standard_logging()
     os.environ["OPENFIC_SERVER_HOST"] = args.host
     os.environ["OPENFIC_SERVER_PORT"] = str(args.port)
+    auth_password = getattr(args, "auth_password", None)
+    if auth_password is not None:
+        os.environ["OPENFIC_AUTH_PASSWORD"] = auth_password
 
     import uvicorn
     from app.main import app as asgi_app, fastapi_app
@@ -85,6 +88,7 @@ def build_parser() -> argparse.ArgumentParser:
     serve_parser = subparsers.add_parser("serve", help="启动本地服务")
     serve_parser.add_argument("--host", default=_DEFAULT_HOST, help=f"绑定地址（默认 {_DEFAULT_HOST}）")
     serve_parser.add_argument("--port", type=int, default=_DEFAULT_PORT, help=f"绑定端口（默认 {_DEFAULT_PORT}）")
+    serve_parser.add_argument("--auth-password", default=None, help="启用应用密码保护")
     serve_parser.set_defaults(handler=handle_serve)
 
     version_parser = subparsers.add_parser("version", help="显示版本号")
