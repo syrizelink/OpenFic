@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer, webFrame } from "electron";
-import { fileURLToPath } from "node:url";
 import {
   IpcChannels,
   type BackupDataRequest,
@@ -33,6 +32,7 @@ import {
   type UpdateState,
 } from "../shared/ipc.js";
 import type { DesktopConfig, DesktopInstance } from "../shared/config.js";
+import { getFrontendHostPreloadPath } from "./frontend-host-preload-path.mjs";
 
 const MIN_ZOOM_FACTOR = 0.7;
 const MAX_ZOOM_FACTOR = 2.0;
@@ -110,7 +110,7 @@ const desktopApi = {
     ipcRenderer.invoke(IpcChannels.restoreData, { instanceId, sourcePath } satisfies RestoreDataRequest),
   inspectLocalRuntime: (installDir: string): Promise<InspectLocalRuntimeResult> =>
     ipcRenderer.invoke(IpcChannels.inspectLocalRuntime, { installDir } satisfies InspectLocalRuntimeRequest),
-  frontendHostPreloadPath: fileURLToPath(new URL("./frontend-host-preload.cjs", import.meta.url)),
+  frontendHostPreloadPath: getFrontendHostPreloadPath(import.meta.url),
   minimizeWindow: (): Promise<void> => ipcRenderer.invoke(IpcChannels.minimizeWindow),
   toggleMaximizeWindow: (): Promise<void> => ipcRenderer.invoke(IpcChannels.toggleMaximizeWindow),
   toggleFullScreen: (): Promise<void> => ipcRenderer.invoke(IpcChannels.toggleFullScreen),
