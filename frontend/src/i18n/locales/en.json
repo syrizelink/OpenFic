@@ -1779,6 +1779,7 @@
     },
     "specialPanels": {
       "clarificationTitle": "More information needed",
+      "invalidQuestion": "The Agent returned an empty question, which cannot be answered. Ignore it to end this session.",
       "collapseQuestionPanel": "Collapse question panel",
       "expandQuestionPanel": "Expand question panel",
       "approvalTitle": "Approval required",

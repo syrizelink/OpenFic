@@ -21,6 +21,7 @@ class Question(BaseModel):
 
 class AskUserInput(BaseModel):
     questions: list[Question] = Field(
+        min_length=1,
         description="问题列表，同一批问题之间不得存在答案依赖关系",
     )
 

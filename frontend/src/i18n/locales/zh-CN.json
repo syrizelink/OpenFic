@@ -1842,6 +1842,7 @@
     },
     "specialPanels": {
       "clarificationTitle": "需要补充信息",
+      "invalidQuestion": "Agent 返回了空问题，无法回答。请忽略以结束本次会话。",
       "collapseQuestionPanel": "收起提问面板",
       "expandQuestionPanel": "展开提问面板",
       "approvalTitle": "需要审批",

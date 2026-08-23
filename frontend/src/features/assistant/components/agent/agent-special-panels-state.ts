@@ -76,6 +76,7 @@ function isVisibleActiveSpecialPanelMessage(message: AgentMessage): boolean {
 }
 
 function getQuestionSummary(prompt: ClarificationPromptData): string {
+  if (prompt.questions.length === 0) return "";
   return i18n.t("assistant.tools.questionCount", { count: prompt.questions.length });
 }
 
@@ -86,8 +87,6 @@ export function getAgentSpecialPanels(messages: AgentMessage[]): AgentSpecialPan
 
       if (message.type === "question") {
         const prompt = getClarificationPromptData(message);
-        if (prompt.questions.length === 0) return panels;
-
         panels.push({
           id: message.id,
           kind: "question",

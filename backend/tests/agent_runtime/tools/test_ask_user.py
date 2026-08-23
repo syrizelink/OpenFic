@@ -34,6 +34,17 @@ def _valid_input() -> dict:
 
 
 class TestAskUser:
+    async def test_ask_user_rejects_empty_questions(self):
+        from app.agent_runtime.tools.impls.interaction.ask_user import AskUserTool
+
+        tool = AskUserTool(_state=_make_state())
+
+        with patch("app.agent_runtime.tools.impls.interaction.ask_user.interrupt") as mock_interrupt:
+            result = await tool.ainvoke({"questions": []})
+
+        assert "参数校验失败" in result
+        mock_interrupt.assert_not_called()
+
     async def test_ask_user_triggers_interrupt(self):
         from langgraph.errors import GraphInterrupt
         from app.agent_runtime.tools.impls.interaction.ask_user import AskUserTool

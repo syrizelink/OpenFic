@@ -73,6 +73,7 @@ function ClarificationSpecialPanelContent({
 }: ClarificationSpecialPanelContentProps) {
   const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const hasQuestions = prompt.questions.length > 0;
   const model = useClarificationQuestionFlow(prompt, {
     onSubmitQuestionAnswer: (actionId, answer) => {
       if (onBatchDecision) {
@@ -85,7 +86,21 @@ function ClarificationSpecialPanelContent({
   const collapseLabel = isCollapsed
     ? t("assistant.specialPanels.expandQuestionPanel")
     : t("assistant.specialPanels.collapseQuestionPanel");
-  const content = readOnly ? (
+  const handleSkip = () => {
+    if (onBatchDecision) {
+      onBatchDecision(panel, { skipped: true });
+      return;
+    }
+    onSkipQuestion?.(prompt.actionId);
+  };
+  const content = !hasQuestions ? (
+    <Text
+      size="2"
+      color="red"
+    >
+      {t("assistant.specialPanels.invalidQuestion")}
+    </Text>
+  ) : readOnly ? (
     <Flex
       direction="column"
       gap="3"
@@ -162,7 +177,7 @@ function ClarificationSpecialPanelContent({
       }
       content={content}
       actions={
-        readOnly ? undefined : (
+        readOnly ? undefined : hasQuestions ? (
           <ClarificationQuestionActions
             model={model}
             leadingAction={
@@ -172,18 +187,23 @@ function ClarificationSpecialPanelContent({
                 size="1"
                 type="button"
                 className="agent-clarification-skip-button"
-                onClick={() => {
-                  if (onBatchDecision) {
-                    onBatchDecision(panel, { skipped: true });
-                    return;
-                  }
-                  onSkipQuestion?.(prompt.actionId);
-                }}
+                onClick={handleSkip}
               >
                 {t("assistant.clarification.ignore")}
               </Button>
             }
           />
+        ) : (
+          <Button
+            variant="ghost"
+            color="gray"
+            size="1"
+            type="button"
+            className="agent-clarification-skip-button"
+            onClick={handleSkip}
+          >
+            {t("assistant.clarification.ignore")}
+          </Button>
         )
       }
     />
