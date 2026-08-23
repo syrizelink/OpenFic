@@ -21,6 +21,8 @@
     "initializationFailed": "Initialization failed",
     "initializationFailedWithStage": "Initialization failed: {{stage}}: {{reason}}",
     "initializationFailedWithReason": "Initialization failed: {{reason}}",
+    "initializationPreferences": "interface preferences",
+    "initializationAuth": "authentication status",
     "initializationHealth": "HTTP health check",
     "initializationSettings": "settings request",
     "initializationTiktoken": "tiktoken preload",
@@ -53,6 +55,14 @@
     "noMatchingOptions": "No matching options",
     "swUpdated": "App updated. Click to refresh.",
     "refresh": "Refresh"
+  },
+  "auth": {
+    "passwordPlaceholder": "Enter password",
+    "submit": "Log in",
+    "submitting": "Logging in...",
+    "trustDevice": "Trust this device",
+    "invalidPassword": "Incorrect password",
+    "loginFailed": "Login failed. Please try again."
   },
   "topbar": {
     "projects": "Projects",

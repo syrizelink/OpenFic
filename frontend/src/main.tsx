@@ -8,6 +8,7 @@ import App from "./App.tsx";
 import { AppCrashFallback, GlobalLoading } from "./components";
 import { Toaster } from "./components/toaster";
 import { AppLayout } from "./features/app-shell";
+import { AuthPage } from "./features/auth";
 import { CharactersPage } from "./features/characters";
 import { PromptChainsPage } from "./features/prompt-chains";
 import { fetchSettings } from "./features/settings/lib/settings-api";
@@ -16,9 +17,15 @@ import { WorldInfoPage } from "./features/world-info";
 import { WritingPage } from "./features/writing";
 // 初始化 i18n
 import i18n, { type LanguageCode } from "./i18n";
-import { checkHealth } from "./lib/api-client";
+import { checkHealth, fetchAuthPreferences, fetchAuthStatus } from "./lib/api-client";
 import { publishDesktopAppearance, publishDesktopLanguage } from "./lib/desktop-appearance-bridge";
-import { applyCodeFontFamily, applyFontFamily, loadConfiguredFonts } from "./lib/font-utils";
+import {
+  applyBaseFontSize,
+  applyCodeFontFamily,
+  applyEditorFontSize,
+  applyFontFamily,
+  loadConfiguredFonts,
+} from "./lib/font-utils";
 import { getOrCreateRoot } from "./lib/get-or-create-root";
 import { captureException, initErrorTelemetry } from "./lib/posthog";
 import { loadRuntimeConfig } from "./lib/runtime-config";
@@ -56,7 +63,7 @@ const queryClient = new QueryClient({
 const FRONTEND_VERSION = __OPENFIC_FRONTEND_VERSION__;
 const INITIALIZATION_TIMEOUT_MS = 30_000;
 
-type InitializationStage = "health" | "settings" | "tiktoken" | "socket";
+type InitializationStage = "preferences" | "auth" | "health" | "settings" | "tiktoken" | "socket";
 
 class InitializationError extends Error {
   readonly stage: InitializationStage;
@@ -127,6 +134,8 @@ function getInitializationErrorMessage(error: unknown): string {
   }
 
   const stageLabels: Record<InitializationStage, string> = {
+    preferences: i18n.t("common.initializationPreferences"),
+    auth: i18n.t("common.initializationAuth"),
     health: i18n.t("common.initializationHealth"),
     settings: i18n.t("common.initializationSettings"),
     tiktoken: i18n.t("common.initializationTiktoken"),
@@ -207,6 +216,7 @@ function Root() {
   const [appearance, setAppearance] = useState<"light" | "dark">("light");
   const [settings, setSettings] = useState<Settings | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [requiresAuthentication, setRequiresAuthentication] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const toggleTheme = () => {
@@ -221,6 +231,31 @@ function Root() {
     const initializeApp = async () => {
       try {
         await loadRuntimeConfig();
+        const [preferences, authStatus] = await Promise.all([
+          withInitializationStage("preferences", fetchAuthPreferences()),
+          withInitializationStage("auth", fetchAuthStatus()),
+        ]);
+
+        applyFontFamily(preferences.font_family);
+        applyCodeFontFamily(preferences.code_font_family);
+        applyBaseFontSize(preferences.base_font_size);
+        applyEditorFontSize(preferences.editor_font_size);
+        void loadConfiguredFonts(preferences.font_family, preferences.code_font_family).catch(
+          () => undefined,
+        );
+        if (preferences.language === "zh-CN" || preferences.language === "en") {
+          await i18n.changeLanguage(preferences.language);
+        }
+        if (mounted) setAppearance(preferences.theme === "dark" ? "dark" : "light");
+
+        if (authStatus.enabled && !authStatus.authenticated) {
+          if (mounted) {
+            setRequiresAuthentication(true);
+            setIsReady(true);
+          }
+          return;
+        }
+
         void initErrorTelemetry();
 
         const [, settings] = await Promise.all([
@@ -241,12 +276,15 @@ function Root() {
 
         applyFontFamily(settings.fontFamily);
         applyCodeFontFamily(settings.codeFontFamily);
+        applyBaseFontSize(settings.baseFontSize);
+        applyEditorFontSize(settings.editorFontSize);
         // 字体加载失败不应阻塞初始化：回退到字体栈中的下一个字体即可。
         void loadConfiguredFonts(settings.fontFamily, settings.codeFontFamily).catch(
           () => undefined,
         );
 
         if (mounted) {
+          setRequiresAuthentication(false);
           setSettings(settings);
           setAppearance(settings.theme);
           setIsReady(true);
@@ -307,6 +345,8 @@ function Root() {
                 error={error}
                 onRetry={() => window.location.reload()}
               />
+            ) : requiresAuthentication ? (
+              <AuthPage />
             ) : (
               <ErrorBoundary
                 FallbackComponent={AppCrashFallback}
@@ -321,7 +361,7 @@ function Root() {
               </ErrorBoundary>
             )}
           </Theme>
-          {isReady ? <Toaster appearance={appearance} /> : null}
+          {isReady && !requiresAuthentication ? <Toaster appearance={appearance} /> : null}
         </>
       </QueryClientProvider>
     </StrictMode>

@@ -3,7 +3,7 @@
  */
 
 import i18n from "@/i18n";
-import { apiClient, getApiBaseUrl } from "@/lib/api-client";
+import { apiClient, getApiBaseUrl, handleAuthenticationFailure } from "@/lib/api-client";
 
 /** 预览章节信息 */
 export interface PreviewChapter {
@@ -148,9 +148,11 @@ export async function confirmImportStream(
   const response = await fetch(`${getApiBaseUrl()}/import/confirm-stream`, {
     method: "POST",
     body: formData,
+    credentials: "include",
   });
 
   if (!response.ok) {
+    if (response.status === 401) handleAuthenticationFailure();
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 

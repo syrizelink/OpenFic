@@ -70,7 +70,10 @@ export function ProviderIcon({ iconPath, size = 20 }: ProviderIconProps) {
 
     const cancelRequest = scheduleProviderIconRequest(async () => {
       try {
-        const response = await fetch(iconUrl, { signal: abortController.signal });
+        const response = await fetch(iconUrl, {
+          signal: abortController.signal,
+          credentials: "include",
+        });
         if (!response.ok) throw new Error(`Failed to load provider icon: ${response.status}`);
 
         const document = new DOMParser().parseFromString(await response.text(), "image/svg+xml");

@@ -21,6 +21,8 @@
     "initializationFailed": "初始化失败",
     "initializationFailedWithStage": "初始化失败：{{stage}}：{{reason}}",
     "initializationFailedWithReason": "初始化失败：{{reason}}",
+    "initializationPreferences": "界面偏好",
+    "initializationAuth": "认证状态",
     "initializationHealth": "HTTP 健康检查",
     "initializationSettings": "设置接口",
     "initializationTiktoken": "tiktoken 预加载",
@@ -53,6 +55,14 @@
     "noMatchingOptions": "没有匹配选项",
     "swUpdated": "应用已更新，点击刷新",
     "refresh": "刷新"
+  },
+  "auth": {
+    "passwordPlaceholder": "请输入密码",
+    "submit": "登录",
+    "submitting": "登录中...",
+    "trustDevice": "信任该设备",
+    "invalidPassword": "密码错误",
+    "loginFailed": "登录失败，请重试"
   },
   "topbar": {
     "projects": "项目",

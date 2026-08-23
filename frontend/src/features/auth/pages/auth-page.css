@@ -1,0 +1,83 @@
+.auth-page {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 24px;
+  background: var(--color-background);
+}
+
+.auth-panel {
+  display: flex;
+  width: min(100%, 320px);
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+.auth-brand {
+  display: block;
+  width: min(100%, 188px);
+  aspect-ratio: 302.1817 / 66.9035;
+  background-color: var(--gray-12);
+  mask: url("/brand.svg") center / contain no-repeat;
+  -webkit-mask: url("/brand.svg") center / contain no-repeat;
+}
+
+.auth-form {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-password-frame {
+  position: relative;
+  min-width: 0;
+  flex: 1;
+}
+
+.auth-password-frame[data-error="true"]::after {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--red-9);
+  border-radius: var(--radius-2);
+  content: "";
+  pointer-events: none;
+}
+
+.auth-password-frame[data-error="true"]:focus-within::after {
+  border-color: var(--text-field-focus-color);
+}
+
+.auth-password {
+  width: 100%;
+}
+
+.auth-trust-device {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--gray-11);
+}
+
+.auth-error {
+  display: block;
+  height: var(--line-height-2);
+  overflow: visible;
+  color: var(--red-11);
+  visibility: hidden;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.auth-error[data-visible="true"] {
+  visibility: visible;
+}
