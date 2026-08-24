@@ -164,7 +164,23 @@ def filter_tool_result_metadata_content(content: str) -> str:
         return message
     error = payload.get("error")
     if isinstance(error, str) and error.strip():
-        return error.strip()
+        message = error.strip()
+        if visible_fields := {
+            key: payload[key]
+            for key in _MODEL_VISIBLE_FAILURE_FIELDS
+            if key in payload
+        }:
+            return json.dumps(
+                {
+                    "type": "fail",
+                    "success": False,
+                    "code": "execution_failed",
+                    "message": message,
+                    **visible_fields,
+                },
+                ensure_ascii=False,
+            )
+        return message
     if "metadata" not in payload:
         return content
     return json.dumps(

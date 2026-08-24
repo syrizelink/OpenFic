@@ -131,6 +131,23 @@ def test_tool_failure_content_keeps_legacy_error_compatible() -> None:
     assert filter_tool_result_metadata_content(content) == "未找到章节：第三章"
 
 
+def test_tool_failure_content_keeps_legacy_subagent_resume_identity() -> None:
+    content = (
+        '{"dispatch_id":"dispatch-1","agent_key":"writer",'
+        '"agent_number":"#1001","error":"子代理会话已被用户中断"}'
+    )
+
+    assert json.loads(filter_tool_result_metadata_content(content)) == {
+        "type": "fail",
+        "success": False,
+        "code": "execution_failed",
+        "message": "子代理会话已被用户中断",
+        "dispatch_id": "dispatch-1",
+        "agent_key": "writer",
+        "agent_number": "#1001",
+    }
+
+
 def test_tool_failure_content_keeps_subagent_resume_identity() -> None:
     content = (
         '{"type":"fail","success":false,"code":"execution_failed",'

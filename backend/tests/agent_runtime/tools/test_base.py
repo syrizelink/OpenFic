@@ -47,6 +47,15 @@ class FailingTool(AgentTool):
         raise ToolExecutionError("something went wrong", code="not_found")
 
 
+class UnexpectedFailingTool(AgentTool):
+    name: str = "unexpected_failing"
+    description: str = "A tool with an unexpected exception"
+    args_schema: type[BaseModel] = DummyInput
+
+    async def _execute(self, value: str) -> str:
+        raise RuntimeError("database password=super-secret")
+
+
 class LegacyFailingTool(AgentTool):
     name: str = "legacy_failing"
     description: str = "A tool with a legacy error result"
@@ -96,6 +105,18 @@ async def test_agent_tool_execution_error_returns_safe_failure_result():
         "code": "not_found",
         "message": "something went wrong",
     }
+
+
+async def test_agent_tool_does_not_log_raw_unexpected_exception():
+    tool = UnexpectedFailingTool(_state=_make_state())
+
+    with patch("app.agent_runtime.tools.errors.logger") as logger:
+        result = await tool.ainvoke({"value": "test"})
+
+    bound_logger = logger.bind.return_value
+    bound_logger.error.assert_called_once_with("Agent 工具执行失败")
+    bound_logger.opt.assert_not_called()
+    assert json.loads(result)["code"] == "execution_failed"
 
 
 async def test_agent_tool_validation_error_returns_safe_failure_result():

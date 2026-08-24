@@ -183,6 +183,6 @@ def log_tool_failure(
         **failure.trace,
     )
     if exception is not None:
-        logger_context.opt(exception=exception).error("Agent 工具执行失败: {}", failure.message)
+        logger_context.error("Agent 工具执行失败")
         return
     logger_context.warning("Agent 工具执行失败: {}", failure.message)
