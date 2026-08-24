@@ -5,6 +5,7 @@ from typing import Any
 from app.agent_runtime.context.types import ContextMessage
 
 _DROPPED_KINDS = {"thinking", "reasoning", "ui_only"}
+_MODEL_VISIBLE_FAILURE_FIELDS = ("dispatch_id", "agent_key", "agent_number")
 
 
 def _is_history(m: ContextMessage) -> bool:
@@ -140,7 +141,31 @@ def _parse_tool_result(content: str) -> dict[str, Any] | None:
 def filter_tool_result_metadata_content(content: str) -> str:
     """返回可发送给模型的工具结果内容。"""
     payload = _parse_tool_result(content)
-    if payload is None or "metadata" not in payload:
+    if payload is None:
+        return content
+    if payload.get("type") == "fail" or payload.get("success") is False:
+        message = payload.get("message") or payload.get("error")
+        message = message.strip() if isinstance(message, str) else "工具执行失败"
+        visible_fields = {
+            key: payload[key]
+            for key in _MODEL_VISIBLE_FAILURE_FIELDS
+            if key in payload
+        }
+        if visible_fields:
+            return json.dumps(
+                {
+                    key: payload[key]
+                    for key in ("type", "success", "code")
+                    if key in payload
+                }
+                | {"message": message, **visible_fields},
+                ensure_ascii=False,
+            )
+        return message
+    error = payload.get("error")
+    if isinstance(error, str) and error.strip():
+        return error.strip()
+    if "metadata" not in payload:
         return content
     return json.dumps(
         {key: value for key, value in payload.items() if key != "metadata"},

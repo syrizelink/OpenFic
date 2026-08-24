@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 import pytest
 from langchain_core.messages import AIMessage, AIMessageChunk
 from langchain_core.messages.tool import invalid_tool_call
+from langgraph.errors import GraphInterrupt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.persistence import repo
@@ -246,10 +247,10 @@ async def test_persister_replaces_approval_preview_with_rejected_result(
             "tool_call_id": "call-rejected",
             "tool_name": "edit_note",
             "output": {
-                "type": "fail",
+                "type": "control",
                 "success": False,
-                "reason": "tool_error",
-                "error": "工具调用已被用户拒绝",
+                "status": "approval_denied",
+                "message": "工具调用已被用户拒绝",
             },
         }
     )
@@ -257,10 +258,10 @@ async def test_persister_replaces_approval_preview_with_rejected_result(
     messages = await repo.list_by_session(db_session, session_id)
     assert len(messages) == 1
     assert json.loads(messages[0].content) == {
-        "type": "fail",
+        "type": "control",
         "success": False,
-        "reason": "tool_error",
-        "error": "工具调用已被用户拒绝",
+        "status": "approval_denied",
+        "message": "工具调用已被用户拒绝",
     }
 
 
@@ -366,7 +367,7 @@ async def test_persister_persists_subagent_child_events_when_opted_in(
 
 
 @pytest.mark.asyncio
-async def test_persister_persists_subagent_tool_error_when_approval_interrupts(
+async def test_persister_persists_subagent_tool_approval_preview(
     db_session: AsyncSession, db_session_factory, sample_task
 ):
     sid = "child-session-tool-error"
@@ -422,7 +423,7 @@ async def test_persister_persists_subagent_tool_error_when_approval_interrupts(
         "tags": ["subagent_child"],
         "data": {
             "input": {"value": "plan child beats"},
-            "error": RuntimeError("approval required"),
+            "error": GraphInterrupt(()),
         },
         "metadata": {"tool_call_id": "call-write-plan"},
     })
@@ -439,7 +440,58 @@ async def test_persister_persists_subagent_tool_error_when_approval_interrupts(
     assert items[1].status == "complete"
     assert items[1].tool_call_id == "call-write-plan"
     assert items[1].tool_name == "write_plan"
-    assert "\"reason\": \"approval_preview\"" in items[1].content
+    assert json.loads(items[1].content) == {
+        "type": "ok",
+        "success": True,
+        "reason": "approval_preview",
+        "message": "需要审批",
+        "tool_call_id": "call-write-plan",
+        "tool_name": "write_plan",
+    }
+
+
+@pytest.mark.asyncio
+async def test_persister_persists_subagent_tool_error_as_canonical_failure(
+    db_session: AsyncSession, db_session_factory, sample_task
+):
+    persister = MessagePersister(
+        session_id="child-session-tool-error",
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        db_session_factory=db_session_factory,
+        allow_subagent_child_events=True,
+    )
+    await persister.handle(
+        {
+            "event": "on_tool_start",
+            "name": "write_plan",
+            "run_id": "child-tool-error",
+            "tags": ["subagent_child"],
+            "data": {"input": {"value": "plan child beats"}},
+            "metadata": {"tool_call_id": "call-write-plan"},
+        }
+    )
+    await persister.handle(
+        {
+            "event": "on_tool_error",
+            "name": "write_plan",
+            "run_id": "child-tool-error",
+            "tags": ["subagent_child"],
+            "data": {"error": RuntimeError("write failed")},
+            "metadata": {"tool_call_id": "call-write-plan"},
+        }
+    )
+    await persister.finalize(reason="error")
+
+    items = await repo.list_by_session(db_session, "child-session-tool-error")
+
+    assert len(items) == 1
+    assert json.loads(items[0].content) == {
+        "type": "fail",
+        "success": False,
+        "code": "execution_failed",
+        "message": "工具执行失败",
+    }
 
 
 @pytest.mark.asyncio
@@ -771,7 +823,12 @@ async def test_persister_persists_unrecoverable_invalid_tool_call_with_synthesiz
     assert tool.role == "tool"
     assert tool.tool_call_id == synthesized_id
     assert tool.tool_name == "write_plan"
-    assert '"reason": "malformed_tool_call"' in tool.content
+    assert json.loads(tool.content) == {
+        "type": "fail",
+        "success": False,
+        "code": "malformed_tool_call",
+        "message": "工具参数 JSON 无法解析，未执行工具调用",
+    }
 
 
 @pytest.mark.asyncio

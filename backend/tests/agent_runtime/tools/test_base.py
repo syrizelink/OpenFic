@@ -44,7 +44,21 @@ class FailingTool(AgentTool):
 
     async def _execute(self, value: str) -> str:
         from app.agent_runtime.tools.errors import ToolExecutionError
-        raise ToolExecutionError("something went wrong")
+        raise ToolExecutionError("something went wrong", code="not_found")
+
+
+class LegacyFailingTool(AgentTool):
+    name: str = "legacy_failing"
+    description: str = "A tool with a legacy error result"
+    args_schema: type[BaseModel] = DummyInput
+
+    async def _execute(self, value: str) -> str:
+        return json.dumps(
+            {
+                "error": "something went wrong",
+                "metadata": {"trace": "legacy diagnostic detail"},
+            }
+        )
 
 
 def _make_state() -> dict:
@@ -73,18 +87,38 @@ async def test_agent_tool_project_id_from_state():
     assert tool.session_id == "sess-1"
 
 
-async def test_agent_tool_execution_error_returns_json():
+async def test_agent_tool_execution_error_returns_safe_failure_result():
     tool = FailingTool(_state=_make_state())
     result = await tool.ainvoke({"value": "test"})
-    assert '"error"' in result
-    assert "something went wrong" in result
+    assert json.loads(result) == {
+        "type": "fail",
+        "success": False,
+        "code": "not_found",
+        "message": "something went wrong",
+    }
 
 
-async def test_agent_tool_validation_error_returns_json():
+async def test_agent_tool_validation_error_returns_safe_failure_result():
     tool = DummyTool(_state=_make_state())
     result = await tool.ainvoke({"wrong_field": 123})
-    assert '"error"' in result
-    assert "参数校验失败" in result
+    payload = json.loads(result)
+    assert payload["type"] == "fail"
+    assert payload["success"] is False
+    assert payload["code"] == "validation_error"
+    assert "参数校验失败" in payload["message"]
+    assert "trace" not in payload
+
+
+async def test_agent_tool_normalizes_legacy_error_result():
+    tool = LegacyFailingTool(_state=_make_state())
+    result = await tool.ainvoke({"value": "test"})
+
+    assert json.loads(result) == {
+        "type": "fail",
+        "success": False,
+        "code": "execution_failed",
+        "message": "something went wrong",
+    }
 
 
 async def test_agent_tool_pre_hook_can_block():
@@ -160,7 +194,14 @@ async def test_agent_tool_does_not_execute_after_rejected_tool_approval():
         result = await tool.ainvoke({"value": "hello"})
 
     payload = json.loads(result)
-    assert payload["error"] == "工具调用已被用户拒绝"
+    assert payload == {
+        "type": "control",
+        "success": False,
+        "status": "approval_denied",
+        "message": "工具调用已被用户拒绝",
+        "approval_id": "approval-1",
+        "tool_name": "preview",
+    }
     assert executed == []
 
 

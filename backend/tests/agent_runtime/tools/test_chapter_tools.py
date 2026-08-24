@@ -342,7 +342,7 @@ async def test_write_chapter_rejects_over_limit_content_without_creating() -> No
             }
         )
 
-    assert "内容超出限制" in json.loads(result)["error"]
+    assert "内容超出限制" in json.loads(result)["message"]
     create_chapter.assert_not_awaited()
 
 
@@ -787,8 +787,8 @@ async def test_delete_volume_requires_cascade_for_non_empty_volume() -> None:
             )
 
     data = json.loads(result)
-    assert "error" in data
-    assert "cascade=true" in data["error"]
+    assert data["type"] == "fail"
+    assert "cascade=true" in data["message"]
     mock_session.rollback.assert_called_once()
 
 

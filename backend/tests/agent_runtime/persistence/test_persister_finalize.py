@@ -54,7 +54,12 @@ async def test_finalize_writes_partial_assistant_with_resolvable_tool_call(
     tool = next(m for m in items if m.role == "tool")
     assert tool.tool_call_id == "c1"
     assert tool.tool_name == "read_chapter"
-    assert "中断" in tool.content
+    assert json.loads(tool.content) == {
+        "type": "fail",
+        "success": False,
+        "code": "execution_failed",
+        "message": "工具未执行",
+    }
 
 
 @pytest.mark.asyncio
@@ -224,6 +229,12 @@ async def test_finalize_writes_aborted_for_tool_started_not_ended(
     assert items[0].status == "aborted"
     assert items[0].tool_call_id == "tc1"
     assert items[0].tool_name == "write_chapter"
+    assert json.loads(items[0].content) == {
+        "type": "fail",
+        "success": False,
+        "code": "execution_failed",
+        "message": "工具执行未完成",
+    }
 
 
 @pytest.mark.asyncio
@@ -313,7 +324,10 @@ async def test_finalize_preserves_cancelled_subagent_tool_identity_in_history(
         "dispatch_id": "dispatch-cancelled",
         "agent_key": "writer",
         "agent_number": "#1001",
-        "error": "subagent 会话已被用户中断，要通知其继续工作请使用 notify_subagent",
+        "type": "fail",
+        "success": False,
+        "code": "execution_failed",
+        "message": "subagent 会话已被用户中断，要通知其继续工作请使用 notify_subagent",
     }
 
 

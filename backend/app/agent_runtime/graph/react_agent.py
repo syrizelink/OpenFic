@@ -59,6 +59,13 @@ from app.agent_runtime.graph.llm_invoke import (
     load_llm_invoke_settings,
 )
 from app.agent_runtime.persistence import compaction_repo
+from app.agent_runtime.tools.base import AgentTool
+from app.agent_runtime.tools.errors import (
+    ToolFailure,
+    log_tool_failure,
+    normalize_tool_failure_result,
+    serialize_tool_failure,
+)
 from app.agent_runtime.tool_call_recovery import (
     build_malformed_tool_call_error,
     is_malformed_tool_call,
@@ -203,11 +210,21 @@ def _tool_result_payload(value: Any) -> tuple[dict[str, Any], bool]:
         except json.JSONDecodeError:
             return {"output": value}, True
         if isinstance(parsed, dict):
-            return parsed, "error" not in parsed
+            success = parsed.get("success")
+            return parsed, (
+                success
+                if isinstance(success, bool)
+                else parsed.get("type") != "fail" and "error" not in parsed
+            )
         return {"output": parsed}, True
     if isinstance(value, Mapping):
         payload = dict(value)
-        return payload, "error" not in payload
+        success = payload.get("success")
+        return payload, (
+            success
+            if isinstance(success, bool)
+            else payload.get("type") != "fail" and "error" not in payload
+        )
     return {"output": value}, True
 
 
@@ -913,10 +930,14 @@ def create_react_agent(
             return {key: [outcome]}
 
         if state.get("tool_dispatch_denied"):
-            payload = {
-                "error": "dispatch_subagent allows at most 10 dispatches per PA turn"
-            }
-            result = json.dumps(payload, ensure_ascii=False)
+            failure = ToolFailure(
+                code="limit_exceeded",
+                message="dispatch_subagent allows at most 10 dispatches per PA turn",
+                trace={"source": "tool_dispatch"},
+            )
+            log_tool_failure(failure, tool_name=tool_name, tool_call_id=tool_id)
+            payload = failure.to_result()
+            result = serialize_tool_failure(failure)
             return outcome_update(
                 {
                         "index": tool_index,
@@ -935,8 +956,15 @@ def create_react_agent(
             )
 
         if is_malformed_tool_call(tool_call):
-            payload = build_malformed_tool_call_error(tool_call)
-            result = json.dumps(payload, ensure_ascii=False)
+            malformed_payload = build_malformed_tool_call_error(tool_call)
+            failure = ToolFailure(
+                code="malformed_tool_call",
+                message=str(malformed_payload["message"]),
+                trace={"source": "tool_call_recovery"},
+            )
+            log_tool_failure(failure, tool_name=tool_name, tool_call_id=tool_id)
+            payload = failure.to_result()
+            result = serialize_tool_failure(failure)
             return outcome_update(
                 {
                         "index": tool_index,
@@ -956,8 +984,14 @@ def create_react_agent(
 
         tool_instance = tool_map.get(tool_name)
         if tool_instance is None:
-            payload = {"error": f"tool '{tool_name}' not found."}
-            result = f"Error: tool '{tool_name}' not found."
+            failure = ToolFailure(
+                code="tool_not_found",
+                message=f"未找到工具：{tool_name}",
+                trace={"source": "tool_dispatch"},
+            )
+            log_tool_failure(failure, tool_name=tool_name, tool_call_id=tool_id)
+            payload = failure.to_result()
+            result = serialize_tool_failure(failure)
             return outcome_update(
                 {
                         "index": tool_index,
@@ -1007,15 +1041,8 @@ def create_react_agent(
                 tool_result_sink = _get_configurable(config).get("tool_result_sink")
                 if callable(tool_result_sink):
                     rejected_payload = dict(prepared_outcome.get("payload") or {})
-                    rejected_payload.update(
-                        {
-                            "type": "fail",
-                            "success": False,
-                            "reason": "tool_error",
-                            "tool_call_id": tool_id,
-                            "tool_name": tool_name,
-                        }
-                    )
+                    rejected_payload.setdefault("tool_call_id", tool_id)
+                    rejected_payload.setdefault("tool_name", tool_name)
                     await _maybe_await(
                         tool_result_sink(
                             {
@@ -1081,6 +1108,8 @@ def create_react_agent(
             if isolated_session is not None:
                 await _close_maybe(isolated_session)
 
+        if not isinstance(tool_instance, AgentTool):
+            result, _ = normalize_tool_failure_result(result)
         payload, success = _tool_result_payload(result)
         if phase == "prepare" and not getattr(
             tool_instance, "execute_during_prepare", False
@@ -1173,6 +1202,11 @@ def create_react_agent(
             f"Agent 单轮最多调用 {TOOL_BATCH_SIZE} 个工具，"
             "超出上限的工具调用未执行"
         )
+        failure = ToolFailure(
+            code="limit_exceeded",
+            message=error_message,
+            trace={"source": "tool_dispatch"},
+        )
         for message in reversed(state["messages"]):
             if isinstance(message, AIMessage) and message.tool_calls:
                 for offset, tool_call in enumerate(
@@ -1182,8 +1216,9 @@ def create_react_agent(
                     tool_id = str(tool_call.get("id") or "")
                     tool_args = tool_call.get("args")
                     tool_args = tool_args if isinstance(tool_args, dict) else {}
-                    payload = {"error": error_message}
-                    result = json.dumps(payload, ensure_ascii=False)
+                    log_tool_failure(failure, tool_name=tool_name, tool_call_id=tool_id)
+                    payload = failure.to_result()
+                    result = serialize_tool_failure(failure)
                     excess_outcomes.append(
                         {
                             "index": TOOL_BATCH_SIZE + offset,
@@ -1207,14 +1242,12 @@ def create_react_agent(
             tool_result_sink = _get_configurable(config).get("tool_result_sink")
             if callable(tool_result_sink):
                 for outcome in excess_outcomes:
-                    output_payload = {
-                        "type": "fail",
-                        "success": False,
-                        "reason": "tool_error",
-                        "message": error_message,
-                        "tool_call_id": outcome["tool_call_id"],
-                        "tool_name": outcome["tool_name"],
-                    }
+                    output_payload = failure.to_result(
+                        {
+                            "tool_call_id": outcome["tool_call_id"],
+                            "tool_name": outcome["tool_name"],
+                        }
+                    )
                     result = tool_result_sink(
                         {
                             "session_id": _get_configurable(config).get("session_id"),

@@ -269,8 +269,40 @@ def test_translate_chat_model_stream_synthesizes_tool_call_id_without_model_id()
     assert end_result["data"]["tool_call_id"] == synthesized_id
     assert end_result["data"]["tool"] == "write_plan"
     assert end_result["data"]["input"] == "<<<<"
-    assert end_result["data"]["output"]["reason"] == "malformed_tool_call"
-    assert end_result["data"]["output"]["success"] is False
+    assert end_result["data"]["output"] == {
+        "type": "fail",
+        "success": False,
+        "code": "malformed_tool_call",
+        "message": "工具参数 JSON 无法解析，未执行工具调用",
+    }
+
+
+def test_translate_subagent_tool_error_returns_canonical_failure():
+    translator = EventTranslator(
+        session_id="child_thread_001",
+        allow_subagent_child_events=True,
+    )
+    event = {
+        "event": "on_tool_error",
+        "name": "write_plan",
+        "run_id": "child-tool-error",
+        "data": {
+            "input": {},
+            "error": RuntimeError("database password=super-secret"),
+        },
+        "metadata": {"tool_call_id": "call-write"},
+        "tags": ["subagent_child"],
+    }
+
+    result = single_event(translator.translate(event))
+
+    assert result["name"] == "agent:tool_result"
+    assert result["data"]["output"] == {
+        "type": "fail",
+        "success": False,
+        "code": "execution_failed",
+        "message": "工具执行失败",
+    }
 
 
 def test_translate_chat_model_stream_empty_content():

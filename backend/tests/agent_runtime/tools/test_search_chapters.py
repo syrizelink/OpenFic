@@ -259,8 +259,8 @@ async def test_search_chapters_returns_json_error_without_default_embedding_mode
         )
     )
 
-    assert "error" in data
-    assert "default_embedding_model" in data["error"]
+    assert data["type"] == "fail"
+    assert "default_embedding_model" in data["message"]
 
 
 @pytest.mark.asyncio
@@ -736,8 +736,8 @@ async def test_search_chapters_rejects_non_embedding_default_model(
         )
     )
 
-    assert "error" in data
-    assert "不是 embedding 模型" in data["error"]
+    assert data["type"] == "fail"
+    assert "不是 embedding 模型" in data["message"]
 
 
 @pytest.mark.asyncio
@@ -757,8 +757,8 @@ async def test_search_chapters_rejects_embedding_model_without_dimensions(
         )
     )
 
-    assert "error" in data
-    assert "缺少 embedding dimensions" in data["error"]
+    assert data["type"] == "fail"
+    assert "缺少 embedding dimensions" in data["message"]
 
 
 @pytest.mark.asyncio
@@ -816,10 +816,10 @@ async def test_search_chapters_hides_embedding_client_init_error_details(
         )
     )
 
-    assert "error" in data
-    assert "embedding client 初始化失败" in data["error"]
-    assert "sk-provider" not in data["error"]
-    assert "/tmp/provider-config" not in data["error"]
+    assert data["type"] == "fail"
+    assert "embedding client 初始化失败" in data["message"]
+    assert "sk-provider" not in data["message"]
+    assert "/tmp/provider-config" not in data["message"]
     assert retrieval.queries == []
 
 
@@ -869,11 +869,11 @@ async def test_search_chapters_hides_external_retrieval_error_details(
         )
     )
 
-    assert "error" in data
-    assert "章节检索执行失败" in data["error"]
-    assert "sk-secret" not in data["error"]
-    assert "LanceDB" not in data["error"]
-    assert "/tmp/private-table" not in data["error"]
+    assert data["type"] == "fail"
+    assert "章节检索执行失败" in data["message"]
+    assert "sk-secret" not in data["message"]
+    assert "LanceDB" not in data["message"]
+    assert "/tmp/private-table" not in data["message"]
 
 
 @pytest.mark.asyncio
@@ -1184,7 +1184,12 @@ async def test_update_index_tool_enqueues_outdated_chapters(
 
     monkeypatch.setattr(module, "enqueue_project_index_update", _fake_enqueue_disabled)
     result = await tool.ainvoke({}, config={"configurable": {"db_session": None}})
-    assert "未启用" in result
+    assert json.loads(result) == {
+        "type": "fail",
+        "success": False,
+        "code": "dependency_unavailable",
+        "message": "当前项目未启用索引或未配置可用的嵌入模型，无法更新索引。",
+    }
 
 
 class _FakeSession:

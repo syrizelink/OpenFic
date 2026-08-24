@@ -6,6 +6,8 @@ from typing import Any, cast
 
 from json_repair import loads as repair_json_loads
 
+from app.agent_runtime.tools.errors import ToolFailure
+
 MALFORMED_TOOL_CALL_MARKER = "__malformed_tool_call__"
 MALFORMED_TOOL_CALL_RAW_ARGS = "__raw_args__"
 MALFORMED_TOOL_CALL_ERROR = "__parse_error__"
@@ -168,16 +170,8 @@ def tool_call_input(tool_call: Mapping[str, Any]) -> Any:
 
 
 def build_malformed_tool_call_error(tool_call: Mapping[str, Any]) -> dict[str, Any]:
-    raw_args = tool_call_input(tool_call)
-    return {
-        "type": "fail",
-        "success": False,
-        "recoverable": False,
-        "reason": "malformed_tool_call",
-        "message": MALFORMED_TOOL_CALL_MESSAGE,
-        "error": MALFORMED_TOOL_CALL_MESSAGE,
-        "data": None,
-        "tool_call_id": tool_call.get("id"),
-        "tool_name": tool_call.get("name"),
-        "raw_args": raw_args,
-    }
+    return ToolFailure(
+        code="malformed_tool_call",
+        message=MALFORMED_TOOL_CALL_MESSAGE,
+        trace={"source": "tool_call_recovery"},
+    ).to_result()

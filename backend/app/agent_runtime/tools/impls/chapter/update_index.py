@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 
 from app.agent_runtime.tools.base import AgentTool
+from app.agent_runtime.tools.errors import ToolFailure, serialize_tool_failure
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.background.jobs import service as background_service
 from app.retrieval.chapter_index import enqueue_project_index_update
@@ -27,8 +28,13 @@ class UpdateIndexTool(AgentTool):
                 project_id=self.project_id,
             )
             if result is None:
-                await session.commit()
-                return "当前项目未启用索引或未配置可用的嵌入模型，无法更新索引。"
+                return serialize_tool_failure(
+                    ToolFailure(
+                        code="dependency_unavailable",
+                        message="当前项目未启用索引或未配置可用的嵌入模型，无法更新索引。",
+                        trace={"source": "chapter_index"},
+                    )
+                )
 
             schedule_emit_index_status(session, self.project_id)
             await background_service.commit_and_notify(session)

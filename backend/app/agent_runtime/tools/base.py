@@ -10,11 +10,24 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agent_runtime.tools.errors import ToolExecutionError
+from app.agent_runtime.tools.errors import (
+    ToolExecutionError,
+    ToolFailure,
+    log_tool_failure,
+    normalize_tool_failure_result,
+    serialize_tool_failure,
+    tool_failure_from_exception,
+)
 
 
 def _validation_error_to_json(error: object) -> str:
-    return json.dumps({"error": f"参数校验失败: {error}"}, ensure_ascii=False)
+    return serialize_tool_failure(
+        ToolFailure(
+            code="validation_error",
+            message=f"参数校验失败: {error}",
+            trace={"source": "validation"},
+        )
+    )
 
 
 @dataclass
@@ -197,7 +210,10 @@ class AgentTool(BaseTool):
                     ):
                         return json.dumps(
                             {
-                                "error": "工具调用已被用户拒绝",
+                                "type": "control",
+                                "success": False,
+                                "status": "approval_denied",
+                                "message": "工具调用已被用户拒绝",
                                 "approval_id": resume_value.get("approval_id"),
                                 "tool_name": self.name,
                             },
@@ -213,11 +229,33 @@ class AgentTool(BaseTool):
                 raise NotImplementedError("AgentTool subclasses must define _execute")
             output = await cast(Callable[..., Awaitable[str]], execute)(**validated_args)
         except ToolExecutionError as e:
-            return json.dumps({"error": str(e)}, ensure_ascii=False)
+            failure = tool_failure_from_exception(e, source="tool_execution")
+            log_tool_failure(
+                failure,
+                tool_name=self.name,
+                tool_call_id=self.tool_call_id,
+            )
+            return serialize_tool_failure(failure)
         except Exception as e:
             if "GraphInterrupt" in type(e).__name__:
                 raise
-            return json.dumps({"error": f"工具执行异常: {e}"}, ensure_ascii=False)
+            failure = tool_failure_from_exception(
+                e,
+                code="execution_failed",
+                source="tool_execution",
+            )
+            failure = ToolFailure(
+                code=failure.code,
+                message=f"工具执行异常: {failure.message}",
+                trace=failure.trace,
+            )
+            log_tool_failure(
+                failure,
+                tool_name=self.name,
+                tool_call_id=self.tool_call_id,
+                exception=e,
+            )
+            return serialize_tool_failure(failure)
 
         hook_ctx.output = output
         for hook in self._post_hooks:
@@ -226,7 +264,14 @@ class AgentTool(BaseTool):
                 output = hook_result.output
                 hook_ctx.output = output
 
-        return output
+        normalized_output, failure = normalize_tool_failure_result(output)
+        if failure is not None:
+            log_tool_failure(
+                failure,
+                tool_name=self.name,
+                tool_call_id=self.tool_call_id,
+            )
+        return cast(str, normalized_output)
 
     def _run(self, *args: Any, **kwargs: Any) -> str:
         raise NotImplementedError("Use ainvoke")
