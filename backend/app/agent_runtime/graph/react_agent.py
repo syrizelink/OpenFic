@@ -62,9 +62,11 @@ from app.agent_runtime.persistence import compaction_repo
 from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.tools.errors import (
     ToolFailure,
+    ToolResult,
     log_tool_failure,
     normalize_tool_failure_result,
     serialize_tool_failure,
+    tool_failure_from_exception,
 )
 from app.agent_runtime.tool_call_recovery import (
     build_malformed_tool_call_error,
@@ -108,6 +110,35 @@ class ReactState(TypedDict, total=False):
 # ---------------------------------------------------------------------------
 
 
+def _checkpoint_safe_value(value: Any, active_ids: set[int] | None = None) -> Any:
+    if value is None or isinstance(value, (bool, int, float, bytes)):
+        return value
+    if isinstance(value, str):
+        return str(value)
+
+    active_ids = active_ids if active_ids is not None else set()
+    value_id = id(value)
+    if value_id in active_ids:
+        return "<recursive>"
+    active_ids.add(value_id)
+    try:
+        if isinstance(value, Mapping):
+            return {
+                str(key): _checkpoint_safe_value(item, active_ids)
+                for key, item in value.items()
+            }
+        if isinstance(value, (list, tuple)):
+            return [_checkpoint_safe_value(item, active_ids) for item in value]
+        if isinstance(value, (set, frozenset)):
+            return [_checkpoint_safe_value(item, active_ids) for item in value]
+        model_dump = getattr(value, "model_dump", None)
+        if callable(model_dump):
+            return _checkpoint_safe_value(model_dump(mode="python"), active_ids)
+        return str(value)
+    finally:
+        active_ids.remove(value_id)
+
+
 async def _invoke_model(
     model: Any,
     messages: list[BaseMessage],
@@ -133,10 +164,23 @@ async def _invoke_model(
 
     normalized = AIMessage(
         content=extract_text_content(response.content),
-        additional_kwargs=dict(response.additional_kwargs or {}),
-        response_metadata=dict(response.response_metadata or {}),
-        tool_calls=recover_message_tool_calls(response),
-        usage_metadata=response.usage_metadata,
+        additional_kwargs=cast(
+            dict[str, Any],
+            _checkpoint_safe_value(response.additional_kwargs or {}),
+        ),
+        response_metadata=cast(
+            dict[str, Any],
+            _checkpoint_safe_value(response.response_metadata or {}),
+        ),
+        tool_calls=cast(
+            list[dict[str, Any]],
+            _checkpoint_safe_value(recover_message_tool_calls(response)),
+        ),
+        usage_metadata=(
+            cast(dict[str, Any], _checkpoint_safe_value(response.usage_metadata))
+            if response.usage_metadata is not None
+            else None
+        ),
         id=response.id,
         name=response.name,
     )
@@ -203,28 +247,29 @@ def _record_audit_error(audit: LLMCallAudit, exc: BaseException) -> None:
     )
 
 
+def _tool_result_success(payload: Mapping[str, Any]) -> bool:
+    success = payload.get("success")
+    return (
+        success
+        if isinstance(success, bool)
+        else payload.get("type") != "fail" and "error" not in payload
+    )
+
+
 def _tool_result_payload(value: Any) -> tuple[dict[str, Any], bool]:
+    if isinstance(value, ToolResult):
+        return value.payload, _tool_result_success(value.payload)
     if isinstance(value, str):
         try:
             parsed = json.loads(value)
         except json.JSONDecodeError:
             return {"output": value}, True
         if isinstance(parsed, dict):
-            success = parsed.get("success")
-            return parsed, (
-                success
-                if isinstance(success, bool)
-                else parsed.get("type") != "fail" and "error" not in parsed
-            )
+            return parsed, _tool_result_success(parsed)
         return {"output": parsed}, True
     if isinstance(value, Mapping):
         payload = dict(value)
-        success = payload.get("success")
-        return payload, (
-            success
-            if isinstance(success, bool)
-            else payload.get("type") != "fail" and "error" not in payload
-        )
+        return payload, _tool_result_success(payload)
     return {"output": value}, True
 
 
@@ -929,6 +974,24 @@ def create_react_agent(
             key = "tool_prepared_outcomes" if phase == "prepare" else "tool_outcomes"
             return {key: [outcome]}
 
+        def failure_outcome(failure: ToolFailure) -> dict[str, Any]:
+            payload = failure.to_result()
+            result = serialize_tool_failure(failure)
+            return {
+                "index": tool_index,
+                "tool_call_id": tool_id,
+                "tool_name": tool_name,
+                "tool_args": tool_args,
+                "message": ToolMessage(
+                    content=result,
+                    tool_call_id=tool_id,
+                    name=tool_name,
+                ),
+                "payload": payload,
+                "success": False,
+                "latency_ms": int((time.perf_counter() - started_at) * 1000),
+            }
+
         if state.get("tool_dispatch_denied"):
             failure = ToolFailure(
                 code="limit_exceeded",
@@ -1102,8 +1165,18 @@ def create_react_agent(
         except Exception as exc:
             if active_audit is not None:
                 _record_audit_error(active_audit, exc)
-            await _finish_active_audit(status="error")
-            raise
+            failure = tool_failure_from_exception(
+                exc,
+                code="execution_failed",
+                source="tool_execution",
+            )
+            log_tool_failure(
+                failure,
+                tool_name=tool_name,
+                tool_call_id=tool_id,
+                exception=exc,
+            )
+            return outcome_update(failure_outcome(failure))
         finally:
             if isolated_session is not None:
                 await _close_maybe(isolated_session)

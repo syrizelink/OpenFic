@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, TypeAlias, cast
 
 from langchain_core.runnables.config import var_child_runnable_config
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.tools.errors import (
@@ -20,14 +21,45 @@ from app.agent_runtime.tools.errors import (
 )
 
 
+_PYDANTIC_HELP_URL = re.compile(
+    r"\s*For further information visit https://errors\.pydantic\.dev/\S+"
+)
+
+
+def _format_validation_error(error: object) -> str:
+    if isinstance(error, ValidationError):
+        details: list[str] = []
+        for item in error.errors():
+            location = ".".join(str(part) for part in item.get("loc", ())) or "<root>"
+            message = " ".join(str(item.get("msg", "Validation error")).split())
+            error_type = item.get("type")
+            detail = f"{location}: {message}"
+            if error_type:
+                detail += f" [type={error_type}"
+                if "input" in item:
+                    input_value = item["input"]
+                    detail += (
+                        f", input_value={input_value!r},"
+                        f" input_type={type(input_value).__name__}"
+                    )
+                detail += "]"
+            details.append(detail)
+        if details:
+            return f"参数校验失败（{len(details)} 个错误）:\n" + "\n".join(
+                f"- {detail}" for detail in details
+            )
+
+    return "参数校验失败: " + _PYDANTIC_HELP_URL.sub("", str(error)).strip()
+
+
 def _validation_error_to_json(error: object) -> str:
-    return serialize_tool_failure(
-        ToolFailure(
-            code="validation_error",
-            message=f"参数校验失败: {error}",
-            trace={"source": "validation"},
-        )
+    failure = ToolFailure(
+        code="validation_error",
+        message=_format_validation_error(error),
+        trace={"source": "validation"},
     )
+    log_tool_failure(failure, tool_name="<validation>", tool_call_id=None)
+    return serialize_tool_failure(failure)
 
 
 @dataclass
@@ -234,6 +266,7 @@ class AgentTool(BaseTool):
                 failure,
                 tool_name=self.name,
                 tool_call_id=self.tool_call_id,
+                exception=e,
             )
             return serialize_tool_failure(failure)
         except Exception as e:

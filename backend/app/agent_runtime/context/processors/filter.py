@@ -143,9 +143,21 @@ def filter_tool_result_metadata_content(content: str) -> str:
     payload = _parse_tool_result(content)
     if payload is None:
         return content
+    if payload.get("type") == "control":
+        if "metadata" not in payload:
+            return content
+        return json.dumps(
+            {key: value for key, value in payload.items() if key != "metadata"},
+            ensure_ascii=False,
+        )
     if payload.get("type") == "fail" or payload.get("success") is False:
         message = payload.get("message") or payload.get("error")
-        message = message.strip() if isinstance(message, str) else "工具执行失败"
+        if not isinstance(message, str) or not message.strip():
+            code = payload.get("code")
+            code = code if isinstance(code, str) and code else "execution_failed"
+            message = f"工具错误（{code}）：未提供具体错误消息"
+        else:
+            message = message.strip()
         visible_fields = {
             key: payload[key]
             for key in _MODEL_VISIBLE_FAILURE_FIELDS

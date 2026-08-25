@@ -1,6 +1,6 @@
 import asyncio
 import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, ToolMessage
 from langchain_core.messages.tool import invalid_tool_call
@@ -147,6 +147,23 @@ async def test_invoke_model_extracts_anthropic_text_content_blocks() -> None:
     assert response.content == "可见回复"
 
 
+@pytest.mark.asyncio
+async def test_invoke_model_sanitizes_nested_message_metadata() -> None:
+    nested_message = AIMessage(content="nested")
+
+    class StreamingModel:
+        async def astream(self, _messages):
+            yield AIMessageChunk(
+                content="完成",
+                response_metadata={"raw_message": nested_message},
+            )
+
+    response = await _invoke_model(StreamingModel(), [HumanMessage(content="Hello")])
+
+    assert response.response_metadata["raw_message"]["content"] == "nested"
+    assert not isinstance(response.response_metadata["raw_message"], AIMessage)
+
+
 def test_create_react_agent_returns_compiled_graph(dummy_tool):
     config = ReactAgentConfig(
         name="test",
@@ -197,6 +214,63 @@ def test_react_agent_terminates_on_no_tool_call(dummy_tool):
             assert result["is_done"] is True
 
     asyncio.run(_run())
+
+
+@pytest.mark.asyncio
+async def test_react_agent_normalizes_structured_tool_exception() -> None:
+    async def failing_tool() -> str:
+        raise RuntimeError("structured tool failure")
+
+    tool = StructuredTool.from_function(
+        coroutine=failing_tool,
+        name="failing_tool",
+        description="fails",
+    )
+    model = Mock()
+    model.bind_tools.return_value = model
+    responses = iter(
+        [
+            AIMessage(
+                content="",
+                tool_calls=[{"id": "call-1", "name": "failing_tool", "args": {}}],
+            ),
+            AIMessage(content="recovered"),
+        ]
+    )
+
+    async def invoke_model(*_args, **_kwargs):
+        return next(responses)
+
+    config = ReactAgentConfig(
+        name="writer",
+        tools=[tool],
+        termination=TerminationCondition(mode="no_tool_call"),
+        max_iterations=2,
+    )
+
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model",
+        side_effect=invoke_model,
+    ):
+        result = await create_react_agent(config, model=model).ainvoke(
+            {
+                "messages": [HumanMessage(content="go")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            }
+        )
+
+    tool_messages = [
+        message for message in result["messages"] if isinstance(message, ToolMessage)
+    ]
+    assert json.loads(tool_messages[0].content) == {
+        "type": "fail",
+        "success": False,
+        "code": "execution_failed",
+        "message": "structured tool failure",
+    }
+    assert result["messages"][-1].content == "recovered"
 
 
 @pytest.mark.asyncio

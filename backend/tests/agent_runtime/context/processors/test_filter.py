@@ -165,3 +165,27 @@ def test_tool_failure_content_keeps_subagent_resume_identity() -> None:
         "agent_key": "writer",
         "agent_number": "#1001",
     }
+
+
+def test_tool_control_content_preserves_control_state() -> None:
+    content = (
+        '{"type":"control","success":false,"status":"approval_denied",'
+        '"message":"工具调用已被用户拒绝","approval_id":"approval-1",'
+        '"metadata":{"internal":"value"}}'
+    )
+
+    assert json.loads(filter_tool_result_metadata_content(content)) == {
+        "type": "control",
+        "success": False,
+        "status": "approval_denied",
+        "message": "工具调用已被用户拒绝",
+        "approval_id": "approval-1",
+    }
+
+
+def test_tool_failure_content_identifies_missing_message_by_code() -> None:
+    content = '{"type":"fail","success":false,"code":"not_found"}'
+
+    assert filter_tool_result_metadata_content(content) == (
+        "工具错误（not_found）：未提供具体错误消息"
+    )

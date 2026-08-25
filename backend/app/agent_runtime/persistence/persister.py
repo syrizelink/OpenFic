@@ -208,12 +208,12 @@ class MessagePersister:
         for tool_call in tool_calls:
             if not is_malformed_tool_call(tool_call):
                 continue
-            content = _failure_content(
-                code="malformed_tool_call",
-                message="工具参数 JSON 无法解析，未执行工具调用",
-                source="tool_call_recovery",
-                tool_name=tool_call["name"],
-                tool_call_id=tool_call["id"],
+            content = serialize_tool_failure(
+                ToolFailure(
+                    code="malformed_tool_call",
+                    message="工具参数 JSON 无法解析，未执行工具调用",
+                    trace={"source": "tool_call_recovery"},
+                )
             )
             await self._write(
                 role="tool",
@@ -292,6 +292,7 @@ class MessagePersister:
                 failure,
                 tool_name=tool_name,
                 tool_call_id=tool_call_id,
+                exception=error if isinstance(error, BaseException) else None,
             )
             content = serialize_tool_failure(failure)
         await self._write(

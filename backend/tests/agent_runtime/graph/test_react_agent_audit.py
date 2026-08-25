@@ -228,7 +228,7 @@ async def test_react_agent_records_model_errors_in_audit(
 
 
 @pytest.mark.asyncio
-async def test_react_agent_records_unhandled_tool_errors_in_audit(
+async def test_react_agent_normalizes_tool_errors_in_audit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
@@ -253,6 +253,7 @@ async def test_react_agent_records_unhandled_tool_errors_in_audit(
         name="writer",
         tools=[tool],
         termination=TerminationCondition(mode="no_tool_call"),
+        max_iterations=2,
     )
     graph = create_react_agent(config, model=model)
     response = AIMessage(
@@ -260,17 +261,16 @@ async def test_react_agent_records_unhandled_tool_errors_in_audit(
         tool_calls=[{"id": "call_1", "name": "fail_tool", "args": {}}],
     )
 
-    async def _mock_invoke(*_args, **_kwargs):
-        return response
+    responses = iter([response, AIMessage(content="recovered")])
 
-    with (
-        patch(
-            "app.agent_runtime.graph.react_agent._invoke_model",
-            side_effect=_mock_invoke,
-        ),
-        pytest.raises(RuntimeError, match="tool runtime failure"),
+    async def _mock_invoke(*_args, **_kwargs):
+        return next(responses)
+
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model",
+        side_effect=_mock_invoke,
     ):
-        await graph.ainvoke(
+        result = await graph.ainvoke(
             {
                 "messages": [HumanMessage(content="go")],
                 "iteration_count": 0,
@@ -297,7 +297,8 @@ async def test_react_agent_records_unhandled_tool_errors_in_audit(
             "error_status_code": None,
         }
     ]
-    assert audit.finished == ["error"]
+    assert result["messages"][-1].content == "recovered"
+    assert audit.finished == ["success", "success"]
 
 
 @pytest.mark.asyncio

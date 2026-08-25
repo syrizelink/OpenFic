@@ -1108,7 +1108,7 @@ async def test_run_emits_error_and_marks_revision_failed_on_runtime_exception():
  
  
 @pytest.mark.asyncio
-async def test_resume_emits_error_and_marks_revision_failed_on_runtime_exception():
+async def test_resume_emits_error_and_keeps_pending_revision_resumable_on_runtime_exception():
     runner = SessionRunner(
         session_id="sess_resume_error_001",
         task_id="task_resume_error_001",
@@ -1172,7 +1172,7 @@ async def test_resume_emits_error_and_marks_revision_failed_on_runtime_exception
     finalize_revision_status.assert_awaited_once_with(
         fake_status_session,
         "rev_resume_1",
-        "failed",
+        "interrupted",
     )
     emit_mock.assert_any_await(
         "agent:error",

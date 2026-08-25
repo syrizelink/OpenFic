@@ -2,8 +2,10 @@ import json
 import pytest
 from pydantic import BaseModel
 from unittest.mock import patch
+from typing import Literal
 
 from app.agent_runtime.tools.base import AgentTool, HookContext, HookResult
+from app.agent_runtime.tools.errors import normalize_tool_failure_result
 
 
 class DummyInput(BaseModel):
@@ -18,6 +20,24 @@ class DummyTool(AgentTool):
 
     async def _execute(self, value: str) -> str:
         return f"executed:{value}"
+
+
+class RefInput(BaseModel):
+    type: Literal["order", "title"]
+
+
+class ComplexInput(BaseModel):
+    volume_ref: RefInput
+    chapter_ref: RefInput
+
+
+class ComplexValidationTool(AgentTool):
+    name: str = "complex_validation"
+    description: str = "A tool with nested validation errors"
+    args_schema: type[BaseModel] = ComplexInput
+
+    async def _execute(self, volume_ref: RefInput, chapter_ref: RefInput) -> str:
+        return "ok"
 
 
 class PreviewTool(AgentTool):
@@ -107,16 +127,38 @@ async def test_agent_tool_execution_error_returns_safe_failure_result():
     }
 
 
-async def test_agent_tool_does_not_log_raw_unexpected_exception():
+async def test_agent_tool_execution_error_logs_exception_traceback():
+    tool = FailingTool(_state=_make_state())
+
+    with patch("app.agent_runtime.tools.errors.logger") as logger:
+        await tool.ainvoke({"value": "test"})
+
+    bound_logger = logger.bind.return_value
+    bound_logger.opt.assert_called_once()
+    assert isinstance(bound_logger.opt.call_args.kwargs["exception"], Exception)
+    bound_logger.opt.return_value.error.assert_called_once_with(
+        "Agent 工具执行失败"
+    )
+
+
+async def test_agent_tool_preserves_unexpected_exception_message_and_logs_exception():
     tool = UnexpectedFailingTool(_state=_make_state())
 
     with patch("app.agent_runtime.tools.errors.logger") as logger:
         result = await tool.ainvoke({"value": "test"})
 
     bound_logger = logger.bind.return_value
-    bound_logger.error.assert_called_once_with("Agent 工具执行失败")
-    bound_logger.opt.assert_not_called()
-    assert json.loads(result)["code"] == "execution_failed"
+    bound_logger.opt.assert_called_once()
+    bound_logger.opt.return_value.error.assert_called_once_with("Agent 工具执行失败")
+    logged_exception = bound_logger.opt.call_args.kwargs["exception"]
+    assert isinstance(logged_exception, RuntimeError)
+    payload = json.loads(result)
+    assert payload == {
+        "type": "fail",
+        "success": False,
+        "code": "execution_failed",
+        "message": "工具执行异常: database password=super-secret",
+    }
 
 
 async def test_agent_tool_validation_error_returns_safe_failure_result():
@@ -130,15 +172,59 @@ async def test_agent_tool_validation_error_returns_safe_failure_result():
     assert "trace" not in payload
 
 
+async def test_agent_tool_validation_error_is_logged():
+    tool = DummyTool(_state=_make_state())
+
+    with patch("app.agent_runtime.tools.errors.logger") as logger:
+        await tool.ainvoke({"wrong_field": 123})
+
+    bound_logger = logger.bind.return_value
+    bound_logger.warning.assert_called_once()
+    assert "参数校验失败" in str(bound_logger.warning.call_args.args)
+
+
+async def test_agent_tool_validation_error_omits_repeated_pydantic_help_urls():
+    tool = ComplexValidationTool(_state=_make_state())
+
+    result = await tool.ainvoke(
+        {
+            "volume_ref": {"type": 123},
+            "chapter_ref": {"type": "invalid_type"},
+        }
+    )
+    message = json.loads(result)["message"]
+
+    assert "volume_ref.type" in message
+    assert "chapter_ref.type" in message
+    assert "Input should be 'order' or 'title'" in message
+    assert "For further information visit" not in message
+    assert "https://errors.pydantic.dev" not in message
+
+
 async def test_agent_tool_normalizes_legacy_error_result():
     tool = LegacyFailingTool(_state=_make_state())
-    result = await tool.ainvoke({"value": "test"})
+    with patch("app.agent_runtime.tools.errors.logger") as logger:
+        result = await tool.ainvoke({"value": "test"})
 
     assert json.loads(result) == {
         "type": "fail",
         "success": False,
         "code": "execution_failed",
         "message": "something went wrong",
+    }
+    warning_args = logger.bind.return_value.warning.call_args.args
+    assert "legacy diagnostic detail" in str(warning_args)
+
+
+def test_normalize_tool_failure_result_caches_parsed_payload() -> None:
+    result, failure = normalize_tool_failure_result(
+        '{"success":true,"items":[{"id":"chapter-1"}]}'
+    )
+
+    assert failure is None
+    assert getattr(result, "payload") == {
+        "success": True,
+        "items": [{"id": "chapter-1"}],
     }
 
 

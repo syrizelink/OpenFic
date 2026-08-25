@@ -301,7 +301,7 @@ def test_translate_subagent_tool_error_returns_canonical_failure():
         "type": "fail",
         "success": False,
         "code": "execution_failed",
-        "message": "工具执行失败",
+        "message": "database password=super-secret",
     }
 
 

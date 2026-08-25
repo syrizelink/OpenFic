@@ -2,6 +2,7 @@
 
 import json
 from datetime import UTC, datetime
+from unittest.mock import patch
 
 import pytest
 from langchain_core.messages import AIMessage, AIMessageChunk
@@ -490,7 +491,7 @@ async def test_persister_persists_subagent_tool_error_as_canonical_failure(
         "type": "fail",
         "success": False,
         "code": "execution_failed",
-        "message": "工具执行失败",
+        "message": "write failed",
     }
 
 
@@ -791,24 +792,26 @@ async def test_persister_persists_unrecoverable_invalid_tool_call_with_synthesiz
             )
         },
     })
-    await p.handle({
-        "event": "on_chat_model_end",
-        "run_id": "child-run-invalid-tool-call-no-id",
-        "tags": ["subagent_child"],
-        "data": {
-            "output": AIMessage(
-                content="",
-                invalid_tool_calls=[
-                    {
-                        "name": "write_plan",
-                        "args": "<<<<",
-                        "error": "invalid json",
-                        "type": "invalid_tool_call",
-                    }
-                ],
-            )
-        },
-    })
+    with patch.object(persister_module, "log_tool_failure") as log_failure:
+        await p.handle({
+            "event": "on_chat_model_end",
+            "run_id": "child-run-invalid-tool-call-no-id",
+            "tags": ["subagent_child"],
+            "data": {
+                "output": AIMessage(
+                    content="",
+                    invalid_tool_calls=[
+                        {
+                            "name": "write_plan",
+                            "args": "<<<<",
+                            "error": "invalid json",
+                            "type": "invalid_tool_call",
+                        }
+                    ],
+                )
+            },
+        })
+    log_failure.assert_not_called()
 
     items = await repo.list_by_session(db_session, sid)
     assert len(items) == 2
