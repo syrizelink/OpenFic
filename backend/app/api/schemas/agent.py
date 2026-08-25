@@ -167,7 +167,7 @@ class AgentInterruptResumeRequest(BaseModel):
     responses: list[AgentInterruptResponseItem] = Field(
         ...,
         min_length=1,
-        max_length=10,
+        max_length=20,
         description="本批全部中断响应",
     )
 
