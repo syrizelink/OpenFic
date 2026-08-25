@@ -205,5 +205,8 @@ async def test_dispatch_subagent_returns_dispatch_id_when_child_request_is_cance
     assert result == {
         "dispatch_id": "dispatch-cancelled",
         "agent_number": 3,
-        "error": "subagent request was cancelled",
+        "type": "fail",
+        "success": False,
+        "code": "execution_failed",
+        "message": "subagent request was cancelled",
     }

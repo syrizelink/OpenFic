@@ -1108,7 +1108,7 @@ async def test_run_emits_error_and_marks_revision_failed_on_runtime_exception():
  
  
 @pytest.mark.asyncio
-async def test_resume_emits_error_and_marks_revision_failed_on_runtime_exception():
+async def test_resume_emits_error_and_keeps_pending_revision_resumable_on_runtime_exception():
     runner = SessionRunner(
         session_id="sess_resume_error_001",
         task_id="task_resume_error_001",
@@ -1129,9 +1129,13 @@ async def test_resume_emits_error_and_marks_revision_failed_on_runtime_exception
                 yield None
 
         async def aget_state(self, _config):
+            interrupt = SimpleNamespace(
+                id="resume-interrupt",
+                value={"type": "tool_approval", "tool_name": "write_note", "args": {}},
+            )
             return SimpleNamespace(
                 next=("primary",),
-                tasks=(),
+                tasks=(SimpleNamespace(interrupts=(interrupt,)),),
                 values={"current_revision_id": "rev_resume_1"},
                 config={"configurable": {}},
             )
@@ -1142,6 +1146,7 @@ async def test_resume_emits_error_and_marks_revision_failed_on_runtime_exception
         handle=AsyncMock(),
         finalize=AsyncMock(),
         persist_node_event=AsyncMock(),
+        apply_interrupt_preview=AsyncMock(),
     )
 
     with patch.object(runner, "_get_graph", AsyncMock(return_value=_Graph())), patch(
@@ -1149,7 +1154,7 @@ async def test_resume_emits_error_and_marks_revision_failed_on_runtime_exception
         AsyncMock(side_effect=[fake_runtime_session, fake_status_session]),
     ), patch(
         "app.agent_runtime.runner.session_runner.finalize_revision_status",
-        AsyncMock(),
+        AsyncMock(return_value=False),
     ) as finalize_revision_status, patch(
         "app.agent_runtime.runner.session_runner.emit",
         AsyncMock(),
@@ -1172,7 +1177,7 @@ async def test_resume_emits_error_and_marks_revision_failed_on_runtime_exception
     finalize_revision_status.assert_awaited_once_with(
         fake_status_session,
         "rev_resume_1",
-        "failed",
+        "interrupted",
     )
     emit_mock.assert_any_await(
         "agent:error",
@@ -1183,6 +1188,8 @@ async def test_resume_emits_error_and_marks_revision_failed_on_runtime_exception
         },
         room=runner._room,
     )
+    event_names = [call.args[0] for call in emit_mock.await_args_list if call.args]
+    assert "agent:interrupt" not in event_names
 
 
 @pytest.mark.asyncio

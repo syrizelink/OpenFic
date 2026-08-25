@@ -93,7 +93,12 @@ class TestAskUser:
             }
             result = await tool.ainvoke(_valid_input())
 
-        assert json.loads(result) == {"status": "user_skipped", "error": "用户忽略了提问"}
+        assert json.loads(result) == {
+            "type": "control",
+            "success": False,
+            "status": "user_skipped",
+            "message": "用户忽略了提问",
+        }
 
     async def test_ask_user_accepts_more_than_five_questions(self):
         from app.agent_runtime.tools.impls.interaction.ask_user import AskUserTool

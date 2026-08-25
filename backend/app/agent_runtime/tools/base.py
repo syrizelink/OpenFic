@@ -1,20 +1,65 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, TypeAlias, cast
 
 from langchain_core.runnables.config import var_child_runnable_config
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agent_runtime.tools.errors import ToolExecutionError
+from app.agent_runtime.tools.errors import (
+    ToolExecutionError,
+    ToolFailure,
+    log_tool_failure,
+    normalize_tool_failure_result,
+    serialize_tool_failure,
+    tool_failure_from_exception,
+)
+
+
+_PYDANTIC_HELP_URL = re.compile(
+    r"\s*For further information visit https://errors\.pydantic\.dev/\S+"
+)
+
+
+def _format_validation_error(error: object) -> str:
+    if isinstance(error, ValidationError):
+        details: list[str] = []
+        for item in error.errors():
+            location = ".".join(str(part) for part in item.get("loc", ())) or "<root>"
+            message = " ".join(str(item.get("msg", "Validation error")).split())
+            error_type = item.get("type")
+            detail = f"{location}: {message}"
+            if error_type:
+                detail += f" [type={error_type}"
+                if "input" in item:
+                    input_value = item["input"]
+                    detail += (
+                        f", input_value={input_value!r},"
+                        f" input_type={type(input_value).__name__}"
+                    )
+                detail += "]"
+            details.append(detail)
+        if details:
+            return f"参数校验失败（{len(details)} 个错误）:\n" + "\n".join(
+                f"- {detail}" for detail in details
+            )
+
+    return "参数校验失败: " + _PYDANTIC_HELP_URL.sub("", str(error)).strip()
 
 
 def _validation_error_to_json(error: object) -> str:
-    return json.dumps({"error": f"参数校验失败: {error}"}, ensure_ascii=False)
+    failure = ToolFailure(
+        code="validation_error",
+        message=_format_validation_error(error),
+        trace={"source": "validation"},
+    )
+    log_tool_failure(failure, tool_name="<validation>", tool_call_id=None)
+    return serialize_tool_failure(failure)
 
 
 @dataclass
@@ -197,7 +242,10 @@ class AgentTool(BaseTool):
                     ):
                         return json.dumps(
                             {
-                                "error": "工具调用已被用户拒绝",
+                                "type": "control",
+                                "success": False,
+                                "status": "approval_denied",
+                                "message": "工具调用已被用户拒绝",
                                 "approval_id": resume_value.get("approval_id"),
                                 "tool_name": self.name,
                             },
@@ -213,11 +261,34 @@ class AgentTool(BaseTool):
                 raise NotImplementedError("AgentTool subclasses must define _execute")
             output = await cast(Callable[..., Awaitable[str]], execute)(**validated_args)
         except ToolExecutionError as e:
-            return json.dumps({"error": str(e)}, ensure_ascii=False)
+            failure = tool_failure_from_exception(e, source="tool_execution")
+            log_tool_failure(
+                failure,
+                tool_name=self.name,
+                tool_call_id=self.tool_call_id,
+                exception=e,
+            )
+            return serialize_tool_failure(failure)
         except Exception as e:
             if "GraphInterrupt" in type(e).__name__:
                 raise
-            return json.dumps({"error": f"工具执行异常: {e}"}, ensure_ascii=False)
+            failure = tool_failure_from_exception(
+                e,
+                code="execution_failed",
+                source="tool_execution",
+            )
+            failure = ToolFailure(
+                code=failure.code,
+                message=f"工具执行异常: {failure.message}",
+                trace=failure.trace,
+            )
+            log_tool_failure(
+                failure,
+                tool_name=self.name,
+                tool_call_id=self.tool_call_id,
+                exception=e,
+            )
+            return serialize_tool_failure(failure)
 
         hook_ctx.output = output
         for hook in self._post_hooks:
@@ -226,7 +297,14 @@ class AgentTool(BaseTool):
                 output = hook_result.output
                 hook_ctx.output = output
 
-        return output
+        normalized_output, failure = normalize_tool_failure_result(output)
+        if failure is not None:
+            log_tool_failure(
+                failure,
+                tool_name=self.name,
+                tool_call_id=self.tool_call_id,
+            )
+        return cast(str, normalized_output)
 
     def _run(self, *args: Any, **kwargs: Any) -> str:
         raise NotImplementedError("Use ainvoke")

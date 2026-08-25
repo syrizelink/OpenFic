@@ -358,6 +358,32 @@ async def _ensure_agent_session_resumable(
         )
 
 
+async def _checkpoint_has_pending_interrupt(session_id: str, revision_id: str) -> bool:
+    checkpointer = await get_checkpointer()
+    checkpoint = await checkpointer.aget_tuple(
+        {"configurable": {"thread_id": session_id}}
+    )
+    checkpoint_data = getattr(checkpoint, "checkpoint", None) if checkpoint is not None else None
+    channel_values = (
+        checkpoint_data.get("channel_values")
+        if isinstance(checkpoint_data, dict)
+        else None
+    )
+    if not isinstance(channel_values, dict) or channel_values.get("current_revision_id") != revision_id:
+        return False
+    return (
+        any(
+            len(pending_write) >= 3
+            and pending_write[1] == "__interrupt__"
+            and isinstance(pending_write[2], list)
+            and bool(pending_write[2])
+            for pending_write in checkpoint.pending_writes or []
+        )
+        if checkpoint is not None
+        else False
+    )
+
+
 async def _claim_agent_session_resume(
     session: AsyncSession,
     session_id: str,
@@ -379,6 +405,14 @@ async def _claim_agent_session_resume(
         return revision_id, True
 
     revision = await revision_repo.get_by_id(session, revision_id)
+    if revision is not None and revision.status == "failed":
+        if await _checkpoint_has_pending_interrupt(session_id, revision_id):
+            if await revision_repo.recover_failed_revision(session, revision_id):
+                await session.commit()
+                if await revision_repo.claim_interrupted_revision(session, revision_id):
+                    await session.commit()
+                    return revision_id, True
+                revision = await revision_repo.get_by_id(session, revision_id)
     if revision is not None and revision.status == "cancelled":
         await _ensure_agent_session_resumable(session, session_id)
     if allow_active and revision is not None and revision.status == "active":

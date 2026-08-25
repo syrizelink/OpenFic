@@ -272,6 +272,21 @@ async def claim_interrupted_revision(session: AsyncSession, revision_id: str) ->
     return cast("CursorResult[Any]", result).rowcount == 1
 
 
+async def recover_failed_revision(session: AsyncSession, revision_id: str) -> bool:
+    """Restore a failed revision when its checkpoint still contains an interrupt."""
+    from sqlalchemy import update as sql_update
+
+    now = datetime.now(UTC)
+    result = await session.execute(
+        sql_update(Revision)
+        .where(col(Revision.id) == revision_id)
+        .where(col(Revision.status) == "failed")
+        .values(status="interrupted", finished_at=now, updated_at=now)
+    )
+    await session.flush()
+    return cast("CursorResult[Any]", result).rowcount == 1
+
+
 async def release_active_revision_claim(session: AsyncSession, revision_id: str) -> bool:
     """Return a failed resume launch to its interrupted state without reviving a cancel."""
     from sqlalchemy import update as sql_update

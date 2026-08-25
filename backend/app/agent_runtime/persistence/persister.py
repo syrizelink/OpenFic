@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Literal
 
+from langgraph.errors import GraphInterrupt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.content_blocks import extract_reasoning_content, extract_text_content
@@ -18,14 +19,38 @@ from app.agent_runtime.persistence.child_runs import (
 )
 from app.agent_runtime.persistence.errors import PersistenceWriteError
 from app.agent_runtime.runner.event_scope import is_subagent_child_event
+from app.agent_runtime.tools.errors import (
+    ToolErrorCode,
+    ToolFailure,
+    log_tool_failure,
+    serialize_tool_failure,
+    tool_failure_from_error,
+)
 from app.agent_runtime.tool_call_recovery import (
-    build_malformed_tool_call_error,
     is_malformed_tool_call,
     reconcile_tool_call_chunks,
     recover_message_tool_calls,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _failure_content(
+    *,
+    code: ToolErrorCode,
+    message: str,
+    source: str,
+    tool_name: str,
+    tool_call_id: str | None,
+    extra: dict[str, object] | None = None,
+) -> str:
+    failure = ToolFailure(
+        code=code,
+        message=message,
+        trace={"source": source},
+    )
+    log_tool_failure(failure, tool_name=tool_name, tool_call_id=tool_call_id)
+    return serialize_tool_failure(failure, extra)
 
 
 @dataclass
@@ -183,13 +208,17 @@ class MessagePersister:
         for tool_call in tool_calls:
             if not is_malformed_tool_call(tool_call):
                 continue
+            content = serialize_tool_failure(
+                ToolFailure(
+                    code="malformed_tool_call",
+                    message="工具参数 JSON 无法解析，未执行工具调用",
+                    trace={"source": "tool_call_recovery"},
+                )
+            )
             await self._write(
                 role="tool",
                 status="complete",
-                content=json.dumps(
-                    build_malformed_tool_call_error(tool_call),
-                    ensure_ascii=False,
-                ),
+                content=content,
                 tool_call_id=tool_call["id"],
                 tool_name=tool_call["name"],
             )
@@ -243,11 +272,10 @@ class MessagePersister:
         if not tool_call_id or not tool_name:
             return
 
-        self._previewed_tool_runs.add(run_id)
-        await self._write(
-            role="tool",
-            status="complete",
-            content=json.dumps(
+        error = event.get("data", {}).get("error")
+        if isinstance(error, GraphInterrupt):
+            self._previewed_tool_runs.add(run_id)
+            content = json.dumps(
                 {
                     "type": "ok",
                     "success": True,
@@ -257,10 +285,25 @@ class MessagePersister:
                     "tool_name": tool_name,
                 },
                 ensure_ascii=False,
-            ),
+            )
+        else:
+            failure = tool_failure_from_error(error, source="subagent_tool")
+            log_tool_failure(
+                failure,
+                tool_name=tool_name,
+                tool_call_id=tool_call_id,
+                exception=error if isinstance(error, BaseException) else None,
+            )
+            content = serialize_tool_failure(failure)
+        await self._write(
+            role="tool",
+            status="complete",
+            content=content,
             tool_call_id=tool_call_id,
             tool_name=tool_name,
         )
+        if not isinstance(error, GraphInterrupt):
+            self._pending_tools.pop(run_id, None)
 
     async def persist_node_event(self, payload: dict) -> None:
         if payload.get("session_id") != self.session_id:
@@ -481,7 +524,13 @@ class MessagePersister:
                     await self._write(
                         role="tool",
                         status="aborted",
-                        content="[中断] 工具未执行",
+                        content=_failure_content(
+                            code="execution_failed",
+                            message="工具未执行",
+                            source="persistence_finalize",
+                            tool_name=tc["name"],
+                            tool_call_id=tc["id"],
+                        ),
                         tool_call_id=tc["id"],
                         tool_name=tc["name"],
                     )
@@ -498,7 +547,14 @@ class MessagePersister:
                 await self._write(
                     role="tool",
                     status="aborted",
-                    content=content or "[中断] 工具执行未完成",
+                    content=content
+                    or _failure_content(
+                        code="execution_failed",
+                        message="工具执行未完成",
+                        source="persistence_finalize",
+                        tool_name=pending.tool_name,
+                        tool_call_id=pending.tool_call_id,
+                    ),
                     tool_call_id=pending.tool_call_id,
                     tool_name=pending.tool_name,
                 )
@@ -544,14 +600,17 @@ class MessagePersister:
         if child_run is None or not child_run.is_active:
             return None
 
-        return json.dumps(
-            {
+        return _failure_content(
+            code="execution_failed",
+            message="subagent 会话已被用户中断，要通知其继续工作请使用 notify_subagent",
+            source="persistence_finalize",
+            tool_name=pending.tool_name,
+            tool_call_id=pending.tool_call_id,
+            extra={
                 "dispatch_id": child_run.dispatch_id,
                 "agent_key": child_run.agent_key,
                 "agent_number": get_child_run_agent_number(child_run.metadata_json),
-                "error": "subagent 会话已被用户中断，要通知其继续工作请使用 notify_subagent",
             },
-            ensure_ascii=False,
         )
 
     @staticmethod

@@ -1,16 +1,21 @@
 import asyncio
+import dataclasses
 import os
 import shutil
 import time
-from collections.abc import Callable
+from collections import deque
+from collections.abc import Callable, Mapping
 from contextlib import suppress
 from pathlib import Path
+from typing import Any
 
 import aiosqlite
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import Checkpoint, copy_checkpoint
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
@@ -35,7 +40,269 @@ _CHECKPOINT_CLEANUP_BATCH_SIZE = 500
 _VACUUM_MIN_FREE_BYTES = 64 * 1024 * 1024
 _INCREMENTAL_VACUUM_BATCH_BYTES = 64 * 1024 * 1024
 _VACUUM_PROGRESS_STEP = 10
+_MSGPACK_INT_MIN = -(1 << 63)
+_MSGPACK_INT_MAX = (1 << 63) - 1
 CheckpointMaintenanceProgress = Callable[[str, float | None, int, int], None]
+
+
+def _checkpoint_integer(value: int) -> int | str:
+    return value if _MSGPACK_INT_MIN <= value <= _MSGPACK_INT_MAX else str(value)
+
+
+def _sanitize_message_field(value: Any, active_ids: set[int]) -> Any:
+    if value is None or isinstance(value, (bool, float, bytes)):
+        return value
+    if isinstance(value, int):
+        return _checkpoint_integer(value)
+    if isinstance(value, str):
+        return str(value)
+    if isinstance(value, BaseMessage):
+        return _sanitize_checkpoint_value(value, active_ids)
+
+    value_id = id(value)
+    if value_id in active_ids:
+        return "<recursive>"
+    active_ids.add(value_id)
+    try:
+        if isinstance(value, Mapping):
+            return {
+                str(key): _sanitize_message_field(item, active_ids)
+                for key, item in value.items()
+            }
+        if isinstance(value, (list, tuple, set, frozenset)):
+            return [_sanitize_message_field(item, active_ids) for item in value]
+        model_dump = getattr(value, "model_dump", None)
+        if callable(model_dump):
+            return _sanitize_message_field(model_dump(mode="python"), active_ids)
+        return str(value)
+    finally:
+        active_ids.remove(value_id)
+
+
+def _sanitize_checkpoint_value(value: Any, active_ids: set[int] | None = None) -> Any:
+    active_ids = active_ids if active_ids is not None else set()
+    if value is None or isinstance(value, (bool, float, bytes)):
+        return value
+    if isinstance(value, int):
+        return _checkpoint_integer(value)
+    if isinstance(value, str):
+        return str(value)
+    if isinstance(value, BaseMessage):
+        value_id = id(value)
+        if value_id in active_ids:
+            return "<recursive>"
+        active_ids.add(value_id)
+        try:
+            def field(item: Any) -> Any:
+                return _sanitize_message_field(item, active_ids)
+
+            common = {
+                "additional_kwargs": field(value.additional_kwargs),
+                "response_metadata": field(value.response_metadata),
+                "id": value.id,
+                "name": value.name,
+            }
+            if isinstance(value, AIMessage):
+                return AIMessage(
+                    content=field(value.content),
+                    tool_calls=field(value.tool_calls),
+                    invalid_tool_calls=field(value.invalid_tool_calls),
+                    usage_metadata=field(value.usage_metadata),
+                    **common,
+                )
+            if isinstance(value, ToolMessage):
+                return ToolMessage(
+                    content=field(value.content),
+                    tool_call_id=value.tool_call_id,
+                    artifact=field(value.artifact),
+                    status=value.status,
+                    **common,
+                )
+            if isinstance(value, HumanMessage):
+                return HumanMessage(content=field(value.content), **common)
+            if isinstance(value, SystemMessage):
+                return SystemMessage(content=field(value.content), **common)
+            return value
+        finally:
+            active_ids.remove(value_id)
+    if isinstance(value, Mapping):
+        value_id = id(value)
+        if value_id in active_ids:
+            return "<recursive>"
+        active_ids.add(value_id)
+        try:
+            return {
+                _checkpoint_integer(key) if isinstance(key, int) else key: _sanitize_checkpoint_value(
+                    item, active_ids
+                )
+                for key, item in value.items()
+            }
+        finally:
+            active_ids.remove(value_id)
+    if isinstance(value, list):
+        value_id = id(value)
+        if value_id in active_ids:
+            return "<recursive>"
+        active_ids.add(value_id)
+        try:
+            return [_sanitize_checkpoint_value(item, active_ids) for item in value]
+        finally:
+            active_ids.remove(value_id)
+    if isinstance(value, tuple):
+        value_id = id(value)
+        if value_id in active_ids:
+            return "<recursive>"
+        active_ids.add(value_id)
+        try:
+            sanitized = tuple(_sanitize_checkpoint_value(item, active_ids) for item in value)
+            if hasattr(value, "_fields"):
+                return type(value)(*sanitized)
+            return sanitized
+        finally:
+            active_ids.remove(value_id)
+    if isinstance(value, deque):
+        return deque(
+            (_sanitize_checkpoint_value(item, active_ids) for item in value),
+            maxlen=value.maxlen,
+        )
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        value_id = id(value)
+        if value_id in active_ids:
+            return "<recursive>"
+        active_ids.add(value_id)
+        try:
+            fields = {
+                field.name: _sanitize_checkpoint_value(getattr(value, field.name), active_ids)
+                for field in dataclasses.fields(value)
+            }
+            return dataclasses.replace(value, **fields)
+        finally:
+            active_ids.remove(value_id)
+    return value
+
+
+def _plain_checkpoint_value(value: Any, active_ids: set[int] | None = None) -> Any:
+    active_ids = active_ids if active_ids is not None else set()
+    if value is None or isinstance(value, (bool, float, bytes)):
+        return value
+    if isinstance(value, int):
+        return _checkpoint_integer(value)
+    if isinstance(value, str):
+        return str(value)
+
+    value_id = id(value)
+    if value_id in active_ids:
+        return "<recursive>"
+    active_ids.add(value_id)
+    try:
+        if isinstance(value, Mapping):
+            return {
+                str(key): _plain_checkpoint_value(item, active_ids)
+                for key, item in value.items()
+            }
+        if isinstance(value, (list, tuple, set, frozenset, deque)):
+            return [_plain_checkpoint_value(item, active_ids) for item in value]
+        if dataclasses.is_dataclass(value) and not isinstance(value, type):
+            return {
+                field.name: _plain_checkpoint_value(getattr(value, field.name), active_ids)
+                for field in dataclasses.fields(value)
+            }
+        model_dump = getattr(value, "model_dump", None)
+        if callable(model_dump):
+            return _plain_checkpoint_value(model_dump(mode="python"), active_ids)
+        value_dict = getattr(value, "__dict__", None)
+        if isinstance(value_dict, dict):
+            return {
+                str(key): _plain_checkpoint_value(item, active_ids)
+                for key, item in value_dict.items()
+            }
+        return str(value)
+    finally:
+        active_ids.remove(value_id)
+
+
+def _message_type_paths(
+    value: Any,
+    *,
+    path: str = "$",
+    active_ids: set[int] | None = None,
+) -> list[str]:
+    active_ids = active_ids if active_ids is not None else set()
+    value_id = id(value)
+    if value_id in active_ids:
+        return []
+    active_ids.add(value_id)
+    try:
+        paths: list[str] = []
+        if isinstance(value, BaseMessage) or type(value).__name__ in {
+            "AIMessage",
+            "AIMessageChunk",
+        }:
+            paths.append(f"{path}:{type(value).__module__}.{type(value).__name__}")
+        if isinstance(value, Mapping):
+            for key, item in value.items():
+                paths.extend(
+                    _message_type_paths(
+                        item,
+                        path=f"{path}.{key}",
+                        active_ids=active_ids,
+                    )
+                )
+        elif isinstance(value, (list, tuple, set, frozenset, deque)):
+            for index, item in enumerate(value):
+                paths.extend(
+                    _message_type_paths(
+                        item,
+                        path=f"{path}[{index}]",
+                        active_ids=active_ids,
+                    )
+                )
+        elif dataclasses.is_dataclass(value) and not isinstance(value, type):
+            for field in dataclasses.fields(value):
+                paths.extend(
+                    _message_type_paths(
+                        getattr(value, field.name),
+                        path=f"{path}.{field.name}",
+                        active_ids=active_ids,
+                    )
+                )
+        elif isinstance(getattr(value, "__dict__", None), dict):
+            for key, item in vars(value).items():
+                paths.extend(
+                    _message_type_paths(
+                        item,
+                        path=f"{path}.{key}",
+                        active_ids=active_ids,
+                    )
+                )
+        return paths[:20]
+    finally:
+        active_ids.remove(value_id)
+
+
+class _CheckpointSerializer(JsonPlusSerializer):
+    def dumps_typed(self, obj: Any) -> tuple[str, bytes]:
+        try:
+            return super().dumps_typed(obj)
+        except TypeError as original_error:
+            sanitized = _sanitize_checkpoint_value(obj)
+            logger.bind(
+                checkpoint_root_type=f"{type(obj).__module__}.{type(obj).__name__}",
+                checkpoint_message_paths=_message_type_paths(obj),
+            ).error("checkpoint msgpack serialization fallback activated")
+            try:
+                return super().dumps_typed(sanitized)
+            except TypeError:
+                try:
+                    return super().dumps_typed(_plain_checkpoint_value(obj))
+                except TypeError as fallback_error:
+                    logger.bind(
+                        checkpoint_root_type=f"{type(obj).__module__}.{type(obj).__name__}",
+                        checkpoint_message_paths=_message_type_paths(obj),
+                    ).opt(exception=fallback_error).error(
+                        "checkpoint msgpack serialization fallback failed"
+                    )
+                    raise original_error
 
 
 def _default_db_path() -> Path:
@@ -101,7 +368,7 @@ async def get_checkpointer() -> AsyncSqliteSaver:
         await _configure_checkpoint_connection(conn)
         _checkpointer = AsyncSqliteSaver(
             conn,
-            serde=JsonPlusSerializer(
+            serde=_CheckpointSerializer(
                 allowed_msgpack_modules=_ALLOWED_MSGPACK_MODULES,
             ),
         )

@@ -292,10 +292,24 @@ class SessionRunner:
     async def _handle_stream_failure(
         self,
         *,
+        graph: CompiledStateGraph | None = None,
         revision_id: str | None,
         error_type: Literal["persistence_failure", "runtime_failure"],
         exc: Exception,
     ) -> None:
+        resumable_state = None
+        if graph is not None:
+            try:
+                candidate_state = await graph.aget_state(
+                    {"configurable": {"thread_id": self.session_id}}
+                )
+            except Exception:
+                candidate_state = None
+            if candidate_state is not None and (
+                getattr(candidate_state, "next", ()) or _interrupt_payloads(candidate_state)
+            ):
+                resumable_state = candidate_state
+
         if self._persister is not None:
             try:
                 await self._persister.finalize(reason="error")
@@ -312,10 +326,13 @@ class SessionRunner:
         )
         status_session = await create_session()
         try:
-            await finalize_revision_status(status_session, revision_id, "failed")
+            revision_status = "interrupted" if resumable_state is not None else "failed"
+            finalized = await finalize_revision_status(status_session, revision_id, revision_status)
             await status_session.commit()
         finally:
             await status_session.close()
+        if resumable_state is not None and finalized:
+            await self._emit_pending_interrupts(resumable_state)
         await self._clear_replay_session()
 
     async def _emit_pending_interrupts(self, state: object) -> None:
@@ -819,6 +836,7 @@ class SessionRunner:
         self._cancel_event.clear()
         reason: Literal["done", "cancelled", "error"] = "done"
         revision = None
+        graph: CompiledStateGraph | None = None
         try:
             history_messages = await self._prepare_run_persistence()
             graph = await self._get_graph()
@@ -912,6 +930,7 @@ class SessionRunner:
             return
         except PersistenceError as e:
             await self._handle_stream_failure(
+                graph=graph,
                 revision_id=revision.id if revision is not None else None,
                 error_type="persistence_failure",
                 exc=e,
@@ -919,6 +938,7 @@ class SessionRunner:
             raise
         except Exception as e:
             await self._handle_stream_failure(
+                graph=graph,
                 revision_id=revision.id if revision is not None else None,
                 error_type="runtime_failure",
                 exc=e,
@@ -1289,6 +1309,7 @@ class SessionRunner:
             return
         except PersistenceError as e:
             await self._handle_stream_failure(
+                graph=graph,
                 revision_id=revision_id,
                 error_type="persistence_failure",
                 exc=e,
@@ -1296,6 +1317,7 @@ class SessionRunner:
             raise
         except Exception as e:
             await self._handle_stream_failure(
+                graph=graph,
                 revision_id=revision_id,
                 error_type="runtime_failure",
                 exc=e,

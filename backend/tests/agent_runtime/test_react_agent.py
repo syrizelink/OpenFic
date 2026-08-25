@@ -1,6 +1,6 @@
 import asyncio
 import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, ToolMessage
 from langchain_core.messages.tool import invalid_tool_call
@@ -10,10 +10,12 @@ from langgraph.types import Command
 from pydantic import BaseModel
 
 from app.agent_runtime.tools.base import AgentTool, HookResult
+from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.types import TerminationCondition, ReactAgentConfig
 from app.agent_runtime.graph.react_agent import (
     _invoke_model,
     _invoke_tool,
+    _tool_result_payload,
     create_react_agent,
     ReactState,
 )
@@ -146,6 +148,23 @@ async def test_invoke_model_extracts_anthropic_text_content_blocks() -> None:
     assert response.content == "可见回复"
 
 
+@pytest.mark.asyncio
+async def test_invoke_model_sanitizes_nested_message_metadata() -> None:
+    nested_message = AIMessage(content="nested")
+
+    class StreamingModel:
+        async def astream(self, _messages):
+            yield AIMessageChunk(
+                content="完成",
+                response_metadata={"raw_message": nested_message},
+            )
+
+    response = await _invoke_model(StreamingModel(), [HumanMessage(content="Hello")])
+
+    assert response.response_metadata["raw_message"]["content"] == "nested"
+    assert not isinstance(response.response_metadata["raw_message"], AIMessage)
+
+
 def test_create_react_agent_returns_compiled_graph(dummy_tool):
     config = ReactAgentConfig(
         name="test",
@@ -196,6 +215,133 @@ def test_react_agent_terminates_on_no_tool_call(dummy_tool):
             assert result["is_done"] is True
 
     asyncio.run(_run())
+
+
+@pytest.mark.asyncio
+async def test_react_agent_normalizes_structured_tool_exception() -> None:
+    async def failing_tool() -> str:
+        raise RuntimeError("structured tool failure")
+
+    tool = StructuredTool.from_function(
+        coroutine=failing_tool,
+        name="failing_tool",
+        description="fails",
+    )
+    model = Mock()
+    model.bind_tools.return_value = model
+    responses = iter(
+        [
+            AIMessage(
+                content="",
+                tool_calls=[{"id": "call-1", "name": "failing_tool", "args": {}}],
+            ),
+            AIMessage(content="recovered"),
+        ]
+    )
+
+    async def invoke_model(*_args, **_kwargs):
+        return next(responses)
+
+    config = ReactAgentConfig(
+        name="writer",
+        tools=[tool],
+        termination=TerminationCondition(mode="no_tool_call"),
+        max_iterations=2,
+    )
+    tool_results: list[dict] = []
+
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model",
+        side_effect=invoke_model,
+    ):
+        result = await create_react_agent(config, model=model).ainvoke(
+            {
+                "messages": [HumanMessage(content="go")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            },
+            config={"configurable": {"tool_result_sink": tool_results.append}},
+        )
+
+    tool_messages = [
+        message for message in result["messages"] if isinstance(message, ToolMessage)
+    ]
+    assert json.loads(tool_messages[0].content) == {
+        "type": "fail",
+        "success": False,
+        "code": "execution_failed",
+        "message": "structured tool failure",
+    }
+    assert result["messages"][-1].content == "recovered"
+    assert tool_results == [
+        {
+            "session_id": None,
+            "tool_call_id": "call-1",
+            "tool_name": "failing_tool",
+            "input": {},
+            "output": {
+                "type": "fail",
+                "success": False,
+                "code": "execution_failed",
+                "message": "structured tool failure",
+                "tool_call_id": "call-1",
+                "tool_name": "failing_tool",
+            },
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_react_agent_preserves_structured_tool_error_code() -> None:
+    async def failing_tool() -> str:
+        raise ToolExecutionError("章节不存在", code="not_found")
+
+    tool = StructuredTool.from_function(
+        coroutine=failing_tool,
+        name="failing_tool",
+        description="fails",
+    )
+    model = Mock()
+    model.bind_tools.return_value = model
+    responses = iter(
+        [
+            AIMessage(
+                content="",
+                tool_calls=[{"id": "call-1", "name": "failing_tool", "args": {}}],
+            ),
+            AIMessage(content="recovered"),
+        ]
+    )
+
+    async def invoke_model(*_args, **_kwargs):
+        return next(responses)
+
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model",
+        side_effect=invoke_model,
+    ):
+        result = await create_react_agent(
+            ReactAgentConfig(
+                name="writer",
+                tools=[tool],
+                termination=TerminationCondition(mode="no_tool_call"),
+                max_iterations=2,
+            ),
+            model=model,
+        ).ainvoke(
+            {
+                "messages": [HumanMessage(content="go")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            }
+        )
+
+    tool_message = next(
+        message for message in result["messages"] if isinstance(message, ToolMessage)
+    )
+    assert json.loads(tool_message.content)["code"] == "not_found"
 
 
 @pytest.mark.asyncio
@@ -784,8 +930,74 @@ async def test_react_agent_emits_tool_error_for_unrecoverable_invalid_tool_call_
     assert executed_calls == []
     assert isinstance(result["messages"][-1], ToolMessage)
     assert result["messages"][-1].tool_call_id == "call_1"
-    assert '"reason": "malformed_tool_call"' in result["messages"][-1].content
-    assert "write_plan" in result["messages"][-1].content
+    assert json.loads(result["messages"][-1].content) == {
+        "type": "fail",
+        "success": False,
+        "code": "malformed_tool_call",
+        "message": "工具参数 JSON 无法解析，未执行工具调用",
+    }
+
+
+def test_tool_result_payload_treats_canonical_failure_as_failure() -> None:
+    payload, success = _tool_result_payload(
+        '{"type":"fail","success":false,"code":"not_found","message":"未找到章节"}'
+    )
+
+    assert payload["code"] == "not_found"
+    assert success is False
+
+
+def test_tool_result_payload_treats_failed_type_as_failure_without_success() -> None:
+    payload, success = _tool_result_payload(
+        '{"type":"fail","code":"not_found","message":"未找到章节"}'
+    )
+
+    assert payload["code"] == "not_found"
+    assert success is False
+
+
+@pytest.mark.asyncio
+async def test_react_agent_returns_canonical_failure_for_unknown_tool() -> None:
+    config = ReactAgentConfig(
+        name="composer",
+        tools=[_add_tool()],
+        termination=TerminationCondition(mode="no_tool_call"),
+        max_iterations=2,
+    )
+    graph = create_react_agent(config)
+    calls = 0
+
+    async def _mock_invoke(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return AIMessage(
+                content="",
+                tool_calls=[{"id": "call_unknown", "name": "missing_tool", "args": {}}],
+            )
+        return AIMessage(content="done")
+
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model", side_effect=_mock_invoke
+    ):
+        result = await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="run")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            }
+        )
+
+    tool_message = next(
+        message for message in result["messages"] if isinstance(message, ToolMessage)
+    )
+    assert json.loads(tool_message.content) == {
+        "type": "fail",
+        "success": False,
+        "code": "tool_not_found",
+        "message": "未找到工具：missing_tool",
+    }
 
 
 @pytest.mark.asyncio
@@ -890,6 +1102,10 @@ async def test_react_agent_passes_runtime_config_and_tool_call_id_to_agent_tools
         patch(
             "app.agent_runtime.graph.react_agent.build_context",
             new=AsyncMock(return_value=[HumanMessage(content="Use a tool")]),
+        ),
+        patch(
+            "app.agent_runtime.graph.react_agent.normalize_tool_failure_result",
+            side_effect=AssertionError("AgentTool result was normalized twice"),
         ),
     ):
         await graph.ainvoke(
@@ -1079,8 +1295,15 @@ async def test_react_agent_does_not_execute_tool_after_approval_is_rejected() ->
     assert executed == []
     assert len(tool_results) == 1
     assert tool_results[0]["tool_call_id"] == "call_reject"
-    assert tool_results[0]["output"]["success"] is False
-    assert tool_results[0]["output"]["type"] == "fail"
+    assert tool_results[0]["output"] == {
+        "type": "control",
+        "success": False,
+        "status": "approval_denied",
+        "message": "工具调用已被用户拒绝",
+        "approval_id": pending[0].id,
+        "tool_name": "approval_tool",
+        "tool_call_id": "call_reject",
+    }
 
 
 @pytest.mark.asyncio
@@ -1141,10 +1364,22 @@ async def test_react_agent_rejects_more_than_twenty_tool_calls_before_execution(
         if isinstance(message, ToolMessage) and "最多调用" in message.content
     )
     assert error_message.tool_call_id == "call_20"
+    assert json.loads(error_message.content) == {
+        "type": "fail",
+        "success": False,
+        "code": "limit_exceeded",
+        "message": "Agent 单轮最多调用 20 个工具，超出上限的工具调用未执行",
+    }
     assert len(tool_results) == 1
     assert tool_results[0]["tool_call_id"] == "call_20"
-    assert tool_results[0]["output"]["success"] is False
-    assert tool_results[0]["output"]["reason"] == "tool_error"
+    assert tool_results[0]["output"] == {
+        "type": "fail",
+        "success": False,
+        "code": "limit_exceeded",
+        "message": "Agent 单轮最多调用 20 个工具，超出上限的工具调用未执行",
+        "tool_call_id": "call_20",
+        "tool_name": "counting_tool",
+    }
 
 
 @pytest.mark.asyncio

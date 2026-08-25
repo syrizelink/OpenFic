@@ -1,7 +1,9 @@
 from langchain_core.messages import ToolMessage
+from langgraph.errors import GraphInterrupt
 
 from app.agent_runtime.content_blocks import extract_reasoning_content, extract_text_content
 from app.agent_runtime.runner.event_scope import is_subagent_child_event
+from app.agent_runtime.tools.errors import tool_failure_from_error
 from app.agent_runtime.tool_call_recovery import (
     build_malformed_tool_call_error,
     is_malformed_tool_call,
@@ -97,6 +99,19 @@ class EventTranslator:
 
         if kind == "on_tool_error" and self._allow_subagent_child_events:
             tool_call_id = self._extract_tool_call_id(event)
+            error = event.get("data", {}).get("error")
+            output = (
+                {
+                    "type": "ok",
+                    "success": True,
+                    "reason": "approval_preview",
+                    "message": "需要审批",
+                    "tool_call_id": tool_call_id,
+                    "tool_name": event.get("name"),
+                }
+                if isinstance(error, GraphInterrupt)
+                else tool_failure_from_error(error, source="subagent_tool").to_result()
+            )
             return {
                 "name": "agent:tool_result",
                 "data": {
@@ -105,14 +120,7 @@ class EventTranslator:
                     "tool_call_id": tool_call_id,
                     "tool": event.get("name"),
                     "input": event.get("data", {}).get("input"),
-                    "output": {
-                        "type": "ok",
-                        "success": True,
-                        "reason": "approval_preview",
-                        "message": "需要审批",
-                        "tool_call_id": tool_call_id,
-                        "tool_name": event.get("name"),
-                    },
+                    "output": output,
                 },
             }
 

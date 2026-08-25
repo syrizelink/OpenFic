@@ -7,6 +7,7 @@ import pytest
 import pytest_asyncio
 from langchain_core.messages import AIMessage
 from langchain_core.messages import AIMessageChunk
+from langgraph.errors import GraphInterrupt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -1335,7 +1336,7 @@ async def test_subagent_runner_emits_child_tool_result_for_tool_error_before_int
                 "tags": ["subagent_child"],
                 "data": {
                     "input": {"value": "plan child beats"},
-                    "error": RuntimeError("approval required"),
+                    "error": GraphInterrupt(()),
                 },
                 "metadata": {"tool_call_id": "call-create-plan"},
             }
@@ -1426,6 +1427,14 @@ async def test_subagent_runner_emits_child_tool_result_for_tool_error_before_int
     assert child_tool_results[0]["tool_call_id"] == "call-create-plan"
     assert child_tool_results[0]["tool"] == "write_plan"
     assert child_tool_results[0]["input"] == {"value": "plan child beats"}
+    assert child_tool_results[0]["output"] == {
+        "type": "ok",
+        "success": True,
+        "reason": "approval_preview",
+        "message": "需要审批",
+        "tool_call_id": "call-create-plan",
+        "tool_name": "write_plan",
+    }
 
 
 @pytest.mark.asyncio

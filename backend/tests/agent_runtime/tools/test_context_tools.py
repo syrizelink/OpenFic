@@ -346,7 +346,7 @@ async def test_create_character_rejects_over_limit_description_without_creating(
             {"name": "林舟", "description": "\n".join("内容" for _ in range(2001))}
         )
 
-    assert "内容超出限制" in json.loads(result)["error"]
+    assert "内容超出限制" in json.loads(result)["message"]
     mock_character_service.create_character.assert_not_awaited()
 
 
@@ -458,7 +458,7 @@ async def test_edit_character_rejects_over_limit_replacement_without_updating() 
             }
         )
 
-    assert "内容超出限制" in json.loads(result)["error"]
+    assert "内容超出限制" in json.loads(result)["message"]
     mock_character_service.update_character.assert_not_awaited()
 
 
@@ -587,7 +587,9 @@ async def test_read_world_entry_rejects_duplicate_titles() -> None:
 
         result = await tool.ainvoke({"title": "主角"})
 
-    assert json.loads(result) == {"error": "世界书条目标题不唯一: 主角"}
+    data = json.loads(result)
+    assert data["type"] == "fail"
+    assert data["message"] == "世界书条目标题不唯一: 主角"
 
 
 @pytest.mark.asyncio
@@ -732,7 +734,9 @@ async def test_create_world_entry_rejects_duplicate_title() -> None:
 
         result = await tool.ainvoke({"title": "主角", "content": "林舟"})
 
-    assert json.loads(result) == {"error": "世界书条目标题已存在: 主角"}
+    data = json.loads(result)
+    assert data["type"] == "fail"
+    assert data["message"] == "世界书条目标题已存在: 主角"
 
 
 @pytest.mark.asyncio
@@ -750,7 +754,7 @@ async def test_create_world_entry_rejects_over_limit_content_without_creating() 
             {"title": "主角", "content": "\n".join("内容" for _ in range(2001))}
         )
 
-    assert "内容超出限制" in json.loads(result)["error"]
+    assert "内容超出限制" in json.loads(result)["message"]
     mock_entry_service.create_entry.assert_not_awaited()
 
 
@@ -878,7 +882,7 @@ async def test_edit_world_entry_rejects_over_limit_replacement_without_updating(
             }
         )
 
-    assert "内容超出限制" in json.loads(result)["error"]
+    assert "内容超出限制" in json.loads(result)["message"]
     mock_entry_service.update_entry.assert_not_awaited()
 
 
@@ -906,7 +910,9 @@ async def test_edit_world_entry_rejects_duplicate_new_title() -> None:
 
         result = await tool.ainvoke({"title": "主角", "new_title": "反派"})
 
-    assert json.loads(result) == {"error": "世界书条目标题已存在: 反派"}
+    data = json.loads(result)
+    assert data["type"] == "fail"
+    assert data["message"] == "世界书条目标题已存在: 反派"
 
 
 @pytest.mark.asyncio

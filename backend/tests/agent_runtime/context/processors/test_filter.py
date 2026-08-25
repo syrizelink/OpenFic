@@ -1,3 +1,4 @@
+import json
 from typing import Literal
 
 from app.agent_runtime.context.processors.filter import (
@@ -112,3 +113,79 @@ def test_tool_result_metadata_content_keeps_success_result() -> None:
     content = '{"success":true,"metadata":{"note_diff":{"note_id":"note-1"}}}'
 
     assert filter_tool_result_metadata_content(content) == '{"success": true}'
+
+
+def test_tool_failure_content_exposes_only_message_to_model() -> None:
+    content = (
+        '{"type":"fail","success":false,"code":"not_found",'
+        '"message":"未找到章节：第三章",'
+        '"trace":{"exception_type":"ToolExecutionError"}}'
+    )
+
+    assert filter_tool_result_metadata_content(content) == "未找到章节：第三章"
+
+
+def test_tool_failure_content_keeps_legacy_error_compatible() -> None:
+    content = '{"error":"未找到章节：第三章","metadata":{"internal":"value"}}'
+
+    assert filter_tool_result_metadata_content(content) == "未找到章节：第三章"
+
+
+def test_tool_failure_content_keeps_legacy_subagent_resume_identity() -> None:
+    content = (
+        '{"dispatch_id":"dispatch-1","agent_key":"writer",'
+        '"agent_number":"#1001","error":"子代理会话已被用户中断"}'
+    )
+
+    assert json.loads(filter_tool_result_metadata_content(content)) == {
+        "type": "fail",
+        "success": False,
+        "code": "execution_failed",
+        "message": "子代理会话已被用户中断",
+        "dispatch_id": "dispatch-1",
+        "agent_key": "writer",
+        "agent_number": "#1001",
+    }
+
+
+def test_tool_failure_content_keeps_subagent_resume_identity() -> None:
+    content = (
+        '{"type":"fail","success":false,"code":"execution_failed",'
+        '"message":"子代理会话已被用户中断",'
+        '"dispatch_id":"dispatch-1","agent_key":"writer",'
+        '"agent_number":"#1001","trace":{"source":"persistence_finalize"}}'
+    )
+
+    assert json.loads(filter_tool_result_metadata_content(content)) == {
+        "type": "fail",
+        "success": False,
+        "code": "execution_failed",
+        "message": "子代理会话已被用户中断",
+        "dispatch_id": "dispatch-1",
+        "agent_key": "writer",
+        "agent_number": "#1001",
+    }
+
+
+def test_tool_control_content_preserves_control_state() -> None:
+    content = (
+        '{"type":"control","success":false,"status":"approval_denied",'
+        '"message":"工具调用已被用户拒绝","approval_id":"approval-1",'
+        '"metadata":{"internal":"value"}}'
+    )
+
+    assert json.loads(filter_tool_result_metadata_content(content)) == {
+        "type": "control",
+        "success": False,
+        "status": "approval_denied",
+        "message": "工具调用已被用户拒绝",
+        "approval_id": "approval-1",
+    }
+
+
+def test_tool_failure_content_identifies_missing_message_by_code() -> None:
+    content = '{"type":"fail","success":false,"code":"not_found"}'
+
+    assert filter_tool_result_metadata_content(content) == (
+        "工具错误（not_found）：未提供具体错误消息"
+    )

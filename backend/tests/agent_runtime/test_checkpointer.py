@@ -1,4 +1,5 @@
 from contextlib import closing
+from dataclasses import dataclass
 import os
 import sqlite3
 import tempfile
@@ -9,6 +10,7 @@ from unittest.mock import AsyncMock
 
 import app.agent_runtime.runner.checkpointer as checkpointer_mod
 import aiosqlite
+from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import Checkpoint
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
@@ -33,6 +35,91 @@ from app.storage.models.revision import Revision
 from app.storage.models.task import Task
 
 pytestmark = pytest.mark.usefixtures("fast_checkpoint_sqlite")
+
+
+@dataclass(frozen=True)
+class _CheckpointTaskState:
+    message: AIMessage
+
+
+def test_checkpoint_serializer_sanitizes_cyclic_ai_message() -> None:
+    serializer = checkpointer_mod._CheckpointSerializer(
+        allowed_msgpack_modules=checkpointer_mod._ALLOWED_MSGPACK_MODULES,
+    )
+    message = AIMessage(content="complete output")
+    message.response_metadata["self"] = message
+
+    message_type, payload = serializer.dumps_typed([message])
+
+    assert message_type == "msgpack"
+    assert payload
+
+
+def test_checkpoint_serializer_sanitizes_message_inside_dataclass() -> None:
+    serializer = checkpointer_mod._CheckpointSerializer(
+        allowed_msgpack_modules=checkpointer_mod._ALLOWED_MSGPACK_MODULES,
+    )
+    message = AIMessage(content="complete output")
+    message.response_metadata["self"] = message
+
+    message_type, payload = serializer.dumps_typed([_CheckpointTaskState(message)])
+
+    assert message_type == "msgpack"
+    assert payload
+
+
+def test_checkpoint_serializer_falls_back_for_unknown_message_wrapper() -> None:
+    class MessageWrapper:
+        def __init__(self, message: AIMessage) -> None:
+            self.message = message
+
+    serializer = checkpointer_mod._CheckpointSerializer(
+        allowed_msgpack_modules=checkpointer_mod._ALLOWED_MSGPACK_MODULES,
+    )
+    message = AIMessage(content="complete output")
+    message.response_metadata["self"] = message
+
+    message_type, payload = serializer.dumps_typed([MessageWrapper(message)])
+
+    assert message_type == "msgpack"
+    assert payload
+
+
+def test_checkpoint_serializer_stringifies_out_of_range_integer_metadata() -> None:
+    serializer = checkpointer_mod._CheckpointSerializer(
+        allowed_msgpack_modules=checkpointer_mod._ALLOWED_MSGPACK_MODULES,
+    )
+    oversized_integer = 1 << 100
+    message = AIMessage(
+        content="complete output",
+        response_metadata={"provider_counter": oversized_integer},
+    )
+
+    message_type, payload = serializer.dumps_typed([message])
+    restored = serializer.loads_typed((message_type, payload))
+
+    assert restored[0].response_metadata["provider_counter"] == str(oversized_integer)
+
+
+def test_checkpoint_serializer_skips_sanitization_for_serializable_values(monkeypatch) -> None:
+    serializer = checkpointer_mod._CheckpointSerializer(
+        allowed_msgpack_modules=checkpointer_mod._ALLOWED_MSGPACK_MODULES,
+    )
+    sanitize_calls = 0
+    original_sanitize = checkpointer_mod._sanitize_checkpoint_value
+
+    def track_sanitize(value, active_ids=None):
+        nonlocal sanitize_calls
+        sanitize_calls += 1
+        return original_sanitize(value, active_ids)
+
+    monkeypatch.setattr(checkpointer_mod, "_sanitize_checkpoint_value", track_sanitize)
+
+    message_type, payload = serializer.dumps_typed({"message": "complete"})
+
+    assert message_type == "msgpack"
+    assert payload
+    assert sanitize_calls == 0
 
 
 @pytest.mark.asyncio
