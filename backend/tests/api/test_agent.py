@@ -31,6 +31,7 @@ from app.agent_runtime.streaming.replay_buffer import get_agent_event_replay_buf
 from app.api.routers.agent_runtime import (
     _SESSION_RUNNERS,
     _build_model_config,
+    _checkpoint_has_pending_interrupt,
     _launch_task,
 )
 from app.settings import settings
@@ -1520,6 +1521,7 @@ class TestAgentAPI:
         await session.commit()
 
         checkpoint = SimpleNamespace(
+            checkpoint={"channel_values": {"current_revision_id": revision.id}},
             pending_writes=[(None, "__interrupt__", [object()])]
         )
         with (
@@ -1541,6 +1543,21 @@ class TestAgentAPI:
         assert revision.status == "active"
         launch_task.assert_awaited_once()
         launch_task.await_args.kwargs["coro"].close()
+
+    async def test_failed_revision_recovery_requires_matching_checkpoint_revision(self) -> None:
+        checkpoint = SimpleNamespace(
+            checkpoint={"channel_values": {"current_revision_id": "revision-a"}},
+            pending_writes=[(None, "__interrupt__", [object()])],
+        )
+        with patch(
+            "app.api.routers.agent_runtime.get_checkpointer",
+            new=AsyncMock(
+                return_value=SimpleNamespace(
+                    aget_tuple=AsyncMock(return_value=checkpoint),
+                )
+            ),
+        ):
+            assert not await _checkpoint_has_pending_interrupt("session-a", "revision-b")
 
     async def test_resume_claim_holds_session_lock_before_new_message_can_start(
         self,

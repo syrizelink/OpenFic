@@ -327,11 +327,11 @@ class SessionRunner:
         status_session = await create_session()
         try:
             revision_status = "interrupted" if resumable_state is not None else "failed"
-            await finalize_revision_status(status_session, revision_id, revision_status)
+            finalized = await finalize_revision_status(status_session, revision_id, revision_status)
             await status_session.commit()
         finally:
             await status_session.close()
-        if resumable_state is not None:
+        if resumable_state is not None and finalized:
             await self._emit_pending_interrupts(resumable_state)
         await self._clear_replay_session()
 

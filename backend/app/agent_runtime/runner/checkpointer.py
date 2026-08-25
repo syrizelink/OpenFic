@@ -282,24 +282,27 @@ def _message_type_paths(
 
 class _CheckpointSerializer(JsonPlusSerializer):
     def dumps_typed(self, obj: Any) -> tuple[str, bytes]:
-        sanitized = _sanitize_checkpoint_value(obj)
         try:
-            return super().dumps_typed(sanitized)
+            return super().dumps_typed(obj)
         except TypeError as original_error:
+            sanitized = _sanitize_checkpoint_value(obj)
             logger.bind(
                 checkpoint_root_type=f"{type(obj).__module__}.{type(obj).__name__}",
                 checkpoint_message_paths=_message_type_paths(obj),
             ).error("checkpoint msgpack serialization fallback activated")
             try:
-                return super().dumps_typed(_plain_checkpoint_value(obj))
-            except TypeError as fallback_error:
-                logger.bind(
-                    checkpoint_root_type=f"{type(obj).__module__}.{type(obj).__name__}",
-                    checkpoint_message_paths=_message_type_paths(obj),
-                ).opt(exception=fallback_error).error(
-                    "checkpoint msgpack serialization fallback failed"
-                )
-                raise original_error
+                return super().dumps_typed(sanitized)
+            except TypeError:
+                try:
+                    return super().dumps_typed(_plain_checkpoint_value(obj))
+                except TypeError as fallback_error:
+                    logger.bind(
+                        checkpoint_root_type=f"{type(obj).__module__}.{type(obj).__name__}",
+                        checkpoint_message_paths=_message_type_paths(obj),
+                    ).opt(exception=fallback_error).error(
+                        "checkpoint msgpack serialization fallback failed"
+                    )
+                    raise original_error
 
 
 def _default_db_path() -> Path:

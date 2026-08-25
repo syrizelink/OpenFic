@@ -1167,7 +1167,6 @@ def create_react_agent(
                 _record_audit_error(active_audit, exc)
             failure = tool_failure_from_exception(
                 exc,
-                code="execution_failed",
                 source="tool_execution",
             )
             log_tool_failure(
@@ -1176,6 +1175,23 @@ def create_react_agent(
                 tool_call_id=tool_id,
                 exception=exc,
             )
+            if phase == "execute":
+                tool_result_sink = _get_configurable(config).get("tool_result_sink")
+                if callable(tool_result_sink):
+                    output_payload = failure.to_result(
+                        {"tool_call_id": tool_id, "tool_name": tool_name}
+                    )
+                    await _maybe_await(
+                        tool_result_sink(
+                            {
+                                "session_id": _get_configurable(config).get("session_id"),
+                                "tool_call_id": tool_id,
+                                "tool_name": tool_name,
+                                "input": tool_args,
+                                "output": output_payload,
+                            }
+                        )
+                    )
             return outcome_update(failure_outcome(failure))
         finally:
             if isolated_session is not None:

@@ -101,6 +101,27 @@ def test_checkpoint_serializer_stringifies_out_of_range_integer_metadata() -> No
     assert restored[0].response_metadata["provider_counter"] == str(oversized_integer)
 
 
+def test_checkpoint_serializer_skips_sanitization_for_serializable_values(monkeypatch) -> None:
+    serializer = checkpointer_mod._CheckpointSerializer(
+        allowed_msgpack_modules=checkpointer_mod._ALLOWED_MSGPACK_MODULES,
+    )
+    sanitize_calls = 0
+    original_sanitize = checkpointer_mod._sanitize_checkpoint_value
+
+    def track_sanitize(value, active_ids=None):
+        nonlocal sanitize_calls
+        sanitize_calls += 1
+        return original_sanitize(value, active_ids)
+
+    monkeypatch.setattr(checkpointer_mod, "_sanitize_checkpoint_value", track_sanitize)
+
+    message_type, payload = serializer.dumps_typed({"message": "complete"})
+
+    assert message_type == "msgpack"
+    assert payload
+    assert sanitize_calls == 0
+
+
 @pytest.mark.asyncio
 async def test_get_checkpointer_restores_legacy_question_checkpoint(
     monkeypatch, tmp_path

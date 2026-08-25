@@ -10,6 +10,7 @@ from langgraph.types import Command
 from pydantic import BaseModel
 
 from app.agent_runtime.tools.base import AgentTool, HookResult
+from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.types import TerminationCondition, ReactAgentConfig
 from app.agent_runtime.graph.react_agent import (
     _invoke_model,
@@ -247,6 +248,7 @@ async def test_react_agent_normalizes_structured_tool_exception() -> None:
         termination=TerminationCondition(mode="no_tool_call"),
         max_iterations=2,
     )
+    tool_results: list[dict] = []
 
     with patch(
         "app.agent_runtime.graph.react_agent._invoke_model",
@@ -258,7 +260,8 @@ async def test_react_agent_normalizes_structured_tool_exception() -> None:
                 "iteration_count": 0,
                 "is_done": False,
                 "final_output": None,
-            }
+            },
+            config={"configurable": {"tool_result_sink": tool_results.append}},
         )
 
     tool_messages = [
@@ -271,6 +274,74 @@ async def test_react_agent_normalizes_structured_tool_exception() -> None:
         "message": "structured tool failure",
     }
     assert result["messages"][-1].content == "recovered"
+    assert tool_results == [
+        {
+            "session_id": None,
+            "tool_call_id": "call-1",
+            "tool_name": "failing_tool",
+            "input": {},
+            "output": {
+                "type": "fail",
+                "success": False,
+                "code": "execution_failed",
+                "message": "structured tool failure",
+                "tool_call_id": "call-1",
+                "tool_name": "failing_tool",
+            },
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_react_agent_preserves_structured_tool_error_code() -> None:
+    async def failing_tool() -> str:
+        raise ToolExecutionError("章节不存在", code="not_found")
+
+    tool = StructuredTool.from_function(
+        coroutine=failing_tool,
+        name="failing_tool",
+        description="fails",
+    )
+    model = Mock()
+    model.bind_tools.return_value = model
+    responses = iter(
+        [
+            AIMessage(
+                content="",
+                tool_calls=[{"id": "call-1", "name": "failing_tool", "args": {}}],
+            ),
+            AIMessage(content="recovered"),
+        ]
+    )
+
+    async def invoke_model(*_args, **_kwargs):
+        return next(responses)
+
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model",
+        side_effect=invoke_model,
+    ):
+        result = await create_react_agent(
+            ReactAgentConfig(
+                name="writer",
+                tools=[tool],
+                termination=TerminationCondition(mode="no_tool_call"),
+                max_iterations=2,
+            ),
+            model=model,
+        ).ainvoke(
+            {
+                "messages": [HumanMessage(content="go")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            }
+        )
+
+    tool_message = next(
+        message for message in result["messages"] if isinstance(message, ToolMessage)
+    )
+    assert json.loads(tool_message.content)["code"] == "not_found"
 
 
 @pytest.mark.asyncio
