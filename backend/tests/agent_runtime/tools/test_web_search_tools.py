@@ -156,8 +156,8 @@ class TestWebSearchTool:
                 result = await tool.ainvoke({"query": "hello"})
 
         payload = json.loads(result)
-        assert "error" in payload
-        assert "未启用" in payload["error"]
+        assert payload["success"] is False
+        assert "未启用" in payload["message"]
         session.close.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -176,8 +176,8 @@ class TestWebSearchTool:
                 result = await tool.ainvoke({"query": "hello"})
 
         payload = json.loads(result)
-        assert "error" in payload
-        assert "尚未配置" in payload["error"]
+        assert payload["success"] is False
+        assert "尚未配置" in payload["message"]
         session.close.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -198,7 +198,8 @@ class TestWebSearchTool:
                 result = await tool.ainvoke({"query": "hello"})
 
         payload = json.loads(result)
-        assert "不支持的搜索 provider" in payload["error"]
+        assert payload["success"] is False
+        assert "不支持的搜索 provider" in payload["message"]
 
     @pytest.mark.asyncio
     @respx.mock
@@ -250,7 +251,9 @@ class TestWebSearchTool:
     async def test_blank_query_returns_error(self) -> None:
         tool = _make_tool()
         result = await tool.ainvoke({"query": "   "})
-        assert "检索关键词不能为空" in json.loads(result)["error"]
+        payload = json.loads(result)
+        assert payload["success"] is False
+        assert "检索关键词不能为空" in payload["message"]
 
 
 class TestHttpProviders:
