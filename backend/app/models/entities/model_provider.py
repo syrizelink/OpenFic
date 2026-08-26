@@ -35,7 +35,7 @@ class ModelProvider(SQLModel, table=True):
         description=(
             "Provider type: anthropic, openai, google-genai, ollama, groq, "
             "huggingface, mistral, nvidia-ai-endpoints, cohere, openrouter, "
-            "amazon-nova, deepseek, openai-compatible"
+            "amazon-nova, deepseek, openai-compatible, openai-compatible-responses"
         ),
     )
     is_builtin: bool = Field(default=False, description="是否为内置提供商（不可删除/编辑）")

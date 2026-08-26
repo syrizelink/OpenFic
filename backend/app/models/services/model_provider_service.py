@@ -138,7 +138,11 @@ class ModelProviderService:
         return provider
 
     async def _resolve_provider_url(self, provider_type: str, url: str) -> str:
-        if provider_type in {"openai-compatible", "anthropic-compatible"}:
+        if provider_type in {
+            "openai-compatible",
+            "openai-compatible-responses",
+            "anthropic-compatible",
+        }:
             return url
 
         try:
@@ -272,6 +276,8 @@ class ModelProviderService:
         runtime_provider_type = (
             "anthropic-compatible"
             if provider_type == "anthropic-compatible"
+            else "openai-compatible-responses"
+            if provider_type == "openai-compatible-responses"
             else "openai-compatible"
         )
         adapter = AdapterRegistry.get_adapter(runtime_provider_type)
@@ -312,6 +318,8 @@ class ModelProviderService:
         runtime_provider_type = (
             "anthropic-compatible"
             if provider.provider_type == "anthropic-compatible"
+            else "openai-compatible-responses"
+            if provider.provider_type == "openai-compatible-responses"
             else "openai-compatible"
         )
         if not AdapterRegistry.is_supported(runtime_provider_type, task_type):

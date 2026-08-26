@@ -30,6 +30,12 @@ const OPENAI_COMPATIBLE_OPTION: ProviderIdSelectOption = {
   iconPath: null,
 };
 
+const OPENAI_RESPONSES_COMPATIBLE_OPTION: ProviderIdSelectOption = {
+  value: "openai-compatible-responses",
+  label: "OpenAI Compatible (Responses)",
+  iconPath: null,
+};
+
 const ANTHROPIC_COMPATIBLE_OPTION: ProviderIdSelectOption = {
   value: "anthropic-compatible",
   label: "Anthropic Compatible",
@@ -55,7 +61,11 @@ export function ProviderIdSelect({
       iconPath: provider.iconPath,
     }));
 
-    for (const compatibleOption of [OPENAI_COMPATIBLE_OPTION, ANTHROPIC_COMPATIBLE_OPTION]) {
+    for (const compatibleOption of [
+      OPENAI_COMPATIBLE_OPTION,
+      OPENAI_RESPONSES_COMPATIBLE_OPTION,
+      ANTHROPIC_COMPATIBLE_OPTION,
+    ]) {
       if (!catalogOptions.some((option) => option.value === compatibleOption.value)) {
         catalogOptions.push(compatibleOption);
       }

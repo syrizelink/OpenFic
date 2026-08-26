@@ -294,6 +294,40 @@ async def test_validate_anthropic_compatible_provider_discovers_models(
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_validate_openai_responses_compatible_provider_discovers_models(
+    client: AsyncClient,
+):
+    route = respx.get("https://gateway.example/v1/models").mock(
+        return_value=httpx.Response(
+            200,
+            json={"data": [{"id": "responses-model", "name": "Responses Model"}]},
+        )
+    )
+
+    response = await client.post(
+        "/api/v1/model-providers/validate",
+        json={
+            "provider_type": "openai-compatible-responses",
+            "url": "https://gateway.example",
+            "api_key": "test-key",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    assert response.json()["models"] == [
+        {
+            "id": "responses-model",
+            "name": "Responses Model",
+            "task_type": None,
+            "metadata": None,
+        }
+    ]
+    assert route.calls[0].request.headers["authorization"] == "Bearer test-key"
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_get_anthropic_compatible_provider_models_discovers_models(
     client: AsyncClient,
     session: AsyncSession,

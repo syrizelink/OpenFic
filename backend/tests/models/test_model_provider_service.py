@@ -111,6 +111,30 @@ async def test_validate_anthropic_compatible_connection_uses_its_adapter(monkeyp
 
 
 @pytest.mark.asyncio
+async def test_validate_openai_responses_compatible_connection_uses_its_adapter(
+    monkeypatch,
+):
+    encryption_service = EncryptionService("id-hEPdEELwlgep9FQhcYQtX7ow188l7WHwy65qOZGQ=")
+    service = ModelProviderService(encryption_service)
+    requested_provider_types: list[str] = []
+
+    def get_adapter(cls, provider_type: str):
+        requested_provider_types.append(provider_type)
+        return _FakeAdapter()
+
+    monkeypatch.setattr(AdapterRegistry, "get_adapter", classmethod(get_adapter))
+
+    models = await service.validate_and_get_models(
+        "openai-compatible-responses",
+        "https://gateway.example",
+        "test-key",
+    )
+
+    assert models == [{"id": "llm-1", "name": "LLM 1"}]
+    assert requested_provider_types == ["openai-compatible-responses"]
+
+
+@pytest.mark.asyncio
 async def test_validate_native_anthropic_connection_keeps_openai_compatible_discovery(
     monkeypatch,
 ):
@@ -160,6 +184,38 @@ async def test_get_available_models_uses_anthropic_compatible_adapter(monkeypatc
 
     assert models == [{"id": "llm-1", "name": "LLM 1"}]
     assert requested_provider_types == ["anthropic-compatible", "anthropic-compatible"]
+
+
+@pytest.mark.asyncio
+async def test_get_available_models_uses_openai_responses_compatible_adapter(monkeypatch):
+    encryption_service = EncryptionService("id-hEPdEELwlgep9FQhcYQtX7ow188l7WHwy65qOZGQ=")
+    service = ModelProviderService(encryption_service)
+    provider = ModelProvider(
+        name="OpenAI Responses Compatible",
+        url="https://gateway.example",
+        api_key_encrypted=encryption_service.encrypt("test-key"),
+        provider_type="openai-compatible-responses",
+    )
+    requested_provider_types: list[str] = []
+
+    def get_adapter(cls, provider_type: str):
+        requested_provider_types.append(provider_type)
+        return _FakeAdapter()
+
+    def is_supported(cls, provider_type: str, task_type: str) -> bool:
+        requested_provider_types.append(provider_type)
+        return task_type == "llm"
+
+    monkeypatch.setattr(AdapterRegistry, "get_adapter", classmethod(get_adapter))
+    monkeypatch.setattr(AdapterRegistry, "is_supported", classmethod(is_supported))
+
+    models = await service.get_available_models(provider, "llm")
+
+    assert models == [{"id": "llm-1", "name": "LLM 1"}]
+    assert requested_provider_types == [
+        "openai-compatible-responses",
+        "openai-compatible-responses",
+    ]
 
 
 @pytest.mark.asyncio

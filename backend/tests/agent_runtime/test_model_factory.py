@@ -493,6 +493,22 @@ def test_create_chat_model_openai_compatible_enables_stream_usage_for_custom_bas
     assert model.stream_usage is True
 
 
+def test_create_chat_model_openai_responses_compatible_uses_responses_api():
+    config = ModelConfig(
+        provider_type="openai-compatible-responses",
+        base_url="https://gateway.example/v1",
+        api_key="sk-test",
+        model_id="responses-model",
+    )
+    model = create_chat_model(config)
+
+    from langchain_openai import ChatOpenAI
+
+    assert isinstance(model, ChatOpenAI)
+    assert model.use_responses_api is True
+    assert str(model.root_client.base_url) == "https://gateway.example/v1/"
+
+
 def test_create_chat_model_deepseek_enables_stream_usage():
     config = ModelConfig(
         provider_type="deepseek",

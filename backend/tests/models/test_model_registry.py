@@ -21,6 +21,7 @@ def test_registry_lists_only_current_first_class_provider_types() -> None:
         "amazon-nova",
         "deepseek",
         "openai-compatible",
+        "openai-compatible-responses",
         "anthropic-compatible",
     }
     assert "google-vertex" not in AdapterRegistry.list_providers()
