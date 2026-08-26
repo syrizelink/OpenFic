@@ -33,6 +33,7 @@ class ModelConfig:
     base_url: str
     api_key: str
     model_id: str
+    custom_headers: dict[str, str] | None = None
     max_context_tokens: int | None = None
     temperature: float | None = DEFAULT_TEMPERATURE
     top_p: float | None = DEFAULT_TOP_P
@@ -99,6 +100,7 @@ def _openai_compatible_kwargs(config: ModelConfig) -> dict[str, Any]:
         model=config.model_id,
         api_key=config.api_key,
         base_url=config.base_url or None,
+        default_headers=config.custom_headers or None,
         temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
         top_p=_non_default(config.top_p, DEFAULT_TOP_P),
         max_tokens=config.max_tokens,
@@ -139,6 +141,7 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             model=config.model_id,
             api_key=config.api_key,
             base_url=config.base_url or None,
+            default_headers=config.custom_headers or None,
             temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
             top_p=_non_default(config.top_p, DEFAULT_TOP_P),
             top_k=_non_default(config.top_k, DEFAULT_TOP_K),

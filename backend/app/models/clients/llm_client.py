@@ -47,6 +47,7 @@ class LLMConfig:
     base_url: str
     api_key: str
     model_id: str
+    custom_headers: dict[str, str] | None = None
     temperature: float | None = 1.0
     top_p: float | None = 1.0
     top_k: int | None = 0
@@ -109,6 +110,7 @@ class LLMClient:
                 base_url=config.base_url,
                 api_key=config.api_key,
                 model_id=config.model_id,
+                custom_headers=config.custom_headers,
                 temperature=config.temperature,
                 top_p=config.top_p,
                 top_k=config.top_k,

@@ -5,6 +5,7 @@ ModelProvider 数据模型。
 
 from datetime import UTC, datetime
 
+from sqlalchemy import Column, Text
 from sqlmodel import Field, SQLModel
 
 from app.core.ids import generate_id
@@ -30,6 +31,10 @@ class ModelProvider(SQLModel, table=True):
     name: str = Field(default="", max_length=200)
     url: str = Field(max_length=500)
     api_key_encrypted: str = Field(max_length=1000)
+    custom_headers_encrypted: str = Field(
+        default="",
+        sa_column=Column(Text, nullable=False),
+    )
     provider_type: str = Field(
         max_length=50,
         description=(

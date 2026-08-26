@@ -29,6 +29,10 @@ class ModelProviderResponse(BaseModel):
     name: str = Field(description="提供商名称/备注")
     url: str = Field(description="服务 URL")
     provider_type: str = Field(description="提供商类型")
+    custom_header_names: list[str] = Field(
+        default_factory=list,
+        description="已配置的自定义请求头名称（不返回请求头值）",
+    )
     supported_task_types: list[str] = Field(
         description="支持的任务类型列表 (llm, embedding, rerank)"
     )
@@ -41,12 +45,23 @@ class ModelProviderResponse(BaseModel):
     updated_at: str = Field(description="更新时间")
 
 
+class CustomHeaderEntry(BaseModel):
+    """单条自定义请求头。"""
+
+    key: str = Field(description="请求头名称")
+    value: str = Field(description="请求头值")
+
+
 class ModelProviderValidateRequest(BaseModel):
     """验证提供商连接请求。"""
 
     provider_type: str = Field(description="提供商类型")
     url: str = Field(description="服务 URL")
     api_key: str = Field(description="API Key")
+    custom_headers: list["CustomHeaderEntry"] = Field(
+        default_factory=list,
+        description="自定义请求头",
+    )
 
 
 class AvailableModelMetadata(BaseModel):

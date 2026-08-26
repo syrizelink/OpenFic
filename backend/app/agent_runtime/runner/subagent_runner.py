@@ -58,6 +58,7 @@ from app.agent_runtime.usage_cost import (
 from app.core.encryption import EncryptionService
 from app.models.clients.model_factory import ModelConfig, create_chat_model
 from app.models.repos import model_provider_repo, model_repo
+from app.models.services.model_provider_service import ModelProviderService
 from app.socket import emit
 from app.socket.handlers import (
     agent_session_room,
@@ -172,12 +173,17 @@ async def _build_model_config_from_record(session: Any, record_id: str) -> dict[
     if provider is None:
         return None
 
-    api_key = EncryptionService(settings.encryption_key).decrypt(provider.api_key_encrypted)
+    encryption_service = EncryptionService(settings.encryption_key)
+    api_key = encryption_service.decrypt(provider.api_key_encrypted)
+    custom_headers = ModelProviderService(
+        encryption_service
+    ).get_decrypted_custom_headers(provider)
     return {
         "provider_type": provider.provider_type,
         "base_url": provider.url,
         "api_key": api_key,
         "model_id": model.model_id,
+        **({"custom_headers": custom_headers} if custom_headers else {}),
         "max_context_tokens": model.context_length,
         "input_price": getattr(model, "input_price", 0.0),
         "output_price": getattr(model, "output_price", 0.0),

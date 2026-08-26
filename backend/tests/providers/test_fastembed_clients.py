@@ -132,6 +132,22 @@ def test_embedding_client_uses_openai_compatible_for_ollama_even_when_not_forced
     assert not caught_warnings
 
 
+def test_embedding_client_sends_custom_headers_for_openai_compatible_provider():
+    client = EmbeddingClient(
+        EmbeddingConfig(
+            provider_type="openai-compatible",
+            base_url="https://gateway.example/v1",
+            api_key="test-key",
+            model_id="embedding-model",
+            custom_headers={"X-Provider-Token": "custom-token"},
+        )
+    )
+
+    embeddings = client._get_embeddings()
+
+    assert embeddings.default_headers["X-Provider-Token"] == "custom-token"
+
+
 def test_rerank_client_forces_openai_compatible_for_non_builtin_provider():
     client = RerankClient(
         RerankConfig(

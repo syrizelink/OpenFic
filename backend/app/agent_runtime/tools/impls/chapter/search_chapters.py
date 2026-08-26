@@ -102,12 +102,14 @@ async def _build_embedding_client(session: AsyncSession, model_ref_id: str):
     try:
         provider_service = ModelProviderService(EncryptionService(settings.encryption_key))
         api_key = provider_service.get_decrypted_api_key(provider) or ""
+        custom_headers = provider_service.get_decrypted_custom_headers(provider)
         return EmbeddingClient(
             EmbeddingConfig(
                 provider_type=provider.provider_type,
                 base_url=provider.url,
                 api_key=api_key,
                 model_id=model.model_id,
+                custom_headers=custom_headers or None,
                 dimensions=model.dimensions,
             )
         )
@@ -130,12 +132,14 @@ async def _build_rerank_client(
     try:
         provider_service = ModelProviderService(EncryptionService(settings.encryption_key))
         api_key = provider_service.get_decrypted_api_key(provider) or ""
+        custom_headers = provider_service.get_decrypted_custom_headers(provider)
         return RerankClient(
             RerankConfig(
                 provider_type=provider.provider_type,
                 base_url=provider.url,
                 api_key=api_key,
                 model_id=model.model_id,
+                custom_headers=custom_headers or None,
             )
         )
     except Exception:

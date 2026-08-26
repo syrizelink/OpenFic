@@ -1,6 +1,7 @@
 """OpenAI Responses API-compatible provider adapter."""
 
 import httpx
+from collections.abc import Mapping
 
 from app.models.adapters.openai_compatible import OpenAICompatibleAdapter
 
@@ -19,6 +20,11 @@ class OpenAIResponsesCompatibleAdapter(OpenAICompatibleAdapter):
         return False
 
     async def get_embedding_models(
-        self, client: httpx.AsyncClient, base_url: str, api_key: str
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         return []

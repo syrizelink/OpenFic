@@ -5,6 +5,8 @@ Model Provider Service - 模型服务提供商业务逻辑层。
 Service作为Executor，是唯一发起调用的地方，负责处理重试、熔断、fallback和观测。
 """
 
+import json
+from collections.abc import Mapping
 from typing import Any
 
 import httpx
@@ -17,6 +19,15 @@ from app.models.catalog import CatalogMatch, ModelProviderCatalogService
 from app.models.entities.model_provider import ModelProvider
 from app.models.registry import AdapterRegistry
 from app.models.repos import model_provider_repo
+
+
+CUSTOM_PROVIDER_TYPES = frozenset(
+    {
+        "openai-compatible",
+        "openai-compatible-responses",
+        "anthropic-compatible",
+    }
+)
 
 
 class ModelProviderService:
@@ -80,6 +91,68 @@ class ModelProviderService:
             catalog_match = await self.get_catalog_match(provider)
         return catalog_match.icon_path if catalog_match else None
 
+    def get_decrypted_custom_headers(self, provider: ModelProvider) -> dict[str, str]:
+        """获取自定义提供商的请求头，不向 API 响应暴露值。"""
+        if provider.provider_type not in CUSTOM_PROVIDER_TYPES:
+            return {}
+
+        encrypted_headers = provider.custom_headers_encrypted
+        if not encrypted_headers:
+            return {}
+
+        try:
+            payload = json.loads(self.encryption_service.decrypt(encrypted_headers))
+        except Exception:
+            logger.warning("Failed to decrypt custom headers for provider {}", provider.id)
+            return {}
+
+        if not isinstance(payload, dict):
+            return {}
+        return {
+            key: value
+            for key, value in payload.items()
+            if isinstance(key, str) and isinstance(value, str)
+        }
+
+    def get_custom_header_names(self, provider: ModelProvider) -> list[str]:
+        """获取已配置的自定义请求头名称。"""
+        return list(self.get_decrypted_custom_headers(provider))
+
+    @staticmethod
+    def _normalize_custom_headers(
+        provider_type: str,
+        entries: list[dict[str, str]] | None,
+        existing_headers: Mapping[str, str] | None = None,
+    ) -> dict[str, str]:
+        """清理请求头输入，并在更新时保留未重新填写的旧值。"""
+        existing = dict(existing_headers or {})
+        normalized: dict[str, str] = {}
+
+        for entry in entries or []:
+            key = entry.get("key", "").strip()
+            value = entry.get("value", "")
+            if not isinstance(value, str):
+                raise ValueError("自定义请求头值必须是字符串")
+            if not key and not value:
+                continue
+            if "\r" in key or "\n" in key or "\r" in value or "\n" in value:
+                raise ValueError("自定义请求头不能包含换行符")
+            if not key:
+                continue
+
+            existing_key = next(
+                (name for name in existing if name.casefold() == key.casefold()),
+                None,
+            )
+            if not value and existing_key is not None:
+                normalized[key] = existing[existing_key]
+            elif value:
+                normalized[key] = value
+
+        if provider_type not in CUSTOM_PROVIDER_TYPES and normalized:
+            raise ValueError("自定义请求头仅支持自定义类型提供商")
+        return normalized
+
     async def get_provider_by_id(
         self, session: AsyncSession, provider_id: str
     ) -> ModelProvider:
@@ -108,6 +181,7 @@ class ModelProviderService:
         url: str,
         api_key: str,
         provider_type: str,
+        custom_headers: list[dict[str, str]] | None = None,
     ) -> ModelProvider:
         """
         创建提供商。
@@ -118,6 +192,7 @@ class ModelProviderService:
             url: 服务 URL。
             api_key: API Key（明文）。
             provider_type: 提供商类型。
+            custom_headers: 自定义请求头。
 
         Returns:
             创建的提供商实例。
@@ -126,6 +201,12 @@ class ModelProviderService:
 
         # 加密 API Key
         encrypted_key = self.encryption_service.encrypt(api_key) if api_key else ""
+        normalized_headers = self._normalize_custom_headers(provider_type, custom_headers)
+        encrypted_headers = (
+            self.encryption_service.encrypt(json.dumps(normalized_headers, ensure_ascii=False))
+            if normalized_headers
+            else ""
+        )
 
         provider = await model_provider_repo.create(
             session=session,
@@ -133,6 +214,7 @@ class ModelProviderService:
             url=url,
             api_key_encrypted=encrypted_key,
             provider_type=provider_type,
+            custom_headers_encrypted=encrypted_headers,
         )
         await session.commit()
         return provider
@@ -160,6 +242,7 @@ class ModelProviderService:
         url: str | None = None,
         api_key: str | None = None,
         provider_type: str | None = None,
+        custom_headers: list[dict[str, str]] | None = None,
     ) -> ModelProvider:
         """
         更新提供商。
@@ -171,6 +254,7 @@ class ModelProviderService:
             url: 服务 URL。
             api_key: API Key（明文），如果提供则重新加密。
             provider_type: 提供商类型。
+            custom_headers: 自定义请求头。
 
         Returns:
             更新后的提供商实例。
@@ -178,16 +262,34 @@ class ModelProviderService:
         Raises:
             NotFoundError: 如果提供商不存在。
         """
-        # 加密 API Key（如果提供）
-        encrypted_key = None
-        if api_key is not None:
-            encrypted_key = self.encryption_service.encrypt(api_key) if api_key else ""
-
         existing = await model_provider_repo.get_by_id(session, provider_id)
         if existing is None:
             raise NotFoundError(f"Provider with id {provider_id} not found")
         if existing.is_builtin:
             raise ValueError("内置提供商不允许编辑")
+
+        # 加密 API Key（如果提供）
+        encrypted_key = None
+        if api_key is not None:
+            encrypted_key = self.encryption_service.encrypt(api_key) if api_key else ""
+
+        effective_provider_type = provider_type or existing.provider_type
+        encrypted_headers = None
+        if custom_headers is not None:
+            normalized_headers = self._normalize_custom_headers(
+                effective_provider_type,
+                custom_headers,
+                self.get_decrypted_custom_headers(existing),
+            )
+            encrypted_headers = (
+                self.encryption_service.encrypt(
+                    json.dumps(normalized_headers, ensure_ascii=False)
+                )
+                if normalized_headers
+                else ""
+            )
+        elif effective_provider_type not in CUSTOM_PROVIDER_TYPES:
+            encrypted_headers = ""
 
         provider = await model_provider_repo.update(
             session=session,
@@ -195,6 +297,7 @@ class ModelProviderService:
             name=name,
             url=url,
             api_key_encrypted=encrypted_key,
+            custom_headers_encrypted=encrypted_headers,
             provider_type=provider_type,
         )
 
@@ -254,7 +357,11 @@ class ModelProviderService:
     # ========================
 
     async def validate_and_get_models(
-        self, provider_type: str, url: str, api_key: str
+        self,
+        provider_type: str,
+        url: str,
+        api_key: str,
+        custom_headers: list[dict[str, str]] | None = None,
     ) -> list[dict[str, str]]:
         """
         验证提供商连接并获取模型列表。
@@ -263,6 +370,7 @@ class ModelProviderService:
             provider_type: 提供商类型。
             url: 服务 URL。
             api_key: API Key（明文）。
+            custom_headers: 自定义请求头。
 
         Returns:
             模型列表，每个模型为 {"id": "model-id", "name": "Model Name"} 格式。
@@ -281,10 +389,18 @@ class ModelProviderService:
             else "openai-compatible"
         )
         adapter = AdapterRegistry.get_adapter(runtime_provider_type)
+        request_headers = self._normalize_custom_headers(provider_type, custom_headers)
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # 默认获取LLM模型列表（用于连接验证）
+                if request_headers:
+                    return await adapter.get_llm_models(
+                        client,
+                        url,
+                        api_key,
+                        headers=request_headers,
+                    )
                 return await adapter.get_llm_models(client, url, api_key)
         except Exception as e:
             logger.error(f"验证提供商连接失败: {e}")
@@ -332,21 +448,42 @@ class ModelProviderService:
 
         # 解密API Key
         api_key = self.encryption_service.decrypt(provider.api_key_encrypted)
+        request_headers = self.get_decrypted_custom_headers(provider)
 
         # 创建HTTP客户端并执行请求
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # 根据task_type路由到对应方法
                 if task_type == "llm":
-                    models = await adapter.get_llm_models(client, provider.url, api_key)
+                    if request_headers:
+                        models = await adapter.get_llm_models(
+                            client,
+                            provider.url,
+                            api_key,
+                            headers=request_headers,
+                        )
+                    else:
+                        models = await adapter.get_llm_models(client, provider.url, api_key)
                 elif task_type == "rerank":
-                    models = await adapter.get_rerank_models(
-                        client, provider.url, api_key
-                    )
+                    if request_headers:
+                        models = await adapter.get_rerank_models(
+                            client,
+                            provider.url,
+                            api_key,
+                            headers=request_headers,
+                        )
+                    else:
+                        models = await adapter.get_rerank_models(client, provider.url, api_key)
                 else:
-                    models = await adapter.get_embedding_models(
-                        client, provider.url, api_key
-                    )
+                    if request_headers:
+                        models = await adapter.get_embedding_models(
+                            client,
+                            provider.url,
+                            api_key,
+                            headers=request_headers,
+                        )
+                    else:
+                        models = await adapter.get_embedding_models(client, provider.url, api_key)
 
                 logger.info(
                     f"Successfully fetched {len(models)} models for provider={provider.provider_type}, task_type={task_type}"

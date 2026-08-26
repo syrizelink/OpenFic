@@ -2,7 +2,7 @@ import tiktoken.load
 import tiktoken.registry
 import pytest
 
-from app.agent_runtime.model_config import to_client_model_config
+from app.agent_runtime.model_config import to_client_model_config, without_api_key
 from app.models.clients.model_factory import create_chat_model, ModelConfig
 
 
@@ -20,6 +20,17 @@ def test_to_client_model_config_excludes_internal_model_record_id():
     model = create_chat_model(ModelConfig(**config))
 
     assert model.model_name == "gpt-4o"
+
+
+def test_without_api_key_removes_custom_headers_from_persisted_config():
+    persisted = without_api_key(
+        {
+            "api_key": "sk-test",
+            "custom_headers": {"X-Provider-Token": "custom-token"},
+        }
+    )
+
+    assert persisted == {}
 
 
 def test_create_chat_model_openai_returns_chat_openai():
@@ -70,6 +81,30 @@ def test_create_chat_model_anthropic_compatible_uses_anthropic_client_with_custo
     assert model.anthropic_api_url == "https://gateway.example/v1"
     assert model.effort == "high"
     assert model.max_retries == 0
+
+
+def test_create_chat_model_custom_providers_send_custom_headers():
+    openai_model = create_chat_model(
+        ModelConfig(
+            provider_type="openai-compatible",
+            base_url="https://gateway.example/v1",
+            api_key="test-key",
+            model_id="custom-model",
+            custom_headers={"X-Provider-Token": "custom-token"},
+        )
+    )
+    anthropic_model = create_chat_model(
+        ModelConfig(
+            provider_type="anthropic-compatible",
+            base_url="https://gateway.example/v1",
+            api_key="test-key",
+            model_id="custom-claude",
+            custom_headers={"X-Provider-Token": "custom-token"},
+        )
+    )
+
+    assert openai_model.default_headers["X-Provider-Token"] == "custom-token"
+    assert anthropic_model.default_headers["X-Provider-Token"] == "custom-token"
 
 
 def test_create_chat_model_with_temperature():

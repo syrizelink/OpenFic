@@ -41,6 +41,7 @@ class RerankConfig:
     base_url: str
     api_key: str
     model_id: str
+    custom_headers: dict[str, str] | None = None
     request_timeout: int = DEFAULT_RERANK_TIMEOUT
     use_openai_compatible: bool = True
 
@@ -103,6 +104,7 @@ class RerankClient:
                 }
                 if self.config.provider_type == "openrouter":
                     headers.update(get_openrouter_attribution_headers())
+                headers.update(self.config.custom_headers or {})
                 response = await client.post(
                     f"{self.config.base_url.rstrip('/')}/rerank",
                     json=payload,

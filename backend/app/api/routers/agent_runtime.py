@@ -78,6 +78,7 @@ from app.core.encryption import EncryptionService
 from app.core.errors import NotFoundError
 from app.core.ids import generate_id
 from app.models.repos import model_provider_repo, model_repo
+from app.models.services.model_provider_service import ModelProviderService
 from app.settings import settings
 from app.background.jobs.session_title_jobs import enqueue_session_title_job
 from app.background.jobs import service as background_service
@@ -452,7 +453,11 @@ async def _release_agent_session_resume_claim(
 
 
 async def _build_model_config(
-    model, provider, api_key: str, reasoning_effort: str | None = None
+    model,
+    provider,
+    api_key: str,
+    reasoning_effort: str | None = None,
+    custom_headers: dict[str, str] | None = None,
 ) -> dict:
     model_config = {
         "model_record_id": model.id,
@@ -477,6 +482,8 @@ async def _build_model_config(
     }
     if reasoning_effort and reasoning_effort != "off":
         model_config["reasoning_effort"] = reasoning_effort
+    if custom_headers:
+        model_config["custom_headers"] = custom_headers
     return model_config
 
 
@@ -517,7 +524,16 @@ async def _resolve_model_config(
     except Exception as exc:
         raise ValueError("API密钥解密失败") from exc
 
-    return await _build_model_config(model, provider, api_key, reasoning_effort)
+    custom_headers = ModelProviderService(
+        encryption_service
+    ).get_decrypted_custom_headers(provider)
+    return await _build_model_config(
+        model,
+        provider,
+        api_key,
+        reasoning_effort,
+        custom_headers,
+    )
 
 
 async def _resolve_legacy_model_config(

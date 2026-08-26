@@ -63,6 +63,33 @@ async def test_rerank_parses_response_and_sends_top_n() -> None:
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_rerank_sends_custom_headers() -> None:
+    route = respx.post("https://gateway.example/v1/rerank").mock(
+        return_value=Response(
+            200,
+            json={
+                "model": "test-reranker",
+                "results": [{"index": 0, "relevance_score": 0.9}],
+            },
+        )
+    )
+    client = RerankClient(
+        RerankConfig(
+            provider_type="openai-compatible",
+            base_url="https://gateway.example/v1",
+            api_key="test-key",
+            model_id="test-reranker",
+            custom_headers={"X-Provider-Token": "custom-token"},
+        )
+    )
+
+    await client.rerank("query", ["document"])
+
+    assert route.calls[0].request.headers["x-provider-token"] == "custom-token"
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_rerank_raises_auth_error_on_401() -> None:
     respx.post("https://openrouter.ai/api/v1/rerank").mock(
         return_value=Response(401, json={"error": {"message": "unauthorized"}})

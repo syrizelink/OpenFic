@@ -7,6 +7,8 @@ Google AI API通过supportedGenerationMethods字段区分模型类型：
 - embedContent: Embedding模型
 """
 
+from collections.abc import Mapping
+
 import httpx
 from loguru import logger
 
@@ -21,7 +23,12 @@ class GoogleGenAIAdapter(BaseAdapter):
         return "google-genai"
 
     async def get_llm_models(
-        self, client: httpx.AsyncClient, base_url: str, api_key: str
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """获取LLM模型列表（supportedGenerationMethods包含generateContent）。"""
         url = f"{self._normalize_url(base_url)}/models"
@@ -56,7 +63,12 @@ class GoogleGenAIAdapter(BaseAdapter):
             ]
 
     async def get_embedding_models(
-        self, client: httpx.AsyncClient, base_url: str, api_key: str
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """获取Embedding模型列表（supportedGenerationMethods包含embedContent）。"""
         url = f"{self._normalize_url(base_url)}/models"

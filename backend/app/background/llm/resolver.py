@@ -10,6 +10,7 @@ from app.models.clients import LLMClient, LLMConfig
 from app.models.entities.model import Model
 from app.models.entities.model_provider import ModelProvider
 from app.models.repos import model_provider_repo, model_repo
+from app.models.services.model_provider_service import ModelProviderService
 from app.settings import settings
 from app.storage.repos import setting_repo
 
@@ -53,6 +54,9 @@ async def resolve_background_llm(
 
     encryption_service = EncryptionService(settings.encryption_key)
     api_key = encryption_service.decrypt(provider.api_key_encrypted)
+    custom_headers = ModelProviderService(
+        encryption_service
+    ).get_decrypted_custom_headers(provider)
     return ResolvedLLM(
         client=LLMClient(
             LLMConfig(
@@ -60,6 +64,7 @@ async def resolve_background_llm(
                 base_url=provider.url,
                 api_key=api_key,
                 model_id=model.model_id,
+                custom_headers=custom_headers or None,
                 temperature=model.temperature,
                 top_p=model.top_p,
                 top_k=model.top_k,

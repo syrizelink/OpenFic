@@ -23,6 +23,7 @@ class EmbeddingConfig:
     base_url: str
     api_key: str
     model_id: str
+    custom_headers: dict[str, str] | None = None
     dimensions: int | None = None
     batch_size: int = 50
     use_openai_compatible: bool = True
@@ -136,7 +137,12 @@ class EmbeddingClient:
                 "model_kwargs": {"encoding_format": "float"},
             }
             if config.provider_type == "openrouter":
-                openai_kwargs["default_headers"] = get_openrouter_attribution_headers()
+                openai_kwargs["default_headers"] = {
+                    **get_openrouter_attribution_headers(),
+                    **(config.custom_headers or {}),
+                }
+            elif config.custom_headers:
+                openai_kwargs["default_headers"] = config.custom_headers
             if config.dimensions is not None:
                 openai_kwargs["dimensions"] = config.dimensions
 

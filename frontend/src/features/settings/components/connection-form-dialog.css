@@ -1,0 +1,39 @@
+.connection-form-dialog__headers-list {
+  min-width: 0;
+  max-width: 100%;
+  max-height: 152px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: var(--space-1);
+}
+
+.connection-form-dialog__header-row {
+  width: 100%;
+  min-width: 0;
+}
+
+.connection-form-dialog__header-input {
+  min-width: 0;
+  width: 0;
+  flex: 1 1 0;
+}
+
+.connection-form-dialog__header-action {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--gray-9) !important;
+}
+
+.connection-form-dialog__header-action:hover,
+.connection-form-dialog__header-action:focus-visible {
+  background: transparent !important;
+  color: var(--gray-12) !important;
+}
+
+.connection-form-dialog__header-action--delete:hover,
+.connection-form-dialog__header-action--delete:focus-visible {
+  background: transparent !important;
+  color: var(--red-9) !important;
+}

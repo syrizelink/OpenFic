@@ -3,6 +3,8 @@
 ModelProvider API Tests - 模型服务提供商 API 测试。
 """
 
+import json
+
 import httpx
 import pytest
 import respx
@@ -37,6 +39,80 @@ async def test_create_provider(client: AsyncClient, session: AsyncSession):
     assert data["icon_path"] == _OPENAI_ICON_URL
     assert "id" in data
     assert "created_at" in data
+
+
+@pytest.mark.asyncio
+async def test_create_custom_provider_persists_encrypted_headers(
+    client: AsyncClient, session: AsyncSession
+):
+    from app.core.encryption import EncryptionService
+    from app.settings import settings
+
+    response = await client.post(
+        "/api/v1/model-providers",
+        data={
+            "name": "Custom Provider",
+            "url": "https://gateway.example/v1",
+            "api_key": "test-key",
+            "provider_type": "openai-compatible",
+            "custom_headers": json.dumps(
+                [{"key": "X-Provider-Token", "value": "custom-token"}]
+            ),
+        },
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["custom_header_names"] == ["X-Provider-Token"]
+
+    provider = await model_provider_repo.get_by_id(session, data["id"])
+    assert provider is not None
+    assert "custom-token" not in provider.custom_headers_encrypted
+    assert json.loads(
+        EncryptionService(settings.encryption_key).decrypt(provider.custom_headers_encrypted)
+    ) == {"X-Provider-Token": "custom-token"}
+
+
+@pytest.mark.asyncio
+async def test_update_custom_provider_headers_preserves_unchanged_values(
+    client: AsyncClient, session: AsyncSession
+):
+    from app.core.encryption import EncryptionService
+    from app.settings import settings
+
+    create_response = await client.post(
+        "/api/v1/model-providers",
+        data={
+            "name": "Custom Provider",
+            "url": "https://gateway.example/v1",
+            "api_key": "test-key",
+            "provider_type": "openai-compatible",
+            "custom_headers": json.dumps(
+                [
+                    {"key": "X-Provider-Token", "value": "custom-token"},
+                    {"key": "X-Project", "value": "project-a"},
+                ]
+            ),
+        },
+    )
+    provider_id = create_response.json()["id"]
+
+    update_response = await client.put(
+        f"/api/v1/model-providers/{provider_id}",
+        data={
+            "custom_headers": json.dumps(
+                [{"key": "X-Provider-Token", "value": ""}]
+            )
+        },
+    )
+
+    assert update_response.status_code == 200
+    assert update_response.json()["custom_header_names"] == ["X-Provider-Token"]
+    provider = await model_provider_repo.get_by_id(session, provider_id)
+    assert provider is not None
+    assert json.loads(
+        EncryptionService(settings.encryption_key).decrypt(provider.custom_headers_encrypted)
+    ) == {"X-Provider-Token": "custom-token"}
 
 
 @pytest.mark.asyncio
@@ -272,6 +348,9 @@ async def test_validate_anthropic_compatible_provider_discovers_models(
             "provider_type": "anthropic-compatible",
             "url": "https://gateway.example/v1",
             "api_key": "test-key",
+            "custom_headers": [
+                {"key": "X-Provider-Token", "value": "custom-token"}
+            ],
         },
     )
 
@@ -290,6 +369,7 @@ async def test_validate_anthropic_compatible_provider_discovers_models(
     }
     assert route.calls[0].request.headers["x-api-key"] == "test-key"
     assert route.calls[0].request.headers["anthropic-version"] == "2023-06-01"
+    assert route.calls[0].request.headers["x-provider-token"] == "custom-token"
 
 
 @pytest.mark.asyncio
@@ -310,6 +390,9 @@ async def test_validate_openai_responses_compatible_provider_discovers_models(
             "provider_type": "openai-compatible-responses",
             "url": "https://gateway.example",
             "api_key": "test-key",
+            "custom_headers": [
+                {"key": "X-Provider-Token", "value": "custom-token"}
+            ],
         },
     )
 
@@ -324,6 +407,7 @@ async def test_validate_openai_responses_compatible_provider_discovers_models(
         }
     ]
     assert route.calls[0].request.headers["authorization"] == "Bearer test-key"
+    assert route.calls[0].request.headers["x-provider-token"] == "custom-token"
 
 
 @pytest.mark.asyncio
