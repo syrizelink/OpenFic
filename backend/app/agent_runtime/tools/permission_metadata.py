@@ -52,6 +52,7 @@ _PERMISSION_METADATA_BY_TOOL_NAME = {
     "reference_skill": ToolPermissionMetadata("reference_skill", "allow"),
     "search_chapters": ToolPermissionMetadata("search_chapters", "allow"),
     "update_index": ToolPermissionMetadata("update_index", "allow"),
+    "web_fetch": ToolPermissionMetadata("web_fetch", "allow"),
     "web_search": ToolPermissionMetadata("web_search", "allow"),
     "write_chapter": ToolPermissionMetadata("write_chapter", "ask"),
     "write_note": ToolPermissionMetadata("write_note", "ask"),

@@ -794,6 +794,10 @@
       "referenceSkill": {
         "name": "Reference Skill",
         "description": "Read a specified reference document for a skill."
+      },
+      "webFetch": {
+        "name": "Read Web Page",
+        "description": "Read the static HTML content of a public web page."
       }
     },
     "language": "Language",
@@ -1919,6 +1923,7 @@
       "chapterCount": "{{count}} chapters",
       "searchChapters": "Search chapters",
       "webSearch": "Web search",
+      "webFetch": "Read web page",
       "webSearchQuery": "Query",
       "webSearchProvider": "Provider",
       "webSearchAnswer": "Answer",

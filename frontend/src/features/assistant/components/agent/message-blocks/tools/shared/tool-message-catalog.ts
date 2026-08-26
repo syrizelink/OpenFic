@@ -36,6 +36,7 @@ export const REGISTERED_TOOL_NAMES = [
   "delete_world_entry",
   "search_chapters",
   "web_search",
+  "web_fetch",
   "update_index",
   "write_plan",
   "activate_skill",
@@ -323,6 +324,13 @@ export const TOOL_DESCRIPTOR_META = {
     tag: "web-search",
     isExplore: true,
     contentMode: "expandable",
+  },
+  web_fetch: {
+    toolName: "web_fetch",
+    group: "context",
+    tag: "web-fetch",
+    isExplore: true,
+    contentMode: "hidden",
   },
   update_index: {
     toolName: "update_index",

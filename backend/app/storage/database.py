@@ -3,7 +3,6 @@
 数据库连接与 session 管理。
 """
 
-import os
 from pathlib import Path
 from collections.abc import AsyncGenerator
 
@@ -21,9 +20,7 @@ from app.settings import settings
 _engine = None
 _async_session_factory = None
 _VACUUM_MIN_FREE_BYTES = 64 * 1024 * 1024
-ALEMBIC_INI_PATH = Path(
-    os.getenv("OPENFIC_ALEMBIC_INI", str(Path(__file__).resolve().parents[2] / "alembic.ini"))
-)
+ALEMBIC_INI_PATH = Path(__file__).resolve().parents[2] / "alembic.ini"
 
 
 def _set_sqlite_pragma(dbapi_connection, connection_record):

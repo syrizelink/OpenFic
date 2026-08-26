@@ -1,7 +1,7 @@
 """OpenFic CLI 入口。
 
 用于以 pipx/uvx 安装后启动本地服务。
-桌面端（PyInstaller）与 Docker 不走此入口。
+桌面端与 Docker 均通过此入口启动后端服务。
 """
 
 from __future__ import annotations

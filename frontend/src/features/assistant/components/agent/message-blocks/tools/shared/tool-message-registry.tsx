@@ -410,6 +410,20 @@ const TOOL_REGISTRY = {
     defaultExpanded: () => true,
     render: (message) => <WebSearchToolMessage message={message} />,
   },
+  web_fetch: {
+    toolName: "web_fetch",
+    group: "context",
+    tag: "web-fetch",
+    isExplore: true,
+    contentMode: "hidden",
+    icon: Globe,
+    getTitle: () => i18n.t("assistant.tools.webFetch"),
+    getDetail: (message) => {
+      const data = getToolResultData(message) ?? getStreamingData(message);
+      if (!isRecord(data)) return undefined;
+      return asString(data.title) ?? asString(data.final_url) ?? asString(data.url);
+    },
+  },
   update_index: {
     toolName: "update_index",
     group: "chapter",

@@ -28,3 +28,4 @@ import app.agent_runtime.tools.impls.note.edit_note_category  # noqa: F401
 import app.agent_runtime.tools.impls.note.delete_note_category  # noqa: F401
 import app.agent_runtime.tools.impls.skill.skill  # noqa: F401
 import app.agent_runtime.tools.impls.web_search  # noqa: F401
+import app.agent_runtime.tools.impls.web_fetch  # noqa: F401

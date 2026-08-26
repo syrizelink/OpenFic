@@ -794,6 +794,10 @@
       "referenceSkill": {
         "name": "引用技能参考文档",
         "description": "读取指定技能的某个参考文档内容"
+      },
+      "webFetch": {
+        "name": "网页读取",
+        "description": "读取指定公开网页的静态 HTML 正文"
       }
     },
     "language": "语言",
@@ -1982,6 +1986,7 @@
       "chapterCount": "{{count}} 个章节",
       "searchChapters": "章节搜索",
       "webSearch": "联网搜索",
+      "webFetch": "网页读取",
       "webSearchQuery": "检索关键词",
       "webSearchProvider": "搜索 provider",
       "webSearchAnswer": "答案",

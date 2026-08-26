@@ -418,6 +418,10 @@ class TestAgentAPI:
                 "key": "web_search",
                 "is_readonly": True,
             },
+            {
+                "key": "web_fetch",
+                "is_readonly": True,
+            },
         ]
 
     async def test_create_agent_session_success(self, client: AsyncClient, session) -> None:

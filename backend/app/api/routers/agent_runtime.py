@@ -139,6 +139,7 @@ TOOL_DISPLAY_ORDER = {
     "activate_skill": 38,
     "reference_skill": 39,
     "web_search": 40,
+    "web_fetch": 41,
 }
 
 def _build_default_agent_session_title(created_at: datetime) -> str:

@@ -58,6 +58,14 @@ async def test_list_agent_tool_categories(client: AsyncClient):
     assert "chapter_write" in keys
     assert "character_read" in keys
     assert "character_write" in keys
+    assert "web_fetch" in keys
+
+    web_fetch = next(item for item in data["categories"] if item["key"] == "web_fetch")
+    assert web_fetch == {
+        "key": "web_fetch",
+        "name": "网页读取",
+        "tool_keys": ["web_fetch"],
+    }
 
     chapter_read = next(item for item in data["categories"] if item["key"] == "chapter_read")
     assert chapter_read["tool_keys"] == [

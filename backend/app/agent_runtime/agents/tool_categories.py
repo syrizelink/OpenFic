@@ -12,6 +12,7 @@ TOOL_CATEGORIES: Mapping[str, tuple[str, ...]] = MappingProxyType(
         ),
         "interaction": ("ask_user",),
         "web_search": ("web_search",),
+        "web_fetch": ("web_fetch",),
         "plan": ("write_plan",),
         "chapter_read": (
             "list_volumes",
@@ -66,6 +67,7 @@ TOOL_CATEGORY_DISPLAY: Mapping[str, str] = MappingProxyType(
         "orchestration": "委派子任务",
         "interaction": "提问",
         "web_search": "联网搜索",
+        "web_fetch": "网页读取",
         "plan": "计划",
         "chapter_read": "章节读取",
         "summary_read": "摘要读取",
