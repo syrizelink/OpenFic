@@ -33,6 +33,7 @@ class WebFetchOutput(BaseModel):
     url: str
     final_url: str
     title: str
+    icon_url: str | None = None
     author: str | None = None
     date: str | None = None
     site_name: str | None = None
@@ -79,6 +80,7 @@ class WebFetchTool(AgentTool):
         return WebFetchOutput(
             url=requested_url,
             final_url=page.final_url,
+            icon_url=page.icon_url,
             title=extracted.title,
             author=extracted.author,
             date=extracted.date,

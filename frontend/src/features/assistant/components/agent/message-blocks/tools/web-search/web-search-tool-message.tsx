@@ -1,11 +1,12 @@
 import { Box } from "@radix-ui/themes";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Globe } from "lucide-react";
 import { useState } from "react";
 
 import { ExternalLinkSafetyDialog } from "@/components/external-link-safety-dialog";
 import i18n from "@/i18n";
 import type { AgentMessage } from "@/lib/agent.types";
 
+import { joinClassNames } from "../../shared/message-shell-utils";
 import { ToolBody, ToolNotice } from "../shared/tool-message-shared";
 import {
   getToolResultData,
@@ -13,6 +14,7 @@ import {
   getStreamingData,
 } from "../shared/tool-message-utils";
 import {
+  getWebSearchFaviconUrl,
   isSafeWebSearchUrl,
   normalizeWebSearchData,
   type WebSearchResultPayload,
@@ -27,6 +29,114 @@ interface WebSearchToolMessageProps {
 function getResultTitle(result: WebSearchResultPayload, index: number): string {
   return (
     result.title || result.url || i18n.t("assistant.tools.webSearchResult", { index: index + 1 })
+  );
+}
+
+function WebSearchResultFavicon({ url }: { url: string }) {
+  const faviconUrl = getWebSearchFaviconUrl(url);
+  const [loadedFaviconUrl, setLoadedFaviconUrl] = useState<string>();
+  const [hasError, setHasError] = useState(false);
+  const isLoaded = faviconUrl !== undefined && loadedFaviconUrl === faviconUrl && !hasError;
+
+  return (
+    <span
+      className="agent-web-search-result-favicon"
+      aria-hidden="true"
+    >
+      {!isLoaded ? (
+        <Globe
+          size={14}
+          className="agent-web-search-result-favicon-fallback"
+        />
+      ) : null}
+      {faviconUrl && !hasError ? (
+        <img
+          src={faviconUrl}
+          alt=""
+          className={`agent-web-search-result-favicon-image${
+            isLoaded ? " agent-web-search-result-favicon-image--loaded" : ""
+          }`}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onLoad={() => setLoadedFaviconUrl(faviconUrl)}
+          onError={() => setHasError(true)}
+        />
+      ) : null}
+    </span>
+  );
+}
+
+interface WebSearchToolIconProps {
+  message: AgentMessage;
+  className: string;
+}
+
+export function WebSearchToolIcon({ message, className }: WebSearchToolIconProps) {
+  const data = normalizeWebSearchData(getToolResultData(message) ?? getStreamingData(message));
+  const [loadedIconUrls, setLoadedIconUrls] = useState<Array<string | undefined>>([]);
+  const [failedIconUrls, setFailedIconUrls] = useState<Array<string | undefined>>([]);
+  const faviconCandidates = data.results
+    .map((result, index) => ({ index, url: getWebSearchFaviconUrl(result.url) }))
+    .filter(
+      (candidate): candidate is { index: number; url: string } => candidate.url !== undefined,
+    );
+  const loadedIcons = faviconCandidates.filter(
+    ({ index, url }) => loadedIconUrls[index] === url && failedIconUrls[index] !== url,
+  );
+  const stackedIcons = loadedIcons.length >= 2 ? loadedIcons.slice(0, 3) : [];
+  const stackPositions = new Map(stackedIcons.map(({ index }, position) => [index, position]));
+  const showStack = stackedIcons.length >= 2;
+
+  return (
+    <span
+      className={joinClassNames(
+        "agent-web-search-tool-icon",
+        showStack && `agent-web-search-tool-icon--stack-${stackedIcons.length}`,
+      )}
+      aria-hidden="true"
+    >
+      {!showStack ? (
+        <Globe
+          size={16}
+          className={className}
+        />
+      ) : null}
+      {faviconCandidates.map(({ index, url }) => {
+        const stackPosition = stackPositions.get(index);
+        return (
+          <img
+            key={`${index}:${url}`}
+            src={url}
+            alt=""
+            className={joinClassNames(
+              "agent-web-search-tool-icon-image",
+              stackPosition !== undefined && "agent-web-search-tool-icon-image--visible",
+              stackPosition === 0 && "agent-web-search-tool-icon-image--first",
+              stackPosition === 1 && "agent-web-search-tool-icon-image--second",
+              stackPosition === 2 && "agent-web-search-tool-icon-image--third",
+            )}
+            loading="lazy"
+            decoding="async"
+            referrerPolicy="no-referrer"
+            onLoad={() => {
+              setLoadedIconUrls((current) => {
+                const next = [...current];
+                next[index] = url;
+                return next;
+              });
+            }}
+            onError={() => {
+              setFailedIconUrls((current) => {
+                const next = [...current];
+                next[index] = url;
+                return next;
+              });
+            }}
+          />
+        );
+      })}
+    </span>
   );
 }
 
@@ -47,6 +157,7 @@ function WebSearchResultItem({ result, index, onOpenLink }: WebSearchResultItemP
       >
         {index + 1}
       </span>
+      <WebSearchResultFavicon url={result.url} />
       <span className="agent-web-search-result-title">{title}</span>
       <ExternalLink
         className="agent-web-search-result-icon"

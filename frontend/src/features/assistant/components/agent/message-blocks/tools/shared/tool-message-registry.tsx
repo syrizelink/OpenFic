@@ -52,7 +52,7 @@ import {
 } from "../orchestration/recycle-subagent-tool-message";
 import { PlanToolMessage } from "../plan/plan-tool-message";
 import { getPlanToolDisplayConfig } from "../plan/plan-tool-message.utils";
-import { WebSearchToolMessage } from "../web-search/web-search-tool-message";
+import { WebSearchToolIcon, WebSearchToolMessage } from "../web-search/web-search-tool-message";
 import { normalizeWebSearchData } from "../web-search/web-search-tool-message.utils";
 import { WorldEntryToolMessage } from "../world-entry/world-entry-tool-message";
 import {
@@ -101,6 +101,8 @@ export interface ToolDescriptor {
   isExplore: boolean;
   contentMode: ToolContentMode;
   icon: LucideIcon;
+  getIconUrl?: (message: AgentMessage) => string | undefined;
+  renderIcon?: (message: AgentMessage, className: string) => ReactNode;
   getTitle: (message: AgentMessage) => string;
   getDetail?: (message: AgentMessage) => string | undefined;
   defaultExpanded?: (message: AgentMessage) => boolean;
@@ -396,6 +398,12 @@ const TOOL_REGISTRY = {
     isExplore: true,
     contentMode: "expandable",
     icon: Globe,
+    renderIcon: (message, className) => (
+      <WebSearchToolIcon
+        message={message}
+        className={className}
+      />
+    ),
     getTitle: () => i18n.t("assistant.tools.webSearch"),
     getDetail: (message) => {
       const data = normalizeWebSearchData(getToolResultData(message) ?? getStreamingData(message));
@@ -407,7 +415,7 @@ const TOOL_REGISTRY = {
       }
       return data.query;
     },
-    defaultExpanded: () => true,
+    defaultExpanded: () => false,
     render: (message) => <WebSearchToolMessage message={message} />,
   },
   web_fetch: {
@@ -417,6 +425,20 @@ const TOOL_REGISTRY = {
     isExplore: true,
     contentMode: "hidden",
     icon: Globe,
+    getIconUrl: (message) => {
+      const data = getToolResultData(message) ?? getStreamingData(message);
+      if (!isRecord(data)) return undefined;
+      const iconUrl = asString(data.icon_url);
+      if (!iconUrl) return undefined;
+      try {
+        const parsed = new URL(iconUrl);
+        return parsed.protocol === "http:" || parsed.protocol === "https:"
+          ? parsed.href
+          : undefined;
+      } catch {
+        return undefined;
+      }
+    },
     getTitle: () => i18n.t("assistant.tools.webFetch"),
     getDetail: (message) => {
       const data = getToolResultData(message) ?? getStreamingData(message);

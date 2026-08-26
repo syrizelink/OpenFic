@@ -202,6 +202,11 @@ export function ToolMessage({ message }: ToolMessageProps) {
     descriptor.render(message)
   );
   const Icon = descriptor?.icon ?? AlertTriangle;
+  const iconUrl = descriptor?.getIconUrl?.(message);
+  const [loadedIconUrl, setLoadedIconUrl] = useState<string>();
+  const [failedIconUrl, setFailedIconUrl] = useState<string>();
+  const isIconLoaded =
+    iconUrl !== undefined && loadedIconUrl === iconUrl && failedIconUrl !== iconUrl;
   const title = descriptor?.getTitle(message) ?? i18n.t("assistant.tools.unregisteredTool");
   const detail = descriptor
     ? descriptor.getDetail?.(message)
@@ -247,6 +252,7 @@ export function ToolMessage({ message }: ToolMessageProps) {
     "agent-message-shell-icon",
     visibilityState.showErrorIndicator && "agent-message-shell-icon--error",
   );
+  const renderedIcon = descriptor?.renderIcon?.(message, iconClassName);
   const showMeta =
     visibilityState.showErrorIndicator ||
     usesDiffHeader ||
@@ -276,10 +282,33 @@ export function ToolMessage({ message }: ToolMessageProps) {
         onToggle={handleToggleExpanded}
       >
         <MessageBlockHeaderMain>
-          <Icon
-            size={16}
-            className={iconClassName}
-          />
+          <span
+            className="agent-message-icon-wrap"
+            aria-hidden="true"
+          >
+            {renderedIcon ??
+              (!isIconLoaded ? (
+                <Icon
+                  size={16}
+                  className={iconClassName}
+                />
+              ) : null)}
+            {iconUrl && failedIconUrl !== iconUrl ? (
+              <img
+                src={iconUrl}
+                alt=""
+                className={joinClassNames(
+                  "agent-message-icon-image",
+                  loadedIconUrl === iconUrl && "agent-message-icon-image--loaded",
+                )}
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
+                onLoad={() => setLoadedIconUrl(iconUrl)}
+                onError={() => setFailedIconUrl(iconUrl)}
+              />
+            ) : null}
+          </span>
           <Text
             size="1"
             weight="medium"

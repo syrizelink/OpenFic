@@ -50,16 +50,52 @@
 .agent-web-search-result-link:hover,
 .agent-web-search-result-link:focus-visible {
   color: var(--accent-11);
+  text-decoration: none;
+}
+
+.agent-web-search-result-link:hover .agent-web-search-result-title,
+.agent-web-search-result-link:focus-visible .agent-web-search-result-title {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .agent-web-search-result-title {
   overflow: hidden;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.agent-web-search-result-favicon {
+  position: relative;
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  align-items: center;
+  justify-content: center;
+  color: var(--gray-10);
+}
+
+.agent-web-search-result-favicon-fallback {
+  flex: 0 0 auto;
+}
+
+.agent-web-search-result-favicon-image {
+  position: absolute;
+  inset: 1px;
+  width: 14px;
+  height: 14px;
+  opacity: 0;
+  border-radius: 3px;
+  object-fit: contain;
+  pointer-events: none;
+  transition: opacity 120ms ease-out;
+}
+
+.agent-web-search-result-favicon-image--loaded {
+  opacity: 1;
 }
 
 .agent-web-search-result-index {
@@ -82,8 +118,62 @@
   color: var(--gray-10);
 }
 
+.agent-web-search-tool-icon {
+  position: relative;
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  align-items: center;
+}
+
+.agent-web-search-tool-icon--stack-2 {
+  width: 24px;
+  flex-basis: 24px;
+}
+
+.agent-web-search-tool-icon--stack-3 {
+  width: 28px;
+  flex-basis: 28px;
+}
+
+.agent-web-search-tool-icon-image {
+  position: absolute;
+  top: 1px;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  opacity: 0;
+  border: 1px solid var(--color-panel);
+  border-radius: 3px;
+  background: var(--color-panel);
+  object-fit: contain;
+  pointer-events: none;
+  transition: opacity 120ms ease-out;
+}
+
+.agent-web-search-tool-icon-image--visible {
+  opacity: 1;
+}
+
+.agent-web-search-tool-icon-image--second {
+  left: 4px;
+  z-index: 2;
+}
+
+.agent-web-search-tool-icon-image--third {
+  left: 8px;
+  z-index: 1;
+}
+
+.agent-web-search-tool-icon-image--first {
+  z-index: 3;
+}
+
 .agent-web-search-result-link:hover .agent-web-search-result-icon,
-.agent-web-search-result-link:focus-visible .agent-web-search-result-icon {
+.agent-web-search-result-link:focus-visible .agent-web-search-result-icon,
+.agent-web-search-result-link:hover .agent-web-search-result-favicon,
+.agent-web-search-result-link:focus-visible .agent-web-search-result-favicon {
   color: var(--accent-11);
 }
 

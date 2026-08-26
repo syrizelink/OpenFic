@@ -30,6 +30,11 @@ export function isSafeWebSearchUrl(value: string): boolean {
   }
 }
 
+export function getWebSearchFaviconUrl(value: string): string | undefined {
+  if (!isSafeWebSearchUrl(value)) return undefined;
+  return `${new URL(value).origin}/favicon.ico`;
+}
+
 export function normalizeWebSearchData(value: unknown): WebSearchData {
   const data = isRecord(value) ? value : {};
   const results = Array.isArray(data.results)

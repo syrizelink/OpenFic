@@ -18,6 +18,10 @@ from app.agent_runtime.tools.errors import ToolExecutionError
 
 DEFAULT_HTTP_TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 DEFAULT_USER_AGENT = "OpenFic-WebFetch/1.0"
+FALLBACK_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+)
 MAX_RAW_HTML_BYTES = 5 * 1024 * 1024
 MAX_REDIRECTS = 5
 ALLOWED_CONTENT_TYPES = frozenset({"text/html", "application/xhtml+xml"})
@@ -35,6 +39,7 @@ class FetchedPage:
     status_code: int
     content_type: str
     html: str
+    icon_url: str | None
 
 
 @dataclass(frozen=True)
@@ -264,19 +269,26 @@ async def fetch_html(url: str) -> FetchedPage:
     async with httpx.AsyncClient(
         timeout=DEFAULT_HTTP_TIMEOUT,
         follow_redirects=False,
-        headers={"User-Agent": DEFAULT_USER_AGENT, "Accept": "text/html,application/xhtml+xml"},
+        headers={"Accept": "text/html,application/xhtml+xml"},
         trust_env=False,
     ) as client:
+        request_headers = {"User-Agent": DEFAULT_USER_AGENT}
+        has_used_fallback_user_agent = False
         for redirect_count in range(MAX_REDIRECTS + 1):
             await _assert_public_url(current_url)
             try:
-                response = await client.get(current_url)
+                response = await client.get(current_url, headers=request_headers)
             except httpx.TimeoutException as exc:
                 raise ToolExecutionError("网页请求超时", code="dependency_unavailable") from exc
             except httpx.RequestError as exc:
                 raise ToolExecutionError("网页请求失败", code="dependency_unavailable") from exc
 
             try:
+                if response.status_code == 403 and not has_used_fallback_user_agent:
+                    request_headers = {"User-Agent": FALLBACK_USER_AGENT}
+                    has_used_fallback_user_agent = True
+                    continue
+
                 if response.is_redirect or response.status_code in {300, 305, 307, 308}:
                     if redirect_count >= MAX_REDIRECTS:
                         raise ToolExecutionError(
@@ -330,6 +342,7 @@ async def fetch_html(url: str) -> FetchedPage:
                     status_code=response.status_code,
                     content_type=content_type,
                     html=html,
+                    icon_url=urljoin(current_url, "/favicon.ico"),
                 )
             finally:
                 await response.aclose()

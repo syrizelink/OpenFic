@@ -65,6 +65,31 @@
   transition: color 120ms ease-out;
 }
 
+.agent-message-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  width: auto;
+  height: 16px;
+  min-width: 16px;
+  flex: 0 0 auto;
+}
+
+.agent-message-icon-image {
+  position: absolute;
+  inset: 0;
+  width: 16px;
+  height: 16px;
+  opacity: 0;
+  object-fit: contain;
+  border-radius: 3px;
+  pointer-events: none;
+  transition: opacity 120ms ease-out;
+}
+
+.agent-message-icon-image--loaded {
+  opacity: 1;
+}
+
 .agent-message-shell-title--error,
 .agent-tool-card .agent-message-shell-title--error {
   color: var(--red-11);
