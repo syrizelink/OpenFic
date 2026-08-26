@@ -60,6 +60,7 @@
 
 .agent-message-shell-icon,
 .agent-tool-card .agent-message-icon {
+  flex: 0 0 auto;
   color: var(--gray-10);
   transition: color 120ms ease-out;
 }

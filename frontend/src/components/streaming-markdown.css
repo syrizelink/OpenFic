@@ -217,43 +217,6 @@
   text-decoration-color: currentColor;
 }
 
-.streaming-markdown-link-dialog-url {
-  max-height: 120px;
-  margin-top: 16px;
-  padding: 10px 12px;
-  overflow: auto;
-  border-radius: 8px;
-  background: var(--gray-a2);
-  color: var(--gray-12);
-  font-family: var(--code-font-family, ui-monospace, monospace);
-  font-size: var(--font-size-sm);
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-
-.streaming-markdown-link-dialog-actions {
-  align-items: center;
-}
-
-.streaming-markdown-link-dialog-copy {
-  margin-right: auto;
-}
-
-@media (max-width: 520px) {
-  .streaming-markdown-link-dialog-actions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .streaming-markdown-link-dialog-copy {
-    margin-right: 0;
-  }
-
-  .streaming-markdown-link-dialog-actions > button {
-    width: 100%;
-  }
-}
-
 .streaming-markdown [data-streamdown="inline-code"],
 .streaming-markdown :not(pre) > code {
   padding: 0.16em 0.42em;
