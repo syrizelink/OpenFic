@@ -3,6 +3,8 @@
 OpenAI Adapter - OpenAI API适配器。
 """
 
+from collections.abc import Mapping
+
 import httpx
 from loguru import logger
 
@@ -17,7 +19,12 @@ class OpenAIAdapter(BaseAdapter):
         return "openai"
 
     async def get_llm_models(
-        self, client: httpx.AsyncClient, base_url: str, api_key: str
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """获取LLM模型列表（通过API）。"""
         url = f"{self._normalize_url(base_url)}/models"
@@ -38,7 +45,12 @@ class OpenAIAdapter(BaseAdapter):
             raise
 
     async def get_embedding_models(
-        self, client: httpx.AsyncClient, base_url: str, api_key: str
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """获取Embedding模型列表（预定义，OpenAI官方embedding模型）。"""
         return [

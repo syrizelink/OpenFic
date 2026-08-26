@@ -125,6 +125,7 @@ function transformProvider(raw: ModelProviderResponse): ModelProvider {
     name: raw.name,
     url: raw.url,
     providerType: raw.provider_type as ModelProvider["providerType"],
+    customHeaderNames: raw.custom_header_names ?? [],
     supportedTaskTypes: raw.supported_task_types as ModelProvider["supportedTaskTypes"],
     iconPath: raw.icon_path || null,
     isBuiltin: raw.is_builtin ?? false,

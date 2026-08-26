@@ -16,6 +16,7 @@ export interface ModelProvider {
   name: string;
   url: string;
   providerType: ProviderType;
+  customHeaderNames: string[];
   supportedTaskTypes: TaskType[];
   iconPath: string | null;
   isBuiltin: boolean;
@@ -42,6 +43,7 @@ export interface ModelProviderResponse {
   name: string;
   url: string;
   provider_type: string;
+  custom_header_names?: string[];
   supported_task_types: string[];
   icon_path: string | null;
   is_builtin?: boolean;
@@ -66,6 +68,12 @@ export interface ModelProviderValidateRequest {
   provider_type: string;
   url: string;
   api_key: string;
+  custom_headers?: ModelProviderCustomHeader[];
+}
+
+export interface ModelProviderCustomHeader {
+  key: string;
+  value: string;
 }
 
 /** 可用模型 */

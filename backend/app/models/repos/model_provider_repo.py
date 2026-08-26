@@ -51,6 +51,7 @@ async def create(
     url: str,
     api_key_encrypted: str,
     provider_type: str,
+    custom_headers_encrypted: str = "",
 ) -> ModelProvider:
     """
     创建提供商。
@@ -60,6 +61,7 @@ async def create(
         name: 提供商名称/备注。
         url: 服务 URL。
         api_key_encrypted: 加密后的 API Key。
+        custom_headers_encrypted: 加密后的自定义请求头。
         provider_type: 提供商类型。
     Returns:
         创建的提供商实例。
@@ -68,6 +70,7 @@ async def create(
         name=name,
         url=url,
         api_key_encrypted=api_key_encrypted,
+        custom_headers_encrypted=custom_headers_encrypted,
         provider_type=provider_type,
     )
     session.add(provider)
@@ -82,6 +85,7 @@ async def update(
     name: str | None = None,
     url: str | None = None,
     api_key_encrypted: str | None = None,
+    custom_headers_encrypted: str | None = None,
     provider_type: str | None = None,
 ) -> ModelProvider | None:
     """
@@ -93,6 +97,7 @@ async def update(
         name: 提供商名称/备注。
         url: 服务 URL。
         api_key_encrypted: 加密后的 API Key。
+        custom_headers_encrypted: 加密后的自定义请求头。
         provider_type: 提供商类型。
     Returns:
         更新后的提供商实例，如果不存在则返回 None。
@@ -107,6 +112,8 @@ async def update(
         provider.url = url
     if api_key_encrypted is not None:
         provider.api_key_encrypted = api_key_encrypted
+    if custom_headers_encrypted is not None:
+        provider.custom_headers_encrypted = custom_headers_encrypted
     if provider_type is not None:
         provider.provider_type = provider_type
     provider.updated_at = datetime.now(UTC)

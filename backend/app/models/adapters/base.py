@@ -6,6 +6,7 @@ Base Adapter - 适配器基类。
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 
 import httpx
 
@@ -28,7 +29,12 @@ class BaseAdapter(ABC):
 
     @abstractmethod
     async def get_llm_models(
-        self, client: httpx.AsyncClient, base_url: str, api_key: str
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """
         获取LLM模型列表。
@@ -45,7 +51,12 @@ class BaseAdapter(ABC):
 
     @abstractmethod
     async def get_embedding_models(
-        self, client: httpx.AsyncClient, base_url: str, api_key: str
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """
         获取Embedding模型列表。
@@ -61,14 +72,19 @@ class BaseAdapter(ABC):
         pass
 
     async def get_rerank_models(
-        self, client: httpx.AsyncClient, base_url: str, api_key: str
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """
         获取 Rerank 模型列表。
 
         默认回退到 LLM 模型列表，适用于只能列出通用 `/models` 的 provider。
         """
-        return await self.get_llm_models(client, base_url, api_key)
+        return await self.get_llm_models(client, base_url, api_key, headers=headers)
 
     def supports_llm(self) -> bool:
         """检查该Adapter是否支持LLM模型。默认支持。"""
@@ -86,9 +102,15 @@ class BaseAdapter(ABC):
     # 工具方法
     # ========================
 
-    def _build_auth_header(self, api_key: str) -> dict[str, str]:
+    def _build_auth_header(
+        self,
+        api_key: str,
+        custom_headers: Mapping[str, str] | None = None,
+    ) -> dict[str, str]:
         """构建Bearer认证头。"""
-        return {"Authorization": f"Bearer {api_key}"}
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        headers.update(custom_headers or {})
+        return headers
 
     def _normalize_url(self, url: str) -> str:
         """规范化URL，移除末尾斜杠。"""

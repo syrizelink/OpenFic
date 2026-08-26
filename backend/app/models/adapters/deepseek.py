@@ -5,6 +5,8 @@ DeepSeek Adapter - DeepSeek API适配器。
 DeepSeek API兼容OpenAI格式，仅支持LLM，不支持Embedding。
 """
 
+from collections.abc import Mapping
+
 import httpx
 from loguru import logger
 
@@ -23,7 +25,12 @@ class DeepSeekAdapter(BaseAdapter):
         return False
 
     async def get_llm_models(
-        self, client: httpx.AsyncClient, base_url: str, api_key: str
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """获取LLM模型列表。"""
         url = f"{self._normalize_url(base_url)}/models"
@@ -48,7 +55,12 @@ class DeepSeekAdapter(BaseAdapter):
             ]
 
     async def get_embedding_models(
-        self, client: httpx.AsyncClient, base_url: str, api_key: str
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """DeepSeek不支持Embedding模型。"""
         return []

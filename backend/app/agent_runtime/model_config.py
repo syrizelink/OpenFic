@@ -6,6 +6,7 @@ def without_api_key(model_config: Mapping[str, Any]) -> dict[str, Any]:
     """Return the model configuration safe to persist in graph state."""
     persisted_config = dict(model_config)
     persisted_config.pop("api_key", None)
+    persisted_config.pop("custom_headers", None)
     return persisted_config
 
 

@@ -27,6 +27,7 @@ async def test_openai_responses_compatible_adapter_discovers_llm_models_only() -
         client,  # type: ignore[arg-type]
         "https://gateway.example",
         "test-key",
+        headers={"X-Provider-Token": "custom-token"},
     )
 
     assert adapter.provider_type == "openai-compatible-responses"
@@ -37,6 +38,9 @@ async def test_openai_responses_compatible_adapter_discovers_llm_models_only() -
     assert client.requests == [
         (
             "https://gateway.example/v1/models",
-            {"Authorization": "Bearer test-key"},
+            {
+                "Authorization": "Bearer test-key",
+                "X-Provider-Token": "custom-token",
+            },
         )
     ]

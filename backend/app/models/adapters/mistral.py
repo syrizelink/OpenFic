@@ -5,6 +5,8 @@ Mistral AI Adapter - Mistral API适配器。
 Mistral API兼容OpenAI格式，支持LLM和Embedding。
 """
 
+from collections.abc import Mapping
+
 import httpx
 from loguru import logger
 
@@ -19,7 +21,12 @@ class MistralAdapter(BaseAdapter):
         return "mistral"
 
     async def get_llm_models(
-        self, client: httpx.AsyncClient, base_url: str, api_key: str
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """获取LLM模型列表。"""
         url = f"{self._normalize_url(base_url)}/models"
@@ -48,7 +55,12 @@ class MistralAdapter(BaseAdapter):
             ]
 
     async def get_embedding_models(
-        self, client: httpx.AsyncClient, base_url: str, api_key: str
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """获取Embedding模型列表。"""
         url = f"{self._normalize_url(base_url)}/models"

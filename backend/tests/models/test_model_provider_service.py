@@ -3,6 +3,8 @@
 ModelProviderService Tests.
 """
 
+import json
+
 import pytest
 
 from app.core.encryption import EncryptionService
@@ -86,6 +88,48 @@ async def test_get_available_models_uses_openai_compatible_adapter_for_catalog_p
 
     assert models == [{"id": "llm-1", "name": "LLM 1"}]
     assert requested_provider_types == ["openai-compatible", "openai-compatible"]
+
+
+@pytest.mark.asyncio
+async def test_get_available_models_passes_custom_headers_to_custom_provider(
+    monkeypatch,
+):
+    encryption_service = EncryptionService("id-hEPdEELwlgep9FQhcYQtX7ow188l7WHwy65qOZGQ=")
+    service = ModelProviderService(encryption_service)
+    captured_headers: dict[str, str] = {}
+
+    class _HeaderRecordingAdapter(_FakeAdapter):
+        async def get_llm_models(
+            self, client, base_url: str, api_key: str, *, headers=None
+        ) -> list[dict[str, str]]:
+            captured_headers.update(headers or {})
+            return [{"id": "llm-1", "name": "LLM 1"}]
+
+    provider = ModelProvider(
+        name="Custom Provider",
+        url="https://gateway.example/v1",
+        api_key_encrypted=encryption_service.encrypt("test-key"),
+        custom_headers_encrypted=encryption_service.encrypt(
+            json.dumps({"X-Provider-Token": "custom-token"})
+        ),
+        provider_type="openai-compatible",
+    )
+
+    monkeypatch.setattr(
+        AdapterRegistry,
+        "get_adapter",
+        classmethod(lambda cls, provider_type: _HeaderRecordingAdapter()),
+    )
+    monkeypatch.setattr(
+        AdapterRegistry,
+        "is_supported",
+        classmethod(lambda cls, provider_type, task_type: True),
+    )
+
+    models = await service.get_available_models(provider, "llm")
+
+    assert models == [{"id": "llm-1", "name": "LLM 1"}]
+    assert captured_headers == {"X-Provider-Token": "custom-token"}
 
 
 @pytest.mark.asyncio
@@ -237,7 +281,9 @@ async def test_create_provider_uses_catalog_api_for_directory_provider(monkeypat
 
     captured: dict[str, str] = {}
 
-    async def create(*, session, name, url, api_key_encrypted, provider_type):
+    async def create(
+        *, session, name, url, api_key_encrypted, provider_type, custom_headers_encrypted
+    ):
         captured["url"] = url
         return ModelProvider(
             name=name,
@@ -278,7 +324,9 @@ async def test_create_provider_uses_supplied_url_when_directory_provider_lacks_a
 
     captured: dict[str, str] = {}
 
-    async def create(*, session, name, url, api_key_encrypted, provider_type):
+    async def create(
+        *, session, name, url, api_key_encrypted, provider_type, custom_headers_encrypted
+    ):
         captured["url"] = url
         return ModelProvider(
             name=name,

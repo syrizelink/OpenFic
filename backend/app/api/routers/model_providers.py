@@ -4,6 +4,7 @@ ModelProvider Router - 模型服务提供商 API。
 """
 
 from typing import Annotated
+import json
 
 from fastapi import (
     APIRouter,
@@ -14,11 +15,13 @@ from fastapi import (
     status,
 )
 from loguru import logger
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas.model_provider import (
     AvailableModel,
     CatalogMatchResponse,
+    CustomHeaderEntry,
     ModelProviderResponse,
     ModelProviderValidateRequest,
     ModelProviderValidateResponse,
@@ -54,6 +57,28 @@ def get_provider_service(
     return ModelProviderService(encryption_service, catalog_service)
 
 
+def _parse_custom_headers(raw_headers: str | None) -> list[dict[str, str]] | None:
+    """解析 multipart 表单中的自定义请求头 JSON。"""
+    if raw_headers is None:
+        return None
+    if not raw_headers.strip():
+        return []
+
+    try:
+        payload = json.loads(raw_headers)
+        if not isinstance(payload, list):
+            raise ValueError
+        return [
+            CustomHeaderEntry.model_validate(item).model_dump(mode="json")
+            for item in payload
+        ]
+    except (ValueError, TypeError, ValidationError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="自定义请求头格式无效",
+        ) from exc
+
+
 async def _build_provider_response(
     provider,
     service: ModelProviderService,
@@ -71,6 +96,7 @@ async def _build_provider_response(
         name=provider.name,
         url=provider.url,
         provider_type=provider.provider_type,
+        custom_header_names=service.get_custom_header_names(provider),
         supported_task_types=supported_task_types,
         icon_path=icon_path,
         is_builtin=provider.is_builtin,
@@ -149,6 +175,7 @@ async def create_provider(
     provider_type: Annotated[str, Form()],
     name: Annotated[str, Form()] = "",
     api_key: Annotated[str | None, Form()] = None,
+    custom_headers: Annotated[str | None, Form()] = None,
     session: AsyncSession = Depends(get_session),
     service: ModelProviderService = Depends(get_provider_service),
 ) -> ModelProviderResponse:
@@ -169,13 +196,17 @@ async def create_provider(
     await require_agent_settings_unlocked(session)
     logger.info(f"创建提供商: {provider_type}")
 
-    provider = await service.create_provider(
-        session=session,
-        name=name,
-        url=url,
-        api_key=api_key or "",
-        provider_type=provider_type,
-    )
+    try:
+        provider = await service.create_provider(
+            session=session,
+            name=name,
+            url=url,
+            api_key=api_key or "",
+            provider_type=provider_type,
+            custom_headers=_parse_custom_headers(custom_headers),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
     return await _build_provider_response(provider, service)
 
@@ -191,6 +222,7 @@ async def update_provider(
     url: Annotated[str | None, Form()] = None,
     api_key: Annotated[str | None, Form()] = None,
     provider_type: Annotated[str | None, Form()] = None,
+    custom_headers: Annotated[str | None, Form()] = None,
     session: AsyncSession = Depends(get_session),
     service: ModelProviderService = Depends(get_provider_service),
 ) -> ModelProviderResponse:
@@ -223,6 +255,7 @@ async def update_provider(
             url=url,
             api_key=api_key,
             provider_type=provider_type,
+            custom_headers=_parse_custom_headers(custom_headers),
         )
 
         return await _build_provider_response(provider, service)
@@ -290,6 +323,7 @@ async def validate_provider(
             provider_type=request.provider_type,
             url=request.url,
             api_key=request.api_key,
+            custom_headers=[item.model_dump(mode="json") for item in request.custom_headers],
         )
         return ModelProviderValidateResponse(
             success=True,

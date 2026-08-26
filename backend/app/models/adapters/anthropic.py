@@ -3,6 +3,8 @@
 Anthropic Adapter - Anthropic API适配器。
 """
 
+from collections.abc import Mapping
+
 import httpx
 
 from app.models.adapters.base import BaseAdapter
@@ -20,7 +22,12 @@ class AnthropicAdapter(BaseAdapter):
         return False
 
     async def get_llm_models(
-        self, client: httpx.AsyncClient, base_url: str, api_key: str
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """获取LLM模型列表（预定义）。"""
         return [
@@ -32,7 +39,12 @@ class AnthropicAdapter(BaseAdapter):
         ]
 
     async def get_embedding_models(
-        self, client: httpx.AsyncClient, base_url: str, api_key: str
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """Anthropic不支持Embedding模型。"""
         return []

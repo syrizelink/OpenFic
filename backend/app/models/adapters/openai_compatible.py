@@ -8,6 +8,7 @@ OpenAI Compatible Adapter - OpenAI兼容API适配器。
 
 import httpx
 from loguru import logger
+from collections.abc import Mapping
 
 from app.models.adapters.base import BaseAdapter
 
@@ -20,36 +21,56 @@ class OpenAICompatibleAdapter(BaseAdapter):
         return "openai-compatible"
 
     async def get_llm_models(
-        self, client: httpx.AsyncClient, base_url: str, api_key: str
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """获取模型列表（返回全部可用模型）。"""
-        return await self._fetch_all_models(client, base_url, api_key)
+        return await self._fetch_all_models(client, base_url, api_key, headers=headers)
 
     async def get_embedding_models(
-        self, client: httpx.AsyncClient, base_url: str, api_key: str
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """获取模型列表（返回全部可用模型，由用户自行选择）。"""
-        return await self._fetch_all_models(client, base_url, api_key)
+        return await self._fetch_all_models(client, base_url, api_key, headers=headers)
 
     async def get_rerank_models(
-        self, client: httpx.AsyncClient, base_url: str, api_key: str
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """获取模型列表（返回全部可用模型，由用户自行选择）。"""
-        return await self._fetch_all_models(client, base_url, api_key)
+        return await self._fetch_all_models(client, base_url, api_key, headers=headers)
 
     def supports_rerank(self) -> bool:
         return True
 
     async def _fetch_all_models(
-        self, client: httpx.AsyncClient, base_url: str, api_key: str
+        self,
+        client: httpx.AsyncClient,
+        base_url: str,
+        api_key: str,
+        *,
+        headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """获取所有可用模型。"""
         url = self._normalize_url(base_url)
         url = f"{url}/models" if url.endswith("/v1") else f"{url}/v1/models"
-        headers = self._build_auth_header(api_key) if api_key else {}
+        request_headers = self._build_auth_header(api_key, headers)
 
         try:
-            response = await client.get(url, headers=headers)
+            response = await client.get(url, headers=request_headers)
             response.raise_for_status()
             data = response.json()
 
