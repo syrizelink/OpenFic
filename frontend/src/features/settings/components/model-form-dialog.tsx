@@ -25,6 +25,7 @@ import {
 } from "../lib/model-api";
 import {
   isSelectableModelProvider,
+  isCustomProviderType,
   resolveProviderCatalogType,
   resolveProviderDisplayName,
   supportsEmbeddingDimensions,
@@ -647,8 +648,8 @@ export function ModelFormDialog({
                     {t(`models.${errors.modelId.message}`)}
                   </Text>
                 )}
-                {(selectedProvider?.providerType === "openai-compatible" ||
-                  selectedProvider?.providerType === "anthropic-compatible") &&
+                {selectedProvider &&
+                  isCustomProviderType(selectedProvider.providerType) &&
                   !selectedCatalogProviderType &&
                   !loadingModels && (
                     <Text

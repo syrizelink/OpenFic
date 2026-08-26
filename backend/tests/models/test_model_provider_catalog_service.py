@@ -438,6 +438,24 @@ async def test_catalog_service_matches_openai_compatible_provider_by_exact_api(
 
 
 @pytest.mark.asyncio
+async def test_catalog_service_matches_openai_responses_compatible_provider_by_exact_api(
+    tmp_path: Path,
+) -> None:
+    service = _build_service(tmp_path)
+
+    match = await service.match_saved_provider(
+        "openai-compatible-responses",
+        "https://api.openai.com/v1/",
+    )
+
+    assert match is not None
+    assert match.catalog_provider_type == "openai"
+    assert service.get_supported_task_types(
+        "openai-compatible-responses", catalog_match=match
+    ) == ["llm"]
+
+
+@pytest.mark.asyncio
 async def test_catalog_service_caches_snapshot_until_refresh(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

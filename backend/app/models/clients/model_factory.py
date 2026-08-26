@@ -295,6 +295,14 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
             max_retries=0,
         ))
 
+    if provider == "openai-compatible-responses":
+        from langchain_openai import ChatOpenAI
+
+        return ChatOpenAI(
+            **_openai_compatible_kwargs(config),
+            use_responses_api=True,
+        )
+
     if provider == "nvidia-ai-endpoints":
         from langchain_nvidia_ai_endpoints import ChatNVIDIA
 

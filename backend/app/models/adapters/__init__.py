@@ -20,6 +20,7 @@ from app.models.adapters.openai_compat_family import (
     NvidiaAIEndpointsAdapter,
 )
 from app.models.adapters.openai_compatible import OpenAICompatibleAdapter
+from app.models.adapters.openai_responses_compatible import OpenAIResponsesCompatibleAdapter
 from app.models.adapters.openrouter import OpenRouterAdapter
 
 __all__ = [
@@ -36,6 +37,7 @@ __all__ = [
     "NvidiaAIEndpointsAdapter",
     "OpenAIAdapter",
     "OpenAICompatibleAdapter",
+    "OpenAIResponsesCompatibleAdapter",
     "OpenRouterAdapter",
 ]
 
