@@ -7,11 +7,27 @@ from datetime import UTC, datetime
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import event
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
 from app.storage.models.writing_activity_event import WritingActivityEvent
+
+
+def _track_sql_statements(session: AsyncSession) -> tuple[list[str], object]:
+    statements: list[str] = []
+    bind = session.sync_session.get_bind()
+
+    def before_cursor_execute(_conn, _cursor, statement, _parameters, _context, _executemany):
+        statements.append(statement)
+
+    event.listen(bind, "before_cursor_execute", before_cursor_execute)
+    return statements, before_cursor_execute
+
+
+def _stop_tracking_sql(session: AsyncSession, listener: object) -> None:
+    event.remove(session.sync_session.get_bind(), "before_cursor_execute", listener)
 
 
 async def _create_project(client: AsyncClient) -> tuple[str, str]:
@@ -125,3 +141,30 @@ async def test_writing_dashboard_groups_activity_by_user_timezone(client: AsyncC
     data = response.json()
     assert data["summary"]["active_days"] == 1
     assert data["time_series"][0]["date"] == "2026-05-09"
+
+
+@pytest.mark.asyncio
+async def test_writing_dashboard_reads_activity_events_once(
+    client: AsyncClient,
+    session: AsyncSession,
+) -> None:
+    session.add(
+        WritingActivityEvent(
+            project_id="project-id",
+            source="user",
+            operation="update",
+            chapter_id="chapter-id",
+            word_delta=3,
+        )
+    )
+    await session.commit()
+    statements, listener = _track_sql_statements(session)
+
+    try:
+        response = await client.get("/api/v1/dashboard/writing")
+    finally:
+        _stop_tracking_sql(session, listener)
+
+    assert response.status_code == 200
+    assert len(statements) == 1
+    assert "GROUP BY" in statements[0].upper()

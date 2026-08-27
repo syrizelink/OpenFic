@@ -87,13 +87,13 @@ async def get_stats_dashboard(
     session: AsyncSession,
     filters: dashboard_repo.DashboardFilters,
 ) -> DashboardStatsResult:
-    """获取仪表盘统计数据，不加载记录列表。"""
-    metric_rows = await dashboard_repo.list_metric_rows(session, filters)
+    """获取仪表盘统计数据，由数据库完成聚合。"""
+    stats = await dashboard_repo.get_stats(session, filters)
     return DashboardStatsResult(
-        summary=_build_summary(metric_rows),
-        model_time_series=_build_model_time_series(metric_rows),
-        by_model=_build_breakdown(metric_rows, "model", limit=None),
-        by_project=_build_breakdown(metric_rows, "project", limit=None),
+        summary=stats.summary,
+        model_time_series=stats.model_time_series,
+        by_model=stats.by_model,
+        by_project=stats.by_project,
         options=await get_filter_options(session),
     )
 
@@ -108,7 +108,7 @@ async def get_records_dashboard(
 ) -> DashboardRecordsResult:
     """获取仪表盘调用记录，不加载统计图表数据。"""
     offset = (page - 1) * page_size
-    records = await dashboard_repo.list_records(
+    records, total = await dashboard_repo.list_records(
         session,
         filters,
         limit=page_size,
@@ -116,7 +116,8 @@ async def get_records_dashboard(
         sort_by=sort_by,
         sort_order=sort_order,
     )
-    total = await dashboard_repo.count_records(session, filters)
+    if total is None:
+        total = await dashboard_repo.count_records(session, filters)
     return DashboardRecordsResult(
         options=await get_filter_options(session),
         records=DashboardRecordPage(
@@ -138,98 +139,14 @@ async def get_record_prompt(
 
 async def get_filter_options(session: AsyncSession) -> DashboardFilterOptionsResult:
     """获取全局筛选选项。"""
+    options = await dashboard_repo.get_filter_options(session)
     return DashboardFilterOptionsResult(
-        project_ids=await dashboard_repo.list_distinct_values(session, "project_id"),
-        model_providers=await dashboard_repo.list_distinct_values(
-            session, "model_provider"
-        ),
-        model_ids=await dashboard_repo.list_distinct_values(session, "model_id"),
-        categories=await dashboard_repo.list_distinct_values(session, "category"),
-        operations=await dashboard_repo.list_distinct_values(session, "operation"),
-        statuses=await dashboard_repo.list_distinct_values(session, "status"),
-        project_options=await dashboard_repo.list_project_filter_options(session),
-        model_options=await dashboard_repo.list_model_filter_options(session),
+        project_ids=options.project_ids,
+        model_providers=options.model_providers,
+        model_ids=options.model_ids,
+        categories=options.categories,
+        operations=options.operations,
+        statuses=options.statuses,
+        project_options=options.project_options,
+        model_options=options.model_options,
     )
-
-
-def _average(values: list[int]) -> float:
-    if not values:
-        return 0
-    return sum(values) / len(values)
-
-
-def _build_summary(
-    rows: list[dashboard_repo.DashboardMetricRow],
-) -> dashboard_repo.DashboardSummaryRow:
-    latency_values = [row.latency_ms for row in rows if row.latency_ms is not None]
-    first_token_values = [
-        row.first_token_ms for row in rows if row.first_token_ms is not None
-    ]
-    return dashboard_repo.DashboardSummaryRow(
-        calls_total=len(rows),
-        success_total=sum(1 for row in rows if row.status == "success"),
-        tokens_total=sum(row.tokens_total for row in rows),
-        tokens_input_total=sum(row.tokens_input for row in rows),
-        tokens_output_total=sum(row.tokens_output for row in rows),
-        avg_latency_ms=_average(latency_values),
-        avg_first_token_ms=_average(first_token_values),
-    )
-
-
-def _build_model_time_series(
-    rows: list[dashboard_repo.DashboardMetricRow],
-) -> list[dashboard_repo.ModelTimeSeriesRow]:
-    grouped: dict[tuple[str, str, str], list[dashboard_repo.DashboardMetricRow]] = {}
-    for row in rows:
-        key, label = _get_breakdown_key(row, "model")
-        grouped.setdefault((row.created_at.strftime("%Y-%m-%d"), key, label), []).append(row)
-
-    return [
-        dashboard_repo.ModelTimeSeriesRow(
-            date=date,
-            key=key,
-            label=label,
-            calls=len(items),
-            tokens_total=sum(item.tokens_total for item in items),
-            avg_latency_ms=_average(
-                [item.latency_ms for item in items if item.latency_ms is not None]
-            ),
-        )
-        for (date, key, label), items in sorted(grouped.items())
-    ]
-
-
-def _build_breakdown(
-    rows: list[dashboard_repo.DashboardMetricRow],
-    group_name: str,
-    limit: int | None = 12,
-) -> list[dashboard_repo.BreakdownRow]:
-    grouped: dict[tuple[str, str], list[dashboard_repo.DashboardMetricRow]] = {}
-    for row in rows:
-        key, label = _get_breakdown_key(row, group_name)
-        grouped.setdefault((key, label), []).append(row)
-
-    items = [
-        dashboard_repo.BreakdownRow(
-            key=key,
-            label=label,
-            calls=len(group_rows),
-            tokens_total=sum(item.tokens_total for item in group_rows),
-        )
-        for (key, label), group_rows in grouped.items()
-    ]
-    sorted_items = sorted(items, key=lambda item: item.calls, reverse=True)
-    if limit is None:
-        return sorted_items
-    return sorted_items[:limit]
-
-
-def _get_breakdown_key(
-    row: dashboard_repo.DashboardMetricRow,
-    group_name: str,
-) -> tuple[str, str]:
-    if group_name == "model":
-        return row.model_id or "unknown", row.model_name or row.model_id or "unknown"
-    if group_name == "project":
-        return row.project_id, row.project_title or row.project_id
-    return "unknown", "unknown"

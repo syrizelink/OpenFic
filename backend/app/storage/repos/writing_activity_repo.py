@@ -4,10 +4,10 @@ Writing Activity Repository - 写作活动事件只读/写入查询。
 """
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import case, func, literal, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import ColumnElement
 from sqlmodel import col
@@ -44,6 +44,24 @@ class WritingActivityTimeSeriesRow:
     import_word_delta: int
 
 
+@dataclass(frozen=True)
+class WritingActivityMetricRow:
+    """用于写作统计的轻量事件行。"""
+
+    created_at: datetime
+    source: str
+    chapter_id: str | None
+    word_delta: int
+
+
+@dataclass(frozen=True)
+class WritingActivityAggregates:
+    """写作统计聚合结果。"""
+
+    summary: WritingActivitySummaryRow
+    time_series: list[WritingActivityTimeSeriesRow]
+
+
 async def create(
     session: AsyncSession,
     event: WritingActivityEvent,
@@ -55,53 +73,123 @@ async def create(
     return event
 
 
-async def get_activity_summary(
+async def get_aggregates(
     session: AsyncSession,
     filters: WritingActivityFilters,
-) -> WritingActivitySummaryRow:
-    """获取写作活动事件汇总。"""
-    rows = await list_events_for_aggregation(session, filters)
-    creative_rows = [row for row in rows if row.source in {"user", "agent"}]
-    dates = {_format_activity_date(row.created_at, filters.timezone) for row in creative_rows}
-    chapter_ids = {row.chapter_id for row in creative_rows if row.chapter_id}
-    return WritingActivitySummaryRow(
-        active_days=len(dates),
-        creative_chapters=len(chapter_ids),
+) -> WritingActivityAggregates | None:
+    """在 SQLite 中聚合写作统计，无法安全折叠时返回 None。"""
+    timezone_modifier = _fixed_timezone_modifier(filters.timezone)
+    if timezone_modifier is None:
+        return None
+
+    filtered_query = select(
+        col(WritingActivityEvent.created_at),
+        col(WritingActivityEvent.source),
+        col(WritingActivityEvent.chapter_id),
+        col(WritingActivityEvent.word_delta),
     )
+    conditions = _conditions(filters)
+    if conditions:
+        filtered_query = filtered_query.where(*conditions)
+    filtered = filtered_query.cte("writing_activity").prefix_with("MATERIALIZED")
+    date_expression = func.strftime(
+        "%Y-%m-%d",
+        filtered.c.created_at,
+        literal(timezone_modifier),
+    )
+    creative_condition = filtered.c.source.in_(["user", "agent"])
+    summary_query = select(
+        literal("summary").label("kind"),
+        literal(None).label("date"),
+        func.count(func.distinct(case((creative_condition, date_expression)))).label(
+            "active_days"
+        ),
+        func.count(
+            func.distinct(case((creative_condition, filtered.c.chapter_id)))
+        ).label("creative_chapters"),
+        literal(None).label("user_word_delta"),
+        literal(None).label("agent_word_delta"),
+        literal(None).label("import_word_delta"),
+    ).select_from(filtered)
+    time_series_query = select(
+        literal("time_series").label("kind"),
+        date_expression.label("date"),
+        literal(None).label("active_days"),
+        literal(None).label("creative_chapters"),
+        func.coalesce(
+            func.sum(
+                case(
+                    (filtered.c.source == "user", filtered.c.word_delta),
+                    else_=0,
+                )
+            ),
+            0,
+        ).label("user_word_delta"),
+        func.coalesce(
+            func.sum(
+                case(
+                    (filtered.c.source == "agent", filtered.c.word_delta),
+                    else_=0,
+                )
+            ),
+            0,
+        ).label("agent_word_delta"),
+        func.coalesce(
+            func.sum(
+                case(
+                    (filtered.c.source == "import", filtered.c.word_delta),
+                    else_=0,
+                )
+            ),
+            0,
+        ).label("import_word_delta"),
+    ).select_from(filtered).group_by(date_expression)
+    result = await session.execute(union_all(summary_query, time_series_query))
+    summary = WritingActivitySummaryRow(active_days=0, creative_chapters=0)
+    time_series: list[WritingActivityTimeSeriesRow] = []
+    for row in result.all():
+        if row.kind == "summary":
+            summary = WritingActivitySummaryRow(
+                active_days=int(row.active_days or 0),
+                creative_chapters=int(row.creative_chapters or 0),
+            )
+        elif row.kind == "time_series":
+            time_series.append(
+                WritingActivityTimeSeriesRow(
+                    date=row.date,
+                    user_word_delta=int(row.user_word_delta or 0),
+                    agent_word_delta=int(row.agent_word_delta or 0),
+                    import_word_delta=int(row.import_word_delta or 0),
+                )
+            )
+    time_series.sort(key=lambda item: item.date)
+    return WritingActivityAggregates(summary=summary, time_series=time_series)
 
 
-async def list_time_series(
+async def list_metric_rows(
     session: AsyncSession,
     filters: WritingActivityFilters,
-) -> list[WritingActivityTimeSeriesRow]:
-    """按日期聚合写作活动。"""
-    rows = await list_events_for_aggregation(session, filters)
-    grouped: dict[str, list[WritingActivityEvent]] = {}
-    for row in rows:
-        grouped.setdefault(_format_activity_date(row.created_at, filters.timezone), []).append(row)
-
-    return [
-        WritingActivityTimeSeriesRow(
-            date=date,
-            user_word_delta=sum(item.word_delta for item in items if item.source == "user"),
-            agent_word_delta=sum(item.word_delta for item in items if item.source == "agent"),
-            import_word_delta=sum(item.word_delta for item in items if item.source == "import"),
-        )
-        for date, items in sorted(grouped.items())
-    ]
-
-
-async def list_events_for_aggregation(
-    session: AsyncSession,
-    filters: WritingActivityFilters,
-) -> list[WritingActivityEvent]:
-    """获取用于写作统计聚合的事件。"""
-    query = select(WritingActivityEvent).order_by(col(WritingActivityEvent.created_at).asc())
+) -> list[WritingActivityMetricRow]:
+    """获取用于写作统计的轻量事件字段。"""
+    query = select(
+        col(WritingActivityEvent.created_at),
+        col(WritingActivityEvent.source),
+        col(WritingActivityEvent.chapter_id),
+        col(WritingActivityEvent.word_delta),
+    ).order_by(col(WritingActivityEvent.created_at).asc())
     conditions = _conditions(filters)
     if conditions:
         query = query.where(*conditions)
     result = await session.execute(query)
-    return list(result.scalars().all())
+    return [
+        WritingActivityMetricRow(
+            created_at=row.created_at,
+            source=row.source,
+            chapter_id=row.chapter_id,
+            word_delta=row.word_delta or 0,
+        )
+        for row in result.all()
+    ]
 
 
 def _conditions(filters: WritingActivityFilters) -> list[ColumnElement[bool]]:
@@ -117,7 +205,22 @@ def _conditions(filters: WritingActivityFilters) -> list[ColumnElement[bool]]:
     return conditions
 
 
-def _format_activity_date(value: datetime, timezone: ZoneInfo) -> str:
-    """按用户时区返回写作活动所属日期。"""
-    source = value if value.tzinfo else value.replace(tzinfo=UTC)
-    return source.astimezone(timezone).strftime("%Y-%m-%d")
+def _fixed_timezone_modifier(timezone: ZoneInfo) -> str | None:
+    """返回全年稳定时区的 SQLite 时间修饰符。"""
+    sample_dates = (
+        datetime(2024, 1, 1, tzinfo=timezone),
+        datetime(2024, 7, 1, tzinfo=timezone),
+    )
+    offsets = {value.utcoffset() for value in sample_dates}
+    if len(offsets) != 1:
+        return None
+    offset = next(iter(offsets))
+    if offset is None:
+        return "+00:00"
+    total_seconds = int(offset.total_seconds())
+    sign = "+" if total_seconds >= 0 else "-"
+    hours, remainder = divmod(abs(total_seconds), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if seconds:
+        return f"{sign}{hours:02d}:{minutes:02d}:{seconds:02d}"
+    return f"{sign}{hours:02d}:{minutes:02d}"
