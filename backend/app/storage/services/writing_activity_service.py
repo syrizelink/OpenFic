@@ -4,6 +4,7 @@ Writing Activity Service - 写作活动采集与统计。
 """
 
 from dataclasses import dataclass
+from collections import defaultdict
 from datetime import UTC, datetime
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -108,7 +109,53 @@ async def get_dashboard(
     filters: writing_activity_repo.WritingActivityFilters,
 ) -> WritingDashboardResult:
     """获取写作统计仪表盘数据。"""
-    return WritingDashboardResult(
-        summary=await writing_activity_repo.get_activity_summary(session, filters),
-        time_series=await writing_activity_repo.list_time_series(session, filters),
+    aggregates = await writing_activity_repo.get_aggregates(session, filters)
+    if aggregates is not None:
+        return WritingDashboardResult(
+            summary=aggregates.summary,
+            time_series=aggregates.time_series,
+        )
+    rows = await writing_activity_repo.list_metric_rows(session, filters)
+    return _build_dashboard_from_rows(rows, filters.timezone)
+
+
+def _build_dashboard_from_rows(
+    rows: list[writing_activity_repo.WritingActivityMetricRow],
+    timezone: ZoneInfo,
+) -> WritingDashboardResult:
+    """为存在时区切换的区域保留精确的 Python 聚合。"""
+    active_dates: set[str] = set()
+    chapter_ids: set[str] = set()
+    grouped: dict[str, dict[str, int]] = defaultdict(
+        lambda: {"user": 0, "agent": 0, "import": 0}
     )
+    for row in rows:
+        date = _format_activity_date(row.created_at, timezone)
+        if row.source in {"user", "agent"}:
+            active_dates.add(date)
+            if row.chapter_id:
+                chapter_ids.add(row.chapter_id)
+        if row.source in grouped[date]:
+            grouped[date][row.source] += row.word_delta
+
+    return WritingDashboardResult(
+        summary=writing_activity_repo.WritingActivitySummaryRow(
+            active_days=len(active_dates),
+            creative_chapters=len(chapter_ids),
+        ),
+        time_series=[
+            writing_activity_repo.WritingActivityTimeSeriesRow(
+                date=date,
+                user_word_delta=values["user"],
+                agent_word_delta=values["agent"],
+                import_word_delta=values["import"],
+            )
+            for date, values in sorted(grouped.items())
+        ],
+    )
+
+
+def _format_activity_date(value: datetime, timezone: ZoneInfo) -> str:
+    """按用户时区返回写作活动所属日期。"""
+    source = value if value.tzinfo else value.replace(tzinfo=UTC)
+    return source.astimezone(timezone).strftime("%Y-%m-%d")

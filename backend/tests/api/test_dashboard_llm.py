@@ -7,9 +7,25 @@ from datetime import UTC, datetime
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.storage.models.llm_audit_log import LLMAuditLog
+
+
+def _track_sql_statements(session: AsyncSession) -> tuple[list[str], object]:
+    statements: list[str] = []
+    bind = session.sync_session.get_bind()
+
+    def before_cursor_execute(_conn, _cursor, statement, _parameters, _context, _executemany):
+        statements.append(statement)
+
+    event.listen(bind, "before_cursor_execute", before_cursor_execute)
+    return statements, before_cursor_execute
+
+
+def _stop_tracking_sql(session: AsyncSession, listener: object) -> None:
+    event.remove(session.sync_session.get_bind(), "before_cursor_execute", listener)
 
 
 @pytest.mark.asyncio
@@ -337,3 +353,57 @@ async def test_llm_dashboard_stats_include_model_trends_and_project_breakdown(
             "tokens_total": 40,
         },
     ]
+
+
+@pytest.mark.asyncio
+async def test_llm_dashboard_stats_uses_bounded_query_count(
+    client: AsyncClient,
+    session: AsyncSession,
+) -> None:
+    project_response = await client.post("/api/v1/projects", data={"title": "测试小说"})
+    project_id = project_response.json()["id"]
+    session.add(
+        LLMAuditLog(
+            project_id=project_id,
+            operation="writer",
+            model_id="test-model",
+            status="success",
+        )
+    )
+    await session.commit()
+    statements, listener = _track_sql_statements(session)
+
+    try:
+        response = await client.get("/api/v1/dashboard/llm-api/stats")
+    finally:
+        _stop_tracking_sql(session, listener)
+
+    assert response.status_code == 200
+    assert len(statements) <= 2
+
+
+@pytest.mark.asyncio
+async def test_llm_dashboard_records_uses_one_page_and_one_options_query(
+    client: AsyncClient,
+    session: AsyncSession,
+) -> None:
+    project_response = await client.post("/api/v1/projects", data={"title": "测试小说"})
+    project_id = project_response.json()["id"]
+    session.add(
+        LLMAuditLog(
+            project_id=project_id,
+            operation="writer",
+            model_id="test-model",
+            status="success",
+        )
+    )
+    await session.commit()
+    statements, listener = _track_sql_statements(session)
+
+    try:
+        response = await client.get("/api/v1/dashboard/llm-api/records")
+    finally:
+        _stop_tracking_sql(session, listener)
+
+    assert response.status_code == 200
+    assert len(statements) <= 2
