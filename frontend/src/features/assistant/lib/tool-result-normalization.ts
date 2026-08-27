@@ -17,6 +17,18 @@ function parseMaybeJson(value: unknown): unknown {
   }
 }
 
+function isToolMessageEnvelope(value: Record<string, unknown>): boolean {
+  return (
+    "content" in value &&
+    !("data" in value) &&
+    ("tool_call_id" in value ||
+      "name" in value ||
+      "status" in value ||
+      "artifact" in value ||
+      "response_metadata" in value)
+  );
+}
+
 interface NormalizeToolResultOptions {
   status?: unknown;
   toolCallId?: unknown;
@@ -81,7 +93,7 @@ export function normalizeToolResult(
 ): Record<string, unknown> {
   const parsed = parseMaybeJson(value);
 
-  if (isRecord(parsed) && "content" in parsed) {
+  if (isRecord(parsed) && isToolMessageEnvelope(parsed)) {
     return normalizeParsedToolResult(parseMaybeJson(parsed.content), {
       status: parsed.status ?? options.status,
       toolCallId: parsed.tool_call_id ?? options.toolCallId,

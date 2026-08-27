@@ -4,6 +4,7 @@ import {
   Cable,
   Database,
   FileText,
+  Globe,
   MessagesSquare,
   Package,
   Settings as SettingsIcon,
@@ -21,6 +22,7 @@ export type SettingsCategory =
   | "index"
   | "context"
   | "agent-tools"
+  | "web-search"
   | "rules"
   | "skills"
   | "agents"
@@ -67,6 +69,11 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     id: "agent-tools",
     icon: <ShieldAlert size={16} />,
     labelKey: "settings.agentTools",
+  },
+  {
+    id: "web-search",
+    icon: <Globe size={16} />,
+    labelKey: "settings.webSearch",
   },
   {
     id: "rules",

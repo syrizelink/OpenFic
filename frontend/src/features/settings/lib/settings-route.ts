@@ -6,6 +6,7 @@ export const SETTINGS_ROUTE_CATEGORIES = [
   "index",
   "context",
   "agent-tools",
+  "web-search",
   "rules",
   "skills",
   "agents",

@@ -109,7 +109,7 @@ ANSI_RESET = "\033[0m"
 def _resolve_frontend_dist_dir() -> Path:
     """解析前端构建产物目录。
 
-    优先级：OPENFIC_FRONTEND_DIST 环境变量 > 打包内置路径 > 开发态相对路径。
+    优先级：OPENFIC_FRONTEND_DIST 环境变量 > 已安装包内路径 > 开发态相对路径。
     """
     env_dist = getenv("OPENFIC_FRONTEND_DIST")
     if env_dist:

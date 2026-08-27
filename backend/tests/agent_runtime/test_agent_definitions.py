@@ -52,6 +52,9 @@ def test_default_agent_definitions_include_two_primary_agents_and_six_subagents(
         assert definition.source == "builtin"
         assert definition.delegatable_agents == ()
 
+    assert "web_fetch" in get_default_agent_definition("build").enabled_tool_categories
+    assert "web_fetch" in get_default_agent_definition("explore").enabled_tool_categories
+
 
 @pytest.mark.asyncio
 async def test_load_agent_definition_prefers_db_record():

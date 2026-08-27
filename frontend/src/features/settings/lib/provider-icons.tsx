@@ -17,9 +17,21 @@ import { getProviderIconUrl } from "./provider-icon-url";
 interface ProviderIconProps {
   iconPath?: string | null;
   size?: number;
+  preserveColors?: boolean;
 }
 
-function prepareProviderSvg(svg: SVGSVGElement, size: number): void {
+const providerIconCache = new Map<string, SVGSVGElement>();
+const pendingProviderIconLoads = new Map<string, Promise<SVGSVGElement>>();
+
+function getProviderIconCacheKey(iconUrl: string, size: number, preserveColors: boolean): string {
+  return `${iconUrl}:${size}:${preserveColors}`;
+}
+
+function cloneProviderSvg(svg: SVGSVGElement): SVGSVGElement {
+  return svg.cloneNode(true) as SVGSVGElement;
+}
+
+function prepareProviderSvg(svg: SVGSVGElement, size: number, preserveColors: boolean): void {
   const inheritsNoFill = svg.getAttribute("fill") === "none";
 
   svg
@@ -36,14 +48,16 @@ function prepareProviderSvg(svg: SVGSVGElement, size: number): void {
       }
     }
 
-    if (
-      element.getAttribute("fill") !== "none" &&
-      (element.hasAttribute("fill") || !inheritsNoFill)
-    ) {
-      element.setAttribute("fill", "currentColor");
-    }
-    if (element.hasAttribute("stroke")) {
-      element.setAttribute("stroke", "currentColor");
+    if (!preserveColors) {
+      if (
+        element.getAttribute("fill") !== "none" &&
+        (element.hasAttribute("fill") || !inheritsNoFill)
+      ) {
+        element.setAttribute("fill", "currentColor");
+      }
+      if (element.hasAttribute("stroke")) {
+        element.setAttribute("stroke", "currentColor");
+      }
     }
     element.removeAttribute("style");
   });
@@ -54,7 +68,38 @@ function prepareProviderSvg(svg: SVGSVGElement, size: number): void {
   svg.style.display = "block";
 }
 
-export function ProviderIcon({ iconPath, size = 20 }: ProviderIconProps) {
+async function loadProviderSvg(
+  iconUrl: string,
+  size: number,
+  preserveColors: boolean,
+): Promise<SVGSVGElement> {
+  const cacheKey = getProviderIconCacheKey(iconUrl, size, preserveColors);
+  const cachedSvg = providerIconCache.get(cacheKey);
+  if (cachedSvg) return cloneProviderSvg(cachedSvg);
+
+  const pendingLoad = pendingProviderIconLoads.get(cacheKey);
+  if (pendingLoad) return cloneProviderSvg(await pendingLoad);
+
+  const loadPromise = (async () => {
+    const response = await fetch(iconUrl, { credentials: "include" });
+    if (!response.ok) throw new Error(`Failed to load provider icon: ${response.status}`);
+
+    const document = new DOMParser().parseFromString(await response.text(), "image/svg+xml");
+    const svg = document.documentElement;
+    if (!(svg instanceof SVGSVGElement)) throw new Error("Provider icon is not an SVG");
+
+    prepareProviderSvg(svg, size, preserveColors);
+    providerIconCache.set(cacheKey, svg);
+    return svg;
+  })().finally(() => {
+    pendingProviderIconLoads.delete(cacheKey);
+  });
+
+  pendingProviderIconLoads.set(cacheKey, loadPromise);
+  return cloneProviderSvg(await loadPromise);
+}
+
+export function ProviderIcon({ iconPath, size = 20, preserveColors = false }: ProviderIconProps) {
   const iconUrl = getProviderIconUrl(iconPath);
   const svgContainerRef = useRef<HTMLSpanElement>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -62,42 +107,36 @@ export function ProviderIcon({ iconPath, size = 20 }: ProviderIconProps) {
   useEffect(() => {
     if (!iconUrl) return;
 
-    const abortController = new AbortController();
     const svgContainer = svgContainerRef.current;
+    let isCancelled = false;
+    const cacheKey = getProviderIconCacheKey(iconUrl, size, preserveColors);
+    const cachedSvg = providerIconCache.get(cacheKey);
+
+    if (cachedSvg) {
+      svgContainer?.replaceChildren(cloneProviderSvg(cachedSvg));
+      setIsLoading(false);
+      return;
+    }
 
     svgContainer?.replaceChildren();
     setIsLoading(true);
 
     const cancelRequest = scheduleProviderIconRequest(async () => {
       try {
-        const response = await fetch(iconUrl, {
-          signal: abortController.signal,
-          credentials: "include",
-        });
-        if (!response.ok) throw new Error(`Failed to load provider icon: ${response.status}`);
-
-        const document = new DOMParser().parseFromString(await response.text(), "image/svg+xml");
-        const svg = document.documentElement;
-        if (!(svg instanceof SVGSVGElement)) throw new Error("Provider icon is not an SVG");
-
-        prepareProviderSvg(svg, size);
-        if (!abortController.signal.aborted) {
-          svgContainerRef.current?.replaceChildren(svg);
-        }
-      } catch (error) {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          svgContainerRef.current?.replaceChildren();
-        }
+        const svg = await loadProviderSvg(iconUrl, size, preserveColors);
+        if (!isCancelled) svgContainerRef.current?.replaceChildren(svg);
+      } catch {
+        if (!isCancelled) svgContainerRef.current?.replaceChildren();
       } finally {
-        if (!abortController.signal.aborted) setIsLoading(false);
+        if (!isCancelled) setIsLoading(false);
       }
     });
 
     return () => {
-      abortController.abort();
+      isCancelled = true;
       cancelRequest();
     };
-  }, [iconUrl, size]);
+  }, [iconUrl, preserveColors, size]);
 
   if (!iconUrl) {
     return null;

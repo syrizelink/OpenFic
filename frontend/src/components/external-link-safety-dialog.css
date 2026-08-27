@@ -1,0 +1,36 @@
+.external-link-safety-dialog-url {
+  max-height: 120px;
+  margin-top: 16px;
+  padding: 10px 12px;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--gray-a2);
+  color: var(--gray-12);
+  font-family: var(--code-font-family, ui-monospace, monospace);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.external-link-safety-dialog-actions {
+  align-items: center;
+}
+
+.external-link-safety-dialog-copy {
+  margin-right: auto;
+}
+
+@media (max-width: 520px) {
+  .external-link-safety-dialog-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .external-link-safety-dialog-copy {
+    margin-right: 0;
+  }
+
+  .external-link-safety-dialog-actions > button {
+    width: 100%;
+  }
+}

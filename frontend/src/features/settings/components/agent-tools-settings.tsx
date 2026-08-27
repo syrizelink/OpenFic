@@ -183,6 +183,10 @@ const TOOL_DISPLAY_KEYS: Record<string, { name: string; description: string }> =
     name: "settings.agentTool.referenceSkill.name",
     description: "settings.agentTool.referenceSkill.description",
   },
+  web_fetch: {
+    name: "settings.agentTool.webFetch.name",
+    description: "settings.agentTool.webFetch.description",
+  },
 };
 
 export function AgentToolsSettings({

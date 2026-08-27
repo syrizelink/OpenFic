@@ -149,3 +149,55 @@ class SettingsUpdateRequest(BaseModel):
         default=None,
         description="输入成对符号的左符号时是否自动补齐右符号",
     )
+
+
+class WebSearchProviderField(BaseModel):
+    """联网搜索 provider 的扩展字段定义。"""
+
+    key: str = Field(..., description="扩展参数键（存入 extras）")
+    field_type: str = Field(..., description="字段类型：text / select")
+    required: bool = Field(default=False, description="是否必填")
+    options: list[str] = Field(default_factory=list, description="select 类型的可选值")
+
+
+class WebSearchProviderInfo(BaseModel):
+    """联网搜索 provider 元数据。"""
+
+    name: str = Field(..., description="provider 名称")
+    requires_api_key: bool = Field(..., description="是否需要 API Key")
+    fields: list[WebSearchProviderField] = Field(
+        default_factory=list, description="扩展字段定义"
+    )
+
+
+class WebSearchSettingsResponse(BaseModel):
+    """联网搜索设置响应（不含明文 API Key）。"""
+
+    enabled: bool = Field(..., description="是否启用联网搜索")
+    provider: str = Field(..., description="当前 provider 名称")
+    has_api_keys: dict[str, bool] = Field(
+        default_factory=dict, description="各 provider 是否已配置 API Key"
+    )
+    max_results: int = Field(..., description="搜索结果数量限制")
+    domain_filters: list[str] = Field(default_factory=list, description="域名过滤列表")
+    extras: dict[str, str] = Field(default_factory=dict, description="扩展参数")
+
+
+class WebSearchSettingsUpdateRequest(BaseModel):
+    """联网搜索设置更新请求。"""
+
+    enabled: bool | None = Field(default=None, description="是否启用联网搜索")
+    provider: str | None = Field(default=None, description="provider 名称")
+    api_key: str | None = Field(
+        default=None,
+        description="当前 provider 的 API Key：不传保持不变；传空字符串清除；传非空更新",
+    )
+    extras: dict[str, str] | None = Field(
+        default=None, description="扩展参数（整体替换，不传保持不变）"
+    )
+    max_results: int | None = Field(
+        default=None, ge=1, le=20, description="搜索结果数量限制（1-20）"
+    )
+    domain_filters: list[str] | None = Field(
+        default=None, description="需要从搜索结果中排除的域名列表"
+    )
