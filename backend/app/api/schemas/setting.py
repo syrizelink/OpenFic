@@ -175,7 +175,11 @@ class WebSearchSettingsResponse(BaseModel):
 
     enabled: bool = Field(..., description="是否启用联网搜索")
     provider: str = Field(..., description="当前 provider 名称")
-    has_api_key: bool = Field(..., description="是否已配置 API Key")
+    has_api_keys: dict[str, bool] = Field(
+        default_factory=dict, description="各 provider 是否已配置 API Key"
+    )
+    max_results: int = Field(..., description="搜索结果数量限制")
+    domain_filters: list[str] = Field(default_factory=list, description="域名过滤列表")
     extras: dict[str, str] = Field(default_factory=dict, description="扩展参数")
 
 
@@ -186,8 +190,14 @@ class WebSearchSettingsUpdateRequest(BaseModel):
     provider: str | None = Field(default=None, description="provider 名称")
     api_key: str | None = Field(
         default=None,
-        description="API Key：不传保持不变；传空字符串清除；传非空更新",
+        description="当前 provider 的 API Key：不传保持不变；传空字符串清除；传非空更新",
     )
     extras: dict[str, str] | None = Field(
         default=None, description="扩展参数（整体替换，不传保持不变）"
+    )
+    max_results: int | None = Field(
+        default=None, ge=1, le=20, description="搜索结果数量限制（1-20）"
+    )
+    domain_filters: list[str] | None = Field(
+        default=None, description="需要从搜索结果中排除的域名列表"
     )

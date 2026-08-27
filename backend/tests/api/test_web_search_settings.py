@@ -11,7 +11,13 @@ from app.agent_runtime.tools.impls.web_search.config import (
     SETTING_KEY_WEB_SEARCH_CONFIG,
     parse_web_search_settings,
 )
+from app.core.encryption import EncryptionService
+from app.settings import settings
 from app.storage.repos import setting_repo
+
+
+def _encrypt(value: str) -> str:
+    return EncryptionService(settings.encryption_key).encrypt(value)
 
 
 @pytest.mark.asyncio
@@ -22,7 +28,19 @@ async def test_get_web_search_settings_default(client: AsyncClient) -> None:
     data = response.json()
     assert data["enabled"] is False
     assert data["provider"] == ""
-    assert data["has_api_key"] is False
+    assert data["has_api_keys"] == {
+        "brave": False,
+        "ddgs": False,
+        "exa": False,
+        "jina": False,
+        "perplexity": False,
+        "searxng": False,
+        "serper": False,
+        "tavily": False,
+        "zhipu": False,
+    }
+    assert data["max_results"] == 10
+    assert data["domain_filters"] == []
     assert data["extras"] == {}
 
 
@@ -35,7 +53,6 @@ async def test_get_web_search_providers(client: AsyncClient) -> None:
     names = [item["name"] for item in data]
     assert names == sorted(names)
     assert names == [
-        "bing",
         "brave",
         "ddgs",
         "exa",
@@ -61,6 +78,8 @@ async def test_update_web_search_settings(client: AsyncClient, session: AsyncSes
             "enabled": True,
             "provider": "tavily",
             "api_key": "secret-key",
+            "max_results": 12,
+            "domain_filters": [" Example.com ", "", "example.com"],
             "extras": {},
         },
     )
@@ -68,7 +87,10 @@ async def test_update_web_search_settings(client: AsyncClient, session: AsyncSes
     data = response.json()
     assert data["enabled"] is True
     assert data["provider"] == "tavily"
-    assert data["has_api_key"] is True
+    assert data["has_api_keys"]["tavily"] is True
+    assert data["has_api_keys"]["serper"] is False
+    assert data["max_results"] == 12
+    assert data["domain_filters"] == ["example.com"]
     assert "secret-key" not in response.text
 
     setting = await setting_repo.get_by_key(session, SETTING_KEY_WEB_SEARCH_CONFIG)
@@ -77,7 +99,10 @@ async def test_update_web_search_settings(client: AsyncClient, session: AsyncSes
     config = parse_web_search_settings(setting.value)
     assert config.enabled is True
     assert config.provider == "tavily"
-    assert config.api_key == "secret-key"
+    assert config.api_keys == {"tavily": "secret-key"}
+    assert config.max_results == 12
+    assert config.domain_filters == ["example.com"]
+    assert "api_key" not in json.loads(setting.value)
 
 
 @pytest.mark.asyncio
@@ -94,10 +119,39 @@ async def test_update_web_search_settings_keeps_api_key_when_omitted(
         json={"enabled": False, "provider": "serper"},
     )
     assert response.status_code == 200
-    assert response.json()["has_api_key"] is True
+    assert response.json()["has_api_keys"]["serper"] is True
 
     setting = await setting_repo.get_by_key(session, SETTING_KEY_WEB_SEARCH_CONFIG)
-    assert parse_web_search_settings(setting.value).api_key == "keep-me"
+    assert parse_web_search_settings(setting.value).api_keys == {"serper": "keep-me"}
+
+
+@pytest.mark.asyncio
+async def test_update_web_search_settings_keeps_api_keys_separate_per_provider(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    """不同 provider 的 API Key 应分别保存，切换 provider 不覆盖旧 Key。"""
+    await client.put(
+        "/api/v1/settings/web-search",
+        json={"provider": "tavily", "api_key": "tavily-key"},
+    )
+    await client.put(
+        "/api/v1/settings/web-search",
+        json={"provider": "serper", "api_key": "serper-key"},
+    )
+    response = await client.put(
+        "/api/v1/settings/web-search",
+        json={"provider": "tavily"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["has_api_keys"]["tavily"] is True
+    assert response.json()["has_api_keys"]["serper"] is True
+
+    setting = await setting_repo.get_by_key(session, SETTING_KEY_WEB_SEARCH_CONFIG)
+    assert parse_web_search_settings(setting.value).api_keys == {
+        "tavily": "tavily-key",
+        "serper": "serper-key",
+    }
 
 
 @pytest.mark.asyncio
@@ -111,13 +165,33 @@ async def test_update_web_search_settings_clears_api_key_with_empty_string(
     )
     response = await client.put(
         "/api/v1/settings/web-search",
-        json={"api_key": ""},
+        json={"provider": "serper", "api_key": ""},
     )
     assert response.status_code == 200
-    assert response.json()["has_api_key"] is False
+    assert response.json()["has_api_keys"]["serper"] is False
 
     setting = await setting_repo.get_by_key(session, SETTING_KEY_WEB_SEARCH_CONFIG)
-    assert parse_web_search_settings(setting.value).api_key == ""
+    assert parse_web_search_settings(setting.value).api_keys == {}
+
+
+@pytest.mark.asyncio
+async def test_switching_to_provider_without_api_key_preserves_other_keys(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    await client.put(
+        "/api/v1/settings/web-search",
+        json={"provider": "tavily", "api_key": "keep-me"},
+    )
+    response = await client.put(
+        "/api/v1/settings/web-search",
+        json={"provider": "ddgs"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["has_api_keys"]["tavily"] is True
+
+    setting = await setting_repo.get_by_key(session, SETTING_KEY_WEB_SEARCH_CONFIG)
+    assert parse_web_search_settings(setting.value).api_keys == {"tavily": "keep-me"}
 
 
 @pytest.mark.asyncio
@@ -141,15 +215,37 @@ async def test_update_web_search_settings_filters_unknown_extras(
         "/api/v1/settings/web-search",
         json={
             "enabled": True,
-            "provider": "bing",
-            "extras": {"bing_mkt": "en-US", "not_a_field": "x"},
+            "provider": "ddgs",
+            "extras": {"ddgs_backend": "startpage", "not_a_field": "x"},
         },
     )
     assert response.status_code == 200
-    assert response.json()["extras"] == {"bing_mkt": "en-US"}
+    assert response.json()["extras"] == {"ddgs_backend": "startpage"}
 
     setting = await setting_repo.get_by_key(session, SETTING_KEY_WEB_SEARCH_CONFIG)
-    assert json.loads(setting.value)["extras"] == {"bing_mkt": "en-US"}
+    assert json.loads(setting.value)["extras"] == {"ddgs_backend": "startpage"}
+
+
+@pytest.mark.asyncio
+async def test_update_web_search_settings_accepts_jina_base_url(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    response = await client.put(
+        "/api/v1/settings/web-search",
+        json={
+            "enabled": True,
+            "provider": "jina",
+            "extras": {"jina_base_url": "https://eu.s.jina.ai/"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["extras"] == {"jina_base_url": "https://eu.s.jina.ai/"}
+
+    setting = await setting_repo.get_by_key(session, SETTING_KEY_WEB_SEARCH_CONFIG)
+    assert json.loads(setting.value)["extras"] == {
+        "jina_base_url": "https://eu.s.jina.ai/"
+    }
 
 
 @pytest.mark.asyncio
@@ -161,13 +257,13 @@ async def test_update_web_search_settings_switching_provider_clears_extras(
         "/api/v1/settings/web-search",
         json={
             "enabled": True,
-            "provider": "bing",
-            "extras": {"bing_mkt": "en-US"},
+            "provider": "searxng",
+            "extras": {"searxng_base_url": "https://searx.example.com"},
         },
     )
     response = await client.put(
         "/api/v1/settings/web-search",
-        json={"provider": "ddgs"},
+        json={"provider": "tavily"},
     )
     assert response.status_code == 200
     assert response.json()["extras"] == {}

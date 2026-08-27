@@ -18,6 +18,7 @@ from app.agent_runtime.tools.impls.web_search.providers.base import (
     WebSearchProviderConfig,
     WebSearchResult,
 )
+from app.agent_runtime.tools.impls.web_search.result_filter import filter_web_search_results
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.storage.database import create_session
 
@@ -81,12 +82,13 @@ class WebSearchTool(AgentTool):
                 f"（可用: {', '.join(list_provider_names())}）"
             )
 
+        effective_count = min(count, config.max_results)
         try:
             response = await provider_cls().search(
                 normalized_query,
                 WebSearchProviderConfig(
-                    api_key=config.api_key,
-                    max_results=count,
+                    api_key=config.api_keys.get(config.provider, ""),
+                    max_results=effective_count,
                     extras=config.extras,
                 ),
             )
@@ -97,9 +99,12 @@ class WebSearchTool(AgentTool):
                 f"联网搜索失败: {type(exc).__name__}: {exc}"
             ) from exc
 
+        results = filter_web_search_results(response.results, config.domain_filters)[
+            :effective_count
+        ]
         return WebSearchOutput(
             query=normalized_query,
             provider=config.provider,
             answer=response.answer,
-            results=response.results,
+            results=results,
         ).model_dump_json()

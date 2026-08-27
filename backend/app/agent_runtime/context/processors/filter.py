@@ -117,7 +117,11 @@ def filter_tool_result_metadata(parts: list[ContextMessage]) -> list[ContextMess
         if message.role != "tool":
             result.append(message)
             continue
-        visible_content = filter_tool_result_metadata_content(message.content)
+        tool_name = message.name or (message.metadata or {}).get("tool_name")
+        visible_content = filter_tool_result_metadata_content(
+            message.content,
+            tool_name=tool_name if isinstance(tool_name, str) else None,
+        )
         if visible_content == message.content:
             result.append(message)
             continue
@@ -138,7 +142,49 @@ def _parse_tool_result(content: str) -> dict[str, Any] | None:
     return payload if isinstance(payload, dict) else None
 
 
-def filter_tool_result_metadata_content(content: str) -> str:
+def _single_line(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    normalized = " ".join(value.split())
+    return normalized or None
+
+
+def _format_web_search_context(payload: dict[str, Any]) -> str | None:
+    query = _single_line(payload.get("query"))
+    results = payload.get("results")
+    if query is None or not isinstance(results, list):
+        return None
+
+    lines = [f"[ `{query.replace('`', r'\\`')}` 的搜索结果 ]", ""]
+    result_number = 1
+    for result in results:
+        if not isinstance(result, dict):
+            continue
+        title = _single_line(result.get("title"))
+        url = _single_line(result.get("url"))
+        snippet = _single_line(result.get("snippet"))
+        if not title and not url and not snippet:
+            continue
+        lines.append(f"{result_number}. {title or url or ''}")
+        if snippet:
+            lines.append(f"    {snippet}")
+        if url:
+            lines.append(f"    URL: {url}")
+        lines.append("")
+        result_number += 1
+    return "\n".join(lines).rstrip()
+
+
+def _format_web_fetch_context(payload: dict[str, Any]) -> str | None:
+    content = payload.get("content")
+    return content if isinstance(content, str) else None
+
+
+def filter_tool_result_metadata_content(
+    content: str,
+    *,
+    tool_name: str | None = None,
+) -> str:
     """返回可发送给模型的工具结果内容。"""
     payload = _parse_tool_result(content)
     if payload is None:
@@ -193,6 +239,14 @@ def filter_tool_result_metadata_content(content: str) -> str:
                 ensure_ascii=False,
             )
         return message
+    if tool_name == "web_search":
+        formatted = _format_web_search_context(payload)
+        if formatted is not None:
+            return formatted
+    if tool_name == "web_fetch":
+        formatted = _format_web_fetch_context(payload)
+        if formatted is not None:
+            return formatted
     if "metadata" not in payload:
         return content
     return json.dumps(

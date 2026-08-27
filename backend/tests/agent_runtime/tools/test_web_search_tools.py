@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import respx
+from ddgs.exceptions import DDGSException
 from httpx import Response
 
 from app.agent_runtime.tools.errors import ToolExecutionError
@@ -22,7 +23,9 @@ from app.agent_runtime.tools.impls.web_search.providers import (
 )
 from app.agent_runtime.tools.impls.web_search.providers.base import (
     WebSearchProviderConfig,
+    WebSearchResult,
 )
+from app.agent_runtime.tools.impls.web_search.result_filter import filter_web_search_results
 from app.core.encryption import EncryptionService
 from app.settings import settings
 
@@ -62,7 +65,6 @@ def _encrypt(value: str) -> str:
 class TestProviderRegistry:
     def test_all_providers_registered(self) -> None:
         assert set(list_provider_names()) == {
-            "bing",
             "brave",
             "ddgs",
             "exa",
@@ -85,18 +87,38 @@ class TestProviderRegistry:
 
         by_name = {item["name"]: item for item in metadata}
         assert by_name["ddgs"]["requires_api_key"] is False
+        ddgs_fields = {field["key"]: field for field in by_name["ddgs"]["fields"]}
+        assert ddgs_fields["ddgs_backend"]["field_type"] == "select"
+        assert ddgs_fields["ddgs_backend"]["options"] == [
+            "auto",
+            "brave",
+            "duckduckgo",
+            "grokipedia",
+            "mojeek",
+            "wikipedia",
+            "yahoo",
+            "startpage",
+        ]
+        jina_fields = {field["key"]: field for field in by_name["jina"]["fields"]}
+        assert jina_fields["jina_base_url"] == {
+            "key": "jina_base_url",
+            "field_type": "text",
+            "required": False,
+            "options": [],
+        }
+        zhipu_fields = {field["key"]: field for field in by_name["zhipu"]["fields"]}
+        assert zhipu_fields["zhipu_search_engine"]["options"] == [
+            "search_std",
+            "search_pro",
+            "search_pro_sogou",
+            "search_pro_quark",
+        ]
         assert by_name["searxng"]["requires_api_key"] is False
-        assert by_name["bing"]["requires_api_key"] is True
         assert by_name["zhipu"]["requires_api_key"] is True
 
         searxng_fields = {field["key"]: field for field in by_name["searxng"]["fields"]}
         assert searxng_fields["searxng_base_url"]["field_type"] == "text"
         assert searxng_fields["searxng_base_url"]["required"] is True
-
-        bing_fields = {field["key"]: field for field in by_name["bing"]["fields"]}
-        assert bing_fields["bing_mkt"]["field_type"] == "select"
-        assert "zh-CN" in bing_fields["bing_mkt"]["options"]
-
 
 class TestWebSearchConfig:
     def test_parse_missing_raw_returns_defaults(self) -> None:
@@ -105,39 +127,90 @@ class TestWebSearchConfig:
     def test_parse_invalid_json_returns_defaults(self) -> None:
         assert parse_web_search_settings("not-json{") == WebSearchSettings()
 
-    def test_parse_decrypts_api_key(self) -> None:
+    def test_parse_decrypts_api_keys(self) -> None:
         raw = json.dumps(
             {
                 "enabled": True,
                 "provider": "tavily",
-                "api_key": _encrypt("secret-key"),
+                "api_keys": {
+                    "tavily": _encrypt("tavily-key"),
+                    "serper": _encrypt("serper-key"),
+                },
                 "extras": {"doubao_model": "m1", "ignored": ""},
             }
         )
         parsed = parse_web_search_settings(raw)
         assert parsed.enabled is True
         assert parsed.provider == "tavily"
-        assert parsed.api_key == "secret-key"
+        assert parsed.api_keys == {"tavily": "tavily-key", "serper": "serper-key"}
         assert parsed.extras == {"doubao_model": "m1"}
+
+    def test_parse_legacy_api_key_for_current_provider(self) -> None:
+        raw = json.dumps(
+            {
+                "provider": "tavily",
+                "api_key": _encrypt("legacy-key"),
+            }
+        )
+
+        assert parse_web_search_settings(raw).api_keys == {"tavily": "legacy-key"}
 
     def test_parse_missing_enabled_defaults_to_false(self) -> None:
         raw = json.dumps({"provider": "tavily", "api_key": "", "extras": {}})
         assert parse_web_search_settings(raw).enabled is False
 
-    def test_serialize_encrypts_api_key_and_round_trips(self) -> None:
+    def test_serialize_encrypts_api_keys_and_round_trips(self) -> None:
         raw = serialize_web_search_settings(
             WebSearchSettings(
-                enabled=True, provider="serper", api_key="plain-key", extras={"a": "b"}
+                enabled=True,
+                provider="serper",
+                api_keys={"serper": "plain-key", "tavily": "other-key"},
+                max_results=12,
+                domain_filters=["example.com"],
+                extras={"a": "b"},
             )
         )
         payload = json.loads(raw)
         assert payload["enabled"] is True
-        assert payload["api_key"] != "plain-key"
-        assert parse_web_search_settings(raw).api_key == "plain-key"
+        assert payload["api_keys"]["serper"] != "plain-key"
+        assert "api_key" not in payload
+        assert parse_web_search_settings(raw).api_keys == {
+            "serper": "plain-key",
+            "tavily": "other-key",
+        }
+        parsed = parse_web_search_settings(raw)
+        assert parsed.max_results == 12
+        assert parsed.domain_filters == ["example.com"]
 
-    def test_serialize_skips_empty_api_key(self) -> None:
+    def test_serialize_skips_empty_api_keys(self) -> None:
         raw = serialize_web_search_settings(WebSearchSettings(provider="serper"))
-        assert json.loads(raw)["api_key"] == ""
+        assert json.loads(raw)["api_keys"] == {}
+
+    def test_parse_common_search_settings(self) -> None:
+        raw = json.dumps(
+            {
+                "max_results": 12,
+                "domain_filters": [" Example.com ", "", "example.com", "docs.example.com"],
+            }
+        )
+
+        parsed = parse_web_search_settings(raw)
+
+        assert parsed.max_results == 12
+        assert parsed.domain_filters == ["example.com", "docs.example.com"]
+
+
+def test_filter_web_search_results_by_domains() -> None:
+    results = [
+        WebSearchResult(title="root", url="https://example.com/root"),
+        WebSearchResult(title="subdomain", url="https://docs.example.com/page"),
+        WebSearchResult(title="other", url="https://example.net/page"),
+        WebSearchResult(title="invalid", url="not-a-url"),
+    ]
+
+    filtered = filter_web_search_results(results, [" Example.com "])
+
+    assert [result.title for result in filtered] == ["other", "invalid"]
 
 
 class TestWebSearchTool:
@@ -163,7 +236,7 @@ class TestWebSearchTool:
     @pytest.mark.asyncio
     async def test_unconfigured_returns_error_message(self) -> None:
         tool = _make_tool()
-        raw = json.dumps({"enabled": True, "provider": "", "api_key": "", "extras": {}})
+        raw = json.dumps({"enabled": True, "provider": "", "api_keys": {}, "extras": {}})
         with patch(
             "app.agent_runtime.tools.impls.web_search.web_search.create_session"
         ) as mock_cs:
@@ -184,7 +257,7 @@ class TestWebSearchTool:
     async def test_unsupported_provider_returns_error(self) -> None:
         tool = _make_tool()
         raw = json.dumps(
-            {"enabled": True, "provider": "unknown", "api_key": "", "extras": {}}
+            {"enabled": True, "provider": "unknown", "api_keys": {}, "extras": {}}
         )
         with patch(
             "app.agent_runtime.tools.impls.web_search.web_search.create_session"
@@ -209,7 +282,7 @@ class TestWebSearchTool:
             {
                 "enabled": True,
                 "provider": "serper",
-                "api_key": _encrypt("serper-key"),
+                "api_keys": {"serper": _encrypt("serper-key")},
                 "extras": {},
             }
         )
@@ -248,6 +321,53 @@ class TestWebSearchTool:
         assert json.loads(route.calls[0].request.read())["num"] == 5
 
     @pytest.mark.asyncio
+    @respx.mock
+    async def test_applies_domain_filters_before_result_limit(self) -> None:
+        tool = _make_tool()
+        raw = json.dumps(
+            {
+                "enabled": True,
+                "provider": "serper",
+                "api_keys": {"serper": _encrypt("serper-key")},
+                "max_results": 1,
+                "domain_filters": ["blocked.example.com"],
+                "extras": {},
+            }
+        )
+        respx.post("https://google.serper.dev/search").mock(
+            return_value=Response(
+                200,
+                json={
+                    "organic": [
+                        {
+                            "title": "blocked",
+                            "link": "https://blocked.example.com/page",
+                            "snippet": "blocked",
+                        },
+                        {
+                            "title": "allowed",
+                            "link": "https://allowed.example.com/page",
+                            "snippet": "allowed",
+                        },
+                    ]
+                },
+            )
+        )
+        with patch(
+            "app.agent_runtime.tools.impls.web_search.web_search.create_session"
+        ) as mock_cs:
+            session = AsyncMock()
+            mock_cs.return_value = session
+            with patch(
+                "app.agent_runtime.tools.impls.web_search.config.setting_repo.get_by_key",
+                AsyncMock(return_value=MagicMock(value=raw)),
+            ):
+                result = await tool.ainvoke({"query": "q", "count": 20})
+
+        payload = json.loads(result)
+        assert [item["title"] for item in payload["results"]] == ["allowed"]
+
+    @pytest.mark.asyncio
     async def test_blank_query_returns_error(self) -> None:
         tool = _make_tool()
         result = await tool.ainvoke({"query": "   "})
@@ -257,37 +377,6 @@ class TestWebSearchTool:
 
 
 class TestHttpProviders:
-    @pytest.mark.asyncio
-    @respx.mock
-    async def test_bing_parses_web_pages(self) -> None:
-        provider = get_provider("bing")()
-        route = respx.get(
-            re.compile(r"^https://api\.bing\.microsoft\.com/v7\.0/search\?")
-        ).mock(
-            return_value=Response(
-                200,
-                json={
-                    "webPages": {
-                        "value": [
-                            {
-                                "name": "标题",
-                                "url": "https://bing.com/r1",
-                                "snippet": "摘要",
-                            }
-                        ]
-                    }
-                },
-            )
-        )
-        response = await provider.search("q", _provider_config())
-        assert route.called
-        assert route.calls[0].request.headers["ocp-apim-subscription-key"] == "test-key"
-        assert response.results[0].model_dump() == {
-            "title": "标题",
-            "url": "https://bing.com/r1",
-            "snippet": "摘要",
-        }
-
     @pytest.mark.asyncio
     @respx.mock
     async def test_brave_parses_web_results(self) -> None:
@@ -349,7 +438,7 @@ class TestHttpProviders:
     @respx.mock
     async def test_jina_parses_data_items(self) -> None:
         provider = get_provider("jina")()
-        route = respx.get(re.compile(r"^https://s\.jina\.ai/\?")).mock(
+        route = respx.get(re.compile(r"^https://eu\.s\.jina\.ai/\?")).mock(
             return_value=Response(
                 200,
                 json={
@@ -361,7 +450,10 @@ class TestHttpProviders:
                 },
             )
         )
-        response = await provider.search("q", _provider_config())
+        response = await provider.search(
+            "q",
+            _provider_config(extras={"jina_base_url": "https://eu.s.jina.ai/"}),
+        )
         assert route.called
         assert route.calls[0].request.headers["authorization"] == "Bearer test-key"
         assert response.results[1].snippet == "c2"
@@ -369,9 +461,9 @@ class TestHttpProviders:
     @pytest.mark.asyncio
     @respx.mock
     async def test_http_error_wraps_status(self) -> None:
-        provider = get_provider("bing")()
+        provider = get_provider("brave")()
         respx.get(
-            re.compile(r"^https://api\.bing\.microsoft\.com/v7\.0/search\?")
+            re.compile(r"^https://api\.search\.brave\.com/res/v1/web/search\?")
         ).mock(return_value=Response(401, json={"error": "unauthorized"}))
         with pytest.raises(ToolExecutionError, match="HTTP 401"):
             await provider.search("q", _provider_config())
@@ -424,16 +516,36 @@ class TestSdkProviders:
             instance.text.return_value = [
                 {"title": "t", "href": "https://u", "body": "b"},
             ]
-            response = await provider.search("q", _provider_config())
+            response = await provider.search(
+                "q",
+                _provider_config(extras={"ddgs_backend": "grokipedia"}),
+            )
 
         instance.text.assert_called_once()
         assert instance.text.call_args.args == ("q",)
         assert instance.text.call_args.kwargs["max_results"] == 8
+        assert instance.text.call_args.kwargs["region"] == "wt-wt"
+        assert instance.text.call_args.kwargs["backend"] == "grokipedia"
         assert response.results[0].model_dump() == {
             "title": "t",
             "url": "https://u",
             "snippet": "b",
         }
+
+    @pytest.mark.asyncio
+    async def test_ddgs_retries_aggregate_failure_before_returning_results(self) -> None:
+        provider = get_provider("ddgs")()
+        with patch(
+            "app.agent_runtime.tools.impls.web_search.providers.ddgs._run_sync_search",
+            side_effect=[
+                DDGSException("temporary aggregate failure"),
+                [{"title": "t", "href": "https://u", "body": "b"}],
+            ],
+        ) as mock_search:
+            response = await provider.search("q", _provider_config())
+
+        assert mock_search.call_count == 2
+        assert response.results[0].url == "https://u"
 
     @pytest.mark.asyncio
     async def test_tavily_parses_results_and_answer(self) -> None:
@@ -523,7 +635,7 @@ class TestProviderKeyValidation:
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "name",
-        ["bing", "brave", "exa", "jina", "perplexity", "serper", "tavily", "zhipu"],
+        ["brave", "exa", "jina", "perplexity", "serper", "tavily", "zhipu"],
     )
     async def test_providers_require_api_key(self, name: str) -> None:
         provider = get_provider(name)()

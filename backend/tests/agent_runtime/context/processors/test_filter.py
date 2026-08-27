@@ -3,6 +3,7 @@ from typing import Literal
 
 from app.agent_runtime.context.processors.filter import (
     filter_invalid,
+    filter_tool_result_metadata,
     filter_tool_result_metadata_content,
 )
 from app.agent_runtime.context.types import ContextMessage
@@ -113,6 +114,87 @@ def test_tool_result_metadata_content_keeps_success_result() -> None:
     content = '{"success":true,"metadata":{"note_diff":{"note_id":"note-1"}}}'
 
     assert filter_tool_result_metadata_content(content) == '{"success": true}'
+
+
+def test_tool_result_context_formats_web_search_results() -> None:
+    content = json.dumps(
+        {
+            "query": "量子计算",
+            "provider": "serper",
+            "answer": "answer should not be sent",
+            "results": [
+                {
+                    "title": "标题一",
+                    "url": "https://example.com/one",
+                    "snippet": "摘要一",
+                },
+                {
+                    "title": "标题二",
+                    "url": "https://example.com/two",
+                    "snippet": "摘要二",
+                },
+            ],
+        },
+        ensure_ascii=False,
+    )
+
+    assert filter_tool_result_metadata_content(content, tool_name="web_search") == (
+        "[ `量子计算` 的搜索结果 ]\n\n"
+        "1. 标题一\n"
+        "    摘要一\n"
+        "    URL: https://example.com/one\n\n"
+        "2. 标题二\n"
+        "    摘要二\n"
+        "    URL: https://example.com/two"
+    )
+
+
+def test_tool_result_context_formats_web_fetch_content() -> None:
+    content = json.dumps(
+        {
+            "url": "https://example.com/article",
+            "title": "文章标题",
+            "icon_url": "https://example.com/favicon.ico",
+            "content": "网页正文\n\n## 第二节",
+            "metadata": {"display_only": True},
+        },
+        ensure_ascii=False,
+    )
+
+    assert filter_tool_result_metadata_content(content, tool_name="web_fetch") == (
+        "网页正文\n\n## 第二节"
+    )
+
+
+def test_filter_tool_result_metadata_formats_named_web_search_message() -> None:
+    content = json.dumps(
+        {
+            "query": "OpenFic",
+            "results": [
+                {
+                    "title": "项目主页",
+                    "url": "https://example.com/openfic",
+                    "snippet": "项目简介",
+                }
+            ],
+        },
+        ensure_ascii=False,
+    )
+    message = ContextMessage(
+        role="tool",
+        content=content,
+        name="web_search",
+        metadata={"part": "history"},
+    )
+
+    filtered = filter_tool_result_metadata([message])
+
+    assert filtered[0].content == (
+        "[ `OpenFic` 的搜索结果 ]\n\n"
+        "1. 项目主页\n"
+        "    项目简介\n"
+        "    URL: https://example.com/openfic"
+    )
 
 
 def test_tool_failure_content_exposes_only_message_to_model() -> None:

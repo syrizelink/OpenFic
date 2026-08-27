@@ -725,7 +725,10 @@ def create_react_agent(
             messages = [
                 ToolMessage(
                     content=(
-                        filter_tool_result_metadata_content(message.content)
+                        filter_tool_result_metadata_content(
+                            message.content,
+                            tool_name=message.name,
+                        )
                         if isinstance(message.content, str)
                         else message.content
                     ),

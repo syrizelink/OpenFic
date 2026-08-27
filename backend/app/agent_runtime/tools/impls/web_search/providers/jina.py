@@ -28,7 +28,8 @@ class JinaProvider(WebSearchProvider):
         if not config.api_key:
             raise ToolExecutionError("Jina 未配置 API Key")
 
-        url = f"{JINA_SEARCH_URL}?{urlencode({'q': query, 'num': config.max_results})}"
+        base_url = config.extra("jina_base_url", JINA_SEARCH_URL) or JINA_SEARCH_URL
+        url = f"{base_url.rstrip('/')}/?{urlencode({'q': query, 'num': config.max_results})}"
         try:
             payload = await http_get_json(
                 url,

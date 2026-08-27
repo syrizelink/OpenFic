@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from app.agent_runtime.tools.impls.web_search.providers.base import WebSearchProvider
-from app.agent_runtime.tools.impls.web_search.providers.bing import BingProvider
 from app.agent_runtime.tools.impls.web_search.providers.brave import BraveProvider
 from app.agent_runtime.tools.impls.web_search.providers.ddgs import DdgsProvider
 from app.agent_runtime.tools.impls.web_search.providers.exa import ExaProvider
@@ -19,7 +18,6 @@ from app.agent_runtime.tools.impls.web_search.providers.zhipu import ZhipuProvid
 PROVIDERS: dict[str, type[WebSearchProvider]] = {
     provider_cls.name: provider_cls
     for provider_cls in (
-        BingProvider,
         BraveProvider,
         DdgsProvider,
         ExaProvider,
@@ -41,43 +39,33 @@ def list_provider_names() -> tuple[str, ...]:
     return tuple(PROVIDERS)
 
 
-BING_MARKETS = (
-    "zh-CN",
-    "en-US",
-    "ja-JP",
-    "de-DE",
-    "fr-FR",
-    "es-ES",
-    "it-IT",
-    "pt-BR",
-    "ko-KR",
-    "ru-RU",
+ZHIPU_SEARCH_ENGINES = (
+    "search_std",
+    "search_pro",
+    "search_pro_sogou",
+    "search_pro_quark",
 )
-
-DDGS_REGIONS = (
-    "wt-wt",
-    "cn-zh",
-    "us-en",
-    "uk-en",
-    "jp-jp",
-    "de-de",
-    "fr-fr",
-    "es-es",
-    "br-pt",
-)
-
-ZHIPU_SEARCH_ENGINES = ("search_pro", "web_search_pro", "web_search_std")
 
 PROVIDER_REQUIRES_API_KEY: frozenset[str] = frozenset(
     name for name in PROVIDERS if name not in {"ddgs", "searxng"}
 )
 
+DDGS_BACKENDS = (
+    "auto",
+    "brave",
+    "duckduckgo",
+    "grokipedia",
+    "mojeek",
+    "wikipedia",
+    "yahoo",
+    "startpage",
+)
+
 _PROVIDER_FIELD_SPECS: dict[str, tuple[tuple[str, str, bool, tuple[str, ...]], ...]] = {
-    "bing": (("bing_mkt", "select", False, BING_MARKETS),),
     "brave": (),
-    "ddgs": (("ddgs_region", "select", False, DDGS_REGIONS),),
+    "ddgs": (("ddgs_backend", "select", False, DDGS_BACKENDS),),
     "exa": (),
-    "jina": (),
+    "jina": (("jina_base_url", "text", False, ()),),
     "perplexity": (),
     "searxng": (("searxng_base_url", "text", True, ()),),
     "serper": (),

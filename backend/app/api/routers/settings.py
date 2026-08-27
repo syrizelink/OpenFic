@@ -16,9 +16,11 @@ from app.agent_runtime.tools.permission_metadata import (
     get_default_agent_tool_permissions,
 )
 from app.agent_runtime.tools.impls.web_search.config import (
+    WebSearchSettings,
     load_web_search_config,
     save_web_search_config,
 )
+from app.agent_runtime.tools.impls.web_search.result_filter import normalize_domain_filters
 from app.agent_runtime.tools.impls.web_search.providers import (
     list_provider_metadata,
     list_provider_names,
@@ -608,10 +610,20 @@ async def get_web_search_settings(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> WebSearchSettingsResponse:
     config = await load_web_search_config(session)
+    return _build_web_search_settings_response(config)
+
+
+def _build_web_search_settings_response(
+    config: WebSearchSettings,
+) -> WebSearchSettingsResponse:
     return WebSearchSettingsResponse(
         enabled=config.enabled,
         provider=config.provider,
-        has_api_key=bool(config.api_key),
+        has_api_keys={
+            provider: bool(config.api_keys.get(provider)) for provider in list_provider_names()
+        },
+        max_results=config.max_results,
+        domain_filters=config.domain_filters,
         extras=config.extras,
     )
 
@@ -640,7 +652,20 @@ async def update_web_search_settings(
             )
         config.provider = provider
     if request.api_key is not None:
-        config.api_key = request.api_key.strip()
+        if not config.provider:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="设置 API Key 前必须选择搜索 provider",
+            )
+        api_key = request.api_key.strip()
+        if api_key:
+            config.api_keys[config.provider] = api_key
+        else:
+            config.api_keys.pop(config.provider, None)
+    if request.max_results is not None:
+        config.max_results = request.max_results
+    if request.domain_filters is not None:
+        config.domain_filters = normalize_domain_filters(request.domain_filters)
     if request.extras is not None:
         valid_keys = {
             field["key"]
@@ -657,12 +682,7 @@ async def update_web_search_settings(
         config.extras = {}
 
     await save_web_search_config(session, config)
-    return WebSearchSettingsResponse(
-        enabled=config.enabled,
-        provider=config.provider,
-        has_api_key=bool(config.api_key),
-        extras=config.extras,
-    )
+    return _build_web_search_settings_response(config)
 
 
 @router.get(

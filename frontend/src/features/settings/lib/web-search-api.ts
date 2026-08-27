@@ -22,7 +22,9 @@ export interface WebSearchProviderInfo {
 export interface WebSearchSettings {
   enabled: boolean;
   provider: string;
-  hasApiKey: boolean;
+  hasApiKeys: Record<string, boolean>;
+  maxResults: number;
+  domainFilters: string[];
   extras: Record<string, string>;
 }
 
@@ -30,13 +32,17 @@ export interface WebSearchSettingsUpdateRequest {
   enabled?: boolean;
   provider?: string;
   api_key?: string;
+  max_results?: number;
+  domain_filters?: string[];
   extras?: Record<string, string>;
 }
 
 interface WebSearchSettingsResponse {
   enabled: boolean;
   provider: string;
-  has_api_key: boolean;
+  has_api_keys: Record<string, boolean>;
+  max_results: number;
+  domain_filters: string[];
   extras: Record<string, string>;
 }
 
@@ -55,7 +61,9 @@ function transformWebSearchSettings(raw: WebSearchSettingsResponse): WebSearchSe
   return {
     enabled: raw.enabled,
     provider: raw.provider,
-    hasApiKey: raw.has_api_key,
+    hasApiKeys: raw.has_api_keys ?? {},
+    maxResults: raw.max_results,
+    domainFilters: raw.domain_filters ?? [],
     extras: raw.extras ?? {},
   };
 }
