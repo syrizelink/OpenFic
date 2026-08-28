@@ -18,6 +18,7 @@ const CUSTOM_PROVIDER_TYPES = new Set([
   "openai-compatible",
   "openai-compatible-responses",
   "anthropic-compatible",
+  "gemini-compatible",
 ]);
 
 export function supportsEmbeddingDimensions(providerType: string): boolean {
@@ -58,6 +59,7 @@ export function getProviderDisplayName(providerType: string): string {
     "openai-compatible": "OpenAI Compatible",
     "openai-compatible-responses": "OpenAI Compatible (Responses)",
     "anthropic-compatible": "Anthropic Compatible",
+    "gemini-compatible": "Gemini Compatible",
     builtin: "Builtin",
   };
 

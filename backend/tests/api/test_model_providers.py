@@ -412,6 +412,72 @@ async def test_validate_openai_responses_compatible_provider_discovers_models(
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_validate_gemini_compatible_provider_discovers_llm_models(
+    client: AsyncClient,
+):
+    route = respx.get("https://gateway.example/v1beta/models").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "models": [
+                    {
+                        "name": "models/gemini-2.5-flash",
+                        "displayName": "Gemini 2.5 Flash",
+                        "supportedGenerationMethods": ["generateContent"],
+                    },
+                    {
+                        "name": "models/text-embedding-004",
+                        "displayName": "Text Embedding 004",
+                        "supportedGenerationMethods": ["embedContent"],
+                    },
+                    {
+                        "name": "models/legacy-model",
+                        "displayName": "Legacy Model",
+                        "supportedGenerationMethods": None,
+                    },
+                ]
+            },
+        )
+    )
+
+    response = await client.post(
+        "/api/v1/model-providers/validate",
+        json={
+            "provider_type": "gemini-compatible",
+            "url": "https://gateway.example",
+            "api_key": "test-key",
+            "custom_headers": [
+                {"key": "X-Provider-Token", "value": "custom-token"}
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": True,
+        "message": "连接验证成功",
+        "models": [
+            {
+                "id": "gemini-2.5-flash",
+                "name": "Gemini 2.5 Flash",
+                "task_type": None,
+                "metadata": None,
+            },
+            {
+                "id": "legacy-model",
+                "name": "Legacy Model",
+                "task_type": None,
+                "metadata": None,
+            },
+        ],
+    }
+    assert "key" not in route.calls[0].request.url.params
+    assert route.calls[0].request.headers["x-goog-api-key"] == "test-key"
+    assert route.calls[0].request.headers["x-provider-token"] == "custom-token"
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_get_anthropic_compatible_provider_models_discovers_models(
     client: AsyncClient,
     session: AsyncSession,

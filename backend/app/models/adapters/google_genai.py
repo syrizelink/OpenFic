@@ -18,6 +18,22 @@ from app.models.adapters.base import BaseAdapter
 class GoogleGenAIAdapter(BaseAdapter):
     """Google Generative AI适配器，支持LLM和Embedding。"""
 
+    @staticmethod
+    def _build_request_headers(
+        api_key: str, headers: Mapping[str, str] | None
+    ) -> dict[str, str]:
+        request_headers = {
+            key: value
+            for key, value in (headers or {}).items()
+            if key.lower() != "x-goog-api-key"
+        }
+        request_headers["x-goog-api-key"] = api_key
+        return request_headers
+
+    def _build_models_url(self, base_url: str) -> str:
+        url = self._normalize_url(base_url)
+        return f"{url}/models" if url.endswith("/v1beta") else f"{url}/v1beta/models"
+
     @property
     def provider_type(self) -> str:
         return "google-genai"
@@ -31,18 +47,22 @@ class GoogleGenAIAdapter(BaseAdapter):
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """获取LLM模型列表（supportedGenerationMethods包含generateContent）。"""
-        url = f"{self._normalize_url(base_url)}/models"
+        url = self._build_models_url(base_url)
         
         try:
-            response = await client.get(url, params={"key": api_key})
+            response = await client.get(
+                url, headers=self._build_request_headers(api_key, headers)
+            )
             response.raise_for_status()
             data = response.json()
 
             models = []
             for model in data.get("models", []):
-                methods = model.get("supportedGenerationMethods", [])
+                methods = model.get("supportedGenerationMethods")
                 # LLM模型支持generateContent
-                if "generateContent" in methods:
+                if methods is None or (
+                    isinstance(methods, list) and "generateContent" in methods
+                ):
                     model_name = model.get("name", "")
                     if model_name.startswith("models/"):
                         model_id = model_name[7:]
@@ -71,16 +91,18 @@ class GoogleGenAIAdapter(BaseAdapter):
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """获取Embedding模型列表（supportedGenerationMethods包含embedContent）。"""
-        url = f"{self._normalize_url(base_url)}/models"
+        url = self._build_models_url(base_url)
         
         try:
-            response = await client.get(url, params={"key": api_key})
+            response = await client.get(
+                url, headers=self._build_request_headers(api_key, headers)
+            )
             response.raise_for_status()
             data = response.json()
 
             models = []
             for model in data.get("models", []):
-                methods = model.get("supportedGenerationMethods", [])
+                methods = model.get("supportedGenerationMethods") or []
                 # Embedding模型支持embedContent
                 if "embedContent" in methods:
                     model_name = model.get("name", "")

@@ -26,6 +26,7 @@ CUSTOM_PROVIDER_TYPES = frozenset(
         "openai-compatible",
         "openai-compatible-responses",
         "anthropic-compatible",
+        "gemini-compatible",
     }
 )
 
@@ -75,6 +76,8 @@ class ModelProviderService:
     ) -> list[str]:
         if provider.is_builtin:
             return ["embedding", "rerank"]
+        if provider.provider_type == "gemini-compatible":
+            return ["llm"]
         if catalog_match is None:
             catalog_match = await self.get_catalog_match(provider)
         return self.catalog_service.get_supported_task_types(
@@ -224,6 +227,7 @@ class ModelProviderService:
             "openai-compatible",
             "openai-compatible-responses",
             "anthropic-compatible",
+            "gemini-compatible",
         }:
             return url
 
@@ -386,6 +390,8 @@ class ModelProviderService:
             if provider_type == "anthropic-compatible"
             else "openai-compatible-responses"
             if provider_type == "openai-compatible-responses"
+            else "gemini-compatible"
+            if provider_type == "gemini-compatible"
             else "openai-compatible"
         )
         adapter = AdapterRegistry.get_adapter(runtime_provider_type)
@@ -436,6 +442,8 @@ class ModelProviderService:
             if provider.provider_type == "anthropic-compatible"
             else "openai-compatible-responses"
             if provider.provider_type == "openai-compatible-responses"
+            else "gemini-compatible"
+            if provider.provider_type == "gemini-compatible"
             else "openai-compatible"
         )
         if not AdapterRegistry.is_supported(runtime_provider_type, task_type):

@@ -95,6 +95,11 @@ def _stream_chunk_timeout() -> float | None:
     return settings.llm_chunk_timeout
 
 
+def _gemini_compatible_base_url(base_url: str) -> str:
+    normalized_url = base_url.rstrip("/")
+    return normalized_url.removesuffix("/v1beta")
+
+
 def _openai_compatible_kwargs(config: ModelConfig) -> dict[str, Any]:
     kwargs = _compact_kwargs(
         model=config.model_id,
@@ -167,6 +172,27 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
         if config.base_url:
             google_kwargs["client_options"] = {"api_endpoint": config.base_url}
         return ChatGoogleGenerativeAI(**google_kwargs)
+
+    if provider == "gemini-compatible":
+        from langchain_google_genai import ChatGoogleGenerativeAI
+
+        gemini_kwargs = _compact_kwargs(
+            model=config.model_id,
+            google_api_key=config.api_key,
+            temperature=_non_default(config.temperature, DEFAULT_TEMPERATURE),
+            top_p=_non_default(config.top_p, DEFAULT_TOP_P),
+            top_k=_non_default(config.top_k, DEFAULT_TOP_K),
+            max_output_tokens=config.max_tokens,
+            thinking_level=_three_level_reasoning_effort(reasoning_effort),
+            additional_headers=config.custom_headers or None,
+            max_retries=0,
+            api_version="v1beta",
+        )
+        if config.base_url:
+            gemini_kwargs["client_options"] = {
+                "api_endpoint": _gemini_compatible_base_url(config.base_url)
+            }
+        return ChatGoogleGenerativeAI(**gemini_kwargs)
 
     if provider == "deepseek":
         from langchain_deepseek import ChatDeepSeek

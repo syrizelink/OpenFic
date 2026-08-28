@@ -8,6 +8,7 @@ import json
 import pytest
 
 from app.core.encryption import EncryptionService
+from app.models.catalog import CatalogMatch
 from app.models.entities.model_provider import ModelProvider
 from app.models.registry import AdapterRegistry
 from app.models.services.model_provider_service import ModelProviderService
@@ -176,6 +177,85 @@ async def test_validate_openai_responses_compatible_connection_uses_its_adapter(
 
     assert models == [{"id": "llm-1", "name": "LLM 1"}]
     assert requested_provider_types == ["openai-compatible-responses"]
+
+
+@pytest.mark.asyncio
+async def test_validate_gemini_compatible_connection_uses_its_adapter(monkeypatch):
+    encryption_service = EncryptionService("id-hEPdEELwlgep9FQhcYQtX7ow188l7WHwy65qOZGQ=")
+    service = ModelProviderService(encryption_service)
+    requested_provider_types: list[str] = []
+
+    def get_adapter(cls, provider_type: str):
+        requested_provider_types.append(provider_type)
+        return _FakeAdapter()
+
+    monkeypatch.setattr(AdapterRegistry, "get_adapter", classmethod(get_adapter))
+
+    models = await service.validate_and_get_models(
+        "gemini-compatible",
+        "https://gateway.example",
+        "test-key",
+    )
+
+    assert models == [{"id": "llm-1", "name": "LLM 1"}]
+    assert requested_provider_types == ["gemini-compatible"]
+
+
+@pytest.mark.asyncio
+async def test_get_available_models_uses_gemini_compatible_adapter(monkeypatch):
+    encryption_service = EncryptionService("id-hEPdEELwlgep9FQhcYQtX7ow188l7WHwy65qOZGQ=")
+    service = ModelProviderService(encryption_service)
+    provider = ModelProvider(
+        name="Gemini Compatible",
+        url="https://gateway.example",
+        api_key_encrypted=encryption_service.encrypt("test-key"),
+        provider_type="gemini-compatible",
+    )
+    requested_provider_types: list[str] = []
+
+    def get_adapter(cls, provider_type: str):
+        requested_provider_types.append(provider_type)
+        return _FakeAdapter()
+
+    def is_supported(cls, provider_type: str, task_type: str) -> bool:
+        requested_provider_types.append(provider_type)
+        return task_type == "llm"
+
+    monkeypatch.setattr(AdapterRegistry, "get_adapter", classmethod(get_adapter))
+    monkeypatch.setattr(AdapterRegistry, "is_supported", classmethod(is_supported))
+
+    models = await service.get_available_models(provider, "llm")
+
+    assert models == [{"id": "llm-1", "name": "LLM 1"}]
+    assert requested_provider_types == ["gemini-compatible", "gemini-compatible"]
+
+
+@pytest.mark.asyncio
+async def test_gemini_compatible_supported_task_types_are_llm_only(monkeypatch):
+    encryption_service = EncryptionService("id-hEPdEELwlgep9FQhcYQtX7ow188l7WHwy65qOZGQ=")
+
+    class _CatalogService:
+        def get_supported_task_types(self, provider_type, catalog_match=None):
+            return ["embedding", "llm", "rerank"]
+
+    service = ModelProviderService(encryption_service, catalog_service=_CatalogService())
+    provider = ModelProvider(
+        name="Gemini Compatible",
+        url="https://gateway.example",
+        api_key_encrypted=encryption_service.encrypt("test-key"),
+        provider_type="gemini-compatible",
+    )
+
+    supported_task_types = await service.get_supported_task_types(
+        provider,
+        catalog_match=CatalogMatch(
+            catalog_provider_type="google-genai",
+            display_name="Google Generative AI",
+            matched_via="api",
+        ),
+    )
+
+    assert supported_task_types == ["llm"]
 
 
 @pytest.mark.asyncio

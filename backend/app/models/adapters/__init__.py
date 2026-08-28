@@ -9,6 +9,7 @@ from app.models.adapters.base import BaseAdapter
 from app.models.adapters.anthropic import AnthropicAdapter
 from app.models.adapters.anthropic_compatible import AnthropicCompatibleAdapter
 from app.models.adapters.deepseek import DeepSeekAdapter
+from app.models.adapters.gemini_compatible import GeminiCompatibleAdapter
 from app.models.adapters.google_genai import GoogleGenAIAdapter
 from app.models.adapters.mistral import MistralAdapter
 from app.models.adapters.openai import OpenAIAdapter
@@ -30,6 +31,7 @@ __all__ = [
     "AnthropicCompatibleAdapter",
     "CohereAdapter",
     "DeepSeekAdapter",
+    "GeminiCompatibleAdapter",
     "GoogleGenAIAdapter",
     "GroqAdapter",
     "HuggingFaceAdapter",

@@ -197,6 +197,7 @@ class ModelProviderCatalogService:
         if provider_type not in {
             "openai-compatible",
             "openai-compatible-responses",
+            "gemini-compatible",
         }:
             provider = next(
                 (item for item in providers if item.provider_type == provider_type),
@@ -234,7 +235,10 @@ class ModelProviderCatalogService:
         supported = set()
         if provider_type in _REGISTERED_PROVIDER_TYPES:
             supported.update(AdapterRegistry.get_supported_task_types(provider_type))
-        if catalog_match is not None and provider_type != "openai-compatible-responses":
+        if catalog_match is not None and provider_type not in {
+            "openai-compatible-responses",
+            "gemini-compatible",
+        }:
             try:
                 provider = self._find_provider(
                     self._load_current_snapshot()[0], catalog_match.catalog_provider_type

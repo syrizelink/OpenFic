@@ -83,6 +83,28 @@ def test_create_chat_model_anthropic_compatible_uses_anthropic_client_with_custo
     assert model.max_retries == 0
 
 
+def test_create_chat_model_gemini_compatible_uses_custom_native_client():
+    config = ModelConfig(
+        provider_type="gemini-compatible",
+        base_url="https://gateway.example/gemini",
+        api_key="test-key",
+        model_id="gemini-custom",
+        custom_headers={"X-Provider-Token": "custom-token"},
+        reasoning_effort="max",
+    )
+
+    model = create_chat_model(config)
+
+    from langchain_google_genai import ChatGoogleGenerativeAI
+
+    assert isinstance(model, ChatGoogleGenerativeAI)
+    assert model.base_url == {"api_endpoint": "https://gateway.example/gemini"}
+    assert model.api_version == "v1beta"
+    assert model.additional_headers == {"X-Provider-Token": "custom-token"}
+    assert model.thinking_level == "high"
+    assert model.max_retries == 0
+
+
 def test_create_chat_model_custom_providers_send_custom_headers():
     openai_model = create_chat_model(
         ModelConfig(
