@@ -42,6 +42,12 @@ const ANTHROPIC_COMPATIBLE_OPTION: ProviderIdSelectOption = {
   iconPath: null,
 };
 
+const GEMINI_COMPATIBLE_OPTION: ProviderIdSelectOption = {
+  value: "gemini-compatible",
+  label: "Gemini Compatible",
+  iconPath: null,
+};
+
 export function ProviderIdSelect({
   value,
   onChange,
@@ -65,6 +71,7 @@ export function ProviderIdSelect({
       OPENAI_COMPATIBLE_OPTION,
       OPENAI_RESPONSES_COMPATIBLE_OPTION,
       ANTHROPIC_COMPATIBLE_OPTION,
+      GEMINI_COMPATIBLE_OPTION,
     ]) {
       if (!catalogOptions.some((option) => option.value === compatibleOption.value)) {
         catalogOptions.push(compatibleOption);
