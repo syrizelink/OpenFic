@@ -20,6 +20,29 @@ def _state(
     return state
 
 
+def test_format_plan_todos_uses_numbered_status_and_priority_blocks() -> None:
+    assert plan_service.format_plan_todos(
+        [
+            _todo("Inspect the outline", "completed", "high"),
+            _todo("Run verification", "pending", "medium"),
+        ]
+    ) == (
+        "[1 completed / high priority]\n"
+        "Inspect the outline\n\n"
+        "[2 pending / medium priority]\n"
+        "Run verification"
+    )
+
+
+def test_format_current_plan_wraps_formatted_todos() -> None:
+    assert plan_service.format_current_plan([_todo("Inspect the outline", "pending", "low")]) == (
+        "<current_plan>\n"
+        "[1 pending / low priority]\n"
+        "Inspect the outline\n"
+        "</current_plan>"
+    )
+
+
 @pytest.mark.asyncio
 async def test_write_plan_replaces_the_complete_todo_list_in_one_session(
     session: AsyncSession,

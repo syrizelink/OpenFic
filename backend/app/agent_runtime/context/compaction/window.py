@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import NoReturn
 
 from app.agent_runtime.context.compaction.config import (
@@ -26,6 +26,7 @@ class CompactionWindow:
     messages: list[ContextMessage]
     source_input_tokens: int
     transcript: str
+    outside_messages: list[ContextMessage] = field(default_factory=list)
 
 
 def _seq(message: ContextMessage) -> int | None:
@@ -107,10 +108,19 @@ def select_compaction_window(
     if not seqs:
         _raise_no_window()
 
+    start_seq = min(seqs)
+    end_seq = max(seqs)
+    outside_messages = [
+        message
+        for message in history_messages
+        if (seq := _seq(message)) is None or seq < start_seq or seq > end_seq
+    ]
+
     return CompactionWindow(
-        start_seq=min(seqs),
-        end_seq=max(seqs),
+        start_seq=start_seq,
+        end_seq=end_seq,
         messages=window_messages,
         source_input_tokens=source_input_tokens,
         transcript=to_transcript(window_messages),
+        outside_messages=outside_messages,
     )

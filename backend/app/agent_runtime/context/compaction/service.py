@@ -10,8 +10,10 @@ from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.context.compaction.window import CompactionWindow
+from app.agent_runtime.context.types import ContextMessage
 from app.agent_runtime.graph.state import AgentRuntimeState
 from app.agent_runtime.model_config import to_client_model_config
+from app.agent_runtime.plan import service as plan_service
 from app.agent_runtime.persistence import compaction_repo
 from app.agent_runtime.persistence import repo as message_repo
 from app.agent_runtime.persistence.compaction_types import (
@@ -28,6 +30,55 @@ UsageSink = Callable[[dict[str, Any]], Awaitable[None] | None]
 PromptRole = Literal["system", "user", "assistant"]
 
 _SURROGATE_RE = re.compile(r"[\ud800-\udfff]")
+
+
+def _tool_call_name(tool_call: object) -> str | None:
+    if not isinstance(tool_call, Mapping):
+        return None
+    name = tool_call.get("name")
+    if isinstance(name, str) and name:
+        return name
+    function = tool_call.get("function")
+    if isinstance(function, Mapping):
+        function_name = function.get("name")
+        if isinstance(function_name, str) and function_name:
+            return function_name
+    return None
+
+
+def _has_write_plan_tool(messages: list[ContextMessage]) -> bool:
+    for message in messages:
+        if message.role == "assistant" and any(
+            _tool_call_name(tool_call) == "write_plan"
+            for tool_call in message.tool_calls or []
+        ):
+            return True
+        if message.role != "tool":
+            continue
+        if message.name == "write_plan":
+            return True
+        metadata = message.metadata or {}
+        if metadata.get("tool_name") == "write_plan":
+            return True
+    return False
+
+
+async def _current_plan_block(
+    db_session: AsyncSession,
+    *,
+    session_id: str,
+    outside_messages: list[ContextMessage],
+) -> str | None:
+    if _has_write_plan_tool(outside_messages):
+        return None
+    try:
+        todos = await plan_service.get_plan_todos(db_session, session_id)
+    except Exception:
+        logger.opt(exception=True).warning("Failed to load current plan for compaction")
+        return None
+    if todos is None:
+        return None
+    return _sanitize_surrogates(plan_service.format_current_plan(todos))
 
 
 class CompactionError(RuntimeError):
@@ -116,6 +167,13 @@ async def compact_window(
             error=exc,
         )
         raise
+
+    if plan_block := await _current_plan_block(
+        db_session,
+        session_id=session_id,
+        outside_messages=window.outside_messages,
+    ):
+        summary = f"{summary}\n\n{plan_block}"
 
     usage = _extract_usage(response)
     token_input, token_output, token_cache = _token_counts(usage)
