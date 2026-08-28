@@ -56,6 +56,10 @@ interface WordsCountModule {
 
 const wordsCount = (wordsCountModule as unknown as WordsCountModule).wordsCount;
 
+function getLineNumberDigits(lineCount: number): number {
+  return String(Math.max(lineCount, 1)).length;
+}
+
 interface ChapterEditorProps {
   chapterId: string | null;
   scrollTop?: number;
@@ -115,6 +119,7 @@ function ChapterEditorContent({
     queryKey: ["settings"],
     queryFn: fetchSettings,
   });
+  const showLineNumbers = settings?.editorShowLineNumbers ?? false;
   const autoIndentRef = useRef(settings?.editorAutoIndent ?? false);
   const autoConvertPunctuationRef = useRef(settings?.editorAutoConvertPunctuation ?? false);
   const autoPairSymbolsRef = useRef(settings?.editorAutoPairSymbols ?? false);
@@ -143,6 +148,7 @@ function ChapterEditorContent({
   const [isSaving, setIsSaving] = useState(false);
   const [findReplaceMode, setFindReplaceMode] = useState<"closed" | "find" | "replace">("closed");
   const [wordCount, setWordCount] = useState(() => wordsCount(initialDraft.content));
+  const [lineNumberDigits, setLineNumberDigits] = useState(1);
   const saveStatus = isSaving ? "saving" : hasChanges ? "unsaved" : "saved";
   const latestDraftRef = useRef(initialDraft);
   const latestDraftUpdatedAtRef = useRef(initialDraftUpdatedAt);
@@ -312,9 +318,11 @@ function ChapterEditorContent({
     onUpdate: ({ editor }) => {
       if (isAgentLocked) return;
       syncDirtyStateFromEditor(editor);
+      setLineNumberDigits(getLineNumberDigits(editor.state.doc.childCount));
       setWordCount(wordsCount(editor.getText()));
     },
     onCreate: ({ editor }) => {
+      setLineNumberDigits(getLineNumberDigits(editor.state.doc.childCount));
       setWordCount(wordsCount(editor.getText()));
     },
   });
@@ -469,6 +477,7 @@ function ChapterEditorContent({
 
     if (currentContent !== nextContent) {
       editor.commands.setContent(nextContent, { emitUpdate: false });
+      setLineNumberDigits(getLineNumberDigits(editor.state.doc.childCount));
       queueMicrotask(() => {
         setWordCount(wordsCount(editor.getText()));
       });
@@ -638,6 +647,10 @@ function ChapterEditorContent({
   }, [addSelectionToConversation, chapter.id, chapter.title, editor, onAddToConversation, t]);
 
   const editorMaxWidth = 800;
+  const lineNumberWidth = `max(1.5rem, calc(${lineNumberDigits}ch + 0.25rem))`;
+  const lineNumberWidthStyle = showLineNumbers
+    ? ({ "--editor-line-number-width": lineNumberWidth } as React.CSSProperties)
+    : undefined;
 
   return (
     <Box
@@ -673,7 +686,7 @@ function ChapterEditorContent({
       <Box
         ref={containerRef}
         style={{ flex: 1, minHeight: 0, overflow: "auto" }}
-        className={`tiptap-editor-wrapper ${scrollbarProps.className}`}
+        className={`tiptap-editor-wrapper${showLineNumbers ? " tiptap-editor-wrapper--line-numbers" : ""} ${scrollbarProps.className}`}
         onWheel={scrollbarProps.onWheel}
         onMouseMove={scrollbarProps.onMouseMove}
         onMouseLeave={scrollbarProps.onMouseLeave}
@@ -681,10 +694,10 @@ function ChapterEditorContent({
         onClick={isAgentLocked ? showLockedToast : undefined}
       >
         <Box
+          className="chapter-editor-content"
           style={{
             maxWidth: editorMaxWidth,
-            margin: "0 auto",
-            padding: "0 24px",
+            ...lineNumberWidthStyle,
           }}
         >
           <TitleInput
@@ -705,7 +718,7 @@ function ChapterEditorContent({
           >
             <EditorContent
               editor={editor}
-              className="tiptap-editor"
+              className={`tiptap-editor${showLineNumbers ? " tiptap-editor--line-numbers" : ""}`}
             />
           </Box>
         </Box>

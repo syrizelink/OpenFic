@@ -11,6 +11,67 @@
   outline: none;
 }
 
+.tiptap-editor--line-numbers .ProseMirror {
+  counter-reset: editor-line;
+}
+
+.tiptap-editor--line-numbers {
+  --editor-line-number-scale: 0.75;
+}
+
+.tiptap-editor-wrapper--line-numbers {
+  container-type: inline-size;
+}
+
+.chapter-editor-content {
+  --editor-line-number-gap: 1rem;
+  --editor-line-number-width: 2.5rem;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+@container (max-width: 900px) {
+  .tiptap-editor-wrapper--line-numbers > .chapter-editor-content {
+    margin-inline-end: 0;
+    margin-inline-start: calc(var(--editor-line-number-width) + var(--editor-line-number-gap));
+  }
+}
+
+.tiptap-editor--line-numbers .ProseMirror > p {
+  position: relative;
+  counter-increment: editor-line;
+}
+
+.tiptap-editor--line-numbers .ProseMirror > p::after {
+  position: absolute;
+  inset-inline-start: calc(0rem - var(--editor-line-number-width) - var(--editor-line-number-gap));
+  top: 0.1em;
+  width: var(--editor-line-number-width);
+  color: var(--gray-a9);
+  content: counter(editor-line);
+  font-family: var(--code-font-family, ui-monospace, monospace);
+  font-size: inherit;
+  font-variant-numeric: tabular-nums;
+  line-height: inherit;
+  pointer-events: none;
+  text-align: end;
+  transform: scale(var(--editor-line-number-scale, 0.75));
+  transform-origin: right center;
+  white-space: nowrap;
+  user-select: none;
+}
+
+@media (max-width: 767px) {
+  .tiptap-editor--line-numbers {
+    --editor-line-number-scale: 0.65;
+  }
+
+  .tiptap-editor-wrapper--line-numbers > .chapter-editor-content {
+    --editor-line-number-gap: 0.25rem;
+    margin-inline-start: max(0px, calc(var(--editor-line-number-width) - 1.5rem));
+  }
+}
+
 .tiptap-editor p {
   margin-bottom: 1em;
 }

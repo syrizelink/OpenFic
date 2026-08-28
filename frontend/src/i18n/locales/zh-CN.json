@@ -820,6 +820,8 @@
     "editorAutoPairSymbolsHint": "输入成对的符号时，自动补齐对应符号。",
     "editorAutoPairSymbolsTooltipSymbols": "支持的符号：() [] {} \"\" '' （）【】「」『』《》“”‘’",
     "editorAutoPairSymbolsTooltipLabel": "自动补齐成对符号说明",
+    "editorShowLineNumbers": "显示行号",
+    "editorShowLineNumbersHint": "按显式换行显示章节内容的行号；自动换行不会产生新的行号。",
     "increaseFontSize": "增大字号",
     "decreaseFontSize": "减小字号",
     "fontOptionSystemDefault": "系统默认",

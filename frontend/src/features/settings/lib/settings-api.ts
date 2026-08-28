@@ -51,6 +51,7 @@ export function transformSettings(raw: SettingsResponse): Settings {
     editorAutoIndent: raw.editor_auto_indent ?? true,
     editorAutoConvertPunctuation: raw.editor_auto_convert_punctuation ?? false,
     editorAutoPairSymbols: raw.editor_auto_pair_symbols ?? false,
+    editorShowLineNumbers: raw.editor_show_line_numbers ?? false,
   };
 }
 

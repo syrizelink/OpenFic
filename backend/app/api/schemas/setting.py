@@ -87,6 +87,10 @@ class SettingsResponse(BaseModel):
         default=False,
         description="输入成对符号的左符号时是否自动补齐右符号",
     )
+    editor_show_line_numbers: bool = Field(
+        default=False,
+        description="是否在章节编辑器中显示行号",
+    )
 
 
 class SettingsUpdateRequest(BaseModel):
@@ -148,6 +152,10 @@ class SettingsUpdateRequest(BaseModel):
     editor_auto_pair_symbols: bool | None = Field(
         default=None,
         description="输入成对符号的左符号时是否自动补齐右符号",
+    )
+    editor_show_line_numbers: bool | None = Field(
+        default=None,
+        description="是否在章节编辑器中显示行号",
     )
 
 
