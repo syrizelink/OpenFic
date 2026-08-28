@@ -1231,6 +1231,51 @@ class ApprovalTool(AgentTool):
 
 
 @pytest.mark.asyncio
+async def test_react_agent_builds_approval_preview_once() -> None:
+    preview_calls = 0
+
+    class CountingApprovalTool(ApprovalTool):
+        async def build_interrupt_preview(self, args: dict[str, object]) -> dict | None:
+            nonlocal preview_calls
+            preview_calls += 1
+            return await super().build_interrupt_preview(args)
+
+    graph = create_react_agent(
+        ReactAgentConfig(
+            name="test",
+            tools=[CountingApprovalTool(_pre_hooks=[_approval_hook])],
+            termination=TerminationCondition(mode="no_tool_call"),
+            max_iterations=1,
+        ),
+        checkpointer=InMemorySaver(),
+    )
+
+    async def invoke_model(*_args, **_kwargs):
+        return AIMessage(
+            content="",
+            tool_calls=[
+                {"id": "call_preview", "name": "approval_tool", "args": {"value": "x"}}
+            ],
+        )
+
+    with patch(
+        "app.agent_runtime.graph.react_agent._invoke_model",
+        side_effect=invoke_model,
+    ):
+        await graph.ainvoke(
+            {
+                "messages": [HumanMessage(content="run")],
+                "iteration_count": 0,
+                "is_done": False,
+                "final_output": None,
+            },
+            config={"configurable": {"thread_id": "single-preview"}},
+        )
+
+    assert preview_calls == 1
+
+
+@pytest.mark.asyncio
 async def test_react_agent_does_not_execute_tool_after_approval_is_rejected() -> None:
     executed: list[str] = []
     tool_results: list[dict] = []

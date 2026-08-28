@@ -260,7 +260,7 @@ async def list_chapters(
         raise NotFoundError(f"项目不存在: {project_id}")
 
     volumes = await volume_repo.list_by_project(session, project_id)
-    chapters = await chapter_repo.list_by_project(session, project_id)
+    chapters = await chapter_repo.list_metadata_by_project(session, project_id)
     chapters_by_volume: dict[str, list[Chapter]] = {volume.id: [] for volume in volumes}
     for chapter in chapters:
         chapters_by_volume.setdefault(chapter.volume_id, []).append(chapter)
@@ -531,7 +531,7 @@ async def delete_chapter(
     project_id = chapter.project_id
     volume_id = chapter.volume_id
     deleted_volume_order = chapter.order
-    chapters = await chapter_repo.list_by_project(session, project_id)
+    chapters = await chapter_repo.list_metadata_by_project(session, project_id)
     volumes = await volume_repo.list_by_project(session, project_id)
     deleted_global_order = global_order_index(chapters, volumes)[chapter_id]
     old_title = chapter.title
@@ -593,6 +593,66 @@ async def delete_chapter(
 
     # 更新项目统计
     await _update_volume_stats(session, volume_id)
+    await _update_project_stats(session, project_id)
+
+
+async def delete_chapters_in_volume(session: AsyncSession, volume_id: str) -> None:
+    """批量删除卷内章节，避免逐章重复扫描项目和重算统计。"""
+    chapters = await chapter_repo.list_by_volume(session, volume_id)
+    if not chapters:
+        return
+
+    project_id = chapters[0].project_id
+    project_chapters = await chapter_repo.list_metadata_by_project(session, project_id)
+    volumes = await volume_repo.list_by_project(session, project_id)
+    global_orders = global_order_index(project_chapters, volumes)
+    deleted_global_orders = [
+        global_orders[chapter.id]
+        for chapter in chapters
+        if chapter.id in global_orders
+    ]
+
+    from app.retrieval.chapter_index import ChapterIndexIntegrationService
+    from app.retrieval.index_status import schedule_emit_index_status
+
+    index_service = ChapterIndexIntegrationService()
+    for chapter in chapters:
+        await index_service.delete_chapter_index(session, chapter)
+    schedule_emit_index_status(session, project_id)
+
+    await chapter_summary_repo.delete_by_chapter_ids(
+        session, [chapter.id for chapter in chapters]
+    )
+    if deleted_global_orders:
+        long_term_summaries = (
+            await chapter_summary_repo.list_long_term_summaries_by_project(
+                session, project_id
+            )
+        )
+        first_deleted_order = min(deleted_global_orders)
+        affected_ranges = [
+            (summary.start_order, summary.end_order)
+            for summary in long_term_summaries
+            if summary.start_order is not None
+            and summary.end_order is not None
+            and summary.end_order >= first_deleted_order
+        ]
+        await chapter_summary_repo.delete_long_term_summaries_by_ranges(
+            session, project_id, affected_ranges
+        )
+
+    await chapter_repo.delete_by_volume(session, volume_id)
+    for chapter in chapters:
+        await writing_activity_service.record_activity(
+            session,
+            project_id=project_id,
+            chapter_id=chapter.id,
+            chapter_title=chapter.title,
+            source="user",
+            operation="delete",
+            old_word_count=chapter.word_count,
+            new_word_count=0,
+        )
     await _update_project_stats(session, project_id)
 
 

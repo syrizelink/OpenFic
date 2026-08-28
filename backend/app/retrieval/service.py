@@ -32,6 +32,10 @@ from app.storage.models.retrieval_index import RetrievalIndex
 from app.storage.repos import retrieval_index_repo
 
 
+class IndexNotReadyError(ValueError):
+    """检索索引尚未完成构建，暂时不能执行查询。"""
+
+
 class OpenFicRetrievalService:
     def __init__(self, *, base_dir: Path | None = None):
         self.base_dir = base_dir or (settings.static_dir / "lancedb")
@@ -208,7 +212,7 @@ class OpenFicRetrievalService:
     ):
         row = await self._get_index(session, index_key)
         if row.status != "ready":
-            raise ValueError(f"Index {index_key} is not ready")
+            raise IndexNotReadyError(f"Index {index_key} is not ready")
         return self._engine_for(row).query(text, embedding_client)
 
     async def _get_index(

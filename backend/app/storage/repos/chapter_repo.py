@@ -4,11 +4,12 @@ Chapter Repository - 章节数据访问层。
 """
 
 from datetime import UTC, datetime
-from typing import NamedTuple
+from typing import Any, Literal, NamedTuple, cast
 
 from sqlalchemy import case, delete as sql_delete
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import QueryableAttribute, load_only
 from sqlmodel import col
 
 from app.storage.models.chapter import Chapter
@@ -21,6 +22,22 @@ class ChapterIndexSource(NamedTuple):
     project_id: str
     id: str
     content: str
+
+
+def _chapter_metadata_attributes() -> tuple[QueryableAttribute[Any], ...]:
+    return tuple(
+        cast(QueryableAttribute[Any], attribute)
+        for attribute in (
+            Chapter.id,
+            Chapter.project_id,
+            Chapter.volume_id,
+            Chapter.title,
+            Chapter.word_count,
+            Chapter.order,
+            Chapter.created_at,
+            Chapter.updated_at,
+        )
+    )
 
 
 async def list_export_metadata_by_project(
@@ -108,6 +125,40 @@ async def list_by_project(
         .order_by(col(Volume.order).asc(), col(Chapter.order).asc())
     )
     return list(result.scalars().all())
+
+
+async def list_metadata_by_project(
+    session: AsyncSession,
+    project_id: str,
+) -> list[Chapter]:
+    """获取项目章节元数据，不加载正文。"""
+    result = await session.execute(
+        select(Chapter)
+        .options(load_only(*_chapter_metadata_attributes()))
+        .join(Volume, col(Chapter.volume_id) == col(Volume.id))
+        .where(col(Chapter.project_id) == project_id)
+        .order_by(col(Volume.order).asc(), col(Chapter.order).asc())
+    )
+    return list(result.scalars().all())
+
+
+async def get_by_volume_ref(
+    session: AsyncSession,
+    volume_id: str,
+    *,
+    ref_type: Literal["order", "title"],
+    ref_value: int | str,
+) -> Chapter | None:
+    """按卷内序号或标题获取单个章节。"""
+    stmt = select(Chapter).where(col(Chapter.volume_id) == volume_id)
+    if ref_type == "order":
+        stmt = stmt.where(col(Chapter.order) == int(ref_value))
+    else:
+        stmt = stmt.where(col(Chapter.title) == str(ref_value)).order_by(
+            col(Chapter.order).asc()
+        )
+    result = await session.execute(stmt.limit(1))
+    return result.scalar_one_or_none()
 
 
 async def list_index_source_by_project(
@@ -231,6 +282,45 @@ async def list_by_volume(
     return list(result.scalars().all())
 
 
+async def list_by_volume_from_order(
+    session: AsyncSession,
+    volume_id: str,
+    start_order: int,
+) -> list[Chapter]:
+    """读取卷内指定序号之后的章节，刷新批量排序后的对象状态。"""
+    result = await session.execute(
+        select(Chapter)
+        .where(
+            col(Chapter.volume_id) == volume_id,
+            col(Chapter.order) >= start_order,
+        )
+        .order_by(col(Chapter.order).asc())
+        .execution_options(populate_existing=True)
+    )
+    return list(result.scalars().all())
+
+
+async def list_metadata_by_volume(
+    session: AsyncSession,
+    volume_id: str,
+    *,
+    offset: int = 0,
+    limit: int | None = None,
+) -> list[Chapter]:
+    """分页获取卷内章节元数据，不加载正文。"""
+    stmt = (
+        select(Chapter)
+        .options(load_only(*_chapter_metadata_attributes()))
+        .where(col(Chapter.volume_id) == volume_id)
+        .order_by(col(Chapter.order).asc())
+        .offset(offset)
+    )
+    if limit is not None:
+        stmt = stmt.limit(limit)
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
 async def list_by_project_page(
     session: AsyncSession,
     project_id: str,
@@ -339,6 +429,14 @@ async def delete(session: AsyncSession, chapter: Chapter) -> None:
         chapter: 章节实例。
     """
     await session.delete(chapter)
+    await session.flush()
+
+
+async def delete_by_volume(session: AsyncSession, volume_id: str) -> None:
+    """删除卷内全部章节。"""
+    await session.execute(
+        sql_delete(Chapter).where(col(Chapter.volume_id) == volume_id)
+    )
     await session.flush()
 
 

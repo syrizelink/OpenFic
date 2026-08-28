@@ -33,6 +33,50 @@ class FakeEmbeddingClient:
     config: Any
 
 
+@pytest.mark.asyncio
+async def test_search_freshness_uses_lightweight_chapter_sources(
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    module = importlib.import_module("app.agent_runtime.tools.impls.chapter.search_chapters")
+    model = SimpleNamespace(id="model-1", dimensions=3)
+    project_index = SimpleNamespace(
+        status="ready",
+        embedding_model_ref_id=model.id,
+        embedding_dimensions_snapshot=model.dimensions,
+        schema_version=module.CURRENT_CHUNK_SCHEMA_VERSION,
+    )
+    list_sources = AsyncMock(
+        return_value=[SimpleNamespace(id="chapter-1", content="正文")]
+    )
+    list_chapters = AsyncMock(side_effect=AssertionError("不应加载完整章节"))
+    monkeypatch.setattr(
+        module.retrieval_index_repo,
+        "get_by_index_key",
+        AsyncMock(return_value=project_index),
+    )
+    monkeypatch.setattr(
+        module.retrieval_chapter_index_state_repo,
+        "list_by_project",
+        AsyncMock(return_value=[]),
+    )
+    monkeypatch.setattr(module.chapter_repo, "list_index_source_by_project", list_sources)
+    monkeypatch.setattr(module.chapter_repo, "list_by_project", list_chapters)
+
+    freshness = await module._compute_index_freshness(
+        session,
+        project_id="project-1",
+        model=model,
+    )
+
+    assert freshness == module.INDEX_STATUS_NO_INDEX
+    list_sources.assert_awaited_once_with(session, "project-1")
+    list_chapters.assert_not_awaited()
+
+
 class FakeQueryBuilder:
     def __init__(self, results: list[ChunkSearchResult]) -> None:
         self.results = results
@@ -97,14 +141,15 @@ class FakeRetrievalService:
 
 
 class FailingQueryRetrievalService:
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str, error_type: type[Exception] = RuntimeError) -> None:
         self.message = message
+        self.error_type = error_type
         self.queries: list[tuple[str, str]] = []
 
     async def query(self, session, index_key: str, text: str, embedding_client):
         _ = (session, embedding_client)
         self.queries.append((index_key, text))
-        raise RuntimeError(self.message)
+        raise self.error_type(self.message)
 
 
 def _make_state(project_id: str = "project-search") -> dict[str, Any]:
@@ -874,6 +919,31 @@ async def test_search_chapters_hides_external_retrieval_error_details(
     assert "sk-secret" not in data["message"]
     assert "LanceDB" not in data["message"]
     assert "/tmp/private-table" not in data["message"]
+
+
+@pytest.mark.asyncio
+async def test_search_chapters_preserves_index_not_ready_reason(
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.retrieval.service import IndexNotReadyError
+
+    module, _ = await _seed_ready_index(session)
+    reason = "Index chapters:project-search is not ready"
+    retrieval = FailingQueryRetrievalService(reason, error_type=IndexNotReadyError)
+    monkeypatch.setattr(module, "OpenFicRetrievalService", lambda: retrieval)
+    monkeypatch.setattr(module, "EmbeddingClient", FakeEmbeddingClient)
+
+    tool = _make_search_chapters_tool(module)
+    data = json.loads(
+        await tool.ainvoke(
+            {"query": "星桥", "force": True},
+            config={"configurable": {"db_session": session}},
+        )
+    )
+
+    assert data["type"] == "fail"
+    assert data["message"] == f"章节检索执行失败: {reason}"
 
 
 @pytest.mark.asyncio

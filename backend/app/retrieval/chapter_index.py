@@ -437,11 +437,31 @@ async def compute_project_index_status(
     if title is None:
         project = await project_repo.get_by_id(session, project_id)
         title = project.title if project else ""
+    enabled = is_project_index_enabled(config, project_id)
+    if not enabled:
+        total_chapters = await chapter_repo.count_by_project(session, project_id)
+        return ProjectIndexStatus(
+            project_id=project_id,
+            enabled=enabled,
+            status=INDEX_STATUS_DISABLED,
+            title=title,
+            total_chapters=total_chapters,
+        )
+
     if model is None:
         model = await resolve_index_embedding_model(session, config)
+    if model is None:
+        total_chapters = await chapter_repo.count_by_project(session, project_id)
+        return ProjectIndexStatus(
+            project_id=project_id,
+            enabled=True,
+            status=INDEX_STATUS_NOT_CONFIGURED,
+            title=title,
+            total_chapters=total_chapters,
+        )
 
     chapters = await chapter_repo.list_index_source_by_project(session, project_id)
-    if not is_project_index_enabled(config, project_id) or model is None or not chapters:
+    if not chapters:
         return _summarize_project_status(
             project_id=project_id,
             title=title,
@@ -570,7 +590,7 @@ async def enqueue_project_index_update(
     if model is None:
         return None
 
-    chapters = await chapter_repo.list_by_project(session, project_id)
+    chapters = await chapter_repo.list_index_source_by_project(session, project_id)
     if not chapters:
         return IndexEnqueueResult(enqueued_count=0, skipped_count=0)
 

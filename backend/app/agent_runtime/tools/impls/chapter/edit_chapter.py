@@ -134,10 +134,14 @@ class EditChapterTool(AgentTool):
                 await volume_repo.list_by_project(session, self.project_id),
                 volume_ref_model,
             )
-            chapters = await chapter_repo.list_by_project(session, self.project_id)
-            before = images_by_id(chapters)
-            volume_chapters = await chapter_repo.list_by_volume(session, volume.id)
-            match = resolve_chapter_from_list(volume_chapters, ref)
+            matched = await chapter_repo.get_by_volume_ref(
+                session,
+                volume.id,
+                ref_type=ref.type,
+                ref_value=ref.value,
+            )
+            match = resolve_chapter_from_list([matched] if matched is not None else [], ref)
+            before = images_by_id([match])
             before_match = chapter_preview_from_object(match)
             if new_title is not None:
                 match.title = new_title
@@ -159,7 +163,7 @@ class EditChapterTool(AgentTool):
                 before_match,
                 chapter_preview_from_object(match),
             )
-            after = images_by_id(await chapter_repo.list_by_project(session, self.project_id))
+            after = images_by_id([match])
             affected = await record_chapter_diffs(
                 session,
                 revision_id=revision_id,

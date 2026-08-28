@@ -120,9 +120,7 @@ async def delete_volume(
     if cascade:
         from app.storage.services import chapter_service
 
-        chapters = await chapter_repo.list_by_volume(session, volume_id)
-        for chapter in list(chapters):
-            await chapter_service.delete_chapter(session, chapter.id)
+        await chapter_service.delete_chapters_in_volume(session, volume_id)
 
     await volume_repo.delete(session, volume)
 
