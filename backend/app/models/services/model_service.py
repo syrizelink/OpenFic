@@ -5,6 +5,7 @@ Model Service - 模型业务逻辑层。
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.background.llm.resolver import resolve_background_llm
 from app.core.errors import NotFoundError
 from app.models.entities.model import Model
 from app.models.clients.model_params import (
@@ -75,6 +76,24 @@ class ModelService:
         if not model:
             raise NotFoundError(f"Model with id {model_id} not found")
         return model
+
+    async def validate_model_connection(
+        self, session: AsyncSession, model_id: str
+    ) -> None:
+        """使用模型发送一条最小非流式请求以验证连接。"""
+        model = await self.get_model_by_id(session, model_id)
+        if model.task_type != "llm":
+            raise ValueError("仅支持验证语言模型连接")
+
+        resolved = await resolve_background_llm(
+            session,
+            model_policy="model_validation",
+            model_id=model_id,
+        )
+        await resolved.client.generate(
+            [{"role": "user", "content": "hi"}],
+            timeout=30,
+        )
 
     async def create_model(
         self,
@@ -234,7 +253,9 @@ class ModelService:
             session, name, exclude_model_id=model_id
         ):
             raise ValueError("模型名称已存在")
-        if await retrieval_index_repo.exists_by_embedding_model_ref_id(session, model_id):
+        if await retrieval_index_repo.exists_by_embedding_model_ref_id(
+            session, model_id
+        ):
             protected_changes = []
             if provider_id is not None and provider_id != existing.provider_id:
                 protected_changes.append("provider_id")
@@ -300,4 +321,3 @@ class ModelService:
         if not success:
             raise NotFoundError(f"Model with id {model_id} not found")
         await session.commit()
-

@@ -172,7 +172,7 @@ export function ModelIdSelect({
   const modelNameSize = compact ? "1" : "2";
   const labelSize = compact ? "1" : "2";
   const showSearchBox = !compact || models.length >= 8;
-  const scrollAreaHeight = compact ? "auto" : 300;
+  const scrollAreaHeight = compact ? "min(300px, calc(100dvh - 104px))" : 300;
   const placeholderHeight = compact ? "auto" : 200;
 
   const selectedModel = useMemo(
@@ -396,7 +396,10 @@ export function ModelIdSelect({
             </Box>
           ) : null}
 
-          <ScrollArea style={{ height: scrollAreaHeight }}>
+          <ScrollArea
+            scrollbars="vertical"
+            style={{ height: scrollAreaHeight }}
+          >
             {isLoading || (open && !isListReady) ? (
               <Flex
                 align="center"
@@ -580,6 +583,7 @@ export function ModelIdSelect({
                       <Flex
                         align="center"
                         gap={compact ? "1" : "2"}
+                        style={{ minWidth: 0 }}
                       >
                         {compact ? null : (
                           <ProviderIcon
@@ -596,11 +600,12 @@ export function ModelIdSelect({
                             align="start"
                             justify="between"
                             gap="2"
+                            style={{ minWidth: 0 }}
                           >
                             <Flex
                               align="center"
                               gap="1"
-                              style={{ minWidth: 0 }}
+                              style={{ minWidth: 0, flex: "1 1 auto" }}
                             >
                               {compact ? (
                                 <ProviderIcon
@@ -610,9 +615,11 @@ export function ModelIdSelect({
                               ) : null}
                               <Text
                                 size={modelNameSize}
+                                truncate
                                 weight="medium"
                                 style={{
                                   minWidth: 0,
+                                  flex: "1 1 auto",
                                   color: showToolCallWarning ? "#c64545" : undefined,
                                 }}
                               >

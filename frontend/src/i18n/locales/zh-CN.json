@@ -1038,6 +1038,8 @@
     "apiKeyRequired": "请输入 API Key",
     "providerType": "提供商类型",
     "providerTypePlaceholder": "选择提供商类型",
+    "builtin": "内置",
+    "custom": "自定义",
     "providerTypeRequired": "请选择提供商类型",
     "validate": "验证连接",
     "validating": "验证连接中...",
@@ -1175,6 +1177,9 @@
     "createFailed": "创建失败",
     "updateFailed": "更新失败",
     "deleteFailed": "删除失败",
+    "validateModel": "验证模型连接",
+    "validateModelSuccess": "模型连接验证成功",
+    "validateModelFailed": "模型连接验证失败",
     "builtin": "内置"
   },
   "tabs": {

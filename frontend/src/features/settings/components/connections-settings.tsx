@@ -4,9 +4,9 @@
  * 外部连接设置面板，管理模型服务提供商连接。
  */
 
-import { Box, Flex, Text, Button, IconButton } from "@radix-ui/themes";
+import { Box, Flex, Text, Button, IconButton, Tooltip } from "@radix-ui/themes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Edit } from "lucide-react";
+import { Plus, Trash2, Edit, Component } from "lucide-react";
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -227,10 +227,17 @@ export function ConnectionsSettings({
                         background: "var(--gray-a3)",
                       }}
                     >
-                      <ProviderIcon
-                        iconPath={connection.iconPath}
-                        size={24}
-                      />
+                      {connection.iconPath || connection.catalogMatch?.iconPath ? (
+                        <ProviderIcon
+                          iconPath={connection.iconPath || connection.catalogMatch?.iconPath}
+                          size={24}
+                        />
+                      ) : isCustomProviderType(connection.providerType) ? (
+                        <Component
+                          size={24}
+                          aria-hidden="true"
+                        />
+                      ) : null}
                     </Box>
 
                     {/* 信息 */}
@@ -288,22 +295,28 @@ export function ConnectionsSettings({
 
                   {/* 操作按钮 */}
                   <Flex gap="2">
-                    <IconButton
-                      variant="ghost"
-                      color="gray"
-                      onClick={() => handleEdit(connection)}
-                      disabled={isAgentSettingsLocked}
-                    >
-                      <Edit size={16} />
-                    </IconButton>
-                    <IconButton
-                      variant="ghost"
-                      color="red"
-                      onClick={() => handleDelete(connection)}
-                      disabled={isAgentSettingsLocked}
-                    >
-                      <Trash2 size={16} />
-                    </IconButton>
+                    <Tooltip content={t("connections.editConnection")}>
+                      <IconButton
+                        variant="ghost"
+                        color="gray"
+                        onClick={() => handleEdit(connection)}
+                        disabled={isAgentSettingsLocked}
+                        aria-label={t("connections.editConnection")}
+                      >
+                        <Edit size={16} />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip content={t("connections.deleteConnection")}>
+                      <IconButton
+                        variant="ghost"
+                        color="red"
+                        onClick={() => handleDelete(connection)}
+                        disabled={isAgentSettingsLocked}
+                        aria-label={t("connections.deleteConnection")}
+                      >
+                        <Trash2 size={16} />
+                      </IconButton>
+                    </Tooltip>
                   </Flex>
                 </Flex>
                 {index < externalConnections.length - 1 && (

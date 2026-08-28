@@ -16,9 +16,6 @@ export type ModelCapabilityKey =
 const MODALITY_CAPABILITY_ORDER: Array<Exclude<ModelCapabilityKey, "reasoning" | "tool-call">> = [
   "text",
   "image",
-  "video",
-  "audio",
-  "pdf",
 ];
 
 const CAPABILITY_ICON_META: Record<

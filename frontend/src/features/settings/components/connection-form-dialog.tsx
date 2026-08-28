@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, Flex, Button, Text, TextField, Box } from "@radix-ui/themes";
-import { Check, Plus, Trash2, X } from "lucide-react";
+import { Check, Plus, Trash2, X, Component } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFieldArray, useForm, Controller, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -127,6 +127,7 @@ export function ConnectionFormDialog({
     () => catalogProviders?.find((provider) => provider.providerType === providerType),
     [catalogProviders, providerType],
   );
+  const providerIconPath = selectedCatalogProvider?.iconPath || connection?.iconPath;
 
   // 切换到需要用户提供地址的提供商时，只清空一次 URL。
   useEffect(() => {
@@ -220,6 +221,10 @@ export function ConnectionFormDialog({
   // 提交表单
   const onFormSubmit = useCallback(
     async (data: ConnectionFormData) => {
+      if (!isEditing && !data.apiKey?.trim()) {
+        return;
+      }
+
       const formData = new FormData();
 
       formData.append("name", data.name || "");
@@ -259,7 +264,7 @@ export function ConnectionFormDialog({
       reset();
       setValidationStatus("idle");
     },
-    [catalogProviders, onSubmit, reset],
+    [catalogProviders, isEditing, onSubmit, reset],
   );
 
   const handleOpenChange = useCallback(
@@ -311,10 +316,17 @@ export function ConnectionFormDialog({
                   background: "var(--gray-a3)",
                 }}
               >
-                <ProviderIcon
-                  iconPath={selectedCatalogProvider?.iconPath || connection?.iconPath}
-                  size={40}
-                />
+                {providerIconPath ? (
+                  <ProviderIcon
+                    iconPath={providerIconPath}
+                    size={40}
+                  />
+                ) : isCustomProviderType(providerType) ? (
+                  <Component
+                    size={40}
+                    aria-hidden="true"
+                  />
+                ) : null}
               </Box>
 
               {/* 右侧：备注名称和提供商类型 */}
@@ -645,9 +657,7 @@ export function ConnectionFormDialog({
                 <Button
                   type="submit"
                   disabled={
-                    isAgentSettingsLocked ||
-                    isSubmitting ||
-                    (!isEditing && validationStatus !== "success")
+                    isAgentSettingsLocked || isSubmitting || (!isEditing && !apiKey?.trim())
                   }
                 >
                   {isSubmitting ? <Spinner size={18} /> : null}

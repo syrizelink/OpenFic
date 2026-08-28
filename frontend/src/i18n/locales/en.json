@@ -1038,6 +1038,8 @@
     "apiKeyRequired": "Please enter API Key",
     "providerType": "Provider Type",
     "providerTypePlaceholder": "Select provider type",
+    "builtin": "Built-in",
+    "custom": "Custom",
     "providerTypeRequired": "Please select provider type",
     "validate": "Validate Connection",
     "validating": "Validating connection...",
@@ -1175,6 +1177,9 @@
     "createFailed": "Creation failed",
     "updateFailed": "Update failed",
     "deleteFailed": "Delete failed",
+    "validateModel": "Validate model connection",
+    "validateModelSuccess": "Model connection validated successfully",
+    "validateModelFailed": "Model connection validation failed",
     "builtin": "Builtin"
   },
   "tabs": {
