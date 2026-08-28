@@ -103,6 +103,7 @@ async def test_get_settings_default(client: AsyncClient) -> None:
     assert data["editor_auto_indent"] is True
     assert data["editor_auto_convert_punctuation"] is False
     assert data["editor_auto_pair_symbols"] is False
+    assert data["editor_show_line_numbers"] is False
 
 
 @pytest.mark.asyncio
@@ -451,6 +452,22 @@ async def test_update_settings_editor_auto_pair_symbols(client: AsyncClient) -> 
     follow_up = await client.get("/api/v1/settings")
     assert follow_up.status_code == 200
     assert follow_up.json()["editor_auto_pair_symbols"] is True
+
+
+@pytest.mark.asyncio
+async def test_update_settings_editor_show_line_numbers(client: AsyncClient) -> None:
+    """编辑器行号显示开关应可持久化。"""
+    response = await client.put(
+        "/api/v1/settings",
+        json={"editor_show_line_numbers": True},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["editor_show_line_numbers"] is True
+
+    follow_up = await client.get("/api/v1/settings")
+    assert follow_up.status_code == 200
+    assert follow_up.json()["editor_show_line_numbers"] is True
 
 
 @pytest.mark.asyncio

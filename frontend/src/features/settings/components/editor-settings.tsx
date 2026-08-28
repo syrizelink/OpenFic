@@ -42,6 +42,13 @@ export function EditorSettings() {
         });
       }
 
+      if (previousSettings && patch.editor_show_line_numbers !== undefined) {
+        queryClient.setQueryData<Settings>(["settings"], {
+          ...previousSettings,
+          editorShowLineNumbers: patch.editor_show_line_numbers,
+        });
+      }
+
       return { previousSettings };
     },
     onSuccess: (nextSettings) => {
@@ -205,6 +212,37 @@ export function EditorSettings() {
             aria-label={t("settings.editorAutoPairSymbols")}
             onCheckedChange={(checked) => {
               updateMutation.mutate({ editor_auto_pair_symbols: checked });
+            }}
+          />
+        </Flex>
+
+        <Flex
+          align="center"
+          justify="between"
+          gap="4"
+        >
+          <Flex
+            direction="column"
+            gap="1"
+          >
+            <Text
+              size="2"
+              weight="medium"
+            >
+              {t("settings.editorShowLineNumbers")}
+            </Text>
+            <Text
+              size="1"
+              color="gray"
+            >
+              {t("settings.editorShowLineNumbersHint")}
+            </Text>
+          </Flex>
+          <Switch
+            checked={settings.editorShowLineNumbers}
+            aria-label={t("settings.editorShowLineNumbers")}
+            onCheckedChange={(checked) => {
+              updateMutation.mutate({ editor_show_line_numbers: checked });
             }}
           />
         </Flex>

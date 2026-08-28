@@ -820,6 +820,8 @@
     "editorAutoPairSymbolsHint": "Automatically complete paired symbols while typing.",
     "editorAutoPairSymbolsTooltipSymbols": "Supported symbols: () [] {} \"\" '' （）【】「」『』《》“”‘’",
     "editorAutoPairSymbolsTooltipLabel": "About auto-completing paired symbols",
+    "editorShowLineNumbers": "Show line numbers",
+    "editorShowLineNumbersHint": "Show line numbers for explicit line breaks in the chapter editor; soft-wrapped lines do not receive new numbers.",
     "increaseFontSize": "Increase font size",
     "decreaseFontSize": "Decrease font size",
     "fontOptionSystemDefault": "System default",

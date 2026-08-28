@@ -50,6 +50,7 @@ export interface Settings {
   editorAutoIndent: boolean;
   editorAutoConvertPunctuation: boolean;
   editorAutoPairSymbols: boolean;
+  editorShowLineNumbers: boolean;
 }
 
 /** 设置响应（后端格式） */
@@ -81,6 +82,7 @@ export interface SettingsResponse {
   editor_auto_indent?: boolean;
   editor_auto_convert_punctuation?: boolean;
   editor_auto_pair_symbols?: boolean;
+  editor_show_line_numbers?: boolean;
 }
 
 /** 设置更新请求 */
@@ -112,6 +114,7 @@ export interface SettingsUpdateRequest {
   editor_auto_indent?: boolean;
   editor_auto_convert_punctuation?: boolean;
   editor_auto_pair_symbols?: boolean;
+  editor_show_line_numbers?: boolean;
 }
 
 export interface AuditDetailsStorage {

@@ -115,6 +115,7 @@ function ChapterEditorContent({
     queryKey: ["settings"],
     queryFn: fetchSettings,
   });
+  const showLineNumbers = settings?.editorShowLineNumbers ?? false;
   const autoIndentRef = useRef(settings?.editorAutoIndent ?? false);
   const autoConvertPunctuationRef = useRef(settings?.editorAutoConvertPunctuation ?? false);
   const autoPairSymbolsRef = useRef(settings?.editorAutoPairSymbols ?? false);
@@ -673,7 +674,7 @@ function ChapterEditorContent({
       <Box
         ref={containerRef}
         style={{ flex: 1, minHeight: 0, overflow: "auto" }}
-        className={`tiptap-editor-wrapper ${scrollbarProps.className}`}
+        className={`tiptap-editor-wrapper${showLineNumbers ? " tiptap-editor-wrapper--line-numbers" : ""} ${scrollbarProps.className}`}
         onWheel={scrollbarProps.onWheel}
         onMouseMove={scrollbarProps.onMouseMove}
         onMouseLeave={scrollbarProps.onMouseLeave}
@@ -681,10 +682,9 @@ function ChapterEditorContent({
         onClick={isAgentLocked ? showLockedToast : undefined}
       >
         <Box
+          className="chapter-editor-content"
           style={{
             maxWidth: editorMaxWidth,
-            margin: "0 auto",
-            padding: "0 24px",
           }}
         >
           <TitleInput
@@ -705,7 +705,7 @@ function ChapterEditorContent({
           >
             <EditorContent
               editor={editor}
-              className="tiptap-editor"
+              className={`tiptap-editor${showLineNumbers ? " tiptap-editor--line-numbers" : ""}`}
             />
           </Box>
         </Box>
