@@ -133,6 +133,35 @@ async def test_delete_volume_with_cascade_deletes_chapters(client: AsyncClient) 
 
 
 @pytest.mark.asyncio
+async def test_delete_volume_with_cascade_does_not_delete_chapters_one_by_one(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_id = await _create_project(client)
+    volume = await _default_volume(client, project_id)
+    second_response = await client.post(
+        f"/api/v1/projects/{project_id}/volumes",
+        json={"title": "第二卷"},
+    )
+    assert second_response.status_code == 201
+    for title in ["第一章", "第二章"]:
+        chapter_response = await client.post(
+            f"/api/v1/projects/{project_id}/chapters",
+            json={"volume_id": volume["id"], "title": title},
+        )
+        assert chapter_response.status_code == 201
+
+    async def fail_per_chapter_delete(*_args, **_kwargs):
+        raise AssertionError("级联删除不应逐章调用删除服务")
+
+    monkeypatch.setattr("app.storage.services.chapter_service.delete_chapter", fail_per_chapter_delete)
+
+    response = await client.delete(f"/api/v1/volumes/{volume['id']}?cascade=true")
+
+    assert response.status_code == 204
+
+
+@pytest.mark.asyncio
 async def test_delete_last_volume_is_rejected(client: AsyncClient) -> None:
     project_id = await _create_project(client)
     volume = await _default_volume(client, project_id)

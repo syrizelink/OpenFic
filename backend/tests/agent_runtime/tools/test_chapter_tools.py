@@ -120,8 +120,12 @@ async def test_list_chapters_uses_required_volume_ref_and_volume_pagination() ->
             AsyncMock(return_value=[volume]),
         ), patch(
             "app.agent_runtime.tools.impls.chapter.list_chapters.chapter_repo.list_by_volume",
+            AsyncMock(side_effect=AssertionError("列表不应加载正文")),
+        ) as list_by_volume, patch(
+            "app.agent_runtime.tools.impls.chapter.list_chapters.chapter_repo.list_metadata_by_volume",
             AsyncMock(return_value=chapters),
-        ) as list_by_volume:
+            create=True,
+        ) as list_metadata_by_volume:
             result = await tool.ainvoke(
                 {
                     "volume_ref": {"type": "order", "value": 1},
@@ -134,7 +138,10 @@ async def test_list_chapters_uses_required_volume_ref_and_volume_pagination() ->
         {"order": 1, "title": "第一章", "word_count": 4},
         {"order": 2, "title": "第二章", "word_count": 4},
     ]
-    list_by_volume.assert_awaited_once_with(mock_session, "vol-1", offset=5, limit=10)
+    list_by_volume.assert_not_awaited()
+    list_metadata_by_volume.assert_awaited_once_with(
+        mock_session, "vol-1", offset=5, limit=10
+    )
 
 
 async def test_read_chapter_resolves_chapter_inside_volume() -> None:
@@ -152,8 +159,12 @@ async def test_read_chapter_resolves_chapter_inside_volume() -> None:
             AsyncMock(return_value=[volume]),
         ), patch(
             "app.agent_runtime.tools.impls.chapter.read_chapter.chapter_repo.list_by_volume",
-            AsyncMock(return_value=[chapter]),
-        ) as list_by_volume:
+            AsyncMock(side_effect=AssertionError("读取不应扫描整卷")),
+        ) as list_by_volume, patch(
+            "app.agent_runtime.tools.impls.chapter.read_chapter.chapter_repo.get_by_volume_ref",
+            AsyncMock(return_value=chapter),
+            create=True,
+        ) as get_by_volume_ref:
             result = await tool.ainvoke(
                 {
                     "volume_ref": {"type": "title", "value": "第一卷"},
@@ -168,7 +179,10 @@ async def test_read_chapter_resolves_chapter_inside_volume() -> None:
         "content": "1|第一行\n2|第二行",
         "word_count": 6,
     }
-    list_by_volume.assert_awaited_once_with(mock_session, "vol-1")
+    list_by_volume.assert_not_awaited()
+    get_by_volume_ref.assert_awaited_once_with(
+        mock_session, "vol-1", ref_type="order", ref_value=2
+    )
 
 
 async def test_write_chapter_appends_to_volume_and_returns_volume_id() -> None:
@@ -233,6 +247,7 @@ async def test_write_chapter_appends_to_volume_and_returns_volume_id() -> None:
     assert data["metadata"]["chapter_diff"]["operation"] == "create"
     assert data["metadata"]["chapter_diff"]["chapter_id"] == "chap-new"
     assert [section["type"] for section in data["metadata"]["chapter_diff"]["sections"]] == ["title", "content"]
+    mock_repo.list_by_project.assert_not_awaited()
     mock_repo.get_max_order.assert_awaited_once_with(mock_session, "vol-1")
     created_chapter = mock_repo.create.call_args[0][1]
     assert created_chapter.id == "chap-new"
@@ -361,14 +376,19 @@ async def test_edit_chapter_rejects_over_limit_replacement_without_updating_repo
                 "app.agent_runtime.tools.impls.chapter.edit_chapter.volume_repo.list_by_project",
                 AsyncMock(return_value=[volume]),
             ),
-            patch(
-                "app.agent_runtime.tools.impls.chapter.edit_chapter.chapter_repo.list_by_project",
-                AsyncMock(return_value=[chapter]),
-            ),
-            patch(
-                "app.agent_runtime.tools.impls.chapter.edit_chapter.chapter_repo.list_by_volume",
-                AsyncMock(return_value=[chapter]),
-            ),
+                patch(
+                    "app.agent_runtime.tools.impls.chapter.edit_chapter.chapter_repo.list_by_project",
+                    AsyncMock(return_value=[chapter]),
+                ),
+                patch(
+                    "app.agent_runtime.tools.impls.chapter.edit_chapter.chapter_repo.list_by_volume",
+                    AsyncMock(return_value=[chapter]),
+                ),
+                patch(
+                    "app.agent_runtime.tools.impls.chapter.edit_chapter.chapter_repo.get_by_volume_ref",
+                    AsyncMock(return_value=chapter),
+                    create=True,
+                ),
             patch(
                 "app.agent_runtime.tools.impls.chapter.edit_chapter.chapter_repo.update_chapter",
                 AsyncMock(),
@@ -389,6 +409,7 @@ async def test_write_chapter_insert_order_shifts_within_volume() -> None:
     from app.agent_runtime.tools.impls.chapter.write_chapter import WriteChapterTool
 
     volume = _make_volume()
+    existing = _make_chapter(order=2, title="已有章节", chapter_id="chap-existing")
     created = _make_chapter(order=2, title="插入章节", chapter_id="chap-new")
     tool = WriteChapterTool(_state=_make_state())
 
@@ -423,8 +444,10 @@ async def test_write_chapter_insert_order_shifts_within_volume() -> None:
         ), patch(
             "app.background.jobs.service.commit_and_notify", AsyncMock()
         ):
-            mock_repo.list_by_project = AsyncMock(side_effect=[[], [created]])
-            mock_repo.list_by_volume = AsyncMock(return_value=[_make_chapter(order=2)])
+            mock_repo.list_by_project = AsyncMock()
+            mock_repo.list_by_volume = AsyncMock(side_effect=AssertionError("不应扫描整卷"))
+            mock_repo.get_by_volume_ref = AsyncMock(return_value=existing)
+            mock_repo.list_by_volume_from_order = AsyncMock(return_value=[existing])
             mock_repo.get_max_order = AsyncMock(return_value=5)
             mock_repo.shift_orders = AsyncMock()
             mock_repo.create = AsyncMock(side_effect=create_chapter)
@@ -444,6 +467,15 @@ async def test_write_chapter_insert_order_shifts_within_volume() -> None:
     assert data["metadata"]["chapter_diff"]["operation"] == "create"
     assert data["metadata"]["chapter_diff"]["order"] == 2
     assert [section["type"] for section in data["metadata"]["chapter_diff"]["sections"]] == ["title", "content"]
+    mock_repo.list_by_project.assert_not_awaited()
+    mock_repo.list_by_volume.assert_not_awaited()
+    mock_repo.get_by_volume_ref.assert_awaited_once_with(
+        mock_session, "vol-1", ref_type="order", ref_value=2
+    )
+    assert mock_repo.list_by_volume_from_order.await_args_list == [
+        ((mock_session, "vol-1", 2), {}),
+        ((mock_session, "vol-1", 2), {}),
+    ]
     mock_repo.shift_orders.assert_awaited_once_with(mock_session, "vol-1", 2, 5, 1)
 
 
@@ -478,8 +510,9 @@ async def test_edit_chapter_resolves_inside_volume() -> None:
         ), patch(
             "app.background.jobs.service.commit_and_notify", AsyncMock()
         ):
-            mock_repo.list_by_project = AsyncMock(return_value=[chapter])
-            mock_repo.list_by_volume = AsyncMock(return_value=[chapter])
+            mock_repo.list_by_project = AsyncMock(side_effect=AssertionError("不应加载项目全部章节"))
+            mock_repo.list_by_volume = AsyncMock(side_effect=AssertionError("不应扫描整卷"))
+            mock_repo.get_by_volume_ref = AsyncMock(return_value=chapter)
             mock_repo.update_chapter = AsyncMock()
             result = await tool.ainvoke(
                 {
@@ -521,7 +554,11 @@ async def test_edit_chapter_resolves_inside_volume() -> None:
             }
         },
     }
-    mock_repo.list_by_volume.assert_awaited_once_with(mock_session, "vol-1")
+    mock_repo.list_by_project.assert_not_awaited()
+    mock_repo.list_by_volume.assert_not_awaited()
+    mock_repo.get_by_volume_ref.assert_awaited_once_with(
+        mock_session, "vol-1", ref_type="order", ref_value=1
+    )
     assert isinstance(chapter.updated_at, datetime)
     assert chapter.updated_at.tzinfo is UTC
 
@@ -552,9 +589,16 @@ async def test_delete_chapter_delegates_to_chapter_service() -> None:
             SimpleNamespace(delete_chapter=AsyncMock()),
             create=True,
         ) as mock_chapter_service:
-            after_chapter = _make_chapter(order=1, chapter_id="chap-2")
-            mock_repo.list_by_project = AsyncMock(side_effect=[[chapter, after_chapter], [after_chapter]])
-            mock_repo.list_by_volume = AsyncMock(return_value=[chapter])
+            following = _make_chapter(order=3, chapter_id="chap-2")
+            after_following = _make_chapter(order=2, chapter_id="chap-2")
+            mock_repo.list_by_project = AsyncMock(
+                side_effect=AssertionError("不应加载项目全部章节")
+            )
+            mock_repo.list_by_volume = AsyncMock(side_effect=AssertionError("不应扫描整卷"))
+            mock_repo.get_by_volume_ref = AsyncMock(return_value=chapter)
+            mock_repo.list_by_volume_from_order = AsyncMock(
+                side_effect=[[chapter, following], [after_following]]
+            )
             mock_repo.delete = AsyncMock()
             mock_repo.get_max_order = AsyncMock(return_value=4)
             mock_repo.shift_orders = AsyncMock()
@@ -584,6 +628,15 @@ async def test_delete_chapter_delegates_to_chapter_service() -> None:
     )
     mock_repo.delete.assert_not_called()
     mock_repo.shift_orders.assert_not_called()
+    mock_repo.list_by_project.assert_not_awaited()
+    mock_repo.list_by_volume.assert_not_awaited()
+    mock_repo.get_by_volume_ref.assert_awaited_once_with(
+        mock_session, "vol-1", ref_type="order", ref_value=2
+    )
+    assert mock_repo.list_by_volume_from_order.await_args_list == [
+        ((mock_session, "vol-1", 2), {}),
+        ((mock_session, "vol-1", 2), {}),
+    ]
 
 
 async def test_create_volume_appends_to_project() -> None:
@@ -827,6 +880,8 @@ async def test_move_chapter_to_volume_appends_to_target_volume() -> None:
     source = _make_volume(volume_id="vol-1", order=1, title="第一卷")
     target = _make_volume(volume_id="vol-2", order=2, title="第二卷")
     chapter = _make_chapter(order=2, volume_id="vol-1")
+    source_following = _make_chapter(order=3, volume_id="vol-1", chapter_id="chap-2")
+    after_following = _make_chapter(order=2, volume_id="vol-1", chapter_id="chap-2")
     moved = _make_chapter(order=4, volume_id="vol-2")
     tool = MoveChapterToVolumeTool(_state=_make_state())
 
@@ -840,7 +895,7 @@ async def test_move_chapter_to_volume_appends_to_target_volume() -> None:
             AsyncMock(return_value=[source, target]),
         ), patch(
             "app.agent_runtime.tools.impls.chapter.move_chapter_to_volume.chapter_repo.list_by_volume",
-            AsyncMock(return_value=[chapter]),
+            AsyncMock(side_effect=AssertionError("不应扫描整卷")),
         ), patch(
             "app.agent_runtime.tools.impls.chapter.move_chapter_to_volume.chapter_service.move_chapter_to_volume",
             AsyncMock(return_value=moved),
@@ -856,8 +911,16 @@ async def test_move_chapter_to_volume_appends_to_target_volume() -> None:
         ):
             with patch(
                 "app.agent_runtime.tools.impls.chapter.move_chapter_to_volume.chapter_repo.list_by_project",
-                AsyncMock(side_effect=[[chapter], [moved]]),
-            ):
+                AsyncMock(side_effect=AssertionError("不应加载项目全部章节")),
+            ), patch(
+                "app.agent_runtime.tools.impls.chapter.move_chapter_to_volume.chapter_repo.get_by_volume_ref",
+                AsyncMock(return_value=chapter),
+                create=True,
+            ) as get_by_volume_ref, patch(
+                "app.agent_runtime.tools.impls.chapter.move_chapter_to_volume.chapter_repo.list_by_volume_from_order",
+                AsyncMock(side_effect=[[chapter, source_following], [after_following]]),
+                create=True,
+            ) as list_by_volume_from_order:
                 result = await tool.ainvoke(
                     {
                         "volume_ref": {"type": "order", "value": 1},
@@ -882,6 +945,10 @@ async def test_move_chapter_to_volume_appends_to_target_volume() -> None:
         "vol-2",
         record_activity=False,
     )
+    get_by_volume_ref.assert_awaited_once_with(
+        mock_session, "vol-1", ref_type="order", ref_value=2
+    )
+    assert list_by_volume_from_order.await_count == 2
 
 
 def test_edit_chapter_input_rejects_empty_old_content() -> None:

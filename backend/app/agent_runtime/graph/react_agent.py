@@ -1159,7 +1159,9 @@ def create_react_agent(
                     interrupt_value.setdefault("tool_name", tool_name)
                     interrupt_value.setdefault("args", tool_args)
                     interrupt_value.setdefault("tool_index", tool_index)
-                    if callable(preview_builder):
+                    if "tool_result_preview" not in interrupt_value and callable(
+                        preview_builder
+                    ):
                         preview = await preview_builder(tool_args)
                         if isinstance(preview, dict):
                             interrupt_value["tool_result_preview"] = preview

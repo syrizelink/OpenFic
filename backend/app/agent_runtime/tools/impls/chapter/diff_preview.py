@@ -231,8 +231,14 @@ async def _resolve_write_order(
     if chapter_ref is None:
         return max_order + 1
 
-    chapters = await chapter_repo.list_by_volume(session, volume_id)
-    match = resolve_chapter_from_list(chapters, ChapterRef.model_validate(chapter_ref))
+    ref = ChapterRef.model_validate(chapter_ref)
+    matched = await chapter_repo.get_by_volume_ref(
+        session,
+        volume_id,
+        ref_type=ref.type,
+        ref_value=ref.value,
+    )
+    match = resolve_chapter_from_list([matched] if matched is not None else [], ref)
     return int(match.order)
 
 
@@ -241,18 +247,26 @@ async def _resolve_chapter(
     volume_id: str,
     chapter_ref: dict,
 ) -> Chapter | None:
-    chapters = await chapter_repo.list_by_volume(session, volume_id)
     ref_type = str(chapter_ref.get("type") or "")
     ref_value = chapter_ref.get("value")
+    if ref_type not in {"order", "title"}:
+        return None
     if ref_type == "order":
         order = _as_int(ref_value)
         if order is None:
             return None
-        return next((chapter for chapter in chapters if chapter.order == order), None)
-    if ref_type == "title":
-        title = str(ref_value or "")
-        return next((chapter for chapter in chapters if chapter.title == title), None)
-    return None
+        return await chapter_repo.get_by_volume_ref(
+            session,
+            volume_id,
+            ref_type="order",
+            ref_value=order,
+        )
+    return await chapter_repo.get_by_volume_ref(
+        session,
+        volume_id,
+        ref_type="title",
+        ref_value=str(ref_value or ""),
+    )
 
 
 async def _resolve_volume(

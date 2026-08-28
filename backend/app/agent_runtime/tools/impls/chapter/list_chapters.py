@@ -34,7 +34,7 @@ class ListChaptersTool(AgentTool):
             ref = VolumeRef.model_validate(volume_ref)
             volumes = await volume_repo.list_by_project(session, self.project_id)
             volume = resolve_volume_from_list(volumes, ref)
-            chapters = await chapter_repo.list_by_volume(
+            chapters = await chapter_repo.list_metadata_by_volume(
                 session, volume.id, offset=offset, limit=limit
             )
             items = [

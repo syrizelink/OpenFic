@@ -46,10 +46,19 @@ class DeleteChapterTool(AgentTool):
                 await volume_repo.list_by_project(session, self.project_id),
                 volume_ref_model,
             )
-            chapters = await chapter_repo.list_by_project(session, self.project_id)
-            before = images_by_id(chapters)
-            volume_chapters = await chapter_repo.list_by_volume(session, volume.id)
-            match = resolve_chapter_from_list(volume_chapters, ref)
+            matched = await chapter_repo.get_by_volume_ref(
+                session,
+                volume.id,
+                ref_type=ref.type,
+                ref_value=ref.value,
+            )
+            match = resolve_chapter_from_list([matched] if matched is not None else [], ref)
+            deleted_order = match.order
+            before = images_by_id(
+                await chapter_repo.list_by_volume_from_order(
+                    session, volume.id, deleted_order
+                )
+            )
             await chapter_service.delete_chapter(
                 session,
                 match.id,
@@ -58,7 +67,11 @@ class DeleteChapterTool(AgentTool):
                 task_id=str(self._state.get("task_id") or ""),
                 agent_session_id=self.session_id,
             )
-            after = images_by_id(await chapter_repo.list_by_project(session, self.project_id))
+            after = images_by_id(
+                await chapter_repo.list_by_volume_from_order(
+                    session, volume.id, deleted_order
+                )
+            )
             affected = await record_chapter_diffs(
                 session,
                 revision_id=revision_id,
@@ -84,7 +97,7 @@ class DeleteChapterTool(AgentTool):
                             "operation": "delete",
                             "chapter_id": match.id,
                             "chapter_title": match.title,
-                            "order": match.order,
+                            "order": deleted_order,
                         }
                     },
                 },

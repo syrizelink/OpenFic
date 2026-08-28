@@ -54,12 +54,21 @@ class MoveChapterToVolumeTool(AgentTool):
             target_volume = resolve_volume_from_list(
                 volumes, VolumeRef.model_validate(target_volume_ref)
             )
-            source_chapters = await chapter_repo.list_by_volume(session, source_volume.id)
-            chapter = resolve_chapter_from_list(
-                source_chapters, ChapterRef.model_validate(chapter_ref)
+            chapter_ref_model = ChapterRef.model_validate(chapter_ref)
+            matched = await chapter_repo.get_by_volume_ref(
+                session,
+                source_volume.id,
+                ref_type=chapter_ref_model.type,
+                ref_value=chapter_ref_model.value,
             )
+            chapter = resolve_chapter_from_list(
+                [matched] if matched is not None else [], chapter_ref_model
+            )
+            source_order = chapter.order
             before = images_by_id(
-                await chapter_repo.list_by_project(session, self.project_id)
+                await chapter_repo.list_by_volume_from_order(
+                    session, source_volume.id, source_order
+                )
             )
             moved = await chapter_service.move_chapter_to_volume(
                 session,
@@ -68,7 +77,10 @@ class MoveChapterToVolumeTool(AgentTool):
                 record_activity=False,
             )
             after = images_by_id(
-                await chapter_repo.list_by_project(session, self.project_id)
+                await chapter_repo.list_by_volume_from_order(
+                    session, source_volume.id, source_order
+                )
+                + [moved]
             )
             affected = await record_chapter_diffs(
                 session,

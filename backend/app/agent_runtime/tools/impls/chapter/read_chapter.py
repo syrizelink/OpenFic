@@ -51,8 +51,13 @@ class ReadChapterTool(AgentTool):
         try:
             volumes = await volume_repo.list_by_project(session, self.project_id)
             resolved_volume = resolve_volume_from_list(volumes, volume)
-            chapters = await chapter_repo.list_by_volume(session, resolved_volume.id)
-            match = resolve_chapter_from_list(chapters, ref)
+            matched = await chapter_repo.get_by_volume_ref(
+                session,
+                resolved_volume.id,
+                ref_type=ref.type,
+                ref_value=ref.value,
+            )
+            match = resolve_chapter_from_list([matched] if matched is not None else [], ref)
             return ReadChapterOutput(
                 order=match.order,
                 title=match.title,
