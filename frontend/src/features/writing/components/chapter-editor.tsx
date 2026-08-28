@@ -56,6 +56,10 @@ interface WordsCountModule {
 
 const wordsCount = (wordsCountModule as unknown as WordsCountModule).wordsCount;
 
+function getLineNumberDigits(lineCount: number): number {
+  return String(Math.max(lineCount, 1)).length;
+}
+
 interface ChapterEditorProps {
   chapterId: string | null;
   scrollTop?: number;
@@ -144,6 +148,7 @@ function ChapterEditorContent({
   const [isSaving, setIsSaving] = useState(false);
   const [findReplaceMode, setFindReplaceMode] = useState<"closed" | "find" | "replace">("closed");
   const [wordCount, setWordCount] = useState(() => wordsCount(initialDraft.content));
+  const [lineNumberDigits, setLineNumberDigits] = useState(1);
   const saveStatus = isSaving ? "saving" : hasChanges ? "unsaved" : "saved";
   const latestDraftRef = useRef(initialDraft);
   const latestDraftUpdatedAtRef = useRef(initialDraftUpdatedAt);
@@ -313,9 +318,11 @@ function ChapterEditorContent({
     onUpdate: ({ editor }) => {
       if (isAgentLocked) return;
       syncDirtyStateFromEditor(editor);
+      setLineNumberDigits(getLineNumberDigits(editor.state.doc.childCount));
       setWordCount(wordsCount(editor.getText()));
     },
     onCreate: ({ editor }) => {
+      setLineNumberDigits(getLineNumberDigits(editor.state.doc.childCount));
       setWordCount(wordsCount(editor.getText()));
     },
   });
@@ -470,6 +477,7 @@ function ChapterEditorContent({
 
     if (currentContent !== nextContent) {
       editor.commands.setContent(nextContent, { emitUpdate: false });
+      setLineNumberDigits(getLineNumberDigits(editor.state.doc.childCount));
       queueMicrotask(() => {
         setWordCount(wordsCount(editor.getText()));
       });
@@ -639,6 +647,10 @@ function ChapterEditorContent({
   }, [addSelectionToConversation, chapter.id, chapter.title, editor, onAddToConversation, t]);
 
   const editorMaxWidth = 800;
+  const lineNumberWidth = `max(1.5rem, calc(${lineNumberDigits}ch + 0.25rem))`;
+  const lineNumberWidthStyle = showLineNumbers
+    ? ({ "--editor-line-number-width": lineNumberWidth } as React.CSSProperties)
+    : undefined;
 
   return (
     <Box
@@ -685,6 +697,7 @@ function ChapterEditorContent({
           className="chapter-editor-content"
           style={{
             maxWidth: editorMaxWidth,
+            ...lineNumberWidthStyle,
           }}
         >
           <TitleInput
