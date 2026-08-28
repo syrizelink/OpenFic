@@ -9,6 +9,7 @@ from app.agent_runtime.persistence.child_runs import (
     create_child_run,
     enqueue_child_run_request,
     get_child_run_by_pending_approval,
+    get_latest_child_run_requests,
     get_waiting_child_run_for_tool_call,
     list_child_runs_for_parent,
     record_child_run_pending_approval,
@@ -164,6 +165,105 @@ async def test_list_child_runs_for_parent_orders_by_creation(
     rows = await list_child_runs_for_parent(db_session, "parent-session")
 
     assert [row.child_thread_id for row in rows] == ["child-1", "child-2"]
+
+
+@pytest.mark.asyncio
+async def test_list_child_runs_for_parent_filters_active_and_statuses(
+    db_session: AsyncSession, sample_task
+):
+    completed = await create_child_run(
+        db_session,
+        parent_session_id="parent-session",
+        parent_task_id=sample_task.id,
+        parent_thread_id="parent-thread",
+        child_thread_id="completed-child",
+        agent_key="writer",
+        dispatch_id="dispatch-completed",
+        tool_call_id="tool-call-completed",
+        request={},
+        status="completed",
+    )
+    error = await create_child_run(
+        db_session,
+        parent_session_id="parent-session",
+        parent_task_id=sample_task.id,
+        parent_thread_id="parent-thread",
+        child_thread_id="error-child",
+        agent_key="reviewer",
+        dispatch_id="dispatch-error",
+        tool_call_id="tool-call-error",
+        request={},
+        status="error",
+    )
+    await create_child_run(
+        db_session,
+        parent_session_id="parent-session",
+        parent_task_id=sample_task.id,
+        parent_thread_id="parent-thread",
+        child_thread_id="running-child",
+        agent_key="writer",
+        dispatch_id="dispatch-running",
+        tool_call_id="tool-call-running",
+        request={},
+        status="running",
+    )
+    inactive = await create_child_run(
+        db_session,
+        parent_session_id="parent-session",
+        parent_task_id=sample_task.id,
+        parent_thread_id="parent-thread",
+        child_thread_id="inactive-child",
+        agent_key="writer",
+        dispatch_id="dispatch-inactive",
+        tool_call_id="tool-call-inactive",
+        request={},
+        status="completed",
+    )
+    inactive.is_active = False
+    await db_session.commit()
+
+    rows = await list_child_runs_for_parent(
+        db_session,
+        "parent-session",
+        is_active=True,
+        statuses=["completed", "error"],
+    )
+
+    assert [row.id for row in rows] == [completed.id, error.id]
+    assert inactive.id not in {row.id for row in rows}
+
+
+@pytest.mark.asyncio
+async def test_get_latest_child_run_requests_returns_the_last_interaction(
+    db_session: AsyncSession, sample_task
+):
+    row = await create_child_run(
+        db_session,
+        parent_session_id="parent-session",
+        parent_task_id=sample_task.id,
+        parent_thread_id="parent-thread",
+        child_thread_id="child-thread",
+        agent_key="writer",
+        dispatch_id="dispatch-1",
+        tool_call_id="tool-call-1",
+        request={"task": "initial prompt"},
+    )
+    latest_request = await enqueue_child_run_request(
+        db_session,
+        child_run_id=row.id,
+        request_kind="notify",
+        content="latest prompt",
+    )
+    await complete_child_run_request(
+        db_session,
+        latest_request.id,
+        assistant_content="latest result",
+    )
+
+    latest = await get_latest_child_run_requests(db_session, [row.id])
+
+    assert latest[row.id].content == "latest prompt"
+    assert latest[row.id].assistant_content == "latest result"
 
 
 @pytest.mark.asyncio

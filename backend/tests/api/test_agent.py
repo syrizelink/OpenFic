@@ -267,6 +267,10 @@ class TestAgentAPI:
                 "is_readonly": True,
             },
             {
+                "key": "list_subagents",
+                "is_readonly": True,
+            },
+            {
                 "key": "notify_subagent",
                 "is_readonly": True,
             },

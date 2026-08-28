@@ -779,6 +779,10 @@
         "name": "派发子智能体",
         "description": "派发一个子智能体独立工作并完成任务"
       },
+      "listSubagents": {
+        "name": "列出子智能体",
+        "description": "查看当前会话下的子智能体及其状态"
+      },
       "notifySubagent": {
         "name": "通知子智能体",
         "description": "向子智能体发送补充信息"
@@ -2051,6 +2055,8 @@
       "noWorldEntryInfo": "未返回世界书条目信息",
       "noWorldEntryInfoDescription": "这次工具结果没有返回可显示的世界书条目信息。",
       "writePlan": "写入计划",
+      "listSubagents": "已列出",
+      "subagentCount": "{{count}} 个智能体",
       "targetVolume": "目标卷",
       "cascadeDeleteChapters": "级联删除章节",
       "yes": "是",

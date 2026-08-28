@@ -83,6 +83,7 @@ import {
   getRangeSummaryList,
   getReadChapterDetail,
   getStreamingData,
+  getSubagentList,
   getToolRef,
   getToolResultData,
   getVolumeList,
@@ -129,6 +130,17 @@ const TOOL_REGISTRY = {
     getTitle: (message) => getSubagentDispatchTitle(message),
     getDetail: (message) => getSubagentDispatchDetail(message),
     render: (message) => <DispatchSubagentToolMessageBody message={message} />,
+  },
+  list_subagents: {
+    toolName: "list_subagents",
+    group: "orchestration",
+    tag: "list",
+    isExplore: true,
+    contentMode: "hidden",
+    icon: ListOrdered,
+    getTitle: () => i18n.t("assistant.tools.listSubagents"),
+    getDetail: (message) =>
+      i18n.t("assistant.tools.subagentCount", { count: getSubagentList(message).length }),
   },
   notify_subagent: {
     toolName: "notify_subagent",
