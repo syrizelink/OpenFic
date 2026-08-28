@@ -215,6 +215,7 @@ def test_window_selects_middle_messages_after_first_user_and_before_tail() -> No
     assert window.start_seq == 2
     assert window.end_seq == 3
     assert window.messages == messages[1:3]
+    assert window.outside_messages == [messages[0], messages[3], messages[4]]
     assert window.source_input_tokens >= 2_000
     assert "<assistant>" in window.transcript
     assert "<user>" in window.transcript

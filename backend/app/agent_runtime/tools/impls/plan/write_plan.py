@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from pydantic import BaseModel
@@ -64,18 +63,13 @@ class WritePlanTool(AgentTool):
     async def _execute(self, todos: list[Any]) -> str:
         session = await create_session()
         try:
-            await plan_service.write_plan(
+            snapshot = await plan_service.write_plan(
                 session,
                 runtime_state=self._state,
                 todos=[_todo_payload(todo) for todo in todos],
             )
             await session.commit()
-            return json.dumps(
-                {
-                    "success": True,
-                },
-                ensure_ascii=False,
-            )
+            return plan_service.format_plan_todos(snapshot["todos"])
         except Exception:
             await session.rollback()
             raise

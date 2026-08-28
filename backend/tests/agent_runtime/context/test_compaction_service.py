@@ -18,7 +18,12 @@ from app.agent_runtime.context.types import ContextMessage
 from app.agent_runtime.graph.state import AgentRuntimeState
 from app.agent_runtime.persistence import compaction_repo
 from app.agent_runtime.persistence import repo as message_repo
-from app.agent_runtime.persistence.model import AgentContextCompaction, AgentRunMessage
+from app.agent_runtime.persistence.model import (
+    AgentContextCompaction,
+    AgentRunMessage,
+    PlanRecord,
+    PlanTodoRecord,
+)
 from app.agent_runtime.runner.session_runner import SessionRunner
 from app.storage.models.chapter import Chapter
 from app.storage.models.project import Project
@@ -47,6 +52,8 @@ _TABLES = [
     _table(Task),
     _table(AgentContextCompaction),
     _table(AgentRunMessage),
+    _table(PlanRecord),
+    _table(PlanTodoRecord),
 ]
 
 
@@ -246,6 +253,127 @@ async def test_compact_window_persists_raw_summary_and_emits_events_and_usage(
         "compaction_id": result.id,
         "trigger": "manual",
     }
+
+
+@pytest.mark.asyncio
+async def test_compact_window_appends_current_plan_when_outside_window_has_no_write_plan(
+    db_session: AsyncSession,
+    state: AgentRuntimeState,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_model = FakeModel(_ai_message("摘要正文"))
+    current_todos = [
+        {
+            "content": "Run verification",
+            "status": "in_progress",
+            "priority": "high",
+        },
+        {
+            "content": "Prepare delivery",
+            "status": "pending",
+            "priority": "medium",
+        },
+    ]
+    window = CompactionWindow(
+        start_seq=2,
+        end_seq=5,
+        messages=[ContextMessage(role="assistant", content="old")],
+        outside_messages=[
+            ContextMessage(
+                role="assistant",
+                content="recent work",
+                metadata={"part": "history", "seq": 6},
+            )
+        ],
+        source_input_tokens=321,
+        transcript="<assistant>old</assistant>",
+    )
+
+    monkeypatch.setattr(
+        "app.agent_runtime.context.compaction.service.create_chat_model",
+        lambda _config: fake_model,
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.context.compaction.service.prompt_chain_service.get_latest_version_with_entries_or_default",
+        AsyncMock(return_value=_prompt_version()),
+    )
+    get_plan_todos = AsyncMock(return_value=current_todos)
+    monkeypatch.setattr(
+        "app.agent_runtime.context.compaction.service.plan_service.get_plan_todos",
+        get_plan_todos,
+    )
+
+    result = await compact_window(
+        db_session,
+        state=state,
+        window=window,
+        trigger="manual",
+    )
+
+    expected_plan = (
+        "<current_plan>\n"
+        "[1 in_progress / high priority]\n"
+        "Run verification\n\n"
+        "[2 pending / medium priority]\n"
+        "Prepare delivery\n"
+        "</current_plan>"
+    )
+    assert result.summary == f"摘要正文\n\n{expected_plan}"
+    get_plan_todos.assert_awaited_once_with(db_session, state["session_id"])
+
+
+@pytest.mark.asyncio
+async def test_compact_window_does_not_append_current_plan_when_outside_window_has_write_plan(
+    db_session: AsyncSession,
+    state: AgentRuntimeState,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_model = FakeModel(_ai_message("摘要正文"))
+    window = CompactionWindow(
+        start_seq=2,
+        end_seq=5,
+        messages=[ContextMessage(role="assistant", content="old")],
+        outside_messages=[
+            ContextMessage(
+                role="assistant",
+                content="",
+                tool_calls=[
+                    {
+                        "id": "call-write-plan",
+                        "name": "write_plan",
+                        "args": {"todos": []},
+                    }
+                ],
+                metadata={"part": "history", "seq": 6},
+            )
+        ],
+        source_input_tokens=321,
+        transcript="<assistant>old</assistant>",
+    )
+
+    monkeypatch.setattr(
+        "app.agent_runtime.context.compaction.service.create_chat_model",
+        lambda _config: fake_model,
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.context.compaction.service.prompt_chain_service.get_latest_version_with_entries_or_default",
+        AsyncMock(return_value=_prompt_version()),
+    )
+    get_plan_todos = AsyncMock()
+    monkeypatch.setattr(
+        "app.agent_runtime.context.compaction.service.plan_service.get_plan_todos",
+        get_plan_todos,
+    )
+
+    result = await compact_window(
+        db_session,
+        state=state,
+        window=window,
+        trigger="manual",
+    )
+
+    assert result.summary == "摘要正文"
+    get_plan_todos.assert_not_awaited()
 
 
 @pytest.mark.asyncio
