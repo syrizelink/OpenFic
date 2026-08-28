@@ -779,6 +779,10 @@
         "name": "Dispatch Subagent",
         "description": "Dispatch a subagent to work independently and complete a task."
       },
+      "listSubagents": {
+        "name": "List Subagents",
+        "description": "View subagents and their statuses in the current session."
+      },
       "notifySubagent": {
         "name": "Notify Subagent",
         "description": "Send supplementary information to a subagent."
@@ -1988,6 +1992,8 @@
       "noWorldEntryInfo": "No entry info returned",
       "noWorldEntryInfoDescription": "This tool result does not include displayable world entry info.",
       "writePlan": "Write plan",
+      "listSubagents": "Listed",
+      "subagentCount": "{{count}} subagents",
       "targetVolume": "Target volume",
       "cascadeDeleteChapters": "Cascade delete chapters",
       "yes": "Yes",

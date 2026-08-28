@@ -32,6 +32,7 @@ def test_runtime_tool_permissions_match_registered_user_tools() -> None:
         {"tool_name": "list_chapters", "mode": "allow"},
         {"tool_name": "list_characters", "mode": "allow"},
         {"tool_name": "list_notes", "mode": "allow"},
+        {"tool_name": "list_subagents", "mode": "allow"},
         {"tool_name": "list_volumes", "mode": "allow"},
         {"tool_name": "list_world_entries", "mode": "allow"},
         {"tool_name": "move_chapter_to_volume", "mode": "ask"},

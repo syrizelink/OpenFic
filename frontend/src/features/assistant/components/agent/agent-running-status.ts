@@ -23,6 +23,7 @@ export type AgentRunningStatus = (typeof AGENT_RUNNING_STATUS)[keyof typeof AGEN
 
 const TOOL_RUNNING_STATUS: Record<string, AgentRunningStatus> = {
   dispatch_subagent: AGENT_RUNNING_STATUS.orchestration,
+  list_subagents: AGENT_RUNNING_STATUS.orchestration,
   notify_subagent: AGENT_RUNNING_STATUS.orchestration,
   recycle_subagent: AGENT_RUNNING_STATUS.orchestration,
   ask_user: AGENT_RUNNING_STATUS.interaction,

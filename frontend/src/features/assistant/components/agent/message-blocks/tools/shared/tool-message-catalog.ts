@@ -1,5 +1,6 @@
 export const REGISTERED_TOOL_NAMES = [
   "dispatch_subagent",
+  "list_subagents",
   "notify_subagent",
   "recycle_subagent",
   "ask_user",
@@ -72,6 +73,13 @@ export const TOOL_DESCRIPTOR_META = {
     tag: "dispatch",
     isExplore: false,
     contentMode: "expandable",
+  },
+  list_subagents: {
+    toolName: "list_subagents",
+    group: "orchestration",
+    tag: "list",
+    isExplore: true,
+    contentMode: "hidden",
   },
   notify_subagent: {
     toolName: "notify_subagent",

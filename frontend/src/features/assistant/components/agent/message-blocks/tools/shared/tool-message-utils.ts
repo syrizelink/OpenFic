@@ -505,6 +505,11 @@ export function getChapterList(message: AgentMessage): Record<string, unknown>[]
   return [];
 }
 
+export function getSubagentList(message: AgentMessage): Record<string, unknown>[] {
+  const resultData = getToolResultData(message);
+  return Array.isArray(resultData) ? resultData.filter(isRecord) : [];
+}
+
 function toVolumePayload(value: Record<string, unknown>): VolumePayload {
   return {
     order: asNumber(value.order),
