@@ -3,7 +3,9 @@
 Import API 测试。
 """
 
+import io
 import json
+import zipfile
 
 import pytest
 from httpx import AsyncClient
@@ -353,3 +355,161 @@ async def test_preview_gb18030_preserves_original_text(client: AsyncClient) -> N
     assert data["detected_encoding"].lower() == "gb18030"
     assert data["volumes"][0]["chapters"][0]["title"] == "第一章 扩展字符测试"
     assert data["volumes"][0]["chapters"][0]["content_preview"] == "这里有扩展字：𠮷。"
+
+
+def _build_zip(entries: list[tuple[str, bytes]]) -> bytes:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for filename, content in entries:
+            archive.writestr(filename, content)
+    return buffer.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_preview_markdown_file(client: AsyncClient) -> None:
+    content = "# Markdown 标题\n\n这是 Markdown 正文。"
+    response = await client.post(
+        "/api/v1/import/preview",
+        files={"file": ("novel.md", content.encode("utf-8"), "text/markdown")},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["chapter_count"] == 1
+    chapter = data["volumes"][0]["chapters"][0]
+    assert chapter["title"] == "# Markdown 标题"
+    assert chapter["content_preview"] == "这是 Markdown 正文。"
+
+
+@pytest.mark.asyncio
+async def test_preview_zip_files_as_chapters_and_folders_as_volumes(
+    client: AsyncClient,
+) -> None:
+    archive_content = _build_zip(
+        [
+            ("序章.txt", "根目录章节".encode("utf-8")),
+            ("卷一/第一章.md", "第一卷章节".encode("utf-8")),
+            ("卷一/第二章.txt", "第二章".encode("utf-8")),
+            ("封面.png", b"not a text chapter"),
+            ("卷二/终章.md", "第二卷章节".encode("utf-8")),
+        ]
+    )
+    response = await client.post(
+        "/api/v1/import/preview",
+        files={"file": ("novel.zip", archive_content, "application/zip")},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert [volume["title"] for volume in data["volumes"]] == [
+        "第一卷",
+        "卷一",
+        "卷二",
+    ]
+    assert [
+        chapter["title"]
+        for volume in data["volumes"]
+        for chapter in volume["chapters"]
+    ] == ["序章", "第一章", "第二章", "终章"]
+    assert data["chapter_count"] == 4
+
+
+@pytest.mark.asyncio
+async def test_preview_manual_split_uses_chunk_size(client: AsyncClient) -> None:
+    content = "段落一\n\n段落二\n\n段落三"
+    response = await client.post(
+        "/api/v1/import/preview",
+        files={"file": ("novel.txt", content.encode("utf-8"), "text/plain")},
+        data={"split_mode": "manual", "chunk_size": "10"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    chapters = [chapter for volume in data["volumes"] for chapter in volume["chapters"]]
+    assert [chapter["title"] for chapter in chapters] == ["第1章", "第2章"]
+    assert [chapter["content_preview"] for chapter in chapters] == [
+        "段落一\n\n段落二",
+        "段落三",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_preview_manual_split_rejects_invalid_chunk_size(client: AsyncClient) -> None:
+    response = await client.post(
+        "/api/v1/import/preview",
+        files={"file": ("novel.txt", "正文".encode("utf-8"), "text/plain")},
+        data={"split_mode": "manual", "chunk_size": "0"},
+    )
+
+    assert response.status_code in (400, 422)
+
+
+@pytest.mark.asyncio
+async def test_confirm_import_zip_preserves_archive_structure(client: AsyncClient) -> None:
+    archive_content = _build_zip(
+        [
+            ("root.md", "根章节".encode("utf-8")),
+            ("卷一/第一章.txt", "第一章正文".encode("utf-8")),
+        ]
+    )
+    response = await client.post(
+        "/api/v1/import/confirm",
+        files={"file": ("novel.zip", archive_content, "application/zip")},
+        data={"title": "ZIP 导入测试", "split_mode": "manual", "chunk_size": "10"},
+    )
+
+    assert response.status_code == 201
+    project_id = response.json()["project_id"]
+    tree_response = await client.get(f"/api/v1/projects/{project_id}/chapters")
+
+    assert tree_response.status_code == 200
+    volumes = tree_response.json()["volumes"]
+    assert [volume["title"] for volume in volumes] == ["第一卷", "卷一"]
+    assert [chapter["title"] for volume in volumes for chapter in volume["chapters"]] == [
+        "root",
+        "第一章",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_confirm_import_stream_uses_manual_split(client: AsyncClient) -> None:
+    content = "段落一\n\n段落二\n\n段落三"
+    response = await client.post(
+        "/api/v1/import/confirm-stream",
+        files={"file": ("novel.txt", content.encode("utf-8"), "text/plain")},
+        data={"title": "流式手动分割", "split_mode": "manual", "chunk_size": "10"},
+    )
+
+    assert response.status_code == 200
+    events = [
+        json.loads(line.removeprefix("data: "))
+        for line in response.text.splitlines()
+        if line.startswith("data: ")
+    ]
+    complete_event = next(event for event in events if event["type"] == "complete")
+    assert complete_event["chapter_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_preview_corrupt_zip_returns_a_readable_error(client: AsyncClient) -> None:
+    response = await client.post(
+        "/api/v1/import/preview",
+        files={"file": ("broken.zip", b"not a zip", "application/zip")},
+    )
+
+    assert response.status_code == 400
+    assert "压缩包" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_preview_zip_without_text_files_returns_a_readable_error(
+    client: AsyncClient,
+) -> None:
+    archive_content = _build_zip([("cover.png", b"not a text chapter")])
+    response = await client.post(
+        "/api/v1/import/preview",
+        files={"file": ("images.zip", archive_content, "application/zip")},
+    )
+
+    assert response.status_code == 400
+    assert "TXT" in response.json()["detail"]

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Import Router - TXT 文件导入 API。
+Import Router - 项目文件导入 API。
 """
 
-from typing import Annotated
 import json
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
@@ -17,66 +17,48 @@ from app.api.schemas.import_schema import (
     PreviewChapter,
     PreviewVolume,
 )
-from app.core.txt_parser import parse_txt_content
+from app.core.project_import import (
+    DEFAULT_IMPORT_CHUNK_SIZE,
+    MAX_IMPORT_CHUNK_SIZE,
+    MAX_IMPORT_FILE_SIZE,
+    ImportSplitMode,
+    is_supported_import_file,
+    parse_project_import,
+)
+from app.core.txt_parser import ParseResult
 from app.storage.database import get_session
 from app.storage.services import import_service
 
 router = APIRouter(prefix="/import", tags=["import"])
 
-# 最大文件大小限制：50MB
-MAX_FILE_SIZE = 50 * 1024 * 1024
+SUPPORTED_FILE_DETAIL = "仅支持 .txt、.md 或 .zip 文件"
 
 
-@router.post(
-    "/preview",
-    response_model=ImportPreviewResponse,
-    summary="预览 TXT 文件",
-)
-async def preview_txt_file(
-    file: Annotated[UploadFile, File(description="TXT 文件")],
-) -> ImportPreviewResponse:
-    """
-    上传 TXT 文件并获取解析预览。
-
-    Args:
-        file: TXT 文件。
-
-    Returns:
-        解析预览结果。
-
-    Raises:
-        HTTPException: 文件格式不支持或解析失败时返回 400。
-    """
-    # 验证文件类型
-    if not file.filename or not file.filename.lower().endswith(".txt"):
+def _require_supported_filename(filename: str | None) -> str:
+    if not is_supported_import_file(filename):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="仅支持 .txt 文件",
+            detail=SUPPORTED_FILE_DETAIL,
         )
+    return filename or ""
 
-    # 读取文件内容
+
+async def _read_import_content(file: UploadFile) -> bytes:
     content = await file.read()
-
-    # 验证文件大小
-    if len(content) > MAX_FILE_SIZE:
+    if len(content) > MAX_IMPORT_FILE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="文件大小超过限制（最大 50MB）",
         )
-
-    # 验证文件不为空
     if len(content) == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="文件内容为空",
         )
+    return content
 
-    logger.info(f"预览 TXT 文件: {file.filename}, 大小: {len(content)} 字节")
 
-    # 解析文件
-    result = parse_txt_content(content)
-
-    # 转换为预览响应
+def _to_preview_response(result: ParseResult) -> ImportPreviewResponse:
     preview_volumes = [
         PreviewVolume(
             title=volume.title,
@@ -92,13 +74,70 @@ async def preview_txt_file(
         )
         for volume in result.volumes
     ]
-
     return ImportPreviewResponse(
         volumes=preview_volumes,
         total_word_count=result.total_word_count,
         chapter_count=result.chapter_count,
         detected_encoding=result.detected_encoding,
     )
+
+
+def _no_chapters_detail(filename: str) -> str:
+    if filename.lower().endswith(".zip"):
+        return "压缩包内未找到 TXT 或 Markdown 文件"
+    return "文件解析失败，未能识别任何章节"
+
+
+@router.post(
+    "/preview",
+    response_model=ImportPreviewResponse,
+    summary="预览项目导入文件",
+)
+async def preview_import_file(
+    file: Annotated[UploadFile, File(description="TXT、Markdown 或 ZIP 文件")],
+    split_mode: Annotated[ImportSplitMode, Form(description="分割模式")] = "auto",
+    chunk_size: Annotated[
+        int,
+        Form(
+            ge=1,
+            le=MAX_IMPORT_CHUNK_SIZE,
+            description="手动分割时的每章字数",
+        ),
+    ] = DEFAULT_IMPORT_CHUNK_SIZE,
+) -> ImportPreviewResponse:
+    """
+    上传项目文件并获取解析预览。
+
+    Args:
+        file: TXT、Markdown 或 ZIP 文件。
+
+    Returns:
+        解析预览结果。
+
+    Raises:
+        HTTPException: 文件格式不支持或解析失败时返回 400。
+    """
+    filename = _require_supported_filename(file.filename)
+    content = await _read_import_content(file)
+    logger.info(f"预览导入文件: {filename}, 大小: {len(content)} 字节")
+
+    try:
+        result = parse_project_import(
+            filename,
+            content,
+            split_mode=split_mode,
+            chunk_size=chunk_size,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+    if not result.volumes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=_no_chapters_detail(filename),
+        )
+
+    return _to_preview_response(result)
 
 
 @router.post(
@@ -108,17 +147,26 @@ async def preview_txt_file(
     summary="确认导入",
 )
 async def confirm_import(
-    file: Annotated[UploadFile, File(description="TXT 文件")],
+    file: Annotated[UploadFile, File(description="TXT、Markdown 或 ZIP 文件")],
     title: Annotated[str, Form(description="书名")],
     description: Annotated[str | None, Form(description="简介")] = None,
     cover: Annotated[UploadFile | None, File(description="封面图片")] = None,
+    split_mode: Annotated[ImportSplitMode, Form(description="分割模式")] = "auto",
+    chunk_size: Annotated[
+        int,
+        Form(
+            ge=1,
+            le=MAX_IMPORT_CHUNK_SIZE,
+            description="手动分割时的每章字数",
+        ),
+    ] = DEFAULT_IMPORT_CHUNK_SIZE,
     session: AsyncSession = Depends(get_session),
 ) -> ImportConfirmResponse:
     """
     确认导入，创建项目和所有章节。
 
     Args:
-        file: TXT 文件。
+        file: TXT、Markdown 或 ZIP 文件。
         title: 书名。
         description: 简介（可选）。
         cover: 封面图片（可选）。
@@ -130,29 +178,8 @@ async def confirm_import(
     Raises:
         HTTPException: 导入失败时返回错误。
     """
-    # 验证文件类型
-    if not file.filename or not file.filename.lower().endswith(".txt"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="仅支持 .txt 文件",
-        )
-
-    # 读取文件内容
-    content = await file.read()
-
-    # 验证文件大小
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="文件大小超过限制（最大 50MB）",
-        )
-
-    # 验证文件不为空
-    if len(content) == 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="文件内容为空",
-        )
+    filename = _require_supported_filename(file.filename)
+    content = await _read_import_content(file)
 
     # 验证书名
     title = title.strip()
@@ -162,15 +189,23 @@ async def confirm_import(
             detail="书名不能为空",
         )
 
-    logger.info(f"确认导入: {file.filename} -> {title}")
+    logger.info(f"确认导入: {filename} -> {title}")
 
     # 解析文件
-    parse_result = parse_txt_content(content)
+    try:
+        parse_result = parse_project_import(
+            filename,
+            content,
+            split_mode=split_mode,
+            chunk_size=chunk_size,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
     if not parse_result.volumes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="文件解析失败，未能识别任何章节",
+            detail=_no_chapters_detail(filename),
         )
 
     # 调用服务层执行导入
@@ -198,10 +233,19 @@ async def confirm_import(
     summary="确认导入（流式进度）",
 )
 async def confirm_import_stream(
-    file: Annotated[UploadFile, File(description="TXT 文件")],
+    file: Annotated[UploadFile, File(description="TXT、Markdown 或 ZIP 文件")],
     title: Annotated[str, Form(description="书名")],
     description: Annotated[str | None, Form(description="简介")] = None,
     cover: Annotated[UploadFile | None, File(description="封面图片")] = None,
+    split_mode: Annotated[ImportSplitMode, Form(description="分割模式")] = "auto",
+    chunk_size: Annotated[
+        int,
+        Form(
+            ge=1,
+            le=MAX_IMPORT_CHUNK_SIZE,
+            description="手动分割时的每章字数",
+        ),
+    ] = DEFAULT_IMPORT_CHUNK_SIZE,
     session: AsyncSession = Depends(get_session),
 ) -> StreamingResponse:
     """
@@ -217,9 +261,9 @@ async def confirm_import_stream(
 
     async def generate_progress():
         try:
-            # 验证文件类型
-            if not file.filename or not file.filename.lower().endswith(".txt"):
-                yield f"data: {json.dumps({'type': 'error', 'message': '仅支持 .txt 文件'})}\n\n"
+            filename = file.filename
+            if not is_supported_import_file(filename):
+                yield f"data: {json.dumps({'type': 'error', 'message': SUPPORTED_FILE_DETAIL})}\n\n"
                 return
 
             # 进度：读取文件
@@ -227,7 +271,7 @@ async def confirm_import_stream(
 
             content = await file.read()
 
-            if len(content) > MAX_FILE_SIZE:
+            if len(content) > MAX_IMPORT_FILE_SIZE:
                 yield f"data: {json.dumps({'type': 'error', 'message': '文件大小超过限制（最大 50MB）'})}\n\n"
                 return
 
@@ -243,10 +287,15 @@ async def confirm_import_stream(
             # 进度：解析文件
             yield f"data: {json.dumps({'type': 'progress', 'stage': 'parsing', 'progress': 15})}\n\n"
 
-            parse_result = parse_txt_content(content)
+            parse_result = parse_project_import(
+                filename or "",
+                content,
+                split_mode=split_mode,
+                chunk_size=chunk_size,
+            )
 
             if not parse_result.volumes:
-                yield f"data: {json.dumps({'type': 'error', 'message': '文件解析失败，未能识别任何章节'})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': _no_chapters_detail(filename or '')})}\n\n"
                 return
 
             total_chapters = parse_result.chapter_count
