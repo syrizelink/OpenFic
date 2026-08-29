@@ -3,7 +3,11 @@
 Model API Tests - 模型 API 测试。
 """
 
+import json
+
 import pytest
+import respx
+from httpx import Response
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -56,6 +60,97 @@ async def test_create_model(client: AsyncClient, session: AsyncSession):
 
 
 @pytest.mark.asyncio
+@respx.mock
+async def test_validate_model_connection_sends_non_streaming_probe(
+    client: AsyncClient, session: AsyncSession
+):
+    """验证模型连接时只发送一条非流式 user probe 消息。"""
+    from app.core.encryption import EncryptionService
+    from app.settings import settings
+
+    provider = await model_provider_repo.create(
+        session=session,
+        name="Validation Provider",
+        url="https://api.example.com/v1",
+        api_key_encrypted=EncryptionService(settings.encryption_key).encrypt(
+            "test-key"
+        ),
+        provider_type="openai",
+    )
+    model = await model_repo.create(
+        session=session,
+        name="Validation Model",
+        provider_id=provider.id,
+        model_id="validation-model",
+    )
+    await session.commit()
+
+    route = respx.post("https://api.example.com/v1/chat/completions").mock(
+        return_value=Response(
+            200,
+            json={
+                "id": "chatcmpl-validation",
+                "object": "chat.completion",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "hello"},
+                        "finish_reason": "stop",
+                    }
+                ],
+            },
+        )
+    )
+
+    response = await client.post(f"/api/v1/models/{model.id}/validate")
+
+    assert response.status_code == 200
+    assert response.json() == {"success": True, "message": "模型连接验证成功"}
+    request_body = route.calls[0].request.content
+    assert request_body
+    payload = json.loads(request_body)
+    assert payload["model"] == "validation-model"
+    assert payload["messages"] == [{"role": "user", "content": "hi"}]
+    assert payload["stream"] is False
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_validate_model_connection_reports_failed_provider_request(
+    client: AsyncClient, session: AsyncSession
+):
+    """提供商请求失败时，模型验证返回失败状态。"""
+    from app.core.encryption import EncryptionService
+    from app.settings import settings
+
+    provider = await model_provider_repo.create(
+        session=session,
+        name="Failed Validation Provider",
+        url="https://api.example.com/v1",
+        api_key_encrypted=EncryptionService(settings.encryption_key).encrypt(
+            "test-key"
+        ),
+        provider_type="openai",
+    )
+    model = await model_repo.create(
+        session=session,
+        name="Failed Validation Model",
+        provider_id=provider.id,
+        model_id="failed-validation-model",
+    )
+    await session.commit()
+
+    respx.post("https://api.example.com/v1/chat/completions").mock(
+        return_value=Response(401, json={"error": {"message": "Invalid API key"}})
+    )
+
+    response = await client.post(f"/api/v1/models/{model.id}/validate")
+
+    assert response.status_code == 200
+    assert response.json() == {"success": False, "message": "模型连接验证失败"}
+
+
+@pytest.mark.asyncio
 async def test_create_model_rejects_duplicate_name(
     client: AsyncClient, session: AsyncSession
 ):
@@ -67,7 +162,9 @@ async def test_create_model_rejects_duplicate_name(
         session=session,
         name="Test Provider",
         url="https://api.example.com",
-        api_key_encrypted=EncryptionService(settings.encryption_key).encrypt("test-key"),
+        api_key_encrypted=EncryptionService(settings.encryption_key).encrypt(
+            "test-key"
+        ),
         provider_type="openai",
     )
     await model_repo.create(
@@ -102,7 +199,9 @@ async def test_create_model_uses_normalized_advanced_parameter_defaults(
         session=session,
         name="Test Provider",
         url="https://api.example.com",
-        api_key_encrypted=EncryptionService(settings.encryption_key).encrypt("test-key"),
+        api_key_encrypted=EncryptionService(settings.encryption_key).encrypt(
+            "test-key"
+        ),
         provider_type="openai",
     )
     await session.commit()
@@ -140,7 +239,9 @@ async def test_create_model_rejects_context_length_above_two_million(
         session=session,
         name="Test Provider",
         url="https://api.example.com",
-        api_key_encrypted=EncryptionService(settings.encryption_key).encrypt("test-key"),
+        api_key_encrypted=EncryptionService(settings.encryption_key).encrypt(
+            "test-key"
+        ),
         provider_type="openai",
     )
     await session.commit()
@@ -328,7 +429,9 @@ async def test_update_model_rejects_duplicate_name(
         session=session,
         name="Test Provider",
         url="https://api.example.com",
-        api_key_encrypted=EncryptionService(settings.encryption_key).encrypt("test-key"),
+        api_key_encrypted=EncryptionService(settings.encryption_key).encrypt(
+            "test-key"
+        ),
         provider_type="openai",
     )
     existing_model = await model_repo.create(
@@ -366,7 +469,9 @@ async def test_update_model_allows_its_existing_name(
         session=session,
         name="Test Provider",
         url="https://api.example.com",
-        api_key_encrypted=EncryptionService(settings.encryption_key).encrypt("test-key"),
+        api_key_encrypted=EncryptionService(settings.encryption_key).encrypt(
+            "test-key"
+        ),
         provider_type="openai",
     )
     model = await model_repo.create(
@@ -417,5 +522,3 @@ async def test_delete_model(client: AsyncClient, session: AsyncSession):
     # 验证已删除
     deleted_model = await model_repo.get_by_id(session, model.id)
     assert deleted_model is None
-
-

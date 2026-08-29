@@ -1,5 +1,5 @@
 import { Box, Flex, Popover, ScrollArea, Text, TextField } from "@radix-ui/themes";
-import { ChevronDown, Component, Search } from "lucide-react";
+import { Check, ChevronDown, Component, Search } from "lucide-react";
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -22,6 +22,12 @@ interface ProviderIdSelectOption {
   value: string;
   label: string;
   iconPath: string | null;
+}
+
+interface ProviderIdSelectCategory {
+  id: "builtin" | "custom";
+  label: string;
+  options: ProviderIdSelectOption[];
 }
 
 const OPENAI_COMPATIBLE_OPTION: ProviderIdSelectOption = {
@@ -48,6 +54,13 @@ const GEMINI_COMPATIBLE_OPTION: ProviderIdSelectOption = {
   iconPath: null,
 };
 
+const CUSTOM_PROVIDER_OPTIONS = [
+  OPENAI_COMPATIBLE_OPTION,
+  OPENAI_RESPONSES_COMPATIBLE_OPTION,
+  ANTHROPIC_COMPATIBLE_OPTION,
+  GEMINI_COMPATIBLE_OPTION,
+];
+
 export function ProviderIdSelect({
   value,
   onChange,
@@ -60,36 +73,48 @@ export function ProviderIdSelect({
   const [searchQuery, setSearchQuery] = useState("");
   const [isListReady, setIsListReady] = useState(false);
   const listReadyFrameRef = useRef<number | null>(null);
-  const options = useMemo<ProviderIdSelectOption[]>(() => {
-    const catalogOptions = providers.map((provider) => ({
-      value: provider.providerType,
-      label: provider.displayName,
-      iconPath: provider.iconPath,
-    }));
-
-    for (const compatibleOption of [
-      OPENAI_COMPATIBLE_OPTION,
-      OPENAI_RESPONSES_COMPATIBLE_OPTION,
-      ANTHROPIC_COMPATIBLE_OPTION,
-      GEMINI_COMPATIBLE_OPTION,
-    ]) {
-      if (!catalogOptions.some((option) => option.value === compatibleOption.value)) {
-        catalogOptions.push(compatibleOption);
-      }
-    }
-
-    return catalogOptions.sort((left, right) => left.label.localeCompare(right.label));
-  }, [providers]);
-  const selectedOption = options.find((option) => option.value === value);
-  const filteredOptions = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return options;
-
-    return options.filter(
-      (option) =>
-        option.label.toLowerCase().includes(query) || option.value.toLowerCase().includes(query),
+  const categories = useMemo<ProviderIdSelectCategory[]>(() => {
+    const builtinOptions = providers
+      .map((provider) => ({
+        value: provider.providerType,
+        label: provider.displayName,
+        iconPath: provider.iconPath,
+      }))
+      .sort((left, right) => left.label.localeCompare(right.label));
+    const customOptions = CUSTOM_PROVIDER_OPTIONS.filter(
+      (option) => !builtinOptions.some((builtinOption) => builtinOption.value === option.value),
     );
-  }, [options, searchQuery]);
+
+    const providerCategories: ProviderIdSelectCategory[] = [
+      { id: "builtin", label: t("connections.builtin"), options: builtinOptions },
+      { id: "custom", label: t("connections.custom"), options: customOptions },
+    ];
+
+    return providerCategories.filter((category) => category.options.length > 0);
+  }, [providers, t]);
+  const options = useMemo(() => categories.flatMap((category) => category.options), [categories]);
+  const selectedOption = options.find((option) => option.value === value);
+  const visibleCategories = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase();
+    if (!query) return categories;
+
+    return categories
+      .map((category) => {
+        const isCategoryMatch =
+          category.label.toLocaleLowerCase().includes(query) || category.id.includes(query);
+        return {
+          ...category,
+          options: isCategoryMatch
+            ? category.options
+            : category.options.filter(
+                (option) =>
+                  option.label.toLocaleLowerCase().includes(query) ||
+                  option.value.toLocaleLowerCase().includes(query),
+              ),
+        };
+      })
+      .filter((category) => category.options.length > 0);
+  }, [categories, searchQuery]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (listReadyFrameRef.current !== null) {
@@ -171,6 +196,7 @@ export function ProviderIdSelect({
         align="start"
         data-slot="provider-id-select-content"
         className="provider-id-select-content"
+        onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <Box
           p="1"
@@ -206,32 +232,57 @@ export function ProviderIdSelect({
             </Flex>
           ) : (
             <Flex direction="column">
-              {filteredOptions.length > 0 ? (
-                filteredOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    data-slot="provider-id-select-item"
-                    data-state={option.value === value ? "checked" : "unchecked"}
-                    className="provider-id-select-item"
-                    onClick={() => handleSelect(option.value)}
+              {visibleCategories.length > 0 ? (
+                visibleCategories.map((category) => (
+                  <Box
+                    key={category.id}
+                    className="provider-id-select-category"
                   >
-                    <Flex
-                      align="center"
-                      gap="2"
+                    <Text
+                      size="1"
+                      weight="medium"
+                      color="gray"
+                      className="provider-id-select-category-label"
                     >
-                      <ProviderOptionIcon
-                        option={option}
-                        size={18}
-                      />
-                      <Text
-                        size="2"
-                        truncate
-                      >
-                        {option.label}
-                      </Text>
-                    </Flex>
-                  </button>
+                      {category.label}
+                    </Text>
+                    {category.options.map((option) => {
+                      const isSelected = option.value === value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          data-slot="provider-id-select-item"
+                          data-state={isSelected ? "checked" : "unchecked"}
+                          className="provider-id-select-option"
+                          onClick={() => handleSelect(option.value)}
+                        >
+                          <Flex
+                            align="center"
+                            gap="2"
+                            className="provider-id-select-option-main"
+                          >
+                            <ProviderOptionIcon
+                              option={option}
+                              size={18}
+                            />
+                            <Text
+                              size="2"
+                              truncate
+                            >
+                              {option.label}
+                            </Text>
+                          </Flex>
+                          {isSelected ? (
+                            <Check
+                              size={15}
+                              aria-hidden="true"
+                            />
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </Box>
                 ))
               ) : (
                 <Text

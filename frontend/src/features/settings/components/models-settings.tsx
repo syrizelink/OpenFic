@@ -4,10 +4,10 @@
  * 模型设置面板，管理和配置 AI 模型。
  */
 
-import { Box, Flex, Text, Button, IconButton, Badge, Tabs } from "@radix-ui/themes";
+import { Box, Flex, Text, Button, IconButton, Badge, Tabs, Tooltip } from "@radix-ui/themes";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Edit } from "lucide-react";
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { Edit, PlugZap, Plus, Trash2 } from "lucide-react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Spinner } from "@/components";
@@ -29,9 +29,12 @@ import {
   createModel,
   updateModel,
   deleteModel,
+  validateModel,
 } from "../lib/model-api";
+import { ProviderIcon } from "../lib/provider-icons";
 import {
   hasSelectableModelProvider,
+  isCustomProviderType,
   resolveProviderCatalogType,
   resolveProviderDisplayName,
   resolveProviderIconPath,
@@ -60,6 +63,10 @@ export function ModelsSettings({
   const [formOpen, setFormOpen] = useState(false);
   const [editingModel, setEditingModel] = useState<Model | null>(null);
   const [deletingModel, setDeletingModel] = useState<Model | null>(null);
+  const [modelValidationStatuses, setModelValidationStatuses] = useState<
+    Record<string, "validating" | "success" | "error">
+  >({});
+  const validationScopeRef = useRef(0);
 
   useEffect(() => {
     if (!isAgentSettingsLocked) return;
@@ -67,6 +74,11 @@ export function ModelsSettings({
     setEditingModel(null);
     setDeletingModel(null);
   }, [isAgentSettingsLocked]);
+
+  useEffect(() => {
+    validationScopeRef.current += 1;
+    setModelValidationStatuses({});
+  }, [activeTab]);
 
   // 获取所有模型
   const {
@@ -253,6 +265,45 @@ export function ModelsSettings({
     setFormOpen(true);
   }, []);
 
+  const handleValidateModel = useCallback(
+    async (model: Model) => {
+      const validationScope = validationScopeRef.current;
+      setModelValidationStatuses((statuses) => ({
+        ...statuses,
+        [model.id]: "validating",
+      }));
+
+      try {
+        const result = await validateModel(model.id);
+        if (validationScope !== validationScopeRef.current) return;
+
+        if (result.success) {
+          setModelValidationStatuses((statuses) => ({
+            ...statuses,
+            [model.id]: "success",
+          }));
+          toast.success(t("models.validateModelSuccess"));
+          return;
+        }
+
+        setModelValidationStatuses((statuses) => ({
+          ...statuses,
+          [model.id]: "error",
+        }));
+        toast.error(t("models.validateModelFailed"));
+      } catch {
+        if (validationScope !== validationScopeRef.current) return;
+
+        setModelValidationStatuses((statuses) => ({
+          ...statuses,
+          [model.id]: "error",
+        }));
+        toast.error(t("models.validateModelFailed"));
+      }
+    },
+    [t],
+  );
+
   // 提交表单
   const handleSubmit = useCallback(
     async (data: ModelCreateRequest | ModelUpdateRequest) => {
@@ -286,6 +337,29 @@ export function ModelsSettings({
       const provider = providers?.find((p) => p.id === providerId);
       if (!provider) return providerId;
       return provider.name || resolveProviderDisplayName(provider);
+    },
+    [providers],
+  );
+
+  const getProviderIcon = useCallback(
+    (providerId: string) => {
+      const provider = providers?.find((entry) => entry.id === providerId);
+      if (!provider || isCustomProviderType(provider.providerType)) {
+        return null;
+      }
+
+      const iconPath = resolveProviderIconPath(provider) || provider.catalogMatch?.iconPath;
+
+      if (iconPath) {
+        return (
+          <ProviderIcon
+            iconPath={iconPath}
+            size={16}
+          />
+        );
+      }
+
+      return null;
     },
     [providers],
   );
@@ -502,12 +576,18 @@ export function ModelsSettings({
                         align="center"
                         gap="2"
                       >
-                        <Text
-                          size="2"
-                          color="gray"
+                        <Flex
+                          align="center"
+                          gap="1"
                         >
-                          {getProviderName(model.providerId)}
-                        </Text>
+                          {getProviderIcon(model.providerId)}
+                          <Text
+                            size="2"
+                            color="gray"
+                          >
+                            {getProviderName(model.providerId)}
+                          </Text>
+                        </Flex>
                         <Text
                           size="2"
                           color="gray"
@@ -535,24 +615,52 @@ export function ModelsSettings({
 
                     {/* 操作按钮 */}
                     <Flex gap="2">
+                      {model.taskType === "llm" ? (
+                        <Tooltip content={t("models.validateModel")}>
+                          <IconButton
+                            variant="ghost"
+                            color={
+                              modelValidationStatuses[model.id] === "success"
+                                ? "green"
+                                : modelValidationStatuses[model.id] === "error"
+                                  ? "red"
+                                  : "gray"
+                            }
+                            onClick={() => void handleValidateModel(model)}
+                            disabled={
+                              isAgentSettingsLocked ||
+                              modelValidationStatuses[model.id] === "validating"
+                            }
+                            aria-label={t("models.validateModel")}
+                          >
+                            <PlugZap size={16} />
+                          </IconButton>
+                        </Tooltip>
+                      ) : null}
                       {model.isBuiltin ? null : (
                         <>
-                          <IconButton
-                            variant="ghost"
-                            color="gray"
-                            onClick={() => handleEdit(model)}
-                            disabled={isAgentSettingsLocked}
-                          >
-                            <Edit size={16} />
-                          </IconButton>
-                          <IconButton
-                            variant="ghost"
-                            color="red"
-                            onClick={() => handleDelete(model)}
-                            disabled={isAgentSettingsLocked}
-                          >
-                            <Trash2 size={16} />
-                          </IconButton>
+                          <Tooltip content={t("models.editModel")}>
+                            <IconButton
+                              variant="ghost"
+                              color="gray"
+                              onClick={() => handleEdit(model)}
+                              disabled={isAgentSettingsLocked}
+                              aria-label={t("models.editModel")}
+                            >
+                              <Edit size={16} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip content={t("models.deleteModel")}>
+                            <IconButton
+                              variant="ghost"
+                              color="red"
+                              onClick={() => handleDelete(model)}
+                              disabled={isAgentSettingsLocked}
+                              aria-label={t("models.deleteModel")}
+                            >
+                              <Trash2 size={16} />
+                            </IconButton>
+                          </Tooltip>
                         </>
                       )}
                     </Flex>

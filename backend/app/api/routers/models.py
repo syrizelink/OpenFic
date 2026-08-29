@@ -13,6 +13,7 @@ from app.api.schemas.model import (
     ModelCreateRequest,
     ModelResponse,
     ModelUpdateRequest,
+    ModelValidationResponse,
     TaskType,
 )
 from app.api.agent_settings_lock import require_agent_settings_unlocked
@@ -98,6 +99,31 @@ async def get_models(
             models = all_models
 
     return [_to_response(m) for m in models]
+
+
+@router.post(
+    "/{model_id}/validate",
+    response_model=ModelValidationResponse,
+    summary="验证模型连接",
+)
+async def validate_model_connection(
+    model_id: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    service: Annotated[ModelService, Depends(get_model_service)],
+) -> ModelValidationResponse:
+    """使用指定模型发送最小非流式请求以验证其连接。"""
+    try:
+        await service.validate_model_connection(session, model_id)
+    except NotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+    except Exception:
+        logger.opt(exception=True).warning("验证模型连接失败: model_id={}", model_id)
+        return ModelValidationResponse(success=False, message="模型连接验证失败")
+
+    return ModelValidationResponse(success=True, message="模型连接验证成功")
+
 
 @router.get(
     "/{model_id}",
