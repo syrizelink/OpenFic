@@ -34,6 +34,10 @@ RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
 # 复制后端源码
 COPY backend/ ./
 
+# 安装当前项目以写入发行版元数据，供运行时读取版本号
+RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev
+
 # 前端构建产物打入包内
 COPY --from=frontend /build/dist ./app/frontend_dist
 
