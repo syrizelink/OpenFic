@@ -131,6 +131,9 @@ export function SetupPage({
   const [remoteUrl, setRemoteUrl] = useState(initialRemoteUrl ?? "http://127.0.0.1:8000");
   const [installDir, setInstallDir] = useState("");
   const [dataDir, setDataDir] = useState("");
+  const [dataDirWarning, setDataDirWarning] = useState(false);
+  const [runtimeDirWarning, setRuntimeDirWarning] = useState(false);
+  const [dataDirChecking, setDataDirChecking] = useState(false);
   const [runtimeInspection, setRuntimeInspection] = useState<InspectLocalRuntimeResult | null>(null);
   const [runtimeChecking, setRuntimeChecking] = useState(false);
   const [steps, setSteps] = useState<StepState>(INITIAL_STEPS);
@@ -158,25 +161,71 @@ export function SetupPage({
   }, [initialInstallDir, initialRemoteUrl]);
 
   useEffect(() => {
-    if (!installDir || step !== "local-directory") return;
+    if (step !== "local-directory") return;
+    if (!installDir) {
+      setRuntimeInspection(null);
+      setRuntimeDirWarning(false);
+      setRuntimeChecking(false);
+      return;
+    }
     let cancelled = false;
     setRuntimeChecking(true);
     setRuntimeInspection(null);
-    void window.openficDesktop
-      .inspectLocalRuntime(installDir)
-      .then((result) => {
+    setRuntimeDirWarning(false);
+    void Promise.all([
+      window.openficDesktop.inspectLocalRuntime(installDir),
+      window.openficDesktop.checkPathOverlap(installDir),
+    ]).then(([result, isNested]) => {
         if (!cancelled) {
           setRuntimeInspection(result);
+          setRuntimeDirWarning(isNested);
           setRuntimeChecking(false);
         }
       })
       .catch(() => {
-        if (!cancelled) setRuntimeChecking(false);
+        if (!cancelled) {
+          setRuntimeDirWarning(false);
+          setRuntimeChecking(false);
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [installDir, step]);
+
+  useEffect(() => {
+    if (!installDir || !dataDir || step !== "local-data") {
+      setDataDirWarning(false);
+      setDataDirChecking(false);
+      return;
+    }
+
+    let cancelled = false;
+    setDataDirChecking(true);
+    setDataDirWarning(false);
+    setRuntimeDirWarning(false);
+    void Promise.all([
+      window.openficDesktop.checkPathOverlap(dataDir, installDir),
+      window.openficDesktop.checkPathOverlap(installDir),
+    ])
+      .then(([isDataNested, isRuntimeNested]) => {
+        if (!cancelled) {
+          setDataDirWarning(isDataNested);
+          setRuntimeDirWarning(isRuntimeNested);
+          setDataDirChecking(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDataDirWarning(false);
+          setRuntimeDirWarning(false);
+          setDataDirChecking(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dataDir, installDir, step]);
 
   useEffect(() => {
     const dispose = window.openficDesktop.onSetupProgress((event) => {
@@ -469,6 +518,13 @@ export function SetupPage({
                 </div>
               ) : null}
 
+              {runtimeDirWarning ? (
+                <div className="setup-alert setup-alert-warning">
+                  <AlertTriangle size={16} strokeWidth={2} className="setup-alert-icon" />
+                  <span>{t("desktop.setup.nestedRuntimeDirectoryWarning")}</span>
+                </div>
+              ) : null}
+
               <div className="setup-actions">
                 <button
                   className="primary-button"
@@ -503,11 +559,29 @@ export function SetupPage({
                 </div>
               </div>
 
+              {dataDirChecking ? (
+                <div className="setup-status">
+                  <div className="setup-step-spinner" style={{ width: 18, height: 18, borderWidth: 2 }} />
+                  <span className="setup-status-text">{t("desktop.setup.checkingDataDirectory")}</span>
+                </div>
+              ) : null}
+
+              {dataDirWarning || runtimeDirWarning ? (
+                <div className="setup-alert setup-alert-warning">
+                  <AlertTriangle size={16} strokeWidth={2} className="setup-alert-icon" />
+                  <span>
+                    {dataDirWarning ? t("desktop.setup.nestedDataDirectoryWarning") : null}
+                    {dataDirWarning && runtimeDirWarning ? <br /> : null}
+                    {runtimeDirWarning ? t("desktop.setup.nestedRuntimeDirectoryWarning") : null}
+                  </span>
+                </div>
+              ) : null}
+
               <div className="setup-actions">
                 <button
                   className="primary-button"
                   type="button"
-                  disabled={!dataDir}
+                  disabled={!dataDir || dataDirChecking}
                   onClick={() => {
                     if (runtimeIsReady) {
                       onStartLocal(installDir, dataDir);

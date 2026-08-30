@@ -137,6 +137,12 @@
   border: 1px solid var(--green-a5);
 }
 
+.data-alert-warning {
+  background: var(--amber-a3);
+  color: var(--amber-11, #b45309);
+  border: 1px solid var(--amber-a5);
+}
+
 .data-status {
   display: flex;
   align-items: center;

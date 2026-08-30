@@ -43,6 +43,7 @@ export const IpcChannels = {
   getDefaultDataDir: "data:get-default-dir",
   getDataInfo: "data:get-info",
   inspectDataDir: "data:inspect-dir",
+  checkPathOverlap: "data:check-path-overlap",
   migrateData: "data:migrate",
   backupData: "data:backup",
   restoreData: "data:restore",
@@ -211,6 +212,8 @@ export interface DataInfo {
   dataDir: string;
   /** Whether the instance falls back to the default data location. */
   isDefaultLocation: boolean;
+  /** Whether the data directory overlaps an application or runtime installation directory. */
+  nestedWithInstallDir: boolean;
   hasData: boolean;
   entryCount: number;
   sizeBytes: number;
@@ -219,6 +222,8 @@ export interface DataInfo {
 export interface InspectDataDirResult {
   /** Whether the directory contains recognizable OpenFic data. */
   valid: boolean;
+  /** Whether the inspected directory overlaps an application or supplied installation directory. */
+  nestedWithInstallDir: boolean;
   hasData: boolean;
   entryCount: number;
   sizeBytes: number;
@@ -230,6 +235,12 @@ export interface GetDataInfoRequest {
 
 export interface InspectDataDirRequest {
   dataDir: string;
+  installDir?: string;
+}
+
+export interface CheckPathOverlapRequest {
+  dataDir: string;
+  installDir?: string;
 }
 
 export interface MigrateDataRequest {
