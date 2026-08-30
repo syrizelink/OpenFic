@@ -195,6 +195,22 @@ async def list_child_runs_for_parent(
     return list(result.scalars().all())
 
 
+async def list_child_runs_for_parents(
+    session: AsyncSession,
+    parent_session_ids: Sequence[str],
+) -> list[AgentChildRun]:
+    """批量读取多个父 session 的直接 child run。"""
+    normalized_ids = list(dict.fromkeys(session_id for session_id in parent_session_ids if session_id))
+    if not normalized_ids:
+        return []
+    result = await session.execute(
+        select(AgentChildRun)
+        .where(col(AgentChildRun.parent_session_id).in_(normalized_ids))
+        .order_by(col(AgentChildRun.parent_session_id), col(AgentChildRun.created_at).asc())
+    )
+    return list(result.scalars().all())
+
+
 async def get_latest_child_run_requests(
     session: AsyncSession,
     child_run_ids: Sequence[str],

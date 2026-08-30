@@ -188,6 +188,86 @@ class AgentSessionStateResponse(BaseModel):
     interrupts: list[dict] = Field(default_factory=list, description="待处理的可恢复中断")
 
 
+class AgentChangeLineResponse(BaseModel):
+    """单行 Agent 内容变更。"""
+
+    type: str = Field(description="变更行类型：context、added 或 removed")
+    before_line_number: int | None = Field(default=None, description="变更前行号")
+    after_line_number: int | None = Field(default=None, description="变更后行号")
+    text: str = Field(default="", description="变更行内容")
+
+
+class AgentChangeSectionResponse(BaseModel):
+    """Agent 内容变更。"""
+
+    type: str = Field(description="变更类型：content")
+    lines: list[AgentChangeLineResponse] = Field(default_factory=list, description="内容变更行")
+
+
+class AgentChangeItemResponse(BaseModel):
+    """单个 Agent 内容变更项。"""
+
+    key: str = Field(description="变更实体键")
+    kind: str = Field(description="实体类型")
+    title: str = Field(description="实体标题")
+    title_before: str | None = Field(default=None, description="标题变更前文本")
+    title_after: str | None = Field(default=None, description="标题变更后文本")
+    operation: str = Field(description="变更操作")
+    path: list[str] = Field(default_factory=list, description="实体所属层级路径")
+    sections: list[AgentChangeSectionResponse] = Field(default_factory=list, description="Diff 分段")
+    added: int = Field(default=0, description="新增行数")
+    removed: int = Field(default=0, description="删除行数")
+    source_message_id: str = Field(description="来源工具消息 ID")
+    source: str = Field(description="变更来源：primary、subagent 或 session")
+    child_run_id: str | None = Field(default=None, description="来源子运行 ID")
+    request_id: str | None = Field(default=None, description="来源子运行请求 ID")
+    agent_key: str | None = Field(default=None, description="来源子代理标识")
+    agent_number: str | None = Field(default=None, description="来源子代理编号")
+    revision_id: str | None = Field(default=None, description="所属 revision ID")
+
+
+class AgentChangeSummaryResponse(BaseModel):
+    """Agent 内容变更汇总。"""
+
+    item_count: int = Field(default=0, description="变更项数量")
+    added: int = Field(default=0, description="新增行数")
+    removed: int = Field(default=0, description="删除行数")
+    items: list[AgentChangeItemResponse] = Field(default_factory=list, description="变更项")
+
+
+class AgentSubagentRunChangesResponse(BaseModel):
+    """单个 subagent 请求产生的变更。"""
+
+    child_run_id: str = Field(description="子运行 ID")
+    child_thread_id: str = Field(description="子线程 ID")
+    request_id: str | None = Field(default=None, description="子运行请求 ID")
+    child_user_message_id: str | None = Field(default=None, description="子运行用户消息 ID")
+    agent_key: str = Field(description="子代理标识")
+    agent_number: str | None = Field(default=None, description="子代理编号")
+    changes: AgentChangeSummaryResponse = Field(description="该 subagent 请求的变更")
+
+
+class AgentTurnChangesResponse(BaseModel):
+    """主会话单个 turn 的变更。"""
+
+    revision_id: str = Field(description="该 turn 的 revision ID")
+    user_message_id: str | None = Field(default=None, description="触发 turn 的用户消息 ID")
+    user_message_seq: int | None = Field(default=None, description="触发 turn 的用户消息序号")
+    changes: AgentChangeSummaryResponse = Field(description="该 turn 的完整变更")
+    subagent_runs: list[AgentSubagentRunChangesResponse] = Field(
+        default_factory=list,
+        description="该 turn 下的 subagent 变更",
+    )
+
+
+class AgentSessionChangesResponse(BaseModel):
+    """主会话及其 subagent 的完整变更。"""
+
+    session_id: str = Field(description="Agent 会话 ID")
+    turns: list[AgentTurnChangesResponse] = Field(default_factory=list, description="按 turn 分组的变更")
+    session_changes: AgentChangeSummaryResponse = Field(description="整个会话的变更")
+
+
 class ActiveSubagentStateResponse(BaseModel):
     """父会话下活跃子代理的只读状态行。"""
 

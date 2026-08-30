@@ -184,6 +184,7 @@ class WriteChapterTool(AgentTool):
                 chapter_diff = build_chapter_diff_preview(
                     None,
                     chapter_preview_from_object(chapter),
+                    path=[volume.title.strip()],
                 )
                 return json.dumps(
                     {

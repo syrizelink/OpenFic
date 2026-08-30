@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from typing import TypeGuard, cast
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import JSONResponse
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -32,6 +33,7 @@ from app.agent_runtime.persistence.child_runs import (
     list_active_child_runs,
     list_child_runs_for_parent,
 )
+from app.agent_runtime.session_changes import load_agent_session_changes
 from app.agent_runtime.persistence.child_runs import get_child_run_agent_number
 from app.agent_runtime.persistence.task_projection import (
     load_task_messages_for_agent_session,
@@ -57,6 +59,7 @@ from app.api.schemas.agent import (
     AgentCancelResponse,
     AgentAttachmentResponse,
     AgentCompactionResponse,
+    AgentSessionChangesResponse,
     AgentForkRequest,
     AgentForkResponse,
     AgentPendingMessageResponse,
@@ -1402,6 +1405,22 @@ async def get_agent_session_state(
         is_running=is_running,
         interrupts=interrupts,
     )
+
+
+@router.get(
+    "/sessions/{session_id}/changes",
+    response_model=AgentSessionChangesResponse,
+)
+async def get_agent_session_changes(
+    session_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> AgentSessionChangesResponse | JSONResponse:
+    try:
+        await task_service.get_task_by_agent_session_id(session, session_id)
+        changes = await load_agent_session_changes(session, session_id)
+        return JSONResponse(content=changes.to_payload())
+    except NotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.get(

@@ -18,6 +18,7 @@ from app.agent_runtime.revisions import (
 from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.tools.impls.note.refs import (
     CategoryRef,
+    build_category_path,
     generate_unique_title,
     resolve_category_from_list,
 )
@@ -53,6 +54,7 @@ class WriteNoteTool(AgentTool):
             return None
 
         category_id: str | None = None
+        categories = []
         category_ref = args.get("category_ref")
         if category_ref is not None:
             if not isinstance(category_ref, dict):
@@ -62,6 +64,11 @@ class WriteNoteTool(AgentTool):
                 category = await note_category_repo.get_by_id(session, ref.id)
                 if category is None or category.project_id != self.project_id:
                     return None
+                categories = [category]
+                if category.parent_id is not None:
+                    categories = await note_category_repo.list_by_project(
+                        session, self.project_id
+                    )
             else:
                 categories = await note_category_repo.list_by_project(session, self.project_id)
                 try:
@@ -84,18 +91,22 @@ class WriteNoteTool(AgentTool):
             }
             for line_number, line in enumerate(content.splitlines(), start=1)
         ]
+        note_diff = {
+            "operation": "create",
+            "note_title": unique_title,
+            "category_id": category_id,
+            "sections": [{"type": "content", "lines": diff_lines}],
+        }
+        category_path = build_category_path(categories, category_id)
+        if category_path:
+            note_diff["path"] = category_path
         return {
             "type": "preview",
             "success": True,
             "reason": "approval_preview",
             "message": "笔记创建待审批",
             "metadata": {
-                "note_diff": {
-                    "operation": "create",
-                    "note_title": unique_title,
-                    "category_id": category_id,
-                    "sections": [{"type": "content", "lines": diff_lines}],
-                }
+                "note_diff": note_diff,
             },
         }
 
@@ -115,17 +126,23 @@ class WriteNoteTool(AgentTool):
         session = await create_session()
         try:
             category_id: str | None = None
+            categories = []
             if category_ref is not None:
                 ref = CategoryRef.model_validate(category_ref)
                 if ref.id is not None:
                     cat = await note_category_repo.get_by_id(session, ref.id)
                     if cat is None:
                         raise ToolExecutionError(f"分类不存在: {ref.id}")
+                    categories = [cat]
+                    if cat.parent_id is not None:
+                        categories = await note_category_repo.list_by_project(
+                            session, self.project_id
+                        )
                 else:
-                    cats = await note_category_repo.list_by_project(
+                    categories = await note_category_repo.list_by_project(
                         session, self.project_id
                     )
-                    cat = resolve_category_from_list(cats, ref)
+                    cat = resolve_category_from_list(categories, ref)
                 if cat.project_id != self.project_id:
                     raise ToolExecutionError("目标分类不属于当前项目")
                 category_id = cat.id
@@ -183,6 +200,9 @@ class WriteNoteTool(AgentTool):
                     "note_title": note.title,
                     "category_id": note.category_id,
                 }
+                category_path = build_category_path(categories, note.category_id)
+                if category_path:
+                    note_diff["path"] = category_path
 
                 from app.background.jobs import service as background_service
 

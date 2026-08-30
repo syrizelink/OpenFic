@@ -144,6 +144,82 @@ async def test_list_by_session_filters_by_session(db_session: AsyncSession, samp
 
 
 @pytest.mark.asyncio
+async def test_list_by_sessions_groups_messages_and_orders_each_session(
+    db_session: AsyncSession, sample_task
+):
+    for session_id, content in (("session_a", "a"), ("session_b", "b")):
+        await repo.insert_message(
+            db_session,
+            session_id=session_id,
+            task_id=sample_task.id,
+            project_id=sample_task.project_id,
+            role="user",
+            content=content,
+            status="complete",
+        )
+
+    items_by_session = await repo.list_by_sessions(
+        db_session,
+        ["session_b", "session_a"],
+    )
+
+    assert [item.content for item in items_by_session["session_a"]] == ["a"]
+    assert [item.content for item in items_by_session["session_b"]] == ["b"]
+
+
+@pytest.mark.asyncio
+async def test_list_by_sessions_can_filter_roles(db_session: AsyncSession, sample_task):
+    for role, content in (("user", "user"), ("assistant", "assistant")):
+        await repo.insert_message(
+            db_session,
+            session_id="session_a",
+            task_id=sample_task.id,
+            project_id=sample_task.project_id,
+            role=role,
+            content=content,
+            status="complete",
+        )
+
+    items_by_session = await repo.list_by_sessions(
+        db_session,
+        ["session_a"],
+        roles=["user"],
+    )
+
+    assert [item.content for item in items_by_session["session_a"]] == ["user"]
+
+
+@pytest.mark.asyncio
+async def test_list_by_sessions_can_include_selected_tool_names(
+    db_session: AsyncSession, sample_task
+):
+    for role, tool_name, content in (
+        ("user", None, "user"),
+        ("tool", "edit_chapter", "edit"),
+        ("tool", "read_chapter", "read"),
+    ):
+        await repo.insert_message(
+            db_session,
+            session_id="session_a",
+            task_id=sample_task.id,
+            project_id=sample_task.project_id,
+            role=role,
+            content=content,
+            status="complete",
+            tool_name=tool_name,
+        )
+
+    items_by_session = await repo.list_by_sessions(
+        db_session,
+        ["session_a"],
+        roles=["user"],
+        tool_names=["edit_chapter"],
+    )
+
+    assert [item.content for item in items_by_session["session_a"]] == ["user", "edit"]
+
+
+@pytest.mark.asyncio
 async def test_delete_from_seq_includes_anchor(db_session: AsyncSession, sample_task):
     for i in range(5):
         await repo.insert_message(

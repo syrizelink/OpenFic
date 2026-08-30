@@ -6,6 +6,7 @@ import i18n from "@/i18n";
 import type {
   AgentImageAttachment,
   AgentForkResponse,
+  AgentChangeSummary,
   AgentSessionCreateResponse,
   ReasoningEffort,
   TokenUsageState,
@@ -30,6 +31,7 @@ interface AgentSidebarProps {
   onRestoreAttachments?: (attachments: AgentImageAttachment[]) => void;
   onSetInputValue?: (value: string) => void;
   onOpenMentionChapter?: (chapterId: string, chapterTitle: string) => void;
+  onOpenChanges?: (summary: AgentChangeSummary) => void;
   onTokenUsage?: (sessionId: string, usage: TokenUsageState) => void;
   onTaskUsageSnapshot?: (payload: {
     sessionId: string;
@@ -68,6 +70,7 @@ export function useAgentSidebar({
   onRestoreAttachments,
   onSetInputValue,
   onOpenMentionChapter,
+  onOpenChanges,
   onTokenUsage,
   onTaskUsageSnapshot,
   onTaskUsageDelta,
@@ -80,6 +83,7 @@ export function useAgentSidebar({
 }: AgentSidebarProps) {
   const {
     messages: agentMessages,
+    changes: agentChanges,
     pendingMessage,
     status: agentStatus,
     isRunning: isAgentRunning,
@@ -101,6 +105,7 @@ export function useAgentSidebar({
     submitQuestionAnswer: submitAgentQuestionAnswer,
     handleBatchDecision,
     abortSession: abortAgentSession,
+    refreshChanges: refreshAgentChanges,
   } = useAgentSession({
     projectId,
     modelId,
@@ -189,6 +194,7 @@ export function useAgentSidebar({
 
   return {
     messages: agentMessages,
+    changes: agentChanges,
     pendingMessage,
     status: agentStatus,
     isRunning: isAgentRunning,
@@ -201,6 +207,7 @@ export function useAgentSidebar({
     onCancelPendingMessage: handleCancelPendingMessage,
     resetSession: resetAgentSession,
     loadSession: loadAgentSession,
+    refreshChanges: refreshAgentChanges,
     disconnectTransport: disconnectAgentTransport,
     reconnectTransport: reconnectAgentTransport,
     compactSession: compactAgentSession,
@@ -216,7 +223,9 @@ export function useAgentSidebar({
         onRollback={handleRollback}
         onFork={handleFork}
         onOpenMentionChapter={onOpenMentionChapter}
+        onOpenChanges={onOpenChanges}
         onAbortRetry={abortAgentSession}
+        changes={agentChanges}
         onAtBottomChange={onAtBottomChange}
         scrollToBottomFnRef={scrollToBottomFnRef}
       />

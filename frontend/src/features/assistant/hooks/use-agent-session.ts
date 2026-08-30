@@ -17,6 +17,7 @@ import type {
   AgentImageAttachment,
   AgentMessage,
   AgentPendingMessage,
+  AgentSessionChanges,
   AgentSessionCreateResponse,
   AgentSessionStatus,
   AgentEvent,
@@ -35,6 +36,7 @@ import {
   submitAgentInterruptBatch,
   rollbackAgentRevision,
   cancelAgentSession,
+  fetchAgentSessionChanges,
   uploadAgentImageAttachment,
   submitAgentToolApproval,
 } from "@/lib/api-client";
@@ -306,6 +308,7 @@ export function useAgentSession({
   projectIdRef.current = projectId;
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AgentMessage[]>([]);
+  const [changes, setChanges] = useState<AgentSessionChanges | null>(null);
   const [pendingMessage, setPendingMessage] = useState<AgentPendingMessage | null>(null);
   const [status, setStatus] = useState<AgentSessionStatus>("idle");
   const [isRunning, setIsRunning] = useState(false);
@@ -433,6 +436,26 @@ export function useAgentSession({
     setIsCompacting(nextIsCompacting);
   }, []);
 
+  const refreshChanges = useCallback(
+    async (
+      targetSessionId = sessionIdRef.current ?? sessionId,
+    ): Promise<AgentSessionChanges | null> => {
+      if (!targetSessionId) {
+        setChanges(null);
+        return null;
+      }
+      try {
+        const nextChanges = await fetchAgentSessionChanges(targetSessionId);
+        if (sessionIdRef.current === targetSessionId) setChanges(nextChanges);
+        return nextChanges;
+      } catch (error) {
+        console.error("Failed to load agent session changes:", error);
+        return null;
+      }
+    },
+    [sessionId],
+  );
+
   const applyTranscriptEvent = useCallback(
     (event: AgentEvent) => {
       const result = applyAgentTranscriptEventToLiveState(transcriptStateRef.current, event, {
@@ -557,6 +580,7 @@ export function useAgentSession({
 
       const result = applyTranscriptEvent(event);
       const message = result.message;
+      if (event.type === "task_completed" || event.type === "error") void refreshChanges();
 
       if (message?.interruptBatchId && typeof message.interruptBatchTotal === "number") {
         const batchId = message.interruptBatchId;
@@ -744,6 +768,7 @@ export function useAgentSession({
       onTaskUsageSnapshot,
       projectId,
       queryClient,
+      refreshChanges,
       syncCompactingState,
       syncPendingMessageState,
       updateTranscriptState,
@@ -839,6 +864,7 @@ export function useAgentSession({
       try {
         suppressSocketEventsAfterAbortRef.current = false;
         transportRetryAttemptRef.current = 0;
+        setChanges(null);
         commitTranscriptState({
           messages: [createOptimisticUserMessage(userRequest)],
           status: "running",
@@ -1232,6 +1258,7 @@ export function useAgentSession({
     ignoredApprovalIdsRef.current.clear();
     interruptBatchRef.current = null;
     manualCompactionPreviousStateRef.current = null;
+    setChanges(null);
     syncPendingMessageState(null);
     syncCompactingState(false);
     setIsRollbacking(false);
@@ -1311,6 +1338,7 @@ export function useAgentSession({
         isRemoteRunning?: boolean;
         primaryAgentKey?: string;
         pendingInterrupts?: Record<string, unknown>[];
+        initialChanges?: AgentSessionChanges | null;
       } = {},
     ) => {
       sessionIdRef.current = existingSessionId;
@@ -1321,6 +1349,7 @@ export function useAgentSession({
       syncPendingMessageState(null);
       syncCompactingState(false);
       setSessionId(existingSessionId);
+      setChanges(options.initialChanges ?? null);
       socketUnsubscribeRef.current?.();
       socketUnsubscribeRef.current = null;
 
@@ -1454,6 +1483,7 @@ export function useAgentSession({
           invalidateNoteQueries();
           invalidateWorldEntryQueries();
           invalidateCharacterQueries();
+          void refreshChanges(sessionId);
 
           toast.success(i18n.t("assistant.rollbackSuccess"));
 
@@ -1483,6 +1513,7 @@ export function useAgentSession({
       invalidateCharacterQueries,
       invalidateNoteQueries,
       invalidateWorldEntryQueries,
+      refreshChanges,
     ],
   );
 
@@ -1534,6 +1565,8 @@ export function useAgentSession({
     sendMessage,
     resetSession,
     loadSession,
+    changes,
+    refreshChanges,
     disconnectTransport,
     reconnectTransport,
     compactSession,

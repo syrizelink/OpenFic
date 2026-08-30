@@ -64,6 +64,18 @@ def _make_category(
     return cat
 
 
+def test_build_category_path_returns_ancestor_titles_in_order() -> None:
+    from app.agent_runtime.tools.impls.note.refs import build_category_path
+
+    categories = [
+        _make_category(category_id="cat-root", title="大纲"),
+        _make_category(category_id="cat-volume", title="第一卷", parent_id="cat-root"),
+        _make_category(category_id="cat-note", title="细纲", parent_id="cat-volume"),
+    ]
+
+    assert build_category_path(categories, "cat-note") == ["大纲", "第一卷", "细纲"]
+
+
 async def test_read_note_rejects_hidden_note() -> None:
     from app.agent_runtime.tools.impls.note.read_note import ReadNoteTool
 
@@ -305,6 +317,19 @@ async def test_delete_note_returns_success_and_diff_metadata() -> None:
                 "operation": "delete",
                 "note_id": "note-1",
                 "note_title": "测试笔记",
+                "sections": [
+                    {
+                        "type": "content",
+                        "lines": [
+                            {
+                                "type": "removed",
+                                "before_line_number": 1,
+                                "after_line_number": None,
+                                "text": "测试内容",
+                            }
+                        ],
+                    }
+                ],
             }
         },
     }
@@ -645,6 +670,7 @@ async def test_move_note_returns_success_and_metadata() -> None:
                 "category_id": "cat-2",
                 "target_category_id": "cat-2",
                 "target_category_title": "目标分类",
+                "path": ["目标分类"],
             }
         },
     }

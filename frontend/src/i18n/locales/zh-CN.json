@@ -1768,6 +1768,43 @@
     "compactionPendingActionRequired": "请先处理当前会话",
     "compactionAvailable": "压缩上下文",
     "compactionNoSession": "当前没有 Agent 会话",
+    "sessionChanges": {
+      "title": "会话更改",
+      "overviewTitle": "差异总览",
+      "open": "查看会话更改",
+      "turnSummary": "本轮会话更改摘要",
+      "dialogDescription": "查看本次会话的全部内容差异",
+      "edited": "已编辑",
+      "editedSummary": "已编辑 {{details}}",
+      "showMore": "再显示 {{count}} 个文件",
+      "showLess": "收起文件",
+      "noChanges": "本次会话没有内容修改",
+      "noLines": "无行级内容差异",
+      "collapseAll": "收起差异项",
+      "expandAll": "展开差异项",
+      "splitView": "切换为拆分视图",
+      "unifiedView": "切换为统一视图",
+      "enableWrap": "开启自动换行",
+      "disableWrap": "关闭自动换行",
+      "kindCount": {
+        "chapter": {
+          "one": "{{count}} 个章节",
+          "many": "{{count}} 个章节"
+        },
+        "note": {
+          "one": "{{count}} 个笔记",
+          "many": "{{count}} 个笔记"
+        },
+        "world_entry": {
+          "one": "{{count}} 个条目",
+          "many": "{{count}} 个条目"
+        },
+        "character": {
+          "one": "{{count}} 个角色",
+          "many": "{{count}} 个角色"
+        }
+      }
+    },
     "mentionMetaFormat": "{{base}} · {{description}}",
     "mentionKind": {
       "volume": "卷",

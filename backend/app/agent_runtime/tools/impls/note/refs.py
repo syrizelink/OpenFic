@@ -47,6 +47,30 @@ def _resolve_category_by_path(
     return match
 
 
+def build_category_path(
+    categories: Sequence[NoteCategory],
+    category_id: str | None,
+) -> list[str]:
+    """按分类层级返回从根分类到目标分类的标题路径。"""
+    if category_id is None:
+        return []
+    categories_by_id = {category.id: category for category in categories}
+    parts: list[str] = []
+    visited: set[str] = set()
+    current_id: str | None = category_id
+    while current_id is not None and current_id not in visited:
+        visited.add(current_id)
+        category = categories_by_id.get(current_id)
+        if category is None:
+            break
+        title = category.title.strip()
+        if title:
+            parts.append(title)
+        current_id = category.parent_id
+    parts.reverse()
+    return parts
+
+
 def resolve_note_from_list(
     notes: Sequence[Note],
     ref: NoteRef,

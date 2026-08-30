@@ -1705,6 +1705,43 @@
     "compactionPendingActionRequired": "Please finish the current session action first",
     "compactionAvailable": "Compact context",
     "compactionNoSession": "No Agent session is available",
+    "sessionChanges": {
+      "title": "Session changes",
+      "overviewTitle": "Diff overview",
+      "open": "View session changes",
+      "turnSummary": "Turn changes summary",
+      "dialogDescription": "View all content differences in this session",
+      "edited": "Edited",
+      "editedSummary": "Edited {{details}}",
+      "showMore": "Show {{count}} more files",
+      "showLess": "Show fewer files",
+      "noChanges": "No content changes in this session",
+      "noLines": "No line-level content differences",
+      "collapseAll": "Collapse changes",
+      "expandAll": "Expand changes",
+      "splitView": "Switch to split view",
+      "unifiedView": "Switch to unified view",
+      "enableWrap": "Enable word wrap",
+      "disableWrap": "Disable word wrap",
+      "kindCount": {
+        "chapter": {
+          "one": "{{count}} chapter",
+          "many": "{{count}} chapters"
+        },
+        "note": {
+          "one": "{{count}} note",
+          "many": "{{count}} notes"
+        },
+        "world_entry": {
+          "one": "{{count}} entry",
+          "many": "{{count}} entries"
+        },
+        "character": {
+          "one": "{{count}} character",
+          "many": "{{count}} characters"
+        }
+      }
+    },
     "mentionMetaFormat": "{{base}} · {{description}}",
     "mentionKind": {
       "volume": "Volume",
