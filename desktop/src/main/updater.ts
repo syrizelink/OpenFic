@@ -190,7 +190,7 @@ export function cancelUpdateDownload(): void {
 
 export function installUpdate(): void {
   if (updateState.status !== "downloaded") return;
-  autoUpdater.quitAndInstall(true, true);
+  autoUpdater.quitAndInstall(false, true);
 }
 
 export async function openUpdateRelease(): Promise<void> {

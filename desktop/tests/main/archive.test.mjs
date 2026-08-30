@@ -57,7 +57,7 @@ test("falls back to the built-in extractor when tar is unavailable", async () =>
     await writeFile(archivePath, createPythonArchive());
     process.env.PATH = "";
 
-    await extractTarGz(archivePath, outputDir);
+    await extractTarGz(archivePath, outputDir, undefined, undefined, false);
 
     assert.equal(await readFile(path.join(outputDir, "python", "python.exe"), "utf8"), "portable python\n");
   } finally {
@@ -76,7 +76,7 @@ test("preserves relative symbolic links when falling back to the built-in extrac
     await writeFile(archivePath, createPythonArchiveWithSymlink());
     process.env.PATH = "";
 
-    await extractTarGz(archivePath, outputDir);
+    await extractTarGz(archivePath, outputDir, undefined, undefined, false);
 
     assert.equal(await readlink(path.join(outputDir, "python", "python3")), "python3.13");
   } finally {
@@ -95,7 +95,10 @@ test("rejects archive entries outside the output directory", async () => {
     await writeFile(archivePath, createTarGz([{ name: "../escape", content: "unsafe" }]));
     process.env.PATH = "";
 
-    await assert.rejects(extractTarGz(archivePath, outputDir), /archive entry escapes output directory/);
+    await assert.rejects(
+      extractTarGz(archivePath, outputDir, undefined, undefined, false),
+      /archive entry escapes output directory/,
+    );
   } finally {
     process.env.PATH = originalPath;
     await rm(directory, { recursive: true, force: true });
@@ -110,7 +113,7 @@ test("uses the system tar when it is available", async () => {
   try {
     await writeFile(archivePath, createPythonArchive());
 
-    await extractTarGz(archivePath, outputDir);
+    await extractTarGz(archivePath, outputDir, undefined, undefined, false);
 
     assert.equal(await readFile(path.join(outputDir, "python", "python.exe"), "utf8"), "portable python\n");
   } finally {
@@ -126,7 +129,7 @@ test("does not fall back when the system tar rejects an invalid archive", async 
   try {
     await writeFile(archivePath, "not a gzip archive");
 
-    await assert.rejects(extractTarGz(archivePath, outputDir), /tar exited with code/);
+    await assert.rejects(extractTarGz(archivePath, outputDir, undefined, undefined, false), /tar exited with code/);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

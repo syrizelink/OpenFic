@@ -3,6 +3,7 @@ import path from "node:path";
 import {
   IpcChannels,
   type BackupDataRequest,
+  type CheckPathOverlapRequest,
   type DataProgressEvent,
   type DeleteInstanceRequest,
   type DeleteInstanceResult,
@@ -77,6 +78,19 @@ function getLocalInstanceDeletionPaths(instance: DesktopInstance): LocalInstance
     dataDir: path.resolve(dataDir),
     runtimeDir: path.resolve(resolveRuntimeDir(installDir)),
   };
+}
+
+async function isDataDirNestedWithInstallDirectory(dataDir: string, runtimeInstallDir?: string): Promise<boolean> {
+  const installDirs = [path.dirname(app.getPath("exe"))];
+  if (runtimeInstallDir) {
+    const [isDefaultDataDir, isDefaultInstallDir] = await Promise.all([
+      arePathsEqual(dataDir, getDefaultDataDir()),
+      arePathsEqual(runtimeInstallDir, getDefaultInstallDir()),
+    ]);
+    if (!isDefaultDataDir || !isDefaultInstallDir) installDirs.push(resolveRuntimeDir(runtimeInstallDir));
+  }
+  const overlaps = await Promise.all(installDirs.map((installDir) => doPathsOverlap(dataDir, installDir)));
+  return overlaps.some(Boolean);
 }
 
 async function isDataDirShared(
@@ -442,9 +456,11 @@ export function registerIpc(context: IpcContext): void {
     if (!instance) throw new Error("实例不存在");
     const dataDir = resolveDataDir(instance);
     const inspection = await inspectDataDir(dataDir);
+    const installDir = instance.mode === "local" ? instance.installDir ?? getDefaultInstallDir() : undefined;
     return {
       dataDir,
       isDefaultLocation: instance.dataDir === null,
+      nestedWithInstallDir: await isDataDirNestedWithInstallDirectory(dataDir, installDir),
       hasData: inspection.hasData,
       entryCount: inspection.entryCount,
       sizeBytes: inspection.sizeBytes,
@@ -452,8 +468,16 @@ export function registerIpc(context: IpcContext): void {
   });
 
   ipcMain.handle(IpcChannels.inspectDataDir, async (_event, request: InspectDataDirRequest) => {
-    return inspectDataDir(request.dataDir);
+    const inspection = await inspectDataDir(request.dataDir);
+    return {
+      ...inspection,
+      nestedWithInstallDir: await isDataDirNestedWithInstallDirectory(request.dataDir, request.installDir),
+    };
   });
+
+  ipcMain.handle(IpcChannels.checkPathOverlap, (_event, request: CheckPathOverlapRequest) =>
+    isDataDirNestedWithInstallDirectory(request.dataDir, request.installDir),
+  );
 
   ipcMain.handle(IpcChannels.migrateData, (_event, request: MigrateDataRequest) =>
     enqueueConfigMutation(async (): Promise<MigrateDataResult> => {

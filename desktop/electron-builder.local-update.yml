@@ -27,6 +27,7 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  include: build/installer.nsh
   artifactName: OpenFic-${version}-win-${arch}-setup.${ext}
 
 publish:

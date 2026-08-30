@@ -33,6 +33,7 @@ interface ConfirmState {
   path: string;
   textBefore: string;
   textAfter?: string;
+  warning?: string;
 }
 
 function formatBytes(bytes: number): string {
@@ -129,7 +130,11 @@ export function DataManagementPage({
     const picked = await window.openficDesktop.selectDirectory();
     if (!picked) return;
     try {
-      const inspection = await window.openficDesktop.inspectDataDir(picked);
+      const installDir = instance?.installDir ?? await window.openficDesktop.getDefaultInstallDir();
+      const inspection = await window.openficDesktop.inspectDataDir(picked, installDir);
+      const nestedWarning = inspection.nestedWithInstallDir
+        ? t("desktop.data.nestedDirectoryWarning")
+        : undefined;
       if (inspection.hasData) {
         setConfirm({
           kind: "attach",
@@ -138,13 +143,15 @@ export function DataManagementPage({
             ? t("desktop.data.attachExistingConfirmBefore")
             : t("desktop.data.attachNonEmptyConfirmBefore"),
           textAfter: `${t("desktop.data.attachConfirmAfter")}\n${backendNote}`,
+          warning: nestedWarning,
         });
         return;
       }
       setConfirm({
         kind: "migrate",
         path: picked,
-        textBefore: t("desktop.data.migrateConfirmBefore")
+        textBefore: t("desktop.data.migrateConfirmBefore"),
+        warning: nestedWarning,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -268,18 +275,26 @@ export function DataManagementPage({
                 <span>{t("desktop.data.reading")}</span>
               </div>
             ) : dataInfo ? (
-              <section className="data-card">
-                <div className="data-card-head">
-                  <HardDrive size={15} strokeWidth={2} />
-                  <span>{t("desktop.data.currentLocation")}</span>
-                  {dataInfo.isDefaultLocation ? <span className="data-badge">{t("desktop.data.defaultLocation")}</span> : null}
-                </div>
-                <p className="data-path" title={dataInfo.dataDir}>{dataInfo.dataDir}</p>
-                <div className="data-meta">
-                  <span>{t("desktop.data.entries", { count: dataInfo.entryCount })}</span>
-                  <span>{formatBytes(dataInfo.sizeBytes)}</span>
-                </div>
-              </section>
+              <>
+                <section className="data-card">
+                  <div className="data-card-head">
+                    <HardDrive size={15} strokeWidth={2} />
+                    <span>{t("desktop.data.currentLocation")}</span>
+                    {dataInfo.isDefaultLocation ? <span className="data-badge">{t("desktop.data.defaultLocation")}</span> : null}
+                  </div>
+                  <p className="data-path" title={dataInfo.dataDir}>{dataInfo.dataDir}</p>
+                  <div className="data-meta">
+                    <span>{t("desktop.data.entries", { count: dataInfo.entryCount })}</span>
+                    <span>{formatBytes(dataInfo.sizeBytes)}</span>
+                  </div>
+                </section>
+                {dataInfo.nestedWithInstallDir ? (
+                  <div className="data-alert data-alert-warning">
+                    <AlertTriangle size={15} strokeWidth={2} />
+                    <span>{t("desktop.data.nestedDirectoryWarning")}</span>
+                  </div>
+                ) : null}
+              </>
             ) : null}
 
             {error ? (
@@ -337,6 +352,7 @@ export function DataManagementPage({
                     </div>
                     {confirm.textAfter ? <p className="data-dialog-text">{confirm.textAfter}</p> : null}
                   </div>
+                  {confirm.warning ? <p className="data-dialog-warning">{confirm.warning}</p> : null}
                   {confirm.kind === "migrate" ? (
                     <label className="data-check">
                       <input

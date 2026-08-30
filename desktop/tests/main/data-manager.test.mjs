@@ -118,6 +118,7 @@ test("path comparisons resolve aliases and parent-child overlap", async () => {
     assert.equal(await arePathsEqual(parent, parent), true);
     assert.equal(await isPathWithin(parent, child), true);
     assert.equal(await doPathsOverlap(parent, child), true);
+    assert.equal(await doPathsOverlap(child, parent), true);
   } finally {
     await rm(base, { recursive: true, force: true });
   }
