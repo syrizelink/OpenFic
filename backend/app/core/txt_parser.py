@@ -175,6 +175,23 @@ def _detect_encoding(content: bytes) -> str:
     return encoding
 
 
+def decode_text_content(content: bytes) -> tuple[str, str]:
+    """解码文本内容并标准化换行符。"""
+    if not content:
+        return "", "utf-8"
+
+    encoding = _detect_encoding(content)
+    try:
+        text = content.decode(encoding)
+    except (UnicodeDecodeError, LookupError):
+        text = content.decode("utf-8", errors="ignore")
+        encoding = "utf-8"
+
+    if text.startswith("\ufeff"):
+        text = text[1:]
+    return text.replace("\r\n", "\n").replace("\r", "\n"), encoding
+
+
 def _count_words(text: str) -> int:
     """
     统计中文字数。
@@ -278,23 +295,8 @@ def parse_txt_content(content: bytes) -> ParseResult:
     if not content:
         return ParseResult()
 
-    # 检测编码
-    encoding = _detect_encoding(content)
-
-    # 解码内容
-    try:
-        text = content.decode(encoding)
-    except (UnicodeDecodeError, LookupError):
-        # 解码失败，尝试使用 UTF-8 并忽略错误
-        text = content.decode("utf-8", errors="ignore")
-        encoding = "utf-8"
-
-    # 移除 BOM
-    if text.startswith("\ufeff"):
-        text = text[1:]
-
-    # 标准化换行符
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    # 检测编码并标准化换行符
+    text, encoding = decode_text_content(content)
 
     # 选择最佳目录规则
     toc_pattern = _select_best_toc_rule(text)

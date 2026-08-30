@@ -1,8 +1,8 @@
 /**
  * ImportDialog Component
  *
- * 多步骤 TXT 文件导入弹窗组件。
- * 步骤：选择文件 → 解析预览 → 填写书名和封面 → 完成
+ * 多步骤项目文件导入弹窗组件。
+ * 步骤：选择文件 → 选择分割方式 → 解析预览 → 填写书名和封面 → 完成
  */
 
 import {
@@ -16,10 +16,12 @@ import {
   Badge,
   Progress,
   Card,
+  SegmentedControl,
 } from "@radix-ui/themes";
 import {
   Upload,
   FileText,
+  Archive,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -30,10 +32,15 @@ import { useState, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { GroupedVirtuoso } from "react-virtuoso";
 
-import { Spinner } from "@/components";
-
 import "./import-dialog.css";
-import { previewTxtFile, confirmImportStream, type ImportPreviewResponse } from "../lib/import-api";
+import {
+  confirmImportStream,
+  DEFAULT_IMPORT_CHUNK_SIZE,
+  MAX_IMPORT_CHUNK_SIZE,
+  previewImportFile,
+  type ImportPreviewResponse,
+  type ImportSplitMode,
+} from "../lib/import-api";
 import { CoverCropper } from "./cover-cropper";
 
 interface ImportDialogProps {
@@ -45,7 +52,15 @@ interface ImportDialogProps {
   onSuccess?: () => void;
 }
 
-type Step = "select" | "preview" | "info" | "importing" | "complete";
+type Step = "select" | "split" | "preview" | "info" | "importing" | "complete";
+
+function isSupportedImportFile(filename: string): boolean {
+  return /\.(txt|md|zip)$/i.test(filename);
+}
+
+function getImportFileTitle(filename: string): string {
+  return filename.replace(/\.(txt|md|zip)$/i, "");
+}
 
 export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProps) {
   const { t, i18n } = useTranslation();
@@ -59,6 +74,8 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
   const [file, setFile] = useState<File | null>(null);
   const [previewData, setPreviewData] = useState<ImportPreviewResponse | null>(null);
   const [expandedVolumeIndexes, setExpandedVolumeIndexes] = useState<number[]>([0]);
+  const [splitMode, setSplitMode] = useState<ImportSplitMode>("auto");
+  const [chunkSize, setChunkSize] = useState(String(DEFAULT_IMPORT_CHUNK_SIZE));
 
   // 项目信息
   const [title, setTitle] = useState("");
@@ -87,6 +104,8 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
     setFile(null);
     setPreviewData(null);
     setExpandedVolumeIndexes([0]);
+    setSplitMode("auto");
+    setChunkSize(String(DEFAULT_IMPORT_CHUNK_SIZE));
     setTitle("");
     setDescription("");
     setCover(null);
@@ -112,28 +131,19 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
 
   // 处理文件选择
   const handleFileSelect = useCallback(
-    async (selectedFile: File) => {
-      if (!selectedFile.name.toLowerCase().endsWith(".txt")) {
+    (selectedFile: File) => {
+      if (!isSupportedImportFile(selectedFile.name)) {
         setError(t("import.invalidFileType"));
         return;
       }
 
       setFile(selectedFile);
+      setPreviewData(null);
+      setSplitMode("auto");
+      setChunkSize(String(DEFAULT_IMPORT_CHUNK_SIZE));
       setError(null);
-      setLoading(true);
-
-      try {
-        const result = await previewTxtFile(selectedFile);
-        setPreviewData(result);
-        setExpandedVolumeIndexes([0]);
-        setTitle(selectedFile.name.replace(/\.txt$/i, ""));
-        setStep("preview");
-      } catch (err) {
-        console.error("预览失败:", err);
-        setError(t("import.parseFailed"));
-      } finally {
-        setLoading(false);
-      }
+      setTitle(getImportFileTitle(selectedFile.name));
+      setStep("split");
     },
     [t],
   );
@@ -150,6 +160,40 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
     [handleFileSelect],
   );
 
+  const handlePreview = useCallback(async () => {
+    if (!file) return;
+
+    const parsedChunkSize = Number(chunkSize);
+    if (
+      splitMode === "manual" &&
+      (!Number.isInteger(parsedChunkSize) ||
+        parsedChunkSize < 1 ||
+        parsedChunkSize > MAX_IMPORT_CHUNK_SIZE)
+    ) {
+      setError(t("import.invalidChunkSize"));
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await previewImportFile(
+        file,
+        splitMode,
+        Number.isInteger(parsedChunkSize) ? parsedChunkSize : DEFAULT_IMPORT_CHUNK_SIZE,
+      );
+      setPreviewData(result);
+      setExpandedVolumeIndexes([0]);
+      setStep("preview");
+    } catch (err) {
+      console.error("预览失败:", err);
+      setError(err instanceof Error ? err.message : t("import.parseFailed"));
+    } finally {
+      setLoading(false);
+    }
+  }, [chunkSize, file, splitMode, t]);
+
   // 处理确认导入
   const handleConfirmImport = useCallback(async () => {
     if (!file || !title.trim()) {
@@ -163,11 +207,14 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
     setStep("importing");
 
     try {
+      const parsedChunkSize = Number(chunkSize);
       const result = await confirmImportStream(
         file,
         title.trim(),
         description.trim() || undefined,
         cover,
+        splitMode,
+        Number.isInteger(parsedChunkSize) ? parsedChunkSize : DEFAULT_IMPORT_CHUNK_SIZE,
         (event) => {
           if (event.type === "progress") {
             setImportProgress(event.progress);
@@ -192,7 +239,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
     } finally {
       setLoading(false);
     }
-  }, [file, title, description, cover, t, onSuccess]);
+  }, [file, title, description, cover, splitMode, chunkSize, t, onSuccess]);
 
   // 格式化字数
   const formatWordCount = (count: number) => {
@@ -252,7 +299,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
               className="import-dialog-file-input"
               ref={fileInputRef}
               type="file"
-              accept=".txt"
+              accept=".txt,.md,.zip"
               onChange={(e) => {
                 const selectedFile = e.target.files?.[0];
                 if (selectedFile) {
@@ -287,23 +334,6 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
               </Text>
             </Box>
 
-            {loading && (
-              <Flex
-                align="center"
-                gap="2"
-                mt="4"
-                justify="center"
-              >
-                <Spinner size={18} />
-                <Text
-                  size="2"
-                  color="gray"
-                >
-                  {t("import.parsing")}
-                </Text>
-              </Flex>
-            )}
-
             {error && (
               <Flex
                 align="center"
@@ -324,6 +354,118 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
               </Flex>
             )}
           </Box>
+        );
+
+      case "split":
+        return (
+          <Flex
+            direction="column"
+            gap="4"
+            className="import-dialog-split-content"
+          >
+            <Box>
+              <Text
+                as="p"
+                size="3"
+                weight="medium"
+                mb="1"
+              >
+                {t("import.splitMode")}
+              </Text>
+              <Text
+                as="p"
+                size="2"
+                color="gray"
+              >
+                {file?.name}
+              </Text>
+            </Box>
+
+            {file?.name.toLowerCase().endsWith(".zip") ? (
+              <Box className="import-dialog-archive-hint">
+                <Archive
+                  size={20}
+                  className="import-dialog-archive-icon"
+                />
+                <Box>
+                  <Text
+                    as="p"
+                    size="2"
+                    weight="medium"
+                  >
+                    {t("import.archiveImportTitle")}
+                  </Text>
+                  <Text
+                    as="p"
+                    size="2"
+                    color="gray"
+                  >
+                    {t("import.archiveImportDescription")}
+                  </Text>
+                </Box>
+              </Box>
+            ) : (
+              <>
+                <SegmentedControl.Root
+                  value={splitMode}
+                  onValueChange={(value) => {
+                    setSplitMode(value as ImportSplitMode);
+                    setError(null);
+                  }}
+                  size="2"
+                  className="import-dialog-split-mode"
+                >
+                  <SegmentedControl.Item value="auto">
+                    {t("import.autoSplit")}
+                  </SegmentedControl.Item>
+                  <SegmentedControl.Item value="manual">
+                    {t("import.manualSplit")}
+                  </SegmentedControl.Item>
+                </SegmentedControl.Root>
+
+                {splitMode === "manual" ? (
+                  <Box>
+                    <Text
+                      as="label"
+                      size="2"
+                      weight="medium"
+                      mb="1"
+                      className="import-dialog-label"
+                    >
+                      {t("import.chunkSize")}
+                    </Text>
+                    <TextField.Root
+                      type="number"
+                      min={1}
+                      max={MAX_IMPORT_CHUNK_SIZE}
+                      value={chunkSize}
+                      onChange={(event) => {
+                        setChunkSize(event.target.value);
+                        setError(null);
+                      }}
+                    />
+                    <Text
+                      as="p"
+                      size="1"
+                      color="gray"
+                      mt="1"
+                    >
+                      {t("import.chunkSizeHint", { max: MAX_IMPORT_CHUNK_SIZE })}
+                    </Text>
+                  </Box>
+                ) : (
+                  <Text
+                    as="p"
+                    size="2"
+                    color="gray"
+                    className="import-dialog-split-description"
+                  >
+                    {t("import.autoSplitDescription")}
+                  </Text>
+                )}
+              </>
+            )}
+          </Flex>
         );
 
       case "preview":
@@ -481,24 +623,26 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
                   />
                 </Box>
 
-                {previewData.chapter_count === 1 && (
-                  <Flex
-                    align="center"
-                    gap="2"
-                    mt="3"
-                  >
-                    <AlertCircle
-                      size={14}
-                      color="var(--amber-9)"
-                    />
-                    <Text
-                      size="1"
-                      color="amber"
+                {previewData.chapter_count === 1 &&
+                  splitMode === "auto" &&
+                  file?.name.toLowerCase().endsWith(".zip") !== true && (
+                    <Flex
+                      align="center"
+                      gap="2"
+                      mt="3"
                     >
-                      {t("import.noChaptersFound")}
-                    </Text>
-                  </Flex>
-                )}
+                      <AlertCircle
+                        size={14}
+                        color="var(--amber-9)"
+                      />
+                      <Text
+                        size="1"
+                        color="amber"
+                      >
+                        {t("import.noChaptersFound")}
+                      </Text>
+                    </Flex>
+                  )}
               </>
             )}
           </Box>
@@ -668,7 +812,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
           </Button>
         );
 
-      case "preview":
+      case "split":
         return (
           <Flex
             gap="3"
@@ -679,6 +823,32 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
               variant="soft"
               color="gray"
               onClick={() => setStep("select")}
+              disabled={loading}
+            >
+              <ChevronLeft size={16} />
+              {t("import.back")}
+            </Button>
+            <Button
+              onClick={handlePreview}
+              loading={loading}
+            >
+              {t("import.next")}
+              <ChevronRight size={16} />
+            </Button>
+          </Flex>
+        );
+
+      case "preview":
+        return (
+          <Flex
+            gap="3"
+            justify="between"
+            style={{ width: "100%" }}
+          >
+            <Button
+              variant="soft"
+              color="gray"
+              onClick={() => setStep("split")}
             >
               <ChevronLeft size={16} />
               {t("import.back")}
@@ -729,6 +899,8 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
     switch (step) {
       case "select":
         return t("import.selectFile");
+      case "split":
+        return t("import.splitMode");
       case "preview":
         return t("import.parseResult");
       case "info":

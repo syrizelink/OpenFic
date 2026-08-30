@@ -1,5 +1,5 @@
 /**
- * 导入 API - TXT 文件导入相关接口。
+ * 导入 API - 项目文件导入相关接口。
  */
 
 import i18n from "@/i18n";
@@ -27,6 +27,11 @@ export interface ImportPreviewResponse {
   detected_encoding: string;
 }
 
+export type ImportSplitMode = "auto" | "manual";
+
+export const DEFAULT_IMPORT_CHUNK_SIZE = 800;
+export const MAX_IMPORT_CHUNK_SIZE = 100_000;
+
 /** 确认导入响应 */
 export interface ImportConfirmResponse {
   project_id: string;
@@ -36,14 +41,20 @@ export interface ImportConfirmResponse {
 }
 
 /**
- * 预览 TXT 文件解析结果。
+ * 预览项目文件解析结果。
  *
- * @param file TXT 文件
+ * @param file TXT、Markdown 或 ZIP 文件
  * @returns 解析预览结果
  */
-export async function previewTxtFile(file: File): Promise<ImportPreviewResponse> {
+export async function previewImportFile(
+  file: File,
+  splitMode: ImportSplitMode = "auto",
+  chunkSize = DEFAULT_IMPORT_CHUNK_SIZE,
+): Promise<ImportPreviewResponse> {
   const formData = new FormData();
   formData.append("file", file);
+  formData.append("split_mode", splitMode);
+  formData.append("chunk_size", String(chunkSize));
 
   const response = await apiClient.post<ImportPreviewResponse>("/import/preview", formData, {
     headers: {
@@ -57,10 +68,12 @@ export async function previewTxtFile(file: File): Promise<ImportPreviewResponse>
 /**
  * 确认导入，创建项目和章节。
  *
- * @param file TXT 文件
+ * @param file TXT、Markdown 或 ZIP 文件
  * @param title 书名
  * @param description 简介（可选）
  * @param cover 封面文件（可选）
+ * @param splitMode 分割模式
+ * @param chunkSize 手动分割时的每章字数
  * @returns 导入结果
  */
 export async function confirmImport(
@@ -68,10 +81,14 @@ export async function confirmImport(
   title: string,
   description?: string,
   cover?: File | null,
+  splitMode: ImportSplitMode = "auto",
+  chunkSize = DEFAULT_IMPORT_CHUNK_SIZE,
 ): Promise<ImportConfirmResponse> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("title", title);
+  formData.append("split_mode", splitMode);
+  formData.append("chunk_size", String(chunkSize));
 
   if (description) {
     formData.append("description", description);
@@ -120,10 +137,12 @@ export type ImportEvent = ImportProgressEvent | ImportCompleteEvent | ImportErro
 /**
  * 流式确认导入，提供实时进度更新。
  *
- * @param file TXT 文件
+ * @param file TXT、Markdown 或 ZIP 文件
  * @param title 书名
  * @param description 简介（可选）
  * @param cover 封面文件（可选）
+ * @param splitMode 分割模式
+ * @param chunkSize 手动分割时的每章字数
  * @param onEvent 事件回调
  */
 export async function confirmImportStream(
@@ -131,11 +150,15 @@ export async function confirmImportStream(
   title: string,
   description: string | undefined,
   cover: File | null | undefined,
+  splitMode: ImportSplitMode,
+  chunkSize: number,
   onEvent: (event: ImportEvent) => void,
 ): Promise<ImportConfirmResponse | null> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("title", title);
+  formData.append("split_mode", splitMode);
+  formData.append("chunk_size", String(chunkSize));
 
   if (description) {
     formData.append("description", description);

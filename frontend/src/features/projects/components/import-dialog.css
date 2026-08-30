@@ -11,6 +11,37 @@
   transition: border-color 0.2s;
 }
 
+.import-dialog-dropzone:hover {
+  border-color: var(--accent-8);
+}
+
+.import-dialog-split-content {
+  min-height: 220px;
+}
+
+.import-dialog-split-mode {
+  align-self: flex-start;
+}
+
+.import-dialog-split-description {
+  max-width: 52ch;
+}
+
+.import-dialog-archive-hint {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 16px;
+  border: 1px solid var(--accent-6);
+  border-radius: var(--radius-3);
+  background: var(--accent-2);
+}
+
+.import-dialog-archive-icon {
+  flex: 0 0 auto;
+  color: var(--accent-9);
+}
+
 .import-dialog-upload-icon {
   color: var(--gray-9);
   margin-bottom: 16px;
@@ -129,4 +160,14 @@
 
 .import-dialog-info-content {
   min-width: 0;
+}
+
+@media (max-width: 600px) {
+  .import-dialog-split-mode {
+    align-self: stretch;
+  }
+
+  .import-dialog-archive-hint {
+    padding: 12px;
+  }
 }
