@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.11.0](https://github.com/syrizelink/OpenFic/compare/v0.10.2...v0.11.0) (2026-08-30)
+
+
+### ✨ 新功能
+
+* **agent:** 新增会话/轮次级别的变更汇总面板 ([#366](https://github.com/syrizelink/OpenFic/issues/366)) ([e4344c3](https://github.com/syrizelink/OpenFic/commit/e4344c39fff0f4b51a727f29435cf5c3eb17e751))
+* **agent:** 新增联网搜索和网页读取能力 ([#354](https://github.com/syrizelink/OpenFic/issues/354)) ([d6bbca7](https://github.com/syrizelink/OpenFic/commit/d6bbca7eb848ff2a7632602550488138a26776c5))
+
+
+### 🐛 问题修复
+
+* **agent:** 规范化 write_plan 结果并修复被压缩时计划丢失的问题 ([#358](https://github.com/syrizelink/OpenFic/issues/358)) ([a6e419a](https://github.com/syrizelink/OpenFic/commit/a6e419ace227fb4ae69c7055b2ded09ffbe32c93))
+* **backend:** 修复 Docker 部署版本信息读取 ([#367](https://github.com/syrizelink/OpenFic/issues/367)) ([d475639](https://github.com/syrizelink/OpenFic/commit/d47563946cd823044851dfe2817a78d35f61c9ef))
+* **desktop:** 完善本地实例目录检查与更新清理 ([#364](https://github.com/syrizelink/OpenFic/issues/364)) ([b5c2e0b](https://github.com/syrizelink/OpenFic/commit/b5c2e0bbc38e08b7d525997a47797165d40648e4))
+
+
+### ⚡ 性能优化
+
+* **backend:** 优化章节工具查询性能 ([#356](https://github.com/syrizelink/OpenFic/issues/356)) ([c0a42a3](https://github.com/syrizelink/OpenFic/commit/c0a42a39925b9dbd8d54c6f748e2d983b90ede21))
+* **storage:** 优化 dashboard 查询性能 ([#355](https://github.com/syrizelink/OpenFic/issues/355)) ([87bdfb2](https://github.com/syrizelink/OpenFic/commit/87bdfb2a934a7bd86be18b6db8903f22cb443e20))
+
+
+### 🔧 杂项
+
+* **agent:** 新增列出子智能体列表工具 ([#359](https://github.com/syrizelink/OpenFic/issues/359)) ([945aebb](https://github.com/syrizelink/OpenFic/commit/945aebb7fc5a1a9ee301379082d18ca3ff7150b1))
+* **api:** 支持自定义提供商请求头 ([#352](https://github.com/syrizelink/OpenFic/issues/352)) ([4117498](https://github.com/syrizelink/OpenFic/commit/41174980b6b8477dca977f86a724f26023dafcf3))
+* **editor:** 支持章节编辑器可选的行号显示 ([#357](https://github.com/syrizelink/OpenFic/issues/357)) ([3991edf](https://github.com/syrizelink/OpenFic/commit/3991edf15320913776959d7575eff736a2080650))
+* **import:** 增强项目文件导入流程 ([#363](https://github.com/syrizelink/OpenFic/issues/363)) ([9288a24](https://github.com/syrizelink/OpenFic/commit/9288a24245d8952f2231b47281c1810dc6b0887a))
+* **models:** 优化提供商与模型设置面板体验 ([#362](https://github.com/syrizelink/OpenFic/issues/362)) ([1ef8c09](https://github.com/syrizelink/OpenFic/commit/1ef8c091d3ca30f08bd90892515e46dd8368aa7b))
+* **model:** 添加 OpenAI Compatible (Responses) 提供商 ([#349](https://github.com/syrizelink/OpenFic/issues/349)) ([9a14ae2](https://github.com/syrizelink/OpenFic/commit/9a14ae2513422cdeda6417b3386cdf025fc0c175))
+* **provider:** 添加 Gemini Compatible 提供商 ([#360](https://github.com/syrizelink/OpenFic/issues/360)) ([b6b2915](https://github.com/syrizelink/OpenFic/commit/b6b29157897ab989dc0e36d779d9c2a4b1204cf0))
+
 ## [0.10.2](https://github.com/syrizelink/OpenFic/compare/v0.10.1...v0.10.2) (2026-08-25)
 
 
