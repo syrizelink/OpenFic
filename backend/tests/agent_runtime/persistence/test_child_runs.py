@@ -12,6 +12,7 @@ from app.agent_runtime.persistence.child_runs import (
     get_latest_child_run_requests,
     get_waiting_child_run_for_tool_call,
     list_child_runs_for_parent,
+    list_child_runs_for_parents,
     record_child_run_pending_approval,
     rollback_child_runs_for_parent_revisions,
     update_child_run_status,
@@ -165,6 +166,41 @@ async def test_list_child_runs_for_parent_orders_by_creation(
     rows = await list_child_runs_for_parent(db_session, "parent-session")
 
     assert [row.child_thread_id for row in rows] == ["child-1", "child-2"]
+
+
+@pytest.mark.asyncio
+async def test_list_child_runs_for_parents_filters_and_orders_multiple_parents(
+    db_session: AsyncSession, sample_task
+):
+    await create_child_run(
+        db_session,
+        parent_session_id="parent-a",
+        parent_task_id=sample_task.id,
+        parent_thread_id="parent-thread-a",
+        child_thread_id="child-a",
+        agent_key="writer",
+        dispatch_id="dispatch-a",
+        tool_call_id="tool-call-a",
+        request={},
+    )
+    await create_child_run(
+        db_session,
+        parent_session_id="parent-b",
+        parent_task_id=sample_task.id,
+        parent_thread_id="parent-thread-b",
+        child_thread_id="child-b",
+        agent_key="writer",
+        dispatch_id="dispatch-b",
+        tool_call_id="tool-call-b",
+        request={},
+    )
+
+    rows = await list_child_runs_for_parents(
+        db_session,
+        ["parent-b", "parent-a"],
+    )
+
+    assert {row.parent_session_id for row in rows} == {"parent-a", "parent-b"}
 
 
 @pytest.mark.asyncio

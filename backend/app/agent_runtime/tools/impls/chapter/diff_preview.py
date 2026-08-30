@@ -67,6 +67,8 @@ def serialize_preview_chapter(chapter: ChapterPreviewData | None) -> dict[str, A
 def build_chapter_diff_preview(
     before: ChapterPreviewData | None,
     after: ChapterPreviewData | None,
+    *,
+    path: list[str] | None = None,
 ) -> dict[str, Any]:
     operation = "create" if before is None else "update"
     sections: list[dict[str, Any]] = []
@@ -100,12 +102,16 @@ def build_chapter_diff_preview(
         payload["chapter_title"] = chapter.title
         if chapter.order is not None:
             payload["order"] = chapter.order
+    if path:
+        payload["path"] = path
     return payload
 
 
 def build_tool_result_preview(
     before: ChapterPreviewData | None,
     after: ChapterPreviewData | None,
+    *,
+    path: list[str] | None = None,
 ) -> dict[str, Any]:
     return {
         "type": "preview",
@@ -114,7 +120,7 @@ def build_tool_result_preview(
         "message": "章节修改待审批",
         "chapter": serialize_preview_chapter(after or before),
         "metadata": {
-            "chapter_diff": build_chapter_diff_preview(before, after),
+            "chapter_diff": build_chapter_diff_preview(before, after, path=path),
         },
     }
 
@@ -140,7 +146,7 @@ async def build_write_chapter_tool_result_preview(
         order=order,
         word_count=word_count,
     )
-    return build_tool_result_preview(None, after)
+    return build_tool_result_preview(None, after, path=[volume.title.strip()])
 
 
 async def build_edit_chapter_tool_result_preview(
@@ -182,7 +188,7 @@ async def build_edit_chapter_tool_result_preview(
         order=before.order,
         word_count=before.word_count,
     )
-    return build_tool_result_preview(before, after)
+    return build_tool_result_preview(before, after, path=[volume.title.strip()])
 
 
 def _build_diff_lines(before: str, after: str) -> list[dict[str, Any]]:

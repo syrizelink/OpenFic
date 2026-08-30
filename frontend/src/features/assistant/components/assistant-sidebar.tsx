@@ -6,6 +6,7 @@ import {
   ArrowBigUp,
   ArrowDown,
   ArrowLeft,
+  FileDiff,
   History,
   Layers2,
   ListChevronsDownUp,
@@ -35,7 +36,9 @@ import { getAgentDisplayDescription, getAgentIconColor } from "@/lib/agent-brand
 import type {
   ActiveSubagentState,
   AgentForkResponse,
+  AgentChangeSummary,
   AgentSessionCreateResponse,
+  AgentSessionChanges,
   AgentMessage,
   ReasoningEffort,
   TokenUsageState,
@@ -43,6 +46,7 @@ import type {
 import {
   fetchActiveSubagents,
   fetchAgentSessionState,
+  fetchAgentSessionChanges,
   fetchTask,
   subscribeBackgroundEvents,
 } from "@/lib/api-client";
@@ -75,6 +79,7 @@ import { joinSubagentStatusStream, subscribeSubagentStatusEvents } from "../lib/
 import { buildAgentMessagesFromTaskMessages } from "../lib/task-message-agent-mapping";
 import { AgentInput, AgentMessages, useAgentSidebar } from "./agent";
 import { ActiveSubagentList } from "./agent/active-subagent-list";
+import { AgentSessionChangesDialog } from "./agent/agent-changes";
 import { AgentSpecialPanels } from "./agent/agent-special-panels";
 import { getAgentSpecialPanels } from "./agent/agent-special-panels-state";
 import { AllTasksPage } from "./tasks/all-tasks-page";
@@ -147,6 +152,46 @@ function createSessionTotalUsageState(
     tokenOutput: 0,
     tokenCache: 0,
     cost: 0,
+  };
+}
+
+const EMPTY_AGENT_CHANGE_SUMMARY: AgentChangeSummary = {
+  itemCount: 0,
+  added: 0,
+  removed: 0,
+  items: [],
+};
+
+function buildSubagentChanges(
+  changes: AgentSessionChanges | null,
+  childRunId: string | undefined,
+  childThreadId: string | undefined,
+): AgentSessionChanges | null {
+  if (!changes || !childRunId || !childThreadId) return null;
+  const turns = changes.turns.flatMap((turn) =>
+    turn.subagentRuns.flatMap((run) => {
+      if (run.childRunId !== childRunId || run.childThreadId !== childThreadId) return [];
+      return [
+        {
+          revisionId: `${turn.revisionId}:${run.requestId ?? childRunId}`,
+          userMessageId: run.childUserMessageId,
+          changes: run.changes,
+          subagentRuns: [],
+        },
+      ];
+    }),
+  );
+  if (turns.length === 0) return null;
+  const items = turns.flatMap((turn) => turn.changes.items);
+  return {
+    sessionId: childThreadId,
+    turns,
+    sessionChanges: {
+      itemCount: items.length,
+      added: items.reduce((total, item) => total + item.added, 0),
+      removed: items.reduce((total, item) => total + item.removed, 0),
+      items,
+    },
   };
 }
 
@@ -282,6 +327,13 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
     const [inputValue, setInputValue] = useState("");
     const [pendingAttachments, setPendingAttachments] = useState<PendingAgentImageAttachment[]>([]);
     const [view, setView] = useState<AssistantView>("tasks");
+    const [isSessionChangesOpen, setIsSessionChangesOpen] = useState(false);
+    const [sessionChangesDialogSummary, setSessionChangesDialogSummary] =
+      useState<AgentChangeSummary | null>(null);
+    const handleOpenChangeSummary = useCallback((summary: AgentChangeSummary) => {
+      setSessionChangesDialogSummary(summary);
+      setIsSessionChangesOpen(true);
+    }, []);
     const [isLoadingTask, setIsLoadingTask] = useState(false);
     const [currentTaskTitle, setCurrentTaskTitle] = useState<string>("");
     const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
@@ -461,9 +513,11 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
             return;
           }
           const sessionId = fullTask.agentSessionId;
+          const sessionChanges = await fetchAgentSessionChanges(sessionId);
           agentSidebarRef.current?.loadSession(sessionId, agentMessages, {
             reconnect: false,
             isRemoteRunning: false,
+            initialChanges: sessionChanges,
           });
           setView("tasks");
           setIsLoadingTask(false);
@@ -616,6 +670,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       },
       onSetInputValue: (value) => setInputValue(value),
       onOpenMentionChapter,
+      onOpenChanges: handleOpenChangeSummary,
       onTokenUsage: handleConversationTokenUsage,
       onTaskUsageSnapshot: handleTaskUsageSnapshot,
       onTaskUsageDelta: handleTaskUsageDelta,
@@ -626,17 +681,33 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       onAtBottomChange: setIsMessagesAtBottom,
       scrollToBottomFnRef,
     });
+    const currentSubagentChanges = useMemo(
+      () =>
+        buildSubagentChanges(
+          agentSidebar.changes,
+          currentConversation?.kind === "subagent" ? currentConversation.childRunId : undefined,
+          currentConversation?.kind === "subagent" ? currentConversation.childThreadId : undefined,
+        ),
+      [agentSidebar.changes, currentConversation],
+    );
+    const sessionChangesSummary =
+      agentSidebar.changes?.sessionChanges ?? EMPTY_AGENT_CHANGE_SUMMARY;
     useEffect(() => {
       agentSidebarRef.current = agentSidebar;
     }, [agentSidebar]);
     const agentSidebarSessionId = agentSidebar.sessionId;
     const reconnectAgentTransport = agentSidebar.reconnectTransport;
+    const refreshAgentChanges = agentSidebar.refreshChanges;
     const parentConversationSessionId =
       agentSidebarSessionId ||
       (currentConversation?.kind === "parent"
         ? currentConversation.sessionId
         : currentConversation?.parentSessionId) ||
       "";
+    useEffect(() => {
+      if (!isViewingSubagent) return;
+      void refreshAgentChanges();
+    }, [isViewingSubagent, refreshAgentChanges]);
     const subagentSession = useSubagentSession(
       currentConversation?.kind === "subagent" ? currentConversation.childRunId : null,
       currentConversation?.kind === "subagent" ? currentConversation.childThreadId : null,
@@ -782,6 +853,9 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
         parentConversationSessionId,
         (event) => {
           setActiveSubagents((current) => upsertActiveSubagent(current, event));
+          if (event.status === "completed" || event.status === "error" || !event.isActive) {
+            void refreshAgentChanges();
+          }
           setConversationState((current) => {
             let changed = false;
             const nextEntries = current.entries.map((entry) => {
@@ -807,7 +881,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       return () => {
         cleanup();
       };
-    }, [parentConversationSessionId]);
+    }, [parentConversationSessionId, refreshAgentChanges]);
 
     useEffect(() => {
       if (!projectId) return;
@@ -886,6 +960,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
             fetchTask,
             fetchAgentSessionState,
             fetchActiveSubagents,
+            fetchAgentSessionChanges,
           });
           const fullTask = bundle.task;
 
@@ -927,6 +1002,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
               typeof bundle.sessionState?.state.agent_key === "string"
                 ? bundle.sessionState.state.agent_key
                 : undefined,
+            initialChanges: bundle.sessionChanges,
           });
           setActiveSubagents(bundle.activeSubagentRows);
           setCurrentTaskId(fullTask.id);
@@ -1129,6 +1205,14 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
       void agentSidebar.compactSession();
     }, [agentSidebar, canCompactAgentSession]);
 
+    const canOpenSessionChanges =
+      !isViewingSubagent && Boolean(agentSidebar.sessionId) && sessionChangesSummary.itemCount > 0;
+    const handleOpenSessionChanges = useCallback(() => {
+      if (!canOpenSessionChanges) return;
+      setSessionChangesDialogSummary(null);
+      setIsSessionChangesOpen(true);
+    }, [canOpenSessionChanges]);
+
     const handleModelChange = useCallback((nextModelId: string) => {
       setSelectedModelId(nextModelId);
       window.localStorage.setItem(ASSISTANT_MODEL_STORAGE_KEY, nextModelId);
@@ -1185,6 +1269,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
     const handleOpenSubagent = useCallback(
       (subagent: ActiveSubagentState) => {
         if (!parentConversationSessionId) return;
+        setView("tasks");
         setConversationState((current) =>
           openSubagentConversation(current, parentConversationSessionId, subagent),
         );
@@ -1218,7 +1303,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
     const isSendingMessage = agentSidebar.isRunning;
     const shouldShowSubagentConversation = isViewingSubagent;
     const shouldShowParentSubagentStrip =
-      view !== "allTasks" &&
+      view === "tasks" &&
       hasActiveTask &&
       !isLoadingTask &&
       !isViewingSubagent &&
@@ -1367,6 +1452,25 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                     ) : (
                       <ListChevronsDownUp size={16} />
                     )}
+                  </IconButton>
+                </Tooltip>
+                <Tooltip
+                  content={
+                    canOpenSessionChanges
+                      ? t("assistant.sessionChanges.open")
+                      : t("assistant.sessionChanges.noChanges")
+                  }
+                >
+                  <IconButton
+                    variant="ghost"
+                    color="gray"
+                    size="1"
+                    onClick={handleOpenSessionChanges}
+                    disabled={!canOpenSessionChanges}
+                    aria-label={t("assistant.sessionChanges.open")}
+                    aria-pressed={isSessionChangesOpen}
+                  >
+                    <FileDiff size={16} />
                   </IconButton>
                 </Tooltip>
                 <IconButton
@@ -1575,6 +1679,8 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                   }
                   onRollback={async () => null}
                   onAbortRetry={subagentSession.cancelSession}
+                  changes={currentSubagentChanges}
+                  onOpenChanges={handleOpenChangeSummary}
                   onAtBottomChange={setIsMessagesAtBottom}
                   scrollToBottomFnRef={scrollToBottomFnRef}
                 />
@@ -1675,6 +1781,13 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
             />
           </>
         )}
+        <AgentSessionChangesDialog
+          key={agentSidebar.sessionId ?? "no-session"}
+          changes={agentSidebar.changes}
+          summaryOverride={sessionChangesDialogSummary}
+          open={isSessionChangesOpen}
+          onOpenChange={setIsSessionChangesOpen}
+        />
       </Flex>
     );
   },

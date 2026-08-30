@@ -16,6 +16,7 @@ from app.agent_runtime.revisions import (
 from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.tools.impls.note.refs import (
     NoteRef,
+    build_category_path,
     resolve_note_from_list,
 )
 from app.agent_runtime.tools.registry import ToolRegistry
@@ -40,6 +41,7 @@ class DeleteNoteTool(AgentTool):
             raise ToolExecutionError("缺少当前 revision，无法执行笔记删除")
         session = await create_session()
         try:
+            categories = []
             ref = NoteRef.model_validate(note_ref)
             if ref.id is not None:
                 note = await note_repo.get_by_id(session, ref.id)
@@ -53,6 +55,11 @@ class DeleteNoteTool(AgentTool):
                     session, self.project_id
                 )
                 note = resolve_note_from_list(notes, ref, categories=cats)
+
+            if note.category_id is not None:
+                categories = await note_category_repo.list_by_project(
+                    session, self.project_id
+                )
 
             if note.project_id != self.project_id:
                 raise ToolExecutionError("笔记不属于当前项目")
@@ -84,15 +91,35 @@ class DeleteNoteTool(AgentTool):
             from app.background.jobs import service as background_service
 
             await background_service.commit_and_notify(session)
+            note_diff = {
+                "operation": "delete",
+                "note_id": note.id,
+                "note_title": old_title,
+                "sections": [
+                    {
+                        "type": "content",
+                        "lines": [
+                            {
+                                "type": "removed",
+                                "before_line_number": line_number,
+                                "after_line_number": None,
+                                "text": line,
+                            }
+                            for line_number, line in enumerate(
+                                note.content.splitlines(), start=1
+                            )
+                        ],
+                    }
+                ],
+            }
+            category_path = build_category_path(categories, note.category_id)
+            if category_path:
+                note_diff["path"] = category_path
             return json.dumps(
                 {
                     "success": True,
                     "metadata": {
-                        "note_diff": {
-                            "operation": "delete",
-                            "note_id": note.id,
-                            "note_title": old_title,
-                        }
+                        "note_diff": note_diff,
                     },
                 },
                 ensure_ascii=False,

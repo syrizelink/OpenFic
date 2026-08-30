@@ -208,6 +208,73 @@ export interface AgentMessage {
   thinkingDurationMs?: number;
 }
 
+export type AgentChangeKind = "chapter" | "note" | "world_entry" | "character";
+export type AgentChangeLineType = "context" | "added" | "removed";
+export type AgentChangeSectionType = "content";
+
+export interface AgentChangeLine {
+  type: AgentChangeLineType;
+  beforeLineNumber: number | null;
+  afterLineNumber: number | null;
+  text: string;
+}
+
+export interface AgentChangeSection {
+  type: AgentChangeSectionType;
+  lines: AgentChangeLine[];
+}
+
+export interface AgentChangeItem {
+  key: string;
+  kind: AgentChangeKind;
+  title: string;
+  titleBefore?: string;
+  titleAfter?: string;
+  path: string[];
+  operation: string;
+  sections: AgentChangeSection[];
+  added: number;
+  removed: number;
+  sourceMessageId: string;
+  source: "primary" | "subagent" | "session";
+  childRunId?: string;
+  requestId?: string;
+  agentKey?: AgentType;
+  agentNumber?: string;
+  revisionId?: string;
+}
+
+export interface AgentChangeSummary {
+  itemCount: number;
+  added: number;
+  removed: number;
+  items: AgentChangeItem[];
+}
+
+export interface AgentSubagentRunChanges {
+  childRunId: string;
+  childThreadId: string;
+  requestId?: string;
+  childUserMessageId?: string;
+  agentKey: AgentType;
+  agentNumber?: string;
+  changes: AgentChangeSummary;
+}
+
+export interface AgentTurnChanges {
+  revisionId: string;
+  userMessageId?: string;
+  userMessageSeq?: number;
+  changes: AgentChangeSummary;
+  subagentRuns: AgentSubagentRunChanges[];
+}
+
+export interface AgentSessionChanges {
+  sessionId: string;
+  turns: AgentTurnChanges[];
+  sessionChanges: AgentChangeSummary;
+}
+
 export type AgentSessionStatus =
   | "idle"
   | "running"

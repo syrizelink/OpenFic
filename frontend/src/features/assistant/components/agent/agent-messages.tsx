@@ -11,8 +11,13 @@ import { useTranslation } from "react-i18next";
 import { Virtuoso } from "react-virtuoso";
 
 import { ConfirmDialog, toast } from "@/components";
-import type { AgentMessage as AgentMessageType } from "@/lib/agent.types";
+import type {
+  AgentChangeSummary,
+  AgentMessage as AgentMessageType,
+  AgentSessionChanges,
+} from "@/lib/agent.types";
 
+import { AgentChangeSummaryCard } from "./agent-changes";
 import { AgentMessageRenderer } from "./agent-message-renderer";
 import {
   getStreamingFollowSignal,
@@ -50,10 +55,11 @@ const COPY_FEEDBACK_MS = 1200;
 const MIN_BOTTOM_RESTORE_ATTEMPTS = 6;
 const MAX_BOTTOM_RESTORE_ATTEMPTS = 120;
 
-function estimateAgentBlockHeight(block: AgentMessageBlock): number {
-  if (block.type === "node") return 120;
+function estimateAgentBlockHeight(block: AgentMessageBlock, hasChangeSummary = false): number {
+  const changeSummaryHeight = hasChangeSummary ? 150 : 0;
+  if (block.type === "node") return 120 + changeSummaryHeight;
   if (block.type === "user") return 100;
-  return 120 + block.messages.length * 90;
+  return 120 + block.messages.length * 90 + changeSummaryHeight;
 }
 
 function getTimestampParts(timestamp: number, timeZone?: string): Record<string, string> {
@@ -101,6 +107,8 @@ interface AgentMessagesProps {
   onFork?: (sourceRevisionId: string) => Promise<void>;
   onOpenMentionChapter?: (chapterId: string, chapterTitle: string) => void;
   onAbortRetry?: () => void;
+  changes?: AgentSessionChanges | null;
+  onOpenChanges?: (summary: AgentChangeSummary) => void;
   onAtBottomChange?: (isAtBottom: boolean) => void;
   scrollToBottomFnRef?: React.MutableRefObject<(() => void) | null>;
 }
@@ -131,6 +139,58 @@ function isAgentBlockDisplayMessage(
   return (
     message.type !== "user_request" && message.type !== "node_start" && message.type !== "node_end"
   );
+}
+
+function hasRunningAgentMessage(block: AgentMessageBlock): boolean {
+  return (
+    block.type === "agent" &&
+    block.messages.some((message) =>
+      Boolean(message.isStreaming || message.status === "running" || message.status === "pending"),
+    )
+  );
+}
+
+function buildAgentRoundChangeSummaries(
+  blocks: AgentMessageBlock[],
+  visibleBlocks: AgentMessageBlock[],
+  changes?: AgentSessionChanges | null,
+): Map<string, AgentChangeSummary> {
+  const visibleBlockIds = new Set(visibleBlocks.map((block) => block.id));
+  const rounds = new Map<
+    string,
+    { blocks: AgentMessageBlock[]; visibleBlocks: AgentMessageBlock[] }
+  >();
+
+  for (const block of blocks) {
+    if (!block.agentRoundId) continue;
+    let round = rounds.get(block.agentRoundId);
+    if (!round) {
+      round = { blocks: [], visibleBlocks: [] };
+      rounds.set(block.agentRoundId, round);
+    }
+    round.blocks.push(block);
+    if (visibleBlockIds.has(block.id)) round.visibleBlocks.push(block);
+  }
+
+  const summaries = new Map<string, AgentChangeSummary>();
+  rounds.forEach((round) => {
+    const agentBlocks = round.blocks.filter((block) => block.type === "agent");
+    if (agentBlocks.length === 0 || agentBlocks.some(hasRunningAgentMessage)) return;
+    const anchorBlock = round.visibleBlocks.at(-1);
+    if (!anchorBlock) return;
+
+    const sourceRevisionId = agentBlocks.find((block) => block.sourceRevisionId)?.sourceRevisionId;
+    const sourceUserMessageId = round.blocks.find((block) => block.type === "user")?.messages[0]
+      ?.id;
+    const summary = changes?.turns.find(
+      (turn) =>
+        (Boolean(sourceRevisionId) && turn.revisionId === sourceRevisionId) ||
+        (Boolean(sourceUserMessageId) && turn.userMessageId === sourceUserMessageId),
+    )?.changes;
+    if (!summary) return;
+    if (summary.itemCount > 0) summaries.set(anchorBlock.id, summary);
+  });
+  return summaries;
 }
 
 function areBlockMessageListsEqual(previous: BlockDisplayMessage[], next: BlockDisplayMessage[]) {
@@ -227,6 +287,8 @@ export function AgentMessages({
   onFork,
   onOpenMentionChapter,
   onAbortRetry,
+  changes,
+  onOpenChanges,
   onAtBottomChange,
   scrollToBottomFnRef,
 }: AgentMessagesProps) {
@@ -498,6 +560,10 @@ export function AgentMessages({
     () => getVisibleAgentMessageBlocks(messageBlocks, collapsedNodeIds),
     [collapsedNodeIds, messageBlocks],
   );
+  const changeSummaryByAnchorId = useMemo(
+    () => buildAgentRoundChangeSummaries(messageBlocks, visibleMessageBlocks, changes),
+    [changes, messageBlocks, visibleMessageBlocks],
+  );
   const toolbarTargets = useMemo(
     () => getAgentRoundToolbarTargets(messageBlocks, visibleMessageBlocks, isRunning),
     [messageBlocks, visibleMessageBlocks, isRunning],
@@ -614,6 +680,7 @@ export function AgentMessages({
 
   const renderBlock = (block: AgentMessageBlock) => {
     const toolbarTarget = toolbarTargetByAnchorId.get(block.id);
+    const changeSummary = changeSummaryByAnchorId.get(block.id);
     if (block.type === "node") {
       const message = block.messages[0];
       if (!message || message.type !== "node_start") return null;
@@ -638,6 +705,12 @@ export function AgentMessages({
               onOpenMentionChapter={onOpenMentionChapter}
             />
           </Box>
+          {changeSummary ? (
+            <AgentChangeSummaryCard
+              summary={changeSummary}
+              onOpenChanges={onOpenChanges ? () => onOpenChanges(changeSummary) : undefined}
+            />
+          ) : null}
           {toolbarTarget ? renderAgentRoundToolbar(toolbarTarget) : null}
         </Box>
       );
@@ -724,6 +797,12 @@ export function AgentMessages({
             onAbortRetry={onAbortRetry}
           />
         </Box>
+        {changeSummary ? (
+          <AgentChangeSummaryCard
+            summary={changeSummary}
+            onOpenChanges={onOpenChanges ? () => onOpenChanges(changeSummary) : undefined}
+          />
+        ) : null}
         {toolbarTarget ? renderAgentRoundToolbar(toolbarTarget) : null}
       </Box>
     );
@@ -741,8 +820,11 @@ export function AgentMessages({
   }, [scheduleLoadedSessionBottomRestore]);
 
   const heightEstimates = useMemo(
-    () => visibleMessageBlocks.map(estimateAgentBlockHeight),
-    [visibleMessageBlocks],
+    () =>
+      visibleMessageBlocks.map((block) =>
+        estimateAgentBlockHeight(block, changeSummaryByAnchorId.has(block.id)),
+      ),
+    [changeSummaryByAnchorId, visibleMessageBlocks],
   );
 
   const footerContext = useMemo<AgentMessagesFooterContext>(

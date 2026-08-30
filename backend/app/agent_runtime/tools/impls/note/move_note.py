@@ -17,6 +17,7 @@ from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.tools.impls.note.refs import (
     CategoryRef,
     NoteRef,
+    build_category_path,
     resolve_category_from_list,
     resolve_note_from_list,
 )
@@ -73,6 +74,7 @@ class MoveNoteTool(AgentTool):
 
             target_category_id: str | None = None
             target_category_title: str | None = None
+            target_category_path: list[str] = []
             if target_category_ref is not None:
                 tref = CategoryRef.model_validate(target_category_ref)
                 if tref.id is not None:
@@ -88,6 +90,14 @@ class MoveNoteTool(AgentTool):
                     raise ToolExecutionError("目标分类不属于当前项目")
                 target_category_id = target.id
                 target_category_title = target.title
+                target_category_path = build_category_path([target], target.id)
+                if target.parent_id is not None:
+                    target_category_path = build_category_path(
+                        await note_category_repo.list_by_project(
+                            session, self.project_id
+                        ),
+                        target.id,
+                    )
 
             before = note_images_by_id(
                 await note_repo.list_by_project(
@@ -113,18 +123,21 @@ class MoveNoteTool(AgentTool):
             from app.background.jobs import service as background_service
 
             await background_service.commit_and_notify(session)
+            note_diff = {
+                "operation": "move",
+                "note_id": moved.id,
+                "note_title": moved.title,
+                "category_id": moved_category_id,
+                "target_category_id": target_category_id,
+                "target_category_title": target_category_title,
+            }
+            if target_category_path:
+                note_diff["path"] = target_category_path
             return json.dumps(
                 {
                     "success": True,
                     "metadata": {
-                        "note_diff": {
-                            "operation": "move",
-                            "note_id": moved.id,
-                            "note_title": moved.title,
-                            "category_id": moved_category_id,
-                            "target_category_id": target_category_id,
-                            "target_category_title": target_category_title,
-                        }
+                        "note_diff": note_diff,
                     },
                 },
                 ensure_ascii=False,

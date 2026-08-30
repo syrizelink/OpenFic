@@ -1,16 +1,22 @@
-import type { ActiveSubagentState, AgentSessionStateResponse } from "@/lib/agent.types";
+import type {
+  ActiveSubagentState,
+  AgentSessionChanges,
+  AgentSessionStateResponse,
+} from "@/lib/agent.types";
 import type { Task } from "@/lib/task.types";
 
 export interface AgentTaskBundleLoaders {
   fetchTask: (taskId: string) => Promise<Task>;
   fetchAgentSessionState: (sessionId: string) => Promise<AgentSessionStateResponse>;
   fetchActiveSubagents: (parentSessionId: string) => Promise<ActiveSubagentState[]>;
+  fetchAgentSessionChanges: (sessionId: string) => Promise<AgentSessionChanges>;
 }
 
 export interface AgentTaskBundle {
   task: Task;
   sessionState: AgentSessionStateResponse | null;
   activeSubagentRows: ActiveSubagentState[];
+  sessionChanges: AgentSessionChanges | null;
 }
 
 export async function loadAgentTaskBundle(
@@ -23,13 +29,16 @@ export async function loadAgentTaskBundle(
       task,
       sessionState: null,
       activeSubagentRows: [],
+      sessionChanges: null,
     };
   }
 
-  const [sessionStateResult, activeSubagentsResult] = await Promise.allSettled([
-    loaders.fetchAgentSessionState(task.agentSessionId),
-    loaders.fetchActiveSubagents(task.agentSessionId),
-  ]);
+  const [sessionStateResult, activeSubagentsResult, sessionChangesResult] =
+    await Promise.allSettled([
+      loaders.fetchAgentSessionState(task.agentSessionId),
+      loaders.fetchActiveSubagents(task.agentSessionId),
+      loaders.fetchAgentSessionChanges(task.agentSessionId),
+    ]);
 
   return {
     task,
@@ -38,5 +47,6 @@ export async function loadAgentTaskBundle(
       activeSubagentsResult.status === "fulfilled"
         ? activeSubagentsResult.value.filter((item) => item.isActive)
         : [],
+    sessionChanges: sessionChangesResult.status === "fulfilled" ? sessionChangesResult.value : null,
   };
 }

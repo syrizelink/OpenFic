@@ -1,10 +1,11 @@
 """Agent 运行时消息持久化的 CRUD。"""
 
 import json
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import cast
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
@@ -144,6 +145,50 @@ async def list_by_session(
     except SQLAlchemyError as e:
         raise PersistenceLoadError(
             f"list_by_session failed for session {session_id}"
+        ) from e
+
+
+async def list_by_sessions(
+    session: AsyncSession,
+    session_ids: Sequence[str],
+    *,
+    roles: Sequence[str] | None = None,
+    tool_names: Sequence[str] | None = None,
+) -> dict[str, list[PersistedMessage]]:
+    """按 session 批量加载消息，并在内存中按 session 分组。"""
+    normalized_ids = list(dict.fromkeys(session_id for session_id in session_ids if session_id))
+    normalized_tool_names = list(
+        dict.fromkeys(tool_name for tool_name in tool_names or () if tool_name)
+    )
+    if not normalized_ids:
+        return {}
+    try:
+        query = select(AgentRunMessage).where(
+            col(AgentRunMessage.session_id).in_(normalized_ids)
+        )
+        if roles and normalized_tool_names:
+            query = query.where(
+                or_(
+                    col(AgentRunMessage.role).in_(roles),
+                    col(AgentRunMessage.tool_name).in_(normalized_tool_names),
+                )
+            )
+        elif roles:
+            query = query.where(col(AgentRunMessage.role).in_(roles))
+        elif normalized_tool_names:
+            query = query.where(col(AgentRunMessage.tool_name).in_(normalized_tool_names))
+        query = query.order_by(
+            col(AgentRunMessage.session_id),
+            col(AgentRunMessage.seq).asc(),
+        )
+        result = await session.execute(query)
+        messages_by_session: dict[str, list[PersistedMessage]] = {}
+        for row in result.scalars().all():
+            messages_by_session.setdefault(row.session_id, []).append(_row_to_dto(row))
+        return messages_by_session
+    except SQLAlchemyError as e:
+        raise PersistenceLoadError(
+            f"list_by_sessions failed for {len(normalized_ids)} sessions"
         ) from e
 
 

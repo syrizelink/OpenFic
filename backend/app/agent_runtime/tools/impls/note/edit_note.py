@@ -20,6 +20,7 @@ from app.agent_runtime.revisions import (
 from app.agent_runtime.tools.errors import ToolExecutionError
 from app.agent_runtime.tools.impls.note.refs import (
     NoteRef,
+    build_category_path,
     resolve_note_from_list,
 )
 from app.agent_runtime.tools.registry import ToolRegistry
@@ -98,6 +99,7 @@ class EditNoteTool(AgentTool):
         ):
             return None
 
+        categories = []
         ref = NoteRef.model_validate(note_ref)
         if ref.id is not None:
             note = await note_repo.get_by_id(session, ref.id)
@@ -110,6 +112,9 @@ class EditNoteTool(AgentTool):
                 note = resolve_note_from_list(notes, ref, categories=categories)
             except ToolExecutionError:
                 return None
+
+        if note.category_id is not None and not categories:
+            categories = await note_category_repo.list_by_project(session, self.project_id)
 
         if (
             note.project_id != self.project_id
@@ -128,23 +133,27 @@ class EditNoteTool(AgentTool):
             validate_editor_content(preview_content)
         except EditorContentLimitError:
             return None
+        note_diff = {
+            "operation": "update",
+            "note_id": note.id,
+            "note_title": note.title,
+            "sections": [
+                {
+                    "type": "content",
+                    "lines": _build_diff_lines(note.content, preview_content),
+                }
+            ],
+        }
+        category_path = build_category_path(categories, note.category_id)
+        if category_path:
+            note_diff["path"] = category_path
         return {
             "type": "preview",
             "success": True,
             "reason": "approval_preview",
             "message": "笔记修改待审批",
             "metadata": {
-                "note_diff": {
-                    "operation": "update",
-                    "note_id": note.id,
-                    "note_title": note.title,
-                    "sections": [
-                        {
-                            "type": "content",
-                            "lines": _build_diff_lines(note.content, preview_content),
-                        }
-                    ],
-                }
+                "note_diff": note_diff,
             },
         }
 
@@ -159,6 +168,7 @@ class EditNoteTool(AgentTool):
             raise ToolExecutionError("缺少当前 revision，无法执行笔记编辑")
         session = await create_session()
         try:
+            categories = []
             ref = NoteRef.model_validate(note_ref)
             if ref.id is not None:
                 note = await note_repo.get_by_id(session, ref.id)
@@ -168,10 +178,15 @@ class EditNoteTool(AgentTool):
                 notes = await note_repo.list_by_project(
                     session, self.project_id, include_hidden=False
                 )
-                cats = await note_category_repo.list_by_project(
+                categories = await note_category_repo.list_by_project(
                     session, self.project_id
                 )
-                note = resolve_note_from_list(notes, ref, categories=cats)
+                note = resolve_note_from_list(notes, ref, categories=categories)
+
+            if note.category_id is not None and not categories:
+                categories = await note_category_repo.list_by_project(
+                    session, self.project_id
+                )
 
             if note.project_id != self.project_id:
                 raise ToolExecutionError("笔记不属于当前项目")
@@ -218,6 +233,9 @@ class EditNoteTool(AgentTool):
                 "note_id": note.id,
                 "note_title": note.title,
             }
+            category_path = build_category_path(categories, note.category_id)
+            if category_path:
+                note_diff["path"] = category_path
 
             from app.background.jobs import service as background_service
 

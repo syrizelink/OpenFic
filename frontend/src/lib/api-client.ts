@@ -2258,6 +2258,11 @@ import type {
   ActiveSubagentState,
   AgentCancelPendingMessageResponse,
   AgentCompactionResponse,
+  AgentChangeItem,
+  AgentChangeLine,
+  AgentChangeSection,
+  AgentChangeSummary,
+  AgentSessionChanges,
   AgentSessionCreateRequest,
   AgentSessionCreateResponse,
   AgentForkResponse,
@@ -2305,8 +2310,148 @@ export async function fetchAgentSessionState(
   };
 }
 
+export async function fetchAgentSessionChanges(sessionId: string): Promise<AgentSessionChanges> {
+  const response = await apiClient.get(`/agent/sessions/${sessionId}/changes`);
+  return transformAgentSessionChanges(response.data, sessionId);
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function transformAgentChangeLine(raw: unknown): AgentChangeLine | null {
+  if (!isRecord(raw)) return null;
+  const type = raw.type === "added" || raw.type === "removed" ? raw.type : "context";
+  return {
+    type,
+    beforeLineNumber: typeof raw.before_line_number === "number" ? raw.before_line_number : null,
+    afterLineNumber: typeof raw.after_line_number === "number" ? raw.after_line_number : null,
+    text: typeof raw.text === "string" ? raw.text : "",
+  };
+}
+
+function transformAgentChangeSection(raw: unknown): AgentChangeSection | null {
+  if (!isRecord(raw) || raw.type !== "content") return null;
+  const lines = Array.isArray(raw.lines)
+    ? raw.lines.flatMap((line) => {
+        const transformed = transformAgentChangeLine(line);
+        return transformed ? [transformed] : [];
+      })
+    : [];
+  return { type: raw.type, lines };
+}
+
+function transformAgentChangeItem(raw: unknown): AgentChangeItem | null {
+  if (!isRecord(raw)) return null;
+  const kind = raw.kind;
+  if (kind !== "chapter" && kind !== "note" && kind !== "world_entry" && kind !== "character") {
+    return null;
+  }
+  const source = raw.source === "subagent" || raw.source === "session" ? raw.source : "primary";
+  const sections = Array.isArray(raw.sections)
+    ? raw.sections.flatMap((section) => {
+        const transformed = transformAgentChangeSection(section);
+        return transformed ? [transformed] : [];
+      })
+    : [];
+  return {
+    key: String(raw.key ?? ""),
+    kind,
+    title: String(raw.title ?? kind),
+    titleBefore: typeof raw.title_before === "string" ? raw.title_before : undefined,
+    titleAfter: typeof raw.title_after === "string" ? raw.title_after : undefined,
+    path: Array.isArray(raw.path)
+      ? raw.path.filter(
+          (part): part is string => typeof part === "string" && part.trim().length > 0,
+        )
+      : [],
+    operation: String(raw.operation ?? "update"),
+    sections,
+    added: Number(raw.added ?? 0),
+    removed: Number(raw.removed ?? 0),
+    sourceMessageId: String(raw.source_message_id ?? ""),
+    source,
+    childRunId: typeof raw.child_run_id === "string" ? raw.child_run_id : undefined,
+    requestId: typeof raw.request_id === "string" ? raw.request_id : undefined,
+    agentKey: typeof raw.agent_key === "string" ? raw.agent_key : undefined,
+    agentNumber: typeof raw.agent_number === "string" ? raw.agent_number : undefined,
+    revisionId: typeof raw.revision_id === "string" ? raw.revision_id : undefined,
+  };
+}
+
+function transformAgentChangeSummary(raw: unknown): AgentChangeSummary {
+  if (!isRecord(raw)) return { itemCount: 0, added: 0, removed: 0, items: [] };
+  const items = Array.isArray(raw.items)
+    ? raw.items.flatMap((item) => {
+        const transformed = transformAgentChangeItem(item);
+        return transformed ? [transformed] : [];
+      })
+    : [];
+  return {
+    itemCount: Number(raw.item_count ?? items.length),
+    added: Number(raw.added ?? 0),
+    removed: Number(raw.removed ?? 0),
+    items,
+  };
+}
+
+function transformAgentSessionChanges(
+  raw: unknown,
+  fallbackSessionId: string,
+): AgentSessionChanges {
+  if (!isRecord(raw)) {
+    return {
+      sessionId: fallbackSessionId,
+      turns: [],
+      sessionChanges: transformAgentChangeSummary(null),
+    };
+  }
+  const turns = Array.isArray(raw.turns)
+    ? raw.turns.flatMap((turn) => {
+        if (!isRecord(turn)) return [];
+        const subagentRuns = Array.isArray(turn.subagent_runs)
+          ? turn.subagent_runs.flatMap((run) => {
+              if (!isRecord(run)) return [];
+              const childRunId = String(run.child_run_id ?? "");
+              const childThreadId = String(run.child_thread_id ?? "");
+              const agentKey = String(run.agent_key ?? "");
+              if (!childRunId || !childThreadId || !agentKey) return [];
+              return [
+                {
+                  childRunId,
+                  childThreadId,
+                  requestId: typeof run.request_id === "string" ? run.request_id : undefined,
+                  childUserMessageId:
+                    typeof run.child_user_message_id === "string"
+                      ? run.child_user_message_id
+                      : undefined,
+                  agentKey,
+                  agentNumber: typeof run.agent_number === "string" ? run.agent_number : undefined,
+                  changes: transformAgentChangeSummary(run.changes),
+                },
+              ];
+            })
+          : [];
+        const revisionId = String(turn.revision_id ?? "");
+        if (!revisionId) return [];
+        return [
+          {
+            revisionId,
+            userMessageId:
+              typeof turn.user_message_id === "string" ? turn.user_message_id : undefined,
+            userMessageSeq:
+              typeof turn.user_message_seq === "number" ? turn.user_message_seq : undefined,
+            changes: transformAgentChangeSummary(turn.changes),
+            subagentRuns,
+          },
+        ];
+      })
+    : [];
+  return {
+    sessionId: String(raw.session_id ?? fallbackSessionId),
+    turns,
+    sessionChanges: transformAgentChangeSummary(raw.session_changes),
+  };
 }
 
 function transformPendingAgentMessage(raw: unknown): AgentPendingMessage | null {

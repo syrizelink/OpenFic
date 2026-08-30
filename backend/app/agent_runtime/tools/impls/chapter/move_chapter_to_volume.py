@@ -110,6 +110,7 @@ class MoveChapterToVolumeTool(AgentTool):
                             "chapter_title": moved.title,
                             "order": moved.order,
                             "volume_id": moved.volume_id,
+                            "path": [target_volume.title.strip()],
                         }
                     },
                 },

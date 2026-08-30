@@ -10,6 +10,10 @@ from app.agent_runtime.revisions import (
     record_chapter_diffs,
 )
 from app.agent_runtime.tools.errors import ToolExecutionError
+from app.agent_runtime.tools.impls.chapter.diff_preview import (
+    build_chapter_diff_preview,
+    chapter_preview_from_object,
+)
 from app.agent_runtime.tools.impls.chapter.refs import (
     ChapterRef,
     VolumeRef,
@@ -54,6 +58,12 @@ class DeleteChapterTool(AgentTool):
             )
             match = resolve_chapter_from_list([matched] if matched is not None else [], ref)
             deleted_order = match.order
+            chapter_diff = build_chapter_diff_preview(
+                chapter_preview_from_object(match),
+                None,
+                path=[volume.title.strip()],
+            )
+            chapter_diff["operation"] = "delete"
             before = images_by_id(
                 await chapter_repo.list_by_volume_from_order(
                     session, volume.id, deleted_order
@@ -93,12 +103,7 @@ class DeleteChapterTool(AgentTool):
                 {
                     "success": True,
                     "metadata": {
-                        "chapter_diff": {
-                            "operation": "delete",
-                            "chapter_id": match.id,
-                            "chapter_title": match.title,
-                            "order": deleted_order,
-                        }
+                        "chapter_diff": chapter_diff,
                     },
                 },
                 ensure_ascii=False,

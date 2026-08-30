@@ -246,6 +246,7 @@ async def test_write_chapter_appends_to_volume_and_returns_volume_id() -> None:
     assert data["word_count"] == 3
     assert data["metadata"]["chapter_diff"]["operation"] == "create"
     assert data["metadata"]["chapter_diff"]["chapter_id"] == "chap-new"
+    assert data["metadata"]["chapter_diff"]["path"] == ["第一卷"]
     assert [section["type"] for section in data["metadata"]["chapter_diff"]["sections"]] == ["title", "content"]
     mock_repo.list_by_project.assert_not_awaited()
     mock_repo.get_max_order.assert_awaited_once_with(mock_session, "vol-1")
@@ -466,6 +467,7 @@ async def test_write_chapter_insert_order_shifts_within_volume() -> None:
     assert data["word_count"] == 4
     assert data["metadata"]["chapter_diff"]["operation"] == "create"
     assert data["metadata"]["chapter_diff"]["order"] == 2
+    assert data["metadata"]["chapter_diff"]["path"] == ["第一卷"]
     assert [section["type"] for section in data["metadata"]["chapter_diff"]["sections"]] == ["title", "content"]
     mock_repo.list_by_project.assert_not_awaited()
     mock_repo.list_by_volume.assert_not_awaited()
@@ -532,6 +534,7 @@ async def test_edit_chapter_resolves_inside_volume() -> None:
                 "chapter_id": "chap-1",
                 "chapter_title": "新标题",
                 "order": 1,
+                "path": ["第一卷"],
                 "sections": [
                     {
                         "type": "title",
@@ -617,6 +620,31 @@ async def test_delete_chapter_delegates_to_chapter_service() -> None:
         "chapter_id": "chap-1",
         "chapter_title": "第一章",
         "order": 2,
+        "path": ["第一卷"],
+        "sections": [
+            {
+                "type": "title",
+                "lines": [
+                    {
+                        "type": "removed",
+                        "before_line_number": 1,
+                        "after_line_number": None,
+                        "text": "第一章",
+                    }
+                ],
+            },
+            {
+                "type": "content",
+                "lines": [
+                    {
+                        "type": "removed",
+                        "before_line_number": 1,
+                        "after_line_number": None,
+                        "text": "内容测试",
+                    }
+                ],
+            },
+        ],
     }
     mock_chapter_service.delete_chapter.assert_awaited_once_with(
         mock_session,
@@ -938,6 +966,7 @@ async def test_move_chapter_to_volume_appends_to_target_volume() -> None:
         "chapter_title": "第一章",
         "order": 4,
         "volume_id": "vol-2",
+        "path": ["第二卷"],
     }
     move_chapter.assert_awaited_once_with(
         mock_session,

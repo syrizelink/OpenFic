@@ -162,6 +162,7 @@ class EditChapterTool(AgentTool):
             chapter_diff = build_chapter_diff_preview(
                 before_match,
                 chapter_preview_from_object(match),
+                path=[volume.title.strip()],
             )
             after = images_by_id([match])
             affected = await record_chapter_diffs(
