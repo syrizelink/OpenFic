@@ -72,3 +72,17 @@ export interface NoteMoveResult {
   note?: Note;
   category?: NoteCategory;
 }
+
+export interface NoteImportPreview {
+  fileType: "md" | "zip";
+  noteCount: number;
+  categoryCount: number;
+  ignoredFileCount: number;
+}
+
+export interface NoteImportResult {
+  fileType: "md" | "zip";
+  importedNoteCount: number;
+  importedCategoryCount: number;
+  ignoredFileCount: number;
+}

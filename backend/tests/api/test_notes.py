@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """Note API 端点测试。"""
 
+from io import BytesIO
+import zipfile
+
 import pytest
 from httpx import AsyncClient
 
@@ -490,3 +493,205 @@ async def test_mentions_empty_query_returns_empty(client: AsyncClient) -> None:
     )
     assert resp.status_code == 200
     assert resp.json() == {"items": []}
+
+
+def _zip_bytes(files: dict[str, bytes]) -> bytes:
+    output = BytesIO()
+    with zipfile.ZipFile(output, "w") as archive:
+        for filename, content in files.items():
+            archive.writestr(filename, content)
+    return output.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_preview_note_import_reads_markdown_file(client: AsyncClient) -> None:
+    project_id, _ = await _create_project(client)
+
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/notes/import/preview",
+        files={"file": ("我的笔记.md", "# 内容", "text/markdown")},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "file_type": "md",
+        "note_count": 1,
+        "category_count": 0,
+        "ignored_file_count": 0,
+    }
+
+
+@pytest.mark.asyncio
+async def test_preview_note_import_ignores_non_markdown_zip_members(
+    client: AsyncClient,
+) -> None:
+    project_id, _ = await _create_project(client)
+    archive = _zip_bytes(
+        {
+            "设定/角色.md": "角色",
+            "设定/世界.md": "世界",
+            "设定/子分类/地点.md": "地点",
+            "设定/封面.png": b"not markdown",
+        }
+    )
+
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/notes/import/preview",
+        files={"file": ("notes.zip", archive, "application/zip")},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "file_type": "zip",
+        "note_count": 3,
+        "category_count": 2,
+        "ignored_file_count": 1,
+    }
+
+
+@pytest.mark.asyncio
+async def test_preview_note_import_rejects_third_level_category(
+    client: AsyncClient,
+) -> None:
+    project_id, _ = await _create_project(client)
+    archive = _zip_bytes({"一级/二级/三级/笔记.md": "内容"})
+
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/notes/import/preview",
+        files={"file": ("too-deep.zip", archive, "application/zip")},
+    )
+
+    assert response.status_code == 400
+    assert "分类层级不能超过两级" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_import_notes_rebuilds_zip_categories_from_project_root(
+    client: AsyncClient,
+) -> None:
+    project_id, _ = await _create_project(client)
+    archive = _zip_bytes(
+        {
+            "设定/角色.md": "角色内容",
+            "设定/子分类/地点.md": "地点内容",
+            "说明.txt": "ignored",
+        }
+    )
+
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/notes/import",
+        files={"file": ("notes.zip", archive, "application/zip")},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "file_type": "zip",
+        "imported_note_count": 2,
+        "imported_category_count": 2,
+        "ignored_file_count": 1,
+    }
+
+    tree = (await client.get(f"/api/v1/projects/{project_id}/notes")).json()
+    assert tree["total_notes"] == 2
+    assert len(tree["categories"]) == 1
+    assert tree["categories"][0]["title"] == "设定"
+    assert tree["categories"][0]["notes"][0]["title"] == "角色"
+    assert tree["categories"][0]["categories"][0]["title"] == "子分类"
+
+
+@pytest.mark.asyncio
+async def test_import_markdown_file_creates_root_note(client: AsyncClient) -> None:
+    project_id, _ = await _create_project(client)
+
+    response = await client.post(
+        f"/api/v1/projects/{project_id}/notes/import",
+        files={"file": ("根笔记.md", "# 正文\n内容", "text/markdown")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["imported_note_count"] == 1
+    tree = (await client.get(f"/api/v1/projects/{project_id}/notes")).json()
+    assert [(note["title"], note["category_id"]) for note in tree["root_notes"]] == [
+        ("根笔记", None)
+    ]
+
+    note_id = tree["root_notes"][0]["id"]
+    note = (await client.get(f"/api/v1/notes/{note_id}")).json()
+    assert note["content"] == "# 正文\n内容"
+
+
+@pytest.mark.asyncio
+async def test_export_note_returns_markdown_file(client: AsyncClient) -> None:
+    project_id, _ = await _create_project(client)
+    note = await client.post(
+        f"/api/v1/projects/{project_id}/notes",
+        json={"title": "我的笔记", "content": "# 标题\n\n正文"},
+    )
+    note_id = note.json()["id"]
+
+    response = await client.get(f"/api/v1/notes/{note_id}/export")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/markdown")
+    assert "filename*=UTF-8''%E6%88%91%E7%9A%84%E7%AC%94%E8%AE%B0.md" in response.headers[
+        "content-disposition"
+    ]
+    assert response.content.decode() == "# 标题\n\n正文"
+
+
+@pytest.mark.asyncio
+async def test_export_category_returns_zip_with_category_folder(
+    client: AsyncClient,
+) -> None:
+    project_id, _ = await _create_project(client)
+    parent = await client.post(
+        f"/api/v1/projects/{project_id}/note-categories",
+        json={"title": "设定"},
+    )
+    parent_id = parent.json()["id"]
+    child = await client.post(
+        f"/api/v1/projects/{project_id}/note-categories",
+        json={"title": "子分类", "parent_id": parent_id},
+    )
+    child_id = child.json()["id"]
+    await client.post(
+        f"/api/v1/projects/{project_id}/notes",
+        json={"title": "角色", "category_id": parent_id, "content": "角色内容"},
+    )
+    await client.post(
+        f"/api/v1/projects/{project_id}/notes",
+        json={"title": "地点", "category_id": child_id, "content": "地点内容"},
+    )
+
+    response = await client.get(f"/api/v1/note-categories/{parent_id}/export")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/zip")
+    assert "filename*=UTF-8''%E8%AE%BE%E5%AE%9A.zip" in response.headers[
+        "content-disposition"
+    ]
+    with zipfile.ZipFile(BytesIO(response.content)) as archive:
+        assert set(archive.namelist()) == {
+            "设定/",
+            "设定/角色.md",
+            "设定/子分类/",
+            "设定/子分类/地点.md",
+        }
+        assert archive.read("设定/角色.md").decode() == "角色内容"
+        assert archive.read("设定/子分类/地点.md").decode() == "地点内容"
+
+
+@pytest.mark.asyncio
+async def test_export_empty_category_keeps_category_folder(client: AsyncClient) -> None:
+    project_id, _ = await _create_project(client)
+    category = await client.post(
+        f"/api/v1/projects/{project_id}/note-categories",
+        json={"title": "空分类"},
+    )
+    category_id = category.json()["id"]
+
+    response = await client.get(f"/api/v1/note-categories/{category_id}/export")
+
+    assert response.status_code == 200
+    with zipfile.ZipFile(BytesIO(response.content)) as archive:
+        assert archive.namelist() == ["空分类/"]

@@ -1,4 +1,5 @@
 import { Box, Flex, IconButton, Tooltip } from "@radix-ui/themes";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   FilePlus,
   FolderPlus,
@@ -12,6 +13,8 @@ import {
   Eye,
   Trash2,
   Search,
+  Download,
+  Upload,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
@@ -23,6 +26,7 @@ import {
   buildNoteCategoryMentionTag,
   buildNoteMentionTag,
 } from "@/features/assistant/lib/mention-text";
+import { getNoteCategoryExportUrl, getNoteExportUrl } from "@/lib/api-client";
 import type { NoteCategoryItem, NoteListItem, NoteTreeResponse } from "@/lib/note.types";
 import { createToastThrottler } from "@/lib/ui-utils";
 
@@ -39,6 +43,7 @@ import {
   useToggleNoteHidden,
   useDuplicateNote,
 } from "../hooks/use-notes";
+import { NoteImportDialog } from "./note-import-dialog";
 import { NoteSearchPopover } from "./note-search-popover";
 import { NoteTree } from "./note-tree";
 
@@ -57,6 +62,7 @@ export function NoteSidebar({
   isAgentLocked = false,
 }: NoteSidebarProps) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const { data } = useNoteTree(projectId);
   const createNoteMutation = useCreateNote(projectId);
   const createCategoryMutation = useCreateNoteCategory(projectId);
@@ -84,6 +90,7 @@ export function NoteSidebar({
   } | null>(null);
   const [currentNoteId, setCurrentNoteId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [noteImportOpen, setNoteImportOpen] = useState(false);
 
   const [contentSearchOpen, setContentSearchOpen] = useState(false);
   const [contentSearchExpanded, setContentSearchExpanded] = useState(false);
@@ -175,6 +182,14 @@ export function NoteSidebar({
     });
   }, [createCategoryMutation, isAgentLocked, showLockedToast, t]);
 
+  const handleOpenNoteImport = useCallback(() => {
+    if (isAgentLocked) {
+      showLockedToast();
+      return;
+    }
+    setNoteImportOpen(true);
+  }, [isAgentLocked, showLockedToast]);
+
   const handleNoteSelect = useCallback(
     (noteId: string, title: string) => {
       setSelectedCategoryId(null);
@@ -195,6 +210,21 @@ export function NoteSidebar({
     handleCloseContextMenu();
     onNoteSelect(target.id, target.title);
   }, [contextMenuTarget, handleCloseContextMenu, onNoteSelect]);
+
+  const handleExport = useCallback(() => {
+    if (!contextMenuTarget) return;
+    const target = contextMenuTarget;
+    handleCloseContextMenu();
+    const url =
+      target.type === "note" ? getNoteExportUrl(target.id) : getNoteCategoryExportUrl(target.id);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${target.title || t(target.type === "note" ? "writing.untitledNote" : "writing.untitledCategory")}.${target.type === "note" ? "md" : "zip"}`;
+    anchor.style.display = "none";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  }, [contextMenuTarget, handleCloseContextMenu, t]);
 
   const handleAddToConversation = useCallback(() => {
     if (!contextMenuTarget) return;
@@ -293,6 +323,13 @@ export function NoteSidebar({
       onClick: handleAddToConversation,
     });
 
+    items.push({
+      id: "export",
+      label: t(contextMenuTarget.type === "note" ? "writing.exportNote" : "writing.exportCategory"),
+      icon: Download,
+      onClick: handleExport,
+    });
+
     if (contextMenuTarget.type === "note") {
       items.push({
         id: "duplicate",
@@ -346,6 +383,7 @@ export function NoteSidebar({
     handleAddToConversation,
     handleCloseContextMenu,
     handleDuplicate,
+    handleExport,
     handleOpenInNewTab,
     handleRename,
     handleToggleHidden,
@@ -514,6 +552,15 @@ export function NoteSidebar({
               gap="0"
               align="center"
             >
+              <Tooltip content={t("writing.importNotes")}>
+                <IconButton
+                  variant="ghost"
+                  size="2"
+                  onClick={handleOpenNoteImport}
+                >
+                  <Upload size={16} />
+                </IconButton>
+              </Tooltip>
               <Tooltip content={t("writing.newNote")}>
                 <IconButton
                   variant="ghost"
@@ -570,6 +617,15 @@ export function NoteSidebar({
         }
         onConfirm={() => void handleDeleteConfirm()}
         loading={deleteNoteMutation.isPending || deleteCategoryMutation.isPending}
+      />
+
+      <NoteImportDialog
+        open={noteImportOpen}
+        projectId={projectId}
+        onOpenChange={setNoteImportOpen}
+        onSuccess={() => {
+          void queryClient.invalidateQueries({ queryKey: ["note-tree", projectId] });
+        }}
       />
     </div>
   );

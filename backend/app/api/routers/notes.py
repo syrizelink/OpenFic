@@ -5,7 +5,9 @@ Notes Router - 笔记与分类 CRUD API。
 
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from urllib.parse import quote
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +22,8 @@ from app.api.schemas.note import (
     NoteCategoryUpdate,
     NoteCreate,
     NoteHiddenToggle,
+    NoteImportPreviewResponse,
+    NoteImportResponse,
     NoteItemMove,
     NoteListItem,
     NoteLockToggle,
@@ -35,8 +39,13 @@ from app.background.jobs import service as background_service
 from app.core.errors import NotFoundError
 from app.storage.database import get_session
 from app.storage.services import note_service, mention_service
+from app.storage.services import note_transfer_service
 
 router = APIRouter(tags=["notes"])
+
+
+def _content_disposition(filename: str) -> str:
+    return f"attachment; filename*=UTF-8''{quote(filename, safe='')}"
 
 
 def _build_category_item(node) -> NoteCategoryItem:
@@ -182,6 +191,65 @@ async def create_note(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
+@router.post(
+    "/projects/{project_id}/notes/import/preview",
+    response_model=NoteImportPreviewResponse,
+    summary="预览笔记导入",
+)
+async def preview_note_import(
+    project_id: str,
+    file: Annotated[UploadFile, File(description="Markdown 或 ZIP 笔记文件")],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> NoteImportPreviewResponse:
+    try:
+        preview = await note_transfer_service.preview_note_import(
+            session,
+            project_id,
+            file.filename or "",
+            await file.read(),
+        )
+        return NoteImportPreviewResponse(
+            file_type=preview.file_type,
+            note_count=len(preview.notes),
+            category_count=preview.category_count,
+            ignored_file_count=preview.ignored_file_count,
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post(
+    "/projects/{project_id}/notes/import",
+    response_model=NoteImportResponse,
+    summary="导入笔记",
+)
+async def import_notes(
+    project_id: str,
+    file: Annotated[UploadFile, File(description="Markdown 或 ZIP 笔记文件")],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> NoteImportResponse:
+    try:
+        result = await note_transfer_service.import_notes(
+            session,
+            project_id,
+            file.filename or "",
+            await file.read(),
+        )
+        await background_service.commit_and_notify(session)
+        return NoteImportResponse(
+            file_type=result.file_type,
+            imported_note_count=result.imported_note_count,
+            imported_category_count=result.imported_category_count,
+            ignored_file_count=result.ignored_file_count,
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
 @router.get(
     "/projects/{project_id}/notes",
     response_model=NoteTreeResponse,
@@ -214,6 +282,44 @@ async def get_note(
     try:
         note = await note_service.get_note(session, note_id)
         return NoteResponse.model_validate(note)
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get(
+    "/notes/{note_id}/export",
+    summary="导出笔记",
+)
+async def export_note(
+    note_id: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Response:
+    try:
+        exported = await note_transfer_service.export_note(session, note_id)
+        return Response(
+            content=exported.content,
+            media_type=exported.media_type,
+            headers={"Content-Disposition": _content_disposition(exported.filename)},
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get(
+    "/note-categories/{category_id}/export",
+    summary="导出笔记分类",
+)
+async def export_note_category(
+    category_id: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Response:
+    try:
+        exported = await note_transfer_service.export_category(session, category_id)
+        return Response(
+            content=exported.content,
+            media_type=exported.media_type,
+            headers={"Content-Disposition": _content_disposition(exported.filename)},
+        )
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
