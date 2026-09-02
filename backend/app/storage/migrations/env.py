@@ -4,8 +4,9 @@ from sqlalchemy import pool
 from alembic import context
 
 from app.logging import configure_standard_logging
+
 # 导入应用配置和模型
-from app.settings import settings
+from app.settings import settings, to_sync_database_url
 from sqlmodel import SQLModel
 
 # 注册所有表到 SQLModel.metadata 用于 autogenerate
@@ -25,9 +26,13 @@ config = context.config
 
 configure_standard_logging()
 
-# 配置数据库 URL（从应用设置获取，但使用同步 URL）
-database_url = settings.database_url.replace("+aiosqlite", "")
-config.set_main_option("sqlalchemy.url", database_url)
+# 配置数据库 URL。迁移工具可通过 Config.attributes 显式覆盖默认主库。
+database_url = (
+    config.attributes.get("openfic_database_url") or settings.database_sync_url
+)
+config.set_main_option(
+    "sqlalchemy.url", to_sync_database_url(database_url).replace("%", "%%")
+)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
@@ -72,6 +77,16 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    connection = config.attributes.get("openfic_connection")
+    if connection is not None:
+        context.configure(
+            connection=connection, target_metadata=target_metadata
+        )
+
+        with context.begin_transaction():
+            context.run_migrations()
+        return
+
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

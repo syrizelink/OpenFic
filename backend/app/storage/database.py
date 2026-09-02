@@ -4,13 +4,15 @@
 """
 
 from pathlib import Path
+import asyncio
 from collections.abc import AsyncGenerator
+from typing import Any
 
 from alembic import command
 from alembic.config import Config
 from loguru import logger
 from sqlalchemy import event
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -23,7 +25,7 @@ _VACUUM_MIN_FREE_BYTES = 64 * 1024 * 1024
 ALEMBIC_INI_PATH = Path(__file__).resolve().parents[2] / "alembic.ini"
 
 
-def _set_sqlite_pragma(dbapi_connection, connection_record):
+def _set_sqlite_pragma(dbapi_connection: Any, _connection_record: Any) -> None:
     """SQLite 连接建立时设置 WAL 模式和并发优化。"""
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")
@@ -34,22 +36,46 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
     dbapi_connection.create_function("pinyin_initials", 1, to_pinyin_initials, deterministic=True)
 
 
-event.listen(Engine, "connect", _set_sqlite_pragma)
+def _set_postgresql_timezone(dbapi_connection: Any, _connection_record: Any) -> None:
+    """Keep timestamp-without-time-zone columns in the application's UTC contract."""
+    cursor = dbapi_connection.cursor()
+    cursor.execute("SET TIME ZONE 'UTC'")
+    cursor.close()
+
+
+def _is_sqlite_url(database_url: str) -> bool:
+    return make_url(database_url).get_backend_name() == "sqlite"
+
+
+def is_sqlite_backend() -> bool:
+    """返回主业务库是否使用 SQLite。"""
+    return settings.database_backend == "sqlite"
 
 
 def _get_engine():
     """获取或创建数据库引擎。"""
     global _engine
     if _engine is None:
-        _engine = create_async_engine(
-            settings.database_url,
-            echo=settings.debug,
-            future=True,
-            connect_args={
-                "check_same_thread": False,
-            },
-            pool_pre_ping=True,
-        )
+        database_url = settings.database_url
+        if _is_sqlite_url(database_url):
+            _engine = create_async_engine(
+                database_url,
+                echo=settings.debug,
+                future=True,
+                connect_args={
+                    "check_same_thread": False,
+                },
+                pool_pre_ping=True,
+            )
+            event.listen(_engine.sync_engine, "connect", _set_sqlite_pragma)
+        else:
+            _engine = create_async_engine(
+                database_url,
+                echo=settings.debug,
+                future=True,
+                pool_pre_ping=True,
+            )
+            event.listen(_engine.sync_engine, "connect", _set_postgresql_timezone)
     return _engine
 
 
@@ -73,7 +99,7 @@ def _upgrade_db_to_head() -> None:
 async def init_db() -> None:
     """初始化数据库。"""
     logger.info("Database initialization or migration started. Please wait...")
-    _upgrade_db_to_head()
+    await asyncio.to_thread(_upgrade_db_to_head)
     logger.info("Database initialization or migration completed.")
 
 
@@ -94,7 +120,11 @@ async def vacuum_database_if_needed(
     min_free_bytes: int = _VACUUM_MIN_FREE_BYTES,
 ) -> bool:
     """Reclaim main database file space when deletion leaves enough free pages."""
-    db_path = settings.database_url.removeprefix("sqlite+aiosqlite:///")
+    database_url = settings.database_url
+    if not is_sqlite_backend() or not _is_sqlite_url(database_url):
+        return False
+
+    db_path = database_url.removeprefix("sqlite+aiosqlite:///")
     if not Path(db_path).exists():
         return False
 

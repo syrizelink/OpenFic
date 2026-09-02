@@ -109,7 +109,7 @@ async def test_index_status_reports_fresh_when_all_chapters_ready(
 ) -> None:
     from app.retrieval.chapter_index import compute_chapter_source_hash
 
-    await _create_embedding_model(session)
+    embedding_model = await _create_embedding_model(session)
     project_id, volume_id = await _create_project(client)
     chapter = await _create_chapter(client, project_id, volume_id, title="一章", content="正文")
     await setting_repo.upsert(session, "index_mode", "all")
@@ -120,7 +120,7 @@ async def test_index_status_reports_fresh_when_all_chapters_ready(
             index_key=f"chapters:{project_id}",
             status="ready",
             source_hash=compute_chapter_source_hash("正文"),
-            embedding_model_ref_id="model-1",
+            embedding_model_ref_id=embedding_model.id,
             chunk_count=1,
         )
     )

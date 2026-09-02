@@ -2,16 +2,30 @@ from __future__ import annotations
 
 import aiosqlite
 import pytest
+from types import SimpleNamespace
+from unittest.mock import Mock
 
+import app.agent_runtime.runner.checkpointer as checkpointer_mod
 from app.agent_runtime.runner.checkpointer import (
+    checkpoint_free_page_bytes,
+    full_vacuum_checkpoint_database,
     get_checkpointer,
     incremental_vacuum_checkpoint_database,
     migrate_checkpoint_database_to_incremental,
+    needs_incremental_auto_vacuum_migration,
     reset_checkpointer,
+    vacuum_checkpoint_database,
 )
 from app.main import _friendly_maintenance_error
 
 pytestmark = pytest.mark.usefixtures("fast_checkpoint_sqlite")
+
+
+@pytest.fixture(autouse=True)
+def use_sqlite_checkpointer_backend(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep SQLite maintenance tests independent from the host backend."""
+    monkeypatch.setattr(checkpointer_mod.app_settings.settings, "database_backend", "sqlite")
+    monkeypatch.setattr(checkpointer_mod.app_settings.settings, "checkpoint_database_url", None)
 
 
 @pytest.mark.asyncio
@@ -96,6 +110,36 @@ async def test_incremental_vacuum_reclaims_free_pages(
     )
     assert phases
     assert set(phases) == {"vacuuming"}
+
+
+@pytest.mark.asyncio
+async def test_postgresql_checkpoint_maintenance_does_not_access_sqlite(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setattr(
+        checkpointer_mod.app_settings,
+        "settings",
+        SimpleNamespace(database_backend="postgresql"),
+    )
+    monkeypatch.setenv("AGENT_CHECKPOINT_DB", str(tmp_path / "legacy.db"))
+    monkeypatch.setattr(
+        checkpointer_mod,
+        "_get_db_path",
+        Mock(side_effect=AssertionError("SQLite path must not be read")),
+    )
+    monkeypatch.setattr(
+        checkpointer_mod.aiosqlite,
+        "connect",
+        Mock(side_effect=AssertionError("SQLite must not be accessed")),
+    )
+
+    assert await needs_incremental_auto_vacuum_migration() is False
+    assert await checkpoint_free_page_bytes() == (0, 0)
+    assert await migrate_checkpoint_database_to_incremental() is False
+    assert await full_vacuum_checkpoint_database() is False
+    assert await incremental_vacuum_checkpoint_database() is False
+    assert await vacuum_checkpoint_database() is False
 
 
 def test_friendly_maintenance_error_maps_disk_full() -> None:

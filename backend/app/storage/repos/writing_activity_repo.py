@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import case, func, literal, select, union_all
+from sqlalchemy import String, case, cast, func, literal, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import ColumnElement
 from sqlmodel import col
@@ -77,9 +77,8 @@ async def get_aggregates(
     session: AsyncSession,
     filters: WritingActivityFilters,
 ) -> WritingActivityAggregates | None:
-    """在 SQLite 中聚合写作统计，无法安全折叠时返回 None。"""
-    timezone_modifier = _fixed_timezone_modifier(filters.timezone)
-    if timezone_modifier is None:
+    """按 UTC 日期聚合；非 UTC 时区交给服务层按 Python 时区计算。"""
+    if filters.timezone.key != "UTC":
         return None
 
     filtered_query = select(
@@ -91,12 +90,8 @@ async def get_aggregates(
     conditions = _conditions(filters)
     if conditions:
         filtered_query = filtered_query.where(*conditions)
-    filtered = filtered_query.cte("writing_activity").prefix_with("MATERIALIZED")
-    date_expression = func.strftime(
-        "%Y-%m-%d",
-        filtered.c.created_at,
-        literal(timezone_modifier),
-    )
+    filtered = filtered_query.cte("writing_activity")
+    date_expression = func.substr(cast(filtered.c.created_at, String), 1, 10)
     creative_condition = filtered.c.source.in_(["user", "agent"])
     summary_query = select(
         literal("summary").label("kind"),
@@ -203,24 +198,3 @@ def _conditions(filters: WritingActivityFilters) -> list[ColumnElement[bool]]:
     if filters.end_at:
         conditions.append(col(WritingActivityEvent.created_at) <= filters.end_at)
     return conditions
-
-
-def _fixed_timezone_modifier(timezone: ZoneInfo) -> str | None:
-    """返回全年稳定时区的 SQLite 时间修饰符。"""
-    sample_dates = (
-        datetime(2024, 1, 1, tzinfo=timezone),
-        datetime(2024, 7, 1, tzinfo=timezone),
-    )
-    offsets = {value.utcoffset() for value in sample_dates}
-    if len(offsets) != 1:
-        return None
-    offset = next(iter(offsets))
-    if offset is None:
-        return "+00:00"
-    total_seconds = int(offset.total_seconds())
-    sign = "+" if total_seconds >= 0 else "-"
-    hours, remainder = divmod(abs(total_seconds), 3600)
-    minutes, seconds = divmod(remainder, 60)
-    if seconds:
-        return f"{sign}{hours:02d}:{minutes:02d}:{seconds:02d}"
-    return f"{sign}{hours:02d}:{minutes:02d}"
