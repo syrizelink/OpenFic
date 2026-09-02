@@ -1,0 +1,79 @@
+.note-import-file-input {
+  display: none;
+}
+
+.note-import-dropzone {
+  border: 2px dashed var(--gray-6);
+  border-radius: var(--radius-3);
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.note-import-upload-icon {
+  color: var(--gray-9);
+  margin-bottom: 16px;
+}
+
+.note-import-preview-stats {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.note-import-stat-card {
+  flex: 1;
+  padding: 12px 16px;
+}
+
+.note-import-stat-label,
+.note-import-preview-title,
+.note-import-preview-file,
+.note-import-preview-hint {
+  display: block;
+}
+
+.note-import-preview-file {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-import-preview-hint {
+  margin-top: var(--space-2);
+}
+
+.note-import-progress,
+.note-import-complete {
+  text-align: center;
+}
+
+.note-import-progress {
+  padding: 48px 24px;
+}
+
+.note-import-complete {
+  padding: 24px 0;
+}
+
+.note-import-complete-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background-color: var(--green-3);
+  margin: 0 auto 16px;
+  line-height: 0;
+}
+
+.note-import-footer {
+  width: 100%;
+}
+
+@media (max-width: 767px) {
+  .note-import-preview-stats {
+    gap: var(--space-2);
+  }
+
+  .note-import-stat-card {
+    padding: 10px 12px;
+  }
+}

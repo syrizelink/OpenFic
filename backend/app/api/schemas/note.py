@@ -137,3 +137,21 @@ class NoteSearchResponse(BaseModel):
     results: list[NoteSearchResult] = Field(description="搜索结果列表")
     total_notes: int = Field(description="匹配笔记数")
     total_matches: int = Field(description="匹配行总数")
+
+
+class NoteImportPreviewResponse(BaseModel):
+    """笔记导入预览响应。"""
+
+    file_type: Literal["md", "zip"] = Field(description="导入文件类型")
+    note_count: int = Field(description="Markdown 笔记数量")
+    category_count: int = Field(description="分类数量")
+    ignored_file_count: int = Field(description="忽略的非 Markdown 文件数量")
+
+
+class NoteImportResponse(BaseModel):
+    """笔记导入响应。"""
+
+    file_type: Literal["md", "zip"] = Field(description="导入文件类型")
+    imported_note_count: int = Field(description="导入的笔记数量")
+    imported_category_count: int = Field(description="创建的分类数量")
+    ignored_file_count: int = Field(description="忽略的非 Markdown 文件数量")

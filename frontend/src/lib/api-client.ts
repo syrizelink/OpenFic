@@ -2747,6 +2747,8 @@ import type {
   NoteCategoryUpdate,
   NoteItemMove,
   NoteMoveResult,
+  NoteImportPreview,
+  NoteImportResult,
 } from "./note.types";
 
 function transformNote(raw: Record<string, unknown>): Note {
@@ -2894,4 +2896,48 @@ export async function moveNoteItem(data: NoteItemMove): Promise<NoteMoveResult> 
     target_category_id: data.targetCategoryId,
   });
   return transformNoteMoveResult(response.data);
+}
+
+function transformNoteImportPreview(raw: Record<string, unknown>): NoteImportPreview {
+  return {
+    fileType: raw.file_type as "md" | "zip",
+    noteCount: raw.note_count as number,
+    categoryCount: raw.category_count as number,
+    ignoredFileCount: raw.ignored_file_count as number,
+  };
+}
+
+function transformNoteImportResult(raw: Record<string, unknown>): NoteImportResult {
+  return {
+    fileType: raw.file_type as "md" | "zip",
+    importedNoteCount: raw.imported_note_count as number,
+    importedCategoryCount: raw.imported_category_count as number,
+    ignoredFileCount: raw.ignored_file_count as number,
+  };
+}
+
+export async function previewNoteImport(projectId: string, file: File): Promise<NoteImportPreview> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await apiClient.post(`/projects/${projectId}/notes/import/preview`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return transformNoteImportPreview(response.data);
+}
+
+export async function importNotes(projectId: string, file: File): Promise<NoteImportResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await apiClient.post(`/projects/${projectId}/notes/import`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return transformNoteImportResult(response.data);
+}
+
+export function getNoteExportUrl(noteId: string): string {
+  return getApiUrl(`/notes/${encodeURIComponent(noteId)}/export`);
+}
+
+export function getNoteCategoryExportUrl(categoryId: string): string {
+  return getApiUrl(`/note-categories/${encodeURIComponent(categoryId)}/export`);
 }
