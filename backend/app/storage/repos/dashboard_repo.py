@@ -225,9 +225,8 @@ async def get_stats(
     filtered = (
         _apply_filters(filtered_query, filters)
         .cte("dashboard_metrics")
-        .prefix_with("MATERIALIZED")
     )
-    date_expression = func.strftime("%Y-%m-%d", filtered.c.created_at)
+    date_expression = func.substr(cast(filtered.c.created_at, String), 1, 10)
     model_id_expression = func.nullif(filtered.c.model_id, "")
     model_key_expression = func.coalesce(model_id_expression, literal("unknown"))
     model_label_expression = func.coalesce(

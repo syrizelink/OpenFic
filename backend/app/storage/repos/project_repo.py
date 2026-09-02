@@ -7,6 +7,8 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
+from app.core.pinyin import to_pinyin, to_pinyin_initials
+from app.storage.database import is_sqlite_backend
 from app.storage.models.project import Project
 
 SORT_COLUMNS = {
@@ -27,6 +29,36 @@ def _pinyin_search_pattern(search: str) -> str | None:
     return f"%{_escape_like_pattern(compact_search.lower())}%"
 
 
+def _matches_project_search(project: Project, search: str) -> bool:
+    normalized_search = search.strip().casefold()
+    text_values = (project.title, project.description or "")
+    if any(normalized_search in value.casefold() for value in text_values):
+        return True
+
+    pinyin_search = "".join(search.split()).casefold()
+    return any(
+        pinyin_search in converted
+        for value in text_values
+        for converted in (
+            to_pinyin(value).casefold(),
+            to_pinyin_initials(value).casefold(),
+        )
+    )
+
+
+def _sort_projects_in_memory(
+    projects: list[Project], sort_by: str, sort_order: str
+) -> list[Project]:
+    def value_for_sort(project: Project) -> str:
+        if sort_by == "title":
+            return to_pinyin(project.title).casefold()
+        return str(getattr(project, sort_by, project.updated_at))
+
+    projects.sort(key=lambda project: project.id)
+    projects.sort(key=value_for_sort, reverse=sort_order == "desc")
+    return projects
+
+
 def _apply_search(stmt, search: str | None):
     normalized_search = (search or "").strip()
     if not normalized_search:
@@ -38,7 +70,7 @@ def _apply_search(stmt, search: str | None):
         col(Project.description).ilike(pattern, escape="\\"),
     ]
     pinyin_pattern = _pinyin_search_pattern(normalized_search)
-    if pinyin_pattern:
+    if pinyin_pattern and is_sqlite_backend():
         predicates.extend(
             (
                 func.pinyin_full(col(Project.title)).like(pinyin_pattern, escape="\\"),
@@ -102,9 +134,27 @@ async def list_all(
     Returns:
         项目列表。
     """
+    needs_in_memory_sort = not is_sqlite_backend() and sort_by == "title"
+    needs_in_memory_search = (
+        search is not None
+        and not is_sqlite_backend()
+        and _pinyin_search_pattern(search)
+    )
+    if needs_in_memory_sort or needs_in_memory_search:
+        result = await session.execute(select(Project))
+        projects = [
+            project
+            for project in result.scalars().all()
+            if not search or _matches_project_search(project, search)
+        ]
+        _sort_projects_in_memory(projects, sort_by, sort_order)
+        return projects[offset : offset + limit]
+
     sort_column = SORT_COLUMNS.get(sort_by, Project.updated_at)
     sortable_expression = (
-        func.pinyin_full(col(Project.title)) if sort_by == "title" else col(sort_column)
+        func.pinyin_full(col(Project.title))
+        if sort_by == "title" and is_sqlite_backend()
+        else col(sort_column)
     )
     order_expression = sortable_expression.asc() if sort_order == "asc" else sortable_expression.desc()
     stmt = (
@@ -127,6 +177,13 @@ async def count(session: AsyncSession, *, search: str | None = None) -> int:
     Returns:
         项目总数。
     """
+    if search and not is_sqlite_backend() and _pinyin_search_pattern(search):
+        result = await session.execute(select(Project))
+        return sum(
+            _matches_project_search(project, search)
+            for project in result.scalars().all()
+        )
+
     result = await session.execute(
         _apply_search(select(func.count(col(Project.id))), search)
     )

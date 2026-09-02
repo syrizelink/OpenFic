@@ -289,8 +289,11 @@ async def _seed_job(session: AsyncSession, *, fail: bool = False):
         subject_id=project.id,
     )
     session.add(project)
+    await session.flush()
     session.add(volume)
+    await session.flush()
     session.add(chapter)
+    await session.flush()
     session.add(job)
     await session.flush()
     item = BackgroundJobItem(
@@ -446,8 +449,11 @@ async def test_retrieval_chapter_index_batch_rejects_stale_embedding_model_metad
         subject_id=project.id,
     )
     session.add(project)
+    await session.flush()
     session.add(volume)
+    await session.flush()
     session.add(chapter)
+    await session.flush()
     session.add(job)
     await session.flush()
     item = BackgroundJobItem(

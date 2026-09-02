@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import app.cli as cli
+from app.storage import database_migration
 from uvicorn.config import Config
 
 
@@ -82,6 +83,80 @@ def test_serve_parser_accepts_auth_password() -> None:
     args = cli.build_parser().parse_args(["serve", "--auth-password", "secret"])
 
     assert args.auth_password == "secret"
+
+
+def test_db_migrate_parser_accepts_target_and_source_urls() -> None:
+    args = cli.build_parser().parse_args(
+        [
+            "db",
+            "migrate",
+            "--target-url",
+            "sqlite:////tmp/target.db",
+            "--source-url",
+            "sqlite:////tmp/source.db",
+        ]
+    )
+
+    assert args.target_url == "sqlite:////tmp/target.db"
+    assert args.source_url == "sqlite:////tmp/source.db"
+
+
+def test_db_migrate_parser_accepts_orphan_repair_flag() -> None:
+    args = cli.build_parser().parse_args(
+        [
+            "db",
+            "migrate",
+            "--target-url",
+            "sqlite:////tmp/target.db",
+            "--repair-orphaned-references",
+        ]
+    )
+
+    assert args.repair_orphaned_references is True
+
+
+def test_handle_db_migrate_prints_compact_redacted_summary(
+    monkeypatch,
+    capsys,
+) -> None:
+    ensure_data_dir = Mock()
+    monkeypatch.setattr(cli, "_ensure_data_dir", ensure_data_dir)
+    migrate = Mock(
+        return_value=database_migration.MigrationReport(
+            source_dialect="sqlite",
+            target_dialect="postgresql",
+            table_count=3,
+            row_count=7,
+            checksum="checksum",
+        )
+    )
+    monkeypatch.setattr(database_migration, "migrate_database", migrate)
+    args = cli.build_parser().parse_args(
+        [
+            "db",
+            "migrate",
+            "--target-url",
+            "postgresql+psycopg://user:secret@host/db",
+            "--repair-orphaned-references",
+        ]
+    )
+
+    cli.handle_db_migrate(args)
+
+    output = capsys.readouterr().out
+    ensure_data_dir.assert_called_once_with()
+    assert "source=sqlite" in output
+    assert "target=postgresql" in output
+    assert "tables=3" in output
+    assert "rows=7" in output
+    assert "repairs=0" in output
+    assert "checks=rows,primary-keys,foreign-keys,checksum:ok" in output
+    assert "secret" not in output
+    migrate.assert_called_once_with(
+        target_url="postgresql+psycopg://user:secret@host/db",
+        source_url=None,
+        repair_orphaned_references=True,
+    )
 
 
 def test_handle_serve_sets_auth_password_environment(monkeypatch) -> None:

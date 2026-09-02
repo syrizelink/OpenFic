@@ -51,6 +51,19 @@ def _chapter(project_id: str = "project-1") -> Chapter:
     )
 
 
+async def _seed_chapter(session: AsyncSession) -> Chapter:
+    project = Project(id="project-1", title="项目", description="")
+    volume = Volume(id="volume-1", project_id=project.id, title="第一卷", order=1)
+    chapter = _chapter(project.id)
+    session.add(project)
+    await session.flush()
+    session.add(volume)
+    await session.flush()
+    session.add(chapter)
+    await session.flush()
+    return chapter
+
+
 @pytest.mark.asyncio
 async def test_chapter_document_contains_stable_ids_and_metadata() -> None:
     chapter = _chapter()
@@ -83,20 +96,15 @@ async def test_chapter_document_contains_stable_ids_and_metadata() -> None:
 
 @pytest.mark.asyncio
 async def test_mark_chapter_stale_if_content_hash_changed(session: AsyncSession) -> None:
-    project = Project(id="project-1", title="项目", description="")
-    volume = Volume(id="volume-1", project_id=project.id, title="第一卷", order=1)
-    chapter = _chapter(project.id)
-    session.add(project)
-    session.add(volume)
-    session.add(chapter)
+    chapter = await _seed_chapter(session)
     session.add(
         RetrievalChapterIndexState(
-            project_id=project.id,
+            project_id=chapter.project_id,
             chapter_id=chapter.id,
-            index_key=chapter_index_key(project.id),
+            index_key=chapter_index_key(chapter.project_id),
             status="ready",
             source_hash=compute_chapter_source_hash("旧正文"),
-            embedding_model_ref_id="model-1",
+            embedding_model_ref_id=None,
             chunk_count=2,
         )
     )
@@ -219,7 +227,7 @@ async def test_enqueue_project_index_update_uses_lightweight_chapter_sources(
 async def test_delete_chapter_index_removes_state_and_best_effort_deletes_document(
     session: AsyncSession,
 ) -> None:
-    chapter = _chapter()
+    chapter = await _seed_chapter(session)
     retrieval_service = RecordingRetrievalService(fail_delete=True)
     session.add(
         RetrievalChapterIndexState(
@@ -228,7 +236,7 @@ async def test_delete_chapter_index_removes_state_and_best_effort_deletes_docume
             index_key=chapter_index_key(chapter.project_id),
             status="ready",
             source_hash=compute_chapter_source_hash(chapter.content),
-            embedding_model_ref_id="model-1",
+            embedding_model_ref_id=None,
         )
     )
     await session.commit()
@@ -254,14 +262,14 @@ async def test_delete_chapter_index_removes_state_and_best_effort_deletes_docume
 async def test_mark_chapter_stale_if_indexed_marks_ready_state_without_content_change(
     session: AsyncSession,
 ) -> None:
-    chapter = _chapter()
+    chapter = await _seed_chapter(session)
     state = RetrievalChapterIndexState(
         project_id=chapter.project_id,
         chapter_id=chapter.id,
         index_key=chapter_index_key(chapter.project_id),
         status="ready",
         source_hash=compute_chapter_source_hash(chapter.content),
-        embedding_model_ref_id="model-1",
+        embedding_model_ref_id=None,
         chunk_count=2,
     )
     session.add(state)

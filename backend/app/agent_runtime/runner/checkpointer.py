@@ -5,14 +5,14 @@ import shutil
 import time
 from collections import deque
 from collections.abc import Callable, Mapping
-from contextlib import suppress
+from contextlib import AsyncExitStack, suppress
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import aiosqlite
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
-from langgraph.checkpoint.base import Checkpoint, copy_checkpoint
+from langgraph.checkpoint.base import BaseCheckpointSaver, Checkpoint, copy_checkpoint
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from loguru import logger
@@ -27,7 +27,8 @@ from app.maintenance import maintenance_state
 from app.storage.models.revision import Revision
 from app.storage.models.task import Task
 
-_checkpointer: AsyncSqliteSaver | None = None
+_checkpointer: BaseCheckpointSaver[str] | None = None
+_checkpointer_context: AsyncExitStack | None = None
 
 _ALLOWED_MSGPACK_MODULES = (
     ("app.agent_runtime.tools.impls.interaction.ask_user", "Question"),
@@ -340,6 +341,50 @@ def _get_db_path() -> str:
     return str(target_path)
 
 
+def _is_postgresql_backend() -> bool:
+    return app_settings.settings.database_backend == "postgresql"
+
+
+def _postgresql_checkpoint_database_url() -> str:
+    database_url = getattr(app_settings.settings, "checkpoint_database_url", None)
+    if not database_url:
+        raise RuntimeError(
+            "OPENFIC_CHECKPOINT_DATABASE_URL is required when "
+            "OPENFIC_DATABASE_BACKEND is postgresql"
+        )
+    return database_url
+
+
+def _log_postgresql_maintenance(operation: str) -> None:
+    logger.warning("PG maintenance not implemented: {}", operation)
+
+
+def _checkpoint_serializer() -> _CheckpointSerializer:
+    return _CheckpointSerializer(
+        allowed_msgpack_modules=_ALLOWED_MSGPACK_MODULES,
+    )
+
+
+async def _create_postgresql_checkpointer() -> tuple[
+    BaseCheckpointSaver[str], AsyncExitStack
+]:
+    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+    context = AsyncExitStack()
+    try:
+        checkpointer = await context.enter_async_context(
+            AsyncPostgresSaver.from_conn_string(
+                _postgresql_checkpoint_database_url(),
+                serde=_checkpoint_serializer(),
+            )
+        )
+        await checkpointer.setup()
+    except BaseException:
+        await context.aclose()
+        raise
+    return checkpointer, context
+
+
 async def _configure_checkpoint_connection(conn: aiosqlite.Connection) -> None:
     for pragma in (
         "PRAGMA journal_mode=WAL",
@@ -351,13 +396,17 @@ async def _configure_checkpoint_connection(conn: aiosqlite.Connection) -> None:
     await conn.commit()
 
 
-async def get_checkpointer() -> AsyncSqliteSaver:
-    global _checkpointer
+async def get_checkpointer() -> BaseCheckpointSaver[str]:
+    global _checkpointer, _checkpointer_context
     if _checkpointer is None:
         if maintenance_state.is_checkpoint_locked():
             raise RuntimeError(
                 "Checkpoint database maintenance is in progress; agent runs are temporarily unavailable"
             )
+        if _is_postgresql_backend():
+            _checkpointer, _checkpointer_context = await _create_postgresql_checkpointer()
+            return _checkpointer
+
         db_path = _get_db_path()
         db_path_exists = Path(db_path).exists()
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
@@ -368,9 +417,7 @@ async def get_checkpointer() -> AsyncSqliteSaver:
         await _configure_checkpoint_connection(conn)
         _checkpointer = AsyncSqliteSaver(
             conn,
-            serde=_CheckpointSerializer(
-                allowed_msgpack_modules=_ALLOWED_MSGPACK_MODULES,
-            ),
+            serde=_checkpoint_serializer(),
         )
         await _checkpointer.setup()
         await _remove_api_keys_from_existing_checkpoints(_checkpointer)
@@ -514,6 +561,11 @@ async def delete_checkpoints_for_thread(thread_id: str) -> int:
     if not thread_id:
         return 0
 
+    if _is_postgresql_backend():
+        checkpointer = await get_checkpointer()
+        await checkpointer.adelete_thread(thread_id)
+        return 0
+
     db_path = _get_db_path()
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -537,6 +589,41 @@ async def delete_checkpoints_after_for_thread(
     if not thread_id or not after_checkpoint_id:
         return 0
 
+    if _is_postgresql_backend():
+        from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+        checkpointer = cast(AsyncPostgresSaver, await get_checkpointer())
+        deleted_rows = 0
+        async with checkpointer._cursor() as cursor:
+            await cursor.execute(
+                "DELETE FROM checkpoint_writes "
+                "WHERE thread_id = %s AND checkpoint_id > %s",
+                (thread_id, after_checkpoint_id),
+            )
+            deleted_rows += max(cursor.rowcount, 0)
+            await cursor.execute(
+                "DELETE FROM checkpoints "
+                "WHERE thread_id = %s AND checkpoint_id > %s",
+                (thread_id, after_checkpoint_id),
+            )
+            deleted_rows += max(cursor.rowcount, 0)
+            await cursor.execute(
+                "DELETE FROM checkpoint_blobs AS blobs "
+                "WHERE blobs.thread_id = %s "
+                "AND NOT EXISTS ("
+                "SELECT 1 FROM checkpoints AS checkpoints "
+                "CROSS JOIN LATERAL jsonb_each_text(checkpoints.checkpoint->'channel_versions') "
+                "AS versions(channel, version) "
+                "WHERE checkpoints.thread_id = blobs.thread_id "
+                "AND checkpoints.checkpoint_ns = blobs.checkpoint_ns "
+                "AND versions.channel = blobs.channel "
+                "AND versions.version = blobs.version"
+                ")",
+                (thread_id,),
+            )
+            deleted_rows += max(cursor.rowcount, 0)
+        return deleted_rows
+
     db_path = _get_db_path()
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -558,7 +645,7 @@ async def delete_checkpoints_after_for_thread(
 
 
 async def prune_checkpoints_for_thread(
-    checkpointer: AsyncSqliteSaver,
+    checkpointer: BaseCheckpointSaver[str],
     thread_id: str,
     retained_checkpoint_ids: set[str],
 ) -> int:
@@ -566,7 +653,12 @@ async def prune_checkpoints_for_thread(
     if not thread_id:
         return 0
 
-    cursor = await checkpointer.conn.execute(
+    if _is_postgresql_backend():
+        _log_postgresql_maintenance("prune_checkpoints_for_thread")
+        return 0
+
+    sqlite_checkpointer = cast(AsyncSqliteSaver, checkpointer)
+    cursor = await sqlite_checkpointer.conn.execute(
         "SELECT checkpoint_ns, checkpoint_id FROM checkpoints WHERE thread_id = ?",
         (thread_id,),
     )
@@ -583,30 +675,35 @@ async def prune_checkpoints_for_thread(
             latest_by_namespace[checkpoint_ns] = checkpoint_id
     retained_ids = set(latest_by_namespace.values()) | retained_checkpoint_ids
     placeholders = ", ".join("?" for _ in retained_ids)
-    before = checkpointer.conn.total_changes
-    await checkpointer.conn.execute("BEGIN")
+    before = sqlite_checkpointer.conn.total_changes
+    await sqlite_checkpointer.conn.execute("BEGIN")
     try:
-        await checkpointer.conn.execute(
+        await sqlite_checkpointer.conn.execute(
             f"DELETE FROM writes WHERE thread_id = ? AND checkpoint_id NOT IN ({placeholders})",
             (thread_id, *retained_ids),
         )
-        await checkpointer.conn.execute(
+        await sqlite_checkpointer.conn.execute(
             f"DELETE FROM checkpoints WHERE thread_id = ? AND checkpoint_id NOT IN ({placeholders})",
             (thread_id, *retained_ids),
         )
-        await checkpointer.conn.commit()
+        await sqlite_checkpointer.conn.commit()
     except Exception:
-        await checkpointer.conn.rollback()
+        await sqlite_checkpointer.conn.rollback()
         raise
-    return checkpointer.conn.total_changes - before
+    return sqlite_checkpointer.conn.total_changes - before
 
 
 async def cleanup_unreachable_checkpoints(
     session: AsyncSession,
-    checkpointer: AsyncSqliteSaver,
+    checkpointer: BaseCheckpointSaver[str],
 ) -> int:
+    if _is_postgresql_backend():
+        _log_postgresql_maintenance("cleanup_unreachable_checkpoints")
+        return 0
+
     reachable_thread_ids = await _list_reachable_checkpoint_thread_ids(session)
-    checkpoint_thread_ids = await _list_checkpoint_thread_ids(checkpointer)
+    sqlite_checkpointer = cast(AsyncSqliteSaver, checkpointer)
+    checkpoint_thread_ids = await _list_checkpoint_thread_ids(sqlite_checkpointer)
     unreachable_thread_ids = checkpoint_thread_ids - reachable_thread_ids
     if not unreachable_thread_ids:
         return 0
@@ -616,17 +713,17 @@ async def cleanup_unreachable_checkpoints(
     for index in range(0, len(thread_ids), _CHECKPOINT_CLEANUP_BATCH_SIZE):
         batch = thread_ids[index : index + _CHECKPOINT_CLEANUP_BATCH_SIZE]
         placeholders = ", ".join("?" for _ in batch)
-        before = checkpointer.conn.total_changes
-        await checkpointer.conn.execute(
+        before = sqlite_checkpointer.conn.total_changes
+        await sqlite_checkpointer.conn.execute(
             f"DELETE FROM writes WHERE thread_id IN ({placeholders})",
             tuple(batch),
         )
-        await checkpointer.conn.execute(
+        await sqlite_checkpointer.conn.execute(
             f"DELETE FROM checkpoints WHERE thread_id IN ({placeholders})",
             tuple(batch),
         )
-        deleted_rows += checkpointer.conn.total_changes - before
-    await checkpointer.conn.commit()
+        deleted_rows += sqlite_checkpointer.conn.total_changes - before
+    await sqlite_checkpointer.conn.commit()
     return deleted_rows
 
 
@@ -671,16 +768,20 @@ async def _list_reachable_checkpoint_thread_ids(session: AsyncSession) -> set[st
 
 async def prune_reachable_checkpoints(
     session: AsyncSession,
-    checkpointer: AsyncSqliteSaver,
+    checkpointer: BaseCheckpointSaver[str],
 ) -> int:
     """Prune internal history while preserving recovery and rollback checkpoints."""
+    if _is_postgresql_backend():
+        _log_postgresql_maintenance("prune_reachable_checkpoints")
+        return 0
+
     reachable_thread_ids = await _list_reachable_checkpoint_thread_ids(session)
     return await _prune_checkpoint_threads(session, checkpointer, reachable_thread_ids)
 
 
 async def prune_thread_checkpoints(
     session: AsyncSession,
-    checkpointer: AsyncSqliteSaver,
+    checkpointer: BaseCheckpointSaver[str],
     thread_id: str,
 ) -> int:
     """Prune one thread's internal history while preserving recovery and rollback checkpoints.
@@ -689,6 +790,9 @@ async def prune_thread_checkpoints(
     each namespace plus explicit rollback points for this thread.
     """
     if not thread_id:
+        return 0
+    if _is_postgresql_backend():
+        _log_postgresql_maintenance("prune_thread_checkpoints")
         return 0
     retained_checkpoint_ids = await _list_retained_checkpoint_ids(session, {thread_id})
     return await prune_checkpoints_for_thread(
@@ -700,7 +804,7 @@ async def prune_thread_checkpoints(
 
 async def _prune_checkpoint_threads(
     session: AsyncSession,
-    checkpointer: AsyncSqliteSaver,
+    checkpointer: BaseCheckpointSaver[str],
     thread_ids: set[str],
 ) -> int:
     if not thread_ids:
@@ -853,6 +957,10 @@ async def _run_vacuum_into(
 
 async def needs_incremental_auto_vacuum_migration() -> bool:
     """Return True if the checkpoint db still needs the INCREMENTAL migration."""
+    if _is_postgresql_backend():
+        _log_postgresql_maintenance("needs_incremental_auto_vacuum_migration")
+        return False
+
     db_path = _get_db_path()
     if not Path(db_path).exists():
         return False
@@ -868,6 +976,10 @@ async def needs_incremental_auto_vacuum_migration() -> bool:
 
 async def checkpoint_free_page_bytes() -> tuple[int, int]:
     """Return (free_bytes, live_bytes) for the checkpoint db."""
+    if _is_postgresql_backend():
+        _log_postgresql_maintenance("checkpoint_free_page_bytes")
+        return 0, 0
+
     db_path = _get_db_path()
     if not Path(db_path).exists():
         return 0, 0
@@ -886,6 +998,10 @@ async def migrate_checkpoint_database_to_incremental(
     progress_callback: CheckpointMaintenanceProgress | None = None,
 ) -> bool:
     """Enable incremental auto-vacuum, rebuilding legacy databases once."""
+    if _is_postgresql_backend():
+        _log_postgresql_maintenance("migrate_checkpoint_database_to_incremental")
+        return False
+
     db_path = _get_db_path()
     if not Path(db_path).exists():
         return False
@@ -916,6 +1032,10 @@ async def full_vacuum_checkpoint_database(
     size of the growing target file, since VACUUM INTO does not invoke the
     progress handler.
     """
+    if _is_postgresql_backend():
+        _log_postgresql_maintenance("full_vacuum_checkpoint_database")
+        return False
+
     db_path = _get_db_path()
     if not Path(db_path).exists():
         return False
@@ -993,6 +1113,10 @@ async def incremental_vacuum_checkpoint_database(
     progress_callback: CheckpointMaintenanceProgress | None = None,
 ) -> bool:
     """Reclaim free checkpoint pages in bounded incremental batches."""
+    if _is_postgresql_backend():
+        _log_postgresql_maintenance("incremental_vacuum_checkpoint_database")
+        return False
+
     db_path = _get_db_path()
     if not Path(db_path).exists():
         return False
@@ -1051,6 +1175,18 @@ async def latest_checkpoint_id_for_thread(thread_id: str) -> str | None:
     if not thread_id:
         return None
 
+    if _is_postgresql_backend():
+        checkpointer = await get_checkpointer()
+        async for checkpoint in checkpointer.alist(
+            {"configurable": {"thread_id": thread_id}},
+            limit=1,
+        ):
+            checkpoint_id = checkpoint.config.get("configurable", {}).get(
+                "checkpoint_id"
+            )
+            return str(checkpoint_id) if checkpoint_id else None
+        return None
+
     db_path = _get_db_path()
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -1067,7 +1203,7 @@ async def latest_checkpoint_id_for_thread(thread_id: str) -> str | None:
         await conn.close()
 
 
-async def init_checkpointer() -> AsyncSqliteSaver:
+async def init_checkpointer() -> BaseCheckpointSaver[str]:
     return await get_checkpointer()
 
 
@@ -1076,8 +1212,13 @@ async def close_checkpointer() -> None:
 
 
 async def reset_checkpointer() -> None:
-    global _checkpointer
+    global _checkpointer, _checkpointer_context
     checkpointer = _checkpointer
+    checkpointer_context = _checkpointer_context
     _checkpointer = None
+    _checkpointer_context = None
+    if checkpointer_context is not None:
+        await checkpointer_context.aclose()
+        return
     if checkpointer is not None:
-        await checkpointer.conn.close()
+        await cast(AsyncSqliteSaver, checkpointer).conn.close()

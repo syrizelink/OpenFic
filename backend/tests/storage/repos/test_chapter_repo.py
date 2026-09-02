@@ -104,7 +104,9 @@ async def test_list_metadata_by_project_does_not_load_content(session):
         order=1,
     )
     session.add(project)
+    await session.flush()
     session.add(volume)
+    await session.flush()
     session.add(chapter)
     await session.commit()
     session.sync_session.expunge_all()
@@ -129,7 +131,9 @@ async def test_list_metadata_by_volume_does_not_load_content(session):
         order=1,
     )
     session.add(project)
+    await session.flush()
     session.add(volume)
+    await session.flush()
     session.add(chapter)
     await session.commit()
     session.sync_session.expunge_all()
@@ -162,7 +166,9 @@ async def test_get_by_volume_ref_supports_order_and_first_matching_title(session
         order=2,
     )
     session.add(project)
+    await session.flush()
     session.add(volume)
+    await session.flush()
     session.add(first)
     session.add(second)
     await session.commit()

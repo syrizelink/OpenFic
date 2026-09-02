@@ -1,4 +1,6 @@
 import asyncio
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -79,3 +81,109 @@ async def test_lifespan_refreshes_catalog_in_background_and_cancels_on_shutdown(
         await asyncio.wait_for(refresh_started.wait(), timeout=0.1)
 
     assert refresh_cancelled.is_set()
+
+
+@pytest.mark.asyncio
+async def test_postgresql_startup_skips_sqlite_checkpoint_maintenance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+
+    async def record(name: str) -> int:
+        calls.append(name)
+        return 0
+
+    monkeypatch.setattr(main.app_settings, "database_backend", "postgresql")
+    monkeypatch.setattr(main, "logger", Mock())
+    maintenance_state = SimpleNamespace(
+        updates=[],
+        start=Mock(),
+        update=lambda **values: maintenance_state.updates.append(values),
+        complete=Mock(),
+        fail=Mock(),
+    )
+    monkeypatch.setattr(main, "maintenance_state", maintenance_state)
+
+    sqlite_checkpoint_functions = (
+        "needs_incremental_auto_vacuum_migration",
+        "migrate_checkpoint_database_to_incremental",
+        "checkpoint_free_page_bytes",
+        "full_vacuum_checkpoint_database",
+    )
+    for name in sqlite_checkpoint_functions:
+        function = AsyncMock()
+        if name == "needs_incremental_auto_vacuum_migration":
+            function.return_value = False
+        elif name == "checkpoint_free_page_bytes":
+            function.return_value = (0, 1)
+        else:
+            function.return_value = False
+        monkeypatch.setattr(main, name, function)
+
+    monkeypatch.setattr(main, "close_checkpointer", AsyncMock())
+    monkeypatch.setattr(main, "init_checkpointer", AsyncMock(side_effect=lambda: calls.append("init_checkpointer")))
+    monkeypatch.setattr(main, "_cleanup_unreachable_checkpoints", AsyncMock(side_effect=lambda: calls.append("checkpoint_cleanup")))
+    for name in (
+        "_cleanup_chapter_export_files",
+        "_cleanup_orphaned_agent_attachment_files",
+        "_cleanup_orphaned_task_data",
+        "_cleanup_orphaned_revision_data",
+        "_backfill_revision_content",
+        "_vacuum_main_database",
+    ):
+        monkeypatch.setattr(main, name, AsyncMock(side_effect=lambda name=name: calls.append(name)))
+    monkeypatch.setattr(main, "start_background_runtime", AsyncMock())
+
+    await main._run_startup_maintenance()
+
+    assert "init_checkpointer" in calls
+    assert "_cleanup_orphaned_revision_data" in calls
+    assert "_backfill_revision_content" in calls
+    assert "_vacuum_main_database" in calls
+    assert "checkpoint_cleanup" not in calls
+    for name in sqlite_checkpoint_functions:
+        assert not getattr(main, name).await_args_list
+    assert all(update.get("phase") not in {"migrating", "vacuuming"} for update in maintenance_state.updates)
+    assert any(
+        "backend=postgresql" in " ".join(map(str, call.args))
+        for call in main.logger.info.call_args_list
+    )
+
+
+@pytest.mark.asyncio
+async def test_sqlite_startup_keeps_checkpoint_maintenance_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(main.app_settings, "database_backend", "sqlite")
+    monkeypatch.setattr(main, "logger", Mock())
+    monkeypatch.setattr(main, "maintenance_state", SimpleNamespace(
+        start=Mock(),
+        update=Mock(),
+        complete=Mock(),
+        fail=Mock(),
+    ))
+    needs_migration = AsyncMock(return_value=False)
+    free_pages = AsyncMock(return_value=(0, 1))
+    for name, function in (
+        ("needs_incremental_auto_vacuum_migration", needs_migration),
+        ("checkpoint_free_page_bytes", free_pages),
+    ):
+        monkeypatch.setattr(main, name, function)
+    monkeypatch.setattr(main, "close_checkpointer", AsyncMock())
+    monkeypatch.setattr(main, "init_checkpointer", AsyncMock())
+    monkeypatch.setattr(main, "_cleanup_unreachable_checkpoints", AsyncMock())
+    for name in (
+        "_cleanup_chapter_export_files",
+        "_cleanup_orphaned_agent_attachment_files",
+        "_cleanup_orphaned_task_data",
+        "_cleanup_orphaned_revision_data",
+        "_backfill_revision_content",
+        "_vacuum_main_database",
+    ):
+        monkeypatch.setattr(main, name, AsyncMock())
+    monkeypatch.setattr(main, "start_background_runtime", AsyncMock())
+
+    await main._run_startup_maintenance()
+
+    needs_migration.assert_awaited_once()
+    free_pages.assert_awaited_once()

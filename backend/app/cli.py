@@ -77,6 +77,23 @@ def handle_serve(args: argparse.Namespace) -> None:
     server.run()
 
 
+def handle_db_migrate(args: argparse.Namespace) -> None:
+    _ensure_data_dir()
+    from app.storage.database_migration import DatabaseMigrationError, migrate_database
+
+    try:
+        report = migrate_database(
+            target_url=args.target_url,
+            source_url=args.source_url,
+            repair_orphaned_references=args.repair_orphaned_references,
+        )
+    except DatabaseMigrationError as exc:
+        print(f"数据库迁移失败: {exc}", file=sys.stderr)
+        raise SystemExit(1) from None
+
+    print(report.summary())
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="openfic",
@@ -93,6 +110,30 @@ def build_parser() -> argparse.ArgumentParser:
 
     version_parser = subparsers.add_parser("version", help="显示版本号")
     version_parser.set_defaults(handler=handle_version)
+
+    db_parser = subparsers.add_parser("db", help="数据库维护")
+    db_subparsers = db_parser.add_subparsers(dest="db_command")
+
+    migrate_parser = db_subparsers.add_parser(
+        "migrate",
+        help="将主业务库迁移到另一个数据库",
+    )
+    migrate_parser.add_argument(
+        "--target-url",
+        required=True,
+        help="目标主业务库 URL",
+    )
+    migrate_parser.add_argument(
+        "--source-url",
+        default=None,
+        help="源主业务库 URL（默认使用当前配置）",
+    )
+    migrate_parser.add_argument(
+        "--repair-orphaned-references",
+        action="store_true",
+        help="将可空悬空引用置为 NULL，并删除不可空悬空行，源库不修改",
+    )
+    migrate_parser.set_defaults(handler=handle_db_migrate)
 
     return parser
 

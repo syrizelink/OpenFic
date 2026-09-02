@@ -97,7 +97,11 @@ async def list_chapter_summaries_by_project(
                 col(ChapterSummary.project_id) == project_id,
             )
         )
-        .order_by(col(ChapterSummary.chapter_order).asc())
+        .order_by(
+            col(ChapterSummary.chapter_order).asc(),
+            col(ChapterSummary.updated_at).asc(),
+            col(ChapterSummary.id).asc(),
+        )
     )
     return list(result.scalars().all())
 

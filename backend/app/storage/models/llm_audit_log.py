@@ -16,13 +16,28 @@ class LLMAuditLog(SQLModel, table=True):
     id: str = Field(default_factory=generate_id, primary_key=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
 
-    task_id: str | None = Field(default=None, index=True, foreign_key="tasks.id")
+    task_id: str | None = Field(
+        default=None,
+        index=True,
+        foreign_key="tasks.id",
+        ondelete="SET NULL",
+    )
     session_id: str | None = Field(default=None, index=True)
     parent_session_id: str | None = Field(default=None, index=True)
     child_run_id: str | None = Field(default=None, index=True)
-    project_id: str = Field(index=True, foreign_key="projects.id")
-    chapter_id: str | None = Field(default=None, index=True, foreign_key="chapters.id")
-    revision_id: str | None = Field(default=None, index=True, foreign_key="revisions.id")
+    project_id: str = Field(index=True, foreign_key="projects.id", ondelete="CASCADE")
+    chapter_id: str | None = Field(
+        default=None,
+        index=True,
+        foreign_key="chapters.id",
+        ondelete="SET NULL",
+    )
+    revision_id: str | None = Field(
+        default=None,
+        index=True,
+        foreign_key="revisions.id",
+        ondelete="SET NULL",
+    )
 
     category: str = Field(default="agent", max_length=50, index=True)
     operation: str = Field(max_length=50, index=True)

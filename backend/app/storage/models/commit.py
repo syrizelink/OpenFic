@@ -35,8 +35,14 @@ class Commit(SQLModel, table=True):
     __tablename__ = "commits"
 
     id: str = Field(default_factory=generate_id, primary_key=True)
-    revision_id: str = Field(index=True, foreign_key="revisions.id")
-    chapter_id: str = Field(index=True, foreign_key="chapters.id")
+    revision_id: str = Field(
+        index=True,
+        foreign_key="revisions.id",
+        ondelete="CASCADE",
+    )
+    chapter_id: str = Field(
+        index=True,
+    )
 
     # 变更类型：create, update, delete
     operation: str = Field(max_length=20, description="操作类型: create/update/delete")

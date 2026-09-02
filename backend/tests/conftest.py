@@ -7,6 +7,7 @@
 """
 
 from collections.abc import AsyncGenerator
+import os
 from pathlib import Path
 import sqlite3
 import shutil
@@ -16,6 +17,7 @@ import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
@@ -52,11 +54,14 @@ from app.api.routers import (
     world_info_entries,
 )
 from app.models.catalog import CatalogIconProxyService
-from app.storage.database import get_session
+from app.storage.database import _set_postgresql_timezone, _set_sqlite_pragma, get_session
 from tests.model_registry import register_sqlmodel_models
 
 
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+TEST_DATABASE_URL = os.getenv(
+    "OPENFIC_TEST_DATABASE_URL",
+    "sqlite+aiosqlite:///:memory:",
+)
 
 _per_test_session: AsyncSession | None = None
 
@@ -143,15 +148,36 @@ def _disable_error_telemetry():
 async def db_engine():
     """Module-scoped 引擎：同一模块的测试共享引擎和表结构。"""
     register_sqlmodel_models()
-    engine = create_async_engine(
-        TEST_DATABASE_URL,
-        echo=False,
-        poolclass=StaticPool,
-    )
+    engine_options: dict[str, object] = {"echo": False}
+    if engine_url_is_sqlite := TEST_DATABASE_URL.startswith("sqlite"):
+        engine_options["poolclass"] = StaticPool
+    engine = create_async_engine(TEST_DATABASE_URL, **engine_options)
+    if engine_url_is_sqlite:
+        event.listen(engine.sync_engine, "connect", _set_sqlite_pragma)
+    else:
+        event.listen(engine.sync_engine, "connect", _set_postgresql_timezone)
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
     yield engine
     await engine.dispose()
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def isolate_postgresql_checkpointer() -> AsyncGenerator[None, None]:
+    """Prevent the async PG saver from crossing pytest event loops."""
+    from app.settings import settings as app_settings
+
+    if app_settings.database_backend != "postgresql":
+        yield
+        return
+
+    from app.agent_runtime.runner.checkpointer import reset_checkpointer
+
+    await reset_checkpointer()
+    try:
+        yield
+    finally:
+        await reset_checkpointer()
 
 
 @pytest_asyncio.fixture(scope="module")

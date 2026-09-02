@@ -13,7 +13,10 @@ async def test_vacuum_database_if_needed_reclaims_large_free_space(
     monkeypatch.setattr(
         database,
         "settings",
-        SimpleNamespace(database_url=f"sqlite+aiosqlite:///{db_path}"),
+        SimpleNamespace(
+            database_backend="sqlite",
+            database_url=f"sqlite+aiosqlite:///{db_path}",
+        ),
     )
     conn = await aiosqlite.connect(db_path)
     try:
@@ -35,7 +38,10 @@ async def test_vacuum_database_if_needed_skips_small_free_space(
     monkeypatch.setattr(
         database,
         "settings",
-        SimpleNamespace(database_url=f"sqlite+aiosqlite:///{db_path}"),
+        SimpleNamespace(
+            database_backend="sqlite",
+            database_url=f"sqlite+aiosqlite:///{db_path}",
+        ),
     )
     conn = await aiosqlite.connect(db_path)
     try:
@@ -45,5 +51,27 @@ async def test_vacuum_database_if_needed_skips_small_free_space(
         await conn.commit()
     finally:
         await conn.close()
+
+    assert await database.vacuum_database_if_needed() is False
+
+
+async def test_vacuum_database_if_needed_skips_postgresql_without_path_parsing(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        database,
+        "settings",
+        SimpleNamespace(
+            database_backend="postgresql",
+            database_url="postgresql+psycopg://user:password@localhost/openfic",
+        ),
+    )
+    monkeypatch.setattr(
+        database,
+        "Path",
+        lambda _path: (_ for _ in ()).throw(
+            AssertionError("PostgreSQL URL must not be treated as a filesystem path")
+        ),
+    )
 
     assert await database.vacuum_database_if_needed() is False

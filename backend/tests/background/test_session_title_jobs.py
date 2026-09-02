@@ -38,7 +38,9 @@ async def test_enqueue_session_title_job_keeps_raw_seed_message(session):
         mode="agent",
     )
     session.add(project)
+    await session.flush()
     session.add(volume)
+    await session.flush()
     session.add(chapter)
     session.add(task)
     await session.commit()

@@ -7,6 +7,7 @@ from sqlalchemy import LargeBinary, case, cast, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
+from app.storage.database import is_sqlite_backend
 from app.storage.models.llm_audit_log import LLMAuditLog
 
 
@@ -182,14 +183,23 @@ class LLMAuditLogRepo:
 
     @staticmethod
     def _detail_bytes_expression():
-        return (
-            func.coalesce(func.length(cast(col(LLMAuditLog.request_messages), LargeBinary)), 0)
-            + func.coalesce(func.length(cast(col(LLMAuditLog.tool_references), LargeBinary)), 0)
-            + func.coalesce(func.length(cast(col(LLMAuditLog.response_content), LargeBinary)), 0)
-            + func.coalesce(func.length(cast(col(LLMAuditLog.response_tool_calls), LargeBinary)), 0)
-            + func.coalesce(func.length(cast(col(LLMAuditLog.tool_call_results), LargeBinary)), 0)
-            + func.coalesce(func.length(cast(col(LLMAuditLog.extra_data), LargeBinary)), 0)
+        detail_columns = (
+            col(LLMAuditLog.request_messages),
+            col(LLMAuditLog.tool_references),
+            col(LLMAuditLog.response_content),
+            col(LLMAuditLog.response_tool_calls),
+            col(LLMAuditLog.tool_call_results),
+            col(LLMAuditLog.extra_data),
         )
+        length_expressions = (
+            [func.length(cast(column, LargeBinary)) for column in detail_columns]
+            if is_sqlite_backend()
+            else [func.octet_length(column) for column in detail_columns]
+        )
+        detail_bytes = func.coalesce(length_expressions[0], 0)
+        for length_expression in length_expressions[1:]:
+            detail_bytes = detail_bytes + func.coalesce(length_expression, 0)
+        return detail_bytes
 
     async def get_details_storage(self) -> AuditDetailsStorage:
         has_detail_columns = self._has_detail_columns()

@@ -268,64 +268,75 @@ def _update_checkpoint_maintenance_progress(
 async def _run_startup_maintenance() -> None:
     global _vacuum_started_at, _migrate_started_at
     maintenance_state.start()
-    logger.info("Local database maintenance started")
+    logger.info(
+        f"Local database maintenance started backend={app_settings.database_backend}"
+    )
     try:
-        maintenance_state.update(
-            phase="pruning",
-            message="Pruning obsolete checkpoints.",
-            progress=None,
-        )
-        deleted_rows = await _cleanup_unreachable_checkpoints()
-        maintenance_state.update(
-            phase="pruning",
-            message="Checkpoint pruning completed.",
-            progress=None,
-            deleted_rows=deleted_rows,
-        )
-
-        await close_checkpointer()
-
-        # 阶段 1：必要时迁移到 INCREMENTAL（普通 VACUUM，set_progress_handler 监控 VM 操作数）
-        if await needs_incremental_auto_vacuum_migration():
+        if app_settings.database_backend == "sqlite":
             maintenance_state.update(
-                phase="migrating",
-                message="Migrating checkpoint database to incremental auto-vacuum.",
+                phase="pruning",
+                message="Pruning obsolete checkpoints.",
                 progress=None,
             )
-            logger.info("Migrating checkpoint database to incremental auto-vacuum")
-            _migrate_started_at = time.monotonic()
-            await migrate_checkpoint_database_to_incremental(
-                progress_callback=_update_checkpoint_maintenance_progress,
-            )
-            logger.info(
-                f"Migrated checkpoint database to incremental auto-vacuum in "
-                f"{time.monotonic() - _migrate_started_at:.1f}s"
-            )
-            _migrate_started_at = None
-        else:
-            logger.info("Checkpoint database already uses incremental auto-vacuum, skipping migration")
-
-        # 阶段 2：空页达到阈值才执行 VACUUM INTO 回收
-        free_bytes, live_bytes = await checkpoint_free_page_bytes()
-        free_ratio = free_bytes / live_bytes if live_bytes > 0 else 0.0
-        should_vacuum = free_bytes > 1024**3 or free_ratio > 0.3
-        if should_vacuum:
+            deleted_rows = await _cleanup_unreachable_checkpoints()
             maintenance_state.update(
-                phase="vacuuming",
-                message="Reclaiming freed checkpoint pages.",
+                phase="pruning",
+                message="Checkpoint pruning completed.",
                 progress=None,
+                deleted_rows=deleted_rows,
             )
+
+            await close_checkpointer()
+
+            # 阶段 1：必要时迁移到 INCREMENTAL（普通 VACUUM，set_progress_handler 监控 VM 操作数）
+            if await needs_incremental_auto_vacuum_migration():
+                maintenance_state.update(
+                    phase="migrating",
+                    message="Migrating checkpoint database to incremental auto-vacuum.",
+                    progress=None,
+                )
+                logger.info("Migrating checkpoint database to incremental auto-vacuum")
+                _migrate_started_at = time.monotonic()
+                await migrate_checkpoint_database_to_incremental(
+                    progress_callback=_update_checkpoint_maintenance_progress,
+                )
+                logger.info(
+                    f"Migrated checkpoint database to incremental auto-vacuum in "
+                    f"{time.monotonic() - _migrate_started_at:.1f}s"
+                )
+                _migrate_started_at = None
+            else:
+                logger.info("Checkpoint database already uses incremental auto-vacuum, skipping migration")
+
+            # 阶段 2：空页达到阈值才执行 VACUUM INTO 回收
+            free_bytes, live_bytes = await checkpoint_free_page_bytes()
+            free_ratio = free_bytes / live_bytes if live_bytes > 0 else 0.0
+            should_vacuum = free_bytes > 1024**3 or free_ratio > 0.3
+            if should_vacuum:
+                maintenance_state.update(
+                    phase="vacuuming",
+                    message="Reclaiming freed checkpoint pages.",
+                    progress=None,
+                )
+                logger.info(
+                    f"Reclaiming checkpoint free space: {free_bytes / (1024**3):.1f}GB free "
+                    f"({free_ratio * 100:.0f}% of live data)"
+                )
+                await full_vacuum_checkpoint_database(
+                    progress_callback=_update_checkpoint_maintenance_progress,
+                )
+            else:
+                logger.info(
+                    f"Checkpoint free space below threshold, skipping vacuum "
+                    f"({free_bytes / (1024**3):.1f}GB free, {free_ratio * 100:.0f}% of live data)"
+                )
+        elif app_settings.database_backend == "postgresql":
             logger.info(
-                f"Reclaiming checkpoint free space: {free_bytes / (1024**3):.1f}GB free "
-                f"({free_ratio * 100:.0f}% of live data)"
-            )
-            await full_vacuum_checkpoint_database(
-                progress_callback=_update_checkpoint_maintenance_progress,
+                "PostgreSQL backend selected; skipping SQLite checkpoint maintenance"
             )
         else:
-            logger.info(
-                f"Checkpoint free space below threshold, skipping vacuum "
-                f"({free_bytes / (1024**3):.1f}GB free, {free_ratio * 100:.0f}% of live data)"
+            raise RuntimeError(
+                f"Unsupported database backend: {app_settings.database_backend}"
             )
 
         maintenance_state.update(
@@ -632,7 +643,10 @@ def _print_startup_banner(version: str) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan manager."""
-    logger.info(f"Starting {app_settings.app_name} v{app_settings.app_version}")
+    logger.info(
+        f"Starting {app_settings.app_name} v{app_settings.app_version} "
+        f"backend={app_settings.database_backend}"
+    )
     await init_db()
     await _load_telemetry_enabled()
     cleared_tasks = await _reset_task_running_state()

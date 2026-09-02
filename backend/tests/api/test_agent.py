@@ -33,7 +33,9 @@ from app.api.routers.agent_runtime import (
     _build_model_config,
     _checkpoint_has_pending_interrupt,
     _launch_task,
+    rollback_agent_session,
 )
+from app.api.schemas.agent import AgentRollbackRequest
 from app.settings import settings
 from app.socket.handlers import agent_session_room, agent_subagents_room
 from app.storage.models.chapter import Chapter
@@ -47,6 +49,52 @@ from app.storage.repos import revision_repo
 from app.storage.services import task_service
 
 pytestmark = pytest.mark.usefixtures("fast_checkpoint_sqlite")
+
+
+@pytest.mark.asyncio
+async def test_postgresql_agent_rollback_uses_revision_rollback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "database_backend", "postgresql")
+    session = AsyncMock()
+    registry = SimpleNamespace(is_running=AsyncMock(return_value=False))
+    rollback_result = SimpleNamespace(
+        restored_checkpoint_id=None,
+        affected_child_run_ids=[],
+        affected_chapters=[],
+        affected_notes=[],
+        affected_note_categories=[],
+        affected_world_entries=[],
+        affected_characters=[],
+        restored_message_content="",
+        restored_attachments=[],
+        rollback_revision=SimpleNamespace(project_id="project-id", id="rollback-id"),
+        child_checkpoint_boundaries=[],
+    )
+
+    with (
+        patch(
+            "app.api.routers.agent_runtime.get_agent_run_registry",
+            return_value=registry,
+        ),
+        patch(
+            "app.api.routers.agent_runtime.rollback_revision_for_session",
+            new=AsyncMock(return_value=rollback_result),
+        ) as rollback_revision,
+    ):
+        response = await rollback_agent_session(
+            "session-id",
+            AgentRollbackRequest(revision_id="revision-id"),
+            session,
+        )
+
+    assert response.success is True
+    assert response.revision_id == "rollback-id"
+    rollback_revision.assert_awaited_once_with(
+        session,
+        agent_session_id="session-id",
+        revision_id="revision-id",
+    )
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -3790,6 +3838,7 @@ class TestAgentAPI:
         buffer = get_agent_event_replay_buffer()
         buffer.clear_all()
         session.add(Project(id="proj-rollback", title="回滚项目"))
+        await session.flush()
         session.add(
             Volume(
                 id="vol-rollback",
@@ -3799,6 +3848,7 @@ class TestAgentAPI:
                 chapter_count=1,
             )
         )
+        await session.flush()
         session.add(
             Chapter(
                 id="chap-rollback",
@@ -4007,6 +4057,7 @@ class TestAgentAPI:
         session,
     ) -> None:
         session.add(Project(id="proj-rollback-created", title="回滚新建章节项目"))
+        await session.flush()
         session.add(
             Volume(
                 id="vol-rollback-created",
@@ -4016,6 +4067,7 @@ class TestAgentAPI:
                 chapter_count=2,
             )
         )
+        await session.flush()
         session.add(
             Chapter(
                 id="chap-existing-rollback",
@@ -4144,6 +4196,7 @@ class TestAgentAPI:
         session,
     ) -> None:
         session.add(Project(id="proj-fork", title="分叉项目"))
+        await session.flush()
         session.add(
             Volume(
                 id="vol-fork",
@@ -4153,6 +4206,7 @@ class TestAgentAPI:
                 chapter_count=1,
             )
         )
+        await session.flush()
         session.add(
             Chapter(
                 id="chap-fork",
