@@ -13,6 +13,8 @@ import type { Editor } from "@tiptap/react";
 import {
   Bold,
   Code,
+  CornerDownLeft,
+  FileSearch,
   Heading1,
   Heading2,
   Heading3,
@@ -30,6 +32,7 @@ import {
   Quote,
   Redo,
   Save,
+  Search,
   Strikethrough,
   Terminal,
   Undo,
@@ -39,6 +42,12 @@ import {
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import {
+  getParagraphIndentAction,
+  getParagraphOutdentAction,
+  getSmartQuoteInsertion,
+  isParagraphIndented,
+} from "./editor-toolbar-actions";
 import { LabeledSelect, type SelectOption } from "./select";
 import { Spinner } from "./spinner";
 
@@ -58,9 +67,12 @@ export interface EditorToolbarProps {
   hasChanges?: boolean;
   isAgentLocked?: boolean;
   onLockedAction?: () => void;
+  onOpenFind?: () => void;
+  onOpenReplace?: () => void;
   extraActions?: EditorToolbarExtraAction[];
   toolbarPrefix?: React.ReactNode;
   showMarkdownTools?: boolean;
+  showChapterTools?: boolean;
 }
 
 interface ToolbarButtonProps {
@@ -94,6 +106,17 @@ const HEADING_OPTION_DEFINITIONS: HeadingOptionDefinition[] = [
 ];
 
 const MAX_TASK_ITEM_DEPTH = 3;
+
+const CHAPTER_PUNCTUATION_DEFINITIONS = [
+  { id: "comma", symbol: "，", labelKey: "editor.quickPunctuationComma" },
+  { id: "period", symbol: "。", labelKey: "editor.quickPunctuationPeriod" },
+  { id: "exclamation", symbol: "！", labelKey: "editor.quickPunctuationExclamation" },
+  { id: "question", symbol: "？", labelKey: "editor.quickPunctuationQuestion" },
+  { id: "colon", symbol: "：", labelKey: "editor.quickPunctuationColon" },
+  { id: "semicolon", symbol: "；", labelKey: "editor.quickPunctuationSemicolon" },
+  { id: "singleQuote", symbol: "‘", labelKey: "editor.quickPunctuationSingleQuote" },
+  { id: "leftQuote", symbol: "“", labelKey: "editor.quickPunctuationLeftQuote" },
+] as const;
 
 function getTaskItemDepth(editor: Editor) {
   const { $from } = editor.state.selection;
@@ -219,9 +242,12 @@ export function EditorToolbar({
   hasChanges,
   isAgentLocked = false,
   onLockedAction,
+  onOpenFind,
+  onOpenReplace,
   extraActions,
   toolbarPrefix,
   showMarkdownTools = false,
+  showChapterTools = false,
 }: EditorToolbarProps) {
   const { t } = useTranslation();
 
@@ -282,7 +308,7 @@ export function EditorToolbar({
     if (scrollContent) resizeObserver.observe(scrollContent);
 
     return () => resizeObserver.disconnect();
-  }, [editor, showMarkdownTools, updateLeftScrollState]);
+  }, [editor, showChapterTools, showMarkdownTools, updateLeftScrollState]);
 
   const handleToolbarWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
     const scrollArea = event.currentTarget;
@@ -338,6 +364,14 @@ export function EditorToolbar({
     (activeListItemType !== "taskItem" || taskItemDepth < MAX_TASK_ITEM_DEPTH) &&
     editor.can().sinkListItem(activeListItemType);
   const canOutdentListItem = showMarkdownTools && editor.can().liftListItem(activeListItemType);
+  const currentParagraphStart = editor.state.selection.$from.start();
+  const currentParagraphText = editor.state.doc.textBetween(
+    currentParagraphStart,
+    editor.state.selection.$from.end(),
+  );
+  const isCurrentParagraphIndented = isParagraphIndented(currentParagraphText);
+  const canIndentParagraph = showChapterTools && !isCurrentParagraphIndented;
+  const canOutdentParagraph = showChapterTools && isCurrentParagraphIndented;
 
   const handleHeadingChange = (value: string) => {
     runEditorAction(() => {
@@ -351,6 +385,55 @@ export function EditorToolbar({
         .chain()
         .focus()
         .setHeading({ level: level as 1 | 2 | 3 | 4 | 5 | 6 })
+        .run();
+    });
+  };
+
+  const handleParagraphIndent = () => {
+    runEditorAction(() => {
+      const action = getParagraphIndentAction(editor.state.selection.$from.start());
+      return editor
+        .chain()
+        .focus()
+        .insertContentAt({ from: action.from, to: action.to }, action.text)
+        .run();
+    });
+  };
+
+  const handleParagraphOutdent = () => {
+    runEditorAction(() => {
+      const { $from } = editor.state.selection;
+      const paragraphStart = $from.start();
+      const paragraphText = editor.state.doc.textBetween(paragraphStart, $from.end());
+      const action = getParagraphOutdentAction(paragraphStart, paragraphText);
+      if (!action) return false;
+
+      return editor
+        .chain()
+        .focus()
+        .insertContentAt({ from: action.from, to: action.to }, action.text)
+        .run();
+    });
+  };
+
+  const handleParagraphBreak = () => {
+    runEditorAction(() => editor.chain().focus().splitBlock().run());
+  };
+
+  const handleChapterPunctuation = (symbol: string) => {
+    runEditorAction(() => {
+      if (symbol !== "“") {
+        return editor.chain().focus().insertContent(symbol).run();
+      }
+
+      const { from } = editor.state.selection;
+      const insertion = getSmartQuoteInsertion(editor.state.doc.textBetween(0, from));
+      const cursorPosition = from + insertion.cursorOffset;
+      return editor
+        .chain()
+        .focus()
+        .insertContent(insertion.text)
+        .setTextSelection({ from: cursorPosition, to: cursorPosition })
         .run();
     });
   };
@@ -444,6 +527,61 @@ export function EditorToolbar({
                   onClick={action.onClick}
                 />
               ))}
+
+              {showChapterTools && (
+                <>
+                  {CHAPTER_PUNCTUATION_DEFINITIONS.map(({ id, symbol, labelKey }) => (
+                    <ToolbarButton
+                      key={id}
+                      icon={
+                        <span
+                          className="editor-toolbar__symbol"
+                          data-symbol={id}
+                          aria-hidden="true"
+                        >
+                          {symbol}
+                        </span>
+                      }
+                      label={t(labelKey)}
+                      disabled={isAgentLocked}
+                      onClick={() => handleChapterPunctuation(symbol)}
+                    />
+                  ))}
+
+                  <ToolbarButton
+                    icon={<IndentIncrease size={18} />}
+                    label={t("editor.quickIndent")}
+                    disabled={isAgentLocked || !canIndentParagraph}
+                    onClick={handleParagraphIndent}
+                  />
+                  <ToolbarButton
+                    icon={<IndentDecrease size={18} />}
+                    label={t("editor.quickOutdent")}
+                    disabled={isAgentLocked || !canOutdentParagraph}
+                    onClick={handleParagraphOutdent}
+                  />
+                  <ToolbarButton
+                    icon={<CornerDownLeft size={18} />}
+                    label={t("editor.quickNewline")}
+                    disabled={isAgentLocked}
+                    onClick={handleParagraphBreak}
+                  />
+                  {onOpenFind && (
+                    <ToolbarButton
+                      icon={<Search size={18} />}
+                      label={t("editor.quickFind")}
+                      onClick={onOpenFind}
+                    />
+                  )}
+                  {onOpenReplace && (
+                    <ToolbarButton
+                      icon={<FileSearch size={18} />}
+                      label={t("editor.quickReplace")}
+                      onClick={onOpenReplace}
+                    />
+                  )}
+                </>
+              )}
 
               {showMarkdownTools && (
                 <>
@@ -594,7 +732,7 @@ export function EditorToolbar({
           </Box>
         </Box>
 
-        {showMarkdownTools && leftScrollState.hasOverflow && (
+        {(showMarkdownTools || showChapterTools) && leftScrollState.hasOverflow && (
           <Separator
             className="editor-toolbar__divider"
             orientation="vertical"

@@ -423,13 +423,11 @@ export function WritingPage() {
                       <ChapterEditor
                         chapterId={activeRefId}
                         scrollTop={activeEditorScrollTop}
-                        projectId={projectId}
                         isAgentLocked={isAgentLocked}
                         onScrollPositionChange={handleChapterScrollPositionChange}
                         onAddToConversation={
                           isViewingSubagent ? undefined : handleAddToConversation
                         }
-                        onOpenSummary={handleOpenSummary}
                       />
                     )
                   ) : (
@@ -531,10 +529,8 @@ export function WritingPage() {
                     <ChapterEditor
                       chapterId={activeRefId}
                       scrollTop={activeEditorScrollTop}
-                      projectId={projectId}
                       isAgentLocked={isAgentLocked}
                       onScrollPositionChange={handleChapterScrollPositionChange}
-                      onOpenSummary={handleOpenSummary}
                       onAddToConversation={isViewingSubagent ? undefined : handleAddToConversation}
                       onSelectionChange={setHasEditorSelection}
                       addSelectionToConversationRef={addSelectionToConversationRef}
