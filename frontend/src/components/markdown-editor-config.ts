@@ -114,6 +114,9 @@ export function createMarkdownEditorExtensions(options: MarkdownEditorExtensions
   const extensions = [
     StarterKit.configure({
       codeBlock: false,
+      link: {
+        openOnClick: false,
+      },
     }),
     TableKit,
     TaskList,

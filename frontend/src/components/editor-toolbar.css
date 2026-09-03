@@ -1,0 +1,101 @@
+.editor-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  width: 100%;
+  min-width: 0;
+  background: var(--color-background);
+}
+
+.editor-toolbar__layout {
+  width: 100%;
+  min-width: 0;
+}
+
+.editor-toolbar__scroll-container {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.editor-toolbar__scroll-area {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.editor-toolbar__scroll-container::before,
+.editor-toolbar__scroll-container::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 24px;
+  pointer-events: none;
+  opacity: 0;
+  content: "";
+  filter: blur(1px);
+  transition: opacity 120ms ease;
+}
+
+.editor-toolbar__scroll-container::before {
+  left: 0;
+  background: linear-gradient(to right, var(--color-background), transparent);
+}
+
+.editor-toolbar__scroll-container::after {
+  right: 0;
+  background: linear-gradient(to left, var(--color-background), transparent);
+}
+
+.editor-toolbar__scroll-container[data-can-scroll-left="true"]::before,
+.editor-toolbar__scroll-container[data-can-scroll-right="true"]::after {
+  opacity: 0.92;
+}
+
+.editor-toolbar__scroll-area::-webkit-scrollbar {
+  display: none;
+}
+
+.editor-toolbar__content {
+  width: max-content;
+  min-width: 100%;
+  flex-wrap: nowrap;
+}
+
+.editor-toolbar__content > * {
+  flex: 0 0 auto;
+}
+
+.editor-toolbar__divider {
+  flex: 0 0 auto;
+  height: 20px;
+}
+
+.editor-toolbar__actions {
+  flex: 0 0 auto;
+  min-width: max-content;
+  margin-inline-start: auto;
+}
+
+.editor-toolbar-button[data-active="true"] {
+  background: var(--gray-a3);
+  color: var(--gray-12);
+}
+
+.editor-toolbar-button[data-active="true"]:hover {
+  background: var(--gray-a4);
+}
+
+@media (max-width: 767px) {
+  .editor-toolbar {
+    padding-inline: var(--space-3);
+  }
+
+  .editor-toolbar__content {
+    justify-content: flex-start;
+  }
+}

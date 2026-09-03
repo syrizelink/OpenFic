@@ -1,12 +1,14 @@
-import { Box, Flex, Text } from "@radix-ui/themes";
+import { Box, Flex, Text, Tooltip } from "@radix-ui/themes";
+import type { EditorView } from "@tiptap/pm/view";
 import { useEditor, EditorContent } from "@tiptap/react";
 import type { Editor } from "@tiptap/react";
-import { useCallback, useRef, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 
 import { ContextMenu } from "./context-menu";
 import { EditorToolbar, type EditorToolbarExtraAction } from "./editor-toolbar";
+import { ExternalLinkSafetyDialog } from "./external-link-safety-dialog";
 import { createMarkdownEditorExtensions } from "./markdown-editor-config";
 import { TitleInput } from "./title-input";
 
@@ -32,6 +34,36 @@ export interface MarkdownEditorProps {
   editorRef?: React.MutableRefObject<Editor | null>;
   scrollTop?: number;
   onScrollPositionChange?: (scrollTop: number) => void;
+}
+
+interface HoveredEditorLink {
+  href: string;
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
+function EditorLinkTooltip({ link }: { link: HoveredEditorLink | null }) {
+  if (!link) return null;
+
+  return (
+    <Tooltip
+      content={link.href}
+      open
+    >
+      <span
+        aria-hidden="true"
+        className="editor-link-tooltip-anchor"
+        style={{
+          top: link.top,
+          left: link.left,
+          width: link.width,
+          height: link.height,
+        }}
+      />
+    </Tooltip>
+  );
 }
 
 export function MarkdownEditor({
@@ -64,6 +96,59 @@ export function MarkdownEditor({
   const initialScrollTopRef = useRef(scrollTop);
   const latestScrollTopRef = useRef(scrollTop);
   const scrollPositionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pendingExternalLink, setPendingExternalLink] = useState<string | null>(null);
+  const [hoveredEditorLink, setHoveredEditorLink] = useState<HoveredEditorLink | null>(null);
+
+  const handleEditorLinkClick = useCallback(
+    (_view: EditorView, _pos: number, event: MouseEvent) => {
+      const target = event.target;
+      const link = target instanceof Element ? target.closest("a[href]") : null;
+      const href = link?.getAttribute("href");
+      if (!href) return false;
+
+      event.preventDefault();
+      setHoveredEditorLink(null);
+      setPendingExternalLink(href);
+      return true;
+    },
+    [],
+  );
+
+  const handleEditorLinkMouseOver = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    const link = target instanceof Element ? target.closest("a[href]") : null;
+    if (!link || !editorContentRef.current?.contains(link)) return;
+
+    const relatedTarget = event.relatedTarget;
+    if (relatedTarget instanceof Node && link.contains(relatedTarget)) return;
+
+    const rect = link.getBoundingClientRect();
+    const href = link.getAttribute("href");
+    if (!href) return;
+
+    setHoveredEditorLink({
+      href,
+      top: rect.top,
+      left: rect.left,
+      width: rect.width,
+      height: rect.height,
+    });
+  }, []);
+
+  const handleEditorLinkMouseOut = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    const link = target instanceof Element ? target.closest("a[href]") : null;
+    if (!link || !editorContentRef.current?.contains(link)) return;
+
+    const relatedTarget = event.relatedTarget;
+    if (relatedTarget instanceof Node && link.contains(relatedTarget)) return;
+    setHoveredEditorLink(null);
+  }, []);
+
+  const handleConfirmExternalLink = useCallback(() => {
+    if (!pendingExternalLink) return;
+    window.open(pendingExternalLink, "_blank", "noopener,noreferrer");
+  }, [pendingExternalLink]);
 
   const editor = useEditor({
     extensions: createMarkdownEditorExtensions({
@@ -81,6 +166,9 @@ export function MarkdownEditor({
     content,
     contentType: "markdown",
     editable: !isLocked,
+    editorProps: {
+      handleClick: handleEditorLinkClick,
+    },
   });
   const editorRef = useRef(editor);
 
@@ -227,6 +315,7 @@ export function MarkdownEditor({
         onLockedAction={onLockedAction}
         extraActions={extraToolbarActions}
         toolbarPrefix={toolbarPrefix}
+        showMarkdownTools
       />
 
       <Box
@@ -254,6 +343,8 @@ export function MarkdownEditor({
           <Box
             py="5"
             ref={editorContentRef}
+            onMouseOver={handleEditorLinkMouseOver}
+            onMouseOut={handleEditorLinkMouseOut}
           >
             <EditorContent
               editor={editor}
@@ -269,6 +360,15 @@ export function MarkdownEditor({
           containerRef={editorContentRef}
         />
       )}
+
+      <ExternalLinkSafetyDialog
+        isOpen={pendingExternalLink !== null}
+        url={pendingExternalLink ?? ""}
+        onClose={() => setPendingExternalLink(null)}
+        onConfirm={handleConfirmExternalLink}
+      />
+
+      <EditorLinkTooltip link={hoveredEditorLink} />
 
       <Flex
         px="6"

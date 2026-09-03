@@ -61,6 +61,49 @@
   min-width: 16px;
 }
 
+.select-trigger--icon {
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 32px;
+  padding: 0 4px !important;
+  border: 0 !important;
+  border-radius: 4px !important;
+  outline: none;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--gray-11);
+}
+
+.select-trigger--icon:hover,
+.select-trigger--icon[data-state="open"] {
+  background: var(--gray-a3) !important;
+  color: var(--gray-12);
+}
+
+.select-trigger--icon:focus-visible {
+  outline: 1px solid var(--gray-8);
+  outline-offset: -1px;
+}
+
+.select-trigger--icon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.select-trigger--icon .select-trigger-content--icon-only {
+  width: auto;
+  min-width: 0;
+}
+
+.select-trigger--icon .rt-SelectIcon {
+  color: var(--gray-a9);
+}
+
+.select-trigger--icon .rt-SelectIcon svg {
+  width: 12px;
+  height: 12px;
+}
+
 .searchable-select-content {
   padding: 0 !important;
 }
