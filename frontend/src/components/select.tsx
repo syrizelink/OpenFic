@@ -6,6 +6,7 @@
  */
 
 import { Box, Button, Flex, Popover, ScrollArea, Select, Text, TextField } from "@radix-ui/themes";
+import clsx from "clsx";
 import { ChevronDown, Search } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode, ComponentProps } from "react";
@@ -114,6 +115,8 @@ export interface LabeledSelectProps {
   hideTriggerChevron?: boolean;
   triggerClassName?: string;
   contentClassName?: string;
+  variant?: "default" | "icon";
+  triggerAriaLabel?: string;
 }
 
 export interface SearchableSelectProps extends LabeledSelectProps {
@@ -141,9 +144,13 @@ export function LabeledSelect({
   triggerPrefix,
   triggerClassName,
   contentClassName,
+  variant = "default",
+  triggerAriaLabel,
 }: LabeledSelectProps) {
   const selectedOption = options.find((opt) => opt.value === value);
   const triggerLabel = selectedOption?.label || placeholder;
+  const isIconVariant = variant === "icon";
+  const isTriggerLabelVisible = !isIconVariant && triggerLabelVisible;
 
   const selectControl = (
     <Select.Root
@@ -153,7 +160,7 @@ export function LabeledSelect({
       size={size}
     >
       <Select.Trigger
-        className={triggerClassName}
+        className={clsx(isIconVariant && "select-trigger--icon", triggerClassName)}
         style={
           selectedOption?.labelColor
             ? ({
@@ -163,16 +170,17 @@ export function LabeledSelect({
             : triggerStyle
         }
         placeholder={placeholder}
+        aria-label={triggerAriaLabel ?? label ?? triggerLabel}
       >
         <Flex
           align="center"
-          justify={triggerLabelVisible ? undefined : "center"}
-          gap={triggerLabelVisible ? "2" : "0"}
-          className={triggerLabelVisible ? undefined : "select-trigger-content--icon-only"}
+          justify={isTriggerLabelVisible ? undefined : "center"}
+          gap={isTriggerLabelVisible ? "2" : "0"}
+          className={isTriggerLabelVisible ? undefined : "select-trigger-content--icon-only"}
         >
           {triggerPrefix}
           {selectedOption?.prefix}
-          {triggerLabelVisible && triggerLabel && (
+          {isTriggerLabelVisible && triggerLabel && (
             <Text
               size={size}
               color={selectedOption ? undefined : "gray"}

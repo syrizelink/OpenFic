@@ -76,6 +76,49 @@
   margin-bottom: 1em;
 }
 
+.tiptap-editor em,
+.tiptap-editor i {
+  display: inline-block;
+  color: inherit;
+  font-synthesis: style;
+  font-synthesis-style: auto;
+  font-style: italic;
+  transform: skewX(-8deg);
+  transform-origin: left bottom;
+}
+
+.tiptap-editor s,
+.tiptap-editor del {
+  text-decoration-line: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.tiptap-editor u {
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.12em;
+}
+
+.tiptap-editor a {
+  color: #0969da;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+
+.tiptap-editor a:hover {
+  color: #0550ae;
+  text-decoration-color: currentColor;
+}
+
+.editor-link-tooltip-anchor {
+  position: fixed;
+  pointer-events: none;
+}
+
 .tiptap-editor h1,
 .tiptap-editor h2,
 .tiptap-editor h3,
@@ -136,6 +179,128 @@
 }
 
 .tiptap-editor li > p {
+  margin-bottom: 0;
+}
+
+.tiptap-editor ul[data-type="taskList"] {
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.tiptap-editor ul[data-type="taskList"] ul[data-type="taskList"] {
+  position: relative;
+  margin-block: 0;
+  padding-inline-start: 1em;
+}
+
+.tiptap-editor ul[data-type="taskList"] ul[data-type="taskList"]::before {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: -1em;
+  width: 1px;
+  background: var(--gray-a4);
+  content: "";
+  pointer-events: none;
+}
+
+.tiptap-editor ul[data-type="taskList"] ul[data-type="taskList"] > li[data-checked] {
+  margin-block: 0;
+}
+
+.tiptap-editor li[data-checked] {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+  list-style: none;
+}
+
+.tiptap-editor li[data-checked] > label {
+  position: relative;
+  display: flex;
+  flex: 0 0 1em;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1.8em;
+  user-select: none;
+}
+
+.tiptap-editor li[data-checked] > label > input[type="checkbox"] {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.tiptap-editor li[data-checked] > label > input[type="checkbox"] + span {
+  position: relative;
+  display: block;
+  width: 1em;
+  height: 1em;
+  border: 1px solid var(--gray-8);
+  border-radius: var(--radius-1);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--gray-a3);
+  pointer-events: none;
+}
+
+.tiptap-editor li[data-checked] > label > input[type="checkbox"]:checked + span {
+  border-color: var(--gray-9);
+  background: var(--gray-9);
+  box-shadow: none;
+}
+
+.tiptap-editor li[data-checked] > label > input[type="checkbox"]:checked + span::after {
+  position: absolute;
+  top: 0.13em;
+  left: 0.32em;
+  width: 0.28em;
+  height: 0.54em;
+  border: solid #fff;
+  border-width: 0 0.13em 0.13em 0;
+  content: "";
+  transform: rotate(45deg);
+}
+
+.tiptap-editor li[data-checked] > label > input[type="checkbox"]:focus-visible + span {
+  outline: 2px solid var(--focus-8);
+  outline-offset: 2px;
+}
+
+.tiptap-editor li[data-checked] > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tiptap-editor li[data-checked] > div > p {
+  margin-bottom: 0;
+}
+
+.tiptap-editor li[data-checked="true"] > div > p {
+  color: var(--gray-10);
+  text-decoration-line: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.tiptap-editor li[data-checked="true"] > div > p s,
+.tiptap-editor li[data-checked="true"] > div > p del {
+  text-decoration-line: none;
+}
+
+.tiptap-editor blockquote {
+  margin-block: 1em;
+  padding-block: 0.1em;
+  padding-inline-start: 1em;
+  border-inline-start: 4px solid var(--gray-a5);
+  color: var(--gray-11);
+  font-style: oblique 10deg;
+}
+
+.tiptap-editor blockquote p {
   margin-bottom: 0;
 }
 
