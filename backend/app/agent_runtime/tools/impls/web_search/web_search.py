@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from textwrap import dedent
+
 from pydantic import BaseModel, Field
 
 from app.agent_runtime.tools.base import AgentTool
@@ -43,11 +45,11 @@ class WebSearchOutput(BaseModel):
 @ToolRegistry.register
 class WebSearchTool(AgentTool):
     name: str = "web_search"
-    description: str = (
-        "联网检索互联网上的公开信息，返回网页标题、链接与内容摘要。"
-        "用于获取写作所需的实时信息、事实核查与资料搜集。"
-        "需要阅读结果全文时，使用 web_fetch 读取对应链接。"
-    )
+    description: str = dedent("""\
+        联网检索互联网上的公开信息
+        用于获取写作所需的实时信息、事实核查与资料搜集。
+        需要阅读结果全文时，使用 web_fetch 读取对应链接。
+    """)
     access_level: str = "readonly"
     args_schema: type[BaseModel] = WebSearchInput
 

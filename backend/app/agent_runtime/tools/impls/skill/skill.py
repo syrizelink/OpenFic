@@ -1,6 +1,7 @@
 """Skill 工具：按需激活技能与读取参考文档。"""
 
 from collections.abc import Iterable
+from textwrap import dedent
 
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -106,11 +107,10 @@ async def _resolve_authorized_skill(session: AsyncSession, state: dict, skill_na
 @ToolRegistry.register
 class ActivateSkillTool(AgentTool):
     name: str = "activate_skill"
-    description: str = (
-        "获取指定技能的完整内容与参考文档列表。"
-        "技能名称必须来自上下文中可用技能列表。"
-        "返回 SKILL.md 正文及可用的参考文档名称。"
-    )
+    description: str = dedent("""\
+        获取指定技能的完整内容与参考文档列表。
+        <available_skills>中给出了可用的技能列表，当指定了不在列表中的技能时将被拒绝。
+    """)
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ActivateSkillInput
 
@@ -133,10 +133,10 @@ class ActivateSkillTool(AgentTool):
 @ToolRegistry.register
 class ReferenceSkillTool(AgentTool):
     name: str = "reference_skill"
-    description: str = (
-        "读取指定技能的某个参考文档内容。"
-        "reference_name 来自 activate_skill 返回的 skill_references 中的 ref 字段。"
-    )
+    description: str = dedent("""\
+        读取技能的指定参考文档内容。
+        在使用该工具前，应先activate_skill得到对应的reference_name。
+    """)
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ReferenceSkillInput
 

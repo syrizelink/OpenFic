@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from textwrap import dedent
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -38,7 +39,7 @@ MAX_DISPATCHES_PER_TURN = 10
 
 class DispatchSubagentInput(BaseModel):
     agent_type: str = Field(
-        description="委派用于处理当前任务的专用 agent 类型",
+        description="委派用于处理当前任务的专用Agent类型",
     )
     description: str = Field(
         min_length=1,
@@ -46,15 +47,15 @@ class DispatchSubagentInput(BaseModel):
     )
     prompt: str = Field(
         min_length=1,
-        description=(
-            "要 agent 执行的任务描述，应是自包含且明确的，至少覆盖："
-            "- TASK 对任务的描述"
-            "- GOAL 原子目标"
-            "- EXPECTED OUTCOME 交付物与成功标准"
-            "- MUST DO 必须完成的工作"
-            "- MUST NOT DO 禁止的操作"
-            "- CONTEXT 相关信息索引"
-        ),
+        description=dedent("""\
+            要Agent执行的任务描述，应是自包含且明确的，至少覆盖：
+            - TASK 对任务的描述
+            - GOAL 原子目标
+            - EXPECTED OUTCOME 交付物与成功标准
+            - MUST DO 必须完成的工作
+            - MUST NOT DO 禁止的操作
+            - CONTEXT 相关信息索引
+        """),
     )
     model_config = {"extra": "forbid"}
 
@@ -66,30 +67,30 @@ def _child_thread_id(parent_thread_id: str, dispatch_id: str) -> str:
 @ToolRegistry.register
 class DispatchSubagentTool(AgentTool):
     name: str = "dispatch_subagent"
-    description: str = (
-        "委派一个新的 agent 处理复杂、多步骤的任务。"
-        "使用 dispatch 工具时，必须指定 agent_type 参数来选定要使用的 subagent 类型。"
-        ""
-        "何时不应使用："
-        "- 在特定章节或2-3个章节或设定中搜索信息"
-        "- 没有合适的 agent 准确对应任务类型"
-        "- 用户明确要求不使用子代理时"
-        ""
-        "何时使用："
-        "- 需要并行处理多个独立任务，提升效率"
-        "- 任务复杂度高、专业性强，需要使用专业的 agent 针对性处理"
-        "- 需要隔离上下文，只想了解特定信息却不想查找一遍整个项目"
-        ""
-        "使用说明："
-        "- 尽可能并发启动多个 agent 处理任务以提高效率，为此只需在一轮消息多次调用工具即可"
-        "- agent 完成后会在工具结果中返回，agent 的执行结果对用户不可见，如要向用户展示执行结果，你应输出一段简短的总结"
-        "- agent 的执行结果包含 dispatch_id，可在后续通过 notify_subagent 复用以继续同一 agent 会话"
-        "- agent 的执行结果中包含 agent_number，每个 agent 都有唯一的编号，如有需要你可以用编号来称呼它们"
-        "- 每次派发的 agent 都从独立全新的上下文，因此 agent 并不了解你所持有的信息或过去完成的任务"
-        "- 派发 agent 时，应在 prompt 中包含详尽、具体、可执行的任务描述，并明确指示 agent 应在任务完成时返回什么信息，因为它并不了解用户意图"
-        "- 一般情况下应信任 agent 的输出"
-        "- 如果 agent 描述中提到应主动使用它们，则尽力使用，而无需用户明确指示，否则请自行判断"
-    )
+    description: str = dedent("""\
+        委派一个新的Agent处理复杂、多步骤的任务。
+        使用时，必须指定agent_type参数来选定要委派的Subagent类型。
+        
+        何时不应使用：
+        - 在特定章节或2-3个章节或设定中搜索信息
+        - 没有准确对应任务类型的合适Agent
+        - 用户明确要求不使用Subagent时
+        
+        何时使用：
+        - 需要并行处理多个独立任务，使用Subagent有助于提高效率
+        - 任务复杂度高、专业性强，需要使用专业的Agent针对性处理
+        - 需要隔离上下文，只想了解特定信息却不想查找一遍整个项目
+        
+        使用说明：
+        - 尽可能并发启动多个Agent处理任务以提高效率，为此只需在一轮消息多次调用工具即可
+        - Agent完成后会在工具结果中返回，你应默认Agent的执行结果对用户不可见，如要向用户展示执行结果，你应输出一段简短的总结
+        - Agent的执行结果包含dispatch_id，可在后续通过notify_subagent复用以继续同一Agent会话
+        - Agent的执行结果中包含agent_number，每个agent都有唯一的编号，如有需要你可以用编号来称呼它们
+        - 每次派发的Agent都从独立全新的上下文开始，因此Agent并不了解你所持有的信息或过去完成的任务
+        - 派发Agent时，应在prompt中包含详尽、具体、可执行的任务描述，并明确指示Agent应在任务完成时返回什么信息，因为它并不了解用户意图
+        - 一般情况下应信任Agent的输出
+        - 如果Agent描述中提到应主动使用它们，则尽力使用，而无需用户明确指示，否则请自行判断
+    """)
     access_level: str = "readonly"
     args_schema: type[BaseModel] = DispatchSubagentInput
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from textwrap import dedent
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -43,15 +44,15 @@ class NotifySubagentInput(BaseModel):
 @ToolRegistry.register
 class NotifySubagentTool(AgentTool):
     name: str = "notify_subagent"
-    description: str = (
-        "向一个 subagent 会话发送消息来恢复进程"
-        "使用 notify 工具时，必须指定一个 active 会话的 dispatch_id 来选定所要继续的进程"
-        ""
-        "使用说明："
-        "- 恢复的 subagent 会话沿用此前完成时的状态（消息历史、工具输出等），不要提供重复的上下文信息"
-        "- 继续会话时，聚焦于当前任务，明确说明下一步的要求"
-        "- 一个 subagent 会话被 recycle 后，dispatch_id 就会失效无法使用"
-    )
+    description: str = dedent("""\
+        向一个Subagent会话发送消息以恢复进程
+        使用时，必须指定dispatch_id来选定所要恢复的会话
+
+        使用说明：
+        - 恢复的Subagent会话将沿用此前完成时的状态（消息历史、工具输出等），不要提供重复的上下文信息
+        - 继续会话时，聚焦于当前任务，明确说明下一步的要求
+        - 一个Subagent会话被关闭后，对应dispatch_id就会失效且无法使用
+    """)
     access_level: str = "readonly"
     args_schema: type[BaseModel] = NotifySubagentInput
 

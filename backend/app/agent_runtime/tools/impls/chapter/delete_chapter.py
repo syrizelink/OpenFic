@@ -27,8 +27,8 @@ from app.storage.services import chapter_service
 
 
 class DeleteChapterInput(BaseModel):
-    volume_ref: VolumeRef = Field(description="目标章节所在的卷")
-    chapter_ref: ChapterRef = Field(description="要删除的目标章节")
+    volume_ref: VolumeRef = Field(description="目标卷")
+    chapter_ref: ChapterRef = Field(description="目标章节")
 
 
 @ToolRegistry.register

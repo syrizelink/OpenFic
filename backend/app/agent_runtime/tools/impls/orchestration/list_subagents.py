@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from textwrap import dedent
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -41,17 +42,18 @@ def _format_context(content: str, return_context: ReturnContext) -> str:
 class ListSubagentsInput(BaseModel):
     status: list[ChildRunStatus] | None = Field(
         default=None,
-        description=(
-            "按一个或多个状态过滤；可选 queued、running、waiting_user、completed、error、cancelled，"
-            "留空表示不过滤"
-        ),
+        description=dedent("""\
+            按一个或多个状态过滤；可选queued、running、waiting_user、completed、error、cancelled，
+            留空表示不过滤
+        """),
     )
     return_context: ReturnContext = Field(
         default="none",
-        description=(
-            "是否返回最后一轮交互的 prompt 和 result。none 表示不返回，part 表示返回前 500 个字符，"
-            "full 表示返回全部内容；仅在必要时使用 full，以避免过长的 prompt 导致上下文溢出。"
-        ),
+        description=dedent("""\
+            是否返回最后一轮交互的prompt和result；
+            none表示不返回，part表示返回前500个字符，full表示返回全部内容；
+            仅在必要时使用full，以避免过长的结果导致上下文溢出。
+        """),
     )
     model_config = {"extra": "forbid"}
 
@@ -59,10 +61,10 @@ class ListSubagentsInput(BaseModel):
 @ToolRegistry.register
 class ListSubagentsTool(AgentTool):
     name: str = "list_subagents"
-    description: str = (
-        "列出所有未被回收的 subagent。"
-        "可使用 status 过滤结果，并使用 return_context 查看最后一轮交互内容。"
-    )
+    description: str = dedent("""\
+        列出所有未被回收的Subagent。
+        可使用status过滤结果，并使用return_context查看最后一轮交互内容。
+    """)
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ListSubagentsInput
 

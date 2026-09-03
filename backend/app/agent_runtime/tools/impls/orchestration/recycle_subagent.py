@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from textwrap import dedent
 
 from pydantic import BaseModel, Field
 
@@ -34,16 +35,17 @@ class RecycleSubagentInput(BaseModel):
 @ToolRegistry.register
 class RecycleSubagentTool(AgentTool):
     name: str = "recycle_subagent"
-    description: str = (
-        "关闭一个 active 的 subagent 会话"
-        "使用 notify 工具时，必须指定一个 active 会话的 dispatch_id 来选定所要继续的进程"
-        ""
-        "使用说明："
-        "- subagent 会话一旦被关闭就无法恢复"
-        "- 一般情况下不需要关闭 subagent 会话，以免用户的后续指示需要时无法继续工作"
-        "- 对于只读而不做任何修改的 agent，关闭会话通常是无影响的，可以在任务完成且不再需要后关闭"
-        "- 如果 agent 描述中提到应在任务完成后主动关闭，则尽力遵循，否则请自行判断"
-    )
+    description: str = dedent("""\
+        关闭一个Subagent会话
+        使用时，必须指定dispatch_id来选定所要关闭的会话
+
+        使用说明：
+        - Subagent会话一旦被关闭就无法恢复
+        - 仅在Subagent的任务已明确完成且后续不再需要它时才将其关闭，以免用户的后续指示需要时无法继续工作
+        - 当处理完一个需求且用户确认通过或是要求开始完成下一个需求时，应及时关闭不再需要的Subagents
+        - 对于只读而不做任何修改的Subagent，关闭会话通常是无影响的，可以在任务完成后关闭
+        - 如果Subagent的描述中提到应在何时主动关闭，则尽力遵循，否则请自行判断
+    """)
     access_level: str = "readonly"
     args_schema: type[BaseModel] = RecycleSubagentInput
 
