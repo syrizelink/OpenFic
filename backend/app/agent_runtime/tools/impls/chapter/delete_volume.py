@@ -15,7 +15,7 @@ class DeleteVolumeInput(BaseModel):
     volume_ref: VolumeRef = Field(description="目标卷")
     cascade: bool = Field(
         default=False,
-        description="是否连同卷内全部章节一起删除；删除非空卷时必须为 true",
+        description="是否连同卷内全部章节一起删除；删除非空卷时必须指定为true",
     )
 
 

@@ -54,11 +54,11 @@ class EditChapterInput(BaseModel):
     )
     new_content: str | None = Field(
         default=None,
-        description="用于替换 old_content 的新文本；仅在修改正文时填写",
+        description="用于替换的新文本；仅在修改正文时填写",
     )
     replace_all: bool = Field(
         default=False,
-        description="是否替换命中的全部 old_content，false 时只替换首个匹配项",
+        description="是否替换命中的全部old_content，指定为false时只替换首个匹配项",
     )
 
     @field_validator("old_content", mode="after")
@@ -82,7 +82,7 @@ class EditChapterInput(BaseModel):
 @ToolRegistry.register
 class EditChapterTool(AgentTool):
     name: str = "edit_chapter"
-    description: str = "编辑指定章节的标题或内容。修改内容时使用查找替换模式"
+    description: str = "编辑指定章节的标题或内容"
     access_level: str = "write"
     args_schema: type[BaseModel] = EditChapterInput
 

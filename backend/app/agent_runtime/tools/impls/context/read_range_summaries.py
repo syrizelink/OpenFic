@@ -1,4 +1,5 @@
 import json
+from textwrap import dedent
 
 from pydantic import BaseModel, Field
 
@@ -16,14 +17,13 @@ class ReadRangeSummariesInput(BaseModel):
 @ToolRegistry.register
 class ReadRangeSummariesTool(AgentTool):
     name: str = "read_range_summaries"
-    description: str = (
-        "读取长期摘要，按区间起点升序分页返回。"
-        ""
-        "区间划分："
-        "- 区间摘要是以固定每10个章节为单位聚合的，被聚合的区间始终是1+n*10章到(n+1)*10章，其中n代表第n个区间摘要"
-        "- offset=0, limit=1 → 返回第1-10章的区间摘要"
-        "- offset=3, limit=5 → 返回第31-40章、41-50章、51-60章、61-70章、71-80章的区间摘要"
-    )
+    description: str = dedent("""\
+        读取长期摘要，按区间起点升序分页返回
+        区间划分：
+        - 区间摘要是以固定每10个章节为单位聚合的，被聚合的区间始终是1+n*10章到(n+1)*10章，其中n代表第n个区间摘要
+        - offset=0,limit=1 → 返回第1-10章的区间摘要
+        - offset=3,limit=5 → 返回第31-40章、41-50章、51-60章、61-70章、71-80章的区间摘要
+    """)
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ReadRangeSummariesInput
 
