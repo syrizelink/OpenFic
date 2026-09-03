@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.11.1](https://github.com/syrizelink/OpenFic/compare/v0.11.0...v0.11.1) (2026-09-03)
+
+
+### 🔧 杂项
+
+* **agent:** 优化 Agent 工具描述 ([#372](https://github.com/syrizelink/OpenFic/issues/372)) ([4361650](https://github.com/syrizelink/OpenFic/commit/436165018f73d7ab77c15f3865810b5aa08f1385))
+* **frontend:** 完善 Markdown 编辑器工具栏 ([#373](https://github.com/syrizelink/OpenFic/issues/373)) ([8d4bc4e](https://github.com/syrizelink/OpenFic/commit/8d4bc4e7fc1c2cccd71cbb24a4ed392456180d0d))
+* **frontend:** 完善章节编辑器工具栏 ([#374](https://github.com/syrizelink/OpenFic/issues/374)) ([809a071](https://github.com/syrizelink/OpenFic/commit/809a071e34ed651e5177f31ac1b8a461a589edab))
+* **notes:** 添加笔记导入导出功能 ([#370](https://github.com/syrizelink/OpenFic/issues/370)) ([2eae5db](https://github.com/syrizelink/OpenFic/commit/2eae5dbe08dee4f2c2eae801a18ec41e7e576ff1))
+
 ## [0.11.0](https://github.com/syrizelink/OpenFic/compare/v0.10.2...v0.11.0) (2026-08-30)
 
 
