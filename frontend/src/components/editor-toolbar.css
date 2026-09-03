@@ -90,6 +90,48 @@
   background: var(--gray-a4);
 }
 
+.editor-toolbar__symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-family: "Noto Serif SC Variable", var(--app-font-family, serif);
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-east-asian: proportional-width;
+  line-height: 1;
+}
+
+.editor-toolbar__symbol[data-symbol="comma"] {
+  transform: translate(7px, -7px);
+}
+
+.editor-toolbar__symbol[data-symbol="semicolon"] {
+  transform: translate(5px, -3px);
+}
+
+.editor-toolbar__symbol[data-symbol="period"] {
+  transform: translate(6px, -6px);
+}
+
+.editor-toolbar__symbol[data-symbol="exclamation"],
+.editor-toolbar__symbol[data-symbol="question"] {
+  transform: translateX(5px);
+}
+
+.editor-toolbar__symbol[data-symbol="colon"] {
+  transform: translate(4px, -2px);
+}
+
+.editor-toolbar__symbol[data-symbol="singleQuote"] {
+  transform: translate(-5px, 5px);
+}
+
+.editor-toolbar__symbol[data-symbol="leftQuote"] {
+  transform: translate(-4px, 5px);
+}
+
 @media (max-width: 767px) {
   .editor-toolbar {
     padding-inline: var(--space-3);
