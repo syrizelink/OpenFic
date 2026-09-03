@@ -326,12 +326,18 @@ export function EditorToolbar({
   const headingValue = editor.isActive("heading")
     ? String(editor.getAttributes("heading").level)
     : "paragraph";
-  const activeListItemType = editor.isActive("taskItem") ? "taskItem" : "listItem";
-  const taskItemDepth = activeListItemType === "taskItem" ? getTaskItemDepth(editor) : 0;
+  const activeListItemType = showMarkdownTools
+    ? editor.isActive("taskItem")
+      ? "taskItem"
+      : "listItem"
+    : "listItem";
+  const taskItemDepth =
+    showMarkdownTools && activeListItemType === "taskItem" ? getTaskItemDepth(editor) : 0;
   const canIndentListItem =
+    showMarkdownTools &&
     (activeListItemType !== "taskItem" || taskItemDepth < MAX_TASK_ITEM_DEPTH) &&
     editor.can().sinkListItem(activeListItemType);
-  const canOutdentListItem = editor.can().liftListItem(activeListItemType);
+  const canOutdentListItem = showMarkdownTools && editor.can().liftListItem(activeListItemType);
 
   const handleHeadingChange = (value: string) => {
     runEditorAction(() => {
