@@ -6,6 +6,7 @@ import tiktoken.load
 import tiktoken.registry
 import pytest
 
+from app.core.utils import tiktoken as tiktoken_utils
 from app.core.utils.tiktoken import get_encoding
 from app.storage.services import character_service, world_info_entry_service
 
@@ -64,6 +65,54 @@ def test_get_encoding_seeds_bundled_resource_for_tiktoken_registry(
     assert requested_encodings == [encoding_name]
     assert encoding.name == encoding_name
     assert encoding.encode("OpenFic 离线 Token 计数")
+
+
+def test_seed_bundled_encodings_skips_existing_cache(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("TIKTOKEN_CACHE_DIR", str(tmp_path))
+    cache_names = [
+        tiktoken_utils._cache_path(name).name for name in ("cl100k_base", "o200k_base")
+    ]
+
+    tiktoken_utils.seed_bundled_encodings()
+    seeded = {
+        name: (tmp_path / name).stat().st_mtime_ns
+        for name in cache_names
+        if (tmp_path / name).is_file()
+    }
+    assert len(seeded) == 2
+
+    tiktoken_utils.seed_bundled_encodings()
+    unchanged = {
+        name: (tmp_path / name).stat().st_mtime_ns
+        for name in cache_names
+        if (tmp_path / name).is_file()
+    }
+    assert unchanged == seeded
+
+
+def test_get_encoding_recovers_from_corrupted_cache_offline(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("TIKTOKEN_CACHE_DIR", str(tmp_path))
+    monkeypatch.setattr(tiktoken.registry, "ENCODINGS", {})
+    tiktoken_utils.seed_bundled_encodings()
+
+    cache_path = tiktoken_utils._cache_path("o200k_base")
+    garbage = b"corrupted line\n"
+    cache_path.write_bytes(garbage * (cache_path.stat().st_size // len(garbage)))
+
+    def fail_if_network_requested(_: str) -> bytes:
+        raise AssertionError("cache rebuild must not request network resources")
+
+    monkeypatch.setattr(tiktoken.load, "read_file", fail_if_network_requested)
+
+    encoding = get_encoding("o200k_base")
+
+    assert encoding.encode("OpenFic 离线缓存重建")
 
 
 def test_character_token_count_uses_shared_offline_encoding(
