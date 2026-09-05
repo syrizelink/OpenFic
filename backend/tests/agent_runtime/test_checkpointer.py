@@ -1,5 +1,6 @@
 from contextlib import closing
 from dataclasses import dataclass
+import asyncio
 import os
 import sqlite3
 import tempfile
@@ -924,3 +925,179 @@ async def test_reset_checkpointer_closes_existing_connection(monkeypatch):
 
     close.assert_awaited_once()
     assert checkpointer_mod._checkpointer is None
+
+
+async def test_open_checkpoint_connection_sets_long_busy_timeout(tmp_path: Path):
+    db_path = tmp_path / "checkpoints.db"
+
+    conn = await checkpointer_mod._open_checkpoint_connection(str(db_path))
+    try:
+        cursor = await conn.execute("PRAGMA busy_timeout")
+        try:
+            row = await cursor.fetchone()
+        finally:
+            await cursor.close()
+        assert row is not None and row[0] == 30000
+    finally:
+        await conn.close()
+
+
+async def test_cancellation_safe_saver_rolls_back_and_reraises_on_cancel(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    db_path = tmp_path / "checkpoints.db"
+    conn = await aiosqlite.connect(str(db_path))
+    saver = checkpointer_mod._CancellationSafeSqliteSaver(conn)
+    try:
+        await saver.setup()
+        rollback_spy = AsyncMock(wraps=conn.rollback)
+        monkeypatch.setattr(conn, "rollback", rollback_spy)
+
+        async def cancelled_aput(*args, **kwargs):
+            raise asyncio.CancelledError()
+
+        monkeypatch.setattr(AsyncSqliteSaver, "aput", cancelled_aput)
+        config = {"configurable": {"thread_id": "thread-1", "checkpoint_ns": ""}}
+        checkpoint = cast(Checkpoint, SimpleNamespace())
+
+        with pytest.raises(asyncio.CancelledError):
+            await saver.aput(config, checkpoint, {}, {})
+
+        rollback_spy.assert_awaited_once()
+    finally:
+        await conn.close()
+
+
+async def test_cancellation_safe_saver_keeps_error_without_rollback_on_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    db_path = tmp_path / "checkpoints.db"
+    conn = await aiosqlite.connect(str(db_path))
+    saver = checkpointer_mod._CancellationSafeSqliteSaver(conn)
+    try:
+        await saver.setup()
+        rollback_spy = AsyncMock(wraps=conn.rollback)
+        monkeypatch.setattr(conn, "rollback", rollback_spy)
+
+        async def failing_aput(*args, **kwargs):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(AsyncSqliteSaver, "aput", failing_aput)
+        config = {"configurable": {"thread_id": "thread-1", "checkpoint_ns": ""}}
+        checkpoint = cast(Checkpoint, SimpleNamespace())
+
+        with pytest.raises(RuntimeError, match="boom"):
+            await saver.aput(config, checkpoint, {}, {})
+
+        rollback_spy.assert_not_awaited()
+    finally:
+        await conn.close()
+
+
+async def test_cancellation_safe_saver_rolls_back_pending_writes_on_cancel(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    db_path = tmp_path / "checkpoints.db"
+    conn = await aiosqlite.connect(str(db_path))
+    saver = checkpointer_mod._CancellationSafeSqliteSaver(conn)
+    try:
+        await saver.setup()
+        rollback_spy = AsyncMock(wraps=conn.rollback)
+        monkeypatch.setattr(conn, "rollback", rollback_spy)
+
+        async def cancelled_aput_writes(*args, **kwargs):
+            raise asyncio.CancelledError()
+
+        monkeypatch.setattr(AsyncSqliteSaver, "aput_writes", cancelled_aput_writes)
+        config = {"configurable": {"thread_id": "thread-1", "checkpoint_ns": ""}}
+
+        with pytest.raises(asyncio.CancelledError):
+            await saver.aput_writes(config, [("channel", "value")], "task-1")
+
+        rollback_spy.assert_awaited_once()
+    finally:
+        await conn.close()
+
+
+def test_is_busy_error_classifies_lock_errors():
+    assert checkpointer_mod._is_busy_error(
+        sqlite3.OperationalError("database is locked")
+    )
+    assert checkpointer_mod._is_busy_error(
+        sqlite3.OperationalError("database table is locked")
+    )
+    assert not checkpointer_mod._is_busy_error(
+        sqlite3.OperationalError("no such table: checkpoints")
+    )
+    assert not checkpointer_mod._is_busy_error(RuntimeError("database is locked"))
+    assert not checkpointer_mod._is_busy_error(RuntimeError("boom"))
+
+
+async def test_delete_with_retry_succeeds_without_retry():
+    calls = 0
+
+    async def operation() -> int:
+        nonlocal calls
+        calls += 1
+        return 7
+
+    assert await checkpointer_mod._delete_with_retry(operation) == 7
+    assert calls == 1
+
+
+async def test_delete_with_retry_recovers_from_transient_busy(monkeypatch):
+    sleep_calls: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        sleep_calls.append(delay)
+
+    monkeypatch.setattr(checkpointer_mod.asyncio, "sleep", fake_sleep)
+    calls = 0
+
+    async def operation() -> int:
+        nonlocal calls
+        calls += 1
+        if calls < 3:
+            raise sqlite3.OperationalError("database is locked")
+        return 9
+
+    assert await checkpointer_mod._delete_with_retry(operation) == 9
+    assert calls == 3
+    assert sleep_calls == [0.5, 1.0]
+
+
+async def test_delete_with_retry_raises_after_exhausting_attempts(monkeypatch):
+    async def fake_sleep(delay: float) -> None:
+        return None
+
+    monkeypatch.setattr(checkpointer_mod.asyncio, "sleep", fake_sleep)
+    calls = 0
+
+    async def operation() -> int:
+        nonlocal calls
+        calls += 1
+        raise sqlite3.OperationalError("database is locked")
+
+    with pytest.raises(sqlite3.OperationalError, match="database is locked"):
+        await checkpointer_mod._delete_with_retry(operation)
+    assert calls == 3
+
+
+async def test_delete_with_retry_fails_fast_on_non_busy_error(monkeypatch):
+    async def fail_fast_sleep(delay: float) -> None:
+        raise AssertionError("must not sleep on non-busy error")
+
+    monkeypatch.setattr(checkpointer_mod.asyncio, "sleep", fail_fast_sleep)
+    calls = 0
+
+    async def operation() -> int:
+        nonlocal calls
+        calls += 1
+        raise sqlite3.OperationalError("no such table: checkpoints")
+
+    with pytest.raises(sqlite3.OperationalError, match="no such table"):
+        await checkpointer_mod._delete_with_retry(operation)
+    assert calls == 1

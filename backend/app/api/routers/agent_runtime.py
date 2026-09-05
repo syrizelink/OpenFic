@@ -1554,6 +1554,36 @@ async def cancel_subagent_session(
     )
 
 
+async def _cleanup_checkpoints_until_boundary(
+    thread_id: str,
+    checkpoint_id: str | None,
+    *,
+    log_context: dict[str, str],
+    failure_message: str,
+) -> None:
+    """删除回滚边界之后的 checkpoint（busy 类错误有界重试）；最终失败抛 503。
+
+    revision 层在调用前已提交，静默降级会让数据层与会话状态层无声分叉、
+    且用户没有任何修复入口；重做回滚是幂等的（包括子代理清理边界重算），
+    因此以 503 引导用户重试，由重试完成剩余清理。
+    """
+    try:
+        if checkpoint_id:
+            await delete_checkpoints_after_for_thread(
+                thread_id, checkpoint_id, retry_on_busy=True
+            )
+        else:
+            await delete_checkpoints_for_thread(thread_id, retry_on_busy=True)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.bind(**log_context).opt(exception=True).error(failure_message)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="数据已回滚，但会话状态清理未完成，请再次执行回滚以完成清理",
+        )
+
+
 @router.post("/sessions/{session_id}/rollback", response_model=AgentRollbackResponse)
 async def rollback_agent_session(
     session_id: str,
@@ -1587,15 +1617,12 @@ async def rollback_agent_session(
         replay_buffer.clear_session_unlocked(session_id)
 
     if result.restored_checkpoint_id:
-        try:
-            await delete_checkpoints_after_for_thread(
-                session_id, result.restored_checkpoint_id
-            )
-        except Exception:
-            logger.bind(session_id=session_id).opt(exception=True).error(
-                "Agent graph checkpoint rollback failed after revision rollback"
-            )
-            raise
+        await _cleanup_checkpoints_until_boundary(
+            session_id,
+            result.restored_checkpoint_id,
+            log_context={"session_id": session_id},
+            failure_message="Agent graph checkpoint rollback failed after revision rollback",
+        )
     if result.affected_child_run_ids:
         status_publisher = SubagentRunner(
             session_factory=_make_status_session_factory(session),
@@ -1623,19 +1650,12 @@ async def rollback_agent_session(
             room=agent_session_room(session_id),
         )
     for child_thread_id, checkpoint_id in result.child_checkpoint_boundaries:
-        try:
-            if checkpoint_id:
-                await delete_checkpoints_after_for_thread(child_thread_id, checkpoint_id)
-            else:
-                await delete_checkpoints_for_thread(child_thread_id)
-        except Exception:
-            logger.bind(
-                session_id=session_id,
-                child_thread_id=child_thread_id,
-            ).opt(exception=True).error(
-                "Agent subagent checkpoint rollback failed after revision rollback"
-            )
-            raise
+        await _cleanup_checkpoints_until_boundary(
+            child_thread_id,
+            checkpoint_id,
+            log_context={"session_id": session_id, "child_thread_id": child_thread_id},
+            failure_message="Agent subagent checkpoint rollback failed after revision rollback",
+        )
 
     return AgentRollbackResponse(
         success=True,
