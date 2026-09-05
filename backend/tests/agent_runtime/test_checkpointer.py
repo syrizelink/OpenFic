@@ -1,5 +1,6 @@
 from contextlib import closing
 from dataclasses import dataclass
+import asyncio
 import os
 import sqlite3
 import tempfile
@@ -924,3 +925,98 @@ async def test_reset_checkpointer_closes_existing_connection(monkeypatch):
 
     close.assert_awaited_once()
     assert checkpointer_mod._checkpointer is None
+
+
+async def test_open_checkpoint_connection_sets_long_busy_timeout(tmp_path: Path):
+    db_path = tmp_path / "checkpoints.db"
+
+    conn = await checkpointer_mod._open_checkpoint_connection(str(db_path))
+    try:
+        cursor = await conn.execute("PRAGMA busy_timeout")
+        try:
+            row = await cursor.fetchone()
+        finally:
+            await cursor.close()
+        assert row is not None and row[0] == 30000
+    finally:
+        await conn.close()
+
+
+async def test_cancellation_safe_saver_rolls_back_and_reraises_on_cancel(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    db_path = tmp_path / "checkpoints.db"
+    conn = await aiosqlite.connect(str(db_path))
+    saver = checkpointer_mod._CancellationSafeSqliteSaver(conn)
+    try:
+        await saver.setup()
+        rollback_spy = AsyncMock(wraps=conn.rollback)
+        monkeypatch.setattr(conn, "rollback", rollback_spy)
+
+        async def cancelled_aput(*args, **kwargs):
+            raise asyncio.CancelledError()
+
+        monkeypatch.setattr(AsyncSqliteSaver, "aput", cancelled_aput)
+        config = {"configurable": {"thread_id": "thread-1", "checkpoint_ns": ""}}
+        checkpoint = cast(Checkpoint, SimpleNamespace())
+
+        with pytest.raises(asyncio.CancelledError):
+            await saver.aput(config, checkpoint, {}, {})
+
+        rollback_spy.assert_awaited_once()
+    finally:
+        await conn.close()
+
+
+async def test_cancellation_safe_saver_keeps_error_without_rollback_on_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    db_path = tmp_path / "checkpoints.db"
+    conn = await aiosqlite.connect(str(db_path))
+    saver = checkpointer_mod._CancellationSafeSqliteSaver(conn)
+    try:
+        await saver.setup()
+        rollback_spy = AsyncMock(wraps=conn.rollback)
+        monkeypatch.setattr(conn, "rollback", rollback_spy)
+
+        async def failing_aput(*args, **kwargs):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(AsyncSqliteSaver, "aput", failing_aput)
+        config = {"configurable": {"thread_id": "thread-1", "checkpoint_ns": ""}}
+        checkpoint = cast(Checkpoint, SimpleNamespace())
+
+        with pytest.raises(RuntimeError, match="boom"):
+            await saver.aput(config, checkpoint, {}, {})
+
+        rollback_spy.assert_not_awaited()
+    finally:
+        await conn.close()
+
+
+async def test_cancellation_safe_saver_rolls_back_pending_writes_on_cancel(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    db_path = tmp_path / "checkpoints.db"
+    conn = await aiosqlite.connect(str(db_path))
+    saver = checkpointer_mod._CancellationSafeSqliteSaver(conn)
+    try:
+        await saver.setup()
+        rollback_spy = AsyncMock(wraps=conn.rollback)
+        monkeypatch.setattr(conn, "rollback", rollback_spy)
+
+        async def cancelled_aput_writes(*args, **kwargs):
+            raise asyncio.CancelledError()
+
+        monkeypatch.setattr(AsyncSqliteSaver, "aput_writes", cancelled_aput_writes)
+        config = {"configurable": {"thread_id": "thread-1", "checkpoint_ns": ""}}
+
+        with pytest.raises(asyncio.CancelledError):
+            await saver.aput_writes(config, [("channel", "value")], "task-1")
+
+        rollback_spy.assert_awaited_once()
+    finally:
+        await conn.close()

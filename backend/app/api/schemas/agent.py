@@ -338,6 +338,13 @@ class AgentRollbackResponse(BaseModel):
     success: bool = Field(..., description="是否成功")
     session_id: str = Field(..., description="会话ID")
     revision_id: str | None = Field(None, description="rollback revision ID")
+    checkpoint_cleanup_failed: bool = Field(
+        default=False,
+        description=(
+            "数据层回滚成功但 LangGraph checkpoint 清理失败；"
+            "为 true 时会话状态层可能仍停留在回滚后的状态"
+        ),
+    )
     affected_chapters: list[str] = Field(
         default_factory=list, description="受影响的章节ID列表"
     )

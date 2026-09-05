@@ -1969,6 +1969,7 @@
     "rollbackOnlyUserMessage": "只能回滚到用户消息节点",
     "rollbackNoRevision": "该消息节点没有 revision 信息",
     "rollbackSuccess": "已回滚到该消息发送前的状态",
+    "rollbackCheckpointCleanupFailed": "回滚已完成，但会话状态清理未成功，会话可能仍停留在回滚前的状态，建议重启应用",
     "rollbackFailed": "回滚失败",
     "forkImpossible": "无法执行分叉操作",
     "forkNoRevision": "该消息节点没有 revision 信息，无法分叉",
