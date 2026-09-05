@@ -1906,6 +1906,7 @@
     "rollbackOnlyUserMessage": "Rollback is only available for user messages",
     "rollbackNoRevision": "This message node has no revision info",
     "rollbackSuccess": "Rolled back to the state before this message was sent",
+    "rollbackCheckpointCleanupFailed": "Rollback completed, but session state cleanup failed. The session may still be in its pre-rollback state. Consider restarting the app",
     "rollbackFailed": "Rollback failed",
     "forkImpossible": "Fork cannot be performed",
     "forkNoRevision": "This message node has no revision info and cannot be forked",

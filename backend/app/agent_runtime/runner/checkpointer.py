@@ -29,6 +29,59 @@ from app.storage.models.task import Task
 
 _checkpointer: AsyncSqliteSaver | None = None
 
+_CHECKPOINT_DB_BUSY_TIMEOUT_MS = 30_000
+
+
+class _CancellationSafeSqliteSaver(AsyncSqliteSaver):
+    """写入被取消时回滚未完成的事务，避免连接滞留在打开的写事务中。
+
+    AsyncSqliteSaver 的写入路径（aput/aput_writes）在执行完 INSERT 后手动
+    ``conn.commit()``，没有事务上下文。若任务在这两者之间被取消
+    （CancelledError 不会被 ``except Exception`` 捕获），连接会一直持有
+    SQLite 写锁，之后所有会话的 checkpoint 写入与清理都会以
+    ``database is locked`` 失败，直到进程重启。
+    """
+
+    async def aput(
+        self,
+        config: RunnableConfig,
+        checkpoint: Checkpoint,
+        metadata: Any,
+        new_versions: Any,
+    ) -> Any:
+        try:
+            return await super().aput(config, checkpoint, metadata, new_versions)
+        except asyncio.CancelledError:
+            await self._rollback_pending_transaction()
+            raise
+
+    async def aput_writes(
+        self,
+        config: RunnableConfig,
+        writes: Any,
+        task_id: str,
+        task_path: str = "",
+    ) -> None:
+        try:
+            return await super().aput_writes(config, writes, task_id, task_path)
+        except asyncio.CancelledError:
+            await self._rollback_pending_transaction()
+            raise
+
+    async def adelete_thread(self, thread_id: str) -> None:
+        try:
+            return await super().adelete_thread(thread_id)
+        except asyncio.CancelledError:
+            await self._rollback_pending_transaction()
+            raise
+
+    async def _rollback_pending_transaction(self) -> None:
+        # sqlite3 对无事务的连接是 no-op；失败只能吞掉，不能覆盖取消栈。
+        try:
+            await self.conn.rollback()
+        except Exception:
+            logger.warning("checkpoint connection rollback after cancellation failed")
+
 _ALLOWED_MSGPACK_MODULES = (
     ("app.agent_runtime.tools.impls.interaction.ask_user", "Question"),
     ("app.agent_runtime.tools.impls.interaction.ask_user", "QuestionOption"),
@@ -366,7 +419,7 @@ async def get_checkpointer() -> AsyncSqliteSaver:
             await conn.execute("PRAGMA auto_vacuum = INCREMENTAL")
             await _mark_incremental_auto_vacuum_migration_completed(conn)
         await _configure_checkpoint_connection(conn)
-        _checkpointer = AsyncSqliteSaver(
+        _checkpointer = _CancellationSafeSqliteSaver(
             conn,
             serde=_CheckpointSerializer(
                 allowed_msgpack_modules=_ALLOWED_MSGPACK_MODULES,
@@ -510,6 +563,18 @@ async def _mark_incremental_auto_vacuum_migration_completed(
         await cursor.close()
 
 
+async def _open_checkpoint_connection(db_path: str) -> aiosqlite.Connection:
+    """打开独立的 checkpoint 连接。
+
+    与常驻 saver 连接对齐 busy_timeout：裸连接默认只等 5 秒，
+    在写入方（WAL 单写者）持锁较久时会立即以 locked 失败。
+    """
+    conn = await aiosqlite.connect(db_path)
+    cursor = await conn.execute(f"PRAGMA busy_timeout = {_CHECKPOINT_DB_BUSY_TIMEOUT_MS}")
+    await cursor.close()
+    return conn
+
+
 async def delete_checkpoints_for_thread(thread_id: str) -> int:
     if not thread_id:
         return 0
@@ -517,7 +582,7 @@ async def delete_checkpoints_for_thread(thread_id: str) -> int:
     db_path = _get_db_path()
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
-    conn = await aiosqlite.connect(db_path)
+    conn = await _open_checkpoint_connection(db_path)
     try:
         before = conn.total_changes
         await conn.execute("DELETE FROM writes WHERE thread_id = ?", (thread_id,))
@@ -540,7 +605,7 @@ async def delete_checkpoints_after_for_thread(
     db_path = _get_db_path()
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
-    conn = await aiosqlite.connect(db_path)
+    conn = await _open_checkpoint_connection(db_path)
     try:
         before = conn.total_changes
         await conn.execute(

@@ -1486,6 +1486,11 @@ export function useAgentSession({
           void refreshChanges(sessionId);
 
           toast.success(i18n.t("assistant.rollbackSuccess"));
+          if (result.checkpoint_cleanup_failed) {
+            toast.warning(i18n.t("assistant.rollbackCheckpointCleanupFailed"), {
+              duration: 8000,
+            });
+          }
 
           return {
             content: result.restored_message_content,

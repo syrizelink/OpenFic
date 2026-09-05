@@ -445,6 +445,7 @@ export interface AgentRollbackResponse {
   success: boolean;
   session_id: string;
   revision_id: string | null;
+  checkpoint_cleanup_failed: boolean;
   affected_chapters: string[];
   affected_notes: string[];
   affected_note_categories: string[];

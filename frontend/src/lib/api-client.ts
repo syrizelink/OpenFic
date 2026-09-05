@@ -2650,6 +2650,7 @@ export async function rollbackAgentRevision(
       ? data.affected_world_entries.filter((item): item is string => typeof item === "string")
       : [],
     restored_message_content: String(data.restored_message_content ?? ""),
+    checkpoint_cleanup_failed: data.checkpoint_cleanup_failed === true,
     restored_attachments: Array.isArray(data.restored_attachments)
       ? data.restored_attachments.flatMap((attachment) => {
           if (!isRecord(attachment)) return [];
