@@ -1,6 +1,6 @@
 import { Theme } from "@radix-ui/themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { lazy, StrictMode, Suspense, useState, useEffect } from "react";
+import { lazy, StrictMode, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { BrowserRouter, Routes, Route } from "react-router";
 
@@ -11,7 +11,7 @@ import { AppLayout } from "./features/app-shell";
 import { AuthPage } from "./features/auth";
 import { CharactersPage } from "./features/characters";
 import { PromptChainsPage } from "./features/prompt-chains";
-import { fetchSettings } from "./features/settings/lib/settings-api";
+import { fetchSettings, updateSettings } from "./features/settings/lib/settings-api";
 import type { Settings } from "./features/settings/lib/settings.types";
 import { WorldInfoPage } from "./features/world-info";
 import { WritingPage } from "./features/writing";
@@ -62,6 +62,7 @@ const queryClient = new QueryClient({
 
 const FRONTEND_VERSION = __OPENFIC_FRONTEND_VERSION__;
 const INITIALIZATION_TIMEOUT_MS = 30_000;
+const THEME_SYNC_DEBOUNCE_MS = 400;
 
 type InitializationStage = "preferences" | "auth" | "health" | "settings" | "tiktoken" | "socket";
 
@@ -218,10 +219,44 @@ function Root() {
   const [isReady, setIsReady] = useState(false);
   const [requiresAuthentication, setRequiresAuthentication] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 防抖触发时读取最新外观,保证连点或设置对话框在窗口期内改值后不会发送过期主题。
+  const latestAppearanceRef = useRef<"light" | "dark">("light");
+  const themeSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const toggleTheme = () => {
-    setAppearance((prev) => (prev === "light" ? "dark" : "light"));
-  };
+  const applyAppearance = useCallback((next: "light" | "dark") => {
+    latestAppearanceRef.current = next;
+    setAppearance(next);
+  }, []);
+
+  const persistAppearance = useCallback(async () => {
+    try {
+      const savedSettings = await updateSettings({ theme: latestAppearanceRef.current });
+      queryClient.setQueryData<Settings>(["settings"], savedSettings);
+    } catch (error) {
+      // 持久化失败只影响下次启动,不回滚当前外观;之后任意设置保存会自动带上最新主题修正。
+      console.warn("Failed to persist theme preference:", error);
+    }
+  }, []);
+
+  const scheduleAppearanceSync = useCallback(() => {
+    if (themeSyncTimerRef.current) clearTimeout(themeSyncTimerRef.current);
+    themeSyncTimerRef.current = setTimeout(() => {
+      themeSyncTimerRef.current = null;
+      void persistAppearance();
+    }, THEME_SYNC_DEBOUNCE_MS);
+  }, [persistAppearance]);
+
+  const toggleTheme = useCallback(() => {
+    applyAppearance(latestAppearanceRef.current === "light" ? "dark" : "light");
+    scheduleAppearanceSync();
+  }, [applyAppearance, scheduleAppearanceSync]);
+
+  useEffect(
+    () => () => {
+      if (themeSyncTimerRef.current) clearTimeout(themeSyncTimerRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -246,7 +281,7 @@ function Root() {
         if (preferences.language === "zh-CN" || preferences.language === "en") {
           await i18n.changeLanguage(preferences.language);
         }
-        if (mounted) setAppearance(preferences.theme === "dark" ? "dark" : "light");
+        if (mounted) applyAppearance(preferences.theme === "dark" ? "dark" : "light");
 
         if (authStatus.enabled && !authStatus.authenticated) {
           if (mounted) {
@@ -286,7 +321,7 @@ function Root() {
         if (mounted) {
           setRequiresAuthentication(false);
           setSettings(settings);
-          setAppearance(settings.theme);
+          applyAppearance(settings.theme);
           setIsReady(true);
         }
       } catch (initializationError) {
@@ -308,7 +343,7 @@ function Root() {
       mounted = false;
       clearTimeout(timer);
     };
-  }, []);
+  }, [applyAppearance]);
 
   useEffect(() => {
     publishDesktopAppearance({
@@ -355,7 +390,7 @@ function Root() {
                 <AppContent
                   appearance={appearance}
                   version={FRONTEND_VERSION}
-                  setAppearance={setAppearance}
+                  setAppearance={applyAppearance}
                   toggleTheme={toggleTheme}
                 />
               </ErrorBoundary>
