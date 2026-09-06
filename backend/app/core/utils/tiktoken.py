@@ -15,6 +15,10 @@ _ENCODING_URLS = {
     "cl100k_base": "https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken",
     "o200k_base": "https://openaipublic.blob.core.windows.net/encodings/o200k_base.tiktoken",
 }
+# 已完成内容校验的编码。校验需要完整读取缓存与内置词表（数 MB），每个
+# 编码每进程只做一次；GIL 下 set 的读取与添加均为原子操作，并发首调
+# 最坏重复校验一次，结果幂等，无需加锁。
+_VALIDATED_ENCODINGS: set[str] = set()
 
 
 def _cache_dir() -> Path:
@@ -47,13 +51,12 @@ def _write_atomic(path: Path, data: bytes) -> None:
 
 
 def seed_bundled_encodings() -> None:
-    """确保 tiktoken 缓存中存在内置词表。
+    """确保 tiktoken 缓存中存在内置词表，供 LangChain 直接加载。
 
-    token 计数是高频操作（逐消息、逐轮迭代、列表接口逐条目），缓存文件
-    已存在时必须跳过写入，否则每次计数都会产生数 MB 的同步磁盘 I/O，
-    阻塞事件循环。内容有效性不需要在这里校验：tiktoken 加载时会自行
-    做哈希校验，损坏或不匹配的缓存会被它删除重取；本地兜底见
-    get_encoding 的重建重试。
+    token 计数是高频操作（逐消息、逐轮迭代、列表接口逐条目），这里只
+    补缺失的缓存文件（一次 exists 检查）；已存在时必须跳过写入，否则
+    每次计数都会产生数 MB 的同步磁盘 I/O，阻塞事件循环。缓存内容是否
+    与内置词表一致由 _ensure_valid_cache 在加载前校验。
     """
     for encoding_name in _ENCODING_URLS:
         resource_path = _ENCODING_RESOURCE_DIR / f"{encoding_name}.tiktoken"
@@ -63,20 +66,36 @@ def seed_bundled_encodings() -> None:
         _write_atomic(cache_path, resource_path.read_bytes())
 
 
+def _ensure_valid_cache(encoding_name: str) -> None:
+    """加载前校验缓存内容与内置词表一致，缺失或损坏时原子重写。
+
+    tiktoken 只有在缓存存在且哈希正确时才会离线命中缓存，损坏的缓存
+    会被它删除并联网重取。因此校验必须先于 tiktoken.get_encoding()，
+    否则在线机器上损坏缓存会触发不必要的联网下载，离线机器则加载
+    失败。为避免高频计数反复读文件，每个编码每进程只校验一次，后续
+    调用直接放行。
+    """
+    if encoding_name in _VALIDATED_ENCODINGS:
+        return
+    _VALIDATED_ENCODINGS.add(encoding_name)
+    bundled = (_ENCODING_RESOURCE_DIR / f"{encoding_name}.tiktoken").read_bytes()
+    cache_path = _cache_path(encoding_name)
+    try:
+        if cache_path.read_bytes() == bundled:
+            return
+    except OSError:
+        pass
+    logger.warning(f"tiktoken 词表缓存缺失或损坏，从内置词表重建: {cache_path}")
+    _write_atomic(cache_path, bundled)
+
+
 def get_encoding(encoding_name: str = "o200k_base") -> tiktoken.Encoding:
-    """将内置词表预置到 tiktoken 缓存后加载编码器。"""
+    """校验并修复缓存后加载编码器，保证不依赖网络。"""
     if encoding_name not in _ENCODING_URLS:
         raise ValueError(f"不支持的 tiktoken 编码: {encoding_name}")
     seed_bundled_encodings()
-    try:
-        return tiktoken.get_encoding(encoding_name)
-    except Exception:
-        # 大小一致但内容损坏的缓存（位翻转、第三方写入）不会被跳过逻辑
-        # 识别，这里删除重写后重试一次，仍失败则让异常抛出。
-        logger.warning(f"tiktoken 编码 {encoding_name} 加载失败，重建缓存后重试")
-        resource_path = _ENCODING_RESOURCE_DIR / f"{encoding_name}.tiktoken"
-        _write_atomic(_cache_path(encoding_name), resource_path.read_bytes())
-        return tiktoken.get_encoding(encoding_name)
+    _ensure_valid_cache(encoding_name)
+    return tiktoken.get_encoding(encoding_name)
 
 
 def count_tokens(text: str, encoding_name: str = "o200k_base") -> int:

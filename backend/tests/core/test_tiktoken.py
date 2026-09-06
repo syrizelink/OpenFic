@@ -67,6 +67,13 @@ def test_get_encoding_seeds_bundled_resource_for_tiktoken_registry(
     assert encoding.encode("OpenFic 离线 Token 计数")
 
 
+@pytest.fixture(autouse=True)
+def _reset_validated_encodings() -> None:
+    # _VALIDATED_ENCODINGS 是进程级状态，测试间必须清零，
+    # 否则前一个用例的校验标记会让后续用例跳过校验与修复。
+    tiktoken_utils._VALIDATED_ENCODINGS.clear()
+
+
 def test_seed_bundled_encodings_skips_existing_cache(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -93,10 +100,14 @@ def test_seed_bundled_encodings_skips_existing_cache(
     assert unchanged == seeded
 
 
-def test_get_encoding_recovers_from_corrupted_cache_offline(
+def test_get_encoding_repairs_corrupted_cache_before_tiktoken_load(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    # 损坏缓存必须在进入 tiktoken 前被本地修复：tiktoken 对哈希不匹配
+    # 的缓存会删除后联网重取，在线机器因此产生不必要的网络请求，离线
+    # 机器则直接加载失败。read_file 只有缓存未命中/损坏时才会被调用，
+    # 这里作为触网探针。
     monkeypatch.setenv("TIKTOKEN_CACHE_DIR", str(tmp_path))
     monkeypatch.setattr(tiktoken.registry, "ENCODINGS", {})
     tiktoken_utils.seed_bundled_encodings()
@@ -106,13 +117,43 @@ def test_get_encoding_recovers_from_corrupted_cache_offline(
     cache_path.write_bytes(garbage * (cache_path.stat().st_size // len(garbage)))
 
     def fail_if_network_requested(_: str) -> bytes:
-        raise AssertionError("cache rebuild must not request network resources")
+        raise AssertionError("cache repair must not request network resources")
 
     monkeypatch.setattr(tiktoken.load, "read_file", fail_if_network_requested)
 
     encoding = get_encoding("o200k_base")
 
+    bundled = (
+        tiktoken_utils._ENCODING_RESOURCE_DIR / "o200k_base.tiktoken"
+    ).read_bytes()
+    assert cache_path.read_bytes() == bundled
     assert encoding.encode("OpenFic 离线缓存重建")
+
+
+def test_cache_validation_runs_once_per_process(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    # 每进程每个编码只校验一次：首调校验后，同一进程内缓存再次损坏
+    # 不会重新校验修复，交由 tiktoken 自身的缓存处理兜底。
+    monkeypatch.setenv("TIKTOKEN_CACHE_DIR", str(tmp_path))
+    monkeypatch.setattr(tiktoken.registry, "ENCODINGS", {})
+
+    assert get_encoding("o200k_base").encode("首次加载完成校验")
+
+    cache_path = tiktoken_utils._cache_path("o200k_base")
+    garbage = b"corrupted line\n"
+    cache_path.write_bytes(garbage * (cache_path.stat().st_size // len(garbage)))
+    monkeypatch.setattr(tiktoken.registry, "ENCODINGS", {})
+
+    def fail_if_network_requested(_: str) -> bytes:
+        raise AssertionError("cache must not be re-validated in this process")
+
+    monkeypatch.setattr(tiktoken.load, "read_file", fail_if_network_requested)
+
+    # 校验被跳过 → tiktoken 读到损坏缓存 → 删除后触网 → 被探针拦截
+    with pytest.raises(AssertionError, match="re-validated"):
+        get_encoding("o200k_base")
 
 
 def test_character_token_count_uses_shared_offline_encoding(
