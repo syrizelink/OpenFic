@@ -328,8 +328,8 @@ export function MarkdownEditor({
           style={{
             maxWidth,
             margin: "0 auto",
-            padding: "0 24px",
           }}
+          className="markdown-editor-content"
         >
           <TitleInput
             value={title}

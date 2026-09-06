@@ -8,8 +8,8 @@
 import { Box, Button, Flex, Popover, ScrollArea, Select, Text, TextField } from "@radix-ui/themes";
 import clsx from "clsx";
 import { ChevronDown, Search } from "lucide-react";
-import { Fragment, useMemo, useState } from "react";
-import type { CSSProperties, ReactNode, ComponentProps } from "react";
+import { Fragment, useCallback, useMemo, useRef, useState } from "react";
+import type { CSSProperties, FocusEventHandler, ReactNode, ComponentProps } from "react";
 import { useTranslation } from "react-i18next";
 
 import "./select.css";
@@ -115,6 +115,11 @@ export interface LabeledSelectProps {
   hideTriggerChevron?: boolean;
   triggerClassName?: string;
   contentClassName?: string;
+  onContentFocusCapture?: FocusEventHandler<HTMLDivElement>;
+  onContentCloseAutoFocus?: ComponentProps<typeof Select.Content>["onCloseAutoFocus"];
+  keepFocusOnTouch?: boolean;
+  onTouchTrigger?: () => void;
+  preventContentFocus?: boolean;
   variant?: "default" | "icon";
   triggerAriaLabel?: string;
 }
@@ -144,19 +149,71 @@ export function LabeledSelect({
   triggerPrefix,
   triggerClassName,
   contentClassName,
+  onContentFocusCapture,
+  onContentCloseAutoFocus,
+  keepFocusOnTouch = false,
+  onTouchTrigger,
+  preventContentFocus = false,
   variant = "default",
   triggerAriaLabel,
 }: LabeledSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerPointerTypeRef = useRef<string | null>(null);
+  const shouldKeepFocusOnTouch = keepFocusOnTouch && Boolean(onTouchTrigger);
   const selectedOption = options.find((opt) => opt.value === value);
   const triggerLabel = selectedOption?.label || placeholder;
   const isIconVariant = variant === "icon";
   const isTriggerLabelVisible = !isIconVariant && triggerLabelVisible;
+
+  const handleTriggerPointerDown = useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>) => {
+      triggerPointerTypeRef.current = event.pointerType;
+      if (
+        !shouldKeepFocusOnTouch ||
+        (event.pointerType !== "touch" && event.pointerType !== "pen")
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      onTouchTrigger?.();
+    },
+    [onTouchTrigger, shouldKeepFocusOnTouch],
+  );
+
+  const handleTriggerClick = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      const pointerType = triggerPointerTypeRef.current;
+      triggerPointerTypeRef.current = null;
+      if (!shouldKeepFocusOnTouch || (pointerType !== "touch" && pointerType !== "pen")) {
+        return;
+      }
+
+      event.preventDefault();
+      onTouchTrigger?.();
+      setIsOpen((open) => !open);
+    },
+    [onTouchTrigger, shouldKeepFocusOnTouch],
+  );
+
+  const handleContentRef = useCallback(
+    (content: HTMLDivElement | null) => {
+      if (!content || !preventContentFocus) return;
+
+      content.setAttribute("inert", "");
+      window.setTimeout(() => content.removeAttribute("inert"), 0);
+    },
+    [preventContentFocus],
+  );
 
   const selectControl = (
     <Select.Root
       value={value || undefined}
       onValueChange={onChange}
       disabled={disabled}
+      open={shouldKeepFocusOnTouch ? isOpen : undefined}
+      onOpenChange={shouldKeepFocusOnTouch ? setIsOpen : undefined}
       size={size}
     >
       <Select.Trigger
@@ -171,6 +228,8 @@ export function LabeledSelect({
         }
         placeholder={placeholder}
         aria-label={triggerAriaLabel ?? label ?? triggerLabel}
+        onPointerDown={handleTriggerPointerDown}
+        onClick={handleTriggerClick}
       >
         <Flex
           align="center"
@@ -193,14 +252,29 @@ export function LabeledSelect({
         </Flex>
       </Select.Trigger>
       <Select.Content
+        ref={handleContentRef}
         position={contentPosition}
         className={contentClassName}
+        onFocusCapture={onContentFocusCapture}
+        onCloseAutoFocus={onContentCloseAutoFocus}
       >
         {options.map((option) => (
           <Fragment key={option.value}>
             <Select.Item
               value={option.value}
               disabled={option.disabled}
+              onPointerDown={(event) => {
+                if (
+                  shouldKeepFocusOnTouch &&
+                  !option.disabled &&
+                  (event.pointerType === "touch" || event.pointerType === "pen")
+                ) {
+                  event.preventDefault();
+                  onChange(option.value);
+                  onTouchTrigger?.();
+                  setIsOpen(false);
+                }
+              }}
             >
               <SelectOptionContent
                 option={option}

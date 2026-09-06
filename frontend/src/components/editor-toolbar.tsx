@@ -39,7 +39,7 @@ import {
   Underline as UnderlineIcon,
   type LucideIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -106,6 +106,8 @@ const HEADING_OPTION_DEFINITIONS: HeadingOptionDefinition[] = [
 ];
 
 const MAX_TASK_ITEM_DEPTH = 3;
+const MOBILE_VIEWPORT_QUERY = "(max-width: 767px)";
+const MOBILE_KEYBOARD_HEIGHT_THRESHOLD = 150;
 
 const CHAPTER_PUNCTUATION_DEFINITIONS = [
   { id: "comma", symbol: "，", labelKey: "editor.quickPunctuationComma" },
@@ -261,9 +263,51 @@ export function EditorToolbar({
     canScrollLeft: false,
     canScrollRight: false,
   });
+  const [mobileToolbarState, setMobileToolbarState] = useState(() => ({
+    isMobileViewport:
+      typeof window !== "undefined" && window.matchMedia(MOBILE_VIEWPORT_QUERY).matches,
+    isKeyboardOpen: false,
+  }));
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollContentRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const pendingLinkSelectionRef = useRef<PendingLinkSelection | null>(null);
+  const largestViewportHeightRef = useRef<number | null>(null);
+
+  const syncMobileKeyboardGeometry = useCallback(() => {
+    const toolbar = toolbarRef.current;
+    if (!toolbar || typeof window === "undefined") return;
+
+    const visualViewport = window.visualViewport;
+    const isKeyboardOpen = toolbar.dataset.mobileKeyboardOpen === "true";
+    const keyboardInset =
+      isKeyboardOpen && visualViewport
+        ? Math.max(0, window.innerHeight - visualViewport.offsetTop - visualViewport.height)
+        : 0;
+
+    toolbar.style.setProperty("--editor-toolbar-keyboard-bottom", `${keyboardInset}px`);
+    toolbar.parentElement?.style.setProperty(
+      "--editor-mobile-keyboard-inset",
+      `${keyboardInset}px`,
+    );
+  }, []);
+
+  const updateMobileToolbarState = useCallback(() => {
+    if (!editor || typeof window === "undefined") return;
+
+    const isMobileViewport = window.matchMedia(MOBILE_VIEWPORT_QUERY).matches;
+    const visualViewport = window.visualViewport;
+    const viewportHeight = visualViewport?.height ?? window.innerHeight;
+    const largestViewportHeight = Math.max(
+      largestViewportHeightRef.current ?? viewportHeight,
+      viewportHeight,
+    );
+    largestViewportHeightRef.current = largestViewportHeight;
+    const keyboardHeight = largestViewportHeight - viewportHeight;
+    const isKeyboardOpen = isMobileViewport && keyboardHeight >= MOBILE_KEYBOARD_HEIGHT_THRESHOLD;
+
+    setMobileToolbarState({ isMobileViewport, isKeyboardOpen });
+  }, [editor]);
 
   const updateUndoRedoState = useCallback(() => {
     if (!editor) return;
@@ -283,6 +327,74 @@ export function EditorToolbar({
       editor.off("selectionUpdate", updateUndoRedoState);
     };
   }, [editor, updateUndoRedoState]);
+
+  useEffect(() => {
+    if (!editor || typeof window === "undefined") return;
+
+    largestViewportHeightRef.current = null;
+    const mediaQuery = window.matchMedia(MOBILE_VIEWPORT_QUERY);
+    const visualViewport = window.visualViewport;
+    const handleEditorFocus = () => updateMobileToolbarState();
+    const handleEditorBlur = () => updateMobileToolbarState();
+    const handleOrientationChange = () => {
+      largestViewportHeightRef.current = null;
+      updateMobileToolbarState();
+    };
+
+    editor.on("focus", handleEditorFocus);
+    editor.on("blur", handleEditorBlur);
+    window.addEventListener("resize", updateMobileToolbarState);
+    window.addEventListener("orientationchange", handleOrientationChange);
+    mediaQuery.addEventListener("change", updateMobileToolbarState);
+    visualViewport?.addEventListener("resize", updateMobileToolbarState);
+
+    let frameId: number | null = null;
+    const scheduleMobileKeyboardGeometry = () => {
+      if (frameId !== null) return;
+      frameId = window.requestAnimationFrame(() => {
+        frameId = null;
+        syncMobileKeyboardGeometry();
+      });
+    };
+
+    visualViewport?.addEventListener("resize", scheduleMobileKeyboardGeometry);
+    visualViewport?.addEventListener("scroll", scheduleMobileKeyboardGeometry);
+    window.addEventListener("scroll", scheduleMobileKeyboardGeometry, { passive: true });
+
+    updateMobileToolbarState();
+    syncMobileKeyboardGeometry();
+
+    return () => {
+      editor.off("focus", handleEditorFocus);
+      editor.off("blur", handleEditorBlur);
+      window.removeEventListener("resize", updateMobileToolbarState);
+      window.removeEventListener("orientationchange", handleOrientationChange);
+      mediaQuery.removeEventListener("change", updateMobileToolbarState);
+      visualViewport?.removeEventListener("resize", updateMobileToolbarState);
+      visualViewport?.removeEventListener("resize", scheduleMobileKeyboardGeometry);
+      visualViewport?.removeEventListener("scroll", scheduleMobileKeyboardGeometry);
+      window.removeEventListener("scroll", scheduleMobileKeyboardGeometry);
+      if (frameId !== null) window.cancelAnimationFrame(frameId);
+    };
+  }, [editor, syncMobileKeyboardGeometry, updateMobileToolbarState]);
+
+  useLayoutEffect(() => {
+    syncMobileKeyboardGeometry();
+  }, [
+    mobileToolbarState.isKeyboardOpen,
+    mobileToolbarState.isMobileViewport,
+    syncMobileKeyboardGeometry,
+  ]);
+
+  useLayoutEffect(() => {
+    if (!mobileToolbarState.isKeyboardOpen || typeof document === "undefined") return;
+
+    const documentElement = document.documentElement;
+    documentElement.dataset.editorKeyboardOpen = "true";
+    return () => {
+      delete documentElement.dataset.editorKeyboardOpen;
+    };
+  }, [mobileToolbarState.isKeyboardOpen]);
 
   const updateLeftScrollState = useCallback(() => {
     const scrollArea = scrollAreaRef.current;
@@ -322,6 +434,51 @@ export function EditorToolbar({
     scrollArea.scrollLeft += event.deltaY;
     event.preventDefault();
   }, []);
+
+  const handleToolbarPointerDownCapture = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
+
+      const target = event.target;
+      if (target instanceof Element && target.closest(".select-trigger--icon")) return;
+
+      event.preventDefault();
+      editor?.view.dom.focus({ preventScroll: true });
+    },
+    [editor],
+  );
+
+  const handleToolbarSelectPointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
+
+      const target = event.target;
+      if (!(target instanceof Element) || !target.closest(".select-trigger--icon")) return;
+
+      event.preventDefault();
+      editor?.view.dom.focus({ preventScroll: true });
+    },
+    [editor],
+  );
+
+  const handleHeadingSelectContentFocusCapture = useCallback(() => {
+    if (!mobileToolbarState.isKeyboardOpen) return;
+    editor?.view.dom.focus({ preventScroll: true });
+  }, [editor, mobileToolbarState.isKeyboardOpen]);
+
+  const handleHeadingSelectCloseAutoFocus = useCallback(
+    (event: Event) => {
+      if (!mobileToolbarState.isKeyboardOpen) return;
+
+      event.preventDefault();
+      editor?.view.dom.focus({ preventScroll: true });
+    },
+    [editor, mobileToolbarState.isKeyboardOpen],
+  );
+
+  const handleHeadingSelectTouch = useCallback(() => {
+    editor?.view.dom.focus({ preventScroll: true });
+  }, [editor]);
 
   const runEditorAction = useCallback(
     (action: () => boolean | void) => {
@@ -372,7 +529,6 @@ export function EditorToolbar({
   const isCurrentParagraphIndented = isParagraphIndented(currentParagraphText);
   const canIndentParagraph = showChapterTools && !isCurrentParagraphIndented;
   const canOutdentParagraph = showChapterTools && isCurrentParagraphIndented;
-
   const handleHeadingChange = (value: string) => {
     runEditorAction(() => {
       if (value === "paragraph") {
@@ -488,9 +644,14 @@ export function EditorToolbar({
     if (!open) pendingLinkSelectionRef.current = null;
   };
 
-  return (
+  const toolbar = (
     <Box
+      ref={toolbarRef}
       className="editor-toolbar"
+      data-mobile-viewport={mobileToolbarState.isMobileViewport}
+      data-mobile-keyboard-open={mobileToolbarState.isKeyboardOpen}
+      onPointerDownCapture={handleToolbarPointerDownCapture}
+      onPointerDown={handleToolbarSelectPointerDown}
       py="2"
       px="6"
     >
@@ -592,6 +753,11 @@ export function EditorToolbar({
                     disabled={isAgentLocked}
                     variant="icon"
                     triggerAriaLabel={t("editor.heading")}
+                    onContentFocusCapture={handleHeadingSelectContentFocusCapture}
+                    onContentCloseAutoFocus={handleHeadingSelectCloseAutoFocus}
+                    keepFocusOnTouch={mobileToolbarState.isKeyboardOpen}
+                    onTouchTrigger={handleHeadingSelectTouch}
+                    preventContentFocus={mobileToolbarState.isKeyboardOpen}
                   />
 
                   <ToolbarButton
@@ -728,43 +894,48 @@ export function EditorToolbar({
                   />
                 </>
               )}
+              <Flex
+                className="editor-toolbar__right"
+                gap="1"
+                align="center"
+              >
+                {(showMarkdownTools || showChapterTools) && leftScrollState.hasOverflow && (
+                  <Separator
+                    className="editor-toolbar__divider"
+                    orientation="vertical"
+                    size="1"
+                  />
+                )}
+
+                <Flex
+                  className="editor-toolbar__actions"
+                  gap="1"
+                  align="center"
+                >
+                  <ToolbarButton
+                    icon={<Undo size={18} />}
+                    label={t("editor.undo")}
+                    disabled={!canUndo}
+                    onClick={() => runEditorAction(() => editor.chain().focus().undo().run())}
+                  />
+                  <ToolbarButton
+                    icon={<Redo size={18} />}
+                    label={t("editor.redo")}
+                    disabled={!canRedo}
+                    onClick={() => runEditorAction(() => editor.chain().focus().redo().run())}
+                  />
+
+                  <ToolbarButton
+                    icon={isSaving ? <Spinner size={18} /> : <Save size={18} />}
+                    label={t("editor.save")}
+                    disabled={isSaving || !hasChanges}
+                    onClick={() => runEditorAction(() => onSave(true))}
+                  />
+                </Flex>
+              </Flex>
             </Flex>
           </Box>
         </Box>
-
-        {(showMarkdownTools || showChapterTools) && leftScrollState.hasOverflow && (
-          <Separator
-            className="editor-toolbar__divider"
-            orientation="vertical"
-            size="1"
-          />
-        )}
-
-        <Flex
-          className="editor-toolbar__actions"
-          gap="1"
-          align="center"
-        >
-          <ToolbarButton
-            icon={<Undo size={18} />}
-            label={t("editor.undo")}
-            disabled={!canUndo}
-            onClick={() => runEditorAction(() => editor.chain().focus().undo().run())}
-          />
-          <ToolbarButton
-            icon={<Redo size={18} />}
-            label={t("editor.redo")}
-            disabled={!canRedo}
-            onClick={() => runEditorAction(() => editor.chain().focus().redo().run())}
-          />
-
-          <ToolbarButton
-            icon={isSaving ? <Spinner size={18} /> : <Save size={18} />}
-            label={t("editor.save")}
-            disabled={isSaving || !hasChanges}
-            onClick={() => runEditorAction(() => onSave(true))}
-          />
-        </Flex>
 
         <LinkInputDialog
           open={isLinkDialogOpen}
@@ -775,4 +946,6 @@ export function EditorToolbar({
       </Flex>
     </Box>
   );
+
+  return toolbar;
 }

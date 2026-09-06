@@ -28,6 +28,12 @@ body {
   overflow: auto;
 }
 
+html[data-editor-keyboard-open],
+html[data-editor-keyboard-open] body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 ::-webkit-scrollbar-button {
   display: none;
   width: 0;

@@ -11,6 +11,19 @@
   outline: none;
 }
 
+.tiptap-editor-wrapper {
+  overscroll-behavior-y: contain;
+}
+
+.tiptap-editor-wrapper > .chapter-editor-content,
+.tiptap-editor-wrapper > .markdown-editor-content {
+  padding-bottom: var(--editor-mobile-keyboard-inset, 0px);
+}
+
+.tiptap-editor-wrapper > .markdown-editor-content {
+  padding: 0 24px var(--editor-mobile-keyboard-inset, 0px);
+}
+
 .tiptap-editor--line-numbers .ProseMirror {
   counter-reset: editor-line;
 }
