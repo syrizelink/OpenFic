@@ -6,6 +6,7 @@ import pytest
 
 from app.core.errors import LLMTimeoutError
 from app.models.clients.llm_client import LLMClient, LLMConfig, _patch_deepseek_reasoning_payload
+from app.models.clients.model_factory import ModelConfig, create_chat_model
 
 
 def test_patch_deepseek_reasoning_payload_adds_reasoning_content() -> None:
@@ -33,6 +34,48 @@ def test_patch_deepseek_reasoning_payload_adds_reasoning_content() -> None:
     _patch_deepseek_reasoning_payload(messages, payload)
 
     assert payload["messages"][1]["reasoning_content"] == "need chapter content"
+
+
+def _create_openai_compatible_model() -> Any:
+    return create_chat_model(
+        ModelConfig(
+            provider_type="openai-compatible",
+            base_url="https://example.com/v1",
+            api_key="test",
+            model_id="test-model",
+        )
+    )
+
+
+def test_openai_compatible_keeps_chat_openai_runtime_name() -> None:
+    model = _create_openai_compatible_model()
+
+    assert model.get_name() == "ChatOpenAI"
+    assert model.lc_id()[-1] == "ChatOpenAI"
+
+
+def test_openai_compatible_preserves_reasoning_content_in_stream() -> None:
+    model = _create_openai_compatible_model()
+
+    generation = model._convert_chunk_to_generation_chunk(
+        {
+            "choices": [
+                {
+                    "delta": {
+                        "role": "assistant",
+                        "content": "",
+                        "reasoning_content": "think\nnext",
+                    },
+                    "finish_reason": None,
+                }
+            ]
+        },
+        AIMessageChunk,
+        None,
+    )
+
+    assert generation is not None
+    assert generation.message.additional_kwargs["reasoning_content"] == "think\nnext"
 
 
 def test_extract_usage_prefers_usage_metadata() -> None:

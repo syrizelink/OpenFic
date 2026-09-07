@@ -347,6 +347,40 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
         return model.with_thinking_mode(enabled=True) if reasoning_effort else model
 
     # OpenAI-compatible fallback (openai, huggingface, openai-compatible, unknown)
-    from langchain_openai import ChatOpenAI
+    from langchain_core.outputs import ChatGenerationChunk
+    from langchain_openai import ChatOpenAI as _ChatOpenAI
+
+    class ChatOpenAI(_ChatOpenAI):
+        def _convert_chunk_to_generation_chunk(
+            self,
+            chunk: dict,
+            default_chunk_class: type,
+            base_generation_info: dict | None,
+        ) -> ChatGenerationChunk | None:
+            generation_chunk = super()._convert_chunk_to_generation_chunk(
+                chunk,
+                default_chunk_class,
+                base_generation_info,
+            )
+            if generation_chunk is None:
+                return None
+
+            choices = chunk.get("choices")
+            if not isinstance(choices, list) or not choices:
+                return generation_chunk
+            choice = choices[0]
+            if not isinstance(choice, dict):
+                return generation_chunk
+            delta = choice.get("delta")
+            reasoning_content = (
+                delta.get("reasoning_content")
+                if isinstance(delta, dict)
+                else None
+            )
+            if isinstance(reasoning_content, str):
+                generation_chunk.message.additional_kwargs["reasoning_content"] = (
+                    reasoning_content
+                )
+            return generation_chunk
 
     return ChatOpenAI(**_openai_compatible_kwargs(config))
