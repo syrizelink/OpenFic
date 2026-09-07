@@ -151,39 +151,36 @@ Function un.openficRemoveDirect
   Push $R3
   Push $R4
 
-  IfFileExists "$INSTDIR$R0" openfic_direct_exists openfic_direct_success
-
-  openfic_direct_exists:
-    ClearErrors
-    ${GetFileAttributes} "$INSTDIR$R0" "REPARSE_POINT" $R4
-    IfErrors openfic_direct_error_no_close
-    ${if} $R4 == "1"
-      ${GetFileAttributes} "$INSTDIR$R0" "DIRECTORY" $R4
-      IfErrors openfic_direct_error_no_close
-      ${if} $R4 == "1"
-        ClearErrors
-        RMDir "$INSTDIR$R0"
-      ${else}
-        ClearErrors
-        Delete "$INSTDIR$R0"
-      ${endif}
-      IfErrors openfic_direct_error_no_close
-      Goto openfic_direct_success
-    ${endif}
-
+  ClearErrors
+  ${GetFileAttributes} "$INSTDIR$R0" "REPARSE_POINT" $R4
+  IfErrors openfic_direct_success
+  ${if} $R4 == "1"
     ${GetFileAttributes} "$INSTDIR$R0" "DIRECTORY" $R4
     IfErrors openfic_direct_error_no_close
-    ${if} $R4 != "1"
+    ${if} $R4 == "1"
+      ClearErrors
+      RMDir "$INSTDIR$R0"
+    ${else}
       ClearErrors
       Delete "$INSTDIR$R0"
-      IfErrors openfic_direct_error_no_close
-      Goto openfic_direct_success
     ${endif}
+    IfErrors openfic_direct_error_no_close
+    Goto openfic_direct_success
+  ${endif}
 
-    StrCpy $R3 "$INSTDIR$R0\*.*"
+  ${GetFileAttributes} "$INSTDIR$R0" "DIRECTORY" $R4
+  IfErrors openfic_direct_error_no_close
+  ${if} $R4 != "1"
     ClearErrors
-    FindFirst $R1 $R2 $R3
-    IfErrors openfic_direct_remove_empty
+    Delete "$INSTDIR$R0"
+    IfErrors openfic_direct_error_no_close
+    Goto openfic_direct_success
+  ${endif}
+
+  StrCpy $R3 "$INSTDIR$R0\*.*"
+  ClearErrors
+  FindFirst $R1 $R2 $R3
+  IfErrors openfic_direct_remove_empty
 
   openfic_direct_loop:
     StrCmp $R2 "" openfic_direct_done
