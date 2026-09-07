@@ -37,6 +37,7 @@ class JinaProvider(WebSearchProvider):
                     "Authorization": f"Bearer {config.api_key}",
                     "Accept": "application/json",
                 },
+                trust_env=config.trust_proxy_environment,
             )
         except Exception as exc:
             raise ToolExecutionError(http_error_message(self.name, exc)) from exc

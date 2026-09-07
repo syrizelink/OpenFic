@@ -12,6 +12,7 @@ import respx
 from httpx import Response
 
 from app.agent_runtime.tools.impls.web_fetch import service
+from app.agent_runtime.tools.impls.web_search.config import WebSearchSettings
 
 
 def _make_state() -> dict:
@@ -26,6 +27,24 @@ def _make_tool():
     from app.agent_runtime.tools.impls.web_fetch.web_fetch import WebFetchTool
 
     return WebFetchTool(_state=_make_state())
+
+
+@pytest.fixture(autouse=True)
+def _mock_web_search_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.agent_runtime.tools.impls.web_fetch import web_fetch
+
+    monkeypatch.setattr(
+        web_fetch,
+        "create_session",
+        AsyncMock(return_value=AsyncMock()),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        web_fetch,
+        "load_web_search_config",
+        AsyncMock(return_value=WebSearchSettings()),
+        raising=False,
+    )
 
 
 async def _allow_public_host(_hostname: str) -> tuple[ipaddress.IPv4Address, ...]:
@@ -154,6 +173,59 @@ async def test_rejects_hostname_resolving_to_private_ip(
 
     assert result["success"] is False
     assert result["code"] == "permission_denied"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_bypasses_ssrf_protection_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.agent_runtime.tools.impls.web_fetch import web_fetch
+
+    monkeypatch.setattr(
+        web_fetch,
+        "load_web_search_config",
+        AsyncMock(return_value=WebSearchSettings(bypass_ssrf_protection=True)),
+    )
+    monkeypatch.setattr(
+        service,
+        "resolve_public_addresses",
+        AsyncMock(side_effect=AssertionError("SSRF validation should be bypassed")),
+    )
+    route = respx.get("http://127.0.0.1/").mock(
+        return_value=Response(200, text=HTML_PAGE, headers={"content-type": "text/html"})
+    )
+
+    result = json.loads(await _make_tool().ainvoke({"url": "http://127.0.0.1/"}))
+
+    assert route.called
+    assert result["url"] == "http://127.0.0.1/"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_uses_configured_proxy_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.agent_runtime.tools.impls.web_fetch import web_fetch
+
+    monkeypatch.setattr(
+        web_fetch,
+        "load_web_search_config",
+        AsyncMock(return_value=WebSearchSettings(trust_proxy_environment=True)),
+    )
+    monkeypatch.setattr(service, "resolve_public_addresses", _allow_public_host)
+    original_client = service.httpx.AsyncClient
+    captured: dict[str, object] = {}
+
+    def make_client(*args: object, **kwargs: object):
+        captured.update(kwargs)
+        return original_client(*args, **kwargs)
+
+    monkeypatch.setattr(service.httpx, "AsyncClient", make_client)
+    respx.get("https://example.com/article").mock(
+        return_value=Response(200, text=HTML_PAGE, headers={"content-type": "text/html"})
+    )
+
+    await _make_tool().ainvoke({"url": "https://example.com/article"})
+
+    assert captured["trust_env"] is True
 
 
 @pytest.mark.asyncio

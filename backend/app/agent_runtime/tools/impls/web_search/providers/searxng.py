@@ -34,7 +34,7 @@ class SearxngProvider(WebSearchProvider):
             f"{urlencode({'q': query, 'format': 'json', 'safesearch': '0'})}"
         )
         try:
-            payload = await http_get_json(url)
+            payload = await http_get_json(url, trust_env=config.trust_proxy_environment)
         except Exception as exc:
             raise ToolExecutionError(http_error_message(self.name, exc)) from exc
 

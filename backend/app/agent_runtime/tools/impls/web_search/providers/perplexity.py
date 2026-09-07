@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import httpx
 from perplexity import AsyncPerplexity
 
 from app.agent_runtime.tools.errors import ToolExecutionError
@@ -24,7 +25,15 @@ class PerplexityProvider(WebSearchProvider):
         if not config.api_key:
             raise ToolExecutionError("Perplexity 未配置 API Key")
 
-        client = AsyncPerplexity(api_key=config.api_key)
+        http_client: httpx.AsyncClient | None = None
+        if config.trust_proxy_environment:
+            client = AsyncPerplexity(api_key=config.api_key)
+        else:
+            http_client = httpx.AsyncClient(trust_env=False)
+            client = AsyncPerplexity(
+                api_key=config.api_key,
+                http_client=http_client,
+            )
         try:
             try:
                 response = await client.search.create(
@@ -35,6 +44,8 @@ class PerplexityProvider(WebSearchProvider):
                 raise ToolExecutionError(f"Perplexity 搜索失败: {exc}") from exc
         finally:
             await client.close()
+            if http_client is not None:
+                await http_client.aclose()
 
         results = [
             WebSearchResult(

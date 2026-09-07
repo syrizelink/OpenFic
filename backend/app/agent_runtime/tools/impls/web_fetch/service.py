@@ -263,19 +263,25 @@ def _needs_recall(html: str, markdown: str) -> bool:
     return any(_normalized_content(item) not in normalized_markdown for item in list_items)
 
 
-async def fetch_html(url: str) -> FetchedPage:
+async def fetch_html(
+    url: str,
+    *,
+    trust_env: bool = True,
+    bypass_ssrf_protection: bool = False,
+) -> FetchedPage:
     current_url = normalize_url(url)
 
     async with httpx.AsyncClient(
         timeout=DEFAULT_HTTP_TIMEOUT,
         follow_redirects=False,
         headers={"Accept": "text/html,application/xhtml+xml"},
-        trust_env=False,
+        trust_env=trust_env,
     ) as client:
         request_headers = {"User-Agent": DEFAULT_USER_AGENT}
         has_used_fallback_user_agent = False
         for redirect_count in range(MAX_REDIRECTS + 1):
-            await _assert_public_url(current_url)
+            if not bypass_ssrf_protection:
+                await _assert_public_url(current_url)
             try:
                 response = await client.get(current_url, headers=request_headers)
             except httpx.TimeoutException as exc:
@@ -407,7 +413,16 @@ def extract_html(html: str, url: str) -> ExtractedPage:
     )
 
 
-async def fetch_and_extract(url: str) -> tuple[FetchedPage, ExtractedPage]:
-    page = await fetch_html(url)
+async def fetch_and_extract(
+    url: str,
+    *,
+    trust_env: bool = True,
+    bypass_ssrf_protection: bool = False,
+) -> tuple[FetchedPage, ExtractedPage]:
+    page = await fetch_html(
+        url,
+        trust_env=trust_env,
+        bypass_ssrf_protection=bypass_ssrf_protection,
+    )
     extracted = await asyncio.to_thread(extract_html, page.html, page.final_url)
     return page, extracted

@@ -12,7 +12,11 @@ import {
   fetchWebSearchSettings,
   updateWebSearchSettings,
 } from "../lib/web-search-api";
-import type { WebSearchProviderField, WebSearchSettingsUpdateRequest } from "../lib/web-search-api";
+import type {
+  WebSearchProviderField,
+  WebSearchSettings,
+  WebSearchSettingsUpdateRequest,
+} from "../lib/web-search-api";
 
 const FIELD_LABEL_KEY_MAP: Record<string, string> = {
   ddgs_backend: "settings.webSearchFieldDdgsBackend",
@@ -164,12 +168,35 @@ export function WebSearchSettings() {
     t(PROVIDER_LABEL_KEY_MAP[providerName] ?? providerName);
 
   const toggleMutation = useMutation({
-    mutationFn: (enabled: boolean) => updateWebSearchSettings({ enabled }),
+    mutationFn: (data: WebSearchSettingsUpdateRequest) => updateWebSearchSettings(data),
+    onMutate: async (patch) => {
+      await queryClient.cancelQueries({ queryKey: ["web-search-settings"] });
+      const previousSettings = queryClient.getQueryData<WebSearchSettings>(["web-search-settings"]);
+
+      if (previousSettings) {
+        const optimisticSettings = { ...previousSettings };
+        if (patch.enabled !== undefined) optimisticSettings.enabled = patch.enabled;
+        if (patch.trust_proxy_environment !== undefined) {
+          optimisticSettings.trustProxyEnvironment = patch.trust_proxy_environment;
+        }
+        if (patch.bypass_ssrf_protection !== undefined) {
+          optimisticSettings.bypassSsrfProtection = patch.bypass_ssrf_protection;
+        }
+        queryClient.setQueryData<WebSearchSettings>(["web-search-settings"], optimisticSettings);
+      }
+
+      return { previousSettings };
+    },
     onSuccess: (nextSettings) => {
       queryClient.setQueryData(["web-search-settings"], nextSettings);
       toast.success(t("settings.saved"));
     },
-    onError: () => toast.error(t("settings.saveFailed")),
+    onError: (_error, _patch, context) => {
+      if (context?.previousSettings) {
+        queryClient.setQueryData(["web-search-settings"], context.previousSettings);
+      }
+      toast.error(t("settings.saveFailed"));
+    },
   });
 
   const saveMutation = useMutation({
@@ -318,7 +345,7 @@ export function WebSearchSettings() {
           <Switch
             checked={settings.enabled}
             aria-label={t("settings.webSearchEnabled")}
-            onCheckedChange={(checked) => toggleMutation.mutate(checked)}
+            onCheckedChange={(checked) => toggleMutation.mutate({ enabled: checked })}
           />
         </Flex>
 
@@ -419,6 +446,42 @@ export function WebSearchSettings() {
             placeholder={t("settings.webSearchDomainFiltersPlaceholder")}
             disabled={saveMutation.isPending}
             style={{ width: 260 }}
+          />
+        </Flex>
+
+        <Flex
+          align="center"
+          justify="between"
+          gap="4"
+        >
+          <WebSearchSettingLabel
+            label={t("settings.webSearchTrustProxyEnvironment")}
+            description={t("settings.webSearchTrustProxyEnvironmentHint")}
+          />
+          <Switch
+            checked={settings.trustProxyEnvironment}
+            aria-label={t("settings.webSearchTrustProxyEnvironment")}
+            onCheckedChange={(checked) =>
+              toggleMutation.mutate({ trust_proxy_environment: checked })
+            }
+          />
+        </Flex>
+
+        <Flex
+          align="center"
+          justify="between"
+          gap="4"
+        >
+          <WebSearchSettingLabel
+            label={t("settings.webSearchBypassSsrfProtection")}
+            description={t("settings.webSearchBypassSsrfProtectionHint")}
+          />
+          <Switch
+            checked={settings.bypassSsrfProtection}
+            aria-label={t("settings.webSearchBypassSsrfProtection")}
+            onCheckedChange={(checked) =>
+              toggleMutation.mutate({ bypass_ssrf_protection: checked })
+            }
           />
         </Flex>
 

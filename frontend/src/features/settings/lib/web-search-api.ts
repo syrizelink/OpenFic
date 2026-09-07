@@ -26,6 +26,8 @@ export interface WebSearchSettings {
   maxResults: number;
   domainFilters: string[];
   extras: Record<string, string>;
+  trustProxyEnvironment: boolean;
+  bypassSsrfProtection: boolean;
 }
 
 export interface WebSearchSettingsUpdateRequest {
@@ -35,6 +37,8 @@ export interface WebSearchSettingsUpdateRequest {
   max_results?: number;
   domain_filters?: string[];
   extras?: Record<string, string>;
+  trust_proxy_environment?: boolean;
+  bypass_ssrf_protection?: boolean;
 }
 
 interface WebSearchSettingsResponse {
@@ -44,6 +48,8 @@ interface WebSearchSettingsResponse {
   max_results: number;
   domain_filters: string[];
   extras: Record<string, string>;
+  trust_proxy_environment?: boolean;
+  bypass_ssrf_protection?: boolean;
 }
 
 interface WebSearchProviderInfoResponse {
@@ -65,6 +71,8 @@ function transformWebSearchSettings(raw: WebSearchSettingsResponse): WebSearchSe
     maxResults: raw.max_results,
     domainFilters: raw.domain_filters ?? [],
     extras: raw.extras ?? {},
+    trustProxyEnvironment: raw.trust_proxy_environment ?? true,
+    bypassSsrfProtection: raw.bypass_ssrf_protection ?? false,
   };
 }
 

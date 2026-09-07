@@ -22,6 +22,8 @@ DDGS_MAX_ATTEMPTS = 2
 
 def _run_sync_search(query: str, config: WebSearchProviderConfig) -> Any:
     with DDGS() as ddgs:
+        if not config.trust_proxy_environment:
+            ddgs._proxy = None
         return ddgs.text(
             query,
             max_results=config.max_results,

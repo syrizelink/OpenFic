@@ -639,6 +639,8 @@ def _build_web_search_settings_response(
         max_results=config.max_results,
         domain_filters=config.domain_filters,
         extras=config.extras,
+        trust_proxy_environment=config.trust_proxy_environment,
+        bypass_ssrf_protection=config.bypass_ssrf_protection,
     )
 
 
@@ -680,6 +682,10 @@ async def update_web_search_settings(
         config.max_results = request.max_results
     if request.domain_filters is not None:
         config.domain_filters = normalize_domain_filters(request.domain_filters)
+    if request.trust_proxy_environment is not None:
+        config.trust_proxy_environment = request.trust_proxy_environment
+    if request.bypass_ssrf_protection is not None:
+        config.bypass_ssrf_protection = request.bypass_ssrf_protection
     if request.extras is not None:
         valid_keys = {
             field["key"]

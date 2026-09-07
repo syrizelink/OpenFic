@@ -8,8 +8,10 @@ from pydantic import BaseModel, Field
 
 from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.tools.errors import ToolExecutionError
+from app.agent_runtime.tools.impls.web_search.config import load_web_search_config
 from app.agent_runtime.tools.impls.web_fetch.service import fetch_and_extract, normalize_url
 from app.agent_runtime.tools.registry import ToolRegistry
+from app.storage.database import create_session
 
 DEFAULT_WEB_FETCH_MAX_CHARS = 12_000
 MAX_WEB_FETCH_CHARS = 32_000
@@ -67,7 +69,17 @@ class WebFetchTool(AgentTool):
         max_chars: int = DEFAULT_WEB_FETCH_MAX_CHARS,
     ) -> str:
         requested_url = normalize_url(url)
-        page, extracted = await fetch_and_extract(requested_url)
+        session = await create_session()
+        try:
+            config = await load_web_search_config(session)
+        finally:
+            await session.close()
+
+        page, extracted = await fetch_and_extract(
+            requested_url,
+            trust_env=config.trust_proxy_environment,
+            bypass_ssrf_protection=config.bypass_ssrf_protection,
+        )
         content_length = len(extracted.markdown)
         if start_index > content_length:
             raise ToolExecutionError(

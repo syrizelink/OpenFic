@@ -47,7 +47,12 @@ def _make_state() -> dict:
 
 
 def _provider_config(**overrides) -> WebSearchProviderConfig:
-    defaults = {"api_key": "test-key", "max_results": 8, "extras": {}}
+    defaults = {
+        "api_key": "test-key",
+        "max_results": 8,
+        "extras": {},
+        "trust_proxy_environment": True,
+    }
     defaults.update(overrides)
     return WebSearchProviderConfig(**defaults)
 
@@ -122,7 +127,11 @@ class TestProviderRegistry:
 
 class TestWebSearchConfig:
     def test_parse_missing_raw_returns_defaults(self) -> None:
-        assert parse_web_search_settings(None) == WebSearchSettings()
+        parsed = parse_web_search_settings(None)
+
+        assert parsed == WebSearchSettings()
+        assert parsed.trust_proxy_environment is True
+        assert parsed.bypass_ssrf_protection is False
 
     def test_parse_invalid_json_returns_defaults(self) -> None:
         assert parse_web_search_settings("not-json{") == WebSearchSettings()
@@ -168,12 +177,16 @@ class TestWebSearchConfig:
                 max_results=12,
                 domain_filters=["example.com"],
                 extras={"a": "b"},
+                trust_proxy_environment=False,
+                bypass_ssrf_protection=True,
             )
         )
         payload = json.loads(raw)
         assert payload["enabled"] is True
         assert payload["api_keys"]["serper"] != "plain-key"
         assert "api_key" not in payload
+        assert payload["trust_proxy_environment"] is False
+        assert payload["bypass_ssrf_protection"] is True
         assert parse_web_search_settings(raw).api_keys == {
             "serper": "plain-key",
             "tavily": "other-key",
@@ -181,6 +194,8 @@ class TestWebSearchConfig:
         parsed = parse_web_search_settings(raw)
         assert parsed.max_results == 12
         assert parsed.domain_filters == ["example.com"]
+        assert parsed.trust_proxy_environment is False
+        assert parsed.bypass_ssrf_protection is True
 
     def test_serialize_skips_empty_api_keys(self) -> None:
         raw = serialize_web_search_settings(WebSearchSettings(provider="serper"))
@@ -379,6 +394,30 @@ class TestWebSearchTool:
 class TestHttpProviders:
     @pytest.mark.asyncio
     @respx.mock
+    async def test_http_provider_uses_configured_proxy_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        provider = get_provider("serper")()
+        respx.post("https://google.serper.dev/search").mock(
+            return_value=Response(200, json={"organic": []})
+        )
+        from app.agent_runtime.tools.impls.web_search.providers import base
+
+        original_client = base.httpx.AsyncClient
+        captured: dict[str, object] = {}
+
+        def make_client(*args: object, **kwargs: object):
+            captured.update(kwargs)
+            return original_client(*args, **kwargs)
+
+        monkeypatch.setattr(base.httpx, "AsyncClient", make_client)
+
+        await provider.search("q", _provider_config(trust_proxy_environment=False))
+
+        assert captured["trust_env"] is False
+
+    @pytest.mark.asyncio
+    @respx.mock
     async def test_brave_parses_web_results(self) -> None:
         provider = get_provider("brave")()
         route = respx.get(
@@ -505,6 +544,20 @@ class TestSdkProviders:
             "url": "https://u",
             "snippet": "s",
         }
+
+    @pytest.mark.asyncio
+    async def test_perplexity_disables_proxy_environment_when_configured(self) -> None:
+        provider = get_provider("perplexity")()
+        client = MagicMock()
+        client.search.create = AsyncMock(return_value=SimpleNamespace(results=[]))
+        client.close = AsyncMock()
+        with patch(
+            "app.agent_runtime.tools.impls.web_search.providers.perplexity.AsyncPerplexity",
+            return_value=client,
+        ) as mock_cls:
+            await provider.search("q", _provider_config(trust_proxy_environment=False))
+
+        assert mock_cls.call_args.kwargs["http_client"].trust_env is False
 
     @pytest.mark.asyncio
     async def test_ddgs_parses_text_results(self) -> None:

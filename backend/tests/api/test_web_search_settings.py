@@ -42,6 +42,8 @@ async def test_get_web_search_settings_default(client: AsyncClient) -> None:
     assert data["max_results"] == 10
     assert data["domain_filters"] == []
     assert data["extras"] == {}
+    assert data["trust_proxy_environment"] is True
+    assert data["bypass_ssrf_protection"] is False
 
 
 @pytest.mark.asyncio
@@ -81,6 +83,8 @@ async def test_update_web_search_settings(client: AsyncClient, session: AsyncSes
             "max_results": 12,
             "domain_filters": [" Example.com ", "", "example.com"],
             "extras": {},
+            "trust_proxy_environment": False,
+            "bypass_ssrf_protection": True,
         },
     )
     assert response.status_code == 200
@@ -91,6 +95,8 @@ async def test_update_web_search_settings(client: AsyncClient, session: AsyncSes
     assert data["has_api_keys"]["serper"] is False
     assert data["max_results"] == 12
     assert data["domain_filters"] == ["example.com"]
+    assert data["trust_proxy_environment"] is False
+    assert data["bypass_ssrf_protection"] is True
     assert "secret-key" not in response.text
 
     setting = await setting_repo.get_by_key(session, SETTING_KEY_WEB_SEARCH_CONFIG)
@@ -102,6 +108,8 @@ async def test_update_web_search_settings(client: AsyncClient, session: AsyncSes
     assert config.api_keys == {"tavily": "secret-key"}
     assert config.max_results == 12
     assert config.domain_filters == ["example.com"]
+    assert config.trust_proxy_environment is False
+    assert config.bypass_ssrf_protection is True
     assert "api_key" not in json.loads(setting.value)
 
 

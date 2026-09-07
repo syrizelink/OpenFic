@@ -28,6 +28,7 @@ class WebSearchProviderConfig:
     api_key: str = ""
     max_results: int = 8
     extras: dict[str, str] = field(default_factory=dict)
+    trust_proxy_environment: bool = True
 
     def extra(self, key: str, default: str = "") -> str:
         value = self.extras.get(key, default)
@@ -49,10 +50,12 @@ async def http_get_json(
     url: str,
     *,
     headers: dict[str, str] | None = None,
+    trust_env: bool = True,
 ) -> Any:
     async with httpx.AsyncClient(
         timeout=DEFAULT_HTTP_TIMEOUT,
         follow_redirects=True,
+        trust_env=trust_env,
     ) as client:
         response = await client.get(url, headers=headers)
         response.raise_for_status()
@@ -64,10 +67,12 @@ async def http_post_json(
     *,
     headers: dict[str, str] | None = None,
     payload: dict[str, Any] | None = None,
+    trust_env: bool = True,
 ) -> Any:
     async with httpx.AsyncClient(
         timeout=DEFAULT_HTTP_TIMEOUT,
         follow_redirects=True,
+        trust_env=trust_env,
     ) as client:
         response = await client.post(url, headers=headers, json=payload)
         response.raise_for_status()

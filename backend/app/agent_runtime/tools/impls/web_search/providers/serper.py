@@ -31,6 +31,7 @@ class SerperProvider(WebSearchProvider):
                 SERPER_SEARCH_URL,
                 headers={"X-API-KEY": config.api_key},
                 payload={"q": query, "num": config.max_results},
+                trust_env=config.trust_proxy_environment,
             )
         except Exception as exc:
             raise ToolExecutionError(http_error_message(self.name, exc)) from exc

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import httpx
 from exa_py import AsyncExa
 
 from app.agent_runtime.tools.errors import ToolExecutionError
@@ -26,8 +27,18 @@ class ExaProvider(WebSearchProvider):
         if not config.api_key:
             raise ToolExecutionError("Exa 未配置 API Key")
 
+        client = AsyncExa(api_key=config.api_key)
+        http_client = None
+        if not config.trust_proxy_environment:
+            http_client = httpx.AsyncClient(
+                base_url=client.base_url,
+                headers=client.headers,
+                timeout=600,
+                trust_env=False,
+            )
+            client._client = http_client
+
         try:
-            client = AsyncExa(api_key=config.api_key)
             response = await client.search(
                 query,
                 num_results=config.max_results,
@@ -38,6 +49,9 @@ class ExaProvider(WebSearchProvider):
             )
         except Exception as exc:
             raise ToolExecutionError(f"Exa 搜索失败: {exc}") from exc
+        finally:
+            if http_client is not None:
+                await http_client.aclose()
 
         results = []
         for item in response.results:

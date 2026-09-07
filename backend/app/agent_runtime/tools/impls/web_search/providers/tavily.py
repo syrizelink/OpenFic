@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import httpx
 from tavily import AsyncTavilyClient
 
 from app.agent_runtime.tools.errors import ToolExecutionError
@@ -24,7 +25,15 @@ class TavilyProvider(WebSearchProvider):
         if not config.api_key:
             raise ToolExecutionError("Tavily 未配置 API Key")
 
-        client = AsyncTavilyClient(api_key=config.api_key)
+        http_client = (
+            httpx.AsyncClient(trust_env=False)
+            if not config.trust_proxy_environment
+            else None
+        )
+        if http_client is None:
+            client = AsyncTavilyClient(api_key=config.api_key)
+        else:
+            client = AsyncTavilyClient(api_key=config.api_key, client=http_client)
         try:
             try:
                 payload = await client.search(
@@ -37,6 +46,8 @@ class TavilyProvider(WebSearchProvider):
                 raise ToolExecutionError(f"Tavily 搜索失败: {exc}") from exc
         finally:
             await client.close()
+            if http_client is not None:
+                await http_client.aclose()
 
         results = [
             WebSearchResult(

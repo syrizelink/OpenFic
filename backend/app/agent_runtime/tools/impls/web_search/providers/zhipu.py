@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+import httpx
 from zai import ZhipuAiClient
 
 from app.agent_runtime.tools.errors import ToolExecutionError
@@ -19,7 +20,11 @@ DEFAULT_ZHIPU_SEARCH_ENGINE = "search_pro"
 
 
 def _run_sync_search(api_key: str, query: str, config: WebSearchProviderConfig) -> Any:
-    client = ZhipuAiClient(api_key=api_key)
+    http_client = httpx.Client(trust_env=False) if not config.trust_proxy_environment else None
+    if http_client is None:
+        client = ZhipuAiClient(api_key=api_key)
+    else:
+        client = ZhipuAiClient(api_key=api_key, http_client=http_client)
     try:
         return client.web_search.web_search(
             search_engine=config.extra(
@@ -32,6 +37,8 @@ def _run_sync_search(api_key: str, query: str, config: WebSearchProviderConfig) 
         )
     finally:
         client.close()
+        if http_client is not None:
+            http_client.close()
 
 
 class ZhipuProvider(WebSearchProvider):

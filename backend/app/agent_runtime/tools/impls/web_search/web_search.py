@@ -92,6 +92,7 @@ class WebSearchTool(AgentTool):
                     api_key=config.api_keys.get(config.provider, ""),
                     max_results=effective_count,
                     extras=config.extras,
+                    trust_proxy_environment=config.trust_proxy_environment,
                 ),
             )
         except ToolExecutionError:

@@ -15,6 +15,8 @@ from app.storage.repos import setting_repo
 SETTING_KEY_WEB_SEARCH_CONFIG = "web_search_config"
 DEFAULT_WEB_SEARCH_MAX_RESULTS = 10
 MAX_WEB_SEARCH_MAX_RESULTS = 20
+DEFAULT_TRUST_PROXY_ENVIRONMENT = True
+DEFAULT_BYPASS_SSRF_PROTECTION = False
 
 
 class WebSearchSettings(BaseModel):
@@ -24,6 +26,8 @@ class WebSearchSettings(BaseModel):
     max_results: int = Field(default=DEFAULT_WEB_SEARCH_MAX_RESULTS, ge=1, le=20)
     domain_filters: list[str] = Field(default_factory=list)
     extras: dict[str, str] = Field(default_factory=dict)
+    trust_proxy_environment: bool = DEFAULT_TRUST_PROXY_ENVIRONMENT
+    bypass_ssrf_protection: bool = DEFAULT_BYPASS_SSRF_PROTECTION
 
 
 def _encryption_service() -> EncryptionService:
@@ -65,6 +69,8 @@ def parse_web_search_settings(raw_value: str | None) -> WebSearchSettings:
 
     provider = payload.get("provider")
     enabled = payload.get("enabled")
+    trust_proxy_environment = payload.get("trust_proxy_environment")
+    bypass_ssrf_protection = payload.get("bypass_ssrf_protection")
     raw_max_results = payload.get("max_results")
     max_results = (
         raw_max_results
@@ -101,6 +107,16 @@ def parse_web_search_settings(raw_value: str | None) -> WebSearchSettings:
         max_results=max_results,
         domain_filters=domain_filters,
         extras=extras,
+        trust_proxy_environment=(
+            trust_proxy_environment
+            if isinstance(trust_proxy_environment, bool)
+            else DEFAULT_TRUST_PROXY_ENVIRONMENT
+        ),
+        bypass_ssrf_protection=(
+            bypass_ssrf_protection
+            if isinstance(bypass_ssrf_protection, bool)
+            else DEFAULT_BYPASS_SSRF_PROTECTION
+        ),
     )
 
 
@@ -123,6 +139,8 @@ def serialize_web_search_settings(web_search_settings: WebSearchSettings) -> str
             "max_results": web_search_settings.max_results,
             "domain_filters": normalize_domain_filters(web_search_settings.domain_filters),
             "extras": web_search_settings.extras,
+            "trust_proxy_environment": web_search_settings.trust_proxy_environment,
+            "bypass_ssrf_protection": web_search_settings.bypass_ssrf_protection,
         },
         ensure_ascii=False,
     )

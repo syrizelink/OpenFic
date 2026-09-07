@@ -189,6 +189,14 @@ class WebSearchSettingsResponse(BaseModel):
     max_results: int = Field(..., description="搜索结果数量限制")
     domain_filters: list[str] = Field(default_factory=list, description="域名过滤列表")
     extras: dict[str, str] = Field(default_factory=dict, description="扩展参数")
+    trust_proxy_environment: bool = Field(
+        default=True,
+        description="是否信任代理环境变量",
+    )
+    bypass_ssrf_protection: bool = Field(
+        default=False,
+        description="是否绕过网页读取的 SSRF 防护",
+    )
 
 
 class WebSearchSettingsUpdateRequest(BaseModel):
@@ -208,4 +216,12 @@ class WebSearchSettingsUpdateRequest(BaseModel):
     )
     domain_filters: list[str] | None = Field(
         default=None, description="需要从搜索结果中排除的域名列表"
+    )
+    trust_proxy_environment: bool | None = Field(
+        default=None,
+        description="是否信任代理环境变量",
+    )
+    bypass_ssrf_protection: bool | None = Field(
+        default=None,
+        description="是否绕过网页读取的 SSRF 防护",
     )
