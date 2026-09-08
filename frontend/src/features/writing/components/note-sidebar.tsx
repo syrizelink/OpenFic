@@ -38,7 +38,7 @@ import {
   useCreateNoteCategory,
   useUpdateNoteCategory,
   useDeleteNoteCategory,
-  useMoveNoteItem,
+  useReorderNoteItem,
   useToggleNoteLock,
   useToggleNoteHidden,
   useDuplicateNote,
@@ -70,7 +70,7 @@ export function NoteSidebar({
   const updateCategoryMutation = useUpdateNoteCategory(projectId);
   const deleteNoteMutation = useDeleteNote(projectId);
   const deleteCategoryMutation = useDeleteNoteCategory(projectId);
-  const moveMutation = useMoveNoteItem(projectId);
+  const moveMutation = useReorderNoteItem(projectId);
   const toggleLockMutation = useToggleNoteLock(projectId);
   const toggleHiddenMutation = useToggleNoteHidden(projectId);
   const duplicateNoteMutation = useDuplicateNote(projectId);
@@ -288,13 +288,18 @@ export function NoteSidebar({
   }, [contextMenuTarget, data, handleCloseContextMenu, toggleHiddenMutation]);
 
   const handleMove = useCallback(
-    async (itemId: string, kind: "category" | "note", targetCategoryId: string | null) => {
+    async (
+      itemId: string,
+      kind: "category" | "note",
+      targetCategoryId: string | null,
+      orderedSiblings: { kind: "category" | "note"; itemId: string }[],
+    ) => {
       if (isAgentLocked) {
         showLockedToast();
         return;
       }
       try {
-        await moveMutation.mutateAsync({ kind, itemId, targetCategoryId });
+        await moveMutation.mutateAsync({ kind, itemId, targetCategoryId, orderedSiblings });
       } catch {
         // handled by mutation
       }

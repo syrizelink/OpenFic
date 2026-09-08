@@ -77,3 +77,35 @@
     padding: 10px 12px;
   }
 }
+.note-import-select {
+  width: 100%;
+  margin: 8px 0 16px;
+  padding: 8px;
+  border: 1px solid var(--gray-a6);
+  border-radius: 6px;
+  background: var(--color-panel);
+  color: var(--gray-12);
+}
+.note-import-project-tree {
+  max-height: 260px;
+  overflow: auto;
+  margin: 12px 0;
+  padding: 8px;
+  border: 1px solid var(--gray-a5);
+  border-radius: 6px;
+}
+.note-import-check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  font-size: 14px;
+}
+.note-import-conflicts {
+  max-height: 260px;
+  overflow: auto;
+}
+.note-import-action-row {
+  padding: 7px 0;
+  border-bottom: 1px solid var(--gray-a4);
+}

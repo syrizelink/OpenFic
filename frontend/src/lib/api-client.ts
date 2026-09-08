@@ -2749,6 +2749,10 @@ import type {
   NoteMoveResult,
   NoteImportPreview,
   NoteImportResult,
+  NoteItemReorder,
+  ProjectNoteImportRequest,
+  ProjectNoteImportPreview,
+  ProjectNoteImportResult,
 } from "./note.types";
 
 function transformNote(raw: Record<string, unknown>): Note {
@@ -2760,6 +2764,7 @@ function transformNote(raw: Record<string, unknown>): Note {
     content: raw.content as string,
     isLocked: raw.is_locked as boolean,
     isHidden: raw.is_hidden as boolean,
+    orderIndex: raw.order_index as number,
     createdAt: raw.created_at as string,
     updatedAt: raw.updated_at as string,
   };
@@ -2773,6 +2778,7 @@ function transformNoteListItem(raw: Record<string, unknown>): NoteListItem {
     title: raw.title as string,
     isLocked: raw.is_locked as boolean,
     isHidden: raw.is_hidden as boolean,
+    orderIndex: raw.order_index as number,
     createdAt: raw.created_at as string,
     updatedAt: raw.updated_at as string,
   };
@@ -2784,6 +2790,7 @@ function transformNoteCategory(raw: Record<string, unknown>): NoteCategory {
     projectId: raw.project_id as string,
     parentId: (raw.parent_id as string | null | undefined) ?? null,
     title: raw.title as string,
+    orderIndex: raw.order_index as number,
     createdAt: raw.created_at as string,
     updatedAt: raw.updated_at as string,
   };
@@ -2896,6 +2903,79 @@ export async function moveNoteItem(data: NoteItemMove): Promise<NoteMoveResult> 
     target_category_id: data.targetCategoryId,
   });
   return transformNoteMoveResult(response.data);
+}
+
+export async function reorderNoteItem(
+  projectId: string,
+  data: NoteItemReorder,
+): Promise<NoteTreeResponse> {
+  const response = await apiClient.post(`/projects/${projectId}/note-items/reorder`, {
+    kind: data.kind,
+    item_id: data.itemId,
+    target_category_id: data.targetCategoryId,
+    ordered_siblings: data.orderedSiblings.map((item) => ({
+      kind: item.kind,
+      item_id: item.itemId,
+    })),
+  });
+  return transformNoteTree(response.data);
+}
+
+function projectImportPayload(data: ProjectNoteImportRequest) {
+  return {
+    source_project_id: data.sourceProjectId,
+    selected_category_ids: data.selectedCategoryIds,
+    selected_note_ids: data.selectedNoteIds,
+    default_conflict_strategy: data.defaultConflictStrategy,
+    conflict_overrides: data.conflictOverrides,
+  };
+}
+
+export async function previewProjectNoteImport(
+  projectId: string,
+  data: ProjectNoteImportRequest,
+): Promise<ProjectNoteImportPreview> {
+  const response = await apiClient.post(
+    `/projects/${projectId}/notes/import/project/preview`,
+    projectImportPayload(data),
+  );
+  const raw = response.data as Record<string, unknown>;
+  return {
+    categories: ((raw.categories as Record<string, unknown>[]) ?? []).map(
+      transformNoteCategoryItem,
+    ),
+    rootNotes: ((raw.root_notes as Record<string, unknown>[]) ?? []).map(transformNoteListItem),
+    actions: ((raw.actions as Record<string, unknown>[]) ?? []).map((item) => ({
+      sourceNoteId: item.source_note_id as string,
+      sourcePath: item.source_path as string,
+      targetTitle: item.target_title as string,
+      action: item.action as ProjectNoteImportPreview["actions"][number]["action"],
+    })),
+    createCategoryCount: raw.create_category_count as number,
+    mergeCategoryCount: raw.merge_category_count as number,
+    createNoteCount: raw.create_note_count as number,
+    overwriteNoteCount: raw.overwrite_note_count as number,
+    skipNoteCount: raw.skip_note_count as number,
+  };
+}
+
+export async function importNotesFromProject(
+  projectId: string,
+  data: ProjectNoteImportRequest,
+): Promise<ProjectNoteImportResult> {
+  const response = await apiClient.post(
+    `/projects/${projectId}/notes/import/project`,
+    projectImportPayload(data),
+  );
+  const raw = response.data as Record<string, unknown>;
+  return {
+    createdCategoryCount: raw.created_category_count as number,
+    mergedCategoryCount: raw.merged_category_count as number,
+    createdNoteCount: raw.created_note_count as number,
+    renamedNoteCount: raw.renamed_note_count as number,
+    overwrittenNoteCount: raw.overwritten_note_count as number,
+    skippedNoteCount: raw.skipped_note_count as number,
+  };
 }
 
 function transformNoteImportPreview(raw: Record<string, unknown>): NoteImportPreview {

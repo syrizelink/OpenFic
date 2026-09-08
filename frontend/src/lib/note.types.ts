@@ -6,6 +6,7 @@ export interface Note {
   content: string;
   isLocked: boolean;
   isHidden: boolean;
+  orderIndex: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -17,6 +18,7 @@ export interface NoteListItem {
   title: string;
   isLocked: boolean;
   isHidden: boolean;
+  orderIndex: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -26,6 +28,7 @@ export interface NoteCategory {
   projectId: string;
   parentId: string | null;
   title: string;
+  orderIndex: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -71,6 +74,49 @@ export interface NoteMoveResult {
   kind: "category" | "note";
   note?: Note;
   category?: NoteCategory;
+}
+
+export type NoteItemKind = "category" | "note";
+export interface NoteSiblingRef {
+  kind: NoteItemKind;
+  itemId: string;
+}
+export interface NoteItemReorder extends NoteSiblingRef {
+  targetCategoryId: string | null;
+  orderedSiblings: NoteSiblingRef[];
+}
+
+export type NoteConflictStrategy = "rename" | "overwrite" | "skip";
+export interface ProjectNoteImportRequest {
+  sourceProjectId: string;
+  selectedCategoryIds: string[];
+  selectedNoteIds: string[];
+  defaultConflictStrategy: NoteConflictStrategy;
+  conflictOverrides: Record<string, NoteConflictStrategy>;
+}
+export interface ProjectNoteImportAction {
+  sourceNoteId: string;
+  sourcePath: string;
+  targetTitle: string;
+  action: "create" | "rename" | "overwrite" | "skip";
+}
+export interface ProjectNoteImportPreview {
+  categories: NoteCategoryItem[];
+  rootNotes: NoteListItem[];
+  actions: ProjectNoteImportAction[];
+  createCategoryCount: number;
+  mergeCategoryCount: number;
+  createNoteCount: number;
+  overwriteNoteCount: number;
+  skipNoteCount: number;
+}
+export interface ProjectNoteImportResult {
+  createdCategoryCount: number;
+  mergedCategoryCount: number;
+  createdNoteCount: number;
+  renamedNoteCount: number;
+  overwrittenNoteCount: number;
+  skippedNoteCount: number;
 }
 
 export interface NoteImportPreview {

@@ -21,6 +21,7 @@ class NoteCategory(SQLModel, table=True):
         foreign_key="note_categories.id",
     )
     title: str = Field(max_length=200)
+    order_index: int = Field(default=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -37,6 +38,7 @@ class Note(SQLModel, table=True):
     )
     title: str = Field(max_length=200)
     content: str = Field(default="")
+    order_index: int = Field(default=0)
     is_locked: bool = Field(default=False)
     is_hidden: bool = Field(default=False)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

@@ -19,6 +19,7 @@ import type { NoteTreeResponse, NoteCategoryItem, NoteListItem } from "@/lib/not
 
 import { useNotesStore } from "../store/use-notes-store";
 import { NoteTreeItem, type NoteTreeItemData } from "./note-tree-item";
+import { getMixedChildren, getSiblingRefs } from "./note-tree-order";
 
 const ROOT_DROP_ID = "note-tree-root";
 
@@ -41,6 +42,7 @@ interface NoteTreeProps {
     itemId: string,
     kind: "category" | "note",
     targetCategoryId: string | null,
+    orderedSiblings: { kind: "category" | "note"; itemId: string }[],
   ) => Promise<void>;
 }
 
@@ -54,40 +56,41 @@ function flattenTree(
 ): NoteTreeItemData[] {
   const result: NoteTreeItemData[] = [];
 
-  for (const cat of categories) {
-    const isExpanded = expandedIds.has(cat.id);
-    result.push({
-      type: "category",
-      id: cat.id,
-      title: cat.title,
-      parentId: cat.parentId,
-      depth,
-      isExpanded,
-      childCount: cat.categories.length + cat.notes.length,
-      ancestorCategoryIds,
-    });
-
-    if (isExpanded) {
-      result.push(
-        ...flattenTree(cat.categories, cat.notes, expandedIds, depth + 1, cat.id, [
-          ...ancestorCategoryIds,
-          cat.id,
-        ]),
-      );
+  for (const child of getMixedChildren(categories, notes)) {
+    if (child.kind === "category") {
+      const cat = child.item;
+      const isExpanded = expandedIds.has(cat.id);
+      result.push({
+        type: "category",
+        id: cat.id,
+        title: cat.title,
+        parentId: cat.parentId,
+        depth,
+        isExpanded,
+        childCount: cat.categories.length + cat.notes.length,
+        ancestorCategoryIds,
+      });
+      if (isExpanded) {
+        result.push(
+          ...flattenTree(cat.categories, cat.notes, expandedIds, depth + 1, cat.id, [
+            ...ancestorCategoryIds,
+            cat.id,
+          ]),
+        );
+      }
+    } else {
+      const note = child.item;
+      result.push({
+        type: "note",
+        id: note.id,
+        title: note.title,
+        parentId,
+        depth,
+        isLocked: note.isLocked,
+        isHidden: note.isHidden,
+        ancestorCategoryIds,
+      });
     }
-  }
-
-  for (const note of notes) {
-    result.push({
-      type: "note",
-      id: note.id,
-      title: note.title,
-      parentId,
-      depth,
-      isLocked: note.isLocked,
-      isHidden: note.isHidden,
-      ancestorCategoryIds,
-    });
   }
 
   return result;
@@ -271,7 +274,12 @@ export function NoteTree({
           }
         | undefined;
       const overData = over.data.current as
-        | { itemType?: string; itemId?: string; depth?: number }
+        | {
+            itemType?: "category" | "note";
+            itemId?: string;
+            depth?: number;
+            parentId?: string | null;
+          }
         | undefined;
 
       if (!activeData) return;
@@ -287,23 +295,26 @@ export function NoteTree({
           toast.error(t("writing.categoryDepthExceeded"));
           return;
         }
-      } else if (overData?.itemType === "category") {
+      } else if (overData?.itemType === "category" || overData?.itemType === "note") {
         if (sourceKind === "category" && overData.itemId === sourceId) {
           return;
         }
-        targetCategoryId = overData.itemId!;
+        const sameParent = (activeData.parentId ?? null) === (overData.parentId ?? null);
+        const dropInsideCategory = overData.itemType === "category" && !sameParent;
+        targetCategoryId = dropInsideCategory ? overData.itemId! : (overData.parentId ?? null);
         const targetDepth = overData.depth ?? 0;
 
         if (
+          dropInsideCategory &&
           sourceKind === "category" &&
           data?.categories &&
-          isDescendantOf(data.categories, sourceId, targetCategoryId)
+          isDescendantOf(data.categories, sourceId, targetCategoryId!)
         ) {
           toast.error(t("writing.cannotMoveIntoDescendant"));
           return;
         }
 
-        if (!canAcceptDrop(sourceKind, "category", targetDepth)) {
+        if (dropInsideCategory && !canAcceptDrop(sourceKind, "category", targetDepth)) {
           toast.error(t("writing.categoryDepthExceeded"));
           return;
         }
@@ -311,11 +322,28 @@ export function NoteTree({
         return;
       }
 
-      if ((activeData.parentId ?? null) === targetCategoryId) {
-        return;
+      const siblings = getSiblingRefs(data!, targetCategoryId).filter(
+        (item) => item.kind !== sourceKind || item.itemId !== sourceId,
+      );
+      if (
+        over.id !== ROOT_DROP_ID &&
+        overData?.itemId &&
+        targetCategoryId === (overData.parentId ?? null)
+      ) {
+        const index = siblings.findIndex(
+          (item) => item.kind === overData.itemType && item.itemId === overData.itemId,
+        );
+        const activeTop = active.rect.current.translated?.top ?? 0;
+        const after = activeTop > over.rect.top + over.rect.height / 2;
+        siblings.splice(Math.max(0, index + (after ? 1 : 0)), 0, {
+          kind: sourceKind,
+          itemId: sourceId,
+        });
+      } else {
+        siblings.push({ kind: sourceKind, itemId: sourceId });
       }
 
-      onMove(sourceId, sourceKind, targetCategoryId).catch(() => {
+      onMove(sourceId, sourceKind, targetCategoryId, siblings).catch(() => {
         // error handled by mutation
       });
     },

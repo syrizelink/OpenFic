@@ -121,3 +121,21 @@ async def shift_orders(
         .values(order=col(Volume.order) + delta)
     )
     await session.flush()
+
+
+async def make_order_gap(
+    session: AsyncSession, project_id: str, start_order: int, count: int
+) -> None:
+    """Open a contiguous range without colliding with the unique order constraint."""
+    if count <= 0:
+        return
+    volumes = await list_by_project(session, project_id)
+    affected = [(volume, volume.order) for volume in volumes if volume.order >= start_order]
+    temporary_order = min((volume.order for volume in volumes), default=0)
+    temporary_order = min(temporary_order, 0) - 1
+    for index, (volume, _) in enumerate(affected):
+        volume.order = temporary_order - index
+    await session.flush()
+    for volume, original_order in affected:
+        volume.order = original_order + count
+    await session.flush()

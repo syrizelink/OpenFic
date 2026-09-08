@@ -7,7 +7,16 @@ from typing import Annotated, Literal
 
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,9 +34,14 @@ from app.api.schemas.note import (
     NoteImportPreviewResponse,
     NoteImportResponse,
     NoteItemMove,
+    NoteItemReorder,
     NoteListItem,
     NoteLockToggle,
     NoteMoveResult,
+    ProjectNoteImportAction,
+    ProjectNoteImportPreviewResponse,
+    ProjectNoteImportRequest,
+    ProjectNoteImportResponse,
     NoteResponse,
     NoteSearchMatch,
     NoteSearchResponse,
@@ -54,10 +68,19 @@ def _build_category_item(node) -> NoteCategoryItem:
         project_id=node.category.project_id,
         parent_id=node.category.parent_id,
         title=node.category.title,
+        order_index=node.category.order_index,
         created_at=node.category.created_at,
         updated_at=node.category.updated_at,
         categories=[_build_category_item(child) for child in node.sub_categories],
         notes=[NoteListItem.model_validate(note) for note in node.notes],
+    )
+
+
+def _build_tree_response(result) -> NoteTreeResponse:
+    return NoteTreeResponse(
+        categories=[_build_category_item(node) for node in result.categories],
+        root_notes=[NoteListItem.model_validate(note) for note in result.root_notes],
+        total_notes=result.total_notes,
     )
 
 
@@ -157,6 +180,106 @@ async def move_item(
                 kind="category",
                 category=NoteCategoryResponse.model_validate(result),
             )
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post(
+    "/projects/{project_id}/note-items/reorder",
+    response_model=NoteTreeResponse,
+    summary="移动并排序笔记条目",
+)
+async def reorder_item(
+    project_id: str,
+    data: NoteItemReorder,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> NoteTreeResponse:
+    try:
+        result = await note_service.reorder_item(
+            session,
+            project_id=project_id,
+            item_kind=data.kind,
+            item_id=data.item_id,
+            target_category_id=data.target_category_id,
+            ordered_siblings=[
+                (item.kind, item.item_id) for item in data.ordered_siblings
+            ],
+        )
+        await background_service.commit_and_notify(session)
+        return _build_tree_response(result)
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post(
+    "/projects/{target_project_id}/notes/import/project/preview",
+    response_model=ProjectNoteImportPreviewResponse,
+    summary="预览从其他项目导入笔记",
+)
+async def preview_project_note_import(
+    target_project_id: str,
+    data: ProjectNoteImportRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ProjectNoteImportPreviewResponse:
+    try:
+        plan = await note_transfer_service.plan_project_note_import(
+            session, target_project_id, **data.model_dump()
+        )
+        actions = [
+            ProjectNoteImportAction.model_validate(action, from_attributes=True)
+            for action in plan.note_actions
+        ]
+        return ProjectNoteImportPreviewResponse(
+            categories=[
+                _build_category_item(node) for node in plan.source_tree.categories
+            ],
+            root_notes=[
+                NoteListItem.model_validate(note)
+                for note in plan.source_tree.root_notes
+            ],
+            actions=actions,
+            create_category_count=sum(
+                action == "create" for _, action in plan.category_actions
+            ),
+            merge_category_count=sum(
+                action == "merge" for _, action in plan.category_actions
+            ),
+            create_note_count=sum(
+                action.action in {"create", "rename"} for action in plan.note_actions
+            ),
+            overwrite_note_count=sum(
+                action.action == "overwrite" for action in plan.note_actions
+            ),
+            skip_note_count=sum(
+                action.action == "skip" for action in plan.note_actions
+            ),
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post(
+    "/projects/{target_project_id}/notes/import/project",
+    response_model=ProjectNoteImportResponse,
+    summary="从其他项目导入笔记",
+)
+async def import_notes_from_project(
+    target_project_id: str,
+    data: ProjectNoteImportRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ProjectNoteImportResponse:
+    try:
+        result = await note_transfer_service.import_notes_from_project(
+            session, target_project_id, **data.model_dump()
+        )
+        await background_service.commit_and_notify(session)
+        return ProjectNoteImportResponse.model_validate(result, from_attributes=True)
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except ValueError as e:

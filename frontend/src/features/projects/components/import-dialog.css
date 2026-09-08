@@ -15,6 +15,62 @@
   border-color: var(--accent-8);
 }
 
+.import-dialog-file-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px;
+  border: 1px dashed var(--gray-6);
+  border-radius: var(--radius-3);
+  background: var(--gray-2);
+}
+
+.import-dialog-file-list {
+  overflow: hidden;
+  border: 1px solid var(--gray-5);
+  border-radius: var(--radius-2);
+}
+
+.import-dialog-file-row {
+  min-width: 0;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--gray-4);
+  background: var(--color-panel);
+}
+
+.import-dialog-file-row:last-child {
+  border-bottom: 0;
+}
+
+.import-dialog-file-drag-handle {
+  flex: 0 0 auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.import-dialog-file-drag-handle:active {
+  cursor: grabbing;
+}
+
+.import-dialog-file-index {
+  flex: 0 0 2ch;
+  font-variant-numeric: tabular-nums;
+}
+
+.import-dialog-file-icon {
+  flex: 0 0 auto;
+  color: var(--gray-9);
+}
+
+.import-dialog-file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .import-dialog-split-content {
   min-height: 220px;
 }

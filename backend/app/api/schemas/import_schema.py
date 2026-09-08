@@ -45,3 +45,10 @@ class ImportConfirmResponse(BaseModel):
     title: str = Field(description="书名")
     chapter_count: int = Field(description="导入的章节数")
     total_word_count: int = Field(description="总字数")
+
+
+class ProjectChapterImportResponse(BaseModel):
+    first_chapter_id: str = Field(description="导入的首个章节 ID")
+    created_volume_ids: list[str] = Field(description="按导入顺序创建的卷 ID")
+    chapter_count: int = Field(description="导入的章节数")
+    total_word_count: int = Field(description="导入的总字数")

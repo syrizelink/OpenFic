@@ -17,11 +17,20 @@ from app.api.schemas.import_schema import (
     PreviewChapter,
     PreviewVolume,
 )
+from app.core.document_import import (
+    ChapterTitleMode,
+    ImportDocument,
+    ImportStructureMode,
+    normalize_document_import,
+)
+from app.core.editor_content_limits import validate_editor_content
 from app.core.project_import import (
     DEFAULT_IMPORT_CHUNK_SIZE,
     MAX_IMPORT_CHUNK_SIZE,
     MAX_IMPORT_FILE_SIZE,
+    SUPPORTED_TEXT_SUFFIXES,
     ImportSplitMode,
+    get_import_suffix,
     is_supported_import_file,
     parse_project_import,
 )
@@ -32,6 +41,94 @@ from app.storage.services import import_service
 router = APIRouter(prefix="/import", tags=["import"])
 
 SUPPORTED_FILE_DETAIL = "仅支持 .txt、.md 或 .zip 文件"
+MAX_IMPORT_DOCUMENTS = 100
+MAX_IMPORT_TOTAL_SIZE = 100 * 1024 * 1024
+
+
+async def _read_document_import(
+    files: Annotated[list[UploadFile], File()],
+    split_mode: Annotated[ImportSplitMode, Form()] = "auto",
+    chunk_size: Annotated[
+        int, Form(ge=1, le=MAX_IMPORT_CHUNK_SIZE)
+    ] = DEFAULT_IMPORT_CHUNK_SIZE,
+    structure_mode: Annotated[ImportStructureMode, Form()] = "separate_volumes",
+    merged_volume_title: Annotated[str | None, Form()] = None,
+    chapter_title_mode: Annotated[ChapterTitleMode, Form()] = "preserve",
+) -> ParseResult:
+    """Read and validate the entire ordered upload batch before parsing documents."""
+    if not 1 <= len(files) <= MAX_IMPORT_DOCUMENTS:
+        raise HTTPException(400, "每次导入需要 1 到 100 个文件")
+    documents: list[ImportDocument] = []
+    total_size = 0
+    for file in files:
+        if get_import_suffix(file.filename) not in SUPPORTED_TEXT_SUFFIXES:
+            raise HTTPException(400, "仅支持 .txt 或 .md 文件")
+        content = await file.read(
+            min(MAX_IMPORT_FILE_SIZE, MAX_IMPORT_TOTAL_SIZE - total_size) + 1
+        )
+        if len(content) > MAX_IMPORT_FILE_SIZE:
+            raise HTTPException(400, "文件大小超过限制（最大 50MB）")
+        total_size += len(content)
+        if total_size > MAX_IMPORT_TOTAL_SIZE:
+            raise HTTPException(400, "上传文件总大小超过限制（最大 100MB）")
+        if not content:
+            raise HTTPException(400, "文件内容为空")
+        documents.append(ImportDocument(file.filename or "", content))
+
+    try:
+        result = normalize_document_import(
+            documents,
+            split_mode=split_mode,
+            chunk_size=chunk_size,
+            structure_mode=structure_mode,
+            merged_volume_title=merged_volume_title,
+            chapter_title_mode=chapter_title_mode,
+        )
+        if not result.volumes:
+            raise ValueError("文件解析失败，未能识别任何章节")
+        for volume in result.volumes:
+            for chapter in volume.chapters:
+                validate_editor_content(chapter.content)
+        return result
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.post("/documents/preview", response_model=ImportPreviewResponse)
+async def preview_documents(
+    parsed: Annotated[ParseResult, Depends(_read_document_import)],
+) -> ImportPreviewResponse:
+    return _to_preview_response(parsed)
+
+
+@router.post(
+    "/documents/confirm",
+    response_model=ImportConfirmResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def confirm_documents(
+    parsed: Annotated[ParseResult, Depends(_read_document_import)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    title: Annotated[str, Form()],
+    description: Annotated[str | None, Form()] = None,
+    cover: Annotated[UploadFile | None, File()] = None,
+) -> ImportConfirmResponse:
+    title = title.strip()
+    if not title:
+        raise HTTPException(400, "书名不能为空")
+    try:
+        async with session.begin_nested():
+            result = await import_service.confirm_import(
+                session, title, description, cover, parsed.volumes
+            )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return ImportConfirmResponse(
+        project_id=result.project_id,
+        title=result.title,
+        chapter_count=result.chapter_count,
+        total_word_count=result.total_word_count,
+    )
 
 
 def _require_supported_filename(filename: str | None) -> str:

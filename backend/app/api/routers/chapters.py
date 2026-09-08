@@ -5,7 +5,7 @@ Chapters Router - 章节 CRUD API。
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, status
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,12 +22,80 @@ from app.api.schemas.chapter import (
     VolumeTreeItem,
     VolumeTreeResponse,
 )
+from app.api.routers.import_router import _read_document_import, _to_preview_response
+from app.api.schemas.import_schema import (
+    ImportPreviewResponse,
+    ProjectChapterImportResponse,
+)
 from app.background.jobs import service as background_service
 from app.core.errors import NotFoundError
+from app.core.txt_parser import ParseResult
 from app.storage.database import get_session
-from app.storage.services import chapter_service
+from app.storage.services import chapter_service, project_chapter_import_service
+from app.storage.services.project_chapter_import_service import ImportPlacement
 
 router = APIRouter(tags=["chapters"])
+
+
+@router.post(
+    "/projects/{project_id}/chapter-imports/preview",
+    response_model=ImportPreviewResponse,
+)
+async def preview_chapter_import(
+    project_id: str,
+    parsed: Annotated[ParseResult, Depends(_read_document_import)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    placement: Annotated[ImportPlacement, Form()] = "append",
+    after_volume_id: Annotated[str | None, Form()] = None,
+) -> ImportPreviewResponse:
+    try:
+        await project_chapter_import_service.resolve_placement(
+            session, project_id, placement, after_volume_id
+        )
+    except NotFoundError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return _to_preview_response(parsed)
+
+
+@router.post(
+    "/projects/{project_id}/chapter-imports",
+    response_model=ProjectChapterImportResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def import_chapters(
+    project_id: str,
+    parsed: Annotated[ParseResult, Depends(_read_document_import)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    placement: Annotated[ImportPlacement, Form()] = "append",
+    after_volume_id: Annotated[str | None, Form()] = None,
+) -> ProjectChapterImportResponse:
+    try:
+        async with session.begin_nested():
+            result = await project_chapter_import_service.import_documents(
+                session,
+                project_id,
+                parsed.volumes,
+                placement=placement,
+                after_volume_id=after_volume_id,
+            )
+        # Register after the savepoint has completed so the one-shot listener
+        # observes the outer commit, not the savepoint release.
+        from app.retrieval.index_status import schedule_emit_index_status
+
+        schedule_emit_index_status(session, project_id)
+        await background_service.commit_and_notify(session)
+    except NotFoundError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return ProjectChapterImportResponse(
+        first_chapter_id=result.first_chapter_id,
+        created_volume_ids=result.created_volume_ids,
+        chapter_count=result.chapter_count,
+        total_word_count=result.total_word_count,
+    )
 
 
 @router.post(

@@ -137,8 +137,6 @@ export const NoteTreeItem = memo(function NoteTreeItem({
   const didDragAfterLongPressRef = useRef(false);
 
   const draggableId = `${data.type}:${data.id}`;
-  const isCategory = data.type === "category";
-
   const {
     attributes,
     listeners,
@@ -158,22 +156,22 @@ export const NoteTreeItem = memo(function NoteTreeItem({
   const { setNodeRef: setDropNodeRef, isOver } = useDroppable({
     id: `${draggableId}:drop`,
     data: {
-      itemType: "category",
+      itemType: data.type,
       itemId: data.id,
       depth: data.depth,
+      parentId: data.parentId,
     },
-    disabled: !isCategory,
   });
 
   const setNodeRef = useCallback(
     (node: HTMLElement | null) => {
       setDragNodeRef(node);
-      if (isCategory) setDropNodeRef(node);
+      setDropNodeRef(node);
     },
-    [setDragNodeRef, setDropNodeRef, isCategory],
+    [setDragNodeRef, setDropNodeRef],
   );
 
-  const highlight = isCategory && isOver && !isDragging;
+  const highlight = isOver && !isDragging;
 
   const isPressed = isLongPressPending || isLongPressActive;
   const isDarkPressed = isLongPressActive;

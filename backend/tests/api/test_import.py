@@ -9,6 +9,10 @@ import zipfile
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.storage.models.writing_activity_event import WritingActivityEvent
 
 
 @pytest.mark.asyncio
@@ -513,3 +517,200 @@ async def test_preview_zip_without_text_files_returns_a_readable_error(
 
     assert response.status_code == 400
     assert "TXT" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_document_import_endpoints_preserve_order_and_placement(
+    client: AsyncClient,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.api.routers import import_router
+
+    files = [
+        ("files", ("first.txt", "第十章 原标题\n\n正文".encode(), "text/plain")),
+        (
+            "files",
+            (
+                "second.md",
+                "第二十章 后续\n\n内容".encode(),
+                "text/markdown",
+            ),
+        ),
+    ]
+    response = await client.post("/api/v1/import/documents/preview", files=files)
+    assert response.status_code == 200, response.text
+    preview = response.json()
+    assert [volume["title"] for volume in preview["volumes"]] == ["first", "second"]
+    response = await client.post(
+        "/api/v1/import/documents/preview",
+        files=files[:1],
+        data={"structure_mode": "merge_volume", "merged_volume_title": "  合集  "},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["volumes"][0]["title"] == "合集"
+    for invalid_title in (" ", "x" * 201):
+        response = await client.post(
+            "/api/v1/import/documents/preview",
+            files=files[:1],
+            data={"structure_mode": "merge_volume", "merged_volume_title": invalid_title},
+        )
+        assert response.status_code == 400, response.text
+    response = await client.post(
+        "/api/v1/import/documents/preview",
+        files=[("files", ("too-long.txt", ("内容" * 100001).encode(), "text/plain"))],
+    )
+    assert response.status_code == 400, response.text
+    assert "内容超出限制" in response.json()["detail"]
+    response = await client.post(
+        "/api/v1/import/documents/confirm", files=files, data={"title": "多文档"}
+    )
+    assert response.status_code == 201, response.text
+    imported = response.json()
+    project_id = imported["project_id"]
+    project_url = f"/api/v1/projects/{project_id}"
+    tree = (await client.get(f"{project_url}/chapters")).json()
+    assert [volume["title"] for volume in tree["volumes"]] == [
+        volume["title"] for volume in preview["volumes"]
+    ]
+    assert imported["chapter_count"] == preview["chapter_count"]
+    assert imported["total_word_count"] == preview["total_word_count"]
+    captured_id = tree["volumes"][1]["id"]
+    response = await client.post(f"{project_url}/volumes", json={"title": "尾卷"})
+    assert response.status_code == 201, response.text
+    before = (await client.get(f"{project_url}/chapters")).json()["volumes"]
+    options = {
+        "structure_mode": "merge_volume",
+        "merged_volume_title": "合集",
+        "chapter_title_mode": "continuous_numbering",
+        "placement": "after_volume",
+        "after_volume_id": captured_id,
+    }
+    response = await client.post(
+        f"{project_url}/chapter-imports/preview", files=files[:2], data=options
+    )
+    assert response.status_code == 200, response.text
+    merged_preview = response.json()
+    assert (await client.get(f"{project_url}/chapters")).json()["volumes"] == before
+    response = await client.post(
+        f"{project_url}/chapter-imports", files=files[:2], data=options
+    )
+    assert response.status_code == 201, response.text
+    result = response.json()
+    volumes = (await client.get(f"{project_url}/chapters")).json()["volumes"]
+    assert [volume["order"] for volume in volumes] == list(range(1, 5))
+    assert [
+        volume["id"]
+        for volume in volumes
+        if volume["id"] not in result["created_volume_ids"]
+    ] == [volume["id"] for volume in before]
+    inserted = volumes[2]
+    assert inserted["id"] == result["created_volume_ids"][0]
+    assert inserted["title"] == "合集"
+    assert (
+        [chapter["title"] for chapter in inserted["chapters"]]
+        == ["第 1 章 原标题", "第 2 章 后续"]
+        == [chapter["title"] for chapter in merged_preview["volumes"][0]["chapters"]]
+    )
+    assert result["first_chapter_id"] == inserted["chapters"][0]["id"]
+    assert result["chapter_count"] == 2
+    project = (await client.get(project_url)).json()
+    assert project["chapter_count"] == preview["chapter_count"] + 2
+    assert (
+        project["word_count"]
+        == preview["total_word_count"] + result["total_word_count"]
+    )
+    events = (await session.execute(select(WritingActivityEvent))).scalars().all()
+    assert len(events) == project["chapter_count"]
+    assert all(
+        event.source == "import" and event.operation == "import" for event in events
+    )
+
+    response = await client.post(f"{project_url}/chapter-imports", files=files[:2])
+    assert response.status_code == 201, response.text
+    appended = (await client.get(f"{project_url}/chapters")).json()["volumes"]
+    assert [volume["order"] for volume in appended] == list(range(1, 7))
+    assert [volume["id"] for volume in appended[-2:]] == response.json()[
+        "created_volume_ids"
+    ]
+    assert appended[-2]["chapters"][0]["title"] == "第十章 原标题"
+
+    for path in (
+        f"{project_url}/chapter-imports/preview",
+        f"{project_url}/chapter-imports",
+    ):
+        for data in (
+            {"placement": "after_volume"},
+            {"placement": "after_volume", "after_volume_id": "missing"},
+        ):
+            response = await client.post(path, files=files[:1], data=data)
+            assert response.status_code == 400, response.text
+    response = await client.post(
+        "/api/v1/projects/missing/chapter-imports", files=files[:1]
+    )
+    assert response.status_code == 404, response.text
+    response = await client.post(
+        "/api/v1/import/documents/preview", files=files[:1] * 101
+    )
+    assert response.status_code == 400, response.text
+    # Smaller thresholds exercise actual multipart reads without allocating huge uploads.
+    for limit, value, uploads, expected_detail in (
+        ("MAX_IMPORT_FILE_SIZE", 1, files[:1], "文件大小"),
+        ("MAX_IMPORT_TOTAL_SIZE", len(files[0][1][1]) + 1, files[:2], "总大小"),
+    ):
+        with monkeypatch.context() as limits:
+            limits.setattr(import_router, limit, value)
+            response = await client.post(
+                "/api/v1/import/documents/preview", files=uploads
+            )
+        assert response.status_code == 400, response.text
+        assert expected_detail in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_import_documents_rolls_back_all_files(
+    client: AsyncClient,
+    session: AsyncSession,
+) -> None:
+    response = await client.post(
+        "/api/v1/import/documents/confirm",
+        files=[("files", ("original.txt", "原有正文".encode(), "text/plain"))],
+        data={"title": "原有项目"},
+    )
+    assert response.status_code == 201, response.text
+    project_id = response.json()["project_id"]
+    project_url = f"/api/v1/projects/{project_id}"
+    response = await client.post(f"{project_url}/volumes", json={"title": "尾卷"})
+    assert response.status_code == 201, response.text
+    before_tree = (await client.get(f"{project_url}/chapters")).json()
+    before_project = (await client.get(project_url)).json()
+    activity_count = select(func.count()).select_from(WritingActivityEvent)
+    before_activity_count = (await session.execute(activity_count)).scalar_one()
+    files = [
+        ("files", ("valid.txt", "第十章 有效\n\n新增正文".encode(), "text/plain")),
+        ("files", ("oversized.txt", ("内容" * 100001).encode(), "text/plain")),
+    ]
+    response = await client.post(
+        f"{project_url}/chapter-imports",
+        files=files,
+        data={
+            "placement": "after_volume",
+            "after_volume_id": before_tree["volumes"][0]["id"],
+        },
+    )
+    assert response.status_code == 400, response.text
+    assert "内容超出限制" in response.json()["detail"]
+    after_tree = (await client.get(f"{project_url}/chapters")).json()
+    after_project = (await client.get(project_url)).json()
+    assert after_tree == before_tree
+    assert after_project["chapter_count"] == before_project["chapter_count"]
+    assert after_project["word_count"] == before_project["word_count"]
+    assert (await session.execute(activity_count)).scalar_one() == before_activity_count
+
+    projects_before = (await client.get("/api/v1/projects")).json()["total"]
+    response = await client.post(
+        "/api/v1/import/documents/confirm", files=files, data={"title": "无效项目"}
+    )
+    assert response.status_code == 400, response.text
+    assert (await client.get("/api/v1/projects")).json()["total"] == projects_before
+    assert (await session.execute(activity_count)).scalar_one() == before_activity_count

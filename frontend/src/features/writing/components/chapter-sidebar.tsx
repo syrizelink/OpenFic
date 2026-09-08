@@ -26,6 +26,7 @@ import {
 import { useTabsStore } from "../store/use-tabs-store";
 import { useWritingStore } from "../store/use-writing-store";
 import { ChapterExportDialog } from "./chapter-export-dialog";
+import { ChapterImportDialog } from "./chapter-import-dialog";
 import {
   findVolumeIdForChapter,
   getInitialCurrentChapterVolumeIdToExpand,
@@ -110,6 +111,8 @@ export function ChapterSidebar({
   const [editingVolume, setEditingVolume] = useState<VolumeWithChapters | null>(null);
   const [editingVolumeDescription, setEditingVolumeDescription] = useState("");
   const [chapterExportOpen, setChapterExportOpen] = useState(false);
+  const [chapterImportOpen, setChapterImportOpen] = useState(false);
+  const [importCurrentVolumeId, setImportCurrentVolumeId] = useState<string | null>(null);
   const [localTitleOverrides, setLocalTitleOverrides] = useState<Record<string, string>>({});
   const [scrollRequest, setScrollRequest] = useState<GroupedVolumeListScrollRequest | null>(null);
   const defaultExpansionAppliedProjectRef = useRef<string | null>(null);
@@ -537,6 +540,25 @@ export function ChapterSidebar({
     [moveChapterToVolumeMutation, movingChapter, setVolumeExpanded],
   );
 
+  const handleOpenChapterImport = useCallback(() => {
+    setImportCurrentVolumeId(findVolumeIdForChapter(volumes, currentChapterId));
+    setChapterImportOpen(true);
+  }, [currentChapterId, volumes]);
+
+  const handleImportedChapter = useCallback(
+    async (chapterId: string) => {
+      try {
+        const chapter = await fetchChapter(chapterId);
+        setCurrentChapter(chapter.id);
+        onChapterSelect(chapter.id, chapter.title);
+      } catch {
+        setCurrentChapter(chapterId);
+        onChapterSelect(chapterId, "");
+      }
+    },
+    [onChapterSelect, setCurrentChapter],
+  );
+
   return (
     <Box
       style={{
@@ -553,6 +575,7 @@ export function ChapterSidebar({
         onCreateChapter={handleCreateChapter}
         onCreateVolume={handleCreateVolume}
         onOpenSummary={onOpenSummary}
+        onImport={handleOpenChapterImport}
         onExport={() => setChapterExportOpen(true)}
         onSaveOrder={handleSaveOrder}
         onCancelOrder={handleCancelOrder}
@@ -640,6 +663,14 @@ export function ChapterSidebar({
         onOpenChange={setChapterExportOpen}
         projectId={projectId}
         volumes={volumes}
+      />
+
+      <ChapterImportDialog
+        open={chapterImportOpen}
+        onOpenChange={setChapterImportOpen}
+        projectId={projectId}
+        currentVolumeId={importCurrentVolumeId}
+        onImported={(chapterId) => void handleImportedChapter(chapterId)}
       />
 
       <Dialog.Root

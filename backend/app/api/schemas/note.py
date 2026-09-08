@@ -47,6 +47,18 @@ class NoteItemMove(BaseModel):
     target_category_id: str | None = Field(default=None, description="目标分类 ID")
 
 
+class NoteSiblingRef(BaseModel):
+    kind: Literal["category", "note"]
+    item_id: str
+
+
+class NoteItemReorder(BaseModel):
+    kind: Literal["category", "note"]
+    item_id: str
+    target_category_id: str | None = None
+    ordered_siblings: list[NoteSiblingRef] = Field(min_length=1)
+
+
 class NoteResponse(BaseModel):
     id: str = Field(description="笔记 ID")
     project_id: str = Field(description="所属项目 ID")
@@ -55,6 +67,7 @@ class NoteResponse(BaseModel):
     content: str = Field(description="笔记内容")
     is_locked: bool = Field(description="是否锁定")
     is_hidden: bool = Field(description="是否隐藏")
+    order_index: int = Field(description="同级顺序")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="上次修改时间")
 
@@ -68,6 +81,7 @@ class NoteListItem(BaseModel):
     title: str = Field(description="笔记标题")
     is_locked: bool = Field(description="是否锁定")
     is_hidden: bool = Field(description="是否隐藏")
+    order_index: int = Field(description="同级顺序")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="上次修改时间")
 
@@ -79,6 +93,7 @@ class NoteCategoryResponse(BaseModel):
     project_id: str = Field(description="所属项目 ID")
     parent_id: str | None = Field(description="父分类 ID")
     title: str = Field(description="分类标题")
+    order_index: int = Field(description="同级顺序")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="上次修改时间")
 
@@ -90,6 +105,7 @@ class NoteCategoryItem(BaseModel):
     project_id: str = Field(description="所属项目 ID")
     parent_id: str | None = Field(description="父分类 ID")
     title: str = Field(description="分类标题")
+    order_index: int = Field(description="同级顺序")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="上次修改时间")
     categories: list["NoteCategoryItem"] = Field(description="子分类列表")
@@ -155,3 +171,41 @@ class NoteImportResponse(BaseModel):
     imported_note_count: int = Field(description="导入的笔记数量")
     imported_category_count: int = Field(description="创建的分类数量")
     ignored_file_count: int = Field(description="忽略的非 Markdown 文件数量")
+
+
+NoteConflictStrategy = Literal["rename", "overwrite", "skip"]
+
+
+class ProjectNoteImportRequest(BaseModel):
+    source_project_id: str
+    selected_category_ids: list[str] = Field(default_factory=list)
+    selected_note_ids: list[str] = Field(default_factory=list)
+    default_conflict_strategy: NoteConflictStrategy = "rename"
+    conflict_overrides: dict[str, NoteConflictStrategy] = Field(default_factory=dict)
+
+
+class ProjectNoteImportAction(BaseModel):
+    source_note_id: str
+    source_path: str
+    target_title: str
+    action: Literal["create", "rename", "overwrite", "skip"]
+
+
+class ProjectNoteImportPreviewResponse(BaseModel):
+    categories: list[NoteCategoryItem]
+    root_notes: list[NoteListItem]
+    actions: list[ProjectNoteImportAction]
+    create_category_count: int
+    merge_category_count: int
+    create_note_count: int
+    overwrite_note_count: int
+    skip_note_count: int
+
+
+class ProjectNoteImportResponse(BaseModel):
+    created_category_count: int
+    merged_category_count: int
+    created_note_count: int
+    renamed_note_count: int
+    overwritten_note_count: int
+    skipped_note_count: int

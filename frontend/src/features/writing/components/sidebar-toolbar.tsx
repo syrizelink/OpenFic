@@ -7,6 +7,7 @@ import {
   GripVertical,
   Search,
   Summary,
+  Upload,
   X,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -26,6 +27,7 @@ interface SidebarToolbarProps {
   onCreateChapter: () => void;
   onCreateVolume: () => void;
   onOpenSummary?: () => void;
+  onImport: () => void;
   onExport: () => void;
   onSaveOrder: () => void;
   onCancelOrder: () => void;
@@ -41,6 +43,7 @@ export function SidebarToolbar({
   onCreateChapter,
   onCreateVolume,
   onOpenSummary,
+  onImport,
   onExport,
   onSaveOrder,
   onCancelOrder,
@@ -100,6 +103,14 @@ export function SidebarToolbar({
       return;
     }
     onCreateVolume();
+  };
+
+  const handleImport = () => {
+    if (isAgentLocked) {
+      onLockedAction?.();
+      return;
+    }
+    onImport();
   };
 
   const handleContentSearchToggle = useCallback(() => {
@@ -340,6 +351,15 @@ export function SidebarToolbar({
                     </IconButton>
                   </Tooltip>
                 )}
+                <Tooltip content={t("projects.import")}>
+                  <IconButton
+                    variant="ghost"
+                    size="2"
+                    onClick={handleImport}
+                  >
+                    <Upload size={16} />
+                  </IconButton>
+                </Tooltip>
                 <Tooltip content={t("writing.chapterExport.open")}>
                   <IconButton
                     variant="ghost"

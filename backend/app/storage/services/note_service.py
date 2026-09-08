@@ -5,7 +5,7 @@ Note Service - 笔记业务逻辑层。
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Literal, Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +32,16 @@ class NoteTreeResult:
     categories: list[NoteCategoryNode]
     root_notes: list[Note]
     total_notes: int
+
+
+async def next_order_index(
+    session: AsyncSession, project_id: str, parent_id: str | None
+) -> int:
+    categories = await note_category_repo.list_by_project(session, project_id)
+    notes = await note_repo.list_by_project(session, project_id, include_hidden=True)
+    values = [c.order_index for c in categories if c.parent_id == parent_id]
+    values.extend(n.order_index for n in notes if n.category_id == parent_id)
+    return max(values, default=-1) + 1
 
 
 async def _assert_category_depth(session: AsyncSession, parent_id: str) -> None:
@@ -93,6 +103,7 @@ async def create_note(
         category_id=category_id,
         title=unique_title,
         content=content,
+        order_index=await next_order_index(session, project_id, category_id),
     )
     note = await note_repo.create(session, note)
 
@@ -134,6 +145,11 @@ async def list_notes(
     notes_by_category: dict[str | None, list[Note]] = {}
     for note in notes:
         notes_by_category.setdefault(note.category_id, []).append(note)
+
+    for items in cat_by_parent.values():
+        items.sort(key=lambda item: (item.order_index, item.id))
+    for items in notes_by_category.values():
+        items.sort(key=lambda item: (item.order_index, item.id))
 
     def build_node(cat: NoteCategory) -> NoteCategoryNode:
         return NoteCategoryNode(
@@ -278,6 +294,7 @@ async def create_category(
         project_id=project_id,
         parent_id=parent_id,
         title=unique_title,
+        order_index=await next_order_index(session, project_id, parent_id),
     )
     return await note_category_repo.create(session, category)
 
@@ -338,8 +355,14 @@ async def move_item(
             await _assert_not_descendant(session, item_id, target_category_id)
             if target.parent_id is not None:
                 raise ValueError("分类层级不能超过两级")
+            if await note_category_repo.get_by_parent(session, item_id):
+                raise ValueError("包含子分类的分类不能移动为二级分类")
 
+        old_parent_id = category.parent_id
         category.parent_id = target_category_id
+        category.order_index = await next_order_index(
+            session, category.project_id, target_category_id
+        )
         category.updated_at = datetime.now(UTC)
         category = await note_category_repo.update_category(session, category)
 
@@ -353,6 +376,7 @@ async def move_item(
             old_word_count=0,
             new_word_count=0,
         )
+        await _compact_siblings(session, category.project_id, old_parent_id)
         return category
 
     else:
@@ -365,7 +389,11 @@ async def move_item(
             if target is None or target.project_id != note.project_id:
                 raise ValueError("目标分类不存在或不属于当前项目")
 
+        old_parent_id = note.category_id
         note.category_id = target_category_id
+        note.order_index = await next_order_index(
+            session, note.project_id, target_category_id
+        )
         note.updated_at = datetime.now(UTC)
         note = await note_repo.update_note(session, note)
 
@@ -379,7 +407,118 @@ async def move_item(
             old_word_count=0,
             new_word_count=0,
         )
+        await _compact_siblings(session, note.project_id, old_parent_id)
         return note
+
+
+async def _compact_siblings(
+    session: AsyncSession, project_id: str, parent_id: str | None
+) -> None:
+    categories = await note_category_repo.list_by_project(session, project_id)
+    notes = await note_repo.list_by_project(session, project_id, include_hidden=True)
+    siblings: list[Note | NoteCategory] = [
+        item for item in categories if item.parent_id == parent_id
+    ]
+    siblings.extend(item for item in notes if item.category_id == parent_id)
+    siblings.sort(key=lambda item: (item.order_index, item.id))
+    for index, entity in enumerate(siblings):
+        entity.order_index = index
+        session.add(entity)
+    await session.flush()
+
+
+async def reorder_item(
+    session: AsyncSession,
+    project_id: str,
+    item_kind: Literal["category", "note"],
+    item_id: str,
+    target_category_id: str | None,
+    ordered_siblings: Sequence[tuple[Literal["category", "note"], str]],
+) -> NoteTreeResult:
+    """Move one item and atomically rewrite the complete mixed sibling order."""
+    if await project_repo.get_by_id(session, project_id) is None:
+        raise NotFoundError(f"项目不存在: {project_id}")
+
+    categories = await note_category_repo.list_by_project(session, project_id)
+    notes = await note_repo.list_by_project(session, project_id, include_hidden=True)
+    category_by_id = {item.id: item for item in categories}
+    note_by_id = {item.id: item for item in notes}
+
+    target = None
+    if target_category_id is not None:
+        target = category_by_id.get(target_category_id)
+        if target is None:
+            raise ValueError("目标分类不存在或不属于当前项目")
+
+    if item_kind == "category":
+        moved = category_by_id.get(item_id)
+        if moved is None:
+            raise NotFoundError(f"分类不存在或不属于当前项目: {item_id}")
+        old_parent_id = moved.parent_id
+        if target_category_id is not None:
+            await _assert_not_descendant(session, item_id, target_category_id)
+            if target is not None and target.parent_id is not None:
+                raise ValueError("分类层级不能超过两级")
+            if any(item.parent_id == item_id for item in categories):
+                raise ValueError("包含子分类的分类不能移动为二级分类")
+    else:
+        moved = note_by_id.get(item_id)
+        if moved is None:
+            raise NotFoundError(f"笔记不存在或不属于当前项目: {item_id}")
+        old_parent_id = moved.category_id
+
+    refs = list(ordered_siblings)
+    if len(refs) != len(set(refs)):
+        raise ValueError("同级顺序包含重复条目")
+    for kind, ref_id in refs:
+        if (kind == "category" and ref_id not in category_by_id) or (
+            kind == "note" and ref_id not in note_by_id
+        ):
+            raise ValueError("同级顺序包含不属于当前项目的条目")
+
+    expected: set[tuple[str, str]] = {
+        ("category", item.id)
+        for item in categories
+        if item.parent_id == target_category_id and item.id != item_id
+    }
+    expected.update(
+        ("note", item.id)
+        for item in notes
+        if item.category_id == target_category_id and item.id != item_id
+    )
+    expected.add((item_kind, item_id))
+    if set(refs) != expected:
+        raise ValueError("必须提交目标分类下完整且准确的同级顺序")
+
+    if item_kind == "category":
+        moved.parent_id = target_category_id
+    else:
+        moved.category_id = target_category_id
+    moved.updated_at = datetime.now(UTC)
+
+    for index, (kind, ref_id) in enumerate(refs):
+        entity = category_by_id[ref_id] if kind == "category" else note_by_id[ref_id]
+        entity.order_index = index
+        session.add(entity)
+
+    if old_parent_id != target_category_id:
+        old_siblings: list[Note | NoteCategory] = [
+            item
+            for item in categories
+            if item.parent_id == old_parent_id and item.id != item_id
+        ]
+        old_siblings.extend(
+            item
+            for item in notes
+            if item.category_id == old_parent_id and item.id != item_id
+        )
+        old_siblings.sort(key=lambda item: (item.order_index, item.id))
+        for index, entity in enumerate(old_siblings):
+            entity.order_index = index
+            session.add(entity)
+
+    await session.flush()
+    return await list_notes(session, project_id)
 
 
 async def search_mention_candidates(
