@@ -9,7 +9,7 @@
 
 在你完成了补丁后，你应该：
 - 创建一个 PR
-- 确保 PR 描述符合![规范](./.github/PULL_REQUEST_TEMPLATE.md)，能够清晰的说明问题原因和解决方案
+- 确保 PR 描述符合[规范](./.github/PULL_REQUEST_TEMPLATE.md)，能够清晰的说明问题原因和解决方案
 - 指定 Reviewers 并等待审查
 
 ## 关于新功能

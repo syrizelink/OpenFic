@@ -27,4 +27,4 @@ If you plan to add a new feature or improve an existing one, keep the following 
 
 If your contribution only reformats code, addresses issues that have no effect on actual behavior or UX, or makes a superficial functional fix, it is unlikely to improve the system's stability or functionality in a meaningful way. Such PRs will be closed.
 
-OpenFic relies on community contributions. Thanks to everyone who opens issues and PRs.
+OpenFic relies on community contributions. Thanks to everyone who opens issues and PRs ♥️♥️♥️.
