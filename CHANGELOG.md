@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.11.1](https://github.com/syrizelink/OpenFic/compare/v0.11.0...v0.11.1) (2026-09-09)
+
+
+### 🐛 问题修复
+
+* **backend:** 修复 tiktoken 词表缓存反复重写阻塞事件循环的问题 ([#376](https://github.com/syrizelink/OpenFic/issues/376)) ([5a7c73b](https://github.com/syrizelink/OpenFic/commit/5a7c73b639b6e68bcc41f34e3704450a7d7dc7d5))
+* **backend:** 修复兼容接口无法读取推理内容的问题 ([#382](https://github.com/syrizelink/OpenFic/issues/382)) ([63418de](https://github.com/syrizelink/OpenFic/commit/63418de575d189e61ab3bc770748983ddf28075d))
+* **desktop:** 修复卸载时缺失运行环境目录报错 ([#384](https://github.com/syrizelink/OpenFic/issues/384)) ([349f154](https://github.com/syrizelink/OpenFic/commit/349f154a55aaef9a9ec6a2a0ae12ada253236645))
+* **frontend:** 修复侧栏切换主题后不保留设置的问题 ([#379](https://github.com/syrizelink/OpenFic/issues/379)) ([8f90d91](https://github.com/syrizelink/OpenFic/commit/8f90d91dbc855154edff2585a36f39ee353e54d0))
+* **frontend:** 修复搜索输入和 Toast 未使用项目字体的问题 ([#392](https://github.com/syrizelink/OpenFic/issues/392)) ([6d8ab17](https://github.com/syrizelink/OpenFic/commit/6d8ab175ad9f7ec5c27eb21e9c31da927d953788))
+* **frontend:** 修复未知代码块语言导致内容不显示的问题 ([#394](https://github.com/syrizelink/OpenFic/issues/394)) ([87d1292](https://github.com/syrizelink/OpenFic/commit/87d12921d6b0074e4b1f1d449c5ad17dd4dbe74b))
+* **frontend:** 修复移动端左侧边栏切换动画卡顿的问题 ([#390](https://github.com/syrizelink/OpenFic/issues/390)) ([55b2513](https://github.com/syrizelink/OpenFic/commit/55b2513c893922443587e082abc756fd18832a9f))
+
+
+### ⚡ 性能优化
+
+* **chapter:** 优化大规模章节排序性能 ([#393](https://github.com/syrizelink/OpenFic/issues/393)) ([c9ef20f](https://github.com/syrizelink/OpenFic/commit/c9ef20f887ca0b26745f0bc39d07acb34a3f4e18))
+
+
+### 📚 文档
+
+* **contributing:** 完善 CONTRIBUTING.md ([#389](https://github.com/syrizelink/OpenFic/issues/389)) ([6fad139](https://github.com/syrizelink/OpenFic/commit/6fad139d8111d71ab48e88d08aecc5e71b257c65))
+
+
+### 🔧 杂项
+
+* **agent:** 优化 Agent 工具描述 ([#372](https://github.com/syrizelink/OpenFic/issues/372)) ([4361650](https://github.com/syrizelink/OpenFic/commit/436165018f73d7ab77c15f3865810b5aa08f1385))
+* **config:** 完善联网搜索设置选项 ([#383](https://github.com/syrizelink/OpenFic/issues/383)) ([3d22ece](https://github.com/syrizelink/OpenFic/commit/3d22ece133a5b024e3bb501f3f04cb5e8a5adca1))
+* **frontend:** 为编辑器工具栏添加移动端适配 ([#388](https://github.com/syrizelink/OpenFic/issues/388)) ([b965128](https://github.com/syrizelink/OpenFic/commit/b9651283bb8d8dc46514d4960d3f3db9773a2520))
+* **frontend:** 完善 Markdown 编辑器工具栏 ([#373](https://github.com/syrizelink/OpenFic/issues/373)) ([8d4bc4e](https://github.com/syrizelink/OpenFic/commit/8d4bc4e7fc1c2cccd71cbb24a4ed392456180d0d))
+* **frontend:** 完善章节编辑器工具栏 ([#374](https://github.com/syrizelink/OpenFic/issues/374)) ([809a071](https://github.com/syrizelink/OpenFic/commit/809a071e34ed651e5177f31ac1b8a461a589edab))
+* **frontend:** 添加移动端左侧边栏滑动手势 ([#391](https://github.com/syrizelink/OpenFic/issues/391)) ([39f9557](https://github.com/syrizelink/OpenFic/commit/39f9557cd386f2bac959386cc7fc8b75597a7d21))
+* **notes:** 添加笔记导入导出功能 ([#370](https://github.com/syrizelink/OpenFic/issues/370)) ([2eae5db](https://github.com/syrizelink/OpenFic/commit/2eae5dbe08dee4f2c2eae801a18ec41e7e576ff1))
+
 ## [0.11.0](https://github.com/syrizelink/OpenFic/compare/v0.10.2...v0.11.0) (2026-08-30)
 
 
