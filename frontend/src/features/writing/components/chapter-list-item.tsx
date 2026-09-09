@@ -2,11 +2,10 @@
  * Chapter List Item
  *
  * 章节列表项组件，显示章节名、字数和编辑时间。
- * 普通滚动路径不接入 dnd-kit，只在拖拽模式下启用 sortable。
+ * 普通滚动路径不接入 dnd-kit，只在拖拽模式下启用 draggable。
  */
 
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { useDraggable } from "@dnd-kit/core";
 import { Box, Flex, Text, Tooltip } from "@radix-ui/themes";
 import { GripVertical, MoreHorizontal } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -16,6 +15,7 @@ import type { SummaryStatus } from "@/lib/api-client";
 import type { ChapterListItem as ChapterListItemType } from "@/lib/chapter.types";
 import { formatRelativeTime } from "@/lib/time-utils";
 
+import { CHAPTER_LIST_ITEM_HEIGHT } from "../lib/chapter-list-drag";
 import { SummaryStatusDot } from "./summary-status-dot";
 
 function RenameInput({
@@ -486,38 +486,48 @@ function ChapterListItemComponent({
   );
 }
 
-interface SortableChapterListItemProps {
+interface DraggableChapterListItemProps {
   chapter: ChapterListItemType;
   isActive: boolean;
   onSelectChapter: (chapterId: string) => void;
   summaryStatus?: SummaryStatus;
   summaryIsStale?: boolean;
   onOpenSummary?: () => void;
+  isDragSource?: boolean;
+  isDragActive?: boolean;
+  dragOffset?: number;
+  isDragOverlay?: boolean;
 }
 
-function SortableChapterListItemComponent({
+function DraggableChapterListItemComponent({
   chapter,
   isActive,
   onSelectChapter,
   summaryStatus,
   summaryIsStale = false,
   onOpenSummary,
-}: SortableChapterListItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  isDragSource = false,
+  isDragActive = false,
+  dragOffset = 0,
+  isDragOverlay = false,
+}: DraggableChapterListItemProps) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: chapter.id,
+    disabled: isDragOverlay,
   });
 
   const style = useMemo(
     () => ({
-      transform: CSS.Transform.toString(transform),
-      transition: transition
-        ? `${transition}, background-color 0.08s ease, opacity 0.08s ease`
-        : "background-color 0.08s ease, opacity 0.08s ease",
-      opacity: isDragging ? 0.5 : 1,
-      background: isDragging ? "var(--accent-a2)" : isActive ? "var(--accent-a3)" : "transparent",
-      cursor: "grab",
+      transform: dragOffset === 0 ? undefined : `translateY(${dragOffset}px)`,
+      transition: isDragActive
+        ? "transform 0.14s ease, background-color 0.08s ease, color 0.08s ease, opacity 0.08s ease"
+        : "background-color 0.08s ease, color 0.08s ease, opacity 0.08s ease",
+      opacity: isDragSource ? 0 : 1,
+      background: isActive ? "var(--accent-a3)" : "transparent",
+      cursor: isDragging ? "grabbing" : "grab",
       width: "100%",
       minWidth: 0,
+      height: CHAPTER_LIST_ITEM_HEIGHT,
       overflow: "hidden",
       position: "relative" as const,
       contain: "layout style" as const,
@@ -527,7 +537,7 @@ function SortableChapterListItemComponent({
       WebkitTouchCallout: "none" as const,
       WebkitTapHighlightColor: "transparent",
     }),
-    [isActive, isDragging, transform, transition],
+    [dragOffset, isActive, isDragActive, isDragSource, isDragging],
   );
 
   const handleSelect = useCallback(() => {
@@ -536,6 +546,7 @@ function SortableChapterListItemComponent({
 
   const handleDragHandlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
+      event.stopPropagation();
       listeners?.onPointerDown?.(event);
     },
     [listeners],
@@ -546,8 +557,7 @@ function SortableChapterListItemComponent({
       ref={setNodeRef}
       className="chapter-list-item-row"
       style={style}
-      onClick={handleSelect}
-      {...attributes}
+      onClick={isDragOverlay ? undefined : handleSelect}
     >
       <ChapterRowContent
         chapter={chapter}
@@ -557,12 +567,13 @@ function SortableChapterListItemComponent({
         onOpenSummary={onOpenSummary}
         dragHandle={
           <Box
+            {...attributes}
             style={{
               color: "var(--gray-9)",
               flexShrink: 0,
               touchAction: "none",
             }}
-            onPointerDown={handleDragHandlePointerDown}
+            onPointerDown={isDragOverlay ? undefined : handleDragHandlePointerDown}
             onClick={(event) => event.stopPropagation()}
           >
             <GripVertical size={16} />
@@ -594,9 +605,9 @@ function areBaseRowPropsEqual(prev: ChapterListItemBaseProps, next: ChapterListI
   );
 }
 
-function areSortableRowPropsEqual(
-  prev: SortableChapterListItemProps,
-  next: SortableChapterListItemProps,
+function areDraggableRowPropsEqual(
+  prev: DraggableChapterListItemProps,
+  next: DraggableChapterListItemProps,
 ) {
   return (
     prev.chapter.id === next.chapter.id &&
@@ -608,12 +619,16 @@ function areSortableRowPropsEqual(
     prev.summaryStatus === next.summaryStatus &&
     prev.summaryIsStale === next.summaryIsStale &&
     prev.onOpenSummary === next.onOpenSummary &&
-    prev.onSelectChapter === next.onSelectChapter
+    prev.onSelectChapter === next.onSelectChapter &&
+    prev.isDragSource === next.isDragSource &&
+    prev.isDragActive === next.isDragActive &&
+    prev.dragOffset === next.dragOffset &&
+    prev.isDragOverlay === next.isDragOverlay
   );
 }
 
 export const ChapterListItem = memo(ChapterListItemComponent, areBaseRowPropsEqual);
-export const SortableChapterListItem = memo(
-  SortableChapterListItemComponent,
-  areSortableRowPropsEqual,
+export const DraggableChapterListItem = memo(
+  DraggableChapterListItemComponent,
+  areDraggableRowPropsEqual,
 );

@@ -104,6 +104,18 @@ async def get_by_ids(session: AsyncSession, chapter_ids: list[str]) -> list[Chap
     return list(result.scalars().all())
 
 
+async def get_metadata_by_ids(session: AsyncSession, chapter_ids: list[str]) -> list[Chapter]:
+    """根据 ID 列表获取章节元数据，不加载正文。"""
+    if not chapter_ids:
+        return []
+    result = await session.execute(
+        select(Chapter)
+        .options(load_only(*_chapter_metadata_attributes()))
+        .where(col(Chapter.id).in_(chapter_ids))
+    )
+    return list(result.scalars().all())
+
+
 async def list_by_project(
     session: AsyncSession,
     project_id: str,
@@ -443,7 +455,7 @@ async def delete_by_volume(session: AsyncSession, volume_id: str) -> None:
 async def update_orders(
     session: AsyncSession,
     orders: dict[str, int],
-) -> None:
+) -> datetime | None:
     """
     批量更新章节排序（两阶段，避免 UNIQUE 冲突）。
 
@@ -452,37 +464,33 @@ async def update_orders(
         orders: {chapter_id: new_order} 映射。
     """
     if not orders:
-        return
+        return None
 
     now = datetime.now(UTC)
     ids = list(orders.keys())
 
-    # Phase 1: set to negative temp values to avoid UNIQUE(volume_id, order) conflicts
-    temp_whens = {cid: -(i + 1) for i, cid in enumerate(ids)}
+    # Phase 1: move orders to distinct negative values to avoid UNIQUE conflicts.
     await session.execute(
         update(Chapter)
         .where(col(Chapter.id).in_(ids))
         .values(
-            order=case(
-                *[(col(Chapter.id) == cid, val) for cid, val in temp_whens.items()],
-            ),
+            order=-col(Chapter.order),
             updated_at=now,
         )
+        .execution_options(synchronize_session=False)
     )
     await session.flush()
 
-    # Phase 2: set final values
+    # Phase 2: use DBAPI executemany instead of a giant CASE expression.
     await session.execute(
-        update(Chapter)
-        .where(col(Chapter.id).in_(ids))
-        .values(
-            order=case(
-                *[(col(Chapter.id) == cid, order) for cid, order in orders.items()],
-            ),
-            updated_at=now,
-        )
+        update(Chapter),
+        [
+            {"id": chapter_id, "order": chapter_order, "updated_at": now}
+            for chapter_id, chapter_order in orders.items()
+        ],
     )
     await session.flush()
+    return now
 
 
 async def shift_orders(

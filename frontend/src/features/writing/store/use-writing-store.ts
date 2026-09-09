@@ -8,6 +8,8 @@ import { create } from "zustand";
 
 import { getPreference, setPreference } from "@/lib/local-db";
 
+import { reorderChapterIds } from "../lib/chapter-list-drag";
+
 const EXPANDED_VOLUME_IDS_KEY = "writing.expandedVolumeIds";
 const SIDEBAR_VIEW_KEY = "writing.sidebarView";
 
@@ -94,10 +96,8 @@ export const useWritingStore = create<WritingStore>((set, get) => ({
     const { dragOrderMap, originalOrder } = get();
     const newMap = { ...dragOrderMap };
 
-    // 重新计算所有章节的顺序
-    const reorderedIds = [...chapterIds];
-    const [movedId] = reorderedIds.splice(fromIndex, 1);
-    reorderedIds.splice(toIndex, 0, movedId);
+    const reorderedIds = reorderChapterIds(chapterIds, fromIndex, toIndex);
+    if (!reorderedIds) return;
 
     reorderedIds.forEach((id, index) => {
       newMap[id] = index + 1;

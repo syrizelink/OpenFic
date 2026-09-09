@@ -1,18 +1,14 @@
 import {
   DndContext,
-  closestCenter,
-  KeyboardSensor,
+  DragOverlay,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragMoveEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
-import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { Box, Text } from "@radix-ui/themes";
 import { AtSign, Copy, ExternalLink, MoveRight, Pencil, Trash2 } from "lucide-react";
 import {
@@ -25,6 +21,7 @@ import {
   useState,
   type ForwardedRef,
 } from "react";
+import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { GroupedVirtuoso, type GroupedVirtuosoHandle, type ScrollerProps } from "react-virtuoso";
 import { useShallow } from "zustand/react/shallow";
@@ -38,8 +35,15 @@ import type {
   VolumeWithChapters,
 } from "@/lib/chapter.types";
 
+import {
+  CHAPTER_LIST_ITEM_HEIGHT,
+  getAutoScrollSpeed,
+  getChapterDragGroupContentTop,
+  getChapterDragOffset,
+  getChapterDragTargetIndex,
+} from "../lib/chapter-list-drag";
 import { useWritingStore } from "../store/use-writing-store";
-import { ChapterListItem, SortableChapterListItem } from "./chapter-list-item";
+import { ChapterListItem, DraggableChapterListItem } from "./chapter-list-item";
 import {
   resolveInitialCurrentChapterNavigation,
   resolveGroupedVolumeListScrollRequest,
@@ -50,7 +54,6 @@ import {
   buildGroupedVolumeListModel,
   getCollapseScrollGroupIndex,
   getGroupedVolumeListStructureSignature,
-  getSortedVolumeChapters,
   shouldAnchorCollapsedGroupScroll,
   type GroupedVolumeListItem,
 } from "./grouped-volume-list-model";
@@ -67,6 +70,7 @@ const SCROLLBAR_MIN_THUMB_HEIGHT = 28;
 const SCROLLBAR_REFRESH_EVENT = "grouped-volume-list-scrollbar-refresh";
 const EMPTY_DRAG_ORDER_MAP: Readonly<Record<string, number>> = Object.freeze({});
 const VIRTUOSO_FALLBACK_MEASURE_HEIGHT = 1;
+const CHAPTER_LIST_VIRTUAL_OVERSCAN = 320;
 
 function assignForwardedRef<T>(ref: ForwardedRef<T>, value: T | null) {
   if (typeof ref === "function") {
@@ -352,6 +356,19 @@ interface GroupedVolumeListProps {
   onLockedAction?: () => void;
 }
 
+interface ChapterDragSession {
+  volumeId: string;
+  chapterIds: string[];
+  activeIndex: number;
+  groupContentTop: number | null;
+}
+
+interface ChapterDragState {
+  volumeId: string;
+  activeIndex: number;
+  targetIndex: number;
+}
+
 export function GroupedVolumeList({
   projectId,
   volumes,
@@ -400,15 +417,31 @@ export function GroupedVolumeList({
   const lastHandledScrollRequestKeyRef = useRef<string | null>(null);
   const lastAutoScrolledChapterKeyRef = useRef<string | null>(null);
   const lastHandledInitialCurrentChapterNavigationKeyRef = useRef<string | null>(null);
+  const dragSessionRef = useRef<ChapterDragSession | null>(null);
+  const dragTargetIndexRef = useRef<number | null>(null);
+  const lastDragClientYRef = useRef(0);
+  const autoScrollFrameRef = useRef<number | null>(null);
+  const autoScrollSpeedRef = useRef(0);
   const [measuredProjectId, setMeasuredProjectId] = useState<string | null>(null);
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [contextMenuChapterId, setContextMenuChapterId] = useState<string | null>(null);
   const [contextMenuChapterTitle, setContextMenuChapterTitle] = useState<string | null>(null);
   const [renamingChapterId, setRenamingChapterId] = useState<string | null>(null);
+  const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
+  const [dragState, setDragState] = useState<ChapterDragState | null>(null);
 
   const listModel = useMemo(
-    () => buildGroupedVolumeListModel({ volumes, expandedVolumeIds }),
-    [expandedVolumeIds, volumes],
+    () =>
+      buildGroupedVolumeListModel({
+        volumes,
+        expandedVolumeIds,
+        chapterOrderMap: isDragMode ? dragOrderMap : undefined,
+      }),
+    [dragOrderMap, expandedVolumeIds, isDragMode, volumes],
+  );
+  const activeChapter = useMemo(
+    () => (activeChapterId ? (listModel.chapterById.get(activeChapterId) ?? null) : null),
+    [activeChapterId, listModel.chapterById],
   );
   const structureSignature = useMemo(
     () => getGroupedVolumeListStructureSignature(volumes, expandedVolumeIds),
@@ -429,9 +462,6 @@ export function GroupedVolumeList({
       activationConstraint: {
         distance: 8,
       },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
 
@@ -754,27 +784,206 @@ export function GroupedVolumeList({
     [expandedVolumeIds, getRegularGroupTop, getStickyGroupIndex, onToggleVolume, volumes],
   );
 
-  const handleSortableDragEnd = useCallback(
-    (event: DragEndEvent, chapterIds: string[]) => {
-      if (isAgentLocked) {
-        onLockedAction?.();
+  const stopAutoScroll = useCallback(() => {
+    autoScrollSpeedRef.current = 0;
+    if (autoScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(autoScrollFrameRef.current);
+      autoScrollFrameRef.current = null;
+    }
+  }, []);
+
+  const clearDragState = useCallback(() => {
+    setActiveChapterId(null);
+    dragTargetIndexRef.current = null;
+    dragSessionRef.current = null;
+    setDragState(null);
+  }, []);
+
+  const updateDragTargetIndex = useCallback((targetIndex: number) => {
+    if (dragTargetIndexRef.current === targetIndex) return;
+
+    dragTargetIndexRef.current = targetIndex;
+    setDragState((current) => {
+      if (!current || current.targetIndex === targetIndex) return current;
+      return { ...current, targetIndex };
+    });
+  }, []);
+
+  const getCurrentDragTargetIndex = useCallback((clientY: number) => {
+    const session = dragSessionRef.current;
+    const scroller = scrollerElementRef.current;
+    if (!session || session.groupContentTop === null || !scroller) return null;
+
+    return getChapterDragTargetIndex({
+      containerTop: scroller.getBoundingClientRect().top,
+      scrollTop: scroller.scrollTop,
+      clientY,
+      groupContentTop: session.groupContentTop,
+      itemCount: session.chapterIds.length,
+    });
+  }, []);
+
+  const startAutoScroll = useCallback(() => {
+    if (autoScrollFrameRef.current !== null) return;
+
+    const step = () => {
+      autoScrollFrameRef.current = null;
+      const scroller = scrollerElementRef.current;
+      const speed = autoScrollSpeedRef.current;
+      if (!scroller || speed === 0) return;
+
+      const maxScrollTop = scroller.scrollHeight - scroller.clientHeight;
+      const nextScrollTop = Math.max(0, Math.min(scroller.scrollTop + speed, maxScrollTop));
+      if (nextScrollTop === scroller.scrollTop) {
+        autoScrollSpeedRef.current = 0;
         return;
       }
 
-      const { active, over } = event;
-      if (!over || active.id === over.id) {
+      scroller.scrollTop = nextScrollTop;
+      const targetIndex = getCurrentDragTargetIndex(lastDragClientYRef.current);
+      if (targetIndex !== null) {
+        updateDragTargetIndex(targetIndex);
+      }
+      autoScrollFrameRef.current = window.requestAnimationFrame(step);
+    };
+
+    autoScrollFrameRef.current = window.requestAnimationFrame(step);
+  }, [getCurrentDragTargetIndex, updateDragTargetIndex]);
+
+  const handleDragStart = useCallback(
+    (event: DragStartEvent) => {
+      stopAutoScroll();
+
+      const activeChapterId = String(event.active.id);
+      const activeChapter = listModel.chapterById.get(activeChapterId);
+      const activeIndex = listModel.chapterIndexById.get(activeChapterId);
+      const initialRect = event.active.rect.current.initial;
+      const scroller = scrollerElementRef.current;
+      if (!activeChapter || activeIndex === undefined || !scroller) {
+        clearDragState();
         return;
       }
 
-      const oldIndex = chapterIds.indexOf(active.id as string);
-      const newIndex = chapterIds.indexOf(over.id as string);
-      if (oldIndex === -1 || newIndex === -1) {
+      const chapterIds = listModel.items.flatMap((row) =>
+        row.type === "chapter" && row.volumeId === activeChapter.volumeId ? [row.chapter.id] : [],
+      );
+      if (chapterIds.length === 0) {
+        clearDragState();
         return;
       }
 
-      reorderChapters(oldIndex, newIndex, chapterIds);
+      const scrollerRect = scroller.getBoundingClientRect();
+      dragSessionRef.current = {
+        volumeId: activeChapter.volumeId,
+        chapterIds,
+        activeIndex,
+        groupContentTop: getChapterDragGroupContentTop({
+          containerTop: scrollerRect.top,
+          scrollTop: scroller.scrollTop,
+          initialTop: initialRect?.top ?? null,
+          activeIndex,
+        }),
+      };
+      dragTargetIndexRef.current = activeIndex;
+      lastDragClientYRef.current = initialRect ? initialRect.top + initialRect.height / 2 : 0;
+      setActiveChapterId(activeChapterId);
+      setDragState({
+        volumeId: activeChapter.volumeId,
+        activeIndex,
+        targetIndex: activeIndex,
+      });
     },
-    [isAgentLocked, onLockedAction, reorderChapters],
+    [clearDragState, listModel, stopAutoScroll],
+  );
+
+  const handleDragMove = useCallback(
+    (event: DragMoveEvent) => {
+      if (!dragSessionRef.current) return;
+
+      const scroller = scrollerElementRef.current;
+      const translatedRect = event.active.rect.current.translated;
+      if (!scroller || !translatedRect) {
+        stopAutoScroll();
+        return;
+      }
+
+      const scrollerRect = scroller.getBoundingClientRect();
+      const session = dragSessionRef.current;
+      const initialRect = event.active.rect.current.initial;
+      if (session && session.groupContentTop === null && initialRect) {
+        session.groupContentTop = getChapterDragGroupContentTop({
+          containerTop: scrollerRect.top,
+          scrollTop: scroller.scrollTop,
+          initialTop: initialRect.top,
+          activeIndex: session.activeIndex,
+        });
+      }
+
+      lastDragClientYRef.current = translatedRect.top + translatedRect.height / 2;
+      const targetIndex = getCurrentDragTargetIndex(lastDragClientYRef.current);
+      if (targetIndex !== null) {
+        updateDragTargetIndex(targetIndex);
+      }
+
+      const speed = getAutoScrollSpeed({
+        containerTop: scrollerRect.top,
+        containerBottom: scrollerRect.bottom,
+        itemTop: translatedRect.top,
+        itemBottom: translatedRect.bottom,
+      });
+      autoScrollSpeedRef.current = speed;
+      if (speed === 0) {
+        stopAutoScroll();
+        return;
+      }
+      startAutoScroll();
+    },
+    [getCurrentDragTargetIndex, startAutoScroll, stopAutoScroll, updateDragTargetIndex],
+  );
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      stopAutoScroll();
+      const session = dragSessionRef.current;
+      const activeChapterId = String(event.active.id);
+      const newIndex = dragTargetIndexRef.current;
+      if (isAgentLocked || !session || session.groupContentTop === null || newIndex === null) {
+        if (isAgentLocked) onLockedAction?.();
+        clearDragState();
+        return;
+      }
+
+      const oldIndex = session.chapterIds.indexOf(activeChapterId);
+      if (oldIndex === -1 || oldIndex !== session.activeIndex || oldIndex === newIndex) {
+        clearDragState();
+        return;
+      }
+
+      flushSync(() => {
+        clearDragState();
+        reorderChapters(oldIndex, newIndex, session.chapterIds);
+      });
+    },
+    [clearDragState, isAgentLocked, onLockedAction, reorderChapters, stopAutoScroll],
+  );
+
+  const handleDragCancel = useCallback(() => {
+    stopAutoScroll();
+    clearDragState();
+  }, [clearDragState, stopAutoScroll]);
+
+  useEffect(() => {
+    if (isDragMode) return;
+    stopAutoScroll();
+    clearDragState();
+  }, [clearDragState, isDragMode, stopAutoScroll]);
+
+  useEffect(
+    () => () => {
+      stopAutoScroll();
+      clearDragState();
+    },
+    [clearDragState, stopAutoScroll],
   );
 
   const handleRequestContextMenu = useCallback(
@@ -959,7 +1168,11 @@ export function GroupedVolumeList({
           <Box
             px="4"
             py="3"
-            style={{ borderBottom: "1px solid var(--gray-a4)" }}
+            style={{
+              borderBottom: "1px solid var(--gray-a4)",
+              height: isDragMode ? CHAPTER_LIST_ITEM_HEIGHT : undefined,
+              boxSizing: "border-box",
+            }}
           >
             <Text
               size="1"
@@ -968,6 +1181,32 @@ export function GroupedVolumeList({
               {t("volume.empty")}
             </Text>
           </Box>
+        );
+      }
+
+      const chapterIndex = listModel.chapterIndexById.get(row.chapter.id);
+      const dragOffset =
+        isDragMode && dragState?.volumeId === row.volumeId && chapterIndex !== undefined
+          ? getChapterDragOffset({
+              chapterIndex,
+              activeIndex: dragState.activeIndex,
+              targetIndex: dragState.targetIndex,
+            })
+          : 0;
+
+      if (isDragMode) {
+        return (
+          <DraggableChapterListItem
+            chapter={row.chapter}
+            isActive={currentChapterId === row.chapter.id}
+            isDragSource={activeChapterId === row.chapter.id}
+            isDragActive={dragState !== null}
+            dragOffset={dragOffset}
+            summaryStatus={summaryStatusMap[row.chapter.id]?.status}
+            summaryIsStale={summaryStatusMap[row.chapter.id]?.isStale}
+            onOpenSummary={onOpenSummary}
+            onSelectChapter={onChapterSelect}
+          />
         );
       }
 
@@ -989,13 +1228,16 @@ export function GroupedVolumeList({
       );
     },
     [
+      activeChapterId,
       contextMenuChapterId,
       contextMenuPos,
       currentChapterId,
+      dragState,
       handleLongPressStart,
       handleRenameCancel,
       handleRenameConfirm,
       handleRequestContextMenu,
+      isDragMode,
       listModel,
       onChapterSelect,
       renamingChapterId,
@@ -1053,129 +1295,53 @@ export function GroupedVolumeList({
     ],
   );
 
-  if (isDragMode) {
-    return (
-      <GroupedVolumeListScroller
-        ref={(node) => {
-          scrollerElementRef.current = node;
-        }}
-        style={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: "auto",
-          position: "relative",
-          outline: "none",
-          WebkitOverflowScrolling: "touch",
-        }}
-        tabIndex={0}
-      >
-        <Box style={{ minHeight: "100%" }}>
-          {volumes.map((volume, groupIndex) => {
-            const isExpanded = expandedVolumeIds.has(volume.id);
-            const sortedChapters = getSortedVolumeChapters(volume.chapters, dragOrderMap);
-            const chapterIds = sortedChapters.map((chapter) => chapter.id);
-
-            return (
-              <Box
-                key={volume.id}
-                style={{ minWidth: 0 }}
-              >
-                <Box
-                  style={{
-                    position: "sticky",
-                    top: 0,
-                    zIndex: 3,
-                  }}
-                >
-                  <VolumeHeader
-                    volume={volume}
-                    isExpanded={isExpanded}
-                    isRenaming={renamingVolumeId === volume.id}
-                    isFirst={groupIndex === 0}
-                    isLast={groupIndex === volumes.length - 1}
-                    canDelete={canDeleteVolume}
-                    isAgentLocked={isAgentLocked}
-                    onToggle={() => handleToggleVolume(volume.id)}
-                    onStartRename={() => onStartRenameVolume(volume.id)}
-                    onRenameConfirm={(title) => onRenameVolume(volume.id, title)}
-                    onRenameCancel={onCancelRenameVolume}
-                    onEditDescription={() => onEditVolumeDescription(volume)}
-                    onCreateChapter={() => onCreateChapterInVolume(volume.id)}
-                    onAddToConversation={onAddToConversation}
-                    onMoveUp={() => onMoveVolumeUp(volume)}
-                    onMoveDown={() => onMoveVolumeDown(volume)}
-                    onDelete={() => onDeleteVolume(volume)}
-                    onLockedAction={onLockedAction}
-                  />
-                </Box>
-
-                {isExpanded && sortedChapters.length === 0 ? (
-                  <Box
-                    px="4"
-                    py="3"
-                    style={{ borderBottom: "1px solid var(--gray-a4)" }}
-                  >
-                    <Text
-                      size="1"
-                      color="gray"
-                    >
-                      {t("volume.empty")}
-                    </Text>
-                  </Box>
-                ) : null}
-
-                {isExpanded && sortedChapters.length > 0 ? (
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={(event) => handleSortableDragEnd(event, chapterIds)}
-                    modifiers={[restrictToVerticalAxis, restrictToParentElement]}
-                  >
-                    <SortableContext
-                      items={chapterIds}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      {sortedChapters.map((chapter) => (
-                        <SortableChapterListItem
-                          key={chapter.id}
-                          chapter={chapter}
-                          isActive={currentChapterId === chapter.id}
-                          onSelectChapter={onChapterSelect}
-                          summaryStatus={summaryStatusMap[chapter.id]?.status}
-                          summaryIsStale={summaryStatusMap[chapter.id]?.isStale}
-                          onOpenSummary={onOpenSummary}
-                        />
-                      ))}
-                    </SortableContext>
-                  </DndContext>
-                ) : null}
-              </Box>
-            );
-          })}
-        </Box>
-      </GroupedVolumeListScroller>
-    );
-  }
+  const groupedVolumeList = (
+    <GroupedVirtuoso
+      ref={virtuosoRef}
+      style={{ flex: 1, minHeight: 0 }}
+      groupCounts={listModel.groupCounts}
+      overscan={isDragMode ? CHAPTER_LIST_VIRTUAL_OVERSCAN : 5}
+      atBottomStateChange={handleAtBottomStateChange}
+      components={GROUPED_VOLUME_LIST_COMPONENTS}
+      scrollerRef={handleScrollerRef}
+      totalListHeightChanged={markListMeasured}
+      rangeChanged={markListMeasured}
+      computeItemKey={(index) => listModel.keyByInternalIndex.get(index) ?? index}
+      groupContent={renderGroupHeader}
+      itemContent={renderItem}
+    />
+  );
 
   return (
     <>
-      <GroupedVirtuoso
-        ref={virtuosoRef}
-        style={{ flex: 1, minHeight: 0 }}
-        groupCounts={listModel.groupCounts}
-        overscan={5}
-        atBottomStateChange={handleAtBottomStateChange}
-        components={GROUPED_VOLUME_LIST_COMPONENTS}
-        scrollerRef={handleScrollerRef}
-        totalListHeightChanged={markListMeasured}
-        rangeChanged={markListMeasured}
-        computeItemKey={(index) => listModel.keyByInternalIndex.get(index) ?? index}
-        groupContent={renderGroupHeader}
-        itemContent={renderItem}
-      />
-
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+        modifiers={[restrictToVerticalAxis]}
+        autoScroll={false}
+      >
+        {groupedVolumeList}
+        <DragOverlay dropAnimation={null}>
+          {isDragMode && activeChapter ? (
+            <Box style={{ width: scrollerElementRef.current?.clientWidth }}>
+              <DraggableChapterListItem
+                chapter={activeChapter}
+                isActive={currentChapterId === activeChapter.id}
+                isDragOverlay
+                summaryStatus={summaryStatusMap[activeChapter.id]?.status}
+                summaryIsStale={summaryStatusMap[activeChapter.id]?.isStale}
+                onOpenSummary={onOpenSummary}
+                onSelectChapter={() => undefined}
+              />
+            </Box>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
       <ContextMenu
-        position={contextMenuPos}
+        position={isDragMode ? null : contextMenuPos}
         items={menuItems}
         onClose={handleCloseContextMenu}
       />
