@@ -2,6 +2,7 @@
   background: var(--normal-bg) !important;
   border: 1px solid var(--normal-border) !important;
   color: var(--normal-text) !important;
+  font-family: var(--app-font-family) !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
 }
 

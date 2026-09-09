@@ -29,6 +29,7 @@ const inputStyle: React.CSSProperties = {
   padding: "0 8px",
   paddingLeft: 32, // 为搜索图标留出空间
   paddingRight: 56, // 为计数器留出空间
+  fontFamily: "var(--app-font-family)",
   fontSize: "var(--font-size-base)",
   border: "1px solid var(--gray-a5)",
   borderRadius: 6,
@@ -44,6 +45,7 @@ const replaceInputStyle: React.CSSProperties = {
   height: 32,
   padding: "0 8px",
   paddingLeft: 12,
+  fontFamily: "var(--app-font-family)",
   fontSize: "var(--font-size-base)",
   border: "1px solid var(--gray-a5)",
   borderRadius: 6,
