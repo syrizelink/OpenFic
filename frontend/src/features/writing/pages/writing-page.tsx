@@ -26,8 +26,6 @@ import { isEmptyTab } from "../lib/tab.types";
 import { useTabsStore, useActiveTabId, useTabs, useTabsLoaded } from "../store/use-tabs-store";
 import { useWritingStore } from "../store/use-writing-store";
 
-const MotionBox = motion.create(Box);
-const MOBILE_SIDEBAR_WIDTH = 320;
 const PANEL_LAYOUT_KEY = "panel-layout.writing";
 const PANEL_IDS = ["left-sidebar", "editor", "right-sidebar"];
 const SummaryPanel = lazy(() =>
@@ -553,18 +551,9 @@ export function WritingPage() {
                 style={{ pointerEvents: isSidebarOpen ? "auto" : "none" }}
               />
 
-              <MotionBox
-                initial={false}
-                animate={{
-                  x: isSidebarOpen ? 0 : -MOBILE_SIDEBAR_WIDTH,
-                }}
-                transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                className="writing-page-mobile-sidebar-sheet"
-                style={{
-                  width: MOBILE_SIDEBAR_WIDTH,
-                  minWidth: MOBILE_SIDEBAR_WIDTH,
-                  pointerEvents: isSidebarOpen ? "auto" : "none",
-                }}
+              <Box
+                className="mobile-sidebar-sheet writing-page-mobile-sidebar-sheet"
+                data-open={String(isSidebarOpen)}
               >
                 <WritingSidebar
                   projectId={projectId}
@@ -576,7 +565,7 @@ export function WritingPage() {
                   initialCurrentChapterNavigationKey={initialCurrentChapterNavigationKey}
                   onOpenSummary={handleOpenSummary}
                 />
-              </MotionBox>
+              </Box>
             </div>
           </Flex>
         ) : (

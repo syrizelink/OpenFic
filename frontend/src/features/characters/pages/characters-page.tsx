@@ -38,8 +38,6 @@ const LAST_PROJECT_KEY = "characters.lastProjectId";
 const LAST_CHARACTER_KEY = "characters.lastCharacterId";
 const PANEL_LAYOUT_KEY = "panel-layout.characters";
 const PANEL_IDS = ["characters-list", "characters-editor", "characters-right"];
-const MotionBox = motion.create(Box);
-const MOBILE_SIDEBAR_WIDTH = 320;
 
 function toCharacterListItem(character: Character): CharacterListItem {
   return {
@@ -502,19 +500,12 @@ export function CharactersPage() {
               style={{ pointerEvents: isListOpen ? "auto" : "none" }}
             />
 
-            <MotionBox
-              initial={false}
-              animate={{ x: isListOpen ? 0 : -MOBILE_SIDEBAR_WIDTH }}
-              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-              className="characters-page-mobile-sidebar-sheet"
-              style={{
-                width: MOBILE_SIDEBAR_WIDTH,
-                minWidth: MOBILE_SIDEBAR_WIDTH,
-                pointerEvents: isListOpen ? "auto" : "none",
-              }}
+            <Box
+              className="mobile-sidebar-sheet characters-page-mobile-sidebar-sheet"
+              data-open={String(isListOpen)}
             >
               {list}
-            </MotionBox>
+            </Box>
           </Box>
         </Box>
       ) : currentProjectId ? (

@@ -53,8 +53,6 @@ const LAST_PROJECT_KEY = "worldInfo.lastProjectId";
 const LAST_ENTRY_KEY = "worldInfo.lastEntryId";
 const PANEL_LAYOUT_KEY = "panel-layout.world-info";
 const PANEL_IDS = ["left-sidebar", "editor", "right-sidebar"];
-const MotionBox = motion.create(Box);
-const MOBILE_SIDEBAR_WIDTH = 320;
 
 function generateUniqueEntryName(baseName: string, entries: WorldInfoEntryBrief[]): string {
   const normalizedName = baseName.trim();
@@ -856,19 +854,12 @@ export function WorldInfoPage() {
                   style={{ pointerEvents: sidebarOpen ? "auto" : "none" }}
                 />
 
-                <MotionBox
-                  initial={false}
-                  animate={{ x: sidebarOpen ? 0 : -MOBILE_SIDEBAR_WIDTH }}
-                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                  className="world-info-page-mobile-sidebar-sheet"
-                  style={{
-                    width: MOBILE_SIDEBAR_WIDTH,
-                    minWidth: MOBILE_SIDEBAR_WIDTH,
-                    pointerEvents: sidebarOpen ? "auto" : "none",
-                  }}
+                <Box
+                  className="mobile-sidebar-sheet world-info-page-mobile-sidebar-sheet"
+                  data-open={String(sidebarOpen)}
                 >
                   {sidebarContent}
-                </MotionBox>
+                </Box>
               </Box>
             </Flex>
           ) : currentProjectId ? (

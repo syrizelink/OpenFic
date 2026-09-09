@@ -277,121 +277,116 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
       </AnimatePresence>
 
       <AnimatePresence initial={false}>
-        {(!isMobile || isSidebarOpen) && (
-          <MotionBox
-            key={isMobile ? "mobile-sidebar" : "desktop-sidebar"}
-            position="fixed"
-            top="0"
-            left="0"
-            bottom="var(--app-status-bar-height)"
-            initial={isMobile ? { x: -SIDEBAR_EXPANDED_WIDTH } : false}
-            animate={
-              isMobile ? { x: 0, width: SIDEBAR_EXPANDED_WIDTH } : { x: 0, width: sidebarWidth }
-            }
-            exit={isMobile ? { x: -SIDEBAR_EXPANDED_WIDTH } : undefined}
-            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            style={{
-              borderRight: "1px solid var(--gray-a5)",
-              background: "color-mix(in srgb, var(--color-background) 92%, transparent)",
-              backdropFilter: "blur(12px)",
-              zIndex: 100,
-              overflow: "hidden",
-              boxShadow: isMobile ? "var(--shadow-5)" : undefined,
-              clipPath: isMobile ? "inset(0 -64px 0 0)" : undefined,
-            }}
+        <MotionBox
+          className={isMobile ? "mobile-sidebar-sheet" : undefined}
+          data-open={isMobile ? String(isSidebarOpen) : undefined}
+          position="fixed"
+          top="0"
+          left="0"
+          bottom="var(--app-status-bar-height)"
+          initial={false}
+          animate={!isMobile ? { x: 0, width: sidebarWidth } : undefined}
+          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+          style={{
+            width: isMobile ? SIDEBAR_EXPANDED_WIDTH : undefined,
+            borderRight: "1px solid var(--gray-a5)",
+            background: "color-mix(in srgb, var(--color-background) 92%, transparent)",
+            backdropFilter: "blur(12px)",
+            zIndex: 100,
+            overflow: "hidden",
+            boxShadow: isMobile ? "var(--shadow-5)" : undefined,
+            clipPath: isMobile ? "inset(0 -64px 0 0)" : undefined,
+          }}
+        >
+          <Flex
+            direction="column"
+            height="100%"
+            p="3"
           >
-            <Flex
-              direction="column"
-              height="100%"
-              p="3"
+            <SidebarBrand
+              isExpanded={isMobile || isExpanded}
+              isHovered={isLogoHovered}
+              expandLabel={t("topbar.expand")}
+              projectsLabel={t("topbar.projects")}
+              collapseLabel={t("topbar.collapse")}
+              onToggleExpanded={toggleExpanded}
+              onNavigateHome={navigateToProjects}
+              onPointerEnter={handleLogoPointerEnter}
+              onPointerLeave={handleLogoPointerLeave}
+              onPointerMove={handleLogoPointerMove}
+            />
+
+            <Box
+              style={{
+                width: "100%",
+                height: 13,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-start",
+                margin: "6px 0",
+                flexShrink: 0,
+              }}
             >
-              <SidebarBrand
-                isExpanded={isMobile || isExpanded}
-                isHovered={isLogoHovered}
-                expandLabel={t("topbar.expand")}
-                projectsLabel={t("topbar.projects")}
-                collapseLabel={t("topbar.collapse")}
-                onToggleExpanded={toggleExpanded}
-                onNavigateHome={navigateToProjects}
-                onPointerEnter={handleLogoPointerEnter}
-                onPointerLeave={handleLogoPointerLeave}
-                onPointerMove={handleLogoPointerMove}
-              />
-
-              <Box
-                style={{
-                  width: "100%",
-                  height: 13,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "flex-start",
-                  margin: "6px 0",
-                  flexShrink: 0,
+              <MotionBox
+                initial={false}
+                animate={{
+                  width: isMobile || isExpanded ? SIDEBAR_EXPANDED_WIDTH - 40 : 32,
+                  marginLeft: isMobile || isExpanded ? 8 : 4,
                 }}
-              >
-                <MotionBox
-                  initial={false}
-                  animate={{
-                    width: isMobile || isExpanded ? SIDEBAR_EXPANDED_WIDTH - 40 : 32,
-                    marginLeft: isMobile || isExpanded ? 8 : 4,
-                  }}
-                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                  style={{
-                    height: 1,
-                    background: "var(--gray-a5)",
-                  }}
-                />
-              </Box>
-
-              <SidebarNav
-                items={navItems}
-                isExpanded={isMobile || isExpanded}
-              />
-
-              <RecentProjectsNav
-                projects={recentProjects}
-                currentProjectId={projectId}
-                isExpanded={isMobile || isExpanded}
-                ariaLabel={t("topbar.recentProjects")}
-                closeLabel={t("common.close")}
-                onRemove={handleRemoveRecentProject}
-              />
-
-              <MotionFlex
-                layout
-                mt="auto"
-                direction={isMobile || isExpanded ? "row" : "column"}
-                align="center"
-                justify={isMobile || isExpanded ? "end" : "center"}
-                gap="1"
-                width="100%"
                 transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <SidebarActions
-                  appearance={appearance}
-                  isExpanded={isMobile || isExpanded}
-                  shouldAnimateTheme={shouldAnimateTheme}
-                  languageLabel={t("topbar.language")}
-                  settingsLabel={t("topbar.settings")}
-                  toggleThemeLabel={t("topbar.toggleTheme")}
-                  themeTooltip={
-                    appearance === "light"
-                      ? t("topbar.toggleDarkMode")
-                      : t("topbar.toggleLightMode")
-                  }
-                  languages={supportedLanguages.map((lang) => ({
-                    code: lang.code,
-                    name: lang.name,
-                  }))}
-                  currentLanguage={i18n.language}
-                  onLanguageChange={handleLanguageChange}
-                  onToggleTheme={handleThemeToggle}
-                  onOpenSettings={handleOpenSettings}
-                />
-              </MotionFlex>
-            </Flex>
-          </MotionBox>
-        )}
+                style={{
+                  height: 1,
+                  background: "var(--gray-a5)",
+                }}
+              />
+            </Box>
+
+            <SidebarNav
+              items={navItems}
+              isExpanded={isMobile || isExpanded}
+            />
+
+            <RecentProjectsNav
+              projects={recentProjects}
+              currentProjectId={projectId}
+              isExpanded={isMobile || isExpanded}
+              ariaLabel={t("topbar.recentProjects")}
+              closeLabel={t("common.close")}
+              onRemove={handleRemoveRecentProject}
+            />
+
+            <MotionFlex
+              layout
+              mt="auto"
+              direction={isMobile || isExpanded ? "row" : "column"}
+              align="center"
+              justify={isMobile || isExpanded ? "end" : "center"}
+              gap="1"
+              width="100%"
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <SidebarActions
+                appearance={appearance}
+                isExpanded={isMobile || isExpanded}
+                shouldAnimateTheme={shouldAnimateTheme}
+                languageLabel={t("topbar.language")}
+                settingsLabel={t("topbar.settings")}
+                toggleThemeLabel={t("topbar.toggleTheme")}
+                themeTooltip={
+                  appearance === "light" ? t("topbar.toggleDarkMode") : t("topbar.toggleLightMode")
+                }
+                languages={supportedLanguages.map((lang) => ({
+                  code: lang.code,
+                  name: lang.name,
+                }))}
+                currentLanguage={i18n.language}
+                onLanguageChange={handleLanguageChange}
+                onToggleTheme={handleThemeToggle}
+                onOpenSettings={handleOpenSettings}
+              />
+            </MotionFlex>
+          </Flex>
+        </MotionBox>
       </AnimatePresence>
     </>
   );

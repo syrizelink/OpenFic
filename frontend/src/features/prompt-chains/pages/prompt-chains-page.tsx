@@ -27,8 +27,6 @@ import { PromptEditor } from "../components/prompt-editor";
 import { VersionHistorySidebar } from "../components/version-history-sidebar";
 import { usePromptChain } from "../hooks/use-prompt-chain";
 
-const MotionBox = motion.create(Box);
-
 const DEFAULT_PROMPT_ID = "builtin-agent--explore";
 const VERSION_HISTORY_COLLAPSED_SIZE = 36;
 const VERSION_HISTORY_MIN_SIZE = 72;
@@ -468,15 +466,12 @@ export function PromptChainsPage() {
               style={{ pointerEvents: mobileEntriesOpen ? "auto" : "none" }}
             />
 
-            <MotionBox
-              initial={false}
-              animate={{ x: mobileEntriesOpen ? 0 : -320 }}
-              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-              className="prompt-chains-page-mobile-sidebar-overlay"
-              style={{ pointerEvents: mobileEntriesOpen ? "auto" : "none" }}
+            <Box
+              className="mobile-sidebar-sheet prompt-chains-page-mobile-sidebar-overlay"
+              data-open={String(mobileEntriesOpen)}
             >
               <Box className="prompt-chains-page-mobile-sidebar-sheet">{sidebarContent}</Box>
-            </MotionBox>
+            </Box>
           </>
         )}
       </Box>

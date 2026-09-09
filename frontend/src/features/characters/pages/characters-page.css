@@ -244,6 +244,8 @@
   left: 0;
   bottom: 0;
   z-index: 11;
+  width: 320px;
+  min-width: 320px;
   height: 100%;
   overflow: hidden;
   border-right: 1px solid var(--gray-a4);
