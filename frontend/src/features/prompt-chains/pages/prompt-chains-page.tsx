@@ -17,6 +17,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { ConfirmDialog, PanelLayoutLoading, PromptChainDialog } from "@/components";
 import { MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
+import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
 import { fetchPromptChainsMetadata, compilePromptChain, resetPromptChain } from "@/lib/api-client";
 import type { PromptEntryData, CompileResponse } from "@/lib/prompt-chain.types";
@@ -84,6 +85,12 @@ export function PromptChainsPage() {
 
   const { isMobile } = useAppShell();
   const [mobileEntriesOpen, setMobileEntriesOpen] = useState(false);
+  const mobileSidebarSwipeRef = useMobileSidebarSwipe({
+    isEnabled: isMobile,
+    isOpen: mobileEntriesOpen,
+    onOpen: () => setMobileEntriesOpen(true),
+    onClose: () => setMobileEntriesOpen(false),
+  });
   const [isVersionHistoryCollapsed, setIsVersionHistoryCollapsed] = useState(false);
   const versionHistoryPanelRef = useRef<PanelImperativeHandle | null>(null);
   const panelLayout = usePersistedPanelLayout(PANEL_LAYOUT_KEY, PANEL_IDS, !isMobile);
@@ -337,7 +344,10 @@ export function PromptChainsPage() {
   );
 
   return (
-    <Box className="prompt-chains-page-root">
+    <Box
+      {...mobileSidebarSwipeRef}
+      className="prompt-chains-page-root mobile-sidebar-swipe-surface"
+    >
       {/* 主内容区 - resizable panels */}
       <Box className="prompt-chains-page-main">
         {!isMobile && panelLayout.isLoaded ? (

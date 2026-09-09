@@ -4,7 +4,8 @@ import { BarChart3, BookOpenText, ListTree } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { MobileAppSidebarTrigger } from "@/features/app-shell";
+import { MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
+import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 
 import { DashboardFilters } from "../components/dashboard-filters";
 import { DashboardRecordsTab } from "../components/dashboard-records-tab";
@@ -48,6 +49,13 @@ function getUserTimezone(): string | undefined {
 
 export function DashboardPage() {
   const { t } = useTranslation();
+  const { closeSidebar, isMobile, isSidebarOpen, openSidebar } = useAppShell();
+  const mobileSidebarSwipeHandlers = useMobileSidebarSwipe({
+    isEnabled: isMobile,
+    isOpen: isSidebarOpen,
+    onOpen: openSidebar,
+    onClose: closeSidebar,
+  });
   const defaultDateRange = useMemo(() => getDefaultDashboardDateRange(), []);
   const [activeTab, setActiveTab] = useState<DashboardTab>("writing");
   const [llmQuery, setLlmQuery] = useState<DashboardQueryParams>(defaultLlmQuery);
@@ -171,7 +179,10 @@ export function DashboardPage() {
   );
 
   return (
-    <Box className="dashboard-page">
+    <Box
+      {...mobileSidebarSwipeHandlers}
+      className="dashboard-page mobile-sidebar-swipe-surface"
+    >
       <div className="dashboard-shell">
         <header className="dashboard-header">
           <div className="dashboard-title-block dashboard-title-row">

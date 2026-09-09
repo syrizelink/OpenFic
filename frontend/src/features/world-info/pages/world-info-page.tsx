@@ -19,6 +19,7 @@ import { PanelLayoutLoading } from "@/components";
 import { toast } from "@/components/toast";
 import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
 import type { AssistantSidebarState } from "@/features/assistant";
+import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
 import {
   fetchWorldInfoByProject,
@@ -83,6 +84,12 @@ export function WorldInfoPage() {
     setSidebarOpen,
     setFromWriting,
   } = useWorldInfoStore();
+  const mobileSidebarSwipeRef = useMobileSidebarSwipe({
+    isEnabled: isMobile && Boolean(currentProjectId),
+    isOpen: sidebarOpen,
+    onOpen: () => setSidebarOpen(true),
+    onClose: () => setSidebarOpen(false),
+  });
 
   // 删除确认对话框状态
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -733,6 +740,8 @@ export function WorldInfoPage() {
 
   return (
     <Flex
+      {...mobileSidebarSwipeRef}
+      className="mobile-sidebar-swipe-surface"
       direction="column"
       style={{
         height: "100%",

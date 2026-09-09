@@ -11,6 +11,7 @@ import "./writing-page.css";
 import { PanelLayoutLoading } from "@/components";
 import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
 import type { AssistantSidebarState } from "@/features/assistant";
+import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
 import { getLastChapterId, setLastChapterId } from "@/lib/local-db";
 
@@ -74,6 +75,12 @@ export function WritingPage() {
   const isPageLoading = !isTabsLoaded || isChaptersLoading;
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const mobileSidebarSwipeRef = useMobileSidebarSwipe({
+    isEnabled: isMobile,
+    isOpen: isSidebarOpen,
+    onOpen: () => setIsSidebarOpen(true),
+    onClose: () => setIsSidebarOpen(false),
+  });
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [hasOpenedSummary, setHasOpenedSummary] = useState(false);
   const [hasEditorSelection, setHasEditorSelection] = useState(false);
@@ -372,7 +379,10 @@ export function WritingPage() {
   );
 
   return (
-    <Box className="writing-page-root">
+    <Box
+      {...mobileSidebarSwipeRef}
+      className="writing-page-root mobile-sidebar-swipe-surface"
+    >
       <PageLoadingOverlay isLoading={isPageLoading} />
 
       <Box className="writing-page-shell">

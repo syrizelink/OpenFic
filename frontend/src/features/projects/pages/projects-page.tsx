@@ -12,7 +12,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ConfirmDialog, Spinner, toast } from "@/components";
-import { MobileAppSidebarTrigger } from "@/features/app-shell";
+import { MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
+import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import type { Project } from "@/lib/project.types";
 
 import { ImportDialog } from "../components/import-dialog";
@@ -42,6 +43,13 @@ function getVisiblePages(currentPage: number, totalPages: number): Array<number 
 
 export function ProjectsPage() {
   const { t } = useTranslation();
+  const { closeSidebar, isMobile, isSidebarOpen, openSidebar } = useAppShell();
+  const mobileSidebarSwipeHandlers = useMobileSidebarSwipe({
+    isEnabled: isMobile,
+    isOpen: isSidebarOpen,
+    onOpen: openSidebar,
+    onClose: closeSidebar,
+  });
 
   // 本地 UI 状态
   const { viewMode, searchQuery, sortBy, sortOrder } = useProjectsStore();
@@ -150,6 +158,8 @@ export function ProjectsPage() {
 
   return (
     <Box
+      {...mobileSidebarSwipeHandlers}
+      className="projects-page mobile-sidebar-swipe-surface"
       style={{
         height: "100%",
         minHeight: 0,

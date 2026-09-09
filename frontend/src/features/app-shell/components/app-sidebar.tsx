@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router";
 
 import { toast } from "@/components";
+import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { saveLanguagePreference, supportedLanguages, type LanguageCode } from "@/i18n";
 import { apiClient, fetchProject } from "@/lib/api-client";
 import {
@@ -44,6 +45,16 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
   const { projectId } = useParams<{ projectId: string }>();
   const { isMobile, isSidebarOpen, closeSidebar, openSettings } = useAppShell();
   const queryClient = useQueryClient();
+  const mobileSidebarSwipeHandlers = useMobileSidebarSwipe({
+    isEnabled: isMobile,
+    isOpen: isSidebarOpen,
+    onClose: closeSidebar,
+  });
+  const mobileSidebarBackdropSwipeHandlers = useMobileSidebarSwipe({
+    isEnabled: isMobile,
+    isOpen: isSidebarOpen,
+    onClose: closeSidebar,
+  });
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [isLogoHovered, setIsLogoHovered] = useState(false);
@@ -257,6 +268,7 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
       <AnimatePresence initial={false}>
         {isMobile && isSidebarOpen && (
           <motion.div
+            {...mobileSidebarBackdropSwipeHandlers}
             key="mobile-sidebar-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -278,6 +290,7 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
 
       <AnimatePresence initial={false}>
         <MotionBox
+          {...mobileSidebarSwipeHandlers}
           className={isMobile ? "mobile-sidebar-sheet" : undefined}
           data-open={isMobile ? String(isSidebarOpen) : undefined}
           position="fixed"

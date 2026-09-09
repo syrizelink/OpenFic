@@ -11,6 +11,7 @@ import { PanelLayoutLoading } from "@/components";
 import { toast } from "@/components/toast";
 import { AssistantSidebarHost, MobileAppSidebarTrigger, useAppShell } from "@/features/app-shell";
 import type { AssistantSidebarState } from "@/features/assistant";
+import { useMobileSidebarSwipe } from "@/hooks/use-mobile-sidebar-swipe";
 import { usePersistedPanelLayout } from "@/hooks/use-persisted-panel-layout";
 import {
   batchDeleteCharacters,
@@ -73,6 +74,12 @@ export function CharactersPage() {
     setCurrentCharacter,
     setListOpen,
   } = useCharactersStore();
+  const mobileSidebarSwipeRef = useMobileSidebarSwipe({
+    isEnabled: isMobile && Boolean(currentProjectId),
+    isOpen: isListOpen,
+    onOpen: () => setListOpen(true),
+    onClose: () => setListOpen(false),
+  });
   const [profileCharacter, setProfileCharacter] = useState<CharacterListItem | null>(null);
   const [deleteCharacterTarget, setDeleteCharacterTarget] = useState<CharacterListItem | null>(
     null,
@@ -403,7 +410,8 @@ export function CharactersPage() {
 
   return (
     <Flex
-      className="characters-page"
+      {...mobileSidebarSwipeRef}
+      className="characters-page mobile-sidebar-swipe-surface"
       direction="column"
     >
       {currentProjectId && !isMobile && panelLayout.isLoaded ? (

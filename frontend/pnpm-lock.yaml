@@ -245,6 +245,9 @@ importers:
       react-svg:
         specifier: ^17.2.4
         version: 17.2.4(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      react-swipeable:
+        specifier: ^7.0.2
+        version: 7.0.2(react@19.2.6)
       react-virtuoso:
         specifier: ^4.18.6
         version: 4.18.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -3941,6 +3944,11 @@ packages:
     peerDependencies:
       react: ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  react-swipeable@7.0.2:
+    resolution: {integrity: sha512-v1Qx1l+aC2fdxKa9aKJiaU/ZxmJ5o98RMoFwUqAAzVWUcxgfHFXDDruCKXhw6zIYXm6V64JiHgP9f6mlME5l8w==}
+    peerDependencies:
+      react: ^16.8.3 || ^17 || ^18 || ^19.0.0 || ^19.0.0-rc
 
   react-virtualized-auto-sizer@1.0.26:
     resolution: {integrity: sha512-CblNyiNVw2o+hsa5/49NH2ogGxZ+t+3aweRvNSq7TVjDIlwk7ir4lencEg5HxHeSzwNarSkNkiu0qJSOXtxm5A==}
@@ -8516,6 +8524,10 @@ snapshots:
       prop-types: 15.8.1
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
+
+  react-swipeable@7.0.2(react@19.2.6):
+    dependencies:
+      react: 19.2.6
 
   react-virtualized-auto-sizer@1.0.26(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
     dependencies:

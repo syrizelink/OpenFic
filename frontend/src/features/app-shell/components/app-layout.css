@@ -32,6 +32,13 @@
   pointer-events: auto;
 }
 
+@media (max-width: 767px) {
+  .mobile-sidebar-swipe-surface,
+  .mobile-sidebar-sheet {
+    touch-action: pan-y;
+  }
+}
+
 .app-layout-assistant-sidebar {
   position: fixed;
   z-index: 11;
