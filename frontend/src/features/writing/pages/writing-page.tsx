@@ -33,6 +33,18 @@ const SummaryPanel = lazy(() =>
   import("../components/summary-panel").then((module) => ({ default: module.SummaryPanel })),
 );
 
+function blurMobileEditorElement(): void {
+  const activeElement = document.activeElement;
+  if (!(activeElement instanceof HTMLElement)) return;
+
+  const isTextInput =
+    activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement;
+
+  if (!isTextInput && !activeElement.isContentEditable) return;
+
+  activeElement.blur();
+}
+
 export function WritingPage() {
   const { t } = useTranslation();
   const { projectId } = useParams<{ projectId: string }>();
@@ -80,6 +92,7 @@ export function WritingPage() {
     isOpen: isSidebarOpen,
     onOpen: () => setIsSidebarOpen(true),
     onClose: () => setIsSidebarOpen(false),
+    onSwipe: blurMobileEditorElement,
   });
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [hasOpenedSummary, setHasOpenedSummary] = useState(false);
@@ -233,16 +246,8 @@ export function WritingPage() {
     if (!isMobile || !currentChapterId) return;
 
     const frameId = window.requestAnimationFrame(() => {
-      const activeElement = document.activeElement;
-      if (!(activeElement instanceof HTMLElement)) return;
-
-      const isTextInput =
-        activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement;
-
       // Mobile browsers may restore editor/title focus after chapter navigation.
-      if (!isTextInput && !activeElement.isContentEditable) return;
-
-      activeElement.blur();
+      blurMobileEditorElement();
     });
 
     return () => window.cancelAnimationFrame(frameId);

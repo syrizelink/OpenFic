@@ -648,6 +648,7 @@ export function EditorToolbar({
     <Box
       ref={toolbarRef}
       className="editor-toolbar"
+      data-mobile-sidebar-swipe-ignore="true"
       data-mobile-viewport={mobileToolbarState.isMobileViewport}
       data-mobile-keyboard-open={mobileToolbarState.isKeyboardOpen}
       onPointerDownCapture={handleToolbarPointerDownCapture}
