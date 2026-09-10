@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.2](https://github.com/syrizelink/OpenFic/compare/v0.11.1...v0.11.2) (2026-09-10)
+
+
+### 🐛 问题修复
+
+* **frontend:** 修复工具栏滑动误触发移动端侧栏手势的问题 ([#395](https://github.com/syrizelink/OpenFic/issues/395)) ([284cf6b](https://github.com/syrizelink/OpenFic/commit/284cf6bf0c5c98f6ed36ae38db9f7f5225d62b87))
+
 ## [0.11.1](https://github.com/syrizelink/OpenFic/compare/v0.11.0...v0.11.1) (2026-09-09)
 
 
