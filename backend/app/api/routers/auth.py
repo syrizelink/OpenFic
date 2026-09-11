@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.routers.settings import get_settings
+from app.api.schemas.setting import ThemeConfig
 from app.auth import AUTH_COOKIE_MAX_AGE, AUTH_COOKIE_NAME, AuthService
 from app.storage.database import get_session
 
@@ -26,6 +27,10 @@ class AuthLoginRequest(BaseModel):
 class PublicPreferencesResponse(BaseModel):
     language: str
     theme: str
+    theme_preset: str
+    light_theme_preset: str
+    dark_theme_preset: str
+    theme_config: ThemeConfig
     font_family: str
     code_font_family: str
     base_font_size: int
@@ -55,6 +60,10 @@ async def public_preferences(
     return PublicPreferencesResponse(
         language=settings.language,
         theme=settings.theme,
+        theme_preset=settings.theme_preset,
+        light_theme_preset=settings.light_theme_preset,
+        dark_theme_preset=settings.dark_theme_preset,
+        theme_config=settings.theme_config,
         font_family=settings.font_family,
         code_font_family=settings.code_font_family,
         base_font_size=settings.base_font_size,

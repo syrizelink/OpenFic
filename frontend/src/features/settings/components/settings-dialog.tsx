@@ -4,12 +4,16 @@ import { useTranslation } from "react-i18next";
 
 import "./settings-dialog.css";
 
+import type { ThemeSettings } from "@/lib/theme";
+
 import type { SettingsDialogRoute } from "../lib/settings-route";
 import { SettingsContent } from "./settings-content";
 
 interface SettingsDialogProps {
   appearance: "light" | "dark";
   onAppearanceChange: (appearance: "light" | "dark") => void;
+  onThemeSettingsChange: (settings: ThemeSettings) => void;
+  onThemePreviewChange: (settings: ThemeSettings) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   route?: SettingsDialogRoute;
@@ -18,6 +22,8 @@ interface SettingsDialogProps {
 export function SettingsDialog({
   appearance,
   onAppearanceChange,
+  onThemeSettingsChange,
+  onThemePreviewChange,
   open,
   onOpenChange,
   route,
@@ -62,6 +68,8 @@ export function SettingsDialog({
           key={routeKey}
           appearance={appearance}
           onAppearanceChange={onAppearanceChange}
+          onThemeSettingsChange={onThemeSettingsChange}
+          onThemePreviewChange={onThemePreviewChange}
           onClose={() => onOpenChange(false)}
           route={route}
         />

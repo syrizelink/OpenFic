@@ -4,22 +4,38 @@
  * 通用设置面板，包含语言、主题、字体设置。
  */
 
-import { Box, Flex, Text, TextField, SegmentedControl } from "@radix-ui/themes";
+import { Box, Flex, Text, TextField } from "@radix-ui/themes";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { HexColorInput, HexColorPicker } from "react-colorful";
 import { useTranslation } from "react-i18next";
 
-import { LabeledSelect } from "@/components/select";
+import { LabeledSelect, type SelectOption } from "@/components/select";
 import { supportedLanguages, type LanguageCode } from "@/i18n";
+import {
+  CUSTOM_THEME_PRESET,
+  CUSTOM_THEME_PRESET_ID,
+  THEME_PRESETS,
+  resolveThemeConfig,
+  type ThemeAppearance,
+  type ThemeConfig,
+  type ThemePalette,
+  type ThemePresetId,
+  type ThemeSettings,
+} from "@/lib/theme";
 
-import type { Settings, ThemeMode } from "../lib/settings.types";
+import type { Settings } from "../lib/settings.types";
 import { getCodeFontOptions, getFontOptions } from "../lib/settings.types";
+
+import "./general-settings.css";
 
 interface GeneralSettingsProps {
   /** 当前设置 */
   settings: Settings;
   /** 设置变更回调 */
   onSettingsChange: (settings: Settings) => void;
+  /** 主题临时预览回调，不触发设置保存 */
+  onThemePreviewChange: (settings: ThemeSettings) => void;
   isSaving?: boolean;
 }
 
@@ -32,6 +48,235 @@ interface FontSizeFieldProps {
 
 const MIN_FONT_SIZE = 10;
 const MAX_FONT_SIZE = 28;
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
+interface ThemeColorRowProps {
+  label: string;
+  value: string;
+  disabled: boolean;
+  onCommit: (value: string) => void;
+  onPreview: (value: string) => void;
+}
+
+function ThemeColorRow({ label, value, disabled, onCommit, onPreview }: ThemeColorRowProps) {
+  const [draftValue, setDraftValue] = useState(value);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLSpanElement>(null);
+  const committedValueRef = useRef(value);
+  const pickerId = useId();
+
+  useEffect(() => {
+    setDraftValue(value);
+    committedValueRef.current = value;
+  }, [value]);
+
+  useEffect(() => {
+    if (!isPickerOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (pickerRef.current?.contains(event.target as Node)) return;
+      if (draftValue !== committedValueRef.current) {
+        committedValueRef.current = draftValue;
+        onCommit(draftValue);
+      }
+      setIsPickerOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [draftValue, isPickerOpen, onCommit]);
+
+  const restoreCommitted = () => {
+    const nextValue = committedValueRef.current;
+    setDraftValue(nextValue);
+    onPreview(nextValue);
+  };
+
+  const commit = (nextValue = draftValue) => {
+    if (!HEX_COLOR_PATTERN.test(nextValue)) {
+      restoreCommitted();
+      return;
+    }
+    if (nextValue === committedValueRef.current) return;
+    committedValueRef.current = nextValue;
+    onCommit(nextValue);
+  };
+
+  const reset = () => {
+    restoreCommitted();
+    setIsPickerOpen(false);
+  };
+
+  const handleColorChange = (nextValue: string) => {
+    setDraftValue(nextValue);
+    if (HEX_COLOR_PATTERN.test(nextValue)) onPreview(nextValue);
+  };
+
+  const handleColorInputBlur = () => commit();
+
+  const handleSwatchClick = () => {
+    if (isPickerOpen) {
+      commit();
+      setIsPickerOpen(false);
+      return;
+    }
+    setIsPickerOpen(true);
+  };
+
+  return (
+    <div
+      className="theme-setting-row"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.stopPropagation();
+          reset();
+        } else if (event.key === "Enter" && isPickerOpen) {
+          commit();
+        }
+      }}
+    >
+      <span className="theme-setting-row-label">{label}</span>
+      <span
+        ref={pickerRef}
+        className="theme-setting-color-control"
+      >
+        <button
+          type="button"
+          className="theme-setting-color-swatch"
+          aria-label={label}
+          aria-controls={pickerId}
+          aria-expanded={isPickerOpen}
+          aria-haspopup="dialog"
+          disabled={disabled}
+          style={{ backgroundColor: draftValue }}
+          onClick={handleSwatchClick}
+        />
+        <HexColorInput
+          color={draftValue}
+          prefixed
+          aria-label={label}
+          disabled={disabled}
+          className="theme-setting-color-input"
+          onChange={handleColorChange}
+          onBlur={handleColorInputBlur}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+            if (event.key === "Escape") {
+              event.stopPropagation();
+              reset();
+            }
+          }}
+        />
+        {isPickerOpen ? (
+          <span
+            id={pickerId}
+            className="theme-color-picker-popover"
+            role="dialog"
+            aria-label={label}
+          >
+            <HexColorPicker
+              color={HEX_COLOR_PATTERN.test(draftValue) ? draftValue : committedValueRef.current}
+              onChange={handleColorChange}
+              onChangeEnd={commit}
+            />
+          </span>
+        ) : null}
+      </span>
+    </div>
+  );
+}
+
+function ThemePresetOptionIcon({ presetId }: { presetId: string }) {
+  return (
+    <span
+      className="theme-preset-option-icon"
+      data-theme-option={presetId}
+      aria-hidden="true"
+    >
+      Aa
+    </span>
+  );
+}
+
+interface ThemeModeSectionProps {
+  appearance: ThemeAppearance;
+  presetId: ThemePresetId;
+  palette: ThemePalette;
+  presetOptions: SelectOption[];
+  disabled: boolean;
+  onPresetChange: (appearance: ThemeAppearance, presetId: ThemePresetId) => void;
+  onColorChange: (appearance: ThemeAppearance, key: keyof ThemePalette, value: string) => void;
+  onColorPreview: (appearance: ThemeAppearance, key: keyof ThemePalette, value: string) => void;
+}
+
+function ThemeModeSection({
+  appearance,
+  presetId,
+  palette,
+  presetOptions,
+  disabled,
+  onPresetChange,
+  onColorChange,
+  onColorPreview,
+}: ThemeModeSectionProps) {
+  const { t } = useTranslation();
+  const isDark = appearance === "dark";
+  const title = t(isDark ? "settings.themeDarkTheme" : "settings.themeLightTheme");
+
+  return (
+    <Box
+      className="theme-mode-section"
+      data-theme-appearance={appearance}
+    >
+      <Flex
+        align="center"
+        justify="between"
+        className="theme-mode-section-header"
+      >
+        <Text
+          size="2"
+          weight="medium"
+        >
+          {title}
+        </Text>
+        <LabeledSelect
+          value={presetId}
+          options={presetOptions}
+          onChange={(value) => onPresetChange(appearance, value as ThemePresetId)}
+          disabled={disabled}
+          triggerClassName="theme-preset-select-trigger"
+          triggerAriaLabel={title}
+        />
+      </Flex>
+      <Flex
+        direction="column"
+        className="theme-mode-section-rows"
+      >
+        <ThemeColorRow
+          label={t("settings.themeColorAccent")}
+          value={palette.accent}
+          disabled={disabled}
+          onCommit={(value) => onColorChange(appearance, "accent", value)}
+          onPreview={(value) => onColorPreview(appearance, "accent", value)}
+        />
+        <ThemeColorRow
+          label={t("settings.themeColorBackground")}
+          value={palette.background}
+          disabled={disabled}
+          onCommit={(value) => onColorChange(appearance, "background", value)}
+          onPreview={(value) => onColorPreview(appearance, "background", value)}
+        />
+        <ThemeColorRow
+          label={t("settings.themeColorForeground")}
+          value={palette.foreground}
+          disabled={disabled}
+          onCommit={(value) => onColorChange(appearance, "foreground", value)}
+          onPreview={(value) => onColorPreview(appearance, "foreground", value)}
+        />
+      </Flex>
+    </Box>
+  );
+}
 
 function FontSizeField({ label, value, onCommit, disabled = false }: FontSizeFieldProps) {
   const { t } = useTranslation();
@@ -130,6 +375,7 @@ function FontSizeField({ label, value, onCommit, disabled = false }: FontSizeFie
 export function GeneralSettings({
   settings,
   onSettingsChange,
+  onThemePreviewChange,
   isSaving = false,
 }: GeneralSettingsProps) {
   const { t } = useTranslation();
@@ -139,9 +385,87 @@ export function GeneralSettings({
     onSettingsChange({ ...settings, language: language as LanguageCode });
   };
 
-  /** 更新主题 */
-  const handleThemeChange = (theme: string) => {
-    onSettingsChange({ ...settings, theme: theme as ThemeMode });
+  const handleThemePresetChange = (appearance: ThemeAppearance, themePreset: ThemePresetId) => {
+    const preset = THEME_PRESETS.find((item) => item.id === themePreset);
+    const currentPalette = resolveThemeConfig(
+      appearance === "light" ? settings.lightThemePreset : settings.darkThemePreset,
+      settings.themeConfig,
+    )[appearance];
+    const nextLightThemePreset = appearance === "light" ? themePreset : settings.lightThemePreset;
+    const nextDarkThemePreset = appearance === "dark" ? themePreset : settings.darkThemePreset;
+    const nextThemeConfig: ThemeConfig = {
+      ...settings.themeConfig,
+      [appearance]:
+        themePreset === CUSTOM_THEME_PRESET_ID
+          ? currentPalette
+          : (preset?.[appearance] ?? currentPalette),
+    };
+
+    onSettingsChange({
+      ...settings,
+      themePreset: settings.theme === "dark" ? nextDarkThemePreset : nextLightThemePreset,
+      lightThemePreset: nextLightThemePreset,
+      darkThemePreset: nextDarkThemePreset,
+      themeConfig: nextThemeConfig,
+    });
+  };
+
+  const buildThemeConfigChange = (
+    appearance: ThemeAppearance,
+    key: keyof ThemePalette,
+    value: string,
+  ): Settings => {
+    const currentThemeConfig: ThemeConfig = {
+      light: resolveThemeConfig(settings.lightThemePreset, settings.themeConfig).light,
+      dark: resolveThemeConfig(settings.darkThemePreset, settings.themeConfig).dark,
+    };
+    const nextLightThemePreset =
+      appearance === "light" ? CUSTOM_THEME_PRESET_ID : settings.lightThemePreset;
+    const nextDarkThemePreset =
+      appearance === "dark" ? CUSTOM_THEME_PRESET_ID : settings.darkThemePreset;
+    const nextThemeConfig: ThemeConfig = {
+      ...currentThemeConfig,
+      [appearance]: {
+        ...currentThemeConfig[appearance],
+        [key]: value,
+      },
+    };
+
+    return {
+      ...settings,
+      themePreset: settings.theme === "dark" ? nextDarkThemePreset : nextLightThemePreset,
+      lightThemePreset: nextLightThemePreset,
+      darkThemePreset: nextDarkThemePreset,
+      themeConfig: nextThemeConfig,
+    };
+  };
+
+  const handleThemeConfigChange = (
+    appearance: ThemeAppearance,
+    key: keyof ThemePalette,
+    value: string,
+  ) => {
+    onSettingsChange(buildThemeConfigChange(appearance, key, value));
+  };
+
+  const handleThemeConfigPreview = (
+    appearance: ThemeAppearance,
+    key: keyof ThemePalette,
+    value: string,
+  ) => {
+    onThemePreviewChange(buildThemeConfigChange(appearance, key, value));
+  };
+
+  const themePresetOptions: SelectOption[] = [...THEME_PRESETS, CUSTOM_THEME_PRESET].map(
+    (preset) => ({
+      value: preset.id,
+      label: t(preset.labelKey),
+      prefix: <ThemePresetOptionIcon presetId={preset.id} />,
+    }),
+  );
+  const resolvedThemeConfig = {
+    light: resolveThemeConfig(settings.lightThemePreset, settings.themeConfig).light,
+    dark: resolveThemeConfig(settings.darkThemePreset, settings.themeConfig).dark,
   };
 
   /** 更新字体 */
@@ -184,27 +508,31 @@ export function GeneralSettings({
           triggerStyle={{ width: 200 }}
         />
 
-        {/* 主题设置 */}
         <Flex
           direction="column"
-          gap="2"
+          gap="3"
+          className="theme-settings-section"
         >
-          <Text
-            size="2"
-            weight="medium"
-            color="gray"
-          >
-            {t("settings.theme")}
-          </Text>
-          <SegmentedControl.Root
-            value={settings.theme}
-            onValueChange={handleThemeChange}
+          <ThemeModeSection
+            appearance="light"
+            presetId={settings.lightThemePreset}
+            palette={resolvedThemeConfig.light}
+            presetOptions={themePresetOptions}
             disabled={isSaving}
-            style={{ width: 200 }}
-          >
-            <SegmentedControl.Item value="light">{t("settings.themeLight")}</SegmentedControl.Item>
-            <SegmentedControl.Item value="dark">{t("settings.themeDark")}</SegmentedControl.Item>
-          </SegmentedControl.Root>
+            onPresetChange={handleThemePresetChange}
+            onColorChange={handleThemeConfigChange}
+            onColorPreview={handleThemeConfigPreview}
+          />
+          <ThemeModeSection
+            appearance="dark"
+            presetId={settings.darkThemePreset}
+            palette={resolvedThemeConfig.dark}
+            presetOptions={themePresetOptions}
+            disabled={isSaving}
+            onPresetChange={handleThemePresetChange}
+            onColorChange={handleThemeConfigChange}
+            onColorPreview={handleThemeConfigPreview}
+          />
         </Flex>
 
         {/* 字体设置 */}

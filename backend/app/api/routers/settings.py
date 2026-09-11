@@ -36,6 +36,7 @@ from app.api.schemas.setting import (
     AgentToolPermissionItem,
     AuditDetailsStorageResponse,
     ClearAuditDetailsResponse,
+    ThemeConfig,
     SettingsResponse,
     SettingsUpdateRequest,
     WebSearchProviderInfo,
@@ -77,6 +78,10 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 # 设置键名常量
 SETTING_KEY_LANGUAGE = "language"
 SETTING_KEY_THEME = "theme"
+SETTING_KEY_THEME_PRESET = "theme_preset"
+SETTING_KEY_LIGHT_THEME_PRESET = "light_theme_preset"
+SETTING_KEY_DARK_THEME_PRESET = "dark_theme_preset"
+SETTING_KEY_THEME_CONFIG = "theme_config"
 SETTING_KEY_FONT_FAMILY = "font_family"
 SETTING_KEY_CODE_FONT_FAMILY = "code_font_family"
 SETTING_KEY_BASE_FONT_SIZE = "base_font_size"
@@ -95,6 +100,10 @@ SETTING_KEY_EDITOR_SHOW_LINE_NUMBERS = "editor_show_line_numbers"
 DEFAULT_SETTINGS = {
     SETTING_KEY_LANGUAGE: "zh-CN",
     SETTING_KEY_THEME: "light",
+    SETTING_KEY_THEME_PRESET: "classic",
+    SETTING_KEY_LIGHT_THEME_PRESET: "classic",
+    SETTING_KEY_DARK_THEME_PRESET: "classic",
+    SETTING_KEY_THEME_CONFIG: ThemeConfig().model_dump_json(),
     SETTING_KEY_FONT_FAMILY: "system-ui",
     SETTING_KEY_CODE_FONT_FAMILY: "ui-monospace",
     SETTING_KEY_BASE_FONT_SIZE: "14",
@@ -183,6 +192,17 @@ def _parse_bool_setting(raw_value: str | None, *, default: bool = False) -> bool
     return default
 
 
+def _parse_theme_config(raw_value: str | None) -> ThemeConfig:
+    if raw_value is None or raw_value == "":
+        return ThemeConfig()
+
+    try:
+        return ThemeConfig.model_validate(json.loads(raw_value))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        logger.warning("theme_config 配置非法，已回退到默认主题配置")
+        return ThemeConfig()
+
+
 def _merge_default_agent_tool_permissions(
     items: list[AgentToolPermissionItem],
 ) -> list[AgentToolPermissionItem]:
@@ -266,6 +286,20 @@ async def get_settings(
     return SettingsResponse(
         language=settings_dict.get(SETTING_KEY_LANGUAGE, DEFAULT_SETTINGS[SETTING_KEY_LANGUAGE]),
         theme=settings_dict.get(SETTING_KEY_THEME, DEFAULT_SETTINGS[SETTING_KEY_THEME]),
+        theme_preset=settings_dict.get(
+            SETTING_KEY_THEME_PRESET, DEFAULT_SETTINGS[SETTING_KEY_THEME_PRESET]
+        ),
+        light_theme_preset=settings_dict.get(
+            SETTING_KEY_LIGHT_THEME_PRESET,
+            settings_dict.get(SETTING_KEY_THEME_PRESET, DEFAULT_SETTINGS[SETTING_KEY_LIGHT_THEME_PRESET]),
+        ),
+        dark_theme_preset=settings_dict.get(
+            SETTING_KEY_DARK_THEME_PRESET,
+            settings_dict.get(SETTING_KEY_THEME_PRESET, DEFAULT_SETTINGS[SETTING_KEY_DARK_THEME_PRESET]),
+        ),
+        theme_config=_parse_theme_config(
+            settings_dict.get(SETTING_KEY_THEME_CONFIG, DEFAULT_SETTINGS[SETTING_KEY_THEME_CONFIG])
+        ),
         font_family=settings_dict.get(
             SETTING_KEY_FONT_FAMILY, DEFAULT_SETTINGS[SETTING_KEY_FONT_FAMILY]
         ),
@@ -453,6 +487,14 @@ async def update_settings(
         settings_to_update[SETTING_KEY_LANGUAGE] = request.language
     if request.theme is not None:
         settings_to_update[SETTING_KEY_THEME] = request.theme
+    if request.theme_preset is not None:
+        settings_to_update[SETTING_KEY_THEME_PRESET] = request.theme_preset
+    if request.light_theme_preset is not None:
+        settings_to_update[SETTING_KEY_LIGHT_THEME_PRESET] = request.light_theme_preset
+    if request.dark_theme_preset is not None:
+        settings_to_update[SETTING_KEY_DARK_THEME_PRESET] = request.dark_theme_preset
+    if request.theme_config is not None:
+        settings_to_update[SETTING_KEY_THEME_CONFIG] = request.theme_config.model_dump_json()
     if request.font_family is not None:
         settings_to_update[SETTING_KEY_FONT_FAMILY] = request.font_family
     if request.code_font_family is not None:

@@ -5,6 +5,7 @@
  */
 
 import { apiClient } from "@/lib/api-client";
+import { normalizeThemePreset, transformThemeConfig } from "@/lib/theme";
 
 import type {
   AgentToolMetadata,
@@ -23,9 +24,17 @@ import {
  * 后端响应字段转换（snake_case -> camelCase）
  */
 export function transformSettings(raw: SettingsResponse): Settings {
+  const themePreset = normalizeThemePreset(raw.theme_preset);
+  const lightThemePreset = normalizeThemePreset(raw.light_theme_preset ?? themePreset);
+  const darkThemePreset = normalizeThemePreset(raw.dark_theme_preset ?? themePreset);
+
   return {
     language: raw.language as Settings["language"],
-    theme: raw.theme as Settings["theme"],
+    theme: raw.theme === "dark" ? "dark" : "light",
+    themePreset: raw.theme === "dark" ? darkThemePreset : lightThemePreset,
+    lightThemePreset,
+    darkThemePreset,
+    themeConfig: transformThemeConfig(raw.theme_config),
     fontFamily: getSupportedFontFamily(raw.font_family),
     codeFontFamily: getSupportedCodeFontFamily(raw.code_font_family || DEFAULT_CODE_FONT_FAMILY),
     baseFontSize: raw.base_font_size ?? 14,

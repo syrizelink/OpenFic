@@ -33,11 +33,67 @@ class ClearAuditDetailsResponse(BaseModel):
     cleared_detail_bytes: int = Field(description="已清空详情字段的 UTF-8 字节数估算")
 
 
+THEME_COLOR_PATTERN = r"^#[0-9a-fA-F]{6}$"
+
+
+class ThemePalette(BaseModel):
+    """VSCode 风格主题的一套完整界面色板。"""
+
+    background: str = Field(default="#ffffff", pattern=THEME_COLOR_PATTERN)
+    sidebar_background: str = Field(default="#ffffff", pattern=THEME_COLOR_PATTERN)
+    panel_background: str = Field(default="#ffffff", pattern=THEME_COLOR_PATTERN)
+    editor_background: str = Field(default="#ffffff", pattern=THEME_COLOR_PATTERN)
+    input_background: str = Field(default="#ffffff", pattern=THEME_COLOR_PATTERN)
+    foreground: str = Field(default="#202020", pattern=THEME_COLOR_PATTERN)
+    muted_foreground: str = Field(default="#646464", pattern=THEME_COLOR_PATTERN)
+    border: str = Field(default="#d9d9d9", pattern=THEME_COLOR_PATTERN)
+    border_subtle: str = Field(default="#e8e8e8", pattern=THEME_COLOR_PATTERN)
+    hover_background: str = Field(default="#f0f0f0", pattern=THEME_COLOR_PATTERN)
+    selection_background: str = Field(default="#e5e5e5", pattern=THEME_COLOR_PATTERN)
+    selection_foreground: str = Field(default="#202020", pattern=THEME_COLOR_PATTERN)
+    accent: str = Field(default="#000000", pattern=THEME_COLOR_PATTERN)
+    accent_foreground: str = Field(default="#ffffff", pattern=THEME_COLOR_PATTERN)
+    accent_hover: str = Field(default="#1a1a1a", pattern=THEME_COLOR_PATTERN)
+    link: str = Field(default="#0969da", pattern=THEME_COLOR_PATTERN)
+
+
+def _default_dark_theme_palette() -> ThemePalette:
+    return ThemePalette(
+        background="#111111",
+        sidebar_background="#111111",
+        panel_background="#191919",
+        editor_background="#111111",
+        input_background="#191919",
+        foreground="#eeeeee",
+        muted_foreground="#b4b4b4",
+        border="#3a3a3a",
+        border_subtle="#2a2a2a",
+        hover_background="#222222",
+        selection_background="#262626",
+        selection_foreground="#eeeeee",
+        accent="#ffffff",
+        accent_foreground="#000000",
+        accent_hover="#f5f5f5",
+        link="#0969da",
+    )
+
+
+class ThemeConfig(BaseModel):
+    """Radix Themes 可使用的双模式完整色板。"""
+
+    light: ThemePalette = Field(default_factory=ThemePalette)
+    dark: ThemePalette = Field(default_factory=_default_dark_theme_palette)
+
+
 class SettingsResponse(BaseModel):
     """设置响应。"""
 
     language: str = Field(default="zh-CN", description="语言")
     theme: str = Field(default="light", description="主题")
+    theme_preset: str = Field(default="classic", description="主题预设 ID")
+    light_theme_preset: str = Field(default="classic", description="浅色主题预设 ID")
+    dark_theme_preset: str = Field(default="classic", description="深色主题预设 ID")
+    theme_config: ThemeConfig = Field(default_factory=ThemeConfig, description="主题外观配置")
     font_family: str = Field(default="system-ui", description="字体")
     code_font_family: str = Field(default="ui-monospace", description="代码字体")
     base_font_size: int = Field(default=14, description="基础字号（px）")
@@ -98,6 +154,10 @@ class SettingsUpdateRequest(BaseModel):
 
     language: str | None = Field(default=None, description="语言")
     theme: str | None = Field(default=None, description="主题")
+    theme_preset: str | None = Field(default=None, description="主题预设 ID")
+    light_theme_preset: str | None = Field(default=None, description="浅色主题预设 ID")
+    dark_theme_preset: str | None = Field(default=None, description="深色主题预设 ID")
+    theme_config: ThemeConfig | None = Field(default=None, description="主题外观配置")
     font_family: str | None = Field(default=None, description="字体")
     code_font_family: str | None = Field(default=None, description="代码字体")
     base_font_size: int | None = Field(default=None, description="基础字号（px）")

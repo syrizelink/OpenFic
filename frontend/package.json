@@ -81,6 +81,7 @@
     "posthog-js": "^1.417.1",
     "radix-ui": "^1.4.3",
     "react": "^19.2.6",
+    "react-colorful": "^5.8.1",
     "react-day-picker": "^9.14.0",
     "react-dom": "^19.2.6",
     "react-easy-crop": "^5.5.7",

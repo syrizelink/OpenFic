@@ -1,7 +1,9 @@
-.radix-themes,
-.radix-themes[data-accent-color="gray"] {
+.radix-themes {
   --default-font-family: var(--app-font-family);
   font-family: var(--default-font-family);
+}
+
+.radix-themes[data-accent-color="gray"] {
   --accent-1: #fafafa;
   --accent-2: #f5f5f5;
   --accent-3: #e5e5e5;
@@ -29,10 +31,7 @@
   --accent-contrast: #ffffff;
 }
 
-.radix-themes.dark,
-.radix-themes.dark[data-accent-color="gray"],
-.dark .radix-themes,
-.dark .radix-themes[data-accent-color="gray"] {
+.radix-themes.dark[data-accent-color="gray"] {
   --accent-1: #0a0a0a;
   --accent-2: #1a1a1a;
   --accent-3: #262626;

@@ -7,6 +7,7 @@
 import axios from "axios";
 
 import { getConfiguredBackendBaseUrl, getRuntimeConfig } from "./runtime-config";
+import type { ThemeConfigResponse } from "./theme";
 
 export function getApiBaseUrl(): string {
   const backendBaseUrl = getRuntimeConfig()?.backendBaseUrl ?? getConfiguredBackendBaseUrl();
@@ -86,6 +87,10 @@ export interface AuthStatusResponse {
 export interface AuthPreferencesResponse {
   language: string;
   theme: string;
+  theme_preset?: string;
+  light_theme_preset?: string;
+  dark_theme_preset?: string;
+  theme_config?: ThemeConfigResponse;
   font_family: string;
   code_font_family: string;
   base_font_size: number;

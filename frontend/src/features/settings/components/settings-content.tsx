@@ -8,9 +8,6 @@ import { useTranslation } from "react-i18next";
 
 import { Spinner, toast } from "@/components";
 import { saveLanguagePreference } from "@/i18n";
-
-import "./settings-dialog.css";
-
 import {
   applyBaseFontSize,
   applyCodeFontFamily,
@@ -19,6 +16,11 @@ import {
   loadConfiguredFonts,
 } from "@/lib/font-utils";
 import { OVERALL_INDEX_STATUS_QUERY_KEY } from "@/lib/index-status";
+
+import "./settings-dialog.css";
+
+import type { ThemeSettings } from "@/lib/theme";
+import { serializeThemeConfig } from "@/lib/theme";
 
 import { AdvancedSettings } from "../components/advanced-settings";
 import { AgentDefinitionsSettings } from "../components/agent-definitions-settings";
@@ -62,6 +64,8 @@ const mobilePageVariants = {
 interface SettingsContentProps {
   appearance: "light" | "dark";
   onAppearanceChange: (appearance: "light" | "dark") => void;
+  onThemeSettingsChange: (settings: ThemeSettings) => void;
+  onThemePreviewChange: (settings: ThemeSettings) => void;
   onClose: () => void;
   route?: {
     category: SettingsCategory;
@@ -87,6 +91,8 @@ const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
 export function SettingsContent({
   appearance,
   onAppearanceChange,
+  onThemeSettingsChange,
+  onThemePreviewChange,
   onClose,
   route,
 }: SettingsContentProps) {
@@ -176,6 +182,10 @@ export function SettingsContent({
       const request: SettingsUpdateRequest = {
         language: settings.language,
         theme: settings.theme,
+        theme_preset: settings.themePreset,
+        light_theme_preset: settings.lightThemePreset,
+        dark_theme_preset: settings.darkThemePreset,
+        theme_config: serializeThemeConfig(settings.themeConfig),
         font_family: settings.fontFamily,
         code_font_family: settings.codeFontFamily,
         base_font_size: settings.baseFontSize,
@@ -203,6 +213,13 @@ export function SettingsContent({
         void i18n.changeLanguage(previousSettings.language);
         saveLanguagePreference(previousSettings.language);
         onAppearanceChange(previousSettings.theme);
+        onThemeSettingsChange({
+          theme: previousSettings.theme,
+          themePreset: previousSettings.themePreset,
+          lightThemePreset: previousSettings.lightThemePreset,
+          darkThemePreset: previousSettings.darkThemePreset,
+          themeConfig: previousSettings.themeConfig,
+        });
         applyFontFamily(previousSettings.fontFamily);
         applyCodeFontFamily(previousSettings.codeFontFamily);
         applyBaseFontSize(previousSettings.baseFontSize);
@@ -224,6 +241,13 @@ export function SettingsContent({
       void i18n.changeLanguage(newSettings.language);
       saveLanguagePreference(newSettings.language);
       onAppearanceChange(newSettings.theme);
+      onThemeSettingsChange({
+        theme: newSettings.theme,
+        themePreset: newSettings.themePreset,
+        lightThemePreset: newSettings.lightThemePreset,
+        darkThemePreset: newSettings.darkThemePreset,
+        themeConfig: newSettings.themeConfig,
+      });
       applyFontFamily(newSettings.fontFamily);
       applyCodeFontFamily(newSettings.codeFontFamily);
       applyBaseFontSize(newSettings.baseFontSize);
@@ -232,7 +256,7 @@ export function SettingsContent({
       setEditedSettings(newSettings);
       saveMutation.mutate(newSettings);
     },
-    [i18n, onAppearanceChange, saveMutation],
+    [i18n, onAppearanceChange, onThemeSettingsChange, saveMutation],
   );
 
   const isSplitPanelCategory =
@@ -390,6 +414,7 @@ export function SettingsContent({
                 settings={displaySettings}
                 isSaving={saveMutation.isPending}
                 onSettingsChange={handleSettingsChange}
+                onThemePreviewChange={onThemePreviewChange}
               />
             ) : null}
             {activeCategory === "editor" ? <EditorSettings /> : null}

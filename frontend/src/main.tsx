@@ -30,6 +30,18 @@ import { getOrCreateRoot } from "./lib/get-or-create-root";
 import { captureException, initErrorTelemetry } from "./lib/posthog";
 import { loadRuntimeConfig } from "./lib/runtime-config";
 import { connectSocket } from "./lib/socket-client";
+import {
+  applyThemePalette,
+  DEFAULT_THEME_CONFIG,
+  DEFAULT_THEME_PRESET_ID,
+  normalizeThemePreset,
+  observeThemeRoots,
+  resolveThemePalette,
+  transformThemeConfig,
+  type ThemeConfig,
+  type ThemePresetId,
+  type ThemeSettings,
+} from "./lib/theme";
 import { preloadTiktokenEncoding } from "./lib/tiktoken-utils";
 
 import "streamdown/styles.css";
@@ -159,11 +171,15 @@ function AppContent({
   appearance,
   version,
   setAppearance,
+  setThemeSettings,
+  previewThemeSettings,
   toggleTheme,
 }: {
   appearance: "light" | "dark";
   version: string;
   setAppearance: (appearance: "light" | "dark") => void;
+  setThemeSettings: (settings: ThemeSettings) => void;
+  previewThemeSettings: (settings: ThemeSettings) => void;
   toggleTheme: () => void;
 }) {
   return (
@@ -175,6 +191,8 @@ function AppContent({
               appearance={appearance}
               version={version}
               onAppearanceChange={setAppearance}
+              onThemeSettingsChange={setThemeSettings}
+              onThemePreviewChange={previewThemeSettings}
               onToggleTheme={toggleTheme}
             />
           }
@@ -215,6 +233,9 @@ function AppContent({
 
 function Root() {
   const [appearance, setAppearance] = useState<"light" | "dark">("light");
+  const [lightThemePreset, setLightThemePreset] = useState<ThemePresetId>(DEFAULT_THEME_PRESET_ID);
+  const [darkThemePreset, setDarkThemePreset] = useState<ThemePresetId>(DEFAULT_THEME_PRESET_ID);
+  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(DEFAULT_THEME_CONFIG);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [requiresAuthentication, setRequiresAuthentication] = useState(false);
@@ -222,11 +243,58 @@ function Root() {
   // 防抖触发时读取最新外观,保证连点或设置对话框在窗口期内改值后不会发送过期主题。
   const latestAppearanceRef = useRef<"light" | "dark">("light");
   const themeSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const themePreviewFrameRef = useRef<number | null>(null);
 
-  const applyAppearance = useCallback((next: "light" | "dark") => {
-    latestAppearanceRef.current = next;
-    setAppearance(next);
+  const cancelThemePreview = useCallback(() => {
+    if (themePreviewFrameRef.current === null) return;
+    window.cancelAnimationFrame(themePreviewFrameRef.current);
+    themePreviewFrameRef.current = null;
   }, []);
+
+  const applyAppearance = useCallback(
+    (next: "light" | "dark") => {
+      cancelThemePreview();
+      latestAppearanceRef.current = next;
+      setAppearance(next);
+    },
+    [cancelThemePreview],
+  );
+
+  const applyThemeSettings = useCallback(
+    (next: {
+      theme: string;
+      themePreset?: string;
+      lightThemePreset?: string;
+      darkThemePreset?: string;
+      themeConfig?: ThemeConfig;
+    }) => {
+      cancelThemePreview();
+      const nextAppearance = next.theme === "dark" ? "dark" : "light";
+      const legacyPreset = normalizeThemePreset(next.themePreset);
+      latestAppearanceRef.current = nextAppearance;
+      setAppearance(nextAppearance);
+      setLightThemePreset(normalizeThemePreset(next.lightThemePreset ?? legacyPreset));
+      setDarkThemePreset(normalizeThemePreset(next.darkThemePreset ?? legacyPreset));
+      setThemeConfig(next.themeConfig ?? DEFAULT_THEME_CONFIG);
+    },
+    [cancelThemePreview],
+  );
+
+  const previewThemeSettings = useCallback(
+    (next: ThemeSettings) => {
+      cancelThemePreview();
+      const nextAppearance = next.theme === "dark" ? "dark" : "light";
+      const activeThemePreset =
+        nextAppearance === "dark" ? next.darkThemePreset : next.lightThemePreset;
+      const palette = resolveThemePalette(activeThemePreset, next.themeConfig, nextAppearance);
+
+      themePreviewFrameRef.current = window.requestAnimationFrame(() => {
+        themePreviewFrameRef.current = null;
+        applyThemePalette(palette);
+      });
+    },
+    [cancelThemePreview],
+  );
 
   const persistAppearance = useCallback(async () => {
     try {
@@ -253,10 +321,13 @@ function Root() {
 
   useEffect(
     () => () => {
+      cancelThemePreview();
       if (themeSyncTimerRef.current) clearTimeout(themeSyncTimerRef.current);
     },
-    [],
+    [cancelThemePreview],
   );
+
+  useEffect(() => observeThemeRoots(), []);
 
   useEffect(() => {
     let mounted = true;
@@ -281,7 +352,15 @@ function Root() {
         if (preferences.language === "zh-CN" || preferences.language === "en") {
           await i18n.changeLanguage(preferences.language);
         }
-        if (mounted) applyAppearance(preferences.theme === "dark" ? "dark" : "light");
+        if (mounted) {
+          applyThemeSettings({
+            theme: preferences.theme,
+            themePreset: preferences.theme_preset,
+            lightThemePreset: preferences.light_theme_preset,
+            darkThemePreset: preferences.dark_theme_preset,
+            themeConfig: transformThemeConfig(preferences.theme_config),
+          });
+        }
 
         if (authStatus.enabled && !authStatus.authenticated) {
           if (mounted) {
@@ -321,7 +400,7 @@ function Root() {
         if (mounted) {
           setRequiresAuthentication(false);
           setSettings(settings);
-          applyAppearance(settings.theme);
+          applyThemeSettings(settings);
           setIsReady(true);
         }
       } catch (initializationError) {
@@ -343,7 +422,12 @@ function Root() {
       mounted = false;
       clearTimeout(timer);
     };
-  }, [applyAppearance]);
+  }, [applyThemeSettings]);
+
+  useEffect(() => {
+    const activeThemePreset = appearance === "dark" ? darkThemePreset : lightThemePreset;
+    applyThemePalette(resolveThemePalette(activeThemePreset, themeConfig, appearance));
+  }, [appearance, darkThemePreset, lightThemePreset, themeConfig]);
 
   useEffect(() => {
     publishDesktopAppearance({
@@ -372,8 +456,6 @@ function Root() {
             appearance={appearance}
             accentColor="gray"
             grayColor="gray"
-            radius="medium"
-            scaling="100%"
           >
             {!isReady ? (
               <GlobalLoading
@@ -391,6 +473,8 @@ function Root() {
                   appearance={appearance}
                   version={FRONTEND_VERSION}
                   setAppearance={applyAppearance}
+                  setThemeSettings={applyThemeSettings}
+                  previewThemeSettings={previewThemeSettings}
                   toggleTheme={toggleTheme}
                 />
               </ErrorBoundary>
