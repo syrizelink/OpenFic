@@ -3967,9 +3967,11 @@ class TestAgentAPI:
         fake_runner.cancel.assert_called_once()
         fake_registry.cancel.assert_awaited_once_with("sess-rollback")
         delete_checkpoints_after_mock.assert_awaited_once_with(
-            "sess-rollback", "cp-before"
+            "sess-rollback", "cp-before", retry_on_busy=True
         )
-        delete_checkpoints_for_thread_mock.assert_awaited_once_with(child.child_thread_id)
+        delete_checkpoints_for_thread_mock.assert_awaited_once_with(
+            child.child_thread_id, retry_on_busy=True
+        )
         replayed = buffer.replay_events_unlocked("sess-rollback")
         assert all(event.name != "agent:tool_call" for event in replayed)
         rollback_statuses = [
