@@ -41,6 +41,14 @@ class IndexNotReadyError(ValueError):
 
 class OpenFicRetrievalService:
     def __init__(self, *, base_dir: Path | None = None):
+        # Nama direktori "lancedb" berlaku untuk kedua adapter, bukan hanya LanceDB.
+        # Isinya bergantung pada adapter yang dipilih _engine_for:
+        #   * OPENFIC_CLOUD_ONLY=true  -> berkas SQLite FTS5 "<table_name>.sqlite3"
+        #     (kontrak keyword-only, lihat SqliteFtsRetrievalEngine)
+        #   * OPENFIC_CLOUD_ONLY=false -> basis data LanceDB (kontrak dengan embedding)
+        # Nama dipertahankan karena ikut terdaftar sebagai entri data inti pada
+        # backup/restore desktop (desktop/src/main/runtime/tar-extract.ts,
+        # CORE_DATA_ENTRIES); menggantinya akan memutus arsip yang sudah ada.
         self.base_dir = base_dir or (settings.static_dir / "lancedb")
 
     async def register_index(
