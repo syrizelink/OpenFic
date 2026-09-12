@@ -103,6 +103,25 @@ async def handle_session_title(context: JobContext) -> dict[str, str] | None:
         response = await resolved.client.generate(messages, timeout=60)
         audit.record_response(content=response.content, usage=response.usage)
     await context.check_cancelled()
+    if _looks_like_provider_notice(response.content):
+        logger.bind(
+            job_id=context.job.id,
+            task_id=payload.task_id,
+            model_id=model_id,
+            response_preview=response.content.strip()[:200],
+        ).warning("Respons penyedia tampak berupa pemberitahuan galat, judul tidak diperbarui")
+
+        async def mark_provider_notice_skipped(session, job):
+            await job_service.mark_skipped(
+                session,
+                context.publisher,
+                job,
+                reason="Respons penyedia berupa pemberitahuan galat, bukan judul",
+            )
+
+        await context.with_short_session(mark_provider_notice_skipped)
+        return None
+
     title = _clean_title(response.content)
     if not title:
         logger.bind(job_id=context.job.id, task_id=payload.task_id).warning(
@@ -170,6 +189,55 @@ async def handle_session_title(context: JobContext) -> dict[str, str] | None:
         return None
     await context.check_cancelled()
     return {"title": title, "task_id": task_id}
+
+
+_PROVIDER_NOTICE_PATTERNS: tuple[re.Pattern[str], ...] = (
+    # Ketersediaan/masa pakai model: "... is no longer available", "... has been deprecated".
+    re.compile(
+        r"\b(?:no longer|not|isn't|is not|are not)\s+(?:available|supported|accessible)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\b(?:deprecated|retired|sunset|discontinued|end[- ]of[- ]life)\b", re.IGNORECASE),
+    re.compile(r"\bmodel\s+(?:not\s+found|unavailable|does\s+not\s+exist)\b", re.IGNORECASE),
+    # Kuota, tagihan, dan pembatasan laju. Kata "quota"/"billing" sengaja menuntut
+    # konteks agar judul wajar yang memuat kata itu tidak ikut tertolak.
+    re.compile(r"\brate\s?limit(?:ed|ing)?\b", re.IGNORECASE),
+    re.compile(
+        r"\bquota\s+(?:exceeded|exhausted|reached)\b"
+        r"|\bexceed(?:ed)?\s+(?:your\s+)?(?:current\s+)?quota\b"
+        r"|\binsufficient\s+(?:quota|credits?|balance|funds)\b"
+        r"|\bbilling\s+(?:error|issue|problem|required|details)\b",
+        re.IGNORECASE,
+    ),
+    # Autentikasi dan otorisasi.
+    re.compile(r"\b(?:api\s?key|unauthorized|forbidden|permission\s+denied)\b", re.IGNORECASE),
+    # Kegagalan sisi layanan.
+    re.compile(
+        r"\b(?:internal\s+server\s+error|service\s+unavailable|overloaded|try\s+again\s+later|"
+        r"upstream\s+error|bad\s+gateway)\b",
+        re.IGNORECASE,
+    ),
+    # Bentuk galat terstruktur yang kadang lolos sebagai konten biasa.
+    re.compile(r"^\s*[\[{]?\s*\"?error\"?\s*[\]}:]", re.IGNORECASE),
+    re.compile(r"\bhttp\s*(?:status\s*)?[45]\d{2}\b", re.IGNORECASE),
+)
+
+
+def _looks_like_provider_notice(raw_title: str) -> bool:
+    """Deteksi respons penyedia yang berupa pemberitahuan galat, bukan judul.
+
+    Penyedia di balik gerbang API kadang menjawab HTTP 200 dengan teks pemberitahuan
+    (misalnya model sudah tidak tersedia) sebagai konten completion biasa. Tanpa
+    pemeriksaan ini teks tersebut tersimpan menjadi judul sesi secara permanen,
+    karena judul hanya dibuat sekali per sesi.
+
+    Pemeriksaan dilakukan pada teks mentah sebelum pemotongan 50 karakter, supaya
+    frasa penanda di bagian akhir pesan tidak ikut terpotong.
+    """
+    text = raw_title.strip()
+    if not text:
+        return False
+    return any(pattern.search(text) for pattern in _PROVIDER_NOTICE_PATTERNS)
 
 
 def _clean_title(raw_title: str) -> str:

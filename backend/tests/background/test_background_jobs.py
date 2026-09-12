@@ -15,7 +15,11 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 
 from app.background.events.publisher import BackgroundEventPublisher
-from app.background.events.types import EVENT_JOB_CANCELLED, EVENT_JOB_PROGRESS
+from app.background.events.types import (
+    EVENT_JOB_CANCELLED,
+    EVENT_JOB_PROGRESS,
+    EVENT_TASK_TITLE_UPDATED,
+)
 from app.background.jobs.base import JobDefinition
 from app.background.jobs.definitions import register_all_background_jobs
 from app.background.jobs.definitions.chapter_summary import handle_chapter_summary
@@ -26,6 +30,7 @@ from app.background.jobs.constants import (
 )
 from app.background.jobs.definitions.session_title import handle_session_title
 from app.background.jobs import repos as job_repo
+from app.storage.repos import task_repo
 from app.background.jobs import service as background_service
 from app.background.jobs.models import BackgroundJob, BackgroundJobItem
 from app.background.jobs.states import (
@@ -400,6 +405,93 @@ async def test_session_title_skips_when_light_model_missing(tmp_path):
         stored = await job_repo.get_job(context.session, job_id)
         assert stored is not None
         assert stored.status == JOB_STATUS_SKIPPED
+    finally:
+        if context is not None and context.session is not session:
+            await context.session.close()
+        await session.close()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_session_title_skips_when_provider_returns_error_notice(tmp_path):
+    """Pemberitahuan galat penyedia tidak boleh tersimpan menjadi judul sesi.
+
+    Penyedia di balik gerbang API dapat menjawab HTTP 200 dengan teks
+    pemberitahuan sebagai konten biasa, sehingga tidak ada exception yang
+    terangkat. Judul sesi hanya dibuat sekali, jadi teks itu akan menetap
+    permanen bila diterima.
+    """
+    engine, factory = await _configure_file_database(tmp_path)
+    session = factory()
+    context: JobContext | None = None
+    try:
+        project = Project(title="Proyek", description="")
+        task = Task(project_id=project.id, title="New session - 2026-09-12T12:00:00.000Z", mode="agent")
+        session.add(project)
+        session.add(_default_volume(project))
+        session.add(task)
+        await session.commit()
+        judul_awal = task.title
+
+        job = await background_service.submit_job(
+            session,
+            job_type="session_title",
+            payload={"task_id": task.id, "seed_message": "Bahas anslop ai"},
+            context={"project_id": project.id, "model_policy": "light_model"},
+            subject_type="task",
+            subject_id=task.id,
+        )
+        job_id = job.id
+        await session.commit()
+
+        transport = RecordingTransport()
+        context = JobContext(
+            session=session,
+            job=job,
+            publisher=BackgroundEventPublisher(transport),
+        )
+
+        fake_resolved = SimpleNamespace(
+            client=SimpleNamespace(
+                generate=AsyncMock(
+                    return_value=SimpleNamespace(
+                        content="Gemini 3.5 Flash is no longer available. Please use a newer model.",
+                        usage={},
+                    ),
+                ),
+            ),
+            model=SimpleNamespace(model_id="gpt-test", name="GPT Test"),
+            provider=SimpleNamespace(provider_type="openai-compatible"),
+        )
+
+        with patch(
+            "app.background.jobs.definitions.session_title.resolve_background_llm",
+            AsyncMock(return_value=fake_resolved),
+        ), patch(
+            "app.background.jobs.definitions.session_title.compile_canonical_mentions",
+            AsyncMock(return_value="Bahas anslop ai"),
+        ), patch(
+            "app.background.jobs.definitions.session_title.build_chat_messages",
+            AsyncMock(return_value=[]),
+        ):
+            result = await handle_session_title(context)
+
+        assert result is None
+
+        stored_job = await job_repo.get_job(context.session, job_id)
+        assert stored_job is not None
+        assert stored_job.status == JOB_STATUS_SKIPPED
+
+        # Judul placeholder harus utuh: bentuk ini masih lolos
+        # _is_pending_agent_session_title, sehingga pesan berikutnya mencoba lagi.
+        stored_task = await task_repo.get_by_id(context.session, task.id)
+        assert stored_task is not None
+        assert stored_task.title == judul_awal
+
+        # Tidak ada peristiwa perubahan judul yang disiarkan ke UI.
+        assert not [
+            event for event in transport.events if event.type == EVENT_TASK_TITLE_UPDATED
+        ]
     finally:
         if context is not None and context.session is not session:
             await context.session.close()
