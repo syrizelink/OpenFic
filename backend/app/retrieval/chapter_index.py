@@ -1018,6 +1018,33 @@ class ChapterIndexIntegrationService:
                 chapter_id=chapter.id,
             ).warning(f"delete retrieval chapter document failed: {exc}")
 
+    async def delete_project_index(
+        self, session: AsyncSession, project_id: str
+    ) -> None:
+        """Membersihkan seluruh jejak indeks retrieval milik satu proyek.
+
+        Dipanggil saat proyek dihapus. Cukup satu kali untuk seluruh proyek,
+        bukan per bab, karena membuang indeks berarti membuang satu tabel
+        (LanceDB) atau satu berkas ``.sqlite3`` (FTS5) secara utuh.
+
+        Kegagalan pembuangan tabel/berkas sengaja dijadikan non-fatal, sejalan
+        dengan ``delete_chapter_index``: penghapusan proyek tidak boleh gagal
+        hanya karena sisa berkas indeks, dan indeks selalu dapat dibangun ulang.
+        """
+        await retrieval_chapter_index_state_repo.delete_by_project(
+            session,
+            project_id,
+        )
+        try:
+            await self.retrieval_service.drop_index(
+                session,
+                chapter_index_key(project_id),
+            )
+        except Exception as exc:
+            logger.bind(project_id=project_id).warning(
+                f"drop retrieval project index failed: {exc}"
+            )
+
     async def index_chapter(
         self,
         session: AsyncSession,

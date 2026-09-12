@@ -5,7 +5,7 @@ RetrievalIndex Repository - lapisan akses data kontrak indeks pencarian.
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select, update as sql_update
+from sqlalchemy import delete as sql_delete, select, update as sql_update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -99,6 +99,18 @@ async def update(session: AsyncSession, row: RetrievalIndex) -> RetrievalIndex:
     await session.flush()
     await session.refresh(row)
     return row
+
+
+async def delete_by_index_key(session: AsyncSession, index_key: str) -> None:
+    """Menghapus catatan kontrak indeks berdasarkan index_key.
+
+    Pemanggil wajib membuang tabel/berkas indeks lebih dulu, karena nama tabel
+    hanya diketahui dari baris ini.
+    """
+    await session.execute(
+        sql_delete(RetrievalIndex).where(col(RetrievalIndex.index_key) == index_key)
+    )
+    await session.flush()
 
 
 async def mark_all_needs_rebuild(session: AsyncSession) -> None:

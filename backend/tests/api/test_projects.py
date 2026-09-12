@@ -390,3 +390,83 @@ async def test_delete_project_not_found(client: AsyncClient) -> None:
     """Uji penghapusan proyek yang tidak ada."""
     response = await client.delete("/api/v1/projects/nonexistent")
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_project_cleans_retrieval_state(client, session, tmp_path) -> None:
+    """Hapus proyek wajib membuang state retrieval, bukan meninggalkan yatim.
+
+    Sebelum perbaikan ini, baris ``retrieval_chapter_index_states`` dan
+    ``retrieval_indexes`` tetap tertinggal setiap kali proyek dihapus. Pembuangan
+    berkas indeks di disk diuji terpisah pada ``test_service_drop_index.py``.
+    """
+    from app.retrieval.chapter_index import chapter_index_key
+    from app.retrieval.engine_protocol import (
+        KEYWORD_ONLY_DIMENSIONS,
+        KEYWORD_ONLY_EMBEDDING_REF_ID,
+    )
+    from app.retrieval.service import OpenFicRetrievalService
+    from app.retrieval.types import (
+        FilterableField,
+        FilterableFieldType,
+        RetrievalIndexContract,
+    )
+    from app.storage.models.retrieval_chapter_index_state import (
+        RetrievalChapterIndexState,
+    )
+    from app.storage.models.retrieval_index import RetrievalIndex
+
+    create_response = await client.post(
+        "/api/v1/projects", data={"title": "Proyek Berindeks"}
+    )
+    project_id = create_response.json()["id"]
+    volume_id = (
+        await client.get(f"/api/v1/projects/{project_id}/volumes")
+    ).json()[0]["id"]
+    chapter_id = (
+        await client.post(
+            f"/api/v1/projects/{project_id}/chapters",
+            json={"volume_id": volume_id, "title": "Bab Satu", "content": "Isi bab"},
+        )
+    ).json()["id"]
+
+    index_key = chapter_index_key(project_id)
+    await OpenFicRetrievalService(base_dir=tmp_path).register_index(
+        session,
+        index_key,
+        RetrievalIndexContract(
+            embedding_model_ref_id=KEYWORD_ONLY_EMBEDDING_REF_ID,
+            embedding_model_id_snapshot=KEYWORD_ONLY_EMBEDDING_REF_ID,
+            embedding_dimensions_snapshot=KEYWORD_ONLY_DIMENSIONS,
+            chunk_size=400,
+            chunk_overlap=40,
+            filterable_fields=[
+                FilterableField(
+                    name="project_id", field_type=FilterableFieldType.STRING
+                ),
+            ],
+        ),
+    )
+    session.add(
+        RetrievalChapterIndexState(
+            project_id=project_id,
+            chapter_id=chapter_id,
+            index_key=index_key,
+            status="ready",
+            source_hash="hash-1",
+            embedding_model_ref_id=KEYWORD_ONLY_EMBEDDING_REF_ID,
+            chunk_count=1,
+        )
+    )
+    await session.commit()
+
+    with patch(
+        "app.api.routers.projects.delete_checkpoints_for_thread",
+        new=AsyncMock(return_value=0),
+    ):
+        response = await client.delete(f"/api/v1/projects/{project_id}")
+
+    assert response.status_code == 204
+    for model in (RetrievalChapterIndexState, RetrievalIndex):
+        result = await session.execute(select(model))
+        assert result.scalars().all() == [], f"{model.__name__} meninggalkan yatim"

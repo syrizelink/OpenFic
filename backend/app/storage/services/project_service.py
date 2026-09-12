@@ -172,6 +172,13 @@ async def delete_project(session: AsyncSession, project_id: str) -> None:
     await task_service.delete_all_tasks(session, project_id)
     await delete_revision_data_by_project(session, project_id)
 
+    # Membersihkan state indeks retrieval sebelum babnya hilang, karena baris
+    # state merujuk chapters.id. Impor dibuat lazy supaya modul ini tidak
+    # menarik subsistem retrieval saat hanya dipakai untuk operasi lain.
+    from app.retrieval.chapter_index import ChapterIndexIntegrationService
+
+    await ChapterIndexIntegrationService().delete_project_index(session, project_id)
+
     # Menghapus semua bab dalam proyek
     await chapter_repo.delete_by_project(session, project_id)
     await volume_repo.delete_by_project(session, project_id)

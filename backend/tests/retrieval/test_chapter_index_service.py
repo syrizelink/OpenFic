@@ -28,15 +28,26 @@ from app.storage.models.volume import Volume
 
 
 class RecordingRetrievalService:
-    def __init__(self, *, fail_delete: bool = False) -> None:
+    def __init__(
+        self, *, fail_delete: bool = False, fail_drop: bool = False
+    ) -> None:
         self.fail_delete = fail_delete
+        self.fail_drop = fail_drop
         self.deleted: list[tuple[str, str]] = []
+        self.dropped: list[str] = []
 
     async def delete_document(self, session, index_key: str, document_id: str) -> None:
         _ = session
         self.deleted.append((index_key, document_id))
         if self.fail_delete:
             raise RuntimeError("delete failed")
+
+    async def drop_index(self, session, index_key: str) -> bool:
+        _ = session
+        self.dropped.append(index_key)
+        if self.fail_drop:
+            raise RuntimeError("drop failed")
+        return True
 
 
 def _chapter(project_id: str = "project-1") -> Chapter:
@@ -277,3 +288,114 @@ async def test_mark_chapter_stale_if_indexed_marks_ready_state_without_content_c
 
     await session.refresh(state)
     assert state.status == "stale"
+
+
+@pytest.mark.asyncio
+async def test_delete_project_index_removes_all_project_states_and_drops_index(
+    session: AsyncSession,
+) -> None:
+    retrieval_service = RecordingRetrievalService()
+    other_project_id = "project-2"
+    session.add_all(
+        [
+            RetrievalChapterIndexState(
+                project_id="project-1",
+                chapter_id="chapter-1",
+                index_key=chapter_index_key("project-1"),
+                status="ready",
+                source_hash="hash-1",
+                embedding_model_ref_id="model-1",
+            ),
+            RetrievalChapterIndexState(
+                project_id="project-1",
+                chapter_id="chapter-2",
+                index_key=chapter_index_key("project-1"),
+                status="stale",
+                source_hash="hash-2",
+                embedding_model_ref_id="model-1",
+            ),
+            # Kontrak indeks lama pada proyek yang sama juga harus terbuang.
+            RetrievalChapterIndexState(
+                project_id="project-1",
+                chapter_id="chapter-3",
+                index_key="chapters:project-1:legacy",
+                status="ready",
+                source_hash="hash-3",
+                embedding_model_ref_id="model-0",
+            ),
+            # Proyek lain wajib tidak tersentuh.
+            RetrievalChapterIndexState(
+                project_id=other_project_id,
+                chapter_id="chapter-9",
+                index_key=chapter_index_key(other_project_id),
+                status="ready",
+                source_hash="hash-9",
+                embedding_model_ref_id="model-1",
+            ),
+        ]
+    )
+    await session.commit()
+
+    await ChapterIndexIntegrationService(
+        retrieval_service=retrieval_service
+    ).delete_project_index(session, "project-1")
+
+    remaining = (
+        (
+            await session.execute(
+                select(RetrievalChapterIndexState).where(
+                    col(RetrievalChapterIndexState.project_id) == "project-1"
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert list(remaining) == []
+    assert retrieval_service.dropped == [chapter_index_key("project-1")]
+
+    survivor = (
+        await session.execute(
+            select(RetrievalChapterIndexState).where(
+                col(RetrievalChapterIndexState.project_id) == other_project_id
+            )
+        )
+    ).scalar_one()
+    assert survivor.chapter_id == "chapter-9"
+
+
+@pytest.mark.asyncio
+async def test_delete_project_index_survives_drop_failure(
+    session: AsyncSession,
+) -> None:
+    """Kegagalan membuang berkas indeks tidak boleh menggagalkan hapus proyek."""
+    retrieval_service = RecordingRetrievalService(fail_drop=True)
+    session.add(
+        RetrievalChapterIndexState(
+            project_id="project-1",
+            chapter_id="chapter-1",
+            index_key=chapter_index_key("project-1"),
+            status="ready",
+            source_hash="hash-1",
+            embedding_model_ref_id="model-1",
+        )
+    )
+    await session.commit()
+
+    await ChapterIndexIntegrationService(
+        retrieval_service=retrieval_service
+    ).delete_project_index(session, "project-1")
+
+    remaining = (
+        (
+            await session.execute(
+                select(RetrievalChapterIndexState).where(
+                    col(RetrievalChapterIndexState.project_id) == "project-1"
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert list(remaining) == []
+    assert retrieval_service.dropped == [chapter_index_key("project-1")]

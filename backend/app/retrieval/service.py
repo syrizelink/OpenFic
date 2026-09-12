@@ -152,6 +152,21 @@ class OpenFicRetrievalService:
         row = await self._get_index(session, index_key)
         await self._engine_for(row).delete_documents(document_ids)
 
+    async def drop_index(self, session: AsyncSession, index_key: str) -> bool:
+        """Membuang tabel/berkas indeks sekaligus catatan kontraknya.
+
+        Urutan penting: tabel dibuang lebih dulu karena nama tabelnya hanya
+        diketahui dari baris kontrak, baru barisnya dihapus. Mengembalikan
+        ``False`` bila indeks memang tidak pernah terdaftar, sehingga aman
+        dipanggil untuk proyek yang belum pernah diindeks.
+        """
+        row = await retrieval_index_repo.get_by_index_key(session, index_key)
+        if row is None:
+            return False
+        await self._drop_index_table(row)
+        await retrieval_index_repo.delete_by_index_key(session, index_key)
+        return True
+
     async def index_chunk_batch(
         self,
         session: AsyncSession,

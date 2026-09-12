@@ -138,6 +138,20 @@ async def delete_by_chapter_id(session: AsyncSession, chapter_id: str) -> None:
     await session.flush()
 
 
+async def delete_by_project(session: AsyncSession, project_id: str) -> None:
+    """Menghapus seluruh status indeks bab milik satu proyek.
+
+    Sengaja tidak menyaring berdasarkan index_key agar catatan sisa dari
+    kontrak indeks lama ikut terbuang saat proyek dihapus.
+    """
+    await session.execute(
+        delete(RetrievalChapterIndexState).where(
+            col(RetrievalChapterIndexState.project_id) == project_id
+        )
+    )
+    await session.flush()
+
+
 async def mark_all_needs_rebuild(session: AsyncSession) -> None:
     await session.execute(
         update(RetrievalChapterIndexState).values(
