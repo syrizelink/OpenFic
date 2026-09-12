@@ -34,7 +34,10 @@ def _prompt_id(mode_name: str, task_name: str, agent_name: str | None) -> str:
         builtins = {"primary", "explorer", "composer", "auditor", "writer", "actor", "reviewer"}
         prefix = "builtin-agent" if agent_name in builtins else "custom-agent"
         return f"{prefix}--{agent_name}"
-    raise ValueError(f"无法迁移未知提示词链: {mode_name}/{task_name}/{agent_name or ''}")
+    raise ValueError(
+        "Tidak dapat memigrasi rantai prompt tak dikenal:"
+        f" {mode_name}/{task_name}/{agent_name or ''}"
+    )
 
 
 def upgrade() -> None:
@@ -89,7 +92,7 @@ def downgrade() -> None:
                 "agent_name": prompt_id.split("--", maxsplit=1)[1],
             }
         else:
-            raise ValueError(f"无法回滚未知提示词链: {prompt_id}")
+            raise ValueError(f"Tidak dapat mengembalikan rantai prompt tak dikenal: {prompt_id}")
         connection.execute(
             sa.text(
                 "UPDATE prompt_chain_versions "

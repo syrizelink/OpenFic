@@ -129,7 +129,7 @@ export function ConnectionFormDialog({
   );
   const providerIconPath = selectedCatalogProvider?.iconPath || connection?.iconPath;
 
-  // 切换到需要用户提供地址的提供商时，只清空一次 URL。
+  // Saat berpindah ke penyedia yang meminta alamat dari pengguna, URL hanya dikosongkan sekali.
   useEffect(() => {
     if (!providerType) return;
 
@@ -140,27 +140,27 @@ export function ConnectionFormDialog({
     }
   }, [providerType, catalogProviders, setValue, isEditing, connection]);
 
-  // 当提供商类型改变时，自动设置固定 URL
+  // Saat jenis penyedia berubah, URL tetap disetel otomatis
   useEffect(() => {
     if (!providerType || requiresProviderUrl(providerType, catalogProviders)) {
       return;
     }
 
-    // 其他提供商类型，使用固定 URL
+    // Jenis penyedia lain memakai URL tetap
     const fixedUrl = getProviderUrl(providerType, catalogProviders);
     if (fixedUrl) {
-      // 在新建模式下，自动设置固定 URL
-      // 在编辑模式下，如果当前 URL 为空或者是固定 URL，则更新为新的固定 URL
+      // Pada mode buat baru, URL tetap disetel otomatis
+      // Pada mode sunting, jika URL saat ini kosong atau berupa URL tetap, perbarui ke URL tetap yang baru
       if (!isEditing) {
         setValue("url", fixedUrl);
       } else {
-        // 编辑模式下，检查当前 URL 是否为空或等于旧的固定 URL
+        // Pada mode sunting, periksa apakah URL saat ini kosong atau sama dengan URL tetap yang lama
         const currentUrl = url;
         const oldFixedUrl = connection?.providerType
           ? getProviderUrl(connection.providerType, catalogProviders)
           : null;
 
-        // 如果当前 URL 为空，或者是旧的固定 URL，则更新为新的固定 URL
+        // Jika URL saat ini kosong atau berupa URL tetap lama, perbarui ke URL tetap yang baru
         if (!currentUrl || currentUrl.trim() === "" || currentUrl === oldFixedUrl) {
           setValue("url", fixedUrl);
         }
@@ -168,7 +168,7 @@ export function ConnectionFormDialog({
     }
   }, [providerType, setValue, isEditing, url, connection, catalogProviders]);
 
-  // 验证连接
+  // Memvalidasi koneksi
   const handleValidate = useCallback(async () => {
     const formData = getValues();
 
@@ -176,20 +176,20 @@ export function ConnectionFormDialog({
       return;
     }
 
-    // 确定要使用的 URL
+    // Menentukan URL yang akan dipakai
     let validateUrl = formData.url;
     if (!validateUrl || validateUrl.trim() === "") {
       const fixedUrl = getProviderUrl(formData.providerType, catalogProviders);
       if (fixedUrl) {
         validateUrl = fixedUrl;
       } else {
-        // OpenAI 兼容模式必须提供 URL
+        // Mode kompatibel OpenAI wajib menyediakan URL
         setValidationStatus("error");
         return;
       }
     }
 
-    // 如果没有apiKey且是新建模式，显示错误
+    // Jika apiKey tidak ada dan sedang mode buat baru, tampilkan galat
     if (!isEditing && !formData.apiKey) {
       setValidationStatus("error");
       return;
@@ -198,11 +198,11 @@ export function ConnectionFormDialog({
     setValidationStatus("validating");
 
     try {
-      // 通过后端验证连接（后端会访问 URL/models 接口）
+      // Memvalidasi koneksi lewat backend (backend akan mengakses antarmuka URL/models)
       const result = await validateProvider({
         provider_type: formData.providerType,
         url: validateUrl,
-        api_key: formData.apiKey || "", // 编辑时可以为空
+        api_key: formData.apiKey || "", // Boleh kosong saat menyunting
         custom_headers: isCustomProviderType(formData.providerType)
           ? serializeCustomHeaders(formData.customHeaders)
           : [],
@@ -218,7 +218,7 @@ export function ConnectionFormDialog({
     }
   }, [catalogProviders, getValues, isEditing]);
 
-  // 提交表单
+  // Mengirim formulir
   const onFormSubmit = useCallback(
     async (data: ConnectionFormData) => {
       if (!isEditing && !data.apiKey?.trim()) {
@@ -229,10 +229,10 @@ export function ConnectionFormDialog({
 
       formData.append("name", data.name || "");
 
-      // 确定要使用的 URL
+      // Menentukan URL yang akan dipakai
       let finalUrl = data.url;
       if (!finalUrl || finalUrl.trim() === "") {
-        // 如果没有 URL，尝试从提供商类型获取固定 URL
+        // Jika URL tidak ada, coba ambil URL tetap dari jenis penyedia
         const fixedUrl = getProviderUrl(data.providerType, catalogProviders);
         if (fixedUrl) {
           finalUrl = fixedUrl;
@@ -240,7 +240,7 @@ export function ConnectionFormDialog({
       }
 
       if (!finalUrl) {
-        // 如果还是没有 URL，这是错误情况
+        // Jika URL tetap tidak ada, ini kondisi galat
         setValidationStatus("error");
         return;
       }
@@ -248,7 +248,7 @@ export function ConnectionFormDialog({
       formData.append("url", finalUrl);
       formData.append("provider_type", data.providerType);
 
-      // 只有在提供了 API Key 时才包含它
+      // API Key hanya disertakan bila memang disediakan
       if (data.apiKey) {
         formData.append("api_key", data.apiKey);
       }
@@ -300,7 +300,7 @@ export function ConnectionFormDialog({
             gap="4"
             mt="4"
           >
-            {/* 第一行：目录图标和基本信息 */}
+            {/* Baris pertama: ikon direktori dan informasi dasar */}
             <Flex
               gap="3"
               align="center"
@@ -329,13 +329,13 @@ export function ConnectionFormDialog({
                 ) : null}
               </Box>
 
-              {/* 右侧：备注名称和提供商类型 */}
+              {/* Kanan: nama catatan dan jenis penyedia */}
               <Flex
                 direction="column"
                 gap="3"
                 style={{ flex: 1 }}
               >
-                {/* 备注名称 */}
+                {/* Nama catatan */}
                 <Flex
                   direction="column"
                   gap="2"
@@ -360,7 +360,7 @@ export function ConnectionFormDialog({
                   />
                 </Flex>
 
-                {/* 提供商类型 */}
+                {/* Jenis penyedia */}
                 <Flex
                   direction="column"
                   gap="2"
@@ -603,7 +603,7 @@ export function ConnectionFormDialog({
               </Flex>
             )}
 
-            {/* 操作按钮 */}
+            {/* Tombol tindakan */}
             <Flex
               gap="3"
               mt="2"

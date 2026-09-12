@@ -169,13 +169,13 @@ class BackgroundWorker:
                 raise
             if is_summary_batch_cancelled:
                 job_name = "summary batch"
-                reason = "用户停止摘要生成队列"
+                reason = "Pengguna menghentikan antrean pembuatan ringkasan"
             elif is_index_batch_cancelled:
                 job_name = "index batch"
-                reason = "用户停止索引"
+                reason = "Pengguna menghentikan pengindeksan"
             else:
                 job_name = "chapter export"
-                reason = "用户取消导出"
+                reason = "Pengguna membatalkan ekspor"
             logger.bind(job_id=job_id, worker_id=self.worker_id).info(
                 f"running {job_name} interrupted by cancellation request"
             )
@@ -192,7 +192,9 @@ class BackgroundWorker:
                 f"background job timed out: {exc}"
             )
             await job_service.rollback_and_discard(context.session if context else session)
-            await self._mark_timeout_after_rollback(job_id, "后台任务执行超时")
+            await self._mark_timeout_after_rollback(
+                job_id, "Eksekusi tugas latar belakang melebihi batas waktu"
+            )
         except Exception as exc:
             logger.bind(job_id=job_id, worker_id=self.worker_id).opt(exception=True).error(
                 f"background job failed: {exc}"

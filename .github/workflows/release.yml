@@ -39,7 +39,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
 
-      - name: 同步 backend uv.lock
+      - name: Sinkronkan backend uv.lock
         if: ${{ steps.release.outputs.pr }}
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
@@ -56,12 +56,12 @@ jobs:
           popd
 
           if git diff --quiet -- backend/uv.lock; then
-            echo "backend/uv.lock 无需更新"
+            echo "backend/uv.lock tidak perlu diperbarui"
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add backend/uv.lock
-          git commit -m "chore(backend): 同步 uv.lock 版本"
+          git commit -m "chore(backend): sinkronkan versi uv.lock"
           git push origin HEAD:"$PR_HEAD_REF"

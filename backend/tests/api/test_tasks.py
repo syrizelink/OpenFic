@@ -29,7 +29,7 @@ from app.storage.services import task_service
 @pytest.mark.asyncio
 class TestTaskAPI:
     async def create_project_and_chapter(self, client: AsyncClient) -> tuple[str, str]:
-        project_response = await client.post("/api/v1/projects", data={"title": "测试项目"})
+        project_response = await client.post("/api/v1/projects", data={"title": "Proyek Uji"})
         assert project_response.status_code == status.HTTP_201_CREATED
         project_id = project_response.json()["id"]
         volumes_response = await client.get(f"/api/v1/projects/{project_id}/volumes")
@@ -40,8 +40,8 @@ class TestTaskAPI:
             f"/api/v1/projects/{project_id}/chapters",
             json={
                 "volume_id": volume_id,
-                "title": "测试章节",
-                "content": "测试内容",
+                "title": "Bab Uji",
+                "content": "Isi uji",
             },
         )
         assert chapter_response.status_code == status.HTTP_201_CREATED
@@ -53,7 +53,7 @@ class TestTaskAPI:
         client: AsyncClient,
         session: AsyncSession,
         *,
-        title: str = "Agent 任务",
+        title: str = "Tugas Agent",
         session_id: str | None = "session-task-api",
         mode: AgentMode = "agent",
     ):
@@ -94,7 +94,7 @@ class TestTaskAPI:
             task_id=task.id,
             project_id=project_id,
             role="user",
-            content="续写一段剧情",
+            content="Lanjutkan satu bagian alur",
             status="sent",
             metadata={"revision_id": "rev-task"},
         )
@@ -107,7 +107,7 @@ class TestTaskAPI:
         assert data["mode"] == "agent"
         assert data["id"] == task.id
         assert data["agent_session_id"] == task.agent_session_id
-        assert data["messages"][0]["content"] == "续写一段剧情"
+        assert data["messages"][0]["content"] == "Lanjutkan satu bagian alur"
         assert data["messages"][0]["payload"] == {
             "kind": "user_request",
             "revision_id": "rev-task",
@@ -183,11 +183,11 @@ class TestTaskAPI:
         client: AsyncClient,
         session: AsyncSession,
     ) -> None:
-        task, project_id, chapter_id = await self.create_agent_task(client, session, title="任务 1")
+        task, project_id, chapter_id = await self.create_agent_task(client, session, title="Tugas 1")
         await task_service.create_task(
             session,
             project_id=project_id,
-            title="任务 2",
+            title="Tugas 2",
             mode="agent",
             agent_session_id="session-task-api-2",
         )
@@ -206,7 +206,7 @@ class TestTaskAPI:
         client: AsyncClient,
         session: AsyncSession,
     ) -> None:
-        task, project_id, _chapter_id = await self.create_agent_task(client, session, title="任务 1")
+        task, project_id, _chapter_id = await self.create_agent_task(client, session, title="Tugas 1")
         task.is_running = True
         await session.commit()
 
@@ -224,7 +224,7 @@ class TestTaskAPI:
         task, project_id, _chapter_id = await self.create_agent_task(
             client,
             session,
-            title="等待用户输入的任务",
+            title="Tugas menunggu masukan pengguna",
         )
         task.is_running = False
         await session.commit()
@@ -257,7 +257,7 @@ class TestTaskAPI:
         task, project_id, _chapter_id = await self.create_agent_task(
             client,
             session,
-            title="宸插彇娑堢殑浠诲姟",
+            title="Tugas Dibatalkan",
         )
         revision = Revision(
             project_id=task.project_id,
@@ -303,11 +303,11 @@ class TestTaskAPI:
         client: AsyncClient,
         session: AsyncSession,
     ) -> None:
-        _task, project_id, chapter_id = await self.create_agent_task(client, session, title="任务 1")
+        _task, project_id, chapter_id = await self.create_agent_task(client, session, title="Tugas 1")
         await task_service.create_task(
             session,
             project_id=project_id,
-            title="任务 2",
+            title="Tugas 2",
             mode="agent",
             agent_session_id="session-task-api-2",
         )
@@ -326,7 +326,7 @@ class TestTaskAPI:
 
         response = await client.patch(
             f"/api/v1/tasks/{task.id}",
-            json={"messages": [], "title": "新标题"},
+            json={"messages": [], "title": "Judul Baru"},
         )
 
         assert response.status_code == 422
@@ -340,13 +340,13 @@ class TestTaskAPI:
 
         response = await client.patch(
             f"/api/v1/tasks/{task.id}",
-            json={"title": "新标题", "is_favorited": True},
+            json={"title": "Judul Baru", "is_favorited": True},
         )
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["mode"] == "agent"
-        assert data["title"] == "新标题"
+        assert data["title"] == "Judul Baru"
         assert data["is_favorited"] is True
         assert data["messages"] == []
         assert "context_anchor" not in data
@@ -510,7 +510,7 @@ class TestTaskAPI:
             response = await client.delete(f"/api/v1/tasks/{task.id}")
 
         assert response.status_code == status.HTTP_409_CONFLICT
-        assert response.json()["detail"] == "任务运行中，不能删除"
+        assert response.json()["detail"] == "Tugas sedang berjalan, tidak dapat dihapus"
         delete_checkpoints.assert_not_awaited()
 
         get_response = await client.get(f"/api/v1/tasks/{task.id}")
@@ -524,14 +524,14 @@ class TestTaskAPI:
         running_task, project_id, chapter_id = await self.create_agent_task(
             client,
             session,
-            title="运行中任务",
+            title="Tugas Berjalan",
             session_id="session-running",
         )
         running_task.is_running = True
         idle_task = await task_service.create_task(
             session,
             project_id=project_id,
-            title="已停止任务",
+            title="Tugas Terhenti",
             mode="agent",
             agent_session_id="session-idle",
         )

@@ -30,12 +30,12 @@ async def revision_db(monkeypatch):
         await conn.run_sync(SQLModel.metadata.create_all)
 
     async with factory() as session:
-        session.add(Project(id="proj-1", title="测试项目"))
+        session.add(Project(id="proj-1", title="Proyek Uji"))
         session.add(
             Volume(
                 id="vol-1",
                 project_id="proj-1",
-                title="第一卷",
+                title="Volume 1",
                 order=1,
                 chapter_count=2,
             )
@@ -45,8 +45,8 @@ async def revision_db(monkeypatch):
                 id="chap-1",
                 project_id="proj-1",
                 volume_id="vol-1",
-                title="第一章",
-                content="旧内容一",
+                title="Bab 1",
+                content="Isi lama satu",
                 word_count=4,
                 order=1,
             )
@@ -56,8 +56,8 @@ async def revision_db(monkeypatch):
                 id="chap-2",
                 project_id="proj-1",
                 volume_id="vol-1",
-                title="第二章",
-                content="旧内容二",
+                title="Bab 2",
+                content="Isi lama dua",
                 word_count=4,
                 order=2,
             )
@@ -75,7 +75,7 @@ async def revision_db(monkeypatch):
             WorldInfo(
                 id="world-1",
                 project_id="proj-1",
-                name="测试世界书",
+                name="Buku Dunia Uji",
             )
         )
         session.add(
@@ -83,9 +83,9 @@ async def revision_db(monkeypatch):
                 id="entry-1",
                 world_info_id="world-1",
                 uid=1,
-                name="已有条目",
+                name="Entri Lama",
                 order=1,
-                content="原始设定",
+                content="Setelan awal",
                 token_count=4,
                 is_enabled=True,
             )
@@ -94,8 +94,8 @@ async def revision_db(monkeypatch):
             Character(
                 id="char-1",
                 project_id="proj-1",
-                name="已有角色",
-                description="原始角色描述",
+                name="Tokoh Lama",
+                description="Deskripsi tokoh awal",
                 is_favorited=False,
             )
         )
@@ -103,7 +103,7 @@ async def revision_db(monkeypatch):
             NoteCategory(
                 id="cat-1",
                 project_id="proj-1",
-                title="设定",
+                title="Setelan",
             )
         )
         session.add(
@@ -111,8 +111,8 @@ async def revision_db(monkeypatch):
                 id="note-1",
                 project_id="proj-1",
                 category_id="cat-1",
-                title="已有笔记",
-                content="原始内容",
+                title="Catatan Lama",
+                content="Isi awal",
             )
         )
         await session.commit()
@@ -175,7 +175,7 @@ async def test_write_chapter_records_current_revision_and_structured_result(revi
             project_id="proj-1",
             role="user",
             status="sent",
-            content="插入一个章节",
+            content="sisipkan satu bab",
         )
         revision = await begin_user_revision(
             session,
@@ -184,7 +184,7 @@ async def test_write_chapter_records_current_revision_and_structured_result(revi
             agent_session_id="sess-1",
             user_message_id=user.id,
             user_message_seq=user.seq,
-            message="用户消息: 插入一个章节",
+            message="Pesan pengguna: sisipkan satu bab",
             pre_run_checkpoint_id="cp-before",
             graph_thread_id="sess-1",
         )
@@ -201,8 +201,8 @@ async def test_write_chapter_records_current_revision_and_structured_result(revi
     result = await tool.ainvoke(
         {
             "volume_ref": {"type": "order", "value": 1},
-            "title": "插入章",
-            "content": "新内容",
+            "title": "Bab Sisipan",
+            "content": "Isi konten baru",
             "chapter_ref": {"type": "order", "value": 2},
         }
     )
@@ -211,7 +211,7 @@ async def test_write_chapter_records_current_revision_and_structured_result(revi
     chapter_diff = payload["metadata"]["chapter_diff"]
     assert payload["success"] is True
     assert payload["word_count"] == 3
-    assert chapter_diff["chapter_title"] == "插入章"
+    assert chapter_diff["chapter_title"] == "Bab Sisipan"
     assert chapter_diff["order"] == 2
 
     async with revision_db() as session:
@@ -219,7 +219,7 @@ async def test_write_chapter_records_current_revision_and_structured_result(revi
             Chapter.__table__.select().where(Chapter.project_id == "proj-1")
         )
         rows = chapters.mappings().all()
-        inserted_row = next(row for row in rows if row["title"] == "插入章")
+        inserted_row = next(row for row in rows if row["title"] == "Bab Sisipan")
         commits = await commit_repo.list_by_revision(session, revision.id)
         snapshots = await revision_chapter_snapshot_repo.list_by_revision(
             session, revision.id
@@ -262,7 +262,7 @@ async def test_rollback_second_subagent_revision_restores_chapter_to_first_revis
             project_id="proj-1",
             role="user",
             status="sent",
-            content="委派 subagent 创建章节",
+            content="delegasikan subagent membuat bab",
         )
         first_revision = await begin_user_revision(
             session,
@@ -271,7 +271,7 @@ async def test_rollback_second_subagent_revision_restores_chapter_to_first_revis
             agent_session_id="sess-1",
             user_message_id=first_user.id,
             user_message_seq=first_user.seq,
-            message="用户消息: 委派 subagent 创建章节",
+            message="Pesan pengguna: delegasikan subagent membuat bab",
             pre_run_checkpoint_id="cp-before-first",
             graph_thread_id="sess-1",
         )
@@ -289,8 +289,8 @@ async def test_rollback_second_subagent_revision_restores_chapter_to_first_revis
         await write_tool.ainvoke(
             {
                 "volume_ref": {"type": "order", "value": 1},
-                "title": "Subagent 章节",
-                "content": "你好",
+                "title": "Subagent Bab",
+                "content": "Halo",
             }
         )
     )
@@ -304,7 +304,7 @@ async def test_rollback_second_subagent_revision_restores_chapter_to_first_revis
             project_id="proj-1",
             role="user",
             status="sent",
-            content="通知 subagent 修改章节",
+            content="minta subagent menyunting bab",
         )
         second_revision = await begin_user_revision(
             session,
@@ -313,7 +313,7 @@ async def test_rollback_second_subagent_revision_restores_chapter_to_first_revis
             agent_session_id="sess-1",
             user_message_id=second_user.id,
             user_message_seq=second_user.seq,
-            message="用户消息: 通知 subagent 修改章节",
+            message="Pesan pengguna: minta subagent menyunting bab",
             pre_run_checkpoint_id="cp-before-second",
             graph_thread_id="sess-1",
         )
@@ -331,8 +331,8 @@ async def test_rollback_second_subagent_revision_restores_chapter_to_first_revis
         await edit_tool.ainvoke(
             {
                 "volume_ref": {"type": "order", "value": 1},
-                "chapter_ref": {"type": "title", "value": "Subagent 章节"},
-                "old_content": "你好",
+                "chapter_ref": {"type": "title", "value": "Subagent Bab"},
+                "old_content": "Halo",
                 "new_content": "Hello",
             }
         )
@@ -354,7 +354,7 @@ async def test_rollback_second_subagent_revision_restores_chapter_to_first_revis
         restored = await chapter_repo.get_by_id(session, chapter_id)
 
     assert restored is not None
-    assert restored.content == "你好"
+    assert restored.content == "Halo"
 
 
 @pytest.mark.asyncio
@@ -374,7 +374,7 @@ async def test_rollback_revision_restores_chapters_and_messages(revision_db):
             project_id="proj-1",
             role="user",
             status="sent",
-            content="插入一个章节",
+            content="sisipkan satu bab",
         )
         revision = await begin_user_revision(
             session,
@@ -383,7 +383,7 @@ async def test_rollback_revision_restores_chapters_and_messages(revision_db):
             agent_session_id="sess-1",
             user_message_id=user.id,
             user_message_seq=user.seq,
-            message="用户消息: 插入一个章节",
+            message="Pesan pengguna: sisipkan satu bab",
             pre_run_checkpoint_id="cp-before",
             graph_thread_id="sess-1",
         )
@@ -401,8 +401,8 @@ async def test_rollback_revision_restores_chapters_and_messages(revision_db):
         await tool.ainvoke(
             {
                 "volume_ref": {"type": "order", "value": 1},
-                "title": "插入章",
-                "content": "新内容",
+                "title": "Bab Sisipan",
+                "content": "Isi konten baru",
                 "chapter_ref": {"type": "order", "value": 2},
             }
         )
@@ -418,7 +418,7 @@ async def test_rollback_revision_restores_chapters_and_messages(revision_db):
             project_id="proj-1",
             role="assistant",
             status="complete",
-            content="已插入",
+            content="Sudah disisipkan",
         )
         await session.commit()
 
@@ -430,7 +430,7 @@ async def test_rollback_revision_restores_chapters_and_messages(revision_db):
         )
         await session.commit()
 
-    assert rollback_result.restored_message_content == "插入一个章节"
+    assert rollback_result.restored_message_content == "sisipkan satu bab"
     assert set(rollback_result.affected_chapters) == {inserted_id, "chap-2"}
 
     async with revision_db() as session:
@@ -489,7 +489,7 @@ async def test_rollback_preserves_target_message_attachments_for_resending(revis
             project_id="proj-1",
             role="user",
             status="sent",
-            content="请参考图片",
+            content="silakan lihat gambar",
             metadata={"attachments": [attachment_metadata]},
         )
         revision = await begin_user_revision(
@@ -499,7 +499,7 @@ async def test_rollback_preserves_target_message_attachments_for_resending(revis
             agent_session_id="sess-1",
             user_message_id=user_message.id,
             user_message_seq=user_message.seq,
-            message="用户消息: 请参考图片",
+            message="Pesan pengguna: silakan lihat gambar",
             pre_run_checkpoint_id="cp-before",
             graph_thread_id="sess-1",
         )
@@ -513,7 +513,7 @@ async def test_rollback_preserves_target_message_attachments_for_resending(revis
         )
         await session.commit()
 
-    assert result.restored_message_content == "请参考图片"
+    assert result.restored_message_content == "silakan lihat gambar"
     assert result.restored_attachments == [attachment_metadata]
 
     async with revision_db() as session:
@@ -536,7 +536,7 @@ async def test_rollback_rejects_oversized_chapter_snapshot_before_mutating(revis
             project_id="proj-1",
             role="user",
             status="sent",
-            content="恢复超限章节",
+            content="pulihkan bab melebihi batas",
         )
         target_revision = await begin_user_revision(
             session,
@@ -545,7 +545,7 @@ async def test_rollback_rejects_oversized_chapter_snapshot_before_mutating(revis
             agent_session_id="sess-1",
             user_message_id=user.id,
             user_message_seq=user.seq,
-            message="用户消息: 恢复超限章节",
+            message="Pesan pengguna: pulihkan bab melebihi batas",
             pre_run_checkpoint_id="cp-before",
             graph_thread_id="sess-1",
         )
@@ -556,20 +556,20 @@ async def test_rollback_rejects_oversized_chapter_snapshot_before_mutating(revis
                 chapter_id="chap-1",
                 project_id="proj-1",
                 exists=True,
-                title="第一章",
-                content="\n".join("超限内容" for _ in range(2001)),
+                title="Bab 1",
+                content="\n".join("Isi melebihi batas" for _ in range(2001)),
                 word_count=0,
                 chapter_order=1,
             ),
         )
         chapter = await chapter_repo.get_by_id(session, "chap-1")
         assert chapter is not None
-        chapter.content = "回滚前内容"
+        chapter.content = "Isi sebelum rollback"
         await chapter_repo.update_chapter(session, chapter)
         await session.commit()
 
     async with revision_db() as session:
-        with pytest.raises(ValueError, match="内容超出限制"):
+        with pytest.raises(ValueError, match="Konten melebihi batas"):
             await rollback_revision_for_session(
                 session,
                 agent_session_id="sess-1",
@@ -587,7 +587,7 @@ async def test_rollback_rejects_oversized_chapter_snapshot_before_mutating(revis
         )
 
     assert chapter is not None
-    assert chapter.content == "回滚前内容"
+    assert chapter.content == "Isi sebelum rollback"
     assert target_after is not None
     assert target_after.status != "rolled_back"
     assert all(revision.revision_type != "rollback" for revision in revisions)
@@ -611,7 +611,7 @@ async def test_rollback_revision_deletes_compactions_intersecting_deleted_messag
             project_id="proj-1",
             role="user",
             status="sent",
-            content="第一轮",
+            content="Putaran pertama",
         )
         await message_repo.insert_message(
             session,
@@ -620,7 +620,7 @@ async def test_rollback_revision_deletes_compactions_intersecting_deleted_messag
             project_id="proj-1",
             role="assistant",
             status="complete",
-            content="第一轮回复",
+            content="Balasan putaran pertama",
         )
         await message_repo.insert_message(
             session,
@@ -629,7 +629,7 @@ async def test_rollback_revision_deletes_compactions_intersecting_deleted_messag
             project_id="proj-1",
             role="assistant",
             status="complete",
-            content="第二轮前置回复",
+            content="Balasan awal putaran kedua",
         )
         target_user = await message_repo.insert_message(
             session,
@@ -638,7 +638,7 @@ async def test_rollback_revision_deletes_compactions_intersecting_deleted_messag
             project_id="proj-1",
             role="user",
             status="sent",
-            content="回滚目标",
+            content="target rollback",
         )
         target_revision = await begin_user_revision(
             session,
@@ -647,7 +647,7 @@ async def test_rollback_revision_deletes_compactions_intersecting_deleted_messag
             agent_session_id="sess-1",
             user_message_id=target_user.id,
             user_message_seq=target_user.seq,
-            message="用户消息: 回滚目标",
+            message="Pesan pengguna: target rollback",
             pre_run_checkpoint_id="cp-before-target",
             graph_thread_id="sess-1",
         )
@@ -658,7 +658,7 @@ async def test_rollback_revision_deletes_compactions_intersecting_deleted_messag
             project_id="proj-1",
             role="assistant",
             status="complete",
-            content="将被删除的回复",
+            content="Balasan yang akan dihapus",
         )
         await compaction_repo.insert_compaction(
             session,
@@ -667,7 +667,7 @@ async def test_rollback_revision_deletes_compactions_intersecting_deleted_messag
             project_id="proj-1",
             start_seq=0,
             end_seq=1,
-            summary="保留的压缩",
+            summary="Kompaksi yang dipertahankan",
             trigger="manual",
         )
         await compaction_repo.insert_compaction(
@@ -677,7 +677,7 @@ async def test_rollback_revision_deletes_compactions_intersecting_deleted_messag
             project_id="proj-1",
             start_seq=2,
             end_seq=4,
-            summary="与回滚删除范围相交的压缩",
+            summary="Kompaksi yang beririsan dengan rentang hapus rollback",
             trigger="manual",
         )
         await session.commit()
@@ -694,7 +694,7 @@ async def test_rollback_revision_deletes_compactions_intersecting_deleted_messag
         rows = await compaction_repo.list_by_session(session, "sess-1")
 
     assert [(row.start_seq, row.end_seq, row.summary) for row in rows] == [
-        (0, 1, "保留的压缩"),
+        (0, 1, "Kompaksi yang dipertahankan"),
     ]
 
 
@@ -712,7 +712,7 @@ async def test_write_note_records_revision_snapshot(revision_db):
             project_id="proj-1",
             role="user",
             status="sent",
-            content="创建一个笔记",
+            content="buat satu catatan",
         )
         revision = await begin_user_revision(
             session,
@@ -721,7 +721,7 @@ async def test_write_note_records_revision_snapshot(revision_db):
             agent_session_id="sess-1",
             user_message_id=user.id,
             user_message_seq=user.seq,
-            message="用户消息: 创建一个笔记",
+            message="Pesan pengguna: buat satu catatan",
             pre_run_checkpoint_id="cp-before",
             graph_thread_id="sess-1",
         )
@@ -737,7 +737,7 @@ async def test_write_note_records_revision_snapshot(revision_db):
     )
     result = json.loads(
         await tool.ainvoke(
-            {"title": "新笔记", "content": "新内容", "category_ref": {"id": "cat-1"}}
+            {"title": "Catatan Baru", "content": "Isi konten baru", "category_ref": {"id": "cat-1"}}
         )
     )
     assert result["success"] is True
@@ -772,7 +772,7 @@ async def test_rollback_revision_restores_notes(revision_db):
             project_id="proj-1",
             role="user",
             status="sent",
-            content="操作笔记",
+            content="operasikan catatan",
         )
         revision = await begin_user_revision(
             session,
@@ -781,7 +781,7 @@ async def test_rollback_revision_restores_notes(revision_db):
             agent_session_id="sess-1",
             user_message_id=user.id,
             user_message_seq=user.seq,
-            message="用户消息: 操作笔记",
+            message="Pesan pengguna: operasikan catatan",
             pre_run_checkpoint_id="cp-before",
             graph_thread_id="sess-1",
         )
@@ -797,7 +797,7 @@ async def test_rollback_revision_restores_notes(revision_db):
     write_tool = WriteNoteTool(_state=state)
     write_result = json.loads(
         await write_tool.ainvoke(
-            {"title": "临时笔记", "content": "将被回滚删除", "category_ref": {"id": "cat-1"}}
+            {"title": "Catatan Sementara", "content": "Akan dihapus oleh rollback", "category_ref": {"id": "cat-1"}}
         )
     )
     assert write_result["success"] is True
@@ -808,8 +808,8 @@ async def test_rollback_revision_restores_notes(revision_db):
         await edit_tool.ainvoke(
             {
                 "note_ref": {"id": "note-1"},
-                "old_content": "原始内容",
-                "new_content": "被修改的内容",
+                "old_content": "Isi awal",
+                "new_content": "Isi yang telah diubah",
             }
         )
     )
@@ -838,8 +838,8 @@ async def test_rollback_revision_restores_notes(revision_db):
 
     assert created_after is None
     assert original_after is not None
-    assert original_after.title == "已有笔记"
-    assert original_after.content == "原始内容"
+    assert original_after.title == "Catatan Lama"
+    assert original_after.content == "Isi awal"
     assert {n.id for n in all_notes} == {"note-1"}
 
 
@@ -857,7 +857,7 @@ async def test_rollback_revision_restores_moved_note(revision_db):
             NoteCategory(
                 id="cat-2",
                 project_id="proj-1",
-                title="角色",
+                title="Tokoh",
             )
         )
         await session.commit()
@@ -870,7 +870,7 @@ async def test_rollback_revision_restores_moved_note(revision_db):
             project_id="proj-1",
             role="user",
             status="sent",
-            content="移动笔记",
+            content="pindahkan catatan",
         )
         revision = await begin_user_revision(
             session,
@@ -879,7 +879,7 @@ async def test_rollback_revision_restores_moved_note(revision_db):
             agent_session_id="sess-1",
             user_message_id=user.id,
             user_message_seq=user.seq,
-            message="用户消息: 移动笔记",
+            message="Pesan pengguna: pindahkan catatan",
             pre_run_checkpoint_id="cp-before",
             graph_thread_id="sess-1",
         )
@@ -931,7 +931,7 @@ async def test_create_note_category_records_revision_snapshot(revision_db):
             project_id="proj-1",
             role="user",
             status="sent",
-            content="创建一个分类",
+            content="buat satu kategori",
         )
         revision = await begin_user_revision(
             session,
@@ -940,7 +940,7 @@ async def test_create_note_category_records_revision_snapshot(revision_db):
             agent_session_id="sess-1",
             user_message_id=user.id,
             user_message_seq=user.seq,
-            message="用户消息: 创建一个分类",
+            message="Pesan pengguna: buat satu kategori",
             pre_run_checkpoint_id="cp-before",
             graph_thread_id="sess-1",
         )
@@ -955,7 +955,7 @@ async def test_create_note_category_records_revision_snapshot(revision_db):
         }
     )
     result = json.loads(
-        await tool.ainvoke({"title": "新分类", "parent_ref": {"id": "cat-1"}})
+        await tool.ainvoke({"title": "Kategori Baru", "parent_ref": {"id": "cat-1"}})
     )
     assert result["success"] is True
     created_id = result["metadata"]["category"]["id"]
@@ -991,7 +991,7 @@ async def test_rollback_revision_restores_note_categories(revision_db):
             project_id="proj-1",
             role="user",
             status="sent",
-            content="创建分类",
+            content="buat kategori",
         )
         revision = await begin_user_revision(
             session,
@@ -1000,7 +1000,7 @@ async def test_rollback_revision_restores_note_categories(revision_db):
             agent_session_id="sess-1",
             user_message_id=user.id,
             user_message_seq=user.seq,
-            message="用户消息: 创建分类",
+            message="Pesan pengguna: buat kategori",
             pre_run_checkpoint_id="cp-before",
             graph_thread_id="sess-1",
         )
@@ -1015,7 +1015,7 @@ async def test_rollback_revision_restores_note_categories(revision_db):
 
     create_tool = CreateNoteCategoryTool(_state=state)
     create_result = json.loads(
-        await create_tool.ainvoke({"title": "临时分类", "parent_ref": {"id": "cat-1"}})
+        await create_tool.ainvoke({"title": "Kategori Sementara", "parent_ref": {"id": "cat-1"}})
     )
     assert create_result["success"] is True
     created_id = create_result["metadata"]["category"]["id"]
@@ -1058,7 +1058,7 @@ async def test_rollback_restores_nested_category_before_note(revision_db):
             project_id="proj-1",
             role="user",
             status="sent",
-            content="创建嵌套分类和笔记",
+            content="buat kategori bersarang dan catatan",
         )
         revision = await begin_user_revision(
             session,
@@ -1067,7 +1067,7 @@ async def test_rollback_restores_nested_category_before_note(revision_db):
             agent_session_id="sess-1",
             user_message_id=user.id,
             user_message_seq=user.seq,
-            message="用户消息: 创建嵌套分类和笔记",
+            message="Pesan pengguna: buat kategori bersarang dan catatan",
             pre_run_checkpoint_id="cp-before",
             graph_thread_id="sess-1",
         )
@@ -1082,7 +1082,7 @@ async def test_rollback_restores_nested_category_before_note(revision_db):
 
     cat_tool = CreateNoteCategoryTool(_state=state)
     cat_result = json.loads(
-        await cat_tool.ainvoke({"title": "新父分类"})
+        await cat_tool.ainvoke({"title": "Kategori Induk Baru"})
     )
     assert cat_result["success"] is True
     new_cat_id = cat_result["metadata"]["category"]["id"]
@@ -1090,7 +1090,7 @@ async def test_rollback_restores_nested_category_before_note(revision_db):
     sub_cat_tool = CreateNoteCategoryTool(_state=state)
     sub_cat_result = json.loads(
         await sub_cat_tool.ainvoke(
-            {"title": "子分类", "parent_ref": {"id": new_cat_id}}
+            {"title": "Subkategori", "parent_ref": {"id": new_cat_id}}
         )
     )
     assert sub_cat_result["success"] is True
@@ -1099,7 +1099,7 @@ async def test_rollback_restores_nested_category_before_note(revision_db):
     write_tool = WriteNoteTool(_state=state)
     write_result = json.loads(
         await write_tool.ainvoke(
-            {"title": "嵌套笔记", "content": "内容", "category_ref": {"id": sub_cat_id}}
+            {"title": "Catatan Bersarang", "content": "Isi", "category_ref": {"id": sub_cat_id}}
         )
     )
     assert write_result["success"] is True
@@ -1148,7 +1148,7 @@ async def test_rollback_revision_restores_created_world_entries(revision_db):
             project_id="proj-1",
             role="user",
             status="sent",
-            content="创建世界书条目",
+            content="buat entri buku dunia",
         )
         revision = await begin_user_revision(
             session,
@@ -1157,7 +1157,7 @@ async def test_rollback_revision_restores_created_world_entries(revision_db):
             agent_session_id="sess-1",
             user_message_id=user.id,
             user_message_seq=user.seq,
-            message="用户消息: 创建世界书条目",
+            message="Pesan pengguna: buat entri buku dunia",
             pre_run_checkpoint_id="cp-before",
             graph_thread_id="sess-1",
         )
@@ -1172,7 +1172,7 @@ async def test_rollback_revision_restores_created_world_entries(revision_db):
         }
     )
     result = json.loads(
-        await tool.ainvoke({"title": "临时条目", "content": "临时设定"})
+        await tool.ainvoke({"title": "Entri Sementara", "content": "Setelan sementara"})
     )
     assert result["success"] is True
     entry_id = result["metadata"]["world_entry_diff"]["entry_id"]
@@ -1210,7 +1210,7 @@ async def test_rollback_revision_restores_edited_world_entries(revision_db):
             project_id="proj-1",
             role="user",
             status="sent",
-            content="编辑世界书条目",
+            content="sunting entri buku dunia",
         )
         revision = await begin_user_revision(
             session,
@@ -1219,7 +1219,7 @@ async def test_rollback_revision_restores_edited_world_entries(revision_db):
             agent_session_id="sess-1",
             user_message_id=user.id,
             user_message_seq=user.seq,
-            message="用户消息: 编辑世界书条目",
+            message="Pesan pengguna: sunting entri buku dunia",
             pre_run_checkpoint_id="cp-before",
             graph_thread_id="sess-1",
         )
@@ -1236,10 +1236,10 @@ async def test_rollback_revision_restores_edited_world_entries(revision_db):
     result = json.loads(
         await tool.ainvoke(
             {
-                "title": "已有条目",
-                "new_title": "改名条目",
-                "old_content": "原始",
-                "new_content": "更新",
+                "title": "Entri Lama",
+                "new_title": "Entri Ganti Nama",
+                "old_content": "awal",
+                "new_content": "diperbarui",
             }
         )
     )
@@ -1259,8 +1259,8 @@ async def test_rollback_revision_restores_edited_world_entries(revision_db):
         entry_after = await world_info_entry_repo.get_by_id(session, "entry-1")
 
     assert entry_after is not None
-    assert entry_after.name == "已有条目"
-    assert entry_after.content == "原始设定"
+    assert entry_after.name == "Entri Lama"
+    assert entry_after.content == "Setelan awal"
 
 
 @pytest.mark.asyncio
@@ -1280,7 +1280,7 @@ async def test_rollback_revision_restores_deleted_world_entries(revision_db):
             project_id="proj-1",
             role="user",
             status="sent",
-            content="删除世界书条目",
+            content="hapus entri buku dunia",
         )
         revision = await begin_user_revision(
             session,
@@ -1289,7 +1289,7 @@ async def test_rollback_revision_restores_deleted_world_entries(revision_db):
             agent_session_id="sess-1",
             user_message_id=user.id,
             user_message_seq=user.seq,
-            message="用户消息: 删除世界书条目",
+            message="Pesan pengguna: hapus entri buku dunia",
             pre_run_checkpoint_id="cp-before",
             graph_thread_id="sess-1",
         )
@@ -1303,7 +1303,7 @@ async def test_rollback_revision_restores_deleted_world_entries(revision_db):
             "current_revision_id": revision.id,
         }
     )
-    result = json.loads(await tool.ainvoke({"title": "已有条目"}))
+    result = json.loads(await tool.ainvoke({"title": "Entri Lama"}))
     assert result["success"] is True
 
     async with revision_db() as session:
@@ -1320,8 +1320,8 @@ async def test_rollback_revision_restores_deleted_world_entries(revision_db):
         entry_after = await world_info_entry_repo.get_by_id(session, "entry-1")
 
     assert entry_after is not None
-    assert entry_after.name == "已有条目"
-    assert entry_after.content == "原始设定"
+    assert entry_after.name == "Entri Lama"
+    assert entry_after.content == "Setelan awal"
 
 
 @pytest.mark.asyncio
@@ -1341,7 +1341,7 @@ async def test_rollback_revision_restores_created_characters(revision_db):
             project_id="proj-1",
             role="user",
             status="sent",
-            content="创建角色",
+            content="buat tokoh",
         )
         revision = await begin_user_revision(
             session,
@@ -1350,7 +1350,7 @@ async def test_rollback_revision_restores_created_characters(revision_db):
             agent_session_id="sess-1",
             user_message_id=user.id,
             user_message_seq=user.seq,
-            message="用户消息: 创建角色",
+            message="Pesan pengguna: buat tokoh",
             pre_run_checkpoint_id="cp-before",
             graph_thread_id="sess-1",
         )
@@ -1364,7 +1364,7 @@ async def test_rollback_revision_restores_created_characters(revision_db):
             "current_revision_id": revision.id,
         }
     )
-    result = json.loads(await tool.ainvoke({"name": "临时角色", "description": "临时描述"}))
+    result = json.loads(await tool.ainvoke({"name": "Tokoh Sementara", "description": "Deskripsi sementara"}))
     assert result["success"] is True
     character_id = result["metadata"]["character_diff"]["character_id"]
 
@@ -1401,7 +1401,7 @@ async def test_rollback_revision_restores_edited_characters(revision_db):
             project_id="proj-1",
             role="user",
             status="sent",
-            content="编辑角色",
+            content="sunting tokoh",
         )
         revision = await begin_user_revision(
             session,
@@ -1410,7 +1410,7 @@ async def test_rollback_revision_restores_edited_characters(revision_db):
             agent_session_id="sess-1",
             user_message_id=user.id,
             user_message_seq=user.seq,
-            message="用户消息: 编辑角色",
+            message="Pesan pengguna: sunting tokoh",
             pre_run_checkpoint_id="cp-before",
             graph_thread_id="sess-1",
         )
@@ -1427,10 +1427,10 @@ async def test_rollback_revision_restores_edited_characters(revision_db):
     result = json.loads(
         await tool.ainvoke(
             {
-                "name": "已有角色",
-                "new_name": "改名角色",
-                "old_description": "原始",
-                "new_description": "更新",
+                "name": "Tokoh Lama",
+                "new_name": "Tokoh Ganti Nama",
+                "old_description": "awal",
+                "new_description": "diperbarui",
             }
         )
     )
@@ -1450,8 +1450,8 @@ async def test_rollback_revision_restores_edited_characters(revision_db):
         character_after = await character_repo.get_by_id(session, "char-1")
 
     assert character_after is not None
-    assert character_after.name == "已有角色"
-    assert character_after.description == "原始角色描述"
+    assert character_after.name == "Tokoh Lama"
+    assert character_after.description == "Deskripsi tokoh awal"
     assert character_after.is_favorited is False
 
 
@@ -1472,7 +1472,7 @@ async def test_rollback_revision_restores_deleted_characters(revision_db):
             project_id="proj-1",
             role="user",
             status="sent",
-            content="删除角色",
+            content="hapus tokoh",
         )
         revision = await begin_user_revision(
             session,
@@ -1481,7 +1481,7 @@ async def test_rollback_revision_restores_deleted_characters(revision_db):
             agent_session_id="sess-1",
             user_message_id=user.id,
             user_message_seq=user.seq,
-            message="用户消息: 删除角色",
+            message="Pesan pengguna: hapus tokoh",
             pre_run_checkpoint_id="cp-before",
             graph_thread_id="sess-1",
         )
@@ -1495,7 +1495,7 @@ async def test_rollback_revision_restores_deleted_characters(revision_db):
             "current_revision_id": revision.id,
         }
     )
-    result = json.loads(await tool.ainvoke({"name": "已有角色"}))
+    result = json.loads(await tool.ainvoke({"name": "Tokoh Lama"}))
     assert result["success"] is True
 
     async with revision_db() as session:
@@ -1512,5 +1512,5 @@ async def test_rollback_revision_restores_deleted_characters(revision_db):
         character_after = await character_repo.get_by_id(session, "char-1")
 
     assert character_after is not None
-    assert character_after.name == "已有角色"
-    assert character_after.description == "原始角色描述"
+    assert character_after.name == "Tokoh Lama"
+    assert character_after.description == "Deskripsi tokoh awal"

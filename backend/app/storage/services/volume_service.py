@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Volume Service - 卷业务逻辑层。
+Volume Service - lapisan logika bisnis volume.
 """
 
 from datetime import UTC, datetime
@@ -11,12 +11,12 @@ from app.core.errors import NotFoundError, ValidationError
 from app.storage.models.volume import Volume
 from app.storage.repos import chapter_repo, project_repo, volume_repo
 
-DEFAULT_VOLUME_TITLE = "第一卷"
+DEFAULT_VOLUME_TITLE = "Volume 1"
 UNSET = object()
 
 
 async def create_default_volume(session: AsyncSession, project_id: str) -> Volume:
-    """为项目创建默认卷。"""
+    """Membuat volume default untuk proyek."""
     volume = Volume(
         project_id=project_id,
         title=DEFAULT_VOLUME_TITLE,
@@ -33,10 +33,10 @@ async def create_volume(
     title: str,
     description: str | None = None,
 ) -> Volume:
-    """在项目末尾追加卷。"""
+    """Menambahkan volume di akhir proyek."""
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     max_order = await volume_repo.get_max_order(session, project_id)
     volume = Volume(
@@ -50,18 +50,18 @@ async def create_volume(
 
 
 async def get_volume(session: AsyncSession, volume_id: str) -> Volume:
-    """获取卷详情。"""
+    """Mengambil detail volume."""
     volume = await volume_repo.get_by_id(session, volume_id)
     if volume is None:
-        raise NotFoundError(f"卷不存在: {volume_id}")
+        raise NotFoundError(f"Volume tidak ditemukan: {volume_id}")
     return volume
 
 
 async def list_volumes(session: AsyncSession, project_id: str) -> list[Volume]:
-    """列出项目下全部卷。"""
+    """Menampilkan seluruh volume dalam proyek."""
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
     return await volume_repo.list_by_project(session, project_id)
 
 
@@ -71,7 +71,7 @@ async def update_volume(
     title: str | None = None,
     description: str | None | object = UNSET,
 ) -> Volume:
-    """更新卷。"""
+    """Memperbarui volume."""
     volume = await get_volume(session, volume_id)
     changed = False
     if title is not None and title != volume.title:
@@ -90,7 +90,7 @@ async def refresh_volume_chapter_count(
     session: AsyncSession,
     volume_id: str,
 ) -> Volume | None:
-    """刷新卷章节数缓存。"""
+    """Menyegarkan cache jumlah bab volume."""
     volume = await volume_repo.get_by_id(session, volume_id)
     if volume is None:
         return None
@@ -105,17 +105,17 @@ async def delete_volume(
     *,
     cascade: bool = False,
 ) -> None:
-    """删除卷，非空卷需要 cascade=true。"""
+    """Menghapus volume, volume tidak kosong memerlukan cascade=true."""
     volume = await get_volume(session, volume_id)
     project_id = volume.project_id
     deleted_order = volume.order
     volume_count = await volume_repo.count_by_project(session, project_id)
     if volume_count <= 1:
-        raise ValidationError("项目至少需要保留一个卷")
+        raise ValidationError("Proyek harus menyisakan minimal satu volume")
 
     chapter_count = await chapter_repo.count_by_volume(session, volume_id)
     if chapter_count > 0 and not cascade:
-        raise ValidationError("卷非空，删除时需要 cascade=true")
+        raise ValidationError("Volume tidak kosong, penghapusan memerlukan cascade=true")
 
     if cascade:
         from app.storage.services import chapter_service
@@ -136,13 +136,13 @@ async def move_volume(
     volume_id: str,
     new_order: int,
 ) -> Volume:
-    """调整卷顺序。"""
+    """Menyesuaikan urutan volume."""
     volume = await get_volume(session, volume_id)
     old_order = volume.order
     project_id = volume.project_id
     volume_count = await volume_repo.count_by_project(session, project_id)
     if new_order < 1 or new_order > volume_count:
-        raise ValueError(f"无效的排序位置: {new_order}，有效范围为 1-{volume_count}")
+        raise ValueError(f"Posisi urutan tidak valid: {new_order}, rentang valid 1-{volume_count}")
     if old_order == new_order:
         return volume
 

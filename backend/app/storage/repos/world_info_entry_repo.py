@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-WorldInfoEntry Repository - 世界书条目数据访问层。
+WorldInfoEntry Repository - lapisan akses data entri buku dunia.
 """
 
 from typing import Any, cast
@@ -16,14 +16,14 @@ from app.storage.models.world_info_entry import WorldInfoEntry
 
 async def create(session: AsyncSession, entry: WorldInfoEntry) -> WorldInfoEntry:
     """
-    创建世界书条目。
+    Membuat entri buku dunia.
 
     Args:
-        session: 数据库 session。
-        entry: 条目实例。
+        session: session basis data.
+        entry: Instance entri.
 
     Returns:
-        创建后的条目实例。
+        Instance entri setelah dibuat.
     """
     session.add(entry)
     await session.flush()
@@ -33,14 +33,14 @@ async def create(session: AsyncSession, entry: WorldInfoEntry) -> WorldInfoEntry
 
 async def get_by_id(session: AsyncSession, entry_id: str) -> WorldInfoEntry | None:
     """
-    根据 ID 获取条目。
+    Mengambil entri berdasarkan ID.
 
     Args:
-        session: 数据库 session。
-        entry_id: 条目 ID。
+        session: session basis data.
+        entry_id: ID entri.
 
     Returns:
-        条目实例，如果不存在则返回 None。
+        Instance entri, atau None bila tidak ada.
     """
     result = await session.execute(
         select(WorldInfoEntry).where(col(WorldInfoEntry.id) == entry_id)
@@ -55,16 +55,16 @@ async def list_by_world_info(
     limit: int = 100,
 ) -> list[WorldInfoEntry]:
     """
-    获取世界书的条目列表。
+    Mengambil daftar entri sebuah buku dunia.
 
     Args:
-        session: 数据库 session。
-        world_info_id: 世界书 ID。
-        offset: 偏移量。
-        limit: 每页数量。
+        session: session basis data.
+        world_info_id: ID buku dunia.
+        offset: Offset.
+        limit: Jumlah per halaman.
 
     Returns:
-        条目列表，按 order 排序。
+        Daftar entri, diurutkan berdasarkan order.
     """
     result = await session.execute(
         select(WorldInfoEntry)
@@ -80,7 +80,7 @@ async def list_all_by_world_info(
     session: AsyncSession,
     world_info_id: str,
 ) -> list[WorldInfoEntry]:
-    """获取世界书的全部条目列表。"""
+    """Mengambil seluruh daftar entri sebuah buku dunia."""
     result = await session.execute(
         select(WorldInfoEntry)
         .where(col(WorldInfoEntry.world_info_id) == world_info_id)
@@ -93,7 +93,7 @@ async def list_enabled_by_world_info(
     session: AsyncSession,
     world_info_id: str,
 ) -> list[WorldInfoEntry]:
-    """获取世界书内启用条目，按 order 排序。"""
+    """Mengambil entri aktif dalam buku dunia, diurutkan berdasarkan order."""
     result = await session.execute(
         select(WorldInfoEntry)
         .where(
@@ -130,14 +130,14 @@ async def search_by_world_info(
 
 async def count_by_world_info(session: AsyncSession, world_info_id: str) -> int:
     """
-    获取世界书的条目总数。
+    Mengambil jumlah total entri sebuah buku dunia.
 
     Args:
-        session: 数据库 session。
-        world_info_id: 世界书 ID。
+        session: session basis data.
+        world_info_id: ID buku dunia.
 
     Returns:
-        条目总数。
+        Jumlah total entri.
     """
     result = await session.execute(
         select(func.count(col(WorldInfoEntry.id))).where(
@@ -149,14 +149,14 @@ async def count_by_world_info(session: AsyncSession, world_info_id: str) -> int:
 
 async def get_max_uid(session: AsyncSession, world_info_id: str) -> int:
     """
-    获取世界书内的最大 UID。
+    Mengambil UID terbesar dalam buku dunia.
 
     Args:
-        session: 数据库 session。
-        world_info_id: 世界书 ID。
+        session: session basis data.
+        world_info_id: ID buku dunia.
 
     Returns:
-        最大 UID，如果没有条目则返回 0。
+        UID terbesar, atau 0 bila tidak ada entri.
     """
     result = await session.execute(
         select(func.max(col(WorldInfoEntry.uid))).where(
@@ -169,14 +169,14 @@ async def get_max_uid(session: AsyncSession, world_info_id: str) -> int:
 
 async def get_max_order(session: AsyncSession, world_info_id: str) -> int:
     """
-    获取世界书内的最大排序序号。
+    Mengambil nomor urut terbesar dalam buku dunia.
 
     Args:
-        session: 数据库 session。
-        world_info_id: 世界书 ID。
+        session: session basis data.
+        world_info_id: ID buku dunia.
 
     Returns:
-        最大排序序号，如果没有条目则返回 0。
+        Nomor urut terbesar, atau 0 bila tidak ada entri.
     """
     result = await session.execute(
         select(func.max(col(WorldInfoEntry.order))).where(
@@ -189,14 +189,14 @@ async def get_max_order(session: AsyncSession, world_info_id: str) -> int:
 
 async def update_entry(session: AsyncSession, entry: WorldInfoEntry) -> WorldInfoEntry:
     """
-    更新条目。
+    Memperbarui entri.
 
     Args:
-        session: 数据库 session。
-        entry: 条目实例。
+        session: session basis data.
+        entry: Instance entri.
 
     Returns:
-        更新后的条目实例。
+        Instance entri setelah diperbarui.
     """
     session.add(entry)
     await session.flush()
@@ -206,11 +206,11 @@ async def update_entry(session: AsyncSession, entry: WorldInfoEntry) -> WorldInf
 
 async def delete(session: AsyncSession, entry: WorldInfoEntry) -> None:
     """
-    删除条目。
+    Menghapus entri.
 
     Args:
-        session: 数据库 session。
-        entry: 条目实例。
+        session: session basis data.
+        entry: Instance entri.
     """
     await session.delete(entry)
     await session.flush()
@@ -218,11 +218,11 @@ async def delete(session: AsyncSession, entry: WorldInfoEntry) -> None:
 
 async def delete_by_world_info(session: AsyncSession, world_info_id: str) -> None:
     """
-    删除世界书的所有条目。
+    Menghapus semua entri sebuah buku dunia.
 
     Args:
-        session: 数据库 session。
-        world_info_id: 世界书 ID。
+        session: session basis data.
+        world_info_id: ID buku dunia.
     """
     await session.execute(
         sql_delete(WorldInfoEntry).where(
@@ -238,7 +238,7 @@ async def batch_toggle(
     entry_ids: list[str],
     is_enabled: bool,
 ) -> int:
-    """批量切换条目启用状态。"""
+    """Mengalihkan status aktif entri secara massal."""
     result = await session.execute(
         sql_update(WorldInfoEntry)
         .where(
@@ -256,7 +256,7 @@ async def batch_delete(
     world_info_id: str,
     entry_ids: list[str],
 ) -> int:
-    """批量删除条目。"""
+    """Menghapus entri secara massal."""
     result = await session.execute(
         sql_delete(WorldInfoEntry).where(
             col(WorldInfoEntry.world_info_id) == world_info_id,

@@ -5,8 +5,9 @@ Revision ID: 059
 Revises: 058
 Create Date: 2026-06-15
 
-修复 skill_id 的 UNIQUE 约束未被 038 正确移除的问题。
-允许空 skill_id 重复，仅对非空 skill_id 强制唯一（应用层校验）。
+Memperbaiki masalah constraint UNIQUE pada skill_id yang tidak terhapus dengan benar oleh 038.
+Mengizinkan skill_id kosong berulang, keunikan hanya diwajibkan untuk
+skill_id non-kosong (validasi lapisan aplikasi).
 """
 
 from typing import Sequence, Union

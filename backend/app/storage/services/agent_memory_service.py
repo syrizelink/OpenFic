@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AgentMemory Service - 记忆业务逻辑层。"""
+"""AgentMemory Service - lapisan logika bisnis memori."""
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -35,7 +35,7 @@ async def create_memory(
 async def get_memory(session: AsyncSession, memory_id: str) -> AgentMemory:
     memory = await agent_memory_repo.get_by_id(session, memory_id)
     if memory is None:
-        raise NotFoundError(f"记忆不存在: {memory_id}")
+        raise NotFoundError(f"Memori tidak ditemukan: {memory_id}")
     return memory
 
 

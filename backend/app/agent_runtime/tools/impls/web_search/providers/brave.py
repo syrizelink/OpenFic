@@ -1,4 +1,4 @@
-"""Brave Search API provider。"""
+"""Provider Brave Search API."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ class BraveProvider(WebSearchProvider):
         config: WebSearchProviderConfig,
     ) -> WebSearchResponse:
         if not config.api_key:
-            raise ToolExecutionError("Brave 未配置 API Key")
+            raise ToolExecutionError("API Key Brave belum dikonfigurasi")
 
         url = f"{BRAVE_SEARCH_URL}?{urlencode({'q': query, 'count': config.max_results})}"
         try:

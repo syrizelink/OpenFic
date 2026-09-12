@@ -45,10 +45,10 @@ export async function verifyBackupManifest(dir: string): Promise<void> {
   try {
     manifest = JSON.parse(await readFile(path.join(dir, BACKUP_MANIFEST_NAME), "utf8")) as BackupManifest;
   } catch {
-    throw new Error(`备份缺少有效清单（${BACKUP_MANIFEST_NAME}），可能不是 OpenFic 备份或文件已损坏`);
+    throw new Error(`Cadangan tidak memiliki manifes yang valid (${BACKUP_MANIFEST_NAME}); mungkin bukan cadangan OpenFic atau berkasnya rusak`);
   }
   if (manifest.version !== BACKUP_MANIFEST_VERSION || typeof manifest.entries !== "object" || manifest.entries === null) {
-    throw new Error(`备份清单版本不受支持（${BACKUP_MANIFEST_NAME}）`);
+    throw new Error(`Versi manifes cadangan tidak didukung (${BACKUP_MANIFEST_NAME})`);
   }
 
   const actualFiles = new Map<string, number>();
@@ -63,17 +63,17 @@ export async function verifyBackupManifest(dir: string): Promise<void> {
 
   for (const [name, expected] of Object.entries(manifest.entries)) {
     const actualSize = actualFiles.get(name);
-    if (actualSize === undefined) throw new Error(`备份校验失败：缺少文件 ${name}`);
-    if (actualSize !== expected.size) throw new Error(`备份校验失败：文件大小不一致 ${name}`);
+    if (actualSize === undefined) throw new Error(`Verifikasi cadangan gagal: berkas ${name} tidak ada`);
+    if (actualSize !== expected.size) throw new Error(`Verifikasi cadangan gagal: ukuran berkas tidak konsisten ${name}`);
   }
   for (const [name, actualSize] of actualFiles) {
     const expected = manifest.entries[name];
-    if (!expected) throw new Error(`备份校验失败：存在清单外文件 ${name}`);
-    if (actualSize !== expected.size) throw new Error(`备份校验失败：文件大小不一致 ${name}`);
+    if (!expected) throw new Error(`Verifikasi cadangan gagal: ada berkas di luar manifes ${name}`);
+    if (actualSize !== expected.size) throw new Error(`Verifikasi cadangan gagal: ukuran berkas tidak konsisten ${name}`);
   }
   for (const name of Object.keys(manifest.entries)) {
     if ((await hashFile(path.join(dir, name))) !== manifest.entries[name].sha256) {
-      throw new Error(`备份校验失败：文件内容与清单不符 ${name}`);
+      throw new Error(`Verifikasi cadangan gagal: isi berkas tidak sesuai dengan manifes ${name}`);
     }
   }
 }

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Model Service - 模型业务逻辑层。
+Model Service - lapisan logika bisnis model.
 """
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,17 +25,17 @@ from app.storage.repos import retrieval_index_repo
 
 
 class ModelService:
-    """模型 Service。"""
+    """Service model."""
 
     async def get_all_models(self, session: AsyncSession) -> list[Model]:
         """
-        获取所有模型。
+        Mengambil semua model.
 
         Args:
-            session: 数据库 session。
+            session: session basis data.
 
         Returns:
-            模型列表。
+            Daftar model.
         """
         return await model_repo.get_all(session)
 
@@ -43,15 +43,15 @@ class ModelService:
         self, session: AsyncSession, provider_id: str, task_type: str | None = None
     ) -> list[Model]:
         """
-        根据提供商 ID 获取模型列表，可选按task_type过滤。
+        Mengambil daftar model berdasarkan ID penyedia, opsional difilter task_type.
 
         Args:
-            session: 数据库 session。
-            provider_id: 提供商 ID。
-            task_type: 可选的任务类型过滤（llm、embedding 或 rerank）。
+            session: session basis data.
+            provider_id: ID penyedia.
+            task_type: filter jenis tugas opsional (llm, embedding, atau rerank).
 
         Returns:
-            模型列表。
+            Daftar model.
         """
         models = await model_repo.get_by_provider_id(session, provider_id)
         if task_type:
@@ -60,17 +60,17 @@ class ModelService:
 
     async def get_model_by_id(self, session: AsyncSession, model_id: str) -> Model:
         """
-        根据 ID 获取模型。
+        Mengambil model berdasarkan ID.
 
         Args:
-            session: 数据库 session。
-            model_id: 模型 ID。
+            session: session basis data.
+            model_id: ID model.
 
         Returns:
-            模型实例。
+            Instance model.
 
         Raises:
-            NotFoundError: 如果模型不存在。
+            NotFoundError: jika model tidak ditemukan.
         """
         model = await model_repo.get_by_id(session, model_id)
         if not model:
@@ -80,10 +80,10 @@ class ModelService:
     async def validate_model_connection(
         self, session: AsyncSession, model_id: str
     ) -> None:
-        """使用模型发送一条最小非流式请求以验证连接。"""
+        """Mengirim satu permintaan non-streaming minimal untuk memvalidasi koneksi."""
         model = await self.get_model_by_id(session, model_id)
         if model.task_type != "llm":
-            raise ValueError("仅支持验证语言模型连接")
+            raise ValueError("Hanya mendukung validasi koneksi model bahasa")
 
         resolved = await resolve_background_llm(
             session,
@@ -120,30 +120,30 @@ class ModelService:
         dimensions: int | None = None,
     ) -> Model:
         """
-        创建模型。
+        Membuat model.
 
         Args:
-            session: 数据库 session。
-            name: 模型名称。
-            provider_id: 关联的提供商 ID。
-            model_id: 从提供商获取的模型 ID。
-            task_type: 任务类型（llm、embedding 或 rerank）。
-            remark: 备注。
-            temperature: Temperature 参数（LLM）。
-            top_p: Top P 参数（LLM）。
-            top_k: Top K 参数（LLM）。
-            min_p: Min P 参数（LLM）。
-            top_a: Top A 参数（LLM）。
-            frequency_penalty: Frequency Penalty 参数（LLM）。
-            presence_penalty: Presence Penalty 参数（LLM）。
-            repetition_penalty: Repetition Penalty 参数（LLM）。
-            max_tokens: Max Tokens 参数（LLM）。
-            dimensions: Embedding 维度（Embedding）。
+            session: session basis data.
+            name: nama model.
+            provider_id: ID penyedia yang terkait.
+            model_id: ID model yang diperoleh dari penyedia.
+            task_type: jenis tugas (llm, embedding, atau rerank).
+            remark: catatan.
+            temperature: parameter Temperature (LLM).
+            top_p: parameter Top P (LLM).
+            top_k: parameter Top K (LLM).
+            min_p: parameter Min P (LLM).
+            top_a: parameter Top A (LLM).
+            frequency_penalty: parameter Frequency Penalty (LLM).
+            presence_penalty: parameter Presence Penalty (LLM).
+            repetition_penalty: parameter Repetition Penalty (LLM).
+            max_tokens: parameter Max Tokens (LLM).
+            dimensions: dimensi embedding (embedding).
         Returns:
-            创建的模型实例。
+            Instance model yang dibuat.
         """
         if await model_repo.exists_by_name(session, name):
-            raise ValueError("模型名称已存在")
+            raise ValueError("Nama model sudah ada")
 
         if task_type != "llm":
             temperature = None
@@ -220,39 +220,39 @@ class ModelService:
         dimensions: int | None = None,
     ) -> Model:
         """
-        更新模型。
+        Memperbarui model.
 
         Args:
-            session: 数据库 session。
-            model_id: 模型 ID。
-            name: 模型名称。
-            remark: 备注。
-            provider_id: 关联的提供商 ID。
-            model_identifier: 从提供商获取的模型 ID。
-            task_type: 任务类型。
-            temperature: Temperature 参数。
-            top_p: Top P 参数。
-            top_k: Top K 参数。
-            min_p: Min P 参数。
-            top_a: Top A 参数。
-            frequency_penalty: Frequency Penalty 参数。
-            presence_penalty: Presence Penalty 参数。
-            repetition_penalty: Repetition Penalty 参数。
-            max_tokens: Max Tokens 参数。
-            dimensions: Embedding 维度。
+            session: session basis data.
+            model_id: ID model.
+            name: nama model.
+            remark: catatan.
+            provider_id: ID penyedia yang terkait.
+            model_identifier: ID model yang diperoleh dari penyedia.
+            task_type: jenis tugas.
+            temperature: parameter Temperature.
+            top_p: parameter Top P.
+            top_k: parameter Top K.
+            min_p: parameter Min P.
+            top_a: parameter Top A.
+            frequency_penalty: parameter Frequency Penalty.
+            presence_penalty: parameter Presence Penalty.
+            repetition_penalty: parameter Repetition Penalty.
+            max_tokens: parameter Max Tokens.
+            dimensions: dimensi embedding.
         Returns:
-            更新后的模型实例。
+            Instance model setelah diperbarui.
 
         Raises:
-            NotFoundError: 如果模型不存在。
+            NotFoundError: jika model tidak ditemukan.
         """
         existing = await self.get_model_by_id(session, model_id)
         if existing.is_builtin:
-            raise ValueError("内置模型不允许编辑")
+            raise ValueError("Model bawaan tidak boleh diedit")
         if name is not None and await model_repo.exists_by_name(
             session, name, exclude_model_id=model_id
         ):
-            raise ValueError("模型名称已存在")
+            raise ValueError("Nama model sudah ada")
         if await retrieval_index_repo.exists_by_embedding_model_ref_id(
             session, model_id
         ):
@@ -302,21 +302,21 @@ class ModelService:
 
     async def delete_model(self, session: AsyncSession, model_id: str) -> None:
         """
-        删除模型。
+        Menghapus model.
 
         Args:
-            session: 数据库 session。
-            model_id: 模型 ID。
+            session: session basis data.
+            model_id: ID model.
 
         Raises:
-            NotFoundError: 如果模型不存在。
-            ValueError: 如果模型为内置模型，不允许删除。
+            NotFoundError: jika model tidak ditemukan.
+            ValueError: jika model adalah model bawaan, tidak boleh dihapus.
         """
         model = await model_repo.get_by_id(session, model_id)
         if not model:
             raise NotFoundError(f"Model with id {model_id} not found")
         if model.is_builtin:
-            raise ValueError("内置模型不允许删除")
+            raise ValueError("Model bawaan tidak boleh dihapus")
         success = await model_repo.delete_by_id(session, model_id)
         if not success:
             raise NotFoundError(f"Model with id {model_id} not found")

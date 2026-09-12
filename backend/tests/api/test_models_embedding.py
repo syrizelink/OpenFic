@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Tests for Model API endpoints - Embedding支持测试。
+Tests for Model API endpoints - uji dukungan Embedding.
 """
 
 import pytest
@@ -14,7 +14,7 @@ from app.retrieval.types import RetrievalIndexContract
 
 @pytest.mark.asyncio
 async def test_create_embedding_model(client: AsyncClient, session: AsyncSession):
-    """测试创建Embedding模型。"""
+    """Uji pembuatan model Embedding."""
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -51,7 +51,7 @@ async def test_create_embedding_model(client: AsyncClient, session: AsyncSession
 async def test_create_llm_model_with_task_type(
     client: AsyncClient, session: AsyncSession
 ):
-    """测试创建LLM模型（显式指定task_type）。"""
+    """Uji pembuatan model LLM (task_type ditentukan eksplisit)."""
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -87,7 +87,7 @@ async def test_create_llm_model_with_task_type(
 
 @pytest.mark.asyncio
 async def test_create_rerank_model(client: AsyncClient, session: AsyncSession):
-    """测试创建 Rerank 模型。"""
+    """Uji pembuatan model Rerank."""
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -121,7 +121,7 @@ async def test_create_rerank_model(client: AsyncClient, session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_get_models_by_task_type(client: AsyncClient, session: AsyncSession):
-    """测试按task_type过滤模型。"""
+    """Uji penyaringan model berdasarkan task_type."""
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -136,7 +136,7 @@ async def test_get_models_by_task_type(client: AsyncClient, session: AsyncSessio
         provider_type="openai",
     )
 
-    # 创建LLM模型
+    # Buat model LLM
     await model_repo.create(
         session=session,
         name="Test LLM Model",
@@ -146,7 +146,7 @@ async def test_get_models_by_task_type(client: AsyncClient, session: AsyncSessio
         temperature=0.7,
     )
 
-    # 创建Embedding模型
+    # Buat model Embedding
     await model_repo.create(
         session=session,
         name="Test Embedding Model",
@@ -156,7 +156,7 @@ async def test_get_models_by_task_type(client: AsyncClient, session: AsyncSessio
         dimensions=1536,
     )
 
-    # 创建 Rerank 模型
+    # Buat model Rerank
     await model_repo.create(
         session=session,
         name="Test Rerank Model",
@@ -166,20 +166,20 @@ async def test_get_models_by_task_type(client: AsyncClient, session: AsyncSessio
     )
     await session.commit()
 
-    # 测试获取所有模型
+    # Uji pengambilan seluruh model
     response = await client.get("/api/v1/models")
     assert response.status_code == 200
     all_models = response.json()
     assert len(all_models) == 3
 
-    # 测试只获取LLM模型
+    # Uji pengambilan hanya model LLM
     response = await client.get("/api/v1/models?task_type=llm")
     assert response.status_code == 200
     llm_models = response.json()
     assert len(llm_models) == 1
     assert llm_models[0]["task_type"] == "llm"
 
-    # 测试只获取Embedding模型
+    # Uji pengambilan hanya model Embedding
     response = await client.get("/api/v1/models?task_type=embedding")
     assert response.status_code == 200
     embedding_models = response.json()
@@ -197,7 +197,7 @@ async def test_get_models_by_task_type(client: AsyncClient, session: AsyncSessio
 
 @pytest.mark.asyncio
 async def test_update_model_to_embedding(client: AsyncClient, session: AsyncSession):
-    """测试将LLM模型更新为Embedding模型。"""
+    """Uji pembaruan model LLM menjadi model Embedding."""
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -221,7 +221,7 @@ async def test_update_model_to_embedding(client: AsyncClient, session: AsyncSess
     )
     await session.commit()
 
-    # 更新为embedding类型
+    # Ubah menjadi tipe embedding
     payload = {
         "task_type": "embedding",
         "dimensions": 1024,

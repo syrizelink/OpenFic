@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-HTTP Client Factory - HTTP客户端工厂。
+HTTP Client Factory - factory klien HTTP.
 
-集中管理HTTP客户端创建，便于配置统一的超时、重试等设置。
+Mengelola pembuatan klien HTTP secara terpusat agar pengaturan batas waktu,
+retry, dan lainnya seragam.
 """
 
 import httpx
 
 
 class ClientFactory:
-    """HTTP客户端工厂，创建配置统一的HTTP客户端。"""
+    """Factory klien HTTP, membuat klien HTTP dengan konfigurasi seragam."""
 
     DEFAULT_TIMEOUT = 30.0
     DEFAULT_FOLLOW_REDIRECTS = True
@@ -22,15 +23,15 @@ class ClientFactory:
         **kwargs,
     ) -> httpx.AsyncClient:
         """
-        创建异步HTTP客户端。
+        Membuat klien HTTP asinkron.
 
         Args:
-            timeout: 超时时间（秒）。
-            follow_redirects: 是否跟随重定向。
-            **kwargs: 传递给httpx.AsyncClient的其他参数。
+            timeout: batas waktu (detik).
+            follow_redirects: apakah mengikuti redirect.
+            **kwargs: parameter lain yang diteruskan ke httpx.AsyncClient.
 
         Returns:
-            配置好的AsyncClient实例。
+            Instance AsyncClient yang sudah dikonfigurasi.
         """
         return httpx.AsyncClient(
             timeout=timeout, follow_redirects=follow_redirects, **kwargs
@@ -41,15 +42,15 @@ class ClientFactory:
         cls, max_retries: int = 3, timeout: float = DEFAULT_TIMEOUT, **kwargs
     ) -> httpx.AsyncClient:
         """
-        创建带重试配置的HTTP客户端。
+        Membuat klien HTTP dengan konfigurasi retry.
 
         Args:
-            max_retries: 最大重试次数。
-            timeout: 超时时间。
-            **kwargs: 其他参数。
+            max_retries: jumlah retry maksimum.
+            timeout: batas waktu.
+            **kwargs: parameter lain.
 
         Returns:
-            配置了重试的AsyncClient实例。
+            Instance AsyncClient yang sudah dikonfigurasi retry.
         """
         transport = httpx.AsyncHTTPTransport(retries=max_retries)
         return httpx.AsyncClient(timeout=timeout, transport=transport, **kwargs)

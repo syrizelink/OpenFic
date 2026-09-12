@@ -24,9 +24,10 @@ def _has_column(table_name: str, column_name: str) -> bool:
 
 
 def upgrade() -> None:
-    """精简世界书条目，移除 mode/entry_type/tags/keywords/memo 列。
+    """Menyederhanakan entri buku dunia, menghapus kolom mode/entry_type/tags/keywords/memo.
 
-    启用条目改为常驻注入提示词，不再依赖关键词触发。
+    Entri yang aktif berubah menjadi prompt yang selalu disuntikkan,
+    tidak lagi bergantung pada pemicu kata kunci.
     """
     for column in ("mode", "entry_type", "tags", "keywords", "memo"):
         if _has_column("world_info_entries", column):
@@ -34,7 +35,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """恢复被移除的世界书条目列。"""
+    """Memulihkan kolom entri buku dunia yang telah dihapus."""
     if not _has_column("world_info_entries", "memo"):
         op.add_column(
             "world_info_entries",

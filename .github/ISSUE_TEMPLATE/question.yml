@@ -1,38 +1,38 @@
-name: 其它问题
-description: 询问或提出其它有关问题
+name: Masalah Lainnya
+description: Bertanya atau mengajukan masalah terkait lainnya
 labels:
   - question
 body:
   - type: textarea
     id: question
     attributes:
-      label: 问题描述
-      description: 请清晰、准确地描述您的问题
+      label: Deskripsi Masalah
+      description: Mohon jelaskan masalah Anda dengan jelas dan akurat
     validations:
       required: true
 
   - type: input
     id: version
     attributes:
-      label: OpenFic 版本
-      placeholder: "如: v0.7.5"
+      label: Versi OpenFic
+      placeholder: "misalnya: v0.7.5"
     validations:
       required: true
 
   - type: textarea
     id: context
     attributes:
-      label: 补充信息
+      label: Informasi Tambahan
       description: |
-        请上传或粘贴已脱敏的错误日志、截图或录屏；
-        为确保您的隐私安全，请注意不要包含密钥、令牌或其它个人信息。
+        Silakan unggah atau tempelkan log error, tangkapan layar, atau rekaman layar yang sudah disamarkan;
+        untuk menjaga keamanan privasi Anda, mohon jangan menyertakan kunci, token, atau informasi pribadi lainnya.
     validations:
       required: false
 
   - type: checkboxes
     id: checks
     attributes:
-      label: 提交前检查
+      label: Pemeriksaan Sebelum Mengirim
       options:
-        - label: 我已搜索现有 Issue，未发现重复问题
+        - label: Saya sudah mencari Issue yang ada dan tidak menemukan masalah duplikat
           required: true

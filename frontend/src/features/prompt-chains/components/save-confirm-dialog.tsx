@@ -1,7 +1,7 @@
 /**
  * SaveConfirmDialog Component
  *
- * 保存版本确认对话框（检测并警告版本截断）
+ * Dialog konfirmasi penyimpanan versi (mendeteksi dan memperingatkan pemangkasan versi)
  */
 
 import { Dialog, Flex, Text, Button, Callout, Box } from "@radix-ui/themes";
@@ -28,12 +28,12 @@ export function SaveConfirmDialog({
   const { t } = useTranslation();
   if (!currentVersion) return null;
 
-  // 检查当前版本是否是最新版本
+  // Memeriksa apakah versi saat ini adalah versi terbaru
   const activeVersions = versions.filter((v) => v.isActive);
   const maxVersionNumber = Math.max(...activeVersions.map((v) => v.versionNumber));
   const isLatestVersion = currentVersion.versionNumber === maxVersionNumber;
 
-  // 计算将被截断的版本
+  // Menghitung versi yang akan dipangkas
   const versionsToTruncate = activeVersions.filter(
     (v) => v.versionNumber > currentVersion.versionNumber,
   );
@@ -60,7 +60,7 @@ export function SaveConfirmDialog({
             {t("promptChains.confirmSaveMessage", { version: currentVersion.versionNumber + 1 })}
           </Text>
 
-          {/* 警告：从中间版本保存 */}
+          {/* Peringatan: menyimpan dari versi tengah */}
           {!isLatestVersion && versionsToTruncate.length > 0 && (
             <Callout.Root color="orange">
               <Callout.Icon>
@@ -85,7 +85,7 @@ export function SaveConfirmDialog({
             </Callout.Root>
           )}
 
-          {/* 将被截断的版本列表 */}
+          {/* Daftar versi yang akan dipangkas */}
           {versionsToTruncate.length > 0 && (
             <Box
               p="3"

@@ -14,7 +14,7 @@ export function configureSystemProxy(targetSession: Session): Promise<void> {
     mode: "system",
     proxyBypassRules: SYSTEM_PROXY_BYPASS_RULES,
   }).catch((error: unknown) => {
-    appendLog("startup", `配置系统代理失败：${error instanceof Error ? error.message : String(error)}`);
+    appendLog("startup", `Gagal mengonfigurasi proksi sistem: ${error instanceof Error ? error.message : String(error)}`);
   });
   configuredSessions.set(targetSession, configuration);
   return configuration;

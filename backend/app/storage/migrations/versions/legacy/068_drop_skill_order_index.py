@@ -4,7 +4,8 @@ Revision ID: 068
 Revises: 067
 Create Date: 2026-06-24
 
-移除 skills 表中的 order_index，技能列表改为固定创建顺序，不再支持手动排序。
+Menghapus order_index pada tabel skills, daftar skill berubah menjadi urutan
+pembuatan tetap dan tidak lagi mendukung pengurutan manual.
 """
 
 from typing import Sequence, Union

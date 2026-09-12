@@ -126,19 +126,21 @@ async def fork_agent_session_at_revision(
 ) -> AgentForkResult:
     target_revision = await revision_repo.get_by_id(session, source_revision_id)
     if target_revision is None:
-        raise NotFoundError(f"版本不存在: {source_revision_id}")
+        raise NotFoundError(f"Versi tidak ditemukan: {source_revision_id}")
     if target_revision.agent_session_id != source_session_id:
-        raise NotFoundError(f"版本不属于会话: {source_revision_id}")
+        raise NotFoundError(f"Versi tidak termasuk dalam sesi: {source_revision_id}")
     if target_revision.status == "rolled_back":
-        raise ValueError("已回滚的版本不能用于分叉")
+        raise ValueError("Versi yang sudah di-rollback tidak dapat dipakai untuk fork")
     if target_revision.user_message_seq is None:
-        raise ValueError("revision 缺少 user_message_seq，无法分叉")
+        raise ValueError(
+            "revision tidak memiliki user_message_seq, fork tidak dapat dilakukan"
+        )
     if not target_revision.task_id:
-        raise ValueError("revision 缺少 task_id，无法分叉")
+        raise ValueError("revision tidak memiliki task_id, fork tidak dapat dilakukan")
 
     source_task = await task_repo.get_by_id(session, target_revision.task_id)
     if source_task is None:
-        raise NotFoundError(f"任务不存在: {target_revision.task_id}")
+        raise NotFoundError(f"Tugas tidak ditemukan: {target_revision.task_id}")
 
     rows = await message_repo.list_by_session(session, source_session_id)
     next_user_seq = min(

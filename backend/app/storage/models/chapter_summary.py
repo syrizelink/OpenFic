@@ -15,7 +15,7 @@ class ChapterSummary(SQLModel, table=True):
 
     id: str = Field(default_factory=generate_id, primary_key=True)
     project_id: str = Field(index=True, foreign_key="projects.id")
-    summary_type: str = Field(max_length=20, index=True, description="chapter 或 long_term")
+    summary_type: str = Field(max_length=20, index=True, description="chapter atau long_term")
     status: str = Field(default="not_generated", max_length=30, index=True)
 
     chapter_id: str | None = Field(default=None, index=True, foreign_key="chapters.id")
@@ -29,7 +29,7 @@ class ChapterSummary(SQLModel, table=True):
     characters_json: str = Field(default="[]")
     locations_json: str = Field(default="[]")
     summary: str = Field(default="")
-    token_count: int = Field(default=0, description="摘要 token 数")
+    token_count: int = Field(default=0, description="Jumlah token ringkasan")
     error_message: str | None = Field(default=None)
     source_content_normalized: str = Field(default="")
     source_chapter_ids_json: str = Field(default="[]")

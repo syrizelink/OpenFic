@@ -37,7 +37,9 @@ async def _read_user_permissions(session: AsyncSession) -> dict[str, str]:
             if isinstance(item, dict) and "tool_name" in item and "mode" in item
         }
     except Exception:
-        logger.warning("读取 agent_tool_permissions 失败，回退到默认权限")
+        logger.warning(
+            "Gagal membaca agent_tool_permissions, kembali ke izin bawaan"
+        )
         return {}
 
 
@@ -53,7 +55,9 @@ async def _read_bypass_tool_approval(session: AsyncSession) -> bool:
             return bool(payload)
         return False
     except Exception:
-        logger.warning("读取 agent_bypass_tool_approval 失败，回退到默认值")
+        logger.warning(
+            "Gagal membaca agent_bypass_tool_approval, kembali ke nilai bawaan"
+        )
         return False
 
 

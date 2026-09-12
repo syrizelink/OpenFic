@@ -1,8 +1,8 @@
 /**
  * Editor Tabs Store
  *
- * 编辑器标签页状态管理，使用 Zustand + Dexie (IndexedDB) 持久化。
- * 按项目 ID 隔离存储，切换项目时自动加载对应的标签页状态。
+ * Pengelolaan status tab editor, dipertahankan memakai Zustand + Dexie (IndexedDB).
+ * Penyimpanan dipisahkan per ID proyek, status tab yang sesuai dimuat otomatis saat berpindah proyek.
  */
 
 import { create } from "zustand";

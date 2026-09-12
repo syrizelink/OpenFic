@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""SkillReferenceDoc API Schemas。"""
+"""SkillReferenceDoc API Schemas."""
 
 from datetime import datetime
 
@@ -7,13 +7,13 @@ from pydantic import BaseModel, Field
 
 
 class SkillReferenceDocCreate(BaseModel):
-    title: str = Field(default="", max_length=200, description="参考文档标题")
-    content: str = Field(default="", description="参考文档内容")
+    title: str = Field(default="", max_length=200, description="Judul dokumen referensi")
+    content: str = Field(default="", description="Isi dokumen referensi")
 
 
 class SkillReferenceDocUpdate(BaseModel):
-    title: str | None = Field(default=None, max_length=200, description="参考文档标题")
-    content: str | None = Field(default=None, description="参考文档内容")
+    title: str | None = Field(default=None, max_length=200, description="Judul dokumen referensi")
+    content: str | None = Field(default=None, description="Isi dokumen referensi")
 
 
 class SkillReferenceDocResponse(BaseModel):

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Skill Repository - Skill 数据访问层。"""
+"""Skill Repository - lapisan akses data Skill."""
 
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession

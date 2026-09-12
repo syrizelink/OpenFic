@@ -1,4 +1,4 @@
-"""智谱 Web Search API provider（官方 SDK）。"""
+"""Provider Zhipu Web Search API (SDK resmi)."""
 
 from __future__ import annotations
 
@@ -50,14 +50,14 @@ class ZhipuProvider(WebSearchProvider):
         config: WebSearchProviderConfig,
     ) -> WebSearchResponse:
         if not config.api_key:
-            raise ToolExecutionError("智谱未配置 API Key")
+            raise ToolExecutionError("API Key Zhipu belum dikonfigurasi")
 
         try:
             response = await asyncio.to_thread(
                 _run_sync_search, config.api_key, query, config
             )
         except Exception as exc:
-            raise ToolExecutionError(f"智谱搜索失败: {exc}") from exc
+            raise ToolExecutionError(f"Pencarian Zhipu gagal: {exc}") from exc
 
         results = [
             WebSearchResult(

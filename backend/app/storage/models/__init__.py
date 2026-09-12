@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-数据模型模块。
+Modul model data.
 """
 
 from app.models.entities.model import Model

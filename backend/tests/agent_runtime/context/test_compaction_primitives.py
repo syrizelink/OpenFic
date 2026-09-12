@@ -26,7 +26,7 @@ def history(role: ContextRole, content: str, seq: int, **kwargs) -> ContextMessa
     )  # type: ignore[arg-type]
 
 
-def compaction(start: int, end: int, summary: str = "摘要") -> PersistedCompaction:
+def compaction(start: int, end: int, summary: str = "Ringkasan") -> PersistedCompaction:
     return PersistedCompaction(
         id=f"c-{start}-{end}",
         session_id="s1",
@@ -51,11 +51,11 @@ def test_overlay_replaces_range_with_wrapped_user_summary() -> None:
         ContextMessage(role="system", content="static", metadata={"part": "rules"}),
     ]
 
-    out = apply_compaction_overlay(messages, [compaction(2, 3, "压缩摘要")])
+    out = apply_compaction_overlay(messages, [compaction(2, 3, "Ringkasan kompaksi")])
 
     assert [(m.role, m.content) for m in out] == [
         ("user", "first"),
-        ("user", "<compaction-summary>\n压缩摘要\n</compaction-summary>"),
+        ("user", "<compaction-summary>\nRingkasan kompaksi\n</compaction-summary>"),
         ("assistant", "new answer"),
         ("system", "static"),
     ]
@@ -89,7 +89,7 @@ def test_transcript_excludes_seq_and_tool_call_id_but_keeps_tool_names_and_args(
         "I will call",
         2,
         tool_calls=[
-            {"id": "call-1", "name": "search", "args": {"q": "中文", "limit": 2}},
+            {"id": "call-1", "name": "search", "args": {"q": "kueri", "limit": 2}},
             {"id": "call-2", "function": {"name": "read", "arguments": {"path": "a.txt"}}},
         ],
     )
@@ -105,7 +105,7 @@ def test_transcript_excludes_seq_and_tool_call_id_but_keeps_tool_names_and_args(
     assert "<user>hello</user>" in transcript
     assert "<assistant>I will call" in transcript
     assert (
-        '<tool-call name="search">{&quot;q&quot;:&quot;中文&quot;,&quot;limit&quot;:2}</tool-call>'
+        '<tool-call name="search">{&quot;q&quot;:&quot;kueri&quot;,&quot;limit&quot;:2}</tool-call>'
         in transcript
     )
     assert (

@@ -1,7 +1,7 @@
 /**
  * VersionDiffDialog Component
  *
- * 版本差异对比弹窗 - GitHub 风格的并排 diff 视图
+ * Dialog perbandingan perbedaan versi - tampilan diff berdampingan bergaya GitHub
  */
 
 import {
@@ -61,7 +61,7 @@ interface LineDiff {
   type: "unchanged" | "added" | "deleted";
 }
 
-// 计算行级差异
+// Menghitung perbedaan per baris
 function computeLineDiff(oldText: string, newText: string): LineDiff[] {
   const changes = Diff.diffLines(oldText, newText);
   const result: LineDiff[] = [];
@@ -70,7 +70,7 @@ function computeLineDiff(oldText: string, newText: string): LineDiff[] {
 
   changes.forEach((change) => {
     const lines = change.value.split("\n").filter(
-      (line, idx, arr) => idx < arr.length - 1 || line !== "", // 移除最后的空行
+      (line, idx, arr) => idx < arr.length - 1 || line !== "", // Menghapus baris kosong terakhir
     );
 
     if (change.added) {
@@ -109,7 +109,7 @@ function computeLineDiff(oldText: string, newText: string): LineDiff[] {
   return result;
 }
 
-// 计算字符级差异
+// Menghitung perbedaan per karakter
 function computeInlineDiff(oldText: string, newText: string): Array<[number, string]> {
   const dmp = new DiffMatchPatch();
   const diffs = dmp.diff_main(oldText, newText);
@@ -117,12 +117,12 @@ function computeInlineDiff(oldText: string, newText: string): Array<[number, str
   return diffs;
 }
 
-// 计算 token 数量（简单估算：按字符数 / 4）
+// Menghitung jumlah token (perkiraan sederhana: jumlah karakter / 4)
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
-// 获取角色图标
+// Mengambil ikon peran
 function getRoleIcon(role: string) {
   switch (role.toLowerCase()) {
     case "user":
@@ -136,14 +136,14 @@ function getRoleIcon(role: string) {
   }
 }
 
-// 计算条目差异 - 使用 uid 进行匹配
+// Menghitung perbedaan entri - dicocokkan memakai uid
 function computeEntryDiffs(baseEntries: PromptEntry[], compareEntries: PromptEntry[]): EntryDiff[] {
   const result: EntryDiff[] = [];
   const baseMap = new Map(baseEntries.map((e) => [e.uid, e]));
   const compareMap = new Map(compareEntries.map((e) => [e.uid, e]));
   const processedUids = new Set<string>();
 
-  // 处理所有条目
+  // Memproses seluruh entri
   const allUids = new Set([...baseMap.keys(), ...compareMap.keys()]);
 
   allUids.forEach((uid) => {
@@ -154,7 +154,7 @@ function computeEntryDiffs(baseEntries: PromptEntry[], compareEntries: PromptEnt
     const compareEntry = compareMap.get(uid);
 
     if (baseEntry && compareEntry) {
-      // 两个版本都存在，检查是否有变化
+      // Ada di kedua versi, periksa apakah berubah
       const hasChanges =
         baseEntry.role !== compareEntry.role ||
         baseEntry.content !== compareEntry.content ||
@@ -170,7 +170,7 @@ function computeEntryDiffs(baseEntries: PromptEntry[], compareEntries: PromptEnt
         });
       }
     } else if (baseEntry && !compareEntry) {
-      // 只在旧版本存在，说明被删除
+      // Hanya ada di versi lama, berarti dihapus
       result.push({
         key: uid,
         changeType: "deleted",
@@ -178,7 +178,7 @@ function computeEntryDiffs(baseEntries: PromptEntry[], compareEntries: PromptEnt
         compareEntry: null,
       });
     } else if (!baseEntry && compareEntry) {
-      // 只在新版本存在，说明是新增
+      // Hanya ada di versi baru, berarti entri baru
       result.push({
         key: uid,
         changeType: "added",
@@ -188,7 +188,7 @@ function computeEntryDiffs(baseEntries: PromptEntry[], compareEntries: PromptEnt
     }
   });
 
-  // 按 orderIndex 排序
+  // Diurutkan berdasarkan orderIndex
   return result.sort((a, b) => {
     const aIndex = (a.compareEntry || a.baseEntry)?.orderIndex || 0;
     const bIndex = (b.compareEntry || b.baseEntry)?.orderIndex || 0;
@@ -206,7 +206,7 @@ export function VersionDiffDialog({
   const { t } = useTranslation();
   const [collapsedEntries, setCollapsedEntries] = useState<Set<string>>(new Set());
 
-  // 获取两个版本的数据
+  // Mengambil data kedua versi
   const {
     data: baseVersionData,
     isLoading: isLoadingBase,
@@ -234,7 +234,7 @@ export function VersionDiffDialog({
       ? computeEntryDiffs(baseVersionData.entries, compareVersionData.entries)
       : [];
 
-  // 切换折叠状态
+  // Mengalihkan status lipatan
   const toggleCollapse = (key: string) => {
     setCollapsedEntries((prev) => {
       const next = new Set(prev);
@@ -247,7 +247,7 @@ export function VersionDiffDialog({
     });
   };
 
-  // 渲染带字符级高亮的文本（用于旧版本，只显示删除的部分）
+  // Merender teks dengan penyorotan per karakter (untuk versi lama, hanya menampilkan bagian yang dihapus)
   const renderInlineDiffOld = (diffs: Array<[number, string]>) => (
     <span>
       {diffs.map((diff, idx) => {
@@ -266,12 +266,12 @@ export function VersionDiffDialog({
             </span>
           );
         if (op === 0) return <span key={idx}>{value}</span>;
-        return null; // 不显示新增的部分
+        return null; // Tidak menampilkan bagian yang ditambahkan
       })}
     </span>
   );
 
-  // 渲染带字符级高亮的文本（用于新版本，只显示新增的部分）
+  // Merender teks dengan penyorotan per karakter (untuk versi baru, hanya menampilkan bagian yang ditambahkan)
   const renderInlineDiffNew = (diffs: Array<[number, string]>) => (
     <span>
       {diffs.map((diff, idx) => {
@@ -286,12 +286,12 @@ export function VersionDiffDialog({
             </span>
           );
         if (op === 0) return <span key={idx}>{value}</span>;
-        return null; // 不显示删除的部分
+        return null; // Tidak menampilkan bagian yang dihapus
       })}
     </span>
   );
 
-  // 渲染单行
+  // Merender satu baris
   const renderLine = (
     lineNum: number | null,
     content: string | null,
@@ -362,11 +362,11 @@ export function VersionDiffDialog({
     );
   };
 
-  // 渲染条目差异
+  // Merender perbedaan entri
   const renderEntryDiff = (diff: EntryDiff) => {
     const { baseEntry, compareEntry, changeType, key } = diff;
 
-    // 检查是否只有名称/角色变化（内容没变）
+    // Memeriksa apakah hanya nama/peran yang berubah (isinya tetap)
     const onlyMetadataChanged =
       changeType === "modified" &&
       baseEntry &&
@@ -374,11 +374,11 @@ export function VersionDiffDialog({
       baseEntry.content === compareEntry.content &&
       (baseEntry.name !== compareEntry.name || baseEntry.role !== compareEntry.role);
 
-    // 如果只有元数据变化，默认折叠且不可展开
+    // Jika hanya metadata yang berubah, lipat secara bawaan dan tidak bisa dibentangkan
     const isCollapsed = onlyMetadataChanged ? true : collapsedEntries.has(key);
     const canToggle = !onlyMetadataChanged;
 
-    // 获取变更图标和颜色
+    // Mengambil ikon dan warna perubahan
     const getChangeIcon = () => {
       switch (changeType) {
         case "added":
@@ -397,13 +397,13 @@ export function VersionDiffDialog({
           ? "var(--red-9)"
           : "var(--amber-9)";
 
-    // 获取角色信息
+    // Mengambil informasi peran
     const baseRole = baseEntry?.role || "user";
     const compareRole = compareEntry?.role || "user";
     const BaseRoleIcon = getRoleIcon(baseRole);
     const CompareRoleIcon = getRoleIcon(compareRole);
 
-    // 计算行数变化和 token 变化
+    // Menghitung perubahan jumlah baris dan token
     let addedLines = 0;
     let deletedLines = 0;
     let baseTokens = 0;
@@ -436,7 +436,7 @@ export function VersionDiffDialog({
         }}
         onClick={() => canToggle && toggleCollapse(key)}
       >
-        {/* 左侧：折叠按钮 + 变更类型图标 + 名称 + 角色图标 */}
+        {/* Kiri: tombol lipat + ikon jenis perubahan + nama + ikon peran */}
         <Flex
           align="center"
           gap="2"
@@ -451,14 +451,14 @@ export function VersionDiffDialog({
               {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
             </IconButton>
           ) : (
-            <Box style={{ width: "24px" }} /> // 占位，保持对齐
+            <Box style={{ width: "24px" }} /> // Pengisi ruang, menjaga perataan
           )}
           <ChangeIcon
             size={16}
             style={{ color: iconColor }}
           />
 
-          {/* 条目名称和角色的变化显示 */}
+          {/* Tampilan perubahan nama entri dan peran */}
           {changeType === "modified" &&
           baseEntry &&
           compareEntry &&
@@ -502,12 +502,12 @@ export function VersionDiffDialog({
           )}
         </Flex>
 
-        {/* 右侧：统计信息 */}
+        {/* Kanan: informasi statistik */}
         <Flex
           align="center"
           gap="2"
         >
-          {/* 行数变化 */}
+          {/* Perubahan jumlah baris */}
           {(addedLines > 0 || deletedLines > 0) && (
             <Flex
               align="center"
@@ -538,7 +538,7 @@ export function VersionDiffDialog({
             </Flex>
           )}
 
-          {/* 分隔线 */}
+          {/* Garis pemisah */}
           {(addedLines > 0 || deletedLines > 0) && (baseTokens > 0 || compareTokens > 0) && (
             <Separator
               orientation="vertical"
@@ -546,7 +546,7 @@ export function VersionDiffDialog({
             />
           )}
 
-          {/* Token 变化 */}
+          {/* Perubahan Token */}
           {changeType === "modified" && baseTokens > 0 && compareTokens > 0 && (
             <Flex
               align="center"
@@ -602,7 +602,7 @@ export function VersionDiffDialog({
       marginBottom: "16px",
     };
 
-    // 新增条目
+    // Entri baru
     if (changeType === "added" && compareEntry) {
       const lines = compareEntry.content.split("\n");
       return (
@@ -636,7 +636,7 @@ export function VersionDiffDialog({
       );
     }
 
-    // 删除条目
+    // Entri dihapus
     if (changeType === "deleted" && baseEntry) {
       const lines = baseEntry.content.split("\n");
       return (
@@ -670,9 +670,9 @@ export function VersionDiffDialog({
       );
     }
 
-    // 修改条目
+    // Entri diubah
     if (changeType === "modified" && baseEntry && compareEntry) {
-      // baseEntry 是旧版本，compareEntry 是新版本
+      // baseEntry adalah versi lama, compareEntry adalah versi baru
       const lineDiffs = computeLineDiff(baseEntry.content, compareEntry.content);
 
       return (
@@ -688,10 +688,10 @@ export function VersionDiffDialog({
                 style={{ overflow: "hidden" }}
               >
                 <Flex>
-                  {/* 左侧：旧版本（baseEntry） - 只显示删除的字符 */}
+                  {/* Kiri: versi lama (baseEntry) - hanya menampilkan karakter yang dihapus */}
                   <Box style={{ flex: 1, borderRight: "1px solid var(--gray-a5)", minWidth: 0 }}>
                     {lineDiffs.map((ld, idx) => {
-                      // 对于 unchanged 行，不需要字符级 diff
+                      // Untuk baris unchanged, diff per karakter tidak diperlukan
                       if (ld.type === "unchanged") {
                         return (
                           <Box key={`o-${idx}`}>
@@ -700,7 +700,7 @@ export function VersionDiffDialog({
                         );
                       }
 
-                      // 对于 deleted 行，尝试找到对应的 added 行进行字符级对比
+                      // Untuk baris deleted, coba temukan baris added yang sesuai untuk dibandingkan per karakter
                       let inlineDiffs: Array<[number, string]> | undefined;
                       if (ld.type === "deleted" && ld.oldLine) {
                         const nextAdded = lineDiffs.find((d, i) => i > idx && d.type === "added");
@@ -716,10 +716,10 @@ export function VersionDiffDialog({
                       );
                     })}
                   </Box>
-                  {/* 右侧：新版本（compareEntry） - 只显示新增的字符 */}
+                  {/* Kanan: versi baru (compareEntry) - hanya menampilkan karakter yang ditambahkan */}
                   <Box style={{ flex: 1, minWidth: 0 }}>
                     {lineDiffs.map((ld, idx) => {
-                      // 对于 unchanged 行，不需要字符级 diff
+                      // Untuk baris unchanged, diff per karakter tidak diperlukan
                       if (ld.type === "unchanged") {
                         return (
                           <Box key={`n-${idx}`}>
@@ -728,7 +728,7 @@ export function VersionDiffDialog({
                         );
                       }
 
-                      // 对于 added 行，尝试找到对应的 deleted 行进行字符级对比
+                      // Untuk baris added, coba temukan baris deleted yang sesuai untuk dibandingkan per karakter
                       let inlineDiffs: Array<[number, string]> | undefined;
                       if (ld.type === "added" && ld.newLine) {
                         const prevDeleted = lineDiffs

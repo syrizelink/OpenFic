@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Dashboard Router - LLM API 统计仪表盘 API。
+Dashboard Router - API dasbor statistik LLM API.
 """
 
 from datetime import UTC, datetime
@@ -39,7 +39,7 @@ router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
 
 def _as_utc(value: datetime) -> datetime:
-    """将 SQLite 返回的无时区 UTC 时间恢复为带时区时间。"""
+    """Memulihkan waktu UTC tanpa zona waktu dari SQLite menjadi waktu bertimezone."""
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
 
@@ -129,7 +129,7 @@ async def get_llm_api_stats_dashboard(
     end_at: datetime | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> DashboardStatsResponse:
-    """获取 LLM API 仪表盘统计。"""
+    """Mengambil statistik dasbor LLM API."""
     filters = dashboard_service.build_filters(
         project_id=project_id,
         model_provider=model_provider,
@@ -177,7 +177,7 @@ async def get_llm_api_records_dashboard(
     sort_order: Literal["asc", "desc"] = Query(default="desc"),
     session: AsyncSession = Depends(get_session),
 ) -> DashboardRecordsResponse:
-    """获取 LLM API 调用记录列表。"""
+    """Mengambil daftar catatan pemanggilan LLM API."""
     filters = dashboard_service.build_filters(
         project_id=project_id,
         model_provider=model_provider,
@@ -215,10 +215,10 @@ async def get_llm_api_record_prompt(
     record_id: str,
     session: AsyncSession = Depends(get_session),
 ) -> DashboardRecordPrompt:
-    """获取单条 LLM API 调用记录的输入提示词。"""
+    """Mengambil prompt masukan dari satu catatan pemanggilan LLM API."""
     record = await dashboard_service.get_record_prompt(session, record_id)
     if record is None:
-        raise HTTPException(status_code=404, detail="调用记录不存在")
+        raise HTTPException(status_code=404, detail="Catatan pemanggilan tidak ditemukan")
     return DashboardRecordPrompt(
         id=record.id,
         request_messages=record.request_messages,
@@ -234,7 +234,7 @@ async def get_writing_dashboard(
     timezone: str | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> WritingDashboardResponse:
-    """获取写作活动统计。"""
+    """Mengambil statistik aktivitas penulisan."""
     filters = writing_activity_service.build_filters(
         project_id=project_id,
         source=source,

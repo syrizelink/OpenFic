@@ -1,7 +1,7 @@
 /**
  * Projects Feature Module
  *
- * 项目管理功能模块导出。
+ * Ekspor modul fungsi pengelolaan proyek.
  */
 
 export { ProjectsPage } from "./pages/projects-page";

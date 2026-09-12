@@ -23,7 +23,7 @@ def upgrade() -> None:
     from datetime import UTC, datetime
     from app.core.ids import generate_id
 
-    # 创建 prompt_chains 表
+    # Membuat tabel prompt_chains
     op.create_table(
         "prompt_chains",
         sa.Column("id", sa.String(), nullable=False),
@@ -35,7 +35,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    # 创建 prompt_chain_versions 表
+    # Membuat tabel prompt_chain_versions
     op.create_table(
         "prompt_chain_versions",
         sa.Column("id", sa.String(), nullable=False),
@@ -52,11 +52,11 @@ def upgrade() -> None:
         sa.UniqueConstraint("version_hash"),
     )
 
-    # 创建索引
+    # Membuat indeks
     op.create_index("ix_prompt_chain_versions_prompt_chain_id", "prompt_chain_versions", ["prompt_chain_id"])
     op.create_index("ix_prompt_chain_versions_is_active", "prompt_chain_versions", ["is_active"])
 
-    # 创建 prompt_entries 表
+    # Membuat tabel prompt_entries
     op.create_table(
         "prompt_entries",
         sa.Column("id", sa.String(), nullable=False),
@@ -73,22 +73,22 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["version_id"], ["prompt_chain_versions.id"], ondelete="CASCADE"),
     )
 
-    # 创建索引
+    # Membuat indeks
     op.create_index("ix_prompt_entries_version_id", "prompt_entries", ["version_id"])
     op.create_index("ix_prompt_entries_order_index", "prompt_entries", ["order_index"])
 
-    # 插入种子数据：创作助手 > Chat
+    # Menyisipkan data awal: asisten kreatif > Chat
     conn = op.get_bind()
     now = datetime.now(UTC)
     
-    # 生成ID
+    # Membuat ID
     chain_id = generate_id()
     version_id = generate_id()
     version_hash = generate_id()[:8]
     entry1_id = generate_id()
     entry2_id = generate_id()
 
-    # 插入提示词链
+    # Menyisipkan rantai prompt
     conn.execute(
         sa.text("""
             INSERT INTO prompt_chains (id, mode_name, task_name, agent_name, created_at, updated_at)
@@ -96,7 +96,7 @@ def upgrade() -> None:
         """),
         {
             "id": chain_id,
-            "mode_name": "创作助手",
+            "mode_name": "Asisten Kreatif",
             "task_name": "Chat",
             "agent_name": None,
             "created_at": now,
@@ -104,7 +104,7 @@ def upgrade() -> None:
         }
     )
 
-    # 插入第一个版本 (v1)
+    # Menyisipkan versi pertama (v1)
     conn.execute(
         sa.text("""
             INSERT INTO prompt_chain_versions 
@@ -118,12 +118,12 @@ def upgrade() -> None:
             "version_number": 1,
             "parent_version_id": None,
             "is_active": True,
-            "note": "初始版本",
+            "note": "Versi awal",
             "created_at": now,
         }
     )
 
-    # 插入提示词条目1：角色设定
+    # Menyisipkan entri prompt 1: latar tokoh
     conn.execute(
         sa.text("""
             INSERT INTO prompt_entries 
@@ -133,18 +133,21 @@ def upgrade() -> None:
         {
             "id": entry1_id,
             "version_id": version_id,
-            "name": "角色设定",
+            "name": "Latar Tokoh",
             "role": "system",
-            "content": "你是一位专业的创意写作助手，擅长帮助作者进行头脑风暴、故事构思和文本润色。",
+            "content": (
+                "Anda adalah asisten penulisan kreatif profesional yang membantu"
+                " penulis bertukar gagasan, menyusun cerita, dan memoles teks."
+            ),
             "order_index": 0,
             "is_enabled": True,
-            "token_count": 30,  # 简单估算
+            "token_count": 30,  # Perkiraan sederhana
             "created_at": now,
             "updated_at": now,
         }
     )
 
-    # 插入提示词条目2：任务说明
+    # Menyisipkan entri prompt 2: penjelasan tugas
     conn.execute(
         sa.text("""
             INSERT INTO prompt_entries 
@@ -154,12 +157,15 @@ def upgrade() -> None:
         {
             "id": entry2_id,
             "version_id": version_id,
-            "name": "任务说明",
+            "name": "Penjelasan Tugas",
             "role": "user",
-            "content": "我正在创作一部小说，需要你的帮助。请根据我的要求提供建议和反馈。",
+            "content": (
+                "Saya sedang menulis sebuah novel dan membutuhkan bantuan Anda."
+                " Berikan saran dan umpan balik sesuai permintaan saya."
+            ),
             "order_index": 1,
             "is_enabled": True,
-            "token_count": 28,  # 简单估算
+            "token_count": 28,  # Perkiraan sederhana
             "created_at": now,
             "updated_at": now,
         }

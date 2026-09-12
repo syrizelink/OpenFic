@@ -12,16 +12,16 @@ async def test_system_prompt_compiles_and_preserves_entry_roles(make_state, mock
     version = SimpleNamespace(
         version=SimpleNamespace(id="v1"),
         entries=[
-            SimpleNamespace(role="system", content="角色：作家", order_index=0, is_enabled=True),
-            SimpleNamespace(role="user", content="先给出章节目标", order_index=1, is_enabled=True),
-            SimpleNamespace(role="assistant", content="已理解目标", order_index=2, is_enabled=True),
+            SimpleNamespace(role="system", content="Peran: penulis", order_index=0, is_enabled=True),
+            SimpleNamespace(role="user", content="Sampaikan dulu tujuan bab", order_index=1, is_enabled=True),
+            SimpleNamespace(role="assistant", content="Tujuan sudah dipahami", order_index=2, is_enabled=True),
         ],
     )
     compile_result = CompileResult(
         entries=[
-            CompiledEntry(role="system", content="角色：作家", token_count=4),
-            CompiledEntry(role="user", content="先给出章节目标", token_count=5),
-            CompiledEntry(role="assistant", content="已理解目标", token_count=5),
+            CompiledEntry(role="system", content="Peran: penulis", token_count=4),
+            CompiledEntry(role="user", content="Sampaikan dulu tujuan bab", token_count=5),
+            CompiledEntry(role="assistant", content="Tujuan sudah dipahami", token_count=5),
         ],
         total_tokens=14,
     )
@@ -40,7 +40,7 @@ async def test_system_prompt_compiles_and_preserves_entry_roles(make_state, mock
     assert "chapter_order" not in instance.compile.await_args.kwargs
     assert messages is not None
     assert [message.role for message in messages] == ["system", "user", "assistant"]
-    assert [message.content for message in messages] == ["角色：作家", "先给出章节目标", "已理解目标"]
+    assert [message.content for message in messages] == ["Peran: penulis", "Sampaikan dulu tujuan bab", "Tujuan sudah dipahami"]
     assert all(message.metadata == {"part": "system_prompt"} for message in messages)
 
 

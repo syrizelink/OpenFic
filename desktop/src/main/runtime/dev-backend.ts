@@ -40,7 +40,7 @@ export async function readDevInstanceDataDir(): Promise<string> {
     const parsed = JSON.parse(raw) as { dataDir?: unknown };
     if (typeof parsed.dataDir === "string" && parsed.dataDir) return parsed.dataDir;
   } catch {
-    // 状态文件不存在或损坏时回退到默认目录
+    // Kembali ke direktori default saat berkas status tidak ada atau rusak
   }
   return getDevDataDir();
 }
@@ -78,7 +78,7 @@ async function fetchBackendMaintenanceError(baseUrl: string): Promise<string | n
     if (!response.ok) return null;
     const data = (await response.json()) as { status?: string; error?: string | null };
     if (data.status !== "failed") return null;
-    return data.error || "本地数据库维护失败";
+    return data.error || "Perawatan basis data lokal gagal";
   } catch {
     return null;
   }
@@ -93,13 +93,13 @@ export async function startDevBackend(
   if (externalUrl) {
     startupProgress.begin({
       step: "connect-remote",
-      title: "连接开发后端",
-      message: `正在连接 ${externalUrl}`,
+      title: "Menghubungkan ke backend pengembangan",
+      message: `Menghubungkan ke ${externalUrl}`,
       progress: 0.3,
     });
     await waitForBackend(externalUrl, { timeoutMs: DEV_BACKEND_CONNECT_TIMEOUT_MS, signal });
     throwIfAborted(signal);
-    appendLog("backend", `开发模式已连接外部后端：${externalUrl}`);
+    appendLog("backend", `Mode pengembangan terhubung ke backend eksternal: ${externalUrl}`);
     const maintenanceError = await fetchBackendMaintenanceError(externalUrl);
     return { handle: null, baseUrl: externalUrl, maintenanceError };
   }
@@ -109,8 +109,8 @@ export async function startDevBackend(
   throwIfAborted(signal);
   startupProgress.begin({
     step: "start-backend",
-    title: "启动开发后端",
-    message: "正在从 backend 源码启动本地服务",
+    title: "Menjalankan backend pengembangan",
+    message: "Menjalankan layanan lokal dari kode sumber backend",
     progress: 0.3,
   });
   const port = await findFreePort();
@@ -141,6 +141,6 @@ export async function startDevBackend(
     return { handle, baseUrl: handle.baseUrl, maintenanceError };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`${message}。日志路径：${handle.logPath}`);
+    throw new Error(`${message}. Path log: ${handle.logPath}`);
   }
 }

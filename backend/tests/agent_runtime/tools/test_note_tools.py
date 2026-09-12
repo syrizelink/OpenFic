@@ -29,8 +29,8 @@ def _make_state() -> dict:
 def _make_note(
     *,
     note_id: str = "note-1",
-    title: str = "测试笔记",
-    content: str = "测试内容",
+    title: str = "Catatan Uji",
+    content: str = "Isi uji",
     is_locked: bool = False,
     is_hidden: bool = False,
     project_id: str = "proj-1",
@@ -52,7 +52,7 @@ def _make_note(
 def _make_category(
     *,
     category_id: str = "cat-1",
-    title: str = "分类A",
+    title: str = "Kategori A",
     parent_id: str | None = None,
     project_id: str = "proj-1",
 ):
@@ -68,18 +68,18 @@ def test_build_category_path_returns_ancestor_titles_in_order() -> None:
     from app.agent_runtime.tools.impls.note.refs import build_category_path
 
     categories = [
-        _make_category(category_id="cat-root", title="大纲"),
-        _make_category(category_id="cat-volume", title="第一卷", parent_id="cat-root"),
-        _make_category(category_id="cat-note", title="细纲", parent_id="cat-volume"),
+        _make_category(category_id="cat-root", title="Kerangka"),
+        _make_category(category_id="cat-volume", title="Volume 1", parent_id="cat-root"),
+        _make_category(category_id="cat-note", title="Kerangka Rinci", parent_id="cat-volume"),
     ]
 
-    assert build_category_path(categories, "cat-note") == ["大纲", "第一卷", "细纲"]
+    assert build_category_path(categories, "cat-note") == ["Kerangka", "Volume 1", "Kerangka Rinci"]
 
 
 async def test_read_note_rejects_hidden_note() -> None:
     from app.agent_runtime.tools.impls.note.read_note import ReadNoteTool
 
-    note = _make_note(note_id="note-1", title="隐藏", is_hidden=True)
+    note = _make_note(note_id="note-1", title="Tersembunyi", is_hidden=True)
     tool = ReadNoteTool(_state=_make_state())
 
     with patch(
@@ -96,14 +96,14 @@ async def test_read_note_rejects_hidden_note() -> None:
 
     data = json.loads(result)
     assert data["type"] == "fail"
-    assert "已隐藏" in data["message"]
+    assert "sudah disembunyikan" in data["message"]
 
 
 async def test_edit_note_rejects_locked_note() -> None:
     from app.agent_runtime.tools.impls.note.edit_note import EditNoteTool
 
     note = _make_note(
-        note_id="note-1", title="锁定笔记", is_locked=True, content="旧内容"
+        note_id="note-1", title="Catatan Terkunci", is_locked=True, content="Isi lama"
     )
     tool = EditNoteTool(_state=_make_state())
 
@@ -119,21 +119,21 @@ async def test_edit_note_rejects_locked_note() -> None:
             result = await tool.ainvoke(
                 {
                     "note_ref": {"id": "note-1"},
-                    "old_content": "旧内容",
-                    "new_content": "新内容",
+                    "old_content": "Isi lama",
+                    "new_content": "Isi baru",
                 }
             )
             mock_session.close.assert_called_once()
 
     data = json.loads(result)
     assert data["type"] == "fail"
-    assert "已锁定" in data["message"]
+    assert "terkunci" in data["message"]
 
 
 async def test_edit_note_returns_success_and_diff_metadata() -> None:
     from app.agent_runtime.tools.impls.note.edit_note import EditNoteTool
 
-    note = _make_note(note_id="note-1", title="测试笔记", content="旧内容")
+    note = _make_note(note_id="note-1", title="Catatan Uji", content="Isi lama")
     tool = EditNoteTool(_state=_make_state())
 
     with patch(
@@ -166,8 +166,8 @@ async def test_edit_note_returns_success_and_diff_metadata() -> None:
             result = await tool.ainvoke(
                 {
                     "note_ref": {"id": "note-1"},
-                    "old_content": "旧内容",
-                    "new_content": "新内容",
+                    "old_content": "Isi lama",
+                    "new_content": "Isi baru",
                 }
             )
 
@@ -177,7 +177,7 @@ async def test_edit_note_returns_success_and_diff_metadata() -> None:
             "note_diff": {
                 "operation": "update",
                 "note_id": "note-1",
-                "note_title": "测试笔记",
+                "note_title": "Catatan Uji",
                 "sections": [
                     {
                         "type": "content",
@@ -186,13 +186,13 @@ async def test_edit_note_returns_success_and_diff_metadata() -> None:
                                 "type": "removed",
                                 "before_line_number": 1,
                                 "after_line_number": None,
-                                "text": "旧内容",
+                                "text": "Isi lama",
                             },
                             {
                                 "type": "added",
                                 "before_line_number": None,
                                 "after_line_number": 1,
-                                "text": "新内容",
+                                "text": "Isi baru",
                             },
                         ],
                     }
@@ -207,7 +207,7 @@ async def test_edit_note_returns_success_and_diff_metadata() -> None:
 async def test_edit_note_rejects_over_limit_replace_all_without_updating_repo() -> None:
     from app.agent_runtime.tools.impls.note.edit_note import EditNoteTool
 
-    note = _make_note(content="原\n原")
+    note = _make_note(content="asal\nasal")
     tool = EditNoteTool(_state=_make_state())
 
     with patch("app.agent_runtime.tools.impls.note.edit_note.create_session") as mock_cs:
@@ -227,11 +227,11 @@ async def test_edit_note_rejects_over_limit_replace_all_without_updating_repo() 
                 AsyncMock(),
             ) as update_note,
         ):
-            with pytest.raises(ToolExecutionError, match="内容超出限制"):
+            with pytest.raises(ToolExecutionError, match="Konten melebihi batas"):
                 await tool._execute(
                     note_ref={"id": "note-1"},
-                    old_content="原",
-                    new_content="\n".join("内容" for _ in range(1001)),
+                    old_content="asal",
+                    new_content="\n".join("Isi" for _ in range(1001)),
                 )
 
     update_note.assert_not_awaited()
@@ -240,7 +240,7 @@ async def test_edit_note_rejects_over_limit_replace_all_without_updating_repo() 
 async def test_delete_note_rejects_hidden_note() -> None:
     from app.agent_runtime.tools.impls.note.delete_note import DeleteNoteTool
 
-    note = _make_note(note_id="note-1", title="隐藏笔记", is_hidden=True)
+    note = _make_note(note_id="note-1", title="Catatan Tersembunyi", is_hidden=True)
     tool = DeleteNoteTool(_state=_make_state())
 
     with patch(
@@ -257,13 +257,13 @@ async def test_delete_note_rejects_hidden_note() -> None:
 
     data = json.loads(result)
     assert data["type"] == "fail"
-    assert "已隐藏" in data["message"]
+    assert "sudah disembunyikan" in data["message"]
 
 
 async def test_delete_note_rejects_locked_note() -> None:
     from app.agent_runtime.tools.impls.note.delete_note import DeleteNoteTool
 
-    note = _make_note(note_id="note-1", title="锁定笔记", is_locked=True)
+    note = _make_note(note_id="note-1", title="Catatan Terkunci", is_locked=True)
     tool = DeleteNoteTool(_state=_make_state())
 
     with patch(
@@ -280,13 +280,13 @@ async def test_delete_note_rejects_locked_note() -> None:
 
     data = json.loads(result)
     assert data["type"] == "fail"
-    assert "已锁定" in data["message"]
+    assert "terkunci" in data["message"]
 
 
 async def test_delete_note_returns_success_and_diff_metadata() -> None:
     from app.agent_runtime.tools.impls.note.delete_note import DeleteNoteTool
 
-    note = _make_note(note_id="note-1", title="测试笔记", content="测试内容")
+    note = _make_note(note_id="note-1", title="Catatan Uji", content="Isi uji")
     tool = DeleteNoteTool(_state=_make_state())
 
     with patch("app.agent_runtime.tools.impls.note.delete_note.create_session") as mock_cs:
@@ -316,7 +316,7 @@ async def test_delete_note_returns_success_and_diff_metadata() -> None:
             "note_diff": {
                 "operation": "delete",
                 "note_id": "note-1",
-                "note_title": "测试笔记",
+                "note_title": "Catatan Uji",
                 "sections": [
                     {
                         "type": "content",
@@ -325,7 +325,7 @@ async def test_delete_note_returns_success_and_diff_metadata() -> None:
                                 "type": "removed",
                                 "before_line_number": 1,
                                 "after_line_number": None,
-                                "text": "测试内容",
+                                "text": "Isi uji",
                             }
                         ],
                     }
@@ -338,8 +338,8 @@ async def test_delete_note_returns_success_and_diff_metadata() -> None:
 async def test_list_notes_returns_only_visible_notes() -> None:
     from app.agent_runtime.tools.impls.note.list_notes import ListNotesTool
 
-    cat1 = _make_category(category_id="cat-1", title="设定")
-    visible_note = _make_note(note_id="n-1", title="可见笔记")
+    cat1 = _make_category(category_id="cat-1", title="Setelan")
+    visible_note = _make_note(note_id="n-1", title="Catatan Terlihat")
 
     tool = ListNotesTool(_state=_make_state())
 
@@ -370,7 +370,7 @@ async def test_list_notes_returns_only_visible_notes() -> None:
 async def test_read_note_returns_content_without_line_numbers() -> None:
     from app.agent_runtime.tools.impls.note.read_note import ReadNoteTool
 
-    note = _make_note(content="第一段\n第二段")
+    note = _make_note(content="Paragraf pertama\nParagraf kedua")
     tool = ReadNoteTool(_state=_make_state())
 
     with patch(
@@ -386,7 +386,7 @@ async def test_read_note_returns_content_without_line_numbers() -> None:
             mock_session.close.assert_called_once()
 
     data = json.loads(result)
-    assert data["content"] == "第一段\n第二段"
+    assert data["content"] == "Paragraf pertama\nParagraf kedua"
     assert "1|" not in data["content"]
 
 
@@ -423,7 +423,7 @@ async def test_write_note_creates_note_and_returns_success() -> None:
                 AsyncMock(),
             ),
         ):
-            result = await tool.ainvoke({"title": "新笔记", "content": "正文内容"})
+            result = await tool.ainvoke({"title": "Catatan Baru", "content": "Isi utama"})
             mock_session.close.assert_called_once()
 
     data = json.loads(result)
@@ -431,7 +431,7 @@ async def test_write_note_creates_note_and_returns_success() -> None:
     assert data["success"] is True
     assert data["metadata"]["note_diff"]["operation"] == "create"
     assert data["metadata"]["note_diff"]["note_id"] == "note-new"
-    assert data["metadata"]["note_diff"]["note_title"] == "新笔记"
+    assert data["metadata"]["note_diff"]["note_title"] == "Catatan Baru"
     assert data["metadata"]["note_diff"]["category_id"] is None
     assert data["metadata"]["note_diff"]["sections"][0]["type"] == "content"
 
@@ -470,11 +470,11 @@ async def test_write_note_serializes_parallel_creates_per_category() -> None:
                 return wn.WriteNoteTool(_state=_make_state())
 
             task1 = asyncio.create_task(
-                make_tool().ainvoke({"title": "新笔记", "content": "正文"})
+                make_tool().ainvoke({"title": "Catatan Baru", "content": "Isi utama"})
             )
             await entered.wait()
             task2 = asyncio.create_task(
-                make_tool().ainvoke({"title": "新笔记", "content": "正文"})
+                make_tool().ainvoke({"title": "Catatan Baru", "content": "Isi utama"})
             )
             await asyncio.sleep(0.05)
             assert not task2.done()
@@ -493,12 +493,12 @@ async def test_write_note_rejects_over_limit_content_without_creating() -> None:
     ) as create_note:
         result = await tool.ainvoke(
             {
-                "title": "超限笔记",
-                "content": "\n".join("内容" for _ in range(2001)),
+                "title": "Catatan Melebihi Batas",
+                "content": "\n".join("Isi" for _ in range(2001)),
             }
         )
 
-    assert "内容超出限制" in json.loads(result)["message"]
+    assert "Konten melebihi batas" in json.loads(result)["message"]
     create_note.assert_not_awaited()
 
 
@@ -514,7 +514,7 @@ async def test_write_note_builds_approval_diff_preview() -> None:
         AsyncMock(return_value=[]),
     ):
         preview = await tool.build_interrupt_preview(
-            {"title": "新笔记", "content": "第一行\n第二行"}
+            {"title": "Catatan Baru", "content": "Baris pertama\nBaris kedua"}
         )
 
     assert preview is not None
@@ -523,7 +523,7 @@ async def test_write_note_builds_approval_diff_preview() -> None:
     assert preview["reason"] == "approval_preview"
     assert preview["metadata"]["note_diff"] == {
         "operation": "create",
-        "note_title": "新笔记",
+        "note_title": "Catatan Baru",
         "category_id": None,
         "sections": [
             {
@@ -533,13 +533,13 @@ async def test_write_note_builds_approval_diff_preview() -> None:
                         "type": "added",
                         "before_line_number": None,
                         "after_line_number": 1,
-                        "text": "第一行",
+                        "text": "Baris pertama",
                     },
                     {
                         "type": "added",
                         "before_line_number": None,
                         "after_line_number": 2,
-                        "text": "第二行",
+                        "text": "Baris kedua",
                     },
                 ],
             }
@@ -551,7 +551,7 @@ async def test_edit_note_builds_approval_diff_preview() -> None:
     from app.agent_runtime.tools.impls.note.edit_note import EditNoteTool
 
     runtime_session = AsyncMock()
-    note = _make_note(note_id="note-1", title="测试笔记", content="旧内容")
+    note = _make_note(note_id="note-1", title="Catatan Uji", content="Isi lama")
     tool = EditNoteTool(_state=_make_state())
     object.__setattr__(tool, "_config", {"configurable": {"db_session": runtime_session}})
 
@@ -562,8 +562,8 @@ async def test_edit_note_builds_approval_diff_preview() -> None:
         preview = await tool.build_interrupt_preview(
             {
                 "note_ref": {"id": "note-1"},
-                "old_content": "旧内容",
-                "new_content": "新内容",
+                "old_content": "Isi lama",
+                "new_content": "Isi baru",
             }
         )
 
@@ -574,7 +574,7 @@ async def test_edit_note_builds_approval_diff_preview() -> None:
     assert preview["metadata"]["note_diff"] == {
         "operation": "update",
         "note_id": "note-1",
-        "note_title": "测试笔记",
+        "note_title": "Catatan Uji",
         "sections": [
             {
                 "type": "content",
@@ -583,13 +583,13 @@ async def test_edit_note_builds_approval_diff_preview() -> None:
                         "type": "removed",
                         "before_line_number": 1,
                         "after_line_number": None,
-                        "text": "旧内容",
+                        "text": "Isi lama",
                     },
                     {
                         "type": "added",
                         "before_line_number": None,
                         "after_line_number": 1,
-                        "text": "新内容",
+                        "text": "Isi baru",
                     },
                 ],
             }
@@ -600,7 +600,7 @@ async def test_edit_note_builds_approval_diff_preview() -> None:
 async def test_move_note_rejects_locked_note() -> None:
     from app.agent_runtime.tools.impls.note.move_note import MoveNoteTool
 
-    note = _make_note(note_id="note-1", title="锁定笔记", is_locked=True)
+    note = _make_note(note_id="note-1", title="Catatan Terkunci", is_locked=True)
     tool = MoveNoteTool(_state=_make_state())
 
     with patch(
@@ -619,15 +619,15 @@ async def test_move_note_rejects_locked_note() -> None:
 
     data = json.loads(result)
     assert data["type"] == "fail"
-    assert "已锁定" in data["message"]
+    assert "terkunci" in data["message"]
 
 
 async def test_move_note_returns_success_and_metadata() -> None:
     from app.agent_runtime.tools.impls.note.move_note import MoveNoteTool
 
-    note = _make_note(note_id="note-1", title="测试笔记", category_id="cat-1")
-    category = _make_category(category_id="cat-2", title="目标分类")
-    moved = _make_note(note_id="note-1", title="测试笔记", category_id="cat-2")
+    note = _make_note(note_id="note-1", title="Catatan Uji", category_id="cat-1")
+    category = _make_category(category_id="cat-2", title="Kategori Tujuan")
+    moved = _make_note(note_id="note-1", title="Catatan Uji", category_id="cat-2")
     tool = MoveNoteTool(_state=_make_state())
 
     with patch("app.agent_runtime.tools.impls.note.move_note.create_session") as mock_cs:
@@ -666,11 +666,11 @@ async def test_move_note_returns_success_and_metadata() -> None:
             "note_diff": {
                 "operation": "move",
                 "note_id": "note-1",
-                "note_title": "测试笔记",
+                "note_title": "Catatan Uji",
                 "category_id": "cat-2",
                 "target_category_id": "cat-2",
-                "target_category_title": "目标分类",
-                "path": ["目标分类"],
+                "target_category_title": "Kategori Tujuan",
+                "path": ["Kategori Tujuan"],
             }
         },
     }
@@ -679,7 +679,7 @@ async def test_move_note_returns_success_and_metadata() -> None:
 async def test_create_note_category_returns_success_and_metadata() -> None:
     from app.agent_runtime.tools.impls.note.create_note_category import CreateNoteCategoryTool
 
-    created = _make_category(category_id="cat-new", title="新分类", parent_id="cat-1")
+    created = _make_category(category_id="cat-new", title="Kategori Baru", parent_id="cat-1")
     tool = CreateNoteCategoryTool(_state=_make_state())
 
     with patch(
@@ -706,12 +706,12 @@ async def test_create_note_category_returns_success_and_metadata() -> None:
             ),
             patch("app.background.jobs.service.commit_and_notify", AsyncMock()),
         ):
-            result = await tool.ainvoke({"title": "新分类", "parent_ref": {"id": "cat-1"}})
+            result = await tool.ainvoke({"title": "Kategori Baru", "parent_ref": {"id": "cat-1"}})
 
     assert json.loads(result) == {
         "success": True,
         "metadata": {
-            "category": {"id": "cat-new", "title": "新分类", "parent_id": "cat-1"}
+            "category": {"id": "cat-new", "title": "Kategori Baru", "parent_id": "cat-1"}
         },
     }
 
@@ -749,11 +749,11 @@ async def test_create_note_category_serializes_parallel_creates_per_parent() -> 
                 return cnc.CreateNoteCategoryTool(_state=_make_state())
 
             task1 = asyncio.create_task(
-                make_tool().ainvoke({"title": "新分类"})
+                make_tool().ainvoke({"title": "Kategori Baru"})
             )
             await entered.wait()
             task2 = asyncio.create_task(
-                make_tool().ainvoke({"title": "新分类"})
+                make_tool().ainvoke({"title": "Kategori Baru"})
             )
             await asyncio.sleep(0.05)
             assert not task2.done()
@@ -770,9 +770,9 @@ async def test_create_note_category_builds_approval_preview() -> None:
 
     with patch(
         "app.agent_runtime.tools.impls.note.create_note_category.note_category_repo.list_by_project",
-        AsyncMock(return_value=[_make_category(category_id="cat-1", title="已有分类")]),
+        AsyncMock(return_value=[_make_category(category_id="cat-1", title="Kategori Ada")]),
     ):
-        preview = await tool.build_interrupt_preview({"title": "新分类"})
+        preview = await tool.build_interrupt_preview({"title": "Kategori Baru"})
 
     assert preview == {
         "type": "preview",
@@ -780,7 +780,7 @@ async def test_create_note_category_builds_approval_preview() -> None:
         "reason": "approval_preview",
         "metadata": {
             "category": {
-                "title": "新分类",
+                "title": "Kategori Baru",
                 "parent_id": None,
             }
         },
@@ -790,8 +790,8 @@ async def test_create_note_category_builds_approval_preview() -> None:
 async def test_edit_note_category_returns_success_and_rename_metadata() -> None:
     from app.agent_runtime.tools.impls.note.edit_note_category import EditNoteCategoryTool
 
-    category = _make_category(category_id="cat-1", title="旧分类")
-    renamed_category = _make_category(category_id="cat-1", title="新分类")
+    category = _make_category(category_id="cat-1", title="Kategori Lama")
+    renamed_category = _make_category(category_id="cat-1", title="Kategori Baru")
     tool = EditNoteCategoryTool(_state=_make_state())
 
     with patch(
@@ -819,7 +819,7 @@ async def test_edit_note_category_returns_success_and_rename_metadata() -> None:
             patch("app.background.jobs.service.commit_and_notify", AsyncMock()),
         ):
             result = await tool.ainvoke(
-                {"category_ref": {"id": "cat-1"}, "new_title": "新分类"}
+                {"category_ref": {"id": "cat-1"}, "new_title": "Kategori Baru"}
             )
 
     assert json.loads(result) == {
@@ -827,8 +827,8 @@ async def test_edit_note_category_returns_success_and_rename_metadata() -> None:
         "metadata": {
             "category": {
                 "id": "cat-1",
-                "title": "新分类",
-                "previous_title": "旧分类",
+                "title": "Kategori Baru",
+                "previous_title": "Kategori Lama",
                 "parent_id": None,
             }
         },
@@ -844,13 +844,13 @@ async def test_edit_note_category_builds_approval_preview() -> None:
 
     with patch(
         "app.agent_runtime.tools.impls.note.edit_note_category.note_category_repo.get_by_id",
-        AsyncMock(return_value=_make_category(category_id="cat-1", title="旧分类")),
+        AsyncMock(return_value=_make_category(category_id="cat-1", title="Kategori Lama")),
     ), patch(
         "app.agent_runtime.tools.impls.note.edit_note_category.note_category_repo.list_by_project",
-        AsyncMock(return_value=[_make_category(category_id="cat-1", title="旧分类")]),
+        AsyncMock(return_value=[_make_category(category_id="cat-1", title="Kategori Lama")]),
     ):
         preview = await tool.build_interrupt_preview(
-            {"category_ref": {"id": "cat-1"}, "new_title": "新分类"}
+            {"category_ref": {"id": "cat-1"}, "new_title": "Kategori Baru"}
         )
 
     assert preview == {
@@ -860,8 +860,8 @@ async def test_edit_note_category_builds_approval_preview() -> None:
         "metadata": {
             "category": {
                 "id": "cat-1",
-                "title": "新分类",
-                "previous_title": "旧分类",
+                "title": "Kategori Baru",
+                "previous_title": "Kategori Lama",
                 "parent_id": None,
             }
         },
@@ -871,8 +871,8 @@ async def test_edit_note_category_builds_approval_preview() -> None:
 async def test_edit_note_category_rejects_duplicate_sibling_title() -> None:
     from app.agent_runtime.tools.impls.note.edit_note_category import EditNoteCategoryTool
 
-    category = _make_category(category_id="cat-1", title="旧分类")
-    existing_sibling = _make_category(category_id="cat-2", title="新分类")
+    category = _make_category(category_id="cat-1", title="Kategori Lama")
+    existing_sibling = _make_category(category_id="cat-2", title="Kategori Baru")
     tool = EditNoteCategoryTool(_state=_make_state())
 
     with patch(
@@ -900,10 +900,13 @@ async def test_edit_note_category_rejects_duplicate_sibling_title() -> None:
             patch("app.background.jobs.service.commit_and_notify", AsyncMock()),
         ):
             result = await tool.ainvoke(
-                {"category_ref": {"id": "cat-1"}, "new_title": "新分类"}
+                {"category_ref": {"id": "cat-1"}, "new_title": "Kategori Baru"}
             )
 
-    assert json.loads(result)["message"] == "同级分类已存在同名标题: 新分类"
+    assert (
+        json.loads(result)["message"]
+        == "Judul yang sama sudah ada pada kategori setingkat: Kategori Baru"
+    )
     update_category.assert_not_awaited()
 
 
@@ -923,10 +926,13 @@ async def test_edit_note_category_rejects_category_from_another_project() -> Non
             AsyncMock(return_value=category),
         ):
             result = await tool.ainvoke(
-                {"category_ref": {"id": "cat-1"}, "new_title": "新分类"}
+                {"category_ref": {"id": "cat-1"}, "new_title": "Kategori Baru"}
             )
 
-    assert json.loads(result)["message"] == "分类不属于当前项目"
+    assert (
+        json.loads(result)["message"]
+        == "Kategori tidak termasuk dalam proyek saat ini"
+    )
 
 
 async def test_delete_note_category_cascades_and_records_revisions() -> None:
@@ -934,8 +940,8 @@ async def test_delete_note_category_cascades_and_records_revisions() -> None:
         DeleteNoteCategoryTool,
     )
 
-    category = _make_category(category_id="cat-1", title="待删除")
-    note = _make_note(note_id="note-1", title="分类内笔记", category_id="cat-1")
+    category = _make_category(category_id="cat-1", title="Akan Dihapus")
+    note = _make_note(note_id="note-1", title="Catatan dalam Kategori", category_id="cat-1")
     tool = DeleteNoteCategoryTool(_state=_make_state())
 
     with patch(
@@ -977,7 +983,7 @@ async def test_delete_note_category_cascades_and_records_revisions() -> None:
         "metadata": {
             "category": {
                 "id": "cat-1",
-                "title": "待删除",
+                "title": "Akan Dihapus",
             }
         },
     }
@@ -995,14 +1001,14 @@ async def test_delete_note_category_builds_cascade_approval_preview() -> None:
     with (
         patch(
             "app.agent_runtime.tools.impls.note.delete_note_category.note_category_repo.get_by_id",
-            AsyncMock(return_value=_make_category(category_id="cat-1", title="待删除")),
+            AsyncMock(return_value=_make_category(category_id="cat-1", title="Akan Dihapus")),
         ),
         patch(
             "app.agent_runtime.tools.impls.note.delete_note_category.note_category_repo.list_by_project",
             AsyncMock(
                 return_value=[
-                    _make_category(category_id="cat-1", title="待删除"),
-                    _make_category(category_id="cat-2", title="子分类", parent_id="cat-1"),
+                    _make_category(category_id="cat-1", title="Akan Dihapus"),
+                    _make_category(category_id="cat-2", title="Subkategori", parent_id="cat-1"),
                 ]
             ),
         ),
@@ -1010,8 +1016,8 @@ async def test_delete_note_category_builds_cascade_approval_preview() -> None:
             "app.agent_runtime.tools.impls.note.delete_note_category.note_repo.list_by_project",
             AsyncMock(
                 return_value=[
-                    _make_note(note_id="note-1", title="分类内笔记", category_id="cat-1"),
-                    _make_note(note_id="note-2", title="子分类笔记", category_id="cat-2"),
+                    _make_note(note_id="note-1", title="Catatan dalam Kategori", category_id="cat-1"),
+                    _make_note(note_id="note-2", title="Catatan Subkategori", category_id="cat-2"),
                 ]
             ),
         ),
@@ -1025,7 +1031,7 @@ async def test_delete_note_category_builds_cascade_approval_preview() -> None:
         "metadata": {
             "category": {
                 "id": "cat-1",
-                "title": "待删除",
+                "title": "Akan Dihapus",
             },
             "affected_category_count": 2,
             "affected_note_count": 2,
@@ -1052,7 +1058,10 @@ async def test_delete_note_category_rejects_category_from_another_project() -> N
         ):
             result = await tool.ainvoke({"category_ref": {"id": "cat-1"}})
 
-    assert json.loads(result)["message"] == "分类不属于当前项目"
+    assert (
+        json.loads(result)["message"]
+        == "Kategori tidak termasuk dalam proyek saat ini"
+    )
 
 
 def test_edit_note_input_rejects_empty_old_content() -> None:

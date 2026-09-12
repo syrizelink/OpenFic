@@ -18,7 +18,7 @@ async def _create_agent_task(
     *,
     is_running: bool = False,
 ) -> Task:
-    project_response = await client.post("/api/v1/projects", data={"title": "锁定设置测试"})
+    project_response = await client.post("/api/v1/projects", data={"title": "Uji Penguncian Pengaturan"})
     assert project_response.status_code == 201
 
     task = Task(
@@ -56,12 +56,12 @@ async def test_agent_settings_lock_ignores_interrupted_parent_session(
     revision = Revision(
         project_id=task.project_id,
         task_id=task.id,
-        message="已暂停的会话不应锁定设置",
+        message="Sesi yang dijeda tidak boleh mengunci pengaturan",
         agent_session_id=task.agent_session_id,
         revision_type="agent",
         status="interrupted",
         is_checkpoint=True,
-        project_snapshot_title="锁定设置测试",
+        project_snapshot_title="Uji Penguncian Pengaturan",
         project_snapshot_word_count=0,
         project_snapshot_chapter_count=0,
     )
@@ -92,7 +92,7 @@ async def test_agent_settings_lock_reports_waiting_subagent(
         agent_key="writer",
         dispatch_id="dispatch-settings-lock",
         tool_call_id="tool-call-settings-lock",
-        request={"task": "等待工具审批"},
+        request={"task": "Menunggu persetujuan tool"},
         status="waiting_user",
     )
 
@@ -169,7 +169,7 @@ async def test_agent_settings_lock_rejects_restricted_writes(
         assert response.status_code == 409
         assert response.json()["detail"] == {
             "code": "agent_settings_locked",
-            "message": "Agent 会话运行中，无法修改相关设置",
+            "message": "Sesi Agent sedang berjalan, tidak dapat mengubah pengaturan terkait",
         }
 
 
@@ -195,12 +195,12 @@ async def test_cancelling_waiting_agent_session_releases_settings_lock(
     revision = Revision(
         project_id=task.project_id,
         task_id=task.id,
-        message="等待用户回答",
+        message="Menunggu jawaban pengguna",
         agent_session_id=task.agent_session_id,
         revision_type="agent",
         status="interrupted",
         is_checkpoint=True,
-        project_snapshot_title="锁定设置测试",
+        project_snapshot_title="Uji Penguncian Pengaturan",
         project_snapshot_word_count=0,
         project_snapshot_chapter_count=0,
     )

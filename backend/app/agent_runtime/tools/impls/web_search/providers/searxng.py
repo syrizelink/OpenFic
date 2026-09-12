@@ -1,4 +1,4 @@
-"""SearXNG 自托管实例 provider。"""
+"""Provider instance SearXNG yang di-hosting sendiri."""
 
 from __future__ import annotations
 
@@ -26,7 +26,8 @@ class SearxngProvider(WebSearchProvider):
         base_url = config.extra("searxng_base_url")
         if not base_url:
             raise ToolExecutionError(
-                "SearXNG 未配置 searxng_base_url（自托管实例地址）"
+                "searxng_base_url SearXNG belum dikonfigurasi "
+                "(alamat instance yang di-hosting sendiri)"
             )
 
         url = (

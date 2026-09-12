@@ -45,11 +45,11 @@ def _format_validation_error(error: object) -> str:
                 detail += "]"
             details.append(detail)
         if details:
-            return f"参数校验失败（{len(details)} 个错误）:\n" + "\n".join(
+            return f"Validasi parameter gagal ({len(details)} error):\n" + "\n".join(
                 f"- {detail}" for detail in details
             )
 
-    return "参数校验失败: " + _PYDANTIC_HELP_URL.sub("", str(error)).strip()
+    return "Validasi parameter gagal: " + _PYDANTIC_HELP_URL.sub("", str(error)).strip()
 
 
 def _validation_error_to_json(error: object) -> str:
@@ -245,7 +245,7 @@ class AgentTool(BaseTool):
                                 "type": "control",
                                 "success": False,
                                 "status": "approval_denied",
-                                "message": "工具调用已被用户拒绝",
+                                "message": "Pemanggilan alat ditolak oleh pengguna",
                                 "approval_id": resume_value.get("approval_id"),
                                 "tool_name": self.name,
                             },
@@ -279,7 +279,7 @@ class AgentTool(BaseTool):
             )
             failure = ToolFailure(
                 code=failure.code,
-                message=f"工具执行异常: {failure.message}",
+                message=f"Kesalahan eksekusi alat: {failure.message}",
                 trace=failure.trace,
             )
             log_tool_failure(

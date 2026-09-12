@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Model API Schemas - 模型请求/响应模型。
+Model API Schemas - Model permintaan/respons model.
 """
 
 from typing import Literal
@@ -24,57 +24,57 @@ TaskType = Literal["llm", "embedding", "rerank"]
 
 
 class ModelResponse(BaseModel):
-    """模型响应。"""
+    """Respons model."""
 
-    id: str = Field(description="模型 ID")
-    name: str = Field(description="模型名称")
-    remark: str = Field(description="备注")
-    provider_id: str = Field(description="关联的提供商 ID")
-    model_id: str = Field(description="从提供商获取的模型 ID")
-    task_type: TaskType = Field(description="任务类型（llm、embedding 或 rerank）")
-    temperature: float | None = Field(description="Temperature 参数（LLM 专用）")
-    top_p: float | None = Field(description="Top P 参数（LLM 专用）")
-    top_k: int | None = Field(description="Top K 参数（LLM 专用）")
-    min_p: float | None = Field(description="Min P 参数（LLM 专用）")
-    top_a: float | None = Field(description="Top A 参数（LLM 专用）")
+    id: str = Field(description="ID model")
+    name: str = Field(description="Nama model")
+    remark: str = Field(description="Catatan")
+    provider_id: str = Field(description="ID penyedia terkait")
+    model_id: str = Field(description="ID model yang diambil dari penyedia")
+    task_type: TaskType = Field(description="Tipe tugas (llm, embedding, atau rerank)")
+    temperature: float | None = Field(description="Parameter Temperature (khusus LLM)")
+    top_p: float | None = Field(description="Parameter Top P (khusus LLM)")
+    top_k: int | None = Field(description="Parameter Top K (khusus LLM)")
+    min_p: float | None = Field(description="Parameter Min P (khusus LLM)")
+    top_a: float | None = Field(description="Parameter Top A (khusus LLM)")
     frequency_penalty: float | None = Field(
-        description="Frequency Penalty 参数（LLM 专用）"
+        description="Parameter Frequency Penalty (khusus LLM)"
     )
     presence_penalty: float | None = Field(
-        description="Presence Penalty 参数（LLM 专用）"
+        description="Parameter Presence Penalty (khusus LLM)"
     )
     repetition_penalty: float | None = Field(
-        description="Repetition Penalty 参数（LLM 专用）"
+        description="Parameter Repetition Penalty (khusus LLM)"
     )
-    max_tokens: int | None = Field(description="Max Tokens 参数（LLM 专用）")
-    context_length: int = Field(description="上下文长度（LLM 专用）")
-    input_price: float = Field(description="普通输入价格（美元/百万 token）")
-    output_price: float = Field(description="输出价格（美元/百万 token）")
-    cache_read_price: float = Field(description="缓存读取价格（美元/百万 token）")
-    cache_write_price: float = Field(description="缓存写入价格（美元/百万 token）")
-    dimensions: int | None = Field(description="Embedding 维度（Embedding 专用）")
-    is_builtin: bool = Field(default=False, description="是否为内置模型")
-    created_at: str = Field(description="创建时间")
-    updated_at: str = Field(description="更新时间")
+    max_tokens: int | None = Field(description="Parameter Max Tokens (khusus LLM)")
+    context_length: int = Field(description="Panjang konteks (khusus LLM)")
+    input_price: float = Field(description="Harga masukan biasa (dolar AS/juta token)")
+    output_price: float = Field(description="Harga keluaran (dolar AS/juta token)")
+    cache_read_price: float = Field(description="Harga baca cache (dolar AS/juta token)")
+    cache_write_price: float = Field(description="Harga tulis cache (dolar AS/juta token)")
+    dimensions: int | None = Field(description="Dimensi Embedding (khusus Embedding)")
+    is_builtin: bool = Field(default=False, description="Apakah model bawaan")
+    created_at: str = Field(description="Waktu pembuatan")
+    updated_at: str = Field(description="Waktu pembaruan")
 
 
 class ModelValidationResponse(BaseModel):
-    """模型连接验证响应。"""
+    """Respons validasi koneksi model."""
 
-    success: bool = Field(description="是否验证成功")
-    message: str = Field(description="验证结果消息")
+    success: bool = Field(description="Apakah validasi berhasil")
+    message: str = Field(description="Pesan hasil validasi")
 
 
 class ModelCreateRequest(BaseModel):
-    """创建模型请求。"""
+    """Permintaan pembuatan model."""
 
-    name: str = Field(description="模型名称")
-    provider_id: str = Field(description="关联的提供商 ID")
-    model_id: str = Field(description="从提供商获取的模型 ID")
+    name: str = Field(description="Nama model")
+    provider_id: str = Field(description="ID penyedia terkait")
+    model_id: str = Field(description="ID model yang diambil dari penyedia")
     task_type: TaskType = Field(
-        default="llm", description="任务类型（llm、embedding 或 rerank）"
+        default="llm", description="Tipe tugas (llm, embedding, atau rerank)"
     )
-    remark: str = Field(default="", description="备注")
+    remark: str = Field(default="", description="Catatan")
     temperature: float | None = Field(default=DEFAULT_TEMPERATURE, ge=0.0, le=2.0)
     top_p: float | None = Field(default=DEFAULT_TOP_P, ge=0.0, le=1.0)
     top_k: int | None = Field(default=DEFAULT_TOP_K, ge=0, le=128)
@@ -90,7 +90,7 @@ class ModelCreateRequest(BaseModel):
         default=DEFAULT_REPETITION_PENALTY, ge=0.0, le=2.0
     )
     max_tokens: int | None = Field(
-        default=None, description="Max Tokens 参数（LLM 专用）"
+        default=None, description="Parameter Max Tokens (khusus LLM)"
     )
     context_length: int = Field(
         default=DEFAULT_CONTEXT_LENGTH, ge=0, le=MAX_CONTEXT_LENGTH
@@ -100,19 +100,19 @@ class ModelCreateRequest(BaseModel):
     cache_read_price: float = Field(default=0.0, ge=0.0)
     cache_write_price: float = Field(default=0.0, ge=0.0)
     dimensions: int | None = Field(
-        default=None, description="Embedding 维度（Embedding 专用）"
+        default=None, description="Dimensi Embedding (khusus Embedding)"
     )
 
 
 class ModelUpdateRequest(BaseModel):
-    """更新模型请求。"""
+    """Permintaan pembaruan model."""
 
-    name: str | None = Field(default=None, description="模型名称")
-    remark: str | None = Field(default=None, description="备注")
-    provider_id: str | None = Field(default=None, description="关联的提供商 ID")
-    model_id: str | None = Field(default=None, description="从提供商获取的模型 ID")
+    name: str | None = Field(default=None, description="Nama model")
+    remark: str | None = Field(default=None, description="Catatan")
+    provider_id: str | None = Field(default=None, description="ID penyedia terkait")
+    model_id: str | None = Field(default=None, description="ID model yang diambil dari penyedia")
     task_type: TaskType | None = Field(
-        default=None, description="任务类型（llm、embedding 或 rerank）"
+        default=None, description="Tipe tugas (llm, embedding, atau rerank)"
     )
     temperature: float | None = Field(default=None, ge=0.0, le=2.0)
     top_p: float | None = Field(default=None, ge=0.0, le=1.0)
@@ -123,7 +123,7 @@ class ModelUpdateRequest(BaseModel):
     presence_penalty: float | None = Field(default=None, ge=-2.0, le=2.0)
     repetition_penalty: float | None = Field(default=None, ge=0.0, le=2.0)
     max_tokens: int | None = Field(
-        default=None, description="Max Tokens 参数（LLM 专用）"
+        default=None, description="Parameter Max Tokens (khusus LLM)"
     )
     context_length: int | None = Field(default=None, ge=0, le=MAX_CONTEXT_LENGTH)
     input_price: float | None = Field(default=None, ge=0.0)
@@ -131,5 +131,5 @@ class ModelUpdateRequest(BaseModel):
     cache_read_price: float | None = Field(default=None, ge=0.0)
     cache_write_price: float | None = Field(default=None, ge=0.0)
     dimensions: int | None = Field(
-        default=None, description="Embedding 维度（Embedding 专用）"
+        default=None, description="Dimensi Embedding (khusus Embedding)"
     )

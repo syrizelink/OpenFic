@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Google Generative AI Adapter - Google API适配器。
+Google Generative AI Adapter - adapter Google API.
 
-Google AI API通过supportedGenerationMethods字段区分模型类型：
-- generateContent: LLM模型
-- embedContent: Embedding模型
+Google AI API membedakan jenis model melalui field supportedGenerationMethods:
+- generateContent: model LLM
+- embedContent: model embedding
 """
 
 from collections.abc import Mapping
@@ -16,7 +16,7 @@ from app.models.adapters.base import BaseAdapter
 
 
 class GoogleGenAIAdapter(BaseAdapter):
-    """Google Generative AI适配器，支持LLM和Embedding。"""
+    """Adapter Google Generative AI, mendukung LLM dan embedding."""
 
     @staticmethod
     def _build_request_headers(
@@ -46,7 +46,7 @@ class GoogleGenAIAdapter(BaseAdapter):
         *,
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
-        """获取LLM模型列表（supportedGenerationMethods包含generateContent）。"""
+        """Ambil daftar model LLM (supportedGenerationMethods memuat generateContent)."""
         url = self._build_models_url(base_url)
         
         try:
@@ -59,7 +59,7 @@ class GoogleGenAIAdapter(BaseAdapter):
             models = []
             for model in data.get("models", []):
                 methods = model.get("supportedGenerationMethods")
-                # LLM模型支持generateContent
+                # Model LLM mendukung generateContent
                 if methods is None or (
                     isinstance(methods, list) and "generateContent" in methods
                 ):
@@ -74,7 +74,7 @@ class GoogleGenAIAdapter(BaseAdapter):
             return models
         except Exception as e:
             logger.warning(f"Failed to fetch Google GenAI LLM models: {e}")
-            # 返回预定义列表作为fallback
+            # Kembalikan daftar bawaan sebagai fallback
             return [
                 {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash"},
                 {"id": "gemini-2.0-flash-lite", "name": "Gemini 2.0 Flash Lite"},
@@ -90,7 +90,7 @@ class GoogleGenAIAdapter(BaseAdapter):
         *,
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
-        """获取Embedding模型列表（supportedGenerationMethods包含embedContent）。"""
+        """Ambil daftar model embedding (supportedGenerationMethods memuat embedContent)."""
         url = self._build_models_url(base_url)
         
         try:
@@ -103,7 +103,7 @@ class GoogleGenAIAdapter(BaseAdapter):
             models = []
             for model in data.get("models", []):
                 methods = model.get("supportedGenerationMethods") or []
-                # Embedding模型支持embedContent
+                # Model embedding mendukung embedContent
                 if "embedContent" in methods:
                     model_name = model.get("name", "")
                     if model_name.startswith("models/"):
@@ -116,7 +116,7 @@ class GoogleGenAIAdapter(BaseAdapter):
             return models
         except Exception as e:
             logger.warning(f"Failed to fetch Google GenAI embedding models: {e}")
-            # 返回预定义列表作为fallback
+            # Kembalikan daftar bawaan sebagai fallback
             return [
                 {"id": "text-embedding-004", "name": "Text Embedding 004"},
                 {"id": "embedding-001", "name": "Embedding 001"},

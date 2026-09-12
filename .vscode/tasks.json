@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "前端开发服务器",
+      "label": "Server Dev Frontend",
       "type": "shell",
       "command": "pnpm",
       "args": ["dev"],
@@ -31,7 +31,7 @@
       }
     },
     {
-      "label": "后端开发服务器",
+      "label": "Server Dev Backend",
       "type": "shell",
       "command": "uv",
       "args": [
@@ -74,7 +74,7 @@
       }
     },
     {
-      "label": "桌面端开发服务器",
+      "label": "Server Dev Desktop",
       "type": "shell",
       "command": "pnpm",
       "args": ["dev:local"],
@@ -90,7 +90,7 @@
         "background": {
           "activeOnStart": true,
           "beginsPattern": "\\[dev:local\\]",
-          "endsPattern": "启动 Electron"
+          "endsPattern": "Menjalankan Electron"
         }
       },
       "presentation": {
@@ -103,8 +103,8 @@
       }
     },
     {
-      "label": "全栈开发服务器",
-      "dependsOn": ["前端开发服务器", "后端开发服务器"],
+      "label": "Server Dev Full-Stack",
+      "dependsOn": ["Server Dev Frontend", "Server Dev Backend"],
       "dependsOrder": "parallel",
       "isBackground": true,
       "problemMatcher": {

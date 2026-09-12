@@ -428,7 +428,7 @@ async def test_index_chunk_batch_commits_building_status_before_embedding(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """索引状态写入不能持有 SQLite 写锁覆盖嵌入网络请求。"""
+    """Penulisan status indeks tidak boleh menahan write lock SQLite selama permintaan jaringan embedding."""
     model = await _create_embedding_model(session)
     service = OpenFicRetrievalService(base_dir=tmp_path / "lancedb")
     await service.register_index(session, "chapters", _make_contract(model.id))
@@ -561,7 +561,7 @@ async def test_query_supports_vector_bm25_hybrid_and_rerank(
 async def test_hybrid_rrf_score_normalized_to_confidence_range(
     session: AsyncSession, tmp_path: Path
 ) -> None:
-    """未启用 rerank 时，最终 score 应归一化到 0~1 置信度区间。"""
+    """Saat rerank tidak aktif, score akhir harus dinormalisasi ke rentang confidence 0~1."""
     model = await _create_embedding_model(session)
     service = OpenFicRetrievalService(base_dir=tmp_path / "lancedb")
     contract = _make_contract(model.id)
@@ -598,7 +598,7 @@ async def test_hybrid_rrf_score_normalized_to_confidence_range(
 async def test_query_returns_raw_text_without_prefix_when_present(
     session: AsyncSession, tmp_path: Path
 ) -> None:
-    """当文档带 prefix 元数据时，回传 text 应为正文（raw_text），不含前缀。"""
+    """Saat dokumen memiliki metadata prefix, text yang dikembalikan harus isi utama (raw_text), tanpa prefiks."""
     model = await _create_embedding_model(session)
     service = OpenFicRetrievalService(base_dir=tmp_path / "lancedb")
     contract = _make_contract(model.id)
@@ -613,7 +613,7 @@ async def test_query_returns_raw_text_without_prefix_when_present(
                 document_id="chapter-1",
                 text="The hero meets a dragon.",
                 attributes={"project_id": "p1", "chapter_order": 1},
-                metadata={"prefix": "第1章 序章"},
+                metadata={"prefix": "Bab 1 Prolog"},
             )
         ],
         embedding_client,

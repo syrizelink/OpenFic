@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-删除笔记分类及其下的所有内容。
+Menghapus kategori catatan beserta seluruh isi di bawahnya.
 """
 
 import json
@@ -26,7 +26,7 @@ from app.storage.services import note_service
 
 
 class DeleteNoteCategoryInput(BaseModel):
-    category_ref: CategoryRef = Field(description="目标分类")
+    category_ref: CategoryRef = Field(description="Kategori sasaran")
 
 
 def _collect_descendant_category_ids(
@@ -48,7 +48,10 @@ def _collect_descendant_category_ids(
 @ToolRegistry.register
 class DeleteNoteCategoryTool(AgentTool):
     name: str = "delete_note_category"
-    description: str = "删除指定笔记分类及其下的子分类和笔记"
+    description: str = (
+        "Menghapus kategori catatan yang ditentukan beserta sub-kategori dan catatan "
+        "di bawahnya"
+    )
     access_level: str = "write"
     args_schema: type[BaseModel] = DeleteNoteCategoryInput
 
@@ -94,21 +97,25 @@ class DeleteNoteCategoryTool(AgentTool):
     async def _execute(self, category_ref: dict) -> str:
         revision_id = current_revision_id_from_state(self._state)
         if revision_id is None:
-            raise ToolExecutionError("缺少当前 revision，无法执行分类删除")
+            raise ToolExecutionError(
+                "revision saat ini tidak ada, penghapusan kategori tidak dapat dijalankan"
+            )
         session = await create_session()
         try:
             ref = CategoryRef.model_validate(category_ref)
             if ref.id is not None:
                 category = await note_category_repo.get_by_id(session, ref.id)
                 if category is None:
-                    raise ToolExecutionError(f"分类不存在: {ref.id}")
+                    raise ToolExecutionError(f"Kategori tidak ditemukan: {ref.id}")
             else:
                 categories = await note_category_repo.list_by_project(
                     session, self.project_id
                 )
                 category = resolve_category_from_list(categories, ref)
             if category.project_id != self.project_id:
-                raise ToolExecutionError("分类不属于当前项目")
+                raise ToolExecutionError(
+                    "Kategori tidak termasuk dalam proyek saat ini"
+                )
 
             before_categories = note_category_images_by_id(
                 await note_category_repo.list_by_project(session, self.project_id)

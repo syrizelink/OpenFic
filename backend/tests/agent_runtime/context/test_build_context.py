@@ -28,7 +28,7 @@ def base_state() -> AgentRuntimeState:
         "is_completed": False,
         "error": None,
         "retry_count": 0,
-        "user_request": "写一段",
+        "user_request": "Tulis satu bagian",
         "installed_skill_ids": [],
         "current_revision_id": None,
     })
@@ -107,7 +107,7 @@ async def test_build_context_applies_persisted_compaction_overlay_to_history_onl
         project_id="p1",
         start_seq=1,
         end_seq=2,
-        summary="旧内容摘要",
+        summary="Ringkasan isi lama",
         trigger="auto",
         source_input_tokens=100,
         summary_tokens=10,
@@ -136,18 +136,18 @@ async def test_build_context_applies_persisted_compaction_overlay_to_history_onl
             state=base_state,
             agent_name="writer",
             node_messages=[
-                {"role": "user", "content": "首轮", "metadata": {"seq": 0}},
-                {"role": "assistant", "content": "旧 A", "metadata": {"seq": 1}},
-                {"role": "user", "content": "旧 B", "metadata": {"seq": 2}},
-                {"role": "assistant", "content": "最新", "metadata": {"seq": 3}},
+                {"role": "user", "content": "Putaran pertama", "metadata": {"seq": 0}},
+                {"role": "assistant", "content": "A lama", "metadata": {"seq": 1}},
+                {"role": "user", "content": "B lama", "metadata": {"seq": 2}},
+                {"role": "assistant", "content": "Terbaru", "metadata": {"seq": 3}},
             ],
             db_session=AsyncMock(),
         )
 
     assert [m.content for m in out] == [
-        "首轮",
-        "<compaction-summary>\n旧内容摘要\n</compaction-summary>",
-        "最新",
+        "Putaran pertama",
+        "<compaction-summary>\nRingkasan isi lama\n</compaction-summary>",
+        "Terbaru",
     ]
 
 
@@ -220,7 +220,7 @@ async def test_filters_chapter_write_metadata_for_live_llm_context(
                         {
                             "id": "call_1",
                             "name": "write_chapter",
-                            "args": {"title": "第一章", "content": "正文"},
+                            "args": {"title": "Bab 1", "content": "Isi utama"},
                         }
                     ],
                 },
@@ -418,7 +418,7 @@ async def test_build_context_filters_tool_result_metadata_for_llm_context(
                         {
                             "id": "call_1",
                             "name": "edit_volume",
-                            "args": {"new_title": "新卷"},
+                            "args": {"new_title": "Volume Baru"},
                         }
                     ],
                 },
@@ -429,7 +429,7 @@ async def test_build_context_filters_tool_result_metadata_for_llm_context(
                         {
                             "success": True,
                             "metadata": {
-                                "volume": {"order": 1, "title": "新卷"},
+                                "volume": {"order": 1, "title": "Volume Baru"},
                             },
                         },
                         ensure_ascii=False,

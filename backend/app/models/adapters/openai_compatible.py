@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-OpenAI Compatible Adapter - OpenAI兼容API适配器。
+OpenAI Compatible Adapter - adapter API kompatibel OpenAI.
 
-用于支持各种OpenAI兼容的第三方服务（如Ollama、vLLM等）。
-由于是通用兼容接口，无法区分LLM和Embedding，两个方法都返回全部模型列表。
+Digunakan untuk mendukung berbagai layanan pihak ketiga yang kompatibel dengan
+OpenAI (misalnya Ollama, vLLM, dll).
+Karena ini antarmuka kompatibel umum, LLM dan embedding tidak dapat dibedakan,
+sehingga kedua metode mengembalikan seluruh daftar model.
 """
 
 import httpx
@@ -14,7 +16,7 @@ from app.models.adapters.base import BaseAdapter
 
 
 class OpenAICompatibleAdapter(BaseAdapter):
-    """OpenAI兼容API适配器，支持LLM和Embedding。"""
+    """Adapter API kompatibel OpenAI, mendukung LLM dan embedding."""
 
     @property
     def provider_type(self) -> str:
@@ -28,7 +30,7 @@ class OpenAICompatibleAdapter(BaseAdapter):
         *,
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
-        """获取模型列表（返回全部可用模型）。"""
+        """Ambil daftar model (mengembalikan semua model yang tersedia)."""
         return await self._fetch_all_models(client, base_url, api_key, headers=headers)
 
     async def get_embedding_models(
@@ -39,7 +41,7 @@ class OpenAICompatibleAdapter(BaseAdapter):
         *,
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
-        """获取模型列表（返回全部可用模型，由用户自行选择）。"""
+        """Ambil daftar model (semua model tersedia, dipilih sendiri oleh pengguna)."""
         return await self._fetch_all_models(client, base_url, api_key, headers=headers)
 
     async def get_rerank_models(
@@ -50,7 +52,7 @@ class OpenAICompatibleAdapter(BaseAdapter):
         *,
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
-        """获取模型列表（返回全部可用模型，由用户自行选择）。"""
+        """Ambil daftar model (semua model tersedia, dipilih sendiri oleh pengguna)."""
         return await self._fetch_all_models(client, base_url, api_key, headers=headers)
 
     def supports_rerank(self) -> bool:
@@ -64,7 +66,7 @@ class OpenAICompatibleAdapter(BaseAdapter):
         *,
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
-        """获取所有可用模型。"""
+        """Ambil semua model yang tersedia."""
         url = self._normalize_url(base_url)
         url = f"{url}/models" if url.endswith("/v1") else f"{url}/v1/models"
         request_headers = self._build_auth_header(api_key, headers)
@@ -85,9 +87,9 @@ class OpenAICompatibleAdapter(BaseAdapter):
             if exc.response.status_code in {401, 429} or exc.response.status_code >= 500:
                 raise
             logger.warning(f"Failed to fetch models from OpenAI-compatible API: {exc}")
-            # 返回空列表，允许用户手动输入模型ID
+            # Kembalikan daftar kosong, pengguna dapat memasukkan model ID manual
             return []
         except httpx.HTTPError as exc:
             logger.warning(f"Failed to fetch models from OpenAI-compatible API: {exc}")
-            # 返回空列表，允许用户手动输入模型ID
+            # Kembalikan daftar kosong, pengguna dapat memasukkan model ID manual
             return []

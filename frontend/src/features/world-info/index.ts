@@ -1,13 +1,13 @@
 /**
  * World Info Feature Module
  *
- * 世界书功能模块导出。
+ * Ekspor modul fungsi buku dunia.
  */
 
-// 页面
+// Halaman
 export { WorldInfoPage } from "./pages/world-info-page";
 
-// 组件
+// Komponen
 export { EntryList } from "./components/entry-list";
 export { EntryListItem } from "./components/entry-list-item";
 

@@ -13,13 +13,13 @@ async def test_history_empty_returns_empty_list():
 
 async def test_history_maps_basic_fields():
     raw = [
-        {"role": "user", "content": "你好"},
-        {"role": "assistant", "content": "在"},
+        {"role": "user", "content": "Halo"},
+        {"role": "assistant", "content": "Ya"},
     ]
     result = await build_history(raw)
     assert len(result) == 2
     assert result[0].role == "user"
-    assert result[0].content == "你好"
+    assert result[0].content == "Halo"
     assert result[0].metadata == {"part": "history"}
     assert result[1].role == "assistant"
 
@@ -34,18 +34,18 @@ async def test_history_filters_non_message_and_hidden_records_first():
         },
         {
             "role": "system",
-            "content": "内部状态",
+            "content": "Status internal",
             "message_type": "message",
             "display_channel": "hidden",
         },
-        {"role": "user", "content": "你好", "message_type": "message"},
-        {"role": "assistant", "content": "在"},
+        {"role": "user", "content": "Halo", "message_type": "message"},
+        {"role": "assistant", "content": "Ya"},
     ]
 
     result = await build_history(raw)
 
     assert [message.role for message in result] == ["user", "assistant"]
-    assert [message.content for message in result] == ["你好", "在"]
+    assert [message.content for message in result] == ["Halo", "Ya"]
 
 
 async def test_history_preserves_tool_call_id_for_tool_role():
@@ -115,11 +115,11 @@ async def test_history_preserves_additional_kwargs_for_assistant():
     raw = [{
         "role": "assistant",
         "content": "",
-        "additional_kwargs": {"reasoning_content": "先分析"},
+        "additional_kwargs": {"reasoning_content": "Analisis awal"},
     }]
     result = await build_history(raw)
     assert result[0].role == "assistant"
-    assert result[0].additional_kwargs == {"reasoning_content": "先分析"}
+    assert result[0].additional_kwargs == {"reasoning_content": "Analisis awal"}
 
 
 async def test_history_preserves_extra_metadata_kind():
@@ -131,24 +131,24 @@ async def test_history_preserves_extra_metadata_kind():
 async def test_history_compiles_user_mentions_for_llm_context_when_session_available():
     raw = [{
         "role": "user",
-        "content": '<of-mention chapter_id="chap_1" label="旧章节" />',
+        "content": '<of-mention chapter_id="chap_1" label="Bab Lama" />',
     }]
 
     fake_session = object()
     with patch(
         "app.agent_runtime.context.parts.history.compile_canonical_mentions",
-        AsyncMock(return_value=" @chapter:第一卷/第一章 "),
+        AsyncMock(return_value=" @chapter:Volume 1/Bab 1 "),
     ) as compile_mock:
         result = await build_history(raw, fake_session)
 
     compile_mock.assert_awaited_once_with(raw[0]["content"], fake_session)
-    assert result[0].content == " @chapter:第一卷/第一章 "
+    assert result[0].content == " @chapter:Volume 1/Bab 1 "
 
 
 async def test_history_preserves_user_xml_when_session_unavailable():
     raw = [{
         "role": "user",
-        "content": '<of-mention chapter_id="chap_1" label="旧章节" />',
+        "content": '<of-mention chapter_id="chap_1" label="Bab Lama" />',
     }]
 
     result = await build_history(raw)
@@ -159,15 +159,15 @@ async def test_history_preserves_user_xml_when_session_unavailable():
 async def test_history_compiles_skill_commands_for_llm_context_when_session_available():
     raw = [{
         "role": "user",
-        "content": '<of-skill id="skill-1" name="小说人物设计" />',
+        "content": '<of-skill id="skill-1" name="Desain Tokoh Novel" />',
     }]
 
     fake_session = object()
     with patch(
         "app.agent_runtime.context.parts.history.compile_canonical_mentions",
-        AsyncMock(return_value="@skill:小说人物设计"),
+        AsyncMock(return_value="@skill:Desain Tokoh Novel"),
     ) as compile_mock:
         result = await build_history(raw, fake_session)
 
     compile_mock.assert_awaited_once_with(raw[0]["content"], fake_session)
-    assert result[0].content == "@skill:小说人物设计"
+    assert result[0].content == "@skill:Desain Tokoh Novel"

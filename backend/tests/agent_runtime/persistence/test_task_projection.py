@@ -25,7 +25,7 @@ async def test_projects_runtime_messages_to_task_messages(
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="user",
-        content="续写一段剧情",
+        content="Lanjutkan satu bagian alur",
         status="sent",
     )
     await repo.insert_message(
@@ -35,15 +35,15 @@ async def test_projects_runtime_messages_to_task_messages(
         project_id=sample_task.project_id,
         role="assistant",
         agent_id="explore",
-        content="需要补充信息",
-        reasoning="我需要先确认走向。",
+        content="Perlu informasi tambahan",
+        reasoning="Saya perlu memastikan arahnya dahulu.",
         reasoning_duration_ms=2450,
         status="complete",
         tool_calls=[
             {
                 "id": "call_ask",
                 "name": "ask_user",
-                "args": {"questions": [{"title": "剧情走向？"}]},
+                "args": {"questions": [{"title": "Arah alur cerita?"}]},
             }
         ],
     )
@@ -53,7 +53,7 @@ async def test_projects_runtime_messages_to_task_messages(
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="tool",
-        content='{"success": true, "data": {"answer": "按原著"}}',
+        content='{"success": true, "data": {"answer": "Ikuti versi asli"}}',
         status="complete",
         tool_call_id="call_ask",
         tool_name="ask_user",
@@ -69,22 +69,22 @@ async def test_projects_runtime_messages_to_task_messages(
         "tool",
     ]
     assert messages[0].role == "user"
-    assert messages[0].content == "续写一段剧情"
+    assert messages[0].content == "Lanjutkan satu bagian alur"
     assert messages[0].payload == {"kind": "user_request"}
-    assert messages[1].content == "我需要先确认走向。"
+    assert messages[1].content == "Saya perlu memastikan arahnya dahulu."
     assert messages[1].payload == {"kind": "reasoning", "duration_ms": 2450}
-    assert messages[2].content == "需要补充信息"
+    assert messages[2].content == "Perlu informasi tambahan"
     assert messages[3].tool_calls == [
         {
             "id": "call_ask",
             "name": "ask_user",
-            "args": {"questions": [{"title": "剧情走向？"}]},
+            "args": {"questions": [{"title": "Arah alur cerita?"}]},
         }
     ]
     assert messages[4].payload["tool_call_id"] == "call_ask"
     assert messages[4].payload["tool_name"] == "ask_user"
-    assert messages[4].payload["tool_args"] == {"questions": [{"title": "剧情走向？"}]}
-    assert messages[4].payload["tool_result"]["data"] == {"answer": "按原著"}
+    assert messages[4].payload["tool_args"] == {"questions": [{"title": "Arah alur cerita?"}]}
+    assert messages[4].payload["tool_result"]["data"] == {"answer": "Ikuti versi asli"}
 
 
 @pytest.mark.asyncio
@@ -170,7 +170,7 @@ async def test_projects_compaction_marker_as_display_only_task_message(
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="user",
-        content="原始请求",
+        content="Permintaan awal",
         status="sent",
     )
     await repo.insert_message(
@@ -179,7 +179,7 @@ async def test_projects_compaction_marker_as_display_only_task_message(
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="system",
-        content="已进行压缩",
+        content="Kompaksi telah dilakukan",
         status="complete",
         message_type="compaction",
         display_channel="list",
@@ -205,7 +205,7 @@ async def test_projects_compaction_marker_as_display_only_task_message(
     compaction_message = messages[1]
     assert compaction_message.id == "compaction:cmp_projection"
     assert compaction_message.role == "system"
-    assert compaction_message.content == "已进行压缩"
+    assert compaction_message.content == "Kompaksi telah dilakukan"
     assert compaction_message.display_channel == "list"
     assert compaction_message.message_status == "completed"
     assert compaction_message.payload == {"kind": "compaction"}
@@ -333,8 +333,8 @@ async def test_projects_subagent_identity_for_orchestration_tool_results(
                 "name": "dispatch_subagent",
                 "args": {
                     "agent_type": "writer",
-                    "description": "续写场景",
-                    "prompt": "请续写这一场景。",
+                    "description": "Lanjutkan adegan",
+                    "prompt": "Silakan lanjutkan adegan ini.",
                 },
             },
             {
@@ -342,7 +342,7 @@ async def test_projects_subagent_identity_for_orchestration_tool_results(
                 "name": "notify_subagent",
                 "args": {
                     "dispatch_id": dispatch_id,
-                    "prompt": "继续完善冲突。",
+                    "prompt": "Lanjutkan penyempurnaan konflik.",
                 },
             },
             {
@@ -350,7 +350,7 @@ async def test_projects_subagent_identity_for_orchestration_tool_results(
                 "name": "recycle_subagent",
                 "args": {
                     "dispatch_id": dispatch_id,
-                    "reason": "任务完成",
+                    "reason": "Tugas selesai",
                 },
             },
         ],
@@ -364,19 +364,19 @@ async def test_projects_subagent_identity_for_orchestration_tool_results(
         agent_key="writer",
         dispatch_id=dispatch_id,
         tool_call_id="call-dispatch",
-        request={"task": "请续写这一场景。"},
+        request={"task": "Silakan lanjutkan adegan ini."},
         metadata={"agent_number": "#1001"},
     )
     for tool_call_id, tool_name, result in [
         (
             "call-dispatch",
             "dispatch_subagent",
-            {"dispatch_id": dispatch_id, "agent_number": "#1001", "result": "完成"},
+            {"dispatch_id": dispatch_id, "agent_number": "#1001", "result": "Selesai"},
         ),
         (
             "call-notify",
             "notify_subagent",
-            {"dispatch_id": dispatch_id, "agent_number": "#1001", "result": "已继续"},
+            {"dispatch_id": dispatch_id, "agent_number": "#1001", "result": "Sudah dilanjutkan"},
         ),
         (
             "call-recycle",
@@ -403,11 +403,11 @@ async def test_projects_subagent_identity_for_orchestration_tool_results(
     assert [message.payload["tool_args"] for message in tool_messages] == [
         {
             "agent_type": "writer",
-            "description": "续写场景",
-            "prompt": "请续写这一场景。",
+            "description": "Lanjutkan adegan",
+            "prompt": "Silakan lanjutkan adegan ini.",
         },
-        {"dispatch_id": dispatch_id, "prompt": "继续完善冲突。"},
-        {"dispatch_id": dispatch_id, "reason": "任务完成"},
+        {"dispatch_id": dispatch_id, "prompt": "Lanjutkan penyempurnaan konflik."},
+        {"dispatch_id": dispatch_id, "reason": "Tugas selesai"},
     ]
     assert [
         message.payload["tool_result"]["agent_key"] for message in tool_messages
@@ -457,7 +457,7 @@ async def test_projects_interrupted_ask_user_before_node_end(
         project_id=sample_task.project_id,
         role="assistant",
         agent_id="explore",
-        content="需要确认方向",
+        content="Perlu memastikan arah",
         status="complete",
     )
     await repo.insert_message(
@@ -484,7 +484,7 @@ async def test_projects_interrupted_ask_user_before_node_end(
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="tool",
-        content="[中断] 工具执行未完成",
+        content="[Terputus] eksekusi tool belum selesai",
         status="aborted",
         tool_call_id="call_ask",
         tool_name="ask_user",
@@ -527,7 +527,7 @@ async def test_projects_pending_ask_user_preview_as_running_tool_message(
     sample_task,
 ) -> None:
     sid = "session_pending_ask_user_projection"
-    questions = [{"title": "剧情走向？", "description": "请选择下一段方向", "options": []}]
+    questions = [{"title": "Arah alur cerita?", "description": "Silakan pilih arah bagian berikutnya", "options": []}]
     await repo.insert_message(
         db_session,
         session_id=sid,
@@ -609,7 +609,7 @@ async def test_projects_resumed_tool_call_as_single_tool_message(
             {
                 "id": "call_write",
                 "name": "write_chapter",
-                "args": {"title": "第一章"},
+                "args": {"title": "Bab 1"},
             }
         ],
     )
@@ -619,7 +619,7 @@ async def test_projects_resumed_tool_call_as_single_tool_message(
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="tool",
-        content="[中断] 工具执行未完成",
+        content="[Terputus] eksekusi tool belum selesai",
         status="aborted",
         tool_call_id="call_write",
         tool_name="write_chapter",
@@ -706,7 +706,7 @@ async def test_projects_resumed_tool_call_as_single_tool_message(
     assert tool_messages[0].tool_call_id == "call_write"
     assert tool_messages[0].message_status == "completed"
     assert tool_messages[0].payload["tool_name"] == "write_chapter"
-    assert tool_messages[0].payload["tool_args"] == {"title": "第一章"}
+    assert tool_messages[0].payload["tool_args"] == {"title": "Bab 1"}
     assert tool_messages[0].payload["tool_result"]["success"] is True
     assert tool_messages[0].payload["tool_result"]["data"] == {
         "chapter_id": "chapter_1"
@@ -733,7 +733,7 @@ async def test_projects_interrupted_tool_preview_as_completed_tool_message(
             {
                 "id": "call_write",
                 "name": "write_chapter",
-                "args": {"title": "第一章"},
+                "args": {"title": "Bab 1"},
             }
         ],
     )
@@ -743,7 +743,7 @@ async def test_projects_interrupted_tool_preview_as_completed_tool_message(
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="tool",
-        content='{"type":"preview","success":true,"reason":"approval_preview","chapter":{"title":"第一章"},"metadata":{"chapter_diff":{"operation":"create","sections":[]}}}',
+        content='{"type":"preview","success":true,"reason":"approval_preview","chapter":{"title":"Bab 1"},"metadata":{"chapter_diff":{"operation":"create","sections":[]}}}',
         status="aborted",
         tool_call_id="call_write",
         tool_name="write_chapter",
@@ -783,7 +783,7 @@ async def test_projects_completed_write_tool_result_keeps_chapter_diff_for_reloa
             {
                 "id": "call_write",
                 "name": "write_chapter",
-                "args": {"title": "第一章", "content": "正文"},
+                "args": {"title": "Bab 1", "content": "Isi utama"},
             }
         ],
     )
@@ -793,7 +793,7 @@ async def test_projects_completed_write_tool_result_keeps_chapter_diff_for_reloa
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="tool",
-        content='{"type":"ok","success":true,"tool_name":"write_chapter","message":"章节已写入","word_count":2,"chapter":{"id":"chapter_1","title":"第一章","content":"正文","order":1},"metadata":{"chapter_diff":{"operation":"create","chapter_id":"chapter_1","chapter_title":"第一章","order":1,"sections":[{"type":"content","lines":[{"type":"added","before_line_number":null,"after_line_number":1,"text":"正文"}]}]}},"affected_chapters":["chapter_1"]}',
+        content='{"type":"ok","success":true,"tool_name":"write_chapter","message":"Bab telah ditulis","word_count":2,"chapter":{"id":"chapter_1","title":"Bab 1","content":"Isi utama","order":1},"metadata":{"chapter_diff":{"operation":"create","chapter_id":"chapter_1","chapter_title":"Bab 1","order":1,"sections":[{"type":"content","lines":[{"type":"added","before_line_number":null,"after_line_number":1,"text":"Isi utama"}]}]}},"affected_chapters":["chapter_1"]}',
         status="complete",
         tool_call_id="call_write",
         tool_name="write_chapter",

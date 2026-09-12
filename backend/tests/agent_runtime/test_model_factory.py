@@ -603,4 +603,4 @@ def test_create_chat_model_deepseek_uses_bundled_tiktoken_encoding(
         )
     )
 
-    assert model.get_token_ids("OpenFic 离线 token 测试")
+    assert model.get_token_ids("OpenFic uji token offline")

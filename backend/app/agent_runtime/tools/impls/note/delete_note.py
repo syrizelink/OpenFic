@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-删除笔记。
+Menghapus catatan.
 """
 
 import json
@@ -25,20 +25,22 @@ from app.storage.repos import note_category_repo, note_repo
 
 
 class DeleteNoteInput(BaseModel):
-    note_ref: NoteRef = Field(description="目标笔记")
+    note_ref: NoteRef = Field(description="Catatan sasaran")
 
 
 @ToolRegistry.register
 class DeleteNoteTool(AgentTool):
     name: str = "delete_note"
-    description: str = "删除指定笔记"
+    description: str = "Menghapus catatan yang ditentukan"
     access_level: str = "write"
     args_schema: type[BaseModel] = DeleteNoteInput
 
     async def _execute(self, note_ref: dict) -> str:
         revision_id = current_revision_id_from_state(self._state)
         if revision_id is None:
-            raise ToolExecutionError("缺少当前 revision，无法执行笔记删除")
+            raise ToolExecutionError(
+                "revision saat ini tidak ada, penghapusan catatan tidak dapat dijalankan"
+            )
         session = await create_session()
         try:
             categories = []
@@ -46,7 +48,7 @@ class DeleteNoteTool(AgentTool):
             if ref.id is not None:
                 note = await note_repo.get_by_id(session, ref.id)
                 if note is None:
-                    raise ToolExecutionError(f"笔记不存在: {ref.id}")
+                    raise ToolExecutionError(f"Catatan tidak ditemukan: {ref.id}")
             else:
                 notes = await note_repo.list_by_project(
                     session, self.project_id, include_hidden=False
@@ -62,11 +64,13 @@ class DeleteNoteTool(AgentTool):
                 )
 
             if note.project_id != self.project_id:
-                raise ToolExecutionError("笔记不属于当前项目")
+                raise ToolExecutionError("Catatan tidak termasuk dalam proyek saat ini")
             if note.is_locked:
-                raise ToolExecutionError("该笔记已锁定，无法删除")
+                raise ToolExecutionError(
+                    "Catatan ini terkunci sehingga tidak dapat dihapus"
+                )
             if note.is_hidden:
-                raise ToolExecutionError("该笔记已隐藏")
+                raise ToolExecutionError("Catatan ini sudah disembunyikan")
 
             before = note_images_by_id(
                 await note_repo.list_by_project(

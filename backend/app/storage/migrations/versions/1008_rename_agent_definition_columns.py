@@ -36,7 +36,7 @@ def _load_str_list(raw_value: object) -> list[str]:
 
 
 def _migrate_skill_names_to_ids() -> None:
-    """将 agent_definitions.enabled_skill_names_json 中的技能名称映射为技能 ID。"""
+    """Memetakan nama skill di agent_definitions.enabled_skill_names_json menjadi ID skill."""
     bind = op.get_bind()
 
     name_to_id: dict[str, str] = {}
@@ -65,7 +65,7 @@ def _migrate_skill_names_to_ids() -> None:
 
 
 def _migrate_skill_ids_to_names() -> None:
-    """将 agent_definitions.enabled_skills 中的技能 ID 映射回技能名称。"""
+    """Memetakan ID skill di agent_definitions.enabled_skills kembali menjadi nama skill."""
     bind = op.get_bind()
 
     id_to_name: dict[str, str] = {}

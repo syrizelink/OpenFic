@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""chapter_repo 仓储层测试。"""
+"""Uji lapisan repositori chapter_repo."""
 
 import pytest
 from sqlalchemy import inspect
@@ -16,7 +16,7 @@ async def test_get_by_project_and_order_returns_chapter(session):
     session.add(project)
     await session.flush()
 
-    volume = Volume(project_id=project.id, title="第一卷", order=1, chapter_count=1)
+    volume = Volume(project_id=project.id, title="Volume 1", order=1, chapter_count=1)
     session.add(volume)
     await session.flush()
 
@@ -53,13 +53,13 @@ async def test_get_by_project_and_order_uses_volume_ordered_flat_index(session):
 
     first_volume = Volume(
         project_id=project.id,
-        title="第一卷",
+        title="Volume 1",
         order=1,
         chapter_count=1,
     )
     second_volume = Volume(
         project_id=project.id,
-        title="第二卷",
+        title="Volume 2",
         order=2,
         chapter_count=1,
     )
@@ -70,14 +70,14 @@ async def test_get_by_project_and_order_uses_volume_ordered_flat_index(session):
     first_chapter = Chapter(
         project_id=project.id,
         volume_id=first_volume.id,
-        title="第一卷第一章",
+        title="Volume 1 Bab 1",
         order=1,
         word_count=0,
     )
     second_chapter = Chapter(
         project_id=project.id,
         volume_id=second_volume.id,
-        title="第二卷第一章",
+        title="Volume 2 Bab 1",
         order=1,
         word_count=0,
     )
@@ -94,12 +94,12 @@ async def test_get_by_project_and_order_uses_volume_ordered_flat_index(session):
 @pytest.mark.asyncio
 async def test_list_metadata_by_project_does_not_load_content(session):
     project = Project(title="P", description="")
-    volume = Volume(project_id=project.id, title="第一卷", order=1)
+    volume = Volume(project_id=project.id, title="Volume 1", order=1)
     chapter = Chapter(
         project_id=project.id,
         volume_id=volume.id,
         title="C1",
-        content="正文不应被读取",
+        content="Isi utama tidak boleh dibaca",
         word_count=8,
         order=1,
     )
@@ -119,12 +119,12 @@ async def test_list_metadata_by_project_does_not_load_content(session):
 @pytest.mark.asyncio
 async def test_list_metadata_by_volume_does_not_load_content(session):
     project = Project(title="P", description="")
-    volume = Volume(project_id=project.id, title="第一卷", order=1)
+    volume = Volume(project_id=project.id, title="Volume 1", order=1)
     chapter = Chapter(
         project_id=project.id,
         volume_id=volume.id,
         title="C1",
-        content="正文不应被读取",
+        content="Isi utama tidak boleh dibaca",
         word_count=8,
         order=1,
     )
@@ -146,12 +146,12 @@ async def test_list_metadata_by_volume_does_not_load_content(session):
 @pytest.mark.asyncio
 async def test_get_metadata_by_ids_does_not_load_content(session):
     project = Project(title="P", description="")
-    volume = Volume(project_id=project.id, title="第一卷", order=1)
+    volume = Volume(project_id=project.id, title="Volume 1", order=1)
     chapter = Chapter(
         project_id=project.id,
         volume_id=volume.id,
         title="C1",
-        content="正文不应被读取",
+        content="Isi utama tidak boleh dibaca",
         word_count=8,
         order=1,
     )
@@ -171,19 +171,19 @@ async def test_get_metadata_by_ids_does_not_load_content(session):
 @pytest.mark.asyncio
 async def test_get_by_volume_ref_supports_order_and_first_matching_title(session):
     project = Project(title="P", description="")
-    volume = Volume(project_id=project.id, title="第一卷", order=1)
+    volume = Volume(project_id=project.id, title="Volume 1", order=1)
     first = Chapter(
         project_id=project.id,
         volume_id=volume.id,
-        title="相同标题",
-        content="第一章正文",
+        title="Judul Sama",
+        content="Isi utama bab 1",
         order=1,
     )
     second = Chapter(
         project_id=project.id,
         volume_id=volume.id,
-        title="相同标题",
-        content="第二章正文",
+        title="Judul Sama",
+        content="Isi utama bab 2",
         order=2,
     )
     session.add(project)
@@ -196,7 +196,7 @@ async def test_get_by_volume_ref_supports_order_and_first_matching_title(session
         session, volume.id, ref_type="order", ref_value=2
     )
     by_title = await chapter_repo.get_by_volume_ref(
-        session, volume.id, ref_type="title", ref_value="相同标题"
+        session, volume.id, ref_type="title", ref_value="Judul Sama"
     )
 
     assert by_order is not None

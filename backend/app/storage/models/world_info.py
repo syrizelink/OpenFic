@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-WorldInfo 数据模型。
+Model data WorldInfo.
 """
 
 from datetime import UTC, datetime
@@ -12,15 +12,15 @@ from app.core.ids import generate_id
 
 class WorldInfo(SQLModel, table=True):
     """
-    世界书模型。
+    Model buku dunia.
 
     Attributes:
-        id: 世界书唯一标识符（nanoid）。
-        project_id: 关联的项目 ID，可选，可以为空表示未关联项目。
-        name: 世界书名称。
-        description: 世界书描述。
-        created_at: 创建时间。
-        updated_at: 更新时间。
+        id: Identifier unik buku dunia (nanoid).
+        project_id: ID proyek terkait, opsional, boleh kosong bila tidak terkait proyek.
+        name: Nama buku dunia.
+        description: Deskripsi buku dunia.
+        created_at: Waktu pembuatan.
+        updated_at: Waktu pembaruan.
     """
 
     __tablename__ = "world_info"

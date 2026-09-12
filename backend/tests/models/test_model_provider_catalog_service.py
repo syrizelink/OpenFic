@@ -473,10 +473,10 @@ async def test_catalog_service_caches_snapshot_until_refresh(
 
     await service.list_providers()
     await service.list_providers()
-    # 命中缓存：第二次 list_providers 不再解析 bundled 快照文件
+    # Cache hit: list_providers kedua tidak lagi mem-parse berkas snapshot bundled
     assert reads.count("bundled/snapshot.json") == 1
 
-    # refresh 写入新缓存文件，mtime 变化使缓存失效，之后只解析一次缓存快照
+    # refresh menulis berkas cache baru, perubahan mtime membatalkan cache, setelahnya snapshot cache hanya di-parse sekali
     reads.clear()
     await service.refresh()
     await service.list_providers()

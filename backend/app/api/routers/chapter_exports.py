@@ -1,4 +1,4 @@
-"""章节导出 API。"""
+"""API ekspor bab."""
 
 from typing import Annotated
 
@@ -20,7 +20,7 @@ router = APIRouter(tags=["chapter-exports"])
     "/projects/{project_id}/chapter-exports",
     response_model=ChapterExportResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="创建章节导出任务",
+    summary="Membuat tugas ekspor bab",
 )
 async def create_chapter_export(
     project_id: str,
@@ -56,7 +56,7 @@ async def create_chapter_export(
 @router.get(
     "/projects/{project_id}/chapter-exports/{job_id}",
     response_model=ChapterExportResponse,
-    summary="获取章节导出状态",
+    summary="Mengambil status ekspor bab",
 )
 async def get_chapter_export(
     project_id: str,
@@ -70,7 +70,7 @@ async def get_chapter_export(
 @router.post(
     "/projects/{project_id}/chapter-exports/{job_id}/cancel",
     response_model=ChapterExportResponse,
-    summary="取消章节导出",
+    summary="Membatalkan ekspor bab",
 )
 async def cancel_chapter_export(
     project_id: str,
@@ -82,7 +82,7 @@ async def cancel_chapter_export(
         session,
         get_background_supervisor().create_event_publisher(),
         job,
-        reason="用户取消导出",
+        reason="Pengguna membatalkan ekspor",
     )
     await background_service.commit_and_notify(session)
     get_background_supervisor().cancel_running_chapter_export(job.id)
@@ -91,7 +91,7 @@ async def cancel_chapter_export(
 
 @router.get(
     "/projects/{project_id}/chapter-exports/{job_id}/download",
-    summary="下载章节导出文件",
+    summary="Mengunduh berkas hasil ekspor bab",
 )
 async def download_chapter_export(
     project_id: str,
@@ -100,7 +100,7 @@ async def download_chapter_export(
 ) -> FileResponse:
     job = await _get_export_job(session, project_id, job_id)
     if not chapter_export_service.is_export_download_available(job):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="导出文件不可用或已过期")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Berkas ekspor tidak tersedia atau sudah kedaluwarsa")
     _part_path, output_path = chapter_export_service.export_file_paths(job.id)
     return FileResponse(
         output_path,
@@ -117,7 +117,7 @@ async def _get_export_job(session: AsyncSession, project_id: str, job_id: str):
         or job.subject_type != "project"
         or job.subject_id != project_id
     ):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="章节导出任务不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tugas ekspor bab tidak ditemukan")
     return job
 
 

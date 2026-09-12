@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-PromptChain Service - 提示词链业务逻辑层。
+PromptChain Service - lapisan logika bisnis rantai prompt.
 """
 
 from dataclasses import dataclass
@@ -19,7 +19,7 @@ from app.storage.repos import (
 
 @dataclass
 class PromptEntryData:
-    """提示词条目数据传输对象。"""
+    """Objek transfer data entri prompt."""
     id: str | None = None
     uid: str | None = None
     name: str = ""
@@ -32,14 +32,14 @@ class PromptEntryData:
 
 @dataclass
 class VersionWithEntries:
-    """版本及其条目数据。"""
+    """Data versi beserta entri-entrinya."""
     version: PromptChainVersion
     entries: list[PromptEntry]
 
 
 @dataclass
 class PromptEntrySearchMatch:
-    """提示词条目中的单行搜索命中。"""
+    """Kecocokan pencarian per baris di dalam entri prompt."""
 
     line_number: int
     line_text: str
@@ -47,7 +47,7 @@ class PromptEntrySearchMatch:
 
 @dataclass
 class PromptEntrySearchResult:
-    """单个提示词条目的搜索结果。"""
+    """Hasil pencarian satu entri prompt."""
 
     entry_id: str
     entry_name: str
@@ -57,7 +57,7 @@ class PromptEntrySearchResult:
 
 @dataclass
 class PromptEntrySearchResponse:
-    """提示词版本内条目搜索结果。"""
+    """Hasil pencarian entri di dalam versi prompt."""
 
     results: list[PromptEntrySearchResult]
     total_entries: int
@@ -67,13 +67,14 @@ class PromptEntrySearchResponse:
 def _build_custom_agent_default_entries(kind: str) -> list[PromptEntryData]:
     if kind == "primary":
         system_content = (
-            "你是一个主智能体，负责协调和调度子智能体完成复杂任务。"
-            "请根据任务需求规划并委派工作。"
+            "Anda adalah agen utama yang mengoordinasi dan menjadwalkan"
+            " subagen untuk menyelesaikan tugas kompleks."
+            "Rencanakan dan delegasikan pekerjaan sesuai kebutuhan tugas."
         )
     else:
         system_content = (
-            "你是一个子智能体，负责执行主智能体委派的具体任务。"
-            "请专注于完成当前分配的工作。"
+            "Anda adalah subagen yang menjalankan tugas konkret yang didelegasikan agen utama."
+            "Fokuslah menyelesaikan pekerjaan yang sedang ditugaskan."
         )
 
     return [
@@ -88,7 +89,7 @@ def _build_custom_agent_default_entries(kind: str) -> list[PromptEntryData]:
         PromptEntryData(
             name="user_prompt",
             role="user",
-            content="请开始执行任务。",
+            content="Silakan mulai menjalankan tugas.",
             order_index=1,
             is_enabled=True,
             token_count=0,
@@ -136,7 +137,7 @@ def _load_default_version_with_entries(prompt_id: str) -> VersionWithEntries:
 
     default_entries = load_prompt_chain(prompt_id)
     if default_entries is None:
-        raise NotFoundError(f"提示词链不存在: {prompt_id}")
+        raise NotFoundError(f"Rantai prompt tidak ditemukan: {prompt_id}")
     return _default_version_with_entries(prompt_id, default_entries)
 
 
@@ -158,19 +159,19 @@ async def get_version_with_entries(
     prompt_id: str | None = None,
 ) -> VersionWithEntries:
     """
-    获取版本及其所有条目。
+    Mengambil versi beserta seluruh entrinya.
 
     Raises:
-        NotFoundError: 版本不存在。
+        NotFoundError: Versi tidak ditemukan.
     """
     if version_id == "default":
         if prompt_id is None:
-            raise ValidationError("获取默认版本时必须指定 prompt_id")
+            raise ValidationError("prompt_id harus ditentukan saat mengambil versi default")
         return _load_default_version_with_entries(prompt_id)
 
     version = await prompt_chain_version_repo.get_by_id(session, version_id)
     if version is None:
-        raise NotFoundError(f"版本不存在: {version_id}")
+        raise NotFoundError(f"Versi tidak ditemukan: {version_id}")
 
     entries = await prompt_entry_repo.list_by_version(session, version_id)
     return VersionWithEntries(version=version, entries=entries)
@@ -182,10 +183,10 @@ async def search_version_entries(
     version_id: str,
     query: str,
 ) -> PromptEntrySearchResponse:
-    """搜索指定提示词版本中的条目名称和内容。"""
+    """Mencari nama dan isi entri di dalam versi prompt tertentu."""
     result = await get_version_with_entries(session, version_id, prompt_id)
     if result.version.prompt_id != prompt_id:
-        raise NotFoundError(f"版本不属于提示词链: {prompt_id}")
+        raise NotFoundError(f"Versi bukan milik rantai prompt: {prompt_id}")
 
     stripped_query = query.strip()
     if not stripped_query:
@@ -226,14 +227,14 @@ async def get_latest_version(
     prompt_id: str,
 ) -> PromptChainVersion:
     """
-    获取最新的活跃版本。
+    Mengambil versi aktif terbaru.
 
     Raises:
-        NotFoundError: 没有活跃版本。
+        NotFoundError: Tidak ada versi aktif.
     """
     version = await prompt_chain_version_repo.get_latest_version(session, prompt_id)
     if version is None:
-        raise NotFoundError(f"没有找到活跃版本: {prompt_id}")
+        raise NotFoundError(f"Versi aktif tidak ditemukan: {prompt_id}")
     return version
 
 
@@ -242,7 +243,7 @@ async def list_versions(
     prompt_id: str,
     active_only: bool = False
 ) -> list[PromptChainVersion]:
-    """获取提示词链的所有版本。"""
+    """Mengambil semua versi dari rantai prompt."""
     versions = await prompt_chain_version_repo.list_by_chain_key(
         session, prompt_id, active_only
     )
@@ -263,18 +264,18 @@ async def create_first_version(
     note: str | None = None,
 ) -> VersionWithEntries:
     """
-    创建第一个用户版本（v1）。
+    Membuat versi pengguna pertama (v1).
 
-    从默认状态保存时调用此函数，创建第一个版本。
+    Fungsi ini dipanggil saat menyimpan dari keadaan default, membuat versi pertama.
 
     Args:
-        session: 数据库session。
-        prompt_id: 提示词唯一标识。
-        entries: 条目列表。
-        note: 版本备注。
+        session: session basis data.
+        prompt_id: Identitas unik prompt.
+        entries: Daftar entri.
+        note: Catatan versi.
 
     Returns:
-        新创建的版本及其条目。
+        Versi yang baru dibuat beserta entrinya.
     """
     import uuid
 
@@ -317,7 +318,7 @@ async def create_initial_custom_agent_version(
     agent_name: str,
     kind: str,
 ) -> VersionWithEntries:
-    """为自定义智能体创建首个默认提示词版本。"""
+    """Membuat versi prompt default pertama untuk agen kustom."""
     return await create_first_version(
         session,
         f"custom-agent--{agent_name}",
@@ -333,28 +334,28 @@ async def create_new_version(
     note: str | None = None,
 ) -> VersionWithEntries:
     """
-    创建新版本。
+    Membuat versi baru.
 
-    如果父版本不是最新版本，会将后续版本标记为非活跃。
+    Bila versi induk bukan versi terbaru, versi-versi setelahnya ditandai tidak aktif.
 
     Args:
-        session: 数据库session。
-        prompt_id: 提示词唯一标识。
-        parent_version_id: 父版本ID。
-        entries: 条目列表。
-        note: 版本备注。
+        session: session basis data.
+        prompt_id: Identitas unik prompt.
+        parent_version_id: ID versi induk.
+        entries: Daftar entri.
+        note: Catatan versi.
 
     Returns:
-        新创建的版本及其条目。
+        Versi yang baru dibuat beserta entrinya.
     """
     import uuid
 
     parent_version = await prompt_chain_version_repo.get_by_id(session, parent_version_id)
     if parent_version is None:
-        raise NotFoundError(f"父版本不存在: {parent_version_id}")
+        raise NotFoundError(f"Versi induk tidak ditemukan: {parent_version_id}")
 
     if parent_version.prompt_id != prompt_id:
-        raise ValidationError("父版本不属于该提示词链")
+        raise ValidationError("Versi induk bukan milik rantai prompt ini")
 
     max_version_number = await prompt_chain_version_repo.get_max_version_number(
         session, prompt_id
@@ -412,20 +413,20 @@ async def update_entry(
     token_count: int | None = None,
 ) -> PromptEntry:
     """
-    更新条目。
+    Memperbarui entri.
 
-    注意：这个操作不会创建新版本，只更新现有条目。
-    如果需要版本控制，应该使用create_new_version。
+    Catatan: operasi ini tidak membuat versi baru, hanya memperbarui entri yang ada.
+    Bila kontrol versi dibutuhkan, gunakan create_new_version.
     """
     entry = await prompt_entry_repo.get_by_id(session, entry_id)
     if entry is None:
-        raise NotFoundError(f"条目不存在: {entry_id}")
+        raise NotFoundError(f"Entri tidak ditemukan: {entry_id}")
 
     if name is not None:
         entry.name = name
     if role is not None:
         if role not in ("system", "user", "assistant"):
-            raise ValidationError(f"无效的角色类型: {role}")
+            raise ValidationError(f"Jenis peran tidak valid: {role}")
         entry.role = role
     if content is not None:
         entry.content = content
@@ -445,25 +446,25 @@ async def delete_entry(
     entry_id: str,
 ) -> bool:
     """
-    删除条目。
+    Menghapus entri.
 
-    注意：这个操作不会创建新版本，直接删除条目。
-    如果需要版本控制，应该通过create_new_version排除该条目。
+    Catatan: operasi ini tidak membuat versi baru, entri langsung dihapus.
+    Bila kontrol versi dibutuhkan, kecualikan entri tersebut melalui create_new_version.
     """
     entry = await prompt_entry_repo.get_by_id(session, entry_id)
     if entry is None:
-        raise NotFoundError(f"条目不存在: {entry_id}")
+        raise NotFoundError(f"Entri tidak ditemukan: {entry_id}")
 
     return await prompt_entry_repo.delete_by_id(session, entry_id)
 
 
 async def get_prompt_chains_metadata(session: AsyncSession) -> dict:
     """
-    获取所有提示词链的元数据，用于构建导航菜单。
+    Mengambil metadata semua rantai prompt, untuk membangun menu navigasi.
 
-    元数据从 YAML 配置文件读取，并合入数据库中的自定义 agent key。
+    Metadata dibaca dari file konfigurasi YAML, lalu digabung dengan agent key kustom di basis data.
 
-    返回按业务类别分组的单级提示词列表。
+    Mengembalikan daftar prompt satu tingkat yang dikelompokkan menurut kategori bisnis.
     """
     from app.agent_runtime.agents.definitions import DEFAULT_AGENT_KEYS
     from app.prompts import get_prompt_chains_metadata as get_yaml_metadata
@@ -483,26 +484,26 @@ async def reset_to_default(
     prompt_id: str,
 ) -> VersionWithEntries:
     """
-    重置提示词链到默认状态。
+    Mereset rantai prompt ke keadaan default.
 
-    删除数据库中该类型提示词链的所有版本和条目，
-    然后从 YAML 文件加载默认内容并返回内存默认版本。
+    Menghapus semua versi dan entri rantai prompt jenis tersebut di basis data,
+    lalu memuat isi default dari file YAML dan mengembalikan versi default di memori.
 
     Args:
-        session: 数据库session。
-        prompt_id: 提示词唯一标识。
+        session: session basis data.
+        prompt_id: Identitas unik prompt.
 
     Returns:
-        重置后的内存默认版本及其条目。
+        Versi default di memori setelah reset beserta entrinya.
 
     Raises:
-        NotFoundError: YAML 配置文件不存在。
+        NotFoundError: File konfigurasi YAML tidak ditemukan.
     """
     from app.prompts import load_prompt_chain
 
     default_entries = load_prompt_chain(prompt_id)
     if default_entries is None:
-        raise NotFoundError(f"默认提示词配置不存在: {prompt_id}")
+        raise NotFoundError(f"Konfigurasi prompt default tidak ditemukan: {prompt_id}")
 
     await prompt_chain_version_repo.delete_by_chain_key(session, prompt_id)
 
@@ -513,5 +514,5 @@ async def delete_prompt_chain(
     session: AsyncSession,
     prompt_id: str,
 ) -> int:
-    """删除指定提示词链的所有版本和条目。"""
+    """Menghapus semua versi dan entri dari rantai prompt tertentu."""
     return await prompt_chain_version_repo.delete_by_chain_key(session, prompt_id)

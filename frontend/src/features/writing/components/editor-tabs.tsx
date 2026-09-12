@@ -1,9 +1,9 @@
 /**
  * Editor Tabs Component
  *
- * 编辑器标签页栏，显示打开的标签页列表。
- * 支持拖拽排序。
- * 性能优化：使用 memo 和选择器避免不必要的重渲染。
+ * Bilah tab editor, menampilkan daftar tab yang terbuka.
+ * Mendukung pengurutan tarik-lepas.
+ * Optimalisasi kinerja: memakai memo dan selector agar render ulang yang tidak perlu dihindari.
  */
 
 import {
@@ -45,7 +45,7 @@ import { isEmptyTab } from "../lib/tab.types";
 import type { EditorTab } from "../lib/tab.types";
 import { useTabs, useActiveTabId, useTabsStore } from "../store/use-tabs-store";
 
-/** 标签页尺寸配置 */
+/** Konfigurasi ukuran tab */
 const TAB_MIN_WIDTH = 80;
 const TAB_MAX_WIDTH = 160;
 
@@ -58,7 +58,7 @@ interface SortableTabItemProps {
   onContextMenu: (e: React.MouseEvent) => void;
 }
 
-/** 可排序的标签页项 */
+/** Item tab yang dapat diurutkan */
 const SortableTabItem = memo(function SortableTabItem({
   tab,
   isActive,
@@ -110,7 +110,7 @@ const SortableTabItem = memo(function SortableTabItem({
           marginBottom: isActive ? 0 : 1,
         }}
       >
-        {/* 类型图标 */}
+        {/* Ikon jenis */}
         {tab.type === "chapter" ? (
           <FileText
             size={14}
@@ -122,7 +122,7 @@ const SortableTabItem = memo(function SortableTabItem({
             style={{ flexShrink: 0, marginRight: 4, opacity: 0.6 }}
           />
         )}
-        {/* 标题 */}
+        {/* Judul */}
         <Text
           size="2"
           weight={isActive ? "medium" : "regular"}
@@ -137,7 +137,7 @@ const SortableTabItem = memo(function SortableTabItem({
           {displayTitle}
         </Text>
 
-        {/* 关闭按钮（右侧） */}
+        {/* Tombol tutup (di sisi kanan) */}
         {!tab.isLocked && (
           <IconButton
             variant="ghost"
@@ -163,7 +163,7 @@ const SortableTabItem = memo(function SortableTabItem({
   );
 });
 
-/** 空标签页内容 */
+/** Isi tab kosong */
 interface EmptyTabContentProps {
   onCreateNew: () => void;
   onClose: () => void;
@@ -215,7 +215,7 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
   const { setActiveTab, closeTab, reorderTabs, closeOtherTabs, closeAllTabs, toggleLock } =
     useTabsStore();
 
-  // 拖拽传感器
+  // Sensor tarik-lepas
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -227,14 +227,14 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
     }),
   );
 
-  // 右键菜单状态
+  // Status menu klik kanan
   const [contextMenuPos, setContextMenuPos] = useState<{
     x: number;
     y: number;
   } | null>(null);
   const [contextMenuTabId, setContextMenuTabId] = useState<string | null>(null);
 
-  // 激活标签页
+  // Mengaktifkan tab
   const handleActivate = useCallback(
     (tabId: string) => {
       setActiveTab(tabId);
@@ -242,7 +242,7 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
     [setActiveTab],
   );
 
-  // 关闭标签页
+  // Menutup tab
   const handleClose = useCallback(
     (tabId: string) => {
       closeTab(tabId);
@@ -250,25 +250,25 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
     [closeTab],
   );
 
-  // 打开右键菜单
+  // Membuka menu klik kanan
   const handleContextMenu = useCallback((tabId: string, e: React.MouseEvent) => {
     e.preventDefault();
     setContextMenuTabId(tabId);
     setContextMenuPos({ x: e.clientX, y: e.clientY });
   }, []);
 
-  // 关闭右键菜单
+  // Menutup menu klik kanan
   const handleCloseContextMenu = useCallback(() => {
     setContextMenuPos(null);
     setContextMenuTabId(null);
   }, []);
 
-  // 新建标签页
+  // Membuat tab baru
   const handleAddTab = useCallback(() => {
     onAddTab?.();
   }, [onAddTab]);
 
-  // 拖拽结束
+  // Tarik-lepas selesai
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
@@ -360,7 +360,7 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
           position: "relative",
         }}
       >
-        {/* 底部边框线 - 位于标签页下方 */}
+        {/* Garis tepi bawah - berada di bawah tab */}
         <Box
           style={{
             position: "absolute",
@@ -378,7 +378,7 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
           px="2"
           style={{ height: 34, position: "relative", zIndex: 1 }}
         >
-          {/* 标签页列表和添加按钮 */}
+          {/* Daftar tab dan tombol tambah */}
           <Flex
             gap="1"
             align="end"
@@ -387,7 +387,7 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
               overflow: "hidden",
             }}
           >
-            {/* 标签页拖拽区域 - 使用 flex 布局自动压缩 */}
+            {/* Area tarik-lepas tab - memakai tata letak flex agar menyusut otomatis */}
             <Flex
               gap="1"
               align="end"
@@ -421,7 +421,7 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
               </DndContext>
             </Flex>
 
-            {/* 添加按钮 - 紧跟在标签页后方 */}
+            {/* Tombol tambah - tepat setelah tab */}
             <IconButton
               variant="ghost"
               size="1"
@@ -439,7 +439,7 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
         </Flex>
       </Box>
 
-      {/* 标签页右键菜单 */}
+      {/* Menu klik kanan tab */}
       <ContextMenu
         position={contextMenuPos}
         items={contextMenuItems}

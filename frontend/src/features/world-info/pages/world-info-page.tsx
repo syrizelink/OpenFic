@@ -1,7 +1,7 @@
 ﻿/**
  * World Info Page
  *
- * 世界书主页面，按项目展示对应世界书条目与编辑器。
+ * Halaman utama buku dunia, menampilkan entri buku dunia dan editornya per proyek.
  */
 
 import { Box, Flex, Text, Dialog, Button, Skeleton, IconButton, Tooltip } from "@radix-ui/themes";
@@ -91,12 +91,12 @@ export function WorldInfoPage() {
     onClose: () => setSidebarOpen(false),
   });
 
-  // 删除确认对话框状态
+  // Status dialog konfirmasi penghapusan
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<WorldInfoEntryBrief | null>(null);
   const panelLayout = usePersistedPanelLayout(PANEL_LAYOUT_KEY, PANEL_IDS, !isMobile);
 
-  // 排序状态
+  // Status pengurutan
   type SortField = "order" | "uid" | "tokenCount" | "name";
   type SortDirection = "asc" | "desc";
   const [sortField, setSortField] = useState<SortField>("order");
@@ -110,7 +110,7 @@ export function WorldInfoPage() {
     isAgentRunning: false,
   });
 
-  // 从 URL 参数初始化状态
+  // Menginisialisasi status dari parameter URL
   useEffect(() => {
     const projectId = searchParams.get("projectId");
     const from = searchParams.get("from");
@@ -178,7 +178,7 @@ export function WorldInfoPage() {
     if (currentEntryId) void setPreference(LAST_ENTRY_KEY, currentEntryId);
   }, [currentEntryId]);
 
-  // 获取条目列表（轻量，不含 content）
+  // Mengambil daftar entri (ringan, tanpa content)
   const { data: entriesData, isLoading: entriesLoading } = useQuery({
     queryKey: ["world-info-entries", currentWorldInfoId],
     queryFn: () => fetchWorldInfoEntries(currentWorldInfoId!),
@@ -186,7 +186,7 @@ export function WorldInfoPage() {
     staleTime: 0,
   });
 
-  // 获取当前选中条目的完整数据
+  // Mengambil data lengkap entri yang sedang dipilih
   const { data: selectedEntry, isLoading: isEntryLoading } = useQuery({
     queryKey: ["world-info-entry-detail", currentEntryId],
     queryFn: () => fetchWorldInfoEntry(currentEntryId!),
@@ -221,7 +221,7 @@ export function WorldInfoPage() {
     }
   }, [currentEntryId, entries, entriesData, setCurrentEntry]);
 
-  /** 从完整条目提取轻量字段，用于更新列表缓存 */
+  /** Mengambil field ringan dari entri lengkap, dipakai untuk memperbarui singgahan daftar */
   const extractBrief = useCallback(
     (entry: WorldInfoEntry): WorldInfoEntryBrief => ({
       id: entry.id,
@@ -275,7 +275,7 @@ export function WorldInfoPage() {
     [queryClient],
   );
 
-  // 创建条目
+  // Membuat entri
   const createEntryMutation = useMutation({
     mutationFn: (name: string) =>
       createWorldInfoEntry(currentWorldInfoId!, {
@@ -311,7 +311,7 @@ export function WorldInfoPage() {
     },
   });
 
-  // 切换条目启用状态
+  // Mengalihkan status aktif entri
   const toggleEntryMutation = useMutation({
     mutationFn: (entryId: string) => toggleWorldInfoEntry(entryId),
     mutationKey: ["world-info-entry-toggle", currentWorldInfoId],
@@ -351,7 +351,7 @@ export function WorldInfoPage() {
       context ? queryClient.invalidateQueries({ queryKey: context.queryKey }) : undefined,
   });
 
-  // 删除条目
+  // Menghapus entri
   const deleteEntryMutation = useMutation({
     mutationFn: (entryId: string) => deleteWorldInfoEntry(entryId),
     onSuccess: async (_data, entryId) => {
@@ -384,7 +384,7 @@ export function WorldInfoPage() {
     [closeAssistantSidebar, setCurrentProject, setSidebarOpen],
   );
 
-  /** 处理创建条目 */
+  /** Menangani pembuatan entri */
   const handleCreateEntry = useCallback(() => {
     if (currentWorldInfoId) {
       const name = generateUniqueEntryName(t("worldInfo.newEntry"), entries);
@@ -394,7 +394,7 @@ export function WorldInfoPage() {
     }
   }, [currentWorldInfoId, createEntryMutation, entries, setCurrentEntry, t]);
 
-  /** 处理选择条目 */
+  /** Menangani pemilihan entri */
   const handleSelectEntry = useCallback(
     (entryId: string) => {
       setCurrentEntry(entryId);
@@ -403,7 +403,7 @@ export function WorldInfoPage() {
     [setCurrentEntry, setSidebarOpen],
   );
 
-  /** 处理切换条目启用状态 */
+  /** Menangani pengalihan status aktif entri */
   const handleToggleEntry = useCallback(
     (entryId: string) => {
       toggleEntryMutation.mutate(entryId);
@@ -411,20 +411,20 @@ export function WorldInfoPage() {
     [toggleEntryMutation],
   );
 
-  /** 处理删除条目确认 */
+  /** Menangani konfirmasi penghapusan entri */
   const handleDeleteEntry = useCallback((entry: WorldInfoEntryBrief) => {
     setEntryToDelete(entry);
     setDeleteDialogOpen(true);
   }, []);
 
-  /** 确认删除 */
+  /** Mengonfirmasi penghapusan */
   const handleConfirmDelete = useCallback(() => {
     if (entryToDelete) {
       deleteEntryMutation.mutate(entryToDelete.id);
     }
   }, [entryToDelete, deleteEntryMutation]);
 
-  /** 乐观更新条目顺序 */
+  /** Memperbarui urutan entri secara optimistis */
   const handleReorderEntries = useCallback(
     (reorderedEntries: WorldInfoEntryBrief[]) => {
       queryClient.setQueryData(
@@ -446,7 +446,7 @@ export function WorldInfoPage() {
     [currentWorldInfoId, queryClient],
   );
 
-  /** 保存单条拖拽排序 */
+  /** Menyimpan satu hasil pengurutan tarik-lepas */
   const handleSaveDragOrder = useCallback(
     async (entryId: string, newOrder: number) => {
       try {
@@ -463,7 +463,7 @@ export function WorldInfoPage() {
     [currentWorldInfoId, queryClient, t],
   );
 
-  /** 处理排序切换 */
+  /** Menangani pengalihan pengurutan */
   const handleSortChange = useCallback(
     (field: SortField) => {
       if (sortField === field) {
@@ -476,7 +476,7 @@ export function WorldInfoPage() {
     [sortField],
   );
 
-  /** 将条目置顶，本质为一次排序操作 */
+  /** Menyematkan entri ke puncak, pada dasarnya satu operasi pengurutan */
   const handlePinEntry = useCallback(
     (entry: WorldInfoEntryBrief) => {
       const orderedEntries = [...entries].sort((a, b) => a.order - b.order);
@@ -498,7 +498,7 @@ export function WorldInfoPage() {
     [entries, handleReorderEntries, handleSaveDragOrder],
   );
 
-  /** 批量删除条目 */
+  /** Menghapus entri secara massal */
   const handleBatchDelete = useCallback(
     async (entryIds: string[]) => {
       if (!currentWorldInfoId) return;
@@ -550,7 +550,7 @@ export function WorldInfoPage() {
       context ? queryClient.invalidateQueries({ queryKey: context.queryKey }) : undefined,
   });
 
-  /** 批量切换条目开关 */
+  /** Mengalihkan saklar entri secara massal */
   const handleBatchToggle = useCallback(
     (entryIds: string[], isEnabled: boolean) => {
       if (!currentWorldInfoId) return;
@@ -559,7 +559,7 @@ export function WorldInfoPage() {
     [batchToggleMutation, currentWorldInfoId],
   );
 
-  /** 处理从搜索面板导航到匹配行 */
+  /** Menangani navigasi dari panel pencarian ke baris yang cocok */
   const handleNavigateToMatch = useCallback(
     (entryId: string, lineNumber: number) => {
       setCurrentEntry(entryId);
@@ -568,17 +568,17 @@ export function WorldInfoPage() {
     [setCurrentEntry],
   );
 
-  /** 滚动完成后清除 */
+  /** Membersihkan setelah gulir selesai */
   const handleScrollComplete = useCallback(() => {
     setScrollToLine(null);
   }, []);
 
-  // 当前选中的条目（从详情查询获取完整数据）
-  // selectedEntry 来自 useQuery，已在上方声明
+  // Entri yang sedang dipilih (data lengkap diambil dari kueri detail)
+  // selectedEntry berasal dari useQuery, sudah dideklarasikan di atas
 
   const isAgentLocked = Boolean(currentProjectId && assistantState.isAgentRunning);
 
-  // 侧边栏内容
+  // Isi bilah sisi
   const sidebarContent = currentProjectId ? (
     <EntryList
       projects={projects}
@@ -909,7 +909,7 @@ export function WorldInfoPage() {
         }}
       />
 
-      {/* 删除确认对话框 */}
+      {/* Dialog konfirmasi penghapusan */}
       <Dialog.Root
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}

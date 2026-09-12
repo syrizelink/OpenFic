@@ -15,7 +15,11 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 
 from app.background.events.publisher import BackgroundEventPublisher
-from app.background.events.types import EVENT_JOB_CANCELLED, EVENT_JOB_PROGRESS
+from app.background.events.types import (
+    EVENT_JOB_CANCELLED,
+    EVENT_JOB_PROGRESS,
+    EVENT_TASK_TITLE_UPDATED,
+)
 from app.background.jobs.base import JobDefinition
 from app.background.jobs.definitions import register_all_background_jobs
 from app.background.jobs.definitions.chapter_summary import handle_chapter_summary
@@ -26,6 +30,7 @@ from app.background.jobs.constants import (
 )
 from app.background.jobs.definitions.session_title import handle_session_title
 from app.background.jobs import repos as job_repo
+from app.storage.repos import task_repo
 from app.background.jobs import service as background_service
 from app.background.jobs.models import BackgroundJob, BackgroundJobItem
 from app.background.jobs.states import (
@@ -70,7 +75,7 @@ def _default_volume(project: Project, *, chapter_count: int = 1) -> Volume:
     return Volume(
         id=_default_volume_id(project),
         project_id=project.id,
-        title="第一卷",
+        title="Volume 1",
         order=1,
         chapter_count=chapter_count,
     )
@@ -235,9 +240,9 @@ def reset_background_registry():
 
 @pytest.mark.asyncio
 async def test_submit_job_persists_background_job(session):
-    project = Project(title="项目", description="")
-    chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="第一章", content="", word_count=0, order=1)
-    task = Task(project_id=project.id, title="临时标题", mode="agent")
+    project = Project(title="Proyek", description="")
+    chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="Bab 1", content="", word_count=0, order=1)
+    task = Task(project_id=project.id, title="Judul Sementara", mode="agent")
     session.add(project)
     session.add(_default_volume(project))
     session.add(chapter)
@@ -247,7 +252,7 @@ async def test_submit_job_persists_background_job(session):
     job = await background_service.submit_job(
         session,
         job_type="session_title",
-        payload={"task_id": task.id, "seed_message": "写一场雨夜密谋"},
+        payload={"task_id": task.id, "seed_message": "Tulis adegan konspirasi malam hujan"},
         context={"project_id": project.id, "model_policy": "light_model"},
         subject_type="task",
         subject_id=task.id,
@@ -257,7 +262,7 @@ async def test_submit_job_persists_background_job(session):
     stored = await job_repo.get_job(session, job.id)
     assert stored is not None
     assert stored.type == "session_title"
-    assert background_service.parse_json_object(stored.payload_json)["seed_message"] == "写一场雨夜密谋"
+    assert background_service.parse_json_object(stored.payload_json)["seed_message"] == "Tulis adegan konspirasi malam hujan"
     assert stored.subject_type == "task"
     assert stored.subject_id == task.id
     assert stored.queue == "llm"
@@ -273,9 +278,9 @@ async def test_submit_job_defers_runtime_notification_until_after_commit(session
 
     monkeypatch.setattr(background_service, "notify_job_submitted", notify_job_submitted)
 
-    project = Project(title="项目", description="")
-    chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="第一章", content="", word_count=0, order=1)
-    task = Task(project_id=project.id, title="临时标题", mode="agent")
+    project = Project(title="Proyek", description="")
+    chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="Bab 1", content="", word_count=0, order=1)
+    task = Task(project_id=project.id, title="Judul Sementara", mode="agent")
     session.add(project)
     session.add(_default_volume(project))
     session.add(chapter)
@@ -285,7 +290,7 @@ async def test_submit_job_defers_runtime_notification_until_after_commit(session
     job = await background_service.submit_job(
         session,
         job_type="session_title",
-        payload={"task_id": task.id, "seed_message": "写一场雨夜密谋"},
+        payload={"task_id": task.id, "seed_message": "Tulis adegan konspirasi malam hujan"},
         context={"project_id": project.id, "model_policy": "light_model"},
         subject_type="task",
         subject_id=task.id,
@@ -307,7 +312,7 @@ async def test_submit_job_validates_definition_payload(session):
         await background_service.submit_job(
             session,
             job_type="session_title",
-            payload={"seed_message": "缺少 task_id"},
+            payload={"seed_message": "task_id tidak ada"},
         )
 
 
@@ -369,9 +374,9 @@ async def test_session_title_skips_when_light_model_missing(tmp_path):
     session = factory()
     context: JobContext | None = None
     try:
-        project = Project(title="项目", description="")
-        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="第一章", content="", word_count=0, order=1)
-        task = Task(project_id=project.id, title="临时标题", mode="agent")
+        project = Project(title="Proyek", description="")
+        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="Bab 1", content="", word_count=0, order=1)
+        task = Task(project_id=project.id, title="Judul Sementara", mode="agent")
         session.add(project)
         session.add(_default_volume(project))
         session.add(chapter)
@@ -381,7 +386,7 @@ async def test_session_title_skips_when_light_model_missing(tmp_path):
         job = await background_service.submit_job(
             session,
             job_type="session_title",
-            payload={"task_id": task.id, "seed_message": "写一场雨夜密谋"},
+            payload={"task_id": task.id, "seed_message": "Tulis adegan konspirasi malam hujan"},
             context={"project_id": project.id, "model_policy": "light_model"},
             subject_type="task",
             subject_id=task.id,
@@ -408,24 +413,111 @@ async def test_session_title_skips_when_light_model_missing(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_session_title_skips_when_provider_returns_error_notice(tmp_path):
+    """Pemberitahuan galat penyedia tidak boleh tersimpan menjadi judul sesi.
+
+    Penyedia di balik gerbang API dapat menjawab HTTP 200 dengan teks
+    pemberitahuan sebagai konten biasa, sehingga tidak ada exception yang
+    terangkat. Judul sesi hanya dibuat sekali, jadi teks itu akan menetap
+    permanen bila diterima.
+    """
+    engine, factory = await _configure_file_database(tmp_path)
+    session = factory()
+    context: JobContext | None = None
+    try:
+        project = Project(title="Proyek", description="")
+        task = Task(project_id=project.id, title="New session - 2026-09-12T12:00:00.000Z", mode="agent")
+        session.add(project)
+        session.add(_default_volume(project))
+        session.add(task)
+        await session.commit()
+        judul_awal = task.title
+
+        job = await background_service.submit_job(
+            session,
+            job_type="session_title",
+            payload={"task_id": task.id, "seed_message": "Bahas anslop ai"},
+            context={"project_id": project.id, "model_policy": "light_model"},
+            subject_type="task",
+            subject_id=task.id,
+        )
+        job_id = job.id
+        await session.commit()
+
+        transport = RecordingTransport()
+        context = JobContext(
+            session=session,
+            job=job,
+            publisher=BackgroundEventPublisher(transport),
+        )
+
+        fake_resolved = SimpleNamespace(
+            client=SimpleNamespace(
+                generate=AsyncMock(
+                    return_value=SimpleNamespace(
+                        content="Gemini 3.5 Flash is no longer available. Please use a newer model.",
+                        usage={},
+                    ),
+                ),
+            ),
+            model=SimpleNamespace(model_id="gpt-test", name="GPT Test"),
+            provider=SimpleNamespace(provider_type="openai-compatible"),
+        )
+
+        with patch(
+            "app.background.jobs.definitions.session_title.resolve_background_llm",
+            AsyncMock(return_value=fake_resolved),
+        ), patch(
+            "app.background.jobs.definitions.session_title.compile_canonical_mentions",
+            AsyncMock(return_value="Bahas anslop ai"),
+        ), patch(
+            "app.background.jobs.definitions.session_title.build_chat_messages",
+            AsyncMock(return_value=[]),
+        ):
+            result = await handle_session_title(context)
+
+        assert result is None
+
+        stored_job = await job_repo.get_job(context.session, job_id)
+        assert stored_job is not None
+        assert stored_job.status == JOB_STATUS_SKIPPED
+
+        # Judul placeholder harus utuh: bentuk ini masih lolos
+        # _is_pending_agent_session_title, sehingga pesan berikutnya mencoba lagi.
+        stored_task = await task_repo.get_by_id(context.session, task.id)
+        assert stored_task is not None
+        assert stored_task.title == judul_awal
+
+        # Tidak ada peristiwa perubahan judul yang disiarkan ke UI.
+        assert not [
+            event for event in transport.events if event.type == EVENT_TASK_TITLE_UPDATED
+        ]
+    finally:
+        if context is not None and context.session is not session:
+            await context.session.close()
+        await session.close()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_session_title_compiles_mentions_before_prompt_build(tmp_path):
     engine, factory = await _configure_file_database(tmp_path)
     session = factory()
     context: JobContext | None = None
     captured: dict[str, str] = {}
     try:
-        project = Project(title="项目", description="")
+        project = Project(title="Proyek", description="")
         volume = _default_volume(project)
         chapter = Chapter(
             id="chapter-title-mentions",
             project_id=project.id,
             volume_id=volume.id,
-            title="现章节标题",
-            content="第一行\n第二行",
+            title="Judul Bab Kini",
+            content="Baris pertama\nBaris kedua",
             word_count=2,
             order=1,
         )
-        task = Task(project_id=project.id, title="临时标题", mode="agent")
+        task = Task(project_id=project.id, title="Judul Sementara", mode="agent")
         session.add(project)
         session.add(volume)
         session.add(chapter)
@@ -438,9 +530,9 @@ async def test_session_title_compiles_mentions_before_prompt_build(tmp_path):
             payload={
                 "task_id": task.id,
                 "seed_message": (
-                    '请基于<of-mention kind="chapter" chapter_id="chapter-title-mentions" label="旧章节" />'
-                    '和<of-mention kind="line_range" chapter_id="chapter-title-mentions" start_line="4" '
-                    'end_line="9" label="旧片段">保留快照</of-mention>命名'
+                    'Silakan gunakan<of-mention kind="chapter" chapter_id="chapter-title-mentions" label="Bab Lama" />'
+                    'dan<of-mention kind="line_range" chapter_id="chapter-title-mentions" start_line="4" '
+                    'end_line="9" label="Kutipan Lama">Snapshot dipertahankan</of-mention> penamaan'
                 ),
             },
             context={"project_id": project.id, "model_policy": "light_model"},
@@ -456,7 +548,7 @@ async def test_session_title_compiles_mentions_before_prompt_build(tmp_path):
             publisher=BackgroundEventPublisher(transport),
         )
 
-        compiled_text = '请基于\n> 引用章节：现章节标题\n和\n> 引用片段：现章节标题 第4-9行；原文快照：保留快照\n命名'
+        compiled_text = 'Silakan gunakan\n> Bab dirujuk: Judul Bab Kini\ndan\n> Kutipan dirujuk: Judul Bab Kini baris 4-9; snapshot asli: Snapshot dipertahankan\npenamaan'
 
         async def fake_build_chat_messages(_session, *, runtime, **_kwargs):
             captured["current_message"] = runtime.current_message
@@ -465,7 +557,7 @@ async def test_session_title_compiles_mentions_before_prompt_build(tmp_path):
         fake_resolved = SimpleNamespace(
             client=SimpleNamespace(
                 generate=AsyncMock(
-                    return_value=SimpleNamespace(content="标题测试", usage={})
+                    return_value=SimpleNamespace(content="Uji Judul", usage={})
                 ),
             ),
             model=SimpleNamespace(model_id="gpt-test", name="GPT Test"),
@@ -485,7 +577,7 @@ async def test_session_title_compiles_mentions_before_prompt_build(tmp_path):
             result = await handle_session_title(context)
 
         assert captured["current_message"] == compiled_text
-        assert result == {"title": "标题测试", "task_id": task.id}
+        assert result == {"title": "Uji Judul", "task_id": task.id}
     finally:
         if context is not None and context.session is not session:
             await context.session.close()
@@ -500,10 +592,10 @@ async def test_session_title_records_audited_model_call(tmp_path, monkeypatch):
     context: JobContext | None = None
     enqueued = []
     try:
-        project = Project(title="项目", description="")
+        project = Project(title="Proyek", description="")
         task = Task(
             project_id=project.id,
-            title="临时标题",
+            title="Judul Sementara",
             mode="agent",
             agent_session_id="session-title-audit",
         )
@@ -512,7 +604,7 @@ async def test_session_title_records_audited_model_call(tmp_path, monkeypatch):
         job = await background_service.submit_job(
             session,
             job_type="session_title",
-            payload={"task_id": task.id, "seed_message": "请命名这个会话"},
+            payload={"task_id": task.id, "seed_message": "Silakan beri nama sesi ini"},
             context={"project_id": project.id, "model_policy": "light_model"},
             subject_type="task",
             subject_id=task.id,
@@ -531,7 +623,7 @@ async def test_session_title_records_audited_model_call(tmp_path, monkeypatch):
             client=SimpleNamespace(
                 generate=AsyncMock(
                     return_value=SimpleNamespace(
-                        content="标题测试",
+                        content="Uji Judul",
                         usage={"input_tokens": 12, "output_tokens": 8},
                     )
                 )
@@ -549,7 +641,7 @@ async def test_session_title_records_audited_model_call(tmp_path, monkeypatch):
         ):
             result = await handle_session_title(context)
 
-        assert result == {"title": "标题测试", "task_id": task.id}
+        assert result == {"title": "Uji Judul", "task_id": task.id}
         assert len(enqueued) == 1
         audit_log = enqueued[0]
         assert audit_log.category == "session"
@@ -561,7 +653,7 @@ async def test_session_title_records_audited_model_call(tmp_path, monkeypatch):
         assert audit_log.tokens_total == 20
         assert json.loads(audit_log.extra_data or "{}") == {
             "background_job_id": job.id,
-            "seed_message": "请命名这个会话",
+            "seed_message": "Silakan beri nama sesi ini",
         }
     finally:
         if context is not None and context.session is not session:
@@ -576,8 +668,8 @@ async def test_session_title_keeps_audit_model_metadata_after_short_session_clos
     session = factory()
     context: JobContext | None = None
     try:
-        project = Project(title="项目", description="")
-        task = Task(project_id=project.id, title="临时标题", mode="agent")
+        project = Project(title="Proyek", description="")
+        task = Task(project_id=project.id, title="Judul Sementara", mode="agent")
         model = Model(
             name="GPT Test",
             provider_id="provider-test",
@@ -588,7 +680,7 @@ async def test_session_title_keeps_audit_model_metadata_after_short_session_clos
         job = await background_service.submit_job(
             session,
             job_type="session_title",
-            payload={"task_id": task.id, "seed_message": "请命名这个会话"},
+            payload={"task_id": task.id, "seed_message": "Silakan beri nama sesi ini"},
             context={"project_id": project.id, "model_policy": "light_model"},
             subject_type="task",
             subject_id=task.id,
@@ -606,7 +698,7 @@ async def test_session_title_keeps_audit_model_metadata_after_short_session_clos
             return SimpleNamespace(
                 client=SimpleNamespace(
                     generate=AsyncMock(
-                        return_value=SimpleNamespace(content="标题测试", usage={})
+                        return_value=SimpleNamespace(content="Uji Judul", usage={})
                     )
                 ),
                 model=resolved_model,
@@ -626,7 +718,7 @@ async def test_session_title_keeps_audit_model_metadata_after_short_session_clos
         ):
             result = await handle_session_title(context)
 
-        assert result == {"title": "标题测试", "task_id": task.id}
+        assert result == {"title": "Uji Judul", "task_id": task.id}
     finally:
         if context is not None and context.session is not session:
             await context.session.close()
@@ -704,12 +796,12 @@ async def test_pending_job_cancel_marks_cancelled(session):
         session,
         BackgroundEventPublisher(None),
         job,
-        reason="用户取消",
+        reason="Dibatalkan pengguna",
     )
     await session.commit()
 
     assert job.status == JOB_STATUS_CANCELLED
-    assert job.cancel_reason == "用户取消"
+    assert job.cancel_reason == "Dibatalkan pengguna"
 
 
 @pytest.mark.asyncio
@@ -724,7 +816,7 @@ async def test_pending_job_cancel_publishes_transport_event(session):
         session,
         BackgroundEventPublisher(transport),
         job,
-        reason="用户取消",
+        reason="Dibatalkan pengguna",
     )
     await background_service.commit_and_notify(session)
 
@@ -810,7 +902,7 @@ async def test_check_cancelled_reads_latest_state_from_short_session(tmp_path):
             latest = await job_repo.get_job(cancel_session, job_id)
             assert latest is not None
             latest.status = JOB_STATUS_CANCEL_REQUESTED
-            latest.cancel_reason = "用户取消"
+            latest.cancel_reason = "Dibatalkan pengguna"
             await job_repo.save_job(cancel_session, latest)
             await cancel_session.commit()
         finally:
@@ -834,8 +926,8 @@ async def test_chapter_summary_skips_when_light_model_missing(tmp_path):
     session = factory()
     context: JobContext | None = None
     try:
-        project = Project(title="项目", description="")
-        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="第一章", content="正文", word_count=2, order=1)
+        project = Project(title="Proyek", description="")
+        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="Bab 1", content="Isi utama", word_count=2, order=1)
         session.add(project)
         session.add(_default_volume(project))
         session.add(chapter)
@@ -970,7 +1062,7 @@ async def test_worker_runs_cancellation_hook_after_rollback(tmp_path):
                 type="cancellable_job",
                 status=JOB_STATUS_CANCEL_REQUESTED,
                 payload_json='{"value":"x"}',
-                cancel_reason="用户停止任务",
+                cancel_reason="Pengguna menghentikan tugas",
             ),
         )
         await background_service.commit_and_notify(session)
@@ -980,7 +1072,7 @@ async def test_worker_runs_cancellation_hook_after_rollback(tmp_path):
             transport=RecordingTransport(),
             scan_interval_seconds=1,
         )
-        await worker._mark_cancelled_after_rollback(job.id, "用户停止任务")
+        await worker._mark_cancelled_after_rollback(job.id, "Pengguna menghentikan tugas")
 
         session.expire(job)
         await session.refresh(job)
@@ -1038,7 +1130,7 @@ async def test_worker_interrupts_running_summary_batch_on_cancel_request(tmp_pat
                 cancel_session,
                 BackgroundEventPublisher(transport),
                 stored_job,
-                reason="用户停止摘要生成队列",
+                reason="Pengguna menghentikan antrean pembuatan ringkasan",
             )
             await background_service.commit_and_notify(cancel_session)
         finally:
@@ -1106,7 +1198,7 @@ async def test_worker_interrupts_running_index_batch_on_cancel_request(tmp_path)
                 cancel_session,
                 BackgroundEventPublisher(transport),
                 stored_job,
-                reason="用户停止索引",
+                reason="Pengguna menghentikan pengindeksan",
             )
             await background_service.commit_and_notify(cancel_session)
         finally:
@@ -1135,8 +1227,8 @@ async def test_summary_batch_failure_hook_marks_incomplete_items_failed(tmp_path
     engine, factory = await _configure_file_database(tmp_path)
     session = factory()
     try:
-        project = Project(title="项目", description="")
-        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="第一章", content="正文" * 400, word_count=800, order=1)
+        project = Project(title="Proyek", description="")
+        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="Bab 1", content="Isi utama" * 400, word_count=800, order=1)
         session.add(project)
         session.add(_default_volume(project))
         session.add(chapter)
@@ -1209,8 +1301,8 @@ async def test_summary_batch_publishes_chapter_update_without_loading_job_id(tmp
     engine, factory = await _configure_file_database(tmp_path)
     session = factory()
     try:
-        project = Project(title="项目", description="")
-        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="第一章", content="正文" * 400, word_count=800, order=1)
+        project = Project(title="Proyek", description="")
+        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="Bab 1", content="Isi utama" * 400, word_count=800, order=1)
         session.add(project)
         session.add(_default_volume(project))
         session.add(chapter)
@@ -1279,8 +1371,8 @@ async def test_summary_batch_publishes_chapter_update_with_item_type(tmp_path):
     engine, factory = await _configure_file_database(tmp_path)
     session = factory()
     try:
-        project = Project(title="项目", description="")
-        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="第一章", content="正文", word_count=2, order=1)
+        project = Project(title="Proyek", description="")
+        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="Bab 1", content="Isi utama", word_count=2, order=1)
         session.add(project)
         session.add(_default_volume(project))
         session.add(chapter)
@@ -1307,7 +1399,7 @@ async def test_summary_batch_publishes_chapter_update_with_item_type(tmp_path):
             chapter_order=chapter.order,
             start_order=chapter.order,
             end_order=chapter.order,
-            error_message="生成失败",
+            error_message="Gagal membuat",
         )
         session.add(row)
         await session.flush()
@@ -1320,7 +1412,7 @@ async def test_summary_batch_publishes_chapter_update_with_item_type(tmp_path):
         assert event.item_type == "chapter_summary"
         assert event.payload["is_stale"] is False
         assert event.payload["progress_message"] is None
-        assert event.payload["error_message"] == "生成失败"
+        assert event.payload["error_message"] == "Gagal membuat"
     finally:
         await session.close()
         await engine.dispose()
@@ -1331,13 +1423,13 @@ async def test_append_summary_batch_items_publish_queued_item_events(tmp_path, m
     engine, factory = await _configure_file_database(tmp_path)
     session = factory()
     try:
-        project = Project(title="项目", description="")
+        project = Project(title="Proyek", description="")
         chapters = [
             Chapter(
                 project_id=project.id,
                 volume_id=_default_volume_id(project),
-                title=f"第{index + 1}章",
-                content="正文" * 400,
+                title=f"Bab {index + 1}",
+                content="Isi utama" * 400,
                 word_count=800,
                 order=index + 1,
             )
@@ -1358,7 +1450,7 @@ async def test_append_summary_batch_items_publish_queued_item_events(tmp_path, m
                     chapter_order=chapter.order,
                     start_order=chapter.order,
                     end_order=chapter.order,
-                    summary=f"第{chapter.order}章摘要",
+                    summary=f"Ringkasan Bab {chapter.order}",
                     source_content_normalized=summary_service.normalize_summary_source_content(chapter.content),
                 )
             )
@@ -1398,7 +1490,7 @@ async def test_append_summary_batch_items_publish_queued_item_events(tmp_path, m
         assert chapter_event.payload["is_stale"] is False
         assert chapter_event.payload["progress_current"] == 0
         assert chapter_event.payload["progress_total"] == 3
-        assert chapter_event.payload["progress_message"] == "已加入队列"
+        assert chapter_event.payload["progress_message"] == "Sudah masuk antrean"
         assert chapter_event.payload["error_message"] is None
 
         assert long_term_event.job_type == JOB_TYPE_SUMMARY_BATCH
@@ -1411,7 +1503,7 @@ async def test_append_summary_batch_items_publish_queued_item_events(tmp_path, m
         assert long_term_event.payload["is_stale"] is False
         assert long_term_event.payload["progress_current"] == 0
         assert long_term_event.payload["progress_total"] == 3
-        assert long_term_event.payload["progress_message"] == "已加入队列"
+        assert long_term_event.payload["progress_message"] == "Sudah masuk antrean"
         assert long_term_event.payload["error_message"] is None
     finally:
         await session.close()
@@ -1467,9 +1559,9 @@ async def test_summary_batch_commits_after_each_item(tmp_path, monkeypatch):
     engine, factory = await _configure_file_database(tmp_path)
     session = factory()
     try:
-        project = Project(title="项目", description="")
-        chapter_one = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="第一章", content="正文" * 400, word_count=800, order=1)
-        chapter_two = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="第二章", content="正文" * 400, word_count=800, order=2)
+        project = Project(title="Proyek", description="")
+        chapter_one = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="Bab 1", content="Isi utama" * 400, word_count=800, order=1)
+        chapter_two = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="Bab 2", content="Isi utama" * 400, word_count=800, order=2)
         session.add(project)
         session.add(_default_volume(project, chapter_count=2))
         session.add(chapter_one)
@@ -1538,13 +1630,13 @@ async def test_summary_batch_aggregates_window_with_skipped_first_chapter(tmp_pa
     engine, factory = await _configure_file_database(tmp_path)
     session = factory()
     try:
-        project = Project(title="项目", description="")
+        project = Project(title="Proyek", description="")
         chapters = [
             Chapter(
                 project_id=project.id,
                 volume_id=_default_volume_id(project),
-                title=f"第{index}章",
-                content="正文" * 400,
+                title=f"Bab {index}",
+                content="Isi utama" * 400,
                 word_count=100 if index == 1 else 800,
                 order=index,
             )
@@ -1566,7 +1658,7 @@ async def test_summary_batch_aggregates_window_with_skipped_first_chapter(tmp_pa
                     chapter_order=chapter.order,
                     start_order=chapter.order,
                     end_order=chapter.order,
-                    summary=f"摘要{chapter.order}",
+                    summary=f"Ringkasan {chapter.order}",
                     source_content_normalized=chapter.content,
                 )
             )
@@ -1578,9 +1670,9 @@ async def test_summary_batch_aggregates_window_with_skipped_first_chapter(tmp_pa
         await session.commit()
 
         class FakeLongTermSummaryResult:
-            start_time = "开始"
-            end_time = "结束"
-            summary = "区间摘要"
+            start_time = "Mulai"
+            end_time = "Selesai"
+            summary = "Ringkasan rentang"
             token_count = 12
 
         async def fake_resolve_background_llm(_session, model_policy: str, model_id: str | None):
@@ -1633,8 +1725,8 @@ async def test_summary_batch_persists_running_status_before_generation(tmp_path,
     engine, factory = await _configure_file_database(tmp_path)
     session = factory()
     try:
-        project = Project(title="项目", description="")
-        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="第一章", content="正文" * 400, word_count=800, order=1)
+        project = Project(title="Proyek", description="")
+        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="Bab 1", content="Isi utama" * 400, word_count=800, order=1)
         session.add(project)
         session.add(_default_volume(project))
         session.add(chapter)
@@ -1660,11 +1752,11 @@ async def test_summary_batch_persists_running_status_before_generation(tmp_path,
             return "prompt"
 
         class FakeChapterSummaryResult:
-            start_time = "开始"
-            end_time = "结束"
-            characters = ["角色A"]
-            locations = ["地点A"]
-            summary = "章节摘要"
+            start_time = "Mulai"
+            end_time = "Selesai"
+            characters = ["Tokoh A"]
+            locations = ["Lokasi A"]
+            summary = "Ringkasan bab"
             token_count = 12
 
         async def fake_generate(_client, _prompt, **_audit_kwargs):
@@ -1704,8 +1796,8 @@ async def test_summary_batch_progress_event_contains_aggregated_batch_progress(t
     engine, factory = await _configure_file_database(tmp_path)
     session = factory()
     try:
-        project = Project(title="项目", description="")
-        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="第一章", content="正文" * 400, word_count=800, order=1)
+        project = Project(title="Proyek", description="")
+        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="Bab 1", content="Isi utama" * 400, word_count=800, order=1)
         session.add(project)
         session.add(_default_volume(project))
         session.add(chapter)
@@ -1715,11 +1807,11 @@ async def test_summary_batch_progress_event_contains_aggregated_batch_progress(t
         await session.commit()
 
         class FakeChapterSummaryResult:
-            start_time = "开始"
-            end_time = "结束"
-            characters = ["角色A"]
-            locations = ["地点A"]
-            summary = "章节摘要"
+            start_time = "Mulai"
+            end_time = "Selesai"
+            characters = ["Tokoh A"]
+            locations = ["Lokasi A"]
+            summary = "Ringkasan bab"
             token_count = 12
 
         async def fake_resolve_background_llm(_session, model_policy: str, model_id: str | None):
@@ -1769,8 +1861,8 @@ async def test_summary_batch_emits_item_progress_and_terminal_events(tmp_path, m
     engine, factory = await _configure_file_database(tmp_path)
     session = factory()
     try:
-        project = Project(title="项目", description="")
-        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="第一章", content="正文" * 400, word_count=800, order=1)
+        project = Project(title="Proyek", description="")
+        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="Bab 1", content="Isi utama" * 400, word_count=800, order=1)
         session.add(project)
         session.add(_default_volume(project))
         session.add(chapter)
@@ -1780,11 +1872,11 @@ async def test_summary_batch_emits_item_progress_and_terminal_events(tmp_path, m
         await session.commit()
 
         class FakeChapterSummaryResult:
-            start_time = "开始"
-            end_time = "结束"
-            characters = ["角色A"]
-            locations = ["地点A"]
-            summary = "章节摘要"
+            start_time = "Mulai"
+            end_time = "Selesai"
+            characters = ["Tokoh A"]
+            locations = ["Lokasi A"]
+            summary = "Ringkasan bab"
             token_count = 12
 
         async def fake_resolve_background_llm(_session, model_policy: str, model_id: str | None):
@@ -1872,7 +1964,7 @@ async def test_summary_batch_progress_treats_pending_items_as_zero_progress(tmp_
                 type="chapter_summary",
                 status=JOB_STATUS_PENDING,
                 payload_json='{"chapter_id":"chapter-1"}',
-                progress_json='{"current":0,"total":3,"message":"已加入队列"}',
+                progress_json='{"current":0,"total":3,"message":"Sudah masuk antrean"}',
                 order_index=0,
             )
         )
@@ -1881,7 +1973,7 @@ async def test_summary_batch_progress_treats_pending_items_as_zero_progress(tmp_
         payload = summary_batch_definition._build_batch_progress_payload(
             job,
             await background_service.list_job_items(session, job_id=job.id),
-            message="已加入队列",
+            message="Sudah masuk antrean",
         )
 
         assert payload["current"] == 0
@@ -1899,8 +1991,8 @@ async def test_append_chapter_summary_items_keeps_ready_summary_ready(tmp_path):
     engine, factory = await _configure_file_database(tmp_path)
     session = factory()
     try:
-        project = Project(title="项目", description="")
-        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="第一章", content="正文" * 400, word_count=800, order=1)
+        project = Project(title="Proyek", description="")
+        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="Bab 1", content="Isi utama" * 400, word_count=800, order=1)
         session.add(project)
         session.add(_default_volume(project))
         session.add(chapter)
@@ -1914,7 +2006,7 @@ async def test_append_chapter_summary_items_keeps_ready_summary_ready(tmp_path):
             chapter_order=chapter.order,
             start_order=chapter.order,
             end_order=chapter.order,
-            summary="已完成摘要",
+            summary="Ringkasan selesai",
             source_content_normalized=summary_service.normalize_summary_source_content(chapter.content),
         )
         session.add(summary)
@@ -1943,8 +2035,8 @@ async def test_append_chapter_summary_items_creates_item_for_stale_ready_without
     engine, factory = await _configure_file_database(tmp_path)
     session = factory()
     try:
-        project = Project(title="项目", description="")
-        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="第一章", content="新正文" * 400, word_count=800, order=1)
+        project = Project(title="Proyek", description="")
+        chapter = Chapter(project_id=project.id, volume_id=_default_volume_id(project), title="Bab 1", content="Isi utama baru" * 400, word_count=800, order=1)
         session.add(project)
         session.add(_default_volume(project))
         session.add(chapter)
@@ -1958,8 +2050,8 @@ async def test_append_chapter_summary_items_creates_item_for_stale_ready_without
             chapter_order=chapter.order,
             start_order=chapter.order,
             end_order=chapter.order,
-            summary="旧摘要",
-            source_content_normalized="旧正文",
+            summary="Ringkasan lama",
+            source_content_normalized="Isi utama lama",
         )
         session.add(summary)
         await session.commit()
@@ -2181,12 +2273,12 @@ async def test_watchdog_times_out_expired_summary_batch_and_finalizes_running_it
     engine, factory = await _configure_file_database(tmp_path)
     session = factory()
     try:
-        project = Project(title="项目", description="")
+        project = Project(title="Proyek", description="")
         chapter = Chapter(
             project_id=project.id,
             volume_id=_default_volume_id(project),
-            title="第一章",
-            content="正文" * 400,
+            title="Bab 1",
+            content="Isi utama" * 400,
             word_count=800,
             order=1,
         )
@@ -2249,7 +2341,9 @@ async def test_watchdog_times_out_expired_summary_batch_and_finalizes_running_it
         assert stored_job.status == JOB_STATUS_TIMEOUT
         assert stored_item.status == JOB_STATUS_FAILED
         assert stored_summary.status == SUMMARY_STATUS_FAILED
-        assert stored_summary.error_message == "后台任务 worker lease 已过期"
+        assert stored_summary.error_message == (
+            "Lease worker tugas latar belakang sudah kedaluwarsa"
+        )
         item_events = [event for event in transport.events if event.type == "background_item_failed"]
         assert len(item_events) == 1
         assert item_events[0].item_id == item.id
@@ -2263,20 +2357,20 @@ async def test_startup_finalizes_orphan_items_of_terminal_summary_batch(tmp_path
     engine, factory = await _configure_file_database(tmp_path)
     session = factory()
     try:
-        project = Project(title="项目", description="")
+        project = Project(title="Proyek", description="")
         chapter_one = Chapter(
             project_id=project.id,
             volume_id=_default_volume_id(project),
-            title="第一章",
-            content="正文" * 400,
+            title="Bab 1",
+            content="Isi utama" * 400,
             word_count=800,
             order=1,
         )
         chapter_two = Chapter(
             project_id=project.id,
             volume_id=_default_volume_id(project),
-            title="第二章",
-            content="正文" * 400,
+            title="Bab 2",
+            content="Isi utama" * 400,
             word_count=800,
             order=2,
         )

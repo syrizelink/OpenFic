@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# ---- 前端构建：固定到构建平台（amd64）一次构建，产物与架构无关 ----
+# ---- Build frontend: dipaku ke platform build (amd64), sekali build, hasilnya lepas dari arsitektur ----
 FROM --platform=$BUILDPLATFORM node:22-slim AS frontend
 WORKDIR /build
 RUN apt-get update \
@@ -14,7 +14,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 COPY frontend/ ./
 RUN pnpm build
 
-# ---- 后端运行：按目标平台构建（amd64 / arm64）----
+# ---- Runtime backend: dibangun sesuai platform target (amd64 / arm64) ----
 FROM python:3.12-slim AS backend
 
 ENV PYTHONUNBUFFERED=1 \
@@ -26,19 +26,19 @@ COPY --from=ghcr.io/astral-sh/uv:0.7 /uv /uvx /bin/
 
 WORKDIR /app
 
-# 先装依赖（利用层缓存）
+# Pasang dependensi lebih dulu (memanfaatkan cache layer)
 COPY backend/pyproject.toml backend/uv.lock ./
 RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project
 
-# 复制后端源码
+# Salin kode sumber backend
 COPY backend/ ./
 
-# 安装当前项目以写入发行版元数据，供运行时读取版本号
+# Pasang proyek ini agar metadata distribusi tertulis, supaya nomor versi terbaca saat runtime
 RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
-# 前端构建产物打入包内
+# Masukkan hasil build frontend ke dalam paket
 COPY --from=frontend /build/dist ./app/frontend_dist
 
 ENV OPENFIC_FRONTEND_DIST=/app/app/frontend_dist \

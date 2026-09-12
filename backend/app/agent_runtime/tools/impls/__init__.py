@@ -1,4 +1,9 @@
 import app.agent_runtime.tools.impls.chapter.read_chapter  # noqa: F401
+
+# Pencarian bab tersedia pada semua mode: deployment cloud-only memakai adapter
+# SQLite FTS5 (pencarian kata kunci), sedangkan deployment biasa memakai LanceDB
+# (hibrida vektor + BM25). Pemilihan adapter terjadi di
+# ``OpenFicRetrievalService._engine_for``.
 import app.agent_runtime.tools.impls.chapter.search_chapters  # noqa: F401
 import app.agent_runtime.tools.impls.chapter.update_index  # noqa: F401
 import app.agent_runtime.tools.impls.chapter.write_chapter  # noqa: F401

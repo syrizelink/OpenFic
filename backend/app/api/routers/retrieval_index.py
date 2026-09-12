@@ -35,7 +35,7 @@ router = APIRouter(prefix="/projects/{project_id}/retrieval/index", tags=["retri
 global_router = APIRouter(prefix="/retrieval/index", tags=["retrieval"])
 
 
-_BLOCKING_DETAIL = "未配置可用的嵌入模型，无法操作检索索引"
+_BLOCKING_DETAIL = "Belum ada model embedding yang tersedia, indeks pencarian tidak dapat dioperasikan"
 
 
 async def _require_project(session: AsyncSession, project_id: str):
@@ -43,7 +43,7 @@ async def _require_project(session: AsyncSession, project_id: str):
     if project is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"项目不存在: {project_id}",
+            detail=f"Proyek tidak ditemukan: {project_id}",
         )
     return project
 
@@ -76,7 +76,7 @@ async def start_project_retrieval_index(
     if not is_project_index_enabled(config, project_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="当前项目未启用索引",
+            detail="Proyek saat ini belum mengaktifkan indeks",
         )
     if await resolve_index_embedding_model(session, config) is None:
         raise HTTPException(
@@ -114,7 +114,7 @@ async def stop_project_retrieval_index(
             session,
             publisher,
             job,
-            reason="用户停止索引",
+            reason="Pengguna menghentikan pengindeksan",
         )
     schedule_emit_index_status(session, project_id)
     await background_service.commit_and_notify(session)
@@ -146,7 +146,7 @@ async def get_overall_retrieval_index_status(
             else set(config.enabled_projects)
         )
         targets = [project for project in all_projects if project.id in enabled_ids]
-        # 批量查询各项目章节/索引/状态并内存聚合，避免按项目串行的 N+1 查询。
+        # Mengambil bab/indeks/status semua proyek secara massal lalu diagregasi di memori, untuk menghindari kueri N+1 serial per proyek.
         statuses = await compute_projects_index_status(
             session, config=config, model=model, projects=targets
         )

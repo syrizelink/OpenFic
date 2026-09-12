@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-WorldInfo API 测试。
+Uji API WorldInfo.
 """
 
 import pytest
@@ -9,10 +9,10 @@ from httpx import AsyncClient
 
 @pytest.mark.asyncio
 async def test_get_project_world_info_auto_creates(client: AsyncClient) -> None:
-    """按项目读取世界书时自动创建。"""
+    """Buku dunia dibuat otomatis saat dibaca per proyek."""
     project_resp = await client.post(
         "/api/v1/projects",
-        data={"title": "测试小说"},
+        data={"title": "Novel Uji"},
     )
     assert project_resp.status_code == 201
     project_id = project_resp.json()["id"]
@@ -27,10 +27,10 @@ async def test_get_project_world_info_auto_creates(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_get_project_world_info_returns_same_world_info(client: AsyncClient) -> None:
-    """同一项目重复读取返回同一个世界书。"""
+    """Pembacaan berulang pada proyek yang sama mengembalikan buku dunia yang sama."""
     project_resp = await client.post(
         "/api/v1/projects",
-        data={"title": "测试小说"},
+        data={"title": "Novel Uji"},
     )
     project_id = project_resp.json()["id"]
 
@@ -45,17 +45,17 @@ async def test_get_project_world_info_returns_same_world_info(client: AsyncClien
 
 @pytest.mark.asyncio
 async def test_get_project_world_info_project_not_found(client: AsyncClient) -> None:
-    """项目不存在时返回 404。"""
+    """Mengembalikan 404 saat proyek tidak ada."""
     response = await client.get("/api/v1/projects/nonexistent/world-info")
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_create_world_info_endpoint_is_disabled(client: AsyncClient) -> None:
-    """不允许直接创建世界书。"""
+    """Pembuatan buku dunia secara langsung tidak diizinkan."""
     response = await client.post(
         "/api/v1/world-info",
-        json={"name": "测试世界书"},
+        json={"name": "Buku Dunia Uji"},
     )
 
     assert response.status_code == 404
@@ -63,10 +63,10 @@ async def test_create_world_info_endpoint_is_disabled(client: AsyncClient) -> No
 
 @pytest.mark.asyncio
 async def test_update_world_info_endpoint_is_disabled(client: AsyncClient) -> None:
-    """不允许更新世界书本体。"""
+    """Pembaruan entitas buku dunia itu sendiri tidak diizinkan."""
     project_resp = await client.post(
         "/api/v1/projects",
-        data={"title": "测试小说"},
+        data={"title": "Novel Uji"},
     )
     world_info_resp = await client.get(
         f"/api/v1/projects/{project_resp.json()['id']}/world-info"
@@ -75,7 +75,7 @@ async def test_update_world_info_endpoint_is_disabled(client: AsyncClient) -> No
 
     response = await client.patch(
         f"/api/v1/world-info/{world_info_id}",
-        json={"name": "新名称"},
+        json={"name": "Nama Baru"},
     )
 
     assert response.status_code == 405
@@ -83,10 +83,10 @@ async def test_update_world_info_endpoint_is_disabled(client: AsyncClient) -> No
 
 @pytest.mark.asyncio
 async def test_delete_world_info_cascades_entries(client: AsyncClient) -> None:
-    """删除世界书时级联删除条目。"""
+    """Menghapus buku dunia menghapus entrinya secara berantai."""
     project_resp = await client.post(
         "/api/v1/projects",
-        data={"title": "测试小说"},
+        data={"title": "Novel Uji"},
     )
     project_id = project_resp.json()["id"]
     world_info_resp = await client.get(f"/api/v1/projects/{project_id}/world-info")
@@ -94,7 +94,7 @@ async def test_delete_world_info_cascades_entries(client: AsyncClient) -> None:
 
     entry_resp = await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "测试条目"},
+        json={"name": "Entri Uji"},
     )
     entry_id = entry_resp.json()["id"]
 

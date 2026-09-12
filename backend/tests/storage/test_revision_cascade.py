@@ -25,11 +25,11 @@ def _revision(revision_id: str, project_id: str, task_id: str | None = None) -> 
         id=revision_id,
         project_id=project_id,
         task_id=task_id,
-        message="版本",
+        message="Revisi",
         revision_type="agent",
         status="completed",
         is_checkpoint=True,
-        project_snapshot_title="标题",
+        project_snapshot_title="Judul",
     )
 
 
@@ -52,20 +52,20 @@ async def _blob_count(session: AsyncSession) -> int:
 
 
 async def _seed_two_revisions(session: AsyncSession):
-    long_shared = "这是共享的一段很长正文。" * 200
-    long_exclusive = "这是独占的一段很长正文。" * 200
+    long_shared = "Ini adalah isi utama panjang yang dipakai bersama." * 200
+    long_exclusive = "Ini adalah isi utama panjang yang dipakai eksklusif." * 200
 
     shared_blob = await revision_content_blob_repo.put(session, long_shared)
     exclusive_blob = await revision_content_blob_repo.put(session, long_exclusive)
     await session.commit()
 
-    session.add(Project(id="proj-1", title="项目一"))
-    session.add(Project(id="proj-2", title="项目二"))
+    session.add(Project(id="proj-1", title="Proyek Satu"))
+    session.add(Project(id="proj-2", title="Proyek Dua"))
     session.add(
-        Task(id="task-1", project_id="proj-1", title="任务一", mode="agent", agent_session_id="sess-1")
+        Task(id="task-1", project_id="proj-1", title="Tugas Satu", mode="agent", agent_session_id="sess-1")
     )
     session.add(
-        Task(id="task-2", project_id="proj-2", title="任务二", mode="agent", agent_session_id="sess-2")
+        Task(id="task-2", project_id="proj-2", title="Tugas Dua", mode="agent", agent_session_id="sess-2")
     )
     session.add(_revision("rev-1", "proj-1", task_id="task-1"))
     session.add(_revision("rev-2", "proj-2", task_id="task-2"))

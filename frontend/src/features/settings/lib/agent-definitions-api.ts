@@ -1,7 +1,7 @@
 /**
  * Agent Definitions API
  *
- * 智能体定义 API 客户端，对接后端 /agent-definitions。
+ * Klien API definisi agen, terhubung ke /agent-definitions di backend.
  */
 
 import { apiClient } from "@/lib/api-client";

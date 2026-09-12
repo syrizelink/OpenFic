@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-测试全局阅读序位 helper 函数。
+Uji fungsi helper urutan baca global.
 """
 
 from app.memory.chapter.sequence import (
@@ -33,7 +33,7 @@ def _make_volume(volume_id: str, order: int) -> Volume:
 
 
 class TestGlobalReadingSequence:
-    """测试 global_reading_sequence 排序行为。"""
+    """Uji perilaku pengurutan global_reading_sequence."""
 
     def test_single_volume_yields_enumerated_order(self) -> None:
         volumes = [_make_volume("v1", 1)]
@@ -98,7 +98,7 @@ class TestGlobalReadingSequence:
 
 
 class TestGlobalOrderIndex:
-    """测试 global_order_index。"""
+    """Uji global_order_index."""
 
     def test_returns_mapping_from_ids(self) -> None:
         volumes = [
@@ -119,7 +119,7 @@ class TestGlobalOrderIndex:
 
 
 class TestChapterByGlobalOrder:
-    """测试 chapter_by_global_order。"""
+    """Uji chapter_by_global_order."""
 
     def test_returns_inverse_mapping(self) -> None:
         volumes = [
@@ -140,7 +140,7 @@ class TestChapterByGlobalOrder:
 
 
 class TestConsistency:
-    """测试三个函数间的一致性。"""
+    """Uji konsistensi antara ketiga fungsi."""
 
     def test_index_and_by_order_are_inverse(self) -> None:
         volumes = [_make_volume("v1", 1), _make_volume("v2", 2)]

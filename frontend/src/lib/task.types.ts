@@ -1,10 +1,10 @@
 /**
  * Task Types
  *
- * 任务相关类型定义。
+ * Definisi tipe terkait tugas.
  */
 
-/** 任务消息 */
+/** Pesan tugas */
 export interface TaskMessage {
   id: string;
   taskId?: string | null;
@@ -23,7 +23,7 @@ export interface TaskMessage {
   updatedAt?: string;
 }
 
-/** 任务列表项 */
+/** Item daftar tugas */
 export interface TaskListItem {
   id: string;
   projectId: string;
@@ -39,7 +39,7 @@ export interface TaskListItem {
   updatedAt: string;
 }
 
-/** 任务详情 */
+/** Detail tugas */
 export interface Task {
   id: string;
   projectId: string;
@@ -59,13 +59,13 @@ export interface Task {
   updatedAt: string;
 }
 
-/** 任务列表响应 */
+/** Respons daftar tugas */
 export interface TaskListResponse {
   items: TaskListItem[];
   total: number;
 }
 
-/** 更新任务请求 */
+/** Permintaan pembaruan tugas */
 export interface UpdateTaskRequest {
   title?: string;
   is_favorited?: boolean;

@@ -1,8 +1,8 @@
 /**
  * Clipboard Utilities
  *
- * navigator.clipboard 仅在安全上下文(https/localhost)中可用,
- * 在非安全上下文(如 http 局域网部署)或权限被拒时降级为 execCommand。
+ * navigator.clipboard hanya tersedia pada konteks aman (https/localhost),
+ * pada konteks tidak aman (misalnya penggelaran http di jaringan lokal) atau saat izin ditolak, digunakan execCommand sebagai penurunan.
  */
 
 export type ClipboardReadResult =
@@ -26,7 +26,7 @@ export async function writeClipboardText(text: string): Promise<boolean> {
       await navigator.clipboard.writeText(text);
       return true;
     } catch {
-      // 权限被拒,继续尝试降级方案
+      // Izin ditolak, penurunan tetap dicoba
     }
   }
   return copyWithExecCommand(text);

@@ -1,4 +1,5 @@
-"""Skill 工具：按需激活技能与读取参考文档。"""
+"""Alat Skill: mengaktifkan skill sesuai kebutuhan dan membaca dokumen
+referensi."""
 
 from collections.abc import Iterable
 from textwrap import dedent
@@ -23,7 +24,8 @@ async def skill_tool_names_for_definition(
     referenced_skill_ids: Iterable[str] = (),
     allow_runtime_skill_references: bool = False,
 ) -> tuple[str, ...]:
-    """当 agent 存在实际可用技能时，才返回 skill 工具名；否则返回空。"""
+    """Mengembalikan nama alat skill hanya bila agent benar-benar memiliki skill
+    yang dapat dipakai; jika tidak, kembalikan kosong."""
     normalized_references = {
         skill_id.strip()
         for skill_id in referenced_skill_ids
@@ -56,12 +58,24 @@ async def skill_tool_names_for_definition(
 
 
 class ActivateSkillInput(BaseModel):
-    skill_name: str = Field(description="要激活的技能名称，必须在可用技能列表中")
+    skill_name: str = Field(
+        description=(
+            "Nama skill yang akan diaktifkan, harus ada di dalam daftar skill yang "
+            "tersedia"
+        )
+    )
 
 
 class ReferenceSkillInput(BaseModel):
-    skill_name: str = Field(description="技能名称，必须在可用技能列表中")
-    reference_name: str = Field(description="参考文档名称，来自 activate_skill 返回的 ref 列表")
+    skill_name: str = Field(
+        description="Nama skill, harus ada di dalam daftar skill yang tersedia"
+    )
+    reference_name: str = Field(
+        description=(
+            "Nama dokumen referensi, berasal dari daftar ref yang dikembalikan "
+            "activate_skill"
+        )
+    )
 
 
 def _agent_key_from_state(state: dict) -> str:
@@ -71,7 +85,7 @@ def _agent_key_from_state(state: dict) -> str:
 async def _resolve_authorized_skill(session: AsyncSession, state: dict, skill_name: str):
     normalized = skill_name.strip()
     if not normalized:
-        raise ToolExecutionError("技能名称不能为空")
+        raise ToolExecutionError("Nama skill tidak boleh kosong")
 
     agent_key = _agent_key_from_state(state)
     definition = await load_agent_definition(session, agent_key)
@@ -99,7 +113,9 @@ async def _resolve_authorized_skill(session: AsyncSession, state: dict, skill_na
                 None,
             )
     if skill is None:
-        raise ToolExecutionError(f"技能不在该智能体的可用列表中: {normalized}")
+        raise ToolExecutionError(
+            f"Skill tidak ada di dalam daftar yang tersedia untuk agen ini: {normalized}"
+        )
 
     return skill
 
@@ -108,8 +124,10 @@ async def _resolve_authorized_skill(session: AsyncSession, state: dict, skill_na
 class ActivateSkillTool(AgentTool):
     name: str = "activate_skill"
     description: str = dedent("""\
-        获取指定技能的完整内容与参考文档列表。
-        <available_skills>中给出了可用的技能列表，当指定了不在列表中的技能时将被拒绝。
+        Mengambil isi lengkap skill yang ditentukan beserta daftar dokumen
+        referensinya.
+        <available_skills> memuat daftar skill yang tersedia; bila skill yang
+        ditentukan tidak ada di dalam daftar itu, permintaan akan ditolak.
     """)
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ActivateSkillInput
@@ -134,8 +152,9 @@ class ActivateSkillTool(AgentTool):
 class ReferenceSkillTool(AgentTool):
     name: str = "reference_skill"
     description: str = dedent("""\
-        读取技能的指定参考文档内容。
-        在使用该工具前，应先activate_skill得到对应的reference_name。
+        Membaca isi dokumen referensi tertentu dari sebuah skill.
+        Sebelum memakai alat ini, activate_skill harus dijalankan lebih dulu untuk
+        mendapatkan reference_name yang sesuai.
     """)
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ReferenceSkillInput
@@ -143,7 +162,7 @@ class ReferenceSkillTool(AgentTool):
     async def _execute(self, skill_name: str, reference_name: str) -> str:
         normalized_ref = reference_name.strip()
         if not normalized_ref:
-            raise ToolExecutionError("参考文档名称不能为空")
+            raise ToolExecutionError("Nama dokumen referensi tidak boleh kosong")
 
         session = await create_session()
         try:
@@ -154,9 +173,10 @@ class ReferenceSkillTool(AgentTool):
 
         doc = next((d for d in docs if d.title == normalized_ref), None)
         if doc is None:
-            available = ", ".join(d.title for d in docs if d.title) or "无"
+            available = ", ".join(d.title for d in docs if d.title) or "tidak ada"
             raise ToolExecutionError(
-                f"参考文档不存在: {normalized_ref}（可用: {available}）"
+                f"Dokumen referensi tidak ditemukan: {normalized_ref} "
+                f"(yang tersedia: {available})"
             )
 
         body = (doc.content or "").strip()

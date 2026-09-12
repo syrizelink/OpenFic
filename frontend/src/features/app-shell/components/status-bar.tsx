@@ -50,6 +50,7 @@ function StatusBarSection({ items, side }: { items: StatusBarItem[]; side: "left
 }
 
 function SocketStatusItem() {
+  const { t } = useTranslation();
   const status = useSyncExternalStore(
     subscribeSocketConnectionStatus,
     getSocketConnectionStatus,
@@ -62,13 +63,15 @@ function SocketStatusItem() {
       className="app-status-bar__connection"
       data-state={status}
       data-slot="socket-status"
-      aria-label={isConnected ? "Socket 已连接" : "Socket 连接断开"}
+      aria-label={
+        isConnected ? t("common.socketConnectedLabel") : t("common.socketDisconnectedLabel")
+      }
     >
       <span
         className="app-status-bar__connection-dot"
         aria-hidden="true"
       />
-      {isConnected ? "已连接" : "连接断开"}
+      {isConnected ? t("common.socketConnected") : t("common.socketDisconnected")}
     </span>
   );
 }
@@ -207,6 +210,7 @@ function IndexProgressStatusItem({
 }
 
 export function StatusBar({ version }: StatusBarProps) {
+  const { t } = useTranslation();
   const { data: indexStatus } = useOverallIndexStatus();
   const indexProgressState = useMemo(
     () => getIndexProgressState(indexStatus?.projects ?? []),
@@ -242,7 +246,7 @@ export function StatusBar({ version }: StatusBarProps) {
     <footer
       className="app-status-bar"
       data-slot="status-bar"
-      aria-label="应用状态栏"
+      aria-label={t("common.appStatusBar")}
     >
       <StatusBarSection
         items={leftItems}

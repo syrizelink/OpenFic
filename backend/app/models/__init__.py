@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-Models Module - 模型相关功能模块。
+Models Module - modul fungsionalitas terkait model.
 
-包含：
-- entities: 数据模型实体（Model, ModelProvider）
-- repos: 数据仓库（model_repo, model_provider_repo）
-- services: 业务逻辑层（ModelService, ModelProviderService）
-- adapters: Provider适配器
-- strategies: 参数校验策略
-- registry: Adapter注册表
+Berisi:
+- entities: entitas model data (Model, ModelProvider)
+- repos: repositori data (model_repo, model_provider_repo)
+- services: lapisan logika bisnis (ModelService, ModelProviderService)
+- adapters: adapter penyedia
+- strategies: strategi validasi parameter
+- registry: tabel registrasi adapter
 """
 
 from app.models.entities import Model, ModelProvider

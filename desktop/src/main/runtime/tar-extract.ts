@@ -44,13 +44,13 @@ const BACKUP_RETRY_BASE_DELAY_MS = 250;
 async function assertNoSymlink(entryPath: string): Promise<void> {
   const info = await lstat(entryPath);
   if (info.isSymbolicLink()) {
-    throw new Error(`拒绝处理符号链接：${entryPath}`);
+    throw new Error(`Menolak memproses tautan simbolik: ${entryPath}`);
   }
   if (info.isDirectory()) {
     const entries = await readdir(entryPath, { withFileTypes: true });
     for (const entry of entries) {
       if (entry.isSymbolicLink()) {
-        throw new Error(`拒绝处理符号链接：${path.join(entryPath, entry.name)}`);
+        throw new Error(`Menolak memproses tautan simbolik: ${path.join(entryPath, entry.name)}`);
       }
       if (entry.isDirectory()) await assertNoSymlink(path.join(entryPath, entry.name));
     }
@@ -104,12 +104,12 @@ export async function copyTree(
   const sourceStat = await lstat(sourcePath);
   if (sourceStat.isSymbolicLink()) {
     if (!preserveSymlinks) {
-      onLog?.(`跳过符号链接：${sourcePath}`);
+      onLog?.(`Melewati tautan simbolik: ${sourcePath}`);
       return;
     }
     const link = await readlink(sourcePath);
     if (path.isAbsolute(link)) {
-      onLog?.(`跳过绝对路径符号链接：${sourcePath} -> ${link}`);
+      onLog?.(`Melewati tautan simbolik dengan path absolut: ${sourcePath} -> ${link}`);
       return;
     }
     await mkdir(path.dirname(targetPath), { recursive: true });
@@ -129,7 +129,7 @@ export async function copyTree(
     await cp(sourcePath, targetPath);
   } catch (error) {
     if (isLockError(error)) {
-      onLog?.(`跳过被占用的文件：${targetPath}（${(error as NodeJS.ErrnoException).code}）`);
+      onLog?.(`Melewati berkas yang sedang dipakai: ${targetPath} (${(error as NodeJS.ErrnoException).code})`);
       return;
     }
     throw error;
@@ -172,7 +172,7 @@ function logProcessOutput(stream: NodeJS.ReadableStream, onLog?: (message: strin
 
 async function extractWithSystemTar(archivePath: string, outputDir: string, onLog?: (message: string) => void): Promise<void> {
   await new Promise<void>((resolve, reject) => {
-    onLog?.(`执行解压命令：tar -xzf ${archivePath} -C ${outputDir}`);
+    onLog?.(`Menjalankan perintah ekstraksi: tar -xzf ${archivePath} -C ${outputDir}`);
     const child = spawn("tar", ["-xzf", archivePath, "-C", outputDir], {
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],
@@ -180,17 +180,17 @@ async function extractWithSystemTar(archivePath: string, outputDir: string, onLo
     logProcessOutput(child.stdout, onLog);
     logProcessOutput(child.stderr, onLog);
     child.once("error", (error) => {
-      onLog?.(`解压命令启动失败：${error.message}`);
+      onLog?.(`Perintah ekstraksi gagal dijalankan: ${error.message}`);
       reject(error);
     });
     child.once("exit", (code) => {
       if (code === 0) {
-        onLog?.("解压命令执行完成");
+        onLog?.("Perintah ekstraksi selesai");
         resolve();
         return;
       }
       const error = new Error(`tar exited with code ${code}`);
-      onLog?.(`解压命令执行失败：${error.message}`);
+      onLog?.(`Perintah ekstraksi gagal: ${error.message}`);
       reject(error);
     });
   });
@@ -260,7 +260,7 @@ export async function extractTarGz(
         rollbackKept = true;
         const detail = rollbackError instanceof Error ? rollbackError.message : String(rollbackError);
         throw new Error(
-          `还原失败，且自动回滚失败：${detail}。已保留回滚备份目录 ${rollbackDir}，可手动将其内容复制回 ${outputDir}`,
+          `Pemulihan gagal dan rollback otomatis juga gagal: ${detail}. Direktori cadangan rollback ${rollbackDir} dipertahankan, isinya dapat disalin kembali secara manual ke ${outputDir}`,
           { cause: error },
         );
       }
@@ -277,7 +277,7 @@ async function extractIntoDirectory(archivePath: string, outputDir: string, onLo
     await extractWithSystemTar(archivePath, outputDir, onLog);
   } catch (error) {
     if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error;
-    onLog?.("未找到系统 tar，改用内置解压器");
+    onLog?.("tar sistem tidak ditemukan, memakai pengekstrak bawaan");
     await extractWithBuiltInTar(archivePath, outputDir);
   }
 }
@@ -352,7 +352,7 @@ async function removeEntry(fullPath: string, onLog?: (message: string) => void):
     await rm(fullPath, { recursive: true, force: true });
   } catch (error) {
     if (isLockError(error)) {
-      onLog?.(`保留被占用的文件：${fullPath}（${(error as NodeJS.ErrnoException).code}）`);
+      onLog?.(`Mempertahankan berkas yang sedang dipakai: ${fullPath} (${(error as NodeJS.ErrnoException).code})`);
       return;
     }
     throw error;
@@ -413,7 +413,7 @@ async function verifyRestoredFiles(referenceDir: string, targetDir: string): Pro
   try {
     entries = await readdir(referenceDir, { recursive: true, withFileTypes: true });
   } catch (error) {
-    throw new Error(`校验还原结果失败：${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Gagal memverifikasi hasil pemulihan: ${error instanceof Error ? error.message : String(error)}`);
   }
   for (const entry of entries) {
     if (!entry.isFile()) continue;
@@ -425,25 +425,25 @@ async function verifyRestoredFiles(referenceDir: string, targetDir: string): Pro
     try {
       targetStat = await stat(targetPath);
     } catch {
-      throw new Error(`还原校验失败：缺少文件 ${relativePath}`);
+      throw new Error(`Verifikasi pemulihan gagal: berkas ${relativePath} tidak ada`);
     }
     let expectedSize: number;
     try {
       expectedSize = (await stat(sourcePath)).size;
     } catch (error) {
-      throw new Error(`还原校验失败：无法读取备份文件 ${relativePath}：${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Verifikasi pemulihan gagal: tidak dapat membaca berkas cadangan ${relativePath}: ${error instanceof Error ? error.message : String(error)}`);
     }
     if (targetStat.size !== expectedSize) {
-      throw new Error(`还原校验失败：文件大小不一致 ${relativePath}（期望 ${expectedSize}，实际 ${targetStat.size}）`);
+      throw new Error(`Verifikasi pemulihan gagal: ukuran berkas tidak konsisten ${relativePath} (diharapkan ${expectedSize}, aktual ${targetStat.size})`);
     }
     let expectedHash: string;
     try {
       expectedHash = await hashFile(sourcePath);
     } catch (error) {
-      throw new Error(`还原校验失败：无法读取备份文件 ${relativePath}：${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Verifikasi pemulihan gagal: tidak dapat membaca berkas cadangan ${relativePath}: ${error instanceof Error ? error.message : String(error)}`);
     }
     if ((await hashFile(targetPath)) !== expectedHash) {
-      throw new Error(`还原校验失败：文件内容与备份不符 ${relativePath}`);
+      throw new Error(`Verifikasi pemulihan gagal: isi berkas tidak sesuai dengan cadangan ${relativePath}`);
     }
   }
 }

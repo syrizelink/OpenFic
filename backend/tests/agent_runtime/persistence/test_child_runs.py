@@ -403,7 +403,7 @@ async def test_rollback_child_runs_restores_notify_request_to_previous_completed
                 task_id=sample_task.id,
                 project_id=sample_task.project_id,
                 role="user",
-                content="第一轮任务",
+                content="Tugas putaran pertama",
                 status="sent",
                 message_type="user_request",
                 seq=0,
@@ -413,7 +413,7 @@ async def test_rollback_child_runs_restores_notify_request_to_previous_completed
                 task_id=sample_task.id,
                 project_id=sample_task.project_id,
                 role="assistant",
-                content="第一轮结果",
+                content="Hasil putaran pertama",
                 status="complete",
                 seq=1,
             ),
@@ -422,14 +422,14 @@ async def test_rollback_child_runs_restores_notify_request_to_previous_completed
     await complete_child_run_request(
         db_session,
         first_request.id,
-        assistant_content="第一轮结果",
+        assistant_content="Hasil putaran pertama",
     )
 
     notify_request = await enqueue_child_run_request(
         db_session,
         child_run_id=row.id,
         request_kind="notify",
-        content="第二轮任务",
+        content="Tugas putaran kedua",
         parent_revision_id="rev-2",
         child_user_message_id="child-user-2",
         child_user_message_seq=2,
@@ -442,7 +442,7 @@ async def test_rollback_child_runs_restores_notify_request_to_previous_completed
                 task_id=sample_task.id,
                 project_id=sample_task.project_id,
                 role="user",
-                content="第二轮任务",
+                content="Tugas putaran kedua",
                 status="sent",
                 message_type="user_request",
                 seq=2,
@@ -452,7 +452,7 @@ async def test_rollback_child_runs_restores_notify_request_to_previous_completed
                 task_id=sample_task.id,
                 project_id=sample_task.project_id,
                 role="assistant",
-                content="第二轮结果",
+                content="Hasil putaran kedua",
                 status="complete",
                 seq=3,
             ),
@@ -461,7 +461,7 @@ async def test_rollback_child_runs_restores_notify_request_to_previous_completed
     await complete_child_run_request(
         db_session,
         notify_request.id,
-        assistant_content="第二轮结果",
+        assistant_content="Hasil putaran kedua",
     )
 
     rollback_result = await rollback_child_runs_for_parent_revisions(
@@ -483,10 +483,10 @@ async def test_rollback_child_runs_restores_notify_request_to_previous_completed
     assert restored is not None
     assert restored.is_active is True
     assert restored.status == "completed"
-    assert restored.last_assistant_content == "第一轮结果"
+    assert restored.last_assistant_content == "Hasil putaran pertama"
     assert rolled_back_request is not None
     assert rolled_back_request.status == "cancelled"
-    assert [message.content for message in messages] == ["第一轮任务", "第一轮结果"]
+    assert [message.content for message in messages] == ["Tugas putaran pertama", "Hasil putaran pertama"]
 
 @pytest.mark.asyncio
 async def test_hidden_system_reminder_remains_visible_to_llm_history(

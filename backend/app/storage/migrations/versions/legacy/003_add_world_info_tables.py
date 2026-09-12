@@ -19,8 +19,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """创建 world_info 和 world_info_entries 表。"""
-    # 创建 world_info 表
+    """Membuat tabel world_info dan world_info_entries."""
+    # Membuat tabel world_info
     op.create_table(
         "world_info",
         sa.Column("id", sa.Text(), nullable=False),
@@ -41,7 +41,7 @@ def upgrade() -> None:
         unique=True,
     )
 
-    # 创建 world_info_entries 表
+    # Membuat tabel world_info_entries
     op.create_table(
         "world_info_entries",
         sa.Column("id", sa.Text(), nullable=False),
@@ -82,7 +82,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """删除 world_info 和 world_info_entries 表。"""
+    """Menghapus tabel world_info dan world_info_entries."""
     op.drop_index(
         op.f("ix_world_info_entries_order"),
         table_name="world_info_entries",

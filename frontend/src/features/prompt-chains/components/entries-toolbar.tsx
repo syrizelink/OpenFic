@@ -1,7 +1,7 @@
 /**
  * Entries Toolbar Component
  *
- * 条目列表工具栏，包含搜索和操作按钮。
+ * Bilah alat daftar entri, memuat pencarian dan tombol tindakan.
  */
 
 import { Box, Flex, IconButton, Tooltip } from "@radix-ui/themes";

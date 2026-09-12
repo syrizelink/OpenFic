@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Builtin models tests - 内置 fastembed 模型的 seeding 与保护逻辑。
+Builtin models tests - logika seeding dan proteksi model fastembed bawaan.
 """
 
 import pytest

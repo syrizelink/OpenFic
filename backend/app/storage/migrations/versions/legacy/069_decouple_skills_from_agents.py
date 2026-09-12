@@ -23,7 +23,10 @@ depends_on = None
 _BUILTIN_AGENT_ROWS = {
     "primary": {
         "display_name": "Orchestrator",
-        "description": "负责任务拆解、调度子智能体并整合最终结果。",
+        "description": (
+            "Bertanggung jawab memecah tugas, menjadwalkan subagen,"
+            " dan menggabungkan hasil akhir."
+        ),
         "kind": "primary",
         "prompt_agent_name": "orchestrator",
         "tool_category_keys_json": [
@@ -41,7 +44,7 @@ _BUILTIN_AGENT_ROWS = {
     },
     "explorer": {
         "display_name": "Explorer",
-        "description": "负责信息搜集、上下文梳理与证据查找。",
+        "description": "Bertanggung jawab mengumpulkan informasi, merapikan konteks, dan mencari bukti.",
         "kind": "subagent",
         "prompt_agent_name": "explorer",
         "tool_category_keys_json": ["chapter_read", "summary_read", "world_read", "note_read"],
@@ -49,7 +52,10 @@ _BUILTIN_AGENT_ROWS = {
     },
     "composer": {
         "display_name": "Composer",
-        "description": "负责剧情设计、结构规划与写作方案组织。",
+        "description": (
+            "Bertanggung jawab merancang plot, merencanakan struktur,"
+            " dan menyusun rencana penulisan."
+        ),
         "kind": "subagent",
         "prompt_agent_name": "composer",
         "tool_category_keys_json": [
@@ -64,7 +70,7 @@ _BUILTIN_AGENT_ROWS = {
     },
     "auditor": {
         "display_name": "Auditor",
-        "description": "负责一致性检查、风险识别与结果审阅。",
+        "description": "Bertanggung jawab memeriksa konsistensi, mengenali risiko, dan meninjau hasil.",
         "kind": "subagent",
         "prompt_agent_name": "auditor",
         "tool_category_keys_json": ["chapter_read", "summary_read", "world_read", "plan_read", "note_read"],
@@ -72,7 +78,7 @@ _BUILTIN_AGENT_ROWS = {
     },
     "writer": {
         "display_name": "Writer",
-        "description": "负责章节内容撰写、补写与正文修改。",
+        "description": "Bertanggung jawab menulis isi bab, menambah tulisan, dan mengubah teks utama.",
         "kind": "subagent",
         "prompt_agent_name": "writer",
         "tool_category_keys_json": [
@@ -88,7 +94,10 @@ _BUILTIN_AGENT_ROWS = {
     },
     "actor": {
         "display_name": "Actor",
-        "description": "负责按既定目标执行修改并推进具体动作。",
+        "description": (
+            "Bertanggung jawab menjalankan perubahan sesuai sasaran yang"
+            " ditetapkan dan mendorong tindakan konkret."
+        ),
         "kind": "subagent",
         "prompt_agent_name": "actor",
         "tool_category_keys_json": [
@@ -104,7 +113,10 @@ _BUILTIN_AGENT_ROWS = {
     },
     "reviewer": {
         "display_name": "Reviewer",
-        "description": "负责产出评审意见、指出问题并提出修正建议。",
+        "description": (
+            "Bertanggung jawab menghasilkan pendapat tinjauan, menunjukkan"
+            " masalah, dan mengajukan saran perbaikan."
+        ),
         "kind": "subagent",
         "prompt_agent_name": "reviewer",
         "tool_category_keys_json": ["chapter_read", "summary_read", "world_read", "plan_read"],

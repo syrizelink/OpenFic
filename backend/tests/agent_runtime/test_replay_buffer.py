@@ -151,7 +151,7 @@ def test_replay_buffer_records_compaction_events() -> None:
             "task_id": "task-1",
             "trigger": "manual",
             "code": "llm_error",
-            "message": "压缩失败，当前请求已中止",
+            "message": "Kompaksi gagal, permintaan saat ini dibatalkan",
         },
     )
 
@@ -219,7 +219,7 @@ def test_replay_buffer_compaction_terminal_events_clear_active_start() -> None:
             "task_id": "task-2",
             "trigger": "manual",
             "code": "llm_error",
-            "message": "压缩失败，当前请求已中止",
+            "message": "Kompaksi gagal, permintaan saat ini dibatalkan",
         },
     )
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Agent Definitions API 测试。"""
+"""Pengujian Agent Definitions API."""
 
 from pathlib import Path
 
@@ -63,7 +63,7 @@ async def test_list_agent_tool_categories(client: AsyncClient):
     web_fetch = next(item for item in data["categories"] if item["key"] == "web_fetch")
     assert web_fetch == {
         "key": "web_fetch",
-        "name": "网页读取",
+        "name": "Baca Halaman Web",
         "tool_keys": ["web_fetch"],
     }
 
@@ -79,14 +79,14 @@ async def test_list_agent_tool_categories(client: AsyncClient):
     character_read = next(item for item in data["categories"] if item["key"] == "character_read")
     assert character_read == {
         "key": "character_read",
-        "name": "角色读取",
+        "name": "Baca Tokoh",
         "tool_keys": ["list_characters", "read_character"],
     }
 
     character_write = next(item for item in data["categories"] if item["key"] == "character_write")
     assert character_write == {
         "key": "character_write",
-        "name": "角色写入",
+        "name": "Tulis Tokoh",
         "tool_keys": ["create_character", "edit_character", "delete_character"],
     }
 
@@ -140,7 +140,7 @@ async def test_create_custom_agent_definition(
     assert len(latest_data["entries"]) > 0
 
     def fail_on_default_version_lookup(_prompt_id: str):
-        raise AssertionError("自定义智能体不应加载 YAML 默认版本")
+        raise AssertionError("Agen kustom tidak boleh memuat versi bawaan YAML")
 
     monkeypatch.setattr(
         prompt_chain_service,

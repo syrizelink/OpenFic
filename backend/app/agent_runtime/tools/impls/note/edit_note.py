@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-编辑笔记内容（查找替换）。
+Menyunting isi catatan (cari dan ganti).
 """
 
 import json
@@ -67,22 +67,24 @@ def _build_diff_lines(before: str, after: str) -> list[dict[str, Any]]:
 
 
 class EditNoteInput(BaseModel):
-    note_ref: NoteRef = Field(description="目标笔记")
-    old_content: str = Field(description="要查找并替换的原始文本")
-    new_content: str = Field(description="用于替换 old_content 的新文本")
+    note_ref: NoteRef = Field(description="Catatan sasaran")
+    old_content: str = Field(description="Teks asli yang akan dicari dan diganti")
+    new_content: str = Field(
+        description="Teks baru sebagai pengganti old_content"
+    )
 
     @field_validator("old_content", mode="after")
     @classmethod
     def reject_empty_old_content(cls, v: str) -> str:
         if v == "":
-            raise ValueError("old_content 不能为空字符串")
+            raise ValueError("old_content tidak boleh berupa string kosong")
         return v
 
 
 @ToolRegistry.register
 class EditNoteTool(AgentTool):
     name: str = "edit_note"
-    description: str = "编辑指定笔记的内容"
+    description: str = "Menyunting isi catatan yang ditentukan"
     access_level: str = "write"
     args_schema: type[BaseModel] = EditNoteInput
 
@@ -151,7 +153,7 @@ class EditNoteTool(AgentTool):
             "type": "preview",
             "success": True,
             "reason": "approval_preview",
-            "message": "笔记修改待审批",
+            "message": "Perubahan catatan menunggu persetujuan",
             "metadata": {
                 "note_diff": note_diff,
             },
@@ -165,7 +167,10 @@ class EditNoteTool(AgentTool):
     ) -> str:
         revision_id = current_revision_id_from_state(self._state)
         if revision_id is None:
-            raise ToolExecutionError("缺少当前 revision，无法执行笔记编辑")
+            raise ToolExecutionError(
+                "revision saat ini tidak ada, penyuntingan catatan tidak dapat "
+                "dijalankan"
+            )
         session = await create_session()
         try:
             categories = []
@@ -173,7 +178,7 @@ class EditNoteTool(AgentTool):
             if ref.id is not None:
                 note = await note_repo.get_by_id(session, ref.id)
                 if note is None:
-                    raise ToolExecutionError(f"笔记不存在: {ref.id}")
+                    raise ToolExecutionError(f"Catatan tidak ditemukan: {ref.id}")
             else:
                 notes = await note_repo.list_by_project(
                     session, self.project_id, include_hidden=False
@@ -189,11 +194,13 @@ class EditNoteTool(AgentTool):
                 )
 
             if note.project_id != self.project_id:
-                raise ToolExecutionError("笔记不属于当前项目")
+                raise ToolExecutionError("Catatan tidak termasuk dalam proyek saat ini")
             if note.is_locked:
-                raise ToolExecutionError("该笔记已锁定，无法修改")
+                raise ToolExecutionError(
+                    "Catatan ini terkunci sehingga tidak dapat diubah"
+                )
             if note.is_hidden:
-                raise ToolExecutionError("该笔记已隐藏")
+                raise ToolExecutionError("Catatan ini sudah disembunyikan")
 
             before = note_images_by_id(
                 await note_repo.list_by_project(
@@ -205,7 +212,9 @@ class EditNoteTool(AgentTool):
                 note.content, old_content, new_content, replace_all=True
             )
             if replace_result is None:
-                raise ToolExecutionError("未在笔记内容中找到要替换的文本")
+                raise ToolExecutionError(
+                    "Teks yang akan diganti tidak ditemukan di dalam isi catatan"
+                )
             note.content = replace_result.new_content
             try:
                 validate_editor_content(note.content)

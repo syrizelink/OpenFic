@@ -1,3 +1,5 @@
+import i18n from "../i18n";
+
 export interface BackgroundSnapshot {
   project_id: string;
   project_revision: number | null;
@@ -39,7 +41,7 @@ export async function joinProjectAndWaitForSnapshot(
   return await new Promise<BackgroundSnapshot>((resolve, reject) => {
     const timeout = setTimeoutFn(() => {
       cleanup();
-      reject(new Error("加入后台项目房间超时"));
+      reject(new Error(i18n.t("common.backgroundJoinRoomTimeout")));
     }, timeoutMs);
 
     const cleanup = () => {
@@ -57,7 +59,7 @@ export async function joinProjectAndWaitForSnapshot(
     const onError = (payload: { type?: string; reason?: string }) => {
       if (payload.type !== "invalid_project") return;
       cleanup();
-      reject(new Error(payload.reason || "后台事件订阅失败"));
+      reject(new Error(payload.reason || i18n.t("common.backgroundSubscriptionFailed")));
     };
 
     socket.on("background:snapshot", onSnapshot);

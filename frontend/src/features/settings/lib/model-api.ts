@@ -1,7 +1,7 @@
 /**
  * Model API
  *
- * 模型和提供商 API 客户端。
+ * Klien API model dan penyedia.
  */
 
 import { apiClient } from "@/lib/api-client";
@@ -122,7 +122,7 @@ function transformCatalogMatch(
 }
 
 /**
- * 后端响应字段转换（snake_case -> camelCase）- Provider
+ * Konversi field respons backend (snake_case -> camelCase) - Provider
  */
 function transformProvider(raw: ModelProviderResponse): ModelProvider {
   return {
@@ -141,7 +141,7 @@ function transformProvider(raw: ModelProviderResponse): ModelProvider {
 }
 
 /**
- * 后端响应字段转换（snake_case -> camelCase）- Model
+ * Konversi field respons backend (snake_case -> camelCase) - Model
  */
 function transformModel(raw: ModelResponse): Model {
   return {
@@ -238,7 +238,7 @@ function transformAvailableModel(
 // ========== Provider APIs ==========
 
 /**
- * 获取所有提供商
+ * Mengambil seluruh penyedia
  */
 export async function fetchProviders(): Promise<ModelProvider[]> {
   const response = await apiClient.get<ModelProviderResponse[]>("/model-providers");
@@ -246,7 +246,7 @@ export async function fetchProviders(): Promise<ModelProvider[]> {
 }
 
 /**
- * 根据 ID 获取提供商
+ * Mengambil penyedia berdasarkan ID
  */
 export async function fetchProvider(id: string): Promise<ModelProvider> {
   const response = await apiClient.get<ModelProviderResponse>(`/model-providers/${id}`);
@@ -254,7 +254,7 @@ export async function fetchProvider(id: string): Promise<ModelProvider> {
 }
 
 /**
- * 创建提供商
+ * Membuat penyedia
  */
 export async function createProvider(data: FormData): Promise<ModelProvider> {
   const response = await apiClient.post<ModelProviderResponse>("/model-providers", data, {
@@ -266,7 +266,7 @@ export async function createProvider(data: FormData): Promise<ModelProvider> {
 }
 
 /**
- * 更新提供商
+ * Memperbarui penyedia
  */
 export async function updateProvider(id: string, data: FormData): Promise<ModelProvider> {
   const response = await apiClient.put<ModelProviderResponse>(`/model-providers/${id}`, data, {
@@ -278,14 +278,14 @@ export async function updateProvider(id: string, data: FormData): Promise<ModelP
 }
 
 /**
- * 删除提供商
+ * Menghapus penyedia
  */
 export async function deleteProvider(id: string): Promise<void> {
   await apiClient.delete(`/model-providers/${id}`);
 }
 
 /**
- * 验证提供商连接
+ * Memvalidasi koneksi penyedia
  */
 export async function validateProvider(
   data: ModelProviderValidateRequest,
@@ -301,7 +301,7 @@ export async function validateProvider(
 }
 
 /**
- * 获取提供商的模型列表
+ * Mengambil daftar model sebuah penyedia
  */
 export async function fetchProviderModels(
   providerId: string,
@@ -344,7 +344,7 @@ export async function fetchModelProviderCatalogModels(
 // ========== Model APIs ==========
 
 /**
- * 获取所有模型
+ * Mengambil seluruh model
  */
 export async function fetchModels(providerId?: string, taskType?: string): Promise<Model[]> {
   const params: Record<string, string> = {};
@@ -355,7 +355,7 @@ export async function fetchModels(providerId?: string, taskType?: string): Promi
 }
 
 /**
- * 根据 ID 获取模型
+ * Mengambil model berdasarkan ID
  */
 export async function fetchModel(id: string): Promise<Model> {
   const response = await apiClient.get<ModelResponse>(`/models/${id}`);
@@ -368,7 +368,7 @@ export async function validateModel(id: string): Promise<ModelValidationResponse
 }
 
 /**
- * 创建模型
+ * Membuat model
  */
 export async function createModel(data: ModelCreateRequest): Promise<Model> {
   const response = await apiClient.post<ModelResponse>("/models", data);
@@ -376,7 +376,7 @@ export async function createModel(data: ModelCreateRequest): Promise<Model> {
 }
 
 /**
- * 更新模型
+ * Memperbarui model
  */
 export async function updateModel(id: string, data: ModelUpdateRequest): Promise<Model> {
   const response = await apiClient.put<ModelResponse>(`/models/${id}`, data);
@@ -384,7 +384,7 @@ export async function updateModel(id: string, data: ModelUpdateRequest): Promise
 }
 
 /**
- * 删除模型
+ * Menghapus model
  */
 export async function deleteModel(id: string): Promise<void> {
   await apiClient.delete(`/models/${id}`);

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Projects Router - 项目 CRUD API。
+Projects Router - API CRUD proyek.
 """
 
 from typing import Annotated, Literal
@@ -59,7 +59,7 @@ async def _list_project_checkpoint_thread_ids(
     "",
     response_model=ProjectResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="创建项目",
+    summary="Membuat proyek",
 )
 async def create_project(
     title: Annotated[str, Form()],
@@ -68,18 +68,18 @@ async def create_project(
     session: AsyncSession = Depends(get_session),
 ) -> ProjectResponse:
     """
-    创建新的小说项目。
+    Membuat proyek novel baru.
 
     Args:
-        title: 项目标题。
-        description: 项目简介（可选）。
-        cover: 封面图片（可选）。
-        session: 数据库 session。
+        title: Judul proyek.
+        description: Sinopsis proyek (opsional).
+        cover: Gambar sampul (opsional).
+        session: Session basis data.
 
     Returns:
-        创建的项目。
+        Proyek yang dibuat.
     """
-    logger.info(f"创建项目: {title}")
+    logger.info(f"Membuat proyek: {title}")
     project = await project_service.create_project(
         session,
         title=title,
@@ -92,34 +92,34 @@ async def create_project(
 @router.get(
     "",
     response_model=ProjectListResponse,
-    summary="获取项目列表",
+    summary="Mengambil daftar proyek",
 )
 async def list_projects(
     session: Annotated[AsyncSession, Depends(get_session)],
-    page: Annotated[int, Query(ge=1, description="页码")] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100, description="每页数量")] = 20,
-    search: Annotated[str | None, Query(description="按项目标题或简介搜索")] = None,
+    page: Annotated[int, Query(ge=1, description="Nomor halaman")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100, description="Jumlah per halaman")] = 20,
+    search: Annotated[str | None, Query(description="Cari berdasarkan judul atau sinopsis proyek")] = None,
     sort_by: Annotated[
         Literal["updated_at", "created_at", "title"],
-        Query(description="排序字段"),
+        Query(description="Field pengurutan"),
     ] = "updated_at",
     sort_order: Annotated[
-        Literal["asc", "desc"], Query(description="排序方向")
+        Literal["asc", "desc"], Query(description="Arah pengurutan")
     ] = "desc",
 ) -> ProjectListResponse:
     """
-    获取项目列表，支持分页。
+    Mengambil daftar proyek dengan dukungan paginasi.
 
     Args:
-        session: 数据库 session。
-        page: 页码，从 1 开始。
-        page_size: 每页数量，最大 100。
-        search: 项目标题或简介搜索词。
-        sort_by: 排序字段，可选 updated_at、created_at、title。
-        sort_order: 排序方向，可选 asc、desc。
+        session: Session basis data.
+        page: Nomor halaman, mulai dari 1.
+        page_size: Jumlah per halaman, maksimum 100.
+        search: Kata pencarian judul atau sinopsis proyek.
+        sort_by: Field pengurutan, pilihan updated_at, created_at, title.
+        sort_order: Arah pengurutan, pilihan asc, desc.
 
     Returns:
-        项目列表。
+        Daftar proyek.
     """
     result = await project_service.list_projects(
         session,
@@ -140,24 +140,24 @@ async def list_projects(
 @router.get(
     "/{project_id}",
     response_model=ProjectResponse,
-    summary="获取项目详情",
+    summary="Mengambil detail proyek",
 )
 async def get_project(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ProjectResponse:
     """
-    获取单个项目的详细信息。
+    Mengambil informasi detail satu proyek.
 
     Args:
-        project_id: 项目 ID。
-        session: 数据库 session。
+        project_id: ID proyek.
+        session: Session basis data.
 
     Returns:
-        项目详情。
+        Detail proyek.
 
     Raises:
-        HTTPException: 项目不存在时返回 404。
+        HTTPException: Mengembalikan 404 bila proyek tidak ditemukan.
     """
     try:
         project = await project_service.get_project(session, project_id)
@@ -169,7 +169,7 @@ async def get_project(
 @router.patch(
     "/{project_id}",
     response_model=ProjectResponse,
-    summary="更新项目",
+    summary="Memperbarui proyek",
 )
 async def update_project(
     project_id: str,
@@ -179,23 +179,23 @@ async def update_project(
     session: AsyncSession = Depends(get_session),
 ) -> ProjectResponse:
     """
-    更新项目信息。
+    Memperbarui informasi proyek.
 
     Args:
-        project_id: 项目 ID。
-        title: 新标题（可选）。
-        description: 新简介（可选）。
-        cover: 新封面图片（可选）。
-        session: 数据库 session。
+        project_id: ID proyek.
+        title: Judul baru (opsional).
+        description: Sinopsis baru (opsional).
+        cover: Gambar sampul baru (opsional).
+        session: Session basis data.
 
     Returns:
-        更新后的项目。
+        Proyek setelah diperbarui.
 
     Raises:
-        HTTPException: 项目不存在时返回 404。
+        HTTPException: Mengembalikan 404 bila proyek tidak ditemukan.
     """
     try:
-        logger.info(f"更新项目: {project_id}")
+        logger.info(f"Memperbarui proyek: {project_id}")
         project = await project_service.update_project(
             session,
             project_id,
@@ -211,29 +211,29 @@ async def update_project(
 @router.delete(
     "/{project_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="删除项目",
+    summary="Menghapus proyek",
 )
 async def delete_project(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> None:
     """
-    删除项目。
+    Menghapus proyek.
 
     Args:
-        project_id: 项目 ID。
-        session: 数据库 session。
+        project_id: ID proyek.
+        session: Session basis data.
 
     Raises:
-        HTTPException: 项目不存在时返回 404。
+        HTTPException: Mengembalikan 404 bila proyek tidak ditemukan.
     """
     try:
-        logger.info(f"删除项目: {project_id}")
+        logger.info(f"Menghapus proyek: {project_id}")
         tasks = (await task_service.list_tasks(session, project_id)).items
         if any(task.is_running for task in tasks):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="项目存在运行中任务，不能删除",
+                detail="Proyek memiliki tugas yang sedang berjalan, tidak dapat dihapus",
             )
         checkpoint_thread_ids = await _list_project_checkpoint_thread_ids(session, project_id)
         for task in tasks:
@@ -252,13 +252,13 @@ async def delete_project(
 
 def _project_to_response(project) -> ProjectResponse:
     """
-    将 Project 模型转换为 ProjectResponse，添加 cover_url。
+    Mengonversi model Project menjadi ProjectResponse, menambahkan cover_url.
 
     Args:
-        project: Project 模型实例。
+        project: Instance model Project.
 
     Returns:
-        ProjectResponse。
+        ProjectResponse.
     """
     return ProjectResponse(
         id=project.id,

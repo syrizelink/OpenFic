@@ -57,14 +57,14 @@ async def test_primary_messages_preserves_attachment_metadata_without_embedding_
     messages = await _primary_messages(
         {
             "messages": [],
-            "user_request": "请描述图片",
+            "user_request": "Tolong deskripsikan gambar ini",
             "user_attachments": [attachment],
         }
     )
 
     assert len(messages) == 1
     assert isinstance(messages[0], HumanMessage)
-    assert messages[0].content == "请描述图片"
+    assert messages[0].content == "Tolong deskripsikan gambar ini"
     assert messages[0].additional_kwargs == {"openfic_attachments": [attachment]}
 
 

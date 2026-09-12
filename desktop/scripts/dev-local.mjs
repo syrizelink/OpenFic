@@ -21,13 +21,13 @@ function runPnpm(args, cwd) {
 }
 
 async function main() {
-  console.log("[dev:local] 构建前端 (frontend/dist)...");
+  console.log("[dev:local] Membangun frontend (frontend/dist)...");
   await runPnpm(["build"], frontendDir);
-  console.log("[dev:local] 构建桌面端 setup UI 与主进程...");
+  console.log("[dev:local] Membangun setup UI desktop dan proses utama...");
   await runPnpm(["build:setup"], desktopDir);
   await runPnpm(["build:main"], desktopDir);
 
-  console.log("[dev:local] 启动 Electron（OPENFIC_DEV_MODE=1）...");
+  console.log("[dev:local] Menjalankan Electron (OPENFIC_DEV_MODE=1)...");
   const electronEnv = { ...process.env, OPENFIC_DEV_MODE: "1" };
   delete electronEnv.ELECTRON_RUN_AS_NODE;
   const electronPath =
@@ -55,7 +55,7 @@ async function main() {
 
   electron.on("exit", (code) => process.exit(code ?? 0));
   electron.on("error", (error) => {
-    console.error(`[dev:local] 启动 Electron 失败：${error.message}`);
+    console.error(`[dev:local] Gagal menjalankan Electron: ${error.message}`);
     process.exit(1);
   });
 }

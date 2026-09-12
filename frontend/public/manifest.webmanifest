@@ -1,7 +1,7 @@
 {
   "name": "OpenFic",
   "short_name": "OpenFic",
-  "description": "AI Agent时代专为小说创作打造的一站式Vibe Wrting平台",
+  "description": "Platform Vibe Writing satu pintu yang dibuat khusus untuk penulisan novel di era AI Agent",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

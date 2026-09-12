@@ -25,7 +25,8 @@ def normalize_rrf_confidence(rrf_score: float, k: int) -> float:
 
 
 def _display_text(row: dict[str, Any]) -> str:
-    """优先返回回传用的正文 raw_text；缺失时回退到含前缀的 text 列。"""
+    """Mengutamakan pengembalian raw_text (isi utama); jika tidak ada, kembali ke kolom
+    text yang memuat prefiks."""
     raw = row.get("raw_text")
     if isinstance(raw, str) and raw:
         return raw

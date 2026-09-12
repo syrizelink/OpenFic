@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Prompt Chain Compiler - 提示词链编译器。
+Prompt Chain Compiler - kompilator rantai prompt.
 
-负责编译 prompt chain，保留条目原始内容。
+Bertugas mengompilasi prompt chain dengan mempertahankan isi asli setiap entri.
 """
 
 from dataclasses import dataclass
@@ -11,12 +11,12 @@ from dataclasses import dataclass
 @dataclass
 class CompiledEntry:
     """
-    编译后的条目。
+    Entri hasil kompilasi.
 
     Attributes:
-        role: 角色类型。
-        content: 编译后的内容。
-        token_count: Token 计数（编译后）。
+        role: Tipe peran.
+        content: Isi hasil kompilasi.
+        token_count: Jumlah Token (setelah kompilasi).
     """
 
     role: str
@@ -27,11 +27,11 @@ class CompiledEntry:
 @dataclass
 class CompileResult:
     """
-    编译结果。
+    Hasil kompilasi.
 
     Attributes:
-        entries: 编译后的条目列表。
-        total_tokens: 总 Token 数。
+        entries: Daftar entri hasil kompilasi.
+        total_tokens: Total jumlah Token.
     """
 
     entries: list[CompiledEntry]
@@ -41,13 +41,13 @@ class CompileResult:
 @dataclass
 class EntryInput:
     """
-    编译输入条目。
+    Entri masukan kompilasi.
 
     Attributes:
-        role: 角色类型。
-        content: 原始内容。
-        order_index: 排序索引。
-        is_enabled: 是否启用。
+        role: Tipe peran.
+        content: Isi asli.
+        order_index: Indeks urutan.
+        is_enabled: Apakah aktif.
     """
 
     role: str
@@ -57,19 +57,19 @@ class EntryInput:
 
 
 class PromptChainCompiler:
-    """提示词链编译器。"""
+    """Kompilator rantai prompt."""
 
     async def compile(
         self,
         entries: list[EntryInput],
     ) -> CompileResult:
         """
-        编译提示词链。
+        Mengompilasi rantai prompt.
 
         Args:
-            entries: 条目列表（按 order_index 排序）。
+            entries: Daftar entri (diurutkan berdasarkan order_index).
         Returns:
-            编译结果。
+            Hasil kompilasi.
         """
         sorted_entries = sorted(entries, key=lambda e: e.order_index)
         enabled_entries = [e for e in sorted_entries if e.is_enabled]
@@ -95,5 +95,5 @@ class PromptChainCompiler:
         )
 
     def _estimate_tokens(self, text: str) -> int:
-        """估算 token 数量。"""
+        """Memperkirakan jumlah token."""
         return len(text) // 2

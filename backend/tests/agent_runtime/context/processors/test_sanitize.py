@@ -10,9 +10,9 @@ def test_strips_surrogate_codepoints() -> None:
 
 
 def test_keeps_normal_text_unchanged() -> None:
-    parts = [ContextMessage(role="user", content="正常中文 + emoji 🚀")]
+    parts = [ContextMessage(role="user", content="Teks normal + emoji 🚀")]
     out = sanitize_surrogates(parts)
-    assert out[0].content == "正常中文 + emoji 🚀"
+    assert out[0].content == "Teks normal + emoji 🚀"
 
 
 def test_handles_empty_content() -> None:

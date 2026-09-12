@@ -1,30 +1,30 @@
 /**
  * ConfirmDialog Component
  *
- * 可复用的确认对话框组件，用于删除确认等场景。
+ * Komponen dialog konfirmasi yang dapat dipakai ulang, misalnya untuk konfirmasi penghapusan.
  */
 
 import { AlertDialog, Button, Flex, Text } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 
 interface ConfirmDialogProps {
-  /** 是否打开对话框 */
+  /** Status terbuka dialog */
   open: boolean;
-  /** 关闭对话框回调 */
+  /** Callback penutupan dialog */
   onOpenChange: (open: boolean) => void;
-  /** 确认回调 */
+  /** Callback konfirmasi */
   onConfirm: () => void;
-  /** 对话框标题 */
+  /** Judul dialog */
   title: string;
-  /** 对话框描述 */
+  /** Deskripsi dialog */
   description: string;
-  /** 确认按钮文字 */
+  /** Teks tombol konfirmasi */
   confirmText?: string;
-  /** 取消按钮文字 */
+  /** Teks tombol batal */
   cancelText?: string;
-  /** 确认按钮颜色 */
+  /** Warna tombol konfirmasi */
   confirmColor?: "red" | "blue" | "green";
-  /** 是否处于加载状态 */
+  /** Status sedang memuat */
   loading?: boolean;
 }
 

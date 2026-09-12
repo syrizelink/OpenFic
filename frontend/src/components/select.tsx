@@ -1,8 +1,8 @@
 /**
  * Labeled Select Component
  *
- * 通用的带标签的下拉选择组件，封装了 Radix UI Select 组件。
- * 提供一致的样式和用户体验。
+ * Komponen pilihan tarik-turun berlabel serbaguna, membungkus komponen Select Radix UI.
+ * Menyediakan gaya dan pengalaman pengguna yang konsisten.
  */
 
 import { Box, Button, Flex, Popover, ScrollArea, Select, Text, TextField } from "@radix-ui/themes";

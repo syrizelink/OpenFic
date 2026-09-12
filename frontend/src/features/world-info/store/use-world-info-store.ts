@@ -1,63 +1,63 @@
 /**
  * World Info Store
  *
- * 使用 Zustand 管理世界书页面的 UI 状态。
+ * Mengelola status UI halaman buku dunia memakai Zustand.
  */
 
 import { create } from "zustand";
 
 interface WorldInfoStoreState {
-  /** 当前项目 ID */
+  /** ID proyek saat ini */
   currentProjectId: string | null;
-  /** 当前选中的世界书 ID */
+  /** ID buku dunia yang sedang dipilih */
   currentWorldInfoId: string | null;
-  /** 当前选中的条目 ID */
+  /** ID entri yang sedang dipilih */
   currentEntryId: string | null;
-  /** 搜索关键词 */
+  /** Kata kunci pencarian */
   searchQuery: string;
-  /** 移动端侧边栏是否打开 */
+  /** Status terbuka bilah sisi pada peranti bergerak */
   sidebarOpen: boolean;
-  /** 来源页面（用于返回导航） */
+  /** Halaman asal (dipakai untuk navigasi kembali) */
   fromWriting: boolean;
-  /** 来源项目 ID */
+  /** ID proyek asal */
   fromProjectId: string | null;
 
-  // 拖拽排序相关状态
-  /** 是否处于拖拽模式 */
+  // Status terkait pengurutan tarik-lepas
+  /** Menandai mode tarik-lepas sedang aktif */
   isDragMode: boolean;
-  /** 是否有未保存的拖拽修改 */
+  /** Menandai ada perubahan tarik-lepas yang belum tersimpan */
   hasUnsavedDragChanges: boolean;
-  /** 拖拽排序临时数据：条目ID -> 新排序 */
+  /** Data sementara pengurutan tarik-lepas: ID entri -> urutan baru */
   dragOrderMap: Record<string, number>;
-  /** 原始排序数据 */
+  /** Data urutan asli */
   originalOrder: Record<string, number>;
 }
 
 interface WorldInfoStoreActions {
-  /** 设置当前项目 */
+  /** Menyetel proyek saat ini */
   setCurrentProject: (projectId: string | null) => void;
-  /** 设置当前世界书 */
+  /** Menyetel buku dunia saat ini */
   setCurrentWorldInfo: (worldInfoId: string | null) => void;
-  /** 设置当前选中的条目 */
+  /** Menyetel entri yang sedang dipilih */
   setCurrentEntry: (entryId: string | null) => void;
-  /** 设置搜索关键词 */
+  /** Menyetel kata kunci pencarian */
   setSearchQuery: (query: string) => void;
-  /** 设置侧边栏状态 */
+  /** Menyetel status bilah sisi */
   setSidebarOpen: (open: boolean) => void;
-  /** 设置来源信息 */
+  /** Menyetel informasi asal */
   setFromWriting: (fromWriting: boolean, projectId: string | null) => void;
 
-  // 拖拽相关 actions
-  /** 进入拖拽模式 */
+  // Action terkait tarik-lepas
+  /** Masuk ke mode tarik-lepas */
   enterDragMode: (entries: Array<{ id: string; order: number }>) => void;
-  /** 退出拖拽模式 */
+  /** Keluar dari mode tarik-lepas */
   exitDragMode: () => void;
-  /** 重新排序条目 */
+  /** Mengurutkan ulang entri */
   reorderEntries: (fromIndex: number, toIndex: number, entryIds: string[]) => void;
-  /** 获取拖拽后需要更新的条目 */
+  /** Mengambil entri yang perlu diperbarui setelah tarik-lepas */
   getDragChanges: () => Array<{ id: string; newOrder: number }>;
 
-  /** 重置所有状态 */
+  /** Mereset seluruh status */
   reset: () => void;
 }
 
@@ -112,7 +112,7 @@ export const useWorldInfoStore = create<WorldInfoStore>((set, get) => ({
     const { dragOrderMap, originalOrder } = get();
     const newMap = { ...dragOrderMap };
 
-    // 重新计算所有条目的顺序
+    // Menghitung ulang urutan seluruh entri
     const reorderedIds = [...entryIds];
     const [movedId] = reorderedIds.splice(fromIndex, 1);
     reorderedIds.splice(toIndex, 0, movedId);
@@ -121,7 +121,7 @@ export const useWorldInfoStore = create<WorldInfoStore>((set, get) => ({
       newMap[id] = index + 1;
     });
 
-    // 检查是否有未保存的修改
+    // Memeriksa adanya perubahan yang belum tersimpan
     const hasChanges = Object.keys(newMap).some((key) => newMap[key] !== originalOrder[key]);
 
     set({

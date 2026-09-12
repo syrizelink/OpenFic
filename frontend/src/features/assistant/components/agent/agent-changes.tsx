@@ -120,7 +120,7 @@ function getSummaryDetails(summary: AgentChangeSummary, t: TFunction, language: 
     parts,
   );
   return language.toLowerCase().startsWith("zh")
-    ? formatted.replace(/和(?=\S)/g, "和 ")
+    ? formatted.replace(/\u548c(?=\S)/g, "\u548c ")
     : formatted;
 }
 

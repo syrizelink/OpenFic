@@ -24,8 +24,8 @@ def validate_editor_content(content: str) -> None:
         return
 
     raise EditorContentLimitError(
-        "内容超出限制："
-        f"当前 {line_count} 行、{character_count} 字符；"
-        f"单一内容最多允许 {MAX_EDITOR_CONTENT_LINES} 行且 "
-        f"{MAX_EDITOR_CONTENT_CHARACTERS} 字符。请拆分内容后重试。"
+        "Konten melebihi batas: "
+        f"saat ini {line_count} baris, {character_count} karakter; "
+        f"satu konten maksimum {MAX_EDITOR_CONTENT_LINES} baris dan "
+        f"{MAX_EDITOR_CONTENT_CHARACTERS} karakter. Pecah konten lalu coba lagi."
     )

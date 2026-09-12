@@ -1,227 +1,236 @@
 # -*- coding: utf-8 -*-
 """
-Setting API Schemas - 设置请求/响应模型。
+Setting API Schemas - Model permintaan/respons pengaturan.
 """
 
 from pydantic import BaseModel, Field
 
 
 class AgentToolPermissionItem(BaseModel):
-    """Agent 工具权限设置项。"""
+    """Item pengaturan izin tool Agent."""
 
-    tool_name: str = Field(..., description="工具名称")
-    mode: str = Field(..., description="权限模式：allow / ask / deny")
+    tool_name: str = Field(..., description="Nama tool")
+    mode: str = Field(..., description="Mode izin: allow / ask / deny")
 
 
 class AgentSettingsLockResponse(BaseModel):
-    """Agent 会话是否正在锁定相关设置。"""
+    """Apakah sesi Agent sedang mengunci pengaturan terkait."""
 
-    is_locked: bool = Field(..., description="是否存在未结束的 Agent 或子智能体会话")
+    is_locked: bool = Field(..., description="Apakah ada sesi Agent atau subagen yang belum berakhir")
 
 
 class AuditDetailsStorageResponse(BaseModel):
-    """LLM 调用详情的存储概览。"""
+    """Ringkasan penyimpanan detail pemanggilan LLM."""
 
-    detail_records_count: int = Field(description="包含详情的调用记录数")
-    detail_bytes: int = Field(description="详情字段 UTF-8 字节数估算")
+    detail_records_count: int = Field(description="Jumlah catatan pemanggilan yang memuat detail")
+    detail_bytes: int = Field(description="Estimasi jumlah bita UTF-8 field detail")
 
 
 class ClearAuditDetailsResponse(BaseModel):
-    """清空 LLM 调用详情的结果。"""
+    """Hasil pengosongan detail pemanggilan LLM."""
 
-    cleared_records_count: int = Field(description="已清空详情的调用记录数")
-    cleared_detail_bytes: int = Field(description="已清空详情字段的 UTF-8 字节数估算")
+    cleared_records_count: int = Field(description="Jumlah catatan pemanggilan yang detailnya sudah dikosongkan")
+    cleared_detail_bytes: int = Field(description="Estimasi jumlah bita UTF-8 field detail yang sudah dikosongkan")
 
 
 class SettingsResponse(BaseModel):
-    """设置响应。"""
+    """Respons pengaturan."""
 
-    language: str = Field(default="zh-CN", description="语言")
-    theme: str = Field(default="light", description="主题")
-    font_family: str = Field(default="system-ui", description="字体")
-    code_font_family: str = Field(default="ui-monospace", description="代码字体")
-    base_font_size: int = Field(default=14, description="基础字号（px）")
-    editor_font_size: int = Field(default=16, description="编辑器字号（px）")
-    default_model: str = Field(default="", description="默认模型 ID")
-    light_model: str = Field(default="", description="轻量模型 ID")
-    default_embedding_model: str = Field(default="", description="默认 Embedding 模型 ID")
-    index_mode: str = Field(default="off", description="索引启用模式：off/all/selected")
+    language: str = Field(default="id", description="Bahasa")
+    theme: str = Field(default="light", description="Tema")
+    font_family: str = Field(default="system-ui", description="Fon")
+    code_font_family: str = Field(default="ui-monospace", description="Fon kode")
+    base_font_size: int = Field(default=14, description="Ukuran fon dasar (px)")
+    editor_font_size: int = Field(default=16, description="Ukuran fon editor (px)")
+    default_model: str = Field(default="", description="ID model default")
+    light_model: str = Field(default="", description="ID model ringan")
+    default_embedding_model: str = Field(default="", description="ID model Embedding default")
+    index_mode: str = Field(default="off", description="Mode pengaktifan indeks: off/all/selected")
     index_enabled_projects: list[str] = Field(
-        default_factory=list, description="启用索引的项目 ID 列表（mode=selected 时生效）"
+        default_factory=list, description="Daftar ID proyek yang mengaktifkan indeks (berlaku saat mode=selected)"
     )
-    index_chunk_size: int = Field(default=800, description="索引分块大小")
-    index_chunk_overlap: int = Field(default=100, description="索引分块重叠")
+    index_chunk_size: int = Field(default=800, description="Ukuran chunk indeks")
+    index_chunk_overlap: int = Field(default=100, description="Tumpang tindih chunk indeks")
     index_auto_strategy: str = Field(
-        default="off", description="自动索引策略：immediate/agent_decided/off"
+        default="off", description="Strategi indeks otomatis: immediate/agent_decided/off"
     )
     index_rerank_enabled: bool = Field(
         default=False,
-        description="是否启用检索 rerank 二次排序",
+        description="Apakah rerank sebagai pengurutan kedua pada pencarian diaktifkan",
     )
-    default_rerank_model: str = Field(default="", description="默认 Rerank 模型 ID")
+    default_rerank_model: str = Field(default="", description="ID model Rerank default")
     agent_bypass_tool_approval: bool = Field(
         default=False,
-        description="是否全局放行 Agent 工具审批",
+        description="Apakah persetujuan tool Agent diloloskan secara global",
     )
     agent_tool_permissions: list[AgentToolPermissionItem] = Field(
-        default_factory=list, description="Agent 工具权限设置"
+        default_factory=list, description="Pengaturan izin tool Agent"
     )
-    audit_persist_details: bool = Field(default=False, description="是否持久化 LLM 调用详情")
+    audit_persist_details: bool = Field(default=False, description="Apakah detail pemanggilan LLM dipersistenkan")
     compress_system_prompts: bool = Field(
         default=False,
-        description="是否将连续的 system 消息合并为一条",
+        description="Apakah pesan system yang berurutan digabung menjadi satu",
     )
     telemetry_enabled: bool = Field(
         default=True,
-        description="是否启用 PostHog 错误遥测",
+        description="Apakah telemetri error PostHog diaktifkan",
     )
     editor_auto_indent: bool = Field(
         default=True,
-        description="换行时若当前段落以两个全角空格开头，是否为下一段自动添加相同前缀",
+        description=(
+            "Saat pindah baris, bila paragraf ini dimulai dengan dua spasi lebar, apakah prefiks "
+            "yang sama ditambahkan otomatis ke paragraf berikutnya"
+        ),
     )
     editor_auto_convert_punctuation: bool = Field(
         default=False,
-        description="输入半角标点符号时是否自动转换为全角",
+        description="Apakah tanda baca setengah lebar yang diketik otomatis diubah menjadi lebar penuh",
     )
     editor_auto_pair_symbols: bool = Field(
         default=False,
-        description="输入成对符号的左符号时是否自动补齐右符号",
+        description="Apakah simbol penutup dilengkapi otomatis saat simbol pembuka dari pasangan diketik",
     )
     editor_show_line_numbers: bool = Field(
         default=False,
-        description="是否在章节编辑器中显示行号",
+        description="Apakah nomor baris ditampilkan pada editor bab",
     )
 
 
 class SettingsUpdateRequest(BaseModel):
-    """设置更新请求。"""
+    """Permintaan pembaruan pengaturan."""
 
-    language: str | None = Field(default=None, description="语言")
-    theme: str | None = Field(default=None, description="主题")
-    font_family: str | None = Field(default=None, description="字体")
-    code_font_family: str | None = Field(default=None, description="代码字体")
-    base_font_size: int | None = Field(default=None, description="基础字号（px）")
-    editor_font_size: int | None = Field(default=None, description="编辑器字号（px）")
-    default_model: str | None = Field(default=None, description="默认模型 ID")
-    light_model: str | None = Field(default=None, description="轻量模型 ID")
+    language: str | None = Field(default=None, description="Bahasa")
+    theme: str | None = Field(default=None, description="Tema")
+    font_family: str | None = Field(default=None, description="Fon")
+    code_font_family: str | None = Field(default=None, description="Fon kode")
+    base_font_size: int | None = Field(default=None, description="Ukuran fon dasar (px)")
+    editor_font_size: int | None = Field(default=None, description="Ukuran fon editor (px)")
+    default_model: str | None = Field(default=None, description="ID model default")
+    light_model: str | None = Field(default=None, description="ID model ringan")
     default_embedding_model: str | None = Field(
         default=None,
-        description="默认 Embedding 模型 ID",
+        description="ID model Embedding default",
     )
-    index_mode: str | None = Field(default=None, description="索引启用模式")
+    index_mode: str | None = Field(default=None, description="Mode pengaktifan indeks")
     index_enabled_projects: list[str] | None = Field(
-        default=None, description="启用索引的项目 ID 列表"
+        default=None, description="Daftar ID proyek yang mengaktifkan indeks"
     )
-    index_chunk_size: int | None = Field(default=None, description="索引分块大小")
-    index_chunk_overlap: int | None = Field(default=None, description="索引分块重叠")
-    index_auto_strategy: str | None = Field(default=None, description="自动索引策略")
+    index_chunk_size: int | None = Field(default=None, description="Ukuran chunk indeks")
+    index_chunk_overlap: int | None = Field(default=None, description="Tumpang tindih chunk indeks")
+    index_auto_strategy: str | None = Field(default=None, description="Strategi indeks otomatis")
     index_rerank_enabled: bool | None = Field(
         default=None,
-        description="是否启用检索 rerank 二次排序",
+        description="Apakah rerank sebagai pengurutan kedua pada pencarian diaktifkan",
     )
     default_rerank_model: str | None = Field(
         default=None,
-        description="默认 Rerank 模型 ID",
+        description="ID model Rerank default",
     )
     agent_bypass_tool_approval: bool | None = Field(
         default=None,
-        description="是否全局放行 Agent 工具审批",
+        description="Apakah persetujuan tool Agent diloloskan secara global",
     )
     agent_tool_permissions: list[AgentToolPermissionItem] | None = Field(
-        default=None, description="Agent 工具权限设置"
+        default=None, description="Pengaturan izin tool Agent"
     )
     audit_persist_details: bool | None = Field(
-        default=None, description="是否持久化 LLM 调用详情"
+        default=None, description="Apakah detail pemanggilan LLM dipersistenkan"
     )
     compress_system_prompts: bool | None = Field(
         default=None,
-        description="是否将连续的 system 消息合并为一条",
+        description="Apakah pesan system yang berurutan digabung menjadi satu",
     )
     telemetry_enabled: bool | None = Field(
         default=None,
-        description="是否启用 PostHog 错误遥测",
+        description="Apakah telemetri error PostHog diaktifkan",
     )
     editor_auto_indent: bool | None = Field(
         default=None,
-        description="换行时若当前段落以两个全角空格开头，是否为下一段自动添加相同前缀",
+        description=(
+            "Saat pindah baris, bila paragraf ini dimulai dengan dua spasi lebar, apakah prefiks "
+            "yang sama ditambahkan otomatis ke paragraf berikutnya"
+        ),
     )
     editor_auto_convert_punctuation: bool | None = Field(
         default=None,
-        description="输入半角标点符号时是否自动转换为全角",
+        description="Apakah tanda baca setengah lebar yang diketik otomatis diubah menjadi lebar penuh",
     )
     editor_auto_pair_symbols: bool | None = Field(
         default=None,
-        description="输入成对符号的左符号时是否自动补齐右符号",
+        description="Apakah simbol penutup dilengkapi otomatis saat simbol pembuka dari pasangan diketik",
     )
     editor_show_line_numbers: bool | None = Field(
         default=None,
-        description="是否在章节编辑器中显示行号",
+        description="Apakah nomor baris ditampilkan pada editor bab",
     )
 
 
 class WebSearchProviderField(BaseModel):
-    """联网搜索 provider 的扩展字段定义。"""
+    """Definisi field tambahan untuk provider pencarian web."""
 
-    key: str = Field(..., description="扩展参数键（存入 extras）")
-    field_type: str = Field(..., description="字段类型：text / select")
-    required: bool = Field(default=False, description="是否必填")
-    options: list[str] = Field(default_factory=list, description="select 类型的可选值")
+    key: str = Field(..., description="Kunci parameter tambahan (disimpan ke extras)")
+    field_type: str = Field(..., description="Tipe field: text / select")
+    required: bool = Field(default=False, description="Apakah wajib diisi")
+    options: list[str] = Field(default_factory=list, description="Nilai pilihan untuk tipe select")
 
 
 class WebSearchProviderInfo(BaseModel):
-    """联网搜索 provider 元数据。"""
+    """Metadata provider pencarian web."""
 
-    name: str = Field(..., description="provider 名称")
-    requires_api_key: bool = Field(..., description="是否需要 API Key")
+    name: str = Field(..., description="Nama provider")
+    requires_api_key: bool = Field(..., description="Apakah memerlukan API Key")
     fields: list[WebSearchProviderField] = Field(
-        default_factory=list, description="扩展字段定义"
+        default_factory=list, description="Definisi field tambahan"
     )
 
 
 class WebSearchSettingsResponse(BaseModel):
-    """联网搜索设置响应（不含明文 API Key）。"""
+    """Respons pengaturan pencarian web (tanpa API Key teks terang)."""
 
-    enabled: bool = Field(..., description="是否启用联网搜索")
-    provider: str = Field(..., description="当前 provider 名称")
+    enabled: bool = Field(..., description="Apakah pencarian web diaktifkan")
+    provider: str = Field(..., description="Nama provider saat ini")
     has_api_keys: dict[str, bool] = Field(
-        default_factory=dict, description="各 provider 是否已配置 API Key"
+        default_factory=dict, description="Apakah API Key setiap provider sudah dikonfigurasi"
     )
-    max_results: int = Field(..., description="搜索结果数量限制")
-    domain_filters: list[str] = Field(default_factory=list, description="域名过滤列表")
-    extras: dict[str, str] = Field(default_factory=dict, description="扩展参数")
+    max_results: int = Field(..., description="Batas jumlah hasil pencarian")
+    domain_filters: list[str] = Field(default_factory=list, description="Daftar filter nama domain")
+    extras: dict[str, str] = Field(default_factory=dict, description="Parameter tambahan")
     trust_proxy_environment: bool = Field(
         default=True,
-        description="是否信任代理环境变量",
+        description="Apakah variabel lingkungan proxy dipercaya",
     )
     bypass_ssrf_protection: bool = Field(
         default=False,
-        description="是否绕过网页读取的 SSRF 防护",
+        description="Apakah proteksi SSRF pada pembacaan halaman web dilewati",
     )
 
 
 class WebSearchSettingsUpdateRequest(BaseModel):
-    """联网搜索设置更新请求。"""
+    """Permintaan pembaruan pengaturan pencarian web."""
 
-    enabled: bool | None = Field(default=None, description="是否启用联网搜索")
-    provider: str | None = Field(default=None, description="provider 名称")
+    enabled: bool | None = Field(default=None, description="Apakah pencarian web diaktifkan")
+    provider: str | None = Field(default=None, description="Nama provider")
     api_key: str | None = Field(
         default=None,
-        description="当前 provider 的 API Key：不传保持不变；传空字符串清除；传非空更新",
+        description=(
+            "API Key provider saat ini: tidak dikirim berarti tetap; string kosong berarti dihapus; "
+            "nilai non-kosong berarti diperbarui"
+        ),
     )
     extras: dict[str, str] | None = Field(
-        default=None, description="扩展参数（整体替换，不传保持不变）"
+        default=None, description="Parameter tambahan (diganti seluruhnya, tidak dikirim berarti tetap)"
     )
     max_results: int | None = Field(
-        default=None, ge=1, le=20, description="搜索结果数量限制（1-20）"
+        default=None, ge=1, le=20, description="Batas jumlah hasil pencarian (1-20)"
     )
     domain_filters: list[str] | None = Field(
-        default=None, description="需要从搜索结果中排除的域名列表"
+        default=None, description="Daftar nama domain yang perlu dikecualikan dari hasil pencarian"
     )
     trust_proxy_environment: bool | None = Field(
         default=None,
-        description="是否信任代理环境变量",
+        description="Apakah variabel lingkungan proxy dipercaya",
     )
     bypass_ssrf_protection: bool | None = Field(
         default=None,
-        description="是否绕过网页读取的 SSRF 防护",
+        description="Apakah proteksi SSRF pada pembacaan halaman web dilewati",
     )

@@ -1,7 +1,7 @@
 /**
  * Tiktoken Utilities
  *
- * 使用 js-tiktoken/lite 按需加载编码表，避免将 wasm 版本打进首屏包。
+ * Memuat tabel penyandian sesuai kebutuhan memakai js-tiktoken/lite, agar versi wasm tidak ikut dibundel ke paket layar pertama.
  */
 
 import type { Tiktoken } from "js-tiktoken/lite";

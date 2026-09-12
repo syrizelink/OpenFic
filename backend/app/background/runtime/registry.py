@@ -14,7 +14,9 @@ class JobRegistry:
             existing = self._definitions[definition.type]
             if existing == definition:
                 return
-            raise ValueError(f"后台任务类型重复注册: {definition.type}")
+            raise ValueError(
+                f"Tipe tugas latar belakang terdaftar ganda: {definition.type}"
+            )
         self._definitions[definition.type] = definition
 
     def get(self, job_type: str) -> JobDefinition | None:

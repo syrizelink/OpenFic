@@ -12,7 +12,7 @@ async def test_compile_preserves_macro_text():
             content=(
                 "{{getmem::chapter::latest}}\n"
                 "{{getworld}}\n"
-                "{{if::enabled}}保留内容{{endif}}"
+                "{{if::enabled}}Isi dipertahankan{{endif}}"
             ),
             order_index=0,
             is_enabled=True,

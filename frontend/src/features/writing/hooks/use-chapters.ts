@@ -1,7 +1,7 @@
 /**
  * Chapter Hooks
  *
- * 章节数据操作的 React Query hooks。
+ * Hooks React Query untuk operasi data bab.
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,24 +17,24 @@ import {
 import type { ChapterCreate, ChapterUpdate } from "@/lib/chapter.types";
 
 /**
- * 获取单个章节（完整内容）
+ * Mengambil satu bab (isi lengkap)
  *
- * 缓存策略：
- * - staleTime: 2分钟内数据视为新鲜，不会重新请求
- * - gcTime: 10分钟后才清理缓存，切换标签页时可复用
+ * Strategi singgahan:
+ * - staleTime: data dianggap segar selama 2 menit, tidak diminta ulang
+ * - gcTime: singgahan baru dibersihkan setelah 10 menit, bisa dipakai ulang saat berpindah tab
  */
 export function useChapter(chapterId: string | null) {
   return useQuery({
     queryKey: ["chapter", chapterId],
     queryFn: () => fetchChapter(chapterId!),
     enabled: !!chapterId,
-    staleTime: 2 * 60 * 1000, // 2分钟内缓存有效
-    gcTime: 10 * 60 * 1000, // 10分钟后清理
+    staleTime: 2 * 60 * 1000, // Singgahan berlaku selama 2 menit
+    gcTime: 10 * 60 * 1000, // Dibersihkan setelah 10 menit
   });
 }
 
 /**
- * 创建章节
+ * Membuat bab
  */
 export function useCreateChapter(projectId: string) {
   const queryClient = useQueryClient();
@@ -51,7 +51,7 @@ export function useCreateChapter(projectId: string) {
 }
 
 /**
- * 更新章节
+ * Memperbarui bab
  */
 export function useUpdateChapter() {
   const queryClient = useQueryClient();
@@ -70,14 +70,14 @@ export function useUpdateChapter() {
       queryClient.invalidateQueries({
         queryKey: ["long-term-summaries-page", updatedChapter.projectId],
       });
-      // 刷新项目信息（更新 word_count）
+      // Menyegarkan informasi proyek (memperbarui word_count)
       queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
   });
 }
 
 /**
- * 删除章节
+ * Menghapus bab
  */
 export function useDeleteChapter(projectId: string) {
   const queryClient = useQueryClient();
@@ -92,7 +92,7 @@ export function useDeleteChapter(projectId: string) {
 }
 
 /**
- * 批量重排章节顺序
+ * Mengurutkan ulang bab secara massal
  */
 export function useReorderChapters(projectId: string) {
   const queryClient = useQueryClient();

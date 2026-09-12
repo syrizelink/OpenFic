@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Audit Router - 审计日志API路由。
+Audit Router - Rute API log audit.
 """
 
 import json
@@ -21,7 +21,7 @@ router = APIRouter(tags=["Audit"])
 
 
 def serialize_audit_log(log) -> LLMAuditLogResponse:
-    """序列化审计日志。"""
+    """Menserialisasi log audit."""
     request_messages = None
     if log.request_messages:
         try:
@@ -94,7 +94,7 @@ async def list_task_audit_logs(
     task_id: str,
     session: AsyncSession = Depends(get_session),
 ) -> LLMAuditLogListResponse:
-    """获取Task的所有审计日志。"""
+    """Mengambil semua log audit milik Task."""
     repo = LLMAuditLogRepo(session)
     logs = await repo.list_by_task(task_id)
     items = [serialize_audit_log(log) for log in logs]
@@ -106,13 +106,13 @@ async def get_task_audit_aggregation(
     task_id: str,
     session: AsyncSession = Depends(get_session),
 ) -> TaskAuditAggregation:
-    """获取Task级别的审计聚合数据。"""
+    """Mengambil data agregat audit pada level Task."""
     repo = LLMAuditLogRepo(session)
     aggregation = await repo.aggregate_by_task(task_id)
     if not aggregation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task {task_id} 的审计数据不存在",
+            detail=f"Task {task_id} tidak memiliki data audit",
         )
     return TaskAuditAggregation(
         task_id=aggregation.task_id,
@@ -134,7 +134,7 @@ async def list_session_audit_logs(
     session_id: str,
     db_session: AsyncSession = Depends(get_session),
 ) -> LLMAuditLogListResponse:
-    """获取Agent会话的所有审计日志。"""
+    """Mengambil semua log audit milik sesi Agent."""
     repo = LLMAuditLogRepo(db_session)
     logs = await repo.list_by_session(session_id)
     items = [serialize_audit_log(log) for log in logs]
@@ -146,12 +146,12 @@ async def get_audit_log(
     audit_id: str,
     session: AsyncSession = Depends(get_session),
 ) -> LLMAuditLogResponse:
-    """获取单条审计日志详情。"""
+    """Mengambil detail satu log audit."""
     repo = LLMAuditLogRepo(session)
     log = await repo.get_by_id(audit_id)
     if not log:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"审计日志 {audit_id} 不存在",
+            detail=f"Log audit {audit_id} tidak ditemukan",
         )
     return serialize_audit_log(log)

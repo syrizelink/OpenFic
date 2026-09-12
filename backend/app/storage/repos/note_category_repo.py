@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Note Category Repository - 笔记分类数据访问层。
+Note Category Repository - lapisan akses data kategori catatan.
 """
 
 from sqlalchemy import case as sa_case

@@ -12,7 +12,7 @@ sio = socketio.AsyncServer(
 
 
 def init_socketio(app: FastAPI) -> socketio.ASGIApp:
-    """将 Socket.IO 挂载到 FastAPI，返回包裹后的 ASGI app。"""
+    """Memasang Socket.IO ke FastAPI dan mengembalikan ASGI app hasil pembungkusan."""
     from app.socket.handlers import register_handlers
 
     register_handlers(sio)

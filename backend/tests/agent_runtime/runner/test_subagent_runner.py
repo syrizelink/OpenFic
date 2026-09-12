@@ -249,7 +249,7 @@ async def test_subagent_runner_forwards_explicit_skill_ids_to_tool_registration(
     )
     monkeypatch.setattr(
         "app.storage.services.skill_service.list_enabled_skills",
-        AsyncMock(return_value=[SimpleNamespace(id="skill-explicit", name="显式引用技能")]),
+        AsyncMock(return_value=[SimpleNamespace(id="skill-explicit", name="Skill dirujuk eksplisit")]),
     )
 
     runner = SubagentRunner(
@@ -265,7 +265,7 @@ async def test_subagent_runner_forwards_explicit_skill_ids_to_tool_registration(
         enabled_skills=(),
     )
     runtime_state = {
-        "user_request": '<of-skill id="skill-explicit" name="显式引用技能" />',
+        "user_request": '<of-skill id="skill-explicit" name="Skill dirujuk eksplisit" />',
     }
 
     await runner._build_tools(definition, runtime_state)
@@ -1190,7 +1190,7 @@ async def test_subagent_runner_emits_child_interrupt_when_pending_tool_approval(
                                     "approval_id": "approval-child-visible",
                                     "tool_name": "write_chapter",
                                     "tool_call_id": "tool-call-write",
-                                    "message": "需要审批",
+                                    "message": "Perlu persetujuan",
                                 },
                             },
                         )()
@@ -1215,7 +1215,7 @@ async def test_subagent_runner_emits_child_interrupt_when_pending_tool_approval(
                                 "approval_id": "approval-child-visible",
                                 "tool_name": "write_chapter",
                                 "tool_call_id": "tool-call-write",
-                                "message": "需要审批",
+                                "message": "Perlu persetujuan",
                             },
                         },
                     )()
@@ -1262,7 +1262,7 @@ async def test_subagent_runner_emits_child_interrupt_when_pending_tool_approval(
     assert child_interrupts[0]["approval_id"] == "approval-child-visible"
     assert child_interrupts[0]["tool_name"] == "write_chapter"
     assert child_interrupts[0]["tool_call_id"] == "tool-call-write"
-    assert child_interrupts[0]["message"] == "需要审批"
+    assert child_interrupts[0]["message"] == "Perlu persetujuan"
 
 
 @pytest.mark.asyncio
@@ -1371,7 +1371,7 @@ async def test_subagent_runner_emits_child_tool_result_for_tool_error_before_int
                                         "approval_id": "approval-create-plan",
                                         "tool_name": "write_plan",
                                         "tool_call_id": "call-create-plan",
-                                        "message": "需要审批",
+                                        "message": "Perlu persetujuan",
                                     },
                                 },
                             )()
@@ -1431,7 +1431,7 @@ async def test_subagent_runner_emits_child_tool_result_for_tool_error_before_int
         "type": "ok",
         "success": True,
         "reason": "approval_preview",
-        "message": "需要审批",
+        "message": "Perlu persetujuan",
         "tool_call_id": "call-create-plan",
         "tool_name": "write_plan",
     }

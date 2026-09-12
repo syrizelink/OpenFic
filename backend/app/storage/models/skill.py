@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Skill 数据模型。"""
+"""Model data Skill."""
 
 from datetime import UTC, datetime
 
@@ -9,7 +9,7 @@ from app.core.ids import generate_id
 
 
 class Skill(SQLModel, table=True):
-    """用户可编辑的 Skill。"""
+    """Skill yang dapat disunting pengguna."""
 
     __tablename__ = "skills"
 

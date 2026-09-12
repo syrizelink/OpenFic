@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 import type { AgentEvent, AgentMessage, ToolApprovalData } from "@/lib/agent.types";
 
 import { getString, isRecord } from "./tool-result-normalization";
@@ -29,7 +30,8 @@ function getPendingApprovalDetails(pendingApproval: unknown): PendingApprovalDet
       tool_call_id: toolCallId,
       tool_args: toolArgs,
       tool_result_preview: toolResultPreview,
-      message: getString(data.message) || `是否允许调用 ${toolName}？`,
+      message:
+        getString(data.message) || i18n.t("assistant.tools.toolApprovalQuestion", { toolName }),
       interrupt_behavior: data.interrupt_behavior === "cancel" ? "cancel" : "block",
     },
   };

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Embedding Strategy - Embedding模型策略。
+Embedding Strategy - strategi model embedding.
 
-处理Embedding模型的参数规范化和校验。
+Menangani normalisasi dan validasi parameter model embedding.
 """
 
 from typing import Any
@@ -11,17 +11,17 @@ from app.models.strategies.base import BaseStrategy, StandardizedConfig
 
 
 class EmbeddingStrategy(BaseStrategy):
-    """Embedding模型策略，处理文本嵌入相关的参数。"""
+    """Strategi model embedding, menangani parameter terkait embedding teks."""
 
     def normalize_parameters(self, raw_params: dict[str, Any]) -> dict[str, Any]:
         """
-        规范化Embedding参数。
+        Menormalkan parameter embedding.
 
         Args:
-            raw_params: 原始参数（可能包含dimensions等）。
+            raw_params: parameter asli (mungkin memuat dimensions, dll).
 
         Returns:
-            规范化后的参数字典。
+            Kamus parameter setelah dinormalkan.
         """
         normalized: dict[str, Any] = {}
 
@@ -34,13 +34,13 @@ class EmbeddingStrategy(BaseStrategy):
 
     def validate(self, config: StandardizedConfig) -> tuple[bool, str]:
         """
-        校验Embedding配置。
+        Memvalidasi konfigurasi embedding.
 
         Args:
-            config: 待校验的配置。
+            config: konfigurasi yang akan divalidasi.
 
         Returns:
-            (是否有效, 错误信息)
+            (apakah valid, pesan kesalahan)
         """
         if config.task_type != "embedding":
             return False, f"Task type must be 'embedding', got '{config.task_type}'"
@@ -51,7 +51,7 @@ class EmbeddingStrategy(BaseStrategy):
         if not config.provider_id:
             return False, "Provider ID is required"
 
-        # 校验dimensions
+        # Validasi dimensions
         if "dimensions" in config.parameters:
             dims = config.parameters["dimensions"]
             if dims < 1:

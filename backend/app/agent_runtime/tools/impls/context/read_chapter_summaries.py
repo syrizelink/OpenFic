@@ -9,27 +9,35 @@ from app.storage.repos import chapter_repo, chapter_summary_repo
 
 
 class ReadChapterSummariesInput(BaseModel):
-    offset: int | None = Field(default=None, description="分页偏移，从0开始")
-    limit: int | None = Field(default=None, description="本次返回的最大摘要数")
+    offset: int | None = Field(
+        default=None, description="Offset halaman, dimulai dari 0"
+    )
+    limit: int | None = Field(
+        default=None,
+        description="Jumlah maksimum ringkasan yang dikembalikan kali ini",
+    )
     orders: list[int] | None = Field(
         default=None,
-        description="按精确章节order读取摘要；当同时提供offset/limit时忽略该字段",
+        description=(
+            "Membaca ringkasan berdasarkan order bab yang persis; field ini "
+            "diabaikan bila offset/limit juga diberikan"
+        ),
     )
 
     @model_validator(mode="after")
     def validate_query(self) -> "ReadChapterSummariesInput":
         has_page = self.offset is not None or self.limit is not None
         if has_page and (self.offset is None or self.limit is None):
-            raise ValueError("offset 和 limit 必须同时传入")
+            raise ValueError("offset dan limit harus diberikan bersamaan")
         if not has_page and self.orders is None:
-            raise ValueError("必须提供 offset/limit 或 orders")
+            raise ValueError("offset/limit atau orders wajib diberikan")
         return self
 
 
 @ToolRegistry.register
 class ReadChapterSummariesTool(AgentTool):
     name: str = "read_chapter_summaries"
-    description: str = """读取章节摘要"""
+    description: str = """Membaca ringkasan bab"""
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ReadChapterSummariesInput
 

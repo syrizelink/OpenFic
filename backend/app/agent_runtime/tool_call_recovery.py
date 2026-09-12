@@ -11,7 +11,9 @@ from app.agent_runtime.tools.errors import ToolFailure
 MALFORMED_TOOL_CALL_MARKER = "__malformed_tool_call__"
 MALFORMED_TOOL_CALL_RAW_ARGS = "__raw_args__"
 MALFORMED_TOOL_CALL_ERROR = "__parse_error__"
-MALFORMED_TOOL_CALL_MESSAGE = "工具参数 JSON 无法解析，未执行工具调用"
+MALFORMED_TOOL_CALL_MESSAGE = (
+    "Parameter alat berupa JSON tidak dapat diurai, pemanggilan alat tidak dijalankan"
+)
 
 
 def parse_tool_args(args_raw: Any) -> dict[str, Any] | None:

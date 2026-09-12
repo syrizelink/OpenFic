@@ -22,7 +22,7 @@ class ListVolumesItem(BaseModel):
 @ToolRegistry.register
 class ListVolumesTool(AgentTool):
     name: str = "list_volumes"
-    description: str = "列出项目下所有卷"
+    description: str = "Menampilkan semua volume dalam proyek"
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ListVolumesInput
 

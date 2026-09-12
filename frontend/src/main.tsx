@@ -15,7 +15,7 @@ import { fetchSettings, updateSettings } from "./features/settings/lib/settings-
 import type { Settings } from "./features/settings/lib/settings.types";
 import { WorldInfoPage } from "./features/world-info";
 import { WritingPage } from "./features/writing";
-// 初始化 i18n
+// Menginisialisasi i18n
 import i18n, { type LanguageCode } from "./i18n";
 import { checkHealth, fetchAuthPreferences, fetchAuthStatus } from "./lib/api-client";
 import { publishDesktopAppearance, publishDesktopLanguage } from "./lib/desktop-appearance-bridge";
@@ -50,11 +50,11 @@ import "./styles/index.css";
 import { registerSW } from "./pwa/register-sw";
 
 /* oxlint-disable react-refresh/only-export-components */
-// 创建 QueryClient 实例（保持在组件外部以避免重新创建）
+// Membuat instans QueryClient (tetap di luar komponen agar tidak dibuat ulang)
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60, // 1 分钟
+      staleTime: 1000 * 60, // 1 menit
       retry: 1,
     },
   },
@@ -219,7 +219,7 @@ function Root() {
   const [isReady, setIsReady] = useState(false);
   const [requiresAuthentication, setRequiresAuthentication] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // 防抖触发时读取最新外观,保证连点或设置对话框在窗口期内改值后不会发送过期主题。
+  // Tampilan terbaru dibaca saat penahanan terpicu, memastikan klik berulang atau perubahan nilai di dialog pengaturan dalam jendela waktu tidak mengirim tema kedaluwarsa.
   const latestAppearanceRef = useRef<"light" | "dark">("light");
   const themeSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -233,7 +233,7 @@ function Root() {
       const savedSettings = await updateSettings({ theme: latestAppearanceRef.current });
       queryClient.setQueryData<Settings>(["settings"], savedSettings);
     } catch (error) {
-      // 持久化失败只影响下次启动,不回滚当前外观;之后任意设置保存会自动带上最新主题修正。
+      // Kegagalan penyimpanan hanya berdampak pada peluncuran berikutnya, tampilan saat ini tidak dikembalikan; penyimpanan pengaturan berikutnya otomatis menyertakan koreksi tema terbaru.
       console.warn("Failed to persist theme preference:", error);
     }
   }, []);
@@ -278,7 +278,11 @@ function Root() {
         void loadConfiguredFonts(preferences.font_family, preferences.code_font_family).catch(
           () => undefined,
         );
-        if (preferences.language === "zh-CN" || preferences.language === "en") {
+        if (
+          preferences.language === "id" ||
+          preferences.language === "en" ||
+          preferences.language === "zh-CN"
+        ) {
           await i18n.changeLanguage(preferences.language);
         }
         if (mounted) applyAppearance(preferences.theme === "dark" ? "dark" : "light");
@@ -313,7 +317,7 @@ function Root() {
         applyCodeFontFamily(settings.codeFontFamily);
         applyBaseFontSize(settings.baseFontSize);
         applyEditorFontSize(settings.editorFontSize);
-        // 字体加载失败不应阻塞初始化：回退到字体栈中的下一个字体即可。
+        // Kegagalan pemuatan fon tidak boleh memblokir inisialisasi: cukup jatuh kembali ke fon berikutnya dalam tumpukan fon.
         void loadConfiguredFonts(settings.fontFamily, settings.codeFontFamily).catch(
           () => undefined,
         );
@@ -355,7 +359,7 @@ function Root() {
 
   useEffect(() => {
     const publishLanguage = (language: string) => {
-      if (language === "zh-CN" || language === "en")
+      if (language === "id" || language === "en" || language === "zh-CN")
         publishDesktopLanguage(language as LanguageCode);
     };
 

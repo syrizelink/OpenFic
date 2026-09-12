@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-FastEmbed client tests - 内置 fastembed 客户端的 provider 路由逻辑。
+FastEmbed client tests - logika routing provider untuk klien fastembed bawaan.
 
-不依赖真实模型下载：通过伪造 fastembed 模块验证 builtin 分支被正确触发，
-以及非 builtin 分支保持原有 HTTP 行为。
+Tidak bergantung pada unduhan model nyata: memakai modul fastembed palsu untuk memverifikasi cabang builtin terpicu dengan benar,
+serta cabang non-builtin mempertahankan perilaku HTTP semula.
 """
 
 import sys
@@ -21,7 +21,7 @@ from app.models.clients.rerank_client import (
 
 
 def _install_fake_fastembed(monkeypatch) -> dict[str, list[str]]:
-    """注入一个伪造的 fastembed 模块，记录调用参数。"""
+    """Menyuntikkan modul fastembed palsu dan mencatat argumen pemanggilan."""
     embed_calls: dict[str, list[str]] = {"documents": []}
 
     class FakeTextEmbedding:

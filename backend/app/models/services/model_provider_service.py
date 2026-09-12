@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Model Provider Service - 模型服务提供商业务逻辑层。
+Model Provider Service - lapisan logika bisnis penyedia layanan model.
 
-Service作为Executor，是唯一发起调用的地方，负责处理重试、熔断、fallback和观测。
+Service berperan sebagai Executor, satu-satunya tempat pemanggilan dilakukan,
+bertanggung jawab atas retry, circuit breaker, fallback, dan observasi.
 """
 
 import json
@@ -32,7 +33,7 @@ CUSTOM_PROVIDER_TYPES = frozenset(
 
 
 class ModelProviderService:
-    """模型服务提供商Service（Executor），负责执行调用和观测。"""
+    """Service penyedia layanan model (Executor), menjalankan pemanggilan dan observasi."""
 
     def __init__(
         self,
@@ -40,27 +41,27 @@ class ModelProviderService:
         catalog_service: ModelProviderCatalogService | None = None,
     ):
         """
-        初始化服务。
+        Menginisialisasi service.
 
         Args:
-            encryption_service: 加密服务实例。
+            encryption_service: instance layanan enkripsi.
         """
         self.encryption_service = encryption_service
         self.catalog_service = catalog_service or ModelProviderCatalogService()
 
     # ========================
-    # CRUD 操作
+    # Operasi CRUD
     # ========================
 
     async def get_all_providers(self, session: AsyncSession) -> list[ModelProvider]:
         """
-        获取所有提供商。
+        Mengambil semua penyedia.
 
         Args:
-            session: 数据库 session。
+            session: session basis data.
 
         Returns:
-            提供商列表。
+            Daftar penyedia.
         """
         return await model_provider_repo.get_all(session)
 
@@ -95,7 +96,7 @@ class ModelProviderService:
         return catalog_match.icon_path if catalog_match else None
 
     def get_decrypted_custom_headers(self, provider: ModelProvider) -> dict[str, str]:
-        """获取自定义提供商的请求头，不向 API 响应暴露值。"""
+        """Mengambil header permintaan penyedia kustom, nilainya tidak diekspos ke respons API."""
         if provider.provider_type not in CUSTOM_PROVIDER_TYPES:
             return {}
 
@@ -118,7 +119,7 @@ class ModelProviderService:
         }
 
     def get_custom_header_names(self, provider: ModelProvider) -> list[str]:
-        """获取已配置的自定义请求头名称。"""
+        """Mengambil nama header permintaan kustom yang telah dikonfigurasi."""
         return list(self.get_decrypted_custom_headers(provider))
 
     @staticmethod
@@ -127,7 +128,7 @@ class ModelProviderService:
         entries: list[dict[str, str]] | None,
         existing_headers: Mapping[str, str] | None = None,
     ) -> dict[str, str]:
-        """清理请求头输入，并在更新时保留未重新填写的旧值。"""
+        """Membersihkan input header permintaan, dan mempertahankan nilai lama yang tidak diisi ulang saat pembaruan."""
         existing = dict(existing_headers or {})
         normalized: dict[str, str] = {}
 
@@ -135,11 +136,11 @@ class ModelProviderService:
             key = entry.get("key", "").strip()
             value = entry.get("value", "")
             if not isinstance(value, str):
-                raise ValueError("自定义请求头值必须是字符串")
+                raise ValueError("Nilai header permintaan kustom harus berupa string")
             if not key and not value:
                 continue
             if "\r" in key or "\n" in key or "\r" in value or "\n" in value:
-                raise ValueError("自定义请求头不能包含换行符")
+                raise ValueError("Header permintaan kustom tidak boleh memuat karakter baris baru")
             if not key:
                 continue
 
@@ -153,24 +154,24 @@ class ModelProviderService:
                 normalized[key] = value
 
         if provider_type not in CUSTOM_PROVIDER_TYPES and normalized:
-            raise ValueError("自定义请求头仅支持自定义类型提供商")
+            raise ValueError("Header permintaan kustom hanya didukung untuk penyedia bertipe kustom")
         return normalized
 
     async def get_provider_by_id(
         self, session: AsyncSession, provider_id: str
     ) -> ModelProvider:
         """
-        根据ID获取提供商。
+        Mengambil penyedia berdasarkan ID.
 
         Args:
-            session: 数据库session。
-            provider_id: 提供商ID。
+            session: session basis data.
+            provider_id: ID penyedia.
 
         Returns:
-            提供商实例。
+            Instance penyedia.
 
         Raises:
-            NotFoundError: 如果提供商不存在。
+            NotFoundError: jika penyedia tidak ditemukan.
         """
         provider = await model_provider_repo.get_by_id(session, provider_id)
         if not provider:
@@ -187,22 +188,22 @@ class ModelProviderService:
         custom_headers: list[dict[str, str]] | None = None,
     ) -> ModelProvider:
         """
-        创建提供商。
+        Membuat penyedia.
 
         Args:
-            session: 数据库 session。
-            name: 提供商名称。
-            url: 服务 URL。
-            api_key: API Key（明文）。
-            provider_type: 提供商类型。
-            custom_headers: 自定义请求头。
+            session: session basis data.
+            name: nama penyedia.
+            url: URL layanan.
+            api_key: API Key (teks polos).
+            provider_type: jenis penyedia.
+            custom_headers: header permintaan kustom.
 
         Returns:
-            创建的提供商实例。
+            Instance penyedia yang dibuat.
         """
         url = await self._resolve_provider_url(provider_type, url)
 
-        # 加密 API Key
+        # Enkripsi API Key
         encrypted_key = self.encryption_service.encrypt(api_key) if api_key else ""
         normalized_headers = self._normalize_custom_headers(provider_type, custom_headers)
         encrypted_headers = (
@@ -249,30 +250,30 @@ class ModelProviderService:
         custom_headers: list[dict[str, str]] | None = None,
     ) -> ModelProvider:
         """
-        更新提供商。
+        Memperbarui penyedia.
 
         Args:
-            session: 数据库 session。
-            provider_id: 提供商 ID。
-            name: 提供商名称。
-            url: 服务 URL。
-            api_key: API Key（明文），如果提供则重新加密。
-            provider_type: 提供商类型。
-            custom_headers: 自定义请求头。
+            session: session basis data.
+            provider_id: ID penyedia.
+            name: nama penyedia.
+            url: URL layanan.
+            api_key: API Key (teks polos), jika diberikan maka dienkripsi ulang.
+            provider_type: jenis penyedia.
+            custom_headers: header permintaan kustom.
 
         Returns:
-            更新后的提供商实例。
+            Instance penyedia setelah diperbarui.
 
         Raises:
-            NotFoundError: 如果提供商不存在。
+            NotFoundError: jika penyedia tidak ditemukan.
         """
         existing = await model_provider_repo.get_by_id(session, provider_id)
         if existing is None:
             raise NotFoundError(f"Provider with id {provider_id} not found")
         if existing.is_builtin:
-            raise ValueError("内置提供商不允许编辑")
+            raise ValueError("Penyedia bawaan tidak boleh diedit")
 
-        # 加密 API Key（如果提供）
+        # Enkripsi API Key (jika diberikan)
         encrypted_key = None
         if api_key is not None:
             encrypted_key = self.encryption_service.encrypt(api_key) if api_key else ""
@@ -313,39 +314,40 @@ class ModelProviderService:
 
     async def delete_provider(self, session: AsyncSession, provider_id: str) -> None:
         """
-        删除提供商。
+        Menghapus penyedia.
 
         Args:
-            session: 数据库 session。
-            provider_id: 提供商 ID。
+            session: session basis data.
+            provider_id: ID penyedia.
 
         Raises:
-            NotFoundError: 如果提供商不存在。
-            ValueError: 如果提供商为内置提供商，不允许删除。
+            NotFoundError: jika penyedia tidak ditemukan.
+            ValueError: jika penyedia adalah penyedia bawaan, tidak boleh dihapus.
         """
         provider = await model_provider_repo.get_by_id(session, provider_id)
         if provider is None:
             raise NotFoundError(f"Provider with id {provider_id} not found")
         if provider.is_builtin:
-            raise ValueError("内置提供商不允许删除")
+            raise ValueError("Penyedia bawaan tidak boleh dihapus")
         success = await model_provider_repo.delete_by_id(session, provider_id)
         if not success:
             raise NotFoundError(f"Provider with id {provider_id} not found")
         await session.commit()
 
     # ========================
-    # API Key 操作
+    # Operasi API Key
     # ========================
 
     def get_decrypted_api_key(self, provider: ModelProvider) -> str | None:
         """
-        获取解密后的 API Key。
+        Mengambil API Key yang telah didekripsi.
 
         Args:
-            provider: 提供商实例。
+            provider: instance penyedia.
 
         Returns:
-            解密后的 API Key，如果加密字段为空或解密失败返回 None。
+            API Key setelah didekripsi, atau None jika field terenkripsi kosong
+            atau dekripsi gagal.
         """
         if not provider.api_key_encrypted or provider.api_key_encrypted.strip() == "":
             return None
@@ -357,7 +359,7 @@ class ModelProviderService:
             return None
 
     # ========================
-    # 模型列表获取（Executor执行点）
+    # Pengambilan daftar model (titik eksekusi Executor)
     # ========================
 
     async def validate_and_get_models(
@@ -368,23 +370,24 @@ class ModelProviderService:
         custom_headers: list[dict[str, str]] | None = None,
     ) -> list[dict[str, str]]:
         """
-        验证提供商连接并获取模型列表。
+        Memvalidasi koneksi penyedia dan mengambil daftar model.
 
         Args:
-            provider_type: 提供商类型。
-            url: 服务 URL。
-            api_key: API Key（明文）。
-            custom_headers: 自定义请求头。
+            provider_type: jenis penyedia.
+            url: URL layanan.
+            api_key: API Key (teks polos).
+            custom_headers: header permintaan kustom.
 
         Returns:
-            模型列表，每个模型为 {"id": "model-id", "name": "Model Name"} 格式。
+            Daftar model, setiap model berformat
+            {"id": "model-id", "name": "Model Name"}.
 
         Raises:
-            Exception: 如果连接验证失败。
+            Exception: jika validasi koneksi gagal.
         """
         url = await self._resolve_provider_url(provider_type, url)
 
-        # 使用统一的Adapter获取模型
+        # Ambil model menggunakan Adapter terpadu
         runtime_provider_type = (
             "anthropic-compatible"
             if provider_type == "anthropic-compatible"
@@ -399,7 +402,7 @@ class ModelProviderService:
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                # 默认获取LLM模型列表（用于连接验证）
+                # Default mengambil daftar model LLM (untuk validasi koneksi)
                 if request_headers:
                     return await adapter.get_llm_models(
                         client,
@@ -409,25 +412,26 @@ class ModelProviderService:
                     )
                 return await adapter.get_llm_models(client, url, api_key)
         except Exception as e:
-            logger.error(f"验证提供商连接失败: {e}")
+            logger.error(f"Validasi koneksi penyedia gagal: {e}")
             raise
 
     async def get_available_models(
         self, provider: ModelProvider, task_type: str
     ) -> list[dict[str, str]]:
         """
-        获取指定provider和task_type的可用模型列表（Executor执行点）。
+        Mengambil daftar model tersedia untuk provider dan task_type tertentu
+        (titik eksekusi Executor).
 
         Args:
-            provider: 提供商实例。
-            task_type: 任务类型（llm、embedding 或 rerank）。
+            provider: instance penyedia.
+            task_type: jenis tugas (llm, embedding, atau rerank).
 
         Returns:
-            模型列表。
+            Daftar model.
 
         Raises:
-            ValueError: 如果不支持该provider和task_type组合。
-            Exception: 如果请求失败。
+            ValueError: jika kombinasi provider dan task_type tidak didukung.
+            Exception: jika permintaan gagal.
         """
         if provider.is_builtin:
             return self._builtin_available_models(task_type)
@@ -436,7 +440,7 @@ class ModelProviderService:
             f"Fetching available models for provider={provider.provider_type}, task_type={task_type}"
         )
 
-        # 检查是否支持
+        # Periksa apakah didukung
         runtime_provider_type = (
             "anthropic-compatible"
             if provider.provider_type == "anthropic-compatible"
@@ -451,17 +455,17 @@ class ModelProviderService:
                 f"Provider '{provider.provider_type}' does not support task_type '{task_type}'"
             )
 
-        # 获取Adapter
+        # Ambil Adapter
         adapter = AdapterRegistry.get_adapter(runtime_provider_type)
 
-        # 解密API Key
+        # Dekripsi API Key
         api_key = self.encryption_service.decrypt(provider.api_key_encrypted)
         request_headers = self.get_decrypted_custom_headers(provider)
 
-        # 创建HTTP客户端并执行请求
+        # Buat klien HTTP dan jalankan permintaan
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                # 根据task_type路由到对应方法
+                # Rutekan ke metode yang sesuai berdasarkan task_type
                 if task_type == "llm":
                     if request_headers:
                         models = await adapter.get_llm_models(
@@ -514,7 +518,7 @@ class ModelProviderService:
         task_type: str,
         models: list[dict[str, str]],
     ) -> list[dict[str, Any]]:
-        """按 model id 将远端返回模型与 catalog 元数据对齐。"""
+        """Menyelaraskan model dari remote dengan metadata catalog berdasarkan model id."""
 
         enriched_models: list[dict[str, Any]] = [
             {
@@ -558,7 +562,7 @@ class ModelProviderService:
 
     @staticmethod
     def _builtin_available_models(task_type: str) -> list[dict[str, str]]:
-        """内置提供商的固定模型列表。"""
+        """Daftar model tetap untuk penyedia bawaan."""
         from app.models.builtin import BUILTIN_MODELS
 
         return [

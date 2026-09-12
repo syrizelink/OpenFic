@@ -39,18 +39,30 @@ async def resolve_background_llm(
         effective_model_id = setting.value.strip() if setting and setting.value else ""
 
     if not effective_model_id:
-        logger.warning(f"后台任务模型未配置，model_policy={model_policy}")
-        raise BackgroundModelUnavailableError(f"后台任务模型未配置: {model_policy}")
+        logger.warning(
+            f"Model tugas latar belakang belum dikonfigurasi, model_policy={model_policy}"
+        )
+        raise BackgroundModelUnavailableError(
+            f"Model tugas latar belakang belum dikonfigurasi: {model_policy}"
+        )
 
     model = await model_repo.get_by_id(session, effective_model_id)
     if model is None:
-        logger.warning(f"后台任务模型不存在: {effective_model_id}")
-        raise BackgroundModelUnavailableError(f"模型不存在: {effective_model_id}")
+        logger.warning(
+            f"Model tugas latar belakang tidak ditemukan: {effective_model_id}"
+        )
+        raise BackgroundModelUnavailableError(
+            f"Model tidak ditemukan: {effective_model_id}"
+        )
 
     provider = await model_provider_repo.get_by_id(session, model.provider_id)
     if provider is None:
-        logger.warning(f"后台任务模型提供商不存在: {model.provider_id}")
-        raise BackgroundModelUnavailableError(f"模型提供商不存在: {model.provider_id}")
+        logger.warning(
+            f"Penyedia model tugas latar belakang tidak ditemukan: {model.provider_id}"
+        )
+        raise BackgroundModelUnavailableError(
+            f"Penyedia model tidak ditemukan: {model.provider_id}"
+        )
 
     encryption_service = EncryptionService(settings.encryption_key)
     api_key = encryption_service.decrypt(provider.api_key_encrypted)

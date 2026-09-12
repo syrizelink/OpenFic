@@ -1,4 +1,4 @@
-"""错误传播测试。"""
+"""Uji propagasi error."""
 
 import pytest
 from langchain_core.messages import AIMessageChunk

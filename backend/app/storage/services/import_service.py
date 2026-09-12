@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Import Service - 导入业务逻辑层。
+Import Service - lapisan logika bisnis impor.
 """
 
 from dataclasses import dataclass
@@ -20,7 +20,7 @@ from app.storage.services import writing_activity_service
 
 @dataclass
 class ImportResult:
-    """导入结果。"""
+    """Hasil impor."""
 
     project_id: str
     title: str
@@ -36,27 +36,27 @@ async def confirm_import(
     volumes: list[ParsedVolume],
 ) -> ImportResult:
     """
-    确认导入，创建项目和所有章节。
+    Mengonfirmasi impor, membuat proyek dan semua bab.
 
     Args:
-        session: 数据库 session。
-        title: 书名。
-        description: 简介，可选。
-        cover_file: 封面文件，可选。
-        volumes: 解析后的卷列表。
+        session: session basis data.
+        title: Judul buku.
+        description: Ringkasan, opsional.
+        cover_file: File sampul, opsional.
+        volumes: Daftar volume hasil parsing.
 
     Returns:
-        导入结果。
+        Hasil impor.
     """
     for parsed_volume in volumes:
         for chapter in parsed_volume.chapters:
             validate_editor_content(chapter.content)
 
-    # 计算总字数
+    # Menghitung total jumlah kata
     chapters = [chapter for volume in volumes for chapter in volume.chapters]
     total_word_count = sum(chapter.word_count for chapter in chapters)
 
-    # 创建项目
+    # Membuat proyek
     project = Project(
         title=title,
         description=description,
@@ -78,13 +78,13 @@ async def confirm_import(
     session.add_all(volume_objects)
     await session.flush()
 
-    # 如果提供了封面文件，保存封面
+    # Bila file sampul disediakan, simpan sampulnya
     if cover_file:
         cover_path = await save_cover_file(project.id, cover_file)
         project.cover_path = cover_path
         project = await project_repo.update(session, project)
 
-    # 批量创建章节对象
+    # Membuat objek bab secara massal
     chapter_objects = [
         Chapter(
             project_id=project.id,
@@ -98,7 +98,7 @@ async def confirm_import(
         for chapter_order, parsed_chapter in enumerate(parsed_volume.chapters, start=1)
     ]
 
-    # 批量插入所有章节
+    # Menyisipkan semua bab secara massal
     session.add_all(chapter_objects)
     await session.flush()
 

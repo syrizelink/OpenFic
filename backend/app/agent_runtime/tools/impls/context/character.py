@@ -26,26 +26,36 @@ class ListCharactersInput(BaseModel):
 
 
 class ReadCharacterInput(BaseModel):
-    name: str = Field(description="要读取的角色名称")
+    name: str = Field(description="Nama tokoh yang akan dibaca")
 
 
 class CreateCharacterInput(BaseModel):
-    name: str = Field(description="新角色名称")
-    description: str = Field(description="新角色描述")
+    name: str = Field(description="Nama tokoh baru")
+    description: str = Field(description="Deskripsi tokoh baru")
 
 
 class EditCharacterInput(BaseModel):
-    name: str = Field(description="要编辑的角色名称")
-    new_name: str | None = Field(default=None, description="可选的新角色名称")
-    old_description: str | None = Field(default=None, description="要查找并替换的原始描述文本")
-    new_description: str | None = Field(default=None, description="用于替换 old_description 的新描述文本")
-    replace_all: bool = Field(default=False, description="是否替换命中的全部 old_description")
+    name: str = Field(description="Nama tokoh yang akan disunting")
+    new_name: str | None = Field(
+        default=None, description="Nama tokoh baru, opsional"
+    )
+    old_description: str | None = Field(
+        default=None, description="Teks deskripsi asli yang akan dicari dan diganti"
+    )
+    new_description: str | None = Field(
+        default=None,
+        description="Teks deskripsi baru sebagai pengganti old_description",
+    )
+    replace_all: bool = Field(
+        default=False,
+        description="Apakah mengganti seluruh old_description yang cocok",
+    )
 
     @field_validator("old_description", mode="after")
     @classmethod
     def reject_empty_old_description(cls, v):
         if v is not None and v == "":
-            raise ValueError("old_description 不能为空字符串")
+            raise ValueError("old_description tidak boleh berupa string kosong")
         return v
 
     @field_validator("new_description", mode="after")
@@ -55,12 +65,15 @@ class EditCharacterInput(BaseModel):
         has_name = data.get("new_name") is not None
         has_description = data.get("old_description") is not None and v is not None
         if not has_name and not has_description:
-            raise ValueError("new_name 和 old_description/new_description 必填一类")
+            raise ValueError(
+                "salah satu dari new_name atau old_description/new_description "
+                "wajib diisi"
+            )
         return v
 
 
 class DeleteCharacterInput(BaseModel):
-    name: str = Field(description="要删除的角色名称")
+    name: str = Field(description="Nama tokoh yang akan dihapus")
 
 
 @dataclass(frozen=True)
@@ -118,7 +131,7 @@ def _build_character_diff(
 ) -> dict:
     target = after or before
     if target is None:
-        raise ToolExecutionError("缺少角色 diff 数据")
+        raise ToolExecutionError("Data diff tokoh tidak ada")
     if before is None:
         operation = "create"
         lines = _diff_lines(None, after.description if after else "")
@@ -142,13 +155,13 @@ async def _list_project_characters(session, project_id: str) -> list[Character]:
 async def _resolve_character_by_name(session, project_id: str, name: str) -> Character:
     normalized_name = name.strip()
     if not normalized_name:
-        raise ToolExecutionError("角色名称不能为空")
+        raise ToolExecutionError("Nama tokoh tidak boleh kosong")
     characters = await _list_project_characters(session, project_id)
     matches = [character for character in characters if character.name == normalized_name]
     if not matches:
-        raise ToolExecutionError(f"角色不存在: {normalized_name}")
+        raise ToolExecutionError(f"Tokoh tidak ditemukan: {normalized_name}")
     if len(matches) > 1:
-        raise ToolExecutionError(f"角色名称不唯一: {normalized_name}")
+        raise ToolExecutionError(f"Nama tokoh tidak unik: {normalized_name}")
     return matches[0]
 
 
@@ -160,27 +173,29 @@ async def _ensure_name_available(
 ) -> str:
     normalized_name = name.strip()
     if not normalized_name:
-        raise ToolExecutionError("角色名称不能为空")
+        raise ToolExecutionError("Nama tokoh tidak boleh kosong")
     characters = await _list_project_characters(session, project_id)
     if any(
         character.name == normalized_name and character.id != exclude_character_id
         for character in characters
     ):
-        raise ToolExecutionError(f"角色名称已存在: {normalized_name}")
+        raise ToolExecutionError(f"Nama tokoh sudah ada: {normalized_name}")
     return normalized_name
 
 
 def _require_revision_id(state: dict) -> str:
     revision_id = current_revision_id_from_state(state)
     if revision_id is None:
-        raise ToolExecutionError("缺少当前 revision，无法执行角色修改")
+        raise ToolExecutionError(
+            "revision saat ini tidak ada, perubahan tokoh tidak dapat dijalankan"
+        )
     return revision_id
 
 
 @ToolRegistry.register
 class ListCharactersTool(AgentTool):
     name: str = "list_characters"
-    description: str = "获取当前项目中的角色名称列表。"
+    description: str = "Mengambil daftar nama tokoh pada proyek saat ini."
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ListCharactersInput
 
@@ -204,7 +219,9 @@ class ListCharactersTool(AgentTool):
 @ToolRegistry.register
 class ReadCharacterTool(AgentTool):
     name: str = "read_character"
-    description: str = "根据名称读取当前项目中的单个角色描述。"
+    description: str = (
+        "Membaca deskripsi satu tokoh pada proyek saat ini berdasarkan namanya."
+    )
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ReadCharacterInput
 
@@ -226,7 +243,7 @@ class ReadCharacterTool(AgentTool):
 @ToolRegistry.register
 class CreateCharacterTool(AgentTool):
     name: str = "create_character"
-    description: str = "在当前项目中创建角色。"
+    description: str = "Membuat tokoh pada proyek saat ini."
     access_level: str = "write"
     args_schema: type[BaseModel] = CreateCharacterInput
 
@@ -249,7 +266,7 @@ class CreateCharacterTool(AgentTool):
             "type": "preview",
             "success": True,
             "reason": "approval_preview",
-            "message": "角色创建待审批",
+            "message": "Pembuatan tokoh menunggu persetujuan",
             "metadata": {"character_diff": _build_character_diff(None, after)},
         }
 
@@ -299,7 +316,10 @@ class CreateCharacterTool(AgentTool):
 @ToolRegistry.register
 class EditCharacterTool(AgentTool):
     name: str = "edit_character"
-    description: str = "编辑当前项目角色的名称或描述。修改描述时使用查找替换模式。"
+    description: str = (
+        "Menyunting nama atau deskripsi tokoh pada proyek saat ini. Saat mengubah "
+        "deskripsi, gunakan mode cari-dan-ganti."
+    )
     access_level: str = "write"
     args_schema: type[BaseModel] = EditCharacterInput
 
@@ -351,7 +371,7 @@ class EditCharacterTool(AgentTool):
             "type": "preview",
             "success": True,
             "reason": "approval_preview",
-            "message": "角色修改待审批",
+            "message": "Perubahan tokoh menunggu persetujuan",
             "metadata": {"character_diff": _build_character_diff(before, after)},
         }
 
@@ -376,7 +396,10 @@ class EditCharacterTool(AgentTool):
                         replace_all=replace_all,
                     )
                     if replace_result is None:
-                        raise ToolExecutionError("未在角色描述中找到要替换的文本")
+                        raise ToolExecutionError(
+                            "Teks yang akan diganti tidak ditemukan di dalam "
+                            "deskripsi tokoh"
+                        )
                     description = replace_result.new_content
                     try:
                         validate_editor_content(description)
@@ -427,7 +450,7 @@ class EditCharacterTool(AgentTool):
 @ToolRegistry.register
 class DeleteCharacterTool(AgentTool):
     name: str = "delete_character"
-    description: str = "根据名称删除当前项目中的单个角色。"
+    description: str = "Menghapus satu tokoh pada proyek saat ini berdasarkan namanya."
     access_level: str = "write"
     args_schema: type[BaseModel] = DeleteCharacterInput
 

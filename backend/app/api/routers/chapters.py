@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Chapters Router - 章节 CRUD API。
+Chapters Router - API CRUD bab.
 """
 
 from typing import Annotated
@@ -34,7 +34,7 @@ router = APIRouter(tags=["chapters"])
     "/projects/{project_id}/chapters",
     response_model=ChapterResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="创建章节",
+    summary="Membuat bab",
 )
 async def create_chapter(
     project_id: str,
@@ -42,18 +42,18 @@ async def create_chapter(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ChapterResponse:
     """
-    在指定项目下创建新章节。
+    Membuat bab baru pada proyek tertentu.
 
     Args:
-        project_id: 项目 ID。
-        data: 章节创建数据。
-        session: 数据库 session。
+        project_id: ID proyek.
+        data: Data pembuatan bab.
+        session: Session basis data.
 
     Returns:
-        创建的章节。
+        Bab yang dibuat.
     """
     try:
-        logger.info(f"创建章节: project_id={project_id}, title={data.title}")
+        logger.info(f"Membuat bab: project_id={project_id}, title={data.title}")
         chapter = await chapter_service.create_chapter(
             session,
             project_id=project_id,
@@ -73,21 +73,21 @@ async def create_chapter(
 @router.get(
     "/projects/{project_id}/chapters",
     response_model=VolumeTreeResponse,
-    summary="获取章节列表",
+    summary="Mengambil daftar bab",
 )
 async def list_chapters(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> VolumeTreeResponse:
     """
-    获取指定项目下的所有章节列表（精简版，不含正文）。
+    Mengambil semua daftar bab pada proyek tertentu (versi ringkas, tanpa isi).
 
     Args:
-        project_id: 项目 ID。
-        session: 数据库 session。
+        project_id: ID proyek.
+        session: Session basis data.
 
     Returns:
-        章节列表（精简版）。
+        Daftar bab (versi ringkas).
     """
     try:
         result = await chapter_service.list_chapters(session, project_id)
@@ -111,24 +111,24 @@ async def list_chapters(
 @router.get(
     "/chapters/{chapter_id}",
     response_model=ChapterResponse,
-    summary="获取章节详情",
+    summary="Mengambil detail bab",
 )
 async def get_chapter(
     chapter_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ChapterResponse:
     """
-    获取单个章节的详细信息。
+    Mengambil informasi detail satu bab.
 
     Args:
-        chapter_id: 章节 ID。
-        session: 数据库 session。
+        chapter_id: ID bab.
+        session: Session basis data.
 
     Returns:
-        章节详情。
+        Detail bab.
 
     Raises:
-        HTTPException: 章节不存在时返回 404。
+        HTTPException: Mengembalikan 404 bila bab tidak ditemukan.
     """
     try:
         chapter = await chapter_service.get_chapter(session, chapter_id)
@@ -140,7 +140,7 @@ async def get_chapter(
 @router.patch(
     "/chapters/{chapter_id}",
     response_model=ChapterResponse,
-    summary="更新章节",
+    summary="Memperbarui bab",
 )
 async def update_chapter(
     chapter_id: str,
@@ -148,21 +148,21 @@ async def update_chapter(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ChapterResponse:
     """
-    更新章节信息。
+    Memperbarui informasi bab.
 
     Args:
-        chapter_id: 章节 ID。
-        data: 更新数据。
-        session: 数据库 session。
+        chapter_id: ID bab.
+        data: Data pembaruan.
+        session: Session basis data.
 
     Returns:
-        更新后的章节。
+        Bab setelah diperbarui.
 
     Raises:
-        HTTPException: 章节不存在时返回 404。
+        HTTPException: Mengembalikan 404 bila bab tidak ditemukan.
     """
     try:
-        logger.info(f"更新章节: {chapter_id}")
+        logger.info(f"Memperbarui bab: {chapter_id}")
         chapter = await chapter_service.update_chapter(
             session,
             chapter_id,
@@ -181,24 +181,24 @@ async def update_chapter(
 @router.delete(
     "/chapters/{chapter_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="删除章节",
+    summary="Menghapus bab",
 )
 async def delete_chapter(
     chapter_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> None:
     """
-    删除章节。
+    Menghapus bab.
 
     Args:
-        chapter_id: 章节 ID。
-        session: 数据库 session。
+        chapter_id: ID bab.
+        session: Session basis data.
 
     Raises:
-        HTTPException: 章节不存在时返回 404。
+        HTTPException: Mengembalikan 404 bila bab tidak ditemukan.
     """
     try:
-        logger.info(f"删除章节: {chapter_id}")
+        logger.info(f"Menghapus bab: {chapter_id}")
         await chapter_service.delete_chapter(session, chapter_id)
         await background_service.commit_and_notify(session)
     except NotFoundError as e:
@@ -208,24 +208,24 @@ async def delete_chapter(
 @router.post(
     "/chapters/reorder",
     response_model=list[ChapterListItem],
-    summary="批量重排章节顺序",
+    summary="Menata ulang urutan bab secara massal",
 )
 async def reorder_chapters(
     data: ChapterReorder,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[ChapterListItem]:
     """
-    批量重排卷内章节顺序。
+    Menata ulang urutan bab di dalam volume secara massal.
 
     Args:
-        data: 重排数据（卷 ID + 按新顺序排列的章节 ID 列表）。
-        session: 数据库 session。
+        data: Data penataan ulang (ID volume + daftar ID bab dalam urutan baru).
+        session: Session basis data.
 
     Returns:
-        更新后的章节列表。
+        Daftar bab setelah diperbarui.
 
     Raises:
-        HTTPException: 章节不存在或不属于指定卷时返回 400。
+        HTTPException: Mengembalikan 400 bila bab tidak ditemukan atau bukan milik volume tersebut.
     """
     try:
         chapters = await chapter_service.reorder_chapters(
@@ -240,14 +240,14 @@ async def reorder_chapters(
 @router.get(
     "/projects/{project_id}/chapters/search",
     response_model=ChapterSearchResponse,
-    summary="搜索章节内容",
+    summary="Mencari isi bab",
 )
 async def search_chapters(
     project_id: str,
-    q: Annotated[str, Query(description="搜索关键词")],
+    q: Annotated[str, Query(description="Kata kunci pencarian")],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ChapterSearchResponse:
-    """按内容搜索章节，返回匹配的章节及匹配行。"""
+    """Mencari bab berdasarkan isi, mengembalikan bab yang cocok beserta baris yang cocok."""
     try:
         result = await chapter_service.search_chapters(session, project_id, q)
         return ChapterSearchResponse(
@@ -277,16 +277,16 @@ async def search_chapters(
 @router.post(
     "/chapters/{chapter_id}/move-to-volume",
     response_model=ChapterResponse,
-    summary="移动章节到卷",
+    summary="Memindahkan bab ke volume",
 )
 async def move_chapter_to_volume(
     chapter_id: str,
     data: ChapterMoveToVolume,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ChapterResponse:
-    """跨卷移动章节，追加到目标卷末尾。"""
+    """Memindahkan bab antar volume, ditambahkan ke akhir volume tujuan."""
     try:
-        logger.info(f"移动章节到卷: {chapter_id} -> volume={data.volume_id}")
+        logger.info(f"Memindahkan bab ke volume: {chapter_id} -> volume={data.volume_id}")
         chapter = await chapter_service.move_chapter_to_volume(
             session,
             chapter_id=chapter_id,

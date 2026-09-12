@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Settings Router - 用户设置 API。
+Settings Router - API pengaturan pengguna.
 """
 
 import json
@@ -47,7 +47,7 @@ from app.audit.queue import (
     set_audit_details_persistence,
 )
 from app.audit.repo import LLMAuditLogRepo
-from app.retrieval.chapter_index import (
+from app.retrieval.config import (
     DEFAULT_INDEX_AUTO_STRATEGY,
     DEFAULT_INDEX_CHUNK_OVERLAP,
     DEFAULT_INDEX_CHUNK_SIZE,
@@ -61,10 +61,9 @@ from app.retrieval.chapter_index import (
     SETTING_KEY_INDEX_MODE,
     SETTING_KEY_INDEX_RERANK_ENABLED,
     SETTING_KEY_DEFAULT_RERANK_MODEL,
-    _VALID_INDEX_AUTO_STRATEGIES,
-    _VALID_INDEX_MODES,
+    VALID_INDEX_AUTO_STRATEGIES as _VALID_INDEX_AUTO_STRATEGIES,
+    VALID_INDEX_MODES as _VALID_INDEX_MODES,
 )
-from app.retrieval.index_status import schedule_emit_index_config
 from app.storage.database import get_session
 from app.storage.repos import (
     retrieval_chapter_index_state_repo,
@@ -74,7 +73,7 @@ from app.storage.repos import (
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
-# 设置键名常量
+# Konstanta nama kunci pengaturan
 SETTING_KEY_LANGUAGE = "language"
 SETTING_KEY_THEME = "theme"
 SETTING_KEY_FONT_FAMILY = "font_family"
@@ -91,9 +90,9 @@ SETTING_KEY_EDITOR_AUTO_INDENT = "editor_auto_indent"
 SETTING_KEY_EDITOR_AUTO_CONVERT_PUNCTUATION = "editor_auto_convert_punctuation"
 SETTING_KEY_EDITOR_AUTO_PAIR_SYMBOLS = "editor_auto_pair_symbols"
 SETTING_KEY_EDITOR_SHOW_LINE_NUMBERS = "editor_show_line_numbers"
-# 默认值
+# Nilai default
 DEFAULT_SETTINGS = {
-    SETTING_KEY_LANGUAGE: "zh-CN",
+    SETTING_KEY_LANGUAGE: "id",
     SETTING_KEY_THEME: "light",
     SETTING_KEY_FONT_FAMILY: "system-ui",
     SETTING_KEY_CODE_FONT_FAMILY: "ui-monospace",
@@ -126,7 +125,7 @@ DEFAULT_SETTINGS = {
 @router.get(
     "/agent-session-lock",
     response_model=AgentSettingsLockResponse,
-    summary="获取 Agent 会话设置锁定状态",
+    summary="Mengambil status kunci pengaturan sesi Agent",
 )
 async def get_agent_settings_lock(
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -143,11 +142,14 @@ def _parse_agent_tool_permissions(raw_value: str) -> list[AgentToolPermissionIte
     try:
         payload = json.loads(raw_value)
     except json.JSONDecodeError:
-        logger.warning("agent_tool_permissions 配置不是合法 JSON，已回退为空列表")
+        logger.warning(
+            "Konfigurasi agent_tool_permissions bukan JSON yang valid, dikembalikan ke daftar "
+            "kosong"
+        )
         return []
 
     if not isinstance(payload, list):
-        logger.warning("agent_tool_permissions 配置不是列表，已回退为空列表")
+        logger.warning("Konfigurasi agent_tool_permissions bukan list, dikembalikan ke daftar kosong")
         return []
 
     result: list[AgentToolPermissionItem] = []
@@ -155,7 +157,7 @@ def _parse_agent_tool_permissions(raw_value: str) -> list[AgentToolPermissionIte
         try:
             result.append(AgentToolPermissionItem.model_validate(item))
         except Exception:
-            logger.warning("agent_tool_permissions 存在非法项，已跳过")
+            logger.warning("Terdapat item tidak valid pada agent_tool_permissions, item dilewati")
     return result
 
 
@@ -171,7 +173,7 @@ def _parse_bool_setting(raw_value: str | None, *, default: bool = False) -> bool
             return True
         if normalized in {"false", "0", "no", "off"}:
             return False
-        logger.warning("布尔设置值非法，已回退到默认值")
+        logger.warning("Nilai pengaturan boolean tidak valid, dikembalikan ke nilai default")
         return default
 
     if isinstance(parsed, bool):
@@ -179,7 +181,7 @@ def _parse_bool_setting(raw_value: str | None, *, default: bool = False) -> bool
     if isinstance(parsed, (int, float)):
         return bool(parsed)
 
-    logger.warning("布尔设置值类型非法，已回退到默认值")
+    logger.warning("Tipe nilai pengaturan boolean tidak valid, dikembalikan ke nilai default")
     return default
 
 
@@ -236,23 +238,23 @@ def _parse_int_setting(raw_value: str | None, *, default: int) -> int:
 @router.get(
     "",
     response_model=SettingsResponse,
-    summary="获取设置",
+    summary="Mengambil pengaturan",
 )
 async def get_settings(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> SettingsResponse:
     """
-    获取所有用户设置。
+    Mengambil seluruh pengaturan pengguna.
 
     Args:
-        session: 数据库 session。
+        session: Session basis data.
 
     Returns:
-        当前设置。
+        Pengaturan saat ini.
     """
     settings_list = await setting_repo.get_all(session)
 
-    # 将设置列表转换为字典
+    # Mengubah daftar pengaturan menjadi dictionary
     settings_dict = {s.key: s.value for s in settings_list}
     agent_tool_permissions = _merge_default_agent_tool_permissions(
         _parse_agent_tool_permissions(
@@ -400,27 +402,27 @@ code_font_family=settings_dict.get(
     "",
     response_model=SettingsResponse,
     status_code=status.HTTP_200_OK,
-    summary="更新设置",
+    summary="Memperbarui pengaturan",
 )
 @router.patch(
     "",
     response_model=SettingsResponse,
     status_code=status.HTTP_200_OK,
-    summary="更新设置",
+    summary="Memperbarui pengaturan",
 )
 async def update_settings(
     request: SettingsUpdateRequest,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> SettingsResponse:
     """
-    批量更新用户设置。
+    Memperbarui pengaturan pengguna secara massal.
 
     Args:
-        request: 设置更新请求，只更新非 None 的字段。
-        session: 数据库 session。
+        request: Permintaan pembaruan pengaturan, hanya field non-None yang diperbarui.
+        session: Session basis data.
 
     Returns:
-        更新后的设置。
+        Pengaturan setelah diperbarui.
     """
     is_restricted_update = any(
         value is not None
@@ -443,7 +445,7 @@ async def update_settings(
     settings_list = await setting_repo.get_all(session)
     current_settings = {setting.key: setting.value for setting in settings_list}
 
-    # 构建要更新的设置字典
+    # Menyusun dictionary pengaturan yang akan diperbarui
     settings_to_update: dict[str, str] = {}
     index_config_changed = False
     index_contract_changed = False
@@ -581,12 +583,12 @@ async def update_settings(
             ensure_ascii=False,
         )
 
-    # 分块参数或嵌入模型变更会使现有索引失效，需要标记重建。
+    # Perubahan parameter chunk atau model embedding membuat indeks yang ada tidak valid, sehingga perlu ditandai untuk dibangun ulang.
     if index_contract_changed:
         await retrieval_chapter_index_state_repo.mark_all_needs_rebuild(session)
         await retrieval_index_repo.mark_all_needs_rebuild(session)
 
-    # 批量更新
+    # Pembaruan massal
     if settings_to_update:
         await setting_repo.bulk_upsert(session, settings_to_update)
     if next_audit_details_persistence is not None:
@@ -594,21 +596,23 @@ async def update_settings(
     if request.telemetry_enabled is not None:
         set_telemetry_enabled(request.telemetry_enabled)
 
-    # 索引配置变更后通知前端刷新索引状态。
+    # Memberi tahu frontend untuk menyegarkan status indeks setelah konfigurasi indeks berubah.
     if index_config_changed:
+        from app.retrieval.index_status import schedule_emit_index_config
+
         schedule_emit_index_config(session)
 
-    # 返回更新后的完整设置
+    # Mengembalikan pengaturan lengkap setelah diperbarui
     return await get_settings(session)
 
 
 @router.get(
     "/web-search/providers",
     response_model=list[WebSearchProviderInfo],
-    summary="获取联网搜索 provider 列表",
+    summary="Mengambil daftar provider pencarian web",
 )
 async def get_web_search_providers() -> list[WebSearchProviderInfo]:
-    """返回后端支持的全部联网搜索 provider（按名称字母序）。"""
+    """Mengembalikan seluruh provider pencarian web yang didukung backend (urut alfabet berdasarkan nama)."""
     return [
         WebSearchProviderInfo.model_validate(provider)
         for provider in list_provider_metadata()
@@ -618,7 +622,7 @@ async def get_web_search_providers() -> list[WebSearchProviderInfo]:
 @router.get(
     "/web-search",
     response_model=WebSearchSettingsResponse,
-    summary="获取联网搜索设置",
+    summary="Mengambil pengaturan pencarian web",
 )
 async def get_web_search_settings(
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -648,7 +652,7 @@ def _build_web_search_settings_response(
     "/web-search",
     response_model=WebSearchSettingsResponse,
     status_code=status.HTTP_200_OK,
-    summary="更新联网搜索设置",
+    summary="Memperbarui pengaturan pencarian web",
 )
 async def update_web_search_settings(
     request: WebSearchSettingsUpdateRequest,
@@ -664,14 +668,14 @@ async def update_web_search_settings(
         if provider and provider not in list_provider_names():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"不支持的搜索 provider: {provider}",
+                detail=f"Provider pencarian tidak didukung: {provider}",
             )
         config.provider = provider
     if request.api_key is not None:
         if not config.provider:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="设置 API Key 前必须选择搜索 provider",
+                detail="Provider pencarian harus dipilih sebelum menyetel API Key",
             )
         api_key = request.api_key.strip()
         if api_key:
@@ -708,7 +712,7 @@ async def update_web_search_settings(
 @router.get(
     "/audit-details/storage",
     response_model=AuditDetailsStorageResponse,
-    summary="获取 LLM 调用详情存储概览",
+    summary="Mengambil ringkasan penyimpanan detail pemanggilan LLM",
 )
 async def get_audit_details_storage(
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -723,7 +727,7 @@ async def get_audit_details_storage(
 @router.delete(
     "/audit-details",
     response_model=ClearAuditDetailsResponse,
-    summary="清空 LLM 调用详情",
+    summary="Mengosongkan detail pemanggilan LLM",
 )
 async def clear_audit_details(
     session: Annotated[AsyncSession, Depends(get_session)],

@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-DeepSeek Adapter - DeepSeek API适配器。
+DeepSeek Adapter - adapter DeepSeek API.
 
-DeepSeek API兼容OpenAI格式，仅支持LLM，不支持Embedding。
+DeepSeek API kompatibel dengan format OpenAI, hanya mendukung LLM,
+tidak mendukung embedding.
 """
 
 from collections.abc import Mapping
@@ -14,14 +15,14 @@ from app.models.adapters.base import BaseAdapter
 
 
 class DeepSeekAdapter(BaseAdapter):
-    """DeepSeek API适配器，仅支持LLM。"""
+    """Adapter DeepSeek API, hanya mendukung LLM."""
 
     @property
     def provider_type(self) -> str:
         return "deepseek"
 
     def supports_embedding(self) -> bool:
-        """DeepSeek不支持Embedding。"""
+        """DeepSeek tidak mendukung embedding."""
         return False
 
     async def get_llm_models(
@@ -32,7 +33,7 @@ class DeepSeekAdapter(BaseAdapter):
         *,
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
-        """获取LLM模型列表。"""
+        """Ambil daftar model LLM."""
         url = f"{self._normalize_url(base_url)}/models"
         headers = self._build_auth_header(api_key)
 
@@ -48,7 +49,7 @@ class DeepSeekAdapter(BaseAdapter):
             return models
         except Exception as e:
             logger.warning(f"Failed to fetch DeepSeek models: {e}")
-            # 返回预定义列表作为fallback
+            # Kembalikan daftar bawaan sebagai fallback
             return [
                 {"id": "deepseek-chat", "name": "DeepSeek Chat"},
                 {"id": "deepseek-reasoner", "name": "DeepSeek Reasoner"},
@@ -62,5 +63,5 @@ class DeepSeekAdapter(BaseAdapter):
         *,
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
-        """DeepSeek不支持Embedding模型。"""
+        """DeepSeek tidak mendukung model embedding."""
         return []

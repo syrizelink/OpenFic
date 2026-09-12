@@ -63,18 +63,18 @@ async def test_skills_renders_available_xml(make_state, mock_session):
 
 @pytest.mark.asyncio
 async def test_skills_appends_referenced_global_skill_after_agent_skills(make_state, mock_session):
-    state = make_state(user_request="请继续")
+    state = make_state(user_request="Silakan lanjutkan")
     agent_skill = SimpleNamespace(
         id="agent-skill",
         name="agent-skill",
-        summary="默认技能",
-        content="内容",
+        summary="Skill bawaan",
+        content="Isi",
     )
     referenced_skill = SimpleNamespace(
         id="global-skill-id",
         name="global-skill",
-        summary="显式引用技能",
-        content="内容",
+        summary="Skill dirujuk eksplisit",
+        content="Isi",
     )
 
     async def list_by_ids(_session, ids):
@@ -111,8 +111,8 @@ async def test_skills_appends_referenced_global_skill_after_agent_skills(make_st
 
 @pytest.mark.asyncio
 async def test_skills_does_not_append_disabled_referenced_skill(make_state, mock_session):
-    state = make_state(user_request="请继续")
-    agent_skill = _skill("agent-skill", "默认技能", "内容")
+    state = make_state(user_request="Silakan lanjutkan")
+    agent_skill = _skill("agent-skill", "Skill bawaan", "Isi")
 
     with patch(
         "app.agent_runtime.context.parts.skills._get_enabled_skill_ids_for_agent",
@@ -144,7 +144,7 @@ async def test_skills_does_not_append_disabled_referenced_skill(make_state, mock
 @pytest.mark.asyncio
 async def test_skills_escapes_xml_fields(make_state, mock_session):
     state = make_state()
-    unsafe_skill = _skill("skill & <name>", '描述 & <指令> "quoted"', "内容")
+    unsafe_skill = _skill("skill & <name>", 'Deskripsi & <instruksi> "quoted"', "Isi")
 
     with patch(
         "app.agent_runtime.context.parts.skills._get_enabled_skill_ids_for_agent",
@@ -157,4 +157,4 @@ async def test_skills_escapes_xml_fields(make_state, mock_session):
 
     assert msg is not None
     assert "skill &amp; &lt;name&gt;" in msg.content
-    assert "描述 &amp; &lt;指令&gt; &quot;quoted&quot;" in msg.content
+    assert "Deskripsi &amp; &lt;instruksi&gt; &quot;quoted&quot;" in msg.content

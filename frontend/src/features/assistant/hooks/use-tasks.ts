@@ -1,7 +1,7 @@
 /**
  * Tasks Hooks
  *
- * 任务相关的 React Query hooks。
+ * Hooks React Query terkait tugas.
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -24,7 +24,7 @@ function getTasksQueryKey(
 }
 
 /**
- * 获取任务列表
+ * Mengambil daftar tugas
  */
 export function useTasks(
   projectId: string,
@@ -45,7 +45,7 @@ export function useTasks(
 }
 
 /**
- * 获取任务详情
+ * Mengambil detail tugas
  */
 export function useTask(taskId: string | null) {
   return useQuery<Task>({
@@ -56,7 +56,7 @@ export function useTask(taskId: string | null) {
 }
 
 /**
- * 更新任务
+ * Memperbarui tugas
  */
 export function useUpdateTask() {
   const queryClient = useQueryClient();
@@ -97,7 +97,7 @@ export function useUpdateTask() {
 }
 
 /**
- * 删除任务
+ * Menghapus tugas
  */
 export function useDeleteTask(projectId: string) {
   const queryClient = useQueryClient();

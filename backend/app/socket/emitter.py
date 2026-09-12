@@ -10,7 +10,7 @@ async def emit(
     *,
     room: str | None = None,
 ) -> None:
-    """向前端推送事件。无连接时静默丢弃，可指定 Socket.IO 房间。"""
+    """Mengirim event ke frontend. Diabaikan diam-diam bila tidak ada koneksi, dan ruang Socket.IO dapat ditentukan."""
     if room:
         await sio.emit(event, data, room=room)
         return

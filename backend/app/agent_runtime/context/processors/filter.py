@@ -17,7 +17,8 @@ def _kind(m: ContextMessage) -> str | None:
 
 
 def filter_invalid(parts: list[ContextMessage]) -> list[ContextMessage]:
-    """过滤无效 history，并保留符合工具调用协议的连续消息组。"""
+    """Memfilter history yang tidak valid dan menyimpan kelompok pesan berurutan
+    yang sesuai protokol pemanggilan alat."""
     keep: list[bool] = []
     for m in parts:
         if not _is_history(m):
@@ -111,7 +112,8 @@ def filter_invalid(parts: list[ContextMessage]) -> list[ContextMessage]:
 
 
 def filter_tool_result_metadata(parts: list[ContextMessage]) -> list[ContextMessage]:
-    """移除仅供界面消费的工具结果 metadata，避免将其发送给模型。"""
+    """Menghapus metadata hasil alat yang hanya dipakai antarmuka, agar tidak
+    dikirim ke model."""
     result: list[ContextMessage] = []
     for message in parts:
         if message.role != "tool":
@@ -155,7 +157,7 @@ def _format_web_search_context(payload: dict[str, Any]) -> str | None:
     if query is None or not isinstance(results, list):
         return None
 
-    lines = [f"[ `{query.replace('`', r'\\`')}` 的搜索结果 ]", ""]
+    lines = [f"[ Hasil pencarian untuk `{query.replace('`', r'\\`')}` ]", ""]
     result_number = 1
     for result in results:
         if not isinstance(result, dict):
@@ -185,7 +187,7 @@ def filter_tool_result_metadata_content(
     *,
     tool_name: str | None = None,
 ) -> str:
-    """返回可发送给模型的工具结果内容。"""
+    """Mengembalikan isi hasil alat yang dapat dikirim ke model."""
     payload = _parse_tool_result(content)
     if payload is None:
         return content
@@ -201,7 +203,9 @@ def filter_tool_result_metadata_content(
         if not isinstance(message, str) or not message.strip():
             code = payload.get("code")
             code = code if isinstance(code, str) and code else "execution_failed"
-            message = f"工具错误（{code}）：未提供具体错误消息"
+            message = (
+                f"Kesalahan alat ({code}): tidak menyediakan pesan error yang spesifik"
+            )
         else:
             message = message.strip()
         visible_fields = {

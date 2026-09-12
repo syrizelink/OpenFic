@@ -1,12 +1,12 @@
 /**
  * Prompt Chain Types
  *
- * 提示词链相关类型定义
+ * Definisi tipe terkait rantai prompt
  */
 
 export interface PromptEntryData {
   id?: string;
-  uid?: string; // 跨版本追踪标识符
+  uid?: string; // Pengenal pelacakan lintas versi
   name: string;
   role: "system" | "user" | "assistant";
   content: string;
@@ -28,7 +28,7 @@ export interface PromptChainVersion {
 
 export interface PromptEntry {
   id: string;
-  uid: string; // 跨版本追踪标识符
+  uid: string; // Pengenal pelacakan lintas versi
   versionId: string;
   name: string;
   role: "system" | "user" | "assistant";
@@ -97,7 +97,7 @@ export interface CompileResponse {
   total_tokens: number;
 }
 
-// ============ 版本差异对比相关 ============
+// ============ Terkait perbandingan perbedaan versi ============
 
 export interface EntryDiff {
   entryId: string;

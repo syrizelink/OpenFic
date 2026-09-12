@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Macro Evaluator - 宏求值器。
+Macro Evaluator - evaluator makro.
 
-负责遍历文本中的宏并求值替换。
+Bertugas menelusuri makro di dalam teks lalu mengevaluasi dan menggantinya.
 """
 
 from app.macro.lexer import MacroLexer
@@ -23,34 +23,34 @@ HANDLER_MAP: dict[str, MacroHandler] = {
 
 
 class MacroEvaluator:
-    """宏求值器。"""
+    """Evaluator makro."""
 
     def __init__(self, context: MacroContext | None = None):
         """
-        初始化求值器。
+        Menginisialisasi evaluator.
 
         Args:
-            context: 求值上下文。如果不提供，会创建一个空上下文。
+            context: Konteks evaluasi. Jika tidak diberikan, konteks kosong akan dibuat.
         """
         self.context = context or MacroContext()
 
     def evaluate_text(self, text: str, ignore_macros: set[str] | None = None) -> str:
         """
-        对文本中的所有宏求值并替换。
+        Mengevaluasi dan mengganti semua makro di dalam teks.
 
         Args:
-            text: 源文本。
-            ignore_macros: 忽略求值的宏名集合（保持原样）。
+            text: Teks sumber.
+            ignore_macros: Himpunan nama makro yang tidak dievaluasi (dibiarkan apa adanya).
 
         Returns:
-            替换后的文本。
+            Teks setelah penggantian.
 
         Raises:
-            MacroEvaluateError: 求值错误。
+            MacroEvaluateError: Kesalahan evaluasi.
         """
         ignore_macros = ignore_macros or set()
 
-        # 首先处理非条件宏
+        # Tangani makro non-kondisional terlebih dahulu
         matches = MacroLexer.find_macros(text)
         if matches:
             current_text = text
@@ -63,7 +63,7 @@ class MacroEvaluator:
                 try:
                     node = MacroParser.parse(match)
 
-                    # 跳过 if/endif（稍后处理）
+                    # Lewati if/endif (ditangani nanti)
                     if node.name in ("if", "endif"):
                         continue
 
@@ -78,12 +78,12 @@ class MacroEvaluator:
                     )
                     offset += len(value) - (match.end - match.start)
                 except Exception:
-                    # 解析或求值失败，跳过该宏（保持原样）
+                    # Penguraian atau evaluasi gagal, lewati makro ini (biarkan apa adanya)
                     continue
 
             text = current_text
 
-        # 然后处理 if/endif 块。
+        # Lalu tangani blok if/endif.
         if "if" not in ignore_macros and "endif" not in ignore_macros:
             text = self._process_conditional_blocks(text)
 
@@ -91,13 +91,13 @@ class MacroEvaluator:
 
     def _process_conditional_blocks(self, text: str) -> str:
         """
-        处理 if/endif 条件块（支持嵌套）。
+        Menangani blok kondisional if/endif (mendukung penyarangan).
 
         Args:
-            text: 源文本。
+            text: Teks sumber.
 
         Returns:
-            处理后的文本。
+            Teks setelah diproses.
         """
         max_iterations = 10
         iteration = 0
@@ -180,39 +180,39 @@ class MacroEvaluator:
 
     def evaluate_node(self, node: MacroNode) -> str:
         """
-        对单个宏节点求值。
+        Mengevaluasi satu node makro.
 
         Args:
-            node: 宏 AST 节点。
+            node: Node AST makro.
 
         Returns:
-            求值结果。
+            Hasil evaluasi.
 
         Raises:
-            MacroEvaluateError: 求值错误。
+            MacroEvaluateError: Kesalahan evaluasi.
         """
         return self._evaluate_node(node)
 
     def _evaluate_node(self, node: MacroNode) -> str:
-        """内部求值方法。"""
+        """Metode evaluasi internal."""
         handler = HANDLER_MAP.get(node.name)
         if not handler:
-            raise MacroEvaluateError(f"未知的宏: {node.name}", node)
+            raise MacroEvaluateError(f"Makro tidak dikenal: {node.name}", node)
 
         return handler.evaluate(node, self.context)
 
     def _apply_replacements(self, text: str, results: list[MacroResult]) -> str:
         """
-        应用替换结果。
+        Menerapkan hasil penggantian.
 
-        从后向前替换以保持位置正确。
+        Penggantian dilakukan dari belakang ke depan agar posisinya tetap benar.
 
         Args:
-            text: 源文本。
-            results: 求值结果列表。
+            text: Teks sumber.
+            results: Daftar hasil evaluasi.
 
         Returns:
-            替换后的文本。
+            Teks setelah penggantian.
         """
         sorted_results = sorted(results, key=lambda r: r.start, reverse=True)
 
@@ -223,12 +223,12 @@ class MacroEvaluator:
 
     def get_all_macros(self, text: str) -> list[MacroNode]:
         """
-        获取文本中所有有效的宏节点。
+        Mengambil semua node makro yang valid di dalam teks.
 
         Args:
-            text: 源文本。
+            text: Teks sumber.
 
         Returns:
-            宏节点列表。
+            Daftar node makro.
         """
         return MacroParser.parse_all(text)

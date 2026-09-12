@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Clients Module - 模型调用客户端模块。
+Clients Module - modul klien pemanggilan model.
 
-包含：
-- ClientFactory: HTTP客户端工厂
-- LLMClient: LLM模型调用（流式/非流式）
-- EmbeddingClient: Embedding模型调用
-- RerankClient: Rerank 模型调用
+Berisi:
+- ClientFactory: factory klien HTTP
+- LLMClient: pemanggilan model LLM (streaming/non-streaming)
+- EmbeddingClient: pemanggilan model embedding
+- RerankClient: pemanggilan model rerank
 """
 
 from app.models.clients.client_factory import ClientFactory

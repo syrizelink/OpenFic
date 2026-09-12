@@ -20,7 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Add revisions and commits tables for version control."""
     
-    # 1. 创建 revisions 表
+    # 1. Membuat tabel revisions
     op.create_table(
         "revisions",
         sa.Column("id", sa.String(), nullable=False),
@@ -37,12 +37,12 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["project_id"], ["projects.id"]),
     )
     
-    # 创建 revisions 表的索引
+    # Membuat indeks tabel revisions
     op.create_index(op.f("ix_revisions_project_id"), "revisions", ["project_id"], unique=False)
     op.create_index(op.f("ix_revisions_is_checkpoint"), "revisions", ["is_checkpoint"], unique=False)
     op.create_index(op.f("ix_revisions_created_at"), "revisions", ["created_at"], unique=False)
     
-    # 2. 创建 commits 表
+    # 2. Membuat tabel commits
     op.create_table(
         "commits",
         sa.Column("id", sa.String(), nullable=False),
@@ -63,7 +63,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["chapter_id"], ["chapters.id"]),
     )
     
-    # 创建 commits 表的索引
+    # Membuat indeks tabel commits
     op.create_index(op.f("ix_commits_revision_id"), "commits", ["revision_id"], unique=False)
     op.create_index(op.f("ix_commits_chapter_id"), "commits", ["chapter_id"], unique=False)
 
@@ -71,17 +71,17 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Remove version control tables."""
     
-    # 删除 commits 表的索引
+    # Menghapus indeks tabel commits
     op.drop_index(op.f("ix_commits_chapter_id"), table_name="commits")
     op.drop_index(op.f("ix_commits_revision_id"), table_name="commits")
     
-    # 删除 commits 表
+    # Menghapus tabel commits
     op.drop_table("commits")
     
-    # 删除 revisions 表的索引
+    # Menghapus indeks tabel revisions
     op.drop_index(op.f("ix_revisions_created_at"), table_name="revisions")
     op.drop_index(op.f("ix_revisions_is_checkpoint"), table_name="revisions")
     op.drop_index(op.f("ix_revisions_project_id"), table_name="revisions")
     
-    # 删除 revisions 表
+    # Menghapus tabel revisions
     op.drop_table("revisions")

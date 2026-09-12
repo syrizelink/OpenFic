@@ -4,8 +4,10 @@ Revision ID: 038
 Revises: 037
 Create Date: 2026-05-17
 
-允许 skill_id 为空（新建时不强制填写），并添加 order_index 支持拖拽排序。
-移除 skill_id 的 UNIQUE 约束，改为应用层校验非空 skill_id 的唯一性。
+Mengizinkan skill_id kosong (tidak wajib diisi saat pembuatan), dan menambahkan
+order_index untuk mendukung pengurutan seret.
+Menghapus constraint UNIQUE pada skill_id, digantikan validasi keunikan
+skill_id non-kosong di lapisan aplikasi.
 """
 
 from typing import Sequence, Union
@@ -20,7 +22,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # 使用 batch mode 重建表：添加 order_index 列并移除 skill_id 的 unique 约束
+    # Membangun ulang tabel memakai batch mode: menambahkan kolom order_index
+    # dan menghapus constraint unique pada skill_id
     with op.batch_alter_table(
         "skills",
         schema=None,

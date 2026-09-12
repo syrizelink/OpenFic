@@ -16,7 +16,10 @@ class UpdateIndexInput(BaseModel):
 @ToolRegistry.register
 class UpdateIndexTool(AgentTool):
     name: str = "update_index"
-    description: str = "更新章节向量索引（索引所有未就绪章节），适用于索引非最新时主动更新。"
+    description: str = (
+        "Memperbarui indeks vektor bab (mengindeks semua bab yang belum siap), "
+        "dipakai untuk memperbarui secara proaktif saat indeks tidak mutakhir."
+    )
     access_level: str = "write"
     args_schema: type[BaseModel] = UpdateIndexInput
 
@@ -31,7 +34,11 @@ class UpdateIndexTool(AgentTool):
                 return serialize_tool_failure(
                     ToolFailure(
                         code="dependency_unavailable",
-                        message="当前项目未启用索引或未配置可用的嵌入模型，无法更新索引。",
+                        message=(
+                            "Proyek saat ini belum mengaktifkan indeks atau belum "
+                            "mengonfigurasi model embedding yang dapat dipakai, "
+                            "sehingga indeks tidak dapat diperbarui."
+                        ),
                         trace={"source": "chapter_index"},
                     )
                 )
@@ -40,10 +47,13 @@ class UpdateIndexTool(AgentTool):
             await background_service.commit_and_notify(session)
 
             if result.enqueued_count == 0:
-                return "当前项目的索引已是最新，无需更新。"
+                return (
+                    "Indeks proyek saat ini sudah mutakhir, tidak perlu diperbarui."
+                )
             return (
-                f"已开始更新当前项目的检索索引，共 {result.enqueued_count} 个章节"
-                f"正在排队索引。更新完成后即可检索最新内容。"
+                f"Pembaruan indeks pencarian proyek saat ini sudah dimulai, "
+                f"{result.enqueued_count} bab sedang menunggu diindeks. "
+                f"Setelah pembaruan selesai, isi terbaru dapat langsung dicari."
             )
         except Exception:
             await background_service.rollback_and_discard(session)

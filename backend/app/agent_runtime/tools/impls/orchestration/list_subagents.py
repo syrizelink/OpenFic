@@ -36,23 +36,26 @@ ReturnContext = Literal["none", "part", "full"]
 def _format_context(content: str, return_context: ReturnContext) -> str:
     if return_context == "full" or len(content) <= 500:
         return content
-    return f"{content[:500]}\n\n[内容因超出 500 字符被截断]"
+    return f"{content[:500]}\n\n[Isi dipotong karena melebihi 500 karakter]"
 
 
 class ListSubagentsInput(BaseModel):
     status: list[ChildRunStatus] | None = Field(
         default=None,
         description=dedent("""\
-            按一个或多个状态过滤；可选queued、running、waiting_user、completed、error、cancelled，
-            留空表示不过滤
+            Filter berdasarkan satu atau beberapa status; pilihannya queued, running,
+            waiting_user, completed, error, cancelled.
+            Biarkan kosong berarti tanpa filter
         """),
     )
     return_context: ReturnContext = Field(
         default="none",
         description=dedent("""\
-            是否返回最后一轮交互的prompt和result；
-            none表示不返回，part表示返回前500个字符，full表示返回全部内容；
-            仅在必要时使用full，以避免过长的结果导致上下文溢出。
+            Apakah mengembalikan prompt dan result dari putaran interaksi terakhir;
+            none berarti tidak dikembalikan, part berarti mengembalikan 500 karakter
+            pertama, full berarti mengembalikan seluruh isi;
+            gunakan full hanya bila benar-benar perlu, agar hasil yang terlalu panjang
+            tidak menyebabkan konteks meluap.
         """),
     )
     model_config = {"extra": "forbid"}
@@ -62,8 +65,9 @@ class ListSubagentsInput(BaseModel):
 class ListSubagentsTool(AgentTool):
     name: str = "list_subagents"
     description: str = dedent("""\
-        列出所有未被回收的Subagent。
-        可使用status过滤结果，并使用return_context查看最后一轮交互内容。
+        Menampilkan semua Subagent yang belum didaur ulang.
+        Anda dapat memakai status untuk memfilter hasil, dan return_context untuk
+        melihat isi putaran interaksi terakhir.
     """)
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ListSubagentsInput

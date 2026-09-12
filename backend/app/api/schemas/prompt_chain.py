@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-PromptChain API Schemas - 提示词链请求/响应模型。
+PromptChain API Schemas - Model permintaan/respons rantai prompt.
 """
 
 from datetime import datetime
@@ -9,151 +9,151 @@ from pydantic import BaseModel, Field
 
 
 class PromptEntryData(BaseModel):
-    """提示词条目数据。"""
+    """Data entri prompt."""
 
-    id: str | None = Field(default=None, description="条目ID（可选）")
-    uid: str | None = Field(default=None, description="跨版本追踪标识符（可选）")
-    name: str = Field(min_length=1, max_length=200, description="条目名称")
-    role: str = Field(description="角色类型（system/user/assistant）")
-    content: str = Field(description="提示词内容")
-    order_index: int = Field(ge=0, description="排序索引")
-    is_enabled: bool = Field(default=True, description="是否启用")
-    token_count: int = Field(ge=0, description="Token计数")
+    id: str | None = Field(default=None, description="ID entri (opsional)")
+    uid: str | None = Field(default=None, description="Identifier pelacakan antar versi (opsional)")
+    name: str = Field(min_length=1, max_length=200, description="Nama entri")
+    role: str = Field(description="Tipe peran (system/user/assistant)")
+    content: str = Field(description="Isi prompt")
+    order_index: int = Field(ge=0, description="Indeks pengurutan")
+    is_enabled: bool = Field(default=True, description="Apakah diaktifkan")
+    token_count: int = Field(ge=0, description="Jumlah Token")
 
 
 class PromptChainVersionResponse(BaseModel):
-    """提示词链版本响应。"""
+    """Respons versi rantai prompt."""
 
-    id: str = Field(description="版本ID")
-    prompt_id: str = Field(description="提示词唯一标识")
-    version_hash: str = Field(description="版本短hash")
-    version_number: int = Field(description="语义版本号")
-    parent_version_id: str | None = Field(description="父版本ID")
-    is_active: bool = Field(description="是否在当前活跃分支上")
-    note: str | None = Field(description="版本备注")
-    created_at: datetime = Field(description="创建时间")
+    id: str = Field(description="ID versi")
+    prompt_id: str = Field(description="Identitas unik prompt")
+    version_hash: str = Field(description="hash pendek versi")
+    version_number: int = Field(description="Nomor versi semantik")
+    parent_version_id: str | None = Field(description="ID versi induk")
+    is_active: bool = Field(description="Apakah berada pada cabang aktif saat ini")
+    note: str | None = Field(description="Catatan versi")
+    created_at: datetime = Field(description="Waktu pembuatan")
 
     model_config = {"from_attributes": True}
 
 
 class PromptEntryResponse(BaseModel):
-    """提示词条目响应。"""
+    """Respons entri prompt."""
 
-    id: str = Field(description="条目ID")
-    uid: str = Field(description="跨版本追踪标识符")
-    version_id: str = Field(description="所属版本ID")
-    name: str = Field(description="条目名称")
-    role: str = Field(description="角色类型")
-    content: str = Field(description="提示词内容")
-    order_index: int = Field(description="排序索引")
-    is_enabled: bool = Field(description="是否启用")
-    token_count: int = Field(description="Token计数")
-    created_at: datetime = Field(description="创建时间")
-    updated_at: datetime = Field(description="更新时间")
+    id: str = Field(description="ID entri")
+    uid: str = Field(description="Identifier pelacakan antar versi")
+    version_id: str = Field(description="ID versi pemilik")
+    name: str = Field(description="Nama entri")
+    role: str = Field(description="Tipe peran")
+    content: str = Field(description="Isi prompt")
+    order_index: int = Field(description="Indeks pengurutan")
+    is_enabled: bool = Field(description="Apakah diaktifkan")
+    token_count: int = Field(description="Jumlah Token")
+    created_at: datetime = Field(description="Waktu pembuatan")
+    updated_at: datetime = Field(description="Waktu pembaruan")
 
     model_config = {"from_attributes": True}
 
 
 class PromptEntrySearchMatch(BaseModel):
-    """提示词条目中的单行搜索命中。"""
+    """Satu baris hasil pencarian pada entri prompt."""
 
-    line_number: int = Field(description="行号，条目名称使用 0")
-    line_text: str = Field(description="命中的原始文本")
+    line_number: int = Field(description="Nomor baris, nama entri memakai 0")
+    line_text: str = Field(description="Teks asli yang cocok")
 
 
 class PromptEntrySearchResult(BaseModel):
-    """单个提示词条目的搜索结果。"""
+    """Hasil pencarian satu entri prompt."""
 
-    entry_id: str = Field(description="条目 ID")
-    entry_name: str = Field(description="条目名称")
-    role: str = Field(description="角色类型")
-    matches: list[PromptEntrySearchMatch] = Field(description="命中行")
+    entry_id: str = Field(description="ID entri")
+    entry_name: str = Field(description="Nama entri")
+    role: str = Field(description="Tipe peran")
+    matches: list[PromptEntrySearchMatch] = Field(description="Baris yang cocok")
 
 
 class PromptEntrySearchResponse(BaseModel):
-    """提示词版本内条目搜索响应。"""
+    """Respons pencarian entri di dalam versi prompt."""
 
-    results: list[PromptEntrySearchResult] = Field(default_factory=list, description="搜索结果")
-    total_entries: int = Field(ge=0, description="命中的条目数")
-    total_matches: int = Field(ge=0, description="命中的行数")
+    results: list[PromptEntrySearchResult] = Field(default_factory=list, description="Hasil pencarian")
+    total_entries: int = Field(ge=0, description="Jumlah entri yang cocok")
+    total_matches: int = Field(ge=0, description="Jumlah baris yang cocok")
 
 
 class VersionWithEntriesResponse(BaseModel):
-    """版本及其条目响应。"""
+    """Respons versi beserta entrinya."""
 
-    version: PromptChainVersionResponse = Field(description="版本信息")
-    entries: list[PromptEntryResponse] = Field(description="条目列表")
+    version: PromptChainVersionResponse = Field(description="Informasi versi")
+    entries: list[PromptEntryResponse] = Field(description="Daftar entri")
 
 
 class CreateVersionRequest(BaseModel):
-    """创建新版本请求。"""
+    """Permintaan pembuatan versi baru."""
 
-    parent_version_id: str = Field(description="父版本ID")
-    entries: list[PromptEntryData] = Field(description="条目列表")
-    note: str | None = Field(default=None, max_length=500, description="版本备注")
+    parent_version_id: str = Field(description="ID versi induk")
+    entries: list[PromptEntryData] = Field(description="Daftar entri")
+    note: str | None = Field(default=None, max_length=500, description="Catatan versi")
 
 
 class UpdateEntryRequest(BaseModel):
-    """更新条目请求。"""
+    """Permintaan pembaruan entri."""
 
-    name: str | None = Field(default=None, min_length=1, max_length=200, description="条目名称")
-    role: str | None = Field(default=None, description="角色类型")
-    content: str | None = Field(default=None, description="提示词内容")
-    order_index: int | None = Field(default=None, ge=0, description="排序索引")
-    is_enabled: bool | None = Field(default=None, description="是否启用")
-    token_count: int | None = Field(default=None, ge=0, description="Token计数")
+    name: str | None = Field(default=None, min_length=1, max_length=200, description="Nama entri")
+    role: str | None = Field(default=None, description="Tipe peran")
+    content: str | None = Field(default=None, description="Isi prompt")
+    order_index: int | None = Field(default=None, ge=0, description="Indeks pengurutan")
+    is_enabled: bool | None = Field(default=None, description="Apakah diaktifkan")
+    token_count: int | None = Field(default=None, ge=0, description="Jumlah Token")
 
 
 class PromptMetadata(BaseModel):
-    """单个提示词元数据。"""
+    """Metadata satu prompt."""
 
-    id: str = Field(description="提示词唯一标识")
-    label_key: str = Field(description="前端国际化标签键")
-    label: str | None = Field(default=None, description="自定义显示名称")
+    id: str = Field(description="Identitas unik prompt")
+    label_key: str = Field(description="Kunci label internasionalisasi frontend")
+    label: str | None = Field(default=None, description="Nama tampilan kustom")
 
 
 class PromptCategoryMetadata(BaseModel):
-    """提示词分类元数据。"""
+    """Metadata kategori prompt."""
 
-    id: str = Field(description="分类标识")
-    label_key: str = Field(description="前端国际化标签键")
-    prompts: list[PromptMetadata] = Field(default_factory=list, description="提示词列表")
+    id: str = Field(description="Identitas kategori")
+    label_key: str = Field(description="Kunci label internasionalisasi frontend")
+    prompts: list[PromptMetadata] = Field(default_factory=list, description="Daftar prompt")
 
 
 class PromptChainsMetadataResponse(BaseModel):
-    """提示词链元数据响应。"""
+    """Respons metadata rantai prompt."""
 
-    categories: list[PromptCategoryMetadata] = Field(default_factory=list, description="分类列表")
+    categories: list[PromptCategoryMetadata] = Field(default_factory=list, description="Daftar kategori")
 
 
 class CompiledEntryResponse(BaseModel):
-    """编译后的条目响应。"""
+    """Respons entri setelah dikompilasi."""
 
-    name: str = Field(description="条目名称")
-    role: str = Field(description="角色类型")
-    content: str = Field(description="编译后的内容")
-    token_count: int = Field(ge=0, description="Token计数")
+    name: str = Field(description="Nama entri")
+    role: str = Field(description="Tipe peran")
+    content: str = Field(description="Isi setelah dikompilasi")
+    token_count: int = Field(ge=0, description="Jumlah Token")
 
 
 class CompileResponse(BaseModel):
-    """编译响应。"""
+    """Respons kompilasi."""
 
-    entries: list[CompiledEntryResponse] = Field(description="编译后的条目列表")
-    total_tokens: int = Field(ge=0, description="总Token数")
+    entries: list[CompiledEntryResponse] = Field(description="Daftar entri setelah dikompilasi")
+    total_tokens: int = Field(ge=0, description="Jumlah Token total")
 
 
 class EntryDiffResponse(BaseModel):
-    """条目差异响应。"""
+    """Respons perbedaan entri."""
 
-    entry_id: str = Field(description="条目ID")
-    change_type: str = Field(description="变化类型：added/deleted/modified")
-    base_entry: PromptEntryResponse | None = Field(description="基准版本的条目")
-    compare_entry: PromptEntryResponse | None = Field(description="对比版本的条目")
+    entry_id: str = Field(description="ID entri")
+    change_type: str = Field(description="Tipe perubahan: added/deleted/modified")
+    base_entry: PromptEntryResponse | None = Field(description="Entri pada versi basis")
+    compare_entry: PromptEntryResponse | None = Field(description="Entri pada versi pembanding")
 
 
 class VersionDiffResponse(BaseModel):
-    """版本差异响应。"""
+    """Respons perbedaan versi."""
 
-    base_version: PromptChainVersionResponse = Field(description="基准版本")
-    compare_version: PromptChainVersionResponse = Field(description="对比版本")
-    diffs: list[EntryDiffResponse] = Field(description="差异列表")
+    base_version: PromptChainVersionResponse = Field(description="Versi basis")
+    compare_version: PromptChainVersionResponse = Field(description="Versi pembanding")
+    diffs: list[EntryDiffResponse] = Field(description="Daftar perbedaan")

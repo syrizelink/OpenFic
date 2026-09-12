@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""默认提示词的注册、加载与自定义智能体文件管理。"""
+"""Registrasi, pemuatan prompt bawaan, dan pengelolaan berkas agen kustom."""
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -95,21 +95,21 @@ def _get_yaml_path(prompt_id: str) -> Path | None:
 
 
 def load_prompt_chain(prompt_id: str) -> list[PromptEntryData] | None:
-    """从指定提示词 ID 对应的 YAML 文件加载默认条目。"""
+    """Memuat entri bawaan dari berkas YAML yang sesuai dengan ID prompt tertentu."""
     yaml_path = _get_yaml_path(prompt_id)
     if yaml_path is None or not yaml_path.exists():
-        logger.warning(f"提示词配置文件不存在: {yaml_path or prompt_id}")
+        logger.warning(f"Berkas konfigurasi prompt tidak ditemukan: {yaml_path or prompt_id}")
         return None
 
     try:
         with yaml_path.open("r", encoding="utf-8") as file:
             data = yaml.safe_load(file)
     except (OSError, yaml.YAMLError) as exc:
-        logger.error(f"加载提示词配置失败: {yaml_path}, error: {exc}")
+        logger.error(f"Gagal memuat konfigurasi prompt: {yaml_path}, error: {exc}")
         return None
 
     if not data or "entries" not in data:
-        logger.warning(f"提示词配置格式错误: {yaml_path}")
+        logger.warning(f"Format konfigurasi prompt salah: {yaml_path}")
         return None
 
     return [
@@ -128,7 +128,7 @@ def load_prompt_chain(prompt_id: str) -> list[PromptEntryData] | None:
 def get_prompt_chains_metadata(
     custom_agents: list[tuple[str, str]] | None = None,
 ) -> dict[str, list[dict[str, object]]]:
-    """返回按业务类别分组的单级提示词元数据。"""
+    """Mengembalikan metadata prompt satu tingkat yang dikelompokkan per kategori bisnis."""
     prompts_by_category = {
         category_id: [
             {
@@ -166,14 +166,16 @@ _PRIMARY_AGENT_DEFAULT_CONTENT = """entries:
   - name: system_prompt
     role: system
     content: |
-      你是一个主智能体，负责协调和调度子智能体完成复杂任务。请根据任务需求规划并委派工作。
+      Kamu adalah agen utama yang bertugas mengoordinasikan dan menjadwalkan sub-agen untuk
+      menyelesaikan tugas yang kompleks. Rencanakan dan delegasikan pekerjaan sesuai kebutuhan
+      tugas.
     order_index: 0
     is_enabled: true
     token_count: 0
   - name: user_prompt
     role: user
     content: |
-      请开始执行任务。
+      Silakan mulai menjalankan tugas.
     order_index: 1
     is_enabled: true
     token_count: 0
@@ -183,14 +185,15 @@ _SUBAGENT_DEFAULT_CONTENT = """entries:
   - name: system_prompt
     role: system
     content: |
-      你是一个子智能体，负责执行主智能体委派的具体任务。请专注于完成当前分配的工作。
+      Kamu adalah sub-agen yang bertugas menjalankan tugas spesifik yang didelegasikan oleh agen
+      utama. Fokuslah menyelesaikan pekerjaan yang sedang diberikan.
     order_index: 0
     is_enabled: true
     token_count: 0
   - name: user_prompt
     role: user
     content: |
-      请开始执行任务。
+      Silakan mulai menjalankan tugas.
     order_index: 1
     is_enabled: true
     token_count: 0
@@ -202,30 +205,30 @@ def create_custom_agent_prompt_yaml(
     kind: str = "subagent",
     content: str | None = None,
 ) -> Path:
-    """创建自定义智能体的默认提示词 YAML 文件。"""
+    """Membuat berkas YAML prompt bawaan untuk agen kustom."""
     yaml_path = _get_yaml_path(custom_agent_prompt_id(agent_name))
     if yaml_path is None:
-        raise ValueError(f"无效的自定义智能体标识: {agent_name}")
+        raise ValueError(f"Identitas agen kustom tidak valid: {agent_name}")
     yaml_path.parent.mkdir(parents=True, exist_ok=True)
     yaml_path.write_text(
         content or (_PRIMARY_AGENT_DEFAULT_CONTENT if kind == "primary" else _SUBAGENT_DEFAULT_CONTENT),
         encoding="utf-8",
     )
-    logger.info(f"已创建自定义智能体提示词 YAML: {yaml_path}")
+    logger.info(f"YAML prompt agen kustom sudah dibuat: {yaml_path}")
     return yaml_path
 
 
 def delete_custom_agent_prompt_yaml(agent_name: str) -> bool:
-    """删除自定义智能体的提示词 YAML 文件。"""
+    """Menghapus berkas YAML prompt agen kustom."""
     yaml_path = _get_yaml_path(custom_agent_prompt_id(agent_name))
     if yaml_path is None or not yaml_path.exists():
         return False
     yaml_path.unlink()
-    logger.info(f"已删除自定义智能体提示词 YAML: {yaml_path}")
+    logger.info(f"YAML prompt agen kustom sudah dihapus: {yaml_path}")
     return True
 
 
 def reset_custom_agent_prompt_yaml(agent_name: str, kind: str = "subagent") -> Path:
-    """重置自定义智能体提示词 YAML。"""
+    """Mereset YAML prompt agen kustom."""
     delete_custom_agent_prompt_yaml(agent_name)
     return create_custom_agent_prompt_yaml(agent_name, kind)

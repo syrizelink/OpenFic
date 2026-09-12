@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Prompts - 默认提示词配置模块。
+Prompts - modul konfigurasi prompt bawaan.
 
-该模块从 YAML 文件加载默认提示词配置，用于：
-1. 提供按业务类别分组的提示词元数据
-2. 在用户重置提示词链时恢复默认内容
-3. 管理自定义智能体的默认提示词 YAML 文件
+Modul ini memuat konfigurasi prompt bawaan dari berkas YAML, dipakai untuk:
+1. Menyediakan metadata prompt yang dikelompokkan per kategori bisnis
+2. Memulihkan isi bawaan ketika pengguna mereset rantai prompt
+3. Mengelola berkas YAML prompt bawaan untuk agen kustom
 """
 
 from app.prompts.loader import (

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Character 数据模型。"""
+"""Model data Character."""
 
 from datetime import UTC, datetime
 
@@ -9,7 +9,7 @@ from app.core.ids import generate_id
 
 
 class Character(SQLModel, table=True):
-    """项目角色模型。"""
+    """Model tokoh proyek."""
 
     __tablename__ = "characters"
 

@@ -1,25 +1,25 @@
-name: Bug反馈
-description: 报告使用过程中遇到的Bug
+name: Umpan Balik Bug
+description: Laporkan Bug yang ditemui selama penggunaan
 labels:
   - bug
 body:
   - type: textarea
     id: description
     attributes:
-      label: 问题描述
+      label: Deskripsi Masalah
       placeholder: |
-        在什么情况下出现了什么问题？
-        预期行为: ...
-        实际行为: ...
+        Dalam kondisi apa masalah apa yang muncul?
+        Perilaku yang diharapkan: ...
+        Perilaku sebenarnya: ...
     validations:
       required: true
 
   - type: textarea
     id: steps
     attributes:
-      label: 复现步骤
+      label: Langkah Reproduksi
       placeholder: |
-        复现步骤：
+        Langkah reproduksi:
         1. ...
         2. ...
         3. ...
@@ -29,10 +29,10 @@ body:
   - type: textarea
     id: logs
     attributes:
-      label: 日志、截图或录屏
+      label: Log, Tangkapan Layar, atau Rekaman Layar
       description: |
-        请上传或粘贴已脱敏的错误日志、截图或录屏；
-        为确保您的隐私安全，请注意不要包含密钥、令牌或其它个人信息。
+        Silakan unggah atau tempelkan log error, tangkapan layar, atau rekaman layar yang sudah disamarkan;
+        untuk menjaga keamanan privasi Anda, mohon jangan menyertakan kunci, token, atau informasi pribadi lainnya.
       render: shell
     validations:
       required: false
@@ -40,41 +40,41 @@ body:
   - type: input
     id: version
     attributes:
-      label: OpenFic 版本
-      placeholder: "如: v0.7.5"
+      label: Versi OpenFic
+      placeholder: "misalnya: v0.7.5"
     validations:
       required: true
 
   - type: dropdown
     id: system
     attributes:
-      label: 运行系统
+      label: Sistem Operasi
       options:
         - Windows
         - macOS
         - Linux
-        - 其他
+        - Lainnya
     validations:
       required: true
 
   - type: dropdown
     id: platform
     attributes:
-      label: 运行平台
+      label: Platform Eksekusi
       options:
-        - 桌面端
-        - Python包
-        - Docker镜像
-        - 其他
+        - Aplikasi desktop
+        - Paket Python
+        - Image Docker
+        - Lainnya
     validations:
       required: true
 
   - type: checkboxes
     id: checks
     attributes:
-      label: 提交前检查
+      label: Pemeriksaan Sebelum Mengirim
       options:
-        - label: 我已搜索现有 Issue，未发现重复问题
+        - label: Saya sudah mencari Issue yang ada dan tidak menemukan masalah duplikat
           required: true
-        - label: 我确认未在内容中包含密钥、令牌或其他敏感信息
+        - label: Saya memastikan tidak menyertakan kunci, token, atau informasi sensitif lainnya dalam konten
           required: true

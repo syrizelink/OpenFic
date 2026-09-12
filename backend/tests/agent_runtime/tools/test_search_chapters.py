@@ -50,9 +50,9 @@ async def test_search_freshness_uses_lightweight_chapter_sources(
         schema_version=module.CURRENT_CHUNK_SCHEMA_VERSION,
     )
     list_sources = AsyncMock(
-        return_value=[SimpleNamespace(id="chapter-1", content="正文")]
+        return_value=[SimpleNamespace(id="chapter-1", content="Isi utama")]
     )
-    list_chapters = AsyncMock(side_effect=AssertionError("不应加载完整章节"))
+    list_chapters = AsyncMock(side_effect=AssertionError("Bab lengkap tidak boleh dimuat"))
     monkeypatch.setattr(
         module.retrieval_index_repo,
         "get_by_index_key",
@@ -175,14 +175,14 @@ async def _create_project_with_chapters(
     *,
     project_id: str = "project-search",
 ) -> tuple[Chapter, Chapter]:
-    project = Project(id=project_id, title="检索项目")
-    volume = Volume(id="volume-main", project_id=project.id, title="第一卷", order=1)
+    project = Project(id=project_id, title="Proyek Retrieval")
+    volume = Volume(id="volume-main", project_id=project.id, title="Volume 1", order=1)
     ready_chapter = Chapter(
         id="chapter-ready",
         project_id=project.id,
         volume_id=volume.id,
-        title="星桥",
-        content="星桥旧文本",
+        title="Jembatan Bintang",
+        content="Teks lama Jembatan Bintang",
         order=1,
         word_count=5,
     )
@@ -190,8 +190,8 @@ async def _create_project_with_chapters(
         id="chapter-stale",
         project_id=project.id,
         volume_id=volume.id,
-        title="潮汐",
-        content="潮汐新文本",
+        title="Pasang Surut",
+        content="Teks baru Pasang Surut",
         order=2,
         word_count=6,
     )
@@ -299,7 +299,7 @@ async def test_search_chapters_returns_json_error_without_default_embedding_mode
 
     data = json.loads(
         await tool.ainvoke(
-            {"query": "星桥"},
+            {"query": "Jembatan Bintang"},
             config={"configurable": {"db_session": session}},
         )
     )
@@ -359,13 +359,14 @@ async def test_search_chapters_returns_text_when_project_index_is_not_ready(
 
     tool = _make_search_chapters_tool(module)
     result = await tool.ainvoke(
-        {"query": "星桥"},
+        {"query": "Jembatan Bintang"},
         config={"configurable": {"db_session": session}},
     )
 
-    # 索引不可用时返回提示文本（非 JSON），且不执行检索。
-    assert "索引" in result
-    assert "更新" in result
+    # Saat indeks tidak dapat dipakai, teks pemberitahuan (bukan JSON) dikembalikan
+    # dan pencarian tidak dijalankan.
+    assert "indeks" in result.lower()
+    assert "perbarui" in result.lower()
     assert retrieval.queries == []
 
 
@@ -419,14 +420,14 @@ async def test_search_chapters_groups_ready_and_stale_results_by_current_chapter
                 chapter_id="chapter-ready",
                 chunk_id="ready:0",
                 chunk_index=0,
-                text="星桥 matched",
+                text="Jembatan Bintang matched",
                 score=0.9,
             ),
             _chunk(
                 chapter_id="chapter-ready",
                 chunk_id="ready:1",
                 chunk_index=1,
-                text="星桥 second",
+                text="Jembatan Bintang second",
                 score=0.7,
                 matched_by="bm25",
             ),
@@ -434,7 +435,7 @@ async def test_search_chapters_groups_ready_and_stale_results_by_current_chapter
                 chapter_id="chapter-stale",
                 chunk_id="stale:0",
                 chunk_index=0,
-                text="潮汐 matched",
+                text="Pasang Surut matched",
                 score=0.8,
             ),
         ]
@@ -445,46 +446,46 @@ async def test_search_chapters_groups_ready_and_stale_results_by_current_chapter
     tool = _make_search_chapters_tool(module)
     data = json.loads(
         await tool.ainvoke(
-            {"query": "星桥", "force": True},
+            {"query": "Jembatan Bintang", "force": True},
             config={"configurable": {"db_session": session}},
         )
     )
 
     assert data == {
-        "query": "星桥",
+        "query": "Jembatan Bintang",
         "results": [
             {
-                "chapter_title": "星桥",
-                "volume_title": "第一卷",
+                "chapter_title": "Jembatan Bintang",
+                "volume_title": "Volume 1",
                 "chapter_order": 1,
                 "chunks": [
                     {
                         "chunk_index": 0,
-                        "text": "星桥 matched",
+                        "text": "Jembatan Bintang matched",
                         "score": 0.9,
                     },
                     {
                         "chunk_index": 1,
-                        "text": "星桥 second",
+                        "text": "Jembatan Bintang second",
                         "score": 0.7,
                     },
                 ],
             },
             {
-                "chapter_title": "潮汐",
-                "volume_title": "第一卷",
+                "chapter_title": "Pasang Surut",
+                "volume_title": "Volume 1",
                 "chapter_order": 2,
                 "chunks": [
                     {
                         "chunk_index": 0,
-                        "text": "潮汐 matched",
+                        "text": "Pasang Surut matched",
                         "score": 0.8,
                     }
                 ],
             },
         ],
     }
-    assert retrieval.queries == [("chapters:project-search", "星桥")]
+    assert retrieval.queries == [("chapters:project-search", "Jembatan Bintang")]
     assert retrieval.last_builder is not None
     assert retrieval.last_builder.calls == [
         ("hybrid", None),
@@ -547,15 +548,15 @@ async def test_search_chapters_allows_stale_only_indexed_chapters(
     tool = _make_search_chapters_tool(module)
     data = json.loads(
         await tool.ainvoke(
-            {"query": "潮汐", "force": True},
+            {"query": "Pasang Surut", "force": True},
             config={"configurable": {"db_session": session}},
         )
     )
 
     assert data["results"] == [
         {
-            "chapter_title": "潮汐",
-            "volume_title": "第一卷",
+            "chapter_title": "Pasang Surut",
+            "volume_title": "Volume 1",
             "chapter_order": 2,
             "chunks": [
                 {
@@ -577,19 +578,19 @@ async def test_search_chapters_skips_chunks_for_other_project_chapters(
 
     model = await _create_embedding_model(session)
     await _create_project_with_chapters(session)
-    other_project = Project(id="project-other", title="其它项目")
+    other_project = Project(id="project-other", title="Proyek Lain")
     other_volume = Volume(
         id="volume-other",
         project_id=other_project.id,
-        title="其它卷",
+        title="Volume Lain",
         order=1,
     )
     other_chapter = Chapter(
         id="chapter-other",
         project_id=other_project.id,
         volume_id=other_volume.id,
-        title="不应泄露",
-        content="跨项目正文",
+        title="Tidak Boleh Terbocor",
+        content="Isi utama lintas proyek",
         order=1,
         word_count=4,
     )
@@ -637,14 +638,14 @@ async def test_search_chapters_skips_chunks_for_other_project_chapters(
                 chapter_id="chapter-ready",
                 chunk_id="ready:0",
                 chunk_index=0,
-                text="当前项目结果",
+                text="Hasil proyek saat ini",
                 score=0.9,
             ),
             _chunk(
                 chapter_id="chapter-other",
                 chunk_id="other:0",
                 chunk_index=0,
-                text="跨项目结果",
+                text="Hasil lintas proyek",
                 score=0.95,
             ),
         ]
@@ -655,13 +656,13 @@ async def test_search_chapters_skips_chunks_for_other_project_chapters(
     tool = _make_search_chapters_tool(module)
     data = json.loads(
         await tool.ainvoke(
-            {"query": "项目", "force": True},
+            {"query": "Proyek", "force": True},
             config={"configurable": {"db_session": session}},
         )
     )
 
-    assert [item["chapter_title"] for item in data["results"]] == ["星桥"]
-    assert "不应泄露" not in json.dumps(data, ensure_ascii=False)
+    assert [item["chapter_title"] for item in data["results"]] == ["Jembatan Bintang"]
+    assert "Tidak Boleh Terbocor" not in json.dumps(data, ensure_ascii=False)
 
 
 @pytest.mark.asyncio
@@ -704,11 +705,12 @@ async def test_search_chapters_blocks_when_default_embedding_model_mismatches_in
 
     tool = _make_search_chapters_tool(module)
     result = await tool.ainvoke(
-        {"query": "星桥"},
+        {"query": "Jembatan Bintang"},
         config={"configurable": {"db_session": session}},
     )
 
-    assert "更新索引" in result
+    assert "indeks" in result.lower()
+    assert "diperbarui" in result.lower()
     assert retrieval.queries == []
 
 
@@ -751,11 +753,12 @@ async def test_search_chapters_blocks_when_embedding_dimensions_mismatch_index(
 
     tool = _make_search_chapters_tool(module)
     result = await tool.ainvoke(
-        {"query": "星桥"},
+        {"query": "Jembatan Bintang"},
         config={"configurable": {"db_session": session}},
     )
 
-    assert "更新索引" in result
+    assert "indeks" in result.lower()
+    assert "diperbarui" in result.lower()
     assert retrieval.queries == []
 
 
@@ -776,13 +779,13 @@ async def test_search_chapters_rejects_non_embedding_default_model(
     tool = ToolRegistry.get_tools(names=["search_chapters"], state=_make_state())[0]
     data = json.loads(
         await tool.ainvoke(
-            {"query": "星桥"},
+            {"query": "Jembatan Bintang"},
             config={"configurable": {"db_session": session}},
         )
     )
 
     assert data["type"] == "fail"
-    assert "不是 embedding 模型" in data["message"]
+    assert "bukan model embedding" in data["message"]
 
 
 @pytest.mark.asyncio
@@ -797,13 +800,13 @@ async def test_search_chapters_rejects_embedding_model_without_dimensions(
     tool = ToolRegistry.get_tools(names=["search_chapters"], state=_make_state())[0]
     data = json.loads(
         await tool.ainvoke(
-            {"query": "星桥"},
+            {"query": "Jembatan Bintang"},
             config={"configurable": {"db_session": session}},
         )
     )
 
     assert data["type"] == "fail"
-    assert "缺少 embedding dimensions" in data["message"]
+    assert "tidak memiliki embedding dimensions" in data["message"]
 
 
 @pytest.mark.asyncio
@@ -856,13 +859,13 @@ async def test_search_chapters_hides_embedding_client_init_error_details(
     tool = _make_search_chapters_tool(module)
     data = json.loads(
         await tool.ainvoke(
-            {"query": "星桥", "force": True},
+            {"query": "Jembatan Bintang", "force": True},
             config={"configurable": {"db_session": session}},
         )
     )
 
     assert data["type"] == "fail"
-    assert "embedding client 初始化失败" in data["message"]
+    assert "Inisialisasi embedding client untuk pencarian bab gagal" in data["message"]
     assert "sk-provider" not in data["message"]
     assert "/tmp/provider-config" not in data["message"]
     assert retrieval.queries == []
@@ -909,13 +912,13 @@ async def test_search_chapters_hides_external_retrieval_error_details(
     tool = _make_search_chapters_tool(module)
     data = json.loads(
         await tool.ainvoke(
-            {"query": "星桥", "force": True},
+            {"query": "Jembatan Bintang", "force": True},
             config={"configurable": {"db_session": session}},
         )
     )
 
     assert data["type"] == "fail"
-    assert "章节检索执行失败" in data["message"]
+    assert "Eksekusi pencarian bab gagal" in data["message"]
     assert "sk-secret" not in data["message"]
     assert "LanceDB" not in data["message"]
     assert "/tmp/private-table" not in data["message"]
@@ -937,13 +940,13 @@ async def test_search_chapters_preserves_index_not_ready_reason(
     tool = _make_search_chapters_tool(module)
     data = json.loads(
         await tool.ainvoke(
-            {"query": "星桥", "force": True},
+            {"query": "Jembatan Bintang", "force": True},
             config={"configurable": {"db_session": session}},
         )
     )
 
     assert data["type"] == "fail"
-    assert data["message"] == f"章节检索执行失败: {reason}"
+    assert data["message"] == f"Eksekusi pencarian bab gagal: {reason}"
 
 
 @pytest.mark.asyncio
@@ -986,16 +989,16 @@ async def test_search_chapters_returns_empty_results(
     tool = _make_search_chapters_tool(module)
     data = json.loads(
         await tool.ainvoke(
-            {"query": "无结果", "force": True},
+            {"query": "Tanpa Hasil", "force": True},
             config={"configurable": {"db_session": session}},
         )
     )
 
-    assert data == {"query": "无结果", "results": []}
+    assert data == {"query": "Tanpa Hasil", "results": []}
 
 
 class _FakeRerankClient:
-    """rerank client 替身：将传入文档按原顺序返回 0.99/0.51/... 的递减分数。"""
+    """Pengganti klien rerank: mengembalikan dokumen masukan pada urutan aslinya dengan skor menurun 0.99/0.51/..."""
 
     def __init__(self) -> None:
         self.calls: list[tuple[str, list[str], int | None]] = []
@@ -1013,7 +1016,7 @@ class _FakeRerankClient:
 
 
 async def _seed_ready_index(session: AsyncSession) -> Any:
-    """构造一个 fresh 可检索的项目索引，返回 (module, retrieval, model)。"""
+    """Menyusun indeks proyek yang fresh dan dapat dicari, mengembalikan (module, retrieval, model)."""
     module = importlib.import_module("app.agent_runtime.tools.impls.chapter.search_chapters")
     model = await _create_embedding_model(session)
     await _create_project_with_chapters(session)
@@ -1034,7 +1037,7 @@ async def _seed_ready_index(session: AsyncSession) -> Any:
             chapter_id="chapter-ready",
             index_key="chapters:project-search",
             status="ready",
-            source_hash=compute_chapter_source_hash("星桥旧文本"),
+            source_hash=compute_chapter_source_hash("Teks lama Jembatan Bintang"),
             embedding_model_ref_id=model.id,
             chunk_count=1,
         )
@@ -1048,7 +1051,7 @@ async def test_search_chapters_rerank_path_uses_limited_top_n_and_invokes_rerank
     session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """启用 rerank 后候选池放大、最终上限收紧到 8 并调用 rerank。"""
+    """Setelah rerank aktif, kolam kandidat diperbesar, batas akhir diperketat menjadi 8, dan rerank dipanggil."""
     module, _ = await _seed_ready_index(session)
     await setting_repo.upsert(session, "index_rerank_enabled", "true")
     await setting_repo.upsert(session, "default_rerank_model", "rerank-model-1")
@@ -1062,7 +1065,7 @@ async def test_search_chapters_rerank_path_uses_limited_top_n_and_invokes_rerank
                 chapter_id="chapter-ready",
                 chunk_id="ready:0",
                 chunk_index=0,
-                text="星桥 matched",
+                text="Jembatan Bintang matched",
                 score=0.9,
             )
         ]
@@ -1072,7 +1075,7 @@ async def test_search_chapters_rerank_path_uses_limited_top_n_and_invokes_rerank
 
     tool = _make_search_chapters_tool(module)
     await tool.ainvoke(
-        {"query": "星桥", "force": True},
+        {"query": "Jembatan Bintang", "force": True},
         config={"configurable": {"db_session": session}},
     )
 
@@ -1089,7 +1092,7 @@ async def test_search_chapters_drops_chunks_below_confidence_threshold(
     session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """置信度低于 0.3 的分块应被丢弃，不进入返回结果。"""
+    """Chunk dengan confidence di bawah 0.3 harus dibuang dan tidak masuk hasil."""
     module, _ = await _seed_ready_index(session)
     await session.commit()
     retrieval = FakeRetrievalService(
@@ -1098,21 +1101,21 @@ async def test_search_chapters_drops_chunks_below_confidence_threshold(
                 chapter_id="chapter-ready",
                 chunk_id="ready:0",
                 chunk_index=0,
-                text="高相关",
+                text="Relevansi tinggi",
                 score=0.9,
             ),
             _chunk(
                 chapter_id="chapter-ready",
                 chunk_id="ready:1",
                 chunk_index=1,
-                text="低相关噪声",
+                text="Derau relevansi rendah",
                 score=0.2,
             ),
             _chunk(
                 chapter_id="chapter-ready",
                 chunk_id="ready:2",
                 chunk_index=2,
-                text="中等相关",
+                text="Relevansi sedang",
                 score=0.5,
             ),
         ]
@@ -1123,7 +1126,7 @@ async def test_search_chapters_drops_chunks_below_confidence_threshold(
     tool = _make_search_chapters_tool(module)
     data = json.loads(
         await tool.ainvoke(
-            {"query": "星桥", "force": True},
+            {"query": "Jembatan Bintang", "force": True},
             config={"configurable": {"db_session": session}},
         )
     )
@@ -1138,7 +1141,7 @@ async def _async_return(value: Any) -> Any:
 
 
 async def _seed_stale_index(session: AsyncSession) -> None:
-    """构造一个"索引非最新"的项目：章节内容已变更但索引未更新。"""
+    """Menyusun proyek dengan indeks "tidak terbaru": isi bab sudah berubah tetapi indeks belum diperbarui."""
     model = await _create_embedding_model(session)
     ready_chapter, _ = await _create_project_with_chapters(session)
     session.add(
@@ -1158,7 +1161,7 @@ async def _seed_stale_index(session: AsyncSession) -> None:
             chapter_id=ready_chapter.id,
             index_key="chapters:project-search",
             status="ready",
-            source_hash=compute_chapter_source_hash("已变更的旧内容"),
+            source_hash=compute_chapter_source_hash("Isi lama yang sudah berubah"),
             embedding_model_ref_id=model.id,
             chunk_count=1,
         )
@@ -1181,11 +1184,11 @@ async def test_search_chapters_returns_text_when_stale_and_not_forced(
 
     tool = _make_search_chapters_tool(module)
     result = await tool.ainvoke(
-        {"query": "星桥"},
+        {"query": "Jembatan Bintang"},
         config={"configurable": {"db_session": session}},
     )
 
-    assert "不是最新" in result
+    assert "tidak mutakhir" in result
     assert "force=true" in result
     assert "update_index" not in result
     assert retrieval.queries == []
@@ -1207,11 +1210,11 @@ async def test_search_chapters_stale_text_appends_agent_decided_hint(
 
     tool = _make_search_chapters_tool(module)
     result = await tool.ainvoke(
-        {"query": "星桥"},
+        {"query": "Jembatan Bintang"},
         config={"configurable": {"db_session": session}},
     )
 
-    assert "不是最新" in result
+    assert "tidak mutakhir" in result
     assert "update_index" in result
 
 
@@ -1237,18 +1240,18 @@ async def test_update_index_tool_enqueues_outdated_chapters(
     tool = module.UpdateIndexTool(_state=_make_state())
     result = await tool.ainvoke({}, config={"configurable": {"db_session": None}})
 
-    assert "1 个章节" in result
-    assert "已开始更新" in result
+    assert "1 bab" in result
+    assert "sudah dimulai" in result
 
-    # 无需更新
+    # Tidak perlu diperbarui
     async def _fake_enqueue_none(_session, *, project_id):
         return IndexEnqueueResult(enqueued_count=0, skipped_count=1)
 
     monkeypatch.setattr(module, "enqueue_project_index_update", _fake_enqueue_none)
     result = await tool.ainvoke({}, config={"configurable": {"db_session": None}})
-    assert "已是最新" in result
+    assert "sudah mutakhir" in result
 
-    # 未启用
+    # Belum diaktifkan
     async def _fake_enqueue_disabled(_session, *, project_id):
         return None
 
@@ -1258,7 +1261,11 @@ async def test_update_index_tool_enqueues_outdated_chapters(
         "type": "fail",
         "success": False,
         "code": "dependency_unavailable",
-        "message": "当前项目未启用索引或未配置可用的嵌入模型，无法更新索引。",
+        "message": (
+            "Proyek saat ini belum mengaktifkan indeks atau belum mengonfigurasi "
+            "model embedding yang dapat dipakai, sehingga indeks tidak dapat "
+            "diperbarui."
+        ),
     }
 
 

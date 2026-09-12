@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Agent API 测试。"""
+"""Uji API Agent."""
 
 import asyncio
 import io
@@ -66,7 +66,7 @@ async def reset_agent_runtime_globals(monkeypatch, tmp_path: Path):
 async def _seed_agent_target(client: AsyncClient) -> dict[str, str]:
     project_response = await client.post(
         "/api/v1/projects",
-        data={"title": "测试小说", "description": "一个关于冒险的故事"},
+        data={"title": "Novel Uji", "description": "Sebuah kisah tentang petualangan"},
     )
     assert project_response.status_code == 201
     project_id = project_response.json()["id"]
@@ -78,8 +78,8 @@ async def _seed_agent_target(client: AsyncClient) -> dict[str, str]:
         f"/api/v1/projects/{project_id}/chapters",
         json={
             "volume_id": volume_id,
-            "title": "第一章 开始",
-            "content": "这是一个晴朗的早晨，主人公踏上了旅程。",
+            "title": "Bab 1 Permulaan",
+            "content": "Ini pagi yang cerah, tokoh utama memulai perjalanannya.",
         },
     )
     assert chapter_response.status_code == 201
@@ -88,7 +88,7 @@ async def _seed_agent_target(client: AsyncClient) -> dict[str, str]:
     provider_response = await client.post(
         "/api/v1/model-providers",
         data={
-            "name": "测试提供商",
+            "name": "Provider Uji",
             "url": "https://api.test.com",
             "api_key": "test_api_key",
             "provider_type": "openai-compatible",
@@ -100,7 +100,7 @@ async def _seed_agent_target(client: AsyncClient) -> dict[str, str]:
     model_response = await client.post(
         "/api/v1/models",
         json={
-            "name": "测试模型",
+            "name": "Model Uji",
             "provider_id": provider_id,
             "model_id": "gpt-3.5-turbo",
             "temperature": 0.7,
@@ -181,12 +181,12 @@ class TestAgentAPI:
         with patch("app.api.routers.agent_runtime._launch_task", AsyncMock()):
             response = await client.post(
                 f"/api/v1/agent/sessions/{session_id}/message",
-                json={"message": "请描述", "attachments": [attachment["id"]]},
+                json={"message": "Tolong deskripsikan", "attachments": [attachment["id"]]},
             )
 
         assert response.status_code == status.HTTP_200_OK
         runner.run.assert_called_once_with(
-            user_request="请描述",
+            user_request="Tolong deskripsikan",
             attachments=[
                 {
                     "id": attachment["id"],
@@ -465,7 +465,7 @@ class TestAgentAPI:
             Task(
                 id="task-model-switch",
                 project_id=target["project_id"],
-                title="模型切换",
+                title="Peralihan Model",
                 mode="agent",
                 agent_session_id="session-model-switch",
             )
@@ -491,14 +491,14 @@ class TestAgentAPI:
         ):
             response = await client.post(
                 "/api/v1/agent/sessions/session-model-switch/message",
-                json={"message": "使用新模型继续", "model_id": "next-model-record"},
+                json={"message": "Lanjutkan dengan model baru", "model_id": "next-model-record"},
             )
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["model_updated"] is True
         resolve_model_config.assert_awaited_once_with(session, "next-model-record", None)
         assert runner.model_config == next_model_config
-        runner.run.assert_called_once_with(user_request="使用新模型继续")
+        runner.run.assert_called_once_with(user_request="Lanjutkan dengan model baru")
 
     async def test_send_agent_message_uses_requested_primary_agent_for_next_run(
         self,
@@ -523,7 +523,7 @@ class TestAgentAPI:
             Task(
                 id="task-agent-switch",
                 project_id=target["project_id"],
-                title="主智能体切换",
+                title="Peralihan Agen Utama",
                 mode="agent",
                 agent_session_id="session-agent-switch",
             )
@@ -546,12 +546,12 @@ class TestAgentAPI:
         ):
             response = await client.post(
                 "/api/v1/agent/sessions/session-agent-switch/message",
-                json={"message": "切换主智能体继续", "agent_key": "custom-primary"},
+                json={"message": "Lanjutkan setelah ganti agen utama", "agent_key": "custom-primary"},
             )
 
         assert response.status_code == status.HTTP_200_OK
         assert runner.agent_key == "custom-primary"
-        runner.run.assert_called_once_with(user_request="切换主智能体继续")
+        runner.run.assert_called_once_with(user_request="Lanjutkan setelah ganti agen utama")
 
     async def test_send_agent_message_falls_back_after_persisted_primary_agent_deleted(
         self,
@@ -592,7 +592,7 @@ class TestAgentAPI:
         ):
             response = await client.post(
                 f"/api/v1/agent/sessions/{session_id}/message",
-                json={"message": "继续旧会话"},
+                json={"message": "Lanjutkan sesi lama"},
             )
 
         assert response.status_code == status.HTTP_200_OK
@@ -608,7 +608,7 @@ class TestAgentAPI:
             Task(
                 id="task-deleted-agent",
                 project_id=target["project_id"],
-                title="已删除主智能体",
+                title="Agen Utama Terhapus",
                 mode="agent",
                 agent_session_id="session-deleted-agent",
             )
@@ -624,11 +624,11 @@ class TestAgentAPI:
 
         response = await client.post(
             "/api/v1/agent/sessions/session-deleted-agent/message",
-            json={"message": "使用已删除主智能体", "agent_key": "deleted-primary"},
+            json={"message": "Pakai agen utama yang terhapus", "agent_key": "deleted-primary"},
         )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
-        assert response.json()["detail"] == "主智能体不存在: deleted-primary"
+        assert response.json()["detail"] == "Agen utama tidak ditemukan: deleted-primary"
 
     async def test_send_agent_message_uses_new_model_after_deleted_model_session_rehydration(
         self,
@@ -649,7 +649,7 @@ class TestAgentAPI:
         new_model_response = await client.post(
             "/api/v1/models",
             json={
-                "name": "新测试模型",
+                "name": "Model Uji Baru",
                 "provider_id": target["provider_id"],
                 "model_id": "gpt-4.1-mini",
                 "temperature": 0.7,
@@ -670,7 +670,7 @@ class TestAgentAPI:
         ):
             response = await client.post(
                 f"/api/v1/agent/sessions/{session_id}/message",
-                json={"message": "使用新模型继续", "model_id": new_model_id},
+                json={"message": "Lanjutkan dengan model baru", "model_id": new_model_id},
             )
 
         assert response.status_code == status.HTTP_200_OK
@@ -687,7 +687,7 @@ class TestAgentAPI:
             Task(
                 id="task-reasoning-effort",
                 project_id=target["project_id"],
-                title="推理强度",
+                title="Intensitas Penalaran",
                 mode="agent",
                 agent_session_id="session-reasoning-effort",
             )
@@ -721,7 +721,7 @@ class TestAgentAPI:
         ):
             response = await client.post(
                 "/api/v1/agent/sessions/session-reasoning-effort/message",
-                json={"message": "提高推理强度", "reasoning_effort": "high"},
+                json={"message": "Tingkatkan intensitas penalaran", "reasoning_effort": "high"},
             )
 
         assert response.status_code == status.HTTP_200_OK
@@ -738,7 +738,7 @@ class TestAgentAPI:
             Task(
                 id="task-uncataloged-reasoning-effort",
                 project_id=target["project_id"],
-                title="目录外推理强度",
+                title="Intensitas Penalaran Luar Katalog",
                 mode="agent",
                 agent_session_id="session-uncataloged-reasoning-effort",
             )
@@ -772,7 +772,7 @@ class TestAgentAPI:
         ):
             response = await client.post(
                 "/api/v1/agent/sessions/session-uncataloged-reasoning-effort/message",
-                json={"message": "使用新模型推理", "reasoning_effort": "high"},
+                json={"message": "Penalaran dengan model baru", "reasoning_effort": "high"},
             )
 
         assert response.status_code == status.HTTP_200_OK
@@ -789,7 +789,7 @@ class TestAgentAPI:
             Task(
                 id="task-model-resume",
                 project_id=target["project_id"],
-                title="模型恢复",
+                title="Pemulihan Model",
                 mode="agent",
                 agent_session_id="session-model-resume",
             )
@@ -816,14 +816,14 @@ class TestAgentAPI:
         ):
             response = await client.post(
                 "/api/v1/agent/sessions/session-model-resume/message",
-                json={"message": "继续原任务", "model_id": "new-model-record"},
+                json={"message": "Lanjutkan tugas semula", "model_id": "new-model-record"},
             )
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["model_updated"] is True
         resolve_model_config.assert_awaited_once_with(session, "new-model-record", None)
         assert runner.model_config == next_model_config
-        runner.run.assert_called_once_with(user_request="继续原任务")
+        runner.run.assert_called_once_with(user_request="Lanjutkan tugas semula")
 
     async def test_send_agent_message_queues_without_updating_model(
         self,
@@ -835,7 +835,7 @@ class TestAgentAPI:
             Task(
                 id="task-model-pending",
                 project_id=target["project_id"],
-                title="模型排队",
+                title="Antrean Model",
                 mode="agent",
                 agent_session_id="session-model-pending",
             )
@@ -848,7 +848,7 @@ class TestAgentAPI:
         runner.queue_pending_user_message = AsyncMock(
             return_value={
                 "message_id": "pending-model-message",
-                "content": "排队消息",
+                "content": "Pesan antrean",
                 "created_at": "2026-07-12T00:00:00+00:00",
             }
         )
@@ -864,13 +864,13 @@ class TestAgentAPI:
             get_registry.return_value.is_cancelled = AsyncMock(return_value=False)
             response = await client.post(
                 "/api/v1/agent/sessions/session-model-pending/message",
-                json={"message": "排队消息", "model_id": "next-model-record"},
+                json={"message": "Pesan antrean", "model_id": "next-model-record"},
             )
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["model_updated"] is False
         resolve_model_config.assert_not_awaited()
-        runner.queue_pending_user_message.assert_awaited_once_with("排队消息")
+        runner.queue_pending_user_message.assert_awaited_once_with("Pesan antrean")
 
     async def test_create_agent_session_rejects_mode_field(self, client: AsyncClient) -> None:
         target = await _seed_agent_target(client)
@@ -925,7 +925,7 @@ class TestAgentAPI:
         provider_response = await client.post(
             "/api/v1/model-providers",
             data={
-                "name": "测试提供商",
+                "name": "Provider Uji",
                 "url": "https://api.test.com",
                 "api_key": "test_api_key",
                 "provider_type": "openai-compatible",
@@ -936,7 +936,7 @@ class TestAgentAPI:
         model_response = await client.post(
             "/api/v1/models",
             json={
-                "name": "测试模型",
+                "name": "Model Uji",
                 "provider_id": provider_id,
                 "model_id": "gpt-3.5-turbo",
                 "context_length": 8000,
@@ -946,7 +946,7 @@ class TestAgentAPI:
 
         project_response = await client.post(
             "/api/v1/projects",
-            data={"title": "测试小说"},
+            data={"title": "Novel Uji"},
         )
         project_id = project_response.json()["id"]
 
@@ -1048,7 +1048,7 @@ class TestAgentAPI:
         )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert "禁用" in response.json()["detail"]
+        assert "sudah dinonaktifkan" in response.json()["detail"]
 
     async def test_create_agent_session_with_custom_primary(self, client: AsyncClient) -> None:
         target = await _seed_agent_target(client)
@@ -1098,13 +1098,13 @@ class TestAgentAPI:
         with patch("app.api.routers.agent_runtime.SessionRunner.run", new=AsyncMock(return_value=None)) as mock_run:
             response = await client.post(
                 f"/api/v1/agent/sessions/{session_id}/message",
-                json={"message": "帮我写一个场景"},
+                json={"message": "Bantu saya menulis satu adegan"},
             )
 
             assert response.status_code == status.HTTP_200_OK
             assert response.json()["success"] is True
             await asyncio.sleep(0.05)
-            mock_run.assert_awaited_once_with(user_request="帮我写一个场景")
+            mock_run.assert_awaited_once_with(user_request="Bantu saya menulis satu adegan")
 
     async def test_send_message_enqueues_title_job_for_new_default_title(
         self,
@@ -1133,7 +1133,7 @@ class TestAgentAPI:
         ):
             response = await client.post(
                 f"/api/v1/agent/sessions/{session_id}/message",
-                json={"message": "帮我写一个场景"},
+                json={"message": "Bantu saya menulis satu adegan"},
             )
 
         assert response.status_code == status.HTTP_200_OK
@@ -1161,7 +1161,7 @@ class TestAgentAPI:
         run_finished = asyncio.Event()
 
         async def fake_run(*, user_request: str) -> None:
-            assert user_request == "帮我写一个场景"
+            assert user_request == "Bantu saya menulis satu adegan"
             try:
                 await run_gate.wait()
             finally:
@@ -1176,7 +1176,7 @@ class TestAgentAPI:
         ) as emit_mock:
             response = await client.post(
                 f"/api/v1/agent/sessions/{session_id}/message",
-                json={"message": "帮我写一个场景"},
+                json={"message": "Bantu saya menulis satu adegan"},
             )
 
             assert response.status_code == status.HTTP_200_OK
@@ -1825,7 +1825,7 @@ class TestAgentAPI:
         child_finished = asyncio.Event()
 
         async def fake_run(*, user_request: str) -> None:
-            assert user_request == "帮我写一个场景"
+            assert user_request == "Bantu saya menulis satu adegan"
             try:
                 await run_gate.wait()
             finally:
@@ -1846,7 +1846,7 @@ class TestAgentAPI:
         ):
             response = await client.post(
                 f"/api/v1/agent/sessions/{session_id}/message",
-                json={"message": "帮我写一个场景"},
+                json={"message": "Bantu saya menulis satu adegan"},
             )
 
             assert response.status_code == status.HTTP_200_OK
@@ -2337,7 +2337,7 @@ class TestAgentAPI:
             project_id=target["project_id"],
             role="user",
             status="sent",
-            content="继续处理当前问题",
+            content="Lanjutkan menangani masalah saat ini",
         )
         revision = await begin_user_revision(
             session,
@@ -2346,7 +2346,7 @@ class TestAgentAPI:
             agent_session_id=session_id,
             user_message_id=user_message.id,
             user_message_seq=user_message.seq,
-            message="用户消息: 继续处理当前问题",
+            message="Pesan pengguna: Lanjutkan menangani masalah saat ini",
             pre_run_checkpoint_id="cp-before-cancelled-run",
             graph_thread_id=session_id,
         )
@@ -2378,13 +2378,13 @@ class TestAgentAPI:
 
             response = await client.post(
                 f"/api/v1/agent/sessions/{session_id}/message",
-                json={"message": "取消上一轮后重新开始"},
+                json={"message": "Mulai ulang setelah membatalkan putaran sebelumnya"},
             )
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["success"] is True
         await asyncio.sleep(0.05)
-        mock_run.assert_awaited_once_with(user_request="取消上一轮后重新开始")
+        mock_run.assert_awaited_once_with(user_request="Mulai ulang setelah membatalkan putaran sebelumnya")
 
     async def test_cancel_does_not_cancel_run_waiting_to_start(
         self,
@@ -2633,7 +2633,7 @@ class TestAgentAPI:
         queue_message = AsyncMock(
             return_value={
                 "message_id": "should-not-queue",
-                "content": "消息",
+                "content": "Pesan",
                 "created_at": "2026-06-12T00:00:00+00:00",
             }
         )
@@ -2666,7 +2666,7 @@ class TestAgentAPI:
                 send_request = asyncio.create_task(
                     client.post(
                         f"/api/v1/agent/sessions/{session_id}/message",
-                        json={"message": "并发消息"},
+                        json={"message": "Pesan konkuren"},
                     )
                 )
                 await asyncio.sleep(0.05)
@@ -2981,7 +2981,7 @@ class TestAgentAPI:
             project_id=target["project_id"],
             role="user",
             status="sent",
-            content="请起草这一章",
+            content="Silakan susun draf bab ini",
             agent_id="primary",
         )
         assistant_message = await message_repo.insert_message(
@@ -2991,7 +2991,7 @@ class TestAgentAPI:
             project_id=target["project_id"],
             role="assistant",
             status="complete",
-            content="这是子 agent 的回复",
+            content="Ini balasan dari subagen",
             agent_id="writer",
         )
 
@@ -3047,7 +3047,7 @@ class TestAgentAPI:
                 "task_id": task_id,
                 "role": "user",
                 "agent_id": "primary",
-                "content": "请起草这一章",
+                "content": "Silakan susun draf bab ini",
                 "tool_calls": [],
                 "tool_call_id": None,
                 "metadata": {},
@@ -3064,7 +3064,7 @@ class TestAgentAPI:
                 "task_id": task_id,
                 "role": "assistant",
                 "agent_id": "writer",
-                "content": "这是子 agent 的回复",
+                "content": "Ini balasan dari subagen",
                 "tool_calls": [],
                 "tool_call_id": None,
                 "metadata": {},
@@ -3098,13 +3098,13 @@ class TestAgentAPI:
         with patch("app.api.routers.agent_runtime.SessionRunner.run", new=AsyncMock(return_value=None)) as mock_run:
             response = await client.post(
                 f"/api/v1/agent/sessions/{session_id}/message",
-                json={"message": "帮我继续这一轮"},
+                json={"message": "Bantu saya melanjutkan putaran ini"},
             )
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["success"] is True
         await asyncio.sleep(0.05)
-        mock_run.assert_awaited_once_with(user_request="帮我继续这一轮")
+        mock_run.assert_awaited_once_with(user_request="Bantu saya melanjutkan putaran ini")
         assert session_id in _SESSION_RUNNERS
 
     async def test_send_message_starts_new_run_for_paused_graph(
@@ -3129,13 +3129,13 @@ class TestAgentAPI:
         ) as mock_run:
             response = await client.post(
                 f"/api/v1/agent/sessions/{session_id}/message",
-                json={"message": "根据当前审核继续处理"},
+                json={"message": "Lanjutkan sesuai hasil peninjauan saat ini"},
             )
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["success"] is True
         await asyncio.sleep(0.05)
-        mock_run.assert_awaited_once_with(user_request="根据当前审核继续处理")
+        mock_run.assert_awaited_once_with(user_request="Lanjutkan sesuai hasil peninjauan saat ini")
 
     async def test_send_message_queues_follow_up_while_parent_run_is_active(
         self,
@@ -3163,7 +3163,7 @@ class TestAgentAPI:
             "queue_pending_user_message",
             new=AsyncMock(return_value={
                 "message_id": "msg_pending_1",
-                "content": "补充要求：保留上一段语气",
+                "content": "Permintaan tambahan: pertahankan nuansa paragraf sebelumnya",
                 "created_at": "2026-06-12T00:00:00+00:00",
             }),
             create=True,
@@ -3176,7 +3176,7 @@ class TestAgentAPI:
         ) as mock_run:
             response = await client.post(
                 f"/api/v1/agent/sessions/{session_id}/message",
-                json={"message": "补充要求：保留上一段语气"},
+                json={"message": "Permintaan tambahan: pertahankan nuansa paragraf sebelumnya"},
             )
 
         assert response.status_code == status.HTTP_200_OK
@@ -3184,11 +3184,11 @@ class TestAgentAPI:
         assert response.json()["queued"] is True
         assert response.json()["pending_message"] == {
             "message_id": "msg_pending_1",
-            "content": "补充要求：保留上一段语气",
+            "content": "Permintaan tambahan: pertahankan nuansa paragraf sebelumnya",
             "created_at": "2026-06-12T00:00:00+00:00",
         }
         await asyncio.sleep(0.05)
-        mock_queue.assert_awaited_once_with("补充要求：保留上一段语气")
+        mock_queue.assert_awaited_once_with("Permintaan tambahan: pertahankan nuansa paragraf sebelumnya")
         mock_run.assert_not_awaited()
 
     async def test_cancel_pending_message_restores_message_content(
@@ -3213,7 +3213,7 @@ class TestAgentAPI:
             "cancel_pending_user_message",
             AsyncMock(return_value={
                 "message_id": "msg_pending_1",
-                "content": "补充要求：保留上一段语气",
+                "content": "Permintaan tambahan: pertahankan nuansa paragraf sebelumnya",
                 "created_at": "2026-06-12T00:00:00+00:00",
             }),
             create=True,
@@ -3228,7 +3228,7 @@ class TestAgentAPI:
             "success": True,
             "session_id": session_id,
             "message_id": "msg_pending_1",
-            "restored_message_content": "补充要求：保留上一段语气",
+            "restored_message_content": "Permintaan tambahan: pertahankan nuansa paragraf sebelumnya",
         }
         mock_cancel.assert_awaited_once_with("msg_pending_1")
 
@@ -3692,7 +3692,7 @@ class TestAgentAPI:
                 f"/api/v1/agent/sessions/{session_id}/question-answer",
                 json={
                     "action_id": "question-1",
-                    "answer": [{"question": "风格选择", "answer": "正式"}],
+                    "answer": [{"question": "Pilihan gaya", "answer": "Formal"}],
                 },
             )
 
@@ -3702,7 +3702,7 @@ class TestAgentAPI:
             mock_resume.assert_awaited_once_with({
                 "action_type": "clarification",
                 "action_id": "question-1",
-                "answer": [{"question": "风格选择", "answer": "正式"}],
+                "answer": [{"question": "Pilihan gaya", "answer": "Formal"}],
             })
 
     async def test_submit_interrupt_batch_launches_single_resume(self, client: AsyncClient) -> None:
@@ -3727,7 +3727,7 @@ class TestAgentAPI:
                 "interrupt_id": "question-1",
                 "action_type": "clarification",
                 "action_id": "question-1",
-                "answer": [{"question": "风格", "answer": "正式"}],
+                "answer": [{"question": "Gaya", "answer": "Formal"}],
             },
         ]
 
@@ -3789,12 +3789,12 @@ class TestAgentAPI:
     ) -> None:
         buffer = get_agent_event_replay_buffer()
         buffer.clear_all()
-        session.add(Project(id="proj-rollback", title="回滚项目"))
+        session.add(Project(id="proj-rollback", title="Proyek Rollback"))
         session.add(
             Volume(
                 id="vol-rollback",
                 project_id="proj-rollback",
-                title="第一卷",
+                title="Volume 1",
                 order=1,
                 chapter_count=1,
             )
@@ -3804,8 +3804,8 @@ class TestAgentAPI:
                 id="chap-rollback",
                 project_id="proj-rollback",
                 volume_id="vol-rollback",
-                title="第一章",
-                content="旧内容",
+                title="Bab 1",
+                content="Isi lama",
                 word_count=3,
                 order=1,
             )
@@ -3828,7 +3828,7 @@ class TestAgentAPI:
             project_id="proj-rollback",
             role="user",
             status="sent",
-            content="改写第一章",
+            content="Tulis ulang Bab 1",
         )
         revision = await begin_user_revision(
             session,
@@ -3837,7 +3837,7 @@ class TestAgentAPI:
             agent_session_id="sess-rollback",
             user_message_id=user_message.id,
             user_message_seq=user_message.seq,
-            message="用户消息: 改写第一章",
+            message="Pesan pengguna: Tulis ulang Bab 1",
             pre_run_checkpoint_id="cp-before",
             graph_thread_id="sess-rollback",
         )
@@ -3847,8 +3847,8 @@ class TestAgentAPI:
                 chapter_id="chap-rollback",
                 project_id="proj-rollback",
                 exists=True,
-                title="第一章",
-                content="旧内容",
+                title="Bab 1",
+                content="Isi lama",
                 word_count=3,
                 chapter_order=1,
             )
@@ -3858,19 +3858,19 @@ class TestAgentAPI:
                 revision_id=revision.id,
                 chapter_id="chap-rollback",
                 operation="update",
-                snapshot_title="第一章",
-                snapshot_content="旧内容",
+                snapshot_title="Bab 1",
+                snapshot_content="Isi lama",
                 snapshot_word_count=3,
                 snapshot_order=1,
-                new_title="第一章",
-                new_content="新内容",
+                new_title="Bab 1",
+                new_content="Isi baru",
                 new_word_count=3,
                 new_order=1,
             )
         )
         chapter = await session.get(Chapter, "chap-rollback")
         assert chapter is not None
-        chapter.content = "新内容"
+        chapter.content = "Isi baru"
         session.add(chapter)
         await message_repo.insert_message(
             session,
@@ -3879,7 +3879,7 @@ class TestAgentAPI:
             project_id="proj-rollback",
             role="assistant",
             status="complete",
-            content="已改写",
+            content="Sudah ditulis ulang",
         )
         child = await create_child_run(
             session,
@@ -3915,7 +3915,7 @@ class TestAgentAPI:
                     "run_id": "rolled-back-run",
                     "tool_call_id": "rolled-back-tool",
                     "tool": "write_chapter",
-                    "input": {"title": "不应重放"},
+                    "input": {"title": "Tidak boleh diulang"},
                 },
             )
 
@@ -3950,7 +3950,7 @@ class TestAgentAPI:
         data = response.json()
         assert data["success"] is True
         assert "restored_checkpoint_id" not in data
-        assert data["restored_message_content"] == "改写第一章"
+        assert data["restored_message_content"] == "Tulis ulang Bab 1"
         assert data["affected_chapters"] == ["chap-rollback"]
         assert data["affected_world_entries"] == []
         assert data["revision_id"]
@@ -4006,12 +4006,12 @@ class TestAgentAPI:
         client: AsyncClient,
         session,
     ) -> None:
-        session.add(Project(id="proj-rollback-created", title="回滚新建章节项目"))
+        session.add(Project(id="proj-rollback-created", title="Proyek Rollback Bab Baru"))
         session.add(
             Volume(
                 id="vol-rollback-created",
                 project_id="proj-rollback-created",
-                title="第一卷",
+                title="Volume 1",
                 order=1,
                 chapter_count=2,
             )
@@ -4021,8 +4021,8 @@ class TestAgentAPI:
                 id="chap-existing-rollback",
                 project_id="proj-rollback-created",
                 volume_id="vol-rollback-created",
-                title="已有章节",
-                content="已有内容",
+                title="Bab Lama",
+                content="Isi lama yang ada",
                 word_count=4,
                 order=1,
             )
@@ -4045,7 +4045,7 @@ class TestAgentAPI:
             project_id="proj-rollback-created",
             role="user",
             status="sent",
-            content="新建章节",
+            content="Buat bab baru",
         )
         revision = await begin_user_revision(
             session,
@@ -4054,7 +4054,7 @@ class TestAgentAPI:
             agent_session_id="sess-rollback-created",
             user_message_id=user_message.id,
             user_message_seq=user_message.seq,
-            message="用户消息: 新建章节",
+            message="Pesan pengguna: Buat bab baru",
             pre_run_checkpoint_id="cp-before-created",
             graph_thread_id="sess-rollback-created",
         )
@@ -4063,8 +4063,8 @@ class TestAgentAPI:
                 id="chap-created-rollback",
                 project_id="proj-rollback-created",
                 volume_id="vol-rollback-created",
-                title="新章节",
-                content="新内容",
+                title="Bab Baru",
+                content="Isi baru",
                 word_count=3,
                 order=2,
             )
@@ -4143,12 +4143,12 @@ class TestAgentAPI:
         client: AsyncClient,
         session,
     ) -> None:
-        session.add(Project(id="proj-fork", title="分叉项目"))
+        session.add(Project(id="proj-fork", title="Proyek Fork"))
         session.add(
             Volume(
                 id="vol-fork",
                 project_id="proj-fork",
-                title="第一卷",
+                title="Volume 1",
                 order=1,
                 chapter_count=1,
             )
@@ -4158,8 +4158,8 @@ class TestAgentAPI:
                 id="chap-fork",
                 project_id="proj-fork",
                 volume_id="vol-fork",
-                title="第一章",
-                content="当前内容",
+                title="Bab 1",
+                content="Isi saat ini",
                 word_count=4,
                 order=1,
             )
@@ -4182,7 +4182,7 @@ class TestAgentAPI:
             project_id="proj-fork",
             role="user",
             status="sent",
-            content="写第一轮",
+            content="Tulis putaran pertama",
         )
         revision = await begin_user_revision(
             session,
@@ -4191,7 +4191,7 @@ class TestAgentAPI:
             agent_session_id="sess-fork-source",
             user_message_id=user_message.id,
             user_message_seq=user_message.seq,
-            message="用户消息: 写第一轮",
+            message="Pesan pengguna: Tulis putaran pertama",
             pre_run_checkpoint_id="cp-before",
             graph_thread_id="sess-fork-source",
         )
@@ -4202,7 +4202,7 @@ class TestAgentAPI:
             project_id="proj-fork",
             role="assistant",
             status="complete",
-            content="第一轮完成",
+            content="Putaran pertama selesai",
         )
         await session.commit()
 

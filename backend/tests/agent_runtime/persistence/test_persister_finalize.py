@@ -1,4 +1,4 @@
-"""MessagePersister.finalize 测试 — 中断场景。"""
+"""Uji MessagePersister.finalize - skenario interupsi."""
 
 import json
 from datetime import UTC, datetime
@@ -58,7 +58,7 @@ async def test_finalize_writes_partial_assistant_with_resolvable_tool_call(
         "type": "fail",
         "success": False,
         "code": "execution_failed",
-        "message": "工具未执行",
+        "message": "Alat tidak dijalankan",
     }
 
 
@@ -114,7 +114,7 @@ async def test_finalize_persists_reasoning_duration_for_cancelled_partial_messag
             "data": {
                 "chunk": AIMessageChunk(
                     content="",
-                    additional_kwargs={"reasoning_content": "先分析到一半"},
+                    additional_kwargs={"reasoning_content": "Analisis baru separuh jalan"},
                 ),
             },
         }
@@ -127,7 +127,7 @@ async def test_finalize_persists_reasoning_duration_for_cancelled_partial_messag
     msg = items[0]
     assert msg.role == "assistant"
     assert msg.status == "partial"
-    assert msg.reasoning == "先分析到一半"
+    assert msg.reasoning == "Analisis baru separuh jalan"
     assert msg.reasoning_duration_ms is not None
     assert msg.reasoning_duration_ms == 0
 
@@ -163,7 +163,7 @@ async def test_finalize_stops_reasoning_duration_at_last_reasoning_chunk(
             "data": {
                 "chunk": AIMessageChunk(
                     content="",
-                    additional_kwargs={"reasoning_content": "先分析"},
+                    additional_kwargs={"reasoning_content": "Analisis awal"},
                 ),
             },
         }
@@ -177,7 +177,7 @@ async def test_finalize_stops_reasoning_duration_at_last_reasoning_chunk(
             "data": {
                 "chunk": AIMessageChunk(
                     content="",
-                    additional_kwargs={"reasoning_content": "再推演"},
+                    additional_kwargs={"reasoning_content": " lalu penalaran lanjutan"},
                 ),
             },
         }
@@ -188,7 +188,7 @@ async def test_finalize_stops_reasoning_duration_at_last_reasoning_chunk(
         {
             "event": "on_chat_model_stream",
             "run_id": "run-1",
-            "data": {"chunk": AIMessageChunk(content="尾声")},
+            "data": {"chunk": AIMessageChunk(content="Penutup")},
         }
     )
 
@@ -198,7 +198,7 @@ async def test_finalize_stops_reasoning_duration_at_last_reasoning_chunk(
     items = await repo.list_by_session(db_session, sid)
     assert len(items) == 1
     msg = items[0]
-    assert msg.reasoning == "先分析再推演"
+    assert msg.reasoning == "Analisis awal lalu penalaran lanjutan"
     assert msg.reasoning_duration_ms == 2000
 
 
@@ -233,7 +233,7 @@ async def test_finalize_writes_aborted_for_tool_started_not_ended(
         "type": "fail",
         "success": False,
         "code": "execution_failed",
-        "message": "工具执行未完成",
+        "message": "Eksekusi alat tidak selesai",
     }
 
 
@@ -327,7 +327,10 @@ async def test_finalize_preserves_cancelled_subagent_tool_identity_in_history(
         "type": "fail",
         "success": False,
         "code": "execution_failed",
-        "message": "subagent 会话已被用户中断，要通知其继续工作请使用 notify_subagent",
+        "message": (
+            "Sesi subagent dibatalkan oleh pengguna; untuk memberitahunya agar "
+            "melanjutkan pekerjaan, gunakan notify_subagent"
+        ),
     }
 
 

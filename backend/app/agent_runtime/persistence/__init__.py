@@ -1,4 +1,4 @@
-"""Agent 运行时消息持久化层公共 API。"""
+"""API publik lapisan persistensi pesan runtime Agent."""
 
 from app.agent_runtime.persistence import compaction_repo, repo
 from app.agent_runtime.persistence.errors import (

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Volume API Schemas - 卷请求/响应模型。
+Volume API Schemas - Model permintaan/respons volume.
 """
 
 from datetime import datetime
@@ -9,37 +9,37 @@ from pydantic import BaseModel, Field
 
 
 class VolumeCreate(BaseModel):
-    """创建卷请求。"""
+    """Permintaan pembuatan volume."""
 
-    title: str = Field(min_length=1, max_length=200, description="卷名")
-    description: str | None = Field(default=None, description="卷说明")
+    title: str = Field(min_length=1, max_length=200, description="Nama volume")
+    description: str | None = Field(default=None, description="Deskripsi volume")
 
 
 class VolumeUpdate(BaseModel):
-    """更新卷请求。"""
+    """Permintaan pembaruan volume."""
 
     title: str | None = Field(
-        default=None, min_length=1, max_length=200, description="卷名"
+        default=None, min_length=1, max_length=200, description="Nama volume"
     )
-    description: str | None = Field(default=None, description="卷说明")
+    description: str | None = Field(default=None, description="Deskripsi volume")
 
 
 class VolumeMove(BaseModel):
-    """移动卷请求。"""
+    """Permintaan pemindahan volume."""
 
-    new_order: int = Field(ge=1, description="新的排序位置")
+    new_order: int = Field(ge=1, description="Posisi urutan baru")
 
 
 class VolumeResponse(BaseModel):
-    """卷响应。"""
+    """Respons volume."""
 
-    id: str = Field(description="卷 ID")
-    project_id: str = Field(description="所属项目 ID")
-    title: str = Field(description="卷名")
-    description: str | None = Field(description="卷说明")
-    order: int = Field(description="项目内排序序号")
-    chapter_count: int = Field(description="章节数")
-    created_at: datetime = Field(description="创建时间")
-    updated_at: datetime = Field(description="上次修改时间")
+    id: str = Field(description="ID volume")
+    project_id: str = Field(description="ID proyek pemilik")
+    title: str = Field(description="Nama volume")
+    description: str | None = Field(description="Deskripsi volume")
+    order: int = Field(description="Nomor urut di dalam proyek")
+    chapter_count: int = Field(description="Jumlah bab")
+    created_at: datetime = Field(description="Waktu pembuatan")
+    updated_at: datetime = Field(description="Waktu modifikasi terakhir")
 
     model_config = {"from_attributes": True}

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Service 模块 - 业务逻辑层。
+Modul Service - lapisan logika bisnis.
 """
 
 from app.storage.services import (

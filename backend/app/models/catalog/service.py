@@ -78,7 +78,8 @@ _EMBEDDING_FAMILIES = {
     "bge",
 }
 
-# 进程级 catalog snapshot 缓存：key 为 (快照文件路径, mtime)，避免每次请求重复解析大 JSON。
+# Cache snapshot catalog tingkat proses: key berupa (path file snapshot, mtime),
+# menghindari penguraian ulang JSON besar pada setiap permintaan.
 _SNAPSHOT_CACHE: dict[
     tuple[Path, int], tuple[dict[str, Any], str, str | None]
 ] = {}

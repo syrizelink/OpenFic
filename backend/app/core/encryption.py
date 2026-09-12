@@ -2,49 +2,50 @@
 """
 Encryption utilities for sensitive data.
 
-使用 Fernet 对称加密来加密敏感数据（如 API keys）。
+Menggunakan enkripsi simetris Fernet untuk mengenkripsi data sensitif (misalnya API keys).
 """
 
 from cryptography.fernet import Fernet
 
 
 class EncryptionService:
-    """加密服务，用于加密和解密敏感数据。"""
+    """Layanan enkripsi, untuk mengenkripsi dan mendekripsi data sensitif."""
 
     def __init__(self, encryption_key: str):
         """
-        初始化加密服务。
+        Menginisialisasi layanan enkripsi.
 
         Args:
-            encryption_key: Base64 编码的加密密钥。
+            encryption_key: kunci enkripsi berkode Base64.
         """
         self._fernet = Fernet(encryption_key.encode())
 
     def encrypt(self, plaintext: str) -> str:
         """
-        加密明文字符串。
+        Mengenkripsi string teks polos.
 
         Args:
-            plaintext: 待加密的明文。
+            plaintext: teks polos yang akan dienkripsi.
 
         Returns:
-            Base64 编码的密文字符串。
+            String teks tersandi berkode Base64.
         """
         encrypted_bytes = self._fernet.encrypt(plaintext.encode())
         return encrypted_bytes.decode()
 
     def decrypt(self, ciphertext: str) -> str:
         """
-        解密密文字符串。
+        Mendekripsi string teks tersandi.
 
         Args:
-            ciphertext: Base64 编码的密文。
+            ciphertext: teks tersandi berkode Base64.
 
         Returns:
-            解密后的明文字符串。
+            String teks polos hasil dekripsi.
 
         Raises:
-            cryptography.fernet.InvalidToken: 如果密文无效或密钥错误。
+            cryptography.fernet.InvalidToken: jika teks tersandi tidak valid atau
+                kunci salah.
         """
         decrypted_bytes = self._fernet.decrypt(ciphertext.encode())
         return decrypted_bytes.decode()
@@ -52,9 +53,9 @@ class EncryptionService:
 
 def generate_encryption_key() -> str:
     """
-    生成一个新的 Fernet 加密密钥。
+    Membuat kunci enkripsi Fernet baru.
 
     Returns:
-        Base64 编码的密钥字符串。
+        String kunci berkode Base64.
     """
     return Fernet.generate_key().decode()

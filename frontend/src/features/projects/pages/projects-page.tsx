@@ -1,7 +1,7 @@
 /**
  * ProjectsPage Component
  *
- * 项目列表主页面，整合所有项目管理功能。
+ * Halaman utama daftar proyek, menyatukan seluruh fungsi pengelolaan proyek.
  */
 
 import { Box, Button, Container, Flex, Text, Grid } from "@radix-ui/themes";
@@ -51,12 +51,12 @@ export function ProjectsPage() {
     onClose: closeSidebar,
   });
 
-  // 本地 UI 状态
+  // Status UI lokal
   const { viewMode, searchQuery, sortBy, sortOrder } = useProjectsStore();
   const [currentPage, setCurrentPage] = useState(1);
   const hasMountedFilters = useRef(false);
 
-  // 服务端分页、搜索和排序
+  // Penomoran halaman, pencarian, dan pengurutan di sisi server
   const { data, isLoading, isFetching, error } = useProjects({
     page: currentPage,
     pageSize: PROJECTS_PAGE_SIZE,
@@ -69,7 +69,7 @@ export function ProjectsPage() {
   const deleteMutation = useDeleteProject();
   const queryClient = useQueryClient();
 
-  // 对话框状态
+  // Status dialog
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -104,7 +104,7 @@ export function ProjectsPage() {
     setCurrentPage((page) => Math.min(page, totalPages));
   }, [totalPages]);
 
-  // 处理创建/编辑
+  // Menangani pembuatan/penyuntingan
   const handleOpenCreate = () => {
     setEditingProject(null);
     setFormDialogOpen(true);
@@ -138,7 +138,7 @@ export function ProjectsPage() {
     }
   };
 
-  // 处理删除
+  // Menangani penghapusan
   const handleOpenDelete = (project: Project) => {
     setDeletingProject(project);
     setDeleteDialogOpen(true);
@@ -168,7 +168,7 @@ export function ProjectsPage() {
         background: "var(--color-background)",
       }}
     >
-      {/* 工具栏区域 */}
+      {/* Area bilah alat */}
       <Container
         size="4"
         px="5"
@@ -182,13 +182,13 @@ export function ProjectsPage() {
         </Box>
       </Container>
 
-      {/* 主内容区域 */}
+      {/* Area isi utama */}
       <Container
         size="4"
         py="6"
         px="5"
       >
-        {/* 加载状态 */}
+        {/* Status memuat */}
         {isLoading && (
           <Flex
             justify="center"
@@ -199,7 +199,7 @@ export function ProjectsPage() {
           </Flex>
         )}
 
-        {/* 错误状态 */}
+        {/* Status galat */}
         {error && (
           <Flex
             justify="center"
@@ -210,7 +210,7 @@ export function ProjectsPage() {
           </Flex>
         )}
 
-        {/* 空状态 */}
+        {/* Status kosong */}
         {!isLoading && !error && items.length === 0 && (
           <MotionBox
             initial={{ opacity: 0, y: 20 }}
@@ -253,7 +253,7 @@ export function ProjectsPage() {
           </MotionBox>
         )}
 
-        {/* 项目列表 */}
+        {/* Daftar proyek */}
         {!isLoading && !error && items.length > 0 && (
           <Box mt="5">
             <AnimatePresence mode="wait">
@@ -372,7 +372,7 @@ export function ProjectsPage() {
         )}
       </Container>
 
-      {/* 创建/编辑对话框 */}
+      {/* Dialog pembuatan/penyuntingan */}
       <ProjectFormDialog
         open={formDialogOpen}
         onOpenChange={handleFormDialogOpenChange}
@@ -381,7 +381,7 @@ export function ProjectsPage() {
         loading={createMutation.isPending || updateMutation.isPending}
       />
 
-      {/* 删除确认对话框 */}
+      {/* Dialog konfirmasi penghapusan */}
       <ConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
@@ -395,7 +395,7 @@ export function ProjectsPage() {
         loading={deleteMutation.isPending}
       />
 
-      {/* 导入对话框 */}
+      {/* Dialog impor */}
       <ImportDialog
         open={importDialogOpen}
         onOpenChange={handleImportDialogOpenChange}

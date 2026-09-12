@@ -20,7 +20,7 @@ async def test_list_enabled_skills_by_ids_preserves_requested_order_and_filters(
     session.add_all([
         Skill(
             id="skill-b",
-            name="技能 B",
+            name="Skill B",
             summary="B",
             content="b",
             is_enabled=True,
@@ -29,7 +29,7 @@ async def test_list_enabled_skills_by_ids_preserves_requested_order_and_filters(
         ),
         Skill(
             id="skill-a",
-            name="技能 A",
+            name="Skill A",
             summary="A",
             content="a",
             is_enabled=True,
@@ -38,7 +38,7 @@ async def test_list_enabled_skills_by_ids_preserves_requested_order_and_filters(
         ),
         Skill(
             id="skill-c",
-            name="技能 C",
+            name="Skill C",
             summary="C",
             content="c",
             is_enabled=False,
@@ -72,9 +72,9 @@ async def test_list_enabled_skills_by_ids_includes_enabled_builtin_skill(session
 async def test_list_skills_uses_custom_skill_offset_after_builtin_skills(session):
     builtin_skill = SimpleNamespace(
         id="builtin-skill--first",
-        name="内置 Skill",
-        summary="简介",
-        content="内容",
+        name="Skill Bawaan",
+        summary="Ringkasan",
+        content="Isi",
         is_enabled=True,
         source="builtin",
         references=(),
@@ -118,7 +118,7 @@ async def test_list_by_version_uses_stable_tiebreakers(session):
             id="entry-b",
             uid="uid-b",
             version_id="version-ordering",
-            name="条目 B",
+            name="Entri B",
             role="system",
             content="B",
             order_index=0,
@@ -129,7 +129,7 @@ async def test_list_by_version_uses_stable_tiebreakers(session):
             id="entry-a",
             uid="uid-a",
             version_id="version-ordering",
-            name="条目 A",
+            name="Entri A",
             role="system",
             content="A",
             order_index=0,

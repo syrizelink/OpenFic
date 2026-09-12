@@ -30,18 +30,19 @@ _IMAGE_FORMATS = {
 
 
 def ensure_agent_attachments_dir() -> Path:
-    """确保 Agent 附件目录存在。"""
+    """Memastikan direktori lampiran Agent tersedia."""
     settings.agent_attachments_dir.mkdir(parents=True, exist_ok=True)
     return settings.agent_attachments_dir
 
 
 def get_agent_attachment_url(storage_name: str) -> str:
-    """返回供应用展示的附件静态地址。"""
+    """Mengembalikan alamat statis lampiran untuk ditampilkan aplikasi."""
     return f"/agent-attachments/{storage_name}"
 
 
 def serialize_agent_attachment(attachment: Any) -> dict[str, Any]:
-    """返回可写入消息元数据的最小附件描述。"""
+    """Mengembalikan deskripsi lampiran minimal yang dapat ditulis ke metadata
+    pesan."""
     return {
         "id": attachment.id,
         "storage_name": attachment.storage_name,
@@ -60,12 +61,13 @@ async def load_session_attachments(
     session_id: str,
     attachment_ids: list[str],
 ) -> list[Any]:
-    """加载并验证一组属于指定会话的图片附件。"""
+    """Memuat dan memvalidasi sekumpulan lampiran gambar milik sesi yang
+    ditentukan."""
     unique_ids = list(dict.fromkeys(attachment_ids))
     if len(unique_ids) != len(attachment_ids):
-        raise ValueError("图片附件不能重复")
+        raise ValueError("Lampiran gambar tidak boleh berulang")
     if len(unique_ids) > MAX_AGENT_IMAGE_ATTACHMENTS:
-        raise ValueError("单条消息最多附带 20 张图片")
+        raise ValueError("Satu pesan paling banyak melampirkan 20 gambar")
     if not unique_ids:
         return []
 
@@ -80,14 +82,17 @@ async def load_session_attachments(
     attachments_by_id = {attachment.id: attachment for attachment in result.scalars()}
     missing_ids = [attachment_id for attachment_id in unique_ids if attachment_id not in attachments_by_id]
     if missing_ids:
-        raise ValueError("图片附件不存在或不属于当前会话")
+        raise ValueError(
+            "Lampiran gambar tidak ditemukan atau tidak termasuk dalam sesi saat ini"
+        )
     return [attachments_by_id[attachment_id] for attachment_id in unique_ids]
 
 
 async def build_image_content_blocks(
     attachments: list[dict[str, Any]],
 ) -> list[dict[str, str]]:
-    """从服务端文件构建供 LangChain 发送的标准图片内容块。"""
+    """Membangun blok isi gambar standar dari file di sisi server untuk dikirim
+    LangChain."""
     blocks: list[dict[str, str]] = []
     root = ensure_agent_attachments_dir().resolve()
     for attachment in attachments:
@@ -121,7 +126,8 @@ async def copy_attachments_for_fork(
     project_id: str,
     attachment_ids: set[str],
 ) -> dict[str, dict[str, Any]]:
-    """复制源会话附件，返回旧附件 ID 到新元数据的映射。"""
+    """Menyalin lampiran sesi sumber dan mengembalikan pemetaan dari ID lampiran
+    lama ke metadata baru."""
     from app.agent_runtime.persistence.model import AgentAttachment
 
     if not attachment_ids:
@@ -165,7 +171,8 @@ async def delete_attachments_for_message_ids(
     *,
     attachment_ids: set[str],
 ) -> None:
-    """删除已不再被保留消息引用的附件记录与文件。"""
+    """Menghapus catatan dan file lampiran yang tidak lagi dirujuk oleh pesan yang
+    dipertahankan."""
     if not attachment_ids:
         return
     from app.agent_runtime.persistence.model import AgentAttachment
@@ -185,7 +192,7 @@ async def delete_attachments_for_task(
     *,
     task_id: str,
 ) -> int:
-    """删除任务所有 Agent 附件的文件与记录。"""
+    """Menghapus file dan catatan seluruh lampiran Agent milik sebuah tugas."""
     from app.agent_runtime.persistence.model import AgentAttachment
 
     result = await session.execute(
@@ -204,7 +211,8 @@ async def delete_attachments_for_task(
 
 
 async def cleanup_orphaned_agent_attachment_files(session: AsyncSession) -> int:
-    """先删除失效会话目录，再清理现存会话的孤儿文件。"""
+    """Menghapus direktori sesi yang tidak valid lebih dulu, lalu membersihkan file
+    yatim pada sesi yang masih ada."""
     from app.agent_runtime.persistence.model import (
         AgentAttachment,
         AgentChildRun,
@@ -271,16 +279,19 @@ def _image_metadata(content: bytes) -> tuple[str, str, int, int]:
         with Image.open(io.BytesIO(content)) as image:
             format_info = _IMAGE_FORMATS.get(image.format or "")
             if format_info is None:
-                raise ValueError("仅支持 PNG、JPEG 或 WebP 图片")
+                raise ValueError("Hanya gambar PNG, JPEG, atau WebP yang didukung")
             mime_type, extension = format_info
             width, height = image.size
     except (UnidentifiedImageError, OSError, ValueError) as exc:
-        if isinstance(exc, ValueError) and str(exc) == "仅支持 PNG、JPEG 或 WebP 图片":
+        if (
+            isinstance(exc, ValueError)
+            and str(exc) == "Hanya gambar PNG, JPEG, atau WebP yang didukung"
+        ):
             raise
-        raise ValueError("上传文件不是有效图片") from exc
+        raise ValueError("File yang diunggah bukan gambar yang valid") from exc
 
     if width < 1 or height < 1:
-        raise ValueError("图片尺寸无效")
+        raise ValueError("Dimensi gambar tidak valid")
     return mime_type, extension, width, height
 
 
@@ -292,14 +303,14 @@ async def save_agent_image_attachment(
     project_id: str,
     image_file: UploadFile,
 ) -> Any:
-    """校验并保存一张会话归属图片。"""
+    """Memvalidasi dan menyimpan satu gambar milik sebuah sesi."""
     from app.agent_runtime.persistence.model import AgentAttachment
 
     content = await image_file.read()
     if not content:
-        raise ValueError("图片不能为空")
+        raise ValueError("Gambar tidak boleh kosong")
     if len(content) > MAX_AGENT_IMAGE_BYTES:
-        raise ValueError("单张图片不能超过 10 MB")
+        raise ValueError("Satu gambar tidak boleh melebihi 10 MB")
 
     mime_type, extension, width, height = _image_metadata(content)
     attachment_id = generate_id()

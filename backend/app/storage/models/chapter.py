@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Chapter 数据模型。
+Model data Chapter.
 """
 
 from datetime import UTC, datetime
@@ -13,17 +13,17 @@ from app.core.ids import generate_id
 
 class Chapter(SQLModel, table=True):
     """
-    小说章节模型。
+    Model bab novel.
 
     Attributes:
-        id: 章节唯一标识符（nanoid）。
-        project_id: 所属项目 ID。
-        title: 章节标题。
-        content: 章节正文内容。
-        word_count: 章节字数，默认为 0。
-        order: 排序序号。
-        created_at: 创建时间。
-        updated_at: 上次修改时间。
+        id: Identifier unik bab (nanoid).
+        project_id: ID proyek pemilik.
+        title: Judul bab.
+        content: Isi teks bab.
+        word_count: Jumlah kata bab, default 0.
+        order: Nomor urut.
+        created_at: Waktu pembuatan.
+        updated_at: Waktu perubahan terakhir.
     """
 
     __tablename__ = "chapters"

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-全局异常处理器。
+Penangan exception global.
 
-将领域层异常统一映射为 HTTP 响应。1
+Memetakan exception lapisan domain secara seragam menjadi respons HTTP.
 """
 
 from fastapi import FastAPI, Request, status
@@ -20,17 +20,17 @@ from app.core.errors import (
 
 def register_exception_handlers(app: FastAPI) -> None:
     """
-    注册全局异常处理器。
+    Mendaftarkan penangan exception global.
 
     Args:
-        app: FastAPI 应用实例。
+        app: Instance aplikasi FastAPI.
     """
 
     @app.exception_handler(NotFoundError)
     async def not_found_error_handler(
         request: Request, exc: NotFoundError
     ) -> JSONResponse:
-        """处理资源不存在错误。"""
+        """Menangani error resource tidak ditemukan."""
         logger.opt(exception=True).debug(
             "request failed: {} {}", request.method, request.url.path
         )
@@ -43,7 +43,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def project_already_bound_error_handler(
         request: Request, exc: ProjectAlreadyBoundError
     ) -> JSONResponse:
-        """处理项目已绑定世界书错误。"""
+        """Menangani error proyek sudah terikat buku dunia."""
         logger.opt(exception=True).debug(
             "request failed: {} {}", request.method, request.url.path
         )
@@ -56,7 +56,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def conflict_error_handler(
         request: Request, exc: ConflictError
     ) -> JSONResponse:
-        """处理资源冲突错误。"""
+        """Menangani error konflik resource."""
         logger.opt(exception=True).debug(
             "request failed: {} {}", request.method, request.url.path
         )
@@ -69,7 +69,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def value_error_handler(
         request: Request, exc: ValueError
     ) -> JSONResponse:
-        """处理值错误（通常是无效参数）。"""
+        """Menangani ValueError (biasanya parameter tidak valid)."""
         logger.opt(exception=True).debug(
             "request failed: {} {}", request.method, request.url.path
         )
@@ -82,7 +82,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def openfic_error_handler(
         request: Request, exc: OpenFicError
     ) -> JSONResponse:
-        """处理其他 OpenFic 领域错误。"""
+        """Menangani error domain OpenFic lainnya."""
         logger.opt(exception=True).debug(
             "request failed: {} {}", request.method, request.url.path
         )
@@ -95,7 +95,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def http_exception_handler(
         request: Request, exc: HTTPException
     ) -> JSONResponse:
-        """处理显式抛出的 HTTPException，记录 DEBUG 堆栈。"""
+        """Menangani HTTPException yang dilempar eksplisit, mencatat stack trace DEBUG."""
         logger.opt(exception=True).debug(
             "request failed: {} {}", request.method, request.url.path
         )
@@ -108,7 +108,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def unhandled_exception_handler(
         request: Request, exc: Exception
     ) -> JSONResponse:
-        """处理未捕获异常：返回通用 500，并上报错误遥测。"""
+        """Menangani exception yang tidak tertangkap: mengembalikan 500 generik, lalu melaporkan telemetri error."""
         logger.bind(
             request_method=request.method,
             request_path=request.url.path,

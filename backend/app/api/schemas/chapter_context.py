@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Chapter Context API Schemas - 章节上下文请求/响应模型。"""
+"""Chapter Context API Schemas - Model permintaan/respons konteks bab."""
 
 from datetime import datetime
 
@@ -7,13 +7,13 @@ from pydantic import BaseModel, Field
 
 
 class ContextFieldResponse(BaseModel):
-    """单个上下文字段响应（纯文本）。"""
+    """Respons satu field konteks (teks biasa)."""
 
-    content: str = Field(description="字段内容")
+    content: str = Field(description="Isi field")
 
 
 class SummaryStatusResponse(BaseModel):
-    """章节摘要状态响应。"""
+    """Respons status ringkasan bab."""
 
     chapter_id: str
     volume_id: str | None = None
@@ -24,17 +24,17 @@ class SummaryStatusResponse(BaseModel):
 
 
 class EnqueueSummaryRequest(BaseModel):
-    """手动加入摘要任务请求。"""
+    """Permintaan penambahan tugas ringkasan secara manual."""
 
-    summary_type: str = Field(default="chapter", description="chapter、long_term 或 all")
-    chapter_id: str | None = Field(default=None, description="章节 ID；为空则使用当前章节")
-    start_order: int | None = Field(default=None, description="区间起始章节 order")
-    end_order: int | None = Field(default=None, description="区间结束章节 order")
-    model_id: str | None = Field(default=None, description="可选模型 ID")
+    summary_type: str = Field(default="chapter", description="chapter, long_term, atau all")
+    chapter_id: str | None = Field(default=None, description="ID bab; bila kosong memakai bab saat ini")
+    start_order: int | None = Field(default=None, description="order bab awal rentang")
+    end_order: int | None = Field(default=None, description="order bab akhir rentang")
+    model_id: str | None = Field(default=None, description="ID model opsional")
 
 
 class EnqueueSummaryResponse(BaseModel):
-    """摘要任务加入队列响应。"""
+    """Respons penambahan tugas ringkasan ke antrean."""
 
     summary_id: str | None = None
     status: str
@@ -43,7 +43,7 @@ class EnqueueSummaryResponse(BaseModel):
 
 
 class MissingChapterSummaryItem(BaseModel):
-    """摘要维护面板中的章节摘要项。"""
+    """Item ringkasan bab pada panel pemeliharaan ringkasan."""
 
     chapter_id: str
     chapter_order: int
@@ -59,7 +59,7 @@ class MissingChapterSummaryItem(BaseModel):
 
 
 class SkippedChapterSummaryItem(BaseModel):
-    """因字数不足而跳过摘要的章节项。"""
+    """Item bab yang ringkasannya dilewati karena jumlah kata kurang."""
 
     chapter_id: str
     chapter_order: int
@@ -71,7 +71,7 @@ class SkippedChapterSummaryItem(BaseModel):
 
 
 class MissingLongTermSummaryItem(BaseModel):
-    """摘要维护面板中的区间摘要项。"""
+    """Item ringkasan rentang pada panel pemeliharaan ringkasan."""
 
     start_order: int
     end_order: int
@@ -86,7 +86,7 @@ class MissingLongTermSummaryItem(BaseModel):
 
 
 class SummaryBatchProgressItem(BaseModel):
-    """摘要批处理队列的聚合进度。"""
+    """Progres agregat antrean batch ringkasan."""
 
     model_config = {"from_attributes": True}
 
@@ -105,7 +105,7 @@ class SummaryBatchProgressItem(BaseModel):
 
 
 class SummaryMaintenanceResponse(BaseModel):
-    """摘要维护状态。"""
+    """Status pemeliharaan ringkasan."""
 
     auto_generation_blocked: bool = False
     block_reason_code: str | None = None
@@ -118,7 +118,7 @@ class SummaryMaintenanceResponse(BaseModel):
 
 
 class SummaryBackgroundJobItem(BaseModel):
-    """摘要相关后台任务状态。"""
+    """Status tugas latar belakang terkait ringkasan."""
 
     model_config = {"from_attributes": True}
 
@@ -138,20 +138,20 @@ class SummaryBackgroundJobItem(BaseModel):
 
 
 class SummaryPanelResponse(BaseModel):
-    """摘要面板响应。"""
+    """Respons panel ringkasan."""
 
     maintenance: SummaryMaintenanceResponse
 
 
 class SummaryRealtimeSnapshotSummaryResponse(BaseModel):
-    """摘要实时快照中的 summary payload。"""
+    """Payload summary pada snapshot ringkasan real-time."""
 
     statuses: list[SummaryStatusResponse] = Field(default_factory=list)
     maintenance: SummaryMaintenanceResponse
 
 
 class SummaryRealtimeSnapshotResponse(BaseModel):
-    """章节摘要实时快照响应。"""
+    """Respons snapshot real-time ringkasan bab."""
 
     project_id: str
     project_revision: int
@@ -159,7 +159,7 @@ class SummaryRealtimeSnapshotResponse(BaseModel):
 
 
 class ChapterSummaryListItemResponse(BaseModel):
-    """章节摘要面板列表项。"""
+    """Item daftar panel ringkasan bab."""
 
     chapter_id: str
     chapter_order: int
@@ -180,7 +180,7 @@ class ChapterSummaryListItemResponse(BaseModel):
 
 
 class ChapterSummaryListResponse(BaseModel):
-    """章节摘要面板列表响应。"""
+    """Respons daftar panel ringkasan bab."""
 
     items: list[ChapterSummaryListItemResponse] = Field(default_factory=list)
     total: int
@@ -189,7 +189,7 @@ class ChapterSummaryListResponse(BaseModel):
 
 
 class LongTermSummaryListItemResponse(BaseModel):
-    """区间摘要面板列表项。"""
+    """Item daftar panel ringkasan rentang."""
 
     start_order: int
     end_order: int
@@ -208,7 +208,7 @@ class LongTermSummaryListItemResponse(BaseModel):
 
 
 class LongTermSummaryListResponse(BaseModel):
-    """区间摘要面板列表响应。"""
+    """Respons daftar panel ringkasan rentang."""
 
     items: list[LongTermSummaryListItemResponse] = Field(default_factory=list)
     total: int
@@ -217,32 +217,32 @@ class LongTermSummaryListResponse(BaseModel):
 
 
 class DeleteChapterSummariesRequest(BaseModel):
-    """删除章节摘要请求。"""
+    """Permintaan penghapusan ringkasan bab."""
 
-    chapter_ids: list[str] = Field(default_factory=list, description="要删除摘要的章节 ID 列表")
+    chapter_ids: list[str] = Field(default_factory=list, description="Daftar ID bab yang ringkasannya akan dihapus")
 
 
 class DeleteLongTermSummariesRequest(BaseModel):
-    """删除区间摘要请求。"""
+    """Permintaan penghapusan ringkasan rentang."""
 
     ranges: list[tuple[int, int]] = Field(
         default_factory=list,
-        description="要删除的区间 (start_order, end_order) 列表，为空则删除全部",
+        description="Daftar rentang (start_order, end_order) yang akan dihapus; bila kosong semua dihapus",
     )
 
 
 class ContextPartResponse(BaseModel):
-    """上下文部分响应。"""
+    """Respons bagian konteks."""
 
-    content: str = Field(description="上下文内容")
-    token_count: int = Field(description="token 数量")
-    chapter_range: tuple[int, int] = Field(description="章节范围 (start, end)")
+    content: str = Field(description="Isi konteks")
+    token_count: int = Field(description="Jumlah token")
+    chapter_range: tuple[int, int] = Field(description="Rentang bab (start, end)")
 
 
 class BuiltContextResponse(BaseModel):
-    """构建的上下文响应。"""
+    """Respons konteks yang sudah dibangun."""
 
-    latest_field: ContextPartResponse = Field(description="最新章节上下文")
-    near_field: ContextPartResponse = Field(description="近场上下文")
-    mid_field: ContextPartResponse = Field(description="中场上下文")
-    far_field: ContextPartResponse = Field(description="远场上下文")
+    latest_field: ContextPartResponse = Field(description="Konteks bab terbaru")
+    near_field: ContextPartResponse = Field(description="Konteks dekat")
+    mid_field: ContextPartResponse = Field(description="Konteks menengah")
+    far_field: ContextPartResponse = Field(description="Konteks jauh")

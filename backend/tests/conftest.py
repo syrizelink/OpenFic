@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-测试配置。
+Konfigurasi uji.
 
-使用 module-scoped 引擎避免每个测试重建引擎和全部表，
-通过每测试连接级事务回滚实现隔离。
+Memakai engine module-scoped agar engine dan seluruh tabel tidak dibangun ulang di setiap uji,
+isolasi dicapai lewat rollback transaksi tingkat koneksi pada setiap uji.
 """
 
 from collections.abc import AsyncGenerator
@@ -130,7 +130,7 @@ async def _override_get_session() -> AsyncGenerator[AsyncSession, None]:
 
 @pytest.fixture(scope="session", autouse=True)
 def _disable_error_telemetry():
-    """禁用错误遥测，避免测试触发真实 PostHog 网络请求。"""
+    """Mematikan telemetri error agar uji tidak memicu permintaan jaringan PostHog nyata."""
     import app.telemetry as telemetry
     from app.settings import settings as app_settings
 
@@ -141,7 +141,7 @@ def _disable_error_telemetry():
 
 @pytest_asyncio.fixture(scope="module")
 async def db_engine():
-    """Module-scoped 引擎：同一模块的测试共享引擎和表结构。"""
+    """Engine module-scoped: uji dalam satu modul berbagi engine dan struktur tabel."""
     register_sqlmodel_models()
     engine = create_async_engine(
         TEST_DATABASE_URL,
@@ -156,7 +156,7 @@ async def db_engine():
 
 @pytest_asyncio.fixture(scope="module")
 async def _test_app():
-    """Module-scoped FastAPI 测试应用。"""
+    """Aplikasi uji FastAPI module-scoped."""
     test_app = _create_test_app()
     test_app.dependency_overrides[get_session] = _override_get_session
     return test_app
@@ -164,7 +164,7 @@ async def _test_app():
 
 @pytest_asyncio.fixture
 async def client(_test_app: FastAPI, db_engine) -> AsyncGenerator[AsyncClient, None]:
-    """每个测试的 HTTP 客户端。通过连接级事务实现隔离。"""
+    """Klien HTTP untuk setiap uji. Isolasi dicapai lewat transaksi tingkat koneksi."""
     global _per_test_session
     async with db_engine.begin() as setup_conn:
         await setup_conn.run_sync(SQLModel.metadata.create_all)
@@ -193,7 +193,7 @@ async def client(_test_app: FastAPI, db_engine) -> AsyncGenerator[AsyncClient, N
 async def isolated_prompts_dir(
     monkeypatch, tmp_path: Path
 ) -> AsyncGenerator[Path, None]:
-    """每个测试使用隔离的 prompts 目录，避免污染仓库内 YAML。"""
+    """Setiap uji memakai direktori prompts terisolasi agar YAML di dalam repo tidak terkontaminasi."""
     import app.prompts.loader as prompt_loader
 
     source_dir = prompt_loader.PROMPTS_DIR
@@ -208,7 +208,7 @@ async def isolated_prompts_dir(
 
 
 def pytest_sessionfinish(session, exitstatus):
-    """关闭全局 checkpoint 连接，避免 aiosqlite 非守护线程阻止进程退出。"""
+    """Menutup koneksi checkpoint global agar thread non-daemon aiosqlite tidak menahan proses keluar."""
     import asyncio
 
     from app.agent_runtime.runner import checkpointer
@@ -222,7 +222,7 @@ def pytest_sessionfinish(session, exitstatus):
 
 @pytest_asyncio.fixture
 async def session(client: AsyncClient) -> AsyncGenerator[AsyncSession, None]:
-    """向后兼容：从 app 覆盖中获取与 client 相同的数据库会话。"""
+    """Kompatibilitas ke belakang: mengambil sesi basis data yang sama dengan client dari override app."""
     app = client._transport.app  # type: ignore
     session_generator = app.dependency_overrides[get_session]
     async for sess in session_generator():

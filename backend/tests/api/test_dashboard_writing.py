@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Dashboard writing activity API 测试。
+Uji API aktivitas penulisan Dashboard.
 """
 
 from datetime import UTC, datetime
@@ -33,7 +33,7 @@ def _stop_tracking_sql(session: AsyncSession, listener: object) -> None:
 async def _create_project(client: AsyncClient) -> tuple[str, str]:
     response = await client.post(
         "/api/v1/projects",
-        data={"title": "测试小说"},
+        data={"title": "Novel Uji"},
     )
     assert response.status_code == 201
     project_id = response.json()["id"]
@@ -46,12 +46,12 @@ async def _create_project(client: AsyncClient) -> tuple[str, str]:
 
 @pytest.mark.asyncio
 async def test_writing_dashboard_tracks_user_chapter_edits(client: AsyncClient) -> None:
-    """测试写作仪表盘统计用户章节创建、更新和删除事件。"""
+    """Uji dasbor penulisan menghitung peristiwa pembuatan, pembaruan, dan penghapusan bab oleh pengguna."""
     project_id, volume_id = await _create_project(client)
 
     create_response = await client.post(
         f"/api/v1/projects/{project_id}/chapters",
-        json={"volume_id": volume_id, "title": "第一章", "content": "一二三"},
+        json={"volume_id": volume_id, "title": "Bab 1", "content": "Satu dua tiga"},
     )
     assert create_response.status_code == 201
     chapter_id = create_response.json()["id"]
@@ -59,7 +59,7 @@ async def test_writing_dashboard_tracks_user_chapter_edits(client: AsyncClient) 
 
     update_response = await client.patch(
         f"/api/v1/chapters/{chapter_id}",
-        json={"content": "一二三四五"},
+        json={"content": "Satu dua tiga empat lima"},
     )
     assert update_response.json()["word_count"] == 5
 
@@ -80,12 +80,12 @@ async def test_writing_dashboard_tracks_user_chapter_edits(client: AsyncClient) 
 
 @pytest.mark.asyncio
 async def test_writing_dashboard_separates_sources(client: AsyncClient) -> None:
-    """测试写作仪表盘可按来源筛选，避免混淆用户与导入数据。"""
+    """Uji dasbor penulisan dapat difilter per sumber agar data pengguna dan data impor tidak tertukar."""
     project_id, volume_id = await _create_project(client)
 
     create_response = await client.post(
         f"/api/v1/projects/{project_id}/chapters",
-        json={"volume_id": volume_id, "title": "第一章", "content": "用户正文"},
+        json={"volume_id": volume_id, "title": "Bab 1", "content": "Isi utama pengguna"},
     )
     assert create_response.status_code == 201
 
@@ -112,12 +112,12 @@ async def test_writing_dashboard_separates_sources(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_writing_dashboard_groups_activity_by_user_timezone(client: AsyncClient, session: AsyncSession) -> None:
-    """测试写作活动按用户时区归属日期，而不是直接使用 UTC 日期。"""
+    """Uji aktivitas penulisan mengikuti tanggal zona waktu pengguna, bukan langsung memakai tanggal UTC."""
     project_id, volume_id = await _create_project(client)
 
     create_response = await client.post(
         f"/api/v1/projects/{project_id}/chapters",
-        json={"volume_id": volume_id, "title": "第一章", "content": "凌晨创作"},
+        json={"volume_id": volume_id, "title": "Bab 1", "content": "Menulis dini hari"},
     )
     assert create_response.status_code == 201
     await session.execute(

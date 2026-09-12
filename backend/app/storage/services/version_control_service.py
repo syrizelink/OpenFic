@@ -13,7 +13,7 @@ async def refresh_project_stats(session: AsyncSession, project_id: str) -> Proje
     """Recompute cached project chapter and word counts in the caller transaction."""
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     project.chapter_count = await chapter_repo.count_by_project(session, project_id)
     project.word_count = await chapter_repo.get_total_word_count(session, project_id)

@@ -126,7 +126,7 @@ async def test_write_chapter_approval_payload_stays_permission_only():
     context = HookContext(
         tool_name="write_chapter",
         access_level="write",
-        args={"title": "新章节", "content": "新内容"},
+        args={"title": "Bab Baru", "content": "Isi baru"},
         state={"session_id": "s1", "project_id": "p1"},
         config={"configurable": {"db_session": _mock_db_session()}},
         tool_call_id="call-write-1",
@@ -138,5 +138,5 @@ async def test_write_chapter_approval_payload_stays_permission_only():
     assert result.interrupt_payload == {
         "type": "tool_approval",
         "tool_name": "write_chapter",
-        "args": {"title": "新章节", "content": "新内容"},
+        "args": {"title": "Bab Baru", "content": "Isi baru"},
     }

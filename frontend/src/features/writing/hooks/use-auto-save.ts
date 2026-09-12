@@ -1,30 +1,30 @@
 /**
  * Auto Save Hook
  *
- * 自动保存 hook，支持定时保存和内容变化检测。
+ * Hook penyimpanan otomatis, mendukung penyimpanan berjadwal dan deteksi perubahan isi.
  */
 
 import { useEffect, useState, useRef, useCallback } from "react";
 
 interface UseAutoSaveOptions {
-  /** 保存间隔（毫秒），默认 3 分钟 */
+  /** Jeda penyimpanan (milidetik), bawaan 3 menit */
   interval?: number;
-  /** 是否启用自动保存 */
+  /** Status aktif penyimpanan otomatis */
   enabled?: boolean;
-  /** 保存函数 */
+  /** Fungsi penyimpanan */
   onSave: () => Promise<void>;
-  /** 是否有未保存的更改 */
+  /** Menandai ada perubahan yang belum tersimpan */
   hasChanges: boolean;
 }
 
 /**
- * 自动保存 hook
+ * Hook penyimpanan otomatis
  *
- * @param options 配置选项
- * @returns 保存状态和手动触发保存的函数
+ * @param options Opsi konfigurasi
+ * @returns Status penyimpanan dan fungsi untuk memicu penyimpanan manual
  */
 export function useAutoSave({
-  interval = 3 * 60 * 1000, // 3 分钟
+  interval = 3 * 60 * 1000, // 3 menit
   enabled = true,
   onSave,
   hasChanges,
@@ -33,7 +33,7 @@ export function useAutoSave({
   const [lastSaveTime, setLastSaveTime] = useState<number | null>(null);
   const isSavingRef = useRef(false);
 
-  // 清除定时器
+  // Membersihkan pewaktu
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -41,7 +41,7 @@ export function useAutoSave({
     }
   }, []);
 
-  // 执行保存
+  // Menjalankan penyimpanan
   const save = useCallback(async () => {
     if (isSavingRef.current || !hasChanges) return;
 
@@ -54,7 +54,7 @@ export function useAutoSave({
     }
   }, [onSave, hasChanges]);
 
-  // 重置定时器
+  // Mereset pewaktu
   const resetTimer = useCallback(() => {
     clearTimer();
     if (enabled && hasChanges) {
@@ -64,7 +64,7 @@ export function useAutoSave({
     }
   }, [clearTimer, enabled, hasChanges, interval, save]);
 
-  // 内容变化时重置定时器
+  // Mereset pewaktu saat isi berubah
   useEffect(() => {
     resetTimer();
     return clearTimer;
@@ -74,12 +74,12 @@ export function useAutoSave({
     if (lastSaveTime !== null) resetTimer();
   }, [lastSaveTime, resetTimer]);
 
-  // 页面离开前保存
+  // Menyimpan sebelum halaman ditinggalkan
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasChanges) {
         e.preventDefault();
-        // 现代浏览器会忽略自定义消息，但仍需要设置 returnValue
+        // Peramban modern mengabaikan pesan kustom, tetapi returnValue tetap harus disetel
         e.returnValue = "";
       }
     };

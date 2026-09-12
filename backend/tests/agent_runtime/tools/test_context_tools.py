@@ -28,12 +28,12 @@ async def test_read_chapter_summaries_reads_project_page() -> None:
 
     tool = ReadChapterSummariesTool(_state=_make_state())
     chapters = [
-        SimpleNamespace(id="c2", order=2, title="第二章"),
-        SimpleNamespace(id="c3", order=3, title="第三章"),
+        SimpleNamespace(id="c2", order=2, title="Bab 2"),
+        SimpleNamespace(id="c3", order=3, title="Bab 3"),
     ]
     summaries = [
-        SimpleNamespace(chapter_id="c2", summary="第二章摘要"),
-        SimpleNamespace(chapter_id="c3", summary="第三章摘要"),
+        SimpleNamespace(chapter_id="c2", summary="Ringkasan Bab 2"),
+        SimpleNamespace(chapter_id="c3", summary="Ringkasan Bab 3"),
     ]
 
     with patch(
@@ -54,8 +54,8 @@ async def test_read_chapter_summaries_reads_project_page() -> None:
 
     assert json.loads(result) == {
         "summaries": [
-            {"order": 2, "title": "第二章", "summary": "第二章摘要"},
-            {"order": 3, "title": "第三章", "summary": "第三章摘要"},
+            {"order": 2, "title": "Bab 2", "summary": "Ringkasan Bab 2"},
+            {"order": 3, "title": "Bab 3", "summary": "Ringkasan Bab 3"},
         ]
     }
 
@@ -67,8 +67,8 @@ async def test_read_chapter_summaries_prefers_page_query_over_orders() -> None:
     )
 
     tool = ReadChapterSummariesTool(_state=_make_state())
-    chapters = [SimpleNamespace(id="c4", order=4, title="第四章")]
-    summaries = [SimpleNamespace(chapter_id="c4", summary="第四章摘要")]
+    chapters = [SimpleNamespace(id="c4", order=4, title="Bab 4")]
+    summaries = [SimpleNamespace(chapter_id="c4", summary="Ringkasan Bab 4")]
 
     with patch(
         "app.agent_runtime.tools.impls.context.read_chapter_summaries.create_session"
@@ -89,7 +89,7 @@ async def test_read_chapter_summaries_prefers_page_query_over_orders() -> None:
 
     assert json.loads(result) == {
         "summaries": [
-            {"order": 4, "title": "第四章", "summary": "第四章摘要"},
+            {"order": 4, "title": "Bab 4", "summary": "Ringkasan Bab 4"},
         ]
     }
     mock_chapter_repo.list_by_project.assert_not_called()
@@ -103,12 +103,12 @@ async def test_read_chapter_summaries_reads_exact_orders_when_requested() -> Non
 
     tool = ReadChapterSummariesTool(_state=_make_state())
     chapters = [
-        SimpleNamespace(id="c2", order=2, title="第二章"),
-        SimpleNamespace(id="c5", order=5, title="第五章"),
+        SimpleNamespace(id="c2", order=2, title="Bab 2"),
+        SimpleNamespace(id="c5", order=5, title="Bab 5"),
     ]
     summaries = [
-        SimpleNamespace(chapter_id="c5", summary="第五章摘要"),
-        SimpleNamespace(chapter_id="c2", summary="第二章摘要"),
+        SimpleNamespace(chapter_id="c5", summary="Ringkasan Bab 5"),
+        SimpleNamespace(chapter_id="c2", summary="Ringkasan Bab 2"),
     ]
 
     with patch(
@@ -129,8 +129,8 @@ async def test_read_chapter_summaries_reads_exact_orders_when_requested() -> Non
 
     assert json.loads(result) == {
         "summaries": [
-            {"order": 5, "title": "第五章", "summary": "第五章摘要"},
-            {"order": 2, "title": "第二章", "summary": "第二章摘要"},
+            {"order": 5, "title": "Bab 5", "summary": "Ringkasan Bab 5"},
+            {"order": 2, "title": "Bab 2", "summary": "Ringkasan Bab 2"},
         ]
     }
 
@@ -175,8 +175,8 @@ async def test_list_characters_returns_project_character_names() -> None:
 
     tool = ListCharactersTool(_state=_make_state())
     characters = [
-        SimpleNamespace(id="char-1", name="林舟", description="主角", is_favorited=True),
-        SimpleNamespace(id="char-2", name="沈墨", description="反派", is_favorited=False),
+        SimpleNamespace(id="char-1", name="Linu", description="Tokoh Utama", is_favorited=True),
+        SimpleNamespace(id="char-2", name="Semmi", description="Antagonis", is_favorited=False),
     ]
 
     with patch(
@@ -192,8 +192,8 @@ async def test_list_characters_returns_project_character_names() -> None:
 
     assert json.loads(result) == {
         "characters": [
-            {"name": "林舟"},
-            {"name": "沈墨"},
+            {"name": "Linu"},
+            {"name": "Semmi"},
         ]
     }
 
@@ -206,8 +206,8 @@ async def test_read_character_reads_description_by_name() -> None:
     characters = [
         SimpleNamespace(
             id="char-1",
-            name="林舟",
-            description="主角\n旧友",
+            name="Linu",
+            description="Tokoh Utama\nkawan lama",
             is_favorited=True,
         ),
     ]
@@ -221,11 +221,11 @@ async def test_read_character_reads_description_by_name() -> None:
         mock_cs.return_value = mock_session
         mock_character_repo.list_all_by_project = AsyncMock(return_value=characters)
 
-        result = await tool.ainvoke({"name": "林舟"})
+        result = await tool.ainvoke({"name": "Linu"})
 
     assert json.loads(result) == {
-        "name": "林舟",
-        "description": "1|主角\n2|旧友",
+        "name": "Linu",
+        "description": "1|Tokoh Utama\n2|kawan lama",
     }
 
 
@@ -237,8 +237,8 @@ async def test_create_character_returns_diff() -> None:
     created = SimpleNamespace(
         id="char-1",
         project_id="proj-1",
-        name="林舟",
-        description="主角",
+        name="Linu",
+        description="Tokoh Utama",
         image_path=None,
         is_favorited=False,
     )
@@ -258,7 +258,7 @@ async def test_create_character_returns_diff() -> None:
         mock_character_service.create_character = AsyncMock(return_value=created)
         mock_record_diffs.return_value = ["char-1"]
 
-        result = await tool.ainvoke({"name": "林舟", "description": "主角"})
+        result = await tool.ainvoke({"name": "Linu", "description": "Tokoh Utama"})
 
     data = json.loads(result)
     assert set(data) == {"success", "metadata"}
@@ -266,7 +266,7 @@ async def test_create_character_returns_diff() -> None:
     assert data["metadata"]["character_diff"] == {
         "operation": "create",
         "character_id": "char-1",
-        "character_name": "林舟",
+        "character_name": "Linu",
         "sections": [
             {
                 "type": "content",
@@ -275,7 +275,7 @@ async def test_create_character_returns_diff() -> None:
                         "type": "added",
                         "before_line_number": None,
                         "after_line_number": 1,
-                        "text": "主角",
+                        "text": "Tokoh Utama",
                     }
                 ],
             }
@@ -300,7 +300,7 @@ async def test_create_character_serializes_parallel_creates_per_project() -> Non
             await release.wait()
         return []
 
-    created = SimpleNamespace(id="char-1", project_id="proj-1", name="林舟", description="主角")
+    created = SimpleNamespace(id="char-1", project_id="proj-1", name="Linu", description="Tokoh Utama")
     ch_name = "app.agent_runtime.tools.impls.context.character"
     with patch(f"{ch_name}.create_session") as mock_cs, patch(
         f"{ch_name}.character_repo"
@@ -319,11 +319,11 @@ async def test_create_character_serializes_parallel_creates_per_project() -> Non
             )
 
         task1 = asyncio.create_task(
-            make_tool().ainvoke({"name": "林舟", "description": "主角"})
+            make_tool().ainvoke({"name": "Linu", "description": "Tokoh Utama"})
         )
         await entered.wait()
         task2 = asyncio.create_task(
-            make_tool().ainvoke({"name": "林舟", "description": "主角"})
+            make_tool().ainvoke({"name": "Linu", "description": "Tokoh Utama"})
         )
         await asyncio.sleep(0.05)
         assert not task2.done()
@@ -343,10 +343,10 @@ async def test_create_character_rejects_over_limit_description_without_creating(
         mock_character_service.create_character = AsyncMock()
 
         result = await tool.ainvoke(
-            {"name": "林舟", "description": "\n".join("内容" for _ in range(2001))}
+            {"name": "Linu", "description": "\n".join("Isi" for _ in range(2001))}
         )
 
-    assert "内容超出限制" in json.loads(result)["message"]
+    assert "Konten melebihi batas" in json.loads(result)["message"]
     mock_character_service.create_character.assert_not_awaited()
 
 
@@ -357,7 +357,7 @@ def test_edit_character_input_rejects_empty_old_description() -> None:
 
     with pytest.raises(ValidationError):
         EditCharacterInput.model_validate({
-            "name": "林舟",
+            "name": "Linu",
             "old_description": "",
             "new_description": "x",
         })
@@ -371,15 +371,15 @@ async def test_edit_character_replaces_description_text() -> None:
     character = SimpleNamespace(
         id="char-1",
         project_id="proj-1",
-        name="林舟",
-        description="主角",
+        name="Linu",
+        description="Tokoh Utama",
         is_favorited=False,
     )
     updated_character = SimpleNamespace(
         id="char-1",
         project_id="proj-1",
-        name="林舟",
-        description="主角与旧友",
+        name="Linu",
+        description="Tokoh Utama dan kawan lama",
         is_favorited=True,
     )
 
@@ -400,9 +400,9 @@ async def test_edit_character_replaces_description_text() -> None:
 
         result = await tool.ainvoke(
             {
-                "name": "林舟",
-                "old_description": "主角",
-                "new_description": "主角与旧友",
+                "name": "Linu",
+                "old_description": "Tokoh Utama",
+                "new_description": "Tokoh Utama dan kawan lama",
             }
         )
 
@@ -415,13 +415,13 @@ async def test_edit_character_replaces_description_text() -> None:
             "type": "removed",
             "before_line_number": 1,
             "after_line_number": None,
-            "text": "主角",
+            "text": "Tokoh Utama",
         },
         {
             "type": "added",
             "before_line_number": None,
             "after_line_number": 1,
-            "text": "主角与旧友",
+            "text": "Tokoh Utama dan kawan lama",
         },
     ]
 
@@ -434,8 +434,8 @@ async def test_edit_character_rejects_over_limit_replacement_without_updating() 
     character = SimpleNamespace(
         id="char-1",
         project_id="proj-1",
-        name="林舟",
-        description="旧内容",
+        name="Linu",
+        description="Isi lama",
         is_favorited=False,
     )
 
@@ -452,13 +452,13 @@ async def test_edit_character_rejects_over_limit_replacement_without_updating() 
 
         result = await tool.ainvoke(
             {
-                "name": "林舟",
-                "old_description": "旧内容",
-                "new_description": "\n".join("内容" for _ in range(2001)),
+                "name": "Linu",
+                "old_description": "Isi lama",
+                "new_description": "\n".join("Isi" for _ in range(2001)),
             }
         )
 
-    assert "内容超出限制" in json.loads(result)["message"]
+    assert "Konten melebihi batas" in json.loads(result)["message"]
     mock_character_service.update_character.assert_not_awaited()
 
 
@@ -470,8 +470,8 @@ async def test_delete_character_removes_name() -> None:
     character = SimpleNamespace(
         id="char-1",
         project_id="proj-1",
-        name="林舟",
-        description="主角",
+        name="Linu",
+        description="Tokoh Utama",
         is_favorited=False,
     )
 
@@ -490,14 +490,14 @@ async def test_delete_character_removes_name() -> None:
         mock_character_service.delete_character = AsyncMock(return_value=None)
         mock_record_diffs.return_value = ["char-1"]
 
-        result = await tool.ainvoke({"name": "林舟"})
+        result = await tool.ainvoke({"name": "Linu"})
 
     data = json.loads(result)
     assert set(data) == {"success", "metadata"}
     assert data["success"] is True
     assert data["metadata"]["character_diff"]["operation"] == "delete"
     assert data["metadata"]["character_diff"]["character_id"] == "char-1"
-    assert data["metadata"]["character_diff"]["character_name"] == "林舟"
+    assert data["metadata"]["character_diff"]["character_name"] == "Linu"
 
 
 @pytest.mark.asyncio
@@ -506,8 +506,8 @@ async def test_list_world_entries_returns_enabled_entry_titles() -> None:
 
     tool = ListWorldEntriesTool(_state=_make_state())
     entries = [
-        SimpleNamespace(id="e1", name="主角", uid=1, order=1, content="林舟"),
-        SimpleNamespace(id="e2", name="势力", uid=2, order=2, content="青岚会"),
+        SimpleNamespace(id="e1", name="Tokoh Utama", uid=1, order=1, content="Linu"),
+        SimpleNamespace(id="e2", name="Faksi", uid=2, order=2, content="Perkumpulan Kabut Biru"),
     ]
 
     with patch(
@@ -526,8 +526,8 @@ async def test_list_world_entries_returns_enabled_entry_titles() -> None:
 
     assert json.loads(result) == {
         "entries": [
-            {"title": "主角", "uid": 1, "order": 1},
-            {"title": "势力", "uid": 2, "order": 2},
+            {"title": "Tokoh Utama", "uid": 1, "order": 1},
+            {"title": "Faksi", "uid": 2, "order": 2},
         ]
     }
 
@@ -538,7 +538,7 @@ async def test_read_world_entry_reads_content_by_title() -> None:
 
     tool = ReadWorldEntryTool(_state=_make_state())
     entries = [
-        SimpleNamespace(id="e1", name="主角", uid=1, order=1, content="林舟\n旧友"),
+        SimpleNamespace(id="e1", name="Tokoh Utama", uid=1, order=1, content="Linu\nkawan lama"),
     ]
 
     with patch(
@@ -553,13 +553,13 @@ async def test_read_world_entry_reads_content_by_title() -> None:
         mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
         mock_entry_repo.list_all_by_world_info = AsyncMock(return_value=entries)
 
-        result = await tool.ainvoke({"title": "主角"})
+        result = await tool.ainvoke({"title": "Tokoh Utama"})
 
     assert json.loads(result) == {
-        "title": "主角",
+        "title": "Tokoh Utama",
         "uid": 1,
         "order": 1,
-        "content": "1|林舟\n2|旧友",
+        "content": "1|Linu\n2|kawan lama",
     }
 
 
@@ -569,8 +569,8 @@ async def test_read_world_entry_rejects_duplicate_titles() -> None:
 
     tool = ReadWorldEntryTool(_state=_make_state())
     entries = [
-        SimpleNamespace(id="e1", name="主角", uid=1, order=1, content="一"),
-        SimpleNamespace(id="e2", name="主角", uid=2, order=2, content="二"),
+        SimpleNamespace(id="e1", name="Tokoh Utama", uid=1, order=1, content="Satu"),
+        SimpleNamespace(id="e2", name="Tokoh Utama", uid=2, order=2, content="Dua"),
     ]
 
     with patch(
@@ -585,11 +585,11 @@ async def test_read_world_entry_rejects_duplicate_titles() -> None:
         mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
         mock_entry_repo.list_all_by_world_info = AsyncMock(return_value=entries)
 
-        result = await tool.ainvoke({"title": "主角"})
+        result = await tool.ainvoke({"title": "Tokoh Utama"})
 
     data = json.loads(result)
     assert data["type"] == "fail"
-    assert data["message"] == "世界书条目标题不唯一: 主角"
+    assert data["message"] == "Judul entri buku dunia tidak unik: Tokoh Utama"
 
 
 @pytest.mark.asyncio
@@ -600,10 +600,10 @@ async def test_create_world_entry_returns_diff() -> None:
     created = SimpleNamespace(
         id="e1",
         world_info_id="world-1",
-        name="主角",
+        name="Tokoh Utama",
         uid=1,
         order=1,
-        content="林舟",
+        content="Linu",
         token_count=2,
         is_enabled=True,
     )
@@ -626,7 +626,7 @@ async def test_create_world_entry_returns_diff() -> None:
         mock_entry_service.create_entry = AsyncMock(return_value=created)
         mock_record_diffs.return_value = ["e1"]
 
-        result = await tool.ainvoke({"title": "主角", "content": "林舟"})
+        result = await tool.ainvoke({"title": "Tokoh Utama", "content": "Linu"})
 
     data = json.loads(result)
     assert set(data) == {"success", "metadata"}
@@ -635,7 +635,7 @@ async def test_create_world_entry_returns_diff() -> None:
     assert data["metadata"]["world_entry_diff"] == {
         "operation": "create",
         "entry_id": "e1",
-        "entry_title": "主角",
+        "entry_title": "Tokoh Utama",
         "sections": [
             {
                 "type": "content",
@@ -644,7 +644,7 @@ async def test_create_world_entry_returns_diff() -> None:
                         "type": "added",
                         "before_line_number": None,
                         "after_line_number": 1,
-                        "text": "林舟",
+                        "text": "Linu",
                     }
                 ],
             }
@@ -673,9 +673,9 @@ async def test_create_world_entry_serializes_parallel_creates_per_world() -> Non
         id="e1",
         world_info_id="world-1",
         uid=1,
-        name="主角",
+        name="Tokoh Utama",
         order=1,
-        content="林舟",
+        content="Linu",
         token_count=2,
         is_enabled=True,
     )
@@ -700,11 +700,11 @@ async def test_create_world_entry_serializes_parallel_creates_per_world() -> Non
             )
 
         task1 = asyncio.create_task(
-            make_tool().ainvoke({"title": "主角", "content": "林舟"})
+            make_tool().ainvoke({"title": "Tokoh Utama", "content": "Linu"})
         )
         await entered.wait()
         task2 = asyncio.create_task(
-            make_tool().ainvoke({"title": "配角", "content": "林舟"})
+            make_tool().ainvoke({"title": "Tokoh Pendukung", "content": "Linu"})
         )
         await asyncio.sleep(0.05)
         assert not task2.done()
@@ -729,14 +729,14 @@ async def test_create_world_entry_rejects_duplicate_title() -> None:
         mock_cs.return_value = mock_session
         mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
         mock_entry_repo.list_all_by_world_info = AsyncMock(
-            return_value=[SimpleNamespace(id="e1", name="主角", uid=1, order=1, content="")]
+            return_value=[SimpleNamespace(id="e1", name="Tokoh Utama", uid=1, order=1, content="")]
         )
 
-        result = await tool.ainvoke({"title": "主角", "content": "林舟"})
+        result = await tool.ainvoke({"title": "Tokoh Utama", "content": "Linu"})
 
     data = json.loads(result)
     assert data["type"] == "fail"
-    assert data["message"] == "世界书条目标题已存在: 主角"
+    assert data["message"] == "Judul entri buku dunia sudah ada: Tokoh Utama"
 
 
 @pytest.mark.asyncio
@@ -751,10 +751,10 @@ async def test_create_world_entry_rejects_over_limit_content_without_creating() 
         mock_entry_service.create_entry = AsyncMock()
 
         result = await tool.ainvoke(
-            {"title": "主角", "content": "\n".join("内容" for _ in range(2001))}
+            {"title": "Tokoh Utama", "content": "\n".join("Isi" for _ in range(2001))}
         )
 
-    assert "内容超出限制" in json.loads(result)["message"]
+    assert "Konten melebihi batas" in json.loads(result)["message"]
     mock_entry_service.create_entry.assert_not_awaited()
 
 
@@ -765,7 +765,7 @@ def test_edit_world_entry_input_rejects_empty_old_content() -> None:
 
     with pytest.raises(ValidationError):
         EditWorldEntryInput.model_validate({
-            "title": "主角",
+            "title": "Tokoh Utama",
             "old_content": "",
             "new_content": "x",
         })
@@ -779,20 +779,20 @@ async def test_edit_world_entry_returns_diff() -> None:
     entry = SimpleNamespace(
         id="e1",
         world_info_id="world-1",
-        name="主角",
+        name="Tokoh Utama",
         uid=1,
         order=1,
-        content="林舟",
+        content="Linu",
         token_count=2,
         is_enabled=True,
     )
     updated_entry = SimpleNamespace(
         id="e1",
         world_info_id="world-1",
-        name="主角",
+        name="Tokoh Utama",
         uid=1,
         order=1,
-        content="林舟与旧友",
+        content="Linu dan kawan lama",
         token_count=2,
         is_enabled=True,
     )
@@ -816,7 +816,7 @@ async def test_edit_world_entry_returns_diff() -> None:
         mock_record_diffs.return_value = ["e1"]
 
         result = await tool.ainvoke(
-            {"title": "主角", "old_content": "林舟", "new_content": "林舟与旧友"}
+            {"title": "Tokoh Utama", "old_content": "Linu", "new_content": "Linu dan kawan lama"}
         )
 
     data = json.loads(result)
@@ -831,13 +831,13 @@ async def test_edit_world_entry_returns_diff() -> None:
                     "type": "removed",
                     "before_line_number": 1,
                     "after_line_number": None,
-                    "text": "林舟",
+                    "text": "Linu",
                 },
                 {
                     "type": "added",
                     "before_line_number": None,
                     "after_line_number": 1,
-                    "text": "林舟与旧友",
+                    "text": "Linu dan kawan lama",
                 },
             ],
         }
@@ -852,10 +852,10 @@ async def test_edit_world_entry_rejects_over_limit_replacement_without_updating(
     entry = SimpleNamespace(
         id="e1",
         world_info_id="world-1",
-        name="主角",
+        name="Tokoh Utama",
         uid=1,
         order=1,
-        content="旧内容",
+        content="Isi lama",
         token_count=2,
         is_enabled=True,
     )
@@ -876,13 +876,13 @@ async def test_edit_world_entry_rejects_over_limit_replacement_without_updating(
 
         result = await tool.ainvoke(
             {
-                "title": "主角",
-                "old_content": "旧内容",
-                "new_content": "\n".join("内容" for _ in range(2001)),
+                "title": "Tokoh Utama",
+                "old_content": "Isi lama",
+                "new_content": "\n".join("Isi" for _ in range(2001)),
             }
         )
 
-    assert "内容超出限制" in json.loads(result)["message"]
+    assert "Konten melebihi batas" in json.loads(result)["message"]
     mock_entry_service.update_entry.assert_not_awaited()
 
 
@@ -892,8 +892,8 @@ async def test_edit_world_entry_rejects_duplicate_new_title() -> None:
 
     tool = EditWorldEntryTool(_state={**_make_state(), "current_revision_id": "rev-1"})
     entries = [
-        SimpleNamespace(id="e1", name="主角", uid=1, order=1, content="林舟"),
-        SimpleNamespace(id="e2", name="反派", uid=2, order=2, content="沈墨"),
+        SimpleNamespace(id="e1", name="Tokoh Utama", uid=1, order=1, content="Linu"),
+        SimpleNamespace(id="e2", name="Antagonis", uid=2, order=2, content="Semmi"),
     ]
 
     with patch(
@@ -908,11 +908,11 @@ async def test_edit_world_entry_rejects_duplicate_new_title() -> None:
         mock_world_repo.get_by_project_id = AsyncMock(return_value=SimpleNamespace(id="world-1"))
         mock_entry_repo.list_all_by_world_info = AsyncMock(return_value=entries)
 
-        result = await tool.ainvoke({"title": "主角", "new_title": "反派"})
+        result = await tool.ainvoke({"title": "Tokoh Utama", "new_title": "Antagonis"})
 
     data = json.loads(result)
     assert data["type"] == "fail"
-    assert data["message"] == "世界书条目标题已存在: 反派"
+    assert data["message"] == "Judul entri buku dunia sudah ada: Antagonis"
 
 
 @pytest.mark.asyncio
@@ -923,10 +923,10 @@ async def test_delete_world_entry_removes_title() -> None:
     entry = SimpleNamespace(
         id="e1",
         world_info_id="world-1",
-        name="主角",
+        name="Tokoh Utama",
         uid=1,
         order=1,
-        content="林舟",
+        content="Linu",
         token_count=2,
         is_enabled=True,
     )
@@ -949,7 +949,7 @@ async def test_delete_world_entry_removes_title() -> None:
         mock_entry_service.delete_entry = AsyncMock(return_value=None)
         mock_record_diffs.return_value = ["e1"]
 
-        result = await tool.ainvoke({"title": "主角"})
+        result = await tool.ainvoke({"title": "Tokoh Utama"})
 
     data = json.loads(result)
     assert set(data) == {"success", "metadata"}
@@ -957,4 +957,4 @@ async def test_delete_world_entry_removes_title() -> None:
     assert data["metadata"]["world_info_id"] == "world-1"
     assert data["metadata"]["world_entry_diff"]["operation"] == "delete"
     assert data["metadata"]["world_entry_diff"]["entry_id"] == "e1"
-    assert data["metadata"]["world_entry_diff"]["entry_title"] == "主角"
+    assert data["metadata"]["world_entry_diff"]["entry_title"] == "Tokoh Utama"

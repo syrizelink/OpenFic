@@ -18,12 +18,12 @@ def _lookup_chapter(chapter_id: str) -> str:
 
 
 class _NoteRef(BaseModel):
-    id: str | None = Field(default=None, description="按 ID 定位")
-    title: str | None = Field(default=None, description="按标题定位")
+    id: str | None = Field(default=None, description="Cari berdasarkan ID")
+    title: str | None = Field(default=None, description="Cari berdasarkan judul")
 
 
 class _ReadNoteInput(BaseModel):
-    note_ref: _NoteRef = Field(description="要读取的笔记引用")
+    note_ref: _NoteRef = Field(description="Referensi catatan yang akan dibaca")
 
 
 def _read_note(note_ref: _NoteRef) -> str:
@@ -55,7 +55,7 @@ async def test_audit_context_records_summary_call_with_metadata(
         request_messages=[SystemMessage(content="prompt")],
     ) as audit:
         audit.record_response(
-            tool_calls=[{"name": "emit_chapter_summary", "args": {"summary": "摘要"}}],
+            tool_calls=[{"name": "emit_chapter_summary", "args": {"summary": "Ringkasan"}}],
             usage={"input_tokens": 12, "output_tokens": 8},
         )
 
@@ -140,7 +140,7 @@ async def test_audit_context_inlines_nested_tool_parameter_references(
     tool = StructuredTool.from_function(
         func=_read_note,
         name="read_note",
-        description="读取单条笔记的完整内容",
+        description="Membaca isi lengkap satu catatan",
         args_schema=_ReadNoteInput,
     )
     context = AuditContext(project_id="project-1")
@@ -154,16 +154,16 @@ async def test_audit_context_inlines_nested_tool_parameter_references(
 
     parameters = json.loads(enqueued[0].tool_references or "[]")[0]["parameters"]
     assert "$ref" not in json.dumps(parameters)
-    assert parameters["note_ref"]["description"] == "要读取的笔记引用"
-    assert parameters["note_ref"]["properties"]["id"]["description"] == "按 ID 定位"
-    assert parameters["note_ref"]["properties"]["title"]["description"] == "按标题定位"
+    assert parameters["note_ref"]["description"] == "Referensi catatan yang akan dibaca"
+    assert parameters["note_ref"]["properties"]["id"]["description"] == "Cari berdasarkan ID"
+    assert parameters["note_ref"]["properties"]["title"]["description"] == "Cari berdasarkan judul"
 
 
 @pytest.mark.asyncio
 async def test_disabled_detail_persistence_removes_audit_payloads(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """关闭详情记录后，审计统计仍保留但详细载荷不得持久化。"""
+    """Setelah pencatatan detail dimatikan, statistik audit tetap ada tetapi payload detail tidak boleh dipersistensi."""
     enqueued: list[Any] = []
 
     async def fake_enqueue(audit_log: Any) -> None:
@@ -201,7 +201,7 @@ async def test_disabled_detail_persistence_removes_audit_payloads(
 async def test_audit_queue_captures_detail_setting_when_audit_log_is_enqueued(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """已入队的审计日志不应受后续设置切换影响。"""
+    """Log audit yang sudah masuk antrean tidak boleh terpengaruh perubahan pengaturan setelahnya."""
     queue = AuditQueue()
     monkeypatch.setattr(queue, "start", lambda: None)
     queue.set_persist_details(False)

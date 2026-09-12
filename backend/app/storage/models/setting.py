@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Setting 数据模型。
+Model data Setting.
 """
 
 from datetime import UTC, datetime
@@ -12,14 +12,14 @@ from app.core.ids import generate_id
 
 class Setting(SQLModel, table=True):
     """
-    用户设置模型，存储键值对形式的配置。
+    Model setelan pengguna, menyimpan konfigurasi dalam bentuk pasangan kunci-nilai.
 
     Attributes:
-        id: 设置唯一标识符（nanoid）。
-        key: 设置键名，唯一索引。
-        value: 设置值，JSON 格式字符串。
-        created_at: 创建时间。
-        updated_at: 上次修改时间。
+        id: Identifier unik setelan (nanoid).
+        key: Nama kunci setelan, indeks unik.
+        value: Nilai setelan, string berformat JSON.
+        created_at: Waktu pembuatan.
+        updated_at: Waktu perubahan terakhir.
     """
 
     __tablename__ = "settings"

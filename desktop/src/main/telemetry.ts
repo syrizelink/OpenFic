@@ -25,7 +25,7 @@ function sanitizeError(error: unknown): Record<string, unknown> {
   return {};
 }
 
-/** 应用启动即初始化（硬编码公开 key），覆盖 setup/boot 阶段的主进程错误。 */
+/** Diinisialisasi saat aplikasi dijalankan (key publik hardcode), mencakup galat proses utama pada tahap setup/boot. */
 export function startErrorTelemetry(): void {
   if (client) return;
   try {
@@ -35,7 +35,7 @@ export function startErrorTelemetry(): void {
   }
 }
 
-/** 后端就绪后同步开关：用户在设置里关闭遥测时停止上报。 */
+/** Sinkronkan sakelar setelah backend siap: berhenti melapor saat pengguna menonaktifkan telemetri di pengaturan. */
 export async function syncTelemetryEnabled(backendBaseUrl: string): Promise<void> {
   try {
     const response = await fetch(`${backendBaseUrl}/api/v1/runtime-config`, {
@@ -51,15 +51,15 @@ export async function syncTelemetryEnabled(backendBaseUrl: string): Promise<void
       try {
         await previous.flush();
       } catch {
-        // 忽略。
+        // Diabaikan.
       }
     }
   } catch {
-    // 忽略。
+    // Diabaikan.
   }
 }
 
-/** 上报异常（进程继续运行，事件进入批量队列）。 */
+/** Laporkan pengecualian (proses tetap berjalan, event masuk ke antrean batch). */
 export function captureException(error: unknown, properties?: Record<string, unknown>): void {
   if (!client) return;
   try {
@@ -69,11 +69,11 @@ export function captureException(error: unknown, properties?: Record<string, unk
       ...properties,
     });
   } catch {
-    // 忽略上报失败。
+    // Abaikan kegagalan pelaporan.
   }
 }
 
-/** 立即上报异常（供进程即将退出前使用）。 */
+/** Laporkan pengecualian secara langsung (dipakai sebelum proses keluar). */
 export async function captureExceptionImmediate(error: unknown): Promise<void> {
   if (!client) return;
   try {
@@ -82,6 +82,6 @@ export async function captureExceptionImmediate(error: unknown): Promise<void> {
       ...sanitizeError(error),
     });
   } catch {
-    // 忽略上报失败。
+    // Abaikan kegagalan pelaporan.
   }
 }

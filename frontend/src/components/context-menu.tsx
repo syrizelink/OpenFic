@@ -1,9 +1,9 @@
 /**
  * Context Menu Component
  *
- * 通用右键菜单组件，支持两种模式：
- * 1. 手动模式：通过 position 和 items 手动控制
- * 2. 编辑器模式：通过 containerRef 自动监听右键，通过 editor 自动生成编辑器菜单项
+ * Komponen menu klik kanan serbaguna, mendukung dua mode:
+ * 1. Mode manual: dikendalikan manual lewat position dan items
+ * 2. Mode editor: memantau klik kanan otomatis lewat containerRef, item menu editor dibuat otomatis lewat editor
  */
 
 import { Box, Flex, Text } from "@radix-ui/themes";
@@ -22,40 +22,40 @@ import { toast } from "./toast";
 const MOBILE_POINTER_LONG_PRESS_MS = 280;
 const MOBILE_POINTER_MOVE_TOLERANCE = 8;
 
-/** 菜单项接口 */
+/** Antarmuka item menu */
 export interface ContextMenuItem {
   id: string;
   label: string;
   icon?: LucideIcon;
   shortcut?: string;
   disabled?: boolean;
-  /** 危险操作（显示红色） */
+  /** Tindakan berbahaya (ditampilkan merah) */
   danger?: boolean;
   onClick: () => void;
 }
 
-/** 菜单位置 */
+/** Posisi menu */
 export interface ContextMenuPosition {
   x: number;
   y: number;
 }
 
 interface ContextMenuProps {
-  /** 菜单位置，为 null 时隐藏（手动模式） */
+  /** Posisi menu, disembunyikan saat null (mode manual) */
   position?: ContextMenuPosition | null;
-  /** 菜单项列表（手动模式） */
+  /** Daftar item menu (mode manual) */
   items?: ContextMenuItem[];
-  /** 关闭回调（手动模式） */
+  /** Callback penutupan (mode manual) */
   onClose?: () => void;
-  /** 编辑器实例（编辑器模式） */
+  /** Instans editor (mode editor) */
   editor?: Editor | null;
-  /** 容器元素引用，用于限制右键菜单触发范围（编辑器模式） */
+  /** Referensi elemen wadah, membatasi jangkauan pemicu menu klik kanan (mode editor) */
   containerRef?: React.RefObject<HTMLElement | null>;
-  /** 编辑器模式附加菜单项 */
+  /** Item menu tambahan untuk mode editor */
   editorExtraItems?: (editor: Editor) => ContextMenuItem[];
 }
 
-/** 菜单项样式 */
+/** Gaya item menu */
 const menuItemStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
@@ -93,16 +93,16 @@ export function ContextMenu({
   const suppressNextEditorContextMenuRef = useRef(false);
   const editorInputModeRestoreRef = useRef<string | null | undefined>(undefined);
 
-  // 判断使用哪种模式
+  // Menentukan mode yang dipakai
   const isEditorMode = !!editor && !!containerRef;
 
-  // 触摸设备（coarse pointer）上编辑器直接使用系统菜单，不启用自定义编辑器菜单
+  // Pada perangkat sentuh (coarse pointer) editor memakai menu sistem, menu editor kustom tidak diaktifkan
   const editorMenuDisabled = useMemo(
     () => isEditorMode && window.matchMedia("(pointer: coarse)").matches,
     [isEditorMode],
   );
 
-  // 使用内部位置（编辑器模式）或外部位置（手动模式）
+  // Memakai posisi internal (mode editor) atau posisi eksternal (mode manual)
   const position = isEditorMode ? internalPosition : (externalPosition ?? null);
   const onClose = useCallback(() => {
     if (isEditorMode) {
@@ -115,13 +115,13 @@ export function ContextMenu({
 
   const instanceId = useId();
 
-  // 打开时通知其他 ContextMenu 关闭
+  // Memberi tahu ContextMenu lain untuk menutup saat dibuka
   useEffect(() => {
     if (!position) return;
     document.dispatchEvent(new CustomEvent("context-menu:opened", { detail: { id: instanceId } }));
   }, [position, instanceId]);
 
-  // 其他 ContextMenu 打开时关闭自身
+  // Menutup diri sendiri saat ContextMenu lain dibuka
   useEffect(() => {
     const handler = (e: Event) => {
       if ((e as CustomEvent<{ id: string }>).detail.id !== instanceId) {
@@ -132,7 +132,7 @@ export function ContextMenu({
     return () => document.removeEventListener("context-menu:opened", handler);
   }, [instanceId, onClose]);
 
-  // 编辑器模式：处理右键点击
+  // Mode editor: menangani klik kanan
   const handleContextMenu = useCallback(
     (e: MouseEvent) => {
       if (!isEditorMode || editorMenuDisabled || !containerRef?.current) return;
@@ -142,7 +142,7 @@ export function ContextMenu({
         return;
       }
 
-      // 确保点击在容器内
+      // Memastikan klik terjadi di dalam wadah
       if (!containerRef.current.contains(e.target as Node)) {
         return;
       }
@@ -153,7 +153,7 @@ export function ContextMenu({
     [isEditorMode, editorMenuDisabled, containerRef],
   );
 
-  // 编辑器模式：监听容器右键事件
+  // Mode editor: memantau peristiwa klik kanan pada wadah
   useEffect(() => {
     if (!isEditorMode || editorMenuDisabled || !containerRef?.current) return;
 
@@ -310,14 +310,14 @@ export function ContextMenu({
     suppressEditorKeyboard,
   ]);
 
-  // 编辑器模式：生成编辑器菜单项
+  // Mode editor: membuat item menu editor
   const editorItems: ContextMenuItem[] = (() => {
     if (!editor) return [];
 
-    // 检查是否有选中文本
+    // Memeriksa adanya teks yang dipilih
     const hasSelection = editor.state.selection.from !== editor.state.selection.to;
 
-    // 处理剪切
+    // Menangani pemotongan
     const handleCut = async () => {
       const { from, to } = editor.state.selection;
       const selectedText = editor.state.doc.textBetween(from, to, " ");
@@ -332,7 +332,7 @@ export function ContextMenu({
       }
     };
 
-    // 处理复制
+    // Menangani penyalinan
     const handleCopy = async () => {
       const { from, to } = editor.state.selection;
       const selectedText = editor.state.doc.textBetween(from, to, " ");
@@ -345,7 +345,7 @@ export function ContextMenu({
       }
     };
 
-    // 处理粘贴
+    // Menangani penempelan
     const handlePaste = async () => {
       const result = await readClipboardText();
       if (!result.ok) {
@@ -388,10 +388,10 @@ export function ContextMenu({
     return [...extraItems, ...baseItems];
   })();
 
-  // 使用编辑器菜单项或外部菜单项
+  // Memakai item menu editor atau item menu eksternal
   const items = isEditorMode ? editorItems : (externalItems ?? []);
 
-  // 点击外部关闭
+  // Menutup saat diklik di luar
   useEffect(() => {
     if (!position) return;
 
@@ -415,7 +415,7 @@ export function ContextMenu({
     };
   }, [position, onClose]);
 
-  // ESC 关闭菜单
+  // ESC menutup menu
   useEffect(() => {
     if (!position) return;
 
@@ -429,7 +429,7 @@ export function ContextMenu({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [position, onClose]);
 
-  // 点击菜单项
+  // Mengeklik item menu
   const handleItemClick = useCallback(
     (item: ContextMenuItem, event: { stopPropagation: () => void }) => {
       event.stopPropagation();
@@ -443,7 +443,7 @@ export function ContextMenu({
     [onClose],
   );
 
-  // 计算菜单位置，避免超出视口
+  // Menghitung posisi menu agar tidak keluar dari viewport
   useLayoutEffect(() => {
     if (!position || !menuRef.current) return;
 

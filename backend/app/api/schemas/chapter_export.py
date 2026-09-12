@@ -1,4 +1,4 @@
-"""章节导出 API 数据模型。"""
+"""Model data API ekspor bab."""
 
 from datetime import date, datetime
 
@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class ChapterExportCreate(BaseModel):
-    """创建章节导出任务。"""
+    """Membuat tugas ekspor bab."""
 
     selected_volume_ids: list[str] = Field(default_factory=list)
     included_chapter_ids: list[str] = Field(default_factory=list)
@@ -15,7 +15,7 @@ class ChapterExportCreate(BaseModel):
 
 
 class ChapterExportResponse(BaseModel):
-    """章节导出任务状态。"""
+    """Status tugas ekspor bab."""
 
     id: str
     status: str

@@ -1,4 +1,4 @@
-"""Jina s.jina.ai 搜索 provider（REST API）。"""
+"""Provider pencarian Jina s.jina.ai (REST API)."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ class JinaProvider(WebSearchProvider):
         config: WebSearchProviderConfig,
     ) -> WebSearchResponse:
         if not config.api_key:
-            raise ToolExecutionError("Jina 未配置 API Key")
+            raise ToolExecutionError("API Key Jina belum dikonfigurasi")
 
         base_url = config.extra("jina_base_url", JINA_SEARCH_URL) or JINA_SEARCH_URL
         url = f"{base_url.rstrip('/')}/?{urlencode({'q': query, 'num': config.max_results})}"

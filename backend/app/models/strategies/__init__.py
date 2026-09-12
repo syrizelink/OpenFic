@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Strategies Module - 策略模块。
+Strategies Module - modul strategi.
 """
 
 from app.models.strategies.base import BaseStrategy, StandardizedConfig

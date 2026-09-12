@@ -34,8 +34,8 @@ def test_translate_chat_model_stream_extracts_anthropic_text_content_blocks():
                 (),
                 {
                     "content": [
-                        {"type": "thinking", "thinking": "分析中"},
-                        {"type": "text", "text": "可见回复"},
+                        {"type": "thinking", "thinking": "Sedang menganalisis"},
+                        {"type": "text", "text": "Balasan terlihat"},
                     ]
                 },
             )()
@@ -48,8 +48,8 @@ def test_translate_chat_model_stream_extracts_anthropic_text_content_blocks():
 
     assert isinstance(result, list)
     assert [item["name"] for item in result] == ["agent:reasoning", "agent:token"]
-    assert result[0]["data"]["content"] == "分析中"
-    assert result[1]["data"]["content"] == "可见回复"
+    assert result[0]["data"]["content"] == "Sedang menganalisis"
+    assert result[1]["data"]["content"] == "Balasan terlihat"
 
 
 def test_translate_ignores_subagent_child_events():
@@ -93,7 +93,7 @@ def test_translate_ignores_subagent_child_write_chapter_tool_result():
         "event": "on_tool_end",
         "name": "write_chapter",
         "data": {
-            "input": {"title": "第一章"},
+            "input": {"title": "Bab 1"},
             "output": {"success": True, "tool_name": "write_chapter"},
         },
         "tags": ["subagent_child"],
@@ -112,7 +112,7 @@ def test_translate_chat_model_stream_reasoning_content():
                 (),
                 {
                     "content": "",
-                    "reasoning_content": "先分析需求",
+                    "reasoning_content": "Analisis kebutuhan dahulu",
                 },
             )()
         },
@@ -122,7 +122,7 @@ def test_translate_chat_model_stream_reasoning_content():
     result = single_event(translator.translate(event))
     assert result is not None
     assert result["name"] == "agent:reasoning"
-    assert result["data"]["content"] == "先分析需求"
+    assert result["data"]["content"] == "Analisis kebutuhan dahulu"
 
 
 def test_translate_chat_model_stream_reasoning_and_content():
@@ -134,8 +134,8 @@ def test_translate_chat_model_stream_reasoning_and_content():
                 "Chunk",
                 (),
                 {
-                    "content": "结论",
-                    "reasoning_content": "先分析需求",
+                    "content": "Kesimpulan",
+                    "reasoning_content": "Analisis kebutuhan dahulu",
                 },
             )()
         },
@@ -145,8 +145,8 @@ def test_translate_chat_model_stream_reasoning_and_content():
     result = translator.translate(event)
     assert isinstance(result, list)
     assert [item["name"] for item in result] == ["agent:reasoning", "agent:token"]
-    assert result[0]["data"]["content"] == "先分析需求"
-    assert result[1]["data"]["content"] == "结论"
+    assert result[0]["data"]["content"] == "Analisis kebutuhan dahulu"
+    assert result[1]["data"]["content"] == "Kesimpulan"
 
 
 def test_translate_chat_model_stream_tool_call_chunks():
@@ -273,7 +273,10 @@ def test_translate_chat_model_stream_synthesizes_tool_call_id_without_model_id()
         "type": "fail",
         "success": False,
         "code": "malformed_tool_call",
-        "message": "工具参数 JSON 无法解析，未执行工具调用",
+        "message": (
+            "Parameter alat berupa JSON tidak dapat diurai, pemanggilan alat "
+            "tidak dijalankan"
+        ),
     }
 
 
@@ -362,7 +365,7 @@ def test_translate_tool_end_normalizes_tool_message_output():
         "data": {
             "input": {"questions": []},
             "output": ToolMessage(
-                content='{"error":"参数校验失败"}',
+                content='{"error":"Validasi parameter gagal"}',
                 tool_call_id="call_1",
                 name="ask_user",
                 status="error",
@@ -374,7 +377,7 @@ def test_translate_tool_end_normalizes_tool_message_output():
     assert result is not None
     assert result["name"] == "agent:tool_result"
     assert result["data"]["output"] == {
-        "content": '{"error":"参数校验失败"}',
+        "content": '{"error":"Validasi parameter gagal"}',
         "tool_call_id": "call_1",
         "name": "ask_user",
         "status": "error",

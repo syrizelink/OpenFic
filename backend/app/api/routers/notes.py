@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Notes Router - 笔记与分类 CRUD API。
+Notes Router - API CRUD catatan dan kategori.
 """
 
 from typing import Annotated, Literal
@@ -65,7 +65,7 @@ def _build_category_item(node) -> NoteCategoryItem:
     "/projects/{project_id}/note-categories",
     response_model=NoteCategoryResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="创建笔记分类",
+    summary="Membuat kategori catatan",
 )
 async def create_category(
     project_id: str,
@@ -73,7 +73,7 @@ async def create_category(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> NoteCategoryResponse:
     try:
-        logger.info(f"创建笔记分类: project_id={project_id}, title={data.title}")
+        logger.info(f"Membuat kategori catatan: project_id={project_id}, title={data.title}")
         category = await note_service.create_category(
             session,
             project_id=project_id,
@@ -91,7 +91,7 @@ async def create_category(
 @router.patch(
     "/note-categories/{category_id}",
     response_model=NoteCategoryResponse,
-    summary="更新笔记分类",
+    summary="Memperbarui kategori catatan",
 )
 async def update_category(
     category_id: str,
@@ -99,7 +99,7 @@ async def update_category(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> NoteCategoryResponse:
     try:
-        logger.info(f"更新笔记分类: {category_id}")
+        logger.info(f"Memperbarui kategori catatan: {category_id}")
         category = await note_service.update_category(
             session, category_id, title=data.title
         )
@@ -114,14 +114,14 @@ async def update_category(
 @router.delete(
     "/note-categories/{category_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="删除笔记分类",
+    summary="Menghapus kategori catatan",
 )
 async def delete_category(
     category_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> None:
     try:
-        logger.info(f"删除笔记分类: {category_id}")
+        logger.info(f"Menghapus kategori catatan: {category_id}")
         await note_service.delete_category(session, category_id)
         await background_service.commit_and_notify(session)
     except NotFoundError as e:
@@ -132,14 +132,14 @@ async def delete_category(
     "/note-items/move",
     response_model=NoteMoveResult,
     status_code=status.HTTP_200_OK,
-    summary="移动分类或笔记",
+    summary="Memindahkan kategori atau catatan",
 )
 async def move_item(
     data: NoteItemMove,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> NoteMoveResult:
     try:
-        logger.info(f"移动: kind={data.kind}, item_id={data.item_id}")
+        logger.info(f"Memindahkan: kind={data.kind}, item_id={data.item_id}")
         result = await note_service.move_item(
             session,
             item_kind=data.kind,
@@ -167,7 +167,7 @@ async def move_item(
     "/projects/{project_id}/notes",
     response_model=NoteResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="创建笔记",
+    summary="Membuat catatan",
 )
 async def create_note(
     project_id: str,
@@ -175,7 +175,7 @@ async def create_note(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> NoteResponse:
     try:
-        logger.info(f"创建笔记: project_id={project_id}, title={data.title}")
+        logger.info(f"Membuat catatan: project_id={project_id}, title={data.title}")
         note = await note_service.create_note(
             session,
             project_id=project_id,
@@ -194,11 +194,11 @@ async def create_note(
 @router.post(
     "/projects/{project_id}/notes/import/preview",
     response_model=NoteImportPreviewResponse,
-    summary="预览笔记导入",
+    summary="Pratinjau impor catatan",
 )
 async def preview_note_import(
     project_id: str,
-    file: Annotated[UploadFile, File(description="Markdown 或 ZIP 笔记文件")],
+    file: Annotated[UploadFile, File(description="Berkas catatan Markdown atau ZIP")],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> NoteImportPreviewResponse:
     try:
@@ -223,11 +223,11 @@ async def preview_note_import(
 @router.post(
     "/projects/{project_id}/notes/import",
     response_model=NoteImportResponse,
-    summary="导入笔记",
+    summary="Mengimpor catatan",
 )
 async def import_notes(
     project_id: str,
-    file: Annotated[UploadFile, File(description="Markdown 或 ZIP 笔记文件")],
+    file: Annotated[UploadFile, File(description="Berkas catatan Markdown atau ZIP")],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> NoteImportResponse:
     try:
@@ -253,7 +253,7 @@ async def import_notes(
 @router.get(
     "/projects/{project_id}/notes",
     response_model=NoteTreeResponse,
-    summary="获取笔记列表",
+    summary="Mengambil daftar catatan",
 )
 async def list_notes(
     project_id: str,
@@ -273,7 +273,7 @@ async def list_notes(
 @router.get(
     "/notes/{note_id}",
     response_model=NoteResponse,
-    summary="获取笔记详情",
+    summary="Mengambil detail catatan",
 )
 async def get_note(
     note_id: str,
@@ -288,7 +288,7 @@ async def get_note(
 
 @router.get(
     "/notes/{note_id}/export",
-    summary="导出笔记",
+    summary="Mengekspor catatan",
 )
 async def export_note(
     note_id: str,
@@ -307,7 +307,7 @@ async def export_note(
 
 @router.get(
     "/note-categories/{category_id}/export",
-    summary="导出笔记分类",
+    summary="Mengekspor kategori catatan",
 )
 async def export_note_category(
     category_id: str,
@@ -327,7 +327,7 @@ async def export_note_category(
 @router.patch(
     "/notes/{note_id}",
     response_model=NoteResponse,
-    summary="更新笔记",
+    summary="Memperbarui catatan",
 )
 async def update_note(
     note_id: str,
@@ -335,7 +335,7 @@ async def update_note(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> NoteResponse:
     try:
-        logger.info(f"更新笔记: {note_id}")
+        logger.info(f"Memperbarui catatan: {note_id}")
         note = await note_service.update_note(
             session,
             note_id,
@@ -353,14 +353,14 @@ async def update_note(
 @router.delete(
     "/notes/{note_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="删除笔记",
+    summary="Menghapus catatan",
 )
 async def delete_note(
     note_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> None:
     try:
-        logger.info(f"删除笔记: {note_id}")
+        logger.info(f"Menghapus catatan: {note_id}")
         await note_service.delete_note(session, note_id)
         await background_service.commit_and_notify(session)
     except NotFoundError as e:
@@ -370,7 +370,7 @@ async def delete_note(
 @router.patch(
     "/notes/{note_id}/lock",
     response_model=NoteResponse,
-    summary="切换笔记锁定状态",
+    summary="Mengalihkan status terkunci catatan",
 )
 async def toggle_note_lock(
     note_id: str,
@@ -388,7 +388,7 @@ async def toggle_note_lock(
 @router.patch(
     "/notes/{note_id}/hidden",
     response_model=NoteResponse,
-    summary="切换笔记隐藏状态",
+    summary="Mengalihkan status tersembunyi catatan",
 )
 async def toggle_note_hidden(
     note_id: str,
@@ -406,13 +406,13 @@ async def toggle_note_hidden(
 @router.get(
     "/projects/{project_id}/mentions",
     response_model=MentionCandidateSearchResponse,
-    summary="检索可添加到对话的 mention 候选项",
+    summary="Mencari kandidat mention yang dapat ditambahkan ke percakapan",
 )
 async def search_mention_candidates(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
-    query: Annotated[str, Query(description="mention 检索词")] = "",
-    limit: Annotated[int, Query(ge=1, le=50, description="返回的最大候选数")] = 20,
+    query: Annotated[str, Query(description="Kata pencarian mention")] = "",
+    limit: Annotated[int, Query(ge=1, le=50, description="Jumlah maksimum kandidat yang dikembalikan")] = 20,
     kind: Annotated[
         Literal[
             "volume",
@@ -423,7 +423,7 @@ async def search_mention_candidates(
             "character",
         ]
         | None,
-        Query(description="候选类型过滤"),
+        Query(description="Filter tipe kandidat"),
     ] = None,
 ) -> MentionCandidateSearchResponse:
     try:
@@ -453,14 +453,14 @@ async def search_mention_candidates(
 @router.get(
     "/projects/{project_id}/notes/search",
     response_model=NoteSearchResponse,
-    summary="搜索笔记内容",
+    summary="Mencari isi catatan",
 )
 async def search_notes(
     project_id: str,
-    q: Annotated[str, Query(description="搜索关键词")],
+    q: Annotated[str, Query(description="Kata kunci pencarian")],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> NoteSearchResponse:
-    """按内容搜索笔记，返回匹配的笔记及匹配行。"""
+    """Mencari catatan berdasarkan isi, mengembalikan catatan yang cocok beserta baris yang cocok."""
     try:
         result = await note_service.search_notes(session, project_id, q)
         return NoteSearchResponse(

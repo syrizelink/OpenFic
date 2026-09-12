@@ -17,46 +17,62 @@ def _todo_payload(value: Any) -> dict[str, Any]:
         return value
     if hasattr(value, "model_dump"):
         return value.model_dump()
-    raise TypeError(f"不支持的 Todo 参数类型: {type(value)!r}")
+    raise TypeError(f"Tipe parameter Todo tidak didukung: {type(value)!r}")
 
 
 @ToolRegistry.register
 class WritePlanTool(AgentTool):
     name: str = "write_plan"
     description: str = dedent("""\
-        为当前会话创建并维护结构化的任务列表，用于追踪进度、组织复杂、多步骤的工作，并向用户展示进度。
-        使用时会全量覆盖当前会话的计划Todo列表，因此每次调用都必须传入完整列表。
+        Membuat dan memelihara daftar tugas terstruktur untuk sesi saat ini, dipakai
+        untuk melacak kemajuan, menata pekerjaan yang kompleks dan bertahap banyak,
+        serta menampilkan kemajuan kepada pengguna.
+        Saat digunakan, seluruh daftar Todo rencana pada sesi saat ini akan ditimpa,
+        karena itu setiap pemanggilan harus menyertakan daftar yang lengkap.
 
-        何时使用：
-        - 任务需要3+个不同步骤或动作（注意，此处指的不是三次工具调用）
-        - 任务足够复杂，通过规划能够更好的组织和执行
-        - 用户提供了多个任务需求，或是明确要求使用计划
-        - 收到新需求——将其拆解并记录为Todo列表
-        - 开始任务——在开始实施前标记当前Todo项为in_progress
-        - 完成任务——标记当前Todo项为completed，并根据工作期间的实际发现更新或添加后续项
+        Kapan digunakan:
+        - Tugas memerlukan 3+ langkah atau tindakan yang berbeda (perhatikan, yang
+          dimaksud di sini bukan tiga kali pemanggilan alat)
+        - Tugas cukup kompleks sehingga perencanaan membuatnya lebih tertata dan
+          lebih baik dieksekusi
+        - Pengguna memberikan beberapa kebutuhan tugas, atau secara eksplisit meminta
+          memakai rencana
+        - Menerima kebutuhan baru - uraikan dan catat sebagai daftar Todo
+        - Memulai tugas - tandai item Todo saat ini sebagai in_progress sebelum mulai
+          mengerjakannya
+        - Menyelesaikan tugas - tandai item Todo saat ini sebagai completed, lalu
+          perbarui atau tambahkan item lanjutan berdasarkan temuan nyata selama
+          pengerjaan
 
-        何时不应使用：
-        - 单一、直接的简单任务，无需规划即可直接执行
-        - 任务步骤琐碎且简单（<3个）
-        - 用户需求属于讨论或对话性质
-        - 计划对组织当前任务没有价值
+        Kapan tidak boleh digunakan:
+        - Tugas tunggal, langsung, dan sederhana yang dapat dikerjakan tanpa
+          perencanaan
+        - Langkah tugas remeh dan sederhana (<3 langkah)
+        - Kebutuhan pengguna bersifat diskusi atau percakapan
+        - Rencana tidak memberi nilai bagi penataan tugas saat ini
 
-        状态：
-        - pending: 待办，尚未开始
-        - in_progress: 进行中，当前正在执行(仅一个)
-        - completed: 已成功完成
+        Status:
+        - pending: menunggu dikerjakan, belum dimulai
+        - in_progress: sedang berjalan, saat ini dikerjakan (hanya satu)
+        - completed: sudah berhasil diselesaikan
 
-        优先级：
-        - low: 低优先级，可延后处理
-        - medium: 中等优先级，正常处理
-        - high: 高优先级，应优先处理
+        Prioritas:
+        - low: prioritas rendah, boleh ditunda
+        - medium: prioritas sedang, ditangani normal
+        - high: prioritas tinggi, harus ditangani lebih dulu
 
-        使用说明：
-        - 实时更新任务状态，在开始或完成一项任务前立刻更新，不要留到最后批量更新
-        - 仅在Todo项对应的工作实际完成(包括验证和审批，如必要)后才标记为completed
-        - 同时仅标记恰好一个in_progress状态的Todo项
-        - 任务受阻或部分完成的情况下，可以保持阻塞的Todo项为in_progress，更新后续计划以适应当前状况并继续
-        - 每个Todo项都应是具体、可操作的独立子任务
+        Petunjuk penggunaan:
+        - Perbarui status tugas secara real-time, langsung sebelum memulai atau
+          menyelesaikan sebuah tugas; jangan menyisakannya untuk pembaruan massal di
+          akhir
+        - Tandai completed hanya setelah pekerjaan pada item Todo benar-benar selesai
+          (termasuk verifikasi dan persetujuan, bila perlu)
+        - Pada satu waktu tandai tepat satu item Todo dengan status in_progress
+        - Bila tugas terhambat atau selesai sebagian, item Todo yang terhambat boleh
+          tetap in_progress; perbarui rencana lanjutan agar sesuai kondisi saat ini
+          lalu lanjutkan
+        - Setiap item Todo harus berupa subtugas mandiri yang konkret dan dapat
+          dikerjakan
     """)
     access_level: str = "write"
     args_schema: type[BaseModel] = WritePlanInput

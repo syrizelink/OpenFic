@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Entities Module - 数据模型实体。
+Entities Module - entitas model data.
 """
 
 from app.models.entities.model import Model

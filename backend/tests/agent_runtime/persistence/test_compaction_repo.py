@@ -17,7 +17,7 @@ async def test_insert_and_list_compactions(
         project_id=sample_task.project_id,
         start_seq=1,
         end_seq=3,
-        summary="摘要",
+        summary="Ringkasan",
         trigger="manual",
         source_input_tokens=3000,
         summary_tokens=120,
@@ -40,7 +40,7 @@ async def test_insert_and_list_compactions(
             item.summary_tokens,
         )
         for item in rows
-    ] == [(1, 3, "摘要", "manual", 3000, 120)]
+    ] == [(1, 3, "Ringkasan", "manual", 3000, 120)]
 
 
 @pytest.mark.asyncio

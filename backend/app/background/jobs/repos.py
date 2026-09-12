@@ -114,11 +114,11 @@ async def next_event_sequence(session: AsyncSession, job_id: str) -> int:
         )
     )
     if getattr(result, "rowcount", 0) != 1:
-        raise ValueError(f"后台任务不存在: {job_id}")
+        raise ValueError(f"Tugas latar belakang tidak ditemukan: {job_id}")
     await session.flush()
     job = await get_job(session, job_id)
     if job is None:
-        raise ValueError(f"后台任务不存在: {job_id}")
+        raise ValueError(f"Tugas latar belakang tidak ditemukan: {job_id}")
     return job.event_sequence
 
 

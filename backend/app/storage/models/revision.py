@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Revision 数据模型 - 项目级版本记录。
+Model data Revision - catatan versi tingkat proyek.
 """
 
 from datetime import UTC, datetime
@@ -13,13 +13,13 @@ from app.core.ids import generate_id
 
 class Revision(SQLModel, table=True):
     """
-    项目级版本记录。
+    Catatan versi tingkat proyek.
 
-    一个 Revision 代表用户消息触发的一轮 Agent 交互，
-    可能涉及零到多个章节的修改（通过 Commits 记录）。
+    Satu Revision mewakili satu putaran interaksi Agent yang dipicu pesan pengguna,
+    dan bisa melibatkan nol sampai banyak perubahan bab (dicatat melalui Commits).
 
-    Revision 是用户可见的业务版本点；回滚会创建新的 rollback revision，
-    不修改历史 revision。
+    Revision adalah titik versi bisnis yang terlihat pengguna; rollback membuat rollback revision baru,
+    tanpa mengubah revision historis.
     """
 
     __tablename__ = "revisions"
@@ -27,18 +27,18 @@ class Revision(SQLModel, table=True):
     id: str = Field(default_factory=generate_id, primary_key=True)
     project_id: str = Field(index=True, foreign_key="projects.id")
 
-    message: str = Field(description="版本描述/操作说明")
+    message: str = Field(description="Deskripsi versi/penjelasan operasi")
     agent_session_id: str | None = Field(
-        default=None, description="关联的 Agent 会话 ID"
+        default=None, description="ID sesi Agent yang terkait"
     )
 
     status: str = Field(
         default="active",
         index=True,
-        description="Revision 状态: active/interrupted/completed/failed/cancelled/rollback",
+        description="Status Revision: active/interrupted/completed/failed/cancelled/rollback",
     )
     revision_type: str = Field(
-        default="manual", index=True, description="Revision 类型: agent/manual/rollback"
+        default="manual", index=True, description="Jenis Revision: agent/manual/rollback"
     )
     parent_revision_id: str | None = Field(
         default=None, index=True, foreign_key="revisions.id"
@@ -55,17 +55,17 @@ class Revision(SQLModel, table=True):
     user_message_id: str | None = Field(
         default=None,
         index=True,
-        description="触发该 revision 的用户消息 ID",
+        description="ID pesan pengguna yang memicu revision ini",
     )
     user_message_seq: int | None = Field(
         default=None,
         index=True,
-        description="触发该 revision 的用户消息 seq",
+        description="seq pesan pengguna yang memicu revision ini",
     )
     pre_run_checkpoint_id: str | None = Field(
         default=None,
         index=True,
-        description="用户消息发送前的 LangGraph checkpoint_id",
+        description="checkpoint_id LangGraph sebelum pesan pengguna dikirim",
     )
     graph_thread_id: str | None = Field(
         default=None,
@@ -73,7 +73,7 @@ class Revision(SQLModel, table=True):
         description="LangGraph thread_id",
     )
     is_checkpoint: bool = Field(
-        default=False, index=True, description="是否为用户可见的检查点"
+        default=False, index=True, description="Apakah menjadi checkpoint yang terlihat pengguna"
     )
 
     project_snapshot_title: str = Field(max_length=200)

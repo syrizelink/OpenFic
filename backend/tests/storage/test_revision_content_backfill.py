@@ -37,9 +37,9 @@ async def test_backfill_rewrites_long_text_and_dedupes(
     revision_backfill_session: AsyncSession,
 ):
     session = revision_backfill_session
-    long_shared = "这是很长的一段正文内容。" * 200
-    long_after = long_shared + "另一段不同的结尾。"
-    short = "短内容"
+    long_shared = "Ini adalah satu bagian isi utama yang sangat panjang." * 200
+    long_after = long_shared + "Bagian penutup lain yang berbeda."
+    short = "Isi singkat"
 
     session.add(
         Commit(
@@ -134,7 +134,7 @@ async def test_backfill_rewrites_long_text_and_dedupes(
 
 async def test_backfill_is_idempotent(revision_backfill_session: AsyncSession):
     session = revision_backfill_session
-    long = "这是很长的一段正文内容。" * 200
+    long = "Ini adalah satu bagian isi utama yang sangat panjang." * 200
     session.add(
         RevisionChapterSnapshot(
             id=generate_id(),
@@ -205,7 +205,7 @@ async def test_blob_put_is_atomic_across_sessions(tmp_path):
     async with engine.begin() as connection:
         await connection.run_sync(SQLModel.metadata.create_all)
 
-    long_shared = "并发写入的共享长正文。" * 200
+    long_shared = "Isi utama panjang bersama untuk penulisan konkuren." * 200
     first_session = factory()
     second_session = factory()
     try:

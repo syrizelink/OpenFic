@@ -39,22 +39,25 @@ MAX_DISPATCHES_PER_TURN = 10
 
 class DispatchSubagentInput(BaseModel):
     agent_type: str = Field(
-        description="委派用于处理当前任务的专用Agent类型",
+        description="Tipe Agent khusus yang didelegasikan untuk menangani tugas saat ini",
     )
     description: str = Field(
         min_length=1,
-        description="任务的简短描述，应简洁明了，20字以内",
+        description=(
+            "Deskripsi singkat tugas, harus ringkas dan jelas, maksimal 20 kata"
+        ),
     )
     prompt: str = Field(
         min_length=1,
         description=dedent("""\
-            要Agent执行的任务描述，应是自包含且明确的，至少覆盖：
-            - TASK 对任务的描述
-            - GOAL 原子目标
-            - EXPECTED OUTCOME 交付物与成功标准
-            - MUST DO 必须完成的工作
-            - MUST NOT DO 禁止的操作
-            - CONTEXT 相关信息索引
+            Deskripsi tugas yang harus dijalankan Agent, harus mandiri dan jelas,
+            minimal mencakup:
+            - TASK deskripsi tugas
+            - GOAL sasaran atomik
+            - EXPECTED OUTCOME hasil yang diserahkan dan kriteria keberhasilan
+            - MUST DO pekerjaan yang wajib diselesaikan
+            - MUST NOT DO tindakan yang dilarang
+            - CONTEXT indeks informasi terkait
         """),
     )
     model_config = {"extra": "forbid"}
@@ -68,28 +71,46 @@ def _child_thread_id(parent_thread_id: str, dispatch_id: str) -> str:
 class DispatchSubagentTool(AgentTool):
     name: str = "dispatch_subagent"
     description: str = dedent("""\
-        委派一个新的Agent处理复杂、多步骤的任务。
-        使用时，必须指定agent_type参数来选定要委派的Subagent类型。
-        
-        何时不应使用：
-        - 在特定章节或2-3个章节或设定中搜索信息
-        - 没有准确对应任务类型的合适Agent
-        - 用户明确要求不使用Subagent时
-        
-        何时使用：
-        - 需要并行处理多个独立任务，使用Subagent有助于提高效率
-        - 任务复杂度高、专业性强，需要使用专业的Agent针对性处理
-        - 需要隔离上下文，只想了解特定信息却不想查找一遍整个项目
-        
-        使用说明：
-        - 尽可能并发启动多个Agent处理任务以提高效率，为此只需在一轮消息多次调用工具即可
-        - Agent完成后会在工具结果中返回，你应默认Agent的执行结果对用户不可见，如要向用户展示执行结果，你应输出一段简短的总结
-        - Agent的执行结果包含dispatch_id，可在后续通过notify_subagent复用以继续同一Agent会话
-        - Agent的执行结果中包含agent_number，每个agent都有唯一的编号，如有需要你可以用编号来称呼它们
-        - 每次派发的Agent都从独立全新的上下文开始，因此Agent并不了解你所持有的信息或过去完成的任务
-        - 派发Agent时，应在prompt中包含详尽、具体、可执行的任务描述，并明确指示Agent应在任务完成时返回什么信息，因为它并不了解用户意图
-        - 一般情况下应信任Agent的输出
-        - 如果Agent描述中提到应主动使用它们，则尽力使用，而无需用户明确指示，否则请自行判断
+        Mendelegasikan satu Agent baru untuk menangani tugas yang kompleks dan
+        bertahap banyak.
+        Saat digunakan, parameter agent_type harus ditentukan untuk memilih tipe
+        Subagent yang akan didelegasikan.
+
+        Kapan tidak boleh digunakan:
+        - Mencari informasi di bab tertentu, di 2-3 bab, atau di latar
+        - Tidak ada Agent yang benar-benar cocok dengan tipe tugasnya
+        - Saat pengguna secara eksplisit meminta untuk tidak memakai Subagent
+
+        Kapan digunakan:
+        - Perlu memproses beberapa tugas independen secara paralel, memakai
+          Subagent membantu meningkatkan efisiensi
+        - Tugas berkompleksitas tinggi dan sangat spesialis, sehingga perlu Agent
+          khusus untuk menanganinya secara terarah
+        - Perlu mengisolasi konteks, hanya ingin mengetahui informasi tertentu
+          tanpa harus menelusuri seluruh proyek
+
+        Petunjuk penggunaan:
+        - Jalankan beberapa Agent secara bersamaan sebisa mungkin untuk
+          meningkatkan efisiensi; untuk itu cukup panggil alat ini beberapa kali
+          dalam satu putaran pesan
+        - Setelah Agent selesai, hasilnya dikembalikan pada hasil alat. Anggap
+          secara bawaan bahwa hasil eksekusi Agent tidak terlihat oleh pengguna;
+          jika ingin menampilkannya kepada pengguna, keluarkan ringkasan singkat
+        - Hasil eksekusi Agent memuat dispatch_id, yang nanti dapat dipakai ulang
+          melalui notify_subagent untuk melanjutkan sesi Agent yang sama
+        - Hasil eksekusi Agent memuat agent_number; setiap agent memiliki nomor
+          unik, dan bila perlu Anda dapat menyebut mereka dengan nomor itu
+        - Setiap Agent yang didelegasikan mulai dari konteks baru yang terpisah,
+          sehingga Agent tidak mengetahui informasi yang Anda pegang maupun tugas
+          yang sudah diselesaikan sebelumnya
+        - Saat mendelegasikan Agent, sertakan deskripsi tugas yang rinci, konkret,
+          dan dapat dieksekusi di dalam prompt, serta instruksikan dengan jelas
+          informasi apa yang harus dikembalikan Agent ketika tugas selesai, karena
+          Agent tidak mengetahui maksud pengguna
+        - Pada umumnya Anda harus memercayai keluaran Agent
+        - Jika deskripsi Agent menyebutkan bahwa mereka sebaiknya digunakan secara
+          proaktif, upayakan untuk memakainya tanpa menunggu instruksi eksplisit
+          dari pengguna; selain itu gunakan penilaian Anda sendiri
     """)
     access_level: str = "readonly"
     args_schema: type[BaseModel] = DispatchSubagentInput

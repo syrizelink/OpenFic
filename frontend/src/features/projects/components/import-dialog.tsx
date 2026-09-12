@@ -1,8 +1,8 @@
 /**
  * ImportDialog Component
  *
- * 多步骤项目文件导入弹窗组件。
- * 步骤：选择文件 → 选择分割方式 → 解析预览 → 填写书名和封面 → 完成
+ * Komponen dialog impor berkas proyek bertahap.
+ * Tahap: pilih berkas -> pilih cara pemisahan -> pratinjau penguraian -> isi judul dan sampul -> selesai
  */
 
 import {
@@ -44,11 +44,11 @@ import {
 import { CoverCropper } from "./cover-cropper";
 
 interface ImportDialogProps {
-  /** 是否打开对话框 */
+  /** Status terbuka dialog */
   open: boolean;
-  /** 关闭对话框回调 */
+  /** Callback penutupan dialog */
   onOpenChange: (open: boolean) => void;
-  /** 导入成功回调 */
+  /** Callback impor berhasil */
   onSuccess?: () => void;
 }
 
@@ -65,38 +65,38 @@ function getImportFileTitle(filename: string): string {
 export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProps) {
   const { t, i18n } = useTranslation();
 
-  // 步骤状态
+  // Status tahap
   const [step, setStep] = useState<Step>("select");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 文件和解析结果
+  // Berkas dan hasil penguraian
   const [file, setFile] = useState<File | null>(null);
   const [previewData, setPreviewData] = useState<ImportPreviewResponse | null>(null);
   const [expandedVolumeIndexes, setExpandedVolumeIndexes] = useState<number[]>([0]);
   const [splitMode, setSplitMode] = useState<ImportSplitMode>("auto");
   const [chunkSize, setChunkSize] = useState(String(DEFAULT_IMPORT_CHUNK_SIZE));
 
-  // 项目信息
+  // Informasi proyek
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [cover, setCover] = useState<File | null>(null);
 
-  // 导入结果
+  // Hasil impor
   const [importResult, setImportResult] = useState<{
     projectId: string;
     chapterCount: number;
     wordCount: number;
   } | null>(null);
 
-  // 文件输入引用
+  // Referensi masukan berkas
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 导入进度
+  // Progres impor
   const [importProgress, setImportProgress] = useState(0);
   const [importStage, setImportStage] = useState("");
 
-  // 重置状态
+  // Mereset status
   const resetState = useCallback(() => {
     setStep("select");
     setLoading(false);
@@ -118,7 +118,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
     }
   }, []);
 
-  // 处理对话框关闭
+  // Menangani penutupan dialog
   const handleOpenChange = useCallback(
     (newOpen: boolean) => {
       if (!newOpen) {
@@ -129,7 +129,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
     [onOpenChange, resetState],
   );
 
-  // 处理文件选择
+  // Menangani pemilihan berkas
   const handleFileSelect = useCallback(
     (selectedFile: File) => {
       if (!isSupportedImportFile(selectedFile.name)) {
@@ -148,7 +148,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
     [t],
   );
 
-  // 处理文件拖放
+  // Menangani tarik-lepas berkas
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
@@ -187,14 +187,14 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
       setExpandedVolumeIndexes([0]);
       setStep("preview");
     } catch (err) {
-      console.error("预览失败:", err);
+      console.error("Gagal membuat pratinjau:", err);
       setError(err instanceof Error ? err.message : t("import.parseFailed"));
     } finally {
       setLoading(false);
     }
   }, [chunkSize, file, splitMode, t]);
 
-  // 处理确认导入
+  // Menangani konfirmasi impor
   const handleConfirmImport = useCallback(async () => {
     if (!file || !title.trim()) {
       setError(t("import.bookTitleRequired"));
@@ -233,7 +233,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
         onSuccess?.();
       }
     } catch (err) {
-      console.error("导入失败:", err);
+      console.error("Gagal mengimpor:", err);
       setError(err instanceof Error ? err.message : t("import.importFailed"));
       setStep("info");
     } finally {
@@ -241,7 +241,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
     }
   }, [file, title, description, cover, splitMode, chunkSize, t, onSuccess]);
 
-  // 格式化字数
+  // Memformat jumlah kata
   const formatWordCount = (count: number) => {
     return new Intl.NumberFormat(i18n.language, {
       notation: count >= 10000 ? "compact" : "standard",
@@ -289,7 +289,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
     }
   };
 
-  // 渲染步骤内容
+  // Merender isi tahap
   const renderStepContent = () => {
     switch (step) {
       case "select":
@@ -473,7 +473,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
           <Box>
             {previewData && (
               <>
-                {/* 统计信息 */}
+                {/* Informasi statistik */}
                 <Flex
                   gap="4"
                   mb="4"
@@ -512,7 +512,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
                   </Card>
                 </Flex>
 
-                {/* 分卷章节预览 */}
+                {/* Pratinjau volume dan bab */}
                 <Text
                   size="2"
                   weight="medium"
@@ -651,7 +651,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
       case "info":
         return (
           <Flex gap="5">
-            {/* 左侧：封面 */}
+            {/* Kiri: sampul */}
             <Box className="import-dialog-cover-column">
               <CoverCropper
                 value={cover}
@@ -659,13 +659,13 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
               />
             </Box>
 
-            {/* 右侧：项目信息 */}
+            {/* Kanan: informasi proyek */}
             <Flex
               direction="column"
               gap="4"
               className="import-dialog-info-content"
             >
-              {/* 书名 */}
+              {/* Judul buku */}
               <Box>
                 <Text
                   as="label"
@@ -683,7 +683,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
                 />
               </Box>
 
-              {/* 简介 */}
+              {/* Deskripsi */}
               <Box>
                 <Text
                   as="label"
@@ -702,7 +702,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
                 />
               </Box>
 
-              {/* 导入预览 */}
+              {/* Pratinjau impor */}
               {previewData && (
                 <Flex gap="3">
                   <Badge size="2">
@@ -798,7 +798,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
     }
   };
 
-  // 渲染底部按钮
+  // Merender tombol bawah
   const renderFooter = () => {
     switch (step) {
       case "select":
@@ -894,7 +894,7 @@ export function ImportDialog({ open, onOpenChange, onSuccess }: ImportDialogProp
     }
   };
 
-  // 根据步骤获取标题
+  // Mengambil judul sesuai tahap
   const getStepTitle = () => {
     switch (step) {
       case "select":

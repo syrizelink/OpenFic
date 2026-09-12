@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Commit Repository - 变更数据访问层。
+Commit Repository - lapisan akses data perubahan.
 """
 
 from sqlalchemy import select
@@ -13,14 +13,14 @@ from app.storage.repos import revision_content_blob_repo
 
 async def create(session: AsyncSession, commit: Commit) -> Commit:
     """
-    创建变更记录。
+    Membuat catatan perubahan.
 
     Args:
-        session: 数据库 session。
-        commit: 变更实例。
+        session: session basis data.
+        commit: Instance perubahan.
 
     Returns:
-        创建后的变更实例。
+        Instance perubahan setelah dibuat.
     """
     session.add(commit)
     await session.flush()
@@ -71,14 +71,14 @@ async def _hydrate_commits(
 
 async def get_by_id(session: AsyncSession, commit_id: str) -> Commit | None:
     """
-    根据 ID 获取变更记录。
+    Mengambil catatan perubahan berdasarkan ID.
 
     Args:
-        session: 数据库 session。
-        commit_id: 变更 ID。
+        session: session basis data.
+        commit_id: ID perubahan.
 
     Returns:
-        变更实例，如果不存在则返回 None。
+        Instance perubahan, atau None bila tidak ada.
     """
     result = await session.execute(select(Commit).where(col(Commit.id) == commit_id))
     return await _hydrate_commit(session, result.scalar_one_or_none())
@@ -89,14 +89,14 @@ async def list_by_revision(
     revision_id: str,
 ) -> list[Commit]:
     """
-    获取版本下的所有变更记录。
+    Mengambil semua catatan perubahan dalam sebuah versi.
 
     Args:
-        session: 数据库 session。
-        revision_id: 版本 ID。
+        session: session basis data.
+        revision_id: ID versi.
 
     Returns:
-        变更列表，按创建时间排序。
+        Daftar perubahan, diurutkan berdasarkan waktu pembuatan.
     """
     result = await session.execute(
         select(Commit)
@@ -113,16 +113,16 @@ async def list_by_chapter(
     limit: int = 50,
 ) -> list[Commit]:
     """
-    获取章节的变更历史。
+    Mengambil riwayat perubahan sebuah bab.
 
     Args:
-        session: 数据库 session。
-        chapter_id: 章节 ID。
-        offset: 偏移量。
-        limit: 每页数量。
+        session: session basis data.
+        chapter_id: ID bab.
+        offset: Offset.
+        limit: Jumlah per halaman.
 
     Returns:
-        变更列表，按创建时间倒序。
+        Daftar perubahan, urut waktu pembuatan menurun.
     """
     result = await session.execute(
         select(Commit)
@@ -136,11 +136,11 @@ async def list_by_chapter(
 
 async def delete(session: AsyncSession, commit: Commit) -> None:
     """
-    删除变更记录。
+    Menghapus catatan perubahan.
 
     Args:
-        session: 数据库 session。
-        commit: 变更实例。
+        session: session basis data.
+        commit: Instance perubahan.
     """
     await session.delete(commit)
     await session.flush()
@@ -148,11 +148,11 @@ async def delete(session: AsyncSession, commit: Commit) -> None:
 
 async def delete_by_revision(session: AsyncSession, revision_id: str) -> None:
     """
-    删除版本下的所有变更记录。
+    Menghapus semua catatan perubahan dalam sebuah versi.
 
     Args:
-        session: 数据库 session。
-        revision_id: 版本 ID。
+        session: session basis data.
+        revision_id: ID versi.
     """
     from sqlalchemy import delete as sql_delete
 

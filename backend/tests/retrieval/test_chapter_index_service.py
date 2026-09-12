@@ -28,9 +28,13 @@ from app.storage.models.volume import Volume
 
 
 class RecordingRetrievalService:
-    def __init__(self, *, fail_delete: bool = False) -> None:
+    def __init__(
+        self, *, fail_delete: bool = False, fail_drop: bool = False
+    ) -> None:
         self.fail_delete = fail_delete
+        self.fail_drop = fail_drop
         self.deleted: list[tuple[str, str]] = []
+        self.dropped: list[str] = []
 
     async def delete_document(self, session, index_key: str, document_id: str) -> None:
         _ = session
@@ -38,14 +42,21 @@ class RecordingRetrievalService:
         if self.fail_delete:
             raise RuntimeError("delete failed")
 
+    async def drop_index(self, session, index_key: str) -> bool:
+        _ = session
+        self.dropped.append(index_key)
+        if self.fail_drop:
+            raise RuntimeError("drop failed")
+        return True
+
 
 def _chapter(project_id: str = "project-1") -> Chapter:
     return Chapter(
         id="chapter-1",
         project_id=project_id,
         volume_id="volume-1",
-        title="第一章",
-        content="英雄遇见龙",
+        title="Bab 1",
+        content="Pahlawan berjumpa naga",
         word_count=5,
         order=1,
     )
@@ -62,8 +73,9 @@ async def test_chapter_document_contains_stable_ids_and_metadata() -> None:
     assert chapter_index_key(chapter.project_id) == "chapters:project-1"
     assert chapter_document_id(chapter.id) == "chapter:chapter-1"
     assert document.document_id == "chapter:chapter-1"
-    # text 保持为原始正文，前缀仅在分块/索引阶段注入，不污染回传内容。
-    assert document.text == "英雄遇见龙"
+    # text tetap berisi isi utama asli; prefiks hanya disuntikkan pada tahap chunking/indexing
+    # sehingga tidak mengotori isi yang dikembalikan.
+    assert document.text == "Pahlawan berjumpa naga"
     assert document.attributes == {
         "project_id": "project-1",
         "chapter_id": "chapter-1",
@@ -75,16 +87,18 @@ async def test_chapter_document_contains_stable_ids_and_metadata() -> None:
         "chapter_id": "chapter-1",
         "volume_id": "volume-1",
         "chapter_order": 1,
-        "chapter_title": "第一章",
-        "prefix": "第1章 第一章",
+        "chapter_title": "Bab 1",
+        # Prefiks dibentuk oleh app (_build_chapter_prefix) dengan pola CJK bawaan aplikasi,
+        # jadi bagian "第1章" dipertahankan apa adanya.
+        "prefix": "第1章 Bab 1",
         "source_hash": expected_hash,
     }
 
 
 @pytest.mark.asyncio
 async def test_mark_chapter_stale_if_content_hash_changed(session: AsyncSession) -> None:
-    project = Project(id="project-1", title="项目", description="")
-    volume = Volume(id="volume-1", project_id=project.id, title="第一卷", order=1)
+    project = Project(id="project-1", title="Proyek", description="")
+    volume = Volume(id="volume-1", project_id=project.id, title="Volume 1", order=1)
     chapter = _chapter(project.id)
     session.add(project)
     session.add(volume)
@@ -95,7 +109,7 @@ async def test_mark_chapter_stale_if_content_hash_changed(session: AsyncSession)
             chapter_id=chapter.id,
             index_key=chapter_index_key(project.id),
             status="ready",
-            source_hash=compute_chapter_source_hash("旧正文"),
+            source_hash=compute_chapter_source_hash("Isi utama lama"),
             embedding_model_ref_id="model-1",
             chunk_count=2,
         )
@@ -112,7 +126,7 @@ async def test_mark_chapter_stale_if_content_hash_changed(session: AsyncSession)
         )
     ).scalar_one()
     assert state.status == "stale"
-    assert state.source_hash == compute_chapter_source_hash("旧正文")
+    assert state.source_hash == compute_chapter_source_hash("Isi utama lama")
 
 
 @pytest.mark.asyncio
@@ -120,9 +134,9 @@ async def test_disabled_project_index_status_does_not_load_chapter_content(
     session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    list_sources = AsyncMock(side_effect=AssertionError("正文查询不应被调用"))
+    list_sources = AsyncMock(side_effect=AssertionError("Kueri isi utama tidak boleh dipanggil"))
     count_chapters = AsyncMock(return_value=3)
-    resolve_model = AsyncMock(side_effect=AssertionError("关闭时不应解析模型"))
+    resolve_model = AsyncMock(side_effect=AssertionError("Model tidak boleh di-resolve saat fitur nonaktif"))
     monkeypatch.setattr(chapter_index.chapter_repo, "list_index_source_by_project", list_sources)
     monkeypatch.setattr(chapter_index.chapter_repo, "count_by_project", count_chapters)
     monkeypatch.setattr(chapter_index, "resolve_index_embedding_model", resolve_model)
@@ -141,7 +155,7 @@ async def test_disabled_project_index_status_does_not_load_chapter_content(
     status = await compute_project_index_status(
         session,
         project_id="project-1",
-        title="项目",
+        title="Proyek",
         config=config,
         model=None,
     )
@@ -170,9 +184,9 @@ async def test_enqueue_project_index_update_uses_lightweight_chapter_sources(
     )
     model = SimpleNamespace(id="model-1", dimensions=3)
     list_sources = AsyncMock(
-        return_value=[ChapterIndexSource("project-1", "chapter-1", "正文")]
+        return_value=[ChapterIndexSource("project-1", "chapter-1", "Isi utama")]
     )
-    list_chapters = AsyncMock(side_effect=AssertionError("不应加载完整章节"))
+    list_chapters = AsyncMock(side_effect=AssertionError("Bab lengkap tidak boleh dimuat"))
     monkeypatch.setattr(chapter_index, "get_index_settings", AsyncMock(return_value=config))
     monkeypatch.setattr(chapter_index, "resolve_index_embedding_model", AsyncMock(return_value=model))
     monkeypatch.setattr(chapter_index.chapter_repo, "list_index_source_by_project", list_sources)
@@ -274,3 +288,114 @@ async def test_mark_chapter_stale_if_indexed_marks_ready_state_without_content_c
 
     await session.refresh(state)
     assert state.status == "stale"
+
+
+@pytest.mark.asyncio
+async def test_delete_project_index_removes_all_project_states_and_drops_index(
+    session: AsyncSession,
+) -> None:
+    retrieval_service = RecordingRetrievalService()
+    other_project_id = "project-2"
+    session.add_all(
+        [
+            RetrievalChapterIndexState(
+                project_id="project-1",
+                chapter_id="chapter-1",
+                index_key=chapter_index_key("project-1"),
+                status="ready",
+                source_hash="hash-1",
+                embedding_model_ref_id="model-1",
+            ),
+            RetrievalChapterIndexState(
+                project_id="project-1",
+                chapter_id="chapter-2",
+                index_key=chapter_index_key("project-1"),
+                status="stale",
+                source_hash="hash-2",
+                embedding_model_ref_id="model-1",
+            ),
+            # Kontrak indeks lama pada proyek yang sama juga harus terbuang.
+            RetrievalChapterIndexState(
+                project_id="project-1",
+                chapter_id="chapter-3",
+                index_key="chapters:project-1:legacy",
+                status="ready",
+                source_hash="hash-3",
+                embedding_model_ref_id="model-0",
+            ),
+            # Proyek lain wajib tidak tersentuh.
+            RetrievalChapterIndexState(
+                project_id=other_project_id,
+                chapter_id="chapter-9",
+                index_key=chapter_index_key(other_project_id),
+                status="ready",
+                source_hash="hash-9",
+                embedding_model_ref_id="model-1",
+            ),
+        ]
+    )
+    await session.commit()
+
+    await ChapterIndexIntegrationService(
+        retrieval_service=retrieval_service
+    ).delete_project_index(session, "project-1")
+
+    remaining = (
+        (
+            await session.execute(
+                select(RetrievalChapterIndexState).where(
+                    col(RetrievalChapterIndexState.project_id) == "project-1"
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert list(remaining) == []
+    assert retrieval_service.dropped == [chapter_index_key("project-1")]
+
+    survivor = (
+        await session.execute(
+            select(RetrievalChapterIndexState).where(
+                col(RetrievalChapterIndexState.project_id) == other_project_id
+            )
+        )
+    ).scalar_one()
+    assert survivor.chapter_id == "chapter-9"
+
+
+@pytest.mark.asyncio
+async def test_delete_project_index_survives_drop_failure(
+    session: AsyncSession,
+) -> None:
+    """Kegagalan membuang berkas indeks tidak boleh menggagalkan hapus proyek."""
+    retrieval_service = RecordingRetrievalService(fail_drop=True)
+    session.add(
+        RetrievalChapterIndexState(
+            project_id="project-1",
+            chapter_id="chapter-1",
+            index_key=chapter_index_key("project-1"),
+            status="ready",
+            source_hash="hash-1",
+            embedding_model_ref_id="model-1",
+        )
+    )
+    await session.commit()
+
+    await ChapterIndexIntegrationService(
+        retrieval_service=retrieval_service
+    ).delete_project_index(session, "project-1")
+
+    remaining = (
+        (
+            await session.execute(
+                select(RetrievalChapterIndexState).where(
+                    col(RetrievalChapterIndexState.project_id) == "project-1"
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert list(remaining) == []
+    assert retrieval_service.dropped == [chapter_index_key("project-1")]

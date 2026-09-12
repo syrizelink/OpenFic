@@ -26,13 +26,13 @@ def test_compact_assistant_tool_calls_preserves_tool_input() -> None:
         task_id="task-1",
         role="assistant",
         agent_id="designer",
-        content="我将写入大纲",
+        content="Saya akan menulis kerangka",
         tool_calls=json.dumps(
             [
                 {
                     "id": "call_1",
                     "name": "confirm_outline",
-                    "args": {"beats": [{"content": "主角出发→抵达现场"}]},
+                    "args": {"beats": [{"content": "Tokoh utama berangkat -> tiba di lokasi"}]},
                 }
             ],
             ensure_ascii=False,
@@ -43,13 +43,13 @@ def test_compact_assistant_tool_calls_preserves_tool_input() -> None:
 
     assert compact == {
         "role": "assistant",
-        "content": "我将写入大纲",
+        "content": "Saya akan menulis kerangka",
         "agent_id": "designer",
         "tool_calls": [
             {
                 "id": "call_1",
                 "name": "confirm_outline",
-                "args": {"beats": [{"content": "主角出发→抵达现场"}]},
+                "args": {"beats": [{"content": "Tokoh utama berangkat -> tiba di lokasi"}]},
             }
         ],
     }
@@ -60,13 +60,13 @@ def test_compact_assistant_tool_calls_filters_other_agent_tools() -> None:
         task_id="task-1",
         role="assistant",
         agent_id="designer",
-        content="大纲已确认，现在开始写作。",
+        content="Kerangka sudah dikonfirmasi, sekarang mulai menulis.",
         tool_calls=json.dumps(
             [
                 {
                     "id": "call_1",
                     "name": "confirm_outline",
-                    "args": {"beats": [{"content": "主角出发→抵达现场"}]},
+                    "args": {"beats": [{"content": "Tokoh utama berangkat -> tiba di lokasi"}]},
                 }
             ],
             ensure_ascii=False,
@@ -80,7 +80,7 @@ def test_compact_assistant_tool_calls_filters_other_agent_tools() -> None:
     assert compact["agent_id"] == "designer"
     assert "tool_calls" not in compact
     assert "<agent_role>designer</agent_role>" in compact["content"]
-    assert "不可作为当前Agent可用工具" in compact["content"]
+    assert "tidak dapat dipakai sebagai tool" in compact["content"]
     assert "confirm_outline" in compact["content"]
 
 
@@ -89,7 +89,7 @@ def test_compact_assistant_tool_calls_keeps_current_agent_tools() -> None:
         task_id="task-1",
         role="assistant",
         agent_id="writer",
-        content="准备编辑章节。",
+        content="Bersiap menyunting bab.",
         tool_calls=json.dumps(
             [
                 {
@@ -121,8 +121,8 @@ def test_compact_tool_message_drops_verbose_data() -> None:
         content=json.dumps(
             {
                 "success": True,
-                "message": "章节大纲已写入",
-                "data": {"beats": [{"content": "主角出发→抵达现场"}]},
+                "message": "Kerangka bab telah ditulis",
+                "data": {"beats": [{"content": "Tokoh utama berangkat -> tiba di lokasi"}]},
                 "metadata": {"tool_name": "confirm_outline"},
             },
             ensure_ascii=False,
@@ -137,7 +137,7 @@ def test_compact_tool_message_drops_verbose_data() -> None:
         "tool_call_id": "call_1",
         "tool_name": "confirm_outline",
         "success": True,
-        "message": "章节大纲已写入",
+        "message": "Kerangka bab telah ditulis",
     }
     assert "data" not in compact
 
@@ -150,8 +150,8 @@ def test_compact_tool_message_filters_other_agent_result() -> None:
         content=json.dumps(
             {
                 "success": True,
-                "message": "章节大纲已写入",
-                "data": {"beats": [{"content": "主角出发→抵达现场"}]},
+                "message": "Kerangka bab telah ditulis",
+                "data": {"beats": [{"content": "Tokoh utama berangkat -> tiba di lokasi"}]},
                 "metadata": {"tool_name": "confirm_outline"},
             },
             ensure_ascii=False,
@@ -163,7 +163,7 @@ def test_compact_tool_message_filters_other_agent_result() -> None:
 
     assert compact == {
         "role": "assistant",
-        "content": "<agent_role>designer</agent_role>\n工具结果上下文：confirm_outline - 章节大纲已写入",
+        "content": "<agent_role>designer</agent_role>\nKonteks hasil tool: confirm_outline - Kerangka bab telah ditulis",
         "agent_id": "designer",
     }
 
@@ -173,20 +173,20 @@ def test_compact_task_history_drops_reasoning_messages() -> None:
         TaskMessage(
             task_id="task-1",
             role="assistant",
-            content="旧思考",
+            content="Penalaran lama",
             message_type="reasoning",
             message_metadata='{"event_type": "reasoning"}',
         ),
         TaskMessage(
             task_id="task-1",
             role="assistant",
-            content="正式回答",
+            content="Jawaban resmi",
             message_type="text",
         ),
         TaskMessage(
             task_id="task-1",
             role="assistant",
-            content="最新思考",
+            content="Penalaran terbaru",
             message_type="reasoning",
             message_metadata='{"event_type": "reasoning"}',
         ),
@@ -194,7 +194,7 @@ def test_compact_task_history_drops_reasoning_messages() -> None:
 
     compact = _compact_task_history(messages)
 
-    assert [message["content"] for message in compact] == ["正式回答"]
+    assert [message["content"] for message in compact] == ["Jawaban resmi"]
 
 
 def test_compact_task_history_drops_hidden_and_node_messages() -> None:
@@ -209,21 +209,21 @@ def test_compact_task_history_drops_hidden_and_node_messages() -> None:
         TaskMessage(
             task_id="task-1",
             role="system",
-            content="内部状态",
+            content="Status internal",
             message_type="text",
             display_channel="hidden",
         ),
         TaskMessage(
             task_id="task-1",
             role="assistant",
-            content="正式回答",
+            content="Jawaban resmi",
             message_type="text",
         ),
     ]
 
     compact = _compact_task_history(messages)
 
-    assert [message["content"] for message in compact] == ["正式回答"]
+    assert [message["content"] for message in compact] == ["Jawaban resmi"]
 
 
 def test_compact_task_history_drops_unanswered_assistant_tool_call() -> None:
@@ -232,7 +232,7 @@ def test_compact_task_history_drops_unanswered_assistant_tool_call() -> None:
             task_id="task-1",
             role="assistant",
             agent_id="writer",
-            content="准备编辑章节",
+            content="Bersiap menyunting bab",
             tool_calls=json.dumps(
                 [{"id": "call-edit", "name": "edit_chapter", "args": {"content": "new"}}],
                 ensure_ascii=False,
@@ -249,7 +249,7 @@ def test_compact_task_history_keeps_answered_assistant_tool_call_pair() -> None:
             task_id="task-1",
             role="assistant",
             agent_id="writer",
-            content="准备读取章节",
+            content="Bersiap membaca bab",
             tool_calls=json.dumps(
                 [{"id": "call-read", "name": "read_chapter", "args": {"chapter_ref": {"type": "order", "value": 1}}}],
                 ensure_ascii=False,
@@ -260,7 +260,7 @@ def test_compact_task_history_keeps_answered_assistant_tool_call_pair() -> None:
             role="tool",
             agent_id="writer",
             content=json.dumps(
-                {"success": True, "message": "章节内容获取成功", "metadata": {"tool_name": "read_chapter"}},
+                {"success": True, "message": "Isi bab berhasil diambil", "metadata": {"tool_name": "read_chapter"}},
                 ensure_ascii=False,
             ),
             tool_call_id="call-read",
@@ -278,7 +278,7 @@ def test_compact_task_history_drops_clarification_panel_between_tool_pair() -> N
             task_id="task-1",
             role="assistant",
             agent_id="explore",
-            content="你的想法很明确，我这边还需要确认几个细节：",
+            content="Ide Anda sudah jelas, saya masih perlu memastikan beberapa detail:",
             tool_calls=json.dumps(
                 [{"id": "call-ask", "name": "ask_user", "args": {"questions": []}}],
                 ensure_ascii=False,
@@ -288,7 +288,7 @@ def test_compact_task_history_drops_clarification_panel_between_tool_pair() -> N
             task_id="task-1",
             role="assistant",
             agent_id="explore",
-            content="需要澄清：穿越后进入什么样的世界？",
+            content="Perlu klarifikasi: setelah berpindah dunia, dunia seperti apa yang dimasuki?",
             message_metadata=json.dumps({"event_type": "clarification"}, ensure_ascii=False),
         ),
         TaskMessage(
@@ -298,7 +298,7 @@ def test_compact_task_history_drops_clarification_panel_between_tool_pair() -> N
             content=json.dumps(
                 {
                     "success": True,
-                    "message": "用户已回答",
+                    "message": "Pengguna sudah menjawab",
                     "metadata": {"tool_name": "ask_user"},
                 },
                 ensure_ascii=False,
@@ -320,7 +320,7 @@ def test_compact_task_history_drops_tool_approval_message_between_tool_pair() ->
             task_id="task-1",
             role="assistant",
             agent_id="writer",
-            content="创建章节",
+            content="Buat bab",
             tool_calls=json.dumps(
                 [
                     {
@@ -336,7 +336,7 @@ def test_compact_task_history_drops_tool_approval_message_between_tool_pair() ->
             task_id="task-1",
             role="assistant",
             agent_id="writer",
-            content="该工具需要用户许可。",
+            content="Tool ini memerlukan izin pengguna.",
             message_type="approval",
             message_metadata=json.dumps(
                 {"event_type": "tool_approval_required"},
@@ -350,7 +350,7 @@ def test_compact_task_history_drops_tool_approval_message_between_tool_pair() ->
             content=json.dumps(
                 {
                     "success": True,
-                    "message": "章节创建成功",
+                    "message": "Bab berhasil dibuat",
                     "metadata": {"tool_name": "create_chapter"},
                 },
                 ensure_ascii=False,
@@ -366,7 +366,7 @@ def test_compact_task_history_drops_tool_approval_message_between_tool_pair() ->
     assert compact[0]["tool_calls"][0]["id"] == "call-create"
     assert compact[1]["role"] == "tool"
     assert compact[1]["tool_call_id"] == "call-create"
-    assert all("需要澄清" not in str(message.get("content") or "") for message in compact)
+    assert all("Perlu klarifikasi" not in str(message.get("content") or "") for message in compact)
 
 
 async def test_build_chat_messages_injects_handoff_without_task_history(monkeypatch) -> None:
@@ -378,7 +378,7 @@ async def test_build_chat_messages_injects_handoff_without_task_history(monkeypa
                 type(
                     "Entry",
                     (),
-                    {"role": "system", "content": "系统提示", "order_index": 0, "is_enabled": True},
+                    {"role": "system", "content": "Prompt sistem", "order_index": 0, "is_enabled": True},
                 )()
             ]
         },
@@ -408,18 +408,18 @@ async def test_build_chat_messages_injects_handoff_without_task_history(monkeypa
         AsyncMock(),
         prompt_id="builtin-agent--writer",
         runtime=ChatRuntime(
-            current_message="写作请求",
+            current_message="Permintaan penulisan",
             anchor_chapter_id="chapter-7",
-            skill_messages=[{"role": "system", "content": "<skill>技能上下文</skill>"}],
-            handoff_messages=[{"role": "user", "content": "<workflow_handoff>只交接产物</workflow_handoff>"}],
+            skill_messages=[{"role": "system", "content": "<skill>Konteks skill</skill>"}],
+            handoff_messages=[{"role": "user", "content": "<workflow_handoff>Hanya serahkan artefak</workflow_handoff>"}],
         ),
     )
 
     assert [message["content"] for message in messages] == [
-        "系统提示",
-        "<skill>技能上下文</skill>",
-        "<workflow_handoff>只交接产物</workflow_handoff>",
-        "写作请求",
+        "Prompt sistem",
+        "<skill>Konteks skill</skill>",
+        "<workflow_handoff>Hanya serahkan artefak</workflow_handoff>",
+        "Permintaan penulisan",
     ]
 
 
@@ -434,12 +434,12 @@ async def test_build_chat_messages_merges_consecutive_system_messages_when_enabl
                 type(
                     "Entry",
                     (),
-                    {"role": "system", "content": "系统提示一", "order_index": 0, "is_enabled": True},
+                    {"role": "system", "content": "Prompt sistem satu", "order_index": 0, "is_enabled": True},
                 )(),
                 type(
                     "Entry",
                     (),
-                    {"role": "system", "content": "系统提示二", "order_index": 1, "is_enabled": True},
+                    {"role": "system", "content": "Prompt sistem dua", "order_index": 1, "is_enabled": True},
                 )(),
             ]
         },
@@ -465,12 +465,12 @@ async def test_build_chat_messages_merges_consecutive_system_messages_when_enabl
         messages = await build_chat_messages(
             AsyncMock(),
             prompt_id="session-title",
-            runtime=ChatRuntime(current_message="写一段"),
+            runtime=ChatRuntime(current_message="Tulis satu bagian"),
         )
 
     assert messages == [
-        {"role": "system", "content": "系统提示一\n\n系统提示二"},
-        {"role": "user", "content": "写一段"},
+        {"role": "system", "content": "Prompt sistem satu\n\nPrompt sistem dua"},
+        {"role": "user", "content": "Tulis satu bagian"},
     ]
 
 
@@ -483,7 +483,7 @@ async def test_build_chat_messages_does_not_append_empty_current_message(monkeyp
                 type(
                     "Entry",
                     (),
-                    {"role": "system", "content": "系统提示", "order_index": 0, "is_enabled": True},
+                    {"role": "system", "content": "Prompt sistem", "order_index": 0, "is_enabled": True},
                 )()
             ]
         },
@@ -505,13 +505,13 @@ async def test_build_chat_messages_does_not_append_empty_current_message(monkeyp
         prompt_id="builtin-agent--writer",
         runtime=ChatRuntime(
             current_message="",
-            handoff_messages=[{"role": "user", "content": "<workflow_handoff>包含初始请求</workflow_handoff>"}],
+            handoff_messages=[{"role": "user", "content": "<workflow_handoff>Memuat permintaan awal</workflow_handoff>"}],
         ),
     )
 
     assert [message["content"] for message in messages] == [
-        "系统提示",
-        "<workflow_handoff>包含初始请求</workflow_handoff>",
+        "Prompt sistem",
+        "<workflow_handoff>Memuat permintaan awal</workflow_handoff>",
     ]
 
 
@@ -524,7 +524,7 @@ async def test_build_chat_messages_appends_current_agent_local_react_history(mon
                 type(
                     "Entry",
                     (),
-                    {"role": "system", "content": "系统提示", "order_index": 0, "is_enabled": True},
+                    {"role": "system", "content": "Prompt sistem", "order_index": 0, "is_enabled": True},
                 )()
             ]
         },
@@ -544,7 +544,7 @@ async def test_build_chat_messages_appends_current_agent_local_react_history(mon
             task_id="task-1",
             role="assistant",
             agent_id="writer",
-            content="准备读取章节",
+            content="Bersiap membaca bab",
             tool_calls=json.dumps(
                 [{"id": "call-1", "name": "read_chapter", "args": {"chapter_ref": {"type": "order", "value": 1}}}],
                 ensure_ascii=False,
@@ -556,7 +556,7 @@ async def test_build_chat_messages_appends_current_agent_local_react_history(mon
             role="tool",
             agent_id="writer",
             content=json.dumps(
-                {"success": True, "message": "已读取", "metadata": {"tool_name": "read_chapter"}},
+                {"success": True, "message": "Sudah dibaca", "metadata": {"tool_name": "read_chapter"}},
                 ensure_ascii=False,
             ),
             tool_call_id="call-1",
@@ -566,14 +566,14 @@ async def test_build_chat_messages_appends_current_agent_local_react_history(mon
             task_id="task-1",
             role="assistant",
             agent_id="designer",
-            content="其它 Agent 历史不应进入",
+            content="Riwayat Agent lain tidak boleh masuk",
             message_metadata=json.dumps({"event_type": "assistant_message", "revision_id": "revision-1"}),
         ),
         TaskMessage(
             task_id="task-1",
             role="assistant",
             agent_id="writer",
-            content="旧 revision 不应进入",
+            content="revision lama tidak boleh masuk",
             message_metadata=json.dumps({"event_type": "assistant_message", "revision_id": "revision-0"}),
         ),
     ]
@@ -588,25 +588,25 @@ async def test_build_chat_messages_appends_current_agent_local_react_history(mon
         AsyncMock(),
         prompt_id="builtin-agent--writer",
         runtime=ChatRuntime(
-            current_message="继续写作",
+            current_message="Lanjutkan menulis",
             task_id="task-1",
             history_agent_name="writer",
             history_revision_id="revision-1",
-            handoff_messages=[{"role": "user", "content": "<workflow_handoff>大纲</workflow_handoff>"}],
+            handoff_messages=[{"role": "user", "content": "<workflow_handoff>Kerangka</workflow_handoff>"}],
         ),
     )
 
     contents = [str(message.get("content") or "") for message in messages]
-    assert contents[:2] == ["系统提示", "<workflow_handoff>大纲</workflow_handoff>"]
+    assert contents[:2] == ["Prompt sistem", "<workflow_handoff>Kerangka</workflow_handoff>"]
     assert messages[2]["role"] == "assistant"
-    assert messages[2]["content"] == "准备读取章节"
+    assert messages[2]["content"] == "Bersiap membaca bab"
     assert messages[3]["role"] == "tool"
     assert messages[3]["tool_call_id"] == "call-1"
-    assert messages[3]["message"] == "已读取"
-    assert contents[-1] == "继续写作"
+    assert messages[3]["message"] == "Sudah dibaca"
+    assert contents[-1] == "Lanjutkan menulis"
     assert any(message.get("role") == "tool" and message.get("tool_call_id") == "call-1" for message in messages)
-    assert "其它 Agent 历史不应进入" not in contents
-    assert "旧 revision 不应进入" not in contents
+    assert "Riwayat Agent lain tidak boleh masuk" not in contents
+    assert "revision lama tidak boleh masuk" not in contents
 
 
 async def test_build_chat_messages_places_writer_history_before_new_user_message(monkeypatch) -> None:
@@ -618,7 +618,7 @@ async def test_build_chat_messages_places_writer_history_before_new_user_message
                 type(
                     "Entry",
                     (),
-                    {"role": "system", "content": "系统提示", "order_index": 0, "is_enabled": True},
+                    {"role": "system", "content": "Prompt sistem", "order_index": 0, "is_enabled": True},
                 )()
             ]
         },
@@ -638,7 +638,7 @@ async def test_build_chat_messages_places_writer_history_before_new_user_message
             task_id="task-1",
             role="assistant",
             agent_id="writer",
-            content="准备编辑章节",
+            content="Bersiap menyunting bab",
             tool_calls=json.dumps(
                 [
                     {
@@ -656,7 +656,7 @@ async def test_build_chat_messages_places_writer_history_before_new_user_message
             role="tool",
             agent_id="writer",
             content=json.dumps(
-                {"success": True, "message": "已编辑", "metadata": {"tool_name": "edit_chapter"}},
+                {"success": True, "message": "Sudah disunting", "metadata": {"tool_name": "edit_chapter"}},
                 ensure_ascii=False,
             ),
             tool_call_id="call-edit",
@@ -674,11 +674,11 @@ async def test_build_chat_messages_places_writer_history_before_new_user_message
         AsyncMock(),
         prompt_id="builtin-agent--writer",
         runtime=ChatRuntime(
-            current_message="根据审查意见继续修改",
+            current_message="Lanjutkan perbaikan sesuai masukan review",
             task_id="task-1",
             history_agent_name="writer",
             history_revision_id="revision-1",
-            handoff_messages=[{"role": "user", "content": "<workflow_handoff>审查未通过</workflow_handoff>"}],
+            handoff_messages=[{"role": "user", "content": "<workflow_handoff>Review tidak lolos</workflow_handoff>"}],
         ),
     )
 
@@ -689,7 +689,7 @@ async def test_build_chat_messages_places_writer_history_before_new_user_message
         "tool",
         "user",
     ]
-    assert messages[-1]["content"] == "根据审查意见继续修改"
+    assert messages[-1]["content"] == "Lanjutkan perbaikan sesuai masukan review"
     assert messages[2].get("tool_calls") == [
         {
             "id": "call-edit",

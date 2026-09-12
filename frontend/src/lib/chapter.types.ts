@@ -1,11 +1,11 @@
 /**
  * Chapter Types
  *
- * 章节相关的 TypeScript 类型定义，与后端 Schema 对应。
+ * Definisi tipe TypeScript terkait bab, sepadan dengan Schema backend.
  */
 
 /**
- * 章节实体（完整版，包含正文）
+ * Entitas bab (versi lengkap, menyertakan isi utama)
  */
 export interface Chapter {
   id: string;
@@ -20,7 +20,7 @@ export interface Chapter {
 }
 
 /**
- * 章节列表项（精简版，不含正文，用于列表展示）
+ * Item daftar bab (versi ringkas, tanpa isi utama, dipakai untuk tampilan daftar)
  */
 export interface ChapterListItem {
   id: string;
@@ -34,7 +34,7 @@ export interface ChapterListItem {
 }
 
 /**
- * 创建章节请求
+ * Permintaan pembuatan bab
  */
 export interface ChapterCreate {
   volumeId: string;
@@ -44,7 +44,7 @@ export interface ChapterCreate {
 }
 
 /**
- * 更新章节请求
+ * Permintaan pembaruan bab
  */
 export interface ChapterUpdate {
   title?: string;
@@ -87,7 +87,7 @@ export interface VolumeMove {
 }
 
 /**
- * 移动章节请求
+ * Permintaan pemindahan bab
  */
 export interface ChapterMove {
   newOrder: number;

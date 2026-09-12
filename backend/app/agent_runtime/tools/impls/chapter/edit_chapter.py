@@ -35,37 +35,46 @@ from app.storage.services.version_control_service import refresh_project_stats
 def count_words(text: str) -> int:
     if not text:
         return 0
-    chinese_chars = re.findall(r"[一-鿿]", text)
-    text_without_chinese = re.sub(r"[一-鿿]", " ", text)
+    chinese_chars = re.findall(r"[\u4e00-\u9fff]", text)
+    text_without_chinese = re.sub(r"[\u4e00-\u9fff]", " ", text)
     english_words = [w for w in text_without_chinese.split() if w.strip()]
     return len(chinese_chars) + len(english_words)
 
 
 class EditChapterInput(BaseModel):
-    volume_ref: VolumeRef = Field(description="目标卷")
-    chapter_ref: ChapterRef = Field(description="目标章节")
+    volume_ref: VolumeRef = Field(description="Volume sasaran")
+    chapter_ref: ChapterRef = Field(description="Bab sasaran")
     new_title: str | None = Field(
         default=None,
-        description="新章节标题，可选；仅在修改标题时填写",
+        description=(
+            "Judul bab yang baru, opsional; isi hanya bila mengubah judul"
+        ),
     )
     old_content: str | None = Field(
         default=None,
-        description="要查找并替换的原始文本；仅在修改正文时填写",
+        description=(
+            "Teks asli yang akan dicari dan diganti; isi hanya bila mengubah isi utama"
+        ),
     )
     new_content: str | None = Field(
         default=None,
-        description="用于替换的新文本；仅在修改正文时填写",
+        description=(
+            "Teks baru sebagai pengganti; isi hanya bila mengubah isi utama"
+        ),
     )
     replace_all: bool = Field(
         default=False,
-        description="是否替换命中的全部old_content，指定为false时只替换首个匹配项",
+        description=(
+            "Apakah mengganti seluruh old_content yang cocok; bila diisi false hanya "
+            "kecocokan pertama yang diganti"
+        ),
     )
 
     @field_validator("old_content", mode="after")
     @classmethod
     def reject_empty_old_content(cls, v):
         if v is not None and v == "":
-            raise ValueError("old_content 不能为空字符串")
+            raise ValueError("old_content tidak boleh berupa string kosong")
         return v
 
     @field_validator("new_content", mode="after")
@@ -75,14 +84,16 @@ class EditChapterInput(BaseModel):
         has_title = data.get("new_title") is not None
         has_content = data.get("old_content") is not None and v is not None
         if not has_title and not has_content:
-            raise ValueError("new_title 和 old_content/new_content 必填其中一类")
+            raise ValueError(
+                "salah satu dari new_title atau old_content/new_content wajib diisi"
+            )
         return v
 
 
 @ToolRegistry.register
 class EditChapterTool(AgentTool):
     name: str = "edit_chapter"
-    description: str = "编辑指定章节的标题或内容"
+    description: str = "Menyunting judul atau isi bab yang ditentukan"
     access_level: str = "write"
     args_schema: type[BaseModel] = EditChapterInput
 
@@ -125,7 +136,9 @@ class EditChapterTool(AgentTool):
     ) -> str:
         revision_id = current_revision_id_from_state(self._state)
         if revision_id is None:
-            raise ToolExecutionError("缺少当前 revision，无法执行章节编辑")
+            raise ToolExecutionError(
+                "revision saat ini tidak ada, penyuntingan bab tidak dapat dijalankan"
+            )
         volume_ref_model = VolumeRef.model_validate(volume_ref)
         ref = ChapterRef.model_validate(chapter_ref)
         session = await create_session()
@@ -150,7 +163,9 @@ class EditChapterTool(AgentTool):
                     match.content, old_content, new_content, replace_all=replace_all
                 )
                 if replace_result is None:
-                    raise ToolExecutionError("未在章节内容中找到要替换的文本")
+                    raise ToolExecutionError(
+                        "Teks yang akan diganti tidak ditemukan di dalam isi bab"
+                    )
                 match.content = replace_result.new_content
                 try:
                     validate_editor_content(match.content)
@@ -186,7 +201,9 @@ class EditChapterTool(AgentTool):
             from app.retrieval.chapter_index import safe_maybe_enqueue_auto_index
             from app.retrieval.index_status import schedule_emit_index_status
 
-            await safe_maybe_enqueue_auto_index(session, project_id=self.project_id)
+            await safe_maybe_enqueue_auto_index(
+                session, project_id=self.project_id
+            )
             schedule_emit_index_status(session, self.project_id)
             await background_service.commit_and_notify(session)
             return json.dumps(

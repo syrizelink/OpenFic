@@ -26,11 +26,11 @@ def _revision(revision_id: str, project_id: str, task_id: str | None = None) -> 
         id=revision_id,
         project_id=project_id,
         task_id=task_id,
-        message="版本",
+        message="Revisi",
         revision_type="agent",
         status="completed",
         is_checkpoint=True,
-        project_snapshot_title="标题",
+        project_snapshot_title="Judul",
     )
 
 
@@ -57,12 +57,12 @@ async def test_cleanup_removes_dangling_children_and_orphan_revisions(
 ):
     session = revision_cleanup_session
 
-    session.add(Project(id="proj-live", title="存活项目"))
+    session.add(Project(id="proj-live", title="Proyek Aktif"))
     session.add(
         Task(
             id="task-live",
             project_id="proj-live",
-            title="存活任务",
+            title="Tugas Aktif",
             mode="agent",
             agent_session_id="sess-live",
         )
@@ -101,12 +101,12 @@ async def test_cleanup_preserves_valid_revision_history(
     revision_cleanup_session: AsyncSession,
 ):
     session = revision_cleanup_session
-    session.add(Project(id="proj-live", title="存活项目"))
+    session.add(Project(id="proj-live", title="Proyek Aktif"))
     session.add(
         Task(
             id="task-live",
             project_id="proj-live",
-            title="存活任务",
+            title="Tugas Aktif",
             mode="agent",
             agent_session_id="sess-live",
         )

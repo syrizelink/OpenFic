@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Agent API Schemas。
+Agent API Schemas.
 """
 
 from datetime import datetime
@@ -12,377 +12,377 @@ from app.api.schemas.task import TaskMessage
 from app.models.clients.model_params import ReasoningEffort
 
 class AgentSessionCreateRequest(BaseModel):
-    """创建 Agent 会话请求。"""
+    """Permintaan pembuatan sesi Agent."""
 
-    project_id: str = Field(..., description="项目ID")
-    model_id: str = Field(..., description="模型ID")
+    project_id: str = Field(..., description="ID proyek")
+    model_id: str = Field(..., description="ID model")
     max_iterations: int = Field(
         default=DEFAULT_AGENT_MAX_ITERATIONS,
         ge=1,
         le=DEFAULT_AGENT_MAX_ITERATIONS,
-        description="最大迭代次数",
+        description="Jumlah iterasi maksimum",
     )
     agent_key: str = Field(
         default="build",
-        description="主智能体标识，用于选择启用的 primary agent",
+        description="Identitas agen utama, dipakai untuk memilih primary agent yang aktif",
     )
     reasoning_effort: ReasoningEffort | None = Field(
         default=None,
-        description="当前会话推理强度，仅 reasoning 模型可用",
+        description="Intensitas penalaran sesi saat ini, hanya tersedia untuk model reasoning",
     )
 
     model_config = {"extra": "forbid"}
 
 
 class AgentSessionCreateResponse(BaseModel):
-    """创建 Agent 会话响应。"""
+    """Respons pembuatan sesi Agent."""
 
-    session_id: str = Field(..., description="会话ID")
-    project_id: str = Field(..., description="项目ID")
-    status: str = Field(..., description="状态")
-    task_id: str = Field(..., description="创建的任务ID")
-    task_title: str = Field(..., description="创建的任务标题")
-    task_created_at: str = Field(..., description="任务创建时间")
-    task_updated_at: str = Field(..., description="任务更新时间")
-    agent_key: str = Field(..., description="当前会话使用的主智能体标识")
+    session_id: str = Field(..., description="ID sesi")
+    project_id: str = Field(..., description="ID proyek")
+    status: str = Field(..., description="Status")
+    task_id: str = Field(..., description="ID tugas yang dibuat")
+    task_title: str = Field(..., description="Judul tugas yang dibuat")
+    task_created_at: str = Field(..., description="Waktu pembuatan tugas")
+    task_updated_at: str = Field(..., description="Waktu pembaruan tugas")
+    agent_key: str = Field(..., description="Identitas agen utama yang dipakai sesi saat ini")
 
 
 class AgentAttachmentResponse(BaseModel):
-    """Agent 图片附件元数据。"""
+    """Metadata lampiran gambar Agent."""
 
-    id: str = Field(..., description="附件 ID")
-    session_id: str = Field(..., description="所属会话 ID")
-    storage_name: str = Field(..., description="服务端存储相对路径")
-    file_name: str = Field(..., description="原始文件名")
-    mime_type: str = Field(..., description="图片 MIME 类型")
-    size_bytes: int = Field(..., description="文件大小")
-    width: int = Field(..., description="图片宽度")
-    height: int = Field(..., description="图片高度")
-    url: str = Field(..., description="图片展示地址")
+    id: str = Field(..., description="ID lampiran")
+    session_id: str = Field(..., description="ID sesi pemilik")
+    storage_name: str = Field(..., description="Path relatif penyimpanan di sisi server")
+    file_name: str = Field(..., description="Nama berkas asli")
+    mime_type: str = Field(..., description="Tipe MIME gambar")
+    size_bytes: int = Field(..., description="Ukuran berkas")
+    width: int = Field(..., description="Lebar gambar")
+    height: int = Field(..., description="Tinggi gambar")
+    url: str = Field(..., description="Alamat tampilan gambar")
 
 
 class AgentSendMessageRequest(BaseModel):
-    """发送用户消息请求。"""
+    """Permintaan pengiriman pesan pengguna."""
 
-    message: str = Field(default="", description="用户消息内容")
-    attachments: list[str] = Field(default_factory=list, description="图片附件 ID 列表")
-    model_id: str | None = Field(default=None, description="下一轮执行使用的模型ID")
-    agent_key: str | None = Field(default=None, description="下一轮执行使用的主智能体标识")
+    message: str = Field(default="", description="Isi pesan pengguna")
+    attachments: list[str] = Field(default_factory=list, description="Daftar ID lampiran gambar")
+    model_id: str | None = Field(default=None, description="ID model yang dipakai pada eksekusi putaran berikutnya")
+    agent_key: str | None = Field(default=None, description="Identitas agen utama yang dipakai pada eksekusi putaran berikutnya")
     reasoning_effort: ReasoningEffort | None = Field(
         default=None,
-        description="当前轮推理强度，仅 reasoning 模型可用",
+        description="Intensitas penalaran putaran ini, hanya tersedia untuk model reasoning",
     )
 
 
 class AgentPendingMessageResponse(BaseModel):
-    """运行中排队的用户消息。"""
+    """Pesan pengguna yang mengantre saat proses berjalan."""
 
-    message_id: str = Field(..., description="待消费消息ID")
-    content: str = Field(..., description="待消费消息内容")
-    created_at: str = Field(..., description="进入 pending 的时间")
+    message_id: str = Field(..., description="ID pesan yang menunggu diproses")
+    content: str = Field(..., description="Isi pesan yang menunggu diproses")
+    created_at: str = Field(..., description="Waktu masuk ke pending")
 
 
 class AgentSendMessageResponse(BaseModel):
-    """发送用户消息响应。"""
+    """Respons pengiriman pesan pengguna."""
 
-    success: bool = Field(..., description="是否成功")
-    session_id: str = Field(..., description="会话ID")
-    message: str = Field(..., description="结果消息")
-    queued: bool = Field(default=False, description="是否进入 pending 队列")
-    model_updated: bool = Field(default=False, description="是否已更新下一轮执行模型")
+    success: bool = Field(..., description="Apakah berhasil")
+    session_id: str = Field(..., description="ID sesi")
+    message: str = Field(..., description="Pesan hasil")
+    queued: bool = Field(default=False, description="Apakah masuk ke antrean pending")
+    model_updated: bool = Field(default=False, description="Apakah model eksekusi putaran berikutnya sudah diperbarui")
     pending_message: AgentPendingMessageResponse | None = Field(
         default=None,
-        description="进入 pending 的消息负载",
+        description="Payload pesan yang masuk ke pending",
     )
 
 
 class AgentCancelPendingMessageRequest(BaseModel):
-    """取消待消费用户消息请求。"""
+    """Permintaan pembatalan pesan pengguna yang menunggu diproses."""
 
-    message_id: str = Field(..., description="待取消的 pending message ID")
+    message_id: str = Field(..., description="ID pending message yang akan dibatalkan")
 
 
 class AgentCancelPendingMessageResponse(BaseModel):
-    """取消待消费用户消息响应。"""
+    """Respons pembatalan pesan pengguna yang menunggu diproses."""
 
-    success: bool = Field(..., description="是否成功")
-    session_id: str = Field(..., description="会话ID")
-    message_id: str = Field(..., description="被取消的 pending message ID")
-    restored_message_content: str = Field(..., description="恢复到输入框的消息内容")
+    success: bool = Field(..., description="Apakah berhasil")
+    session_id: str = Field(..., description="ID sesi")
+    message_id: str = Field(..., description="ID pending message yang dibatalkan")
+    restored_message_content: str = Field(..., description="Isi pesan yang dipulihkan ke kotak masukan")
 
 
 class AgentCompactionResponse(BaseModel):
-    """手动压缩响应。"""
+    """Respons kompresi manual."""
 
-    success: bool = Field(..., description="是否成功")
-    session_id: str = Field(..., description="会话ID")
-    compaction_id: str = Field(..., description="压缩记录ID")
-    start_seq: int = Field(..., description="压缩窗口起始消息序号")
-    end_seq: int = Field(..., description="压缩窗口结束消息序号")
-    source_input_tokens: int = Field(default=0, description="源窗口输入 token 数")
-    summary_tokens: int = Field(default=0, description="摘要 token 数")
+    success: bool = Field(..., description="Apakah berhasil")
+    session_id: str = Field(..., description="ID sesi")
+    compaction_id: str = Field(..., description="ID catatan kompresi")
+    start_seq: int = Field(..., description="Nomor urut pesan awal jendela kompresi")
+    end_seq: int = Field(..., description="Nomor urut pesan akhir jendela kompresi")
+    source_input_tokens: int = Field(default=0, description="Jumlah token masukan jendela sumber")
+    summary_tokens: int = Field(default=0, description="Jumlah token ringkasan")
 
 
 class AgentQuestionAnswerRequest(BaseModel):
-    """提交 Agent 澄清问题回答请求。"""
+    """Permintaan pengiriman jawaban pertanyaan klarifikasi Agent."""
 
-    action_id: str = Field(..., description="澄清请求ID")
-    answer: list["AgentQuestionAnswerItem"] = Field(default_factory=list, description="澄清问题回答")
-    skipped: bool = Field(default=False, description="是否忽略本次提问")
+    action_id: str = Field(..., description="ID permintaan klarifikasi")
+    answer: list["AgentQuestionAnswerItem"] = Field(default_factory=list, description="Jawaban pertanyaan klarifikasi")
+    skipped: bool = Field(default=False, description="Apakah pertanyaan ini diabaikan")
 
 
 class AgentQuestionAnswerItem(BaseModel):
-    """单个澄清问题回答。"""
+    """Jawaban satu pertanyaan klarifikasi."""
 
-    question: str = Field(..., min_length=1, description="问题标题")
-    answer: str = Field(..., min_length=1, description="选项标签或用户输入")
+    question: str = Field(..., min_length=1, description="Judul pertanyaan")
+    answer: str = Field(..., min_length=1, description="Label opsi atau masukan pengguna")
 
 
 class AgentToolApprovalRequest(BaseModel):
-    """Agent工具审批请求。"""
+    """Permintaan persetujuan tool Agent."""
 
-    approval_id: str = Field(..., description="审批ID")
-    approved: bool = Field(..., description="是否批准")
+    approval_id: str = Field(..., description="ID persetujuan")
+    approved: bool = Field(..., description="Apakah disetujui")
 
 
 class AgentInterruptResponseItem(BaseModel):
-    """单个并行中断响应。"""
+    """Respons satu interupsi paralel."""
 
-    interrupt_id: str = Field(..., description="LangGraph 中断ID")
-    action_type: str = Field(..., description="中断响应类型")
-    approval_id: str | None = Field(default=None, description="工具审批ID")
-    approved: bool | None = Field(default=None, description="是否批准工具")
-    action_id: str | None = Field(default=None, description="澄清请求ID")
+    interrupt_id: str = Field(..., description="ID interupsi LangGraph")
+    action_type: str = Field(..., description="Tipe respons interupsi")
+    approval_id: str | None = Field(default=None, description="ID persetujuan tool")
+    approved: bool | None = Field(default=None, description="Apakah tool disetujui")
+    action_id: str | None = Field(default=None, description="ID permintaan klarifikasi")
     answer: list[AgentQuestionAnswerItem] | None = Field(
         default=None,
-        description="澄清问题回答",
+        description="Jawaban pertanyaan klarifikasi",
     )
-    skipped: bool | None = Field(default=None, description="是否忽略本次提问")
+    skipped: bool | None = Field(default=None, description="Apakah pertanyaan ini diabaikan")
 
 
 class AgentInterruptResumeRequest(BaseModel):
-    """批量恢复同一轮并行中断。"""
+    """Memulihkan seluruh interupsi paralel pada putaran yang sama."""
 
-    batch_id: str = Field(..., description="中断批次ID")
+    batch_id: str = Field(..., description="ID batch interupsi")
     responses: list[AgentInterruptResponseItem] = Field(
         ...,
         min_length=1,
         max_length=20,
-        description="本批全部中断响应",
+        description="Seluruh respons interupsi pada batch ini",
     )
 
 
 class AgentToolMetadataResponse(BaseModel):
-    """Agent 工具权限元数据。"""
+    """Metadata izin tool Agent."""
 
-    key: str = Field(..., description="权限配置键")
-    is_readonly: bool = Field(..., description="是否只读")
+    key: str = Field(..., description="Kunci konfigurasi izin")
+    is_readonly: bool = Field(..., description="Apakah hanya baca")
 
 
 class AgentSessionStateResponse(BaseModel):
-    """会话状态响应。"""
+    """Respons status sesi."""
 
-    session_id: str = Field(..., description="会话ID")
-    state: dict = Field(..., description="状态信息")
-    is_running: bool = Field(default=False, description="会话是否仍有后台运行任务")
-    interrupts: list[dict] = Field(default_factory=list, description="待处理的可恢复中断")
+    session_id: str = Field(..., description="ID sesi")
+    state: dict = Field(..., description="Informasi status")
+    is_running: bool = Field(default=False, description="Apakah sesi masih punya tugas yang berjalan di latar belakang")
+    interrupts: list[dict] = Field(default_factory=list, description="Interupsi tertunda yang dapat dipulihkan")
 
 
 class AgentChangeLineResponse(BaseModel):
-    """单行 Agent 内容变更。"""
+    """Satu baris perubahan konten Agent."""
 
-    type: str = Field(description="变更行类型：context、added 或 removed")
-    before_line_number: int | None = Field(default=None, description="变更前行号")
-    after_line_number: int | None = Field(default=None, description="变更后行号")
-    text: str = Field(default="", description="变更行内容")
+    type: str = Field(description="Tipe baris perubahan: context, added, atau removed")
+    before_line_number: int | None = Field(default=None, description="Nomor baris sebelum perubahan")
+    after_line_number: int | None = Field(default=None, description="Nomor baris setelah perubahan")
+    text: str = Field(default="", description="Isi baris perubahan")
 
 
 class AgentChangeSectionResponse(BaseModel):
-    """Agent 内容变更。"""
+    """Perubahan konten Agent."""
 
-    type: str = Field(description="变更类型：content")
-    lines: list[AgentChangeLineResponse] = Field(default_factory=list, description="内容变更行")
+    type: str = Field(description="Tipe perubahan: content")
+    lines: list[AgentChangeLineResponse] = Field(default_factory=list, description="Baris perubahan konten")
 
 
 class AgentChangeItemResponse(BaseModel):
-    """单个 Agent 内容变更项。"""
+    """Satu item perubahan konten Agent."""
 
-    key: str = Field(description="变更实体键")
-    kind: str = Field(description="实体类型")
-    title: str = Field(description="实体标题")
-    title_before: str | None = Field(default=None, description="标题变更前文本")
-    title_after: str | None = Field(default=None, description="标题变更后文本")
-    operation: str = Field(description="变更操作")
-    path: list[str] = Field(default_factory=list, description="实体所属层级路径")
-    sections: list[AgentChangeSectionResponse] = Field(default_factory=list, description="Diff 分段")
-    added: int = Field(default=0, description="新增行数")
-    removed: int = Field(default=0, description="删除行数")
-    source_message_id: str = Field(description="来源工具消息 ID")
-    source: str = Field(description="变更来源：primary、subagent 或 session")
-    child_run_id: str | None = Field(default=None, description="来源子运行 ID")
-    request_id: str | None = Field(default=None, description="来源子运行请求 ID")
-    agent_key: str | None = Field(default=None, description="来源子代理标识")
-    agent_number: str | None = Field(default=None, description="来源子代理编号")
-    revision_id: str | None = Field(default=None, description="所属 revision ID")
+    key: str = Field(description="Kunci entitas perubahan")
+    kind: str = Field(description="Tipe entitas")
+    title: str = Field(description="Judul entitas")
+    title_before: str | None = Field(default=None, description="Teks judul sebelum perubahan")
+    title_after: str | None = Field(default=None, description="Teks judul setelah perubahan")
+    operation: str = Field(description="Operasi perubahan")
+    path: list[str] = Field(default_factory=list, description="Path hierarki pemilik entitas")
+    sections: list[AgentChangeSectionResponse] = Field(default_factory=list, description="Segmen Diff")
+    added: int = Field(default=0, description="Jumlah baris yang ditambahkan")
+    removed: int = Field(default=0, description="Jumlah baris yang dihapus")
+    source_message_id: str = Field(description="ID pesan tool sumber")
+    source: str = Field(description="Sumber perubahan: primary, subagent, atau session")
+    child_run_id: str | None = Field(default=None, description="ID sub-run sumber")
+    request_id: str | None = Field(default=None, description="ID permintaan sub-run sumber")
+    agent_key: str | None = Field(default=None, description="Identitas subagen sumber")
+    agent_number: str | None = Field(default=None, description="Nomor subagen sumber")
+    revision_id: str | None = Field(default=None, description="ID revision pemilik")
 
 
 class AgentChangeSummaryResponse(BaseModel):
-    """Agent 内容变更汇总。"""
+    """Ringkasan perubahan konten Agent."""
 
-    item_count: int = Field(default=0, description="变更项数量")
-    added: int = Field(default=0, description="新增行数")
-    removed: int = Field(default=0, description="删除行数")
-    items: list[AgentChangeItemResponse] = Field(default_factory=list, description="变更项")
+    item_count: int = Field(default=0, description="Jumlah item perubahan")
+    added: int = Field(default=0, description="Jumlah baris yang ditambahkan")
+    removed: int = Field(default=0, description="Jumlah baris yang dihapus")
+    items: list[AgentChangeItemResponse] = Field(default_factory=list, description="Item perubahan")
 
 
 class AgentSubagentRunChangesResponse(BaseModel):
-    """单个 subagent 请求产生的变更。"""
+    """Perubahan yang dihasilkan satu permintaan subagent."""
 
-    child_run_id: str = Field(description="子运行 ID")
-    child_thread_id: str = Field(description="子线程 ID")
-    request_id: str | None = Field(default=None, description="子运行请求 ID")
-    child_user_message_id: str | None = Field(default=None, description="子运行用户消息 ID")
-    agent_key: str = Field(description="子代理标识")
-    agent_number: str | None = Field(default=None, description="子代理编号")
-    changes: AgentChangeSummaryResponse = Field(description="该 subagent 请求的变更")
+    child_run_id: str = Field(description="ID sub-run")
+    child_thread_id: str = Field(description="ID sub-thread")
+    request_id: str | None = Field(default=None, description="ID permintaan sub-run")
+    child_user_message_id: str | None = Field(default=None, description="ID pesan pengguna sub-run")
+    agent_key: str = Field(description="Identitas subagen")
+    agent_number: str | None = Field(default=None, description="Nomor subagen")
+    changes: AgentChangeSummaryResponse = Field(description="Perubahan dari permintaan subagent ini")
 
 
 class AgentTurnChangesResponse(BaseModel):
-    """主会话单个 turn 的变更。"""
+    """Perubahan satu turn pada sesi utama."""
 
-    revision_id: str = Field(description="该 turn 的 revision ID")
-    user_message_id: str | None = Field(default=None, description="触发 turn 的用户消息 ID")
-    user_message_seq: int | None = Field(default=None, description="触发 turn 的用户消息序号")
-    changes: AgentChangeSummaryResponse = Field(description="该 turn 的完整变更")
+    revision_id: str = Field(description="ID revision turn ini")
+    user_message_id: str | None = Field(default=None, description="ID pesan pengguna yang memicu turn")
+    user_message_seq: int | None = Field(default=None, description="Nomor urut pesan pengguna yang memicu turn")
+    changes: AgentChangeSummaryResponse = Field(description="Perubahan lengkap pada turn ini")
     subagent_runs: list[AgentSubagentRunChangesResponse] = Field(
         default_factory=list,
-        description="该 turn 下的 subagent 变更",
+        description="Perubahan subagent di bawah turn ini",
     )
 
 
 class AgentSessionChangesResponse(BaseModel):
-    """主会话及其 subagent 的完整变更。"""
+    """Perubahan lengkap sesi utama beserta subagent-nya."""
 
-    session_id: str = Field(description="Agent 会话 ID")
-    turns: list[AgentTurnChangesResponse] = Field(default_factory=list, description="按 turn 分组的变更")
-    session_changes: AgentChangeSummaryResponse = Field(description="整个会话的变更")
+    session_id: str = Field(description="ID sesi Agent")
+    turns: list[AgentTurnChangesResponse] = Field(default_factory=list, description="Perubahan yang dikelompokkan per turn")
+    session_changes: AgentChangeSummaryResponse = Field(description="Perubahan seluruh sesi")
 
 
 class ActiveSubagentStateResponse(BaseModel):
-    """父会话下活跃子代理的只读状态行。"""
+    """Baris status hanya-baca subagen aktif di bawah sesi induk."""
 
-    child_run_id: str = Field(..., description="子运行ID")
-    child_thread_id: str = Field(..., description="子线程ID")
-    agent_key: str = Field(..., description="子代理标识")
-    agent_number: str | None = Field(default=None, description="子代理编号")
-    status: str = Field(..., description="子运行状态")
-    queued_messages: int = Field(..., description="待处理请求数")
-    is_active: bool = Field(..., description="子运行是否仍活跃")
+    child_run_id: str = Field(..., description="ID sub-run")
+    child_thread_id: str = Field(..., description="ID sub-thread")
+    agent_key: str = Field(..., description="Identitas subagen")
+    agent_number: str | None = Field(default=None, description="Nomor subagen")
+    status: str = Field(..., description="Status sub-run")
+    queued_messages: int = Field(..., description="Jumlah permintaan yang menunggu diproses")
+    is_active: bool = Field(..., description="Apakah sub-run masih aktif")
     pending_approval: dict | None = Field(
         default=None,
-        description="当前待处理的工具审批负载",
+        description="Payload persetujuan tool yang sedang menunggu",
     )
 
 
 class SubagentSessionResponse(BaseModel):
-    """子代理会话详情。"""
+    """Detail sesi subagen."""
 
-    child_run_id: str = Field(..., description="子运行ID")
-    parent_session_id: str = Field(..., description="父会话ID")
-    parent_task_id: str = Field(..., description="父任务ID")
-    parent_thread_id: str = Field(..., description="父线程ID")
-    child_thread_id: str = Field(..., description="子线程ID")
-    agent_key: str = Field(..., description="子代理标识")
-    agent_number: str | None = Field(default=None, description="子代理编号")
-    dispatch_id: str = Field(..., description="调度ID")
-    tool_call_id: str = Field(..., description="工具调用ID")
-    status: str = Field(..., description="子运行状态")
-    queued_messages: int = Field(..., description="待处理请求数")
-    is_active: bool = Field(..., description="子运行是否活跃")
-    is_running: bool = Field(..., description="子运行是否仍在后台执行")
-    request: dict = Field(default_factory=dict, description="子运行请求负载")
-    result: dict | None = Field(default=None, description="子运行结果负载")
-    pending_approval: dict | None = Field(default=None, description="待用户处理的审批负载")
-    error: str | None = Field(default=None, description="错误信息")
-    metadata: dict = Field(default_factory=dict, description="子运行元数据")
-    token_input: int = Field(default=0, description="当前子会话最近一次输入 token")
-    token_output: int = Field(default=0, description="当前子会话最近一次输出 token")
-    token_cache: int = Field(default=0, description="当前子会话最近一次缓存 token")
-    cost: float = Field(default=0.0, description="当前子会话最近一次费用（美元）")
+    child_run_id: str = Field(..., description="ID sub-run")
+    parent_session_id: str = Field(..., description="ID sesi induk")
+    parent_task_id: str = Field(..., description="ID tugas induk")
+    parent_thread_id: str = Field(..., description="ID thread induk")
+    child_thread_id: str = Field(..., description="ID sub-thread")
+    agent_key: str = Field(..., description="Identitas subagen")
+    agent_number: str | None = Field(default=None, description="Nomor subagen")
+    dispatch_id: str = Field(..., description="ID dispatch")
+    tool_call_id: str = Field(..., description="ID pemanggilan tool")
+    status: str = Field(..., description="Status sub-run")
+    queued_messages: int = Field(..., description="Jumlah permintaan yang menunggu diproses")
+    is_active: bool = Field(..., description="Apakah sub-run aktif")
+    is_running: bool = Field(..., description="Apakah sub-run masih berjalan di latar belakang")
+    request: dict = Field(default_factory=dict, description="Payload permintaan sub-run")
+    result: dict | None = Field(default=None, description="Payload hasil sub-run")
+    pending_approval: dict | None = Field(default=None, description="Payload persetujuan yang menunggu diproses pengguna")
+    error: str | None = Field(default=None, description="Pesan error")
+    metadata: dict = Field(default_factory=dict, description="Metadata sub-run")
+    token_input: int = Field(default=0, description="Token masukan terakhir pada sub-sesi saat ini")
+    token_output: int = Field(default=0, description="Token keluaran terakhir pada sub-sesi saat ini")
+    token_cache: int = Field(default=0, description="Token cache terakhir pada sub-sesi saat ini")
+    cost: float = Field(default=0.0, description="Biaya terakhir pada sub-sesi saat ini (dolar AS)")
     context_input_tokens: int = Field(
         default=0,
-        description="当前子会话最近一次上下文输入 token",
+        description="Token masukan konteks terakhir pada sub-sesi saat ini",
     )
-    context_length: int = Field(default=0, description="当前子会话上下文窗口大小")
-    started_at: datetime | None = Field(default=None, description="开始时间")
-    completed_at: datetime | None = Field(default=None, description="完成时间")
-    created_at: datetime = Field(..., description="创建时间")
-    updated_at: datetime = Field(..., description="更新时间")
+    context_length: int = Field(default=0, description="Ukuran jendela konteks sub-sesi saat ini")
+    started_at: datetime | None = Field(default=None, description="Waktu mulai")
+    completed_at: datetime | None = Field(default=None, description="Waktu selesai")
+    created_at: datetime = Field(..., description="Waktu pembuatan")
+    updated_at: datetime = Field(..., description="Waktu pembaruan")
     messages: list[TaskMessage] = Field(
         default_factory=list,
-        description="子线程 transcript 消息",
+        description="Pesan transcript sub-thread",
     )
 
 
 class AgentRollbackRequest(BaseModel):
-    """Agent回滚请求。"""
+    """Permintaan rollback Agent."""
 
-    revision_id: str = Field(..., description="目标revision ID")
+    revision_id: str = Field(..., description="ID revision tujuan")
 
     model_config = {"extra": "forbid"}
 
 
 class AgentRollbackResponse(BaseModel):
-    """Agent回滚响应。"""
+    """Respons rollback Agent."""
 
-    success: bool = Field(..., description="是否成功")
-    session_id: str = Field(..., description="会话ID")
+    success: bool = Field(..., description="Apakah berhasil")
+    session_id: str = Field(..., description="ID sesi")
     revision_id: str | None = Field(None, description="rollback revision ID")
     affected_chapters: list[str] = Field(
-        default_factory=list, description="受影响的章节ID列表"
+        default_factory=list, description="Daftar ID bab yang terpengaruh"
     )
     affected_notes: list[str] = Field(
-        default_factory=list, description="受影响的笔记ID列表"
+        default_factory=list, description="Daftar ID catatan yang terpengaruh"
     )
     affected_note_categories: list[str] = Field(
-        default_factory=list, description="受影响的笔记分类ID列表"
+        default_factory=list, description="Daftar ID kategori catatan yang terpengaruh"
     )
     affected_world_entries: list[str] = Field(
-        default_factory=list, description="受影响的世界书条目ID列表"
+        default_factory=list, description="Daftar ID entri buku dunia yang terpengaruh"
     )
-    restored_message_content: str = Field(..., description="恢复的消息内容")
+    restored_message_content: str = Field(..., description="Isi pesan yang dipulihkan")
     restored_attachments: list[AgentAttachmentResponse] = Field(
         default_factory=list,
-        description="恢复到输入框的图片附件",
+        description="Lampiran gambar yang dipulihkan ke kotak masukan",
     )
 
 
 class AgentForkRequest(BaseModel):
-    """Agent会话分叉请求。"""
+    """Permintaan fork sesi Agent."""
 
-    source_revision_id: str = Field(..., description="分叉来源用户消息 revision ID")
-    model_id: str = Field(..., description="Fork 会话后续使用的模型 ID")
+    source_revision_id: str = Field(..., description="ID revision pesan pengguna sumber fork")
+    model_id: str = Field(..., description="ID model yang dipakai setelah sesi di-fork")
     reasoning_effort: ReasoningEffort | None = Field(
         default=None,
-        description="Fork 会话后续使用的推理强度",
+        description="Intensitas penalaran yang dipakai setelah sesi di-fork",
     )
 
     model_config = {"extra": "forbid"}
 
 
 class AgentForkResponse(BaseModel):
-    """Agent会话分叉响应。"""
+    """Respons fork sesi Agent."""
 
-    session_id: str = Field(..., description="新 Agent 会话 ID")
-    task_id: str = Field(..., description="新 Task ID")
-    task_title: str = Field(..., description="新 Task 标题")
-    task_created_at: str = Field(..., description="新 Task 创建时间")
-    task_updated_at: str = Field(..., description="新 Task 更新时间")
+    session_id: str = Field(..., description="ID sesi Agent baru")
+    task_id: str = Field(..., description="ID Task baru")
+    task_title: str = Field(..., description="Judul Task baru")
+    task_created_at: str = Field(..., description="Waktu pembuatan Task baru")
+    task_updated_at: str = Field(..., description="Waktu pembaruan Task baru")
 
 
 class AgentCancelResponse(BaseModel):
-    """Agent取消响应。"""
+    """Respons pembatalan Agent."""
 
-    success: bool = Field(..., description="是否成功")
-    session_id: str = Field(..., description="会话ID")
-    message: str = Field(..., description="取消消息")
+    success: bool = Field(..., description="Apakah berhasil")
+    session_id: str = Field(..., description="ID sesi")
+    message: str = Field(..., description="Pesan pembatalan")

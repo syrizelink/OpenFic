@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AgentRule Router - 规则 CRUD API。"""
+"""AgentRule Router - API CRUD aturan."""
 
 from typing import Annotated
 
@@ -44,7 +44,7 @@ async def create_rule(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AgentRuleResponse:
     await require_agent_settings_unlocked(session)
-    logger.info("创建 AgentRule")
+    logger.info("Membuat AgentRule")
     try:
         rule = await agent_rule_service.create_rule(
             session,

@@ -324,7 +324,7 @@ export function WritingPage() {
         openTab(newChapter.id, newChapter.title);
       }
     } catch {
-      // 错误处理由 mutation 处理
+      // Penanganan galat ditangani oleh mutation
     }
   }, [
     chaptersData?.volumes,

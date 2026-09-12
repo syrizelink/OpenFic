@@ -1,8 +1,8 @@
 /**
  * CoverCropper Component
  *
- * 封面裁剪器组件，支持图片选择、预览和裁剪（固定 2:3 比例）。
- * 裁剪功能使用覆盖式 Dialog 弹窗显示。
+ * Komponen pemotong sampul, mendukung pemilihan gambar, pratinjau, dan pemotongan (rasio tetap 2:3).
+ * Fungsi pemotongan ditampilkan lewat dialog berlapis.
  */
 
 import { Box, Button, Dialog, Flex, Text } from "@radix-ui/themes";
@@ -12,15 +12,15 @@ import Cropper, { type Area } from "react-easy-crop";
 import { useTranslation } from "react-i18next";
 
 interface CoverCropperProps {
-  /** 当前裁剪后的文件 */
+  /** Berkas hasil pemotongan saat ini */
   value: File | null;
-  /** 文件变更回调 */
+  /** Callback perubahan berkas */
   onChange: (file: File | null) => void;
-  /** 现有封面预览 URL（编辑模式） */
+  /** URL pratinjau sampul yang sudah ada (mode sunting) */
   previewUrl?: string | null;
 }
 
-/** 裁剪区域信息 */
+/** Informasi area pemotongan */
 interface CroppedArea {
   x: number;
   y: number;
@@ -29,7 +29,7 @@ interface CroppedArea {
 }
 
 /**
- * 创建裁剪后的图片文件。
+ * Membuat berkas gambar hasil pemotongan.
  */
 async function getCroppedImage(imageSrc: string, croppedAreaPixels: CroppedArea): Promise<File> {
   const image = new Image();
@@ -42,11 +42,11 @@ async function getCroppedImage(imageSrc: string, croppedAreaPixels: CroppedArea)
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d")!;
 
-  // 设置画布尺寸为裁剪区域尺寸
+  // Menyetel ukuran kanvas sesuai ukuran area pemotongan
   canvas.width = croppedAreaPixels.width;
   canvas.height = croppedAreaPixels.height;
 
-  // 绘制裁剪后的图片
+  // Menggambar gambar hasil pemotongan
   ctx.drawImage(
     image,
     croppedAreaPixels.x,
@@ -59,7 +59,7 @@ async function getCroppedImage(imageSrc: string, croppedAreaPixels: CroppedArea)
     croppedAreaPixels.height,
   );
 
-  // 转换为 Blob
+  // Mengubah menjadi Blob
   return new Promise((resolve) => {
     canvas.toBlob((blob) => {
       if (blob) {
@@ -77,7 +77,7 @@ export function CoverCropper({ value, onChange, previewUrl }: CoverCropperProps)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /** 处理文件选择 */
+  /** Menangani pemilihan berkas */
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -85,19 +85,19 @@ export function CoverCropper({ value, onChange, previewUrl }: CoverCropperProps)
     const reader = new FileReader();
     reader.onload = () => {
       setImageSrc(reader.result as string);
-      // 重置裁剪状态
+      // Mereset status pemotongan
       setCrop({ x: 0, y: 0 });
       setZoom(1);
     };
     reader.readAsDataURL(file);
   }, []);
 
-  /** 裁剪完成回调 */
+  /** Callback pemotongan selesai */
   const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 
-  /** 确认裁剪 */
+  /** Mengonfirmasi pemotongan */
   const handleCropConfirm = useCallback(async () => {
     if (!imageSrc || !croppedAreaPixels) return;
 
@@ -106,11 +106,11 @@ export function CoverCropper({ value, onChange, previewUrl }: CoverCropperProps)
       onChange(croppedFile);
       setImageSrc(null);
     } catch (error) {
-      console.error("裁剪失败:", error);
+      console.error("Gagal memotong:", error);
     }
   }, [imageSrc, croppedAreaPixels, onChange]);
 
-  /** 取消裁剪 */
+  /** Membatalkan pemotongan */
   const handleCropCancel = useCallback(() => {
     setImageSrc(null);
     if (fileInputRef.current) {
@@ -118,7 +118,7 @@ export function CoverCropper({ value, onChange, previewUrl }: CoverCropperProps)
     }
   }, []);
 
-  // 显示模式（已有封面或预览）
+  // Mode tampilan (sampul sudah ada atau pratinjau)
   const displayUrl = value ? URL.createObjectURL(value) : previewUrl;
 
   return (
@@ -218,7 +218,7 @@ export function CoverCropper({ value, onChange, previewUrl }: CoverCropperProps)
         onChange={handleFileSelect}
       />
 
-      {/* 裁剪弹窗 */}
+      {/* Dialog pemotongan */}
       <Dialog.Root
         open={!!imageSrc}
         onOpenChange={(open) => {

@@ -289,7 +289,7 @@ export function ChapterSidebar({
   const handleOpenInNewTab = useCallback(
     (chapterId: string, title: string) => {
       if (tabs.length >= MAX_TABS) {
-        // openTab 内部会处理满的情况
+        // openTab menangani sendiri kondisi saat sudah penuh
       }
       openTab(chapterId, title);
     },
@@ -307,17 +307,17 @@ export function ChapterSidebar({
         const originalChapter = await fetchChapter(chapterId);
         const newChapter = await createChapterMutation.mutateAsync({
           volumeId: originalChapter.volumeId,
-          title: `${title}-副本`,
+          title: `${title}-${t("writing.duplicateSuffix")}`,
           content: originalChapter.content,
           wordCount: originalChapter.wordCount,
         });
         setCurrentChapter(newChapter.id);
         onChapterSelect(newChapter.id, newChapter.title);
       } catch {
-        // 错误处理由 mutation 处理
+        // Penanganan galat ditangani oleh mutation
       }
     },
-    [createChapterMutation, isAgentLocked, onChapterSelect, setCurrentChapter, showLockedToast],
+    [createChapterMutation, isAgentLocked, onChapterSelect, setCurrentChapter, showLockedToast, t],
   );
 
   const handleRenameChapter = useCallback(
@@ -445,7 +445,7 @@ export function ChapterSidebar({
       exitDragMode();
       setSaveOrderDialogOpen(false);
     } catch {
-      // 错误处理由 mutation 处理
+      // Penanganan galat ditangani oleh mutation
     }
   }, [dragOrderMap, exitDragMode, reorderChaptersMutation, volumes]);
 

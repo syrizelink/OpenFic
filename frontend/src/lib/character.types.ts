@@ -1,4 +1,4 @@
-/** 角色类型定义。 */
+/** Definisi tipe tokoh. */
 
 export interface Character {
   id: string;

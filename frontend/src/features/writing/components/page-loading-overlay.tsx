@@ -1,13 +1,13 @@
 /**
  * Page Loading Overlay
  *
- * 写作页加载骨架屏。
+ * Kerangka pemuatan halaman penulisan.
  */
 
 import { Box, Flex, Skeleton } from "@radix-ui/themes";
 
 interface PageLoadingOverlayProps {
-  /** 是否显示 */
+  /** Status tampil */
   isLoading: boolean;
 }
 

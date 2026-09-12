@@ -1,7 +1,7 @@
 /**
  * Font Utilities
  *
- * 字体应用工具函数
+ * Fungsi bantu penerapan fon
  */
 
 import {
@@ -16,10 +16,10 @@ const appFontFallbacks =
 const codeFontFallbacks =
   '"JetBrains Mono Variable", ui-monospace, "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace';
 
-/** 默认基础字号（px），与 tokens.css 中的 --font-size-base 保持一致。 */
+/** Ukuran fon dasar bawaan (px), selaras dengan --font-size-base di tokens.css. */
 export const DEFAULT_BASE_FONT_SIZE = 14;
 
-/** 默认编辑器字号（px），与 tokens.css 中的 --font-size-editor 保持一致。 */
+/** Ukuran fon editor bawaan (px), selaras dengan --font-size-editor di tokens.css. */
 export const DEFAULT_EDITOR_FONT_SIZE = 16;
 
 const FONT_SIZE_SCALE = {
@@ -34,7 +34,7 @@ const FONT_SIZE_SCALE = {
 } as const;
 const FONT_SIZE_STEPS = Object.keys(FONT_SIZE_SCALE) as Array<keyof typeof FONT_SIZE_SCALE>;
 
-/** Radix Themes 组件字号变量（--font-size-1..9）在默认缩放（--scaling: 1）下的基准值。 */
+/** Nilai acuan variabel ukuran fon komponen Radix Themes (--font-size-1..9) pada skala bawaan (--scaling: 1). */
 const RADIX_FONT_SIZE_DEFAULTS = {
   "1": 12,
   "2": 14,
@@ -53,12 +53,12 @@ const RADIX_FONT_SIZE_STEPS = Object.keys(RADIX_FONT_SIZE_DEFAULTS) as Array<
 const FONT_SIZE_STYLE_ID = "openfic-base-font-size";
 
 /**
- * 应用自定义基础字号（px）到页面。
+ * Menerapkan ukuran fon dasar kustom (px) ke halaman.
  *
- * 以默认基础字号为锚点，按用户设置的基础字号等比缩放整套 --font-size-* 变量，
- * 并通过注入全局样式覆盖 Radix Themes 的 --font-size-1..9，使其组件
- * （含 portal 渲染的对话框/下拉等）跟随缩放；当设置等于默认值时清除覆盖。
- * @param baseFontSize 用户设置的基础字号（px）
+ * Ukuran fon dasar bawaan dipakai sebagai jangkar, lalu seluruh variabel --font-size-*
+ * diskalakan proporsional mengikuti ukuran fon dasar pilihan pengguna. Gaya global juga
+ * disuntikkan untuk menimpa --font-size-1..9 milik Radix Themes agar komponennya
+ * (termasuk dialog/dropdown yang dirender lewat portal) ikut terskala; penimpaan dibersihkan saat setelan sama dengan nilai bawaan.
  */
 export function applyBaseFontSize(baseFontSize: number): void {
   const scale = baseFontSize / DEFAULT_BASE_FONT_SIZE;
@@ -90,11 +90,11 @@ export function applyBaseFontSize(baseFontSize: number): void {
 }
 
 /**
- * 应用自定义编辑器字号（px）到页面。
+ * Menerapkan ukuran fon editor kustom (px) ke halaman.
  *
- * 直接设置 --font-size-editor 变量控制正文/编辑器内容字号；
- * 当设置等于默认值时清除覆盖，回落到 tokens.css 的默认值。
- * @param editorFontSize 用户设置的编辑器字号（px）
+ * Variabel --font-size-editor disetel langsung untuk mengatur ukuran fon isi utama/editor;
+ * penimpaan dibersihkan saat setelan sama dengan nilai bawaan, kembali ke nilai bawaan tokens.css.
+ * @param editorFontSize Ukuran fon editor pilihan pengguna (px)
  */
 export function applyEditorFontSize(editorFontSize: number): void {
   const root = document.documentElement;
@@ -111,18 +111,18 @@ function buildFontStack(fontFamily: string, systemFontFamily: string, fallbacks:
 }
 
 /**
- * 应用字体到页面
- * @param fontFamily 字体族名称
+ * Menerapkan fon ke halaman
+ * @param fontFamily Nama keluarga fon
  */
 export function applyFontFamily(fontFamily: string): void {
-  // 构建完整的字体栈
+  // Membangun tumpukan fon lengkap
   const fontStack = buildFontStack(fontFamily, SYSTEM_FONT_FAMILY, appFontFallbacks);
 
-  // 应用到文档根元素
+  // Menerapkan ke elemen akar dokumen
   document.documentElement.style.fontFamily = fontStack;
   document.documentElement.style.setProperty("--app-font-family", fontStack);
 
-  // 同时更新 radix-themes 的字体变量
+  // Sekaligus memperbarui variabel fon radix-themes
   const radixThemesEl = document.querySelector(".radix-themes");
   if (radixThemesEl instanceof HTMLElement) {
     radixThemesEl.style.setProperty("--default-font-family", fontStack);
@@ -132,20 +132,20 @@ export function applyFontFamily(fontFamily: string): void {
 }
 
 /**
- * 应用代码字体到页面
- * @param codeFontFamily 代码字体族名称
+ * Menerapkan fon kode ke halaman
+ * @param codeFontFamily Nama keluarga fon kode
  */
 export function applyCodeFontFamily(codeFontFamily: string): void {
-  // 构建完整的代码字体栈
+  // Membangun tumpukan fon kode lengkap
   const fontStack = buildFontStack(codeFontFamily, SYSTEM_CODE_FONT_FAMILY, codeFontFallbacks);
 
-  // 更新 CSS 变量
+  // Memperbarui variabel CSS
   const radixThemesEl = document.querySelector(".radix-themes");
   if (radixThemesEl instanceof HTMLElement) {
     radixThemesEl.style.setProperty("--code-font-family", fontStack);
   }
 
-  // 应用到所有代码相关的元素
+  // Menerapkan ke seluruh elemen terkait kode
   document.documentElement.style.setProperty("--code-font-family", fontStack);
 
   publishDesktopAppearance({ codeFontFamily: fontStack });

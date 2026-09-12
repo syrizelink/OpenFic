@@ -1,8 +1,8 @@
 /**
  * Index Settings Component
  *
- * 索引设置面板：启用范围、嵌入模型、分块参数、自动索引策略、索引信息。
- * 采用与"通用"设置一致的紧凑布局，单选用下拉框。
+ * Panel pengaturan indeks: jangkauan aktif, model penyematan, parameter pemotongan, strategi indeks otomatis, informasi indeks.
+ * Memakai tata letak padat yang sama dengan pengaturan "Umum", pilihan tunggal memakai kotak tarik-turun.
  */
 
 import { Box, Flex } from "@radix-ui/themes";
@@ -43,7 +43,7 @@ interface IndexProjectOption {
   title: string;
 }
 
-/** 将后端 snake_case 的更新请求映射为前端 camelCase 的 Settings 局部补丁。 */
+/** Memetakan permintaan pembaruan snake_case dari backend menjadi tambalan sebagian Settings camelCase di frontend. */
 function patchSettings(current: Settings, patch: SettingsUpdateRequest): Settings {
   return {
     ...current,
@@ -199,10 +199,10 @@ export function IndexSettings({
   });
   const overall = useOverallIndexStatus(Boolean(settings));
 
-  // 订阅各项目的后台事件，索引任务失败时 toast 报错。
-  // index:status 仅携带 failed_count，无法展示具体错误；
-  // 索引任务出错会抛出异常使 job 标记为 failed 并发布 background_job_failed
-  // 事件（携带 message），这里据此 toast。
+  // Berlangganan peristiwa latar belakang setiap proyek, menampilkan toast galat saat tugas indeks gagal.
+  // index:status hanya membawa failed_count sehingga galat spesifiknya tidak bisa ditampilkan;
+  // tugas indeks yang bermasalah akan melempar anomali sehingga job ditandai failed dan menerbitkan
+  // peristiwa background_job_failed (membawa message), yang dipakai sebagai dasar toast di sini.
   const projectIds = useMemo(
     () => overall.data?.projects.map((p) => p.project_id) ?? [],
     [overall.data?.projects],
@@ -234,14 +234,14 @@ export function IndexSettings({
       }),
     );
     return () => subs.forEach((s) => s.close());
-    // projectIdsKey 变化时重新订阅。
+    // Langganan dibuat ulang saat projectIdsKey berubah.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [projectIdsKey, queryClient, t]);
 
   const updateSettingsMutation = useMutation({
     mutationFn: updateSettings,
     onMutate: async (patch) => {
-      // 乐观更新：立即将补丁合并进缓存，记录前值以便回滚。
+      // Pembaruan optimistis: tambalan langsung digabungkan ke singgahan, nilai sebelumnya dicatat agar bisa dikembalikan.
       await Promise.all([
         queryClient.cancelQueries({ queryKey: ["settings"] }),
         queryClient.cancelQueries({ queryKey: OVERALL_INDEX_STATUS_QUERY_KEY }),
@@ -363,7 +363,7 @@ export function IndexSettings({
     [isAgentSettingsLocked, updateSettingsMutation],
   );
 
-  // 当服务端分块参数变化时（如被其他端修改），同步本地输入。
+  // Saat parameter pemotongan di sisi server berubah (misalnya diubah dari klien lain), masukan lokal disinkronkan.
   const [lastServerSize, setLastServerSize] = useState<number | undefined>(
     settings?.indexChunkSize,
   );
@@ -380,7 +380,7 @@ export function IndexSettings({
     setChunkOverlap(String(settings.indexChunkOverlap));
   }
 
-  // 分块参数防抖自动保存：输入停止 400ms 后校验并保存。
+  // Penyimpanan otomatis parameter pemotongan dengan penahanan: divalidasi dan disimpan 400ms setelah pengetikan berhenti.
   const chunkSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     return () => {

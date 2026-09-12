@@ -16,7 +16,7 @@ interface WaitForBackendOptions {
 
 export function throwIfAborted(signal?: AbortSignal): void {
   if (!signal?.aborted) return;
-  const error = new Error("连接已取消");
+  const error = new Error("Koneksi dibatalkan");
   error.name = "AbortError";
   throw error;
 }

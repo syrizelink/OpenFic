@@ -1,5 +1,6 @@
 import type { Socket } from "socket.io-client";
 
+import i18n from "../i18n";
 import {
   joinProjectAndWaitForSnapshot,
   type BackgroundSnapshot,
@@ -93,7 +94,7 @@ function handleBackgroundEvent(raw: BackgroundEvent) {
 
 function handleBackgroundError(raw: { type?: string; reason?: string }) {
   if (raw?.type === "invalid_project") return;
-  notifyError(new Error(raw?.reason || "后台事件订阅失败"));
+  notifyError(new Error(raw?.reason || i18n.t("common.backgroundSubscriptionFailed")));
 }
 
 function handleIndexStatus(raw: Record<string, unknown> | undefined) {
@@ -186,7 +187,7 @@ async function joinProject(projectId: string): Promise<void> {
         return;
       }
 
-      reject(new Error(data.reason || "后台事件订阅失败"));
+      reject(new Error(data.reason || i18n.t("common.backgroundSubscriptionFailed")));
     };
 
     socket.on("background:joined", onJoined);
@@ -200,7 +201,7 @@ async function joinProject(projectId: string): Promise<void> {
         return;
       }
 
-      reject(new Error("加入后台项目房间超时"));
+      reject(new Error(i18n.t("common.backgroundJoinRoomTimeout")));
     }, 5000);
     socket.emit("background:join", { project_id: projectId });
   });
@@ -227,8 +228,8 @@ export function subscribeBackgroundEvents(
 }
 
 /**
- * 订阅项目的索引状态推送（index:status，按项目房间）与全局索引配置变更
- * （index:config，广播）。projectId 传 "__global__" 时仅订阅 index:config。
+ * Berlangganan kiriman status indeks sebuah proyek (index:status, per ruang proyek) dan perubahan konfigurasi indeks global
+ * (index:config, siaran). Bila projectId diisi "__global__", hanya index:config yang dilanggan.
  */
 export function subscribeIndexStatus(
   projectId: string,
@@ -242,7 +243,7 @@ export function subscribeIndexStatus(
     const listeners = projectIndexStatusListeners.get(projectId) ?? new Set<IndexStatusListener>();
     listeners.add(onStatus);
     projectIndexStatusListeners.set(projectId, listeners);
-    // 加入项目房间（复用 background 房间引用计数管理）
+    // Masuk ke ruang proyek (memakai ulang pengelolaan penghitung rujukan ruang background)
     roomSub = subscribeBackgroundProjection(projectId, undefined, () => {}, undefined);
   }
 

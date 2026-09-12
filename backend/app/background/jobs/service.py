@@ -77,7 +77,7 @@ async def submit_job(
     _ensure_definition_registered(job_type)
     definition = get_job_registry().get(job_type)
     if definition is None:
-        raise ValueError(f"未注册的后台任务类型: {job_type}")
+        raise ValueError(f"Tipe tugas latar belakang tidak terdaftar: {job_type}")
 
     definition.input_model.model_validate(payload)
     job = await job_repo.create_job(
@@ -202,7 +202,9 @@ async def request_cancel(
     if job.status in TERMINAL_STATUSES:
         return job
     if job.status == JOB_STATUS_PENDING:
-        return await mark_cancelled(session, publisher, job, reason=reason or "任务已取消")
+        return await mark_cancelled(
+            session, publisher, job, reason=reason or "Tugas sudah dibatalkan"
+        )
     job.status = JOB_STATUS_CANCEL_REQUESTED
     job.cancel_requested_at = now
     job.cancel_reason = reason
@@ -224,7 +226,8 @@ async def cancel_job(
     *,
     reason: str | None = None,
 ) -> BackgroundJob:
-    """取消任务；等待中的任务同步运行取消清理钩子。"""
+    """Membatalkan tugas; tugas yang masih menunggu menjalankan hook pembersihan
+    pembatalan secara sinkron."""
     was_pending = job.status == JOB_STATUS_PENDING
     job = await request_cancel(session, publisher, job, reason=reason)
     if not was_pending or job.status != JOB_STATUS_CANCELLED:
@@ -237,7 +240,9 @@ async def cancel_job(
     from app.background.runtime.context import JobContext
 
     context = JobContext(session=session, job=job, publisher=publisher, definition=definition)
-    await definition.on_cancelled(context, job.cancel_reason or "任务已取消")
+    await definition.on_cancelled(
+        context, job.cancel_reason or "Tugas sudah dibatalkan"
+    )
     return job
 
 
@@ -452,7 +457,11 @@ async def finalize_orphan_job_items(
     from app.background.runtime.context import JobContext
 
     context = JobContext(session=session, job=job, publisher=publisher, definition=definition)
-    await hook(context, f"启动恢复：任务已 {job.status} 但仍存在未完成的子项")
+    await hook(
+        context,
+        f"Pemulihan saat mulai: tugas sudah {job.status} tetapi masih ada subitem"
+        " yang belum selesai",
+    )
 
 
 async def mark_skipped(

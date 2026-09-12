@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Note 数据模型。
+Model data Note.
 """
 
 from datetime import UTC, datetime

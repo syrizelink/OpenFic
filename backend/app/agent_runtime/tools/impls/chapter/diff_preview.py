@@ -117,7 +117,7 @@ def build_tool_result_preview(
         "type": "preview",
         "success": True,
         "reason": "approval_preview",
-        "message": "章节修改待审批",
+        "message": "Perubahan bab menunggu persetujuan",
         "chapter": serialize_preview_chapter(after or before),
         "metadata": {
             "chapter_diff": build_chapter_diff_preview(before, after, path=path),

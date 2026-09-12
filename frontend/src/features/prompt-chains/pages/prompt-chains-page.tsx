@@ -1,7 +1,7 @@
 /**
  * PromptChainsPage Component
  *
- * 提示词链管理页面。
+ * Halaman pengelolaan rantai prompt.
  */
 
 import { Box, Flex, IconButton, Tooltip } from "@radix-ui/themes";
@@ -61,26 +61,26 @@ export function PromptChainsPage() {
   const [searchParams] = useSearchParams();
   const initialPromptId = getInitialPromptSelection(searchParams);
 
-  // 元数据状态
+  // Status metadata
   const [metadata, setMetadata] = useState<PromptChainsMetadata | null>(null);
 
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(initialPromptId);
 
-  // 当前编辑的条目ID
+  // ID entri yang sedang disunting
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
 
-  // 待删除的条目ID
+  // ID entri yang akan dihapus
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
 
-  // 高亮的条目ID（用于新建后的闪烁动画）
+  // ID entri yang disorot (dipakai untuk animasi kedip setelah pembuatan)
   const [highlightEntryId, setHighlightEntryId] = useState<string | null>(null);
 
-  // 编译相关状态
+  // Status terkait kompilasi
   const [isCompiling, setIsCompiling] = useState(false);
   const [compileResult, setCompileResult] = useState<CompileResponse | null>(null);
   const [compileDialogOpen, setCompileDialogOpen] = useState(false);
 
-  // 重置相关状态
+  // Status terkait pengaturan ulang
   const [isResetting, setIsResetting] = useState(false);
 
   const { isMobile } = useAppShell();
@@ -95,7 +95,7 @@ export function PromptChainsPage() {
   const versionHistoryPanelRef = useRef<PanelImperativeHandle | null>(null);
   const panelLayout = usePersistedPanelLayout(PANEL_LAYOUT_KEY, PANEL_IDS, !isMobile);
 
-  // 加载元数据
+  // Memuat metadata
   useEffect(() => {
     async function loadMetadata() {
       try {
@@ -125,34 +125,34 @@ export function PromptChainsPage() {
     resetWorkingCopy,
   } = usePromptChain(effectivePromptId ?? "");
 
-  // 获取当前选中的条目（如果没有选中且有条目，自动选择第一个）
+  // Mengambil entri yang sedang dipilih (jika belum ada pilihan dan entri tersedia, pilih yang pertama otomatis)
   const actualSelectedId: string | null =
     selectedEntryId || (entries.length > 0 ? entries[0].id || null : null);
   const selectedEntry = entries.find((e) => e.id === actualSelectedId) || null;
 
-  // 更新条目（使用 useCallback 优化）
+  // Memperbarui entri (dioptimalkan memakai useCallback)
   const handleUpdateEntry = useCallback(
     (entryId: string, updates: Partial<PromptEntryData>) => {
       setEntries((prev) => {
-        // 检查是否有实际变化，避免不必要的数组重建
+        // Memeriksa adanya perubahan nyata, mencegah pembangunan ulang array yang tidak perlu
         const entry = prev.find((e) => e.id === entryId);
         if (!entry) return prev;
 
-        // 检查是否有实际变化
+        // Memeriksa adanya perubahan nyata
         const hasChanges = Object.keys(updates).some(
           (key) => entry[key as keyof PromptEntryData] !== updates[key as keyof PromptEntryData],
         );
 
         if (!hasChanges) return prev;
 
-        // 有变化时才创建新数组
+        // Array baru hanya dibuat bila ada perubahan
         return prev.map((e) => (e.id === entryId ? { ...e, ...updates } : e));
       });
     },
     [setEntries],
   );
 
-  // 切换条目启用状态（使用 useCallback 优化）
+  // Mengalihkan status aktif entri (dioptimalkan memakai useCallback)
   const handleToggleEntry = useCallback(
     (entryId: string) => {
       setEntries((prev) =>
@@ -162,11 +162,11 @@ export function PromptChainsPage() {
     [setEntries],
   );
 
-  // 删除条目（确认后）
+  // Menghapus entri (setelah dikonfirmasi)
   const confirmDeleteEntry = () => {
     if (deletingEntryId) {
       setEntries((prev) => prev.filter((e) => e.id !== deletingEntryId));
-      // 如果删除的是当前选中的，清除选中
+      // Jika yang dihapus adalah entri terpilih, bersihkan pilihannya
       if (deletingEntryId === selectedEntryId) {
         setSelectedEntryId(null);
       }
@@ -174,7 +174,7 @@ export function PromptChainsPage() {
     }
   };
 
-  // 新建条目
+  // Membuat entri baru
   const handleCreateEntry = () => {
     const newEntryId = `temp-${Date.now()}`;
     const newEntry: PromptEntryData = {
@@ -191,7 +191,7 @@ export function PromptChainsPage() {
     setEntries((prev) => [...prev, newEntry]);
     setSelectedEntryId(newEntryId);
 
-    // 设置高亮动画
+    // Menyetel animasi sorotan
     setHighlightEntryId(newEntryId);
     setTimeout(() => {
       setHighlightEntryId(null);
@@ -208,7 +208,7 @@ export function PromptChainsPage() {
     [isMobile],
   );
 
-  // 编译提示词链
+  // Mengompilasi rantai prompt
   const handleCompile = useCallback(async () => {
     if (!effectivePromptId) return;
 
@@ -226,7 +226,7 @@ export function PromptChainsPage() {
     }
   }, [effectivePromptId]);
 
-  // 重置到默认
+  // Mengembalikan ke bawaan
   const handleReset = useCallback(async () => {
     if (!effectivePromptId || isSaving) return;
 
@@ -348,7 +348,7 @@ export function PromptChainsPage() {
       {...mobileSidebarSwipeRef}
       className="prompt-chains-page-root mobile-sidebar-swipe-surface"
     >
-      {/* 主内容区 - resizable panels */}
+      {/* Area isi utama - resizable panels */}
       <Box className="prompt-chains-page-main">
         {!isMobile && panelLayout.isLoaded ? (
           <Group
@@ -357,7 +357,7 @@ export function PromptChainsPage() {
             defaultLayout={panelLayout.defaultLayout}
             onLayoutChanged={panelLayout.onLayoutChanged}
           >
-            {/* 左侧边栏：条目列表 */}
+            {/* Bilah sisi kiri: daftar entri */}
             <Panel
               id="left-sidebar"
               defaultSize={300}
@@ -372,7 +372,7 @@ export function PromptChainsPage() {
 
             <Separator className="resize-handle writing-page-separator" />
 
-            {/* 中间栏：编辑器 */}
+            {/* Kolom tengah: editor */}
             <Panel
               id="editor"
               minSize={30}
@@ -486,7 +486,7 @@ export function PromptChainsPage() {
         )}
       </Box>
 
-      {/* 删除确认对话框 */}
+      {/* Dialog konfirmasi penghapusan */}
       <ConfirmDialog
         open={!!deletingEntryId}
         onOpenChange={(open) => !open && setDeletingEntryId(null)}
@@ -498,7 +498,7 @@ export function PromptChainsPage() {
         confirmColor="red"
       />
 
-      {/* 编译结果弹窗 */}
+      {/* Dialog hasil kompilasi */}
       <PromptChainDialog
         open={compileDialogOpen}
         onOpenChange={setCompileDialogOpen}

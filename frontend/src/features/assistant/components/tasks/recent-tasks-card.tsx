@@ -1,7 +1,7 @@
 /**
  * Recent Tasks Card
  *
- * 悬浮的最近任务卡片组件
+ * Komponen kartu tugas terbaru yang mengapung
  */
 
 import { Box, Flex, Text } from "@radix-ui/themes";
@@ -36,7 +36,7 @@ export function RecentTasksCard({
       justify="center"
       style={{ height: "100%", position: "relative" }}
     >
-      {/* 悬浮的最近任务卡片 */}
+      {/* Kartu tugas terbaru yang mengapung */}
       <Box
         style={{
           width: "90%",
@@ -45,7 +45,7 @@ export function RecentTasksCard({
       >
         {hasRecentTasks ? (
           <>
-            {/* 标题栏 */}
+            {/* Bilah judul */}
             <Flex
               justify="between"
               align="center"
@@ -66,7 +66,7 @@ export function RecentTasksCard({
               </Text>
             </Flex>
 
-            {/* 任务列表 */}
+            {/* Daftar tugas */}
             <TaskList
               tasks={tasks}
               onTaskClick={onTaskClick}
@@ -75,7 +75,7 @@ export function RecentTasksCard({
             />
           </>
         ) : (
-          // 无任务提示
+          // Petunjuk saat tidak ada tugas
           <Flex
             align="center"
             justify="center"

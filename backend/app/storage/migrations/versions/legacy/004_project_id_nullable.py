@@ -1,6 +1,6 @@
 """make_project_id_nullable
 
-让 world_info 表的 project_id 字段可为空，支持创建独立世界书。
+Membuat kolom project_id pada tabel world_info dapat kosong, agar buku dunia mandiri dapat dibuat.
 
 Revision ID: 004
 Revises: 003
@@ -20,11 +20,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """将 project_id 改为可空字段。"""
-    # SQLite 不支持直接修改列，需要重建表
-    # 但对于这种情况，SQLite 允许 NULL 值即使列定义为 NOT NULL
-    # 因为 SQLModel 会在 Python 层面处理这个逻辑
-    # 这里我们使用 batch_alter_table 来安全修改
+    """Mengubah project_id menjadi kolom yang dapat kosong."""
+    # SQLite tidak mendukung modifikasi kolom secara langsung, tabel perlu dibangun ulang
+    # Namun untuk kasus ini, SQLite mengizinkan nilai NULL walau kolom didefinisikan NOT NULL
+    # karena SQLModel menangani logika ini di lapisan Python
+    # Di sini kita memakai batch_alter_table agar perubahan aman
     with op.batch_alter_table("world_info") as batch_op:
         batch_op.alter_column(
             "project_id",
@@ -33,7 +33,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """将 project_id 改回非空字段。"""
+    """Mengubah project_id kembali menjadi kolom yang tidak boleh kosong."""
     with op.batch_alter_table("world_info") as batch_op:
         batch_op.alter_column(
             "project_id",

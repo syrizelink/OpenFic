@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-列出某分类下的直接子项（笔记 + 子分类）。
+Menampilkan anak langsung di bawah suatu kategori (catatan + sub-kategori).
 """
 
 import json
@@ -18,8 +18,9 @@ class ListNotesInput(BaseModel):
     path: str = Field(
         default="/",
         description=dedent("""\
-        分类路径，如`/`、`/设定`、`/设定/角色`；
-        `/`表示根层级，返回根下所有的笔记和分类
+        Jalur kategori, misalnya `/`, `/latar`, `/latar/tokoh`;
+        `/` berarti tingkat akar, mengembalikan semua catatan dan kategori di
+        bawah akar
     """)
     )
 
@@ -27,7 +28,10 @@ class ListNotesInput(BaseModel):
 @ToolRegistry.register
 class ListNotesTool(AgentTool):
     name: str = "list_notes"
-    description: str = "列出指定分类路径下的直接子项（包含笔记和分类，不递归）"
+    description: str = (
+        "Menampilkan anak langsung di bawah jalur kategori yang ditentukan "
+        "(mencakup catatan dan kategori, tidak rekursif)"
+    )
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ListNotesInput
 
@@ -55,7 +59,8 @@ class ListNotesTool(AgentTool):
                     ]
                     if not children:
                         return json.dumps(
-                            {"error": f"未找到路径: {path}"}, ensure_ascii=False
+                            {"error": f"Jalur tidak ditemukan: {path}"},
+                            ensure_ascii=False,
                         )
                     current_id = children[0].id
                 target_category_id = current_id

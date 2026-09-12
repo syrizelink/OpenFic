@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AgentRule API Schemas。"""
+"""AgentRule API Schemas."""
 
 from datetime import datetime
 
@@ -7,19 +7,19 @@ from pydantic import BaseModel, Field
 
 
 class AgentRuleCreate(BaseModel):
-    title: str = Field(default="", description="规则标题")
-    content: str = Field(default="", description="规则内容")
-    scope: str = Field(default="global", description="作用域：global 或 project")
-    project_id: str | None = Field(default=None, description="project 作用域关联的项目 ID")
+    title: str = Field(default="", description="Judul aturan")
+    content: str = Field(default="", description="Isi aturan")
+    scope: str = Field(default="global", description="Cakupan: global atau project")
+    project_id: str | None = Field(default=None, description="ID proyek yang terkait dengan cakupan project")
 
 
 class AgentRuleUpdate(BaseModel):
-    title: str | None = Field(default=None, description="规则标题")
-    content: str | None = Field(default=None, description="规则内容")
+    title: str | None = Field(default=None, description="Judul aturan")
+    content: str | None = Field(default=None, description="Isi aturan")
 
 
 class AgentRuleReorder(BaseModel):
-    rule_ids: list[str] = Field(description="按新顺序排列的规则 ID 列表")
+    rule_ids: list[str] = Field(description="Daftar ID aturan dalam urutan baru")
 
 
 class AgentRuleResponse(BaseModel):

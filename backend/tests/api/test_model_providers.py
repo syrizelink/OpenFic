@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ModelProvider API Tests - 模型服务提供商 API 测试。
+ModelProvider API Tests - uji API penyedia layanan model.
 """
 
 import json
@@ -19,7 +19,7 @@ _OPENROUTER_ICON_URL = "/icons/model/catalog/openrouter.svg"
 
 @pytest.mark.asyncio
 async def test_create_provider(client: AsyncClient, session: AsyncSession):
-    """测试创建提供商。"""
+    """Uji pembuatan provider."""
     request_data = {
         "name": "Test OpenAI",
         "url": "https://api.openai.com",
@@ -117,8 +117,8 @@ async def test_update_custom_provider_headers_preserves_unchanged_values(
 
 @pytest.mark.asyncio
 async def test_get_all_providers(client: AsyncClient, session: AsyncSession):
-    """测试获取所有提供商。"""
-    # 创建测试数据
+    """Uji pengambilan seluruh provider."""
+    # Buat data uji
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -144,7 +144,7 @@ async def test_get_all_providers(client: AsyncClient, session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_get_provider_by_id(client: AsyncClient, session: AsyncSession):
-    """测试根据 ID 获取提供商。"""
+    """Uji pengambilan provider berdasarkan ID."""
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -247,7 +247,7 @@ async def test_create_provider_ignores_uploaded_icon(
 
 @pytest.mark.asyncio
 async def test_update_provider(client: AsyncClient, session: AsyncSession):
-    """测试更新提供商。"""
+    """Uji pembaruan provider."""
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -275,7 +275,7 @@ async def test_update_provider(client: AsyncClient, session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_delete_provider(client: AsyncClient, session: AsyncSession):
-    """测试删除提供商。"""
+    """Uji penghapusan provider."""
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -294,7 +294,7 @@ async def test_delete_provider(client: AsyncClient, session: AsyncSession):
     response = await client.delete(f"/api/v1/model-providers/{provider.id}")
     assert response.status_code == 204
 
-    # 验证已删除
+    # Verifikasi sudah terhapus
     deleted_provider = await model_provider_repo.get_by_id(session, provider.id)
     assert deleted_provider is None
 
@@ -304,7 +304,7 @@ async def test_delete_provider(client: AsyncClient, session: AsyncSession):
 async def test_validate_provider_invalid_credentials(
     client: AsyncClient, session: AsyncSession
 ):
-    """测试验证提供商连接（无效凭据）。"""
+    """Uji validasi koneksi provider (kredensial tidak valid)."""
     respx.get("https://api.openai.com/v1/models").mock(
         return_value=httpx.Response(401, json={"error": {"message": "Invalid API key"}})
     )
@@ -357,7 +357,7 @@ async def test_validate_anthropic_compatible_provider_discovers_models(
     assert response.status_code == 200
     assert response.json() == {
         "success": True,
-        "message": "连接验证成功",
+        "message": "Validasi koneksi berhasil",
         "models": [
             {
                 "id": "claude-3-5-sonnet-20241022",
@@ -455,7 +455,7 @@ async def test_validate_gemini_compatible_provider_discovers_llm_models(
     assert response.status_code == 200
     assert response.json() == {
         "success": True,
-        "message": "连接验证成功",
+        "message": "Validasi koneksi berhasil",
         "models": [
             {
                 "id": "gemini-2.5-flash",
@@ -507,7 +507,7 @@ async def test_get_anthropic_compatible_provider_models_discovers_models(
     assert response.status_code == 200
     assert response.json() == {
         "success": True,
-        "message": "获取模型列表成功",
+        "message": "Berhasil mengambil daftar model",
         "models": [
             {
                 "id": "claude-3-5-haiku-20241022",
@@ -521,8 +521,8 @@ async def test_get_anthropic_compatible_provider_models_discovers_models(
 
 @pytest.mark.asyncio
 async def test_create_openrouter_provider(client: AsyncClient, session: AsyncSession):
-    """测试创建 OpenRouter 提供商。"""
-    # 使用 FormData 格式（与 API 定义一致）
+    """Uji pembuatan provider OpenRouter."""
+    # Memakai format FormData (sesuai definisi API)
     form_data = {
         "name": "Test OpenRouter",
         "url": "https://openrouter.ai/api/v1",
@@ -545,7 +545,7 @@ async def test_create_openrouter_provider(client: AsyncClient, session: AsyncSes
 async def test_get_openrouter_provider_models(
     client: AsyncClient, session: AsyncSession
 ):
-    """测试获取 OpenRouter 提供商的模型列表。"""
+    """Uji pengambilan daftar model provider OpenRouter."""
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -562,8 +562,8 @@ async def test_get_openrouter_provider_models(
     await session.commit()
 
     response = await client.get(f"/api/v1/model-providers/{provider.id}/models")
-    # 由于是测试环境，可能无法真正连接到 OpenRouter，所以可能返回失败
-    # 但至少应该返回正确的响应格式
+    # Karena ini lingkungan uji, koneksi nyata ke OpenRouter mungkin gagal sehingga hasilnya bisa gagal
+    # tetapi setidaknya format responsnya harus benar
     assert response.status_code == 200
 
     data = response.json()

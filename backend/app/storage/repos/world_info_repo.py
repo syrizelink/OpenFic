@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-WorldInfo Repository - 世界书数据访问层。
+WorldInfo Repository - lapisan akses data buku dunia.
 """
 
 from sqlalchemy import func, select
@@ -12,14 +12,14 @@ from app.storage.models.world_info import WorldInfo
 
 async def create(session: AsyncSession, world_info: WorldInfo) -> WorldInfo:
     """
-    创建世界书。
+    Membuat buku dunia.
 
     Args:
-        session: 数据库 session。
-        world_info: 世界书实例。
+        session: session basis data.
+        world_info: Instance buku dunia.
 
     Returns:
-        创建后的世界书实例。
+        Instance buku dunia setelah dibuat.
     """
     session.add(world_info)
     await session.flush()
@@ -29,14 +29,14 @@ async def create(session: AsyncSession, world_info: WorldInfo) -> WorldInfo:
 
 async def get_by_id(session: AsyncSession, world_info_id: str) -> WorldInfo | None:
     """
-    根据 ID 获取世界书。
+    Mengambil buku dunia berdasarkan ID.
 
     Args:
-        session: 数据库 session。
-        world_info_id: 世界书 ID。
+        session: session basis data.
+        world_info_id: ID buku dunia.
 
     Returns:
-        世界书实例，如果不存在则返回 None。
+        Instance buku dunia, atau None bila tidak ada.
     """
     result = await session.execute(
         select(WorldInfo).where(col(WorldInfo.id) == world_info_id)
@@ -46,14 +46,14 @@ async def get_by_id(session: AsyncSession, world_info_id: str) -> WorldInfo | No
 
 async def get_by_project_id(session: AsyncSession, project_id: str) -> WorldInfo | None:
     """
-    根据项目 ID 获取世界书。
+    Mengambil buku dunia berdasarkan ID proyek.
 
     Args:
-        session: 数据库 session。
-        project_id: 项目 ID。
+        session: session basis data.
+        project_id: ID proyek.
 
     Returns:
-        世界书实例，如果不存在则返回 None。
+        Instance buku dunia, atau None bila tidak ada.
     """
     result = await session.execute(
         select(WorldInfo).where(col(WorldInfo.project_id) == project_id)
@@ -67,15 +67,15 @@ async def get_all(
     page_size: int = 100,
 ) -> tuple[list[WorldInfo], int]:
     """
-    获取所有世界书列表。
+    Mengambil daftar semua buku dunia.
 
     Args:
-        session: 数据库 session。
-        page: 页码（从 1 开始）。
-        page_size: 每页数量。
+        session: session basis data.
+        page: Nomor halaman (mulai dari 1).
+        page_size: Jumlah per halaman.
 
     Returns:
-        元组 (世界书列表, 总数)。
+        Tuple (daftar buku dunia, jumlah total).
     """
     count_result = await session.execute(select(func.count(col(WorldInfo.id))))
     total = count_result.scalar_one()
@@ -94,14 +94,14 @@ async def get_all(
 
 async def update(session: AsyncSession, world_info: WorldInfo) -> WorldInfo:
     """
-    更新世界书。
+    Memperbarui buku dunia.
 
     Args:
-        session: 数据库 session。
-        world_info: 世界书实例。
+        session: session basis data.
+        world_info: Instance buku dunia.
 
     Returns:
-        更新后的世界书实例。
+        Instance buku dunia setelah diperbarui.
     """
     session.add(world_info)
     await session.flush()
@@ -111,11 +111,11 @@ async def update(session: AsyncSession, world_info: WorldInfo) -> WorldInfo:
 
 async def delete(session: AsyncSession, world_info: WorldInfo) -> None:
     """
-    删除世界书。
+    Menghapus buku dunia.
 
     Args:
-        session: 数据库 session。
-        world_info: 世界书实例。
+        session: session basis data.
+        world_info: Instance buku dunia.
     """
     await session.delete(world_info)
     await session.flush()
@@ -123,13 +123,13 @@ async def delete(session: AsyncSession, world_info: WorldInfo) -> None:
 
 async def count(session: AsyncSession) -> int:
     """
-    获取世界书总数。
+    Mengambil jumlah total buku dunia.
 
     Args:
-        session: 数据库 session。
+        session: session basis data.
 
     Returns:
-        世界书总数。
+        Jumlah total buku dunia.
     """
     result = await session.execute(select(func.count(col(WorldInfo.id))))
     return result.scalar_one()

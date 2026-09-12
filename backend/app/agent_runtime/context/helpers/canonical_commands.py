@@ -68,7 +68,8 @@ def compile_canonical_commands(text: str) -> str:
 def extract_referenced_skill_ids(
     texts: Iterable[str],
 ) -> tuple[str, ...]:
-    """提取 Skill 的稳定 ID；带 ID 的规范命令不依赖名称边界。"""
+    """Mengambil ID stabil sebuah Skill; perintah kanonik yang memuat ID tidak
+    bergantung pada batas nama."""
     referenced: list[str] = []
     for text in texts:
         for part in parse_canonical_skill_commands(text):

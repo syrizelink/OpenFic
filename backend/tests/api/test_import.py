@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Import API 测试。
+Uji API Import.
+
+Catatan: fixture TXT/ZIP berbahasa Tionghoa di berkas ini SENGAJA dipertahankan,
+karena app/core/txt_parser.py mendeteksi judul bab/volume lewat pola CJK
+(mis. "第 N 章", "第 N 卷"). Menerjemahkannya akan membuat parser gagal
+mengenali struktur bab.
 """
 
 import io
@@ -13,7 +18,7 @@ from httpx import AsyncClient
 
 @pytest.mark.asyncio
 async def test_preview_txt_simple(client: AsyncClient) -> None:
-    """测试预览简单 TXT 文件（无章节标题）。"""
+    """Uji pratinjau berkas TXT sederhana (tanpa judul bab)."""
     content = "这是一段简单的文本内容。\n没有标题，只有正文。"
     files = {"file": ("test.txt", content.encode("utf-8"), "text/plain")}
 
@@ -30,8 +35,8 @@ async def test_preview_txt_simple(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_preview_txt_with_chapters(client: AsyncClient) -> None:
-    """测试预览带章节标题的 TXT 文件。"""
-    # 每章内容足够长以满足解析器的间隔要求
+    """Uji pratinjau berkas TXT yang memiliki judul bab."""
+    # Isi setiap bab dibuat cukup panjang agar memenuhi syarat jarak antar bab pada parser
     ch1 = "我本想当个平常人，谁知道命运弄人。" * 30
     ch2 = "新的一天开始了，难题也跟着来了。" * 30
     ch3 = "经历了很多，终于走到了结局。" * 30
@@ -53,9 +58,9 @@ async def test_preview_txt_with_chapters(client: AsyncClient) -> None:
     assert response.status_code == 200
     data = response.json()
 
-    assert data["chapter_count"] >= 2  # 至少解析出 2 个章节
+    assert data["chapter_count"] >= 2  # Minimal 2 bab berhasil diurai
     assert data["total_word_count"] > 0
-    # 验证章节标题包含关键字
+    # Verifikasi judul bab memuat kata kunci
     titles = [
         chapter["title"] for volume in data["volumes"] for chapter in volume["chapters"]
     ]
@@ -65,8 +70,8 @@ async def test_preview_txt_with_chapters(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_preview_txt_chapter_format_2(client: AsyncClient) -> None:
-    """测试数字分隔符格式的章节标题。"""
-    # 每章内容足够长以满足解析器的间隔要求
+    """Uji judul bab dengan format pemisah angka."""
+    # Isi setiap bab dibuat cukup panjang agar memenuhi syarat jarak antar bab pada parser
     ch1 = "故事的开始总是充满期待和悬念。" * 30
     ch2 = "这一天终于来了，主角醒来了。" * 30
     ch3 = "全部结束了，这就是结局。" * 30
@@ -88,22 +93,22 @@ async def test_preview_txt_chapter_format_2(client: AsyncClient) -> None:
     assert response.status_code == 200
     data = response.json()
 
-    assert data["chapter_count"] >= 2  # 数字分隔符格式
+    assert data["chapter_count"] >= 2  # Format pemisah angka
 
 
 @pytest.mark.asyncio
 async def test_preview_empty_file(client: AsyncClient) -> None:
-    """测试空文件处理。"""
+    """Uji penanganan berkas kosong."""
     files = {"file": ("empty.txt", b"", "text/plain")}
 
     response = await client.post("/api/v1/import/preview", files=files)
     assert response.status_code == 400
-    assert "空" in response.json()["detail"]
+    assert "kosong" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
 async def test_preview_invalid_file_type(client: AsyncClient) -> None:
-    """测试无效文件类型。"""
+    """Uji tipe berkas yang tidak valid."""
     files = {"file": ("test.pdf", b"fake pdf content", "application/pdf")}
 
     response = await client.post("/api/v1/import/preview", files=files)
@@ -113,10 +118,10 @@ async def test_preview_invalid_file_type(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_confirm_import(client: AsyncClient) -> None:
-    """测试确认导入流程。"""
-    # 每个章节内容需要足够长以满足解析器的间隔要求
-    chapter1_content = "这是序章的内容，描述故事的背景。" * 30  # 约 600 字符
-    chapter2_content = "主角踏上了冒险的旅程，开始了漫长的征途。" * 30  # 约 600 字符
+    """Uji alur konfirmasi impor."""
+    # Isi setiap bab perlu cukup panjang agar memenuhi syarat jarak antar bab pada parser
+    chapter1_content = "这是序章的内容，描述故事的背景。" * 30  # sekitar 600 karakter
+    chapter2_content = "主角踏上了冒险的旅程，开始了漫长的征途。" * 30  # sekitar 600 karakter
     content = f"""第一章 序章
 
 {chapter1_content}
@@ -129,33 +134,34 @@ async def test_confirm_import(client: AsyncClient) -> None:
         "file": ("novel.txt", content.encode("utf-8"), "text/plain"),
     }
     data = {
-        "title": "测试小说",
-        "description": "这是一本测试小说",
+        "title": "Novel Uji",
+        "description": "Ini adalah novel uji",
     }
 
     response = await client.post("/api/v1/import/confirm", files=files, data=data)
     assert response.status_code == 201
     result = response.json()
 
-    assert result["title"] == "测试小说"
-    assert result["chapter_count"] >= 1  # 至少有一个章节
+    assert result["title"] == "Novel Uji"
+    assert result["chapter_count"] >= 1  # Minimal ada satu bab
     assert result["total_word_count"] > 0
     assert "project_id" in result
 
-    # 验证项目已创建
+    # Verifikasi proyek sudah dibuat
     project_id = result["project_id"]
     project_response = await client.get(f"/api/v1/projects/{project_id}")
     assert project_response.status_code == 200
     project = project_response.json()
-    assert project["title"] == "测试小说"
+    assert project["title"] == "Novel Uji"
 
-    # 验证章节已创建
+    # Verifikasi bab sudah dibuat
     chapters_response = await client.get(f"/api/v1/projects/{project_id}/chapters")
     assert chapters_response.status_code == 200
     tree = chapters_response.json()
     assert tree["total_chapters"] >= 1
     assert len(tree["volumes"]) == 1
     volume = tree["volumes"][0]
+    # Judul volume bawaan dihasilkan txt_parser (ParsedVolume CJK), jadi dipertahankan.
     assert volume["title"] == "第一卷"
     assert volume["chapter_count"] == tree["total_chapters"]
     assert len(volume["chapters"]) >= 1
@@ -164,7 +170,7 @@ async def test_confirm_import(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_import_txt_with_volume_titles(client: AsyncClient) -> None:
-    """卷标题与下一目录标题之间没有正文时，应按卷导入章节。"""
+    """Saat tidak ada isi antara judul volume dan judul berikutnya, bab harus diimpor per volume."""
     first_chapter = "第一卷的第一章正文。" * 60
     second_chapter = "第一卷的第二章正文。" * 60
     third_chapter = "第二卷的第一章正文。" * 60
@@ -204,7 +210,7 @@ async def test_import_txt_with_volume_titles(client: AsyncClient) -> None:
     import_response = await client.post(
         "/api/v1/import/confirm",
         files=files,
-        data={"title": "分卷测试小说"},
+        data={"title": "Novel Uji Pembagian Volume"},
     )
 
     assert import_response.status_code == 201
@@ -226,7 +232,7 @@ async def test_import_txt_with_volume_titles(client: AsyncClient) -> None:
 async def test_preview_creates_explicit_volume_when_following_chapter_is_unrecognized(
     client: AsyncClient,
 ) -> None:
-    """显式卷标题后的未识别章节也应归入新卷。"""
+    """Bab tak dikenali setelah judul volume eksplisit juga harus masuk ke volume baru."""
     first_chapter = "第一章正文。" * 200
     second_chapter = "未命名章节正文。" * 200
     content = f"""第一卷 第一卷
@@ -263,13 +269,13 @@ async def test_preview_creates_explicit_volume_when_following_chapter_is_unrecog
 
 @pytest.mark.asyncio
 async def test_confirm_import_empty_title(client: AsyncClient) -> None:
-    """测试导入时标题为空。"""
+    """Uji impor dengan judul kosong."""
     content = "简单内容"
     files = {"file": ("novel.txt", content.encode("utf-8"), "text/plain")}
     data = {"title": ""}
 
     response = await client.post("/api/v1/import/confirm", files=files, data=data)
-    # 422 是 Pydantic 验证错误，400 是业务验证错误，两者都可接受
+    # 422 adalah error validasi Pydantic, 400 adalah error validasi bisnis; keduanya diterima
     assert response.status_code in (400, 422)
 
 
@@ -289,11 +295,11 @@ async def test_confirm_import_rejects_over_limit_content_before_project_creation
     response = await client.post(
         "/api/v1/import/confirm",
         files=files,
-        data={"title": "超限导入"},
+        data={"title": "Impor Melebihi Batas"},
     )
 
     assert response.status_code == 400
-    assert "内容超出限制" in response.json()["detail"]
+    assert "Konten melebihi batas" in response.json()["detail"]
     projects_after = (await client.get("/api/v1/projects")).json()["total"]
     assert projects_after == projects_before
 
@@ -308,7 +314,7 @@ async def test_confirm_import_stream_rejects_over_limit_chapter_before_project_c
     response = await client.post(
         "/api/v1/import/confirm-stream",
         files={"file": ("over-limit.txt", content.encode("utf-8"), "text/plain")},
-        data={"title": "超限流式导入"},
+        data={"title": "Impor Stream Melebihi Batas"},
     )
 
     events = [
@@ -318,14 +324,14 @@ async def test_confirm_import_stream_rejects_over_limit_chapter_before_project_c
     ]
     error_event = next(event for event in events if event["type"] == "error")
     assert error_event["type"] == "error"
-    assert "内容超出限制" in error_event["message"]
+    assert "Konten melebihi batas" in error_event["message"]
     projects_after = (await client.get("/api/v1/projects")).json()["total"]
     assert projects_after == projects_before
 
 
 @pytest.mark.asyncio
 async def test_preview_gbk_encoding(client: AsyncClient) -> None:
-    """测试 GBK 编码文件的检测和解析。"""
+    """Uji deteksi dan penguraian berkas berenkode GBK."""
     content = "第一章 中文测试\n\n这是中文内容。"
     gbk_content = content.encode("gbk")
     files = {"file": ("gbk_novel.txt", gbk_content, "text/plain")}
@@ -334,16 +340,16 @@ async def test_preview_gbk_encoding(client: AsyncClient) -> None:
     assert response.status_code == 200
     data = response.json()
 
-    # GBK 编码应该被检测到并正确解析
+    # Enkode GBK harus terdeteksi dan diurai dengan benar
     assert data["chapter_count"] >= 1
-    # 包含 gb 系列编码或 utf-8（小文件可能识别不准）
+    # Termasuk enkode keluarga gb atau utf-8 (berkas kecil bisa terdeteksi kurang akurat)
     enc = data["detected_encoding"].lower()
     assert "gb" in enc or enc == "utf-8" or enc == "ascii"
 
 
 @pytest.mark.asyncio
 async def test_preview_gb18030_preserves_original_text(client: AsyncClient) -> None:
-    """测试 GB18030 编码文件预览时不会出现乱码。"""
+    """Uji pratinjau berkas berenkode GB18030 tidak menghasilkan teks rusak."""
     content = "第一章 扩展字符测试\n\n这里有扩展字：𠮷。"
     gb18030_content = content.encode("gb18030")
     files = {"file": ("gb18030_novel.txt", gb18030_content, "text/plain")}
@@ -455,7 +461,7 @@ async def test_confirm_import_zip_preserves_archive_structure(client: AsyncClien
     response = await client.post(
         "/api/v1/import/confirm",
         files={"file": ("novel.zip", archive_content, "application/zip")},
-        data={"title": "ZIP 导入测试", "split_mode": "manual", "chunk_size": "10"},
+        data={"title": "Uji Impor ZIP", "split_mode": "manual", "chunk_size": "10"},
     )
 
     assert response.status_code == 201
@@ -477,7 +483,7 @@ async def test_confirm_import_stream_uses_manual_split(client: AsyncClient) -> N
     response = await client.post(
         "/api/v1/import/confirm-stream",
         files={"file": ("novel.txt", content.encode("utf-8"), "text/plain")},
-        data={"title": "流式手动分割", "split_mode": "manual", "chunk_size": "10"},
+        data={"title": "Pembagian Manual Stream", "split_mode": "manual", "chunk_size": "10"},
     )
 
     assert response.status_code == 200
@@ -498,7 +504,7 @@ async def test_preview_corrupt_zip_returns_a_readable_error(client: AsyncClient)
     )
 
     assert response.status_code == 400
-    assert "压缩包" in response.json()["detail"]
+    assert "Arsip ZIP" in response.json()["detail"]
 
 
 @pytest.mark.asyncio

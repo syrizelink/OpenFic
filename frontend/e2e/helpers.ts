@@ -9,8 +9,8 @@ export const LARGE_PROJECT_URL = `/projects/${LARGE_PROJECT_ID}`;
 export const COMPOSER = ".ai-sidebar-input-body[data-mode='composer']";
 export const SEND_BUTTON = ".ai-sidebar-send-button";
 export const APPROVAL_PANEL = ".agent-special-panel-approval";
-export const COMPACT_BUTTON = "压缩上下文";
-export const NEW_TASK_BUTTON = "新建任务";
+export const COMPACT_BUTTON = "Padatkan Konteks";
+export const NEW_TASK_BUTTON = "Tugas Baru";
 
 export interface TaskInfo {
   id: string;
@@ -129,7 +129,7 @@ export async function sendMessage(page: Page, text: string): Promise<void> {
   const sendButton = page.locator(SEND_BUTTON);
   await expect(sendButton).toBeEnabled({ timeout: 10000 });
   await sendButton.click();
-  const confirmButton = page.getByRole("button", { name: "继续发送" });
+  const confirmButton = page.getByRole("button", { name: "Kirim saja" });
   if (await confirmButton.isVisible({ timeout: 5000 }).catch(() => false)) {
     await confirmButton.click();
   }
@@ -138,7 +138,7 @@ export async function sendMessage(page: Page, text: string): Promise<void> {
 }
 
 export async function waitForRunningState(page: Page, timeout = 120000): Promise<void> {
-  await expect(page.getByText("正在考虑下一步").first()).toBeVisible({ timeout });
+  await expect(page.getByText("Mempertimbangkan langkah berikutnya").first()).toBeVisible({ timeout });
 }
 
 export async function waitForTaskRunning(
@@ -175,7 +175,7 @@ export async function approveUntilReply(
   while (Date.now() < deadline) {
     const approval = page.locator(APPROVAL_PANEL);
     if (await approval.isVisible().catch(() => false)) {
-      await approval.getByRole("button", { name: "执行" }).click();
+      await approval.getByRole("button", { name: "Jalankan" }).click();
       await expect(approval)
         .toBeHidden({ timeout: 120000 })
         .catch(() => undefined);
@@ -187,13 +187,13 @@ export async function approveUntilReply(
     if (await reply.isVisible().catch(() => false)) return;
     await page.waitForTimeout(2000);
   }
-  throw new Error(`未在 ${timeoutMs}ms 内收到回复: ${text}`);
+  throw new Error(`Tidak menerima balasan dalam ${timeoutMs}ms: ${text}`);
 }
 
 export async function waitForIdle(page: Page, timeout = 180000): Promise<void> {
   await expect(page.locator(SEND_BUTTON)).toHaveClass(/ai-sidebar-send-button/, { timeout });
   await expect(async () => {
-    const running = await page.getByText(/正在考虑下一步|正在等待审批|正在执行/).count();
+    const running = await page.getByText(/Mempertimbangkan langkah berikutnya|Menunggu persetujuan|Menjalankan tugas/).count();
     expect(running).toBe(0);
   }).toPass({ timeout });
 }

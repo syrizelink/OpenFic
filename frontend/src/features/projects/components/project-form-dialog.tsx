@@ -1,7 +1,7 @@
 /**
  * ProjectFormDialog Component
  *
- * 创建/编辑项目对话框，使用 React Hook Form + Zod 验证，支持封面上传。
+ * Dialog pembuatan/penyuntingan proyek, memakai validasi React Hook Form + Zod, mendukung unggahan sampul.
  */
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,15 +18,15 @@ import { CoverCropper } from "./cover-cropper";
 import "./project-form-dialog.css";
 
 interface ProjectFormDialogProps {
-  /** 是否打开对话框 */
+  /** Status terbuka dialog */
   open: boolean;
-  /** 关闭对话框回调 */
+  /** Callback penutupan dialog */
   onOpenChange: (open: boolean) => void;
-  /** 提交表单回调 */
+  /** Callback pengiriman formulir */
   onSubmit: (data: { title: string; description?: string; cover?: File | null }) => void;
-  /** 编辑模式时传入现有项目 */
+  /** Proyek yang sudah ada, diteruskan saat mode sunting */
   project?: Project | null;
-  /** 是否处于加载状态 */
+  /** Status sedang memuat */
   loading?: boolean;
 }
 
@@ -41,7 +41,7 @@ export function ProjectFormDialog({
   const isEditMode = !!project;
   const [cover, setCover] = useState<File | null>(null);
 
-  /** 表单验证 Schema */
+  /** Schema validasi formulir */
   const projectFormSchema = z.object({
     title: z
       .string()
@@ -65,7 +65,7 @@ export function ProjectFormDialog({
     },
   });
 
-  // 编辑模式时填充表单
+  // Mengisi formulir saat mode sunting
   useEffect(() => {
     if (open && project) {
       reset({
@@ -119,7 +119,7 @@ export function ProjectFormDialog({
             mt="4"
             className="project-form-dialog-fields"
           >
-            {/* 左侧：封面 */}
+            {/* Kiri: sampul */}
             <Box className="project-form-dialog-cover">
               <CoverCropper
                 value={cover}
@@ -128,13 +128,13 @@ export function ProjectFormDialog({
               />
             </Box>
 
-            {/* 右侧：项目信息 */}
+            {/* Kanan: informasi proyek */}
             <Flex
               direction="column"
               gap="4"
               style={{ flex: 1, minWidth: 0 }}
             >
-              {/* 标题 */}
+              {/* Judul */}
               <Box>
                 <Text
                   as="label"
@@ -160,7 +160,7 @@ export function ProjectFormDialog({
                 )}
               </Box>
 
-              {/* 简介 */}
+              {/* Deskripsi */}
               <Box>
                 <Text
                   as="label"

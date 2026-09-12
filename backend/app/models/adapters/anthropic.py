@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Anthropic Adapter - Anthropic API适配器。
+Anthropic Adapter - adapter Anthropic API.
 """
 
 from collections.abc import Mapping
@@ -11,14 +11,14 @@ from app.models.adapters.base import BaseAdapter
 
 
 class AnthropicAdapter(BaseAdapter):
-    """Anthropic API适配器，仅支持LLM模型（不支持Embedding）。"""
+    """Adapter Anthropic API, hanya mendukung model LLM (tidak mendukung embedding)."""
 
     @property
     def provider_type(self) -> str:
         return "anthropic"
 
     def supports_embedding(self) -> bool:
-        """Anthropic不支持Embedding。"""
+        """Anthropic tidak mendukung embedding."""
         return False
 
     async def get_llm_models(
@@ -29,7 +29,7 @@ class AnthropicAdapter(BaseAdapter):
         *,
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
-        """获取LLM模型列表（预定义）。"""
+        """Ambil daftar model LLM (telah didefinisikan sebelumnya)."""
         return [
             {"id": "claude-sonnet-4-20250514", "name": "Claude Sonnet 4"},
             {"id": "claude-3-7-sonnet-20250219", "name": "Claude 3.7 Sonnet"},
@@ -46,5 +46,5 @@ class AnthropicAdapter(BaseAdapter):
         *,
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
-        """Anthropic不支持Embedding模型。"""
+        """Anthropic tidak mendukung model embedding."""
         return []

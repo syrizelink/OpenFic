@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AgentMemory API Schemas。"""
+"""AgentMemory API Schemas."""
 
 from datetime import datetime
 
@@ -7,15 +7,15 @@ from pydantic import BaseModel, Field
 
 
 class AgentMemoryCreate(BaseModel):
-    content: str = Field(default="", description="记忆内容")
+    content: str = Field(default="", description="Isi catatan memori")
 
 
 class AgentMemoryUpdate(BaseModel):
-    content: str | None = Field(default=None, description="记忆内容")
+    content: str | None = Field(default=None, description="Isi catatan memori")
 
 
 class AgentMemoryReorder(BaseModel):
-    memory_ids: list[str] = Field(description="按新顺序排列的记忆 ID 列表")
+    memory_ids: list[str] = Field(description="Daftar ID catatan memori dalam urutan baru")
 
 
 class AgentMemoryResponse(BaseModel):

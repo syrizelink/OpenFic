@@ -27,21 +27,26 @@ from app.storage.services import chapter_service
 
 
 class DeleteChapterInput(BaseModel):
-    volume_ref: VolumeRef = Field(description="目标卷")
-    chapter_ref: ChapterRef = Field(description="目标章节")
+    volume_ref: VolumeRef = Field(description="Volume sasaran")
+    chapter_ref: ChapterRef = Field(description="Bab sasaran")
 
 
 @ToolRegistry.register
 class DeleteChapterTool(AgentTool):
     name: str = "delete_chapter"
-    description: str = "删除指定章节，删除后，卷内章节序号会自动调整"
+    description: str = (
+        "Menghapus bab yang ditentukan; setelah dihapus, nomor urut bab di dalam "
+        "volume disesuaikan secara otomatis"
+    )
     access_level: str = "write"
     args_schema: type[BaseModel] = DeleteChapterInput
 
     async def _execute(self, volume_ref: dict, chapter_ref: dict) -> str:
         revision_id = current_revision_id_from_state(self._state)
         if revision_id is None:
-            raise ToolExecutionError("缺少当前 revision，无法执行章节删除")
+            raise ToolExecutionError(
+                "revision saat ini tidak ada, penghapusan bab tidak dapat dijalankan"
+            )
         volume_ref_model = VolumeRef.model_validate(volume_ref)
         ref = ChapterRef.model_validate(chapter_ref)
         session = await create_session()

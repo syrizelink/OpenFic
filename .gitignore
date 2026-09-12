@@ -32,3 +32,10 @@ desktop/node_modules
 desktop/dist
 desktop/dist-electron
 desktop/out
+
+# Kredensial infrastruktur - jangan pernah di-commit
+vps/
+dataL/
+*.pem
+*.key
+!frontend/**/*.key

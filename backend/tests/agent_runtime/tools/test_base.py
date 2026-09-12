@@ -137,7 +137,7 @@ async def test_agent_tool_execution_error_logs_exception_traceback():
     bound_logger.opt.assert_called_once()
     assert isinstance(bound_logger.opt.call_args.kwargs["exception"], Exception)
     bound_logger.opt.return_value.error.assert_called_once_with(
-        "Agent 工具执行失败"
+        "Eksekusi alat Agent gagal"
     )
 
 
@@ -149,7 +149,9 @@ async def test_agent_tool_preserves_unexpected_exception_message_and_logs_except
 
     bound_logger = logger.bind.return_value
     bound_logger.opt.assert_called_once()
-    bound_logger.opt.return_value.error.assert_called_once_with("Agent 工具执行失败")
+    bound_logger.opt.return_value.error.assert_called_once_with(
+        "Eksekusi alat Agent gagal"
+    )
     logged_exception = bound_logger.opt.call_args.kwargs["exception"]
     assert isinstance(logged_exception, RuntimeError)
     payload = json.loads(result)
@@ -157,7 +159,7 @@ async def test_agent_tool_preserves_unexpected_exception_message_and_logs_except
         "type": "fail",
         "success": False,
         "code": "execution_failed",
-        "message": "工具执行异常: database password=super-secret",
+        "message": "Kesalahan eksekusi alat: database password=super-secret",
     }
 
 
@@ -168,7 +170,7 @@ async def test_agent_tool_validation_error_returns_safe_failure_result():
     assert payload["type"] == "fail"
     assert payload["success"] is False
     assert payload["code"] == "validation_error"
-    assert "参数校验失败" in payload["message"]
+    assert "Validasi parameter gagal" in payload["message"]
     assert "trace" not in payload
 
 
@@ -180,7 +182,7 @@ async def test_agent_tool_validation_error_is_logged():
 
     bound_logger = logger.bind.return_value
     bound_logger.warning.assert_called_once()
-    assert "参数校验失败" in str(bound_logger.warning.call_args.args)
+    assert "Validasi parameter gagal" in str(bound_logger.warning.call_args.args)
 
 
 async def test_agent_tool_validation_error_omits_repeated_pydantic_help_urls():
@@ -305,7 +307,7 @@ async def test_agent_tool_does_not_execute_after_rejected_tool_approval():
         "type": "control",
         "success": False,
         "status": "approval_denied",
-        "message": "工具调用已被用户拒绝",
+        "message": "Pemanggilan alat ditolak oleh pengguna",
         "approval_id": "approval-1",
         "tool_name": "preview",
     }

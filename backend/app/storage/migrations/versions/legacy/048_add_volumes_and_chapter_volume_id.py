@@ -19,7 +19,7 @@ down_revision: Union[str, None] = "047"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-DEFAULT_VOLUME_TITLE = "第一卷"
+DEFAULT_VOLUME_TITLE = "Volume 1"
 
 
 def _table_names(bind) -> set[str]:

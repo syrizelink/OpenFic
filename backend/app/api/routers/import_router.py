@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Import Router - 项目文件导入 API。
+Import Router - API impor berkas proyek.
 """
 
 import json
@@ -31,7 +31,7 @@ from app.storage.services import import_service
 
 router = APIRouter(prefix="/import", tags=["import"])
 
-SUPPORTED_FILE_DETAIL = "仅支持 .txt、.md 或 .zip 文件"
+SUPPORTED_FILE_DETAIL = "Hanya mendukung berkas .txt, .md, atau .zip"
 
 
 def _require_supported_filename(filename: str | None) -> str:
@@ -48,12 +48,12 @@ async def _read_import_content(file: UploadFile) -> bytes:
     if len(content) > MAX_IMPORT_FILE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="文件大小超过限制（最大 50MB）",
+            detail="Ukuran berkas melewati batas (maksimum 50MB)",
         )
     if len(content) == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="文件内容为空",
+            detail="Isi berkas kosong",
         )
     return content
 
@@ -84,42 +84,42 @@ def _to_preview_response(result: ParseResult) -> ImportPreviewResponse:
 
 def _no_chapters_detail(filename: str) -> str:
     if filename.lower().endswith(".zip"):
-        return "压缩包内未找到 TXT 或 Markdown 文件"
-    return "文件解析失败，未能识别任何章节"
+        return "Tidak ditemukan berkas TXT atau Markdown di dalam arsip"
+    return "Gagal mengurai berkas, tidak ada bab yang dapat dikenali"
 
 
 @router.post(
     "/preview",
     response_model=ImportPreviewResponse,
-    summary="预览项目导入文件",
+    summary="Pratinjau berkas impor proyek",
 )
 async def preview_import_file(
-    file: Annotated[UploadFile, File(description="TXT、Markdown 或 ZIP 文件")],
-    split_mode: Annotated[ImportSplitMode, Form(description="分割模式")] = "auto",
+    file: Annotated[UploadFile, File(description="Berkas TXT, Markdown, atau ZIP")],
+    split_mode: Annotated[ImportSplitMode, Form(description="Mode pemisahan")] = "auto",
     chunk_size: Annotated[
         int,
         Form(
             ge=1,
             le=MAX_IMPORT_CHUNK_SIZE,
-            description="手动分割时的每章字数",
+            description="Jumlah kata per bab saat pemisahan manual",
         ),
     ] = DEFAULT_IMPORT_CHUNK_SIZE,
 ) -> ImportPreviewResponse:
     """
-    上传项目文件并获取解析预览。
+    Mengunggah berkas proyek dan mengambil pratinjau hasil penguraian.
 
     Args:
-        file: TXT、Markdown 或 ZIP 文件。
+        file: Berkas TXT, Markdown, atau ZIP.
 
     Returns:
-        解析预览结果。
+        Hasil pratinjau penguraian.
 
     Raises:
-        HTTPException: 文件格式不支持或解析失败时返回 400。
+        HTTPException: Mengembalikan 400 bila format berkas tidak didukung atau gagal diurai.
     """
     filename = _require_supported_filename(file.filename)
     content = await _read_import_content(file)
-    logger.info(f"预览导入文件: {filename}, 大小: {len(content)} 字节")
+    logger.info(f"Pratinjau berkas impor: {filename}, ukuran: {len(content)} bita")
 
     try:
         result = parse_project_import(
@@ -144,54 +144,54 @@ async def preview_import_file(
     "/confirm",
     response_model=ImportConfirmResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="确认导入",
+    summary="Konfirmasi impor",
 )
 async def confirm_import(
-    file: Annotated[UploadFile, File(description="TXT、Markdown 或 ZIP 文件")],
-    title: Annotated[str, Form(description="书名")],
-    description: Annotated[str | None, Form(description="简介")] = None,
-    cover: Annotated[UploadFile | None, File(description="封面图片")] = None,
-    split_mode: Annotated[ImportSplitMode, Form(description="分割模式")] = "auto",
+    file: Annotated[UploadFile, File(description="Berkas TXT, Markdown, atau ZIP")],
+    title: Annotated[str, Form(description="Judul buku")],
+    description: Annotated[str | None, Form(description="Sinopsis")] = None,
+    cover: Annotated[UploadFile | None, File(description="Gambar sampul")] = None,
+    split_mode: Annotated[ImportSplitMode, Form(description="Mode pemisahan")] = "auto",
     chunk_size: Annotated[
         int,
         Form(
             ge=1,
             le=MAX_IMPORT_CHUNK_SIZE,
-            description="手动分割时的每章字数",
+            description="Jumlah kata per bab saat pemisahan manual",
         ),
     ] = DEFAULT_IMPORT_CHUNK_SIZE,
     session: AsyncSession = Depends(get_session),
 ) -> ImportConfirmResponse:
     """
-    确认导入，创建项目和所有章节。
+    Konfirmasi impor, membuat proyek dan seluruh bab.
 
     Args:
-        file: TXT、Markdown 或 ZIP 文件。
-        title: 书名。
-        description: 简介（可选）。
-        cover: 封面图片（可选）。
-        session: 数据库 session。
+        file: Berkas TXT, Markdown, atau ZIP.
+        title: Judul buku.
+        description: Sinopsis (opsional).
+        cover: Gambar sampul (opsional).
+        session: Session basis data.
 
     Returns:
-        导入结果。
+        Hasil impor.
 
     Raises:
-        HTTPException: 导入失败时返回错误。
+        HTTPException: Mengembalikan error bila impor gagal.
     """
     filename = _require_supported_filename(file.filename)
     content = await _read_import_content(file)
 
-    # 验证书名
+    # Memvalidasi judul buku
     title = title.strip()
     if not title:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="书名不能为空",
+            detail="Judul buku tidak boleh kosong",
         )
 
-    logger.info(f"确认导入: {filename} -> {title}")
+    logger.info(f"Konfirmasi impor: {filename} -> {title}")
 
-    # 解析文件
+    # Mengurai berkas
     try:
         parse_result = parse_project_import(
             filename,
@@ -208,7 +208,7 @@ async def confirm_import(
             detail=_no_chapters_detail(filename),
         )
 
-    # 调用服务层执行导入
+    # Memanggil lapisan service untuk menjalankan impor
     try:
         result = await import_service.confirm_import(
             session=session,
@@ -230,33 +230,33 @@ async def confirm_import(
 
 @router.post(
     "/confirm-stream",
-    summary="确认导入（流式进度）",
+    summary="Konfirmasi impor (progres streaming)",
 )
 async def confirm_import_stream(
-    file: Annotated[UploadFile, File(description="TXT、Markdown 或 ZIP 文件")],
-    title: Annotated[str, Form(description="书名")],
-    description: Annotated[str | None, Form(description="简介")] = None,
-    cover: Annotated[UploadFile | None, File(description="封面图片")] = None,
-    split_mode: Annotated[ImportSplitMode, Form(description="分割模式")] = "auto",
+    file: Annotated[UploadFile, File(description="Berkas TXT, Markdown, atau ZIP")],
+    title: Annotated[str, Form(description="Judul buku")],
+    description: Annotated[str | None, Form(description="Sinopsis")] = None,
+    cover: Annotated[UploadFile | None, File(description="Gambar sampul")] = None,
+    split_mode: Annotated[ImportSplitMode, Form(description="Mode pemisahan")] = "auto",
     chunk_size: Annotated[
         int,
         Form(
             ge=1,
             le=MAX_IMPORT_CHUNK_SIZE,
-            description="手动分割时的每章字数",
+            description="Jumlah kata per bab saat pemisahan manual",
         ),
     ] = DEFAULT_IMPORT_CHUNK_SIZE,
     session: AsyncSession = Depends(get_session),
 ) -> StreamingResponse:
     """
-    确认导入，使用 SSE 流式返回进度。
+    Konfirmasi impor, mengembalikan progres secara streaming lewat SSE.
 
-    进度事件格式：
+    Format event progres:
     - {"type": "progress", "stage": "parsing", "progress": 10}
     - {"type": "progress", "stage": "creating_project", "progress": 20}
     - {"type": "progress", "stage": "saving_chapters", "progress": 30, "current": 1, "total": 100}
     - {"type": "complete", "project_id": "xxx", "chapter_count": 100, "total_word_count": 123456}
-    - {"type": "error", "message": "错误信息"}
+    - {"type": "error", "message": "pesan error"}
     """
 
     async def generate_progress():
@@ -266,25 +266,25 @@ async def confirm_import_stream(
                 yield f"data: {json.dumps({'type': 'error', 'message': SUPPORTED_FILE_DETAIL})}\n\n"
                 return
 
-            # 进度：读取文件
+            # Progres: membaca berkas
             yield f"data: {json.dumps({'type': 'progress', 'stage': 'reading', 'progress': 5})}\n\n"
 
             content = await file.read()
 
             if len(content) > MAX_IMPORT_FILE_SIZE:
-                yield f"data: {json.dumps({'type': 'error', 'message': '文件大小超过限制（最大 50MB）'})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Ukuran berkas melewati batas (maksimum 50MB)'})}\n\n"
                 return
 
             if len(content) == 0:
-                yield f"data: {json.dumps({'type': 'error', 'message': '文件内容为空'})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Isi berkas kosong'})}\n\n"
                 return
 
             title_clean = title.strip()
             if not title_clean:
-                yield f"data: {json.dumps({'type': 'error', 'message': '书名不能为空'})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Judul buku tidak boleh kosong'})}\n\n"
                 return
 
-            # 进度：解析文件
+            # Progres: mengurai berkas
             yield f"data: {json.dumps({'type': 'progress', 'stage': 'parsing', 'progress': 15})}\n\n"
 
             parse_result = parse_project_import(
@@ -300,10 +300,10 @@ async def confirm_import_stream(
 
             total_chapters = parse_result.chapter_count
 
-            # 进度：创建项目
+            # Progres: membuat proyek
             yield f"data: {json.dumps({'type': 'progress', 'stage': 'creating_project', 'progress': 25})}\n\n"
 
-            # 调用服务层执行导入
+            # Memanggil lapisan service untuk menjalankan impor
             result = await import_service.confirm_import(
                 session=session,
                 title=title_clean,
@@ -312,16 +312,16 @@ async def confirm_import_stream(
                 volumes=parse_result.volumes,
             )
 
-            # 进度：保存章节（模拟进度，实际已在批量插入中完成）
+            # Progres: menyimpan bab (progres simulasi, sebenarnya sudah selesai pada penyisipan massal)
             for i in range(0, total_chapters, max(1, total_chapters // 10)):
                 progress = 30 + int((i / total_chapters) * 65)
                 yield f"data: {json.dumps({'type': 'progress', 'stage': 'saving_chapters', 'progress': progress, 'current': i + 1, 'total': total_chapters})}\n\n"
 
-            # 完成
+            # Selesai
             yield f"data: {json.dumps({'type': 'complete', 'project_id': result.project_id, 'title': result.title, 'chapter_count': result.chapter_count, 'total_word_count': result.total_word_count})}\n\n"
 
         except Exception as e:
-            logger.exception(f"导入失败: {e}")
+            logger.exception(f"Gagal mengimpor: {e}")
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
     return StreamingResponse(

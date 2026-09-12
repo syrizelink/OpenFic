@@ -1,7 +1,7 @@
 /**
  * Project Selector Component
  *
- * 项目选择器下拉框组件。
+ * Komponen kotak tarik-turun pemilih proyek.
  */
 
 import { Box, Flex, Text } from "@radix-ui/themes";
@@ -13,18 +13,18 @@ import { fetchProjects } from "@/lib/api-client";
 import type { Project } from "@/lib/project.types";
 
 interface ProjectSelectorProps {
-  /** 当前选中的项目 ID */
+  /** ID proyek yang sedang dipilih */
   value: string | null;
-  /** 选择项目回调 */
+  /** Callback pemilihan proyek */
   onChange: (projectId: string) => void;
-  /** 是否禁用 */
+  /** Status nonaktif */
   disabled?: boolean;
 }
 
 export function ProjectSelector({ value, onChange, disabled = false }: ProjectSelectorProps) {
   const { t } = useTranslation();
 
-  // 获取项目列表
+  // Mengambil daftar proyek
   const { data: projectsData, isLoading } = useQuery({
     queryKey: ["projects", { page: 1, pageSize: 100 }],
     queryFn: () => fetchProjects({ page: 1, pageSize: 100 }),
@@ -32,7 +32,7 @@ export function ProjectSelector({ value, onChange, disabled = false }: ProjectSe
 
   const projects = projectsData?.items ?? [];
 
-  // 找到当前选中的项目
+  // Menemukan proyek yang sedang dipilih
   const selectedProject = projects.find((p: Project) => p.id === value);
 
   return (
@@ -67,7 +67,7 @@ export function ProjectSelector({ value, onChange, disabled = false }: ProjectSe
             size="2"
             color="gray"
           >
-            {selectedProject.title} 的世界书
+            {t("worldInfo.projectWorldInfoLabel", { title: selectedProject.title })}
           </Text>
         )}
       </Flex>

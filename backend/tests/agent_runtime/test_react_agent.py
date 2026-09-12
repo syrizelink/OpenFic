@@ -138,14 +138,14 @@ async def test_invoke_model_extracts_anthropic_text_content_blocks() -> None:
         async def astream(self, _messages):
             yield AIMessageChunk(
                 content=[
-                    {"type": "thinking", "thinking": "分析中"},
-                    {"type": "text", "text": "可见回复"},
+                    {"type": "thinking", "thinking": "Sedang menganalisis"},
+                    {"type": "text", "text": "Balasan terlihat"},
                 ]
             )
 
     response = await _invoke_model(StreamingModel(), [HumanMessage(content="Hello")])
 
-    assert response.content == "可见回复"
+    assert response.content == "Balasan terlihat"
 
 
 @pytest.mark.asyncio
@@ -155,7 +155,7 @@ async def test_invoke_model_sanitizes_nested_message_metadata() -> None:
     class StreamingModel:
         async def astream(self, _messages):
             yield AIMessageChunk(
-                content="完成",
+                content="Selesai",
                 response_metadata={"raw_message": nested_message},
             )
 
@@ -295,7 +295,7 @@ async def test_react_agent_normalizes_structured_tool_exception() -> None:
 @pytest.mark.asyncio
 async def test_react_agent_preserves_structured_tool_error_code() -> None:
     async def failing_tool() -> str:
-        raise ToolExecutionError("章节不存在", code="not_found")
+        raise ToolExecutionError("Bab tidak ditemukan", code="not_found")
 
     tool = StructuredTool.from_function(
         coroutine=failing_tool,
@@ -638,7 +638,7 @@ async def test_react_agent_keeps_tool_result_metadata_in_graph_state():
     ):
         result = await graph.ainvoke(
             {
-                "messages": [HumanMessage(content="编辑章节")],
+                "messages": [HumanMessage(content="Sunting bab")],
                 "iteration_count": 0,
                 "is_done": False,
                 "final_output": None,
@@ -934,13 +934,16 @@ async def test_react_agent_emits_tool_error_for_unrecoverable_invalid_tool_call_
         "type": "fail",
         "success": False,
         "code": "malformed_tool_call",
-        "message": "工具参数 JSON 无法解析，未执行工具调用",
+        "message": (
+            "Parameter alat berupa JSON tidak dapat diurai, pemanggilan alat "
+            "tidak dijalankan"
+        ),
     }
 
 
 def test_tool_result_payload_treats_canonical_failure_as_failure() -> None:
     payload, success = _tool_result_payload(
-        '{"type":"fail","success":false,"code":"not_found","message":"未找到章节"}'
+        '{"type":"fail","success":false,"code":"not_found","message":"Bab tidak ditemukan"}'
     )
 
     assert payload["code"] == "not_found"
@@ -949,7 +952,7 @@ def test_tool_result_payload_treats_canonical_failure_as_failure() -> None:
 
 def test_tool_result_payload_treats_failed_type_as_failure_without_success() -> None:
     payload, success = _tool_result_payload(
-        '{"type":"fail","code":"not_found","message":"未找到章节"}'
+        '{"type":"fail","code":"not_found","message":"Bab tidak ditemukan"}'
     )
 
     assert payload["code"] == "not_found"
@@ -996,7 +999,7 @@ async def test_react_agent_returns_canonical_failure_for_unknown_tool() -> None:
         "type": "fail",
         "success": False,
         "code": "tool_not_found",
-        "message": "未找到工具：missing_tool",
+        "message": "Alat tidak ditemukan: missing_tool",
     }
 
 
@@ -1155,8 +1158,8 @@ async def test_react_agent_attaches_tool_metadata_to_ask_user_interrupt() -> Non
                     "args": {
                         "questions": [
                             {
-                                "title": "剧情走向？",
-                                "description": "请选择下一段的展开方向。",
+                                "title": "Arah alur cerita?",
+                                "description": "Silakan pilih arah pengembangan bagian berikutnya.",
                                 "options": [],
                             }
                         ]
@@ -1172,7 +1175,7 @@ async def test_react_agent_attaches_tool_metadata_to_ask_user_interrupt() -> Non
     ):
         await graph.ainvoke(
             {
-                "messages": [HumanMessage(content="继续" )],
+                "messages": [HumanMessage(content="Lanjutkan" )],
                 "iteration_count": 0,
                 "is_done": False,
                 "final_output": None,
@@ -1192,8 +1195,8 @@ async def test_react_agent_attaches_tool_metadata_to_ask_user_interrupt() -> Non
     assert pending[0].value["args"] == {
         "questions": [
             {
-                "title": "剧情走向？",
-                "description": "请选择下一段的展开方向。",
+                "title": "Arah alur cerita?",
+                "description": "Silakan pilih arah pengembangan bagian berikutnya.",
                 "options": [],
             }
         ]
@@ -1344,7 +1347,7 @@ async def test_react_agent_does_not_execute_tool_after_approval_is_rejected() ->
         "type": "control",
         "success": False,
         "status": "approval_denied",
-        "message": "工具调用已被用户拒绝",
+        "message": "Pemanggilan alat ditolak oleh pengguna",
         "approval_id": pending[0].id,
         "tool_name": "approval_tool",
         "tool_call_id": "call_reject",
@@ -1406,14 +1409,17 @@ async def test_react_agent_rejects_more_than_twenty_tool_calls_before_execution(
     error_message = next(
         message
         for message in result["messages"]
-        if isinstance(message, ToolMessage) and "最多调用" in message.content
+        if isinstance(message, ToolMessage) and "paling banyak" in message.content
     )
     assert error_message.tool_call_id == "call_20"
     assert json.loads(error_message.content) == {
         "type": "fail",
         "success": False,
         "code": "limit_exceeded",
-        "message": "Agent 单轮最多调用 20 个工具，超出上限的工具调用未执行",
+        "message": (
+            "Agent memanggil paling banyak 20 alat dalam satu putaran; pemanggilan "
+            "alat yang melebihi batas tidak dijalankan"
+        ),
     }
     assert len(tool_results) == 1
     assert tool_results[0]["tool_call_id"] == "call_20"
@@ -1421,7 +1427,10 @@ async def test_react_agent_rejects_more_than_twenty_tool_calls_before_execution(
         "type": "fail",
         "success": False,
         "code": "limit_exceeded",
-        "message": "Agent 单轮最多调用 20 个工具，超出上限的工具调用未执行",
+        "message": (
+            "Agent memanggil paling banyak 20 alat dalam satu putaran; pemanggilan "
+            "alat yang melebihi batas tidak dijalankan"
+        ),
         "tool_call_id": "call_20",
         "tool_name": "counting_tool",
     }

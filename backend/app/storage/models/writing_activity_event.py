@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Writing Activity Event 数据模型 - 写作活动事件。
+Model data Writing Activity Event - peristiwa aktivitas menulis.
 """
 
 from datetime import UTC, datetime
@@ -11,7 +11,7 @@ from app.core.ids import generate_id
 
 
 class WritingActivityEvent(SQLModel, table=True):
-    """记录章节内容变更产生的字数快照事件。"""
+    """Mencatat peristiwa potret jumlah kata akibat perubahan isi bab."""
 
     __tablename__ = "writing_activity_events"
 

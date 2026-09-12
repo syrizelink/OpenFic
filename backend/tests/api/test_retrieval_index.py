@@ -15,7 +15,7 @@ from app.storage.repos import retrieval_chapter_index_state_repo, setting_repo
 
 
 async def _create_project(client: AsyncClient) -> tuple[str, str]:
-    response = await client.post("/api/v1/projects", data={"title": "检索测试"})
+    response = await client.post("/api/v1/projects", data={"title": "Uji Retrieval"})
     assert response.status_code == 201
     project_id = response.json()["id"]
     volumes = (await client.get(f"/api/v1/projects/{project_id}/volumes")).json()
@@ -28,7 +28,7 @@ async def _create_chapter(
     volume_id: str,
     *,
     title: str,
-    content: str = "正文",
+    content: str = "Isi utama",
 ) -> dict:
     response = await client.post(
         f"/api/v1/projects/{project_id}/chapters",
@@ -69,7 +69,7 @@ async def test_index_status_disabled_by_default(
 ) -> None:
     await _create_embedding_model(session)
     project_id, volume_id = await _create_project(client)
-    await _create_chapter(client, project_id, volume_id, title="一章")
+    await _create_chapter(client, project_id, volume_id, title="Bab Satu")
 
     response = await client.get(f"/api/v1/projects/{project_id}/retrieval/index/status")
 
@@ -88,7 +88,7 @@ async def test_index_status_reports_no_index_when_enabled_but_unindexed(
 ) -> None:
     await _create_embedding_model(session)
     project_id, volume_id = await _create_project(client)
-    await _create_chapter(client, project_id, volume_id, title="一章")
+    await _create_chapter(client, project_id, volume_id, title="Bab Satu")
     await setting_repo.upsert(session, "index_mode", "all")
     await session.commit()
 
@@ -111,7 +111,7 @@ async def test_index_status_reports_fresh_when_all_chapters_ready(
 
     await _create_embedding_model(session)
     project_id, volume_id = await _create_project(client)
-    chapter = await _create_chapter(client, project_id, volume_id, title="一章", content="正文")
+    chapter = await _create_chapter(client, project_id, volume_id, title="Bab Satu", content="Isi utama")
     await setting_repo.upsert(session, "index_mode", "all")
     session.add(
         RetrievalChapterIndexState(
@@ -119,7 +119,7 @@ async def test_index_status_reports_fresh_when_all_chapters_ready(
             chapter_id=chapter["id"],
             index_key=f"chapters:{project_id}",
             status="ready",
-            source_hash=compute_chapter_source_hash("正文"),
+            source_hash=compute_chapter_source_hash("Isi utama"),
             embedding_model_ref_id="model-1",
             chunk_count=1,
         )
@@ -142,12 +142,12 @@ async def test_index_start_requires_enabled_project(
 ) -> None:
     await _create_embedding_model(session)
     project_id, volume_id = await _create_project(client)
-    await _create_chapter(client, project_id, volume_id, title="一章")
+    await _create_chapter(client, project_id, volume_id, title="Bab Satu")
 
     response = await client.post(f"/api/v1/projects/{project_id}/retrieval/index/start")
 
     assert response.status_code == 400
-    assert "未启用" in response.json()["detail"]
+    assert "belum mengaktifkan indeks" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -156,15 +156,15 @@ async def test_index_start_requires_embedding_model(
     session: AsyncSession,
 ) -> None:
     project_id, volume_id = await _create_project(client)
-    await _create_chapter(client, project_id, volume_id, title="一章")
-    # 启用索引但未配置嵌入模型
+    await _create_chapter(client, project_id, volume_id, title="Bab Satu")
+    # Indeks diaktifkan tetapi model embedding belum dikonfigurasi
     await setting_repo.upsert(session, "index_mode", "all")
     await session.commit()
 
     response = await client.post(f"/api/v1/projects/{project_id}/retrieval/index/start")
 
     assert response.status_code == 400
-    assert "嵌入模型" in response.json()["detail"]
+    assert "model embedding" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -179,8 +179,8 @@ async def test_index_start_enqueues_outdated_chapters(
 
     model = await _create_embedding_model(session)
     project_id, volume_id = await _create_project(client)
-    first = await _create_chapter(client, project_id, volume_id, title="一")
-    await _create_chapter(client, project_id, volume_id, title="二")
+    first = await _create_chapter(client, project_id, volume_id, title="Satu")
+    await _create_chapter(client, project_id, volume_id, title="Dua")
     await setting_repo.upsert(session, "index_mode", "all")
     session.add(
         RetrievalChapterIndexState(
@@ -200,7 +200,7 @@ async def test_index_start_enqueues_outdated_chapters(
     assert response.status_code == 200
     data = response.json()
     assert data["project_id"] == project_id
-    # first 标记为 ready 但内容哈希不匹配 -> 视为过期；second 未索引 -> 共 2 个入队
+    # first ditandai ready tetapi hash isinya tidak cocok -> dianggap kedaluwarsa; second belum terindeks -> total 2 masuk antrean
     assert data["enqueued_count"] == 2
     assert "job_id" not in data
     jobs = (
@@ -231,7 +231,7 @@ async def test_index_start_batches_item_and_state_enqueue(
     await _create_embedding_model(session)
     project_id, volume_id = await _create_project(client)
     for index in range(3):
-        await _create_chapter(client, project_id, volume_id, title=f"第{index + 1}章")
+        await _create_chapter(client, project_id, volume_id, title=f"Bab {index + 1}")
     await setting_repo.upsert(session, "index_mode", "all")
     await session.commit()
 
@@ -261,7 +261,7 @@ async def test_index_stop_cancels_pending_job_and_resets_incomplete_chapters(
 
     await _create_embedding_model(session)
     project_id, volume_id = await _create_project(client)
-    chapter = await _create_chapter(client, project_id, volume_id, title="一章")
+    chapter = await _create_chapter(client, project_id, volume_id, title="Bab Satu")
     await setting_repo.upsert(session, "index_mode", "all")
     await session.commit()
 
@@ -382,7 +382,7 @@ async def test_overall_index_status_aggregates_enabled_projects(
 ) -> None:
     await _create_embedding_model(session)
     project_id, volume_id = await _create_project(client)
-    await _create_chapter(client, project_id, volume_id, title="一章")
+    await _create_chapter(client, project_id, volume_id, title="Bab Satu")
     await setting_repo.upsert(session, "index_mode", "all")
     await session.commit()
 
@@ -405,7 +405,7 @@ async def test_index_start_emits_status_event_after_commit(
     session: AsyncSession,
     monkeypatch,
 ) -> None:
-    """手动开始索引后，after_commit 应触发 index:status 推送（按项目房间）。"""
+    """Setelah indeks dimulai manual, after_commit harus memicu pengiriman index:status (per room proyek)."""
     import asyncio
 
     import app.retrieval.index_status as index_status_mod
@@ -413,7 +413,7 @@ async def test_index_start_emits_status_event_after_commit(
 
     await _create_embedding_model(session)
     project_id, volume_id = await _create_project(client)
-    await _create_chapter(client, project_id, volume_id, title="一章")
+    await _create_chapter(client, project_id, volume_id, title="Bab Satu")
     await setting_repo.upsert(session, "index_mode", "all")
     await session.commit()
 
@@ -423,7 +423,7 @@ async def test_index_start_emits_status_event_after_commit(
         "project_id": project_id,
         "enabled": True,
         "status": "indexing",
-        "title": "检索测试",
+        "title": "Uji Retrieval",
         "total_chapters": 1,
         "indexed_count": 0,
         "pending_count": 1,
@@ -463,7 +463,7 @@ async def test_commit_and_emit_index_status_keeps_committed_progress_snapshot(
     session: AsyncSession,
     monkeypatch,
 ) -> None:
-    """状态事件必须发送提交时的快照，不能被后续批次覆盖为最终状态。"""
+    """Event status harus mengirim snapshot saat commit dan tidak boleh ditimpa menjadi status akhir oleh batch berikutnya."""
     import app.retrieval.index_status as index_status_mod
 
     payloads = [
@@ -496,10 +496,10 @@ async def test_index_status_payload_includes_title(
     client: AsyncClient,
     session: AsyncSession,
 ) -> None:
-    """项目级索引状态响应应包含项目标题而非依赖前端另行查找。"""
+    """Respons status indeks tingkat proyek harus memuat judul proyek, bukan mengandalkan pencarian tambahan di frontend."""
     await _create_embedding_model(session)
     project_id, volume_id = await _create_project(client)
-    await _create_chapter(client, project_id, volume_id, title="一章")
+    await _create_chapter(client, project_id, volume_id, title="Bab Satu")
     await setting_repo.upsert(session, "index_mode", "all")
     await session.commit()
 
@@ -508,7 +508,7 @@ async def test_index_status_payload_includes_title(
     assert response.status_code == 200
     data = response.json()
     assert data["project_id"] == project_id
-    assert data["title"] == "检索测试"
+    assert data["title"] == "Uji Retrieval"
 
 
 @pytest.mark.asyncio
@@ -516,11 +516,11 @@ async def test_empty_content_chapter_not_counted_as_pending(
     client: AsyncClient,
     session: AsyncSession,
 ) -> None:
-    """空内容的章节不应计入 pending，progress 只按可索引章节计算。"""
+    """Bab dengan isi kosong tidak boleh dihitung sebagai pending; progress hanya dihitung dari bab yang dapat diindeks."""
     await _create_embedding_model(session)
     project_id, volume_id = await _create_project(client)
-    await _create_chapter(client, project_id, volume_id, title="有内容", content="正文")
-    await _create_chapter(client, project_id, volume_id, title="空章节", content="")
+    await _create_chapter(client, project_id, volume_id, title="Ada Isi", content="Isi utama")
+    await _create_chapter(client, project_id, volume_id, title="Bab Kosong", content="")
     await setting_repo.upsert(session, "index_mode", "all")
     await session.commit()
 
@@ -540,7 +540,7 @@ async def test_empty_content_chapter_not_enqueued_for_indexing(
     client: AsyncClient,
     session: AsyncSession,
 ) -> None:
-    """启动索引时，空内容章节不应入队。"""
+    """Saat indeks dimulai, bab dengan isi kosong tidak boleh masuk antrean."""
     from sqlalchemy import select
     from sqlmodel import col
 
@@ -548,8 +548,8 @@ async def test_empty_content_chapter_not_enqueued_for_indexing(
 
     await _create_embedding_model(session)
     project_id, volume_id = await _create_project(client)
-    await _create_chapter(client, project_id, volume_id, title="有内容", content="正文")
-    await _create_chapter(client, project_id, volume_id, title="空章节", content="")
+    await _create_chapter(client, project_id, volume_id, title="Ada Isi", content="Isi utama")
+    await _create_chapter(client, project_id, volume_id, title="Bab Kosong", content="")
     await setting_repo.upsert(session, "index_mode", "all")
     await session.commit()
 
@@ -578,10 +578,10 @@ async def test_empty_content_only_chapter_project_status_fresh(
     client: AsyncClient,
     session: AsyncSession,
 ) -> None:
-    """只有空内容章节时，项目状态应为 fresh 而非 no_index。"""
+    """Saat hanya ada bab berisi kosong, status proyek harus fresh dan bukan no_index."""
     await _create_embedding_model(session)
     project_id, volume_id = await _create_project(client)
-    await _create_chapter(client, project_id, volume_id, title="空章节", content="")
+    await _create_chapter(client, project_id, volume_id, title="Bab Kosong", content="")
     await setting_repo.upsert(session, "index_mode", "all")
     await session.commit()
 

@@ -26,26 +26,38 @@ class ListWorldEntriesInput(BaseModel):
 
 
 class ReadWorldEntryInput(BaseModel):
-    title: str = Field(description="条目标题")
+    title: str = Field(description="Judul entri")
 
 
 class CreateWorldEntryInput(BaseModel):
-    title: str = Field(description="条目标题")
-    content: str = Field(description="条目内容")
+    title: str = Field(description="Judul entri")
+    content: str = Field(description="Isi entri")
 
 
 class EditWorldEntryInput(BaseModel):
-    title: str = Field(description="条目标题")
-    new_title: str | None = Field(default=None, description="新条目标题，可选")
-    old_content: str | None = Field(default=None, description="要查找并替换的原始文本")
-    new_content: str | None = Field(default=None, description="用于替换 old_content 的新文本")
-    replace_all: bool = Field(default=False, description="是否替换命中的全部 old_content，false 时只替换首个匹配项")
+    title: str = Field(description="Judul entri")
+    new_title: str | None = Field(
+        default=None, description="Judul entri baru, opsional"
+    )
+    old_content: str | None = Field(
+        default=None, description="Teks asli yang akan dicari dan diganti"
+    )
+    new_content: str | None = Field(
+        default=None, description="Teks baru sebagai pengganti old_content"
+    )
+    replace_all: bool = Field(
+        default=False,
+        description=(
+            "Apakah mengganti seluruh old_content yang cocok; saat false hanya "
+            "kecocokan pertama yang diganti"
+        ),
+    )
 
     @field_validator("old_content", mode="after")
     @classmethod
     def reject_empty_old_content(cls, v):
         if v is not None and v == "":
-            raise ValueError("old_content 不能为空字符串")
+            raise ValueError("old_content tidak boleh berupa string kosong")
         return v
 
     @field_validator("new_content", mode="after")
@@ -55,12 +67,14 @@ class EditWorldEntryInput(BaseModel):
         has_title = data.get("new_title") is not None
         has_content = data.get("old_content") is not None and v is not None
         if not has_title and not has_content:
-            raise ValueError("new_title 和 old_content/new_content 必填其中一类")
+            raise ValueError(
+                "salah satu dari new_title atau old_content/new_content wajib diisi"
+            )
         return v
 
 
 class DeleteWorldEntryInput(BaseModel):
-    title: str = Field(description="条目标题")
+    title: str = Field(description="Judul entri")
 
 
 @dataclass(frozen=True)
@@ -126,7 +140,7 @@ def _build_world_entry_diff(
 ) -> dict:
     target = after or before
     if target is None:
-        raise ToolExecutionError("缺少世界书条目 diff 数据")
+        raise ToolExecutionError("Data diff entri buku dunia tidak ada")
     if before is None:
         operation = "create"
         lines = _diff_lines(None, after.content if after else "")
@@ -146,20 +160,24 @@ def _build_world_entry_diff(
 async def _get_project_world_info(session, project_id: str):
     world_info = await world_info_repo.get_by_project_id(session, project_id)
     if world_info is None:
-        raise ToolExecutionError("当前项目未绑定世界书")
+        raise ToolExecutionError("Proyek saat ini belum ditautkan ke buku dunia")
     return world_info
 
 
 async def _resolve_entry_by_title(session, world_info_id: str, title: str) -> WorldInfoEntry:
     normalized_title = title.strip()
     if not normalized_title:
-        raise ToolExecutionError("世界书条目标题不能为空")
+        raise ToolExecutionError("Judul entri buku dunia tidak boleh kosong")
     entries = await world_info_entry_repo.list_all_by_world_info(session, world_info_id)
     matches = [entry for entry in entries if entry.name == normalized_title]
     if not matches:
-        raise ToolExecutionError(f"世界书条目不存在: {normalized_title}")
+        raise ToolExecutionError(
+            f"Entri buku dunia tidak ditemukan: {normalized_title}"
+        )
     if len(matches) > 1:
-        raise ToolExecutionError(f"世界书条目标题不唯一: {normalized_title}")
+        raise ToolExecutionError(
+            f"Judul entri buku dunia tidak unik: {normalized_title}"
+        )
     return matches[0]
 
 
@@ -171,26 +189,33 @@ async def _ensure_title_available(
 ) -> str:
     normalized_title = title.strip()
     if not normalized_title:
-        raise ToolExecutionError("世界书条目标题不能为空")
+        raise ToolExecutionError("Judul entri buku dunia tidak boleh kosong")
     entries = await world_info_entry_repo.list_all_by_world_info(session, world_info_id)
     if any(
         entry.name == normalized_title and entry.id != exclude_entry_id for entry in entries
     ):
-        raise ToolExecutionError(f"世界书条目标题已存在: {normalized_title}")
+        raise ToolExecutionError(
+            f"Judul entri buku dunia sudah ada: {normalized_title}"
+        )
     return normalized_title
 
 
 def _require_revision_id(state: dict) -> str:
     revision_id = current_revision_id_from_state(state)
     if revision_id is None:
-        raise ToolExecutionError("缺少当前 revision，无法执行世界书条目修改")
+        raise ToolExecutionError(
+            "revision saat ini tidak ada, perubahan entri buku dunia tidak dapat "
+            "dijalankan"
+        )
     return revision_id
 
 
 @ToolRegistry.register
 class ListWorldEntriesTool(AgentTool):
     name: str = "list_world_entries"
-    description: str = "获取项目世界书中启用的设定条目列表"
+    description: str = (
+        "Mengambil daftar entri latar yang aktif pada buku dunia proyek"
+    )
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ListWorldEntriesInput
 
@@ -217,7 +242,9 @@ class ListWorldEntriesTool(AgentTool):
 @ToolRegistry.register
 class ReadWorldEntryTool(AgentTool):
     name: str = "read_world_entry"
-    description: str = "读取项目世界书中指定的设定条目内容"
+    description: str = (
+        "Membaca isi entri latar yang ditentukan pada buku dunia proyek"
+    )
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ReadWorldEntryInput
 
@@ -242,7 +269,7 @@ class ReadWorldEntryTool(AgentTool):
 @ToolRegistry.register
 class CreateWorldEntryTool(AgentTool):
     name: str = "create_world_entry"
-    description: str = "在项目世界书中创建设定条目"
+    description: str = "Membuat entri latar pada buku dunia proyek"
     access_level: str = "write"
     args_schema: type[BaseModel] = CreateWorldEntryInput
 
@@ -274,7 +301,7 @@ class CreateWorldEntryTool(AgentTool):
             "type": "preview",
             "success": True,
             "reason": "approval_preview",
-            "message": "世界书条目创建待审批",
+            "message": "Pembuatan entri buku dunia menunggu persetujuan",
             "metadata": {"world_entry_diff": _build_world_entry_diff(None, after)},
         }
 
@@ -327,7 +354,7 @@ class CreateWorldEntryTool(AgentTool):
 @ToolRegistry.register
 class EditWorldEntryTool(AgentTool):
     name: str = "edit_world_entry"
-    description: str = "编辑项目世界书中的设定条目"
+    description: str = "Menyunting entri latar pada buku dunia proyek"
     access_level: str = "write"
     args_schema: type[BaseModel] = EditWorldEntryInput
 
@@ -384,7 +411,7 @@ class EditWorldEntryTool(AgentTool):
             "type": "preview",
             "success": True,
             "reason": "approval_preview",
-            "message": "世界书条目修改待审批",
+            "message": "Perubahan entri buku dunia menunggu persetujuan",
             "metadata": {"world_entry_diff": _build_world_entry_diff(before, after)},
         }
 
@@ -408,7 +435,10 @@ class EditWorldEntryTool(AgentTool):
                     content, old_content, new_content, replace_all=replace_all
                 )
                 if replace_result is None:
-                    raise ToolExecutionError("未在世界书条目内容中找到要替换的文本")
+                    raise ToolExecutionError(
+                        "Teks yang akan diganti tidak ditemukan di dalam isi entri "
+                        "buku dunia"
+                    )
                 content = replace_result.new_content
                 try:
                     validate_editor_content(content)
@@ -460,7 +490,7 @@ class EditWorldEntryTool(AgentTool):
 @ToolRegistry.register
 class DeleteWorldEntryTool(AgentTool):
     name: str = "delete_world_entry"
-    description: str = "删除项目世界书中指定的设定条目"
+    description: str = "Menghapus entri latar yang ditentukan pada buku dunia proyek"
     access_level: str = "write"
     args_schema: type[BaseModel] = DeleteWorldEntryInput
 

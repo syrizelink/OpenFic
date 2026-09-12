@@ -323,7 +323,9 @@ async def test_auto_compaction_emits_stable_error_when_compaction_load_fails() -
                 "task_id": "t1",
                 "trigger": "auto",
                 "code": "compaction_load_failed",
-                "message": "压缩状态加载失败，当前请求已中止",
+                "message": (
+                    "Pemuatan status pemadatan gagal, permintaan saat ini dibatalkan"
+                ),
             },
         )
     ]
@@ -372,7 +374,10 @@ async def test_auto_compaction_wraps_unhandled_compact_window_error() -> None:
             )
 
     assert exc_info.value.code == "llm_error"
-    assert exc_info.value.message == "压缩失败，当前请求已中止"
+    assert (
+        exc_info.value.message
+        == "Pemadatan gagal, permintaan saat ini dibatalkan"
+    )
     assert events == [
         (
             "agent:compaction_error",
@@ -381,7 +386,7 @@ async def test_auto_compaction_wraps_unhandled_compact_window_error() -> None:
                 "task_id": "t1",
                 "trigger": "auto",
                 "code": "llm_error",
-                "message": "压缩失败，当前请求已中止",
+                "message": "Pemadatan gagal, permintaan saat ini dibatalkan",
             },
         )
     ]
@@ -425,13 +430,13 @@ def test_history_conversion_does_not_serialize_image_base64() -> None:
     history = _to_history_dict(
         HumanMessage(
             content=[
-                {"type": "text", "text": "请描述图片"},
+                {"type": "text", "text": "Tolong deskripsikan gambar ini"},
                 {"type": "image", "base64": "x" * 10_000, "mime_type": "image/png"},
             ]
         )
     )
 
-    assert history["content"] == "请描述图片"
+    assert history["content"] == "Tolong deskripsikan gambar ini"
 
 
 def test_auto_compaction_runs_before_main_model_and_rebuilds_context() -> None:
@@ -442,7 +447,7 @@ def test_auto_compaction_runs_before_main_model_and_rebuilds_context() -> None:
         max_iterations=3,
     )
     injected_queue: asyncio.Queue[tuple[str | None, str, str]] = asyncio.Queue()
-    injected_queue.put_nowait(("msg_pending_1", "user", "补充要求"))
+    injected_queue.put_nowait(("msg_pending_1", "user", "Permintaan tambahan"))
     consume_sink = AsyncMock(return_value=True)
     first_parts = [
         ContextMessage(role="system", content="static", metadata={"part": "system"}),
@@ -466,7 +471,7 @@ def test_auto_compaction_runs_before_main_model_and_rebuilds_context() -> None:
         contents = [part.content for part in parts]
         counted_candidates.append(contents)
         has_runtime_messages = (
-            "补充要求" in contents
+            "Permintaan tambahan" in contents
             and any("Call the `noop` tool" in content for content in contents)
         )
         return 9 if has_runtime_messages else 0
@@ -579,7 +584,7 @@ def test_auto_compaction_runs_before_main_model_and_rebuilds_context() -> None:
         "history user",
         "history assistant",
         "old summary",
-        "补充要求",
+        "Permintaan tambahan",
         "Call the `noop` tool to finish this step. Do not answer in plain text.",
     ]]
     mocked_select.assert_called_once()
@@ -591,7 +596,7 @@ def test_auto_compaction_runs_before_main_model_and_rebuilds_context() -> None:
     consume_sink.assert_awaited_once_with("msg_pending_1")
     assert [message.content for message in model_messages if isinstance(message, HumanMessage)] == [
         "post-summary history",
-        "补充要求",
+        "Permintaan tambahan",
         "Call the `noop` tool to finish this step. Do not answer in plain text.",
     ]
 
@@ -689,7 +694,7 @@ def test_llm_call_marks_consumed_injected_user_messages_sent() -> None:
     )
 
     injected_queue: asyncio.Queue[tuple[str | None, str, str]] = asyncio.Queue()
-    injected_queue.put_nowait(("msg_pending_1", "user", "补充要求"))
+    injected_queue.put_nowait(("msg_pending_1", "user", "Permintaan tambahan"))
     consume_sink = AsyncMock()
     observed_messages: list[HumanMessage | SystemMessage | AIMessage] = []
 
@@ -723,7 +728,7 @@ def test_llm_call_marks_consumed_injected_user_messages_sent() -> None:
 
     consume_sink.assert_awaited_once_with("msg_pending_1")
     assert any(
-        isinstance(message, HumanMessage) and message.content == "补充要求"
+        isinstance(message, HumanMessage) and message.content == "Permintaan tambahan"
         for message in observed_messages
     )
 
@@ -754,7 +759,7 @@ def test_llm_call_updates_skill_references_for_injected_command() -> None:
         (
             "msg_pending_1",
             "user",
-            '<of-skill id="skill-explicit" name="显式引用技能" />',
+            '<of-skill id="skill-explicit" name="Skill dirujuk eksplisit" />',
         )
     )
 
@@ -769,7 +774,7 @@ def test_llm_call_updates_skill_references_for_injected_command() -> None:
         patch(
             "app.storage.services.skill_service.list_enabled_skills",
             new=AsyncMock(
-                return_value=[SimpleNamespace(id="skill-explicit", name="显式引用技能")]
+                return_value=[SimpleNamespace(id="skill-explicit", name="Skill dirujuk eksplisit")]
             ),
         ),
         patch(
@@ -808,13 +813,13 @@ def test_to_history_dict_preserves_reasoning_content() -> None:
 
     message = AIMessage(
         content="",
-        additional_kwargs={"reasoning_content": "先分析"},
+        additional_kwargs={"reasoning_content": "Analisis awal"},
         tool_calls=[{"id": "call_1", "name": "noop", "args": {}}],
     )
 
     out = _to_history_dict(message)
 
-    assert out["additional_kwargs"] == {"reasoning_content": "先分析"}
+    assert out["additional_kwargs"] == {"reasoning_content": "Analisis awal"}
     assert out["tool_calls"][0]["id"] == "call_1"
     assert out["tool_calls"][0]["name"] == "noop"
     assert out["tool_calls"][0]["args"] == {}
@@ -825,12 +830,12 @@ def test_to_history_dict_uses_response_metadata_reasoning_content() -> None:
 
     message = AIMessage(
         content="",
-        response_metadata={"reasoning_content": "从 metadata 来的思考"},
+        response_metadata={"reasoning_content": "Penalaran dari metadata"},
     )
 
     out = _to_history_dict(message)
 
-    assert out["additional_kwargs"] == {"reasoning_content": "从 metadata 来的思考"}
+    assert out["additional_kwargs"] == {"reasoning_content": "Penalaran dari metadata"}
 
 
 def test_to_history_dict_uses_openfic_response_metadata_for_internal_history_fields() -> None:
@@ -865,7 +870,7 @@ def test_to_history_dict_preserves_only_openfic_attachment_metadata() -> None:
     from app.agent_runtime.graph.react_agent import _to_history_dict
 
     message = HumanMessage(
-        content="图片请求",
+        content="Permintaan gambar",
         additional_kwargs={
             "openfic_attachments": [{"id": "image-1"}],
             "unrelated": "must-not-persist",
@@ -882,12 +887,12 @@ def test_to_history_dict_normalizes_ai_message_chunk_role() -> None:
 
     from app.agent_runtime.graph.react_agent import _to_history_dict
 
-    # _invoke_model 累加流式分片后返回 AIMessageChunk（AIMessage 子类），
-    # 其 .type 为 "AIMessageChunk" 而非 "ai"，必须仍映射为 assistant。
+    # _invoke_model mengembalikan AIMessageChunk (subclass AIMessage) setelah mengakumulasi potongan stream,
+    # dan .type-nya adalah "AIMessageChunk" bukan "ai", sehingga tetap harus dipetakan menjadi assistant.
     chunk = AIMessageChunk(
         content="hello",
         tool_calls=[{"id": "c1", "name": "noop", "args": {}}],
-        additional_kwargs={"reasoning_content": "思考"},
+        additional_kwargs={"reasoning_content": "Penalaran"},
     )
 
     out = _to_history_dict(chunk)
@@ -895,7 +900,7 @@ def test_to_history_dict_normalizes_ai_message_chunk_role() -> None:
     assert out["role"] == "assistant"
     assert out["content"] == "hello"
     assert out["tool_calls"][0]["id"] == "c1"
-    assert out["additional_kwargs"] == {"reasoning_content": "思考"}
+    assert out["additional_kwargs"] == {"reasoning_content": "Penalaran"}
 
 
 class _QueueFollowUpTool(BaseTool):
@@ -911,7 +916,7 @@ class _QueueFollowUpTool(BaseTool):
     async def _arun(self, **kwargs):
         assert self.queue is not None
         if self.should_queue:
-            await self.queue.put(("msg_pending_1", "user", "补充要求"))
+            await self.queue.put(("msg_pending_1", "user", "Permintaan tambahan"))
             self.should_queue = False
         return "ok"
 
@@ -976,5 +981,5 @@ def test_tool_success_path_continues_with_pending_follow_up_before_ending() -> N
     assert result["is_done"] is True
     assert len(observed_human_contents) == 2
     assert observed_human_contents[0] == ["hi"]
-    assert observed_human_contents[1] == ["hi", "补充要求"]
+    assert observed_human_contents[1] == ["hi", "Permintaan tambahan"]
     consume_sink.assert_awaited_once_with("msg_pending_1")

@@ -1,4 +1,4 @@
-"""load_history 测试。"""
+"""Uji load_history."""
 
 import json
 from pathlib import Path
@@ -80,7 +80,7 @@ async def test_load_history_preserves_user_attachment_metadata(
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="user",
-        content="请看附件",
+        content="Silakan lihat lampiran",
         status="sent",
         metadata={
             "attachments": [
@@ -96,7 +96,7 @@ async def test_load_history_preserves_user_attachment_metadata(
     messages = await load_history(db_session, "session-with-image")
 
     assert isinstance(messages[0], HumanMessage)
-    assert messages[0].content == "请看附件"
+    assert messages[0].content == "Silakan lihat lampiran"
     assert messages[0].additional_kwargs["openfic_attachments"] == [
         {
             "id": "attachment-1",
@@ -341,7 +341,7 @@ async def test_load_history_skips_display_only_compaction_marker(
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="user",
-        content="压缩前消息",
+        content="Pesan sebelum kompaksi",
         status="sent",
     )
     await repo.insert_message(
@@ -350,7 +350,7 @@ async def test_load_history_skips_display_only_compaction_marker(
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="system",
-        content="已进行压缩",
+        content="Kompaksi telah dilakukan",
         status="complete",
         message_type="compaction",
         display_channel="list",
@@ -363,14 +363,14 @@ async def test_load_history_skips_display_only_compaction_marker(
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="assistant",
-        content="压缩后回复",
+        content="Balasan setelah kompaksi",
         status="complete",
     )
 
     msgs = await load_history(db_session, sid)
 
-    assert [message.content for message in msgs] == ["压缩前消息", "压缩后回复"]
-    assert all(message.content != "已进行压缩" for message in msgs)
+    assert [message.content for message in msgs] == ["Pesan sebelum kompaksi", "Balasan setelah kompaksi"]
+    assert all(message.content != "Kompaksi telah dilakukan" for message in msgs)
 
 
 @pytest.mark.asyncio
@@ -434,7 +434,7 @@ async def test_load_history_orders_tool_results_by_assistant_tool_call_order(
             },
         ],
     )
-    # 并行工具按实际完成顺序入库：call_2 比 call_1 先完成。
+    # Tool paralel disimpan sesuai urutan penyelesaian sebenarnya: call_2 selesai sebelum call_1.
     await repo.insert_message(
         db_session,
         session_id=sid,
@@ -679,7 +679,7 @@ async def test_load_history_partial_assistant_and_aborted_tool_kept(
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="tool",
-        content="[中断] 工具未执行",
+        content="[Terputus] tool belum dieksekusi",
         status="aborted",
         tool_call_id="c1",
         tool_name="n",
@@ -693,7 +693,7 @@ async def test_load_history_partial_assistant_and_aborted_tool_kept(
     assert tc0["name"] == "n"
     assert tc0["args"] == {}
     assert isinstance(msgs[1], ToolMessage)
-    assert msgs[1].content == "[中断] 工具未执行"
+    assert msgs[1].content == "[Terputus] tool belum dieksekusi"
 
 
 @pytest.mark.asyncio
@@ -717,7 +717,7 @@ async def test_load_history_prefers_final_tool_result_over_aborted_placeholder(
         task_id=sample_task.id,
         project_id=sample_task.project_id,
         role="tool",
-        content="[中断] 工具未执行",
+        content="[Terputus] tool belum dieksekusi",
         status="aborted",
         tool_call_id="c1",
         tool_name="n",
@@ -762,7 +762,7 @@ async def test_load_history_preserves_full_write_tool_result_payload(
             {
                 "id": "c1",
                 "name": "write_chapter",
-                "args": {"title": "第一章", "content": "正文"},
+                "args": {"title": "Bab 1", "content": "Isi utama"},
             }
         ],
     )
@@ -779,10 +779,10 @@ async def test_load_history_preserves_full_write_tool_result_payload(
                 "tool_name": "write_chapter",
                 "revision_id": "rev-1",
                 "word_count": 2,
-                "chapter": {"id": "chap-1", "title": "第一章", "content": "正文"},
+                "chapter": {"id": "chap-1", "title": "Bab 1", "content": "Isi utama"},
                 "metadata": {"chapter_diff": {"operation": "create", "sections": []}},
                 "affected_chapters": ["chap-1"],
-                "message": "章节已写入",
+                "message": "Bab telah ditulis",
             },
             ensure_ascii=False,
         ),
@@ -804,8 +804,8 @@ async def test_load_history_preserves_full_write_tool_result_payload(
         "tool_name": "write_chapter",
         "revision_id": "rev-1",
         "word_count": 2,
-        "chapter": {"id": "chap-1", "title": "第一章", "content": "正文"},
+        "chapter": {"id": "chap-1", "title": "Bab 1", "content": "Isi utama"},
         "metadata": {"chapter_diff": {"operation": "create", "sections": []}},
         "affected_chapters": ["chap-1"],
-        "message": "章节已写入",
+        "message": "Bab telah ditulis",
     }

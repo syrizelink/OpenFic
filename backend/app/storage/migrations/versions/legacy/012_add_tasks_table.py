@@ -19,11 +19,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # 删除多余的表（如果存在）
+    # Menghapus tabel berlebih (bila ada)
     op.execute("DROP TABLE IF EXISTS ai_chat_messages")
     op.execute("DROP TABLE IF EXISTS ai_tasks")
     
-    # 创建 tasks 表
+    # Membuat tabel tasks
     op.create_table(
         'tasks',
         sa.Column('id', sa.String(), nullable=False),
@@ -40,7 +40,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(['chapter_id'], ['chapters.id'], ),
     )
     
-    # 创建索引
+    # Membuat indeks
     op.create_index(op.f('ix_tasks_project_id'), 'tasks', ['project_id'], unique=False)
     op.create_index(op.f('ix_tasks_chapter_id'), 'tasks', ['chapter_id'], unique=False)
     op.create_index(op.f('ix_tasks_mode'), 'tasks', ['mode'], unique=False)
@@ -48,11 +48,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # 删除索引
+    # Menghapus indeks
     op.drop_index(op.f('ix_tasks_is_favorited'), table_name='tasks')
     op.drop_index(op.f('ix_tasks_mode'), table_name='tasks')
     op.drop_index(op.f('ix_tasks_chapter_id'), table_name='tasks')
     op.drop_index(op.f('ix_tasks_project_id'), table_name='tasks')
     
-    # 删除表
+    # Menghapus tabel
     op.drop_table('tasks')

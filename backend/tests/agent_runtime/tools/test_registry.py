@@ -111,21 +111,21 @@ def test_get_tools_unknown_name_raises():
 def test_notify_subagent_input_accepts_dispatch_id_and_prompt():
     parsed = NotifySubagentInput(
         dispatch_id="dispatch-1",
-        prompt="继续检查遗漏的边界情况",
+        prompt="Lanjutkan memeriksa kasus batas yang terlewat",
     )
 
     assert parsed.dispatch_id == "dispatch-1"
-    assert parsed.prompt == "继续检查遗漏的边界情况"
+    assert parsed.prompt == "Lanjutkan memeriksa kasus batas yang terlewat"
 
 
 def test_recycle_subagent_input_accepts_dispatch_id_and_reason():
     parsed = RecycleSubagentInput(
         dispatch_id="dispatch-1",
-        reason="任务已完成",
+        reason="Tugas sudah selesai",
     )
 
     assert parsed.dispatch_id == "dispatch-1"
-    assert parsed.reason == "任务已完成"
+    assert parsed.reason == "Tugas sudah selesai"
     assert "dispatch_id" in RecycleSubagentInput.model_json_schema()["required"]
 
 

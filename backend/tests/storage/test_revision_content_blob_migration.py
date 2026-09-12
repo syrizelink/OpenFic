@@ -66,12 +66,12 @@ def _insert_blob(connection: Connection, blob_id: str, content: str) -> None:
 def test_restore_blob_backed_content_and_reset_marker() -> None:
     engine = create_engine("sqlite:///:memory:")
     contents = {
-        "before": "提交前正文" * 200,
-        "after": "提交后正文" * 200,
-        "chapter": "章节快照" * 200,
-        "note": "笔记快照" * 200,
-        "world": "世界书快照" * 200,
-        "character": "角色描述" * 200,
+        "before": "Isi utama sebelum commit" * 200,
+        "after": "Isi utama setelah commit" * 200,
+        "chapter": "Snapshot bab" * 200,
+        "note": "Snapshot catatan" * 200,
+        "world": "Snapshot buku dunia" * 200,
+        "character": "Deskripsi tokoh" * 200,
     }
 
     with engine.begin() as connection:

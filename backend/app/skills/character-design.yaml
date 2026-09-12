@@ -1,796 +1,796 @@
 id: builtin-skill--character-design
-name: 小说人物设计
-summary: 设计主角、配角和反派的动机、缺陷、反差、功能与成长轨迹。
+name: Perancangan Tokoh Novel
+summary: Merancang motif, kelemahan, kontras, fungsi, dan lintasan pertumbuhan tokoh utama, tokoh pendukung, serta tokoh antagonis.
 is_enabled: true
 content: |
-  # 角色基础设计与角色设计操作手册
+  # Manual Operasional Perancangan Dasar Tokoh dan Perancangan Tokoh
 
-  设计主角/配角/反派时加载。先看决策路由，选对模板，再按步骤操作。此 Skill 也用于创建角色和拆解时的对照标尺；拆解时把源文与标准模式逐项对比，不按模板改写新作品。
+  Muat saat merancang tokoh utama/tokoh pendukung/tokoh antagonis. Lihat dulu rute keputusan, pilih templat yang tepat, lalu kerjakan langkah demi langkah. Skill ini juga dipakai sebagai tolok ukur pembanding saat membuat tokoh dan saat membedah karya; saat membedah, bandingkan naskah sumber dengan pola standar butir per butir, jangan menulis ulang karya baru mengikuti templat.
 
-  ## 决策路由
+  ## Rute Keputusan
 
-  | 你在设计什么 | 用这个模板 | 见哪个章节 |
+  | Apa yang kamu rancang | Pakai templat ini | Lihat bagian mana |
   |------------|-----------|-----------|
-  | 主角 | 主角卡模板 | 第1节 |
-  | 配角 | 配角卡模板 | 第2节 |
-  | 反派 | 反派层级表 → 反派建立四要素 → 反派性格四步法 | 第3节 |
-  | 角色动机 | 动机链模板 → 动机冲突类型 | 第4节 |
-  | 角色塑造/深化 | 塑造方法速查（四层法/执念法/重复点/分层展示等） | 第5节 |
-  | 主角特殊问题 | 逼格/成长/红线/调子太高/身份与金手指 | 第6节 |
-  | 反派塑造深化 | 反派渲染/人设主角化 | 第7节 |
+  | Tokoh utama | Templat kartu tokoh utama | Bagian 1 |
+  | Tokoh pendukung | Templat kartu tokoh pendukung | Bagian 2 |
+  | Tokoh antagonis | Tabel tingkatan antagonis -> Empat unsur pembangun antagonis -> Empat langkah watak antagonis | Bagian 3 |
+  | Motif tokoh | Templat rantai motif -> Jenis konflik motif | Bagian 4 |
+  | Pembentukan/pendalaman tokoh | Rujukan cepat metode pembentukan (metode empat lapis/metode obsesi/titik pengulangan/penyajian berlapis, dll.) | Bagian 5 |
+  | Masalah khusus tokoh utama | Wibawa/pertumbuhan/garis merah/nada terlalu tinggi/identitas dan keunggulan bawaan | Bagian 6 |
+  | Pendalaman pembentukan antagonis | Penggarapan antagonis/watak antagonis digarap seperti tokoh utama | Bagian 7 |
 
-  | 你在做什么 | 用什么方法 |
+  | Apa yang sedang kamu kerjakan | Pakai metode apa |
   |-----------|-----------|
-  | 设计角色反差 | 三层标签反差法 + 行为反差进阶 |
-  | 设计配角 | 配角功能化 + 群像写作法 |
-  | 凸显人设 | 凸显人设速查表 |
-  | 设计感情桥段 | 高情商桥段模板 |
-  | 深化角色立体感 | 向人设深化法 + 九维人设框架 |
-  | 建立代入感 | 代入感构建法 |
-  | 管理角色关系 | 人设关系四阶段 + 职场思维结构 |
-  | 设计主角特质 | 金手指绑架人设 + 以梗为中心塑造 |
+  | Merancang kontras tokoh | Metode kontras tiga lapis label + tahap lanjut kontras perilaku |
+  | Merancang tokoh pendukung | Fungsionalisasi tokoh pendukung + metode penulisan ansambel |
+  | Menonjolkan watak tokoh | Tabel rujukan cepat penonjolan watak tokoh |
+  | Merancang adegan emosional | Templat adegan kecerdasan emosional tinggi |
+  | Mendalamkan dimensi tokoh | Metode pendalaman ke arah watak tokoh + kerangka watak tokoh sembilan dimensi |
+  | Membangun rasa keterlibatan | Metode pembangunan rasa keterlibatan |
+  | Mengelola hubungan tokoh | Empat tahap hubungan watak tokoh + struktur pola pikir dunia kerja |
+  | Merancang ciri khas tokoh utama | Keunggulan bawaan menyandera watak tokoh + pembentukan berpusat pada gimik |
 
-  ## 第1节：主角卡
+  ## Bagian 1: Kartu Tokoh Utama
 
-  ### 填空模板
-
-  ```
-  姓名：
-  性别：
-  角色定位：（一句话说清主角在故事中的功能）
-  身份标签：（如：废柴大学生、前特种兵、落魄皇子）
-  外貌特征：（3-5 个关键词，要有记忆点）
-    例：瘦高、总穿旧夹克、左手有疤、眼神懒散
-  性格关键词：（3-5 个，必须有矛盾面）
-    例：嘴毒心软、看似冷漠实则护短、冲动但有底线
-  核心目标：（全书终点想达成什么）
-  核心动机：（必须达成的理由——情感驱动，非理性驱动）
-  致命弱点：（让角色犯错的性格缺陷，非能力缺陷）
-  口头禅/标志动作：（让读者秒认的标签）
-  ```
-
-  ### 设计要点
-
-  - 动机必须是情感层面的——“为母亲复仇”优于“要成为最强”
-  - 弱点必须会在关键情节导致主角犯错，否则不是弱点
-  - 外貌和口头禅是读者记忆锚点，必须写
-
-  ## 第2节：配角卡
-
-  ### 填空模板
+  ### Templat Isian
 
   ```
-  姓名：
-  性别：
-  角色功能：（导师/盟友/情报源/牺牲品/镜像对照）
-  与主角关系：
-  核心特质：（1-2 个关键词）
-  标志性特征：（一句话让读者记住）
-  退场方式：（何时/如何退出故事）
+  Nama:
+  Jenis kelamin:
+  Posisi tokoh: (satu kalimat yang menjelaskan fungsi tokoh utama dalam cerita)
+  Label identitas: (misalnya: mahasiswa tak berguna, mantan tentara khusus, pangeran yang jatuh miskin)
+  Ciri fisik: (3-5 kata kunci, harus punya daya ingat)
+    Contoh: tinggi kurus, selalu memakai jaket lusuh, ada bekas luka di tangan kiri, tatapan malas
+  Kata kunci watak: (3-5 buah, harus ada sisi yang bertentangan)
+    Contoh: mulut pedas hati lembut, tampak dingin tapi sangat melindungi orang dekat, impulsif tapi punya prinsip
+  Tujuan inti: (apa yang ingin dicapai di titik akhir seluruh buku)
+  Motif inti: (alasan yang membuatnya harus tercapai - didorong emosi, bukan didorong rasionalitas)
+  Kelemahan fatal: (cacat watak yang membuat tokoh berbuat salah, bukan cacat kemampuan)
+  Ucapan khas/gerakan penanda: (label yang membuat pembaca langsung mengenalinya)
   ```
 
-  ### 设计要点
+  ### Poin Perancangan
 
-  - 每个配角必须有明确功能——没有功能的角色不要出场
-  - 配角退场要主动规划，不能写着写着忘了
-  - 同一场景配角不超过 3 个有台词
+  - Motif harus berada di tataran emosi - "membalaskan kematian ibu" lebih baik daripada "ingin menjadi yang terkuat"
+  - Kelemahan harus benar-benar membuat tokoh utama berbuat salah pada alur cerita kunci, kalau tidak, itu bukan kelemahan
+  - Ciri fisik dan ucapan khas adalah jangkar ingatan pembaca, wajib ditulis
 
-  ### 配角功能化设计
+  ## Bagian 2: Kartu Tokoh Pendukung
 
-  1. 配角的能力和特质必须和剧情紧密相关
-  2. 配角是为了展现主角而写——配角的能力为主角所用，配角脱离困境靠主角帮助
+  ### Templat Isian
 
-  #### 复合型配角——白手套角色
+  ```
+  Nama:
+  Jenis kelamin:
+  Fungsi tokoh: (mentor/sekutu/sumber informasi/korban/cermin pembanding)
+  Hubungan dengan tokoh utama:
+  Ciri inti: (1-2 kata kunci)
+  Ciri penanda: (satu kalimat yang membuat pembaca mengingatnya)
+  Cara keluar panggung: (kapan/bagaimana keluar dari cerita)
+  ```
 
-  | 功能 | 说明 |
+  ### Poin Perancangan
+
+  - Setiap tokoh pendukung harus punya fungsi yang jelas - tokoh tanpa fungsi jangan dimunculkan
+  - Keluarnya tokoh pendukung harus direncanakan aktif, jangan sampai lupa di tengah penulisan
+  - Dalam satu adegan, tokoh pendukung yang punya dialog tidak lebih dari 3
+
+  ### Perancangan Fungsionalisasi Tokoh Pendukung
+
+  1. Kemampuan dan ciri tokoh pendukung harus terkait erat dengan alur cerita
+  2. Tokoh pendukung ditulis untuk menampilkan tokoh utama - kemampuan tokoh pendukung dipakai tokoh utama, tokoh pendukung lepas dari kesulitan berkat bantuan tokoh utama
+
+  #### Tokoh Pendukung Majemuk - Tokoh Sarung Tangan Putih
+
+  | Fungsi | Penjelasan |
   |------|------|
-  | 替主角说话 | 凡是主角不适合说的话，他来说 |
-  | 替主角发狠 | 凡是主角不应该发的狠，他来发 |
-  | 绝对维护 | 对侵犯主角利益的人坚决反击 |
-  | 粗中有细 | 将反派密谋录音再播放，取得大众支持 |
-  | 适时搞笑 | 不断输出正反馈，缓解紧张情绪 |
+  | Bicara mewakili tokoh utama | Segala ucapan yang tidak pantas dikatakan tokoh utama, dia yang mengatakan |
+  | Bertindak keras mewakili tokoh utama | Segala tindakan keras yang tidak pantas dilakukan tokoh utama, dia yang melakukan |
+  | Pembelaan mutlak | Membalas tegas siapa pun yang melanggar kepentingan tokoh utama |
+  | Kasar tapi cermat | Merekam persekongkolan antagonis lalu memutarnya, sehingga memperoleh dukungan publik |
+  | Melucu pada waktu yang tepat | Terus mengeluarkan umpan balik positif, meredakan ketegangan |
 
-  **设计原则**：光环比主角弱一点，不抢风头；惊艳出场；对主角的质疑第一时间反驳。
+  **Prinsip perancangan**: auranya sedikit di bawah tokoh utama, tidak mencuri panggung; kemunculan yang mengesankan; keraguan terhadap tokoh utama langsung dibantah saat itu juga.
 
-  #### 立体人物 vs 扁平人物
+  #### Tokoh Berdimensi vs Tokoh Datar
 
-  1. 不是所有角色都要立体化，先看功能性
-  2. 扁平化角色保持神秘性，反而更恐怖/更强大
-  3. “洗白弱三分，黑化强三倍”——高手被立体化就变弱了
-  4. 需要什么工具就设计什么工具，不要把所有角色立体化
+  1. Tidak semua tokoh harus dibuat berdimensi, lihat dulu fungsinya
+  2. Tokoh datar menjaga misterinya, justru terasa lebih menakutkan/lebih kuat
+  3. "Pemutihan citra melemahkan tiga bagian, penggelapan citra menguatkan tiga kali" - jagoan yang dibuat berdimensi justru jadi lemah
+  4. Rancang alat sesuai kebutuhan, jangan membuat semua tokoh berdimensi
 
-  #### 人设反差六维度法
+  #### Metode Kontras Watak Tokoh Enam Dimensi
 
-  | 反差对 | 操作 |
+  | Pasangan kontras | Cara kerja |
   |--------|------|
-  | 表面性格 vs 内在性格 | 笑面虎/刀子嘴豆腐心 |
-  | 外表形象 vs 表面性格 | 看着凶实际软 |
-  | 外表形象 vs 内在性格 | 看着柔实际狠 |
-  | 身份 vs 生活方式 | 豪门子弟住地下室 |
-  | 身份 vs 爱好特长 | 杀手擅长插花 |
-  | 身份 vs 内在性格 | 军人内心文艺 |
+  | Watak permukaan vs watak batin | Harimau bermuka senyum/mulut tajam hati tahu |
+  | Citra fisik vs watak permukaan | Tampak bengis padahal lembut |
+  | Citra fisik vs watak batin | Tampak lembut padahal kejam |
+  | Identitas vs gaya hidup | Anak keluarga konglomerat tinggal di ruang bawah tanah |
+  | Identitas vs hobi dan keahlian | Pembunuh bayaran mahir merangkai bunga |
+  | Identitas vs watak batin | Tentara berjiwa seniman |
 
-  ### 执行指令
+  ### Instruksi Eksekusi
 
-  1. 设计配角时先确定其功能（替主角说话/发狠/搞笑/提供信息）
-  2. 从六维度反差中选 1-2 个维度给配角贴标签
-  3. 控制配角光环，不超过主角
-  4. 功能性配角不要强行立体化
+  1. Saat merancang tokoh pendukung, tetapkan dulu fungsinya (bicara mewakili tokoh utama/bertindak keras/melucu/memberi informasi)
+  2. Pilih 1-2 dimensi dari enam dimensi kontras untuk memberi label pada tokoh pendukung
+  3. Kendalikan aura tokoh pendukung, jangan melebihi tokoh utama
+  4. Tokoh pendukung fungsional jangan dipaksa jadi berdimensi
 
-  #### 配角人设逻辑
+  #### Logika Watak Tokoh Pendukung
 
-  1. “正戏反写”——看似正面的行为背后有反派动机
-  2. 配角情感保护壳：看似冷漠无情，实则有深层情感驱动
-  3. 避免崩人设：角色的行为选择必须符合已建立的人设逻辑
-  4. 先从题材的“标签人物”直接用——成熟题材里的人设角色都是经受过市场考验的
+  1. "Adegan positif ditulis terbalik" - di balik perilaku yang tampak positif ada motif antagonis
+  2. Cangkang pelindung emosi tokoh pendukung: tampak dingin tanpa perasaan, padahal ada dorongan emosi yang mendalam
+  3. Hindari watak tokoh runtuh: pilihan perilaku tokoh harus sesuai logika watak tokoh yang sudah dibangun
+  4. Pakai dulu "tokoh berlabel" dari genrenya secara langsung - tokoh berwatak dalam genre yang sudah matang semuanya sudah lulus uji pasar
 
-  #### 群像写作法
+  #### Metode Penulisan Ansambel
 
-  1. 每个角色出场都要有功能，没有水分——功能不明确的角色不要出场
-  2. 角色间的关系要有层次（引路人、对手、伙伴、障碍）
-  3. 不同角色要有不同的说话风格和行为特征
-  4. 通过行为而非旁白来展示角色特点
+  1. Setiap kemunculan tokoh harus punya fungsi, tanpa isian kosong - tokoh yang fungsinya tidak jelas jangan dimunculkan
+  2. Hubungan antartokoh harus berlapis (penunjuk jalan, lawan, rekan, penghalang)
+  3. Tokoh yang berbeda harus punya gaya bicara dan ciri perilaku yang berbeda
+  4. Tampilkan ciri tokoh lewat perilaku, bukan lewat narasi
 
-  ##### 配角脸谱化描写
+  ##### Penggambaran Tokoh Pendukung Secara Bertipe
 
-  1. 抓住 1-2 个突出特点做鲜明标签（口头禅/标志性动作/极端性格）
-  2. 标签化让读者迅速记住，不过多占用笔墨
-  3. 功能性配角要有明确功能：推动剧情、衬托主角、提供信息
+  1. Tangkap 1-2 ciri paling mencolok sebagai label yang tegas (ucapan khas/gerakan penanda/watak ekstrem)
+  2. Pelabelan membuat pembaca cepat mengingat, tanpa memakan banyak porsi tulisan
+  3. Tokoh pendukung fungsional harus punya fungsi jelas: mendorong alur cerita, menonjolkan tokoh utama, memberi informasi
 
-  ##### 角色使用的节奏
+  ##### Ritme Pemakaian Tokoh
 
-  1. 高人气角色的出场频率应控制在每3-5章一次，保持期待感而不审美疲劳。每次出场必须有新信息或新功能
-  2. 读者不感兴趣的角色该舍弃就舍弃，自然“下线”
-  3. 用“以角色带角色”引入新角色——喜爱延续
+  1. Frekuensi kemunculan tokoh yang populer sebaiknya dijaga sekali setiap 3-5 bab, supaya rasa penantian terjaga tanpa kejenuhan. Setiap kemunculan harus membawa informasi baru atau fungsi baru
+  2. Tokoh yang tidak menarik bagi pembaca, buang saja saat memang perlu dibuang, biarkan "turun panggung" secara wajar
+  3. Pakai "tokoh membawa tokoh" untuk memperkenalkan tokoh baru - rasa suka berlanjut
 
-  ##### 角色池编织法
+  ##### Metode Merajut Kolam Tokoh
 
-  1. 以角色带角色：女主讨喜 → 写女主爸妈/姐姐/闺蜜 → 喜爱延续到新角色
-  2. 像网一样编织下去 → 很快就有取之不尽的角色池
-  3. 每个新角色贴一个标签，个个鲜明
+  1. Tokoh membawa tokoh: tokoh utama perempuan disukai -> tulis orang tua/kakak/sahabat perempuannya -> rasa suka berlanjut ke tokoh baru
+  2. Rajut terus seperti jaring -> segera terbentuk kolam tokoh yang tak habis-habis
+  3. Setiap tokoh baru diberi satu label, masing-masing tegas
 
-  ## 第3节：反派设计
+  ## Bagian 3: Perancangan Tokoh Antagonis
 
-  ### 3.1 反派层级表
+  ### 3.1 Tabel Tingkatan Antagonis
 
-  根据反派出场篇幅选对应层级，按表格要求设计。
+  Pilih tingkatan yang sesuai berdasarkan porsi kemunculan antagonis, lalu rancang menurut ketentuan tabel.
 
-  #### 小反派（1-5 章）
+  #### Antagonis Kecil (1-5 bab)
 
-  | 维度 | 要求 |
+  | Dimensi | Ketentuan |
   |------|------|
-  | 功能 | 单个小弧线的障碍 |
-  | 设计 | 1-2 个鲜明特征即可（嚣张/贪财/欺软怕硬） |
-  | 退场 | 被打败或被揭穿，干脆利落 |
+  | Fungsi | Penghalang dalam satu busur kecil |
+  | Perancangan | Cukup 1-2 ciri yang tegas (congkak/mata duitan/menindas yang lemah dan takut yang kuat) |
+  | Keluar panggung | Dikalahkan atau dibongkar, tegas dan tuntas |
 
-  #### 中等反派（10-30 章）
+  #### Antagonis Menengah (10-30 bab)
 
-  | 维度 | 要求 |
+  | Dimensi | Ketentuan |
   |------|------|
-  | 功能 | 一卷的主要对手 |
-  | 动机 | 为什么跟主角作对（不能是“纯粹的坏”） |
-  | 手段 | 武力/权谋/资源 |
-  | 逼格 | 至少赢主角一次，让读者恨得牙痒 |
-  | 退场 | 被主角正面击败，要有爽感 |
+  | Fungsi | Lawan utama dalam satu volume |
+  | Motif | Mengapa dia berseberangan dengan tokoh utama (tidak boleh sekadar "jahat murni") |
+  | Cara | Kekerasan/intrik kekuasaan/sumber daya |
+  | Wibawa | Setidaknya sekali mengalahkan tokoh utama, sampai pembaca geram menahan benci |
+  | Keluar panggung | Dikalahkan tokoh utama secara langsung, harus terasa memuaskan |
 
-  #### 大弧Boss（一卷或数卷）
+  #### Bos Busur Besar (satu volume atau beberapa volume)
 
-  | 维度 | 要求 |
+  | Dimensi | Ketentuan |
   |------|------|
-  | 功能 | 代表一个阶段的核心矛盾 |
-  | 人弧 | 完整的人物弧线，有自己的目标和逻辑 |
-  | 冲突 | 与主角有理念冲突（不只是利益冲突） |
-  | 对决 | 至少一场让主角陷入绝境 |
-  | 侧面 | 有一个让读者“恨不起来”的侧面 |
-  | 退场 | 有仪式感的终战 + 有余味的落幕 |
+  | Fungsi | Mewakili konflik inti satu tahap |
+  | Busur tokoh | Busur tokoh yang utuh, punya tujuan dan logika sendiri |
+  | Konflik | Punya konflik prinsip dengan tokoh utama (bukan hanya konflik kepentingan) |
+  | Duel | Setidaknya satu pertarungan yang menjerumuskan tokoh utama ke jalan buntu |
+  | Sisi lain | Ada satu sisi yang membuat pembaca "tidak sanggup membencinya" |
+  | Keluar panggung | Pertarungan penutup yang terasa khidmat + akhir yang meninggalkan kesan |
 
-  #### 最终Boss（全书）
+  #### Bos Terakhir (seluruh buku)
 
-  | 维度 | 要求 |
+  | Dimensi | Ketentuan |
   |------|------|
-  | 功能 | 全书核心矛盾的具象化 |
-  | 伏笔 | 从第一章就有 |
-  | 对立 | 与主角的目标/动机直接对立，代表故事主题的反面 |
-  | 实力 | 碾压主角，主角必须蜕变才能赢 |
-  | 信念 | 有信念，不是纯粹的疯子/怪物 |
+  | Fungsi | Perwujudan konkret konflik inti seluruh buku |
+  | Petunjuk awal | Sudah ada sejak bab pertama |
+  | Pertentangan | Berlawanan langsung dengan tujuan/motif tokoh utama, mewakili sisi berlawanan dari tema cerita |
+  | Kekuatan | Menindas tokoh utama, tokoh utama harus bermetamorfosis dulu supaya bisa menang |
+  | Keyakinan | Punya keyakinan, bukan orang gila/monster murni |
 
-  ### 3.2 反派设计铁律
+  ### 3.2 Hukum Besi Perancangan Antagonis
 
-  - 反派的智商/实力决定主角的含金量——反派弱 = 主角赢没意义
-  - 反派的行为必须有内在逻辑（从他的视角说得通）
-  - 不要让反派降智来给主角送赢
+  - Kecerdasan/kekuatan antagonis menentukan bobot tokoh utama - antagonis lemah = kemenangan tokoh utama tidak bermakna
+  - Perilaku antagonis harus punya logika internal (masuk akal dari sudut pandangnya)
+  - Jangan membuat antagonis mendadak bodoh demi menghadiahkan kemenangan pada tokoh utama
 
-  ### 3.3 反派建立四要素
+  ### 3.3 Empat Unsur Pembangun Antagonis
 
-  按顺序操作，缺一不可：
+  Kerjakan berurutan, tidak boleh ada yang hilang:
 
-  1. **实力展示**——出场就展示实力或手段
-  2. **动机可信**——从反派视角看行为说得通
-  3. **真实威胁**——至少赢主角一次
-  4. **终极意图时机**——真实目的留到关键反转点
+  1. **Peragaan kekuatan** - begitu muncul, langsung peragakan kekuatan atau caranya
+  2. **Motif yang meyakinkan** - dari sudut pandang antagonis, perilakunya masuk akal
+  3. **Ancaman nyata** - setidaknya sekali mengalahkan tokoh utama
+  4. **Waktu pengungkapan niat pamungkas** - tujuan sebenarnya disimpan sampai titik balik kunci
 
-  ### 3.4 反派性格确立四步法
+  ### 3.4 Empat Langkah Penetapan Watak Antagonis
 
-  | 步骤 | 操作 |
+  | Langkah | Cara kerja |
   |------|------|
-  | 1. 反派也有梦想 | 在反派眼中他是自己故事的主人公 |
-  | 2. 挖掘创伤性过去 | 谁抚养他？谁爱他？谁伤害他？他避免什么痛苦？ |
-  | 3. 磨练性格缺陷 | 遭遇逆境时不调动积极特质，而是磨练缺陷——“优势”本身就是致命缺陷 |
-  | 4. 反派是主角的镜子 | 反派的长处反映主角的弱点，两者完全相反 = 每次相遇必然摩擦 |
+  | 1. Antagonis juga punya mimpi | Di matanya sendiri, dia adalah tokoh utama dari ceritanya sendiri |
+  | 2. Gali masa lalu yang traumatis | Siapa yang membesarkannya? Siapa yang mencintainya? Siapa yang melukainya? Penderitaan apa yang dia hindari? |
+  | 3. Asah cacat wataknya | Saat menghadapi kesulitan, dia tidak menggerakkan sifat positif, melainkan mengasah cacatnya - "keunggulan" itu sendiri justru cacat yang fatal |
+  | 4. Antagonis adalah cermin tokoh utama | Kelebihan antagonis mencerminkan kelemahan tokoh utama, keduanya berlawanan total = setiap pertemuan pasti menimbulkan friksi |
 
-  ### 3.5 反派渲染分量的关键
+  ### 3.5 Kunci Bobot Penggarapan Antagonis
 
-  - 障碍从反派人设上来，而不是故意给主角制造障碍
-  - 反派渲染公式：明确动机 → 动机驱动行为 → 行为形成障碍 → 障碍强度来自反派分量
-  - 反派异常强势时，主角要破得“高级”“智慧”“出乎意料”
+  - Penghalang muncul dari watak tokoh antagonis, bukan sengaja dibuat untuk menyusahkan tokoh utama
+  - Rumus penggarapan antagonis: motif yang jelas -> motif mendorong perilaku -> perilaku membentuk penghalang -> kekuatan penghalang berasal dari bobot antagonis
+  - Saat antagonis luar biasa dominan, cara tokoh utama menembusnya harus "kelas tinggi", "cerdas", "tak terduga"
 
-  ## 第4节：动机设计
+  ## Bagian 4: Perancangan Motif
 
-  ### 4.1 动机链模板
+  ### 4.1 Templat Rantai Motif
 
   ```
-  起因（Cause）    → 角色经历了什么
-  意图（Intent）   → 角色想做什么
-  约束（Constraint）→ 什么在阻碍他
-  风险（Risk）     → 失败的代价是什么
+  Sebab (Cause)         -> apa yang dialami tokoh
+  Niat (Intent)         -> apa yang ingin dilakukan tokoh
+  Kendala (Constraint)  -> apa yang menghalanginya
+  Risiko (Risk)         -> apa harga dari kegagalan
   ```
 
-  **示例**：
+  **Contoh**:
   ```
-  起因：母亲被仇家杀害
-  意图：找到凶手并复仇
-  约束：凶手是当朝权臣，主角只是平民
-  风险：复仇失败会被灭门，复仇成功会失去所有现有生活
+  Sebab: ibunya dibunuh oleh musuh keluarga
+  Niat: menemukan pembunuhnya dan membalaskannya
+  Kendala: pembunuhnya adalah pejabat berkuasa di istana, tokoh utama hanya rakyat biasa
+  Risiko: pembalasan yang gagal berarti seluruh keluarganya dihabisi, pembalasan yang berhasil berarti kehilangan seluruh kehidupannya yang sekarang
   ```
 
-  ### 4.2 动机链设计要点
+  ### 4.2 Poin Perancangan Rantai Motif
 
-  - 起因必须具体——“被欺负”不够，“在众目睽睽下被打耳光”才行
-  - 约束必须有力——否则主角一路碾压没有张力
-  - 风险必须真实——读者要相信主角真的可能失去重要的东西
-  - 动机可以随剧情演变，但不能说变就变
+  - Sebab harus konkret - "ditindas" tidak cukup, "ditampar di depan mata semua orang" baru memadai
+  - Kendala harus kuat - kalau tidak, tokoh utama menindas terus tanpa ketegangan
+  - Risiko harus nyata - pembaca harus percaya tokoh utama benar-benar mungkin kehilangan sesuatu yang penting
+  - Motif boleh berkembang seiring alur cerita, tapi tidak boleh berubah begitu saja
 
-  ### 4.3 动机冲突类型
+  ### 4.3 Jenis Konflik Motif
 
-  遇到角色需要内心挣扎时，从下表选一种冲突类型：
+  Saat tokoh perlu bergulat dalam batin, pilih satu jenis konflik dari tabel berikut:
 
-  | 类型 | 定义 | 示例 |
+  | Jenis | Definisi | Contoh |
   |------|------|------|
-  | 目标 vs 道德 | 想做的事和应该做的事冲突 | 复仇但不想伤及无辜 |
-  | 情感 vs 利益 | 感性和理性的拉扯 | 知道对方不可靠但放不下 |
-  | 短期 vs 长期 | 眼前利益和远大目标的矛盾 | 妥协保命 vs 坚持原则赌未来 |
-  | 自我 vs 他人 | 个人需求和他人期望的冲突 | 想过平静生活但背负家族使命 |
+  | Tujuan vs moral | Yang ingin dilakukan berbenturan dengan yang seharusnya dilakukan | Balas dendam tapi tidak ingin melukai orang tak bersalah |
+  | Emosi vs kepentingan | Tarik-menarik antara perasaan dan rasionalitas | Tahu lawan tidak bisa diandalkan tapi tak bisa melepaskannya |
+  | Jangka pendek vs jangka panjang | Pertentangan antara keuntungan sesaat dan tujuan besar | Berkompromi demi nyawa vs berpegang pada prinsip dan bertaruh pada masa depan |
+  | Diri vs orang lain | Konflik antara kebutuhan pribadi dan harapan orang lain | Ingin hidup tenang tapi memikul misi keluarga |
 
-  ## 第5节：角色塑造方法速查
+  ## Bagian 5: Rujukan Cepat Metode Pembentukan Tokoh
 
-  ### 5.1 角色塑造核心原则
+  ### 5.1 Prinsip Inti Pembentukan Tokoh
 
-  **主角行为三必须**：
-  1. **必须可理解**——读者必须理解主角为什么这么做
-  2. **必须可共鸣**——主角的思考读者必须能代入
-  3. **必须可接受**——主角的三观读者必须能接受
+  **Tiga keharusan perilaku tokoh utama**:
+  1. **Harus bisa dipahami** - pembaca harus memahami mengapa tokoh utama berbuat demikian
+  2. **Harus bisa menimbulkan resonansi** - pembaca harus bisa masuk ke dalam pemikiran tokoh utama
+  3. **Harus bisa diterima** - pandangan hidup tokoh utama harus bisa diterima pembaca
 
-  **展示优于告知**：
-  - 角色的目的 → 通过行为展示，不是旁白解释
-  - 角色的行动 → 具体的动作和决定，不是形容词堆砌
-  - 角色的态度 → 通过对话和反应体现，不是心理独白
+  **Menunjukkan lebih baik daripada memberi tahu**:
+  - Tujuan tokoh -> ditunjukkan lewat perilaku, bukan dijelaskan lewat narasi
+  - Tindakan tokoh -> gerakan dan keputusan yang konkret, bukan tumpukan kata sifat
+  - Sikap tokoh -> tercermin lewat dialog dan reaksi, bukan monolog batin
 
-  ### 5.2 展示人物特质的方法
+  ### 5.2 Metode Menunjukkan Ciri Tokoh
 
-  | 方法 | 操作 | 示例 |
+  | Metode | Cara kerja | Contoh |
   |------|------|------|
-  | 敏感性 | 触碰弱点，看反应方式 | 惊慌失措/匆忙逃跑/转移注意力=不同性格 |
-  | 逃避 | 展现回避行为暗示弱点 | 角色的“不做什么”比“做了什么”更揭示深层性格 |
-  | 先正后缺 | 先展示吸引人特质，再揭示缺陷 | 读者先喜欢角色，才能容忍缺陷 |
+  | Kepekaan | Sentuh kelemahannya, lihat cara dia bereaksi | Panik/buru-buru lari/mengalihkan perhatian = watak yang berbeda |
+  | Penghindaran | Tampilkan perilaku menghindar yang mengisyaratkan kelemahan | "Apa yang tidak dilakukan" tokoh lebih menyingkap watak terdalam daripada "apa yang dilakukan" |
+  | Positif dulu, cacat kemudian | Tampilkan dulu ciri yang memikat, baru singkapkan cacatnya | Pembaca menyukai tokoh lebih dulu, baru bisa menoleransi cacatnya |
 
-  ### 5.3 四大性格属性
+  ### 5.3 Empat Atribut Watak
 
-  | 属性类别 | 定义 | 设计要点 |
+  | Kategori atribut | Definisi | Poin perancangan |
   |---------|------|---------|
-  | 道德属性 | 是非信念 | 影响其他性格形成 |
-  | 成就属性 | 推动达成目标 | 与道德属性一致，服务目标 |
-  | 互动属性 | 与人交流方式 | 数量最多的积极特质 |
-  | 身份属性 | 身份认同感 | 定义个性的基本组成部分 |
+  | Atribut moral | Keyakinan benar dan salah | Memengaruhi pembentukan watak yang lain |
+  | Atribut pencapaian | Mendorong tercapainya tujuan | Sejalan dengan atribut moral, melayani tujuan |
+  | Atribut interaksi | Cara berkomunikasi dengan orang | Sifat positif dengan jumlah terbanyak |
+  | Atribut identitas | Rasa pengenalan diri | Komponen dasar yang mendefinisikan kepribadian |
 
-  选择技巧：以其中一个特质为主要特质，其他为辅。
+  Teknik pemilihan: jadikan salah satu ciri sebagai ciri utama, sisanya sebagai pendukung.
 
-  ### 5.4 角色塑造四层法
+  ### 5.4 Metode Empat Lapis Pembentukan Tokoh
 
-  | 层次 | 方法 |
+  | Lapisan | Metode |
   |------|------|
-  | 移情作用 | 开头不要太多角色，先让读者了解主角并产生期待 |
-  | 最小特征（标签） | 主角由内而外塑造，配角由外到内塑造（贴标签） |
-  | 角色的不真诚 | 所说≠所想，举动≠态度，日常与便当是深化角色的两极 |
-  | 角色的聚光灯 | 配角必须与主角产生强烈联系性，配角压过主角时塑造新配角夺走光环 |
+  | Empati | Jangan terlalu banyak tokoh di bagian awal, biarkan pembaca mengenal tokoh utama dulu dan menumbuhkan penantian |
+  | Ciri minimum (label) | Tokoh utama dibentuk dari dalam ke luar, tokoh pendukung dibentuk dari luar ke dalam (pemberian label) |
+  | Ketidakjujuran tokoh | Yang diucapkan tidak sama dengan yang dipikirkan, tindakan tidak sama dengan sikap; kehidupan sehari-hari dan kematian tokoh adalah dua kutub pendalaman tokoh |
+  | Lampu sorot tokoh | Tokoh pendukung harus punya keterkaitan kuat dengan tokoh utama; saat tokoh pendukung mengalahkan tokoh utama, bentuk tokoh pendukung baru untuk merebut auranya |
 
-  ### 5.5 人物塑造与人物真相
+  ### 5.5 Pembentukan Tokoh dan Kebenaran Tokoh
 
-  | 层面 | 定义 | 示例 |
+  | Tataran | Definisi | Contoh |
   |------|------|------|
-  | 人物塑造（显型） | 读者第一眼看到的特质 | 外表青春可爱的萝莉 |
-  | 人物真相（隐性） | 角色内在的真实面貌 | 实际上是冷血杀手 |
-  | 价值取向（内隐） | 关键选择时起决定作用的价值观 | 在道义与野心间选择野心 |
+  | Pembentukan tokoh (tampak) | Ciri yang dilihat pembaca pada pandangan pertama | Gadis kecil berwajah muda dan menggemaskan |
+  | Kebenaran tokoh (tersembunyi) | Wujud sejati batin tokoh | Sebenarnya seorang pembunuh berdarah dingin |
+  | Orientasi nilai (terselubung) | Nilai yang menentukan saat pilihan kunci muncul | Memilih ambisi di antara kebenaran dan ambisi |
 
-  操作要点：价值取向不必一开始揭示，在关键抉择时自然暴露；人物真相的揭示越晚，戏剧张力越强。
+  Poin pengerjaan: orientasi nilai tidak perlu disingkapkan sejak awal, biarkan terbuka secara wajar pada saat pengambilan keputusan kunci; makin lambat kebenaran tokoh disingkapkan, makin kuat ketegangan dramatiknya.
 
-  ### 5.6 人设分层展示法
+  ### 5.6 Metode Penyajian Watak Tokoh Berlapis
 
-  | 层次 | 操作 |
+  | Lapisan | Cara kerja |
   |------|------|
-  | 第一层 | 告诉读者类型模型（萝莉/御姐/少妇） |
-  | 第二层 | 贴特点标签（胸大/腿长/小麦色皮肤） |
-  | 第三层 | 为性格找原因（家庭/内在冲动） |
-  | 第四层 | 打破——可爱天然呆其实什么都知道，人设立刻升华 |
+  | Lapis pertama | Beri tahu pembaca model tipenya (gadis kecil/wanita dewasa dominan/ibu muda) |
+  | Lapis kedua | Tempelkan label ciri (dada besar/kaki panjang/kulit sawo matang) |
+  | Lapis ketiga | Cari sebab wataknya (keluarga/dorongan batin) |
+  | Lapis keempat | Pecahkan - si polos yang menggemaskan sebenarnya tahu segalanya, watak tokoh langsung terangkat |
 
-  深化记忆：不要吝啬重复词汇，觉得太小白？其实在深化记忆。
+  Mendalamkan ingatan: jangan pelit mengulang kosakata. Merasa terlalu murahan? Sebenarnya itu sedang mendalamkan ingatan.
 
-  ### 5.7 人物经历三线时间法
+  ### 5.7 Metode Tiga Garis Waktu Pengalaman Tokoh
 
-  | 时间线 | 内容 |
+  | Garis waktu | Isi |
   |--------|------|
-  | 过去 | 身世背景、遭遇变故、性格成因 |
-  | 现在 | 与主角的关系定位、当前互动模式 |
-  | 未来 | 制造变强动力或危机（老师被劫/女主被抓/反派揭底） |
+  | Masa lalu | Latar belakang asal-usul, musibah yang dialami, sebab terbentuknya watak |
+  | Masa kini | Posisi hubungan dengan tokoh utama, pola interaksi saat ini |
+  | Masa depan | Membuat dorongan untuk menjadi lebih kuat atau membuat krisis (guru disandera/tokoh utama perempuan ditangkap/antagonis membongkar rahasia) |
 
-  ### 5.8 配角执念设定法
+  ### 5.8 Metode Penetapan Obsesi Tokoh Pendukung
 
-  - 给角色一个执念 → 所有行为/爱好/性格围绕执念展开
-  - 不需要每次贴合执念，只要不写与执念冲突的东西，关键时揭示即可
-  - 过于极端的执念 → 加入“亲民”小细节 → 便于读者认同
-  - 适用：支线配角，不适合频繁出现的主要配角
+  - Beri tokoh satu obsesi -> semua perilaku/hobi/watak berkembang di sekeliling obsesi itu
+  - Tidak perlu selalu menempel pada obsesi, cukup jangan menulis hal yang berbenturan dengan obsesinya, singkapkan pada saat kunci
+  - Obsesi yang terlalu ekstrem -> tambahkan detail kecil yang "membumi" -> memudahkan pembaca menerimanya
+  - Cocok untuk: tokoh pendukung alur samping, tidak cocok untuk tokoh pendukung utama yang sering muncul
 
-  ### 5.9 人物行为重复点设计
+  ### 5.9 Perancangan Titik Pengulangan Perilaku Tokoh
 
-  - 抓住一个人物行为特质反复写
-  - 构建方法：确定读者喜欢什么类型 → 具体化为行为 → 不同场景重复
-  - 人物看点 + 核心看点 = 层次感，两者循环产生差异化
-  - 反派/配角也需要重复看点，能让人爱上的反派会增加读者新鲜感
+  - Tangkap satu ciri perilaku tokoh dan tulis berulang-ulang
+  - Cara membangunnya: tentukan tipe apa yang disukai pembaca -> konkretkan menjadi perilaku -> ulangi di adegan yang berbeda
+  - Daya tarik tokoh + daya tarik inti = kesan berlapis, keduanya berputar dan menghasilkan diferensiasi
+  - Antagonis/tokoh pendukung juga butuh daya tarik yang berulang; antagonis yang bisa dicintai akan menambah kesegaran bagi pembaca
 
-  ### 5.10 围绕人设写行为
+  ### 5.10 Menulis Perilaku di Sekeliling Watak Tokoh
 
-  行为、语言、思维都要围绕人格展开。如果为了剧情需要让角色做出不符合人设的行为 → 先修改剧情，不要改人设。
+  Perilaku, bahasa, dan pola pikir semuanya harus berkembang di sekeliling kepribadian. Kalau demi alur cerita kamu harus membuat tokoh berperilaku tidak sesuai wataknya -> ubah dulu alur ceritanya, jangan ubah watak tokohnya.
 
-  ### 5.11 人推事件 vs 事件推人
+  ### 5.11 Tokoh Mendorong Peristiwa vs Peristiwa Mendorong Tokoh
 
-  | 驱动方式 | 特点 |
+  | Cara penggerak | Ciri |
   |---------|------|
-  | 人推事件 | 情节是人物性格/动机/选择的自然结果，深化人物弧光 |
-  | 事件推人 | 外部事件打破平衡，迫使暴露真实自我 |
+  | Tokoh mendorong peristiwa | Alur cerita adalah hasil wajar dari watak/motif/pilihan tokoh, mendalamkan busur perkembangan tokoh |
+  | Peristiwa mendorong tokoh | Peristiwa luar mematahkan keseimbangan, memaksa diri yang sejati tersingkap |
 
-  卡文时 → 从人物动机找方向，不要硬编剧情。
+  Saat mentok menulis -> cari arah dari motif tokoh, jangan memaksa mengarang alur cerita.
 
-  ## 第6节：主角特殊问题
+  ## Bagian 6: Masalah Khusus Tokoh Utama
 
-  ### 6.1 主角逼格
+  ### 6.1 Wibawa Tokoh Utama
 
-  - 主角必须有逼格——这是读者的代入基础
-  - 不要写太多降智的内心戏和爆粗口
-  - 主角可以不完美，但不能让人看不起
+  - Tokoh utama harus punya wibawa - ini dasar rasa keterlibatan pembaca
+  - Jangan menulis terlalu banyak adegan batin yang membodohkan dan umpatan kasar
+  - Tokoh utama boleh tidak sempurna, tapi tidak boleh sampai dipandang rendah
 
-  ### 6.2 主角的成长
+  ### 6.2 Pertumbuhan Tokoh Utama
 
-  - 成长不只体现在实力上，更体现在心智和选择上
-  - 每次成长都要有触发事件和内在反思
-  - 网文主角成长非必须：开场三观圆满的正常人更容易代入，稳定人设本身就是魅力
+  - Pertumbuhan tidak hanya tercermin pada kekuatan, lebih-lebih tercermin pada kematangan pikiran dan pilihan
+  - Setiap pertumbuhan harus punya peristiwa pemicu dan perenungan batin
+  - Pertumbuhan tokoh utama novel daring tidak wajib: orang normal yang pandangan hidupnya sudah utuh sejak awal lebih mudah dijadikan tempat masuk pembaca, watak tokoh yang stabil itu sendiri sudah menjadi daya tarik
 
-  ### 6.3 主角红线
+  ### 6.3 Garis Merah Tokoh Utama
 
-  以下类型的主角绝对不要写：
+  Jenis tokoh utama berikut sama sekali jangan ditulis:
 
-  | 禁止 | 原因 |
+  | Larangan | Alasan |
   |------|------|
-  | 圣母型主角 | 读者要痛快而非道德说教 |
-  | 无脑战斗机器 | 难以产生情感共鸣 |
-  | 内核邪恶 | 读者无法代入 |
-  | 因蠢/圣母犯错 | 读者无法原谅 |
-  | 自暴自弃 | 比被欺负更让读者厌恶 |
+  | Tokoh utama tipe santa | Pembaca ingin kepuasan, bukan ceramah moral |
+  | Mesin pertarungan tanpa otak | Sulit menimbulkan resonansi emosi |
+  | Berinti jahat | Pembaca tidak bisa masuk ke dalamnya |
+  | Berbuat salah karena bodoh/kesantaan | Pembaca tidak bisa memaafkan |
+  | Putus asa dan menyerah pada diri sendiri | Lebih dibenci pembaca daripada ditindas |
 
-  ### 6.4 主角调子起太高怎么办
+  ### 6.4 Bagaimana Kalau Nada Tokoh Utama Terlalu Tinggi Sejak Awal
 
-  **危害信号**：
-  - 失去成长空间——能力/地位/资源触达天花板
-  - 剧情缺乏张力——陷入“砍瓜切菜”的重复循环
-  - 读者失去追更动力
+  **Tanda bahaya**:
+  - Kehilangan ruang pertumbuhan - kemampuan/kedudukan/sumber daya sudah menyentuh langit-langit
+  - Alur cerita kurang ketegangan - terjebak dalam putaran berulang "menebas semudah memotong labu"
+  - Pembaca kehilangan dorongan untuk mengikuti kelanjutan
 
-  **化解方法**：
-  - **压势不压人**——压低气势和期待，但不打压主角本身的能力和尊严
-  - **留出维度差距**——即使某方面很强，总有其他维度是短板
-  - **超额收获法**——看似收获很大，经主角盘算后发现更大
+  **Cara mengatasinya**:
+  - **Tekan kewibawaannya, jangan tekan orangnya** - turunkan aura dan penantian, tapi jangan menekan kemampuan dan harga diri tokoh utama itu sendiri
+  - **Sisakan jarak dimensi** - meski sangat kuat di satu sisi, selalu ada dimensi lain yang menjadi titik lemah
+  - **Metode perolehan berlebih** - tampak memperoleh banyak, setelah tokoh utama menghitungnya ternyata malah lebih besar lagi
 
-  ### 6.5 主角开篇立人设
+  ### 6.5 Menegakkan Watak Tokoh Utama di Bab Pembuka
 
-  - 人设通过选择建立，开篇必须让主角做出选择
-  - 智斗型开局比暴力型开局更容易立人设
-  - 读者更容易代入“聪明但普通”的主角，而非“上来就无敌”的主角
+  - Watak tokoh dibangun lewat pilihan, di bab pembuka tokoh utama harus dibuat mengambil pilihan
+  - Pembukaan bertipe pertarungan akal lebih mudah menegakkan watak tokoh daripada pembukaan bertipe kekerasan
+  - Pembaca lebih mudah masuk ke dalam tokoh utama yang "cerdas tapi biasa" daripada tokoh utama yang "langsung tak terkalahkan sejak awal"
 
-  ### 6.6 主角的两个身份与两个金手指
+  ### 6.6 Dua Identitas dan Dua Keunggulan Bawaan Tokoh Utama
 
-  | 维度 | 定义 | 作用 |
+  | Dimensi | Definisi | Kegunaan |
   |------|------|------|
-  | 显性身份 | 社会身份/职业+状态 | 汇集前期矛盾，必须不断升级或换 |
-  | 隐性身份 | 不凡的身世来历 | 汇集中后期矛盾 |
-  | 显性金手指 | 系统/玉坠/重生记忆 | 开局获得贯穿全书 |
-  | 隐性金手指 | 主角性格 | 让主角与众不同的就是金手指 |
+  | Identitas tampak | Identitas sosial/pekerjaan + status | Mengumpulkan konflik tahap awal, harus terus naik tingkat atau berganti |
+  | Identitas tersembunyi | Asal-usul yang luar biasa | Mengumpulkan konflik tahap menengah dan akhir |
+  | Keunggulan bawaan tampak | Sistem/giok gantung/ingatan reinkarnasi | Diperoleh sejak pembukaan dan menembus seluruh buku |
+  | Keunggulan bawaan tersembunyi | Watak tokoh utama | Yang membuat tokoh utama berbeda dari yang lain itulah keunggulan bawaannya |
 
-  **最佳写法**：前期以金手指装逼 → 剧情推进中逐步把人设清晰
-  **人设与全书气质**：主角人设必须与世界基调相符，四点高度统一：社会身份+身世+金手指+性格
+  **Cara penulisan terbaik**: tahap awal bergaya dengan keunggulan bawaan -> seiring alur cerita bergerak, watak tokoh perlahan diperjelas
+  **Watak tokoh dan aura seluruh buku**: watak tokoh utama harus selaras dengan nada dasar dunianya, empat hal harus sangat menyatu: identitas sosial + asal-usul + keunggulan bawaan + watak
 
-  ### 6.7 性格单一缺陷型主角+动物伙伴体系
+  ### 6.7 Tokoh Utama Bercacat Watak Tunggal + Sistem Rekan Hewan
 
-  如果主角性格故意设为单一 → 降低读者带入排斥感 → 少做少错 → 最大限度提升代入感。
+  Kalau watak tokoh utama sengaja dibuat tunggal -> menurunkan penolakan pembaca untuk masuk ke dalamnya -> makin sedikit bertindak makin sedikit salah -> rasa keterlibatan naik semaksimal mungkin.
 
-  **问题**：性格过于单一 → 影响精彩程度 → 难以推进故事
-  **解法**：给淡漠型主角配备 3-5 只动物伙伴，每只不同性格。
+  **Masalah**: watak terlalu tunggal -> memengaruhi tingkat keseruan -> sulit mendorong cerita
+  **Solusi**: bekali tokoh utama yang dingin itu dengan 3-5 rekan hewan, masing-masing berwatak berbeda.
 
-  | 伙伴类型 | 功能 |
+  | Tipe rekan | Fungsi |
   |---------|------|
-  | 蠢萌犯二型 | 负责搞笑，主角不宜吃瘪但动物可以 |
-  | 聪敏嘴贱型 | 负责嘴替，主角不该说的话由它说，保持主角逼格 |
-  | 耿直蠢笨型 | 负责反差萌 |
-  | 奇特能力胆小型 | 负责能力补充 |
+  | Tipe lugu-menggemaskan dan bertingkah bodoh | Bertugas melucu; tokoh utama tidak pantas dipermalukan, tapi hewan boleh |
+  | Tipe cerdas bermulut pedas | Bertugas jadi juru bicara; ucapan yang tak pantas dari tokoh utama, dia yang mengatakan, sehingga wibawa tokoh utama terjaga |
+  | Tipe terus terang dan bodoh | Bertugas menjadi kontras yang menggemaskan |
+  | Tipe berkemampuan aneh tapi penakut | Bertugas melengkapi kemampuan |
 
-  ### 6.8 核心情绪与表达欲平衡
+  ### 6.8 Keseimbangan Emosi Inti dan Hasrat Berekspresi
 
-  - 需求的内核不变，变的只是形式
-  - 写完一段剧情后，站在读者角度审视是否偏离核心梗
-  - 主角牛逼了必须有所得，不能光付出没回报
-  - 表达欲旺盛时最容易偏离——要主动检查
+  - Inti dari kebutuhan tidak berubah, yang berubah hanya bentuknya
+  - Setelah selesai menulis satu bagian alur cerita, telaah dari sudut pandang pembaca apakah sudah menyimpang dari gimik inti
+  - Kalau tokoh utama tampil hebat, dia harus memperoleh sesuatu, tidak boleh hanya memberi tanpa balasan
+  - Saat hasrat berekspresi sedang meluap adalah saat paling mudah menyimpang - harus diperiksa secara aktif
 
-  ### 6.9 压势不压人：矛盾的正确来源
+  ### 6.9 Tekan Kewibawaan Bukan Orangnya: Sumber Konflik yang Benar
 
-  **错误做法**：让反派莫名其妙针对主角，背后逻辑站不住脚。
+  **Cara yang salah**: membuat antagonis menyerang tokoh utama tanpa sebab yang jelas, logika di belakangnya tidak berpijak.
 
-  **正确做法**：反派有自己的目的，行动客观上导致主角困境，但并非刻意针对主角本人。
+  **Cara yang benar**: antagonis punya tujuannya sendiri, tindakannya secara objektif membuat tokoh utama terhimpit, tapi bukan sengaja mengincar tokoh utama secara pribadi.
 
-  **矛盾链条**：反派目的 → 压制主角所在群体（压势） → 主角推翻 → 底层依旧麻木 → 主角改变路径 → 新冲突自然产生
+  **Rantai konflik**: tujuan antagonis -> menindas kelompok tempat tokoh utama berada (menekan kewibawaan) -> tokoh utama menjungkalkannya -> lapisan bawah tetap tumpul -> tokoh utama mengubah jalannya -> konflik baru muncul secara wajar
 
-  核心：所有人被自己想要的利益驱动，背后是三观不同，更深是成长环境，最深层是世界观。
+  Intinya: semua orang digerakkan oleh kepentingan yang mereka inginkan, di belakangnya ada perbedaan pandangan hidup, lebih dalam lagi lingkungan tempat mereka tumbuh, dan paling dalam adalah latar dunia.
 
-  ## 第7节：反派塑造深化
+  ## Bagian 7: Pendalaman Pembentukan Antagonis
 
-  ### 7.1 反派塑造核心原则
+  ### 7.1 Prinsip Inti Pembentukan Antagonis
 
-  - 经典反派一定有完整世界观和逻辑自洽的三观
-  - 同样的外部事件发生在不同人身上产生不同变化——外因与内因共振
-  - 反派塑造不能只有外部事件，缺乏内在三观和内在逻辑
+  - Antagonis klasik pasti punya latar dunia yang utuh dan pandangan hidup yang konsisten secara logika
+  - Peristiwa luar yang sama, kalau terjadi pada orang yang berbeda, menimbulkan perubahan yang berbeda - faktor luar dan faktor dalam beresonansi
+  - Pembentukan antagonis tidak boleh hanya berisi peristiwa luar tanpa pandangan hidup dan logika batin
 
-  ### 7.2 反派人设主角化写法
+  ### 7.2 Cara Menulis Watak Antagonis Seperti Tokoh Utama
 
-  **传统问题**：换地图后原反派跟不上节奏 → 引入新反派脸谱化
+  **Masalah lazim**: setelah pindah peta, antagonis lama tidak mampu mengikuti ritme -> antagonis baru diperkenalkan secara bertipe datar
 
-  **解法**：
-  - 把反派当主角去写
-  - 在“配角衬主角”基础上加“配角衬配角”
-  - 换地图的正确处理：用新地图衬托旧角色含金量，而非用旧角色无力衬托新地图难度
+  **Solusi**:
+  - Tulis antagonis seolah dia tokoh utama
+  - Di atas dasar "tokoh pendukung menonjolkan tokoh utama" tambahkan "tokoh pendukung menonjolkan tokoh pendukung"
+  - Penanganan pindah peta yang benar: pakai peta baru untuk menonjolkan bobot tokoh lama, bukan memakai tokoh lama secara tak berdaya untuk menonjolkan tingkat kesulitan peta baru
 
-  ## 补充方法：反差、关联与关系阶段
+  ## Metode Tambahan: Kontras, Keterkaitan, dan Tahap Hubungan
 
-  ### 三层标签反差人设法
+  ### Metode Watak Tokoh Kontras Tiga Lapis Label
 
-  | 层级 | 名称 | 含义 | 示例 |
+  | Tingkat | Nama | Makna | Contoh |
   |------|------|------|------|
-  | 第一层 | 身份标签 | 外界看到的身份 | 豪门弃妇 |
-  | 第二层 | 表现标签 | 角色展现给外界的行为 | 隐忍不发、逆来顺受 |
-  | 第三层 | 内核标签 | 角色真正的内心 | 冷静、有计划、步步为营 |
+  | Lapis pertama | Label identitas | Identitas yang dilihat dunia luar | Menantu terbuang keluarga konglomerat |
+  | Lapis kedua | Label penampilan | Perilaku yang ditunjukkan tokoh kepada dunia luar | Menahan diri, menerima perlakuan buruk tanpa membalas |
+  | Lapis ketiga | Label inti | Isi batin tokoh yang sebenarnya | Tenang, punya rencana, melangkah setapak demi setapak |
 
-  1. 为角色填写三层标签，三层之间必须制造反差——反差 = 立体感
-  2. 身份标签和表现标签可以相似（强化刻板印象），但内核标签必须反转
-  3. 反差越大，角色的“亮牌时刻”越震撼
-  4. 每个重要角色都应至少有一层反差
-  5. 用行为对比来体现反差，不要直接描述：
+  1. Isikan tiga lapis label untuk tokoh, di antara ketiganya harus tercipta kontras - kontras = dimensi
+  2. Label identitas dan label penampilan boleh mirip (memperkuat kesan stereotip), tapi label inti harus berbalik
+  3. Makin besar kontrasnya, makin mengguncang "saat kartu dibuka" oleh tokoh
+  4. Setiap tokoh penting sebaiknya punya setidaknya satu lapis kontras
+  5. Wujudkan kontras lewat perbandingan perilaku, jangan digambarkan langsung:
 
   ```
-  身份标签：豪门弃妇
-  表现行为：被骂不还口，被赶不反抗
-  内核行为：悄悄录音、收集证据、提前转移财产
+  Label identitas: menantu terbuang keluarga konglomerat
+  Perilaku penampilan: dimaki tidak membalas, diusir tidak melawan
+  Perilaku inti: diam-diam merekam, mengumpulkan bukti, memindahkan harta lebih dulu
   ```
 
-  ### 三层标签行为反差进阶
+  ### Tahap Lanjut Kontras Perilaku Tiga Lapis Label
 
-  当关系进入第三层（亲密关系）后，角色在第一、二层关系中能做出的行为反而做不出来了。
+  Setelah hubungan memasuki lapis ketiga (hubungan intim), perilaku yang bisa dilakukan tokoh pada lapis hubungan pertama dan kedua justru jadi tidak bisa dilakukan lagi.
 
-  | 关系阶段 | 可做行为 | 不可做行为 |
+  | Tahap hubungan | Perilaku yang bisa dilakukan | Perilaku yang tidak bisa dilakukan |
   |----------|---------|-----------|
-  | 身份标签期（陌生） | 调戏、冷漠、保持距离 | — |
-  | 表现标签期（熟悉） | 继续之前的行为模式 | — |
-  | 内核标签期（亲密） | 展露真实自我 | 之前的调戏/冷漠反而做不出来了 |
+  | Masa label identitas (asing) | Menggoda, dingin, menjaga jarak | - |
+  | Masa label penampilan (mulai akrab) | Melanjutkan pola perilaku sebelumnya | - |
+  | Masa label inti (intim) | Menampakkan diri yang sejati | Godaan/sikap dingin sebelumnya justru jadi tidak bisa dilakukan lagi |
 
-  1. 检查角色当前处于哪个关系阶段
-  2. 行为反差本身是人设的一部分，必须写进剧情
-  3. 用“行为退化 = 感情深化”制造张力——身份标签期爱调戏主角的辣妹，进入亲密关系后反而不敢表白
-  4. 不要让角色在亲密阶段仍然维持早期行为，否则反差失效
+  1. Periksa tokoh sedang berada di tahap hubungan yang mana
+  2. Kontras perilaku itu sendiri bagian dari watak tokoh, wajib ditulis ke dalam alur cerita
+  3. Ciptakan ketegangan dengan "kemunduran perilaku = pendalaman perasaan" - gadis berani yang suka menggoda tokoh utama pada masa label identitas, setelah masuk hubungan intim justru tidak berani menyatakan perasaan
+  4. Jangan biarkan tokoh tetap mempertahankan perilaku awalnya pada tahap intim, kalau tidak kontrasnya jadi tidak berfungsi
 
-  ### 人设关联分层（强/中/弱关联）
+  ### Pelapisan Keterkaitan Watak Tokoh (keterkaitan kuat/sedang/lemah)
 
-  | 层级 | 定义 | 功能 | 数量要求 |
+  | Tingkat | Definisi | Fungsi | Ketentuan jumlah |
   |------|------|------|---------|
-  | 强关联 | 直接影响剧情走向和核心梗装逼爽点的设定 | 推动人物碰撞、剧情推进 | 每个角色至少 3 个 |
-  | 中关联 | 配角的强关联设定，不能抢主角风头 | 为配角提供功能性和辨识度 | 适量 |
-  | 弱关联 | 丰富人物厚度的个人偏好设定 | 增加角色真实感和记忆点 | 不限 |
+  | Keterkaitan kuat | Latar yang langsung memengaruhi arah alur cerita dan titik kepuasan bergaya pada gimik inti | Mendorong benturan antartokoh dan gerak alur cerita | Setiap tokoh minimal 3 buah |
+  | Keterkaitan sedang | Latar keterkaitan kuat milik tokoh pendukung, tidak boleh mencuri panggung tokoh utama | Memberi fungsi dan daya kenal bagi tokoh pendukung | Secukupnya |
+  | Keterkaitan lemah | Latar preferensi pribadi yang memperkaya ketebalan tokoh | Menambah kenyataan dan daya ingat tokoh | Tak dibatasi |
 
-  1. 把主角的实力、钱财、人脉、背景等影响剧情走向的属性归为强关联
-  2. 检查强关联是否达到每个角色至少 3 个
-  3. 把“喜欢吃蛋糕”“爱好看美女”等归为弱关联，仅用于丰富人设
-  4. 确保弱关联不喧宾夺主——强关联才是延伸剧情的核心
+  1. Golongkan kekuatan, uang, jaringan relasi, latar belakang, dan atribut lain milik tokoh utama yang memengaruhi arah alur cerita sebagai keterkaitan kuat
+  2. Periksa apakah keterkaitan kuat sudah mencapai minimal 3 buah per tokoh
+  3. Golongkan hal seperti "suka makan kue" dan "hobi melihat perempuan cantik" sebagai keterkaitan lemah, hanya untuk memperkaya watak tokoh
+  4. Pastikan keterkaitan lemah tidak mengambil alih perhatian dari yang utama - keterkaitan kuatlah inti yang memperpanjang alur cerita
 
-  ### 人设执行规则
+  ### Aturan Pelaksanaan Watak Tokoh
 
-  人设 ≠ 人物设定表。
+  Watak tokoh bukan tabel data tokoh.
 
-  - 人物设定表 = 身高、外貌、家庭背景等信息堆砌（外在信息）
-  - 人设 = 围绕角色“灵魂/特殊人格”展开的功能性设计
-  - 人设的使命：服务戏剧张力与情绪拉扯，以人格驱动行为，而非被剧情硬推
+  - Tabel data tokoh = tumpukan informasi tinggi badan, penampilan, latar belakang keluarga, dan sejenisnya (informasi luar)
+  - Watak tokoh = perancangan fungsional yang berkembang di sekeliling "jiwa/kepribadian khusus" tokoh
+  - Misi watak tokoh: melayani ketegangan dramatik dan tarik-menarik emosi, menggerakkan perilaku lewat kepribadian, bukan didorong paksa oleh alur cerita
 
-  **检查**：如果你写的人物设定只有身高体重爱好，没有“灵魂/特殊人格”的功能性设计，重做。
+  **Pemeriksaan**: kalau data tokoh yang kamu tulis hanya berisi tinggi, berat, dan hobi, tanpa perancangan fungsional untuk "jiwa/kepribadian khusus", kerjakan ulang.
 
-  ### 凸显人设的方法
+  ### Metode Menonjolkan Watak Tokoh
 
-  1. 抓亮点——找到角色最突出的那个特质，集中火力展现
-  2. 用行动展现人设，不要用旁白描述（如出狱后不卑不亢、争取利益、展现老练）
-  3. 用反差碰撞制造张力
-  4. 反差拉张力会筛读者，控制尺度——反差太大会劝退部分读者
+  1. Tangkap titik terangnya - temukan ciri paling mencolok pada tokoh, tampilkan dengan memusatkan seluruh tenaga
+  2. Tampilkan watak tokoh lewat tindakan, jangan lewat gambaran narasi (misalnya setelah keluar dari penjara tidak merendah dan tidak angkuh, memperjuangkan kepentingannya, menampakkan kematangan)
+  3. Ciptakan ketegangan lewat benturan kontras
+  4. Kontras yang menarik ketegangan akan menyaring pembaca, kendalikan kadarnya - kontras yang terlalu besar akan membuat sebagian pembaca mundur
 
-  ### 高情商/聪明人桥段写法
+  ### Cara Menulis Adegan Kecerdasan Emosional Tinggi/Orang Cerdas
 
-  1. 高情商通过具体剧情中的表现来体现，不要旁白夸赞
-  2. 写察言观色、临场应变、控场接话的具体场景
-  3. 高情商表现应参考经典网文中的成功案例模式，每个桥段至少包含一个“读者预期尴尬但主角化解”的反转
-  4. 每个桥段至少有一个“反转”——读者以为会尴尬，结果主角完美化解
+  1. Kecerdasan emosional tinggi diwujudkan lewat penampilan dalam alur cerita yang konkret, jangan dipuji lewat narasi
+  2. Tulis adegan konkret tentang membaca situasi, tanggap di lapangan, dan mengendalikan situasi saat menyambung ucapan
+  3. Penampilan kecerdasan emosional tinggi sebaiknya merujuk pola kasus sukses dalam novel daring klasik; setiap adegan setidaknya berisi satu balikan berupa "pembaca menduga akan canggung tapi tokoh utama menyelesaikannya"
+  4. Setiap adegan setidaknya punya satu "balikan" - pembaca menyangka akan canggung, ternyata tokoh utama menyelesaikannya dengan sempurna
 
-  ### 用配角做期待枢纽（人物扣）
+  ### Memakai Tokoh Pendukung sebagai Simpul Penantian (kancing tokoh)
 
-  1. 选一个配角做“任务基地”——一个人物同时承载多个短期和长期期待
-  2. 主角每次解决事件装完逼后去找该人物，开始新一轮装逼
-  3. 每个剧情单元结束后利用同一人物展开新剧情
-  4. 人物下线时带来更大的好处，用“歪打误撞收获更多”转变读者“损失厌恶”心理
+  1. Pilih satu tokoh pendukung sebagai "markas misi" - satu tokoh sekaligus memikul beberapa penantian jangka pendek dan jangka panjang
+  2. Setiap kali tokoh utama menyelesaikan suatu peristiwa dan selesai bergaya, dia menemui tokoh tersebut, lalu babak bergaya yang baru dimulai
+  3. Setelah setiap unit alur cerita berakhir, manfaatkan tokoh yang sama untuk membuka alur cerita baru
+  4. Saat tokoh itu turun panggung, hadirkan keuntungan yang lebih besar, pakai "salah sasaran tapi malah memperoleh lebih banyak" untuk mengubah psikologi "keengganan akan kehilangan" pada pembaca
 
-  ### 向人设深化法
+  ### Metode Pendalaman ke Arah Watak Tokoh
 
-  先判断当前项目适合“故事深化”还是“人设深化”：
+  Tentukan dulu apakah proyek saat ini cocok untuk "pendalaman cerita" atau "pendalaman watak tokoh":
 
-  | 条件 | 优先方向 | 执行动作 |
+  | Syarat | Arah prioritas | Tindakan pelaksanaan |
   |------|------|------|
-  | 主线已经复杂、多势力、多反转 | 向人设深化 | 保持故事结构简单，在人物欲望、反差、关系互动上制造新鲜感 |
-  | 主线过直、人物已经鲜明但事件不足 | 向故事深化 | 增加阻碍、目标变化、信息差或代价，不新增无功能角色 |
-  | 短篇/轻量篇幅 | 向人设深化 | 用 1-2 个强人设标签驱动冲突，不铺大世界观 |
-  | 长篇关键卷/高潮卷 | 两者结合 | 故事升级一个维度，同时让关键人物关系发生可见变化 |
+  | Alur utama sudah rumit, banyak faksi, banyak balikan | Pendalaman ke arah watak tokoh | Jaga struktur cerita tetap sederhana, ciptakan kesegaran pada hasrat, kontras, dan interaksi hubungan antartokoh |
+  | Alur utama terlalu lurus, tokoh sudah tegas tapi peristiwa kurang | Pendalaman ke arah cerita | Tambahkan penghalang, perubahan tujuan, kesenjangan informasi, atau harga yang harus dibayar; jangan menambah tokoh tanpa fungsi |
+  | Panjang pendek/ringan | Pendalaman ke arah watak tokoh | Gerakkan konflik dengan 1-2 label watak tokoh yang kuat, jangan membentangkan latar dunia yang besar |
+  | Volume kunci/volume klimaks pada karya panjang | Gabungan keduanya | Cerita naik satu dimensi, sekaligus buat hubungan antartokoh kunci berubah secara terlihat |
 
-  #### 执行步骤
+  #### Langkah Pelaksanaan
 
-  1. 拿一个简单甚至老套的故事结构
-  2. 在人物身上加“戏剧性”——能让目标读者找到乐子的设定
-  3. 通过几个人物的互动循环产生持续剧情
+  1. Ambil satu struktur cerita yang sederhana bahkan klise
+  2. Tambahkan "sifat dramatik" pada tokoh - latar yang membuat pembaca sasaran menemukan keasyikan
+  3. Hasilkan alur cerita yang berkelanjutan lewat putaran interaksi beberapa tokoh
 
-  #### 循环写法（一个简单情节可写5章以上）
+  #### Cara Penulisan Berputar (satu alur sederhana bisa ditulis lebih dari 5 bab)
 
-  - 第1章：主角装逼 → 师叔更迫切
-  - 第2章：师叔逼女生 → 恋人帮着威逼利诱
-  - 第3章：女生靠近主角 → 恋人在暗地暗爽
-  - 第4章：女生回去哭诉 → 恋人假意安慰一边暗爽
-  - 第5章：复命领赏 → 女生发现恋人对奖赏没那么高兴
+  - Bab 1: tokoh utama bergaya -> saudara seperguruan senior makin mendesak
+  - Bab 2: senior itu menekan si gadis -> kekasihnya turut memaksa dan membujuk
+  - Bab 3: si gadis mendekati tokoh utama -> kekasihnya bersenang-senang diam-diam
+  - Bab 4: si gadis kembali dan mengadu sambil menangis -> kekasihnya berpura-pura menghibur sambil diam-diam bersenang hati
+  - Bab 5: melapor dan menerima hadiah -> si gadis mendapati kekasihnya tidak begitu gembira atas hadiah itu
 
-  ### 人物塑造技巧
+  ### Teknik Pembentukan Tokoh
 
-  #### 女性角色塑造（男频）
+  #### Pembentukan Tokoh Perempuan (kanal pembaca pria)
 
-  1. 读者喜欢的是女主的标签（高贵优雅、肤白大长腿），不是外貌描写
-  2. 利用刻板印象：吸血鬼=高贵优雅+外貌出众，不用特意描述读者就知道
-  3. 网文里美貌是最廉价的资源——不要花大量笔墨写外貌
-  4. 性格设定可极端化：傲娇到极致、对主角爱得深沉、不考虑自身利益
-  5. 保持性格一致性：设定后言行始终符合
+  1. Yang disukai pembaca adalah label tokoh utama perempuan (mulia dan elegan, kulit putih dan kaki jenjang), bukan penggambaran fisiknya
+  2. Manfaatkan kesan stereotip: vampir = mulia dan elegan + berpenampilan menonjol, tanpa digambarkan khusus pembaca sudah tahu
+  3. Dalam novel daring, kecantikan adalah sumber daya paling murah - jangan menghabiskan banyak tulisan untuk penampilan
+  4. Penetapan watak boleh dibuat ekstrem: gengsi manja sampai puncaknya, mencintai tokoh utama sangat mendalam, tidak memikirkan kepentingan dirinya
+  5. Jaga konsistensi watak: setelah ditetapkan, ucapan dan tindakannya selalu sesuai
 
-  #### 主角可以犯错但需把握尺度
+  #### Tokoh Utama Boleh Berbuat Salah tapi Kadarnya Harus Dijaga
 
-  | 可原谅 | 不可原谅 |
+  | Bisa dimaafkan | Tidak bisa dimaafkan |
   |--------|---------|
-  | 因不可抗力或信息差导致的错误 | 因蠢、因圣母心泛滥导致的错误 |
-  | — | 与实力不匹配的错误（斗帝强者因小人物犯蠢） |
+  | Kesalahan akibat keadaan yang tak terelakkan atau kesenjangan informasi | Kesalahan akibat kebodohan atau hati kesantaan yang meluap |
+  | - | Kesalahan yang tidak sepadan dengan kekuatannya (pendekar sekelas kaisar bertarung berbuat bodoh karena orang kecil) |
 
-  #### 主角人设内外反差
+  #### Kontras Luar dan Dalam Watak Tokoh Utama
 
-  1. 可设计表面与内心的反差（如表面色牛实际内心孤僻）
-  2. 反差感增加角色深度和趣味，提供丰富的情节冲突可能性
+  1. Boleh dirancang kontras antara permukaan dan batin (misalnya di permukaan mata keranjang, sebenarnya batinnya kesepian)
+  2. Rasa kontras menambah kedalaman dan keasyikan tokoh, serta memberi banyak kemungkinan konflik alur cerita
 
-  #### 反派的本质
+  #### Hakikat Tokoh Antagonis
 
-  反派 = 与主角立场不同、利益相悖的人。赋予反派自己的想法和追求，不要写纯粹的恶。
+  Antagonis = orang yang posisinya berbeda dan kepentingannya berlawanan dengan tokoh utama. Berikan antagonis pemikiran dan pengejaran miliknya sendiri, jangan menulis kejahatan yang murni.
 
-  #### 渣人设写法
+  #### Cara Menulis Watak Tokoh Bejat
 
-  1. 开头就清晰传达主角人设，穿越前后保持一致
-  2. 避免“又当又立”——前面没描写主角是老色皮后面突然追女读者反感
-  3. 明确人设 = 筛选接受这种人的读者 = 预期管理
+  1. Sejak awal sampaikan watak tokoh utama dengan jelas, tetap konsisten sebelum dan sesudah berpindah dunia
+  2. Hindari "sok suci padahal tidak" - kalau di depan tidak digambarkan bahwa tokoh utama mata keranjang lalu belakangan tiba-tiba mengejar perempuan, pembaca akan tidak suka
+  3. Watak tokoh yang jelas = menyaring pembaca yang menerima orang macam ini = pengelolaan ekspektasi
 
-  ### 人物记忆点法
+  ### Metode Titik Ingatan Tokoh
 
-  1. 每个人物至少有一个性格方面特别突出
-  2. 只有让某一特征特别突出，才有记忆点
-  3. 目标：哪怕剧情不推进，几个人物坐一起聊天，读者都看得津津有味
+  1. Setiap tokoh setidaknya punya satu sisi watak yang sangat mencolok
+  2. Hanya dengan membuat satu ciri sangat mencolok, barulah ada titik ingatan
+  3. Tujuannya: bahkan kalau alur cerita tidak bergerak, saat beberapa tokoh duduk bersama dan mengobrol, pembaca tetap membacanya dengan asyik
 
-  ### 金手指绑架人设法
+  ### Metode Keunggulan Bawaan Menyandera Watak Tokoh
 
-  1. 金手指不只是给主角超能力，目的是让主角的性格合理化
-  2. 用金手指规则绑架行为 → 配角反应自然塑造形象 → 不需要直接描写主角品格
-  3. 追求道德爽感（最高级爽感）：让主角成为行为层面让读者心服口服的“活圣人”
+  1. Keunggulan bawaan bukan hanya memberi tokoh utama kekuatan super, tujuannya membuat watak tokoh utama menjadi wajar
+  2. Sandera perilaku dengan aturan keunggulan bawaan -> reaksi tokoh pendukung secara wajar membentuk citranya -> tidak perlu menggambarkan langsung kepribadian tokoh utama
+  3. Kejar kepuasan moral (kepuasan tingkat tertinggi): jadikan tokoh utama "orang suci hidup" yang membuat pembaca tunduk kagum pada tataran perilaku
 
-  ### 以梗为中心塑造人设
+  ### Pembentukan Watak Tokoh Berpusat pada Gimik
 
-  1. 单一标签“杀伐果断”“热血”太模糊 → 用具体梗来建设角色 → 读者产生强记忆点
-  2. 例：配角每次看到主角成功 → 羡慕嫉妒恨 → “你真该死啊” → 强记忆点+趣味性
-  3. 好人设+平平无奇的金手指+俗套套路 → 也能发挥意想不到的吸引力
+  1. Label tunggal seperti "tegas dan tanpa ampun" atau "berdarah panas" terlalu kabur -> bangun tokoh dengan gimik yang konkret -> pembaca mendapat titik ingatan yang kuat
+  2. Contoh: setiap kali tokoh pendukung melihat tokoh utama berhasil -> iri, cemburu, benci -> "kamu memang pantas mati" -> titik ingatan kuat + keasyikan
+  3. Watak tokoh yang bagus + keunggulan bawaan yang biasa-biasa saja + pola yang klise -> juga bisa memancarkan daya tarik yang tak terduga
 
-  ### 九维人设框架
+  ### Kerangka Watak Tokoh Sembilan Dimensi
 
-  | 维度 | 内容 | 要点 |
+  | Dimensi | Isi | Poin penting |
   |------|------|------|
-  | 基本信息 | 前身今世/外貌特征 | 从人物下手建立长期期待感 |
-  | 性格 | 反差人设 | 为成长弧线铺垫 |
-  | 爱好习惯 | 贪财/好色/杀人后超度 | 做强烈记忆点反复强调 |
-  | 人际关系 | 关系网越复杂越能制造冲突 | 牵扯的重要人物个个有实力有背景 |
-  | 背景 | 家族/出身/成长环境 | — |
-  | 成长弧线 | 见下方三阶段 | — |
-  | 对比反差 | 恶人vs好人/医生救死扶伤→扛起枪杀人 | — |
-  | 价值观态度 | 不同身份地位看法不同 | 态度=行动目标 |
-  | 人物小传 | 典型重要故事 | 浓缩的生平经历 |
+  | Informasi dasar | Kehidupan sebelumnya dan sekarang/ciri penampilan | Bangun rasa penantian jangka panjang mulai dari tokoh |
+  | Watak | Watak tokoh yang kontras | Menyiapkan landasan bagi busur pertumbuhan |
+  | Hobi dan kebiasaan | Mata duitan/gemar perempuan/mendoakan arwah setelah membunuh | Jadikan titik ingatan kuat dan tekankan berulang-ulang |
+  | Hubungan antarpribadi | Makin rumit jaringan hubungan, makin mampu menciptakan konflik | Tokoh penting yang terlibat masing-masing punya kekuatan dan latar belakang |
+  | Latar belakang | Keluarga/asal-usul/lingkungan tumbuh | - |
+  | Busur pertumbuhan | Lihat tiga tahap di bawah | - |
+  | Perbandingan dan kontras | Orang jahat vs orang baik/dokter yang menyelamatkan nyawa -> memikul senapan membunuh | - |
+  | Nilai dan sikap | Identitas dan kedudukan berbeda, pandangannya berbeda | Sikap = tujuan tindakan |
+  | Biografi ringkas tokoh | Cerita khas yang penting | Riwayat hidup yang dipadatkan |
 
-  #### 人物成长弧线（三阶段）
+  #### Busur Pertumbuhan Tokoh (tiga tahap)
 
-  | 阶段 | 核心 | 对应 |
+  | Tahap | Inti | Berpadanan dengan |
   |------|------|------|
-  | 小我（幼年） | 虚构自己，想要成为他人眼中的我 | 动机 |
-  | 自我（青年） | 真实自己，夹在两者之间痛苦 | 态度 |
-  | 他我（成熟） | 别人眼中的自己就是追求的目标 | 价值观 |
+  | Aku kecil (masa kanak) | Mengarang diri sendiri, ingin menjadi aku dalam pandangan orang lain | Motif |
+  | Aku sejati (masa muda) | Diri yang sebenarnya, tersiksa terjepit di antara keduanya | Sikap |
+  | Aku milik orang lain (kematangan) | Diri dalam pandangan orang lain itulah tujuan yang dikejar | Nilai |
 
-  情绪公式：满足（认同）→ 打击（同情）→ 怀疑（共鸣）→ 心痛（共情）
+  Rumus emosi: terpuaskan (pengakuan) -> terpukul (simpati) -> ragu (resonansi) -> hati teriris (empati)
 
-  ### 人设关系四阶段标签
+  ### Label Empat Tahap Hubungan Watak Tokoh
 
-  | 阶段 | 了解程度 | 表现 |
+  | Tahap | Tingkat pemahaman | Penampilan |
   |------|---------|------|
-  | 相遇（陌生人） | 只知道外表 | 警惕/保持距离/设防 |
-  | 相识（过客） | 初步了解不知底线 | 察言观色/阿谀奉承 |
-  | 相知（好哥们/闺蜜） | 知道秉性和底线 | 聊骚话/吐露心声/倾诉烦恼 |
-  | 相恋（爱人） | 了解内心伤疤 | 占有欲强/喋喋不休/任劳任怨 |
+  | Bertemu (orang asing) | Hanya tahu penampilan luar | Waspada/menjaga jarak/berjaga-jaga |
+  | Berkenalan (orang yang lewat) | Paham awal tapi tidak tahu batasnya | Membaca situasi/menjilat |
+  | Saling mengenal (sahabat dekat/teman perempuan terdekat) | Tahu tabiat dan batasnya | Bercanda nakal/menumpahkan isi hati/mengeluhkan kegelisahan |
+  | Bercinta (kekasih) | Paham luka di dalam hatinya | Rasa memiliki kuat/berbicara tak henti/rela bersusah payah |
 
-  ### 用职场思维理解网文关系结构
+  ### Memahami Struktur Hubungan Novel Daring dengan Pola Pikir Dunia Kerja
 
-  网文本质：在一个“职场”爽透，然后再到另一个“职场”爽。
+  Hakikat novel daring: puas total di satu "dunia kerja", lalu pindah ke "dunia kerja" berikutnya.
 
-  | 共性维度 | 说明 |
+  | Dimensi kesamaan | Penjelasan |
   |---------|------|
-  | 层级 | 任何环境中都有上下级关系 |
-  | 互助 | 同级之间的合作和互利 |
-  | 互害 | 同级之间的竞争和倾轧 |
+  | Tingkatan | Di lingkungan mana pun ada hubungan atasan dan bawahan |
+  | Saling membantu | Kerja sama dan saling menguntungkan di antara yang setingkat |
+  | Saling merugikan | Persaingan dan saling menjatuhkan di antara yang setingkat |
 
-  | 差异维度 | 说明 |
+  | Dimensi perbedaan | Penjelasan |
   |---------|------|
-  | 合作方式 | 不同环境合作模式不同 |
-  | 资源类型 | 不同环境争夺的资源不同 |
-  | 个体能力 | 主角的独特优势 |
+  | Cara kerja sama | Pola kerja sama berbeda di lingkungan yang berbeda |
+  | Jenis sumber daya | Sumber daya yang diperebutkan berbeda di lingkungan yang berbeda |
+  | Kemampuan individu | Keunggulan unik tokoh utama |
 
-  #### 执行步骤
+  #### Langkah Pelaksanaan
 
-  1. 为主角设计一个“职场环境”（学校/宗门/公司/军队）
-  2. 设置层级关系（上级/同级/下级/对手）
-  3. 利用层级关系自然产生矛盾和冲突
-  4. 主角在这个环境中爽透后，换到更大的“职场”
+  1. Rancang satu "lingkungan dunia kerja" untuk tokoh utama (sekolah/sekte/perusahaan/militer)
+  2. Tetapkan hubungan tingkatan (atasan/setingkat/bawahan/lawan)
+  3. Manfaatkan hubungan tingkatan untuk memunculkan konflik dan pertentangan secara wajar
+  4. Setelah tokoh utama puas total di lingkungan ini, pindahkan ke "dunia kerja" yang lebih besar
 
-  ### 代入感构建法
+  ### Metode Pembangunan Rasa Keterlibatan
 
-  - 代入感维护规则：节奏和情感链条不断裂。断裂标志=读者开始用现实逻辑评判情节
-  - 一旦读者开始用现实逻辑评判 = 节奏出了问题
-  - 核心是情感链条不断
+  - Aturan menjaga rasa keterlibatan: ritme dan rantai emosi tidak boleh terputus. Tanda keterputusan = pembaca mulai menilai alur cerita dengan logika kenyataan
+  - Begitu pembaca mulai menilai dengan logika kenyataan = ada masalah pada ritmenya
+  - Intinya rantai emosi tidak terputus
 
-  | 方法 | 做法 | 效果 |
+  | Metode | Cara kerja | Efek |
   |------|------|------|
-  | 共情切入点 | 用日常生活常见事件 | 瞬间拉近距离 |
-  | 细节真实性 | 填充生活化细节 | 强化世界真实性 |
-  | 救猫咪情节 | 开头一个情节强调主角人设某方面 | 读者快速熟悉并代入 |
-  | 共情前提 | 让角色暴露真实一面（弱点/困境） | 读者产生保护欲 |
-  | 合理化虑点 | “缺钱”这类人人都懂的困境 | 天然共情 |
+  | Titik masuk empati | Pakai peristiwa yang lazim dalam kehidupan sehari-hari | Seketika mendekatkan jarak |
+  | Kenyataan pada detail | Isi dengan detail yang membumi | Memperkuat kenyataan dunianya |
+  | Alur menyelamatkan kucing | Satu alur di bagian awal yang menegaskan salah satu sisi watak tokoh utama | Pembaca cepat mengenal dan masuk ke dalamnya |
+  | Prasyarat empati | Biarkan tokoh menyingkapkan sisi sejatinya (kelemahan/kesulitan) | Pembaca tumbuh keinginan melindungi |
+  | Titik kekhawatiran yang wajar | Kesulitan yang dipahami siapa pun seperti "kekurangan uang" | Empati yang alami |
 
-  #### 共情三层次
+  #### Tiga Tingkat Empati
 
-  1. **表层共情**：经历类似
-  2. **深层共情**：情感类似
-  3. **认同感**：价值观一致
+  1. **Empati permukaan**: pengalaman yang serupa
+  2. **Empati mendalam**: emosi yang serupa
+  3. **Rasa sepaham**: nilai yang sejalan
 
-  #### 破坏代入感的行为（避免）
+  #### Perilaku yang Merusak Rasa Keterlibatan (hindari)
 
-  - 角色做出读者无法理解的选择
-  - 大段设定说明打断叙事
-  - 节奏拖沓导致情感链条断裂
-  - 主角三观与目标读者严重偏离
+  - Tokoh mengambil pilihan yang tidak bisa dipahami pembaca
+  - Penjelasan latar yang panjang memotong penceritaan
+  - Ritme yang berlarut-larut sampai rantai emosi terputus
+  - Pandangan hidup tokoh utama menyimpang jauh dari pembaca sasaran
 
-  ### 安全感与核心情绪把控
+  ### Pengendalian Rasa Aman dan Emosi Inti
 
-  1. 不同题材的读者对安全感需求不同，先确认题材
-  2. 极道流等紧张感题材：安全感拉爆 = 危机感消失 = 核心情绪偏移——不要给主角找过强的靠山
-  3. 禁止为主角设置可随时解决危机的强力靠山——靠山的存在必须不削弱紧迫感。违反此规则时标记为“靠山过度”
-  4. 精力有限时，情节始终是第一位的，世界观只是加分项
+  1. Kebutuhan rasa aman pembaca berbeda menurut genrenya, pastikan dulu genrenya
+  2. Genre bernuansa ketegangan seperti aliran jalan ekstrem: rasa aman dinaikkan sampai puncak = rasa krisis hilang = emosi inti bergeser - jangan mencarikan tokoh utama pelindung yang terlalu kuat
+  3. Dilarang menyediakan pelindung kuat bagi tokoh utama yang bisa menyelesaikan krisis kapan saja - keberadaan pelindung tidak boleh melemahkan rasa terdesak. Saat aturan ini dilanggar, tandai sebagai "pelindung berlebihan"
+  4. Saat tenaga terbatas, alur cerita selalu yang pertama, latar dunia hanya nilai tambah
 
-  ## 质量检查清单
+  ## Daftar Periksa Mutu
 
-  设计完角色后，逐项检查：
+  Setelah selesai merancang tokoh, periksa butir per butir:
 
-  ### 主角检查
+  ### Pemeriksaan Tokoh Utama
 
-  - [ ] 动机是情感层面的（不是“要成为最强”这种空话）
-  - [ ] 有致命弱点，且会在关键情节导致犯错
-  - [ ] 外貌有记忆点（3-5 个关键词）
-  - [ ] 有口头禅或标志动作
-  - [ ] 逼格在线——不会让读者看不起
-  - [ ] 没有触碰红线（圣母/无脑战斗机器/内核邪恶/因蠢犯错/自暴自弃）
-  - [ ] 核心目标和全书主线对齐
+  - [ ] Motifnya berada di tataran emosi (bukan omongan kosong semacam "ingin menjadi yang terkuat")
+  - [ ] Punya kelemahan fatal, dan kelemahan itu akan menyebabkan kesalahan pada alur cerita kunci
+  - [ ] Penampilannya punya titik ingatan (3-5 kata kunci)
+  - [ ] Punya ucapan khas atau gerakan penanda
+  - [ ] Wibawanya terjaga - tidak akan dipandang rendah pembaca
+  - [ ] Tidak menyentuh garis merah (kesantaan/mesin pertarungan tanpa otak/berinti jahat/berbuat salah karena bodoh/putus asa menyerah pada diri sendiri)
+  - [ ] Tujuan intinya sejajar dengan alur utama seluruh buku
 
-  ### 配角检查
+  ### Pemeriksaan Tokoh Pendukung
 
-  - [ ] 有明确功能（导师/盟友/情报源/牺牲品/镜像对照）
-  - [ ] 核心特质 1-2 个关键词能概括
-  - [ ] 有标志性特征让读者记住
-  - [ ] 退场方式已规划
-  - [ ] 同一场景不超过 3 个配角有台词
+  - [ ] Punya fungsi yang jelas (mentor/sekutu/sumber informasi/korban/cermin pembanding)
+  - [ ] Ciri intinya bisa dirangkum dalam 1-2 kata kunci
+  - [ ] Punya ciri penanda yang membuat pembaca mengingatnya
+  - [ ] Cara keluar panggungnya sudah direncanakan
+  - [ ] Dalam satu adegan tidak lebih dari 3 tokoh pendukung yang punya dialog
 
-  ### 反派检查
+  ### Pemeriksaan Tokoh Antagonis
 
-  - [ ] 按层级表设计，篇幅与层级匹配
-  - [ ] 出场展示了实力或手段
-  - [ ] 动机从反派视角说得通
-  - [ ] 至少赢主角一次（中等反派及以上）
-  - [ ] 没有降智送赢
-  - [ ] 大弧Boss有理念冲突（不只是利益冲突）
-  - [ ] 最终Boss从第一章就有伏笔
+  - [ ] Dirancang menurut tabel tingkatan, porsi tulisan sepadan dengan tingkatannya
+  - [ ] Saat muncul sudah memperagakan kekuatan atau caranya
+  - [ ] Motifnya masuk akal dari sudut pandang antagonis
+  - [ ] Setidaknya sekali mengalahkan tokoh utama (antagonis menengah dan di atasnya)
+  - [ ] Tidak ada kemenangan yang dihadiahkan karena antagonis mendadak bodoh
+  - [ ] Bos busur besar punya konflik prinsip (bukan hanya konflik kepentingan)
+  - [ ] Bos terakhir sudah punya petunjuk awal sejak bab pertama
 
-  ### 动机检查
+  ### Pemeriksaan Motif
 
-  - [ ] 起因具体（不是“被欺负”这种模糊说法）
-  - [ ] 约束有力（主角不能一路碾压）
-  - [ ] 风险真实（读者相信主角可能失去重要东西）
-  - [ ] 动机演变有铺垫，没有说变就变
+  - [ ] Sebabnya konkret (bukan ungkapan kabur semacam "ditindas")
+  - [ ] Kendalanya kuat (tokoh utama tidak boleh menindas terus sepanjang jalan)
+  - [ ] Risikonya nyata (pembaca percaya tokoh utama mungkin kehilangan sesuatu yang penting)
+  - [ ] Perkembangan motifnya berlandasan, tidak berubah begitu saja
 
-  ### 塑造检查
+  ### Pemeriksaan Pembentukan
 
-  - [ ] 角色目的通过行为展示，不是旁白解释
-  - [ ] 行为/语言/思维围绕人设展开，没有为剧情改人设
-  - [ ] 主要角色有行为重复点，维持长篇一致性
-  - [ ] 配角与主角有明确联系，不会抢主角风头
-  - [ ] 人物真相/价值取向在关键抉择时自然暴露
+  - [ ] Tujuan tokoh ditunjukkan lewat perilaku, bukan dijelaskan lewat narasi
+  - [ ] Perilaku/bahasa/pola pikir berkembang di sekeliling watak tokoh, tidak ada watak tokoh yang diubah demi alur cerita
+  - [ ] Tokoh utama punya titik pengulangan perilaku, menjaga konsistensi pada karya panjang
+  - [ ] Tokoh pendukung punya keterkaitan jelas dengan tokoh utama, tidak mencuri panggung tokoh utama
+  - [ ] Kebenaran tokoh/orientasi nilai tersingkap secara wajar pada saat pengambilan keputusan kunci
 
-  ### 综合检查
+  ### Pemeriksaan Menyeluruh
 
-  - [ ] 角色是否有三层标签（身份/表现/内核），且至少有一层反差
-  - [ ] 强关联设定是否达到 3 个以上
-  - [ ] 人设是功能性设计还是只有外貌信息堆砌
-  - [ ] 配角是否有明确功能，是否抢了主角风头
-  - [ ] 每个角色是否有至少一个记忆点
-  - [ ] 配角出场是否都有功能，没有无用水分
-  - [ ] 不同角色是否有不同的说话风格和行为特征
-  - [ ] 主角的错误是否在可原谅范围内
-  - [ ] 反派是否有自己的逻辑和追求，不是纯粹的恶
-  - [ ] 人设言行是否前后一致，有没有崩人设
-  - [ ] 代入感情感链条是否连续，有没有被设定说明打断
-  - [ ] 安全感是否匹配题材要求（紧张题材不能给主角太强靠山）
-  - [ ] 高情商桥段是否通过具体剧情展现，而非旁白夸赞
+  - [ ] Apakah tokoh punya tiga lapis label (identitas/penampilan/inti), dan setidaknya ada satu lapis kontras
+  - [ ] Apakah latar keterkaitan kuat sudah mencapai lebih dari 3 buah
+  - [ ] Apakah watak tokoh berupa perancangan fungsional atau hanya tumpukan informasi penampilan
+  - [ ] Apakah tokoh pendukung punya fungsi yang jelas, apakah mencuri panggung tokoh utama
+  - [ ] Apakah setiap tokoh punya setidaknya satu titik ingatan
+  - [ ] Apakah setiap kemunculan tokoh pendukung punya fungsi, tanpa isian kosong yang tak berguna
+  - [ ] Apakah tokoh yang berbeda punya gaya bicara dan ciri perilaku yang berbeda
+  - [ ] Apakah kesalahan tokoh utama masih dalam batas yang bisa dimaafkan
+  - [ ] Apakah antagonis punya logika dan pengejaran miliknya sendiri, bukan kejahatan murni
+  - [ ] Apakah ucapan dan tindakan sesuai watak tokoh dari awal sampai akhir, apakah ada watak tokoh yang runtuh
+  - [ ] Apakah rantai emosi rasa keterlibatan berkesinambungan, apakah terpotong oleh penjelasan latar
+  - [ ] Apakah rasa aman sepadan dengan tuntutan genre (genre bernuansa ketegangan tidak boleh memberi tokoh utama pelindung yang terlalu kuat)
+  - [ ] Apakah adegan kecerdasan emosional tinggi ditampilkan lewat alur cerita yang konkret, bukan lewat pujian narasi
 
 references:
-  - name: 角色设计完整检查表
+  - name: Daftar Periksa Lengkap Perancangan Tokoh
     content: |
-      - [ ] 动机是情感层面的，不是“要成为最强”这种空话。
-      - [ ] 起因具体，约束有力，风险真实，动机演变有铺垫。
-      - [ ] 有致命弱点，且会在关键情节导致犯错。
-      - [ ] 外貌有 3-5 个记忆关键词，有口头禅或标志动作。
-      - [ ] 有身份、表现、内核三层标签，至少有一层反差。
-      - [ ] 强关联设定至少 3 个，弱关联不会喧宾夺主。
-      - [ ] 目的通过行为展示，行为、语言、思维没有违背人设。
-      - [ ] 配角有明确功能、行动、标志和退场方式，不抢主角高光。
-      - [ ] 反派展示实力，动机自洽，至少赢主角一次且没有降智送赢。
-      - [ ] 主角拥有不可替代的决定、承担和核心收益。
-      - [ ] 角色目标属于自己，不是沦为他人的工具人。
-      - [ ] 成长有事件和选择，前后身份、能力、关系和行为一致。
-  - name: 主角反派与展示规则
+      - [ ] Motifnya berada di tataran emosi, bukan omongan kosong semacam "ingin menjadi yang terkuat".
+      - [ ] Sebabnya konkret, kendalanya kuat, risikonya nyata, perkembangan motifnya berlandasan.
+      - [ ] Punya kelemahan fatal, dan kelemahan itu akan menyebabkan kesalahan pada alur cerita kunci.
+      - [ ] Penampilannya punya 3-5 kata kunci ingatan, punya ucapan khas atau gerakan penanda.
+      - [ ] Punya tiga lapis label identitas, penampilan, dan inti, setidaknya ada satu lapis kontras.
+      - [ ] Latar keterkaitan kuat minimal 3 buah, keterkaitan lemah tidak mengambil alih perhatian utama.
+      - [ ] Tujuannya ditunjukkan lewat perilaku; perilaku, bahasa, dan pola pikir tidak melanggar watak tokoh.
+      - [ ] Tokoh pendukung punya fungsi, tindakan, penanda, dan cara keluar panggung yang jelas, tidak merebut sorotan tokoh utama.
+      - [ ] Antagonis memperagakan kekuatan, motifnya konsisten, setidaknya sekali mengalahkan tokoh utama dan tidak ada kemenangan hadiah karena antagonis mendadak bodoh.
+      - [ ] Tokoh utama memiliki keputusan, tanggungan, dan perolehan inti yang tak tergantikan.
+      - [ ] Tujuan tokoh adalah miliknya sendiri, bukan jatuh menjadi alat bagi orang lain.
+      - [ ] Pertumbuhannya punya peristiwa dan pilihan; identitas, kemampuan, hubungan, dan perilakunya konsisten dari awal sampai akhir.
+  - name: Aturan Tokoh Utama, Antagonis, dan Penyajian
     content: |
-      - 角色目的、行动和态度优先通过行为、决定、对话和反应展示。
-      - 反派要有自己的梦想、创伤、缺陷和信念；障碍应来自其人设和目的。
-      - 关键行为不合人设时，先补角色层面的合理动机或调整剧情。
-      - 不为所有角色强行立体化：功能角色可保持扁平和神秘。
-      - 不让强力靠山随时解决危机；安全感必须符合题材的核心情绪。
+      - Tujuan, tindakan, dan sikap tokoh diutamakan ditunjukkan lewat perilaku, keputusan, dialog, dan reaksi.
+      - Antagonis harus punya mimpi, trauma, cacat, dan keyakinan miliknya sendiri; penghalang sebaiknya lahir dari watak tokoh dan tujuannya.
+      - Saat perilaku kunci tidak sesuai watak tokoh, tambahkan dulu motif yang wajar pada tataran tokoh atau sesuaikan alur ceritanya.
+      - Jangan memaksa semua tokoh menjadi berdimensi: tokoh fungsional boleh tetap datar dan misterius.
+      - Jangan biarkan pelindung yang kuat menyelesaikan krisis kapan saja; rasa aman harus sesuai dengan emosi inti genrenya.

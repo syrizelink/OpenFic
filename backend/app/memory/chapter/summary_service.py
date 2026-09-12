@@ -426,7 +426,7 @@ async def mark_chapter_summary_running(
 ) -> ChapterSummary:
     chapter = await chapter_repo.get_by_id(session, chapter_id)
     if chapter is None:
-        raise NotFoundError(f"章节不存在: {chapter_id}")
+        raise NotFoundError(f"Bab tidak ditemukan: {chapter_id}")
     return await ensure_chapter_summary_row(
         session,
         chapter,
@@ -451,7 +451,7 @@ async def save_chapter_summary_result(
 ) -> ChapterSummary:
     chapter = await chapter_repo.get_by_id(session, chapter_id)
     if chapter is None:
-        raise NotFoundError(f"章节不存在: {chapter_id}")
+        raise NotFoundError(f"Bab tidak ditemukan: {chapter_id}")
     row = await ensure_chapter_summary_row(
         session,
         chapter,
@@ -491,7 +491,7 @@ async def create_or_update_long_term_summary(
     model_id: str | None = None,
 ) -> ChapterSummary:
     if not source_summaries:
-        raise NotFoundError("没有可聚合的章节摘要")
+        raise NotFoundError("Tidak ada ringkasan bab yang dapat diagregasi")
     source_chapter_ids_json = encode_summary_list(
         source_chapter_ids
         if source_chapter_ids is not None
@@ -824,7 +824,7 @@ async def _publish_batch_item_queued_event(
             is_stale=False,
             progress_current=0,
             progress_total=SUMMARY_BATCH_ITEM_PROGRESS_TOTAL,
-            progress_message="已加入队列",
+            progress_message="Sudah masuk antrean",
             error_message=None,
         ),
         publisher=publisher,
@@ -840,7 +840,7 @@ async def append_chapter_summary_items(
     model_policy: str = "light_model",
 ) -> SummaryBatchAppendResult:
     if not chapter_ids:
-        raise ValidationError("没有可加入队列的章节摘要")
+        raise ValidationError("Tidak ada ringkasan bab yang dapat dimasukkan ke antrean")
     batch_job, created = await _get_or_create_summary_batch_job(
         session,
         project_id,
@@ -854,9 +854,12 @@ async def append_chapter_summary_items(
     for chapter_id in chapter_ids:
         chapter = await chapter_repo.get_by_id(session, chapter_id)
         if chapter is None or chapter.project_id != project_id:
-            raise NotFoundError(f"章节不存在: {chapter_id}")
+            raise NotFoundError(f"Bab tidak ditemukan: {chapter_id}")
         if is_chapter_summary_skipped(chapter):
-            raise ValidationError(f"章节字数不足 {MIN_CHAPTER_SUMMARY_WORD_COUNT}，不能生成摘要")
+            raise ValidationError(
+                f"Jumlah kata bab kurang dari {MIN_CHAPTER_SUMMARY_WORD_COUNT},"
+                " ringkasan tidak dapat dibuat"
+            )
         key = _chapter_item_key(chapter_id)
         existing_item = existing_map.get(key)
         current_row = await chapter_summary_repo.get_by_chapter_id(session, chapter_id)
@@ -938,7 +941,9 @@ async def append_long_term_summary_items(
     model_policy: str = "light_model",
 ) -> SummaryBatchAppendResult:
     if not ranges:
-        raise ValidationError("没有可加入队列的区间摘要")
+        raise ValidationError(
+            "Tidak ada ringkasan rentang yang dapat dimasukkan ke antrean"
+        )
     batch_job, created = await _get_or_create_summary_batch_job(
         session,
         project_id,
@@ -960,7 +965,10 @@ async def append_long_term_summary_items(
     for start_order, end_order in ranges:
         window = build_long_term_summary_window(chapters, volumes, chapter_summaries, start_order, end_order)
         if window is None:
-            raise ValidationError("该区间缺少可参与聚合的章节摘要，需先生成满足条件的章节摘要。")
+            raise ValidationError(
+                "Rentang ini tidak memiliki ringkasan bab yang dapat diagregasi,"
+                " ringkasan bab yang memenuhi syarat harus dibuat lebih dulu."
+            )
         key = _long_term_item_key(start_order, end_order)
         existing_item = existing_map.get(key)
         current_row = existing_long_term_by_range.get((start_order, end_order))
@@ -1136,7 +1144,7 @@ async def enqueue_chapter_summary(
 ) -> ChapterSummary:
     chapter = await chapter_repo.get_by_id(session, chapter_id)
     if chapter is None:
-        raise NotFoundError(f"章节不存在: {chapter_id}")
+        raise NotFoundError(f"Bab tidak ditemukan: {chapter_id}")
     await append_chapter_summary_items(
         session,
         chapter.project_id,
@@ -1146,7 +1154,7 @@ async def enqueue_chapter_summary(
     )
     row = await chapter_summary_repo.get_by_chapter_id(session, chapter_id)
     if row is None:
-        raise NotFoundError(f"章节摘要不存在: {chapter_id}")
+        raise NotFoundError(f"Ringkasan bab tidak ditemukan: {chapter_id}")
     return row
 
 
@@ -1175,7 +1183,7 @@ async def enqueue_long_term_summary_range(
         end_order,
     )
     if row is None:
-        raise NotFoundError("区间摘要不存在")
+        raise NotFoundError("Ringkasan rentang tidak ditemukan")
     return row
 
 

@@ -160,7 +160,7 @@ async def _invoke_model(
         response = chunk if response is None else response + chunk
 
     if response is None:
-        raise EmptyResponseError("LLM流式调用未返回响应")
+        raise EmptyResponseError("Pemanggilan aliran LLM tidak mengembalikan respons")
 
     normalized = AIMessage(
         content=extract_text_content(response.content),
@@ -188,8 +188,10 @@ async def _invoke_model(
     return normalized
 
 
-# 节点级重试已禁用：超时与重试统一由模型调用层（invoke_model_with_retry）处理，
-# 避免双层重试叠加。保留常量名以便测试禁用兜底重试。
+# Coba ulang tingkat node dinonaktifkan: batas waktu dan coba ulang ditangani
+# seragam oleh lapisan pemanggilan model (invoke_model_with_retry), agar tidak
+# terjadi penumpukan coba ulang dua lapis. Nama konstanta dipertahankan supaya
+# pengujian dapat menonaktifkan coba ulang cadangan.
 LLM_RETRY_POLICY = RetryPolicy(max_attempts=1)
 TOOL_BATCH_SIZE = 20
 
@@ -355,7 +357,8 @@ async def maybe_auto_compact(
         )
     except Exception as exc:
         error = CompactionError(
-            "compaction_load_failed", "压缩状态加载失败，当前请求已中止"
+            "compaction_load_failed",
+            "Pemuatan status pemadatan gagal, permintaan saat ini dibatalkan",
         )
         await emit_error_once(error)
         raise error from exc
@@ -370,7 +373,8 @@ async def maybe_auto_compact(
         return False
     except Exception as exc:
         error = CompactionError(
-            "compaction_window_failed", "压缩窗口选择失败，当前请求已中止"
+            "compaction_window_failed",
+            "Pemilihan jendela pemadatan gagal, permintaan saat ini dibatalkan",
         )
         await emit_error_once(error)
         raise error from exc
@@ -389,7 +393,9 @@ async def maybe_auto_compact(
         await emit_error_once(exc)
         raise
     except Exception as exc:
-        error = CompactionError("llm_error", "压缩失败，当前请求已中止")
+        error = CompactionError(
+            "llm_error", "Pemadatan gagal, permintaan saat ini dibatalkan"
+        )
         await emit_error_once(error)
         raise error from exc
     return True
@@ -500,10 +506,11 @@ async def _invoke_tool(
 
 
 def _to_history_dict(m: BaseMessage) -> dict:
-    """把 LangChain BaseMessage 反向转成 build_context 期望的 history dict。"""
-    # 用 isinstance 判断而非 m.type 字符串：流式累加产生的 *Chunk 子类
-    # （如 AIMessageChunk）的 .type 是类名（"AIMessageChunk"）而非 "ai"，
-    # 会导致 role 映射失败。
+    """Mengubah LangChain BaseMessage kembali menjadi history dict yang diharapkan
+    build_context."""
+    # Pemeriksaan memakai isinstance dan bukan string m.type: subkelas *Chunk yang
+    # dihasilkan akumulasi aliran (misalnya AIMessageChunk) memiliki .type berupa
+    # nama kelas ("AIMessageChunk") dan bukan "ai", sehingga pemetaan role gagal.
     if isinstance(m, ToolMessage):
         role = "tool"
     elif isinstance(m, AIMessage):
@@ -611,7 +618,8 @@ def create_react_agent(
         A compiled LangGraph ready for `ainvoke`.
     """
 
-    react_config = config  # 重命名以避免与 LangGraph node 的 config 参数冲突
+    # Diganti nama agar tidak bertabrakan dengan parameter config pada node LangGraph
+    react_config = config
     tools = react_config.tools
     tool_map: dict[str, BaseTool] = {t.name: t for t in tools}
     termination = react_config.termination
@@ -1052,7 +1060,7 @@ def create_react_agent(
         if tool_instance is None:
             failure = ToolFailure(
                 code="tool_not_found",
-                message=f"未找到工具：{tool_name}",
+                message=f"Alat tidak ditemukan: {tool_name}",
                 trace={"source": "tool_dispatch"},
             )
             log_tool_failure(failure, tool_name=tool_name, tool_call_id=tool_id)
@@ -1293,8 +1301,8 @@ def create_react_agent(
     ) -> dict:
         excess_outcomes: list[dict[str, Any]] = []
         error_message = (
-            f"Agent 单轮最多调用 {TOOL_BATCH_SIZE} 个工具，"
-            "超出上限的工具调用未执行"
+            f"Agent memanggil paling banyak {TOOL_BATCH_SIZE} alat dalam satu "
+            "putaran; pemanggilan alat yang melebihi batas tidak dijalankan"
         )
         failure = ToolFailure(
             code="limit_exceeded",

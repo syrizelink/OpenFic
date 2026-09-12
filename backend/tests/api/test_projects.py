@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Project API 测试。
+Uji API Project.
 """
 
 from unittest.mock import AsyncMock, patch
@@ -26,15 +26,15 @@ from app.storage.services import task_service
 
 @pytest.mark.asyncio
 async def test_create_project(client: AsyncClient) -> None:
-    """测试创建项目。"""
+    """Uji pembuatan proyek."""
     response = await client.post(
         "/api/v1/projects",
-        data={"title": "测试小说", "description": "这是一个测试小说"},
+        data={"title": "Novel Uji", "description": "Ini adalah novel uji"},
     )
     assert response.status_code == 201
     data = response.json()
-    assert data["title"] == "测试小说"
-    assert data["description"] == "这是一个测试小说"
+    assert data["title"] == "Novel Uji"
+    assert data["description"] == "Ini adalah novel uji"
     assert data["word_count"] == 0
     assert data["chapter_count"] == 0
     assert "id" in data
@@ -44,20 +44,20 @@ async def test_create_project(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_create_project_without_description(client: AsyncClient) -> None:
-    """测试创建不带简介的项目。"""
+    """Uji pembuatan proyek tanpa ringkasan."""
     response = await client.post(
         "/api/v1/projects",
-        data={"title": "无简介小说"},
+        data={"title": "Novel Tanpa Ringkasan"},
     )
     assert response.status_code == 201
     data = response.json()
-    assert data["title"] == "无简介小说"
+    assert data["title"] == "Novel Tanpa Ringkasan"
     assert data["description"] is None
 
 
 @pytest.mark.asyncio
 async def test_create_project_empty_title(client: AsyncClient) -> None:
-    """测试创建项目时标题为空。"""
+    """Uji pembuatan proyek dengan judul kosong."""
     response = await client.post(
         "/api/v1/projects",
         data={"title": ""},
@@ -67,7 +67,7 @@ async def test_create_project_empty_title(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_list_projects_empty(client: AsyncClient) -> None:
-    """测试获取空的项目列表。"""
+    """Uji pengambilan daftar proyek yang kosong."""
     response = await client.get("/api/v1/projects")
     assert response.status_code == 200
     data = response.json()
@@ -79,12 +79,12 @@ async def test_list_projects_empty(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_list_projects(client: AsyncClient) -> None:
-    """测试获取项目列表。"""
-    # 创建几个项目
+    """Uji pengambilan daftar proyek."""
+    # Buat beberapa proyek
     for i in range(3):
         await client.post(
             "/api/v1/projects",
-            data={"title": f"小说 {i + 1}"},
+            data={"title": f"Novel {i + 1}"},
         )
 
     response = await client.get("/api/v1/projects")
@@ -96,15 +96,15 @@ async def test_list_projects(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_list_projects_pagination(client: AsyncClient) -> None:
-    """测试项目列表分页。"""
-    # 创建 5 个项目
+    """Uji paginasi daftar proyek."""
+    # Buat 5 proyek
     for i in range(5):
         await client.post(
             "/api/v1/projects",
-            data={"title": f"小说 {i + 1}"},
+            data={"title": f"Novel {i + 1}"},
         )
 
-    # 获取第一页
+    # Ambil halaman pertama
     response = await client.get("/api/v1/projects?page=1&page_size=2")
     assert response.status_code == 200
     data = response.json()
@@ -113,7 +113,7 @@ async def test_list_projects_pagination(client: AsyncClient) -> None:
     assert data["page"] == 1
     assert data["page_size"] == 2
 
-    # 获取第二页
+    # Ambil halaman kedua
     response = await client.get("/api/v1/projects?page=2&page_size=2")
     data = response.json()
     assert len(data["items"]) == 2
@@ -122,22 +122,22 @@ async def test_list_projects_pagination(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_list_projects_search_and_sort(client: AsyncClient) -> None:
-    """测试项目列表的服务端搜索和排序。"""
+    """Uji pencarian dan pengurutan daftar proyek di sisi server."""
     await client.post(
         "/api/v1/projects",
-        data={"title": "Zeta 项目", "description": "包含目标词"},
+        data={"title": "Proyek Zeta", "description": "Memuat kata sasaran"},
     )
     await client.post(
         "/api/v1/projects",
-        data={"title": "Alpha 项目", "description": "普通简介"},
+        data={"title": "Proyek Alpha", "description": "Ringkasan biasa"},
     )
     await client.post(
         "/api/v1/projects",
-        data={"title": "Beta 项目", "description": "另一个目标词"},
+        data={"title": "Proyek Beta", "description": "Kata sasaran lainnya"},
     )
 
     search_response = await client.get(
-        "/api/v1/projects?search=目标词&page=1&page_size=1",
+        "/api/v1/projects?search=kata sasaran&page=1&page_size=1",
     )
     assert search_response.status_code == 200
     search_data = search_response.json()
@@ -149,15 +149,19 @@ async def test_list_projects_search_and_sort(client: AsyncClient) -> None:
     )
     assert sort_response.status_code == 200
     assert [item["title"] for item in sort_response.json()["items"]] == [
-        "Alpha 项目",
-        "Beta 项目",
-        "Zeta 项目",
+        "Proyek Alpha",
+        "Proyek Beta",
+        "Proyek Zeta",
     ]
 
 
 @pytest.mark.asyncio
 async def test_list_projects_supports_pinyin_search_and_sort(client: AsyncClient) -> None:
-    """拼音搜索和标题排序应保持与旧客户端一致。"""
+    """Pencarian pinyin dan pengurutan judul harus tetap konsisten dengan klien lama.
+
+    Fixture CJK di uji ini sengaja dipertahankan: pencarian "hxxm" mengandalkan
+    inisial pinyin judul Tionghoa dan urutannya juga mengikuti urutan pinyin.
+    """
     await client.post("/api/v1/projects", data={"title": "中篇项目"})
     await client.post("/api/v1/projects", data={"title": "红星项目", "description": "银河故事"})
     await client.post("/api/v1/projects", data={"title": "阿尔法项目"})
@@ -179,109 +183,109 @@ async def test_list_projects_supports_pinyin_search_and_sort(client: AsyncClient
 
 @pytest.mark.asyncio
 async def test_get_project(client: AsyncClient) -> None:
-    """测试获取项目详情。"""
-    # 创建项目
+    """Uji pengambilan detail proyek."""
+    # Buat proyek
     create_response = await client.post(
         "/api/v1/projects",
-        data={"title": "测试小说", "description": "测试简介"},
+        data={"title": "Novel Uji", "description": "Ringkasan uji"},
     )
     project_id = create_response.json()["id"]
 
-    # 获取项目
+    # Ambil proyek
     response = await client.get(f"/api/v1/projects/{project_id}")
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == project_id
-    assert data["title"] == "测试小说"
-    assert data["description"] == "测试简介"
+    assert data["title"] == "Novel Uji"
+    assert data["description"] == "Ringkasan uji"
 
 
 @pytest.mark.asyncio
 async def test_get_project_not_found(client: AsyncClient) -> None:
-    """测试获取不存在的项目。"""
+    """Uji pengambilan proyek yang tidak ada."""
     response = await client.get("/api/v1/projects/nonexistent")
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_update_project(client: AsyncClient) -> None:
-    """测试更新项目。"""
-    # 创建项目
+    """Uji pembaruan proyek."""
+    # Buat proyek
     create_response = await client.post(
         "/api/v1/projects",
-        data={"title": "原标题", "description": "原简介"},
+        data={"title": "Judul Asli", "description": "Ringkasan asli"},
     )
     project_id = create_response.json()["id"]
 
-    # 更新项目
+    # Perbarui proyek
     response = await client.patch(
         f"/api/v1/projects/{project_id}",
-        data={"title": "新标题", "description": "新简介"},
+        data={"title": "Judul Baru", "description": "Ringkasan baru"},
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["title"] == "新标题"
-    assert data["description"] == "新简介"
+    assert data["title"] == "Judul Baru"
+    assert data["description"] == "Ringkasan baru"
 
 
 @pytest.mark.asyncio
 async def test_update_project_partial(client: AsyncClient) -> None:
-    """测试部分更新项目。"""
-    # 创建项目
+    """Uji pembaruan sebagian proyek."""
+    # Buat proyek
     create_response = await client.post(
         "/api/v1/projects",
-        data={"title": "原标题", "description": "原简介"},
+        data={"title": "Judul Asli", "description": "Ringkasan asli"},
     )
     project_id = create_response.json()["id"]
 
-    # 只更新标题
+    # Perbarui hanya judul
     response = await client.patch(
         f"/api/v1/projects/{project_id}",
-        data={"title": "新标题"},
+        data={"title": "Judul Baru"},
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["title"] == "新标题"
-    assert data["description"] == "原简介"  # 简介保持不变
+    assert data["title"] == "Judul Baru"
+    assert data["description"] == "Ringkasan asli"  # Ringkasan tidak berubah
 
 
 @pytest.mark.asyncio
 async def test_update_project_not_found(client: AsyncClient) -> None:
-    """测试更新不存在的项目。"""
+    """Uji pembaruan proyek yang tidak ada."""
     response = await client.patch(
         "/api/v1/projects/nonexistent",
-        data={"title": "新标题"},
+        data={"title": "Judul Baru"},
     )
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_delete_project(client: AsyncClient) -> None:
-    """测试删除项目。"""
-    # 创建项目
+    """Uji penghapusan proyek."""
+    # Buat proyek
     create_response = await client.post(
         "/api/v1/projects",
-        data={"title": "待删除小说"},
+        data={"title": "Novel Akan Dihapus"},
     )
     project_id = create_response.json()["id"]
 
-    # 删除项目
+    # Hapus proyek
     response = await client.delete(f"/api/v1/projects/{project_id}")
     assert response.status_code == 204
 
-    # 确认已删除
+    # Pastikan sudah terhapus
     get_response = await client.get(f"/api/v1/projects/{project_id}")
     assert get_response.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_delete_project_deletes_tasks_and_runtime_data(client, session) -> None:
-    create_response = await client.post("/api/v1/projects", data={"title": "待删除项目"})
+    create_response = await client.post("/api/v1/projects", data={"title": "Proyek Akan Dihapus"})
     project_id = create_response.json()["id"]
     task = await task_service.create_task(
         session,
         project_id=project_id,
-        title="待删除任务",
+        title="Tugas Akan Dihapus",
         mode="agent",
         agent_session_id="project-delete-session",
     )
@@ -361,12 +365,12 @@ async def test_delete_project_deletes_tasks_and_runtime_data(client, session) ->
 
 @pytest.mark.asyncio
 async def test_delete_project_rejects_running_tasks(client, session) -> None:
-    create_response = await client.post("/api/v1/projects", data={"title": "运行中项目"})
+    create_response = await client.post("/api/v1/projects", data={"title": "Proyek Berjalan"})
     project_id = create_response.json()["id"]
     task = await task_service.create_task(
         session,
         project_id=project_id,
-        title="运行中任务",
+        title="Tugas Berjalan",
         mode="agent",
         agent_session_id="running-project-session",
     )
@@ -376,11 +380,93 @@ async def test_delete_project_rejects_running_tasks(client, session) -> None:
     response = await client.delete(f"/api/v1/projects/{project_id}")
 
     assert response.status_code == 409
-    assert response.json()["detail"] == "项目存在运行中任务，不能删除"
+    assert response.json()["detail"] == (
+        "Proyek memiliki tugas yang sedang berjalan, tidak dapat dihapus"
+    )
 
 
 @pytest.mark.asyncio
 async def test_delete_project_not_found(client: AsyncClient) -> None:
-    """测试删除不存在的项目。"""
+    """Uji penghapusan proyek yang tidak ada."""
     response = await client.delete("/api/v1/projects/nonexistent")
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_project_cleans_retrieval_state(client, session, tmp_path) -> None:
+    """Hapus proyek wajib membuang state retrieval, bukan meninggalkan yatim.
+
+    Sebelum perbaikan ini, baris ``retrieval_chapter_index_states`` dan
+    ``retrieval_indexes`` tetap tertinggal setiap kali proyek dihapus. Pembuangan
+    berkas indeks di disk diuji terpisah pada ``test_service_drop_index.py``.
+    """
+    from app.retrieval.chapter_index import chapter_index_key
+    from app.retrieval.engine_protocol import (
+        KEYWORD_ONLY_DIMENSIONS,
+        KEYWORD_ONLY_EMBEDDING_REF_ID,
+    )
+    from app.retrieval.service import OpenFicRetrievalService
+    from app.retrieval.types import (
+        FilterableField,
+        FilterableFieldType,
+        RetrievalIndexContract,
+    )
+    from app.storage.models.retrieval_chapter_index_state import (
+        RetrievalChapterIndexState,
+    )
+    from app.storage.models.retrieval_index import RetrievalIndex
+
+    create_response = await client.post(
+        "/api/v1/projects", data={"title": "Proyek Berindeks"}
+    )
+    project_id = create_response.json()["id"]
+    volume_id = (
+        await client.get(f"/api/v1/projects/{project_id}/volumes")
+    ).json()[0]["id"]
+    chapter_id = (
+        await client.post(
+            f"/api/v1/projects/{project_id}/chapters",
+            json={"volume_id": volume_id, "title": "Bab Satu", "content": "Isi bab"},
+        )
+    ).json()["id"]
+
+    index_key = chapter_index_key(project_id)
+    await OpenFicRetrievalService(base_dir=tmp_path).register_index(
+        session,
+        index_key,
+        RetrievalIndexContract(
+            embedding_model_ref_id=KEYWORD_ONLY_EMBEDDING_REF_ID,
+            embedding_model_id_snapshot=KEYWORD_ONLY_EMBEDDING_REF_ID,
+            embedding_dimensions_snapshot=KEYWORD_ONLY_DIMENSIONS,
+            chunk_size=400,
+            chunk_overlap=40,
+            filterable_fields=[
+                FilterableField(
+                    name="project_id", field_type=FilterableFieldType.STRING
+                ),
+            ],
+        ),
+    )
+    session.add(
+        RetrievalChapterIndexState(
+            project_id=project_id,
+            chapter_id=chapter_id,
+            index_key=index_key,
+            status="ready",
+            source_hash="hash-1",
+            embedding_model_ref_id=KEYWORD_ONLY_EMBEDDING_REF_ID,
+            chunk_count=1,
+        )
+    )
+    await session.commit()
+
+    with patch(
+        "app.api.routers.projects.delete_checkpoints_for_thread",
+        new=AsyncMock(return_value=0),
+    ):
+        response = await client.delete(f"/api/v1/projects/{project_id}")
+
+    assert response.status_code == 204
+    for model in (RetrievalChapterIndexState, RetrievalIndex):
+        result = await session.execute(select(model))
+        assert result.scalars().all() == [], f"{model.__name__} meninggalkan yatim"

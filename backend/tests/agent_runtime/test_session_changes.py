@@ -1,4 +1,4 @@
-"""Agent 会话变更投影测试。"""
+"""Uji proyeksi perubahan sesi Agent."""
 
 import json
 from types import SimpleNamespace
@@ -57,12 +57,12 @@ def _revision(
         project_id="project-1",
         task_id="task-1",
         agent_session_id="parent-session",
-        message="用户消息",
+        message="Pesan pengguna",
         revision_type="agent",
         status=status,
         user_message_id=user_message_id,
         user_message_seq=user_message_seq,
-        project_snapshot_title="项目",
+        project_snapshot_title="Proyek",
     )
 
 
@@ -95,7 +95,7 @@ def _child_request(
         parent_session_id="parent-session",
         parent_task_id="task-1",
         request_kind="dispatch" if seq == 0 else "notify",
-        content="执行修改",
+        content="Jalankan perubahan",
         parent_revision_id=revision_id,
         child_user_message_id=f"child-user-{request_id}",
         child_user_message_seq=message_seq,
@@ -111,7 +111,7 @@ def _chapter_result(chapter_id: str, text: str, *, success: bool = True, reason:
             "chapter_diff": {
                 "operation": "update",
                 "chapter_id": chapter_id,
-                "chapter_title": "章节",
+                "chapter_title": "Bab",
                 "sections": [
                     {
                         "type": "content",
@@ -149,7 +149,7 @@ def test_includes_subagent_changes_in_parent_turn_and_session_summary():
                 session_id="parent-session",
                 role="tool",
                 seq=1,
-                content=_chapter_result("chapter-primary", "来自 primary"),
+                content=_chapter_result("chapter-primary", "dari primary"),
                 tool_name="edit_chapter",
                 tool_call_id="parent-call-1",
             ),
@@ -170,7 +170,7 @@ def test_includes_subagent_changes_in_parent_turn_and_session_summary():
                 session_id="thread-child-1",
                 role="tool",
                 seq=1,
-                content=_chapter_result("chapter-1", "来自 writer"),
+                content=_chapter_result("chapter-1", "dari writer"),
                 tool_name="edit_chapter",
                 tool_call_id="child-call-1",
             )
@@ -233,7 +233,7 @@ def test_assigns_reused_subagent_requests_to_their_parent_turns():
                 session_id="thread-child-1",
                 role="tool",
                 seq=1,
-                content=_chapter_result("chapter-1", "第一轮"),
+                content=_chapter_result("chapter-1", "Putaran pertama"),
                 tool_name="edit_chapter",
                 tool_call_id="child-call-1",
             ),
@@ -242,7 +242,7 @@ def test_assigns_reused_subagent_requests_to_their_parent_turns():
                 session_id="thread-child-1",
                 role="tool",
                 seq=4,
-                content=_chapter_result("chapter-2", "第二轮"),
+                content=_chapter_result("chapter-2", "Putaran kedua"),
                 tool_name="edit_chapter",
                 tool_call_id="child-call-2",
             ),
@@ -254,7 +254,7 @@ def test_assigns_reused_subagent_requests_to_their_parent_turns():
     )
 
     assert [turn.revision_id for turn in result.turns] == ["revision-1", "revision-2"]
-    assert [turn.changes.items[0].title for turn in result.turns] == ["章节", "章节"]
+    assert [turn.changes.items[0].title for turn in result.turns] == ["Bab", "Bab"]
     assert [
         turn.subagent_runs[0].changes.items[0].key for turn in result.turns
     ] == ["chapter:chapter-1", "chapter:chapter-2"]
@@ -304,7 +304,7 @@ def test_uses_latest_request_when_child_message_sequence_is_reused():
                 session_id="thread-child-1",
                 role="tool",
                 seq=6,
-                content=_chapter_result("chapter-latest", "最新请求"),
+                content=_chapter_result("chapter-latest", "Permintaan terbaru"),
                 tool_name="edit_chapter",
                 tool_call_id="child-call-latest",
             )
@@ -350,7 +350,7 @@ def test_merges_repeated_entity_changes_and_ignores_failed_or_preview_results():
                 session_id="thread-child-1",
                 role="tool",
                 seq=1,
-                content=_chapter_result("chapter-1", "第一次"),
+                content=_chapter_result("chapter-1", "Kali pertama"),
                 tool_name="edit_chapter",
                 tool_call_id="child-call-1",
             ),
@@ -359,7 +359,7 @@ def test_merges_repeated_entity_changes_and_ignores_failed_or_preview_results():
                 session_id="thread-child-1",
                 role="tool",
                 seq=2,
-                content=_chapter_result("chapter-1", "第二次"),
+                content=_chapter_result("chapter-1", "Kali kedua"),
                 tool_name="edit_chapter",
                 tool_call_id="child-call-2",
             ),
@@ -368,7 +368,7 @@ def test_merges_repeated_entity_changes_and_ignores_failed_or_preview_results():
                 session_id="thread-child-1",
                 role="tool",
                 seq=3,
-                content=_chapter_result("chapter-2", "失败", success=False),
+                content=_chapter_result("chapter-2", "Gagal", success=False),
                 tool_name="edit_chapter",
                 tool_call_id="child-call-3",
             ),
@@ -377,7 +377,7 @@ def test_merges_repeated_entity_changes_and_ignores_failed_or_preview_results():
                 session_id="thread-child-1",
                 role="tool",
                 seq=4,
-                content=_chapter_result("chapter-3", "预览", reason="approval_preview"),
+                content=_chapter_result("chapter-3", "Pratinjau", reason="approval_preview"),
                 tool_name="edit_chapter",
                 tool_call_id="child-call-4",
             ),
@@ -393,7 +393,7 @@ def test_merges_repeated_entity_changes_and_ignores_failed_or_preview_results():
 
 
 def test_keeps_full_created_chapter_content_after_partial_update():
-    create_payload = json.loads(_chapter_result("chapter-1", "第一行\n第二行\n第三行"))
+    create_payload = json.loads(_chapter_result("chapter-1", "Baris pertama\nBaris kedua\nBaris ketiga"))
     create_payload["metadata"]["chapter_diff"]["operation"] = "create"
     create_payload["metadata"]["chapter_diff"]["sections"][0]["lines"] = [
         {
@@ -402,7 +402,7 @@ def test_keeps_full_created_chapter_content_after_partial_update():
             "after_line_number": index,
             "text": text,
         }
-        for index, text in enumerate(("第一行", "第二行", "第三行"), start=1)
+        for index, text in enumerate(("Baris pertama", "Baris kedua", "Baris ketiga"), start=1)
     ]
     create_result = json.dumps(create_payload, ensure_ascii=False)
     update_result = json.dumps(
@@ -412,7 +412,7 @@ def test_keeps_full_created_chapter_content_after_partial_update():
                 "chapter_diff": {
                     "operation": "update",
                     "chapter_id": "chapter-1",
-                    "chapter_title": "章节",
+                    "chapter_title": "Bab",
                     "sections": [
                         {
                             "type": "content",
@@ -421,13 +421,13 @@ def test_keeps_full_created_chapter_content_after_partial_update():
                                     "type": "removed",
                                     "before_line_number": 2,
                                     "after_line_number": None,
-                                    "text": "第二行",
+                                    "text": "Baris kedua",
                                 },
                                 {
                                     "type": "added",
                                     "before_line_number": None,
                                     "after_line_number": 2,
-                                    "text": "修改后的第二行",
+                                    "text": "Baris kedua setelah diubah",
                                 },
                             ],
                         }
@@ -439,8 +439,8 @@ def test_keeps_full_created_chapter_content_after_partial_update():
     )
     final_update_payload = json.loads(update_result)
     final_update_lines = final_update_payload["metadata"]["chapter_diff"]["sections"][0]["lines"]
-    final_update_lines[0]["text"] = "修改后的第二行"
-    final_update_lines[1]["text"] = "最终的第二行"
+    final_update_lines[0]["text"] = "Baris kedua setelah diubah"
+    final_update_lines[1]["text"] = "Baris kedua final"
     final_update_result = json.dumps(final_update_payload, ensure_ascii=False)
     result = build_agent_changes(
         "parent-session",
@@ -507,32 +507,32 @@ def test_keeps_full_created_chapter_content_after_partial_update():
     assert first_request_item.added == 3
     assert first_request_item.removed == 0
     assert [line.text for line in first_request_item.sections[0].lines] == [
-        "第一行",
-        "修改后的第二行",
-        "第三行",
+        "Baris pertama",
+        "Baris kedua setelah diubah",
+        "Baris ketiga",
     ]
     second_request_item = result.turns[0].subagent_runs[1].changes.items[0]
     assert second_request_item.added == 1
     assert second_request_item.removed == 1
     assert [line.text for line in second_request_item.sections[0].lines] == [
-        "修改后的第二行",
-        "最终的第二行",
+        "Baris kedua setelah diubah",
+        "Baris kedua final",
     ]
     turn_item = result.turns[0].changes.items[0]
     assert turn_item.added == 3
     assert turn_item.removed == 0
     assert [line.text for line in turn_item.sections[0].lines] == [
-        "第一行",
-        "最终的第二行",
-        "第三行",
+        "Baris pertama",
+        "Baris kedua final",
+        "Baris ketiga",
     ]
     session_item = result.session_changes.items[0]
     assert session_item.added == 3
     assert session_item.removed == 0
     assert [line.text for line in session_item.sections[0].lines] == [
-        "第一行",
-        "最终的第二行",
-        "第三行",
+        "Baris pertama",
+        "Baris kedua final",
+        "Baris ketiga",
     ]
 
 
@@ -544,7 +544,7 @@ def test_session_total_uses_one_net_diff_for_created_then_updated_note():
                 "note_diff": {
                     "operation": "create",
                     "note_id": "note-1",
-                    "note_title": "笔记",
+                    "note_title": "Catatan",
                     "sections": [
                         {
                             "type": "content",
@@ -553,7 +553,7 @@ def test_session_total_uses_one_net_diff_for_created_then_updated_note():
                                     "type": "added",
                                     "before_line_number": None,
                                     "after_line_number": 1,
-                                    "text": "初始内容",
+                                    "text": "Isi awal",
                                 }
                             ],
                         }
@@ -570,7 +570,7 @@ def test_session_total_uses_one_net_diff_for_created_then_updated_note():
                 "note_diff": {
                     "operation": "update",
                     "note_id": "note-1",
-                    "note_title": "笔记",
+                    "note_title": "Catatan",
                     "sections": [
                         {
                             "type": "content",
@@ -579,13 +579,13 @@ def test_session_total_uses_one_net_diff_for_created_then_updated_note():
                                     "type": "context",
                                     "before_line_number": 1,
                                     "after_line_number": 1,
-                                    "text": "初始内容",
+                                    "text": "Isi awal",
                                 },
                                 {
                                     "type": "added",
                                     "before_line_number": None,
                                     "after_line_number": 2,
-                                    "text": "修改后的内容",
+                                    "text": "Isi setelah diubah",
                                 },
                             ],
                         }
@@ -635,7 +635,7 @@ def test_session_total_uses_one_net_diff_for_created_then_updated_note():
     assert item.operation == "create"
     assert len(item.sections) == 1
     assert [line.type for line in item.sections[0].lines] == ["added", "added"]
-    assert [line.text for line in item.sections[0].lines] == ["初始内容", "修改后的内容"]
+    assert [line.text for line in item.sections[0].lines] == ["Isi awal", "Isi setelah diubah"]
     assert item.added == 2
     assert item.removed == 0
 
@@ -663,7 +663,7 @@ def test_title_only_change_is_not_counted_as_line_diff():
                             "chapter_diff": {
                                 "operation": "update",
                                 "chapter_id": "chapter-1",
-                                "chapter_title": "新标题",
+                                "chapter_title": "Judul Baru",
                                 "sections": [
                                     {
                                         "type": "title",
@@ -672,13 +672,13 @@ def test_title_only_change_is_not_counted_as_line_diff():
                                                 "type": "removed",
                                                 "before_line_number": 1,
                                                 "after_line_number": None,
-                                                "text": "旧标题",
+                                                "text": "Judul Lama",
                                             },
                                             {
                                                 "type": "added",
                                                 "before_line_number": None,
                                                 "after_line_number": 1,
-                                                "text": "新标题",
+                                                "text": "Judul Baru",
                                             },
                                         ],
                                     }
@@ -702,16 +702,16 @@ def test_title_only_change_is_not_counted_as_line_diff():
     assert item.sections == []
     assert item.added == 0
     assert item.removed == 0
-    assert item.title_before == "旧标题"
-    assert item.title_after == "新标题"
+    assert item.title_before == "Judul Lama"
+    assert item.title_after == "Judul Baru"
 
 
 def test_projects_each_supported_editable_entity_kind():
     metadata = {
-        "chapter_diff": {"chapter_id": "chapter-1", "chapter_title": "章节"},
-        "note_diff": {"note_id": "note-1", "note_title": "笔记"},
-        "world_entry_diff": {"entry_id": "entry-1", "entry_title": "条目"},
-        "character_diff": {"character_id": "character-1", "character_name": "角色"},
+        "chapter_diff": {"chapter_id": "chapter-1", "chapter_title": "Bab"},
+        "note_diff": {"note_id": "note-1", "note_title": "Catatan"},
+        "world_entry_diff": {"entry_id": "entry-1", "entry_title": "Entri"},
+        "character_diff": {"character_id": "character-1", "character_name": "Tokoh"},
     }
     result = build_agent_changes(
         "parent-session",
@@ -770,8 +770,8 @@ def test_preserves_change_item_path_from_tool_metadata():
                             "chapter_diff": {
                                 "operation": "update",
                                 "chapter_id": "chapter-1",
-                                "chapter_title": "第一章 xx",
-                                "path": ["第一卷"],
+                                "chapter_title": "Bab 1 xx",
+                                "path": ["Volume 1"],
                             }
                         },
                     },
@@ -787,7 +787,7 @@ def test_preserves_change_item_path_from_tool_metadata():
         revisions=[_revision("revision-1", "user-1", 0)],
     )
 
-    assert result.session_changes.items[0].path == ["第一卷"]
+    assert result.session_changes.items[0].path == ["Volume 1"]
 
 
 def test_keeps_executed_changes_from_cancelled_revision():
@@ -825,7 +825,7 @@ def test_keeps_executed_changes_from_cancelled_revision():
                             "note_diff": {
                                 "operation": "update",
                                 "note_id": "note-1",
-                                "note_title": "笔记",
+                                "note_title": "Catatan",
                             }
                         },
                     },
@@ -860,7 +860,7 @@ async def test_loads_parent_and_descendant_messages_before_projecting_changes():
             session_id="thread-child-1",
             role="tool",
             seq=1,
-            content=_chapter_result("chapter-1", "来自 child"),
+            content=_chapter_result("chapter-1", "dari child"),
             tool_name="edit_chapter",
             tool_call_id="child-call-1",
         )

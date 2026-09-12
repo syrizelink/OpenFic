@@ -824,8 +824,9 @@ async def _run_full_vacuum(
         await conn.execute(
             f"PRAGMA temp_store_directory = '{str(folder).replace(chr(39), chr(39)*2)}'"
         )
-    # step 必须足够小：SQLite 的 progress handler 按 VM 指令数触发，
-    # VACUUM 期间总指令数有限，step 过大（如 10000）会导致完全不回调。
+    # step harus cukup kecil: progress handler SQLite terpicu berdasarkan jumlah
+    # instruksi VM, dan jumlah instruksi selama VACUUM terbatas, sehingga step yang
+    # terlalu besar (misalnya 10000) membuat callback tidak pernah terpanggil.
     await conn.set_progress_handler(on_progress, _VACUUM_PROGRESS_STEP)
     try:
         await conn.execute("VACUUM")
@@ -947,7 +948,8 @@ async def full_vacuum_checkpoint_database(
         try:
             await _run_vacuum_into(conn, target, None, db_path=db_path)
         except Exception:
-            # 写入目标文件失败（如磁盘空间不足），清理残留后向上抛出
+            # Penulisan file tujuan gagal (misalnya ruang disk tidak cukup);
+            # bersihkan sisa lalu munculkan error ke atas
             Path(target).unlink(missing_ok=True)
             raise
         finally:

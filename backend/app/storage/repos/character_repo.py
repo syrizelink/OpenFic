@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Character Repository - 角色数据访问层。"""
+"""Character Repository - lapisan akses data tokoh."""
 
 from datetime import UTC, datetime
 from typing import Any, cast
@@ -15,7 +15,7 @@ from app.storage.models.character import Character
 
 
 async def create(session: AsyncSession, character: Character) -> Character:
-    """创建角色。"""
+    """Membuat tokoh."""
     session.add(character)
     await session.flush()
     await session.refresh(character)
@@ -23,7 +23,7 @@ async def create(session: AsyncSession, character: Character) -> Character:
 
 
 async def get_by_id(session: AsyncSession, character_id: str) -> Character | None:
-    """按 ID 获取角色。"""
+    """Mengambil tokoh berdasarkan ID."""
     result = await session.execute(
         select(Character).where(col(Character.id) == character_id)
     )
@@ -31,7 +31,7 @@ async def get_by_id(session: AsyncSession, character_id: str) -> Character | Non
 
 
 async def list_names_by_project(session: AsyncSession, project_id: str) -> list[str]:
-    """获取项目下所有角色名称。"""
+    """Mengambil semua nama tokoh dalam proyek."""
     result = await session.execute(
         select(col(Character.name)).where(col(Character.project_id) == project_id)
     )
@@ -44,7 +44,7 @@ async def name_exists(
     name: str,
     exclude_character_id: str | None = None,
 ) -> bool:
-    """检查同项目下角色名称是否存在。"""
+    """Memeriksa apakah nama tokoh sudah ada dalam proyek yang sama."""
     statement = select(col(Character.id)).where(
         col(Character.project_id) == project_id,
         col(Character.name) == name,
@@ -61,7 +61,7 @@ async def list_by_project(
     page: int = 1,
     page_size: int = 50,
 ) -> tuple[list[Character], int]:
-    """按项目获取角色列表。"""
+    """Mengambil daftar tokoh per proyek."""
     count_result = await session.execute(
         select(func.count(col(Character.id))).where(col(Character.project_id) == project_id)
     )
@@ -79,7 +79,7 @@ async def list_by_project(
 
 
 async def list_all_by_project(session: AsyncSession, project_id: str) -> list[Character]:
-    """按项目获取全部角色列表。"""
+    """Mengambil seluruh daftar tokoh per proyek."""
     result = await session.execute(
         select(Character)
         .where(col(Character.project_id) == project_id)
@@ -89,7 +89,7 @@ async def list_all_by_project(session: AsyncSession, project_id: str) -> list[Ch
 
 
 async def update(session: AsyncSession, character: Character) -> Character:
-    """更新角色。"""
+    """Memperbarui tokoh."""
     session.add(character)
     await session.flush()
     await session.refresh(character)
@@ -97,7 +97,7 @@ async def update(session: AsyncSession, character: Character) -> Character:
 
 
 async def search_by_project(session: AsyncSession, project_id: str, query: str) -> list[Character]:
-    """按项目搜索角色名称和描述。"""
+    """Mencari nama dan deskripsi tokoh per proyek."""
     pattern = f"%{query}%"
     result = await session.execute(
         select(Character)
@@ -113,7 +113,7 @@ async def list_by_project_and_ids(
     project_id: str,
     character_ids: list[str],
 ) -> list[Character]:
-    """按项目和 ID 列表获取角色。"""
+    """Mengambil tokoh berdasarkan proyek dan daftar ID."""
     if not character_ids:
         return []
     result = await session.execute(
@@ -131,7 +131,7 @@ async def batch_update_favorite(
     character_ids: list[str],
     is_favorited: bool,
 ) -> int:
-    """批量更新角色收藏状态。"""
+    """Memperbarui status favorit tokoh secara massal."""
     if not character_ids:
         return 0
     result = await session.execute(
@@ -151,7 +151,7 @@ async def batch_delete(
     project_id: str,
     character_ids: list[str],
 ) -> int:
-    """批量删除角色。"""
+    """Menghapus tokoh secara massal."""
     if not character_ids:
         return 0
     result = await session.execute(
@@ -165,6 +165,6 @@ async def batch_delete(
 
 
 async def delete(session: AsyncSession, character: Character) -> None:
-    """删除角色。"""
+    """Menghapus tokoh."""
     await session.delete(character)
     await session.flush()

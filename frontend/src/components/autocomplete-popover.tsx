@@ -1,8 +1,8 @@
 /**
- * AutocompletePopover - 通用自动补全弹出面板
+ * AutocompletePopover - panel pelengkapan otomatis serbaguna
  *
- * 用于在编辑器中显示补全建议列表。
- * 风格参考 VSCode 补全面板。
+ * Dipakai untuk menampilkan daftar saran pelengkapan di dalam editor.
+ * Gayanya mengacu pada panel pelengkapan VSCode.
  */
 
 import { Box } from "@radix-ui/themes";
@@ -11,40 +11,40 @@ import { useEffect, useRef, useCallback } from "react";
 import "./autocomplete-popover.css";
 
 export interface AutocompleteItem {
-  /** 显示标签 */
+  /** Label tampilan */
   label: string;
-  /** 插入文本 */
+  /** Teks yang disisipkan */
   insertText: string;
-  /** 描述（可选，显示在右侧） */
+  /** Deskripsi (opsional, ditampilkan di sisi kanan) */
   description?: string;
-  /** 图标（可选） */
+  /** Ikon (opsional) */
   icon?: React.ReactNode;
-  /** 插入后光标偏移（负数表示向左移动） */
+  /** Pergeseran kursor setelah penyisipan (angka negatif berarti bergerak ke kiri) */
   cursorOffset?: number;
 }
 
 export interface AutocompletePopoverProps {
-  /** 补全项列表 */
+  /** Daftar item pelengkapan */
   items: AutocompleteItem[];
-  /** 锚点位置（相对于视口） */
+  /** Posisi jangkar (relatif terhadap viewport) */
   anchorRect: { top: number; left: number } | null;
-  /** 是否可见 */
+  /** Status terlihat */
   visible: boolean;
-  /** 当前选中索引 */
+  /** Indeks yang sedang dipilih */
   selectedIndex: number;
-  /** 选择某项时的回调 */
+  /** Callback saat sebuah item dipilih */
   onSelect: (item: AutocompleteItem, index: number) => void;
-  /** 选中索引变化回调 */
+  /** Callback perubahan indeks terpilih */
   onSelectedIndexChange: (index: number) => void;
-  /** 关闭回调 */
+  /** Callback penutupan */
   onClose: () => void;
-  /** 无固定项时显示的提示 */
+  /** Petunjuk yang ditampilkan saat tidak ada item tetap */
   hint?: string;
-  /** 当前输入的过滤文本（用于高亮） */
+  /** Teks penyaring yang sedang diketik (dipakai untuk penyorotan) */
   filterText?: string;
 }
 
-/** 高亮显示匹配文本 */
+/** Menyorot teks yang cocok */
 function HighlightedLabel({ label, filterText }: { label: string; filterText?: string }) {
   if (!filterText) {
     return <span>{label}</span>;
@@ -85,7 +85,7 @@ export function AutocompletePopover({
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // 滚动选中项到可视区域
+  // Menggulir item terpilih ke area yang terlihat
   useEffect(() => {
     if (!listRef.current || items.length === 0) return;
 
@@ -95,7 +95,7 @@ export function AutocompletePopover({
     }
   }, [selectedIndex, items.length]);
 
-  // 键盘事件处理
+  // Penanganan peristiwa papan tombol
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (!visible) return;
@@ -136,7 +136,7 @@ export function AutocompletePopover({
     [visible, items, selectedIndex, onSelect, onSelectedIndexChange, onClose],
   );
 
-  // 添加/移除键盘监听
+  // Menambahkan/melepas pemantau papan tombol
   useEffect(() => {
     if (visible) {
       document.addEventListener("keydown", handleKeyDown, true);

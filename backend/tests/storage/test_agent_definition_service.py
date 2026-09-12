@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Agent Definition Service 测试。"""
+"""Uji Agent Definition Service."""
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -132,7 +132,7 @@ async def test_create_duplicate_raises_validation_error():
             )
             await session.commit()
 
-            with pytest.raises(ValidationError, match="已存在"):
+            with pytest.raises(ValidationError, match="sudah ada"):
                 await agent_definition_service.create_definition(
                     session,
                     key="dup",
@@ -281,7 +281,7 @@ async def test_update_builtin_definition_rejects_kind_change():
 
     try:
         async with factory() as session:
-            with pytest.raises(ValidationError, match="类型不可修改"):
+            with pytest.raises(ValidationError, match="Jenis agen bawaan tidak dapat diubah"):
                 await agent_definition_service.update_definition(
                     session,
                     key="reviewer",
@@ -381,7 +381,7 @@ async def test_reset_custom_raises_validation_error():
             )
             await session.commit()
 
-            with pytest.raises(ValidationError, match="只有内置智能体可以重置"):
+            with pytest.raises(ValidationError, match="Hanya agen bawaan yang dapat direset"):
                 await agent_definition_service.reset_definition(session, "custom-only")
     finally:
         await engine.dispose()

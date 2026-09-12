@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Adapters Module - Provider适配器模块。
+Adapters Module - modul adapter Provider.
 
-每个Provider对应一个Adapter，支持获取LLM和Embedding两种类型的模型列表。
+Setiap Provider memiliki satu Adapter, mendukung pengambilan daftar model
+untuk dua jenis: LLM dan embedding.
 """
 
 from app.models.adapters.base import BaseAdapter

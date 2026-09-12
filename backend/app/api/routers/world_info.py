@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""WorldInfo Router - 世界书 API。"""
+"""WorldInfo Router - API buku dunia."""
 
 from typing import Annotated
 
@@ -15,30 +15,30 @@ from app.storage.services import world_info_service
 router = APIRouter(tags=["world-info"])
 
 
-# ============== 世界书端点 ==============
+# ============== Endpoint buku dunia ==============
 
 
 @router.get(
     "/world-info/{world_info_id}",
     response_model=WorldInfoResponse,
-    summary="获取世界书",
+    summary="Mengambil buku dunia",
 )
 async def get_world_info(
     world_info_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> WorldInfoResponse:
     """
-    根据 ID 获取世界书。
+    Mengambil buku dunia berdasarkan ID.
 
     Args:
-        world_info_id: 世界书 ID。
-        session: 数据库 session。
+        world_info_id: ID buku dunia.
+        session: Session basis data.
 
     Returns:
-        世界书。
+        Buku dunia.
 
     Raises:
-        HTTPException: 世界书不存在。
+        HTTPException: Buku dunia tidak ditemukan.
     """
     try:
         world_info = await world_info_service.get_world_info(session, world_info_id)
@@ -50,24 +50,24 @@ async def get_world_info(
 @router.get(
     "/projects/{project_id}/world-info",
     response_model=WorldInfoResponse,
-    summary="获取项目的世界书",
+    summary="Mengambil buku dunia milik proyek",
 )
 async def get_project_world_info(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> WorldInfoResponse:
     """
-    获取项目关联的世界书。
+    Mengambil buku dunia yang terkait dengan proyek.
 
     Args:
-        project_id: 项目 ID。
-        session: 数据库 session。
+        project_id: ID proyek.
+        session: Session basis data.
 
         Returns:
-            世界书，不存在时自动创建。
+            Buku dunia, dibuat otomatis bila belum ada.
 
     Raises:
-        HTTPException: 项目不存在。
+        HTTPException: Proyek tidak ditemukan.
     """
     try:
         world_info = await world_info_service.get_or_create_world_info_by_project(
@@ -81,24 +81,24 @@ async def get_project_world_info(
 @router.delete(
     "/world-info/{world_info_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="删除世界书",
+    summary="Menghapus buku dunia",
 )
 async def delete_world_info(
     world_info_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> None:
     """
-    删除世界书及其所有条目。
+    Menghapus buku dunia beserta seluruh entrinya.
 
     Args:
-        world_info_id: 世界书 ID。
-        session: 数据库 session。
+        world_info_id: ID buku dunia.
+        session: Session basis data.
 
     Raises:
-        HTTPException: 世界书不存在。
+        HTTPException: Buku dunia tidak ditemukan.
     """
     try:
-        logger.info(f"删除世界书: {world_info_id}")
+        logger.info(f"Menghapus buku dunia: {world_info_id}")
         await world_info_service.delete_world_info(session, world_info_id)
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

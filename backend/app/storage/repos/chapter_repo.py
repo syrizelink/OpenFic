@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Chapter Repository - 章节数据访问层。
+Chapter Repository - lapisan akses data bab.
 """
 
 from datetime import UTC, datetime
@@ -17,7 +17,7 @@ from app.storage.models.volume import Volume
 
 
 class ChapterIndexSource(NamedTuple):
-    """索引状态计算所需的轻量章节视图，仅含 id 与正文，避免加载整行。"""
+    """Tampilan bab ringan untuk hitung status indeks, hanya id dan teks, agar tidak memuat seluruh baris."""
 
     project_id: str
     id: str
@@ -44,7 +44,7 @@ async def list_export_metadata_by_project(
     session: AsyncSession,
     project_id: str,
 ) -> list[tuple[str, str, str, int]]:
-    """按导出顺序读取章节元数据，不加载正文。"""
+    """Membaca metadata bab dalam urutan ekspor, tanpa memuat teks."""
     result = await session.execute(
         select(
             col(Chapter.id),
@@ -64,14 +64,14 @@ async def list_export_metadata_by_project(
 
 async def create(session: AsyncSession, chapter: Chapter) -> Chapter:
     """
-    创建章节。
+    Membuat bab.
 
     Args:
-        session: 数据库 session。
-        chapter: 章节实例。
+        session: session basis data.
+        chapter: Instance bab.
 
     Returns:
-        创建后的章节实例。
+        Instance bab setelah dibuat.
     """
     session.add(chapter)
     await session.flush()
@@ -81,21 +81,21 @@ async def create(session: AsyncSession, chapter: Chapter) -> Chapter:
 
 async def get_by_id(session: AsyncSession, chapter_id: str) -> Chapter | None:
     """
-    根据 ID 获取章节。
+    Mengambil bab berdasarkan ID.
 
     Args:
-        session: 数据库 session。
-        chapter_id: 章节 ID。
+        session: session basis data.
+        chapter_id: ID bab.
 
     Returns:
-        章节实例，如果不存在则返回 None。
+        Instance bab, atau None bila tidak ada.
     """
     result = await session.execute(select(Chapter).where(col(Chapter.id) == chapter_id))
     return result.scalar_one_or_none()
 
 
 async def get_by_ids(session: AsyncSession, chapter_ids: list[str]) -> list[Chapter]:
-    """根据 ID 列表批量获取章节。"""
+    """Mengambil bab secara massal berdasarkan daftar ID."""
     if not chapter_ids:
         return []
     result = await session.execute(
@@ -105,7 +105,7 @@ async def get_by_ids(session: AsyncSession, chapter_ids: list[str]) -> list[Chap
 
 
 async def get_metadata_by_ids(session: AsyncSession, chapter_ids: list[str]) -> list[Chapter]:
-    """根据 ID 列表获取章节元数据，不加载正文。"""
+    """Mengambil metadata bab berdasarkan daftar ID, tanpa memuat teks."""
     if not chapter_ids:
         return []
     result = await session.execute(
@@ -121,14 +121,14 @@ async def list_by_project(
     project_id: str,
 ) -> list[Chapter]:
     """
-    获取项目下的所有章节列表。
+    Mengambil daftar semua bab dalam proyek.
 
     Args:
-        session: 数据库 session。
-        project_id: 项目 ID。
+        session: session basis data.
+        project_id: ID proyek.
 
     Returns:
-        章节列表，按 order 排序。
+        Daftar bab, diurutkan berdasarkan order.
     """
     result = await session.execute(
         select(Chapter)
@@ -143,7 +143,7 @@ async def list_metadata_by_project(
     session: AsyncSession,
     project_id: str,
 ) -> list[Chapter]:
-    """获取项目章节元数据，不加载正文。"""
+    """Mengambil metadata bab proyek, tanpa memuat teks."""
     result = await session.execute(
         select(Chapter)
         .options(load_only(*_chapter_metadata_attributes()))
@@ -161,7 +161,7 @@ async def get_by_volume_ref(
     ref_type: Literal["order", "title"],
     ref_value: int | str,
 ) -> Chapter | None:
-    """按卷内序号或标题获取单个章节。"""
+    """Mengambil satu bab berdasarkan nomor urut dalam volume atau judul."""
     stmt = select(Chapter).where(col(Chapter.volume_id) == volume_id)
     if ref_type == "order":
         stmt = stmt.where(col(Chapter.order) == int(ref_value))
@@ -177,7 +177,7 @@ async def list_index_source_by_project(
     session: AsyncSession,
     project_id: str,
 ) -> list[ChapterIndexSource]:
-    """仅读取章节 id 与正文，用于索引状态计算，避免加载整行。"""
+    """Hanya membaca id dan teks bab untuk hitung status indeks, agar tidak memuat seluruh baris."""
     result = await session.execute(
         select(col(Chapter.id), col(Chapter.content))
         .join(Volume, col(Chapter.volume_id) == col(Volume.id))
@@ -194,7 +194,7 @@ async def list_index_source_by_projects(
     session: AsyncSession,
     project_ids: list[str],
 ) -> list[ChapterIndexSource]:
-    """批量读取多个项目下章节的 id 与正文，用于整体索引状态计算。"""
+    """Membaca id dan teks bab dari beberapa proyek sekaligus untuk hitung status indeks keseluruhan."""
     if not project_ids:
         return []
     result = await session.execute(
@@ -216,7 +216,7 @@ async def search_with_volume_by_project(
     *,
     limit: int,
 ) -> list[tuple[Chapter, Volume]]:
-    """按章节标题或所属卷标题搜索章节。"""
+    """Mencari bab berdasarkan judul bab atau judul volume pemilik."""
     normalized_query = query.strip().lower()
     if not normalized_query:
         return []
@@ -257,7 +257,7 @@ async def search_by_content(
     project_id: str,
     query: str,
 ) -> list[tuple[Chapter, Volume]]:
-    """按章节内容搜索章节，返回匹配的章节及所属卷。"""
+    """Mencari bab berdasarkan isi, mengembalikan bab yang cocok beserta volume pemiliknya."""
     normalized_query = query.strip()
     if not normalized_query:
         return []
@@ -281,7 +281,7 @@ async def list_by_volume(
     offset: int = 0,
     limit: int | None = None,
 ) -> list[Chapter]:
-    """分页获取卷下章节列表。"""
+    """Mengambil daftar bab dalam volume secara terpaginasi."""
     stmt = (
         select(Chapter)
         .where(col(Chapter.volume_id) == volume_id)
@@ -299,7 +299,10 @@ async def list_by_volume_from_order(
     volume_id: str,
     start_order: int,
 ) -> list[Chapter]:
-    """读取卷内指定序号之后的章节，刷新批量排序后的对象状态。"""
+    """Membaca bab setelah nomor urut tertentu dalam volume.
+
+    Menyegarkan status objek setelah pengurutan massal.
+    """
     result = await session.execute(
         select(Chapter)
         .where(
@@ -319,7 +322,7 @@ async def list_metadata_by_volume(
     offset: int = 0,
     limit: int | None = None,
 ) -> list[Chapter]:
-    """分页获取卷内章节元数据，不加载正文。"""
+    """Mengambil metadata bab dalam volume secara terpaginasi, tanpa memuat teks."""
     stmt = (
         select(Chapter)
         .options(load_only(*_chapter_metadata_attributes()))
@@ -340,7 +343,7 @@ async def list_by_project_page(
     offset: int,
     limit: int,
 ) -> list[Chapter]:
-    """分页获取项目下章节列表。"""
+    """Mengambil daftar bab dalam proyek secara terpaginasi."""
     result = await session.execute(
         select(Chapter)
         .join(Volume, col(Chapter.volume_id) == col(Volume.id))
@@ -354,14 +357,14 @@ async def list_by_project_page(
 
 async def count_by_project(session: AsyncSession, project_id: str) -> int:
     """
-    获取项目下的章节总数。
+    Mengambil jumlah total bab dalam proyek.
 
     Args:
-        session: 数据库 session。
-        project_id: 项目 ID。
+        session: session basis data.
+        project_id: ID proyek.
 
     Returns:
-        章节总数。
+        Jumlah total bab.
     """
     result = await session.execute(
         select(func.count(col(Chapter.id))).where(col(Chapter.project_id) == project_id)
@@ -370,7 +373,7 @@ async def count_by_project(session: AsyncSession, project_id: str) -> int:
 
 
 async def count_by_volume(session: AsyncSession, volume_id: str) -> int:
-    """获取卷下的章节总数。"""
+    """Mengambil jumlah total bab dalam volume."""
     result = await session.execute(
         select(func.count(col(Chapter.id))).where(col(Chapter.volume_id) == volume_id)
     )
@@ -379,14 +382,14 @@ async def count_by_volume(session: AsyncSession, volume_id: str) -> int:
 
 async def get_max_order(session: AsyncSession, volume_id: str) -> int:
     """
-    获取卷下的最大排序序号。
+    Mengambil nomor urut terbesar dalam volume.
 
     Args:
-        session: 数据库 session。
-        volume_id: 卷 ID。
+        session: session basis data.
+        volume_id: ID volume.
 
     Returns:
-        最大排序序号，如果没有章节则返回 0。
+        Nomor urut terbesar, atau 0 bila tidak ada bab.
     """
     result = await session.execute(
         select(func.max(col(Chapter.order))).where(col(Chapter.volume_id) == volume_id)
@@ -397,14 +400,14 @@ async def get_max_order(session: AsyncSession, volume_id: str) -> int:
 
 async def get_total_word_count(session: AsyncSession, project_id: str) -> int:
     """
-    获取项目下所有章节的总字数。
+    Mengambil total jumlah kata semua bab dalam proyek.
 
     Args:
-        session: 数据库 session。
-        project_id: 项目 ID。
+        session: session basis data.
+        project_id: ID proyek.
 
     Returns:
-        总字数。
+        Total jumlah kata.
     """
     result = await session.execute(
         select(func.sum(col(Chapter.word_count))).where(
@@ -417,14 +420,14 @@ async def get_total_word_count(session: AsyncSession, project_id: str) -> int:
 
 async def update_chapter(session: AsyncSession, chapter: Chapter) -> Chapter:
     """
-    更新章节。
+    Memperbarui bab.
 
     Args:
-        session: 数据库 session。
-        chapter: 章节实例。
+        session: session basis data.
+        chapter: Instance bab.
 
     Returns:
-        更新后的章节实例。
+        Instance bab setelah diperbarui.
     """
     session.add(chapter)
     await session.flush()
@@ -434,18 +437,18 @@ async def update_chapter(session: AsyncSession, chapter: Chapter) -> Chapter:
 
 async def delete(session: AsyncSession, chapter: Chapter) -> None:
     """
-    删除章节。
+    Menghapus bab.
 
     Args:
-        session: 数据库 session。
-        chapter: 章节实例。
+        session: session basis data.
+        chapter: Instance bab.
     """
     await session.delete(chapter)
     await session.flush()
 
 
 async def delete_by_volume(session: AsyncSession, volume_id: str) -> None:
-    """删除卷内全部章节。"""
+    """Menghapus seluruh bab dalam volume."""
     await session.execute(
         sql_delete(Chapter).where(col(Chapter.volume_id) == volume_id)
     )
@@ -457,11 +460,11 @@ async def update_orders(
     orders: dict[str, int],
 ) -> datetime | None:
     """
-    批量更新章节排序（两阶段，避免 UNIQUE 冲突）。
+    Memperbarui urutan bab secara massal (dua tahap, menghindari konflik UNIQUE).
 
     Args:
-        session: 数据库 session。
-        orders: {chapter_id: new_order} 映射。
+        session: session basis data.
+        orders: Pemetaan {chapter_id: new_order}.
     """
     if not orders:
         return None
@@ -501,16 +504,17 @@ async def shift_orders(
     delta: int,
 ) -> None:
     """
-    批量调整排序序号。
+    Menyesuaikan nomor urut secara massal.
 
-    用于章节移动时调整其他章节的顺序。通过两阶段更新避免唯一索引冲突。
+    Dipakai saat bab dipindahkan untuk menyesuaikan urutan bab lain.
+    Pembaruan dua tahap menghindari konflik indeks unik.
 
     Args:
-        session: 数据库 session。
-        project_id: 项目 ID。
-        start_order: 起始序号（包含）。
-        end_order: 结束序号（包含）。
-        delta: 调整量（+1 或 -1）。
+        session: session basis data.
+        project_id: ID proyek.
+        start_order: Nomor urut awal (inklusif).
+        end_order: Nomor urut akhir (inklusif).
+        delta: Besar penyesuaian (+1 atau -1).
     """
     result = await session.execute(
         select(Chapter).where(
@@ -525,11 +529,11 @@ async def shift_orders(
 
 async def delete_by_project(session: AsyncSession, project_id: str) -> None:
     """
-    删除项目下的所有章节。
+    Menghapus semua bab dalam proyek.
 
     Args:
-        session: 数据库 session。
-        project_id: 项目 ID。
+        session: session basis data.
+        project_id: ID proyek.
     """
     await session.execute(
         sql_delete(Chapter).where(col(Chapter.project_id) == project_id)
@@ -542,7 +546,7 @@ async def get_by_project_and_order(
     project_id: str,
     order: int,
 ) -> Chapter | None:
-    """根据项目内扁平序号查询章节。"""
+    """Mencari bab berdasarkan nomor urut datar di dalam proyek."""
     if order < 1:
         return None
     chapters = await list_by_project(session, project_id)
@@ -556,7 +560,7 @@ async def get_by_volume_and_order(
     volume_id: str,
     order: int,
 ) -> Chapter | None:
-    """根据 volume_id 与卷内章节序号查询章节。"""
+    """Mencari bab berdasarkan volume_id dan nomor urut bab dalam volume."""
     stmt = select(Chapter).where(
         col(Chapter.volume_id) == volume_id,
         col(Chapter.order) == order,

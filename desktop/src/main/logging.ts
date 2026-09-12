@@ -10,7 +10,7 @@ const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 
 let logsDirOverride: string | null = null;
 
-/** 让日志目录跟随当前活动实例的数据目录；传 null 恢复默认 userData/logs。 */
+/** Buat direktori log mengikuti direktori data instansi aktif; kirim null untuk kembali ke userData/logs default. */
 export function setLogsDir(dataDir: string | null): void {
   logsDirOverride = dataDir;
 }
@@ -137,7 +137,7 @@ function createLogArchive(files: string[], archivePath: string): Promise<void> {
         resolve();
         return;
       }
-      reject(new Error(`日志压缩命令退出：${code ?? "未知"}`));
+      reject(new Error(`Perintah kompresi log keluar: ${code ?? "tidak diketahui"}`));
     });
   });
 }
@@ -147,20 +147,20 @@ export async function exportLogs(destinationPath: string): Promise<string> {
   const files = (await readdir(logsDir, { withFileTypes: true }))
     .filter((entry) => entry.isFile() && entry.name.endsWith(".log"))
     .map((entry) => path.join(logsDir, entry.name));
-  if (files.length === 0) throw new Error("暂无可导出的后端日志");
+  if (files.length === 0) throw new Error("Belum ada log backend yang dapat diekspor");
 
   const temporaryArchivePath = path.join(path.dirname(destinationPath), `.${getLogArchiveFileName()}`);
-  appendLog("startup", `开始导出后端日志：${files.length} 个文件`);
+  appendLog("startup", `Mulai mengekspor log backend: ${files.length} berkas`);
   try {
     await createLogArchive(files, temporaryArchivePath);
     await rm(destinationPath, { force: true });
     await rename(temporaryArchivePath, destinationPath);
-    appendLog("startup", `后端日志导出完成：${destinationPath}`);
+    appendLog("startup", `Ekspor log backend selesai: ${destinationPath}`);
     return destinationPath;
   } catch (error) {
     await rm(temporaryArchivePath, { force: true });
     const message = error instanceof Error ? error.message : String(error);
-    appendLog("startup", `后端日志导出失败：${message}`);
-    throw new Error(`后端日志导出失败：${message}`);
+    appendLog("startup", `Ekspor log backend gagal: ${message}`);
+    throw new Error(`Ekspor log backend gagal: ${message}`);
   }
 }

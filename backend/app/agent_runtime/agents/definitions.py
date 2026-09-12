@@ -47,7 +47,10 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
         "build": AgentDefinition(
             key="build",
             display_name="Build",
-            description="默认的 Agent，执行通用的写作任务，并在需要时调度子 Agent 完成工作",
+            description=(
+                "Agen bawaan yang menjalankan tugas penulisan umum "
+                "dan menjadwalkan sub-agen untuk menuntaskan pekerjaan bila diperlukan"
+            ),
             kind="primary",
             prompt_agent_name="build",
             model_id=None,
@@ -83,7 +86,10 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
         "plan": AgentDefinition(
             key="plan",
             display_name="Plan",
-            description="专注于规划和协调，组织子 Agent 工作、审查与交付，负责执行系统写作的任务",
+            description=(
+                "Berfokus pada perencanaan dan koordinasi: menata pekerjaan sub-agen, "
+                "menelaah, dan menyerahkan hasil untuk tugas penulisan sistematis"
+            ),
             kind="primary",
             prompt_agent_name="plan",
             model_id=None,
@@ -113,7 +119,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
         "explore": AgentDefinition(
             key="explore",
             display_name="Explore",
-            description="负责信息搜集、上下文梳理与证据查找",
+            description="Menangani pengumpulan informasi, penataan konteks, dan pencarian bukti",
             kind="subagent",
             prompt_agent_name="explore",
             model_id=None,
@@ -132,7 +138,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
         "composer": AgentDefinition(
             key="composer",
             display_name="Composer",
-            description="负责剧情设计、结构规划与写作方案的组织",
+            description="Menangani perancangan alur cerita, perencanaan struktur, dan penataan rencana penulisan",
             kind="subagent",
             prompt_agent_name="composer",
             model_id=None,
@@ -153,7 +159,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
         "auditor": AgentDefinition(
             key="auditor",
             display_name="Auditor",
-            description="负责审查计划，产出评审意见、指出问题并提出修正建议。",
+            description="Menelaah rencana, menghasilkan pendapat telaah, menunjukkan masalah, dan mengajukan saran perbaikan.",
             kind="subagent",
             prompt_agent_name="auditor",
             model_id=None,
@@ -171,7 +177,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
         "writer": AgentDefinition(
             key="writer",
             display_name="Writer",
-            description="负责章节内容撰写、补写与正文修改。",
+            description="Menangani penulisan isi bab, penulisan susulan, dan perbaikan isi utama.",
             kind="subagent",
             prompt_agent_name="writer",
             model_id=None,
@@ -191,7 +197,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
         "actor": AgentDefinition(
             key="actor",
             display_name="Actor",
-            description="负责按既定目标执行修改并推进具体动作。",
+            description="Menjalankan perbaikan sesuai tujuan yang sudah ditetapkan dan menggerakkan tindakan konkret.",
             kind="subagent",
             prompt_agent_name="actor",
             model_id=None,
@@ -213,7 +219,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
         "reviewer": AgentDefinition(
             key="reviewer",
             display_name="Reviewer",
-            description="负责审查写作内容，产出评审意见、指出问题并提出修正建议。",
+            description="Menelaah isi penulisan, menghasilkan pendapat telaah, menunjukkan masalah, dan mengajukan saran perbaikan.",
             kind="subagent",
             prompt_agent_name="reviewer",
             model_id=None,

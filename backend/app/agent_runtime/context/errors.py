@@ -1,5 +1,5 @@
 class ContextBuildError(Exception):
-    """上下文构建失败的统一异常。"""
+    """Exception seragam untuk kegagalan pembangunan konteks."""
 
     def __init__(self, part: str, reason: str, cause: Exception | None = None):
         self.part = part

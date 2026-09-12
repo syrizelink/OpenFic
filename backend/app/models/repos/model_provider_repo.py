@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ModelProvider Repository - 模型服务提供商数据访问层。
+ModelProvider Repository - lapisan akses data penyedia layanan model.
 """
 
 from datetime import UTC, datetime
@@ -16,13 +16,13 @@ from app.models.entities.model_provider import ModelProvider
 
 async def get_all(session: AsyncSession) -> list[ModelProvider]:
     """
-    获取所有提供商。
+    Mengambil semua penyedia.
 
     Args:
-        session: 数据库 session。
+        session: session basis data.
 
     Returns:
-        提供商列表。
+        Daftar penyedia.
     """
     result = await session.execute(select(ModelProvider))
     return list(result.scalars().all())
@@ -30,14 +30,14 @@ async def get_all(session: AsyncSession) -> list[ModelProvider]:
 
 async def get_by_id(session: AsyncSession, provider_id: str) -> ModelProvider | None:
     """
-    根据 ID 获取提供商。
+    Mengambil penyedia berdasarkan ID.
 
     Args:
-        session: 数据库 session。
-        provider_id: 提供商 ID。
+        session: session basis data.
+        provider_id: ID penyedia.
 
     Returns:
-        提供商实例，如果不存在则返回 None。
+        Instance penyedia, atau None jika tidak ditemukan.
     """
     result = await session.execute(
         select(ModelProvider).where(col(ModelProvider.id) == provider_id)
@@ -54,17 +54,17 @@ async def create(
     custom_headers_encrypted: str = "",
 ) -> ModelProvider:
     """
-    创建提供商。
+    Membuat penyedia.
 
     Args:
-        session: 数据库 session。
-        name: 提供商名称/备注。
-        url: 服务 URL。
-        api_key_encrypted: 加密后的 API Key。
-        custom_headers_encrypted: 加密后的自定义请求头。
-        provider_type: 提供商类型。
+        session: session basis data.
+        name: nama/catatan penyedia.
+        url: URL layanan.
+        api_key_encrypted: API Key setelah dienkripsi.
+        custom_headers_encrypted: header permintaan kustom setelah dienkripsi.
+        provider_type: jenis penyedia.
     Returns:
-        创建的提供商实例。
+        Instance penyedia yang dibuat.
     """
     provider = ModelProvider(
         name=name,
@@ -89,18 +89,18 @@ async def update(
     provider_type: str | None = None,
 ) -> ModelProvider | None:
     """
-    更新提供商。
+    Memperbarui penyedia.
 
     Args:
-        session: 数据库 session。
-        provider_id: 提供商 ID。
-        name: 提供商名称/备注。
-        url: 服务 URL。
-        api_key_encrypted: 加密后的 API Key。
-        custom_headers_encrypted: 加密后的自定义请求头。
-        provider_type: 提供商类型。
+        session: session basis data.
+        provider_id: ID penyedia.
+        name: nama/catatan penyedia.
+        url: URL layanan.
+        api_key_encrypted: API Key setelah dienkripsi.
+        custom_headers_encrypted: header permintaan kustom setelah dienkripsi.
+        provider_type: jenis penyedia.
     Returns:
-        更新后的提供商实例，如果不存在则返回 None。
+        Instance penyedia setelah diperbarui, atau None jika tidak ditemukan.
     """
     provider = await get_by_id(session, provider_id)
     if not provider:
@@ -125,14 +125,14 @@ async def update(
 
 async def delete_by_id(session: AsyncSession, provider_id: str) -> bool:
     """
-    删除提供商。
+    Menghapus penyedia.
 
     Args:
-        session: 数据库 session。
-        provider_id: 提供商 ID。
+        session: session basis data.
+        provider_id: ID penyedia.
 
     Returns:
-        是否成功删除。
+        Apakah penghapusan berhasil.
     """
     result = await session.execute(
         delete(ModelProvider).where(col(ModelProvider.id) == provider_id)

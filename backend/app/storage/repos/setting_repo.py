@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Setting Repository - 设置数据访问层。
+Setting Repository - lapisan akses data setelan.
 """
 
 from datetime import UTC, datetime
@@ -14,13 +14,13 @@ from app.storage.models.setting import Setting
 
 async def get_all(session: AsyncSession) -> list[Setting]:
     """
-    获取所有设置。
+    Mengambil semua setelan.
 
     Args:
-        session: 数据库 session。
+        session: session basis data.
 
     Returns:
-        设置列表。
+        Daftar setelan.
     """
     result = await session.execute(select(Setting))
     return list(result.scalars().all())
@@ -28,14 +28,14 @@ async def get_all(session: AsyncSession) -> list[Setting]:
 
 async def get_by_key(session: AsyncSession, key: str) -> Setting | None:
     """
-    根据键名获取设置。
+    Mengambil setelan berdasarkan nama kunci.
 
     Args:
-        session: 数据库 session。
-        key: 设置键名。
+        session: session basis data.
+        key: Nama kunci setelan.
 
     Returns:
-        设置实例，如果不存在则返回 None。
+        Instance setelan, atau None bila tidak ada.
     """
     result = await session.execute(select(Setting).where(col(Setting.key) == key))
     return result.scalar_one_or_none()
@@ -43,15 +43,15 @@ async def get_by_key(session: AsyncSession, key: str) -> Setting | None:
 
 async def upsert(session: AsyncSession, key: str, value: str) -> Setting:
     """
-    创建或更新设置。
+    Membuat atau memperbarui setelan.
 
     Args:
-        session: 数据库 session。
-        key: 设置键名。
-        value: 设置值。
+        session: session basis data.
+        key: Nama kunci setelan.
+        value: Nilai setelan.
 
     Returns:
-        设置实例。
+        Instance setelan.
     """
     existing = await get_by_key(session, key)
     if existing:
@@ -71,14 +71,14 @@ async def upsert(session: AsyncSession, key: str, value: str) -> Setting:
 
 async def bulk_upsert(session: AsyncSession, settings: dict[str, str]) -> list[Setting]:
     """
-    批量创建或更新设置。
+    Membuat atau memperbarui setelan secara massal.
 
     Args:
-        session: 数据库 session。
-        settings: 设置键值对字典。
+        session: session basis data.
+        settings: Kamus pasangan kunci-nilai setelan.
 
     Returns:
-        更新后的设置列表。
+        Daftar setelan setelah diperbarui.
     """
     result = []
     for key, value in settings.items():

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Task Service - 任务业务逻辑层。
+Task Service - lapisan logika bisnis tugas.
 """
 
 from dataclasses import dataclass
@@ -31,7 +31,7 @@ from app.storage.services.revision_service import delete_revision_data_by_tasks
 
 @dataclass
 class TaskListResult:
-    """任务列表结果。"""
+    """Hasil daftar tugas."""
 
     items: list[Task]
     total: int
@@ -44,10 +44,10 @@ async def create_task(
     mode: AgentMode = "agent",
     agent_session_id: str | None = None,
 ) -> Task:
-    """创建任务。"""
+    """Membuat tugas."""
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在：{project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     task = Task(
         project_id=project_id,
@@ -59,20 +59,20 @@ async def create_task(
 
 
 async def get_task(session: AsyncSession, task_id: str) -> Task:
-    """获取任务。"""
+    """Mengambil tugas."""
     task = await task_repo.get_by_id(session, task_id)
     if task is None:
-        raise NotFoundError(f"任务不存在：{task_id}")
+        raise NotFoundError(f"Tugas tidak ditemukan: {task_id}")
     return task
 
 
 async def get_task_by_agent_session_id(
     session: AsyncSession, agent_session_id: str
 ) -> Task:
-    """根据 Agent 会话 ID 获取任务。"""
+    """Mengambil tugas berdasarkan ID sesi Agent."""
     task = await task_repo.get_by_agent_session_id(session, agent_session_id)
     if task is None:
-        raise NotFoundError(f"会话不存在: {agent_session_id}")
+        raise NotFoundError(f"Sesi tidak ditemukan: {agent_session_id}")
     return task
 
 
@@ -84,10 +84,10 @@ async def list_tasks(
     search_query: str | None = None,
     favorited_only: bool = False,
 ) -> TaskListResult:
-    """获取任务列表。"""
+    """Mengambil daftar tugas."""
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在：{project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     items = await task_repo.list_by_project(
         session,
@@ -118,10 +118,10 @@ async def update_task(
     current_message_id: str | None = None,
     agent_session_id: str | None = None,
 ) -> Task:
-    """更新任务。"""
+    """Memperbarui tugas."""
     task = await task_repo.get_by_id(session, task_id)
     if task is None:
-        raise NotFoundError(f"任务不存在：{task_id}")
+        raise NotFoundError(f"Tugas tidak ditemukan: {task_id}")
 
     if title is not None:
         task.title = title
@@ -155,7 +155,7 @@ async def add_task_token_usage(
     token_cache: int,
     cost: float = 0.0,
 ) -> Task:
-    """累加任务 token 和费用统计，并保留最近一次上下文输入占用。"""
+    """Menambah akumulasi token dan biaya tugas, serta menyimpan pemakaian masukan konteks terakhir."""
     task = await task_repo.add_token_usage(
         session,
         task_id,
@@ -165,15 +165,15 @@ async def add_task_token_usage(
         cost=cost,
     )
     if task is None:
-        raise NotFoundError(f"任务不存在：{task_id}")
+        raise NotFoundError(f"Tugas tidak ditemukan: {task_id}")
     return task
 
 
 async def delete_task(session: AsyncSession, task_id: str) -> None:
-    """删除任务。"""
+    """Menghapus tugas."""
     task = await task_repo.get_by_id(session, task_id)
     if task is None:
-        raise NotFoundError(f"任务不存在：{task_id}")
+        raise NotFoundError(f"Tugas tidak ditemukan: {task_id}")
 
     await _delete_runtime_data_for_tasks(session, [task])
     await delete_revision_data_by_tasks(session, [task_id])
@@ -181,10 +181,10 @@ async def delete_task(session: AsyncSession, task_id: str) -> None:
 
 
 async def delete_all_tasks(session: AsyncSession, project_id: str) -> int:
-    """删除项目下的所有任务。"""
+    """Menghapus semua tugas dalam proyek."""
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在：{project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     tasks = await task_repo.list_by_project(session, project_id)
     await _delete_runtime_data_for_tasks(session, tasks)
@@ -344,14 +344,14 @@ async def _list_orphan_task_ids(
 
 
 async def clear_running_tasks(session: AsyncSession) -> int:
-    """重置所有任务的运行状态。"""
+    """Mereset status berjalan semua tugas."""
     return await task_repo.clear_running_tasks(session)
 
 
 async def list_task_messages(session: AsyncSession, task_id: str) -> list[TaskMessage]:
     task = await task_repo.get_by_id(session, task_id)
     if task is None:
-        raise NotFoundError(f"任务不存在：{task_id}")
+        raise NotFoundError(f"Tugas tidak ditemukan: {task_id}")
     return await task_message_repo.list_by_task(session, task_id)
 
 
@@ -362,7 +362,7 @@ async def append_task_message(
 ) -> TaskMessage:
     task = await task_repo.get_by_id(session, task_id)
     if task is None:
-        raise NotFoundError(f"任务不存在：{task_id}")
+        raise NotFoundError(f"Tugas tidak ditemukan: {task_id}")
 
     task_message = TaskMessage(
         id=message["id"],

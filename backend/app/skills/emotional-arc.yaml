@@ -1,452 +1,452 @@
 id: builtin-skill--emotional-arc
-name: 情绪弧线与情感拉扯
-summary: 设计故事情绪弧线、情感羁绊、撕裂、蓄力、释放与余韵，控制读者情绪的起伏和兑现。
+name: Busur Emosi dan Tarik-Ulur Perasaan
+summary: Merancang busur emosi cerita, ikatan perasaan, perpecahan, penghimpunan tenaga, pelepasan, dan gaung akhir; mengendalikan naik-turun serta pemenuhan emosi pembaca.
 is_enabled: true
 content: |
-  # 情绪弧线执行指令
+  # Instruksi Eksekusi Busur Emosi
 
-  先按“决策路由表”选择弧线或情感策略，再按对应的完整方法论设计情绪。必须区分角色情绪、文本传递情绪和读者实际情绪，保留触发事件、比例、赌注、期待开环与闭环。完成后执行全部原始检查清单，不得只用“热血”“悲伤”等标签概括。
+  Pilih dulu strategi busur atau perasaan melalui "tabel rute keputusan", lalu rancang emosi mengikuti metodologi lengkap yang sesuai. Wajib membedakan emosi tokoh, emosi yang disampaikan teks, dan emosi nyata pembaca; pertahankan peristiwa pemicu, proporsi, taruhan, serta pembukaan dan penutupan lingkar ekspektasi. Setelah selesai, jalankan seluruh daftar periksa asli, jangan hanya merangkum dengan label seperti "menggelora" atau "sedih".
 references:
-  - name: 情绪弧线设计原始方法论
+  - name: Metodologi Asli Perancangan Busur Emosi
     content: |
-      # 情绪弧线操作手册
+      # Manual Operasional Busur Emosi
 
-      ## 决策路由表
+      ## Tabel Rute Keputusan
 
-      | 你想写的情绪效果 | 选哪个弧线 | 关键要点 |
+      | Efek emosi yang ingin kamu tulis | Pilih busur ini | Poin kunci |
       |------------------|-----------|----------|
-      | 虐完翻盘 | V 形 | 谷底 60-70%，治愈急速回升 |
-      | 甜完刀死（BE） | 倒 V 形 | 高点 40-50%，坠落比上升快 |
-      | 多反转猜不到 | W 形 | 每峰比前高，上限 3 起伏 |
-      | 层层打脸升级 | 递进形 | 无回落，像台阶往上 |
-      | 隐忍后大爆发 | 延迟满足 | 前 70-80% 铺垫，最后集中爆发 |
-      | 结尾颠覆 | 急转形 | 70-80% 处急转弯，前面线索要能回看说通 |
+      | Menderita habis lalu berbalik menang | Bentuk V | Dasar jurang di 60-70%, penyembuhan naik cepat |
+      | Manis lalu ditusuk mati (BE) | Bentuk V terbalik | Titik tinggi di 40-50%, kejatuhan lebih cepat daripada pendakian |
+      | Banyak titik balik yang tak tertebak | Bentuk W | Setiap puncak lebih tinggi dari sebelumnya, maksimal 3 gelombang |
+      | Tamparan berlapis yang terus meningkat | Bentuk progresif | Tanpa penurunan, seperti tangga yang menanjak |
+      | Menahan diri lalu meledak besar | Kepuasan tertunda | 70-80% awal jadi landasan, ledakan terpusat di bagian akhir |
+      | Akhir yang menjungkirkan | Bentuk banting arah | Banting arah di 70-80%, petunjuk awal sebelumnya harus masuk akal saat ditengok kembali |
 
-      可叠加两种弧线（如“延迟满足 + 急转”），不超过两种。
+      Dua jenis busur boleh ditumpuk (misalnya "kepuasan tertunda + banting arah"), tidak lebih dari dua.
 
-      ## 六种弧线速查
+      ## Panduan Cepat Enam Busur
 
-      ### 一、V 形弧线（虐 -> 治愈）
+      ### Satu, busur bentuk V (penderitaan -> penyembuhan)
 
       ```
-      情绪
+      emosi
       10 |          *
        9 |         / \
        7 |        /   \
-       6 |       /     *  治愈高点
-       1 |  *  虐谷底
-         +------------------> 进度
+       6 |       /     *  titik tinggi penyembuhan
+       1 |  *  dasar jurang penderitaan
+         +------------------> progres
            0%  40%  70%  100%
       ```
 
-      操作要点：谷底放在 60-70%，治愈急速回升，结尾情绪必须高于起点；谷底要够深，转折要突然，治愈不拖，谷底停留 1-2 场景即转折。
+      Poin operasional: letakkan dasar jurang di 60-70%, penyembuhan naik dengan cepat, emosi penutup wajib lebih tinggi daripada titik awal; dasar jurang harus cukup dalam, titik balik harus mendadak, penyembuhan jangan berlarut, dasar jurang cukup bertahan 1-2 adegan lalu langsung berbalik.
 
-      | 题材 | 虐的部分 | 治愈的部分 |
+      | Tema | Bagian penderitaan | Bagian penyembuhan |
       |------|----------|------------|
-      | 重生复仇 | 前世被虐 | 重来后翻盘 |
-      | 破镜重圆 | 分开的痛苦 | 重新在一起 |
-      | 亲情催泪 | 误解/亏欠 | 和解/明白真相 |
-      | 成长治愈 | 低谷遭遇 | 重新站起来 |
+      | Reinkarnasi balas dendam | Disiksa di kehidupan sebelumnya | Berbalik menang setelah terlahir ulang |
+      | Cinta yang bersatu kembali | Kepedihan perpisahan | Kembali bersama |
+      | Kasih keluarga pengundang tangis | Kesalahpahaman/rasa berutang | Rekonsiliasi/memahami kebenaran |
+      | Pendewasaan dan penyembuhan | Terjatuh ke titik terendah | Berdiri kembali |
 
-      字数分配（12000 字）：起始 10% -> 下沉 30% -> 谷底 15% -> 转折 10% -> 治愈上升 25% -> 高点收束 10%。
+      Alokasi jumlah kata (12000 kata): pembukaan 10% -> penurunan 30% -> dasar jurang 15% -> titik balik 10% -> pendakian penyembuhan 25% -> penutupan di titik tinggi 10%.
 
-      ### 二、倒 V 形弧线（爽 -> 反转 -> 低谷）
+      ### Dua, busur bentuk V terbalik (kepuasan -> titik balik -> jurang)
 
       ```
-      情绪
+      emosi
       10 |     *
        5 | *     \
-       1 |        *  BE 落点
-         +------------------> 进度
+       1 |        *  titik jatuh BE
+         +------------------> progres
            0%  30%  60%  100%
       ```
 
-      操作要点：高点放在 40-50%，反转后急速下坠；坠落速度必须快于上升，BE 结尾不加糖。
+      Poin operasional: letakkan titik tinggi di 40-50%, setelah titik balik langsung meluncur jatuh; kecepatan jatuh wajib lebih cepat daripada pendakian, akhir BE jangan diberi pemanis.
 
-      | 题材 | 爽的部分 | 坠落的部分 |
+      | Tema | Bagian kepuasan | Bagian kejatuhan |
       |------|----------|------------|
-      | BE 虐恋 | 甜蜜/幸福 | 真相/分离 |
-      | 职场翻车 | 升职/成功 | 发现是陷阱 |
-      | 友情背叛 | 亲密无间 | 背后的算计 |
-      | 信任崩塌 | 深信不疑 | 被欺骗的真相 |
+      | Cinta menyiksa BE | Kemanisan/kebahagiaan | Kebenaran/perpisahan |
+      | Karier yang terjungkal | Naik jabatan/sukses | Ternyata itu jebakan |
+      | Pengkhianatan persahabatan | Kedekatan tanpa jarak | Perhitungan di balik punggung |
+      | Kepercayaan yang runtuh | Percaya tanpa ragu | Kebenaran bahwa dirinya ditipu |
 
-      字数分配（12000 字）：起步 10% -> 上升 35% -> 顶点 10% -> 反转 5% -> 坠落 30% -> 低谷收束 10%。
+      Alokasi jumlah kata (12000 kata): awalan 10% -> pendakian 35% -> puncak 10% -> titik balik 5% -> kejatuhan 30% -> penutupan di jurang 10%.
 
-      ### 三、W 形弧线（多起伏）
+      ### Tiga, busur bentuk W (banyak naik-turun)
 
       ```
-      情绪
+      emosi
       10 |       *           *
        5 |  *         \ /
        4 |             *
-         +--------------------> 进度
+         +--------------------> progres
            0%  20%  40%  60%  80%  100%
       ```
 
-      操作要点：至少两个波峰一个波谷，通常三个起伏；每个峰必须比前一个高，最终峰在 80-90%；起伏之间必须有喘息空间，上限 3 个起伏。
+      Poin operasional: minimal dua puncak dan satu jurang, umumnya tiga gelombang; setiap puncak wajib lebih tinggi daripada puncak sebelumnya, puncak terakhir di 80-90%; antar gelombang wajib ada ruang bernapas, maksimal 3 gelombang.
 
-      | 题材 | 说明 |
+      | Tema | Penjelasan |
       |------|------|
-      | 多反转悬疑 | 每次以为猜到了就再来一个反转 |
-      | 追妻火葬场 | 反复拉扯，每次以为和好了又出问题 |
-      | 商战博弈 | 你来我往，每次以为赢了又翻盘 |
+      | Misteri dengan banyak titik balik | Setiap kali pembaca merasa sudah menebak, muncul titik balik lagi |
+      | Mengejar kembali istri yang sudah menyerah | Tarik-ulur berulang, setiap kali terasa sudah baikan lalu bermasalah lagi |
+      | Perang bisnis penuh strategi | Saling serang balik, setiap kali terasa sudah menang lalu berbalik |
 
-      字数分配（15000 字，3 起伏）：起步+第1峰 25% -> 第1谷 10% -> 第2峰 25% -> 第2谷 10% -> 第3峰 20% -> 收束 10%。
+      Alokasi jumlah kata (15000 kata, 3 gelombang): awalan + puncak ke-1 25% -> jurang ke-1 10% -> puncak ke-2 25% -> jurang ke-2 10% -> puncak ke-3 20% -> penutupan 10%.
 
-      ### 四、递进弧线（逐步升级）
+      ### Empat, busur progresif (peningkatan bertahap)
 
       ```
-      情绪
+      emosi
       10 |                     *
        7 |             * /
        5 |       * /
        3 | * /
-         +--------------------> 进度
+         +--------------------> progres
            0%  25%  50%  75%  100%
       ```
 
-      操作要点：不能有回落，像台阶一阶一阶往上；最高点在 85-95%，中间只给小胜利，不提前释放。
+      Poin operasional: tidak boleh ada penurunan, harus seperti tangga yang menanjak setapak demi setapak; titik tertinggi di 85-95%, di tengah hanya berikan kemenangan kecil, jangan melepas kepuasan lebih awal.
 
-      | 题材 | 递进方式 |
+      | Tema | Cara peningkatan |
       |------|----------|
-      | 打脸爽文 | 一个一个打，每个比上一个狠 |
-      | 层层揭秘 | 真相一层比一层震撼 |
-      | 逆袭翻盘 | 每一步翻盘都比上一步大 |
+      | Cerita tamparan yang memuaskan | Ditampar satu per satu, tiap tamparan lebih keras dari sebelumnya |
+      | Pembongkaran berlapis | Setiap lapis kebenaran lebih mengguncang dari lapis sebelumnya |
+      | Serangan balik dan pembalikan keadaan | Setiap langkah pembalikan lebih besar daripada langkah sebelumnya |
 
-      字数分配（10000 字）：压迫 20% -> 第1阶反击 20% -> 第2阶反击 25% -> 第3阶反击 25% -> 收束 10%。
+      Alokasi jumlah kata (10000 kata): penindasan 20% -> serangan balik tahap 1 20% -> serangan balik tahap 2 25% -> serangan balik tahap 3 25% -> penutupan 10%.
 
-      ### 五、延迟满足弧线（长铺垫 -> 爆发）
+      ### Lima, busur kepuasan tertunda (landasan panjang -> ledakan)
 
       ```
-      情绪
+      emosi
       10 |                       *
        5 |              *--------|
        3 |       *------         |
        1 | *------                |
-         +-------------------------> 进度
+         +-------------------------> progres
            0%  20%  40%  60%  80%  100%
       ```
 
-      操作要点：前 70-80% 压制/铺垫，最后 20-30% 集中爆发；铺垫阶段每段必须有信息量和张力，不能无聊；压的方式要多样，爆发要密集，爆发后快收。
+      Poin operasional: 70-80% bagian awal untuk penindasan/landasan, 20-30% terakhir untuk ledakan terpusat; pada tahap landasan setiap bagian wajib punya muatan informasi dan ketegangan, tidak boleh membosankan; cara menindas harus bervariasi, ledakan harus padat, setelah meledak segera tutup.
 
-      | 题材 | 压的部分 | 爆发的部分 |
+      | Tema | Bagian penindasan | Bagian ledakan |
       |------|----------|------------|
-      | 复仇爽文 | 隐忍、装弱、被欺压 | 一朝翻盘、全面清算 |
-      | 身份揭秘 | 隐藏实力/身份 | 真实身份曝光，全场震惊 |
-      | 长线布局 | 主角暗中操作 | 所有棋子同时落位 |
+      | Cerita balas dendam yang memuaskan | Menahan diri, berpura-pura lemah, ditindas | Berbalik menang dalam sekejap, perhitungan menyeluruh |
+      | Pembongkaran jati diri | Menyembunyikan kekuatan/jati diri | Jati diri sebenarnya terbongkar, semua orang tercengang |
+      | Rencana jangka panjang | Tokoh utama bergerak diam-diam | Semua bidak jatuh ke posisinya serentak |
 
-      字数分配（12000 字）：初始压制 20% -> 深层铺垫 25% -> 压力最大 15% -> 爆发触发 5% -> 集中爆发 25% -> 收束 10%。
+      Alokasi jumlah kata (12000 kata): penindasan awal 20% -> landasan lapisan dalam 25% -> tekanan maksimum 15% -> pemicu ledakan 5% -> ledakan terpusat 25% -> penutupan 10%.
 
-      ### 六、急转弧线（70-80% 处急转弯）
+      ### Enam, busur banting arah (banting arah di 70-80%)
 
       ```
-      情绪
-      10 |                *  急转后的新高/低点
+      emosi
+      10 |                *  titik tinggi/rendah baru setelah banting arah
        8 |           *--/
        3 |      /
-         +-------------------------> 进度
+         +-------------------------> progres
            0%   30%   70%  80%  100%
       ```
 
-      操作要点：前 70-80% 正常弧线，70-80% 处突然转向；急转只占 1-2 段，前面埋的线索回看时必须说得通。
+      Poin operasional: 70-80% bagian awal mengikuti busur normal, di 70-80% mendadak berubah arah; banting arah hanya mengambil 1-2 bagian, petunjuk awal yang ditanam sebelumnya wajib masuk akal saat ditengok kembali.
 
-      | 题材 | 前半段 | 急转后 |
+      | Tema | Paruh awal | Setelah banting arah |
       |------|--------|--------|
-      | 细思极恐 | 温馨日常 | 恐怖真相浮现 |
-      | 身份错位 | A 视角叙事 | 其实是 B |
-      | 动机反转 | 以为是爱 | 其实是恨/利用 |
+      | Makin dipikir makin mengerikan | Kehidupan sehari-hari yang hangat | Kebenaran mengerikan muncul |
+      | Jati diri yang tertukar | Narasi dari sudut pandang A | Ternyata dia B |
+      | Motif yang berbalik | Disangka cinta | Ternyata kebencian/pemanfaatan |
 
-      字数分配（10000 字）：建立假象 35% -> 推高假象 30% -> 假象高点 10% -> 急转 5% -> 真相展开 15% -> 新情绪收束 5%。
+      Alokasi jumlah kata (10000 kata): membangun ilusi 35% -> mendorong ilusi makin tinggi 30% -> titik tinggi ilusi 10% -> banting arah 5% -> kebenaran terbuka 15% -> penutupan emosi baru 5%.
 
-      ## 中段加压四手段
+      ## Empat Cara Menambah Tekanan di Bagian Tengah
 
-      1. **公开升级**：把私下伤害搬到公开场合（家宴、公司会议、直播、典礼）。
-      2. **双重背叛**：已知一层背叛后再加一层（经济背叛、名誉背叛、立场反转、证据篡改）。
-      3. **代价加速**：不行动的代价不断升高（失去机会、当众羞辱、连累他人）。
-      4. **战略性沉默**：主角暂不反击，沉默本身持续加压（他人误读、反派更放肆）。
+      1. **Peningkatan ke ruang publik**: pindahkan luka yang tadinya privat ke ruang publik (jamuan keluarga, rapat perusahaan, siaran langsung, upacara).
+      2. **Pengkhianatan ganda**: setelah satu lapis pengkhianatan diketahui, tambahkan lapis berikutnya (pengkhianatan finansial, pengkhianatan nama baik, pembalikan sikap, pemalsuan bukti).
+      3. **Percepatan harga yang dibayar**: harga karena tidak bertindak terus meninggi (kehilangan peluang, dihina di depan umum, ikut menyeret orang lain).
+      4. **Diam yang strategis**: tokoh utama belum melawan, diamnya sendiri terus menambah tekanan (disalahpahami orang lain, tokoh antagonis makin kurang ajar).
 
-      ## 题材赛道策略
+      ## Strategi Menurut Jalur Tema
 
-      | 赛道 | 最佳爽点 | 中段重点 | 结尾偏好 |
+      | Jalur | Titik kepuasan terbaik | Fokus bagian tengah | Preferensi penutup |
       |------|----------|----------|----------|
-      | 婚恋/追妻火葬场 | 开篇羞辱->公开反杀->渣男后悔->身份翻盘 | 公开/私下反差、代价升级、至少一个 mini-payoff | 静默优越、社会地位反转 |
-      | 家庭伦理/亲情 | 高压现实场景、家人背叛断裂感 | 层层施压、道德绑架、一次拒绝兜底 | 边界清晰、脱离旧结构 |
-      | 都市逆袭/职场 | 被轻视->展现实力->身份揭露 | 能力被低估但持续展示、关键场合意外表现 | 身份真相大白、对手代价可视 |
-      | 悬疑反转 | 反常事实->层层剥开->颠覆认知 | 每层揭露引发新问题、至少一次“以为找到了但不是” | 真相一击（最后一句话重构全篇） |
+      | Pernikahan/mengejar kembali istri | Dihina di pembuka -> serangan balik terbuka -> lelaki bejat menyesal -> jati diri terbongkar | Kontras publik/privat, harga yang meningkat, minimal satu mini-payoff | Keunggulan yang senyap, status sosial berbalik |
+      | Etika keluarga/kasih keluarga | Adegan realitas bertekanan tinggi, rasa retak akibat pengkhianatan keluarga | Tekanan berlapis, pemaksaan moral, satu penolakan sebagai penopang | Batas yang jelas, lepas dari struktur lama |
+      | Serangan balik urban/dunia kerja | Diremehkan -> menunjukkan kemampuan -> jati diri terbongkar | Kemampuan diremehkan tapi terus ditunjukkan, penampilan tak terduga di momen kunci | Kebenaran jati diri terang, harga yang dibayar lawan terlihat |
+      | Misteri dengan titik balik | Fakta yang menyimpang -> dikuliti lapis demi lapis -> menjungkirkan pemahaman | Setiap lapis yang terbuka memunculkan pertanyaan baru, minimal sekali "disangka sudah ketemu tapi ternyata bukan" | Kebenaran satu pukulan (kalimat terakhir menyusun ulang seluruh cerita) |
 
-      ## 期待感管理六法则
+      ## Enam Kaidah Pengelolaan Rasa Ekspektasi
 
-      1. **期待最大化定律**：爽点到来前那一刻是全篇张力最高位置。将满足而未满足时，读者需求最大。
-      2. **信息顺序操纵**：先植入什么信息，读者就先入为主往哪个方向想。控制信息顺序 = 控制读者预期。
-      3. **期待递增法**：在基底期待上不断添加细节，注入更具体化的需求缺口。添加的细节必须与核心梗一致。
-      4. **断期待禁止**：下一个期待立起来之前，绝不能结束当前期待。旧期待即将兑现时，新期待的种子必须已种下。
-      5. **下行情节安全原则**：写情绪下行时，锅都是别人的，功都是主角的。下行中必须给读者安全感（可能的解法/潜在收获）。
-      6. **爽点递增对比**：连续爽点逐级递增。维度：影响范围（个人->群体->社会）、揭示深度（表象->本质->颠覆）、身份落差（路人->大佬->全场震惊）。
+      1. **Hukum maksimalisasi ekspektasi**: momen sesaat sebelum titik kepuasan datang adalah posisi ketegangan tertinggi di seluruh cerita. Saat hampir terpenuhi namun belum terpenuhi, kebutuhan pembaca berada di puncaknya.
+      2. **Manipulasi urutan informasi**: informasi yang ditanam lebih dulu menentukan arah dugaan pertama pembaca. Mengendalikan urutan informasi = mengendalikan ekspektasi pembaca.
+      3. **Metode ekspektasi bertingkat**: terus tambahkan detail di atas ekspektasi dasar, suntikkan celah kebutuhan yang makin spesifik. Detail yang ditambahkan wajib konsisten dengan gagasan inti.
+      4. **Larangan memutus ekspektasi**: sebelum ekspektasi berikutnya berdiri, jangan pernah mengakhiri ekspektasi yang sedang berjalan. Saat ekspektasi lama hampir terpenuhi, benih ekspektasi baru wajib sudah ditanam.
+      5. **Prinsip keamanan pada alur menurun**: saat menulis emosi yang menurun, semua kesalahan milik orang lain, semua jasa milik tokoh utama. Di dalam penurunan wajib ada rasa aman bagi pembaca (kemungkinan jalan keluar/potensi keuntungan).
+      6. **Kontras titik kepuasan bertingkat**: titik kepuasan yang berurutan harus meningkat bertahap. Dimensinya: cakupan dampak (pribadi -> kelompok -> masyarakat), kedalaman pengungkapan (permukaan -> hakikat -> penjungkiran), selisih status (orang biasa -> tokoh besar -> semua orang tercengang).
 
-      ## 情绪核心公式
+      ## Rumus Inti Emosi
 
-      写每个场景时分离三层情绪：角色自己的情绪（角色感受到的）、文本传递的情绪（文本要让读者感受的）、读者实际感受的情绪（读者真正的体验）。同一场景三层可以完全不同：角色在哭，文本在撩，读者在爽。
+      Saat menulis setiap adegan, pisahkan tiga lapis emosi: emosi tokoh itu sendiri (yang dirasakan tokoh), emosi yang disampaikan teks (yang ingin dirasakan pembaca lewat teks), dan emosi nyata yang dirasakan pembaca (pengalaman pembaca sebenarnya). Dalam satu adegan yang sama, tiga lapis ini bisa sepenuhnya berbeda: tokoh sedang menangis, teks sedang menggoda, pembaca sedang merasa puas.
 
-      例：女主当众被退婚，强忍着没掉泪——角色：屈辱；文本写她嘴角还挂着笑（角色：撑）；读者替她憋着、等后面打脸（读者：爽前蓄力）。
+      Contoh: tokoh perempuan utama dibatalkan pertunangannya di depan umum, menahan diri agar tidak menitikkan air mata. Tokoh: terhina; teks menulis sudut bibirnya masih menyisakan senyum (tokoh: bertahan); pembaca menahan sesak untuknya sambil menunggu tamparan balik nanti (pembaca: penghimpunan tenaga sebelum kepuasan).
 
-      ## 前反应-复现-后反应情绪结构
+      ## Struktur Emosi Prareaksi-Perwujudan-Pascareaksi
 
-      用于虐/悲壮/遗憾类场景。按顺序执行：前反应，让读者提前知道坏结果，然后描写美好事物；复现，让坏结果真的发生；后反应，主角真情流露，作出改变（愤怒/拼命/振作）。操作示例：知道某人一天后要死 -> 让她经历美好（逛街、看烟花） -> 她真的死了 -> 主角愤怒拼命。
+      Dipakai untuk adegan bertipe penderitaan/kepahlawanan tragis/penyesalan. Jalankan berurutan: prareaksi, biarkan pembaca tahu lebih dulu ada akibat buruk yang akan datang, lalu gambarkan hal-hal indah; perwujudan, biarkan akibat buruk itu benar-benar terjadi; pascareaksi, tokoh utama menumpahkan perasaan sejatinya dan melakukan perubahan (kemarahan/berjuang mati-matian/bangkit kembali). Contoh operasional: mengetahui seseorang akan mati dalam sehari -> biarkan dia mengalami hal-hal indah (jalan-jalan, menonton kembang api) -> dia benar-benar mati -> tokoh utama marah dan berjuang mati-matian.
 
-      ## 以小搏大情绪结构
+      ## Struktur Emosi Kecil Melawan Besar
 
-      用于热血/逆袭类场景。按顺序执行：前反应，铺垫弱者的苦，用现在的弱与以前的强对比；复现，强者到来，“我知道你们苦，我来了”；后反应，弱势方被拯救；士气如虹，整体气势转变。
+      Dipakai untuk adegan bertipe menggelora/serangan balik. Jalankan berurutan: prareaksi, bangun landasan tentang kepedihan pihak yang lemah, kontraskan kelemahan sekarang dengan kekuatan di masa lalu; perwujudan, pihak kuat datang, "aku tahu kalian menderita, aku datang"; pascareaksi, pihak lemah tertolong; semangat melesat, kesan keseluruhan berbalik.
 
-      ## 冲突中的情绪层次与死亡赌注
+      ## Lapisan Emosi dalam Konflik dan Taruhan Kematian
 
-      | 赌注类型 | 适用场景 | 操作要点 |
+      | Jenis taruhan | Adegan yang cocok | Poin operasional |
       |----------|----------|----------|
-      | 肉体死亡 | 恐怖诡异文 | 主角过强时赌注必须转为事业死亡，否则全书崩溃 |
-      | 事业死亡 | 职场竞争、修仙门派争斗 | 失败 = 一切归零 |
-      | 心理死亡 | 感情崩塌、信念毁灭 | 情绪冲击最深，优先用于感情线 |
+      | Kematian fisik | Cerita horor dan aneh | Saat tokoh utama terlalu kuat, taruhan wajib beralih ke kematian karier, kalau tidak seluruh cerita runtuh |
+      | Kematian karier | Persaingan kerja, perseteruan sekte kultivasi | Kegagalan = semuanya kembali nol |
+      | Kematian psikologis | Perasaan yang runtuh, keyakinan yang hancur | Guncangan emosinya paling dalam, prioritaskan untuk garis perasaan |
 
-      选一种作为主要赌注贯穿全书，其他辅助推动情节。对立双方必须无法轻易脱身，可用四种黏结剂：杀人理由（序列唯一性必然冲突）、工作职责、道德责任（亲人遇险）、实体场所（副本密室）。第一卷结局不能太圆满；解决一个麻烦的同时必须埋下下一个麻烦；越到后期，情绪张力必须越大。
+      Pilih satu sebagai taruhan utama yang menembus seluruh cerita, sisanya berperan pendukung untuk mendorong alur cerita. Kedua pihak yang berseberangan wajib tidak bisa melepaskan diri dengan mudah; tersedia empat perekat: alasan saling membunuh (keunikan urutan yang pasti memicu konflik), tanggung jawab pekerjaan, tanggung jawab moral (kerabat dalam bahaya), dan tempat fisik (ruang tertutup dalam sebuah misi). Akhir volume pertama tidak boleh terlalu sempurna; sambil menyelesaikan satu masalah wajib menanam masalah berikutnya; semakin ke bagian akhir, ketegangan emosi wajib semakin besar.
 
-      ## 基于不该如此的情绪驱动
+      ## Dorongan Emosi Berbasis "Seharusnya Tidak Begini"
 
-      “不该如此”是最根本的情绪驱动力：写诬告、不公、恃强凌弱，读者天生生出“不该如此”的念头。核心情绪逻辑：想要爽，必先不爽；想要公平，必先不公平；想要强大，必先不强大。“悬而未决”也是强驱动力。好的题材必须具备勾起人们惋惜、渴望改变的特质。
+      "Seharusnya tidak begini" adalah daya dorong emosi yang paling mendasar: saat menulis tuduhan palsu, ketidakadilan, penindasan oleh yang kuat, pembaca secara alami melahirkan pikiran "seharusnya tidak begini". Logika emosi intinya: ingin rasa puas, harus ada rasa tidak puas lebih dulu; ingin keadilan, harus ada ketidakadilan lebih dulu; ingin kekuatan, harus ada ketidakberdayaan lebih dulu. "Tergantung tanpa penyelesaian" juga daya dorong yang kuat. Tema yang baik wajib punya sifat yang membangkitkan rasa sayang dan hasrat akan perubahan.
 
-      ## 理念矛盾的情感爆发力
+      ## Daya Ledak Perasaan dari Pertentangan Gagasan
 
-      理念之争比利益之争更能引发读者深层共鸣；少量关键场景即可，不需要大量笔墨。理想主义与现实的冲突是塑造配角封神级人设的手法。理念认同 = 人设认同 = 读者情感投入。在主线中穿插理念型角色，用他们的追求和牺牲拔高全书情绪上限。
+      Pertarungan gagasan lebih mampu memicu resonansi mendalam pembaca daripada pertarungan kepentingan; cukup beberapa adegan kunci saja, tidak perlu banyak tinta. Konflik antara idealisme dan kenyataan adalah teknik untuk membentuk karakter tokoh pendukung setingkat legenda. Persetujuan terhadap gagasan = persetujuan terhadap karakter = keterlibatan perasaan pembaca. Selipkan tokoh bertipe gagasan di dalam alur utama, pakai perjuangan dan pengorbanan mereka untuk mengangkat batas atas emosi seluruh cerita.
 
-      ## 情绪调动的三层方法
+      ## Tiga Lapis Metode Menggerakkan Emosi
 
-      三层：**长期感情投入**、**短期事件冲突**、**场景描绘**。三者可叠加，核心是前两层。
+      Tiga lapis: **investasi perasaan jangka panjang**, **konflik peristiwa jangka pendek**, dan **penggambaran adegan**. Ketiganya bisa ditumpuk, intinya ada di dua lapis pertama.
 
-      ### 长期引导三步骤
+      ### Tiga Langkah Penuntun Jangka Panjang
 
-      1. **抛出共鸣炸弹**：找到角色最易引发共鸣的情感锚点（梦想、仇恨、恐惧）。
-      2. **让读者变见证者**：展示角色付出和挣扎，每一步伴随收获。
-      3. **让读者变参与者**：通过足够铺垫和细节，产生命运共同体感。
+      1. **Lemparkan bom resonansi**: temukan jangkar perasaan tokoh yang paling mudah memicu resonansi (mimpi, kebencian, ketakutan).
+      2. **Ubah pembaca menjadi saksi**: tunjukkan pengorbanan dan pergulatan tokoh, setiap langkah dibarengi hasil yang diperoleh.
+      3. **Ubah pembaca menjadi peserta**: melalui landasan dan detail yang memadai, tumbuhkan rasa senasib sepenanggungan.
 
-      ### 短期情绪引导
+      ### Penuntun Emosi Jangka Pendek
 
-      短期靠独立事件冲突。**直白冲突比繁杂情节更容易引起共鸣**。事件分为推动情节发展的事件（让读者对角色处境产生认同）和塑造人物性格的事件（让读者对角色思想性格产生认同）。开篇必须选择塑造人物性格的事件，先认同角色这个人才关心角色的事。
+      Jangka pendek bergantung pada konflik peristiwa yang berdiri sendiri. **Konflik yang lugas lebih mudah memicu resonansi daripada alur cerita yang berbelit.** Peristiwa terbagi menjadi peristiwa yang mendorong perkembangan alur cerita (membuat pembaca menyetujui situasi tokoh) dan peristiwa yang membentuk watak tokoh (membuat pembaca menyetujui pikiran dan watak tokoh). Pembuka wajib memilih peristiwa yang membentuk watak tokoh: setujui dulu tokoh sebagai pribadi, baru pembaca peduli pada urusan tokoh.
 
-      ### 情绪代入的陷阱
+      ### Jebakan Peleburan Emosi
 
-      读者未代入主角前，主角弱势可以引起同情，但**敌人弱势也同样引起同情**。读者还没建立认同时，不要把对手写得可怜。
+      Sebelum pembaca melebur ke tokoh utama, posisi lemah tokoh utama bisa membangkitkan simpati, tetapi **posisi lemah musuh juga sama-sama membangkitkan simpati**. Saat pembaca belum membangun persetujuan, jangan menulis lawan sebagai pihak yang patut dikasihani.
 
-      ### 情绪文笔技法
+      ### Teknik Gaya Tulis untuk Emosi
 
-      短句 = 果决热血；情绪词如“骤然、猛然、刺眼”制造紧迫感；动作词如“抽、划、留下”强化画面并外化情绪；形容词精准克制使用。优先通过角色行为暗示情绪，而非直接描写。**以乐写悲**：角色在最悲伤时表现开心，情绪张力更强，赴死的人很开心往往比哭更悲。
+      Kalimat pendek = tegas dan menggelora; kata-kata emosi seperti "mendadak, sekonyong-konyong, menusuk mata" menciptakan rasa mendesak; kata kerja seperti "menyabet, menyayat, meninggalkan" memperkuat gambaran dan mengeksternalkan emosi; kata sifat dipakai presisi dan terkendali. Utamakan mengisyaratkan emosi lewat perilaku tokoh, bukan menggambarkannya secara langsung. **Menulis duka lewat keceriaan**: saat tokoh paling berduka justru tampil gembira, ketegangan emosinya lebih kuat; orang yang berangkat menuju kematian dengan gembira sering kali lebih menyayat daripada yang menangis.
 
-      ## 男频恋爱文情绪设计
+      ## Perancangan Emosi Cerita Romansa untuk Pembaca Pria
 
-      ### 两大核心需求
+      ### Dua Kebutuhan Inti
 
-      - **情绪价值**：读者缺爱，小说中漂亮优秀女生欣赏自己，填补情感空缺。
-      - **自尊价值**：带校花/女总裁出场，旁人羡慕嫉妒恨。
+      - **Nilai emosional**: pembaca kekurangan kasih, di dalam novel ada gadis cantik dan unggul yang mengagumi dirinya, mengisi kekosongan perasaan.
+      - **Nilai harga diri**: tampil bersama gadis terpopuler di kampus/direktris perempuan, orang-orang di sekitar iri, cemburu, dan benci.
 
-      ### 恋爱当升级文写
+      ### Menulis Romansa sebagai Cerita Peningkatan
 
-      设定“好感度进度条”（路人->好人->朋友->喜欢不自知->...）。暧昧拉扯的过程通常比在一起的结果更吸引读者。制造内外部阻碍阻拦两人走到一起，通过克服阻碍加深感情。
+      Tetapkan "bilah progres tingkat kesukaan" (orang asing -> orang baik -> teman -> menyukai tanpa sadar -> ...). Proses tarik-ulur yang penuh ambiguitas biasanya lebih menarik bagi pembaca daripada hasil akhir bersatu. Ciptakan hambatan internal dan eksternal yang menghalangi keduanya bersatu, lalu pertebal perasaan lewat proses mengatasi hambatan itu.
 
-      ### 感情升级的不对称性
+      ### Ketidaksetaraan dalam Peningkatan Perasaan
 
-      两条进度线不能齐头并进：情感快于社会关系（双方好感早已拉满但嘴硬不表白），或社会关系快于情感（穿越自带老婆/未婚妻，好感为零需逐步提升）。
+      Dua garis progres tidak boleh berjalan sejajar: perasaan lebih cepat daripada hubungan sosial (tingkat kesukaan kedua pihak sudah penuh sejak lama tapi keduanya keras kepala tak mau menyatakan), atau hubungan sosial lebih cepat daripada perasaan (berpindah dunia langsung membawa istri/tunangan, tingkat kesukaan nol dan harus dinaikkan bertahap).
 
-      ### 关键禁忌与技巧
+      ### Larangan Kunci dan Kiat
 
-      男主不要主动追求，不要舔狗，用自身优秀品质吸引女主注意；事业线不可或缺，女主对主角事业起积极作用；要写女主对主角好，根据人设设计付出方式（自卑型偷偷塞丹药、傲娇型嘴硬做便当、直率型大方送礼物）；使用时间线对比和双标（对别人 vs 对主角）；用双重身份等信息差拉期待。
+      Tokoh utama pria jangan mengejar secara aktif, jangan jadi penjilat, gunakan kualitas dirinya yang unggul untuk menarik perhatian tokoh perempuan utama; garis karier tidak boleh absen, tokoh perempuan utama berperan positif bagi karier tokoh utama; tulislah kebaikan tokoh perempuan utama kepada tokoh utama, rancang cara berkorbannya sesuai karakternya (tipe rendah diri diam-diam menyelipkan pil obat, tipe tsundere keras kepala tapi membuatkan bekal, tipe blak-blakan terus terang memberi hadiah); pakai kontras garis waktu dan standar ganda (kepada orang lain vs kepada tokoh utama); pakai kesenjangan informasi seperti jati diri ganda untuk menarik ekspektasi.
 
-      ## 情绪调动统一视角
+      ## Sudut Pandang Terpadu Penggerakan Emosi
 
-      终极公式：**平静 -> 调动 -> 释放 -> 爽**。
+      Rumus pamungkas: **tenang -> penggerakan -> pelepasan -> puas**.
 
-      | 技法 | 调动 | 释放 | 结果 |
+      | Teknik | Penggerakan | Pelepasan | Hasil |
       |------|------|------|------|
-      | 装逼打脸 | 反派嚣张 | 主角碾压 | 爽 |
-      | 拉仇恨 | 负面情绪 | 恶人受罚 | 爽 |
-      | 先抑后扬 | 打压 | 爆发 | 爽 |
-      | 期待感 | 制造鸿沟 | 弥合鸿沟 | 爽 |
+      | Pamer lalu ditampar | Tokoh antagonis jumawa | Tokoh utama menghancurkannya | Puas |
+      | Menarik kebencian | Emosi negatif | Orang jahat dihukum | Puas |
+      | Ditekan dulu lalu diangkat | Penindasan | Ledakan | Puas |
+      | Rasa ekspektasi | Menciptakan jurang | Menutup jurang | Puas |
 
-      每个场景标注读者当前情绪在哪个阶段、下一步是调动还是释放。只有调动没有释放 = 读者憋屈弃书；只有释放没有调动 = 爽感平淡无力；调动程度决定释放爽度。
+      Tandai pada setiap adegan: emosi pembaca sedang berada di tahap mana, dan langkah berikutnya penggerakan atau pelepasan. Hanya penggerakan tanpa pelepasan = pembaca sesak lalu meninggalkan cerita; hanya pelepasan tanpa penggerakan = rasa puas jadi datar dan tak bertenaga; besarnya penggerakan menentukan derajat kepuasan saat pelepasan.
 
-      ## 期待感维持的底层机制
+      ## Mekanisme Dasar Menjaga Rasa Ekspektasi
 
-      目标是角色要做什么，期待感是读者对目标达成后会怎样的预期。有目标无期待，读者不在乎结果，必须把目标转化为期待。
+      Tujuan adalah apa yang hendak dilakukan tokoh, sedangkan rasa ekspektasi adalah dugaan pembaca tentang apa yang akan terjadi setelah tujuan itu tercapai. Ada tujuan tanpa ekspektasi berarti pembaca tidak peduli pada hasilnya; tujuan wajib diubah menjadi ekspektasi.
 
-      确定型期待（爽文）：读者知道主角会赢，写“怎么赢”，过程创意大于结果悬念；不确定型期待（悬疑）：读者不知道结果，结果悬念大于过程体验。爽文不怕剧透，因为期待在过程不在结果。
+      Ekspektasi bertipe pasti (cerita memuaskan): pembaca tahu tokoh utama akan menang, jadi yang ditulis adalah "bagaimana cara menang", kreativitas prosesnya lebih penting daripada misteri hasilnya. Ekspektasi bertipe tak pasti (misteri): pembaca tidak tahu hasilnya, misteri hasil lebih penting daripada pengalaman prosesnya. Cerita memuaskan tidak takut bocoran, karena ekspektasinya ada di proses, bukan di hasil.
 
-      开环 = 制造鸿沟（提出问题/悬念）；闭环 = 弥合鸿沟（回答问题/揭晓）；嵌套开环 = 闭环一个期待的同时开启新的。规则：闭环一个期待时，必须已有下一个开环在运行。感情线没有阻碍 = 没有期待 = 白给 = 无意义，鸿沟来源包括身份差距、家族反对、误会、使命冲突。
+      Membuka lingkar = menciptakan jurang (mengajukan pertanyaan/misteri); menutup lingkar = menutup jurang (menjawab pertanyaan/mengungkap); lingkar bersarang = menutup satu ekspektasi sambil membuka yang baru. Aturannya: saat menutup satu ekspektasi, wajib sudah ada lingkar berikutnya yang berjalan. Garis perasaan tanpa hambatan = tanpa ekspektasi = diberikan gratis = tanpa makna; sumber jurang mencakup selisih status, penolakan keluarga, kesalahpahaman, dan konflik misi.
 
-      ## 质量检查清单
+      ## Daftar Periksa Kualitas
 
-      ### 弧线选择与节奏
-      - [ ] 弧线类型是否匹配你想写的情绪效果？（对照决策路由表）
-      - [ ] 关键转折点是否在正确的进度位置？（V形谷底60-70%、倒V高点40-50%、急转70-80%）
-      - [ ] 字数分配是否符合所选弧线的比例要求？
+      ### Pemilihan Busur dan Tempo
+      - [ ] Apakah jenis busur cocok dengan efek emosi yang ingin kamu tulis? (bandingkan dengan tabel rute keputusan)
+      - [ ] Apakah titik balik kunci berada di posisi progres yang benar? (dasar jurang bentuk V 60-70%, titik tinggi V terbalik 40-50%, banting arah 70-80%)
+      - [ ] Apakah alokasi jumlah kata sesuai dengan tuntutan proporsi busur yang dipilih?
 
-      ### 调动与释放
-      - [ ] 每个场景是否清楚当前是“调动”还是“释放”阶段？
-      - [ ] 是否存在只有调动没有释放的段落？（会憋屈弃书）
-      - [ ] 是否存在只有释放没有调动的段落？（爽感平淡）
-      - [ ] 连续爽点是否逐级递增？（影响范围/揭示深度/身份落差）
+      ### Penggerakan dan Pelepasan
+      - [ ] Apakah setiap adegan jelas sedang berada di tahap "penggerakan" atau "pelepasan"?
+      - [ ] Apakah ada bagian yang hanya penggerakan tanpa pelepasan? (akan membuat sesak dan cerita ditinggalkan)
+      - [ ] Apakah ada bagian yang hanya pelepasan tanpa penggerakan? (rasa puasnya datar)
+      - [ ] Apakah titik kepuasan yang berurutan meningkat bertahap? (cakupan dampak/kedalaman pengungkapan/selisih status)
 
-      ### 期待感
-      - [ ] 每个目标是否已转化为读者期待？
-      - [ ] 闭环一个期待时，下一个开环是否已在运行？（断期待禁止）
-      - [ ] 感情线是否设置了阻碍？（无阻碍 = 无期待）
+      ### Rasa Ekspektasi
+      - [ ] Apakah setiap tujuan sudah diubah menjadi ekspektasi pembaca?
+      - [ ] Saat menutup satu ekspektasi, apakah lingkar berikutnya sudah berjalan? (larangan memutus ekspektasi)
+      - [ ] Apakah garis perasaan sudah dipasangi hambatan? (tanpa hambatan = tanpa ekspektasi)
 
-      ### 情绪代入
-      - [ ] 开篇是否用了塑造人物性格的事件？（先认同人，再关心事）
-      - [ ] 读者未代入主角前，是否避免了把对手写得可怜？
-      - [ ] 下行情节中是否给了读者安全感？（锅是别人的，功是主角的）
+      ### Peleburan Emosi
+      - [ ] Apakah pembuka memakai peristiwa yang membentuk watak tokoh? (setujui dulu pribadinya, baru peduli urusannya)
+      - [ ] Sebelum pembaca melebur ke tokoh utama, apakah sudah dihindari menulis lawan sebagai pihak yang patut dikasihani?
+      - [ ] Apakah di dalam alur yang menurun pembaca diberi rasa aman? (kesalahan milik orang lain, jasa milik tokoh utama)
 
-      ### 长线维护
-      - [ ] 解决一个麻烦时是否同时埋下了下一个麻烦？
-      - [ ] 越到后期情绪张力是否越大？
-      - [ ] 死亡赌注是否选了一种贯穿全书？
-      - [ ] 对立双方是否有黏结剂无法轻易脱身？
-  - name: 情感设计原始方法论
+      ### Pemeliharaan Jangka Panjang
+      - [ ] Saat satu masalah diselesaikan, apakah masalah berikutnya sekaligus ditanam?
+      - [ ] Apakah ketegangan emosi makin besar semakin ke bagian akhir?
+      - [ ] Apakah taruhan kematian sudah dipilih satu untuk menembus seluruh cerita?
+      - [ ] Apakah kedua pihak yang berseberangan punya perekat sehingga tidak bisa melepaskan diri dengan mudah?
+  - name: Metodologi Asli Perancangan Perasaan
     content: |
-      # 情感设计方法：三板斧 + 拉扯节奏 + 失败模式
+      # Metode Perancangan Perasaan: Tiga Kapak + Tempo Tarik-Ulur + Pola Kegagalan
 
-      ## 决策路由
+      ## Rute Keputusan
 
-      | 你的情感设计场景是 | 用这个策略 | 跳转到 |
+      | Adegan perancangan perasaanmu adalah | Pakai strategi ini | Lompat ke |
       |---------------|-----------|----------|
-      | 建立角色羁绊（让读者相信关系） | 羁绊铺设（第一斧） | 三板斧 §1 |
-      | 制造情感撕裂（反差/错位/背叛） | 情感撕裂（第二斧） | 三板斧 §2 |
-      | 写结尾余韵（安静细节击穿读者） | 余韵钝痛（第三斧） | 三板斧 §3 |
-      | 规划整体情感节奏曲线 | 拉扯节奏设计 | 拉扯节奏 |
-      | 不同题材的情感策略选择 | 题材策略差异 | 按题材 |
-      | 检查情感设计是否有效 | 失败模式排查 + 快速自查 | 底部清单 |
+      | Membangun ikatan tokoh (membuat pembaca percaya pada hubungan itu) | Pemasangan ikatan (kapak pertama) | Tiga Kapak §1 |
+      | Menciptakan perpecahan perasaan (kontras/ketidakcocokan/pengkhianatan) | Perpecahan perasaan (kapak kedua) | Tiga Kapak §2 |
+      | Menulis gaung akhir (detail yang senyap menembus pembaca) | Gaung nyeri tumpul (kapak ketiga) | Tiga Kapak §3 |
+      | Merencanakan kurva tempo perasaan secara keseluruhan | Perancangan tempo tarik-ulur | Tempo Tarik-Ulur |
+      | Pemilihan strategi perasaan untuk tema berbeda | Perbedaan strategi per tema | Menurut Tema |
+      | Memeriksa apakah perancangan perasaan efektif | Penelusuran pola kegagalan + pemeriksaan cepat | Daftar di bagian bawah |
 
-      ## 情感虐心三板斧
+      ## Tiga Kapak Penyayat Hati
 
-      ### 第一斧：羁绊铺设（前 1/3）
+      ### Kapak pertama: pemasangan ikatan (1/3 bagian awal)
 
-      **目标**：用具体物件/数字/细节建立关系质感，让读者相信这段关系是真实的。
+      **Tujuan**: memakai benda/angka/detail yang konkret untuk membangun tekstur hubungan, sehingga pembaca percaya hubungan ini nyata.
 
-      **方法**：用具体数字建立时间感：“相恋八年”“昏迷五年”“七年光景”；用具体物件承载感情：金锁（姐姐的生日礼物）、账本数字（还债记录）、木头小马（父王磨的）；用重复动作建立习惯：每天一碗粥、每两周来看一次、每年冬天冻得睡不着。
+      **Metode**: gunakan angka konkret untuk membangun rasa waktu: "delapan tahun bercinta", "lima tahun koma", "tujuh tahun berlalu"; gunakan benda konkret sebagai wadah perasaan: kalung kunci emas (hadiah ulang tahun dari kakak perempuan), angka di buku catatan utang (rekaman pelunasan utang), kuda kayu kecil (diasah sendiri oleh ayah raja); gunakan tindakan berulang untuk membangun kebiasaan: sepiring bubur setiap hari, datang menengok sekali setiap dua minggu, kedinginan sampai tak bisa tidur setiap musim dingin.
 
-      **案例**：
-      - 《迟来二十年》：用二十年的账本数字（八万块）建立母女关系的重量
-      - 《我在佛前求你》：昏迷五年、求神拜佛的细节、从初中开始的暗恋
-      - 《皇弟欺负幼子》：七年质子生涯的具体苦难（跪雪地、挨巴掌、吃馊饭）
+      **Studi kasus**:
+      - "Dua Puluh Tahun Terlambat": memakai angka buku catatan utang selama dua puluh tahun (delapan puluh ribu) untuk membangun beban hubungan ibu dan anak perempuan
+      - "Aku Memohon untukmu di Hadapan Buddha": lima tahun koma, detail memohon kepada dewa dan bersembahyang, cinta terpendam sejak bangku SMP
+      - "Adik Kaisar Menindas Putra Kecil": kesulitan konkret selama tujuh tahun hidup sebagai sandera (berlutut di hamparan salju, ditampar, memakan makanan basi)
 
-      **核心**：羁绊越具体，后面的撕裂越痛。不要用“他们很相爱”这种抽象描述。
+      **Inti**: makin konkret ikatannya, makin nyeri perpecahan setelahnya. Jangan memakai gambaran abstrak seperti "mereka sangat saling mencintai".
 
-      ### 第二斧：情感撕裂（中后段）
+      ### Kapak kedua: perpecahan perasaan (bagian tengah ke akhir)
 
-      **目标**：制造反差，让读者以为恨对了 → 发现恨错了（或反过来）。
+      **Tujuan**: menciptakan kontras, sehingga pembaca merasa sudah membenci pihak yang benar -> lalu menyadari salah membenci (atau sebaliknya).
 
-      **方法**：反差法，先展示温暖一面，再用残酷真相击碎；错位法，角色 A 以为在保护角色 B，实际上在伤害；延迟真相法，关键信息在读者最不期待的时候揭示。
+      **Metode**: metode kontras, tunjukkan dulu sisi yang hangat, lalu hancurkan dengan kebenaran yang kejam; metode ketidakcocokan, tokoh A merasa sedang melindungi tokoh B, padahal sedang melukainya; metode kebenaran tertunda, informasi kunci diungkap saat pembaca paling tidak mengharapkannya.
 
-      **案例**：
-      - 《姐夫捎路要奶粉钱》：妈妈表面软弱可怜，实际一直操控姐姐索取钱财 → 金锁是假的（金包铜）→ 反差撕裂
-      - 《皇弟欺负幼子》：王氏表面温柔（送手炉、煎汤药）→ 实际下药逼疯先皇后 → 用诛心话逼死
-      - 《重生弟弟》：弟弟深爱女友 → 女友是诈骗犯 → 怀孕是假的 → 被骗到电诈园区
+      **Studi kasus**:
+      - "Kakak Ipar Menagih Uang Susu di Tengah Jalan": ibu tampak lemah dan patut dikasihani, padahal selama ini mengendalikan kakak perempuan untuk memeras uang -> kalung kunci emas itu palsu (tembaga bersalut emas) -> perpecahan lewat kontras
+      - "Adik Kaisar Menindas Putra Kecil": Nyonya Wang tampak lembut (memberi penghangat tangan, merebus obat) -> padahal membubuhkan obat untuk membuat mantan ratu gila -> lalu mendesaknya mati dengan kata-kata yang menusuk hati
+      - "Adik Lelaki yang Terlahir Kembali": adik lelaki sangat mencintai kekasihnya -> kekasihnya seorang penipu -> kehamilannya palsu -> ia ditipu masuk ke kompleks penipuan daring
 
-      **核心**：撕裂的力度取决于铺垫的厚度。没有好的羁绊铺设，撕裂就是无根之木。
+      **Inti**: kekuatan perpecahan ditentukan oleh ketebalan landasan. Tanpa pemasangan ikatan yang baik, perpecahan hanyalah pohon tanpa akar.
 
-      ### 第三斧：余韵钝痛（结尾）
+      ### Kapak ketiga: gaung nyeri tumpul (penutup)
 
-      **目标**：不用大哭大闹，用安静细节击穿读者防线。
+      **Tujuan**: tanpa tangis dan keributan besar, tembus pertahanan pembaca dengan detail yang senyap.
 
-      **方法**：用日常动作承载巨大情感：继续喂粥、把衣服叠好、不回头；用物件细节制造余韵：坏掉的金锁、木头小马、沾血的戒指；用“不”制造留白：不解释、不回头、不流泪。
+      **Metode**: pakai tindakan sehari-hari untuk memuat perasaan yang besar: tetap menyuapkan bubur, melipat pakaian dengan rapi, tidak menoleh ke belakang; pakai detail benda untuk menciptakan gaung: kalung kunci emas yang rusak, kuda kayu kecil, cincin yang berlumur darah; pakai kata "tidak" untuk menciptakan ruang kosong: tidak menjelaskan, tidak menoleh, tidak meneteskan air mata.
 
-      **案例**：
-      - 《皇弟欺负幼子》：“他拿着那匹被我磨得很光滑的木头小马……他握着正好。”
-      - 《姐夫捎路要奶粉钱》：“我的手机清净了不少。那些困扰我很久的麻烦，在一瞬间变得很小很小。”
-      - 《准儿媳打分》：“办了收养手续后，她第一次踏进这个陌生的家……我知道，这一次我没选错。”
+      **Studi kasus**:
+      - "Adik Kaisar Menindas Putra Kecil": "Dia memegang kuda kayu kecil yang kuasah sampai sangat licin itu... di tangannya ukurannya tepat."
+      - "Kakak Ipar Menagih Uang Susu di Tengah Jalan": "Ponselku jadi jauh lebih tenang. Semua kerumitan yang lama mengusikku, dalam sekejap terasa kecil sekali."
+      - "Penilaian Calon Menantu": "Setelah urusan adopsi selesai, untuk pertama kalinya dia melangkah masuk ke rumah yang asing ini... Aku tahu, kali ini aku tidak salah memilih."
 
-      **核心**：最好的余韵不靠大哭，靠“看完之后很久都忘不掉”。
+      **Inti**: gaung terbaik tidak bertumpu pada tangis besar, melainkan pada "lama tak terlupakan setelah selesai dibaca".
 
-      ## 情感拉扯节奏设计
+      ## Perancangan Tempo Tarik-Ulur Perasaan
 
-      基本节奏曲线：
+      Kurva tempo dasar:
 
       ```
-      温暖 → 残忍 → 善意 → 真相 → 原谅 → 来不及 → 释然 → 细节暴击
+      hangat -> kejam -> niat baik -> kebenaran -> memaafkan -> sudah terlambat -> berdamai dengan kenyataan -> pukulan detail
       ```
 
-      不是所有故事都走完整曲线。按题材选择子集：
+      Tidak semua cerita menjalani kurva penuh. Pilih bagiannya sesuai tema:
 
-      | 题材 | 典型节奏 | 核心拉扯 |
+      | Tema | Tempo khas | Tarik-ulur inti |
       |------|----------|----------|
-      | 世情/爽文 | 欺压 → 忍耐 → 爆发 → 打脸 | 情绪反弹快、打脸密度高 |
-      | 情感/虐心 | 甜蜜 → 破碎 → 挽回 → 错过 | 慢铺垫、后劲大 |
-      | 古言/复仇 | 隐忍 → 布局 → 揭穿 → 报应 | 设定简洁、暴力美学 |
-      | 悬疑/推理 | 平静 → 不安 → 真相 → 震惊 | 信息差制造不安 |
-      | 年代/亲情 | 误解 → 冲突 → 真相 → 和解 | 代际冲突、时代质感 |
+      | Kehidupan sosial/cerita memuaskan | Ditindas -> menahan diri -> meledak -> menampar | Emosi memantul cepat, kepadatan tamparan tinggi |
+      | Perasaan/penyayat hati | Manis -> hancur -> berusaha menyelamatkan -> terlewat | Landasan lambat, efek susulan besar |
+      | Sejarah fiktif/balas dendam | Menahan diri -> menyusun rencana -> membongkar -> pembalasan | Latar ringkas, estetika kekerasan |
+      | Misteri/penalaran | Tenang -> gelisah -> kebenaran -> terguncang | Kesenjangan informasi menciptakan kegelisahan |
+      | Era tertentu/kasih keluarga | Kesalahpahaman -> konflik -> kebenaran -> rekonsiliasi | Konflik antargenerasi, tekstur zaman |
 
-      ### 拉扯原则
+      ### Prinsip Tarik-Ulur
 
-      1. **每 3-5 个小节有一次情绪转向**（不能一路虐到底或一路爽到底）
-      2. **每次转向都要有触发事件**（不能无理由地改变情绪）
-      3. **最后一次转向决定结尾余韵的基调**
-      4. **爽文允许快速反弹，虐文需要更长铺垫**
+      1. **Setiap 3-5 subbagian ada satu peralihan emosi** (tidak boleh menderita terus dari awal sampai akhir, atau memuaskan terus dari awal sampai akhir)
+      2. **Setiap peralihan wajib punya peristiwa pemicu** (tidak boleh mengubah emosi tanpa alasan)
+      3. **Peralihan terakhir menentukan nada dasar gaung penutup**
+      4. **Cerita memuaskan boleh memantul cepat, cerita penyayat hati butuh landasan lebih panjang**
 
-      ## 按题材的情感策略差异
+      ## Perbedaan Strategi Perasaan Menurut Tema
 
-      ### 世情/爽文
-      - 情绪反弹速度：快（受辱后 2-3 节内打脸）
-      - 打脸密度：每 3-5 节一次
-      - 反派嚣张度：递增（第一次小嚣张，最后一次大嚣张）
-      - 结尾基调：痛快、解气
-      - 案例：《准儿媳打分》— 打分制反制、铁盒零分、断绝关系
+      ### Kehidupan sosial/cerita memuaskan
+      - Kecepatan pantulan emosi: cepat (menampar dalam 2-3 subbagian setelah dihina)
+      - Kepadatan tamparan: sekali setiap 3-5 subbagian
+      - Derajat kejumawaan tokoh antagonis: meningkat (kali pertama jumawa kecil, kali terakhir jumawa besar)
+      - Nada dasar penutup: melegakan, melepas dendam
+      - Studi kasus: "Penilaian Calon Menantu" - membalas dengan sistem penilaian, nol poin dalam kotak besi, memutus hubungan
 
-      ### 情感/虐心
-      - 羁绊细节密度：高（前 1/3 必须建立深厚羁绊）
-      - 反差设计：先暖后冷，先甜后苦
-      - 余韵技法：安静结尾 + 物件细节
-      - 结尾基调：意难平、释然
-      - 案例：《姐夫捎路要奶粉钱》— 金锁真相 → 假爱 → 独立
+      ### Perasaan/penyayat hati
+      - Kepadatan detail ikatan: tinggi (1/3 bagian awal wajib membangun ikatan yang mendalam)
+      - Perancangan kontras: hangat dulu lalu dingin, manis dulu lalu pahit
+      - Teknik gaung: penutup yang senyap + detail benda
+      - Nada dasar penutup: kepedihan yang tak tuntas, berdamai dengan kenyataan
+      - Studi kasus: "Kakak Ipar Menagih Uang Susu di Tengah Jalan" - kebenaran kalung kunci emas -> cinta palsu -> kemandirian
 
-      ### 古言/复仇
-      - 设定简洁原则：人物关系清晰，不搞复杂世界观
-      - 暴力美学写法：打脸要直接，不拖泥带水
-      - 底牌时机：最后 1/4 揭示最大底牌
-      - 结尾基调：大快人心、因果报应
-      - 案例：《皇弟欺负幼子》— 一声令下打二十棍 → 查出真相 → 废后
+      ### Sejarah fiktif/balas dendam
+      - Prinsip latar ringkas: hubungan antartokoh jelas, jangan membuat pandangan dunia yang rumit
+      - Cara menulis estetika kekerasan: tamparan harus langsung, tanpa berbelit-belit
+      - Waktu membuka kartu andalan: ungkap kartu andalan terbesar di 1/4 bagian terakhir
+      - Nada dasar penutup: melegakan hati semua orang, sebab-akibat berbalas
+      - Studi kasus: "Adik Kaisar Menindas Putra Kecil" - satu perintah dua puluh pukulan tongkat -> kebenaran terungkap -> ratu dilengserkan
 
-      ### 悬疑/推理
-      - 信息差布局：读者知道角色不知道，或反过来
-      - 排除法结构：逐步排除可能性，最后只剩真相
-      - 动机揭示节奏：先揭示做了什么，再揭示为什么做
-      - 结尾基调：细思极恐、原来如此
-      - 案例：《重生弟弟》— 重生设定 + 诈骗犯身份 + 电诈园区
+      ### Misteri/penalaran
+      - Penataan kesenjangan informasi: pembaca tahu sementara tokoh tidak tahu, atau sebaliknya
+      - Struktur eliminasi: singkirkan kemungkinan secara bertahap, sampai akhirnya hanya kebenaran yang tersisa
+      - Tempo pengungkapan motif: ungkap dulu apa yang dilakukan, baru mengapa dilakukan
+      - Nada dasar penutup: makin dipikir makin mengerikan, ternyata begitu
+      - Studi kasus: "Adik Lelaki yang Terlahir Kembali" - latar kelahiran kembali + jati diri penipu + kompleks penipuan daring
 
-      ### 年代/亲情
-      - 代际冲突处理：不站队，展示双方的苦
-      - 时代细节质感：用时代特有的物件/习俗建立质感
-      - 和解节奏：不急和解，先让双方充分受伤
-      - 结尾基调：温暖中带着遗憾
-      - 案例：《姐夫捎路要奶粉钱》— 亲子关系 → 金锁真相 → 断裂
+      ### Era tertentu/kasih keluarga
+      - Penanganan konflik antargenerasi: jangan memihak, tunjukkan kepedihan kedua belah pihak
+      - Tekstur detail zaman: bangun tekstur dengan benda/kebiasaan khas zaman itu
+      - Tempo rekonsiliasi: jangan buru-buru berekonsiliasi, biarkan dulu kedua pihak terluka sepenuhnya
+      - Nada dasar penutup: hangat namun menyisakan penyesalan
+      - Studi kasus: "Kakak Ipar Menagih Uang Susu di Tengah Jalan" - hubungan orang tua dan anak -> kebenaran kalung kunci emas -> keretakan
 
-      ## 常见失败模式
+      ## Pola Kegagalan yang Umum
 
-      | 失败模式 | 识别方法 | 修正方向 |
+      | Pola kegagalan | Cara mengenali | Arah perbaikan |
       |----------|----------|----------|
-      | **太平** | 连续 5+ 节没有情绪转折 | 插入意外事件或新信息 |
-      | **太赶** | 重大转折只用了 1 节铺垫 | 给转折至少 3 节铺垫 |
-      | **假虐** | 读者不心疼，只是看着难受 | 检查羁绊铺设是否具体 |
-      | **割裂** | 前半部分和后半部分像两篇不同的故事 | 用伏笔/物件/主题贯穿 |
-      | **烂尾** | 反转后拖了 2000 字还在交代 | 反转后 500 字内收尾 |
-      | **人设崩** | 角色在关键时刻的行为不符合前面的人设 | 回顾人设，确保行为逻辑一致 |
+      | **Terlalu datar** | 5+ subbagian berurutan tanpa titik balik emosi | Sisipkan peristiwa tak terduga atau informasi baru |
+      | **Terlalu buru-buru** | Titik balik besar hanya memakai 1 subbagian sebagai landasan | Beri titik balik minimal 3 subbagian landasan |
+      | **Penderitaan palsu** | Pembaca tidak merasa kasihan, hanya merasa tidak nyaman saat membaca | Periksa apakah pemasangan ikatan sudah konkret |
+      | **Terbelah** | Paruh awal dan paruh akhir terasa seperti dua cerita berbeda | Satukan dengan petunjuk awal/benda/tema |
+      | **Penutup buruk** | Setelah titik balik masih menjelaskan sampai 2000 kata | Tutup dalam 500 kata setelah titik balik |
+      | **Karakter runtuh** | Perilaku tokoh di momen kunci tidak sesuai karakter yang dibangun sebelumnya | Tinjau ulang karakternya, pastikan logika perilakunya konsisten |
 
-      ## 快速自查
+      ## Pemeriksaan Cepat
 
-      - [ ] 前 1/3 有具体羁绊细节（不是抽象描述）？
-      - [ ] 中段有反差/撕裂（读者以为 A → 实际是 B）？
-      - [ ] 结尾有安静细节（不是大段抒情）？
-      - [ ] 每 3-5 节有情绪转向？
-      - [ ] 反派行为符合其人设逻辑？
-      - [ ] 不存在上述 6 种失败模式？
+      - [ ] Apakah 1/3 bagian awal punya detail ikatan yang konkret (bukan gambaran abstrak)?
+      - [ ] Apakah bagian tengah punya kontras/perpecahan (pembaca menyangka A -> ternyata B)?
+      - [ ] Apakah penutup punya detail yang senyap (bukan curahan perasaan bertele-tele)?
+      - [ ] Apakah setiap 3-5 subbagian ada peralihan emosi?
+      - [ ] Apakah perilaku tokoh antagonis sesuai logika karakternya?
+      - [ ] Apakah keenam pola kegagalan di atas tidak ada?
 
-      ## 三板斧与五段结构映射
+      ## Pemetaan Tiga Kapak ke Struktur Lima Bagian
 
-      | 三板斧 | 对应五段 | 说明 |
+      | Tiga kapak | Bagian yang sesuai dari lima bagian | Penjelasan |
       |--------|----------|------|
-      | 第一斧：羁绊铺设（前 1/3） | 铺垫段（第二段，占 30-40%） | 用物件/数字/习惯建立关系质感 |
-      | 第二斧：情感撕裂（中后段） | 升级段（第三段）+ 反转段（第四段） | 反差/错位/延迟真相制造撕裂 |
-      | 第三斧：余韵钝痛（结尾） | 结尾段（第五段，占 5-10%） | 安静细节收尾，不写大段抒情 |
+      | Kapak pertama: pemasangan ikatan (1/3 bagian awal) | Bagian landasan (bagian kedua, 30-40%) | Bangun tekstur hubungan dengan benda/angka/kebiasaan |
+      | Kapak kedua: perpecahan perasaan (bagian tengah ke akhir) | Bagian peningkatan (bagian ketiga) + bagian titik balik (bagian keempat) | Kontras/ketidakcocokan/kebenaran tertunda untuk menciptakan perpecahan |
+      | Kapak ketiga: gaung nyeri tumpul (penutup) | Bagian penutup (bagian kelima, 5-10%) | Tutup dengan detail yang senyap, jangan menulis curahan perasaan bertele-tele |

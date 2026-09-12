@@ -16,11 +16,11 @@ pytestmark = pytest.mark.asyncio
 
 @pytest.mark.asyncio
 async def test_enqueue_session_title_job_keeps_raw_seed_message(session):
-    project = Project(id="proj_title_mentions", title="标题提及项目")
+    project = Project(id="proj_title_mentions", title="Proyek Sebutan Judul")
     volume = Volume(
         id="vol_title_mentions",
         project_id=project.id,
-        title="现卷标题",
+        title="Judul Volume Kini",
         order=1,
         chapter_count=1,
     )
@@ -28,7 +28,7 @@ async def test_enqueue_session_title_job_keeps_raw_seed_message(session):
         id="chap_title_mentions",
         project_id=project.id,
         volume_id=volume.id,
-        title="现章节标题",
+        title="Judul Bab Kini",
         order=1,
     )
     task = Task(
@@ -47,9 +47,9 @@ async def test_enqueue_session_title_job_keeps_raw_seed_message(session):
         session,
         task,
         (
-            '请基于<of-mention kind="chapter" chapter_id="chap_title_mentions" label="旧章节" />'
-            '和<of-mention kind="line_range" chapter_id="chap_title_mentions" start_line="4" '
-            'end_line="9" label="旧片段">保留快照</of-mention>命名'
+            'Silakan gunakan<of-mention kind="chapter" chapter_id="chap_title_mentions" label="Bab Lama" />'
+            'dan<of-mention kind="line_range" chapter_id="chap_title_mentions" start_line="4" '
+            'end_line="9" label="Kutipan Lama">Snapshot dipertahankan</of-mention> penamaan'
         ),
     )
     await session.commit()
@@ -61,14 +61,14 @@ async def test_enqueue_session_title_job_keeps_raw_seed_message(session):
     payload = json.loads(job.payload_json)
 
     assert payload["seed_message"] == (
-        '请基于<of-mention kind="chapter" chapter_id="chap_title_mentions" label="旧章节" />'
-        '和<of-mention kind="line_range" chapter_id="chap_title_mentions" start_line="4" '
-        'end_line="9" label="旧片段">保留快照</of-mention>命名'
+        'Silakan gunakan<of-mention kind="chapter" chapter_id="chap_title_mentions" label="Bab Lama" />'
+        'dan<of-mention kind="line_range" chapter_id="chap_title_mentions" start_line="4" '
+        'end_line="9" label="Kutipan Lama">Snapshot dipertahankan</of-mention> penamaan'
     )
 
 
 async def test_enqueue_session_title_job_reuses_active_job_for_same_task(session):
-    project = Project(id="proj_title_dedup", title="标题去重项目")
+    project = Project(id="proj_title_dedup", title="Proyek Dedup Judul")
     task = Task(
         id="task_title_dedup",
         project_id=project.id,
@@ -79,8 +79,8 @@ async def test_enqueue_session_title_job_reuses_active_job_for_same_task(session
     session.add(task)
     await session.commit()
 
-    await enqueue_session_title_job(session, task, "第一条消息")
-    await enqueue_session_title_job(session, task, "第二条消息")
+    await enqueue_session_title_job(session, task, "Pesan pertama")
+    await enqueue_session_title_job(session, task, "Pesan kedua")
     await session.commit()
 
     result = await session.execute(
@@ -89,4 +89,4 @@ async def test_enqueue_session_title_job_reuses_active_job_for_same_task(session
     jobs = list(result.scalars())
 
     assert len(jobs) == 1
-    assert json.loads(jobs[0].payload_json)["seed_message"] == "第一条消息"
+    assert json.loads(jobs[0].payload_json)["seed_message"] == "Pesan pertama"

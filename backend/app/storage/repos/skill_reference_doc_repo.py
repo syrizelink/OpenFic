@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""SkillReferenceDoc Repository - 参考文档数据访问层。"""
+"""SkillReferenceDoc Repository - lapisan akses data dokumen referensi."""
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

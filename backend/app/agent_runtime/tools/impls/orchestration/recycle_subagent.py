@@ -24,11 +24,14 @@ from app.agent_runtime.tools.registry import ToolRegistry
 class RecycleSubagentInput(BaseModel):
     dispatch_id: str = Field(
         min_length=1,
-        description="subagent 会话ID",
+        description="ID sesi subagent",
     )
     reason: str = Field(
         default="",
-        description="可选，关闭原因；会作为子代理回收时的错误/结束信息，对用户可见，应尽可能简要",
+        description=(
+            "Opsional, alasan penutupan; dipakai sebagai informasi error/penutup saat "
+            "sub-agen didaur ulang, terlihat oleh pengguna, dan harus sesingkat mungkin"
+        ),
     )
 
 
@@ -36,15 +39,24 @@ class RecycleSubagentInput(BaseModel):
 class RecycleSubagentTool(AgentTool):
     name: str = "recycle_subagent"
     description: str = dedent("""\
-        关闭一个Subagent会话
-        使用时，必须指定dispatch_id来选定所要关闭的会话
+        Menutup satu sesi Subagent
+        Saat digunakan, dispatch_id harus ditentukan untuk memilih sesi yang akan
+        ditutup
 
-        使用说明：
-        - Subagent会话一旦被关闭就无法恢复
-        - 仅在Subagent的任务已明确完成且后续不再需要它时才将其关闭，以免用户的后续指示需要时无法继续工作
-        - 当处理完一个需求且用户确认通过或是要求开始完成下一个需求时，应及时关闭不再需要的Subagents
-        - 对于只读而不做任何修改的Subagent，关闭会话通常是无影响的，可以在任务完成后关闭
-        - 如果Subagent的描述中提到应在何时主动关闭，则尽力遵循，否则请自行判断
+        Petunjuk penggunaan:
+        - Sesi Subagent yang sudah ditutup tidak dapat dipulihkan
+        - Tutup Subagent hanya bila tugasnya sudah jelas selesai dan tidak
+          diperlukan lagi setelahnya, agar pekerjaan tidak mustahil dilanjutkan
+          ketika instruksi berikutnya dari pengguna membutuhkannya
+        - Ketika satu kebutuhan sudah selesai ditangani dan pengguna menyatakan
+          setuju atau meminta mulai mengerjakan kebutuhan berikutnya, tutup segera
+          Subagent yang tidak lagi diperlukan
+        - Untuk Subagent yang hanya membaca tanpa melakukan perubahan apa pun,
+          menutup sesi umumnya tidak berdampak dan boleh dilakukan setelah tugas
+          selesai
+        - Jika deskripsi Subagent menyebutkan kapan sebaiknya ia ditutup secara
+          proaktif, upayakan untuk mengikutinya; selain itu gunakan penilaian Anda
+          sendiri
     """)
     access_level: str = "readonly"
     args_schema: type[BaseModel] = RecycleSubagentInput

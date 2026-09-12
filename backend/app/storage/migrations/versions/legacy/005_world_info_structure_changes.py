@@ -19,14 +19,14 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """添加世界书和条目的新字段。"""
-    # 为 world_info 表添加 description 列
+    """Menambahkan kolom baru untuk buku dunia dan entri."""
+    # Menambahkan kolom description pada tabel world_info
     op.add_column(
         "world_info",
         sa.Column("description", sa.Text(), nullable=False, server_default=""),
     )
 
-    # 为 world_info_entries 表添加新列
+    # Menambahkan kolom baru pada tabel world_info_entries
     op.add_column(
         "world_info_entries",
         sa.Column("memo", sa.Text(), nullable=False, server_default=""),
@@ -54,8 +54,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """移除世界书和条目的新字段。"""
-    # 移除 world_info_entries 表的新列
+    """Menghapus kolom baru pada buku dunia dan entri."""
+    # Menghapus kolom baru pada tabel world_info_entries
     op.drop_column("world_info_entries", "inject_position")
     op.drop_column("world_info_entries", "entry_type")
     op.drop_column("world_info_entries", "scan_depth")
@@ -63,5 +63,5 @@ def downgrade() -> None:
     op.drop_column("world_info_entries", "tags")
     op.drop_column("world_info_entries", "memo")
 
-    # 移除 world_info 表的 description 列
+    # Menghapus kolom description pada tabel world_info
     op.drop_column("world_info", "description")

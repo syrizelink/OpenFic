@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Chapter Service - 章节业务逻辑层。
+Chapter Service - lapisan logika bisnis bab.
 """
 
 import re
@@ -27,7 +27,7 @@ from app.storage.services import writing_activity_service
 
 @dataclass
 class VolumeChapterGroup:
-    """卷与其章节列表。"""
+    """Volume beserta daftar babnya."""
 
     volume: Volume
     chapters: list[Chapter]
@@ -35,7 +35,7 @@ class VolumeChapterGroup:
 
 @dataclass
 class VolumeTreeResult:
-    """卷-章树结果。"""
+    """Hasil pohon volume-bab."""
 
     volumes: list[VolumeChapterGroup]
     total_chapters: int
@@ -43,7 +43,7 @@ class VolumeTreeResult:
 
 @dataclass(frozen=True)
 class MentionCandidate:
-    """对话 mention 候选项。"""
+    """Kandidat mention percakapan."""
 
     kind: Literal["volume", "chapter"]
     id: str
@@ -54,24 +54,24 @@ class MentionCandidate:
 
 def _count_words(text: str) -> int:
     """
-    计算中英文混合文本的字数。
+    Menghitung jumlah kata teks campuran Tionghoa-Inggris.
 
-    中文按字符计数，英文按单词计数。
+    Teks Tionghoa dihitung per karakter, teks Inggris dihitung per kata.
 
     Args:
-        text: 待计算的文本。
+        text: Teks yang akan dihitung.
 
     Returns:
-        字数。
+        Jumlah kata.
     """
     if not text:
         return 0
 
-    # 匹配中文字符
+    # Mencocokkan karakter Tionghoa
     chinese_chars = re.findall(r"[\u4e00-\u9fff]", text)
     chinese_count = len(chinese_chars)
 
-    # 移除中文字符后，按空格分割计算英文单词
+    # Setelah karakter Tionghoa dibuang, pisah dengan spasi untuk menghitung kata Inggris
     text_without_chinese = re.sub(r"[\u4e00-\u9fff]", " ", text)
     english_words = [w for w in text_without_chinese.split() if w.strip()]
     english_count = len(english_words)
@@ -81,12 +81,12 @@ def _count_words(text: str) -> int:
 
 def _display_volume_title(volume: Volume) -> str:
     title = volume.title.strip()
-    return title or "未命名卷"
+    return title or "Volume Tanpa Nama"
 
 
 def _display_chapter_title(chapter: Chapter) -> str:
     title = chapter.title.strip()
-    return title or "未命名章节"
+    return title or "Bab Tanpa Nama"
 
 
 def _match_rank(text: str, normalized_query: str) -> int:
@@ -104,21 +104,21 @@ def _match_rank(text: str, normalized_query: str) -> int:
 
 async def _update_project_stats(session: AsyncSession, project_id: str) -> None:
     """
-    更新项目的统计信息（字数和章节数）。
+    Memperbarui informasi statistik proyek (jumlah kata dan jumlah bab).
 
     Args:
-        session: 数据库 session。
-        project_id: 项目 ID。
+        session: session basis data.
+        project_id: ID proyek.
     """
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
         return
 
-    # 更新章节数
+    # Memperbarui jumlah bab
     chapter_count = await chapter_repo.count_by_project(session, project_id)
     project.chapter_count = chapter_count
 
-    # 更新总字数
+    # Memperbarui total jumlah kata
     total_word_count = await chapter_repo.get_total_word_count(session, project_id)
     project.word_count = total_word_count
 
@@ -127,7 +127,7 @@ async def _update_project_stats(session: AsyncSession, project_id: str) -> None:
 
 
 async def _update_volume_stats(session: AsyncSession, volume_id: str) -> None:
-    """更新卷的章节数缓存。"""
+    """Memperbarui cache jumlah bab pada volume."""
     volume = await volume_repo.get_by_id(session, volume_id)
     if volume is None:
         return
@@ -145,39 +145,39 @@ async def create_chapter(
     word_count: int | None = None,
 ) -> Chapter:
     """
-    创建章节。
+    Membuat bab.
 
     Args:
-        session: 数据库 session。
-        project_id: 项目 ID。
-        volume_id: 卷 ID。
-        title: 章节标题。
-        content: 章节内容，默认为空。
-        word_count: 字数（前端计算），如果为 None 则后端计算。
+        session: session basis data.
+        project_id: ID proyek.
+        volume_id: ID volume.
+        title: Judul bab.
+        content: Isi bab, default kosong.
+        word_count: Jumlah kata (dihitung frontend), dihitung backend bila None.
 
     Returns:
-        创建的章节实例。
+        Instance bab yang dibuat.
 
     Raises:
-        NotFoundError: 项目不存在。
+        NotFoundError: Proyek tidak ditemukan.
     """
     validate_editor_content(content)
 
-    # 检查项目是否存在
+    # Memeriksa apakah proyek ada
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
     volume = await volume_repo.get_by_id(session, volume_id)
     if volume is None or volume.project_id != project_id:
-        raise NotFoundError(f"卷不存在: {volume_id}")
+        raise NotFoundError(f"Volume tidak ditemukan: {volume_id}")
 
-    # 获取最大排序序号
+    # Mengambil nomor urut terbesar
     max_order = await chapter_repo.get_max_order(session, volume_id)
 
-    # 使用前端传递的字数，或后端计算
+    # Memakai jumlah kata dari frontend, atau menghitung di backend
     final_word_count = word_count if word_count is not None else _count_words(content)
 
-    # 创建章节
+    # Membuat bab
     chapter = Chapter(
         project_id=project_id,
         volume_id=volume_id,
@@ -199,7 +199,7 @@ async def create_chapter(
         new_word_count=chapter.word_count,
     )
 
-    # 更新项目统计
+    # Memperbarui statistik proyek
     await _update_volume_stats(session, volume_id)
     await _update_project_stats(session, project_id)
 
@@ -220,21 +220,21 @@ async def create_chapter(
 
 async def get_chapter(session: AsyncSession, chapter_id: str) -> Chapter:
     """
-    获取章节。
+    Mengambil bab.
 
     Args:
-        session: 数据库 session。
-        chapter_id: 章节 ID。
+        session: session basis data.
+        chapter_id: ID bab.
 
     Returns:
-        章节实例。
+        Instance bab.
 
     Raises:
-        NotFoundError: 章节不存在。
+        NotFoundError: Bab tidak ditemukan.
     """
     chapter = await chapter_repo.get_by_id(session, chapter_id)
     if chapter is None:
-        raise NotFoundError(f"章节不存在: {chapter_id}")
+        raise NotFoundError(f"Bab tidak ditemukan: {chapter_id}")
     return chapter
 
 
@@ -243,22 +243,22 @@ async def list_chapters(
     project_id: str,
 ) -> VolumeTreeResult:
     """
-    获取项目卷-章树（章节不含正文内容）。
+    Mengambil pohon volume-bab proyek (bab tanpa isi teks).
 
     Args:
-        session: 数据库 session。
-        project_id: 项目 ID。
+        session: session basis data.
+        project_id: ID proyek.
 
     Returns:
-        章节列表结果。
+        Hasil daftar bab.
 
     Raises:
-        NotFoundError: 项目不存在。
+        NotFoundError: Proyek tidak ditemukan.
     """
-    # 检查项目是否存在
+    # Memeriksa apakah proyek ada
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     volumes = await volume_repo.list_by_project(session, project_id)
     chapters = await chapter_repo.list_metadata_by_project(session, project_id)
@@ -282,10 +282,10 @@ async def search_mention_candidates(
     *,
     limit: int = 20,
 ) -> list[MentionCandidate]:
-    """搜索可插入对话的卷/章节 mention 候选项。"""
+    """Mencari kandidat mention volume/bab yang dapat disisipkan ke percakapan."""
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     normalized_query = query.strip().lower()
     if not normalized_query:
@@ -354,7 +354,7 @@ async def search_mention_candidates(
 
 @dataclass
 class ChapterSearchMatch:
-    """章节内容搜索匹配行。"""
+    """Baris yang cocok pada pencarian isi bab."""
 
     line_number: int
     line_text: str
@@ -362,7 +362,7 @@ class ChapterSearchMatch:
 
 @dataclass
 class ChapterSearchResult:
-    """章节内容搜索结果。"""
+    """Hasil pencarian isi bab."""
 
     chapter_id: str
     chapter_title: str
@@ -372,7 +372,7 @@ class ChapterSearchResult:
 
 @dataclass
 class ChapterSearchResponse:
-    """章节内容搜索响应。"""
+    """Respons pencarian isi bab."""
 
     results: list[ChapterSearchResult]
     total_chapters: int
@@ -384,10 +384,10 @@ async def search_chapters(
     project_id: str,
     query: str,
 ) -> ChapterSearchResponse:
-    """按内容搜索章节。"""
+    """Mencari bab berdasarkan isi."""
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     if not query.strip():
         return ChapterSearchResponse(results=[], total_chapters=0, total_matches=0)
@@ -436,20 +436,20 @@ async def update_chapter(
     word_count: int | None = None,
 ) -> Chapter:
     """
-    更新章节。
+    Memperbarui bab.
 
     Args:
-        session: 数据库 session。
-        chapter_id: 章节 ID。
-        title: 新标题，可选。
-        content: 新内容，可选。
-        word_count: 字数（前端计算），如果为 None 则后端计算。
+        session: session basis data.
+        chapter_id: ID bab.
+        title: Judul baru, opsional.
+        content: Isi baru, opsional.
+        word_count: Jumlah kata (dihitung frontend), dihitung backend bila None.
 
     Returns:
-        更新后的章节实例。
+        Instance bab setelah diperbarui.
 
     Raises:
-        NotFoundError: 章节不存在。
+        NotFoundError: Bab tidak ditemukan.
     """
     chapter = await get_chapter(session, chapter_id)
     old_word_count = chapter.word_count
@@ -464,13 +464,13 @@ async def update_chapter(
     if content is not None and content != chapter.content:
         validate_editor_content(content)
         chapter.content = content
-        # 优先使用前端传递的字数，否则后端计算
+        # Utamakan jumlah kata dari frontend, jika tidak ada hitung di backend
         chapter.word_count = (
             word_count if word_count is not None else _count_words(content)
         )
         content_changed = True
     elif word_count is not None and word_count != chapter.word_count:
-        # 如果只传了 word_count 没传 content，也只在字数实际变化时更新
+        # Bila hanya word_count yang dikirim tanpa content, perbarui hanya saat jumlah kata benar berubah
         chapter.word_count = word_count
         content_changed = True
 
@@ -478,7 +478,7 @@ async def update_chapter(
         chapter.updated_at = datetime.now(UTC)
     chapter = await chapter_repo.update_chapter(session, chapter)
 
-    # 如果有任何变化，更新项目统计（包括 updated_at）
+    # Bila ada perubahan apa pun, perbarui statistik proyek (termasuk updated_at)
     if title_changed or content_changed:
         if content_changed:
             await writing_activity_service.record_activity(
@@ -519,14 +519,14 @@ async def delete_chapter(
     agent_session_id: str | None = None,
 ) -> None:
     """
-    删除章节。
+    Menghapus bab.
 
     Args:
-        session: 数据库 session。
-        chapter_id: 章节 ID。
+        session: session basis data.
+        chapter_id: ID bab.
 
     Raises:
-        NotFoundError: 章节不存在。
+        NotFoundError: Bab tidak ditemukan.
     """
     chapter = await get_chapter(session, chapter_id)
     project_id = chapter.project_id
@@ -539,11 +539,9 @@ async def delete_chapter(
     old_word_count = chapter.word_count
 
     from app.retrieval.chapter_index import ChapterIndexIntegrationService
-
-    await ChapterIndexIntegrationService().delete_chapter_index(session, chapter)
-
     from app.retrieval.index_status import schedule_emit_index_status
 
+    await ChapterIndexIntegrationService().delete_chapter_index(session, chapter)
     schedule_emit_index_status(session, project_id)
 
     await chapter_summary_repo.delete_by_chapter_id(session, chapter_id)
@@ -566,7 +564,7 @@ async def delete_chapter(
             session, project_id, affected_ranges
         )
 
-    # 删除章节
+    # Menghapus bab
     await chapter_repo.delete(session, chapter)
 
     if record_activity:
@@ -584,21 +582,24 @@ async def delete_chapter(
             agent_session_id=agent_session_id,
         )
 
-    # 调整后续章节的顺序
+    # Menyesuaikan urutan bab berikutnya
     max_order = await chapter_repo.get_max_order(session, volume_id)
     if deleted_volume_order <= max_order:
-        # 将所有 order > deleted_volume_order 的章节 order 减 1
+        # Kurangi 1 pada order semua bab yang order > deleted_volume_order
         await chapter_repo.shift_orders(
             session, volume_id, deleted_volume_order + 1, max_order, -1
         )
 
-    # 更新项目统计
+    # Memperbarui statistik proyek
     await _update_volume_stats(session, volume_id)
     await _update_project_stats(session, project_id)
 
 
 async def delete_chapters_in_volume(session: AsyncSession, volume_id: str) -> None:
-    """批量删除卷内章节，避免逐章重复扫描项目和重算统计。"""
+    """Menghapus bab dalam volume secara massal.
+
+    Menghindari pemindaian proyek berulang dan hitung ulang statistik per bab.
+    """
     chapters = await chapter_repo.list_by_volume(session, volume_id)
     if not chapters:
         return
@@ -663,30 +664,30 @@ async def reorder_chapters(
     chapter_ids: list[str],
 ) -> list[Chapter]:
     """
-    批量重排章节顺序。
+    Menata ulang urutan bab secara massal.
 
     Args:
-        session: 数据库 session。
-        volume_id: 卷 ID。
-        chapter_ids: 按新顺序排列的章节 ID 列表。
+        session: session basis data.
+        volume_id: ID volume.
+        chapter_ids: Daftar ID bab dalam urutan baru.
 
     Returns:
-        更新后的章节列表。
+        Daftar bab setelah diperbarui.
 
     Raises:
-        NotFoundError: 章节不存在或不属于指定卷。
-        ValueError: 章节数量不匹配。
+        NotFoundError: Bab tidak ditemukan atau bukan milik volume yang ditentukan.
+        ValueError: Jumlah bab tidak cocok.
     """
     chapters = await chapter_repo.get_metadata_by_ids(session, chapter_ids)
     chapter_map = {c.id: c for c in chapters}
 
     if len(chapters) != len(chapter_ids):
         missing = [cid for cid in chapter_ids if cid not in chapter_map]
-        raise NotFoundError(f"章节不存在: {missing}")
+        raise NotFoundError(f"Bab tidak ditemukan: {missing}")
 
     for chapter in chapters:
         if chapter.volume_id != volume_id:
-            raise ValueError(f"章节 {chapter.id} 不属于卷 {volume_id}")
+            raise ValueError(f"Bab {chapter.id} bukan milik volume {volume_id}")
 
     orders = {
         chapter_id: new_order
@@ -718,7 +719,7 @@ async def move_chapter_to_volume(
     task_id: str | None = None,
     agent_session_id: str | None = None,
 ) -> Chapter:
-    """跨卷移动章节，追加到目标卷末尾。"""
+    """Memindahkan bab antarvolume, menambahkannya di akhir volume tujuan."""
     chapter = await get_chapter(session, chapter_id)
     source_volume_id = chapter.volume_id
     if source_volume_id == volume_id:
@@ -726,7 +727,7 @@ async def move_chapter_to_volume(
 
     target_volume = await volume_repo.get_by_id(session, volume_id)
     if target_volume is None or target_volume.project_id != chapter.project_id:
-        raise NotFoundError(f"卷不存在: {volume_id}")
+        raise NotFoundError(f"Volume tidak ditemukan: {volume_id}")
 
     old_order = chapter.order
     chapter.order = 0

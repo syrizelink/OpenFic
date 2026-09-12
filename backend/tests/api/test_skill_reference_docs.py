@@ -4,13 +4,13 @@ import pytest
 from httpx import AsyncClient
 
 
-async def _create_skill(client: AsyncClient, name: str = "测试技能") -> str:
+async def _create_skill(client: AsyncClient, name: str = "Skill Uji") -> str:
     response = await client.post(
         "/api/v1/skills",
         json={
             "name": name,
-            "summary": "简述",
-            "content": "技能内容",
+            "summary": "Ringkasan singkat",
+            "content": "Isi skill",
         },
     )
     assert response.status_code == 201
@@ -23,24 +23,24 @@ async def test_create_and_list_reference_docs(client: AsyncClient) -> None:
 
     create_response = await client.post(
         f"/api/v1/skills/{skill_db_id}/reference-docs",
-        json={"title": "参考文档一", "content": "内容一"},
+        json={"title": "Dokumen Referensi Satu", "content": "Isi satu"},
     )
     assert create_response.status_code == 201
     doc = create_response.json()
-    assert doc["title"] == "参考文档一"
-    assert doc["content"] == "内容一"
+    assert doc["title"] == "Dokumen Referensi Satu"
+    assert doc["content"] == "Isi satu"
     assert doc["tokens"] > 0
 
     await client.post(
         f"/api/v1/skills/{skill_db_id}/reference-docs",
-        json={"title": "参考文档二", "content": ""},
+        json={"title": "Dokumen Referensi Dua", "content": ""},
     )
 
     list_response = await client.get(f"/api/v1/skills/{skill_db_id}/reference-docs")
     assert list_response.status_code == 200
     items = list_response.json()
     assert len(items) == 2
-    assert items[0]["title"] == "参考文档一"
+    assert items[0]["title"] == "Dokumen Referensi Satu"
 
 
 @pytest.mark.asyncio
@@ -66,7 +66,7 @@ async def test_builtin_skill_reference_docs_are_loaded_from_yaml(client: AsyncCl
 
     create_response = await client.post(
         f"/api/v1/skills/{skill_id}/reference-docs",
-        json={"title": "不可新增", "content": ""},
+        json={"title": "Tidak Boleh Ditambah", "content": ""},
     )
     assert create_response.status_code == 400
 
@@ -76,18 +76,18 @@ async def test_update_reference_doc(client: AsyncClient) -> None:
     skill_db_id = await _create_skill(client)
     create_response = await client.post(
         f"/api/v1/skills/{skill_db_id}/reference-docs",
-        json={"title": "原标题", "content": "原内容"},
+        json={"title": "Judul Asli", "content": "Isi asli"},
     )
     doc_id = create_response.json()["id"]
 
     update_response = await client.patch(
         f"/api/v1/skills/{skill_db_id}/reference-docs/{doc_id}",
-        json={"title": "新标题", "content": "新内容"},
+        json={"title": "Judul Baru", "content": "Isi baru"},
     )
     assert update_response.status_code == 200
     data = update_response.json()
-    assert data["title"] == "新标题"
-    assert data["content"] == "新内容"
+    assert data["title"] == "Judul Baru"
+    assert data["content"] == "Isi baru"
     assert data["tokens"] > 0
 
 
@@ -96,7 +96,7 @@ async def test_delete_reference_doc(client: AsyncClient) -> None:
     skill_db_id = await _create_skill(client)
     create_response = await client.post(
         f"/api/v1/skills/{skill_db_id}/reference-docs",
-        json={"title": "待删除", "content": ""},
+        json={"title": "Akan Dihapus", "content": ""},
     )
     doc_id = create_response.json()["id"]
 
@@ -111,18 +111,18 @@ async def test_delete_reference_doc(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_reference_doc_not_found_for_other_skill(client: AsyncClient) -> None:
-    skill_a = await _create_skill(client, "技能A")
-    skill_b = await _create_skill(client, "技能B")
+    skill_a = await _create_skill(client, "Skill A")
+    skill_b = await _create_skill(client, "Skill B")
 
     create_response = await client.post(
         f"/api/v1/skills/{skill_a}/reference-docs",
-        json={"title": "属于A", "content": ""},
+        json={"title": "Milik A", "content": ""},
     )
     doc_id = create_response.json()["id"]
 
     update_response = await client.patch(
         f"/api/v1/skills/{skill_b}/reference-docs/{doc_id}",
-        json={"title": "篡改"},
+        json={"title": "Dimanipulasi"},
     )
     assert update_response.status_code == 404
 
@@ -136,7 +136,7 @@ async def test_reference_doc_not_found_for_other_skill(client: AsyncClient) -> N
 async def test_reference_doc_skill_not_found(client: AsyncClient) -> None:
     create_response = await client.post(
         "/api/v1/skills/nonexistent-skill/reference-docs",
-        json={"title": "标题", "content": ""},
+        json={"title": "Judul", "content": ""},
     )
     assert create_response.status_code == 404
 
@@ -149,7 +149,7 @@ async def test_delete_skill_cascades_reference_docs(client: AsyncClient) -> None
     skill_db_id = await _create_skill(client)
     await client.post(
         f"/api/v1/skills/{skill_db_id}/reference-docs",
-        json={"title": "参考文档", "content": "内容"},
+        json={"title": "Dokumen Referensi", "content": "Isi"},
     )
 
     delete_skill_response = await client.delete(f"/api/v1/skills/{skill_db_id}")
@@ -165,24 +165,24 @@ async def test_create_reference_doc_dedupes_duplicate_title(client: AsyncClient)
 
     first = await client.post(
         f"/api/v1/skills/{skill_db_id}/reference-docs",
-        json={"title": "新建参考文档", "content": ""},
+        json={"title": "Dokumen Referensi Baru", "content": ""},
     )
     assert first.status_code == 201
-    assert first.json()["title"] == "新建参考文档"
+    assert first.json()["title"] == "Dokumen Referensi Baru"
 
     second = await client.post(
         f"/api/v1/skills/{skill_db_id}/reference-docs",
-        json={"title": "新建参考文档", "content": ""},
+        json={"title": "Dokumen Referensi Baru", "content": ""},
     )
     assert second.status_code == 201
-    assert second.json()["title"] == "新建参考文档 (2)"
+    assert second.json()["title"] == "Dokumen Referensi Baru (2)"
 
     third = await client.post(
         f"/api/v1/skills/{skill_db_id}/reference-docs",
-        json={"title": "新建参考文档", "content": ""},
+        json={"title": "Dokumen Referensi Baru", "content": ""},
     )
     assert third.status_code == 201
-    assert third.json()["title"] == "新建参考文档 (3)"
+    assert third.json()["title"] == "Dokumen Referensi Baru (3)"
 
 
 @pytest.mark.asyncio
@@ -190,15 +190,15 @@ async def test_create_reference_doc_keeps_unique_title(client: AsyncClient) -> N
     skill_db_id = await _create_skill(client)
     await client.post(
         f"/api/v1/skills/{skill_db_id}/reference-docs",
-        json={"title": "文档A", "content": ""},
+        json={"title": "Dokumen A", "content": ""},
     )
 
     response = await client.post(
         f"/api/v1/skills/{skill_db_id}/reference-docs",
-        json={"title": "文档B", "content": ""},
+        json={"title": "Dokumen B", "content": ""},
     )
     assert response.status_code == 201
-    assert response.json()["title"] == "文档B"
+    assert response.json()["title"] == "Dokumen B"
 
 
 @pytest.mark.asyncio
@@ -206,17 +206,17 @@ async def test_update_reference_doc_title_conflict(client: AsyncClient) -> None:
     skill_db_id = await _create_skill(client)
     await client.post(
         f"/api/v1/skills/{skill_db_id}/reference-docs",
-        json={"title": "文档一", "content": ""},
+        json={"title": "Dokumen Satu", "content": ""},
     )
     create_b = await client.post(
         f"/api/v1/skills/{skill_db_id}/reference-docs",
-        json={"title": "文档二", "content": ""},
+        json={"title": "Dokumen Dua", "content": ""},
     )
     doc_b_id = create_b.json()["id"]
 
     conflict_response = await client.patch(
         f"/api/v1/skills/{skill_db_id}/reference-docs/{doc_b_id}",
-        json={"title": "文档一"},
+        json={"title": "Dokumen Satu"},
     )
     assert conflict_response.status_code == 409
 
@@ -226,12 +226,12 @@ async def test_update_reference_doc_keeps_same_title(client: AsyncClient) -> Non
     skill_db_id = await _create_skill(client)
     create_response = await client.post(
         f"/api/v1/skills/{skill_db_id}/reference-docs",
-        json={"title": "文档", "content": ""},
+        json={"title": "Dokumen", "content": ""},
     )
     doc_id = create_response.json()["id"]
 
     update_response = await client.patch(
         f"/api/v1/skills/{skill_db_id}/reference-docs/{doc_id}",
-        json={"title": "文档", "content": "新内容"},
+        json={"title": "Dokumen", "content": "Isi baru"},
     )
     assert update_response.status_code == 200

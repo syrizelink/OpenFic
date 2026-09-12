@@ -27,7 +27,7 @@ async def search_commands(
     limit: int = 20,
 ) -> list[CommandCandidate]:
     if await project_repo.get_by_id(session, project_id) is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
     if kind != "skill":
         return []
 

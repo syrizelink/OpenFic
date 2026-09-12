@@ -1,4 +1,5 @@
-"""异步下载静态网页并使用 Trafilatura 提取正文。"""
+"""Mengunduh halaman web statis secara asinkron dan mengekstrak isi utama
+menggunakan Trafilatura."""
 
 from __future__ import annotations
 
@@ -58,18 +59,21 @@ def normalize_url(value: str) -> str:
         parts = urlsplit(normalized)
         port = parts.port
     except ValueError as exc:
-        raise ToolExecutionError("URL 格式无效", code="validation_error") from exc
+        raise ToolExecutionError("Format URL tidak valid", code="validation_error") from exc
 
     if parts.scheme.lower() not in {"http", "https"} or not parts.hostname:
         raise ToolExecutionError(
-            "只支持 http 和 https URL",
+            "Hanya URL http dan https yang didukung",
             code="validation_error",
         )
     if parts.username is not None or parts.password is not None:
-        raise ToolExecutionError("URL 不允许包含用户名或密码", code="validation_error")
+        raise ToolExecutionError(
+            "URL tidak boleh memuat nama pengguna atau kata sandi",
+            code="validation_error",
+        )
     if port not in (None, 80, 443):
         raise ToolExecutionError(
-            "只支持默认 HTTP/HTTPS 端口",
+            "Hanya port HTTP/HTTPS bawaan yang didukung",
             code="validation_error",
         )
 
@@ -102,7 +106,9 @@ async def resolve_public_addresses(
             socket.SOCK_STREAM,
         )
     except socket.gaierror as exc:
-        raise ToolExecutionError("网页域名解析失败", code="dependency_unavailable") from exc
+        raise ToolExecutionError(
+            "Resolusi nama domain halaman web gagal", code="dependency_unavailable"
+        ) from exc
 
     addresses: list[ipaddress.IPv4Address | ipaddress.IPv6Address] = []
     for address_info in address_infos:
@@ -111,21 +117,24 @@ async def resolve_public_addresses(
             address = ipaddress.ip_address(raw_address)
         except ValueError as exc:
             raise ToolExecutionError(
-                "网页域名解析结果无效",
+                "Hasil resolusi nama domain halaman web tidak valid",
                 code="dependency_unavailable",
             ) from exc
         if address not in addresses:
             addresses.append(address)
 
     if not addresses:
-        raise ToolExecutionError("网页域名没有可用地址", code="dependency_unavailable")
+        raise ToolExecutionError(
+            "Nama domain halaman web tidak memiliki alamat yang dapat dipakai",
+            code="dependency_unavailable",
+        )
     return tuple(addresses)
 
 
 async def _assert_public_url(url: str) -> None:
     hostname = urlsplit(url).hostname
     if not hostname:
-        raise ToolExecutionError("URL 缺少主机名", code="validation_error")
+        raise ToolExecutionError("URL tidak memiliki nama host", code="validation_error")
 
     try:
         literal_address = ipaddress.ip_address(hostname)
@@ -139,7 +148,7 @@ async def _assert_public_url(url: str) -> None:
     )
     if not all(_is_public_address(address) for address in addresses):
         raise ToolExecutionError(
-            "目标地址被安全策略阻止",
+            "Alamat sasaran diblokir oleh kebijakan keamanan",
             code="permission_denied",
         )
 
@@ -285,9 +294,14 @@ async def fetch_html(
             try:
                 response = await client.get(current_url, headers=request_headers)
             except httpx.TimeoutException as exc:
-                raise ToolExecutionError("网页请求超时", code="dependency_unavailable") from exc
+                raise ToolExecutionError(
+                    "Permintaan halaman web melewati batas waktu",
+                    code="dependency_unavailable",
+                ) from exc
             except httpx.RequestError as exc:
-                raise ToolExecutionError("网页请求失败", code="dependency_unavailable") from exc
+                raise ToolExecutionError(
+                    "Permintaan halaman web gagal", code="dependency_unavailable"
+                ) from exc
 
             try:
                 if response.status_code == 403 and not has_used_fallback_user_agent:
@@ -298,26 +312,31 @@ async def fetch_html(
                 if response.is_redirect or response.status_code in {300, 305, 307, 308}:
                     if redirect_count >= MAX_REDIRECTS:
                         raise ToolExecutionError(
-                            "网页重定向次数超过限制",
+                            "Jumlah pengalihan halaman web melebihi batas",
                             code="limit_exceeded",
                         )
                     location = response.headers.get("location")
                     if not location:
-                        raise ToolExecutionError("网页重定向缺少目标地址")
+                        raise ToolExecutionError(
+                            "Pengalihan halaman web tidak memiliki alamat sasaran"
+                        )
                     current_url = normalize_url(urljoin(current_url, location))
                     continue
 
                 if response.status_code >= 400:
                     raise ToolExecutionError(
-                        f"网页返回 HTTP {response.status_code}",
+                        f"Halaman web mengembalikan HTTP {response.status_code}",
                     )
                 if response.status_code < 200:
-                    raise ToolExecutionError(f"网页返回 HTTP {response.status_code}")
+                    raise ToolExecutionError(
+                        f"Halaman web mengembalikan HTTP {response.status_code}"
+                    )
 
                 content_type = _content_type(response)
                 if content_type not in ALLOWED_CONTENT_TYPES:
                     raise ToolExecutionError(
-                        f"不支持的网页内容类型: {content_type or 'unknown'}",
+                        f"Tipe isi halaman web tidak didukung: "
+                        f"{content_type or 'unknown'}",
                         code="validation_error",
                     )
 
@@ -326,7 +345,7 @@ async def fetch_html(
                     try:
                         if int(content_length) > MAX_RAW_HTML_BYTES:
                             raise ToolExecutionError(
-                                "网页响应超过大小限制",
+                                "Respons halaman web melebihi batas ukuran",
                                 code="limit_exceeded",
                             )
                     except ValueError:
@@ -337,12 +356,14 @@ async def fetch_html(
                     body.extend(chunk)
                     if len(body) > MAX_RAW_HTML_BYTES:
                         raise ToolExecutionError(
-                            "网页响应超过大小限制",
+                            "Respons halaman web melebihi batas ukuran",
                             code="limit_exceeded",
                         )
                 html = await asyncio.to_thread(_decode_html, bytes(body), response.encoding)
                 if not html.strip():
-                    raise ToolExecutionError("网页没有可读取的 HTML 内容")
+                    raise ToolExecutionError(
+                        "Halaman web tidak memiliki isi HTML yang dapat dibaca"
+                    )
                 return FetchedPage(
                     final_url=current_url,
                     status_code=response.status_code,
@@ -353,7 +374,7 @@ async def fetch_html(
             finally:
                 await response.aclose()
 
-    raise ToolExecutionError("网页重定向处理失败")
+    raise ToolExecutionError("Penanganan pengalihan halaman web gagal")
 
 
 def extract_html(html: str, url: str) -> ExtractedPage:
@@ -390,10 +411,10 @@ def extract_html(html: str, url: str) -> ExtractedPage:
             used_recall = True
 
     if document is None:
-        raise ToolExecutionError("网页没有可提取的正文")
+        raise ToolExecutionError("Halaman web tidak memiliki isi utama yang dapat diekstrak")
     markdown = (document.text or "").strip()
     if not markdown:
-        raise ToolExecutionError("网页没有可提取的正文")
+        raise ToolExecutionError("Halaman web tidak memiliki isi utama yang dapat diekstrak")
     if used_recall:
         markdown = _normalize_markdown_spacing(markdown)
 

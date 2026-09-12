@@ -100,7 +100,7 @@ def _error_message(error: object) -> str:
     message = str(error).strip() if error is not None else ""
     if message and message != "None":
         return message
-    return f"{type(error).__name__} 未提供具体错误消息"
+    return f"{type(error).__name__} tidak menyediakan pesan error yang spesifik"
 
 
 def tool_failure_from_exception(
@@ -168,7 +168,10 @@ def _failure_from_payload(
     if not isinstance(message, str) or not message.strip():
         message = payload.get("error")
     if not isinstance(message, str) or not message.strip():
-        message = f"工具错误（{_error_code(payload.get('code'))}）：未提供具体错误消息"
+        message = (
+            f"Kesalahan alat ({_error_code(payload.get('code'))}): "
+            "tidak menyediakan pesan error yang spesifik"
+        )
 
     extra = {key: item for key, item in payload.items() if key not in _FAILURE_FIELDS}
     failure = ToolFailure(
@@ -221,14 +224,14 @@ def log_tool_failure(
         **failure.trace,
     )
     if exception is not None:
-        logger_context.opt(exception=exception).error("Agent 工具执行失败")
+        logger_context.opt(exception=exception).error("Eksekusi alat Agent gagal")
         return
     diagnostic = failure.trace.get("result")
     if diagnostic is not None:
         logger_context.warning(
-            "Agent 工具执行失败: {} trace={}",
+            "Eksekusi alat Agent gagal: {} trace={}",
             failure.message,
             diagnostic,
         )
         return
-    logger_context.warning("Agent 工具执行失败: {}", failure.message)
+    logger_context.warning("Eksekusi alat Agent gagal: {}", failure.message)

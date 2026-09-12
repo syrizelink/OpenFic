@@ -15,14 +15,14 @@ router = APIRouter(tags=["commands"])
 @router.get(
     "/projects/{project_id}/commands",
     response_model=CommandSearchResponse,
-    summary="检索 Agent Command 候选项",
+    summary="Mencari kandidat Agent Command",
 )
 async def search_commands(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
-    query: Annotated[str, Query(description="Command 检索词")] = "",
-    limit: Annotated[int, Query(ge=1, le=50, description="返回的最大候选数")] = 20,
-    kind: Annotated[Literal["skill"], Query(description="Command 类型")] = "skill",
+    query: Annotated[str, Query(description="Kata pencarian Command")] = "",
+    limit: Annotated[int, Query(ge=1, le=50, description="Jumlah maksimum kandidat yang dikembalikan")] = 20,
+    kind: Annotated[Literal["skill"], Query(description="Tipe Command")] = "skill",
 ) -> CommandSearchResponse:
     try:
         items = await command_service.search_commands(

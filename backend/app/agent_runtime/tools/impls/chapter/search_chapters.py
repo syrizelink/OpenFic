@@ -26,6 +26,7 @@ from app.retrieval.chapter_index import (
     INDEX_STATUS_NO_INDEX,
     INDEX_STATUS_STALE,
     SETTING_KEY_DEFAULT_EMBEDDING_MODEL,
+    build_keyword_only_model,
     chapter_index_key,
     compute_chapter_source_hash,
     get_index_settings,
@@ -42,19 +43,22 @@ from app.storage.repos import (
     volume_repo,
 )
 
-# 最终返回的分块上限。
+# Batas maksimum potongan (chunk) yang akhirnya dikembalikan.
 SEARCH_CHAPTERS_CHUNK_LIMIT = 5
-# 候选池放大：rerank 前从向量/FTS 各取的 top_k。
+# Perbesaran kolam kandidat: top_k yang diambil dari vektor/FTS sebelum rerank.
 SEARCH_CHAPTERS_CANDIDATE_TOP_K = 40
-# 置信度阈值：低于该值的分块视为不相关并丢弃。
+# Ambang keyakinan: potongan di bawah nilai ini dianggap tidak relevan dan dibuang.
 SEARCH_CHAPTERS_CONFIDENCE_THRESHOLD = 0.3
 
 
 class SearchChaptersInput(BaseModel):
-    query: str = Field(description="检索语句")
+    query: str = Field(description="Kalimat pencarian")
     force: bool = Field(
         default=False,
-        description="是否忽略索引非最新状态，强制基于现有索引检索",
+        description=(
+            "Apakah mengabaikan status indeks yang tidak mutakhir dan memaksa "
+            "pencarian berdasarkan indeks yang ada"
+        ),
     )
 
 
@@ -93,12 +97,12 @@ async def _tool_session(tool: AgentTool) -> AsyncIterator[AsyncSession]:
 async def _build_embedding_client(session: AsyncSession, model_ref_id: str):
     model = await model_repo.get_by_id(session, model_ref_id)
     if model is None or model.task_type != "embedding":
-        raise ToolExecutionError("default_embedding_model 不存在或不是 embedding 模型")
+        raise ToolExecutionError("default_embedding_model tidak ada atau bukan model embedding")
     if model.dimensions is None:
-        raise ToolExecutionError("default_embedding_model 缺少 embedding dimensions")
+        raise ToolExecutionError("default_embedding_model tidak memiliki embedding dimensions")
     provider = await model_provider_repo.get_by_id(session, model.provider_id)
     if provider is None:
-        raise ToolExecutionError("default_embedding_model 关联的 provider 不存在")
+        raise ToolExecutionError("provider yang terkait dengan default_embedding_model tidak ada")
     try:
         provider_service = ModelProviderService(EncryptionService(settings.encryption_key))
         api_key = provider_service.get_decrypted_api_key(provider) or ""
@@ -116,13 +120,14 @@ async def _build_embedding_client(session: AsyncSession, model_ref_id: str):
     except Exception as exc:
         if isinstance(exc, ToolExecutionError):
             raise
-        raise ToolExecutionError("章节检索 embedding client 初始化失败") from exc
+        raise ToolExecutionError("Inisialisasi embedding client untuk pencarian bab gagal") from exc
 
 
 async def _build_rerank_client(
     session: AsyncSession, model_ref_id: str
 ) -> RerankClient | None:
-    """构造 rerank client；模型缺失或类型不符时返回 None（降级为纯 RRF）。"""
+    """Membentuk rerank client; kembalikan None bila model tidak ada atau tipenya
+    tidak sesuai (turun ke RRF murni)."""
     model = await model_repo.get_by_id(session, model_ref_id)
     if model is None or model.task_type != "rerank":
         return None
@@ -162,7 +167,7 @@ async def _compute_index_freshness(
     project_id: str,
     model: Any,
 ) -> str:
-    """计算项目索引的新鲜度：fresh / stale / needs_rebuild / no_index。"""
+    """Menghitung kesegaran indeks proyek: fresh / stale / needs_rebuild / no_index."""
     index_key = chapter_index_key(project_id)
     project_index = await retrieval_index_repo.get_by_index_key(session, index_key)
     if project_index is None:
@@ -215,22 +220,29 @@ def _not_latest_text(
 ) -> str:
     if freshness == INDEX_STATUS_NEEDS_REBUILD:
         return (
-            "当前项目的检索索引不是最新的（嵌入模型或分块参数已变更），"
-            "现有索引无法用于检索，需要先更新索引后才能检索章节内容。"
+            "Indeks pencarian proyek saat ini tidak mutakhir (model embedding atau "
+            "parameter pemotongan sudah berubah), indeks yang ada tidak dapat dipakai "
+            "untuk mencari. Indeks harus diperbarui lebih dulu sebelum isi bab dapat "
+            "dicari."
         )
     if freshness == INDEX_STATUS_NO_INDEX:
         return (
-            "当前项目尚未建立可用的检索索引，无法检索章节内容。"
-            "请先更新索引后再进行检索。"
+            "Proyek saat ini belum memiliki indeks pencarian yang dapat dipakai, "
+            "sehingga isi bab tidak dapat dicari. "
+            "Perbarui indeks lebih dulu, lalu lakukan pencarian kembali."
         )
     # stale
     text = (
-        "当前项目的检索索引不是最新的（部分章节内容已发生变更），"
-        "此时不返回结构化检索结果。你可以：使用 force=true 强制基于现有索引检索，"
-        "或先更新索引以获得完整结果。"
+        "Indeks pencarian proyek saat ini tidak mutakhir (isi sebagian bab sudah "
+        "berubah), sehingga hasil pencarian terstruktur tidak dikembalikan. Anda "
+        "dapat: memakai force=true untuk memaksa pencarian berdasarkan indeks yang "
+        "ada, atau memperbarui indeks lebih dulu untuk mendapat hasil yang lengkap."
     )
     if auto_strategy == INDEX_AUTO_STRATEGY_AGENT_DECIDED:
-        text += "\n当前自动索引策略为“由 Agent 决定”，建议调用 update_index 工具更新索引。"
+        text += (
+            "\nStrategi indeks otomatis saat ini adalah \"ditentukan oleh Agent\", "
+            "disarankan memanggil alat update_index untuk memperbarui indeks."
+        )
     return text
 
 
@@ -276,27 +288,54 @@ def _group_results(
     return SearchChaptersOutput(query=query, results=items).model_dump_json()
 
 
+def _build_search_chapters_description() -> str:
+    """Menyusun deskripsi tool sesuai adapter retrieval yang aktif.
+
+    Agent perlu tahu sifat pencarian yang tersedia: mode keyword-only hanya
+    mencocokkan kata, sedangkan mode penuh mencocokkan makna. Menyebut
+    "berbasis vektor" pada deployment cloud-only akan membuat agent berharap
+    pencarian semantik yang tidak tersedia.
+    """
+    if settings.cloud_only:
+        return (
+            "Pencarian KATA KUNCI (BM25) pada isi bab proyek saat ini. "
+            "Pencocokan bersifat leksikal, bukan semantik: pakai kata atau nama "
+            "yang benar-benar muncul di teks, bukan parafrasa."
+        )
+    return (
+        "Pencarian bahasa alami berbasis vektor, mencari isi bab pada proyek saat ini "
+        "berdasarkan query"
+    )
+
+
 @ToolRegistry.register
 class SearchChaptersTool(AgentTool):
     name: str = "search_chapters"
-    description: str = "基于向量的自然语言检索，按 query 检索当前项目的章节内容"
+    description: str = _build_search_chapters_description()
     access_level: str = "readonly"
     args_schema: type[BaseModel] = SearchChaptersInput
 
     async def _execute(self, query: str, force: bool = False) -> str:
         async with _tool_session(self) as session:
-            setting = await setting_repo.get_by_key(
-                session,
-                SETTING_KEY_DEFAULT_EMBEDDING_MODEL,
-            )
-            model_ref_id = setting.value.strip() if setting is not None else ""
-            if not model_ref_id:
-                raise ToolExecutionError("未配置 default_embedding_model，无法检索章节")
-            model = await model_repo.get_by_id(session, model_ref_id)
-            if model is None or model.task_type != "embedding":
-                raise ToolExecutionError("default_embedding_model 不存在或不是 embedding 模型")
-            if model.dimensions is None:
-                raise ToolExecutionError("default_embedding_model 缺少 embedding dimensions")
+            # Mode keyword-only: pencarian berjalan lewat SQLite FTS5 sehingga
+            # tidak ada model embedding yang perlu dikonfigurasi pengguna.
+            if settings.cloud_only:
+                model = build_keyword_only_model()
+                model_ref_id = model.id
+            else:
+                setting = await setting_repo.get_by_key(
+                    session,
+                    SETTING_KEY_DEFAULT_EMBEDDING_MODEL,
+                )
+                model_ref_id = setting.value.strip() if setting is not None else ""
+                if not model_ref_id:
+                    raise ToolExecutionError("default_embedding_model belum dikonfigurasi, bab tidak dapat dicari")
+                resolved = await model_repo.get_by_id(session, model_ref_id)
+                if resolved is None or resolved.task_type != "embedding":
+                    raise ToolExecutionError("default_embedding_model tidak ada atau bukan model embedding")
+                if resolved.dimensions is None:
+                    raise ToolExecutionError("default_embedding_model tidak memiliki embedding dimensions")
+                model = resolved
 
             index_config = await get_index_settings(session)
             freshness = await _compute_index_freshness(
@@ -305,13 +344,15 @@ class SearchChaptersTool(AgentTool):
                 model=model,
             )
 
-            # 索引不可用（需重建或无索引）时，强制检索也无法绕过。
+            # Saat indeks tidak dapat dipakai (perlu dibangun ulang atau tidak ada),
+            # pencarian paksa pun tidak dapat melewatinya.
             if freshness in {INDEX_STATUS_NEEDS_REBUILD, INDEX_STATUS_NO_INDEX}:
                 return _not_latest_text(
                     freshness=freshness,
                     auto_strategy=index_config.auto_strategy,
                 )
-            # 索引非最新（有过期章节）且未强制检索：返回提示文本。
+            # Indeks tidak mutakhir (ada bab kedaluwarsa) dan pencarian tidak
+            # dipaksa: kembalikan teks pemberitahuan.
             if freshness == INDEX_STATUS_STALE and not force:
                 return _not_latest_text(
                     freshness=freshness,
@@ -319,8 +360,22 @@ class SearchChaptersTool(AgentTool):
                 )
 
             try:
-                embedding_client = await _build_embedding_client(session, model_ref_id)
-                logger.info("章节检索: embedding client 初始化完成 project_id={}", self.project_id)
+                # Mode keyword-only tidak memanggil penyedia embedding sama
+                # sekali, sehingga tidak ada klien yang perlu dibangun.
+                if settings.cloud_only:
+                    embedding_client = None
+                    logger.info(
+                        "Pencarian bab: mode kata kunci FTS5 project_id={}",
+                        self.project_id,
+                    )
+                else:
+                    embedding_client = await _build_embedding_client(
+                        session, model_ref_id
+                    )
+                    logger.info(
+                        "Pencarian bab: inisialisasi embedding client selesai project_id={}",
+                        self.project_id,
+                    )
                 rerank_client: RerankClient | None = None
                 if index_config.rerank_enabled and index_config.rerank_model_ref_id:
                     rerank_client = await _build_rerank_client(
@@ -333,7 +388,10 @@ class SearchChaptersTool(AgentTool):
                     query,
                     embedding_client,
                 )
-                logger.info("章节检索: 查询构建器已创建 project_id={}", self.project_id)
+                logger.info(
+                    "Pencarian bab: pembangun kueri sudah dibuat project_id={}",
+                    self.project_id,
+                )
                 query_builder = (
                     builder.hybrid()
                     .vector_top_k(SEARCH_CHAPTERS_CANDIDATE_TOP_K)
@@ -345,23 +403,28 @@ class SearchChaptersTool(AgentTool):
                     query_builder = query_builder.rerank(
                         rerank_client, top_n=SEARCH_CHAPTERS_CHUNK_LIMIT
                     )
-                logger.info("章节检索: 开始执行 LanceDB 查询 project_id={}", self.project_id)
+                logger.info(
+                    "Pencarian bab: mulai menjalankan kueri engine={} project_id={}",
+                    type(query_builder).__name__,
+                    self.project_id,
+                )
                 results = await query_builder.limit(final_limit).run()
-                logger.info("章节检索: 查询完成 result_count={}", len(results))
+                logger.info("Pencarian bab: kueri selesai result_count={}", len(results))
             except IndexNotReadyError as exc:
-                logger.exception("章节检索执行失败: {}", exc)
-                raise ToolExecutionError(f"章节检索执行失败: {exc}") from exc
+                logger.exception("Eksekusi pencarian bab gagal: {}", exc)
+                raise ToolExecutionError(f"Eksekusi pencarian bab gagal: {exc}") from exc
             except Exception as exc:
                 if isinstance(exc, ToolExecutionError):
                     raise
-                logger.exception("章节检索执行失败: {}", exc)
+                logger.exception("Eksekusi pencarian bab gagal: {}", exc)
                 raise ToolExecutionError(
-                    f"章节检索执行失败: {type(exc).__name__}"
+                    f"Eksekusi pencarian bab gagal: {type(exc).__name__}"
                 ) from exc
             if not results:
                 return SearchChaptersOutput(query=query, results=[]).model_dump_json()
 
-            # 置信度裁剪：丢弃低于阈值的不相关分块，降低上下文噪声。
+            # Pemangkasan keyakinan: buang potongan tidak relevan yang berada di
+            # bawah ambang, agar derau konteks berkurang.
             results = [
                 result
                 for result in results

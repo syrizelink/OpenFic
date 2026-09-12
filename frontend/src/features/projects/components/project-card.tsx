@@ -1,7 +1,7 @@
 /**
  * ProjectCard Component
  *
- * Grid 视图下的项目卡片组件。
+ * Komponen kartu proyek pada tampilan Grid.
  */
 
 import { Box, Card, Flex, Text, IconButton, Tooltip } from "@radix-ui/themes";
@@ -45,7 +45,7 @@ export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
       transition={{ duration: 0.2 }}
       onClick={handleClick}
     >
-      {/* 封面图 */}
+      {/* Gambar sampul */}
       <Box
         style={{
           width: "100%",
@@ -81,7 +81,7 @@ export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
         )}
       </Box>
 
-      {/* 项目信息 */}
+      {/* Informasi proyek */}
       <Box>
         <Text
           size="3"

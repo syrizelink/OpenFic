@@ -4,13 +4,13 @@ from sqlalchemy import pool
 from alembic import context
 
 from app.logging import configure_standard_logging
-# 导入应用配置和模型
+# Mengimpor konfigurasi aplikasi dan model
 from app.settings import settings
 from sqlmodel import SQLModel
 
-# 注册所有表到 SQLModel.metadata 用于 autogenerate
+# Mendaftarkan semua tabel ke SQLModel.metadata untuk autogenerate
 from app.storage.models import *  # noqa: F401, F403
-# agent_runtime 中还有部分模型未包含在 app.storage.models 中
+# Sebagian model di agent_runtime belum termasuk dalam app.storage.models
 from app.agent_runtime.persistence.model import (  # noqa: F401, F403
     AgentChildRun,
     AgentChildRunRequest,
@@ -25,7 +25,7 @@ config = context.config
 
 configure_standard_logging()
 
-# 配置数据库 URL（从应用设置获取，但使用同步 URL）
+# Mengonfigurasi URL basis data (diambil dari setelan aplikasi, tetapi memakai URL sinkron)
 database_url = settings.database_url.replace("+aiosqlite", "")
 config.set_main_option("sqlalchemy.url", database_url)
 

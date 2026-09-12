@@ -1,7 +1,7 @@
 /**
  * ProjectsToolbar Component
  *
- * 项目列表工具栏，包含创建、导入、搜索、排序、视图切换功能。
+ * Bilah alat daftar proyek, memuat fungsi buat, impor, cari, urutkan, dan ganti tampilan.
  */
 
 import {
@@ -45,19 +45,19 @@ export function ProjectsToolbar({
   const currentSortLabel =
     sortOptions.find((opt) => opt.value === sortBy)?.label ?? t("projects.sort");
 
-  // 当前视图图标
+  // Ikon tampilan saat ini
   const CurrentViewIcon = viewMode === "grid" ? LayoutGrid : List;
 
   return (
     <Box py="4">
-      {/* 桌面端布局：单行 */}
+      {/* Tata letak peranti meja: satu baris */}
       <Flex
         display={{ initial: "none", sm: "flex" }}
         justify="between"
         align="center"
         gap="4"
       >
-        {/* 左侧：创建、导入 */}
+        {/* Kiri: buat, impor */}
         <Flex gap="2">
           <Button
             size="2"
@@ -76,12 +76,12 @@ export function ProjectsToolbar({
           </Button>
         </Flex>
 
-        {/* 右侧：搜索、排序、视图切换 */}
+        {/* Kanan: cari, urutkan, ganti tampilan */}
         <Flex
           gap="3"
           align="center"
         >
-          {/* 搜索 */}
+          {/* Cari */}
           <TextField.Root
             placeholder={t("projects.searchPlaceholder")}
             size="2"
@@ -94,7 +94,7 @@ export function ProjectsToolbar({
             </TextField.Slot>
           </TextField.Root>
 
-          {/* 排序 */}
+          {/* Urutkan */}
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>
               <Button
@@ -131,7 +131,7 @@ export function ProjectsToolbar({
             </DropdownMenu.Content>
           </DropdownMenu.Root>
 
-          {/* 视图切换 */}
+          {/* Ganti tampilan */}
           <SegmentedControl.Root
             value={viewMode}
             onValueChange={(value) => setViewMode(value as ViewMode)}
@@ -165,7 +165,7 @@ export function ProjectsToolbar({
         </Flex>
       </Flex>
 
-      {/* 移动端布局：两行 */}
+      {/* Tata letak peranti bergerak: dua baris */}
       <Flex
         display={{ initial: "flex", sm: "none" }}
         direction="column"

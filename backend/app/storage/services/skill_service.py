@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Skill Service - Skill 业务逻辑层。"""
+"""Skill Service - lapisan logika bisnis Skill."""
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -21,7 +21,7 @@ from app.storage.repos import skill_reference_doc_repo, skill_repo
 
 
 class SkillData(Protocol):
-    """供 API、上下文与工具共享的 Skill 读取视图。"""
+    """Tampilan baca Skill yang dipakai bersama oleh API, konteks, dan tool."""
 
     id: str
     name: str
@@ -34,7 +34,7 @@ class SkillData(Protocol):
 
 
 class SkillReferenceData(Protocol):
-    """供 API 与工具共享的参考文档读取视图。"""
+    """Tampilan baca dokumen referensi yang dipakai bersama oleh API dan tool."""
 
     id: str
     title: str
@@ -45,7 +45,7 @@ class SkillReferenceData(Protocol):
 
 
 class SkillValidationError(Exception):
-    """Skill 数据校验失败。"""
+    """Validasi data Skill gagal."""
 
 
 @dataclass
@@ -145,7 +145,7 @@ async def create_skill(
         is_enabled=is_enabled,
     )
     if skill.is_enabled and not is_skill_complete(skill):
-        raise SkillValidationError("Skill 信息未完整填写，无法启用。")
+        raise SkillValidationError("Informasi Skill belum lengkap, tidak dapat diaktifkan.")
     return await skill_repo.create(session, skill)
 
 
@@ -177,7 +177,7 @@ async def get_skill(session: AsyncSession, skill_db_id: str) -> SkillData:
         return builtin_skill
     skill = await skill_repo.get_by_id(session, skill_db_id)
     if skill is None:
-        raise NotFoundError(f"Skill 不存在: {skill_db_id}")
+        raise NotFoundError(f"Skill tidak ditemukan: {skill_db_id}")
     return skill
 
 
@@ -304,17 +304,17 @@ async def update_skill(
 ) -> Skill:
     skill = await get_skill(session, skill_db_id)
     if is_builtin_skill(skill):
-        raise SkillValidationError(f"不可编辑内置 Skill: {skill_db_id}")
+        raise SkillValidationError(f"Skill bawaan tidak dapat disunting: {skill_db_id}")
 
     assert isinstance(skill, Skill)
 
     normalized_name = name.strip() if name is not None else None
     if normalized_name is not None and normalized_name != skill.name:
         if normalized_name in {builtin_skill.name for builtin_skill in load_builtin_skills()}:
-            raise ConflictError(f"技能名称已存在: {normalized_name}")
+            raise ConflictError(f"Nama skill sudah ada: {normalized_name}")
         matches = await skill_repo.list_by_names(session, [normalized_name])
         if any(other.id != skill.id for other in matches):
-            raise ConflictError(f"技能名称已存在: {normalized_name}")
+            raise ConflictError(f"Nama skill sudah ada: {normalized_name}")
         skill.name = normalized_name
     if summary is not None:
         skill.summary = summary
@@ -324,7 +324,7 @@ async def update_skill(
         skill.is_enabled = is_enabled
 
     if skill.is_enabled and not is_skill_complete(skill):
-        raise SkillValidationError("Skill 信息未完整填写，无法启用。")
+        raise SkillValidationError("Informasi Skill belum lengkap, tidak dapat diaktifkan.")
 
     skill.updated_at = datetime.now(UTC)
     return await skill_repo.update(session, skill)
@@ -353,7 +353,7 @@ async def toggle_skill(session: AsyncSession, skill_db_id: str) -> SkillData:
     assert isinstance(skill, Skill)
     next_enabled = not skill.is_enabled
     if next_enabled and not is_skill_complete(skill):
-        raise SkillValidationError("Skill 信息未完整填写，无法启用。")
+        raise SkillValidationError("Informasi Skill belum lengkap, tidak dapat diaktifkan.")
     skill.is_enabled = next_enabled
     skill.updated_at = datetime.now(UTC)
     return await skill_repo.update(session, skill)
@@ -362,7 +362,7 @@ async def toggle_skill(session: AsyncSession, skill_db_id: str) -> SkillData:
 async def delete_skill(session: AsyncSession, skill_db_id: str) -> None:
     skill = await get_skill(session, skill_db_id)
     if is_builtin_skill(skill):
-        raise SkillValidationError(f"不可删除内置 Skill: {skill_db_id}")
+        raise SkillValidationError(f"Skill bawaan tidak dapat dihapus: {skill_db_id}")
 
     assert isinstance(skill, Skill)
     await skill_reference_doc_repo.delete_by_skill(session, skill_db_id)

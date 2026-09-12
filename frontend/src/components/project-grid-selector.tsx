@@ -1,7 +1,7 @@
 /**
  * Project Grid Selector Component
  *
- * 项目网格选择器，以图书封面+标题的形式展示和选择项目。
+ * Pemilih kisi proyek, menampilkan dan memilih proyek dalam bentuk sampul buku + judul.
  */
 
 import { Box, Flex, Text, ScrollArea } from "@radix-ui/themes";
@@ -14,15 +14,15 @@ import type { Project } from "@/lib/project.types";
 import "./project-grid-selector.css";
 
 interface ProjectGridSelectorProps {
-  /** 可选的项目列表 */
+  /** Daftar proyek yang bisa dipilih */
   projects: Project[];
-  /** 当前选中的项目 ID（空字符串表示无绑定） */
+  /** ID proyek yang sedang dipilih (string kosong berarti tanpa keterikatan) */
   value: string;
-  /** 选择项目时的回调（空字符串表示无绑定） */
+  /** Callback saat proyek dipilih (string kosong berarti tanpa keterikatan) */
   onChange: (projectId: string) => void;
-  /** 是否禁用 */
+  /** Status nonaktif */
   disabled?: boolean;
-  /** 是否显示"无绑定"选项 */
+  /** Menentukan apakah opsi "tanpa keterikatan" ditampilkan */
   showNoneOption?: boolean;
 }
 

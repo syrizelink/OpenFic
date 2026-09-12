@@ -30,9 +30,11 @@ from app.models.repos import model_provider_repo, model_repo
 from app.models.services.model_provider_service import ModelProviderService
 from app.retrieval.chapter_index import (
     ChapterIndexIntegrationService,
+    build_keyword_only_model,
     chapter_document_id,
     chapter_index_key,
 )
+from app.retrieval.engine_protocol import is_keyword_only_model_ref
 from app.retrieval.index_status import commit_and_emit_index_status
 from app.retrieval.service import OpenFicRetrievalService
 from app.settings import settings
@@ -41,8 +43,9 @@ from app.storage.repos import retrieval_chapter_index_state_repo, setting_repo
 
 SETTING_KEY_DEFAULT_EMBEDDING_MODEL = "default_embedding_model"
 
-# 每次 Embedding 请求最多处理的分块数。章节可跨请求，但只会在
-# 全部分块写入成功后标记完成；每次请求后都会提交并推送章节级进度。
+# Jumlah maksimum potongan yang diproses per permintaan Embedding. Bab boleh melintasi
+# beberapa permintaan, tetapi baru ditandai selesai setelah semua potongan berhasil ditulis;
+# setiap permintaan melakukan commit dan mengirim progres tingkat bab.
 MAX_EMBEDDING_CHUNKS_PER_REQUEST = 50
 
 
@@ -92,14 +95,17 @@ async def _commit_and_emit(context: JobContext, project_id: str) -> None:
 async def _finalize_and_abort(
     context: JobContext, *, project_id: str, reason: str
 ) -> NoReturn:
-    """标记剩余未完成 item 为失败、提交进度，然后抛出异常使任务标记为失败。
+    """Menandai item yang belum selesai sebagai gagal, melakukan commit progres, lalu
+    melempar eksepsi agar tugas ditandai gagal.
 
-    由于不允许对部分章节单独索引，任一子批次出错后应停止整个任务，
-    剩余待处理章节统一标记为失败以便用户重新发起完整索引。
+    Karena pengindeksan sebagian bab saja tidak diizinkan, kesalahan pada salah satu
+    sub-batch harus menghentikan seluruh tugas, dan bab yang tersisa ditandai gagal
+    secara seragam agar pengguna dapat memulai pengindeksan penuh kembali.
 
-    抛出异常后 worker 会将任务标记为 failed 并发布 ``background_job_failed``
-    事件（携带 reason），前端据此 toast 报错。此前已提交的成功批次
-    不受后续 rollback 影响。
+    Setelah eksepsi dilempar, worker menandai tugas sebagai failed dan menerbitkan
+    event ``background_job_failed`` (membawa reason) sehingga frontend menampilkan
+    toast error. Batch yang sudah berhasil di-commit sebelumnya tidak terpengaruh
+    oleh rollback berikutnya.
     """
     await _finalize_incomplete_items(context, reason)
     await _commit_and_emit(context, project_id)
@@ -109,10 +115,14 @@ async def _finalize_and_abort(
 async def _build_embedding_client(session, model_ref_id: str):
     model = await model_repo.get_by_id(session, model_ref_id)
     if model is None or model.task_type != "embedding":
-        raise ValueError("default_embedding_model 不存在或不是 embedding 模型")
+        raise ValueError(
+            "default_embedding_model tidak ditemukan atau bukan model embedding"
+        )
     provider = await model_provider_repo.get_by_id(session, model.provider_id)
     if provider is None:
-        raise ValueError("default_embedding_model 关联的 provider 不存在")
+        raise ValueError(
+            "provider yang terkait dengan default_embedding_model tidak ditemukan"
+        )
     provider_service = ModelProviderService(EncryptionService(settings.encryption_key))
     api_key = provider_service.get_decrypted_api_key(provider) or ""
     custom_headers = provider_service.get_decrypted_custom_headers(provider)
@@ -143,7 +153,8 @@ async def _handle_failed(context: JobContext, reason: str) -> None:
 
 
 async def _handle_cancelled(context: JobContext, reason: str) -> None:
-    """清理未完成章节，使下一次开始索引时只处理这些章节。"""
+    """Membersihkan bab yang belum selesai agar pengindeksan berikutnya hanya
+    memproses bab tersebut."""
     await _cleanup_incomplete_items(context, reason=reason, cancelled=True)
     project_id = RetrievalChapterIndexBatchInput.model_validate(context.input).project_id
     await _commit_and_emit(context, project_id)
@@ -218,17 +229,21 @@ async def handle_retrieval_chapter_index_batch(context: JobContext) -> dict[str,
     metadata = RetrievalChapterIndexBatchContext.model_validate(context.metadata)
     project_id = batch_input.project_id
 
-    setting = await setting_repo.get_by_key(
-        context.session,
-        SETTING_KEY_DEFAULT_EMBEDDING_MODEL,
-    )
-    current_model_ref_id = setting.value.strip() if setting is not None else ""
-    if current_model_ref_id != metadata.embedding_model_ref_id:
-        await _finalize_and_abort(
-            context,
-            project_id=project_id,
-            reason="default_embedding_model changed; retrieval index needs rebuild",
+    # Mode keyword-only tidak bergantung pada pengaturan
+    # ``default_embedding_model``, jadi tidak ada perubahan model yang perlu
+    # dideteksi di sini.
+    if not is_keyword_only_model_ref(metadata.embedding_model_ref_id):
+        setting = await setting_repo.get_by_key(
+            context.session,
+            SETTING_KEY_DEFAULT_EMBEDDING_MODEL,
         )
+        current_model_ref_id = setting.value.strip() if setting is not None else ""
+        if current_model_ref_id != metadata.embedding_model_ref_id:
+            await _finalize_and_abort(
+                context,
+                project_id=project_id,
+                reason="default_embedding_model changed; retrieval index needs rebuild",
+            )
 
     await context.check_cancelled()
     items = await job_service.list_job_items(context.session, job_id=context.job_id)
@@ -256,7 +271,7 @@ async def handle_retrieval_chapter_index_batch(context: JobContext) -> dict[str,
                 context.session,
                 item,
                 JOB_STATUS_FAILED,
-                error_message="retrieval chapter item 缺少 chapter_id",
+                error_message="retrieval chapter item tidak memiliki chapter_id",
             )
             continue
         chapter_ids.append(cid)
@@ -275,22 +290,36 @@ async def handle_retrieval_chapter_index_batch(context: JobContext) -> dict[str,
             ),
         }
 
-    # 按 INDEX_BATCH_CHUNK_SIZE 拆分为子批次，每批独立提交事务并推送进度。
-    # 这样前端能看到增量更新（如 10/101 → 20/101 → …），而非只在全完成时跳到 100%。
+    # Dipecah menjadi sub-batch sesuai INDEX_BATCH_CHUNK_SIZE, tiap batch melakukan
+    # commit transaksi sendiri dan mengirim progres.
+    # Dengan begitu frontend melihat pembaruan bertahap (misalnya 10/101 -> 20/101
+    # -> ...), bukan hanya melompat ke 100% saat semuanya selesai.
     #
-    # 由于不允许对部分章节单独重新索引，任一子批次发生错误（异常或单章失败）
-    # 都会终止整个任务：当前批次标记失败后，剩余未处理章节统一标记失败，
-    # 以便用户发现问题后重新发起完整索引。
+    # Karena pengindeksan ulang sebagian bab saja tidak diizinkan, kesalahan pada
+    # salah satu sub-batch (eksepsi atau kegagalan satu bab)
+    # akan menghentikan seluruh tugas: setelah batch saat ini ditandai gagal, bab yang belum
+    # diproses ditandai gagal secara seragam,
+    # agar pengguna dapat memulai pengindeksan penuh kembali setelah menemukan masalahnya.
     try:
-        model = await model_repo.get_by_id(
-            context.session, metadata.embedding_model_ref_id
-        )
-        if model is None or model.task_type != "embedding":
-            raise ValueError("default_embedding_model 不存在或不是 embedding 模型")
-
-        embedding_client = await _maybe_await(
-            _build_embedding_client(context.session, metadata.embedding_model_ref_id)
-        )
+        # Mode keyword-only (SQLite FTS5): tidak ada model embedding nyata di
+        # basis data dan tidak ada penyedia yang perlu dihubungi.
+        if is_keyword_only_model_ref(metadata.embedding_model_ref_id):
+            model = build_keyword_only_model()
+            embedding_client = None
+        else:
+            resolved = await model_repo.get_by_id(
+                context.session, metadata.embedding_model_ref_id
+            )
+            if resolved is None or resolved.task_type != "embedding":
+                raise ValueError(
+                    "default_embedding_model tidak ditemukan atau bukan model embedding"
+                )
+            model = resolved
+            embedding_client = await _maybe_await(
+                _build_embedding_client(
+                    context.session, metadata.embedding_model_ref_id
+                )
+            )
         service = ChapterIndexIntegrationService()
 
         async def mark_chapter_running(chapter_id: str) -> None:
@@ -318,7 +347,7 @@ async def handle_retrieval_chapter_index_batch(context: JobContext) -> dict[str,
         raise
     except Exception as exc:
         await _finalize_and_abort(
-            context, project_id=project_id, reason=f"索引中止：{exc}"
+            context, project_id=project_id, reason=f"Pengindeksan dihentikan: {exc}"
         )
 
     items = await job_service.list_job_items(context.session, job_id=context.job_id)

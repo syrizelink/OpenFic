@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-PromptChainVersion Repository - 提示词链版本数据访问层。
+PromptChainVersion Repository - lapisan akses data versi rantai prompt.
 """
 
 from sqlalchemy import and_, delete as sa_delete, select
@@ -14,7 +14,7 @@ from app.storage.models.prompt_chain_version import PromptChainVersion
 async def create(
     session: AsyncSession, version: PromptChainVersion
 ) -> PromptChainVersion:
-    """创建版本。"""
+    """Membuat versi."""
     session.add(version)
     await session.flush()
     await session.refresh(version)
@@ -24,7 +24,7 @@ async def create(
 async def get_by_id(
     session: AsyncSession, version_id: str
 ) -> PromptChainVersion | None:
-    """根据ID获取版本。"""
+    """Mengambil versi berdasarkan ID."""
     result = await session.execute(
         select(PromptChainVersion).where(col(PromptChainVersion.id) == version_id)
     )
@@ -34,7 +34,7 @@ async def get_by_id(
 async def get_by_hash(
     session: AsyncSession, version_hash: str
 ) -> PromptChainVersion | None:
-    """根据hash获取版本。"""
+    """Mengambil versi berdasarkan hash."""
     result = await session.execute(
         select(PromptChainVersion).where(
             col(PromptChainVersion.version_hash) == version_hash
@@ -48,7 +48,7 @@ async def list_by_chain_key(
     prompt_id: str,
     active_only: bool = False,
 ) -> list[PromptChainVersion]:
-    """获取某个提示词链的所有版本。"""
+    """Mengambil semua versi dari sebuah rantai prompt."""
     conditions = [col(PromptChainVersion.prompt_id) == prompt_id]
 
     if active_only:
@@ -68,7 +68,7 @@ async def get_latest_version(
     session: AsyncSession,
     prompt_id: str,
 ) -> PromptChainVersion | None:
-    """获取最新的活跃版本。"""
+    """Mengambil versi aktif terbaru."""
     conditions = [
         col(PromptChainVersion.prompt_id) == prompt_id,
         col(PromptChainVersion.is_active).is_(True),
@@ -87,7 +87,7 @@ async def get_max_version_number(
     session: AsyncSession,
     prompt_id: str,
 ) -> int:
-    """获取某个提示词链的最大版本号。"""
+    """Mengambil nomor versi terbesar dari sebuah rantai prompt."""
     conditions = [col(PromptChainVersion.prompt_id) == prompt_id]
 
     result = await session.execute(
@@ -105,7 +105,7 @@ async def deactivate_versions_after(
     prompt_id: str,
     from_version_number: int,
 ) -> None:
-    """将某个版本号之后的所有版本标记为非活跃。"""
+    """Menandai semua versi setelah nomor versi tertentu sebagai tidak aktif."""
     conditions = [
         col(PromptChainVersion.prompt_id) == prompt_id,
         col(PromptChainVersion.version_number) > from_version_number,
@@ -122,7 +122,7 @@ async def deactivate_versions_after(
 async def update(
     session: AsyncSession, version: PromptChainVersion
 ) -> PromptChainVersion:
-    """更新版本。"""
+    """Memperbarui versi."""
     session.add(version)
     await session.flush()
     await session.refresh(version)
@@ -130,7 +130,7 @@ async def update(
 
 
 async def delete(session: AsyncSession, version_id: str) -> bool:
-    """删除版本。"""
+    """Menghapus versi."""
     version = await get_by_id(session, version_id)
     if version:
         await session.delete(version)
@@ -144,12 +144,12 @@ async def delete_by_chain_key(
     prompt_id: str,
 ) -> int:
     """
-    删除某个提示词链的所有版本。
+    Menghapus semua versi dari sebuah rantai prompt.
 
-    注意：由于 prompt_entries 有外键关联，需要先删除 entries。
+    Catatan: karena prompt_entries punya relasi foreign key, entries harus dihapus lebih dahulu.
 
     Returns:
-        删除的版本数量。
+        Jumlah versi yang dihapus.
     """
     from app.storage.models.prompt_entry import PromptEntry
 

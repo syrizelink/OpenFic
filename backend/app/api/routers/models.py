@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Model Router - 模型 API。
+Model Router - API model.
 """
 
 from typing import Annotated, cast
@@ -26,7 +26,7 @@ _SUPPORTED_TASK_TYPES = frozenset({"llm", "embedding", "rerank"})
 
 
 def get_model_service() -> ModelService:
-    """获取模型服务实例。"""
+    """Mengambil instance layanan model."""
     return ModelService()
 
 
@@ -68,7 +68,7 @@ def _to_response(m) -> ModelResponse:
 @router.get(
     "",
     response_model=list[ModelResponse],
-    summary="获取所有模型",
+    summary="Mengambil semua model",
 )
 async def get_models(
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -77,22 +77,22 @@ async def get_models(
     task_type: str | None = None,
 ) -> list[ModelResponse]:
     """
-    获取所有模型或按条件过滤。
+    Mengambil semua model atau memfilter berdasarkan kondisi.
 
     Args:
-        session: 数据库 session。
-        service: 模型服务。
-        provider_id: 可选的提供商 ID 过滤。
-        task_type: 可选的任务类型过滤（llm 或 embedding）。
+        session: Session basis data.
+        service: Layanan model.
+        provider_id: Filter ID penyedia (opsional).
+        task_type: Filter tipe tugas (opsional, llm atau embedding).
 
     Returns:
-        模型列表。
+        Daftar model.
     """
     if provider_id:
         models = await service.get_models_by_provider(session, provider_id, task_type)
     else:
         all_models = await service.get_all_models(session)
-        # 如果指定task_type，进行过滤
+        # Memfilter bila task_type ditentukan
         if task_type:
             models = [m for m in all_models if m.task_type == task_type]
         else:
@@ -104,14 +104,14 @@ async def get_models(
 @router.post(
     "/{model_id}/validate",
     response_model=ModelValidationResponse,
-    summary="验证模型连接",
+    summary="Memvalidasi koneksi model",
 )
 async def validate_model_connection(
     model_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
     service: Annotated[ModelService, Depends(get_model_service)],
 ) -> ModelValidationResponse:
-    """使用指定模型发送最小非流式请求以验证其连接。"""
+    """Mengirim permintaan non-streaming minimal dengan model tertentu untuk memvalidasi koneksinya."""
     try:
         await service.validate_model_connection(session, model_id)
     except NotFoundError as exc:
@@ -119,16 +119,16 @@ async def validate_model_connection(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
         ) from exc
     except Exception:
-        logger.opt(exception=True).warning("验证模型连接失败: model_id={}", model_id)
-        return ModelValidationResponse(success=False, message="模型连接验证失败")
+        logger.opt(exception=True).warning("Gagal memvalidasi koneksi model: model_id={}", model_id)
+        return ModelValidationResponse(success=False, message="Validasi koneksi model gagal")
 
-    return ModelValidationResponse(success=True, message="模型连接验证成功")
+    return ModelValidationResponse(success=True, message="Validasi koneksi model berhasil")
 
 
 @router.get(
     "/{model_id}",
     response_model=ModelResponse,
-    summary="获取模型",
+    summary="Mengambil model",
 )
 async def get_model(
     model_id: str,
@@ -136,18 +136,18 @@ async def get_model(
     service: Annotated[ModelService, Depends(get_model_service)],
 ) -> ModelResponse:
     """
-    根据 ID 获取模型。
+    Mengambil model berdasarkan ID.
 
     Args:
-        model_id: 模型 ID。
-        session: 数据库 session。
-        service: 模型服务。
+        model_id: ID model.
+        session: Session basis data.
+        service: Layanan model.
 
     Returns:
-        模型信息。
+        Informasi model.
 
     Raises:
-        HTTPException: 如果模型不存在。
+        HTTPException: Bila model tidak ditemukan.
     """
     try:
         model = await service.get_model_by_id(session, model_id)
@@ -160,7 +160,7 @@ async def get_model(
     "",
     response_model=ModelResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="创建模型",
+    summary="Membuat model",
 )
 async def create_model(
     request: ModelCreateRequest,
@@ -168,18 +168,18 @@ async def create_model(
     service: Annotated[ModelService, Depends(get_model_service)],
 ) -> ModelResponse:
     """
-    创建模型。
+    Membuat model.
 
     Args:
-        request: 创建请求。
-        session: 数据库 session。
-        service: 模型服务。
+        request: Permintaan pembuatan.
+        session: Session basis data.
+        service: Layanan model.
 
     Returns:
-        创建的模型信息。
+        Informasi model yang dibuat.
     """
     await require_agent_settings_unlocked(session)
-    logger.info(f"创建模型: {request.name}")
+    logger.info(f"Membuat model: {request.name}")
 
     try:
         model = await service.create_model(
@@ -214,7 +214,7 @@ async def create_model(
 @router.put(
     "/{model_id}",
     response_model=ModelResponse,
-    summary="更新模型",
+    summary="Memperbarui model",
 )
 async def update_model(
     model_id: str,
@@ -223,22 +223,22 @@ async def update_model(
     service: Annotated[ModelService, Depends(get_model_service)],
 ) -> ModelResponse:
     """
-    更新模型信息。
+    Memperbarui informasi model.
 
     Args:
-        model_id: 模型 ID。
-        request: 更新请求。
-        session: 数据库 session。
-        service: 模型服务。
+        model_id: ID model.
+        request: Permintaan pembaruan.
+        session: Session basis data.
+        service: Layanan model.
 
     Returns:
-        更新后的模型信息。
+        Informasi model setelah diperbarui.
 
     Raises:
-        HTTPException: 如果模型不存在。
+        HTTPException: Bila model tidak ditemukan.
     """
     await require_agent_settings_unlocked(session)
-    logger.info(f"更新模型: {model_id}")
+    logger.info(f"Memperbarui model: {model_id}")
 
     try:
         model = await service.update_model(
@@ -276,7 +276,7 @@ async def update_model(
 @router.delete(
     "/{model_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="删除模型",
+    summary="Menghapus model",
 )
 async def delete_model(
     model_id: str,
@@ -284,18 +284,18 @@ async def delete_model(
     service: Annotated[ModelService, Depends(get_model_service)],
 ) -> None:
     """
-    删除模型。
+    Menghapus model.
 
     Args:
-        model_id: 模型 ID。
-        session: 数据库 session。
-        service: 模型服务。
+        model_id: ID model.
+        session: Session basis data.
+        service: Layanan model.
 
     Raises:
-        HTTPException: 如果模型不存在。
+        HTTPException: Bila model tidak ditemukan.
     """
     await require_agent_settings_unlocked(session)
-    logger.info(f"删除模型: {model_id}")
+    logger.info(f"Menghapus model: {model_id}")
 
     try:
         await service.delete_model(session, model_id)

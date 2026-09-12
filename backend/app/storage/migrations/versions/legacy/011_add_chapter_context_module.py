@@ -26,7 +26,7 @@ def upgrade() -> None:
     from datetime import UTC, datetime
     from app.core.ids import generate_id
 
-    # ============ 创建 chapter_summaries 表 ============
+    # ============ Membuat tabel chapter_summaries ============
     op.create_table(
         "chapter_summaries",
         sa.Column("id", sa.String(), nullable=False),
@@ -48,11 +48,11 @@ def upgrade() -> None:
     op.create_index("ix_chapter_summaries_summary_type", "chapter_summaries", ["summary_type"])
     op.create_index("ix_chapter_summaries_chapter_id", "chapter_summaries", ["chapter_id"])
 
-    # ============ 插入 Memory 提示词链 ============
+    # ============ Menyisipkan rantai prompt Memory ============
     conn = op.get_bind()
     now = datetime.now(UTC)
 
-    # ---- mid_range_summary 提示词链 ----
+    # ---- rantai prompt mid_range_summary ----
     mid_chain_id = generate_id()
     mid_version_id = generate_id()
     mid_version_hash = generate_id()[:8]
@@ -86,20 +86,20 @@ def upgrade() -> None:
             "version_number": 1,
             "parent_version_id": None,
             "is_active": True,
-            "note": "初始版本",
+            "note": "Versi awal",
             "created_at": now,
         }
     )
 
-    mid_range_prompt = """你是一个专业的小说章节摘要生成器。请阅读以下章节内容，生成一个简洁但信息丰富的摘要。
+    mid_range_prompt = """Anda adalah pembuat ringkasan bab novel yang profesional. Bacalah isi bab berikut, lalu buat ringkasan yang singkat namun kaya informasi.
 
-要求：
-1. 保留关键情节点和重要人物行为
-2. 概括主要事件发展
-3. 保持时间线清晰
-4. 摘要长度控制在原文的10-15%
+Ketentuan:
+1. Pertahankan titik plot kunci dan tindakan tokoh penting
+2. Rangkum perkembangan peristiwa utama
+3. Jaga agar garis waktu tetap jelas
+4. Panjang ringkasan dijaga pada 10-15% teks asli
 
-章节内容：
+Isi bab:
 {{chapter_content}}"""
 
     conn.execute(
@@ -111,7 +111,7 @@ def upgrade() -> None:
         {
             "id": mid_entry_id,
             "version_id": mid_version_id,
-            "name": "摘要生成指令",
+            "name": "Instruksi Pembuatan Ringkasan",
             "role": "system",
             "content": mid_range_prompt,
             "order_index": 0,
@@ -122,7 +122,7 @@ def upgrade() -> None:
         }
     )
 
-    # ---- far_range_summary 提示词链 ----
+    # ---- rantai prompt far_range_summary ----
     far_chain_id = generate_id()
     far_version_id = generate_id()
     far_version_hash = generate_id()[:8]
@@ -156,20 +156,20 @@ def upgrade() -> None:
             "version_number": 1,
             "parent_version_id": None,
             "is_active": True,
-            "note": "初始版本",
+            "note": "Versi awal",
             "created_at": now,
         }
     )
 
-    far_range_prompt = """你是一个专业的小说情节压缩器。请将以下多个章节的摘要合并为一个更简洁的概述。
+    far_range_prompt = """Anda adalah pemadat plot novel yang profesional. Gabungkan ringkasan beberapa bab berikut menjadi satu ikhtisar yang lebih singkat.
 
-要求：
-1. 提取核心情节主线
-2. 保留关键转折点
-3. 合并相似或连续的事件
-4. 输出长度约为输入的30-50%
+Ketentuan:
+1. Ambil alur plot inti
+2. Pertahankan titik balik kunci
+3. Gabungkan peristiwa yang mirip atau berurutan
+4. Panjang keluaran sekitar 30-50% dari masukan
 
-章节摘要列表：
+Daftar ringkasan bab:
 {{summaries}}"""
 
     conn.execute(
@@ -181,7 +181,7 @@ def upgrade() -> None:
         {
             "id": far_entry_id,
             "version_id": far_version_id,
-            "name": "区间摘要生成指令",
+            "name": "Instruksi Pembuatan Ringkasan Rentang",
             "role": "system",
             "content": far_range_prompt,
             "order_index": 0,
@@ -197,12 +197,12 @@ def downgrade() -> None:
     """Drop chapter context tables and remove memory prompt chains."""
     conn = op.get_bind()
 
-    # 删除 memory 相关的提示词链（级联删除会处理 versions 和 entries）
+    # Menghapus rantai prompt terkait memory (penghapusan berantai menangani versions dan entries)
     conn.execute(
         sa.text("DELETE FROM prompt_chains WHERE mode_name = 'memory'")
     )
 
-    # 删除表
+    # Menghapus tabel
     op.drop_index("ix_chapter_summaries_chapter_id", "chapter_summaries")
     op.drop_index("ix_chapter_summaries_summary_type", "chapter_summaries")
     op.drop_index("ix_chapter_summaries_project_id", "chapter_summaries")

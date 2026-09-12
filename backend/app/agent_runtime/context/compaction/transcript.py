@@ -82,7 +82,10 @@ def to_transcript(messages: list[ContextMessage]) -> str:
         content = _escape_xml_like(message.content or "")
         if message.role == "user":
             if message.attachments:
-                content = f"{content}\n[图片附件 {len(message.attachments)} 张]".strip()
+                content = (
+                    f"{content}\n"
+                    f"[Lampiran gambar {len(message.attachments)} buah]"
+                ).strip()
             parts.append(f"<user>{content}</user>")
         elif message.role == "assistant":
             parts.append(f"<assistant>{_assistant_body(message)}</assistant>")

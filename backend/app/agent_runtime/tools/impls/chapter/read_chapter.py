@@ -15,8 +15,8 @@ from app.storage.repos import chapter_repo, volume_repo
 
 
 class ReadChapterInput(BaseModel):
-    volume_ref: VolumeRef = Field(description="目标卷")
-    chapter_ref: ChapterRef = Field(description="卷内的目标章节")
+    volume_ref: VolumeRef = Field(description="Volume sasaran")
+    chapter_ref: ChapterRef = Field(description="Bab sasaran di dalam volume")
 
 
 class ReadChapterOutput(BaseModel):
@@ -39,10 +39,13 @@ def format_chapter_content_with_line_numbers(content: str) -> str:
 class ReadChapterTool(AgentTool):
     name: str = "read_chapter"
     description: str = dedent("""\
-        读取指定卷内章节的完整内容
-        必须使用volume_ref指定目标卷，并使用chapter_ref指定目标章节
-        返回的content是按章节内从1开始的行号格式化后的结果，原始内容不含行号标记
-        每个原始换行都会拆分为单独一行，并添加行号标记，格式为 `行号|内容`
+        Membaca isi lengkap sebuah bab di dalam volume yang ditentukan
+        volume_ref harus dipakai untuk menentukan volume sasaran, dan chapter_ref
+        untuk menentukan bab sasaran
+        content yang dikembalikan adalah hasil pemformatan dengan nomor baris yang
+        dimulai dari 1 di dalam bab; isi aslinya tidak memuat penanda nomor baris
+        Setiap baris baru pada isi asli dipecah menjadi satu baris tersendiri dan
+        diberi penanda nomor baris dengan format `nomor_baris|isi`
     """)
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ReadChapterInput

@@ -1,4 +1,4 @@
-"""Perplexity Search API provider（官方 SDK）。"""
+"""Provider Perplexity Search API (SDK resmi)."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ class PerplexityProvider(WebSearchProvider):
         config: WebSearchProviderConfig,
     ) -> WebSearchResponse:
         if not config.api_key:
-            raise ToolExecutionError("Perplexity 未配置 API Key")
+            raise ToolExecutionError("API Key Perplexity belum dikonfigurasi")
 
         http_client: httpx.AsyncClient | None = None
         if config.trust_proxy_environment:
@@ -41,7 +41,7 @@ class PerplexityProvider(WebSearchProvider):
                     max_results=config.max_results,
                 )
             except Exception as exc:
-                raise ToolExecutionError(f"Perplexity 搜索失败: {exc}") from exc
+                raise ToolExecutionError(f"Pencarian Perplexity gagal: {exc}") from exc
         finally:
             await client.close()
             if http_client is not None:

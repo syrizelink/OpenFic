@@ -54,7 +54,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: 配置 pnpm store
+      - name: Konfigurasikan pnpm store
         run: pnpm config set store-dir "${{ github.workspace }}/.pnpm-store"
       - uses: actions/cache/restore@v5
         id: pnpm-cache
@@ -64,7 +64,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-frontend-
             ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ env.PNPM_VERSION }}-
-      - name: 构建前端产物
+      - name: Build artefak frontend
         working-directory: frontend
         run: |
           pnpm install --frozen-lockfile
@@ -92,7 +92,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: 配置 pnpm store
+      - name: Konfigurasikan pnpm store
         run: pnpm config set store-dir "${{ github.workspace }}/.pnpm-store"
       - uses: actions/cache/restore@v5
         id: pnpm-cache
@@ -106,7 +106,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - uses: astral-sh/setup-uv@v5
-      - name: 生成 uv 缓存 key lock
+      - name: Hasilkan key lock cache uv
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -137,7 +137,7 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-uv-${{ env.PYTHON_VERSION }}-${{ hashFiles('backend/.uv-cache-key.lock') }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-uv-${{ env.PYTHON_VERSION }}-
-      - name: 构建后端 Python 包
+      - name: Build paket Python backend
         working-directory: backend
         run: uv build
       - uses: actions/cache/save@v5
@@ -150,7 +150,7 @@ jobs:
         with:
           path: .uv-cache
           key: ${{ steps.uv-cache.outputs.cache-primary-key }}
-      - name: 发布到 PyPI
+      - name: Rilis ke PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: backend/dist
@@ -207,7 +207,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: 发布多架构 Docker 标签
+      - name: Rilis tag Docker multi-arsitektur
         run: |
           IMAGE=${{ needs.context.outputs.image }}
           VERSION=${{ needs.context.outputs.version }}
@@ -267,7 +267,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: 配置 pnpm store
+      - name: Konfigurasikan pnpm store
         run: pnpm config set store-dir "${{ github.workspace }}/.pnpm-store"
       - uses: actions/cache/restore@v5
         id: pnpm-cache
@@ -287,22 +287,22 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-electron-${{ hashFiles('desktop/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-electron-
-      - name: 安装前端依赖
+      - name: Instal dependensi frontend
         working-directory: frontend
         run: pnpm install --frozen-lockfile
-      - name: 安装桌面端依赖
+      - name: Instal dependensi aplikasi desktop
         working-directory: desktop
         run: pnpm install --frozen-lockfile
-      - name: 构建桌面端
+      - name: Build aplikasi desktop
         working-directory: desktop
         run: pnpm build
-      - name: 构建 Electron 安装包
+      - name: Build paket instalasi Electron
         working-directory: desktop
         run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.electron_args }} --publish never
-      - name: 统一安装包架构命名
+      - name: Penyeragaman penamaan arsitektur paket instalasi
         working-directory: desktop
         run: node scripts/normalize-artifact-names.mjs
-      - name: 校验 Windows 安装包完整性
+      - name: Verifikasi integritas paket instalasi Windows
         if: runner.os == 'Windows'
         shell: bash
         run: |
@@ -313,7 +313,7 @@ jobs:
           for archive in "${archives[@]}"; do
             7z t "$archive"
           done
-      - name: 校验 Linux 安装包完整性
+      - name: Verifikasi integritas paket instalasi Linux
         if: runner.os == 'Linux'
         shell: bash
         run: |
@@ -322,7 +322,7 @@ jobs:
           tar_files=(desktop/dist-electron/*.tar.gz)
           ((${#tar_files[@]}))
           for tar_file in "${tar_files[@]}"; do tar -tzf "$tar_file" >/dev/null; done
-      - name: 校验 macOS 安装包完整性
+      - name: Verifikasi integritas paket instalasi macOS
         if: runner.os == 'macOS'
         shell: bash
         run: |
@@ -373,10 +373,10 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: 整理 Windows 自动更新产物
+      - name: Rapikan artefak pembaruan otomatis Windows
         working-directory: desktop
         run: node scripts/prepare-windows-update.mjs
-      - name: 发布 Windows 自动更新产物
+      - name: Rilis artefak pembaruan otomatis Windows
         run: |
           gh release upload "${{ needs.context.outputs.release_tag }}" \
             desktop/dist-electron/OpenFic-*-win-*-setup.exe \
@@ -396,11 +396,11 @@ jobs:
           pattern: desktop-*
           merge-multiple: true
           path: assets
-      - name: 列出产物
+      - name: Daftar artefak
         run: |
           mkdir -p assets
           find assets -type f -print
-      # release-please 已创建 Release（含 changelog body），此处仅追加构建产物
+      # release-please sudah membuat Release (memuat changelog body), di sini hanya menambahkan artefak build
       - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.context.outputs.release_tag }}

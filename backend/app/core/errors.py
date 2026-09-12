@@ -38,7 +38,7 @@ class ProviderTimeoutError(ProviderError):
 
 
 class LLMTimeoutError(ProviderTimeoutError):
-    """LLM调用超时。"""
+    """Pemanggilan LLM melewati batas waktu."""
 
     pass
 
@@ -56,30 +56,30 @@ class StorageError(OpenFicError):
 
 
 class NotFoundError(OpenFicError):
-    """资源不存在错误。"""
+    """Kesalahan sumber daya tidak ditemukan."""
 
     pass
 
 
 class ValidationError(OpenFicError):
-    """验证错误。"""
+    """Kesalahan validasi."""
 
     pass
 
 
 class ConflictError(OpenFicError):
-    """资源冲突错误。"""
+    """Kesalahan konflik sumber daya."""
 
     pass
 
 
 class ProjectAlreadyBoundError(OpenFicError):
-    """项目已绑定世界书错误。"""
+    """Kesalahan proyek sudah terikat ke buku dunia."""
 
     pass
 
 
 class WorldInfoExistsError(OpenFicError):
-    """世界书已存在错误。"""
+    """Kesalahan buku dunia sudah ada."""
 
     pass

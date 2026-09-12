@@ -33,7 +33,7 @@ export function isTransportConnectionErrorMessage(message: AgentMessage): boolea
   if (message.type !== "error") return false;
   const errorKind = message.payload?.error_kind;
   if (errorKind === SOCKET_CONNECTION_ERROR_KIND) return true;
-  return /^Agent 连接失败[:：]/.test(message.content?.trim() ?? "");
+  return /^Agent \u8fde\u63a5\u5931\u8d25[:\uff1a]/.test(message.content?.trim() ?? "");
 }
 
 function clearTransportConnectionErrorMessages(messages: AgentMessage[]): AgentMessage[] {

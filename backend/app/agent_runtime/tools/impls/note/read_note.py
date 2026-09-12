@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-读取单条笔记内容。
+Membaca isi satu catatan.
 """
 
 import json
@@ -19,13 +19,13 @@ from app.storage.repos import note_category_repo, note_repo
 
 
 class ReadNoteInput(BaseModel):
-    note_ref: NoteRef = Field(description="目标笔记")
+    note_ref: NoteRef = Field(description="Catatan sasaran")
 
 
 @ToolRegistry.register
 class ReadNoteTool(AgentTool):
     name: str = "read_note"
-    description: str = "读取指定笔记的完整内容"
+    description: str = "Membaca isi lengkap catatan yang ditentukan"
     access_level: str = "readonly"
     args_schema: type[BaseModel] = ReadNoteInput
 
@@ -36,7 +36,7 @@ class ReadNoteTool(AgentTool):
             if ref.id is not None:
                 note = await note_repo.get_by_id(session, ref.id)
                 if note is None:
-                    raise ToolExecutionError(f"笔记不存在: {ref.id}")
+                    raise ToolExecutionError(f"Catatan tidak ditemukan: {ref.id}")
             else:
                 notes = await note_repo.list_by_project(
                     session, self.project_id, include_hidden=False
@@ -47,10 +47,10 @@ class ReadNoteTool(AgentTool):
                 note = resolve_note_from_list(notes, ref, categories=cats)
 
             if note.project_id != self.project_id:
-                raise ToolExecutionError("笔记不属于当前项目")
+                raise ToolExecutionError("Catatan tidak termasuk dalam proyek saat ini")
 
             if note.is_hidden:
-                raise ToolExecutionError("该笔记已隐藏")
+                raise ToolExecutionError("Catatan ini sudah disembunyikan")
 
             return json.dumps(
                 {

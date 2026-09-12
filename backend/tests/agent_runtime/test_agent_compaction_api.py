@@ -73,7 +73,7 @@ def _message_runner():
         queue_pending_user_message=AsyncMock(
             return_value={
                 "message_id": "msg_pending_1",
-                "content": "压缩期间追加需求",
+                "content": "Tambahan permintaan selama kompaksi",
                 "created_at": "2026-06-12T00:00:00+00:00",
             }
         ),
@@ -196,7 +196,7 @@ async def test_manual_compaction_rejects_while_session_is_running(
     assert response.status_code == status.HTTP_409_CONFLICT
     assert response.json()["detail"] == {
         "code": "session_compacting",
-        "message": "会话运行中，不能手动压缩",
+        "message": "Sesi sedang berjalan, tidak dapat melakukan kompresi manual",
     }
     runner.compact.assert_not_awaited()
     registry.try_register_parent.assert_not_awaited()
@@ -210,7 +210,7 @@ async def test_manual_compaction_maps_no_window_error_to_conflict(
     runner = _runner(
         compact_error=CompactionError(
             "no_compactable_window",
-            "没有可压缩的上下文窗口",
+            "Tidak ada jendela konteks yang dapat dikompaksi",
         )
     )
     registry = _registry()
@@ -235,7 +235,7 @@ async def test_manual_compaction_maps_no_window_error_to_conflict(
     assert response.status_code == status.HTTP_409_CONFLICT
     assert response.json()["detail"] == {
         "code": "no_compactable_window",
-        "message": "没有可压缩的上下文窗口",
+        "message": "Tidak ada jendela konteks yang dapat dikompaksi",
     }
     launch_task.assert_not_awaited()
 
@@ -247,9 +247,9 @@ async def test_manual_compaction_maps_empty_summary_error_to_conflict(
     runner = _runner(
         compact_error=CompactionError(
             "compaction_empty_summary",
-            "压缩结果为空",
+            "Hasil kompaksi kosong",
         ),
-        pending=("msg_pending_1", "压缩后继续处理"),
+        pending=("msg_pending_1", "Lanjutkan setelah kompaksi"),
     )
     registry = _registry()
 
@@ -273,7 +273,7 @@ async def test_manual_compaction_maps_empty_summary_error_to_conflict(
     assert response.status_code == status.HTTP_409_CONFLICT
     assert response.json()["detail"] == {
         "code": "compaction_empty_summary",
-        "message": "压缩结果为空",
+        "message": "Hasil kompaksi kosong",
     }
     runner.consume_next_pending_user_message_for_continuation.assert_not_awaited()
     runner.peek_next_pending_user_message.assert_not_called()
@@ -285,7 +285,7 @@ async def test_manual_compaction_maps_empty_summary_error_to_conflict(
 async def test_manual_compaction_success_launches_pending_message_continuation(
     client: AsyncClient,
 ) -> None:
-    runner = _runner(pending=("msg_pending_1", "压缩后继续处理"))
+    runner = _runner(pending=("msg_pending_1", "Lanjutkan setelah kompaksi"))
     continuation_coro = object()
     runner.run = MagicMock(return_value=continuation_coro)
     registry = _registry()
@@ -328,7 +328,7 @@ async def test_manual_compaction_success_launches_pending_message_continuation(
     runner.consume_next_pending_user_message_for_continuation.assert_awaited_once_with()
     runner.peek_next_pending_user_message.assert_not_called()
     runner.run.assert_called_once_with(
-        user_request="压缩后继续处理",
+        user_request="Lanjutkan setelah kompaksi",
         user_message_id="msg_pending_1",
     )
     launch_continuation_task.assert_awaited_once()
@@ -403,7 +403,7 @@ async def test_send_message_queues_when_manual_compaction_running_even_if_interr
     ) as launch_task:
         response = await client.post(
             "/api/v1/agent/sessions/sess_compaction_api/message",
-            json={"message": "压缩期间追加需求"},
+            json={"message": "Tambahan permintaan selama kompaksi"},
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -411,11 +411,11 @@ async def test_send_message_queues_when_manual_compaction_running_even_if_interr
     assert response.json()["queued"] is True
     assert response.json()["pending_message"] == {
         "message_id": "msg_pending_1",
-        "content": "压缩期间追加需求",
+        "content": "Tambahan permintaan selama kompaksi",
         "created_at": "2026-06-12T00:00:00+00:00",
     }
     registry.is_running.assert_awaited_once_with("sess_compaction_api")
-    runner.queue_pending_user_message.assert_awaited_once_with("压缩期间追加需求")
+    runner.queue_pending_user_message.assert_awaited_once_with("Tambahan permintaan selama kompaksi")
     runner.run.assert_not_called()
     launch_task.assert_not_awaited()
 
@@ -442,7 +442,7 @@ async def test_send_message_starts_new_run_when_paused_session_is_not_running(
     ) as launch_task:
         response = await client.post(
             "/api/v1/agent/sessions/sess_compaction_api/message",
-            json={"message": "继续被中断的会话"},
+            json={"message": "Lanjutkan sesi yang terputus"},
         )
 
     assert response.status_code == status.HTTP_200_OK
@@ -450,7 +450,7 @@ async def test_send_message_starts_new_run_when_paused_session_is_not_running(
     assert response.json()["queued"] is False
     registry.is_running.assert_awaited_once_with("sess_compaction_api")
     runner.queue_pending_user_message.assert_not_awaited()
-    runner.run.assert_called_once_with(user_request="继续被中断的会话")
+    runner.run.assert_called_once_with(user_request="Lanjutkan sesi yang terputus")
     launch_task.assert_awaited_once()
 
 
@@ -476,14 +476,14 @@ async def test_send_message_queues_ordinary_running_session(
     ) as launch_task:
         response = await client.post(
             "/api/v1/agent/sessions/sess_compaction_api/message",
-            json={"message": "运行中追加需求"},
+            json={"message": "Tambahan permintaan saat berjalan"},
         )
 
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["success"] is True
     assert response.json()["queued"] is True
     registry.is_running.assert_awaited_once_with("sess_compaction_api")
-    runner.queue_pending_user_message.assert_awaited_once_with("运行中追加需求")
+    runner.queue_pending_user_message.assert_awaited_once_with("Tambahan permintaan saat berjalan")
     runner.run.assert_not_called()
     launch_task.assert_not_awaited()
 
@@ -553,7 +553,7 @@ async def test_rollback_rejects_running_session_without_cancelling(
         )
 
     assert response.status_code == status.HTTP_409_CONFLICT
-    assert response.json()["detail"] == "会话运行中，不能回滚"
+    assert response.json()["detail"] == "Sesi sedang berjalan, tidak dapat melakukan rollback"
     fake_runner.cancel.assert_not_called()
     registry.cancel.assert_not_awaited()
     rollback_revision.assert_not_awaited()

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Note 工具引用解析。
+Resolusi referensi untuk alat Note.
 """
 
 from collections.abc import Sequence
@@ -13,15 +13,24 @@ from app.storage.models.note import NoteCategory
 
 
 class NoteRef(BaseModel):
-    id: str | None = Field(default=None, description="按 ID 定位")
-    title: str | None = Field(default=None, description="按标题定位")
-    path: str | None = Field(default=None, description="路径，如 /设定/角色/笔记标题")
+    id: str | None = Field(default=None, description="Ditentukan berdasarkan ID")
+    title: str | None = Field(
+        default=None, description="Ditentukan berdasarkan judul"
+    )
+    path: str | None = Field(
+        default=None,
+        description="Jalur, misalnya /latar/tokoh/judul-catatan",
+    )
 
 
 class CategoryRef(BaseModel):
-    id: str | None = Field(default=None, description="按 ID 定位")
-    title: str | None = Field(default=None, description="按标题定位")
-    path: str | None = Field(default=None, description="路径，如 /设定/角色")
+    id: str | None = Field(default=None, description="Ditentukan berdasarkan ID")
+    title: str | None = Field(
+        default=None, description="Ditentukan berdasarkan judul"
+    )
+    path: str | None = Field(
+        default=None, description="Jalur, misalnya /latar/tokoh"
+    )
 
 
 def _resolve_category_by_path(
@@ -51,7 +60,8 @@ def build_category_path(
     categories: Sequence[NoteCategory],
     category_id: str | None,
 ) -> list[str]:
-    """按分类层级返回从根分类到目标分类的标题路径。"""
+    """Mengembalikan jalur judul dari kategori akar sampai kategori sasaran
+    sesuai tingkatan kategori."""
     if category_id is None:
         return []
     categories_by_id = {category.id: category for category in categories}
@@ -91,7 +101,9 @@ def resolve_note_from_list(
                 cat_path = "/".join(segments[:-1])
                 cat = _resolve_category_by_path(categories, cat_path)
                 if cat is None:
-                    raise ToolExecutionError(f"路径中分类不存在: {cat_path}")
+                    raise ToolExecutionError(
+                        f"Kategori dalam jalur tidak ditemukan: {cat_path}"
+                    )
                 category_id = cat.id
             match = next(
                 (
@@ -107,7 +119,9 @@ def resolve_note_from_list(
         match = next((n for n in notes if n.title == ref.title), None)
         if match is not None:
             return match
-    raise ToolExecutionError(f"未找到笔记: id={ref.id}, title={ref.title}, path={ref.path}")
+    raise ToolExecutionError(
+        f"Catatan tidak ditemukan: id={ref.id}, title={ref.title}, path={ref.path}"
+    )
 
 
 def resolve_category_from_list(
@@ -125,7 +139,9 @@ def resolve_category_from_list(
         match = next((c for c in categories if c.title == ref.title), None)
         if match is not None:
             return match
-    raise ToolExecutionError(f"未找到分类: id={ref.id}, title={ref.title}, path={ref.path}")
+    raise ToolExecutionError(
+        f"Kategori tidak ditemukan: id={ref.id}, title={ref.title}, path={ref.path}"
+    )
 
 
 def generate_unique_title(base_title: str, existing_titles: set[str]) -> str:

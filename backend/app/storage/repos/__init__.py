@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Repository 模块 - 数据访问层。
+Modul Repository - lapisan akses data.
 """
 
 from app.storage.repos import (

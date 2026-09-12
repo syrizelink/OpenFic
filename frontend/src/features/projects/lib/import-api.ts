@@ -1,25 +1,25 @@
 /**
- * 导入 API - 项目文件导入相关接口。
+ * API impor - antarmuka terkait impor berkas proyek.
  */
 
 import i18n from "@/i18n";
 import { apiClient, getApiBaseUrl, handleAuthenticationFailure } from "@/lib/api-client";
 
-/** 预览章节信息 */
+/** Informasi pratinjau bab */
 export interface PreviewChapter {
   title: string;
   word_count: number;
   content_preview: string;
 }
 
-/** 预览卷信息 */
+/** Informasi pratinjau volume */
 export interface PreviewVolume {
   title: string;
   chapter_count: number;
   chapters: PreviewChapter[];
 }
 
-/** 导入预览响应 */
+/** Respons pratinjau impor */
 export interface ImportPreviewResponse {
   volumes: PreviewVolume[];
   total_word_count: number;
@@ -32,7 +32,7 @@ export type ImportSplitMode = "auto" | "manual";
 export const DEFAULT_IMPORT_CHUNK_SIZE = 800;
 export const MAX_IMPORT_CHUNK_SIZE = 100_000;
 
-/** 确认导入响应 */
+/** Respons konfirmasi impor */
 export interface ImportConfirmResponse {
   project_id: string;
   title: string;
@@ -41,10 +41,10 @@ export interface ImportConfirmResponse {
 }
 
 /**
- * 预览项目文件解析结果。
+ * Melihat pratinjau hasil penguraian berkas proyek.
  *
- * @param file TXT、Markdown 或 ZIP 文件
- * @returns 解析预览结果
+ * @param file Berkas TXT, Markdown, atau ZIP
+ * @returns Hasil pratinjau penguraian
  */
 export async function previewImportFile(
   file: File,
@@ -66,15 +66,15 @@ export async function previewImportFile(
 }
 
 /**
- * 确认导入，创建项目和章节。
+ * Mengonfirmasi impor, membuat proyek dan bab.
  *
- * @param file TXT、Markdown 或 ZIP 文件
- * @param title 书名
- * @param description 简介（可选）
- * @param cover 封面文件（可选）
- * @param splitMode 分割模式
- * @param chunkSize 手动分割时的每章字数
- * @returns 导入结果
+ * @param file Berkas TXT, Markdown, atau ZIP
+ * @param title Judul buku
+ * @param description Deskripsi (opsional)
+ * @param cover Berkas sampul (opsional)
+ * @param splitMode Mode pemisahan
+ * @param chunkSize Jumlah kata per bab saat pemisahan manual
+ * @returns Hasil impor
  */
 export async function confirmImport(
   file: File,
@@ -107,7 +107,7 @@ export async function confirmImport(
   return response.data;
 }
 
-/** 导入进度事件 */
+/** Peristiwa progres impor */
 export interface ImportProgressEvent {
   type: "progress";
   stage: "reading" | "parsing" | "creating_project" | "saving_chapters";
@@ -116,7 +116,7 @@ export interface ImportProgressEvent {
   total?: number;
 }
 
-/** 导入完成事件 */
+/** Peristiwa impor selesai */
 export interface ImportCompleteEvent {
   type: "complete";
   project_id: string;
@@ -125,25 +125,25 @@ export interface ImportCompleteEvent {
   total_word_count: number;
 }
 
-/** 导入错误事件 */
+/** Peristiwa galat impor */
 export interface ImportErrorEvent {
   type: "error";
   message: string;
 }
 
-/** 导入事件类型 */
+/** Tipe peristiwa impor */
 export type ImportEvent = ImportProgressEvent | ImportCompleteEvent | ImportErrorEvent;
 
 /**
- * 流式确认导入，提供实时进度更新。
+ * Mengonfirmasi impor secara mengalir, menyediakan pembaruan progres langsung.
  *
- * @param file TXT、Markdown 或 ZIP 文件
- * @param title 书名
- * @param description 简介（可选）
- * @param cover 封面文件（可选）
- * @param splitMode 分割模式
- * @param chunkSize 手动分割时的每章字数
- * @param onEvent 事件回调
+ * @param file Berkas TXT, Markdown, atau ZIP
+ * @param title Judul buku
+ * @param description Deskripsi (opsional)
+ * @param cover Berkas sampul (opsional)
+ * @param splitMode Mode pemisahan
+ * @param chunkSize Jumlah kata per bab saat pemisahan manual
+ * @param onEvent Callback peristiwa
  */
 export async function confirmImportStream(
   file: File,
@@ -194,7 +194,7 @@ export async function confirmImportStream(
 
     buffer += decoder.decode(value, { stream: true });
 
-    // 解析 SSE 事件
+    // Mengurai peristiwa SSE
     const lines = buffer.split("\n");
     buffer = lines.pop() || "";
 
@@ -216,7 +216,7 @@ export async function confirmImportStream(
           }
         } catch (e) {
           if (e instanceof SyntaxError) {
-            console.warn("无法解析 SSE 事件:", line);
+            console.warn("Tidak dapat mengurai peristiwa SSE:", line);
           } else {
             throw e;
           }

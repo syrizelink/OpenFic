@@ -12,15 +12,15 @@ async def test_create_and_list_skills(client: AsyncClient) -> None:
     response = await client.post(
         "/api/v1/skills",
         json={
-            "name": "测试技能",
-            "summary": "简述",
-            "content": "技能内容",
+            "name": "Skill Uji",
+            "summary": "Ringkasan singkat",
+            "content": "Isi skill",
             "is_enabled": True,
         },
     )
     assert response.status_code == 201
     data = response.json()
-    assert data["name"] == "测试技能"
+    assert data["name"] == "Skill Uji"
     assert data["is_enabled"] is True
     assert data["is_complete"] is True
     assert "skill_id" not in data
@@ -70,7 +70,7 @@ async def test_builtin_skill_cannot_be_updated_or_deleted(client: AsyncClient) -
         if item["source"] == "builtin"
     )
 
-    update_response = await client.patch(f"/api/v1/skills/{skill_id}", json={"name": "已修改"})
+    update_response = await client.patch(f"/api/v1/skills/{skill_id}", json={"name": "Sudah Diubah"})
     assert update_response.status_code == 400
 
     delete_response = await client.delete(f"/api/v1/skills/{skill_id}")
@@ -99,14 +99,14 @@ async def test_create_skill_strips_name_whitespace(client: AsyncClient) -> None:
     response = await client.post(
         "/api/v1/skills",
         json={
-            "name": "  可引用技能  ",
-            "summary": "简述",
-            "content": "技能内容",
+            "name": "  Skill Dapat Dirujuk  ",
+            "summary": "Ringkasan singkat",
+            "content": "Isi skill",
         },
     )
 
     assert response.status_code == 201
-    assert response.json()["name"] == "可引用技能"
+    assert response.json()["name"] == "Skill Dapat Dirujuk"
 
 
 @pytest.mark.asyncio
@@ -114,7 +114,7 @@ async def test_incomplete_skill_cannot_be_enabled(client: AsyncClient) -> None:
     response = await client.post(
         "/api/v1/skills",
         json={
-            "name": "测试技能",
+            "name": "Skill Uji",
             "summary": "",
             "content": "",
             "is_enabled": True,
@@ -128,9 +128,9 @@ async def test_toggle_skill(client: AsyncClient) -> None:
     create_response = await client.post(
         "/api/v1/skills",
         json={
-            "name": "测试技能",
-            "summary": "简述",
-            "content": "技能内容",
+            "name": "Skill Uji",
+            "summary": "Ringkasan singkat",
+            "content": "Isi skill",
         },
     )
     skill_db_id = create_response.json()["id"]
@@ -144,24 +144,24 @@ async def test_toggle_skill(client: AsyncClient) -> None:
 async def test_create_skill_dedupes_duplicate_name(client: AsyncClient) -> None:
     first = await client.post(
         "/api/v1/skills",
-        json={"name": "新建技能", "summary": "", "content": ""},
+        json={"name": "Skill Baru", "summary": "", "content": ""},
     )
     assert first.status_code == 201
-    assert first.json()["name"] == "新建技能"
+    assert first.json()["name"] == "Skill Baru"
 
     second = await client.post(
         "/api/v1/skills",
-        json={"name": "新建技能", "summary": "", "content": ""},
+        json={"name": "Skill Baru", "summary": "", "content": ""},
     )
     assert second.status_code == 201
-    assert second.json()["name"] == "新建技能 (2)"
+    assert second.json()["name"] == "Skill Baru (2)"
 
     third = await client.post(
         "/api/v1/skills",
-        json={"name": "新建技能", "summary": "", "content": ""},
+        json={"name": "Skill Baru", "summary": "", "content": ""},
     )
     assert third.status_code == 201
-    assert third.json()["name"] == "新建技能 (3)"
+    assert third.json()["name"] == "Skill Baru (3)"
 
 
 @pytest.mark.asyncio
@@ -169,20 +169,20 @@ async def test_fork_skill_copies_custom_skill_and_reference_docs(client: AsyncCl
     create_response = await client.post(
         "/api/v1/skills",
         json={
-            "name": "原技能",
-            "summary": "原简述",
-            "content": "原技能内容",
+            "name": "Skill Asli",
+            "summary": "Ringkasan asli",
+            "content": "Isi skill asli",
             "is_enabled": True,
         },
     )
     source = create_response.json()
     await client.post(
         f"/api/v1/skills/{source['id']}/reference-docs",
-        json={"title": "参考文档一", "content": "参考内容一"},
+        json={"title": "Dokumen Referensi Satu", "content": "Isi referensi satu"},
     )
     await client.post(
         f"/api/v1/skills/{source['id']}/reference-docs",
-        json={"title": "参考文档二", "content": "参考内容二"},
+        json={"title": "Dokumen Referensi Dua", "content": "Isi referensi dua"},
     )
 
     fork_response = await client.post(f"/api/v1/skills/{source['id']}/fork")
@@ -190,7 +190,7 @@ async def test_fork_skill_copies_custom_skill_and_reference_docs(client: AsyncCl
     assert fork_response.status_code == 201
     fork = fork_response.json()
     assert fork["id"] != source["id"]
-    assert fork["name"] == "原技能- Fork"
+    assert fork["name"] == "Skill Asli- Fork"
     assert fork["summary"] == source["summary"]
     assert fork["content"] == source["content"]
     assert fork["source"] == "custom"
@@ -201,8 +201,8 @@ async def test_fork_skill_copies_custom_skill_and_reference_docs(client: AsyncCl
     assert [
         (doc["title"], doc["content"]) for doc in fork_docs_response.json()
     ] == [
-        ("参考文档一", "参考内容一"),
-        ("参考文档二", "参考内容二"),
+        ("Dokumen Referensi Satu", "Isi referensi satu"),
+        ("Dokumen Referensi Dua", "Isi referensi dua"),
     ]
 
 
@@ -244,17 +244,17 @@ async def test_fork_skill_copies_builtin_skill_and_reference_docs(client: AsyncC
 async def test_update_skill_name_conflict(client: AsyncClient) -> None:
     await client.post(
         "/api/v1/skills",
-        json={"name": "技能一", "summary": "", "content": ""},
+        json={"name": "Skill Satu", "summary": "", "content": ""},
     )
     create_b = await client.post(
         "/api/v1/skills",
-        json={"name": "技能二", "summary": "", "content": ""},
+        json={"name": "Skill Dua", "summary": "", "content": ""},
     )
     skill_b_id = create_b.json()["id"]
 
     conflict = await client.patch(
         f"/api/v1/skills/{skill_b_id}",
-        json={"name": "技能一"},
+        json={"name": "Skill Satu"},
     )
     assert conflict.status_code == 409
 
@@ -263,13 +263,13 @@ async def test_update_skill_name_conflict(client: AsyncClient) -> None:
 async def test_update_skill_keeps_same_name(client: AsyncClient) -> None:
     create_response = await client.post(
         "/api/v1/skills",
-        json={"name": "技能", "summary": "", "content": ""},
+        json={"name": "Skill", "summary": "", "content": ""},
     )
     skill_id = create_response.json()["id"]
 
     update_response = await client.patch(
         f"/api/v1/skills/{skill_id}",
-        json={"name": "技能", "summary": "新简述"},
+        json={"name": "Skill", "summary": "Ringkasan baru"},
     )
     assert update_response.status_code == 200
 

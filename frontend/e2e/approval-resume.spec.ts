@@ -20,28 +20,28 @@ import {
   waitForTaskRunning,
 } from "./helpers";
 
-test.describe("审批恢复与取消互斥", () => {
-  test("审批执行后会话继续直至完成", async ({ page }) => {
+test.describe("Pemulihan persetujuan dan saling eksklusif dengan pembatalan", () => {
+  test("sesi berlanjut sampai selesai setelah persetujuan dijalankan", async ({ page }) => {
     await openProject(page, EMPTY_PROJECT_URL);
     await startNewTask(page);
 
-    const chapterName = `审批测试${Date.now().toString(36)}`;
+    const chapterName = `Uji persetujuan${Date.now().toString(36)}`;
     await sendMessage(
       page,
-      `请分两步执行：第一步，创建一个名为「${chapterName}」的章节。第二步，写入 50 字内容。完成后回复「审批完成」。`,
+      `Kerjakan dalam dua langkah: pertama, buat sebuah bab bernama '${chapterName}'. Kedua, tulis 50 kata isi. Setelah selesai, balas dengan 'Persetujuan selesai'.`,
     );
     await waitForApprovalPanel(page);
 
-    await approveUntilReply(page, "审批完成");
+    await approveUntilReply(page, "Persetujuan selesai");
   });
 
-  test("取消后审批恢复被拒绝且锁与状态正确", async ({ page }) => {
+  test("pemulihan persetujuan ditolak setelah pembatalan serta kunci dan status tetap benar", async ({ page }) => {
     await openProject(page, EMPTY_PROJECT_URL);
     await startNewTask(page);
 
     await sendMessage(
       page,
-      `请分两步执行：第一步，创建一个名为「取消审批${Date.now().toString(36)}」的章节。第二步，写入 50 字内容。完成后回复「完成」。`,
+      `Kerjakan dalam dua langkah: pertama, buat sebuah bab bernama 'Batalkan persetujuan${Date.now().toString(36)}'. Kedua, tulis 50 kata isi. Setelah selesai, balas dengan 'Selesai'.`,
     );
     await waitForApprovalPanel(page);
 
@@ -63,18 +63,18 @@ test.describe("审批恢复与取消互斥", () => {
     const cancelledTask = await getLatestTask(page, EMPTY_PROJECT_ID);
     expect(cancelledTask.is_running).toBe(false);
 
-    await page.locator(APPROVAL_PANEL).getByRole("button", { name: "执行" }).click();
+    await page.locator(APPROVAL_PANEL).getByRole("button", { name: "Jalankan" }).click();
 
-    await expect(page.getByText("工具审批失败").first()).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText("Persetujuan alat gagal").first()).toBeVisible({ timeout: 30000 });
   });
 
-  test("运行中取消后旧任务不被新消息复活", async ({ page }) => {
+  test("tugas lama tidak dihidupkan kembali oleh pesan baru setelah dibatalkan saat berjalan", async ({ page }) => {
     await openProject(page, EMPTY_PROJECT_URL);
     await startNewTask(page);
 
     await sendMessage(
       page,
-      `请分两步执行：第一步，创建一个名为「复活测试${Date.now().toString(36)}」的章节。第二步，写入 50 字内容。完成后回复「完成」。`,
+      `Kerjakan dalam dua langkah: pertama, buat sebuah bab bernama 'Uji hidup kembali${Date.now().toString(36)}'. Kedua, tulis 50 kata isi. Setelah selesai, balas dengan 'Selesai'.`,
     );
     await waitForRunningState(page);
     await waitForTaskRunning(page, EMPTY_PROJECT_ID);
@@ -85,15 +85,15 @@ test.describe("审批恢复与取消互斥", () => {
     const oldRevisionId = oldTask.current_revision_id;
 
     await page.locator(SEND_BUTTON).click();
-    await expect(page.getByText("正在考虑下一步").first()).toBeHidden({ timeout: 60000 });
+    await expect(page.getByText("Mempertimbangkan langkah berikutnya").first()).toBeHidden({ timeout: 60000 });
 
     const cancelledTask = await getLatestTask(page, EMPTY_PROJECT_ID);
     expect(cancelledTask.is_running).toBe(false);
     const cancelledState = await getSessionState(page, oldSessionId);
     expect(cancelledState.interrupts ?? []).toHaveLength(0);
 
-    await sendMessage(page, "回复「新会话正常」五个字，不要执行任何工具。");
-    await waitForAssistantReply(page, "新会话正常");
+    await sendMessage(page, "Balas dengan kalimat 'Sesi baru normal' saja, jangan jalankan alat apa pun.");
+    await waitForAssistantReply(page, "Sesi baru normal");
 
     const finalTask = await getLatestTaskDetail(page, EMPTY_PROJECT_ID);
     expect(finalTask.agent_session_id).toBe(oldSessionId);

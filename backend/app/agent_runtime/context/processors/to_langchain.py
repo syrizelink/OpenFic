@@ -13,7 +13,8 @@ from app.agent_runtime.context.types import ContextMessage
 
 
 def to_langchain_messages(parts: list[ContextMessage]) -> list[BaseMessage]:
-    """将 ContextMessage 列表按 role 映射为 LangChain BaseMessage 列表。"""
+    """Memetakan daftar ContextMessage menjadi daftar LangChain BaseMessage
+    berdasarkan role."""
     out: list[BaseMessage] = []
     for p in parts:
         if p.role == "system":

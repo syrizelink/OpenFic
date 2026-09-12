@@ -33,7 +33,7 @@ import {
 import { AdvancedParamsSection } from "./advanced-params-section";
 import { ModelMetadataSection } from "./model-metadata-section";
 
-// 先定义 schema 和类型，以便在 ModelParamField 中使用
+// Definisikan schema dan tipenya lebih dahulu agar bisa dipakai di ModelParamField
 const modelSchema = z.object({
   name: z.string().min(1, "nameRequired"),
   taskType: z.enum(["llm", "embedding", "rerank"]),
@@ -119,11 +119,11 @@ export function ModelFormDialog({
     },
   });
 
-  // 当对话框打开或模型改变时，重置表单值
+  // Mereset nilai formulir saat dialog dibuka atau model berubah
   useEffect(() => {
     if (open) {
       if (model) {
-        // 编辑模式：回填所有值
+        // Mode sunting: mengisi kembali seluruh nilai
         reset({
           name: model.name || "",
           taskType: (model.taskType as TaskType) || "llm",
@@ -147,7 +147,7 @@ export function ModelFormDialog({
           dimensions: model.dimensions ?? null,
         });
       } else {
-        // 新建模式：重置为空
+        // Mode buat baru: direset menjadi kosong
         reset({
           name: "",
           taskType: "llm" as TaskType,
@@ -186,14 +186,14 @@ export function ModelFormDialog({
   const taskType = useWatch({ control, name: "taskType" });
   const name = useWatch({ control, name: "name" });
   const hasDuplicateName = models.some((entry) => entry.id !== model?.id && entry.name === name);
-  // 获取提供商列表
+  // Mengambil daftar penyedia
   const { data: providers } = useQuery({
     queryKey: ["model-providers"],
     queryFn: fetchProviders,
     staleTime: 5 * 60 * 1000,
   });
 
-  // 模型目录可能缺少实际支持的任务类型，因此只排除内置提供商。
+  // Katalog model mungkin tidak memuat jenis tugas yang sebenarnya didukung, jadi hanya penyedia bawaan yang dikecualikan.
   const filteredProviders = useMemo(() => {
     if (!providers) return [];
     return providers.filter(isSelectableModelProvider);
@@ -244,7 +244,7 @@ export function ModelFormDialog({
     [t],
   );
 
-  // 加载提供商的模型列表
+  // Memuat daftar model sebuah penyedia
   const loadModelsForProvider = useCallback(
     async (provId: string, currentTaskType: TaskType) => {
       const provider = providers?.find((p) => p.id === provId);
@@ -262,13 +262,13 @@ export function ModelFormDialog({
           setModelsError("");
         } else {
           setAvailableModels([]);
-          // 显示后端返回的错误信息
+          // Menampilkan informasi galat dari backend
           setModelsError(result.message || t("models.fetchModelsFailed"));
         }
       } catch (error) {
         console.error("Failed to load models:", error);
         setAvailableModels([]);
-        // 显示网络错误或其他异常
+        // Menampilkan galat jaringan atau anomali lain
         setModelsError(error instanceof Error ? error.message : t("models.networkRequestFailed"));
       } finally {
         setLoadingModels(false);
@@ -285,7 +285,7 @@ export function ModelFormDialog({
     void loadModelsForProvider(providerId, taskType as TaskType);
   }, [loadModelsForProvider, providerId, taskType]);
 
-  // 提供商或任务类型变化时，使用 catalog 模型作为默认候选来源
+  // Saat penyedia atau jenis tugas berubah, model catalog dipakai sebagai sumber kandidat bawaan
   useEffect(() => {
     if (!open || !selectedProvider) {
       return;
@@ -296,8 +296,8 @@ export function ModelFormDialog({
     });
   }, [loadCatalogModelsForProvider, open, selectedProvider, taskType]);
 
-  // 仅在创建表单没有提供商时清空模型选择。
-  // 编辑表单的 reset() 会在 watch 值同步前触发，不能据此清空已保存的模型 ID。
+  // Pilihan model hanya dikosongkan bila formulir pembuatan tidak punya penyedia.
+  // reset() pada formulir sunting terpicu sebelum nilai watch tersinkron, jadi ID model tersimpan tidak boleh dikosongkan karenanya.
   useEffect(() => {
     if (!providerId && !isEditing) {
       queueMicrotask(() => {
@@ -331,7 +331,7 @@ export function ModelFormDialog({
     }
   }, [selectedProviderSupportsEmbeddingDimensions, setValue, taskType]);
 
-  // 处理模型ID选择
+  // Menangani pemilihan ID model
   const handleModelIdChange = useCallback(
     (modelId: string, modelName?: string) => {
       setValue("modelId", modelId);
@@ -364,10 +364,10 @@ export function ModelFormDialog({
     [availableModels, getValues, setValue],
   );
 
-  // 提交表单
+  // Mengirim formulir
   const onFormSubmit = useCallback(
     async (data: ModelFormData) => {
-      // LLM模型的高级参数必须有实际值（使用默认值替代null）
+      // Parameter lanjutan model LLM harus punya nilai nyata (null diganti nilai bawaan)
       const requestData = {
         name: data.name,
         task_type: data.taskType,
@@ -398,7 +398,7 @@ export function ModelFormDialog({
         await onSubmit(requestData);
         reset();
       } catch (error) {
-        console.error("提交失败:", error);
+        console.error("Gagal mengirim:", error);
         throw error;
       }
     },
@@ -444,7 +444,7 @@ export function ModelFormDialog({
         >
           <form
             onSubmit={handleSubmit(onFormSubmit, (errors) => {
-              console.error("表单验证错误:", errors);
+              console.error("Galat validasi formulir:", errors);
             })}
           >
             <Flex
@@ -452,7 +452,7 @@ export function ModelFormDialog({
               gap="4"
               mt="4"
             >
-              {/* 模型名称 */}
+              {/* Nama model */}
               <Flex
                 direction="column"
                 gap="2"
@@ -500,7 +500,7 @@ export function ModelFormDialog({
                 )}
               </Flex>
 
-              {/* 任务类型 */}
+              {/* Jenis tugas */}
               <Flex
                 direction="column"
                 gap="2"
@@ -546,7 +546,7 @@ export function ModelFormDialog({
                 )}
               </Flex>
 
-              {/* 提供商 */}
+              {/* Penyedia */}
               <Flex
                 direction="column"
                 gap="2"
@@ -599,7 +599,7 @@ export function ModelFormDialog({
                 ) : null}
               </Flex>
 
-              {/* 模型 - 使用高级选择器 */}
+              {/* Model - memakai pemilih lanjutan */}
               <Flex
                 direction="column"
                 gap="2"
@@ -708,7 +708,7 @@ export function ModelFormDialog({
                 </Flex>
               )}
 
-              {/* 备注 */}
+              {/* Catatan */}
               <Flex
                 direction="column"
                 gap="2"
@@ -736,7 +736,7 @@ export function ModelFormDialog({
 
               <Separator size="4" />
 
-              {/* 高级参数 - 仅 LLM 模式 */}
+              {/* Parameter lanjutan - hanya mode LLM */}
               {taskType === "llm" && (
                 <>
                   <ModelMetadataSection
@@ -751,7 +751,7 @@ export function ModelFormDialog({
                 </>
               )}
 
-              {/* 操作按钮 */}
+              {/* Tombol tindakan */}
               <Flex
                 gap="3"
                 mt="2"

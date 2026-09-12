@@ -54,7 +54,15 @@
     "searchPlaceholder": "Search...",
     "noMatchingOptions": "No matching options",
     "swUpdated": "App updated. Click to refresh.",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "responseStreamUnavailable": "Unable to read the response stream",
+    "socketConnected": "Connected",
+    "socketDisconnected": "Disconnected",
+    "socketConnectedLabel": "Socket connected",
+    "socketDisconnectedLabel": "Socket disconnected",
+    "appStatusBar": "Application status bar",
+    "backgroundSubscriptionFailed": "Failed to subscribe to background events",
+    "backgroundJoinRoomTimeout": "Timed out joining the background project room"
   },
   "auth": {
     "passwordPlaceholder": "Enter password",
@@ -681,7 +689,8 @@
     "batchDeleteSelected": "Delete Selected",
     "batchDeleteConfirm": "Are you sure you want to delete {{count}} entries? This cannot be undone.",
     "batchDeleted": "{{count}} entries deleted",
-    "batchToggled": "{{count}} entries updated"
+    "batchToggled": "{{count}} entries updated",
+    "projectWorldInfoLabel": "World info for {{title}}"
   },
   "settings": {
     "agentSettingsLocked": "An Agent session is running, so related settings are read-only.",
@@ -995,6 +1004,22 @@
     "agentsSystemDefaultModel": "Default Model",
     "agentsSystemLightModel": "Light Model",
     "agentsToolCategories": "Capabilities",
+    "agentsToolCategoryLabels": {
+      "orchestration": "Delegate Subtasks",
+      "interaction": "Ask User",
+      "web_search": "Web Search",
+      "web_fetch": "Web Fetch",
+      "plan": "Plan",
+      "chapter_read": "Read Chapters",
+      "summary_read": "Read Summaries",
+      "character_read": "Read Characters",
+      "character_write": "Write Characters",
+      "world_read": "Read World Book",
+      "world_write": "Write World Book",
+      "note_read": "Read Notes",
+      "note_write": "Write Notes",
+      "chapter_write": "Write Chapters"
+    },
     "agentsNoTools": "No tools available",
     "agentsNoDescription": "No description",
     "agentsEnabledSkills": "Skills",
@@ -1085,7 +1110,13 @@
     },
     "primaryDescription": {
       "build": "Default agent that handles general writing tasks and dispatches sub-agents when needed.",
-      "plan": "Focuses on planning and coordination, organizing, reviewing, and delivering sub-agent work for system writing tasks."
+      "plan": "Focuses on planning and coordination, organizing, reviewing, and delivering sub-agent work for system writing tasks.",
+      "explore": "Handles information gathering, context organization, and evidence lookup.",
+      "composer": "Handles plot design, structural planning, and organizing the writing approach.",
+      "auditor": "Reviews the plan, produces review feedback, points out issues, and proposes fixes.",
+      "writer": "Handles chapter drafting, follow-up writing, and prose revision.",
+      "actor": "Executes revisions against the agreed goal and drives concrete actions.",
+      "reviewer": "Reviews written content, produces review feedback, points out issues, and proposes fixes."
     }
   },
   "connections": {
@@ -1714,7 +1745,16 @@
       }
     },
     "errorInvalidParams": "Invalid request parameters",
-    "generateFailedFallback": "Summary generation failed. Please try again later."
+    "generateFailedFallback": "Summary generation failed. Please try again later.",
+    "statusDot": {
+      "notGenerated": "Summary not generated",
+      "queued": "Summary queued",
+      "running": "Generating summary",
+      "ready": "Summary ready",
+      "failed": "Summary generation failed",
+      "stale": "Summary needs updating"
+    },
+    "cancelBatchReason": "User stopped the summary generation queue"
   },
   "assistant": {
     "mobileTitle": "Agent",
@@ -2111,7 +2151,8 @@
       "find": "Find",
       "replaceWith": "Replace with",
       "result": "Result",
-      "toolApprovalQuestion": "Allow calling {{toolName}}?"
+      "toolApprovalQuestion": "Allow calling {{toolName}}?",
+      "chapterDisplayByOrder": "Chapter {{order}}"
     }
   },
   "settingsExtra": {

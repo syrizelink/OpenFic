@@ -19,8 +19,8 @@ def _make_world_info(world_info_id: str = "world-1") -> MagicMock:
 def _make_world_entry(
     *,
     entry_id: str = "entry-1",
-    title: str = "旧条目",
-    content: str = "旧内容",
+    title: str = "Entri Lama",
+    content: str = "Isi lama",
 ) -> MagicMock:
     entry = MagicMock()
     entry.id = entry_id
@@ -36,8 +36,8 @@ def _make_world_entry(
 def _make_character(
     *,
     character_id: str = "character-1",
-    name: str = "旧角色",
-    description: str = "旧描述",
+    name: str = "Tokoh Lama",
+    description: str = "Deskripsi lama",
 ) -> MagicMock:
     character = MagicMock()
     character.id = character_id
@@ -63,7 +63,7 @@ async def test_create_world_entry_builds_approval_diff_preview() -> None:
             AsyncMock(return_value=[]),
         ),
     ):
-        preview = await tool.build_interrupt_preview({"title": "新条目", "content": "设定内容"})
+        preview = await tool.build_interrupt_preview({"title": "Entri Baru", "content": "Isi setelan"})
 
     assert preview is not None
     assert preview["type"] == "preview"
@@ -71,7 +71,7 @@ async def test_create_world_entry_builds_approval_diff_preview() -> None:
     assert preview["reason"] == "approval_preview"
     assert preview["metadata"]["world_entry_diff"] == {
         "operation": "create",
-        "entry_title": "新条目",
+        "entry_title": "Entri Baru",
         "sections": [
             {
                 "type": "content",
@@ -80,7 +80,7 @@ async def test_create_world_entry_builds_approval_diff_preview() -> None:
                         "type": "added",
                         "before_line_number": None,
                         "after_line_number": 1,
-                        "text": "设定内容",
+                        "text": "Isi setelan",
                     }
                 ],
             }
@@ -107,7 +107,7 @@ async def test_edit_world_entry_builds_approval_diff_preview() -> None:
         ),
     ):
         preview = await tool.build_interrupt_preview(
-            {"title": "旧条目", "old_content": "旧内容", "new_content": "新内容"}
+            {"title": "Entri Lama", "old_content": "Isi lama", "new_content": "Isi baru"}
         )
 
     assert preview is not None
@@ -117,7 +117,7 @@ async def test_edit_world_entry_builds_approval_diff_preview() -> None:
     assert preview["metadata"]["world_entry_diff"] == {
         "operation": "edit",
         "entry_id": "entry-1",
-        "entry_title": "旧条目",
+        "entry_title": "Entri Lama",
         "sections": [
             {
                 "type": "content",
@@ -126,13 +126,13 @@ async def test_edit_world_entry_builds_approval_diff_preview() -> None:
                         "type": "removed",
                         "before_line_number": 1,
                         "after_line_number": None,
-                        "text": "旧内容",
+                        "text": "Isi lama",
                     },
                     {
                         "type": "added",
                         "before_line_number": None,
                         "after_line_number": 1,
-                        "text": "新内容",
+                        "text": "Isi baru",
                     },
                 ],
             }
@@ -151,7 +151,7 @@ async def test_create_character_builds_approval_diff_preview() -> None:
         "app.agent_runtime.tools.impls.context.character.character_repo.list_all_by_project",
         AsyncMock(return_value=[]),
     ):
-        preview = await tool.build_interrupt_preview({"name": "新角色", "description": "角色描述"})
+        preview = await tool.build_interrupt_preview({"name": "Tokoh Baru", "description": "Deskripsi tokoh"})
 
     assert preview is not None
     assert preview["type"] == "preview"
@@ -159,7 +159,7 @@ async def test_create_character_builds_approval_diff_preview() -> None:
     assert preview["reason"] == "approval_preview"
     assert preview["metadata"]["character_diff"] == {
         "operation": "create",
-        "character_name": "新角色",
+        "character_name": "Tokoh Baru",
         "sections": [
             {
                 "type": "content",
@@ -168,7 +168,7 @@ async def test_create_character_builds_approval_diff_preview() -> None:
                         "type": "added",
                         "before_line_number": None,
                         "after_line_number": 1,
-                        "text": "角色描述",
+                        "text": "Deskripsi tokoh",
                     }
                 ],
             }
@@ -189,7 +189,7 @@ async def test_edit_character_builds_approval_diff_preview() -> None:
         AsyncMock(return_value=[character]),
     ):
         preview = await tool.build_interrupt_preview(
-            {"name": "旧角色", "old_description": "旧描述", "new_description": "新描述"}
+            {"name": "Tokoh Lama", "old_description": "Deskripsi lama", "new_description": "Deskripsi baru"}
         )
 
     assert preview is not None
@@ -199,7 +199,7 @@ async def test_edit_character_builds_approval_diff_preview() -> None:
     assert preview["metadata"]["character_diff"] == {
         "operation": "edit",
         "character_id": "character-1",
-        "character_name": "旧角色",
+        "character_name": "Tokoh Lama",
         "sections": [
             {
                 "type": "content",
@@ -208,13 +208,13 @@ async def test_edit_character_builds_approval_diff_preview() -> None:
                         "type": "removed",
                         "before_line_number": 1,
                         "after_line_number": None,
-                        "text": "旧描述",
+                        "text": "Deskripsi lama",
                     },
                     {
                         "type": "added",
                         "before_line_number": None,
                         "after_line_number": 1,
-                        "text": "新描述",
+                        "text": "Deskripsi baru",
                     },
                 ],
             }

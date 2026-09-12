@@ -20,7 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Add artifacts table for storing tool call results."""
     
-    # 创建 artifacts 表
+    # Membuat tabel artifacts
     op.create_table(
         "artifacts",
         sa.Column("id", sa.String(), nullable=False),
@@ -37,7 +37,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["chapter_id"], ["chapters.id"]),
     )
     
-    # 创建 artifacts 表的索引
+    # Membuat indeks tabel artifacts
     op.create_index(op.f("ix_artifacts_project_id"), "artifacts", ["project_id"], unique=False)
     op.create_index(op.f("ix_artifacts_agent_session_id"), "artifacts", ["agent_session_id"], unique=False)
     op.create_index(op.f("ix_artifacts_chapter_id"), "artifacts", ["chapter_id"], unique=False)
@@ -47,11 +47,11 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Remove artifacts table."""
     
-    # 删除 artifacts 表的索引
+    # Menghapus indeks tabel artifacts
     op.drop_index(op.f("ix_artifacts_type"), table_name="artifacts")
     op.drop_index(op.f("ix_artifacts_chapter_id"), table_name="artifacts")
     op.drop_index(op.f("ix_artifacts_agent_session_id"), table_name="artifacts")
     op.drop_index(op.f("ix_artifacts_project_id"), table_name="artifacts")
     
-    # 删除 artifacts 表
+    # Menghapus tabel artifacts
     op.drop_table("artifacts")

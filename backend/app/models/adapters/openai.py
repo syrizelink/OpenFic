@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-OpenAI Adapter - OpenAI API适配器。
+OpenAI Adapter - adapter OpenAI API.
 """
 
 from collections.abc import Mapping
@@ -12,7 +12,7 @@ from app.models.adapters.base import BaseAdapter
 
 
 class OpenAIAdapter(BaseAdapter):
-    """OpenAI API适配器，支持LLM和Embedding模型。"""
+    """Adapter OpenAI API, mendukung model LLM dan embedding."""
 
     @property
     def provider_type(self) -> str:
@@ -26,7 +26,7 @@ class OpenAIAdapter(BaseAdapter):
         *,
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
-        """获取LLM模型列表（通过API）。"""
+        """Ambil daftar model LLM (melalui API)."""
         url = f"{self._normalize_url(base_url)}/models"
         headers = self._build_auth_header(api_key)
 
@@ -52,7 +52,7 @@ class OpenAIAdapter(BaseAdapter):
         *,
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
-        """获取Embedding模型列表（预定义，OpenAI官方embedding模型）。"""
+        """Ambil daftar model embedding (bawaan, model embedding resmi OpenAI)."""
         return [
             {"id": "text-embedding-3-small", "name": "Text Embedding 3 Small"},
             {"id": "text-embedding-3-large", "name": "Text Embedding 3 Large"},

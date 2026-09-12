@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Macro Lexer - 宏词法分析器。
+Macro Lexer - penganalisis leksikal makro.
 
-负责识别文本中的宏表达式和解析宏参数。
+Bertugas mengenali ekspresi makro di dalam teks dan mengurai argumen makro.
 """
 
 import re
@@ -14,13 +14,13 @@ from app.macro.types import MacroToken, TokenType
 @dataclass
 class MacroMatch:
     """
-    宏匹配结果。
+    Hasil pencocokan makro.
 
     Attributes:
-        body: 宏体（不含 {{ }}）。
-        raw: 原始文本（含 {{ }}）。
-        start: 在源文本中的起始位置。
-        end: 在源文本中的结束位置。
+        body: Isi makro (tanpa {{ }}).
+        raw: Teks asli (dengan {{ }}).
+        start: Posisi awal di teks sumber.
+        end: Posisi akhir di teks sumber.
     """
 
     body: str
@@ -30,7 +30,7 @@ class MacroMatch:
 
 
 class MacroLexer:
-    """宏词法分析器。"""
+    """Penganalisis leksikal makro."""
 
     MACRO_PATTERN = re.compile(r"\{\{([^{}]+)\}\}")
     SEPARATOR = "::"
@@ -38,13 +38,13 @@ class MacroLexer:
     @classmethod
     def find_macros(cls, text: str) -> list[MacroMatch]:
         """
-        在文本中查找所有宏表达式。
+        Mencari semua ekspresi makro di dalam teks.
 
         Args:
-            text: 源文本。
+            text: Teks sumber.
 
         Returns:
-            宏匹配列表。
+            Daftar hasil pencocokan makro.
         """
         matches = []
         for m in cls.MACRO_PATTERN.finditer(text):
@@ -63,16 +63,16 @@ class MacroLexer:
     @classmethod
     def tokenize_args(cls, args_str: str) -> list[MacroToken]:
         """
-        将参数字符串解析为 Token 列表。
+        Mengurai string argumen menjadi daftar Token.
 
         Args:
-            args_str: 参数字符串（如 "var_name::\"value\""）。
+            args_str: String argumen (misalnya "var_name::\"value\"").
 
         Returns:
-            Token 列表。
+            Daftar Token.
 
         Raises:
-            ValueError: 参数格式错误。
+            ValueError: Format argumen salah.
         """
         if not args_str:
             return []
@@ -89,13 +89,13 @@ class MacroLexer:
     @classmethod
     def _split_args(cls, args_str: str) -> list[str]:
         """
-        按 :: 分隔参数，但需考虑字符串内的 ::。
+        Memisahkan argumen dengan ::, tetapi tetap memperhitungkan :: di dalam string.
 
         Args:
-            args_str: 参数字符串。
+            args_str: String argumen.
 
         Returns:
-            分割后的参数列表。
+            Daftar argumen hasil pemisahan.
         """
         parts = []
         current = ""
@@ -126,16 +126,16 @@ class MacroLexer:
     @classmethod
     def _parse_token(cls, part: str) -> MacroToken:
         """
-        解析单个参数为 Token。
+        Mengurai satu argumen menjadi Token.
 
         Args:
-            part: 参数字符串。
+            part: String argumen.
 
         Returns:
-            解析后的 Token。
+            Token hasil penguraian.
 
         Raises:
-            ValueError: 参数格式错误。
+            ValueError: Format argumen salah.
         """
         part = part.strip()
 
@@ -157,71 +157,71 @@ class MacroLexer:
         if cls._is_identifier(part):
             return MacroToken(type=TokenType.IDENTIFIER, value=part, raw=part)
 
-        raise ValueError(f"无法解析参数: {part}")
+        raise ValueError(f"Tidak dapat mengurai argumen: {part}")
 
     @classmethod
     def _parse_string(cls, part: str) -> MacroToken:
-        """解析字符串字面量。"""
+        """Mengurai literal string."""
         content = part[1:-1]
         unescaped = content.replace('\\"', '"')
         return MacroToken(type=TokenType.STRING, value=unescaped, raw=part)
 
     @classmethod
     def _parse_list(cls, part: str) -> MacroToken:
-        """解析列表。"""
+        """Mengurai list."""
         content = part[5:-1]
         if not content:
-            raise ValueError("列表不能为空")
+            raise ValueError("List tidak boleh kosong")
 
         items = [item.strip() for item in content.split(",")]
         if any(not item for item in items):
-            raise ValueError("列表项不能为空")
+            raise ValueError("Item list tidak boleh kosong")
 
         return MacroToken(type=TokenType.LIST, value=items, raw=part)
 
     @classmethod
     def _parse_range(cls, part: str) -> MacroToken:
-        """解析范围。"""
+        """Mengurai rentang."""
         parts = part.split("-", 1)
         if len(parts) != 2:
-            raise ValueError(f"无效的范围格式: {part}")
+            raise ValueError(f"Format rentang tidak valid: {part}")
 
         try:
             lower = int(parts[0])
             upper = int(parts[1])
         except ValueError:
-            raise ValueError(f"范围边界必须是整数: {part}")
+            raise ValueError(f"Batas rentang harus berupa bilangan bulat: {part}")
 
         if lower > upper:
-            raise ValueError(f"范围下界必须小于上界: {part}")
+            raise ValueError(f"Batas bawah rentang harus lebih kecil dari batas atas: {part}")
 
         return MacroToken(type=TokenType.RANGE, value=(lower, upper), raw=part)
 
     @classmethod
     def _parse_number(cls, part: str) -> MacroToken:
-        """解析数值。"""
+        """Mengurai nilai numerik."""
         try:
             value = int(part)
             return MacroToken(type=TokenType.NUMBER, value=value, raw=part)
         except ValueError:
-            raise ValueError(f"无效的数值: {part}")
+            raise ValueError(f"Nilai numerik tidak valid: {part}")
 
     @classmethod
     def _parse_boolean(cls, part: str) -> MacroToken:
-        """解析布尔值。"""
+        """Mengurai nilai boolean."""
         value = part == "true"
         return MacroToken(type=TokenType.BOOLEAN, value=value, raw=part)
 
     @classmethod
     def _is_number(cls, part: str) -> bool:
-        """检查是否为数值。"""
+        """Memeriksa apakah berupa nilai numerik."""
         if part.startswith("-"):
             return part[1:].isdigit() if len(part) > 1 else False
         return part.isdigit()
 
     @classmethod
     def _is_identifier(cls, part: str) -> bool:
-        """检查是否为标识符（小写字母、数字、下划线）。"""
+        """Memeriksa apakah berupa identifier (huruf kecil, angka, garis bawah)."""
         if not part:
             return False
         return bool(re.match(r"^[a-z][a-z0-9_]*$", part))

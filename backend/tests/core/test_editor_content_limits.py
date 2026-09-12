@@ -26,12 +26,12 @@ def test_validate_editor_content_accepts_limit_boundaries() -> None:
 def test_validate_editor_content_rejects_content_exceeding_line_limit() -> None:
     content = "\n".join("x" for _ in range(MAX_EDITOR_CONTENT_LINES + 1))
 
-    with pytest.raises(EditorContentLimitError, match="2001 行"):
+    with pytest.raises(EditorContentLimitError, match="2001 baris"):
         validate_editor_content(content)
 
 
 def test_validate_editor_content_rejects_content_exceeding_character_limit() -> None:
     content = "😀" * (MAX_EDITOR_CONTENT_CHARACTERS + 1)
 
-    with pytest.raises(EditorContentLimitError, match="100001 字符"):
+    with pytest.raises(EditorContentLimitError, match="100001 karakter"):
         validate_editor_content(content)

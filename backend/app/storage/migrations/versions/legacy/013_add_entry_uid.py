@@ -20,22 +20,22 @@ depends_on = None
 
 def upgrade() -> None:
     """
-    添加 entry_uid 字段用于跨版本追踪条目。
+    Menambahkan kolom entry_uid untuk melacak entri antarversi.
 
-    策略：
-    1. 添加 uid 字段（允许 NULL）
-    2. 为现有数据生成 uid（基于内容相似度匹配）
-    3. 将 uid 字段设为 NOT NULL
+    Strategi:
+    1. Menambahkan kolom uid (mengizinkan NULL)
+    2. Membuat uid untuk data yang ada (berdasarkan kecocokan kemiripan isi)
+    3. Menyetel kolom uid menjadi NOT NULL
     """
-    # 1. 添加 uid 字段（允许 NULL）
+    # 1. Menambahkan kolom uid (mengizinkan NULL)
     op.add_column("prompt_entries", sa.Column("uid", sa.String(), nullable=True))
     op.create_index("ix_prompt_entries_uid", "prompt_entries", ["uid"])
 
-    # 2. 为现有数据生成 uid
-    # 策略：按版本顺序处理，相同位置+相同名称的条目使用相同 uid
+    # 2. Membuat uid untuk data yang ada
+    # Strategi: diproses urut versi, entri dengan posisi dan nama sama memakai uid sama
     conn = op.get_bind()
 
-    # 获取所有版本（按版本号排序）
+    # Mengambil semua versi (urut nomor versi)
     versions_result = conn.execute(
         text("""
         SELECT id, prompt_chain_id, version_number 
@@ -45,22 +45,22 @@ def upgrade() -> None:
     )
     versions = versions_result.fetchall()
 
-    # 按 prompt_chain 分组处理
+    # Diproses per grup prompt_chain
     from collections import defaultdict
 
     chains_versions = defaultdict(list)
     for version in versions:
         chains_versions[version[1]].append(version)  # type: ignore[index]
 
-    # 为每个 prompt_chain 的条目生成 uid
+    # Membuat uid untuk entri setiap prompt_chain
     for chain_id, chain_versions in chains_versions.items():
-        # 存储每个版本的条目信息：{order_index: {name: uid}}
+        # Menyimpan informasi entri setiap versi: {order_index: {name: uid}}
         version_entries_map: dict[str, dict[int, dict[str, str]]] = {}
 
         for version in chain_versions:
             version_id = version[0]
 
-            # 获取该版本的所有条目
+            # Mengambil semua entri versi tersebut
             entries_result = conn.execute(
                 text("""
                 SELECT id, name, order_index 
@@ -77,13 +77,13 @@ def upgrade() -> None:
             for entry in entries:
                 entry_id, name, order_index = entry  # type: ignore[misc]
 
-                # 检查是否有匹配的历史条目
+                # Memeriksa apakah ada entri historis yang cocok
                 matched_uid = None
 
-                # 尝试从上一个版本找到匹配的条目
+                # Mencoba menemukan entri yang cocok dari versi sebelumnya
                 matched_uid = None
 
-                # 策略1：相同 order_index + 相同 name
+                # Strategi 1: order_index sama + name sama
                 if version_entries_map:
                     prev_version_entries = list(version_entries_map.values())[-1]
                     if (
@@ -92,7 +92,7 @@ def upgrade() -> None:
                     ):
                         matched_uid = prev_version_entries[order_index][name]
 
-                # 策略2：相同 name（不同位置）
+                # Strategi 2: name sama (posisi berbeda)
                 if not matched_uid and version_entries_map:
                     prev_version_entries = list(version_entries_map.values())[-1]
                     for prev_entries in prev_version_entries.values():
@@ -100,13 +100,13 @@ def upgrade() -> None:
                             matched_uid = prev_entries[name]
                             break
 
-                # 如果没有匹配，生成新 uid
+                # Bila tidak ada yang cocok, buat uid baru
                 if not matched_uid:
                     import uuid
 
                     matched_uid = str(uuid.uuid4())
 
-                # 更新数据库
+                # Memperbarui basis data
                 conn.execute(
                     text("""
                     UPDATE prompt_entries 
@@ -116,21 +116,21 @@ def upgrade() -> None:
                     {"uid": matched_uid, "entry_id": entry_id},
                 )
 
-                # 记录当前条目
+                # Mencatat entri saat ini
                 if order_index not in current_entries:
                     current_entries[order_index] = {}
                 current_entries[order_index][name] = matched_uid
 
             version_entries_map[version_id] = current_entries
 
-    # 3. 将 uid 字段设为 NOT NULL
-    # 注意：SQLite 不支持直接修改列约束，需要重建表
-    # 但由于我们已经为所有行填充了 uid，可以在应用层强制要求
-    # 如果使用 PostgreSQL/MySQL，可以执行：
+    # 3. Menyetel kolom uid menjadi NOT NULL
+    # Catatan: SQLite tidak mendukung perubahan constraint kolom secara langsung, tabel perlu dibangun ulang
+    # Namun karena uid sudah diisi untuk semua baris, hal ini dapat diwajibkan di lapisan aplikasi
+    # Bila memakai PostgreSQL/MySQL, dapat dijalankan:
     # op.alter_column('prompt_entries', 'uid', nullable=False)
 
 
 def downgrade() -> None:
-    """移除 uid 字段"""
+    """Menghapus kolom uid"""
     op.drop_index("ix_prompt_entries_uid", table_name="prompt_entries")
     op.drop_column("prompt_entries", "uid")

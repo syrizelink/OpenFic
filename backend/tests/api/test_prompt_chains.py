@@ -69,7 +69,7 @@ class TestPromptChainAPI:
                 "entries": [
                     {
                         **entry,
-                        "content": f"{entry['content']}\n自定义版本内容",
+                        "content": f"{entry['content']}\nIsi versi kustom",
                     }
                     for entry in default_data["entries"]
                 ],
@@ -85,7 +85,7 @@ class TestPromptChainAPI:
         data = response.json()
         assert data["version"]["id"] == "default"
         assert data["version"]["version_number"] == 0
-        assert all("自定义版本内容" not in entry["content"] for entry in data["entries"])
+        assert all("Isi versi kustom" not in entry["content"] for entry in data["entries"])
 
     async def test_diff_version_against_default_yaml(self, client: AsyncClient) -> None:
         prompt_id = "session-title"
@@ -102,7 +102,7 @@ class TestPromptChainAPI:
                 "entries": [
                     {
                         **entry,
-                        "content": f"{entry['content']}\n自定义版本内容",
+                        "content": f"{entry['content']}\nIsi versi kustom",
                     }
                     for entry in default_data["entries"]
                 ],
@@ -182,17 +182,17 @@ class TestPromptChainAPI:
                 "parent_version_id": "default",
                 "entries": [
                     {
-                        "name": "系统规则",
+                        "name": "Aturan Sistem",
                         "role": "system",
-                        "content": "第一行\n包含关键字的内容",
+                        "content": "Baris pertama\nIsi yang memuat kata kunci",
                         "order_index": 0,
                         "is_enabled": True,
                         "token_count": 0,
                     },
                     {
-                        "name": "关键字条目",
+                        "name": "Entri Kata Kunci",
                         "role": "user",
-                        "content": "普通内容",
+                        "content": "Isi biasa",
                         "order_index": 1,
                         "is_enabled": True,
                         "token_count": 0,
@@ -205,7 +205,7 @@ class TestPromptChainAPI:
 
         response = await client.get(
             f"/api/v1/prompt-chains/session-title/versions/{version_id}/search",
-            params={"q": "关键字"},
+            params={"q": "kata kunci"},
         )
 
         assert response.status_code == 200
@@ -213,15 +213,15 @@ class TestPromptChainAPI:
         assert data["total_entries"] == 2
         assert data["total_matches"] == 2
         results_by_name = {item["entry_name"]: item for item in data["results"]}
-        assert results_by_name["系统规则"]["matches"] == [
+        assert results_by_name["Aturan Sistem"]["matches"] == [
             {
                 "line_number": 2,
-                "line_text": "包含关键字的内容",
+                "line_text": "Isi yang memuat kata kunci",
             },
         ]
-        assert results_by_name["关键字条目"]["matches"] == [
+        assert results_by_name["Entri Kata Kunci"]["matches"] == [
             {
                 "line_number": 0,
-                "line_text": "关键字条目",
+                "line_text": "Entri Kata Kunci",
             },
         ]

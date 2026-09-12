@@ -137,7 +137,7 @@ async function copyDirectoryWithRetry(
   try {
     entries = await readdir(sourceDir, { withFileTypes: true });
   } catch (error) {
-    throw new Error(`无法读取数据目录 ${sourceDir}：${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Tidak dapat membaca direktori data ${sourceDir}: ${error instanceof Error ? error.message : String(error)}`);
   }
   await assertDirNoSymlink(targetDir);
   let total = 0;
@@ -196,13 +196,13 @@ export async function migrateDataDir(
   const resolvedFrom = await resolveForCompare(fromDir);
   const resolvedTo = await resolveForCompare(toDir);
   if (pathEquals(resolvedFrom, resolvedTo)) {
-    throw new Error("迁移目标目录不能与源目录相同");
+    throw new Error("Direktori tujuan migrasi tidak boleh sama dengan direktori sumber");
   }
   if (pathContains(resolvedFrom, resolvedTo)) {
-    throw new Error("迁移目标目录不能位于源目录内部");
+    throw new Error("Direktori tujuan migrasi tidak boleh berada di dalam direktori sumber");
   }
   if (pathContains(resolvedTo, resolvedFrom)) {
-    throw new Error("迁移源目录不能位于目标目录内部");
+    throw new Error("Direktori sumber migrasi tidak boleh berada di dalam direktori tujuan");
   }
   await mkdir(toDir, { recursive: true });
   try {

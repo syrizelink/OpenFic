@@ -13,28 +13,30 @@ from app.storage.repos import volume_repo
 
 
 class EditVolumeInput(BaseModel):
-    volume_ref: VolumeRef = Field(description="目标卷")
+    volume_ref: VolumeRef = Field(description="Volume sasaran")
     new_title: str | None = Field(
         default=None,
-        description="卷标题",
+        description="Judul volume",
     )
     new_description: str | None = Field(
         default=None,
-        description="卷说明",
+        description="Keterangan volume",
     )
 
     @field_validator("new_description", mode="after")
     @classmethod
     def check_edit_fields(cls, v, info):
         if info.data.get("new_title") is None and v is None:
-            raise ValueError("new_title 和 new_description 必填其中一个")
+            raise ValueError(
+                "salah satu dari new_title atau new_description wajib diisi"
+            )
         return v
 
 
 @ToolRegistry.register
 class EditVolumeTool(AgentTool):
     name: str = "edit_volume"
-    description: str = "编辑指定卷的标题或说明"
+    description: str = "Menyunting judul atau keterangan volume yang ditentukan"
     access_level: str = "write"
     args_schema: type[BaseModel] = EditVolumeInput
 

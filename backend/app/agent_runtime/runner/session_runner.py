@@ -533,7 +533,8 @@ class SessionRunner:
     async def _drain_inject_queue(
         self,
     ) -> list[tuple[str, str, str | None]]:
-        """drain 全部排队消息；user 类型同步 mark_user_sent。返回 (role, content, msg_id) 列表。"""
+        """Menguras semua pesan dalam antrean; tipe user disinkronkan dengan
+        mark_user_sent. Mengembalikan daftar (role, content, msg_id)."""
         drained: list[tuple[str, str, str | None]] = []
         while not self._inject_queue.empty():
             msg_id, role, content = self._inject_queue.get_nowait()
@@ -545,7 +546,8 @@ class SessionRunner:
         return drained
 
     async def _prepare_run_persistence(self) -> list[BaseMessage]:
-        """run 启动前：清 pending + load_history。返回 ReAct 初始 messages。"""
+        """Sebelum run dimulai: bersihkan pending + load_history. Mengembalikan
+        messages awal ReAct."""
         session = await create_session()
         try:
             await repo.delete_pending_by_session(session, self.session_id)
@@ -686,7 +688,7 @@ class SessionRunner:
                 agent_session_id=self.session_id,
                 user_message_id=user_message.id,
                 user_message_seq=user_message.seq,
-                message=f"用户消息: {user_request}",
+                message=f"Pesan pengguna: {user_request}",
                 pre_run_checkpoint_id=pre_run_checkpoint_id,
                 graph_thread_id=self.session_id,
             )
@@ -725,7 +727,7 @@ class SessionRunner:
                 agent_session_id=self.session_id,
                 user_message_id=user_message.id,
                 user_message_seq=user_message.seq,
-                message=f"系统提醒: {user_request}",
+                message=f"Pemberitahuan sistem: {user_request}",
                 pre_run_checkpoint_id=pre_run_checkpoint_id,
                 graph_thread_id=self.session_id,
             )
@@ -792,7 +794,7 @@ class SessionRunner:
             except CompactionNoWindowError as exc:
                 raise CompactionError(
                     "no_compactable_window",
-                    "没有可压缩的上下文窗口",
+                    "Tidak ada jendela konteks yang dapat dipadatkan",
                 ) from exc
 
             result = await compact_window(
@@ -1131,7 +1133,9 @@ class SessionRunner:
 
     async def cancel_and_continue(self, new_message: str, message_id: str) -> None:
         self._cancel_event.set()
-        await self._inject_queue.put((None, "system", "[系统] 上一条回复被用户中止"))
+        await self._inject_queue.put(
+            (None, "system", "[Sistem] Balasan sebelumnya dibatalkan oleh pengguna")
+        )
         await self._inject_queue.put((message_id, "user", new_message))
 
     def cancel(self) -> None:
@@ -1206,17 +1210,23 @@ class SessionRunner:
                 }
                 responses = payload.get("responses")
                 if not isinstance(responses, list) or not responses:
-                    raise ValueError("并行中断响应不能为空")
+                    raise ValueError("Respons interupsi paralel tidak boleh kosong")
                 if any(
                     not isinstance(response, dict)
                     or response.get("interrupt_id") not in pending_by_id
                     for response in responses
                 ):
-                    raise ValueError("存在无效或已处理的并行中断响应")
+                    raise ValueError(
+                        "Terdapat respons interupsi paralel yang tidak valid atau "
+                        "sudah diproses"
+                    )
                 if set(response["interrupt_id"] for response in responses) != set(
                     pending_by_id
                 ):
-                    raise ValueError("必须一次提交本批全部并行中断响应")
+                    raise ValueError(
+                        "Seluruh respons interupsi paralel pada kumpulan ini harus "
+                        "dikirim sekaligus"
+                    )
                 is_terminal_skip_resume = any(
                     isinstance(response, dict)
                     and response.get("action_type") == "clarification"
@@ -1241,7 +1251,10 @@ class SessionRunner:
                     None,
                 )
                 if matching is None or not resume_id:
-                    raise ValueError("待恢复的工具审批不存在或已处理")
+                    raise ValueError(
+                        "Persetujuan alat yang akan dilanjutkan tidak ada atau sudah "
+                        "diproses"
+                    )
                 resume_value = {resume_id: payload}
             elif payload.get("action_type") == "clarification":
                 state = await graph.aget_state(
@@ -1258,7 +1271,10 @@ class SessionRunner:
                     None,
                 )
                 if matching is None or not resume_id:
-                    raise ValueError("待恢复的问题不存在或已处理")
+                    raise ValueError(
+                        "Pertanyaan yang akan dilanjutkan tidak ada atau sudah "
+                        "diproses"
+                    )
                 resume_value = {resume_id: payload}
             stream_options = (
                 {"durability": "exit"} if is_terminal_skip_resume else {}

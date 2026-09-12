@@ -62,6 +62,8 @@ _REGISTRARS: dict[str, Callable[[], None]] = {
 
 
 def register_background_job_type(job_type: str) -> None:
+    # Job pengindeksan bab kini berjalan pada semua mode: deployment cloud-only
+    # memakai adapter SQLite FTS5 yang tidak memerlukan pustaka native.
     registrar = _REGISTRARS.get(job_type)
     if registrar is None:
         return

@@ -20,24 +20,24 @@ from app.storage.models.volume import Volume
 async def test_build_chapter_summary_prompt_includes_previous_chapter_and_target(
     session: AsyncSession,
 ) -> None:
-    project = Project(title="项目", description="")
+    project = Project(title="Proyek", description="")
     session.add(project)
     await session.flush()
-    volume = Volume(project_id=project.id, title="第一卷", order=1, chapter_count=2)
+    volume = Volume(project_id=project.id, title="Volume 1", order=1, chapter_count=2)
     session.add(volume)
     await session.flush()
     previous_chapter = Chapter(
         project_id=project.id,
         volume_id=volume.id,
-        title="第一章",
-        content="上一章原文",
+        title="Bab 1",
+        content="Teks asli bab sebelumnya",
         order=1,
     )
     target_chapter = Chapter(
         project_id=project.id,
         volume_id=volume.id,
-        title="第二章",
-        content="本章原文",
+        title="Bab 2",
+        content="Teks asli bab ini",
         order=2,
     )
     session.add_all([previous_chapter, target_chapter])
@@ -50,9 +50,9 @@ async def test_build_chapter_summary_prompt_includes_previous_chapter_and_target
             chapter_id=previous_chapter.id,
             volume_id=volume.id,
             chapter_order=1,
-            start_time="地球历 2026-01-01 00:00",
-            characters_json='["张三"]',
-            locations_json='["京城"]',
+            start_time="Kalender Bumi 2026-01-01 00:00",
+            characters_json='["Adi"]',
+            locations_json='["Ibu Kota"]',
         )
     )
     await session.flush()
@@ -62,20 +62,22 @@ async def test_build_chapter_summary_prompt_includes_previous_chapter_and_target
     assert len(prompt.messages) >= 3
     assert any("emit_chapter_summary" in message.content for message in prompt.messages)
     assert prompt.messages[-2].content == (
-        "以下部分是上一个章节的有关内容，用以帮助你连贯的理解剧情信息，该部分与你要总结的内容**无关**。\n"
+        "Bagian berikut adalah isi terkait dari bab sebelumnya, untuk membantumu memahami"
+        " informasi alur cerita secara berkesinambungan; bagian ini **tidak berkaitan**"
+        " dengan isi yang harus kamu ringkas.\n"
         "<previous_chapter>\n"
-        "  <title>第一章</title>\n"
-        "  <start_time>地球历 2026-01-01 00:00</start_time>\n"
-        "  <characters>[\"张三\"]</characters>\n"
-        "  <locations>[\"京城\"]</locations>\n"
-        "  <content>上一章原文</content>\n"
+        "  <title>Bab 1</title>\n"
+        "  <start_time>Kalender Bumi 2026-01-01 00:00</start_time>\n"
+        "  <characters>[\"Adi\"]</characters>\n"
+        "  <locations>[\"Ibu Kota\"]</locations>\n"
+        "  <content>Teks asli bab sebelumnya</content>\n"
         "</previous_chapter>"
     )
     assert prompt.messages[-1].content == (
-        "以下部分是你需要总结的章节内容。\n"
+        "Bagian berikut adalah isi bab yang harus kamu ringkas.\n"
         "<target_chapter>\n"
-        "  <title>第二章</title>\n"
-        "  <content>本章原文</content>\n"
+        "  <title>Bab 2</title>\n"
+        "  <content>Teks asli bab ini</content>\n"
         "</target_chapter>"
     )
     assert all("{{getmem" not in message.content for message in prompt.messages)
@@ -86,27 +88,27 @@ async def test_build_chapter_summary_prompt_includes_previous_chapter_and_target
 async def test_build_chapter_summary_prompt_omits_previous_chapter_part_for_first_volume_chapter(
     session: AsyncSession,
 ) -> None:
-    project = Project(title="项目", description="")
+    project = Project(title="Proyek", description="")
     session.add(project)
     await session.flush()
-    previous_volume = Volume(project_id=project.id, title="第一卷", order=1, chapter_count=1)
-    target_volume = Volume(project_id=project.id, title="第二卷", order=2, chapter_count=1)
+    previous_volume = Volume(project_id=project.id, title="Volume 1", order=1, chapter_count=1)
+    target_volume = Volume(project_id=project.id, title="Volume 2", order=2, chapter_count=1)
     session.add_all([previous_volume, target_volume])
     await session.flush()
     session.add(
         Chapter(
             project_id=project.id,
             volume_id=previous_volume.id,
-            title="上一卷第一章",
-            content="不应注入的原文",
+            title="Volume Sebelumnya Bab 1",
+            content="Teks asli yang tidak boleh disuntikkan",
             order=1,
         )
     )
     chapter = Chapter(
         project_id=project.id,
         volume_id=target_volume.id,
-        title="第一章",
-        content="本章原文",
+        title="Bab 1",
+        content="Teks asli bab ini",
         order=1,
     )
     session.add(chapter)
@@ -116,27 +118,27 @@ async def test_build_chapter_summary_prompt_omits_previous_chapter_part_for_firs
 
     assert all("<previous_chapter>" not in message.content for message in prompt.messages)
     assert prompt.messages[-1].content == (
-        "以下部分是你需要总结的章节内容。\n"
+        "Bagian berikut adalah isi bab yang harus kamu ringkas.\n"
         "<target_chapter>\n"
-        "  <title>第一章</title>\n"
-        "  <content>本章原文</content>\n"
+        "  <title>Bab 1</title>\n"
+        "  <content>Teks asli bab ini</content>\n"
         "</target_chapter>"
     )
 
 
 @pytest.mark.asyncio
 async def test_build_long_term_summary_prompt_omits_default_context(session: AsyncSession) -> None:
-    project = Project(title="项目", description="")
+    project = Project(title="Proyek", description="")
     session.add(project)
     await session.flush()
-    volume = Volume(project_id=project.id, title="第一卷", order=1, chapter_count=1)
+    volume = Volume(project_id=project.id, title="Volume 1", order=1, chapter_count=1)
     session.add(volume)
     await session.flush()
     chapter = Chapter(
         project_id=project.id,
         volume_id=volume.id,
-        title="第一章",
-        content="章节原文",
+        title="Bab 1",
+        content="Teks asli bab",
         order=1,
     )
     session.add(chapter)
@@ -148,18 +150,18 @@ async def test_build_long_term_summary_prompt_omits_default_context(session: Asy
         chapter_id=chapter.id,
         volume_id=volume.id,
         chapter_order=1,
-        summary="章节摘要",
+        summary="Ringkasan bab",
     )
 
     prompt = await build_long_term_summary_prompt(session, [summary], [chapter])
 
     assert any("emit_long_term_summary" in message.content for message in prompt.messages)
     assert prompt.messages[-1].content == (
-        "以下部分是你需要总结的摘要内容\n"
+        "Bagian berikut adalah isi ringkasan yang harus kamu ringkas\n"
         "<target_summaries>\n"
         "  <sum1>\n"
-        "    <title>第一章</title>\n"
-        "    <content>章节摘要</content>\n"
+        "    <title>Bab 1</title>\n"
+        "    <content>Ringkasan bab</content>\n"
         "  </sum1>\n"
         "</target_summaries>"
     )
@@ -171,24 +173,24 @@ async def test_build_long_term_summary_prompt_omits_default_context(session: Asy
 async def test_build_chapter_summary_prompt_merges_system_messages_when_enabled(
     session: AsyncSession,
 ) -> None:
-    project = Project(title="项目", description="")
+    project = Project(title="Proyek", description="")
     session.add(project)
     await session.flush()
-    volume = Volume(project_id=project.id, title="第一卷", order=1, chapter_count=2)
+    volume = Volume(project_id=project.id, title="Volume 1", order=1, chapter_count=2)
     session.add(volume)
     await session.flush()
     previous_chapter = Chapter(
         project_id=project.id,
         volume_id=volume.id,
-        title="第一章",
-        content="上一章原文",
+        title="Bab 1",
+        content="Teks asli bab sebelumnya",
         order=1,
     )
     target_chapter = Chapter(
         project_id=project.id,
         volume_id=volume.id,
-        title="第二章",
-        content="本章原文",
+        title="Bab 2",
+        content="Teks asli bab ini",
         order=2,
     )
     session.add_all([previous_chapter, target_chapter])
@@ -211,17 +213,17 @@ async def test_build_chapter_summary_prompt_merges_system_messages_when_enabled(
 async def test_build_long_term_summary_prompt_merges_system_messages_when_enabled(
     session: AsyncSession,
 ) -> None:
-    project = Project(title="项目", description="")
+    project = Project(title="Proyek", description="")
     session.add(project)
     await session.flush()
-    volume = Volume(project_id=project.id, title="第一卷", order=1, chapter_count=1)
+    volume = Volume(project_id=project.id, title="Volume 1", order=1, chapter_count=1)
     session.add(volume)
     await session.flush()
     chapter = Chapter(
         project_id=project.id,
         volume_id=volume.id,
-        title="第一章",
-        content="章节原文",
+        title="Bab 1",
+        content="Teks asli bab",
         order=1,
     )
     session.add(chapter)
@@ -233,7 +235,7 @@ async def test_build_long_term_summary_prompt_merges_system_messages_when_enable
         chapter_id=chapter.id,
         volume_id=volume.id,
         chapter_order=1,
-        summary="章节摘要",
+        summary="Ringkasan bab",
     )
 
     with patch(

@@ -1,5 +1,5 @@
 """
-ID 生成辅助函数。
+Fungsi bantu pembuatan ID.
 """
 
 from nanoid import generate
@@ -7,12 +7,12 @@ from nanoid import generate
 
 def generate_id(size: int = 21) -> str:
     """
-    生成唯一 ID。
+    Membuat ID unik.
 
     Args:
-        size: ID 长度，默认 21。
+        size: panjang ID, default 21.
 
     Returns:
-        唯一 ID 字符串。
+        String ID unik.
     """
     return generate(size=size)

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-测试 summary_service 窗口/区间逻辑基于全局阅读序位的行为。
+Uji perilaku logika window/rentang summary_service berbasis urutan baca global.
 """
 
 from app.memory.chapter.summary_service import (
@@ -38,7 +38,7 @@ def _make_chapter(
     order: int,
     *,
     word_count: int = 1000,
-    content: str = "正文内容",
+    content: str = "Isi utama",
 ) -> Chapter:
     return Chapter(
         id=chapter_id,
@@ -67,7 +67,7 @@ def _make_chapter_summary(
         chapter_order=global_order,
         start_order=global_order,
         end_order=global_order,
-        summary=f"摘要 {chapter.id}",
+        summary=f"Ringkasan {chapter.id}",
         source_content_normalized=chapter.content,
     )
 
@@ -82,7 +82,7 @@ def _build_two_volume_setup(chapters_per_volume: int = 5) -> tuple[list[Volume],
 
 
 class TestFixedSummaryWindows:
-    """测试 _fixed_summary_windows 基于全局序位切窗。"""
+    """Uji _fixed_summary_windows memotong window berbasis urutan global."""
 
     def test_cross_volume_window_includes_all_chapters(self) -> None:
         volumes, chapters = _build_two_volume_setup(5)
@@ -134,7 +134,7 @@ class TestFixedSummaryWindows:
 
 
 class TestBuildLongTermSummaryWindow:
-    """测试 build_long_term_summary_window 基于全局序位。"""
+    """Uji build_long_term_summary_window berbasis urutan global."""
 
     def test_window_spans_two_volumes(self) -> None:
         volumes, chapters = _build_two_volume_setup(5)
@@ -184,7 +184,7 @@ class TestBuildLongTermSummaryWindow:
 
 
 class TestListEligibleLongTermRanges:
-    """测试 list_eligible_long_term_ranges 基于全局序位。"""
+    """Uji list_eligible_long_term_ranges berbasis urutan global."""
 
     def test_returns_global_ranges_cross_volume(self) -> None:
         volumes, chapters = _build_two_volume_setup(5)
@@ -206,7 +206,7 @@ class TestListEligibleLongTermRanges:
 
 
 class TestIsLongTermSummaryStale:
-    """测试 is_long_term_summary_stale 基于全局序位。"""
+    """Uji is_long_term_summary_stale berbasis urutan global."""
 
     def test_not_stale_when_matching(self) -> None:
         volumes, chapters = _build_two_volume_setup(5)
@@ -268,7 +268,7 @@ class TestIsLongTermSummaryStale:
 
 
 class TestListReadyUnaggregatedLongTermWindows:
-    """测试 list_ready_unaggregated_long_term_windows 基于全局序位。"""
+    """Uji list_ready_unaggregated_long_term_windows berbasis urutan global."""
 
     def test_returns_window_when_no_existing_long_term(self) -> None:
         volumes, chapters = _build_two_volume_setup(5)

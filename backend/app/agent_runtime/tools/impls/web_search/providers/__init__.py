@@ -1,4 +1,4 @@
-"""联网搜索 provider 注册表。"""
+"""Registri provider pencarian daring."""
 
 from __future__ import annotations
 
@@ -77,7 +77,8 @@ _PROVIDER_FIELD_SPECS: dict[str, tuple[tuple[str, str, bool, tuple[str, ...]], .
 
 
 def list_provider_metadata() -> list[dict]:
-    """按名称字母序返回 provider 元数据（requires_api_key 与扩展字段定义）。"""
+    """Mengembalikan metadata provider berurutan alfabetis berdasarkan nama
+    (requires_api_key dan definisi field tambahan)."""
     return [
         {
             "name": name,

@@ -1,11 +1,11 @@
 /**
  * Project Types
  *
- * 项目相关的 TypeScript 类型定义，与后端 Schema 对应。
+ * Definisi tipe TypeScript terkait proyek, sepadan dengan Schema backend.
  */
 
 /**
- * 项目实体
+ * Entitas proyek
  */
 export interface Project {
   id: string;
@@ -19,7 +19,7 @@ export interface Project {
 }
 
 /**
- * 创建项目请求
+ * Permintaan pembuatan proyek
  */
 export interface ProjectCreate {
   title: string;
@@ -28,7 +28,7 @@ export interface ProjectCreate {
 }
 
 /**
- * 更新项目请求
+ * Permintaan pembaruan proyek
  */
 export interface ProjectUpdate {
   title?: string | null;
@@ -37,7 +37,7 @@ export interface ProjectUpdate {
 }
 
 /**
- * 项目列表响应
+ * Respons daftar proyek
  */
 export interface ProjectListResponse {
   items: Project[];
@@ -47,7 +47,7 @@ export interface ProjectListResponse {
 }
 
 /**
- * 项目列表查询参数
+ * Parameter kueri daftar proyek
  */
 export interface ProjectListParams {
   page?: number;

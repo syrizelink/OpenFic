@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-WorldInfoEntry 数据模型。
+Model data WorldInfoEntry.
 """
 
 from datetime import UTC, datetime
@@ -12,19 +12,19 @@ from app.core.ids import generate_id
 
 class WorldInfoEntry(SQLModel, table=True):
     """
-    世界书条目模型。
+    Model entri buku dunia.
 
     Attributes:
-        id: 条目唯一标识符（nanoid）。
-        world_info_id: 所属世界书 ID。
-        uid: 用户可见的序列号（从 1 开始）。
-        name: 条目名称。
-        order: 排序序号。
-        content: 条目内容。
-        token_count: Token 数量。
-        is_enabled: 开关状态。
-        created_at: 创建时间。
-        updated_at: 更新时间。
+        id: Identifier unik entri (nanoid).
+        world_info_id: ID buku dunia pemilik.
+        uid: Nomor urut yang terlihat pengguna (mulai dari 1).
+        name: Nama entri.
+        order: Nomor urut.
+        content: Isi entri.
+        token_count: Jumlah Token.
+        is_enabled: Status aktif.
+        created_at: Waktu pembuatan.
+        updated_at: Waktu pembaruan.
     """
 
     __tablename__ = "world_info_entries"

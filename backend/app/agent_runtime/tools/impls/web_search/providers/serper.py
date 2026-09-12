@@ -1,4 +1,4 @@
-"""Serper (Google) API provider。"""
+"""Provider Serper (Google) API."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ class SerperProvider(WebSearchProvider):
         config: WebSearchProviderConfig,
     ) -> WebSearchResponse:
         if not config.api_key:
-            raise ToolExecutionError("Serper 未配置 API Key")
+            raise ToolExecutionError("API Key Serper belum dikonfigurasi")
 
         try:
             payload = await http_post_json(

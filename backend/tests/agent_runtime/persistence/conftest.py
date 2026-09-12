@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
-"""Persistence 测试的数据库 fixture。
+"""Fixture basis data untuk uji Persistence.
 
-注意：此处刻意逐个导入具体模型而不使用 ``import app.storage.models``。
-``app.storage.models.__init__`` 当前会触发 ``app.agent_runtime`` 包初始化，
-后者与 ``app.audit.context`` 之间存在潜在循环导入；
-通过仅导入用到的模型模块，可以避免该循环并保证 ``SQLModel.metadata``
-中只注册测试需要的表。
+Catatan: di sini model diimpor satu per satu secara sengaja, bukan lewat ``import app.storage.models``.
+``app.storage.models.__init__`` saat ini memicu inisialisasi paket ``app.agent_runtime``,
+dan paket itu berpotensi impor sirkular dengan ``app.audit.context``;
+dengan hanya mengimpor modul model yang dipakai, siklus itu dihindari dan ``SQLModel.metadata``
+hanya memuat tabel yang dibutuhkan uji.
 
-由于顶层 conftest 已在 session 作用域调用 register_sqlmodel_models()，
-SQLModel.metadata 全局单例中包含了所有模型。此处通过显式指定 tables 参数，
-只为当前引擎创建测试需要的表。
+Karena conftest tingkat atas sudah memanggil register_sqlmodel_models() pada scope session,
+singleton global SQLModel.metadata memuat semua model. Di sini parameter tables ditentukan eksplisit
+agar hanya tabel yang dibutuhkan uji dibuat untuk engine ini.
 """
 
 from collections.abc import AsyncGenerator, Callable
@@ -57,7 +57,7 @@ _PERSISTENCE_TABLES = [
 
 @pytest_asyncio.fixture
 async def db_engine():
-    """创建内存 SQLite 引擎并仅建所需表。"""
+    """Membuat engine SQLite in-memory dan hanya membuat tabel yang diperlukan."""
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", future=True)
     async with engine.begin() as conn:
         await conn.run_sync(
@@ -70,7 +70,7 @@ async def db_engine():
 
 @pytest_asyncio.fixture
 async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
-    """提供单一 AsyncSession 用于测试。"""
+    """Menyediakan satu AsyncSession untuk uji."""
     factory = cast(
         Callable[[], AsyncSession],
         sessionmaker(  # type: ignore[call-overload]
@@ -85,7 +85,7 @@ async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
 
 @pytest_asyncio.fixture
 async def db_session_factory(db_engine) -> Callable[[], AsyncSession]:
-    """提供按需创建 AsyncSession 的工厂函数。"""
+    """Menyediakan fungsi factory untuk membuat AsyncSession sesuai kebutuhan."""
     factory = cast(
         Callable[[], AsyncSession],
         sessionmaker(  # type: ignore[call-overload]
@@ -103,12 +103,12 @@ async def db_session_factory(db_engine) -> Callable[[], AsyncSession]:
 
 @pytest_asyncio.fixture
 async def sample_task(db_session: AsyncSession) -> Task:
-    """构造一个完整链路（项目 -> 章节 -> 任务）的测试样例。"""
-    project = Project(id="proj_test", title="测试项目")
+    """Menyusun contoh uji dengan rantai lengkap (proyek -> bab -> tugas)."""
+    project = Project(id="proj_test", title="Proyek Uji")
     volume = Volume(
         id="vol_test",
         project_id="proj_test",
-        title="第一卷",
+        title="Volume 1",
         order=1,
         chapter_count=1,
     )
@@ -116,13 +116,13 @@ async def sample_task(db_session: AsyncSession) -> Task:
         id="chap_test",
         project_id="proj_test",
         volume_id="vol_test",
-        title="测试章节",
+        title="Bab Uji",
         order=1,
     )
     task = Task(
         id="task_test",
         project_id="proj_test",
-        title="测试任务",
+        title="Tugas Uji",
         mode="agent",
         agent_session_id="session_test",
     )

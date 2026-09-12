@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Macro Parser - 宏语法解析器。
+Macro Parser - pengurai sintaks makro.
 
-负责将宏体解析为 AST 节点。
+Bertugas mengurai isi makro menjadi node AST.
 """
 
 from app.macro.lexer import MacroLexer, MacroMatch
@@ -11,7 +11,7 @@ from app.macro.types import MacroNode
 
 
 class MacroParseError(Exception):
-    """宏解析错误。"""
+    """Kesalahan penguraian makro."""
 
     def __init__(self, message: str, raw: str):
         super().__init__(message)
@@ -19,21 +19,21 @@ class MacroParseError(Exception):
 
 
 class MacroParser:
-    """宏语法解析器。"""
+    """Pengurai sintaks makro."""
 
     @classmethod
     def parse(cls, match: MacroMatch) -> MacroNode:
         """
-        解析宏匹配为 AST 节点。
+        Mengurai hasil pencocokan makro menjadi node AST.
 
         Args:
-            match: 宏匹配结果。
+            match: Hasil pencocokan makro.
 
         Returns:
-            宏 AST 节点。
+            Node AST makro.
 
         Raises:
-            MacroParseError: 解析错误。
+            MacroParseError: Kesalahan penguraian.
         """
         body = match.body
 
@@ -41,10 +41,10 @@ class MacroParser:
         name = parts[0].strip()
 
         if not name:
-            raise MacroParseError("宏名不能为空", match.raw)
+            raise MacroParseError("Nama makro tidak boleh kosong", match.raw)
 
         if not is_valid_macro(name):
-            raise MacroParseError(f"未知的宏名: {name}", match.raw)
+            raise MacroParseError(f"Nama makro tidak dikenal: {name}", match.raw)
 
         args_str = parts[1] if len(parts) > 1 else ""
 
@@ -112,13 +112,13 @@ class MacroParser:
     @classmethod
     def parse_all(cls, text: str) -> list[MacroNode]:
         """
-        解析文本中所有有效的宏。
+        Mengurai semua makro yang valid di dalam teks.
 
         Args:
-            text: 源文本。
+            text: Teks sumber.
 
         Returns:
-            宏 AST 节点列表（仅包含解析成功的）。
+            Daftar node AST makro (hanya yang berhasil diurai).
         """
         matches = MacroLexer.find_macros(text)
         nodes = []
@@ -135,13 +135,13 @@ class MacroParser:
     @classmethod
     def try_parse(cls, match: MacroMatch) -> MacroNode | None:
         """
-        尝试解析宏匹配，失败返回 None。
+        Mencoba mengurai hasil pencocokan makro, mengembalikan None jika gagal.
 
         Args:
-            match: 宏匹配结果。
+            match: Hasil pencocokan makro.
 
         Returns:
-            宏 AST 节点，或 None（解析失败）。
+            Node AST makro, atau None (penguraian gagal).
         """
         try:
             return cls.parse(match)

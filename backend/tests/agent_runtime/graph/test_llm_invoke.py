@@ -1,4 +1,4 @@
-"""LLM 调用超时保护与失败重试机制测试。"""
+"""Uji proteksi timeout pemanggilan LLM dan mekanisme retry saat gagal."""
 
 from __future__ import annotations
 
@@ -129,7 +129,7 @@ class TestClassifyError:
         assert outcome.category is RetryCategory.EMPTY_RESPONSE
 
     def test_no_retry_compaction_error(self) -> None:
-        outcome = classify_error(CompactionError("llm_error", "压缩失败"))
+        outcome = classify_error(CompactionError("llm_error", "Kompaksi gagal"))
         assert outcome.decision is RetryDecision.NO_RETRY
         assert outcome.category is RetryCategory.CONTEXT_OVERFLOW
 

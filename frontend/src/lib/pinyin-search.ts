@@ -1,13 +1,13 @@
 /**
  * Pinyin Search Utils
  *
- * 拼音搜索工具函数，支持汉字转拼音和首字母提取。
+ * Fungsi bantu pencarian pinyin, mendukung konversi aksara Han ke pinyin dan pengambilan huruf awal.
  */
 
 import Pinyin from "tiny-pinyin";
 
 /**
- * 获取文本的完整拼音（小写，无空格）
+ * Mengambil pinyin lengkap sebuah teks (huruf kecil, tanpa spasi)
  */
 export function getPinyin(text: string): string {
   if (!text) return "";
@@ -15,8 +15,8 @@ export function getPinyin(text: string): string {
 }
 
 /**
- * 获取拼音首字母序列
- * 例如：第一章 -> dyz
+ * Mengambil rangkaian huruf awal pinyin
+ * Contoh: \u7b2c\u4e00\u7ae0 -> dyz
  */
 export function getInitials(text: string): string {
   if (!text) return "";
@@ -26,37 +26,37 @@ export function getInitials(text: string): string {
       if (Pinyin.isSupported()) {
         const pinyinArr = Pinyin.parse(char);
         if (pinyinArr.length > 0 && pinyinArr[0].type === 2) {
-          // type 2 表示汉字
+          // type 2 menandakan aksara Han
           return pinyinArr[0].target.charAt(0).toLowerCase();
         }
       }
-      // 非汉字直接返回原字符（如果是字母则小写）
+      // Karakter non-Han dikembalikan apa adanya (dijadikan huruf kecil bila berupa huruf)
       return char.toLowerCase();
     })
     .join("");
 }
 
 /**
- * 去除 HTML 标签，返回纯文本
- * 将换行标签（p, br）转换为空格，避免跨行匹配
+ * Menghapus tag HTML, mengembalikan teks polos
+ * Tag baris baru (p, br) diubah menjadi spasi agar kecocokan tidak melintasi baris
  */
 export function stripHtml(html: string): string {
   if (!html) return "";
-  // 将换行相关标签替换为空格
+  // Mengganti tag terkait baris baru dengan spasi
   const processed = html
     .replace(/<\/p>/gi, " ")
     .replace(/<br\s*\/?>/gi, " ")
     .replace(/<\/div>/gi, " ")
     .replace(/<\/li>/gi, " ");
-  // 创建临时 DOM 元素来解析剩余 HTML
+  // Membuat elemen DOM sementara untuk mengurai sisa HTML
   const doc = new DOMParser().parseFromString(processed, "text/html");
-  // 获取纯文本并压缩多余空格
+  // Mengambil teks polos dan memadatkan spasi berlebih
   const text = doc.body.textContent || "";
   return text.replace(/\s+/g, " ").trim();
 }
 
 /**
- * 默认的 Fuse.js 搜索配置
+ * Konfigurasi pencarian Fuse.js bawaan
  */
 export const defaultFuseOptions = {
   includeMatches: true,
@@ -67,8 +67,8 @@ export const defaultFuseOptions = {
 };
 
 /**
- * 简单的拼音匹配函数
- * 支持：原文匹配、全拼匹配、首字母匹配
+ * Fungsi pencocokan pinyin sederhana
+ * Mendukung: kecocokan teks asli, kecocokan pinyin penuh, kecocokan huruf awal
  */
 export function pinyinMatch(text: string, query: string): boolean {
   if (!text || !query) return false;
@@ -77,18 +77,18 @@ export function pinyinMatch(text: string, query: string): boolean {
     const lowerText = text.toLowerCase();
     const lowerQuery = query.toLowerCase();
 
-    // 原文匹配
+    // Kecocokan teks asli
     if (lowerText.includes(lowerQuery)) {
       return true;
     }
 
-    // 全拼匹配
+    // Kecocokan pinyin penuh
     const pinyin = getPinyin(text);
     if (pinyin.includes(lowerQuery)) {
       return true;
     }
 
-    // 首字母匹配
+    // Kecocokan huruf awal
     const initials = getInitials(text);
     if (initials.includes(lowerQuery)) {
       return true;

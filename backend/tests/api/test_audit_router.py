@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Audit Router 序列化测试。
+Uji serialisasi Audit Router.
 """
 
 from app.api.routers.audit import serialize_audit_log
@@ -18,7 +18,7 @@ def test_serialize_audit_log_includes_subagent_parent_metadata() -> None:
         model_id="gpt-test",
         status="success",
         tool_references=(
-            '[{"name":"lookup_chapter","description":"查找章节",'
+            '[{"name":"lookup_chapter","description":"Cari bab",'
             '"parameters":{"chapter_id":{"type":"string"}}}]'
         ),
     )
@@ -32,7 +32,7 @@ def test_serialize_audit_log_includes_subagent_parent_metadata() -> None:
     assert response.tool_references == [
         {
             "name": "lookup_chapter",
-            "description": "查找章节",
+            "description": "Cari bab",
             "parameters": {"chapter_id": {"type": "string"}},
         }
     ]
