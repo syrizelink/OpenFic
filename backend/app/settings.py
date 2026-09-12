@@ -87,6 +87,9 @@ class Settings(BaseSettings):
     # Optional application password gate. Empty or unset means disabled.
     auth_password: str | None = Field(default=None, validation_alias="OPENFIC_AUTH_PASSWORD")
 
+    # Disable native local retrieval/model features for cloud-only deployments.
+    cloud_only: bool = Field(default=False, validation_alias="OPENFIC_CLOUD_ONLY")
+
     # Server
     host: str = "0.0.0.0"
     port: int = 8000

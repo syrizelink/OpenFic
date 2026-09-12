@@ -111,7 +111,7 @@ class ContentChangingRetrievalService(FakeRetrievalService):
                 select(Chapter).where(col(Chapter.id) == chapter_id)
             )
         ).scalar_one()
-        chapter.content = "英雄在索引期间改写了正文"
+        chapter.content = "Pahlawan menulis ulang isi utama selama pengindeksan"
         await session.flush()
         return await super().index_chunk_batch(
             session,
@@ -269,14 +269,14 @@ async def _create_embedding_model(session: AsyncSession, model_id: str = "fake-e
 async def _seed_job(session: AsyncSession, *, fail: bool = False):
     model = await _create_embedding_model(session)
     await setting_repo.upsert(session, "default_embedding_model", model.id)
-    project = Project(id="project-1", title="项目", description="")
-    volume = Volume(id="volume-1", project_id=project.id, title="第一卷", order=1)
+    project = Project(id="project-1", title="Proyek", description="")
+    volume = Volume(id="volume-1", project_id=project.id, title="Volume 1", order=1)
     chapter = Chapter(
         id="chapter-1",
         project_id=project.id,
         volume_id=volume.id,
-        title="第一章",
-        content="英雄遇见龙",
+        title="Bab 1",
+        content="Pahlawan berjumpa naga",
         word_count=5,
         order=1,
     )
@@ -387,7 +387,7 @@ async def test_retrieval_chapter_index_batch_saves_failed_state(
     await session.refresh(state)
     assert item.status == JOB_STATUS_FAILED
     assert state.status == "failed"
-    assert state.error_message == "索引中止：vector store failed"
+    assert state.error_message == "Pengindeksan dihentikan: vector store failed"
 
 
 @pytest.mark.asyncio
@@ -415,7 +415,9 @@ async def test_retrieval_chapter_index_batch_marks_states_failed_when_embedding_
     await session.refresh(state)
     assert item.status == JOB_STATUS_FAILED
     assert state.status == "failed"
-    assert state.error_message == "索引中止：embedding client unavailable"
+    assert state.error_message == (
+        "Pengindeksan dihentikan: embedding client unavailable"
+    )
 
 
 @pytest.mark.asyncio
@@ -426,14 +428,14 @@ async def test_retrieval_chapter_index_batch_rejects_stale_embedding_model_metad
     old_model = await _create_embedding_model(session, "old-embedding")
     new_model = await _create_embedding_model(session, "new-embedding")
     await setting_repo.upsert(session, "default_embedding_model", new_model.id)
-    project = Project(id="project-stale", title="项目", description="")
-    volume = Volume(id="volume-stale", project_id=project.id, title="第一卷", order=1)
+    project = Project(id="project-stale", title="Proyek", description="")
+    volume = Volume(id="volume-stale", project_id=project.id, title="Volume 1", order=1)
     chapter = Chapter(
         id="chapter-stale",
         project_id=project.id,
         volume_id=volume.id,
-        title="第一章",
-        content="英雄遇见龙",
+        title="Bab 1",
+        content="Pahlawan berjumpa naga",
         word_count=5,
         order=1,
     )
@@ -741,7 +743,7 @@ async def test_retrieval_chapter_index_batch_does_not_overwrite_new_job_state_on
 
 
 class MultiDocumentRetrievalService:
-    """处理多文档的检索服务替身：所有文档都成功。"""
+    """Pengganti layanan retrieval untuk banyak dokumen: semua dokumen berhasil."""
 
     async def register_index(self, *args, **kwargs):
         return None
@@ -789,17 +791,17 @@ class StopsAfterStartingFirstChapterIndexService:
             yield ChunkBatchIndexProgress([])
         assert on_chapter_started is not None
         await on_chapter_started(chapter_ids[0])
-        raise JobCancelledError("用户停止索引")
+        raise JobCancelledError("Pengguna menghentikan pengindeksan")
 
 
 async def _seed_multi_chapter_job(
     session: AsyncSession, *, chapter_count: int
 ):
-    """创建含多个章节的索引任务，返回 (job, items, states)。"""
+    """Membuat job pengindeksan dengan beberapa bab, mengembalikan (job, items, states)."""
     model = await _create_embedding_model(session)
     await setting_repo.upsert(session, "default_embedding_model", model.id)
-    project = Project(id="project-multi", title="多章项目", description="")
-    volume = Volume(id="volume-multi", project_id=project.id, title="卷", order=1)
+    project = Project(id="project-multi", title="Proyek Multi Bab", description="")
+    volume = Volume(id="volume-multi", project_id=project.id, title="Volume", order=1)
     session.add(project)
     session.add(volume)
 
@@ -822,8 +824,8 @@ async def _seed_multi_chapter_job(
             id=chapter_id,
             project_id=project.id,
             volume_id=volume.id,
-            title=f"第{i+1}章",
-            content=f"内容{i}",
+            title=f"Bab {i+1}",
+            content=f"Isi {i}",
             word_count=3,
             order=i + 1,
         )
@@ -860,7 +862,7 @@ async def test_batch_commits_running_item_before_embedding_request(
     session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """嵌入请求开始前必须提交写入，避免阻塞停止请求的数据库更新。"""
+    """Penulisan harus dicommit sebelum permintaan embedding dimulai agar pembaruan basis data untuk permintaan stop tidak terblokir."""
     job, items, _ = await _seed_multi_chapter_job(session, chapter_count=1)
     monkeypatch.setattr(definition, "MAX_EMBEDDING_CHUNKS_PER_REQUEST", 1)
     monkeypatch.setattr(
@@ -903,7 +905,7 @@ async def test_batch_emits_progress_per_sub_batch(
     session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """多个章节应拆分为子批次，每批独立提交并推送进度。"""
+    """Banyak bab harus dipecah menjadi sub-batch, tiap batch di-commit sendiri dan mengirim progres."""
     monkeypatch.setattr(definition, "MAX_EMBEDDING_CHUNKS_PER_REQUEST", 1)
     job, items, states = await _seed_multi_chapter_job(session, chapter_count=3)
 
@@ -944,7 +946,7 @@ async def test_batch_emits_progress_per_sub_batch(
 
 
 class FailOnSecondBatchRetrievalService(MultiDocumentRetrievalService):
-    """第二个子批次抛异常，验证出错即停止。"""
+    """Sub-batch kedua melempar exception; memverifikasi proses langsung berhenti saat error."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -964,7 +966,7 @@ async def test_batch_stops_on_error_and_marks_remaining_failed(
     session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """第二个子批次出错时，整个任务停止，剩余未处理章节统一标记为失败。"""
+    """Saat sub-batch kedua error, seluruh job berhenti dan bab yang belum diproses ditandai gagal."""
     monkeypatch.setattr(definition, "MAX_EMBEDDING_CHUNKS_PER_REQUEST", 1)
     job, items, states = await _seed_multi_chapter_job(session, chapter_count=3)
 
@@ -995,7 +997,7 @@ async def test_batch_stops_on_error_and_marks_remaining_failed(
     with pytest.raises(RuntimeError):
         await definition.handle_retrieval_chapter_index_batch(context)
 
-    # 第一批成功(1)，第二批异常(1)，第三批未处理被标记失败(1)
+    # Batch pertama berhasil (1), batch kedua error (1), batch ketiga belum diproses lalu ditandai gagal (1)
     await session.refresh(items[0])
     await session.refresh(items[1])
     await session.refresh(items[2])
@@ -1014,7 +1016,7 @@ async def test_batch_cancellation_preserves_completed_chapters_and_resets_incomp
     session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """取消时保留已完成章节，仅清理尚未完成章节的部分索引。"""
+    """Saat dibatalkan, bab yang sudah selesai dipertahankan dan hanya indeks parsial bab yang belum selesai dibersihkan."""
     monkeypatch.setattr(definition, "MAX_EMBEDDING_CHUNKS_PER_REQUEST", 1)
     job, items, states = await _seed_multi_chapter_job(session, chapter_count=2)
     monkeypatch.setattr(
@@ -1053,7 +1055,7 @@ async def test_batch_cancellation_preserves_completed_chapters_and_resets_incomp
         nonlocal check_count
         check_count += 1
         if check_count >= 6:
-            raise JobCancelledError("用户停止索引")
+            raise JobCancelledError("Pengguna menghentikan pengindeksan")
 
     context = JobContext(
         session=session,
@@ -1062,9 +1064,9 @@ async def test_batch_cancellation_preserves_completed_chapters_and_resets_incomp
     )
     context.check_cancelled = cancel_before_second_chapter  # type: ignore[method-assign]
 
-    with pytest.raises(JobCancelledError, match="用户停止索引"):
+    with pytest.raises(JobCancelledError, match="Pengguna menghentikan pengindeksan"):
         await definition.handle_retrieval_chapter_index_batch(context)
-    await definition._handle_cancelled(context, "用户停止索引")
+    await definition._handle_cancelled(context, "Pengguna menghentikan pengindeksan")
 
     await session.refresh(items[0])
     await session.refresh(items[1])
@@ -1105,7 +1107,7 @@ async def test_batch_cancellation_batches_pending_items_and_cleans_only_running_
     )
     context.check_cancelled = _noop_check_cancelled  # type: ignore[method-assign]
 
-    with pytest.raises(JobCancelledError, match="用户停止索引"):
+    with pytest.raises(JobCancelledError, match="Pengguna menghentikan pengindeksan"):
         await definition.handle_retrieval_chapter_index_batch(context)
 
     await session.refresh(items[0])
@@ -1138,7 +1140,7 @@ async def test_batch_cancellation_batches_pending_items_and_cleans_only_running_
         ),
     )
 
-    await definition._handle_cancelled(context, "用户停止索引")
+    await definition._handle_cancelled(context, "Pengguna menghentikan pengindeksan")
 
     assert deleted_document_ids == ["chapter:chapter-multi-0"]
     for item in items:
@@ -1154,7 +1156,7 @@ async def test_batch_cancellation_batches_pending_items_and_cleans_only_running_
 
 
 class FailOneChapterRetrievalService(MultiDocumentRetrievalService):
-    """首次 chunk 写入失败，验证任务会停止。"""
+    """Penulisan chunk pertama gagal; memverifikasi job akan berhenti."""
 
     async def index_chunk_batch(self, *args, **kwargs):
         raise RuntimeError("single chapter failed")
@@ -1165,7 +1167,7 @@ async def test_batch_stops_on_partial_chapter_failure(
     session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """单章索引失败时，整个任务停止，剩余未处理章节统一标记为失败。"""
+    """Saat pengindeksan satu bab gagal, seluruh job berhenti dan bab yang belum diproses ditandai gagal."""
     monkeypatch.setattr(definition, "MAX_EMBEDDING_CHUNKS_PER_REQUEST", 2)
     job, items, states = await _seed_multi_chapter_job(session, chapter_count=4)
 
@@ -1196,7 +1198,7 @@ async def test_batch_stops_on_partial_chapter_failure(
     with pytest.raises(RuntimeError):
         await definition.handle_retrieval_chapter_index_batch(context)
 
-    # 首个请求失败后，所有章节均标记失败。
+    # Setelah permintaan pertama gagal, semua bab ditandai gagal.
     await session.refresh(items[0])
     await session.refresh(items[1])
     await session.refresh(items[2])
@@ -1205,3 +1207,51 @@ async def test_batch_stops_on_partial_chapter_failure(
     assert items[1].status == JOB_STATUS_FAILED
     assert items[2].status == JOB_STATUS_FAILED
     assert items[3].status == JOB_STATUS_FAILED
+
+
+@pytest.mark.asyncio
+async def test_keyword_only_batch_does_not_abort_when_embedding_setting_is_empty(
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regresi: mode keyword-only tidak boleh dianggap "model berubah".
+
+    Pada deployment cloud-only tidak ada ``default_embedding_model`` yang
+    dikonfigurasi. Sebelum perbaikan, job membandingkan pengaturan kosong dengan
+    penanda ``__keyword_only__`` lalu membatalkan seluruh batch, sehingga status
+    indeks selalu ``failed``.
+    """
+    from app.retrieval.engine_protocol import KEYWORD_ONLY_EMBEDDING_REF_ID
+
+    job, item, state, _ = await _seed_job(session)
+
+    # Tirukan kondisi cloud-only: penanda keyword-only, pengaturan embedding kosong.
+    job.context_json = (
+        '{"embedding_model_ref_id":"' + KEYWORD_ONLY_EMBEDDING_REF_ID + '"}'
+    )
+    state.embedding_model_ref_id = KEYWORD_ONLY_EMBEDDING_REF_ID
+    await setting_repo.upsert(session, "default_embedding_model", "")
+    await session.commit()
+
+    monkeypatch.setattr(
+        definition,
+        "ChapterIndexIntegrationService",
+        lambda: ChapterIndexIntegrationService(
+            retrieval_service=FakeRetrievalService()
+        ),
+    )
+
+    context = JobContext(
+        session=session,
+        job=job,
+        publisher=BackgroundEventPublisher(),
+    )
+    context.check_cancelled = _noop_check_cancelled  # type: ignore[method-assign]
+    result = await definition.handle_retrieval_chapter_index_batch(context)
+
+    await session.refresh(item)
+    await session.refresh(state)
+    assert result == {"total": 1, "succeeded": 1, "failed": 0}
+    assert item.status == JOB_STATUS_SUCCEEDED
+    assert state.status == "ready"
+    assert state.error_message is None

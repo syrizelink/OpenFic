@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""runtime-config 端点与错误遥测设置 API 测试。"""
+"""Uji API endpoint runtime-config dan pengaturan telemetri error."""
 
 import pytest
 from httpx import AsyncClient
@@ -21,6 +21,7 @@ async def test_runtime_config_default_enabled(
     assert data["posthog_enabled"] is True
     assert data["posthog_api_key"] == "phc_test_key"
     assert data["posthog_host"] == "https://us.i.posthog.com"
+    assert data["cloud_only"] is app_settings.cloud_only
 
 
 @pytest.mark.asyncio

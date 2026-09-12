@@ -45,7 +45,6 @@ from app.api.routers import (
     notes,
     projects,
     prompt_chains,
-    retrieval_index,
     runtime_config,
     settings,
     skill_reference_docs,
@@ -107,9 +106,10 @@ ANSI_RESET = "\033[0m"
 
 
 def _resolve_frontend_dist_dir() -> Path:
-    """解析前端构建产物目录。
+    """Menentukan direktori hasil build frontend.
 
-    优先级：OPENFIC_FRONTEND_DIST 环境变量 > 已安装包内路径 > 开发态相对路径。
+    Prioritas: variabel lingkungan OPENFIC_FRONTEND_DIST > path di dalam paket terpasang
+    > path relatif mode pengembangan.
     """
     env_dist = getenv("OPENFIC_FRONTEND_DIST")
     if env_dist:
@@ -206,7 +206,8 @@ _backfill_started_at: float | None = None
 
 
 def _emit_single_line_progress(message: str) -> None:
-    """输出维护进度行。以换行结尾，保证桌面端能实时按行解析。"""
+    """Menuliskan baris progres pemeliharaan. Diakhiri baris baru agar sisi desktop dapat
+    mengurai per baris secara real time."""
     sys.stdout.write(f"{message}\n")
     sys.stdout.flush()
 
@@ -285,7 +286,8 @@ async def _run_startup_maintenance() -> None:
 
         await close_checkpointer()
 
-        # 阶段 1：必要时迁移到 INCREMENTAL（普通 VACUUM，set_progress_handler 监控 VM 操作数）
+        # Tahap 1: bermigrasi ke INCREMENTAL bila perlu (VACUUM biasa, set_progress_handler
+        # memantau jumlah operasi VM)
         if await needs_incremental_auto_vacuum_migration():
             maintenance_state.update(
                 phase="migrating",
@@ -305,7 +307,7 @@ async def _run_startup_maintenance() -> None:
         else:
             logger.info("Checkpoint database already uses incremental auto-vacuum, skipping migration")
 
-        # 阶段 2：空页达到阈值才执行 VACUUM INTO 回收
+        # Tahap 2: VACUUM INTO hanya dijalankan bila halaman kosong mencapai ambang batas
         free_bytes, live_bytes = await checkpoint_free_page_bytes()
         free_ratio = free_bytes / live_bytes if live_bytes > 0 else 0.0
         should_vacuum = free_bytes > 1024**3 or free_ratio > 0.3
@@ -360,14 +362,14 @@ async def _run_startup_maintenance() -> None:
 
 
 def _friendly_maintenance_error(exc: Exception) -> str:
-    """将底层异常转换为对用户友好的维护失败说明。"""
+    """Mengubah eksepsi tingkat bawah menjadi penjelasan kegagalan pemeliharaan yang ramah pengguna."""
     text = str(exc).lower()
     if "disk" in text or "space" in text or "full" in text:
         return (
-            "磁盘空间不足，无法重整本地数据库。"
-            "请释放磁盘空间后重新启动应用重试。"
+            "Ruang disk tidak cukup, basis data lokal tidak dapat ditata ulang. "
+            "Bebaskan ruang disk lalu jalankan ulang aplikasi untuk mencoba lagi."
         )
-    return f"本地数据库维护失败：{exc}"
+    return f"Pemeliharaan basis data lokal gagal: {exc}"
 
 
 async def _restore_checkpointer_and_runtime() -> None:
@@ -618,7 +620,7 @@ def _format_banner_lines(version: str, host: str, port: int, supports_ansi: bool
 
 
 def _print_startup_banner(version: str) -> None:
-    """启动完成后输出不含日志格式前缀的 banner。"""
+    """Menampilkan banner tanpa prefiks format log setelah proses mulai selesai."""
     host, port = _get_server_bind()
     lines = _format_banner_lines(
         version=version,
@@ -637,14 +639,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await _load_telemetry_enabled()
     cleared_tasks = await _reset_task_running_state()
     if cleared_tasks:
-        logger.warning(f"已重置 {cleared_tasks} 个遗留的运行中任务状态")
+        logger.warning(
+            f"{cleared_tasks} status tugas berjalan yang tertinggal sudah direset"
+        )
     recovered_revisions = await _reset_active_revision_state()
     if recovered_revisions:
-        logger.warning(f"已恢复 {recovered_revisions} 个遗留的 Agent revision 状态")
+        logger.warning(
+            f"{recovered_revisions} status Agent revision yang tertinggal sudah dipulihkan"
+        )
     cancelled_child_runs = await _reset_interrupted_child_run_state()
     if cancelled_child_runs:
-        logger.warning(f"已取消 {cancelled_child_runs} 个因服务重启中断的子 Agent 任务")
-    await _seed_builtin_models()
+        logger.warning(
+            f"{cancelled_child_runs} tugas sub-Agen yang terputus karena layanan dimulai"
+            " ulang sudah dibatalkan"
+        )
+    if not app_settings.cloud_only:
+        await _seed_builtin_models()
     await load_audit_details_persistence()
     start_audit_queue()
     await _run_startup_maintenance()
@@ -663,13 +673,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await catalog_refresh_task
         cancelled_runs = await get_agent_run_registry().cancel_all()
         if cancelled_runs:
-            logger.info(f"已取消 {cancelled_runs} 个运行中的 Agent 任务")
+            logger.info(f"{cancelled_runs} tugas Agent yang berjalan sudah dibatalkan")
         cancelled_child_runs = await _reset_interrupted_child_run_state()
         if cancelled_child_runs:
-            logger.info(f"已取消 {cancelled_child_runs} 个中断的子 Agent 任务")
+            logger.info(
+                f"{cancelled_child_runs} tugas sub-Agen yang terputus sudah dibatalkan"
+            )
         cleared_tasks = await _reset_task_running_state()
         if cleared_tasks:
-            logger.info(f"已清理 {cleared_tasks} 个任务的运行状态")
+            logger.info(f"Status berjalan dari {cleared_tasks} tugas sudah dibersihkan")
         await stop_background_runtime()
         await stop_audit_queue()
         await app.state.catalog_icon_proxy_service.aclose()
@@ -720,6 +732,12 @@ def create_app() -> FastAPI:
     app.include_router(models.router, prefix=app_settings.api_v1_prefix)
     app.include_router(prompt_chains.router, prefix=app_settings.api_v1_prefix)
     app.include_router(agent_definitions.router, prefix=app_settings.api_v1_prefix)
+    # Router retrieval dipakai pada semua mode. Deployment cloud-only berjalan
+    # dengan adapter SQLite FTS5 (pencarian kata kunci), deployment biasa dengan
+    # LanceDB (hibrida vektor + BM25). Modul ini bebas dependensi native sehingga
+    # aman diimpor pada CPU tanpa dukungan x86-64-v2.
+    from app.api.routers import retrieval_index
+
     app.include_router(retrieval_index.router, prefix=app_settings.api_v1_prefix)
     app.include_router(retrieval_index.global_router, prefix=app_settings.api_v1_prefix)
     app.include_router(skills.router, prefix=app_settings.api_v1_prefix)
@@ -737,7 +755,7 @@ def create_app() -> FastAPI:
     app.include_router(dashboard.router, prefix=app_settings.api_v1_prefix)
     app.include_router(model_icons.router)
 
-    # 挂载静态文件服务（封面图片）
+    # Memasang layanan berkas statis (gambar sampul)
     covers_dir = ensure_covers_dir()
     app.mount("/covers", StaticFiles(directory=str(covers_dir)), name="covers")
 
@@ -755,7 +773,8 @@ def create_app() -> FastAPI:
         name="agent_attachments",
     )
 
-    # 挂载前端构建产物；开发环境未构建时跳过，避免后端启动失败。
+    # Memasang hasil build frontend; dilewati bila belum dibuild di lingkungan pengembangan
+    # agar backend tidak gagal dijalankan.
     if (FRONTEND_DIST_DIR / "index.html").exists():
         app.mount(
             "/",
@@ -765,7 +784,7 @@ def create_app() -> FastAPI:
     else:
         logger.info(f"Frontend build not found, skip static mount: {FRONTEND_DIST_DIR}")
 
-    # 注册全局异常处理器
+    # Mendaftarkan handler eksepsi global
     register_exception_handlers(app)
 
     return app

@@ -2,19 +2,34 @@
 """
 Chunking helpers for retrieval indexing.
 
-采用结构感知分块：优先以段落（``\\n\\n``）为单元贪心打包，单段过长时按句子
-边界二次切分，仍超长再按 ``chunk_size`` 硬切。相比纯字符滑动窗口，能更好
-保留语义单元完整性，减少在段落中间硬切导致的语义断裂。
+Memakai pemotongan sadar struktur: mengemas secara greedy dengan paragraf
+(``\\n\\n``) sebagai unit utama; jika satu paragraf terlalu panjang, dipotong lagi
+pada batas kalimat, dan bila masih terlalu panjang dipotong keras sesuai
+``chunk_size``. Dibandingkan jendela geser murni per karakter, cara ini lebih baik
+menjaga keutuhan unit makna dan mengurangi keterputusan makna akibat pemotongan
+keras di tengah paragraf.
 """
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 _PARAGRAPH_SEP = "\n\n"
-_SENTENCE_SEPARATORS = ("。", "！", "？", "!", "?", "…", "\n")
+_SENTENCE_SEPARATORS = ("\u3002", "\uff01", "\uff1f", "!", "?", "\u2026", "\n")
+
+
+@dataclass
+class ChunkPiece:
+    """Satu chunk: ``raw_text`` adalah isi utama (untuk dikembalikan),
+    ``indexed_text`` adalah teks setelah prefiks disuntikkan yang dipakai untuk
+    embedding/FTS."""
+
+    raw_text: str
+    indexed_text: str
 
 
 class RecursiveCharacterChunker:
-    """结构感知分块器，保持 ``chunker_type="recursive_character`` 契约名不变。"""
+    """Pemotong sadar struktur, mempertahankan nama kontrak
+    ``chunker_type="recursive_character`` tetap sama."""
 
     def __init__(
         self,
@@ -24,7 +39,8 @@ class RecursiveCharacterChunker:
     ) -> None:
         self.chunk_size = max(1, chunk_size)
         self.chunk_overlap = max(0, min(chunk_overlap, self.chunk_size - 1))
-        # separators 保留入参以兼容旧签名，但结构感知逻辑不依赖它。
+        # separators dipertahankan sebagai parameter demi kompatibilitas tanda tangan
+        # lama, tetapi logika sadar struktur tidak bergantung padanya.
         self.separators = tuple(separators or ())
 
     def split_text(self, text: str) -> list[str]:
@@ -119,3 +135,38 @@ def _with_overlap(
         return current
     tail = chunks[-1][-chunk_overlap:]
     return f"{tail}{current}"
+
+
+def chunk_document(
+    text: str | None,
+    chunks: Sequence[str] | None,
+    metadata: dict | None,
+    *,
+    chunk_size: int,
+    chunk_overlap: int,
+    skip_chunking: bool,
+) -> list[ChunkPiece]:
+    """Memotong satu dokumen menjadi daftar ``ChunkPiece``.
+
+    Dipakai bersama oleh seluruh adapter retrieval supaya batas potongan dan
+    penyuntikan prefiks tetap identik apa pun mesin penyimpanannya.
+    """
+    prefix = ""
+    prefix_value = (metadata or {}).get("prefix")
+    if isinstance(prefix_value, str):
+        prefix = prefix_value.strip()
+
+    def _piece(raw: str) -> ChunkPiece:
+        return ChunkPiece(
+            raw_text=raw,
+            indexed_text=f"{prefix}\n{raw}" if prefix else raw,
+        )
+
+    if skip_chunking:
+        return [_piece(chunk.strip()) for chunk in chunks or []]
+
+    chunker = RecursiveCharacterChunker(
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+    )
+    return [_piece(raw) for raw in chunker.split_text(text or "")]

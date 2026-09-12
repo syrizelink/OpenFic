@@ -116,9 +116,9 @@ class RetrievalQueryBuilder:
         where_clause = " AND ".join(self.filters) if self.filters else None
 
         if self.mode == "vector":
-            logger.info("检索: 生成 query embedding")
+            logger.info("Retrieval: membuat query embedding")
             vector_query = await self.embedding_client.embed_single(self.query_text)
-            logger.info("检索: 向量查询 dim={}", len(vector_query))
+            logger.info("Retrieval: kueri vektor dim={}", len(vector_query))
             query = await table.search(
                 vector_query,
                 query_type="vector",
@@ -145,7 +145,7 @@ class RetrievalQueryBuilder:
             return [result_from_bm25_row(row) for row in rows]
 
         vector_query = await self.embedding_client.embed_single(self.query_text)
-        logger.info("检索: 混合查询 embedding dim={}", len(vector_query))
+        logger.info("Retrieval: kueri hibrida embedding dim={}", len(vector_query))
         vector_builder = await table.search(
             vector_query,
             query_type="vector",
@@ -168,15 +168,24 @@ class RetrievalQueryBuilder:
             vector_builder = vector_builder.where(where_clause)
             bm25_builder = bm25_builder.where(where_clause)
 
-        logger.info("检索: 执行 LanceDB 查询 vector_top_k={} bm25_top_k={}", self.vector_top_k_count, self.bm25_top_k_count)
+        logger.info(
+            "Retrieval: menjalankan kueri LanceDB vector_top_k={} bm25_top_k={}",
+            self.vector_top_k_count,
+            self.bm25_top_k_count,
+        )
         vector_rows = await vector_builder.to_list()
         bm25_rows = await bm25_builder.to_list()
-        logger.info("检索: LanceDB 查询完成 vector={} bm25={}", len(vector_rows), len(bm25_rows))
+        logger.info(
+            "Retrieval: kueri LanceDB selesai vector={} bm25={}",
+            len(vector_rows),
+            len(bm25_rows),
+        )
 
         fused = rrf_merge(vector_rows, bm25_rows, self.rrf_k)
         ordered = sorted(fused.values(), key=lambda item: item["rrf_score"], reverse=True)
 
-        # 先将所有候选的 score 统一为归一化 RRF 置信度（0~1）。
+        # Seragamkan dulu score semua kandidat menjadi tingkat keyakinan RRF
+        # ternormalisasi (0~1).
         for candidate in ordered:
             candidate["score"] = normalize_rrf_confidence(
                 candidate["rrf_score"], self.rrf_k

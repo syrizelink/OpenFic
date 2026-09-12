@@ -3,6 +3,15 @@
 from collections.abc import Iterable, Mapping
 from types import MappingProxyType
 
+
+# Dulu ``search_chapters`` dan ``update_index`` dikecualikan pada mode cloud-only
+# karena pustaka vektor native tidak dapat dimuat. Kini keduanya tersedia di semua
+# mode: adapter SQLite FTS5 menangani pencarian kata kunci tanpa dependensi
+# native. Himpunan ini disengaja kosong dan dipertahankan sebagai titik tunggal
+# bila kelak ada tool yang benar-benar khusus lokal.
+LOCAL_ONLY_TOOL_NAMES: frozenset[str] = frozenset()
+
+
 TOOL_CATEGORIES: Mapping[str, tuple[str, ...]] = MappingProxyType(
     {
         "orchestration": (
@@ -65,20 +74,20 @@ TOOL_CATEGORIES: Mapping[str, tuple[str, ...]] = MappingProxyType(
 
 TOOL_CATEGORY_DISPLAY: Mapping[str, str] = MappingProxyType(
     {
-        "orchestration": "委派子任务",
-        "interaction": "提问",
-        "web_search": "联网搜索",
-        "web_fetch": "网页读取",
-        "plan": "计划",
-        "chapter_read": "章节读取",
-        "summary_read": "摘要读取",
-        "character_read": "角色读取",
-        "character_write": "角色写入",
-        "world_read": "世界书读取",
-        "world_write": "世界书写入",
-        "note_read": "笔记读取",
-        "note_write": "笔记写入",
-        "chapter_write": "章节写入",
+        "orchestration": "Delegasi Subtugas",
+        "interaction": "Bertanya",
+        "web_search": "Pencarian Web",
+        "web_fetch": "Baca Halaman Web",
+        "plan": "Rencana",
+        "chapter_read": "Baca Bab",
+        "summary_read": "Baca Ringkasan",
+        "character_read": "Baca Tokoh",
+        "character_write": "Tulis Tokoh",
+        "world_read": "Baca Buku Dunia",
+        "world_write": "Tulis Buku Dunia",
+        "note_read": "Baca Catatan",
+        "note_write": "Tulis Catatan",
+        "chapter_write": "Tulis Bab",
     }
 )
 
@@ -100,6 +109,8 @@ def get_tool_names_for_categories(category_keys: Iterable[str]) -> tuple[str, ..
     seen: set[str] = set()
     for category_key in category_keys:
         for tool_name in TOOL_CATEGORIES[category_key]:
+            if tool_name in LOCAL_ONLY_TOOL_NAMES:
+                continue
             if tool_name in seen:
                 continue
             names.append(tool_name)

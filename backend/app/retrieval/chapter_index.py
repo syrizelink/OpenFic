@@ -15,8 +15,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.entities.model import Model
 from app.models.repos import model_repo
+from app.retrieval.engine_protocol import (
+    KEYWORD_ONLY_DIMENSIONS,
+    KEYWORD_ONLY_EMBEDDING_REF_ID,
+    is_keyword_only_model_ref,
+)
 from app.retrieval.service import OpenFicRetrievalService
 from app.retrieval.internal.indexing.chunking import RecursiveCharacterChunker
+from app.settings import settings
 from app.retrieval.types import (
     BatchIndexResult,
     DocumentIndexFailure,
@@ -72,11 +78,13 @@ DEFAULT_INDEX_CHUNK_OVERLAP = 100
 DEFAULT_INDEX_RERANK_ENABLED = False
 DEFAULT_INDEX_RERANK_MODEL = ""
 
-# 当前 chunk 表 schema 版本。提升该版本会令所有现存索引进入 needs_rebuild，
-# 强制按新 schema（raw_text 列、章节前缀、ngram FTS）重建。
+# Versi schema tabel chunk saat ini. Menaikkan versi ini membuat semua indeks yang ada
+# masuk ke needs_rebuild, memaksa pembangunan ulang sesuai schema baru (kolom raw_text,
+# prefiks bab, ngram FTS).
 CURRENT_CHUNK_SCHEMA_VERSION = 2
 
-# 面向中文全文检索的 FTS 索引参数：ngram bigram，关闭英文词干/停用词。
+# Parameter indeks FTS untuk pencarian teks penuh bahasa Tionghoa: ngram bigram,
+# stemming/stopword bahasa Inggris dimatikan.
 DEFAULT_FTS_INDEX_PARAMS: dict[str, Any] = {
     "base_tokenizer": "ngram",
     "ngram_min_length": 2,
@@ -94,7 +102,7 @@ _VALID_INDEX_AUTO_STRATEGIES = {
     INDEX_AUTO_STRATEGY_OFF,
 }
 
-# 索引状态汇总语义（面向用户/Agent，屏蔽内部细节）
+# Semantik ringkasan status indeks (untuk pengguna/agen, menyembunyikan detail internal)
 INDEX_STATUS_DISABLED = "disabled"
 INDEX_STATUS_NOT_CONFIGURED = "not_configured"
 INDEX_STATUS_NO_CHAPTERS = "no_chapters"
@@ -160,7 +168,7 @@ def _parse_str_list_setting(raw: str | None) -> list[str]:
 
 @dataclass
 class IndexSettingsConfig:
-    """索引相关的全局设置快照。"""
+    """Snapshot pengaturan global terkait indeks."""
 
     mode: str
     enabled_projects: set[str]
@@ -184,7 +192,7 @@ def _parse_bool_setting(raw: str | None, *, default: bool) -> bool:
 
 
 async def get_index_settings(session: AsyncSession) -> IndexSettingsConfig:
-    """读取索引相关的全部设置并校验为合法值。"""
+    """Membaca seluruh pengaturan terkait indeks dan memvalidasinya menjadi nilai sah."""
     settings_list = await setting_repo.get_all(session)
     raw = {item.key: item.value for item in settings_list}
 
@@ -233,15 +241,41 @@ def is_project_index_enabled(config: IndexSettingsConfig, project_id: str) -> bo
 
 
 async def get_index_chunk_config(session: AsyncSession) -> tuple[int, int]:
-    """读取分块参数（chunk_size, chunk_overlap）。"""
+    """Membaca parameter pemotongan (chunk_size, chunk_overlap)."""
     config = await get_index_settings(session)
     return config.chunk_size, config.chunk_overlap
+
+
+def build_keyword_only_model() -> Model:
+    """Membuat model embedding tiruan untuk indeks keyword-only.
+
+    Model ini tidak pernah dipakai untuk memanggil penyedia apa pun. Keberadaannya
+    hanya supaya seluruh alur indeks yang mensyaratkan objek ``Model`` tetap
+    berjalan tanpa perubahan saat adapter SQLite FTS5 aktif.
+    """
+    return Model(
+        id=KEYWORD_ONLY_EMBEDDING_REF_ID,
+        name="Pencarian kata kunci (tanpa embedding)",
+        provider_id=KEYWORD_ONLY_EMBEDDING_REF_ID,
+        model_id=KEYWORD_ONLY_EMBEDDING_REF_ID,
+        task_type="embedding",
+        dimensions=KEYWORD_ONLY_DIMENSIONS,
+    )
 
 
 async def resolve_index_embedding_model(
     session: AsyncSession, config: IndexSettingsConfig
 ) -> Model | None:
-    """根据设置解析可用的 embedding 模型，未配置或非法时返回 None。"""
+    """Menguraikan model embedding yang tersedia dari pengaturan; mengembalikan None
+    bila belum dikonfigurasi atau tidak valid.
+
+    Pada deployment cloud-only, pustaka vektor native tidak dapat dimuat sehingga
+    indeks berjalan dalam mode keyword-only. Model tiruan dikembalikan supaya alur
+    indeks tetap aktif tanpa memerlukan model embedding yang dikonfigurasi
+    pengguna.
+    """
+    if settings.cloud_only:
+        return build_keyword_only_model()
     if not config.embedding_model_ref_id:
         return None
     model = await model_repo.get_by_id(session, config.embedding_model_ref_id)
@@ -252,7 +286,7 @@ async def resolve_index_embedding_model(
 
 @dataclass
 class ProjectIndexStatus:
-    """单个项目的索引状态汇总（面向用户，不含内部 ID）。"""
+    """Ringkasan status indeks satu proyek (untuk pengguna, tanpa ID internal)."""
 
     project_id: str
     enabled: bool
@@ -294,7 +328,8 @@ def _effective_chapter_status(
     chapter: ChapterIndexSource | Chapter,
     state: RetrievalChapterIndexState | None,
 ) -> str:
-    """计算单章的有效索引状态（结合内容哈希实时判断是否过期）。"""
+    """Menghitung status indeks efektif satu bab (menilai kedaluwarsa secara real-time
+    berdasarkan hash konten)."""
     if state is None:
         return CHAPTER_INDEX_STATUS_NOT_INDEXED
     if state.status in {CHAPTER_INDEX_STATUS_QUEUED, CHAPTER_INDEX_STATUS_INDEXING}:
@@ -321,7 +356,8 @@ def _summarize_project_status(
     project_index: RetrievalIndex | None,
     states: dict[str, RetrievalChapterIndexState],
 ) -> ProjectIndexStatus:
-    """将章节/索引/状态等数据聚合为单个项目的索引状态（纯内存计算，不访问 DB）。"""
+    """Mengagregasi data bab/indeks/status menjadi status indeks satu proyek
+    (perhitungan murni di memori, tanpa mengakses DB)."""
     enabled = is_project_index_enabled(config, project_id)
     total = len(chapters)
 
@@ -352,7 +388,8 @@ def _summarize_project_status(
             total_chapters=0,
         )
 
-    # schema 升级：旧 schema_version 的索引整体需要重建，优先于其它状态判定。
+    # Peningkatan schema: indeks dengan schema_version lama perlu dibangun ulang secara
+    # menyeluruh, diprioritaskan di atas penentuan status lainnya.
     schema_outdated = (
         project_index is not None
         and project_index.schema_version < CURRENT_CHUNK_SCHEMA_VERSION
@@ -427,10 +464,12 @@ async def compute_project_index_status(
     config: IndexSettingsConfig | None = None,
     model: Model | None = None,
 ) -> ProjectIndexStatus:
-    """计算单个项目的索引状态汇总。
+    """Menghitung ringkasan status indeks satu proyek.
 
-    ``title`` 传入时直接使用；为 ``None`` 时按需查询项目标题。
-    ``config`` / ``model`` 用于在批量计算时复用全局配置与 embedding 模型，缺省时自行读取。
+    ``title`` dipakai langsung bila diberikan; bila ``None`` judul proyek dikueri sesuai
+    kebutuhan.
+    ``config`` / ``model`` dipakai untuk menggunakan ulang konfigurasi global dan model
+    embedding saat perhitungan batch; bila tidak diberikan akan dibaca sendiri.
     """
     if config is None:
         config = await get_index_settings(session)
@@ -498,11 +537,12 @@ async def compute_projects_index_status(
     model: Model | None,
     projects: list[Project],
 ) -> list[ProjectIndexStatus]:
-    """批量计算多个项目的索引状态。
+    """Menghitung status indeks beberapa proyek secara batch.
 
-    一次性批量查询所有项目的章节/索引/状态，再在内存中聚合，
-    避免整体状态接口按项目串行执行 N+1 次查询。
-    ``projects`` 中每个元素需提供 ``id`` 与 ``title`` 属性。
+    Mengueri bab/indeks/status semua proyek sekaligus dalam satu batch, lalu
+    mengagregasinya di memori, sehingga antarmuka status keseluruhan tidak menjalankan
+    N+1 kueri secara serial per proyek.
+    Setiap elemen dalam ``projects`` harus menyediakan atribut ``id`` dan ``title``.
     """
     if not projects:
         return []
@@ -555,7 +595,7 @@ async def compute_projects_index_status(
 
 @dataclass
 class IndexEnqueueResult:
-    """索引入队结果。"""
+    """Hasil pengantrean indeks."""
 
     enqueued_count: int
     skipped_count: int
@@ -574,11 +614,13 @@ async def enqueue_project_index_update(
     *,
     project_id: str,
 ) -> IndexEnqueueResult | None:
-    """为项目入队所有需要更新的章节索引。
+    """Mengantrekan semua indeks bab proyek yang perlu diperbarui.
 
-    返回 None 表示项目未启用索引或未配置可用 embedding 模型；
-    返回 IndexEnqueueResult 表示已处理（enqueued_count 可能为 0，即无需更新）。
-    不会提交事务，由调用方负责 commit 与通知。
+    Mengembalikan None berarti indeks proyek belum diaktifkan atau model embedding yang
+    tersedia belum dikonfigurasi;
+    mengembalikan IndexEnqueueResult berarti sudah diproses (enqueued_count bisa 0,
+    yaitu tidak perlu pembaruan).
+    Transaksi tidak di-commit; pemanggil bertanggung jawab atas commit dan notifikasi.
     """
     from app.background.jobs import service as background_service
     from app.background.jobs.constants import JOB_TYPE_RETRIEVAL_CHAPTER_INDEX_BATCH
@@ -596,7 +638,7 @@ async def enqueue_project_index_update(
 
     index_key = chapter_index_key(project_id)
     project_index = await retrieval_index_repo.get_by_index_key(session, index_key)
-    # 模型或维度变更时标记整个项目索引需要重建
+    # Tandai seluruh indeks proyek perlu dibangun ulang saat model atau dimensi berubah
     if (
         project_index is not None
         and project_index.status != "needs_rebuild"
@@ -610,8 +652,9 @@ async def enqueue_project_index_update(
         await retrieval_chapter_index_state_repo.mark_project_needs_rebuild(
             session, project_id=project_id, index_key=index_key
         )
-    # schema 升级：旧 schema_version 的索引必须重建。在计算 selected 前标记，
-    # 使过期章节进入待索引集合。
+    # Peningkatan schema: indeks dengan schema_version lama wajib dibangun ulang.
+    # Ditandai sebelum selected dihitung agar bab kedaluwarsa masuk ke himpunan bab
+    # yang menunggu diindeks.
     if (
         project_index is not None
         and project_index.schema_version < CURRENT_CHUNK_SCHEMA_VERSION
@@ -629,9 +672,10 @@ async def enqueue_project_index_update(
         )
     }
 
-    # 恢复因后端异常重启而卡在 indexing/queued 的章节状态。
-    # 这些状态在运行中的后台任务被中断后会残留，导致项目永远显示"索引中"
-    # 且无法重新入队。将其重置为 needs_rebuild 以便重新索引。
+    # Memulihkan status bab yang tersangkut di indexing/queued akibat backend restart
+    # tidak normal. Status ini tertinggal setelah tugas latar yang sedang berjalan
+    # terputus, sehingga proyek selamanya tampil "sedang diindeks" dan tidak dapat
+    # diantrekan ulang. Setel ulang ke needs_rebuild agar dapat diindeks kembali.
     for chapter in chapters:
         state = states.get(chapter.id)
         if state is None:
@@ -643,14 +687,16 @@ async def enqueue_project_index_update(
             state.error_message = None
             await retrieval_chapter_index_state_repo.save(session, state)
 
-    # 恢复因异常重启而卡在 building 的检索索引状态。
+    # Memulihkan status indeks retrieval yang tersangkut di building akibat restart
+    # tidak normal.
     index_row = await retrieval_index_repo.get_by_index_key(session, index_key)
     if index_row is not None and index_row.status == "building":
         index_row.status = "needs_rebuild"
         await retrieval_index_repo.update(session, index_row)
 
-    # 空内容章节永远不会被索引，若因全局重建被标记为 needs_rebuild，
-    # 需重置为 not_indexed，避免阻塞检索工具的新鲜度检查。
+    # Bab dengan konten kosong tidak akan pernah diindeks; bila ditandai needs_rebuild
+    # akibat pembangunan ulang global, perlu disetel ulang ke not_indexed agar tidak
+    # memblokir pemeriksaan kesegaran pada tool retrieval.
     for chapter in chapters:
         state = states.get(chapter.id)
         if state is None:
@@ -732,7 +778,8 @@ async def maybe_enqueue_auto_index(
     *,
     project_id: str,
 ) -> IndexEnqueueResult | None:
-    """当自动索引策略为"立即"时入队更新；否则返回 None。"""
+    """Mengantrekan pembaruan bila strategi indeks otomatis adalah "segera";
+    jika tidak, mengembalikan None."""
     config = await get_index_settings(session)
     if config.auto_strategy != INDEX_AUTO_STRATEGY_IMMEDIATE:
         return None
@@ -746,7 +793,8 @@ async def safe_maybe_enqueue_auto_index(
     *,
     project_id: str,
 ) -> None:
-    """best-effort 的自动索引入队，避免章节写入因索引副作用失败。"""
+    """Pengantrean indeks otomatis best-effort, agar penulisan bab tidak gagal karena
+    efek samping pengindeksan."""
     try:
         await maybe_enqueue_auto_index(session, project_id=project_id)
     except Exception as exc:
@@ -789,9 +837,9 @@ class ChapterIndexIntegrationService:
         order = chapter.order
         title = (chapter.title or "").strip()
         if order is not None and title:
-            return f"第{order}章 {title}"
+            return f"\u7b2c{order}\u7ae0 {title}"
         if order is not None:
-            return f"第{order}章"
+            return f"\u7b2c{order}\u7ae0"
         if title:
             return title
         return ""
@@ -804,7 +852,9 @@ class ChapterIndexIntegrationService:
         chunk_overlap: int = DEFAULT_INDEX_CHUNK_OVERLAP,
     ) -> RetrievalIndexContract:
         if model.dimensions is None:
-            raise ValueError("default_embedding_model 必须配置 embedding dimensions")
+            raise ValueError(
+                "default_embedding_model wajib mengonfigurasi embedding dimensions"
+            )
         return RetrievalIndexContract(
             embedding_model_ref_id=model.id,
             embedding_model_id_snapshot=model.model_id,
@@ -980,7 +1030,7 @@ class ChapterIndexIntegrationService:
     ) -> RetrievalChapterIndexState:
         chapter = await chapter_repo.get_by_id(session, chapter_id)
         if chapter is None:
-            raise ValueError(f"章节不存在: {chapter_id}")
+            raise ValueError(f"Bab tidak ditemukan: {chapter_id}")
         if _is_chapter_content_empty(chapter):
             return await self.get_or_create_state(session, chapter)
 
@@ -1083,7 +1133,7 @@ class ChapterIndexIntegrationService:
         for cid in chapter_ids:
             chapter = await chapter_repo.get_by_id(session, cid)
             if chapter is None:
-                raise ValueError(f"章节不存在: {cid}")
+                raise ValueError(f"Bab tidak ditemukan: {cid}")
             chapter_map[cid] = chapter
 
         chapter_map = {
@@ -1099,7 +1149,9 @@ class ChapterIndexIntegrationService:
 
         project_ids = {ch.project_id for ch in chapter_map.values()}
         if len(project_ids) != 1:
-            raise ValueError("批量索引要求所有章节属于同一项目")
+            raise ValueError(
+                "Pengindeksan batch mengharuskan semua bab milik proyek yang sama"
+            )
         project_id = next(iter(project_ids))
 
         await self.ensure_project_index(
@@ -1278,7 +1330,7 @@ class ChapterIndexIntegrationService:
 
         first_chapter = await chapter_repo.get_by_id(session, chapter_ids[0])
         if first_chapter is None:
-            raise ValueError(f"章节不存在: {chapter_ids[0]}")
+            raise ValueError(f"Bab tidak ditemukan: {chapter_ids[0]}")
         project_id = first_chapter.project_id
         await self.ensure_project_index(
             session,
@@ -1354,9 +1406,11 @@ class ChapterIndexIntegrationService:
                 await check_cancelled()
             chapter = await chapter_repo.get_by_id(session, chapter_id)
             if chapter is None:
-                raise ValueError(f"章节不存在: {chapter_id}")
+                raise ValueError(f"Bab tidak ditemukan: {chapter_id}")
             if chapter.project_id != project_id:
-                raise ValueError("批量索引要求所有章节属于同一项目")
+                raise ValueError(
+                    "Pengindeksan batch mengharuskan semua bab milik proyek yang sama"
+                )
             if _is_chapter_content_empty(chapter):
                 continue
 
@@ -1376,7 +1430,7 @@ class ChapterIndexIntegrationService:
             document = self.build_chapter_document(chapter)
             raw_chunks = chunker.split_text(document.text or "")
             if not raw_chunks:
-                raise ValueError(f"章节无法分块: {chapter_id}")
+                raise ValueError(f"Bab tidak dapat dipotong: {chapter_id}")
             metadata = document.metadata or {}
             prefix = metadata.get("prefix")
             indexed_chunks = [
@@ -1436,11 +1490,17 @@ class ChapterIndexIntegrationService:
         embedding_model_ref_id: str,
     ) -> None:
         await session.refresh(state)
-        setting = await setting_repo.get_by_key(
-            session,
-            SETTING_KEY_DEFAULT_EMBEDDING_MODEL,
-        )
-        current_model_ref_id = setting.value.strip() if setting is not None else ""
+        if is_keyword_only_model_ref(embedding_model_ref_id):
+            # Mode keyword-only tidak bergantung pada pengaturan
+            # ``default_embedding_model``, jadi tidak ada perubahan model yang
+            # perlu dideteksi. Hanya status needs_rebuild yang tetap dihormati.
+            current_model_ref_id = embedding_model_ref_id
+        else:
+            setting = await setting_repo.get_by_key(
+                session,
+                SETTING_KEY_DEFAULT_EMBEDDING_MODEL,
+            )
+            current_model_ref_id = setting.value.strip() if setting is not None else ""
         if (
             state.status == CHAPTER_INDEX_STATUS_NEEDS_REBUILD
             or current_model_ref_id != embedding_model_ref_id

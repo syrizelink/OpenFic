@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-"""索引状态 socket 推送协调器。
+"""Koordinator pengiriman socket untuk status indeks.
 
-负责在索引状态或全局索引配置变更后，通过 Socket.IO 向前端推送
-`index:status`（按项目房间）与 `index:config`（广播）事件。
+Bertugas mengirim event `index:status` (per ruang proyek) dan `index:config`
+(broadcast) ke frontend melalui Socket.IO setelah status indeks atau konfigurasi
+indeks global berubah.
 
-仅在存在前端连接时实际推送，避免在测试/无连接环境下产生副作用。
+Pengiriman hanya dilakukan bila ada koneksi frontend, untuk menghindari efek samping
+di lingkungan pengujian/tanpa koneksi.
 """
 
 from __future__ import annotations
@@ -70,10 +72,12 @@ async def _emit_index_config() -> None:
 
 
 def _schedule_after_commit(session: AsyncSession, coro_factory) -> None:
-    """注册一次性 after_commit 钩子，在提交后调度协程（仅在有前端连接时）。
+    """Mendaftarkan hook after_commit sekali pakai, menjadwalkan coroutine setelah
+    commit (hanya bila ada koneksi frontend).
 
-    注册过程为 best-effort：会话不具备 SQLAlchemy 事件支持时静默跳过，
-    避免索引状态推送副作用影响主流程（如章节写入）。
+    Proses pendaftaran bersifat best-effort: dilewati secara senyap bila session tidak
+    mendukung event SQLAlchemy, agar efek samping pengiriman status indeks tidak
+    mengganggu alur utama (misalnya penulisan bab).
     """
     from app.socket import is_connected
 
@@ -97,7 +101,7 @@ def _schedule_after_commit(session: AsyncSession, coro_factory) -> None:
 
 
 def schedule_emit_index_status(session: AsyncSession, project_id: str) -> None:
-    """在当前 session 提交后推送该项目的 index:status 事件。"""
+    """Mengirim event index:status proyek tersebut setelah session saat ini commit."""
     _schedule_after_commit(session, lambda: _emit_status_for_project(project_id))
 
 
@@ -112,7 +116,8 @@ async def commit_and_emit_index_status(session: AsyncSession, project_id: str) -
 
 
 def schedule_emit_index_config(session: AsyncSession) -> None:
-    """在当前 session 提交后广播 index:config 事件（前端据此刷新索引状态）。"""
+    """Menyiarkan event index:config setelah session saat ini commit (frontend memakai
+    ini untuk menyegarkan status indeks)."""
     _schedule_after_commit(session, _emit_index_config)
 
 

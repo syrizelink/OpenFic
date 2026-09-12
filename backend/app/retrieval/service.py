@@ -13,7 +13,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import NotFoundError
 from app.models.clients.embedding_client import EmbeddingClientLike
 from app.models.repos import model_repo
-from app.retrieval.engine import LanceDBRetrievalEngine
+from app.retrieval.engine_protocol import (
+    RetrievalEngine,
+    is_keyword_only_contract,
+)
 from app.retrieval.internal.common.naming import make_table_name
 from app.retrieval.internal.contracts.index_contracts import (
     build_index_create_kwargs,
@@ -33,7 +36,7 @@ from app.storage.repos import retrieval_index_repo
 
 
 class IndexNotReadyError(ValueError):
-    """检索索引尚未完成构建，暂时不能执行查询。"""
+    """Indeks retrieval belum selesai dibangun, kueri sementara tidak dapat dijalankan."""
 
 
 class OpenFicRetrievalService:
@@ -114,7 +117,7 @@ class OpenFicRetrievalService:
         session: AsyncSession,
         index_key: str,
         documents: list[IndexDocument],
-        embedding_client: EmbeddingClientLike,
+        embedding_client: EmbeddingClientLike | None,
         *,
         max_consecutive_failures: int = 5,
         skip_chunking: bool = False,
@@ -154,7 +157,7 @@ class OpenFicRetrievalService:
         session: AsyncSession,
         index_key: str,
         chunks: list[IndexChunk],
-        embedding_client: EmbeddingClientLike,
+        embedding_client: EmbeddingClientLike | None,
         *,
         replace_document_ids: set[str] | None = None,
     ) -> ChunkIndexResult:
@@ -179,7 +182,7 @@ class OpenFicRetrievalService:
         session: AsyncSession,
         index_key: str,
         documents: list[IndexDocument],
-        embedding_client: EmbeddingClientLike,
+        embedding_client: EmbeddingClientLike | None,
         *,
         skip_chunking: bool = False,
         max_consecutive_failures: int = 5,
@@ -208,7 +211,7 @@ class OpenFicRetrievalService:
         session: AsyncSession,
         index_key: str,
         text: str,
-        embedding_client: EmbeddingClientLike,
+        embedding_client: EmbeddingClientLike | None,
     ):
         row = await self._get_index(session, index_key)
         if row.status != "ready":
@@ -223,15 +226,34 @@ class OpenFicRetrievalService:
             raise ValueError(f"Unknown index_key: {index_key}")
         return row
 
-    def _engine_for(self, row: RetrievalIndex) -> LanceDBRetrievalEngine:
+    def _engine_for(self, row: RetrievalIndex) -> RetrievalEngine:
+        """Memilih adapter retrieval untuk satu baris indeks.
+
+        Ini satu-satunya tempat pemilihan adapter terjadi. Kontrak keyword-only
+        memakai adapter SQLite FTS5 yang murni Python; kontrak lain memakai
+        LanceDB. Kedua impor bersifat lazy supaya lingkungan tanpa dukungan
+        x86-64-v2 tidak pernah memuat pustaka native.
+        """
+        contract = contract_from_row(row)
+        if is_keyword_only_contract(contract):
+            from app.retrieval.engine_sqlite_fts import SqliteFtsRetrievalEngine
+
+            return SqliteFtsRetrievalEngine(
+                base_dir=self.base_dir,
+                table_name=row.table_name,
+                contract=contract,
+            )
+
+        from app.retrieval.engine import LanceDBRetrievalEngine
+
         return LanceDBRetrievalEngine(
             base_dir=self.base_dir,
             table_name=row.table_name,
-            contract=contract_from_row(row),
+            contract=contract,
         )
 
     async def _drop_index_table(self, row: RetrievalIndex) -> None:
-        await self._engine_for(row)._drop_table()
+        await self._engine_for(row).drop_table()
 
     async def _update_status(
         self,
@@ -253,6 +275,10 @@ class OpenFicRetrievalService:
     async def _validate_contract(
         self, session: AsyncSession, contract: RetrievalIndexContract
     ) -> None:
+        # Kontrak keyword-only tidak memakai embedding sama sekali, jadi tidak ada
+        # model yang perlu dicari maupun dicocokkan dimensinya.
+        if is_keyword_only_contract(contract):
+            return
         model = await model_repo.get_by_id(session, contract.embedding_model_ref_id)
         if model is None:
             raise NotFoundError(

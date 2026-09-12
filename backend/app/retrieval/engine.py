@@ -37,7 +37,8 @@ from app.retrieval.types import (
 
 @dataclass
 class ChunkPiece:
-    """单个分块：raw_text 为正文（回传用），indexed_text 为注入前缀后用于 embedding/FTS 的文本。"""
+    """Satu chunk: raw_text adalah isi utama (untuk dikembalikan), indexed_text adalah
+    teks setelah prefiks disuntikkan yang dipakai untuk embedding/FTS."""
 
     raw_text: str
     indexed_text: str
@@ -102,7 +103,7 @@ class LanceDBRetrievalEngine:
                 if consecutive_failures >= max_consecutive_failures:
                     break
 
-        # Phase 2: Batch embed all chunks (使用注入前缀后的 indexed_text)
+        # Phase 2: Batch embed all chunks (memakai indexed_text setelah prefiks disuntikkan)
         successes: list[DocumentIndexSuccess] = []
         embedding_failed = False
 
@@ -311,11 +312,16 @@ class LanceDBRetrievalEngine:
         db = await self._connect()
         return await db.open_table(self.table_name)
 
-    async def _drop_table(self) -> None:
+    async def drop_table(self) -> None:
+        """Membuang tabel indeks bila ada. Bagian dari interface RetrievalEngine."""
         db = await self._connect()
         names = list((await db.list_tables()).tables)
         if self.table_name in names:
             await db.drop_table(self.table_name, ignore_missing=True)
+
+    async def _drop_table(self) -> None:
+        """Alias internal lama; dipertahankan untuk pemanggil yang sudah ada."""
+        await self.drop_table()
 
     async def _ensure_indexes(self, table, *, force_rebuild: bool = False) -> None:
         if await table.count_rows() <= 0:
