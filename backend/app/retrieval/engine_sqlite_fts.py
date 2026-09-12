@@ -188,14 +188,24 @@ class SqliteFtsRetrievalEngine:
 
         inserted = 0
         for row in rows:
+            # ``INSERT OR REPLACE`` membuang baris lama lalu menulis baris baru
+            # dengan rowid BARU, sehingga ``cursor.lastrowid`` menunjuk baris
+            # baru dan tidak dapat dipakai untuk membersihkan baris FTS lama.
+            # Rowid lama karena itu dicari lebih dulu berdasarkan chunk_id.
+            previous = connection.execute(
+                f"SELECT rowid FROM {content} WHERE chunk_id = ?",
+                (row["chunk_id"],),
+            ).fetchone()
+            if previous is not None:
+                connection.execute(
+                    f"DELETE FROM {fts} WHERE rowid = ?", (previous[0],)
+                )
             cursor = connection.execute(
                 f"INSERT OR REPLACE INTO {content} ({quoted_columns}) "
                 f"VALUES ({placeholders})",
                 [row.get(name) for name in column_names],
             )
             rowid = cursor.lastrowid
-            # Jaga agar baris FTS lama untuk rowid yang sama tidak menumpuk saat
-            # INSERT OR REPLACE menimpa chunk_id yang sudah ada.
             connection.execute(f"DELETE FROM {fts} WHERE rowid = ?", (rowid,))
             connection.execute(
                 f"INSERT INTO {fts} (rowid, text) VALUES (?, ?)",

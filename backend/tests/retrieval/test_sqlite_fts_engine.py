@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Unit test adapter SQLite FTS5."""
 
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -605,3 +606,65 @@ async def test_filters_compose_across_methods(tmp_path: Path) -> None:
     )
 
     assert [hit.document_id for hit in hits] == ["ch12"]
+
+
+async def test_menimpa_chunk_tidak_meninggalkan_baris_fts_yatim(
+    tmp_path: Path,
+) -> None:
+    """Regresi: ``INSERT OR REPLACE`` mengalokasi rowid BARU.
+
+    ``cursor.lastrowid`` karena itu menunjuk baris baru, bukan baris lama, jadi
+    membersihkan baris FTS berdasarkan nilai itu meninggalkan baris lama sebagai
+    yatim: tabel FTS membengkak dan rowid-nya tidak lagi menunjuk baris konten
+    mana pun. Uji ini menulis ``chunk_id`` yang sama dua kali TANPA
+    ``replace_document_ids`` supaya jalur penimpaan itu yang teruji langsung.
+    """
+    engine = _engine(tmp_path)
+    chunk = IndexChunk(
+        document_id="ch1",
+        chunk_index=0,
+        raw_text="pedang cahaya",
+        indexed_text="pedang cahaya",
+        attributes={"project_id": "p1", "chapter_id": "ch1", "volume_id": "v1"},
+        metadata={},
+    )
+    await engine.index_chunks([chunk])
+    await engine.index_chunks(
+        [
+            IndexChunk(
+                document_id="ch1",
+                chunk_index=0,
+                raw_text="naga hitam",
+                indexed_text="naga hitam",
+                attributes={
+                    "project_id": "p1",
+                    "chapter_id": "ch1",
+                    "volume_id": "v1",
+                },
+                metadata={},
+            )
+        ]
+    )
+
+    connection = sqlite3.connect(engine.db_path)
+    try:
+        content_rows = connection.execute(
+            'SELECT count(*) FROM "idx_unit"'
+        ).fetchone()[0]
+        fts_rows = connection.execute(
+            'SELECT count(*) FROM "idx_unit_fts"'
+        ).fetchone()[0]
+        orphans = connection.execute(
+            'SELECT count(*) FROM "idx_unit_fts" WHERE rowid NOT IN '
+            '(SELECT rowid FROM "idx_unit")'
+        ).fetchone()[0]
+    finally:
+        connection.close()
+
+    assert content_rows == 1
+    assert fts_rows == 1, "baris FTS lama menumpuk setelah chunk ditimpa"
+    assert orphans == 0
+
+    # Teks lama tidak boleh lagi dapat ditemukan lewat indeks.
+    assert await engine.match_rows("pedang", limit=10) == []
+    assert len(await engine.match_rows("naga", limit=10)) == 1
