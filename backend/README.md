@@ -81,6 +81,31 @@ openfic serve
 
 Buka [Release Page](https://github.com/syrizelink/OpenFic/releases) untuk mengunduh aplikasi desktop, lalu jalankan secara native di sistem Anda tanpa langkah tambahan.
 
+## Konfigurasi
+
+Konfigurasi dibaca dari `<OPENFIC_DATA_DIR>/.env`, dengan bawaan `backend/data/.env`.
+Lihat [`backend/.env.example`](.env.example) untuk daftar lengkapnya.
+
+### Mesin retrieval dan CPU tanpa AVX
+
+Pencarian bab bawaan memakai LanceDB, yang menuntut dukungan CPU x86-64-v2 (AVX)
+lewat numpy dan pyarrow. Pada CPU yang hanya mendukung SSE2 — umum pada VPS
+murah — proses akan mati dengan SIGILL.
+
+Untuk lingkungan seperti itu, setel:
+
+```bash
+OPENFIC_CLOUD_ONLY=true
+```
+
+Nilai ini mengalihkan retrieval ke adapter SQLite FTS5 yang murni Python, tanpa
+memuat pustaka native sama sekali. Konsekuensinya pencarian menjadi berbasis
+kata kunci (BM25), bukan semantik: kueri "sebutkan pedang" berfungsi, sedangkan
+"adegan bernuansa perpisahan" tidak.
+
+Peralihan nilai ini mengubah bentuk kontrak indeks, sehingga indeks yang sudah
+ada ditandai `needs_rebuild` lalu dibangun ulang otomatis.
+
 ## Kontribusi
 
 Kontribusi dalam bentuk apa pun kami sambut! Jika Anda punya gagasan, saran, atau perbaikan kode, silakan kirim Issue atau Pull Request.

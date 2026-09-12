@@ -15,6 +15,35 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.entities.model import Model
 from app.models.repos import model_repo
+
+# Kunci setelan dan nilai bawaan indeks tinggal di app.retrieval.config sebagai
+# satu-satunya sumber kebenaran. Modul itu bebas dependensi native sehingga
+# pemanggil seperti routers/settings.py dapat mengimpornya tanpa menarik
+# subsistem retrieval. Nama-nama ini diekspor ulang di sini demi kesinambungan
+# pemanggil lama yang sudah mengimpornya dari chapter_index.
+from app.retrieval.config import (
+    DEFAULT_INDEX_AUTO_STRATEGY,
+    DEFAULT_INDEX_CHUNK_OVERLAP,
+    DEFAULT_INDEX_CHUNK_SIZE,
+    DEFAULT_INDEX_MODE,
+    DEFAULT_INDEX_RERANK_ENABLED,
+    # Bentuk ``X as X`` menandai re-export yang disengaja: kedua nama ini tidak
+    # dipakai di modul ini, tetapi pemanggil lama mengimpornya dari sini.
+    INDEX_AUTO_STRATEGY_AGENT_DECIDED as INDEX_AUTO_STRATEGY_AGENT_DECIDED,
+    INDEX_AUTO_STRATEGY_IMMEDIATE,
+    INDEX_MODE_ALL,
+    INDEX_MODE_OFF as INDEX_MODE_OFF,
+    INDEX_MODE_SELECTED,
+    SETTING_KEY_DEFAULT_RERANK_MODEL,
+    SETTING_KEY_INDEX_AUTO_STRATEGY,
+    SETTING_KEY_INDEX_CHUNK_OVERLAP,
+    SETTING_KEY_INDEX_CHUNK_SIZE,
+    SETTING_KEY_INDEX_ENABLED_PROJECTS,
+    SETTING_KEY_INDEX_MODE,
+    SETTING_KEY_INDEX_RERANK_ENABLED,
+    VALID_INDEX_AUTO_STRATEGIES as _VALID_INDEX_AUTO_STRATEGIES,
+    VALID_INDEX_MODES as _VALID_INDEX_MODES,
+)
 from app.retrieval.engine_protocol import (
     KEYWORD_ONLY_DIMENSIONS,
     KEYWORD_ONLY_EMBEDDING_REF_ID,
@@ -56,28 +85,6 @@ CHAPTER_INDEX_STATUS_NEEDS_REBUILD = "needs_rebuild"
 CHAPTER_INDEX_ITEM_TYPE = "retrieval_chapter"
 SETTING_KEY_DEFAULT_EMBEDDING_MODEL = "default_embedding_model"
 
-SETTING_KEY_INDEX_MODE = "index_mode"
-SETTING_KEY_INDEX_ENABLED_PROJECTS = "index_enabled_projects"
-SETTING_KEY_INDEX_CHUNK_SIZE = "index_chunk_size"
-SETTING_KEY_INDEX_CHUNK_OVERLAP = "index_chunk_overlap"
-SETTING_KEY_INDEX_AUTO_STRATEGY = "index_auto_strategy"
-SETTING_KEY_INDEX_RERANK_ENABLED = "index_rerank_enabled"
-SETTING_KEY_DEFAULT_RERANK_MODEL = "default_rerank_model"
-
-INDEX_MODE_OFF = "off"
-INDEX_MODE_ALL = "all"
-INDEX_MODE_SELECTED = "selected"
-INDEX_AUTO_STRATEGY_IMMEDIATE = "immediate"
-INDEX_AUTO_STRATEGY_AGENT_DECIDED = "agent_decided"
-INDEX_AUTO_STRATEGY_OFF = "off"
-
-DEFAULT_INDEX_MODE = INDEX_MODE_OFF
-DEFAULT_INDEX_AUTO_STRATEGY = INDEX_AUTO_STRATEGY_OFF
-DEFAULT_INDEX_CHUNK_SIZE = 800
-DEFAULT_INDEX_CHUNK_OVERLAP = 100
-DEFAULT_INDEX_RERANK_ENABLED = False
-DEFAULT_INDEX_RERANK_MODEL = ""
-
 # Versi schema tabel chunk saat ini. Menaikkan versi ini membuat semua indeks yang ada
 # masuk ke needs_rebuild, memaksa pembangunan ulang sesuai schema baru (kolom raw_text,
 # prefiks bab, ngram FTS).
@@ -93,13 +100,6 @@ DEFAULT_FTS_INDEX_PARAMS: dict[str, Any] = {
     "remove_stop_words": False,
     "ascii_folding": False,
     "lower_case": True,
-}
-
-_VALID_INDEX_MODES = {INDEX_MODE_OFF, INDEX_MODE_ALL, INDEX_MODE_SELECTED}
-_VALID_INDEX_AUTO_STRATEGIES = {
-    INDEX_AUTO_STRATEGY_IMMEDIATE,
-    INDEX_AUTO_STRATEGY_AGENT_DECIDED,
-    INDEX_AUTO_STRATEGY_OFF,
 }
 
 # Semantik ringkasan status indeks (untuk pengguna/agen, menyembunyikan detail internal)
