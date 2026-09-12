@@ -1,7 +1,8 @@
 import json
 from textwrap import dedent
+from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from langgraph.types import interrupt
 
 from app.agent_runtime.tools.base import AgentTool
@@ -12,15 +13,45 @@ class QuestionOption(BaseModel):
     label: str = Field(
         description="Teks tampilan opsi, harus ringkas dan jelas"
     )
-    description: str = Field(description="Keterangan opsi")
+    description: str = Field(default="", description="Keterangan opsi")
 
 
 class Question(BaseModel):
     title: str = Field(description="Pertanyaan yang lengkap")
-    description: str = Field(description="Keterangan pertanyaan yang konkret dan rinci")
-    options: list[QuestionOption] = Field(
-        description="Pilihan yang tersedia",
+    description: str = Field(
+        default="",
+        description="Keterangan tambahan, opsional",
     )
+    options: list[QuestionOption] = Field(
+        default_factory=list,
+        description="Pilihan yang tersedia, opsional",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _tolerate_missing_title(cls, data: Any) -> Any:
+        """Menerima pertanyaan yang hanya membawa teks pada field lain.
+
+        Model kerap mengirim ``description`` (atau ``question``/``text``) tanpa
+        ``title`` karena ketiganya sama-sama berisi kalimat pertanyaan. Menolak
+        panggilan seperti itu membuat alat gagal total, dan agent lalu berhenti
+        memakai alat sama sekali. Selama masih ada satu kalimat yang bisa
+        ditampilkan, pertanyaan tetap dapat disajikan kepada pengguna.
+        """
+        if not isinstance(data, dict):
+            return data
+        if str(data.get("title") or "").strip():
+            return data
+        for alias in ("question", "text", "prompt", "label", "description"):
+            candidate = data.get(alias)
+            if isinstance(candidate, str) and candidate.strip():
+                promoted = dict(data)
+                promoted["title"] = candidate.strip()
+                if alias == "description":
+                    promoted["description"] = ""
+                return promoted
+        return data
+
 
 class AskUserInput(BaseModel):
     questions: list[Question] = Field(
