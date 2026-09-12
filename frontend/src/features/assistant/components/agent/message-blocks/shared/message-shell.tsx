@@ -172,6 +172,8 @@ export function MessageExpandButton({ className, expanded, label }: MessageExpan
     <IconButton
       size="1"
       variant="ghost"
+      color="gray"
+      highContrast
       className={joinClassNames(
         "agent-tool-expand-button",
         "agent-message-shell-expand-button",

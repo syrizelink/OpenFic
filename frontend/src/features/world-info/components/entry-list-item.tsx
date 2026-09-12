@@ -105,11 +105,7 @@ function EntryListItemComponent({
       transition: getEntryListTransition(isDragActive),
       opacity: shouldHideDraggedEntry({ isDragSource }) ? 0 : isPressed ? 0.5 : 1,
       borderBottom: isSelected ? "1px solid var(--gray-6)" : "1px solid var(--gray-a5)",
-      background: isDarkPressed
-        ? "var(--gray-12)"
-        : isSelected
-          ? "var(--accent-a3)"
-          : "transparent",
+      background: isDarkPressed ? "var(--gray-12)" : isSelected ? "var(--gray-a5)" : "transparent",
       cursor: "pointer",
       height: ENTRY_LIST_ITEM_HEIGHT,
       width: "100%",

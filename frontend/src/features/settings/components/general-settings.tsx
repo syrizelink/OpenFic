@@ -267,11 +267,11 @@ function ThemeModeSection({
           onPreview={(value) => onColorPreview(appearance, "background", value)}
         />
         <ThemeColorRow
-          label={t("settings.themeColorForeground")}
-          value={palette.foreground}
+          label={t("settings.themeColorGray")}
+          value={palette.gray}
           disabled={disabled}
-          onCommit={(value) => onColorChange(appearance, "foreground", value)}
-          onPreview={(value) => onColorPreview(appearance, "foreground", value)}
+          onCommit={(value) => onColorChange(appearance, "gray", value)}
+          onPreview={(value) => onColorPreview(appearance, "gray", value)}
         />
       </Flex>
     </Box>

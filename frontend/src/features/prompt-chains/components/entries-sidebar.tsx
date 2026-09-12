@@ -158,6 +158,8 @@ export function EntriesSidebar({
             <Tooltip content={t("promptChains.resetToDefault")}>
               <IconButton
                 variant="ghost"
+                color="gray"
+                highContrast
                 size="2"
                 aria-label={t("promptChains.resetToDefault")}
                 onClick={() => setIsResetDialogOpen(true)}
@@ -332,7 +334,7 @@ const EntryItem = React.forwardRef<HTMLDivElement, EntryItemProps>(
         style={{
           ...style,
           borderBottom: "1px solid var(--gray-a5)",
-          background: isSelected ? "var(--accent-a3)" : "transparent",
+          background: isSelected ? "var(--gray-a5)" : "transparent",
           cursor: "pointer",
           width: "100%",
           minWidth: 0,

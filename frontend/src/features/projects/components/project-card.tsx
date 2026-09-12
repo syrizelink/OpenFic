@@ -135,6 +135,8 @@ export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
               <IconButton
                 size="1"
                 variant="ghost"
+                color="gray"
+                highContrast
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit(project);

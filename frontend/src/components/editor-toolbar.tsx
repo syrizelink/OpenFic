@@ -142,6 +142,8 @@ function ToolbarButton({
     <Tooltip content={label}>
       <IconButton
         variant="ghost"
+        color="gray"
+        highContrast
         size="2"
         type="button"
         disabled={disabled}

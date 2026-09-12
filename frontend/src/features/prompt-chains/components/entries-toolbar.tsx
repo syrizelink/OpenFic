@@ -105,6 +105,8 @@ export function EntriesToolbar({
           </EntrySearch>
           <IconButton
             variant="ghost"
+            color="gray"
+            highContrast
             size="2"
             aria-label={t("promptChains.searchEntries")}
             onClick={searchExpanded ? undefined : handleSearchToggle}
@@ -138,6 +140,8 @@ export function EntriesToolbar({
             <Tooltip content={t("promptChains.newEntry")}>
               <IconButton
                 variant="ghost"
+                color="gray"
+                highContrast
                 size="2"
                 aria-label={t("promptChains.newEntry")}
                 onPointerDown={(event) => event.stopPropagation()}
@@ -157,6 +161,8 @@ export function EntriesToolbar({
             >
               <IconButton
                 variant="ghost"
+                color="gray"
+                highContrast
                 size="2"
                 aria-label={t("promptChains.compile")}
                 onClick={onCompile}
@@ -169,6 +175,8 @@ export function EntriesToolbar({
             <Tooltip content={t("promptChains.save")}>
               <IconButton
                 variant="ghost"
+                color="gray"
+                highContrast
                 size="2"
                 aria-label={t("promptChains.save")}
                 onClick={onSave}

@@ -55,6 +55,8 @@ export function AgentPendingMessageCard({
             <IconButton
               type="button"
               variant="ghost"
+              color="gray"
+              highContrast
               size="1"
               className="ai-sidebar-pending-cancel"
               onClick={onCancel}

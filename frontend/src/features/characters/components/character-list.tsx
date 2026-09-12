@@ -429,6 +429,8 @@ export function CharacterList({
                 </CharacterSearchPopover>
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="2"
                   aria-label={t("characters.search")}
                   onClick={searchExpanded ? undefined : handleSearchToggle}
@@ -483,6 +485,8 @@ export function CharacterList({
                     >
                       <IconButton
                         variant="ghost"
+                        color="gray"
+                        highContrast
                         size="2"
                         onClick={selectedIds.size > 0 ? handleDeselectAll : handleSelectAll}
                       >
@@ -494,6 +498,8 @@ export function CharacterList({
                       <DropdownMenu.Trigger>
                         <IconButton
                           variant="ghost"
+                          color="gray"
+                          highContrast
                           size="2"
                           aria-label={t("characters.sort")}
                         >
@@ -554,6 +560,8 @@ export function CharacterList({
                   >
                     <IconButton
                       variant={isMultiSelect ? "solid" : "ghost"}
+                      color={isMultiSelect ? undefined : "gray"}
+                      highContrast={!isMultiSelect}
                       size="2"
                       onClick={handleToggleMultiSelect}
                     >
@@ -780,6 +788,7 @@ export function CharacterList({
                         <IconButton
                           size="1"
                           variant="ghost"
+                          color={character.isFavorited ? "amber" : "gray"}
                           className="characters-list-favorite-button"
                           style={{
                             width: "24px",

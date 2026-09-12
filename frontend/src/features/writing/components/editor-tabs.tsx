@@ -141,6 +141,8 @@ const SortableTabItem = memo(function SortableTabItem({
         {!tab.isLocked && (
           <IconButton
             variant="ghost"
+            color="gray"
+            highContrast
             size="1"
             onClick={(e) => {
               e.stopPropagation();
@@ -424,6 +426,8 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
             {/* 添加按钮 - 紧跟在标签页后方 */}
             <IconButton
               variant="ghost"
+              color="gray"
+              highContrast
               size="1"
               onClick={handleAddTab}
               style={{

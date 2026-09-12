@@ -501,7 +501,9 @@ export function LongTermSummaryListView({
           content={isSelectionMode ? t("summary.cancelSelectMode") : t("summary.selectMode")}
         >
           <IconButton
-            variant={isSelectionMode ? "soft" : "ghost"}
+            variant={isSelectionMode ? "solid" : "ghost"}
+            color={isSelectionMode ? undefined : "gray"}
+            highContrast={!isSelectionMode}
             size="2"
             onClick={handleToggleSelectionMode}
           >

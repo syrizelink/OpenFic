@@ -422,6 +422,8 @@ export function PromptChainsPage() {
                 <Tooltip content={t("promptChains.viewEntries")}>
                   <IconButton
                     variant="ghost"
+                    color="gray"
+                    highContrast
                     size="2"
                     aria-label={t("promptChains.viewEntries")}
                     onClick={() => setMobileEntriesOpen((prev) => !prev)}

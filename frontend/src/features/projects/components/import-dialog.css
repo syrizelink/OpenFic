@@ -80,7 +80,7 @@
   width: 100%;
   padding: 10px 12px;
   border: 0;
-  background: var(--color-panel);
+  background: var(--color-panel-solid);
   color: var(--gray-12);
   cursor: pointer;
   font: inherit;

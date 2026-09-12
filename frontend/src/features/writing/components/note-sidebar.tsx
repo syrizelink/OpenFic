@@ -504,6 +504,8 @@ export function NoteSidebar({
             </NoteSearchPopover>
             <IconButton
               variant="ghost"
+              color="gray"
+              highContrast
               size="2"
               onClick={contentSearchExpanded ? undefined : handleContentSearchToggle}
               style={{
@@ -555,6 +557,8 @@ export function NoteSidebar({
               <Tooltip content={t("writing.importNotes")}>
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="2"
                   onClick={handleOpenNoteImport}
                 >
@@ -564,6 +568,8 @@ export function NoteSidebar({
               <Tooltip content={t("writing.newNote")}>
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="2"
                   onClick={() => void handleNewNote()}
                 >
@@ -573,6 +579,8 @@ export function NoteSidebar({
               <Tooltip content={t("writing.newCategory")}>
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="2"
                   onClick={() => void handleNewCategory()}
                 >

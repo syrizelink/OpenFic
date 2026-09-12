@@ -17,6 +17,19 @@
   background: var(--gray-a3);
 }
 
+.app-sidebar-action-button[data-accent-color="gray"] {
+  color: var(--gray-11);
+  background: transparent;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.app-sidebar-action-button[data-accent-color="gray"]:hover {
+  color: var(--gray-12);
+  background: var(--gray-a3);
+}
+
 .app-sidebar-nav-link {
   width: 100%;
   text-decoration: none;

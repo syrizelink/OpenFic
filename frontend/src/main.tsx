@@ -290,7 +290,7 @@ function Root() {
 
       themePreviewFrameRef.current = window.requestAnimationFrame(() => {
         themePreviewFrameRef.current = null;
-        applyThemePalette(palette);
+        applyThemePalette(palette, nextAppearance, activeThemePreset);
       });
     },
     [cancelThemePreview],
@@ -426,7 +426,11 @@ function Root() {
 
   useEffect(() => {
     const activeThemePreset = appearance === "dark" ? darkThemePreset : lightThemePreset;
-    applyThemePalette(resolveThemePalette(activeThemePreset, themeConfig, appearance));
+    applyThemePalette(
+      resolveThemePalette(activeThemePreset, themeConfig, appearance),
+      appearance,
+      activeThemePreset,
+    );
   }, [appearance, darkThemePreset, lightThemePreset, themeConfig]);
 
   useEffect(() => {
@@ -456,6 +460,7 @@ function Root() {
             appearance={appearance}
             accentColor="gray"
             grayColor="gray"
+            panelBackground="solid"
           >
             {!isReady ? (
               <GlobalLoading

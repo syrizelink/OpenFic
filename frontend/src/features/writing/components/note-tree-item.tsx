@@ -187,7 +187,7 @@ export const NoteTreeItem = memo(function NoteTreeItem({
       : highlight
         ? "var(--accent-a4)"
         : isActive
-          ? "var(--accent-a3)"
+          ? "var(--gray-a5)"
           : isHovered
             ? "var(--gray-a3)"
             : "transparent";

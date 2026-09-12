@@ -30,6 +30,7 @@
   --theme-accent-foreground: var(--accent-contrast);
   --theme-accent-hover: var(--accent-10);
   --theme-link: var(--accent-9);
+  --theme-link-hover: var(--accent-10);
   font-family: var(--app-font-family);
   line-height: 1.5;
   font-weight: 400;

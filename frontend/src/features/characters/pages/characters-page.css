@@ -113,7 +113,7 @@
 }
 
 .characters-list-item[data-state="selected"] {
-  background: var(--accent-a3);
+  background: var(--gray-a5);
 }
 
 .characters-list-item-row {
@@ -235,7 +235,7 @@
   position: absolute;
   inset: 0;
   z-index: 10;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-overlay);
 }
 
 .characters-page-mobile-sidebar-sheet {

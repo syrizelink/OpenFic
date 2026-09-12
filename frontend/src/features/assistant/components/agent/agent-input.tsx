@@ -620,6 +620,8 @@ export function AgentInput({
               <IconButton
                 type="button"
                 variant="ghost"
+                color={toolApprovalBypassEnabled ? "green" : "gray"}
+                highContrast={!toolApprovalBypassEnabled}
                 size="1"
                 onClick={onToggleToolApprovalBypass}
                 disabled={toolApprovalBypassDisabled}
@@ -635,7 +637,7 @@ export function AgentInput({
                   padding: 0,
                   borderRadius: "999px",
                   background: toolApprovalBypassEnabled ? "var(--green-a3)" : "transparent",
-                  color: toolApprovalBypassEnabled ? "var(--green-11)" : "#111111",
+                  color: toolApprovalBypassEnabled ? "var(--green-11)" : undefined,
                   border: "none",
                 }}
               >

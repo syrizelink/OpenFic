@@ -128,7 +128,7 @@ export function AllTasksPage({ projectId, onBack, onTaskClick }: AllTasksPagePro
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        background: "var(--color-panel)",
+        background: "var(--color-panel-solid)",
       }}
     >
       {/* 顶部栏 */}
@@ -141,6 +141,8 @@ export function AllTasksPage({ projectId, onBack, onTaskClick }: AllTasksPagePro
       >
         <IconButton
           variant="ghost"
+          color="gray"
+          highContrast
           size="2"
           onClick={onBack}
         >
@@ -176,6 +178,7 @@ export function AllTasksPage({ projectId, onBack, onTaskClick }: AllTasksPagePro
           <Tooltip content={t("writing.aiSidebar.deleteAllTasks")}>
             <IconButton
               variant="ghost"
+              color="red"
               size="2"
               onClick={() => setDeleteAllDialogOpen(true)}
               style={{ color: "var(--red-9)" }}
@@ -283,6 +286,8 @@ export function AllTasksPage({ projectId, onBack, onTaskClick }: AllTasksPagePro
                   <Tooltip content={t("common.edit")}>
                     <IconButton
                       variant="ghost"
+                      color="gray"
+                      highContrast
                       size="1"
                       onClick={(e) => handleStartEdit(task, e)}
                       disabled={savingTaskId === task.id}
@@ -300,6 +305,7 @@ export function AllTasksPage({ projectId, onBack, onTaskClick }: AllTasksPagePro
                   >
                     <IconButton
                       variant="ghost"
+                      color={task.isFavorited ? "amber" : "gray"}
                       size="1"
                       onClick={(e) => handleToggleFavorite(task, e)}
                       style={{
@@ -318,6 +324,7 @@ export function AllTasksPage({ projectId, onBack, onTaskClick }: AllTasksPagePro
                     <Tooltip content={t("common.delete")}>
                       <IconButton
                         variant="ghost"
+                        color="red"
                         size="1"
                         onClick={(e) => handleOpenDelete(task, e)}
                         style={{

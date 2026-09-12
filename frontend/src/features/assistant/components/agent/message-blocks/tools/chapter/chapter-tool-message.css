@@ -71,7 +71,7 @@
   overflow: hidden;
   border: 1px solid var(--gray-a4);
   border-radius: 12px;
-  background: var(--color-panel);
+  background: var(--color-panel-solid);
 }
 
 .agent-chapter-diff-card-header {
@@ -110,7 +110,7 @@
 
 .agent-chapter-diff-lines {
   overflow: hidden;
-  background: var(--color-panel);
+  background: var(--color-panel-solid);
 }
 
 .agent-chapter-diff-line {

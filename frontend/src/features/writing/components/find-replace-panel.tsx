@@ -250,6 +250,8 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
                 <Tooltip content={t("editor.previousResult")}>
                   <IconButton
                     variant="ghost"
+                    color="gray"
+                    highContrast
                     size="1"
                     disabled={resultCount === 0}
                     onClick={handlePrevious}
@@ -261,6 +263,8 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
                 <Tooltip content={t("editor.nextResult")}>
                   <IconButton
                     variant="ghost"
+                    color="gray"
+                    highContrast
                     size="1"
                     disabled={resultCount === 0}
                     onClick={handleNext}
@@ -280,6 +284,8 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
               <Tooltip content={t("common.close")}>
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="1"
                   onClick={onClose}
                   aria-label={t("common.close")}
@@ -318,6 +324,8 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
                   <Tooltip content={t("editor.replace")}>
                     <IconButton
                       variant="ghost"
+                      color="gray"
+                      highContrast
                       size="1"
                       disabled={resultCount === 0}
                       onClick={handleReplace}
@@ -329,6 +337,8 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
                   <Tooltip content={t("editor.replaceAll")}>
                     <IconButton
                       variant="ghost"
+                      color="gray"
+                      highContrast
                       size="1"
                       disabled={resultCount === 0}
                       onClick={handleReplaceAll}

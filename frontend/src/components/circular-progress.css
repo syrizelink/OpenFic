@@ -17,7 +17,7 @@
 
 .circular-progress__track {
   fill: none;
-  stroke: color-mix(in oklab, var(--gray-a5) 84%, var(--color-panel));
+  stroke: color-mix(in oklab, var(--gray-a5) 84%, var(--color-panel-solid));
 }
 
 .circular-progress__indicator {

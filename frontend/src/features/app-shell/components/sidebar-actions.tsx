@@ -2,11 +2,7 @@ import { IconButton, Tooltip, DropdownMenu } from "@radix-ui/themes";
 import { Languages, Moon, Settings, Sun } from "lucide-react";
 import { motion } from "motion/react";
 
-import {
-  SIDEBAR_ICON_COLOR,
-  SIDEBAR_ICON_SIZE,
-  sidebarActionButtonStyle,
-} from "./app-sidebar.constants";
+import { SIDEBAR_ICON_SIZE, sidebarActionButtonStyle } from "./app-sidebar.constants";
 
 interface SidebarActionsProps {
   appearance: "light" | "dark";
@@ -53,7 +49,9 @@ export function SidebarActions({
             <DropdownMenu.Trigger>
               <IconButton
                 variant="ghost"
+                color="gray"
                 size="2"
+                className="app-sidebar-action-button"
                 aria-label={languageLabel}
                 style={sidebarActionButtonStyle}
               >
@@ -88,7 +86,9 @@ export function SidebarActions({
         >
           <IconButton
             variant="ghost"
+            color="gray"
             size="2"
+            className="app-sidebar-action-button"
             onClick={onToggleTheme}
             aria-label={toggleThemeLabel}
             style={sidebarActionButtonStyle}
@@ -130,13 +130,12 @@ export function SidebarActions({
         >
           <IconButton
             variant="ghost"
+            color="gray"
             size="2"
+            className="app-sidebar-action-button"
             onClick={onOpenSettings}
             aria-label={settingsLabel}
-            style={{
-              ...sidebarActionButtonStyle,
-              color: SIDEBAR_ICON_COLOR,
-            }}
+            style={sidebarActionButtonStyle}
           >
             <Settings
               size={SIDEBAR_ICON_SIZE}

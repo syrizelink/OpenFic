@@ -173,6 +173,8 @@ export function ChapterSearch({
       <DropdownMenu.Trigger>
         <IconButton
           variant="ghost"
+          color="gray"
+          highContrast
           size="2"
           onClick={handleTriggerClick}
         >
@@ -199,6 +201,8 @@ export function ChapterSearch({
               <TextField.Slot>
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="1"
                   onClick={() => setQuery("")}
                 >

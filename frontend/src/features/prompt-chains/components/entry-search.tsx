@@ -328,6 +328,8 @@ export function EntrySearch({
                 </Text>
                 <IconButton
                   variant="ghost"
+                  color="gray"
+                  highContrast
                   size="1"
                   onClick={handleToggleAll}
                   title={allCollapsed ? t("promptChains.expandAll") : t("promptChains.collapseAll")}

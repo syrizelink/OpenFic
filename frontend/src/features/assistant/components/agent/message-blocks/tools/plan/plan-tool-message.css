@@ -2,7 +2,7 @@
   padding: 12px;
   border: 1px solid var(--gray-a4);
   border-radius: 12px;
-  background: var(--color-panel);
+  background: var(--color-panel-solid);
 }
 
 .agent-plan-list {

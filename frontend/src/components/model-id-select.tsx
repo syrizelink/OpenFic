@@ -384,6 +384,8 @@ export function ModelIdSelect({
                   <IconButton
                     size="1"
                     variant="soft"
+                    color="gray"
+                    highContrast
                     onClick={onRefresh}
                     disabled={refreshDisabled || !onRefresh || isRefreshing}
                     aria-label={t("models.fetchRemoteModels")}

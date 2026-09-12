@@ -59,7 +59,7 @@
   width: 216px;
   flex-shrink: 0;
   border-right: 1px solid var(--gray-a4);
-  background: var(--gray-a2);
+  background: var(--gray-2);
   overflow: auto;
   scrollbar-width: thin;
 }
@@ -423,13 +423,13 @@
 }
 
 .agent-definition-item--active {
-  background: var(--accent-a4);
-  color: var(--accent-11);
+  background: var(--gray-a5);
+  color: var(--gray-12);
 }
 
 .agent-definition-item--active:hover,
 .agent-definition-item--active.agent-definition-item--menu-open {
-  background: var(--accent-a4);
+  background: var(--gray-a5);
 }
 
 .agent-definition-item-content {
@@ -782,12 +782,16 @@
     color: currentColor;
   }
 
-  .skills-settings--settings .skills-settings-list-item,
+  .skills-settings--settings .skills-settings-list-item {
+    background: transparent;
+    color: var(--gray-12);
+  }
+
   .skills-settings--settings .skills-settings-list-item--selected,
   .skills-settings--settings .skills-settings-list-item--selected:hover,
   .skills-settings--settings
     .skills-settings-list-item--selected.skills-settings-list-item--menu-open {
-    background: transparent;
+    background: var(--gray-a5);
     color: var(--gray-12);
   }
 
@@ -797,11 +801,15 @@
     background: var(--gray-a3);
   }
 
-  .agent-definition-item,
+  .agent-definition-item {
+    background: transparent;
+    color: var(--gray-12);
+  }
+
   .agent-definition-item--active,
   .agent-definition-item--active:hover,
   .agent-definition-item--active.agent-definition-item--menu-open {
-    background: transparent;
+    background: var(--gray-a5);
     color: var(--gray-12);
   }
 

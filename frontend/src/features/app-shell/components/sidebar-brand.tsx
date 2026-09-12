@@ -146,7 +146,9 @@ export function SidebarBrand({
           <Tooltip content={collapseLabel}>
             <IconButton
               variant="ghost"
+              color="gray"
               size="2"
+              className="app-sidebar-action-button"
               onClick={onToggleExpanded}
               aria-label={collapseLabel}
               style={{ ...sidebarActionButtonStyle, cursor: "pointer" }}

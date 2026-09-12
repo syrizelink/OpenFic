@@ -37,44 +37,18 @@ THEME_COLOR_PATTERN = r"^#[0-9a-fA-F]{6}$"
 
 
 class ThemePalette(BaseModel):
-    """VSCode 风格主题的一套完整界面色板。"""
+    """Radix Custom palette 的三种基础色。"""
 
-    background: str = Field(default="#ffffff", pattern=THEME_COLOR_PATTERN)
-    sidebar_background: str = Field(default="#ffffff", pattern=THEME_COLOR_PATTERN)
-    panel_background: str = Field(default="#ffffff", pattern=THEME_COLOR_PATTERN)
-    editor_background: str = Field(default="#ffffff", pattern=THEME_COLOR_PATTERN)
-    input_background: str = Field(default="#ffffff", pattern=THEME_COLOR_PATTERN)
-    foreground: str = Field(default="#202020", pattern=THEME_COLOR_PATTERN)
-    muted_foreground: str = Field(default="#646464", pattern=THEME_COLOR_PATTERN)
-    border: str = Field(default="#d9d9d9", pattern=THEME_COLOR_PATTERN)
-    border_subtle: str = Field(default="#e8e8e8", pattern=THEME_COLOR_PATTERN)
-    hover_background: str = Field(default="#f0f0f0", pattern=THEME_COLOR_PATTERN)
-    selection_background: str = Field(default="#e5e5e5", pattern=THEME_COLOR_PATTERN)
-    selection_foreground: str = Field(default="#202020", pattern=THEME_COLOR_PATTERN)
     accent: str = Field(default="#000000", pattern=THEME_COLOR_PATTERN)
-    accent_foreground: str = Field(default="#ffffff", pattern=THEME_COLOR_PATTERN)
-    accent_hover: str = Field(default="#1a1a1a", pattern=THEME_COLOR_PATTERN)
-    link: str = Field(default="#0969da", pattern=THEME_COLOR_PATTERN)
+    gray: str = Field(default="#646464", pattern=THEME_COLOR_PATTERN)
+    background: str = Field(default="#ffffff", pattern=THEME_COLOR_PATTERN)
 
 
 def _default_dark_theme_palette() -> ThemePalette:
     return ThemePalette(
-        background="#111111",
-        sidebar_background="#111111",
-        panel_background="#191919",
-        editor_background="#111111",
-        input_background="#191919",
-        foreground="#eeeeee",
-        muted_foreground="#b4b4b4",
-        border="#3a3a3a",
-        border_subtle="#2a2a2a",
-        hover_background="#222222",
-        selection_background="#262626",
-        selection_foreground="#eeeeee",
         accent="#ffffff",
-        accent_foreground="#000000",
-        accent_hover="#f5f5f5",
-        link="#0969da",
+        gray="#b4b4b4",
+        background="#111111",
     )
 
 
