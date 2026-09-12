@@ -476,3 +476,132 @@ async def test_prefix_metadata_is_indexed_but_not_returned(tmp_path: Path) -> No
     by_prefix = await engine.query("Menara Kembar").run()
     assert [hit.document_id for hit in by_prefix] == ["ch7"]
     assert by_prefix[0].text == "Isi bab tanpa menyebut nomor."
+
+
+# ---------------------------------------------------------------------------
+# filter_in dan filter_range
+# ---------------------------------------------------------------------------
+
+
+def _numeric_contract() -> RetrievalIndexContract:
+    return RetrievalIndexContract(
+        embedding_model_ref_id=KEYWORD_ONLY_EMBEDDING_REF_ID,
+        embedding_model_id_snapshot=KEYWORD_ONLY_EMBEDDING_REF_ID,
+        embedding_dimensions_snapshot=KEYWORD_ONLY_DIMENSIONS,
+        chunk_size=400,
+        chunk_overlap=40,
+        filterable_fields=[
+            FilterableField(name="project_id", field_type=FilterableFieldType.STRING),
+            FilterableField(
+                name="chapter_order", field_type=FilterableFieldType.INTEGER
+            ),
+        ],
+    )
+
+
+def _numeric_engine(tmp_path: Path) -> SqliteFtsRetrievalEngine:
+    return SqliteFtsRetrievalEngine(
+        base_dir=tmp_path,
+        table_name="idx_numeric",
+        contract=_numeric_contract(),
+    )
+
+
+def _ordered_document(doc_id: str, order: int) -> IndexDocument:
+    return IndexDocument(
+        document_id=doc_id,
+        text="Pedang cahaya berkilau.",
+        attributes={"project_id": "p1", "chapter_order": order},
+        metadata={},
+    )
+
+
+@pytest.mark.asyncio
+async def test_filter_in_matches_any_listed_value(tmp_path: Path) -> None:
+    engine = _engine(tmp_path)
+    await engine.index_documents(
+        [
+            _document("ch1", "Pedang cahaya pertama.", project_id="p1"),
+            _document("ch2", "Pedang cahaya kedua.", project_id="p2"),
+            _document("ch3", "Pedang cahaya ketiga.", project_id="p3"),
+        ]
+    )
+
+    hits = (
+        await engine.query("pedang cahaya")
+        .filter_in("project_id", ["p1", "p3"])
+        .run()
+    )
+
+    assert sorted(hit.document_id for hit in hits) == ["ch1", "ch3"]
+
+
+@pytest.mark.asyncio
+async def test_filter_in_rejects_empty_and_undeclared(tmp_path: Path) -> None:
+    engine = _engine(tmp_path)
+
+    with pytest.raises(ValueError, match="at least one value"):
+        engine.query("pedang").filter_in("project_id", [])
+    with pytest.raises(ValueError, match="Undeclared filterable field"):
+        engine.query("pedang").filter_in("tidak_ada", ["x"])
+
+
+@pytest.mark.asyncio
+async def test_filter_range_compares_numerically_not_lexicographically(
+    tmp_path: Path,
+) -> None:
+    """Kolom filterable disimpan sebagai TEXT, jadi rentang wajib di-CAST.
+
+    Tanpa CAST, SQLite membandingkan sebagai teks sehingga "10" jatuh sebelum
+    "9" dan bab ke-10 lolos dari saringan ``lte=9``.
+    """
+    engine = _numeric_engine(tmp_path)
+    await engine.index_documents(
+        [_ordered_document(f"ch{order}", order) for order in (2, 9, 10, 11)]
+    )
+
+    hits = await engine.query("pedang cahaya").filter_range("chapter_order", lte=9).run()
+
+    assert sorted(hit.document_id for hit in hits) == ["ch2", "ch9"]
+
+
+@pytest.mark.asyncio
+async def test_filter_range_supports_both_bounds(tmp_path: Path) -> None:
+    engine = _numeric_engine(tmp_path)
+    await engine.index_documents(
+        [_ordered_document(f"ch{order}", order) for order in (1, 5, 9, 20)]
+    )
+
+    hits = (
+        await engine.query("pedang cahaya")
+        .filter_range("chapter_order", gte=5, lte=9)
+        .run()
+    )
+
+    assert sorted(hit.document_id for hit in hits) == ["ch5", "ch9"]
+
+
+@pytest.mark.asyncio
+async def test_filter_range_requires_at_least_one_bound(tmp_path: Path) -> None:
+    engine = _numeric_engine(tmp_path)
+
+    with pytest.raises(ValueError, match="at least one bound"):
+        engine.query("pedang").filter_range("chapter_order")
+
+
+@pytest.mark.asyncio
+async def test_filters_compose_across_methods(tmp_path: Path) -> None:
+    engine = _numeric_engine(tmp_path)
+    await engine.index_documents(
+        [_ordered_document(f"ch{order}", order) for order in (3, 7, 12)]
+    )
+
+    hits = (
+        await engine.query("pedang cahaya")
+        .filter_eq("project_id", "p1")
+        .filter_in("chapter_order", [3, 12])
+        .filter_range("chapter_order", gte=10)
+        .run()
+    )
+
+    assert [hit.document_id for hit in hits] == ["ch12"]

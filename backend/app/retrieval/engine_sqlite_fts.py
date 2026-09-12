@@ -28,13 +28,17 @@ from loguru import logger
 
 from app.retrieval.internal.common.codec import serialize_metadata
 from app.retrieval.internal.indexing.chunking import ChunkPiece, chunk_document
-from app.retrieval.internal.query.sqlite_fts_builder import SqliteFtsQueryBuilder
+from app.retrieval.internal.query.sqlite_fts_builder import (
+    FilterPredicate,
+    SqliteFtsQueryBuilder,
+)
 from app.retrieval.internal.validation import validate_batch
 from app.retrieval.types import (
     BatchIndexResult,
     ChunkIndexResult,
     DocumentIndexFailure,
     DocumentIndexSuccess,
+    FilterableFieldType,
     IndexChunk,
     IndexDocument,
     RetrievalIndexContract,
@@ -446,11 +450,69 @@ class SqliteFtsRetrievalEngine:
         del embedding_client
         return SqliteFtsQueryBuilder(engine=self, query_text=text)
 
+    def _render_predicate(
+        self, predicate: FilterPredicate
+    ) -> tuple[str, list[Any]]:
+        """Menerjemahkan satu predikat menjadi klausa SQL berparameter.
+
+        Semua kolom filterable disimpan sebagai TEXT, jadi pembanding rentang
+        pada kolom numerik harus di-CAST lebih dulu. Tanpa CAST, SQLite akan
+        membandingkan secara leksikografis sehingga "10" dianggap lebih kecil
+        daripada "9".
+        """
+        field = next(
+            (
+                item
+                for item in self._contract.filterable_fields
+                if item.name == predicate.field
+            ),
+            None,
+        )
+        if field is None:
+            raise ValueError(f"Undeclared filterable field: {predicate.field}")
+
+        numeric = field.field_type in (
+            FilterableFieldType.INTEGER,
+            FilterableFieldType.FLOAT,
+        )
+        column = f"c.{_quote_identifier(predicate.field)}"
+        expression = f"CAST({column} AS REAL)" if numeric else column
+
+        def _bind(value: Any) -> Any:
+            if value is None:
+                return None
+            if numeric:
+                return float(value)
+            if isinstance(value, bool):
+                return str(value)
+            return str(value)
+
+        if predicate.operator == "eq":
+            value = predicate.values[0]
+            if value is None:
+                return f"{column} IS NULL", []
+            return f"{expression} = ?", [_bind(value)]
+
+        if predicate.operator == "in":
+            placeholders = ", ".join("?" for _ in predicate.values)
+            return (
+                f"{expression} IN ({placeholders})",
+                [_bind(value) for value in predicate.values],
+            )
+
+        if predicate.operator == "gte":
+            return f"{expression} >= ?", [_bind(predicate.values[0])]
+
+        if predicate.operator == "lte":
+            return f"{expression} <= ?", [_bind(predicate.values[0])]
+
+        raise ValueError(f"Unsupported filter operator: {predicate.operator}")
+
     async def match_rows(
         self,
         match_expression: str,
         *,
-        filters: tuple[tuple[str, Any], ...] = (),
+        filters: tuple[FilterPredicate, ...] = (),
         limit: int = 20,
     ) -> list[dict[str, Any]]:
         """Menjalankan satu kueri MATCH dan mengembalikan baris mentah.
@@ -463,15 +525,13 @@ class SqliteFtsRetrievalEngine:
 
         content = _quote_identifier(self._content_table)
         fts = _quote_identifier(self._fts_table)
-        declared = set(self._filterable_names)
 
         where_parts = [f"{fts} MATCH ?"]
         parameters: list[Any] = [match_expression]
-        for name, value in filters:
-            if name not in declared:
-                raise ValueError(f"Undeclared filterable field: {name}")
-            where_parts.append(f"c.{_quote_identifier(name)} = ?")
-            parameters.append(None if value is None else str(value))
+        for predicate in filters:
+            clause, values = self._render_predicate(predicate)
+            where_parts.append(clause)
+            parameters.extend(values)
         parameters.append(int(limit))
 
         statement = (

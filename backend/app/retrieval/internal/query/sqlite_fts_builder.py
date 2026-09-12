@@ -92,6 +92,21 @@ def normalize_bm25_scores(raw_scores: Sequence[float]) -> list[float]:
 
 
 @dataclass(frozen=True)
+class FilterPredicate:
+    """Satu syarat penyaringan yang belum diterjemahkan menjadi SQL.
+
+    Penerjemahan ke SQL sengaja ditinggalkan kepada engine, karena hanya engine
+    yang tahu tipe kolom dan cara mengutip pengenal. Rentang dengan dua batas
+    dipecah menjadi dua predikat ``gte`` dan ``lte`` agar tiap predikat tetap
+    memuat satu operator saja.
+    """
+
+    field: str
+    operator: str  # "eq" | "in" | "gte" | "lte"
+    values: tuple[Any, ...]
+
+
+@dataclass(frozen=True)
 class SqliteFtsQueryBuilder:
     """Pembangun kueri BM25 yang belum dieksekusi."""
 
@@ -101,7 +116,7 @@ class SqliteFtsQueryBuilder:
     limit_count: int = 10
     rerank_client: RerankClient | None = None
     rerank_top_n: int | None = None
-    filters: tuple[tuple[str, Any], ...] = ()
+    filters: tuple[FilterPredicate, ...] = ()
 
     # -- Mode: FTS5 hanya mendukung BM25, jadi semua mode menuju jalur yang sama.
 
@@ -155,7 +170,37 @@ class SqliteFtsQueryBuilder:
 
     def filter_eq(self, field: str, value: Any) -> SqliteFtsQueryBuilder:
         validate_query_filter(self.engine.contract, field, value)
-        return replace(self, filters=self.filters + ((field, value),))
+        return replace(
+            self,
+            filters=self.filters
+            + (FilterPredicate(field=field, operator="eq", values=(value,)),),
+        )
+
+    def filter_in(self, field: str, values: Sequence[Any]) -> SqliteFtsQueryBuilder:
+        collected = tuple(values)
+        if not collected:
+            raise ValueError("filter_in requires at least one value")
+        for value in collected:
+            validate_query_filter(self.engine.contract, field, value)
+        return replace(
+            self,
+            filters=self.filters
+            + (FilterPredicate(field=field, operator="in", values=collected),),
+        )
+
+    def filter_range(
+        self, field: str, *, gte: Any | None = None, lte: Any | None = None
+    ) -> SqliteFtsQueryBuilder:
+        if gte is None and lte is None:
+            raise ValueError("filter_range requires at least one bound")
+        added: tuple[FilterPredicate, ...] = ()
+        if gte is not None:
+            validate_query_filter(self.engine.contract, field, gte)
+            added += (FilterPredicate(field=field, operator="gte", values=(gte,)),)
+        if lte is not None:
+            validate_query_filter(self.engine.contract, field, lte)
+            added += (FilterPredicate(field=field, operator="lte", values=(lte,)),)
+        return replace(self, filters=self.filters + added)
 
     async def run(self) -> list[ChunkSearchResult]:
         tokens = extract_match_tokens(self.query_text)
