@@ -93,7 +93,7 @@ SETTING_KEY_EDITOR_AUTO_PAIR_SYMBOLS = "editor_auto_pair_symbols"
 SETTING_KEY_EDITOR_SHOW_LINE_NUMBERS = "editor_show_line_numbers"
 # 默认值
 DEFAULT_SETTINGS = {
-    SETTING_KEY_LANGUAGE: "zh-CN",
+    SETTING_KEY_LANGUAGE: "id",
     SETTING_KEY_THEME: "light",
     SETTING_KEY_FONT_FAMILY: "system-ui",
     SETTING_KEY_CODE_FONT_FAMILY: "ui-monospace",

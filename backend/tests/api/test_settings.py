@@ -81,7 +81,7 @@ async def test_get_settings_default(client: AsyncClient) -> None:
     assert response.status_code == 200
     data = response.json()
     # 验证默认值
-    assert data["language"] == "zh-CN"
+    assert data["language"] == "id"
     assert data["theme"] == "light"
     assert data["font_family"] == "system-ui"
     assert data["code_font_family"] == "ui-monospace"

@@ -10,18 +10,20 @@ import { initReactI18next } from "react-i18next";
 
 import { getPreference, setPreference } from "../lib/local-db";
 import en from "./locales/en.json";
+import id from "./locales/id.json";
 import zhCN from "./locales/zh-CN.json";
 
 /** 支持的语言列表 */
 export const supportedLanguages = [
-  { code: "zh-CN", name: "简体中文" },
+  { code: "id", name: "Bahasa Indonesia" },
   { code: "en", name: "English" },
+  { code: "zh-CN", name: "简体中文" },
 ] as const;
 
 export type LanguageCode = (typeof supportedLanguages)[number]["code"];
 
 /** 默认语言 */
-export const defaultLanguage: LanguageCode = "zh-CN";
+export const defaultLanguage: LanguageCode = "id";
 
 /** 存储键 */
 const LANGUAGE_STORAGE_KEY = "openfic-language";
@@ -65,8 +67,9 @@ export async function loadLanguagePreference(): Promise<void> {
 
 /** 翻译资源 */
 const resources = {
-  "zh-CN": { translation: zhCN },
+  id: { translation: id },
   en: { translation: en },
+  "zh-CN": { translation: zhCN },
 };
 
 i18n.use(initReactI18next).init({

@@ -36,7 +36,7 @@ class ClearAuditDetailsResponse(BaseModel):
 class SettingsResponse(BaseModel):
     """设置响应。"""
 
-    language: str = Field(default="zh-CN", description="语言")
+    language: str = Field(default="id", description="语言")
     theme: str = Field(default="light", description="主题")
     font_family: str = Field(default="system-ui", description="字体")
     code_font_family: str = Field(default="ui-monospace", description="代码字体")

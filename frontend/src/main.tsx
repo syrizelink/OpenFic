@@ -278,7 +278,11 @@ function Root() {
         void loadConfiguredFonts(preferences.font_family, preferences.code_font_family).catch(
           () => undefined,
         );
-        if (preferences.language === "zh-CN" || preferences.language === "en") {
+        if (
+          preferences.language === "id" ||
+          preferences.language === "en" ||
+          preferences.language === "zh-CN"
+        ) {
           await i18n.changeLanguage(preferences.language);
         }
         if (mounted) applyAppearance(preferences.theme === "dark" ? "dark" : "light");
@@ -355,7 +359,7 @@ function Root() {
 
   useEffect(() => {
     const publishLanguage = (language: string) => {
-      if (language === "zh-CN" || language === "en")
+      if (language === "id" || language === "en" || language === "zh-CN")
         publishDesktopLanguage(language as LanguageCode);
     };
 

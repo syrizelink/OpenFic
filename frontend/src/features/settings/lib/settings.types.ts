@@ -7,7 +7,7 @@
 import type { IndexAutoStrategy, IndexMode } from "@/lib/index-status";
 
 /** 支持的语言代码 */
-export type LanguageCode = "zh-CN" | "en";
+export type LanguageCode = "id" | "en" | "zh-CN";
 
 /** 支持的主题 */
 export type ThemeMode = "light" | "dark";

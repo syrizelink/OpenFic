@@ -5,7 +5,7 @@
  */
 
 import { formatDistanceToNow, differenceInMinutes, parseISO } from "date-fns";
-import { zhCN, enUS } from "date-fns/locale";
+import { zhCN, enUS, id as idID } from "date-fns/locale";
 
 import i18n from "@/i18n";
 
@@ -27,12 +27,14 @@ function parseDate(dateString: string): Date {
 function getDateLocale() {
   const language = i18n.language;
   switch (language) {
+    case "id":
+      return idID;
     case "zh-CN":
       return zhCN;
     case "en":
       return enUS;
     default:
-      return zhCN;
+      return idID;
   }
 }
 
