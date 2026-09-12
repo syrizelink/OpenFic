@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Task Router - 任务API路由。"""
+"""Task Router - Rute API tugas."""
 
 from typing import cast
 
@@ -133,7 +133,7 @@ async def list_tasks(
     if "mode" in request.query_params:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="mode 查询参数已移除",
+            detail="Parameter kueri mode sudah dihapus",
         )
 
     try:
@@ -237,11 +237,11 @@ async def update_task(
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
-        logger.error(f"更新任务失败：{e}")
+        logger.error(f"Gagal memperbarui tugas: {e}")
         await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"更新任务失败：{str(e)}",
+            detail=f"Gagal memperbarui tugas: {str(e)}",
         )
 
 
@@ -255,7 +255,7 @@ async def delete_task(
         if task.is_running:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="任务运行中，不能删除",
+                detail="Tugas sedang berjalan, tidak dapat dihapus",
             )
         checkpoint_thread_ids = await _list_task_checkpoint_thread_ids(
             session,
@@ -270,11 +270,11 @@ async def delete_task(
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
-        logger.error(f"删除任务失败：{e}")
+        logger.error(f"Gagal menghapus tugas: {e}")
         await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"删除任务失败：{str(e)}",
+            detail=f"Gagal menghapus tugas: {str(e)}",
         )
 
 
@@ -308,7 +308,7 @@ async def delete_all_tasks(
             )
         deleted_count = len(deletable_tasks)
         logger.info(
-            f"已删除项目 {project_id} 下的 {deleted_count} 个任务，跳过 {skipped_running_count} 个运行中任务"
+            f"Menghapus tugas pada proyek {project_id}: {deleted_count} tugas dihapus, melewati {skipped_running_count} tugas yang sedang berjalan"
         )
         return {
             "deleted_count": deleted_count,
@@ -319,9 +319,9 @@ async def delete_all_tasks(
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
-        logger.error(f"批量删除任务失败：{e}")
+        logger.error(f"Gagal menghapus tugas secara massal: {e}")
         await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"批量删除任务失败：{str(e)}",
+            detail=f"Gagal menghapus tugas secara massal: {str(e)}",
         )

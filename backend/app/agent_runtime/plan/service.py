@@ -30,7 +30,7 @@ def format_current_plan(todos: Sequence[Mapping[str, str]]) -> str:
 def _resolve_session_id(runtime_state: dict[str, Any]) -> str:
     session_id = runtime_state.get("session_id")
     if not isinstance(session_id, str) or not session_id:
-        raise ToolExecutionError("缺少会话 ID，无法写入计划")
+        raise ToolExecutionError("ID sesi tidak ada, rencana tidak dapat ditulis")
     return session_id
 
 
@@ -39,11 +39,11 @@ def _normalize_todo(payload: dict[str, Any]) -> dict[str, str]:
     status = payload.get("status")
     priority = payload.get("priority")
     if not isinstance(content, str) or not content.strip():
-        raise ToolExecutionError("Todo 内容不能为空")
+        raise ToolExecutionError("Isi Todo tidak boleh kosong")
     if status not in PLAN_STATUSES:
-        raise ToolExecutionError("Todo 状态非法")
+        raise ToolExecutionError("Status Todo tidak valid")
     if priority not in PLAN_PRIORITIES:
-        raise ToolExecutionError("Todo 优先级非法")
+        raise ToolExecutionError("Prioritas Todo tidak valid")
     return {
         "content": content.strip(),
         "status": status,

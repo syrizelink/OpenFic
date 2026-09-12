@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Adapter Registry - 适配器注册表。
+Adapter Registry - tabel registrasi adapter.
 
-根据provider_type选择对应的Adapter。
+Memilih Adapter yang sesuai berdasarkan provider_type.
 """
 
 from typing import Type
@@ -30,9 +30,9 @@ from app.models.adapters.openrouter import OpenRouterAdapter
 
 
 class AdapterRegistry:
-    """Adapter注册表，管理Provider到Adapter的映射关系。"""
+    """Tabel registrasi adapter, mengelola pemetaan Provider ke Adapter."""
 
-    # Adapter映射关系：provider_type -> Adapter类
+    # Pemetaan adapter: provider_type -> kelas Adapter
     _registry: dict[str, Type[BaseAdapter]] = {
         "openai": OpenAIAdapter,
         "anthropic": AnthropicAdapter,
@@ -55,21 +55,21 @@ class AdapterRegistry:
     @classmethod
     def get_adapter(cls, provider_type: str) -> BaseAdapter:
         """
-        根据provider_type获取对应的Adapter实例。
+        Mengambil instance Adapter yang sesuai berdasarkan provider_type.
 
         Args:
-            provider_type: 提供商类型（如 openai, openrouter等）。
+            provider_type: jenis penyedia (misalnya openai, openrouter, dll).
 
         Returns:
-            对应的Adapter实例。
+            Instance Adapter yang sesuai.
 
         Raises:
-            ValueError: 如果没有找到对应的Adapter。
+            ValueError: jika Adapter yang sesuai tidak ditemukan.
         """
         adapter_class = cls._registry.get(provider_type)
 
         if not adapter_class:
-            # 尝试使用openai-compatible作为默认
+            # Coba gunakan openai-compatible sebagai default
             adapter_class = cls._registry.get("openai-compatible")
             if not adapter_class:
                 raise ValueError(f"No adapter found for provider_type='{provider_type}'")
@@ -79,14 +79,14 @@ class AdapterRegistry:
     @classmethod
     def is_supported(cls, provider_type: str, task_type: str) -> bool:
         """
-        检查是否支持指定的provider_type和task_type组合。
+        Memeriksa apakah kombinasi provider_type dan task_type didukung.
 
         Args:
-            provider_type: 提供商类型。
-            task_type: 任务类型（llm、embedding 或 rerank）。
+            provider_type: jenis penyedia.
+            task_type: jenis tugas (llm, embedding, atau rerank).
 
         Returns:
-            是否支持。
+            Apakah didukung.
         """
         adapter = cls.get_adapter(provider_type)
         
@@ -100,19 +100,19 @@ class AdapterRegistry:
 
     @classmethod
     def list_providers(cls) -> list[str]:
-        """返回所有已注册的provider类型列表。"""
+        """Mengembalikan daftar semua jenis provider yang telah terdaftar."""
         return list(cls._registry.keys())
 
     @classmethod
     def get_supported_task_types(cls, provider_type: str) -> list[str]:
         """
-        获取指定provider支持的任务类型列表。
+        Mengambil daftar jenis tugas yang didukung provider tertentu.
 
         Args:
-            provider_type: 提供商类型。
+            provider_type: jenis penyedia.
 
         Returns:
-            支持的任务类型列表（如 ["llm", "embedding", "rerank"]）。
+            Daftar jenis tugas yang didukung (misalnya ["llm", "embedding", "rerank"]).
         """
         adapter = cls.get_adapter(provider_type)
         task_types = []

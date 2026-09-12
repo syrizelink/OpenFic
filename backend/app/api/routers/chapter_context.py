@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Chapter Context Router - 章节上下文 API。"""
+"""Chapter Context Router - API konteks bab."""
 
 from typing import Annotated
 
@@ -405,15 +405,15 @@ async def build_summary_realtime_snapshot(
 @router.get(
     "/projects/{project_id}/chapter-context/summaries/chapters",
     response_model=ChapterSummaryListResponse,
-    summary="获取章节摘要面板列表",
+    summary="Mengambil daftar panel ringkasan bab",
 )
 async def list_chapter_summary_items(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
-    volume_id: str | None = Query(default=None, description="按卷过滤"),
-    q: str | None = Query(default=None, description="搜索章节摘要"),
+    volume_id: str | None = Query(default=None, description="Filter berdasarkan volume"),
+    q: str | None = Query(default=None, description="Mencari ringkasan bab"),
 ) -> ChapterSummaryListResponse:
     offset = (page - 1) * page_size
     search_query = q.strip() if q else ""
@@ -453,7 +453,7 @@ async def list_chapter_summary_items(
             ChapterSummaryListItemResponse(
                 chapter_id=chapter_id or "",
                 chapter_order=chapter.order if chapter is not None else summary.chapter_order or 0,
-                chapter_title=chapter.title if chapter is not None else "未命名章节",
+                chapter_title=chapter.title if chapter is not None else "Bab tanpa nama",
                 status=_chapter_summary_status(
                     summary,
                     chapter,
@@ -503,7 +503,7 @@ async def list_chapter_summary_items(
 @router.delete(
     "/projects/{project_id}/chapter-context/summaries/chapters",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="批量删除章节摘要",
+    summary="Menghapus ringkasan bab secara massal",
 )
 async def delete_chapter_summaries(
     project_id: str,
@@ -516,7 +516,7 @@ async def delete_chapter_summaries(
     if invalid_ids:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"章节不存在: {invalid_ids[0]}",
+            detail=f"Bab tidak ditemukan: {invalid_ids[0]}",
         )
     if not data.chapter_ids:
         await chapter_summary_repo.delete_all_chapter_summaries_by_project(session, project_id)
@@ -528,7 +528,7 @@ async def delete_chapter_summaries(
 @router.delete(
     "/projects/{project_id}/chapter-context/summaries/long-term",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="批量删除区间摘要",
+    summary="Menghapus ringkasan rentang secara massal",
 )
 async def delete_long_term_summaries(
     project_id: str,
@@ -547,14 +547,14 @@ async def delete_long_term_summaries(
 @router.get(
     "/projects/{project_id}/chapter-context/summaries/long-term",
     response_model=LongTermSummaryListResponse,
-    summary="分页获取区间摘要",
+    summary="Mengambil ringkasan rentang dengan paginasi",
 )
 async def list_long_terms_page(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
-    q: str | None = Query(default=None, description="搜索区间摘要"),
+    q: str | None = Query(default=None, description="Mencari ringkasan rentang"),
 ) -> LongTermSummaryListResponse:
     chapters = await chapter_repo.list_by_project(session, project_id)
     volumes = await volume_repo.list_by_project(session, project_id)
@@ -612,7 +612,7 @@ async def list_long_terms_page(
 @router.post(
     "/projects/{project_id}/chapter-context/summaries/enqueue",
     response_model=EnqueueSummaryResponse,
-    summary="加入章节摘要生成队列",
+    summary="Menambahkan ke antrean pembuatan ringkasan bab",
 )
 async def enqueue_summary(
     project_id: str,
@@ -624,13 +624,13 @@ async def enqueue_summary(
             if not data.chapter_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="缺少 chapter_id",
+                    detail="chapter_id tidak ada",
                 )
             chapter = await chapter_repo.get_by_id(session, data.chapter_id)
             if chapter is None or chapter.project_id != project_id:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"章节不存在: {data.chapter_id}",
+                    detail=f"Bab tidak ditemukan: {data.chapter_id}",
                 )
             summary = await enqueue_chapter_summary(
                 session, data.chapter_id, model_id=data.model_id
@@ -640,7 +640,7 @@ async def enqueue_summary(
             if data.start_order is None or data.end_order is None:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="缺少 start_order 或 end_order",
+                    detail="start_order atau end_order tidak ada",
                 )
             chapters = await chapter_repo.list_by_project(session, project_id)
             volumes = await volume_repo.list_by_project(session, project_id)
@@ -655,7 +655,10 @@ async def enqueue_summary(
             if window is None:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="该区间缺少可参与聚合的章节摘要，需先生成满足条件的章节摘要。",
+                    detail=(
+                        "Rentang ini tidak memiliki ringkasan bab yang dapat diagregasi, buat "
+                        "dahulu ringkasan bab yang memenuhi syarat."
+                    ),
                 )
             summary = await enqueue_long_term_summary_range(
                 session,
@@ -700,7 +703,7 @@ async def enqueue_summary(
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="summary_type 必须是 chapter、long_term 或 all",
+                detail="summary_type harus chapter, long_term, atau all",
             )
         await background_job_service.commit_and_notify(session)
         return EnqueueSummaryResponse(
@@ -720,14 +723,14 @@ async def enqueue_summary(
 @router.get(
     "/projects/{project_id}/chapter-context/context",
     response_model=BuiltContextResponse,
-    summary="获取构建的上下文",
+    summary="Mengambil konteks yang sudah dibangun",
 )
 async def get_context(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
-    chapter_id: str = Query(description="当前章节 ID"),
+    chapter_id: str = Query(description="ID bab saat ini"),
 ) -> BuiltContextResponse:
-    """获取构建的分层上下文。"""
+    """Mengambil konteks berlapis yang sudah dibangun."""
     try:
         context = await build_context(session, project_id, chapter_id)
         return BuiltContextResponse(
@@ -753,87 +756,87 @@ async def get_context(
             ),
         )
     except Exception as e:
-        logger.error(f"构建上下文失败: {e}")
+        logger.error(f"Gagal membangun konteks: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"构建失败: {str(e)}",
+            detail=f"Gagal membangun: {str(e)}",
         )
 
 
 @router.get(
     "/projects/{project_id}/chapter-context/near",
     response_model=ContextFieldResponse,
-    summary="获取近场上下文",
+    summary="Mengambil konteks dekat",
 )
 async def get_near_field(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
-    chapter_id: str = Query(description="当前章节 ID"),
+    chapter_id: str = Query(description="ID bab saat ini"),
 ) -> ContextFieldResponse:
     try:
         context = await build_context(session, project_id, chapter_id)
         return ContextFieldResponse(content=context.near_field.content)
     except Exception as e:
-        logger.error(f"获取近场上下文失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取失败: {str(e)}")
+        logger.error(f"Gagal mengambil konteks dekat: {e}")
+        raise HTTPException(status_code=500, detail=f"Gagal mengambil: {str(e)}")
 
 
 @router.get(
     "/projects/{project_id}/chapter-context/middle",
     response_model=ContextFieldResponse,
-    summary="获取中场上下文",
+    summary="Mengambil konteks menengah",
 )
 async def get_middle_field(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
-    chapter_id: str = Query(description="当前章节 ID"),
+    chapter_id: str = Query(description="ID bab saat ini"),
 ) -> ContextFieldResponse:
     try:
         context = await build_context(session, project_id, chapter_id)
         return ContextFieldResponse(content=context.mid_field.content)
     except Exception as e:
-        logger.error(f"获取中场上下文失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取失败: {str(e)}")
+        logger.error(f"Gagal mengambil konteks menengah: {e}")
+        raise HTTPException(status_code=500, detail=f"Gagal mengambil: {str(e)}")
 
 
 @router.get(
     "/projects/{project_id}/chapter-context/far",
     response_model=ContextFieldResponse,
-    summary="获取远场上下文",
+    summary="Mengambil konteks jauh",
 )
 async def get_far_field(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
-    chapter_id: str = Query(description="当前章节 ID"),
+    chapter_id: str = Query(description="ID bab saat ini"),
 ) -> ContextFieldResponse:
     try:
         context = await build_context(session, project_id, chapter_id)
         return ContextFieldResponse(content=context.far_field.content)
     except Exception as e:
-        logger.error(f"获取远场上下文失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取失败: {str(e)}")
+        logger.error(f"Gagal mengambil konteks jauh: {e}")
+        raise HTTPException(status_code=500, detail=f"Gagal mengambil: {str(e)}")
 
 
 @router.get(
     "/projects/{project_id}/chapter-context/latest",
     response_model=ContextFieldResponse,
-    summary="获取最新章节内容",
+    summary="Mengambil isi bab terbaru",
 )
 async def get_latest_field(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
-    chapter_id: str = Query(description="当前章节 ID"),
+    chapter_id: str = Query(description="ID bab saat ini"),
 ) -> ContextFieldResponse:
     try:
         context = await build_context(session, project_id, chapter_id)
         if not context.latest_field.content:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"章节不存在: chapter_id={chapter_id}",
+                detail=f"Bab tidak ditemukan: chapter_id={chapter_id}",
             )
         return ContextFieldResponse(content=context.latest_field.content)
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取最新章节内容失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取失败: {str(e)}")
+        logger.error(f"Gagal mengambil isi bab terbaru: {e}")
+        raise HTTPException(status_code=500, detail=f"Gagal mengambil: {str(e)}")

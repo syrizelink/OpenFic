@@ -1,7 +1,7 @@
 /**
  * All Tasks Page
  *
- * 查看全部任务页面组件。
+ * Komponen halaman untuk melihat seluruh tugas.
  */
 
 import { Box, Flex, Text, IconButton, Tooltip, TextField } from "@radix-ui/themes";
@@ -32,7 +32,7 @@ export function AllTasksPage({ projectId, onBack, onTaskClick }: AllTasksPagePro
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
 
-  // 获取任务列表
+  // Mengambil daftar tugas
   const { data, isLoading, refetch } = useTasks(projectId, {
     search: searchQuery || undefined,
   });
@@ -46,7 +46,7 @@ export function AllTasksPage({ projectId, onBack, onTaskClick }: AllTasksPagePro
   const deleteMutation = useDeleteTask(projectId);
   const deleteAllMutation = useDeleteAllTasks(projectId);
 
-  // 格式化时间
+  // Memformat waktu
   const formatTime = (dateString: string) => {
     try {
       return formatDistanceToNow(new Date(dateString), {
@@ -131,7 +131,7 @@ export function AllTasksPage({ projectId, onBack, onTaskClick }: AllTasksPagePro
         background: "var(--color-panel)",
       }}
     >
-      {/* 顶部栏 */}
+      {/* Bilah atas */}
       <Flex
         px="3"
         py="3"
@@ -154,7 +154,7 @@ export function AllTasksPage({ projectId, onBack, onTaskClick }: AllTasksPagePro
         </Text>
       </Flex>
 
-      {/* 搜索栏 */}
+      {/* Bilah pencarian */}
       <Flex
         px="3"
         py="2"
@@ -186,7 +186,7 @@ export function AllTasksPage({ projectId, onBack, onTaskClick }: AllTasksPagePro
         )}
       </Flex>
 
-      {/* 任务列表 */}
+      {/* Daftar tugas */}
       <Box
         style={{
           flex: 1,
@@ -262,12 +262,12 @@ export function AllTasksPage({ projectId, onBack, onTaskClick }: AllTasksPagePro
                 )}
               </Flex>
 
-              {/* 底部栏 */}
+              {/* Bilah bawah */}
               <Flex
                 justify="between"
                 align="center"
               >
-                {/* 左侧：时间 */}
+                {/* Kiri: waktu */}
                 <Text
                   size="1"
                   style={{ color: "var(--gray-10)" }}
@@ -275,7 +275,7 @@ export function AllTasksPage({ projectId, onBack, onTaskClick }: AllTasksPagePro
                   {formatTime(task.updatedAt)}
                 </Text>
 
-                {/* 右侧：操作按钮 */}
+                {/* Kanan: tombol tindakan */}
                 <Flex
                   align="center"
                   gap="1"
@@ -337,7 +337,7 @@ export function AllTasksPage({ projectId, onBack, onTaskClick }: AllTasksPagePro
         )}
       </Box>
 
-      {/* 删除确认对话框 */}
+      {/* Dialog konfirmasi penghapusan */}
       <ConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
@@ -351,7 +351,7 @@ export function AllTasksPage({ projectId, onBack, onTaskClick }: AllTasksPagePro
         loading={deleteMutation.isPending}
       />
 
-      {/* 删除全部确认对话框 */}
+      {/* Dialog konfirmasi penghapusan seluruhnya */}
       <ConfirmDialog
         open={deleteAllDialogOpen}
         onOpenChange={setDeleteAllDialogOpen}

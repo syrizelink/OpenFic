@@ -27,8 +27,8 @@ async def test_rules_returns_none_when_empty_for_project(mock_session):
 @pytest.mark.asyncio
 async def test_rules_renders_pseudo_xml(mock_session):
     rules = [
-        SimpleNamespace(content="不要透露身份"),
-        SimpleNamespace(content="保持中文"),
+        SimpleNamespace(content="Jangan bocorkan identitas"),
+        SimpleNamespace(content="Pertahankan bahasa Indonesia"),
     ]
     with patch(
         "app.agent_runtime.context.parts.rules.agent_rule_service.list_all_rules",
@@ -40,8 +40,8 @@ async def test_rules_renders_pseudo_xml(mock_session):
     assert msg.metadata == {"part": "rules"}
     assert msg.content.startswith("<rules>")
     assert msg.content.endswith("</rules>")
-    assert "- 不要透露身份" in msg.content
-    assert "- 保持中文" in msg.content
+    assert "- Jangan bocorkan identitas" in msg.content
+    assert "- Pertahankan bahasa Indonesia" in msg.content
 
 
 @pytest.mark.asyncio

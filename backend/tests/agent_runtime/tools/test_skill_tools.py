@@ -21,7 +21,7 @@ def _make_state():
     }
 
 
-def _skill(id="skill-1", name="pdf-processing", summary="摘要", content="# PDF 内容", is_enabled=True):
+def _skill(id="skill-1", name="pdf-processing", summary="Ringkasan", content="# Isi PDF", is_enabled=True):
     return SimpleNamespace(
         id=id,
         name=name,
@@ -31,7 +31,7 @@ def _skill(id="skill-1", name="pdf-processing", summary="摘要", content="# PDF
     )
 
 
-def _ref(title="参考文档1", content="参考内容1"):
+def _ref(title="Dokumen Referensi 1", content="Isi referensi 1"):
     return SimpleNamespace(id="ref-1", title=title, content=content)
 
 
@@ -80,7 +80,7 @@ async def test_skill_tool_names_for_definition_with_explicit_reference():
         AsyncMock(return_value=[]),
     ), patch(
         "app.agent_runtime.tools.impls.skill.skill.skill_service.list_enabled_skills",
-        AsyncMock(return_value=[_skill(id="skill-explicit", name="显式引用技能")]),
+        AsyncMock(return_value=[_skill(id="skill-explicit", name="Skill dirujuk eksplisit")]),
         create=True,
     ):
         result = await skill_tool_names_for_definition(
@@ -129,9 +129,9 @@ async def test_activate_skill_returns_content_and_references():
         result = await tool.ainvoke({"skill_name": "pdf-processing"})
 
     assert "<skill_content name=\"pdf-processing\">" in result
-    assert "# PDF 内容" in result
+    assert "# Isi PDF" in result
     assert "<skill_references>" in result
-    assert "<ref>参考文档1</ref>" in result
+    assert "<ref>Dokumen Referensi 1</ref>" in result
 
 
 @pytest.mark.asyncio
@@ -213,14 +213,17 @@ async def test_activate_skill_rejects_unauthorized_skill():
     ):
         result = await tool.ainvoke({"skill_name": "pdf-processing"})
 
-    assert "技能不在该智能体的可用列表中" in json.loads(result)["message"]
+    assert (
+        "Skill tidak ada di dalam daftar yang tersedia untuk agen ini"
+        in json.loads(result)["message"]
+    )
 
 
 @pytest.mark.asyncio
 async def test_activate_skill_accepts_explicitly_referenced_global_skill():
     from app.agent_runtime.tools.impls.skill.skill import _resolve_authorized_skill
 
-    skill = _skill(id="skill-explicit", name="显式引用技能")
+    skill = _skill(id="skill-explicit", name="Skill dirujuk eksplisit")
     state = _make_state()
     state["referenced_skill_ids"] = [skill.id]
     session = AsyncMock()
@@ -260,7 +263,10 @@ async def test_activate_skill_rejects_disabled_skill():
     ):
         result = await tool.ainvoke({"skill_name": "pdf-processing"})
 
-    assert "技能不在该智能体的可用列表中" in json.loads(result)["message"]
+    assert (
+        "Skill tidak ada di dalam daftar yang tersedia untuk agen ini"
+        in json.loads(result)["message"]
+    )
 
 
 @pytest.mark.asyncio
@@ -268,18 +274,18 @@ async def test_reference_skill_returns_content():
     from app.agent_runtime.tools.impls.skill.skill import ReferenceSkillTool
 
     tool = ReferenceSkillTool(_state=_make_state())
-    docs = [_ref("参考文档1", "参考内容1"), _ref("参考文档2", "参考内容2")]
+    docs = [_ref("Dokumen Referensi 1", "Isi referensi 1"), _ref("Dokumen Referensi 2", "Isi referensi 2")]
     patches = _patch_env(_definition(["skill-1"]), _skill(), docs)
     with patch(
         "app.agent_runtime.tools.impls.skill.skill.create_session",
         AsyncMock(return_value=AsyncMock()),
     ), patches[0], patches[1], patches[2]:
         result = await tool.ainvoke(
-            {"skill_name": "pdf-processing", "reference_name": "参考文档2"}
+            {"skill_name": "pdf-processing", "reference_name": "Dokumen Referensi 2"}
         )
 
-    assert '<reference_content skill_name="pdf-processing" reference_name="参考文档2">' in result
-    assert "参考内容2" in result
+    assert '<reference_content skill_name="pdf-processing" reference_name="Dokumen Referensi 2">' in result
+    assert "Isi referensi 2" in result
 
 
 @pytest.mark.asyncio
@@ -289,17 +295,17 @@ async def test_reference_skill_rejects_unknown_reference():
     from app.agent_runtime.tools.impls.skill.skill import ReferenceSkillTool
 
     tool = ReferenceSkillTool(_state=_make_state())
-    docs = [_ref("参考文档1", "参考内容1")]
+    docs = [_ref("Dokumen Referensi 1", "Isi referensi 1")]
     patches = _patch_env(_definition(["skill-1"]), _skill(), docs)
     with patch(
         "app.agent_runtime.tools.impls.skill.skill.create_session",
         AsyncMock(return_value=AsyncMock()),
     ), patches[0], patches[1], patches[2]:
         result = await tool.ainvoke(
-            {"skill_name": "pdf-processing", "reference_name": "不存在"}
+            {"skill_name": "pdf-processing", "reference_name": "Tidak ada"}
         )
 
-    assert "参考文档不存在" in json.loads(result)["message"]
+    assert "Dokumen referensi tidak ditemukan" in json.loads(result)["message"]
 
 
 def test_load_builtin_skills_caches_until_skill_files_change(tmp_path, monkeypatch):
@@ -337,17 +343,17 @@ def test_load_builtin_skills_caches_until_skill_files_change(tmp_path, monkeypat
     ]
     assert loaded == ["skill-a.yaml", "skill-b.yaml"]
 
-    # 命中缓存，不再重新读取 YAML
+    # Cache hit, YAML tidak dibaca ulang
     second = loader.load_builtin_skills()
     assert second == first
     assert loaded == ["skill-a.yaml", "skill-b.yaml"]
 
-    # load_builtin_skill 复用缓存
+    # load_builtin_skill memakai ulang cache
     skill = loader.load_builtin_skill("builtin-skill--skill-a")
     assert skill is not None and skill.name == "skill-a"
     assert len(loaded) == 2
 
-    # 修改文件内容使指纹变化，缓存失效后重新加载
+    # Mengubah isi berkas membuat fingerprint berubah sehingga cache batal dan dimuat ulang
     (skills_dir / "skill-b.yaml").write_text("placeholder-longer", encoding="utf-8")
     loader.load_builtin_skills()
     assert len(loaded) == 4

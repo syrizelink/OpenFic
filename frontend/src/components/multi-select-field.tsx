@@ -1,7 +1,7 @@
 /**
  * Multi Select Field Component
  *
- * 通用多选字段，使用标签展示已选项，支持在标签内直接取消选择。
+ * Field pilih ganda serbaguna, memakai label untuk menampilkan item terpilih dan mendukung pembatalan pilihan langsung dari labelnya.
  */
 
 import { Checkbox, Popover, ScrollArea, Text } from "@radix-ui/themes";

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AgentMemory 数据模型 - 用户偏好记忆。"""
+"""Model data AgentMemory - memori preferensi pengguna."""
 
 from datetime import UTC, datetime
 
@@ -9,7 +9,7 @@ from app.core.ids import generate_id
 
 
 class AgentMemory(SQLModel, table=True):
-    """用户偏好记忆。"""
+    """Memori preferensi pengguna."""
 
     __tablename__ = "agent_memories"
 

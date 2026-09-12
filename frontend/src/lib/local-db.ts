@@ -1,8 +1,8 @@
 /**
  * Local Database
  *
- * 使用 Dexie (IndexedDB) 存储所有本地用户数据。
- * 包括：项目最后访问章节、编辑器标签页状态、用户偏好设置等。
+ * Menyimpan seluruh data pengguna lokal memakai Dexie (IndexedDB).
+ * Mencakup: bab terakhir yang diakses per proyek, status tab editor, preferensi pengguna, dll.
  */
 
 import Dexie, { type EntityTable } from "dexie";
@@ -14,7 +14,7 @@ import {
 } from "./recent-projects";
 
 /**
- * 项目最后访问的章节记录
+ * Catatan bab terakhir yang diakses pada sebuah proyek
  */
 interface ProjectLastChapter {
   projectId: string;
@@ -23,7 +23,7 @@ interface ProjectLastChapter {
 }
 
 /**
- * 编辑器标签页记录（按项目存储）
+ * Catatan tab editor (disimpan per proyek)
  */
 interface EditorTabRecord {
   id: string;
@@ -43,7 +43,7 @@ interface ProjectTabs {
 }
 
 /**
- * 用户偏好设置
+ * Preferensi pengguna
  */
 interface UserPreference {
   key: string;
@@ -52,11 +52,11 @@ interface UserPreference {
 }
 
 /**
- * 提示词条目数据
+ * Data entri prompt
  */
 interface PromptEntryData {
   id?: string;
-  uid?: string; // 跨版本追踪标识符
+  uid?: string; // Pengenal pelacakan lintas versi
   name: string;
   role: "system" | "user" | "assistant";
   content: string;
@@ -66,12 +66,12 @@ interface PromptEntryData {
 }
 
 /**
- * 提示词链Working Copy
+ * Working Copy rantai prompt
  */
 interface PromptChainWorkingCopy {
-  chainId: string; // 提示词链ID（主键）
-  baseVersionId: string; // 基于的版本ID
-  entries: PromptEntryData[]; // 条目列表
+  chainId: string; // ID rantai prompt (kunci utama)
+  baseVersionId: string; // ID versi yang menjadi dasar
+  entries: PromptEntryData[]; // Daftar entri
   updatedAt: Date;
 }
 
@@ -95,7 +95,7 @@ interface AgentInputHistory {
 }
 
 /**
- * OpenFic 本地数据库
+ * Basis data lokal OpenFic
  */
 class OpenFicDB extends Dexie {
   projectLastChapters!: EntityTable<ProjectLastChapter, "projectId">;
@@ -110,11 +110,11 @@ class OpenFicDB extends Dexie {
     super("OpenFicDB");
 
     this.version(2).stores({
-      // projectId 作为主键
+      // projectId dipakai sebagai kunci utama
       projectLastChapters: "projectId, updatedAt",
-      // 项目标签页
+      // Tab proyek
       projectTabs: "projectId, updatedAt",
-      // 用户偏好
+      // Preferensi pengguna
       userPreferences: "key, updatedAt",
     });
 
@@ -169,7 +169,7 @@ class OpenFicDB extends Dexie {
   }
 }
 
-// 单例数据库实例
+// Instans tunggal basis data
 export const db = new OpenFicDB();
 
 const writingWorkingCopyOperations = new Map<string, Promise<void>>();
@@ -193,23 +193,23 @@ function enqueueWritingWorkingCopyOperation<T>(
   return next;
 }
 
-// ==================== 项目最后访问章节 ====================
+// ==================== Bab terakhir yang diakses ====================
 
 /**
- * 获取项目最后访问的章节 ID
+ * Mengambil ID bab terakhir yang diakses pada sebuah proyek
  */
 export async function getLastChapterId(projectId: string): Promise<string | null> {
   try {
     const record = await db.projectLastChapters.get(projectId);
     return record?.chapterId ?? null;
   } catch {
-    console.error("获取最后访问章节失败");
+    console.error("Gagal mengambil bab terakhir yang diakses");
     return null;
   }
 }
 
 /**
- * 保存项目最后访问的章节 ID
+ * Menyimpan ID bab terakhir yang diakses pada sebuah proyek
  */
 export async function setLastChapterId(projectId: string, chapterId: string): Promise<void> {
   try {
@@ -219,25 +219,25 @@ export async function setLastChapterId(projectId: string, chapterId: string): Pr
       updatedAt: new Date(),
     });
   } catch {
-    console.error("保存最后访问章节失败");
+    console.error("Gagal menyimpan bab terakhir yang diakses");
   }
 }
 
 /**
- * 删除项目的最后访问记录（项目删除时调用）
+ * Menghapus catatan akses terakhir sebuah proyek (dipanggil saat proyek dihapus)
  */
 export async function deleteLastChapterId(projectId: string): Promise<void> {
   try {
     await db.projectLastChapters.delete(projectId);
   } catch {
-    console.error("删除最后访问章节记录失败");
+    console.error("Gagal menghapus catatan bab terakhir yang diakses");
   }
 }
 
-// ==================== 编辑器标签页 ====================
+// ==================== Tab editor ====================
 
 /**
- * 获取项目的标签页状态
+ * Mengambil status tab sebuah proyek
  */
 export async function getProjectTabs(
   projectId: string,
@@ -247,13 +247,13 @@ export async function getProjectTabs(
     if (!record) return null;
     return { tabs: record.tabs, activeTabId: record.activeTabId };
   } catch {
-    console.error("获取项目标签页失败");
+    console.error("Gagal mengambil tab proyek");
     return null;
   }
 }
 
 /**
- * 保存项目的标签页状态
+ * Menyimpan status tab sebuah proyek
  */
 export async function setProjectTabs(
   projectId: string,
@@ -268,25 +268,25 @@ export async function setProjectTabs(
       updatedAt: new Date(),
     });
   } catch {
-    console.error("保存项目标签页失败");
+    console.error("Gagal menyimpan tab proyek");
   }
 }
 
 /**
- * 删除项目的标签页记录（项目删除时调用）
+ * Menghapus catatan tab sebuah proyek (dipanggil saat proyek dihapus)
  */
 export async function deleteProjectTabs(projectId: string): Promise<void> {
   try {
     await db.projectTabs.delete(projectId);
   } catch {
-    console.error("删除项目标签页记录失败");
+    console.error("Gagal menghapus catatan tab proyek");
   }
 }
 
-// ==================== Agent 输入历史 ====================
+// ==================== Riwayat masukan Agent ====================
 
 /**
- * 获取项目的 Agent 输入历史。
+ * Mengambil riwayat masukan Agent pada sebuah proyek.
  */
 export async function getAgentInputHistory(
   projectId: string,
@@ -298,13 +298,13 @@ export async function getAgentInputHistory(
       draft: record?.draft ?? "",
     };
   } catch {
-    console.error("获取 Agent 输入历史失败");
+    console.error("Gagal mengambil riwayat masukan Agent");
     return { entries: [], draft: "" };
   }
 }
 
 /**
- * 保存项目的 Agent 输入历史和未发送草稿。
+ * Menyimpan riwayat masukan Agent dan draf yang belum terkirim pada sebuah proyek.
  */
 export async function setAgentInputHistory(
   projectId: string,
@@ -319,38 +319,38 @@ export async function setAgentInputHistory(
       updatedAt: new Date(),
     });
   } catch {
-    console.error("保存 Agent 输入历史失败");
+    console.error("Gagal menyimpan riwayat masukan Agent");
   }
 }
 
 /**
- * 删除项目的 Agent 输入历史。
+ * Menghapus riwayat masukan Agent pada sebuah proyek.
  */
 export async function deleteAgentInputHistory(projectId: string): Promise<void> {
   try {
     await db.agentInputHistories.delete(projectId);
   } catch {
-    console.error("删除 Agent 输入历史失败");
+    console.error("Gagal menghapus riwayat masukan Agent");
   }
 }
 
-// ==================== 用户偏好设置 ====================
+// ==================== Preferensi pengguna ====================
 
 /**
- * 获取用户偏好
+ * Mengambil preferensi pengguna
  */
 export async function getPreference(key: string): Promise<string | null> {
   try {
     const record = await db.userPreferences.get(key);
     return record?.value ?? null;
   } catch {
-    console.error("获取用户偏好失败");
+    console.error("Gagal mengambil preferensi pengguna");
     return null;
   }
 }
 
 /**
- * 保存用户偏好
+ * Menyimpan preferensi pengguna
  */
 export async function setPreference(key: string, value: string): Promise<void> {
   try {
@@ -360,37 +360,37 @@ export async function setPreference(key: string, value: string): Promise<void> {
       updatedAt: new Date(),
     });
   } catch {
-    console.error("保存用户偏好失败");
+    console.error("Gagal menyimpan preferensi pengguna");
   }
 }
 
 /**
- * 删除用户偏好
+ * Menghapus preferensi pengguna
  */
 export async function deletePreference(key: string): Promise<void> {
   try {
     await db.userPreferences.delete(key);
   } catch {
-    console.error("删除用户偏好失败");
+    console.error("Gagal menghapus preferensi pengguna");
   }
 }
 
-// ==================== 最近项目 ====================
+// ==================== Proyek terbaru ====================
 
 /**
- * 获取三个固定槽位中的最近项目记录。
+ * Mengambil catatan proyek terbaru dari tiga slot tetap.
  */
 export async function getRecentProjects(): Promise<RecentProject[]> {
   try {
     return await db.recentProjects.orderBy("slot").toArray();
   } catch {
-    console.error("获取最近项目失败");
+    console.error("Gagal mengambil proyek terbaru");
     return [];
   }
 }
 
 /**
- * 将项目置于首槽位，并将原有记录依次后移。
+ * Memindahkan proyek ke slot pertama dan menggeser catatan lama satu per satu.
  */
 export async function openRecentProject(
   projectId: string,
@@ -412,40 +412,40 @@ export async function openRecentProject(
       return nextProjects;
     });
   } catch {
-    console.error("保存最近项目失败");
+    console.error("Gagal menyimpan proyek terbaru");
     return null;
   }
 }
 
 /**
- * 移除指定槽位的最近项目，不移动其他槽位。
+ * Menghapus proyek terbaru pada slot tertentu tanpa menggeser slot lain.
  */
 export async function removeRecentProject(slot: number): Promise<boolean> {
   try {
     await db.recentProjects.delete(slot);
     return true;
   } catch {
-    console.error("移除最近项目失败");
+    console.error("Gagal menghapus proyek terbaru");
     return false;
   }
 }
 
 /**
- * 移除指定项目的最近打开记录。
+ * Menghapus catatan pembukaan terakhir untuk proyek tertentu.
  */
 export async function removeRecentProjectByProjectId(projectId: string): Promise<boolean> {
   try {
     return (await db.recentProjects.where("projectId").equals(projectId).delete()) > 0;
   } catch {
-    console.error("移除项目的最近打开记录失败");
+    console.error("Gagal menghapus catatan pembukaan terakhir proyek");
     return false;
   }
 }
 
-// ==================== 提示词链Working Copy ====================
+// ==================== Working Copy rantai prompt ====================
 
 /**
- * 获取提示词链的Working Copy
+ * Mengambil Working Copy sebuah rantai prompt
  */
 export async function getPromptChainWorkingCopy(
   chainId: string,
@@ -454,13 +454,13 @@ export async function getPromptChainWorkingCopy(
     const record = await db.promptChainWorkingCopies.get(chainId);
     return record ?? null;
   } catch {
-    console.error("获取Working Copy失败");
+    console.error("Gagal mengambil Working Copy");
     return null;
   }
 }
 
 /**
- * 保存提示词链的Working Copy
+ * Menyimpan Working Copy sebuah rantai prompt
  */
 export async function savePromptChainWorkingCopy(
   chainId: string,
@@ -475,22 +475,22 @@ export async function savePromptChainWorkingCopy(
       updatedAt: new Date(),
     });
   } catch {
-    console.error("保存Working Copy失败");
+    console.error("Gagal menyimpan Working Copy");
   }
 }
 
 /**
- * 删除提示词链的Working Copy
+ * Menghapus Working Copy sebuah rantai prompt
  */
 export async function deletePromptChainWorkingCopy(chainId: string): Promise<void> {
   try {
     await db.promptChainWorkingCopies.delete(chainId);
   } catch {
-    console.error("删除Working Copy失败");
+    console.error("Gagal menghapus Working Copy");
   }
 }
 
-// ==================== 写作 Working Copy ====================
+// ==================== Working Copy penulisan ====================
 
 function getWritingWorkingCopyId(type: WritingWorkingCopyType, entityId: string): string {
   return `${type}:${entityId}`;
@@ -505,7 +505,7 @@ export async function getWritingWorkingCopy(
     await writingWorkingCopyOperations.get(id);
     return (await db.writingWorkingCopies.get(id)) ?? null;
   } catch {
-    console.error("获取写作草稿失败");
+    console.error("Gagal mengambil draf penulisan");
     return null;
   }
 }
@@ -528,7 +528,7 @@ export async function saveWritingWorkingCopy(
       }),
     );
   } catch {
-    console.error("保存写作草稿失败");
+    console.error("Gagal menyimpan draf penulisan");
   }
 
   return record;
@@ -542,7 +542,7 @@ export async function deleteWritingWorkingCopy(
   try {
     await enqueueWritingWorkingCopyOperation(id, () => db.writingWorkingCopies.delete(id));
   } catch {
-    console.error("删除写作草稿失败");
+    console.error("Gagal menghapus draf penulisan");
   }
 }
 
@@ -562,7 +562,7 @@ export async function deleteWritingWorkingCopyIfUpdatedAt(
       }),
     );
   } catch {
-    console.error("清理过期写作草稿失败");
+    console.error("Gagal membersihkan draf penulisan yang kedaluwarsa");
   }
 }
 
@@ -587,11 +587,11 @@ export async function deleteWritingWorkingCopyIfMatches(
       }),
     );
   } catch {
-    console.error("清理写作草稿失败");
+    console.error("Gagal membersihkan draf penulisan");
   }
 }
 
-// 导出类型
+// Ekspor tipe
 export type {
   EditorTabRecord,
   ProjectTabs,

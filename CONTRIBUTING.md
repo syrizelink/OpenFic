@@ -1,31 +1,31 @@
-## 为 OpenFic 贡献代码
+## Berkontribusi Kode untuk OpenFic
 
-### 关于 Bug
+### Tentang Bug
 
-如果你发现了一个 bug，且有意编写补丁来修复它，在开始动手之前，你应确保：
-- 复现 bug 时所使用的版本是最新的
-- 主分支上已提交但未发版的变更中未处理涉及的 bug
-- 没有一个 Open 或 Draft 的 PR 涉及该 bug
+Jika Anda menemukan sebuah bug dan berniat menulis patch untuk memperbaikinya, sebelum mulai mengerjakan Anda harus memastikan:
+- Versi yang Anda pakai saat mereproduksi bug adalah versi terbaru
+- Bug yang bersangkutan belum ditangani di antara perubahan yang sudah di-commit ke branch utama tetapi belum dirilis
+- Tidak ada PR berstatus Open atau Draft yang menangani bug tersebut
 
-在你完成了补丁后，你应该：
-- 创建一个 PR
-- 确保 PR 描述符合[规范](./.github/PULL_REQUEST_TEMPLATE.md)，能够清晰的说明问题原因和解决方案
-- 指定 Reviewers 并等待审查
+Setelah patch Anda selesai, Anda harus:
+- Membuat sebuah PR
+- Memastikan deskripsi PR sesuai [ketentuan](./.github/PULL_REQUEST_TEMPLATE.md), sehingga penyebab masalah dan solusinya dapat dijelaskan dengan jernih
+- Menentukan Reviewers lalu menunggu telaah
 
-## 关于新功能
+## Tentang Fitur Baru
 
-如果你打算添加一个新功能，或是对现有的功能做出改进，需要注意以下情况：
-- 涉及核心 Harness 模块（如`backend/app/agent_runtime`）的修改通常会被拒绝，这类更改往往影响广泛，极有可能带来意料之外的隐蔽问题
-- 涉及前端尤其是 UI 变更的修改，应确保注意了以下几点，否则修改往往不会被接受；出于这一点，此类 PR 往往会有相较于其它类型更长的审查和修改周期
-    - 符合整体风格
-    - 具备完整的移动端布局适配
-    - 充分考虑了 UX 设计（包括移动端）
-    - 未对其它布局产生影响
-- 望知悉，你所提出的新功能变更的 PR 可能会被直接拒绝而非请求更改，这往往是因为变更并不符合预期；我们尊重每个人的想法，但审慎选择那些符合理念的功能十分重要，当然，你也可以 Fork 本仓库并自由的更改；如果你不确定新功能是否合适，也可以创建一个 Discussion 与我们交流。
+Jika Anda berencana menambahkan fitur baru, atau membuat perbaikan atas fitur yang sudah ada, ada beberapa hal yang perlu diperhatikan:
+- Perubahan yang menyentuh modul inti Harness (misalnya `backend/app/agent_runtime`) umumnya akan ditolak. Perubahan semacam itu cenderung berdampak luas dan sangat mungkin memunculkan masalah tersembunyi di luar dugaan
+- Perubahan yang menyentuh frontend, terutama perubahan UI, harus memastikan beberapa hal berikut. Jika tidak, perubahan biasanya tidak akan diterima. Karena alasan ini, PR jenis ini umumnya punya siklus telaah dan revisi yang lebih panjang dibanding jenis lain
+    - Sesuai dengan gaya keseluruhan
+    - Memiliki penyesuaian tata letak seluler yang lengkap
+    - Sudah mempertimbangkan rancangan UX secara memadai (termasuk seluler)
+    - Tidak berdampak pada tata letak lain
+- Perlu diketahui, PR perubahan fitur baru yang Anda ajukan bisa saja langsung ditolak alih-alih diminta diperbaiki. Ini biasanya karena perubahannya tidak sesuai harapan. Kami menghargai gagasan setiap orang, tetapi memilih fitur yang sesuai gagasan dasar proyek secara saksama itu sangat penting. Tentu saja, Anda juga boleh melakukan Fork atas repositori ini dan mengubahnya secara bebas. Jika Anda tidak yakin apakah fitur baru itu sesuai, Anda juga boleh membuat sebuah Discussion untuk berdiskusi dengan kami.
 
-## 注意
+## Perhatikan
 
-如果你提交的变更仅仅调整了代码格式、处理那些对实际业务和UX无影响的点、或是做了一些表面性的修复功能，这些无法为系统的稳定性和功能性带来实质性提升的修改是无意义的，这种情况下，你的 PR 将会被关闭。
+Jika perubahan yang Anda kirimkan hanya menyesuaikan format kode, menangani hal yang tidak berdampak pada bisnis dan UX yang sebenarnya, atau melakukan perbaikan fitur yang bersifat permukaan, maka perubahan yang tidak membawa peningkatan nyata bagi kestabilan dan fungsionalitas sistem itu tidak bermakna. Dalam keadaan seperti itu, PR Anda akan ditutup.
 
 
-OpenFic 的迭代和更新离不开社区的支持，感谢所有为提出 Issue 和 PR 的贡献者♥️♥️♥️
+Iterasi dan pembaruan OpenFic tidak terlepas dari dukungan komunitas. Terima kasih kepada semua kontributor yang telah mengajukan Issue dan PR ♥️♥️♥️

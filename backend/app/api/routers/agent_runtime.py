@@ -277,7 +277,7 @@ async def _get_runner(
     if runner is not None:
         return runner
     if session is None:
-        raise NotFoundError(f"会话不存在: {session_id}")
+        raise NotFoundError(f"Sesi tidak ditemukan: {session_id}")
 
     task = await task_service.get_task_by_agent_session_id(session, session_id)
     runner = SessionRunner(
@@ -291,7 +291,7 @@ async def _get_runner(
     values = state.values if isinstance(getattr(state, "values", None), dict) else {}
     restored_model_config = values.get("model_config")
     if not _is_valid_model_config(restored_model_config):
-        raise NotFoundError(f"会话不存在: {session_id}")
+        raise NotFoundError(f"Sesi tidak ditemukan: {session_id}")
     model_record_id = restored_model_config.get("model_record_id")
     if model_config is not None:
         runner.model_config = model_config
@@ -360,7 +360,10 @@ async def _ensure_agent_session_resumable(
             status_code=status.HTTP_409_CONFLICT,
             detail={
                 "code": "session_cancelled",
-                "message": "会话已取消，无法恢复待处理的审批或问答",
+                "message": (
+                    "Sesi sudah dibatalkan, tidak dapat memulihkan persetujuan atau tanya-jawab "
+                    "yang tertunda"
+                ),
             },
         )
 
@@ -428,7 +431,7 @@ async def _claim_agent_session_resume(
         status_code=status.HTTP_409_CONFLICT,
         detail={
             "code": "session_not_resumable",
-            "message": "会话当前不在可恢复的中断状态",
+            "message": "Sesi saat ini tidak berada dalam status interupsi yang dapat dipulihkan",
         },
     )
 
@@ -499,17 +502,17 @@ async def _validate_primary_agent(session: AsyncSession, agent_key: str) -> None
     except KeyError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"主智能体不存在: {agent_key}",
+            detail=f"Agen utama tidak ditemukan: {agent_key}",
         ) from exc
     if not definition.enabled:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"主智能体 '{agent_key}' 已被禁用",
+            detail=f"Agen utama '{agent_key}' sudah dinonaktifkan",
         )
     if definition.kind != "primary":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"智能体 '{agent_key}' 不是主智能体 (kind != primary)",
+            detail=f"Agen '{agent_key}' bukan agen utama (kind != primary)",
         )
 
 
@@ -518,17 +521,17 @@ async def _resolve_model_config(
 ) -> dict:
     model = await model_repo.get_by_id(session, model_id)
     if model is None:
-        raise NotFoundError(f"模型不存在：{model_id}")
+        raise NotFoundError(f"Model tidak ditemukan: {model_id}")
 
     provider = await model_provider_repo.get_by_id(session, model.provider_id)
     if provider is None:
-        raise NotFoundError(f"模型提供商不存在：{model.provider_id}")
+        raise NotFoundError(f"Penyedia model tidak ditemukan: {model.provider_id}")
 
     encryption_service = EncryptionService(settings.encryption_key)
     try:
         api_key = encryption_service.decrypt(provider.api_key_encrypted)
     except Exception as exc:
-        raise ValueError("API密钥解密失败") from exc
+        raise ValueError("Gagal mendekripsi API key") from exc
 
     custom_headers = ModelProviderService(
         encryption_service
@@ -557,7 +560,7 @@ async def _resolve_legacy_model_config(
         or not isinstance(base_url, str)
         or not base_url
     ):
-        raise NotFoundError("会话模型配置无法恢复")
+        raise NotFoundError("Konfigurasi model sesi tidak dapat dipulihkan")
 
     model = await model_repo.get_by_legacy_agent_config(
         session,
@@ -566,7 +569,7 @@ async def _resolve_legacy_model_config(
         base_url=base_url,
     )
     if model is None:
-        raise NotFoundError("会话模型配置无法恢复")
+        raise NotFoundError("Konfigurasi model sesi tidak dapat dipulihkan")
     return await _resolve_model_config(session, model.id)
 
 
@@ -620,7 +623,7 @@ async def _set_task_running_state(
 
 def _make_status_session_factory(session: AsyncSession) -> Callable[[], AsyncSession]:
     if session.bind is None:
-        raise RuntimeError("数据库会话未绑定连接")
+        raise RuntimeError("Sesi basis data tidak terikat pada koneksi")
     factory = async_sessionmaker(
         session.bind,
         expire_on_commit=False,
@@ -823,12 +826,12 @@ async def create_agent_session(
         if not definition.enabled:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"主智能体 '{request.agent_key}' 已被禁用",
+                detail=f"Agen utama '{request.agent_key}' sudah dinonaktifkan",
             )
         if definition.kind != "primary":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"智能体 '{request.agent_key}' 不是主智能体 (kind != primary)",
+                detail=f"Agen '{request.agent_key}' bukan agen utama (kind != primary)",
             )
         model_config = await _resolve_model_config(
             session, request.model_id, request.reasoning_effort
@@ -877,10 +880,10 @@ async def create_agent_session(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
     except Exception as exc:
-        logger.opt(exception=True).error("创建 Agent 会话失败")
+        logger.opt(exception=True).error("Gagal membuat sesi Agent")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"创建会话失败: {exc}",
+            detail=f"Gagal membuat sesi: {exc}",
         )
 
 
@@ -894,7 +897,7 @@ async def upload_agent_attachment(
     image: UploadFile = File(...),
     session: AsyncSession = Depends(get_session),
 ) -> AgentAttachmentResponse:
-    """上传一张仅供指定 Agent 会话使用的图片附件。"""
+    """Mengunggah satu lampiran gambar yang hanya dipakai oleh sesi Agent tertentu."""
     task = await task_service.get_task_by_agent_session_id(session, session_id)
     try:
         attachment = await save_agent_image_attachment(
@@ -926,7 +929,7 @@ async def send_agent_message(
     session: AsyncSession = Depends(get_session),
 ) -> AgentSendMessageResponse:
     if not body.message.strip() and not body.attachments:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="消息或图片不能为空")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Pesan atau gambar tidak boleh kosong")
     requested_model_config: dict | None = None
     if body.model_id and session_id not in _SESSION_RUNNERS:
         try:
@@ -964,7 +967,7 @@ async def send_agent_message(
             return AgentSendMessageResponse(
                 success=True,
                 session_id=session_id,
-                message="Agent 消息已排队",
+                message="Pesan Agent masuk antrean",
                 queued=True,
                 model_updated=False,
                 pending_message=AgentPendingMessageResponse(**pending_message),
@@ -1010,7 +1013,7 @@ async def send_agent_message(
     return AgentSendMessageResponse(
         success=True,
         session_id=session_id,
-        message="Agent 任务已启动",
+        message="Tugas Agent sudah dimulai",
         queued=False,
         model_updated=model_updated,
         pending_message=None,
@@ -1067,7 +1070,7 @@ async def _run_agent_session_compaction(
     if current_task is None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="无法注册手动压缩任务",
+            detail="Tidak dapat mendaftarkan tugas kompresi manual",
         )
     current_task = cast(asyncio.Task[None], current_task)
     registered = False
@@ -1091,7 +1094,7 @@ async def _run_agent_session_compaction(
                     status_code=status.HTTP_409_CONFLICT,
                     detail={
                         "code": "session_compacting",
-                        "message": "会话运行中，不能手动压缩",
+                        "message": "Sesi sedang berjalan, tidak dapat melakukan kompresi manual",
                     },
                 )
             registered = await registry.try_register_parent(session_id, current_task)
@@ -1100,7 +1103,7 @@ async def _run_agent_session_compaction(
                     status_code=status.HTTP_409_CONFLICT,
                     detail={
                         "code": "session_compacting",
-                        "message": "会话运行中，不能手动压缩",
+                        "message": "Sesi sedang berjalan, tidak dapat melakukan kompresi manual",
                     },
                 )
             await _set_task_running_state(
@@ -1176,7 +1179,7 @@ async def _run_agent_session_compaction(
     if result is None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="手动压缩未返回结果",
+            detail="Kompresi manual tidak mengembalikan hasil",
         )
 
     return AgentCompactionResponse(
@@ -1223,7 +1226,7 @@ async def submit_agent_question_answer(
             if claimed_revision:
                 await _release_agent_session_resume_claim(session, revision_id)
             raise
-    return {"success": True, "session_id": session_id, "message": "已提交澄清回答"}
+    return {"success": True, "session_id": session_id, "message": "Jawaban klarifikasi sudah dikirim"}
 
 
 @router.post("/sessions/{session_id}/interrupt-resume")
@@ -1253,7 +1256,7 @@ async def submit_agent_interrupt_resume(
             if claimed_revision:
                 await _release_agent_session_resume_claim(session, revision_id)
             raise
-    return {"success": True, "session_id": session_id, "message": "已提交并行中断响应"}
+    return {"success": True, "session_id": session_id, "message": "Respons interupsi paralel sudah dikirim"}
 
 
 @router.post("/sessions/{session_id}/tool-approval")
@@ -1310,7 +1313,10 @@ async def submit_agent_tool_approval(
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "code": "session_cancelled",
-                            "message": "会话已取消，无法恢复待处理的审批或问答",
+                            "message": (
+                                "Sesi sudah dibatalkan, tidak dapat memulihkan persetujuan atau "
+                                "tanya-jawab yang tertunda"
+                            ),
                         },
                     )
             except Exception:
@@ -1330,7 +1336,7 @@ async def submit_agent_tool_approval(
                 if claimed_revision:
                     await _release_agent_session_resume_claim(session, revision_id)
                 raise
-        return {"success": True, "session_id": session_id, "message": "已提交工具审批"}
+        return {"success": True, "session_id": session_id, "message": "Persetujuan tool sudah dikirim"}
 
     async with _agent_session_lifecycle_lock(registry, session_id):
         revision_id, claimed_revision = await _claim_agent_session_resume(session, session_id)
@@ -1348,7 +1354,7 @@ async def submit_agent_tool_approval(
             if claimed_revision:
                 await _release_agent_session_resume_claim(session, revision_id)
             raise
-    return {"success": True, "session_id": session_id, "message": "已提交工具审批"}
+    return {"success": True, "session_id": session_id, "message": "Persetujuan tool sudah dikirim"}
 
 
 @router.get("/sessions/{session_id}", response_model=AgentSessionStateResponse)
@@ -1398,7 +1404,7 @@ async def get_agent_session_state(
                     payload["id"] = interrupt_id
                 interrupts.append(payload)
     if not state_values and not is_running and not interrupts:
-        raise NotFoundError(f"会话不存在: {session_id}")
+        raise NotFoundError(f"Sesi tidak ditemukan: {session_id}")
     return AgentSessionStateResponse(
         session_id=session_id,
         state=state_values,
@@ -1455,7 +1461,7 @@ async def get_subagent_session(
     if row is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"子运行不存在: {child_run_id}",
+            detail=f"Sub-run tidak ditemukan: {child_run_id}",
         )
 
     messages = await load_task_messages_for_agent_session(session, row.child_thread_id)
@@ -1511,10 +1517,11 @@ async def cancel_subagent_session(
     child_run_id: str,
     session: AsyncSession = Depends(get_session),
 ) -> AgentCancelResponse:
-    """取消单个 subagent 会话。
+    """Membatalkan satu sesi subagent.
 
-    中断其当前任务（含重试退避）并把 open requests 标记为 cancelled，
-    主会话侧的 wait_for_request_resolution 感知后继续主流程。
+    Menginterupsi tugasnya saat ini (termasuk backoff percobaan ulang) dan menandai open requests
+    sebagai cancelled, sehingga wait_for_request_resolution di sisi sesi utama dapat mendeteksinya
+    lalu melanjutkan alur utama.
     """
     row = await get_child_run_for_parent(
         session,
@@ -1530,7 +1537,7 @@ async def cancel_subagent_session(
         return AgentCancelResponse(
             success=True,
             session_id=child_run_id,
-            message="子代理会话已结束",
+            message="Sesi subagen sudah berakhir",
         )
 
     await cancel_child_run(
@@ -1550,7 +1557,7 @@ async def cancel_subagent_session(
     return AgentCancelResponse(
         success=True,
         session_id=child_run_id,
-        message="子代理会话已取消",
+        message="Sesi subagen sudah dibatalkan",
     )
 
 
@@ -1565,7 +1572,7 @@ async def rollback_agent_session(
     if callable(is_running) and await is_running(session_id):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="会话运行中，不能回滚",
+            detail="Sesi sedang berjalan, tidak dapat melakukan rollback",
         )
 
     runner = _SESSION_RUNNERS.get(session_id)
@@ -1685,7 +1692,7 @@ async def fork_agent_session(
     if await get_agent_run_registry().is_running(session_id):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="会话运行中，不能分叉",
+            detail="Sesi sedang berjalan, tidak dapat melakukan fork",
         )
 
     fork_session_id: str | None = None
@@ -1725,10 +1732,10 @@ async def fork_agent_session(
     except Exception as exc:
         if fork_session_id:
             _SESSION_RUNNERS.pop(fork_session_id, None)
-        logger.bind(session_id=session_id).opt(exception=True).error("Agent 会话分叉失败")
+        logger.bind(session_id=session_id).opt(exception=True).error("Gagal melakukan fork sesi Agent")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"分叉失败: {exc}",
+            detail=f"Gagal melakukan fork: {exc}",
         )
 
 
@@ -1849,5 +1856,5 @@ async def cancel_agent_session(
     return AgentCancelResponse(
         success=True,
         session_id=session_id,
-        message="会话已取消",
+        message="Sesi sudah dibatalkan",
     )

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Volumes Router - 卷 CRUD API。
+Volumes Router - API CRUD volume.
 """
 
 from typing import Annotated
@@ -26,16 +26,16 @@ router = APIRouter(tags=["volumes"])
     "/projects/{project_id}/volumes",
     response_model=VolumeResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="创建卷",
+    summary="Membuat volume",
 )
 async def create_volume(
     project_id: str,
     data: VolumeCreate,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> VolumeResponse:
-    """在项目末尾追加卷。"""
+    """Menambahkan volume di akhir proyek."""
     try:
-        logger.info(f"创建卷: project_id={project_id}, title={data.title}")
+        logger.info(f"Membuat volume: project_id={project_id}, title={data.title}")
         volume = await volume_service.create_volume(
             session,
             project_id=project_id,
@@ -50,13 +50,13 @@ async def create_volume(
 @router.get(
     "/projects/{project_id}/volumes",
     response_model=list[VolumeResponse],
-    summary="获取卷列表",
+    summary="Mengambil daftar volume",
 )
 async def list_volumes(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[VolumeResponse]:
-    """按 order 获取项目下全部卷。"""
+    """Mengambil semua volume pada proyek berdasarkan order."""
     try:
         volumes = await volume_service.list_volumes(session, project_id)
         return [VolumeResponse.model_validate(volume) for volume in volumes]
@@ -67,13 +67,13 @@ async def list_volumes(
 @router.get(
     "/volumes/{volume_id}",
     response_model=VolumeResponse,
-    summary="获取卷详情",
+    summary="Mengambil detail volume",
 )
 async def get_volume(
     volume_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> VolumeResponse:
-    """获取单个卷详情。"""
+    """Mengambil detail satu volume."""
     try:
         volume = await volume_service.get_volume(session, volume_id)
         return VolumeResponse.model_validate(volume)
@@ -84,14 +84,14 @@ async def get_volume(
 @router.patch(
     "/volumes/{volume_id}",
     response_model=VolumeResponse,
-    summary="更新卷",
+    summary="Memperbarui volume",
 )
 async def update_volume(
     volume_id: str,
     data: VolumeUpdate,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> VolumeResponse:
-    """更新卷名或说明。"""
+    """Memperbarui nama atau deskripsi volume."""
     try:
         description = (
             data.description
@@ -112,14 +112,14 @@ async def update_volume(
 @router.delete(
     "/volumes/{volume_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="删除卷",
+    summary="Menghapus volume",
 )
 async def delete_volume(
     volume_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
     cascade: bool = Query(default=False),
 ) -> Response:
-    """删除卷，非空卷默认返回 409。"""
+    """Menghapus volume; volume yang tidak kosong secara default mengembalikan 409."""
     try:
         await volume_service.delete_volume(session, volume_id, cascade=cascade)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -132,14 +132,14 @@ async def delete_volume(
 @router.post(
     "/volumes/{volume_id}/move",
     response_model=VolumeResponse,
-    summary="移动卷",
+    summary="Memindahkan volume",
 )
 async def move_volume(
     volume_id: str,
     data: VolumeMove,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> VolumeResponse:
-    """调整卷在项目内的位置。"""
+    """Menyesuaikan posisi volume di dalam proyek."""
     try:
         volume = await volume_service.move_volume(session, volume_id, data.new_order)
         return VolumeResponse.model_validate(volume)

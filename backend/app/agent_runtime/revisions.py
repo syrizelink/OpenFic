@@ -267,7 +267,7 @@ async def begin_user_revision(
 ) -> Revision:
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     revision = Revision(
         project_id=project_id,
@@ -780,7 +780,9 @@ def _sort_category_snapshots_by_hierarchy(
 async def _fallback_volume_id(session: AsyncSession, project_id: str) -> str:
     volumes = await volume_repo.list_by_project(session, project_id)
     if not volumes:
-        raise NotFoundError(f"项目缺少卷，无法恢复章节: {project_id}")
+        raise NotFoundError(
+            f"Proyek tidak memiliki volume, bab tidak dapat dipulihkan: {project_id}"
+        )
     return volumes[0].id
 
 
@@ -848,11 +850,14 @@ async def rollback_revision_for_session(
 ) -> AgentRollbackResult:
     target = await revision_repo.get_by_id(session, revision_id)
     if target is None:
-        raise NotFoundError(f"版本不存在: {revision_id}")
+        raise NotFoundError(f"Versi tidak ditemukan: {revision_id}")
     if target.agent_session_id != agent_session_id:
-        raise NotFoundError(f"版本不属于会话: {revision_id}")
+        raise NotFoundError(f"Versi tidak termasuk dalam sesi: {revision_id}")
     if target.user_message_seq is None:
-        raise ValueError("revision 缺少 user_message_seq，无法按用户消息回滚")
+        raise ValueError(
+            "revision tidak memiliki user_message_seq, rollback berdasarkan pesan "
+            "pengguna tidak dapat dilakukan"
+        )
 
     revisions = await revision_repo.list_by_agent_session_from_seq(
         session,
@@ -912,8 +917,10 @@ async def rollback_revision_for_session(
                 restored_attachments = [
                     attachment for attachment in attachments if isinstance(attachment, dict)
                 ]
-    if not restored_message_content and target.message.startswith("用户消息:"):
-        restored_message_content = target.message.removeprefix("用户消息:").strip()
+    if not restored_message_content and target.message.startswith("Pesan pengguna:"):
+        restored_message_content = target.message.removeprefix(
+            "Pesan pengguna:"
+        ).strip()
 
     for snapshot in restore_by_chapter.values():
         if snapshot.exists:
@@ -931,7 +938,10 @@ async def rollback_revision_for_session(
     rollback_revision = Revision(
         project_id=target.project_id,
         task_id=target.task_id,
-        message=f"回滚到用户消息发送前: {restored_message_content or target.message}",
+        message=(
+            "Rollback ke kondisi sebelum pesan pengguna dikirim: "
+            f"{restored_message_content or target.message}"
+        ),
         agent_session_id=agent_session_id,
         revision_type="rollback",
         parent_revision_id=target.id,

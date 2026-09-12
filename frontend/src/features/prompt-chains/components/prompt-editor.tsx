@@ -1,7 +1,7 @@
 /**
  * PromptEditor Component
  *
- * 提示词编辑器（基于Tiptap）
+ * Editor prompt (berbasis Tiptap)
  */
 
 import { Flex, TextField, Separator, Text } from "@radix-ui/themes";
@@ -34,37 +34,37 @@ export function PromptEditor({
   isMobile = false,
 }: PromptEditorProps) {
   const { t } = useTranslation();
-  // 上一次的 entry.id，用于检测条目切换
+  // entry.id sebelumnya, dipakai untuk mendeteksi perpindahan entri
   const lastEntryIdRef = useRef<string | undefined>(entry.id);
-  // Tiptap 事件处理函数在初始化后不会随 React props 更新，需通过 ref 使用最新上下文。
+  // Handler peristiwa Tiptap tidak ikut diperbarui oleh props React setelah inisialisasi, jadi konteks terbaru diakses lewat ref.
   const currentEntryIdRef = useRef(entry.id ?? "");
   const onUpdateRef = useRef(onUpdate);
   const onUpdateWithIdRef = useRef(onUpdateWithId);
-  // 是否正在从外部设置内容（避免循环更新）
+  // Menandai isi sedang disetel dari luar (mencegah pembaruan berulang)
   const isSettingContentRef = useRef(false);
-  // 最近一次从编辑器同步到父组件的条目内容，避免父组件回显重置光标。
+  // Isi entri terakhir yang disinkronkan dari editor ke komponen induk, mencegah induk memantulkan balik dan mereset kursor.
   const lastSyncedEntryRef = useRef({ id: entry.id, content: entry.content });
-  // 上次保存的内容（用于判断是否有未保存的更改，存储 HTML 格式用于与编辑器内容比较）
+  // Isi terakhir yang disimpan (untuk menilai adanya perubahan belum tersimpan, disimpan sebagai HTML agar bisa dibandingkan dengan isi editor)
   const lastSavedContentRef = useRef<string>(
     entry.content ? newlinesToHtml(entry.content, true) : "",
   );
-  // 编辑器内容容器引用（用于右键菜单）
+  // Referensi wadah isi editor (dipakai untuk menu klik kanan)
   const editorContentRef = useRef<HTMLDivElement>(null);
-  // 当前token数
+  // Jumlah token saat ini
   const [tokenCount, setTokenCount] = useState<number>(entry.token_count || 0);
 
   currentEntryIdRef.current = entry.id ?? "";
   onUpdateRef.current = onUpdate;
   onUpdateWithIdRef.current = onUpdateWithId;
 
-  // 角色选项（使用prefix来显示图标）
+  // Opsi peran (memakai prefix untuk menampilkan ikon)
   const roleOptions = [
     { value: "system", label: t("promptChains.roleSystem"), prefix: <Terminal size={14} /> },
     { value: "user", label: t("promptChains.roleUser"), prefix: <User size={14} /> },
     { value: "assistant", label: t("promptChains.roleAssistant"), prefix: <Bot size={14} /> },
   ];
 
-  // 立即更新（用于非内容字段，如角色、名称）
+  // Pembaruan langsung (untuk field non-isi seperti peran dan nama)
   const immediateUpdate = useCallback((updates: Partial<PromptEntryData>) => {
     if (onUpdateWithIdRef.current) {
       onUpdateWithIdRef.current(currentEntryIdRef.current, updates);
@@ -83,11 +83,11 @@ export function PromptEditor({
     onUpdateRef.current(updates);
   }, []);
 
-  // 创建编辑器实例
+  // Membuat instans editor
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        // 禁用不需要的功能
+        // Menonaktifkan fitur yang tidak diperlukan
         heading: false,
         bold: false,
         italic: false,
@@ -104,7 +104,7 @@ export function PromptEditor({
         placeholder: t("promptChains.contentPlaceholder"),
       }),
     ],
-    // 从数据库加载时，将换行符转换为 HTML（<p></p> 格式）供 Tiptap 显示
+    // Saat dimuat dari basis data, ubah karakter baris baru menjadi HTML (format <p></p>) agar bisa ditampilkan Tiptap
     content: entry.content ? newlinesToHtml(entry.content, true) : "",
     parseOptions: {
       preserveWhitespace: "full",
@@ -115,20 +115,20 @@ export function PromptEditor({
       },
     },
     onUpdate: ({ editor }) => {
-      // 如果正在从外部设置内容，跳过更新
+      // Lewati pembaruan jika isi sedang disetel dari luar
       if (isSettingContentRef.current) {
         return;
       }
 
-      // 直接从 Tiptap 文档导出纯文本，避免对 HTML 做有损的二次解析。
+      // Ekspor teks polos langsung dari dokumen Tiptap agar HTML tidak diurai ulang secara merusak.
       const html = editor.getHTML();
       const content = editor.getText({ blockSeparator: "\n" });
 
       const calculatedTokenCount = countTokens(content);
-      // 实时更新token数显示
+      // Perbarui tampilan jumlah token secara langsung
       setTokenCount(calculatedTokenCount);
 
-      // 版本保存依赖父级 entries 状态，正文必须在当前事件中同步更新。
+      // Penyimpanan versi bergantung pada state entries induk, jadi isi utama harus diperbarui dalam peristiwa ini.
       const entryId = currentEntryIdRef.current;
       lastSyncedEntryRef.current = { id: entryId, content };
       updateEntry(entryId, {
@@ -139,33 +139,33 @@ export function PromptEditor({
     },
   });
 
-  // 立即保存当前内容（用于快捷键和切换条目时）
+  // Menyimpan isi saat ini seketika (untuk pintasan papan tombol dan saat berpindah entri)
   const saveNow = useCallback(() => {
     if (!editor || isSettingContentRef.current) return;
 
-    // 获取当前编辑器内容
+    // Mengambil isi editor saat ini
     const html = editor.getHTML();
     const content = editor.getText({ blockSeparator: "\n" });
     const calculatedTokenCount = countTokens(content);
 
-    // 立即更新
+    // Pembaruan langsung
     lastSyncedEntryRef.current = { id: currentEntryIdRef.current, content };
     updateEntry(currentEntryIdRef.current, {
       content: content,
       token_count: calculatedTokenCount,
     });
 
-    // 更新保存状态
+    // Memperbarui status penyimpanan
     lastSavedContentRef.current = html;
     setTokenCount(calculatedTokenCount);
   }, [editor, updateEntry]);
 
-  // 带条目ID的保存函数（用于切换条目时保存旧条目）
+  // Fungsi penyimpanan dengan ID entri (dipakai untuk menyimpan entri lama saat berpindah)
   const saveNowWithId = useCallback(
     (targetEntryId: string) => {
       if (!editor || isSettingContentRef.current) return;
 
-      // 获取当前编辑器内容
+      // Mengambil isi editor saat ini
       const html = editor.getHTML();
       const content = editor.getText({ blockSeparator: "\n" });
       const calculatedTokenCount = countTokens(content);
@@ -176,39 +176,39 @@ export function PromptEditor({
         token_count: calculatedTokenCount,
       });
 
-      // 更新保存状态
+      // Memperbarui status penyimpanan
       lastSavedContentRef.current = html;
       setTokenCount(calculatedTokenCount);
     },
     [editor, updateEntry],
   );
 
-  // 监听 entry.id 变化，在切换条目前保存旧条目的内容
+  // Memantau perubahan entry.id agar isi entri lama tersimpan sebelum berpindah
   useEffect(() => {
     if (!editor) return;
 
-    // 检测条目切换（entry.id 变化）
+    // Mendeteksi perpindahan entri (entry.id berubah)
     const isEntryChanged = lastEntryIdRef.current !== entry.id;
     const previousEntryId = lastEntryIdRef.current;
 
-    // 如果切换条目且有未保存的更改，先保存旧条目的内容
+    // Jika berpindah entri dan ada perubahan belum tersimpan, simpan dulu isi entri lama
     if (isEntryChanged && previousEntryId !== undefined) {
-      // 获取当前编辑器内容（HTML 格式）
+      // Mengambil isi editor saat ini (format HTML)
       const currentEditorContent = editor.getHTML();
-      // 直接检查当前内容是否与已保存的内容不同
+      // Memeriksa langsung apakah isi saat ini berbeda dari isi yang sudah disimpan
       const hasChanges = currentEditorContent !== lastSavedContentRef.current;
 
       if (hasChanges) {
-        // 调用保存函数（setState 在 useCallback 内部，不会触发警告）
+        // Memanggil fungsi penyimpanan (setState ada di dalam useCallback, jadi tidak memicu peringatan)
         saveNowWithId(previousEntryId);
       }
     }
 
-    // 更新 lastEntryIdRef（在保存完成后）
+    // Memperbarui lastEntryIdRef (setelah penyimpanan selesai)
     lastEntryIdRef.current = entry.id;
   }, [entry.id, editor, saveNowWithId]);
 
-  // 当条目或外部内容改变时更新编辑器内容
+  // Memperbarui isi editor saat entri atau isi dari luar berubah
   useEffect(() => {
     if (!editor) return;
 
@@ -217,15 +217,15 @@ export function PromptEditor({
       lastSyncedEntryRef.current.content === entry.content;
     if (isLocalContentEcho) return;
 
-    // 获取当前编辑器内容（HTML 格式）
+    // Mengambil isi editor saat ini (format HTML)
     const currentEditorContent = editor.getHTML();
-    // 从数据库加载的内容是换行符格式，需要转换为 HTML 供编辑器显示
+    // Isi yang dimuat dari basis data memakai format baris baru, jadi perlu diubah ke HTML agar bisa ditampilkan editor
     const newContentHtml = entry.content ? newlinesToHtml(entry.content, true) : "";
 
-    // 只有在内容真正不同时才更新（避免循环更新）
+    // Hanya perbarui bila isinya benar-benar berbeda (mencegah pembaruan berulang)
     if (currentEditorContent !== newContentHtml) {
       isSettingContentRef.current = true;
-      // 使用 queueMicrotask 将 setContent 延迟到微任务中，避免在 React 渲染周期中调用 flushSync
+      // Memakai queueMicrotask agar setContent tertunda ke mikrotugas, mencegah pemanggilan flushSync dalam siklus render React
       queueMicrotask(() => {
         editor.commands.setContent(newContentHtml, {
           emitUpdate: false,
@@ -233,13 +233,13 @@ export function PromptEditor({
             preserveWhitespace: "full",
           },
         });
-        // 使用 setTimeout 确保 onUpdate 不会立即触发，并更新状态
+        // Memakai setTimeout agar onUpdate tidak langsung terpicu, sekaligus memperbarui state
         setTimeout(() => {
           isSettingContentRef.current = false;
           lastSyncedEntryRef.current = { id: entry.id, content: entry.content };
-          // 更新保存状态（保存 HTML 格式用于比较，因为编辑器内部使用 HTML）
+          // Memperbarui status penyimpanan (menyimpan format HTML untuk pembanding, karena editor memakai HTML secara internal)
           lastSavedContentRef.current = newContentHtml;
-          // 重新计算token数
+          // Menghitung ulang jumlah token
           if (editor) {
             const text = editor.getText({ blockSeparator: "\n" });
             setTokenCount(countTokens(text));
@@ -249,17 +249,17 @@ export function PromptEditor({
     }
   }, [entry.id, entry.content, editor]);
 
-  // Ctrl+S 快捷键保存
+  // Pintasan Ctrl+S untuk menyimpan
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 检查是否是 Ctrl+S (Windows/Linux) 或 Cmd+S (Mac)
+      // Memeriksa apakah Ctrl+S (Windows/Linux) atau Cmd+S (Mac)
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
         saveNow();
       }
     };
 
-    // 添加键盘事件监听器
+    // Menambahkan pendengar peristiwa papan tombol
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
@@ -269,15 +269,15 @@ export function PromptEditor({
 
   return (
     <div className="prompt-editor-shell">
-      {/* 表单区域 - 固定高度，不滚动 */}
+      {/* Area formulir - tinggi tetap, tidak menggulir */}
       <div className="prompt-editor-form">
-        {/* 第一行：角色选择 + 条目名称 */}
+        {/* Baris pertama: pilihan peran + nama entri */}
         <Flex
           align="center"
           gap="4"
           mb="4"
         >
-          {/* 角色选择 */}
+          {/* Pilihan peran */}
           <LabeledSelect
             value={entry.role}
             options={roleOptions}
@@ -293,7 +293,7 @@ export function PromptEditor({
 
           <Separator orientation="vertical" />
 
-          {/* 条目名称 */}
+          {/* Nama entri */}
           <Flex
             align="center"
             gap="2"
@@ -313,9 +313,9 @@ export function PromptEditor({
       </div>
 
       <div className="prompt-editor-main">
-        {/* 编辑器块（带边框）- 可滚动区域，占据剩余空间 */}
+        {/* Blok editor (bergaris tepi) - area yang bisa digulir, mengisi ruang sisa */}
         <div className="prompt-editor-frame">
-          {/* 编辑器内容区 - 可滚动 */}
+          {/* Area isi editor - bisa digulir */}
           <div
             ref={editorContentRef}
             className="prompt-editor-scroll-area"
@@ -324,20 +324,20 @@ export function PromptEditor({
           </div>
         </div>
 
-        {/* 右键菜单 */}
+        {/* Menu klik kanan */}
         <ContextMenu
           editor={editor}
           containerRef={editorContentRef}
         />
       </div>
 
-      {/* 底部状态栏 - 固定 */}
+      {/* Bilah status bawah - tetap */}
       <div className="prompt-editor-statusbar">
         <Flex
           justify="between"
           align="center"
         >
-          {/* 左侧：Token数 */}
+          {/* Kiri: jumlah Token */}
           <Text
             size="2"
             color="gray"
@@ -345,7 +345,7 @@ export function PromptEditor({
             {t("promptChains.tokenCount")}: {tokenCount}
           </Text>
 
-          {/* 右侧：工作副本同步状态 */}
+          {/* Kanan: status sinkronisasi salinan kerja */}
           <Text
             size="2"
             color="green"

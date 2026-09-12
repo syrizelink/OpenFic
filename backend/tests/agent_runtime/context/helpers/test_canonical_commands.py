@@ -10,19 +10,19 @@ from app.agent_runtime.context.helpers.canonical_commands import (
 @pytest.mark.asyncio
 async def test_compile_canonical_mentions_compiles_skill_command() -> None:
     compiled = await compile_canonical_mentions(
-        '请使用<of-skill id="skill-1" name="小说人物设计" />',
+        'Silakan gunakan<of-skill id="skill-1" name="Desain Tokoh Novel" />',
     )
 
-    assert compiled == "请使用@skill:小说人物设计"
+    assert compiled == "Silakan gunakan@skill:Desain Tokoh Novel"
 
 
 @pytest.mark.asyncio
 async def test_compile_canonical_mentions_keeps_skill_command_name_without_lookup() -> None:
     compiled = await compile_canonical_mentions(
-        '<of-skill id="disabled-skill" name="已禁用技能" />',
+        '<of-skill id="disabled-skill" name="Skill Nonaktif" />',
     )
 
-    assert compiled == "@skill:已禁用技能"
+    assert compiled == "@skill:Skill Nonaktif"
 
 
 def test_canonical_skill_command_preserves_id() -> None:

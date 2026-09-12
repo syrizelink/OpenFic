@@ -1,7 +1,7 @@
 /**
  * Editor Configuration
  *
- * Tiptap 编辑器扩展配置 - 纯文本模式。
+ * Konfigurasi ekstensi editor Tiptap - mode teks polos.
  */
 
 import type { JSONContent } from "@tiptap/core";
@@ -18,6 +18,7 @@ import { Extension } from "@tiptap/react";
 import { serializeClipboardText } from "@/components/editor-clipboard";
 import { createEditorShortcuts, type EditorShortcutCallbacks } from "@/components/editor-shortcuts";
 import { PARAGRAPH_INDENT } from "@/components/editor-toolbar-actions";
+import i18n from "@/i18n";
 
 import { SearchAndReplace } from "./search-and-replace";
 
@@ -331,38 +332,38 @@ export function createPlainTextPasteContent(text: string): JSONContent[] {
 }
 
 /**
- * 编辑器扩展配置选项
+ * Opsi konfigurasi ekstensi editor
  */
 export interface EditorExtensionsOptions {
-  /** 占位符文本 */
+  /** Teks pengisi sementara */
   placeholder?: string;
-  /** 编辑器快捷键回调 */
+  /** Callback pintasan papan tombol editor */
   shortcuts?: EditorShortcutCallbacks;
-  /** 换行时是否继承当前段落的段首两格缩进 */
+  /** Menentukan apakah baris baru mewarisi indentasi dua spasi di awal paragraf saat ini */
   autoIndent?: () => boolean;
-  /** 输入时是否将半角标点符号转换为全角 */
+  /** Menentukan apakah tanda baca setengah lebar diubah menjadi lebar penuh saat diketik */
   autoConvertPunctuation?: () => boolean;
-  /** 输入成对符号的左符号时是否自动补齐右符号 */
+  /** Menentukan apakah simbol penutup dilengkapi otomatis saat simbol pembuka pasangan diketik */
   autoPairSymbols?: () => boolean;
 }
 
 /**
- * 纯文本编辑器扩展配置
+ * Konfigurasi ekstensi editor teks polos
  *
- * 只包含基础的段落编辑功能，不支持任何富文本格式：
- * - Document: 文档根节点
- * - Paragraph: 段落
- * - Text: 文本
- * - History: 撤销/重做
- * - Placeholder: 占位符文本
- * - CharacterCount: 字符计数（实时更新）
- * - TabIndent: Tab 键缩进（2em）
- * - SearchAndReplace: 查找和替换
- * - EditorShortcuts: 编辑器快捷键（Mod-f, Mod-h, Mod-s）
+ * Hanya memuat fungsi penyuntingan paragraf dasar, tanpa dukungan format teks kaya apa pun:
+ * - Document: node akar dokumen
+ * - Paragraph: paragraf
+ * - Text: teks
+ * - History: batalkan/ulangi
+ * - Placeholder: teks pengisi sementara
+ * - CharacterCount: penghitung karakter (diperbarui langsung)
+ * - TabIndent: indentasi tombol Tab (2em)
+ * - SearchAndReplace: cari dan ganti
+ * - EditorShortcuts: pintasan papan tombol editor (Mod-f, Mod-h, Mod-s)
  */
 export function createEditorExtensions(options: EditorExtensionsOptions = {}) {
   const {
-    placeholder = "开始写作...",
+    placeholder = i18n.t("writing.contentPlaceholder"),
     shortcuts,
     autoIndent,
     autoConvertPunctuation,
@@ -383,22 +384,22 @@ export function createEditorExtensions(options: EditorExtensionsOptions = {}) {
     SearchAndReplace,
   ];
 
-  // 如果提供了快捷键回调，添加快捷键扩展
+  // Jika callback pintasan disediakan, tambahkan ekstensi pintasan
   if (shortcuts) {
     extensions.push(createEditorShortcuts(shortcuts));
   }
 
-  // 如果启用了段落自动缩进，添加换行继承扩展
+  // Jika indentasi paragraf otomatis diaktifkan, tambahkan ekstensi pewarisan baris baru
   if (autoIndent) {
     extensions.push(createParagraphAutoIndent(autoIndent));
   }
 
-  // 如果启用了半角标点自动转换，添加输入转换扩展
+  // Jika konversi otomatis tanda baca setengah lebar diaktifkan, tambahkan ekstensi konversi masukan
   if (autoConvertPunctuation) {
     extensions.push(createAutoConvertPunctuation(autoConvertPunctuation));
   }
 
-  // Tiptap 会反转扩展顺序注册 ProseMirror 插件，因此补全扩展必须最后加入。
+  // Tiptap membalik urutan ekstensi saat mendaftarkan plugin ProseMirror, jadi ekstensi pelengkap harus ditambahkan paling akhir.
   if (autoPairSymbols) {
     extensions.push(
       createAutoPairSymbols(autoPairSymbols, autoConvertPunctuation ?? (() => false)),

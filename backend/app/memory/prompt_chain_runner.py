@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Prompt Chain Runner - 统一提示词链运行器。
+Prompt Chain Runner - runner rantai prompt terpadu.
 
-用于按 mode/task/agent 获取提示词链版本、编译宏，并按 role 顺序注入 task context 消息。
+Dipakai untuk mengambil versi rantai prompt menurut mode/task/agent, mengompilasi makro,
+lalu menyuntikkan pesan task context sesuai urutan role.
 """
 
 import json
@@ -77,7 +78,10 @@ def _tool_calls_context(tool_calls: list[dict[str, Any]]) -> str:
     ]
     if not compact_calls:
         return ""
-    return "历史工具调用结果上下文（不可作为当前Agent可用工具）：\n" + json.dumps(
+    return (
+        "Konteks hasil pemanggilan tool historis (tidak dapat dipakai sebagai tool yang"
+        " tersedia bagi Agen saat ini):\n"
+    ) + json.dumps(
         compact_calls,
         ensure_ascii=False,
     )
@@ -125,7 +129,11 @@ def _compact_task_history_message(
                 part
                 for part in (
                     _agent_role_header(message.agent_id),
-                    f"工具结果上下文：{compact_result.get('tool_name') or 'tool'} - {compact_result.get('message') or ''}",
+                    (
+                        "Konteks hasil tool:"
+                        f" {compact_result.get('tool_name') or 'tool'}"
+                        f" - {compact_result.get('message') or ''}"
+                    ),
                 )
                 if part
             ),
@@ -239,7 +247,7 @@ def _last_user_message_content(messages: list[dict[str, Any]]) -> str | None:
 
 @dataclass
 class ChatRuntime:
-    """Chat 运行时输入。"""
+    """Masukan runtime Chat."""
 
     current_message: str
     task_id: str | None = None
@@ -260,12 +268,12 @@ async def build_chat_messages(
     runtime: ChatRuntime,
 ) -> list[dict[str, Any]]:
     """
-    构建 Chat 运行时消息列表。
+    Membangun daftar pesan runtime Chat.
 
-    1. 加载并编译 prompt-chain。
-    2. 追加 chat_history（chat 模式）。
-    3. 追加 task context（agent 模式，来自 task_message_repo）。
-    4. 追加当前用户消息（避免与历史重复）。
+    1. Memuat dan mengompilasi prompt-chain.
+    2. Menambahkan chat_history (mode chat).
+    3. Menambahkan task context (mode agent, berasal dari task_message_repo).
+    4. Menambahkan pesan pengguna saat ini (menghindari duplikasi dengan riwayat).
     """
     version_entries = await prompt_chain_service.get_latest_version_with_entries_or_default(
         session, prompt_id

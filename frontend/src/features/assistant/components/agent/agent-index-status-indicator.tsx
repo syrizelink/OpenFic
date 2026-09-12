@@ -21,8 +21,8 @@ interface AgentIndexStatusIndicatorProps {
 }
 
 /**
- * Agent 输入工具栏的索引状态指示器：不可点击，以颜色反映索引状态。
- * 初始状态由 API 获取，后续由 socket 事件推送更新。
+ * Indikator status indeks pada bilah alat masukan Agent: tidak dapat diklik, status indeks dinyatakan lewat warna.
+ * Status awal diambil lewat API, pembaruan berikutnya dikirim lewat peristiwa socket.
  */
 export function AgentIndexStatusIndicator({ projectId }: AgentIndexStatusIndicatorProps) {
   const { t } = useTranslation();

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""WorldInfo Service - 世界书业务逻辑层。"""
+"""WorldInfo Service - lapisan logika bisnis buku dunia."""
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,36 +10,36 @@ from app.storage.repos import project_repo, world_info_entry_repo, world_info_re
 INTERNAL_WORLD_INFO_NAME = ""
 
 
-# ============== 世界书操作 ==============
+# ============== Operasi buku dunia ==============
 
 
 async def get_world_info(session: AsyncSession, world_info_id: str) -> WorldInfo:
     """
-    获取世界书。
+    Mengambil buku dunia.
 
     Args:
-        session: 数据库 session。
-        world_info_id: 世界书 ID。
+        session: session basis data.
+        world_info_id: ID buku dunia.
 
     Returns:
-        世界书实例。
+        Instance buku dunia.
 
     Raises:
-        NotFoundError: 世界书不存在。
+        NotFoundError: Buku dunia tidak ditemukan.
     """
     world_info = await world_info_repo.get_by_id(session, world_info_id)
     if world_info is None:
-        raise NotFoundError(f"世界书不存在: {world_info_id}")
+        raise NotFoundError(f"Buku dunia tidak ditemukan: {world_info_id}")
     return world_info
 
 
 async def get_or_create_world_info_by_project(
     session: AsyncSession, project_id: str
 ) -> WorldInfo:
-    """根据项目 ID 获取项目唯一世界书，不存在时自动创建。"""
+    """Mengambil buku dunia tunggal proyek berdasarkan ID proyek, dibuat otomatis bila tidak ada."""
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     world_info = await world_info_repo.get_by_project_id(session, project_id)
     if world_info is not None:
@@ -57,19 +57,19 @@ async def get_or_create_world_info_by_project(
 
 async def delete_world_info(session: AsyncSession, world_info_id: str) -> None:
     """
-    删除世界书及其所有条目。
+    Menghapus buku dunia beserta seluruh entrinya.
 
     Args:
-        session: 数据库 session。
-        world_info_id: 世界书 ID。
+        session: session basis data.
+        world_info_id: ID buku dunia.
 
     Raises:
-        NotFoundError: 世界书不存在。
+        NotFoundError: Buku dunia tidak ditemukan.
     """
     world_info = await get_world_info(session, world_info_id)
 
-    # 先删除所有条目
+    # Hapus semua entri lebih dahulu
     await world_info_entry_repo.delete_by_world_info(session, world_info_id)
 
-    # 再删除世界书
+    # Baru hapus buku dunia
     await world_info_repo.delete(session, world_info)

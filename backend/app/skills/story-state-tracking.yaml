@@ -1,145 +1,145 @@
 id: builtin-skill--story-state-tracking
-name: 故事状态追踪
-summary: 从已有故事上下文中筛选当前创作所需状态，追踪角色、关系、伏笔、世界约束和剧情进度。
+name: Pelacakan Status Cerita
+summary: Menyaring status yang dibutuhkan penulisan saat ini dari konteks cerita yang sudah ada, serta melacak tokoh, hubungan, petunjuk awal, batasan dunia, dan kemajuan alur cerita.
 is_enabled: true
 content: |
-  # 状态追踪协议
+  # Protokol Pelacakan Status
 
-  本 Skill 的目标不是重复摘要全文，而是从当前可用材料中筛选“如果不知道，本章或本次审查就会写错”的信息，形成可继续使用的状态快照。
+  Sasaran Skill ini bukan mengulang ringkasan seluruh teks, melainkan menyaring dari materi yang tersedia saat ini informasi yang "jika tidak diketahui, bab ini atau telaah kali ini akan salah tulis", lalu membentuk potret status yang dapat terus dipakai.
 
-  ## 一、本节速记筛选逻辑
+  ## Satu, Logika Penyaringan Catatan Cepat Bagian Ini
 
-  从已有上下文提取三类信息：
+  Ambil tiga jenis informasi dari konteks yang sudah ada:
 
-  1. 当前状态：本节涉及角色的最新能力、关系变化和公众形象。
-  2. 历史因果：与本节事件直接相关的伏笔成因和前史事件。
-  3. 世界约束：本节涉及的力量体系、社会规则、地理限制和其他不能违反的设定。
+  1. Status saat ini: kemampuan terbaru, perubahan hubungan, dan citra publik tokoh yang terlibat di bagian ini.
+  2. Sebab-akibat historis: penyebab petunjuk awal dan peristiwa masa lalu yang berkaitan langsung dengan peristiwa di bagian ini.
+  3. Batasan dunia: sistem kekuatan, aturan sosial, batasan geografis, dan latar lain yang tidak boleh dilanggar di bagian ini.
 
-  ### 筛选标准
+  ### Standar Penyaringan
 
-  - 本节涉及某个角色：保留该角色当前状态和最近变化。
-  - 本节回收或推进伏笔：保留伏笔首次出现的具体细节和前文铺垫。
-  - 本节涉及地点、能力或规则：保留相关世界约束。
-  - 纯背景知识、与本节没有因果关联的资料：暂不纳入速记。
-  - 不确定的信息标注“材料未说明”或“待确认”，不要为了让表格完整而杜撰。
+  - Bagian ini melibatkan seorang tokoh: pertahankan status terkini dan perubahan terbaru tokoh itu.
+  - Bagian ini menarik kembali atau menggerakkan petunjuk awal: pertahankan detail konkret kemunculan pertama petunjuk itu beserta landasan yang dibangun pada teks sebelumnya.
+  - Bagian ini melibatkan tempat, kemampuan, atau aturan: pertahankan batasan dunia yang terkait.
+  - Pengetahuan latar belakang murni dan materi yang tidak punya kaitan sebab-akibat dengan bagian ini: jangan dimasukkan dulu ke catatan cepat.
+  - Informasi yang tidak pasti ditandai "materi tidak menyebutkan" atau "menunggu konfirmasi"; jangan mengarang hanya agar tabelnya lengkap.
 
-  ## 二、本节速记格式
-
-  ```
-  ## 本节速记
-
-  ### 当前剧情
-  {本节要推进的事件、目标或选择}
-
-  ### 角色状态
-  {角色A}：{一句话当前状态，含最近变化}
-  {角色B}：{一句话当前状态}
-
-  ### 相关伏笔/前史
-  {伏笔1}：{首次出现的具体细节}，当前需要{回收/推进/暂不处理}
-
-  ### 世界约束
-  {约束1}：{与本节相关的规则或设定}
-
-  ### 未解决问题
-  {本节结束后必须保留的目标、风险、信息或关系问题}
-  ```
-
-  速记应足够短，能直接指导下一步写作或审查，但不能为了短而删除会影响因果、人物行为或设定一致性的事实。
-
-  ## 三、角色状态快照
-
-  主要角色可按以下格式维护：
+  ## Dua, Format Catatan Cepat Bagian Ini
 
   ```
-  ## {角色名}
-  - 当前身份：{最新身份/职业}
-  - 当前能力：{最新能力水平}
-  - 当前目标：{正在追求的目标}
-  - 当前限制：{伤势、资源、规则、关系或信息限制}
-  - 关键关系：
-    - 与{角色B}：{当前关系状态}，最近变化：{事件}
-    - 与{角色C}：{当前关系状态}
-  - 公众形象：{外界如何看待该角色}
-  - 已知信息：{角色明确知道的关键事实}
-  - 误解或未知：{角色尚不知道或判断错误的事实}
-  - 待回收伏笔：{与该角色相关的开放项}
-  - 状态变更记录：
-    - {位置或阶段}：{变化描述}
+  ## Catatan Cepat Bagian Ini
+
+  ### Alur Cerita Saat Ini
+  {peristiwa, tujuan, atau pilihan yang akan digerakkan bagian ini}
+
+  ### Status Tokoh
+  {Tokoh A}: {status terkini dalam satu kalimat, memuat perubahan terbaru}
+  {Tokoh B}: {status terkini dalam satu kalimat}
+
+  ### Petunjuk Awal/Masa Lalu Terkait
+  {Petunjuk 1}: {detail konkret kemunculan pertama}, saat ini perlu {ditarik kembali/digerakkan/belum ditangani}
+
+  ### Batasan Dunia
+  {Batasan 1}: {aturan atau latar yang berkaitan dengan bagian ini}
+
+  ### Masalah Belum Terselesaikan
+  {tujuan, risiko, informasi, atau masalah hubungan yang wajib dipertahankan setelah bagian ini berakhir}
   ```
 
-  ### 更新规则
+  Catatan cepat harus cukup singkat sehingga dapat langsung memandu penulisan atau telaah berikutnya, tetapi tidak boleh menghapus fakta yang memengaruhi sebab-akibat, perilaku tokoh, atau konsistensi latar hanya demi keringkasan.
 
-  1. 状态截止到当前用户指定的位置，不把后文信息倒灌到前文。
-  2. 每次事件后检查身份、能力、目标、限制、关系、公众形象和已知信息是否变化。
-  3. 无变化的字段不必重复扩写。
-  4. 只追踪主要角色：多次出场、拥有独立剧情线、影响主线或承担重要关系的角色；一次性路人不纳入。
-  5. 变更记录保留最近的关键记录，较早记录可以合并为阶段摘要，但不能丢失影响当前行为的事实。
-  6. 如果材料出现冲突，列出两个来源和冲突点，等待裁定，不静默覆盖。
+  ## Tiga, Potret Status Tokoh
 
-  ## 四、伏笔追踪
-
-  每条伏笔至少记录：
-  - 首次出现位置。
-  - 当时的表面意义。
-  - 当前状态：未规划、已埋、已推进、已回收、已失效或材料未说明。
-  - 可能回收条件和关联人物。
-  - 回收后会改变的事实、关系、规则或主线理解。
-  - 若继续悬置，会产生的期待和风险。
-
-  回收不能只写“解释清楚了”，要说明旧细节如何获得新意义，以及回收后谁的目标、关系、资源或认知发生变化。
-
-  ## 五、跨章状态检查
-
-  - 当前章节是否使用了已经改变的角色身份、能力、关系和称谓。
-  - 当前章节是否让角色知道了他此前不知道的信息。
-  - 当前章节是否提前使用了尚未解锁的设定或能力。
-  - 已承诺的目标、选择、代价和伏笔是否仍有状态记录。
-  - 新增角色、地点、组织和规则是否会在后续复用；会复用的应进入状态追踪。
-  - 章节结束后是否形成新的目标、风险、信息、关系、资源、身份或情绪状态。
-
-  ## 六、输出原则
-
-  - 优先记录会影响下一步决策的内容。
-  - 区分原文事实、角色认知和分析判断。
-  - 不用完整摘要代替状态字段。
-  - 不补写用户未提供的事实。
-  - 不把状态追踪说明、表格或元信息写进小说正文。
-
-  ## 七、状态变化与冲突处理
-
-  每次事件后按顺序检查：身份、能力、目标、限制、关系、公众形象、已知信息、误解、伏笔状态、资源、伤口、承诺和情绪立场。只记录会影响下一步决策的变化；无变化字段不重复扩写。
-
-  如果材料出现冲突，列出来源、位置和冲突点，标注“待裁定”，不静默覆盖。状态截止到用户指定位置，不能把后文信息倒灌到前文；角色只能使用其截至该点合理知道的信息。
-
-  ### 状态变更表
+  Tokoh utama dapat dipelihara dengan format berikut:
 
   ```
-  位置/事件：
-  触发因素：
-  变化字段：目标 / 风险 / 信息 / 关系 / 资源 / 身份 / 能力 / 公众形象 / 情绪
-  变化前：
-  变化后：
-  谁知道：
-  对后续的影响：
-  是否形成新承诺或伏笔：
+  ## {Nama Tokoh}
+  - Identitas saat ini: {identitas/pekerjaan terbaru}
+  - Kemampuan saat ini: {tingkat kemampuan terbaru}
+  - Tujuan saat ini: {tujuan yang sedang dikejar}
+  - Batasan saat ini: {batasan luka, sumber daya, aturan, hubungan, atau informasi}
+  - Hubungan kunci:
+    - Dengan {Tokoh B}: {status hubungan saat ini}, perubahan terbaru: {peristiwa}
+    - Dengan {Tokoh C}: {status hubungan saat ini}
+  - Citra publik: {bagaimana dunia luar memandang tokoh ini}
+  - Informasi yang diketahui: {fakta kunci yang jelas diketahui tokoh}
+  - Kesalahpahaman atau ketidaktahuan: {fakta yang belum diketahui atau dinilai salah oleh tokoh}
+  - Petunjuk awal yang menunggu ditarik: {butir terbuka yang berkaitan dengan tokoh ini}
+  - Catatan perubahan status:
+    - {posisi atau tahap}: {deskripsi perubahan}
   ```
 
-  ### 章节结束检查
+  ### Aturan Pembaruan
 
-  章节是否使用了已经改变的身份、能力、关系和称谓；是否让角色知道了此前不知道的信息；是否提前使用尚未解锁的设定或能力；承诺、选择、代价和伏笔是否仍有状态记录；新增角色、地点、组织和规则是否会在后续复用；结束后是否形成新的目标、风险、信息、关系、资源、身份或情绪状态。
+  1. Status berhenti pada posisi yang ditentukan pengguna saat ini; jangan mengalirkan informasi teks berikutnya ke teks sebelumnya.
+  2. Setelah setiap peristiwa, periksa apakah identitas, kemampuan, tujuan, batasan, hubungan, citra publik, dan informasi yang diketahui mengalami perubahan.
+  3. Bidang yang tidak berubah tidak perlu diuraikan ulang.
+  4. Lacak hanya tokoh utama: tokoh yang tampil beberapa kali, memiliki alur cerita sendiri, memengaruhi alur utama, atau memikul hubungan penting; tokoh lewat sekali tidak dimasukkan.
+  5. Catatan perubahan menyimpan catatan kunci terbaru. Catatan yang lebih lama boleh digabung menjadi ringkasan tahap, tetapi fakta yang memengaruhi perilaku saat ini tidak boleh hilang.
+  6. Jika materi memunculkan konflik, daftarkan kedua sumber dan titik konfliknya lalu tunggu putusan, jangan menimpanya secara diam-diam.
+
+  ## Empat, Pelacakan Petunjuk Awal
+
+  Setiap petunjuk awal minimal mencatat:
+  - Posisi kemunculan pertama.
+  - Makna permukaannya pada saat itu.
+  - Status saat ini: belum direncanakan, sudah ditanam, sudah digerakkan, sudah ditarik kembali, sudah tidak berlaku, atau materi tidak menyebutkan.
+  - Kemungkinan syarat penarikan kembali dan tokoh yang terkait.
+  - Fakta, hubungan, aturan, atau pemahaman alur utama yang akan berubah setelah ditarik kembali.
+  - Ekspektasi dan risiko yang muncul jika petunjuk terus digantung.
+
+  Penarikan kembali tidak cukup ditulis "sudah dijelaskan"; jelaskan bagaimana detail lama memperoleh makna baru, serta tujuan, hubungan, sumber daya, atau pengetahuan siapa yang berubah setelah penarikan itu.
+
+  ## Lima, Pemeriksaan Status Antarbab
+
+  - Apakah bab saat ini memakai identitas, kemampuan, hubungan, dan sebutan tokoh yang sudah berubah.
+  - Apakah bab saat ini membuat tokoh mengetahui informasi yang sebelumnya tidak ia ketahui.
+  - Apakah bab saat ini memakai lebih awal latar atau kemampuan yang belum terbuka.
+  - Apakah tujuan, pilihan, harga, dan petunjuk awal yang sudah dijanjikan masih memiliki catatan status.
+  - Apakah tokoh, tempat, organisasi, dan aturan baru akan dipakai lagi nanti; yang akan dipakai lagi harus masuk ke pelacakan status.
+  - Apakah setelah bab berakhir terbentuk status tujuan, risiko, informasi, hubungan, sumber daya, identitas, atau emosi yang baru.
+
+  ## Enam, Prinsip Keluaran
+
+  - Utamakan mencatat hal yang memengaruhi keputusan berikutnya.
+  - Bedakan fakta teks asli, pengetahuan tokoh, dan penilaian analitis.
+  - Jangan mengganti bidang status dengan ringkasan utuh.
+  - Jangan menambahkan fakta yang tidak disediakan pengguna.
+  - Jangan menuliskan penjelasan pelacakan status, tabel, atau metainformasi ke dalam isi utama novel.
+
+  ## Tujuh, Perubahan Status dan Penanganan Konflik
+
+  Setelah setiap peristiwa, periksa secara berurutan: identitas, kemampuan, tujuan, batasan, hubungan, citra publik, informasi yang diketahui, kesalahpahaman, status petunjuk awal, sumber daya, luka, janji, dan pendirian emosional. Catat hanya perubahan yang memengaruhi keputusan berikutnya; bidang yang tidak berubah tidak diuraikan ulang.
+
+  Jika materi memunculkan konflik, daftarkan sumber, posisi, dan titik konfliknya, tandai "menunggu putusan", dan jangan menimpanya secara diam-diam. Status berhenti pada posisi yang ditentukan pengguna, dan informasi teks berikutnya tidak boleh dialirkan ke teks sebelumnya; tokoh hanya boleh memakai informasi yang wajar ia ketahui sampai titik tersebut.
+
+  ### Tabel Perubahan Status
+
+  ```
+  Posisi/peristiwa:
+  Faktor pemicu:
+  Bidang yang berubah: tujuan / risiko / informasi / hubungan / sumber daya / identitas / kemampuan / citra publik / emosi
+  Sebelum berubah:
+  Setelah berubah:
+  Siapa yang tahu:
+  Dampak bagi kelanjutannya:
+  Apakah membentuk janji atau petunjuk awal baru:
+  ```
+
+  ### Pemeriksaan Akhir Bab
+
+  Apakah bab memakai identitas, kemampuan, hubungan, dan sebutan yang sudah berubah; apakah membuat tokoh mengetahui informasi yang sebelumnya tidak ia ketahui; apakah memakai lebih awal latar atau kemampuan yang belum terbuka; apakah janji, pilihan, harga, dan petunjuk awal masih memiliki catatan status; apakah tokoh, tempat, organisasi, dan aturan baru akan dipakai lagi nanti; apakah setelah berakhir terbentuk status tujuan, risiko, informasi, hubungan, sumber daya, identitas, atau emosi yang baru.
 references:
-  - name: 状态快照检查表
+  - name: Daftar Periksa Potret Status
     content: |
-      - 角色现在在哪里、是什么身份、正在做什么。
-      - 角色当前想要什么、能做什么、不能做什么。
-      - 角色知道哪些信息，误解哪些信息。
-      - 关系相较于上一个状态点发生了什么变化。
-      - 最近事件留下了什么代价、资源、伤口或承诺。
-  - name: 伏笔追踪检查表
+      - Tokoh sekarang ada di mana, berstatus apa, dan sedang melakukan apa.
+      - Tokoh saat ini menginginkan apa, mampu melakukan apa, dan tidak mampu melakukan apa.
+      - Informasi apa yang diketahui tokoh, dan informasi apa yang ia salah pahami.
+      - Perubahan apa yang terjadi pada hubungan dibandingkan titik status sebelumnya.
+      - Harga, sumber daya, luka, atau janji apa yang ditinggalkan peristiwa terbaru.
+  - name: Daftar Periksa Pelacakan Petunjuk Awal
     content: |
-      - 首次出现位置和当时的表面意义。
-      - 当前状态和最近一次推进。
-      - 回收需要的条件或可能关联。
-      - 如果继续悬置，下一步会产生什么期待或风险。
-      - 回收时是否会改变人物、关系、规则或主线理解。
+      - Posisi kemunculan pertama dan makna permukaannya pada saat itu.
+      - Status saat ini dan penggerakan terakhirnya.
+      - Syarat atau kemungkinan kaitan yang dibutuhkan untuk penarikan kembali.
+      - Jika terus digantung, ekspektasi atau risiko apa yang muncul pada langkah berikutnya.
+      - Saat ditarik kembali, apakah akan mengubah tokoh, hubungan, aturan, atau pemahaman alur utama.

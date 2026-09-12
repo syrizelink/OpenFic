@@ -1,4 +1,4 @@
-"""DuckDuckGo（ddgs）provider。"""
+"""Provider DuckDuckGo (ddgs)."""
 
 from __future__ import annotations
 
@@ -41,12 +41,13 @@ async def _search_with_retry(query: str, config: WebSearchProviderConfig) -> Any
             if attempt + 1 >= DDGS_MAX_ATTEMPTS:
                 raise
             logger.warning(
-                "DDGS 聚合搜索失败，准备重试 attempt={}/{} error={}",
+                "Pencarian agregat DDGS gagal, akan dicoba ulang "
+                "attempt={}/{} error={}",
                 attempt + 1,
                 DDGS_MAX_ATTEMPTS,
                 exc,
             )
-    raise RuntimeError("DDGS 搜索重试流程异常结束")
+    raise RuntimeError("Alur coba ulang pencarian DDGS berakhir tidak normal")
 
 
 class DdgsProvider(WebSearchProvider):
@@ -60,7 +61,7 @@ class DdgsProvider(WebSearchProvider):
         try:
             results = await _search_with_retry(query, config)
         except Exception as exc:
-            raise ToolExecutionError(f"DDGS 搜索失败: {exc}") from exc
+            raise ToolExecutionError(f"Pencarian DDGS gagal: {exc}") from exc
 
         items = [
             WebSearchResult(

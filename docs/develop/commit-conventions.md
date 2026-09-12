@@ -1,8 +1,8 @@
-# 提交信息规范（Conventional Commits 1.0.0）
+# Ketentuan Informasi Commit (Conventional Commits 1.0.0)
 
-本项目遵循 [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) 规范。
+Proyek ini mengikuti ketentuan [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/).
 
-## 提交信息结构
+## Struktur Informasi Commit
 
 ```
 <type>[optional scope]: <description>
@@ -12,51 +12,51 @@
 [optional footer(s)]
 ```
 
-- `type` 与 `:` 及其后空格为必须；`scope`、`!`、`body`、`footer` 均为可选
-- 除 `BREAKING CHANGE` 必须大写外，各元素大小写不敏感
+- `type` beserta `:` dan spasi setelahnya wajib ada; `scope`, `!`, `body`, `footer` semuanya opsional
+- Selain `BREAKING CHANGE` yang wajib huruf kapital, setiap elemen tidak sensitif terhadap huruf besar-kecil
 
 ## type
 
-- 必须以 type 前缀开头，由名词构成。
-- 规范定义的类型（必须按此含义使用）：
+- Wajib dimulai dengan prefiks type, yang terbentuk dari kata benda.
+- Tipe yang didefinisikan oleh ketentuan (wajib digunakan sesuai makna berikut):
 
-  | type | 含义 |
+  | type | Makna |
   | --- | --- |
-  | `feat` | 引入完整的新功能 |
-  | `fix` | 修复 bug |
-  | `build` | 影响构建系统或外部依赖的变更 |
-  | `chore` | 杂项变更，不属于其它类型的变更都应归入此类 |
-  | `ci` | CI 配置文件与脚本的变更 |
-  | `docs` | 文档变更 |
-  | `style` | 不影响代码含义的格式或样式变更 |
-  | `refactor` | 既不修复 bug 也不新增功能的重构 |
-  | `perf` | 提升性能的代码变更 |
-  | `test` | 新增或修正测试 |
+  | `feat` | Memperkenalkan fitur baru yang utuh |
+  | `fix` | Memperbaiki bug |
+  | `build` | Perubahan yang memengaruhi sistem build atau dependensi eksternal |
+  | `chore` | Perubahan lain-lain, semua perubahan yang tidak termasuk tipe lainnya harus dimasukkan ke kategori ini |
+  | `ci` | Perubahan pada file konfigurasi dan skrip CI |
+  | `docs` | Perubahan dokumentasi |
+  | `style` | Perubahan format atau gaya yang tidak memengaruhi makna kode |
+  | `refactor` | Refaktor yang tidak memperbaiki bug maupun menambahkan fitur |
+  | `perf` | Perubahan kode yang meningkatkan performa |
+  | `test` | Menambahkan atau memperbaiki pengujian |
 
-<!-- 关于 feat 类型的说明，以下情况不应使用该类型 -->
-<!-- 如果变更不包括一个完整、自包含的功能 -->
-<!-- 如果变更依附与某个功能之上，属于简单的 UX 功能或改进 -->
+<!-- Penjelasan mengenai tipe feat, tipe ini tidak boleh digunakan pada kondisi berikut -->
+<!-- Jika perubahan tidak mencakup satu fitur yang utuh dan mandiri -->
+<!-- Jika perubahan melekat pada suatu fitur yang sudah ada, dan hanya berupa fitur atau perbaikan UX sederhana -->
 
 ## scope
 
-- 可选，置于 type 之后、`:` 之前，用括号包裹
-- 必须是一个描述代码库某部分的名词，如 `fix(parser):`
+- Opsional, diletakkan setelah type dan sebelum `:`, dibungkus tanda kurung
+- Wajib berupa kata benda yang mendeskripsikan suatu bagian dari basis kode, misalnya `fix(parser):`
 
 ## description
 
-- 必须，紧跟冒号与空格之后
-- 是对代码变更的简短概括
-- 对于bug修复类型，应遵循的格式：`<动作><问题><结果>`，如“修复xxx导致的xx的问题”，对于
+- Wajib, langsung setelah titik dua dan spasi
+- Merupakan ringkasan singkat dari perubahan kode
+- Untuk tipe perbaikan bug, format yang harus diikuti: `<aksi><masalah><hasil>`, misalnya "memperbaiki masalah xx yang disebabkan oleh xxx", untuk
 
 ## body
 
-- 可选，在 description 之后空一行开始
-- 自由格式，可包含任意多段（以空行分隔）
+- Opsional, dimulai setelah satu baris kosong sesudah description
+- Format bebas, dapat memuat berapa pun jumlah paragraf (dipisahkan baris kosong)
 
 ## footer
 
-- 可选，在 body 之后空一行开始。
-- 每个 footer 由一个 token + 分隔符 + 值组成：
-  - 分隔符为 `:<space>` 或 `<space>#`
-  - token 中的空格用 `-` 替代，如 `Acked-by`（以此区分 footer 与多段 body）
-- `BREAKING CHANGE` 是例外，可原样作为 token（保持大写）；`BREAKING-CHANGE` 与 `BREAKING CHANGE` 同义
+- Opsional, dimulai setelah satu baris kosong sesudah body.
+- Setiap footer tersusun dari satu token + pemisah + nilai:
+  - Pemisahnya adalah `:<space>` atau `<space>#`
+  - Spasi di dalam token digantikan dengan `-`, misalnya `Acked-by` (untuk membedakan footer dengan body yang terdiri dari beberapa paragraf)
+- `BREAKING CHANGE` adalah pengecualian, dapat dipakai apa adanya sebagai token (tetap huruf kapital); `BREAKING-CHANGE` bersinonim dengan `BREAKING CHANGE`

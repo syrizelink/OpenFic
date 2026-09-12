@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""SkillReferenceDoc Router - 技能参考文档 CRUD API。"""
+"""SkillReferenceDoc Router - API CRUD dokumen referensi skill."""
 
 from typing import Annotated
 
@@ -44,7 +44,7 @@ async def create_reference_doc(
 ) -> SkillReferenceDocResponse:
     try:
         await require_agent_settings_unlocked(session)
-        logger.info(f"创建参考文档: skill_db_id={skill_db_id}")
+        logger.info(f"Membuat dokumen referensi: skill_db_id={skill_db_id}")
         doc = await skill_reference_doc_service.create_reference_doc(
             session,
             skill_db_id,

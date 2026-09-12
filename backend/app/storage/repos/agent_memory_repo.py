@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AgentMemory Repository - 记忆数据访问层。"""
+"""AgentMemory Repository - lapisan akses data memori."""
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession

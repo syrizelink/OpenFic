@@ -1,172 +1,172 @@
 id: builtin-skill--villain-reveal
-name: 反派与真相揭露设计
-summary: 设计反派动机、作恶升级、真相揭露方式和因果报应。
+name: Rancangan tokoh antagonis dan pengungkapan kebenaran
+summary: Merancang motif tokoh antagonis, eskalasi kejahatan, cara pengungkapan kebenaran, dan balasan karma.
 is_enabled: true
 content: |
-  # 反派系统与真相揭露机制
+  # Sistem tokoh antagonis dan mekanisme pengungkapan kebenaran
 
-  ## 一、反派设计模板
+  ## 1. Templat rancangan tokoh antagonis
 
   ```
-  反派：
-  - 身份：{与主角的关系}
-  - 动机：{自洽的作恶逻辑：贪婪/嫉妒/控制欲/报复/自保}
-  - 作恶方式：{言语打压/经济控制/社交孤立/人身伤害/法律构陷等}
-  - 致命弱点：{贪婪/傲慢/秘密/依赖/恐惧等}
-  - 报应：{与恶行对应的结局}
+  Tokoh antagonis:
+  - Jati diri: {hubungan dengan tokoh utama}
+  - Motif: {logika berbuat jahat yang konsisten dengan dirinya: ketamakan/kedengkian/hasrat menguasai/pembalasan/melindungi diri}
+  - Cara berbuat jahat: {penindasan verbal/kendali ekonomi/pengucilan sosial/kekerasan fisik/penjeratan hukum dan lain-lain}
+  - Kelemahan fatal: {ketamakan/keangkuhan/rahasia/ketergantungan/ketakutan dan lain-lain}
+  - Balasan: {akhir yang sepadan dengan kejahatannya}
   ```
 
-  反派不能只写“坏”。先写清楚他要什么、为什么认为自己有权这样做、害怕失去什么，以及主角如何利用其弱点。反派的实力和智商决定主角胜利的含金量，不能让反派降智送赢。
+  Tokoh antagonis tidak cukup ditulis hanya sebagai "jahat". Tuliskan lebih dulu dengan jelas apa yang ia inginkan, mengapa ia merasa berhak berbuat begitu, apa yang ia takut hilang, dan bagaimana tokoh utama memanfaatkan kelemahannya. Kekuatan dan kecerdasan tokoh antagonis menentukan kadar mutu kemenangan tokoh utama; jangan biarkan tokoh antagonis menjadi bodoh demi menghadiahkan kemenangan.
 
-  ## 二、嚣张度递增
+  ## 2. Eskalasi tingkat kelancangan
 
-  反派行为要逐级递增，不能跳跃也不能重复：
+  Perilaku tokoh antagonis harus meningkat bertahap, tidak boleh melompat dan tidak boleh berulang:
 
-  | 阶段 | 行为类型 | 示例 |
+  | Tahap | Jenis perilaku | Contoh |
   |---|---|---|
-  | 小恶，前 1/3 | 言语打压、冷暴力 | “你嫁进来就算烧高香了。” |
-  | 中恶，中段 | 经济或社交伤害 | 偷拿存折、败坏名声、挑拨关系 |
-  | 大恶，后段 | 人身或法律伤害 | 下药、构陷、逼死、拐卖 |
+  | Kejahatan kecil, 1/3 awal | Penindasan verbal, kekerasan dingin | "Kau sudah beruntung besar bisa menikah masuk ke keluarga ini." |
+  | Kejahatan sedang, bagian tengah | Kerugian ekonomi atau sosial | Mencuri buku tabungan, merusak nama baik, mengadu-adu hubungan |
+  | Kejahatan besar, bagian akhir | Kekerasan fisik atau hukum | Membubuhkan obat, menjerat dengan tuduhan, mendorong ke kematian, memperdagangkan orang |
 
-  每次升级必须造成新后果，让主角的处境、选择、关系或证据发生变化。
+  Setiap peningkatan wajib menimbulkan konsekuensi baru, sehingga posisi, pilihan, hubungan, atau bukti yang dipegang tokoh utama ikut berubah.
 
-  ## 三、反派类型
+  ## 3. Tipe tokoh antagonis
 
-  - 操控型：以爱为名控制一切，弱点是控制欲会留下证据。
-  - 贪婪型：无底线索取，弱点是贪心过度暴露真面目。
-  - 伪装型：隐藏真实身份或目的，弱点是身份经不起调查。
-  - 嚣张型：仗势欺人、无所顾忌，弱点是傲慢导致忽视身后风险。
-  - 软刀型：示弱博同情、暗中操控，弱点是假面会被证据击碎。
+  - Tipe pengendali: menguasai segalanya dengan dalih cinta, kelemahannya adalah hasrat menguasai yang meninggalkan jejak bukti.
+  - Tipe tamak: menuntut tanpa batas, kelemahannya adalah ketamakan berlebihan yang membongkar wajah aslinya.
+  - Tipe penyamar: menyembunyikan jati diri atau tujuan sebenarnya, kelemahannya adalah jati diri yang tidak tahan diselidiki.
+  - Tipe lancang: menindas dengan bersandar pada kuasa, tak sungkan pada apa pun, kelemahannya adalah keangkuhan yang membuatnya abai pada risiko di belakangnya.
+  - Tipe belati lunak: berpura-pura lemah demi simpati sambil mengendalikan secara diam-diam, kelemahannya adalah topeng yang hancur oleh bukti.
 
-  ## 四、真相揭露的四种机制
+  ## 4. Empat mekanisme pengungkapan kebenaran
 
-  ### 证物揭露
-  在铺垫段埋入看似无关紧要的物件或文件，揭露时翻转其意义。证物本身必须在前文出现，揭示时只收旧账。
+  ### Pengungkapan lewat benda bukti
+  Tanamkan benda atau dokumen yang tampak tidak penting di bagian persiapan, lalu balikkan maknanya saat pengungkapan. Benda buktinya wajib sudah muncul di teks sebelumnya; saat diungkap, ia hanya menagih utang lama.
 
-  ### 证人揭露
-  让边缘角色在关键时刻说出主角不知道的信息。证人不能只是方便作者传话，应有自己的立场、风险和为什么现在开口的原因。
+  ### Pengungkapan lewat saksi
+  Biarkan tokoh pinggiran mengucapkan informasi yang tidak diketahui tokoh utama pada momen kunci. Saksi tidak boleh hanya menjadi corong yang memudahkan penulis; ia harus punya keberpihakan, risiko, dan alasan mengapa baru bicara sekarang.
 
-  ### 偷听或撞见
-  安排一个主角本不该在场的场景，让主角无意中看到或听到真相。需要说明主角为什么能到场，以及听到的内容如何改变行动。
+  ### Menguping atau memergoki
+  Tata satu adegan yang seharusnya tidak dihadiri tokoh utama, lalu biarkan ia tanpa sengaja melihat atau mendengar kebenarannya. Perlu dijelaskan mengapa tokoh utama bisa berada di sana, dan bagaimana yang ia dengar mengubah tindakannya.
 
-  ### 延迟剥洋葱
-  一层真相引出更深真相，每层都比上一层更残酷或更改变认知。不要连续解释，给读者和角色留出消化时间。
+  ### Mengupas bawang secara tertunda
+  Satu lapis kebenaran menarik keluar kebenaran yang lebih dalam, dan setiap lapis lebih kejam atau lebih mengubah pemahaman daripada lapis sebelumnya. Jangan menjelaskan secara berturut-turut; beri pembaca dan tokoh waktu untuk mencernanya.
 
-  ## 五、按题材选择揭露节奏
+  ## 5. Memilih irama pengungkapan menurut genre
 
-  | 类型 | 推荐方式 | 节奏 |
+  | Jenis | Cara yang disarankan | Irama |
   |---|---|---|
-  | 世情或爽文 | 证物或证人 | 一次大揭露，干净利落 |
-  | 情感或虐心 | 偷听/撞见 + 延迟剥洋葱 | 分层揭露，层层更痛 |
-  | 古言或复仇 | 证人 + 证物 | 先证人铺垫，再证物定锚 |
-  | 悬疑或推理 | 延迟剥洋葱 | 全程分层，最后补齐拼图 |
-  | 年代或亲情 | 偷听或撞见 | 意外发现，情绪冲击强 |
+  | Kehidupan sosial atau cerita pemuas | Benda bukti atau saksi | Satu pengungkapan besar, bersih dan tuntas |
+  | Emosi atau penyiksaan hati | Menguping/memergoki + mengupas bawang tertunda | Pengungkapan berlapis, setiap lapis lebih menyakitkan |
+  | Latar kuno atau pembalasan | Saksi + benda bukti | Saksi menyiapkan jalan dulu, benda bukti menjadi penambat |
+  | Misteri atau penalaran | Mengupas bawang tertunda | Berlapis sepanjang cerita, kepingan dilengkapi di akhir |
+  | Cerita era lampau atau kekeluargaan | Menguping atau memergoki | Penemuan tak terduga, hentakan emosinya kuat |
 
-  ## 六、报应设计
+  ## 6. Rancangan balasan
 
-  报应必须与恶行对应，恶行有多重，报应也要有多重，但不必用长篇描写。对应逻辑可以是：因果轮回、偷走的东西最终失去、假爱真控最终无人可控、骗子被更狠的人收割。
+  Balasan wajib sepadan dengan kejahatannya; kalau kejahatannya berlapis, balasannya juga harus berlapis, tetapi tidak perlu digambarkan panjang-panjang. Logika kesepadanannya bisa berupa: karma berputar kembali, apa yang dicuri akhirnya justru hilang, cinta palsu berisi kendali akhirnya tak punya siapa pun untuk dikendalikan, penipu dipanen oleh orang yang lebih kejam.
 
-  | 模式 | 适用场景 | 操作 |
+  | Pola | Situasi yang cocok | Pelaksanaan |
   |---|---|---|
-  | 法律制裁 | 现代背景的违法行为 | 用简短几句交代报警、起诉或判决 |
-  | 社会性死亡 | 虚伪型或操控型反派 | 真相公开，所有人看清真面目 |
-  | 因果轮回 | 古言或复仇 | 做过的事回到自己身上 |
-  | 精神崩溃 | 虐心或意难平 | 得到一切后发现失去唯一重要之物 |
+  | Hukuman hukum | Perbuatan melanggar hukum berlatar modern | Sampaikan pelaporan, penuntutan, atau putusan dalam beberapa kalimat singkat |
+  | Kematian sosial | Tokoh antagonis tipe munafik atau pengendali | Kebenaran dibuka, semua orang melihat wajah aslinya |
+  | Karma berputar | Latar kuno atau pembalasan | Perbuatannya kembali menimpa dirinya sendiri |
+  | Keruntuhan mental | Penyiksaan hati atau kegetiran yang tak terobati | Setelah memperoleh segalanya, ia sadar telah kehilangan satu-satunya hal yang penting |
 
-  报应强度通常为恶行强度的 1.0-1.2 倍，既不要轻描淡写，也不要无限加码。报应的爽感来自对应感，不来自篇幅。
+  Kekuatan balasan biasanya 1,0-1,2 kali kekuatan kejahatannya, jangan digambarkan sekadar lewat, jangan pula ditumpuk tanpa batas. Rasa pemuas dari balasan datang dari rasa kesepadanan, bukan dari panjang halaman.
 
-  ## 七、反派与真相自检
+  ## 7. Pemeriksaan mandiri tokoh antagonis dan kebenaran
 
-  - 反派身份、动机、手段、弱点和报应是否清楚。
-  - 作恶是否从小到大升级，是否每次都造成新的后果。
-  - 真相是否通过行为、证物、证人或场景揭示。
-  - 关键证据是否提前出现，揭示是否只是收回旧账。
-  - 反派是否有自己的目标、信念或恐惧。
-  - 读者知道真相的时间是否合理；若读者很早知道，后续必须靠更深层真相或行动压力维持兴趣。
-  - 是否至少有一条读者会相信的假线索。
-  - 真相线索是否正读容易忽略、回看能够找到。
-   - 主角和读者在揭示前是否至少有一方不知道真相。
-  - 反派建立四要素：实力展示 → 动机可信 → 真实威胁 → 终极意图时机。
-  - 反派性格四步：也有梦想；挖掘创伤；逆境磨练缺陷；成为主角的镜子。
-  - 真相路由：表面身份 → 异常行为 → 局部证据 → 可信误导 → 线索回收 → 亮牌 → 后果。
-  - 误导必须让读者自己走向错误结论，不能使用前文不存在的决定性信息。
-   - 揭示之后必须展示关系、行动、资源或情绪的后果，不能用长篇解释替代兑现。
+  - Apakah jati diri, motif, cara, kelemahan, dan balasan tokoh antagonis sudah jelas.
+  - Apakah kejahatannya meningkat dari kecil ke besar, dan apakah setiap kali menimbulkan konsekuensi baru.
+  - Apakah kebenaran diungkap melalui perilaku, benda bukti, saksi, atau adegan.
+  - Apakah bukti kunci sudah muncul lebih dulu, dan apakah pengungkapannya semata menagih utang lama.
+  - Apakah tokoh antagonis punya tujuan, keyakinan, atau ketakutannya sendiri.
+  - Apakah waktu pembaca mengetahui kebenaran sudah pas; kalau pembaca tahu sangat awal, bagian selanjutnya wajib bertahan dengan kebenaran yang lebih dalam atau tekanan tindakan.
+  - Apakah ada setidaknya satu petunjuk palsu yang akan dipercaya pembaca.
+  - Apakah petunjuk kebenaran mudah terlewat saat dibaca maju dan bisa ditemukan saat dibaca ulang.
+   - Apakah sebelum pengungkapan setidaknya salah satu dari tokoh utama dan pembaca belum mengetahui kebenarannya.
+  - Empat unsur pembangunan tokoh antagonis: pameran kekuatan -> motif yang bisa dipercaya -> ancaman nyata -> momen tepat untuk niat pamungkas.
+  - Empat langkah watak tokoh antagonis: ia pun punya mimpi; gali lukanya; kesulitan mengasah cacatnya; ia menjadi cermin bagi tokoh utama.
+  - Rute kebenaran: jati diri di permukaan -> perilaku menyimpang -> bukti sebagian -> pengalihan yang meyakinkan -> penarikan kembali petunjuk -> membuka kartu -> konsekuensi.
+  - Pengalihan wajib membuat pembaca sendiri menuju kesimpulan yang salah, dan tidak boleh memakai informasi penentu yang tidak ada di teks sebelumnya.
+   - Setelah pengungkapan wajib ditunjukkan konsekuensinya pada hubungan, tindakan, sumber daya, atau emosi; penjelasan panjang tidak boleh menggantikan penuntasan.
 references:
-  - name: 原始反派与揭露案例
+  - name: Kasus asli tokoh antagonis dan pengungkapan
     content: |
-      # 反派系统原始补充
+      # Tambahan asli sistem tokoh antagonis
 
-      ## 反派设计蓝图
+      ## Cetak biru rancangan tokoh antagonis
 
       ```
-      反派：
-      - 身份：{与主角的关系}
-      - 动机：{自洽的作恶逻辑：贪婪/嫉妒/控制欲/报复/自保}
-      - 作恶方式：{具体手段：言语打压/经济控制/社交孤立/人身伤害/法律构陷}
-      - 致命弱点：{可被主角利用的弱点：贪婪/傲慢/秘密/依赖/恐惧}
-      - 报应：{与恶行对应的结局}
+      Tokoh antagonis:
+      - Jati diri: {hubungan dengan tokoh utama}
+      - Motif: {logika berbuat jahat yang konsisten dengan dirinya: ketamakan/kedengkian/hasrat menguasai/pembalasan/melindungi diri}
+      - Cara berbuat jahat: {cara konkret: penindasan verbal/kendali ekonomi/pengucilan sosial/kekerasan fisik/penjeratan hukum}
+      - Kelemahan fatal: {kelemahan yang bisa dimanfaatkan tokoh utama: ketamakan/keangkuhan/rahasia/ketergantungan/ketakutan}
+      - Balasan: {akhir yang sepadan dengan kejahatannya}
       ```
 
-      ## 反派类型速查
+      ## Rujukan cepat tipe tokoh antagonis
 
-      | 类型 | 特征 | 代表案例 | 致命弱点 |
+      | Tipe | Ciri | Contoh kasus | Kelemahan fatal |
       |------|------|----------|----------|
-      | 操控型 | 以爱为名控制一切 | 王氏（皇弟） | 控制欲导致行事留下证据 |
-      | 贪婪型 | 无底线索取 | 准儿媳 | 贪心过度暴露真面目 |
-      | 伪装型 | 隐藏真实身份或目的 | 诈骗犯（重生弟弟） | 身份经不起调查 |
-      | 嚣张型 | 仗势欺人，有恃无恐 | 萧琅（皇弟） | 傲慢导致忽视身后风险 |
-      | 软刀型 | 示弱博同情，暗中操控 | 妈妈（姐夫捎路） | 假面被证据击碎 |
+      | Tipe pengendali | Menguasai segalanya dengan dalih cinta | Nyonya Wang (adik kaisar) | Hasrat menguasai membuat perbuatannya meninggalkan bukti |
+      | Tipe tamak | Menuntut tanpa batas | Calon menantu perempuan | Ketamakan berlebihan membongkar wajah aslinya |
+      | Tipe penyamar | Menyembunyikan jati diri atau tujuan sebenarnya | Penipu (adik yang bereinkarnasi) | Jati diri tidak tahan diselidiki |
+      | Tipe lancang | Menindas dengan bersandar pada kuasa, tanpa rasa takut | Xiao Lang (adik kaisar) | Keangkuhan membuatnya abai pada risiko di belakangnya |
+      | Tipe belati lunak | Berpura-pura lemah demi simpati, mengendalikan diam-diam | Ibu (kasus kakak ipar menumpang jalan) | Topengnya hancur oleh bukti |
 
-      ## 真相揭露案例
+      ## Kasus pengungkapan kebenaran
 
-      ### 证物揭露
-      在铺垫段埋入看似无关紧要的物件或文件，揭露时翻转其意义，物证只收旧账。
-
-      ```
-      铺垫：妈妈脖子上总戴着一把金锁，说是姐姐送的。
-      揭露：打开金锁，里面刻着“金包铜”三个字。
-      暴击：她从来没打开过这把锁。
-      ```
-
-      ### 证人揭露
-      边缘角色必须有自己的立场、风险，以及为什么现在开口的原因，不能只是方便作者传话。
+      ### Pengungkapan lewat benda bukti
+      Tanamkan benda atau dokumen yang tampak tidak penting di bagian persiapan, lalu balikkan maknanya saat pengungkapan; bukti benda hanya menagih utang lama.
 
       ```
-      铺垫：周嬷嬷总是欲言又止。
-      揭露：周嬷嬷临终前交给主角一封信，是先皇后的供状。
-      暴击：王氏知道这封信的存在，所以一直在找周嬷嬷。
+      Persiapan: Ibu selalu memakai sebuah medali kunci emas di lehernya, katanya hadiah dari kakak.
+      Pengungkapan: Medali kunci itu dibuka, di dalamnya terukir tiga kata "tembaga bersepuh emas".
+      Pukulan kritis: Ia sendiri belum pernah sekali pun membuka kunci itu.
       ```
 
-      ### 偷听或撞见
-      主角不该在场的场景必须解释主角为什么能到场，并说明听到的内容如何改变行动。
+      ### Pengungkapan lewat saksi
+      Tokoh pinggiran wajib punya keberpihakan, risiko, dan alasan mengapa baru bicara sekarang, bukan sekadar corong yang memudahkan penulis.
 
       ```
-      铺垫：妈妈每次接电话都走到阳台上。
-      揭露：主角路过阳台，听到妈妈说“那个金锁是假的，她到现在都不知道”。
-      暴击：电话那头是姐夫。
+      Persiapan: Bibi Zhou selalu hendak bicara lalu menahan diri.
+      Pengungkapan: Sebelum wafat, Bibi Zhou menyerahkan sepucuk surat kepada tokoh utama, isinya pengakuan mendiang permaisuri.
+      Pukulan kritis: Nyonya Wang tahu surat itu ada, karena itu ia terus mencari Bibi Zhou.
       ```
 
-      ### 延迟剥洋葱
-      每层用一个节揭露，且比上一层更残酷：第一层弟弟的女友不是她说的那个人；第二层女友是有犯罪记录的诈骗犯；第三层怀孕是假的；第四层弟弟已经被骗到电诈园区。
+      ### Menguping atau memergoki
+      Adegan yang seharusnya tidak dihadiri tokoh utama wajib menjelaskan mengapa ia bisa berada di sana, dan menerangkan bagaimana yang ia dengar mengubah tindakannya.
 
-      ## 报应对应案例
+      ```
+      Persiapan: Ibu selalu berpindah ke balkon setiap kali menerima telepon.
+      Pengungkapan: Tokoh utama melewati balkon dan mendengar ibunya berkata "medali kunci emas itu palsu, sampai sekarang dia belum tahu".
+      Pukulan kritis: Yang di seberang telepon adalah kakak ipar.
+      ```
 
-      | 恶行 | 报应 | 对应逻辑 |
+      ### Mengupas bawang secara tertunda
+      Setiap lapis diungkap dalam satu bagian, dan lebih kejam daripada lapis sebelumnya: lapis pertama, kekasih si adik bukan orang seperti yang ia katakan; lapis kedua, kekasih itu seorang penipu dengan catatan kriminal; lapis ketiga, kehamilannya palsu; lapis keempat, si adik sudah ditipu masuk ke kompleks penipuan daring.
+
+      ## Kasus kesepadanan balasan
+
+      | Kejahatan | Balasan | Logika kesepadanan |
       |------|------|----------|
-      | 逼死在冷宫 | 自己住进冷宫 | 因果轮回 |
-      | 偷拿存折 | 账户被冻结，一分拿不到 | 偷走别人的，连自己的也失去 |
-      | 以爱为名操控 | 被所有人抛弃 | 假爱真控，最终无人可控 |
-      | 诈骗钱财 | 被更狠的人骗进园区 | 骗子被更高级骗子收割 |
+      | Mendorong korban mati di istana pengasingan | Ia sendiri berakhir tinggal di istana pengasingan | Karma berputar |
+      | Mencuri buku tabungan | Rekeningnya dibekukan, tak satu sen pun bisa diambil | Mencuri milik orang lain, miliknya sendiri pun hilang |
+      | Mengendalikan dengan dalih cinta | Ditinggalkan semua orang | Cinta palsu berisi kendali, akhirnya tak punya siapa pun untuk dikendalikan |
+      | Menipu harta | Ditipu orang yang lebih kejam hingga masuk ke kompleks penipuan | Penipu dipanen penipu kelas lebih tinggi |
 
-      报应强度 = 恶行强度 × 1.0-1.2。报应不写长段，2-3 句带过，把留白交给读者；爽感来自对应感，不来自描写长度。
+      Kekuatan balasan = kekuatan kejahatan x 1,0-1,2. Balasan jangan ditulis dalam bagian panjang, cukup 2-3 kalimat, sisakan ruang kosong bagi pembaca; rasa pemuas datang dari rasa kesepadanan, bukan dari panjang deskripsi.
 
-      ## 反转有效性检查表
+      ## Daftar periksa keefektifan pembalikan
 
-      | 检查项 | 通过标准 | 不通过时 |
+      | Butir pemeriksaan | Kriteria lulus | Kalau tidak lulus |
       |--------|----------|----------|
-      | 读者知道真相的时机 | >60% 合理；50-60% 是灰区；<50% 不算反转 | 调整线索释放节奏，延后揭露 |
-      | 是否有误导假线索 | 至少 1 条读者会信的假线索 | 加入红鲱鱼或选择性叙述 |
-      | 真相线索隐蔽度 | 回看能找到，正读会忽略 | 藏进日常细节，不用强调语气 |
-      | 角色知道与读者知道 | 反转前至少有一方不知道真相 | 制造读者或角色的信息差 |
+      | Momen pembaca mengetahui kebenaran | >60% wajar; 50-60% zona kelabu; <50% tidak terhitung pembalikan | Sesuaikan irama pelepasan petunjuk, tunda pengungkapannya |
+      | Apakah ada petunjuk palsu pengalih | Setidaknya 1 petunjuk palsu yang akan dipercaya pembaca | Tambahkan ikan haring merah atau penceritaan selektif |
+      | Tingkat kesamaran petunjuk kebenaran | Bisa ditemukan saat dibaca ulang, terlewat saat dibaca maju | Sembunyikan dalam detail sehari-hari, jangan pakai nada penekanan |
+      | Pengetahuan tokoh versus pengetahuan pembaca | Sebelum pembalikan, setidaknya salah satu pihak belum tahu kebenarannya | Ciptakan selisih informasi pada pembaca atau tokoh |
 
-      “延迟揭露”不等于反转：若读者在第 2 节就知道真相，后面 10 节只等角色追上来，这是延迟揭露，真正的反转应发生在揭示那一刻，让读者和角色一起震惊。
+      "Pengungkapan tertunda" tidak sama dengan pembalikan: kalau pembaca sudah tahu kebenarannya di bagian ke-2, lalu 10 bagian setelahnya hanya menunggu tokoh menyusul, itu pengungkapan tertunda; pembalikan sejati seharusnya terjadi tepat pada saat pengungkapan, sehingga pembaca dan tokoh terkejut bersama-sama.

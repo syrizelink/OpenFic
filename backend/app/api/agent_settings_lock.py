@@ -5,7 +5,7 @@ from app.agent_runtime.session_activity import has_active_agent_sessions
 
 AGENT_SETTINGS_LOCKED_DETAIL = {
     "code": "agent_settings_locked",
-    "message": "Agent 会话运行中，无法修改相关设置",
+    "message": "Sesi Agent sedang berjalan, tidak dapat mengubah pengaturan terkait",
 }
 
 

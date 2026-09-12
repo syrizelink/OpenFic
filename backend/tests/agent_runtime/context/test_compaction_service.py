@@ -68,11 +68,11 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
         expire_on_commit=False,
     )
     async with factory() as session:
-        project = Project(id="proj_test", title="测试项目")
+        project = Project(id="proj_test", title="Proyek Uji")
         volume = Volume(
             id="vol_test",
             project_id="proj_test",
-            title="第一卷",
+            title="Volume 1",
             order=1,
             chapter_count=1,
         )
@@ -80,13 +80,13 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
             id="chap_test",
             project_id="proj_test",
             volume_id="vol_test",
-            title="测试章节",
+            title="Bab Uji",
             order=1,
         )
         task = Task(
             id="task_test",
             project_id="proj_test",
-            title="测试任务",
+            title="Tugas Uji",
             mode="agent",
             agent_session_id="session_test",
         )
@@ -119,7 +119,7 @@ def state() -> AgentRuntimeState:
         "is_completed": False,
         "error": None,
         "retry_count": 0,
-        "user_request": "请继续",
+        "user_request": "Silakan lanjutkan",
         "installed_skill_ids": [],
         "current_revision_id": None,
     }
@@ -154,7 +154,7 @@ def _prompt_version() -> SimpleNamespace:
         entries=[
             SimpleNamespace(
                 role="system",
-                content="请压缩 transcript",
+                content="Silakan kompaksi transcript",
                 order_index=0,
                 is_enabled=True,
             ),
@@ -185,7 +185,7 @@ async def test_compact_window_persists_raw_summary_and_emits_events_and_usage(
 ) -> None:
     fake_model = FakeModel(
         _ai_message(
-            "  摘要正文  ",
+            "  Ringkasan isi  ",
             {"input_tokens": 100, "output_tokens": 20},
         ),
     )
@@ -210,7 +210,7 @@ async def test_compact_window_persists_raw_summary_and_emits_events_and_usage(
         usage_sink=usage_events.append,
     )
 
-    assert result.summary == "摘要正文"
+    assert result.summary == "Ringkasan isi"
     assert result.start_seq == window.start_seq
     assert result.end_seq == window.end_seq
     assert fake_model.messages is not None
@@ -233,7 +233,7 @@ async def test_compact_window_persists_raw_summary_and_emits_events_and_usage(
     assert normalized_usage["token_output"] == 20
 
     rows = await compaction_repo.list_by_session(db_session, state["session_id"])
-    assert [row.summary for row in rows] == ["摘要正文"]
+    assert [row.summary for row in rows] == ["Ringkasan isi"]
     assert "<compaction-summary>" not in rows[0].summary
 
     display_rows = await message_repo.list_by_session(
@@ -244,7 +244,7 @@ async def test_compact_window_persists_raw_summary_and_emits_events_and_usage(
     assert display_rows[0].id == f"compaction:{result.id}"
     assert display_rows[0].role == "system"
     assert display_rows[0].status == "complete"
-    assert display_rows[0].content == "已进行压缩"
+    assert display_rows[0].content == "Pemadatan sudah dilakukan"
     assert display_rows[0].message_type == "compaction"
     assert display_rows[0].display_channel == "list"
     assert display_rows[0].llm_visibility == "hidden"
@@ -261,7 +261,7 @@ async def test_compact_window_appends_current_plan_when_outside_window_has_no_wr
     state: AgentRuntimeState,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    fake_model = FakeModel(_ai_message("摘要正文"))
+    fake_model = FakeModel(_ai_message("Ringkasan isi"))
     current_todos = [
         {
             "content": "Run verification",
@@ -318,7 +318,7 @@ async def test_compact_window_appends_current_plan_when_outside_window_has_no_wr
         "Prepare delivery\n"
         "</current_plan>"
     )
-    assert result.summary == f"摘要正文\n\n{expected_plan}"
+    assert result.summary == f"Ringkasan isi\n\n{expected_plan}"
     get_plan_todos.assert_awaited_once_with(db_session, state["session_id"])
 
 
@@ -328,7 +328,7 @@ async def test_compact_window_does_not_append_current_plan_when_outside_window_h
     state: AgentRuntimeState,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    fake_model = FakeModel(_ai_message("摘要正文"))
+    fake_model = FakeModel(_ai_message("Ringkasan isi"))
     window = CompactionWindow(
         start_seq=2,
         end_seq=5,
@@ -372,7 +372,7 @@ async def test_compact_window_does_not_append_current_plan_when_outside_window_h
         trigger="manual",
     )
 
-    assert result.summary == "摘要正文"
+    assert result.summary == "Ringkasan isi"
     get_plan_todos.assert_not_awaited()
 
 
@@ -420,7 +420,7 @@ async def test_compact_window_ignores_post_commit_sink_failures(
 ) -> None:
     fake_model = FakeModel(
         _ai_message(
-            "摘要正文",
+            "Ringkasan isi",
             {"input_tokens": 100, "output_tokens": 20},
         ),
     )
@@ -450,7 +450,7 @@ async def test_compact_window_ignores_post_commit_sink_failures(
         usage_sink=usage_sink,
     )
 
-    assert result.summary == "摘要正文"
+    assert result.summary == "Ringkasan isi"
     rows = await compaction_repo.list_by_session(db_session, state["session_id"])
     assert [row.id for row in rows] == [result.id]
 

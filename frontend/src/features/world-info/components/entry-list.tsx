@@ -1,7 +1,7 @@
 /**
  * Entry List Component
  *
- * 世界书条目列表组件，包含搜索、排序和重排序功能。
+ * Komponen daftar entri buku dunia, memuat fungsi pencarian, pengurutan, dan penyusunan ulang.
  */
 
 import {
@@ -62,9 +62,9 @@ import {
 import { EntryListItem } from "./entry-list-item";
 import { EntrySearchPopover } from "./entry-search-popover";
 
-/** 排序字段 */
+/** Field pengurutan */
 type SortField = "order" | "uid" | "tokenCount" | "name";
-/** 排序方向 */
+/** Arah pengurutan */
 type SortDirection = "asc" | "desc";
 
 const VIRTUAL_LIST_OVERSCAN = 320;
@@ -74,35 +74,35 @@ interface EntryListProps {
   currentProjectId: string;
   onSelectProject: (projectId: string) => void;
   onImport: () => void;
-  /** 条目列表 */
+  /** Daftar entri */
   entries: WorldInfoEntryBrief[];
-  /** 新建条目回调 */
+  /** Callback pembuatan entri */
   onCreateEntry: () => void;
-  /** 选择条目回调 */
+  /** Callback pemilihan entri */
   onSelectEntry: (entryId: string) => void;
-  /** 切换条目启用状态回调 */
+  /** Callback pengalihan status aktif entri */
   onToggleEntry: (entryId: string) => void;
-  /** 删除条目回调 */
+  /** Callback penghapusan entri */
   onDeleteEntry: (entry: WorldInfoEntryBrief) => void;
-  /** 置顶条目回调 */
+  /** Callback penyematan entri ke puncak */
   onPinEntry: (entry: WorldInfoEntryBrief) => void;
-  /** 重新排序条目回调（乐观更新） */
+  /** Callback pengurutan ulang entri (pembaruan optimistis) */
   onReorderEntries: (reorderedEntries: WorldInfoEntryBrief[]) => void;
-  /** 保存单条拖拽排序回调 */
+  /** Callback penyimpanan satu hasil pengurutan tarik-lepas */
   onSaveDragOrder?: (entryId: string, newOrder: number) => Promise<void> | void;
-  /** 是否正在加载 */
+  /** Status sedang memuat */
   isLoading?: boolean;
-  /** 排序字段 */
+  /** Field pengurutan */
   sortField: SortField;
-  /** 排序方向 */
+  /** Arah pengurutan */
   sortDirection: SortDirection;
-  /** 排序变更回调 */
+  /** Callback perubahan pengurutan */
   onSortChange: (field: SortField) => void;
-  /** 批次删除回调 */
+  /** Callback penghapusan massal */
   onBatchDelete: (entryIds: string[]) => void;
-  /** 批次切换开关回调 */
+  /** Callback pengalihan saklar massal */
   onBatchToggle: (entryIds: string[], isEnabled: boolean) => void;
-  /** 从搜索面板导航到匹配行 */
+  /** Navigasi dari panel pencarian ke baris yang cocok */
   onNavigateToMatch: (entryId: string, lineNumber: number) => void;
 }
 
@@ -195,7 +195,7 @@ export function EntryList({
     return result;
   }, [entries, localEntries, sortField, sortDirection]);
 
-  // 查询数据更新后，放弃本地重排覆盖，回到查询数据
+  // Setelah data kueri diperbarui, penimpaan penyusunan ulang lokal dilepas dan data kueri dipakai kembali
   useEffect(() => {
     setLocalEntries(null);
   }, [entries]);
@@ -474,7 +474,7 @@ export function EntryList({
         onReorderEntries(reordered);
       });
 
-      // 保持源项隐藏，直到 Virtuoso 应用重排后再在目标槽位揭示并滑入
+      // Item sumber tetap disembunyikan sampai Virtuoso menerapkan penyusunan ulang, lalu ditampilkan dan diluncurkan di slot tujuan
       setDropPending({ entryId: String(active.id), targetIndex: newIndex, dy });
 
       if (onSaveDragOrder) {

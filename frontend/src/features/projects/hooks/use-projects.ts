@@ -1,7 +1,7 @@
 /**
  * Projects Query Hooks
  *
- * 使用 TanStack Query 管理项目数据的异步状态。
+ * Mengelola status asinkron data proyek memakai TanStack Query.
  */
 
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,11 +11,11 @@ import { deleteAgentInputHistory, removeRecentProjectByProjectId } from "@/lib/l
 import type { ProjectCreate, ProjectUpdate, ProjectListParams } from "@/lib/project.types";
 import type { RecentProject } from "@/lib/recent-projects";
 
-/** 项目列表查询 key */
+/** Key kueri daftar proyek */
 export const projectsQueryKey = ["projects"] as const;
 
 /**
- * 获取项目列表
+ * Mengambil daftar proyek
  */
 export function useProjects(params?: ProjectListParams) {
   return useQuery({
@@ -26,7 +26,7 @@ export function useProjects(params?: ProjectListParams) {
 }
 
 /**
- * 创建项目
+ * Membuat proyek
  */
 export function useCreateProject() {
   const queryClient = useQueryClient();
@@ -40,7 +40,7 @@ export function useCreateProject() {
 }
 
 /**
- * 更新项目
+ * Memperbarui proyek
  */
 export function useUpdateProject() {
   const queryClient = useQueryClient();
@@ -55,7 +55,7 @@ export function useUpdateProject() {
 }
 
 /**
- * 删除项目
+ * Menghapus proyek
  */
 export function useDeleteProject() {
   const queryClient = useQueryClient();

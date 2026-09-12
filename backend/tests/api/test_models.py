@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Model API Tests - 模型 API 测试。
+Model API Tests - uji API model.
 """
 
 import json
@@ -16,8 +16,8 @@ from app.models.repos import model_provider_repo, model_repo
 
 @pytest.mark.asyncio
 async def test_create_model(client: AsyncClient, session: AsyncSession):
-    """测试创建模型。"""
-    # 先创建提供商
+    """Uji pembuatan model."""
+    # Buat provider terlebih dahulu
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -64,7 +64,7 @@ async def test_create_model(client: AsyncClient, session: AsyncSession):
 async def test_validate_model_connection_sends_non_streaming_probe(
     client: AsyncClient, session: AsyncSession
 ):
-    """验证模型连接时只发送一条非流式 user probe 消息。"""
+    """Saat memvalidasi koneksi model, hanya satu pesan user probe non-streaming yang dikirim."""
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -105,7 +105,7 @@ async def test_validate_model_connection_sends_non_streaming_probe(
     response = await client.post(f"/api/v1/models/{model.id}/validate")
 
     assert response.status_code == 200
-    assert response.json() == {"success": True, "message": "模型连接验证成功"}
+    assert response.json() == {"success": True, "message": "Validasi koneksi model berhasil"}
     request_body = route.calls[0].request.content
     assert request_body
     payload = json.loads(request_body)
@@ -119,7 +119,7 @@ async def test_validate_model_connection_sends_non_streaming_probe(
 async def test_validate_model_connection_reports_failed_provider_request(
     client: AsyncClient, session: AsyncSession
 ):
-    """提供商请求失败时，模型验证返回失败状态。"""
+    """Saat permintaan ke provider gagal, validasi model mengembalikan status gagal."""
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -147,14 +147,14 @@ async def test_validate_model_connection_reports_failed_provider_request(
     response = await client.post(f"/api/v1/models/{model.id}/validate")
 
     assert response.status_code == 200
-    assert response.json() == {"success": False, "message": "模型连接验证失败"}
+    assert response.json() == {"success": False, "message": "Validasi koneksi model gagal"}
 
 
 @pytest.mark.asyncio
 async def test_create_model_rejects_duplicate_name(
     client: AsyncClient, session: AsyncSession
 ):
-    """创建模型时拒绝与已有模型同名的名称。"""
+    """Pembuatan model menolak nama yang sama dengan model yang sudah ada."""
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -185,7 +185,7 @@ async def test_create_model_rejects_duplicate_name(
     )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "模型名称已存在"
+    assert response.json()["detail"] == "Nama model sudah ada"
 
 
 @pytest.mark.asyncio
@@ -261,8 +261,8 @@ async def test_create_model_rejects_context_length_above_two_million(
 
 @pytest.mark.asyncio
 async def test_get_all_models(client: AsyncClient, session: AsyncSession):
-    """测试获取所有模型。"""
-    # 创建测试数据
+    """Uji pengambilan seluruh model."""
+    # Buat data uji
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -347,7 +347,7 @@ async def test_find_legacy_agent_model_requires_a_unique_match(
 
 @pytest.mark.asyncio
 async def test_get_models_by_provider(client: AsyncClient, session: AsyncSession):
-    """测试根据提供商 ID 获取模型。"""
+    """Uji pengambilan model berdasarkan ID provider."""
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -385,7 +385,7 @@ async def test_get_models_by_provider(client: AsyncClient, session: AsyncSession
 
 @pytest.mark.asyncio
 async def test_update_model(client: AsyncClient, session: AsyncSession):
-    """测试更新模型。"""
+    """Uji pembaruan model."""
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -421,7 +421,7 @@ async def test_update_model(client: AsyncClient, session: AsyncSession):
 async def test_update_model_rejects_duplicate_name(
     client: AsyncClient, session: AsyncSession
 ):
-    """编辑模型时拒绝与其他模型同名的名称。"""
+    """Penyuntingan model menolak nama yang sama dengan model lain."""
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -454,14 +454,14 @@ async def test_update_model_rejects_duplicate_name(
     )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "模型名称已存在"
+    assert response.json()["detail"] == "Nama model sudah ada"
 
 
 @pytest.mark.asyncio
 async def test_update_model_allows_its_existing_name(
     client: AsyncClient, session: AsyncSession
 ):
-    """编辑模型时允许保留自身原有名称。"""
+    """Penyuntingan model tetap mengizinkan nama aslinya sendiri."""
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -493,7 +493,7 @@ async def test_update_model_allows_its_existing_name(
 
 @pytest.mark.asyncio
 async def test_delete_model(client: AsyncClient, session: AsyncSession):
-    """测试删除模型。"""
+    """Uji penghapusan model."""
     from app.core.encryption import EncryptionService
     from app.settings import settings
 
@@ -519,6 +519,6 @@ async def test_delete_model(client: AsyncClient, session: AsyncSession):
     response = await client.delete(f"/api/v1/models/{model.id}")
     assert response.status_code == 204
 
-    # 验证已删除
+    # Verifikasi sudah terhapus
     deleted_model = await model_repo.get_by_id(session, model.id)
     assert deleted_model is None

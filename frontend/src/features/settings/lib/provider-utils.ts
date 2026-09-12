@@ -1,7 +1,7 @@
 /**
  * Provider Utilities
  *
- * 提供商相关的工具函数。
+ * Fungsi bantu terkait penyedia.
  */
 
 import type { ModelProvider, ModelProviderCatalogProvider, ProviderType } from "@/lib/model.types";
@@ -40,7 +40,7 @@ export function isCustomProviderType(providerType: string): boolean {
 }
 
 /**
- * 获取提供商显示名称
+ * Mengambil nama tampilan penyedia
  */
 export function getProviderDisplayName(providerType: string): string {
   const nameMap: Record<string, string> = {
@@ -67,7 +67,7 @@ export function getProviderDisplayName(providerType: string): string {
 }
 
 /**
- * 获取提供商的固定 API URL
+ * Mengambil URL API tetap sebuah penyedia
  */
 export function getProviderUrl(
   providerType: string,

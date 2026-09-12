@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Writing Activity Repository - 写作活动事件只读/写入查询。
+Writing Activity Repository - kueri baca/tulis peristiwa aktivitas menulis.
 """
 
 from dataclasses import dataclass
@@ -17,7 +17,7 @@ from app.storage.models.writing_activity_event import WritingActivityEvent
 
 @dataclass(frozen=True)
 class WritingActivityFilters:
-    """写作活动筛选条件。"""
+    """Kriteria filter aktivitas menulis."""
 
     project_id: str | None = None
     source: str | None = None
@@ -28,7 +28,7 @@ class WritingActivityFilters:
 
 @dataclass(frozen=True)
 class WritingActivitySummaryRow:
-    """写作活动事件汇总。"""
+    """Ikhtisar peristiwa aktivitas menulis."""
 
     active_days: int
     creative_chapters: int
@@ -36,7 +36,7 @@ class WritingActivitySummaryRow:
 
 @dataclass(frozen=True)
 class WritingActivityTimeSeriesRow:
-    """按日期聚合的写作活动行。"""
+    """Baris aktivitas menulis yang diagregasi menurut tanggal."""
 
     date: str
     user_word_delta: int
@@ -46,7 +46,7 @@ class WritingActivityTimeSeriesRow:
 
 @dataclass(frozen=True)
 class WritingActivityMetricRow:
-    """用于写作统计的轻量事件行。"""
+    """Baris peristiwa ringan untuk statistik menulis."""
 
     created_at: datetime
     source: str
@@ -56,7 +56,7 @@ class WritingActivityMetricRow:
 
 @dataclass(frozen=True)
 class WritingActivityAggregates:
-    """写作统计聚合结果。"""
+    """Hasil agregat statistik menulis."""
 
     summary: WritingActivitySummaryRow
     time_series: list[WritingActivityTimeSeriesRow]
@@ -66,7 +66,7 @@ async def create(
     session: AsyncSession,
     event: WritingActivityEvent,
 ) -> WritingActivityEvent:
-    """创建写作活动事件。"""
+    """Membuat peristiwa aktivitas menulis."""
     session.add(event)
     await session.flush()
     await session.refresh(event)
@@ -77,7 +77,7 @@ async def get_aggregates(
     session: AsyncSession,
     filters: WritingActivityFilters,
 ) -> WritingActivityAggregates | None:
-    """在 SQLite 中聚合写作统计，无法安全折叠时返回 None。"""
+    """Mengagregasi statistik menulis di SQLite, mengembalikan None bila tidak dapat dilipat dengan aman."""
     timezone_modifier = _fixed_timezone_modifier(filters.timezone)
     if timezone_modifier is None:
         return None
@@ -170,7 +170,7 @@ async def list_metric_rows(
     session: AsyncSession,
     filters: WritingActivityFilters,
 ) -> list[WritingActivityMetricRow]:
-    """获取用于写作统计的轻量事件字段。"""
+    """Mengambil field peristiwa ringan untuk statistik menulis."""
     query = select(
         col(WritingActivityEvent.created_at),
         col(WritingActivityEvent.source),
@@ -206,7 +206,7 @@ def _conditions(filters: WritingActivityFilters) -> list[ColumnElement[bool]]:
 
 
 def _fixed_timezone_modifier(timezone: ZoneInfo) -> str | None:
-    """返回全年稳定时区的 SQLite 时间修饰符。"""
+    """Mengembalikan pengubah waktu SQLite dengan zona waktu stabil sepanjang tahun."""
     sample_dates = (
         datetime(2024, 1, 1, tzinfo=timezone),
         datetime(2024, 7, 1, tzinfo=timezone),

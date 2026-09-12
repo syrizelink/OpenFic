@@ -1,7 +1,7 @@
 /**
  * Project Select Field Styles
  *
- * 项目选择字段样式。
+ * Gaya field pemilihan proyek.
  */
 
 .project-select-field__label {
@@ -22,7 +22,7 @@
   cursor: not-allowed;
 }
 
-/* 覆盖 Radix 对 readOnly 输入框的 cursor: text（作用于内部 <input>） */
+/* Menimpa cursor: text milik Radix pada kotak masukan readOnly (berlaku pada <input> internal) */
 .project-select-field__input input {
   cursor: pointer;
 }

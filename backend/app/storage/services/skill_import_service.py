@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Skill Import Service - 按 Agent Skills 规范导入技能与参考文档。
+"""Skill Import Service - mengimpor skill dan dokumen referensi sesuai spesifikasi Agent Skills.
 
-参考: https://agentskills.io/specification
-- 单个 Markdown 文件: 解析 YAML frontmatter（name/description），Body 作为内容。
-- 压缩包 / 文件夹: 定位 SKILL.md 并解析，references/ 下的 Markdown 作为参考文档。
+Referensi: https://agentskills.io/specification
+- Satu file Markdown: mem-parsing YAML frontmatter (name/description), Body menjadi isi.
+- Arsip / folder: menemukan SKILL.md lalu mem-parsingnya, Markdown di references/ menjadi dokumen referensi.
 """
 
 import io
@@ -20,12 +20,12 @@ from app.storage.services import skill_reference_doc_service, skill_service
 
 
 class SkillImportError(Exception):
-    """技能导入解析失败。"""
+    """Parsing impor skill gagal."""
 
 
 @dataclass
 class UploadedFile:
-    """存储层用的上传文件数据，不依赖 FastAPI。"""
+    """Data file unggahan untuk lapisan penyimpanan, tanpa bergantung pada FastAPI."""
 
     filename: str
     content: bytes
@@ -47,7 +47,7 @@ class ImportResult:
 
 
 def _split_frontmatter(text: str) -> tuple[dict, str]:
-    """拆分 YAML frontmatter，返回 (frontmatter_dict, body)。"""
+    """Memisahkan YAML frontmatter, mengembalikan (frontmatter_dict, body)."""
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         return {}, text
@@ -102,7 +102,7 @@ def _parse_single_md(text: str, filename: str) -> ParsedSkill:
 
 
 def _extract_zip(content: bytes) -> dict[str, str]:
-    """解压 zip，返回 相对路径 -> 文本内容。"""
+    """Mengekstrak zip, mengembalikan jalur relatif -> isi teks."""
     result: dict[str, str] = {}
     with zipfile.ZipFile(io.BytesIO(content)) as zf:
         for info in zf.infolist():
@@ -119,13 +119,13 @@ def _find_skill_md(file_map: dict[str, str]) -> str | None:
     candidates = [p for p in file_map if posixpath.basename(p) == "SKILL.md"]
     if not candidates:
         return None
-    # 优先选最浅层级的 SKILL.md
+    # Utamakan SKILL.md pada tingkat paling dangkal
     candidates.sort(key=lambda p: (p.count("/"), len(p)))
     return candidates[0]
 
 
 def _collect_references(file_map: dict[str, str], root: str) -> list[tuple[str, str]]:
-    """收集 root/references/ 下的 Markdown 文档，返回 (标题, 内容) 列表。"""
+    """Mengumpulkan dokumen Markdown di root/references/, mengembalikan daftar (judul, isi)."""
     ref_prefix = f"{root}/references/" if root else "references/"
     refs: list[tuple[str, str]] = []
     for path in sorted(file_map):
@@ -147,7 +147,7 @@ def _parse_skill_md(text: str, root: str) -> ParsedSkill:
             content=body,
             recognized=True,
         )
-    root_name = posixpath.basename(root.rstrip("/")) if root else "导入技能"
+    root_name = posixpath.basename(root.rstrip("/")) if root else "Skill Impor"
     return ParsedSkill(name=root_name, summary="", content=text, recognized=False)
 
 
@@ -155,12 +155,12 @@ async def import_skill(
     session: AsyncSession,
     files: list[UploadedFile],
 ) -> ImportResult:
-    """解析上传文件并创建技能与参考文档（单事务，原子）。"""
+    """Mem-parsing file unggahan lalu membuat skill dan dokumen referensi (satu transaksi, atomik)."""
     if not files:
-        raise SkillImportError("未选择文件")
+        raise SkillImportError("Tidak ada file yang dipilih")
 
     if len(files) != 1:
-        raise SkillImportError("仅支持单个文件导入")
+        raise SkillImportError("Hanya mendukung impor satu file")
 
     single = files[0]
     name = _normalize_path(single.filename)
@@ -173,12 +173,12 @@ async def import_skill(
         file_map = _extract_zip(single.content)
         skill_md = _find_skill_md(file_map)
         if skill_md is None:
-            raise SkillImportError("压缩包内未找到 SKILL.md")
+            raise SkillImportError("SKILL.md tidak ditemukan di dalam arsip")
         root = posixpath.dirname(skill_md)
         parsed = _parse_skill_md(file_map[skill_md], root)
         ref_texts = _collect_references(file_map, root)
     else:
-        raise SkillImportError("不支持的文件类型，仅支持 .md / .zip")
+        raise SkillImportError("Jenis file tidak didukung, hanya .md / .zip")
 
     skill = await skill_service.create_skill(
         session,

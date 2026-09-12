@@ -1,4 +1,4 @@
-"""章节 TXT 导出任务的选择、文件写入和清理逻辑。"""
+"""Logika pemilihan, penulisan berkas, dan pembersihan untuk tugas ekspor TXT bab."""
 
 from __future__ import annotations
 
@@ -32,12 +32,12 @@ EXPORT_BATCH_SIZE = 20
 
 
 class ChapterExportSelectionError(ValueError):
-    """导出选择无效。"""
+    """Pilihan ekspor tidak valid."""
 
 
 @dataclass(frozen=True)
 class ExportChapter:
-    """任务中固化的章节元数据，不包含正文。"""
+    """Metadata bab yang dibekukan dalam tugas, tanpa memuat isi utama."""
 
     id: str
     volume_id: str
@@ -55,7 +55,7 @@ class ExportChapter:
 
 @dataclass(frozen=True)
 class ExportVolume:
-    """整卷 TXT 标题与归属章节。"""
+    """Judul TXT satu volume utuh beserta bab yang menjadi anggotanya."""
 
     id: str
     title: str
@@ -73,7 +73,7 @@ class ExportVolume:
 
 @dataclass(frozen=True)
 class ChapterExportPlan:
-    """创建后台任务前解析出的固定导出范围。"""
+    """Lingkup ekspor tetap yang diuraikan sebelum tugas latar belakang dibuat."""
 
     project_id: str
     filename: str
@@ -111,68 +111,28 @@ class ChapterExportPlan:
 
 
 def ensure_chapter_exports_dir() -> Path:
-    """确保导出成品目录存在。"""
+    """Memastikan direktori hasil ekspor tersedia."""
     settings.chapter_exports_dir.mkdir(parents=True, exist_ok=True)
     return settings.chapter_exports_dir
 
 
 def export_file_paths(job_id: str) -> tuple[Path, Path]:
-    """返回任务的临时文件与成品文件路径。"""
+    """Mengembalikan path berkas sementara dan berkas hasil untuk tugas ini."""
     directory = ensure_chapter_exports_dir()
     basename = f"{EXPORT_FILE_PREFIX}{job_id}"
     return directory / f"{basename}.part", directory / f"{basename}.txt"
 
 
 def sanitize_filename_segment(value: str, fallback: str) -> str:
-    """将项目和卷名转换为跨平台安全的文件名片段。"""
+    """Mengubah nama proyek dan volume menjadi potongan nama berkas yang aman lintas platform."""
     normalized = re.sub(r"[\\/:*?\"<>|\x00-\x1f]", " ", value).strip().strip(".")
     normalized = re.sub(r"\s+", " ", normalized)
     return normalized[:120] or fallback
 
 
-def chinese_number(value: int) -> str:
-    """将正整数转换为卷标题使用的简体中文数字。"""
-    if value <= 0:
-        return str(value)
-
-    numerals = "零一二三四五六七八九"
-    units = ("", "十", "百", "千")
-    group_units = ("", "万", "亿", "兆")
-
-    def format_group(group: int) -> str:
-        parts: list[str] = []
-        zero_pending = False
-        for exponent in range(3, -1, -1):
-            digit = (group // (10**exponent)) % 10
-            if digit:
-                if zero_pending:
-                    parts.append("零")
-                    zero_pending = False
-                parts.append(f"{numerals[digit]}{units[exponent]}")
-            elif parts:
-                zero_pending = True
-        return "".join(parts)
-
-    groups: list[int] = []
-    remaining = value
-    while remaining:
-        groups.append(remaining % 10000)
-        remaining //= 10000
-
-    result = ""
-    zero_pending = False
-    for index in range(len(groups) - 1, -1, -1):
-        group = groups[index]
-        if not group:
-            zero_pending = bool(result)
-            continue
-        if zero_pending or (result and group < 1000):
-            result += "零"
-        result += f"{format_group(group)}{group_units[index]}"
-        zero_pending = False
-    if 10 <= value < 20:
-        return f"十{result.removeprefix('一十')}"
-    return result
+def volume_number(value: int) -> str:
+    """Mengubah nomor urut volume menjadi label angka untuk judul volume."""
+    return str(value)
 
 
 async def create_export_plan(
@@ -184,10 +144,10 @@ async def create_export_plan(
     excluded_chapter_ids: Iterable[str],
     local_date: str,
 ) -> ChapterExportPlan:
-    """校验选择并固定导出范围、顺序和文件名。"""
+    """Memvalidasi pilihan lalu membekukan lingkup, urutan, dan nama berkas ekspor."""
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise LookupError(f"项目不存在: {project_id}")
+        raise LookupError(f"Proyek tidak ditemukan: {project_id}")
 
     volumes = await volume_repo.list_by_project(session, project_id)
     chapter_metadata = await chapter_repo.list_export_metadata_by_project(session, project_id)
@@ -204,7 +164,9 @@ async def create_export_plan(
     unknown_volumes = selected_volumes.difference(volume_by_id)
     unknown_chapters = included_chapters.union(excluded_chapters).difference(chapter_by_id)
     if unknown_volumes or unknown_chapters:
-        raise ChapterExportSelectionError("导出选择包含不属于当前项目的卷或章节")
+        raise ChapterExportSelectionError(
+            "Pilihan ekspor memuat volume atau bab yang bukan milik proyek saat ini"
+        )
 
     selected_ids = {
         chapter_id
@@ -213,7 +175,7 @@ async def create_export_plan(
     }
     selected_ids.difference_update(excluded_chapters)
     if not selected_ids:
-        raise ChapterExportSelectionError("请至少选择一个章节")
+        raise ChapterExportSelectionError("Pilih setidaknya satu bab")
 
     chapters_by_volume: dict[str, list[tuple[str, str, int]]] = {
         volume.id: [] for volume in volumes
@@ -232,22 +194,23 @@ async def create_export_plan(
         if chapters_by_volume[volume.id]
         and all(chapter_id in selected_ids for chapter_id, _title, _word_count in chapters_by_volume[volume.id])
     ]
-    # 任何显式章节补集或排除集都代表零碎章节选择。即使结果恰好覆盖某卷，
-    # 仍必须按章节格式导出，不能将用户的章节选择隐式提升为整卷。
+    # Setiap himpunan pelengkap atau pengecualian bab yang eksplisit menandakan pemilihan bab
+    # yang berserakan. Meski hasilnya kebetulan mencakup satu volume penuh, ekspor tetap wajib
+    # memakai format bab, dan pemilihan bab pengguna tidak boleh dinaikkan menjadi volume utuh.
     has_fragments = bool(included_chapters or excluded_chapters)
     mode = "chapters" if has_fragments else "volumes"
     nonempty_volumes = [volume for volume in volumes if chapters_by_volume[volume.id]]
     is_full_project = mode == "volumes" and len(complete_volumes) == len(nonempty_volumes)
 
-    project_title = sanitize_filename_segment(project.title, "未命名项目")
+    project_title = sanitize_filename_segment(project.title, "Proyek Tanpa Nama")
     if is_full_project:
-        filename_label = "全本"
+        filename_label = "Lengkap"
     elif mode == "volumes" and len(complete_volumes) == 1:
-        filename_label = sanitize_filename_segment(complete_volumes[0].title, "未命名卷")
+        filename_label = sanitize_filename_segment(complete_volumes[0].title, "Volume Tanpa Nama")
     elif mode == "volumes":
-        filename_label = f"{len(complete_volumes)}个卷"
+        filename_label = f"{len(complete_volumes)} Volume"
     else:
-        filename_label = f"{len(selected_chapters)}个章节"
+        filename_label = f"{len(selected_chapters)} Bab"
 
     return ChapterExportPlan(
         project_id=project_id,
@@ -257,7 +220,7 @@ async def create_export_plan(
             ExportChapter(
                 id=chapter_id,
                 volume_id=volume_id,
-                title=title or "未命名章节",
+                title=title or "Bab Tanpa Nama",
                 word_count=word_count,
             )
             for chapter_id, volume_id, title, word_count in selected_chapters
@@ -265,7 +228,7 @@ async def create_export_plan(
         volumes=[
             ExportVolume(
                 id=volume.id,
-                title=volume.title or "未命名卷",
+                title=volume.title or "Volume Tanpa Nama",
                 order=volume.order,
                 chapter_ids=[chapter_id for chapter_id, _title, _word_count in chapters_by_volume[volume.id]],
             )
@@ -277,7 +240,7 @@ async def create_export_plan(
 
 
 def get_export_summary(job: BackgroundJob) -> dict[str, object]:
-    """从后台任务记录抽取前端状态所需的导出摘要。"""
+    """Mengambil ringkasan ekspor untuk status frontend dari catatan tugas latar belakang."""
     payload = background_service.parse_json_object(job.payload_json)
     progress = background_service.parse_json_object(job.progress_json)
     result = background_service.parse_json_object(job.result_json)
@@ -291,7 +254,7 @@ def get_export_summary(job: BackgroundJob) -> dict[str, object]:
     return {
         "id": job.id,
         "status": job.status,
-        "filename": payload.get("filename", "导出章节.txt"),
+        "filename": payload.get("filename", "ekspor-bab.txt"),
         "mode": payload.get("mode", "chapters"),
         "volume_count": int(payload.get("volume_count", 0)),
         "chapter_count": int(payload.get("chapter_count", len(chapter_ids))),
@@ -309,12 +272,12 @@ def get_export_summary(job: BackgroundJob) -> dict[str, object]:
 
 
 async def write_chapter_export(context) -> dict[str, object]:
-    """分批读取章节正文并写入任务专属 TXT 文件。"""
+    """Membaca isi utama bab bertahap lalu menuliskannya ke berkas TXT milik tugas ini."""
     payload = background_service.parse_json_object(context.job.payload_json)
     chapters = [item for item in payload.get("chapters", []) if isinstance(item, dict)]
     volumes = [item for item in payload.get("volumes", []) if isinstance(item, dict)]
     if not chapters:
-        raise ChapterExportSelectionError("导出任务没有可处理的章节")
+        raise ChapterExportSelectionError("Tugas ekspor tidak memiliki bab yang dapat diproses")
 
     part_path, output_path = export_file_paths(context.job_id)
     groups = {
@@ -336,29 +299,29 @@ async def write_chapter_export(context) -> dict[str, object]:
                 loaded = await chapter_repo.get_by_ids(context.session, ids)
                 loaded_by_id = {chapter.id: chapter for chapter in loaded}
                 if len(loaded_by_id) != len(ids):
-                    raise RuntimeError("导出章节已被删除，请重新发起导出")
+                    raise RuntimeError("Bab yang diekspor sudah dihapus, silakan mulai ekspor ulang")
 
                 for item in batch:
                     chapter_id = item.get("id")
                     if not isinstance(chapter_id, str):
-                        raise RuntimeError("导出任务章节数据无效")
+                        raise RuntimeError("Data bab pada tugas ekspor tidak valid")
                     chapter = loaded_by_id[chapter_id]
                     title = item.get("title") if isinstance(item.get("title"), str) else chapter.title
                     if mode == "volumes":
                         group = groups.get(chapter_id)
                         if not isinstance(group, dict):
-                            raise RuntimeError("导出任务卷数据无效")
+                            raise RuntimeError("Data volume pada tugas ekspor tidak valid")
                         group_id = group.get("id")
                         if not isinstance(group_id, str):
-                            raise RuntimeError("导出任务卷数据无效")
+                            raise RuntimeError("Data volume pada tugas ekspor tidak valid")
                         if group_id != last_group_id:
                             if written_count:
                                 await output.write("\n\n")
                             order = group.get("order")
                             volume_title = group.get("title")
                             if not isinstance(order, int) or not isinstance(volume_title, str):
-                                raise RuntimeError("导出任务卷数据无效")
-                            await output.write(f"第{chinese_number(order)}卷 {volume_title}\n")
+                                raise RuntimeError("Data volume pada tugas ekspor tidak valid")
+                            await output.write(f"Volume {volume_number(order)} {volume_title}\n")
                             last_group_id = group_id
                         elif written_count:
                             await output.write("\n\n")
@@ -388,7 +351,7 @@ async def write_chapter_export(context) -> dict[str, object]:
         await asyncio.to_thread(os.replace, part_path, output_path)
         expires_at = datetime.now(UTC) + EXPORT_FILE_TTL
         return {
-            "filename": payload.get("filename", "导出章节.txt"),
+            "filename": payload.get("filename", "ekspor-bab.txt"),
             "volume_count": payload.get("volume_count", 0),
             "chapter_count": len(chapters),
             "word_count": payload.get("word_count", 0),
@@ -400,7 +363,7 @@ async def write_chapter_export(context) -> dict[str, object]:
 
 
 async def cleanup_chapter_export_files(session: AsyncSession) -> int:
-    """清除过期或已不可达的章节导出文件。"""
+    """Menghapus berkas ekspor bab yang kedaluwarsa atau sudah tidak dapat dijangkau."""
     directory = ensure_chapter_exports_dir()
     removed = 0
     now = datetime.now(UTC)
@@ -431,7 +394,7 @@ async def cleanup_chapter_export_files(session: AsyncSession) -> int:
 
 
 def is_export_download_available(job: BackgroundJob) -> bool:
-    """检查任务成品是否在下载有效期内。"""
+    """Memeriksa apakah hasil tugas masih berada dalam masa berlaku unduhan."""
     if job.type != EXPORT_JOB_TYPE or job.status != JOB_STATUS_SUCCEEDED:
         return False
     expires_at = _parse_datetime(background_service.parse_json_object(job.result_json).get("expires_at"))

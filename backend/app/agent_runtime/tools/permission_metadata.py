@@ -73,8 +73,12 @@ def resolve_tool_permission_key(tool_name: str) -> str:
 
 
 def get_default_agent_tool_permissions() -> list[dict[str, str]]:
+    # ``search_chapters`` dan ``update_index`` tersedia pada semua mode sejak
+    # adapter SQLite FTS5 menangani pencarian kata kunci tanpa pustaka native,
+    # sehingga tidak ada tool yang perlu disaring di sini.
     items_by_key: dict[str, str] = {}
-    for metadata in _PERMISSION_METADATA_BY_TOOL_NAME.values():
+    metadata_by_name = _PERMISSION_METADATA_BY_TOOL_NAME.items()
+    for _tool_name, metadata in metadata_by_name:
         items_by_key[metadata.permission_key] = metadata.default_mode
 
     return [

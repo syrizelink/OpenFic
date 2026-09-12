@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""SkillReferenceDoc Service - 参考文档业务逻辑层。"""
+"""SkillReferenceDoc Service - lapisan logika bisnis dokumen referensi."""
 
 from datetime import UTC, datetime
 from collections.abc import Sequence
@@ -16,7 +16,7 @@ from app.storage.services import skill_service
 async def _get_owned(session: AsyncSession, skill_db_id: str, doc_id: str) -> SkillReferenceDoc:
     doc = await skill_reference_doc_repo.get_by_id(session, doc_id)
     if doc is None or doc.skill_db_id != skill_db_id:
-        raise NotFoundError(f"参考文档不存在: {doc_id}")
+        raise NotFoundError(f"Dokumen referensi tidak ditemukan: {doc_id}")
     return doc
 
 
@@ -45,7 +45,9 @@ async def create_reference_doc(
 ) -> SkillReferenceDoc:
     skill = await skill_service.get_skill(session, skill_db_id)
     if skill_service.is_builtin_skill(skill):
-        raise skill_service.SkillValidationError(f"不可编辑内置 Skill 的参考文档: {skill_db_id}")
+        raise skill_service.SkillValidationError(
+            f"Dokumen referensi Skill bawaan tidak dapat disunting: {skill_db_id}"
+        )
     unique_title = await _ensure_unique_title(session, skill_db_id, title)
     doc = SkillReferenceDoc(
         skill_db_id=skill_db_id,
@@ -73,12 +75,14 @@ async def update_reference_doc(
 ) -> SkillReferenceDoc:
     skill = await skill_service.get_skill(session, skill_db_id)
     if skill_service.is_builtin_skill(skill):
-        raise skill_service.SkillValidationError(f"不可编辑内置 Skill 的参考文档: {skill_db_id}")
+        raise skill_service.SkillValidationError(
+            f"Dokumen referensi Skill bawaan tidak dapat disunting: {skill_db_id}"
+        )
     doc = await _get_owned(session, skill_db_id, doc_id)
     if title is not None and title != doc.title:
         existing = await skill_reference_doc_repo.list_by_skill(session, skill_db_id)
         if any(other.id != doc.id and other.title == title for other in existing):
-            raise ConflictError(f"参考文档标题已存在: {title}")
+            raise ConflictError(f"Judul dokumen referensi sudah ada: {title}")
         doc.title = title
     if content is not None:
         doc.content = content
@@ -94,6 +98,8 @@ async def delete_reference_doc(
 ) -> None:
     skill = await skill_service.get_skill(session, skill_db_id)
     if skill_service.is_builtin_skill(skill):
-        raise skill_service.SkillValidationError(f"不可编辑内置 Skill 的参考文档: {skill_db_id}")
+        raise skill_service.SkillValidationError(
+            f"Dokumen referensi Skill bawaan tidak dapat disunting: {skill_db_id}"
+        )
     doc = await _get_owned(session, skill_db_id, doc_id)
     await skill_reference_doc_repo.delete(session, doc)

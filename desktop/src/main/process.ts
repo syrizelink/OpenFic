@@ -71,7 +71,7 @@ export function startBackendProcess(options: StartBackendOptions): BackendProces
     stderrLog.end(markClosed);
   };
 
-  appendLog("backend", `启动后端命令：${options.command} ${options.args.join(" ")}`);
+  appendLog("backend", `Menjalankan perintah backend: ${options.command} ${options.args.join(" ")}`);
 
   const child = spawn(options.command, options.args, {
     cwd: dataDir,
@@ -95,11 +95,11 @@ export function startBackendProcess(options: StartBackendOptions): BackendProces
     observeOutputLines(child.stderr, options.onOutputLine);
   }
   child.once("error", (error) => {
-    appendLog("backend", `后端进程启动失败：${error.message}`);
+    appendLog("backend", `Proses backend gagal dijalankan: ${error.message}`);
     closeLogs();
   });
   child.once("close", (code, signal) => {
-    appendLog("backend", `后端进程已退出：code=${code ?? "null"} signal=${signal ?? "none"}`);
+    appendLog("backend", `Proses backend telah keluar: code=${code ?? "null"} signal=${signal ?? "none"}`);
     closeLogs();
   });
 
@@ -115,7 +115,7 @@ export function startBackendProcess(options: StartBackendOptions): BackendProces
 export function forceStopBackendProcess(handle: BackendProcessHandle | null): void {
   if (!handle || handle.process.killed) return;
 
-  appendLog("backend", `请求停止后端进程：pid=${handle.process.pid ?? "unknown"}`);
+  appendLog("backend", `Meminta penghentian proses backend: pid=${handle.process.pid ?? "unknown"}`);
 
   if (process.platform === "win32") {
     spawn("taskkill", ["/F", "/T", "/PID", String(handle.process.pid)], {
@@ -146,7 +146,7 @@ export function stopBackendProcess(handle: BackendProcessHandle | null): Promise
   if (!handle) return Promise.resolve();
   if (handle.stopPromise) return handle.stopPromise;
 
-  appendLog("backend", `请求优雅停止后端进程：pid=${handle.process.pid ?? "unknown"}`);
+  appendLog("backend", `Meminta penghentian proses backend secara halus: pid=${handle.process.pid ?? "unknown"}`);
   handle.stopPromise = requestBackendStop(handle, {
     requestGracefulShutdown: requestGracefulBackendShutdown,
     forceStop: (stopHandle) => forceStopBackendProcess(stopHandle as BackendProcessHandle),

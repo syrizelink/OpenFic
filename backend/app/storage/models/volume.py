@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Volume 数据模型。
+Model data Volume.
 """
 
 from datetime import UTC, datetime
@@ -12,7 +12,7 @@ from app.core.ids import generate_id
 
 
 class Volume(SQLModel, table=True):
-    """小说卷模型。"""
+    """Model volume novel."""
 
     __tablename__ = "volumes"
     __table_args__ = (

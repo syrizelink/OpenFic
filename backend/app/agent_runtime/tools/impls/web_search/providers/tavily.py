@@ -1,4 +1,4 @@
-"""Tavily API provider（官方 SDK）。"""
+"""Provider Tavily API (SDK resmi)."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ class TavilyProvider(WebSearchProvider):
         config: WebSearchProviderConfig,
     ) -> WebSearchResponse:
         if not config.api_key:
-            raise ToolExecutionError("Tavily 未配置 API Key")
+            raise ToolExecutionError("API Key Tavily belum dikonfigurasi")
 
         http_client = (
             httpx.AsyncClient(trust_env=False)
@@ -43,7 +43,7 @@ class TavilyProvider(WebSearchProvider):
                     include_answer=True,
                 )
             except Exception as exc:
-                raise ToolExecutionError(f"Tavily 搜索失败: {exc}") from exc
+                raise ToolExecutionError(f"Pencarian Tavily gagal: {exc}") from exc
         finally:
             await client.close()
             if http_client is not None:

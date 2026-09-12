@@ -66,7 +66,7 @@ async def _get_prompt_entries(
     )
     entries = [entry for entry in result.entries if entry.is_enabled]
     if not entries:
-        raise NotFoundError(f"提示词链 {prompt_id} 没有条目")
+        raise NotFoundError(f"Rantai prompt {prompt_id} tidak memiliki entri")
     return [
         EntryInput(
             role=entry.role,
@@ -117,7 +117,9 @@ def _previous_chapter_message(chapter: Chapter, summary: ChapterSummary | None) 
     ]
     content = "\n  ".join(part for part in parts if part)
     return (
-        "以下部分是上一个章节的有关内容，用以帮助你连贯的理解剧情信息，该部分与你要总结的内容**无关**。\n"
+        "Bagian berikut adalah isi terkait dari bab sebelumnya, untuk membantumu memahami"
+        " informasi alur cerita secara berkesinambungan; bagian ini **tidak berkaitan**"
+        " dengan isi yang harus kamu ringkas.\n"
         "<previous_chapter>\n"
         f"  {content}\n"
         "</previous_chapter>"
@@ -126,7 +128,7 @@ def _previous_chapter_message(chapter: Chapter, summary: ChapterSummary | None) 
 
 def _target_chapter_message(chapter: Chapter) -> str:
     return (
-        "以下部分是你需要总结的章节内容。\n"
+        "Bagian berikut adalah isi bab yang harus kamu ringkas.\n"
         "<target_chapter>\n"
         f"  {_xml_tag('title', chapter.title)}\n"
         f"  {_xml_tag('content', chapter.content)}\n"
@@ -135,7 +137,10 @@ def _target_chapter_message(chapter: Chapter) -> str:
 
 
 def _summaries_target_message(chapter_summaries: str) -> str:
-    return "以下部分是你需要总结的摘要内容\n" f"{chapter_summaries}"
+    return (
+        "Bagian berikut adalah isi ringkasan yang harus kamu ringkas\n"
+        f"{chapter_summaries}"
+    )
 
 
 def _usage_token_count(usage: dict[str, Any] | None, fallback_text: str) -> int:
@@ -151,7 +156,7 @@ def _first_tool_args(tool_calls: list[dict[str, Any]] | None, tool_name: str) ->
     for call in tool_calls or []:
         if call.get("name") == tool_name and isinstance(call.get("args"), dict):
             return call["args"]
-    raise ValueError(f"模型未调用必需工具: {tool_name}")
+    raise ValueError(f"Model tidak memanggil tool yang wajib: {tool_name}")
 
 
 def _clean_list(value: Any) -> list[str]:
@@ -170,7 +175,7 @@ async def build_chapter_summary_prompt(
 ) -> ChapterSummaryPrompt:
     chapter = await chapter_repo.get_by_id(session, chapter_id)
     if not chapter:
-        raise NotFoundError(f"章节不存在: {chapter_id}")
+        raise NotFoundError(f"Bab tidak ditemukan: {chapter_id}")
 
     messages = await _build_system_messages(
         session,
@@ -197,10 +202,12 @@ async def generate_chapter_summary_from_prompt(
     model_name: str | None,
 ) -> GeneratedChapterSummary:
     llm_client.bind_tools([make_chapter_summary_tool()])
-    logger.info("生成结构化章节摘要")
+    logger.info("Membuat ringkasan bab terstruktur")
     messages: list[BaseMessage] = [
         *prompt.messages,
-        HumanMessage(content="请调用 emit_chapter_summary 输出结果。"),
+        HumanMessage(
+            content="Silakan panggil emit_chapter_summary untuk mengeluarkan hasilnya."
+        ),
     ]
     async with audit_context.llm_call(
         operation="chapter_summary",
@@ -218,7 +225,7 @@ async def generate_chapter_summary_from_prompt(
     args = _first_tool_args(response.tool_calls, "emit_chapter_summary")
     summary = _clean_text(args.get("summary"))
     if not summary:
-        raise ValueError("章节摘要为空")
+        raise ValueError("Ringkasan bab kosong")
     return GeneratedChapterSummary(
         start_time=_clean_text(args.get("start_time")),
         end_time=_clean_text(args.get("end_time")),
@@ -241,7 +248,7 @@ async def build_long_term_summary_prompt(
         start=1,
     ):
         chapter = chapter_by_id.get(item.chapter_id or "")
-        title = chapter.title if chapter else f"第{item.chapter_order}章"
+        title = chapter.title if chapter else f"Bab {item.chapter_order}"
         characters = _summary_list_value(item.characters_json)
         locations = _summary_list_value(item.locations_json)
         summary_parts = [
@@ -259,7 +266,7 @@ async def build_long_term_summary_prompt(
             f"  </sum{index}>"
         )
     if not parts:
-        raise NotFoundError("没有可聚合的章节摘要")
+        raise NotFoundError("Tidak ada ringkasan bab yang dapat diagregasi")
     summaries_text = "<target_summaries>\n" + "\n".join(parts) + "\n</target_summaries>"
 
     messages = await _build_system_messages(
@@ -282,10 +289,12 @@ async def generate_long_term_summary_from_prompt(
     model_name: str | None,
 ) -> GeneratedLongTermSummary:
     llm_client.bind_tools([make_long_term_summary_tool()])
-    logger.info("生成结构化远期摘要")
+    logger.info("Membuat ringkasan jangka jauh terstruktur")
     messages: list[BaseMessage] = [
         *prompt.messages,
-        HumanMessage(content="请调用 emit_long_term_summary 输出结果。"),
+        HumanMessage(
+            content="Silakan panggil emit_long_term_summary untuk mengeluarkan hasilnya."
+        ),
     ]
     async with audit_context.llm_call(
         operation="long_term_summary",
@@ -303,7 +312,7 @@ async def generate_long_term_summary_from_prompt(
     args = _first_tool_args(response.tool_calls, "emit_long_term_summary")
     summary = _clean_text(args.get("summary"))
     if not summary:
-        raise ValueError("远期摘要为空")
+        raise ValueError("Ringkasan jangka jauh kosong")
     return GeneratedLongTermSummary(
         start_time=_clean_text(args.get("start_time")),
         end_time=_clean_text(args.get("end_time")),

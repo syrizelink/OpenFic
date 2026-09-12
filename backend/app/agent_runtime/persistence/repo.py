@@ -1,4 +1,4 @@
-"""Agent 运行时消息持久化的 CRUD。"""
+"""CRUD untuk persistensi pesan runtime Agent."""
 
 import json
 from collections.abc import Sequence
@@ -24,7 +24,7 @@ from app.core.ids import generate_id
 
 
 def _row_to_dto(row: AgentRunMessage) -> PersistedMessage:
-    """将 ORM 行转换为外部 DTO，反序列化 JSON 字段。"""
+    """Mengubah baris ORM menjadi DTO eksternal dan mendeserialisasi field JSON."""
     return PersistedMessage(
         id=row.id,
         session_id=row.session_id,
@@ -50,7 +50,8 @@ def _row_to_dto(row: AgentRunMessage) -> PersistedMessage:
 
 
 async def next_seq(session: AsyncSession, session_id: str) -> int:
-    """返回该 session 下一个可用 seq；同一 session 内单调递增。"""
+    """Mengembalikan seq berikutnya yang tersedia untuk session tersebut; nilainya
+    naik monoton di dalam session yang sama."""
     try:
         result = await session.execute(
             select(func.max(col(AgentRunMessage.seq))).where(
@@ -87,9 +88,11 @@ async def insert_message(
     message_id: str | None = None,
     created_at: datetime | None = None,
 ) -> PersistedMessage:
-    """写入一条消息并 commit；返回 PersistedMessage（含分配的 seq）。"""
+    """Menulis satu pesan lalu commit; mengembalikan PersistedMessage (memuat seq
+    yang dialokasikan)."""
     try:
-        # 在写入前先把读路径的错误归一化为写错误，避免 PersistenceLoadError 泄露到写 API
+        # Sebelum menulis, normalkan error jalur baca menjadi error tulis agar
+        # PersistenceLoadError tidak merembes ke API tulis
         try:
             seq = await next_seq(session, session_id)
         except PersistenceLoadError as e:
@@ -133,7 +136,8 @@ async def insert_message(
 async def list_by_session(
     session: AsyncSession, session_id: str
 ) -> list[PersistedMessage]:
-    """按 seq 升序返回该 session 的全部消息。"""
+    """Mengembalikan semua pesan session tersebut, diurutkan naik berdasarkan
+    seq."""
     try:
         result = await session.execute(
             select(AgentRunMessage)
@@ -155,7 +159,8 @@ async def list_by_sessions(
     roles: Sequence[str] | None = None,
     tool_names: Sequence[str] | None = None,
 ) -> dict[str, list[PersistedMessage]]:
-    """按 session 批量加载消息，并在内存中按 session 分组。"""
+    """Memuat pesan secara massal per session, lalu mengelompokkannya per session
+    di memori."""
     normalized_ids = list(dict.fromkeys(session_id for session_id in session_ids if session_id))
     normalized_tool_names = list(
         dict.fromkeys(tool_name for tool_name in tool_names or () if tool_name)
@@ -195,7 +200,9 @@ async def list_by_sessions(
 async def delete_from_seq(
     session: AsyncSession, session_id: str, seq: int
 ) -> int:
-    """硬删 seq >= 指定值的所有行；返回删除条数。用于业务 revision rollback。"""
+    """Menghapus permanen semua baris dengan seq >= nilai yang ditentukan;
+    mengembalikan jumlah baris yang dihapus. Dipakai untuk rollback revision
+    bisnis."""
     try:
         result = await session.execute(
             delete(AgentRunMessage).where(
@@ -215,7 +222,8 @@ async def delete_from_seq(
 async def delete_pending_by_session(
     session: AsyncSession, session_id: str
 ) -> int:
-    """删除该 session 所有 status='pending' 的 user 行；返回删除条数。"""
+    """Menghapus semua baris user dengan status='pending' pada session tersebut;
+    mengembalikan jumlah baris yang dihapus."""
     try:
         result = await session.execute(
             delete(AgentRunMessage).where(
@@ -236,7 +244,7 @@ async def delete_pending_by_session(
 async def update_status(
     session: AsyncSession, message_id: str, status: Status
 ) -> None:
-    """更新单条消息的 status + updated_at。"""
+    """Memperbarui status + updated_at pada satu pesan."""
     try:
         row = await session.get(AgentRunMessage, message_id)
         if row is None:
@@ -295,7 +303,8 @@ async def update_latest_tool_message_content(
 
 
 async def delete_by_id(session: AsyncSession, message_id: str) -> bool:
-    """按 id 硬删一条；返回是否实际删除。API 层异常回滚 pending 用。"""
+    """Menghapus permanen satu baris berdasarkan id; mengembalikan apakah baris
+    benar-benar dihapus. Dipakai lapisan API untuk rollback pending saat error."""
     try:
         result = await session.execute(
             delete(AgentRunMessage).where(col(AgentRunMessage.id) == message_id)

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Dashboard LLM API 测试。
+Uji API Dashboard LLM.
 """
 
 from datetime import UTC, datetime
@@ -33,10 +33,10 @@ async def test_llm_dashboard_records_include_output_details(
     client: AsyncClient,
     session: AsyncSession,
 ) -> None:
-    """测试调用记录返回模型输出和工具调用详情，不内联输入提示词。"""
+    """Uji catatan pemanggilan mengembalikan keluaran model dan detail pemanggilan tool, tanpa menyertakan prompt masukan secara inline."""
     project_response = await client.post(
         "/api/v1/projects",
-        data={"title": "测试小说"},
+        data={"title": "Novel Uji"},
     )
     project_id = project_response.json()["id"]
 
@@ -47,9 +47,9 @@ async def test_llm_dashboard_records_include_output_details(
         model_id="test-model",
         model_provider="openai-compatible",
         model_name="Test Model",
-        request_messages='[{"role":"system","content":"系统提示"},{"role":"user","content":"用户提示"}]',
-        tool_references='[{"name":"edit_chapter","description":"编辑章节","parameters":{"content":{"type":"string"}}}]',
-        response_content="模型输出正文",
+        request_messages='[{"role":"system","content":"Prompt sistem"},{"role":"user","content":"Prompt pengguna"}]',
+        tool_references='[{"name":"edit_chapter","description":"Sunting bab","parameters":{"content":{"type":"string"}}}]',
+        response_content="Isi keluaran model",
         response_tool_calls='[{"name":"edit_chapter","args":{"chapter_ref":{"type":"order","value":1}}}]',
         tokens_input=120,
         tokens_output=34,
@@ -67,12 +67,12 @@ async def test_llm_dashboard_records_include_output_details(
 
     assert response.status_code == 200
     record = response.json()["records"]["items"][0]
-    assert record["project_title"] == "测试小说"
+    assert record["project_title"] == "Novel Uji"
     assert record["created_at"] == "2026-05-09T07:30:00Z"
     assert record["token_cache"] == 20
     assert "request_messages" not in record
     assert record["has_request_messages"] is True
-    assert record["response_content"] == "模型输出正文"
+    assert record["response_content"] == "Isi keluaran model"
     assert record["response_tool_calls"] == audit_log.response_tool_calls
     assert record["tool_references"] == audit_log.tool_references
 
@@ -82,10 +82,10 @@ async def test_llm_dashboard_records_indicate_when_input_details_are_unavailable
     client: AsyncClient,
     session: AsyncSession,
 ) -> None:
-    """调用记录列表应标识输入详情是否可查看。"""
+    """Daftar catatan pemanggilan harus menandai apakah detail masukan dapat dilihat."""
     project_response = await client.post(
         "/api/v1/projects",
-        data={"title": "测试小说"},
+        data={"title": "Novel Uji"},
     )
     project_id = project_response.json()["id"]
     session.add_all(
@@ -94,7 +94,7 @@ async def test_llm_dashboard_records_indicate_when_input_details_are_unavailable
                 project_id=project_id,
                 operation="writer",
                 model_id="with-input",
-                request_messages='[{"role":"user","content":"提示"}]',
+                request_messages='[{"role":"user","content":"Prompt"}]',
                 status="success",
             ),
             LLMAuditLog(
@@ -123,17 +123,17 @@ async def test_llm_dashboard_record_prompt_returns_request_messages(
     client: AsyncClient,
     session: AsyncSession,
 ) -> None:
-    """测试输入提示词通过单条记录详情接口返回。"""
+    """Uji prompt masukan dikembalikan melalui endpoint detail satu catatan."""
     project_response = await client.post(
         "/api/v1/projects",
-        data={"title": "测试小说"},
+        data={"title": "Novel Uji"},
     )
     project_id = project_response.json()["id"]
     audit_log = LLMAuditLog(
         project_id=project_id,
         operation="writer",
         model_id="test-model",
-        request_messages='[{"role":"system","content":"系统提示"}]',
+        request_messages='[{"role":"system","content":"Prompt sistem"}]',
         tokens_input=12,
         tokens_total=12,
         status="success",
@@ -155,7 +155,7 @@ async def test_llm_dashboard_filters_summary_operations(
     client: AsyncClient,
     session: AsyncSession,
 ) -> None:
-    project_response = await client.post("/api/v1/projects", data={"title": "测试小说"})
+    project_response = await client.post("/api/v1/projects", data={"title": "Novel Uji"})
     project_id = project_response.json()["id"]
     session.add_all(
         [
@@ -192,7 +192,7 @@ async def test_llm_dashboard_filters_records_by_category(
     client: AsyncClient,
     session: AsyncSession,
 ) -> None:
-    project_response = await client.post("/api/v1/projects", data={"title": "测试小说"})
+    project_response = await client.post("/api/v1/projects", data={"title": "Novel Uji"})
     project_id = project_response.json()["id"]
     session.add_all(
         [
@@ -230,7 +230,7 @@ async def test_llm_dashboard_searches_category_and_operation(
     client: AsyncClient,
     session: AsyncSession,
 ) -> None:
-    project_response = await client.post("/api/v1/projects", data={"title": "测试小说"})
+    project_response = await client.post("/api/v1/projects", data={"title": "Novel Uji"})
     project_id = project_response.json()["id"]
     session.add_all(
         [
@@ -268,9 +268,9 @@ async def test_llm_dashboard_stats_include_model_trends_and_project_breakdown(
     client: AsyncClient,
     session: AsyncSession,
 ) -> None:
-    """测试统计接口返回按模型趋势和按项目分布。"""
-    project_a_response = await client.post("/api/v1/projects", data={"title": "项目甲"})
-    project_b_response = await client.post("/api/v1/projects", data={"title": "项目乙"})
+    """Uji endpoint statistik mengembalikan tren per model dan distribusi per proyek."""
+    project_a_response = await client.post("/api/v1/projects", data={"title": "Proyek A"})
+    project_b_response = await client.post("/api/v1/projects", data={"title": "Proyek B"})
     project_a_id = project_a_response.json()["id"]
     project_b_id = project_b_response.json()["id"]
     session.add_all(
@@ -280,7 +280,7 @@ async def test_llm_dashboard_stats_include_model_trends_and_project_breakdown(
                 project_id=project_a_id,
                 operation="writer",
                 model_id="model-a",
-                model_name="模型 A",
+                model_name="Model A",
                 tokens_total=100,
                 latency_ms=800,
                 status="success",
@@ -290,7 +290,7 @@ async def test_llm_dashboard_stats_include_model_trends_and_project_breakdown(
                 project_id=project_a_id,
                 operation="writer",
                 model_id="model-a",
-                model_name="模型 A",
+                model_name="Model A",
                 tokens_total=60,
                 latency_ms=1000,
                 status="success",
@@ -300,7 +300,7 @@ async def test_llm_dashboard_stats_include_model_trends_and_project_breakdown(
                 project_id=project_b_id,
                 operation="reviewer",
                 model_id="model-b",
-                model_name="模型 B",
+                model_name="Model B",
                 tokens_total=40,
                 latency_ms=1200,
                 status="success",
@@ -317,7 +317,7 @@ async def test_llm_dashboard_stats_include_model_trends_and_project_breakdown(
         {
             "date": "2026-05-08",
             "key": "model-a",
-            "label": "模型 A",
+            "label": "Model A",
             "calls": 1,
             "tokens_total": 100,
             "avg_latency_ms": 800.0,
@@ -325,7 +325,7 @@ async def test_llm_dashboard_stats_include_model_trends_and_project_breakdown(
         {
             "date": "2026-05-09",
             "key": "model-a",
-            "label": "模型 A",
+            "label": "Model A",
             "calls": 1,
             "tokens_total": 60,
             "avg_latency_ms": 1000.0,
@@ -333,7 +333,7 @@ async def test_llm_dashboard_stats_include_model_trends_and_project_breakdown(
         {
             "date": "2026-05-09",
             "key": "model-b",
-            "label": "模型 B",
+            "label": "Model B",
             "calls": 1,
             "tokens_total": 40,
             "avg_latency_ms": 1200.0,
@@ -342,13 +342,13 @@ async def test_llm_dashboard_stats_include_model_trends_and_project_breakdown(
     assert data["by_project"] == [
         {
             "key": project_a_id,
-            "label": "项目甲",
+            "label": "Proyek A",
             "calls": 2,
             "tokens_total": 160,
         },
         {
             "key": project_b_id,
-            "label": "项目乙",
+            "label": "Proyek B",
             "calls": 1,
             "tokens_total": 40,
         },
@@ -360,7 +360,7 @@ async def test_llm_dashboard_stats_uses_bounded_query_count(
     client: AsyncClient,
     session: AsyncSession,
 ) -> None:
-    project_response = await client.post("/api/v1/projects", data={"title": "测试小说"})
+    project_response = await client.post("/api/v1/projects", data={"title": "Novel Uji"})
     project_id = project_response.json()["id"]
     session.add(
         LLMAuditLog(
@@ -387,7 +387,7 @@ async def test_llm_dashboard_records_uses_one_page_and_one_options_query(
     client: AsyncClient,
     session: AsyncSession,
 ) -> None:
-    project_response = await client.post("/api/v1/projects", data={"title": "测试小说"})
+    project_response = await client.post("/api/v1/projects", data={"title": "Novel Uji"})
     project_id = project_response.json()["id"]
     session.add(
         LLMAuditLog(

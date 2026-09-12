@@ -1,4 +1,4 @@
-"""Repo 测试。"""
+"""Uji Repo."""
 
 import json
 
@@ -269,7 +269,7 @@ async def test_delete_pending_by_session(db_session: AsyncSession, sample_task):
 async def test_delete_pending_by_session_keeps_assistant_pending(
     db_session: AsyncSession, sample_task
 ):
-    """role 过滤：assistant pending 不应被这条 user-only 清理路径删除。"""
+    """Filter role: assistant pending tidak boleh terhapus oleh jalur pembersihan user-only ini."""
     await repo.insert_message(
         db_session,
         session_id="session_a",

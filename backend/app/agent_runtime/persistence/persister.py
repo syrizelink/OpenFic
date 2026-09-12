@@ -1,4 +1,5 @@
-"""MessagePersister: 订阅 LangGraph astream_events 写库。"""
+"""MessagePersister: berlangganan LangGraph astream_events lalu menulis ke basis
+data."""
 
 import json
 import logging
@@ -74,7 +75,8 @@ class _PendingTool:
 
 
 class MessagePersister:
-    """订阅 LangGraph astream_events，将消息写入 agent_run_messages。"""
+    """Berlangganan LangGraph astream_events dan menulis pesan ke
+    agent_run_messages."""
 
     AGENT_NODE_TAG = "agent_node"
 
@@ -211,7 +213,10 @@ class MessagePersister:
             content = serialize_tool_failure(
                 ToolFailure(
                     code="malformed_tool_call",
-                    message="工具参数 JSON 无法解析，未执行工具调用",
+                    message=(
+                        "Parameter alat berupa JSON tidak dapat diurai, pemanggilan "
+                        "alat tidak dijalankan"
+                    ),
                     trace={"source": "tool_call_recovery"},
                 )
             )
@@ -280,7 +285,7 @@ class MessagePersister:
                     "type": "ok",
                     "success": True,
                     "reason": "approval_preview",
-                    "message": "需要审批",
+                    "message": "Perlu persetujuan",
                     "tool_call_id": tool_call_id,
                     "tool_name": tool_name,
                 },
@@ -497,7 +502,8 @@ class MessagePersister:
             await session.close()
 
     async def finalize(self, reason: Literal["done", "cancelled", "error"]) -> None:
-        """run/resume 结束时把 buffer 里未提交的 partial / aborted 写库。"""
+        """Saat run/resume berakhir, tulis partial / aborted yang belum di-commit
+        dari buffer ke basis data."""
         try:
             for run_id, buf in list(self._assistant_buffers.items()):
                 content = "".join(buf.content_parts)
@@ -526,7 +532,7 @@ class MessagePersister:
                         status="aborted",
                         content=_failure_content(
                             code="execution_failed",
-                            message="工具未执行",
+                            message="Alat tidak dijalankan",
                             source="persistence_finalize",
                             tool_name=tc["name"],
                             tool_call_id=tc["id"],
@@ -550,7 +556,7 @@ class MessagePersister:
                     content=content
                     or _failure_content(
                         code="execution_failed",
-                        message="工具执行未完成",
+                        message="Eksekusi alat tidak selesai",
                         source="persistence_finalize",
                         tool_name=pending.tool_name,
                         tool_call_id=pending.tool_call_id,
@@ -602,7 +608,10 @@ class MessagePersister:
 
         return _failure_content(
             code="execution_failed",
-            message="subagent 会话已被用户中断，要通知其继续工作请使用 notify_subagent",
+            message=(
+                "Sesi subagent dibatalkan oleh pengguna; untuk memberitahunya agar "
+                "melanjutkan pekerjaan, gunakan notify_subagent"
+            ),
             source="persistence_finalize",
             tool_name=pending.tool_name,
             tool_call_id=pending.tool_call_id,

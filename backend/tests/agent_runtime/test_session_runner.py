@@ -24,7 +24,7 @@ def test_interrupt_payloads_preserve_pending_resume_data() -> None:
                         id="interrupt-1",
                         value={
                             "type": "ask_user",
-                            "questions": [{"title": "继续吗？"}],
+                            "questions": [{"title": "Lanjutkan?"}],
                         },
                     ),
                 ),
@@ -35,7 +35,7 @@ def test_interrupt_payloads_preserve_pending_resume_data() -> None:
     assert _interrupt_payloads(state) == [
         {
             "type": "ask_user",
-            "questions": [{"title": "继续吗？"}],
+            "questions": [{"title": "Lanjutkan?"}],
             "interrupt_id": "interrupt-1",
             "action_id": "interrupt-1",
             "id": "interrupt-1",
@@ -453,14 +453,14 @@ async def test_run_emits_each_preview_carried_by_first_approval_interrupt():
         {
             "tool_call_id": "call-volume",
             "tool_name": "create_volume",
-            "args": {"title": "新卷"},
-            "preview": {"type": "preview", "metadata": {"volume": {"title": "新卷"}}},
+            "args": {"title": "Volume Baru"},
+            "preview": {"type": "preview", "metadata": {"volume": {"title": "Volume Baru"}}},
         },
         {
             "tool_call_id": "call-category",
             "tool_name": "create_note_category",
-            "args": {"title": "新分类"},
-            "preview": {"type": "preview", "metadata": {"category": {"title": "新分类"}}},
+            "args": {"title": "Kategori Baru"},
+            "preview": {"type": "preview", "metadata": {"category": {"title": "Kategori Baru"}}},
         },
     ]
 
@@ -756,7 +756,7 @@ async def test_resume_restores_all_parallel_interrupts_in_one_command() -> None:
             "interrupt_id": "question-1",
             "action_type": "clarification",
             "action_id": "question-1",
-            "answer": [{"question": "风格", "answer": "正式"}],
+            "answer": [{"question": "Gaya", "answer": "Formal"}],
         },
     ]
 
@@ -896,7 +896,7 @@ async def test_run_starts_new_turns_after_interrupted_graph_without_concurrent_r
     graph = builder.compile(checkpointer=InMemorySaver())
     config = {"configurable": {"thread_id": runner.session_id}}
     await graph.ainvoke(
-        {"current_revision_id": "rev_initial", "user_request": "初始消息"},
+        {"current_revision_id": "rev_initial", "user_request": "Pesan awal"},
         config=config,
     )
 
@@ -935,8 +935,8 @@ async def test_run_starts_new_turns_after_interrupted_graph_without_concurrent_r
         "_make_persister",
         MagicMock(return_value=fake_persister),
     ):
-        await runner.run("第一条新消息")
-        await runner.run("第二条新消息")
+        await runner.run("Pesan baru pertama")
+        await runner.run("Pesan baru kedua")
 
     state = await graph.aget_state(config)
     assert state.values["current_revision_id"] == "rev_2"
@@ -976,8 +976,8 @@ async def test_run_compiles_user_request_for_model_and_persistence():
         persist_node_event=AsyncMock(),
     )
     persisted_message = SimpleNamespace(id="msg_mentions_001", seq=0, created_at=datetime.now(UTC))
-    raw_message = '<of-mention chapter_id="chap_1" label="旧章节" />'
-    compiled_message = " @chapter:修订卷/修订章节 "
+    raw_message = '<of-mention chapter_id="chap_1" label="Bab Lama" />'
+    compiled_message = " @chapter:Volume Revisi/Bab Revisi "
 
     with patch(
         "app.agent_runtime.runner.session_runner.compile_canonical_mentions",
@@ -1011,7 +1011,7 @@ async def test_cancel_and_continue_queues_compiled_user_message():
         project_id="proj_001",
     )
     fake_session = MagicMock(close=AsyncMock())
-    raw_message = '<of-mention chapter_id="chap_1" label="旧章节" />'
+    raw_message = '<of-mention chapter_id="chap_1" label="Bab Lama" />'
 
     with patch(
         "app.agent_runtime.runner.session_runner.create_session",
@@ -1023,7 +1023,7 @@ async def test_cancel_and_continue_queues_compiled_user_message():
     assert runner._inject_queue.get_nowait() == (
         None,
         "system",
-        "[系统] 上一条回复被用户中止",
+        "[Sistem] Balasan sebelumnya dibatalkan oleh pengguna",
     )
     assert runner._inject_queue.get_nowait() == (
         "msg_cancel_001",
@@ -1088,7 +1088,7 @@ async def test_run_emits_error_and_marks_revision_failed_on_runtime_exception():
         AsyncMock(),
     ):
         with pytest.raises(GraphRecursionError):
-            await runner.run("触发异常")
+            await runner.run("Picu exception")
  
     fake_persister.finalize.assert_awaited_once_with(reason="error")
     finalize_revision_status.assert_awaited_once_with(
@@ -1171,7 +1171,7 @@ async def test_resume_emits_error_and_keeps_pending_revision_resumable_on_runtim
         AsyncMock(),
     ):
         with pytest.raises(GraphRecursionError):
-            await runner.resume({"answer": "继续"})
+            await runner.resume({"answer": "Lanjut"})
 
     fake_persister.finalize.assert_awaited_once_with(reason="error")
     finalize_revision_status.assert_awaited_once_with(
@@ -1208,17 +1208,17 @@ async def test_manual_compact_builds_window_and_returns_metrics_without_revision
     )
     fake_session = MagicMock(close=AsyncMock())
     history_message = HumanMessage(
-        content="上一轮用户消息",
+        content="Pesan pengguna putaran sebelumnya",
         response_metadata={"openfic_seq": 1},
     )
     node_message = {
         "role": "user",
-        "content": "上一轮用户消息",
+        "content": "Pesan pengguna putaran sebelumnya",
         "metadata": {"part": "history", "seq": 1},
     }
     history_part = ContextMessage(
         role="user",
-        content="上一轮用户消息",
+        content="Pesan pengguna putaran sebelumnya",
         metadata={"part": "history", "seq": 1},
     )
     static_part = ContextMessage(
@@ -1323,11 +1323,11 @@ async def test_consume_next_pending_user_message_persists_and_removes_injected_i
         project_id="proj_pending_continue_001",
     )
     created_at = datetime(2026, 6, 21, 12, 0, tzinfo=UTC)
-    runner._queued_user_messages["msg_pending_1"] = ("压缩后继续处理", created_at)
-    runner._queued_user_messages["msg_pending_2"] = ("下一条 pending", created_at)
-    await runner._inject_queue.put((None, "system", "系统消息"))
-    await runner._inject_queue.put(("msg_pending_1", "user", "压缩后继续处理"))
-    await runner._inject_queue.put(("msg_pending_2", "user", "下一条 pending"))
+    runner._queued_user_messages["msg_pending_1"] = ("Lanjutkan setelah kompaksi", created_at)
+    runner._queued_user_messages["msg_pending_2"] = ("pending berikutnya", created_at)
+    await runner._inject_queue.put((None, "system", "Pesan sistem"))
+    await runner._inject_queue.put(("msg_pending_1", "user", "Lanjutkan setelah kompaksi"))
+    await runner._inject_queue.put(("msg_pending_2", "user", "pending berikutnya"))
 
     with patch.object(
         runner,
@@ -1344,26 +1344,26 @@ async def test_consume_next_pending_user_message_persists_and_removes_injected_i
     ) as emit_runtime_user_message:
         result = await runner.consume_next_pending_user_message_for_continuation()
 
-    assert result == ("msg_pending_1", "压缩后继续处理")
+    assert result == ("msg_pending_1", "Lanjutkan setelah kompaksi")
     persist_user_message.assert_awaited_once_with(
-        "压缩后继续处理",
+        "Lanjutkan setelah kompaksi",
         message_id="msg_pending_1",
         created_at=created_at,
     )
     emit_pending_user_message.assert_awaited_once_with(
-        "压缩后继续处理",
+        "Lanjutkan setelah kompaksi",
         message_id="msg_pending_1",
         action="consumed",
         created_at=created_at.isoformat(),
     )
     emit_runtime_user_message.assert_awaited_once_with(
-        "压缩后继续处理",
+        "Lanjutkan setelah kompaksi",
         message_id="msg_pending_1",
         created_at=created_at.isoformat(),
     )
     assert "msg_pending_1" not in runner._queued_user_messages
     assert runner._queued_user_messages["msg_pending_2"] == (
-        "下一条 pending",
+        "pending berikutnya",
         created_at,
     )
 
@@ -1371,8 +1371,8 @@ async def test_consume_next_pending_user_message_persists_and_removes_injected_i
     while not runner._inject_queue.empty():
         remaining.append(runner._inject_queue.get_nowait())
     assert remaining == [
-        (None, "system", "系统消息"),
-        ("msg_pending_2", "user", "下一条 pending"),
+        (None, "system", "Pesan sistem"),
+        ("msg_pending_2", "user", "pending berikutnya"),
     ]
 
 
@@ -1391,8 +1391,8 @@ async def test_consume_next_pending_user_message_keeps_pending_when_persist_fail
         project_id="proj_pending_persist_error_001",
     )
     created_at = datetime(2026, 6, 21, 12, 0, tzinfo=UTC)
-    runner._queued_user_messages["msg_pending_1"] = ("压缩后继续处理", created_at)
-    await runner._inject_queue.put(("msg_pending_1", "user", "压缩后继续处理"))
+    runner._queued_user_messages["msg_pending_1"] = ("Lanjutkan setelah kompaksi", created_at)
+    await runner._inject_queue.put(("msg_pending_1", "user", "Lanjutkan setelah kompaksi"))
 
     with patch.object(
         runner,
@@ -1411,12 +1411,12 @@ async def test_consume_next_pending_user_message_keeps_pending_when_persist_fail
             await runner.consume_next_pending_user_message_for_continuation()
 
     assert runner._queued_user_messages["msg_pending_1"] == (
-        "压缩后继续处理",
+        "Lanjutkan setelah kompaksi",
         created_at,
     )
     remaining: list[tuple[str | None, str, str]] = []
     while not runner._inject_queue.empty():
         remaining.append(runner._inject_queue.get_nowait())
-    assert remaining == [("msg_pending_1", "user", "压缩后继续处理")]
+    assert remaining == [("msg_pending_1", "user", "Lanjutkan setelah kompaksi")]
     emit_pending_user_message.assert_not_awaited()
     emit_runtime_user_message.assert_not_awaited()

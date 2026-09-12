@@ -1,4 +1,4 @@
-"""SessionRunner 与持久化层的集成测试。"""
+"""Uji integrasi SessionRunner dengan lapisan persistensi."""
 
 import json
 from types import SimpleNamespace
@@ -96,7 +96,7 @@ def test_build_runtime_config_passes_compaction_sinks_to_graph():
 
 @pytest_asyncio.fixture
 async def isolated_db(monkeypatch):
-    """把全局 _async_session_factory / _engine 替换成内存库，并建表。"""
+    """Mengganti _async_session_factory / _engine global dengan basis data in-memory, lalu membuat tabel."""
     import app.storage.database as db_mod
 
     register_sqlmodel_models()
@@ -122,7 +122,7 @@ async def isolated_db(monkeypatch):
             Volume(
                 id="vol_x",
                 project_id="proj_x",
-                title="第一卷",
+                title="Volume 1",
                 order=1,
                 chapter_count=1,
             )
@@ -152,7 +152,7 @@ async def isolated_db(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_session_runner_clears_pending_on_run_start(isolated_db):
-    """run 启动时调 delete_pending_by_session 清掉残留 pending。"""
+    """Saat run dimulai, delete_pending_by_session dipanggil untuk membersihkan pending yang tersisa."""
     factory = isolated_db
     async with factory() as s:
         await repo.insert_message(
@@ -221,7 +221,7 @@ async def test_queue_pending_user_message_enqueues_without_persisting_until_cons
     factory = isolated_db
     sid = "s_x"
     emitted: list[tuple[str, dict]] = []
-    raw_follow_up = 'follow-up<of-mention volume_id="vol_x" label="旧卷" />'
+    raw_follow_up = 'follow-up<of-mention volume_id="vol_x" label="Volume Lama" />'
     persisted_follow_up = raw_follow_up
 
     async def capture_emit(name, payload=None, *_args, **_kwargs):
@@ -269,7 +269,7 @@ async def test_cancel_pending_user_message_emits_cancel_event_and_skips_injectio
     factory = isolated_db
     sid = "s_x"
     emitted: list[tuple[str, dict]] = []
-    raw_follow_up = 'follow-up<of-mention volume_id="vol_x" label="旧卷" />'
+    raw_follow_up = 'follow-up<of-mention volume_id="vol_x" label="Volume Lama" />'
     persisted_follow_up = raw_follow_up
 
     async def capture_emit(name, payload=None, *_args, **_kwargs):
@@ -315,7 +315,7 @@ async def test_drain_inject_queue_emits_consumed_and_user_text_for_pending_messa
     factory = isolated_db
     sid = "s_x"
     emitted: list[tuple[str, dict]] = []
-    raw_follow_up = 'follow-up<of-mention volume_id="vol_x" label="旧卷" />'
+    raw_follow_up = 'follow-up<of-mention volume_id="vol_x" label="Volume Lama" />'
     persisted_follow_up = raw_follow_up
 
     async def capture_emit(name, payload=None, *_args, **_kwargs):
@@ -371,7 +371,7 @@ async def test_run_consumes_queued_follow_up_before_turn_finishes(
     monkeypatch,
 ):
     factory = isolated_db
-    raw_follow_up = 'follow-up<of-mention volume_id="vol_x" label="旧卷" />'
+    raw_follow_up = 'follow-up<of-mention volume_id="vol_x" label="Volume Lama" />'
     persisted_follow_up = raw_follow_up
 
     class _FakeModel:
@@ -480,7 +480,7 @@ async def test_injected_follow_up_persists_after_assistant_reply(
     monkeypatch,
 ):
     factory = isolated_db
-    raw_follow_up = 'follow-up<of-mention volume_id="vol_x" label="旧卷" />'
+    raw_follow_up = 'follow-up<of-mention volume_id="vol_x" label="Volume Lama" />'
     persisted_follow_up = raw_follow_up
 
     async def noop_emit(*_args, **_kwargs):
@@ -542,16 +542,16 @@ async def test_injected_follow_up_persists_after_assistant_reply(
 
 @pytest.mark.asyncio
 async def test_run_persists_messages_end_to_end(isolated_db, monkeypatch):
-    """跑一次 run，确认持久化产生了至少一条 assistant complete。"""
+    """Menjalankan run sekali dan memastikan persistensi menghasilkan minimal satu assistant complete."""
     factory = isolated_db
 
-    # 关掉 emit 副作用
+    # Matikan efek samping emit
     async def noop_emit(*_a, **_kw):
         return None
 
     monkeypatch.setattr("app.agent_runtime.runner.session_runner.emit", noop_emit)
 
-    # 模拟 graph：astream_events 直接产出一段 chat_model_start/stream/end
+    # Menyimulasikan graph: astream_events langsung menghasilkan rangkaian chat_model_start/stream/end
     from langchain_core.messages import AIMessageChunk
 
     class _FakeGraph:
@@ -691,7 +691,7 @@ async def test_run_emits_and_persists_cumulative_task_token_usage(
     monkeypatch.setattr(runner, "_get_graph", fake_get_graph)
     monkeypatch.setattr(runner, "_make_persister", lambda: _FakePersister())
 
-    await runner.run("统计 token")
+    await runner.run("Hitung token")
 
     assert [payload for name, payload in captured_events if name == "agent:usage"] == [
         {

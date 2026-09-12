@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Skill API Schemas。"""
+"""Skill API Schemas."""
 
 from datetime import datetime
 
@@ -9,17 +9,17 @@ from app.api.schemas.skill_reference_doc import SkillReferenceDocResponse
 
 
 class SkillCreate(BaseModel):
-    name: str = Field(default="", description="技能名称")
-    summary: str = Field(default="", description="技能简述")
-    content: str = Field(default="", description="技能内容")
-    is_enabled: bool = Field(default=False, description="是否启用")
+    name: str = Field(default="", description="Nama skill")
+    summary: str = Field(default="", description="Ringkasan skill")
+    content: str = Field(default="", description="Isi skill")
+    is_enabled: bool = Field(default=False, description="Apakah diaktifkan")
 
 
 class SkillUpdate(BaseModel):
-    name: str | None = Field(default=None, description="技能名称")
-    summary: str | None = Field(default=None, description="技能简述")
-    content: str | None = Field(default=None, description="技能内容")
-    is_enabled: bool | None = Field(default=None, description="是否启用")
+    name: str | None = Field(default=None, description="Nama skill")
+    summary: str | None = Field(default=None, description="Ringkasan skill")
+    content: str | None = Field(default=None, description="Isi skill")
+    is_enabled: bool | None = Field(default=None, description="Apakah diaktifkan")
 
 
 class SkillResponse(BaseModel):

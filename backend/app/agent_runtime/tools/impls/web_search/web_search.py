@@ -1,4 +1,5 @@
-"""联网搜索工具：统一封装所有 web search provider。"""
+"""Alat pencarian daring: membungkus seluruh web search provider secara
+seragam."""
 
 from __future__ import annotations
 
@@ -26,12 +27,14 @@ from app.storage.database import create_session
 
 
 class WebSearchInput(BaseModel):
-    query: str = Field(description="检索关键词或自然语言问题")
+    query: str = Field(
+        description="Kata kunci pencarian atau pertanyaan dalam bahasa alami"
+    )
     count: int = Field(
         default=DEFAULT_WEB_SEARCH_MAX_RESULTS,
         ge=1,
         le=20,
-        description="期望返回的结果条数",
+        description="Jumlah hasil yang diharapkan dikembalikan",
     )
 
 
@@ -46,9 +49,11 @@ class WebSearchOutput(BaseModel):
 class WebSearchTool(AgentTool):
     name: str = "web_search"
     description: str = dedent("""\
-        联网检索互联网上的公开信息
-        用于获取写作所需的实时信息、事实核查与资料搜集。
-        需要阅读结果全文时，使用 web_fetch 读取对应链接。
+        Mencari informasi publik di internet secara daring
+        Dipakai untuk memperoleh informasi terkini yang dibutuhkan dalam penulisan,
+        memverifikasi fakta, dan mengumpulkan bahan.
+        Saat perlu membaca teks lengkap sebuah hasil, gunakan web_fetch untuk membaca
+        tautan yang bersangkutan.
     """)
     access_level: str = "readonly"
     args_schema: type[BaseModel] = WebSearchInput
@@ -60,7 +65,7 @@ class WebSearchTool(AgentTool):
     ) -> str:
         normalized_query = query.strip()
         if not normalized_query:
-            raise ToolExecutionError("检索关键词不能为空")
+            raise ToolExecutionError("Kata kunci pencarian tidak boleh kosong")
 
         session = await create_session()
         try:
@@ -70,18 +75,20 @@ class WebSearchTool(AgentTool):
 
         if not config.enabled:
             raise ToolExecutionError(
-                "联网搜索功能未启用，请在应用设置的「联网搜索」中开启"
+                "Fitur pencarian daring belum diaktifkan, aktifkan pada bagian "
+                "\"Pencarian Daring\" di pengaturan aplikasi"
             )
         if not config.provider:
             raise ToolExecutionError(
-                "尚未配置联网搜索，请在应用设置中配置搜索 provider 与 API Key"
-                f"（可用 provider: {', '.join(list_provider_names())}）"
+                "Pencarian daring belum dikonfigurasi, konfigurasikan provider "
+                "pencarian dan API Key pada pengaturan aplikasi"
+                f" (provider yang tersedia: {', '.join(list_provider_names())})"
             )
         provider_cls = get_provider(config.provider)
         if provider_cls is None:
             raise ToolExecutionError(
-                f"不支持的搜索 provider: {config.provider}"
-                f"（可用: {', '.join(list_provider_names())}）"
+                f"provider pencarian tidak didukung: {config.provider}"
+                f" (yang tersedia: {', '.join(list_provider_names())})"
             )
 
         effective_count = min(count, config.max_results)
@@ -99,7 +106,7 @@ class WebSearchTool(AgentTool):
             raise
         except Exception as exc:
             raise ToolExecutionError(
-                f"联网搜索失败: {type(exc).__name__}: {exc}"
+                f"Pencarian daring gagal: {type(exc).__name__}: {exc}"
             ) from exc
 
         results = filter_web_search_results(response.results, config.domain_filters)[

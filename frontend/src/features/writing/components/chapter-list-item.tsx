@@ -1,8 +1,8 @@
 /**
  * Chapter List Item
  *
- * 章节列表项组件，显示章节名、字数和编辑时间。
- * 普通滚动路径不接入 dnd-kit，只在拖拽模式下启用 draggable。
+ * Komponen item daftar bab, menampilkan nama bab, jumlah kata, dan waktu penyuntingan.
+ * Jalur gulir biasa tidak memakai dnd-kit, draggable hanya diaktifkan pada mode tarik-lepas.
  */
 
 import { useDraggable } from "@dnd-kit/core";

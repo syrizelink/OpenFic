@@ -32,7 +32,7 @@ async def test_subagent_tool_preview_emits_identity_for_running_tool() -> None:
         parent_session_id="parent-session",
         tool_call_id="call-dispatch",
         tool_name="dispatch_subagent",
-        tool_args={"agent_type": "writer", "prompt": "写场景"},
+        tool_args={"agent_type": "writer", "prompt": "Tulis adegan"},
         row=row,
     )
 
@@ -43,7 +43,7 @@ async def test_subagent_tool_preview_emits_identity_for_running_tool() -> None:
                 "session_id": "parent-session",
                 "tool_call_id": "call-dispatch",
                 "tool": "dispatch_subagent",
-                "input": {"agent_type": "writer", "prompt": "写场景"},
+                "input": {"agent_type": "writer", "prompt": "Tulis adegan"},
                 "output": {
                     "type": "preview",
                     "success": True,
@@ -138,8 +138,8 @@ async def test_dispatch_subagent_emits_preview_after_child_run_is_created(
 
     await tool._arun(
         agent_type="writer",
-        description="写场景",
-        prompt="请续写这一场景。",
+        description="Tulis adegan",
+        prompt="Silakan lanjutkan adegan ini.",
         config={"metadata": {"tool_call_id": "call-dispatch"}},
     )
 
@@ -151,8 +151,8 @@ async def test_dispatch_subagent_emits_preview_after_child_run_is_created(
             "tool_name": "dispatch_subagent",
             "tool_args": {
                 "agent_type": "writer",
-                "description": "写场景",
-                "prompt": "请续写这一场景。",
+                "description": "Tulis adegan",
+                "prompt": "Silakan lanjutkan adegan ini.",
             },
             "row": row,
         }
@@ -239,7 +239,7 @@ async def test_notify_subagent_emits_preview_after_request_is_queued(
 
     await tool._arun(
         dispatch_id="dispatch-writer",
-        prompt="请继续完善冲突。",
+        prompt="Silakan lanjutkan penyempurnaan konflik.",
         config={"metadata": {"tool_call_id": "call-notify"}},
     )
 
@@ -251,7 +251,7 @@ async def test_notify_subagent_emits_preview_after_request_is_queued(
             "tool_name": "notify_subagent",
             "tool_args": {
                 "dispatch_id": "dispatch-writer",
-                "prompt": "请继续完善冲突。",
+                "prompt": "Silakan lanjutkan penyempurnaan konflik.",
             },
             "row": row,
         }

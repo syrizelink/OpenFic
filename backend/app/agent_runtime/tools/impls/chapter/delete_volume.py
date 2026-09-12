@@ -12,17 +12,20 @@ from app.storage.services.version_control_service import refresh_project_stats
 
 
 class DeleteVolumeInput(BaseModel):
-    volume_ref: VolumeRef = Field(description="目标卷")
+    volume_ref: VolumeRef = Field(description="Volume sasaran")
     cascade: bool = Field(
         default=False,
-        description="是否连同卷内全部章节一起删除；删除非空卷时必须指定为true",
+        description=(
+            "Apakah menghapus volume beserta seluruh bab di dalamnya; saat menghapus "
+            "volume yang tidak kosong, nilai ini harus diisi true"
+        ),
     )
 
 
 @ToolRegistry.register
 class DeleteVolumeTool(AgentTool):
     name: str = "delete_volume"
-    description: str = "删除指定卷"
+    description: str = "Menghapus volume yang ditentukan"
     access_level: str = "write"
     args_schema: type[BaseModel] = DeleteVolumeInput
 
@@ -37,7 +40,11 @@ class DeleteVolumeTool(AgentTool):
             if chapter_count > 0 and not cascade:
                 await session.rollback()
                 return json.dumps(
-                    {"error": "卷非空，删除时需要 cascade=true"},
+                    {
+                        "error": (
+                            "Volume tidak kosong, penghapusan memerlukan cascade=true"
+                        )
+                    },
                     ensure_ascii=False,
                 )
 

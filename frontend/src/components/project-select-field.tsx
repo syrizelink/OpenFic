@@ -1,7 +1,7 @@
 /**
  * Project Select Field Component
  *
- * 项目选择字段，使用展开面板显示项目网格选择器。
+ * Field pemilihan proyek, memakai panel bentang untuk menampilkan pemilih kisi proyek.
  */
 
 import { Box, TextField, Popover, Text } from "@radix-ui/themes";
@@ -16,19 +16,19 @@ import { ProjectGridSelector } from "./project-grid-selector";
 import "./project-select-field.css";
 
 export interface ProjectSelectFieldProps {
-  /** 可选的项目列表 */
+  /** Daftar proyek yang bisa dipilih */
   projects: Project[];
-  /** 当前选中的项目 ID（空字符串表示无绑定） */
+  /** ID proyek yang sedang dipilih (string kosong berarti tanpa keterikatan) */
   value: string;
-  /** 选择项目时的回调（空字符串表示无绑定） */
+  /** Callback saat proyek dipilih (string kosong berarti tanpa keterikatan) */
   onChange: (projectId: string) => void;
-  /** 是否禁用 */
+  /** Status nonaktif */
   disabled?: boolean;
-  /** 是否显示"无绑定"选项 */
+  /** Menentukan apakah opsi "tanpa keterikatan" ditampilkan */
   showNoneOption?: boolean;
-  /** 占位符文本 */
+  /** Teks pengisi sementara */
   placeholder?: string;
-  /** 标签文本 */
+  /** Teks label */
   label?: string;
 }
 
@@ -44,23 +44,23 @@ export function ProjectSelectField({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
-  // 获取当前选中的项目
+  // Mengambil proyek yang sedang dipilih
   const selectedProject = value ? projects.find((p) => p.id === value) : null;
 
-  // 显示文本（如果选中了项目显示标题，如果没选中且显示无绑定选项则显示"无绑定"，否则为空字符串以显示占位符）
+  // Teks tampilan (judul ditampilkan bila ada proyek terpilih; bila tidak ada pilihan dan opsi tanpa keterikatan ditampilkan maka "tanpa keterikatan" dipakai; selain itu string kosong agar teks pengisi sementara tampil)
   const displayText = selectedProject
     ? selectedProject.title
     : value === "" && showNoneOption
       ? t("projectSelect.noBinding")
       : "";
 
-  // 处理选择
+  // Menangani pemilihan
   const handleSelect = (projectId: string) => {
     onChange(projectId);
     setOpen(false);
   };
 
-  // 处理输入框点击
+  // Menangani klik pada kotak masukan
   const handleInputClick = () => {
     if (!disabled) {
       setOpen(true);

@@ -1,8 +1,9 @@
-"""LLM 调用超时保护与失败重试机制。
+"""Perlindungan batas waktu pemanggilan LLM dan mekanisme coba ulang saat gagal.
 
-单一入口 ``invoke_model_with_retry`` 负责：错误分类、退避计算、
-重试事件发布与空响应重放；超时通过 ``_TimedStream`` 包装流式
-迭代器实现 chunk 空闲超时。
+Satu pintu masuk ``invoke_model_with_retry`` bertanggung jawab atas: klasifikasi
+error, perhitungan backoff, penerbitan event coba ulang, dan pemutaran ulang
+respons kosong; batas waktu diwujudkan dengan membungkus iterator aliran memakai
+``_TimedStream`` untuk batas waktu chunk yang menganggur.
 """
 
 from __future__ import annotations
@@ -47,11 +48,12 @@ class RetryOutcome:
 
 
 class EmptyResponseError(RuntimeError):
-    """流式调用正常结束但未产出任何响应。"""
+    """Pemanggilan aliran berakhir normal tetapi tidak menghasilkan respons apa
+    pun."""
 
 
 class LLMStreamTimeoutError(TimeoutError):
-    """流式调用在 chunk 空闲时超时。"""
+    """Pemanggilan aliran melewati batas waktu saat chunk menganggur."""
 
 
 @dataclass(frozen=True)
@@ -135,10 +137,12 @@ def _error_headers(exc: BaseException) -> dict[str, str]:
 
 
 def classify_error(exc: BaseException) -> RetryOutcome:
-    """按错误类型决定是否重试及所属分类。
+    """Menentukan apakah error perlu dicoba ulang beserta klasifikasinya.
 
-    可重试：5xx、限流、超时、网络类、空响应。
-    不可重试：认证、配额、上下文溢出、压缩失败、用户中断及未分类错误。
+    Dapat dicoba ulang: 5xx, pembatasan laju, batas waktu, jenis jaringan, respons
+    kosong.
+    Tidak dapat dicoba ulang: autentikasi, kuota, konteks meluap, pemadatan gagal,
+    pembatalan oleh pengguna, dan error yang tidak terklasifikasi.
     """
     if isinstance(exc, EmptyResponseError):
         return RetryOutcome(RetryDecision.RETRY, RetryCategory.EMPTY_RESPONSE)
@@ -182,7 +186,8 @@ def classify_error(exc: BaseException) -> RetryOutcome:
 
 
 def extract_retry_after_ms(exc: BaseException) -> float | None:
-    """从错误响应头解析 retry-after-ms / retry-after（秒或 HTTP 日期）。"""
+    """Mengurai retry-after-ms / retry-after dari header respons error (detik atau
+    tanggal HTTP)."""
     headers = _error_headers(exc)
     if not headers:
         return None
@@ -215,7 +220,8 @@ def compute_retry_delay(
     base_interval: float,
     max_interval: float,
 ) -> float:
-    """计算下次重试等待秒数：retry-after 头优先，否则指数退避。"""
+    """Menghitung jumlah detik tunggu sebelum coba ulang berikutnya: header
+    retry-after diprioritaskan, jika tidak memakai backoff eksponensial."""
     retry_after_ms = extract_retry_after_ms(exc)
     if retry_after_ms is not None:
         return retry_after_ms / 1000.0
@@ -223,7 +229,8 @@ def compute_retry_delay(
 
 
 class _TimedStream:
-    """为流式迭代器叠加 chunk 空闲超时与总时长超时。"""
+    """Menambahkan batas waktu chunk menganggur dan batas waktu total pada iterator
+    aliran."""
 
     def __init__(
         self,
@@ -287,10 +294,12 @@ async def invoke_model_with_retry(
     node: str | None = None,
     retry_event_sink: RetryEventSink | None = None,
 ) -> AIMessage:
-    """以流级重试调用 LLM：每次重试都重新发起完整请求。
+    """Memanggil LLM dengan coba ulang pada tingkat aliran: setiap percobaan ulang
+    mengirim permintaan lengkap dari awal.
 
-    空响应（EmptyResponseError）单独计数重放；其余错误按
-    ``classify_error`` 分类，不可重试或达到上限时抛出原错误。
+    Respons kosong (EmptyResponseError) dihitung dan diputar ulang secara terpisah;
+    error lainnya diklasifikasikan oleh ``classify_error``, dan error aslinya
+    dimunculkan bila tidak dapat dicoba ulang atau batas maksimum tercapai.
     """
     attempt = 1
     empty_response_retries = 0

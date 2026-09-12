@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""联网搜索设置 API 测试。"""
+"""Uji API pengaturan pencarian web."""
 
 import json
 
@@ -22,7 +22,7 @@ def _encrypt(value: str) -> str:
 
 @pytest.mark.asyncio
 async def test_get_web_search_settings_default(client: AsyncClient) -> None:
-    """默认情况下联网搜索关闭且未配置 provider。"""
+    """Secara bawaan pencarian web nonaktif dan provider belum dikonfigurasi."""
     response = await client.get("/api/v1/settings/web-search")
     assert response.status_code == 200
     data = response.json()
@@ -48,7 +48,7 @@ async def test_get_web_search_settings_default(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_get_web_search_providers(client: AsyncClient) -> None:
-    """provider 列表包含后端全部 provider 且按字母序排列。"""
+    """Daftar provider memuat seluruh provider backend dan terurut alfabetis."""
     response = await client.get("/api/v1/settings/web-search/providers")
     assert response.status_code == 200
     data = response.json()
@@ -73,7 +73,7 @@ async def test_get_web_search_providers(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_update_web_search_settings(client: AsyncClient, session: AsyncSession) -> None:
-    """更新联网搜索设置后 API Key 加密存储、响应不回传明文。"""
+    """Setelah pengaturan pencarian web diperbarui, API Key disimpan terenkripsi dan respons tidak mengembalikan teks aslinya."""
     response = await client.put(
         "/api/v1/settings/web-search",
         json={
@@ -117,7 +117,7 @@ async def test_update_web_search_settings(client: AsyncClient, session: AsyncSes
 async def test_update_web_search_settings_keeps_api_key_when_omitted(
     client: AsyncClient, session: AsyncSession
 ) -> None:
-    """api_key 不传时保持原有 Key 不变。"""
+    """Saat api_key tidak dikirim, Key yang ada tetap dipertahankan."""
     await client.put(
         "/api/v1/settings/web-search",
         json={"enabled": True, "provider": "serper", "api_key": "keep-me"},
@@ -137,7 +137,7 @@ async def test_update_web_search_settings_keeps_api_key_when_omitted(
 async def test_update_web_search_settings_keeps_api_keys_separate_per_provider(
     client: AsyncClient, session: AsyncSession
 ) -> None:
-    """不同 provider 的 API Key 应分别保存，切换 provider 不覆盖旧 Key。"""
+    """API Key tiap provider harus disimpan terpisah; berganti provider tidak menimpa Key lama."""
     await client.put(
         "/api/v1/settings/web-search",
         json={"provider": "tavily", "api_key": "tavily-key"},
@@ -166,7 +166,7 @@ async def test_update_web_search_settings_keeps_api_keys_separate_per_provider(
 async def test_update_web_search_settings_clears_api_key_with_empty_string(
     client: AsyncClient, session: AsyncSession
 ) -> None:
-    """api_key 传空字符串时清除原有 Key。"""
+    """Saat api_key dikirim berupa string kosong, Key yang ada dihapus."""
     await client.put(
         "/api/v1/settings/web-search",
         json={"enabled": True, "provider": "serper", "api_key": "clear-me"},
@@ -206,7 +206,7 @@ async def test_switching_to_provider_without_api_key_preserves_other_keys(
 async def test_update_web_search_settings_rejects_unknown_provider(
     client: AsyncClient,
 ) -> None:
-    """不支持的 provider 返回 400。"""
+    """Provider yang tidak didukung mengembalikan 400."""
     response = await client.put(
         "/api/v1/settings/web-search",
         json={"provider": "google"},
@@ -218,7 +218,7 @@ async def test_update_web_search_settings_rejects_unknown_provider(
 async def test_update_web_search_settings_filters_unknown_extras(
     client: AsyncClient, session: AsyncSession
 ) -> None:
-    """extras 中不属于当前 provider 的键会被过滤。"""
+    """Kunci dalam extras yang bukan milik provider aktif akan disaring."""
     response = await client.put(
         "/api/v1/settings/web-search",
         json={
@@ -260,7 +260,7 @@ async def test_update_web_search_settings_accepts_jina_base_url(
 async def test_update_web_search_settings_switching_provider_clears_extras(
     client: AsyncClient, session: AsyncSession
 ) -> None:
-    """切换 provider 且未携带 extras 时，旧 provider 的扩展参数被清除。"""
+    """Saat provider diganti tanpa menyertakan extras, parameter tambahan provider lama dihapus."""
     await client.put(
         "/api/v1/settings/web-search",
         json={

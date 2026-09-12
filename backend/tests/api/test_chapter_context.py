@@ -71,8 +71,8 @@ async def test_chapters(client: AsyncClient, test_project: dict) -> list[dict]:
             f"/api/v1/projects/{test_project['id']}/chapters",
             json={
                 "volume_id": test_project["default_volume_id"],
-                "title": f"第{i + 1}章",
-                "content": f"这是第{i + 1}章的内容。" * 50,
+                "title": f"Bab {i + 1}",
+                "content": f"Ini isi Bab {i + 1}." * 50,
                 "word_count": 800,
             },
         )
@@ -123,7 +123,7 @@ class TestChapterSummaries:
                 chapter_order=chapter["order"],
                 start_order=chapter["order"],
                 end_order=chapter["order"],
-                summary="已完成摘要",
+                summary="Ringkasan selesai",
                 source_content_normalized=_source_content(chapter),
             )
         )
@@ -154,8 +154,8 @@ class TestChapterSummaries:
                 chapter_order=chapter["order"],
                 start_order=chapter["order"],
                 end_order=chapter["order"],
-                summary="旧摘要",
-                source_content_normalized="完全不同的旧内容",
+                summary="Ringkasan lama",
+                source_content_normalized="Isi lama yang sama sekali berbeda",
             )
         )
         await session.commit()
@@ -200,7 +200,7 @@ class TestChapterSummaries:
                 chapter_order=chapter["order"],
                 start_order=chapter["order"],
                 end_order=chapter["order"],
-                summary="旧摘要",
+                summary="Ringkasan lama",
                 source_content_normalized=_source_content(chapter),
             )
         )
@@ -209,7 +209,7 @@ class TestChapterSummaries:
         response = await client.patch(
             f"/api/v1/chapters/{chapter['id']}",
             json={
-                "content": f"{chapter['content']}{'新增剧情' * 40}",
+                "content": f"{chapter['content']}{'Alur tambahan ' * 40}",
                 "word_count": 1200,
             },
         )
@@ -243,13 +243,15 @@ class TestChapterSummaries:
                 chapter_order=chapter["order"],
                 start_order=chapter["order"],
                 end_order=chapter["order"],
-                summary="旧摘要",
+                summary="Ringkasan lama",
                 source_content_normalized=_source_content(chapter),
             )
         )
         await session.commit()
 
-        changed_content = "\n，。".join(chapter["content"])
+        # Hanya menyisipkan spasi/tanda baca: normalize_summary_source_content
+        # membuang keduanya, jadi ringkasan tidak boleh dianggap stale.
+        changed_content = "\n,.".join(chapter["content"])
         response = await client.patch(
             f"/api/v1/chapters/{chapter['id']}",
             json={"content": changed_content, "word_count": chapter["word_count"]},
@@ -268,8 +270,8 @@ class TestChapterSummaries:
             f"/api/v1/projects/{test_project['id']}/chapters",
             json={
                 "volume_id": test_project["default_volume_id"],
-                "title": "短章节",
-                "content": "内容",
+                "title": "Bab Pendek",
+                "content": "Isi",
                 "word_count": 100,
             },
         )
@@ -295,11 +297,11 @@ class TestChapterSummaries:
             chapter_order=chapter["order"],
             start_order=chapter["order"],
             end_order=chapter["order"],
-            start_time="清晨",
-            end_time="午后",
-            characters_json=encode_summary_list(["林舟"]),
-            locations_json=encode_summary_list(["旧城"]),
-            summary="林舟进入旧城并发现线索。",
+            start_time="Pagi",
+            end_time="Sore",
+            characters_json=encode_summary_list(["Linu"]),
+            locations_json=encode_summary_list(["kota lama"]),
+            summary="Linu masuk ke kota lama dan menemukan petunjuk.",
             source_content_normalized=_source_content(chapter),
         )
         session.add(row)
@@ -319,9 +321,9 @@ class TestChapterSummaries:
         assert list_data["total"] == 1
         assert list_data["page"] == 1
         assert list_data["page_size"] == 20
-        assert list_data["items"][0]["summary"] == "林舟进入旧城并发现线索。"
-        assert list_data["items"][0]["characters"] == ["林舟"]
-        assert list_data["items"][0]["locations"] == ["旧城"]
+        assert list_data["items"][0]["summary"] == "Linu masuk ke kota lama dan menemukan petunjuk."
+        assert list_data["items"][0]["characters"] == ["Linu"]
+        assert list_data["items"][0]["locations"] == ["kota lama"]
 
     async def test_list_chapter_summaries_supports_pagination(
         self, client: AsyncClient, session, test_project: dict
@@ -332,8 +334,8 @@ class TestChapterSummaries:
                 f"/api/v1/projects/{test_project['id']}/chapters",
                 json={
                     "volume_id": test_project["default_volume_id"],
-                    "title": f"第{index + 1}章",
-                    "content": "内容",
+                    "title": f"Bab {index + 1}",
+                    "content": "Isi",
                     "word_count": 800,
                 },
             )
@@ -353,8 +355,8 @@ class TestChapterSummaries:
                     chapter_order=chapter["order"],
                     start_order=chapter["order"],
                     end_order=chapter["order"],
-                    summary=f"摘要{chapter['order']}",
-                    source_content_normalized="内容",
+                    summary=f"Ringkasan {chapter['order']}",
+                    source_content_normalized="Isi",
                 )
             )
         await session.commit()
@@ -380,8 +382,8 @@ class TestChapterSummaries:
                 f"/api/v1/projects/{test_project['id']}/chapters",
                 json={
                     "volume_id": test_project["default_volume_id"],
-                    "title": f"第{index + 1}章",
-                    "content": "内容",
+                    "title": f"Bab {index + 1}",
+                    "content": "Isi",
                     "word_count": 800,
                 },
             )
@@ -399,16 +401,16 @@ class TestChapterSummaries:
                     start_order=chapter["order"],
                     end_order=chapter["order"],
                     summary=(
-                        "跨页目标摘要" if chapter["order"] == 21 else f"摘要{chapter['order']}"
+                        "Ringkasan Sasaran Lintas Halaman" if chapter["order"] == 21 else f"Ringkasan {chapter['order']}"
                     ),
-                    source_content_normalized="内容",
+                    source_content_normalized="Isi",
                 )
             )
         await session.commit()
 
         response = await client.get(
             f"/api/v1/projects/{test_project['id']}/chapter-context/summaries/chapters",
-            params={"q": "跨页目标", "page": 1, "page_size": 20},
+            params={"q": "Sasaran Lintas", "page": 1, "page_size": 20},
         )
 
         assert response.status_code == 200
@@ -430,20 +432,20 @@ class TestChapterSummaries:
                 start_order=test_chapters[0]["order"],
                 end_order=test_chapters[0]["order"],
                 summary=None,
-                error_message="生成失败",
+                error_message="Gagal membuat",
             )
         )
         await session.commit()
 
         response = await client.get(
             f"/api/v1/projects/{test_project['id']}/chapter-context/summaries/chapters",
-            params={"q": "失败"},
+            params={"q": "Gagal"},
         )
 
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 1
-        assert data["items"][0]["error_message"] == "生成失败"
+        assert data["items"][0]["error_message"] == "Gagal membuat"
 
     async def test_list_chapter_summaries_returns_only_existing_summary_rows(
         self, client: AsyncClient, session, test_project: dict, test_chapters: list[dict]
@@ -458,7 +460,7 @@ class TestChapterSummaries:
                     chapter_order=chapter["order"],
                     start_order=chapter["order"],
                     end_order=chapter["order"],
-                    summary=f"摘要{chapter['order']}",
+                    summary=f"Ringkasan {chapter['order']}",
                     source_content_normalized=_source_content(chapter),
                 )
             )
@@ -479,23 +481,23 @@ class TestChapterSummaries:
         first_volume_id = test_project["default_volume_id"]
         second_volume_response = await client.post(
             f"/api/v1/projects/{test_project['id']}/volumes",
-            json={"title": "第二卷"},
+            json={"title": "Volume 2"},
         )
         assert second_volume_response.status_code == 201
         second_volume_id = second_volume_response.json()["id"]
 
         chapters: list[tuple[str, str, int]] = []
         for volume_id, volume_label in [
-            (first_volume_id, "第一卷"),
-            (second_volume_id, "第二卷"),
+            (first_volume_id, "Volume 1"),
+            (second_volume_id, "Volume 2"),
         ]:
             for index in range(2):
                 response = await client.post(
                     f"/api/v1/projects/{test_project['id']}/chapters",
                     json={
                         "volume_id": volume_id,
-                        "title": f"{volume_label}第{index + 1}章",
-                        "content": "内容",
+                        "title": f"{volume_label} Bab {index + 1}",
+                        "content": "Isi",
                         "word_count": 800,
                     },
                 )
@@ -513,8 +515,8 @@ class TestChapterSummaries:
                     chapter_order=global_order,
                     start_order=global_order,
                     end_order=global_order,
-                    summary=f"摘要{global_order}",
-                    source_content_normalized="内容",
+                    summary=f"Ringkasan {global_order}",
+                    source_content_normalized="Isi",
                 )
             )
         await session.commit()
@@ -531,9 +533,9 @@ class TestChapterSummaries:
             second_volume_id,
             second_volume_id,
         ]
-        assert data["items"][0]["volume_title"] == "第一卷"
+        assert data["items"][0]["volume_title"] == "Volume 1"
         assert data["items"][0]["volume_order"] == 1
-        assert data["items"][2]["volume_title"] == "第二卷"
+        assert data["items"][2]["volume_title"] == "Volume 2"
         assert data["items"][2]["volume_order"] == 2
 
         filtered_response = await client.get(
@@ -544,7 +546,7 @@ class TestChapterSummaries:
         filtered_data = filtered_response.json()
         assert filtered_data["total"] == 2
         assert {item["volume_id"] for item in filtered_data["items"]} == {second_volume_id}
-        assert {item["volume_title"] for item in filtered_data["items"]} == {"第二卷"}
+        assert {item["volume_title"] for item in filtered_data["items"]} == {"Volume 2"}
 
     async def test_delete_chapter_summaries(
         self, client: AsyncClient, session, test_project: dict, test_chapters: list[dict]
@@ -559,7 +561,7 @@ class TestChapterSummaries:
                     chapter_order=chapter["order"],
                     start_order=chapter["order"],
                     end_order=chapter["order"],
-                    summary=f"摘要{chapter['order']}",
+                    summary=f"Ringkasan {chapter['order']}",
                     source_content_normalized=_source_content(chapter),
                 )
             )
@@ -594,7 +596,7 @@ class TestChapterSummaries:
                     chapter_order=chapter["order"],
                     start_order=chapter["order"],
                     end_order=chapter["order"],
-                    summary=f"摘要{chapter['order']}",
+                    summary=f"Ringkasan {chapter['order']}",
                     source_content_normalized=_source_content(chapter),
                 )
             )
@@ -621,8 +623,8 @@ class TestChapterSummaries:
                 f"/api/v1/projects/{test_project['id']}/chapters",
                 json={
                     "volume_id": test_project["default_volume_id"],
-                    "title": f"第{index + 1}章",
-                    "content": "内容",
+                    "title": f"Bab {index + 1}",
+                    "content": "Isi",
                     "word_count": 600,
                 },
             )
@@ -644,8 +646,8 @@ class TestChapterSummaries:
             f"/api/v1/projects/{test_project['id']}/chapters",
             json={
                 "volume_id": test_project["default_volume_id"],
-                "title": "短章节",
-                "content": "内容",
+                "title": "Bab Pendek",
+                "content": "Isi",
                 "word_count": 120,
             },
         )
@@ -655,8 +657,8 @@ class TestChapterSummaries:
             f"/api/v1/projects/{test_project['id']}/chapters",
             json={
                 "volume_id": test_project["default_volume_id"],
-                "title": "长章节",
-                "content": "内容",
+                "title": "Bab Panjang",
+                "content": "Isi",
                 "word_count": 800,
             },
         )
@@ -666,16 +668,16 @@ class TestChapterSummaries:
         assert panel_response.status_code == 200
         maintenance = panel_response.json()["maintenance"]
         assert [item["chapter_title"] for item in maintenance["missing_or_failed_chapter_summaries"]] == [
-            "长章节"
+            "Bab Panjang"
         ]
         assert maintenance["skipped_chapter_summaries"] == [
             {
                 "chapter_id": short_response.json()["id"],
                 "chapter_order": 1,
                 "volume_id": test_project["default_volume_id"],
-                "volume_title": "第一卷",
+                "volume_title": "Volume 1",
                 "volume_order": 1,
-                "chapter_title": "短章节",
+                "chapter_title": "Bab Pendek",
                 "word_count": 120,
             }
         ]
@@ -702,7 +704,7 @@ class TestChapterSummaries:
             subject_id=test_project["id"],
             payload_json=f'{{"project_id":"{test_project["id"]}"}}',
             context_json=f'{{"project_id":"{test_project["id"]}"}}',
-            progress_json='{"current":3,"total":3,"message":"处理中","progress_percent":100,"total_item_count":1,"completed_item_count":0,"running_item_count":1,"queued_item_count":0}',
+            progress_json='{"current":3,"total":3,"message":"Sedang diproses","progress_percent":100,"total_item_count":1,"completed_item_count":0,"running_item_count":1,"queued_item_count":0}',
         )
         item = BackgroundJobItem(
             id="item-summary-1",
@@ -728,7 +730,7 @@ class TestChapterSummaries:
         assert batch_progress["progress_current"] == 3
         assert batch_progress["progress_total"] == 3
         assert batch_progress["progress_percent"] == 100
-        assert batch_progress["progress_message"] == "处理中"
+        assert batch_progress["progress_message"] == "Sedang diproses"
         assert batch_progress["total_item_count"] == 1
         assert batch_progress["completed_item_count"] == 0
         assert batch_progress["running_item_count"] == 1
@@ -795,7 +797,7 @@ class TestChapterSummaries:
                 type="chapter_summary",
                 status="pending",
                 payload_json=f'{{"chapter_id":"{chapter_one["id"]}"}}',
-                progress_json='{"current":0,"total":3,"message":"已加入队列"}',
+                progress_json='{"current":0,"total":3,"message":"Sudah masuk antrean"}',
                 order_index=0,
             )
         )
@@ -899,7 +901,7 @@ class TestChapterSummaries:
                 type="chapter_summary",
                 status="pending",
                 payload_json=f'{{"chapter_id":"{chapter["id"]}"}}',
-                progress_json='{"current":0,"total":3,"message":"已加入队列"}',
+                progress_json='{"current":0,"total":3,"message":"Sudah masuk antrean"}',
                 order_index=0,
             )
         )
@@ -929,7 +931,7 @@ class TestChapterSummaries:
             start_order=chapter["order"],
             end_order=chapter["order"],
             job_id="item-summary-failed",
-            error_message="生成失败",
+            error_message="Gagal membuat",
         )
         job = BackgroundJob(
             id="job-summary-failed",
@@ -940,7 +942,7 @@ class TestChapterSummaries:
             payload_json=f'{{"project_id":"{test_project["id"]}"}}',
             context_json=f'{{"project_id":"{test_project["id"]}"}}',
             progress_json='{"current":1,"total":3,"message":"chapter_generating","progress_percent":33,"total_item_count":1,"completed_item_count":0,"running_item_count":0,"queued_item_count":1}',
-            error_json='{"message":"生成失败"}',
+            error_json='{"message":"Gagal membuat"}',
         )
         item = BackgroundJobItem(
             id="item-summary-failed",
@@ -950,7 +952,7 @@ class TestChapterSummaries:
             status="failed",
             payload_json=f'{{"chapter_id":"{chapter["id"]}"}}',
             progress_json='{"current":1,"total":3,"message":"chapter_generating"}',
-            error_json='{"message":"生成失败"}',
+            error_json='{"message":"Gagal membuat"}',
             order_index=0,
         )
         session.add(summary)
@@ -1028,8 +1030,8 @@ class TestChapterSummaries:
                 f"/api/v1/projects/{test_project['id']}/chapters",
                 json={
                     "volume_id": test_project["default_volume_id"],
-                    "title": f"第{index + 1}章",
-                    "content": "内容",
+                    "title": f"Bab {index + 1}",
+                    "content": "Isi",
                     "word_count": 800,
                 },
             )
@@ -1046,7 +1048,7 @@ class TestChapterSummaries:
                     chapter_order=chapter["order"],
                     start_order=chapter["order"],
                     end_order=chapter["order"],
-                    summary=f"摘要{chapter['order']}",
+                    summary=f"Ringkasan {chapter['order']}",
                     source_content_normalized=_source_content(chapter),
                 )
             )
@@ -1079,7 +1081,7 @@ class TestChapterSummaries:
                     chapter_order=chapter["order"],
                     start_order=chapter["order"],
                     end_order=chapter["order"],
-                    summary=f"摘要{chapter['order']}",
+                    summary=f"Ringkasan {chapter['order']}",
                     source_content_normalized=_source_content(chapter),
                 )
             )
@@ -1104,8 +1106,8 @@ class TestChapterSummaries:
                 f"/api/v1/projects/{test_project['id']}/chapters",
                 json={
                     "volume_id": test_project["default_volume_id"],
-                    "title": f"第{index + 1}章",
-                    "content": "内容",
+                    "title": f"Bab {index + 1}",
+                    "content": "Isi",
                     "word_count": 800,
                 },
             )
@@ -1122,7 +1124,7 @@ class TestChapterSummaries:
                     chapter_order=chapter["order"],
                     start_order=chapter["order"],
                     end_order=chapter["order"],
-                    summary=f"摘要{chapter['order']}",
+                    summary=f"Ringkasan {chapter['order']}",
                     source_content_normalized=_source_content(chapter),
                 )
             )
@@ -1142,7 +1144,7 @@ class TestChapterSummaries:
                 chapter_order=chapters[0]["order"],
                 start_order=chapters[0]["order"],
                 end_order=chapters[0]["order"],
-                summary="摘要1",
+                summary="Ringkasan 1",
                 source_content_normalized=_source_content(chapters[0]),
             )
         )
@@ -1155,10 +1157,10 @@ class TestChapterSummaries:
             {
                 "start_order": 1,
                 "end_order": LONG_TERM_SUMMARY_INTERVAL,
-                "start_volume_title": "第一卷",
-                "start_chapter_title": "第1章",
-                "end_volume_title": "第一卷",
-                "end_chapter_title": "第10章",
+                "start_volume_title": "Volume 1",
+                "start_chapter_title": "Bab 1",
+                "end_volume_title": "Volume 1",
+                "end_chapter_title": "Bab 10",
                 "status": "not_generated",
                 "is_stale": False,
                 "summary_id": None,
@@ -1176,8 +1178,8 @@ class TestChapterSummaries:
                 f"/api/v1/projects/{test_project['id']}/chapters",
                 json={
                     "volume_id": test_project["default_volume_id"],
-                    "title": f"第{index + 1}章",
-                    "content": f"内容{index + 1}",
+                    "title": f"Bab {index + 1}",
+                    "content": f"Isi {index + 1}",
                     "word_count": word_count,
                 },
             )
@@ -1196,7 +1198,7 @@ class TestChapterSummaries:
                     chapter_order=chapter["order"],
                     start_order=chapter["order"],
                     end_order=chapter["order"],
-                    summary=f"摘要{chapter['order']}",
+                    summary=f"Ringkasan {chapter['order']}",
                     source_content_normalized=_source_content(chapter),
                 )
             )
@@ -1208,10 +1210,10 @@ class TestChapterSummaries:
             {
                 "start_order": 1,
                 "end_order": LONG_TERM_SUMMARY_INTERVAL,
-                "start_volume_title": "第一卷",
-                "start_chapter_title": "第1章",
-                "end_volume_title": "第一卷",
-                "end_chapter_title": "第10章",
+                "start_volume_title": "Volume 1",
+                "start_chapter_title": "Bab 1",
+                "end_volume_title": "Volume 1",
+                "end_chapter_title": "Bab 10",
                 "status": "not_generated",
                 "is_stale": False,
                 "summary_id": None,
@@ -1246,8 +1248,8 @@ class TestChapterSummaries:
                 f"/api/v1/projects/{test_project['id']}/chapters",
                 json={
                     "volume_id": test_project["default_volume_id"],
-                    "title": f"第{index + 1}章",
-                    "content": f"内容{index + 1}",
+                    "title": f"Bab {index + 1}",
+                    "content": f"Isi {index + 1}",
                     "word_count": 120 if index == 14 else 900,
                 },
             )
@@ -1266,7 +1268,7 @@ class TestChapterSummaries:
                     chapter_order=chapter["order"],
                     start_order=chapter["order"],
                     end_order=chapter["order"],
-                    summary=f"摘要{chapter['order']}",
+                    summary=f"Ringkasan {chapter['order']}",
                     source_content_normalized=_source_content(chapter),
                 )
             )
@@ -1292,8 +1294,8 @@ class TestChapterSummaries:
                 f"/api/v1/projects/{test_project['id']}/chapters",
                 json={
                     "volume_id": test_project["default_volume_id"],
-                    "title": f"第{index + 1}章",
-                    "content": "内容",
+                    "title": f"Bab {index + 1}",
+                    "content": "Isi",
                     "word_count": 800,
                 },
             )
@@ -1310,7 +1312,7 @@ class TestChapterSummaries:
                     chapter_order=chapter["order"],
                     start_order=chapter["order"],
                     end_order=chapter["order"],
-                    summary=f"摘要{chapter['order']}",
+                    summary=f"Ringkasan {chapter['order']}",
                     source_content_normalized=_source_content(chapter),
                 )
             )
@@ -1334,7 +1336,7 @@ class TestChapterSummaries:
                 subject_id=test_project["id"],
                 payload_json=f'{{"project_id":"{test_project["id"]}"}}',
                 context_json=f'{{"project_id":"{test_project["id"]}"}}',
-                progress_json='{"current":4,"total":10,"message":"处理中","progress_percent":40,"total_item_count":1,"completed_item_count":0,"running_item_count":1,"queued_item_count":0}',
+                progress_json='{"current":4,"total":10,"message":"Sedang diproses","progress_percent":40,"total_item_count":1,"completed_item_count":0,"running_item_count":1,"queued_item_count":0}',
             )
         )
         session.add(
@@ -1348,7 +1350,7 @@ class TestChapterSummaries:
                     f'{{"project_id":"{test_project["id"]}",'
                     f'"start_order":1,"end_order":{LONG_TERM_SUMMARY_INTERVAL}}}'
                 ),
-                progress_json='{"current":4,"total":10,"message":"正在聚合区间摘要"}',
+                progress_json='{"current":4,"total":10,"message":"Sedang mengagregasi ringkasan rentang"}',
                 order_index=0,
             )
         )
@@ -1361,14 +1363,14 @@ class TestChapterSummaries:
             {
                 "start_order": 1,
                 "end_order": LONG_TERM_SUMMARY_INTERVAL,
-                "start_volume_title": "第一卷",
-                "start_chapter_title": "第1章",
-                "end_volume_title": "第一卷",
-                "end_chapter_title": "第10章",
+                "start_volume_title": "Volume 1",
+                "start_chapter_title": "Bab 1",
+                "end_volume_title": "Volume 1",
+                "end_chapter_title": "Bab 10",
                 "status": "running",
                 "is_stale": False,
                 "summary_id": items[0]["summary_id"],
-                "progress_message": "正在聚合区间摘要",
+                "progress_message": "Sedang mengagregasi ringkasan rentang",
             }
         ]
 
@@ -1381,8 +1383,8 @@ class TestChapterSummaries:
                 f"/api/v1/projects/{test_project['id']}/chapters",
                 json={
                     "volume_id": test_project["default_volume_id"],
-                    "title": f"第{index + 1}章",
-                    "content": "内容",
+                    "title": f"Bab {index + 1}",
+                    "content": "Isi",
                     "word_count": 800,
                 },
             )
@@ -1399,7 +1401,7 @@ class TestChapterSummaries:
                     chapter_order=chapter["order"],
                     start_order=chapter["order"],
                     end_order=chapter["order"],
-                    summary=f"摘要{chapter['order']}",
+                    summary=f"Ringkasan {chapter['order']}",
                     source_content_normalized=_source_content(chapter),
                 )
             )
@@ -1410,9 +1412,9 @@ class TestChapterSummaries:
                 status=SUMMARY_STATUS_READY,
                 start_order=1,
                 end_order=10,
-                start_time="第1天",
-                end_time="第10天",
-                summary="区间摘要1-10",
+                start_time="Hari 1",
+                end_time="Hari 10",
+                summary="Ringkasan Rentang 1-10",
                 token_count=12,
             )
         )
@@ -1428,16 +1430,16 @@ class TestChapterSummaries:
             {
                 "start_order": 1,
                 "end_order": 10,
-                "start_volume_title": "第一卷",
-                "start_chapter_title": "第1章",
-                "end_volume_title": "第一卷",
-                "end_chapter_title": "第10章",
+                "start_volume_title": "Volume 1",
+                "start_chapter_title": "Bab 1",
+                "end_volume_title": "Volume 1",
+                "end_chapter_title": "Bab 10",
                 "status": "ready",
                 "is_stale": True,
                 "summary_id": data["items"][0]["summary_id"],
-                "start_time": "第1天",
-                "end_time": "第10天",
-                "summary": "区间摘要1-10",
+                "start_time": "Hari 1",
+                "end_time": "Hari 10",
+                "summary": "Ringkasan Rentang 1-10",
                 "error_message": None,
                 "updated_at": data["items"][0]["updated_at"],
             },
@@ -1452,8 +1454,8 @@ class TestChapterSummaries:
                 f"/api/v1/projects/{test_project['id']}/chapters",
                 json={
                     "volume_id": test_project["default_volume_id"],
-                    "title": f"第{index + 1}章",
-                    "content": "内容",
+                    "title": f"Bab {index + 1}",
+                    "content": "Isi",
                     "word_count": 800,
                 },
             )
@@ -1470,7 +1472,7 @@ class TestChapterSummaries:
                     chapter_order=chapter["order"],
                     start_order=chapter["order"],
                     end_order=chapter["order"],
-                    summary=f"摘要{chapter['order']}",
+                    summary=f"Ringkasan {chapter['order']}",
                     source_content_normalized=_source_content(chapter),
                 )
             )
@@ -1481,9 +1483,9 @@ class TestChapterSummaries:
                 status=SUMMARY_STATUS_READY,
                 start_order=1,
                 end_order=10,
-                start_time="第1天",
-                end_time="第10天",
-                summary="区间摘要1-10",
+                start_time="Hari 1",
+                end_time="Hari 10",
+                summary="Ringkasan Rentang 1-10",
                 token_count=12,
             )
         )
@@ -1499,16 +1501,16 @@ class TestChapterSummaries:
             {
                 "start_order": 1,
                 "end_order": 10,
-                "start_volume_title": "第一卷",
-                "start_chapter_title": "第1章",
-                "end_volume_title": "第一卷",
-                "end_chapter_title": "第10章",
+                "start_volume_title": "Volume 1",
+                "start_chapter_title": "Bab 1",
+                "end_volume_title": "Volume 1",
+                "end_chapter_title": "Bab 10",
                 "status": "ready",
                 "is_stale": True,
                 "summary_id": data["items"][0]["summary_id"],
-                "start_time": "第1天",
-                "end_time": "第10天",
-                "summary": "区间摘要1-10",
+                "start_time": "Hari 1",
+                "end_time": "Hari 10",
+                "summary": "Ringkasan Rentang 1-10",
                 "error_message": None,
                 "updated_at": data["items"][0]["updated_at"],
             }
@@ -1525,14 +1527,14 @@ class TestChapterSummaries:
                     status=SUMMARY_STATUS_READY,
                     start_order=index * 10 + 1,
                     end_order=index * 10 + 10,
-                    summary=("跨页区间摘要" if index == 20 else f"区间摘要{index + 1}"),
+                    summary=("Ringkasan Rentang Lintas Halaman" if index == 20 else f"Ringkasan Rentang {index + 1}"),
                 )
             )
         await session.commit()
 
         response = await client.get(
             f"/api/v1/projects/{test_project['id']}/chapter-context/summaries/long-term",
-            params={"q": "跨页区间", "page": 1, "page_size": 20},
+            params={"q": "Rentang Lintas", "page": 1, "page_size": 20},
         )
 
         assert response.status_code == 200
@@ -1550,8 +1552,8 @@ class TestChapterSummaries:
                 f"/api/v1/projects/{test_project['id']}/chapters",
                 json={
                     "volume_id": test_project["default_volume_id"],
-                    "title": f"第{index + 1}章",
-                    "content": "内容",
+                    "title": f"Bab {index + 1}",
+                    "content": "Isi",
                     "word_count": 800,
                 },
             )
@@ -1568,7 +1570,7 @@ class TestChapterSummaries:
                     chapter_order=chapter["order"],
                     start_order=chapter["order"],
                     end_order=chapter["order"],
-                    summary=f"摘要{chapter['order']}",
+                    summary=f"Ringkasan {chapter['order']}",
                     source_content_normalized=_source_content(chapter),
                 )
             )
@@ -1579,7 +1581,7 @@ class TestChapterSummaries:
                 status=SUMMARY_STATUS_FAILED,
                 start_order=1,
                 end_order=10,
-                error_message="聚合失败",
+                error_message="Agregasi gagal",
             )
         )
         await session.commit()
@@ -1592,7 +1594,7 @@ class TestChapterSummaries:
         assert item["start_order"] == 1
         assert item["end_order"] == 10
         assert item["status"] == "failed"
-        assert item["error_message"] == "聚合失败"
+        assert item["error_message"] == "Agregasi gagal"
 
     async def test_creating_new_chapter_does_not_stale_existing_summaries(
         self, client: AsyncClient, session, test_project: dict, test_chapters: list[dict]
@@ -1607,7 +1609,7 @@ class TestChapterSummaries:
                     chapter_order=chapter["order"],
                     start_order=chapter["order"],
                     end_order=chapter["order"],
-                    summary=f"摘要{chapter['order']}",
+                    summary=f"Ringkasan {chapter['order']}",
                     source_content_normalized=_source_content(chapter),
                 )
             )
@@ -1617,8 +1619,8 @@ class TestChapterSummaries:
             f"/api/v1/projects/{test_project['id']}/chapters",
             json={
                 "volume_id": test_project["default_volume_id"],
-                "title": "新章节",
-                "content": "新内容",
+                "title": "Bab Baru",
+                "content": "Isi baru",
                 "word_count": 800,
             },
         )
@@ -1656,8 +1658,8 @@ class TestContextBuilder:
                 f"/api/v1/projects/{test_project['id']}/chapters",
                 json={
                     "volume_id": test_project["default_volume_id"],
-                    "title": f"第{index + 1}章",
-                    "content": f"正文{index + 1}",
+                    "title": f"Bab {index + 1}",
+                    "content": f"Isi utama {index + 1}",
                     "word_count": 800,
                 },
             )
@@ -1674,7 +1676,7 @@ class TestContextBuilder:
                     chapter_order=chapter["order"],
                     start_order=chapter["order"],
                     end_order=chapter["order"],
-                    summary=f"摘要{chapter['order']}",
+                    summary=f"Ringkasan {chapter['order']}",
                     token_count=1,
                     source_content_normalized=_source_content(chapter),
                 )
@@ -1686,7 +1688,7 @@ class TestContextBuilder:
                 status=SUMMARY_STATUS_READY,
                 start_order=1,
                 end_order=5,
-                summary="远期摘要1-5",
+                summary="Ringkasan Jangka Panjang 1-5",
                 token_count=1,
             )
         )
@@ -1697,7 +1699,7 @@ class TestContextBuilder:
                 status=SUMMARY_STATUS_READY,
                 start_order=6,
                 end_order=10,
-                summary="远期摘要6-10",
+                summary="Ringkasan Jangka Panjang 6-10",
                 token_count=1,
             )
         )
@@ -1711,19 +1713,19 @@ class TestContextBuilder:
         data = response.json()
 
         assert data["latest_field"]["chapter_range"] == [25, 25]
-        assert "第25章" in data["latest_field"]["content"]
+        assert "Bab 25" in data["latest_field"]["content"]
         assert data["latest_field"]["content"].startswith("{\n  ")
         assert data["near_field"]["chapter_range"] == [16, 24]
         assert data["near_field"]["content"].startswith("[\n  ")
-        assert "第15章" not in data["near_field"]["content"]
-        assert "第16章" in data["near_field"]["content"]
-        assert "第24章" in data["near_field"]["content"]
+        assert "Bab 15" not in data["near_field"]["content"]
+        assert "Bab 16" in data["near_field"]["content"]
+        assert "Bab 24" in data["near_field"]["content"]
         assert data["mid_field"]["chapter_range"] == [6, 15]
         assert data["mid_field"]["content"].startswith("[\n  ")
-        assert "摘要6" in data["mid_field"]["content"]
-        assert "摘要15" in data["mid_field"]["content"]
-        assert "摘要16" not in data["mid_field"]["content"]
+        assert "Ringkasan 6" in data["mid_field"]["content"]
+        assert "Ringkasan 15" in data["mid_field"]["content"]
+        assert "Ringkasan 16" not in data["mid_field"]["content"]
         assert data["far_field"]["chapter_range"] == [1, 5]
         assert data["far_field"]["content"].startswith("[\n  ")
-        assert "远期摘要1-5" in data["far_field"]["content"]
-        assert "远期摘要6-10" not in data["far_field"]["content"]
+        assert "Ringkasan Jangka Panjang 1-5" in data["far_field"]["content"]
+        assert "Ringkasan Jangka Panjang 6-10" not in data["far_field"]["content"]

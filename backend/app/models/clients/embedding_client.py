@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Embedding Client - Embedding模型调用客户端。
+Embedding Client - klien pemanggilan model embedding.
 
-使用LangChain组件提供文本嵌入向量生成接口。
+Menyediakan antarmuka pembuatan vektor embedding teks menggunakan komponen LangChain.
 """
 
 from dataclasses import dataclass
@@ -17,7 +17,7 @@ from app.models.helpers.openrouter_attribution import get_openrouter_attribution
 
 @dataclass
 class EmbeddingConfig:
-    """Embedding调用配置。"""
+    """Konfigurasi pemanggilan embedding."""
 
     provider_type: str
     base_url: str
@@ -31,7 +31,7 @@ class EmbeddingConfig:
 
 @dataclass
 class EmbeddingResponse:
-    """Embedding响应。"""
+    """Respons embedding."""
 
     embeddings: list[list[float]]
     model: str | None = None
@@ -56,20 +56,20 @@ class EmbeddingClientLike(Protocol):
 
 
 class EmbeddingClient:
-    """Embedding模型调用客户端，使用LangChain组件。"""
+    """Klien pemanggilan model embedding, menggunakan komponen LangChain."""
 
     def __init__(self, config: EmbeddingConfig):
         """
-        初始化Embedding客户端。
+        Menginisialisasi klien embedding.
 
         Args:
-            config: Embedding配置。
+            config: konfigurasi embedding.
         """
         self.config = config
         self._embeddings: Embeddings | None = None
 
     def _get_embeddings(self) -> Embeddings:
-        """获取或创建LangChain Embeddings实例。"""
+        """Mengambil atau membuat instance Embeddings LangChain."""
         if self._embeddings is not None:
             return self._embeddings
 
@@ -124,15 +124,16 @@ class EmbeddingClient:
                 dimensions=config.dimensions,
             )
         else:
-            # OpenAI兼容格式（openai, openrouter, openai-compatible等）
+            # Format kompatibel OpenAI (openai, openrouter, openai-compatible, dll)
             from langchain_openai import OpenAIEmbeddings
 
             openai_kwargs: dict[str, Any] = {
                 "model": config.model_id,
                 "api_key": config.api_key,
                 "base_url": config.base_url,
-                # 非OpenAI官方端点通常不支持token数组输入与base64编码：
-                # 发送原始文本并使用float格式，避免空响应/解码失败。
+                # Endpoint non-resmi OpenAI umumnya tidak mendukung input array token
+                # dan encoding base64: kirim teks asli dan gunakan format float untuk
+                # menghindari respons kosong/dekode gagal.
                 "check_embedding_ctx_length": False,
                 "model_kwargs": {"encoding_format": "float"},
             }
@@ -165,22 +166,22 @@ class EmbeddingClient:
                 model=self.config.model_id,
             )
         except Exception as e:
-            logger.error(f"Embedding调用失败: {e}")
+            logger.error(f"Pemanggilan embedding gagal: {e}")
             raise
 
     async def embed_single(self, text: str) -> list[float]:
         """
-        生成单个文本的嵌入向量。
+        Membuat vektor embedding untuk satu teks.
 
         Args:
-            text: 待嵌入的文本。
+            text: teks yang akan di-embed.
 
         Returns:
-            嵌入向量。
+            Vektor embedding.
         """
         try:
             embeddings_model = self._get_embeddings()
             return await embeddings_model.aembed_query(text)
         except Exception as e:
-            logger.error(f"Embedding调用失败: {e}")
+            logger.error(f"Pemanggilan embedding gagal: {e}")
             raise

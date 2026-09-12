@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ModelProvider API Schemas - 模型服务提供商请求/响应模型。
+ModelProvider API Schemas - Model permintaan/respons penyedia layanan model.
 """
 
 from typing import Any
@@ -11,90 +11,93 @@ from pydantic import BaseModel, Field
 class CatalogMatchResponse(BaseModel):
     """Matched catalog provider metadata for a saved provider."""
 
-    catalog_provider_type: str = Field(description="匹配到的 catalog provider_type")
-    display_name: str = Field(description="Catalog 提供商显示名")
-    default_url: str | None = Field(default=None, description="Catalog 默认 URL")
-    api: str | None = Field(default=None, description="Models.dev api 字段")
-    icon_path: str | None = Field(default=None, description="内置图标路径")
+    catalog_provider_type: str = Field(description="catalog provider_type yang cocok")
+    display_name: str = Field(description="Nama tampilan penyedia Catalog")
+    default_url: str | None = Field(default=None, description="URL default Catalog")
+    api: str | None = Field(default=None, description="Field api Models.dev")
+    icon_path: str | None = Field(default=None, description="Path ikon bawaan")
     models_dev_provider_id: str | None = Field(
         default=None, description="Models.dev provider id"
     )
-    matched_via: str = Field(description="provider_type 或 api")
+    matched_via: str = Field(description="provider_type atau api")
 
 
 class ModelProviderResponse(BaseModel):
-    """提供商响应。"""
+    """Respons penyedia."""
 
-    id: str = Field(description="提供商 ID")
-    name: str = Field(description="提供商名称/备注")
-    url: str = Field(description="服务 URL")
-    provider_type: str = Field(description="提供商类型")
+    id: str = Field(description="ID penyedia")
+    name: str = Field(description="Nama/catatan penyedia")
+    url: str = Field(description="URL layanan")
+    provider_type: str = Field(description="Tipe penyedia")
     custom_header_names: list[str] = Field(
         default_factory=list,
-        description="已配置的自定义请求头名称（不返回请求头值）",
+        description=(
+            "Nama header permintaan kustom yang sudah dikonfigurasi (nilai header tidak "
+            "dikembalikan)"
+        ),
     )
     supported_task_types: list[str] = Field(
-        description="支持的任务类型列表 (llm, embedding, rerank)"
+        description="Daftar tipe tugas yang didukung (llm, embedding, rerank)"
     )
-    icon_path: str | None = Field(description="Catalog 图标路径")
-    is_builtin: bool = Field(default=False, description="是否为内置提供商")
+    icon_path: str | None = Field(description="Path ikon Catalog")
+    is_builtin: bool = Field(default=False, description="Apakah penyedia bawaan")
     catalog_match: CatalogMatchResponse | None = Field(
-        default=None, description="匹配到的 catalog 提供商元数据"
+        default=None, description="Metadata penyedia catalog yang cocok"
     )
-    created_at: str = Field(description="创建时间")
-    updated_at: str = Field(description="更新时间")
+    created_at: str = Field(description="Waktu pembuatan")
+    updated_at: str = Field(description="Waktu pembaruan")
 
 
 class CustomHeaderEntry(BaseModel):
-    """单条自定义请求头。"""
+    """Satu header permintaan kustom."""
 
-    key: str = Field(description="请求头名称")
-    value: str = Field(description="请求头值")
+    key: str = Field(description="Nama header permintaan")
+    value: str = Field(description="Nilai header permintaan")
 
 
 class ModelProviderValidateRequest(BaseModel):
-    """验证提供商连接请求。"""
+    """Permintaan validasi koneksi penyedia."""
 
-    provider_type: str = Field(description="提供商类型")
-    url: str = Field(description="服务 URL")
+    provider_type: str = Field(description="Tipe penyedia")
+    url: str = Field(description="URL layanan")
     api_key: str = Field(description="API Key")
     custom_headers: list["CustomHeaderEntry"] = Field(
         default_factory=list,
-        description="自定义请求头",
+        description="Header permintaan kustom",
     )
 
 
 class AvailableModelMetadata(BaseModel):
-    """模型展示元数据。"""
+    """Metadata tampilan model."""
 
-    release_date: str | None = Field(default=None, description="模型发布日期")
-    reasoning: bool | None = Field(default=None, description="是否支持 reasoning")
-    tool_call: bool | None = Field(default=None, description="是否支持 tool call")
+    release_date: str | None = Field(default=None, description="Tanggal rilis model")
+    reasoning: bool | None = Field(default=None, description="Apakah mendukung reasoning")
+    tool_call: bool | None = Field(default=None, description="Apakah mendukung tool call")
     modalities: dict[str, list[str]] | None = Field(
-        default=None, description="输入输出模态"
+        default=None, description="Modalitas masukan dan keluaran"
     )
     limit: dict[str, Any] | str | int | None = Field(
-        default=None, description="上下文与输出限制"
+        default=None, description="Batas konteks dan keluaran"
     )
     cost: dict[str, Any] | str | int | None = Field(
-        default=None, description="价格元数据"
+        default=None, description="Metadata harga"
     )
 
 
 class AvailableModel(BaseModel):
-    """可用模型。"""
+    """Model yang tersedia."""
 
-    id: str = Field(description="模型 ID")
-    name: str = Field(description="模型名称")
-    task_type: str | None = Field(default=None, description="任务类型")
+    id: str = Field(description="ID model")
+    name: str = Field(description="Nama model")
+    task_type: str | None = Field(default=None, description="Tipe tugas")
     metadata: AvailableModelMetadata | None = Field(
-        default=None, description="匹配到的 catalog 元数据"
+        default=None, description="Metadata catalog yang cocok"
     )
 
 
 class ModelProviderValidateResponse(BaseModel):
-    """验证提供商连接响应。"""
+    """Respons validasi koneksi penyedia."""
 
-    success: bool = Field(description="是否验证成功")
-    message: str = Field(description="消息")
-    models: list[AvailableModel] = Field(description="可用模型列表")
+    success: bool = Field(description="Apakah validasi berhasil")
+    message: str = Field(description="Pesan")
+    models: list[AvailableModel] = Field(description="Daftar model yang tersedia")

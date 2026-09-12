@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-WorldInfo API Schemas - 世界书请求/响应模型。
+WorldInfo API Schemas - Model permintaan/respons buku dunia.
 """
 
 from datetime import datetime
@@ -9,41 +9,41 @@ from pydantic import BaseModel, Field
 
 
 class WorldInfoResponse(BaseModel):
-    """世界书响应。"""
+    """Respons buku dunia."""
 
-    id: str = Field(description="世界书 ID")
-    project_id: str | None = Field(description="关联的项目 ID，可为空")
-    name: str = Field(description="世界书名称")
-    description: str = Field(description="世界书描述")
-    created_at: datetime = Field(description="创建时间")
-    updated_at: datetime = Field(description="更新时间")
+    id: str = Field(description="ID buku dunia")
+    project_id: str | None = Field(description="ID proyek terkait, dapat kosong")
+    name: str = Field(description="Nama buku dunia")
+    description: str = Field(description="Deskripsi buku dunia")
+    created_at: datetime = Field(description="Waktu pembuatan")
+    updated_at: datetime = Field(description="Waktu pembaruan")
 
     model_config = {"from_attributes": True}
 
 
 class WorldInfoListResponse(BaseModel):
-    """世界书列表响应。"""
+    """Respons daftar buku dunia."""
 
-    items: list[WorldInfoResponse] = Field(description="世界书列表")
-    total: int = Field(description="总数")
-    page: int = Field(description="当前页码")
-    page_size: int = Field(description="每页数量")
+    items: list[WorldInfoResponse] = Field(description="Daftar buku dunia")
+    total: int = Field(description="Jumlah total")
+    page: int = Field(description="Nomor halaman saat ini")
+    page_size: int = Field(description="Jumlah per halaman")
 
 
-# ============== 世界书条目 Schemas ==============
+# ============== Schemas entri buku dunia ==============
 
 
 class WorldInfoEntryCreate(BaseModel):
-    """创建世界书条目请求。"""
+    """Permintaan pembuatan entri buku dunia."""
 
-    name: str = Field(min_length=1, max_length=200, description="条目名称")
-    content: str = Field(default="", description="条目内容")
-    token_count: int = Field(default=0, ge=0, description="Token 数量")
-    is_enabled: bool = Field(default=True, description="开关状态")
+    name: str = Field(min_length=1, max_length=200, description="Nama entri")
+    content: str = Field(default="", description="Isi entri")
+    token_count: int = Field(default=0, ge=0, description="Jumlah Token")
+    is_enabled: bool = Field(default=True, description="Status sakelar")
 
 
 class WorldInfoEntryUpdate(BaseModel):
-    """更新世界书条目请求。"""
+    """Permintaan pembaruan entri buku dunia."""
 
     name: str | None = Field(default=None, min_length=1, max_length=200)
     content: str | None = None
@@ -52,128 +52,128 @@ class WorldInfoEntryUpdate(BaseModel):
 
 
 class WorldInfoEntryMoveRequest(BaseModel):
-    """移动世界书条目请求。"""
+    """Permintaan pemindahan entri buku dunia."""
 
-    new_order: int = Field(ge=1, description="新排序位置")
+    new_order: int = Field(ge=1, description="Posisi urutan baru")
 
 
 class WorldInfoEntryBatchToggleRequest(BaseModel):
-    """批量切换条目开关请求。"""
+    """Permintaan pengalihan sakelar entri secara massal."""
 
-    entry_ids: list[str] = Field(min_length=1, description="要切换的条目 ID 列表")
-    is_enabled: bool = Field(description="目标开关状态")
+    entry_ids: list[str] = Field(min_length=1, description="Daftar ID entri yang akan dialihkan")
+    is_enabled: bool = Field(description="Status sakelar tujuan")
 
 
 class WorldInfoEntryBatchDeleteRequest(BaseModel):
-    """批量删除条目请求。"""
+    """Permintaan penghapusan entri secara massal."""
 
-    entry_ids: list[str] = Field(min_length=1, description="要删除的条目 ID 列表")
+    entry_ids: list[str] = Field(min_length=1, description="Daftar ID entri yang akan dihapus")
 
 
 class WorldInfoEntryBatchToggleResponse(BaseModel):
-    """批量切换条目开关响应。"""
+    """Respons pengalihan sakelar entri secara massal."""
 
-    updated_count: int = Field(description="已更新的条目数量")
+    updated_count: int = Field(description="Jumlah entri yang sudah diperbarui")
 
 
 class WorldInfoEntryBatchDeleteResponse(BaseModel):
-    """批量删除条目响应。"""
+    """Respons penghapusan entri secara massal."""
 
-    deleted_count: int = Field(description="已删除的条目数量")
+    deleted_count: int = Field(description="Jumlah entri yang sudah dihapus")
 
 
 class WorldInfoEntryResponse(BaseModel):
-    """世界书条目响应。"""
+    """Respons entri buku dunia."""
 
-    id: str = Field(description="条目 ID")
-    world_info_id: str = Field(description="所属世界书 ID")
-    uid: int = Field(description="用户可见序列号")
-    name: str = Field(description="条目名称")
-    order: int = Field(description="排序序号")
-    content: str = Field(description="条目内容")
-    token_count: int = Field(description="Token 数量")
-    is_enabled: bool = Field(description="开关状态")
-    created_at: datetime = Field(description="创建时间")
-    updated_at: datetime = Field(description="更新时间")
+    id: str = Field(description="ID entri")
+    world_info_id: str = Field(description="ID buku dunia pemilik")
+    uid: int = Field(description="Nomor urut yang terlihat pengguna")
+    name: str = Field(description="Nama entri")
+    order: int = Field(description="Nomor urut")
+    content: str = Field(description="Isi entri")
+    token_count: int = Field(description="Jumlah Token")
+    is_enabled: bool = Field(description="Status sakelar")
+    created_at: datetime = Field(description="Waktu pembuatan")
+    updated_at: datetime = Field(description="Waktu pembaruan")
 
     model_config = {"from_attributes": True}
 
 
 class WorldInfoEntryBriefResponse(BaseModel):
-    """世界书条目轻量响应（列表用，不含 content）。"""
+    """Respons ringan entri buku dunia (untuk daftar, tanpa content)."""
 
-    id: str = Field(description="条目 ID")
-    world_info_id: str = Field(description="所属世界书 ID")
-    uid: int = Field(description="用户可见序列号")
-    name: str = Field(description="条目名称")
-    order: int = Field(description="排序序号")
-    token_count: int = Field(description="Token 数量")
-    is_enabled: bool = Field(description="开关状态")
-    created_at: datetime = Field(description="创建时间")
-    updated_at: datetime = Field(description="更新时间")
+    id: str = Field(description="ID entri")
+    world_info_id: str = Field(description="ID buku dunia pemilik")
+    uid: int = Field(description="Nomor urut yang terlihat pengguna")
+    name: str = Field(description="Nama entri")
+    order: int = Field(description="Nomor urut")
+    token_count: int = Field(description="Jumlah Token")
+    is_enabled: bool = Field(description="Status sakelar")
+    created_at: datetime = Field(description="Waktu pembuatan")
+    updated_at: datetime = Field(description="Waktu pembaruan")
 
     model_config = {"from_attributes": True}
 
 
 class WorldInfoEntryBriefListResponse(BaseModel):
-    """世界书条目轻量列表响应。"""
+    """Respons daftar ringan entri buku dunia."""
 
-    items: list[WorldInfoEntryBriefResponse] = Field(description="条目列表")
-    total: int = Field(description="总数")
+    items: list[WorldInfoEntryBriefResponse] = Field(description="Daftar entri")
+    total: int = Field(description="Jumlah total")
 
 
 class WorldInfoImportPreviewEntry(BaseModel):
-    """世界书导入预览条目。"""
+    """Entri pratinjau impor buku dunia."""
 
-    uid: int = Field(description="原始条目 UID")
-    name: str = Field(description="导入后的条目名称")
-    content_preview: str = Field(description="内容预览")
-    is_enabled: bool = Field(description="导入后的启用状态")
+    uid: int = Field(description="UID entri asli")
+    name: str = Field(description="Nama entri setelah diimpor")
+    content_preview: str = Field(description="Pratinjau isi")
+    is_enabled: bool = Field(description="Status aktif setelah diimpor")
 
 
 class WorldInfoImportPreviewResponse(BaseModel):
-    """世界书导入预览响应。"""
+    """Respons pratinjau impor buku dunia."""
 
-    entry_count: int = Field(description="条目总数")
-    enabled_count: int = Field(description="启用条目数")
-    entries: list[WorldInfoImportPreviewEntry] = Field(description="预览条目列表")
+    entry_count: int = Field(description="Jumlah total entri")
+    enabled_count: int = Field(description="Jumlah entri yang aktif")
+    entries: list[WorldInfoImportPreviewEntry] = Field(description="Daftar entri pratinjau")
 
 
 class WorldInfoImportResponse(BaseModel):
-    """世界书导入响应。"""
+    """Respons impor buku dunia."""
 
-    world_info_id: str = Field(description="目标世界书 ID")
-    imported_count: int = Field(description="成功导入的条目数")
+    world_info_id: str = Field(description="ID buku dunia tujuan")
+    imported_count: int = Field(description="Jumlah entri yang berhasil diimpor")
 
 
 class WorldInfoImportMode(BaseModel):
-    """世界书导入模式。"""
+    """Mode impor buku dunia."""
 
-    mode: str = Field(description="导入模式：append 或 overwrite")
+    mode: str = Field(description="Mode impor: append atau overwrite")
 
 
-# ============== 搜索 Schemas ==============
+# ============== Schemas pencarian ==============
 
 
 class WorldInfoEntrySearchMatch(BaseModel):
-    """搜索匹配项。"""
+    """Item cocok pada pencarian."""
 
-    line_number: int = Field(description="匹配行号（从 1 开始）")
-    line_text: str = Field(description="匹配行文本")
+    line_number: int = Field(description="Nomor baris yang cocok (mulai dari 1)")
+    line_text: str = Field(description="Teks baris yang cocok")
 
 
 class WorldInfoEntrySearchResult(BaseModel):
-    """单个条目的搜索结果。"""
+    """Hasil pencarian satu entri."""
 
-    entry_id: str = Field(description="条目 ID")
-    entry_name: str = Field(description="条目名称")
-    uid: int = Field(description="条目 UID")
-    matches: list[WorldInfoEntrySearchMatch] = Field(description="匹配项列表")
+    entry_id: str = Field(description="ID entri")
+    entry_name: str = Field(description="Nama entri")
+    uid: int = Field(description="UID entri")
+    matches: list[WorldInfoEntrySearchMatch] = Field(description="Daftar item yang cocok")
 
 
 class WorldInfoEntrySearchResponse(BaseModel):
-    """搜索响应。"""
+    """Respons pencarian."""
 
-    results: list[WorldInfoEntrySearchResult] = Field(description="搜索结果列表")
-    total_entries: int = Field(description="匹配的条目总数")
-    total_matches: int = Field(description="匹配项总数")
+    results: list[WorldInfoEntrySearchResult] = Field(description="Daftar hasil pencarian")
+    total_entries: int = Field(description="Jumlah total entri yang cocok")
+    total_matches: int = Field(description="Jumlah total item yang cocok")

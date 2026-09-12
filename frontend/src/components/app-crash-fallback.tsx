@@ -9,7 +9,7 @@ interface AppCrashFallbackProps {
 }
 
 /**
- * 应用崩溃兜底页：顶层 ErrorBoundary 捕获到未处理的渲染异常时展示。
+ * Halaman cadangan saat aplikasi ambruk: ditampilkan ketika ErrorBoundary lapis teratas menangkap anomali render yang tidak tertangani.
  */
 export function AppCrashFallback({ error }: AppCrashFallbackProps) {
   const { t } = useTranslation();

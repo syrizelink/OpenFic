@@ -29,6 +29,6 @@ export function registerSW(): void {
   });
 
   navigator.serviceWorker.register("/sw.js").catch((error) => {
-    console.warn("Service Worker 注册失败:", error);
+    console.warn("Service Worker gagal didaftarkan:", error);
   });
 }

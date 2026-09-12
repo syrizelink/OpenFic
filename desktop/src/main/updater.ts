@@ -20,7 +20,7 @@ function publishState(nextState: UpdateState): void {
 }
 
 function describeError(error: Error): string {
-  return error.message || "更新服务暂时不可用";
+  return error.message || "Layanan pembaruan sedang tidak tersedia";
 }
 
 function isMissingUpdateMetadataError(error: unknown): boolean {

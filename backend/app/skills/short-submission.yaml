@@ -1,245 +1,245 @@
 id: builtin-skill--short-submission
-name: 短篇投稿结构设计
-summary: 根据用户指定的平台目标，完整设计平台基调、导语骨架、黄金三角、付费点、投稿成品和双平台格式。
+name: Rancangan struktur pengiriman karya pendek
+summary: Merancang secara lengkap nada dasar platform, kerangka paragraf pembuka, triangel emas, titik berbayar, karya jadi siap kirim, dan format dua platform sesuai target platform yang ditentukan pengguna.
 is_enabled: true
 content: |
-  # 投稿范式：平台基调 · 导语 · 付费点
+  # Paradigma pengiriman: nada dasar platform, paragraf pembuka, titik berbayar
 
-  短篇是投出去过稿的，不是写完就算。这份方法论管三件投稿层的事：按平台定基调、单独打磨导语、把付费点卡在断点上。题材招式仍按用户提供的题材资料，本文只叠加“投稿怎么写才收得掉”这一层。当前会话人工执行，不调用网络、不写入项目目录、不依赖外部 Agent。
+  Karya pendek ditulis untuk dikirim dan diterima, bukan sekadar selesai ditulis. Metodologi ini mengurus tiga hal di lapisan pengiriman: menetapkan nada dasar menurut platform, menggarap paragraf pembuka secara terpisah, dan menempatkan titik berbayar tepat di titik pemotongan. Jurus khas genre tetap mengikuti bahan genre yang diberikan pengguna; dokumen ini hanya menumpuk satu lapisan tambahan, yaitu "bagaimana menulis agar karya kiriman diterima". Sesi ini dijalankan manual, tanpa memanggil jaringan, tanpa menulis ke direktori proyek, dan tanpa bergantung pada Agent eksternal.
 
-  ## 一、先定平台基调
+  ## 1. Tetapkan nada dasar platform lebih dulu
 
-  动笔前先确认投稿平台，正文的视角、矛盾烈度、章末钩子、结局质感随之切换。三大主流基调：
+  Sebelum mulai menulis, pastikan dulu platform tujuan pengiriman; sudut pandang isi utama, kadar ketajaman konflik, pengait akhir bab, dan tekstur akhir cerita ikut berganti mengikutinya. Tiga nada dasar arus utama:
 
-  | 平台 | 视角 | 矛盾演进 | 章末钩子 | 结局质感 |
+  | Platform | Sudut pandang | Perkembangan konflik | Pengait akhir bab | Tekstur akhir cerita |
   |---|---|---|---|---|
-  | 知乎盐选 | 第一人称沉浸，生活化违和感切入（“老公副驾驶有根红头发”） | 心理战、信息差，靠细节拼图“细思极恐”，情绪层层剥洋葱 | 发现一个颠覆前文认知的炸裂细节，悬念内敛后劲大 | 极致反转 / 因果轮回 / 高智商收尾，留白多、重余韵 |
-  | 小程序 | 上帝视角或强情绪第一人称，开局即地狱 | 冲突全外化到对白和动作，走“被羞辱→亮底牌→当众打脸→夺实利”快循环 | 卡脖子断点（巴掌将落、协议撕一半、话说一半） | 直白粗暴的爽，反派付实质代价（破产/入狱/众叛亲离），主角高位不留遗憾 |
-  | 番茄短篇 | 流畅第一/第三人称，目标清晰、金手指直白 | 顺滑无毒点，反派挑衅一两节内转成主角升级/发财的垫脚石 | 开新地图 / 拿到新底牌 / 新人物带资源登场 | 圆满畅快，事业感情双收，坏人受罚 |
+  | Zhihu Yanxuan | Orang pertama yang membenamkan pembaca, masuk lewat rasa ganjil dari hal sehari-hari ("ada sehelai rambut merah di kursi depan mobil suamiku") | Perang psikologis, selisih informasi, menyusun kepingan detail hingga terasa "makin dipikir makin mengerikan", emosi dikupas lapis demi lapis | Menemukan satu detail meledak yang menjungkirkan pemahaman atas teks sebelumnya, misterinya tertahan tetapi dayanya panjang | Pembalikan ekstrem / karma berputar / penutupan cerdas, banyak ruang kosong, mengutamakan gema yang tertinggal |
+  | Mini program | Sudut pandang mahatahu atau orang pertama beremosi kuat, dibuka langsung di neraka | Konflik dieksternalkan seluruhnya ke dialog dan tindakan, berjalan dalam putaran cepat "dihina -> membuka kartu -> menampar di depan umum -> merampas keuntungan nyata" | Titik potong yang mencekik leher (tamparan hampir jatuh, perjanjian baru dirobek separuh, ucapan berhenti di tengah) | Rasa pemuas yang lugas dan kasar, tokoh antagonis membayar harga nyata (bangkrut/dipenjara/ditinggalkan semua orang), tokoh utama duduk tinggi tanpa penyesalan |
+  | Karya pendek Fanqie | Orang pertama/ketiga yang lancar, tujuan jelas, anugerah emas lugas | Mulus tanpa titik beracun, provokasi tokoh antagonis dalam satu dua bagian berubah menjadi pijakan bagi tokoh utama untuk naik kelas atau kaya | Membuka peta baru / mendapat kartu pamungkas baru / tokoh baru hadir membawa sumber daya | Bulat dan menyenangkan, karier dan cinta dua-duanya panen, orang jahat dihukum |
 
-  - 小程序收稿量最大，打脸爽文是主力盘；同一个脑洞可以分别按知乎/小程序/番茄各跑一版，挑最顺的投。
-  - 基调只调“声音和落点”，不覆盖题材招式和本篇情绪目标。基调是投放渠道的声音，与“短篇正文格式”的排版模板是两个轴——小程序基调的稿，排版仍按正文格式选一套 app 模板。
-  - **调基调不松去 AI 底线**：强情绪靠具体动作和对白落地，别把话硬拆成三字碎句成片排列；前情背景靠场景带出，别整段插叙成“来龙去脉”说明书；对仗句式（“上辈子…这辈子…”）别高频复用。去 AI 味仍按完整去模板化规则。
+  - Mini program paling banyak menerima kiriman, dan cerita pemuas bertema menampar wajah adalah lapak utamanya; satu ide cerita yang sama bisa dijalankan masing-masing satu versi untuk Zhihu/mini program/Fanqie, lalu kirim yang paling lancar.
+  - Nada dasar hanya menyetel "suara dan titik jatuh", tidak menimpa jurus khas genre dan tujuan emosi karya ini. Nada dasar adalah suara saluran penayangan, dan itu sumbu yang berbeda dari templat tata letak pada "format isi utama karya pendek": naskah bernada mini program pun tata letaknya tetap memilih satu templat aplikasi menurut format isi utama.
+  - **Menyetel nada dasar bukan berarti melonggarkan garis batas anti-AI**: emosi kuat dijatuhkan lewat tindakan dan dialog yang konkret, jangan memaksa memecah ucapan menjadi serakan potongan tiga kata yang dijejer berderet; latar belakang kejadian sebelumnya dimunculkan lewat adegan, jangan menyisipkan satu blok penuh menjadi buku petunjuk "asal-usul perkara"; pola kalimat berpasangan ("di kehidupan lalu ... di kehidupan ini ...") jangan didaur ulang terlalu sering. Penghapusan aroma AI tetap mengikuti aturan penghapusan templat yang lengkap.
 
-  ## 二、导语（投稿门面，单独打磨）
+  ## 2. Paragraf pembuka (wajah kiriman, digarap terpisah)
 
-  导语是正文最前面的引子，也是编辑第一眼看的东西。编辑一天审几百篇，**导语不行，正文再好也被一眼刷掉**。所以导语要单独当一件作品来打磨，别指望编辑往下翻。
+  Paragraf pembuka adalah pancingan di bagian paling depan isi utama, dan juga hal pertama yang dilihat editor. Editor menelaah ratusan naskah sehari, **kalau paragraf pembukanya lemah, sebagus apa pun isi utamanya tetap tersingkir dalam sekali pandang**. Karena itu paragraf pembuka harus digarap sebagai satu karya tersendiri, jangan berharap editor mau membaca ke bawah.
 
-  - **长度与形态**：约 150-220 字（题材包如写 150-300，投稿时按此收紧），就是正文开头那几段。一句一段指完整句各自独立成段，不是把整句拆成三字碎句；这是黑岩/盐言导语的形态，番茄导语按“短篇正文格式”该平台的短段叙织即可。导语写完即接正文（内容本身就是第一章开头，不重写）。
-  - **四维骨架**：起因（悲剧源头或荒诞开端）+ 核心冲突（被凝视、被剥削、被算计的绝境）+ 人设底色（清醒、有底牌，不是纯惨）+ 情绪反转（钩子卡在最后半句，戛然而止）。
-  - **黄金三角**：一个有冲击力的具体物件（撕碎的 B 超单、代持协议、落灰的旧相机）+ 一个信息差（主角藏在暗处的底牌，读者知道、施害者不知道）+ 一个留白的致命钩子。
-  - **反面**：别用导语平铺背景或抒情；别把底牌全亮完（留给正文兑现）；别只写惨不写“她有后手”。
+  - **Panjang dan bentuk**: sekitar 150-220 kata (kalau paket genre menulis 150-300, kencangkan ke angka ini saat mengirim), yaitu beberapa paragraf pertama isi utama. Satu kalimat satu paragraf berarti setiap kalimat utuh berdiri sebagai paragraf sendiri, bukan memecah satu kalimat menjadi serakan potongan tiga kata; ini bentuk paragraf pembuka gaya Heiyan/Yanyan, sedangkan paragraf pembuka Fanqie cukup memakai jalinan paragraf pendek platform tersebut sesuai "format isi utama karya pendek". Setelah paragraf pembuka selesai, langsung bersambung ke isi utama (isinya memang awal bab pertama, tidak ditulis ulang).
+  - **Kerangka empat dimensi**: sebab awal (sumber tragedi atau pembukaan absurd) + konflik inti (keadaan terjepit karena ditatap, diperah, atau diperhitungkan) + warna dasar penokohan (sadar, punya kartu pamungkas, bukan sekadar nestapa) + pembalikan emosi (pengait ditahan di separuh kalimat terakhir, berhenti mendadak).
+  - **Triangel emas**: satu benda konkret yang berdaya hentak (hasil USG yang dirobek, perjanjian penitipan nama, kamera tua berdebu) + satu selisih informasi (kartu pamungkas yang disembunyikan tokoh utama, pembaca tahu, pelaku tidak tahu) + satu pengait fatal yang menyisakan ruang kosong.
+  - **Sisi sebaliknya**: jangan memakai paragraf pembuka untuk memaparkan latar belakang secara datar atau melamunkan perasaan; jangan membuka semua kartu pamungkas (sisakan untuk dituntaskan di isi utama); jangan hanya menulis nestapanya tanpa menulis bahwa "dia punya langkah simpanan".
 
-  ## 三、付费点（投稿结构）
+  ## 3. Titik berbayar (struktur pengiriman)
 
-  短篇按“免费试读 + 付费点 + 付费正文”投稿（投稿语境的“章”即本 Skill 的“节”）。付费点是免费段和付费段的分界，卡不好读者不付费，卡对了转化高。
+  Karya pendek dikirim dengan susunan "baca percobaan gratis + titik berbayar + isi utama berbayar" (kata "bab" dalam konteks pengiriman sama dengan "bagian" dalam Skill ini). Titik berbayar adalah batas antara bagian gratis dan bagian berbayar; kalau ditempatkan salah pembaca tidak membayar, kalau tepat konversinya tinggi.
 
-  - **断点位置**：付费点卡在一个章末的卡脖子断点上——一个即将揭晓、读者必须付费才能看到的反转或对决瞬间（亲子鉴定撕开一半、底牌刚要拍上桌、名字念到一半）。别把核心大爽点在免费段全放完。
-  - **剧情点密度**：付费点前每章 2-3 个剧情点（快速立处境、埋钩、层层加压）；付费点后每章比之前多 1-2 个（集中兑现打脸/反转/爽点）。剧情点适度加，太多会乱。
-  - **反推法排细纲**：先定付费点卡在第几节章末，先把那一节的剧情想透（如复仇虐爽：前几节情绪递进越来越虐，付费点节章末预示反击），再倒推安排前面各节“情绪冲突逐渐递进”，最后排付费点之后的兑现段。
-  - **投稿成品形态**：标题 + 导语（不写“导语”二字，只留那几句）+ 数字分节的正文（含付费点断点）。投稿建议区间比框架（8000-20000）更收敛：整篇约 8000-12000 字，每章约 1000-1300 字，章数约 7-12 章。
+  - **Posisi titik potong**: titik berbayar ditahan pada satu titik potong yang mencekik leher di akhir bab, yaitu satu momen pembalikan atau duel yang segera terkuak dan hanya bisa dilihat pembaca setelah membayar (uji DNA yang baru dirobek separuh, kartu pamungkas yang baru hendak dihantam ke meja, nama yang baru terucap separuh). Jangan melepas seluruh titik pemuas besar yang inti di bagian gratis.
+  - **Kerapatan titik alur cerita**: sebelum titik berbayar, setiap bab memuat 2-3 titik alur cerita (cepat menegakkan situasi, menanam pengait, menaikkan tekanan lapis demi lapis); setelah titik berbayar, setiap bab memuat 1-2 titik lebih banyak daripada sebelumnya (memusatkan penuntasan tamparan/pembalikan/titik pemuas). Titik alur cerita ditambah secukupnya, terlalu banyak akan membuat kacau.
+  - **Menyusun kerangka rinci dengan penalaran balik**: tetapkan dulu titik berbayar ditahan di akhir bab bagian keberapa, pikirkan tuntas dulu alur cerita bagian itu (misalnya pembalasan bernada siksa-pemuas: beberapa bagian awal emosinya makin menyiksa secara bertahap, lalu akhir bab pada bagian titik berbayar mengisyaratkan serangan balas), lalu tarik balik untuk menata "konflik emosi yang bertahap menaik" di bagian-bagian sebelumnya, dan terakhir susun bagian penuntasan setelah titik berbayar.
+  - **Bentuk karya jadi siap kirim**: judul + paragraf pembuka (jangan menuliskan kata "paragraf pembuka", cukup sisakan beberapa kalimat itu) + isi utama yang dibagi menjadi bagian bernomor (termasuk titik potong berbayar). Rentang yang disarankan untuk pengiriman lebih rapat daripada kerangka umum (8000-20000): keseluruhan sekitar 8000-12000 kata, setiap bab sekitar 1000-1300 kata, jumlah bab sekitar 7-12 bab.
 
-  ## 四、投稿基调兑现表
+  ## 4. Tabel penuntasan nada dasar pengiriman
 
-  | 基调 | 前段任务 | 后段任务 | 结尾 |
+  | Nada dasar | Tugas bagian awal | Tugas bagian akhir | Penutup |
   |---|---|---|---|
-  | 虐 | 建立羁绊和不公平伤害 | 补偿、错过或安静钝痛 | 具体动作，情绪落点强 |
-  | 爽 | 压制、误判、主角暗牌 | 证据、反击、打脸和升级 | 兑现核心爽感并留余韵 |
-  | 甜 | 建立关系和独特互动 | 用具体照顾、选择和承诺兑现 | 不用空泛“我爱你”收束 |
-  | 悬疑 | 异常、问题、信息差 | 回收线索并改变理解 | 真相后留下新余波 |
-  | 治愈 | 暴露弱点和困境 | 关系、行动或理解产生修复 | 保留安静细节 |
+  | Siksa | Membangun ikatan dan luka yang tidak adil | Pemulihan, kehilangan kesempatan, atau nyeri tumpul yang senyap | Tindakan konkret, titik jatuh emosinya kuat |
+  | Pemuas | Penindasan, salah nilai, kartu tersembunyi tokoh utama | Bukti, serangan balas, tamparan, dan peningkatan | Menuntaskan rasa pemuas inti dan menyisakan gema |
+  | Manis | Membangun hubungan dan interaksi yang khas | Dituntaskan lewat perhatian, pilihan, dan janji yang konkret | Jangan ditutup dengan "aku mencintaimu" yang kosong |
+  | Misteri | Kejanggalan, pertanyaan, selisih informasi | Menarik kembali petunjuk dan mengubah pemahaman | Setelah kebenaran, sisakan riak baru |
+  | Penyembuhan | Menyingkap kelemahan dan kebuntuan | Hubungan, tindakan, atau pemahaman menghasilkan pemulihan | Sisakan detail yang tenang |
 
-  ## 五、导语骨架
+  ## 5. Kerangka paragraf pembuka
 
   ```
-  {具体时间/场景}，{主角}因为{起因}被迫面对{核心冲突}。
-  他/她本来{读者可理解的人设底色或目标}，却发现{信息差/异常事实}。
-  {留下一个尚未完成的动作、选择或真相，不泄露结局。}
+  {waktu/adegan konkret}, {tokoh utama} karena {sebab awal} terpaksa menghadapi {konflik inti}.
+  Ia sebenarnya {warna dasar penokohan atau tujuan yang bisa dipahami pembaca}, tetapi menemukan {selisih informasi/fakta yang janggal}.
+  {Tinggalkan satu tindakan, pilihan, atau kebenaran yang belum tuntas, jangan bocorkan akhir ceritanya.}
   ```
 
-  导语必须有事件、处境和可理解的信息差；避免题材标签堆砌、空泛夸张、作者自评、结果全泄露和与正文不一致的语气。
+  Paragraf pembuka wajib punya peristiwa, keadaan terjepit, dan selisih informasi yang bisa dipahami; hindari tumpukan label genre, hiperbol kosong, penilaian diri penulis, pembocoran seluruh hasil, dan nada yang tidak sejalan dengan isi utama.
 
-  ## 六、付费断点规则
+  ## 6. Aturan titik potong berbayar
 
-  - 断点前：建立人物、核心冲突、继续阅读理由和必要线索；至少让读者知道问题是什么、为什么必须关心、谁可能改变局面。
-  - 断点位置：动作将完成、证据将揭示、真相将翻转、关系将重新定义或选择即将作出时；断点前必须有铺垫和升温。
-  - 断点后：不能重复前段流程，必须增加信息、情绪、反击、反转、选择后果或余韵。
-  - 禁止：无关新人物、新设定、强行误会、毫无铺垫的截断、靠未处理问题假装余韵。
-  - 结尾：完成主线核心情绪；悬疑可留新问题，但不能留下本篇应该处理的旧问题。
+  - Sebelum titik potong: bangun tokoh, konflik inti, alasan untuk terus membaca, dan petunjuk yang diperlukan; setidaknya buat pembaca tahu apa masalahnya, mengapa ia harus peduli, dan siapa yang mungkin mengubah keadaan.
+  - Posisi titik potong: saat tindakan hampir selesai, bukti hampir terungkap, kebenaran hampir terbalik, hubungan hampir didefinisikan ulang, atau pilihan hampir diambil; sebelum titik potong wajib ada persiapan dan pemanasan.
+  - Setelah titik potong: tidak boleh mengulang prosedur bagian sebelumnya, wajib menambah informasi, emosi, serangan balas, pembalikan, konsekuensi pilihan, atau gema.
+  - Dilarang: tokoh baru yang tak relevan, latar baru, kesalahpahaman yang dipaksakan, pemotongan tanpa persiapan sama sekali, dan berpura-pura menyisakan gema dengan mengandalkan masalah yang belum ditangani.
+  - Penutup: tuntaskan emosi inti garis utama; genre misteri boleh menyisakan pertanyaan baru, tetapi tidak boleh menyisakan masalah lama yang seharusnya ditangani karya ini.
 
-  ## 七、投稿成品验收
+  ## 7. Penerimaan karya jadi siap kirim
 
-  - [ ] 导语有具体事件、主角处境、核心冲突和信息差，没有泛题材介绍。
-  - [ ] 投稿基调与正文事件、人物选择和结尾情绪一致。
-  - [ ] 开头独立抓人，前段已建立继续阅读理由。
-  - [ ] 断点卡在动作、证据、真相或关系变化未完成处，前后两段功能不同。
-  - [ ] 断点后有新增信息或情绪兑现，没有无关人物和强行误会。
-  - [ ] 结尾完成本篇主线情绪，具体落到动作、对话或画面。
-  - [ ] 正文无过程说明、平台内部元信息、占位符和未处理旧问题。
+  - [ ] Paragraf pembuka punya peristiwa konkret, keadaan tokoh utama, konflik inti, dan selisih informasi, tanpa pengantar genre yang umum.
+  - [ ] Nada dasar pengiriman sejalan dengan peristiwa isi utama, pilihan tokoh, dan emosi penutup.
+  - [ ] Pembukaannya mencengkeram secara mandiri, dan bagian awal sudah membangun alasan untuk terus membaca.
+  - [ ] Titik potong ditahan pada tindakan, bukti, kebenaran, atau perubahan hubungan yang belum tuntas, dan fungsi dua bagian sebelum serta sesudahnya berbeda.
+  - [ ] Setelah titik potong ada tambahan informasi atau penuntasan emosi, tanpa tokoh tak relevan dan kesalahpahaman yang dipaksakan.
+  - [ ] Penutup menuntaskan emosi garis utama karya ini, dan jatuh secara konkret pada tindakan, dialog, atau gambaran.
+  - [ ] Isi utama tidak memuat keterangan proses, meta-informasi internal platform, placeholder, dan masalah lama yang belum ditangani.
 
-  ## 八、短篇正文格式：章节标记
+  ## 8. Format isi utama karya pendek: penanda bab
 
-  全文统一一种，不混用。
+  Seluruh naskah memakai satu jenis saja, tidak dicampur.
 
-  | 格式 | 平台适用 | 示例 |
+  | Format | Platform yang sesuai | Contoh |
   |------|----------|------|
-  | `###1.` | 短篇默认 | `###1.` `###2.` `###3.` |
-  | `###第N章` | 番茄 / 七猫 / 古言 | `###第一章` `###第二章` |
-  | `1.`（纯数字，无 `###`） | 知乎盐言 | `1.` `2.` `3.` |
+  | `###1.` | Baku untuk karya pendek | `###1.` `###2.` `###3.` |
+  | `###Bab N` | Fanqie / Qimao / latar kuno | `###Bab Satu` `###Bab Dua` |
+  | `1.` (angka murni, tanpa `###`) | Zhihu Yanyan | `1.` `2.` `3.` |
 
-  短篇推荐 `###1.` 或纯数字，简洁。番茄系长一点的章用 `###第N章`。
+  Untuk karya pendek disarankan `###1.` atau angka murni, karena ringkas. Bab yang agak panjang di lini Fanqie memakai `###Bab N`.
 
-  ## 九、短篇正文格式：两套平台模板
+  ## 9. Format isi utama karya pendek: dua templat platform
 
-  短篇正文形态按平台分两套。**不设统一的“每段 ≤ 3 句”“800-1500 字 / 节”硬线**，那是长篇迁移过来的产物，会把短篇切成一样长的提纲。先认平台底色，再按疏密原则分配字数。
+  Bentuk isi utama karya pendek dibagi menjadi dua templat menurut platform. **Tidak ada garis keras terpadu berupa "setiap paragraf maksimal 3 kalimat" atau "800-1500 kata per bagian"**, karena itu produk pindahan dari karya panjang dan akan memotong karya pendek menjadi kerangka yang panjangnya seragam. Kenali warna dasar platform lebih dulu, baru bagikan jumlah kata menurut prinsip rapat-renggang.
 
-  ### 黑岩：一句一段，留白快读
+  ### Heiyan: satu kalimat satu paragraf, ruang kosong untuk bacaan cepat
 
-  - 一句一段为主，多换行制造下坠和停顿感。
-  - 节奏密，每节体量小，节尾必留钩。
-  - 单句成段是常态，不要为了“凑够字数”把短句焊回长段。
+  - Satu kalimat satu paragraf sebagai pola utama, banyak ganti baris untuk menciptakan rasa terjatuh dan jeda.
+  - Iramanya rapat, volume tiap bagian kecil, dan akhir bagian wajib menyisakan pengait.
+  - Satu kalimat berdiri sebagai paragraf adalah hal yang lazim; jangan mengelas kalimat pendek kembali menjadi paragraf panjang hanya demi "mengumpulkan cukup jumlah kata".
 
-  模板示意：
+  Gambaran templat:
 
   ```
   ###1.
 
-  他递过来一份文件。
+  Dia menyerahkan sebuah dokumen.
 
-  是离婚协议。
+  Itu perjanjian perceraian.
 
-  我笑了。
+  Aku tersenyum.
 
-  "签完，你就自由了。"
+  "Setelah kau tanda tangan, kau bebas."
   ```
 
-  ### 番茄 / 七猫：短段为底色，叙述交织对话
+  ### Fanqie / Qimao: paragraf pendek sebagai warna dasar, narasi berjalin dengan dialog
 
-  - 短段仍是手机阅读的底色，但**允许多句回溯叙述段和对话交织**：一段里可以有内心独白、回忆补刀、动作，再接对话。
-  - 古言 / 世情可写更长的叙述段，承载完整的情绪链和场景铺陈。
-  - 爽点、打脸、反转处压短（可单句成段）；过场、信息交代一句带过。
+  - Paragraf pendek tetap menjadi warna dasar pembacaan di ponsel, tetapi **paragraf narasi kilas balik bermultikalimat dan jalinan dengan dialog diperbolehkan**: dalam satu paragraf bisa ada monolog batin, kilas balik yang menusuk lagi, dan tindakan, lalu bersambung ke dialog.
+  - Genre latar kuno / kehidupan sosial boleh menulis paragraf narasi yang lebih panjang, yang memikul rantai emosi utuh dan penataan adegan.
+  - Titik pemuas, tamparan, dan pembalikan dipadatkan menjadi pendek (boleh satu kalimat satu paragraf); adegan transisi dan penyampaian informasi cukup dilewati satu kalimat.
 
-  模板示意：
+  Gambaran templat:
 
   ```
-  ###第一章
+  ###Bab Satu
 
-  我把热汤端到他面前的时候，他正低头看手机，屏幕亮着白月光的名字。三年了，我以为熬过了最难的日子，原来熬的只是我自己。
+  Waktu aku mengantar sup hangat ke depannya, dia sedang menunduk menatap ponsel, layarnya menyala menampilkan nama perempuan idamannya. Tiga tahun sudah, kukira aku telah melewati hari-hari tersulit, ternyata yang kutahan hanyalah diriku sendiri.
 
-  "以后这种事不用你做。"他头也没抬，"她不喜欢闻油烟味。"
+  "Nanti hal seperti ini tidak perlu kau kerjakan." Dia bahkan tidak mengangkat kepala, "Dia tidak suka bau asap masakan."
 
-  我端着碗的手顿了一下。
+  Tanganku yang memegang mangkuk berhenti sejenak.
   ```
 
-  ### 两套共同的硬约束（所有平台）
+  ### Batasan keras yang berlaku untuk kedua templat (semua platform)
 
-  - 正文相邻段落之间**只允许一个换行符 `\n`**，不得出现空行或连续换行 `\n\n`（紧密排列）。章节标记前后另算。
-  - **无缩进**：不用 `　　`（全角空格）或半角空格缩进，平台渲染器自行处理。
-  - **禁正文段落 Markdown**：除统一的小节 / 章节标记（如 `###1.`），正文段落里不用加粗 `**`、斜体 `*`、标题 `#`、分隔线 `---` 等。
-  - 长短交错，忌通篇同长度。把每段切成同一字数，正是 AI 腔来源。
+  - Antara dua paragraf isi utama yang berdampingan **hanya diizinkan satu karakter ganti baris `\n`**, tidak boleh ada baris kosong atau ganti baris berturut-turut `\n\n` (susunan rapat). Sebelum dan sesudah penanda bab dihitung terpisah.
+  - **Tanpa indentasi**: jangan memakai spasi lebar ideografis (ideographic space U+3000) atau spasi biasa sebagai indentasi, karena perender platform menanganinya sendiri.
+  - **Larangan Markdown pada paragraf isi utama**: selain penanda bagian / bab yang terpadu (seperti `###1.`), paragraf isi utama tidak memakai penebalan `**`, miring `*`, judul `#`, garis pemisah `---`, dan sejenisnya.
+  - Panjang dan pendek berselang-seling, jangan seragam sepanjang naskah. Memotong setiap paragraf menjadi jumlah kata yang sama justru sumber nada AI.
 
-  ## 十、对话
+  ## 10. Dialog
 
-  ### 引号
+  ### Tanda kutip
 
-  | 优先级 | 格式 | 适用 |
+  | Prioritas | Format | Kesesuaian |
   |--------|------|------|
-  | 首选 | `"说话内容"`（半角） | 短篇默认、番茄、红果、黑岩 |
-  | 平台 / 项目指定 | `「说话内容」` | 知乎盐言、部分古言、用户指定 |
+  | Pilihan utama | `"isi ucapan"` (tanda kutip lurus lebar setengah) | Baku karya pendek, Fanqie, Hongguo, Heiyan |
+  | Ditentukan platform / proyek | Tanda kutip sudut gaya Yanyan (corner bracket U+300C dan U+300D) | Zhihu Yanyan, sebagian genre latar kuno, permintaan pengguna |
 
-  **默认用 `""`**；用户或平台指定盐言风格时用 `「」`，不要把 `「」` 当错误改掉。
+  **Secara baku pakai `""`**; kalau pengguna atau platform menentukan gaya Yanyan, pakai tanda kutip sudut tersebut, dan jangan memperlakukannya sebagai kesalahan lalu menggantinya.
 
-  ### 规则
+  ### Aturan
 
-  1. 对话**独立成行**，不嵌在叙述段落里。
-  2. 用动作代替对话标签：少用“他说”“她道”“他笑了笑说”，改成动作 beat + 对话；普通的“说”按语境可留。
-  3. 两人连续对话省略标签，靠内容区分说话人。
+  1. Dialog **berdiri di baris sendiri**, tidak ditanam di dalam paragraf narasi.
+  2. Ganti label dialog dengan tindakan: kurangi "katanya", "ujarnya", "sambil tersenyum ia berkata", ubah menjadi beat tindakan + dialog; kata "kata" yang biasa boleh dipertahankan sesuai konteks.
+  3. Pada dialog dua orang yang berturut-turut, label dihilangkan dan pembicara dibedakan lewat isinya.
 
-  正确：
-
-  ```
-  她把杯子放下。
-  "你走吧。"
-  他没有动。
-  "我说，你走吧。"
-  ```
-
-  错误：
+  Benar:
 
   ```
-  她把杯子放下，说道："你走吧。"他没有动，她又说："我说，你走吧。"
+  Dia meletakkan gelasnya.
+  "Pergilah."
+  Lelaki itu tidak bergerak.
+  "Kubilang, pergilah."
   ```
 
-  ## 十一、标点硬约束
+  Salah:
 
-  **本仓库正文统一不出现 `……` / `——` / `—` / `--`**。叙述、对话、心理描写一律适用，无对话例外。
+  ```
+  Dia meletakkan gelasnya, lalu berkata: "Pergilah." Lelaki itu tidak bergerak, dia berkata lagi: "Kubilang, pergilah."
+  ```
 
-  停顿、哽咽、未尽、被打断、留白，一律用以下手段实现：
-  - 短句、句号、逗号断开。
-  - 动作 beat（“她顿了一下”“他攥紧了拳”）。
-  - 换行 / 单句成段。
+  ## 11. Batasan keras tanda baca
 
-  其余标点跟语气走：
+  **Isi utama di repositori ini seragam tidak memuat `…` bergaya elipsis panjang, `——`, `—`, dan `--`**. Berlaku untuk narasi, dialog, dan deskripsi kejiwaan, tanpa pengecualian untuk dialog.
 
-  | 语气 / 功能 | 标点 | 防线 |
+  Jeda, tersedak suara, ucapan yang tak selesai, terpotong, dan ruang kosong semuanya diwujudkan dengan cara berikut:
+  - Kalimat pendek, titik, dan koma untuk memenggal.
+  - Beat tindakan ("dia berhenti sejenak", "dia mengepalkan tangan").
+  - Ganti baris / satu kalimat berdiri sebagai paragraf.
+
+  Tanda baca lainnya mengikuti nada:
+
+  | Nada / fungsi | Tanda baca | Garis pertahanan |
   |---|---|---|
-  | 压迫 / 冷静 / 克制 | 短句、逗号、句号，必要时冒号压判断落点 | 不人工加感叹号，也不通篇句号化 |
-  | 质问 / 反问 | 问号 + 短促追问 | 别每句都以 `？` 结尾 |
-  | 爆发 / 打脸 | 真爆点用 1 个感叹号，连续爆发最多 1-2 处 | 禁 `!!!`、禁整段喊叫式感叹 |
-  | 信息揭示 / 判断落点 | 冒号、单句成段制造落点 | 别写论文式分号串 |
+  | Menekan / tenang / menahan diri | Kalimat pendek, koma, titik, bila perlu titik dua untuk menekan titik jatuh penilaian | Jangan menambahkan tanda seru secara artifisial, jangan pula menitikkan semuanya sepanjang naskah |
+  | Menuntut / bertanya balik | Tanda tanya + susulan pertanyaan yang singkat | Jangan mengakhiri setiap kalimat dengan tanda tanya |
+  | Meledak / menampar | Titik ledak yang sungguhan memakai 1 tanda seru, ledakan berturut-turut maksimal 1-2 tempat | Larang `!!!`, larang seruan berteriak sepanjang paragraf |
+  | Penyingkapan informasi / titik jatuh penilaian | Titik dua, satu kalimat berdiri sebagai paragraf untuk menciptakan titik jatuh | Jangan menulis rangkaian titik koma bergaya makalah |
 
-  题材包范例里若出现 `……`，只为示意手法，落到正文按本条改写。
+  Kalau dalam contoh paket genre muncul elipsis panjang, itu hanya untuk mengisyaratkan tekniknya; saat jatuh ke isi utama, tulis ulang mengikuti butir ini.
 
-  ## 十二、禁正文混入章节元信息
+  ## 12. Larangan mencampur meta-informasi bab ke dalam isi utama
 
-  章节号、写作工程词只允许出现在标题 / 小节标记 / 文件名 / 追踪记录里。正文叙述、对话、心理描写中**不得出现**：
+  Nomor bab dan kata kerja teknis penulisan hanya boleh muncul di judul / penanda bagian / nama berkas / catatan pelacakan. Dalam narasi, dialog, dan deskripsi kejiwaan isi utama **tidak boleh muncul**:
 
   ```
-  第[一二三四五六七八九十百千万两0-9]+章 | 上一章 | 上章 | 前一章 | 本章 | 这一章 | 前文 | 后文 | 伏笔 | 细纲 | 读者
+  Bab [0-9]+ | Bab [Satu Dua Tiga Empat Lima Enam Tujuh Delapan Sembilan Sepuluh Seratus Seribu] | bab sebelumnya | bab lalu | bab ini | teks sebelumnya | teks setelahnya | petunjuk awal | kerangka rinci | pembaca
   ```
 
-  要改成角色能感知的事件锚点或相对时间。例：“比第一章那三秒开火更疼”改成“比那三秒开火更疼”。
+  Ubahlah menjadi penambat peristiwa atau waktu relatif yang bisa dirasakan tokoh. Contoh: "lebih sakit daripada tiga detik tembakan di bab satu itu" diubah menjadi "lebih sakit daripada tiga detik tembakan itu".
 
-  例外：角色在故事世界内真实阅读 / 讨论“第 X 章”文本，或角色真实身为作者 / 读者并谈论读者身份时，可保留。
+  Pengecualian: kalau tokoh benar-benar membaca / membicarakan teks "bab X" di dalam dunia cerita, atau tokoh memang benar-benar seorang penulis / pembaca dan sedang membicarakan status kepembacaannya, hal itu boleh dipertahankan.
 
-  ## 十三、平台覆盖表
+  ## 13. Tabel cakupan platform
 
-  | 平台 | 章节标记 | 对话格式 | 段落底色 | 特殊要求 |
+  | Platform | Penanda bab | Format dialog | Warna dasar paragraf | Persyaratan khusus |
   |---|---|---|---|---|
-  | 知乎盐言 | `1.`（纯数字） | `「」` | 短段 + 叙述交织 | 导语需单独标注 |
-  | 番茄 | `###第N章` | `""` | 短段为底色，允许叙述交织对话 | 首段需有吸引力 |
-  | 红果 | `###1.` | `""` | 短段为底色 | 无 |
-  | 黑岩 | `###1.` | `""` | 一句一段，多换行留白 | 节尾必留钩 |
+  | Zhihu Yanyan | `1.` (angka murni) | Tanda kutip sudut (U+300C dan U+300D) | Paragraf pendek + jalinan narasi | Paragraf pembuka perlu ditandai terpisah |
+  | Fanqie | `###Bab N` | `""` | Paragraf pendek sebagai warna dasar, narasi boleh berjalin dengan dialog | Paragraf pertama harus punya daya tarik |
+  | Hongguo | `###1.` | `""` | Paragraf pendek sebagai warna dasar | Tidak ada |
+  | Heiyan | `###1.` | `""` | Satu kalimat satu paragraf, banyak ganti baris untuk ruang kosong | Akhir bagian wajib menyisakan pengait |
 
-  用户未指定平台时，默认短篇通用格式：`###1.` + `""` + 番茄系短段底色。
+  Kalau pengguna tidak menentukan platform, pakai format umum karya pendek secara baku: `###1.` + `""` + warna dasar paragraf pendek lini Fanqie.
 
-  ## 十四、写完每段快速检查
+  ## 14. Pemeriksaan cepat setiap kali selesai satu paragraf
 
-  - [ ] 段落形态符合目标平台模板（黑岩一句一段 / 番茄系短段交织叙述）？没把它切成同一字数的提纲？
-  - [ ] 相邻段落之间只有一个 `\n`，没有空行 / `\n\n`？
-  - [ ] 无缩进（没有 `　　` 或空格）？
-  - [ ] 标题 / 小节标记之外，正文段落没用 `**` `*` `#` `---` 等 Markdown？
-  - [ ] 对话独立成行，引号风格符合平台（盐言 `「」` 合法），对话标签没机械化？
-  - [ ] 正文（含对话）里没有 `……` / `——` / `—` / `--`，停顿改用短句 / 动作 / 换行？
-  - [ ] 标点跟语气走：没通篇句号化，没乱撒 `？` / `！`？
-  - [ ] 正文没混入 `第N章` / `上一章` / `本章` / `前文` / `后文` / `伏笔` / `细纲` / `读者` 这类元信息词（故事内真实阅读 / 真实读者身份语境除外）？
+  - [ ] Apakah bentuk paragraf sesuai templat platform tujuan (Heiyan satu kalimat satu paragraf / lini Fanqie paragraf pendek berjalin narasi)? Apakah tidak dipotong menjadi kerangka dengan jumlah kata yang seragam?
+  - [ ] Apakah antara paragraf yang berdampingan hanya ada satu `\n`, tanpa baris kosong atau `\n\n`?
+  - [ ] Apakah tanpa indentasi (tanpa spasi lebar ideografis atau spasi biasa)?
+  - [ ] Apakah di luar penanda judul / bagian, paragraf isi utama tidak memakai Markdown seperti `**` `*` `#` `---`?
+  - [ ] Apakah dialog berdiri di baris sendiri, gaya tanda kutipnya sesuai platform (tanda kutip sudut Yanyan sah), dan label dialognya tidak mekanis?
+  - [ ] Apakah di isi utama (termasuk dialog) tidak ada `…` bergaya elipsis panjang, `——`, `—`, atau `--`, dan jeda sudah diganti dengan kalimat pendek / tindakan / ganti baris?
+  - [ ] Apakah tanda baca mengikuti nada: tidak dititikkan semuanya sepanjang naskah, dan tidak menaburkan tanda tanya atau tanda seru sembarangan?
+  - [ ] Apakah isi utama tidak tercampur kata meta-informasi seperti `Bab N` / `bab sebelumnya` / `bab ini` / `teks sebelumnya` / `teks setelahnya` / `petunjuk awal` / `kerangka rinci` / `pembaca` (kecuali dalam konteks pembacaan nyata di dalam cerita atau status kepembacaan yang nyata)?
 
-  ## 输出格式
+  ## Format keluaran
 
-  - 目标平台与待确认规则：
-  - 投稿基调：
-  - 核心情绪与核心冲突：
-  - 导语：
-  - 断点位置与理由：
-  - 断点前的信息、情绪和剧情任务：
-  - 断点后的信息、情绪和剧情任务：
-  - 结尾类型与兑现内容：
-  - 平台适配风险：
+  - Platform tujuan dan aturan yang masih perlu dipastikan:
+  - Nada dasar pengiriman:
+  - Emosi inti dan konflik inti:
+  - Paragraf pembuka:
+  - Posisi titik potong dan alasannya:
+  - Informasi, emosi, dan tugas alur cerita sebelum titik potong:
+  - Informasi, emosi, dan tugas alur cerita setelah titik potong:
+  - Jenis penutup dan isi yang dituntaskan:
+  - Risiko penyesuaian platform:
 
 references:
-  - name: 投稿范式完整参考
+  - name: Referensi lengkap paradigma pengiriman
     content: |
-      本 Skill 正文已完整保留平台基调、导语四维骨架、黄金三角、付费点断点、剧情点密度、反推法、投稿成品区间和投稿验收规则。
-  - name: 短篇正文格式完整参考
+      Isi utama Skill ini sudah menyimpan lengkap nada dasar platform, kerangka empat dimensi paragraf pembuka, triangel emas, titik potong berbayar, kerapatan titik alur cerita, metode penalaran balik, rentang karya jadi siap kirim, dan aturan penerimaan pengiriman.
+  - name: Referensi lengkap format isi utama karya pendek
     content: |
-      本 Skill 正文已完整保留章节标记、黑岩与番茄/七猫双平台段落模板、共同硬约束、对话格式、标点禁令、元信息禁令、平台覆盖表和逐段检查表。
+      Isi utama Skill ini sudah menyimpan lengkap penanda bab, templat paragraf dua platform Heiyan dan Fanqie/Qimao, batasan keras bersama, format dialog, larangan tanda baca, larangan meta-informasi, tabel cakupan platform, dan daftar periksa per paragraf.

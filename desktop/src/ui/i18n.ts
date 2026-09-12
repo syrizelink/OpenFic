@@ -24,4 +24,19 @@ i18n.use(initReactI18next).init({
   },
 });
 
+/**
+ * Menyinkronkan atribut `lang` pada elemen <html> dengan bahasa i18n yang aktif.
+ *
+ * Listener terpusat agar penggantian bahasa dari mana pun ikut tersinkron.
+ */
+function syncDocumentLanguage(language: string): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+  document.documentElement.lang = language;
+}
+
+syncDocumentLanguage(i18n.language ?? "id");
+i18n.on("languageChanged", syncDocumentLanguage);
+
 export default i18n;

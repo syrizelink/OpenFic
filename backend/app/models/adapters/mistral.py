@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Mistral AI Adapter - Mistral API适配器。
+Mistral AI Adapter - adapter Mistral API.
 
-Mistral API兼容OpenAI格式，支持LLM和Embedding。
+Mistral API kompatibel dengan format OpenAI, mendukung LLM dan embedding.
 """
 
 from collections.abc import Mapping
@@ -14,7 +14,7 @@ from app.models.adapters.base import BaseAdapter
 
 
 class MistralAdapter(BaseAdapter):
-    """Mistral API适配器，支持LLM和Embedding。"""
+    """Adapter Mistral API, mendukung LLM dan embedding."""
 
     @property
     def provider_type(self) -> str:
@@ -28,7 +28,7 @@ class MistralAdapter(BaseAdapter):
         *,
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
-        """获取LLM模型列表。"""
+        """Ambil daftar model LLM."""
         url = f"{self._normalize_url(base_url)}/models"
         headers = self._build_auth_header(api_key)
 
@@ -40,13 +40,13 @@ class MistralAdapter(BaseAdapter):
             models = []
             for model in data.get("data", []):
                 model_id = model.get("id", "")
-                # 排除embedding模型（Mistral API混合返回）
+                # Kecualikan model embedding (Mistral API mengembalikannya tercampur)
                 if "embed" not in model_id.lower():
                     models.append({"id": model_id, "name": model_id})
             return models
         except Exception as e:
             logger.warning(f"Failed to fetch Mistral LLM models: {e}")
-            # 返回预定义列表作为fallback
+            # Kembalikan daftar bawaan sebagai fallback
             return [
                 {"id": "mistral-large-latest", "name": "Mistral Large"},
                 {"id": "mistral-medium-latest", "name": "Mistral Medium"},
@@ -62,7 +62,7 @@ class MistralAdapter(BaseAdapter):
         *,
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
-        """获取Embedding模型列表。"""
+        """Ambil daftar model embedding."""
         url = f"{self._normalize_url(base_url)}/models"
         headers = self._build_auth_header(api_key)
 
@@ -74,13 +74,13 @@ class MistralAdapter(BaseAdapter):
             models = []
             for model in data.get("data", []):
                 model_id = model.get("id", "")
-                # 只包含embedding模型
+                # Hanya sertakan model embedding
                 if "embed" in model_id.lower():
                     models.append({"id": model_id, "name": model_id})
             return models
         except Exception as e:
             logger.warning(f"Failed to fetch Mistral embedding models: {e}")
-            # 返回预定义列表作为fallback
+            # Kembalikan daftar bawaan sebagai fallback
             return [
                 {"id": "mistral-embed", "name": "Mistral Embed"},
             ]

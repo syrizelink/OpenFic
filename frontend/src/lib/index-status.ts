@@ -1,7 +1,7 @@
 /**
- * Index Status — 索引状态类型、API 与 hooks。
+ * Index Status - tipe status indeks, API, dan hooks.
  *
- * 供 Agent 侧边栏状态指示器与设置页索引信息共用。
+ * Dipakai bersama oleh indikator status pada bilah sisi Agent dan informasi indeks di halaman pengaturan.
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -79,7 +79,7 @@ export async function stopProjectIndex(projectId: string): Promise<void> {
   await apiClient.post(`/projects/${projectId}/retrieval/index/stop`);
 }
 
-/** 索引状态对应的展示颜色（Radix 颜色变量）。 */
+/** Warna tampilan untuk setiap status indeks (variabel warna Radix). */
 export function getIndexStatusColor(status: IndexStatus | null | undefined): string {
   if (status === "fresh") return "var(--green-9)";
   if (status === "indexing") return "var(--blue-9)";
@@ -91,7 +91,7 @@ export function getIndexStatusColor(status: IndexStatus | null | undefined): str
 }
 
 /**
- * 订阅单个项目的索引状态：初始由 API 获取，后续由 socket 推送更新。
+ * Berlangganan status indeks satu proyek: nilai awal diambil lewat API, pembaruan berikutnya dikirim lewat socket.
  */
 export function useProjectIndexStatus(projectId: string, enabled = true) {
   const queryClient = useQueryClient();
@@ -101,7 +101,7 @@ export function useProjectIndexStatus(projectId: string, enabled = true) {
     queryKey,
     queryFn: () => fetchProjectIndexStatus(projectId),
     enabled: enabled && Boolean(projectId),
-    // 不轮询：初始由 API 获取，后续由 socket index:status 推送更新。
+    // Tanpa penjajakan berkala: nilai awal diambil lewat API, pembaruan berikutnya dikirim lewat socket index:status.
   });
 
   useEffect(() => {
@@ -124,10 +124,10 @@ export function useProjectIndexStatus(projectId: string, enabled = true) {
 }
 
 /**
- * 订阅总体索引状态（设置页索引信息）：初始由 API 获取，后续由 socket 推送更新。
+ * Berlangganan status indeks keseluruhan (informasi indeks halaman pengaturan): nilai awal diambil lewat API, pembaruan berikutnya dikirim lewat socket.
  *
- * - index:config（广播）：全局索引配置变更，整体刷新。
- * - index:status（按项目房间）：单个项目状态变更，增量合并进 overall 缓存并重算汇总。
+ * - index:config (siaran): konfigurasi indeks global berubah, disegarkan menyeluruh.
+ * - index:status (per ruang proyek): status satu proyek berubah, digabungkan secara bertahap ke singgahan overall lalu rekapnya dihitung ulang.
  */
 export function useOverallIndexStatus(enabled = true) {
   const queryClient = useQueryClient();
@@ -136,10 +136,10 @@ export function useOverallIndexStatus(enabled = true) {
     queryKey: OVERALL_INDEX_STATUS_QUERY_KEY,
     queryFn: fetchOverallIndexStatus,
     enabled,
-    // 不轮询：初始由 API 获取，后续由 socket 事件增量更新。
+    // Tanpa penjajakan berkala: nilai awal diambil lewat API, pembaruan berikutnya bertahap lewat peristiwa socket.
   });
 
-  // 将单个项目的 index:status 增量合并进 overall 缓存，并重算汇总字段。
+  // Menggabungkan index:status satu proyek secara bertahap ke singgahan overall, lalu menghitung ulang field rekap.
   const mergeProjectStatus = useCallback(
     (status: ProjectIndexStatus) => {
       queryClient.setQueryData<OverallIndexStatus>(OVERALL_INDEX_STATUS_QUERY_KEY, (prev) => {
@@ -172,7 +172,7 @@ export function useOverallIndexStatus(enabled = true) {
     [queryClient],
   );
 
-  // index:config 广播：整体配置变更（如启用范围/模型切换），刷新整体状态与设置。
+  // Siaran index:config: konfigurasi menyeluruh berubah (misalnya jangkauan aktif/pergantian model), status dan pengaturan keseluruhan disegarkan.
   useEffect(() => {
     if (!enabled) return;
     const configSub = subscribeIndexStatus("__global__", undefined, () => {
@@ -184,7 +184,7 @@ export function useOverallIndexStatus(enabled = true) {
     return () => configSub.close();
   }, [enabled, queryClient]);
 
-  // 订阅每个启用项目的 index:status 推送，增量合并进 overall 缓存。
+  // Berlangganan kiriman index:status setiap proyek yang aktif, digabungkan secara bertahap ke singgahan overall.
   const projectIds = useMemo(
     () => query.data?.projects.map((p) => p.project_id) ?? [],
     [query.data?.projects],
@@ -200,7 +200,7 @@ export function useOverallIndexStatus(enabled = true) {
       }),
     );
     return () => subs.forEach((s) => s.close());
-    // projectIdsKey 作为依赖：项目列表变化时重新订阅。
+    // projectIdsKey sebagai dependensi: langganan dibuat ulang saat daftar proyek berubah.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, projectIdsKey, mergeProjectStatus]);
 

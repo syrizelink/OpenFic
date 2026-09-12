@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Macro Lexer Tests - 宏词法分析器测试。
+Macro Lexer Tests - uji lexer makro.
 """
 
 import pytest
@@ -10,10 +10,10 @@ from app.macro.types import TokenType
 
 
 class TestFindMacros:
-    """测试宏匹配查找。"""
+    """Uji pencarian kecocokan makro."""
 
     def test_find_single_macro(self):
-        """查找单个宏。"""
+        """Mencari satu makro."""
         text = "Hello {{getmem::chapter::near}} world"
         matches = MacroLexer.find_macros(text)
 
@@ -22,7 +22,7 @@ class TestFindMacros:
         assert matches[0].raw == "{{getmem::chapter::near}}"
 
     def test_find_multiple_macros(self):
-        """查找多个宏。"""
+        """Mencari beberapa makro."""
         text = "{{getmem::chapter::near}} and {{getmem::chapter::far}}"
         matches = MacroLexer.find_macros(text)
 
@@ -31,17 +31,17 @@ class TestFindMacros:
         assert matches[1].body == "getmem::chapter::far"
 
     def test_ignore_nested_braces(self):
-        """嵌套大括号中的宏也会被匹配。"""
+        """Makro di dalam kurung kurawal bersarang juga ikut tercocokkan."""
         text = "{{{invalid}}} and {{valid::arg}}"
         matches = MacroLexer.find_macros(text)
 
-        # 注意：{{{invalid}}} 中的 {{invalid}} 也会被匹配
+        # Catatan: {{invalid}} di dalam {{{invalid}}} juga ikut tercocokkan
         assert len(matches) == 2
         assert matches[0].body == "invalid"
         assert matches[1].body == "valid::arg"
 
     def test_ignore_multiline(self):
-        """忽略跨行宏。"""
+        """Mengabaikan makro yang melintasi baris."""
         text = "{{multi\nline}} and {{single::line}}"
         matches = MacroLexer.find_macros(text)
 
@@ -49,16 +49,16 @@ class TestFindMacros:
         assert matches[0].body == "single::line"
 
     def test_empty_text(self):
-        """空文本返回空列表。"""
+        """Teks kosong mengembalikan daftar kosong."""
         matches = MacroLexer.find_macros("")
         assert len(matches) == 0
 
 
 class TestTokenizeArgs:
-    """测试参数解析。"""
+    """Uji parsing argumen."""
 
     def test_identifier(self):
-        """解析标识符。"""
+        """Parsing identifier."""
         tokens = MacroLexer.tokenize_args("var_name")
 
         assert len(tokens) == 1
@@ -66,7 +66,7 @@ class TestTokenizeArgs:
         assert tokens[0].value == "var_name"
 
     def test_number_positive(self):
-        """解析正整数。"""
+        """Parsing bilangan bulat positif."""
         tokens = MacroLexer.tokenize_args("100")
 
         assert len(tokens) == 1
@@ -74,7 +74,7 @@ class TestTokenizeArgs:
         assert tokens[0].value == 100
 
     def test_number_negative(self):
-        """解析负整数。"""
+        """Parsing bilangan bulat negatif."""
         tokens = MacroLexer.tokenize_args("-50")
 
         assert len(tokens) == 1
@@ -82,7 +82,7 @@ class TestTokenizeArgs:
         assert tokens[0].value == -50
 
     def test_range(self):
-        """解析范围。"""
+        """Parsing rentang."""
         tokens = MacroLexer.tokenize_args("1-100")
 
         assert len(tokens) == 1
@@ -90,7 +90,7 @@ class TestTokenizeArgs:
         assert tokens[0].value == (1, 100)
 
     def test_string(self):
-        """解析字符串。"""
+        """Parsing string."""
         tokens = MacroLexer.tokenize_args('"hello world"')
 
         assert len(tokens) == 1
@@ -98,7 +98,7 @@ class TestTokenizeArgs:
         assert tokens[0].value == "hello world"
 
     def test_string_with_escaped_quotes(self):
-        """解析带转义引号的字符串。"""
+        """Parsing string dengan tanda kutip ter-escape."""
         tokens = MacroLexer.tokenize_args('"say \\"hello\\""')
 
         assert len(tokens) == 1
@@ -106,7 +106,7 @@ class TestTokenizeArgs:
         assert tokens[0].value == 'say "hello"'
 
     def test_list(self):
-        """解析列表。"""
+        """Parsing daftar."""
         tokens = MacroLexer.tokenize_args("list(a,b,c)")
 
         assert len(tokens) == 1
@@ -114,7 +114,7 @@ class TestTokenizeArgs:
         assert tokens[0].value == ["a", "b", "c"]
 
     def test_multiple_args(self):
-        """解析多个参数。"""
+        """Parsing beberapa argumen."""
         tokens = MacroLexer.tokenize_args('var_name::"value"')
 
         assert len(tokens) == 2
@@ -124,18 +124,18 @@ class TestTokenizeArgs:
         assert tokens[1].value == "value"
 
     def test_string_with_separator(self):
-        """字符串内的 :: 不应作为分隔符。"""
+        """:: di dalam string tidak boleh dianggap pemisah."""
         tokens = MacroLexer.tokenize_args('"contains::separator"')
 
         assert len(tokens) == 1
         assert tokens[0].value == "contains::separator"
 
     def test_invalid_range_order(self):
-        """范围下界必须小于上界。"""
-        with pytest.raises(ValueError, match="下界必须小于上界"):
+        """Batas bawah rentang harus lebih kecil dari batas atas."""
+        with pytest.raises(ValueError, match="lebih kecil dari batas atas"):
             MacroLexer.tokenize_args("100-50")
 
     def test_empty_list(self):
-        """空列表应报错。"""
-        with pytest.raises(ValueError, match="列表不能为空"):
+        """Daftar kosong harus memunculkan error."""
+        with pytest.raises(ValueError, match="List tidak boleh kosong"):
             MacroLexer.tokenize_args("list()")

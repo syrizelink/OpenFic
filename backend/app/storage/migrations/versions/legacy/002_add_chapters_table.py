@@ -21,7 +21,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """创建 chapters 表。"""
+    """Membuat tabel chapters."""
     op.create_table(
         "chapters",
         sa.Column("id", sqlmodel.sql.sqltypes.AutoString(), nullable=False),  # type: ignore[attr-defined]
@@ -39,13 +39,13 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
     )
-    # 创建索引
+    # Membuat indeks
     op.create_index("ix_chapters_project_id", "chapters", ["project_id"])
     op.create_index("ix_chapters_order", "chapters", ["order"])
 
 
 def downgrade() -> None:
-    """删除 chapters 表。"""
+    """Menghapus tabel chapters."""
     op.drop_index("ix_chapters_order", table_name="chapters")
     op.drop_index("ix_chapters_project_id", table_name="chapters")
     op.drop_table("chapters")

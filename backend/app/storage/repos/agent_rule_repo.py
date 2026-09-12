@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AgentRule Repository - 规则数据访问层。"""
+"""AgentRule Repository - lapisan akses data aturan."""
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -68,7 +68,10 @@ async def get_all_ordered(
 
 
 async def get_all_for_scope_counts(session: AsyncSession) -> list[AgentRule]:
-    """返回所有规则用于统计各作用域数量，与列表展示保持一致，不按项目或内容过滤。"""
+    """Mengembalikan semua aturan untuk menghitung jumlah per cakupan.
+
+    Konsisten dengan tampilan daftar, tanpa filter proyek atau isi.
+    """
     result = await session.execute(select(AgentRule))
     return list(result.scalars().all())
 

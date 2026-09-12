@@ -245,7 +245,7 @@ class TestWebSearchTool:
 
         payload = json.loads(result)
         assert payload["success"] is False
-        assert "未启用" in payload["message"]
+        assert "belum diaktifkan" in payload["message"]
         session.close.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -265,7 +265,7 @@ class TestWebSearchTool:
 
         payload = json.loads(result)
         assert payload["success"] is False
-        assert "尚未配置" in payload["message"]
+        assert "belum dikonfigurasi" in payload["message"]
         session.close.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -287,7 +287,7 @@ class TestWebSearchTool:
 
         payload = json.loads(result)
         assert payload["success"] is False
-        assert "不支持的搜索 provider" in payload["message"]
+        assert "provider pencarian tidak didukung" in payload["message"]
 
     @pytest.mark.asyncio
     @respx.mock
@@ -321,11 +321,11 @@ class TestWebSearchTool:
                 "app.agent_runtime.tools.impls.web_search.config.setting_repo.get_by_key",
                 AsyncMock(return_value=MagicMock(value=raw)),
             ):
-                result = await tool.ainvoke({"query": "量子计算", "count": 5})
+                result = await tool.ainvoke({"query": "komputasi kuantum", "count": 5})
 
         payload = json.loads(result)
         assert payload["provider"] == "serper"
-        assert payload["query"] == "量子计算"
+        assert payload["query"] == "komputasi kuantum"
         assert payload["results"][0] == {
             "title": "t1",
             "url": "https://a.com",
@@ -388,7 +388,7 @@ class TestWebSearchTool:
         result = await tool.ainvoke({"query": "   "})
         payload = json.loads(result)
         assert payload["success"] is False
-        assert "检索关键词不能为空" in payload["message"]
+        assert "Kata kunci pencarian tidak boleh kosong" in payload["message"]
 
 
 class TestHttpProviders:
@@ -606,7 +606,7 @@ class TestSdkProviders:
         client = MagicMock()
         client.search = AsyncMock(
             return_value={
-                "answer": "汇总答案",
+                "answer": "Jawaban ringkas",
                 "results": [
                     {"title": "t", "url": "https://u", "content": "c", "score": 0.9}
                 ],
@@ -620,7 +620,7 @@ class TestSdkProviders:
             response = await provider.search("q", _provider_config())
         mock_cls.assert_called_once_with(api_key="test-key")
         client.close.assert_awaited_once()
-        assert response.answer == "汇总答案"
+        assert response.answer == "Jawaban ringkas"
         assert response.results[0].url == "https://u"
 
     @pytest.mark.asyncio
@@ -640,7 +640,7 @@ class TestSdkProviders:
                         title="t2",
                         url="https://u2",
                         highlights=[],
-                        text="纯文本",
+                        text="Teks polos",
                     ),
                 ]
             )
@@ -652,7 +652,7 @@ class TestSdkProviders:
             response = await provider.search("q", _provider_config())
         mock_cls.assert_called_once_with(api_key="test-key")
         assert response.results[0].snippet == "h1\nh2"
-        assert response.results[1].snippet == "纯文本"
+        assert response.results[1].snippet == "Teks polos"
 
     @pytest.mark.asyncio
     async def test_zhipu_parses_search_result(self) -> None:

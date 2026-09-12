@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Models Services - 模型业务逻辑层。
+Models Services - lapisan logika bisnis model.
 """
 
 from app.models.services.model_provider_service import ModelProviderService

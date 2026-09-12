@@ -22,7 +22,7 @@ async def test_audit_request_messages_are_pretty_json(
 
     context = AuditContext(project_id="project-1")
     messages: list[BaseMessage] = [
-        SystemMessage(content="提示词：\n"),
+        SystemMessage(content="Prompt sistem: \n"),
         AIMessage(
             content="",
             tool_calls=[
@@ -31,7 +31,7 @@ async def test_audit_request_messages_are_pretty_json(
                     "name": "edit_chapter",
                     "args": {
                         "chapter_ref": {"type": "order", "value": 1},
-                        "content": "第一段\n第二段",
+                        "content": "Paragraf pertama\nParagraf kedua",
                     },
                 }
             ],
@@ -49,11 +49,11 @@ async def test_audit_request_messages_are_pretty_json(
     request_messages = enqueued[0].request_messages
     assert isinstance(request_messages, str)
     assert request_messages.startswith("[\n")
-    assert '\n    "content": "提示词：\\n"' in request_messages
+    assert '\n    "content": "Prompt sistem: \\n"' in request_messages
     assert '\n        "name": "edit_chapter"' in request_messages
     assert (
         json.loads(request_messages)[1]["tool_calls"][0]["args"]["content"]
-        == "第一段\n第二段"
+        == "Paragraf pertama\nParagraf kedua"
     )
 
 

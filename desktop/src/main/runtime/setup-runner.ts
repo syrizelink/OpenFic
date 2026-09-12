@@ -18,11 +18,11 @@ function emitProgress(webContents: WebContents, event: SetupProgressEvent): void
 }
 
 const STEP_DONE_MESSAGE: Record<SetupProgressEvent["step"], string> = {
-  "download-python": "Python 已就绪",
-  "extract-python": "Python 已解压",
-  "create-venv": "运行环境已创建",
-  "install-uv": "uv 已安装",
-  "install-openfic": "OpenFic 已安装",
+  "download-python": "Python siap",
+  "extract-python": "Python telah diekstrak",
+  "create-venv": "Runtime telah dibuat",
+  "install-uv": "uv telah terpasang",
+  "install-openfic": "OpenFic telah terpasang",
 };
 
 function markDone(webContents: WebContents, step: SetupProgressEvent["step"]): void {
@@ -39,7 +39,7 @@ export async function installLocalRuntime(webContents: WebContents, installDir: 
     emitProgress(webContents, { step, status: "running", message });
   };
 
-  appendLog("runtime", `开始安装运行环境：${runtimeDir}`);
+  appendLog("runtime", `Mulai memasang runtime: ${runtimeDir}`);
   try {
     const python = await ensurePortablePython(
       runtimeDir,
@@ -49,7 +49,7 @@ export async function installLocalRuntime(webContents: WebContents, installDir: 
         emitProgress(webContents, {
           step: "download-python",
           status: "running",
-          message: `下载 Python · ${describeDownloadProgress({ received, total })}`,
+          message: `Mengunduh Python · ${describeDownloadProgress({ received, total })}`,
           progress: fraction,
         });
       },
@@ -58,14 +58,14 @@ export async function installLocalRuntime(webContents: WebContents, installDir: 
     await ensureOpenFicRuntime(python, runtimeDir, app.getVersion(), (step, message) => beginStep(step, message));
 
     if (currentStep) markDone(webContents, currentStep);
-    appendLog("runtime", "运行环境安装完成");
+    appendLog("runtime", "Pemasangan runtime selesai");
     return runtimeDir;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const logPath = getLogPath("runtime");
-    appendLog("runtime", `运行环境安装失败：${message}`);
+    appendLog("runtime", `Pemasangan runtime gagal: ${message}`);
     if (currentStep) emitProgress(webContents, { step: currentStep, status: "failed", message });
-    throw new Error(`${message}。运行环境日志：${logPath}`);
+    throw new Error(`${message}. Log runtime: ${logPath}`);
   }
 }
 
@@ -78,10 +78,10 @@ export async function inspectLocalRuntime(installDir: string): Promise<LocalRunt
   const runtimeDir = resolveRuntimeDir(installDir);
   try {
     if (!(await stat(runtimeDir)).isDirectory()) {
-      return { status: "incomplete", message: "运行环境路径不是目录" };
+      return { status: "incomplete", message: "Path runtime bukan sebuah direktori" };
     }
   } catch {
-    return { status: "missing", message: "尚未安装本地运行环境" };
+    return { status: "missing", message: "Runtime lokal belum terpasang" };
   }
 
   const python = await inspectPortablePython(runtimeDir);
@@ -102,7 +102,7 @@ export async function startLocalBackendFromInstall(
   throwIfAborted(signal);
   const inspection = await inspectLocalRuntime(installDir);
   if (inspection.status !== "ready") {
-    throw new Error(`本地运行环境不完整：${inspection.message}。请先修复运行环境。`);
+    throw new Error(`Runtime lokal tidak lengkap: ${inspection.message}. Perbaiki runtime terlebih dahulu.`);
   }
   throwIfAborted(signal);
   const runtimeDir = resolveRuntimeDir(installDir);

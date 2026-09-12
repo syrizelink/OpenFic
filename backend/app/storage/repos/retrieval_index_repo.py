@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-RetrievalIndex Repository - 检索索引契约数据访问层。
+RetrievalIndex Repository - lapisan akses data kontrak indeks pencarian.
 """
 
 from datetime import UTC, datetime
@@ -66,7 +66,7 @@ async def get_by_index_key(
 async def get_by_index_keys(
     session: AsyncSession, index_keys: list[str]
 ) -> list[RetrievalIndex]:
-    """按多个 index_key 批量查询索引记录。"""
+    """Mengambil catatan indeks secara massal berdasarkan beberapa index_key."""
     if not index_keys:
         return []
     result = await session.execute(

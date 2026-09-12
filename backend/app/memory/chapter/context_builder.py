@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Context Builder - 上下文构建核心算法。
+Context Builder - algoritma inti pembangunan konteks.
 """
 
 import json
@@ -17,7 +17,7 @@ from app.storage.repos import chapter_repo, chapter_summary_repo, volume_repo
 
 @dataclass
 class ContextPart:
-    """上下文部分。"""
+    """Bagian konteks."""
 
     content: str
     token_count: int
@@ -26,7 +26,7 @@ class ContextPart:
 
 @dataclass
 class BuiltContext:
-    """构建完成的上下文。"""
+    """Konteks yang selesai dibangun."""
 
     latest_field: ContextPart
     near_field: ContextPart
@@ -55,14 +55,14 @@ async def build_context(
     chapter_id: str,
 ) -> BuiltContext:
     """
-    构建完整上下文（以 chapter_id 为锚点，基于全局阅读序位）。
+    Membangun konteks lengkap (berjangkar pada chapter_id, berbasis urutan baca global).
 
-    算法：
-    1. latest：当前章节原文
-    2. near：当前章节之前 9 章原文
-    3. middle：near 之前 10 章章节摘要
-    4. far：middle 之前的远期区间摘要
-    5. chapter_list：最新 50 章目录
+    Algoritma:
+    1. latest: isi utama bab saat ini
+    2. near: isi utama 9 bab sebelum bab saat ini
+    3. middle: ringkasan bab untuk 10 bab sebelum near
+    4. far: ringkasan rentang jangka jauh sebelum middle
+    5. chapter_list: daftar isi 50 bab terbaru
     """
     all_chapters = await chapter_repo.list_by_project(session, project_id)
     volumes = await volume_repo.list_by_project(session, project_id)
@@ -72,7 +72,7 @@ async def build_context(
     current_chapter = next((ch for ch in all_chapters if ch.id == chapter_id), None)
     if current_chapter is None:
         empty = _empty_part()
-        logger.warning(f"上下文构建: 章节不存在 chapter_id={chapter_id}")
+        logger.warning(f"Pembangunan konteks: bab tidak ditemukan chapter_id={chapter_id}")
         return BuiltContext(
             latest_field=empty,
             near_field=empty,
@@ -109,7 +109,7 @@ async def build_context(
     chapter_list_field = _build_chapter_list_field(all_chapters, order_map)
 
     logger.info(
-        f"上下文构建完成: project_id={project_id}, "
+        f"Pembangunan konteks selesai: project_id={project_id}, "
         f"latest={latest_field.chapter_range}, "
         f"near={near_field.chapter_range}, "
         f"mid={mid_field.chapter_range}, "

@@ -13,9 +13,9 @@ async def test_empty_skill_command_query_returns_ten_most_recent_skills() -> Non
     skills = [
         SimpleNamespace(
             id=f"skill-{index}",
-                name=f"技能 {index}",
-                summary="简述",
-                content="内容",
+                name=f"Skill {index}",
+                summary="Ringkasan singkat",
+                content="Isi",
                 is_enabled=True,
                 updated_at=now - timedelta(minutes=index),
         )

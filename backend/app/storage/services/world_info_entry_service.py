@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-WorldInfo Entry Service - 世界书条目业务逻辑层。
+WorldInfo Entry Service - lapisan logika bisnis entri buku dunia.
 """
 
 import json
@@ -18,12 +18,12 @@ from app.storage.services.world_info_service import get_world_info
 
 
 class WorldInfoEntryNameConflictError(ValueError):
-    """世界书条目名称冲突。"""
+    """Konflik nama entri buku dunia."""
 
 
 @dataclass
 class WorldInfoImportEntry:
-    """归一化后的世界书导入条目。"""
+    """Entri impor buku dunia setelah dinormalisasi."""
 
     uid: int
     name: str
@@ -34,14 +34,14 @@ class WorldInfoImportEntry:
 
 @dataclass
 class WorldInfoImportPreviewResult:
-    """世界书导入预览结果。"""
+    """Hasil pratinjau impor buku dunia."""
 
     entries: list[WorldInfoImportEntry]
 
 
 @dataclass
 class WorldInfoImportResult:
-    """世界书导入结果。"""
+    """Hasil impor buku dunia."""
 
     world_info_id: str
     imported_count: int
@@ -49,7 +49,7 @@ class WorldInfoImportResult:
 
 @dataclass
 class WorldInfoEntrySearchMatch:
-    """搜索匹配项。"""
+    """Item yang cocok pada pencarian."""
 
     line_number: int
     line_text: str
@@ -57,7 +57,7 @@ class WorldInfoEntrySearchMatch:
 
 @dataclass
 class WorldInfoEntrySearchResult:
-    """单个条目的搜索结果。"""
+    """Hasil pencarian satu entri."""
 
     entry_id: str
     entry_name: str
@@ -67,7 +67,7 @@ class WorldInfoEntrySearchResult:
 
 @dataclass
 class WorldInfoEntrySearchResponse:
-    """搜索响应。"""
+    """Respons pencarian."""
 
     results: list[WorldInfoEntrySearchResult]
     total_entries: int
@@ -75,16 +75,16 @@ class WorldInfoEntrySearchResponse:
 
 
 def _build_entry_name(comment: object, uid: int) -> str:
-    """根据 comment 生成条目名称。"""
+    """Menghasilkan nama entri berdasarkan comment."""
     if isinstance(comment, str):
         comment_clean = comment.strip()
         if comment_clean:
             return comment_clean[:200]
-    return f"条目 {uid}"
+    return f"Entri {uid}"
 
 
 def _calculate_token_count(content: str) -> int:
-    """计算条目内容的 token 数。"""
+    """Menghitung jumlah token isi entri."""
     try:
         return len(get_encoding("cl100k_base").encode(content))
     except Exception:
@@ -122,25 +122,25 @@ async def ensure_entry_name_available(
         session, world_info_id, exclude_entry_id=exclude_entry_id
     )
     if normalized_name in existing_names:
-        raise WorldInfoEntryNameConflictError(f"世界书条目名称已存在: {normalized_name}")
+        raise WorldInfoEntryNameConflictError(f"Nama entri buku dunia sudah ada: {normalized_name}")
     return normalized_name
 
 
 def parse_sillytavern_worldbook(raw_payload: bytes) -> WorldInfoImportPreviewResult:
-    """解析 SillyTavern 世界书 JSON 并归一化为当前项目结构。"""
+    """Mem-parsing JSON buku dunia SillyTavern dan menormalisasinya ke struktur proyek ini."""
     try:
         payload = json.loads(raw_payload.decode("utf-8"))
     except UnicodeDecodeError as exc:
-        raise ValueError("文件编码无效，请使用 UTF-8 编码的 JSON 文件") from exc
+        raise ValueError("Enkode file tidak valid, gunakan file JSON berenkode UTF-8") from exc
     except json.JSONDecodeError as exc:
-        raise ValueError("JSON 解析失败，请检查世界书导出文件格式") from exc
+        raise ValueError("Parsing JSON gagal, periksa format file ekspor buku dunia") from exc
 
     if not isinstance(payload, dict):
-        raise ValueError("世界书文件格式无效：顶层必须是对象")
+        raise ValueError("Format file buku dunia tidak valid: tingkat teratas harus berupa objek")
 
     raw_entries = payload.get("entries")
     if not isinstance(raw_entries, dict):
-        raise ValueError("世界书文件格式无效：缺少 entries 对象")
+        raise ValueError("Format file buku dunia tidak valid: objek entries tidak ada")
 
     entries: list[WorldInfoImportEntry] = []
     for entry_key, raw_entry in raw_entries.items():
@@ -176,7 +176,7 @@ def parse_sillytavern_worldbook(raw_payload: bytes) -> WorldInfoImportPreviewRes
         )
 
     if not entries:
-        raise ValueError("世界书中没有可导入的条目")
+        raise ValueError("Tidak ada entri yang dapat diimpor di dalam buku dunia")
 
     entries.sort(key=lambda entry: (entry.order, entry.uid))
     return WorldInfoImportPreviewResult(entries=entries)
@@ -188,11 +188,11 @@ async def import_entries(
     entries: list[WorldInfoImportEntry],
     mode: str = "append",
 ) -> WorldInfoImportResult:
-    """批量导入世界书条目。"""
+    """Mengimpor entri buku dunia secara massal."""
     await get_world_info(session, world_info_id)
 
     if mode not in {"append", "overwrite"}:
-        raise ValueError(f"不支持的导入模式: {mode}")
+        raise ValueError(f"Mode impor tidak didukung: {mode}")
 
     for entry in entries:
         validate_editor_content(entry.content)
@@ -243,7 +243,7 @@ async def import_entries(
     )
 
 
-# ============== 世界书条目操作 ==============
+# ============== Operasi entri buku dunia ==============
 
 
 async def create_entry(
@@ -255,31 +255,31 @@ async def create_entry(
     is_enabled: bool = True,
 ) -> WorldInfoEntry:
     """
-    创建世界书条目。
+    Membuat entri buku dunia.
 
     Args:
-        session: 数据库 session。
-        world_info_id: 世界书 ID。
-        name: 条目名称。
-        content: 条目内容。
-        token_count: Token 数量。
-        is_enabled: 开关状态。
+        session: session basis data.
+        world_info_id: ID buku dunia.
+        name: Nama entri.
+        content: Isi entri.
+        token_count: Jumlah Token.
+        is_enabled: Status aktif.
 
     Returns:
-        创建的条目实例。
+        Instance entri yang dibuat.
 
     Raises:
-        NotFoundError: 世界书不存在。
+        NotFoundError: Buku dunia tidak ditemukan.
     """
     validate_editor_content(content)
 
-    # 检查世界书是否存在
+    # Memeriksa apakah buku dunia ada
     await get_world_info(session, world_info_id)
 
     existing_names = await _get_existing_entry_names(session, world_info_id)
     unique_name = generate_unique_entry_name(name, existing_names)
 
-    # 获取当前最大 UID 和 order
+    # Mengambil UID dan order terbesar saat ini
     max_uid = await world_info_entry_repo.get_max_uid(session, world_info_id)
     max_order = await world_info_entry_repo.get_max_order(session, world_info_id)
 
@@ -297,21 +297,21 @@ async def create_entry(
 
 async def get_entry(session: AsyncSession, entry_id: str) -> WorldInfoEntry:
     """
-    获取世界书条目。
+    Mengambil entri buku dunia.
 
     Args:
-        session: 数据库 session。
-        entry_id: 条目 ID。
+        session: session basis data.
+        entry_id: ID entri.
 
     Returns:
-        条目实例。
+        Instance entri.
 
     Raises:
-        NotFoundError: 条目不存在。
+        NotFoundError: Entri tidak ditemukan.
     """
     entry = await world_info_entry_repo.get_by_id(session, entry_id)
     if entry is None:
-        raise NotFoundError(f"条目不存在: {entry_id}")
+        raise NotFoundError(f"Entri tidak ditemukan: {entry_id}")
     return entry
 
 
@@ -320,18 +320,18 @@ async def list_entries(
     world_info_id: str,
 ) -> list[WorldInfoEntry]:
     """
-    获取世界书条目列表。
+    Mengambil daftar entri buku dunia.
 
     Args:
-        session: 数据库 session。
-        world_info_id: 世界书 ID。
+        session: session basis data.
+        world_info_id: ID buku dunia.
     Returns:
-        条目列表。
+        Daftar entri.
 
     Raises:
-        NotFoundError: 世界书不存在。
+        NotFoundError: Buku dunia tidak ditemukan.
     """
-    # 检查世界书是否存在
+    # Memeriksa apakah buku dunia ada
     await get_world_info(session, world_info_id)
 
     return await world_info_entry_repo.list_all_by_world_info(session, world_info_id)
@@ -346,21 +346,21 @@ async def update_entry(
     is_enabled: bool | None = None,
 ) -> WorldInfoEntry:
     """
-    更新世界书条目。
+    Memperbarui entri buku dunia.
 
     Args:
-        session: 数据库 session。
-        entry_id: 条目 ID。
-        name: 新名称。
-        content: 新内容。
-        token_count: 新 Token 数量。
-        is_enabled: 新开关状态。
+        session: session basis data.
+        entry_id: ID entri.
+        name: Nama baru.
+        content: Isi baru.
+        token_count: Jumlah Token baru.
+        is_enabled: Status aktif baru.
 
     Returns:
-        更新后的条目实例。
+        Instance entri setelah diperbarui.
 
     Raises:
-        NotFoundError: 条目不存在。
+        NotFoundError: Entri tidak ditemukan.
     """
     entry = await get_entry(session, entry_id)
 
@@ -385,14 +385,14 @@ async def update_entry(
 
 async def delete_all_entries(session: AsyncSession, world_info_id: str) -> int:
     """
-    删除世界书的所有条目。
+    Menghapus semua entri buku dunia.
 
     Args:
-        session: 数据库 session。
-        world_info_id: 世界书 ID。
+        session: session basis data.
+        world_info_id: ID buku dunia.
 
     Returns:
-        删除的条目数量。
+        Jumlah entri yang dihapus.
     """
     await get_world_info(session, world_info_id)
     entries = await world_info_entry_repo.list_all_by_world_info(session, world_info_id)
@@ -403,23 +403,23 @@ async def delete_all_entries(session: AsyncSession, world_info_id: str) -> int:
 
 async def delete_entry(session: AsyncSession, entry_id: str) -> None:
     """
-    删除世界书条目，并调整后续条目的 order。
+    Menghapus entri buku dunia, lalu menyesuaikan order entri berikutnya.
 
     Args:
-        session: 数据库 session。
-        entry_id: 条目 ID。
+        session: session basis data.
+        entry_id: ID entri.
 
     Raises:
-        NotFoundError: 条目不存在。
+        NotFoundError: Entri tidak ditemukan.
     """
     entry = await get_entry(session, entry_id)
     old_order = entry.order
     world_info_id = entry.world_info_id
 
-    # 删除条目
+    # Menghapus entri
     await world_info_entry_repo.delete(session, entry)
 
-    # 将后续条目的 order 减 1
+    # Mengurangi 1 pada order entri berikutnya
     max_order = await world_info_entry_repo.get_max_order(session, world_info_id)
     if old_order < max_order:
         await world_info_entry_repo.shift_orders(
@@ -433,26 +433,26 @@ async def move_entry(
     new_order: int,
 ) -> WorldInfoEntry:
     """
-    移动世界书条目到新位置。
+    Memindahkan entri buku dunia ke posisi baru.
 
     Args:
-        session: 数据库 session。
-        entry_id: 条目 ID。
-        new_order: 新排序位置。
+        session: session basis data.
+        entry_id: ID entri.
+        new_order: Posisi urutan baru.
 
     Returns:
-        更新后的条目实例。
+        Instance entri setelah diperbarui.
 
     Raises:
-        NotFoundError: 条目不存在。
-        ValueError: 新位置无效。
+        NotFoundError: Entri tidak ditemukan.
+        ValueError: Posisi baru tidak valid.
     """
     entry = await get_entry(session, entry_id)
     old_order = entry.order
     world_info_id = entry.world_info_id
 
     if new_order < 1:
-        raise ValueError("排序位置必须大于 0")
+        raise ValueError("Posisi urutan harus lebih besar dari 0")
 
     max_order = await world_info_entry_repo.get_max_order(session, world_info_id)
     if new_order > max_order:
@@ -461,14 +461,14 @@ async def move_entry(
     if old_order == new_order:
         return entry
 
-    # 调整其他条目的 order
+    # Menyesuaikan order entri lain
     if new_order < old_order:
-        # 向前移动：[new_order, old_order) 的条目 order +1
+        # Pindah ke depan: order entri pada [new_order, old_order) +1
         await world_info_entry_repo.shift_orders(
             session, world_info_id, new_order, old_order - 1, 1
         )
     else:
-        # 向后移动：(old_order, new_order] 的条目 order -1
+        # Pindah ke belakang: order entri pada (old_order, new_order] -1
         await world_info_entry_repo.shift_orders(
             session, world_info_id, old_order + 1, new_order, -1
         )
@@ -480,17 +480,17 @@ async def move_entry(
 
 async def toggle_entry(session: AsyncSession, entry_id: str) -> WorldInfoEntry:
     """
-    切换世界书条目的开关状态。
+    Mengalihkan status aktif entri buku dunia.
 
     Args:
-        session: 数据库 session。
-        entry_id: 条目 ID。
+        session: session basis data.
+        entry_id: ID entri.
 
     Returns:
-        更新后的条目实例。
+        Instance entri setelah diperbarui.
 
     Raises:
-        NotFoundError: 条目不存在。
+        NotFoundError: Entri tidak ditemukan.
     """
     entry = await get_entry(session, entry_id)
     entry.is_enabled = not entry.is_enabled
@@ -504,7 +504,7 @@ async def batch_toggle_entries(
     entry_ids: list[str],
     is_enabled: bool,
 ) -> int:
-    """批量切换条目启用状态。"""
+    """Mengalihkan status aktif entri secara massal."""
     await get_world_info(session, world_info_id)
     updated = await world_info_entry_repo.batch_toggle(
         session, world_info_id, entry_ids, is_enabled
@@ -517,7 +517,7 @@ async def batch_delete_entries(
     world_info_id: str,
     entry_ids: list[str],
 ) -> int:
-    """批量删除条目。"""
+    """Menghapus entri secara massal."""
     await get_world_info(session, world_info_id)
     deleted = await world_info_entry_repo.batch_delete(
         session, world_info_id, entry_ids

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""全局异常处理器测试。"""
+"""Uji handler exception global."""
 
 import pytest
 from fastapi import FastAPI

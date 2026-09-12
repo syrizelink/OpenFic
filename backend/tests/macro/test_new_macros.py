@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
-"""条件宏测试。"""
+"""Uji makro kondisional."""
 
 from app.macro.evaluator import MacroEvaluator
 from app.macro.types import MacroContext
 
 
 class TestConditionalBlocks:
-    """测试条件渲染块。"""
+    """Uji blok render kondisional."""
 
     def test_if_true_renders_content(self):
-        """测试条件为真时渲染内容。"""
+        """Uji isi dirender saat kondisi bernilai benar."""
         context = MacroContext()
         context.variables["show"] = True
         evaluator = MacroEvaluator(context)
@@ -20,7 +20,7 @@ class TestConditionalBlocks:
         assert result == "Start This is visible End"
 
     def test_if_false_hides_content(self):
-        """测试条件为假时隐藏内容。"""
+        """Uji isi disembunyikan saat kondisi bernilai salah."""
         context = MacroContext()
         context.variables["show"] = False
         evaluator = MacroEvaluator(context)
@@ -31,7 +31,7 @@ class TestConditionalBlocks:
         assert result == "Start  End"
 
     def test_if_undefined_variable_hides_content(self):
-        """测试未定义变量时隐藏内容。"""
+        """Uji isi disembunyikan saat variabel tidak terdefinisi."""
         context = MacroContext()
         evaluator = MacroEvaluator(context)
 
@@ -41,7 +41,7 @@ class TestConditionalBlocks:
         assert result == "Start  End"
 
     def test_if_non_bool_variable_hides_content(self):
-        """测试非 bool 类型变量时隐藏内容。"""
+        """Uji isi disembunyikan saat variabel bukan bertipe bool."""
         context = MacroContext()
         context.variables["count"] = 5
         evaluator = MacroEvaluator(context)
@@ -52,7 +52,7 @@ class TestConditionalBlocks:
         assert result == "Start  End"
 
     def test_nested_if_blocks(self):
-        """测试嵌套的 if 块。"""
+        """Uji blok if bersarang."""
         context = MacroContext()
         context.variables["outer"] = True
         context.variables["inner"] = True
@@ -64,7 +64,7 @@ class TestConditionalBlocks:
         assert result == "Outer Inner End"
 
     def test_multiple_if_blocks(self):
-        """测试多个独立的 if 块。"""
+        """Uji beberapa blok if yang independen."""
         context = MacroContext()
         context.variables["first"] = True
         context.variables["second"] = False
@@ -79,7 +79,7 @@ class TestConditionalBlocks:
         assert result == "A  C"
 
     def test_if_rejects_invalid_condition_path(self):
-        """测试非法条件路径不作为 if 宏解析。"""
+        """Uji jalur kondisi tidak sah tidak di-parse sebagai makro if."""
         evaluator = MacroEvaluator(MacroContext())
 
         text = "{{if::invalid::path}}hidden{{endif}}"

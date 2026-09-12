@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""笔记 Markdown 导入与文件导出业务逻辑。"""
+"""Logika bisnis impor Markdown dan ekspor file catatan."""
 
 from dataclasses import dataclass
 from io import BytesIO
@@ -26,7 +26,7 @@ MAX_NOTE_TITLE_LENGTH = 200
 
 @dataclass(frozen=True)
 class ParsedNote:
-    """待导入的单个笔记。"""
+    """Satu catatan yang akan diimpor."""
 
     title: str
     content: str
@@ -35,7 +35,7 @@ class ParsedNote:
 
 @dataclass(frozen=True)
 class NoteImportPreview:
-    """笔记导入解析结果。"""
+    """Hasil parsing impor catatan."""
 
     file_type: NoteImportFileType
     notes: tuple[ParsedNote, ...]
@@ -53,7 +53,7 @@ class NoteImportPreview:
 
 @dataclass(frozen=True)
 class NoteImportResult:
-    """笔记导入结果。"""
+    """Hasil impor catatan."""
 
     file_type: NoteImportFileType
     imported_note_count: int
@@ -63,7 +63,7 @@ class NoteImportResult:
 
 @dataclass(frozen=True)
 class ExportFile:
-    """待返回给 API 层的导出文件。"""
+    """File ekspor yang akan dikembalikan ke lapisan API."""
 
     filename: str
     content: bytes
@@ -71,16 +71,16 @@ class ExportFile:
 
 
 def parse_note_import(filename: str, content: bytes) -> NoteImportPreview:
-    """解析 Markdown 或 ZIP 笔记导入文件。"""
+    """Mem-parsing file impor catatan berformat Markdown atau ZIP."""
     if len(content) > MAX_NOTE_IMPORT_FILE_SIZE:
-        raise ValueError("导入文件大小超过限制（最大 50MB）")
+        raise ValueError("Ukuran file impor melebihi batas (maksimum 50MB)")
 
     suffix = _get_suffix(filename)
     if suffix == ".md":
         return _parse_markdown_file(filename, content)
     if suffix == ".zip":
         return _parse_zip_archive(content)
-    raise ValueError("不支持的文件类型，仅支持 .md 或 .zip 文件")
+    raise ValueError("Jenis file tidak didukung, hanya file .md atau .zip")
 
 
 async def preview_note_import(
@@ -89,7 +89,7 @@ async def preview_note_import(
     filename: str,
     content: bytes,
 ) -> NoteImportPreview:
-    """校验项目并解析笔记导入文件。"""
+    """Memvalidasi proyek dan mem-parsing file impor catatan."""
     await _get_project(session, project_id)
     return parse_note_import(filename, content)
 
@@ -100,7 +100,7 @@ async def import_notes(
     filename: str,
     content: bytes,
 ) -> NoteImportResult:
-    """解析并在单个事务中创建导入的分类和笔记。"""
+    """Mem-parsing lalu membuat kategori dan catatan impor dalam satu transaksi."""
     preview = await preview_note_import(session, project_id, filename, content)
     category_ids: dict[tuple[str, ...], str] = {}
 
@@ -137,9 +137,9 @@ async def import_notes(
 
 
 async def export_note(session: AsyncSession, note_id: str) -> ExportFile:
-    """生成单个笔记的 Markdown 文件。"""
+    """Menghasilkan file Markdown untuk satu catatan."""
     note = await note_service.get_note(session, note_id)
-    filename = f"{_safe_archive_component(note.title, '未命名笔记')}.md"
+    filename = f"{_safe_archive_component(note.title, 'Catatan Tanpa Nama')}.md"
     return ExportFile(
         filename=filename,
         content=note.content.encode("utf-8"),
@@ -148,10 +148,10 @@ async def export_note(session: AsyncSession, note_id: str) -> ExportFile:
 
 
 async def export_category(session: AsyncSession, category_id: str) -> ExportFile:
-    """生成包含分类目录的 ZIP 文件。"""
+    """Menghasilkan file ZIP berisi direktori kategori."""
     category = await note_category_repo.get_by_id(session, category_id)
     if category is None:
-        raise NotFoundError(f"分类不存在: {category_id}")
+        raise NotFoundError(f"Kategori tidak ditemukan: {category_id}")
 
     categories = await note_category_repo.list_by_project(session, category.project_id)
     notes = await note_repo.list_by_project(session, category.project_id, include_hidden=True)
@@ -163,7 +163,7 @@ async def export_category(session: AsyncSession, category_id: str) -> ExportFile
         if note.category_id is not None:
             notes_by_category.setdefault(note.category_id, []).append(note)
 
-    root_name = _safe_archive_component(category.title, "未命名分类")
+    root_name = _safe_archive_component(category.title, "Kategori Tanpa Nama")
     output = BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         _write_category_to_zip(
@@ -185,7 +185,7 @@ def _parse_markdown_file(filename: str, content: bytes) -> NoteImportPreview:
     text, _encoding = decode_text_content(content)
     basename = PurePosixPath(filename.replace("\\", "/")).name
     title = PurePosixPath(basename).stem
-    _validate_title(title, "笔记")
+    _validate_title(title, "catatan")
     validate_editor_content(text)
     return NoteImportPreview(
         file_type="md",
@@ -207,7 +207,10 @@ def _parse_zip_archive(content: bytes) -> NoteImportPreview:
 
                 total_uncompressed_size += max(info.file_size, 0)
                 if total_uncompressed_size > MAX_NOTE_IMPORT_FILE_SIZE:
-                    raise ValueError("压缩包解压后的文件总大小超过限制（最大 50MB）")
+                    raise ValueError(
+                        "Total ukuran file setelah arsip diekstrak"
+                        " melebihi batas (maksimum 50MB)"
+                    )
 
                 path = _normalize_archive_path(info.filename)
                 if not path.lower().endswith(".md"):
@@ -217,12 +220,12 @@ def _parse_zip_archive(content: bytes) -> NoteImportPreview:
                 parts = path.split("/")
                 category_path = tuple(parts[:-1])
                 if len(category_path) > MAX_NOTE_CATEGORY_DEPTH:
-                    raise ValueError("压缩包中的分类层级不能超过两级")
+                    raise ValueError("Tingkat kategori dalam arsip tidak boleh lebih dari dua")
                 for category_title in category_path:
-                    _validate_title(category_title, "分类")
+                    _validate_title(category_title, "kategori")
 
                 title = PurePosixPath(parts[-1]).stem
-                _validate_title(title, "笔记")
+                _validate_title(title, "catatan")
                 text, _encoding = decode_text_content(archive.read(info))
                 validate_editor_content(text)
                 notes.append(
@@ -233,10 +236,10 @@ def _parse_zip_archive(content: bytes) -> NoteImportPreview:
                     )
                 )
     except (zipfile.BadZipFile, zipfile.LargeZipFile, OSError, RuntimeError) as exc:
-        raise ValueError("压缩包无法读取，请确认文件没有损坏或加密") from exc
+        raise ValueError("Arsip tidak dapat dibaca, pastikan file tidak rusak atau terenkripsi") from exc
 
     if not notes:
-        raise ValueError("压缩包内未找到 Markdown 文件")
+        raise ValueError("File Markdown tidak ditemukan di dalam arsip")
 
     return NoteImportPreview(
         file_type="zip",
@@ -253,19 +256,19 @@ def _normalize_archive_path(filename: str) -> str:
     normalized = filename.replace("\\", "/")
     path = PurePosixPath(normalized)
     if path.is_absolute() or ".." in path.parts:
-        raise ValueError("压缩包包含不安全的文件路径")
+        raise ValueError("Arsip memuat jalur file yang tidak aman")
 
     parts = [part for part in path.parts if part not in {"", "."}]
     if not parts:
-        raise ValueError("压缩包包含无效的文件路径")
+        raise ValueError("Arsip memuat jalur file yang tidak valid")
     return "/".join(parts)
 
 
 def _validate_title(title: str, label: str) -> None:
     if not title.strip():
-        raise ValueError(f"{label}标题不能为空")
+        raise ValueError(f"Judul {label} tidak boleh kosong")
     if len(title) > MAX_NOTE_TITLE_LENGTH:
-        raise ValueError(f"{label}标题不能超过 {MAX_NOTE_TITLE_LENGTH} 个字符")
+        raise ValueError(f"Judul {label} tidak boleh lebih dari {MAX_NOTE_TITLE_LENGTH} karakter")
 
 
 _INVALID_ARCHIVE_COMPONENTS = re.compile(r'[\\/:*?"<>|\x00-\x1f]')
@@ -297,13 +300,13 @@ def _write_category_to_zip(
     archive.writestr(f"{'/'.join(path)}/", b"")
     used_note_names: set[str] = set()
     for note in notes_by_category.get(category.id, []):
-        note_name = _safe_archive_component(note.title, "未命名笔记")
+        note_name = _safe_archive_component(note.title, "Catatan Tanpa Nama")
         filename = _unique_archive_component(f"{note_name}.md", used_note_names)
         archive.writestr("/".join([*path, filename]), note.content.encode("utf-8"))
 
     used_category_names: set[str] = set()
     for child in children_by_parent.get(category.id, []):
-        child_name = _safe_archive_component(child.title, "未命名分类")
+        child_name = _safe_archive_component(child.title, "Kategori Tanpa Nama")
         child_name = _unique_archive_component(child_name, used_category_names)
         _write_category_to_zip(
             archive,
@@ -317,5 +320,5 @@ def _write_category_to_zip(
 async def _get_project(session: AsyncSession, project_id: str) -> Project:
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
     return project

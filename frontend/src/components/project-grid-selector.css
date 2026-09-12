@@ -1,9 +1,9 @@
 /**
  * Project Grid Selector Styles
  *
- * 封面网格选择器样式。
- * 注意：hover 时不缩放整个卡片（避免溢出到 Popover/ScrollArea 不可见区域），
- * 仅在封面容器内缩放图片并抬升阴影，保证不产生溢出裁切。
+ * Gaya pemilih kisi sampul.
+ * Catatan: seluruh kartu tidak diskalakan saat kursor melintas (agar tidak melimpah ke area tak terlihat Popover/ScrollArea),
+ * penskalaan hanya diterapkan pada gambar di dalam wadah sampul beserta penguatan bayangan, sehingga tidak terjadi pemotongan akibat limpahan.
  */
 
 .project-grid-selector__card {

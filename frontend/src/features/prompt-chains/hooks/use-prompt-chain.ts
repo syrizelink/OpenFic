@@ -1,8 +1,8 @@
 /**
  * usePromptChain Hook
  *
- * 管理提示词链的状态：版本、条目、Working Copy
- * 增强版：添加错误处理和健壮性
+ * Mengelola status rantai prompt: versi, entri, Working Copy
+ * Versi lanjutan: menambahkan penanganan galat dan ketahanan
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -178,7 +178,7 @@ export function usePromptChain(promptId: string) {
 
         await saveWorkingCopy(versionData.version.id, entriesData);
       } catch (err) {
-        console.error("加载版本失败:", err);
+        console.error("Gagal memuat versi:", err);
         setError(err as Error);
       }
     },
@@ -234,7 +234,7 @@ export function usePromptChain(promptId: string) {
       }
     },
     onError: (err) => {
-      console.error("创建版本失败:", err);
+      console.error("Gagal membuat versi:", err);
       setError(err as Error);
     },
   });

@@ -1,7 +1,7 @@
 /**
  * Writing Store
  *
- * 写作状态管理，包含当前章节、拖拽排序、侧边栏状态等。
+ * Pengelolaan status penulisan, memuat bab saat ini, pengurutan tarik-lepas, status bilah sisi, dll.
  */
 
 import { create } from "zustand";
@@ -14,7 +14,7 @@ const EXPANDED_VOLUME_IDS_KEY = "writing.expandedVolumeIds";
 const SIDEBAR_VIEW_KEY = "writing.sidebarView";
 
 interface WritingStore {
-  // 当前状态
+  // Status saat ini
   currentChapterId: string | null;
   isDragMode: boolean;
   hasUnsavedDragChanges: boolean;
@@ -24,7 +24,7 @@ interface WritingStore {
   hasStoredExpandedVolumeIdsPreference: boolean;
   sidebarView: "chapters" | "notes";
 
-  // 拖拽排序临时数据：章节ID -> 新排序
+  // Data sementara pengurutan tarik-lepas: ID bab -> urutan baru
   dragOrderMap: Record<string, number>;
   originalOrder: Record<string, number>;
 
@@ -83,7 +83,7 @@ export const useWritingStore = create<WritingStore>((set, get) => ({
     const { dragOrderMap, originalOrder } = get();
     const newMap = { ...dragOrderMap, [id]: order };
 
-    // 检查是否有未保存的修改
+    // Memeriksa adanya perubahan yang belum tersimpan
     const hasChanges = Object.keys(newMap).some((key) => newMap[key] !== originalOrder[key]);
 
     set({
@@ -103,7 +103,7 @@ export const useWritingStore = create<WritingStore>((set, get) => ({
       newMap[id] = index + 1;
     });
 
-    // 检查是否有未保存的修改
+    // Memeriksa adanya perubahan yang belum tersimpan
     const hasChanges = Object.keys(newMap).some((key) => newMap[key] !== originalOrder[key]);
 
     set({

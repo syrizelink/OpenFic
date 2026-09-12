@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Revision Repository - 版本数据访问层。
+Revision Repository - lapisan akses data versi.
 """
 
 from datetime import UTC, datetime
@@ -16,14 +16,14 @@ from app.storage.models.revision import Revision
 
 async def create(session: AsyncSession, revision: Revision) -> Revision:
     """
-    创建版本。
+    Membuat versi.
 
     Args:
-        session: 数据库 session。
-        revision: 版本实例。
+        session: session basis data.
+        revision: Instance versi.
 
     Returns:
-        创建后的版本实例。
+        Instance versi setelah dibuat.
     """
     session.add(revision)
     await session.flush()
@@ -33,14 +33,14 @@ async def create(session: AsyncSession, revision: Revision) -> Revision:
 
 async def get_by_id(session: AsyncSession, revision_id: str) -> Revision | None:
     """
-    根据 ID 获取版本。
+    Mengambil versi berdasarkan ID.
 
     Args:
-        session: 数据库 session。
-        revision_id: 版本 ID。
+        session: session basis data.
+        revision_id: ID versi.
 
     Returns:
-        版本实例，如果不存在则返回 None。
+        Instance versi, atau None bila tidak ada.
     """
     result = await session.execute(
         select(Revision).where(col(Revision.id) == revision_id)
@@ -56,17 +56,17 @@ async def list_by_project(
     limit: int = 50,
 ) -> list[Revision]:
     """
-    获取项目的版本列表。
+    Mengambil daftar versi sebuah proyek.
 
     Args:
-        session: 数据库 session。
-        project_id: 项目 ID。
-        only_checkpoints: 是否只返回检查点。
-        offset: 偏移量。
-        limit: 每页数量。
+        session: session basis data.
+        project_id: ID proyek.
+        only_checkpoints: Apakah hanya mengembalikan checkpoint.
+        offset: Offset.
+        limit: Jumlah per halaman.
 
     Returns:
-        版本列表，按创建时间倒序。
+        Daftar versi, urut waktu pembuatan menurun.
     """
     query = select(Revision).where(col(Revision.project_id) == project_id)
 
@@ -120,15 +120,15 @@ async def count_by_project(
     only_checkpoints: bool = False,
 ) -> int:
     """
-    获取项目的版本总数。
+    Mengambil jumlah total versi sebuah proyek.
 
     Args:
-        session: 数据库 session。
-        project_id: 项目 ID。
-        only_checkpoints: 是否只统计检查点。
+        session: session basis data.
+        project_id: ID proyek.
+        only_checkpoints: Apakah hanya menghitung checkpoint.
 
     Returns:
-        版本总数。
+        Jumlah total versi.
     """
     query = select(func.count(col(Revision.id))).where(
         col(Revision.project_id) == project_id
@@ -143,14 +143,14 @@ async def count_by_project(
 
 async def update(session: AsyncSession, revision: Revision) -> Revision:
     """
-    更新版本。
+    Memperbarui versi.
 
     Args:
-        session: 数据库 session。
-        revision: 版本实例。
+        session: session basis data.
+        revision: Instance versi.
 
     Returns:
-        更新后的版本实例。
+        Instance versi setelah diperbarui.
     """
     session.add(revision)
     await session.flush()
@@ -160,11 +160,11 @@ async def update(session: AsyncSession, revision: Revision) -> Revision:
 
 async def delete(session: AsyncSession, revision: Revision) -> None:
     """
-    删除版本。
+    Menghapus versi.
 
     Args:
-        session: 数据库 session。
-        revision: 版本实例。
+        session: session basis data.
+        revision: Instance versi.
     """
     await session.delete(revision)
     await session.flush()
@@ -172,11 +172,11 @@ async def delete(session: AsyncSession, revision: Revision) -> None:
 
 async def delete_by_project(session: AsyncSession, project_id: str) -> None:
     """
-    删除项目下的所有版本。
+    Menghapus semua versi dalam proyek.
 
     Args:
-        session: 数据库 session。
-        project_id: 项目 ID。
+        session: session basis data.
+        project_id: ID proyek.
     """
     from sqlalchemy import delete as sql_delete
 
@@ -192,15 +192,15 @@ async def update_status(
     status: str,
 ) -> Revision | None:
     """
-    更新版本状态。
+    Memperbarui status versi.
 
     Args:
-        session: 数据库 session。
-        revision_id: 版本 ID。
-        status: 新状态（active/completed）。
+        session: session basis data.
+        revision_id: ID versi.
+        status: Status baru (active/completed).
 
     Returns:
-        更新后的版本实例，如果不存在则返回 None。
+        Instance versi setelah diperbarui, atau None bila tidak ada.
     """
     revision = await get_by_id(session, revision_id)
     if revision:
@@ -328,14 +328,14 @@ async def complete_active_revisions_by_session(
     agent_session_id: str,
 ) -> int:
     """
-    将指定会话的所有活跃版本标记为完成。
+    Menandai semua versi aktif pada sesi tertentu sebagai selesai.
 
     Args:
-        session: 数据库 session。
-        agent_session_id: Agent 会话 ID。
+        session: session basis data.
+        agent_session_id: ID sesi Agent.
 
     Returns:
-        更新的记录数。
+        Jumlah catatan yang diperbarui.
     """
     from sqlalchemy import update as sql_update
 

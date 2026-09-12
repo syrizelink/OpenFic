@@ -1,4 +1,5 @@
-"""联网搜索 provider 的统一抽象与共享 HTTP 工具。"""
+"""Abstraksi seragam untuk provider pencarian daring dan utilitas HTTP
+bersama."""
 
 from __future__ import annotations
 
@@ -83,9 +84,9 @@ def http_error_message(provider_name: str, exc: Exception) -> str:
     if isinstance(exc, httpx.HTTPStatusError):
         detail = (exc.response.text or "").strip()[:200]
         return (
-            f"{provider_name} 返回 HTTP {exc.response.status_code}"
+            f"{provider_name} mengembalikan HTTP {exc.response.status_code}"
             + (f": {detail}" if detail else "")
         )
     if isinstance(exc, httpx.HTTPError):
-        return f"{provider_name} 请求失败: {exc}"
-    return f"{provider_name} 搜索失败: {exc}"
+        return f"{provider_name} permintaan gagal: {exc}"
+    return f"{provider_name} pencarian gagal: {exc}"

@@ -21,17 +21,17 @@ def serialize_volume(volume: Volume) -> dict[str, int | str | None]:
 
 
 class CreateVolumeInput(BaseModel):
-    title: str = Field(description="卷标题")
+    title: str = Field(description="Judul volume")
     description: str | None = Field(
         default=None,
-        description="卷说明，可选",
+        description="Keterangan volume, opsional",
     )
 
 
 @ToolRegistry.register
 class CreateVolumeTool(AgentTool):
     name: str = "create_volume"
-    description: str = "创建一个新卷"
+    description: str = "Membuat satu volume baru"
     access_level: str = "write"
     args_schema: type[BaseModel] = CreateVolumeInput
 

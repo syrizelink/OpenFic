@@ -1,14 +1,14 @@
 /**
  * World Info Types
  *
- * 世界书相关类型定义。
+ * Definisi tipe terkait buku dunia.
  */
 
 // ============================================
-// 世界书类型
+// Tipe buku dunia
 // ============================================
 
-/** 世界书 */
+/** Buku dunia */
 export interface WorldInfo {
   id: string;
   projectId: string | null;
@@ -17,10 +17,10 @@ export interface WorldInfo {
 }
 
 // ============================================
-// 世界书条目类型
+// Tipe entri buku dunia
 // ============================================
 
-/** 世界书条目（完整，编辑用） */
+/** Entri buku dunia (lengkap, dipakai untuk penyuntingan) */
 export interface WorldInfoEntry {
   id: string;
   worldInfoId: string;
@@ -34,7 +34,7 @@ export interface WorldInfoEntry {
   updatedAt: string;
 }
 
-/** 世界书条目轻量（列表用，不含 content） */
+/** Entri buku dunia versi ringan (dipakai untuk daftar, tanpa content) */
 export interface WorldInfoEntryBrief {
   id: string;
   worldInfoId: string;
@@ -47,7 +47,7 @@ export interface WorldInfoEntryBrief {
   updatedAt: string;
 }
 
-/** 创建条目请求 */
+/** Permintaan pembuatan entri */
 export interface WorldInfoEntryCreate {
   name: string;
   content?: string;
@@ -55,7 +55,7 @@ export interface WorldInfoEntryCreate {
   isEnabled?: boolean;
 }
 
-/** 更新条目请求 */
+/** Permintaan pembaruan entri */
 export interface WorldInfoEntryUpdate {
   name?: string;
   content?: string;
@@ -63,7 +63,7 @@ export interface WorldInfoEntryUpdate {
   isEnabled?: boolean;
 }
 
-/** 条目轻量列表响应 */
+/** Respons daftar entri versi ringan */
 export interface WorldInfoEntryBriefListResponse {
   items: WorldInfoEntryBrief[];
   total: number;
@@ -109,7 +109,7 @@ export type WorldInfoImportEvent =
   | WorldInfoImportErrorEvent;
 
 // ============================================
-// 搜索类型
+// Tipe pencarian
 // ============================================
 
 export interface WorldInfoEntrySearchMatch {

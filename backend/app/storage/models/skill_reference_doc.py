@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""SkillReferenceDoc 数据模型 - 技能的参考文档。"""
+"""Model data SkillReferenceDoc - dokumen referensi skill."""
 
 from datetime import UTC, datetime
 
@@ -9,7 +9,7 @@ from app.core.ids import generate_id
 
 
 class SkillReferenceDoc(SQLModel, table=True):
-    """归属于某个 Skill 的参考文档。"""
+    """Dokumen referensi milik sebuah Skill."""
 
     __tablename__ = "skill_reference_docs"
 

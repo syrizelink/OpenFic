@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Task 数据模型。"""
+"""Model data Task."""
 
 from datetime import UTC, datetime
 
@@ -10,25 +10,25 @@ from app.core.ids import generate_id
 
 class Task(SQLModel, table=True):
     """
-    AI对话任务模型。
+    Model tugas percakapan AI.
 
     Attributes:
-        id: 任务唯一标识符（nanoid）。
-        project_id: 所属项目 ID。
-        title: 任务标题（取自首条用户输入，最多50字符）。
-        mode: 任务模式。
-        token_input: 输入 token 总数。
-        token_output: 输出 token 总数。
-        token_cache: 缓存命中 token 总数。
-        context_input_tokens: 上一次 LLM 调用的输入 token 数。
-        cost: LLM 调用累计费用（美元）。
-        current_revision_id: 当前用户消息 checkpoint 对应的 revision ID。
-        current_message_id: 当前最新用户消息 ID。
-        agent_session_id: 关联的 Agent 会话 ID。
-        is_running: 当前任务是否仍在后台运行。
-        is_favorited: 是否收藏。
-        created_at: 创建时间。
-        updated_at: 上次修改时间。
+        id: Identifier unik tugas (nanoid).
+        project_id: ID proyek pemilik.
+        title: Judul tugas (diambil dari masukan pengguna pertama, maksimum 50 karakter).
+        mode: Mode tugas.
+        token_input: Total token masukan.
+        token_output: Total token keluaran.
+        token_cache: Total token yang kena cache.
+        context_input_tokens: Jumlah token masukan pada panggilan LLM terakhir.
+        cost: Akumulasi biaya panggilan LLM (dolar).
+        current_revision_id: ID revision untuk checkpoint pesan pengguna saat ini.
+        current_message_id: ID pesan pengguna terbaru saat ini.
+        agent_session_id: ID sesi Agent yang terkait.
+        is_running: Apakah tugas saat ini masih berjalan di latar belakang.
+        is_favorited: Apakah difavoritkan.
+        created_at: Waktu pembuatan.
+        updated_at: Waktu perubahan terakhir.
     """
 
     __tablename__ = "tasks"
@@ -44,8 +44,8 @@ class Task(SQLModel, table=True):
     cost: float = Field(default=0.0, ge=0.0)
     current_revision_id: str | None = Field(default=None, index=True, foreign_key="revisions.id")
     current_message_id: str | None = Field(default=None, index=True)
-    agent_session_id: str | None = Field(default=None, index=True, description="Agent会话ID")
-    is_running: bool = Field(default=False, description="任务是否正在后台运行")
+    agent_session_id: str | None = Field(default=None, index=True, description="ID sesi Agent")
+    is_running: bool = Field(default=False, description="Apakah tugas berjalan di latar belakang")
     is_favorited: bool = Field(default=False, index=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

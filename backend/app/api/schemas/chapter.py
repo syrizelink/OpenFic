@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Chapter API Schemas - 章节请求/响应模型。
+Chapter API Schemas - Model permintaan/respons bab.
 """
 
 from datetime import datetime
@@ -10,97 +10,97 @@ from pydantic import BaseModel, Field
 
 
 class ChapterCreate(BaseModel):
-    """创建章节请求。"""
+    """Permintaan pembuatan bab."""
 
-    volume_id: str = Field(description="所属卷 ID")
-    title: str = Field(min_length=1, max_length=200, description="章节标题")
-    content: str = Field(default="", description="章节内容")
+    volume_id: str = Field(description="ID volume pemilik")
+    title: str = Field(min_length=1, max_length=200, description="Judul bab")
+    content: str = Field(default="", description="Isi bab")
     word_count: int | None = Field(
-        default=None, ge=0, description="章节字数（前端计算）"
+        default=None, ge=0, description="Jumlah kata bab (dihitung frontend)"
     )
 
 
 class ChapterUpdate(BaseModel):
-    """更新章节请求。"""
+    """Permintaan pembaruan bab."""
 
     title: str | None = Field(
-        default=None, min_length=1, max_length=200, description="章节标题"
+        default=None, min_length=1, max_length=200, description="Judul bab"
     )
-    content: str | None = Field(default=None, description="章节内容")
+    content: str | None = Field(default=None, description="Isi bab")
     word_count: int | None = Field(
-        default=None, ge=0, description="章节字数（前端计算）"
+        default=None, ge=0, description="Jumlah kata bab (dihitung frontend)"
     )
 
 
 class ChapterReorder(BaseModel):
-    """批量重排章节请求。"""
+    """Permintaan penataan ulang bab secara massal."""
 
-    volume_id: str = Field(description="卷 ID")
-    chapter_ids: list[str] = Field(description="按新顺序排列的章节 ID 列表")
+    volume_id: str = Field(description="ID volume")
+    chapter_ids: list[str] = Field(description="Daftar ID bab dalam urutan baru")
 
 
 class ChapterMoveToVolume(BaseModel):
-    """跨卷移动章节请求。"""
+    """Permintaan pemindahan bab antar volume."""
 
-    volume_id: str = Field(description="目标卷 ID")
+    volume_id: str = Field(description="ID volume tujuan")
 
 
 class ChapterResponse(BaseModel):
-    """章节响应（完整版，包含正文）。"""
+    """Respons bab (versi lengkap, termasuk isi)."""
 
-    id: str = Field(description="章节 ID")
-    project_id: str = Field(description="所属项目 ID")
-    volume_id: str = Field(description="所属卷 ID")
-    title: str = Field(description="章节标题")
-    content: str = Field(description="章节内容")
-    word_count: int = Field(description="章节字数")
-    order: int = Field(description="排序序号")
-    created_at: datetime = Field(description="创建时间")
-    updated_at: datetime = Field(description="上次修改时间")
+    id: str = Field(description="ID bab")
+    project_id: str = Field(description="ID proyek pemilik")
+    volume_id: str = Field(description="ID volume pemilik")
+    title: str = Field(description="Judul bab")
+    content: str = Field(description="Isi bab")
+    word_count: int = Field(description="Jumlah kata bab")
+    order: int = Field(description="Nomor urut")
+    created_at: datetime = Field(description="Waktu pembuatan")
+    updated_at: datetime = Field(description="Waktu modifikasi terakhir")
 
     model_config = {"from_attributes": True}
 
 
 class ChapterListItem(BaseModel):
-    """章节列表项（精简版，不含正文，用于列表展示）。"""
+    """Item daftar bab (versi ringkas, tanpa isi, untuk tampilan daftar)."""
 
-    id: str = Field(description="章节 ID")
-    project_id: str = Field(description="所属项目 ID")
-    volume_id: str = Field(description="所属卷 ID")
-    title: str = Field(description="章节标题")
-    word_count: int = Field(description="章节字数")
-    order: int = Field(description="排序序号")
-    created_at: datetime = Field(description="创建时间")
-    updated_at: datetime = Field(description="上次修改时间")
+    id: str = Field(description="ID bab")
+    project_id: str = Field(description="ID proyek pemilik")
+    volume_id: str = Field(description="ID volume pemilik")
+    title: str = Field(description="Judul bab")
+    word_count: int = Field(description="Jumlah kata bab")
+    order: int = Field(description="Nomor urut")
+    created_at: datetime = Field(description="Waktu pembuatan")
+    updated_at: datetime = Field(description="Waktu modifikasi terakhir")
 
     model_config = {"from_attributes": True}
 
 
 class VolumeTreeItem(BaseModel):
-    """卷-章树中的卷节点。"""
+    """Node volume pada pohon volume-bab."""
 
-    id: str = Field(description="卷 ID")
-    project_id: str = Field(description="所属项目 ID")
-    title: str = Field(description="卷名")
-    description: str | None = Field(description="卷说明")
-    order: int = Field(description="项目内排序序号")
-    chapter_count: int = Field(description="章节数")
-    created_at: datetime = Field(description="创建时间")
-    updated_at: datetime = Field(description="上次修改时间")
-    chapters: list[ChapterListItem] = Field(description="卷内章节列表")
+    id: str = Field(description="ID volume")
+    project_id: str = Field(description="ID proyek pemilik")
+    title: str = Field(description="Nama volume")
+    description: str | None = Field(description="Deskripsi volume")
+    order: int = Field(description="Nomor urut di dalam proyek")
+    chapter_count: int = Field(description="Jumlah bab")
+    created_at: datetime = Field(description="Waktu pembuatan")
+    updated_at: datetime = Field(description="Waktu modifikasi terakhir")
+    chapters: list[ChapterListItem] = Field(description="Daftar bab di dalam volume")
 
     model_config = {"from_attributes": True}
 
 
 class VolumeTreeResponse(BaseModel):
-    """卷-章树响应。"""
+    """Respons pohon volume-bab."""
 
-    volumes: list[VolumeTreeItem] = Field(description="卷列表")
-    total_chapters: int = Field(description="章节总数")
+    volumes: list[VolumeTreeItem] = Field(description="Daftar volume")
+    total_chapters: int = Field(description="Jumlah total bab")
 
 
 class MentionCandidateItem(BaseModel):
-    """对话 mention 候选项。"""
+    """Kandidat mention percakapan."""
 
     kind: Literal[
         "volume",
@@ -109,38 +109,38 @@ class MentionCandidateItem(BaseModel):
         "note_category",
         "world_info_entry",
         "character",
-    ] = Field(description="候选类型")
-    id: str = Field(description="卷或章节 ID")
-    title: str = Field(description="候选标题")
-    label: str = Field(description="插入 mention 时使用的标签")
-    description: str | None = Field(default=None, description="附加说明")
+    ] = Field(description="Tipe kandidat")
+    id: str = Field(description="ID volume atau bab")
+    title: str = Field(description="Judul kandidat")
+    label: str = Field(description="Label yang dipakai saat menyisipkan mention")
+    description: str | None = Field(default=None, description="Keterangan tambahan")
 
 
 class MentionCandidateSearchResponse(BaseModel):
-    """mention 候选检索结果。"""
+    """Hasil pencarian kandidat mention."""
 
-    items: list[MentionCandidateItem] = Field(description="匹配到的候选项")
+    items: list[MentionCandidateItem] = Field(description="Kandidat yang cocok")
 
 
 class ChapterSearchMatch(BaseModel):
-    """章节内容搜索匹配行。"""
+    """Baris cocok pada pencarian isi bab."""
 
-    line_number: int = Field(description="匹配行号")
-    line_text: str = Field(description="匹配行文本")
+    line_number: int = Field(description="Nomor baris yang cocok")
+    line_text: str = Field(description="Teks baris yang cocok")
 
 
 class ChapterSearchResult(BaseModel):
-    """章节内容搜索结果。"""
+    """Hasil pencarian isi bab."""
 
-    chapter_id: str = Field(description="章节 ID")
-    chapter_title: str = Field(description="章节标题")
-    volume_title: str = Field(description="所属卷标题")
-    matches: list[ChapterSearchMatch] = Field(description="匹配行列表")
+    chapter_id: str = Field(description="ID bab")
+    chapter_title: str = Field(description="Judul bab")
+    volume_title: str = Field(description="Judul volume pemilik")
+    matches: list[ChapterSearchMatch] = Field(description="Daftar baris yang cocok")
 
 
 class ChapterSearchResponse(BaseModel):
-    """章节内容搜索响应。"""
+    """Respons pencarian isi bab."""
 
-    results: list[ChapterSearchResult] = Field(description="搜索结果列表")
-    total_chapters: int = Field(description="匹配章节数")
-    total_matches: int = Field(description="匹配行总数")
+    results: list[ChapterSearchResult] = Field(description="Daftar hasil pencarian")
+    total_chapters: int = Field(description="Jumlah bab yang cocok")
+    total_matches: int = Field(description="Jumlah total baris yang cocok")

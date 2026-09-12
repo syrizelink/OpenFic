@@ -1,4 +1,4 @@
-"""Agent 会话变更 API 测试。"""
+"""Uji API perubahan sesi Agent."""
 
 from unittest.mock import AsyncMock, patch
 
@@ -23,10 +23,10 @@ async def test_session_changes_api_returns_turn_and_subagent_changes(
             AgentChangeItem(
                 key="chapter:chapter-1",
                 kind="chapter",
-                title="章节",
-                title_before="旧章节",
-                title_after="章节",
-                path=["第一卷"],
+                title="Bab",
+                title_before="Bab Lama",
+                title_after="Bab",
+                path=["Volume 1"],
                 operation="update",
                 sections=[AgentChangeSection(type="content", lines=[])],
                 source_message_id="child-tool-1",
@@ -67,8 +67,8 @@ async def test_session_changes_api_returns_turn_and_subagent_changes(
     assert payload["session_id"] == "parent-session"
     assert payload["turns"][0]["revision_id"] == "revision-1"
     assert payload["turns"][0]["changes"]["items"][0]["child_run_id"] == "child-1"
-    assert payload["turns"][0]["changes"]["items"][0]["path"] == ["第一卷"]
-    assert payload["turns"][0]["changes"]["items"][0]["title_before"] == "旧章节"
+    assert payload["turns"][0]["changes"]["items"][0]["path"] == ["Volume 1"]
+    assert payload["turns"][0]["changes"]["items"][0]["title_before"] == "Bab Lama"
     assert payload["session_changes"]["item_count"] == 1
 
 

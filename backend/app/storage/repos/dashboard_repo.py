@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Dashboard Repository - LLM API 仪表盘只读查询。
+Dashboard Repository - kueri baca-saja dasbor LLM API.
 """
 
 from dataclasses import dataclass
@@ -18,7 +18,7 @@ from app.storage.models.project import Project
 
 @dataclass(frozen=True)
 class DashboardFilters:
-    """仪表盘筛选条件。"""
+    """Kriteria filter dasbor."""
 
     project_id: str | None = None
     model_provider: str | None = None
@@ -35,7 +35,7 @@ class DashboardFilters:
 
 @dataclass(frozen=True)
 class DashboardSummaryRow:
-    """总览聚合行。"""
+    """Baris agregat ikhtisar."""
 
     calls_total: int
     success_total: int
@@ -48,7 +48,7 @@ class DashboardSummaryRow:
 
 @dataclass(frozen=True)
 class ModelTimeSeriesRow:
-    """按日期和模型聚合的趋势行。"""
+    """Baris tren yang diagregasi menurut tanggal dan model."""
 
     date: str
     key: str
@@ -60,7 +60,7 @@ class ModelTimeSeriesRow:
 
 @dataclass(frozen=True)
 class BreakdownRow:
-    """分组聚合行。"""
+    """Baris agregat per grup."""
 
     key: str
     label: str
@@ -70,7 +70,7 @@ class BreakdownRow:
 
 @dataclass(frozen=True)
 class DashboardRecordRow:
-    """用于记录列表展示的轻量审计行。"""
+    """Baris audit ringan untuk tampilan daftar catatan."""
 
     id: str
     created_at: datetime
@@ -104,7 +104,7 @@ class DashboardRecordRow:
 
 @dataclass(frozen=True)
 class DashboardRecordPromptRow:
-    """调用记录输入提示词详情。"""
+    """Detail prompt masukan pada catatan panggilan."""
 
     id: str
     request_messages: str | None
@@ -112,7 +112,7 @@ class DashboardRecordPromptRow:
 
 @dataclass(frozen=True)
 class FilterOptionRow:
-    """筛选选项显示项。"""
+    """Item tampilan opsi filter."""
 
     value: str
     label: str
@@ -120,7 +120,7 @@ class FilterOptionRow:
 
 @dataclass(frozen=True)
 class DashboardFilterOptionsRow:
-    """仪表盘筛选选项查询结果。"""
+    """Hasil kueri opsi filter dasbor."""
 
     project_ids: list[str]
     model_providers: list[str]
@@ -134,7 +134,7 @@ class DashboardFilterOptionsRow:
 
 @dataclass(frozen=True)
 class DashboardStatsRows:
-    """仪表盘统计聚合结果。"""
+    """Hasil agregat statistik dasbor."""
 
     summary: DashboardSummaryRow
     model_time_series: list[ModelTimeSeriesRow]
@@ -207,7 +207,7 @@ async def get_stats(
     session: AsyncSession,
     filters: DashboardFilters,
 ) -> DashboardStatsRows:
-    """通过一次 SQL 查询完成仪表盘统计聚合。"""
+    """Menyelesaikan agregat statistik dasbor dalam satu kueri SQL."""
     filtered_query = select(
         col(LLMAuditLog.id),
         col(LLMAuditLog.created_at),
@@ -363,7 +363,7 @@ async def get_stats(
 
 
 async def count_records(session: AsyncSession, filters: DashboardFilters) -> int:
-    """统计筛选后的记录数。"""
+    """Menghitung jumlah catatan setelah difilter."""
     query = select(func.count(col(LLMAuditLog.id)))
     return (await session.execute(_apply_filters(query, filters))).scalar_one()
 
@@ -376,7 +376,7 @@ async def list_records(
     sort_by: str,
     sort_order: str,
 ) -> tuple[list[DashboardRecordRow], int | None]:
-    """获取筛选后的审计记录。"""
+    """Mengambil catatan audit setelah difilter."""
     sort_column = SORT_COLUMNS.get(sort_by, LLMAuditLog.created_at)
     order_expression = (
         col(sort_column).asc() if sort_order == "asc" else col(sort_column).desc()
@@ -476,7 +476,7 @@ async def get_record_prompt(
     session: AsyncSession,
     record_id: str,
 ) -> DashboardRecordPromptRow | None:
-    """获取单条审计记录的输入提示词。"""
+    """Mengambil prompt masukan dari satu catatan audit."""
     query = select(
         col(LLMAuditLog.id),
         col(LLMAuditLog.request_messages),
@@ -491,7 +491,7 @@ async def get_record_prompt(
 
 
 async def get_filter_options(session: AsyncSession) -> DashboardFilterOptionsRow:
-    """通过一次查询获取全部全局筛选选项。"""
+    """Mengambil seluruh opsi filter global dalam satu kueri."""
     option_queries = [
         _distinct_option_query("project_ids", col(LLMAuditLog.project_id)),
         _distinct_option_query("model_providers", col(LLMAuditLog.model_provider)),
@@ -547,7 +547,7 @@ async def get_filter_options(session: AsyncSession) -> DashboardFilterOptionsRow
 
 
 def _distinct_option_query(kind: str, column: Any):
-    """构建一个带类型标识的去重筛选项查询。"""
+    """Membangun kueri opsi filter unik yang membawa penanda jenis."""
     return select(
         literal(kind).label("kind"),
         cast(column, String).label("value"),

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-创建笔记分类。
+Membuat kategori catatan.
 """
 
 import json
@@ -28,16 +28,20 @@ from app.storage.repos import note_category_repo
 
 
 class CreateNoteCategoryInput(BaseModel):
-    title: str = Field(description="分类标题")
+    title: str = Field(description="Judul kategori")
     parent_ref: dict | None = Field(
-        default=None, description="可选的父分类引用；省略则创建在根层级"
+        default=None,
+        description=(
+            "Referensi kategori induk, opsional; bila dihilangkan kategori dibuat "
+            "di tingkat akar"
+        ),
     )
 
 
 @ToolRegistry.register
 class CreateNoteCategoryTool(AgentTool):
     name: str = "create_note_category"
-    description: str = "在指定父分类下创建新分类"
+    description: str = "Membuat kategori baru di bawah kategori induk yang ditentukan"
     access_level: str = "write"
     args_schema: type[BaseModel] = CreateNoteCategoryInput
 
@@ -84,7 +88,9 @@ class CreateNoteCategoryTool(AgentTool):
     ) -> str:
         revision_id = current_revision_id_from_state(self._state)
         if revision_id is None:
-            raise ToolExecutionError("缺少当前 revision，无法执行分类创建")
+            raise ToolExecutionError(
+                "revision saat ini tidak ada, pembuatan kategori tidak dapat dijalankan"
+            )
         session = await create_session()
         try:
             parent_id: str | None = None
@@ -93,14 +99,16 @@ class CreateNoteCategoryTool(AgentTool):
                 if ref.id is not None:
                     parent = await note_category_repo.get_by_id(session, ref.id)
                     if parent is None:
-                        raise ToolExecutionError(f"分类不存在: {ref.id}")
+                        raise ToolExecutionError(f"Kategori tidak ditemukan: {ref.id}")
                 else:
                     cats = await note_category_repo.list_by_project(
                         session, self.project_id
                     )
                     parent = resolve_category_from_list(cats, ref)
                 if parent.project_id != self.project_id:
-                    raise ToolExecutionError("父分类不属于当前项目")
+                    raise ToolExecutionError(
+                        "Kategori induk tidak termasuk dalam proyek saat ini"
+                    )
                 parent_id = parent.id
 
             async with await keyed_lock((self.project_id, parent_id)):

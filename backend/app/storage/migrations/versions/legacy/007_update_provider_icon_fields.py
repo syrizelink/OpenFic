@@ -20,13 +20,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Update model_providers table to use icon_path instead of icon_type/custom_icon."""
-    # SQLite不支持直接删除列，需要重建表
+    # SQLite tidak mendukung penghapusan kolom secara langsung, tabel perlu dibangun ulang
     with op.batch_alter_table("model_providers") as batch_op:
         batch_op.add_column(sa.Column("icon_path", sa.String(length=500), nullable=True))
     
-    # 数据迁移可以在这里进行，但由于我们改变了逻辑，暂时跳过
+    # Migrasi data dapat dilakukan di sini, tetapi karena logikanya berubah, sementara dilewati
     
-    # 删除旧字段
+    # Menghapus kolom lama
     with op.batch_alter_table("model_providers") as batch_op:
         batch_op.drop_column("icon_type")
         batch_op.drop_column("custom_icon")

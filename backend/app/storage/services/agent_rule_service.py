@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AgentRule Service - 规则业务逻辑层。"""
+"""AgentRule Service - lapisan logika bisnis aturan."""
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -38,7 +38,7 @@ async def create_rule(
 ) -> AgentRule:
     if scope == "project":
         if not project_id or await project_repo.get_by_id(session, project_id) is None:
-            raise ValueError("project 作用域必须指定有效的项目")
+            raise ValueError("Cakupan project harus menentukan proyek yang valid")
     resolved_project_id = project_id if scope == "project" else None
     max_order = await agent_rule_repo.get_max_order_index(session, scope, resolved_project_id)
     rule = AgentRule(
@@ -55,7 +55,7 @@ async def create_rule(
 async def get_rule(session: AsyncSession, rule_id: str) -> AgentRule:
     rule = await agent_rule_repo.get_by_id(session, rule_id)
     if rule is None:
-        raise NotFoundError(f"规则不存在: {rule_id}")
+        raise NotFoundError(f"Aturan tidak ditemukan: {rule_id}")
     return rule
 
 
@@ -84,7 +84,7 @@ async def list_scopes(
     session: AsyncSession,
     rules: list[AgentRule] | None = None,
 ) -> list[AgentRuleScope]:
-    """返回规则作用域：全局置顶，其余按项目修改时间倒序。"""
+    """Mengembalikan cakupan aturan: global disematkan di atas, sisanya urut waktu ubah proyek menurun."""
     if rules is None:
         rules = await agent_rule_repo.get_all_for_scope_counts(session)
     projects = await project_repo.list_all(session, offset=0, limit=1000)
@@ -96,7 +96,7 @@ async def list_scopes(
 
     global_count = counts.get("global", 0)
     scopes: list[AgentRuleScope] = [
-        AgentRuleScope(scope="global", project_id=None, title="全局", rule_count=global_count)
+        AgentRuleScope(scope="global", project_id=None, title="Global", rule_count=global_count)
     ]
     for project in projects:
         key = f"project:{project.id}"

@@ -1,15 +1,15 @@
 /**
- * Toast 通知系统
+ * Sistem notifikasi Toast
  *
- * 基于 sonner 实现的全局 toast 通知。
- * 使用方式：直接导入 toast 对象调用其方法。
+ * Notifikasi toast global berbasis sonner.
+ * Cara pakai: impor objek toast lalu panggil metodenya.
  *
  * @example
  * import { toast } from '@/components/toast';
  *
- * toast.success('操作成功');
- * toast.error('操作失败');
- * toast.info('提示信息');
+ * toast.success('Operasi berhasil');
+ * toast.error('Operasi gagal');
+ * toast.info('Informasi petunjuk');
  */
 
 export { toast } from "sonner";

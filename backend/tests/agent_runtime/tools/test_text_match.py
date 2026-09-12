@@ -91,12 +91,12 @@ def test_fuzzy_match_smart_quotes() -> None:
     # Content uses smart quotes; old_text uses ASCII quotes. The fuzzy path
     # normalizes both for matching and rewrites the touched (single) line from
     # the normalized base, while ``new_text`` is inserted verbatim.
-    result = fuzzy_replace("前缀\u201c引文\u201d后缀", '"引文"', "X")
-    assert result == FuzzyReplaceResult("前缀X后缀", used_fuzzy_match=True)
+    result = fuzzy_replace("awalan\u201ckutipan\u201dakhiran", '"kutipan"', "X")
+    assert result == FuzzyReplaceResult("awalanXakhiran", used_fuzzy_match=True)
 
 
 def test_fuzzy_match_special_spaces() -> None:
-    result = fuzzy_replace("间距\u3000很大", "间距 很大", "no space")
+    result = fuzzy_replace("jarak\u3000lebar", "jarak lebar", "no space")
     assert result == FuzzyReplaceResult("no space", used_fuzzy_match=True)
 
 
@@ -215,17 +215,19 @@ def test_duplicate_normalized_line_aligned_by_range() -> None:
 def test_tab_old_text_not_in_content_returns_none() -> None:
     # Regression: "\t" normalizes to ""; find("") must not match the start of
     # the content and insert new_text before the original text.
-    assert fuzzy_replace("今晚月色很好。", "\t", "月色") is None
+    # Catatan: isi fixture sengaja tanpa spasi agar old_text " " benar-benar
+    # tidak ditemukan di dalamnya.
+    assert fuzzy_replace("Purnama.", "\t", "Bulan") is None
 
 
 def test_space_old_text_not_in_content_returns_none() -> None:
-    assert fuzzy_replace("今晚月色很好。", " ", "月色") is None
+    assert fuzzy_replace("Purnama.", " ", "Bulan") is None
 
 
 def test_whitespace_only_old_text_replace_all_returns_none() -> None:
     # Regression: replace_all=True with a whitespace-only query previously
     # looped forever because start never advanced past idx 0.
-    assert fuzzy_replace("今晚月色很好。", " ", "月色", replace_all=True) is None
+    assert fuzzy_replace("Purnama.", " ", "Bulan", replace_all=True) is None
 
 
 def test_whitespace_old_text_present_in_content_still_exact_matches() -> None:

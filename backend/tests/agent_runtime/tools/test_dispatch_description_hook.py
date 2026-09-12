@@ -37,7 +37,7 @@ def test_dispatch_description_hook_appends_delegatable_agent_list():
     custom_bot = AgentDefinition(
         key="custom-bot",
         display_name="Custom Bot",
-        description="负责自定义扩展任务。",
+        description="Menangani tugas ekstensi kustom.",
         kind="subagent",
         prompt_agent_name="custom-bot",
         model_id=None,
@@ -63,10 +63,16 @@ def test_dispatch_description_hook_appends_delegatable_agent_list():
         build_hooks=[hook],
     )[0]
 
-    assert "当前可委派的 agent（使用`agent_type`指定）" in tool.description
-    assert "- explore：负责信息搜集、上下文梳理与证据查找" in tool.description
-    assert "- custom-bot：负责自定义扩展任务。" in tool.description
-    assert "- writer：" not in tool.description
+    assert (
+        "Agent yang dapat didelegasikan saat ini (tentukan dengan `agent_type`)"
+        in tool.description
+    )
+    assert (
+        "- explore: Menangani pengumpulan informasi, penataan konteks, dan pencarian bukti"
+        in tool.description
+    )
+    assert "- custom-bot: Menangani tugas ekstensi kustom." in tool.description
+    assert "- writer:" not in tool.description
 
 
 def test_dispatch_description_hook_omits_agents_when_primary_has_no_delegatable_agents():
@@ -94,4 +100,4 @@ def test_dispatch_description_hook_omits_agents_when_primary_has_no_delegatable_
         build_hooks=[hook],
     )[0]
 
-    assert "当前可委派的 agent" not in tool.description
+    assert "Agent yang dapat didelegasikan saat ini" not in tool.description

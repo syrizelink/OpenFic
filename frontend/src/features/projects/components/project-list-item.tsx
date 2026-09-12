@@ -1,7 +1,7 @@
 /**
  * ProjectListItem Component
  *
- * List 视图下的项目列表项组件。
+ * Komponen item daftar proyek pada tampilan List.
  */
 
 import { Box, Card, Flex, Text, IconButton, Tooltip } from "@radix-ui/themes";
@@ -43,7 +43,7 @@ export function ProjectListItem({ project, onEdit, onDelete }: ProjectListItemPr
         align="center"
         gap="4"
       >
-        {/* 左侧小封面 */}
+        {/* Sampul kecil di sisi kiri */}
         <Box
           style={{
             width: "60px",
@@ -78,7 +78,7 @@ export function ProjectListItem({ project, onEdit, onDelete }: ProjectListItemPr
           )}
         </Box>
 
-        {/* 中间项目信息 */}
+        {/* Informasi proyek di bagian tengah */}
         <Box style={{ flex: 1, minWidth: 0 }}>
           <Text
             size="3"
@@ -123,7 +123,7 @@ export function ProjectListItem({ project, onEdit, onDelete }: ProjectListItemPr
           </Flex>
         </Box>
 
-        {/* 右侧操作按钮 */}
+        {/* Tombol tindakan di sisi kanan */}
         <Flex
           gap="3"
           align="center"

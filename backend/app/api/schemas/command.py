@@ -4,11 +4,11 @@ from pydantic import BaseModel, Field
 
 
 class CommandCandidateItem(BaseModel):
-    kind: Literal["skill"] = Field(description="命令类型")
-    id: str = Field(description="命令关联对象 ID")
-    name: str = Field(description="命令名称")
-    description: str = Field(description="命令说明")
+    kind: Literal["skill"] = Field(description="Tipe perintah")
+    id: str = Field(description="ID objek terkait perintah")
+    name: str = Field(description="Nama perintah")
+    description: str = Field(description="Keterangan perintah")
 
 
 class CommandSearchResponse(BaseModel):
-    items: list[CommandCandidateItem] = Field(description="命令候选项")
+    items: list[CommandCandidateItem] = Field(description="Kandidat perintah")

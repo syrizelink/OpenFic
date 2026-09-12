@@ -9,15 +9,15 @@ async def test_create_update_and_list_agent_rules_with_title(client: AsyncClient
     create_response = await client.post(
         "/api/v1/agent-rules",
         json={
-            "title": "回复语言",
-            "content": "回复时使用简体中文",
+            "title": "Bahasa Balasan",
+            "content": "Gunakan bahasa Indonesia saat membalas",
         },
     )
 
     assert create_response.status_code == 201
     created = create_response.json()
-    assert created["title"] == "回复语言"
-    assert created["content"] == "回复时使用简体中文"
+    assert created["title"] == "Bahasa Balasan"
+    assert created["content"] == "Gunakan bahasa Indonesia saat membalas"
     assert created["scope"] == "global"
     assert created["project_id"] is None
     assert created["token_count"] > 0
@@ -26,22 +26,22 @@ async def test_create_update_and_list_agent_rules_with_title(client: AsyncClient
     update_response = await client.patch(
         f"/api/v1/agent-rules/{rule_id}",
         json={
-            "title": "输出语言",
-            "content": "始终使用简体中文回复",
+            "title": "Bahasa Keluaran",
+            "content": "Selalu balas dengan bahasa Indonesia",
         },
     )
 
     assert update_response.status_code == 200
     updated = update_response.json()
-    assert updated["title"] == "输出语言"
-    assert updated["content"] == "始终使用简体中文回复"
+    assert updated["title"] == "Bahasa Keluaran"
+    assert updated["content"] == "Selalu balas dengan bahasa Indonesia"
 
     list_response = await client.get("/api/v1/agent-rules")
     assert list_response.status_code == 200
     payload = list_response.json()
     assert payload["total"] >= 1
-    assert payload["items"][0]["title"] == "输出语言"
-    assert payload["items"][0]["content"] == "始终使用简体中文回复"
+    assert payload["items"][0]["title"] == "Bahasa Keluaran"
+    assert payload["items"][0]["content"] == "Selalu balas dengan bahasa Indonesia"
 
 
 @pytest.mark.asyncio
@@ -49,14 +49,14 @@ async def test_create_project_rule_and_list_scopes(client: AsyncClient, session)
     from app.storage.repos import project_repo
     from app.storage.models.project import Project
 
-    project = Project(title="测试项目")
+    project = Project(title="Proyek Uji")
     await project_repo.create(session, project)
     await session.flush()
 
     global_create = await client.post(
         "/api/v1/agent-rules",
         json={
-            "title": "新建规则",
+            "title": "Aturan Baru",
             "content": "",
         },
     )
@@ -65,8 +65,8 @@ async def test_create_project_rule_and_list_scopes(client: AsyncClient, session)
     create_response = await client.post(
         "/api/v1/agent-rules",
         json={
-            "title": "项目规则",
-            "content": "仅在本项目生效",
+            "title": "Aturan Proyek",
+            "content": "Hanya berlaku pada proyek ini",
             "scope": "project",
             "project_id": project.id,
         },
@@ -91,7 +91,7 @@ async def test_create_project_rule_and_list_scopes(client: AsyncClient, session)
     assert list_response.status_code == 200
     payload = list_response.json()
     assert payload["total"] == 1
-    assert payload["items"][0]["title"] == "项目规则"
+    assert payload["items"][0]["title"] == "Aturan Proyek"
 
 
 @pytest.mark.asyncio
@@ -99,8 +99,8 @@ async def test_create_project_rule_without_project_returns_400(client: AsyncClie
     response = await client.post(
         "/api/v1/agent-rules",
         json={
-            "title": "无效项目规则",
-            "content": "无",
+            "title": "Aturan Proyek Tidak Valid",
+            "content": "Tidak ada",
             "scope": "project",
             "project_id": "nonexistent",
         },
@@ -114,21 +114,21 @@ async def test_list_all_rules_puts_global_first(client: AsyncClient, session) ->
     from app.storage.models.project import Project
     from app.storage.services import agent_rule_service
 
-    project = Project(title="排序测试项目")
+    project = Project(title="Proyek Uji Pengurutan")
     await project_repo.create(session, project)
     await session.flush()
 
     await client.post(
         "/api/v1/agent-rules",
-        json={"title": "项目规则A", "content": "AAA", "scope": "project", "project_id": project.id},
+        json={"title": "Aturan Proyek A", "content": "AAA", "scope": "project", "project_id": project.id},
     )
     await client.post(
         "/api/v1/agent-rules",
-        json={"title": "全局规则A", "content": "GGG"},
+        json={"title": "Aturan Global A", "content": "GGG"},
     )
     await client.post(
         "/api/v1/agent-rules",
-        json={"title": "项目规则B", "content": "BBB", "scope": "project", "project_id": project.id},
+        json={"title": "Aturan Proyek B", "content": "BBB", "scope": "project", "project_id": project.id},
     )
 
     rules = await agent_rule_service.list_all_rules(session, project_id=project.id)

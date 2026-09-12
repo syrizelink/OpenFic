@@ -1,7 +1,7 @@
 /**
  * Advanced Params Section Component
  *
- * 模型高级参数面板，包含温度、Top-P、Top-K 等参数。
+ * Panel parameter lanjutan model, memuat parameter temperature, Top-P, Top-K, dll.
  */
 
 import { Box, Button, Flex, Grid, Text, Tooltip } from "@radix-ui/themes";
@@ -18,7 +18,7 @@ interface AdvancedParamsSectionProps<T extends FieldValues> {
   modelId?: string;
 }
 
-// 参数配置
+// Konfigurasi parameter
 const PARAM_CONFIGS = [
   {
     name: "temperature",
@@ -111,7 +111,7 @@ export function AdvancedParamsSection<T extends FieldValues>({
 
   return (
     <>
-      {/* 展开/折叠按钮 */}
+      {/* Tombol bentang/lipat */}
       <Button
         type="button"
         variant="soft"
@@ -163,7 +163,7 @@ export function AdvancedParamsSection<T extends FieldValues>({
         </Flex>
       </Button>
 
-      {/* 参数面板 */}
+      {/* Panel parameter */}
       <AnimatePresence>
         {showAdvanced && (
           <motion.div

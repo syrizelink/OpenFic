@@ -1,7 +1,7 @@
 /**
  * Model Selector Dialog
  *
- * 模型选择器对话框，用于从提供商的模型列表中选择模型。
+ * Dialog pemilih model, dipakai untuk memilih model dari daftar model sebuah penyedia.
  */
 
 import { Dialog, Flex, Button, Text, TextField, Box } from "@radix-ui/themes";
@@ -33,7 +33,7 @@ export function ModelSelectorDialog({
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 过滤模型
+  // Menyaring model
   const filteredModels = useMemo(() => {
     if (!searchQuery.trim()) return models;
 
@@ -43,7 +43,7 @@ export function ModelSelectorDialog({
     );
   }, [models, searchQuery]);
 
-  // 选择模型
+  // Memilih model
   const handleSelect = useCallback(
     (model: AvailableModel) => {
       onSelect(model);
@@ -52,7 +52,7 @@ export function ModelSelectorDialog({
     [onSelect],
   );
 
-  // 处理对话框关闭
+  // Menangani penutupan dialog
   const handleOpenChange = useCallback(
     (newOpen: boolean) => {
       if (!newOpen) {
@@ -76,7 +76,7 @@ export function ModelSelectorDialog({
           gap="4"
           mt="4"
         >
-          {/* 搜索框 */}
+          {/* Kotak pencarian */}
           <TextField.Root
             placeholder={t("models.searchModel")}
             value={searchQuery}
@@ -87,7 +87,7 @@ export function ModelSelectorDialog({
             </TextField.Slot>
           </TextField.Root>
 
-          {/* 模型列表 */}
+          {/* Daftar model */}
           <Box
             style={{
               maxHeight: 400,
@@ -164,7 +164,7 @@ export function ModelSelectorDialog({
             )}
           </Box>
 
-          {/* 关闭按钮 */}
+          {/* Tombol tutup */}
           <Flex justify="end">
             <Dialog.Close>
               <Button

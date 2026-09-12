@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Settings API 测试。
+Uji API Settings.
 """
 
 import pytest
@@ -76,11 +76,11 @@ def _expected_agent_tool_permissions(**mode_overrides: str) -> list[dict[str, st
 
 @pytest.mark.asyncio
 async def test_get_settings_default(client: AsyncClient) -> None:
-    """测试获取默认设置。"""
+    """Uji pengambilan pengaturan bawaan."""
     response = await client.get("/api/v1/settings")
     assert response.status_code == 200
     data = response.json()
-    # 验证默认值
+    # Verifikasi nilai bawaan
     assert data["language"] == "id"
     assert data["theme"] == "light"
     assert data["font_family"] == "system-ui"
@@ -109,7 +109,7 @@ async def test_get_settings_default(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_update_settings_language(client: AsyncClient) -> None:
-    """测试更新语言设置。"""
+    """Uji pembaruan pengaturan bahasa."""
     response = await client.put(
         "/api/v1/settings",
         json={"language": "en"},
@@ -117,14 +117,14 @@ async def test_update_settings_language(client: AsyncClient) -> None:
     assert response.status_code == 200
     data = response.json()
     assert data["language"] == "en"
-    # 其他设置保持默认值
+    # Pengaturan lain tetap pada nilai bawaan
     assert data["theme"] == "light"
     assert data["font_family"] == "system-ui"
 
 
 @pytest.mark.asyncio
 async def test_update_settings_theme(client: AsyncClient) -> None:
-    """测试更新主题设置。"""
+    """Uji pembaruan pengaturan tema."""
     response = await client.put(
         "/api/v1/settings",
         json={"theme": "dark"},
@@ -136,7 +136,7 @@ async def test_update_settings_theme(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_update_settings_font(client: AsyncClient) -> None:
-    """测试更新字体设置。"""
+    """Uji pembaruan pengaturan font."""
     response = await client.put(
         "/api/v1/settings",
         json={"font_family": "Noto Sans SC Variable"},
@@ -148,7 +148,7 @@ async def test_update_settings_font(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_update_settings_base_font_size(client: AsyncClient) -> None:
-    """测试更新基础字号设置。"""
+    """Uji pembaruan pengaturan ukuran font dasar."""
     response = await client.put(
         "/api/v1/settings",
         json={"base_font_size": 16},
@@ -160,7 +160,7 @@ async def test_update_settings_base_font_size(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_update_settings_editor_font_size(client: AsyncClient) -> None:
-    """测试更新编辑器字号设置。"""
+    """Uji pembaruan pengaturan ukuran font editor."""
     response = await client.put(
         "/api/v1/settings",
         json={"editor_font_size": 18},
@@ -172,7 +172,7 @@ async def test_update_settings_editor_font_size(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_update_settings_multiple(client: AsyncClient) -> None:
-    """测试同时更新多个设置。"""
+    """Uji pembaruan beberapa pengaturan sekaligus."""
     response = await client.put(
         "/api/v1/settings",
         json={
@@ -190,14 +190,14 @@ async def test_update_settings_multiple(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_update_settings_persistence(client: AsyncClient) -> None:
-    """测试设置持久化。"""
-    # 更新设置
+    """Uji persistensi pengaturan."""
+    # Perbarui pengaturan
     await client.put(
         "/api/v1/settings",
         json={"language": "en", "theme": "dark"},
     )
 
-    # 再次获取，验证持久化
+    # Ambil ulang untuk memverifikasi persistensi
     response = await client.get("/api/v1/settings")
     assert response.status_code == 200
     data = response.json()
@@ -207,30 +207,30 @@ async def test_update_settings_persistence(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_update_settings_partial(client: AsyncClient) -> None:
-    """测试部分更新设置（只更新部分字段）。"""
-    # 先设置初始值
+    """Uji pembaruan sebagian pengaturan (hanya sebagian field)."""
+    # Tetapkan nilai awal terlebih dahulu
     await client.put(
         "/api/v1/settings",
         json={"language": "en", "theme": "dark", "font_family": "Noto Sans SC Variable"},
     )
 
-    # 只更新语言
+    # Perbarui hanya bahasa
     response = await client.put(
         "/api/v1/settings",
         json={"language": "zh-CN"},
     )
     assert response.status_code == 200
     data = response.json()
-    # 语言被更新
+    # Bahasa diperbarui
     assert data["language"] == "zh-CN"
-    # 其他设置保持不变
+    # Pengaturan lain tidak berubah
     assert data["theme"] == "dark"
     assert data["font_family"] == "Noto Sans SC Variable"
 
 
 @pytest.mark.asyncio
 async def test_update_settings_default_model(client: AsyncClient) -> None:
-    """测试更新默认模型设置。"""
+    """Uji pembaruan pengaturan model bawaan."""
     response = await client.put(
         "/api/v1/settings",
         json={"default_model": "model-123"},
@@ -243,7 +243,7 @@ async def test_update_settings_default_model(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_update_settings_light_model(client: AsyncClient) -> None:
-    """测试更新轻量模型设置。"""
+    """Uji pembaruan pengaturan model ringan."""
     response = await client.put(
         "/api/v1/settings",
         json={"light_model": "model-456"},
@@ -255,7 +255,7 @@ async def test_update_settings_light_model(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_update_settings_model_persistence(client: AsyncClient) -> None:
-    """测试模型设置持久化。"""
+    """Uji persistensi pengaturan model."""
     await client.put(
         "/api/v1/settings",
         json={"default_model": "model-123", "light_model": "model-456"},
@@ -286,7 +286,7 @@ async def test_patch_settings_default_embedding_model(client: AsyncClient) -> No
 
 @pytest.mark.asyncio
 async def test_update_rerank_settings_persistence(client: AsyncClient) -> None:
-    """rerank 开关与模型选择应可持久化。"""
+    """Sakelar rerank dan pemilihan model harus dapat dipersistensi."""
     response = await client.put(
         "/api/v1/settings",
         json={"index_rerank_enabled": True, "default_rerank_model": "rerank-1"},
@@ -371,7 +371,7 @@ async def test_changing_default_embedding_model_marks_retrieval_indexes_for_rebu
 
 @pytest.mark.asyncio
 async def test_update_settings_agent_bypass_tool_approval(client: AsyncClient) -> None:
-    """测试更新工具审批放行设置。"""
+    """Uji pembaruan pengaturan pelolosan persetujuan tool."""
     response = await client.put(
         "/api/v1/settings",
         json={"agent_bypass_tool_approval": True},
@@ -388,7 +388,7 @@ async def test_update_settings_agent_bypass_tool_approval(client: AsyncClient) -
 
 @pytest.mark.asyncio
 async def test_update_settings_audit_persist_details(client: AsyncClient) -> None:
-    """审计详情记录开关应可持久化。"""
+    """Sakelar pencatatan detail audit harus dapat dipersistensi."""
     response = await client.put(
         "/api/v1/settings",
         json={"audit_persist_details": False},
@@ -409,7 +409,7 @@ async def test_update_settings_audit_persist_details(client: AsyncClient) -> Non
 
 @pytest.mark.asyncio
 async def test_update_settings_editor_auto_indent(client: AsyncClient) -> None:
-    """编辑器段落自动缩进开关应可持久化。"""
+    """Sakelar indentasi otomatis paragraf editor harus dapat dipersistensi."""
     response = await client.put(
         "/api/v1/settings",
         json={"editor_auto_indent": False},
@@ -425,7 +425,7 @@ async def test_update_settings_editor_auto_indent(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_update_settings_editor_auto_convert_punctuation(client: AsyncClient) -> None:
-    """编辑器自动转换半角符号开关应可持久化。"""
+    """Sakelar konversi otomatis simbol halfwidth pada editor harus dapat dipersistensi."""
     response = await client.put(
         "/api/v1/settings",
         json={"editor_auto_convert_punctuation": True},
@@ -441,7 +441,7 @@ async def test_update_settings_editor_auto_convert_punctuation(client: AsyncClie
 
 @pytest.mark.asyncio
 async def test_update_settings_editor_auto_pair_symbols(client: AsyncClient) -> None:
-    """编辑器成对符号自动补齐开关应可持久化。"""
+    """Sakelar pelengkapan otomatis simbol berpasangan pada editor harus dapat dipersistensi."""
     response = await client.put(
         "/api/v1/settings",
         json={"editor_auto_pair_symbols": True},
@@ -457,7 +457,7 @@ async def test_update_settings_editor_auto_pair_symbols(client: AsyncClient) -> 
 
 @pytest.mark.asyncio
 async def test_update_settings_editor_show_line_numbers(client: AsyncClient) -> None:
-    """编辑器行号显示开关应可持久化。"""
+    """Sakelar tampilan nomor baris editor harus dapat dipersistensi."""
     response = await client.put(
         "/api/v1/settings",
         json={"editor_show_line_numbers": True},
@@ -473,7 +473,7 @@ async def test_update_settings_editor_show_line_numbers(client: AsyncClient) -> 
 
 @pytest.mark.asyncio
 async def test_update_settings_compress_system_prompts(client: AsyncClient) -> None:
-    """压缩系统提示词开关应可持久化。"""
+    """Sakelar kompaksi prompt sistem harus dapat dipersistensi."""
     response = await client.put(
         "/api/v1/settings",
         json={"compress_system_prompts": False},
@@ -503,7 +503,7 @@ async def test_audit_persistence_memory_state_does_not_change_when_settings_writ
     client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """设置写入失败时，内存中的审计开关必须保持原值。"""
+    """Saat penulisan pengaturan gagal, sakelar audit di memori harus tetap pada nilai semula."""
     audit_queue.set_persist_details(True)
 
     async def fail_bulk_upsert(*_args, **_kwargs):
@@ -525,18 +525,18 @@ async def test_audit_details_storage_and_clear_preserve_metrics(
     client: AsyncClient,
     session: AsyncSession,
 ) -> None:
-    """清空详情不应删除调用统计，并应返回 UTF-8 字节占用。"""
+    """Menghapus detail tidak boleh menghapus statistik pemanggilan dan harus mengembalikan penggunaan byte UTF-8."""
     audit_log = LLMAuditLog(
         id="audit-detail-1",
         project_id="project-1",
         operation="writer",
         model_id="model-1",
         status="success",
-        request_messages='[{"content":"输入"}]',
+        request_messages='[{"content":"Masukan"}]',
         tool_references='[{"name":"tool"}]',
-        response_content="输出",
+        response_content="Keluaran",
         response_tool_calls='[{"name":"tool"}]',
-        tool_call_results='[{"result":"完成"}]',
+        tool_call_results='[{"result":"Selesai"}]',
         extra_data='{"source":"test"}',
         tokens_total=42,
         latency_ms=120,
@@ -584,7 +584,7 @@ async def test_audit_details_storage_and_clear_preserve_metrics(
 
 @pytest.mark.asyncio
 async def test_update_settings_agent_tool_permissions(client: AsyncClient) -> None:
-    """测试更新 Agent 工具权限设置。"""
+    """Uji pembaruan pengaturan izin tool Agent."""
     response = await client.put(
         "/api/v1/settings",
         json={
@@ -606,7 +606,7 @@ async def test_update_settings_agent_tool_permissions(client: AsyncClient) -> No
 async def test_get_settings_does_not_lazy_persist_agent_tool_permissions(
     client: AsyncClient, session
 ) -> None:
-    """首次读取设置只返回默认值，不应懒写入数据库。"""
+    """Pembacaan pengaturan pertama hanya mengembalikan nilai bawaan dan tidak boleh menulis lazily ke basis data."""
     response = await client.get("/api/v1/settings")
 
     assert response.status_code == 200

@@ -22,11 +22,11 @@ def _valid_input() -> dict:
     return {
         "questions": [
             {
-                "title": "风格选择",
-                "description": "你希望用什么风格？",
+                "title": "Pilihan gaya",
+                "description": "Gaya seperti apa yang Anda inginkan?",
                 "options": [
-                    {"label": "正式", "description": "正式严肃的风格"},
-                    {"label": "轻松", "description": "轻松幽默的风格"},
+                    {"label": "Formal", "description": "Gaya formal dan serius"},
+                    {"label": "Santai", "description": "Gaya santai dan humoris"},
                 ],
             }
         ]
@@ -42,7 +42,7 @@ class TestAskUser:
         with patch("app.agent_runtime.tools.impls.interaction.ask_user.interrupt") as mock_interrupt:
             result = await tool.ainvoke({"questions": []})
 
-        assert "参数校验失败" in result
+        assert "Validasi parameter gagal" in result
         mock_interrupt.assert_not_called()
 
     async def test_ask_user_triggers_interrupt(self):
@@ -70,7 +70,7 @@ class TestAskUser:
         interrupt_response = {
             "action_type": "clarification",
             "action_id": "question-1",
-            "answer": [{"question": "风格选择", "answer": "正式"}],
+            "answer": [{"question": "Pilihan gaya", "answer": "Formal"}],
         }
 
         with patch("app.agent_runtime.tools.impls.interaction.ask_user.interrupt") as mock_interrupt:
@@ -97,7 +97,7 @@ class TestAskUser:
             "type": "control",
             "success": False,
             "status": "user_skipped",
-            "message": "用户忽略了提问",
+            "message": "Pengguna mengabaikan pertanyaan",
         }
 
     async def test_ask_user_accepts_more_than_five_questions(self):

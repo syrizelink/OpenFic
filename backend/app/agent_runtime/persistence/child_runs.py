@@ -199,7 +199,7 @@ async def list_child_runs_for_parents(
     session: AsyncSession,
     parent_session_ids: Sequence[str],
 ) -> list[AgentChildRun]:
-    """批量读取多个父 session 的直接 child run。"""
+    """Membaca child run langsung dari beberapa session induk secara massal."""
     normalized_ids = list(dict.fromkeys(session_id for session_id in parent_session_ids if session_id))
     if not normalized_ids:
         return []

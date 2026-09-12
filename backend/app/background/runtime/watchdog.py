@@ -43,7 +43,7 @@ class BackgroundWatchdog:
                     session,
                     publisher,
                     job,
-                    reason="后台任务 worker lease 已过期",
+                    reason="Lease worker tugas latar belakang sudah kedaluwarsa",
                 )
             await cleanup_chapter_export_files(session)
             await job_service.commit_and_notify(session)

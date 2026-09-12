@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Chapter Context 模块 - 章节上下文构建与摘要管理。
+Modul Chapter Context - pembangunan konteks bab dan pengelolaan ringkasan.
 """
 
 from app.memory.chapter.context_builder import (

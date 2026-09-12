@@ -49,7 +49,8 @@ async def build_history(
     node_messages: list[dict],
     db_session: AsyncSession | None = None,
 ) -> list[ContextMessage]:
-    """构建 p6 History 上下文片段，只保留真实对话消息。"""
+    """Membangun potongan konteks p6 History, hanya menyimpan pesan percakapan
+    yang sebenarnya."""
     result: list[ContextMessage] = []
     for raw in node_messages:
         if not _is_context_history_message(raw):

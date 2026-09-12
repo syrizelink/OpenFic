@@ -1,4 +1,4 @@
-"""Exa API provider（官方 SDK）。"""
+"""Provider Exa API (SDK resmi)."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ class ExaProvider(WebSearchProvider):
         config: WebSearchProviderConfig,
     ) -> WebSearchResponse:
         if not config.api_key:
-            raise ToolExecutionError("Exa 未配置 API Key")
+            raise ToolExecutionError("API Key Exa belum dikonfigurasi")
 
         client = AsyncExa(api_key=config.api_key)
         http_client = None
@@ -48,7 +48,7 @@ class ExaProvider(WebSearchProvider):
                 },
             )
         except Exception as exc:
-            raise ToolExecutionError(f"Exa 搜索失败: {exc}") from exc
+            raise ToolExecutionError(f"Pencarian Exa gagal: {exc}") from exc
         finally:
             if http_client is not None:
                 await http_client.aclose()

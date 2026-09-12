@@ -3,7 +3,7 @@ import i18n from "@/i18n";
 /**
  * Agent Definition Types
  *
- * 智能体定义前端类型，对齐后端 /agent-definitions API。
+ * Tipe frontend definisi agen, sejalan dengan API /agent-definitions di backend.
  */
 
 export interface AgentDefinitionResponse {
@@ -84,4 +84,16 @@ export function getAgentKindOptions(): Array<{ value: "primary" | "subagent"; la
 
 export function getAgentKindLabel(kind: string): string {
   return i18n.t(AGENT_KIND_LABEL_KEYS[kind] ?? kind, { defaultValue: kind });
+}
+
+/**
+ * Mengambil label kategori alat sesuai bahasa antarmuka.
+ *
+ * Backend tetap mengirimkan `name` sebagai cadangan, jadi kunci kategori yang
+ * belum punya terjemahan akan jatuh ke nilai dari API.
+ */
+export function getToolCategoryLabel(category: AgentToolCategoryResponse): string {
+  return i18n.t(`settings.agentsToolCategoryLabels.${category.key}`, {
+    defaultValue: category.name || category.key,
+  });
 }

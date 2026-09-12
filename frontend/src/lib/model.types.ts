@@ -1,16 +1,16 @@
 /**
  * Model and Provider Types
  *
- * 模型和提供商相关类型定义。
+ * Definisi tipe terkait model dan penyedia.
  */
 
-/** 提供商类型，目录提供商标识由 models.dev 动态提供。 */
+/** Jenis penyedia; pengenal penyedia katalog disediakan secara dinamis oleh models.dev. */
 export type ProviderType = string;
 
-/** 任务类型 */
+/** Jenis tugas */
 export type TaskType = "llm" | "embedding" | "rerank";
 
-/** 模型服务提供商 */
+/** Penyedia layanan model */
 export interface ModelProvider {
   id: string;
   name: string;
@@ -37,7 +37,7 @@ export interface ModelProviderCatalogMatch {
   matchedVia: CatalogMatchSource;
 }
 
-/** 模型服务提供商响应（后端格式） */
+/** Respons penyedia layanan model (format backend) */
 export interface ModelProviderResponse {
   id: string;
   name: string;
@@ -60,10 +60,10 @@ export interface ModelProviderResponse {
   updated_at: string;
 }
 
-/** 创建/更新提供商请求 (FormData) */
+/** Permintaan pembuatan/pembaruan penyedia (FormData) */
 export type ModelProviderFormData = FormData;
 
-/** 验证提供商请求 */
+/** Permintaan validasi penyedia */
 export interface ModelProviderValidateRequest {
   provider_type: string;
   url: string;
@@ -76,7 +76,7 @@ export interface ModelProviderCustomHeader {
   value: string;
 }
 
-/** 可用模型 */
+/** Model yang tersedia */
 export interface AvailableModel {
   id: string;
   name: string;
@@ -95,14 +95,14 @@ export interface AvailableModel {
   source?: "catalog" | "remote";
 }
 
-/** 验证提供商响应 */
+/** Respons validasi penyedia */
 export interface ModelProviderValidateResponse {
   success: boolean;
   message: string;
   models: AvailableModel[];
 }
 
-/** 模型 */
+/** Model */
 export interface Model {
   id: string;
   name: string;
@@ -130,7 +130,7 @@ export interface Model {
   updatedAt: string;
 }
 
-/** 模型响应（后端格式） */
+/** Respons model (format backend) */
 export interface ModelResponse {
   id: string;
   name: string;
@@ -158,7 +158,7 @@ export interface ModelResponse {
   updated_at: string;
 }
 
-/** 创建模型请求 */
+/** Permintaan pembuatan model */
 export interface ModelCreateRequest {
   name: string;
   provider_id: string;
@@ -182,7 +182,7 @@ export interface ModelCreateRequest {
   dimensions?: number | null;
 }
 
-/** 更新模型请求 */
+/** Permintaan pembaruan model */
 export interface ModelUpdateRequest {
   name?: string;
   remark?: string;

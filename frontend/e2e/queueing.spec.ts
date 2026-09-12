@@ -11,18 +11,18 @@ import {
   waitForRunningState,
 } from "./helpers";
 
-test.describe("消息排队", () => {
-  test("运行中发送新消息进入排队并在首条完成后继续", async ({ page }) => {
+test.describe("Antrean pesan", () => {
+  test("pesan baru yang dikirim saat berjalan masuk antrean dan berlanjut setelah pesan pertama selesai", async ({ page }) => {
     await openProject(page, EMPTY_PROJECT_URL);
     await startNewTask(page);
 
     await sendMessage(
       page,
-      `请分三步执行：第一步，创建一个名为「排队测试${Date.now().toString(36)}」的章节。第二步，写入 50 字内容。第三步，完成前不要提前回复总结。`,
+      `Kerjakan dalam tiga langkah: pertama, buat sebuah bab bernama 'Uji antrean${Date.now().toString(36)}'. Kedua, tulis 50 kata isi. Ketiga, jangan membalas ringkasan lebih awal sebelum selesai.`,
     );
     await waitForRunningState(page);
 
-    await typeMessage(page, "第一条完成后请回复「第二条已处理」，不要执行其他工具。");
+    await typeMessage(page, "Setelah pesan pertama selesai, balas dengan 'Pesan kedua telah diproses', jangan jalankan alat lain.");
 
     const messageResponse = page.waitForResponse(
       (response) =>
@@ -37,6 +37,6 @@ test.describe("消息排队", () => {
     const body = (await response.json()) as { queued?: boolean };
     expect(body.queued).toBe(true);
 
-    await approveUntilReply(page, "第二条已处理", 480000);
+    await approveUntilReply(page, "Pesan kedua telah diproses", 480000);
   });
 });

@@ -36,26 +36,29 @@ from app.storage.services.version_control_service import refresh_project_stats
 def count_words(text: str) -> int:
     if not text:
         return 0
-    chinese_chars = re.findall(r"[一-鿿]", text)
-    text_without_chinese = re.sub(r"[一-鿿]", " ", text)
+    chinese_chars = re.findall(r"[\u4e00-\u9fff]", text)
+    text_without_chinese = re.sub(r"[\u4e00-\u9fff]", " ", text)
     english_words = [w for w in text_without_chinese.split() if w.strip()]
     return len(chinese_chars) + len(english_words)
 
 
 class WriteChapterInput(BaseModel):
-    volume_ref: VolumeRef = Field(description="目标卷")
-    title: str = Field(description="标题")
-    content: str = Field(description="正文内容")
+    volume_ref: VolumeRef = Field(description="Volume sasaran")
+    title: str = Field(description="Judul")
+    content: str = Field(description="Isi utama")
     chapter_ref: ChapterRef | None = Field(
         default=None,
-        description="插入位置，可选；传入时章节会被插入到指定章节之前，否则会被追加到卷末",
+        description=(
+            "Posisi penyisipan, opsional; bila diberikan, bab akan disisipkan sebelum "
+            "bab yang ditentukan, jika tidak bab akan ditambahkan di akhir volume"
+        ),
     )
 
 
 @ToolRegistry.register
 class WriteChapterTool(AgentTool):
     name: str = "write_chapter"
-    description: str = "创建一个新章节"
+    description: str = "Membuat satu bab baru"
     access_level: str = "write"
     args_schema: type[BaseModel] = WriteChapterInput
 
@@ -95,7 +98,9 @@ class WriteChapterTool(AgentTool):
     ) -> str:
         revision_id = current_revision_id_from_state(self._state)
         if revision_id is None:
-            raise ToolExecutionError("缺少当前 revision，无法执行章节写入")
+            raise ToolExecutionError(
+                "revision saat ini tidak ada, penulisan bab tidak dapat dijalankan"
+            )
         try:
             validate_editor_content(content)
         except EditorContentLimitError as exc:
@@ -178,7 +183,9 @@ class WriteChapterTool(AgentTool):
                 from app.retrieval.chapter_index import safe_maybe_enqueue_auto_index
                 from app.retrieval.index_status import schedule_emit_index_status
 
-                await safe_maybe_enqueue_auto_index(session, project_id=self.project_id)
+                await safe_maybe_enqueue_auto_index(
+                    session, project_id=self.project_id
+                )
                 schedule_emit_index_status(session, self.project_id)
                 await background_service.commit_and_notify(session)
                 chapter_diff = build_chapter_diff_preview(

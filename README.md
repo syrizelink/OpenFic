@@ -6,7 +6,7 @@
 
 ![OpenFic Banner](./banner.svg)
 
-Bahasa Indonesia | [English](./README_EN.md) | [中文](./README_ZH.md)
+Bahasa Indonesia | [English](./README_EN.md) | [Mandarin](./README_ZH.md)
 
 **OpenficID** adalah fork dari [OpenFic](https://github.com/syrizelink/OpenFic) yang dilokalkan ke Bahasa Indonesia. Ini adalah alat Vibe Writing lintas platform, ramah pengguna, dan AI Native untuk penulisan novel: bangun latar dunia, rancang karakter, atur alur kerja sendiri, dan buat Agent menyesuaikan diri dengan proses menulis Anda, bukan sebaliknya.
 
@@ -15,7 +15,7 @@ Bahasa Indonesia | [English](./README_EN.md) | [中文](./README_ZH.md)
 ## Perbedaan dengan repo asal
 
 - Antarmuka Bahasa Indonesia penuh: 1994 string frontend dan 210 string desktop diterjemahkan
-- Bahasa default aplikasi adalah `id`, dengan English dan 简体中文 tetap tersedia sebagai opsi
+- Bahasa default aplikasi adalah `id`, dengan English dan Mandarin Sederhana tetap tersedia sebagai opsi
 - Format waktu relatif memakai locale Indonesia dari date-fns
 - Pengaturan bahasa default di backend juga mengikuti `id`
 

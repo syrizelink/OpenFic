@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-PromptEntry Repository - 提示词条目数据访问层。
+PromptEntry Repository - lapisan akses data entri prompt.
 """
 
 from sqlalchemy import delete, select
@@ -11,7 +11,7 @@ from app.storage.models.prompt_entry import PromptEntry
 
 
 async def create(session: AsyncSession, entry: PromptEntry) -> PromptEntry:
-    """创建提示词条目。"""
+    """Membuat entri prompt."""
     session.add(entry)
     await session.flush()
     await session.refresh(entry)
@@ -21,7 +21,7 @@ async def create(session: AsyncSession, entry: PromptEntry) -> PromptEntry:
 async def create_many(
     session: AsyncSession, entries: list[PromptEntry]
 ) -> list[PromptEntry]:
-    """批量创建提示词条目。"""
+    """Membuat entri prompt secara massal."""
     session.add_all(entries)
     await session.flush()
     for entry in entries:
@@ -30,7 +30,7 @@ async def create_many(
 
 
 async def get_by_id(session: AsyncSession, entry_id: str) -> PromptEntry | None:
-    """根据ID获取提示词条目。"""
+    """Mengambil entri prompt berdasarkan ID."""
     result = await session.execute(
         select(PromptEntry).where(col(PromptEntry.id) == entry_id)
     )
@@ -40,7 +40,7 @@ async def get_by_id(session: AsyncSession, entry_id: str) -> PromptEntry | None:
 async def list_by_version(
     session: AsyncSession, version_id: str, enabled_only: bool = False
 ) -> list[PromptEntry]:
-    """获取某个版本的所有提示词条目。"""
+    """Mengambil semua entri prompt dari sebuah versi."""
     query = select(PromptEntry).where(col(PromptEntry.version_id) == version_id)
     if enabled_only:
         query = query.where(col(PromptEntry.is_enabled))
@@ -55,7 +55,7 @@ async def list_by_version(
 
 
 async def update(session: AsyncSession, entry: PromptEntry) -> PromptEntry:
-    """更新提示词条目。"""
+    """Memperbarui entri prompt."""
     session.add(entry)
     await session.flush()
     await session.refresh(entry)
@@ -63,7 +63,7 @@ async def update(session: AsyncSession, entry: PromptEntry) -> PromptEntry:
 
 
 async def delete_by_id(session: AsyncSession, entry_id: str) -> bool:
-    """删除提示词条目。"""
+    """Menghapus entri prompt."""
     entry = await get_by_id(session, entry_id)
     if entry:
         await session.delete(entry)
@@ -73,7 +73,7 @@ async def delete_by_id(session: AsyncSession, entry_id: str) -> bool:
 
 
 async def delete_by_version(session: AsyncSession, version_id: str) -> None:
-    """删除某个版本的所有提示词条目。"""
+    """Menghapus semua entri prompt dari sebuah versi."""
     await session.execute(
         delete(PromptEntry).where(col(PromptEntry.version_id) == version_id)
     )

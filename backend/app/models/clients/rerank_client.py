@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Rerank Client - Rerank 模型调用客户端。
+Rerank Client - klien pemanggilan model rerank.
 """
 
 import math
@@ -35,7 +35,7 @@ SUPPORTED_RERANK_PROVIDERS = {
 
 @dataclass
 class RerankConfig:
-    """Rerank 调用配置。"""
+    """Konfigurasi pemanggilan rerank."""
 
     provider_type: str
     base_url: str
@@ -48,7 +48,7 @@ class RerankConfig:
 
 @dataclass
 class RerankItem:
-    """单条 Rerank 结果。"""
+    """Satu hasil rerank."""
 
     index: int
     relevance_score: float
@@ -56,7 +56,7 @@ class RerankItem:
 
 @dataclass
 class RerankResponse:
-    """Rerank 响应。"""
+    """Respons rerank."""
 
     results: list[RerankItem]
     model: str | None = None
@@ -64,7 +64,7 @@ class RerankResponse:
 
 
 class RerankClient:
-    """Rerank 客户端，使用 OpenAI-compatible 风格 HTTP 接口。"""
+    """Klien rerank, memakai antarmuka HTTP bergaya OpenAI-compatible."""
 
     def __init__(self, config: RerankConfig):
         self.runtime_provider_type = (
@@ -153,12 +153,12 @@ class RerankClient:
     async def _rerank_builtin(
         self, query: str, documents: list[str], top_n: int | None
     ) -> RerankResponse:
-        """使用 fastembed 本地重排模型计算相关性分数。"""
+        """Menghitung skor relevansi memakai model rerank lokal fastembed."""
         try:
             from fastembed.rerank.cross_encoder import TextCrossEncoder
         except ModuleNotFoundError as exc:
             raise ImportError(
-                "fastembed 未安装。请运行 uv sync 安装依赖。"
+                "fastembed belum terpasang. Jalankan uv sync untuk memasang dependensi."
             ) from exc
 
         from app.models.clients.fastembed_embeddings import _load_fastembed_model

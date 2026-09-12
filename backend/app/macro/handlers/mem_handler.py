@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Mem Handler - 记忆获取宏处理器。
+Mem Handler - handler makro pengambilan memori.
 
-支持：
-- {{getmem::chapter::latest}} - 获取最新章节原文
-- {{getmem::chapter::far}} - 获取远场章节记忆
-- {{getmem::chapter::middle}} - 获取中场章节记忆
-- {{getmem::chapter::near}} - 获取近场章节记忆
+Mendukung:
+- {{getmem::chapter::latest}} - mengambil isi utama bab terbaru
+- {{getmem::chapter::far}} - mengambil memori bab medan jauh
+- {{getmem::chapter::middle}} - mengambil memori bab medan menengah
+- {{getmem::chapter::near}} - mengambil memori bab medan dekat
 """
 
 from app.macro.handlers.base import MacroHandler, MacroEvaluateError, MacroValidateError
@@ -18,43 +18,49 @@ VALID_CHAPTER_FIELDS = {"far", "middle", "near", "latest"}
 
 
 class GetMemHandler(MacroHandler):
-    """getmem 宏处理器。"""
+    """Handler makro getmem."""
 
     def validate(self, node: MacroNode) -> None:
-        """验证 getmem 宏参数。"""
+        """Memvalidasi argumen makro getmem."""
         if len(node.args) != 2:
             raise MacroValidateError(
-                f"getmem 宏需要 2 个参数（类型、字段），收到 {len(node.args)} 个",
+                f"Makro getmem membutuhkan 2 argumen (tipe, field), menerima"
+                f" {len(node.args)}",
                 node,
             )
 
         for i, arg in enumerate(node.args):
             if arg.type != TokenType.IDENTIFIER:
                 raise MacroValidateError(
-                    f"getmem 第 {i + 1} 个参数必须是 identifier，收到 {arg.type.value}",
+                    f"Argumen ke-{i + 1} getmem harus berupa identifier,"
+                    f" menerima {arg.type.value}",
                     node,
                 )
 
         level1 = node.args[0].value
         if level1 not in VALID_LEVEL1:
             raise MacroValidateError(
-                f"getmem 第一级参数必须是 {VALID_LEVEL1}，收到 {level1}",
+                f"Argumen tingkat pertama getmem harus salah satu dari {VALID_LEVEL1},"
+                f" menerima {level1}",
                 node,
             )
 
         level2 = node.args[1].value
         if level1 == "chapter" and level2 not in VALID_CHAPTER_FIELDS:
             raise MacroValidateError(
-                f"getmem::chapter 第二级参数必须是 {VALID_CHAPTER_FIELDS}，收到 {level2}",
+                f"Argumen tingkat kedua getmem::chapter harus salah satu dari"
+                f" {VALID_CHAPTER_FIELDS}, menerima {level2}",
                 node,
             )
 
     def evaluate(self, node: MacroNode, context: MacroContext) -> str:
-        """求值 getmem 宏。"""
+        """Mengevaluasi makro getmem."""
         self.validate(node)
 
         if context.chapter_context is None:
-            raise MacroEvaluateError("未设置章节上下文，无法获取记忆", node)
+            raise MacroEvaluateError(
+                "Konteks bab belum diatur, memori tidak dapat diambil", node
+            )
 
         level1 = node.args[0].value
         level2 = node.args[1].value
@@ -70,36 +76,41 @@ class GetMemHandler(MacroHandler):
             elif level2 == "near":
                 return chapter_ctx.near_field
 
-        raise MacroEvaluateError(f"未知的记忆路径: {level1}::{level2}", node)
+        raise MacroEvaluateError(f"Jalur memori tidak dikenal: {level1}::{level2}", node)
 
 
 class GetListHandler(MacroHandler):
-    """getlist 宏处理器。"""
+    """Handler makro getlist."""
 
     def validate(self, node: MacroNode) -> None:
-        """验证 getlist 宏参数。"""
+        """Memvalidasi argumen makro getlist."""
         if node.args:
-            raise MacroValidateError("getlist 宏不接受参数", node)
+            raise MacroValidateError("Makro getlist tidak menerima argumen", node)
 
     def evaluate(self, node: MacroNode, context: MacroContext) -> str:
-        """求值 getlist 宏。"""
+        """Mengevaluasi makro getlist."""
         self.validate(node)
         if context.chapter_context is None:
-            raise MacroEvaluateError("未设置章节上下文，无法获取章节列表", node)
+            raise MacroEvaluateError(
+                "Konteks bab belum diatur, daftar bab tidak dapat diambil", node
+            )
         return context.chapter_context.chapter_list_field
 
 
 class GetWorldHandler(MacroHandler):
-    """getworld 宏处理器。"""
+    """Handler makro getworld."""
 
     def validate(self, node: MacroNode) -> None:
-        """验证 getworld 宏参数。"""
+        """Memvalidasi argumen makro getworld."""
         if node.args:
-            raise MacroValidateError("getworld 宏不接受参数", node)
+            raise MacroValidateError("Makro getworld tidak menerima argumen", node)
 
     def evaluate(self, node: MacroNode, context: MacroContext) -> str:
-        """求值 getworld 宏。"""
+        """Mengevaluasi makro getworld."""
         self.validate(node)
         if context.world_context is None:
-            raise MacroEvaluateError("未设置世界书上下文，无法获取世界书内容", node)
+            raise MacroEvaluateError(
+                "Konteks buku dunia belum diatur, isi buku dunia tidak dapat diambil",
+                node,
+            )
         return context.world_context.content

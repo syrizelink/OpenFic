@@ -1,4 +1,4 @@
-"""DB 历史 → ReAct 子图初始 messages。"""
+"""Riwayat DB -> messages awal subgraf ReAct."""
 
 import json
 from typing import Literal, cast
@@ -49,7 +49,8 @@ def _user_additional_kwargs(row: AgentRunMessage) -> dict:
 def _order_tool_results_by_call_order(
     rows: list[AgentRunMessage],
 ) -> list[AgentRunMessage]:
-    """将同一 assistant 消息后的并行工具结果恢复为声明顺序。"""
+    """Memulihkan hasil alat paralel setelah pesan assistant yang sama ke urutan
+    deklarasinya."""
     ordered: list[AgentRunMessage] = []
     index = 0
     while index < len(rows):
@@ -87,13 +88,15 @@ def _order_tool_results_by_call_order(
 
 
 async def load_history(db_session: AsyncSession, session_id: str) -> list[BaseMessage]:
-    """加载 session 历史，转成 LangChain BaseMessage 列表。
+    """Memuat riwayat session dan mengubahnya menjadi daftar LangChain BaseMessage.
 
-    规则：
-    - 跳过 status=pending 的 user
-    - 配对兜底：仅保留 assistant 工具调用及其连续的完整 tool 响应组
-    - reasoning 仅注入最近一条 assistant 的 additional_kwargs["reasoning_content"]
-    - partial / aborted 仍作为合法历史保留
+    Aturan:
+    - Melewati user dengan status=pending
+    - Pemasangan cadangan: hanya menyimpan pemanggilan alat assistant beserta
+      kelompok respons tool lengkap yang berurutan
+    - reasoning hanya disuntikkan ke additional_kwargs["reasoning_content"] pada
+      assistant terakhir
+    - partial / aborted tetap disimpan sebagai riwayat yang sah
     """
     try:
         result = await db_session.execute(

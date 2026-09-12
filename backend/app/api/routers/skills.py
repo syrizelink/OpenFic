@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Skill Router - Skill CRUD API。"""
+"""Skill Router - API CRUD Skill."""
 
 from typing import Annotated
 
@@ -55,7 +55,7 @@ async def create_skill(
 ) -> SkillResponse:
     try:
         await require_agent_settings_unlocked(session)
-        logger.info(f"创建 Skill: name={data.name}")
+        logger.info(f"Membuat Skill: name={data.name}")
         skill = await skill_service.create_skill(
             session,
             name=data.name,
@@ -101,7 +101,7 @@ async def import_skill(
             )
             for f in files
         ]
-        logger.info(f"导入技能: 文件数={len(uploaded)}")
+        logger.info(f"Mengimpor skill: jumlah berkas={len(uploaded)}")
         result = await skill_import_service.import_skill(session, uploaded)
         return SkillImportResponse(
             skill=_to_response(result.skill),
@@ -177,7 +177,7 @@ async def fork_skill(
 ) -> SkillResponse:
     try:
         await require_agent_settings_unlocked(session)
-        logger.info(f"复制 Skill: skill_db_id={skill_db_id}")
+        logger.info(f"Menyalin Skill: skill_db_id={skill_db_id}")
         skill = await skill_service.fork_skill(session, skill_db_id)
         return _to_response(skill)
     except NotFoundError as exc:

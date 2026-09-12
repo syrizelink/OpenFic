@@ -1,4 +1,4 @@
-"""章节 TXT 导出后台任务定义。"""
+"""Definisi tugas latar belakang ekspor TXT bab."""
 
 from typing import Any
 
@@ -45,7 +45,7 @@ class ChapterExportResult(BaseModel):
 
 
 async def handle_chapter_export(context: JobContext) -> dict[str, Any]:
-    """写入章节 TXT 成品。"""
+    """Menulis hasil akhir TXT bab."""
     ChapterExportInput.model_validate(context.input)
     try:
         return await chapter_export_service.write_chapter_export(context)
@@ -55,11 +55,11 @@ async def handle_chapter_export(context: JobContext) -> dict[str, Any]:
         logger.bind(job_id=context.job_id).opt(exception=True).error(
             f"chapter export failed: {exc}"
         )
-        raise RuntimeError("导出文件生成失败，请重试") from exc
+        raise RuntimeError("Pembuatan berkas ekspor gagal, silakan coba lagi") from exc
 
 
 async def cleanup_chapter_export(_context: JobContext, _reason: str) -> None:
-    """取消、失败或超时时删除任务文件。"""
+    """Menghapus berkas tugas saat dibatalkan, gagal, atau melebihi batas waktu."""
     await chapter_export_service._delete_export_files(_context.job_id)
 
 

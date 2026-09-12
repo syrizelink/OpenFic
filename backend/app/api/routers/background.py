@@ -26,7 +26,7 @@ async def get_background_job(
 ) -> BackgroundJobResponse:
     job = await background_service.get_job(session, job_id)
     if job is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="后台任务不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tugas latar belakang tidak ditemukan")
     return _to_job_response(job)
 
 
@@ -61,7 +61,7 @@ async def list_background_job_events(
 ) -> BackgroundJobEventListResponse:
     job = await background_service.get_job(session, job_id)
     if job is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="后台任务不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tugas latar belakang tidak ditemukan")
     events = await background_service.list_job_events(
         session,
         job_id=job_id,
@@ -78,7 +78,7 @@ async def list_background_job_items(
 ) -> BackgroundJobItemListResponse:
     job = await background_service.get_job(session, job_id)
     if job is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="后台任务不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tugas latar belakang tidak ditemukan")
     items = await background_service.list_job_items(session, job_id=job_id)
     return BackgroundJobItemListResponse(items=[_to_item_response(item) for item in items])
 
@@ -91,7 +91,7 @@ async def cancel_background_job(
 ) -> BackgroundJobResponse:
     job = await background_service.get_job(session, job_id)
     if job is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="后台任务不存在")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tugas latar belakang tidak ditemukan")
     job = await background_service.cancel_job(
         session,
         get_background_supervisor().create_event_publisher(),

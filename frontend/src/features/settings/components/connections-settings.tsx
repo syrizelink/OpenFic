@@ -1,7 +1,7 @@
 /**
  * Connections Settings Component
  *
- * 外部连接设置面板，管理模型服务提供商连接。
+ * Panel pengaturan koneksi eksternal, mengelola koneksi penyedia layanan model.
  */
 
 import { Box, Flex, Text, Button, IconButton, Tooltip } from "@radix-ui/themes";
@@ -54,7 +54,7 @@ export function ConnectionsSettings({
     setDeletingConnection(null);
   }, [isAgentSettingsLocked]);
 
-  // 获取所有连接
+  // Mengambil seluruh koneksi
   const {
     data: connections,
     isLoading: isConnectionsLoading,
@@ -74,7 +74,7 @@ export function ConnectionsSettings({
     queryFn: fetchModelProviderCatalogProviders,
   });
 
-  // 创建连接
+  // Membuat koneksi
   const createMutation = useMutation({
     mutationFn: createProvider,
     onSuccess: () => {
@@ -87,7 +87,7 @@ export function ConnectionsSettings({
     },
   });
 
-  // 更新连接
+  // Memperbarui koneksi
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: FormData }) => updateProvider(id, data),
     onSuccess: () => {
@@ -101,7 +101,7 @@ export function ConnectionsSettings({
     },
   });
 
-  // 删除连接
+  // Menghapus koneksi
   const deleteMutation = useMutation({
     mutationFn: deleteProvider,
     onSuccess: () => {
@@ -114,19 +114,19 @@ export function ConnectionsSettings({
     },
   });
 
-  // 打开创建对话框
+  // Membuka dialog pembuatan
   const handleCreate = useCallback(() => {
     setEditingConnection(null);
     setFormOpen(true);
   }, []);
 
-  // 打开编辑对话框
+  // Membuka dialog penyuntingan
   const handleEdit = useCallback((connection: ModelProvider) => {
     setEditingConnection(connection);
     setFormOpen(true);
   }, []);
 
-  // 提交表单
+  // Mengirim formulir
   const handleSubmit = useCallback(
     async (data: FormData) => {
       if (editingConnection) {
@@ -141,12 +141,12 @@ export function ConnectionsSettings({
     [editingConnection, createMutation, updateMutation],
   );
 
-  // 确认删除
+  // Mengonfirmasi penghapusan
   const handleDelete = useCallback((connection: ModelProvider) => {
     setDeletingConnection(connection);
   }, []);
 
-  // 执行删除
+  // Menjalankan penghapusan
   const handleConfirmDelete = useCallback(async () => {
     if (deletingConnection) {
       await deleteMutation.mutateAsync(deletingConnection.id);
@@ -178,7 +178,7 @@ export function ConnectionsSettings({
         direction="column"
         gap="4"
       >
-        {/* 描述 */}
+        {/* Deskripsi */}
         <Text
           size="2"
           color="gray"
@@ -186,7 +186,7 @@ export function ConnectionsSettings({
           {t("connections.description")}
         </Text>
 
-        {/* 新建按钮 */}
+        {/* Tombol buat baru */}
         <Flex>
           <Button
             onClick={handleCreate}
@@ -197,7 +197,7 @@ export function ConnectionsSettings({
           </Button>
         </Flex>
 
-        {/* 连接列表 */}
+        {/* Daftar koneksi */}
         {externalConnections.length > 0 ? (
           <Flex direction="column">
             {externalConnections.map((connection, index) => (
@@ -215,7 +215,7 @@ export function ConnectionsSettings({
                     gap="3"
                     style={{ flex: 1 }}
                   >
-                    {/* 图标 */}
+                    {/* Ikon */}
                     <Box
                       style={{
                         width: 40,
@@ -240,7 +240,7 @@ export function ConnectionsSettings({
                       ) : null}
                     </Box>
 
-                    {/* 信息 */}
+                    {/* Informasi */}
                     <Flex
                       direction="column"
                       gap="1"
@@ -293,7 +293,7 @@ export function ConnectionsSettings({
                     </Flex>
                   </Flex>
 
-                  {/* 操作按钮 */}
+                  {/* Tombol tindakan */}
                   <Flex gap="2">
                     <Tooltip content={t("connections.editConnection")}>
                       <IconButton
@@ -350,7 +350,7 @@ export function ConnectionsSettings({
         )}
       </Flex>
 
-      {/* 表单对话框 */}
+      {/* Dialog formulir */}
       <ConnectionFormDialog
         open={formOpen}
         onOpenChange={setFormOpen}
@@ -362,7 +362,7 @@ export function ConnectionsSettings({
         isAgentSettingsLocked={isAgentSettingsLocked}
       />
 
-      {/* 删除确认对话框 */}
+      {/* Dialog konfirmasi penghapusan */}
       <ConfirmDialog
         open={!!deletingConnection}
         onOpenChange={(open) => !open && setDeletingConnection(null)}

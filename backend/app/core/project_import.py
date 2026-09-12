@@ -28,23 +28,23 @@ SUPPORTED_TEXT_SUFFIXES = frozenset({".txt", ".md"})
 
 
 def get_import_suffix(filename: str) -> str:
-    """返回上传文件的标准化扩展名。"""
+    """Mengembalikan ekstensi ternormalisasi dari berkas yang diunggah."""
     normalized = filename.replace("\\", "/")
     return PurePosixPath(normalized).suffix.lower()
 
 
 def is_supported_import_file(filename: str | None) -> bool:
-    """判断文件是否为支持的项目导入格式。"""
+    """Menentukan apakah berkas berformat impor proyek yang didukung."""
     return bool(filename) and get_import_suffix(filename or "") in SUPPORTED_IMPORT_SUFFIXES
 
 
 def validate_import_options(split_mode: str, chunk_size: int) -> None:
-    """校验导入分割选项。"""
+    """Memvalidasi opsi pemisahan impor."""
     if split_mode not in {"auto", "manual"}:
-        raise ValueError("分割模式无效，仅支持 auto 或 manual")
+        raise ValueError("Mode pemisahan tidak valid, hanya mendukung auto atau manual")
     if not 1 <= chunk_size <= MAX_IMPORT_CHUNK_SIZE:
         raise ValueError(
-            f"每章字数必须在 1 到 {MAX_IMPORT_CHUNK_SIZE} 之间"
+            f"Jumlah kata per bab harus antara 1 sampai {MAX_IMPORT_CHUNK_SIZE}"
         )
 
 
@@ -55,7 +55,7 @@ def parse_project_import(
     split_mode: ImportSplitMode = "auto",
     chunk_size: int = DEFAULT_IMPORT_CHUNK_SIZE,
 ) -> ParseResult:
-    """解析项目导入文件，返回统一的卷章节结构。"""
+    """Memparsing berkas impor proyek, mengembalikan struktur volume-bab yang seragam."""
     validate_import_options(split_mode, chunk_size)
 
     suffix = get_import_suffix(filename)
@@ -65,7 +65,9 @@ def parse_project_import(
         return parse_txt_content(content)
     if suffix == ".zip":
         return _parse_zip_archive(content)
-    raise ValueError("不支持的文件类型，仅支持 .txt、.md 或 .zip 文件")
+    raise ValueError(
+        "Jenis berkas tidak didukung, hanya mendukung berkas .txt, .md, atau .zip"
+    )
 
 
 def _parse_manual_text(content: bytes, chunk_size: int) -> ParseResult:
@@ -76,13 +78,13 @@ def _parse_manual_text(content: bytes, chunk_size: int) -> ParseResult:
     ).split_text(text)
     chapters = [
         ParsedChapter(
-            title=f"第{index}章",
+            title=f"\u7b2c{index}\u7ae0",
             content=chunk,
             word_count=_count_words(chunk),
         )
         for index, chunk in enumerate(chunks, start=1)
     ]
-    volumes = [ParsedVolume(title="第一卷", chapters=chapters)] if chapters else []
+    volumes = [ParsedVolume(title="\u7b2c\u4e00\u5377", chapters=chapters)] if chapters else []
     return ParseResult(
         volumes=volumes,
         total_word_count=sum(chapter.word_count for chapter in chapters),
@@ -104,7 +106,10 @@ def _parse_zip_archive(content: bytes) -> ParseResult:
 
                 total_uncompressed_size += max(info.file_size, 0)
                 if total_uncompressed_size > MAX_IMPORT_FILE_SIZE:
-                    raise ValueError("压缩包解压后的文本总大小超过限制（最大 50MB）")
+                    raise ValueError(
+                        "Total ukuran teks setelah arsip ZIP diekstrak melebihi batas "
+                        "(maksimum 50MB)"
+                    )
 
                 path = _normalize_archive_path(info.filename)
                 suffix = get_import_suffix(path)
@@ -118,9 +123,9 @@ def _parse_zip_archive(content: bytes) -> ParseResult:
                 parent_path = posixpath.dirname(path)
                 volume = volumes_by_path.setdefault(
                     parent_path,
-                    ParsedVolume(title=parent_path or "第一卷"),
+                    ParsedVolume(title=parent_path or "\u7b2c\u4e00\u5377"),
                 )
-                chapter_title = PurePosixPath(path).stem or "正文"
+                chapter_title = PurePosixPath(path).stem or "\u6b63\u6587"
                 chapter_content = text.strip()
                 volume.chapters.append(
                     ParsedChapter(
@@ -130,7 +135,9 @@ def _parse_zip_archive(content: bytes) -> ParseResult:
                     )
                 )
     except (zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError) as exc:
-        raise ValueError("压缩包无法读取，请确认文件没有损坏或加密") from exc
+        raise ValueError(
+            "Arsip ZIP tidak dapat dibaca, pastikan berkas tidak rusak atau terenkripsi"
+        ) from exc
 
     volumes = list(volumes_by_path.values())
     chapters = [chapter for volume in volumes for chapter in volume.chapters]
@@ -147,11 +154,11 @@ def _normalize_archive_path(filename: str) -> str:
     normalized = filename.replace("\\", "/")
     path = PurePosixPath(normalized)
     if path.is_absolute() or ".." in path.parts:
-        raise ValueError("压缩包包含不安全的文件路径")
+        raise ValueError("Arsip ZIP memuat jalur berkas yang tidak aman")
 
     parts = [part for part in path.parts if part not in {"", "."}]
     if not parts:
-        raise ValueError("压缩包包含无效的文件路径")
+        raise ValueError("Arsip ZIP memuat jalur berkas yang tidak valid")
     return "/".join(parts)
 
 

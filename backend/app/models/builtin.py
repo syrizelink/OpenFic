@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Builtin models - 基于 fastembed 的内置向量与重排模型定义。
+Builtin models - definisi model vektor dan rerank bawaan berbasis fastembed.
 
-内置模型使用固定 ID，应用启动时幂等地写入数据库，标记为 is_builtin，
-不可通过 API 删除或编辑。运行时由 fastembed 在本地执行（有 GPU 用 GPU，
-无 CUDA 自动降级到 CPU）。
+Model bawaan memakai ID tetap, ditulis ke basis data secara idempoten saat aplikasi
+start, ditandai sebagai is_builtin, tidak dapat dihapus atau diedit melalui API.
+Saat runtime dijalankan fastembed secara lokal (pakai GPU jika ada, otomatis turun
+ke CPU jika tidak ada CUDA).
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ from app.models.entities.model_provider import ModelProvider
 BUILTIN_PROVIDER_ID = "builtin-local"
 BUILTIN_PROVIDER_TYPE = "builtin"
 BUILTIN_PROVIDER_URL = "builtin://local"
-BUILTIN_PROVIDER_NAME = "内置本地模型"
+BUILTIN_PROVIDER_NAME = "Model Lokal Bawaan"
 
 BUILTIN_EMBEDDING_MODEL_ID = "builtin-embedding-bge-small-zh-v1.5"
 BUILTIN_EMBEDDING_FASTEMBED_NAME = "BAAI/bge-small-zh-v1.5"
@@ -36,7 +37,7 @@ BUILTIN_RERANK_MODEL_NAME = "ms-marco-MiniLM-L-6-v2"
 
 @dataclass(frozen=True)
 class BuiltinModelSpec:
-    """内置模型规格。"""
+    """Spesifikasi model bawaan."""
 
     id: str
     name: str
@@ -72,7 +73,7 @@ def is_builtin_provider(provider: ModelProvider) -> bool:
 
 
 async def seed_builtin_models(session: AsyncSession) -> None:
-    """幂等地写入内置提供商与内置模型。"""
+    """Menulis penyedia bawaan dan model bawaan secara idempoten."""
     provider = await session.execute(
         select(ModelProvider).where(col(ModelProvider.id) == BUILTIN_PROVIDER_ID)
     )

@@ -60,7 +60,7 @@ function formatBytes(bytes: number): string {
 
 function readPythonVersion(pythonPath: string): Promise<string | null> {
   return new Promise((resolve) => {
-    appendLog("runtime", `检查 Python 版本：${pythonPath} --version`);
+    appendLog("runtime", `Memeriksa versi Python: ${pythonPath} --version`);
     const child = spawn(pythonPath, ["--version"], {
       env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
       windowsHide: true,
@@ -75,11 +75,11 @@ function readPythonVersion(pythonPath: string): Promise<string | null> {
     child.stdout.on("data", appendOutput);
     child.stderr.on("data", appendOutput);
     child.on("error", (error) => {
-      appendLog("runtime", `检查 Python 版本失败：${error.message}`);
+      appendLog("runtime", `Gagal memeriksa versi Python: ${error.message}`);
       resolve(null);
     });
     child.on("exit", (code) => {
-      appendLog("runtime", code === 0 ? "检查 Python 版本完成" : `检查 Python 版本失败：退出码 ${code}`);
+      appendLog("runtime", code === 0 ? "Pemeriksaan versi Python selesai" : `Gagal memeriksa versi Python: kode keluar ${code}`);
       resolve(code === 0 ? output.trim() || null : null);
     });
   });
@@ -88,15 +88,15 @@ function readPythonVersion(pythonPath: string): Promise<string | null> {
 export async function inspectPortablePython(runtimeDir: string): Promise<RuntimeIntegrityCheck> {
   const pythonPath = getPortablePythonPath(getPortablePythonRoot(runtimeDir));
   if (!(await pathExists(pythonPath))) {
-    return { complete: false, message: "未找到便携式 Python" };
+    return { complete: false, message: "Python portabel tidak ditemukan" };
   }
 
   const installedVersion = await readPythonVersion(pythonPath);
   if (!installedVersion || !matchesPortablePythonVersion(installedVersion, resolvePythonAsset().version)) {
-    return { complete: false, message: "便携式 Python 不可用或版本不匹配" };
+    return { complete: false, message: "Python portabel tidak tersedia atau versinya tidak cocok" };
   }
 
-  return { complete: true, message: "便携式 Python 已就绪" };
+  return { complete: true, message: "Python portabel siap" };
 }
 
 export async function ensurePortablePython(
@@ -107,14 +107,14 @@ export async function ensurePortablePython(
   const rootDir = getPortablePythonRoot(runtimeDir);
   const pythonPath = getPortablePythonPath(rootDir);
   const asset = resolvePythonAsset();
-  appendLog("runtime", `开始检查便携式 Python：${rootDir}`);
+  appendLog("runtime", `Mulai memeriksa Python portabel: ${rootDir}`);
   if (await pathExists(pythonPath)) {
     const installedVersion = await readPythonVersion(pythonPath);
     if (installedVersion && matchesPortablePythonVersion(installedVersion, asset.version)) {
-      appendLog("runtime", `便携式 Python 已就绪：${installedVersion}`);
+      appendLog("runtime", `Python portabel siap: ${installedVersion}`);
       return { pythonPath, rootDir, wasReplaced: false };
     }
-    appendLog("runtime", "便携式 Python 版本不匹配或不可用，删除现有文件");
+    appendLog("runtime", "Versi Python portabel tidak cocok atau tidak tersedia, menghapus berkas yang ada");
     await rm(rootDir, { recursive: true, force: true });
   }
 
@@ -124,8 +124,8 @@ export async function ensurePortablePython(
   const archivePath = path.join(runtimeDir, `python-${asset.version}-${asset.target}.tar.gz`);
   await mkdir(runtimeDir, { recursive: true });
 
-  onPhase("download", `下载 Python ${asset.version}`);
-  appendLog("runtime", `开始下载 Python ${asset.version}`);
+  onPhase("download", `Mengunduh Python ${asset.version}`);
+  appendLog("runtime", `Mulai mengunduh Python ${asset.version}`);
   await downloadFile(
     asset.urls,
     archivePath,
@@ -133,8 +133,8 @@ export async function ensurePortablePython(
     (message) => appendLog("runtime", message),
   );
 
-  onPhase("extract", "解压 Python");
-  appendLog("runtime", "开始解压 Python");
+  onPhase("extract", "Mengekstrak Python");
+  appendLog("runtime", "Mulai mengekstrak Python");
   await extractTarGz(archivePath, rootDir, (message) => appendLog("runtime", message), undefined, false);
 
   if (!(await pathExists(pythonPath))) {
@@ -143,7 +143,7 @@ export async function ensurePortablePython(
 
   await rm(archivePath, { force: true });
 
-  appendLog("runtime", "便携式 Python 安装完成");
+  appendLog("runtime", "Pemasangan Python portabel selesai");
   return { pythonPath, rootDir, wasReplaced: true };
 }
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Macro Types - 宏类型定义。
+Macro Types - definisi tipe makro.
 """
 
 from dataclasses import dataclass, field
@@ -9,7 +9,7 @@ from typing import Any
 
 
 class TokenType(str, Enum):
-    """宏参数 Token 类型。"""
+    """Tipe Token argumen makro."""
 
     IDENTIFIER = "identifier"
     NUMBER = "number"
@@ -22,12 +22,13 @@ class TokenType(str, Enum):
 @dataclass
 class MacroToken:
     """
-    宏参数 Token。
+    Token argumen makro.
 
     Attributes:
-        type: Token 类型。
-        value: Token 值（根据类型不同，可能是 str、int、tuple[int, int]、list[str]）。
-        raw: 原始文本。
+        type: Tipe Token.
+        value: Nilai Token (tergantung tipenya, bisa berupa str, int,
+            tuple[int, int], atau list[str]).
+        raw: Teks asli.
     """
 
     type: TokenType
@@ -38,14 +39,14 @@ class MacroToken:
 @dataclass
 class MacroNode:
     """
-    宏 AST 节点。
+    Node AST makro.
 
     Attributes:
-        name: 宏名（如 "getmem"、"getworld"）。
-        args: 参数列表。
-        raw: 原始宏文本（包含 {{ }}）。
-        start: 在源文本中的起始位置。
-        end: 在源文本中的结束位置。
+        name: Nama makro (misalnya "getmem", "getworld").
+        args: Daftar argumen.
+        raw: Teks makro asli (termasuk {{ }}).
+        start: Posisi awal di teks sumber.
+        end: Posisi akhir di teks sumber.
     """
 
     name: str
@@ -58,13 +59,13 @@ class MacroNode:
 @dataclass
 class MacroResult:
     """
-    宏求值结果。
+    Hasil evaluasi makro.
 
     Attributes:
-        value: 求值结果（字符串形式）。
-        original: 原始宏文本。
-        start: 在源文本中的起始位置。
-        end: 在源文本中的结束位置。
+        value: Hasil evaluasi (dalam bentuk string).
+        original: Teks makro asli.
+        start: Posisi awal di teks sumber.
+        end: Posisi akhir di teks sumber.
     """
 
     value: str
@@ -76,16 +77,16 @@ class MacroResult:
 @dataclass
 class ChapterContext:
     """
-    章节上下文（用于 getmem 宏）。
+    Konteks bab (dipakai oleh makro getmem).
 
     Attributes:
-        project_id: 项目 ID。
-        chapter_id: 当前章节 ID。
-        latest_field: 最新章节内容。
-        near_field: 近场内容。
-        mid_field: 中场内容。
-        far_field: 远场内容。
-        chapter_list_field: 最新章节列表。
+        project_id: ID proyek.
+        chapter_id: ID bab saat ini.
+        latest_field: Isi bab terbaru.
+        near_field: Isi medan dekat.
+        mid_field: Isi medan menengah.
+        far_field: Isi medan jauh.
+        chapter_list_field: Daftar bab terbaru.
     """
 
     project_id: str
@@ -99,7 +100,7 @@ class ChapterContext:
 
 @dataclass
 class WorldContext:
-    """世界书上下文（用于 getworld 宏）。"""
+    """Konteks buku dunia (dipakai oleh makro getworld)."""
 
     content: str = ""
 
@@ -107,12 +108,12 @@ class WorldContext:
 @dataclass
 class MacroContext:
     """
-    宏求值上下文。
+    Konteks evaluasi makro.
 
     Attributes:
-        variables: 变量字典（if 条件使用）。
-        chapter_context: 章节上下文（getmem 使用）。
-        world_context: 世界书上下文（getworld 使用）。
+        variables: Kamus variabel (dipakai oleh kondisi if).
+        chapter_context: Konteks bab (dipakai oleh getmem).
+        world_context: Konteks buku dunia (dipakai oleh getworld).
     """
 
     variables: dict[str, str | int | bool] = field(default_factory=dict)

@@ -1,7 +1,7 @@
 /**
  * Provider Icons
  *
- * 提供商图标工具。
+ * Alat bantu ikon penyedia.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -12,7 +12,7 @@ import { scheduleProviderIconRequest } from "./provider-icon-request-queue";
 import { getProviderIconUrl } from "./provider-icon-url";
 
 /**
- * 提供商图标组件
+ * Komponen ikon penyedia
  */
 interface ProviderIconProps {
   iconPath?: string | null;

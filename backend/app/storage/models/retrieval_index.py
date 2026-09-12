@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-RetrievalIndex 数据模型。
+Model data RetrievalIndex.
 """
 
 from datetime import UTC, datetime
@@ -11,7 +11,7 @@ from app.core.ids import generate_id
 
 
 class RetrievalIndex(SQLModel, table=True):
-    """检索索引契约模型。"""
+    """Model kontrak indeks pencarian."""
 
     __tablename__ = "retrieval_indexes"
 

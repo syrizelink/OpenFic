@@ -70,7 +70,7 @@ async def test_recycle_subagent_returns_subagent_identity(
     )
 
     result = json.loads(
-        await tool._execute(dispatch_id="dispatch-writer", reason="任务完成")
+        await tool._execute(dispatch_id="dispatch-writer", reason="Tugas selesai")
     )
 
     assert result == {

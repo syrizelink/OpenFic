@@ -105,7 +105,7 @@ class EventTranslator:
                     "type": "ok",
                     "success": True,
                     "reason": "approval_preview",
-                    "message": "需要审批",
+                    "message": "Perlu persetujuan",
                     "tool_call_id": tool_call_id,
                     "tool_name": event.get("name"),
                 }

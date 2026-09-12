@@ -1,7 +1,7 @@
 /**
  * Agent Tools Settings Component
  *
- * Agent 工具权限设置面板。
+ * Panel pengaturan izin alat Agent.
  */
 
 import { Box, Flex, Text } from "@radix-ui/themes";

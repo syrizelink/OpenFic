@@ -1,20 +1,20 @@
 /**
  * useScrollbarAutoHide Hook
  *
- * 自动隐藏滚动条的 hook。
- * - 用户滚轮滚动时显示滚动条，5 秒后自动隐藏
- * - hover 滚动条区域（右侧热区）时显示滚动条
- * - 打字导致的内容变化滚动不会触发显示
+ * Hook untuk menyembunyikan bilah gulir secara otomatis.
+ * - Bilah gulir tampil saat pengguna menggulir dengan roda tetikus, lalu disembunyikan otomatis setelah 5 detik
+ * - Bilah gulir tampil saat kursor berada di area bilah gulir (zona aktif sisi kanan)
+ * - Gulir akibat perubahan isi saat mengetik tidak memicu tampilan
  */
 
 import { useCallback, useRef, useEffect } from "react";
 
-const SCROLLBAR_WIDTH = 20; // 滚动条热区宽度（包含一些余量）
+const SCROLLBAR_WIDTH = 20; // Lebar zona aktif bilah gulir (menyertakan sedikit kelonggaran)
 
 /**
- * 返回一个对象包含：
- * - containerRef: 需要绑定到滚动容器的 ref
- * - scrollbarProps: 需要绑定到滚动容器的事件处理函数和 className
+ * Mengembalikan objek yang memuat:
+ * - containerRef: ref yang perlu dikaitkan ke wadah gulir
+ * - scrollbarProps: fungsi penanganan peristiwa dan className yang perlu dikaitkan ke wadah gulir
  */
 export function useScrollbarAutoHide(hideDelay = 5000) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -28,7 +28,7 @@ export function useScrollbarAutoHide(hideDelay = 5000) {
   }, []);
 
   const hideScrollbar = useCallback(() => {
-    // 如果正在 hover 滚动条区域，不隐藏
+    // Tidak disembunyikan bila kursor sedang berada di area bilah gulir
     if (isHoveringScrollbarRef.current) return;
     if (containerRef.current) {
       containerRef.current.classList.remove("scrolling");
@@ -43,12 +43,12 @@ export function useScrollbarAutoHide(hideDelay = 5000) {
     timeoutRef.current = setTimeout(hideScrollbar, hideDelay);
   }, [showScrollbar, hideScrollbar, hideDelay]);
 
-  // 滚轮事件（用户主动滚动）
+  // Peristiwa roda tetikus (gulir aktif oleh pengguna)
   const handleWheel = useCallback(() => {
     resetTimer();
   }, [resetTimer]);
 
-  // 鼠标移动事件 - 检测是否在右侧滚动条热区
+  // Peristiwa gerak tetikus - mendeteksi keberadaan di zona aktif bilah gulir sisi kanan
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       const container = containerRef.current;
@@ -60,27 +60,27 @@ export function useScrollbarAutoHide(hideDelay = 5000) {
       if (isInScrollbarZone && !isHoveringScrollbarRef.current) {
         isHoveringScrollbarRef.current = true;
         showScrollbar();
-        // 清除自动隐藏定时器
+        // Membersihkan pewaktu penyembunyian otomatis
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
           timeoutRef.current = null;
         }
       } else if (!isInScrollbarZone && isHoveringScrollbarRef.current) {
         isHoveringScrollbarRef.current = false;
-        // 离开热区后启动隐藏定时器
+        // Memulai pewaktu penyembunyian setelah keluar dari zona aktif
         timeoutRef.current = setTimeout(hideScrollbar, hideDelay);
       }
     },
     [showScrollbar, hideScrollbar, hideDelay],
   );
 
-  // 鼠标离开容器
+  // Tetikus meninggalkan wadah
   const handleMouseLeave = useCallback(() => {
     isHoveringScrollbarRef.current = false;
     timeoutRef.current = setTimeout(hideScrollbar, hideDelay);
   }, [hideScrollbar, hideDelay]);
 
-  // 清理定时器
+  // Membersihkan pewaktu
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {

@@ -1,15 +1,15 @@
 /**
  * Settings Types
  *
- * 设置相关类型定义。
+ * Definisi tipe terkait pengaturan.
  */
 
 import type { IndexAutoStrategy, IndexMode } from "@/lib/index-status";
 
-/** 支持的语言代码 */
+/** Kode bahasa yang didukung */
 export type LanguageCode = "id" | "en" | "zh-CN";
 
-/** 支持的主题 */
+/** Tema yang didukung */
 export type ThemeMode = "light" | "dark";
 
 export type AgentToolPermissionMode = "allow" | "ask" | "deny";
@@ -24,7 +24,7 @@ export interface AgentToolMetadata {
   isReadonly: boolean;
 }
 
-/** 设置数据 */
+/** Data pengaturan */
 export interface Settings {
   language: LanguageCode;
   theme: ThemeMode;
@@ -53,7 +53,7 @@ export interface Settings {
   editorShowLineNumbers: boolean;
 }
 
-/** 设置响应（后端格式） */
+/** Respons pengaturan (format backend) */
 export interface SettingsResponse {
   language: string;
   theme: string;
@@ -85,7 +85,7 @@ export interface SettingsResponse {
   editor_show_line_numbers?: boolean;
 }
 
-/** 设置更新请求 */
+/** Permintaan pembaruan pengaturan */
 export interface SettingsUpdateRequest {
   language?: string;
   theme?: string;
@@ -122,7 +122,7 @@ export interface AuditDetailsStorage {
   detailBytes: number;
 }
 
-/** 字体选项 */
+/** Opsi fon */
 export interface FontOption {
   value: string;
   label: string;
@@ -139,7 +139,7 @@ export const DEFAULT_CODE_FONT_FAMILY = "JetBrains Mono Variable";
 export const SYSTEM_FONT_FAMILY = "system-ui";
 export const SYSTEM_CODE_FONT_FAMILY = "ui-monospace";
 
-/** 可用字体列表 */
+/** Daftar fon yang tersedia */
 export const FONT_OPTIONS: FontDefinition[] = [
   { value: SYSTEM_FONT_FAMILY, labelKey: "settings.fontOptionSystemDefault" },
   { value: "Noto Serif SC Variable", labelKey: "settings.fontOptionNotoSerifSC" },
@@ -150,7 +150,7 @@ export const FONT_OPTIONS: FontDefinition[] = [
   { value: "WDXL Lubrifont SC", labelKey: "settings.fontOptionWdXlLubrifontSc" },
 ];
 
-/** 代码字体选项 */
+/** Opsi fon kode */
 export const CODE_FONT_OPTIONS: FontDefinition[] = [
   { value: SYSTEM_CODE_FONT_FAMILY, labelKey: "settings.fontOptionSystemDefault" },
   { value: "JetBrains Mono Variable", labelKey: "settings.fontOptionJetBrainsMono" },

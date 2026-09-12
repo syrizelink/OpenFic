@@ -21,20 +21,20 @@ def upgrade() -> None:
     """Remove prompt_chains table and migrate data to prompt_chain_versions."""
     conn = op.get_bind()
     
-    # Step 1: 删除所有 prompt-chain 相关表的数据
+    # Step 1: menghapus data semua tabel terkait prompt-chain
     conn.execute(sa.text("DELETE FROM prompt_entries"))
     conn.execute(sa.text("DELETE FROM prompt_chain_versions"))
     conn.execute(sa.text("DELETE FROM prompt_chains"))
     
-    # Step 2: 使用批处理模式重建 prompt_chain_versions 表
-    # 删除旧表，创建新表
+    # Step 2: membangun ulang tabel prompt_chain_versions memakai mode batch
+    # Menghapus tabel lama, membuat tabel baru
     op.drop_table("prompt_entries")
     op.drop_index("ix_prompt_chain_versions_is_active", "prompt_chain_versions")
     op.drop_index("ix_prompt_chain_versions_prompt_chain_id", "prompt_chain_versions")
     op.drop_table("prompt_chain_versions")
     op.drop_table("prompt_chains")
     
-    # 创建新的 prompt_chain_versions 表（包含新字段）
+    # Membuat tabel prompt_chain_versions yang baru (berisi kolom baru)
     op.create_table(
         "prompt_chain_versions",
         sa.Column("id", sa.String(), nullable=False),
@@ -52,11 +52,11 @@ def upgrade() -> None:
         sa.UniqueConstraint("version_hash"),
     )
     
-    # 创建索引
+    # Membuat indeks
     op.create_index("ix_prompt_chain_versions_mode_task", "prompt_chain_versions", ["mode_name", "task_name"])
     op.create_index("ix_prompt_chain_versions_is_active", "prompt_chain_versions", ["is_active"])
     
-    # 重新创建 prompt_entries 表
+    # Membuat ulang tabel prompt_entries
     op.create_table(
         "prompt_entries",
         sa.Column("id", sa.String(), nullable=False),
@@ -74,7 +74,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["version_id"], ["prompt_chain_versions.id"], ondelete="CASCADE"),
     )
     
-    # 创建索引
+    # Membuat indeks
     op.create_index("ix_prompt_entries_version_id", "prompt_entries", ["version_id"])
     op.create_index("ix_prompt_entries_order_index", "prompt_entries", ["order_index"])
 
@@ -83,11 +83,11 @@ def downgrade() -> None:
     """Recreate prompt_chains table and migrate data back."""
     conn = op.get_bind()
     
-    # 删除所有数据
+    # Menghapus semua data
     conn.execute(sa.text("DELETE FROM prompt_entries"))
     conn.execute(sa.text("DELETE FROM prompt_chain_versions"))
     
-    # 删除表
+    # Menghapus tabel
     op.drop_index("ix_prompt_entries_order_index", "prompt_entries")
     op.drop_index("ix_prompt_entries_version_id", "prompt_entries")
     op.drop_table("prompt_entries")
@@ -95,7 +95,7 @@ def downgrade() -> None:
     op.drop_index("ix_prompt_chain_versions_mode_task", "prompt_chain_versions")
     op.drop_table("prompt_chain_versions")
     
-    # 重新创建 prompt_chains 表
+    # Membuat ulang tabel prompt_chains
     op.create_table(
         "prompt_chains",
         sa.Column("id", sa.String(), nullable=False),
@@ -107,7 +107,7 @@ def downgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     
-    # 重新创建 prompt_chain_versions 表
+    # Membuat ulang tabel prompt_chain_versions
     op.create_table(
         "prompt_chain_versions",
         sa.Column("id", sa.String(), nullable=False),
@@ -127,7 +127,7 @@ def downgrade() -> None:
     op.create_index("ix_prompt_chain_versions_prompt_chain_id", "prompt_chain_versions", ["prompt_chain_id"])
     op.create_index("ix_prompt_chain_versions_is_active", "prompt_chain_versions", ["is_active"])
     
-    # 重新创建 prompt_entries 表
+    # Membuat ulang tabel prompt_entries
     op.create_table(
         "prompt_entries",
         sa.Column("id", sa.String(), nullable=False),

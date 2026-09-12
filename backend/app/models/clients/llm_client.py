@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-LLM Client - LLM模型调用客户端。
+LLM Client - klien pemanggilan model LLM.
 
-使用LangChain组件提供流式和非流式的LLM聊天调用接口。
+Menyediakan antarmuka pemanggilan chat LLM streaming dan non-streaming
+menggunakan komponen LangChain.
 """
 
 import asyncio
@@ -41,7 +42,7 @@ class ToolBindableModel(Protocol):
 
 @dataclass
 class LLMConfig:
-    """LLM调用配置。"""
+    """Konfigurasi pemanggilan LLM."""
 
     provider_type: str
     base_url: str
@@ -63,7 +64,7 @@ class LLMConfig:
 
 @dataclass
 class LLMResponse:
-    """LLM非流式响应。"""
+    """Respons LLM non-streaming."""
 
     content: str
     reasoning_content: str = ""
@@ -85,21 +86,22 @@ class LLMStreamChunk:
 
 
 class LLMClient:
-    """LLM模型调用客户端，使用LangChain组件支持流式和非流式调用。"""
+    """Klien pemanggilan model LLM, mendukung pemanggilan streaming dan
+    non-streaming menggunakan komponen LangChain."""
 
     def __init__(self, config: LLMConfig):
         """
-        初始化LLM客户端。
+        Menginisialisasi klien LLM.
 
         Args:
-            config: LLM配置。
+            config: konfigurasi LLM.
         """
         self.config = config
         self._llm: Runnable[LanguageModelInput, BaseMessage] | None = None
         self._llm_with_tools: Runnable[LanguageModelInput, AIMessage] | None = None
 
     def _get_llm(self) -> Runnable[LanguageModelInput, BaseMessage]:
-        """获取或创建LangChain LLM实例。"""
+        """Mengambil atau membuat instance LLM LangChain."""
         if self._llm is not None:
             return self._llm
 
@@ -127,7 +129,7 @@ class LLMClient:
         return self._llm
 
     def _convert_messages(self, messages: list[dict[str, str]]) -> list[BaseMessage]:
-        """将消息字典转换为LangChain消息对象。"""
+        """Mengonversi kamus pesan menjadi objek pesan LangChain."""
         result: list[BaseMessage] = []
         for msg in messages:
             role = msg.get("role", "user")
@@ -144,14 +146,14 @@ class LLMClient:
         self, messages: list[dict[str, str]], timeout: int | None = None
     ) -> LLMResponse:
         """
-        非流式聊天调用。
+        Pemanggilan chat non-streaming.
 
         Args:
-            messages: 消息列表，格式为 [{"role": "user", "content": "..."}]。
-            timeout: 超时秒数，None使用配置默认值。
+            messages: daftar pesan, berformat [{"role": "user", "content": "..."}].
+            timeout: batas waktu dalam detik, None memakai nilai default konfigurasi.
 
         Returns:
-            LLM响应。
+            Respons LLM.
         """
         llm = self._get_llm()
         lc_messages = self._convert_messages(messages)
@@ -178,24 +180,24 @@ class LLMClient:
                 usage=self._extract_usage(response),
             )
         except asyncio.TimeoutError:
-            raise LLMTimeoutError(f"LLM调用超时 ({effective_timeout}s)")
+            raise LLMTimeoutError(f"Pemanggilan LLM melewati batas waktu ({effective_timeout}s)")
         except LLMTimeoutError:
             raise
         except Exception as e:
-            logger.error(f"LLM调用失败: {e}")
+            logger.error(f"Pemanggilan LLM gagal: {e}")
             raise
 
     async def generate_stream(
         self, messages: list[dict[str, str]]
     ) -> AsyncGenerator[str, None]:
         """
-        流式聊天调用。
+        Pemanggilan chat streaming.
 
         Args:
-            messages: 消息列表。
+            messages: daftar pesan.
 
         Yields:
-            AI回复的内容片段。
+            Potongan konten balasan AI.
         """
         async for chunk in self.generate_stream_chunks(messages):
             if chunk.content:
@@ -233,7 +235,7 @@ class LLMClient:
                 )
             )
         except Exception as e:
-            logger.error(f"LLM流式调用失败: {e}")
+            logger.error(f"Pemanggilan LLM streaming gagal: {e}")
             raise
 
     async def generate_with_tools_stream(
@@ -241,7 +243,7 @@ class LLMClient:
     ) -> AsyncGenerator[LLMStreamChunk, None]:
         """Stream a tool-enabled chat call and finish with a normalized response."""
         if not self._llm_with_tools:
-            raise ValueError("必须先调用bind_tools()绑定工具")
+            raise ValueError("Harus memanggil bind_tools() terlebih dahulu untuk mengikat tool")
 
         effective_timeout = timeout or self.config.request_timeout
         content_parts: list[str] = []
@@ -253,7 +255,7 @@ class LLMClient:
         first_token_ms: int | None = None
 
         try:
-            logger.info(f"流式调用LLM (with tools), 消息数: {len(messages)}")
+            logger.info(f"Pemanggilan LLM streaming (with tools), jumlah pesan: {len(messages)}")
 
             async with asyncio.timeout(effective_timeout):
                 async for chunk in self._llm_with_tools.astream(messages):
@@ -292,11 +294,13 @@ class LLMClient:
             )
             yield LLMStreamChunk(response=response)
         except TimeoutError:
-            raise LLMTimeoutError(f"LLM工具流式调用超时 ({effective_timeout}s)")
+            raise LLMTimeoutError(
+                f"Pemanggilan tool LLM streaming melewati batas waktu ({effective_timeout}s)"
+            )
         except LLMTimeoutError:
             raise
         except Exception as e:
-            logger.error(f"LLM工具流式调用失败: {e}")
+            logger.error(f"Pemanggilan tool LLM streaming gagal: {e}")
             import traceback
 
             logger.error(traceback.format_exc())
@@ -307,7 +311,7 @@ class LLMClient:
     ) -> LLMResponse:
         """Run a non-streaming tool-enabled chat call."""
         if not self._llm_with_tools:
-            raise ValueError("必须先调用bind_tools()绑定工具")
+            raise ValueError("Harus memanggil bind_tools() terlebih dahulu untuk mengikat tool")
 
         effective_timeout = timeout or self.config.request_timeout
         try:
@@ -336,11 +340,13 @@ class LLMClient:
                 tool_calls=tool_calls,
             )
         except asyncio.TimeoutError:
-            raise LLMTimeoutError(f"LLM工具调用超时 ({effective_timeout}s)")
+            raise LLMTimeoutError(
+                f"Pemanggilan tool LLM melewati batas waktu ({effective_timeout}s)"
+            )
         except LLMTimeoutError:
             raise
         except Exception as e:
-            logger.error(f"LLM工具调用失败: {e}")
+            logger.error(f"Pemanggilan tool LLM gagal: {e}")
             raise
 
     @staticmethod
@@ -561,15 +567,15 @@ class LLMClient:
 
     def bind_tools(self, tools: list[BaseTool]) -> "LLMClient":
         """
-        绑定工具到LLM。
+        Mengikat tool ke LLM.
 
         Args:
-            tools: 工具列表。
+            tools: daftar tool.
 
         Returns:
-            返回self以支持链式调用。
+            Mengembalikan self untuk mendukung pemanggilan berantai.
         """
         llm = self._get_llm()
         self._llm_with_tools = cast(ToolBindableModel, llm).bind_tools(tools)
-        logger.info(f"已绑定 {len(tools)} 个工具到LLM")
+        logger.info(f"Telah mengikat {len(tools)} tool ke LLM")
         return self

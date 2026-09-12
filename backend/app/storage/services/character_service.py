@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Character Service - 角色业务逻辑层。"""
+"""Character Service - lapisan logika bisnis tokoh."""
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -17,7 +17,7 @@ from app.storage.repos import character_repo, project_repo
 
 @dataclass
 class CharacterSearchMatch:
-    """角色搜索匹配项。"""
+    """Item yang cocok pada pencarian tokoh."""
 
     line_number: int
     line_text: str
@@ -25,7 +25,7 @@ class CharacterSearchMatch:
 
 @dataclass
 class CharacterSearchResult:
-    """单个角色搜索结果。"""
+    """Hasil pencarian satu tokoh."""
 
     character_id: str
     character_name: str
@@ -34,7 +34,7 @@ class CharacterSearchResult:
 
 @dataclass
 class CharacterSearchResponse:
-    """角色搜索结果。"""
+    """Hasil pencarian tokoh."""
 
     results: list[CharacterSearchResult]
     total_characters: int
@@ -42,7 +42,7 @@ class CharacterSearchResponse:
 
 
 def make_available_name(base_name: str, existing_names: list[str]) -> str:
-    """生成同项目下可用角色名。"""
+    """Menghasilkan nama tokoh yang tersedia dalam proyek yang sama."""
     existing = set(existing_names)
     if base_name not in existing:
         return base_name
@@ -54,7 +54,7 @@ def make_available_name(base_name: str, existing_names: list[str]) -> str:
 
 
 def calculate_token_count(content: str) -> int:
-    """计算文本 Token 数。"""
+    """Menghitung jumlah Token teks."""
     try:
         return len(get_encoding("cl100k_base").encode(content))
     except Exception:
@@ -68,11 +68,11 @@ async def create_character(
     description: str = "",
     image_file: UploadFile | None = None,
 ) -> Character:
-    """创建角色。"""
+    """Membuat tokoh."""
     validate_editor_content(description)
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     resolved_name = make_available_name(name.strip(), await character_repo.list_names_by_project(session, project_id))
 
@@ -88,10 +88,10 @@ async def create_character(
 
 
 async def get_character(session: AsyncSession, character_id: str) -> Character:
-    """获取角色。"""
+    """Mengambil tokoh."""
     character = await character_repo.get_by_id(session, character_id)
     if character is None:
-        raise NotFoundError(f"角色不存在: {character_id}")
+        raise NotFoundError(f"Tokoh tidak ditemukan: {character_id}")
     return character
 
 
@@ -99,10 +99,10 @@ async def list_characters_by_project(
     session: AsyncSession,
     project_id: str,
 ) -> list[Character]:
-    """按项目获取角色列表。"""
+    """Mengambil daftar tokoh per proyek."""
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     return await character_repo.list_all_by_project(session, project_id)
 
@@ -112,10 +112,10 @@ async def search_characters(
     project_id: str,
     query: str,
 ) -> CharacterSearchResponse:
-    """搜索项目角色名称和描述。"""
+    """Mencari nama dan deskripsi tokoh proyek."""
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     stripped_query = query.strip()
     if not stripped_query:
@@ -160,14 +160,14 @@ async def update_character(
     is_favorited: bool | None = None,
     image_file: UploadFile | None = None,
 ) -> Character:
-    """更新角色。"""
+    """Memperbarui tokoh."""
     character = await get_character(session, character_id)
     old_image_path = character.image_path
 
     if name is not None:
         next_name = name.strip()
         if await character_repo.name_exists(session, character.project_id, next_name, exclude_character_id=character.id):
-            raise ConflictError("角色名称已存在")
+            raise ConflictError("Nama tokoh sudah ada")
         character.name = next_name
     if description is not None:
         validate_editor_content(description)
@@ -185,7 +185,7 @@ async def update_character(
 
 
 async def delete_character(session: AsyncSession, character_id: str) -> None:
-    """删除角色。"""
+    """Menghapus tokoh."""
     character = await get_character(session, character_id)
     image_path = character.image_path
     await character_repo.delete(session, character)
@@ -199,10 +199,10 @@ async def batch_update_favorite(
     character_ids: list[str],
     is_favorited: bool,
 ) -> int:
-    """批量更新角色收藏状态。"""
+    """Memperbarui status favorit tokoh secara massal."""
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
     return await character_repo.batch_update_favorite(session, project_id, character_ids, is_favorited)
 
 
@@ -211,10 +211,10 @@ async def batch_delete_characters(
     project_id: str,
     character_ids: list[str],
 ) -> int:
-    """批量删除角色。"""
+    """Menghapus tokoh secara massal."""
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     characters = await character_repo.list_by_project_and_ids(session, project_id, character_ids)
     deleted_count = await character_repo.batch_delete(session, project_id, character_ids)

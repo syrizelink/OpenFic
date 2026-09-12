@@ -151,11 +151,11 @@ async def test_get_checkpointer_restores_legacy_question_checkpoint(
                 "ts": "2026-07-12T00:00:00+00:00",
                 "channel_values": {
                     "pending_question": Question(
-                        title="继续方式",
-                        description="请选择后续处理方式。",
+                        title="Cara melanjutkan",
+                        description="Silakan pilih cara penanganan selanjutnya.",
                         options=[
-                            QuestionOption(label="继续", description="继续执行"),
-                            QuestionOption(label="暂停", description="暂停执行"),
+                            QuestionOption(label="Lanjut", description="Lanjutkan eksekusi"),
+                            QuestionOption(label="Jeda", description="Jeda eksekusi"),
                         ],
                     )
                 },
@@ -173,7 +173,7 @@ async def test_get_checkpointer_restores_legacy_question_checkpoint(
         assert persisted is not None
         question = persisted.checkpoint["channel_values"]["pending_question"]
         assert isinstance(question, Question)
-        assert question.title == "继续方式"
+        assert question.title == "Cara melanjutkan"
         assert isinstance(question.options[0], QuestionOption)
     finally:
         await reset_checkpointer()

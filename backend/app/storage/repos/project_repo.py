@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Project Repository - 项目数据访问层。
+Project Repository - lapisan akses data proyek.
 """
 
 from sqlalchemy import func, or_, select
@@ -52,14 +52,14 @@ def _apply_search(stmt, search: str | None):
 
 async def create(session: AsyncSession, project: Project) -> Project:
     """
-    创建项目。
+    Membuat proyek.
 
     Args:
-        session: 数据库 session。
-        project: 项目实例。
+        session: session basis data.
+        project: Instance proyek.
 
     Returns:
-        创建后的项目实例。
+        Instance proyek setelah dibuat.
     """
     session.add(project)
     await session.flush()
@@ -69,14 +69,14 @@ async def create(session: AsyncSession, project: Project) -> Project:
 
 async def get_by_id(session: AsyncSession, project_id: str) -> Project | None:
     """
-    根据 ID 获取项目。
+    Mengambil proyek berdasarkan ID.
 
     Args:
-        session: 数据库 session。
-        project_id: 项目 ID。
+        session: session basis data.
+        project_id: ID proyek.
 
     Returns:
-        项目实例，如果不存在则返回 None。
+        Instance proyek, atau None bila tidak ada.
     """
     result = await session.execute(select(Project).where(col(Project.id) == project_id))
     return result.scalar_one_or_none()
@@ -92,15 +92,15 @@ async def list_all(
     sort_order: str = "desc",
 ) -> list[Project]:
     """
-    获取项目列表。
+    Mengambil daftar proyek.
 
     Args:
-        session: 数据库 session。
-        offset: 偏移量。
-        limit: 每页数量。
+        session: session basis data.
+        offset: Offset.
+        limit: Jumlah per halaman.
 
     Returns:
-        项目列表。
+        Daftar proyek.
     """
     sort_column = SORT_COLUMNS.get(sort_by, Project.updated_at)
     sortable_expression = (
@@ -119,13 +119,13 @@ async def list_all(
 
 async def count(session: AsyncSession, *, search: str | None = None) -> int:
     """
-    获取项目总数。
+    Mengambil jumlah total proyek.
 
     Args:
-        session: 数据库 session。
+        session: session basis data.
 
     Returns:
-        项目总数。
+        Jumlah total proyek.
     """
     result = await session.execute(
         _apply_search(select(func.count(col(Project.id))), search)
@@ -135,14 +135,14 @@ async def count(session: AsyncSession, *, search: str | None = None) -> int:
 
 async def update(session: AsyncSession, project: Project) -> Project:
     """
-    更新项目。
+    Memperbarui proyek.
 
     Args:
-        session: 数据库 session。
-        project: 项目实例。
+        session: session basis data.
+        project: Instance proyek.
 
     Returns:
-        更新后的项目实例。
+        Instance proyek setelah diperbarui.
     """
     session.add(project)
     await session.flush()
@@ -152,11 +152,11 @@ async def update(session: AsyncSession, project: Project) -> Project:
 
 async def delete(session: AsyncSession, project: Project) -> None:
     """
-    删除项目。
+    Menghapus proyek.
 
     Args:
-        session: 数据库 session。
-        project: 项目实例。
+        session: session basis data.
+        project: Instance proyek.
     """
     await session.delete(project)
     await session.flush()

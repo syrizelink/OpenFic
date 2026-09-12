@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-LLM Strategy - LLM模型策略。
+LLM Strategy - strategi model LLM.
 
-处理LLM模型的参数规范化和校验。
+Menangani normalisasi dan validasi parameter model LLM.
 """
 
 from typing import Any
@@ -11,17 +11,17 @@ from app.models.strategies.base import BaseStrategy, StandardizedConfig
 
 
 class LLMStrategy(BaseStrategy):
-    """LLM模型策略，处理chat completion相关的参数。"""
+    """Strategi model LLM, menangani parameter terkait chat completion."""
 
     def normalize_parameters(self, raw_params: dict[str, Any]) -> dict[str, Any]:
         """
-        规范化LLM参数。
+        Menormalkan parameter LLM.
 
         Args:
-            raw_params: 原始参数（可能包含temperature、top_p等）。
+            raw_params: parameter asli (mungkin memuat temperature, top_p, dll).
 
         Returns:
-            规范化后的参数字典。
+            Kamus parameter setelah dinormalkan.
         """
         normalized = {}
 
@@ -83,13 +83,13 @@ class LLMStrategy(BaseStrategy):
 
     def validate(self, config: StandardizedConfig) -> tuple[bool, str]:
         """
-        校验LLM配置。
+        Memvalidasi konfigurasi LLM.
 
         Args:
-            config: 待校验的配置。
+            config: konfigurasi yang akan divalidasi.
 
         Returns:
-            (是否有效, 错误信息)
+            (apakah valid, pesan kesalahan)
         """
         if config.task_type != "llm":
             return False, f"Task type must be 'llm', got '{config.task_type}'"

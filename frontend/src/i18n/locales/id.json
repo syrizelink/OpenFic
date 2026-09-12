@@ -54,7 +54,15 @@
     "searchPlaceholder": "Cari...",
     "noMatchingOptions": "Tidak ada opsi yang cocok",
     "swUpdated": "Aplikasi diperbarui. Klik untuk menyegarkan.",
-    "refresh": "Segarkan"
+    "refresh": "Segarkan",
+    "responseStreamUnavailable": "Tidak dapat mengambil aliran respons",
+    "socketConnected": "Terhubung",
+    "socketDisconnected": "Koneksi terputus",
+    "socketConnectedLabel": "Socket terhubung",
+    "socketDisconnectedLabel": "Koneksi Socket terputus",
+    "appStatusBar": "Bilah status aplikasi",
+    "backgroundSubscriptionFailed": "Gagal berlangganan peristiwa latar belakang",
+    "backgroundJoinRoomTimeout": "Waktu habis saat masuk ke ruang proyek latar belakang"
   },
   "auth": {
     "passwordPlaceholder": "Masukkan kata sandi",
@@ -681,7 +689,8 @@
     "batchDeleteSelected": "Hapus yang Dipilih",
     "batchDeleteConfirm": "Yakin ingin menghapus {{count}} entri? Tindakan ini tidak dapat dibatalkan.",
     "batchDeleted": "{{count}} entri dihapus",
-    "batchToggled": "{{count}} entri diperbarui"
+    "batchToggled": "{{count}} entri diperbarui",
+    "projectWorldInfoLabel": "Buku dunia milik {{title}}"
   },
   "settings": {
     "agentSettingsLocked": "Ada sesi Agen yang berjalan, sehingga pengaturan terkait hanya bisa dibaca.",
@@ -995,6 +1004,22 @@
     "agentsSystemDefaultModel": "Model Default",
     "agentsSystemLightModel": "Model Ringan",
     "agentsToolCategories": "Kemampuan",
+    "agentsToolCategoryLabels": {
+      "orchestration": "Delegasi Subtugas",
+      "interaction": "Bertanya",
+      "web_search": "Pencarian Web",
+      "web_fetch": "Baca Halaman Web",
+      "plan": "Rencana",
+      "chapter_read": "Baca Bab",
+      "summary_read": "Baca Ringkasan",
+      "character_read": "Baca Tokoh",
+      "character_write": "Tulis Tokoh",
+      "world_read": "Baca Buku Dunia",
+      "world_write": "Tulis Buku Dunia",
+      "note_read": "Baca Catatan",
+      "note_write": "Tulis Catatan",
+      "chapter_write": "Tulis Bab"
+    },
     "agentsNoTools": "Tidak ada alat tersedia",
     "agentsNoDescription": "Tidak ada deskripsi",
     "agentsEnabledSkills": "Keterampilan",
@@ -1085,7 +1110,13 @@
     },
     "primaryDescription": {
       "build": "Agen bawaan yang menangani tugas penulisan umum dan mendelegasikan ke sub-agen bila diperlukan.",
-      "plan": "Berfokus pada perencanaan dan koordinasi: menyusun, meninjau, dan menyerahkan hasil kerja sub-agen untuk tugas penulisan sistematis."
+      "plan": "Berfokus pada perencanaan dan koordinasi: menyusun, meninjau, dan menyerahkan hasil kerja sub-agen untuk tugas penulisan sistematis.",
+      "explore": "Menangani pengumpulan informasi, penataan konteks, dan pencarian bukti.",
+      "composer": "Menangani perancangan alur cerita, perencanaan struktur, dan penataan rencana penulisan.",
+      "auditor": "Menelaah rencana, menghasilkan pendapat telaah, menunjukkan masalah, dan mengajukan saran perbaikan.",
+      "writer": "Menangani penulisan isi bab, penulisan susulan, dan perbaikan isi utama.",
+      "actor": "Menjalankan perbaikan sesuai tujuan yang sudah ditetapkan dan menggerakkan tindakan konkret.",
+      "reviewer": "Menelaah isi penulisan, menghasilkan pendapat telaah, menunjukkan masalah, dan mengajukan saran perbaikan."
     }
   },
   "connections": {
@@ -1714,7 +1745,16 @@
       }
     },
     "errorInvalidParams": "Parameter permintaan tidak valid",
-    "generateFailedFallback": "Gagal membuat ringkasan. Silakan coba lagi nanti."
+    "generateFailedFallback": "Gagal membuat ringkasan. Silakan coba lagi nanti.",
+    "statusDot": {
+      "notGenerated": "Ringkasan belum dibuat",
+      "queued": "Ringkasan dalam antrean",
+      "running": "Ringkasan sedang dibuat",
+      "ready": "Ringkasan siap",
+      "failed": "Ringkasan gagal dibuat",
+      "stale": "Ringkasan perlu diperbarui"
+    },
+    "cancelBatchReason": "Pengguna menghentikan antrean pembuatan ringkasan"
   },
   "assistant": {
     "mobileTitle": "Agen",
@@ -2111,7 +2151,8 @@
       "find": "Cari",
       "replaceWith": "Ganti dengan",
       "result": "Hasil",
-      "toolApprovalQuestion": "Izinkan pemanggilan {{toolName}}?"
+      "toolApprovalQuestion": "Izinkan pemanggilan {{toolName}}?",
+      "chapterDisplayByOrder": "Bab {{order}}"
     }
   },
   "settingsExtra": {

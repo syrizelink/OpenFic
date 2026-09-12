@@ -57,7 +57,7 @@ class JobContext:
     @property
     def typed_payload(self) -> BaseModel:
         if self.payload is None:
-            raise RuntimeError("后台任务 payload 尚未校验")
+            raise RuntimeError("Payload tugas latar belakang belum divalidasi")
         return self.payload
 
     async def progress(
@@ -91,9 +91,12 @@ class JobContext:
         try:
             job = await job_service.get_job(session, self.job_id)
             if job is None:
-                raise RuntimeError(f"后台任务不存在: {self.job_id}")
+                raise RuntimeError(f"Tugas latar belakang tidak ditemukan: {self.job_id}")
             if job.status == JOB_STATUS_CANCEL_REQUESTED or job.cancel_requested_at:
-                raise JobCancelledError(job.cancel_reason or "后台任务已请求取消")
+                raise JobCancelledError(
+                    job.cancel_reason
+                    or "Tugas latar belakang telah meminta pembatalan"
+                )
         finally:
             with suppress(Exception):
                 await session.close()
@@ -123,7 +126,7 @@ class JobContext:
         self.session = session
         job = await job_service.get_job(session, self.job_id)
         if job is None:
-            raise RuntimeError(f"后台任务不存在: {self.job_id}")
+            raise RuntimeError(f"Tugas latar belakang tidak ditemukan: {self.job_id}")
         self.job = job
         self._sync_job_snapshot()
         try:
@@ -137,7 +140,7 @@ class JobContext:
     async def refresh_job(self) -> None:
         job = await job_service.get_job(self.session, self.job_id)
         if job is None:
-            raise RuntimeError(f"后台任务不存在: {self.job_id}")
+            raise RuntimeError(f"Tugas latar belakang tidak ditemukan: {self.job_id}")
         self.job = job
         self._sync_job_snapshot()
 

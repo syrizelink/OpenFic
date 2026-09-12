@@ -4,15 +4,15 @@
   "include-component-in-tag": false,
   "include-commit-authors": true,
   "changelog-sections": [
-    { "type": "feat", "section": "✨ 新功能" },
-    { "type": "fix", "section": "🐛 问题修复" },
-    { "type": "perf", "section": "⚡ 性能优化" },
-    { "type": "refactor", "section": "♻️ 代码重构" },
-    { "type": "docs", "section": "📚 文档" },
-    { "type": "test", "section": "✅ 测试" },
-    { "type": "chore", "section": "🔧 杂项", "hidden": false },
+    { "type": "feat", "section": "✨ Fitur Baru" },
+    { "type": "fix", "section": "🐛 Perbaikan Masalah" },
+    { "type": "perf", "section": "⚡ Optimalisasi Performa" },
+    { "type": "refactor", "section": "♻️ Refaktor Kode" },
+    { "type": "docs", "section": "📚 Dokumentasi" },
+    { "type": "test", "section": "✅ Pengujian" },
+    { "type": "chore", "section": "🔧 Lain-lain", "hidden": false },
     { "type": "ci", "section": "👷 CI/CD", "hidden": false },
-    { "type": "style", "section": "💄 格式", "hidden": true }
+    { "type": "style", "section": "💄 Format", "hidden": true }
   ],
   "packages": {
     ".": {

@@ -31,7 +31,7 @@ def _make_volume(
     *,
     volume_id: str = "vol-1",
     order: int = 1,
-    title: str = "第一卷",
+    title: str = "Volume 1",
     description: str | None = None,
     chapter_count: int = 2,
 ):
@@ -48,8 +48,8 @@ def _make_volume(
 def _make_chapter(
     *,
     order: int = 1,
-    title: str = "第一章",
-    content: str = "内容测试",
+    title: str = "Bab 1",
+    content: str = "Isi uji bab",
     word_count: int = 4,
     chapter_id: str = "chap-1",
     volume_id: str = "vol-1",
@@ -80,8 +80,8 @@ async def test_list_volumes_returns_project_volumes() -> None:
     from app.agent_runtime.tools.impls.chapter.list_volumes import ListVolumesTool
 
     volumes = [
-        _make_volume(order=1, title="第一卷", description="开端", chapter_count=2),
-        _make_volume(volume_id="vol-2", order=2, title="第二卷", chapter_count=0),
+        _make_volume(order=1, title="Volume 1", description="Pembuka", chapter_count=2),
+        _make_volume(volume_id="vol-2", order=2, title="Volume 2", chapter_count=0),
     ]
     tool = ListVolumesTool(_state=_make_state())
 
@@ -95,8 +95,8 @@ async def test_list_volumes_returns_project_volumes() -> None:
             result = await tool.ainvoke({})
 
     assert json.loads(result) == [
-        {"order": 1, "title": "第一卷", "description": "开端", "chapter_count": 2},
-        {"order": 2, "title": "第二卷", "description": None, "chapter_count": 0},
+        {"order": 1, "title": "Volume 1", "description": "Pembuka", "chapter_count": 2},
+        {"order": 2, "title": "Volume 2", "description": None, "chapter_count": 0},
     ]
     list_by_project.assert_awaited_once_with(mock_session, "proj-1")
     mock_session.close.assert_called_once()
@@ -107,8 +107,8 @@ async def test_list_chapters_uses_required_volume_ref_and_volume_pagination() ->
 
     volume = _make_volume()
     chapters = [
-        _make_chapter(order=1, title="第一章"),
-        _make_chapter(order=2, title="第二章"),
+        _make_chapter(order=1, title="Bab 1"),
+        _make_chapter(order=2, title="Bab 2"),
     ]
     tool = ListChaptersTool(_state=_make_state())
 
@@ -120,7 +120,7 @@ async def test_list_chapters_uses_required_volume_ref_and_volume_pagination() ->
             AsyncMock(return_value=[volume]),
         ), patch(
             "app.agent_runtime.tools.impls.chapter.list_chapters.chapter_repo.list_by_volume",
-            AsyncMock(side_effect=AssertionError("列表不应加载正文")),
+            AsyncMock(side_effect=AssertionError("Daftar tidak boleh memuat isi utama")),
         ) as list_by_volume, patch(
             "app.agent_runtime.tools.impls.chapter.list_chapters.chapter_repo.list_metadata_by_volume",
             AsyncMock(return_value=chapters),
@@ -135,8 +135,8 @@ async def test_list_chapters_uses_required_volume_ref_and_volume_pagination() ->
             )
 
     assert json.loads(result) == [
-        {"order": 1, "title": "第一章", "word_count": 4},
-        {"order": 2, "title": "第二章", "word_count": 4},
+        {"order": 1, "title": "Bab 1", "word_count": 4},
+        {"order": 2, "title": "Bab 2", "word_count": 4},
     ]
     list_by_volume.assert_not_awaited()
     list_metadata_by_volume.assert_awaited_once_with(
@@ -148,7 +148,7 @@ async def test_read_chapter_resolves_chapter_inside_volume() -> None:
     from app.agent_runtime.tools.impls.chapter.read_chapter import ReadChapterTool
 
     volume = _make_volume()
-    chapter = _make_chapter(order=2, title="第二章", content="第一行\n第二行", word_count=6)
+    chapter = _make_chapter(order=2, title="Bab 2", content="Baris pertama\nBaris kedua", word_count=6)
     tool = ReadChapterTool(_state=_make_state())
 
     with patch("app.agent_runtime.tools.impls.chapter.read_chapter.create_session") as mock_cs:
@@ -159,7 +159,7 @@ async def test_read_chapter_resolves_chapter_inside_volume() -> None:
             AsyncMock(return_value=[volume]),
         ), patch(
             "app.agent_runtime.tools.impls.chapter.read_chapter.chapter_repo.list_by_volume",
-            AsyncMock(side_effect=AssertionError("读取不应扫描整卷")),
+            AsyncMock(side_effect=AssertionError("Pembacaan tidak boleh memindai seluruh volume")),
         ) as list_by_volume, patch(
             "app.agent_runtime.tools.impls.chapter.read_chapter.chapter_repo.get_by_volume_ref",
             AsyncMock(return_value=chapter),
@@ -167,7 +167,7 @@ async def test_read_chapter_resolves_chapter_inside_volume() -> None:
         ) as get_by_volume_ref:
             result = await tool.ainvoke(
                 {
-                    "volume_ref": {"type": "title", "value": "第一卷"},
+                    "volume_ref": {"type": "title", "value": "Volume 1"},
                     "chapter_ref": {"type": "order", "value": 2},
                 }
             )
@@ -175,8 +175,8 @@ async def test_read_chapter_resolves_chapter_inside_volume() -> None:
     data = json.loads(result)
     assert data == {
         "order": 2,
-        "title": "第二章",
-        "content": "1|第一行\n2|第二行",
+        "title": "Bab 2",
+        "content": "1|Baris pertama\n2|Baris kedua",
         "word_count": 6,
     }
     list_by_volume.assert_not_awaited()
@@ -191,8 +191,8 @@ async def test_write_chapter_appends_to_volume_and_returns_volume_id() -> None:
     volume = _make_volume(chapter_count=3)
     created = _make_chapter(
         order=4,
-        title="新章节",
-        content="新内容",
+        title="Bab Baru",
+        content="Isi konten baru",
         word_count=3,
         chapter_id="chap-new",
     )
@@ -235,8 +235,8 @@ async def test_write_chapter_appends_to_volume_and_returns_volume_id() -> None:
             result = await tool.ainvoke(
                 {
                     "volume_ref": {"type": "order", "value": 1},
-                    "title": "新章节",
-                    "content": "新内容",
+                    "title": "Bab Baru",
+                    "content": "Isi konten baru",
                 }
             )
 
@@ -246,7 +246,7 @@ async def test_write_chapter_appends_to_volume_and_returns_volume_id() -> None:
     assert data["word_count"] == 3
     assert data["metadata"]["chapter_diff"]["operation"] == "create"
     assert data["metadata"]["chapter_diff"]["chapter_id"] == "chap-new"
-    assert data["metadata"]["chapter_diff"]["path"] == ["第一卷"]
+    assert data["metadata"]["chapter_diff"]["path"] == ["Volume 1"]
     assert [section["type"] for section in data["metadata"]["chapter_diff"]["sections"]] == ["title", "content"]
     mock_repo.list_by_project.assert_not_awaited()
     mock_repo.get_max_order.assert_awaited_once_with(mock_session, "vol-1")
@@ -353,12 +353,12 @@ async def test_write_chapter_rejects_over_limit_content_without_creating() -> No
         result = await tool.ainvoke(
             {
                 "volume_ref": {"type": "order", "value": 1},
-                "title": "超限章节",
-                "content": "\n".join("内容" for _ in range(2001)),
+                "title": "Bab Melebihi Batas",
+                "content": "\n".join("Isi" for _ in range(2001)),
             }
         )
 
-    assert "内容超出限制" in json.loads(result)["message"]
+    assert "Konten melebihi batas" in json.loads(result)["message"]
     create_chapter.assert_not_awaited()
 
 
@@ -366,7 +366,7 @@ async def test_edit_chapter_rejects_over_limit_replacement_without_updating_repo
     from app.agent_runtime.tools.impls.chapter.edit_chapter import EditChapterTool
 
     volume = _make_volume()
-    chapter = _make_chapter(content="原内容")
+    chapter = _make_chapter(content="Isi asli")
     tool = EditChapterTool(_state=_make_state())
 
     with patch("app.agent_runtime.tools.impls.chapter.edit_chapter.create_session") as mock_cs:
@@ -395,12 +395,12 @@ async def test_edit_chapter_rejects_over_limit_replacement_without_updating_repo
                 AsyncMock(),
             ) as update_chapter,
         ):
-            with pytest.raises(ToolExecutionError, match="内容超出限制"):
+            with pytest.raises(ToolExecutionError, match="Konten melebihi batas"):
                 await tool._execute(
                     volume_ref={"type": "order", "value": 1},
                     chapter_ref={"type": "order", "value": 1},
-                    old_content="原内容",
-                    new_content="\n".join("内容" for _ in range(2001)),
+                    old_content="Isi asli",
+                    new_content="\n".join("Isi" for _ in range(2001)),
                 )
 
     update_chapter.assert_not_awaited()
@@ -410,8 +410,8 @@ async def test_write_chapter_insert_order_shifts_within_volume() -> None:
     from app.agent_runtime.tools.impls.chapter.write_chapter import WriteChapterTool
 
     volume = _make_volume()
-    existing = _make_chapter(order=2, title="已有章节", chapter_id="chap-existing")
-    created = _make_chapter(order=2, title="插入章节", chapter_id="chap-new")
+    existing = _make_chapter(order=2, title="Bab Lama", chapter_id="chap-existing")
+    created = _make_chapter(order=2, title="Bab Sisipan", chapter_id="chap-new")
     tool = WriteChapterTool(_state=_make_state())
 
     async def create_chapter(_session, chapter):
@@ -446,7 +446,7 @@ async def test_write_chapter_insert_order_shifts_within_volume() -> None:
             "app.background.jobs.service.commit_and_notify", AsyncMock()
         ):
             mock_repo.list_by_project = AsyncMock()
-            mock_repo.list_by_volume = AsyncMock(side_effect=AssertionError("不应扫描整卷"))
+            mock_repo.list_by_volume = AsyncMock(side_effect=AssertionError("Tidak boleh memindai seluruh volume"))
             mock_repo.get_by_volume_ref = AsyncMock(return_value=existing)
             mock_repo.list_by_volume_from_order = AsyncMock(return_value=[existing])
             mock_repo.get_max_order = AsyncMock(return_value=5)
@@ -455,8 +455,8 @@ async def test_write_chapter_insert_order_shifts_within_volume() -> None:
             result = await tool.ainvoke(
                 {
                     "volume_ref": {"type": "order", "value": 1},
-                    "title": "插入章节",
-                    "content": "插入内容",
+                    "title": "Bab Sisipan",
+                    "content": "Isi utama yang disisipkan",
                     "chapter_ref": {"type": "order", "value": 2},
                 }
             )
@@ -467,7 +467,7 @@ async def test_write_chapter_insert_order_shifts_within_volume() -> None:
     assert data["word_count"] == 4
     assert data["metadata"]["chapter_diff"]["operation"] == "create"
     assert data["metadata"]["chapter_diff"]["order"] == 2
-    assert data["metadata"]["chapter_diff"]["path"] == ["第一卷"]
+    assert data["metadata"]["chapter_diff"]["path"] == ["Volume 1"]
     assert [section["type"] for section in data["metadata"]["chapter_diff"]["sections"]] == ["title", "content"]
     mock_repo.list_by_project.assert_not_awaited()
     mock_repo.list_by_volume.assert_not_awaited()
@@ -485,7 +485,7 @@ async def test_edit_chapter_resolves_inside_volume() -> None:
     from app.agent_runtime.tools.impls.chapter.edit_chapter import EditChapterTool
 
     volume = _make_volume()
-    chapter = _make_chapter(order=1, title="旧标题", content="内容")
+    chapter = _make_chapter(order=1, title="Judul Lama", content="Isi")
     tool = EditChapterTool(_state=_make_state())
 
     with patch("app.agent_runtime.tools.impls.chapter.edit_chapter.create_session") as mock_cs:
@@ -512,15 +512,15 @@ async def test_edit_chapter_resolves_inside_volume() -> None:
         ), patch(
             "app.background.jobs.service.commit_and_notify", AsyncMock()
         ):
-            mock_repo.list_by_project = AsyncMock(side_effect=AssertionError("不应加载项目全部章节"))
-            mock_repo.list_by_volume = AsyncMock(side_effect=AssertionError("不应扫描整卷"))
+            mock_repo.list_by_project = AsyncMock(side_effect=AssertionError("Tidak boleh memuat seluruh bab proyek"))
+            mock_repo.list_by_volume = AsyncMock(side_effect=AssertionError("Tidak boleh memindai seluruh volume"))
             mock_repo.get_by_volume_ref = AsyncMock(return_value=chapter)
             mock_repo.update_chapter = AsyncMock()
             result = await tool.ainvoke(
                 {
                     "volume_ref": {"type": "order", "value": 1},
                     "chapter_ref": {"type": "order", "value": 1},
-                    "new_title": "新标题",
+                    "new_title": "Judul Baru",
                 }
             )
 
@@ -532,9 +532,9 @@ async def test_edit_chapter_resolves_inside_volume() -> None:
             "chapter_diff": {
                 "operation": "update",
                 "chapter_id": "chap-1",
-                "chapter_title": "新标题",
+                "chapter_title": "Judul Baru",
                 "order": 1,
-                "path": ["第一卷"],
+                "path": ["Volume 1"],
                 "sections": [
                     {
                         "type": "title",
@@ -543,13 +543,13 @@ async def test_edit_chapter_resolves_inside_volume() -> None:
                                 "type": "removed",
                                 "before_line_number": 1,
                                 "after_line_number": None,
-                                "text": "旧标题",
+                                "text": "Judul Lama",
                             },
                             {
                                 "type": "added",
                                 "before_line_number": None,
                                 "after_line_number": 1,
-                                "text": "新标题",
+                                "text": "Judul Baru",
                             },
                         ],
                     }
@@ -595,9 +595,9 @@ async def test_delete_chapter_delegates_to_chapter_service() -> None:
             following = _make_chapter(order=3, chapter_id="chap-2")
             after_following = _make_chapter(order=2, chapter_id="chap-2")
             mock_repo.list_by_project = AsyncMock(
-                side_effect=AssertionError("不应加载项目全部章节")
+                side_effect=AssertionError("Tidak boleh memuat seluruh bab proyek")
             )
-            mock_repo.list_by_volume = AsyncMock(side_effect=AssertionError("不应扫描整卷"))
+            mock_repo.list_by_volume = AsyncMock(side_effect=AssertionError("Tidak boleh memindai seluruh volume"))
             mock_repo.get_by_volume_ref = AsyncMock(return_value=chapter)
             mock_repo.list_by_volume_from_order = AsyncMock(
                 side_effect=[[chapter, following], [after_following]]
@@ -618,9 +618,9 @@ async def test_delete_chapter_delegates_to_chapter_service() -> None:
     assert data["metadata"]["chapter_diff"] == {
         "operation": "delete",
         "chapter_id": "chap-1",
-        "chapter_title": "第一章",
+        "chapter_title": "Bab 1",
         "order": 2,
-        "path": ["第一卷"],
+        "path": ["Volume 1"],
         "sections": [
             {
                 "type": "title",
@@ -629,7 +629,7 @@ async def test_delete_chapter_delegates_to_chapter_service() -> None:
                         "type": "removed",
                         "before_line_number": 1,
                         "after_line_number": None,
-                        "text": "第一章",
+                        "text": "Bab 1",
                     }
                 ],
             },
@@ -640,7 +640,7 @@ async def test_delete_chapter_delegates_to_chapter_service() -> None:
                         "type": "removed",
                         "before_line_number": 1,
                         "after_line_number": None,
-                        "text": "内容测试",
+                        "text": "Isi uji bab",
                     }
                 ],
             },
@@ -670,7 +670,7 @@ async def test_delete_chapter_delegates_to_chapter_service() -> None:
 async def test_create_volume_appends_to_project() -> None:
     from app.agent_runtime.tools.impls.chapter.create_volume import CreateVolumeTool
 
-    created = _make_volume(volume_id="vol-new", order=3, title="第三卷", description="终局", chapter_count=0)
+    created = _make_volume(volume_id="vol-new", order=3, title="Volume 3", description="Penutup", chapter_count=0)
     tool = CreateVolumeTool(_state=_make_state())
 
     with patch("app.agent_runtime.tools.impls.chapter.create_volume.create_session") as mock_cs:
@@ -683,15 +683,15 @@ async def test_create_volume_appends_to_project() -> None:
             "app.agent_runtime.tools.impls.chapter.create_volume.volume_repo.create",
             AsyncMock(return_value=created),
         ) as create_volume:
-            result = await tool.ainvoke({"title": "第三卷", "description": "终局"})
+            result = await tool.ainvoke({"title": "Volume 3", "description": "Penutup"})
 
     data = json.loads(result)
     assert set(data) == {"success", "metadata"}
     assert data["success"] is True
     assert data["metadata"]["volume"] == {
         "order": 3,
-        "title": "第三卷",
-        "description": "终局",
+        "title": "Volume 3",
+        "description": "Penutup",
         "chapter_count": 0,
     }
     volume_arg = create_volume.call_args[0][1]
@@ -734,11 +734,11 @@ async def test_create_volume_serializes_parallel_writes_per_project() -> None:
             AsyncMock(side_effect=create_volume),
         ):
             task1 = asyncio.create_task(
-                make_tool().ainvoke({"title": "第一卷", "description": "A"})
+                make_tool().ainvoke({"title": "Volume 1", "description": "A"})
             )
             await entered.wait()
             task2 = asyncio.create_task(
-                make_tool().ainvoke({"title": "第二卷", "description": "B"})
+                make_tool().ainvoke({"title": "Volume 2", "description": "B"})
             )
             await asyncio.sleep(0.05)
             assert not task2.done()
@@ -757,7 +757,7 @@ async def test_create_volume_builds_approval_preview() -> None:
         "app.agent_runtime.tools.impls.chapter.create_volume.volume_repo.get_max_order",
         AsyncMock(return_value=2),
     ):
-        preview = await tool.build_interrupt_preview({"title": "第三卷", "description": "终局"})
+        preview = await tool.build_interrupt_preview({"title": "Volume 3", "description": "Penutup"})
 
     assert preview == {
         "type": "preview",
@@ -766,8 +766,8 @@ async def test_create_volume_builds_approval_preview() -> None:
         "metadata": {
             "volume": {
                 "order": 3,
-                "title": "第三卷",
-                "description": "终局",
+                "title": "Volume 3",
+                "description": "Penutup",
                 "chapter_count": 0,
             }
         },
@@ -777,7 +777,7 @@ async def test_create_volume_builds_approval_preview() -> None:
 async def test_edit_volume_updates_title_and_description() -> None:
     from app.agent_runtime.tools.impls.chapter.edit_volume import EditVolumeTool
 
-    volume = _make_volume(title="旧卷", description="旧描述")
+    volume = _make_volume(title="Volume Lama", description="Deskripsi lama")
     tool = EditVolumeTool(_state=_make_state())
 
     with patch("app.agent_runtime.tools.impls.chapter.edit_volume.create_session") as mock_cs:
@@ -792,9 +792,9 @@ async def test_edit_volume_updates_title_and_description() -> None:
         ) as update_volume:
             result = await tool.ainvoke(
                 {
-                    "volume_ref": {"type": "title", "value": "旧卷"},
-                    "new_title": "新卷",
-                    "new_description": "新描述",
+                    "volume_ref": {"type": "title", "value": "Volume Lama"},
+                    "new_title": "Volume Baru",
+                    "new_description": "Deskripsi baru",
                 }
             )
 
@@ -803,8 +803,8 @@ async def test_edit_volume_updates_title_and_description() -> None:
         "metadata": {
             "volume": {
                 "order": 1,
-                "title": "新卷",
-                "description": "新描述",
+                "title": "Volume Baru",
+                "description": "Deskripsi baru",
                 "chapter_count": 2,
             }
         },
@@ -816,7 +816,7 @@ async def test_edit_volume_builds_approval_preview() -> None:
     from app.agent_runtime.tools.impls.chapter.edit_volume import EditVolumeTool
 
     runtime_session = AsyncMock()
-    volume = _make_volume(title="旧卷", description="旧描述")
+    volume = _make_volume(title="Volume Lama", description="Deskripsi lama")
     tool = EditVolumeTool(_state=_make_state())
     object.__setattr__(tool, "_config", {"configurable": {"db_session": runtime_session}})
 
@@ -826,9 +826,9 @@ async def test_edit_volume_builds_approval_preview() -> None:
     ):
         preview = await tool.build_interrupt_preview(
             {
-                "volume_ref": {"type": "title", "value": "旧卷"},
-                "new_title": "新卷",
-                "new_description": "新描述",
+                "volume_ref": {"type": "title", "value": "Volume Lama"},
+                "new_title": "Volume Baru",
+                "new_description": "Deskripsi baru",
             }
         )
 
@@ -839,8 +839,8 @@ async def test_edit_volume_builds_approval_preview() -> None:
         "metadata": {
             "volume": {
                 "order": 1,
-                "title": "新卷",
-                "description": "新描述",
+                "title": "Volume Baru",
+                "description": "Deskripsi baru",
                 "chapter_count": 2,
             }
         },
@@ -905,8 +905,8 @@ async def test_move_chapter_to_volume_appends_to_target_volume() -> None:
         MoveChapterToVolumeTool,
     )
 
-    source = _make_volume(volume_id="vol-1", order=1, title="第一卷")
-    target = _make_volume(volume_id="vol-2", order=2, title="第二卷")
+    source = _make_volume(volume_id="vol-1", order=1, title="Volume 1")
+    target = _make_volume(volume_id="vol-2", order=2, title="Volume 2")
     chapter = _make_chapter(order=2, volume_id="vol-1")
     source_following = _make_chapter(order=3, volume_id="vol-1", chapter_id="chap-2")
     after_following = _make_chapter(order=2, volume_id="vol-1", chapter_id="chap-2")
@@ -923,7 +923,7 @@ async def test_move_chapter_to_volume_appends_to_target_volume() -> None:
             AsyncMock(return_value=[source, target]),
         ), patch(
             "app.agent_runtime.tools.impls.chapter.move_chapter_to_volume.chapter_repo.list_by_volume",
-            AsyncMock(side_effect=AssertionError("不应扫描整卷")),
+            AsyncMock(side_effect=AssertionError("Tidak boleh memindai seluruh volume")),
         ), patch(
             "app.agent_runtime.tools.impls.chapter.move_chapter_to_volume.chapter_service.move_chapter_to_volume",
             AsyncMock(return_value=moved),
@@ -939,7 +939,7 @@ async def test_move_chapter_to_volume_appends_to_target_volume() -> None:
         ):
             with patch(
                 "app.agent_runtime.tools.impls.chapter.move_chapter_to_volume.chapter_repo.list_by_project",
-                AsyncMock(side_effect=AssertionError("不应加载项目全部章节")),
+                AsyncMock(side_effect=AssertionError("Tidak boleh memuat seluruh bab proyek")),
             ), patch(
                 "app.agent_runtime.tools.impls.chapter.move_chapter_to_volume.chapter_repo.get_by_volume_ref",
                 AsyncMock(return_value=chapter),
@@ -953,7 +953,7 @@ async def test_move_chapter_to_volume_appends_to_target_volume() -> None:
                     {
                         "volume_ref": {"type": "order", "value": 1},
                         "chapter_ref": {"type": "order", "value": 2},
-                        "target_volume_ref": {"type": "title", "value": "第二卷"},
+                        "target_volume_ref": {"type": "title", "value": "Volume 2"},
                     }
                 )
 
@@ -963,10 +963,10 @@ async def test_move_chapter_to_volume_appends_to_target_volume() -> None:
     assert data["metadata"]["chapter_diff"] == {
         "operation": "move",
         "chapter_id": "chap-1",
-        "chapter_title": "第一章",
+        "chapter_title": "Bab 1",
         "order": 4,
         "volume_id": "vol-2",
-        "path": ["第二卷"],
+        "path": ["Volume 2"],
     }
     move_chapter.assert_awaited_once_with(
         mock_session,

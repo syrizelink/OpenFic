@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Project API Schemas - 项目请求/响应模型。
+Project API Schemas - Model permintaan/respons proyek.
 """
 
 from datetime import datetime
@@ -9,40 +9,40 @@ from pydantic import BaseModel, Field
 
 
 class ProjectCreate(BaseModel):
-    """创建项目请求。"""
+    """Permintaan pembuatan proyek."""
 
-    title: str = Field(min_length=1, max_length=200, description="项目标题")
-    description: str | None = Field(default=None, description="项目简介")
+    title: str = Field(min_length=1, max_length=200, description="Judul proyek")
+    description: str | None = Field(default=None, description="Sinopsis proyek")
 
 
 class ProjectUpdate(BaseModel):
-    """更新项目请求。"""
+    """Permintaan pembaruan proyek."""
 
     title: str | None = Field(
-        default=None, min_length=1, max_length=200, description="项目标题"
+        default=None, min_length=1, max_length=200, description="Judul proyek"
     )
-    description: str | None = Field(default=None, description="项目简介")
+    description: str | None = Field(default=None, description="Sinopsis proyek")
 
 
 class ProjectResponse(BaseModel):
-    """项目响应。"""
+    """Respons proyek."""
 
-    id: str = Field(description="项目 ID")
-    title: str = Field(description="项目标题")
-    description: str | None = Field(description="项目简介")
-    word_count: int = Field(description="统计字数")
-    chapter_count: int = Field(description="总章节数")
-    cover_url: str | None = Field(description="封面 URL")
-    created_at: datetime = Field(description="创建时间")
-    updated_at: datetime = Field(description="上次修改时间")
+    id: str = Field(description="ID proyek")
+    title: str = Field(description="Judul proyek")
+    description: str | None = Field(description="Sinopsis proyek")
+    word_count: int = Field(description="Jumlah kata terhitung")
+    chapter_count: int = Field(description="Jumlah total bab")
+    cover_url: str | None = Field(description="URL sampul")
+    created_at: datetime = Field(description="Waktu pembuatan")
+    updated_at: datetime = Field(description="Waktu modifikasi terakhir")
 
     model_config = {"from_attributes": True}
 
 
 class ProjectListResponse(BaseModel):
-    """项目列表响应。"""
+    """Respons daftar proyek."""
 
-    items: list[ProjectResponse] = Field(description="项目列表")
-    total: int = Field(description="总数")
-    page: int = Field(description="当前页码")
-    page_size: int = Field(description="每页数量")
+    items: list[ProjectResponse] = Field(description="Daftar proyek")
+    total: int = Field(description="Jumlah total")
+    page: int = Field(description="Nomor halaman saat ini")
+    page_size: int = Field(description="Jumlah per halaman")

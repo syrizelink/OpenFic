@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""提示词链 API。"""
+"""API rantai prompt."""
 
 from typing import Annotated
 
@@ -37,7 +37,7 @@ def _version_response(result: prompt_chain_service.VersionWithEntries) -> Versio
     )
 
 
-@router.get("/categories", response_model=PromptChainsMetadataResponse, summary="获取提示词分类")
+@router.get("/categories", response_model=PromptChainsMetadataResponse, summary="Mengambil kategori prompt")
 async def get_categories(
     session: AsyncSession = Depends(get_session),
 ) -> PromptChainsMetadataResponse:
@@ -45,7 +45,7 @@ async def get_categories(
     return PromptChainsMetadataResponse.model_validate(metadata)
 
 
-@router.get("/{prompt_id}/versions", response_model=list[PromptChainVersionResponse], summary="获取版本列表")
+@router.get("/{prompt_id}/versions", response_model=list[PromptChainVersionResponse], summary="Mengambil daftar versi")
 async def list_versions(
     prompt_id: str,
     active_only: bool = False,
@@ -55,7 +55,7 @@ async def list_versions(
     return [PromptChainVersionResponse.model_validate(version) for version in versions]
 
 
-@router.get("/{prompt_id}/versions/latest", response_model=VersionWithEntriesResponse, summary="获取最新版本")
+@router.get("/{prompt_id}/versions/latest", response_model=VersionWithEntriesResponse, summary="Mengambil versi terbaru")
 async def get_latest_version(
     prompt_id: str,
     session: AsyncSession = Depends(get_session),
@@ -67,7 +67,7 @@ async def get_latest_version(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
-@router.get("/{prompt_id}/versions/{version_id}", response_model=VersionWithEntriesResponse, summary="获取指定版本")
+@router.get("/{prompt_id}/versions/{version_id}", response_model=VersionWithEntriesResponse, summary="Mengambil versi tertentu")
 async def get_version(
     prompt_id: str,
     version_id: str,
@@ -76,7 +76,7 @@ async def get_version(
     try:
         result = await prompt_chain_service.get_version_with_entries(session, version_id, prompt_id)
         if result.version.prompt_id != prompt_id:
-            raise NotFoundError(f"版本不属于提示词链: {prompt_id}")
+            raise NotFoundError(f"Versi tidak termasuk dalam rantai prompt: {prompt_id}")
         return _version_response(result)
     except NotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
@@ -85,15 +85,15 @@ async def get_version(
 @router.get(
     "/{prompt_id}/versions/{version_id}/search",
     response_model=PromptEntrySearchResponse,
-    summary="搜索提示词版本条目",
+    summary="Mencari entri versi prompt",
 )
 async def search_version_entries(
     prompt_id: str,
     version_id: str,
-    q: Annotated[str, Query(min_length=1, description="搜索关键词")],
+    q: Annotated[str, Query(min_length=1, description="Kata kunci pencarian")],
     session: AsyncSession = Depends(get_session),
 ) -> PromptEntrySearchResponse:
-    """搜索指定提示词版本的条目名称和内容。"""
+    """Mencari nama dan isi entri pada versi prompt tertentu."""
     try:
         result = await prompt_chain_service.search_version_entries(session, prompt_id, version_id, q)
         return PromptEntrySearchResponse(
@@ -123,7 +123,7 @@ async def search_version_entries(
     "/{prompt_id}/versions",
     response_model=VersionWithEntriesResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="创建新版本",
+    summary="Membuat versi baru",
 )
 async def create_version(
     prompt_id: str,
@@ -143,18 +143,18 @@ async def create_version(
                 request.note,
             )
         await session.commit()
-        logger.info(f"创建提示词版本: prompt_id={prompt_id}, version={result.version.version_number}")
+        logger.info(f"Membuat versi prompt: prompt_id={prompt_id}, version={result.version.version_number}")
         return _version_response(result)
     except (NotFoundError, ValidationError) as exc:
         await session.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except Exception as exc:
         await session.rollback()
-        logger.exception(f"创建提示词版本失败: prompt_id={prompt_id}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建失败") from exc
+        logger.exception(f"Gagal membuat versi prompt: prompt_id={prompt_id}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Gagal membuat") from exc
 
 
-@router.post("/{prompt_id}/compile", response_model=CompileResponse, summary="编译提示词链")
+@router.post("/{prompt_id}/compile", response_model=CompileResponse, summary="Mengompilasi rantai prompt")
 async def compile_prompt_chain(
     prompt_id: str,
     session: AsyncSession = Depends(get_session),
@@ -196,7 +196,7 @@ async def compile_prompt_chain(
 @router.get(
     "/{prompt_id}/versions/{version_id}/diff/{compare_version_id}",
     response_model=VersionDiffResponse,
-    summary="对比两个版本的差异",
+    summary="Membandingkan perbedaan dua versi",
 )
 async def diff_versions(
     prompt_id: str,
@@ -210,7 +210,7 @@ async def diff_versions(
             session, compare_version_id, prompt_id
         )
         if base_result.version.prompt_id != prompt_id or compare_result.version.prompt_id != prompt_id:
-            raise NotFoundError(f"版本不属于提示词链: {prompt_id}")
+            raise NotFoundError(f"Versi tidak termasuk dalam rantai prompt: {prompt_id}")
 
         base_entries = {entry.uid: entry for entry in base_result.entries}
         compare_entries = {entry.uid: entry for entry in compare_result.entries}
@@ -258,7 +258,7 @@ async def diff_versions(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
-@router.post("/{prompt_id}/reset", response_model=VersionWithEntriesResponse, summary="重置提示词链")
+@router.post("/{prompt_id}/reset", response_model=VersionWithEntriesResponse, summary="Mereset rantai prompt")
 async def reset_to_default(
     prompt_id: str,
     session: AsyncSession = Depends(get_session),

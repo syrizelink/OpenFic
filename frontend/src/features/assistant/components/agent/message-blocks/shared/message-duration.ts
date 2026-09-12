@@ -1,6 +1,6 @@
 /**
- * 格式化累计时长：秒向上取整，最多显示到小时。
- * 例：45s、7m 35s、1h 23m 19s
+ * Memformat durasi kumulatif: detik dibulatkan ke atas, satuan terbesar yang ditampilkan adalah jam.
+ * Contoh: 45s, 7m 35s, 1h 23m 19s
  */
 export function formatElapsedDuration(ms: number): string {
   const totalSeconds = Math.max(1, Math.ceil(Math.max(0, ms) / 1000));

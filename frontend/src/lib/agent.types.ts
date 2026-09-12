@@ -1,7 +1,7 @@
 /**
  * Agent Types
  *
- * Agent 工作流相关类型定义
+ * Definisi tipe terkait alur kerja Agent
  */
 
 import type { TaskMessage } from "./task.types";

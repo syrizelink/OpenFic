@@ -1,41 +1,41 @@
 /**
  * Projects Store
  *
- * 使用 Zustand 管理项目列表的本地 UI 状态。
+ * Mengelola status UI lokal daftar proyek memakai Zustand.
  */
 
 import { create } from "zustand";
 
-/** 视图模式 */
+/** Mode tampilan */
 export type ViewMode = "grid" | "list";
 
-/** 排序方式 */
+/** Cara pengurutan */
 export type SortBy = "updated_at" | "created_at" | "title";
 
-/** 排序方向 */
+/** Arah pengurutan */
 export type SortOrder = "asc" | "desc";
 
 interface ProjectsStoreState {
-  /** 视图模式 */
+  /** Mode tampilan */
   viewMode: ViewMode;
-  /** 搜索关键词 */
+  /** Kata kunci pencarian */
   searchQuery: string;
-  /** 排序方式 */
+  /** Cara pengurutan */
   sortBy: SortBy;
-  /** 排序方向 */
+  /** Arah pengurutan */
   sortOrder: SortOrder;
 }
 
 interface ProjectsStoreActions {
-  /** 设置视图模式 */
+  /** Menyetel mode tampilan */
   setViewMode: (mode: ViewMode) => void;
-  /** 设置搜索关键词 */
+  /** Menyetel kata kunci pencarian */
   setSearchQuery: (query: string) => void;
-  /** 设置排序方式 */
+  /** Menyetel cara pengurutan */
   setSortBy: (sortBy: SortBy) => void;
-  /** 设置排序方向 */
+  /** Menyetel arah pengurutan */
   setSortOrder: (order: SortOrder) => void;
-  /** 重置所有状态 */
+  /** Mereset seluruh status */
   reset: () => void;
 }
 

@@ -1,7 +1,7 @@
 /**
  * EntriesSidebar Component
  *
- * 左侧边栏：提示词条目列表
+ * Bilah sisi kiri: daftar entri prompt
  */
 
 import {
@@ -121,7 +121,7 @@ export function EntriesSidebar({
     }
   };
 
-  // 滚动到选中的条目
+  // Menggulir ke entri yang dipilih
   const handleSelectWithScroll = (entryId: string) => {
     onSelectEntry(entryId);
     const entryElement = entryRefs.current.get(entryId);
@@ -205,7 +205,7 @@ export function EntriesSidebar({
     </>
   );
 
-  // 如果没有条目，显示空状态
+  // Jika tidak ada entri, tampilkan status kosong
   if (entries.length === 0) {
     return (
       <Box
@@ -251,7 +251,7 @@ export function EntriesSidebar({
     >
       {sidebarControls}
 
-      {/* 条目列表 */}
+      {/* Daftar entri */}
       <Box
         ref={listRef}
         style={{ flex: 1, overflow: "auto" }}
@@ -312,10 +312,10 @@ const EntryItem = React.forwardRef<HTMLDivElement, EntryItemProps>(
       opacity: isDragging ? 0.5 : 1,
     };
 
-    // 角色图标
+    // Ikon peran
     const RoleIcon = entry.role === "system" ? Terminal : entry.role === "assistant" ? Bot : User;
 
-    // 合并 refs
+    // Menggabungkan refs
     const combinedRef = (node: HTMLDivElement | null) => {
       setNodeRef(node);
       if (typeof ref === "function") {
@@ -414,7 +414,7 @@ const EntryItem = React.forwardRef<HTMLDivElement, EntryItemProps>(
               gap="1"
               style={{ flexShrink: 0 }}
             >
-              {/* 删除按钮 */}
+              {/* Tombol hapus */}
               <IconButton
                 variant="ghost"
                 size="1"
@@ -427,7 +427,7 @@ const EntryItem = React.forwardRef<HTMLDivElement, EntryItemProps>(
                 <Trash2 size={12} />
               </IconButton>
 
-              {/* 启用开关 */}
+              {/* Saklar pengaktifan */}
               <Switch
                 size="1"
                 checked={entry.is_enabled}
@@ -435,7 +435,7 @@ const EntryItem = React.forwardRef<HTMLDivElement, EntryItemProps>(
                 onCheckedChange={onToggle}
               />
 
-              {/* Token计数（只显示数字） */}
+              {/* Penghitung Token (hanya menampilkan angka) */}
               <Text
                 size="1"
                 color="gray"
@@ -447,7 +447,7 @@ const EntryItem = React.forwardRef<HTMLDivElement, EntryItemProps>(
           </Flex>
         </Flex>
 
-        {/* 闪烁动画样式 */}
+        {/* Gaya animasi kedip */}
         {!isSelected && (
           <style>{`
           .entry-highlight {

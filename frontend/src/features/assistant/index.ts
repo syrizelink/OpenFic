@@ -1,7 +1,7 @@
 /**
  * Assistant Feature
  *
- * AI 助手功能导出
+ * Ekspor fungsi asisten AI
  */
 
 export { AssistantSidebar, type AssistantSidebarHandle } from "./components/assistant-sidebar";

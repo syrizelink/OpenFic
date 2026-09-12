@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Character Router - 角色 CRUD API。"""
+"""Character Router - API CRUD tokoh."""
 
 from typing import Annotated
 
@@ -29,7 +29,7 @@ router = APIRouter(tags=["characters"])
 
 
 def to_response(character: Character) -> CharacterResponse:
-    """转换角色响应。"""
+    """Mengonversi respons tokoh."""
     return CharacterResponse(
         id=character.id,
         project_id=character.project_id,
@@ -43,7 +43,7 @@ def to_response(character: Character) -> CharacterResponse:
 
 
 def to_list_item_response(character: Character) -> CharacterListItemResponse:
-    """转换角色列表项响应。"""
+    """Mengonversi respons item daftar tokoh."""
     return CharacterListItemResponse(
         id=character.id,
         project_id=character.project_id,
@@ -59,13 +59,13 @@ def to_list_item_response(character: Character) -> CharacterListItemResponse:
 @router.get(
     "/projects/{project_id}/characters",
     response_model=CharacterListResponse,
-    summary="获取项目角色列表",
+    summary="Mengambil daftar tokoh proyek",
 )
 async def list_project_characters(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> CharacterListResponse:
-    """获取项目角色列表。"""
+    """Mengambil daftar tokoh proyek."""
     try:
         characters = await character_service.list_characters_by_project(session, project_id)
         return CharacterListResponse(
@@ -80,7 +80,7 @@ async def list_project_characters(
     "/projects/{project_id}/characters",
     response_model=CharacterResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="创建角色",
+    summary="Membuat tokoh",
 )
 async def create_character(
     project_id: str,
@@ -89,9 +89,9 @@ async def create_character(
     description: Annotated[str, Form()] = "",
     image: Annotated[UploadFile | None, File()] = None,
 ) -> CharacterResponse:
-    """创建角色。"""
+    """Membuat tokoh."""
     try:
-        logger.info(f"创建角色: project_id={project_id}, name={name}")
+        logger.info(f"Membuat tokoh: project_id={project_id}, name={name}")
         character = await character_service.create_character(
             session, project_id, name=name, description=description, image_file=image
         )
@@ -107,14 +107,14 @@ async def create_character(
 @router.get(
     "/projects/{project_id}/characters/search",
     response_model=CharacterSearchResponse,
-    summary="搜索项目角色",
+    summary="Mencari tokoh proyek",
 )
 async def search_project_characters(
     project_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
-    q: Annotated[str, Query(min_length=1, description="搜索关键词")],
+    q: Annotated[str, Query(min_length=1, description="Kata kunci pencarian")],
 ) -> CharacterSearchResponse:
-    """搜索项目角色名称和描述。"""
+    """Mencari nama dan deskripsi tokoh proyek."""
     try:
         result = await character_service.search_characters(session, project_id, q)
         return CharacterSearchResponse(
@@ -142,16 +142,16 @@ async def search_project_characters(
 @router.post(
     "/projects/{project_id}/characters/batch/favorite",
     response_model=CharacterBatchFavoriteResponse,
-    summary="批量更新角色收藏状态",
+    summary="Memperbarui status favorit tokoh secara massal",
 )
 async def batch_favorite_characters(
     project_id: str,
     data: CharacterBatchFavoriteRequest,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> CharacterBatchFavoriteResponse:
-    """批量更新项目内角色收藏状态。"""
+    """Memperbarui status favorit tokoh dalam proyek secara massal."""
     try:
-        logger.info(f"批量更新角色收藏: project_id={project_id}, count={len(data.character_ids)}")
+        logger.info(f"Memperbarui favorit tokoh secara massal: project_id={project_id}, count={len(data.character_ids)}")
         updated_count = await character_service.batch_update_favorite(
             session, project_id, data.character_ids, data.is_favorited
         )
@@ -163,16 +163,16 @@ async def batch_favorite_characters(
 @router.post(
     "/projects/{project_id}/characters/batch/delete",
     response_model=CharacterBatchDeleteResponse,
-    summary="批量删除角色",
+    summary="Menghapus tokoh secara massal",
 )
 async def batch_delete_characters(
     project_id: str,
     data: CharacterBatchDeleteRequest,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> CharacterBatchDeleteResponse:
-    """批量删除项目内角色。"""
+    """Menghapus tokoh dalam proyek secara massal."""
     try:
-        logger.info(f"批量删除角色: project_id={project_id}, count={len(data.character_ids)}")
+        logger.info(f"Menghapus tokoh secara massal: project_id={project_id}, count={len(data.character_ids)}")
         deleted_count = await character_service.batch_delete_characters(
             session, project_id, data.character_ids
         )
@@ -184,13 +184,13 @@ async def batch_delete_characters(
 @router.get(
     "/characters/{character_id}",
     response_model=CharacterResponse,
-    summary="获取角色",
+    summary="Mengambil tokoh",
 )
 async def get_character(
     character_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> CharacterResponse:
-    """获取角色。"""
+    """Mengambil tokoh."""
     try:
         character = await character_service.get_character(session, character_id)
         return to_response(character)
@@ -201,7 +201,7 @@ async def get_character(
 @router.patch(
     "/characters/{character_id}",
     response_model=CharacterResponse,
-    summary="更新角色",
+    summary="Memperbarui tokoh",
 )
 async def update_character(
     character_id: str,
@@ -211,7 +211,7 @@ async def update_character(
     is_favorited: Annotated[bool | None, Form()] = None,
     image: Annotated[UploadFile | None, File()] = None,
 ) -> CharacterResponse:
-    """更新角色。"""
+    """Memperbarui tokoh."""
     try:
         character = await character_service.update_character(
             session,
@@ -233,13 +233,13 @@ async def update_character(
 @router.delete(
     "/characters/{character_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="删除角色",
+    summary="Menghapus tokoh",
 )
 async def delete_character(
     character_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> None:
-    """删除角色。"""
+    """Menghapus tokoh."""
     try:
         await character_service.delete_character(session, character_id)
     except NotFoundError as e:

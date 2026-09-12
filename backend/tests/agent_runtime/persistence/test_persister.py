@@ -1,4 +1,4 @@
-"""MessagePersister 测试 — 正常路径。"""
+"""Uji MessagePersister - jalur normal."""
 
 import json
 from datetime import UTC, datetime
@@ -78,21 +78,21 @@ async def test_persister_extracts_anthropic_text_content_blocks(
         "data": {
             "chunk": AIMessageChunk(
                 content=[
-                    {"type": "thinking", "thinking": "分析中"},
-                    {"type": "text", "text": "可见回复"},
+                    {"type": "thinking", "thinking": "Sedang menganalisis"},
+                    {"type": "text", "text": "Balasan terlihat"},
                 ]
             )
         },
     })
     await p.handle({
         "event": "on_chat_model_end",
-        "data": {"output": AIMessage(content=[{"type": "text", "text": "可见回复"}])},
+        "data": {"output": AIMessage(content=[{"type": "text", "text": "Balasan terlihat"}])},
     })
 
     items = await repo.list_by_session(db_session, sid)
     assert len(items) == 1
-    assert items[0].content == "可见回复"
-    assert items[0].reasoning == "分析中"
+    assert items[0].content == "Balasan terlihat"
+    assert items[0].reasoning == "Sedang menganalisis"
 
 
 @pytest.mark.asyncio
@@ -147,7 +147,7 @@ async def test_persister_inserts_missing_batch_approval_preview_tool_messages(
         "type": "preview",
         "success": True,
         "reason": "approval_preview",
-        "metadata": {"volume": {"title": "新卷"}},
+        "metadata": {"volume": {"title": "Volume Baru"}},
     }
 
     await persister.apply_interrupt_preview(
@@ -176,13 +176,13 @@ async def test_persister_inserts_missing_batch_approval_preview_tool_messages(
         {
             "tool_call_id": "call-next",
             "tool_name": "create_note_category",
-            "tool_result_preview": {**preview, "message": "待审批"},
+            "tool_result_preview": {**preview, "message": "Menunggu persetujuan"},
         }
     )
 
     messages = await repo.list_by_session(db_session, session_id)
     assert len(messages) == 2
-    assert json.loads(messages[0].content)["message"] == "待审批"
+    assert json.loads(messages[0].content)["message"] == "Menunggu persetujuan"
 
 
 @pytest.mark.asyncio
@@ -190,7 +190,7 @@ async def test_persister_persists_ask_user_interrupt_preview(
     db_session: AsyncSession, db_session_factory, sample_task
 ):
     session_id = "session-ask-user-preview"
-    questions = [{"title": "剧情走向？", "description": "请选择下一段方向", "options": []}]
+    questions = [{"title": "Arah alur cerita?", "description": "Silakan pilih arah bagian berikutnya", "options": []}]
     persister = MessagePersister(
         session_id=session_id,
         task_id=sample_task.id,
@@ -251,7 +251,7 @@ async def test_persister_replaces_approval_preview_with_rejected_result(
                 "type": "control",
                 "success": False,
                 "status": "approval_denied",
-                "message": "工具调用已被用户拒绝",
+                "message": "Pemanggilan alat ditolak oleh pengguna",
             },
         }
     )
@@ -262,7 +262,7 @@ async def test_persister_replaces_approval_preview_with_rejected_result(
         "type": "control",
         "success": False,
         "status": "approval_denied",
-        "message": "工具调用已被用户拒绝",
+        "message": "Pemanggilan alat ditolak oleh pengguna",
     }
 
 
@@ -445,7 +445,7 @@ async def test_persister_persists_subagent_tool_approval_preview(
         "type": "ok",
         "success": True,
         "reason": "approval_preview",
-        "message": "需要审批",
+        "message": "Perlu persetujuan",
         "tool_call_id": "call-write-plan",
         "tool_name": "write_plan",
     }
@@ -513,7 +513,7 @@ async def test_persister_persists_reasoning_duration_on_chat_model_end(
         "data": {
             "chunk": AIMessageChunk(
                 content="",
-                additional_kwargs={"reasoning_content": "先分析需求"},
+                additional_kwargs={"reasoning_content": "Analisis kebutuhan dahulu"},
             ),
         },
     })
@@ -525,7 +525,7 @@ async def test_persister_persists_reasoning_duration_on_chat_model_end(
     items = await repo.list_by_session(db_session, sid)
     assert len(items) == 1
     msg = items[0]
-    assert msg.reasoning == "先分析需求"
+    assert msg.reasoning == "Analisis kebutuhan dahulu"
     assert msg.reasoning_duration_ms is not None
     assert msg.reasoning_duration_ms == 0
 
@@ -560,7 +560,7 @@ async def test_persister_stops_reasoning_duration_at_last_reasoning_chunk(
         "data": {
             "chunk": AIMessageChunk(
                 content="",
-                additional_kwargs={"reasoning_content": "先分析"},
+                additional_kwargs={"reasoning_content": "Analisis awal"},
             ),
         },
     })
@@ -572,7 +572,7 @@ async def test_persister_stops_reasoning_duration_at_last_reasoning_chunk(
         "data": {
             "chunk": AIMessageChunk(
                 content="",
-                additional_kwargs={"reasoning_content": "再推演"},
+                additional_kwargs={"reasoning_content": " lalu penalaran lanjutan"},
             ),
         },
     })
@@ -581,20 +581,20 @@ async def test_persister_stops_reasoning_duration_at_last_reasoning_chunk(
     await p.handle({
         "event": "on_chat_model_stream",
         "run_id": "run-1",
-        "data": {"chunk": AIMessageChunk(content="最终结论")},
+        "data": {"chunk": AIMessageChunk(content="Kesimpulan akhir")},
     })
 
     FrozenDateTime.current = datetime(2026, 1, 1, 0, 0, 7, tzinfo=UTC)
     await p.handle({
         "event": "on_chat_model_end",
         "run_id": "run-1",
-        "data": {"output": AIMessageChunk(content="最终结论")},
+        "data": {"output": AIMessageChunk(content="Kesimpulan akhir")},
     })
 
     items = await repo.list_by_session(db_session, sid)
     assert len(items) == 1
     msg = items[0]
-    assert msg.reasoning == "先分析再推演"
+    assert msg.reasoning == "Analisis awal lalu penalaran lanjutan"
     assert msg.reasoning_duration_ms == 2000
 
 
@@ -830,7 +830,10 @@ async def test_persister_persists_unrecoverable_invalid_tool_call_with_synthesiz
         "type": "fail",
         "success": False,
         "code": "malformed_tool_call",
-        "message": "工具参数 JSON 无法解析，未执行工具调用",
+        "message": (
+            "Parameter alat berupa JSON tidak dapat diurai, pemanggilan alat "
+            "tidak dijalankan"
+        ),
     }
 
 

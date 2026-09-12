@@ -22,14 +22,15 @@ async def compress_system_prompts_if_enabled(
     messages: list[ContextMessage],
     db_session: AsyncSession,
 ) -> list[ContextMessage]:
-    """设置开启时将连续的 system 消息合并为一条，否则原样返回。"""
+    """Menggabungkan pesan system yang berurutan menjadi satu pesan bila
+    pengaturan aktif; jika tidak, kembalikan apa adanya."""
     if not await is_compress_system_prompts_enabled(db_session):
         return messages
     return compress_system_prompts(messages)
 
 
 async def is_compress_system_prompts_enabled(db_session: AsyncSession) -> bool:
-    """读取并解析压缩系统提示词开关。"""
+    """Membaca dan mengurai sakelar prompt sistem untuk pemadatan."""
     try:
         row = await setting_repo.get_by_key(
             db_session,
@@ -47,7 +48,8 @@ async def is_compress_system_prompts_enabled(db_session: AsyncSession) -> bool:
 
 
 def compress_system_prompts(messages: list[ContextMessage]) -> list[ContextMessage]:
-    """将连续的 system 消息合并为一条，非连续 system 消息保持原样。"""
+    """Menggabungkan pesan system yang berurutan menjadi satu pesan; pesan system
+    yang tidak berurutan dibiarkan apa adanya."""
     out: list[ContextMessage] = []
     for message in messages:
         if message.role == "system" and out and out[-1].role == "system":
@@ -64,7 +66,8 @@ def compress_system_prompts(messages: list[ContextMessage]) -> list[ContextMessa
 def merge_consecutive_system_dicts(
     messages: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """将 role/content 字典列表中连续的 system 消息合并为一条。"""
+    """Menggabungkan pesan system yang berurutan pada daftar dict role/content
+    menjadi satu pesan."""
     out: list[dict[str, Any]] = []
     for message in messages:
         if (
@@ -88,7 +91,8 @@ def merge_consecutive_system_dicts(
 def merge_consecutive_system_messages(
     messages: Sequence[TMessage],
 ) -> list[TMessage]:
-    """将 LangChain 消息列表中连续的 system 消息合并为一条。"""
+    """Menggabungkan pesan system yang berurutan pada daftar pesan LangChain
+    menjadi satu pesan."""
     out: list[TMessage] = []
     for message in messages:
         if out and isinstance(out[-1], SystemMessage) and isinstance(message, SystemMessage):

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-创建新笔记。
+Membuat catatan baru.
 """
 
 import json
@@ -30,15 +30,22 @@ from app.storage.repos import note_category_repo, note_repo
 
 
 class WriteNoteInput(BaseModel):
-    title: str = Field(description="笔记标题")
-    content: str = Field(description="笔记内容")
-    category_ref: dict | None = Field(default=None, description="可选的目标分类引用")
+    title: str = Field(description="Judul catatan")
+    content: str = Field(description="Isi catatan")
+    category_ref: dict | None = Field(
+        default=None, description="Referensi kategori sasaran, opsional"
+    )
 
 
 @ToolRegistry.register
 class WriteNoteTool(AgentTool):
     name: str = "write_note"
-    description: str = "在指定分类（可省略）下创建新笔记，该工具无法覆盖式创建，当创建同名笔记时，会添加不重复序号的新笔记"
+    description: str = (
+        "Membuat catatan baru di bawah kategori yang ditentukan (boleh dihilangkan). "
+        "Alat ini tidak dapat membuat catatan secara menimpa; saat membuat catatan "
+        "dengan nama yang sama, catatan baru ditambahkan dengan nomor urut yang "
+        "tidak berulang"
+    )
     access_level: str = "write"
     args_schema: type[BaseModel] = WriteNoteInput
 
@@ -104,7 +111,7 @@ class WriteNoteTool(AgentTool):
             "type": "preview",
             "success": True,
             "reason": "approval_preview",
-            "message": "笔记创建待审批",
+            "message": "Pembuatan catatan menunggu persetujuan",
             "metadata": {
                 "note_diff": note_diff,
             },
@@ -118,7 +125,9 @@ class WriteNoteTool(AgentTool):
     ) -> str:
         revision_id = current_revision_id_from_state(self._state)
         if revision_id is None:
-            raise ToolExecutionError("缺少当前 revision，无法执行笔记写入")
+            raise ToolExecutionError(
+                "revision saat ini tidak ada, penulisan catatan tidak dapat dijalankan"
+            )
         try:
             validate_editor_content(content)
         except EditorContentLimitError as exc:
@@ -132,7 +141,7 @@ class WriteNoteTool(AgentTool):
                 if ref.id is not None:
                     cat = await note_category_repo.get_by_id(session, ref.id)
                     if cat is None:
-                        raise ToolExecutionError(f"分类不存在: {ref.id}")
+                        raise ToolExecutionError(f"Kategori tidak ditemukan: {ref.id}")
                     categories = [cat]
                     if cat.parent_id is not None:
                         categories = await note_category_repo.list_by_project(
@@ -144,7 +153,9 @@ class WriteNoteTool(AgentTool):
                     )
                     cat = resolve_category_from_list(categories, ref)
                 if cat.project_id != self.project_id:
-                    raise ToolExecutionError("目标分类不属于当前项目")
+                    raise ToolExecutionError(
+                        "Kategori sasaran tidak termasuk dalam proyek saat ini"
+                    )
                 category_id = cat.id
 
             async with await keyed_lock((self.project_id, category_id)):

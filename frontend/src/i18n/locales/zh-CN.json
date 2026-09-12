@@ -54,7 +54,15 @@
     "searchPlaceholder": "搜索...",
     "noMatchingOptions": "没有匹配选项",
     "swUpdated": "应用已更新，点击刷新",
-    "refresh": "刷新"
+    "refresh": "刷新",
+    "responseStreamUnavailable": "无法获取响应流",
+    "socketConnected": "已连接",
+    "socketDisconnected": "连接断开",
+    "socketConnectedLabel": "Socket 已连接",
+    "socketDisconnectedLabel": "Socket 连接断开",
+    "appStatusBar": "应用状态栏",
+    "backgroundSubscriptionFailed": "后台事件订阅失败",
+    "backgroundJoinRoomTimeout": "加入后台项目房间超时"
   },
   "auth": {
     "passwordPlaceholder": "请输入密码",
@@ -681,7 +689,8 @@
     "batchDeleteSelected": "删除所选项",
     "batchDeleteConfirm": "确定要删除这 {{count}} 个条目吗？此操作不可撤销。",
     "batchDeleted": "已删除 {{count}} 个条目",
-    "batchToggled": "已更新 {{count}} 个条目"
+    "batchToggled": "已更新 {{count}} 个条目",
+    "projectWorldInfoLabel": "{{title}} 的世界书"
   },
   "settings": {
     "agentSettingsLocked": "Agent 会话运行中，相关设置暂不可修改。",
@@ -995,6 +1004,22 @@
     "agentsSystemDefaultModel": "默认模型",
     "agentsSystemLightModel": "轻量模型",
     "agentsToolCategories": "能力",
+    "agentsToolCategoryLabels": {
+      "orchestration": "委派子任务",
+      "interaction": "提问",
+      "web_search": "联网搜索",
+      "web_fetch": "网页读取",
+      "plan": "计划",
+      "chapter_read": "章节读取",
+      "summary_read": "摘要读取",
+      "character_read": "角色读取",
+      "character_write": "角色写入",
+      "world_read": "世界书读取",
+      "world_write": "世界书写入",
+      "note_read": "笔记读取",
+      "note_write": "笔记写入",
+      "chapter_write": "章节写入"
+    },
     "agentsNoTools": "暂无可用工具",
     "agentsNoDescription": "暂无描述",
     "agentsEnabledSkills": "技能",
@@ -1085,7 +1110,13 @@
     },
     "primaryDescription": {
       "build": "默认的 Agent，执行通用的写作任务，并在需要时调度子 Agent 完成工作",
-      "plan": "专注于规划和协调，组织子 Agent 工作、审查与交付，负责执行系统写作的任务"
+      "plan": "专注于规划和协调，组织子 Agent 工作、审查与交付，负责执行系统写作的任务",
+      "explore": "负责信息搜集、上下文梅理与证据查找",
+      "composer": "负责剧情设计、结构规划与写作方案的组织",
+      "auditor": "负责审查计划，产出评审意见、指出问题并提出修正建议。",
+      "writer": "负责章节内容撰写、补写与正文修改。",
+      "actor": "负责按既定目标执行修改并推进具体动作。",
+      "reviewer": "负责审查写作内容，产出评审意见、指出问题并提出修正建议。"
     }
   },
   "connections": {
@@ -1777,7 +1808,16 @@
       }
     },
     "errorInvalidParams": "请求参数不正确",
-    "generateFailedFallback": "摘要生成失败，请稍后重试。"
+    "generateFailedFallback": "摘要生成失败，请稍后重试。",
+    "statusDot": {
+      "notGenerated": "未生成摘要",
+      "queued": "摘要排队中",
+      "running": "摘要生成中",
+      "ready": "摘要就绪",
+      "failed": "摘要生成失败",
+      "stale": "摘要待更新"
+    },
+    "cancelBatchReason": "用户停止摘要生成队列"
   },
   "assistant": {
     "mobileTitle": "Agent",
@@ -2174,7 +2214,8 @@
       "find": "查找",
       "replaceWith": "替换为",
       "result": "结果",
-      "toolApprovalQuestion": "是否允许调用 {{toolName}}？"
+      "toolApprovalQuestion": "是否允许调用 {{toolName}}？",
+      "chapterDisplayByOrder": "第{{order}}章"
     }
   },
   "settingsExtra": {

@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Base Strategy - 策略基类。
+Base Strategy - kelas dasar strategi.
 
-Strategy负责模型选择、参数规范化和校验，不做HTTP调用。
+Strategy bertugas memilih model, menormalkan parameter, dan validasi;
+tidak melakukan pemanggilan HTTP.
 """
 
 from abc import ABC, abstractmethod
@@ -12,7 +13,7 @@ from typing import Any
 
 @dataclass
 class StandardizedConfig:
-    """统一的模型配置结构。"""
+    """Struktur konfigurasi model yang terpadu."""
 
     model_id: str
     task_type: str
@@ -21,37 +22,37 @@ class StandardizedConfig:
     parameters: dict[str, Any]
 
     def __post_init__(self):
-        """验证配置的基本有效性。"""
+        """Memvalidasi keabsahan dasar konfigurasi."""
         if self.task_type not in ("llm", "embedding", "rerank"):
             raise ValueError(f"Invalid task_type: {self.task_type}")
 
 
 class BaseStrategy(ABC):
-    """策略基类，定义策略的核心职责。"""
+    """Kelas dasar strategi, mendefinisikan tanggung jawab utama strategi."""
 
     @abstractmethod
     def normalize_parameters(self, raw_params: dict[str, Any]) -> dict[str, Any]:
         """
-        规范化参数。
+        Menormalkan parameter.
 
         Args:
-            raw_params: 原始参数字典。
+            raw_params: kamus parameter asli.
 
         Returns:
-            规范化后的参数字典。
+            Kamus parameter setelah dinormalkan.
         """
         pass
 
     @abstractmethod
     def validate(self, config: StandardizedConfig) -> tuple[bool, str]:
         """
-        校验配置。
+        Memvalidasi konfigurasi.
 
         Args:
-            config: 待校验的配置。
+            config: konfigurasi yang akan divalidasi.
 
         Returns:
-            (是否有效, 错误信息)
+            (apakah valid, pesan kesalahan)
         """
         pass
 
@@ -64,20 +65,20 @@ class BaseStrategy(ABC):
         raw_params: dict[str, Any],
     ) -> StandardizedConfig:
         """
-        创建标准化配置。
+        Membuat konfigurasi terstandardisasi.
 
         Args:
-            model_id: 模型ID。
-            task_type: 任务类型。
-            provider_type: 提供商类型。
-            provider_id: 提供商ID。
-            raw_params: 原始参数。
+            model_id: ID model.
+            task_type: jenis tugas.
+            provider_type: jenis penyedia.
+            provider_id: ID penyedia.
+            raw_params: parameter asli.
 
         Returns:
-            标准化的模型配置。
+            Konfigurasi model terstandardisasi.
 
         Raises:
-            ValueError: 如果参数无效。
+            ValueError: jika parameter tidak valid.
         """
         normalized_params = self.normalize_parameters(raw_params)
         config = StandardizedConfig(

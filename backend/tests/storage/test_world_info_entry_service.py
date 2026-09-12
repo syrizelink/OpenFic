@@ -15,8 +15,8 @@ async def test_overwrite_import_validates_all_entries_before_deleting_existing_e
     entries = [
         WorldInfoImportEntry(
             uid=1,
-            name="超限条目",
-            content="\n".join("内容" for _ in range(2001)),
+            name="Entri melebihi batas",
+            content="\n".join("Isi" for _ in range(2001)),
             is_enabled=True,
             order=1,
         )
@@ -32,7 +32,7 @@ async def test_overwrite_import_validates_all_entries_before_deleting_existing_e
             AsyncMock(),
         ) as delete_entries,
     ):
-        with pytest.raises(EditorContentLimitError, match="内容超出限制"):
+        with pytest.raises(EditorContentLimitError, match="Konten melebihi batas"):
             await import_entries(session, "world-1", entries, mode="overwrite")
 
     delete_entries.assert_not_awaited()

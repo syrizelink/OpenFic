@@ -6,17 +6,17 @@ from pydantic import BaseModel, Field
 
 
 class ChapterSummaryToolArgs(BaseModel):
-    start_time: str = Field(description="起始时间")
-    end_time: str = Field(description="结束时间")
-    characters: list[str] = Field(description="人物关列表")
-    locations: list[str] = Field(description="地点列表")
-    summary: str = Field(description="章节摘要")
+    start_time: str = Field(description="Waktu mulai")
+    end_time: str = Field(description="Waktu selesai")
+    characters: list[str] = Field(description="Daftar tokoh")
+    locations: list[str] = Field(description="Daftar lokasi")
+    summary: str = Field(description="Ringkasan bab")
 
 
 class LongTermSummaryToolArgs(BaseModel):
-    start_time: str = Field(description="起始时间")
-    end_time: str = Field(description="结束时间")
-    summary: str = Field(description="聚合摘要")
+    start_time: str = Field(description="Waktu mulai")
+    end_time: str = Field(description="Waktu selesai")
+    summary: str = Field(description="Ringkasan agregat")
 
 
 def emit_chapter_summary(
@@ -47,7 +47,7 @@ def make_chapter_summary_tool() -> StructuredTool:
     return StructuredTool.from_function(
         func=emit_chapter_summary,
         name="emit_chapter_summary",
-        description="提交结构化章节摘要。必须调用且只调用一次。",
+        description="Kirim ringkasan bab terstruktur. Wajib dipanggil dan hanya sekali.",
         args_schema=ChapterSummaryToolArgs,
     )
 
@@ -56,6 +56,8 @@ def make_long_term_summary_tool() -> StructuredTool:
     return StructuredTool.from_function(
         func=emit_long_term_summary,
         name="emit_long_term_summary",
-        description="提交结构化远期摘要。必须调用且只调用一次。",
+        description=(
+            "Kirim ringkasan jangka jauh terstruktur. Wajib dipanggil dan hanya sekali."
+        ),
         args_schema=LongTermSummaryToolArgs,
     )

@@ -8,7 +8,7 @@ IndexMode = str
 
 
 class IndexProjectStatusResponse(BaseModel):
-    """单个项目的索引状态汇总（不含内部 ID）。"""
+    """Ringkasan status indeks satu proyek (tanpa ID internal)."""
 
     project_id: str
     enabled: bool
@@ -25,7 +25,7 @@ class IndexProjectStatusResponse(BaseModel):
 
 
 class IndexOverallStatusResponse(BaseModel):
-    """索引总体状态（跨启用项目聚合）。"""
+    """Status indeks keseluruhan (diagregasi lintas proyek yang aktif)."""
 
     mode: IndexMode
     embedding_model_configured: bool
@@ -39,7 +39,7 @@ class IndexOverallStatusResponse(BaseModel):
 
 
 class IndexStartResponse(BaseModel):
-    """手动开始索引的响应。"""
+    """Respons pengindeksan yang dimulai manual."""
 
     project_id: str
     enqueued_count: int
@@ -47,7 +47,7 @@ class IndexStartResponse(BaseModel):
 
 
 class IndexStopResponse(BaseModel):
-    """手动停止索引的响应。"""
+    """Respons pengindeksan yang dihentikan manual."""
 
     project_id: str
     stopped_count: int

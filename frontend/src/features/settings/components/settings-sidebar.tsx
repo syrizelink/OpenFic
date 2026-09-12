@@ -3,11 +3,11 @@ import { useTranslation } from "react-i18next";
 
 import { SETTINGS_CATEGORY_ITEMS, type SettingsCategory } from "../lib/settings-categories";
 
-/** 设置类目 */
+/** Kategori pengaturan */
 interface SettingsSidebarProps {
-  /** 当前选中的类目 */
+  /** Kategori yang sedang dipilih */
   activeCategory: SettingsCategory;
-  /** 类目变更回调 */
+  /** Callback perubahan kategori */
   onCategoryChange: (category: SettingsCategory) => void;
 }
 

@@ -1,4 +1,5 @@
 import { Tooltip } from "@radix-ui/themes";
+import { useTranslation } from "react-i18next";
 
 import type { SummaryStatus } from "@/lib/api-client";
 
@@ -10,12 +11,12 @@ interface SummaryStatusDotProps {
   onOpenSummary?: () => void;
 }
 
-const STATUS_LABELS: Record<SummaryStatus, string> = {
-  not_generated: "未生成摘要",
-  queued: "摘要排队中",
-  running: "摘要生成中",
-  ready: "摘要就绪",
-  failed: "摘要生成失败",
+const STATUS_LABEL_KEYS: Record<SummaryStatus, string> = {
+  not_generated: "summary.statusDot.notGenerated",
+  queued: "summary.statusDot.queued",
+  running: "summary.statusDot.running",
+  ready: "summary.statusDot.ready",
+  failed: "summary.statusDot.failed",
 };
 
 const STATUS_COLORS: Record<SummaryStatus, string> = {
@@ -31,7 +32,9 @@ export function SummaryStatusDot({
   isStale = false,
   onOpenSummary,
 }: SummaryStatusDotProps) {
-  const label = status === "ready" && isStale ? "摘要待更新" : STATUS_LABELS[status];
+  const { t } = useTranslation();
+  const label =
+    status === "ready" && isStale ? t("summary.statusDot.stale") : t(STATUS_LABEL_KEYS[status]);
   const color = status === "ready" && isStale ? "var(--orange-8)" : STATUS_COLORS[status];
   return (
     <Tooltip content={label}>

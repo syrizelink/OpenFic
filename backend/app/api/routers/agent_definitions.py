@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Agent Definitions Router。
+Agent Definitions Router.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -46,7 +46,7 @@ def _to_response(defn) -> AgentDefinitionResponse:
 @router.get(
     "/tool-categories",
     response_model=AgentToolCategoryListResponse,
-    summary="获取智能体工具分类",
+    summary="Mengambil kategori tool agen",
 )
 async def list_definition_tool_categories() -> AgentToolCategoryListResponse:
     return AgentToolCategoryListResponse(
@@ -61,7 +61,7 @@ async def list_definition_tool_categories() -> AgentToolCategoryListResponse:
     )
 
 
-@router.get("", response_model=AgentDefinitionListResponse, summary="获取所有智能体定义")
+@router.get("", response_model=AgentDefinitionListResponse, summary="Mengambil semua definisi agen")
 async def list_definitions(
     session: AsyncSession = Depends(get_session),
 ) -> AgentDefinitionListResponse:
@@ -74,7 +74,7 @@ async def list_definitions(
 @router.get(
     "/{key}",
     response_model=AgentDefinitionResponse,
-    summary="获取单个智能体定义",
+    summary="Mengambil satu definisi agen",
 )
 async def get_definition(
     key: str,
@@ -85,7 +85,7 @@ async def get_definition(
     except KeyError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"智能体定义不存在: {key}",
+            detail=f"Definisi agen tidak ditemukan: {key}",
         )
     return _to_response(defn)
 
@@ -94,7 +94,7 @@ async def get_definition(
     "",
     response_model=AgentDefinitionResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="创建自定义智能体",
+    summary="Membuat agen kustom",
 )
 async def create_definition(
     body: AgentDefinitionCreateRequest,
@@ -135,7 +135,7 @@ async def create_definition(
 @router.put(
     "/{key}",
     response_model=AgentDefinitionResponse,
-    summary="更新智能体定义",
+    summary="Memperbarui definisi agen",
 )
 async def update_definition(
     key: str,
@@ -171,7 +171,7 @@ async def update_definition(
 @router.post(
     "/{key}/reset",
     response_model=AgentDefinitionResponse,
-    summary="重置内置智能体为默认值",
+    summary="Mereset agen bawaan ke nilai default",
 )
 async def reset_definition(
     key: str,
@@ -189,7 +189,7 @@ async def reset_definition(
 @router.delete(
     "/{key}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="删除自定义智能体",
+    summary="Menghapus agen kustom",
 )
 async def delete_definition(
     key: str,

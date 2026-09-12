@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Task Repository - 任务数据访问层。
+Task Repository - lapisan akses data tugas.
 """
 
 from datetime import UTC, datetime
@@ -22,7 +22,10 @@ async def add_token_usage(
     token_cache: int,
     cost: float,
 ) -> Task | None:
-    """累加任务 token 和费用统计，并记录本次调用输入作为上下文占用。"""
+    """Menambah akumulasi token dan biaya tugas.
+
+    Masukan panggilan ini juga dicatat sebagai pemakaian konteks.
+    """
     task = await get_by_id(session, task_id)
     if task is None:
         return None
@@ -40,14 +43,14 @@ async def add_token_usage(
 
 async def create(session: AsyncSession, task: Task) -> Task:
     """
-    创建任务。
+    Membuat tugas.
 
     Args:
-        session: 数据库 session。
-        task: 任务实例。
+        session: session basis data.
+        task: Instance tugas.
 
     Returns:
-        创建后的任务实例。
+        Instance tugas setelah dibuat.
     """
     session.add(task)
     await session.flush()
@@ -57,14 +60,14 @@ async def create(session: AsyncSession, task: Task) -> Task:
 
 async def get_by_id(session: AsyncSession, task_id: str) -> Task | None:
     """
-    根据 ID 获取任务。
+    Mengambil tugas berdasarkan ID.
 
     Args:
-        session: 数据库 session。
-        task_id: 任务 ID。
+        session: session basis data.
+        task_id: ID tugas.
 
     Returns:
-        任务实例，如果不存在则返回 None。
+        Instance tugas, atau None bila tidak ada.
     """
     result = await session.execute(select(Task).where(col(Task.id) == task_id))
     return result.scalar_one_or_none()
@@ -73,7 +76,7 @@ async def get_by_id(session: AsyncSession, task_id: str) -> Task | None:
 async def get_by_agent_session_id(
     session: AsyncSession, agent_session_id: str
 ) -> Task | None:
-    """根据 Agent session ID 获取任务。"""
+    """Mengambil tugas berdasarkan Agent session ID."""
     result = await session.execute(
         select(Task).where(col(Task.agent_session_id) == agent_session_id)
     )
@@ -89,18 +92,18 @@ async def list_by_project(
     favorited_only: bool = False,
 ) -> list[Task]:
     """
-    获取项目下的任务列表。
+    Mengambil daftar tugas dalam proyek.
 
     Args:
-        session: 数据库 session。
-        project_id: 项目 ID。
-        limit: 返回数量限制。
-        offset: 偏移量。
-        search_query: 搜索关键词（按标题搜索）。
-        favorited_only: 是否只返回收藏的任务。
+        session: session basis data.
+        project_id: ID proyek.
+        limit: Batas jumlah hasil.
+        offset: Offset.
+        search_query: Kata kunci pencarian (mencari berdasarkan judul).
+        favorited_only: Apakah hanya mengembalikan tugas yang difavoritkan.
 
     Returns:
-        任务列表，按更新时间倒序排序。
+        Daftar tugas, urut waktu pembaruan menurun.
     """
     query = select(Task).where(col(Task.project_id) == project_id)
 
@@ -129,16 +132,16 @@ async def count_by_project(
     favorited_only: bool = False,
 ) -> int:
     """
-    获取项目下的任务总数。
+    Mengambil jumlah total tugas dalam proyek.
 
     Args:
-        session: 数据库 session。
-        project_id: 项目 ID。
-        search_query: 搜索关键词（按标题搜索）。
-        favorited_only: 是否只返回收藏的任务。
+        session: session basis data.
+        project_id: ID proyek.
+        search_query: Kata kunci pencarian (mencari berdasarkan judul).
+        favorited_only: Apakah hanya mengembalikan tugas yang difavoritkan.
 
     Returns:
-        任务总数。
+        Jumlah total tugas.
     """
     query = select(func.count(col(Task.id))).where(col(Task.project_id) == project_id)
 
@@ -154,14 +157,14 @@ async def count_by_project(
 
 async def update_task(session: AsyncSession, task: Task) -> Task:
     """
-    更新任务。
+    Memperbarui tugas.
 
     Args:
-        session: 数据库 session。
-        task: 任务实例。
+        session: session basis data.
+        task: Instance tugas.
 
     Returns:
-        更新后的任务实例。
+        Instance tugas setelah diperbarui.
     """
     session.add(task)
     await session.flush()
@@ -170,7 +173,7 @@ async def update_task(session: AsyncSession, task: Task) -> Task:
 
 
 async def clear_running_tasks(session: AsyncSession) -> int:
-    """将所有运行中的任务重置为非运行状态。"""
+    """Mereset semua tugas yang sedang berjalan menjadi tidak berjalan."""
     result = await session.execute(
         sql_update(Task)
         .where(col(Task.is_running))
@@ -185,11 +188,11 @@ async def clear_running_tasks(session: AsyncSession) -> int:
 
 async def delete(session: AsyncSession, task: Task) -> None:
     """
-    删除任务。
+    Menghapus tugas.
 
     Args:
-        session: 数据库 session。
-        task: 任务实例。
+        session: session basis data.
+        task: Instance tugas.
     """
     await session.delete(task)
     await session.flush()
@@ -197,11 +200,11 @@ async def delete(session: AsyncSession, task: Task) -> None:
 
 async def delete_by_project(session: AsyncSession, project_id: str) -> None:
     """
-    删除项目下的所有任务。
+    Menghapus semua tugas dalam proyek.
 
     Args:
-        session: 数据库 session。
-        project_id: 项目 ID。
+        session: session basis data.
+        project_id: ID proyek.
     """
     await session.execute(sql_delete(Task).where(col(Task.project_id) == project_id))
     await session.flush()

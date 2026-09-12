@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Note Service - 笔记业务逻辑层。
+Note Service - lapisan logika bisnis catatan.
 """
 
 from dataclasses import dataclass, field
@@ -37,7 +37,7 @@ class NoteTreeResult:
 async def _assert_category_depth(session: AsyncSession, parent_id: str) -> None:
     parent = await note_category_repo.get_by_id(session, parent_id)
     if parent is not None and parent.parent_id is not None:
-        raise ValueError("分类层级不能超过两级")
+        raise ValueError("Tingkat kategori tidak boleh lebih dari dua")
 
 
 async def _assert_parent_belongs_to_project(
@@ -45,7 +45,7 @@ async def _assert_parent_belongs_to_project(
 ) -> None:
     parent = await note_category_repo.get_by_id(session, parent_id)
     if parent is None or parent.project_id != project_id:
-        raise ValueError("父分类不存在或不属于当前项目")
+        raise ValueError("Kategori induk tidak ada atau bukan milik proyek ini")
 
 
 async def _assert_not_descendant(
@@ -56,7 +56,7 @@ async def _assert_not_descendant(
     current: str | None = target_id
     while current is not None:
         if current == item_id:
-            raise ValueError("不能将分类移动到自身或其后代下")
+            raise ValueError("Kategori tidak dapat dipindahkan ke dirinya sendiri atau ke turunannya")
         category = await note_category_repo.get_by_id(session, current)
         current = category.parent_id if category else None
 
@@ -71,14 +71,14 @@ async def create_note(
     validate_editor_content(content)
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     if category_id is not None:
         category = await note_category_repo.get_by_id(session, category_id)
         if category is None:
-            raise NotFoundError(f"分类不存在: {category_id}")
+            raise NotFoundError(f"Kategori tidak ditemukan: {category_id}")
         if category.project_id != project_id:
-            raise ValueError("分类不属于当前项目")
+            raise ValueError("Kategori bukan milik proyek ini")
 
     notes = await note_repo.list_by_project(session, project_id, include_hidden=True)
     siblings = {n.title for n in notes if n.category_id == category_id}
@@ -112,7 +112,7 @@ async def create_note(
 async def get_note(session: AsyncSession, note_id: str) -> Note:
     note = await note_repo.get_by_id(session, note_id)
     if note is None:
-        raise NotFoundError(f"笔记不存在: {note_id}")
+        raise NotFoundError(f"Catatan tidak ditemukan: {note_id}")
     return note
 
 
@@ -122,7 +122,7 @@ async def list_notes(
 ) -> NoteTreeResult:
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     categories = await note_category_repo.list_by_project(session, project_id)
     notes = await note_repo.list_by_project(session, project_id, include_hidden=True)
@@ -260,7 +260,7 @@ async def create_category(
 ) -> NoteCategory:
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     if parent_id is not None:
         await _assert_category_depth(session, parent_id)
@@ -289,7 +289,7 @@ async def update_category(
 ) -> NoteCategory:
     category = await note_category_repo.get_by_id(session, category_id)
     if category is None:
-        raise NotFoundError(f"分类不存在: {category_id}")
+        raise NotFoundError(f"Kategori tidak ditemukan: {category_id}")
 
     if title is not None and title != category.title:
         category.title = title
@@ -304,7 +304,7 @@ async def delete_category(
 ) -> None:
     category = await note_category_repo.get_by_id(session, category_id)
     if category is None:
-        raise NotFoundError(f"分类不存在: {category_id}")
+        raise NotFoundError(f"Kategori tidak ditemukan: {category_id}")
 
     children = await note_category_repo.get_by_parent(session, category_id)
     for child in children:
@@ -329,15 +329,15 @@ async def move_item(
     if item_kind == "category":
         category = await note_category_repo.get_by_id(session, item_id)
         if category is None:
-            raise NotFoundError(f"分类不存在: {item_id}")
+            raise NotFoundError(f"Kategori tidak ditemukan: {item_id}")
 
         if target_category_id is not None:
             target = await note_category_repo.get_by_id(session, target_category_id)
             if target is None or target.project_id != category.project_id:
-                raise ValueError("目标分类不存在或不属于当前项目")
+                raise ValueError("Kategori tujuan tidak ada atau bukan milik proyek ini")
             await _assert_not_descendant(session, item_id, target_category_id)
             if target.parent_id is not None:
-                raise ValueError("分类层级不能超过两级")
+                raise ValueError("Tingkat kategori tidak boleh lebih dari dua")
 
         category.parent_id = target_category_id
         category.updated_at = datetime.now(UTC)
@@ -358,12 +358,12 @@ async def move_item(
     else:
         note = await note_repo.get_by_id(session, item_id)
         if note is None:
-            raise NotFoundError(f"笔记不存在: {item_id}")
+            raise NotFoundError(f"Catatan tidak ditemukan: {item_id}")
 
         if target_category_id is not None:
             target = await note_category_repo.get_by_id(session, target_category_id)
             if target is None or target.project_id != note.project_id:
-                raise ValueError("目标分类不存在或不属于当前项目")
+                raise ValueError("Kategori tujuan tidak ada atau bukan milik proyek ini")
 
         note.category_id = target_category_id
         note.updated_at = datetime.now(UTC)
@@ -400,7 +400,7 @@ async def search_mention_candidates(
 
 @dataclass
 class NoteSearchMatch:
-    """笔记内容搜索匹配行。"""
+    """Baris yang cocok pada pencarian isi catatan."""
 
     line_number: int
     line_text: str
@@ -408,7 +408,7 @@ class NoteSearchMatch:
 
 @dataclass
 class NoteSearchResult:
-    """笔记内容搜索结果。"""
+    """Hasil pencarian isi catatan."""
 
     note_id: str
     note_title: str
@@ -418,7 +418,7 @@ class NoteSearchResult:
 
 @dataclass
 class NoteSearchResponse:
-    """笔记内容搜索响应。"""
+    """Respons pencarian isi catatan."""
 
     results: list[NoteSearchResult]
     total_notes: int
@@ -429,7 +429,7 @@ async def _build_category_path(
     session: AsyncSession,
     category_id: str | None,
 ) -> str:
-    """构建分类路径字符串。"""
+    """Membangun string jalur kategori."""
     if category_id is None:
         return ""
     parts: list[str] = []
@@ -438,7 +438,7 @@ async def _build_category_path(
         cat = await note_category_repo.get_by_id(session, current_id)
         if cat is None:
             break
-        parts.append(cat.title or "未命名分类")
+        parts.append(cat.title or "Kategori Tanpa Nama")
         current_id = cat.parent_id
     parts.reverse()
     return " / ".join(parts)
@@ -449,10 +449,10 @@ async def search_notes(
     project_id: str,
     query: str,
 ) -> NoteSearchResponse:
-    """按内容搜索笔记。"""
+    """Mencari catatan berdasarkan isi."""
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     if not query.strip():
         return NoteSearchResponse(results=[], total_notes=0, total_matches=0)
@@ -480,7 +480,7 @@ async def search_notes(
             results.append(
                 NoteSearchResult(
                     note_id=note.id,
-                    note_title=note.title or "未命名笔记",
+                    note_title=note.title or "Catatan Tanpa Nama",
                     category_path=category_path,
                     matches=matches,
                 )

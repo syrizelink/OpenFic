@@ -13,7 +13,7 @@ from app.storage.services import task_service
 
 @dataclass
 class ConnectionState:
-    """单用户连接状态。"""
+    """Status koneksi pengguna tunggal."""
 
     sids: set[str] = field(default_factory=set)
     connected_at: float | None = None
@@ -51,7 +51,7 @@ def get_connection_state() -> ConnectionState:
 
 
 def is_connected() -> bool:
-    """前端当前是否在线。"""
+    """Apakah frontend sedang daring saat ini."""
     return _state.is_connected()
 
 
@@ -72,7 +72,7 @@ def background_project_room(project_id: str) -> str:
 
 
 def register_handlers(sio: socketio.AsyncServer) -> None:
-    """注册所有客户端→服务端事件处理器。"""
+    """Mendaftarkan semua penangan event dari klien ke server."""
 
     @sio.event
     async def connect(sid: str, environ: dict, auth: dict | None = None) -> None:

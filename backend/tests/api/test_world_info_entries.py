@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-WorldInfo Entry API 测试。
+Uji API WorldInfo Entry.
 """
 
 import json
@@ -14,10 +14,10 @@ from app.storage.models.world_info_entry import WorldInfoEntry
 
 @pytest.fixture
 async def world_info_id(client: AsyncClient) -> str:
-    """创建项目并返回项目唯一世界书 ID。"""
+    """Membuat proyek dan mengembalikan ID buku dunia tunggal milik proyek."""
     project_resp = await client.post(
         "/api/v1/projects",
-        data={"title": "测试小说"},
+        data={"title": "Novel Uji"},
     )
     project_id = project_resp.json()["id"]
     world_info_resp = await client.get(f"/api/v1/projects/{project_id}/world-info")
@@ -26,20 +26,20 @@ async def world_info_id(client: AsyncClient) -> str:
 
 @pytest.mark.asyncio
 async def test_create_entry(client: AsyncClient, world_info_id: str) -> None:
-    """测试创建条目。"""
+    """Uji pembuatan entri."""
     response = await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
         json={
-            "name": "测试条目",
-            "content": "条目内容",
+            "name": "Entri Uji",
+            "content": "Isi entri",
             "token_count": 10,
             "is_enabled": True,
         },
     )
     assert response.status_code == 201
     data = response.json()
-    assert data["name"] == "测试条目"
-    assert data["content"] == "条目内容"
+    assert data["name"] == "Entri Uji"
+    assert data["content"] == "Isi entri"
     assert data["token_count"] == 10
     assert data["is_enabled"] is True
     assert data["uid"] == 1
@@ -52,28 +52,28 @@ async def test_create_entry_rejects_content_over_line_limit(
 ) -> None:
     response = await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "超限条目", "content": "\n".join("内容" for _ in range(2001))},
+        json={"name": "Entri Melebihi Batas", "content": "\n".join("Isi" for _ in range(2001))},
     )
 
     assert response.status_code == 400
-    assert "内容超出限制" in response.json()["detail"]
+    assert "Konten melebihi batas" in response.json()["detail"]
     entries = (await client.get(f"/api/v1/world-info/{world_info_id}/entries")).json()
     assert entries["total"] == 0
 
 
 @pytest.mark.asyncio
 async def test_create_multiple_entries(client: AsyncClient, world_info_id: str) -> None:
-    """测试创建多个条目，验证 UID 和 order 自增。"""
+    """Uji pembuatan beberapa entri sekaligus memverifikasi UID dan order bertambah."""
     resp1 = await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "条目1"},
+        json={"name": "Entri 1"},
     )
     assert resp1.json()["uid"] == 1
     assert resp1.json()["order"] == 1
 
     resp2 = await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "条目2"},
+        json={"name": "Entri 2"},
     )
     assert resp2.json()["uid"] == 2
     assert resp2.json()["order"] == 2
@@ -83,34 +83,34 @@ async def test_create_multiple_entries(client: AsyncClient, world_info_id: str) 
 async def test_create_entry_uses_unique_name_suffix(
     client: AsyncClient, world_info_id: str
 ) -> None:
-    """创建同名条目时自动追加序号。"""
+    """Saat entri dengan nama sama dibuat, nomor urut ditambahkan otomatis."""
     first = await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "新条目"},
+        json={"name": "Entri Baru"},
     )
     second = await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "新条目"},
+        json={"name": "Entri Baru"},
     )
 
     assert first.status_code == 201
     assert second.status_code == 201
-    assert first.json()["name"] == "新条目"
-    assert second.json()["name"] == "新条目 (1)"
+    assert first.json()["name"] == "Entri Baru"
+    assert second.json()["name"] == "Entri Baru (1)"
 
 
 @pytest.mark.asyncio
 async def test_update_entry_rejects_duplicate_name(
     client: AsyncClient, world_info_id: str
 ) -> None:
-    """条目重命名不能改成已有名称。"""
+    """Mengganti nama entri tidak boleh memakai nama yang sudah ada."""
     first = await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "人物"},
+        json={"name": "Tokoh"},
     )
     second = await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "地点"},
+        json={"name": "Lokasi"},
     )
 
     response = await client.patch(
@@ -119,16 +119,16 @@ async def test_update_entry_rejects_duplicate_name(
     )
 
     assert response.status_code == 409
-    assert response.json()["detail"] == "世界书条目名称已存在: 人物"
+    assert response.json()["detail"] == "Nama entri buku dunia sudah ada: Tokoh"
 
 
 @pytest.mark.asyncio
 async def test_list_entries(client: AsyncClient, world_info_id: str) -> None:
-    """测试获取条目列表。"""
+    """Uji pengambilan daftar entri."""
     for i in range(3):
         await client.post(
             f"/api/v1/world-info/{world_info_id}/entries",
-            json={"name": f"条目 {i + 1}"},
+            json={"name": f"Entri {i + 1}"},
         )
 
     response = await client.get(f"/api/v1/world-info/{world_info_id}/entries")
@@ -149,7 +149,7 @@ async def test_list_entries_returns_all_world_info_entries(
             WorldInfoEntry(
                 world_info_id=world_info_id,
                 uid=index + 1,
-                name=f"条目 {index + 1}",
+                name=f"Entri {index + 1}",
                 order=index + 1,
             )
             for index in range(101)
@@ -171,7 +171,7 @@ async def test_move_entry_returns_brief_item(client: AsyncClient, world_info_id:
     for index in range(3):
         response = await client.post(
             f"/api/v1/world-info/{world_info_id}/entries",
-            json={"name": f"移动条目 {index + 1}", "content": "正文"},
+            json={"name": f"Entri Pindah {index + 1}", "content": "Isi utama"},
         )
         entry_ids.append(response.json()["id"])
 
@@ -188,10 +188,10 @@ async def test_move_entry_returns_brief_item(client: AsyncClient, world_info_id:
 
 @pytest.mark.asyncio
 async def test_get_entry(client: AsyncClient, world_info_id: str) -> None:
-    """测试获取单个条目。"""
+    """Uji pengambilan satu entri."""
     create_resp = await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "测试条目", "content": "条目内容"},
+        json={"name": "Entri Uji", "content": "Isi entri"},
     )
     entry_id = create_resp.json()["id"]
 
@@ -199,26 +199,26 @@ async def test_get_entry(client: AsyncClient, world_info_id: str) -> None:
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == entry_id
-    assert data["name"] == "测试条目"
+    assert data["name"] == "Entri Uji"
 
 
 @pytest.mark.asyncio
 async def test_update_entry(client: AsyncClient, world_info_id: str) -> None:
-    """测试更新条目。"""
+    """Uji pembaruan entri."""
     create_resp = await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "原名称", "content": "原内容"},
+        json={"name": "Nama Asli", "content": "Isi asli"},
     )
     entry_id = create_resp.json()["id"]
 
     response = await client.patch(
         f"/api/v1/world-info-entries/{entry_id}",
-        json={"name": "新名称", "content": "新内容"},
+        json={"name": "Nama Baru", "content": "Isi baru"},
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["name"] == "新名称"
-    assert data["content"] == "新内容"
+    assert data["name"] == "Nama Baru"
+    assert data["content"] == "Isi baru"
 
 
 @pytest.mark.asyncio
@@ -227,27 +227,27 @@ async def test_update_entry_rejects_content_over_line_limit(
 ) -> None:
     create_response = await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "原条目", "content": "原内容"},
+        json={"name": "Entri Asli", "content": "Isi asli"},
     )
     entry_id = create_response.json()["id"]
 
     response = await client.patch(
         f"/api/v1/world-info-entries/{entry_id}",
-        json={"content": "\n".join("内容" for _ in range(2001))},
+        json={"content": "\n".join("Isi" for _ in range(2001))},
     )
 
     assert response.status_code == 400
-    assert "内容超出限制" in response.json()["detail"]
+    assert "Konten melebihi batas" in response.json()["detail"]
     unchanged = await client.get(f"/api/v1/world-info-entries/{entry_id}")
-    assert unchanged.json()["content"] == "原内容"
+    assert unchanged.json()["content"] == "Isi asli"
 
 
 @pytest.mark.asyncio
 async def test_delete_entry(client: AsyncClient, world_info_id: str) -> None:
-    """测试删除条目。"""
+    """Uji penghapusan entri."""
     create_resp = await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "待删除条目"},
+        json={"name": "Entri Akan Dihapus"},
     )
     entry_id = create_resp.json()["id"]
 
@@ -260,10 +260,10 @@ async def test_delete_entry(client: AsyncClient, world_info_id: str) -> None:
 
 @pytest.mark.asyncio
 async def test_toggle_entry(client: AsyncClient, world_info_id: str) -> None:
-    """测试切换条目开关状态。"""
+    """Uji pengalihan status aktif entri."""
     create_resp = await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "测试条目", "is_enabled": True},
+        json={"name": "Entri Uji", "is_enabled": True},
     )
     entry_id = create_resp.json()["id"]
 
@@ -277,8 +277,8 @@ async def test_toggle_entry(client: AsyncClient, world_info_id: str) -> None:
 
 @pytest.mark.asyncio
 async def test_preview_world_info_import(client: AsyncClient) -> None:
-    """测试预览 SillyTavern 世界书导入。"""
-    content = '{"entries":{"0":{"uid":0,"key":["alpha"],"keysecondary":[],"comment":"名称","content":"内容","constant":true,"selective":true,"disable":false,"order":100}}}'.encode("utf-8")
+    """Uji pratinjau impor buku dunia SillyTavern."""
+    content = '{"entries":{"0":{"uid":0,"key":["alpha"],"keysecondary":[],"comment":"Nama","content":"Isi","constant":true,"selective":true,"disable":false,"order":100}}}'.encode("utf-8")
 
     response = await client.post(
         "/api/v1/world-info/import/preview",
@@ -289,20 +289,20 @@ async def test_preview_world_info_import(client: AsyncClient) -> None:
     data = response.json()
     assert data["entry_count"] == 1
     assert data["enabled_count"] == 1
-    assert data["entries"][0]["name"] == "名称"
-    assert data["entries"][0]["content_preview"] == "内容"
+    assert data["entries"][0]["name"] == "Nama"
+    assert data["entries"][0]["content_preview"] == "Isi"
 
 
 @pytest.mark.asyncio
 async def test_import_world_info_entries_stream_append_overwrites_same_name(
     client: AsyncClient, world_info_id: str
 ) -> None:
-    """追加导入时按名称覆盖已有条目。"""
+    """Saat impor append, entri yang sudah ada ditimpa berdasarkan nama."""
     await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "人物", "content": "旧内容", "is_enabled": False},
+        json={"name": "Tokoh", "content": "Isi lama", "is_enabled": False},
     )
-    content = '{"entries":{"0":{"uid":0,"comment":"人物","content":"新内容","disable":false,"order":100},"1":{"uid":1,"comment":"背景","content":"世界观","disable":true,"order":101}}}'.encode("utf-8")
+    content = '{"entries":{"0":{"uid":0,"comment":"Tokoh","content":"Isi baru","disable":false,"order":100},"1":{"uid":1,"comment":"Latar","content":"Pandangan dunia","disable":true,"order":101}}}'.encode("utf-8")
 
     response = await client.post(
         f"/api/v1/world-info/{world_info_id}/entries/import-stream?mode=append",
@@ -312,12 +312,12 @@ async def test_import_world_info_entries_stream_append_overwrites_same_name(
     assert response.status_code == 200
     list_response = await client.get(f"/api/v1/world-info/{world_info_id}/entries")
     items = list_response.json()["items"]
-    assert [item["name"] for item in items] == ["人物", "背景"]
+    assert [item["name"] for item in items] == ["Tokoh", "Latar"]
 
     detail_response = await client.get(f"/api/v1/world-info-entries/{items[0]['id']}")
     detail = detail_response.json()
-    assert detail["name"] == "人物"
-    assert detail["content"] == "新内容"
+    assert detail["name"] == "Tokoh"
+    assert detail["content"] == "Isi baru"
     assert detail["is_enabled"] is True
 
 
@@ -325,16 +325,16 @@ async def test_import_world_info_entries_stream_append_overwrites_same_name(
 async def test_import_world_info_entries_stream_overwrite_clears_existing_entries(
     client: AsyncClient, world_info_id: str
 ) -> None:
-    """覆盖导入时先清空旧条目。"""
+    """Saat impor overwrite, entri lama dibersihkan lebih dahulu."""
     await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "人物", "content": "旧内容"},
+        json={"name": "Tokoh", "content": "Isi lama"},
     )
     await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "地点", "content": "旧地点"},
+        json={"name": "Lokasi", "content": "Lokasi lama"},
     )
-    content = '{"entries":{"0":{"uid":0,"comment":"背景","content":"新世界观","disable":false,"order":100}}}'.encode("utf-8")
+    content = '{"entries":{"0":{"uid":0,"comment":"Latar","content":"Pandangan dunia baru","disable":false,"order":100}}}'.encode("utf-8")
 
     response = await client.post(
         f"/api/v1/world-info/{world_info_id}/entries/import-stream?mode=overwrite",
@@ -344,7 +344,7 @@ async def test_import_world_info_entries_stream_overwrite_clears_existing_entrie
     assert response.status_code == 200
     list_response = await client.get(f"/api/v1/world-info/{world_info_id}/entries")
     items = list_response.json()["items"]
-    assert [item["name"] for item in items] == ["背景"]
+    assert [item["name"] for item in items] == ["Latar"]
 
 
 @pytest.mark.asyncio
@@ -353,15 +353,15 @@ async def test_import_world_info_entries_stream_overwrite_rejects_oversized_cont
 ) -> None:
     await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "原有条目", "content": "原有内容"},
+        json={"name": "Entri Lama", "content": "Isi lama"},
     )
     content = json.dumps(
         {
             "entries": {
                 "0": {
                     "uid": 0,
-                    "comment": "超限条目",
-                    "content": "\n".join("内容" for _ in range(2001)),
+                    "comment": "Entri Melebihi Batas",
+                    "content": "\n".join("Isi" for _ in range(2001)),
                     "disable": False,
                     "order": 100,
                 }
@@ -381,52 +381,52 @@ async def test_import_world_info_entries_stream_overwrite_rejects_oversized_cont
         if line.startswith("data: ")
     ]
     assert any(
-        event["type"] == "error" and "内容超出限制" in event["message"]
+        event["type"] == "error" and "Konten melebihi batas" in event["message"]
         for event in events
     )
     assert all(event["type"] != "complete" for event in events)
     list_response = await client.get(f"/api/v1/world-info/{world_info_id}/entries")
     items = list_response.json()["items"]
-    assert [item["name"] for item in items] == ["原有条目"]
+    assert [item["name"] for item in items] == ["Entri Lama"]
     entry_response = await client.get(f"/api/v1/world-info-entries/{items[0]['id']}")
-    assert entry_response.json()["content"] == "原有内容"
+    assert entry_response.json()["content"] == "Isi lama"
 
 
 @pytest.mark.asyncio
 async def test_search_entries(client: AsyncClient, world_info_id: str) -> None:
-    """测试搜索条目内容。"""
+    """Uji pencarian isi entri."""
     await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "人物", "content": "张三是一个勇敢的战士\n他擅长用剑"},
+        json={"name": "Tokoh", "content": "Adi adalah seorang pendekar pemberani\nDia mahir memakai pedang"},
     )
     await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "地点", "content": "长安城\n繁华的都市"},
+        json={"name": "Lokasi", "content": "Kota Anggara\nKota metropolitan yang ramai"},
     )
 
     response = await client.get(
         f"/api/v1/world-info/{world_info_id}/entries/search",
-        params={"q": "战士"},
+        params={"q": "pendekar"},
     )
     assert response.status_code == 200
     data = response.json()
     assert data["total_entries"] == 1
     assert data["total_matches"] == 1
     assert len(data["results"]) == 1
-    assert data["results"][0]["entry_name"] == "人物"
+    assert data["results"][0]["entry_name"] == "Tokoh"
 
 
 @pytest.mark.asyncio
 async def test_search_entries_no_results(client: AsyncClient, world_info_id: str) -> None:
-    """测试搜索无结果。"""
+    """Uji pencarian tanpa hasil."""
     await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "人物", "content": "张三"},
+        json={"name": "Tokoh", "content": "Adi"},
     )
 
     response = await client.get(
         f"/api/v1/world-info/{world_info_id}/entries/search",
-        params={"q": "不存在"},
+        params={"q": "tidak ada"},
     )
     assert response.status_code == 200
     data = response.json()

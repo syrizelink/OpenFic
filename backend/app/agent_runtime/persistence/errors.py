@@ -1,10 +1,11 @@
 class PersistenceError(Exception):
-    """持久化层基类异常。"""
+    """Exception dasar untuk lapisan persistensi."""
 
 
 class PersistenceWriteError(PersistenceError):
-    """写库失败：MessagePersister.handle / finalize / mark_user_sent / repo 写入。"""
+    """Penulisan ke basis data gagal: MessagePersister.handle / finalize /
+    mark_user_sent / penulisan repo."""
 
 
 class PersistenceLoadError(PersistenceError):
-    """读库失败：load_history / repo 查询。"""
+    """Pembacaan basis data gagal: load_history / kueri repo."""

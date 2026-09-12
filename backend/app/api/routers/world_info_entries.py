@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-WorldInfo Entries Router - 世界书条目 CRUD API。
+WorldInfo Entries Router - API CRUD entri buku dunia.
 """
 
 import json
@@ -39,13 +39,13 @@ MAX_IMPORT_FILE_SIZE = 10 * 1024 * 1024
 
 def _entry_to_response(entry) -> WorldInfoEntryResponse:
     """
-    将 WorldInfoEntry 模型转换为响应模型。
+    Mengonversi model WorldInfoEntry menjadi model respons.
 
     Args:
-        entry: WorldInfoEntry 模型实例。
+        entry: Instance model WorldInfoEntry.
 
     Returns:
-        WorldInfoEntryResponse。
+        WorldInfoEntryResponse.
     """
     return WorldInfoEntryResponse(
         id=entry.id,
@@ -64,7 +64,7 @@ def _entry_to_response(entry) -> WorldInfoEntryResponse:
 def _preview_entry_to_response(
     entry: world_info_entry_service.WorldInfoImportEntry,
 ) -> WorldInfoImportPreviewEntry:
-    """将导入预览条目转换为响应模型。"""
+    """Mengonversi entri pratinjau impor menjadi model respons."""
     return WorldInfoImportPreviewEntry(
         uid=entry.uid,
         name=entry.name,
@@ -74,7 +74,7 @@ def _preview_entry_to_response(
 
 
 def _entry_to_brief_response(entry) -> WorldInfoEntryBriefResponse:
-    """将 WorldInfoEntry 模型转换为轻量响应模型（不含 content）。"""
+    """Mengonversi model WorldInfoEntry menjadi model respons ringan (tanpa content)."""
     return WorldInfoEntryBriefResponse(
         id=entry.id,
         world_info_id=entry.world_info_id,
@@ -88,34 +88,34 @@ def _entry_to_brief_response(entry) -> WorldInfoEntryBriefResponse:
     )
 
 
-# ============== 世界书条目端点 ==============
+# ============== Endpoint entri buku dunia ==============
 
 
 @router.post(
     "/world-info/import/preview",
     response_model=WorldInfoImportPreviewResponse,
-    summary="预览世界书导入",
+    summary="Pratinjau impor buku dunia",
 )
 async def preview_world_info_import(
-    file: Annotated[UploadFile, File(description="SillyTavern 世界书 JSON 文件")],
+    file: Annotated[UploadFile, File(description="Berkas JSON buku dunia SillyTavern")],
 ) -> WorldInfoImportPreviewResponse:
-    """预览 SillyTavern 世界书导入结果。"""
+    """Pratinjau hasil impor buku dunia SillyTavern."""
     if not file.filename or not file.filename.lower().endswith(".json"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="仅支持 .json 文件",
+            detail="Hanya mendukung berkas .json",
         )
 
     content = await file.read()
     if len(content) > MAX_IMPORT_FILE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="文件大小超过限制（最大 10MB）",
+            detail="Ukuran berkas melewati batas (maksimum 10MB)",
         )
     if len(content) == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="文件内容为空",
+            detail="Isi berkas kosong",
         )
 
     try:
@@ -133,33 +133,33 @@ async def preview_world_info_import(
 @router.post(
     "/world-info/{world_info_id}/entries/import-stream",
     response_model=None,
-    summary="流式导入世界书条目",
+    summary="Impor entri buku dunia secara streaming",
 )
 async def import_entries_stream(
     world_info_id: str,
-    file: Annotated[UploadFile, File(description="SillyTavern 世界书 JSON 文件")],
+    file: Annotated[UploadFile, File(description="Berkas JSON buku dunia SillyTavern")],
     session: Annotated[AsyncSession, Depends(get_session)],
     mode: Annotated[
         Literal["append", "overwrite"],
-        Query(description="导入模式"),
+        Query(description="Mode impor"),
     ] = "append",
 ) -> StreamingResponse:
-    """流式导入世界书条目并返回实时进度。"""
+    """Mengimpor entri buku dunia secara streaming dan mengembalikan progres real-time."""
 
     async def generate_progress():
         try:
             if not file.filename or not file.filename.lower().endswith(".json"):
-                yield f"data: {json.dumps({'type': 'error', 'message': '仅支持 .json 文件'}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Hanya mendukung berkas .json'}, ensure_ascii=False)}\n\n"
                 return
 
             yield f"data: {json.dumps({'type': 'progress', 'stage': 'reading', 'progress': 5}, ensure_ascii=False)}\n\n"
             content = await file.read()
 
             if len(content) > MAX_IMPORT_FILE_SIZE:
-                yield f"data: {json.dumps({'type': 'error', 'message': '文件大小超过限制（最大 10MB）'}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Ukuran berkas melewati batas (maksimum 10MB)'}, ensure_ascii=False)}\n\n"
                 return
             if len(content) == 0:
-                yield f"data: {json.dumps({'type': 'error', 'message': '文件内容为空'}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Isi berkas kosong'}, ensure_ascii=False)}\n\n"
                 return
 
             yield f"data: {json.dumps({'type': 'progress', 'stage': 'parsing', 'progress': 20}, ensure_ascii=False)}\n\n"
@@ -188,7 +188,7 @@ async def import_entries_stream(
         except ValueError as exc:
             yield f"data: {json.dumps({'type': 'error', 'message': str(exc)}, ensure_ascii=False)}\n\n"
         except Exception as exc:
-            logger.exception(f"导入世界书失败: {exc}")
+            logger.exception(f"Gagal mengimpor buku dunia: {exc}")
             yield f"data: {json.dumps({'type': 'error', 'message': str(exc)}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
@@ -206,7 +206,7 @@ async def import_entries_stream(
     "/world-info/{world_info_id}/entries",
     response_model=WorldInfoEntryResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="创建条目",
+    summary="Membuat entri",
 )
 async def create_entry(
     world_info_id: str,
@@ -214,21 +214,21 @@ async def create_entry(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> WorldInfoEntryResponse:
     """
-    创建世界书条目。
+    Membuat entri buku dunia.
 
     Args:
-        world_info_id: 世界书 ID。
-        data: 创建请求数据。
-        session: 数据库 session。
+        world_info_id: ID buku dunia.
+        data: Data permintaan pembuatan.
+        session: Session basis data.
 
     Returns:
-        创建的条目。
+        Entri yang dibuat.
 
     Raises:
-        HTTPException: 世界书不存在。
+        HTTPException: Buku dunia tidak ditemukan.
     """
     try:
-        logger.info(f"创建条目: world_info_id={world_info_id}, name={data.name}")
+        logger.info(f"Membuat entri: world_info_id={world_info_id}, name={data.name}")
         entry = await world_info_entry_service.create_entry(
             session,
             world_info_id,
@@ -247,23 +247,23 @@ async def create_entry(
 @router.get(
     "/world-info/{world_info_id}/entries",
     response_model=WorldInfoEntryBriefListResponse,
-    summary="获取条目列表",
+    summary="Mengambil daftar entri",
 )
 async def list_entries(
     world_info_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> WorldInfoEntryBriefListResponse:
     """
-    获取世界书的条目列表（轻量，不含 content）。
+    Mengambil daftar entri buku dunia (ringan, tanpa content).
 
     Args:
-        world_info_id: 世界书 ID。
-        session: 数据库 session。
+        world_info_id: ID buku dunia.
+        session: Session basis data.
     Returns:
-        条目轻量列表。
+        Daftar entri ringan.
 
     Raises:
-        HTTPException: 世界书不存在。
+        HTTPException: Buku dunia tidak ditemukan.
     """
     try:
         entries = await world_info_entry_service.list_entries(session, world_info_id)
@@ -278,24 +278,24 @@ async def list_entries(
 @router.get(
     "/world-info-entries/{entry_id}",
     response_model=WorldInfoEntryResponse,
-    summary="获取条目详情",
+    summary="Mengambil detail entri",
 )
 async def get_entry(
     entry_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> WorldInfoEntryResponse:
     """
-    获取单个条目详情。
+    Mengambil detail satu entri.
 
     Args:
-        entry_id: 条目 ID。
-        session: 数据库 session。
+        entry_id: ID entri.
+        session: Session basis data.
 
     Returns:
-        条目详情。
+        Detail entri.
 
     Raises:
-        HTTPException: 条目不存在。
+        HTTPException: Entri tidak ditemukan.
     """
     try:
         entry = await world_info_entry_service.get_entry(session, entry_id)
@@ -307,7 +307,7 @@ async def get_entry(
 @router.patch(
     "/world-info-entries/{entry_id}",
     response_model=WorldInfoEntryResponse,
-    summary="更新条目",
+    summary="Memperbarui entri",
 )
 async def update_entry(
     entry_id: str,
@@ -315,21 +315,21 @@ async def update_entry(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> WorldInfoEntryResponse:
     """
-    更新世界书条目。
+    Memperbarui entri buku dunia.
 
     Args:
-        entry_id: 条目 ID。
-        data: 更新请求数据。
-        session: 数据库 session。
+        entry_id: ID entri.
+        data: Data permintaan pembaruan.
+        session: Session basis data.
 
     Returns:
-        更新后的条目。
+        Entri setelah diperbarui.
 
     Raises:
-        HTTPException: 条目不存在。
+        HTTPException: Entri tidak ditemukan.
     """
     try:
-        logger.info(f"更新条目: {entry_id}")
+        logger.info(f"Memperbarui entri: {entry_id}")
         entry = await world_info_entry_service.update_entry(
             session,
             entry_id,
@@ -350,24 +350,24 @@ async def update_entry(
 @router.delete(
     "/world-info/{world_info_id}/entries",
     status_code=status.HTTP_200_OK,
-    summary="删除世界书的所有条目",
+    summary="Menghapus semua entri buku dunia",
 )
 async def delete_all_entries(
     world_info_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, int]:
     """
-    删除世界书的所有条目。
+    Menghapus semua entri buku dunia.
 
     Args:
-        world_info_id: 世界书 ID。
-        session: 数据库 session。
+        world_info_id: ID buku dunia.
+        session: Session basis data.
 
     Returns:
-        删除的条目数量。
+        Jumlah entri yang dihapus.
     """
     try:
-        logger.info(f"删除世界书所有条目: world_info_id={world_info_id}")
+        logger.info(f"Menghapus semua entri buku dunia: world_info_id={world_info_id}")
         deleted_count = await world_info_entry_service.delete_all_entries(
             session, world_info_id
         )
@@ -379,24 +379,24 @@ async def delete_all_entries(
 @router.delete(
     "/world-info-entries/{entry_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="删除条目",
+    summary="Menghapus entri",
 )
 async def delete_entry(
     entry_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> None:
     """
-    删除世界书条目。
+    Menghapus entri buku dunia.
 
     Args:
-        entry_id: 条目 ID。
-        session: 数据库 session。
+        entry_id: ID entri.
+        session: Session basis data.
 
     Raises:
-        HTTPException: 条目不存在。
+        HTTPException: Entri tidak ditemukan.
     """
     try:
-        logger.info(f"删除条目: {entry_id}")
+        logger.info(f"Menghapus entri: {entry_id}")
         await world_info_entry_service.delete_entry(session, entry_id)
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -405,7 +405,7 @@ async def delete_entry(
 @router.post(
     "/world-info-entries/{entry_id}/move",
     response_model=WorldInfoEntryBriefResponse,
-    summary="移动条目",
+    summary="Memindahkan entri",
 )
 async def move_entry(
     entry_id: str,
@@ -413,21 +413,21 @@ async def move_entry(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> WorldInfoEntryBriefResponse:
     """
-    移动世界书条目到新位置。
+    Memindahkan entri buku dunia ke posisi baru.
 
     Args:
-        entry_id: 条目 ID。
-        data: 移动请求数据。
-        session: 数据库 session。
+        entry_id: ID entri.
+        data: Data permintaan pemindahan.
+        session: Session basis data.
 
     Returns:
-        移动后的条目。
+        Entri setelah dipindahkan.
 
     Raises:
-        HTTPException: 条目不存在或位置无效。
+        HTTPException: Entri tidak ditemukan atau posisi tidak valid.
     """
     try:
-        logger.info(f"移动条目: {entry_id} -> order={data.new_order}")
+        logger.info(f"Memindahkan entri: {entry_id} -> order={data.new_order}")
         entry = await world_info_entry_service.move_entry(
             session, entry_id, data.new_order
         )
@@ -441,27 +441,27 @@ async def move_entry(
 @router.post(
     "/world-info-entries/{entry_id}/toggle",
     response_model=WorldInfoEntryResponse,
-    summary="切换条目开关",
+    summary="Mengalihkan sakelar entri",
 )
 async def toggle_entry(
     entry_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> WorldInfoEntryResponse:
     """
-    切换世界书条目的开关状态。
+    Mengalihkan status sakelar entri buku dunia.
 
     Args:
-        entry_id: 条目 ID。
-        session: 数据库 session。
+        entry_id: ID entri.
+        session: Session basis data.
 
     Returns:
-        切换后的条目。
+        Entri setelah dialihkan.
 
     Raises:
-        HTTPException: 条目不存在。
+        HTTPException: Entri tidak ditemukan.
     """
     try:
-        logger.info(f"切换条目开关: {entry_id}")
+        logger.info(f"Mengalihkan sakelar entri: {entry_id}")
         entry = await world_info_entry_service.toggle_entry(session, entry_id)
         return _entry_to_response(entry)
     except NotFoundError as e:
@@ -471,16 +471,16 @@ async def toggle_entry(
 @router.post(
     "/world-info/{world_info_id}/entries/batch/toggle",
     response_model=WorldInfoEntryBatchToggleResponse,
-    summary="批量切换条目开关",
+    summary="Mengalihkan sakelar entri secara massal",
 )
 async def batch_toggle_entries(
     world_info_id: str,
     data: WorldInfoEntryBatchToggleRequest,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> WorldInfoEntryBatchToggleResponse:
-    """批量切换世界书条目的开关状态。"""
+    """Mengalihkan status sakelar entri buku dunia secara massal."""
     try:
-        logger.info(f"批量切换条目开关: world_info_id={world_info_id}, count={len(data.entry_ids)}")
+        logger.info(f"Mengalihkan sakelar entri secara massal: world_info_id={world_info_id}, count={len(data.entry_ids)}")
         updated_count = await world_info_entry_service.batch_toggle_entries(
             session, world_info_id, data.entry_ids, data.is_enabled
         )
@@ -492,16 +492,16 @@ async def batch_toggle_entries(
 @router.post(
     "/world-info/{world_info_id}/entries/batch/delete",
     response_model=WorldInfoEntryBatchDeleteResponse,
-    summary="批量删除条目",
+    summary="Menghapus entri secara massal",
 )
 async def batch_delete_entries(
     world_info_id: str,
     data: WorldInfoEntryBatchDeleteRequest,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> WorldInfoEntryBatchDeleteResponse:
-    """批量删除世界书条目。"""
+    """Menghapus entri buku dunia secara massal."""
     try:
-        logger.info(f"批量删除条目: world_info_id={world_info_id}, count={len(data.entry_ids)}")
+        logger.info(f"Menghapus entri secara massal: world_info_id={world_info_id}, count={len(data.entry_ids)}")
         deleted_count = await world_info_entry_service.batch_delete_entries(
             session, world_info_id, data.entry_ids
         )
@@ -513,11 +513,11 @@ async def batch_delete_entries(
 @router.get(
     "/world-info/{world_info_id}/entries/search",
     response_model=WorldInfoEntrySearchResponse,
-    summary="搜索条目内容",
+    summary="Mencari isi entri",
 )
 async def search_entries(
     world_info_id: str,
-    q: Annotated[str, Query(min_length=1, description="搜索关键词")],
+    q: Annotated[str, Query(min_length=1, description="Kata kunci pencarian")],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> WorldInfoEntrySearchResponse:
     try:

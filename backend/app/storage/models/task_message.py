@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""TaskMessage 数据模型。"""
+"""Model data TaskMessage."""
 
 from datetime import UTC, datetime
 
@@ -10,7 +10,7 @@ from app.core.ids import generate_id
 
 
 class TaskMessage(SQLModel, table=True):
-    """任务消息模型。"""
+    """Model pesan tugas."""
 
     __tablename__ = "task_messages"
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Macro Handler Base - 宏处理器基类。
+Macro Handler Base - kelas dasar handler makro.
 """
 
 from abc import ABC, abstractmethod
@@ -9,41 +9,41 @@ from app.macro.types import MacroContext, MacroNode
 
 
 class MacroHandler(ABC):
-    """宏处理器基类。"""
+    """Kelas dasar handler makro."""
 
     @abstractmethod
     def evaluate(self, node: MacroNode, context: MacroContext) -> str:
         """
-        求值宏节点。
+        Mengevaluasi node makro.
 
         Args:
-            node: 宏 AST 节点。
-            context: 求值上下文。
+            node: Node AST makro.
+            context: Konteks evaluasi.
 
         Returns:
-            求值结果（字符串形式）。
+            Hasil evaluasi (dalam bentuk string).
 
         Raises:
-            MacroEvaluateError: 求值错误。
+            MacroEvaluateError: Kesalahan evaluasi.
         """
         pass
 
     @abstractmethod
     def validate(self, node: MacroNode) -> None:
         """
-        验证宏参数。
+        Memvalidasi argumen makro.
 
         Args:
-            node: 宏 AST 节点。
+            node: Node AST makro.
 
         Raises:
-            MacroValidateError: 验证错误。
+            MacroValidateError: Kesalahan validasi.
         """
         pass
 
 
 class MacroEvaluateError(Exception):
-    """宏求值错误。"""
+    """Kesalahan evaluasi makro."""
 
     def __init__(self, message: str, node: MacroNode):
         super().__init__(message)
@@ -51,7 +51,7 @@ class MacroEvaluateError(Exception):
 
 
 class MacroValidateError(Exception):
-    """宏验证错误。"""
+    """Kesalahan validasi makro."""
 
     def __init__(self, message: str, node: MacroNode):
         super().__init__(message)

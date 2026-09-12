@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Note Repository - 笔记数据访问层。
+Note Repository - lapisan akses data catatan.
 """
 
 from sqlalchemy import case as sa_case
@@ -80,7 +80,7 @@ async def search_by_content(
     project_id: str,
     query: str,
 ) -> list[Note]:
-    """按笔记内容搜索笔记。"""
+    """Mencari catatan berdasarkan isi catatan."""
     normalized_query = query.strip()
     if not normalized_query:
         return []

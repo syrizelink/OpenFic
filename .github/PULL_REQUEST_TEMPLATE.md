@@ -1,58 +1,58 @@
-<!-- 所有注释部分仅用于说明，不要将注释作为实际的 PR Body 提交 -->
+<!-- Semua bagian komentar hanya berfungsi sebagai penjelasan, jangan kirimkan komentar sebagai PR Body yang sebenarnya -->
 
-## PR 标题
+## Judul PR
 
-<!-- 格式: <type>(<scope>): <subject>
-示例: feat(backend): 添加章节摘要生成功能
-类型: feat | fix | docs | style | refactor | perf | test | chore
-范围: frontend | backend | agent | storage | api | db | config -->
+<!-- Format: <type>(<scope>): <subject>
+Contoh: feat(backend): menambahkan fitur pembuatan ringkasan bab
+Tipe: feat | fix | docs | style | refactor | perf | test | chore
+Cakupan: frontend | backend | agent | storage | api | db | config -->
 
-## 变更说明
+## Deskripsi Perubahan
 
-<!-- 使用2-5条要点简要描述本次变更的内容和目的 -->
+<!-- Gunakan 2-5 poin untuk menjelaskan secara singkat isi dan tujuan perubahan ini -->
 
-- 问题: 
-- 重要性: 
-- 变化: 
+- Masalah: 
+- Tingkat Kepentingan: 
+- Perubahan: 
 ...
 
-## 关联 Issue / PR
+## Issue / PR Terkait
 
-<!-- 如果有外部相关的 Issue / PR，请在此链接 -->
-<!-- 示例: Closes #123 -->
-<!-- 如果没有，请填写`无` -->
+<!-- Jika ada Issue / PR eksternal yang berkaitan, silakan tautkan di sini -->
+<!-- Contoh: Closes #123 -->
+<!-- Jika tidak ada, isi dengan `tidak ada` -->
 
-## 变更类型
+## Tipe Perubahan
 
-- [ ] 新功能 (feat)
-- [ ] 错误修复 (fix)
-- [ ] 文档更新 (docs)
-- [ ] 代码格式调整 (style)
-- [ ] 代码重构 (refactor)
-- [ ] 性能优化 (perf)
-- [ ] 测试相关 (test)
-- [ ] 杂项 (chore)
+- [ ] Fitur Baru (feat)
+- [ ] Perbaikan Bug (fix)
+- [ ] Pembaruan Dokumentasi (docs)
+- [ ] Penyesuaian Format Kode (style)
+- [ ] Refaktor Kode (refactor)
+- [ ] Optimalisasi Performa (perf)
+- [ ] Terkait Pengujian (test)
+- [ ] Lain-lain (chore)
 
-<!-- 必填，且仅选择一项 -->
-<!-- 变更类型应与 PR Title 中的`<type>`保持一致 -->
+<!-- Wajib diisi, dan pilih hanya satu -->
+<!-- Tipe perubahan harus konsisten dengan `<type>` pada PR Title -->
 
-## 问题原因
+## Penyebab Masalah
 
-<!-- 对于 fix 类型的 PR，需要解释问题发生的原因 -->
-<!-- 如果原因不明，可以填写 Unknown -->
-<!-- 如果 PR 的目标不是修复 bug，请填写`无` -->
+<!-- Untuk PR bertipe fix, perlu dijelaskan penyebab terjadinya masalah -->
+<!-- Jika penyebabnya belum jelas, boleh diisi Unknown -->
+<!-- Jika tujuan PR bukan memperbaiki bug, isi dengan `tidak ada` -->
 
-## 自查清单
+## Daftar Periksa Mandiri
 
-- [ ] 已添加/更新必要的测试
-- [ ] 已运行 lint 和 typecheck，无报错
-- [ ] 已运行测试用例，全部通过
-- [ ] 变更范围合理，未包含无关修改
-- [ ] 未暴露敏感信息（API Key、密码等）
-- [ ] 提交信息符合规范
+- [ ] Pengujian yang diperlukan sudah ditambahkan/diperbarui
+- [ ] lint dan typecheck sudah dijalankan, tanpa error
+- [ ] Kasus uji sudah dijalankan, semuanya lolos
+- [ ] Cakupan perubahan wajar, tidak memuat modifikasi yang tidak relevan
+- [ ] Tidak mengekspos informasi sensitif (API Key, kata sandi, dan sebagainya)
+- [ ] Informasi commit sesuai dengan ketentuan
 
-## 补充信息
+## Informasi Tambahan
 
-<!-- 其他需要说明的内容，这一项是可选的，如果没有请填写`无` -->
-<!-- 该部分通常用于说明 PR 可能产生的额外影响，或是代码中额外的注意点 -->
-<!-- 不应在此处说明任何显而易见或多余的部分，比如通过了哪些测试等 -->
+<!-- Hal lain yang perlu dijelaskan, bagian ini bersifat opsional, jika tidak ada isi dengan `tidak ada` -->
+<!-- Bagian ini biasanya dipakai untuk menjelaskan dampak tambahan yang mungkin muncul dari PR, atau catatan tambahan pada kode -->
+<!-- Jangan menjelaskan hal yang sudah jelas atau berlebihan di sini, misalnya pengujian apa saja yang sudah lolos -->

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Writing Activity Service - 写作活动采集与统计。
+Writing Activity Service - pengumpulan dan statistik aktivitas menulis.
 """
 
 from dataclasses import dataclass
@@ -26,7 +26,7 @@ WritingActivityOperation = Literal[
 
 @dataclass(frozen=True)
 class WritingDashboardResult:
-    """写作统计结果。"""
+    """Hasil statistik menulis."""
 
     summary: writing_activity_repo.WritingActivitySummaryRow
     time_series: list[writing_activity_repo.WritingActivityTimeSeriesRow]
@@ -39,7 +39,7 @@ def build_filters(
     end_at: datetime | None = None,
     timezone: str | None = None,
 ) -> writing_activity_repo.WritingActivityFilters:
-    """构建写作统计筛选条件。"""
+    """Membangun kriteria filter statistik menulis."""
     parsed_timezone = _parse_timezone(timezone)
     return writing_activity_repo.WritingActivityFilters(
         project_id=project_id,
@@ -51,7 +51,7 @@ def build_filters(
 
 
 def _parse_timezone(value: str | None) -> ZoneInfo:
-    """解析客户端时区，非法值回退到 UTC。"""
+    """Mem-parsing zona waktu klien, nilai tidak valid kembali ke UTC."""
     if not value:
         return ZoneInfo("UTC")
     try:
@@ -61,7 +61,7 @@ def _parse_timezone(value: str | None) -> ZoneInfo:
 
 
 def _to_utc_datetime(value: datetime | None, timezone: ZoneInfo) -> datetime | None:
-    """把客户端本地时间边界转换为 UTC。"""
+    """Mengubah batas waktu lokal klien menjadi UTC."""
     if value is None:
         return None
     source = value if value.tzinfo else value.replace(tzinfo=timezone)
@@ -82,7 +82,7 @@ async def record_activity(
     task_id: str | None = None,
     agent_session_id: str | None = None,
 ) -> WritingActivityEvent | None:
-    """记录一次章节内容字数变化事件。"""
+    """Mencatat satu peristiwa perubahan jumlah kata isi bab."""
     old_count = old_word_count or 0
     new_count = new_word_count or 0
     if old_count == new_count and operation == "update":
@@ -108,7 +108,7 @@ async def get_dashboard(
     session: AsyncSession,
     filters: writing_activity_repo.WritingActivityFilters,
 ) -> WritingDashboardResult:
-    """获取写作统计仪表盘数据。"""
+    """Mengambil data dasbor statistik menulis."""
     aggregates = await writing_activity_repo.get_aggregates(session, filters)
     if aggregates is not None:
         return WritingDashboardResult(
@@ -123,7 +123,7 @@ def _build_dashboard_from_rows(
     rows: list[writing_activity_repo.WritingActivityMetricRow],
     timezone: ZoneInfo,
 ) -> WritingDashboardResult:
-    """为存在时区切换的区域保留精确的 Python 聚合。"""
+    """Mempertahankan agregasi Python yang presisi untuk wilayah dengan pergantian zona waktu."""
     active_dates: set[str] = set()
     chapter_ids: set[str] = set()
     grouped: dict[str, dict[str, int]] = defaultdict(
@@ -156,6 +156,6 @@ def _build_dashboard_from_rows(
 
 
 def _format_activity_date(value: datetime, timezone: ZoneInfo) -> str:
-    """按用户时区返回写作活动所属日期。"""
+    """Mengembalikan tanggal aktivitas menulis menurut zona waktu pengguna."""
     source = value if value.tzinfo else value.replace(tzinfo=UTC)
     return source.astimezone(timezone).strftime("%Y-%m-%d")

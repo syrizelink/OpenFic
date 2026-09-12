@@ -1,7 +1,7 @@
 /**
  * Agent Components
  *
- * Agent 组件导出
+ * Ekspor komponen Agent
  */
 
 export { AgentMessageRenderer } from "./agent-message-renderer";

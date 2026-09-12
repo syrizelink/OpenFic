@@ -17,12 +17,16 @@ class InvalidJobPayloadError(ValueError):
 async def dispatch_job(context: JobContext) -> dict | None:
     definition = get_job_registry().get(context.job_type)
     if definition is None:
-        raise UnknownJobTypeError(f"未注册的后台任务类型: {context.job_type}")
+        raise UnknownJobTypeError(
+            f"Tipe tugas latar belakang tidak terdaftar: {context.job_type}"
+        )
 
     try:
         payload = definition.input_model.model_validate(context.input)
     except ValidationError as exc:
-        raise InvalidJobPayloadError(f"后台任务参数无效: {exc}") from exc
+        raise InvalidJobPayloadError(
+            f"Argumen tugas latar belakang tidak valid: {exc}"
+        ) from exc
 
     context.definition = definition
     context.payload = payload

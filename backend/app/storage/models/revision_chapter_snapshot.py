@@ -26,7 +26,7 @@ class RevisionChapterSnapshot(SQLModel, table=True):
     content: str | None = Field(default=None)
     content_blob_id: str | None = Field(
         default=None,
-        description="正文的内容寻址 blob id(长文本时使用)",
+        description="blob id content-addressed untuk teks (dipakai bila teks panjang)",
     )
     word_count: int | None = Field(default=None)
     chapter_order: int | None = Field(default=None)

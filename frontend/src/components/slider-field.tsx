@@ -1,7 +1,7 @@
 /**
  * Slider Field Component
  *
- * 滑块参数输入字段，支持滑块和数字输入框联动。
+ * Field masukan parameter geser, mendukung penyelarasan antara penggeser dan kotak masukan angka.
  */
 
 import { Flex, Text, TextField, Slider } from "@radix-ui/themes";

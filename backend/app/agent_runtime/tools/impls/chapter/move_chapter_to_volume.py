@@ -24,15 +24,19 @@ from app.storage.services.version_control_service import refresh_project_stats
 
 
 class MoveChapterToVolumeInput(BaseModel):
-    volume_ref: VolumeRef = Field(description="源章节所在的卷")
-    chapter_ref: ChapterRef = Field(description="要移动的目标章节")
-    target_volume_ref: VolumeRef = Field(description="目标卷；章节会被追加到该卷末尾")
+    volume_ref: VolumeRef = Field(description="Volume tempat bab sumber berada")
+    chapter_ref: ChapterRef = Field(description="Bab sasaran yang akan dipindahkan")
+    target_volume_ref: VolumeRef = Field(
+        description="Volume sasaran; bab akan ditambahkan di akhir volume tersebut"
+    )
 
 
 @ToolRegistry.register
 class MoveChapterToVolumeTool(AgentTool):
     name: str = "move_chapter_to_volume"
-    description: str = "将指定卷内章节移动到目标卷末尾"
+    description: str = (
+        "Memindahkan bab dari volume yang ditentukan ke akhir volume sasaran"
+    )
     access_level: str = "write"
     args_schema: type[BaseModel] = MoveChapterToVolumeInput
 
@@ -44,7 +48,10 @@ class MoveChapterToVolumeTool(AgentTool):
     ) -> str:
         revision_id = current_revision_id_from_state(self._state)
         if revision_id is None:
-            raise ToolExecutionError("缺少当前 revision，无法执行章节跨卷移动")
+            raise ToolExecutionError(
+                "revision saat ini tidak ada, pemindahan bab antar volume tidak dapat "
+                "dijalankan"
+            )
         session = await create_session()
         try:
             volumes = await volume_repo.list_by_project(session, self.project_id)

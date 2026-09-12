@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Macro Registry - 宏注册表。
+Macro Registry - registri makro.
 
-定义预定义的宏名集合和元信息。
+Mendefinisikan himpunan nama makro bawaan beserta meta-informasinya.
 """
 
 from dataclasses import dataclass
@@ -11,13 +11,13 @@ from dataclasses import dataclass
 @dataclass
 class MacroMeta:
     """
-    宏元信息。
+    Meta-informasi makro.
 
     Attributes:
-        name: 宏名。
-        configurable: 是否可在侧边栏配置。
-        description: 描述。
-        handler_class: 处理器类名（延迟加载）。
+        name: Nama makro.
+        configurable: Apakah dapat dikonfigurasi di panel samping.
+        description: Deskripsi.
+        handler_class: Nama kelas handler (dimuat secara lazy).
     """
 
     name: str
@@ -30,47 +30,47 @@ MACRO_REGISTRY: dict[str, MacroMeta] = {
     "getmem": MacroMeta(
         name="getmem",
         configurable=False,
-        description="获取章节记忆内容",
+        description="Mengambil isi memori bab",
         handler_class="GetMemHandler",
     ),
     "getlist": MacroMeta(
         name="getlist",
         configurable=False,
-        description="获取最新 50 个章节的目录列表",
+        description="Mengambil daftar isi 50 bab terbaru",
         handler_class="GetListHandler",
     ),
     "getworld": MacroMeta(
         name="getworld",
         configurable=False,
-        description="获取当前项目世界书常驻和关键词命中条目",
+        description="Mengambil entri buku dunia proyek saat ini yang permanen dan cocok kata kunci",
         handler_class="GetWorldHandler",
     ),
     "if": MacroMeta(
         name="if",
         configurable=True,
-        description="条件渲染块开始（基于bool变量）",
+        description="Awal blok render kondisional (berbasis variabel bool)",
         handler_class="IfHandler",
     ),
     "endif": MacroMeta(
         name="endif",
         configurable=True,
-        description="条件渲染块结束",
+        description="Akhir blok render kondisional",
         handler_class="EndIfHandler",
     ),
 }
 
 
 def get_macro_names() -> set[str]:
-    """获取所有预定义宏名。"""
+    """Mengambil semua nama makro bawaan."""
     return set(MACRO_REGISTRY.keys())
 
 
 def is_valid_macro(name: str) -> bool:
-    """检查宏名是否有效。"""
+    """Memeriksa apakah nama makro valid."""
     return name in MACRO_REGISTRY
 
 
 def is_configurable(name: str) -> bool:
-    """检查宏是否可配置。"""
+    """Memeriksa apakah makro dapat dikonfigurasi."""
     meta = MACRO_REGISTRY.get(name)
     return meta.configurable if meta else False

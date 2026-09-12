@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-FastEmbed Embeddings - 将 fastembed 本地模型包装为 LangChain Embeddings 接口。
+FastEmbed Embeddings - membungkus model lokal fastembed menjadi antarmuka
+LangChain Embeddings.
 
-fastembed 的推理是同步的，这里通过 asyncio.to_thread 将同步调用移出事件循环，
-避免阻塞请求处理。
+Inferensi fastembed bersifat sinkron; di sini pemanggilan sinkron dipindahkan keluar
+dari event loop melalui asyncio.to_thread agar tidak memblokir pemrosesan permintaan.
 
-模型下载策略：fastembed 默认先尝试 HuggingFace，但 HF 在部分网络环境下不可达
-会导致无限挂起。此处优先从 GCS (Google Cloud Storage) 直接下载，并以
-HF_HUB_OFFLINE=1 加载，绕过 HF 网络请求。仅当模型无 GCS 源时才回退到 HF。
+Strategi unduh model: fastembed secara default mencoba HuggingFace lebih dulu, tetapi
+HF tidak dapat dijangkau di sebagian lingkungan jaringan sehingga menyebabkan hang tak
+terbatas. Di sini diutamakan unduh langsung dari GCS (Google Cloud Storage) dan dimuat
+dengan HF_HUB_OFFLINE=1 untuk melewati permintaan jaringan HF. Hanya jika model tidak
+memiliki sumber GCS baru kembali ke HF.
 """
 
 from __future__ import annotations
@@ -37,10 +40,11 @@ def _resolve_cache_dir() -> Path:
 
 
 def _build_opener() -> urllib.request.OpenerDirector:
-    """构建支持系统代理的 URL opener。
+    """Membangun URL opener yang mendukung proxy sistem.
 
-    urllib.request.urlopen 默认不读取 HTTP_PROXY/HTTPS_PROXY 环境变量，
-    需显式通过 ProxyHandler 注入代理，使代理网络环境下也能正常下载模型。
+    urllib.request.urlopen secara default tidak membaca variabel lingkungan
+    HTTP_PROXY/HTTPS_PROXY, sehingga proxy perlu disuntikkan eksplisit melalui
+    ProxyHandler agar model tetap dapat diunduh di lingkungan jaringan berproxy.
     """
     proxies = urllib.request.getproxies()
     if proxies:
@@ -49,11 +53,12 @@ def _build_opener() -> urllib.request.OpenerDirector:
 
 
 def _download_with_timeout(url: str, dest: Path, *, timeout_seconds: int) -> None:
-    """从 URL 下载文件到 dest，带连接和读取超时。
+    """Mengunduh file dari URL ke dest, dengan batas waktu koneksi dan baca.
 
-    自动使用系统代理（HTTP_PROXY/HTTPS_PROXY 环境变量）。
-    网络不可达时在超时内失败并抛出清晰错误，而非无限挂起。
-    每 10 MiB 记录一次进度日志。
+    Otomatis memakai proxy sistem (variabel lingkungan HTTP_PROXY/HTTPS_PROXY).
+    Jika jaringan tidak dapat dijangkau, gagal dalam batas waktu dan melempar
+    kesalahan yang jelas alih-alih hang tak terbatas.
+    Mencatat log progres setiap 10 MiB.
     """
     import socket
 
@@ -74,7 +79,7 @@ def _download_with_timeout(url: str, dest: Path, *, timeout_seconds: int) -> Non
                     written += len(chunk)
                     if total > 0 and written - last_report >= report_interval:
                         logger.info(
-                            "模型下载进度: {:.0%} ({:.1f} / {:.1f} MiB)",
+                            "Progres unduh model: {:.0%} ({:.1f} / {:.1f} MiB)",
                             written / total,
                             written / 1048576,
                             total / 1048576,
@@ -82,15 +87,16 @@ def _download_with_timeout(url: str, dest: Path, *, timeout_seconds: int) -> Non
                         last_report = written
             if total > 0 and written != total:
                 raise IOError(
-                    f"模型下载不完整: 已写 {written} 字节, 预期 {total} 字节"
+                    f"Unduh model tidak lengkap: tertulis {written} bita, "
+                    f"diharapkan {total} bita"
                 )
     except (urllib.error.URLError, socket.timeout, TimeoutError) as exc:
         dest.unlink(missing_ok=True)
         raise RuntimeError(
-            f"内置模型下载失败（网络不可达或超时）: {url}\n"
-            f"错误: {exc}\n"
-            "请检查网络连接或代理设置后重试，或手动下载模型放到 "
-            f"{_FASTEMBED_CACHE_DIR} 目录。"
+            f"Unduh model bawaan gagal (jaringan tidak terjangkau atau timeout): {url}\n"
+            f"Kesalahan: {exc}\n"
+            "Periksa koneksi jaringan atau pengaturan proxy lalu coba lagi, atau unduh "
+            f"model manual ke direktori {_FASTEMBED_CACHE_DIR}."
         ) from exc
 
 
@@ -109,9 +115,10 @@ def _ensure_model_from_gcs(
     model_name: str,
     cache_dir: Path,
 ) -> bool:
-    """若模型有 GCS 源且尚未缓存，则从 GCS 下载并解压。
+    """Jika model punya sumber GCS dan belum di-cache, unduh dari GCS lalu ekstrak.
 
-    返回 True 表示模型已就绪且可以 HF_HUB_OFFLINE 方式加载（即无需访问 HF）。
+    Mengembalikan True berarti model sudah siap dan dapat dimuat dengan mode
+    HF_HUB_OFFLINE (yaitu tanpa perlu mengakses HF).
     """
     spec = _list_supported_models(model_class, model_name)
     if spec is None:
@@ -132,7 +139,7 @@ def _ensure_model_from_gcs(
     tar_gz_path = cache_dir / f"{fast_name}.tar.gz"
     tmp_dir = cache_dir / "tmp" / fast_name
 
-    logger.info("从 GCS 下载 fastembed 模型: {} -> {}", model_name, gcs_url)
+    logger.info("Mengunduh model fastembed dari GCS: {} -> {}", model_name, gcs_url)
     _download_with_timeout(gcs_url, tar_gz_path, timeout_seconds=120)
 
     if tmp_dir.exists():
@@ -151,15 +158,17 @@ def _ensure_model_from_gcs(
             break
     shutil.rmtree(tmp_dir.parent, ignore_errors=True)
 
-    logger.info("fastembed 模型已缓存: {} -> {}", model_name, model_dir)
+    logger.info("Model fastembed sudah di-cache: {} -> {}", model_name, model_dir)
     return True
 
 
 def _set_hf_offline(enabled: bool) -> str | None:
-    """临时切换 HuggingFace 离线模式（env var + huggingface_hub 常量）。
+    """Mengalihkan mode offline HuggingFace secara sementara
+    (env var + konstanta huggingface_hub).
 
-    huggingface_hub 在导入时缓存 HF_HUB_OFFLINE，仅设 env var 不够，
-    需同时修改常量。返回原值供恢复。
+    huggingface_hub men-cache HF_HUB_OFFLINE saat impor, jadi menyetel env var saja
+    tidak cukup; konstanta perlu diubah sekaligus. Mengembalikan nilai asli untuk
+    dipulihkan.
     """
     import huggingface_hub.constants as hf_constants
 
@@ -190,7 +199,7 @@ _PREFLIGHT_TIMEOUT = 5.0
 
 
 def _check_hf_reachable() -> None:
-    """HTTPS 预检 HuggingFace 是否可达，不可达时快速失败。"""
+    """Pra-cek HTTPS apakah HuggingFace terjangkau, gagal cepat jika tidak."""
     try:
         with urllib.request.urlopen(
             urllib.request.Request(f"{_HF_URL}/api/status", method="HEAD"),
@@ -202,9 +211,9 @@ def _check_hf_reachable() -> None:
             raise
     except Exception as exc:
         raise RuntimeError(
-            f"无法连接到 HuggingFace（{_HF_URL} 不可达），"
-            "请检查网络连接后重试，或手动下载模型放到 "
-            f"{_FASTEMBED_CACHE_DIR} 目录。"
+            f"Tidak dapat terhubung ke HuggingFace ({_HF_URL} tidak terjangkau), "
+            "periksa koneksi jaringan lalu coba lagi, atau unduh model manual ke "
+            f"direktori {_FASTEMBED_CACHE_DIR}."
         ) from exc
 
 
@@ -213,9 +222,10 @@ def _ensure_model_from_hf(
     model_name: str,
     cache_dir: Path,
 ) -> bool:
-    """对无 GCS 源的模型，从 HuggingFace 下载（带超时保护）。
+    """Untuk model tanpa sumber GCS, unduh dari HuggingFace (dengan proteksi timeout).
 
-    返回 True 表示模型文件已就绪。预检不可达时 5 秒内快速失败。
+    Mengembalikan True berarti file model sudah siap. Jika pra-cek tidak terjangkau,
+    gagal cepat dalam 5 detik.
     """
     import socket
 
@@ -247,7 +257,7 @@ def _ensure_model_from_hf(
     _check_hf_reachable()
     from huggingface_hub import snapshot_download
 
-    logger.info("从 HuggingFace 下载 fastembed 模型: {}", hf_repo)
+    logger.info("Mengunduh model fastembed dari HuggingFace: {}", hf_repo)
     old_etag = os.environ.get("HF_HUB_ETAG_TIMEOUT")
     old_dl = os.environ.get("HF_HUB_DOWNLOAD_TIMEOUT")
     old_pbar = os.environ.get("HF_HUB_DISABLE_PROGRESS_BARS")
@@ -262,9 +272,10 @@ def _ensure_model_from_hf(
         )
     except (urllib.error.URLError, socket.timeout, TimeoutError, OSError) as exc:
         raise RuntimeError(
-            f"内置模型下载失败（HuggingFace 不可达或超时）: {hf_repo}\n"
-            f"错误: {exc}\n"
-            "请检查网络连接后重试。"
+            f"Unduh model bawaan gagal (HuggingFace tidak terjangkau atau timeout): "
+            f"{hf_repo}\n"
+            f"Kesalahan: {exc}\n"
+            "Periksa koneksi jaringan lalu coba lagi."
         ) from exc
     finally:
         if old_etag is None:
@@ -280,7 +291,7 @@ def _ensure_model_from_hf(
         else:
             os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = old_pbar
 
-    logger.info("fastembed 模型已缓存(HF): {} -> {}", model_name, snapshot_dir)
+    logger.info("Model fastembed sudah di-cache (HF): {} -> {}", model_name, snapshot_dir)
     return True
 
 
@@ -298,10 +309,11 @@ def _instantiate_fastembed_model(
 
 
 def _load_fastembed_model(model_class: Any, model_name: str) -> Any:
-    """加载 fastembed 模型，优先从 GCS 下载以绕过不可达的 HuggingFace。
+    """Memuat model fastembed, mengutamakan unduh dari GCS untuk melewati
+    HuggingFace yang tidak terjangkau.
 
-    无 GCS 源的模型（如 rerank）回退到 HuggingFace，带超时保护，
-    网络不可达时快速失败而非无限挂起。
+    Model tanpa sumber GCS (misalnya rerank) kembali ke HuggingFace dengan proteksi
+    timeout, gagal cepat saat jaringan tidak terjangkau alih-alih hang tak terbatas.
     """
     cache_dir = _resolve_cache_dir()
 
@@ -325,19 +337,19 @@ def _load_fastembed_model(model_class: Any, model_name: str) -> Any:
 
 
 class FastEmbedEmbeddings(Embeddings):
-    """基于 fastembed TextEmbedding 的 LangChain Embeddings 实现。"""
+    """Implementasi LangChain Embeddings berbasis fastembed TextEmbedding."""
 
     def __init__(self, model_name: str) -> None:
         try:
             from fastembed import TextEmbedding
         except ModuleNotFoundError as exc:
             raise ImportError(
-                "fastembed 未安装。请运行 uv sync 安装依赖。"
+                "fastembed belum terpasang. Jalankan uv sync untuk memasang dependensi."
             ) from exc
 
         self._model_name = model_name
         self._model = _load_fastembed_model(TextEmbedding, model_name)
-        logger.info("FastEmbed 内置向量模型已加载: {}", model_name)
+        logger.info("Model vektor bawaan FastEmbed sudah dimuat: {}", model_name)
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         return [list(emb) for emb in self._model.embed(texts)]

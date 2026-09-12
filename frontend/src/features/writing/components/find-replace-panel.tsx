@@ -1,7 +1,7 @@
 /**
  * Find Replace Panel
  *
- * 查找和替换面板组件，提供搜索输入、结果导航和替换功能。
+ * Komponen panel cari dan ganti, menyediakan masukan pencarian, navigasi hasil, dan fungsi penggantian.
  */
 
 import { Box, Flex, IconButton, Text, Separator, Tooltip } from "@radix-ui/themes";
@@ -13,22 +13,22 @@ import { useTranslation } from "react-i18next";
 
 interface FindReplacePanelProps {
   editor: Editor;
-  /** 是否显示替换区域（false 时只显示查找） */
+  /** Menampilkan area penggantian (saat false hanya pencarian yang tampil) */
   showReplace: boolean;
-  /** 关闭面板的回调 */
+  /** Callback untuk menutup panel */
   onClose: () => void;
 }
 
-/** 搜索框最大宽度（与编辑器内容一致） */
+/** Lebar maksimum kotak pencarian (sama dengan isi editor) */
 const PANEL_MAX_WIDTH = 800;
 
-/** 搜索输入框样式 */
+/** Gaya kotak masukan pencarian */
 const inputStyle: React.CSSProperties = {
   flex: 1,
   height: 32,
   padding: "0 8px",
-  paddingLeft: 32, // 为搜索图标留出空间
-  paddingRight: 56, // 为计数器留出空间
+  paddingLeft: 32, // Menyisakan ruang untuk ikon pencarian
+  paddingRight: 56, // Menyisakan ruang untuk penghitung
   fontFamily: "var(--app-font-family)",
   fontSize: "var(--font-size-base)",
   border: "1px solid var(--gray-a5)",
@@ -39,7 +39,7 @@ const inputStyle: React.CSSProperties = {
   transition: "border-color 0.2s ease, box-shadow 0.2s ease",
 };
 
-/** 替换输入框样式 */
+/** Gaya kotak masukan penggantian */
 const replaceInputStyle: React.CSSProperties = {
   flex: 1,
   height: 32,
@@ -62,16 +62,16 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
   const [searchFocused, setSearchFocused] = useState(false);
   const [replaceFocused, setReplaceFocused] = useState(false);
 
-  // 搜索结果状态（从 editor storage 同步）
+  // Status hasil pencarian (disinkronkan dari editor storage)
   const [resultCount, setResultCount] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // 同步搜索词到编辑器
+  // Menyinkronkan kata pencarian ke editor
   useEffect(() => {
     editor.commands.setSearchTerm(searchTerm);
   }, [editor, searchTerm]);
 
-  // 监听 editor 更新，同步搜索结果到组件状态
+  // Memantau pembaruan editor, menyinkronkan hasil pencarian ke state komponen
   useEffect(() => {
     const updateResults = () => {
       const storage = (editor as any).storage.searchAndReplace as
@@ -86,22 +86,22 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
       setCurrentIndex(results.length > 0 ? resultIndex + 1 : 0);
     };
 
-    // 初始更新
+    // Pembaruan awal
     updateResults();
 
-    // 监听事务更新
+    // Memantau pembaruan transaksi
     editor.on("transaction", updateResults);
     return () => {
       editor.off("transaction", updateResults);
     };
   }, [editor]);
 
-  // 同步替换词到编辑器
+  // Menyinkronkan kata penggantian ke editor
   useEffect(() => {
     editor.commands.setReplaceTerm(replaceTerm);
   }, [editor, replaceTerm]);
 
-  // 关闭时清除搜索
+  // Membersihkan pencarian saat ditutup
   useEffect(() => {
     return () => {
       editor.commands.setSearchTerm("");
@@ -109,7 +109,7 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
     };
   }, [editor]);
 
-  // ESC 键关闭面板
+  // Tombol ESC menutup panel
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -120,7 +120,7 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
-  // 滚动到当前搜索结果
+  // Menggulir ke hasil pencarian saat ini
   const scrollToCurrentResult = useCallback(() => {
     const storage = (editor as any).storage.searchAndReplace;
     const results = storage?.results ?? [];
@@ -128,7 +128,7 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
     const currentResult = results[resultIndex];
 
     if (currentResult) {
-      // 使用 ProseMirror 的坐标系统获取位置并滚动
+      // Memakai sistem koordinat ProseMirror untuk mengambil posisi lalu menggulir
       const { from } = currentResult;
       const coords = editor.view.coordsAtPos(from);
       const editorElement = editor.view.dom.closest(".tiptap-editor-wrapper") as HTMLElement;
@@ -137,7 +137,7 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
         const editorRect = editorElement.getBoundingClientRect();
         const relativeTop = coords.top - editorRect.top + editorElement.scrollTop;
 
-        // 滚动使结果在视图中居中
+        // Menggulir agar hasilnya berada di tengah tampilan
         editorElement.scrollTo({
           top: relativeTop - editorRect.height / 2,
           behavior: "smooth",
@@ -148,13 +148,13 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
 
   const handlePrevious = useCallback(() => {
     editor.commands.previousSearchResult();
-    // 延迟滚动，等待 DOM 更新
+    // Menunda gulir, menunggu pembaruan DOM
     setTimeout(scrollToCurrentResult, 10);
   }, [editor, scrollToCurrentResult]);
 
   const handleNext = useCallback(() => {
     editor.commands.nextSearchResult();
-    // 延迟滚动，等待 DOM 更新
+    // Menunda gulir, menunggu pembaruan DOM
     setTimeout(scrollToCurrentResult, 10);
   }, [editor, scrollToCurrentResult]);
 
@@ -178,7 +178,7 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
       }}
     >
       <Box py="3">
-        {/* 居中容器，与编辑器内容宽度一致 */}
+        {/* Wadah tengah, lebarnya sama dengan isi editor */}
         <Box
           style={{
             maxWidth: PANEL_MAX_WIDTH,
@@ -190,14 +190,14 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
             direction="column"
             gap="2"
           >
-            {/* 查找行 */}
+            {/* Baris pencarian */}
             <Flex
               align="center"
               gap="2"
             >
-              {/* 搜索输入框容器 */}
+              {/* Wadah kotak masukan pencarian */}
               <Box style={{ flex: 1, position: "relative" }}>
-                {/* 搜索图标 */}
+                {/* Ikon pencarian */}
                 <Box
                   style={{
                     position: "absolute",
@@ -211,7 +211,7 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
                   <Search size={14} />
                 </Box>
 
-                {/* 搜索输入框 */}
+                {/* Kotak masukan pencarian */}
                 <input
                   type="text"
                   placeholder={t("editor.findPlaceholder")}
@@ -228,7 +228,7 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
                   }}
                 />
 
-                {/* 结果计数（在搜索框内右侧） */}
+                {/* Penghitung hasil (di sisi kanan dalam kotak pencarian) */}
                 <Text
                   size="1"
                   color="gray"
@@ -245,7 +245,7 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
                 </Text>
               </Box>
 
-              {/* 上一个/下一个 */}
+              {/* Sebelumnya/berikutnya */}
               <Flex gap="1">
                 <Tooltip content={t("editor.previousResult")}>
                   <IconButton
@@ -276,7 +276,7 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
                 size="1"
               />
 
-              {/* 关闭按钮 */}
+              {/* Tombol tutup */}
               <Tooltip content={t("common.close")}>
                 <IconButton
                   variant="ghost"
@@ -289,13 +289,13 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
               </Tooltip>
             </Flex>
 
-            {/* 替换行 */}
+            {/* Baris penggantian */}
             {showReplace && (
               <Flex
                 align="center"
                 gap="2"
               >
-                {/* 替换输入框 */}
+                {/* Kotak masukan penggantian */}
                 <Box style={{ flex: 1 }}>
                   <input
                     type="text"
@@ -313,7 +313,7 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
                   />
                 </Box>
 
-                {/* 替换/全部替换按钮 */}
+                {/* Tombol ganti/ganti semua */}
                 <Flex gap="1">
                   <Tooltip content={t("editor.replace")}>
                     <IconButton
@@ -339,7 +339,7 @@ export function FindReplacePanel({ editor, showReplace, onClose }: FindReplacePa
                   </Tooltip>
                 </Flex>
 
-                {/* 占位保持与上一行对齐 */}
+                {/* Pengisi ruang agar tetap sejajar dengan baris sebelumnya */}
                 <Box style={{ width: 28 }} />
               </Flex>
             )}

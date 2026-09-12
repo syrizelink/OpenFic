@@ -1,4 +1,5 @@
-"""联网搜索工具配置：provider 选择、按 provider 加密存储的 API Key 与扩展参数。"""
+"""Konfigurasi alat pencarian daring: pemilihan provider, API Key yang disimpan
+terenkripsi per provider, dan parameter tambahan."""
 
 from __future__ import annotations
 

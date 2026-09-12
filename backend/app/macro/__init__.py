@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Macro 模块 - 宏解析与求值。
+Modul Macro - penguraian dan evaluasi makro.
 
-提供提示词链中宏表达式的解析、验证和求值功能。
+Menyediakan fungsi penguraian, validasi, dan evaluasi ekspresi makro di dalam rantai prompt.
 """
 
 from app.macro.types import (

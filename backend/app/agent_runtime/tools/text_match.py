@@ -13,8 +13,9 @@ def normalize_for_fuzzy_match(text: str) -> str:
 
     Strips trailing whitespace per line, and converts smart quotes, Unicode
     dashes and special spaces to ASCII. NFKC normalization is intentionally
-    NOT applied: it would convert fullwidth CJK punctuation (，！？：； …) to
-    halfwidth, corrupting Chinese prose style on the rewritten lines.
+    NOT applied: it would convert fullwidth CJK punctuation (U+FF0C, U+FF01,
+    U+FF1F, U+FF1A, U+FF1B, U+2026) to halfwidth, corrupting CJK prose style on
+    the rewritten lines.
     """
     text = "\n".join(line.rstrip() for line in text.split("\n"))
     # Smart single quotes -> '

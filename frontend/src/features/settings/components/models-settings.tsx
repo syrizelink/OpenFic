@@ -1,7 +1,7 @@
 /**
  * Models Settings Component
  *
- * 模型设置面板，管理和配置 AI 模型。
+ * Panel pengaturan model, mengelola dan mengonfigurasi model AI.
  */
 
 import { Box, Flex, Text, Button, IconButton, Badge, Tabs, Tooltip } from "@radix-ui/themes";
@@ -80,7 +80,7 @@ export function ModelsSettings({
     setModelValidationStatuses({});
   }, [activeTab]);
 
-  // 获取所有模型
+  // Mengambil seluruh model
   const {
     data: models,
     isLoading: isModelsLoading,
@@ -90,7 +90,7 @@ export function ModelsSettings({
     queryFn: () => fetchModels(),
   });
 
-  // 获取所有提供商（用于显示提供商名称）
+  // Mengambil seluruh penyedia (dipakai untuk menampilkan nama penyedia)
   const {
     data: providers,
     isLoading: isProvidersLoading,
@@ -100,7 +100,7 @@ export function ModelsSettings({
     queryFn: fetchProviders,
   });
 
-  // 获取设置
+  // Mengambil pengaturan
   const {
     data: settings,
     isLoading: isSettingsLoading,
@@ -110,7 +110,7 @@ export function ModelsSettings({
     queryFn: fetchSettings,
   });
 
-  // 更新设置
+  // Memperbarui pengaturan
   const updateSettingsMutation = useMutation({
     mutationFn: updateSettings,
     onSuccess: () => {
@@ -213,7 +213,7 @@ export function ModelsSettings({
     return map;
   }, [llmModelOptions]);
 
-  // 创建模型
+  // Membuat model
   const createMutation = useMutation({
     mutationFn: createModel,
     onSuccess: () => {
@@ -226,7 +226,7 @@ export function ModelsSettings({
     },
   });
 
-  // 更新模型
+  // Memperbarui model
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: ModelUpdateRequest }) => updateModel(id, data),
     onSuccess: () => {
@@ -240,7 +240,7 @@ export function ModelsSettings({
     },
   });
 
-  // 删除模型
+  // Menghapus model
   const deleteMutation = useMutation({
     mutationFn: deleteModel,
     onSuccess: () => {
@@ -253,13 +253,13 @@ export function ModelsSettings({
     },
   });
 
-  // 打开创建对话框
+  // Membuka dialog pembuatan
   const handleCreate = useCallback(() => {
     setEditingModel(null);
     setFormOpen(true);
   }, []);
 
-  // 打开编辑对话框
+  // Membuka dialog penyuntingan
   const handleEdit = useCallback((model: Model) => {
     setEditingModel(model);
     setFormOpen(true);
@@ -304,7 +304,7 @@ export function ModelsSettings({
     [t],
   );
 
-  // 提交表单
+  // Mengirim formulir
   const handleSubmit = useCallback(
     async (data: ModelCreateRequest | ModelUpdateRequest) => {
       if (editingModel) {
@@ -319,19 +319,19 @@ export function ModelsSettings({
     [editingModel, createMutation, updateMutation],
   );
 
-  // 确认删除
+  // Mengonfirmasi penghapusan
   const handleDelete = useCallback((model: Model) => {
     setDeletingModel(model);
   }, []);
 
-  // 执行删除
+  // Menjalankan penghapusan
   const handleConfirmDelete = useCallback(async () => {
     if (deletingModel) {
       await deleteMutation.mutateAsync(deletingModel.id);
     }
   }, [deletingModel, deleteMutation]);
 
-  // 获取提供商名称
+  // Mengambil nama penyedia
   const getProviderName = useCallback(
     (providerId: string) => {
       const provider = providers?.find((p) => p.id === providerId);
@@ -404,7 +404,7 @@ export function ModelsSettings({
         direction="column"
         gap="4"
       >
-        {/* 描述 */}
+        {/* Deskripsi */}
         <Text
           size="2"
           color="gray"
@@ -412,7 +412,7 @@ export function ModelsSettings({
           {t("models.description")}
         </Text>
 
-        {/* 默认模型 & 轻量模型 */}
+        {/* Model bawaan & model ringan */}
         <Flex
           direction="column"
           gap="4"
@@ -482,7 +482,7 @@ export function ModelsSettings({
           </Flex>
         </Flex>
 
-        {/* 新建按钮 */}
+        {/* Tombol buat baru */}
         <Flex>
           <Button
             onClick={handleCreate}
@@ -493,7 +493,7 @@ export function ModelsSettings({
           </Button>
         </Flex>
 
-        {/* Tab导航 */}
+        {/* Navigasi Tab */}
         <Tabs.Root
           value={activeTab}
           onValueChange={handleActiveTabChange}
@@ -505,7 +505,7 @@ export function ModelsSettings({
           </Tabs.List>
         </Tabs.Root>
 
-        {/* 模型列表 */}
+        {/* Daftar model */}
         {filteredModels.length > 0 ? (
           <Flex direction="column">
             {filteredModels.map((model, index) => (
@@ -527,7 +527,7 @@ export function ModelsSettings({
                       gap="1"
                       style={{ flex: 1 }}
                     >
-                      {/* 模型名称 + 元数据标签 */}
+                      {/* Nama model + label metadata */}
                       <Flex
                         align="center"
                         gap="2"
@@ -571,7 +571,7 @@ export function ModelsSettings({
                         })()}
                       </Flex>
 
-                      {/* 提供商和模型 ID */}
+                      {/* Penyedia dan ID model */}
                       <Flex
                         align="center"
                         gap="2"
@@ -602,7 +602,7 @@ export function ModelsSettings({
                         </Text>
                       </Flex>
 
-                      {/* 备注 */}
+                      {/* Catatan */}
                       {model.remark && (
                         <Text
                           size="2"
@@ -613,7 +613,7 @@ export function ModelsSettings({
                       )}
                     </Flex>
 
-                    {/* 操作按钮 */}
+                    {/* Tombol tindakan */}
                     <Flex gap="2">
                       {model.taskType === "llm" ? (
                         <Tooltip content={t("models.validateModel")}>
@@ -697,7 +697,7 @@ export function ModelsSettings({
         )}
       </Flex>
 
-      {/* 表单对话框 */}
+      {/* Dialog formulir */}
       <ModelFormDialog
         open={formOpen}
         onOpenChange={setFormOpen}
@@ -708,7 +708,7 @@ export function ModelsSettings({
         isAgentSettingsLocked={isAgentSettingsLocked}
       />
 
-      {/* 删除确认对话框 */}
+      {/* Dialog konfirmasi penghapusan */}
       <ConfirmDialog
         open={!!deletingModel}
         onOpenChange={(open) => !open && setDeletingModel(null)}

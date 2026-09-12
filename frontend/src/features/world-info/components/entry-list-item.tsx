@@ -1,7 +1,7 @@
 /**
  * Entry List Item Component
  *
- * 世界书条目列表项组件，支持拖拽排序。
+ * Komponen item daftar entri buku dunia, mendukung pengurutan tarik-lepas.
  */
 
 import { useDraggable } from "@dnd-kit/core";
@@ -20,37 +20,37 @@ import {
 } from "./entry-list-drag";
 
 interface EntryListItemProps {
-  /** 条目数据 */
+  /** Data entri */
   entry: WorldInfoEntryBrief;
-  /** 是否选中 */
+  /** Status terpilih */
   isSelected: boolean;
-  /** 是否显示拖拽手柄 */
+  /** Status tampil pegangan tarik-lepas */
   showDragHandle: boolean;
-  /** 是否多选模式 */
+  /** Status mode pilih ganda */
   isMultiSelect?: boolean;
-  /** 是否复选框已勾选 */
+  /** Status tercentang kotak centang */
   isChecked?: boolean;
-  /** 当前是否为拖拽源 */
+  /** Menandai item ini sebagai sumber tarik-lepas saat ini */
   isDragSource?: boolean;
-  /** 拖拽投影是否活跃 */
+  /** Status aktif proyeksi tarik-lepas */
   isDragActive?: boolean;
-  /** 是否正在落位滑入 */
+  /** Menandai sedang meluncur ke posisi akhir */
   isLanding?: boolean;
-  /** 拖拽时的列表项位移 */
+  /** Pergeseran item daftar saat ditarik */
   dragOffset?: number;
-  /** 是否作为拖拽覆盖层渲染 */
+  /** Menandai dirender sebagai lapisan penutup tarik-lepas */
   isDragOverlay?: boolean;
-  /** 复选框状态变化回调 */
+  /** Callback perubahan status kotak centang */
   onCheckChange?: (entryId: string) => void;
-  /** 点击回调 */
+  /** Callback klik */
   onClick: (entryId: string) => void;
-  /** 切换启用状态回调 */
+  /** Callback pengalihan status aktif */
   onToggle: (entryId: string) => void;
-  /** 长按开始回调 */
+  /** Callback awal tekan lama */
   onLongPressStart: () => void;
-  /** 右键菜单回调 */
+  /** Callback menu klik kanan */
   onContextMenu: (entryId: string, position: { x: number; y: number }) => void;
-  /** 键盘调整排序 */
+  /** Menyesuaikan urutan lewat papan tombol */
   onKeyboardReorder: (entryId: string, direction: -1 | 1) => void;
 }
 
@@ -98,7 +98,7 @@ function EntryListItemComponent({
   const isDarkPressed = isLongPressActive;
   const textColor = isDarkPressed ? "var(--gray-1)" : undefined;
 
-  // 缓存样式对象
+  // Menyinggahkan objek gaya
   const style = useMemo(
     () => ({
       transform: dragOffset === 0 ? undefined : `translateY(${dragOffset}px)`,
@@ -424,7 +424,7 @@ function EntryListItemComponent({
   );
 }
 
-// 使用 memo 包装组件，自定义比较函数优化性能
+// Membungkus komponen memakai memo, fungsi pembanding kustom untuk mengoptimalkan kinerja
 export const EntryListItem = memo(
   EntryListItemComponent,
   (prev, next) =>

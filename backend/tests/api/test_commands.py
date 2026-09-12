@@ -3,7 +3,7 @@ from httpx import AsyncClient
 
 
 async def _create_project(client: AsyncClient) -> str:
-    response = await client.post("/api/v1/projects", data={"title": "Command 测试项目"})
+    response = await client.post("/api/v1/projects", data={"title": "Proyek Uji Command"})
     assert response.status_code == 201
     return response.json()["id"]
 
@@ -14,18 +14,18 @@ async def test_skill_commands_search_all_enabled_skills(client: AsyncClient) -> 
     enabled = await client.post(
         "/api/v1/skills",
         json={
-            "name": "小说人物设计",
-            "summary": "设计人物",
-            "content": "完整技能内容",
+            "name": "Desain Tokoh Novel",
+            "summary": "Merancang tokoh",
+            "content": "Isi skill lengkap",
             "is_enabled": True,
         },
     )
     disabled = await client.post(
         "/api/v1/skills",
         json={
-            "name": "小说人物禁用",
-            "summary": "不应出现",
-            "content": "完整技能内容",
+            "name": "Tokoh Novel Nonaktif",
+            "summary": "Tidak boleh muncul",
+            "content": "Isi skill lengkap",
             "is_enabled": False,
         },
     )
@@ -34,7 +34,7 @@ async def test_skill_commands_search_all_enabled_skills(client: AsyncClient) -> 
 
     response = await client.get(
         f"/api/v1/projects/{project_id}/commands",
-        params={"kind": "skill", "query": "人物"},
+        params={"kind": "skill", "query": "Tokoh"},
     )
 
     assert response.status_code == 200
@@ -42,7 +42,7 @@ async def test_skill_commands_search_all_enabled_skills(client: AsyncClient) -> 
     assert any(
         item["id"] == enabled.json()["id"]
         and item["name"] == enabled.json()["name"]
-        and item["description"] == "设计人物"
+        and item["description"] == "Merancang tokoh"
         for item in items
     )
-    assert all(item["name"] != "小说人物禁用" for item in items)
+    assert all(item["name"] != "Tokoh Novel Nonaktif" for item in items)

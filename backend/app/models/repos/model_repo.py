@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Model Repository - 模型数据访问层。
+Model Repository - lapisan akses data model.
 """
 
 from datetime import UTC, datetime
@@ -28,13 +28,13 @@ from app.models.entities.model_provider import ModelProvider
 
 async def get_all(session: AsyncSession) -> list[Model]:
     """
-    获取所有模型。
+    Mengambil semua model.
 
     Args:
-        session: 数据库 session。
+        session: session basis data.
 
     Returns:
-        模型列表。
+        Daftar model.
     """
     result = await session.execute(select(Model))
     return list(result.scalars().all())
@@ -42,14 +42,14 @@ async def get_all(session: AsyncSession) -> list[Model]:
 
 async def get_by_provider_id(session: AsyncSession, provider_id: str) -> list[Model]:
     """
-    根据提供商 ID 获取模型列表。
+    Mengambil daftar model berdasarkan ID penyedia.
 
     Args:
-        session: 数据库 session。
-        provider_id: 提供商 ID。
+        session: session basis data.
+        provider_id: ID penyedia.
 
     Returns:
-        模型列表。
+        Daftar model.
     """
     result = await session.execute(
         select(Model).where(col(Model.provider_id) == provider_id)
@@ -59,14 +59,14 @@ async def get_by_provider_id(session: AsyncSession, provider_id: str) -> list[Mo
 
 async def get_by_id(session: AsyncSession, model_id: str) -> Model | None:
     """
-    根据 ID 获取模型。
+    Mengambil model berdasarkan ID.
 
     Args:
-        session: 数据库 session。
-        model_id: 模型 ID。
+        session: session basis data.
+        model_id: ID model.
 
     Returns:
-        模型实例，如果不存在则返回 None。
+        Instance model, atau None jika tidak ditemukan.
     """
     result = await session.execute(select(Model).where(col(Model.id) == model_id))
     return result.scalar_one_or_none()
@@ -75,7 +75,7 @@ async def get_by_id(session: AsyncSession, model_id: str) -> Model | None:
 async def exists_by_name(
     session: AsyncSession, name: str, *, exclude_model_id: str | None = None
 ) -> bool:
-    """检查是否存在同名模型，可排除当前编辑的模型。"""
+    """Memeriksa apakah ada model dengan nama sama, model yang sedang diedit dapat dikecualikan."""
     statement = select(col(Model.id)).where(col(Model.name) == name)
     if exclude_model_id is not None:
         statement = statement.where(col(Model.id) != exclude_model_id)
@@ -128,27 +128,27 @@ async def create(
     dimensions: int | None = None,
 ) -> Model:
     """
-    创建模型。
+    Membuat model.
 
     Args:
-        session: 数据库 session。
-        name: 模型名称。
-        provider_id: 关联的提供商 ID。
-        model_id: 从提供商获取的模型 ID。
-        task_type: 任务类型（llm、embedding 或 rerank）。
-        remark: 备注。
-        temperature: Temperature 参数。
-        top_p: Top P 参数。
-        top_k: Top K 参数。
-        min_p: Min P 参数。
-        top_a: Top A 参数。
-        frequency_penalty: Frequency Penalty 参数。
-        presence_penalty: Presence Penalty 参数。
-        repetition_penalty: Repetition Penalty 参数。
-        max_tokens: Max Tokens 参数。
-        dimensions: Embedding 维度。
+        session: session basis data.
+        name: nama model.
+        provider_id: ID penyedia yang terkait.
+        model_id: ID model yang diperoleh dari penyedia.
+        task_type: jenis tugas (llm, embedding, atau rerank).
+        remark: catatan.
+        temperature: parameter Temperature.
+        top_p: parameter Top P.
+        top_k: parameter Top K.
+        min_p: parameter Min P.
+        top_a: parameter Top A.
+        frequency_penalty: parameter Frequency Penalty.
+        presence_penalty: parameter Presence Penalty.
+        repetition_penalty: parameter Repetition Penalty.
+        max_tokens: parameter Max Tokens.
+        dimensions: dimensi embedding.
     Returns:
-        创建的模型实例。
+        Instance model yang dibuat.
     """
     model = Model(
         name=name,
@@ -203,28 +203,28 @@ async def update(
     dimensions: int | None = None,
 ) -> Model | None:
     """
-    更新模型。
+    Memperbarui model.
 
     Args:
-        session: 数据库 session。
-        model_id: 模型 ID。
-        name: 模型名称。
-        remark: 备注。
-        provider_id: 关联的提供商 ID。
-        model_identifier: 从提供商获取的模型 ID。
-        task_type: 任务类型。
-        temperature: Temperature 参数。
-        top_p: Top P 参数。
-        top_k: Top K 参数。
-        min_p: Min P 参数。
-        top_a: Top A 参数。
-        frequency_penalty: Frequency Penalty 参数。
-        presence_penalty: Presence Penalty 参数。
-        repetition_penalty: Repetition Penalty 参数。
-        max_tokens: Max Tokens 参数。
-        dimensions: Embedding 维度。
+        session: session basis data.
+        model_id: ID model.
+        name: nama model.
+        remark: catatan.
+        provider_id: ID penyedia yang terkait.
+        model_identifier: ID model yang diperoleh dari penyedia.
+        task_type: jenis tugas.
+        temperature: parameter Temperature.
+        top_p: parameter Top P.
+        top_k: parameter Top K.
+        min_p: parameter Min P.
+        top_a: parameter Top A.
+        frequency_penalty: parameter Frequency Penalty.
+        presence_penalty: parameter Presence Penalty.
+        repetition_penalty: parameter Repetition Penalty.
+        max_tokens: parameter Max Tokens.
+        dimensions: dimensi embedding.
     Returns:
-        更新后的模型实例，如果不存在则返回 None。
+        Instance model setelah diperbarui, atau None jika tidak ditemukan.
     """
     model = await get_by_id(session, model_id)
     if not model:
@@ -280,14 +280,14 @@ async def update(
 
 async def delete_by_id(session: AsyncSession, model_id: str) -> bool:
     """
-    删除模型。
+    Menghapus model.
 
     Args:
-        session: 数据库 session。
-        model_id: 模型 ID。
+        session: session basis data.
+        model_id: ID model.
 
     Returns:
-        是否成功删除。
+        Apakah penghapusan berhasil.
     """
     result = await session.execute(delete(Model).where(col(Model.id) == model_id))
     return cast("CursorResult[Any]", result).rowcount > 0

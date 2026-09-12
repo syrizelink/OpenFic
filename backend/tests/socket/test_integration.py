@@ -91,11 +91,11 @@ async def _seed_project(
     status: str | None = None,
 ) -> None:
     async with socket_db_factory() as session:
-        project = Project(id=project_id, title=f"项目 {project_id}", description="")
+        project = Project(id=project_id, title=f"Proyek {project_id}", description="")
         volume = Volume(
             id=f"{project_id}-volume-1",
             project_id=project_id,
-            title="第一卷",
+            title="Volume 1",
             order=1,
             chapter_count=1,
         )
@@ -103,8 +103,8 @@ async def _seed_project(
             id=chapter_id,
             project_id=project_id,
             volume_id=volume.id,
-            title=f"章节 {chapter_id}",
-            content="正文" * 400,
+            title=f"Bab {chapter_id}",
+            content="Isi utama" * 400,
             word_count=800,
             order=1,
         )
@@ -197,7 +197,7 @@ class TestSocketIntegration:
         async with buffer.session_lock("s1"):
             buffer.record_unlocked(
                 "agent:token",
-                {"session_id": "s1", "run_id": "run-1", "content": "前半段"},
+                {"session_id": "s1", "run_id": "run-1", "content": "Paruh pertama"},
             )
 
         client = socketio_lib.AsyncSimpleClient()
@@ -214,7 +214,7 @@ class TestSocketIntegration:
         assert replayed_event[1] == {
             "session_id": "s1",
             "run_id": "run-1",
-            "content": "前半段",
+            "content": "Paruh pertama",
         }
 
         await client.disconnect()

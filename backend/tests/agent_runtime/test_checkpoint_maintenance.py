@@ -100,7 +100,7 @@ async def test_incremental_vacuum_reclaims_free_pages(
 
 def test_friendly_maintenance_error_maps_disk_full() -> None:
     message = _friendly_maintenance_error(RuntimeError("database or disk is full"))
-    assert "磁盘空间不足" in message
+    assert "Ruang disk tidak cukup" in message
 
 
 def test_friendly_maintenance_error_keeps_other_errors() -> None:

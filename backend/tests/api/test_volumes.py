@@ -19,7 +19,7 @@ from app.storage.models.writing_activity_event import WritingActivityEvent
 async def _create_project(client: AsyncClient) -> str:
     response = await client.post(
         "/api/v1/projects",
-        data={"title": "测试小说"},
+        data={"title": "Novel Uji"},
     )
     assert response.status_code == 201
     return response.json()["id"]
@@ -42,7 +42,7 @@ async def test_project_creation_creates_default_volume(client: AsyncClient) -> N
     assert volume["id"]
     assert not re.fullmatch(r"[0-9a-f]{32}", volume["id"])
     assert volume["project_id"] == project_id
-    assert volume["title"] == "第一卷"
+    assert volume["title"] == "Volume 1"
     assert volume["description"] is None
     assert volume["order"] == 1
     assert volume["chapter_count"] == 0
@@ -54,7 +54,7 @@ async def test_create_chapter_requires_volume_id(client: AsyncClient) -> None:
 
     response = await client.post(
         f"/api/v1/projects/{project_id}/chapters",
-        json={"title": "第一章"},
+        json={"title": "Bab 1"},
     )
 
     assert response.status_code == 422
@@ -66,18 +66,18 @@ async def test_chapter_tree_groups_chapters_by_volume(client: AsyncClient) -> No
     first_volume = await _default_volume(client, project_id)
     second_response = await client.post(
         f"/api/v1/projects/{project_id}/volumes",
-        json={"title": "第二卷", "description": "下半部"},
+        json={"title": "Volume 2", "description": "Paruh kedua"},
     )
     assert second_response.status_code == 201
     second_volume = second_response.json()
 
     first_chapter = await client.post(
         f"/api/v1/projects/{project_id}/chapters",
-        json={"volume_id": first_volume["id"], "title": "第一章"},
+        json={"volume_id": first_volume["id"], "title": "Bab 1"},
     )
     second_chapter = await client.post(
         f"/api/v1/projects/{project_id}/chapters",
-        json={"volume_id": second_volume["id"], "title": "第二卷第一章"},
+        json={"volume_id": second_volume["id"], "title": "Volume 2 Bab 1"},
     )
     assert first_chapter.status_code == 201
     assert second_chapter.status_code == 201
@@ -87,7 +87,7 @@ async def test_chapter_tree_groups_chapters_by_volume(client: AsyncClient) -> No
     assert response.status_code == 200
     data = response.json()
     assert data["total_chapters"] == 2
-    assert [volume["title"] for volume in data["volumes"]] == ["第一卷", "第二卷"]
+    assert [volume["title"] for volume in data["volumes"]] == ["Volume 1", "Volume 2"]
     assert data["volumes"][0]["chapter_count"] == 1
     assert data["volumes"][0]["chapters"][0]["volume_id"] == first_volume["id"]
     assert data["volumes"][0]["chapters"][0]["order"] == 1
@@ -102,7 +102,7 @@ async def test_delete_non_empty_volume_requires_cascade(client: AsyncClient) -> 
     volume = await _default_volume(client, project_id)
     chapter_response = await client.post(
         f"/api/v1/projects/{project_id}/chapters",
-        json={"volume_id": volume["id"], "title": "第一章"},
+        json={"volume_id": volume["id"], "title": "Bab 1"},
     )
     assert chapter_response.status_code == 201
 
@@ -117,12 +117,12 @@ async def test_delete_volume_with_cascade_deletes_chapters(client: AsyncClient) 
     volume = await _default_volume(client, project_id)
     second_response = await client.post(
         f"/api/v1/projects/{project_id}/volumes",
-        json={"title": "第二卷"},
+        json={"title": "Volume 2"},
     )
     assert second_response.status_code == 201
     chapter_response = await client.post(
         f"/api/v1/projects/{project_id}/chapters",
-        json={"volume_id": volume["id"], "title": "第一章"},
+        json={"volume_id": volume["id"], "title": "Bab 1"},
     )
     chapter_id = chapter_response.json()["id"]
 
@@ -141,10 +141,10 @@ async def test_delete_volume_with_cascade_does_not_delete_chapters_one_by_one(
     volume = await _default_volume(client, project_id)
     second_response = await client.post(
         f"/api/v1/projects/{project_id}/volumes",
-        json={"title": "第二卷"},
+        json={"title": "Volume 2"},
     )
     assert second_response.status_code == 201
-    for title in ["第一章", "第二章"]:
+    for title in ["Bab 1", "Bab 2"]:
         chapter_response = await client.post(
             f"/api/v1/projects/{project_id}/chapters",
             json={"volume_id": volume["id"], "title": title},
@@ -152,7 +152,7 @@ async def test_delete_volume_with_cascade_does_not_delete_chapters_one_by_one(
         assert chapter_response.status_code == 201
 
     async def fail_per_chapter_delete(*_args, **_kwargs):
-        raise AssertionError("级联删除不应逐章调用删除服务")
+        raise AssertionError("Penghapusan berantai tidak boleh memanggil layanan hapus per bab")
 
     monkeypatch.setattr("app.storage.services.chapter_service.delete_chapter", fail_per_chapter_delete)
 
@@ -169,7 +169,7 @@ async def test_delete_last_volume_is_rejected(client: AsyncClient) -> None:
     response = await client.delete(f"/api/v1/volumes/{volume['id']}?cascade=true")
 
     assert response.status_code == 409
-    assert "至少需要保留一个卷" in response.json()["detail"]
+    assert "minimal satu volume" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -181,12 +181,12 @@ async def test_move_chapter_to_volume_appends_to_target(
     source_volume = await _default_volume(client, project_id)
     target_response = await client.post(
         f"/api/v1/projects/{project_id}/volumes",
-        json={"title": "第二卷"},
+        json={"title": "Volume 2"},
     )
     target_volume = target_response.json()
 
     source_chapter_ids: list[str] = []
-    for title in ["源一", "源二"]:
+    for title in ["Sumber Satu", "Sumber Dua"]:
         response = await client.post(
             f"/api/v1/projects/{project_id}/chapters",
             json={"volume_id": source_volume["id"], "title": title},
@@ -194,7 +194,7 @@ async def test_move_chapter_to_volume_appends_to_target(
         source_chapter_ids.append(response.json()["id"])
     target_chapter = await client.post(
         f"/api/v1/projects/{project_id}/chapters",
-        json={"volume_id": target_volume["id"], "title": "目标一"},
+        json={"volume_id": target_volume["id"], "title": "Target Satu"},
     )
 
     response = await client.post(
@@ -249,11 +249,11 @@ async def test_move_reordered_chapter_to_volume_updates_source_orders(
     source_volume = await _default_volume(client, project_id)
     target_response = await client.post(
         f"/api/v1/projects/{project_id}/volumes",
-        json={"title": "第二卷"},
+        json={"title": "Volume 2"},
     )
     target_volume = target_response.json()
     chapters = []
-    for title in ["第一章", "第二章", "第三章", "第四章"]:
+    for title in ["Bab 1", "Bab 2", "Bab 3", "Bab 4"]:
         response = await client.post(
             f"/api/v1/projects/{project_id}/chapters",
             json={"volume_id": source_volume["id"], "title": title},
@@ -296,15 +296,15 @@ async def test_move_chapter_to_volume_marks_retrieval_state_stale(
     source_volume = await _default_volume(client, project_id)
     target_response = await client.post(
         f"/api/v1/projects/{project_id}/volumes",
-        json={"title": "第二卷"},
+        json={"title": "Volume 2"},
     )
     target_volume = target_response.json()
     chapter_response = await client.post(
         f"/api/v1/projects/{project_id}/chapters",
         json={
             "volume_id": source_volume["id"],
-            "title": "第一章",
-            "content": "正文",
+            "title": "Bab 1",
+            "content": "Isi utama",
         },
     )
     chapter = chapter_response.json()

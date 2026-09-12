@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-数据库连接与 session 管理。
+Koneksi basis data dan pengelolaan session.
 """
 
 from pathlib import Path
@@ -24,7 +24,7 @@ ALEMBIC_INI_PATH = Path(__file__).resolve().parents[2] / "alembic.ini"
 
 
 def _set_sqlite_pragma(dbapi_connection, connection_record):
-    """SQLite 连接建立时设置 WAL 模式和并发优化。"""
+    """Menyetel mode WAL dan optimasi konkurensi saat koneksi SQLite dibuat."""
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.execute("PRAGMA busy_timeout=30000")
@@ -38,7 +38,7 @@ event.listen(Engine, "connect", _set_sqlite_pragma)
 
 
 def _get_engine():
-    """获取或创建数据库引擎。"""
+    """Mengambil atau membuat engine basis data."""
     global _engine
     if _engine is None:
         _engine = create_async_engine(
@@ -54,7 +54,7 @@ def _get_engine():
 
 
 def _get_session_factory():
-    """获取或创建 session 工厂。"""
+    """Mengambil atau membuat factory session."""
     global _async_session_factory
     if _async_session_factory is None:
         _async_session_factory = sessionmaker(
@@ -66,12 +66,12 @@ def _get_session_factory():
 
 
 def _upgrade_db_to_head() -> None:
-    """使用 Alembic 将数据库升级到最新版本。"""
+    """Meningkatkan basis data ke versi terbaru memakai Alembic."""
     config = Config(str(ALEMBIC_INI_PATH))
     command.upgrade(config, "head")
 
 async def init_db() -> None:
-    """初始化数据库。"""
+    """Menginisialisasi basis data."""
     logger.info("Database initialization or migration started. Please wait...")
     _upgrade_db_to_head()
     logger.info("Database initialization or migration completed.")
@@ -79,9 +79,9 @@ async def init_db() -> None:
 
 async def close_db() -> None:
     """
-    关闭数据库连接。
+    Menutup koneksi basis data.
 
-    应在应用关闭时调用。
+    Harus dipanggil saat aplikasi ditutup.
     """
     global _engine, _async_session_factory
     if _engine is not None:
@@ -123,17 +123,17 @@ async def vacuum_database_if_needed(
 
 
 async def create_session() -> AsyncSession:
-    """创建独立的数据库 session。"""
+    """Membuat session basis data yang mandiri."""
     session_factory = _get_session_factory()
     return session_factory()
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """
-    获取数据库 session 的依赖注入函数。
+    Fungsi dependency injection untuk mengambil session basis data.
 
     Yields:
-        AsyncSession: 异步数据库 session。
+        AsyncSession: session basis data asinkron.
     """
     session_factory = _get_session_factory()
     session = session_factory()

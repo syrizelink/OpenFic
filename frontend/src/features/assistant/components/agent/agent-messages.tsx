@@ -1,7 +1,7 @@
 /**
  * Agent Messages
  *
- * Agent 消息列表组件
+ * Komponen daftar pesan Agent
  */
 
 import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";

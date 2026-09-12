@@ -12,7 +12,7 @@ def count_text_tokens(text: str) -> int:
 def _message_token_text(message: ContextMessage) -> str:
     parts = [message.content or ""]
     if message.attachments:
-        parts.append(f"[图片附件 {len(message.attachments)} 张]")
+        parts.append(f"[Lampiran gambar {len(message.attachments)} buah]")
     if message.role == "assistant" and message.tool_calls:
         parts.append(
             json.dumps(

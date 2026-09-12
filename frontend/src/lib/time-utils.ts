@@ -1,7 +1,7 @@
 /**
  * Time Utils
  *
- * 时间相关的工具函数。
+ * Fungsi bantu terkait waktu.
  */
 
 import { formatDistanceToNow, differenceInMinutes, parseISO } from "date-fns";
@@ -10,11 +10,11 @@ import { zhCN, enUS, id as idID } from "date-fns/locale";
 import i18n from "@/i18n";
 
 /**
- * 解析 ISO 时间字符串，处理时区问题
- * 如果时间字符串没有时区信息，将其当作 UTC 时间
+ * Mengurai string waktu ISO sekaligus menangani persoalan zona waktu
+ * Jika string waktu tidak memuat informasi zona waktu, nilainya dianggap waktu UTC
  */
 function parseDate(dateString: string): Date {
-  // 如果没有时区信息（没有 Z 或 +/- 时区偏移），添加 Z 表示 UTC
+  // Jika informasi zona waktu tidak ada (tanpa Z atau pergeseran +/-), tambahkan Z sebagai penanda UTC
   if (!dateString.endsWith("Z") && !dateString.match(/[+-]\d{2}:\d{2}$/)) {
     return parseISO(dateString + "Z");
   }
@@ -22,7 +22,7 @@ function parseDate(dateString: string): Date {
 }
 
 /**
- * 根据当前语言获取 date-fns locale
+ * Mengambil locale date-fns sesuai bahasa saat ini
  */
 function getDateLocale() {
   const language = i18n.language;
@@ -39,8 +39,8 @@ function getDateLocale() {
 }
 
 /**
- * 格式化相对时间
- * 5 分钟内显示"片刻之前"，否则显示相对时间
+ * Memformat waktu relatif
+ * Dalam 5 menit ditampilkan sebagai "beberapa saat lalu", selain itu memakai waktu relatif
  */
 export function formatRelativeTime(dateString: string): string {
   const date = parseDate(dateString);

@@ -1,14 +1,14 @@
 /**
  * UI Utils
  *
- * UI 相关的工具函数。
+ * Fungsi bantu terkait UI.
  */
 
 import { toast } from "@/components";
 
 /**
- * 根据项目 ID 生成一个稳定的渐变色
- * 使用简单的哈希算法，基于字符串生成一致的渐变背景
+ * Menghasilkan warna gradien yang stabil berdasarkan ID proyek
+ * Memakai algoritme hash sederhana untuk menghasilkan latar gradien yang konsisten dari sebuah string
  */
 export function generateGradient(id: string): string {
   let hash = 0;

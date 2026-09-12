@@ -1,8 +1,8 @@
 /**
  * Entry Editor Component
  *
- * 世界书条目编辑器，基于项目 Markdown 编辑器，支持自动保存。
- * 注意：父组件应使用 key={entry.id} 来确保 entry 变化时组件重新挂载。
+ * Editor entri buku dunia, berbasis editor Markdown proyek, mendukung penyimpanan otomatis.
+ * Catatan: komponen induk sebaiknya memakai key={entry.id} agar komponen dipasang ulang saat entry berubah.
  */
 
 import { useQueryClient } from "@tanstack/react-query";
@@ -28,21 +28,21 @@ import type {
 import { resolveRemoteEntryEditorState } from "./entry-editor-state";
 
 interface EntryEditorProps {
-  /** 条目数据 */
+  /** Data entri */
   entry: WorldInfoEntry;
-  /** 世界书 ID（用于刷新缓存） */
+  /** ID buku dunia (dipakai untuk menyegarkan singgahan) */
   worldInfoId: string;
-  /** 同一世界书中的条目列表，用于名称唯一性校验 */
+  /** Daftar entri dalam buku dunia yang sama, dipakai untuk memeriksa keunikan nama */
   entries: WorldInfoEntryBrief[];
-  /** 滚动到指定行（1-based） */
+  /** Menggulir ke baris tertentu (berbasis 1) */
   scrollToLine?: number | null;
-  /** 滚动完成后回调 */
+  /** Callback setelah gulir selesai */
   onScrollComplete?: () => void;
-  /** Agent 运行时锁定编辑 */
+  /** Penyuntingan dikunci saat Agent berjalan */
   isAgentLocked?: boolean;
 }
 
-/** 自动保存防抖延迟（毫秒） */
+/** Jeda penahanan penyimpanan otomatis (milidetik) */
 const AUTO_SAVE_DELAY = 1500;
 
 export function EntryEditor({

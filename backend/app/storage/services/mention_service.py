@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Mention Service - 统一的 mention 候选搜索逻辑。
+Mention Service - logika pencarian kandidat mention yang terpadu.
 """
 
 from dataclasses import dataclass
@@ -51,7 +51,7 @@ def _match_rank(text: str, normalized_query: str) -> int:
 
 
 def _display_title(title: str) -> str:
-    return title.strip() or "未命名"
+    return title.strip() or "Tanpa Nama"
 
 
 async def search_all_mention_candidates(
@@ -72,7 +72,7 @@ async def search_all_mention_candidates(
 ) -> list[MentionCandidate]:
     project = await project_repo.get_by_id(session, project_id)
     if project is None:
-        raise NotFoundError(f"项目不存在: {project_id}")
+        raise NotFoundError(f"Proyek tidak ditemukan: {project_id}")
 
     normalized_query = query.strip().lower()
     if not normalized_query:

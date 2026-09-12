@@ -14,7 +14,7 @@ function serializeError(error: unknown): ReportErrorPayload | null {
   return null;
 }
 
-/** 捕获桌面外壳 UI（setup/boot/数据管理页）的未处理异常，经 IPC 转发给主进程上报。 */
+/** Menangkap pengecualian tak tertangani pada UI shell desktop (halaman setup/boot/manajemen data), diteruskan ke proses utama lewat IPC untuk dilaporkan. */
 export function installShellErrorTelemetry(): void {
   window.addEventListener("error", (event) => {
     const payload = serializeError(event.error ?? event.message);

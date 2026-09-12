@@ -62,6 +62,7 @@ import type {
 import {
   getAgentKindLabel,
   getAgentKindOptions,
+  getToolCategoryLabel,
   SYSTEM_DEFAULT_MODEL_REFERENCE,
   SYSTEM_LIGHT_MODEL_REFERENCE,
 } from "../lib/agent-definitions.types";
@@ -472,7 +473,7 @@ function AgentForm({
                   onCheckedChange={() => handleToggleToolCategory(opt.key)}
                   style={{ margin: 0 }}
                 />
-                {opt.name}
+                {getToolCategoryLabel(opt)}
               </label>
             ))}
           </Flex>

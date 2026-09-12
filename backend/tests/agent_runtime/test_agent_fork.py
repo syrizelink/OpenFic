@@ -22,12 +22,12 @@ async def fork_db():
         await conn.run_sync(SQLModel.metadata.create_all)
 
     async with factory() as session:
-        session.add(Project(id="proj-1", title="测试项目"))
+        session.add(Project(id="proj-1", title="Proyek Uji"))
         session.add(
             Volume(
                 id="vol-1",
                 project_id="proj-1",
-                title="第一卷",
+                title="Volume 1",
                 order=1,
                 chapter_count=1,
             )
@@ -37,8 +37,8 @@ async def fork_db():
                 id="chap-1",
                 project_id="proj-1",
                 volume_id="vol-1",
-                title="第一章",
-                content="当前内容",
+                title="Bab 1",
+                content="Isi saat ini",
                 word_count=4,
                 order=1,
             )
@@ -71,7 +71,7 @@ async def test_fork_clones_history_to_target_round_without_inherited_rollback(fo
             project_id="proj-1",
             role="user",
             status="sent",
-            content="第一轮",
+            content="Putaran pertama",
         )
         first_revision = await begin_user_revision(
             session,
@@ -80,7 +80,7 @@ async def test_fork_clones_history_to_target_round_without_inherited_rollback(fo
             agent_session_id="sess-1",
             user_message_id=first_user.id,
             user_message_seq=first_user.seq,
-            message="用户消息: 第一轮",
+            message="Pesan pengguna: Putaran pertama",
             pre_run_checkpoint_id="cp-before-1",
             graph_thread_id="sess-1",
         )
@@ -91,7 +91,7 @@ async def test_fork_clones_history_to_target_round_without_inherited_rollback(fo
             project_id="proj-1",
             role="assistant",
             status="complete",
-            content="第一轮回复",
+            content="Balasan putaran pertama",
         )
         second_user = await message_repo.insert_message(
             session,
@@ -100,7 +100,7 @@ async def test_fork_clones_history_to_target_round_without_inherited_rollback(fo
             project_id="proj-1",
             role="user",
             status="sent",
-            content="第二轮",
+            content="Putaran kedua",
         )
         await begin_user_revision(
             session,
@@ -109,7 +109,7 @@ async def test_fork_clones_history_to_target_round_without_inherited_rollback(fo
             agent_session_id="sess-1",
             user_message_id=second_user.id,
             user_message_seq=second_user.seq,
-            message="用户消息: 第二轮",
+            message="Pesan pengguna: Putaran kedua",
             pre_run_checkpoint_id="cp-before-2",
             graph_thread_id="sess-1",
         )
@@ -120,7 +120,7 @@ async def test_fork_clones_history_to_target_round_without_inherited_rollback(fo
             project_id="proj-1",
             role="assistant",
             status="complete",
-            content="第二轮回复",
+            content="Balasan putaran kedua",
         )
         await session.commit()
 
@@ -146,16 +146,16 @@ async def test_fork_clones_history_to_target_round_without_inherited_rollback(fo
         fork_task = await session.get(Task, result.task.id)
         source_task = await session.get(Task, "task-1")
 
-    assert [message.content for message in fork_messages] == ["第一轮", "第一轮回复"]
+    assert [message.content for message in fork_messages] == ["Putaran pertama", "Balasan putaran pertama"]
     assert [message.seq for message in fork_messages] == [0, 1]
     assert all("revision_id" not in message.metadata for message in fork_messages)
     assert fork_task is not None
     assert source_task is not None
     assert [message.content for message in source_messages] == [
-        "第一轮",
-        "第一轮回复",
-        "第二轮",
-        "第二轮回复",
+        "Putaran pertama",
+        "Balasan putaran pertama",
+        "Putaran kedua",
+        "Balasan putaran kedua",
     ]
 
 
@@ -173,7 +173,7 @@ async def test_fork_copies_only_compactions_fully_inside_forked_message_range(fo
             project_id="proj-1",
             role="user",
             status="sent",
-            content="第一轮",
+            content="Putaran pertama",
         )
         first_revision = await begin_user_revision(
             session,
@@ -182,7 +182,7 @@ async def test_fork_copies_only_compactions_fully_inside_forked_message_range(fo
             agent_session_id="sess-1",
             user_message_id=first_user.id,
             user_message_seq=first_user.seq,
-            message="用户消息: 第一轮",
+            message="Pesan pengguna: Putaran pertama",
             pre_run_checkpoint_id="cp-before-1",
             graph_thread_id="sess-1",
         )
@@ -193,7 +193,7 @@ async def test_fork_copies_only_compactions_fully_inside_forked_message_range(fo
             project_id="proj-1",
             role="assistant",
             status="complete",
-            content="第一轮回复",
+            content="Balasan putaran pertama",
         )
         second_user = await message_repo.insert_message(
             session,
@@ -202,7 +202,7 @@ async def test_fork_copies_only_compactions_fully_inside_forked_message_range(fo
             project_id="proj-1",
             role="user",
             status="sent",
-            content="第二轮",
+            content="Putaran kedua",
         )
         await begin_user_revision(
             session,
@@ -211,7 +211,7 @@ async def test_fork_copies_only_compactions_fully_inside_forked_message_range(fo
             agent_session_id="sess-1",
             user_message_id=second_user.id,
             user_message_seq=second_user.seq,
-            message="用户消息: 第二轮",
+            message="Pesan pengguna: Putaran kedua",
             pre_run_checkpoint_id="cp-before-2",
             graph_thread_id="sess-1",
         )
@@ -222,7 +222,7 @@ async def test_fork_copies_only_compactions_fully_inside_forked_message_range(fo
             project_id="proj-1",
             role="assistant",
             status="complete",
-            content="第二轮回复",
+            content="Balasan putaran kedua",
         )
         await compaction_repo.insert_compaction(
             session,
@@ -231,7 +231,7 @@ async def test_fork_copies_only_compactions_fully_inside_forked_message_range(fo
             project_id="proj-1",
             start_seq=0,
             end_seq=0,
-            summary="完整落入 fork 范围",
+            summary="Sepenuhnya masuk cakupan fork",
             trigger="manual",
         )
         await compaction_repo.insert_compaction(
@@ -241,7 +241,7 @@ async def test_fork_copies_only_compactions_fully_inside_forked_message_range(fo
             project_id="proj-1",
             start_seq=1,
             end_seq=2,
-            summary="被 cutoff 截断",
+            summary="Terputus oleh cutoff",
             trigger="manual",
         )
         await session.commit()
@@ -268,6 +268,6 @@ async def test_fork_copies_only_compactions_fully_inside_forked_message_range(fo
             result.task.id,
             0,
             0,
-            "完整落入 fork 范围",
+            "Sepenuhnya masuk cakupan fork",
         ),
     ]

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Project 数据模型。
+Model data Project.
 """
 
 from datetime import UTC, datetime
@@ -12,15 +12,15 @@ from app.core.ids import generate_id
 
 class Project(SQLModel, table=True):
     """
-    小说项目模型。
+    Model proyek novel.
 
     Attributes:
-        id: 项目唯一标识符（nanoid）。
-        title: 项目标题。
-        description: 项目简介，可为空。
-        word_count: 统计字数，默认为 0。
-        created_at: 创建时间。
-        updated_at: 上次修改时间。
+        id: Identifier unik proyek (nanoid).
+        title: Judul proyek.
+        description: Ringkasan proyek, boleh kosong.
+        word_count: Jumlah kata terhitung, default 0.
+        created_at: Waktu pembuatan.
+        updated_at: Waktu perubahan terakhir.
     """
 
     __tablename__ = "projects"
@@ -30,6 +30,6 @@ class Project(SQLModel, table=True):
     description: str | None = Field(default=None)
     word_count: int = Field(default=0)
     chapter_count: int = Field(default=0)
-    cover_path: str | None = Field(default=None, description="封面图片路径")
+    cover_path: str | None = Field(default=None, description="Path gambar sampul")
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

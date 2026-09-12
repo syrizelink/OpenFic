@@ -29,7 +29,7 @@ def test_user_message_with_image_attachments_mapped_to_multimodal_content() -> N
     parts = [
         ContextMessage(
             role="user",
-            content="描述这张图",
+            content="Deskripsikan gambar ini",
             attachments=[
                 {
                     "type": "image",
@@ -44,14 +44,14 @@ def test_user_message_with_image_attachments_mapped_to_multimodal_content() -> N
 
     assert isinstance(out[0], HumanMessage)
     assert out[0].content == [
-        {"type": "text", "text": "描述这张图"},
+        {"type": "text", "text": "Deskripsikan gambar ini"},
         {"type": "image", "base64": "aW1hZ2U=", "mime_type": "image/png"},
     ]
 
 
 def test_multimodal_content_matches_langchain_human_message_contract() -> None:
     content: list[str | dict[object, object]] = [
-        {"type": "text", "text": "描述这张图"},
+        {"type": "text", "text": "Deskripsikan gambar ini"},
         {"type": "image", "base64": "aW1hZ2U=", "mime_type": "image/png"},
     ]
 
@@ -107,12 +107,12 @@ def test_assistant_message_preserves_reasoning_content() -> None:
         ContextMessage(
             role="assistant",
             content="",
-            additional_kwargs={"reasoning_content": "先分析"},
+            additional_kwargs={"reasoning_content": "Analisis dulu"},
         )
     ]
     out = to_langchain_messages(parts)
     assert isinstance(out[0], AIMessage)
-    assert out[0].additional_kwargs["reasoning_content"] == "先分析"
+    assert out[0].additional_kwargs["reasoning_content"] == "Analisis dulu"
 
 
 def test_tool_message_mapped_with_tool_call_id() -> None:

@@ -6,6 +6,7 @@
 
 import axios from "axios";
 
+import i18n from "../i18n";
 import { getConfiguredBackendBaseUrl, getRuntimeConfig } from "./runtime-config";
 
 export function getApiBaseUrl(): string {
@@ -57,14 +58,14 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// 响应拦截器 - 错误处理
+// Interseptor respons - penanganan galat
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && !isAuthenticationRequest(error.config?.url)) {
       handleAuthenticationFailure();
     }
-    // 开发环境记录错误日志
+    // Catat log galat di lingkungan pengembangan
     if (import.meta.env.DEV) {
       console.error("API Error:", error);
     }
@@ -72,7 +73,7 @@ apiClient.interceptors.response.use(
   },
 );
 
-// 健康检查类型
+// Tipe pemeriksaan kesehatan
 export interface HealthResponse {
   status: string;
   version: string;
@@ -112,7 +113,7 @@ export async function loginWithPassword(payload: AuthLoginRequest): Promise<Auth
   return response.data;
 }
 
-// 健康检查 API
+// API pemeriksaan kesehatan
 export async function checkHealth(): Promise<HealthResponse> {
   const response = await apiClient.get<HealthResponse>("/health");
   return response.data;
@@ -155,7 +156,7 @@ import type {
 } from "./skill.types";
 
 /**
- * 后端响应字段转换（snake_case -> camelCase）
+ * Konversi field respons backend (snake_case -> camelCase)
  */
 function transformProject(raw: Record<string, unknown>): Project {
   return {
@@ -171,7 +172,7 @@ function transformProject(raw: Record<string, unknown>): Project {
 }
 
 /**
- * 获取项目列表
+ * Mengambil daftar proyek
  */
 export async function fetchProjects(params?: ProjectListParams): Promise<ProjectListResponse> {
   const response = await apiClient.get("/projects", {
@@ -193,7 +194,7 @@ export async function fetchProjects(params?: ProjectListParams): Promise<Project
 }
 
 /**
- * 获取单个项目
+ * Mengambil satu proyek
  */
 export async function fetchProject(projectId: string): Promise<Project> {
   const response = await apiClient.get(`/projects/${projectId}`);
@@ -249,7 +250,7 @@ export async function cancelChapterExport(
 }
 
 /**
- * 创建项目
+ * Membuat proyek
  */
 export async function createProject(data: ProjectCreate): Promise<Project> {
   const formData = new FormData();
@@ -264,7 +265,7 @@ export async function createProject(data: ProjectCreate): Promise<Project> {
 }
 
 /**
- * 更新项目
+ * Memperbarui proyek
  */
 export async function updateProject(projectId: string, data: ProjectUpdate): Promise<Project> {
   const formData = new FormData();
@@ -279,7 +280,7 @@ export async function updateProject(projectId: string, data: ProjectUpdate): Pro
 }
 
 /**
- * 删除项目
+ * Menghapus proyek
  */
 export async function deleteProject(projectId: string): Promise<void> {
   await apiClient.delete(`/projects/${projectId}`);
@@ -719,7 +720,7 @@ import type {
 } from "./chapter.types";
 
 /**
- * 后端响应字段转换（snake_case -> camelCase）- 完整版章节
+ * Konversi field respons backend (snake_case -> camelCase) - bab versi lengkap
  */
 function transformChapter(raw: Record<string, unknown>): Chapter {
   return {
@@ -736,7 +737,7 @@ function transformChapter(raw: Record<string, unknown>): Chapter {
 }
 
 /**
- * 后端响应字段转换（snake_case -> camelCase）- 精简版章节列表项
+ * Konversi field respons backend (snake_case -> camelCase) - item daftar bab versi ringkas
  */
 function transformChapterListItem(raw: Record<string, unknown>): ChapterListItem {
   return {
@@ -804,7 +805,7 @@ function transformCommandCandidate(raw: Record<string, unknown>): AssistantComma
 }
 
 /**
- * 获取卷-章节树
+ * Mengambil pohon volume-bab
  */
 export async function fetchChapters(projectId: string): Promise<VolumeTreeResponse> {
   const response = await apiClient.get(`/projects/${projectId}/chapters`);
@@ -844,7 +845,7 @@ export async function searchCommands(
 }
 
 /**
- * 获取单个章节
+ * Mengambil satu bab
  */
 export async function fetchChapter(chapterId: string): Promise<Chapter> {
   const response = await apiClient.get(`/chapters/${chapterId}`);
@@ -852,7 +853,7 @@ export async function fetchChapter(chapterId: string): Promise<Chapter> {
 }
 
 /**
- * 创建章节
+ * Membuat bab
  */
 export async function createChapter(projectId: string, data: ChapterCreate): Promise<Chapter> {
   const response = await apiClient.post(`/projects/${projectId}/chapters`, {
@@ -904,7 +905,7 @@ export async function moveVolume(volumeId: string, data: VolumeMove): Promise<Vo
 }
 
 /**
- * 更新章节
+ * Memperbarui bab
  */
 export async function updateChapter(chapterId: string, data: ChapterUpdate): Promise<Chapter> {
   const response = await apiClient.patch(`/chapters/${chapterId}`, {
@@ -916,14 +917,14 @@ export async function updateChapter(chapterId: string, data: ChapterUpdate): Pro
 }
 
 /**
- * 删除章节
+ * Menghapus bab
  */
 export async function deleteChapter(chapterId: string): Promise<void> {
   await apiClient.delete(`/chapters/${chapterId}`);
 }
 
 /**
- * 批量重排章节顺序
+ * Mengurutkan ulang bab secara massal
  */
 export async function reorderChapters(
   volumeId: string,
@@ -951,7 +952,7 @@ export async function moveChapterToVolume(
 // ============================================
 
 /**
- * 上下文部分响应
+ * Respons bagian konteks
  */
 export interface ContextPartResponse {
   content: string;
@@ -960,7 +961,7 @@ export interface ContextPartResponse {
 }
 
 /**
- * 构建的上下文响应
+ * Respons konteks yang sudah dibangun
  */
 export interface BuiltContextResponse {
   latest_field: ContextPartResponse;
@@ -970,7 +971,7 @@ export interface BuiltContextResponse {
 }
 
 /**
- * 获取构建的章节上下文
+ * Mengambil konteks bab yang sudah dibangun
  */
 export async function fetchChapterContext(
   projectId: string,
@@ -1191,7 +1192,7 @@ function transformChapterSummaryListItem(raw: Record<string, unknown>): ChapterS
     volumeId: (raw.volume_id as string | null) ?? null,
     volumeTitle: (raw.volume_title as string | null) ?? null,
     volumeOrder: raw.volume_order == null ? null : Number(raw.volume_order),
-    chapterTitle: (raw.chapter_title as string) || "未命名章节",
+    chapterTitle: (raw.chapter_title as string) || i18n.t("writing.untitledChapter"),
     status: raw.status as SummaryStatus,
     isStale: Boolean(raw.is_stale),
     summaryId: raw.summary_id as string | null,
@@ -1247,7 +1248,7 @@ function transformSummaryMaintenance(raw: Record<string, unknown>): SummaryMaint
       volumeId: (item.volume_id as string | null) ?? null,
       volumeTitle: (item.volume_title as string | null) ?? null,
       volumeOrder: item.volume_order == null ? null : Number(item.volume_order),
-      chapterTitle: (item.chapter_title as string) || "未命名章节",
+      chapterTitle: (item.chapter_title as string) || i18n.t("writing.untitledChapter"),
       wordCount: Number(item.word_count ?? 0),
     })),
     batchProgress: raw.batch_progress
@@ -1437,7 +1438,7 @@ import type {
 } from "./world-info.types";
 
 /**
- * 后端响应字段转换（snake_case -> camelCase）
+ * Konversi field respons backend (snake_case -> camelCase)
  */
 function transformWorldInfo(raw: Record<string, unknown>): WorldInfo {
   return {
@@ -1449,7 +1450,7 @@ function transformWorldInfo(raw: Record<string, unknown>): WorldInfo {
 }
 
 /**
- * 后端响应字段转换（snake_case -> camelCase）
+ * Konversi field respons backend (snake_case -> camelCase)
  */
 function transformWorldInfoEntry(raw: Record<string, unknown>): WorldInfoEntry {
   return {
@@ -1496,7 +1497,7 @@ function transformWorldInfoImportPreview(
 }
 
 /**
- * 根据 ID 获取世界书
+ * Mengambil buku dunia berdasarkan ID
  */
 export async function fetchWorldInfoById(worldInfoId: string): Promise<WorldInfo> {
   const response = await apiClient.get(`/world-info/${worldInfoId}`);
@@ -1504,7 +1505,7 @@ export async function fetchWorldInfoById(worldInfoId: string): Promise<WorldInfo
 }
 
 /**
- * 获取项目的世界书
+ * Mengambil buku dunia sebuah proyek
  */
 export async function fetchWorldInfoByProject(projectId: string): Promise<WorldInfo> {
   const response = await apiClient.get(`/projects/${projectId}/world-info`);
@@ -1512,14 +1513,14 @@ export async function fetchWorldInfoByProject(projectId: string): Promise<WorldI
 }
 
 /**
- * 删除世界书
+ * Menghapus buku dunia
  */
 export async function deleteWorldInfo(worldInfoId: string): Promise<void> {
   await apiClient.delete(`/world-info/${worldInfoId}`);
 }
 
 /**
- * 获取世界书条目列表（轻量，不含 content/memo/tags）
+ * Mengambil daftar entri buku dunia (ringan, tanpa content/memo/tags)
  */
 export async function fetchWorldInfoEntries(
   worldInfoId: string,
@@ -1533,7 +1534,7 @@ export async function fetchWorldInfoEntries(
 }
 
 /**
- * 获取单个条目
+ * Mengambil satu entri
  */
 export async function fetchWorldInfoEntry(entryId: string): Promise<WorldInfoEntry> {
   const response = await apiClient.get(`/world-info-entries/${entryId}`);
@@ -1541,7 +1542,7 @@ export async function fetchWorldInfoEntry(entryId: string): Promise<WorldInfoEnt
 }
 
 /**
- * 创建条目
+ * Membuat entri
  */
 export async function createWorldInfoEntry(
   worldInfoId: string,
@@ -1557,7 +1558,7 @@ export async function createWorldInfoEntry(
 }
 
 /**
- * 更新条目
+ * Memperbarui entri
  */
 export async function updateWorldInfoEntry(
   entryId: string,
@@ -1573,14 +1574,14 @@ export async function updateWorldInfoEntry(
 }
 
 /**
- * 删除条目
+ * Menghapus entri
  */
 export async function deleteWorldInfoEntry(entryId: string): Promise<void> {
   await apiClient.delete(`/world-info-entries/${entryId}`);
 }
 
 /**
- * 删除世界书的所有条目
+ * Menghapus semua entri sebuah buku dunia
  */
 export async function deleteAllWorldInfoEntries(
   worldInfoId: string,
@@ -1590,7 +1591,7 @@ export async function deleteAllWorldInfoEntries(
 }
 
 /**
- * 移动条目
+ * Memindahkan entri
  */
 export async function moveWorldInfoEntry(
   entryId: string,
@@ -1603,7 +1604,7 @@ export async function moveWorldInfoEntry(
 }
 
 /**
- * 切换条目开关
+ * Mengalihkan saklar entri
  */
 export async function toggleWorldInfoEntry(entryId: string): Promise<WorldInfoEntry> {
   const response = await apiClient.post(`/world-info-entries/${entryId}/toggle`);
@@ -1611,7 +1612,7 @@ export async function toggleWorldInfoEntry(entryId: string): Promise<WorldInfoEn
 }
 
 /**
- * 批量切换条目开关
+ * Mengalihkan saklar entri secara massal
  */
 export async function batchToggleWorldInfoEntries(
   worldInfoId: string,
@@ -1626,7 +1627,7 @@ export async function batchToggleWorldInfoEntries(
 }
 
 /**
- * 批量删除条目
+ * Menghapus entri secara massal
  */
 export async function batchDeleteWorldInfoEntries(
   worldInfoId: string,
@@ -1639,7 +1640,7 @@ export async function batchDeleteWorldInfoEntries(
 }
 
 /**
- * 搜索世界书条目内容
+ * Mencari isi entri buku dunia
  */
 export async function searchWorldInfoEntries(
   worldInfoId: string,
@@ -1756,7 +1757,7 @@ export async function searchNotes(projectId: string, query: string): Promise<Not
 }
 
 /**
- * 预览 SillyTavern 世界书导入结果
+ * Melihat pratinjau hasil impor buku dunia SillyTavern
  */
 export async function previewWorldInfoImport(file: File): Promise<WorldInfoImportPreviewResponse> {
   const formData = new FormData();
@@ -1772,7 +1773,7 @@ export async function previewWorldInfoImport(file: File): Promise<WorldInfoImpor
 }
 
 /**
- * 流式导入世界书条目
+ * Mengimpor entri buku dunia secara mengalir
  */
 export async function importWorldInfoEntriesStream(
   worldInfoId: string,
@@ -1799,7 +1800,7 @@ export async function importWorldInfoEntriesStream(
 
   const reader = response.body?.getReader();
   if (!reader) {
-    throw new Error("无法获取响应流");
+    throw new Error(i18n.t("common.responseStreamUnavailable"));
   }
 
   const decoder = new TextDecoder();
@@ -1830,7 +1831,7 @@ export async function importWorldInfoEntriesStream(
         }
       } catch (error) {
         if (error instanceof SyntaxError) {
-          console.warn("无法解析 SSE 事件:", line);
+          console.warn("Tidak dapat mengurai peristiwa SSE:", line);
         } else {
           throw error;
         }
@@ -1848,7 +1849,7 @@ export async function importWorldInfoEntriesStream(
 import type { Model, ModelResponse } from "./model.types";
 
 /**
- * 后端响应字段转换（snake_case -> camelCase）
+ * Konversi field respons backend (snake_case -> camelCase)
  */
 function transformModel(raw: ModelResponse): Model {
   return {
@@ -1880,7 +1881,7 @@ function transformModel(raw: ModelResponse): Model {
 }
 
 /**
- * 获取所有模型列表
+ * Mengambil daftar seluruh model
  */
 export async function fetchModels(): Promise<Model[]> {
   const response = await apiClient.get<ModelResponse[]>("/models");
@@ -1931,7 +1932,7 @@ function transformPromptEntry(raw: Record<string, unknown>): PromptEntry {
 }
 
 /**
- * 获取版本列表
+ * Mengambil daftar versi
  */
 export async function fetchPromptChainVersions(
   promptId: string,
@@ -1944,7 +1945,7 @@ export async function fetchPromptChainVersions(
 }
 
 /**
- * 获取最新版本
+ * Mengambil versi terbaru
  */
 export async function fetchLatestPromptChainVersion(promptId: string): Promise<VersionWithEntries> {
   const response = await apiClient.get(`/prompt-chains/${promptId}/versions/latest`);
@@ -1955,7 +1956,7 @@ export async function fetchLatestPromptChainVersion(promptId: string): Promise<V
 }
 
 /**
- * 获取指定版本
+ * Mengambil versi tertentu
  */
 export async function fetchPromptChainVersion(
   promptId: string,
@@ -1992,13 +1993,13 @@ export async function searchPromptChainVersionEntries(
 }
 
 /**
- * 创建新版本
+ * Membuat versi baru
  */
 export async function createPromptChainVersion(
   promptId: string,
   request: CreateVersionRequest,
 ): Promise<VersionWithEntries> {
-  // 转换为后端期望的格式（snake_case）
+  // Konversi ke format yang diharapkan backend (snake_case)
   const requestData = {
     parent_version_id: request.parentVersionId,
     entries: request.entries,
@@ -2015,7 +2016,7 @@ export async function createPromptChainVersion(
 import type { CompileResponse } from "./prompt-chain.types";
 
 /**
- * 编译提示词链
+ * Mengompilasi rantai prompt
  */
 export async function compilePromptChain(promptId: string): Promise<CompileResponse> {
   const response = await apiClient.post<CompileResponse>(`/prompt-chains/${promptId}/compile`, {});
@@ -2023,12 +2024,12 @@ export async function compilePromptChain(promptId: string): Promise<CompileRespo
 }
 
 /**
- * 获取提示词链元数据
+ * Mengambil metadata rantai prompt
  */
 export async function fetchPromptChainsMetadata(): Promise<PromptChainsMetadata> {
   const response = await apiClient.get<unknown>("/prompt-chains/categories");
   if (!isPromptChainsMetadata(response.data)) {
-    throw new Error("提示词分类响应格式无效");
+    throw new Error("Format respons kategori prompt tidak valid");
   }
   return response.data;
 }
@@ -2063,7 +2064,7 @@ function isPromptMetadata(value: unknown): boolean {
 import type { VersionDiff } from "./prompt-chain.types";
 
 /**
- * 获取两个版本之间的差异
+ * Mengambil perbedaan antara dua versi
  */
 export async function fetchVersionDiff(
   promptId: string,
@@ -2135,7 +2136,7 @@ function transformTaskMessage(raw: Record<string, unknown>): Task["messages"][nu
 }
 
 /**
- * 后端响应字段转换（snake_case -> camelCase）
+ * Konversi field respons backend (snake_case -> camelCase)
  */
 function transformTask(raw: Record<string, unknown>): Task {
   return {
@@ -2186,7 +2187,7 @@ export type {
 export { subscribeBackgroundEvents, subscribeBackgroundProjection } from "./background-socket";
 
 /**
- * 获取任务详情
+ * Mengambil detail tugas
  */
 export async function fetchTask(taskId: string): Promise<Task> {
   const response = await apiClient.get(`/tasks/${taskId}`);
@@ -2194,7 +2195,7 @@ export async function fetchTask(taskId: string): Promise<Task> {
 }
 
 /**
- * 获取项目的任务列表
+ * Mengambil daftar tugas sebuah proyek
  */
 export async function fetchTasks(
   projectId: string,
@@ -2220,7 +2221,7 @@ export async function fetchTasks(
 }
 
 /**
- * 更新任务
+ * Memperbarui tugas
  */
 export async function updateTask(taskId: string, data: UpdateTaskRequest): Promise<Task> {
   const response = await apiClient.patch(`/tasks/${taskId}`, {
@@ -2231,14 +2232,14 @@ export async function updateTask(taskId: string, data: UpdateTaskRequest): Promi
 }
 
 /**
- * 删除任务
+ * Menghapus tugas
  */
 export async function deleteTask(taskId: string): Promise<void> {
   await apiClient.delete(`/tasks/${taskId}`);
 }
 
 /**
- * 删除项目下的所有任务
+ * Menghapus semua tugas dalam sebuah proyek
  */
 export async function deleteAllTasks(
   projectId: string,
@@ -2281,7 +2282,7 @@ import type {
 } from "./agent.types";
 
 /**
- * 创建 Agent 会话（仅创建 Task，不运行）
+ * Membuat sesi Agent (hanya membuat Task, tidak menjalankannya)
  */
 export async function createAgentSession(
   data: AgentSessionCreateRequest,
@@ -2524,7 +2525,7 @@ export async function fetchSubagentSession(childRunId: string): Promise<Subagent
 }
 
 /**
- * 取消单个 subagent 会话（中断其任务与重试，主会话继续）。
+ * Membatalkan satu sesi subagent (menghentikan tugas dan percobaan ulangnya, sesi utama tetap berjalan).
  */
 export async function cancelSubagentSession(
   parentSessionId: string,
@@ -2542,7 +2543,7 @@ export async function cancelSubagentSession(
 }
 
 /**
- * 发送用户消息并运行 Agent 会话。结果通过 Socket.IO 推送。
+ * Mengirim pesan pengguna dan menjalankan sesi Agent. Hasilnya dikirim lewat Socket.IO.
  */
 export async function sendAgentMessage(
   sessionId: string,
@@ -2623,7 +2624,7 @@ export async function submitAgentQuestionAnswer(
 }
 
 /**
- * 回滚Agent会话到指定revision
+ * Mengembalikan sesi Agent ke revisi tertentu
  */
 export async function rollbackAgentRevision(
   sessionId: string,
@@ -2714,7 +2715,7 @@ export async function submitAgentInterruptBatch(
 }
 
 /**
- * 取消Agent会话
+ * Membatalkan sesi Agent
  */
 export async function cancelAgentSession(sessionId: string): Promise<AgentCancelResponse> {
   const response = await apiClient.post(`/agent/sessions/${sessionId}/cancel`);

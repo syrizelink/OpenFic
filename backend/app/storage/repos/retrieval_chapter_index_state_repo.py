@@ -46,7 +46,7 @@ async def list_by_index_keys(
     session: AsyncSession,
     index_keys: list[str],
 ) -> list[RetrievalChapterIndexState]:
-    """按多个 index_key 批量查询章节索引状态。"""
+    """Mengambil status indeks bab secara massal berdasarkan beberapa index_key."""
     if not index_keys:
         return []
     result = await session.execute(
@@ -157,7 +157,10 @@ async def mark_project_needs_rebuild(
     project_id: str,
     index_key: str,
 ) -> None:
-    """将单个项目下全部章节索引状态标记为 needs_rebuild（用于 schema 升级等场景）。"""
+    """Menandai status indeks seluruh bab dalam satu proyek sebagai needs_rebuild.
+
+    Dipakai untuk skenario seperti peningkatan schema.
+    """
     await session.execute(
         update(RetrievalChapterIndexState)
         .where(

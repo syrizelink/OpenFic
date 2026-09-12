@@ -193,7 +193,7 @@ async def _process_chapter_item(context: JobContext, item: BackgroundJobItem, me
     payload = job_service.parse_json_object(item.payload_json)
     chapter_id = payload.get("chapter_id")
     if not isinstance(chapter_id, str):
-        raise ValueError("缺少 chapter_id")
+        raise ValueError("chapter_id tidak ada")
 
     try:
         resolved = await resolve_background_llm(
@@ -302,7 +302,7 @@ async def _process_long_term_item(context: JobContext, item: BackgroundJobItem, 
     start_order = payload.get("start_order")
     end_order = payload.get("end_order")
     if not isinstance(project_id, str) or not isinstance(start_order, int) or not isinstance(end_order, int):
-        raise ValueError("长期摘要 item 缺少区间信息")
+        raise ValueError("Item ringkasan jangka panjang tidak memiliki informasi rentang")
 
     window = await summary_service.load_long_term_summary_window(
         context.session, project_id, start_order, end_order
@@ -467,7 +467,9 @@ async def handle_summary_batch(context: JobContext) -> dict[str, int] | None:
             elif pending_item.type == summary_service.SUMMARY_BATCH_ITEM_TYPE_LONG_TERM:
                 await _process_long_term_item(context, pending_item, metadata)
             else:
-                raise ValueError(f"未知摘要队列项类型: {pending_item.type}")
+                raise ValueError(
+                    f"Tipe item antrean ringkasan tidak dikenal: {pending_item.type}"
+                )
         except Exception as exc:
             payload = job_service.parse_json_object(pending_item.payload_json)
             summary_row = None

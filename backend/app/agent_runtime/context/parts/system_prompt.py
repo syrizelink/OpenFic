@@ -14,7 +14,7 @@ async def build_system_prompt(
     agent_name: str,
     db_session: AsyncSession,
 ) -> list[ContextMessage]:
-    """构建 p1 PromptChain，并保留各 entry 的原始 role。"""
+    """Membangun p1 PromptChain sambil mempertahankan role asli setiap entry."""
     builtin_agent_names = {
         "build",
         "plan",

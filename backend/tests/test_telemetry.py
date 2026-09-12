@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""PostHog 错误遥测模块单元测试。"""
+"""Uji unit modul telemetri error PostHog."""
 
 import logging
 from types import SimpleNamespace

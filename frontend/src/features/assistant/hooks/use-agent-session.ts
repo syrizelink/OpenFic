@@ -1,7 +1,7 @@
 /**
  * Agent Hook
  *
- * Agent 会话管理 Hook
+ * Hook pengelolaan sesi Agent
  */
 
 import { useQueryClient } from "@tanstack/react-query";

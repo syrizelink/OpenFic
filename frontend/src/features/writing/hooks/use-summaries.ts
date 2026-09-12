@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-query";
 import { useEffect } from "react";
 
+import i18n from "@/i18n";
 import {
   cancelBackgroundJob,
   deleteChapterSummaries,
@@ -778,7 +779,7 @@ export function useEnqueueSummary(projectId: string) {
     onSuccess: (result, variables) => {
       const now = new Date().toISOString();
       const optimisticStatus = result.status === "ready" ? "ready" : "queued";
-      const optimisticProgressMessage = optimisticStatus === "queued" ? "已加入队列" : null;
+      const optimisticProgressMessage = optimisticStatus === "queued" ? "batch_queued" : null;
       const optimisticJob: SummaryBackgroundJobItem | null =
         result.jobId && variables.summaryType !== "all"
           ? {
@@ -893,7 +894,7 @@ export function useCancelSummaryBatch(projectId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (jobId: string) => cancelBackgroundJob(jobId, "用户停止摘要生成队列"),
+    mutationFn: (jobId: string) => cancelBackgroundJob(jobId, i18n.t("summary.cancelBatchReason")),
     onSuccess: (_result, jobId) => {
       queryClient.setQueryData<SummaryProjection>(
         getSummaryProjectionQueryKey(projectId),

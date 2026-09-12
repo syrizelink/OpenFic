@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Macro Handlers - 宏处理器。
+Macro Handlers - handler makro.
 """
 
 from app.macro.handlers.base import MacroHandler

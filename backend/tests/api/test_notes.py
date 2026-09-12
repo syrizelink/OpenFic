@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Note API 端点测试。"""
+"""Uji endpoint API Note."""
 
 from io import BytesIO
 import zipfile
@@ -11,7 +11,7 @@ from httpx import AsyncClient
 async def _create_project(client: AsyncClient) -> tuple[str, str]:
     response = await client.post(
         "/api/v1/projects",
-        data={"title": "测试小说"},
+        data={"title": "Novel Uji"},
     )
     assert response.status_code == 201
     project_id = response.json()["id"]
@@ -25,12 +25,12 @@ async def test_create_note(client: AsyncClient) -> None:
     project_id, _ = await _create_project(client)
     resp = await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "测试笔记", "content": "内容"},
+        json={"title": "Catatan Uji", "content": "Isi"},
     )
     assert resp.status_code == 201
     data = resp.json()
-    assert data["title"] == "测试笔记"
-    assert data["content"] == "内容"
+    assert data["title"] == "Catatan Uji"
+    assert data["content"] == "Isi"
     assert data["project_id"] == project_id
     assert data["is_locked"] is False
     assert data["is_hidden"] is False
@@ -42,11 +42,11 @@ async def test_create_note_rejects_content_over_line_limit(client: AsyncClient) 
 
     response = await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "超限笔记", "content": "\n".join("内容" for _ in range(2001))},
+        json={"title": "Catatan Melebihi Batas", "content": "\n".join("Isi" for _ in range(2001))},
     )
 
     assert response.status_code == 400
-    assert "内容超出限制" in response.json()["detail"]
+    assert "Konten melebihi batas" in response.json()["detail"]
     notes = (await client.get(f"/api/v1/projects/{project_id}/notes")).json()
     assert notes["total_notes"] == 0
 
@@ -56,14 +56,14 @@ async def test_create_note_in_category(client: AsyncClient) -> None:
     project_id, _ = await _create_project(client)
     cat_resp = await client.post(
         f"/api/v1/projects/{project_id}/note-categories",
-        json={"title": "设定"},
+        json={"title": "Setelan"},
     )
     assert cat_resp.status_code == 201
     cat_id = cat_resp.json()["id"]
 
     resp = await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "角色A", "category_id": cat_id},
+        json={"title": "Tokoh A", "category_id": cat_id},
     )
     assert resp.status_code == 201
     assert resp.json()["category_id"] == cat_id
@@ -74,12 +74,12 @@ async def test_get_note(client: AsyncClient) -> None:
     project_id, _ = await _create_project(client)
     create = await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "详情", "content": "正文"},
+        json={"title": "Detail", "content": "Isi utama"},
     )
     note_id = create.json()["id"]
     resp = await client.get(f"/api/v1/notes/{note_id}")
     assert resp.status_code == 200
-    assert resp.json()["content"] == "正文"
+    assert resp.json()["content"] == "Isi utama"
 
 
 @pytest.mark.asyncio
@@ -93,16 +93,16 @@ async def test_update_note(client: AsyncClient) -> None:
     project_id, _ = await _create_project(client)
     create = await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "旧标题", "content": "旧内容"},
+        json={"title": "Judul Lama", "content": "Isi lama"},
     )
     note_id = create.json()["id"]
     resp = await client.patch(
         f"/api/v1/notes/{note_id}",
-        json={"title": "新标题"},
+        json={"title": "Judul Baru"},
     )
     assert resp.status_code == 200
-    assert resp.json()["title"] == "新标题"
-    assert resp.json()["content"] == "旧内容"
+    assert resp.json()["title"] == "Judul Baru"
+    assert resp.json()["content"] == "Isi lama"
 
 
 @pytest.mark.asyncio
@@ -110,19 +110,19 @@ async def test_update_note_rejects_content_over_line_limit(client: AsyncClient) 
     project_id, _ = await _create_project(client)
     create = await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "原笔记", "content": "原内容"},
+        json={"title": "Catatan Asli", "content": "Isi asli"},
     )
     note_id = create.json()["id"]
 
     response = await client.patch(
         f"/api/v1/notes/{note_id}",
-        json={"content": "\n".join("内容" for _ in range(2001))},
+        json={"content": "\n".join("Isi" for _ in range(2001))},
     )
 
     assert response.status_code == 400
-    assert "内容超出限制" in response.json()["detail"]
+    assert "Konten melebihi batas" in response.json()["detail"]
     unchanged = await client.get(f"/api/v1/notes/{note_id}")
-    assert unchanged.json()["content"] == "原内容"
+    assert unchanged.json()["content"] == "Isi asli"
 
 
 @pytest.mark.asyncio
@@ -130,7 +130,7 @@ async def test_delete_note(client: AsyncClient) -> None:
     project_id, _ = await _create_project(client)
     create = await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "待删"},
+        json={"title": "Akan Dihapus"},
     )
     note_id = create.json()["id"]
     resp = await client.delete(f"/api/v1/notes/{note_id}")
@@ -144,11 +144,11 @@ async def test_list_notes(client: AsyncClient) -> None:
     project_id, _ = await _create_project(client)
     await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "笔记A"},
+        json={"title": "Catatan A"},
     )
     await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "笔记B"},
+        json={"title": "Catatan B"},
     )
     resp = await client.get(f"/api/v1/projects/{project_id}/notes")
     assert resp.status_code == 200
@@ -168,7 +168,7 @@ async def test_toggle_note_lock(client: AsyncClient) -> None:
     project_id, _ = await _create_project(client)
     create = await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "锁定测试"},
+        json={"title": "Uji Terkunci"},
     )
     note_id = create.json()["id"]
     resp = await client.patch(
@@ -184,7 +184,7 @@ async def test_toggle_note_hidden(client: AsyncClient) -> None:
     project_id, _ = await _create_project(client)
     create = await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "隐藏测试"},
+        json={"title": "Uji Tersembunyi"},
     )
     note_id = create.json()["id"]
     resp = await client.patch(
@@ -200,10 +200,10 @@ async def test_create_category(client: AsyncClient) -> None:
     project_id, _ = await _create_project(client)
     resp = await client.post(
         f"/api/v1/projects/{project_id}/note-categories",
-        json={"title": "设定"},
+        json={"title": "Setelan"},
     )
     assert resp.status_code == 201
-    assert resp.json()["title"] == "设定"
+    assert resp.json()["title"] == "Setelan"
     assert resp.json()["parent_id"] is None
 
 
@@ -212,17 +212,17 @@ async def test_create_category_third_level_rejected(client: AsyncClient) -> None
     project_id, _ = await _create_project(client)
     c1 = await client.post(
         f"/api/v1/projects/{project_id}/note-categories",
-        json={"title": "一级"},
+        json={"title": "Tingkat Satu"},
     )
     c1_id = c1.json()["id"]
     c2 = await client.post(
         f"/api/v1/projects/{project_id}/note-categories",
-        json={"title": "二级", "parent_id": c1_id},
+        json={"title": "Tingkat Dua", "parent_id": c1_id},
     )
     c2_id = c2.json()["id"]
     resp = await client.post(
         f"/api/v1/projects/{project_id}/note-categories",
-        json={"title": "三级", "parent_id": c2_id},
+        json={"title": "Tingkat Tiga", "parent_id": c2_id},
     )
     assert resp.status_code == 400
 
@@ -233,11 +233,11 @@ async def test_create_category_rejects_missing_parent(client: AsyncClient) -> No
 
     response = await client.post(
         f"/api/v1/projects/{project_id}/note-categories",
-        json={"title": "无效父分类", "parent_id": "missing-parent"},
+        json={"title": "Kategori Induk Tidak Valid", "parent_id": "missing-parent"},
     )
 
     assert response.status_code == 400
-    assert "父分类不存在" in response.json()["detail"]
+    assert "Kategori induk tidak ada" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -245,15 +245,15 @@ async def test_update_category(client: AsyncClient) -> None:
     project_id, _ = await _create_project(client)
     create = await client.post(
         f"/api/v1/projects/{project_id}/note-categories",
-        json={"title": "旧名"},
+        json={"title": "Nama Lama"},
     )
     cat_id = create.json()["id"]
     resp = await client.patch(
         f"/api/v1/note-categories/{cat_id}",
-        json={"title": "新名"},
+        json={"title": "Nama Baru"},
     )
     assert resp.status_code == 200
-    assert resp.json()["title"] == "新名"
+    assert resp.json()["title"] == "Nama Baru"
 
 
 @pytest.mark.asyncio
@@ -261,7 +261,7 @@ async def test_delete_category(client: AsyncClient) -> None:
     project_id, _ = await _create_project(client)
     create = await client.post(
         f"/api/v1/projects/{project_id}/note-categories",
-        json={"title": "待删"},
+        json={"title": "Akan Dihapus"},
     )
     cat_id = create.json()["id"]
     resp = await client.delete(f"/api/v1/note-categories/{cat_id}")
@@ -279,12 +279,12 @@ async def test_move_note_to_category(client: AsyncClient) -> None:
     project_id, _ = await _create_project(client)
     cat = await client.post(
         f"/api/v1/projects/{project_id}/note-categories",
-        json={"title": "目标"},
+        json={"title": "Tujuan"},
     )
     cat_id = cat.json()["id"]
     note = await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "移动我"},
+        json={"title": "Pindahkan Aku"},
     )
     note_id = note.json()["id"]
     resp = await client.post(
@@ -318,15 +318,15 @@ async def test_mentions_includes_note_kind(client: AsyncClient) -> None:
     project_id, _ = await _create_project(client)
     await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "世界设定", "content": "内容"},
+        json={"title": "Setelan Dunia", "content": "Isi"},
     )
     resp = await client.get(
         f"/api/v1/projects/{project_id}/mentions",
-        params={"query": "世界"},
+        params={"query": "Dunia"},
     )
     assert resp.status_code == 200
     items = resp.json()["items"]
-    assert any(item["kind"] == "note" and item["title"] == "世界设定" for item in items)
+    assert any(item["kind"] == "note" and item["title"] == "Setelan Dunia" for item in items)
 
 
 @pytest.mark.asyncio
@@ -334,7 +334,7 @@ async def test_mentions_hidden_note_absent(client: AsyncClient) -> None:
     project_id, _ = await _create_project(client)
     note = await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "隐藏笔记", "content": ""},
+        json={"title": "Catatan Tersembunyi", "content": ""},
     )
     note_id = note.json()["id"]
     await client.patch(
@@ -343,12 +343,12 @@ async def test_mentions_hidden_note_absent(client: AsyncClient) -> None:
     )
     resp = await client.get(
         f"/api/v1/projects/{project_id}/mentions",
-        params={"query": "隐藏"},
+        params={"query": "Tersembunyi"},
     )
     assert resp.status_code == 200
     items = resp.json()["items"]
     assert not any(
-        item["kind"] == "note" and item["title"] == "隐藏笔记" for item in items
+        item["kind"] == "note" and item["title"] == "Catatan Tersembunyi" for item in items
     )
 
 
@@ -357,20 +357,20 @@ async def test_mentions_kind_filter_note_only(client: AsyncClient) -> None:
     project_id, volume_id = await _create_project(client)
     await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "设定A", "content": ""},
+        json={"title": "Setelan A", "content": ""},
     )
     await client.post(
         f"/api/v1/projects/{project_id}/chapters",
-        json={"volume_id": volume_id, "title": "设定相关章", "content": ""},
+        json={"volume_id": volume_id, "title": "Bab Terkait Setelan", "content": ""},
     )
     resp = await client.get(
         f"/api/v1/projects/{project_id}/mentions",
-        params={"query": "设定", "kind": "note"},
+        params={"query": "Setelan", "kind": "note"},
     )
     assert resp.status_code == 200
     items = resp.json()["items"]
     assert all(item["kind"] == "note" for item in items)
-    assert any(item["title"] == "设定A" for item in items)
+    assert any(item["title"] == "Setelan A" for item in items)
 
 
 @pytest.mark.asyncio
@@ -378,17 +378,17 @@ async def test_mentions_includes_note_category_kind(client: AsyncClient) -> None
     project_id, _ = await _create_project(client)
     cat = await client.post(
         f"/api/v1/projects/{project_id}/note-categories",
-        json={"title": "世界观设定"},
+        json={"title": "Setelan Pandangan Dunia"},
     )
     assert cat.status_code == 201
     resp = await client.get(
         f"/api/v1/projects/{project_id}/mentions",
-        params={"query": "世界观"},
+        params={"query": "Pandangan Dunia"},
     )
     assert resp.status_code == 200
     items = resp.json()["items"]
     assert any(
-        item["kind"] == "note_category" and item["title"] == "世界观设定"
+        item["kind"] == "note_category" and item["title"] == "Setelan Pandangan Dunia"
         for item in items
     )
 
@@ -398,16 +398,16 @@ async def test_mentions_kind_filter_note_category_only(client: AsyncClient) -> N
     project_id, _ = await _create_project(client)
     await client.post(
         f"/api/v1/projects/{project_id}/note-categories",
-        json={"title": "角色设定"},
+        json={"title": "Setelan Tokoh"},
     )
     resp = await client.get(
         f"/api/v1/projects/{project_id}/mentions",
-        params={"query": "设定", "kind": "note_category"},
+        params={"query": "Setelan", "kind": "note_category"},
     )
     assert resp.status_code == 200
     items = resp.json()["items"]
     assert all(item["kind"] == "note_category" for item in items)
-    assert any(item["title"] == "角色设定" for item in items)
+    assert any(item["title"] == "Setelan Tokoh" for item in items)
 
 
 @pytest.mark.asyncio
@@ -418,34 +418,34 @@ async def test_mentions_include_world_info_entry_and_character(client: AsyncClie
     world_info_id = world_info_resp.json()["id"]
     entry_resp = await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "帝国设定", "content": "背景"},
+        json={"name": "Setelan Kekaisaran", "content": "Latar"},
     )
     assert entry_resp.status_code == 201
     character_resp = await client.post(
         f"/api/v1/projects/{project_id}/characters",
-        data={"name": "林夏", "description": "主角"},
+        data={"name": "Lina", "description": "Tokoh utama"},
     )
     assert character_resp.status_code == 201
 
     entry_search = await client.get(
         f"/api/v1/projects/{project_id}/mentions",
-        params={"query": "帝国"},
+        params={"query": "Kekaisaran"},
     )
     assert entry_search.status_code == 200
     entry_items = entry_search.json()["items"]
     assert any(
-        item["kind"] == "world_info_entry" and item["title"] == "帝国设定"
+        item["kind"] == "world_info_entry" and item["title"] == "Setelan Kekaisaran"
         for item in entry_items
     )
 
     character_search = await client.get(
         f"/api/v1/projects/{project_id}/mentions",
-        params={"query": "林夏"},
+        params={"query": "Lina"},
     )
     assert character_search.status_code == 200
     character_items = character_search.json()["items"]
     assert any(
-        item["kind"] == "character" and item["title"] == "林夏"
+        item["kind"] == "character" and item["title"] == "Lina"
         for item in character_items
     )
 
@@ -458,17 +458,17 @@ async def test_mentions_kind_filter_world_info_entry_only(client: AsyncClient) -
     world_info_id = world_info_resp.json()["id"]
     await client.post(
         f"/api/v1/world-info/{world_info_id}/entries",
-        json={"name": "地理设定", "content": "地图"},
+        json={"name": "Setelan Geografi", "content": "Peta"},
     )
 
     resp = await client.get(
         f"/api/v1/projects/{project_id}/mentions",
-        params={"query": "设定", "kind": "world_info_entry"},
+        params={"query": "Setelan", "kind": "world_info_entry"},
     )
     assert resp.status_code == 200
     items = resp.json()["items"]
     assert all(item["kind"] == "world_info_entry" for item in items)
-    assert any(item["title"] == "地理设定" for item in items)
+    assert any(item["title"] == "Setelan Geografi" for item in items)
 
 
 @pytest.mark.asyncio
@@ -485,7 +485,7 @@ async def test_mentions_empty_query_returns_empty(client: AsyncClient) -> None:
     project_id, _ = await _create_project(client)
     await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "某笔记", "content": ""},
+        json={"title": "Suatu Catatan", "content": ""},
     )
     resp = await client.get(
         f"/api/v1/projects/{project_id}/mentions",
@@ -509,7 +509,7 @@ async def test_preview_note_import_reads_markdown_file(client: AsyncClient) -> N
 
     response = await client.post(
         f"/api/v1/projects/{project_id}/notes/import/preview",
-        files={"file": ("我的笔记.md", "# 内容", "text/markdown")},
+        files={"file": ("Catatan Saya.md", "# Isi", "text/markdown")},
     )
 
     assert response.status_code == 200
@@ -528,10 +528,10 @@ async def test_preview_note_import_ignores_non_markdown_zip_members(
     project_id, _ = await _create_project(client)
     archive = _zip_bytes(
         {
-            "设定/角色.md": "角色",
-            "设定/世界.md": "世界",
-            "设定/子分类/地点.md": "地点",
-            "设定/封面.png": b"not markdown",
+            "Setelan/Tokoh.md": "Tokoh",
+            "Setelan/Dunia.md": "Dunia",
+            "Setelan/Subkategori/Lokasi.md": "Lokasi",
+            "Setelan/Sampul.png": b"not markdown",
         }
     )
 
@@ -554,7 +554,7 @@ async def test_preview_note_import_rejects_third_level_category(
     client: AsyncClient,
 ) -> None:
     project_id, _ = await _create_project(client)
-    archive = _zip_bytes({"一级/二级/三级/笔记.md": "内容"})
+    archive = _zip_bytes({"Tingkat1/Tingkat2/Tingkat3/Catatan.md": "Isi"})
 
     response = await client.post(
         f"/api/v1/projects/{project_id}/notes/import/preview",
@@ -562,7 +562,7 @@ async def test_preview_note_import_rejects_third_level_category(
     )
 
     assert response.status_code == 400
-    assert "分类层级不能超过两级" in response.json()["detail"]
+    assert "tidak boleh lebih dari dua" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -572,9 +572,9 @@ async def test_import_notes_rebuilds_zip_categories_from_project_root(
     project_id, _ = await _create_project(client)
     archive = _zip_bytes(
         {
-            "设定/角色.md": "角色内容",
-            "设定/子分类/地点.md": "地点内容",
-            "说明.txt": "ignored",
+            "Setelan/Tokoh.md": "Isi tokoh",
+            "Setelan/Subkategori/Lokasi.md": "Isi lokasi",
+            "Keterangan.txt": "ignored",
         }
     )
 
@@ -594,9 +594,9 @@ async def test_import_notes_rebuilds_zip_categories_from_project_root(
     tree = (await client.get(f"/api/v1/projects/{project_id}/notes")).json()
     assert tree["total_notes"] == 2
     assert len(tree["categories"]) == 1
-    assert tree["categories"][0]["title"] == "设定"
-    assert tree["categories"][0]["notes"][0]["title"] == "角色"
-    assert tree["categories"][0]["categories"][0]["title"] == "子分类"
+    assert tree["categories"][0]["title"] == "Setelan"
+    assert tree["categories"][0]["notes"][0]["title"] == "Tokoh"
+    assert tree["categories"][0]["categories"][0]["title"] == "Subkategori"
 
 
 @pytest.mark.asyncio
@@ -605,19 +605,19 @@ async def test_import_markdown_file_creates_root_note(client: AsyncClient) -> No
 
     response = await client.post(
         f"/api/v1/projects/{project_id}/notes/import",
-        files={"file": ("根笔记.md", "# 正文\n内容", "text/markdown")},
+        files={"file": ("Catatan Akar.md", "# Isi utama\nIsi", "text/markdown")},
     )
 
     assert response.status_code == 200
     assert response.json()["imported_note_count"] == 1
     tree = (await client.get(f"/api/v1/projects/{project_id}/notes")).json()
     assert [(note["title"], note["category_id"]) for note in tree["root_notes"]] == [
-        ("根笔记", None)
+        ("Catatan Akar", None)
     ]
 
     note_id = tree["root_notes"][0]["id"]
     note = (await client.get(f"/api/v1/notes/{note_id}")).json()
-    assert note["content"] == "# 正文\n内容"
+    assert note["content"] == "# Isi utama\nIsi"
 
 
 @pytest.mark.asyncio
@@ -625,7 +625,7 @@ async def test_export_note_returns_markdown_file(client: AsyncClient) -> None:
     project_id, _ = await _create_project(client)
     note = await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "我的笔记", "content": "# 标题\n\n正文"},
+        json={"title": "Catatan Saya", "content": "# Judul\n\nIsi utama"},
     )
     note_id = note.json()["id"]
 
@@ -633,10 +633,10 @@ async def test_export_note_returns_markdown_file(client: AsyncClient) -> None:
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/markdown")
-    assert "filename*=UTF-8''%E6%88%91%E7%9A%84%E7%AC%94%E8%AE%B0.md" in response.headers[
+    assert "filename*=UTF-8''Catatan%20Saya.md" in response.headers[
         "content-disposition"
     ]
-    assert response.content.decode() == "# 标题\n\n正文"
+    assert response.content.decode() == "# Judul\n\nIsi utama"
 
 
 @pytest.mark.asyncio
@@ -646,39 +646,39 @@ async def test_export_category_returns_zip_with_category_folder(
     project_id, _ = await _create_project(client)
     parent = await client.post(
         f"/api/v1/projects/{project_id}/note-categories",
-        json={"title": "设定"},
+        json={"title": "Setelan"},
     )
     parent_id = parent.json()["id"]
     child = await client.post(
         f"/api/v1/projects/{project_id}/note-categories",
-        json={"title": "子分类", "parent_id": parent_id},
+        json={"title": "Subkategori", "parent_id": parent_id},
     )
     child_id = child.json()["id"]
     await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "角色", "category_id": parent_id, "content": "角色内容"},
+        json={"title": "Tokoh", "category_id": parent_id, "content": "Isi tokoh"},
     )
     await client.post(
         f"/api/v1/projects/{project_id}/notes",
-        json={"title": "地点", "category_id": child_id, "content": "地点内容"},
+        json={"title": "Lokasi", "category_id": child_id, "content": "Isi lokasi"},
     )
 
     response = await client.get(f"/api/v1/note-categories/{parent_id}/export")
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("application/zip")
-    assert "filename*=UTF-8''%E8%AE%BE%E5%AE%9A.zip" in response.headers[
+    assert "filename*=UTF-8''Setelan.zip" in response.headers[
         "content-disposition"
     ]
     with zipfile.ZipFile(BytesIO(response.content)) as archive:
         assert set(archive.namelist()) == {
-            "设定/",
-            "设定/角色.md",
-            "设定/子分类/",
-            "设定/子分类/地点.md",
+            "Setelan/",
+            "Setelan/Tokoh.md",
+            "Setelan/Subkategori/",
+            "Setelan/Subkategori/Lokasi.md",
         }
-        assert archive.read("设定/角色.md").decode() == "角色内容"
-        assert archive.read("设定/子分类/地点.md").decode() == "地点内容"
+        assert archive.read("Setelan/Tokoh.md").decode() == "Isi tokoh"
+        assert archive.read("Setelan/Subkategori/Lokasi.md").decode() == "Isi lokasi"
 
 
 @pytest.mark.asyncio
@@ -686,7 +686,7 @@ async def test_export_empty_category_keeps_category_folder(client: AsyncClient) 
     project_id, _ = await _create_project(client)
     category = await client.post(
         f"/api/v1/projects/{project_id}/note-categories",
-        json={"title": "空分类"},
+        json={"title": "Kategori Kosong"},
     )
     category_id = category.json()["id"]
 
@@ -694,4 +694,4 @@ async def test_export_empty_category_keeps_category_folder(client: AsyncClient) 
 
     assert response.status_code == 200
     with zipfile.ZipFile(BytesIO(response.content)) as archive:
-        assert archive.namelist() == ["空分类/"]
+        assert archive.namelist() == ["Kategori Kosong/"]

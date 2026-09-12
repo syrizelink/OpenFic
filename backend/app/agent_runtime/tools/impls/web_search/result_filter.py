@@ -1,4 +1,4 @@
-"""联网搜索结果的 provider 无关后处理。"""
+"""Pasca-pemrosesan hasil pencarian daring yang tidak bergantung pada provider."""
 
 from collections.abc import Iterable
 from urllib.parse import urlparse

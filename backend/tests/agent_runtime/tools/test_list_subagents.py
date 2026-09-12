@@ -97,8 +97,8 @@ def test_list_subagents_schema_describes_supported_filters() -> None:
         ("none", None, None),
         (
             "part",
-            "p" * 500 + "\n\n[内容因超出 500 字符被截断]",
-            "r" * 500 + "\n\n[内容因超出 500 字符被截断]",
+            "p" * 500 + "\n\n[Isi dipotong karena melebihi 500 karakter]",
+            "r" * 500 + "\n\n[Isi dipotong karena melebihi 500 karakter]",
         ),
         ("full", "p" * 501, "r" * 501),
     ],

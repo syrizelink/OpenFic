@@ -1,8 +1,8 @@
 /**
  * Search and Replace Extension
  *
- * Tiptap 查找和替换扩展
- * 基于 MIT 许可的 sereneinserenade/tiptap-search-and-replace 实现
+ * Ekstensi cari dan ganti untuk Tiptap
+ * Berbasis implementasi sereneinserenade/tiptap-search-and-replace berlisensi MIT
  * https://github.com/sereneinserenade/tiptap-search-and-replace
  */
 
@@ -11,25 +11,25 @@ import type { Node as PMNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
-/** Dispatch 函数类型 */
+/** Tipe fungsi Dispatch */
 type DispatchFn = ((tr: Transaction) => void) | undefined;
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     searchAndReplace: {
-      /** 设置搜索词 */
+      /** Menyetel kata pencarian */
       setSearchTerm: (searchTerm: string) => ReturnType;
-      /** 设置替换词 */
+      /** Menyetel kata pengganti */
       setReplaceTerm: (replaceTerm: string) => ReturnType;
-      /** 重置当前结果索引为 0 */
+      /** Mereset indeks hasil saat ini menjadi 0 */
       resetIndex: () => ReturnType;
-      /** 跳转到下一个搜索结果 */
+      /** Melompat ke hasil pencarian berikutnya */
       nextSearchResult: () => ReturnType;
-      /** 跳转到上一个搜索结果 */
+      /** Melompat ke hasil pencarian sebelumnya */
       previousSearchResult: () => ReturnType;
-      /** 替换当前匹配项 */
+      /** Mengganti kecocokan saat ini */
       replace: () => ReturnType;
-      /** 替换所有匹配项 */
+      /** Mengganti seluruh kecocokan */
       replaceAll: () => ReturnType;
     };
   }
@@ -40,9 +40,9 @@ interface TextNodesWithPosition {
   pos: number;
 }
 
-/** 获取搜索正则表达式 */
+/** Mengambil ekspresi reguler pencarian */
 function getRegex(searchTerm: string): RegExp {
-  // 转义特殊字符，不区分大小写
+  // Meng-escape karakter khusus, tanpa membedakan huruf besar-kecil
   const escaped = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(escaped, "gui");
 }
@@ -52,7 +52,7 @@ interface ProcessedSearches {
   results: Range[];
 }
 
-/** 处理搜索，生成装饰和结果 */
+/** Menangani pencarian, menghasilkan dekorasi dan hasil */
 function processSearches(
   doc: PMNode,
   searchTerm: RegExp,
@@ -72,7 +72,7 @@ function processSearches(
     };
   }
 
-  // 收集所有文本节点及其位置
+  // Mengumpulkan seluruh node teks beserta posisinya
   doc?.descendants((node, pos) => {
     if (node.isText) {
       if (textNodesWithPosition[index]) {
@@ -93,7 +93,7 @@ function processSearches(
 
   textNodesWithPosition = textNodesWithPosition.filter(Boolean);
 
-  // 查找所有匹配项
+  // Mencari seluruh kecocokan
   for (const element of textNodesWithPosition) {
     const { text, pos } = element;
     const matches = Array.from(text.matchAll(searchTerm)).filter(([matchText]) => matchText.trim());
@@ -110,7 +110,7 @@ function processSearches(
     }
   }
 
-  // 为每个结果创建装饰
+  // Membuat dekorasi untuk setiap hasil
   for (let i = 0; i < results.length; i += 1) {
     const r = results[i];
     const className =
@@ -128,7 +128,7 @@ function processSearches(
   };
 }
 
-/** 替换第一个匹配项 */
+/** Mengganti kecocokan pertama */
 function replaceFirst(
   replaceTerm: string,
   results: Range[],
@@ -144,7 +144,7 @@ function replaceFirst(
   if (dispatch) dispatch(state.tr.insertText(replaceTerm, from, to));
 }
 
-/** 重新计算下一个结果的位置偏移 */
+/** Menghitung ulang pergeseran posisi hasil berikutnya */
 function rebaseNextResult(
   replaceTerm: string,
   index: number,
@@ -169,7 +169,7 @@ function rebaseNextResult(
   return [offset, results];
 }
 
-/** 替换所有匹配项 */
+/** Mengganti seluruh kecocokan */
 function replaceAllMatches(
   replaceTerm: string,
   results: Range[],
@@ -200,7 +200,7 @@ function replaceAllMatches(
 export const searchAndReplacePluginKey = new PluginKey("searchAndReplacePlugin");
 
 export interface SearchAndReplaceOptions {
-  /** 搜索结果的 CSS 类名 */
+  /** Nama kelas CSS untuk hasil pencarian */
   searchResultClass: string;
 }
 
@@ -213,7 +213,7 @@ export interface SearchAndReplaceStorage {
   lastResultIndex: number;
 }
 
-/** 从 editor 获取 searchAndReplace storage（带类型断言） */
+/** Mengambil storage searchAndReplace dari editor (dengan penegasan tipe) */
 function getStorage(editor: any): SearchAndReplaceStorage {
   return editor.storage.searchAndReplace as SearchAndReplaceStorage;
 }
@@ -244,7 +244,7 @@ export const SearchAndReplace = Extension.create<SearchAndReplaceOptions, Search
         (searchTerm: string) =>
         ({ editor, dispatch, tr }) => {
           getStorage(editor).searchTerm = searchTerm;
-          // 触发插件重新计算
+          // Memicu penghitungan ulang plugin
           if (dispatch) {
             dispatch(tr.setMeta(searchAndReplacePluginKey, { updated: true }));
           }
@@ -276,7 +276,7 @@ export const SearchAndReplace = Extension.create<SearchAndReplaceOptions, Search
             storage.resultIndex = 0;
           }
 
-          // 使用 setMeta 标记事务以触发插件重新计算
+          // Memakai setMeta untuk menandai transaksi agar plugin menghitung ulang
           if (dispatch) {
             dispatch(tr.setMeta(searchAndReplacePluginKey, { updated: true }));
           }
@@ -297,7 +297,7 @@ export const SearchAndReplace = Extension.create<SearchAndReplaceOptions, Search
             storage.resultIndex = results.length - 1;
           }
 
-          // 使用 setMeta 标记事务以触发插件重新计算
+          // Memakai setMeta untuk menandai transaksi agar plugin menghitung ulang
           if (dispatch) {
             dispatch(tr.setMeta(searchAndReplacePluginKey, { updated: true }));
           }
@@ -342,7 +342,7 @@ export const SearchAndReplace = Extension.create<SearchAndReplaceOptions, Search
             const storage = getStorage(editor);
             const { searchTerm, lastSearchTerm, resultIndex, lastResultIndex } = storage;
 
-            // 检查是否有来自 setMeta 的更新信号
+            // Memeriksa adanya sinyal pembaruan dari setMeta
             const metaUpdate = tr.getMeta(searchAndReplacePluginKey);
 
             if (

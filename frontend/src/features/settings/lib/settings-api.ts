@@ -1,7 +1,7 @@
 /**
  * Settings API
  *
- * 设置 API 客户端。
+ * Klien API pengaturan.
  */
 
 import { apiClient } from "@/lib/api-client";
@@ -20,7 +20,7 @@ import {
 } from "./settings.types";
 
 /**
- * 后端响应字段转换（snake_case -> camelCase）
+ * Konversi field respons backend (snake_case -> camelCase)
  */
 export function transformSettings(raw: SettingsResponse): Settings {
   return {
@@ -56,7 +56,7 @@ export function transformSettings(raw: SettingsResponse): Settings {
 }
 
 /**
- * 获取设置
+ * Mengambil pengaturan
  */
 export async function fetchSettings(): Promise<Settings> {
   const response = await apiClient.get<SettingsResponse>("/settings");
@@ -64,7 +64,7 @@ export async function fetchSettings(): Promise<Settings> {
 }
 
 /**
- * 更新设置
+ * Memperbarui pengaturan
  */
 export async function updateSettings(data: SettingsUpdateRequest): Promise<Settings> {
   const response = await apiClient.put<SettingsResponse>("/settings", data);

@@ -1,4 +1,4 @@
-"""内置 Skill YAML 资源加载。"""
+"""Pemuatan sumber daya YAML Skill bawaan."""
 
 from app.skills.loader import (
     BUILTIN_SKILL_ID_PREFIX,

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Macro Parser Tests - 宏语法解析器测试。
+Macro Parser Tests - uji parser sintaks makro.
 """
 
 import pytest
@@ -10,10 +10,10 @@ from app.macro.parser import MacroParser, MacroParseError
 
 
 class TestParseMacro:
-    """测试宏解析。"""
+    """Uji parsing makro."""
 
     def test_parse_getmem(self):
-        """解析 getmem 宏。"""
+        """Parsing makro getmem."""
         match = MacroMatch(
             body="getmem::chapter::latest",
             raw="{{getmem::chapter::latest}}",
@@ -28,7 +28,7 @@ class TestParseMacro:
         assert node.args[1].value == "latest"
 
     def test_parse_getlist(self):
-        """解析 getlist 宏。"""
+        """Parsing makro getlist."""
         match = MacroMatch(
             body="getlist",
             raw="{{getlist}}",
@@ -41,7 +41,7 @@ class TestParseMacro:
         assert node.args == []
 
     def test_parse_getworld(self):
-        """解析 getworld 宏。"""
+        """Parsing makro getworld."""
         match = MacroMatch(
             body="getworld",
             raw="{{getworld}}",
@@ -54,66 +54,68 @@ class TestParseMacro:
         assert node.args == []
 
     def test_getworld_args_raise_error(self):
-        """getworld 不接受参数。"""
+        """getworld tidak menerima argumen."""
         match = MacroMatch(
             body="getworld::chapter",
             raw="{{getworld::chapter}}",
             start=0,
             end=22,
         )
-        with pytest.raises(MacroParseError, match="getworld 宏不接受参数"):
+        with pytest.raises(MacroParseError, match="Makro getworld tidak menerima argumen"):
             MacroParser.parse(match)
 
     def test_getlist_args_raise_error(self):
-        """getlist 不接受参数。"""
+        """getlist tidak menerima argumen."""
         match = MacroMatch(
             body="getlist::chapter",
             raw="{{getlist::chapter}}",
             start=0,
             end=20,
         )
-        with pytest.raises(MacroParseError, match="getlist 宏不接受参数"):
+        with pytest.raises(MacroParseError, match="Makro getlist tidak menerima argumen"):
             MacroParser.parse(match)
 
     def test_unknown_macro_raises_error(self):
-        """未知宏名应报错。"""
+        """Nama makro tak dikenal harus memunculkan error."""
         match = MacroMatch(
             body="unknown_macro::arg",
             raw="{{unknown_macro::arg}}",
             start=0,
             end=22,
         )
-        with pytest.raises(MacroParseError, match="未知的宏名"):
+        with pytest.raises(MacroParseError, match="Nama makro tidak dikenal"):
             MacroParser.parse(match)
 
     def test_getmem_current_raises_error(self):
-        """已移除的 getmem current 字段应报错。"""
+        """Field getmem current yang sudah dihapus harus memunculkan error."""
         match = MacroMatch(
             body="getmem::chapter::current",
             raw="{{getmem::chapter::current}}",
             start=0,
             end=27,
         )
-        with pytest.raises(MacroParseError, match="getmem::chapter 第二级参数"):
+        with pytest.raises(
+            MacroParseError, match="Argumen tingkat kedua getmem::chapter"
+        ):
             MacroParser.parse(match)
 
     def test_empty_macro_name_raises_error(self):
-        """空宏名应报错。"""
+        """Nama makro kosong harus memunculkan error."""
         match = MacroMatch(
             body="::arg",
             raw="{{::arg}}",
             start=0,
             end=9,
         )
-        with pytest.raises(MacroParseError, match="宏名不能为空"):
+        with pytest.raises(MacroParseError, match="Nama makro tidak boleh kosong"):
             MacroParser.parse(match)
 
 
 class TestParseAll:
-    """测试批量解析。"""
+    """Uji parsing massal."""
 
     def test_parse_all_valid(self):
-        """解析所有有效宏。"""
+        """Parsing seluruh makro yang valid."""
         text = "{{getmem::chapter::near}} and {{getmem::chapter::far}}"
         nodes = MacroParser.parse_all(text)
 
@@ -122,7 +124,7 @@ class TestParseAll:
         assert nodes[1].name == "getmem"
 
     def test_skip_invalid_macros(self):
-        """跳过无效宏。"""
+        """Melewati makro yang tidak valid."""
         text = "{{invalid::macro}} and {{getmem::chapter::near}}"
         nodes = MacroParser.parse_all(text)
 
@@ -131,10 +133,10 @@ class TestParseAll:
 
 
 class TestTryParse:
-    """测试安全解析。"""
+    """Uji parsing aman."""
 
     def test_try_parse_valid(self):
-        """有效宏返回节点。"""
+        """Makro valid mengembalikan node."""
         match = MacroMatch(
             body="getmem::chapter::near",
             raw="{{getmem::chapter::near}}",
@@ -147,7 +149,7 @@ class TestTryParse:
         assert node.name == "getmem"
 
     def test_try_parse_invalid(self):
-        """无效宏返回 None。"""
+        """Makro tidak valid mengembalikan None."""
         match = MacroMatch(
             body="unknown::arg",
             raw="{{unknown::arg}}",

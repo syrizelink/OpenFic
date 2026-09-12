@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Model 数据模型。
+Model data untuk Model.
 """
 
 from datetime import UTC, datetime
@@ -16,32 +16,32 @@ from app.models.clients.model_params import (
 
 class Model(SQLModel, table=True):
     """
-    模型配置模型。
+    Model konfigurasi model.
 
     Attributes:
-        id: 模型唯一标识符（nanoid）。
-        name: 模型名称。
-        remark: 备注。
-        provider_id: 关联的提供商 ID。
-        model_id: 从提供商获取的模型 ID。
-        task_type: 任务类型（llm、embedding 或 rerank）。
-        temperature: Temperature 参数（LLM 专用）。
-        top_p: Top P 参数（LLM 专用）。
-        top_k: Top K 参数（LLM 专用）。
-        min_p: Min P 参数（LLM 专用）。
-        top_a: Top A 参数（LLM 专用）。
-        frequency_penalty: Frequency Penalty 参数（LLM 专用）。
-        presence_penalty: Presence Penalty 参数（LLM 专用）。
-        repetition_penalty: Repetition Penalty 参数（LLM 专用）。
-        max_tokens: Max Tokens 参数（LLM 专用）。
-        context_length: 上下文长度（LLM 专用）。
-        input_price: 普通输入价格（美元/百万 token）。
-        output_price: 输出价格（美元/百万 token）。
-        cache_read_price: 缓存读取价格（美元/百万 token）。
-        cache_write_price: 缓存写入价格（美元/百万 token）。
-        dimensions: Embedding 维度（Embedding 专用）。
-        created_at: 创建时间。
-        updated_at: 上次修改时间。
+        id: identifier unik model (nanoid).
+        name: nama model.
+        remark: catatan.
+        provider_id: ID penyedia yang terkait.
+        model_id: ID model yang diperoleh dari penyedia.
+        task_type: jenis tugas (llm, embedding, atau rerank).
+        temperature: parameter Temperature (khusus LLM).
+        top_p: parameter Top P (khusus LLM).
+        top_k: parameter Top K (khusus LLM).
+        min_p: parameter Min P (khusus LLM).
+        top_a: parameter Top A (khusus LLM).
+        frequency_penalty: parameter Frequency Penalty (khusus LLM).
+        presence_penalty: parameter Presence Penalty (khusus LLM).
+        repetition_penalty: parameter Repetition Penalty (khusus LLM).
+        max_tokens: parameter Max Tokens (khusus LLM).
+        context_length: panjang konteks (khusus LLM).
+        input_price: harga input biasa (dolar AS/juta token).
+        output_price: harga output (dolar AS/juta token).
+        cache_read_price: harga baca cache (dolar AS/juta token).
+        cache_write_price: harga tulis cache (dolar AS/juta token).
+        dimensions: dimensi embedding (khusus embedding).
+        created_at: waktu pembuatan.
+        updated_at: waktu perubahan terakhir.
     """
 
     __tablename__ = "models"
@@ -77,7 +77,9 @@ class Model(SQLModel, table=True):
     # Embedding parameters (nullable)
     dimensions: int | None = Field(default=None, ge=1, description="Embedding dimensions")
 
-    is_builtin: bool = Field(default=False, description="是否为内置模型（不可删除/编辑）")
+    is_builtin: bool = Field(
+        default=False, description="Apakah model bawaan (tidak dapat dihapus/diedit)"
+    )
 
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

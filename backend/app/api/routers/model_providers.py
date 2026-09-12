@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ModelProvider Router - 模型服务提供商 API。
+ModelProvider Router - API penyedia layanan model.
 """
 
 from typing import Annotated
@@ -38,12 +38,12 @@ router = APIRouter(prefix="/model-providers", tags=["model-providers"])
 
 
 def get_encryption_service() -> EncryptionService:
-    """获取加密服务实例。"""
+    """Mengambil instance layanan enkripsi."""
     return EncryptionService(settings.encryption_key)
 
 
 def get_catalog_service() -> ModelProviderCatalogService:
-    """获取 catalog 服务实例。"""
+    """Mengambil instance layanan catalog."""
     return ModelProviderCatalogService()
 
 
@@ -53,12 +53,12 @@ def get_provider_service(
         ModelProviderCatalogService, Depends(get_catalog_service)
     ],
 ) -> ModelProviderService:
-    """获取提供商服务实例。"""
+    """Mengambil instance layanan penyedia."""
     return ModelProviderService(encryption_service, catalog_service)
 
 
 def _parse_custom_headers(raw_headers: str | None) -> list[dict[str, str]] | None:
-    """解析 multipart 表单中的自定义请求头 JSON。"""
+    """Mengurai JSON header permintaan kustom dari formulir multipart."""
     if raw_headers is None:
         return None
     if not raw_headers.strip():
@@ -75,7 +75,7 @@ def _parse_custom_headers(raw_headers: str | None) -> list[dict[str, str]] | Non
     except (ValueError, TypeError, ValidationError) as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="自定义请求头格式无效",
+            detail="Format header permintaan kustom tidak valid",
         ) from exc
 
 
@@ -113,21 +113,21 @@ async def _build_provider_response(
 @router.get(
     "",
     response_model=list[ModelProviderResponse],
-    summary="获取所有提供商",
+    summary="Mengambil semua penyedia",
 )
 async def get_providers(
     session: Annotated[AsyncSession, Depends(get_session)],
     service: Annotated[ModelProviderService, Depends(get_provider_service)],
 ) -> list[ModelProviderResponse]:
     """
-    获取所有模型服务提供商。
+    Mengambil semua penyedia layanan model.
 
     Args:
-        session: 数据库 session。
-        service: 提供商服务。
+        session: Session basis data.
+        service: Layanan penyedia.
 
     Returns:
-        提供商列表。
+        Daftar penyedia.
     """
     providers = await service.get_all_providers(session)
     return [await _build_provider_response(provider, service) for provider in providers]
@@ -136,7 +136,7 @@ async def get_providers(
 @router.get(
     "/{provider_id}",
     response_model=ModelProviderResponse,
-    summary="获取提供商",
+    summary="Mengambil penyedia",
 )
 async def get_provider(
     provider_id: str,
@@ -144,18 +144,18 @@ async def get_provider(
     service: Annotated[ModelProviderService, Depends(get_provider_service)],
 ) -> ModelProviderResponse:
     """
-    根据 ID 获取提供商。
+    Mengambil penyedia berdasarkan ID.
 
     Args:
-        provider_id: 提供商 ID。
-        session: 数据库 session。
-        service: 提供商服务。
+        provider_id: ID penyedia.
+        session: Session basis data.
+        service: Layanan penyedia.
 
     Returns:
-        提供商信息。
+        Informasi penyedia.
 
     Raises:
-        HTTPException: 如果提供商不存在。
+        HTTPException: Bila penyedia tidak ditemukan.
     """
     try:
         provider = await service.get_provider_by_id(session, provider_id)
@@ -168,7 +168,7 @@ async def get_provider(
     "",
     response_model=ModelProviderResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="创建提供商",
+    summary="Membuat penyedia",
 )
 async def create_provider(
     url: Annotated[str, Form()],
@@ -180,21 +180,21 @@ async def create_provider(
     service: ModelProviderService = Depends(get_provider_service),
 ) -> ModelProviderResponse:
     """
-    创建模型服务提供商。
+    Membuat penyedia layanan model.
 
     Args:
-        name: 提供商名称/备注。
-        url: 服务 URL。
-        api_key: API Key。
-        provider_type: 提供商类型。
-        session: 数据库 session。
-        service: 提供商服务。
+        name: Nama/catatan penyedia.
+        url: URL layanan.
+        api_key: API Key.
+        provider_type: Tipe penyedia.
+        session: Session basis data.
+        service: Layanan penyedia.
 
     Returns:
-        创建的提供商信息。
+        Informasi penyedia yang dibuat.
     """
     await require_agent_settings_unlocked(session)
-    logger.info(f"创建提供商: {provider_type}")
+    logger.info(f"Membuat penyedia: {provider_type}")
 
     try:
         provider = await service.create_provider(
@@ -214,7 +214,7 @@ async def create_provider(
 @router.put(
     "/{provider_id}",
     response_model=ModelProviderResponse,
-    summary="更新提供商",
+    summary="Memperbarui penyedia",
 )
 async def update_provider(
     provider_id: str,
@@ -227,25 +227,25 @@ async def update_provider(
     service: ModelProviderService = Depends(get_provider_service),
 ) -> ModelProviderResponse:
     """
-    更新提供商信息。
+    Memperbarui informasi penyedia.
 
     Args:
-        provider_id: 提供商 ID。
-        name: 提供商名称/备注。
-        url: 服务 URL。
-        api_key: API Key。
-        provider_type: 提供商类型。
-        session: 数据库 session。
-        service: 提供商服务。
+        provider_id: ID penyedia.
+        name: Nama/catatan penyedia.
+        url: URL layanan.
+        api_key: API Key.
+        provider_type: Tipe penyedia.
+        session: Session basis data.
+        service: Layanan penyedia.
 
     Returns:
-        更新后的提供商信息。
+        Informasi penyedia setelah diperbarui.
 
     Raises:
-        HTTPException: 如果提供商不存在。
+        HTTPException: Bila penyedia tidak ditemukan.
     """
     await require_agent_settings_unlocked(session)
-    logger.info(f"更新提供商: {provider_id}")
+    logger.info(f"Memperbarui penyedia: {provider_id}")
 
     try:
         provider = await service.update_provider(
@@ -268,7 +268,7 @@ async def update_provider(
 @router.delete(
     "/{provider_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="删除提供商",
+    summary="Menghapus penyedia",
 )
 async def delete_provider(
     provider_id: str,
@@ -276,18 +276,18 @@ async def delete_provider(
     service: Annotated[ModelProviderService, Depends(get_provider_service)],
 ) -> None:
     """
-    删除提供商。
+    Menghapus penyedia.
 
     Args:
-        provider_id: 提供商 ID。
-        session: 数据库 session。
-        service: 提供商服务。
+        provider_id: ID penyedia.
+        session: Session basis data.
+        service: Layanan penyedia.
 
     Raises:
-        HTTPException: 如果提供商不存在。
+        HTTPException: Bila penyedia tidak ditemukan.
     """
     await require_agent_settings_unlocked(session)
-    logger.info(f"删除提供商: {provider_id}")
+    logger.info(f"Menghapus penyedia: {provider_id}")
 
     try:
         await service.delete_provider(session, provider_id)
@@ -300,23 +300,23 @@ async def delete_provider(
 @router.post(
     "/validate",
     response_model=ModelProviderValidateResponse,
-    summary="验证提供商连接",
+    summary="Memvalidasi koneksi penyedia",
 )
 async def validate_provider(
     request: ModelProviderValidateRequest,
     service: Annotated[ModelProviderService, Depends(get_provider_service)],
 ) -> ModelProviderValidateResponse:
     """
-    验证提供商连接并获取可用模型列表。
+    Memvalidasi koneksi penyedia dan mengambil daftar model yang tersedia.
 
     Args:
-        request: 验证请求。
-        service: 提供商服务。
+        request: Permintaan validasi.
+        service: Layanan penyedia.
 
     Returns:
-        验证结果和可用模型列表。
+        Hasil validasi dan daftar model yang tersedia.
     """
-    logger.info(f"验证提供商连接: {request.provider_type}")
+    logger.info(f"Memvalidasi koneksi penyedia: {request.provider_type}")
 
     try:
         models = await service.validate_and_get_models(
@@ -327,9 +327,9 @@ async def validate_provider(
         )
         return ModelProviderValidateResponse(
             success=True,
-            message="连接验证成功"
+            message="Validasi koneksi berhasil"
             if models
-            else "连接验证成功，但该提供商可能不支持模型列表 API",
+            else "Validasi koneksi berhasil, tetapi penyedia ini mungkin tidak mendukung daftar model API",
             models=[
                 AvailableModel(
                     id=m["id"],
@@ -339,10 +339,10 @@ async def validate_provider(
             ],
         )
     except Exception as e:
-        logger.error(f"验证提供商连接失败: {e}")
+        logger.error(f"Gagal memvalidasi koneksi penyedia: {e}")
         return ModelProviderValidateResponse(
             success=False,
-            message=f"连接验证失败: {str(e)}",
+            message=f"Validasi koneksi gagal: {str(e)}",
             models=[],
         )
 
@@ -350,35 +350,35 @@ async def validate_provider(
 @router.get(
     "/{provider_id}/models",
     response_model=ModelProviderValidateResponse,
-    summary="获取提供商的模型列表",
+    summary="Mengambil daftar model penyedia",
 )
 async def get_provider_models(
     provider_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
     service: Annotated[ModelProviderService, Depends(get_provider_service)],
-    task_type: str = Query("llm", description="任务类型 (llm、embedding 或 rerank)"),
+    task_type: str = Query("llm", description="Tipe tugas (llm, embedding, atau rerank)"),
 ) -> ModelProviderValidateResponse:
     """
-    获取提供商的模型列表。
+    Mengambil daftar model milik penyedia.
 
     Args:
-        provider_id: 提供商 ID。
-        session: 数据库 session。
-        service: 提供商服务。
+        provider_id: ID penyedia.
+        session: Session basis data.
+        service: Layanan penyedia.
 
     Returns:
-        模型列表。
+        Daftar model.
 
     Raises:
-        HTTPException: 如果提供商不存在。
+        HTTPException: Bila penyedia tidak ditemukan.
     """
-    logger.info(f"获取提供商模型列表: {provider_id}")
+    logger.info(f"Mengambil daftar model penyedia: {provider_id}")
 
     try:
-        # 获取提供商信息
+        # Mengambil informasi penyedia
         provider = await service.get_provider_by_id(session, provider_id)
 
-        # 内置提供商无需 API Key，直接返回固定模型列表
+        # Penyedia bawaan tidak memerlukan API Key, langsung mengembalikan daftar model tetap
         if provider.is_builtin:
             models = await service.get_available_models(
                 provider=provider,
@@ -391,14 +391,14 @@ async def get_provider_models(
             )
             return ModelProviderValidateResponse(
                 success=True,
-                message="获取模型列表成功",
+                message="Berhasil mengambil daftar model",
                 models=[AvailableModel.model_validate(model) for model in enriched_models],
             )
 
-        # 获取解密后的 API Key
+        # Mengambil API Key yang sudah didekripsi
         api_key = service.get_decrypted_api_key(provider)
         if not api_key:
-            # 检查是字段为空还是解密失败
+            # Memeriksa apakah field kosong atau dekripsi gagal
             has_encrypted_field = (
                 provider.api_key_encrypted and provider.api_key_encrypted.strip() != ""
             )
@@ -409,25 +409,28 @@ async def get_provider_models(
                 )
                 return ModelProviderValidateResponse(
                     success=False,
-                    message="API Key 解密失败，请重新配置该提供商的 API Key",
+                    message="Gagal mendekripsi API Key, konfigurasikan ulang API Key penyedia ini",
                     models=[],
                 )
             else:
                 logger.info(f"Provider {provider_id} has no API key configured")
                 return ModelProviderValidateResponse(
                     success=False,
-                    message="该提供商未配置 API Key，无法获取模型列表",
+                    message=(
+                        "Penyedia ini belum mengonfigurasi API Key, tidak dapat mengambil daftar "
+                        "model"
+                    ),
                     models=[],
                 )
 
-        # 记录API key的前缀和后缀用于调试（隐藏中间部分）
+        # Mencatat prefiks dan sufiks API key untuk keperluan debug (bagian tengah disembunyikan)
         if len(api_key) > 8:
             masked_key = f"{api_key[:4]}...{api_key[-4:]}"
         else:
             masked_key = "****"
         logger.debug(f"Using API key: {masked_key} (length: {len(api_key)})")
 
-        # 获取模型列表（根据task_type获取LLM或Embedding模型）
+        # Mengambil daftar model (mengambil model LLM atau Embedding sesuai task_type)
         models = await service.get_available_models(
             provider=provider,
             task_type=task_type,
@@ -438,20 +441,20 @@ async def get_provider_models(
             models=models,
         )
 
-        logger.info(f"成功获取 {len(models)} 个模型")
+        logger.info(f"Berhasil mengambil {len(models)} model")
         return ModelProviderValidateResponse(
             success=True,
-            message="获取模型列表成功" if models else "该提供商可能不支持模型列表 API",
+            message="Berhasil mengambil daftar model" if models else "Penyedia ini mungkin tidak mendukung daftar model API",
             models=[AvailableModel.model_validate(model) for model in enriched_models],
         )
     except NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
         error_msg = str(e)
-        # 使用 loguru 的参数化日志记录，避免 error_msg 中的花括号被误认为格式化占位符
-        logger.error("获取模型列表失败: {}", error_msg, exc_info=True)
+        # Memakai log berparameter dari loguru agar kurung kurawal di error_msg tidak dianggap placeholder format
+        logger.error("Gagal mengambil daftar model: {}", error_msg, exc_info=True)
         return ModelProviderValidateResponse(
             success=False,
-            message=f"获取模型列表失败: {error_msg}",
+            message=f"Gagal mengambil daftar model: {error_msg}",
             models=[],
         )

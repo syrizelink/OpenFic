@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-移动笔记到目标分类。
+Memindahkan catatan ke kategori sasaran.
 """
 
 import json
@@ -28,16 +28,19 @@ from app.storage.services import note_service
 
 
 class MoveNoteInput(BaseModel):
-    note_ref: NoteRef = Field(description="要移动的笔记引用")
+    note_ref: NoteRef = Field(description="Referensi catatan yang akan dipindahkan")
     target_category_ref: dict | None = Field(
-        default=None, description="目标分类引用；None 表示移到根层级"
+        default=None,
+        description=(
+            "Referensi kategori sasaran; None berarti dipindahkan ke tingkat akar"
+        ),
     )
 
 
 @ToolRegistry.register
 class MoveNoteTool(AgentTool):
     name: str = "move_note"
-    description: str = "将笔记移动到指定分类下"
+    description: str = "Memindahkan catatan ke bawah kategori yang ditentukan"
     access_level: str = "write"
     args_schema: type[BaseModel] = MoveNoteInput
 
@@ -48,14 +51,16 @@ class MoveNoteTool(AgentTool):
     ) -> str:
         revision_id = current_revision_id_from_state(self._state)
         if revision_id is None:
-            raise ToolExecutionError("缺少当前 revision，无法执行笔记移动")
+            raise ToolExecutionError(
+                "revision saat ini tidak ada, pemindahan catatan tidak dapat dijalankan"
+            )
         session = await create_session()
         try:
             ref = NoteRef.model_validate(note_ref)
             if ref.id is not None:
                 note = await note_repo.get_by_id(session, ref.id)
                 if note is None:
-                    raise ToolExecutionError(f"笔记不存在: {ref.id}")
+                    raise ToolExecutionError(f"Catatan tidak ditemukan: {ref.id}")
             else:
                 notes = await note_repo.list_by_project(
                     session, self.project_id, include_hidden=False
@@ -66,11 +71,13 @@ class MoveNoteTool(AgentTool):
                 note = resolve_note_from_list(notes, ref, categories=cats)
 
             if note.project_id != self.project_id:
-                raise ToolExecutionError("笔记不属于当前项目")
+                raise ToolExecutionError("Catatan tidak termasuk dalam proyek saat ini")
             if note.is_locked:
-                raise ToolExecutionError("该笔记已锁定，无法移动")
+                raise ToolExecutionError(
+                    "Catatan ini terkunci sehingga tidak dapat dipindahkan"
+                )
             if note.is_hidden:
-                raise ToolExecutionError("该笔记已隐藏")
+                raise ToolExecutionError("Catatan ini sudah disembunyikan")
 
             target_category_id: str | None = None
             target_category_title: str | None = None
@@ -80,14 +87,16 @@ class MoveNoteTool(AgentTool):
                 if tref.id is not None:
                     target = await note_category_repo.get_by_id(session, tref.id)
                     if target is None:
-                        raise ToolExecutionError(f"分类不存在: {tref.id}")
+                        raise ToolExecutionError(f"Kategori tidak ditemukan: {tref.id}")
                 else:
                     cats = await note_category_repo.list_by_project(
                         session, self.project_id
                     )
                     target = resolve_category_from_list(cats, tref)
                 if target.project_id != self.project_id:
-                    raise ToolExecutionError("目标分类不属于当前项目")
+                    raise ToolExecutionError(
+                        "Kategori sasaran tidak termasuk dalam proyek saat ini"
+                    )
                 target_category_id = target.id
                 target_category_title = target.title
                 target_category_path = build_category_path([target], target.id)

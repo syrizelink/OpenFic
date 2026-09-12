@@ -25,7 +25,7 @@ async def build_context(
     node_messages: list[dict],
     db_session: AsyncSession,
 ) -> list[BaseMessage]:
-    """组装最终发往 LLM 的消息列表。"""
+    """Menyusun daftar pesan akhir yang dikirim ke LLM."""
     parts = await build_context_parts(state, agent_name, node_messages, db_session)
     return to_langchain_messages(parts)
 
@@ -36,7 +36,8 @@ async def build_context_parts(
     node_messages: list[dict],
     db_session: AsyncSession,
 ) -> list[ContextMessage]:
-    """组装经过清洗和 compaction overlay 的 ContextMessage 列表。"""
+    """Menyusun daftar ContextMessage yang sudah dibersihkan dan melalui
+    compaction overlay."""
     if state["model_config"].get("max_context_tokens") is None:
         raise ContextBuildError("config", "missing max_context_tokens in model_config")
 

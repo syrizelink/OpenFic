@@ -29,7 +29,8 @@ async def build_skills(
     db_session: AsyncSession,
     node_messages: list[dict] | None = None,
 ) -> ContextMessage | None:
-    """构建 Skills 上下文片段：列出 agent 可用技能的名称与简介。"""
+    """Membangun potongan konteks Skills: menampilkan nama dan ringkasan skill
+    yang tersedia untuk agent."""
 
     enabled_skill_ids = await _get_enabled_skill_ids_for_agent(db_session, agent_name)
     existing_referenced_ids = _state_skill_ids(state)

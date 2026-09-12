@@ -1,7 +1,7 @@
 /**
  * ResetConfirmDialog Component
  *
- * 重置提示词链到默认状态的确认对话框
+ * Dialog konfirmasi pengaturan ulang rantai prompt ke status bawaan
  */
 
 import { Dialog, Flex, Text, Button } from "@radix-ui/themes";

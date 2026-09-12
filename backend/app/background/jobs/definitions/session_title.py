@@ -57,7 +57,7 @@ async def handle_session_title(context: JobContext) -> dict[str, str] | None:
             job,
             current=1,
             total=3,
-            message="正在生成会话标题",
+            message="Sedang membuat judul sesi",
         )
         compiled_message = await compile_canonical_mentions(seed_message, session)
         messages = await build_chat_messages(
@@ -105,10 +105,17 @@ async def handle_session_title(context: JobContext) -> dict[str, str] | None:
     await context.check_cancelled()
     title = _clean_title(response.content)
     if not title:
-        logger.bind(job_id=context.job.id, task_id=payload.task_id).warning("生成标题为空，跳过更新")
+        logger.bind(job_id=context.job.id, task_id=payload.task_id).warning(
+            "Judul yang dibuat kosong, pembaruan dilewati"
+        )
 
         async def mark_empty_title_skipped(session, job):
-            await job_service.mark_skipped(session, context.publisher, job, reason="生成标题为空")
+            await job_service.mark_skipped(
+                session,
+                context.publisher,
+                job,
+                reason="Judul yang dibuat kosong",
+            )
 
         await context.with_short_session(mark_empty_title_skipped)
         return None
@@ -120,7 +127,7 @@ async def handle_session_title(context: JobContext) -> dict[str, str] | None:
             job,
             current=2,
             total=3,
-            message="正在保存会话标题",
+            message="Sedang menyimpan judul sesi",
         )
         task = await task_repo.get_by_id(session, payload.task_id)
         if task is None:
@@ -128,7 +135,7 @@ async def handle_session_title(context: JobContext) -> dict[str, str] | None:
                 session,
                 context.publisher,
                 job,
-                reason=f"任务不存在: {payload.task_id}",
+                reason=f"Tugas tidak ditemukan: {payload.task_id}",
             )
             return None
 
@@ -154,7 +161,7 @@ async def handle_session_title(context: JobContext) -> dict[str, str] | None:
             job,
             current=3,
             total=3,
-            message="会话标题已更新",
+            message="Judul sesi sudah diperbarui",
         )
         return task.id
 

@@ -72,7 +72,7 @@ function getLocalInstanceDeletionPaths(instance: DesktopInstance): LocalInstance
   const installDir = instance.installDir ?? getDefaultInstallDir();
   const dataDir = resolveDataDir(instance);
   if (!path.isAbsolute(installDir) || !path.isAbsolute(dataDir)) {
-    throw new Error("实例目录必须是绝对路径");
+    throw new Error("Direktori instansi harus berupa path absolut");
   }
   return {
     dataDir: path.resolve(dataDir),
@@ -130,7 +130,7 @@ async function assertSafeRuntimeDataPaths(instancePaths: LocalInstanceDeletionPa
   const pathsOverlap = await doPathsOverlap(instancePaths.runtimeDir, instancePaths.dataDir);
   const runtimeIsWithinData = await isPathWithin(instancePaths.dataDir, instancePaths.runtimeDir);
   if (pathsOverlap && (!isDefaultDataDir || !runtimeIsWithinData)) {
-    throw new Error("实例的运行环境目录与数据目录重叠，无法安全删除");
+    throw new Error("Direktori runtime instansi tumpang tindih dengan direktori data, tidak dapat dihapus dengan aman");
   }
 }
 
@@ -160,7 +160,7 @@ async function removeInstanceResources(
     try {
       await removeDataDir(filePath);
     } catch (error) {
-      appendLog("instance", `清理实例资源失败：${filePath}：${error instanceof Error ? error.message : String(error)}`);
+      appendLog("instance", `Gagal membersihkan sumber daya instansi: ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
       firstError ??= error;
     }
   }
@@ -287,13 +287,13 @@ export function registerIpc(context: IpcContext): void {
     const result = window
       ? await dialog.showSaveDialog(window, {
           defaultPath,
-          filters: [{ name: "ZIP 压缩包", extensions: ["zip"] }],
-          title: "导出后端日志",
+          filters: [{ name: "Arsip ZIP", extensions: ["zip"] }],
+          title: "Ekspor log backend",
         })
       : await dialog.showSaveDialog({
           defaultPath,
-          filters: [{ name: "ZIP 压缩包", extensions: ["zip"] }],
-          title: "导出后端日志",
+          filters: [{ name: "Arsip ZIP", extensions: ["zip"] }],
+          title: "Ekspor log backend",
         });
     if (result.canceled || !result.filePath) return null;
 
@@ -301,7 +301,7 @@ export function registerIpc(context: IpcContext): void {
       return await exportLogs(result.filePath);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      dialog.showErrorBox("导出后端日志失败", message);
+      dialog.showErrorBox("Gagal mengekspor log backend", message);
       throw error;
     }
   });
@@ -326,11 +326,11 @@ export function registerIpc(context: IpcContext): void {
   ipcMain.handle(IpcChannels.getDefaultInstallDir, () => getDefaultInstallDir());
 
   ipcMain.handle(IpcChannels.getInstanceDeletionInfo, async (_event, request: GetInstanceDeletionInfoRequest) => {
-    if (typeof request?.instanceId !== "string") throw new Error("无效的实例标识");
+    if (typeof request?.instanceId !== "string") throw new Error("Identitas instansi tidak valid");
     const config = await readDesktopConfig();
-    if (!config) throw new Error("未找到 OpenFic 实例配置");
+    if (!config) throw new Error("Konfigurasi instansi OpenFic tidak ditemukan");
     const instance = config.instances.find((item) => item.id === request.instanceId);
-    if (!instance) throw new Error("实例不存在");
+    if (!instance) throw new Error("Instansi tidak ada");
     if (instance.mode !== "local") {
       return { dataDir: null, dataDirShared: false, runtimeDir: null, runtimeDirShared: false };
     }
@@ -351,20 +351,20 @@ export function registerIpc(context: IpcContext): void {
     IpcChannels.deleteInstance,
     (_event, request: DeleteInstanceRequest) => enqueueConfigMutation(async (): Promise<DeleteInstanceResult> => {
       if (typeof request?.instanceId !== "string" || typeof request.deleteData !== "boolean") {
-        throw new Error("无效的实例删除请求");
+        throw new Error("Permintaan penghapusan instansi tidak valid");
       }
       const config = await readDesktopConfig();
-      if (!config) throw new Error("未找到 OpenFic 实例配置");
+      if (!config) throw new Error("Konfigurasi instansi OpenFic tidak ditemukan");
       const instance = config.instances.find((item) => item.id === request.instanceId);
-      if (!instance) throw new Error("实例不存在");
+      if (!instance) throw new Error("Instansi tidak ada");
       const instancePaths = instance.mode === "local" ? getLocalInstanceDeletionPaths(instance) : null;
       const dataDirShared = instancePaths ? await isDataDirShared(config, instance, instancePaths) : false;
-      if (request.deleteData && dataDirShared) throw new Error("该数据目录正在被多个本地实例使用，无法清除");
+      if (request.deleteData && dataDirShared) throw new Error("Direktori data ini sedang dipakai oleh beberapa instansi lokal, tidak dapat dibersihkan");
       const runtimeDirShared = instancePaths
         ? await isRuntimeDirShared(config, instance, instancePaths)
         : false;
 
-      appendLog("instance", `准备删除实例：${instance.name}（${instance.id}）`);
+      appendLog("instance", `Menyiapkan penghapusan instansi: ${instance.name} (${instance.id})`);
       const remainingInstances = config.instances.filter((item) => item.id !== instance.id);
       const nextActiveInstanceId = getNextActiveInstanceId(config, remainingInstances);
       await waitForInstanceWebViews(instance.id);
@@ -383,12 +383,12 @@ export function registerIpc(context: IpcContext): void {
       context.onConfigSaved(nextConfig);
       if (instancePaths) {
         if (runtimeDirShared) {
-          appendLog("instance", `保留共享运行环境：${instancePaths.runtimeDir}`);
+          appendLog("instance", `Mempertahankan runtime bersama: ${instancePaths.runtimeDir}`);
         }
         try {
           await removeInstanceResources(instancePaths, request.deleteData, runtimeDirShared);
         } catch (error) {
-          appendLog("instance", `实例资源清理未完成：${error instanceof Error ? error.message : String(error)}`);
+          appendLog("instance", `Pembersihan sumber daya instansi belum selesai: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
       return { nextActiveInstanceId };
@@ -424,8 +424,8 @@ export function registerIpc(context: IpcContext): void {
     );
     const options: Electron.SaveDialogOptions = {
       defaultPath,
-      filters: [{ name: "OpenFic 数据备份", extensions: ["tar.gz"] }],
-      title: "备份作品数据",
+      filters: [{ name: "Cadangan data OpenFic", extensions: ["tar.gz"] }],
+      title: "Cadangkan data karya",
     };
     const result = window
       ? await dialog.showSaveDialog(window, options)
@@ -438,8 +438,8 @@ export function registerIpc(context: IpcContext): void {
     const window = context.shellWindow();
     const options: Electron.OpenDialogOptions = {
       properties: ["openFile"],
-      filters: [{ name: "OpenFic 数据备份", extensions: ["tar.gz"] }],
-      title: "选择数据备份文件",
+      filters: [{ name: "Cadangan data OpenFic", extensions: ["tar.gz"] }],
+      title: "Pilih berkas cadangan data",
     };
     const result = window
       ? await dialog.showOpenDialog(window, options)
@@ -453,7 +453,7 @@ export function registerIpc(context: IpcContext): void {
   ipcMain.handle(IpcChannels.getDataInfo, async (_event, request: GetDataInfoRequest) => {
     const config = await readDesktopConfig();
     const instance = config?.instances.find((item) => item.id === request.instanceId);
-    if (!instance) throw new Error("实例不存在");
+    if (!instance) throw new Error("Instansi tidak ada");
     const dataDir = resolveDataDir(instance);
     const inspection = await inspectDataDir(dataDir);
     const installDir = instance.mode === "local" ? instance.installDir ?? getDefaultInstallDir() : undefined;
@@ -482,9 +482,9 @@ export function registerIpc(context: IpcContext): void {
   ipcMain.handle(IpcChannels.migrateData, (_event, request: MigrateDataRequest) =>
     enqueueConfigMutation(async (): Promise<MigrateDataResult> => {
       const config = await readDesktopConfig();
-      if (!config) throw new Error("未找到 OpenFic 实例配置");
+      if (!config) throw new Error("Konfigurasi instansi OpenFic tidak ditemukan");
       const instance = config.instances.find((item) => item.id === request.instanceId);
-      if (!instance) throw new Error("实例不存在");
+      if (!instance) throw new Error("Instansi tidak ada");
       const sourceDir = resolveDataDir(instance);
       const targetDir = path.resolve(request.newDataDir);
 
@@ -501,25 +501,25 @@ export function registerIpc(context: IpcContext): void {
           ),
         };
         if (!targetInspection.hasData) {
-          appendLog("data", `开始迁移数据目录：${sourceDir} -> ${targetDir}`);
+          appendLog("data", `Mulai memigrasikan direktori data: ${sourceDir} -> ${targetDir}`);
           await migrateDataDir(sourceDir, targetDir, (message) => appendLog("data", message), (phase, progress) =>
             emitProgress({ operation: "migrate", phase, progress }),
           );
           migrated = true;
-          appendLog("data", `数据迁移完成：${targetDir}`);
+          appendLog("data", `Migrasi data selesai: ${targetDir}`);
 
           if (request.deleteOldDir && normalizeInstallDir(sourceDir) !== normalizeInstallDir(targetDir)) {
             try {
               emitProgress({ operation: "migrate", phase: "delete-old" });
               await removeDataDir(sourceDir);
               removedOldDir = true;
-              appendLog("data", `已删除原数据目录：${sourceDir}`);
+              appendLog("data", `Direktori data asal telah dihapus: ${sourceDir}`);
             } catch (error) {
-              appendLog("data", `删除原数据目录失败（迁移已成功）：${error instanceof Error ? error.message : String(error)}`);
+              appendLog("data", `Gagal menghapus direktori data asal (migrasi tetap berhasil): ${error instanceof Error ? error.message : String(error)}`);
             }
           }
         } else {
-          appendLog("data", `切换数据目录（目标已含数据）：${sourceDir} -> ${targetDir}`);
+          appendLog("data", `Beralih direktori data (tujuan sudah berisi data): ${sourceDir} -> ${targetDir}`);
         }
         await writeDesktopConfig(nextConfig);
         context.onConfigSaved(nextConfig);
@@ -533,15 +533,15 @@ export function registerIpc(context: IpcContext): void {
     enqueueConfigMutation(async (): Promise<void> => {
       const config = await readDesktopConfig();
       const instance = config?.instances.find((item) => item.id === request.instanceId);
-      if (!instance) throw new Error("实例不存在");
+      if (!instance) throw new Error("Instansi tidak ada");
       await withBackendRestart(request.instanceId, async () => {
         const emitProgress = (event: DataProgressEvent) =>
           context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
-        appendLog("data", `开始备份数据目录：${resolveDataDir(instance)} -> ${request.targetPath}`);
+        appendLog("data", `Mulai mencadangkan direktori data: ${resolveDataDir(instance)} -> ${request.targetPath}`);
         await backupDataDir(resolveDataDir(instance), request.targetPath, (message) => appendLog("data", message), (phase, progress) =>
           emitProgress({ operation: "backup", phase, progress }),
         );
-        appendLog("data", `备份完成：${request.targetPath}`);
+        appendLog("data", `Pencadangan selesai: ${request.targetPath}`);
       });
     }),
   );
@@ -550,15 +550,15 @@ export function registerIpc(context: IpcContext): void {
     enqueueConfigMutation(async (): Promise<void> => {
       const config = await readDesktopConfig();
       const instance = config?.instances.find((item) => item.id === request.instanceId);
-      if (!instance) throw new Error("实例不存在");
+      if (!instance) throw new Error("Instansi tidak ada");
       await withBackendRestart(request.instanceId, async () => {
         const emitProgress = (event: DataProgressEvent) =>
           context.shellWindow()?.webContents.send(IpcChannels.dataProgress, event);
-        appendLog("data", `开始从备份还原数据：${request.sourcePath} -> ${resolveDataDir(instance)}`);
+        appendLog("data", `Mulai memulihkan data dari cadangan: ${request.sourcePath} -> ${resolveDataDir(instance)}`);
         await restoreDataDir(request.sourcePath, resolveDataDir(instance), (message) => appendLog("data", message), (phase, progress) =>
           emitProgress({ operation: "restore", phase, progress }),
         );
-        appendLog("data", `数据还原完成：${resolveDataDir(instance)}`);
+        appendLog("data", `Pemulihan data selesai: ${resolveDataDir(instance)}`);
       });
     }),
   );
@@ -628,14 +628,14 @@ export function registerIpc(context: IpcContext): void {
         context.onConfigSaved(nextConfig);
         startupProgress.begin({
           step: "ready",
-          title: "服务已就绪",
-          message: "OpenFic 已准备完成",
+          title: "Layanan siap",
+          message: "OpenFic siap digunakan",
           progress: 1,
         });
         startupProgress.complete();
         return maintenanceError;
       } catch (error) {
-        if (controller.signal.aborted) startupProgress.complete("已取消连接");
+        if (controller.signal.aborted) startupProgress.complete("Koneksi dibatalkan");
         else startupProgress.fail(error);
         throw error;
       } finally {
@@ -671,7 +671,7 @@ export function registerIpc(context: IpcContext): void {
       webContents.closeDevTools();
       return;
     }
-    webContents.openDevTools({ mode: "detach", title: "OpenFic 开发者工具" });
+    webContents.openDevTools({ mode: "detach", title: "Alat Pengembang OpenFic" });
   });
   ipcMain.handle(IpcChannels.closeWindow, async () => {
     context.shellWindow()?.close();

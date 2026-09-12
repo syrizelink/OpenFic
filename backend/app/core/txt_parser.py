@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-TXT 文件解析模块 - 章节识别和内容切分。
+Modul parsing berkas TXT - deteksi bab dan pemotongan konten.
 
-基于正则规则匹配章节标题，支持多种常见格式：
-- 第X章/节/卷/集/部/篇 标题
-- Chapter X 标题
-- 数字、标题 或 数字. 标题
-- 特殊符号开头的标题
+Mencocokkan judul bab berdasarkan aturan regex, mendukung berbagai format umum:
+- judul bab/bagian/volume/koleksi/jilid berbahasa Tionghoa
+- judul Chapter X
+- angka, judul atau angka. judul
+- judul yang diawali simbol khusus
 """
 
 import re
@@ -17,7 +17,7 @@ from charset_normalizer import from_bytes
 
 @dataclass
 class ParsedChapter:
-    """解析后的单个章节。"""
+    """Satu bab hasil parsing."""
 
     title: str
     content: str
@@ -26,7 +26,7 @@ class ParsedChapter:
 
 @dataclass
 class ParsedVolume:
-    """解析后的单个卷。"""
+    """Satu volume hasil parsing."""
 
     title: str
     chapters: list[ParsedChapter] = field(default_factory=list)
@@ -34,7 +34,7 @@ class ParsedVolume:
 
 @dataclass
 class ParseResult:
-    """TXT 解析结果。"""
+    """Hasil parsing TXT."""
 
     volumes: list[ParsedVolume] = field(default_factory=list)
     total_word_count: int = 0
@@ -42,127 +42,129 @@ class ParseResult:
     detected_encoding: str = "utf-8"
 
 
-# 章节标题正则规则列表（按优先级排序）
-# 参考 legado 阅读器的 txtTocRule.json
+# Daftar aturan regex judul bab (diurutkan berdasarkan prioritas)
+# Mengacu pada txtTocRule.json dari pembaca legado
 TOC_RULES: list[tuple[str, re.Pattern[str]]] = [
-    # 目录(去空白) - 第X章/节/卷/集 标题（使用行首 + 可选空白替代 lookbehind）
+    # Daftar isi (tanpa spasi) - judul bab/bagian/volume/koleksi
+    # (memakai awal baris + spasi opsional sebagai pengganti lookbehind)
     (
-        "目录(去空白)",
+        "daftar-isi-tanpa-spasi",
         re.compile(
-            r"^[\s　]+(?:序章|楔子|正文(?!完|结)|终章|后记|尾声|番外|"
-            r"第\s{0,4}[\d〇零一二两三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟]+?\s{0,4}"
-            r"(?:章|节(?!课)|卷|集(?![合和]))).{0,30}$",
+            r"^[\s\u3000]+(?:\u5e8f\u7ae0|\u6954\u5b50|\u6b63\u6587(?!\u5b8c|\u7ed3)|\u7ec8\u7ae0|\u540e\u8bb0|\u5c3e\u58f0|\u756a\u5916|"
+            r"\u7b2c\s{0,4}[\d\u3007\u96f6\u4e00\u4e8c\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e\u5343\u4e07\u58f9\u8d30\u53c1\u8086\u4f0d\u9646\u67d2\u634c\u7396\u62fe\u4f70\u4edf]+?\s{0,4}"
+            r"(?:\u7ae0|\u8282(?!\u8bfe)|\u5377|\u96c6(?![\u5408\u548c]))).{0,30}$",
             re.MULTILINE,
         ),
     ),
-    # 目录 - 标准格式
+    # Daftar isi - format standar
     (
-        "目录",
+        "daftar-isi",
         re.compile(
-            r"^[ 　\t]{0,4}(?:序章|楔子|正文(?!完|结)|终章|后记|尾声|番外|"
-            r"第\s{0,4}[\d〇零一二两三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟]+?\s{0,4}"
-            r"(?:章|节(?!课)|卷|集(?![合和])|部(?![分赛游])|篇(?!张))).{0,30}$",
+            r"^[ \u3000\t]{0,4}(?:\u5e8f\u7ae0|\u6954\u5b50|\u6b63\u6587(?!\u5b8c|\u7ed3)|\u7ec8\u7ae0|\u540e\u8bb0|\u5c3e\u58f0|\u756a\u5916|"
+            r"\u7b2c\s{0,4}[\d\u3007\u96f6\u4e00\u4e8c\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e\u5343\u4e07\u58f9\u8d30\u53c1\u8086\u4f0d\u9646\u67d2\u634c\u7396\u62fe\u4f70\u4edf]+?\s{0,4}"
+            r"(?:\u7ae0|\u8282(?!\u8bfe)|\u5377|\u96c6(?![\u5408\u548c])|\u90e8(?![\u5206\u8d5b\u6e38])|\u7bc7(?!\u5f20))).{0,30}$",
             re.MULTILINE,
         ),
     ),
-    # 数字 分隔符 标题名称
+    # angka pemisah nama judul
     (
-        "数字 分隔符 标题",
+        "angka-pemisah-judul",
         re.compile(
-            r"^[ 　\t]{0,4}\d{1,5}[:：,.， 、_—\-].{1,30}$",
+            r"^[ \u3000\t]{0,4}\d{1,5}[:\uff1a,.\uff0c \u3001_\u2014\-].{1,30}$",
             re.MULTILINE,
         ),
     ),
-    # 大写数字 分隔符 标题名称
+    # angka kapital pemisah nama judul
     (
-        "大写数字 分隔符 标题",
+        "angka-kapital-pemisah-judul",
         re.compile(
-            r"^[ 　\t]{0,4}(?:序章|楔子|正文(?!完|结)|终章|后记|尾声|番外|"
-            r"[零一二两三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟]{1,8}章?)[ 、_—\-].{1,30}$",
+            r"^[ \u3000\t]{0,4}(?:\u5e8f\u7ae0|\u6954\u5b50|\u6b63\u6587(?!\u5b8c|\u7ed3)|\u7ec8\u7ae0|\u540e\u8bb0|\u5c3e\u58f0|\u756a\u5916|"
+            r"[\u96f6\u4e00\u4e8c\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e\u5343\u4e07\u58f9\u8d30\u53c1\u8086\u4f0d\u9646\u67d2\u634c\u7396\u62fe\u4f70\u4edf]{1,8}\u7ae0?)[ \u3001_\u2014\-].{1,30}$",
             re.MULTILINE,
         ),
     ),
-    # 正文 标题/序号
+    # judul/nomor isi utama
     (
-        "正文 标题",
+        "judul-isi-utama",
         re.compile(
-            r"^[ 　\t]{0,4}正文[ 　]{1,4}.{0,20}$",
+            r"^[ \u3000\t]{0,4}\u6b63\u6587[ \u3000]{1,4}.{0,20}$",
             re.MULTILINE,
         ),
     ),
-    # Chapter/Section/Part/Episode 序号 标题
+    # Chapter/Section/Part/Episode nomor judul
     (
         "Chapter/Section",
         re.compile(
-            r"^[ 　\t]{0,4}(?:[Cc]hapter|[Ss]ection|[Pp]art|ＰＡＲＴ|[Nn][oO][.、]|[Ee]pisode|"
-            r"(?:内容|文章)?简介|文案|前言|序章|楔子|正文(?!完|结)|终章|后记|尾声|番外)"
+            r"^[ \u3000\t]{0,4}(?:[Cc]hapter|[Ss]ection|[Pp]art|\uff30\uff21\uff32\uff34|[Nn][oO][.\u3001]|[Ee]pisode|"
+            r"(?:\u5185\u5bb9|\u6587\u7ae0)?\u7b80\u4ecb|\u6587\u6848|\u524d\u8a00|\u5e8f\u7ae0|\u6954\u5b50|\u6b63\u6587(?!\u5b8c|\u7ed3)|\u7ec8\u7ae0|\u540e\u8bb0|\u5c3e\u58f0|\u756a\u5916)"
             r"\s{0,4}\d{1,4}.{0,30}$",
             re.MULTILINE,
         ),
     ),
-    # 特殊符号 序号 标题（使用行首匹配替代 lookbehind）
+    # simbol khusus nomor judul (memakai pencocokan awal baris sebagai pengganti lookbehind)
     (
-        "特殊符号 序号 标题",
+        "simbol-khusus-nomor-judul",
         re.compile(
-            r"^[\s　]*[【〔〖「『〈［\[](?:第|[Cc]hapter)"
-            r"[\d零一二两三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟]{1,10}[章节].{0,20}$",
+            r"^[\s\u3000]*[\u3010\u3014\u3016\u300c\u300e\u3008\uff3b\[](?:\u7b2c|[Cc]hapter)"
+            r"[\d\u96f6\u4e00\u4e8c\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e\u5343\u4e07\u58f9\u8d30\u53c1\u8086\u4f0d\u9646\u67d2\u634c\u7396\u62fe\u4f70\u4edf]{1,10}[\u7ae0\u8282].{0,20}$",
             re.MULTILINE,
         ),
     ),
-    # 特殊符号 标题(单个) - 晋江常见格式（使用行首匹配替代 lookbehind）
+    # simbol khusus judul (tunggal) - format umum Jinjiang
+    # (memakai pencocokan awal baris sebagai pengganti lookbehind)
     (
-        "特殊符号 标题",
+        "simbol-khusus-judul",
         re.compile(
-            r"^[\s　]*(?:[☆★✦✧].{1,30}|"
-            r"(?:内容|文章)?简介|文案|前言|序章|楔子|正文(?!完|结)|终章|后记|尾声|番外)[ 　]{0,4}$",
+            r"^[\s\u3000]*(?:[\u2606\u2605\u2726\u2727].{1,30}|"
+            r"(?:\u5185\u5bb9|\u6587\u7ae0)?\u7b80\u4ecb|\u6587\u6848|\u524d\u8a00|\u5e8f\u7ae0|\u6954\u5b50|\u6b63\u6587(?!\u5b8c|\u7ed3)|\u7ec8\u7ae0|\u540e\u8bb0|\u5c3e\u58f0|\u756a\u5916)[ \u3000]{0,4}$",
             re.MULTILINE,
         ),
     ),
-    # 章/卷 序号 标题
+    # bab/volume nomor judul
     (
-        "章/卷 序号 标题",
+        "bab-volume-nomor-judul",
         re.compile(
-            r"^[ \t　]{0,4}(?:(?:内容|文章)?简介|文案|前言|序章|楔子|正文(?!完|结)|终章|后记|尾声|番外|"
-            r"[卷章][\d零一二两三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟]{1,8})[ 　]{0,4}.{0,30}$",
+            r"^[ \t\u3000]{0,4}(?:(?:\u5185\u5bb9|\u6587\u7ae0)?\u7b80\u4ecb|\u6587\u6848|\u524d\u8a00|\u5e8f\u7ae0|\u6954\u5b50|\u6b63\u6587(?!\u5b8c|\u7ed3)|\u7ec8\u7ae0|\u540e\u8bb0|\u5c3e\u58f0|\u756a\u5916|"
+            r"[\u5377\u7ae0][\d\u96f6\u4e00\u4e8c\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e\u5343\u4e07\u58f9\u8d30\u53c1\u8086\u4f0d\u9646\u67d2\u634c\u7396\u62fe\u4f70\u4edf]{1,8})[ \u3000]{0,4}.{0,30}$",
             re.MULTILINE,
         ),
     ),
-    # 书名 括号 序号
+    # nama buku tanda kurung nomor
     (
-        "书名 括号 序号",
+        "nama-buku-kurung-nomor",
         re.compile(
-            r"^[一-龥]{1,20}[ 　\t]{0,4}[(（]"
-            r"[\d〇零一二两三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟]{1,8}[)）][ 　\t]{0,4}$",
+            r"^[\u4e00-\u9fa5]{1,20}[ \u3000\t]{0,4}[(\uff08]"
+            r"[\d\u3007\u96f6\u4e00\u4e8c\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e\u5343\u4e07\u58f9\u8d30\u53c1\u8086\u4f0d\u9646\u67d2\u634c\u7396\u62fe\u4f70\u4edf]{1,8}[)\uff09][ \u3000\t]{0,4}$",
             re.MULTILINE,
         ),
     ),
-    # 书名 序号
+    # nama buku nomor
     (
-        "书名 序号",
+        "nama-buku-nomor",
         re.compile(
-            r"^[一-龥]{1,20}[ 　\t]{0,4}"
-            r"[\d〇零一二两三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟]{1,8}[ 　\t]{0,4}$",
+            r"^[\u4e00-\u9fa5]{1,20}[ \u3000\t]{0,4}"
+            r"[\d\u3007\u96f6\u4e00\u4e8c\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e\u5343\u4e07\u58f9\u8d30\u53c1\u8086\u4f0d\u9646\u67d2\u634c\u7396\u62fe\u4f70\u4edf]{1,8}[ \u3000\t]{0,4}$",
             re.MULTILINE,
         ),
     ),
 ]
 
 VOLUME_TITLE_PATTERN = re.compile(
-    r"^[ \t　]{0,4}(?:第\s{0,4}[\d〇零一二两三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟]+?"
-    r"\s{0,4}卷|卷[\d〇零一二两三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟]{1,8}).{0,30}$",
+    r"^[ \t\u3000]{0,4}(?:\u7b2c\s{0,4}[\d\u3007\u96f6\u4e00\u4e8c\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e\u5343\u4e07\u58f9\u8d30\u53c1\u8086\u4f0d\u9646\u67d2\u634c\u7396\u62fe\u4f70\u4edf]+?"
+    r"\s{0,4}\u5377|\u5377[\d\u3007\u96f6\u4e00\u4e8c\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e\u5343\u4e07\u58f9\u8d30\u53c1\u8086\u4f0d\u9646\u67d2\u634c\u7396\u62fe\u4f70\u4edf]{1,8}).{0,30}$",
     re.MULTILINE,
 )
 
 
 def _detect_encoding(content: bytes) -> str:
     """
-    检测文件编码。
+    Mendeteksi encoding berkas.
 
     Args:
-        content: 文件字节内容。
+        content: konten bita berkas.
 
     Returns:
-        检测到的编码名称，默认 utf-8。
+        Nama encoding yang terdeteksi, default utf-8.
     """
     match = from_bytes(content).best()
     if match is None or match.encoding is None:
@@ -170,13 +172,13 @@ def _detect_encoding(content: bytes) -> str:
 
     encoding = match.encoding.lower().replace("_", "-")
     if encoding in ("gb2312", "gbk", "gb18030"):
-        return "gb18030"  # 使用兼容性最好的 gb18030
+        return "gb18030"  # Pakai gb18030 yang kompatibilitasnya paling baik
 
     return encoding
 
 
 def decode_text_content(content: bytes) -> tuple[str, str]:
-    """解码文本内容并标准化换行符。"""
+    """Mendekode konten teks dan menormalkan karakter baris baru."""
     if not content:
         return "", "utf-8"
 
@@ -194,80 +196,82 @@ def decode_text_content(content: bytes) -> tuple[str, str]:
 
 def _count_words(text: str) -> int:
     """
-    统计中文字数。
+    Menghitung jumlah kata Tionghoa.
 
-    统计规则：中文字符按字计数，英文单词按词计数。
+    Aturan hitung: karakter Tionghoa dihitung per karakter, kata Inggris per kata.
 
     Args:
-        text: 文本内容。
+        text: konten teks.
 
     Returns:
-        字数。
+        Jumlah kata.
     """
-    # 移除空白字符
+    # Hapus karakter spasi
     text = text.strip()
     if not text:
         return 0
 
-    # 统计中文字符数
+    # Hitung jumlah karakter Tionghoa
     chinese_chars = len(re.findall(r"[\u4e00-\u9fff]", text))
 
-    # 统计英文单词数
+    # Hitung jumlah kata Inggris
     english_words = len(re.findall(r"[a-zA-Z]+", text))
 
-    # 统计数字
+    # Hitung angka
     numbers = len(re.findall(r"\d+", text))
 
     return chinese_chars + english_words + numbers
 
 
 def _create_fallback_chapter(content: str) -> ParsedChapter | None:
-    """将未识别的文本按首行标题回退为单个章节。"""
+    """Mengembalikan teks tak terdeteksi menjadi satu bab memakai baris pertama sebagai judul."""
     content = content.strip()
     if not content:
         return None
 
     lines = content.split("\n", 1)
-    title = lines[0].strip() if len(lines[0].strip()) <= 50 else "正文"
+    title = lines[0].strip() if len(lines[0].strip()) <= 50 else "\u6b63\u6587"
     chapter_content = (
-        lines[1].strip() if title != "正文" and len(lines) > 1 else content
+        lines[1].strip() if title != "\u6b63\u6587" and len(lines) > 1 else content
     )
 
     return ParsedChapter(
-        title=title or "正文",
-        content=re.sub(r"^[\n\s]+", "　　", chapter_content),
+        title=title or "\u6b63\u6587",
+        content=re.sub(r"^[\n\s]+", "\u3000\u3000", chapter_content),
         word_count=_count_words(chapter_content),
     )
 
 
-# _text_to_html 函数已移除
-# 现在直接使用换行符格式保存到数据库，不再转换为 HTML
+# Fungsi _text_to_html sudah dihapus
+# Sekarang disimpan ke basis data langsung dalam format baris baru, tidak lagi
+# dikonversi ke HTML
 
 
 def _select_best_toc_rule(text: str) -> re.Pattern[str] | None:
     """
-    选择最佳的目录规则。
+    Memilih aturan daftar isi terbaik.
 
-    通过在文本开头部分测试每个规则，选择匹配数量最多的规则。
+    Menguji setiap aturan pada bagian awal teks, lalu memilih aturan dengan jumlah
+    kecocokan terbanyak.
 
     Args:
-        text: 文件文本内容。
+        text: konten teks berkas.
 
     Returns:
-        最佳匹配的正则表达式，如果没有匹配则返回 None。
+        Ekspresi regex dengan kecocokan terbaik, atau None jika tidak ada yang cocok.
     """
-    # 取前 512KB 内容进行规则测试
+    # Ambil 512KB konten pertama untuk menguji aturan
     sample_text = text[:512000]
 
     best_pattern: re.Pattern[str] | None = None
     max_matches = 0
 
     for _rule_name, pattern in TOC_RULES:
-        # 过滤掉间隔太近的匹配（避免误匹配）
+        # Buang kecocokan yang jaraknya terlalu dekat (menghindari salah cocok)
         valid_matches = 0
         last_pos = -1000
         for match in pattern.finditer(sample_text):
-            if match.start() - last_pos > 500:  # 章节间隔至少 500 字符
+            if match.start() - last_pos > 500:  # Jarak antarbab minimal 500 karakter
                 valid_matches += 1
                 last_pos = match.end()
 
@@ -275,7 +279,7 @@ def _select_best_toc_rule(text: str) -> re.Pattern[str] | None:
             max_matches = valid_matches
             best_pattern = pattern
 
-    # 至少需要 2 个匹配才认为找到了章节规则
+    # Minimal 2 kecocokan baru dianggap aturan bab ditemukan
     if max_matches >= 2:
         return best_pattern
 
@@ -284,21 +288,21 @@ def _select_best_toc_rule(text: str) -> re.Pattern[str] | None:
 
 def parse_txt_content(content: bytes) -> ParseResult:
     """
-    解析 TXT 文件内容。
+    Memparsing konten berkas TXT.
 
     Args:
-        content: TXT 文件的字节内容。
+        content: konten bita berkas TXT.
 
     Returns:
-        ParseResult 解析结果。
+        Hasil parsing ParseResult.
     """
     if not content:
         return ParseResult()
 
-    # 检测编码并标准化换行符
+    # Deteksi encoding dan normalkan karakter baris baru
     text, encoding = decode_text_content(content)
 
-    # 选择最佳目录规则
+    # Pilih aturan daftar isi terbaik
     toc_pattern = _select_best_toc_rule(text)
 
     volumes: list[ParsedVolume] = []
@@ -307,7 +311,7 @@ def parse_txt_content(content: bytes) -> ParseResult:
     def get_default_volume() -> ParsedVolume:
         nonlocal default_volume
         if default_volume is None:
-            default_volume = ParsedVolume(title="第一卷")
+            default_volume = ParsedVolume(title="\u7b2c\u4e00\u5377")
             volumes.append(default_volume)
         return default_volume
 
@@ -330,49 +334,49 @@ def parse_txt_content(content: bytes) -> ParseResult:
     )
 
     if not matches:
-        # 没有识别到章节，整个内容作为一个章节
+        # Tidak ada bab terdeteksi, seluruh konten dijadikan satu bab
         content_stripped = text.strip()
         if content_stripped:
             word_count = _count_words(content_stripped)
-            # 尝试从第一行提取标题
+            # Coba ambil judul dari baris pertama
             lines = content_stripped.split("\n", 1)
             if len(lines) >= 1 and len(lines[0].strip()) <= 50:
-                title = lines[0].strip() or "正文"
+                title = lines[0].strip() or "\u6b63\u6587"
                 chapter_content = lines[1].strip() if len(lines) > 1 else ""
             else:
-                title = "正文"
+                title = "\u6b63\u6587"
                 chapter_content = content_stripped
 
             get_default_volume().chapters.append(
                 ParsedChapter(
                     title=title,
-                    content=chapter_content,  # 直接使用换行符格式，不转换为 HTML
+                    content=chapter_content,  # Pakai format baris baru langsung, tidak dikonversi ke HTML
                     word_count=word_count,
                 )
             )
     else:
-        # 处理第一个目录标题之前的内容（可能是序言/简介）
+        # Tangani konten sebelum judul daftar isi pertama (mungkin prakata/ringkasan)
         first_match_start = matches[0][0].start()
-        if first_match_start > 100:  # 前面内容超过 100 字符才作为序言
+        if first_match_start > 100:  # Jadi prakata hanya jika konten awal lebih dari 100 karakter
             preface_content = text[:first_match_start].strip()
             if preface_content:
                 word_count = _count_words(preface_content)
-                if word_count > 50:  # 序言至少 50 字
+                if word_count > 50:  # Prakata minimal 50 kata
                     get_default_volume().chapters.append(
                         ParsedChapter(
-                            title="前言",
-                            content=preface_content,  # 直接使用换行符格式，不转换为 HTML
+                            title="\u524d\u8a00",
+                            content=preface_content,  # Pakai format baris baru langsung, tidak dikonversi ke HTML
                             word_count=word_count,
                         )
                     )
 
         current_volume: ParsedVolume | None = None
 
-        # 处理每个目录标题
+        # Tangani setiap judul daftar isi
         for i, (match, is_explicit_volume) in enumerate(matches):
             title = match.group().strip()
 
-            # 获取标题内容（从标题结束到下一个目录标题开始）
+            # Ambil konten judul (dari akhir judul sampai awal judul daftar isi berikutnya)
             content_start = match.end()
             if i + 1 < len(matches):
                 content_end = matches[i + 1][0].start()
@@ -389,12 +393,12 @@ def parse_txt_content(content: bytes) -> ParseResult:
                     current_volume.chapters.append(fallback_chapter)
                 continue
 
-            # 移除内容开头的标题重复
+            # Hapus judul yang terduplikasi di awal konten
             if chapter_content.startswith(title):
                 chapter_content = chapter_content[len(title) :].strip()
 
-            # 清理内容开头的空白和换行
-            chapter_content = re.sub(r"^[\n\s]+", "　　", chapter_content)
+            # Bersihkan spasi dan baris baru di awal konten
+            chapter_content = re.sub(r"^[\n\s]+", "\u3000\u3000", chapter_content)
 
             word_count = _count_words(chapter_content)
 
@@ -404,12 +408,12 @@ def parse_txt_content(content: bytes) -> ParseResult:
             current_volume.chapters.append(
                 ParsedChapter(
                     title=title,
-                    content=chapter_content,  # 直接使用换行符格式，不转换为 HTML
+                    content=chapter_content,  # Pakai format baris baru langsung, tidak dikonversi ke HTML
                     word_count=word_count,
                 )
             )
 
-    # 计算总字数
+    # Hitung total kata
     chapters = [chapter for volume in volumes for chapter in volume.chapters]
     total_word_count = sum(chapter.word_count for chapter in chapters)
 

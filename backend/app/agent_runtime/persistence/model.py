@@ -1,4 +1,4 @@
-"""AgentRunMessage SQLModel 表。"""
+"""Tabel SQLModel AgentRunMessage."""
 
 from datetime import UTC, datetime
 from typing import Any
@@ -10,7 +10,7 @@ from app.core.ids import generate_id
 
 
 class AgentRunMessage(SQLModel, table=True):
-    """Agent 运行时持久化的消息。"""
+    """Pesan runtime Agent yang dipersistenkan."""
 
     __tablename__ = "agent_run_messages"
 
@@ -40,7 +40,7 @@ class AgentRunMessage(SQLModel, table=True):
 
 
 class AgentAttachment(SQLModel, table=True):
-    """Agent 用户消息的图片附件。"""
+    """Lampiran gambar pada pesan pengguna Agent."""
 
     __tablename__ = "agent_attachments"
 

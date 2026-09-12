@@ -1,8 +1,8 @@
 /**
  * PostHog Error Telemetry
  *
- * 前端错误遥测：从后端 runtime-config 读取配置并初始化 posthog-js，
- * 捕获未处理的 JS 异常与 Promise rejection。仅上报错误，不采集产品行为。
+ * Telemetri galat frontend: membaca konfigurasi dari runtime-config backend lalu menginisialisasi posthog-js,
+ * menangkap anomali JS dan Promise rejection yang tidak tertangani. Hanya galat yang dilaporkan, perilaku produk tidak dikumpulkan.
  */
 
 import posthog from "posthog-js";
@@ -84,8 +84,8 @@ function startCapturing(): void {
 }
 
 /**
- * 初始化错误遥测（非阻塞，失败静默忽略）。
- * 仅在后端返回 posthog_enabled 且配置了 key 时生效。
+ * Menginisialisasi telemetri galat (tidak memblokir, kegagalan diabaikan diam-diam).
+ * Hanya berlaku bila backend mengembalikan posthog_enabled dan key sudah dikonfigurasi.
  */
 export async function initErrorTelemetry(): Promise<void> {
   try {
@@ -95,11 +95,11 @@ export async function initErrorTelemetry(): Promise<void> {
     cachedConfig = { apiKey: config.posthog_api_key, host: config.posthog_host };
     startCapturing();
   } catch {
-    // 遥测失败不影响应用运行。
+    // Kegagalan telemetri tidak memengaruhi jalannya aplikasi.
   }
 }
 
-/** 上报一个异常（供 React ErrorBoundary 使用）。 */
+/** Melaporkan satu anomali (dipakai oleh React ErrorBoundary). */
 export function captureException(error: unknown, metadata?: Record<string, unknown>): void {
   if (!initialized) return;
   try {
@@ -108,23 +108,23 @@ export function captureException(error: unknown, metadata?: Record<string, unkno
       ...metadata,
     });
   } catch {
-    // 忽略上报失败。
+    // Kegagalan pelaporan diabaikan.
   }
 }
 
-/** 关闭遥测（供设置页关闭开关时使用）。 */
+/** Menonaktifkan telemetri (dipakai saat saklar di halaman pengaturan dimatikan). */
 export function shutdownTelemetry(): void {
   if (!initialized) return;
   try {
     posthog.shutdown();
   } catch {
-    // 忽略。
+    // Diabaikan.
   }
   removeGlobalErrorHandlers();
   initialized = false;
 }
 
-/** 供设置页开关切换时同步前端上报状态。 */
+/** Menyinkronkan status pelaporan frontend saat saklar di halaman pengaturan diubah. */
 export function setTelemetryEnabled(enabled: boolean): void {
   if (enabled) {
     if (cachedConfig) {

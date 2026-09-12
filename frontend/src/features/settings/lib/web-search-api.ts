@@ -1,7 +1,7 @@
 /**
  * Web Search Settings API
  *
- * 联网搜索设置 API 客户端。
+ * Klien API pengaturan pencarian web.
  */
 
 import { apiClient } from "@/lib/api-client";

@@ -7,7 +7,8 @@ _SURROGATE_RE = re.compile(r"[\ud800-\udfff]")
 
 
 def sanitize_surrogates(parts: list[ContextMessage]) -> list[ContextMessage]:
-    """剔除 content 中的 Unicode surrogate 半码；返回新列表，不修改入参。"""
+    """Membuang setengah kode surrogate Unicode dari content; mengembalikan daftar
+    baru tanpa mengubah argumen masukan."""
     out: list[ContextMessage] = []
     for p in parts:
         if p.content and _SURROGATE_RE.search(p.content):

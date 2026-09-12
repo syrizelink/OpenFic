@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 import type { AgentMessage } from "@/lib/agent.types";
 
 export interface ChapterDiffLine {
@@ -141,7 +142,7 @@ export function formatChapterDisplayName(input: {
 }): string | undefined {
   if (input.title) return input.title;
   if (typeof input.order === "number") {
-    return `第${input.order}章`;
+    return i18n.t("assistant.tools.chapterDisplayByOrder", { order: input.order });
   }
   return input.chapterId;
 }

@@ -1,7 +1,7 @@
-"""OpenFic CLI 入口。
+"""Entri CLI OpenFic.
 
-用于以 pipx/uvx 安装后启动本地服务。
-桌面端与 Docker 均通过此入口启动后端服务。
+Dipakai untuk menjalankan layanan lokal setelah dipasang melalui pipx/uvx.
+Desktop maupun Docker menjalankan layanan backend melalui entri ini.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ def _get_uvicorn_loop_factory() -> str:
 
 
 def _ensure_data_dir() -> None:
-    """CLI 默认数据目录为 ~/.openfic，仅在未显式设置时生效。"""
+    """Direktori data bawaan CLI adalah ~/.openfic, hanya berlaku bila belum diatur eksplisit."""
     if os.getenv("OPENFIC_DATA_DIR"):
         return
     data_dir = Path.home() / ".openfic"
@@ -80,18 +80,27 @@ def handle_serve(args: argparse.Namespace) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="openfic",
-        description="OpenFic 本地服务启动器",
+        description="Peluncur layanan lokal OpenFic",
     )
 
     subparsers = parser.add_subparsers(dest="command")
 
-    serve_parser = subparsers.add_parser("serve", help="启动本地服务")
-    serve_parser.add_argument("--host", default=_DEFAULT_HOST, help=f"绑定地址（默认 {_DEFAULT_HOST}）")
-    serve_parser.add_argument("--port", type=int, default=_DEFAULT_PORT, help=f"绑定端口（默认 {_DEFAULT_PORT}）")
-    serve_parser.add_argument("--auth-password", default=None, help="启用应用密码保护")
+    serve_parser = subparsers.add_parser("serve", help="Menjalankan layanan lokal")
+    serve_parser.add_argument(
+        "--host", default=_DEFAULT_HOST, help=f"Alamat bind (bawaan {_DEFAULT_HOST})"
+    )
+    serve_parser.add_argument(
+        "--port",
+        type=int,
+        default=_DEFAULT_PORT,
+        help=f"Port bind (bawaan {_DEFAULT_PORT})",
+    )
+    serve_parser.add_argument(
+        "--auth-password", default=None, help="Mengaktifkan proteksi kata sandi aplikasi"
+    )
     serve_parser.set_defaults(handler=handle_serve)
 
-    version_parser = subparsers.add_parser("version", help="显示版本号")
+    version_parser = subparsers.add_parser("version", help="Menampilkan nomor versi")
     version_parser.set_defaults(handler=handle_version)
 
     return parser

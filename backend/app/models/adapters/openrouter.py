@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-OpenRouter Adapter - OpenRouter API适配器。
+OpenRouter Adapter - adapter OpenRouter API.
 """
 
 from collections.abc import Mapping
@@ -13,7 +13,7 @@ from app.models.helpers.openrouter_attribution import get_openrouter_attribution
 
 
 class OpenRouterAdapter(BaseAdapter):
-    """OpenRouter API适配器，支持LLM和Embedding模型。"""
+    """Adapter OpenRouter API, mendukung model LLM dan embedding."""
 
     @property
     def provider_type(self) -> str:
@@ -27,7 +27,7 @@ class OpenRouterAdapter(BaseAdapter):
         *,
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
-        """获取LLM模型列表（/models端点）。"""
+        """Ambil daftar model LLM (endpoint /models)."""
         url = f"{self._normalize_url(base_url)}/models"
         headers = {
             **self._build_auth_header(api_key),
@@ -58,7 +58,7 @@ class OpenRouterAdapter(BaseAdapter):
         *,
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
-        """获取Embedding模型列表（/embeddings/models端点）。"""
+        """Ambil daftar model embedding (endpoint /embeddings/models)."""
         url = f"{self._normalize_url(base_url)}/embeddings/models"
         headers = {
             **self._build_auth_header(api_key),

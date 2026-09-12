@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AgentMemory Router - 记忆 CRUD API。"""
+"""AgentMemory Router - API CRUD catatan memori."""
 
 from typing import Annotated
 
@@ -36,7 +36,7 @@ async def create_memory(
     data: AgentMemoryCreate,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AgentMemoryResponse:
-    logger.info("创建 AgentMemory")
+    logger.info("Membuat AgentMemory")
     memory = await agent_memory_service.create_memory(session, content=data.content)
     return _to_response(memory)
 

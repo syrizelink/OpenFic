@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-PostHog 错误遥测。
+Telemetri error PostHog.
 
-统一捕获后端未处理异常并上报。仅上报异常类型、消息、堆栈与请求上下文，
-不上报请求体、API key 或用户内容；上报失败静默忽略，不影响应用运行。
+Menangkap eksepsi backend yang tidak tertangani secara terpusat lalu melaporkannya. Yang
+dilaporkan hanya tipe eksepsi, pesan, stack, dan konteks permintaan,
+bukan body permintaan, API key, atau isi milik pengguna; kegagalan pelaporan diabaikan
+tanpa suara dan tidak memengaruhi jalannya aplikasi.
 """
 
 from __future__ import annotations
@@ -28,12 +30,13 @@ _MESSAGE_MAX_LENGTH = 2000
 
 
 def is_telemetry_enabled() -> bool:
-    """当前是否启用错误遥测。"""
+    """Apakah telemetri error sedang aktif."""
     return _enabled
 
 
 def parse_telemetry_enabled(raw_value: str | None) -> bool:
-    """将 DB 中的布尔设置值解析为布尔，缺省时默认开启。"""
+    """Mengurai nilai setelan boolean dari DB menjadi boolean, aktif secara bawaan bila
+    tidak ada nilainya."""
     if raw_value is None or raw_value == "":
         return DEFAULT_TELEMETRY_ENABLED
     try:
@@ -48,7 +51,7 @@ def parse_telemetry_enabled(raw_value: str | None) -> bool:
 
 
 def set_telemetry_enabled(enabled: bool) -> None:
-    """设置遥测开关，并同步初始化/销毁 PostHog 客户端。"""
+    """Mengatur sakelar telemetri sekaligus menginisialisasi/melepas klien PostHog."""
     global _enabled
     _enabled = bool(enabled) and bool(settings.posthog_api_key)
     _ensure_client()
@@ -68,7 +71,7 @@ def _ensure_client() -> None:
 
 
 def _anonymous_distinct_id() -> str:
-    """基于加密密钥派生稳定匿名标识，不泄露密钥本身。"""
+    """Menurunkan identitas anonim yang stabil dari kunci enkripsi tanpa membocorkan kuncinya."""
     return hashlib.sha256(settings.encryption_key.encode("utf-8")).hexdigest()[:32]
 
 
@@ -77,7 +80,7 @@ def capture_exception(
     *,
     properties: dict[str, Any] | None = None,
 ) -> None:
-    """上报单个异常，失败时静默忽略。"""
+    """Melaporkan satu eksepsi, kegagalan diabaikan tanpa suara."""
     if not _enabled or _client is None:
         return
     try:
@@ -90,11 +93,11 @@ def capture_exception(
             properties=payload,
         )
     except Exception:
-        logger.debug("PostHog 错误遥测上报失败（已忽略）")
+        logger.debug("Pelaporan telemetri error PostHog gagal (diabaikan)")
 
 
 def _error_sink(message: Any) -> None:
-    """loguru sink：捕获 ERROR 级且带异常的日志并上报。"""
+    """loguru sink: menangkap log level ERROR yang membawa eksepsi lalu melaporkannya."""
     if not _enabled or _client is None:
         return
     record = message.record
@@ -122,7 +125,8 @@ def _error_sink(message: Any) -> None:
 
 
 def install_telemetry_sink() -> None:
-    """安装遥测 sink（幂等）。客户端由 set_telemetry_enabled 惰性创建。"""
+    """Memasang sink telemetri (idempoten). Klien dibuat secara lazy oleh
+    set_telemetry_enabled."""
     global _sink_id
     if _sink_id is not None:
         return
@@ -130,7 +134,7 @@ def install_telemetry_sink() -> None:
 
 
 def shutdown() -> None:
-    """关闭遥测客户端，冲刷待发送事件。"""
+    """Menutup klien telemetri dan mengosongkan event yang menunggu dikirim."""
     global _client
     if _client is not None:
         try:

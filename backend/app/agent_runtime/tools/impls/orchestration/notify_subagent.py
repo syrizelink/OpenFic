@@ -31,11 +31,11 @@ from app.agent_runtime.tools.registry import ToolRegistry
 class NotifySubagentInput(BaseModel):
     dispatch_id: str = Field(
         min_length=1,
-        description="subagent 会话ID",
+        description="ID sesi subagent",
     )
     prompt: str = Field(
         min_length=1,
-        description="要 agent 执行的下一步任务描述或消息",
+        description="Deskripsi tugas langkah berikutnya atau pesan untuk dijalankan agent",
     )
 
     model_config = {"extra": "forbid"}
@@ -45,13 +45,18 @@ class NotifySubagentInput(BaseModel):
 class NotifySubagentTool(AgentTool):
     name: str = "notify_subagent"
     description: str = dedent("""\
-        向一个Subagent会话发送消息以恢复进程
-        使用时，必须指定dispatch_id来选定所要恢复的会话
+        Mengirim pesan ke satu sesi Subagent untuk melanjutkan prosesnya
+        Saat digunakan, dispatch_id harus ditentukan untuk memilih sesi yang akan
+        dilanjutkan
 
-        使用说明：
-        - 恢复的Subagent会话将沿用此前完成时的状态（消息历史、工具输出等），不要提供重复的上下文信息
-        - 继续会话时，聚焦于当前任务，明确说明下一步的要求
-        - 一个Subagent会话被关闭后，对应dispatch_id就会失效且无法使用
+        Petunjuk penggunaan:
+        - Sesi Subagent yang dilanjutkan tetap memakai keadaan saat sebelumnya
+          selesai (riwayat pesan, keluaran alat, dll.), jadi jangan memberikan
+          informasi konteks yang berulang
+        - Saat melanjutkan sesi, fokuslah pada tugas saat ini dan jelaskan dengan
+          tegas apa yang diminta pada langkah berikutnya
+        - Setelah satu sesi Subagent ditutup, dispatch_id yang bersangkutan menjadi
+          tidak valid dan tidak dapat dipakai lagi
     """)
     access_level: str = "readonly"
     args_schema: type[BaseModel] = NotifySubagentInput

@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Base Adapter - 适配器基类。
+Base Adapter - kelas dasar adapter.
 
-每个 Provider 对应一个 Adapter，负责暴露不同任务类型的模型列表。
+Setiap Provider memiliki satu Adapter yang bertugas mengekspos daftar model
+untuk berbagai jenis tugas.
 """
 
 from abc import ABC, abstractmethod
@@ -13,18 +14,18 @@ import httpx
 
 class BaseAdapter(ABC):
     """
-    Adapter基类，定义Provider协议转换接口。
+    Kelas dasar Adapter, mendefinisikan antarmuka konversi protokol Provider.
 
-    每个具体的Adapter负责：
-    1. 获取该Provider支持的LLM模型列表
-    2. 获取该Provider支持的Embedding模型列表
-    3. 获取该Provider支持的Rerank模型列表
+    Setiap Adapter konkret bertugas:
+    1. Mengambil daftar model LLM yang didukung Provider tersebut
+    2. Mengambil daftar model embedding yang didukung Provider tersebut
+    3. Mengambil daftar model rerank yang didukung Provider tersebut
     """
 
     @property
     @abstractmethod
     def provider_type(self) -> str:
-        """返回该Adapter对应的provider类型标识。"""
+        """Mengembalikan identifier jenis provider untuk Adapter ini."""
         pass
 
     @abstractmethod
@@ -37,15 +38,15 @@ class BaseAdapter(ABC):
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """
-        获取LLM模型列表。
+        Mengambil daftar model LLM.
 
         Args:
-            client: HTTP客户端。
-            base_url: Provider的API基础URL。
-            api_key: API Key（明文）。
+            client: klien HTTP.
+            base_url: URL dasar API Provider.
+            api_key: API Key (teks polos).
 
         Returns:
-            模型列表，每个元素为 {"id": "model-id", "name": "Model Name"}。
+            Daftar model, setiap elemen berupa {"id": "model-id", "name": "Model Name"}.
         """
         pass
 
@@ -59,15 +60,15 @@ class BaseAdapter(ABC):
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """
-        获取Embedding模型列表。
+        Mengambil daftar model embedding.
 
         Args:
-            client: HTTP客户端。
-            base_url: Provider的API基础URL。
-            api_key: API Key（明文）。
+            client: klien HTTP.
+            base_url: URL dasar API Provider.
+            api_key: API Key (teks polos).
 
         Returns:
-            模型列表，每个元素为 {"id": "model-id", "name": "Model Name"}。
+            Daftar model, setiap elemen berupa {"id": "model-id", "name": "Model Name"}.
         """
         pass
 
@@ -80,26 +81,27 @@ class BaseAdapter(ABC):
         headers: Mapping[str, str] | None = None,
     ) -> list[dict[str, str]]:
         """
-        获取 Rerank 模型列表。
+        Mengambil daftar model rerank.
 
-        默认回退到 LLM 模型列表，适用于只能列出通用 `/models` 的 provider。
+        Secara default kembali ke daftar model LLM, cocok untuk provider yang hanya
+        dapat menampilkan `/models` umum.
         """
         return await self.get_llm_models(client, base_url, api_key, headers=headers)
 
     def supports_llm(self) -> bool:
-        """检查该Adapter是否支持LLM模型。默认支持。"""
+        """Memeriksa apakah Adapter ini mendukung model LLM. Default: didukung."""
         return True
 
     def supports_embedding(self) -> bool:
-        """检查该Adapter是否支持Embedding模型。默认支持。"""
+        """Memeriksa apakah Adapter ini mendukung model embedding. Default: didukung."""
         return True
 
     def supports_rerank(self) -> bool:
-        """检查该Adapter是否支持Rerank模型。默认不支持。"""
+        """Memeriksa apakah Adapter ini mendukung model rerank. Default: tidak didukung."""
         return False
 
     # ========================
-    # 工具方法
+    # Metode utilitas
     # ========================
 
     def _build_auth_header(
@@ -107,11 +109,11 @@ class BaseAdapter(ABC):
         api_key: str,
         custom_headers: Mapping[str, str] | None = None,
     ) -> dict[str, str]:
-        """构建Bearer认证头。"""
+        """Membangun header autentikasi Bearer."""
         headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         headers.update(custom_headers or {})
         return headers
 
     def _normalize_url(self, url: str) -> str:
-        """规范化URL，移除末尾斜杠。"""
+        """Menormalkan URL, menghapus garis miring di akhir."""
         return url.rstrip("/")

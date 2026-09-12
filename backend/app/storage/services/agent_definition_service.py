@@ -97,7 +97,7 @@ async def create_definition(
 ) -> AgentDefinitionRecord:
     existing = await agent_definition_repo.get_by_key(session, key)
     if existing is not None:
-        raise ValidationError(f"智能体 {key} 已存在")
+        raise ValidationError(f"Agen {key} sudah ada")
 
     normalized_enabled_skills = _normalize_enabled_skills(enabled_skills)
     normalized_tool_categories = _normalize_enabled_tool_categories(
@@ -165,14 +165,14 @@ async def update_definition(
     if kind is not None and key in _BUILTIN_KEYS:
         default = get_default_agent_definition(key)
         if kind != default.kind:
-            raise ValidationError(f"内置智能体类型不可修改: {key}")
+            raise ValidationError(f"Jenis agen bawaan tidak dapat diubah: {key}")
 
     record = await agent_definition_repo.get_by_key(session, key)
     if record is None:
         try:
             default = get_default_agent_definition(key)
         except KeyError:
-            raise NotFoundError(f"智能体定义不存在: {key}")
+            raise NotFoundError(f"Definisi agen tidak ditemukan: {key}")
         record = _build_record(key, default)
 
     if display_name is not None:
@@ -223,7 +223,7 @@ async def reset_definition(
     key: str,
 ) -> AgentDefinition:
     if key not in _BUILTIN_KEYS:
-        raise ValidationError(f"只有内置智能体可以重置: {key}")
+        raise ValidationError(f"Hanya agen bawaan yang dapat direset: {key}")
 
     record = await agent_definition_repo.get_by_key(session, key)
     if record is not None:
@@ -254,11 +254,11 @@ async def delete_definition(
     key: str,
 ) -> None:
     if key in _BUILTIN_KEYS:
-        raise ValidationError(f"不可删除内置智能体: {key}")
+        raise ValidationError(f"Agen bawaan tidak dapat dihapus: {key}")
 
     record = await agent_definition_repo.get_by_key(session, key)
     if record is None:
-        raise NotFoundError(f"智能体定义不存在: {key}")
+        raise NotFoundError(f"Definisi agen tidak ditemukan: {key}")
 
     await _remove_delegatable_reference(session, key)
 

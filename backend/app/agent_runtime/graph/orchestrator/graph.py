@@ -148,7 +148,7 @@ async def primary_node(
         configurable.get("model_config") if isinstance(configurable, dict) else None
     )
     if not isinstance(runtime_model_config, dict):
-        raise ValueError("Agent 运行时模型配置不可用")
+        raise ValueError("Konfigurasi model runtime Agent tidak tersedia")
     model_config = ModelConfig(**to_client_model_config(runtime_model_config))
     model = create_chat_model(model_config)
     agent_key = state.get("agent_key", "build")

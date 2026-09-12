@@ -1,7 +1,7 @@
 /**
  * Task List
  *
- * 任务列表组件，显示最近的任务。
+ * Komponen daftar tugas, menampilkan tugas terbaru.
  */
 
 import { Box, Flex, Text, IconButton, Tooltip } from "@radix-ui/themes";
@@ -130,12 +130,12 @@ export function TaskList({ tasks, onTaskClick, onToggleFavorite, onRenameTask }:
             )}
           </Flex>
 
-          {/* 底部栏 */}
+          {/* Bilah bawah */}
           <Flex
             justify="between"
             align="center"
           >
-            {/* 左侧：时间 */}
+            {/* Kiri: waktu */}
             <Flex
               align="center"
               gap="1"
@@ -145,7 +145,7 @@ export function TaskList({ tasks, onTaskClick, onToggleFavorite, onRenameTask }:
               <Text size="1">{formatTime(task.updatedAt)}</Text>
             </Flex>
 
-            {/* 右侧：操作按钮 */}
+            {/* Kanan: tombol tindakan */}
             <Flex
               align="center"
               gap="1"

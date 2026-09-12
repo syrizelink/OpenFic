@@ -1,2 +1,2 @@
-/** 助手视图类型 */
+/** Tipe tampilan asisten */
 export type AssistantView = "tasks" | "allTasks";

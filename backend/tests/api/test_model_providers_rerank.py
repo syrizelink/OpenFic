@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ModelProvider API Tests - Rerank 能力暴露测试。
+ModelProvider API Tests - uji eksposur kemampuan rerank.
 """
 
 import pytest

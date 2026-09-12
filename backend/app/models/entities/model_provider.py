@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ModelProvider 数据模型。
+Model data untuk ModelProvider.
 """
 
 from datetime import UTC, datetime
@@ -13,16 +13,16 @@ from app.core.ids import generate_id
 
 class ModelProvider(SQLModel, table=True):
     """
-    模型服务提供商模型。
+    Model penyedia layanan model.
 
     Attributes:
-        id: 提供商唯一标识符（nanoid）。
-        name: 提供商名称/备注（非必须，不填则显示为 URL）。
-        url: 服务 URL。
-        api_key_encrypted: 加密后的 API Key。
-        provider_type: 提供商类型（Anthropic、OpenAI、Deepseek 等）。
-        created_at: 创建时间。
-        updated_at: 上次修改时间。
+        id: identifier unik penyedia (nanoid).
+        name: nama/catatan penyedia (opsional, jika kosong ditampilkan sebagai URL).
+        url: URL layanan.
+        api_key_encrypted: API Key setelah dienkripsi.
+        provider_type: jenis penyedia (Anthropic, OpenAI, Deepseek, dll).
+        created_at: waktu pembuatan.
+        updated_at: waktu perubahan terakhir.
     """
 
     __tablename__ = "model_providers"
@@ -44,6 +44,8 @@ class ModelProvider(SQLModel, table=True):
             "gemini-compatible"
         ),
     )
-    is_builtin: bool = Field(default=False, description="是否为内置提供商（不可删除/编辑）")
+    is_builtin: bool = Field(
+        default=False, description="Apakah penyedia bawaan (tidak dapat dihapus/diedit)"
+    )
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

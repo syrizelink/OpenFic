@@ -128,7 +128,10 @@ async def compact_window(
         raise
     except Exception as exc:
         logger.opt(exception=True).error("Failed to build compaction prompt")
-        error = CompactionError("prompt_error", "压缩提示词加载失败，当前请求已中止")
+        error = CompactionError(
+            "prompt_error",
+            "Pemuatan prompt pemadatan gagal, permintaan saat ini dibatalkan",
+        )
         await _emit_error(
             event_sink,
             session_id=session_id,
@@ -146,7 +149,9 @@ async def compact_window(
         response = await model.ainvoke(messages)
     except Exception as exc:
         logger.opt(exception=True).error("Compaction LLM request failed")
-        error = CompactionError("llm_error", "压缩失败，当前请求已中止")
+        error = CompactionError(
+            "llm_error", "Pemadatan gagal, permintaan saat ini dibatalkan"
+        )
         await _emit_error(
             event_sink,
             session_id=session_id,
@@ -200,9 +205,9 @@ async def compact_window(
             else "compaction_persist_failed"
         )
         message = (
-            "压缩范围已被写入，当前请求已中止"
+            "Rentang pemadatan sudah ditulis, permintaan saat ini dibatalkan"
             if code == "compaction_conflict"
-            else "压缩结果写入失败，当前请求已中止"
+            else "Penulisan hasil pemadatan gagal, permintaan saat ini dibatalkan"
         )
         error = CompactionError(code, message)
         await _emit_error(
@@ -224,7 +229,7 @@ async def compact_window(
         logger.opt(exception=True).error("Failed to persist compaction display marker")
         error = CompactionError(
             "compaction_display_persist_failed",
-            "压缩显示消息写入失败，当前请求已中止",
+            "Penulisan pesan tampilan pemadatan gagal, permintaan saat ini dibatalkan",
         )
         await _emit_error(
             event_sink,
@@ -277,7 +282,7 @@ async def _persist_display_marker(
         project_id=compaction.project_id,
         role="system",
         status="complete",
-        content="已进行压缩",
+        content="Pemadatan sudah dilakukan",
         message_type="compaction",
         display_channel="list",
         llm_visibility="hidden",
@@ -312,7 +317,9 @@ async def _build_messages(
             continue
         role = entry.role
         if role not in {"system", "user", "assistant"}:
-            raise CompactionError("prompt_error", "压缩提示词配置无效")
+            raise CompactionError(
+                "prompt_error", "Konfigurasi prompt pemadatan tidak valid"
+            )
         messages.append(_to_langchain_message(cast(PromptRole, role), content))
 
     messages.append(HumanMessage(content=window.transcript))
@@ -330,7 +337,9 @@ def _to_langchain_message(role: PromptRole, content: str) -> BaseMessage:
 def _model_config(state: AgentRuntimeState | dict[str, Any]) -> dict[str, Any]:
     model_config = state.get("model_config")
     if not isinstance(model_config, Mapping):
-        raise CompactionError("llm_error", "压缩失败，当前请求已中止")
+        raise CompactionError(
+            "llm_error", "Pemadatan gagal, permintaan saat ini dibatalkan"
+        )
     return dict(model_config)
 
 
@@ -338,7 +347,7 @@ def _summary_from_response(response: Any) -> str:
     content = getattr(response, "content", "")
     summary = _sanitize_surrogates(_content_to_text(content).strip()).strip()
     if not summary:
-        raise CompactionError("compaction_empty_summary", "压缩结果为空")
+        raise CompactionError("compaction_empty_summary", "Hasil pemadatan kosong")
     return summary
 
 

@@ -59,19 +59,19 @@ HTML_PAGE = """
 <!doctype html>
 <html lang="zh-CN">
   <head>
-    <title>测试文章</title>
-    <meta name="author" content="作者">
+    <title>Artikel Uji</title>
+    <meta name="author" content="Penulis">
   </head>
   <body>
-    <nav>导航噪声</nav>
+    <nav>Derau navigasi</nav>
     <article>
-      <h1>测试文章</h1>
-      <p>这是应该被提取的正文内容。文章正文需要足够长，才能让正文提取器区分内容区域与页面导航。</p>
-      <p>第二段正文包含 <a href="/source">来源链接</a>，并且继续补充与主题相关的背景、过程和结论信息。</p>
-      <p>第三段正文描述了实际发生的变化，读者可以根据这些细节理解文章的主要观点以及其中的证据。</p>
-      <p>第四段正文继续说明限制条件和适用范围，避免把页面上的辅助信息误认为文章本身。</p>
+      <h1>Artikel Uji</h1>
+      <p>Ini adalah isi utama yang seharusnya diekstraksi. Isi artikel harus cukup panjang agar pengekstrak isi dapat membedakan area konten dari navigasi halaman.</p>
+      <p>Paragraf kedua memuat <a href="/source">tautan sumber</a>, dan terus melengkapi informasi latar, proses, serta kesimpulan yang berkaitan dengan topik utama.</p>
+      <p>Paragraf ketiga menguraikan perubahan yang benar-benar terjadi, sehingga pembaca dapat memahami gagasan utama artikel beserta bukti yang menyertainya.</p>
+      <p>Paragraf keempat melanjutkan penjelasan mengenai batasan dan cakupan penerapan, agar informasi pendukung di halaman tidak dianggap sebagai isi artikel itu sendiri.</p>
     </article>
-    <footer>页脚噪声</footer>
+    <footer>Derau footer</footer>
   </body>
 </html>
 """
@@ -124,9 +124,9 @@ async def test_fetches_html_and_extracts_markdown(monkeypatch: pytest.MonkeyPatc
     assert route.called
     assert result["url"] == "https://example.com/article"
     assert result["final_url"] == "https://example.com/article"
-    assert result["title"] == "测试文章"
-    assert "应该被提取的正文内容" in result["content"]
-    assert "导航噪声" not in result["content"]
+    assert result["title"] == "Artikel Uji"
+    assert "seharusnya diekstraksi" in result["content"]
+    assert "Derau navigasi" not in result["content"]
     assert result["truncated"] is False
     assert result["next_start_index"] is None
 
@@ -316,10 +316,10 @@ def test_uses_recall_only_when_main_list_content_is_missing(
 
     def fake_extract_with_metadata(_html: str, *, favor_recall: bool, **_kwargs: object):
         calls.append(favor_recall)
-        content = "正文" if not favor_recall else "正文\n\n- 关键文档列表项内容"
+        content = "Isi utama" if not favor_recall else "Isi utama\n\n- Isi butir daftar dokumen penting"
         return SimpleNamespace(
             text=content,
-            title="测试页面",
+            title="Halaman Uji",
             author=None,
             date=None,
             sitename=None,
@@ -329,13 +329,13 @@ def test_uses_recall_only_when_main_list_content_is_missing(
     monkeypatch.setattr(service, "extract_with_metadata", fake_extract_with_metadata)
 
     result = service.extract_html(
-        "<article><div data-cds=\"Skeleton\">Loading</div><p>正文</p>"
-        "<ul><li>关键文档列表项内容</li></ul></article>",
+        "<article><div data-cds=\"Skeleton\">Loading</div><p>Isi utama</p>"
+        "<ul><li>Isi butir daftar dokumen penting</li></ul></article>",
         "https://example.com/article",
     )
 
     assert calls == [False, True]
-    assert "关键文档列表项内容" in result.markdown
+    assert "Isi butir daftar dokumen penting" in result.markdown
 
 
 def test_does_not_use_recall_for_regular_page_without_skeleton(
@@ -346,8 +346,8 @@ def test_does_not_use_recall_for_regular_page_without_skeleton(
     def fake_extract_with_metadata(_html: str, *, favor_recall: bool, **_kwargs: object):
         calls.append(favor_recall)
         return SimpleNamespace(
-            text="正文",
-            title="测试页面",
+            text="Isi utama",
+            title="Halaman Uji",
             author=None,
             date=None,
             sitename=None,
@@ -357,7 +357,7 @@ def test_does_not_use_recall_for_regular_page_without_skeleton(
     monkeypatch.setattr(service, "extract_with_metadata", fake_extract_with_metadata)
 
     service.extract_html(
-        "<article><p>正文</p><ul><li>关键文档列表项内容</li></ul></article>",
+        "<article><p>Isi utama</p><ul><li>Isi butir daftar dokumen penting</li></ul></article>",
         "https://example.com/article",
     )
 
@@ -370,8 +370,8 @@ def test_does_not_rewrite_precision_markdown_spacing(
     def fake_extract_with_metadata(_html: str, *, favor_recall: bool, **_kwargs: object):
         assert favor_recall is False
         return SimpleNamespace(
-            text="正文[链接](https://example.com/link)后续",
-            title="测试页面",
+            text="Isi utama[tautan](https://example.com/link)lanjutan",
+            title="Halaman Uji",
             author=None,
             date=None,
             sitename=None,
@@ -381,11 +381,11 @@ def test_does_not_rewrite_precision_markdown_spacing(
     monkeypatch.setattr(service, "extract_with_metadata", fake_extract_with_metadata)
 
     result = service.extract_html(
-        "<article><p>正文</p></article>",
+        "<article><p>Isi utama</p></article>",
         "https://example.com/article",
     )
 
-    assert result.markdown == "正文[链接](https://example.com/link)后续"
+    assert result.markdown == "Isi utama[tautan](https://example.com/link)lanjutan"
 
 
 def test_separates_adjacent_inline_elements_in_document_lists() -> None:
