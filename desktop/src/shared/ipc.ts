@@ -1,8 +1,9 @@
-import type { DesktopConfig, DesktopInstance } from "./config.js";
+import type { DesktopConfig, DesktopInstance, DesktopInstanceAppearance } from "./config.js";
 
 export const IpcChannels = {
   getConfig: "config:get",
   saveConfig: "config:save",
+  saveInstanceAppearance: "instance:save-appearance",
   initializeApp: "app:initialize",
   cancelStartup: "app:cancel-startup",
   ensureInstanceSession: "app:ensure-instance-session",
@@ -69,6 +70,10 @@ export interface SetupProgressEvent {
 
 export interface SaveConfigRequest {
   config: DesktopConfig;
+}
+
+export interface SaveInstanceAppearanceRequest extends DesktopInstanceAppearance {
+  instanceId: string;
 }
 
 export interface SaveZoomFactorRequest {

@@ -39,6 +39,7 @@ import {
   observeThemeRoots,
   resolveThemeAppearance,
   resolveThemePalette,
+  resolveThemeVariables,
   transformThemeConfig,
   type ThemeConfig,
   type ThemeAppearance,
@@ -250,12 +251,12 @@ function Root() {
   const [lightThemePreset, setLightThemePreset] = useState<ThemePresetId>(DEFAULT_THEME_PRESET_ID);
   const [darkThemePreset, setDarkThemePreset] = useState<ThemePresetId>(DEFAULT_THEME_PRESET_ID);
   const [themeConfig, setThemeConfig] = useState<ThemeConfig>(DEFAULT_THEME_CONFIG);
-  const [settings, setSettings] = useState<Settings | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [requiresAuthentication, setRequiresAuthentication] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const latestThemeModeRef = useRef<ThemeMode>("light");
   const latestSystemAppearanceRef = useRef<ThemeAppearance>(getSystemThemeAppearance());
+  const hasLoadedPreferencesRef = useRef(false);
   const themeSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const themePreviewFrameRef = useRef<number | null>(null);
 
@@ -293,6 +294,7 @@ function Root() {
       );
       const legacyPreset = normalizeThemePreset(next.themePreset, nextAppearance);
       latestThemeModeRef.current = nextThemeMode;
+      hasLoadedPreferencesRef.current = true;
       setThemeMode(nextThemeMode);
       setAppearance(nextAppearance);
       setLightThemePreset(normalizeThemePreset(next.lightThemePreset ?? legacyPreset, "light"));
@@ -313,6 +315,13 @@ function Root() {
       const activeThemePreset =
         nextAppearance === "dark" ? next.darkThemePreset : next.lightThemePreset;
       const palette = resolveThemePalette(activeThemePreset, next.themeConfig, nextAppearance);
+      const themeVariables = resolveThemeVariables(palette, nextAppearance, activeThemePreset);
+
+      publishDesktopAppearance({
+        appearance: nextAppearance,
+        themeVariables,
+        persist: false,
+      });
 
       themePreviewFrameRef.current = window.requestAnimationFrame(() => {
         themePreviewFrameRef.current = null;
@@ -443,7 +452,6 @@ function Root() {
 
         if (mounted) {
           setRequiresAuthentication(false);
-          setSettings(settings);
           applyThemeSettings(settings);
           setIsReady(true);
         }
@@ -470,20 +478,16 @@ function Root() {
 
   useEffect(() => {
     const activeThemePreset = appearance === "dark" ? darkThemePreset : lightThemePreset;
-    applyThemePalette(
-      resolveThemePalette(activeThemePreset, themeConfig, appearance),
-      appearance,
-      activeThemePreset,
-    );
-  }, [appearance, darkThemePreset, lightThemePreset, themeConfig]);
-
-  useEffect(() => {
+    const palette = resolveThemePalette(activeThemePreset, themeConfig, appearance);
+    const themeVariables = resolveThemeVariables(palette, appearance, activeThemePreset);
+    applyThemePalette(palette, appearance, activeThemePreset);
+    if (!hasLoadedPreferencesRef.current) return;
     publishDesktopAppearance({
       appearance,
-      fontFamily: settings?.fontFamily,
-      codeFontFamily: settings?.codeFontFamily,
+      themeVariables,
+      persist: true,
     });
-  }, [appearance, settings?.fontFamily, settings?.codeFontFamily]);
+  }, [appearance, darkThemePreset, lightThemePreset, themeConfig]);
 
   useEffect(() => {
     const publishLanguage = (language: string) => {

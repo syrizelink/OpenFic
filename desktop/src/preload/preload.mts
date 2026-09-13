@@ -25,6 +25,7 @@ import {
   type ReportErrorPayload,
   type RestoreDataRequest,
   type SaveConfigRequest,
+  type SaveInstanceAppearanceRequest,
   type SaveZoomFactorRequest,
   type SetupProgressEvent,
   type StartupProgressEvent,
@@ -78,6 +79,8 @@ const desktopApi = {
   getConfig: (): Promise<DesktopConfig | null> => ipcRenderer.invoke(IpcChannels.getConfig),
   saveConfig: (config: DesktopConfig): Promise<void> =>
     ipcRenderer.invoke(IpcChannels.saveConfig, { config } satisfies SaveConfigRequest),
+  saveInstanceAppearance: (request: SaveInstanceAppearanceRequest): Promise<void> =>
+    ipcRenderer.invoke(IpcChannels.saveInstanceAppearance, request),
   initializeApp: (): Promise<InitializeAppResult> => ipcRenderer.invoke(IpcChannels.initializeApp),
   cancelStartup: (): Promise<void> => ipcRenderer.invoke(IpcChannels.cancelStartup),
   ensureInstanceSession: (partition: string): Promise<void> =>

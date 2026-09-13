@@ -440,6 +440,14 @@ export function resolveThemePalette(
   return resolveThemeConfig(presetId, customConfig)[appearance];
 }
 
+export function resolveThemeVariables(
+  palette: ThemePalette,
+  appearance: ThemeAppearance,
+  presetId: ThemePresetId,
+): ThemeVariables {
+  return buildThemeVariables(palette, appearance, presetId);
+}
+
 function createThemeExportPalette(
   themeSettings: ThemeSettings,
   appearance: ThemeAppearance,
@@ -901,7 +909,7 @@ export function applyThemePalette(
   activeTheme = { palette, appearance, presetId };
   if (typeof document === "undefined") return;
 
-  const variables = buildThemeVariables(palette, appearance, presetId);
+  const variables = resolveThemeVariables(palette, appearance, presetId);
   const elements = [
     document.documentElement,
     ...document.querySelectorAll<HTMLElement>(".radix-themes"),

@@ -7,17 +7,19 @@ import { DataManagementPage } from "./pages/data-management/page";
 import { FrontendPage, type FrontendWebviewElement } from "./pages/frontend/page";
 import { SetupPage } from "./pages/setup/page";
 import i18n, { isDesktopLanguage } from "./i18n";
-import type { DesktopConfig } from "../shared/config";
+import {
+  isDesktopInstanceAppearance,
+  type DesktopAppearance,
+  type DesktopConfig,
+  type DesktopInstanceAppearance,
+} from "../shared/config";
 import type { StartupProgressEvent, UpdateState } from "../shared/ipc";
 
 type ShellState = "booting" | "setup" | "frontend" | "data";
-type Appearance = "light" | "dark";
 type SetupInitialStep = "mode" | "remote" | "local-directory" | "local-success";
 
-interface DesktopAppearancePayload {
-  appearance?: Appearance;
-  fontFamily?: string;
-  codeFontFamily?: string;
+interface DesktopAppearancePayload extends DesktopInstanceAppearance {
+  persist?: boolean;
 }
 
 interface SocketDiagnosticPayload {
@@ -31,9 +33,10 @@ interface SocketDiagnosticPayload {
 }
 
 interface ShellAppearance {
-  appearance: Appearance;
-  fontFamily?: string;
-  codeFontFamily?: string;
+  appearance: DesktopAppearance;
+  fontFamily?: DesktopInstanceAppearance["fontFamily"];
+  codeFontFamily?: DesktopInstanceAppearance["codeFontFamily"];
+  themeVariables?: DesktopInstanceAppearance["themeVariables"];
 }
 
 interface WebviewIpcMessageEvent extends Event {
@@ -118,10 +121,19 @@ function isDesktopAppearancePayload(value: unknown): value is DesktopAppearanceP
   if (!value || typeof value !== "object") return false;
   const candidate = value as DesktopAppearancePayload;
   return (
-    (candidate.appearance === undefined || candidate.appearance === "light" || candidate.appearance === "dark") &&
-    (candidate.fontFamily === undefined || typeof candidate.fontFamily === "string") &&
-    (candidate.codeFontFamily === undefined || typeof candidate.codeFontFamily === "string")
+    isDesktopInstanceAppearance(candidate) &&
+    (candidate.persist === undefined || typeof candidate.persist === "boolean")
   );
+}
+
+function getShellAppearance(config: DesktopConfig | null, instanceId: string | null): ShellAppearance {
+  const instance = config?.instances.find((candidate) => candidate.id === instanceId);
+  return {
+    appearance: instance?.appearance ?? "light",
+    fontFamily: instance?.fontFamily,
+    codeFontFamily: instance?.codeFontFamily,
+    themeVariables: instance?.themeVariables,
+  };
 }
 
 function isSocketDiagnosticPayload(value: unknown): value is SocketDiagnosticPayload {
@@ -219,13 +231,24 @@ export function App() {
     const initialize = async () => {
       const requestId = ++startupRequestId.current;
       try {
-        const currentProgress = await window.openficDesktop.getStartupProgress();
-        if (!cancelled && requestId === startupRequestId.current) setStartupProgress(currentProgress);
+        const [currentProgress, initialConfig] = await Promise.all([
+          window.openficDesktop.getStartupProgress(),
+          window.openficDesktop.getConfig(),
+        ]);
+        if (!cancelled && requestId === startupRequestId.current) {
+          setStartupProgress(currentProgress);
+          const initialActiveInstanceId = initialConfig?.activeInstanceId ?? null;
+          setConfig(initialConfig);
+          setActiveInstanceId(initialActiveInstanceId);
+          setShellAppearance(getShellAppearance(initialConfig, initialActiveInstanceId));
+        }
         const result = await window.openficDesktop.initializeApp();
         const nextConfig = await window.openficDesktop.getConfig();
         if (cancelled || requestId !== startupRequestId.current) return;
         setConfig(nextConfig);
-        setActiveInstanceId(result.activeInstanceId ?? nextConfig?.activeInstanceId ?? null);
+        const nextActiveInstanceId = result.activeInstanceId ?? nextConfig?.activeInstanceId ?? null;
+        setActiveInstanceId(nextActiveInstanceId);
+        setShellAppearance(getShellAppearance(nextConfig, nextActiveInstanceId));
         setError(result.message ?? null);
         setCompatibilityWarning(result.compatibilityWarning ?? null);
         const maintenanceWarning = result.maintenanceWarning ?? null;
@@ -287,11 +310,32 @@ export function App() {
       const { channel, args } = event as WebviewIpcMessageEvent;
       const payload = args[0];
       if (channel === "openfic:appearance" && isDesktopAppearancePayload(payload)) {
+        const appearancePatch: DesktopInstanceAppearance = {
+          ...(payload.appearance === undefined ? {} : { appearance: payload.appearance }),
+          ...(payload.fontFamily === undefined ? {} : { fontFamily: payload.fontFamily }),
+          ...(payload.codeFontFamily === undefined ? {} : { codeFontFamily: payload.codeFontFamily }),
+          ...(payload.themeVariables === undefined ? {} : { themeVariables: payload.themeVariables }),
+        };
         setShellAppearance((current) => ({
           appearance: payload.appearance ?? current.appearance,
           fontFamily: payload.fontFamily ?? current.fontFamily,
           codeFontFamily: payload.codeFontFamily ?? current.codeFontFamily,
+          themeVariables: payload.themeVariables ?? current.themeVariables,
         }));
+        if (payload.persist !== false && activeInstanceId) {
+          setConfig((currentConfig) => {
+            if (!currentConfig) return currentConfig;
+            return {
+              ...currentConfig,
+              instances: currentConfig.instances.map((instance) =>
+                instance.id === activeInstanceId ? { ...instance, ...appearancePatch } : instance,
+              ),
+            };
+          });
+          void window.openficDesktop
+            .saveInstanceAppearance({ instanceId: activeInstanceId, ...appearancePatch })
+            .catch(() => undefined);
+        }
         return;
       }
       if (channel === "openfic:language" && isDesktopLanguage(payload)) {
@@ -324,7 +368,7 @@ export function App() {
       frontendWebview.removeEventListener("ipc-message", handleIpcMessage);
       frontendWebview.removeEventListener("did-finish-load", restoreZoomFactor);
     };
-  }, [frontendWebview]);
+  }, [activeInstanceId, frontendWebview]);
 
   useEffect(() => {
     if (!frontendWebview) {
@@ -384,8 +428,10 @@ export function App() {
 
   const refreshConfig = async () => {
     const nextConfig = await window.openficDesktop.getConfig();
+    const nextActiveInstanceId = nextConfig?.activeInstanceId ?? null;
     setConfig(nextConfig);
-    setActiveInstanceId(nextConfig?.activeInstanceId ?? null);
+    setActiveInstanceId(nextActiveInstanceId);
+    setShellAppearance(getShellAppearance(nextConfig, nextActiveInstanceId));
     return nextConfig;
   };
 
@@ -456,6 +502,8 @@ export function App() {
 
   const handleSwitchInstance = async (instanceId: string) => {
     const requestId = ++startupRequestId.current;
+    const previousShellAppearance = shellAppearance;
+    setShellAppearance(getShellAppearance(config, instanceId));
     setError(null);
     setCompatibilityWarning(null);
     setMaintenanceWarning(null);
@@ -466,7 +514,9 @@ export function App() {
       const result = await window.openficDesktop.switchInstance(instanceId);
       const nextConfig = await refreshConfig();
       if (requestId !== startupRequestId.current) return;
-      setActiveInstanceId(result.activeInstanceId ?? nextConfig?.activeInstanceId ?? instanceId);
+      const nextActiveInstanceId = result.activeInstanceId ?? nextConfig?.activeInstanceId ?? instanceId;
+      setActiveInstanceId(nextActiveInstanceId);
+      setShellAppearance(getShellAppearance(nextConfig, nextActiveInstanceId));
       setCompatibilityWarning(result.compatibilityWarning ?? null);
       if (result.maintenanceWarning) {
         setMaintenanceWarning(result.maintenanceWarning);
@@ -476,6 +526,7 @@ export function App() {
       setShellState(result.status === "ready" ? "frontend" : "setup");
     } catch (err) {
       if (requestId !== startupRequestId.current) return;
+      setShellAppearance(previousShellAppearance);
       setError(err instanceof Error ? err.message : i18n.t("desktop.app.switchInstanceFailed"));
       setShellState("setup");
     }
@@ -523,7 +574,9 @@ export function App() {
     setError(null);
     setMaintenanceWarning(null);
     setConfig(nextConfig);
-    setActiveInstanceId(nextConfig?.activeInstanceId ?? null);
+    const nextActiveInstanceId = nextConfig?.activeInstanceId ?? null;
+    setActiveInstanceId(nextActiveInstanceId);
+    setShellAppearance(getShellAppearance(nextConfig, nextActiveInstanceId));
     setStartupProgress(null);
     setSetupInitialStep("mode");
     setShellState("setup");
@@ -531,6 +584,7 @@ export function App() {
 
   const handleConnectRemote = async (url: string) => {
     const requestId = ++startupRequestId.current;
+    const previousShellAppearance = shellAppearance;
     const normalizedUrl = normalizeRemoteUrl(url);
     setError(null);
     setCompatibilityWarning(null);
@@ -553,6 +607,7 @@ export function App() {
         installDir: null,
         dataDir: null,
       };
+      setShellAppearance(getShellAppearance(previousConfig, instance.id));
       const nextConfig: DesktopConfig = {
         activeInstanceId: previousConfig?.activeInstanceId ?? null,
         instances: existingInstance
@@ -566,6 +621,7 @@ export function App() {
       await showFrontend(result, requestId);
     } catch (err) {
       if (requestId !== startupRequestId.current) return;
+      setShellAppearance(previousShellAppearance);
       setError(err instanceof Error ? err.message : i18n.t("desktop.app.connectRemoteFailed"));
       setSetupInitialStep("remote");
       setShellState("setup");
@@ -600,6 +656,7 @@ export function App() {
     await window.openficDesktop.saveConfig(nextConfig);
     setConfig(nextConfig);
     setActiveInstanceId(nextConfig.activeInstanceId);
+    setShellAppearance(getShellAppearance(nextConfig, nextConfig.activeInstanceId));
   };
 
   useEffect(() => {
@@ -653,6 +710,7 @@ export function App() {
 
   const shellClassName = `desktop-shell radix-themes${shellAppearance.appearance === "dark" ? " dark" : ""}`;
   const shellStyle = {
+    ...(shellAppearance.themeVariables ?? {}),
     ...(shellAppearance.fontFamily
       ? {
           fontFamily: shellAppearance.fontFamily,

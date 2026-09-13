@@ -1,10 +1,12 @@
 import type { LanguageCode } from "@/i18n";
-import type { ThemeAppearance } from "@/lib/theme";
+import type { ThemeAppearance, ThemeVariables } from "@/lib/theme";
 
 export interface DesktopAppearancePayload {
   appearance?: ThemeAppearance;
   fontFamily?: string;
   codeFontFamily?: string;
+  themeVariables?: ThemeVariables;
+  persist?: boolean;
 }
 
 export interface SocketDiagnosticPayload {

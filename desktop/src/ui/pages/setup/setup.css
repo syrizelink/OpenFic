@@ -208,7 +208,7 @@
 }
 
 .setup-configured-instance-delete:hover {
-  color: var(--red-11, #b91c1c);
+  color: var(--red-11);
 }
 
 .setup-configured-instance-copy span {
@@ -238,7 +238,7 @@
   padding: 20px;
   border: 1px solid var(--gray-a5);
   border-radius: 14px;
-  background: var(--color-surface);
+  background: var(--color-panel-solid);
   color: var(--gray-12);
   cursor: pointer;
   transition:
@@ -417,7 +417,7 @@
 
 .setup-alert-warning {
   background: var(--amber-a3);
-  color: var(--amber-11, #b45309);
+  color: var(--amber-11);
   border: 1px solid var(--amber-a5);
 }
 
@@ -426,7 +426,7 @@
   overflow-y: auto;
   align-items: flex-start;
   background: var(--red-a3);
-  color: var(--red-11, #b91c1c);
+  color: var(--red-11);
   border: 1px solid var(--red-a5);
 }
 
@@ -437,7 +437,7 @@
 
 .setup-alert-success {
   background: var(--green-a3);
-  color: var(--green-11, #15803d);
+  color: var(--green-11);
   border: 1px solid var(--green-a5);
 }
 
@@ -517,17 +517,17 @@
 }
 
 .setup-step[data-failed="true"] .setup-step-marker {
-  border-color: var(--red-9, #dc2626);
+  border-color: var(--red-9);
   background: var(--red-a3);
-  color: var(--red-11, #b91c1c);
+  color: var(--red-11);
 }
 
 .setup-step[data-failed="true"] .setup-step-title {
-  color: var(--red-11, #b91c1c);
+  color: var(--red-11);
 }
 
 .setup-step[data-failed="true"] .setup-step-detail {
-  color: var(--red-11, #b91c1c);
+  color: var(--red-11);
 }
 
 .setup-step-spinner {
@@ -611,7 +611,7 @@
   height: 64px;
   border-radius: 999px;
   background: var(--green-a3);
-  color: var(--green-11, #15803d);
+  color: var(--green-11);
 }
 
 .setup-success-title {
