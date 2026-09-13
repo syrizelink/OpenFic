@@ -103,7 +103,7 @@ DEFAULT_SETTINGS = {
     SETTING_KEY_THEME_PRESET: "classic",
     SETTING_KEY_LIGHT_THEME_PRESET: "classic",
     SETTING_KEY_DARK_THEME_PRESET: "classic",
-    SETTING_KEY_THEME_CONFIG: ThemeConfig().model_dump_json(),
+    SETTING_KEY_THEME_CONFIG: ThemeConfig().model_dump_json(exclude_none=True),
     SETTING_KEY_FONT_FAMILY: "system-ui",
     SETTING_KEY_CODE_FONT_FAMILY: "ui-monospace",
     SETTING_KEY_BASE_FONT_SIZE: "14",
@@ -256,6 +256,7 @@ def _parse_int_setting(raw_value: str | None, *, default: int) -> int:
 @router.get(
     "",
     response_model=SettingsResponse,
+    response_model_exclude_none=True,
     summary="获取设置",
 )
 async def get_settings(
@@ -433,12 +434,14 @@ code_font_family=settings_dict.get(
 @router.put(
     "",
     response_model=SettingsResponse,
+    response_model_exclude_none=True,
     status_code=status.HTTP_200_OK,
     summary="更新设置",
 )
 @router.patch(
     "",
     response_model=SettingsResponse,
+    response_model_exclude_none=True,
     status_code=status.HTTP_200_OK,
     summary="更新设置",
 )
@@ -494,7 +497,9 @@ async def update_settings(
     if request.dark_theme_preset is not None:
         settings_to_update[SETTING_KEY_DARK_THEME_PRESET] = request.dark_theme_preset
     if request.theme_config is not None:
-        settings_to_update[SETTING_KEY_THEME_CONFIG] = request.theme_config.model_dump_json()
+        settings_to_update[SETTING_KEY_THEME_CONFIG] = request.theme_config.model_dump_json(
+            exclude_none=True
+        )
     if request.font_family is not None:
         settings_to_update[SETTING_KEY_FONT_FAMILY] = request.font_family
     if request.code_font_family is not None:

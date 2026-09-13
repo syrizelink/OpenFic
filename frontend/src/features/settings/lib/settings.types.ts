@@ -5,13 +5,12 @@
  */
 
 import type { IndexAutoStrategy, IndexMode } from "@/lib/index-status";
-import type { ThemeConfig, ThemeConfigResponse, ThemePresetId } from "@/lib/theme";
+import type { ThemeConfig, ThemeConfigResponse, ThemeMode, ThemePresetId } from "@/lib/theme";
+
+export type { ThemeMode } from "@/lib/theme";
 
 /** 支持的语言代码 */
 export type LanguageCode = "zh-CN" | "en";
-
-/** 支持的主题 */
-export type ThemeMode = "light" | "dark";
 
 export type AgentToolPermissionMode = "allow" | "ask" | "deny";
 

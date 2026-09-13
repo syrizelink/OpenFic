@@ -18,6 +18,7 @@ import {
   removeRecentProjectByProjectId,
 } from "@/lib/local-db";
 import type { RecentProject } from "@/lib/recent-projects";
+import type { ThemeMode } from "@/lib/theme";
 
 import { useAppShell } from "./app-shell-context";
 import {
@@ -35,10 +36,11 @@ const MotionFlex = motion.create(Flex);
 
 interface AppSidebarProps {
   appearance: "light" | "dark";
+  themeMode: ThemeMode;
   onToggleTheme: () => void;
 }
 
-export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
+export function AppSidebar({ appearance, themeMode, onToggleTheme }: AppSidebarProps) {
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -61,6 +63,7 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
   const [shouldAnimateTheme, setShouldAnimateTheme] = useState(false);
   const logoPointerInsideRef = useRef(false);
   const prevAppearanceRef = useRef(appearance);
+  const prevThemeModeRef = useRef(themeMode);
   const prevPathnameRef = useRef(location.pathname);
   const lastOpenedProjectIdRef = useRef<string | null>(null);
 
@@ -86,14 +89,18 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
   }, [closeSidebar, isMobile, isSidebarOpen, location.pathname]);
 
   useEffect(() => {
-    if (prevAppearanceRef.current !== appearance && shouldAnimateTheme) {
+    if (
+      (prevAppearanceRef.current !== appearance || prevThemeModeRef.current !== themeMode) &&
+      shouldAnimateTheme
+    ) {
       const timer = setTimeout(() => {
         setShouldAnimateTheme(false);
       }, 300);
       return () => clearTimeout(timer);
     }
     prevAppearanceRef.current = appearance;
-  }, [appearance, shouldAnimateTheme]);
+    prevThemeModeRef.current = themeMode;
+  }, [appearance, shouldAnimateTheme, themeMode]);
 
   const { data: currentProject, error: currentProjectError } = useQuery({
     queryKey: ["project", projectId],
@@ -380,13 +387,18 @@ export function AppSidebar({ appearance, onToggleTheme }: AppSidebarProps) {
             >
               <SidebarActions
                 appearance={appearance}
+                themeMode={themeMode}
                 isExpanded={isMobile || isExpanded}
                 shouldAnimateTheme={shouldAnimateTheme}
                 languageLabel={t("topbar.language")}
                 settingsLabel={t("topbar.settings")}
                 toggleThemeLabel={t("topbar.toggleTheme")}
                 themeTooltip={
-                  appearance === "light" ? t("topbar.toggleDarkMode") : t("topbar.toggleLightMode")
+                  themeMode === "system"
+                    ? t("topbar.toggleLightMode")
+                    : themeMode === "light"
+                      ? t("topbar.toggleDarkMode")
+                      : t("topbar.toggleSystemMode")
                 }
                 languages={supportedLanguages.map((lang) => ({
                   code: lang.code,

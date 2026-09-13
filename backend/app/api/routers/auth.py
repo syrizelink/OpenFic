@@ -52,7 +52,11 @@ async def auth_status(
     )
 
 
-@router.get("/preferences", response_model=PublicPreferencesResponse)
+@router.get(
+    "/preferences",
+    response_model=PublicPreferencesResponse,
+    response_model_exclude_none=True,
+)
 async def public_preferences(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> PublicPreferencesResponse:

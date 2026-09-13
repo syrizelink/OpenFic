@@ -6,6 +6,7 @@ import {
   FileText,
   Globe,
   MessagesSquare,
+  Palette,
   Package,
   Settings as SettingsIcon,
   ShieldAlert,
@@ -16,6 +17,7 @@ import type { ReactNode } from "react";
 
 export type SettingsCategory =
   | "general"
+  | "personalization"
   | "editor"
   | "connections"
   | "models"
@@ -39,6 +41,11 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     id: "general",
     icon: <SettingsIcon size={16} />,
     labelKey: "settings.general",
+  },
+  {
+    id: "personalization",
+    icon: <Palette size={16} />,
+    labelKey: "settings.personalization",
   },
   {
     id: "editor",

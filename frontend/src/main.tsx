@@ -5,7 +5,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import { BrowserRouter, Routes, Route } from "react-router";
 
 import App from "./App.tsx";
-import { AppCrashFallback, GlobalLoading } from "./components";
+import { AppCrashFallback, GlobalLoading, toast } from "./components";
 import { Toaster } from "./components/toaster";
 import { AppLayout } from "./features/app-shell";
 import { AuthPage } from "./features/auth";
@@ -34,11 +34,15 @@ import {
   applyThemePalette,
   DEFAULT_THEME_CONFIG,
   DEFAULT_THEME_PRESET_ID,
+  normalizeThemeMode,
   normalizeThemePreset,
   observeThemeRoots,
+  resolveThemeAppearance,
   resolveThemePalette,
   transformThemeConfig,
   type ThemeConfig,
+  type ThemeAppearance,
+  type ThemeMode,
   type ThemePresetId,
   type ThemeSettings,
 } from "./lib/theme";
@@ -75,6 +79,12 @@ const queryClient = new QueryClient({
 const FRONTEND_VERSION = __OPENFIC_FRONTEND_VERSION__;
 const INITIALIZATION_TIMEOUT_MS = 30_000;
 const THEME_SYNC_DEBOUNCE_MS = 400;
+const SYSTEM_THEME_MEDIA_QUERY = "(prefers-color-scheme: dark)";
+const THEME_MODE_CYCLE: readonly ThemeMode[] = ["system", "light", "dark"];
+
+function getSystemThemeAppearance(): ThemeAppearance {
+  return window.matchMedia(SYSTEM_THEME_MEDIA_QUERY).matches ? "dark" : "light";
+}
 
 type InitializationStage = "preferences" | "auth" | "health" | "settings" | "tiktoken" | "socket";
 
@@ -170,14 +180,16 @@ const DashboardPage = lazy(() =>
 function AppContent({
   appearance,
   version,
-  setAppearance,
+  themeMode,
+  setThemeMode,
   setThemeSettings,
   previewThemeSettings,
   toggleTheme,
 }: {
   appearance: "light" | "dark";
   version: string;
-  setAppearance: (appearance: "light" | "dark") => void;
+  themeMode: ThemeMode;
+  setThemeMode: (themeMode: ThemeMode) => void;
   setThemeSettings: (settings: ThemeSettings) => void;
   previewThemeSettings: (settings: ThemeSettings) => void;
   toggleTheme: () => void;
@@ -190,7 +202,8 @@ function AppContent({
             <AppLayout
               appearance={appearance}
               version={version}
-              onAppearanceChange={setAppearance}
+              themeMode={themeMode}
+              onThemeModeChange={setThemeMode}
               onThemeSettingsChange={setThemeSettings}
               onThemePreviewChange={previewThemeSettings}
               onToggleTheme={toggleTheme}
@@ -232,7 +245,8 @@ function AppContent({
 }
 
 function Root() {
-  const [appearance, setAppearance] = useState<"light" | "dark">("light");
+  const [appearance, setAppearance] = useState<ThemeAppearance>(getSystemThemeAppearance);
+  const [themeMode, setThemeMode] = useState<ThemeMode>("light");
   const [lightThemePreset, setLightThemePreset] = useState<ThemePresetId>(DEFAULT_THEME_PRESET_ID);
   const [darkThemePreset, setDarkThemePreset] = useState<ThemePresetId>(DEFAULT_THEME_PRESET_ID);
   const [themeConfig, setThemeConfig] = useState<ThemeConfig>(DEFAULT_THEME_CONFIG);
@@ -240,8 +254,8 @@ function Root() {
   const [isReady, setIsReady] = useState(false);
   const [requiresAuthentication, setRequiresAuthentication] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // 防抖触发时读取最新外观,保证连点或设置对话框在窗口期内改值后不会发送过期主题。
-  const latestAppearanceRef = useRef<"light" | "dark">("light");
+  const latestThemeModeRef = useRef<ThemeMode>("light");
+  const latestSystemAppearanceRef = useRef<ThemeAppearance>(getSystemThemeAppearance());
   const themeSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const themePreviewFrameRef = useRef<number | null>(null);
 
@@ -251,11 +265,14 @@ function Root() {
     themePreviewFrameRef.current = null;
   }, []);
 
-  const applyAppearance = useCallback(
-    (next: "light" | "dark") => {
+  const applyThemeMode = useCallback(
+    (next: ThemeMode, resolvedAppearance?: ThemeAppearance) => {
       cancelThemePreview();
-      latestAppearanceRef.current = next;
-      setAppearance(next);
+      const nextAppearance =
+        resolvedAppearance ?? resolveThemeAppearance(next, latestSystemAppearanceRef.current);
+      latestThemeModeRef.current = next;
+      setThemeMode(next);
+      setAppearance(nextAppearance);
     },
     [cancelThemePreview],
   );
@@ -269,9 +286,14 @@ function Root() {
       themeConfig?: ThemeConfig;
     }) => {
       cancelThemePreview();
-      const nextAppearance = next.theme === "dark" ? "dark" : "light";
+      const nextThemeMode = normalizeThemeMode(next.theme);
+      const nextAppearance = resolveThemeAppearance(
+        nextThemeMode,
+        latestSystemAppearanceRef.current,
+      );
       const legacyPreset = normalizeThemePreset(next.themePreset, nextAppearance);
-      latestAppearanceRef.current = nextAppearance;
+      latestThemeModeRef.current = nextThemeMode;
+      setThemeMode(nextThemeMode);
       setAppearance(nextAppearance);
       setLightThemePreset(normalizeThemePreset(next.lightThemePreset ?? legacyPreset, "light"));
       setDarkThemePreset(normalizeThemePreset(next.darkThemePreset ?? legacyPreset, "dark"));
@@ -283,7 +305,11 @@ function Root() {
   const previewThemeSettings = useCallback(
     (next: ThemeSettings) => {
       cancelThemePreview();
-      const nextAppearance = next.theme === "dark" ? "dark" : "light";
+      const nextThemeMode = normalizeThemeMode(next.theme);
+      const nextAppearance = resolveThemeAppearance(
+        nextThemeMode,
+        latestSystemAppearanceRef.current,
+      );
       const activeThemePreset =
         nextAppearance === "dark" ? next.darkThemePreset : next.lightThemePreset;
       const palette = resolveThemePalette(activeThemePreset, next.themeConfig, nextAppearance);
@@ -296,28 +322,31 @@ function Root() {
     [cancelThemePreview],
   );
 
-  const persistAppearance = useCallback(async () => {
+  const persistThemeMode = useCallback(async () => {
     try {
-      const savedSettings = await updateSettings({ theme: latestAppearanceRef.current });
+      const savedSettings = await updateSettings({ theme: latestThemeModeRef.current });
       queryClient.setQueryData<Settings>(["settings"], savedSettings);
+      toast.success(i18n.t("settings.saved"));
     } catch (error) {
       // 持久化失败只影响下次启动,不回滚当前外观;之后任意设置保存会自动带上最新主题修正。
       console.warn("Failed to persist theme preference:", error);
     }
   }, []);
 
-  const scheduleAppearanceSync = useCallback(() => {
+  const scheduleThemeModeSync = useCallback(() => {
     if (themeSyncTimerRef.current) clearTimeout(themeSyncTimerRef.current);
     themeSyncTimerRef.current = setTimeout(() => {
       themeSyncTimerRef.current = null;
-      void persistAppearance();
+      void persistThemeMode();
     }, THEME_SYNC_DEBOUNCE_MS);
-  }, [persistAppearance]);
+  }, [persistThemeMode]);
 
   const toggleTheme = useCallback(() => {
-    applyAppearance(latestAppearanceRef.current === "light" ? "dark" : "light");
-    scheduleAppearanceSync();
-  }, [applyAppearance, scheduleAppearanceSync]);
+    const currentIndex = THEME_MODE_CYCLE.indexOf(latestThemeModeRef.current);
+    const nextMode = THEME_MODE_CYCLE[(currentIndex + 1) % THEME_MODE_CYCLE.length];
+    applyThemeMode(nextMode);
+    scheduleThemeModeSync();
+  }, [applyThemeMode, scheduleThemeModeSync]);
 
   useEffect(
     () => () => {
@@ -326,6 +355,21 @@ function Root() {
     },
     [cancelThemePreview],
   );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(SYSTEM_THEME_MEDIA_QUERY);
+    const handleSystemThemeChange = (event: MediaQueryListEvent) => {
+      const nextSystemAppearance: ThemeAppearance = event.matches ? "dark" : "light";
+      latestSystemAppearanceRef.current = nextSystemAppearance;
+      if (latestThemeModeRef.current === "system") {
+        applyThemeMode("system", nextSystemAppearance);
+      }
+    };
+
+    latestSystemAppearanceRef.current = mediaQuery.matches ? "dark" : "light";
+    mediaQuery.addEventListener("change", handleSystemThemeChange);
+    return () => mediaQuery.removeEventListener("change", handleSystemThemeChange);
+  }, [applyThemeMode]);
 
   useEffect(() => observeThemeRoots(), []);
 
@@ -477,7 +521,8 @@ function Root() {
                 <AppContent
                   appearance={appearance}
                   version={FRONTEND_VERSION}
-                  setAppearance={applyAppearance}
+                  themeMode={themeMode}
+                  setThemeMode={applyThemeMode}
                   setThemeSettings={applyThemeSettings}
                   previewThemeSettings={previewThemeSettings}
                   toggleTheme={toggleTheme}

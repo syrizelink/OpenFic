@@ -1,9 +1,19 @@
+import Color from "colorjs.io";
+
 import { generateRadixColors } from "./radix-color-generator";
+
+export type ThemeMode = "light" | "dark" | "system";
+export type ThemeAppearance = Exclude<ThemeMode, "system">;
+
+export interface ThemeVariables {
+  [name: string]: string;
+}
 
 export interface ThemePalette {
   accent: string;
   gray: string;
   background: string;
+  variables?: ThemeVariables;
 }
 
 export interface ThemeConfig {
@@ -15,6 +25,7 @@ export interface ThemePaletteResponse {
   accent?: string;
   gray?: string;
   background?: string;
+  variables?: ThemeVariables;
 }
 
 export interface ThemeConfigResponse {
@@ -23,11 +34,25 @@ export interface ThemeConfigResponse {
 }
 
 export interface ThemeSettings {
-  theme: ThemeAppearance;
+  theme: ThemeMode;
   themePreset: ThemePresetId;
   lightThemePreset: ThemePresetId;
   darkThemePreset: ThemePresetId;
   themeConfig: ThemeConfig;
+}
+
+export interface ThemeExportPalette {
+  accent: string;
+  gray: string;
+  background: string;
+  variables: ThemeVariables;
+}
+
+export interface ThemeExport {
+  format: typeof THEME_EXPORT_FORMAT;
+  version: typeof THEME_EXPORT_VERSION;
+  light: ThemeExportPalette;
+  dark: ThemeExportPalette;
 }
 
 export interface ThemePreset {
@@ -42,6 +67,10 @@ export interface ThemePreset {
 
 export const DEFAULT_THEME_PRESET_ID = "classic" as const;
 export const CUSTOM_THEME_PRESET_ID = "custom" as const;
+export const THEME_EXPORT_FORMAT = "openfic-theme" as const;
+export const THEME_EXPORT_VERSION = 1 as const;
+const THEME_EXPORT_KEYS = ["format", "version", "light", "dark"] as const;
+const THEME_EXPORT_PALETTE_KEYS = ["accent", "gray", "background", "variables"] as const;
 
 const CLASSIC_LIGHT_PALETTE: ThemePalette = {
   accent: "#000000",
@@ -97,6 +126,72 @@ const MONOKAI_DARK_PALETTE: ThemePalette = {
   background: "#272822",
 };
 
+const ONE_LIGHT_PALETTE: ThemePalette = {
+  accent: "#4078f2",
+  gray: "#a0a1a7",
+  background: "#fafafa",
+};
+
+const ONE_DARK_PALETTE: ThemePalette = {
+  accent: "#61afef",
+  gray: "#5c6370",
+  background: "#282c34",
+};
+
+const DRACULA_LIGHT_PALETTE: ThemePalette = {
+  accent: "#644ac9",
+  gray: "#6c664b",
+  background: "#fffbeb",
+};
+
+const DRACULA_DARK_PALETTE: ThemePalette = {
+  accent: "#bd93f9",
+  gray: "#6272a4",
+  background: "#282a36",
+};
+
+const GRUVBOX_LIGHT_PALETTE: ThemePalette = {
+  accent: "#b57614",
+  gray: "#7c6f64",
+  background: "#fbf1c7",
+};
+
+const GRUVBOX_DARK_PALETTE: ThemePalette = {
+  accent: "#fabd2f",
+  gray: "#928374",
+  background: "#282828",
+};
+
+const GITHUB_LIGHT_PALETTE: ThemePalette = {
+  accent: "#0969da",
+  gray: "#656d76",
+  background: "#ffffff",
+};
+
+const GITHUB_DARK_PALETTE: ThemePalette = {
+  accent: "#58a6ff",
+  gray: "#8b949e",
+  background: "#0d1117",
+};
+
+const EVERFOREST_LIGHT_PALETTE: ThemePalette = {
+  accent: "#8da101",
+  gray: "#939f91",
+  background: "#fdf6e3",
+};
+
+const EVERFOREST_DARK_PALETTE: ThemePalette = {
+  accent: "#a7c080",
+  gray: "#859289",
+  background: "#2d353b",
+};
+
+const ROSE_PINE_PALETTE: ThemePalette = {
+  accent: "#907aa9",
+  gray: "#9893a5",
+  background: "#faf4ed",
+};
+
 export const DEFAULT_THEME_CONFIG: ThemeConfig = {
   light: CLASSIC_LIGHT_PALETTE,
   dark: CLASSIC_DARK_PALETTE,
@@ -110,6 +205,59 @@ export const THEME_PRESETS = [
     availableAppearances: ["light", "dark"],
     labelKeyByAppearance: { dark: "settings.themePresetClassicDark" },
     light: CLASSIC_LIGHT_PALETTE,
+    dark: CLASSIC_DARK_PALETTE,
+  },
+  {
+    id: "one-dark",
+    labelKey: "settings.themePresetOneDark",
+    defaultAppearance: "dark",
+    availableAppearances: ["light", "dark"],
+    labelKeyByAppearance: { light: "settings.themePresetOneLight" },
+    light: ONE_LIGHT_PALETTE,
+    dark: ONE_DARK_PALETTE,
+  },
+  {
+    id: "dracula",
+    labelKey: "settings.themePresetDracula",
+    defaultAppearance: "dark",
+    availableAppearances: ["light", "dark"],
+    labelKeyByAppearance: { light: "settings.themePresetAlucard" },
+    light: DRACULA_LIGHT_PALETTE,
+    dark: DRACULA_DARK_PALETTE,
+  },
+  {
+    id: "gruvbox",
+    labelKey: "settings.themePresetGruvboxDark",
+    defaultAppearance: "dark",
+    availableAppearances: ["light", "dark"],
+    labelKeyByAppearance: { light: "settings.themePresetGruvboxLight" },
+    light: GRUVBOX_LIGHT_PALETTE,
+    dark: GRUVBOX_DARK_PALETTE,
+  },
+  {
+    id: "github",
+    labelKey: "settings.themePresetGitHubLight",
+    defaultAppearance: "light",
+    availableAppearances: ["light", "dark"],
+    labelKeyByAppearance: { dark: "settings.themePresetGitHubDark" },
+    light: GITHUB_LIGHT_PALETTE,
+    dark: GITHUB_DARK_PALETTE,
+  },
+  {
+    id: "everforest",
+    labelKey: "settings.themePresetEverforestDark",
+    defaultAppearance: "dark",
+    availableAppearances: ["light", "dark"],
+    labelKeyByAppearance: { light: "settings.themePresetEverforestLight" },
+    light: EVERFOREST_LIGHT_PALETTE,
+    dark: EVERFOREST_DARK_PALETTE,
+  },
+  {
+    id: "rose-pine",
+    labelKey: "settings.themePresetRosePine",
+    defaultAppearance: "light",
+    availableAppearances: ["light"],
+    light: ROSE_PINE_PALETTE,
     dark: CLASSIC_DARK_PALETTE,
   },
   {
@@ -159,7 +307,6 @@ export const CUSTOM_THEME_PRESET = {
 } as const satisfies ThemePreset;
 
 export type ThemePresetId = (typeof THEME_PRESETS)[number]["id"] | typeof CUSTOM_THEME_PRESET_ID;
-export type ThemeAppearance = "light" | "dark";
 
 type ThemePaletteInput = Partial<Record<keyof ThemePalette, unknown>>;
 
@@ -175,10 +322,13 @@ export function normalizeThemePalette(
   palette: ThemePaletteInput | null | undefined,
   fallback: ThemePalette = CLASSIC_LIGHT_PALETTE,
 ): ThemePalette {
+  const variables = normalizeThemeVariables(palette?.variables);
+
   return {
     accent: normalizeColor(palette?.accent, fallback.accent),
     gray: normalizeColor(palette?.gray, fallback.gray),
     background: normalizeColor(palette?.background, fallback.background),
+    ...(variables ? { variables } : {}),
   };
 }
 
@@ -191,6 +341,7 @@ function transformThemePalette(
       accent: palette?.accent,
       gray: palette?.gray,
       background: palette?.background,
+      variables: palette?.variables,
     },
     fallback,
   );
@@ -208,6 +359,7 @@ function serializeThemePalette(palette: ThemePalette): ThemePaletteResponse {
     accent: palette.accent,
     gray: palette.gray,
     background: palette.background,
+    ...(palette.variables ? { variables: palette.variables } : {}),
   };
 }
 
@@ -229,6 +381,18 @@ export function normalizeThemePreset(
     return DEFAULT_THEME_PRESET_ID;
   }
   return preset.id as ThemePresetId;
+}
+
+export function normalizeThemeMode(mode: string | null | undefined): ThemeMode {
+  if (mode === "dark" || mode === "system") return mode;
+  return "light";
+}
+
+export function resolveThemeAppearance(
+  mode: ThemeMode,
+  systemAppearance: ThemeAppearance,
+): ThemeAppearance {
+  return mode === "system" ? systemAppearance : mode;
 }
 
 export function getThemePresetsForAppearance(appearance: ThemeAppearance): readonly ThemePreset[] {
@@ -254,7 +418,11 @@ export function resolveThemeConfig(
   customConfig: ThemeConfig | null | undefined,
 ): ThemeConfig {
   if (normalizeThemePreset(presetId) === CUSTOM_THEME_PRESET_ID) {
-    return transformThemeConfig(serializeThemeConfig(customConfig ?? DEFAULT_THEME_CONFIG));
+    const resolvedConfig = customConfig ?? DEFAULT_THEME_CONFIG;
+    return {
+      light: { ...resolvedConfig.light },
+      dark: { ...resolvedConfig.dark },
+    };
   }
 
   const preset = getThemePreset(presetId);
@@ -270,6 +438,58 @@ export function resolveThemePalette(
   appearance: ThemeAppearance,
 ): ThemePalette {
   return resolveThemeConfig(presetId, customConfig)[appearance];
+}
+
+function createThemeExportPalette(
+  themeSettings: ThemeSettings,
+  appearance: ThemeAppearance,
+  presetId: ThemePresetId,
+): ThemeExportPalette {
+  const palette = resolveThemePalette(presetId, themeSettings.themeConfig, appearance);
+
+  return {
+    accent: palette.accent,
+    gray: palette.gray,
+    background: palette.background,
+    variables: buildThemeVariables(palette, appearance, presetId),
+  };
+}
+
+export function createThemeExport(themeSettings: ThemeSettings): ThemeExport {
+  return {
+    format: THEME_EXPORT_FORMAT,
+    version: THEME_EXPORT_VERSION,
+    light: createThemeExportPalette(themeSettings, "light", themeSettings.lightThemePreset),
+    dark: createThemeExportPalette(themeSettings, "dark", themeSettings.darkThemePreset),
+  };
+}
+
+function parseThemeExportPalette(value: unknown): ThemeExportPalette | null {
+  if (!isRecord(value) || !hasExactKeys(value, THEME_EXPORT_PALETTE_KEYS)) return null;
+  if (!isHexColor(value.accent) || !isHexColor(value.gray) || !isHexColor(value.background)) {
+    return null;
+  }
+
+  const variables = normalizeThemeVariables(value.variables);
+  if (!variables) return null;
+
+  return {
+    accent: value.accent,
+    gray: value.gray,
+    background: value.background,
+    variables,
+  };
+}
+
+export function parseThemeExport(value: unknown): ThemeConfig | null {
+  if (!isRecord(value) || !hasExactKeys(value, THEME_EXPORT_KEYS)) return null;
+  if (value.format !== THEME_EXPORT_FORMAT || value.version !== THEME_EXPORT_VERSION) return null;
+
+  const light = parseThemeExportPalette(value.light);
+  const dark = parseThemeExportPalette(value.dark);
+  if (!light || !dark) return null;
+
+  return { light, dark };
 }
 
 function createRadixScaleVariables(
@@ -498,16 +718,68 @@ const CLASSIC_DARK_THEME_VARIABLES: Record<string, string> = {
   "--color-overlay": "rgba(0, 0, 0, 0.6)",
 };
 
+const THEME_VARIABLE_NAMES = new Set([
+  ...Object.keys(CLASSIC_LIGHT_GRAY_VARIABLES),
+  ...Object.keys(CLASSIC_LIGHT_ACCENT_VARIABLES),
+  ...Object.keys(CLASSIC_LIGHT_THEME_VARIABLES),
+]);
+const THEME_VARIABLE_REFERENCE_PATTERN =
+  /^var\(--(?:gray|accent)-(?:[1-9]|1[0-2]|a(?:[1-9]|1[0-2]))\)$/;
+const THEME_VARIABLE_CACHE_LIMIT = 64;
+const generatedVariablesCache = new Map<string, ThemeVariables>();
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  const valueKeys = Object.keys(value);
+  return valueKeys.length === keys.length && keys.every((key) => valueKeys.includes(key));
+}
+
+function isValidThemeVariableValue(value: unknown): value is string {
+  if (typeof value !== "string" || value.length === 0 || value.length > 128) return false;
+  if (value.startsWith("var(")) return THEME_VARIABLE_REFERENCE_PATTERN.test(value);
+
+  try {
+    new Color(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function normalizeThemeVariables(value: unknown): ThemeVariables | undefined {
+  if (!isRecord(value)) return undefined;
+
+  const entries = Object.entries(value);
+  if (
+    entries.length !== THEME_VARIABLE_NAMES.size ||
+    entries.some(
+      ([name, color]) => !THEME_VARIABLE_NAMES.has(name) || !isValidThemeVariableValue(color),
+    )
+  ) {
+    return undefined;
+  }
+
+  return Object.fromEntries(entries) as ThemeVariables;
+}
+
 function supportsColor(value: string): boolean {
   return (
     typeof CSS !== "undefined" && typeof CSS.supports === "function" && CSS.supports("color", value)
   );
 }
 
-function getGeneratedVariables(
-  palette: ThemePalette,
-  appearance: ThemeAppearance,
-): Record<string, string> {
+function getGeneratedVariables(palette: ThemePalette, appearance: ThemeAppearance): ThemeVariables {
+  const cacheKey = `${appearance}:${palette.accent}:${palette.gray}:${palette.background}`;
+  const cached = generatedVariablesCache.get(cacheKey);
+  if (cached) {
+    generatedVariablesCache.delete(cacheKey);
+    generatedVariablesCache.set(cacheKey, cached);
+    return cached;
+  }
+
   const generated = generateRadixColors({
     appearance,
     accent: palette.accent,
@@ -548,7 +820,7 @@ function getGeneratedVariables(
     "--accent-track": accentScale[8],
   });
 
-  return {
+  const variables: ThemeVariables = {
     ...grayVariables,
     ...accentVariables,
     "--theme-background": generated.background,
@@ -577,13 +849,24 @@ function getGeneratedVariables(
     "--color-surface": backgroundScale[2],
     "--color-overlay": "rgba(0, 0, 0, 0.48)",
   };
+
+  if (generatedVariablesCache.size >= THEME_VARIABLE_CACHE_LIMIT) {
+    const oldestKey = generatedVariablesCache.keys().next().value;
+    if (oldestKey !== undefined) generatedVariablesCache.delete(oldestKey);
+  }
+  generatedVariablesCache.set(cacheKey, variables);
+  return variables;
 }
 
 function buildThemeVariables(
   palette: ThemePalette,
   appearance: ThemeAppearance,
   presetId: ThemePresetId,
-): Record<string, string> {
+): ThemeVariables {
+  if (presetId === CUSTOM_THEME_PRESET_ID && palette.variables) {
+    return { ...palette.variables };
+  }
+
   const classicPalette = appearance === "dark" ? CLASSIC_DARK_PALETTE : CLASSIC_LIGHT_PALETTE;
   if (
     presetId === DEFAULT_THEME_PRESET_ID ||

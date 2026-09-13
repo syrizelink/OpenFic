@@ -5,7 +5,7 @@
  */
 
 import { apiClient } from "@/lib/api-client";
-import { normalizeThemePreset, transformThemeConfig } from "@/lib/theme";
+import { normalizeThemeMode, normalizeThemePreset, transformThemeConfig } from "@/lib/theme";
 
 import type {
   AgentToolMetadata,
@@ -24,15 +24,16 @@ import {
  * 后端响应字段转换（snake_case -> camelCase）
  */
 export function transformSettings(raw: SettingsResponse): Settings {
-  const appearance = raw.theme === "dark" ? "dark" : "light";
+  const theme = normalizeThemeMode(raw.theme);
+  const appearance = theme === "dark" ? "dark" : "light";
   const themePreset = normalizeThemePreset(raw.theme_preset, appearance);
   const lightThemePreset = normalizeThemePreset(raw.light_theme_preset ?? themePreset, "light");
   const darkThemePreset = normalizeThemePreset(raw.dark_theme_preset ?? themePreset, "dark");
 
   return {
     language: raw.language as Settings["language"],
-    theme: raw.theme === "dark" ? "dark" : "light",
-    themePreset: raw.theme === "dark" ? darkThemePreset : lightThemePreset,
+    theme,
+    themePreset: appearance === "dark" ? darkThemePreset : lightThemePreset,
     lightThemePreset,
     darkThemePreset,
     themeConfig: transformThemeConfig(raw.theme_config),

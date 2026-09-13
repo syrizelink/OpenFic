@@ -2,6 +2,10 @@
   width: 100%;
 }
 
+.theme-file-input {
+  display: none;
+}
+
 .theme-mode-section {
   overflow: hidden;
   border: 1px solid var(--gray-a5);
@@ -50,6 +54,72 @@
   border-color: #3a3a3a;
   background: #111111;
   color: #eeeeee;
+}
+
+.theme-preset-option-icon[data-theme-option="one-dark"][data-theme-appearance="light"] {
+  border-color: #d3d5da;
+  background: #fafafa;
+  color: #4078f2;
+}
+
+.theme-preset-option-icon[data-theme-option="one-dark"][data-theme-appearance="dark"] {
+  border-color: #3e4451;
+  background: #282c34;
+  color: #61afef;
+}
+
+.theme-preset-option-icon[data-theme-option="dracula"][data-theme-appearance="light"] {
+  border-color: #cfcfde;
+  background: #fffbeb;
+  color: #644ac9;
+}
+
+.theme-preset-option-icon[data-theme-option="dracula"][data-theme-appearance="dark"] {
+  border-color: #44475a;
+  background: #282a36;
+  color: #bd93f9;
+}
+
+.theme-preset-option-icon[data-theme-option="gruvbox"][data-theme-appearance="light"] {
+  border-color: #d5c4a1;
+  background: #fbf1c7;
+  color: #b57614;
+}
+
+.theme-preset-option-icon[data-theme-option="gruvbox"][data-theme-appearance="dark"] {
+  border-color: #504945;
+  background: #282828;
+  color: #fabd2f;
+}
+
+.theme-preset-option-icon[data-theme-option="github"][data-theme-appearance="light"] {
+  border-color: #d0d7de;
+  background: #ffffff;
+  color: #0969da;
+}
+
+.theme-preset-option-icon[data-theme-option="github"][data-theme-appearance="dark"] {
+  border-color: #30363d;
+  background: #0d1117;
+  color: #58a6ff;
+}
+
+.theme-preset-option-icon[data-theme-option="everforest"][data-theme-appearance="light"] {
+  border-color: #d6ddc8;
+  background: #fdf6e3;
+  color: #8da101;
+}
+
+.theme-preset-option-icon[data-theme-option="everforest"][data-theme-appearance="dark"] {
+  border-color: #475258;
+  background: #2d353b;
+  color: #a7c080;
+}
+
+.theme-preset-option-icon[data-theme-option="rose-pine"][data-theme-appearance="light"] {
+  border-color: #dfdad3;
+  background: #faf4ed;
+  color: #907aa9;
 }
 
 .theme-preset-option-icon[data-theme-option="vscode-dark"][data-theme-appearance="dark"] {

@@ -5,7 +5,7 @@ import { AssistantSidebar } from "@/features/assistant";
 import type { AssistantSidebarHandle } from "@/features/assistant";
 import { SettingsDialog } from "@/features/settings";
 import type { SettingsDialogRoute } from "@/features/settings/lib/settings-route";
-import type { ThemeSettings } from "@/lib/theme";
+import type { ThemeMode, ThemeSettings } from "@/lib/theme";
 
 import { AppShellContext } from "./app-shell-context";
 import { AppSidebar } from "./app-sidebar";
@@ -25,8 +25,9 @@ import { StatusBar } from "./status-bar";
 
 interface AppLayoutProps {
   appearance: "light" | "dark";
+  themeMode: ThemeMode;
   version: string;
-  onAppearanceChange: (appearance: "light" | "dark") => void;
+  onThemeModeChange: (themeMode: ThemeMode) => void;
   onThemeSettingsChange: (settings: ThemeSettings) => void;
   onThemePreviewChange: (settings: ThemeSettings) => void;
   onToggleTheme: () => void;
@@ -34,8 +35,9 @@ interface AppLayoutProps {
 
 export function AppLayout({
   appearance,
+  themeMode,
   version,
-  onAppearanceChange,
+  onThemeModeChange,
   onThemeSettingsChange,
   onThemePreviewChange,
   onToggleTheme,
@@ -166,6 +168,7 @@ export function AppLayout({
         <div className="app-layout-body">
           <AppSidebar
             appearance={appearance}
+            themeMode={themeMode}
             onToggleTheme={onToggleTheme}
           />
 
@@ -201,8 +204,8 @@ export function AppLayout({
         <StatusBar version={version} />
 
         <SettingsDialog
-          appearance={appearance}
-          onAppearanceChange={onAppearanceChange}
+          themeMode={themeMode}
+          onThemeModeChange={onThemeModeChange}
           onThemeSettingsChange={onThemeSettingsChange}
           onThemePreviewChange={onThemePreviewChange}
           open={isSettingsOpen}

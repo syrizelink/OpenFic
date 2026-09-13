@@ -37,11 +37,12 @@ THEME_COLOR_PATTERN = r"^#[0-9a-fA-F]{6}$"
 
 
 class ThemePalette(BaseModel):
-    """Radix Custom palette 的三种基础色。"""
+    """Radix Custom palette 的基础色和可选完整变量。"""
 
     accent: str = Field(default="#000000", pattern=THEME_COLOR_PATTERN)
     gray: str = Field(default="#646464", pattern=THEME_COLOR_PATTERN)
     background: str = Field(default="#ffffff", pattern=THEME_COLOR_PATTERN)
+    variables: dict[str, str] | None = Field(default=None, description="完整主题 CSS 变量")
 
 
 def _default_dark_theme_palette() -> ThemePalette:
