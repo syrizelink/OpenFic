@@ -232,8 +232,7 @@ export function VolumeHeader({
           style={{
             position: "absolute",
             inset: 0,
-            background:
-              "color-mix(in srgb, var(--theme-hover-background) 8%, transparent)",
+            background: "color-mix(in srgb, var(--theme-hover-background) 8%, transparent)",
             pointerEvents: "none",
           }}
         />

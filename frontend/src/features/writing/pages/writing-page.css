@@ -33,10 +33,7 @@
 
 .writing-sidebar-segmented-control {
   background-color: var(--theme-input-background);
-  background-image: linear-gradient(
-    var(--theme-input-background),
-    var(--theme-input-background)
-  );
+  background-image: linear-gradient(var(--theme-input-background), var(--theme-input-background));
 }
 
 .writing-page-group .writing-page-sidebar--left,
