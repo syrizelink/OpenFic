@@ -56,6 +56,7 @@ interface ModelIdSelectProps {
   triggerPrefix?: ReactNode;
   hideTriggerChevron?: boolean;
   triggerClassName?: string;
+  contentClassName?: string;
 }
 
 export function getModelValue(model: ModelIdSelectOption): string {
@@ -159,6 +160,7 @@ export function ModelIdSelect({
   triggerPrefix,
   hideTriggerChevron = false,
   triggerClassName,
+  contentClassName,
 }: ModelIdSelectProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -352,6 +354,7 @@ export function ModelIdSelect({
       <Popover.Trigger>{trigger}</Popover.Trigger>
 
       <Popover.Content
+        className={contentClassName}
         style={{
           width: popoverWidth,
           minWidth: popoverWidth,

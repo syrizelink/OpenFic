@@ -162,13 +162,13 @@
 }
 
 .skills-settings-list-item--selected {
-  background: var(--gray-a5);
+  background: var(--gray-a3);
   color: var(--gray-12);
 }
 
 .skills-settings-list-item--selected:hover,
 .skills-settings-list-item--selected.skills-settings-list-item--menu-open {
-  background: var(--gray-a5);
+  background: var(--gray-a3);
 }
 
 .skills-settings-list-item--incomplete {
@@ -311,7 +311,7 @@
   margin-top: 8px;
   padding: 8px;
   border-radius: 10px;
-  background: var(--gray-a3);
+  background: var(--color-background);
   box-sizing: border-box;
 }
 

@@ -286,7 +286,7 @@ function ChapterListItemComponent({
         : isPendingPressed
           ? "var(--gray-a6)"
           : isActive
-            ? "var(--gray-a5)"
+            ? "var(--accent-a3)"
             : "transparent",
       cursor: "pointer",
       width: "100%",
@@ -523,7 +523,7 @@ function DraggableChapterListItemComponent({
         ? "transform 0.14s ease, background-color 0.08s ease, color 0.08s ease, opacity 0.08s ease"
         : "background-color 0.08s ease, color 0.08s ease, opacity 0.08s ease",
       opacity: isDragSource ? 0 : 1,
-      background: isActive ? "var(--gray-a5)" : "transparent",
+      background: isActive ? "var(--accent-a3)" : "transparent",
       cursor: isDragging ? "grabbing" : "grab",
       width: "100%",
       minWidth: 0,

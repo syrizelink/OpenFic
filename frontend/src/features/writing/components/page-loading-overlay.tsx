@@ -101,7 +101,7 @@ export function PageLoadingOverlay({ isLoading }: PageLoadingOverlayProps) {
           style={{
             height: 40,
             borderBottom: "1px solid var(--gray-a4)",
-            background: "var(--gray-a2)",
+            background: "var(--theme-editor-bar-background)",
           }}
         >
           <Skeleton

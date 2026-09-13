@@ -80,8 +80,58 @@ button[data-state="closed"] {
 .rt-SelectItem[data-highlighted],
 .dark .rt-SelectItem[data-highlighted],
 .radix-themes.dark .rt-SelectItem[data-highlighted] {
-  background-color: var(--gray-a3);
+  background-color: var(--theme-list-hover-background);
   color: var(--gray-12);
+}
+
+.chapter-search-input.rt-TextFieldRoot {
+  background-color: var(--color-background);
+  background-image: none;
+}
+
+@media (hover: hover) {
+  .radix-themes
+    .rt-BaseButton:where(.rt-variant-ghost, .rt-variant-outline):where(
+      :not([data-accent-color]),
+      [data-accent-color="gray"]
+    ):hover {
+    background-color: var(--theme-hover-background);
+  }
+}
+
+.radix-themes
+  .rt-BaseButton:where(.rt-variant-ghost, .rt-variant-outline):where(
+    :not([data-accent-color]),
+    [data-accent-color="gray"]
+  )[data-state="open"] {
+  background-color: var(--theme-hover-background);
+}
+
+.projects-search-input.rt-TextFieldRoot {
+  background-color: var(--color-background);
+  background-image: none;
+}
+
+.rt-SelectContent {
+  background-color: var(--color-background);
+}
+
+.select-content--panel {
+  background-color: var(--color-panel-solid);
+}
+
+.settings-background-panel,
+.rt-DialogContent.settings-background-panel {
+  background-color: var(--color-background);
+  background-image: none;
+}
+
+.settings-dialog-body .rt-TextFieldRoot,
+.settings-dialog-body .rt-TextAreaRoot,
+.settings-background-panel .rt-TextFieldRoot,
+.settings-background-panel .rt-TextAreaRoot {
+  background-color: var(--color-background);
+  background-image: none;
 }
 
 .rt-SelectContent {

@@ -11,10 +11,14 @@
     color 0.15s ease;
 }
 
-.app-sidebar-nav-item:hover,
+.app-sidebar-nav-item:hover {
+  color: var(--gray-12);
+  background: var(--theme-list-hover-background);
+}
+
 .app-sidebar-nav-item[data-active="true"] {
   color: var(--gray-12);
-  background: var(--gray-a3);
+  background: var(--theme-hover-background);
 }
 
 .app-sidebar-action-button[data-accent-color="gray"] {
@@ -27,7 +31,7 @@
 
 .app-sidebar-action-button[data-accent-color="gray"]:hover {
   color: var(--gray-12);
-  background: var(--gray-a3);
+  background: var(--theme-hover-background);
 }
 
 .app-sidebar-nav-link {

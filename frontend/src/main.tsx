@@ -270,11 +270,11 @@ function Root() {
     }) => {
       cancelThemePreview();
       const nextAppearance = next.theme === "dark" ? "dark" : "light";
-      const legacyPreset = normalizeThemePreset(next.themePreset);
+      const legacyPreset = normalizeThemePreset(next.themePreset, nextAppearance);
       latestAppearanceRef.current = nextAppearance;
       setAppearance(nextAppearance);
-      setLightThemePreset(normalizeThemePreset(next.lightThemePreset ?? legacyPreset));
-      setDarkThemePreset(normalizeThemePreset(next.darkThemePreset ?? legacyPreset));
+      setLightThemePreset(normalizeThemePreset(next.lightThemePreset ?? legacyPreset, "light"));
+      setDarkThemePreset(normalizeThemePreset(next.darkThemePreset ?? legacyPreset, "dark"));
       setThemeConfig(next.themeConfig ?? DEFAULT_THEME_CONFIG);
     },
     [cancelThemePreview],

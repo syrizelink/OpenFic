@@ -1,5 +1,7 @@
-.prompt-chain-dialog-search {
+.prompt-chain-dialog-content .prompt-chain-dialog-search {
   margin-bottom: 12px;
+  background-color: var(--color-background);
+  background-image: none;
 }
 
 .prompt-chain-dialog-loading {
@@ -19,7 +21,7 @@
   overflow: hidden;
   border: 1px solid var(--gray-a5);
   border-radius: var(--radius-3);
-  background: var(--gray-a2);
+  background: var(--theme-panel-background);
 }
 
 .prompt-chain-dialog-entry-header {
@@ -38,7 +40,7 @@
 }
 
 .prompt-chain-dialog-entry-header:hover {
-  background: var(--gray-a2);
+  background: var(--theme-list-hover-background);
 }
 
 .prompt-chain-dialog-entry-title {
@@ -113,7 +115,7 @@
 }
 
 .prompt-chain-dialog-image-trigger:hover {
-  background: var(--gray-a4);
+  background: var(--theme-hover-background);
 }
 
 .prompt-chain-dialog-image-trigger:focus-visible {

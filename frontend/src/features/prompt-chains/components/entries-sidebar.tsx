@@ -334,7 +334,7 @@ const EntryItem = React.forwardRef<HTMLDivElement, EntryItemProps>(
         style={{
           ...style,
           borderBottom: "1px solid var(--gray-a5)",
-          background: isSelected ? "var(--gray-a5)" : "transparent",
+          background: isSelected ? "var(--accent-a3)" : "transparent",
           cursor: "pointer",
           width: "100%",
           minWidth: 0,

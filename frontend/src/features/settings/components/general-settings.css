@@ -6,7 +6,7 @@
   overflow: hidden;
   border: 1px solid var(--gray-a5);
   border-radius: var(--radius-3);
-  background: var(--color-panel-solid);
+  background: var(--color-background);
 }
 
 .theme-mode-section:has(.theme-color-picker-popover) {
@@ -40,31 +40,55 @@
   line-height: 1;
 }
 
-.theme-preset-option-icon[data-theme-option="classic"] {
+.theme-preset-option-icon[data-theme-option="classic"][data-theme-appearance="light"] {
   border-color: var(--gray-7);
   background: #ffffff;
   color: #111111;
 }
 
-.theme-preset-option-icon[data-theme-option="vscode-dark"] {
+.theme-preset-option-icon[data-theme-option="classic"][data-theme-appearance="dark"] {
+  border-color: #3a3a3a;
+  background: #111111;
+  color: #eeeeee;
+}
+
+.theme-preset-option-icon[data-theme-option="vscode-dark"][data-theme-appearance="dark"] {
   border-color: #3e3e42;
   background: #1e1e1e;
   color: #3794ff;
 }
 
-.theme-preset-option-icon[data-theme-option="solarized"] {
+.theme-preset-option-icon[data-theme-option="solarized"][data-theme-appearance="light"] {
   border-color: #d6cdb0;
   background: #fdf6e3;
   color: #268bd2;
 }
 
-.theme-preset-option-icon[data-theme-option="nord"] {
+.theme-preset-option-icon[data-theme-option="solarized"][data-theme-appearance="dark"] {
+  border-color: #586e75;
+  background: #002b36;
+  color: #268bd2;
+}
+
+.theme-preset-option-icon[data-theme-option="nord"][data-theme-appearance="light"] {
+  border-color: #d8dee9;
+  background: #eceff4;
+  color: #5e81ac;
+}
+
+.theme-preset-option-icon[data-theme-option="nord"][data-theme-appearance="dark"] {
   border-color: #4c566a;
   background: #2e3440;
   color: #88c0d0;
 }
 
-.theme-preset-option-icon[data-theme-option="monokai"] {
+.theme-preset-option-icon[data-theme-option="monokai"][data-theme-appearance="light"] {
+  border-color: #d3d0c8;
+  background: #faf8f2;
+  color: #66a80f;
+}
+
+.theme-preset-option-icon[data-theme-option="monokai"][data-theme-appearance="dark"] {
   border-color: #49483e;
   background: #272822;
   color: #a6e22e;
@@ -77,7 +101,7 @@
 }
 
 .theme-mode-section-rows {
-  background: var(--color-panel-solid);
+  background: var(--color-background);
 }
 
 .theme-setting-row {

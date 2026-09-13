@@ -426,6 +426,8 @@ function AgentForm({
           allowCustomValue={false}
           disabled={isAgentSettingsLocked || !hasLlmModels}
           triggerStyle={{ width: "100%" }}
+          triggerClassName="select-trigger--background"
+          contentClassName="settings-background-panel"
         />
       </Flex>
 

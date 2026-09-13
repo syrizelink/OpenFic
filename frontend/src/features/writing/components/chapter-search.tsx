@@ -188,6 +188,7 @@ export function ChapterSearch({
       >
         <Box p="2">
           <TextField.Root
+            className="chapter-search-input"
             size="2"
             placeholder={t("writing.searchPlaceholder")}
             value={query}

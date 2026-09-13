@@ -79,6 +79,10 @@ export interface GeneratedRadixColors {
   grayScaleAlpha: ArrayOf12<string>;
   grayScaleWideGamut: ArrayOf12<string>;
   grayScaleAlphaWideGamut: ArrayOf12<string>;
+  backgroundScale: ArrayOf12<string>;
+  backgroundScaleAlpha: ArrayOf12<string>;
+  backgroundScaleWideGamut: ArrayOf12<string>;
+  backgroundScaleAlphaWideGamut: ArrayOf12<string>;
   graySurface: string;
   graySurfaceWideGamut: string;
   accentSurface: string;
@@ -103,6 +107,7 @@ export function generateRadixColors({
 
   const grayBaseColor = new Color(gray).to("oklch");
   const grayScaleColors = getScaleFromColor(grayBaseColor, grayScales, backgroundColor);
+  const backgroundScaleColors = getScaleFromColor(backgroundColor, grayScales, backgroundColor);
 
   const accentBaseColor = new Color(accent).to("oklch");
   let accentScaleColors = getScaleFromColor(accentBaseColor, allScales, backgroundColor);
@@ -153,6 +158,17 @@ export function generateRadixColors({
     getAlphaColorP3(color, backgroundHex),
   ) as ArrayOf12<string>;
 
+  const backgroundScaleHex = backgroundScaleColors.map((color) =>
+    color.to("srgb").toString({ format: "hex" }),
+  ) as ArrayOf12<string>;
+  const backgroundScaleWideGamut = backgroundScaleColors.map(toOklchString) as ArrayOf12<string>;
+  const backgroundScaleAlpha = backgroundScaleHex.map((color) =>
+    getAlphaColorSrgb(color, backgroundHex),
+  ) as ArrayOf12<string>;
+  const backgroundScaleAlphaWideGamut = backgroundScaleHex.map((color) =>
+    getAlphaColorP3(color, backgroundHex),
+  ) as ArrayOf12<string>;
+
   const accentSurface =
     appearance === "light"
       ? getAlphaColorSrgb(accentScaleHex[1], backgroundHex, 0.8)
@@ -172,6 +188,10 @@ export function generateRadixColors({
     grayScaleAlpha,
     grayScaleWideGamut,
     grayScaleAlphaWideGamut,
+    backgroundScale: backgroundScaleHex,
+    backgroundScaleAlpha,
+    backgroundScaleWideGamut,
+    backgroundScaleAlphaWideGamut,
     graySurface: appearance === "light" ? "#ffffffcc" : "rgba(0, 0, 0, 0.05)",
     graySurfaceWideGamut:
       appearance === "light" ? "color(display-p3 1 1 1 / 80%)" : "color(display-p3 0 0 0 / 5%)",

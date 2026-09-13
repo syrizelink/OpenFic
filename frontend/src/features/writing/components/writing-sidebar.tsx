@@ -49,6 +49,7 @@ export function WritingSidebar({
           value={sidebarView}
           onValueChange={(value) => setSidebarView(value as "chapters" | "notes")}
           size="2"
+          className="writing-sidebar-segmented-control"
           style={{ width: "100%" }}
         >
           <SegmentedControl.Item value="chapters">{t("writing.chapters")}</SegmentedControl.Item>

@@ -185,7 +185,7 @@ export function SidebarToolbar({
                 border: "1px solid transparent",
                 borderColor: contentSearchExpanded ? "var(--gray-a7)" : "transparent",
                 borderRadius: "max(var(--radius-2), var(--radius-full))",
-                background: contentSearchExpanded ? "var(--color-surface)" : "transparent",
+                background: contentSearchExpanded ? "var(--color-background)" : "transparent",
                 flex: contentSearchExpanded ? 1 : undefined,
                 minWidth: 0,
                 position: "relative",

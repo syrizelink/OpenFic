@@ -89,7 +89,7 @@
 }
 
 .import-dialog-volume-header:hover {
-  background: var(--gray-3);
+  background: var(--theme-hover-background);
 }
 
 .import-dialog-volume-header:focus-visible {
@@ -98,7 +98,7 @@
 }
 
 .import-dialog-volume-group[data-expanded="true"] .import-dialog-volume-header {
-  background: var(--gray-2);
+  background: var(--theme-list-hover-background);
 }
 
 .import-dialog-volume-chevron {
@@ -137,7 +137,7 @@
 
 .import-dialog-volume-chapters {
   border-top: 1px solid var(--gray-4);
-  background: var(--gray-1);
+  background: var(--color-background);
 }
 
 .import-dialog-chapter-index {

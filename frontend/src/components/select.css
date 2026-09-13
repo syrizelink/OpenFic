@@ -1,3 +1,18 @@
+.select-trigger--background {
+  background: var(--color-background) !important;
+  background-image: none !important;
+}
+
+.select-trigger--background::before {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+.select-trigger--surface {
+  background: var(--color-surface) !important;
+  background-image: none !important;
+}
+
 .select-option-label {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -133,7 +148,8 @@
 }
 
 .searchable-select-item[data-state="checked"] {
-  background: var(--accent-a3);
+  background: var(--gray-a5);
+  color: var(--gray-12);
 }
 
 .searchable-select-item:disabled {

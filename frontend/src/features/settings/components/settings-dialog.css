@@ -59,7 +59,7 @@
   width: 216px;
   flex-shrink: 0;
   border-right: 1px solid var(--gray-a4);
-  background: var(--gray-2);
+  background: var(--theme-sidebar-background);
   overflow: auto;
   scrollbar-width: thin;
 }
@@ -423,13 +423,13 @@
 }
 
 .agent-definition-item--active {
-  background: var(--gray-a5);
+  background: var(--gray-a3);
   color: var(--gray-12);
 }
 
 .agent-definition-item--active:hover,
 .agent-definition-item--active.agent-definition-item--menu-open {
-  background: var(--gray-a5);
+  background: var(--gray-a3);
 }
 
 .agent-definition-item-content {
@@ -581,7 +581,7 @@
 }
 
 .settings-sidebar-item:hover {
-  background: var(--gray-a3);
+  background: var(--accent-a2);
   color: var(--gray-12);
 }
 
@@ -591,7 +591,7 @@
 }
 
 .settings-sidebar-item--active {
-  background: var(--gray-a3);
+  background: var(--accent-a3);
   color: var(--gray-12);
 }
 
@@ -791,7 +791,7 @@
   .skills-settings--settings .skills-settings-list-item--selected:hover,
   .skills-settings--settings
     .skills-settings-list-item--selected.skills-settings-list-item--menu-open {
-    background: var(--gray-a5);
+    background: var(--gray-a3);
     color: var(--gray-12);
   }
 
@@ -809,7 +809,7 @@
   .agent-definition-item--active,
   .agent-definition-item--active:hover,
   .agent-definition-item--active.agent-definition-item--menu-open {
-    background: var(--gray-a5);
+    background: var(--gray-a3);
     color: var(--gray-12);
   }
 

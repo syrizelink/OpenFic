@@ -422,6 +422,7 @@ export function ModelFormDialog({
     >
       <Dialog.Content
         maxWidth="600px"
+        className="settings-background-panel"
         style={{
           maxHeight: "90vh",
           overflow: "hidden",
@@ -637,6 +638,8 @@ export function ModelFormDialog({
                       onRefresh={handleRefreshRemoteModels}
                       isRefreshing={loadingModels && modelOptionsSource === "remote"}
                       refreshDisabled={!providerId || loadingModels}
+                      triggerClassName="select-trigger--background"
+                      contentClassName="settings-background-panel"
                     />
                   )}
                 />

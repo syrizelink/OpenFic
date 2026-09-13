@@ -113,7 +113,7 @@
 }
 
 .characters-list-item[data-state="selected"] {
-  background: var(--gray-a5);
+  background: var(--accent-a3);
 }
 
 .characters-list-item-row {

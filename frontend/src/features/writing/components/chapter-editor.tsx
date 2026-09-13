@@ -694,7 +694,7 @@ function ChapterEditorContent({
         align="center"
         style={{
           borderTop: "1px solid var(--gray-a4)",
-          background: "var(--gray-a2)",
+          background: "var(--theme-editor-bar-background)",
         }}
       >
         <Text

@@ -646,7 +646,7 @@ export function EntryList({
                   border: "1px solid transparent",
                   borderColor: searchExpanded ? "var(--gray-a7)" : "transparent",
                   borderRadius: "max(var(--radius-2), var(--radius-full))",
-                  background: searchExpanded ? "var(--color-surface)" : "transparent",
+                  background: searchExpanded ? "var(--color-background)" : "transparent",
                   flex: searchExpanded ? 1 : undefined,
                   minWidth: 0,
                   position: "relative",

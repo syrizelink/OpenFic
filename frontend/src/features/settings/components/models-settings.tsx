@@ -446,6 +446,8 @@ export function ModelsSettings({
               allowCustomValue={false}
               disabled={isAgentSettingsLocked || !hasLlmModels}
               emptyOptionLabel={`（${t("models.selectModelPlaceholder")}）`}
+              triggerClassName="select-trigger--background"
+              contentClassName="settings-background-panel"
             />
           </Flex>
 
@@ -478,6 +480,8 @@ export function ModelsSettings({
               allowCustomValue={false}
               disabled={isAgentSettingsLocked || !hasLlmModels}
               emptyOptionLabel={`（${t("models.selectModelPlaceholder")}）`}
+              triggerClassName="select-trigger--background"
+              contentClassName="settings-background-panel"
             />
           </Flex>
         </Flex>

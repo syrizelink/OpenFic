@@ -50,6 +50,7 @@ export function DashboardFilters({
     <div className="dashboard-filter-actions dashboard-filter-actions-inline">
       <IconButton
         aria-label={t("dashboard.filters.reset")}
+        className="dashboard-filter-reset-button"
         color="gray"
         variant="soft"
         onClick={resetFilters}

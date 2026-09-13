@@ -155,7 +155,7 @@
 
 .agent-mention-suggestion-item:hover,
 .agent-mention-suggestion-item[data-selected="true"] {
-  background: var(--accent-a3);
+  background: var(--theme-hover-background);
 }
 
 .agent-mention-suggestion-icon {

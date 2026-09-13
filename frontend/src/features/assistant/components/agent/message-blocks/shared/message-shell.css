@@ -29,6 +29,11 @@
   background: transparent;
 }
 
+.agent-message-shell-expand-button:hover,
+.agent-tool-card .agent-tool-expand-button:hover {
+  background: transparent !important;
+}
+
 .agent-message-shell-header-main,
 .agent-tool-header-main {
   align-items: center;

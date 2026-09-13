@@ -16,6 +16,8 @@ import {
   CUSTOM_THEME_PRESET,
   CUSTOM_THEME_PRESET_ID,
   THEME_PRESETS,
+  getThemePresetLabelKey,
+  getThemePresetsForAppearance,
   resolveThemeConfig,
   type ThemeAppearance,
   type ThemeConfig,
@@ -186,11 +188,18 @@ function ThemeColorRow({ label, value, disabled, onCommit, onPreview }: ThemeCol
   );
 }
 
-function ThemePresetOptionIcon({ presetId }: { presetId: string }) {
+function ThemePresetOptionIcon({
+  presetId,
+  appearance,
+}: {
+  presetId: string;
+  appearance: ThemeAppearance;
+}) {
   return (
     <span
       className="theme-preset-option-icon"
       data-theme-option={presetId}
+      data-theme-appearance={appearance}
       aria-hidden="true"
     >
       Aa
@@ -456,13 +465,16 @@ export function GeneralSettings({
     onThemePreviewChange(buildThemeConfigChange(appearance, key, value));
   };
 
-  const themePresetOptions: SelectOption[] = [...THEME_PRESETS, CUSTOM_THEME_PRESET].map(
-    (preset) => ({
+  const buildThemePresetOptions = (appearance: ThemeAppearance): SelectOption[] =>
+    [...getThemePresetsForAppearance(appearance), CUSTOM_THEME_PRESET].map((preset) => ({
       value: preset.id,
-      label: t(preset.labelKey),
-      prefix: <ThemePresetOptionIcon presetId={preset.id} />,
-    }),
-  );
+      label: t(getThemePresetLabelKey(preset, appearance)),
+      prefix: <ThemePresetOptionIcon presetId={preset.id} appearance={appearance} />,
+    }));
+  const themePresetOptions = {
+    light: buildThemePresetOptions("light"),
+    dark: buildThemePresetOptions("dark"),
+  };
   const resolvedThemeConfig = {
     light: resolveThemeConfig(settings.lightThemePreset, settings.themeConfig).light,
     dark: resolveThemeConfig(settings.darkThemePreset, settings.themeConfig).dark,
@@ -517,7 +529,7 @@ export function GeneralSettings({
             appearance="light"
             presetId={settings.lightThemePreset}
             palette={resolvedThemeConfig.light}
-            presetOptions={themePresetOptions}
+            presetOptions={themePresetOptions.light}
             disabled={isSaving}
             onPresetChange={handleThemePresetChange}
             onColorChange={handleThemeConfigChange}
@@ -527,7 +539,7 @@ export function GeneralSettings({
             appearance="dark"
             presetId={settings.darkThemePreset}
             palette={resolvedThemeConfig.dark}
-            presetOptions={themePresetOptions}
+            presetOptions={themePresetOptions.dark}
             disabled={isSaving}
             onPresetChange={handleThemePresetChange}
             onColorChange={handleThemeConfigChange}

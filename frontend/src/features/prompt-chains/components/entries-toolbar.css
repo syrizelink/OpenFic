@@ -26,7 +26,7 @@
   flex: 1;
   padding-right: var(--space-2);
   border-color: var(--gray-a7);
-  background: var(--color-surface);
+  background: var(--color-background);
 }
 
 .prompt-chain-entries-search-popover-anchor {

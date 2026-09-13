@@ -217,7 +217,11 @@ export function LabeledSelect({
       size={size}
     >
       <Select.Trigger
-        className={clsx(isIconVariant && "select-trigger--icon", triggerClassName)}
+        className={clsx(
+          !isIconVariant && "select-trigger--background",
+          isIconVariant && "select-trigger--icon",
+          triggerClassName,
+        )}
         style={
           selectedOption?.labelColor
             ? ({
@@ -354,7 +358,7 @@ export function SimpleSelect({
       size={size}
     >
       <Select.Trigger
-        className={triggerClassName}
+        className={clsx("select-trigger--background", triggerClassName)}
         style={
           selectedOption?.labelColor
             ? ({
@@ -464,6 +468,7 @@ export function SearchableSelect({
           variant="surface"
           color="gray"
           disabled={disabled}
+          className="select-trigger--background"
           data-slot="searchable-select-trigger"
           data-state={open ? "open" : "closed"}
           style={{ width: "100%", justifyContent: "space-between", ...triggerStyle }}

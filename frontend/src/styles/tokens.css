@@ -18,12 +18,15 @@
   --theme-sidebar-background: var(--gray-2);
   --theme-panel-background: var(--gray-1);
   --theme-editor-background: var(--gray-1);
+  --theme-editor-bar-background: var(--gray-a2);
+  --theme-status-bar-background: var(--gray-2);
   --theme-input-background: var(--gray-2);
   --theme-foreground: var(--gray-12);
   --theme-muted-foreground: var(--gray-11);
   --theme-border: var(--gray-6);
   --theme-border-subtle: var(--gray-4);
   --theme-hover-background: var(--gray-3);
+  --theme-list-hover-background: var(--gray-a2);
   --theme-selection-background: var(--accent-a4);
   --theme-selection-foreground: var(--gray-12);
   --theme-accent: var(--accent-9);

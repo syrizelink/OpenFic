@@ -97,7 +97,9 @@ const SortableTabItem = memo(function SortableTabItem({
           width: "100%",
           height: isActive ? 33 : 30,
           cursor: isDragging ? "grabbing" : "pointer",
-          background: isActive ? "var(--color-background)" : "var(--gray-a2)",
+          background: isActive
+            ? "var(--color-background)"
+            : "var(--theme-editor-bar-background)",
           borderTop: "1px solid var(--gray-a4)",
           borderLeft: "1px solid var(--gray-a4)",
           borderRight: "1px solid var(--gray-a4)",
@@ -358,7 +360,7 @@ export function EditorTabs({ onAddTab, onAddToConversation }: EditorTabsProps) {
     <>
       <Box
         style={{
-          background: "var(--gray-a2)",
+          background: "var(--theme-editor-bar-background)",
           position: "relative",
         }}
       >

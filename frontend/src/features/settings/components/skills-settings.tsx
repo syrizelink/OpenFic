@@ -1731,7 +1731,7 @@ function SkillReferenceDocEditDialog({
       open={open}
       onOpenChange={onOpenChange}
     >
-      <Dialog.Content className="skills-settings-refdoc-dialog">
+      <Dialog.Content className="skills-settings-refdoc-dialog settings-background-panel">
         <Dialog.Title>{doc?.title || t("settingsExtra.skills.untitledReferenceDoc")}</Dialog.Title>
         {doc ? (
           <Box

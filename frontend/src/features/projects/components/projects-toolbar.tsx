@@ -83,6 +83,7 @@ export function ProjectsToolbar({
         >
           {/* 搜索 */}
           <TextField.Root
+            className="projects-search-input"
             placeholder={t("projects.searchPlaceholder")}
             size="2"
             value={searchQuery}
@@ -211,6 +212,7 @@ export function ProjectsToolbar({
           gap="2"
         >
           <TextField.Root
+            className="projects-search-input"
             placeholder={t("projects.searchPlaceholder")}
             size="2"
             value={searchQuery}

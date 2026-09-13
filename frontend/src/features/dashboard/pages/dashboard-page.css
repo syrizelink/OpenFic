@@ -257,6 +257,20 @@
   box-shadow: inset 0 0 0 1px var(--gray-a8);
 }
 
+.dashboard-filter-field-search .rt-TextFieldRoot {
+  background-color: var(--color-background);
+  background-image: none;
+}
+
+.dashboard-filter-reset-button.rt-variant-soft {
+  background-color: var(--theme-list-hover-background);
+  color: var(--gray-12);
+}
+
+.dashboard-filter-reset-button.rt-variant-soft:hover {
+  background-color: var(--theme-hover-background);
+}
+
 .dashboard-date-trigger {
   display: flex;
   align-items: center;
@@ -267,7 +281,7 @@
   border: 1px solid var(--gray-a7);
   border-radius: var(--radius-2);
   color: var(--gray-12);
-  background: var(--color-surface);
+  background: var(--color-background);
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -275,7 +289,7 @@
 
 .dashboard-date-trigger:hover {
   border-color: var(--gray-a8);
-  background: var(--gray-a2);
+  background: var(--theme-hover-background);
 }
 
 .dashboard-date-value,
@@ -303,7 +317,7 @@
 
 .dashboard-day-picker {
   --rdp-accent-color: var(--gray-12);
-  --rdp-accent-background-color: var(--gray-a3);
+  --rdp-accent-background-color: var(--theme-hover-background);
   --rdp-day_button-border-radius: var(--radius-2);
   --rdp-selected-border: 1px solid var(--gray-12);
   margin: 0;
@@ -322,7 +336,7 @@
 }
 
 .dashboard-day-picker .rdp-day_button:hover {
-  background: var(--gray-a3);
+  background: var(--theme-hover-background);
 }
 
 .dashboard-day-picker .rdp-selected .rdp-day_button {
@@ -438,7 +452,7 @@
 .dashboard-year-button:hover,
 .dashboard-year-button[data-active="true"] {
   color: var(--gray-12);
-  background: var(--gray-a3);
+  background: var(--theme-hover-background);
 }
 
 .dashboard-year-button[data-active="true"] {
@@ -812,7 +826,7 @@
 
 .dashboard-record-table th {
   color: var(--gray-10);
-  background: var(--gray-a2);
+  background: var(--theme-list-hover-background);
   font-size: var(--font-size-sm);
   font-weight: 500;
 }
@@ -843,7 +857,7 @@
 }
 
 .dashboard-record-table tr:hover td {
-  background: var(--gray-a2);
+  background: var(--theme-list-hover-background);
 }
 
 .dashboard-record-loading-overlay {
@@ -928,7 +942,7 @@
 .dashboard-output-section {
   border: 1px solid var(--gray-a5);
   border-radius: var(--radius-3);
-  background: var(--gray-a2);
+  background: var(--theme-panel-background);
   overflow: hidden;
 }
 
@@ -1001,7 +1015,7 @@
 }
 
 .dashboard-output-tool-call-summary:hover {
-  background: var(--gray-a3);
+  background: var(--theme-list-hover-background);
 }
 
 .dashboard-output-tool-call .dashboard-output-json {
@@ -1061,7 +1075,7 @@
 }
 
 .dashboard-pagination-arrow:not(:disabled):hover {
-  background: var(--gray-a3);
+  background: var(--theme-hover-background);
 }
 
 .dashboard-pagination-arrow:disabled,
@@ -1090,12 +1104,12 @@
 
 .dashboard-pagination-page:hover {
   color: var(--gray-12);
-  background: var(--gray-a3);
+  background: var(--theme-hover-background);
 }
 
 .dashboard-pagination-page[data-active="true"] {
   color: var(--gray-12);
-  background: var(--gray-a3);
+  background: var(--theme-hover-background);
   cursor: default;
 }
 

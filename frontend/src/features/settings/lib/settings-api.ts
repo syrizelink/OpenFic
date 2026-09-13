@@ -24,9 +24,10 @@ import {
  * 后端响应字段转换（snake_case -> camelCase）
  */
 export function transformSettings(raw: SettingsResponse): Settings {
-  const themePreset = normalizeThemePreset(raw.theme_preset);
-  const lightThemePreset = normalizeThemePreset(raw.light_theme_preset ?? themePreset);
-  const darkThemePreset = normalizeThemePreset(raw.dark_theme_preset ?? themePreset);
+  const appearance = raw.theme === "dark" ? "dark" : "light";
+  const themePreset = normalizeThemePreset(raw.theme_preset, appearance);
+  const lightThemePreset = normalizeThemePreset(raw.light_theme_preset ?? themePreset, "light");
+  const darkThemePreset = normalizeThemePreset(raw.dark_theme_preset ?? themePreset, "dark");
 
   return {
     language: raw.language as Settings["language"],
