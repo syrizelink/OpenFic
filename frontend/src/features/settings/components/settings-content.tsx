@@ -35,6 +35,7 @@ import { PersonalizationSettings } from "../components/personalization-settings"
 import { RulesSettings } from "../components/rules-settings";
 import { SettingsSidebar } from "../components/settings-sidebar";
 import { SkillsSettings } from "../components/skills-settings";
+import { SummarySettings } from "../components/summary-settings";
 import { WebSearchSettings } from "../components/web-search-settings";
 import { useAgentSettingsLock } from "../lib/agent-settings-lock";
 import { fetchAgentTools, fetchSettings, updateSettings } from "../lib/settings-api";
@@ -82,6 +83,7 @@ const CATEGORY_TITLE_KEY_MAP: Record<SettingsCategory, string> = {
   models: "settings.models",
   index: "settings.index",
   context: "settings.context",
+  summary: "settings.summary",
   "agent-tools": "settings.agentTools",
   "web-search": "settings.webSearch",
   rules: "settings.rules",
@@ -271,6 +273,7 @@ export function SettingsContent({
     activeCategory === "models" ||
     activeCategory === "index" ||
     activeCategory === "context" ||
+    activeCategory === "summary" ||
     activeCategory === "agent-tools" ||
     activeCategory === "web-search" ||
     activeCategory === "advanced";
@@ -449,6 +452,12 @@ export function SettingsContent({
               />
             ) : null}
             {activeCategory === "context" ? <ContextSettings /> : null}
+            {activeCategory === "summary" ? (
+              <SummarySettings
+                onCloseSettings={onClose}
+                isAgentSettingsLocked={isAgentSettingsLocked}
+              />
+            ) : null}
             {activeCategory === "agent-tools" ? (
               <AgentToolsSettings
                 settings={displaySettings}

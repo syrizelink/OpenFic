@@ -48,6 +48,26 @@ from app.audit.queue import (
     set_audit_details_persistence,
 )
 from app.audit.repo import LLMAuditLogRepo
+from app.memory.summary_config import (
+    DEFAULT_SUMMARY_AUTO_GENERATE_CHAPTER,
+    DEFAULT_SUMMARY_AUTO_GENERATE_LONG_TERM,
+    DEFAULT_SUMMARY_BATCH_SIZE,
+    DEFAULT_SUMMARY_CHAPTER_TARGET_LENGTH,
+    DEFAULT_SUMMARY_LONG_TERM_INTERVAL,
+    DEFAULT_SUMMARY_LONG_TERM_TARGET_LENGTH,
+    DEFAULT_SUMMARY_MIN_CHAPTER_WORD_COUNT,
+    DEFAULT_SUMMARY_MODEL,
+    SETTING_KEY_SUMMARY_AUTO_GENERATE_CHAPTER,
+    SETTING_KEY_SUMMARY_AUTO_GENERATE_LONG_TERM,
+    SETTING_KEY_SUMMARY_BATCH_SIZE,
+    SETTING_KEY_SUMMARY_CHAPTER_TARGET_LENGTH,
+    SETTING_KEY_SUMMARY_LONG_TERM_INTERVAL,
+    SETTING_KEY_SUMMARY_LONG_TERM_TARGET_LENGTH,
+    SETTING_KEY_SUMMARY_MIN_CHAPTER_WORD_COUNT,
+    SETTING_KEY_SUMMARY_MODEL,
+    parse_summary_settings,
+)
+from app.memory.chapter.summary_service import invalidate_all_long_term_summaries
 from app.retrieval.chapter_index import (
     DEFAULT_INDEX_AUTO_STRATEGY,
     DEFAULT_INDEX_CHUNK_OVERLAP,
@@ -110,6 +130,20 @@ DEFAULT_SETTINGS = {
     SETTING_KEY_EDITOR_FONT_SIZE: "16",
     SETTING_KEY_DEFAULT_MODEL: "",
     SETTING_KEY_LIGHT_MODEL: "",
+    SETTING_KEY_SUMMARY_MODEL: DEFAULT_SUMMARY_MODEL,
+    SETTING_KEY_SUMMARY_AUTO_GENERATE_CHAPTER: json.dumps(
+        DEFAULT_SUMMARY_AUTO_GENERATE_CHAPTER,
+        ensure_ascii=False,
+    ),
+    SETTING_KEY_SUMMARY_AUTO_GENERATE_LONG_TERM: json.dumps(
+        DEFAULT_SUMMARY_AUTO_GENERATE_LONG_TERM,
+        ensure_ascii=False,
+    ),
+    SETTING_KEY_SUMMARY_MIN_CHAPTER_WORD_COUNT: str(DEFAULT_SUMMARY_MIN_CHAPTER_WORD_COUNT),
+    SETTING_KEY_SUMMARY_BATCH_SIZE: str(DEFAULT_SUMMARY_BATCH_SIZE),
+    SETTING_KEY_SUMMARY_LONG_TERM_INTERVAL: str(DEFAULT_SUMMARY_LONG_TERM_INTERVAL),
+    SETTING_KEY_SUMMARY_CHAPTER_TARGET_LENGTH: str(DEFAULT_SUMMARY_CHAPTER_TARGET_LENGTH),
+    SETTING_KEY_SUMMARY_LONG_TERM_TARGET_LENGTH: str(DEFAULT_SUMMARY_LONG_TERM_TARGET_LENGTH),
     SETTING_KEY_DEFAULT_EMBEDDING_MODEL: "",
     SETTING_KEY_INDEX_MODE: DEFAULT_INDEX_MODE,
     SETTING_KEY_INDEX_ENABLED_PROJECTS: "[]",
@@ -275,6 +309,7 @@ async def get_settings(
 
     # 将设置列表转换为字典
     settings_dict = {s.key: s.value for s in settings_list}
+    summary_settings = parse_summary_settings(settings_dict)
     agent_tool_permissions = _merge_default_agent_tool_permissions(
         _parse_agent_tool_permissions(
             settings_dict.get(
@@ -327,6 +362,14 @@ code_font_family=settings_dict.get(
         light_model=settings_dict.get(
             SETTING_KEY_LIGHT_MODEL, DEFAULT_SETTINGS[SETTING_KEY_LIGHT_MODEL]
         ),
+        summary_model=summary_settings.model_id,
+        summary_auto_generate_chapter=summary_settings.auto_generate_chapter,
+        summary_auto_generate_long_term=summary_settings.auto_generate_long_term,
+        summary_min_chapter_word_count=summary_settings.min_chapter_word_count,
+        summary_batch_size=summary_settings.batch_size,
+        summary_long_term_interval=summary_settings.long_term_interval,
+        summary_chapter_target_length=summary_settings.chapter_target_length,
+        summary_long_term_target_length=summary_settings.long_term_target_length,
         default_embedding_model=settings_dict.get(
             SETTING_KEY_DEFAULT_EMBEDDING_MODEL,
             DEFAULT_SETTINGS[SETTING_KEY_DEFAULT_EMBEDDING_MODEL],
@@ -464,6 +507,7 @@ async def update_settings(
         for value in (
             request.default_model,
             request.light_model,
+            request.summary_model,
             request.default_embedding_model,
             request.index_mode,
             request.index_enabled_projects,
@@ -479,6 +523,19 @@ async def update_settings(
 
     settings_list = await setting_repo.get_all(session)
     current_settings = {setting.key: setting.value for setting in settings_list}
+    current_summary_settings = parse_summary_settings(current_settings)
+    summary_range_changed = (
+        request.summary_long_term_interval is not None
+        and request.summary_long_term_interval != current_summary_settings.long_term_interval
+    )
+    if summary_range_changed and not request.confirm_summary_range_invalidation:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "summary_range_invalidation_required",
+                "message": "修改摘要区间逻辑会清理所有区间摘要，请确认后继续。",
+            },
+        )
 
     # 构建要更新的设置字典
     settings_to_update: dict[str, str] = {}
@@ -512,6 +569,36 @@ async def update_settings(
         settings_to_update[SETTING_KEY_DEFAULT_MODEL] = request.default_model
     if request.light_model is not None:
         settings_to_update[SETTING_KEY_LIGHT_MODEL] = request.light_model
+    if request.summary_model is not None:
+        settings_to_update[SETTING_KEY_SUMMARY_MODEL] = request.summary_model.strip()
+    if request.summary_auto_generate_chapter is not None:
+        settings_to_update[SETTING_KEY_SUMMARY_AUTO_GENERATE_CHAPTER] = json.dumps(
+            request.summary_auto_generate_chapter,
+            ensure_ascii=False,
+        )
+    if request.summary_auto_generate_long_term is not None:
+        settings_to_update[SETTING_KEY_SUMMARY_AUTO_GENERATE_LONG_TERM] = json.dumps(
+            request.summary_auto_generate_long_term,
+            ensure_ascii=False,
+        )
+    if request.summary_min_chapter_word_count is not None:
+        settings_to_update[SETTING_KEY_SUMMARY_MIN_CHAPTER_WORD_COUNT] = str(
+            request.summary_min_chapter_word_count
+        )
+    if request.summary_batch_size is not None:
+        settings_to_update[SETTING_KEY_SUMMARY_BATCH_SIZE] = str(request.summary_batch_size)
+    if request.summary_long_term_interval is not None:
+        settings_to_update[SETTING_KEY_SUMMARY_LONG_TERM_INTERVAL] = str(
+            request.summary_long_term_interval
+        )
+    if request.summary_chapter_target_length is not None:
+        settings_to_update[SETTING_KEY_SUMMARY_CHAPTER_TARGET_LENGTH] = str(
+            request.summary_chapter_target_length
+        )
+    if request.summary_long_term_target_length is not None:
+        settings_to_update[SETTING_KEY_SUMMARY_LONG_TERM_TARGET_LENGTH] = str(
+            request.summary_long_term_target_length
+        )
     if request.default_embedding_model is not None:
         old_embedding_model = current_settings.get(
             SETTING_KEY_DEFAULT_EMBEDDING_MODEL,
@@ -632,6 +719,9 @@ async def update_settings(
     if index_contract_changed:
         await retrieval_chapter_index_state_repo.mark_all_needs_rebuild(session)
         await retrieval_index_repo.mark_all_needs_rebuild(session)
+
+    if summary_range_changed:
+        await invalidate_all_long_term_summaries(session)
 
     # 批量更新
     if settings_to_update:

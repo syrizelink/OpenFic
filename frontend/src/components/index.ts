@@ -45,3 +45,5 @@ export { MultiSelectField } from "./multi-select-field";
 export type { MultiSelectFieldProps, MultiSelectOption } from "./multi-select-field";
 export { UnitTextField } from "./unit-text-field";
 export type { UnitTextFieldProps } from "./unit-text-field";
+export { StepperNumberInput } from "./stepper-number-input";
+export type { StepperNumberInputProps } from "./stepper-number-input";

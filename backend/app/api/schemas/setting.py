@@ -5,6 +5,8 @@ Setting API Schemas - 设置请求/响应模型。
 
 from pydantic import BaseModel, Field
 
+from app.memory.summary_config import DEFAULT_SUMMARY_MODEL
+
 
 class AgentToolPermissionItem(BaseModel):
     """Agent 工具权限设置项。"""
@@ -75,6 +77,36 @@ class SettingsResponse(BaseModel):
     editor_font_size: int = Field(default=16, description="编辑器字号（px）")
     default_model: str = Field(default="", description="默认模型 ID")
     light_model: str = Field(default="", description="轻量模型 ID")
+    summary_model: str = Field(default=DEFAULT_SUMMARY_MODEL, description="摘要模型引用")
+    summary_auto_generate_chapter: bool = Field(
+        default=True,
+        description="是否自动生成章节摘要",
+    )
+    summary_auto_generate_long_term: bool = Field(
+        default=True,
+        description="是否自动生成区间摘要",
+    )
+    summary_min_chapter_word_count: int = Field(
+        default=500,
+        ge=0,
+        description="参与摘要的章节最小字数",
+    )
+    summary_batch_size: int = Field(default=10, ge=1, description="自动摘要批次大小")
+    summary_long_term_interval: int = Field(
+        default=10,
+        ge=1,
+        description="区间摘要包含的章节数",
+    )
+    summary_chapter_target_length: int = Field(
+        default=200,
+        ge=1,
+        description="章节摘要目标字数",
+    )
+    summary_long_term_target_length: int = Field(
+        default=500,
+        ge=1,
+        description="区间摘要目标字数",
+    )
     default_embedding_model: str = Field(default="", description="默认 Embedding 模型 ID")
     index_mode: str = Field(default="off", description="索引启用模式：off/all/selected")
     index_enabled_projects: list[str] = Field(
@@ -139,6 +171,43 @@ class SettingsUpdateRequest(BaseModel):
     editor_font_size: int | None = Field(default=None, description="编辑器字号（px）")
     default_model: str | None = Field(default=None, description="默认模型 ID")
     light_model: str | None = Field(default=None, description="轻量模型 ID")
+    summary_model: str | None = Field(
+        default=None,
+        description="摘要模型 ID，空值时跟随轻量模型",
+    )
+    summary_auto_generate_chapter: bool | None = Field(
+        default=None,
+        description="是否自动生成章节摘要",
+    )
+    summary_auto_generate_long_term: bool | None = Field(
+        default=None,
+        description="是否自动生成区间摘要",
+    )
+    summary_min_chapter_word_count: int | None = Field(
+        default=None,
+        ge=0,
+        description="参与摘要的章节最小字数",
+    )
+    summary_batch_size: int | None = Field(default=None, ge=1, description="自动摘要批次大小")
+    summary_long_term_interval: int | None = Field(
+        default=None,
+        ge=1,
+        description="区间摘要包含的章节数",
+    )
+    summary_chapter_target_length: int | None = Field(
+        default=None,
+        ge=1,
+        description="章节摘要目标字数",
+    )
+    summary_long_term_target_length: int | None = Field(
+        default=None,
+        ge=1,
+        description="区间摘要目标字数",
+    )
+    confirm_summary_range_invalidation: bool = Field(
+        default=False,
+        description="确认清理所有区间摘要",
+    )
     default_embedding_model: str | None = Field(
         default=None,
         description="默认 Embedding 模型 ID",

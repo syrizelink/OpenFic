@@ -24,6 +24,15 @@ from app.background.jobs.states import (
 )
 from app.core.errors import NotFoundError, ValidationError
 from app.memory.chapter.sequence import global_order_index
+from app.memory.summary_config import (
+    DEFAULT_SUMMARY_BATCH_SIZE,
+    DEFAULT_SUMMARY_LONG_TERM_INTERVAL,
+    DEFAULT_SUMMARY_MIN_CHAPTER_WORD_COUNT,
+    SUMMARY_MODEL_POLICY,
+    SummarySettings,
+    load_summary_settings,
+    resolve_summary_model_id,
+)
 from app.storage.models.chapter import Chapter
 from app.storage.models.chapter_summary import ChapterSummary
 from app.storage.models.volume import Volume
@@ -38,10 +47,10 @@ from app.storage.repos.chapter_summary_repo import (
     SUMMARY_TYPE_LONG_TERM,
 )
 
-CHAPTER_SUMMARY_INTERVAL = 10
-LONG_TERM_SUMMARY_INTERVAL = 10
+CHAPTER_SUMMARY_INTERVAL = DEFAULT_SUMMARY_BATCH_SIZE
+LONG_TERM_SUMMARY_INTERVAL = DEFAULT_SUMMARY_LONG_TERM_INTERVAL
 AUTO_GENERATION_BLOCK_CHAPTER_THRESHOLD = 20
-MIN_CHAPTER_SUMMARY_WORD_COUNT = 500
+MIN_CHAPTER_SUMMARY_WORD_COUNT = DEFAULT_SUMMARY_MIN_CHAPTER_WORD_COUNT
 SUMMARY_STALE_DIFF_THRESHOLD = 100
 SUMMARY_BATCH_ITEM_TYPE_CHAPTER = "chapter_summary"
 SUMMARY_BATCH_ITEM_TYPE_LONG_TERM = "long_term_summary"
@@ -148,8 +157,12 @@ def encode_summary_list(value: list[str]) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
-def is_chapter_summary_skipped(chapter: Chapter) -> bool:
-    return chapter.word_count < MIN_CHAPTER_SUMMARY_WORD_COUNT
+def is_chapter_summary_skipped(
+    chapter: Chapter,
+    *,
+    minimum_word_count: int = MIN_CHAPTER_SUMMARY_WORD_COUNT,
+) -> bool:
+    return chapter.word_count < minimum_word_count
 
 
 def is_chapter_summary_stale(summary: ChapterSummary | None, chapter: Chapter) -> bool:
@@ -220,6 +233,8 @@ def is_long_term_summary_stale(
     chapters: list[Chapter],
     chapter_summaries: list[ChapterSummary],
     volumes: list[Volume],
+    *,
+    minimum_word_count: int = MIN_CHAPTER_SUMMARY_WORD_COUNT,
 ) -> bool:
     if summary is None or summary.status != SUMMARY_STATUS_READY:
         return False
@@ -231,6 +246,7 @@ def is_long_term_summary_stale(
         chapter_summaries,
         summary.start_order,
         summary.end_order,
+        minimum_word_count=minimum_word_count,
     )
     if window is None:
         return True
@@ -263,10 +279,12 @@ def _build_long_term_window_from_group(
     chapter_group: list[Chapter],
     order_map: dict[str, int],
     summary_by_chapter_id: dict[str | None, ChapterSummary],
+    *,
+    minimum_word_count: int = MIN_CHAPTER_SUMMARY_WORD_COUNT,
 ) -> LongTermSummaryWindow | None:
     source_summaries: list[ChapterSummary] = []
     for chapter in sorted(chapter_group, key=lambda item: order_map.get(item.id, float("inf"))):
-        if is_chapter_summary_skipped(chapter):
+        if is_chapter_summary_skipped(chapter, minimum_word_count=minimum_word_count):
             continue
         summary = summary_by_chapter_id.get(chapter.id)
         if summary is None or summary.status != SUMMARY_STATUS_READY:
@@ -289,6 +307,8 @@ def build_long_term_summary_window(
     chapter_summaries: list[ChapterSummary],
     start_order: int,
     end_order: int,
+    *,
+    minimum_word_count: int = MIN_CHAPTER_SUMMARY_WORD_COUNT,
 ) -> LongTermSummaryWindow | None:
     summary_by_chapter_id = {summary.chapter_id: summary for summary in chapter_summaries}
     order_map = global_order_index(chapters, volumes)
@@ -299,19 +319,32 @@ def build_long_term_summary_window(
     ]
     if len(chapter_group) != end_order - start_order + 1:
         return None
-    return _build_long_term_window_from_group(chapter_group, order_map, summary_by_chapter_id)
+    return _build_long_term_window_from_group(
+        chapter_group,
+        order_map,
+        summary_by_chapter_id,
+        minimum_word_count=minimum_word_count,
+    )
 
 
 def list_eligible_long_term_ranges(
     chapters: list[Chapter],
     volumes: list[Volume],
     chapter_summaries: list[ChapterSummary],
+    *,
+    interval: int = LONG_TERM_SUMMARY_INTERVAL,
+    minimum_word_count: int = MIN_CHAPTER_SUMMARY_WORD_COUNT,
 ) -> list[tuple[int, int]]:
     summary_by_chapter_id = {summary.chapter_id: summary for summary in chapter_summaries}
     order_map = global_order_index(chapters, volumes)
     ranges: list[tuple[int, int]] = []
-    for chapter_group in _fixed_summary_windows(chapters, volumes, LONG_TERM_SUMMARY_INTERVAL):
-        window = _build_long_term_window_from_group(chapter_group, order_map, summary_by_chapter_id)
+    for chapter_group in _fixed_summary_windows(chapters, volumes, interval):
+        window = _build_long_term_window_from_group(
+            chapter_group,
+            order_map,
+            summary_by_chapter_id,
+            minimum_word_count=minimum_word_count,
+        )
         if window is None:
             continue
         ranges.append((window.start_order, window.end_order))
@@ -323,6 +356,9 @@ def list_ready_unaggregated_long_term_windows(
     volumes: list[Volume],
     chapter_summaries: list[ChapterSummary],
     long_term_summaries: list[ChapterSummary],
+    *,
+    interval: int = LONG_TERM_SUMMARY_INTERVAL,
+    minimum_word_count: int = MIN_CHAPTER_SUMMARY_WORD_COUNT,
 ) -> list[LongTermSummaryWindow]:
     summary_by_chapter_id = {summary.chapter_id: summary for summary in chapter_summaries}
     order_map = global_order_index(chapters, volumes)
@@ -332,13 +368,22 @@ def list_ready_unaggregated_long_term_windows(
         if summary.start_order is not None and summary.end_order is not None
     }
     windows: list[LongTermSummaryWindow] = []
-    for chapter_group in _fixed_summary_windows(chapters, volumes, LONG_TERM_SUMMARY_INTERVAL):
-        window = _build_long_term_window_from_group(chapter_group, order_map, summary_by_chapter_id)
+    for chapter_group in _fixed_summary_windows(chapters, volumes, interval):
+        window = _build_long_term_window_from_group(
+            chapter_group,
+            order_map,
+            summary_by_chapter_id,
+            minimum_word_count=minimum_word_count,
+        )
         if window is None:
             continue
         existing = long_term_by_range.get((window.start_order, window.end_order))
         if existing is not None and not is_long_term_summary_stale(
-            existing, chapters, chapter_summaries, volumes
+            existing,
+            chapters,
+            chapter_summaries,
+            volumes,
+            minimum_word_count=minimum_word_count,
         ):
             continue
         windows.append(window)
@@ -357,6 +402,40 @@ async def list_long_term_summaries(
     return await chapter_summary_repo.list_long_term_summaries_by_project(
         session, project_id
     )
+
+
+async def invalidate_all_long_term_summaries(session: AsyncSession) -> None:
+    """Cancel active range-summary work and remove all persisted range summaries."""
+    active_jobs = await job_service.list_jobs(
+        session,
+        statuses={JOB_STATUS_PENDING, JOB_STATUS_RUNNING},
+        job_types={JOB_TYPE_SUMMARY_BATCH},
+        limit=100000,
+    )
+    jobs_to_cancel: list[BackgroundJob] = []
+    for job in active_jobs:
+        items = await job_service.list_job_items(session, job_id=job.id)
+        if any(
+            item.type == SUMMARY_BATCH_ITEM_TYPE_LONG_TERM
+            and item.status in {JOB_STATUS_PENDING, JOB_STATUS_RUNNING}
+            for item in items
+        ):
+            jobs_to_cancel.append(job)
+
+    supervisor = get_background_supervisor()
+    publisher = supervisor.create_event_publisher()
+    for job in jobs_to_cancel:
+        await job_service.cancel_job(
+            session,
+            publisher,
+            job,
+            reason="区间摘要配置已变更",
+        )
+
+    await chapter_summary_repo.delete_all_long_term_summaries(session)
+
+    for job in jobs_to_cancel:
+        supervisor.cancel_running_summary_batch(job.id)
 
 
 async def get_chapter_summary(
@@ -618,12 +697,14 @@ async def load_long_term_summary_window(
     chapters = await chapter_repo.list_by_project(session, project_id)
     volumes = await volume_repo.list_by_project(session, project_id)
     chapter_summaries = await list_chapter_summaries(session, project_id)
+    summary_settings = await load_summary_settings(session)
     return build_long_term_summary_window(
         chapters,
         volumes,
         chapter_summaries,
         start_order,
         end_order,
+        minimum_word_count=summary_settings.min_chapter_word_count,
     )
 
 
@@ -701,6 +782,7 @@ async def list_all_missing_summary_ranges(
     session: AsyncSession,
     project_id: str,
 ) -> tuple[list[str], list[tuple[int, int]]]:
+    summary_settings = await load_summary_settings(session)
     chapters = await chapter_repo.list_by_project(session, project_id)
     volumes = await volume_repo.list_by_project(session, project_id)
     chapter_summaries = await list_chapter_summaries(session, project_id)
@@ -708,7 +790,10 @@ async def list_all_missing_summary_ranges(
     summary_by_chapter_id = {summary.chapter_id: summary for summary in chapter_summaries}
     chapter_ids: list[str] = []
     for chapter in chapters:
-        if is_chapter_summary_skipped(chapter):
+        if is_chapter_summary_skipped(
+            chapter,
+            minimum_word_count=summary_settings.min_chapter_word_count,
+        ):
             continue
         summary = summary_by_chapter_id.get(chapter.id)
         if summary is None or summary.status == SUMMARY_STATUS_FAILED or is_chapter_summary_stale(summary, chapter):
@@ -719,9 +804,21 @@ async def list_all_missing_summary_ranges(
         for summary in long_term_summaries
         if summary.start_order is not None and summary.end_order is not None
     }
-    for start_order, end_order in list_eligible_long_term_ranges(chapters, volumes, chapter_summaries):
+    for start_order, end_order in list_eligible_long_term_ranges(
+        chapters,
+        volumes,
+        chapter_summaries,
+        interval=summary_settings.long_term_interval,
+        minimum_word_count=summary_settings.min_chapter_word_count,
+    ):
         existing = long_term_by_range.get((start_order, end_order))
-        if existing is None or existing.status == SUMMARY_STATUS_FAILED or is_long_term_summary_stale(existing, chapters, chapter_summaries, volumes):
+        if existing is None or existing.status == SUMMARY_STATUS_FAILED or is_long_term_summary_stale(
+            existing,
+            chapters,
+            chapter_summaries,
+            volumes,
+            minimum_word_count=summary_settings.min_chapter_word_count,
+        ):
             ranges.append((start_order, end_order))
     return chapter_ids, ranges
 
@@ -837,15 +934,21 @@ async def append_chapter_summary_items(
     chapter_ids: list[str],
     *,
     model_id: str | None = None,
-    model_policy: str = "light_model",
+    model_policy: str = SUMMARY_MODEL_POLICY,
 ) -> SummaryBatchAppendResult:
     if not chapter_ids:
         raise ValidationError("没有可加入队列的章节摘要")
+    summary_settings = await load_summary_settings(session)
+    effective_model_id = model_id
+    effective_model_policy = model_policy
+    if model_policy == SUMMARY_MODEL_POLICY:
+        effective_model_id = await resolve_summary_model_id(session, model_id)
+        effective_model_policy = "light_model"
     batch_job, created = await _get_or_create_summary_batch_job(
         session,
         project_id,
-        model_id=model_id,
-        model_policy=model_policy,
+        model_id=effective_model_id,
+        model_policy=effective_model_policy,
     )
     existing_map = await _existing_batch_item_map(session, batch_job.id)
     order_index = len(await job_service.list_job_items(session, job_id=batch_job.id))
@@ -855,8 +958,13 @@ async def append_chapter_summary_items(
         chapter = await chapter_repo.get_by_id(session, chapter_id)
         if chapter is None or chapter.project_id != project_id:
             raise NotFoundError(f"章节不存在: {chapter_id}")
-        if is_chapter_summary_skipped(chapter):
-            raise ValidationError(f"章节字数不足 {MIN_CHAPTER_SUMMARY_WORD_COUNT}，不能生成摘要")
+        if is_chapter_summary_skipped(
+            chapter,
+            minimum_word_count=summary_settings.min_chapter_word_count,
+        ):
+            raise ValidationError(
+                f"章节字数不足 {summary_settings.min_chapter_word_count}，不能生成摘要"
+            )
         key = _chapter_item_key(chapter_id)
         existing_item = existing_map.get(key)
         current_row = await chapter_summary_repo.get_by_chapter_id(session, chapter_id)
@@ -878,7 +986,7 @@ async def append_chapter_summary_items(
                 session,
                 chapter,
                 status=SUMMARY_STATUS_QUEUED,
-                model_id=model_id,
+                model_id=effective_model_id,
             )
         if existing_item is not None:
             if row.status != SUMMARY_STATUS_READY:
@@ -905,8 +1013,8 @@ async def append_chapter_summary_items(
             payload={
                 "project_id": project_id,
                 "chapter_id": chapter_id,
-                "model_id": model_id,
-                "model_policy": model_policy,
+                "model_id": effective_model_id,
+                "model_policy": effective_model_policy,
             },
         )
         order_index += 1
@@ -935,15 +1043,21 @@ async def append_long_term_summary_items(
     ranges: list[tuple[int, int]],
     *,
     model_id: str | None = None,
-    model_policy: str = "light_model",
+    model_policy: str = SUMMARY_MODEL_POLICY,
 ) -> SummaryBatchAppendResult:
     if not ranges:
         raise ValidationError("没有可加入队列的区间摘要")
+    summary_settings = await load_summary_settings(session)
+    effective_model_id = model_id
+    effective_model_policy = model_policy
+    if model_policy == SUMMARY_MODEL_POLICY:
+        effective_model_id = await resolve_summary_model_id(session, model_id)
+        effective_model_policy = "light_model"
     batch_job, created = await _get_or_create_summary_batch_job(
         session,
         project_id,
-        model_id=model_id,
-        model_policy=model_policy,
+        model_id=effective_model_id,
+        model_policy=effective_model_policy,
     )
     existing_map = await _existing_batch_item_map(session, batch_job.id)
     order_index = len(await job_service.list_job_items(session, job_id=batch_job.id))
@@ -958,7 +1072,14 @@ async def append_long_term_summary_items(
         if summary.start_order is not None and summary.end_order is not None
     }
     for start_order, end_order in ranges:
-        window = build_long_term_summary_window(chapters, volumes, chapter_summaries, start_order, end_order)
+        window = build_long_term_summary_window(
+            chapters,
+            volumes,
+            chapter_summaries,
+            start_order,
+            end_order,
+            minimum_word_count=summary_settings.min_chapter_word_count,
+        )
         if window is None:
             raise ValidationError("该区间缺少可参与聚合的章节摘要，需先生成满足条件的章节摘要。")
         key = _long_term_item_key(start_order, end_order)
@@ -967,7 +1088,13 @@ async def append_long_term_summary_items(
         is_ready_and_fresh = (
             current_row is not None
             and current_row.status == SUMMARY_STATUS_READY
-            and not is_long_term_summary_stale(current_row, chapters, chapter_summaries, volumes)
+            and not is_long_term_summary_stale(
+                current_row,
+                chapters,
+                chapter_summaries,
+                volumes,
+                minimum_word_count=summary_settings.min_chapter_word_count,
+            )
         )
         if is_ready_and_fresh:
             if current_row is not None:
@@ -986,7 +1113,7 @@ async def append_long_term_summary_items(
                 end_order=end_order,
                 status=SUMMARY_STATUS_QUEUED,
                 source_chapter_ids=window.chapter_ids,
-                model_id=model_id,
+                model_id=effective_model_id,
             )
         if existing_item is not None:
             if row.status != SUMMARY_STATUS_READY:
@@ -1015,8 +1142,8 @@ async def append_long_term_summary_items(
                 "project_id": project_id,
                 "start_order": start_order,
                 "end_order": end_order,
-                "model_id": model_id,
-                "model_policy": model_policy,
+                "model_id": effective_model_id,
+                "model_policy": effective_model_policy,
             },
         )
         order_index += 1
@@ -1044,22 +1171,39 @@ async def _auto_chapter_candidates(
     session: AsyncSession,
     project_id: str,
     anchor_chapter: Chapter | None = None,
+    *,
+    summary_settings: SummarySettings | None = None,
 ) -> list[str]:
+    resolved_settings = summary_settings or await load_summary_settings(session)
     summaries = await list_chapter_summaries(session, project_id)
     chapters = await chapter_repo.list_by_project(session, project_id)
     volumes = await volume_repo.list_by_project(session, project_id)
-    eligible_chapters = [item for item in chapters if not is_chapter_summary_skipped(item)]
+    eligible_chapters = [
+        item
+        for item in chapters
+        if not is_chapter_summary_skipped(
+            item,
+            minimum_word_count=resolved_settings.min_chapter_word_count,
+        )
+    ]
     has_ready_summary = any(summary.status == SUMMARY_STATUS_READY for summary in summaries)
     if not has_ready_summary and len(eligible_chapters) > AUTO_GENERATION_BLOCK_CHAPTER_THRESHOLD:
         return []
     summary_by_chapter_id = {summary.chapter_id: summary for summary in summaries}
     candidates: list[str] = []
     if anchor_chapter is not None:
-        for chapter_group in _fixed_summary_windows(chapters, volumes, CHAPTER_SUMMARY_INTERVAL):
+        for chapter_group in _fixed_summary_windows(
+            chapters,
+            volumes,
+            resolved_settings.batch_size,
+        ):
             if anchor_chapter.id not in {item.id for item in chapter_group}:
                 continue
             for item in chapter_group:
-                if is_chapter_summary_skipped(item):
+                if is_chapter_summary_skipped(
+                    item,
+                    minimum_word_count=resolved_settings.min_chapter_word_count,
+                ):
                     continue
                 existing = summary_by_chapter_id.get(item.id)
                 if existing is None or existing.status not in {
@@ -1069,9 +1213,19 @@ async def _auto_chapter_candidates(
                 }:
                     candidates.append(item.id)
             return candidates
-    for chapter_group in _fixed_summary_windows(chapters, volumes, CHAPTER_SUMMARY_INTERVAL):
+    for chapter_group in _fixed_summary_windows(
+        chapters,
+        volumes,
+        resolved_settings.batch_size,
+    ):
         for item in chapter_group:
-            if is_chapter_summary_skipped(item) or item.id in candidates:
+            if (
+                is_chapter_summary_skipped(
+                    item,
+                    minimum_word_count=resolved_settings.min_chapter_word_count,
+                )
+                or item.id in candidates
+            ):
                 continue
             existing = summary_by_chapter_id.get(item.id)
             if existing is None or existing.status not in {
@@ -1087,7 +1241,15 @@ async def maybe_enqueue_chapter_summary_for_new_chapter(
     session: AsyncSession,
     chapter: Chapter,
 ) -> SummaryBatchAppendResult | None:
-    candidates = await _auto_chapter_candidates(session, chapter.project_id, anchor_chapter=chapter)
+    summary_settings = await load_summary_settings(session)
+    if not summary_settings.auto_generate_chapter:
+        return None
+    candidates = await _auto_chapter_candidates(
+        session,
+        chapter.project_id,
+        anchor_chapter=chapter,
+        summary_settings=summary_settings,
+    )
     if not candidates:
         return None
     return await append_chapter_summary_items(
@@ -1102,9 +1264,12 @@ async def enqueue_long_term_summary_if_ready(
     project_id: str,
     *,
     model_id: str | None = None,
-    model_policy: str = "light_model",
+    model_policy: str = SUMMARY_MODEL_POLICY,
     batch_job_id: str | None = None,
 ) -> SummaryBatchAppendResult | None:
+    summary_settings = await load_summary_settings(session)
+    if not summary_settings.auto_generate_long_term:
+        return None
     chapters = await chapter_repo.list_by_project(session, project_id)
     volumes = await volume_repo.list_by_project(session, project_id)
     chapter_summaries = await list_chapter_summaries(session, project_id)
@@ -1114,6 +1279,8 @@ async def enqueue_long_term_summary_if_ready(
         volumes,
         chapter_summaries,
         long_term_summaries,
+        interval=summary_settings.long_term_interval,
+        minimum_word_count=summary_settings.min_chapter_word_count,
     )
     if not windows:
         return None
@@ -1132,7 +1299,7 @@ async def enqueue_chapter_summary(
     chapter_id: str,
     *,
     model_id: str | None = None,
-    model_policy: str = "light_model",
+    model_policy: str = SUMMARY_MODEL_POLICY,
 ) -> ChapterSummary:
     chapter = await chapter_repo.get_by_id(session, chapter_id)
     if chapter is None:
@@ -1158,7 +1325,7 @@ async def enqueue_long_term_summary_range(
     source: list[ChapterSummary],
     *,
     model_id: str | None = None,
-    model_policy: str = "light_model",
+    model_policy: str = SUMMARY_MODEL_POLICY,
 ) -> ChapterSummary:
     _ = source
     await append_long_term_summary_items(

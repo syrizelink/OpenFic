@@ -8,6 +8,7 @@ import {
   MessagesSquare,
   Palette,
   Package,
+  Summary as SummaryIcon,
   Settings as SettingsIcon,
   ShieldAlert,
   SlidersHorizontal,
@@ -23,6 +24,7 @@ export type SettingsCategory =
   | "models"
   | "index"
   | "context"
+  | "summary"
   | "agent-tools"
   | "web-search"
   | "rules"
@@ -71,6 +73,11 @@ export const SETTINGS_CATEGORY_ITEMS: SettingsCategoryItem[] = [
     id: "context",
     icon: <MessagesSquare size={16} />,
     labelKey: "settings.context",
+  },
+  {
+    id: "summary",
+    icon: <SummaryIcon size={16} />,
+    labelKey: "settings.summary",
   },
   {
     id: "agent-tools",

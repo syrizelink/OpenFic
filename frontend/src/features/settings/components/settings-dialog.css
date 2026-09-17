@@ -1,3 +1,8 @@
+.rt-DialogOverlay:has(.settings-dialog-surface),
+.rt-DialogOverlay:has(.settings-dialog-surface) .rt-DialogScroll {
+  overflow: hidden;
+}
+
 .rt-DialogContent.settings-dialog-surface {
   position: relative;
   width: min(1180px, calc(100vw - 72px));
@@ -615,20 +620,26 @@
   border: 0;
 }
 
-.font-size-field .font-size-stepper {
+.settings-number-field .settings-number-stepper {
   visibility: hidden;
 }
 
-.font-size-field:hover .font-size-stepper,
-.font-size-field:focus-within .font-size-stepper {
+.settings-number-field:hover .settings-number-stepper,
+.settings-number-field:focus-within .settings-number-stepper {
   visibility: visible;
 }
 
-.font-size-stepper-slot {
+@media (hover: none) {
+  .settings-number-field .settings-number-stepper {
+    visibility: visible;
+  }
+}
+
+.settings-number-stepper-slot {
   padding-right: 0 !important;
 }
 
-.font-size-stepper-btn {
+.settings-number-stepper-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -640,19 +651,21 @@
   background: transparent;
   color: var(--gray-9);
   cursor: pointer;
+  touch-action: none;
+  user-select: none;
 }
 
-.font-size-stepper-btn:hover:not(:disabled) {
+.settings-number-stepper-btn:hover:not(:disabled) {
   background: var(--gray-a3);
   color: var(--gray-12);
 }
 
-.font-size-stepper-btn:focus-visible {
+.settings-number-stepper-btn:focus-visible {
   outline: 2px solid var(--accent-8);
   outline-offset: -2px;
 }
 
-.font-size-stepper-btn:disabled {
+.settings-number-stepper-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
@@ -686,6 +699,7 @@
 @media (max-width: 767px) {
   .rt-DialogOverlay:has(.settings-dialog-surface) {
     padding: 0 !important;
+    overflow: hidden;
   }
 
   .rt-DialogContent.settings-dialog-surface {
@@ -702,6 +716,7 @@
     margin: 0;
     border-radius: 0;
     transform: none;
+    overflow: hidden;
   }
 
   .rt-reset.rt-BaseButton.rt-IconButton.settings-dialog-main-close {

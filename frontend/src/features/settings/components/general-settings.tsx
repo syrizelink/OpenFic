@@ -4,11 +4,10 @@
  * 通用设置面板，包含语言、明暗模式、字体设置。
  */
 
-import { Box, Flex, Text, TextField } from "@radix-ui/themes";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Box, Flex, Text } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 
+import { StepperNumberInput } from "@/components";
 import { LabeledSelect } from "@/components/select";
 import { supportedLanguages, type LanguageCode } from "@/i18n";
 
@@ -35,50 +34,6 @@ const MAX_FONT_SIZE = 28;
 
 function FontSizeField({ label, value, onCommit, disabled = false }: FontSizeFieldProps) {
   const { t } = useTranslation();
-  const [draft, setDraft] = useState(() => String(value));
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setDraft(String(value));
-  }, [value]);
-
-  const commit = () => {
-    const parsed = Number(draft);
-    if (Number.isNaN(parsed) || parsed <= 0) {
-      setDraft(String(value));
-      return;
-    }
-    const nextValue = Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Math.round(parsed)));
-    if (nextValue === value) {
-      setDraft(String(value));
-      return;
-    }
-    onCommit(nextValue);
-  };
-
-  const stepBy = (delta: number) => {
-    const base = Number.isFinite(Number(draft)) ? Number(draft) : value;
-    const next = Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, base + delta));
-    setDraft(String(next));
-    inputRef.current?.focus();
-  };
-
-  const stepperButton = (direction: "up" | "down") => {
-    const isUp = direction === "up";
-    return (
-      <button
-        type="button"
-        tabIndex={-1}
-        aria-label={isUp ? t("settings.increaseFontSize") : t("settings.decreaseFontSize")}
-        disabled={disabled}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => stepBy(isUp ? 1 : -1)}
-        className="font-size-stepper-btn"
-      >
-        {isUp ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-      </button>
-    );
-  };
 
   return (
     <Flex
@@ -92,37 +47,17 @@ function FontSizeField({ label, value, onCommit, disabled = false }: FontSizeFie
       >
         {label}
       </Text>
-      <TextField.Root
-        type="number"
+      <StepperNumberInput
+        value={value}
         min={MIN_FONT_SIZE}
         max={MAX_FONT_SIZE}
-        value={draft}
-        ref={inputRef}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={commit}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.currentTarget.blur();
-          }
-        }}
+        unit="px"
+        width={200}
+        increaseAriaLabel={t("settings.increaseFontSize")}
+        decreaseAriaLabel={t("settings.decreaseFontSize")}
+        onCommit={onCommit}
         disabled={disabled}
-        className="font-size-field"
-        style={{ width: 200 }}
-      >
-        <TextField.Slot
-          side="right"
-          className="font-size-stepper-slot"
-        >
-          <Flex
-            direction="column"
-            className="font-size-stepper"
-          >
-            {stepperButton("up")}
-            {stepperButton("down")}
-          </Flex>
-        </TextField.Slot>
-        <TextField.Slot side="right">px</TextField.Slot>
-      </TextField.Root>
+      />
     </Flex>
   );
 }

@@ -35,6 +35,7 @@ from app.background.jobs import service as background_job_service
 from app.core.errors import NotFoundError, ValidationError
 from app.memory.chapter import build_context
 from app.memory.chapter.sequence import chapter_by_global_order
+from app.memory.summary_config import load_summary_settings
 from app.memory.chapter.summary_service import (
     AUTO_GENERATION_BLOCK_CHAPTER_THRESHOLD,
     SUMMARY_BATCH_ITEM_TYPE_CHAPTER,
@@ -203,6 +204,7 @@ def _matches_summary_search(query: str, *values: str | None) -> bool:
 async def _build_maintenance_response(
     session: AsyncSession, project_id: str
 ) -> SummaryMaintenanceResponse:
+    summary_settings = await load_summary_settings(session)
     chapters = await chapter_repo.list_by_project(session, project_id)
     volumes = await volume_repo.list_by_project(session, project_id)
     chapter_summaries = await list_chapter_summaries(session, project_id)
@@ -245,7 +247,10 @@ async def _build_maintenance_response(
     skipped_chapters: list[SkippedChapterSummaryItem] = []
     for chapter in chapters:
         volume = volumes_by_id.get(chapter.volume_id) if chapter.volume_id else None
-        if is_chapter_summary_skipped(chapter):
+        if is_chapter_summary_skipped(
+            chapter,
+            minimum_word_count=summary_settings.min_chapter_word_count,
+        ):
             skipped_chapters.append(
                 SkippedChapterSummaryItem(
                     chapter_id=chapter.id,
@@ -288,10 +293,22 @@ async def _build_maintenance_response(
         and job.end_order is not None
     }
     missing_long_terms: list[MissingLongTermSummaryItem] = []
-    for start_order, end_order in list_eligible_long_term_ranges(chapters, volumes, chapter_summaries):
+    for start_order, end_order in list_eligible_long_term_ranges(
+        chapters,
+        volumes,
+        chapter_summaries,
+        interval=summary_settings.long_term_interval,
+        minimum_word_count=summary_settings.min_chapter_word_count,
+    ):
         existing = long_term_by_range.get((start_order, end_order))
         status = existing.status if existing else "not_generated"
-        is_stale = is_long_term_summary_stale(existing, chapters, chapter_summaries, volumes)
+        is_stale = is_long_term_summary_stale(
+            existing,
+            chapters,
+            chapter_summaries,
+            volumes,
+            minimum_word_count=summary_settings.min_chapter_word_count,
+        )
         active_job = active_long_term_job_by_range.get((start_order, end_order))
         if active_job is not None:
             status = _maintenance_status_from_job(active_job.status)
@@ -323,7 +340,12 @@ async def _build_maintenance_response(
         summary.status == "ready" for summary in chapter_summaries
     )
     eligible_chapter_count = sum(
-        1 for chapter in chapters if not is_chapter_summary_skipped(chapter)
+        1
+        for chapter in chapters
+        if not is_chapter_summary_skipped(
+            chapter,
+            minimum_word_count=summary_settings.min_chapter_word_count,
+        )
     )
     auto_blocked = (
         eligible_chapter_count > AUTO_GENERATION_BLOCK_CHAPTER_THRESHOLD
@@ -556,6 +578,7 @@ async def list_long_terms_page(
     page_size: int = Query(default=20, ge=1, le=100),
     q: str | None = Query(default=None, description="搜索区间摘要"),
 ) -> LongTermSummaryListResponse:
+    summary_settings = await load_summary_settings(session)
     chapters = await chapter_repo.list_by_project(session, project_id)
     volumes = await volume_repo.list_by_project(session, project_id)
     chapter_summaries = await list_chapter_summaries(session, project_id)
@@ -579,6 +602,7 @@ async def list_long_terms_page(
                 chapters,
                 chapter_summaries,
                 volumes,
+                minimum_word_count=summary_settings.min_chapter_word_count,
             ),
         )
         for summary in page_summaries
@@ -645,12 +669,14 @@ async def enqueue_summary(
             chapters = await chapter_repo.list_by_project(session, project_id)
             volumes = await volume_repo.list_by_project(session, project_id)
             chapter_summaries = await list_chapter_summaries(session, project_id)
+            summary_settings = await load_summary_settings(session)
             window = build_long_term_summary_window(
                 chapters,
                 volumes,
                 chapter_summaries,
                 data.start_order,
                 data.end_order,
+                minimum_word_count=summary_settings.min_chapter_word_count,
             )
             if window is None:
                 raise HTTPException(
