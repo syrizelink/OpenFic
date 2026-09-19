@@ -1797,6 +1797,11 @@
     "contextUsage": "Context Usage",
     "loadingTask": "Loading task...",
     "scrollToBottom": "Scroll to bottom",
+    "messageNavigation": {
+      "label": "Message navigation",
+      "item": "User message {{count}}",
+      "emptyUser": "(No text message)"
+    },
     "summaryWarningTitle": "Context summaries may be incomplete",
     "summaryWarningDescription": "There are still unfinished or missing chapter/range summaries within the context window anchored to the latest chapter. Sending will continue, but the AI may read incomplete context.",
     "summaryWarningConfirm": "Send anyway",

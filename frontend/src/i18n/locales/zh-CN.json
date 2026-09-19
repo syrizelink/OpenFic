@@ -1860,6 +1860,11 @@
     "contextUsage": "上下文占用",
     "loadingTask": "加载任务中...",
     "scrollToBottom": "回到底部",
+    "messageNavigation": {
+      "label": "消息导航",
+      "item": "第 {{count}} 条用户消息",
+      "emptyUser": "（无文本消息）"
+    },
     "summaryWarningTitle": "上下文摘要可能不完整",
     "summaryWarningDescription": "以最新章节为锚点的上下文范围内仍有未生成或未完成的章节摘要/区间摘要。本次发送会继续执行，但 AI 读取到的上下文可能不完整。",
     "summaryWarningConfirm": "继续发送",
