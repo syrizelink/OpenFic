@@ -125,29 +125,29 @@ class WriteNoteTool(AgentTool):
             raise ToolExecutionError(str(exc)) from exc
         session = await create_session()
         try:
-            category_id: str | None = None
-            categories = []
-            if category_ref is not None:
-                ref = CategoryRef.model_validate(category_ref)
-                if ref.id is not None:
-                    cat = await note_category_repo.get_by_id(session, ref.id)
-                    if cat is None:
-                        raise ToolExecutionError(f"分类不存在: {ref.id}")
-                    categories = [cat]
-                    if cat.parent_id is not None:
+            async with await keyed_lock(("notes", self.project_id)):
+                category_id: str | None = None
+                categories = []
+                if category_ref is not None:
+                    ref = CategoryRef.model_validate(category_ref)
+                    if ref.id is not None:
+                        cat = await note_category_repo.get_by_id(session, ref.id)
+                        if cat is None:
+                            raise ToolExecutionError(f"分类不存在: {ref.id}")
+                        categories = [cat]
+                        if cat.parent_id is not None:
+                            categories = await note_category_repo.list_by_project(
+                                session, self.project_id
+                            )
+                    else:
                         categories = await note_category_repo.list_by_project(
                             session, self.project_id
                         )
-                else:
-                    categories = await note_category_repo.list_by_project(
-                        session, self.project_id
-                    )
-                    cat = resolve_category_from_list(categories, ref)
-                if cat.project_id != self.project_id:
-                    raise ToolExecutionError("目标分类不属于当前项目")
-                category_id = cat.id
+                        cat = resolve_category_from_list(categories, ref)
+                    if cat.project_id != self.project_id:
+                        raise ToolExecutionError("目标分类不属于当前项目")
+                    category_id = cat.id
 
-            async with await keyed_lock((self.project_id, category_id)):
                 notes = await note_repo.list_by_project(
                     session, self.project_id, include_hidden=False
                 )

@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from app.agent_runtime.plan import service as plan_service
 from app.agent_runtime.tools.base import AgentTool
+from app.agent_runtime.tools.impls._locks import keyed_lock
 from app.agent_runtime.tools.impls.plan._shared import WritePlanInput
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.storage.database import create_session
@@ -64,13 +65,14 @@ class WritePlanTool(AgentTool):
     async def _execute(self, todos: list[Any]) -> str:
         session = await create_session()
         try:
-            snapshot = await plan_service.write_plan(
-                session,
-                runtime_state=self._state,
-                todos=[_todo_payload(todo) for todo in todos],
-            )
-            await session.commit()
-            return plan_service.format_plan_todos(snapshot["todos"])
+            async with await keyed_lock(("plan", self.session_id)):
+                snapshot = await plan_service.write_plan(
+                    session,
+                    runtime_state=self._state,
+                    todos=[_todo_payload(todo) for todo in todos],
+                )
+                await session.commit()
+                return plan_service.format_plan_todos(snapshot["todos"])
         except Exception:
             await session.rollback()
             raise

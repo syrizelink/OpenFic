@@ -286,8 +286,8 @@ class CreateWorldEntryTool(AgentTool):
             raise ToolExecutionError(str(exc)) from exc
         session = await create_session()
         try:
-            world_info = await _get_project_world_info(session, self.project_id)
-            async with await keyed_lock(world_info.id):
+            async with await keyed_lock(("world", self.project_id)):
+                world_info = await _get_project_world_info(session, self.project_id)
                 normalized_title = await _ensure_title_available(session, world_info.id, title)
                 entry = await world_info_entry_service.create_entry(
                     session,
@@ -399,55 +399,56 @@ class EditWorldEntryTool(AgentTool):
         revision_id = _require_revision_id(self._state)
         session = await create_session()
         try:
-            world_info = await _get_project_world_info(session, self.project_id)
-            entry = await _resolve_entry_by_title(session, world_info.id, title)
-            before = _preview_from_entry(entry)
-            content = entry.content
-            if old_content is not None and new_content is not None:
-                replace_result = fuzzy_replace(
-                    content, old_content, new_content, replace_all=replace_all
-                )
-                if replace_result is None:
-                    raise ToolExecutionError("未在世界书条目内容中找到要替换的文本")
-                content = replace_result.new_content
-                try:
-                    validate_editor_content(content)
-                except EditorContentLimitError as exc:
-                    raise ToolExecutionError(str(exc)) from exc
-            normalized_new_title = None
-            if new_title is not None:
-                normalized_new_title = await _ensure_title_available(
+            async with await keyed_lock(("world", self.project_id)):
+                world_info = await _get_project_world_info(session, self.project_id)
+                entry = await _resolve_entry_by_title(session, world_info.id, title)
+                before = _preview_from_entry(entry)
+                content = entry.content
+                if old_content is not None and new_content is not None:
+                    replace_result = fuzzy_replace(
+                        content, old_content, new_content, replace_all=replace_all
+                    )
+                    if replace_result is None:
+                        raise ToolExecutionError("未在世界书条目内容中找到要替换的文本")
+                    content = replace_result.new_content
+                    try:
+                        validate_editor_content(content)
+                    except EditorContentLimitError as exc:
+                        raise ToolExecutionError(str(exc)) from exc
+                normalized_new_title = None
+                if new_title is not None:
+                    normalized_new_title = await _ensure_title_available(
+                        session,
+                        world_info.id,
+                        new_title,
+                        exclude_entry_id=entry.id,
+                    )
+                before_images = world_entry_images_by_id([entry], project_id=self.project_id)
+                updated = await world_info_entry_service.update_entry(
                     session,
-                    world_info.id,
-                    new_title,
-                    exclude_entry_id=entry.id,
+                    entry.id,
+                    name=normalized_new_title,
+                    content=content if content != before.content else None,
                 )
-            before_images = world_entry_images_by_id([entry], project_id=self.project_id)
-            updated = await world_info_entry_service.update_entry(
-                session,
-                entry.id,
-                name=normalized_new_title,
-                content=content if content != before.content else None,
-            )
-            await record_world_entry_diffs(
-                session,
-                revision_id=revision_id,
-                project_id=self.project_id,
-                before=before_images,
-                after=world_entry_images_by_id([updated], project_id=self.project_id),
-            )
-            await session.commit()
-            after = _preview_from_entry(updated)
-            return json.dumps(
-                {
-                    "success": True,
-                    "metadata": {
-                        "world_info_id": world_info.id,
-                        "world_entry_diff": _build_world_entry_diff(before, after),
+                await record_world_entry_diffs(
+                    session,
+                    revision_id=revision_id,
+                    project_id=self.project_id,
+                    before=before_images,
+                    after=world_entry_images_by_id([updated], project_id=self.project_id),
+                )
+                await session.commit()
+                after = _preview_from_entry(updated)
+                return json.dumps(
+                    {
+                        "success": True,
+                        "metadata": {
+                            "world_info_id": world_info.id,
+                            "world_entry_diff": _build_world_entry_diff(before, after),
+                        },
                     },
-                },
-                ensure_ascii=False,
-            )
+                    ensure_ascii=False,
+                )
         except ToolExecutionError:
             raise
         except Exception:
@@ -468,29 +469,30 @@ class DeleteWorldEntryTool(AgentTool):
         revision_id = _require_revision_id(self._state)
         session = await create_session()
         try:
-            world_info = await _get_project_world_info(session, self.project_id)
-            entry = await _resolve_entry_by_title(session, world_info.id, title)
-            before = _preview_from_entry(entry)
-            before_images = world_entry_images_by_id([entry], project_id=self.project_id)
-            await world_info_entry_service.delete_entry(session, entry.id)
-            await record_world_entry_diffs(
-                session,
-                revision_id=revision_id,
-                project_id=self.project_id,
-                before=before_images,
-                after={},
-            )
-            await session.commit()
-            return json.dumps(
-                {
-                    "success": True,
-                    "metadata": {
-                        "world_info_id": world_info.id,
-                        "world_entry_diff": _build_world_entry_diff(before, None),
+            async with await keyed_lock(("world", self.project_id)):
+                world_info = await _get_project_world_info(session, self.project_id)
+                entry = await _resolve_entry_by_title(session, world_info.id, title)
+                before = _preview_from_entry(entry)
+                before_images = world_entry_images_by_id([entry], project_id=self.project_id)
+                await world_info_entry_service.delete_entry(session, entry.id)
+                await record_world_entry_diffs(
+                    session,
+                    revision_id=revision_id,
+                    project_id=self.project_id,
+                    before=before_images,
+                    after={},
+                )
+                await session.commit()
+                return json.dumps(
+                    {
+                        "success": True,
+                        "metadata": {
+                            "world_info_id": world_info.id,
+                            "world_entry_diff": _build_world_entry_diff(before, None),
+                        },
                     },
-                },
-                ensure_ascii=False,
-            )
+                    ensure_ascii=False,
+                )
         except ToolExecutionError:
             raise
         except Exception:

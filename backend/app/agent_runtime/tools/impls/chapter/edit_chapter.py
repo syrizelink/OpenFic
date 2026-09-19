@@ -25,6 +25,7 @@ from app.agent_runtime.tools.impls.chapter.refs import (
     resolve_chapter_from_list,
     resolve_volume_from_list,
 )
+from app.agent_runtime.tools.impls._locks import keyed_lock
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.agent_runtime.tools.text_match import fuzzy_replace
 from app.storage.database import create_session
@@ -130,73 +131,74 @@ class EditChapterTool(AgentTool):
         ref = ChapterRef.model_validate(chapter_ref)
         session = await create_session()
         try:
-            volume = resolve_volume_from_list(
-                await volume_repo.list_by_project(session, self.project_id),
-                volume_ref_model,
-            )
-            matched = await chapter_repo.get_by_volume_ref(
-                session,
-                volume.id,
-                ref_type=ref.type,
-                ref_value=ref.value,
-            )
-            match = resolve_chapter_from_list([matched] if matched is not None else [], ref)
-            before = images_by_id([match])
-            before_match = chapter_preview_from_object(match)
-            if new_title is not None:
-                match.title = new_title
-            if old_content is not None and new_content is not None:
-                replace_result = fuzzy_replace(
-                    match.content, old_content, new_content, replace_all=replace_all
+            async with await keyed_lock(("chapters", self.project_id)):
+                volume = resolve_volume_from_list(
+                    await volume_repo.list_by_project(session, self.project_id),
+                    volume_ref_model,
                 )
-                if replace_result is None:
-                    raise ToolExecutionError("未在章节内容中找到要替换的文本")
-                match.content = replace_result.new_content
-                try:
-                    validate_editor_content(match.content)
-                except EditorContentLimitError as exc:
-                    raise ToolExecutionError(str(exc)) from exc
-                match.word_count = count_words(match.content)
-            match.updated_at = datetime.now(UTC)
-            await chapter_repo.update_chapter(session, match)
-            chapter_diff = build_chapter_diff_preview(
-                before_match,
-                chapter_preview_from_object(match),
-                path=[volume.title.strip()],
-            )
-            after = images_by_id([match])
-            affected = await record_chapter_diffs(
-                session,
-                revision_id=revision_id,
-                project_id=self.project_id,
-                before=before,
-                after=after,
-            )
-            for chapter_id in affected:
-                await record_agent_activity_for_change(
+                matched = await chapter_repo.get_by_volume_ref(
+                    session,
+                    volume.id,
+                    ref_type=ref.type,
+                    ref_value=ref.value,
+                )
+                match = resolve_chapter_from_list([matched] if matched is not None else [], ref)
+                before = images_by_id([match])
+                before_match = chapter_preview_from_object(match)
+                if new_title is not None:
+                    match.title = new_title
+                if old_content is not None and new_content is not None:
+                    replace_result = fuzzy_replace(
+                        match.content, old_content, new_content, replace_all=replace_all
+                    )
+                    if replace_result is None:
+                        raise ToolExecutionError("未在章节内容中找到要替换的文本")
+                    match.content = replace_result.new_content
+                    try:
+                        validate_editor_content(match.content)
+                    except EditorContentLimitError as exc:
+                        raise ToolExecutionError(str(exc)) from exc
+                    match.word_count = count_words(match.content)
+                match.updated_at = datetime.now(UTC)
+                await chapter_repo.update_chapter(session, match)
+                chapter_diff = build_chapter_diff_preview(
+                    before_match,
+                    chapter_preview_from_object(match),
+                    path=[volume.title.strip()],
+                )
+                after = images_by_id([match])
+                affected = await record_chapter_diffs(
                     session,
                     revision_id=revision_id,
-                    task_id=str(self._state.get("task_id") or ""),
-                    agent_session_id=self.session_id,
-                    before=before.get(chapter_id),
-                    after=after.get(chapter_id),
+                    project_id=self.project_id,
+                    before=before,
+                    after=after,
                 )
-            await refresh_project_stats(session, self.project_id)
-            from app.background.jobs import service as background_service
-            from app.retrieval.chapter_index import safe_maybe_enqueue_auto_index
-            from app.retrieval.index_status import schedule_emit_index_status
+                for chapter_id in affected:
+                    await record_agent_activity_for_change(
+                        session,
+                        revision_id=revision_id,
+                        task_id=str(self._state.get("task_id") or ""),
+                        agent_session_id=self.session_id,
+                        before=before.get(chapter_id),
+                        after=after.get(chapter_id),
+                    )
+                await refresh_project_stats(session, self.project_id)
+                from app.background.jobs import service as background_service
+                from app.retrieval.chapter_index import safe_maybe_enqueue_auto_index
+                from app.retrieval.index_status import schedule_emit_index_status
 
-            await safe_maybe_enqueue_auto_index(session, project_id=self.project_id)
-            schedule_emit_index_status(session, self.project_id)
-            await background_service.commit_and_notify(session)
-            return json.dumps(
-                {
-                    "success": True,
-                    "word_count": match.word_count,
-                    "metadata": {"chapter_diff": chapter_diff},
-                },
-                ensure_ascii=False,
-            )
+                await safe_maybe_enqueue_auto_index(session, project_id=self.project_id)
+                schedule_emit_index_status(session, self.project_id)
+                await background_service.commit_and_notify(session)
+                return json.dumps(
+                    {
+                        "success": True,
+                        "word_count": match.word_count,
+                        "metadata": {"chapter_diff": chapter_diff},
+                    },
+                    ensure_ascii=False,
+                )
         except ToolExecutionError:
             raise
         except Exception:
