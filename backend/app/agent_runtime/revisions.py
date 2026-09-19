@@ -858,6 +858,9 @@ async def rollback_revision_for_session(
         session,
         agent_session_id,
         target.user_message_seq,
+        # 重入安全：checkpoint 清理失败的回滚重做时，已 rolled_back 的
+        # revision 也要参与子代理清理边界的重算，否则残留永远清不掉。
+        include_rolled_back=True,
     )
     restore_by_chapter: dict[str, RevisionChapterSnapshot] = {}
     restore_by_note: dict[str, RevisionNoteSnapshot] = {}

@@ -1514,3 +1514,85 @@ async def test_rollback_revision_restores_deleted_characters(revision_db):
     assert character_after is not None
     assert character_after.name == "已有角色"
     assert character_after.description == "原始角色描述"
+
+
+async def test_rollback_reentry_still_recomputes_child_cleanup_boundaries(revision_db):
+    """重做回滚时子代理清理边界必须重算（checkpoint 清理失败后的恢复路径）。
+
+    回滚会把范围内 revision 标记 rolled_back；若范围查询把它们过滤掉，
+    第二次回滚将拿不到子代理清理边界，残留 checkpoint 永远清不掉。
+    """
+    from app.agent_runtime.persistence.model import AgentChildRun, AgentChildRunRequest
+    from app.agent_runtime.revisions import begin_user_revision, rollback_revision_for_session
+
+    async with revision_db() as session:
+        user = await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="委派子代理写章节",
+        )
+        revision = await begin_user_revision(
+            session,
+            project_id="proj-1",
+            task_id="task-1",
+            agent_session_id="sess-1",
+            user_message_id=user.id,
+            user_message_seq=user.seq,
+            message="用户消息: 委派子代理写章节",
+            pre_run_checkpoint_id="cp-parent-before",
+            graph_thread_id="sess-1",
+        )
+        child_run = AgentChildRun(
+            parent_session_id="sess-1",
+            parent_task_id="task-1",
+            parent_thread_id="sess-1",
+            child_thread_id="sess-1:child:writer",
+            agent_key="writer",
+            dispatch_id="dispatch-1",
+            tool_call_id="call-1",
+            status="running",
+            is_active=True,
+            parent_revision_id=revision.id,
+        )
+        session.add(child_run)
+        await session.flush()
+        session.add(
+            AgentChildRunRequest(
+                child_run_id=child_run.id,
+                parent_session_id="sess-1",
+                parent_task_id="task-1",
+                request_kind="dispatch",
+                content="写章节",
+                status="running",
+                parent_revision_id=revision.id,
+                pre_request_checkpoint_id="cp-child-before",
+                seq=0,
+            )
+        )
+        await session.commit()
+
+        first = await rollback_revision_for_session(
+            session,
+            agent_session_id="sess-1",
+            revision_id=revision.id,
+        )
+        await session.commit()
+
+        assert ("sess-1:child:writer", "cp-child-before") in first.child_checkpoint_boundaries
+        assert first.affected_child_run_ids
+
+        # 模拟清理失败后的用户重试：目标 revision 已是 rolled_back，
+        # 第二次回滚仍必须给出同样的子代理清理边界。
+        second = await rollback_revision_for_session(
+            session,
+            agent_session_id="sess-1",
+            revision_id=revision.id,
+        )
+        await session.commit()
+
+    assert ("sess-1:child:writer", "cp-child-before") in second.child_checkpoint_boundaries
+    assert second.affected_child_run_ids

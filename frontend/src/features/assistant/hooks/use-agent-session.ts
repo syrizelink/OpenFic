@@ -1497,7 +1497,12 @@ export function useAgentSession({
         }
       } catch (error) {
         console.error("Rollback failed:", error);
-        toast.error(i18n.t("assistant.rollbackFailed"));
+        // 503：数据层已回滚但 checkpoint 清理未完成，重做回滚可幂等补完清理
+        if ((error as { response?: { status?: number } })?.response?.status === 503) {
+          toast.error(i18n.t("assistant.rollbackCleanupPending"), { duration: 8000 });
+        } else {
+          toast.error(i18n.t("assistant.rollbackFailed"));
+        }
         return null;
       } finally {
         setIsRollbacking(false);
