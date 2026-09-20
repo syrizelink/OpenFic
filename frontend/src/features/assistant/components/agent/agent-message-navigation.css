@@ -51,12 +51,20 @@
 
 .agent-message-navigation-scroll-mask--top {
   top: 0;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.9), transparent);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--color-background) 90%, transparent),
+    transparent
+  );
 }
 
 .agent-message-navigation-scroll-mask--bottom {
   bottom: 0;
-  background: linear-gradient(to top, rgba(255, 255, 255, 0.9), transparent);
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--color-background) 90%, transparent),
+    transparent
+  );
 }
 
 .agent-message-navigation-item {

@@ -28,6 +28,18 @@ body {
   overflow: auto;
 }
 
+input,
+textarea,
+select,
+button {
+  font-family: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+  font-family: inherit;
+}
+
 html[data-editor-keyboard-open],
 html[data-editor-keyboard-open] body {
   overflow: hidden;

@@ -1477,24 +1477,28 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                     <FileDiff size={16} />
                   </IconButton>
                 </Tooltip>
-                <IconButton
-                  variant="ghost"
-                  color="gray"
-                  size="1"
-                  onClick={openAllTasks}
-                  aria-label={t("assistant.history")}
-                >
-                  <History size={16} />
-                </IconButton>
-                <IconButton
-                  variant="ghost"
-                  color="gray"
-                  size="1"
-                  onClick={backToTaskList}
-                  aria-label={t("assistant.newTask")}
-                >
-                  <SquarePen size={16} />
-                </IconButton>
+                <Tooltip content={t("assistant.history")}>
+                  <IconButton
+                    variant="ghost"
+                    color="gray"
+                    size="1"
+                    onClick={openAllTasks}
+                    aria-label={t("assistant.history")}
+                  >
+                    <History size={16} />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip content={t("assistant.newTask")}>
+                  <IconButton
+                    variant="ghost"
+                    color="gray"
+                    size="1"
+                    onClick={backToTaskList}
+                    aria-label={t("assistant.newTask")}
+                  >
+                    <SquarePen size={16} />
+                  </IconButton>
+                </Tooltip>
               </Flex>
             </Flex>
             <Flex

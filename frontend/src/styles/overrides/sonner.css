@@ -1,3 +1,10 @@
+[data-sonner-toaster][data-sonner-theme="light"],
+[data-sonner-toaster][data-sonner-theme="dark"] {
+  --normal-bg: var(--theme-panel-background) !important;
+  --normal-border: var(--theme-border) !important;
+  --normal-text: var(--theme-foreground) !important;
+}
+
 [data-sonner-toast] {
   background: var(--normal-bg) !important;
   border: 1px solid var(--normal-border) !important;
