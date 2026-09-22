@@ -20,6 +20,8 @@ import { Spinner } from "@/components";
 import { ProviderIcon } from "@/features/settings/lib/provider-icons";
 import type { AvailableModel, TaskType } from "@/lib/model.types";
 
+import "./model-id-select.css";
+
 import {
   CapabilityIcon,
   ContextBadge,
@@ -52,6 +54,7 @@ interface ModelIdSelectProps {
   refreshDisabled?: boolean;
   emptyOptionLabel?: string;
   compact?: boolean;
+  compactTrigger?: boolean;
   triggerStyle?: React.CSSProperties;
   triggerPrefix?: ReactNode;
   hideTriggerChevron?: boolean;
@@ -156,6 +159,7 @@ export function ModelIdSelect({
   refreshDisabled = false,
   emptyOptionLabel,
   compact = false,
+  compactTrigger = false,
   triggerStyle,
   triggerPrefix,
   hideTriggerChevron = false,
@@ -181,6 +185,20 @@ export function ModelIdSelect({
     () => models.find((model) => getModelValue(model) === value),
     [models, value],
   );
+  const fallbackTriggerPrefix = selectedModel ? (
+    selectedModel.providerIconPath ? (
+      <ProviderIcon
+        iconPath={selectedModel.providerIconPath}
+        size={14}
+      />
+    ) : (
+      <Component
+        size={14}
+        aria-hidden="true"
+      />
+    )
+  ) : null;
+  const resolvedTriggerPrefix = triggerPrefix ?? (compactTrigger ? fallbackTriggerPrefix : null);
 
   const filteredModels = useMemo(() => {
     if (!open || !isListReady) {
@@ -305,35 +323,32 @@ export function ModelIdSelect({
       type="button"
       variant="surface"
       color={compact ? undefined : "gray"}
-      size={compact ? "1" : "2"}
+      size={compact || compactTrigger ? "1" : "2"}
       disabled={disabled}
-      className={triggerClassName}
+      className={`${triggerClassName ?? ""} ${compactTrigger ? "model-id-select-trigger--compact" : ""}`.trim()}
+      aria-label={compactTrigger ? selectedModel?.name || value : undefined}
       style={{
         width: "100%",
-        justifyContent: "space-between",
+        justifyContent: compactTrigger ? "center" : "space-between",
         ...triggerStyle,
       }}
     >
       <Flex
         align="center"
-        gap="2"
-        className="select-trigger-content"
+        gap={compactTrigger ? "0" : "2"}
+        className={compactTrigger ? "select-trigger-content--icon-only" : "select-trigger-content"}
       >
-        {triggerPrefix ??
-          (compact ? (
-            <Component
-              size={14}
-              aria-hidden="true"
-            />
-          ) : null)}
-        <Text
-          color={selectedModel ? undefined : "gray"}
-          truncate
-        >
-          {selectedModel?.name || placeholder || t("models.modelIdPlaceholder")}
-        </Text>
+        {resolvedTriggerPrefix}
+        {!compactTrigger ? (
+          <Text
+            color={selectedModel ? undefined : "gray"}
+            truncate
+          >
+            {selectedModel?.name || placeholder || t("models.modelIdPlaceholder")}
+          </Text>
+        ) : null}
       </Flex>
-      {hideTriggerChevron ? null : (
+      {hideTriggerChevron || compactTrigger ? null : (
         <ChevronDown
           size={16}
           aria-hidden="true"
@@ -590,12 +605,12 @@ export function ModelIdSelect({
                         gap={compact ? "1" : "2"}
                         style={{ minWidth: 0 }}
                       >
-                        {compact ? null : (
+                        {!compact && model.providerIconPath ? (
                           <ProviderIcon
                             iconPath={model.providerIconPath}
                             size={24}
                           />
-                        )}
+                        ) : null}
                         <Flex
                           direction="column"
                           gap="1"
@@ -612,7 +627,7 @@ export function ModelIdSelect({
                               gap="1"
                               style={{ minWidth: 0, flex: "1 1 auto" }}
                             >
-                              {compact ? (
+                              {compact && model.providerIconPath ? (
                                 <ProviderIcon
                                   iconPath={model.providerIconPath}
                                   size={14}

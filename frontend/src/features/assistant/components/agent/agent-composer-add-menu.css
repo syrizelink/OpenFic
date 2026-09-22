@@ -1,0 +1,141 @@
+.rt-BaseButton.agent-composer-add-trigger {
+  box-sizing: border-box;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  margin: 0;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--theme-foreground);
+}
+
+.rt-BaseButton.agent-composer-add-trigger:hover,
+.rt-BaseButton.agent-composer-add-trigger:focus-visible,
+.rt-BaseButton.agent-composer-add-trigger[aria-expanded="true"] {
+  color: var(--theme-foreground);
+  background-color: var(--gray-a3);
+}
+
+.agent-composer-add-shell {
+  position: absolute;
+  right: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transform-origin: center bottom;
+}
+
+.agent-composer-add-card {
+  overflow: hidden;
+  pointer-events: auto;
+  border: 1px solid var(--gray-a5);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface) 96%, var(--gray-2));
+  font-family: inherit;
+  box-shadow:
+    0 10px 18px color-mix(in srgb, var(--color-panel-solid) 48%, transparent),
+    inset 0 1px 0 var(--gray-a4);
+}
+
+.agent-composer-add-card-body {
+  max-height: calc(8 * 28px + 12px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-top: 6px;
+  outline: none;
+}
+
+.agent-composer-add-section {
+  min-width: 0;
+}
+
+.agent-composer-add-header {
+  padding: 3px 12px 3px;
+  color: var(--gray-10);
+  font-size: var(--font-size-sm);
+  line-height: 1.3;
+  text-align: left;
+}
+
+.agent-composer-add-list {
+  padding: 0px 6px;
+}
+
+.agent-composer-add-card-clearance {
+  height: var(--agent-composer-add-clearance-height, 0px);
+  pointer-events: none;
+}
+
+.agent-composer-add-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 12px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.agent-composer-add-item:hover,
+.agent-composer-add-item[data-selected="true"] {
+  background: var(--theme-hover-background);
+}
+
+.agent-composer-add-item-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--gray-10);
+}
+
+.agent-composer-add-item-copy {
+  display: block;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--gray-12);
+}
+
+.agent-composer-add-item-copy[data-item-kind="skill"] {
+  color: var(--gray-10);
+}
+
+.agent-composer-add-item-title {
+  display: inline;
+  color: var(--gray-12);
+  font-size: var(--font-size-md);
+  line-height: 1.3;
+}
+
+.agent-composer-add-item-kind {
+  display: inline;
+  margin-inline-start: 6px;
+  color: var(--gray-10);
+  font-size: var(--font-size-sm);
+  line-height: 1.3;
+}
+
+.agent-composer-add-state {
+  padding: 11px 12px;
+  color: var(--gray-10);
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+}
+
+.agent-composer-add-state--error {
+  color: var(--red-11);
+}
+
+.agent-composer-file-input {
+  display: none;
+}

@@ -642,6 +642,43 @@
   align-items: center;
 }
 
+.ai-sidebar-input-toolbar {
+  width: 100%;
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.ai-sidebar-input-toolbar-controls,
+.ai-sidebar-input-toolbar-actions {
+  min-width: max-content;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+}
+
+.ai-sidebar-input-toolbar-actions {
+  margin-left: auto;
+}
+
+.ai-sidebar-input-toolbar .ai-sidebar-model-selector,
+.ai-sidebar-input-toolbar .ai-sidebar-model-reasoning-group {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.ai-sidebar-input-toolbar .ai-sidebar-model-reasoning-group {
+  height: 26px;
+  min-height: 26px;
+  align-items: center;
+}
+
+.ai-sidebar-input-toolbar .ai-sidebar-model-selector,
+.ai-sidebar-input-toolbar .ai-sidebar-reasoning-effort-selector {
+  height: 26px;
+  min-height: 26px;
+  align-self: center;
+}
+
 .ai-sidebar-model-reasoning-group {
   flex: 0 1 auto;
   min-width: 0;
@@ -691,7 +728,9 @@
 }
 
 .ai-sidebar-inline-select-trigger {
-  min-height: 24px;
+  box-sizing: border-box;
+  height: 26px !important;
+  min-height: 26px !important;
   border-radius: 999px;
   color: var(--gray-12);
   cursor: pointer;
@@ -811,6 +850,36 @@
 .ai-sidebar-inline-select-trigger .select-option-label {
   font-size: var(--font-size-sm);
   line-height: 16px;
+}
+
+.ai-sidebar-inline-select-trigger.select-trigger--icon {
+  width: 26px !important;
+  min-width: 26px !important;
+  height: 26px;
+  min-height: 26px;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  justify-content: center !important;
+}
+
+.ai-sidebar-inline-select-trigger.select-trigger--icon:hover,
+.ai-sidebar-inline-select-trigger.select-trigger--icon[data-state="open"],
+.ai-sidebar-inline-select-trigger.select-trigger--icon:focus-visible {
+  border-radius: 50% !important;
+  background: var(--gray-a3) !important;
+  color: var(--gray-12);
+}
+
+.rt-reset.ai-sidebar-agent-select-trigger.select-trigger--icon:hover,
+.rt-reset.ai-sidebar-agent-select-trigger.select-trigger--icon[data-state="open"],
+.rt-reset.ai-sidebar-agent-select-trigger.select-trigger--icon:focus-visible {
+  opacity: 1;
+}
+
+.ai-sidebar-input-toolbar .ai-sidebar-reasoning-effort-selector--compact {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
 }
 
 .ai-sidebar-no-models {

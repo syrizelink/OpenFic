@@ -1909,6 +1909,19 @@
       "prompt": "Type freely",
       "loading": "Searching"
     },
+    "composerMenu": {
+      "open": "Open references and content menu",
+      "reference": "Reference",
+      "image": "Image",
+      "file": "File",
+      "skillTrigger": "Skill",
+      "contentTrigger": "Content",
+      "skills": "Skills",
+      "chapters": "Chapters",
+      "notes": "Notes",
+      "worldInfoEntries": "World info entries",
+      "loadFailed": "Could not load menu content"
+    },
     "thinkingTitle": "Reasoning",
     "collapseThinking": "Collapse reasoning",
     "expandThinking": "Expand reasoning",

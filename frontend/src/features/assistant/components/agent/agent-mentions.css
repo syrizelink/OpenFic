@@ -171,6 +171,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--gray-12);
+}
+
+.agent-mention-suggestion-copy[data-item-kind="skill"] {
+  color: var(--gray-10);
 }
 
 .agent-mention-suggestion-title {

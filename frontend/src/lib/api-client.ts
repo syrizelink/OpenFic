@@ -136,7 +136,7 @@ import type {
   CharacterListResponse,
   CharacterUpdate,
 } from "./character.types";
-import type { AssistantCommandCandidate } from "./command.types";
+import type { AgentComposerItems, AssistantCommandCandidate } from "./command.types";
 import type { AssistantMentionCandidate } from "./mention.types";
 import type {
   Project,
@@ -846,6 +846,24 @@ export async function searchCommands(
     signal,
   });
   return ((response.data.items as Record<string, unknown>[]) ?? []).map(transformCommandCandidate);
+}
+
+function transformAgentComposerItems(raw: Record<string, unknown>): AgentComposerItems {
+  return {
+    skills: ((raw.skills as Record<string, unknown>[]) ?? []).map(transformCommandCandidate),
+    chapters: ((raw.chapters as Record<string, unknown>[]) ?? []).map(transformMentionCandidate),
+    notes: ((raw.notes as Record<string, unknown>[]) ?? []).map(transformMentionCandidate),
+    worldInfoEntries: ((raw.world_info_entries as Record<string, unknown>[]) ?? []).map(
+      transformMentionCandidate,
+    ),
+  };
+}
+
+export async function fetchAgentComposerItems(projectId: string): Promise<AgentComposerItems> {
+  const response = await apiClient.get<Record<string, unknown>>(
+    `/projects/${projectId}/agent-composer-items`,
+  );
+  return transformAgentComposerItems(response.data);
 }
 
 /**

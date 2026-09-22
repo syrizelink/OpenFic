@@ -1,0 +1,29 @@
+.model-id-select-trigger--compact {
+  width: 26px !important;
+  min-width: 26px !important;
+  height: 26px !important;
+  flex: 0 0 26px;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  justify-content: center !important;
+}
+
+.model-id-select-trigger--compact .select-trigger-content--icon-only {
+  width: 26px;
+  min-width: 26px;
+  justify-content: center;
+}
+
+.rt-BaseButton.model-id-select-trigger--compact,
+.rt-BaseButton.model-id-select-trigger--compact:hover,
+.rt-BaseButton.model-id-select-trigger--compact:focus-visible,
+.rt-BaseButton.model-id-select-trigger--compact[data-state="open"] {
+  color: var(--gray-12) !important;
+}
+
+.model-id-select-trigger--compact:hover,
+.model-id-select-trigger--compact:focus-visible,
+.model-id-select-trigger--compact[data-state="open"] {
+  background: var(--gray-a3) !important;
+  color: var(--gray-12);
+}

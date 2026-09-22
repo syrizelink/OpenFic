@@ -1972,6 +1972,19 @@
       "prompt": "随心输入",
       "loading": "检索中"
     },
+    "composerMenu": {
+      "open": "打开引用与内容菜单",
+      "reference": "引用",
+      "image": "图片",
+      "file": "文件",
+      "skillTrigger": "技能",
+      "contentTrigger": "内容",
+      "skills": "技能",
+      "chapters": "章节",
+      "notes": "笔记",
+      "worldInfoEntries": "世界书条目",
+      "loadFailed": "加载菜单内容失败"
+    },
     "thinkingTitle": "推理",
     "collapseThinking": "收起推理内容",
     "expandThinking": "展开推理内容",

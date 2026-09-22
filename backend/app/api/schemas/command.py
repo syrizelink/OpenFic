@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.api.schemas.chapter import MentionCandidateItem
+
 
 class CommandCandidateItem(BaseModel):
     kind: Literal["skill"] = Field(description="命令类型")
@@ -12,3 +14,12 @@ class CommandCandidateItem(BaseModel):
 
 class CommandSearchResponse(BaseModel):
     items: list[CommandCandidateItem] = Field(description="命令候选项")
+
+
+class AgentComposerItemsResponse(BaseModel):
+    """Agent 输入框菜单候选项。"""
+
+    skills: list[CommandCandidateItem] = Field(description="最近的技能")
+    chapters: list[MentionCandidateItem] = Field(description="最近的章节")
+    notes: list[MentionCandidateItem] = Field(description="最近的笔记")
+    world_info_entries: list[MentionCandidateItem] = Field(description="最近的世界书条目")
