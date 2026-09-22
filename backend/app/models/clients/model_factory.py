@@ -6,6 +6,7 @@ from langchain_core.messages import BaseMessage
 from langchain_core.runnables import Runnable
 
 from app.core.utils.tiktoken import seed_bundled_encodings
+from app.models.adapters.anthropic_compatible import ANTHROPIC_COMPATIBLE_PROVIDER_TYPES
 from app.models.clients.deepseek_payload import patch_deepseek_reasoning_payload
 from app.models.clients.model_params import (
     DEFAULT_FREQUENCY_PENALTY,
@@ -139,7 +140,11 @@ def create_chat_model(config: ModelConfig) -> Runnable[LanguageModelInput, BaseM
     provider = config.provider_type
     reasoning_effort = _enabled_reasoning_effort(config)
 
-    if provider in {"anthropic", "anthropic-compatible"}:
+    if (
+        provider == "anthropic"
+        or provider == "anthropic-compatible"
+        or provider in ANTHROPIC_COMPATIBLE_PROVIDER_TYPES
+    ):
         from langchain_anthropic import ChatAnthropic
 
         return ChatAnthropic(**_compact_kwargs(

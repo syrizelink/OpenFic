@@ -6,6 +6,17 @@ from app.agent_runtime.model_config import to_client_model_config, without_api_k
 from app.models.clients.model_factory import create_chat_model, ModelConfig
 
 
+_ANTHROPIC_COMPATIBLE_PROVIDER_TYPES = [
+    "freemodel",
+    "minimax",
+    "minimax-cn",
+    "minimax-coding-plan",
+    "minimax-cn-coding-plan",
+    "subconscious",
+    "thinkingmachines",
+]
+
+
 def test_to_client_model_config_excludes_internal_model_record_id():
     config = to_client_model_config(
         {
@@ -81,6 +92,24 @@ def test_create_chat_model_anthropic_compatible_uses_anthropic_client_with_custo
     assert model.anthropic_api_url == "https://gateway.example/v1"
     assert model.effort == "high"
     assert model.max_retries == 0
+
+
+@pytest.mark.parametrize("provider_type", _ANTHROPIC_COMPATIBLE_PROVIDER_TYPES)
+def test_create_chat_model_uses_anthropic_client_for_anthropic_catalog_provider(
+    provider_type: str,
+):
+    model = create_chat_model(
+        ModelConfig(
+            provider_type=provider_type,
+            base_url="https://gateway.example/v1",
+            api_key="test-key",
+            model_id="custom-model",
+        )
+    )
+
+    from langchain_anthropic import ChatAnthropic
+
+    assert isinstance(model, ChatAnthropic)
 
 
 def test_create_chat_model_gemini_compatible_uses_custom_native_client():

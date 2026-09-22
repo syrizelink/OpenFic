@@ -6,6 +6,19 @@ from collections.abc import Mapping
 from app.models.adapters.base import BaseAdapter
 
 
+ANTHROPIC_COMPATIBLE_PROVIDER_TYPES = frozenset(
+    {
+        "freemodel",
+        "minimax",
+        "minimax-cn",
+        "minimax-coding-plan",
+        "minimax-cn-coding-plan",
+        "subconscious",
+        "thinkingmachines",
+    }
+)
+
+
 class AnthropicCompatibleAdapter(BaseAdapter):
     """Anthropic-compatible provider adapter supporting LLM calls only."""
 
