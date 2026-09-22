@@ -30,6 +30,8 @@
     "@fontsource/zcool-kuaile": "^5.3.0",
     "@fontsource/zcool-xiaowei": "^5.3.0",
     "@hookform/resolvers": "^5.2.2",
+    "@iconify-icons/material-icon-theme": "^2.0.1",
+    "@iconify/react": "^6.0.2",
     "@nivo/bar": "^0.99.0",
     "@nivo/calendar": "^0.99.0",
     "@nivo/line": "^0.99.0",

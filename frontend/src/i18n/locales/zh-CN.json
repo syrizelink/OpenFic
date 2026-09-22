@@ -392,11 +392,22 @@
       "webSearchDisabled": "联网功能即将推出",
       "imageDisabled": "图片功能即将推出",
       "modelImageInputUnsupported": "当前模型不支持图片输入",
+      "attachmentLimit": "单条消息最多添加 {{count}} 个附件",
+      "unsupportedAttachmentType": "不支持此文件格式",
+      "attachmentTooLarge": "单个附件不能超过 10 MB",
+      "attachmentsSkipped": "已跳过 {{count}} 个不符合条件的附件",
       "imageAttachmentLimit": "单条消息最多添加 {{count}} 张图片",
       "unsupportedImageType": "仅支持 PNG、JPEG 或 WebP 图片",
       "imageTooLarge": "单张图片不能超过 10 MB",
       "dropImageAttachments": "拖拽至此以添加附件",
+      "dropAttachments": "拖拽至此以添加附件",
       "imageFallbackAlt": "图片",
+      "attachmentFallbackName": "附件",
+      "extractingAttachment": "正在提取附件内容",
+      "attachmentUploadFailed": "部分附件上传或解析失败",
+      "previousAttachment": "查看上一个附件",
+      "nextAttachment": "查看下一个附件",
+      "removeAttachment": "移除附件 {{fileName}}",
       "userUploadedImage": "用户上传图片",
       "viewImage": "查看图片 {{fileName}}",
       "removeImage": "移除图片 {{fileName}}",
@@ -701,6 +712,14 @@
       "askUser": {
         "name": "提问",
         "description": "向你提问以获取所需的信息"
+      },
+      "listFile": {
+        "name": "列出附件",
+        "description": "列出当前 Agent 会话中的附件"
+      },
+      "readFile": {
+        "name": "读取附件",
+        "description": "读取指定附件的部分内容"
       },
       "writePlan": {
         "name": "计划",
@@ -1999,11 +2018,13 @@
       "reviewer": "正在审核修改..."
     },
     "runningStatus": {
+      "attachmentProcessing": "正在解析附件",
       "considering": "正在考虑下一步",
       "thinking": "正在思考",
       "writingReply": "正在撰写回复",
       "orchestration": "正在委派子任务",
       "interaction": "正在提问",
+      "fileRead": "正在读取附件",
       "plan": "正在组织计划",
       "chapterRead": "正在章节读取",
       "summaryRead": "正在摘要读取",
@@ -2175,6 +2196,8 @@
       "interrupted": "工具调用因连接中断而停止",
       "errorReason": "原因：{{reason}}",
       "readChapter": "读取章节",
+      "listFile": "附件列表",
+      "readFile": "读取附件",
       "writeChapter": "写入章节",
       "editChapter": "编辑章节",
       "deleteChapter": "删除章节",
@@ -2190,6 +2213,7 @@
       "editCategory": "重命名分类",
       "deleteCategory": "删除分类",
       "listChapters": "章节列表",
+      "fileCount": "{{count}} 个附件",
       "chapterCount": "{{count}} 个章节",
       "searchChapters": "章节搜索",
       "webSearch": "联网搜索",

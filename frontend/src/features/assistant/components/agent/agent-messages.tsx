@@ -106,6 +106,7 @@ interface AgentMessagesProps {
   isRunning: boolean;
   isRollbacking: boolean;
   status: "idle" | "running" | "waiting_answer" | "waiting_approval" | "completed" | "error";
+  isAttachmentProcessing?: boolean;
   currentStage: string;
   scrollToBottomKey?: string | null;
   onRollback: (messageId: string) => Promise<string | null>;
@@ -286,6 +287,7 @@ export function AgentMessages({
   isRunning,
   isRollbacking,
   status,
+  isAttachmentProcessing = false,
   currentStage,
   scrollToBottomKey,
   onRollback,
@@ -325,8 +327,9 @@ export function AgentMessages({
   const streamFollowSignal = getStreamingFollowSignal(messages);
   const runningStatus = useMemo(() => getAgentRunningStatus(messages), [messages]);
   const roundStartedAt = useMemo(() => getCurrentRoundStartedAt(messages), [messages]);
-  const statusMessage =
-    status === "running"
+  const statusMessage = isAttachmentProcessing
+    ? t("assistant.runningStatus.attachmentProcessing")
+    : status === "running"
       ? t(`assistant.runningStatus.${runningStatus ?? "considering"}`)
       : currentStage;
 

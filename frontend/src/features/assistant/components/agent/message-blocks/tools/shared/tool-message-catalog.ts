@@ -4,6 +4,8 @@ export const REGISTERED_TOOL_NAMES = [
   "notify_subagent",
   "recycle_subagent",
   "ask_user",
+  "list_file",
+  "read_file",
   "read_chapter",
   "write_chapter",
   "edit_chapter",
@@ -49,6 +51,7 @@ export type ToolContentMode = "expandable" | "static" | "hidden";
 export type ToolGroup =
   | "orchestration"
   | "interaction"
+  | "file"
   | "chapter"
   | "note"
   | "volume"
@@ -101,6 +104,20 @@ export const TOOL_DESCRIPTOR_META = {
     tag: "clarification",
     isExplore: false,
     contentMode: "expandable",
+  },
+  list_file: {
+    toolName: "list_file",
+    group: "file",
+    tag: "list",
+    isExplore: true,
+    contentMode: "hidden",
+  },
+  read_file: {
+    toolName: "read_file",
+    group: "file",
+    tag: "read",
+    isExplore: true,
+    contentMode: "hidden",
   },
   read_chapter: {
     toolName: "read_chapter",

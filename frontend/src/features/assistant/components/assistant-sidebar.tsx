@@ -59,8 +59,8 @@ import { useSubagentSession } from "../hooks/use-subagent-session";
 import { useTasks, useUpdateTask } from "../hooks/use-tasks";
 import {
   createRestoredPendingAgentAttachments,
-  type PendingAgentImageAttachment,
-} from "../lib/agent-image-attachments";
+  type PendingAgentAttachment,
+} from "../lib/agent-file-attachments";
 import { loadAgentTaskBundle } from "../lib/agent-task-bundle";
 import {
   createConversationStackState,
@@ -325,7 +325,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
     );
     const [activeSubagents, setActiveSubagents] = useState<ActiveSubagentState[]>([]);
     const [inputValue, setInputValue] = useState("");
-    const [pendingAttachments, setPendingAttachments] = useState<PendingAgentImageAttachment[]>([]);
+    const [pendingAttachments, setPendingAttachments] = useState<PendingAgentAttachment[]>([]);
     const [view, setView] = useState<AssistantView>("tasks");
     const [isSessionChangesOpen, setIsSessionChangesOpen] = useState(false);
     const [sessionChangesDialogSummary, setSessionChangesDialogSummary] =
@@ -1754,6 +1754,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                     id: crypto.randomUUID(),
                     file,
                     previewUrl: URL.createObjectURL(file),
+                    status: "pending" as const,
                   })),
                 ]);
               }}

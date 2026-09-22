@@ -78,6 +78,17 @@ dependencies = [
     "ddgs>=9.15.0",
     "perplexityai>=0.43.3",
     "trafilatura>=2.1.0",
+    "langchain-community>=0.4.2",
+    "docx2txt>=0.9",
+    "pypdf>=6.19.0",
+    "unstructured[doc,docx,epub,odt,ppt,pptx,rst,xlsx]>=0.27.6",
+    "python-docx>=1.2.0",
+    "openpyxl>=3.1.5",
+    "python-pptx>=1.0.2",
+    "xlrd>=2.0.2",
+    "odfpy>=1.4.1",
+    "ebooklib>=0.20",
+    "extract-msg>=0.56.1",
 ]
 
 [project.scripts]

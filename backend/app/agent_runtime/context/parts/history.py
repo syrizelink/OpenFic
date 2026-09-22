@@ -3,7 +3,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.context.helpers import compile_canonical_mentions
-from app.agent_runtime.attachments import build_image_content_blocks
+from app.agent_runtime.attachments import build_attachment_content_blocks
 from app.agent_runtime.context.types import ContextMessage
 
 def _is_context_history_message(raw: dict) -> bool:
@@ -75,7 +75,7 @@ async def build_history(
             additional_kwargs.get("openfic_attachments") if additional_kwargs is not None else None
         )
         attachments = (
-            await build_image_content_blocks(attachment_metadata)
+            await build_attachment_content_blocks(attachment_metadata)
             if role == "user" and isinstance(attachment_metadata, list)
             else None
         )

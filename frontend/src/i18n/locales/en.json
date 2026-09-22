@@ -392,11 +392,22 @@
       "webSearchDisabled": "Web search coming soon",
       "imageDisabled": "Image coming soon",
       "modelImageInputUnsupported": "The current model does not support image input",
+      "attachmentLimit": "A message can contain up to {{count}} attachments",
+      "unsupportedAttachmentType": "This file type is not supported",
+      "attachmentTooLarge": "Each attachment must not exceed 10 MB",
+      "attachmentsSkipped": "{{count}} unsupported attachments were skipped",
       "imageAttachmentLimit": "A message can contain up to {{count}} images",
       "unsupportedImageType": "Only PNG, JPEG, and WebP images are supported",
       "imageTooLarge": "Each image must not exceed 10 MB",
       "dropImageAttachments": "Drop here to add attachments",
+      "dropAttachments": "Drop here to add attachments",
       "imageFallbackAlt": "Image",
+      "attachmentFallbackName": "Attachment",
+      "extractingAttachment": "Extracting attachment",
+      "attachmentUploadFailed": "Some attachments failed to upload or process",
+      "previousAttachment": "Scroll to previous attachment",
+      "nextAttachment": "Scroll to next attachment",
+      "removeAttachment": "Remove attachment {{fileName}}",
       "userUploadedImage": "User-uploaded image",
       "viewImage": "View image {{fileName}}",
       "removeImage": "Remove image {{fileName}}",
@@ -701,6 +712,14 @@
       "askUser": {
         "name": "Ask",
         "description": "Ask you for the information needed."
+      },
+      "listFile": {
+        "name": "List Files",
+        "description": "List the attachments in the current Agent session."
+      },
+      "readFile": {
+        "name": "Read File",
+        "description": "Read a selected range from an attachment."
       },
       "writePlan": {
         "name": "Plan",
@@ -1936,11 +1955,13 @@
       "reviewer": "Reviewing changes..."
     },
     "runningStatus": {
+      "attachmentProcessing": "Processing attachments",
       "considering": "Considering the next step",
       "thinking": "Thinking",
       "writingReply": "Writing a reply",
       "orchestration": "Delegating a subtask",
       "interaction": "Asking a question",
+      "fileRead": "Reading attachments",
       "plan": "Planning",
       "chapterRead": "Reading chapters",
       "summaryRead": "Reading summaries",
@@ -2112,6 +2133,8 @@
       "interrupted": "The tool call stopped because the connection was interrupted",
       "errorReason": "Reason: {{reason}}",
       "readChapter": "Read chapter",
+      "listFile": "Attachment list",
+      "readFile": "Read attachment",
       "writeChapter": "Write chapter",
       "editChapter": "Edit chapter",
       "deleteChapter": "Delete chapter",
@@ -2127,6 +2150,7 @@
       "editCategory": "Rename category",
       "deleteCategory": "Delete category",
       "listChapters": "Chapter list",
+      "fileCount": "{{count}} attachments",
       "chapterCount": "{{count}} chapters",
       "searchChapters": "Search chapters",
       "webSearch": "Web search",

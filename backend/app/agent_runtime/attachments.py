@@ -1,12 +1,17 @@
-"""Storage and validation for Agent image attachments."""
+"""Storage, extraction, and validation for Agent attachments."""
 
 from __future__ import annotations
 
 import base64
+import asyncio
 import io
+import json
+import mimetypes
 from pathlib import Path
+import re
 import shutil
-from typing import Any
+from typing import Any, Literal
+import warnings
 
 import aiofiles
 from fastapi import UploadFile
@@ -18,15 +23,208 @@ from sqlmodel import col
 from app.core.ids import generate_id
 from app.settings import settings
 
-MAX_AGENT_IMAGE_ATTACHMENTS = 20
-MAX_AGENT_IMAGE_BYTES = 10 * 1024 * 1024
+MAX_AGENT_ATTACHMENTS = 20
+MAX_AGENT_ATTACHMENT_BYTES = 10 * 1024 * 1024
 SUPPORTED_IMAGE_MIME_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
+
+AttachmentKind = Literal["image", "text", "pdf", "csv", "docx", "unstructured", "html"]
+
+_TEXT_EXTENSIONS = frozenset(
+    {
+        "txt",
+        "md",
+        "go",
+        "py",
+        "java",
+        "sh",
+        "bat",
+        "ps1",
+        "cmd",
+        "js",
+        "ts",
+        "css",
+        "cpp",
+        "hpp",
+        "h",
+        "c",
+        "cs",
+        "sql",
+        "log",
+        "ini",
+        "pl",
+        "pm",
+        "r",
+        "dart",
+        "dockerfile",
+        "env",
+        "php",
+        "hs",
+        "hsc",
+        "lua",
+        "nginxconf",
+        "conf",
+        "m",
+        "mm",
+        "plsql",
+        "perl",
+        "rb",
+        "rs",
+        "db2",
+        "scala",
+        "bash",
+        "swift",
+        "vue",
+        "svelte",
+        "ex",
+        "exs",
+        "erl",
+        "tsx",
+        "jsx",
+        "lhs",
+        "json",
+        "yaml",
+        "yml",
+        "toml",
+    }
+)
+_UNSTRUCTURED_EXTENSIONS = frozenset(
+    {"doc", "xlsx", "xls", "pptx", "ppt", "xml", "rst", "epub", "odt", "msg"}
+)
+_IMAGE_EXTENSIONS = frozenset({"jpg", "jpeg", "png", "webp"})
 
 _IMAGE_FORMATS = {
     "JPEG": ("image/jpeg", "jpg"),
     "PNG": ("image/png", "png"),
     "WEBP": ("image/webp", "webp"),
 }
+
+
+def _attachment_extension(file_name: str) -> str:
+    name = Path(file_name).name.lower()
+    return name.rsplit(".", maxsplit=1)[-1] if "." in name else name
+
+
+def classify_agent_attachment(file_name: str, mime_type: str | None) -> AttachmentKind | None:
+    """根据文件名优先、MIME 类型兜底判断附件解析方式。"""
+    extension = _attachment_extension(file_name)
+    if extension in _IMAGE_EXTENSIONS or mime_type in SUPPORTED_IMAGE_MIME_TYPES:
+        return "image"
+    if extension == "pdf":
+        return "pdf"
+    if extension == "csv":
+        return "csv"
+    if extension == "docx":
+        return "docx"
+    if extension in _UNSTRUCTURED_EXTENSIONS:
+        return "unstructured"
+    if extension in {"html", "htm"}:
+        return "html"
+    if extension in _TEXT_EXTENSIONS or (mime_type or "").lower().startswith("text/"):
+        return "text"
+    return None
+
+
+def _normalized_mime_type(file_name: str, mime_type: str | None, kind: AttachmentKind) -> str:
+    provided = (mime_type or "").strip().lower()
+    if provided and provided != "application/octet-stream":
+        return provided
+    guessed, _ = mimetypes.guess_type(file_name)
+    if guessed:
+        return guessed
+    if kind == "image":
+        return "image/png"
+    if kind == "html":
+        return "text/html"
+    if kind == "pdf":
+        return "application/pdf"
+    if kind == "csv":
+        return "text/csv"
+    if kind == "docx":
+        return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    if kind == "text":
+        return "text/plain"
+    return "application/octet-stream"
+
+
+def _storage_extension(file_name: str, kind: AttachmentKind, mime_type: str) -> str:
+    if kind == "image":
+        return _IMAGE_FORMATS.get(mime_type.upper(), (mime_type, "bin"))[1]
+    extension = Path(file_name).suffix.lower().lstrip(".")
+    return extension[:20] or kind
+
+
+def _join_loaded_documents(documents: list[Any]) -> str:
+    return "\n\n".join(
+        document.page_content.strip()
+        for document in documents
+        if isinstance(getattr(document, "page_content", None), str)
+        and document.page_content.strip()
+    )
+
+
+def _extract_attachment_content_sync(path: Path, kind: AttachmentKind) -> str | None:
+    if kind == "image":
+        return None
+    if kind == "html":
+        import trafilatura
+
+        extracted = trafilatura.extract(
+            path.read_bytes(),
+            include_comments=False,
+            include_tables=True,
+        )
+        return extracted or ""
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="`langchain-community` is being sunset.*",
+            category=DeprecationWarning,
+        )
+        from langchain_community.document_loaders import (
+            CSVLoader,
+            Docx2txtLoader,
+            PyPDFLoader,
+            TextLoader,
+            UnstructuredFileLoader,
+        )
+
+    loader: Any
+    if kind == "text":
+        loader = TextLoader(str(path), encoding="utf-8", autodetect_encoding=True)
+    elif kind == "pdf":
+        loader = PyPDFLoader(str(path))
+    elif kind == "csv":
+        loader = CSVLoader(str(path))
+    elif kind == "docx":
+        loader = Docx2txtLoader(str(path))
+    else:
+        loader = UnstructuredFileLoader(str(path), mode="elements")
+    return _join_loaded_documents(loader.load())
+
+
+def _format_attachment_processing_error(error: Exception) -> str:
+    """将解析器异常转换为可展示给用户和 Agent 的错误信息。"""
+    error_text = str(error).strip()
+    normalized_error = error_text.lower()
+    if "libreoffice" in normalized_error or "soffice" in normalized_error:
+        return "附件内容提取失败：当前系统环境未安装 LibreOffice，无法解析该文件。请安装 LibreOffice 后重试。"
+    missing_module = getattr(error, "name", None)
+    if not isinstance(missing_module, str) or not missing_module:
+        missing_module_match = re.search(r"No module named ['\"]([^'\"]+)", error_text)
+        missing_module = missing_module_match.group(1) if missing_module_match else None
+    if isinstance(missing_module, str) and missing_module:
+        return f"附件内容提取失败：当前系统环境缺少 Python 依赖 {missing_module}。"
+    if error_text:
+        return f"附件内容提取失败：{error_text}"
+    return "附件内容提取失败：未知解析错误。"
+
+
+async def _extract_attachment_content(path: Path, kind: AttachmentKind) -> str | None:
+    try:
+        return await asyncio.to_thread(_extract_attachment_content_sync, path, kind)
+    except Exception as exc:
+        raise ValueError(_format_attachment_processing_error(exc)) from exc
 
 
 def ensure_agent_attachments_dir() -> Path:
@@ -40,14 +238,21 @@ def get_agent_attachment_url(storage_name: str) -> str:
     return f"/agent-attachments/{storage_name}"
 
 
+def count_attachment_content_lines(content: str | None) -> int:
+    """返回提取文本的行数。"""
+    return len(content.splitlines()) if content else 0
+
+
 def serialize_agent_attachment(attachment: Any) -> dict[str, Any]:
-    """返回可写入消息元数据的最小附件描述。"""
+    """返回可写入消息元数据的最小附件描述，不包含提取后的内容。"""
     return {
         "id": attachment.id,
         "storage_name": attachment.storage_name,
         "file_name": attachment.file_name,
         "mime_type": attachment.mime_type,
         "size_bytes": attachment.size_bytes,
+        "content_length": attachment.content_length,
+        "line_count": attachment.line_count,
         "width": attachment.width,
         "height": attachment.height,
         "url": get_agent_attachment_url(attachment.storage_name),
@@ -60,12 +265,12 @@ async def load_session_attachments(
     session_id: str,
     attachment_ids: list[str],
 ) -> list[Any]:
-    """加载并验证一组属于指定会话的图片附件。"""
+    """加载并验证一组属于指定会话的附件。"""
     unique_ids = list(dict.fromkeys(attachment_ids))
     if len(unique_ids) != len(attachment_ids):
-        raise ValueError("图片附件不能重复")
-    if len(unique_ids) > MAX_AGENT_IMAGE_ATTACHMENTS:
-        raise ValueError("单条消息最多附带 20 张图片")
+        raise ValueError("附件不能重复")
+    if len(unique_ids) > MAX_AGENT_ATTACHMENTS:
+        raise ValueError("单条消息最多附带 20 个附件")
     if not unique_ids:
         return []
 
@@ -80,36 +285,67 @@ async def load_session_attachments(
     attachments_by_id = {attachment.id: attachment for attachment in result.scalars()}
     missing_ids = [attachment_id for attachment_id in unique_ids if attachment_id not in attachments_by_id]
     if missing_ids:
-        raise ValueError("图片附件不存在或不属于当前会话")
+        raise ValueError("附件不存在或不属于当前会话")
     return [attachments_by_id[attachment_id] for attachment_id in unique_ids]
 
 
-async def build_image_content_blocks(
+async def build_attachment_content_blocks(
     attachments: list[dict[str, Any]],
 ) -> list[dict[str, str]]:
-    """从服务端文件构建供 LangChain 发送的标准图片内容块。"""
+    """从服务端附件构建供 LangChain 发送的图片块和文本引用块。"""
     blocks: list[dict[str, str]] = []
     root = ensure_agent_attachments_dir().resolve()
     for attachment in attachments:
         storage_name = attachment.get("storage_name")
         mime_type = attachment.get("mime_type")
-        if not isinstance(storage_name, str) or not isinstance(mime_type, str):
+        file_name = attachment.get("file_name")
+        attachment_id = attachment.get("id")
+        error = attachment.get("error")
+        if isinstance(error, str) and error:
+            display_name = file_name if isinstance(file_name, str) and file_name else "附件"
+            blocks.append(
+                {
+                    "type": "text",
+                    "text": f"[附件处理失败: {display_name}] {error}",
+                }
+            )
             continue
-        if mime_type not in SUPPORTED_IMAGE_MIME_TYPES:
+        if not isinstance(mime_type, str):
             continue
-        path = (root / storage_name).resolve()
-        if root not in path.parents or not path.is_file():
+        kind = classify_agent_attachment(file_name or "", mime_type)
+        if kind == "image":
+            if not isinstance(storage_name, str) or mime_type not in SUPPORTED_IMAGE_MIME_TYPES:
+                continue
+            path = (root / storage_name).resolve()
+            if root not in path.parents or not path.is_file():
+                continue
+            async with aiofiles.open(path, "rb") as image_file:
+                content = await image_file.read()
+            blocks.append(
+                {
+                    "type": "image",
+                    "base64": base64.b64encode(content).decode("ascii"),
+                    "mime_type": mime_type,
+                }
+            )
             continue
-        async with aiofiles.open(path, "rb") as image_file:
-            content = await image_file.read()
+        if not isinstance(file_name, str) or not isinstance(attachment_id, str):
+            continue
         blocks.append(
             {
-                "type": "image",
-                "base64": base64.b64encode(content).decode("ascii"),
-                "mime_type": mime_type,
+                "type": "text",
+                "text": f"[附件: {file_name} (id: {attachment_id})]",
             }
         )
     return blocks
+
+
+async def build_image_content_blocks(
+    attachments: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    """兼容旧调用方，仅返回图片内容块。"""
+    blocks = await build_attachment_content_blocks(attachments)
+    return [block for block in blocks if block.get("type") == "image"]
 
 
 async def copy_attachments_for_fork(
@@ -152,32 +388,15 @@ async def copy_attachments_for_fork(
             file_name=source.file_name,
             mime_type=source.mime_type,
             size_bytes=source.size_bytes,
+            content=source.content,
+            content_length=source.content_length,
+            line_count=source.line_count,
             width=source.width,
             height=source.height,
         )
         session.add(target)
         copied[source.id] = serialize_agent_attachment(target)
     return copied
-
-
-async def delete_attachments_for_message_ids(
-    session: AsyncSession,
-    *,
-    attachment_ids: set[str],
-) -> None:
-    """删除已不再被保留消息引用的附件记录与文件。"""
-    if not attachment_ids:
-        return
-    from app.agent_runtime.persistence.model import AgentAttachment
-
-    result = await session.execute(
-        select(AgentAttachment).where(col(AgentAttachment.id).in_(attachment_ids))
-    )
-    attachments = list(result.scalars())
-    root = ensure_agent_attachments_dir()
-    for attachment in attachments:
-        (root / attachment.storage_name).unlink(missing_ok=True)
-    await session.execute(delete(AgentAttachment).where(col(AgentAttachment.id).in_(attachment_ids)))
 
 
 async def delete_attachments_for_task(
@@ -204,7 +423,7 @@ async def delete_attachments_for_task(
 
 
 async def cleanup_orphaned_agent_attachment_files(session: AsyncSession) -> int:
-    """先删除失效会话目录，再清理现存会话的孤儿文件。"""
+    """清理未被持久化消息引用的附件记录、文件和残余文件。"""
     from app.agent_runtime.persistence.model import (
         AgentAttachment,
         AgentChildRun,
@@ -214,12 +433,53 @@ async def cleanup_orphaned_agent_attachment_files(session: AsyncSession) -> int:
 
     root = settings.agent_attachments_dir
     root.mkdir(parents=True, exist_ok=True)
-    result = await session.execute(select(AgentAttachment))
-    attachments = list(result.scalars())
-    storage_names = {attachment.storage_name for attachment in attachments}
+    attachment_result = await session.execute(select(AgentAttachment))
+    attachments = list(attachment_result.scalars())
     message_result = await session.execute(select(AgentRunMessage))
+    messages = list(message_result.scalars())
+    referenced_attachment_ids: set[str] = set()
+    for message in messages:
+        try:
+            metadata = json.loads(message.message_metadata or "{}")
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(metadata, dict):
+            continue
+        message_attachments = metadata.get("attachments")
+        if not isinstance(message_attachments, list):
+            continue
+        referenced_attachment_ids.update(
+            attachment["id"]
+            for attachment in message_attachments
+            if isinstance(attachment, dict) and isinstance(attachment.get("id"), str)
+        )
+
+    orphaned_attachments = [
+        attachment for attachment in attachments if attachment.id not in referenced_attachment_ids
+    ]
+    retained_attachments = [
+        attachment for attachment in attachments if attachment.id in referenced_attachment_ids
+    ]
+    deleted_files = 0
+    directories: set[Path] = set()
+    for attachment in orphaned_attachments:
+        path = root / attachment.storage_name
+        if path.is_file():
+            deleted_files += 1
+        path.unlink(missing_ok=True)
+        directories.update(path.parents)
+    if orphaned_attachments:
+        await session.execute(
+            delete(AgentAttachment).where(
+                col(AgentAttachment.id).in_({
+                    attachment.id for attachment in orphaned_attachments
+                })
+            )
+        )
+
+    storage_names = {attachment.storage_name for attachment in retained_attachments}
     active_session_ids = {
-        message.session_id for message in message_result.scalars()
+        message.session_id for message in messages
     }
     task_result = await session.execute(select(Task))
     active_session_ids.update(
@@ -231,9 +491,6 @@ async def cleanup_orphaned_agent_attachment_files(session: AsyncSession) -> int:
     active_session_ids.update(
         child_run.child_thread_id for child_run in child_run_result.scalars()
     )
-    deleted_files = 0
-    directories: set[Path] = set()
-
     for session_dir in root.iterdir():
         if not session_dir.is_dir() or session_dir.name in active_session_ids:
             continue
@@ -284,43 +541,62 @@ def _image_metadata(content: bytes) -> tuple[str, str, int, int]:
     return mime_type, extension, width, height
 
 
-async def save_agent_image_attachment(
+async def save_agent_attachment(
     session: AsyncSession,
     *,
     session_id: str,
     task_id: str,
     project_id: str,
-    image_file: UploadFile,
+    file: UploadFile,
 ) -> Any:
-    """校验并保存一张会话归属图片。"""
+    """校验、提取并保存一份会话归属附件。"""
     from app.agent_runtime.persistence.model import AgentAttachment
 
-    content = await image_file.read()
-    if not content:
-        raise ValueError("图片不能为空")
-    if len(content) > MAX_AGENT_IMAGE_BYTES:
-        raise ValueError("单张图片不能超过 10 MB")
+    file_name = Path(file.filename or "").name
+    if not file_name:
+        raise ValueError("附件文件名不能为空")
 
-    mime_type, extension, width, height = _image_metadata(content)
+    mime_type = _normalized_mime_type(file_name, file.content_type, "text")
+    kind = classify_agent_attachment(file_name, file.content_type or mime_type)
+    if kind is None:
+        raise ValueError("不支持的附件格式")
+
+    mime_type = _normalized_mime_type(file_name, file.content_type, kind)
+    content = await file.read()
+    if not content:
+        raise ValueError("附件不能为空")
+    if len(content) > MAX_AGENT_ATTACHMENT_BYTES:
+        raise ValueError("单个附件不能超过 10 MB")
+
+    width: int | None = None
+    height: int | None = None
+    if kind == "image":
+        mime_type, extension, width, height = _image_metadata(content)
+    else:
+        extension = _storage_extension(file_name, kind, mime_type)
     attachment_id = generate_id()
     storage_name = f"{session_id}/{attachment_id}.{extension}"
     storage_path = ensure_agent_attachments_dir() / storage_name
     storage_path.parent.mkdir(parents=True, exist_ok=True)
     storage_path.write_bytes(content)
 
-    attachment = AgentAttachment(
-        id=attachment_id,
-        session_id=session_id,
-        task_id=task_id,
-        project_id=project_id,
-        storage_name=storage_name,
-        file_name=image_file.filename or f"image.{extension}",
-        mime_type=mime_type,
-        size_bytes=len(content),
-        width=width,
-        height=height,
-    )
     try:
+        extracted_content = await _extract_attachment_content(storage_path, kind)
+        attachment = AgentAttachment(
+            id=attachment_id,
+            session_id=session_id,
+            task_id=task_id,
+            project_id=project_id,
+            storage_name=storage_name,
+            file_name=file_name[:255],
+            mime_type=mime_type,
+            size_bytes=len(content),
+            content=extracted_content,
+            content_length=len(extracted_content) if extracted_content else 0,
+            line_count=count_attachment_content_lines(extracted_content),
+            width=width,
+            height=height,
+        )
         session.add(attachment)
         await session.commit()
         await session.refresh(attachment)

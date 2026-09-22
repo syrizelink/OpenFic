@@ -8,6 +8,7 @@ import {
   UserRoundPen,
   UserRoundX,
   FilePenLine,
+  FileText,
   FileXCorner,
   FolderPen,
   FolderX,
@@ -77,11 +78,13 @@ import {
   getChapterPayload,
   getChapterSummaryList,
   getCharacterList,
+  getFileList,
   getCharacterPayload,
   getNoteItemList,
   getNotePayload,
   getRangeSummaryList,
   getReadChapterDetail,
+  getReadFileDetail,
   getStreamingData,
   getSubagentList,
   getToolRef,
@@ -173,6 +176,31 @@ const TOOL_REGISTRY = {
     getTitle: (message) => getAskUserTitle(message),
     getDetail: (message) => getAskUserQuestionCountDetail(message),
     render: (message) => <AskUserToolMessage message={message} />,
+  },
+  list_file: {
+    toolName: "list_file",
+    group: "file",
+    tag: "list",
+    isExplore: true,
+    contentMode: "hidden",
+    icon: FileText,
+    getTitle: () => i18n.t("assistant.tools.listFile"),
+    getDetail: (message) => {
+      const files = getFileList(message);
+      return files.length > 0
+        ? i18n.t("assistant.tools.fileCount", { count: files.length })
+        : undefined;
+    },
+  },
+  read_file: {
+    toolName: "read_file",
+    group: "file",
+    tag: "read",
+    isExplore: true,
+    contentMode: "hidden",
+    icon: FileText,
+    getTitle: () => i18n.t("assistant.tools.readFile"),
+    getDetail: (message) => getReadFileDetail(message),
   },
   read_chapter: {
     toolName: "read_chapter",

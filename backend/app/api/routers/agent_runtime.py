@@ -11,16 +11,17 @@ from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime
 from typing import TypeGuard, cast
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.agent_runtime.agents.definitions import load_agent_definition
 from app.agent_runtime.attachments import (
+    classify_agent_attachment,
     get_agent_attachment_url,
     load_session_attachments,
-    save_agent_image_attachment,
+    save_agent_attachment,
     serialize_agent_attachment,
 )
 from app.agent_runtime.context.compaction.service import CompactionError
@@ -57,6 +58,7 @@ from app.api.schemas.agent import (
     AgentCancelPendingMessageRequest,
     AgentCancelPendingMessageResponse,
     AgentCancelResponse,
+    AgentAttachmentErrorRequest,
     AgentAttachmentResponse,
     AgentCompactionResponse,
     AgentSessionChangesResponse,
@@ -891,21 +893,90 @@ async def create_agent_session(
 )
 async def upload_agent_attachment(
     session_id: str,
-    image: UploadFile = File(...),
+    file: UploadFile | None = File(default=None),
+    image: UploadFile | None = File(default=None),
+    client_attachment_id: str | None = Form(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> AgentAttachmentResponse:
-    """上传一张仅供指定 Agent 会话使用的图片附件。"""
+    """上传一份仅供指定 Agent 会话使用的附件并提取文本内容。"""
+    uploaded_file = file or image
+    if uploaded_file is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="附件不能为空")
     task = await task_service.get_task_by_agent_session_id(session, session_id)
+    file_name = uploaded_file.filename or "attachment"
+    file_kind = classify_agent_attachment(file_name, uploaded_file.content_type)
+    needs_processing = file_kind not in {None, "image"}
+    event_base = {
+        "session_id": session_id,
+        "client_attachment_id": client_attachment_id,
+        "file_name": file_name,
+    }
+    await emit(
+        "agent:attachment_status",
+        {**event_base, "status": "uploading"},
+        room=agent_session_room(session_id),
+    )
+    if needs_processing:
+        await emit(
+            "agent:attachment_processing",
+            {**event_base, "status": "started"},
+            room=agent_session_room(session_id),
+        )
     try:
-        attachment = await save_agent_image_attachment(
+        attachment = await save_agent_attachment(
             session,
             session_id=session_id,
             task_id=task.id,
             project_id=task.project_id,
-            image_file=image,
+            file=uploaded_file,
         )
     except ValueError as exc:
+        if needs_processing:
+            await emit(
+                "agent:attachment_processing",
+                {**event_base, "status": "error", "error": str(exc)},
+                room=agent_session_room(session_id),
+            )
+        await emit(
+            "agent:attachment_status",
+            {**event_base, "status": "error", "error": str(exc)},
+            room=agent_session_room(session_id),
+        )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception:
+        error_message = "附件上传或解析失败"
+        logger.opt(exception=True).error(
+            "Agent 附件上传或解析失败 session_id={} client_attachment_id={}",
+            session_id,
+            client_attachment_id,
+        )
+        if needs_processing:
+            await emit(
+                "agent:attachment_processing",
+                {**event_base, "status": "error", "error": error_message},
+                room=agent_session_room(session_id),
+            )
+        await emit(
+            "agent:attachment_status",
+            {**event_base, "status": "error", "error": error_message},
+            room=agent_session_room(session_id),
+        )
+        raise
+    if needs_processing:
+        await emit(
+            "agent:attachment_processing",
+            {**event_base, "status": "completed"},
+            room=agent_session_room(session_id),
+        )
+    await emit(
+        "agent:attachment_status",
+        {
+            **event_base,
+            "status": "completed",
+            "attachment": serialize_agent_attachment(attachment),
+        },
+        room=agent_session_room(session_id),
+    )
     return AgentAttachmentResponse(
         id=attachment.id,
         session_id=attachment.session_id,
@@ -914,9 +985,31 @@ async def upload_agent_attachment(
         mime_type=attachment.mime_type,
         size_bytes=attachment.size_bytes,
         width=attachment.width,
+        content_length=attachment.content_length,
+        line_count=attachment.line_count,
         height=attachment.height,
         url=get_agent_attachment_url(attachment.storage_name),
     )
+
+
+def _serialize_attachment_error(
+    session_id: str,
+    attachment_error: AgentAttachmentErrorRequest,
+) -> dict[str, object]:
+    return {
+        "id": attachment_error.id,
+        "session_id": session_id,
+        "storage_name": "",
+        "file_name": attachment_error.file_name,
+        "mime_type": attachment_error.mime_type,
+        "size_bytes": attachment_error.size_bytes,
+        "content_length": 0,
+        "line_count": 0,
+        "width": None,
+        "height": None,
+        "url": "",
+        "error": attachment_error.error,
+    }
 
 
 @router.post("/sessions/{session_id}/message", response_model=AgentSendMessageResponse)
@@ -925,8 +1018,8 @@ async def send_agent_message(
     body: AgentSendMessageRequest,
     session: AsyncSession = Depends(get_session),
 ) -> AgentSendMessageResponse:
-    if not body.message.strip() and not body.attachments:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="消息或图片不能为空")
+    if not body.message.strip() and not body.attachments and not body.attachment_errors:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="消息或附件不能为空")
     requested_model_config: dict | None = None
     if body.model_id and session_id not in _SESSION_RUNNERS:
         try:
@@ -951,6 +1044,10 @@ async def send_agent_message(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     attachment_metadata = [serialize_agent_attachment(attachment) for attachment in attachments]
+    attachment_metadata.extend(
+        _serialize_attachment_error(session_id, attachment_error)
+        for attachment_error in body.attachment_errors
+    )
     registry = get_agent_run_registry()
     task = await task_service.get_task(session, runner.task_id)
     status_session_factory = _make_status_session_factory(session)
@@ -1651,10 +1748,12 @@ async def rollback_agent_session(
                 id=attachment["id"],
                 session_id=session_id,
                 storage_name=attachment["storage_name"],
-                file_name=attachment["file_name"],
-                mime_type=attachment["mime_type"],
-                size_bytes=attachment["size_bytes"],
-                width=attachment["width"],
+                    file_name=attachment["file_name"],
+                    mime_type=attachment["mime_type"],
+                    size_bytes=attachment["size_bytes"],
+                    content_length=attachment.get("content_length", 0),
+                    line_count=attachment.get("line_count", 0),
+                    width=attachment["width"],
                 height=attachment["height"],
                 url=attachment["url"],
             )

@@ -16,14 +16,17 @@ import type { AgentPendingMessage, AgentSessionStatus, ReasoningEffort } from "@
 
 import { useAgentInputHistory } from "../../hooks/use-agent-input-history";
 import {
-  getAgentImageFiles,
-  hasLeftAgentImageDropZone,
+  getAgentFiles,
+  hasLeftAgentDropZone,
+  isImageAttachment,
   modelAllowsAgentImages,
-  type PendingAgentImageAttachment,
-  validateAgentImageFiles,
-} from "../../lib/agent-image-attachments";
+  type PendingAgentAttachment,
+  validateAgentFiles,
+} from "../../lib/agent-file-attachments";
 import type { AgentInputHistoryDirection } from "../../lib/agent-input-history-state";
+import { AgentAttachmentStrip } from "./agent-attachment-strip";
 import { AgentComposerEditor, type AgentComposerSuggestionState } from "./agent-composer-editor";
+import { AgentFileAttachmentCard } from "./agent-file-attachment-card";
 import { AgentIndexStatusIndicator } from "./agent-index-status-indicator";
 import { canSendAgentInput, getAgentInputBodyMode, isAgentInputLocked } from "./agent-input-state";
 import { AgentMentionSuggestions } from "./agent-mention-suggestions";
@@ -32,7 +35,7 @@ import { AgentPendingMessageCard } from "./pending-message-card";
 interface AgentInputProps {
   projectId: string;
   value: string;
-  attachments: PendingAgentImageAttachment[];
+  attachments: PendingAgentAttachment[];
   modelId: string;
   models: ModelIdSelectOption[];
   reasoningEffort?: ReasoningEffort;
@@ -43,7 +46,7 @@ interface AgentInputProps {
   isModelsLoading: boolean;
   modelsError: boolean;
   onChange: (value: string) => void;
-  onAttachmentsChange: (attachments: PendingAgentImageAttachment[]) => void;
+  onAttachmentsChange: (attachments: PendingAgentAttachment[]) => void;
   onSend: () => void;
   onAbort: () => void;
   onModelChange: (modelId: string) => void;
@@ -108,10 +111,14 @@ export function AgentInput({
     readOnly,
     hasPendingMessage,
   });
+  const isProcessingAttachments =
+    attachments.some((attachment) => attachment.status === "uploading") ||
+    (isSending &&
+      attachments.some((attachment) => attachment.file && !attachment.uploadedAttachment));
   const shouldAbort = isSending && !hasContent;
   const canSend = canSendAgentInput({
     hasContent,
-    disabled,
+    disabled: disabled || isProcessingAttachments,
     readOnly,
     hasPendingMessage,
     bodyMode,
@@ -136,7 +143,7 @@ export function AgentInput({
     () => models.find((model) => model.value === modelId || model.id === modelId),
     [modelId, models],
   );
-  const [isDraggingImages, setIsDraggingImages] = useState(false);
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const canAttachImages = modelAllowsAgentImages(
     selectedModel?.inputModalities,
     selectedModel?.isCatalogMatched === true,
@@ -242,16 +249,25 @@ export function AgentInput({
   }, [bodyMode, isComposerLocked, readOnly]);
 
   useEffect(() => {
-    if (!isDraggingImages) return;
+    if (!isDraggingFiles) return;
 
-    const clearDraggingImages = () => setIsDraggingImages(false);
-    window.addEventListener("dragend", clearDraggingImages);
-    window.addEventListener("drop", clearDraggingImages);
-    return () => {
-      window.removeEventListener("dragend", clearDraggingImages);
-      window.removeEventListener("drop", clearDraggingImages);
+    const clearDraggingFiles = () => setIsDraggingFiles(false);
+    const preventFileDrop = (event: DragEvent) => {
+      if (event.dataTransfer?.types.includes("Files")) event.preventDefault();
     };
-  }, [isDraggingImages]);
+    window.addEventListener("dragend", clearDraggingFiles);
+    window.addEventListener("blur", clearDraggingFiles);
+    window.addEventListener("dragover", preventFileDrop, true);
+    window.addEventListener("drop", preventFileDrop, true);
+    window.addEventListener("drop", clearDraggingFiles);
+    return () => {
+      window.removeEventListener("dragend", clearDraggingFiles);
+      window.removeEventListener("blur", clearDraggingFiles);
+      window.removeEventListener("dragover", preventFileDrop, true);
+      window.removeEventListener("drop", preventFileDrop, true);
+      window.removeEventListener("drop", clearDraggingFiles);
+    };
+  }, [isDraggingFiles]);
 
   const getPlaceholder = () => {
     if (agentStatus === "waiting_answer")
@@ -262,44 +278,40 @@ export function AgentInput({
   };
 
   const handleFiles = async (files: File[]) => {
-    const error = validateAgentImageFiles(files, attachments.length);
-    if (error) {
-      toast.error(error);
-      return;
+    const validation = validateAgentFiles(files, attachments.length, canAttachImages);
+    if (validation.rejectedFiles.length > 0) {
+      toast.error(
+        validation.validFiles.length > 0
+          ? t("writing.aiSidebar.attachmentsSkipped", { count: validation.rejectedFiles.length })
+          : (validation.errors[0] ?? t("writing.aiSidebar.unsupportedAttachmentType")),
+      );
     }
-    await onUploadAttachments(files);
+    if (validation.validFiles.length > 0) await onUploadAttachments(validation.validFiles);
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    const files = getAgentImageFiles(event.dataTransfer);
-    if (files.length === 0) return;
     event.preventDefault();
-    setIsDraggingImages(false);
-    if (!canAttachImages) {
-      toast.error(t("writing.aiSidebar.modelImageInputUnsupported"));
-      return;
-    }
+    event.stopPropagation();
+    setIsDraggingFiles(false);
+    const files = getAgentFiles(event.dataTransfer);
+    if (files.length === 0) return;
     void handleFiles(files);
   };
 
   const handlePastedFiles = (dataTransfer: DataTransfer) => {
-    const files = getAgentImageFiles(dataTransfer);
+    const files = getAgentFiles(dataTransfer);
     if (files.length === 0) return;
-    if (!canAttachImages) {
-      toast.error(t("writing.aiSidebar.modelImageInputUnsupported"));
-      return;
-    }
     void handleFiles(files);
   };
 
   const handleDroppedFiles = (dataTransfer: DataTransfer) => {
-    setIsDraggingImages(false);
+    setIsDraggingFiles(false);
     handlePastedFiles(dataTransfer);
   };
 
   const handleRemoveAttachment = (id: string) => {
     const attachment = attachments.find((item) => item.id === id);
-    if (attachment) URL.revokeObjectURL(attachment.previewUrl);
+    if (attachment?.previewUrl.startsWith("blob:")) URL.revokeObjectURL(attachment.previewUrl);
     onAttachmentsChange(attachments.filter((item) => item.id !== id));
   };
 
@@ -339,31 +351,33 @@ export function AgentInput({
           ref={inputContainerRef}
           className="ai-sidebar-input-container"
           data-mode={bodyMode}
-          data-dragging-images={isDraggingImages || undefined}
+          data-dragging-files={isDraggingFiles || undefined}
           onDragEnter={(event) => {
-            if (event.dataTransfer.types.includes("Files")) setIsDraggingImages(true);
+            if (event.dataTransfer.types.includes("Files")) setIsDraggingFiles(true);
           }}
           onDragOver={(event) => {
-            if (getAgentImageFiles(event.dataTransfer).length > 0) event.preventDefault();
+            if (!event.dataTransfer.types.includes("Files")) return;
+            event.preventDefault();
+            event.stopPropagation();
           }}
           onDragLeave={(event) => {
             if (
-              hasLeftAgentImageDropZone(event.relatedTarget, (target) =>
+              hasLeftAgentDropZone(event.relatedTarget, (target) =>
                 event.currentTarget.contains(target),
               )
             ) {
-              setIsDraggingImages(false);
+              setIsDraggingFiles(false);
             }
           }}
           onDrop={handleDrop}
         >
           <div
-            className="agent-image-drop-overlay"
+            className="agent-file-drop-overlay"
             aria-hidden="true"
           >
-            <span className="agent-image-drop-overlay-content">
+            <span className="agent-file-drop-overlay-content">
               <CloudUpload size={16} />
-              {t("writing.aiSidebar.dropImageAttachments")}
+              {t("writing.aiSidebar.dropAttachments")}
             </span>
           </div>
           <AnimatePresence
@@ -417,41 +431,75 @@ export function AgentInput({
               >
                 {attachments.length > 0 ? (
                   <PhotoProvider>
-                    <div className="agent-image-attachment-strip">
+                    <AgentAttachmentStrip
+                      className="agent-file-attachment-strip"
+                      previousLabel={t("writing.aiSidebar.previousAttachment")}
+                      nextLabel={t("writing.aiSidebar.nextAttachment")}
+                    >
                       {attachments.map((attachment) => {
                         const fileName =
                           attachment.file?.name ??
                           attachment.uploadedAttachment?.fileName ??
-                          t("writing.aiSidebar.imageFallbackAlt");
+                          t("writing.aiSidebar.attachmentFallbackName");
+                        const isImage = attachment.file
+                          ? attachment.file.type.startsWith("image/")
+                          : attachment.uploadedAttachment
+                            ? isImageAttachment(attachment.uploadedAttachment)
+                            : false;
+                        const isProcessing =
+                          attachment.status === "uploading" ||
+                          (isSending && Boolean(attachment.file && !attachment.uploadedAttachment));
+                        const sizeBytes =
+                          attachment.file?.size ?? attachment.uploadedAttachment?.sizeBytes ?? 0;
                         return (
                           <div
                             key={attachment.id}
-                            className="agent-image-attachment-preview"
+                            className={
+                              isImage
+                                ? "agent-image-attachment-preview"
+                                : "agent-file-attachment-item"
+                            }
                           >
-                            <PhotoView src={attachment.previewUrl}>
-                              <button
-                                type="button"
-                                className="agent-image-preview-trigger"
-                                aria-label={t("writing.aiSidebar.viewImage", { fileName })}
-                              >
-                                <img
-                                  src={attachment.previewUrl}
-                                  alt={fileName}
-                                />
-                              </button>
-                            </PhotoView>
-                            <button
-                              type="button"
-                              className="agent-image-attachment-remove"
-                              aria-label={t("writing.aiSidebar.removeImage", { fileName })}
-                              onClick={() => handleRemoveAttachment(attachment.id)}
-                            >
-                              <X size={12} />
-                            </button>
+                            {isImage ? (
+                              <>
+                                <PhotoView src={attachment.previewUrl}>
+                                  <button
+                                    type="button"
+                                    className="agent-image-preview-trigger"
+                                    aria-label={t("writing.aiSidebar.viewImage", { fileName })}
+                                  >
+                                    <img
+                                      src={attachment.previewUrl}
+                                      alt={fileName}
+                                    />
+                                  </button>
+                                </PhotoView>
+                                <button
+                                  type="button"
+                                  className="agent-image-attachment-remove"
+                                  aria-label={t("writing.aiSidebar.removeAttachment", { fileName })}
+                                  onClick={() => handleRemoveAttachment(attachment.id)}
+                                >
+                                  <X size={12} />
+                                </button>
+                              </>
+                            ) : (
+                              <AgentFileAttachmentCard
+                                fileName={fileName}
+                                mimeType={
+                                  attachment.file?.type ?? attachment.uploadedAttachment?.mimeType
+                                }
+                                sizeBytes={sizeBytes}
+                                isProcessing={isProcessing}
+                                removeLabel={t("writing.aiSidebar.removeAttachment", { fileName })}
+                                extractingLabel={t("writing.aiSidebar.extractingAttachment")}
+                                onRemove={() => handleRemoveAttachment(attachment.id)}
+                              />
+                            )}
                           </div>
                         );
                       })}
-                    </div>
+                    </AgentAttachmentStrip>
                   </PhotoProvider>
                 ) : null}
                 <AgentComposerEditor
