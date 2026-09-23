@@ -55,6 +55,7 @@ from app.agent_runtime.graph.llm_invoke import (
     EmptyResponseError,
     RetryEventSink,
     _TimedStream,
+    format_error_message,
     invoke_model_with_retry,
     load_llm_invoke_settings,
 )
@@ -242,7 +243,7 @@ def _error_status_code(exc: BaseException) -> int | None:
 def _record_audit_error(audit: LLMCallAudit, exc: BaseException) -> None:
     audit.record_error(
         error_type=exc.__class__.__name__,
-        error_message=str(exc),
+        error_message=format_error_message(exc),
         error_status_code=_error_status_code(exc),
     )
 

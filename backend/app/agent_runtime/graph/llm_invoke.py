@@ -8,7 +8,8 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable, Mapping
+import ssl
+from collections.abc import Awaitable, Callable, Iterator, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
@@ -107,10 +108,78 @@ _CONTEXT_PATTERNS = (
     "prompt is too long",
     "too many tokens",
 )
+_TLS_CERTIFICATE_PATTERNS = (
+    "certificate verify failed",
+    "certificate_verify_failed",
+    "certificate validation failed",
+    "certificate validation error",
+    "certificate has expired",
+    "certificate expired",
+    "self-signed certificate",
+    "self signed certificate",
+    "unable to get local issuer certificate",
+    "unable to verify the first certificate",
+    "hostname mismatch",
+    "hostname does not match",
+    "hostname doesn't match",
+    "does not match certificate",
+    "doesn't match certificate",
+)
 
 
 def _contains_any(message: str, patterns: tuple[str, ...]) -> bool:
     return any(pattern in message for pattern in patterns)
+
+
+def _exception_chain(exc: BaseException) -> Iterator[BaseException]:
+    current: BaseException | None = exc
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        yield current
+        next_exception = current.__cause__
+        if next_exception is None and not current.__suppress_context__:
+            next_exception = current.__context__
+        current = next_exception
+
+
+def format_error_message(exc: BaseException) -> str:
+    """Include distinct chained causes in the user-visible error summary."""
+    message = str(exc).strip() or type(exc).__name__
+    represented_messages = [message.casefold()]
+    cause_details: list[str] = []
+    for cause in _exception_chain(exc):
+        if cause is exc:
+            continue
+        cause_message = str(cause).strip()
+        if cause_message and any(
+            cause_message.casefold() in represented
+            for represented in represented_messages
+        ):
+            continue
+        detail = type(cause).__name__
+        if cause_message:
+            detail = f"{detail}: {cause_message}"
+            represented_messages.append(cause_message.casefold())
+        cause_details.append(detail)
+    if not cause_details:
+        return message
+    return f"{message} (caused by {'; caused by '.join(cause_details)})"
+
+
+def _is_tls_certificate_error(exc: BaseException) -> bool:
+    for cause in _exception_chain(exc):
+        cause_name = type(cause).__name__.lower().replace("_", "")
+        if isinstance(cause, ssl.SSLCertVerificationError) or any(
+            name in cause_name
+            for name in ("certverificationerror", "certificateerror")
+        ):
+            return True
+        if cause is exc and _error_status_code(exc) is not None:
+            continue
+        if _contains_any(str(cause).lower(), _TLS_CERTIFICATE_PATTERNS):
+            return True
+    return False
 
 
 def _error_status_code(exc: BaseException) -> int | None:
@@ -145,6 +214,8 @@ def classify_error(exc: BaseException) -> RetryOutcome:
     if isinstance(exc, CompactionError):
         return RetryOutcome(RetryDecision.NO_RETRY, RetryCategory.CONTEXT_OVERFLOW)
     if isinstance(exc, asyncio.CancelledError):
+        return RetryOutcome(RetryDecision.NO_RETRY, RetryCategory.OTHER)
+    if _is_tls_certificate_error(exc):
         return RetryOutcome(RetryDecision.NO_RETRY, RetryCategory.OTHER)
 
     status_code = _error_status_code(exc)
@@ -268,7 +339,7 @@ async def _emit_retry_event(
                 "attempt": attempt,
                 "max_attempts": max_attempts,
                 "error_type": exc.__class__.__name__,
-                "error_message": str(exc),
+                "error_message": format_error_message(exc),
                 "error_category": category.value,
                 "retry_in_ms": retry_in_ms,
             }
