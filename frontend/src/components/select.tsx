@@ -343,12 +343,17 @@ export function SimpleSelect({
   triggerPrefix,
   triggerClassName,
   contentClassName,
+  triggerLabelVisible = true,
+  variant = "default",
+  triggerAriaLabel,
 }: Omit<
   LabeledSelectProps,
   "label" | "labelSize" | "labelWeight" | "labelColor" | "layout" | "gap"
 >) {
   const selectedOption = options.find((opt) => opt.value === value);
   const triggerLabel = selectedOption?.label || placeholder;
+  const isIconVariant = variant === "icon";
+  const isTriggerLabelVisible = !isIconVariant && triggerLabelVisible;
 
   return (
     <Select.Root
@@ -358,7 +363,11 @@ export function SimpleSelect({
       size={size}
     >
       <Select.Trigger
-        className={clsx("select-trigger--background", triggerClassName)}
+        className={clsx(
+          !isIconVariant && "select-trigger--background",
+          isIconVariant && "select-trigger--icon",
+          triggerClassName,
+        )}
         style={
           selectedOption?.labelColor
             ? ({
@@ -368,15 +377,19 @@ export function SimpleSelect({
             : triggerStyle
         }
         placeholder={placeholder}
+        aria-label={triggerAriaLabel ?? triggerLabel}
       >
         <Flex
           align="center"
-          gap="2"
-          className="select-trigger-content"
+          justify={isTriggerLabelVisible ? undefined : "center"}
+          gap={isTriggerLabelVisible ? "2" : "0"}
+          className={
+            isTriggerLabelVisible ? "select-trigger-content" : "select-trigger-content--icon-only"
+          }
         >
           {triggerPrefix}
           {selectedOption?.prefix}
-          {triggerLabel && (
+          {isTriggerLabelVisible && triggerLabel && (
             <Text
               size={size}
               color={selectedOption ? undefined : "gray"}

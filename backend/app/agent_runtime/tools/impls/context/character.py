@@ -261,7 +261,7 @@ class CreateCharacterTool(AgentTool):
             raise ToolExecutionError(str(exc)) from exc
         session = await create_session()
         try:
-            async with await keyed_lock(self.project_id):
+            async with await keyed_lock(("characters", self.project_id)):
                 normalized_name = await _ensure_name_available(session, self.project_id, name)
                 character = await character_service.create_character(
                     session,
@@ -366,7 +366,7 @@ class EditCharacterTool(AgentTool):
         revision_id = _require_revision_id(self._state)
         session = await create_session()
         try:
-            async with await keyed_lock(self.project_id):
+            async with await keyed_lock(("characters", self.project_id)):
                 character = await _resolve_character_by_name(session, self.project_id, name)
                 before = _preview_from_character(character)
                 description = character.description
@@ -435,27 +435,28 @@ class DeleteCharacterTool(AgentTool):
         revision_id = _require_revision_id(self._state)
         session = await create_session()
         try:
-            character = await _resolve_character_by_name(session, self.project_id, name)
-            before = _preview_from_character(character)
-            before_images = character_images_by_id([character])
-            await character_service.delete_character(session, character.id)
-            await record_character_diffs(
-                session,
-                revision_id=revision_id,
-                project_id=self.project_id,
-                before=before_images,
-                after={},
-            )
-            await session.commit()
-            return json.dumps(
-                {
-                    "success": True,
-                    "metadata": {
-                        "character_diff": _build_character_diff(before, None),
+            async with await keyed_lock(("characters", self.project_id)):
+                character = await _resolve_character_by_name(session, self.project_id, name)
+                before = _preview_from_character(character)
+                before_images = character_images_by_id([character])
+                await character_service.delete_character(session, character.id)
+                await record_character_diffs(
+                    session,
+                    revision_id=revision_id,
+                    project_id=self.project_id,
+                    before=before_images,
+                    after={},
+                )
+                await session.commit()
+                return json.dumps(
+                    {
+                        "success": True,
+                        "metadata": {
+                            "character_diff": _build_character_diff(before, None),
+                        },
                     },
-                },
-                ensure_ascii=False,
-            )
+                    ensure_ascii=False,
+                )
         except ToolExecutionError:
             raise
         except Exception:

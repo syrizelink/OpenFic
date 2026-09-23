@@ -20,6 +20,7 @@ from app.agent_runtime.tools.impls.chapter.refs import (
     resolve_chapter_from_list,
     resolve_volume_from_list,
 )
+from app.agent_runtime.tools.impls._locks import keyed_lock
 from app.agent_runtime.tools.registry import ToolRegistry
 from app.storage.database import create_session
 from app.storage.repos import chapter_repo, volume_repo
@@ -57,57 +58,67 @@ class DeleteChapterTool(AgentTool):
                 ref_value=ref.value,
             )
             match = resolve_chapter_from_list([matched] if matched is not None else [], ref)
-            deleted_order = match.order
-            chapter_diff = build_chapter_diff_preview(
-                chapter_preview_from_object(match),
-                None,
-                path=[volume.title.strip()],
-            )
-            chapter_diff["operation"] = "delete"
-            before = images_by_id(
-                await chapter_repo.list_by_volume_from_order(
-                    session, volume.id, deleted_order
+            volume_id = volume.id
+            chapter_id = match.id
+            await session.rollback()
+            async with await keyed_lock(("chapters", self.project_id)):
+                volume = await volume_repo.get_by_id(session, volume_id)
+                if volume is None:
+                    raise ToolExecutionError(f"卷不存在: {volume_id}")
+                match = await chapter_repo.get_by_id(session, chapter_id)
+                if match is None:
+                    raise ToolExecutionError(f"章节不存在: {chapter_id}")
+                deleted_order = match.order
+                chapter_diff = build_chapter_diff_preview(
+                    chapter_preview_from_object(match),
+                    None,
+                    path=[volume.title.strip()],
                 )
-            )
-            await chapter_service.delete_chapter(
-                session,
-                match.id,
-                activity_source="agent",
-                revision_id=revision_id,
-                task_id=str(self._state.get("task_id") or ""),
-                agent_session_id=self.session_id,
-            )
-            after = images_by_id(
-                await chapter_repo.list_by_volume_from_order(
-                    session, volume.id, deleted_order
+                chapter_diff["operation"] = "delete"
+                before = images_by_id(
+                    await chapter_repo.list_by_volume_from_order(
+                        session, volume.id, deleted_order
+                    )
                 )
-            )
-            affected = await record_chapter_diffs(
-                session,
-                revision_id=revision_id,
-                project_id=self.project_id,
-                before=before,
-                after=after,
-            )
-            for chapter_id in affected:
-                await record_agent_activity_for_change(
+                await chapter_service.delete_chapter(
                     session,
+                        chapter_id,
+                    activity_source="agent",
                     revision_id=revision_id,
                     task_id=str(self._state.get("task_id") or ""),
                     agent_session_id=self.session_id,
-                    before=before.get(chapter_id),
-                    after=after.get(chapter_id),
                 )
-            await session.commit()
-            return json.dumps(
-                {
-                    "success": True,
-                    "metadata": {
-                        "chapter_diff": chapter_diff,
+                after = images_by_id(
+                    await chapter_repo.list_by_volume_from_order(
+                        session, volume.id, deleted_order
+                    )
+                )
+                affected = await record_chapter_diffs(
+                    session,
+                    revision_id=revision_id,
+                    project_id=self.project_id,
+                    before=before,
+                    after=after,
+                )
+                for chapter_id in affected:
+                    await record_agent_activity_for_change(
+                        session,
+                        revision_id=revision_id,
+                        task_id=str(self._state.get("task_id") or ""),
+                        agent_session_id=self.session_id,
+                        before=before.get(chapter_id),
+                        after=after.get(chapter_id),
+                    )
+                await session.commit()
+                return json.dumps(
+                    {
+                        "success": True,
+                        "metadata": {
+                            "chapter_diff": chapter_diff,
+                        },
                     },
-                },
-                ensure_ascii=False,
-            )
+                    ensure_ascii=False,
+                )
         except ToolExecutionError:
             raise
         except Exception:

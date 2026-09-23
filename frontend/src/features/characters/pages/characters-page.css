@@ -1,7 +1,7 @@
 .characters-page {
   height: 100%;
   min-height: 0;
-  background: var(--gray-a2);
+  background: var(--color-background);
 }
 
 .characters-page-body {
@@ -202,6 +202,19 @@
   min-height: 0;
   color: var(--gray-10);
   text-align: center;
+}
+
+.characters-editor-loading {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4);
+  box-sizing: border-box;
+}
+
+.characters-editor-loading-content {
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 .characters-editor-shell {

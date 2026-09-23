@@ -136,7 +136,7 @@ import type {
   CharacterListResponse,
   CharacterUpdate,
 } from "./character.types";
-import type { AssistantCommandCandidate } from "./command.types";
+import type { AgentComposerItems, AssistantCommandCandidate } from "./command.types";
 import type { AssistantMentionCandidate } from "./mention.types";
 import type {
   Project,
@@ -846,6 +846,24 @@ export async function searchCommands(
     signal,
   });
   return ((response.data.items as Record<string, unknown>[]) ?? []).map(transformCommandCandidate);
+}
+
+function transformAgentComposerItems(raw: Record<string, unknown>): AgentComposerItems {
+  return {
+    skills: ((raw.skills as Record<string, unknown>[]) ?? []).map(transformCommandCandidate),
+    chapters: ((raw.chapters as Record<string, unknown>[]) ?? []).map(transformMentionCandidate),
+    notes: ((raw.notes as Record<string, unknown>[]) ?? []).map(transformMentionCandidate),
+    worldInfoEntries: ((raw.world_info_entries as Record<string, unknown>[]) ?? []).map(
+      transformMentionCandidate,
+    ),
+  };
+}
+
+export async function fetchAgentComposerItems(projectId: string): Promise<AgentComposerItems> {
+  const response = await apiClient.get<Record<string, unknown>>(
+    `/projects/${projectId}/agent-composer-items`,
+  );
+  return transformAgentComposerItems(response.data);
 }
 
 /**
@@ -2271,7 +2289,8 @@ import type {
   AgentSessionCreateRequest,
   AgentSessionCreateResponse,
   AgentForkResponse,
-  AgentImageAttachment,
+  AgentAttachment,
+  AgentAttachmentError,
   AgentPendingMessage,
   AgentSendMessageRequest,
   AgentSendMessageResponse,
@@ -2555,7 +2574,8 @@ export async function sendAgentMessage(
   modelId?: string,
   reasoningEffort?: ReasoningEffort,
   agentKey?: string,
-  attachments?: AgentImageAttachment[],
+  attachments?: AgentAttachment[],
+  attachmentErrors?: AgentAttachmentError[],
 ): Promise<AgentSendMessageResponse> {
   const request: AgentSendMessageRequest = {
     message,
@@ -2563,6 +2583,17 @@ export async function sendAgentMessage(
     ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
     ...(agentKey ? { agent_key: agentKey } : {}),
     ...(attachments?.length ? { attachments: attachments.map((attachment) => attachment.id) } : {}),
+    ...(attachmentErrors?.length
+      ? {
+          attachment_errors: attachmentErrors.map((attachment) => ({
+            id: attachment.id,
+            file_name: attachment.fileName,
+            mime_type: attachment.mimeType,
+            size_bytes: attachment.sizeBytes,
+            error: attachment.error,
+          })),
+        }
+      : {}),
   };
   const response = await apiClient.post(`/agent/sessions/${sessionId}/message`, request);
   const data = response.data as Record<string, unknown>;
@@ -2576,12 +2607,14 @@ export async function sendAgentMessage(
   };
 }
 
-export async function uploadAgentImageAttachment(
+export async function uploadAgentAttachment(
   sessionId: string,
-  image: File,
-): Promise<AgentImageAttachment> {
+  file: File,
+  clientAttachmentId?: string,
+): Promise<AgentAttachment> {
   const formData = new FormData();
-  formData.append("image", image);
+  formData.append("file", file);
+  if (clientAttachmentId) formData.append("client_attachment_id", clientAttachmentId);
   const response = await apiClient.post(`/agent/sessions/${sessionId}/attachments`, formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
@@ -2591,10 +2624,12 @@ export async function uploadAgentImageAttachment(
     sessionId: String(raw.session_id ?? sessionId),
     storageName: String(raw.storage_name ?? ""),
     fileName: String(raw.file_name ?? ""),
-    mimeType: raw.mime_type as AgentImageAttachment["mimeType"],
+    mimeType: String(raw.mime_type ?? "application/octet-stream"),
     sizeBytes: Number(raw.size_bytes ?? 0),
-    width: Number(raw.width ?? 0),
-    height: Number(raw.height ?? 0),
+    contentLength: Number(raw.content_length ?? 0),
+    lineCount: Number(raw.line_count ?? 0),
+    width: typeof raw.width === "number" ? raw.width : null,
+    height: typeof raw.height === "number" ? raw.height : null,
     url: resolveBackendUrl(String(raw.url ?? "")) ?? "",
   };
 }
@@ -2670,10 +2705,12 @@ export async function rollbackAgentRevision(
               sessionId: String(attachment.session_id ?? sessionId),
               storageName: String(attachment.storage_name ?? ""),
               fileName: String(attachment.file_name ?? ""),
-              mimeType: attachment.mime_type as AgentImageAttachment["mimeType"],
+              mimeType: String(attachment.mime_type ?? "application/octet-stream"),
               sizeBytes: Number(attachment.size_bytes ?? 0),
-              width: Number(attachment.width ?? 0),
-              height: Number(attachment.height ?? 0),
+              contentLength: Number(attachment.content_length ?? 0),
+              lineCount: Number(attachment.line_count ?? 0),
+              width: typeof attachment.width === "number" ? attachment.width : null,
+              height: typeof attachment.height === "number" ? attachment.height : null,
               url: resolveBackendUrl(attachment.url) ?? "",
             },
           ];

@@ -395,6 +395,7 @@ async def _cleanup_orphaned_agent_attachment_files() -> None:
     session = await create_session()
     try:
         deleted_files = await cleanup_orphaned_agent_attachment_files(session)
+        await session.commit()
         if deleted_files:
             logger.info(f"Deleted {deleted_files} orphaned agent attachment files at startup")
     finally:

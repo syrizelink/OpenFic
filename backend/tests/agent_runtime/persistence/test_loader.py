@@ -214,7 +214,7 @@ async def test_delete_attachments_for_task_removes_files_and_records(
 
 
 @pytest.mark.asyncio
-async def test_cleanup_orphaned_agent_attachment_files_keeps_recorded_files(
+async def test_cleanup_orphaned_agent_attachment_files_keeps_message_referenced_files(
     db_session: AsyncSession,
     sample_task,
     monkeypatch: pytest.MonkeyPatch,
@@ -244,6 +244,16 @@ async def test_cleanup_orphaned_agent_attachment_files_keeps_recorded_files(
             height=3,
         )
     )
+    await repo.insert_message(
+        db_session,
+        session_id=session_id,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="user",
+        content="请参考附件",
+        status="sent",
+        metadata={"attachments": [{"id": "attachment-kept"}]},
+    )
     await db_session.commit()
 
     deleted = await cleanup_orphaned_agent_attachment_files(db_session)
@@ -252,6 +262,43 @@ async def test_cleanup_orphaned_agent_attachment_files_keeps_recorded_files(
     assert kept_path.exists()
     assert not orphan_path.exists()
     assert not orphan_path.parent.exists()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_orphaned_agent_attachment_files_removes_unreferenced_records_and_files(
+    db_session: AsyncSession,
+    sample_task,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "agent_attachments_dir", tmp_path)
+    storage_name = f"{sample_task.agent_session_id}/orphan.png"
+    orphan_path = tmp_path / storage_name
+    orphan_path.parent.mkdir()
+    orphan_path.write_bytes(b"orphan")
+    db_session.add(
+        AgentAttachment(
+            id="unreferenced-attachment",
+            session_id=sample_task.agent_session_id,
+            task_id=sample_task.id,
+            project_id=sample_task.project_id,
+            storage_name=storage_name,
+            file_name="orphan.png",
+            mime_type="image/png",
+            size_bytes=6,
+            width=2,
+            height=3,
+        )
+    )
+    await db_session.commit()
+
+    await cleanup_orphaned_agent_attachment_files(db_session)
+    await db_session.commit()
+
+    assert not orphan_path.exists()
+    assert await db_session.get(AgentAttachment, "unreferenced-attachment") is None
 
 
 @pytest.mark.asyncio

@@ -6,8 +6,11 @@ import { PhotoProvider, PhotoView } from "react-photo-view";
 
 import "react-photo-view/dist/react-photo-view.css";
 
+import { isImageAttachment } from "@/features/assistant/lib/agent-file-attachments";
 import type { AgentMessage } from "@/lib/agent.types";
 
+import { AgentAttachmentStrip } from "../../../agent-attachment-strip";
+import { AgentFileAttachmentCard } from "../../../agent-file-attachment-card";
 import { InlineMentionText } from "../../../inline-mention-text";
 import { MessageCardShell, UserMessageShell } from "../../shared/message-shell";
 import { joinClassNames } from "../../shared/message-shell-utils";
@@ -123,28 +126,61 @@ export function UserRequestMessage({ message, onOpenMentionChapter }: UserReques
       >
         {message.attachments?.length ? (
           <PhotoProvider>
-            <div className="agent-user-message-images">
-              {message.attachments.map((attachment) => (
-                <PhotoView
-                  key={attachment.id}
-                  src={attachment.url}
-                >
-                  <button
-                    type="button"
-                    className="agent-image-preview-trigger"
-                    aria-label={t("writing.aiSidebar.viewImage", {
-                      fileName: attachment.fileName,
-                    })}
-                    onClick={(event) => event.stopPropagation()}
+            <AgentAttachmentStrip
+              className="agent-user-message-attachments"
+              previousLabel={t("writing.aiSidebar.previousAttachment")}
+              nextLabel={t("writing.aiSidebar.nextAttachment")}
+            >
+              {message.attachments.map((attachment) =>
+                attachment.error ? (
+                  <AgentFileAttachmentCard
+                    key={attachment.id}
+                    fileName={attachment.fileName || t("writing.aiSidebar.attachmentFallbackName")}
+                    mimeType={attachment.mimeType}
+                    sizeBytes={attachment.sizeBytes}
+                    error={attachment.error}
+                  />
+                ) : isImageAttachment(attachment) ? (
+                  <div
+                    key={attachment.id}
+                    className="agent-image-attachment-item"
                   >
-                    <img
-                      src={attachment.url}
-                      alt={attachment.fileName || t("writing.aiSidebar.userUploadedImage")}
-                    />
-                  </button>
-                </PhotoView>
-              ))}
-            </div>
+                    <PhotoView src={attachment.url}>
+                      <button
+                        type="button"
+                        className="agent-image-preview-trigger"
+                        aria-label={t("writing.aiSidebar.viewImage", {
+                          fileName: attachment.fileName,
+                        })}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <img
+                          src={attachment.url}
+                          alt={attachment.fileName || t("writing.aiSidebar.userUploadedImage")}
+                        />
+                      </button>
+                    </PhotoView>
+                    {attachment.status === "uploading" ? (
+                      <span
+                        className="agent-image-attachment-loading"
+                        aria-label={t("writing.aiSidebar.extractingAttachment")}
+                      >
+                        <span className="agent-file-attachment-spinner-dot" />
+                      </span>
+                    ) : null}
+                  </div>
+                ) : (
+                  <AgentFileAttachmentCard
+                    key={attachment.id}
+                    fileName={attachment.fileName || t("writing.aiSidebar.attachmentFallbackName")}
+                    mimeType={attachment.mimeType}
+                    sizeBytes={attachment.sizeBytes}
+                    isProcessing={attachment.status === "uploading"}
+                    extractingLabel={t("writing.aiSidebar.extractingAttachment")}
+                  />
+                ),
+              )}
+            </AgentAttachmentStrip>
           </PhotoProvider>
         ) : null}
         <motion.div

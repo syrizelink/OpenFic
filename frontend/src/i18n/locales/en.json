@@ -401,11 +401,22 @@
       "webSearchDisabled": "Web search coming soon",
       "imageDisabled": "Image coming soon",
       "modelImageInputUnsupported": "The current model does not support image input",
+      "attachmentLimit": "A message can contain up to {{count}} attachments",
+      "unsupportedAttachmentType": "This file type is not supported",
+      "attachmentTooLarge": "Each attachment must not exceed 10 MB",
+      "attachmentsSkipped": "{{count}} unsupported attachments were skipped",
       "imageAttachmentLimit": "A message can contain up to {{count}} images",
       "unsupportedImageType": "Only PNG, JPEG, and WebP images are supported",
       "imageTooLarge": "Each image must not exceed 10 MB",
       "dropImageAttachments": "Drop here to add attachments",
+      "dropAttachments": "Drop here to add attachments",
       "imageFallbackAlt": "Image",
+      "attachmentFallbackName": "Attachment",
+      "extractingAttachment": "Extracting attachment",
+      "attachmentUploadFailed": "Some attachments failed to upload or process",
+      "previousAttachment": "Scroll to previous attachment",
+      "nextAttachment": "Scroll to next attachment",
+      "removeAttachment": "Remove attachment {{fileName}}",
       "userUploadedImage": "User-uploaded image",
       "viewImage": "View image {{fileName}}",
       "removeImage": "Remove image {{fileName}}",
@@ -710,6 +721,14 @@
       "askUser": {
         "name": "Ask",
         "description": "Ask you for the information needed."
+      },
+      "listFile": {
+        "name": "List Files",
+        "description": "List the attachments in the current Agent session."
+      },
+      "readFile": {
+        "name": "Read File",
+        "description": "Read a selected range from an attachment."
       },
       "writePlan": {
         "name": "Plan",
@@ -1806,6 +1825,11 @@
     "contextUsage": "Context Usage",
     "loadingTask": "Loading task...",
     "scrollToBottom": "Scroll to bottom",
+    "messageNavigation": {
+      "label": "Message navigation",
+      "item": "User message {{count}}",
+      "emptyUser": "(No text message)"
+    },
     "summaryWarningTitle": "Context summaries may be incomplete",
     "summaryWarningDescription": "There are still unfinished or missing chapter/range summaries within the context window anchored to the latest chapter. Sending will continue, but the AI may read incomplete context.",
     "summaryWarningConfirm": "Send anyway",
@@ -1894,6 +1918,19 @@
       "prompt": "Type freely",
       "loading": "Searching"
     },
+    "composerMenu": {
+      "open": "Open references and content menu",
+      "reference": "Reference",
+      "image": "Image",
+      "file": "File",
+      "skillTrigger": "Skill",
+      "contentTrigger": "Content",
+      "skills": "Skills",
+      "chapters": "Chapters",
+      "notes": "Notes",
+      "worldInfoEntries": "World info entries",
+      "loadFailed": "Could not load menu content"
+    },
     "thinkingTitle": "Reasoning",
     "collapseThinking": "Collapse reasoning",
     "expandThinking": "Expand reasoning",
@@ -1940,11 +1977,13 @@
       "reviewer": "Reviewing changes..."
     },
     "runningStatus": {
+      "attachmentProcessing": "Processing attachments",
       "considering": "Considering the next step",
       "thinking": "Thinking",
       "writingReply": "Writing a reply",
       "orchestration": "Delegating a subtask",
       "interaction": "Asking a question",
+      "fileRead": "Reading attachments",
       "plan": "Planning",
       "chapterRead": "Reading chapters",
       "summaryRead": "Reading summaries",
@@ -2116,6 +2155,8 @@
       "interrupted": "The tool call stopped because the connection was interrupted",
       "errorReason": "Reason: {{reason}}",
       "readChapter": "Read chapter",
+      "listFile": "Attachment list",
+      "readFile": "Read attachment",
       "writeChapter": "Write chapter",
       "editChapter": "Edit chapter",
       "deleteChapter": "Delete chapter",
@@ -2131,6 +2172,7 @@
       "editCategory": "Rename category",
       "deleteCategory": "Delete category",
       "listChapters": "Chapter list",
+      "fileCount": "{{count}} attachments",
       "chapterCount": "{{count}} chapters",
       "searchChapters": "Search chapters",
       "webSearch": "Web search",

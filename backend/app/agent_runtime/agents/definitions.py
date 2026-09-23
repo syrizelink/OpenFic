@@ -57,6 +57,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
                 "web_search",
                 "web_fetch",
                 "plan",
+                "file_read",
                 "chapter_read",
                 "chapter_write",
                 "summary_read",
@@ -88,6 +89,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             prompt_agent_name="plan",
             model_id=None,
             enabled_tool_categories=(
+                "file_read",
                 "orchestration",
                 "interaction",
                 "plan",
@@ -118,6 +120,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             prompt_agent_name="explore",
             model_id=None,
             enabled_tool_categories=(
+                "file_read",
                 "chapter_read",
                 "summary_read",
                 "world_read",
@@ -137,6 +140,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             prompt_agent_name="composer",
             model_id=None,
             enabled_tool_categories=(
+                "file_read",
                 "chapter_read",
                 "summary_read",
                 "world_read",
@@ -158,6 +162,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             prompt_agent_name="auditor",
             model_id=None,
             enabled_tool_categories=(
+                "file_read",
                 "chapter_read",
                 "summary_read",
                 "world_read",
@@ -176,6 +181,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             prompt_agent_name="writer",
             model_id=None,
             enabled_tool_categories=(
+                "file_read",
                 "chapter_read",
                 "summary_read",
                 "world_read",
@@ -196,6 +202,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             prompt_agent_name="actor",
             model_id=None,
             enabled_tool_categories=(
+                "file_read",
                 "plan",
                 "chapter_read",
                 "chapter_write",
@@ -218,6 +225,7 @@ DEFAULT_AGENT_DEFINITIONS: Mapping[str, AgentDefinition] = MappingProxyType(
             prompt_agent_name="reviewer",
             model_id=None,
             enabled_tool_categories=(
+                "file_read",
                 "chapter_read",
                 "summary_read",
                 "world_read",

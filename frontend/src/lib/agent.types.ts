@@ -175,7 +175,7 @@ export interface AgentMessage {
   isCheckpoint?: boolean;
 
   content?: string;
-  attachments?: AgentImageAttachment[];
+  attachments?: AgentAttachment[];
   agent?: AgentType;
   isDraft?: boolean;
 
@@ -332,21 +332,43 @@ export interface AgentSessionStateResponse {
 export interface AgentSendMessageRequest {
   message: string;
   attachments?: string[];
+  attachment_errors?: AgentAttachmentErrorRequest[];
   model_id?: string;
   agent_key?: string;
   reasoning_effort?: ReasoningEffort;
 }
 
-export interface AgentImageAttachment {
+export interface AgentAttachment {
   id: string;
+  clientId?: string;
   sessionId: string;
   storageName: string;
   fileName: string;
-  mimeType: "image/jpeg" | "image/png" | "image/webp";
+  mimeType: string;
   sizeBytes: number;
-  width: number;
-  height: number;
+  contentLength: number;
+  lineCount?: number;
+  width: number | null;
+  height: number | null;
   url: string;
+  status?: "uploading" | "completed" | "error";
+  error?: string;
+}
+
+export interface AgentAttachmentError {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  error: string;
+}
+
+export interface AgentAttachmentErrorRequest {
+  id: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  error: string;
 }
 
 export type ReasoningEffort = "off" | "low" | "medium" | "high" | "xhigh" | "max";
@@ -450,7 +472,7 @@ export interface AgentRollbackResponse {
   affected_note_categories: string[];
   affected_world_entries: string[];
   restored_message_content: string;
-  restored_attachments: AgentImageAttachment[];
+  restored_attachments: AgentAttachment[];
 }
 
 export interface AgentCancelResponse {

@@ -40,7 +40,7 @@ class AgentRunMessage(SQLModel, table=True):
 
 
 class AgentAttachment(SQLModel, table=True):
-    """Agent 用户消息的图片附件。"""
+    """Agent 用户消息附件及其提取后的文本内容。"""
 
     __tablename__ = "agent_attachments"
 
@@ -52,8 +52,11 @@ class AgentAttachment(SQLModel, table=True):
     file_name: str = Field(max_length=255)
     mime_type: str = Field(max_length=50)
     size_bytes: int = Field(ge=0)
-    width: int = Field(ge=1)
-    height: int = Field(ge=1)
+    content: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    content_length: int = Field(default=0, ge=0)
+    line_count: int = Field(default=0, ge=0)
+    width: int | None = Field(default=None, ge=1)
+    height: int | None = Field(default=None, ge=1)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
 
 

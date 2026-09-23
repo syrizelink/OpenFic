@@ -521,6 +521,126 @@ async def test_rollback_preserves_target_message_attachments_for_resending(revis
 
 
 @pytest.mark.asyncio
+async def test_rollback_defers_removed_message_attachment_cleanup_until_startup(
+    revision_db,
+    monkeypatch,
+    tmp_path,
+):
+    from app.agent_runtime.attachments import cleanup_orphaned_agent_attachment_files
+    from app.agent_runtime.revisions import begin_user_revision, rollback_revision_for_session
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "agent_attachments_dir", tmp_path)
+    target_path = tmp_path / "sess-1" / "target.png"
+    removed_path = tmp_path / "sess-1" / "removed.png"
+    target_path.parent.mkdir()
+    target_path.write_bytes(b"target")
+    removed_path.write_bytes(b"removed")
+    target_metadata = {
+        "id": "target-attachment",
+        "storage_name": "sess-1/target.png",
+        "file_name": "target.png",
+        "mime_type": "image/png",
+        "size_bytes": 6,
+        "width": 2,
+        "height": 3,
+        "url": "/agent-attachments/sess-1/target.png",
+    }
+    removed_metadata = {
+        "id": "removed-attachment",
+        "storage_name": "sess-1/removed.png",
+        "file_name": "removed.png",
+        "mime_type": "image/png",
+        "size_bytes": 7,
+        "width": 2,
+        "height": 3,
+        "url": "/agent-attachments/sess-1/removed.png",
+    }
+
+    async with revision_db() as session:
+        session.add_all(
+            [
+                AgentAttachment(
+                    id="target-attachment",
+                    session_id="sess-1",
+                    task_id="task-1",
+                    project_id="proj-1",
+                    storage_name=target_metadata["storage_name"],
+                    file_name="target.png",
+                    mime_type="image/png",
+                    size_bytes=6,
+                    width=2,
+                    height=3,
+                ),
+                AgentAttachment(
+                    id="removed-attachment",
+                    session_id="sess-1",
+                    task_id="task-1",
+                    project_id="proj-1",
+                    storage_name=removed_metadata["storage_name"],
+                    file_name="removed.png",
+                    mime_type="image/png",
+                    size_bytes=7,
+                    width=2,
+                    height=3,
+                ),
+            ]
+        )
+        target_message = await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="请参考目标图片",
+            metadata={"attachments": [target_metadata]},
+        )
+        revision = await begin_user_revision(
+            session,
+            project_id="proj-1",
+            task_id="task-1",
+            agent_session_id="sess-1",
+            user_message_id=target_message.id,
+            user_message_seq=target_message.seq,
+            message="用户消息: 请参考目标图片",
+            pre_run_checkpoint_id="cp-before",
+            graph_thread_id="sess-1",
+        )
+        await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="后续消息",
+            metadata={"attachments": [removed_metadata]},
+        )
+        await session.commit()
+
+    async with revision_db() as session:
+        result = await rollback_revision_for_session(
+            session,
+            agent_session_id="sess-1",
+            revision_id=revision.id,
+        )
+        await session.commit()
+
+    assert result.restored_attachments == [target_metadata]
+    async with revision_db() as session:
+        assert await session.get(AgentAttachment, "target-attachment") is not None
+        assert await session.get(AgentAttachment, "removed-attachment") is not None
+        await cleanup_orphaned_agent_attachment_files(session)
+        await session.commit()
+        assert await session.get(AgentAttachment, "target-attachment") is None
+        assert await session.get(AgentAttachment, "removed-attachment") is None
+
+    assert not target_path.exists()
+    assert not removed_path.exists()
+
+
+@pytest.mark.asyncio
 async def test_rollback_rejects_oversized_chapter_snapshot_before_mutating(revision_db):
     from app.agent_runtime.revisions import (
         begin_user_revision,

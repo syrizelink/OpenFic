@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.encryption import EncryptionService
 from app.core.errors import NotFoundError
+from app.models.adapters.anthropic_compatible import ANTHROPIC_COMPATIBLE_PROVIDER_TYPES
 from app.models.catalog import CatalogMatch, ModelProviderCatalogService
 from app.models.entities.model_provider import ModelProvider
 from app.models.registry import AdapterRegistry
@@ -29,6 +30,19 @@ CUSTOM_PROVIDER_TYPES = frozenset(
         "gemini-compatible",
     }
 )
+
+
+def _get_model_discovery_provider_type(provider_type: str) -> str:
+    if (
+        provider_type == "anthropic-compatible"
+        or provider_type in ANTHROPIC_COMPATIBLE_PROVIDER_TYPES
+    ):
+        return "anthropic-compatible"
+    if provider_type == "openai-compatible-responses":
+        return "openai-compatible-responses"
+    if provider_type == "gemini-compatible":
+        return "gemini-compatible"
+    return "openai-compatible"
 
 
 class ModelProviderService:
@@ -385,15 +399,7 @@ class ModelProviderService:
         url = await self._resolve_provider_url(provider_type, url)
 
         # 使用统一的Adapter获取模型
-        runtime_provider_type = (
-            "anthropic-compatible"
-            if provider_type == "anthropic-compatible"
-            else "openai-compatible-responses"
-            if provider_type == "openai-compatible-responses"
-            else "gemini-compatible"
-            if provider_type == "gemini-compatible"
-            else "openai-compatible"
-        )
+        runtime_provider_type = _get_model_discovery_provider_type(provider_type)
         adapter = AdapterRegistry.get_adapter(runtime_provider_type)
         request_headers = self._normalize_custom_headers(provider_type, custom_headers)
 
@@ -437,15 +443,7 @@ class ModelProviderService:
         )
 
         # 检查是否支持
-        runtime_provider_type = (
-            "anthropic-compatible"
-            if provider.provider_type == "anthropic-compatible"
-            else "openai-compatible-responses"
-            if provider.provider_type == "openai-compatible-responses"
-            else "gemini-compatible"
-            if provider.provider_type == "gemini-compatible"
-            else "openai-compatible"
-        )
+        runtime_provider_type = _get_model_discovery_provider_type(provider.provider_type)
         if not AdapterRegistry.is_supported(runtime_provider_type, task_type):
             raise ValueError(
                 f"Provider '{provider.provider_type}' does not support task_type '{task_type}'"

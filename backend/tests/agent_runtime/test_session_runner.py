@@ -15,6 +15,15 @@ from app.agent_runtime.context.types import ContextMessage
 from app.agent_runtime.runner.session_runner import SessionRunner, _interrupt_payloads
 
 
+def test_session_runner_exception_reason_includes_wrapped_cause() -> None:
+    error = RuntimeError("Connection error.")
+    error.__cause__ = RuntimeError("certificate verify failed")
+
+    assert SessionRunner._exception_reason(error) == (
+        "Connection error. (caused by RuntimeError: certificate verify failed)"
+    )
+
+
 def test_interrupt_payloads_preserve_pending_resume_data() -> None:
     state = SimpleNamespace(
         tasks=(

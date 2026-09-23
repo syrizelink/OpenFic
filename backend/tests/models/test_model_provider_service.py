@@ -14,6 +14,17 @@ from app.models.registry import AdapterRegistry
 from app.models.services.model_provider_service import ModelProviderService
 
 
+_ANTHROPIC_COMPATIBLE_PROVIDER_TYPES = [
+    "freemodel",
+    "minimax",
+    "minimax-cn",
+    "minimax-coding-plan",
+    "minimax-cn-coding-plan",
+    "subconscious",
+    "thinkingmachines",
+]
+
+
 class _FakeAdapter:
     @property
     def provider_type(self) -> str:
@@ -89,6 +100,39 @@ async def test_get_available_models_uses_openai_compatible_adapter_for_catalog_p
 
     assert models == [{"id": "llm-1", "name": "LLM 1"}]
     assert requested_provider_types == ["openai-compatible", "openai-compatible"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_type", _ANTHROPIC_COMPATIBLE_PROVIDER_TYPES)
+async def test_get_available_models_uses_anthropic_compatible_adapter_for_anthropic_catalog_provider(
+    provider_type: str,
+    monkeypatch,
+):
+    encryption_service = EncryptionService("id-hEPdEELwlgep9FQhcYQtX7ow188l7WHwy65qOZGQ=")
+    service = ModelProviderService(encryption_service)
+    provider = ModelProvider(
+        name=provider_type,
+        url="https://gateway.example/v1",
+        api_key_encrypted=encryption_service.encrypt("test-key"),
+        provider_type=provider_type,
+    )
+    requested_provider_types: list[str] = []
+
+    def get_adapter(cls, requested_provider_type: str):
+        requested_provider_types.append(requested_provider_type)
+        return _FakeAdapter()
+
+    def is_supported(cls, requested_provider_type: str, task_type: str) -> bool:
+        requested_provider_types.append(requested_provider_type)
+        return task_type == "llm"
+
+    monkeypatch.setattr(AdapterRegistry, "get_adapter", classmethod(get_adapter))
+    monkeypatch.setattr(AdapterRegistry, "is_supported", classmethod(is_supported))
+
+    models = await service.get_available_models(provider, "llm")
+
+    assert models == [{"id": "llm-1", "name": "LLM 1"}]
+    assert requested_provider_types == ["anthropic-compatible", "anthropic-compatible"]
 
 
 @pytest.mark.asyncio

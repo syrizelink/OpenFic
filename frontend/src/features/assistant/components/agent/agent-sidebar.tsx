@@ -4,7 +4,7 @@ import type React from "react";
 import { toast } from "@/components";
 import i18n from "@/i18n";
 import type {
-  AgentImageAttachment,
+  AgentAttachment,
   AgentForkResponse,
   AgentChangeSummary,
   AgentSessionCreateResponse,
@@ -13,7 +13,7 @@ import type {
 } from "@/lib/agent.types";
 
 import { useAgentSession } from "../../hooks/use-agent-session";
-import type { PendingAgentImageAttachment } from "../../lib/agent-image-attachments";
+import type { PendingAgentAttachment } from "../../lib/agent-file-attachments";
 import { AgentMessages } from "./agent-messages";
 import { AgentSpecialPanels } from "./agent-special-panels";
 import { getAgentSpecialPanels, type AgentSpecialPanel } from "./agent-special-panels-state";
@@ -25,10 +25,10 @@ interface AgentSidebarProps {
   reasoningEffort?: ReasoningEffort;
   agentKey?: string;
   inputValue: string;
-  attachments: PendingAgentImageAttachment[];
+  attachments: PendingAgentAttachment[];
   onClearInput: () => void;
   onClearAttachments: () => void;
-  onRestoreAttachments?: (attachments: AgentImageAttachment[]) => void;
+  onRestoreAttachments?: (attachments: AgentAttachment[]) => void;
   onSetInputValue?: (value: string) => void;
   onOpenMentionChapter?: (chapterId: string, chapterTitle: string) => void;
   onOpenChanges?: (summary: AgentChangeSummary) => void;
@@ -89,6 +89,7 @@ export function useAgentSidebar({
     isRunning: isAgentRunning,
     isCompacting: isAgentCompacting,
     isRollbacking: isAgentRollbacking,
+    isAttachmentProcessing: isAgentAttachmentProcessing,
     currentStage: agentCurrentStage,
     sessionId: agentSessionId,
     startSession: startAgentSession,
@@ -139,15 +140,14 @@ export function useAgentSidebar({
     }
 
     const messageToSend = inputValue;
+    const attachmentsToSend = attachments;
+
+    const sendPromise = agentSessionId
+      ? sendAgentMessage(messageToSend, attachmentsToSend)
+      : startAgentSession(messageToSend, attachmentsToSend);
     onClearInput();
     onClearAttachments();
-
-    if (agentSessionId) {
-      await sendAgentMessage(messageToSend, attachments);
-      return;
-    }
-
-    await startAgentSession(messageToSend, attachments);
+    await sendPromise;
   }, [
     inputValue,
     agentStatus,
@@ -218,6 +218,7 @@ export function useAgentSidebar({
         isRunning={isAgentRunning}
         isRollbacking={isAgentRollbacking}
         status={agentStatus}
+        isAttachmentProcessing={isAgentAttachmentProcessing}
         currentStage={agentCurrentStage}
         scrollToBottomKey={scrollToBottomKey}
         onRollback={handleRollback}

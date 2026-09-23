@@ -18,6 +18,7 @@ export interface DashboardChartTooltip {
 
 export interface DashboardLineSeries {
   id: string;
+  label?: string;
   data: Array<{ x: string; y: number }>;
 }
 
@@ -45,6 +46,7 @@ export type DashboardChartModel =
       kind: "bar";
       data: DashboardBarDatum[];
       keys: string[];
+      keyLabels?: Record<string, string>;
       valueFormat?: DashboardChartValueFormat;
       xAxisFormat?: DashboardChartAxisFormat;
       groupMode?: "grouped" | "stacked";
@@ -62,7 +64,23 @@ function getRecentDates(data: DashboardStatsResponse | undefined): string[] {
 }
 
 function getTopModels(data: DashboardStatsResponse | undefined): DashboardBreakdownItem[] {
-  return (data?.byModel ?? []).slice(0, 5);
+  const modelsByKey = new Map<string, DashboardBreakdownItem>();
+  for (const item of data?.byModel ?? []) {
+    const existing = modelsByKey.get(item.key);
+    if (existing) {
+      existing.calls += item.calls;
+      existing.tokensTotal += item.tokensTotal;
+      continue;
+    }
+    modelsByKey.set(item.key, { ...item });
+  }
+  return Array.from(modelsByKey.values())
+    .sort((left, right) => right.calls - left.calls)
+    .slice(0, 5);
+}
+
+function getModelChartKey(modelKey: string): string {
+  return `model:${modelKey}`;
 }
 
 function getOptionLabel(
@@ -78,7 +96,23 @@ function getOptionLabel(
 function getModelPointMap(
   points: DashboardModelTimeSeriesPoint[],
 ): Map<string, DashboardModelTimeSeriesPoint> {
-  return new Map(points.map((point) => [`${point.date}:${point.key}`, point]));
+  const pointMap = new Map<string, DashboardModelTimeSeriesPoint>();
+  for (const point of points) {
+    const pointKey = `${point.date}:${point.key}`;
+    const existing = pointMap.get(pointKey);
+    if (!existing) {
+      pointMap.set(pointKey, { ...point });
+      continue;
+    }
+    const calls = existing.calls + point.calls;
+    existing.tokensTotal += point.tokensTotal;
+    existing.avgLatencyMs =
+      calls > 0
+        ? (existing.avgLatencyMs * existing.calls + point.avgLatencyMs * point.calls) / calls
+        : 0;
+    existing.calls = calls;
+  }
+  return pointMap;
 }
 
 export function buildModelTrendOption(
@@ -96,7 +130,8 @@ export function buildModelTrendOption(
     xAxisFormat: "month-day",
     tooltip: { unit: key === "avgLatencyMs" ? "seconds" : "calls" },
     data: models.map((model) => ({
-      id: getOptionLabel(data?.options, "model", model.key, model.label),
+      id: getModelChartKey(model.key),
+      label: getOptionLabel(data?.options, "model", model.key, model.label),
       data: dates.map((date) => ({ x: date, y: pointMap.get(`${date}:${model.key}`)?.[key] ?? 0 })),
     })),
   };
@@ -109,17 +144,23 @@ export function buildModelTokenTrendOption(
   const models = getTopModels(data);
   const points = (data?.modelTimeSeries ?? []).filter((point) => dates.includes(point.date));
   const pointMap = getModelPointMap(points);
+  const keyLabels = Object.fromEntries(
+    models.map((model) => [
+      getModelChartKey(model.key),
+      getOptionLabel(data?.options, "model", model.key, model.label),
+    ]),
+  );
   return {
     kind: "bar",
-    keys: models.map((model) => getOptionLabel(data?.options, "model", model.key, model.label)),
+    keys: models.map((model) => getModelChartKey(model.key)),
+    keyLabels,
     valueFormat: "compact",
     xAxisFormat: "month-day",
     tooltip: { unit: "tokens" },
     data: dates.map((date) => {
       const item: DashboardBarDatum = { label: date };
       for (const model of models) {
-        item[getOptionLabel(data?.options, "model", model.key, model.label)] =
-          pointMap.get(`${date}:${model.key}`)?.tokensTotal ?? 0;
+        item[getModelChartKey(model.key)] = pointMap.get(`${date}:${model.key}`)?.tokensTotal ?? 0;
       }
       return item;
     }),
@@ -133,10 +174,20 @@ export function buildRoundedDonutOption(
   options?: DashboardStatsResponse["options"],
   labelKind: "model" | "project" = "model",
 ): DashboardChartModel {
+  const itemsByKey = new Map<string, DashboardBreakdownItem>();
+  for (const item of items) {
+    const existing = itemsByKey.get(item.key);
+    if (existing) {
+      existing.calls += item.calls;
+      existing.tokensTotal += item.tokensTotal;
+      continue;
+    }
+    itemsByKey.set(item.key, { ...item });
+  }
   return {
     kind: "pie",
     tooltip: { unit: valueKey === "calls" ? "calls" : "tokens" },
-    data: items
+    data: Array.from(itemsByKey.values())
       .map((item) => ({
         id: item.key,
         label: getOptionLabel(options, labelKind, item.key, item.label),

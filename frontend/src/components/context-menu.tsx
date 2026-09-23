@@ -96,9 +96,11 @@ export function ContextMenu({
   // 判断使用哪种模式
   const isEditorMode = !!editor && !!containerRef;
 
-  // 触摸设备（coarse pointer）上编辑器直接使用系统菜单，不启用自定义编辑器菜单
+  // 触摸设备上编辑器直接使用系统菜单，不启用自定义编辑器菜单
   const editorMenuDisabled = useMemo(
-    () => isEditorMode && window.matchMedia("(pointer: coarse)").matches,
+    () =>
+      isEditorMode &&
+      (window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0),
     [isEditorMode],
   );
 

@@ -48,24 +48,40 @@ class AgentSessionCreateResponse(BaseModel):
 
 
 class AgentAttachmentResponse(BaseModel):
-    """Agent 图片附件元数据。"""
+    """Agent 附件元数据。"""
 
     id: str = Field(..., description="附件 ID")
     session_id: str = Field(..., description="所属会话 ID")
     storage_name: str = Field(..., description="服务端存储相对路径")
     file_name: str = Field(..., description="原始文件名")
-    mime_type: str = Field(..., description="图片 MIME 类型")
+    mime_type: str = Field(..., description="文件 MIME 类型")
     size_bytes: int = Field(..., description="文件大小")
-    width: int = Field(..., description="图片宽度")
-    height: int = Field(..., description="图片高度")
-    url: str = Field(..., description="图片展示地址")
+    content_length: int = Field(default=0, description="提取后的文本字符数")
+    line_count: int = Field(default=0, description="提取后的文本行数")
+    width: int | None = Field(default=None, description="图片宽度")
+    height: int | None = Field(default=None, description="图片高度")
+    url: str = Field(..., description="附件展示地址")
+
+
+class AgentAttachmentErrorRequest(BaseModel):
+    """上传或解析失败的附件描述。"""
+
+    id: str = Field(..., min_length=1, description="客户端附件 ID")
+    file_name: str = Field(..., min_length=1, description="附件文件名")
+    mime_type: str = Field(default="application/octet-stream", description="附件 MIME 类型")
+    size_bytes: int = Field(default=0, ge=0, description="附件大小")
+    error: str = Field(..., min_length=1, description="附件错误信息")
 
 
 class AgentSendMessageRequest(BaseModel):
     """发送用户消息请求。"""
 
     message: str = Field(default="", description="用户消息内容")
-    attachments: list[str] = Field(default_factory=list, description="图片附件 ID 列表")
+    attachments: list[str] = Field(default_factory=list, description="附件 ID 列表")
+    attachment_errors: list[AgentAttachmentErrorRequest] = Field(
+        default_factory=list,
+        description="上传或解析失败的附件错误列表",
+    )
     model_id: str | None = Field(default=None, description="下一轮执行使用的模型ID")
     agent_key: str | None = Field(default=None, description="下一轮执行使用的主智能体标识")
     reasoning_effort: ReasoningEffort | None = Field(
@@ -353,7 +369,7 @@ class AgentRollbackResponse(BaseModel):
     restored_message_content: str = Field(..., description="恢复的消息内容")
     restored_attachments: list[AgentAttachmentResponse] = Field(
         default_factory=list,
-        description="恢复到输入框的图片附件",
+        description="恢复到输入框的附件",
     )
 
 

@@ -17,6 +17,7 @@ from app.agent_runtime.agents.definitions import (
 from app.audit import AuditContext
 from app.agent_runtime.agents.tool_categories import get_tool_names_for_categories
 from app.agent_runtime.context.helpers import extract_referenced_skill_ids
+from app.agent_runtime.graph.llm_invoke import format_error_message
 from app.agent_runtime.graph.react_agent import create_react_agent
 from app.agent_runtime.model_config import to_client_model_config
 from app.agent_runtime.persistence import MessagePersister
@@ -1025,16 +1026,17 @@ class SubagentRunner:
                 audit_context,
             )
         except Exception as exc:
+            error = format_error_message(exc)
             refreshed = await self._complete_request(
                 row,
                 request_row,
-                error=str(exc),
+                error=error,
             )
             await self._publish_parent_subagent_status_row(
                 refreshed,
                 request_kind=request_row.request_kind,
             )
-            return {"error": str(exc)}
+            return {"error": error}
 
         interrupts = _extract_interrupts(result_state)
         if interrupts:

@@ -63,7 +63,7 @@ class CreateVolumeTool(AgentTool):
     async def _execute(self, title: str, description: str | None = None) -> str:
         session = await create_session()
         try:
-            async with await keyed_lock(self.project_id):
+            async with await keyed_lock(("volumes", self.project_id)):
                 max_order = await volume_repo.get_max_order(session, self.project_id)
                 volume = Volume(
                     project_id=self.project_id,

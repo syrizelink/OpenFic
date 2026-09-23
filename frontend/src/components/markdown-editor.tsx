@@ -2,7 +2,7 @@ import { Box, Flex, Text, Tooltip } from "@radix-ui/themes";
 import type { EditorView } from "@tiptap/pm/view";
 import { useEditor, EditorContent } from "@tiptap/react";
 import type { Editor } from "@tiptap/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 
@@ -91,6 +91,10 @@ export function MarkdownEditor({
 }: MarkdownEditorProps) {
   const { t } = useTranslation();
   const contentSyncedRef = useRef(content);
+  const initialContentRef = useRef(content);
+  const onSaveRef = useRef(onSave);
+  const onLockedActionRef = useRef(onLockedAction);
+  const isLockedRef = useRef(isLocked);
   const editorContentRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const initialScrollTopRef = useRef(scrollTop);
@@ -98,6 +102,10 @@ export function MarkdownEditor({
   const scrollPositionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pendingExternalLink, setPendingExternalLink] = useState<string | null>(null);
   const [hoveredEditorLink, setHoveredEditorLink] = useState<HoveredEditorLink | null>(null);
+
+  onSaveRef.current = onSave;
+  onLockedActionRef.current = onLockedAction;
+  isLockedRef.current = isLocked;
 
   const handleEditorLinkClick = useCallback(
     (_view: EditorView, _pos: number, event: MouseEvent) => {
@@ -150,25 +158,33 @@ export function MarkdownEditor({
     window.open(pendingExternalLink, "_blank", "noopener,noreferrer");
   }, [pendingExternalLink]);
 
-  const editor = useEditor({
-    extensions: createMarkdownEditorExtensions({
-      placeholder: placeholder ?? "",
-      shortcuts: {
-        onSave: () => {
-          if (isLocked) {
-            onLockedAction?.();
-            return;
-          }
-          onSave();
+  const editorExtensions = useMemo(
+    () =>
+      createMarkdownEditorExtensions({
+        placeholder: placeholder ?? "",
+        shortcuts: {
+          onSave: () => {
+            if (isLockedRef.current) {
+              onLockedActionRef.current?.();
+              return;
+            }
+            onSaveRef.current();
+          },
         },
-      },
-    }),
-    content,
+      }),
+    [placeholder],
+  );
+  const editorProps = useMemo(
+    () => ({ handleClick: handleEditorLinkClick }),
+    [handleEditorLinkClick],
+  );
+
+  const editor = useEditor({
+    extensions: editorExtensions,
+    content: initialContentRef.current,
     contentType: "markdown",
     editable: !isLocked,
-    editorProps: {
-      handleClick: handleEditorLinkClick,
-    },
+    editorProps,
   });
   const editorRef = useRef(editor);
 
@@ -204,18 +220,9 @@ export function MarkdownEditor({
     if (!currentEditor) return;
     if (content === contentSyncedRef.current) return;
 
-    const { from, to } = currentEditor.state.selection;
-    const wasFocused = currentEditor.isFocused;
     contentSyncedRef.current = content;
     currentEditor.commands.setContent(content, { contentType: "markdown", emitUpdate: false });
-    if (!wasFocused) return;
-
-    const maxPosition = Math.max(1, currentEditor.state.doc.content.size);
-    currentEditor.commands.setTextSelection({
-      from: Math.min(from, maxPosition),
-      to: Math.min(to, maxPosition),
-    });
-  }, [content]);
+  }, [content, editor]);
 
   const flushScrollPosition = useCallback(() => {
     if (scrollPositionTimerRef.current) {

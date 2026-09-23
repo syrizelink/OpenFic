@@ -59,8 +59,8 @@ import { useSubagentSession } from "../hooks/use-subagent-session";
 import { useTasks, useUpdateTask } from "../hooks/use-tasks";
 import {
   createRestoredPendingAgentAttachments,
-  type PendingAgentImageAttachment,
-} from "../lib/agent-image-attachments";
+  type PendingAgentAttachment,
+} from "../lib/agent-file-attachments";
 import { loadAgentTaskBundle } from "../lib/agent-task-bundle";
 import {
   createConversationStackState,
@@ -325,7 +325,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
     );
     const [activeSubagents, setActiveSubagents] = useState<ActiveSubagentState[]>([]);
     const [inputValue, setInputValue] = useState("");
-    const [pendingAttachments, setPendingAttachments] = useState<PendingAgentImageAttachment[]>([]);
+    const [pendingAttachments, setPendingAttachments] = useState<PendingAgentAttachment[]>([]);
     const [view, setView] = useState<AssistantView>("tasks");
     const [isSessionChangesOpen, setIsSessionChangesOpen] = useState(false);
     const [sessionChangesDialogSummary, setSessionChangesDialogSummary] =
@@ -1477,24 +1477,28 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                     <FileDiff size={16} />
                   </IconButton>
                 </Tooltip>
-                <IconButton
-                  variant="ghost"
-                  color="gray"
-                  size="1"
-                  onClick={openAllTasks}
-                  aria-label={t("assistant.history")}
-                >
-                  <History size={16} />
-                </IconButton>
-                <IconButton
-                  variant="ghost"
-                  color="gray"
-                  size="1"
-                  onClick={backToTaskList}
-                  aria-label={t("assistant.newTask")}
-                >
-                  <SquarePen size={16} />
-                </IconButton>
+                <Tooltip content={t("assistant.history")}>
+                  <IconButton
+                    variant="ghost"
+                    color="gray"
+                    size="1"
+                    onClick={openAllTasks}
+                    aria-label={t("assistant.history")}
+                  >
+                    <History size={16} />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip content={t("assistant.newTask")}>
+                  <IconButton
+                    variant="ghost"
+                    color="gray"
+                    size="1"
+                    onClick={backToTaskList}
+                    aria-label={t("assistant.newTask")}
+                  >
+                    <SquarePen size={16} />
+                  </IconButton>
+                </Tooltip>
               </Flex>
             </Flex>
             <Flex
@@ -1750,6 +1754,7 @@ export const AssistantSidebar = forwardRef<AssistantSidebarHandle, AssistantSide
                     id: crypto.randomUUID(),
                     file,
                     previewUrl: URL.createObjectURL(file),
+                    status: "pending" as const,
                   })),
                 ]);
               }}

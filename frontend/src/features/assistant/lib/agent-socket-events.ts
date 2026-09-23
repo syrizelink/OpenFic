@@ -21,6 +21,8 @@ export const AGENT_SOCKET_EVENTS = [
   "agent:note_refresh",
   "agent:world_entry_refresh",
   "agent:character_refresh",
+  "agent:attachment_status",
+  "agent:attachment_processing",
   "agent:compaction_start",
   "agent:compaction_success",
   "agent:compaction_error",
@@ -354,6 +356,57 @@ export function toAgentEvent(
         project_id: getString(data.project_id),
         character_id: getString(data.character_id),
         operation: getString(data.operation),
+      },
+    };
+  }
+
+  if (eventName === "agent:attachment_status") {
+    const attachmentStatus = getString(data.status);
+    const status =
+      attachmentStatus === "error"
+        ? "error"
+        : attachmentStatus === "completed"
+          ? "completed"
+          : "running";
+    return {
+      id: `attachment-status:${getString(data.client_attachment_id) || eventId("attachment", data)}`,
+      correlation_id: `attachment:${getString(data.client_attachment_id) || eventId("attachment", data)}`,
+      type: "attachment_status",
+      role: "system",
+      status,
+      display: "hidden",
+      payload: {
+        session_id: getString(data.session_id),
+        client_attachment_id: getString(data.client_attachment_id),
+        file_name: getString(data.file_name),
+        status: attachmentStatus || "uploading",
+        attachment: isRecord(data.attachment) ? data.attachment : undefined,
+        error: getString(data.error),
+      },
+    };
+  }
+
+  if (eventName === "agent:attachment_processing") {
+    const processingStatus = getString(data.status);
+    const status =
+      processingStatus === "error"
+        ? "error"
+        : processingStatus === "completed"
+          ? "completed"
+          : "running";
+    return {
+      id: `attachment-processing:${getString(data.client_attachment_id) || eventId("attachment", data)}`,
+      correlation_id: `attachment-processing:${getString(data.client_attachment_id) || eventId("attachment", data)}`,
+      type: "attachment_processing",
+      role: "system",
+      status,
+      display: "hidden",
+      payload: {
+        session_id: getString(data.session_id),
+        client_attachment_id: getString(data.client_attachment_id),
+        file_name: getString(data.file_name),
+        status: processingStatus || "started",
+        error: getString(data.error),
       },
     };
   }

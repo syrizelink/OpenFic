@@ -1,5 +1,15 @@
 import { Box, Flex, IconButton, Text, Tooltip } from "@radix-ui/themes";
-import { ArrowUp, CloudUpload, ExternalLink, ShieldCheck, Square, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  ArrowUp,
+  Brain,
+  CloudUpload,
+  ExternalLink,
+  Plus,
+  ShieldCheck,
+  Square,
+  X,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -13,17 +23,28 @@ import { toast } from "@/components";
 import { SimpleSelect, type SelectOption } from "@/components/select";
 import { ProviderIcon } from "@/features/settings/lib/provider-icons";
 import type { AgentPendingMessage, AgentSessionStatus, ReasoningEffort } from "@/lib/agent.types";
+import { fetchAgentComposerItems } from "@/lib/api-client";
+import type { AgentComposerItems } from "@/lib/command.types";
 
 import { useAgentInputHistory } from "../../hooks/use-agent-input-history";
 import {
-  getAgentImageFiles,
-  hasLeftAgentImageDropZone,
+  getAgentFiles,
+  hasLeftAgentDropZone,
+  isImageAttachment,
   modelAllowsAgentImages,
-  type PendingAgentImageAttachment,
-  validateAgentImageFiles,
-} from "../../lib/agent-image-attachments";
+  type PendingAgentAttachment,
+  validateAgentFiles,
+} from "../../lib/agent-file-attachments";
 import type { AgentInputHistoryDirection } from "../../lib/agent-input-history-state";
-import { AgentComposerEditor, type AgentComposerSuggestionState } from "./agent-composer-editor";
+import { AgentAttachmentStrip } from "./agent-attachment-strip";
+import { AgentComposerAddMenu } from "./agent-composer-add-menu";
+import {
+  AgentComposerEditor,
+  type AgentComposerActions,
+  type AgentComposerSuggestionItem,
+  type AgentComposerSuggestionState,
+} from "./agent-composer-editor";
+import { AgentFileAttachmentCard } from "./agent-file-attachment-card";
 import { AgentIndexStatusIndicator } from "./agent-index-status-indicator";
 import { canSendAgentInput, getAgentInputBodyMode, isAgentInputLocked } from "./agent-input-state";
 import { AgentMentionSuggestions } from "./agent-mention-suggestions";
@@ -32,7 +53,7 @@ import { AgentPendingMessageCard } from "./pending-message-card";
 interface AgentInputProps {
   projectId: string;
   value: string;
-  attachments: PendingAgentImageAttachment[];
+  attachments: PendingAgentAttachment[];
   modelId: string;
   models: ModelIdSelectOption[];
   reasoningEffort?: ReasoningEffort;
@@ -43,7 +64,7 @@ interface AgentInputProps {
   isModelsLoading: boolean;
   modelsError: boolean;
   onChange: (value: string) => void;
-  onAttachmentsChange: (attachments: PendingAgentImageAttachment[]) => void;
+  onAttachmentsChange: (attachments: PendingAgentAttachment[]) => void;
   onSend: () => void;
   onAbort: () => void;
   onModelChange: (modelId: string) => void;
@@ -64,6 +85,8 @@ interface AgentInputProps {
   onUploadAttachments: (files: File[]) => Promise<void>;
   [ignoredModeSelectorProp: string]: unknown;
 }
+
+const MAX_TOOLBAR_COMPRESSION_LEVEL = 4;
 
 export function AgentInput({
   projectId,
@@ -108,10 +131,14 @@ export function AgentInput({
     readOnly,
     hasPendingMessage,
   });
+  const isProcessingAttachments =
+    attachments.some((attachment) => attachment.status === "uploading") ||
+    (isSending &&
+      attachments.some((attachment) => attachment.file && !attachment.uploadedAttachment));
   const shouldAbort = isSending && !hasContent;
   const canSend = canSendAgentInput({
     hasContent,
-    disabled,
+    disabled: disabled || isProcessingAttachments,
     readOnly,
     hasPendingMessage,
     bodyMode,
@@ -123,6 +150,27 @@ export function AgentInput({
   const [mentionSuggestions, setMentionSuggestions] = useState<AgentComposerSuggestionState | null>(
     null,
   );
+  const [composerActions, setComposerActions] = useState<AgentComposerActions | null>(null);
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const toolbarCompressionLevelRef = useRef(0);
+  const previousToolbarWidthRef = useRef<number | null>(null);
+  const [toolbarCompressionLevel, setToolbarCompressionLevel] = useState(0);
+  const addMenuTriggerRef = useRef<HTMLButtonElement>(null);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const {
+    data: composerItems,
+    isError: isComposerItemsError,
+    isFetching: isComposerItemsFetching,
+  } = useQuery<AgentComposerItems>({
+    queryKey: ["assistant-agent-composer-items", projectId],
+    queryFn: () => fetchAgentComposerItems(projectId),
+    enabled: isAddMenuOpen && projectId.trim().length > 0,
+    staleTime: 30 * 1000,
+  });
+  const isAddMenuDisabled =
+    disabled || readOnly || bodyMode !== "composer" || isComposerLocked || !composerActions;
   const {
     draft: persistedDraft,
     handleInputChange: handleHistoryInputChange,
@@ -136,18 +184,38 @@ export function AgentInput({
     () => models.find((model) => model.value === modelId || model.id === modelId),
     [modelId, models],
   );
-  const [isDraggingImages, setIsDraggingImages] = useState(false);
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const canAttachImages = modelAllowsAgentImages(
     selectedModel?.inputModalities,
     selectedModel?.isCatalogMatched === true,
   );
   const modelTriggerPrefix = selectedModel ? (
-    <ProviderIcon
-      size={14}
-      iconPath={selectedModel.providerIconPath}
-    />
+    selectedModel.providerIconPath ? (
+      <ProviderIcon
+        size={14}
+        iconPath={selectedModel.providerIconPath}
+      />
+    ) : null
   ) : null;
   const shouldShowReasoningEffort = Boolean(selectedModel);
+  const isReasoningCompact = toolbarCompressionLevel >= 1;
+  const isModelCompact = toolbarCompressionLevel >= 2;
+  const isAgentCompact = toolbarCompressionLevel >= 3;
+  const isAgentSelectorCompact =
+    isAgentCompact && agentOptions.length > 0 && Boolean(onAgentChange);
+  const isIndexStatusHidden = toolbarCompressionLevel >= 4;
+  const toolbarContentKey = [
+    agentKey ?? "",
+    agentOptions.length,
+    buttonActive,
+    isModelsLoading,
+    models.length,
+    modelsError,
+    modelId,
+    reasoningEffort ?? "",
+    shouldShowReasoningEffort,
+    toolApprovalBypassEnabled,
+  ].join("|");
   const reasoningEffortOptions: SelectOption[] = [
     { value: "off", label: "Off" },
     { value: "low", label: "Low" },
@@ -229,6 +297,42 @@ export function AgentInput({
     };
   }, []);
 
+  const updateToolbarCompressionLevel = useCallback((nextLevel: number) => {
+    const normalizedLevel = Math.max(0, Math.min(nextLevel, MAX_TOOLBAR_COMPRESSION_LEVEL));
+    toolbarCompressionLevelRef.current = normalizedLevel;
+    setToolbarCompressionLevel((currentLevel) =>
+      currentLevel === normalizedLevel ? currentLevel : normalizedLevel,
+    );
+  }, []);
+
+  useLayoutEffect(() => {
+    const toolbar = toolbarRef.current;
+    if (!toolbar) return;
+
+    const syncOverflow = (allowExpand: boolean) => {
+      const currentLevel = toolbarCompressionLevelRef.current;
+      const currentWidth = toolbar.clientWidth;
+      const previousWidth = previousToolbarWidthRef.current;
+      const widthIncreased = previousWidth !== null && currentWidth > previousWidth + 1;
+      const isOverflowing = toolbar.scrollWidth > currentWidth + 1;
+      previousToolbarWidthRef.current = currentWidth;
+
+      if (isOverflowing && currentLevel < MAX_TOOLBAR_COMPRESSION_LEVEL) {
+        updateToolbarCompressionLevel(currentLevel + 1);
+      } else if (allowExpand && widthIncreased && !isOverflowing && currentLevel > 0) {
+        updateToolbarCompressionLevel(currentLevel - 1);
+      }
+    };
+
+    syncOverflow(false);
+
+    if (typeof ResizeObserver === "undefined") return;
+
+    const resizeObserver = new ResizeObserver(() => syncOverflow(true));
+    resizeObserver.observe(toolbar);
+    return () => resizeObserver.disconnect();
+  }, [toolbarCompressionLevel, toolbarContentKey, updateToolbarCompressionLevel]);
+
   useEffect(() => {
     if (bodyMode === "composer" && !readOnly && !isComposerLocked) return;
     let cancelled = false;
@@ -242,16 +346,29 @@ export function AgentInput({
   }, [bodyMode, isComposerLocked, readOnly]);
 
   useEffect(() => {
-    if (!isDraggingImages) return;
+    if (isAddMenuDisabled) setIsAddMenuOpen(false);
+  }, [isAddMenuDisabled]);
 
-    const clearDraggingImages = () => setIsDraggingImages(false);
-    window.addEventListener("dragend", clearDraggingImages);
-    window.addEventListener("drop", clearDraggingImages);
-    return () => {
-      window.removeEventListener("dragend", clearDraggingImages);
-      window.removeEventListener("drop", clearDraggingImages);
+  useEffect(() => {
+    if (!isDraggingFiles) return;
+
+    const clearDraggingFiles = () => setIsDraggingFiles(false);
+    const preventFileDrop = (event: DragEvent) => {
+      if (event.dataTransfer?.types.includes("Files")) event.preventDefault();
     };
-  }, [isDraggingImages]);
+    window.addEventListener("dragend", clearDraggingFiles);
+    window.addEventListener("blur", clearDraggingFiles);
+    window.addEventListener("dragover", preventFileDrop, true);
+    window.addEventListener("drop", preventFileDrop, true);
+    window.addEventListener("drop", clearDraggingFiles);
+    return () => {
+      window.removeEventListener("dragend", clearDraggingFiles);
+      window.removeEventListener("blur", clearDraggingFiles);
+      window.removeEventListener("dragover", preventFileDrop, true);
+      window.removeEventListener("drop", preventFileDrop, true);
+      window.removeEventListener("drop", clearDraggingFiles);
+    };
+  }, [isDraggingFiles]);
 
   const getPlaceholder = () => {
     if (agentStatus === "waiting_answer")
@@ -262,49 +379,95 @@ export function AgentInput({
   };
 
   const handleFiles = async (files: File[]) => {
-    const error = validateAgentImageFiles(files, attachments.length);
-    if (error) {
-      toast.error(error);
-      return;
+    const validation = validateAgentFiles(files, attachments.length, canAttachImages);
+    if (validation.rejectedFiles.length > 0) {
+      toast.error(
+        validation.validFiles.length > 0
+          ? t("writing.aiSidebar.attachmentsSkipped", { count: validation.rejectedFiles.length })
+          : (validation.errors[0] ?? t("writing.aiSidebar.unsupportedAttachmentType")),
+      );
     }
-    await onUploadAttachments(files);
+    if (validation.validFiles.length > 0) await onUploadAttachments(validation.validFiles);
   };
 
+  const handlePickFile = (kind: "image" | "file") => {
+    setIsAddMenuOpen(false);
+    const input = kind === "image" ? imageFileInputRef.current : fileInputRef.current;
+    input?.click();
+  };
+
+  const handleFilePickerChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (files.length > 0) void handleFiles(files);
+  };
+
+  const handleInsertTrigger = (trigger: "/" | "@") => {
+    composerActions?.insertTrigger(trigger);
+    setIsAddMenuOpen(false);
+  };
+
+  const handleSelectComposerItem = (item: AgentComposerSuggestionItem) => {
+    composerActions?.insertCandidate(item);
+    setIsAddMenuOpen(false);
+  };
+
+  const handleToggleAddMenu = () => {
+    setIsAddMenuOpen((current) => {
+      const next = !current;
+      if (next) {
+        mentionSuggestions?.onClose();
+        setMentionSuggestions(null);
+      }
+      return next;
+    });
+  };
+
+  const handleCloseAddMenu = () => setIsAddMenuOpen(false);
+
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    const files = getAgentImageFiles(event.dataTransfer);
-    if (files.length === 0) return;
     event.preventDefault();
-    setIsDraggingImages(false);
-    if (!canAttachImages) {
-      toast.error(t("writing.aiSidebar.modelImageInputUnsupported"));
-      return;
-    }
+    event.stopPropagation();
+    setIsDraggingFiles(false);
+    const files = getAgentFiles(event.dataTransfer);
+    if (files.length === 0) return;
     void handleFiles(files);
   };
 
   const handlePastedFiles = (dataTransfer: DataTransfer) => {
-    const files = getAgentImageFiles(dataTransfer);
+    const files = getAgentFiles(dataTransfer);
     if (files.length === 0) return;
-    if (!canAttachImages) {
-      toast.error(t("writing.aiSidebar.modelImageInputUnsupported"));
-      return;
-    }
     void handleFiles(files);
   };
 
   const handleDroppedFiles = (dataTransfer: DataTransfer) => {
-    setIsDraggingImages(false);
+    setIsDraggingFiles(false);
     handlePastedFiles(dataTransfer);
   };
 
   const handleRemoveAttachment = (id: string) => {
     const attachment = attachments.find((item) => item.id === id);
-    if (attachment) URL.revokeObjectURL(attachment.previewUrl);
+    if (attachment?.previewUrl.startsWith("blob:")) URL.revokeObjectURL(attachment.previewUrl);
     onAttachmentsChange(attachments.filter((item) => item.id !== id));
   };
 
   return (
     <Box className="ai-sidebar-input-area">
+      <input
+        ref={imageFileInputRef}
+        className="agent-composer-file-input"
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleFilePickerChange}
+      />
+      <input
+        ref={fileInputRef}
+        className="agent-composer-file-input"
+        type="file"
+        multiple
+        onChange={handleFilePickerChange}
+      />
       <div className="ai-sidebar-input-stage">
         <AnimatePresence initial={false}>
           {mentionSuggestions ? (
@@ -319,6 +482,30 @@ export function AgentInput({
               onSelect={mentionSuggestions.onSelect}
               onSelectedIndexChange={mentionSuggestions.onSelectedIndexChange}
               onClose={mentionSuggestions.onClose}
+            />
+          ) : null}
+        </AnimatePresence>
+
+        <AnimatePresence initial={false}>
+          {isAddMenuOpen ? (
+            <AgentComposerAddMenu
+              key="composer-add-menu"
+              clearanceHeight={pendingClearanceHeight}
+              visible
+              triggerRef={addMenuTriggerRef}
+              items={composerItems ?? null}
+              status={
+                isComposerItemsError
+                  ? "error"
+                  : isComposerItemsFetching && !composerItems
+                    ? "loading"
+                    : "ready"
+              }
+              errorMessage={t("assistant.composerMenu.loadFailed")}
+              onClose={handleCloseAddMenu}
+              onPickFile={handlePickFile}
+              onInsertTrigger={handleInsertTrigger}
+              onSelectItem={handleSelectComposerItem}
             />
           ) : null}
         </AnimatePresence>
@@ -339,31 +526,33 @@ export function AgentInput({
           ref={inputContainerRef}
           className="ai-sidebar-input-container"
           data-mode={bodyMode}
-          data-dragging-images={isDraggingImages || undefined}
+          data-dragging-files={isDraggingFiles || undefined}
           onDragEnter={(event) => {
-            if (event.dataTransfer.types.includes("Files")) setIsDraggingImages(true);
+            if (event.dataTransfer.types.includes("Files")) setIsDraggingFiles(true);
           }}
           onDragOver={(event) => {
-            if (getAgentImageFiles(event.dataTransfer).length > 0) event.preventDefault();
+            if (!event.dataTransfer.types.includes("Files")) return;
+            event.preventDefault();
+            event.stopPropagation();
           }}
           onDragLeave={(event) => {
             if (
-              hasLeftAgentImageDropZone(event.relatedTarget, (target) =>
+              hasLeftAgentDropZone(event.relatedTarget, (target) =>
                 event.currentTarget.contains(target),
               )
             ) {
-              setIsDraggingImages(false);
+              setIsDraggingFiles(false);
             }
           }}
           onDrop={handleDrop}
         >
           <div
-            className="agent-image-drop-overlay"
+            className="agent-file-drop-overlay"
             aria-hidden="true"
           >
-            <span className="agent-image-drop-overlay-content">
+            <span className="agent-file-drop-overlay-content">
               <CloudUpload size={16} />
-              {t("writing.aiSidebar.dropImageAttachments")}
+              {t("writing.aiSidebar.dropAttachments")}
             </span>
           </div>
           <AnimatePresence
@@ -417,41 +606,75 @@ export function AgentInput({
               >
                 {attachments.length > 0 ? (
                   <PhotoProvider>
-                    <div className="agent-image-attachment-strip">
+                    <AgentAttachmentStrip
+                      className="agent-file-attachment-strip"
+                      previousLabel={t("writing.aiSidebar.previousAttachment")}
+                      nextLabel={t("writing.aiSidebar.nextAttachment")}
+                    >
                       {attachments.map((attachment) => {
                         const fileName =
                           attachment.file?.name ??
                           attachment.uploadedAttachment?.fileName ??
-                          t("writing.aiSidebar.imageFallbackAlt");
+                          t("writing.aiSidebar.attachmentFallbackName");
+                        const isImage = attachment.file
+                          ? attachment.file.type.startsWith("image/")
+                          : attachment.uploadedAttachment
+                            ? isImageAttachment(attachment.uploadedAttachment)
+                            : false;
+                        const isProcessing =
+                          attachment.status === "uploading" ||
+                          (isSending && Boolean(attachment.file && !attachment.uploadedAttachment));
+                        const sizeBytes =
+                          attachment.file?.size ?? attachment.uploadedAttachment?.sizeBytes ?? 0;
                         return (
                           <div
                             key={attachment.id}
-                            className="agent-image-attachment-preview"
+                            className={
+                              isImage
+                                ? "agent-image-attachment-preview"
+                                : "agent-file-attachment-item"
+                            }
                           >
-                            <PhotoView src={attachment.previewUrl}>
-                              <button
-                                type="button"
-                                className="agent-image-preview-trigger"
-                                aria-label={t("writing.aiSidebar.viewImage", { fileName })}
-                              >
-                                <img
-                                  src={attachment.previewUrl}
-                                  alt={fileName}
-                                />
-                              </button>
-                            </PhotoView>
-                            <button
-                              type="button"
-                              className="agent-image-attachment-remove"
-                              aria-label={t("writing.aiSidebar.removeImage", { fileName })}
-                              onClick={() => handleRemoveAttachment(attachment.id)}
-                            >
-                              <X size={12} />
-                            </button>
+                            {isImage ? (
+                              <>
+                                <PhotoView src={attachment.previewUrl}>
+                                  <button
+                                    type="button"
+                                    className="agent-image-preview-trigger"
+                                    aria-label={t("writing.aiSidebar.viewImage", { fileName })}
+                                  >
+                                    <img
+                                      src={attachment.previewUrl}
+                                      alt={fileName}
+                                    />
+                                  </button>
+                                </PhotoView>
+                                <button
+                                  type="button"
+                                  className="agent-image-attachment-remove"
+                                  aria-label={t("writing.aiSidebar.removeAttachment", { fileName })}
+                                  onClick={() => handleRemoveAttachment(attachment.id)}
+                                >
+                                  <X size={12} />
+                                </button>
+                              </>
+                            ) : (
+                              <AgentFileAttachmentCard
+                                fileName={fileName}
+                                mimeType={
+                                  attachment.file?.type ?? attachment.uploadedAttachment?.mimeType
+                                }
+                                sizeBytes={sizeBytes}
+                                isProcessing={isProcessing}
+                                removeLabel={t("writing.aiSidebar.removeAttachment", { fileName })}
+                                extractingLabel={t("writing.aiSidebar.extractingAttachment")}
+                                onRemove={() => handleRemoveAttachment(attachment.id)}
+                              />
+                            )}
                           </div>
                         );
                       })}
-                    </div>
+                    </AgentAttachmentStrip>
                   </PhotoProvider>
                 ) : null}
                 <AgentComposerEditor
@@ -461,6 +684,7 @@ export function AgentInput({
                   disabled={isComposerLocked}
                   onOpenMentionChapter={onOpenMentionChapter}
                   onMentionSuggestionsChange={setMentionSuggestions}
+                  onComposerActionsChange={setComposerActions}
                   onPasteFiles={handlePastedFiles}
                   onDropFiles={handleDroppedFiles}
                   onChange={handleComposerChange}
@@ -475,16 +699,31 @@ export function AgentInput({
 
       {readOnly ? null : (
         <Flex
+          ref={toolbarRef}
           justify="between"
           align="center"
           gap="2"
+          className="ai-sidebar-input-toolbar"
         >
           <Flex
             align="center"
-            gap="2"
-            wrap="wrap"
-            style={{ flex: "1 1 auto", minWidth: 0 }}
+            gap={isAgentSelectorCompact ? "0" : "2"}
+            wrap="nowrap"
+            className="ai-sidebar-input-toolbar-controls"
           >
+            <IconButton
+              ref={addMenuTriggerRef}
+              type="button"
+              variant="ghost"
+              size="1"
+              className="agent-composer-add-trigger"
+              disabled={isAddMenuDisabled}
+              aria-label={t("assistant.composerMenu.open")}
+              aria-expanded={isAddMenuOpen}
+              onClick={handleToggleAddMenu}
+            >
+              <Plus size={16} />
+            </IconButton>
             {isModelsLoading ? (
               <Flex
                 align="center"
@@ -533,15 +772,16 @@ export function AgentInput({
             ) : (
               <>
                 {agentOptions.length > 0 && onAgentChange ? (
-                  <Box
-                    className="ai-sidebar-model-selector"
-                    style={{ flex: "0 0 auto", minWidth: 0, marginRight: 4 }}
-                  >
+                  <Box className="ai-sidebar-model-selector ai-sidebar-agent-selector">
                     <SimpleSelect
                       value={agentKey ?? ""}
                       options={agentOptions}
                       onChange={onAgentChange}
                       size="1"
+                      variant={isAgentSelectorCompact ? "icon" : "default"}
+                      triggerAriaLabel={
+                        agentOptions.find((option) => option.value === agentKey)?.label
+                      }
                       hideTriggerChevron
                       contentClassName="ai-sidebar-agent-select-content"
                       triggerClassName="ai-sidebar-inline-select-trigger ai-sidebar-agent-select-trigger"
@@ -556,13 +796,10 @@ export function AgentInput({
                 ) : null}
                 <Flex
                   align="center"
-                  gap="2"
+                  gap={isModelCompact && isReasoningCompact ? "0" : "2"}
                   className="ai-sidebar-model-reasoning-group"
                 >
-                  <Box
-                    className="ai-sidebar-model-selector"
-                    style={{ flex: "0 1 auto", minWidth: 0 }}
-                  >
+                  <Box className="ai-sidebar-model-selector">
                     <ModelIdSelect
                       value={modelId}
                       models={models}
@@ -570,6 +807,7 @@ export function AgentInput({
                       editable={false}
                       allowCustomValue={false}
                       compact
+                      compactTrigger={isModelCompact}
                       triggerPrefix={modelTriggerPrefix}
                       hideTriggerChevron
                       triggerClassName="ai-sidebar-inline-select-trigger"
@@ -582,12 +820,19 @@ export function AgentInput({
                     />
                   </Box>
                   {shouldShowReasoningEffort && reasoningEffort && onReasoningEffortChange ? (
-                    <Box className="ai-sidebar-reasoning-effort-selector">
+                    <Box
+                      className={`ai-sidebar-reasoning-effort-selector${
+                        isReasoningCompact ? " ai-sidebar-reasoning-effort-selector--compact" : ""
+                      }`}
+                    >
                       <SimpleSelect
                         value={reasoningEffort}
                         options={reasoningEffortOptions}
                         onChange={(value) => onReasoningEffortChange(value as ReasoningEffort)}
                         size="1"
+                        variant={isReasoningCompact ? "icon" : "default"}
+                        triggerPrefix={isReasoningCompact ? <Brain size={14} /> : undefined}
+                        triggerAriaLabel={t("assistant.thinkingTitle")}
                         hideTriggerChevron
                         triggerClassName="ai-sidebar-inline-select-trigger ai-sidebar-reasoning-effort-trigger"
                         triggerStyle={{
@@ -607,8 +852,9 @@ export function AgentInput({
           <Flex
             align="center"
             gap="2"
+            className="ai-sidebar-input-toolbar-actions"
           >
-            <AgentIndexStatusIndicator projectId={projectId} />
+            {isIndexStatusHidden ? null : <AgentIndexStatusIndicator projectId={projectId} />}
 
             <Tooltip
               content={

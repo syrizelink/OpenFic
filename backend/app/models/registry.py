@@ -9,7 +9,10 @@ from typing import Type
 
 from app.models.adapters.base import BaseAdapter
 from app.models.adapters.anthropic import AnthropicAdapter
-from app.models.adapters.anthropic_compatible import AnthropicCompatibleAdapter
+from app.models.adapters.anthropic_compatible import (
+    ANTHROPIC_COMPATIBLE_PROVIDER_TYPES,
+    AnthropicCompatibleAdapter,
+)
 from app.models.adapters.deepseek import DeepSeekAdapter
 from app.models.adapters.gemini_compatible import GeminiCompatibleAdapter
 from app.models.adapters.google_genai import GoogleGenAIAdapter
@@ -50,6 +53,10 @@ class AdapterRegistry:
         "amazon-nova": AmazonNovaAdapter,
         "openai-compatible": OpenAICompatibleAdapter,
         "openai-compatible-responses": OpenAIResponsesCompatibleAdapter,
+        **{
+            provider_type: AnthropicCompatibleAdapter
+            for provider_type in ANTHROPIC_COMPATIBLE_PROVIDER_TYPES
+        },
     }
 
     @classmethod
