@@ -39,7 +39,7 @@ jobs:
 
           while IFS= read -r file; do
             case "$file" in
-              backend/*|Dockerfile|.github/workflows/pr-check.yml)
+              backend/*|Dockerfile|docker-compose*.yml|deploy/*|.github/workflows/pr-check.yml)
                 backend=true
                 ;;
             esac
@@ -68,6 +68,20 @@ jobs:
     needs: changes
     if: "!startsWith(github.event.pull_request.head.ref, 'release-please--') && needs.changes.outputs.backend == 'true'"
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: openfic_test
+          POSTGRES_PASSWORD: openfic_test
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U openfic_test -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -97,6 +111,11 @@ jobs:
       - name: Run tests
         working-directory: backend
         run: uv run pytest
+      - name: Run PostgreSQL migration and persistence tests
+        working-directory: backend
+        env:
+          OPENFIC_POSTGRES_TEST_URL: postgresql://openfic_test:openfic_test@127.0.0.1:5432/postgres
+        run: uv run pytest tests/integration -q
       - name: Build package
         working-directory: backend
         run: uv build

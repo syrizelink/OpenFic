@@ -41,11 +41,16 @@
 - 📱 **Responsive UI**: designed for desktop, mobile, and browser use without breaking the workflow
 - 🧩 **Custom workflows**: a highly configurable Agent system that lets you adapt prompts and workflows to your needs
 - 🤖 **Human-AI co-writing**: Agents help with brainstorming, plotting, and editing, instead of replacing the writing process with one-click generation
-- 💾 **Local persistence**: all project data stays on your machine, with no cloud storage dependency
+- 💾 **Local persistence by default**: SQLite keeps project data on your machine; self-hosted deployments can opt into PostgreSQL
 - 🧠 **Semantic retrieval**: Agentic RAG built on vector search, so Agents can retrieve information efficiently even in projects with millions of words
 - ⚖️ **Cost-aware context handling**: layered context management, smart compression, dynamic truncation, and stable caching to reduce usage cost
 
 ## Quick Start
+
+SQLite is the default and needs no database server. PostgreSQL is an opt-in deployment choice; existing data is never moved automatically.
+
+- [First deployment and database selection](docs/database-deployment.en.md)
+- [SQLite → PostgreSQL migration and rollback](docs/database-migration.en.md)
 
 ### 🐳 Docker (Recommended)
 

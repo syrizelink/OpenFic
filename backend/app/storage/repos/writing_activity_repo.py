@@ -77,10 +77,13 @@ async def get_aggregates(
     session: AsyncSession,
     filters: WritingActivityFilters,
 ) -> WritingActivityAggregates | None:
-    """在 SQLite 中聚合写作统计，无法安全折叠时返回 None。"""
-    timezone_modifier = _fixed_timezone_modifier(filters.timezone)
-    if timezone_modifier is None:
-        return None
+    """在数据库中聚合写作统计，无法安全折叠时返回 None。"""
+    dialect_name = session.get_bind().dialect.name
+    timezone_modifier = None
+    if dialect_name != "postgresql":
+        timezone_modifier = _fixed_timezone_modifier(filters.timezone)
+        if timezone_modifier is None:
+            return None
 
     filtered_query = select(
         col(WritingActivityEvent.created_at),
@@ -92,11 +95,16 @@ async def get_aggregates(
     if conditions:
         filtered_query = filtered_query.where(*conditions)
     filtered = filtered_query.cte("writing_activity").prefix_with("MATERIALIZED")
-    date_expression = func.strftime(
-        "%Y-%m-%d",
-        filtered.c.created_at,
-        literal(timezone_modifier),
-    )
+    if dialect_name == "postgresql":
+        utc_value = func.timezone("UTC", filtered.c.created_at)
+        local_value = func.timezone(filters.timezone.key, utc_value)
+        date_expression = func.to_char(local_value, "YYYY-MM-DD")
+    else:
+        date_expression = func.strftime(
+            "%Y-%m-%d",
+            filtered.c.created_at,
+            literal(timezone_modifier),
+        )
     creative_condition = filtered.c.source.in_(["user", "agent"])
     summary_query = select(
         literal("summary").label("kind"),

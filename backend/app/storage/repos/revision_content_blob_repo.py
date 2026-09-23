@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import hashlib
+from datetime import UTC, datetime
 import zlib
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import set_committed_value
@@ -44,12 +46,18 @@ async def put(session: AsyncSession, text: str | None) -> str | None:
         return None
     blob_id = blob_id_for_text(text)
     raw = text.encode("utf-8")
+    insert_factory = (
+        postgresql_insert
+        if session.get_bind().dialect.name == "postgresql"
+        else sqlite_insert
+    )
     statement = (
-        sqlite_insert(RevisionContentBlob)
+        insert_factory(RevisionContentBlob)
         .values(
             id=blob_id,
             data=zlib.compress(raw, level=_COMPRESS_LEVEL),
             raw_size=len(raw),
+            created_at=datetime.now(UTC),
         )
         .on_conflict_do_nothing(index_elements=[RevisionContentBlob.id])
     )
@@ -105,4 +113,3 @@ async def hydrate_content(
         blob_id = getattr(row, blob_id_attr, None)
         if blob_id:
             set_committed_value(row, content_attr, contents.get(blob_id))
-

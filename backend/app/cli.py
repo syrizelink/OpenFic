@@ -51,6 +51,35 @@ def handle_version(_args: argparse.Namespace) -> None:
     print(f"openfic {_read_version()}")
 
 
+def handle_upgrade_database(_args: argparse.Namespace) -> None:
+    _ensure_data_dir()
+    from app.storage.database import init_db
+
+    asyncio.run(init_db())
+
+
+def handle_migrate_sqlite_to_postgres(args: argparse.Namespace) -> None:
+    _ensure_data_dir()
+    from app.storage.sqlite_to_postgres import migrate_sqlite_to_postgres
+
+    target_url = os.getenv(args.target_url_env)
+    if not target_url:
+        raise SystemExit(
+            f"Environment variable {args.target_url_env} must contain the PostgreSQL URL"
+        )
+    report = migrate_sqlite_to_postgres(
+        Path(args.source),
+        target_url,
+        apply=args.apply,
+        batch_size=args.batch_size,
+    )
+    action = "migrated" if args.apply else "validated"
+    print(
+        f"{action} {report.total_rows} rows across {len(report.tables)} tables; "
+        f"deferred foreign keys: {report.deferred_foreign_keys}"
+    )
+
+
 def handle_serve(args: argparse.Namespace) -> None:
     _ensure_data_dir()
     configure_standard_logging()
@@ -93,6 +122,29 @@ def build_parser() -> argparse.ArgumentParser:
 
     version_parser = subparsers.add_parser("version", help="显示版本号")
     version_parser.set_defaults(handler=handle_version)
+
+    upgrade_parser = subparsers.add_parser(
+        "upgrade-database", help="升级业务数据库结构，不启动服务或后台任务",
+    )
+    upgrade_parser.set_defaults(handler=handle_upgrade_database)
+
+    migration_parser = subparsers.add_parser(
+        "migrate-sqlite-to-postgres",
+        help="校验或执行 SQLite 到 PostgreSQL 的一次性迁移",
+    )
+    migration_parser.add_argument("--source", required=True, help="SQLite openfic.db 路径")
+    migration_parser.add_argument(
+        "--target-url-env",
+        default="OPENFIC_DATABASE_URL",
+        help="保存 PostgreSQL URL 的环境变量名",
+    )
+    migration_parser.add_argument("--batch-size", type=int, default=1000)
+    migration_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="实际写入；省略时仅执行源数据和目标结构预检",
+    )
+    migration_parser.set_defaults(handler=handle_migrate_sqlite_to_postgres)
 
     return parser
 

@@ -5,6 +5,7 @@ Writing Activity Event 数据模型 - 写作活动事件。
 
 from datetime import UTC, datetime
 
+from sqlalchemy import Index
 from sqlmodel import Field, SQLModel
 
 from app.core.ids import generate_id
@@ -14,6 +15,24 @@ class WritingActivityEvent(SQLModel, table=True):
     """记录章节内容变更产生的字数快照事件。"""
 
     __tablename__ = "writing_activity_events"
+    __table_args__ = (
+        Index(
+            "ix_writing_activity_events_project_id_created_at",
+            "project_id",
+            "created_at",
+        ),
+        Index(
+            "ix_writing_activity_events_source_created_at",
+            "source",
+            "created_at",
+        ),
+        Index(
+            "ix_writing_activity_events_project_source_created_at",
+            "project_id",
+            "source",
+            "created_at",
+        ),
+    )
 
     id: str = Field(default_factory=generate_id, primary_key=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
