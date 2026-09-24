@@ -144,6 +144,88 @@ async def test_list_by_session_filters_by_session(db_session: AsyncSession, samp
 
 
 @pytest.mark.asyncio
+async def test_mark_tool_messages_pruned_preserves_content_and_metadata(
+    db_session: AsyncSession, sample_task
+):
+    tool = await repo.insert_message(
+        db_session,
+        session_id="session_prune",
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="tool",
+        content="full tool output",
+        status="complete",
+        tool_call_id="call-1",
+        tool_name="read_chapter",
+        metadata={"existing": "value"},
+    )
+
+    marked = await repo.mark_tool_messages_pruned(
+        db_session,
+        session_id="session_prune",
+        tool_call_ids=["call-1"],
+        revision_id="revision-1",
+    )
+
+    assert marked == 1
+    row = await db_session.get(AgentRunMessage, tool.id)
+    assert row is not None
+    assert row.content == "full tool output"
+    assert json.loads(row.message_metadata) == {
+        "existing": "value",
+        "pruned": True,
+        "pruned_revision_id": "revision-1",
+    }
+
+
+@pytest.mark.asyncio
+async def test_clear_tool_message_prune_marks_only_for_revisions(
+    db_session: AsyncSession, sample_task
+):
+    first = await repo.insert_message(
+        db_session,
+        session_id="session_prune",
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="tool",
+        content="first output",
+        status="complete",
+        tool_call_id="call-1",
+        tool_name="read_chapter",
+        metadata={"pruned": True, "pruned_revision_id": "revision-1"},
+    )
+    second = await repo.insert_message(
+        db_session,
+        session_id="session_prune",
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="tool",
+        content="second output",
+        status="complete",
+        tool_call_id="call-2",
+        tool_name="read_chapter",
+        metadata={"pruned": True, "pruned_revision_id": "revision-2"},
+    )
+
+    cleared = await repo.clear_tool_message_prune_marks(
+        db_session,
+        session_id="session_prune",
+        revision_ids=["revision-1"],
+    )
+    first_row = await db_session.get(AgentRunMessage, first.id)
+    second_row = await db_session.get(AgentRunMessage, second.id)
+
+    assert cleared == 1
+    assert first_row is not None
+    assert second_row is not None
+    assert json.loads(first_row.message_metadata) == {}
+    assert json.loads(second_row.message_metadata) == {
+        "pruned": True,
+        "pruned_revision_id": "revision-2",
+    }
+
+
+@pytest.mark.asyncio
 async def test_list_by_sessions_groups_messages_and_orders_each_session(
     db_session: AsyncSession, sample_task
 ):

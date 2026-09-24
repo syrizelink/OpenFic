@@ -1224,6 +1224,11 @@ async def rollback_revision_for_session(
         agent_session_id,
         target.user_message_seq,
     )
+    await message_repo.clear_tool_message_prune_marks(
+        session,
+        session_id=agent_session_id,
+        revision_ids=[revision.id for revision in revisions],
+    )
     await message_repo.delete_from_seq(session, agent_session_id, target.user_message_seq)
     child_rollback_result = await rollback_child_runs_for_parent_revisions(
         session,

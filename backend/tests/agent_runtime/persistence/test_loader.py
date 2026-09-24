@@ -564,6 +564,41 @@ async def test_load_history_adds_openfic_response_metadata_for_seq_and_tool_name
 
 
 @pytest.mark.asyncio
+async def test_load_history_restores_pruned_tool_metadata(
+    db_session: AsyncSession, sample_task
+):
+    sid = "session_pruned_metadata"
+    await repo.insert_message(
+        db_session,
+        session_id=sid,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="assistant",
+        content="calling",
+        status="complete",
+        tool_calls=[{"id": "c1", "name": "read_chapter", "args": {}}],
+    )
+    await repo.insert_message(
+        db_session,
+        session_id=sid,
+        task_id=sample_task.id,
+        project_id=sample_task.project_id,
+        role="tool",
+        content="chapter body",
+        status="complete",
+        tool_call_id="c1",
+        tool_name="read_chapter",
+        metadata={"pruned": True},
+    )
+
+    messages = await load_history(db_session, sid)
+
+    assert isinstance(messages[1], ToolMessage)
+    assert messages[1].content == "chapter body"
+    assert messages[1].response_metadata["openfic_pruned"] is True
+
+
+@pytest.mark.asyncio
 async def test_load_history_drops_orphan_tool(db_session: AsyncSession, sample_task):
     sid = "session_a"
     await repo.insert_message(

@@ -42,6 +42,11 @@ def _history_metadata(raw: dict, *, tool_name: str | None = None) -> dict:
     raw_tool_name = _string_value(raw_metadata.get("tool_name"))
     if tool_name or raw_tool_name:
         metadata["tool_name"] = tool_name or raw_tool_name
+    if raw_metadata.get("pruned") is True:
+        metadata["pruned"] = True
+    raw_status = _string_value(raw_metadata.get("status"))
+    if raw_status:
+        metadata["status"] = raw_status
     return metadata
 
 

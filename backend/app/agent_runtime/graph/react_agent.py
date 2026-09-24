@@ -49,6 +49,10 @@ from app.agent_runtime.context.compaction.window import (
     CompactionNoWindowError,
     select_compaction_window,
 )
+from app.agent_runtime.context.pruning import (
+    OLD_TOOL_OUTPUT_PLACEHOLDER,
+    prune_tool_outputs,
+)
 from app.agent_runtime.context.processors.to_langchain import to_langchain_messages
 from app.agent_runtime.context.types import ContextMessage
 from app.agent_runtime.graph.llm_invoke import (
@@ -59,7 +63,7 @@ from app.agent_runtime.graph.llm_invoke import (
     invoke_model_with_retry,
     load_llm_invoke_settings,
 )
-from app.agent_runtime.persistence import compaction_repo
+from app.agent_runtime.persistence import compaction_repo, repo
 from app.agent_runtime.tools.base import AgentTool
 from app.agent_runtime.tools.errors import (
     ToolFailure,
@@ -524,6 +528,11 @@ def _to_history_dict(m: BaseMessage) -> dict:
     tool_name = response_metadata.get("openfic_tool_name")
     if isinstance(tool_name, str) and tool_name:
         metadata["tool_name"] = tool_name
+    if response_metadata.get("openfic_pruned") is True:
+        metadata["pruned"] = True
+    status = response_metadata.get("openfic_status")
+    if isinstance(status, str) and status:
+        metadata["status"] = status
     out: dict = {
         "role": role,
         "content": extract_text_content(m.content),
@@ -564,6 +573,61 @@ def _to_history_dict(m: BaseMessage) -> dict:
             if isinstance(message_name, str) and message_name:
                 out["name"] = message_name
     return out
+
+
+def _new_pruned_tool_call_ids(
+    before: list[ContextMessage], after: list[ContextMessage]
+) -> tuple[str, ...]:
+    return tuple(
+        after_part.tool_call_id
+        for before_part, after_part in zip(before, after, strict=True)
+        if (
+            after_part.role == "tool"
+            and after_part.tool_call_id
+            and not (before_part.metadata or {}).get("pruned")
+            and (after_part.metadata or {}).get("pruned") is True
+        )
+    )
+
+
+def _mark_history_dicts_pruned(
+    messages: list[dict], tool_call_ids: set[str]
+) -> None:
+    for message in messages:
+        if message.get("role") != "tool" or message.get("tool_call_id") not in tool_call_ids:
+            continue
+        metadata = message.get("metadata")
+        metadata = dict(metadata) if isinstance(metadata, dict) else {}
+        metadata["pruned"] = True
+        message["metadata"] = metadata
+        message["content"] = OLD_TOOL_OUTPUT_PLACEHOLDER
+
+
+def _mark_state_messages_pruned(
+    messages: list[BaseMessage], tool_call_ids: set[str]
+) -> list[BaseMessage]:
+    if not tool_call_ids:
+        return messages
+
+    result: list[BaseMessage] = []
+    for message in messages:
+        if not isinstance(message, ToolMessage) or message.tool_call_id not in tool_call_ids:
+            result.append(message)
+            continue
+        response_metadata = getattr(message, "response_metadata", None)
+        response_metadata = (
+            dict(response_metadata) if isinstance(response_metadata, dict) else {}
+        )
+        response_metadata["openfic_pruned"] = True
+        result.append(
+            message.model_copy(
+                update={
+                    "content": OLD_TOOL_OUTPUT_PLACEHOLDER,
+                    "response_metadata": response_metadata,
+                }
+            )
+        )
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -694,6 +758,7 @@ def create_react_agent(
             runtime_model_config = None
         drained_injected_user_message = False
         context_parts: list[ContextMessage] | None = None
+        pruned_tool_call_ids: tuple[str, ...] = ()
         effective_runtime_state: dict[str, Any] | None = None
         injected_user_contents: list[str] = []
 
@@ -865,6 +930,26 @@ def create_react_agent(
 
         if context_parts is not None and effective_runtime_state is not None:
             runtime_db_session = cast("AsyncSession", db_session)
+            pruned_context_parts = prune_tool_outputs(context_parts)
+            pruned_tool_call_ids = _new_pruned_tool_call_ids(
+                context_parts, pruned_context_parts
+            )
+            if pruned_tool_call_ids:
+                pruned_ids = set(pruned_tool_call_ids)
+                current_revision_id = effective_runtime_state.get("current_revision_id")
+                current_revision_id = (
+                    current_revision_id
+                    if isinstance(current_revision_id, str) and current_revision_id
+                    else None
+                )
+                await repo.mark_tool_messages_pruned(
+                    runtime_db_session,
+                    session_id=str(effective_runtime_state.get("session_id") or ""),
+                    tool_call_ids=pruned_tool_call_ids,
+                    revision_id=current_revision_id,
+                )
+                _mark_history_dicts_pruned(node_messages, pruned_ids)
+                context_parts = pruned_context_parts
             candidate_parts = [*context_parts, *transient_parts]
             if await maybe_auto_compact(
                 state=effective_runtime_state,
@@ -940,6 +1025,15 @@ def create_react_agent(
             "tool_prepared_outcomes": Overwrite([]),
             "tool_phase": "prepare",
         }
+        if context_parts is not None and pruned_tool_call_ids:
+            update["messages"] = Overwrite(
+                [
+                    *_mark_state_messages_pruned(
+                        state["messages"], set(pruned_tool_call_ids)
+                    ),
+                    response,
+                ]
+            )
         if drained_injected_user_message:
             update["is_done"] = False
             update["final_output"] = None

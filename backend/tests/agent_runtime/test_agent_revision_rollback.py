@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 
-from app.agent_runtime.persistence.model import AgentAttachment
+from app.agent_runtime.persistence.model import AgentAttachment, AgentRunMessage
 from app.agent_runtime.persistence import repo as message_repo
 from app.storage.models.chapter import Chapter
 from app.storage.models.character import Character
@@ -234,6 +234,83 @@ async def test_write_chapter_records_current_revision_and_structured_result(revi
         (inserted_id, False),
         ("chap-2", True),
     }
+
+
+@pytest.mark.asyncio
+async def test_rollback_clears_prune_marks_created_by_rolled_back_revision(revision_db):
+    from app.agent_runtime.revisions import begin_user_revision, rollback_revision_for_session
+
+    async with revision_db() as session:
+        await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="初始请求",
+        )
+        await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="assistant",
+            status="complete",
+            content="调用工具",
+            tool_calls=[{"id": "old-call", "name": "read_chapter", "args": {}}],
+        )
+        old_tool = await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="tool",
+            status="complete",
+            content="完整旧工具输出",
+            tool_call_id="old-call",
+            tool_name="read_chapter",
+        )
+        target_user = await message_repo.insert_message(
+            session,
+            session_id="sess-1",
+            task_id="task-1",
+            project_id="proj-1",
+            role="user",
+            status="sent",
+            content="需要回滚的请求",
+        )
+        revision = await begin_user_revision(
+            session,
+            project_id="proj-1",
+            task_id="task-1",
+            agent_session_id="sess-1",
+            user_message_id=target_user.id,
+            user_message_seq=target_user.seq,
+            message="用户消息: 需要回滚的请求",
+            pre_run_checkpoint_id=None,
+            graph_thread_id="sess-1",
+        )
+        await message_repo.mark_tool_messages_pruned(
+            session,
+            session_id="sess-1",
+            tool_call_ids=[old_tool.tool_call_id or ""],
+            revision_id=revision.id,
+        )
+        await session.commit()
+
+        await rollback_revision_for_session(
+            session,
+            agent_session_id="sess-1",
+            revision_id=revision.id,
+        )
+        await session.commit()
+
+        restored_tool = await session.get(AgentRunMessage, old_tool.id)
+        assert restored_tool is not None
+        assert restored_tool.content == "完整旧工具输出"
+        assert json.loads(restored_tool.message_metadata or "{}") == {}
+        assert await session.get(AgentRunMessage, target_user.id) is None
 
 
 @pytest.mark.asyncio

@@ -148,6 +148,99 @@ async def list_by_session(
         ) from e
 
 
+async def mark_tool_messages_pruned(
+    session: AsyncSession,
+    *,
+    session_id: str,
+    tool_call_ids: Sequence[str],
+    revision_id: str | None = None,
+) -> int:
+    """标记工具消息已从模型上下文裁剪，但保留原始正文。"""
+    normalized_ids = list(dict.fromkeys(tool_call_id for tool_call_id in tool_call_ids if tool_call_id))
+    if not normalized_ids:
+        return 0
+
+    try:
+        result = await session.execute(
+            select(AgentRunMessage).where(
+                col(AgentRunMessage.session_id) == session_id,
+                col(AgentRunMessage.role) == "tool",
+                col(AgentRunMessage.tool_call_id).in_(normalized_ids),
+            )
+        )
+        marked = 0
+        for row in result.scalars().all():
+            try:
+                metadata = json.loads(row.message_metadata or "{}")
+            except (TypeError, ValueError):
+                metadata = {}
+            if not isinstance(metadata, dict):
+                metadata = {}
+            if metadata.get("pruned") is True:
+                continue
+            metadata["pruned"] = True
+            if revision_id:
+                metadata["pruned_revision_id"] = revision_id
+            row.message_metadata = json.dumps(metadata, ensure_ascii=False)
+            row.updated_at = datetime.now(UTC)
+            session.add(row)
+            marked += 1
+        if marked:
+            await session.commit()
+        return marked
+    except SQLAlchemyError as e:
+        await session.rollback()
+        raise PersistenceWriteError(
+            f"mark_tool_messages_pruned failed for session {session_id}"
+        ) from e
+
+
+async def clear_tool_message_prune_marks(
+    session: AsyncSession,
+    *,
+    session_id: str,
+    revision_ids: Sequence[str],
+) -> int:
+    """清除指定 revision 创建的 prune 标记，保留工具消息正文。"""
+    normalized_ids = {
+        revision_id for revision_id in revision_ids if revision_id
+    }
+    if not normalized_ids:
+        return 0
+
+    try:
+        result = await session.execute(
+            select(AgentRunMessage).where(
+                col(AgentRunMessage.session_id) == session_id,
+                col(AgentRunMessage.role) == "tool",
+            )
+        )
+        cleared = 0
+        for row in result.scalars().all():
+            try:
+                metadata = json.loads(row.message_metadata or "{}")
+            except (TypeError, ValueError):
+                metadata = {}
+            if not isinstance(metadata, dict):
+                metadata = {}
+            if metadata.get("pruned_revision_id") not in normalized_ids:
+                continue
+            metadata.pop("pruned", None)
+            metadata.pop("pruned_revision_id", None)
+            row.message_metadata = json.dumps(metadata, ensure_ascii=False)
+            row.updated_at = datetime.now(UTC)
+            session.add(row)
+            cleared += 1
+        if cleared:
+            await session.flush()
+        return cleared
+    except SQLAlchemyError as e:
+        await session.rollback()
+        raise PersistenceWriteError(
+            f"clear_tool_message_prune_marks failed for session {session_id}"
+        ) from e
+
+
 async def list_by_sessions(
     session: AsyncSession,
     session_ids: Sequence[str],
