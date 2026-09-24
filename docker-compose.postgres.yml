@@ -1,0 +1,30 @@
+# Opt in with: docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d --build
+services:
+  openfic:
+    build: .
+    image: openfic:postgres-local
+    environment:
+      OPENFIC_DATABASE_URL: postgresql+psycopg://openfic:${OPENFIC_POSTGRES_PASSWORD:?Set OPENFIC_POSTGRES_PASSWORD}@postgres:5432/openfic_app
+      OPENFIC_CHECKPOINT_DATABASE_URL: postgresql://openfic:${OPENFIC_POSTGRES_PASSWORD:?Set OPENFIC_POSTGRES_PASSWORD}@postgres:5432/openfic_checkpoint
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: openfic
+      POSTGRES_PASSWORD: ${OPENFIC_POSTGRES_PASSWORD:?Set OPENFIC_POSTGRES_PASSWORD}
+      POSTGRES_DB: openfic_app
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openfic -d openfic_app"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    volumes:
+      - openfic-postgres:/var/lib/postgresql/data
+      - ./deploy/postgres-init.sql:/docker-entrypoint-initdb.d/10-openfic.sql:ro
+
+volumes:
+  openfic-postgres:

@@ -10,7 +10,7 @@ from alembic import command
 from alembic.config import Config
 from loguru import logger
 from sqlalchemy import event
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -25,6 +25,8 @@ ALEMBIC_INI_PATH = Path(__file__).resolve().parents[2] / "alembic.ini"
 
 def _set_sqlite_pragma(dbapi_connection, connection_record):
     """SQLite 连接建立时设置 WAL 模式和并发优化。"""
+    if not hasattr(dbapi_connection, "create_function"):
+        return
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.execute("PRAGMA busy_timeout=30000")
@@ -34,22 +36,27 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
     dbapi_connection.create_function("pinyin_initials", 1, to_pinyin_initials, deterministic=True)
 
 
-event.listen(Engine, "connect", _set_sqlite_pragma)
 
 
 def _get_engine():
     """获取或创建数据库引擎。"""
     global _engine
     if _engine is None:
+        database_url = make_url(settings.database_url)
+        connect_args = (
+            {"check_same_thread": False}
+            if database_url.get_backend_name() == "sqlite"
+            else {"options": "-c timezone=UTC"}
+        )
         _engine = create_async_engine(
-            settings.database_url,
+            database_url,
             echo=settings.debug,
             future=True,
-            connect_args={
-                "check_same_thread": False,
-            },
+            connect_args=connect_args,
             pool_pre_ping=True,
         )
+        if database_url.get_backend_name() == "sqlite":
+            event.listen(_engine.sync_engine, "connect", _set_sqlite_pragma)
     return _engine
 
 
@@ -94,6 +101,8 @@ async def vacuum_database_if_needed(
     min_free_bytes: int = _VACUUM_MIN_FREE_BYTES,
 ) -> bool:
     """Reclaim main database file space when deletion leaves enough free pages."""
+    if make_url(settings.database_url).get_backend_name() != "sqlite":
+        return False
     db_path = settings.database_url.removeprefix("sqlite+aiosqlite:///")
     if not Path(db_path).exists():
         return False

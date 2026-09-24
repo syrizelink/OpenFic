@@ -7,6 +7,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
+from app.core.pinyin import to_pinyin, to_pinyin_initials
 from app.storage.models.project import Project
 
 SORT_COLUMNS = {
@@ -14,6 +15,13 @@ SORT_COLUMNS = {
     "created_at": Project.created_at,
     "title": Project.title,
 }
+
+
+def _sync_pinyin_fields(project: Project) -> None:
+    project.title_pinyin_full = to_pinyin(project.title)
+    project.title_pinyin_initials = to_pinyin_initials(project.title)
+    project.description_pinyin_full = to_pinyin(project.description)
+    project.description_pinyin_initials = to_pinyin_initials(project.description)
 
 
 def _escape_like_pattern(value: str) -> str:
@@ -41,10 +49,10 @@ def _apply_search(stmt, search: str | None):
     if pinyin_pattern:
         predicates.extend(
             (
-                func.pinyin_full(col(Project.title)).like(pinyin_pattern, escape="\\"),
-                func.pinyin_initials(col(Project.title)).like(pinyin_pattern, escape="\\"),
-                func.pinyin_full(col(Project.description)).like(pinyin_pattern, escape="\\"),
-                func.pinyin_initials(col(Project.description)).like(pinyin_pattern, escape="\\"),
+                col(Project.title_pinyin_full).like(pinyin_pattern, escape="\\"),
+                col(Project.title_pinyin_initials).like(pinyin_pattern, escape="\\"),
+                col(Project.description_pinyin_full).like(pinyin_pattern, escape="\\"),
+                col(Project.description_pinyin_initials).like(pinyin_pattern, escape="\\"),
             )
         )
     return stmt.where(or_(*predicates))
@@ -61,6 +69,7 @@ async def create(session: AsyncSession, project: Project) -> Project:
     Returns:
         创建后的项目实例。
     """
+    _sync_pinyin_fields(project)
     session.add(project)
     await session.flush()
     await session.refresh(project)
@@ -104,7 +113,7 @@ async def list_all(
     """
     sort_column = SORT_COLUMNS.get(sort_by, Project.updated_at)
     sortable_expression = (
-        func.pinyin_full(col(Project.title)) if sort_by == "title" else col(sort_column)
+        col(Project.title_pinyin_full) if sort_by == "title" else col(sort_column)
     )
     order_expression = sortable_expression.asc() if sort_order == "asc" else sortable_expression.desc()
     stmt = (
@@ -144,6 +153,7 @@ async def update(session: AsyncSession, project: Project) -> Project:
     Returns:
         更新后的项目实例。
     """
+    _sync_pinyin_fields(project)
     session.add(project)
     await session.flush()
     await session.refresh(project)

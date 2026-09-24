@@ -1,11 +1,13 @@
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
+from sqlalchemy.engine.url import make_url
 
 from alembic import context
 
 from app.logging import configure_standard_logging
 # 导入应用配置和模型
 from app.settings import settings
+from app.storage.urls import normalize_database_url
 from sqlmodel import SQLModel
 
 # 注册所有表到 SQLModel.metadata 用于 autogenerate
@@ -26,8 +28,15 @@ config = context.config
 configure_standard_logging()
 
 # 配置数据库 URL（从应用设置获取，但使用同步 URL）
-database_url = settings.database_url.replace("+aiosqlite", "")
-config.set_main_option("sqlalchemy.url", database_url)
+database_url = make_url(normalize_database_url(
+    config.attributes.get("database_url", settings.database_url)
+))
+if database_url.drivername == "sqlite+aiosqlite":
+    database_url = database_url.set(drivername="sqlite")
+config.set_main_option(
+    "sqlalchemy.url",
+    database_url.render_as_string(hide_password=False).replace("%", "%%"),
+)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
@@ -76,11 +85,17 @@ def run_migrations_online() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=(
+            {"options": "-c timezone=UTC"}
+            if database_url.get_backend_name() == "postgresql" else {}
+        ),
     )
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            render_as_batch=connection.dialect.name == "sqlite",
         )
 
         with context.begin_transaction():

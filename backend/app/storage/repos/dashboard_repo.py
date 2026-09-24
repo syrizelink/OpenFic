@@ -203,6 +203,12 @@ def _null_value(name: str, value_type: Any):
     return literal(None, type_=value_type).label(name)
 
 
+def _date_expression(session: AsyncSession, value: Any):
+    if session.get_bind().dialect.name == "postgresql":
+        return func.to_char(value, "YYYY-MM-DD")
+    return func.strftime("%Y-%m-%d", value)
+
+
 async def get_stats(
     session: AsyncSession,
     filters: DashboardFilters,
@@ -227,7 +233,7 @@ async def get_stats(
         .cte("dashboard_metrics")
         .prefix_with("MATERIALIZED")
     )
-    date_expression = func.strftime("%Y-%m-%d", filtered.c.created_at)
+    date_expression = _date_expression(session, filtered.c.created_at)
     model_id_expression = func.nullif(filtered.c.model_id, "")
     model_key_expression = func.coalesce(model_id_expression, literal("unknown"))
     model_name_expression = func.nullif(filtered.c.model_name, "")

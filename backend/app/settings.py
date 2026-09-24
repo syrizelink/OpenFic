@@ -10,6 +10,8 @@ from loguru import logger
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.storage.urls import normalize_database_url, normalize_postgres_url
+
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 BACKEND_DATA_DIR = Path(os.getenv("OPENFIC_DATA_DIR", str(BACKEND_DIR / "data")))
@@ -65,6 +67,7 @@ class Settings(BaseSettings):
         env_file=str(ENV_FILE_PATH),
         env_file_encoding="utf-8",
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
     # Application
@@ -92,6 +95,31 @@ class Settings(BaseSettings):
     port: int = 8000
 
     # Storage
+    database_url_override: str | None = Field(
+        default=None,
+        validation_alias="OPENFIC_DATABASE_URL",
+        exclude=True,
+        repr=False,
+    )
+    checkpoint_database_url: str | None = Field(
+        default=None,
+        validation_alias="OPENFIC_CHECKPOINT_DATABASE_URL",
+        exclude=True,
+        repr=False,
+    )
+
+    @field_validator("database_url_override", "checkpoint_database_url", mode="before")
+    @classmethod
+    def _validate_database_url(cls, value: str | None, info):
+        if value is None or not value.strip():
+            return None
+        normalizer = (
+            normalize_postgres_url
+            if info.field_name == "checkpoint_database_url"
+            else normalize_database_url
+        )
+        return normalizer(value.strip())
+
     covers_dir: Path = BACKEND_DATA_DIR / "covers"
     character_images_dir: Path = BACKEND_DATA_DIR / "character-images"
     agent_attachments_dir: Path = BACKEND_DATA_DIR / "agent-attachments"
@@ -126,9 +154,22 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self) -> str:
+        if self.database_url_override:
+            return self.database_url_override
         data_dir = BACKEND_DATA_DIR
         data_dir.mkdir(parents=True, exist_ok=True)
         return f"sqlite+aiosqlite:///{data_dir}/openfic.db"
+
+    @property
+    def uses_postgresql(self) -> bool:
+        return self.database_url.startswith(("postgresql://", "postgresql+"))
+
+    @property
+    def uses_postgresql_checkpoints(self) -> bool:
+        return bool(
+            self.checkpoint_database_url
+            and self.checkpoint_database_url.startswith(("postgresql://", "postgresql+"))
+        )
 
     @property
     def checkpoint_db_path(self) -> Path:

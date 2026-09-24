@@ -114,3 +114,32 @@ def test_handle_serve_sets_auth_password_environment(monkeypatch) -> None:
     )
 
     assert cli.os.environ["OPENFIC_AUTH_PASSWORD"] == "secret"
+
+
+def test_upgrade_database_runs_without_starting_server(monkeypatch):
+    from unittest.mock import AsyncMock
+    from app.storage import database
+
+    init = AsyncMock()
+    monkeypatch.setattr(cli, "_ensure_data_dir", Mock())
+    monkeypatch.setattr(database, "init_db", init)
+    args = cli.build_parser().parse_args(["upgrade-database"])
+    args.handler(args)
+    cli._ensure_data_dir.assert_called_once()
+    init.assert_awaited_once()
+
+
+def test_migration_cli_defaults_to_dry_run_and_reads_named_env(monkeypatch, tmp_path, capsys):
+    from app.storage import sqlite_to_postgres
+
+    migrate = Mock(return_value=SimpleNamespace(total_rows=7, tables=(1, 2), deferred_foreign_keys=0))
+    monkeypatch.setattr(cli, "_ensure_data_dir", Mock())
+    monkeypatch.setattr(sqlite_to_postgres, "migrate_sqlite_to_postgres", migrate)
+    monkeypatch.setenv("OPENFIC_TEST_TARGET", "postgresql://localhost/target")
+    source = tmp_path / "source.db"
+    args = cli.build_parser().parse_args([
+        "migrate-sqlite-to-postgres", "--source", str(source), "--target-url-env", "OPENFIC_TEST_TARGET",
+    ])
+    args.handler(args)
+    migrate.assert_called_once_with(source, "postgresql://localhost/target", apply=False, batch_size=1000)
+    assert "validated 7 rows across 2 tables" in capsys.readouterr().out

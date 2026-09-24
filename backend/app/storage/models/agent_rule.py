@@ -16,7 +16,11 @@ class AgentRule(SQLModel, table=True):
     id: str = Field(default_factory=generate_id, primary_key=True)
     title: str = Field(default="")
     content: str = Field(default="")
-    scope: str = Field(default="global", description="作用域：global 或 project")
+    scope: str = Field(
+        default="global",
+        index=True,
+        description="作用域：global 或 project",
+    )
     project_id: str | None = Field(default=None, index=True, description="project 作用域关联的项目 ID")
     token_count: int = Field(default=0, description="规则内容 Token 数")
     order_index: int = Field(default=0)

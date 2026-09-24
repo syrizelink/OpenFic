@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import CheckConstraint, Column, Index, JSON, Text, UniqueConstraint
+from sqlalchemy import CheckConstraint, Column, DateTime, Index, JSON, Text, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 from app.core.ids import generate_id
@@ -57,7 +57,10 @@ class AgentAttachment(SQLModel, table=True):
     line_count: int = Field(default=0, ge=0)
     width: int | None = Field(default=None, ge=1)
     height: int | None = Field(default=None, ge=1)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
+    )
 
 
 class AgentContextCompaction(SQLModel, table=True):
@@ -222,9 +225,10 @@ class PlanRecord(SQLModel, table=True):
     """Plan row owned by exactly one agent session."""
 
     __tablename__ = "plans"
+    __table_args__ = (Index("uq_plans_session_id", "session_id", unique=True),)
 
     id: str = Field(default_factory=generate_id, primary_key=True)
-    session_id: str = Field(unique=True, max_length=64)
+    session_id: str = Field(max_length=64)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 

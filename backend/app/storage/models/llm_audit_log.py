@@ -3,6 +3,7 @@
 
 from datetime import UTC, datetime
 
+from sqlalchemy import Column, Index, Text
 from sqlmodel import Field, SQLModel
 
 from app.core.ids import generate_id
@@ -12,6 +13,18 @@ class LLMAuditLog(SQLModel, table=True):
     """Stores the request, response, usage, and outcome of one LLM call."""
 
     __tablename__ = "agent_audit_logs"
+    __table_args__ = (
+        Index("ix_agent_audit_logs_project_id_created_at", "project_id", "created_at"),
+        Index(
+            "ix_agent_audit_logs_model_provider_created_at",
+            "model_provider",
+            "created_at",
+        ),
+        Index("ix_agent_audit_logs_model_id_created_at", "model_id", "created_at"),
+        Index("ix_agent_audit_logs_operation_created_at", "operation", "created_at"),
+        Index("ix_agent_audit_logs_task_id_created_at", "task_id", "created_at"),
+        Index("ix_agent_audit_logs_session_id_created_at", "session_id", "created_at"),
+    )
 
     id: str = Field(default_factory=generate_id, primary_key=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), index=True)
@@ -33,7 +46,10 @@ class LLMAuditLog(SQLModel, table=True):
     model_name: str | None = Field(default=None, max_length=100)
 
     request_messages: str | None = Field(default=None)
-    tool_references: str | None = Field(default=None)
+    tool_references: str | None = Field(
+        default=None,
+        sa_column=Column(Text, nullable=True),
+    )
     response_content: str | None = Field(default=None)
     response_tool_calls: str | None = Field(default=None)
     tool_call_results: str | None = Field(default=None)
