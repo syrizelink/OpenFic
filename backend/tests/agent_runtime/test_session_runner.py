@@ -11,6 +11,7 @@ from langgraph.graph import START, StateGraph
 from langgraph.types import interrupt
 from langgraph.types import Command
 
+from app.agent_runtime.context.settings import ContextSettings
 from app.agent_runtime.context.types import ContextMessage
 from app.agent_runtime.runner.session_runner import SessionRunner, _interrupt_payloads
 
@@ -1277,6 +1278,9 @@ async def test_manual_compact_builds_window_and_returns_metrics_without_revision
         AsyncMock(return_value=compaction),
         create=True,
     ) as compact_window, patch(
+        "app.agent_runtime.runner.session_runner.load_context_settings",
+        AsyncMock(return_value=ContextSettings()),
+    ), patch(
         "app.agent_runtime.runner.session_runner.begin_user_revision",
         AsyncMock(),
     ) as begin_user_revision:
@@ -1302,7 +1306,12 @@ async def test_manual_compact_builds_window_and_returns_metrics_without_revision
     assert node_messages == [node_message]
     assert db_session is fake_session
     list_by_session.assert_awaited_once_with(fake_session, "sess_manual_compact_001")
-    select_compaction_window.assert_called_once_with([history_part], [], 8000)
+    select_compaction_window.assert_called_once_with(
+        [history_part], [], 8000,
+        tail_token_budget=20000,
+        tail_window_ratio=0.5,
+        min_compactable_tokens=2000,
+    )
     compact_window.assert_awaited_once()
     assert compact_window.await_args.args == (fake_session,)
     assert compact_window.await_args.kwargs["state"] is state

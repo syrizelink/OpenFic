@@ -256,6 +256,68 @@ async def test_compact_window_persists_raw_summary_and_emits_events_and_usage(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("model_reference", ["__system_light_model__", "dedicated-model-record"])
+async def test_compact_window_uses_selected_light_model(
+    db_session: AsyncSession,
+    state: AgentRuntimeState,
+    window: CompactionWindow,
+    monkeypatch: pytest.MonkeyPatch,
+    model_reference: str,
+) -> None:
+    selected_configs: list[object] = []
+
+    def fake_factory(config):
+        selected_configs.append(config)
+        return FakeModel(_ai_message("摘要正文"))
+
+    monkeypatch.setattr(
+        "app.agent_runtime.context.compaction.service.prompt_chain_service.get_latest_version_with_entries_or_default",
+        AsyncMock(return_value=_prompt_version()),
+    )
+    setting_lookup = AsyncMock(return_value=SimpleNamespace(value="light-record"))
+    monkeypatch.setattr(
+        "app.agent_runtime.context.compaction.service.setting_repo.get_by_key",
+        setting_lookup,
+    )
+    record_lookup = AsyncMock(return_value=SimpleNamespace(
+        provider_id="provider", model_id="light-llm", temperature=None,
+        top_p=None, top_k=None, min_p=None, top_a=None, max_tokens=None,
+        frequency_penalty=None, presence_penalty=None, repetition_penalty=None,
+    ))
+    monkeypatch.setattr(
+        "app.agent_runtime.context.compaction.service.model_repo.get_by_id",
+        record_lookup,
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.context.compaction.service.model_provider_repo.get_by_id",
+        AsyncMock(return_value=SimpleNamespace(
+            provider_type="openai", url="https://example.test", api_key_encrypted="key",
+        )),
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.context.compaction.service.EncryptionService.decrypt",
+        lambda _self, _key: "decrypted",
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.context.compaction.service.ModelProviderService.get_decrypted_custom_headers",
+        lambda _self, _provider: {},
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.context.compaction.service.create_chat_model", fake_factory,
+    )
+    await compact_window(
+        db_session, state=state, window=window, trigger="manual",
+        model_reference=model_reference,
+    )
+    assert selected_configs[0].model_id == "light-llm"
+    record_lookup.assert_awaited_once_with(
+        db_session, "light-record" if model_reference == "__system_light_model__" else model_reference
+    )
+    if model_reference == "dedicated-model-record":
+        setting_lookup.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_compact_window_appends_current_plan_when_outside_window_has_no_write_plan(
     db_session: AsyncSession,
     state: AgentRuntimeState,

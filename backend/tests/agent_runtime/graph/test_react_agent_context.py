@@ -10,10 +10,39 @@ from langchain_core.tools import StructuredTool
 
 from app.agent_runtime.context.compaction.service import CompactionError
 from app.agent_runtime.context.compaction.window import CompactionNoWindowError
+from app.agent_runtime.context.settings import ContextSettings
 from app.agent_runtime.context.types import ContextMessage
 from app.agent_runtime.graph.react_agent import _to_history_dict, create_react_agent, maybe_auto_compact
 from app.agent_runtime.persistence.errors import PersistenceLoadError
 from app.agent_runtime.types import ReactAgentConfig, TerminationCondition
+
+
+@pytest.fixture(autouse=True)
+def mock_context_settings():
+    with patch(
+        "app.agent_runtime.graph.react_agent.load_context_settings",
+        new=AsyncMock(return_value=ContextSettings(auto_prune_tool_outputs=True)),
+    ):
+        yield
+
+
+@pytest.mark.asyncio
+async def test_auto_compaction_respects_disabled_setting() -> None:
+    with patch(
+        "app.agent_runtime.graph.react_agent.compaction_repo.list_by_session",
+        new=AsyncMock(),
+    ) as list_compactions:
+        result = await maybe_auto_compact(
+            state={"model_config": {"max_context_tokens": 1}},
+            agent_name="writer",
+            parts=[ContextMessage(role="user", content="hello")],
+            db_session=AsyncMock(),
+            event_sink=None,
+            usage_sink=None,
+            context_settings=ContextSettings(auto_compact_context=False),
+        )
+    assert result is False
+    list_compactions.assert_not_awaited()
 
 
 class _NoopTool(BaseTool):
@@ -130,7 +159,7 @@ async def test_prunes_tool_outputs_before_auto_compaction() -> None:
     ]
     events: list[str] = []
 
-    def fake_prune_tool_outputs(value):
+    def fake_prune_tool_outputs(value, **_kwargs):
         events.append("prune")
         return [
             value[0],
@@ -576,7 +605,7 @@ def test_auto_compaction_runs_before_main_model_and_rebuilds_context() -> None:
         )
         return 9 if has_runtime_messages else 0
 
-    def fake_select_compaction_window(history, _compactions, max_context_tokens):
+    def fake_select_compaction_window(history, _compactions, max_context_tokens, **_kwargs):
         selected_history.extend(history)
         assert max_context_tokens == 10
         return SimpleNamespace(

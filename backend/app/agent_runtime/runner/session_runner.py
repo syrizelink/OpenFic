@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime.context import ContextBuildError, build_context_parts
 from app.agent_runtime.context.compaction.service import CompactionError, compact_window
+from app.agent_runtime.context.settings import load_context_settings
 from app.agent_runtime.context.compaction.window import (
     CompactionNoWindowError,
     select_compaction_window,
@@ -783,11 +784,15 @@ class SessionRunner:
                 session,
                 self.session_id,
             )
+            context_settings = await load_context_settings(session)
             try:
                 window = select_compaction_window(
                     history,
                     existing_compactions,
                     int(self.model_config["max_context_tokens"]),
+                    tail_token_budget=context_settings.compaction_tail_token_budget,
+                    tail_window_ratio=context_settings.compaction_tail_window_ratio,
+                    min_compactable_tokens=context_settings.compaction_min_compactable_tokens,
                 )
             except CompactionNoWindowError as exc:
                 raise CompactionError(
@@ -803,6 +808,7 @@ class SessionRunner:
                 event_sink=self._emit_agent_event,
                 usage_sink=self._emit_persisted_task_usage_events,
                 model_config=self.model_config,
+                model_reference=context_settings.compaction_model,
             )
             return {
                 "compaction_id": result.id,

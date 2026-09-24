@@ -42,7 +42,7 @@ from app.agent_runtime.context.helpers import (
     compile_canonical_mentions,
     extract_referenced_skill_ids,
 )
-from app.agent_runtime.context.compaction.config import AUTO_TRIGGER_RATIO
+from app.agent_runtime.context.settings import ContextSettings, load_context_settings
 from app.agent_runtime.context.compaction.service import CompactionError, compact_window
 from app.agent_runtime.context.compaction.tokens import count_context_tokens
 from app.agent_runtime.context.compaction.window import (
@@ -318,8 +318,12 @@ async def maybe_auto_compact(
     event_sink: Callable[[str, dict[str, Any]], Awaitable[None] | None] | None,
     usage_sink: Callable[[dict[str, Any]], Awaitable[None] | None] | None,
     model_config: Mapping[str, Any] | None = None,
+    context_settings: ContextSettings | None = None,
 ) -> bool:
     del agent_name
+    context_settings = context_settings or await load_context_settings(db_session)
+    if not context_settings.auto_compact_context:
+        return False
     persisted_model_config = state.get("model_config")
     max_context_tokens = 0
     if isinstance(persisted_model_config, Mapping):
@@ -329,7 +333,7 @@ async def maybe_auto_compact(
     if max_context_tokens <= 0:
         return False
 
-    threshold = int(max_context_tokens * AUTO_TRIGGER_RATIO)
+    threshold = int(max_context_tokens * context_settings.compaction_trigger_ratio)
     if count_context_tokens(parts) < threshold:
         return False
 
@@ -370,6 +374,9 @@ async def maybe_auto_compact(
             history,
             compactions,
             max_context_tokens,
+            tail_token_budget=context_settings.compaction_tail_token_budget,
+            tail_window_ratio=context_settings.compaction_tail_window_ratio,
+            min_compactable_tokens=context_settings.compaction_min_compactable_tokens,
         )
     except CompactionNoWindowError:
         return False
@@ -389,6 +396,7 @@ async def maybe_auto_compact(
             event_sink=tracked_event_sink if event_sink is not None else None,
             usage_sink=usage_sink,
             model_config=model_config,
+            model_reference=context_settings.compaction_model,
         )
     except CompactionError as exc:
         await emit_error_once(exc)
@@ -930,7 +938,16 @@ def create_react_agent(
 
         if context_parts is not None and effective_runtime_state is not None:
             runtime_db_session = cast("AsyncSession", db_session)
-            pruned_context_parts = prune_tool_outputs(context_parts)
+            context_settings = await load_context_settings(runtime_db_session)
+            pruned_context_parts = (
+                prune_tool_outputs(
+                    context_parts,
+                    protected_tokens=context_settings.prune_protected_tokens,
+                    minimum_tokens=context_settings.prune_minimum_tokens,
+                )
+                if context_settings.auto_prune_tool_outputs
+                else context_parts
+            )
             pruned_tool_call_ids = _new_pruned_tool_call_ids(
                 context_parts, pruned_context_parts
             )
@@ -959,6 +976,7 @@ def create_react_agent(
                 event_sink=agent_event_sink,
                 usage_sink=compaction_usage_sink,
                 model_config=runtime_model_config,
+                context_settings=context_settings,
             ):
                 context_parts = await build_context_parts(
                     state=cast("AgentRuntimeState", effective_runtime_state),

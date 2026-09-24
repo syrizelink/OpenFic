@@ -83,7 +83,12 @@ def _reverse_history_units(
             yield None, (tool_index,)
 
 
-def prune_tool_outputs(parts: list[ContextMessage]) -> list[ContextMessage]:
+def prune_tool_outputs(
+    parts: list[ContextMessage],
+    *,
+    protected_tokens: int = PRUNE_PROTECTED_TOKENS,
+    minimum_tokens: int = PRUNE_MINIMUM_TOKENS,
+) -> list[ContextMessage]:
     """Replace sufficiently old tool outputs with model-visible placeholders."""
     total_tokens = 0
     pruned_tokens = 0
@@ -126,7 +131,7 @@ def prune_tool_outputs(parts: list[ContextMessage]) -> list[ContextMessage]:
 
             output_tokens = count_text_tokens(tool.content)
             total_tokens += output_tokens
-            if total_tokens <= PRUNE_PROTECTED_TOKENS:
+            if total_tokens <= protected_tokens:
                 continue
 
             pruned_tokens += output_tokens
@@ -134,7 +139,7 @@ def prune_tool_outputs(parts: list[ContextMessage]) -> list[ContextMessage]:
         if stop:
             break
 
-    if pruned_tokens <= PRUNE_MINIMUM_TOKENS:
+    if pruned_tokens <= minimum_tokens:
         return parts
 
     result = list(parts)

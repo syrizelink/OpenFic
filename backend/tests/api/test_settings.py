@@ -593,6 +593,57 @@ async def test_update_settings_compress_system_prompts(client: AsyncClient) -> N
 
 
 @pytest.mark.asyncio
+async def test_context_settings_defaults_and_persistence(client: AsyncClient) -> None:
+    initial = await client.get("/api/v1/settings")
+    assert initial.status_code == 200
+    assert {key: initial.json()[key] for key in (
+        "auto_compact_context", "compaction_model", "compaction_trigger_ratio",
+        "compaction_tail_token_budget", "compaction_tail_window_ratio",
+        "compaction_min_compactable_tokens", "auto_prune_tool_outputs",
+        "prune_protected_tokens", "prune_minimum_tokens",
+    )} == {
+        "auto_compact_context": True,
+        "compaction_model": "__session_model__",
+        "compaction_trigger_ratio": 0.8,
+        "compaction_tail_token_budget": 20_000,
+        "compaction_tail_window_ratio": 0.5,
+        "compaction_min_compactable_tokens": 2_000,
+        "auto_prune_tool_outputs": False,
+        "prune_protected_tokens": 100_000,
+        "prune_minimum_tokens": 20_000,
+    }
+    patch = {
+        "auto_compact_context": False,
+        "compaction_model": "dedicated-model-record",
+        "compaction_trigger_ratio": 0.65,
+        "compaction_tail_token_budget": 12_000,
+        "compaction_tail_window_ratio": 0.4,
+        "compaction_min_compactable_tokens": 1_500,
+        "auto_prune_tool_outputs": True,
+        "prune_protected_tokens": 50_000,
+        "prune_minimum_tokens": 10_000,
+    }
+    updated = await client.put("/api/v1/settings", json=patch)
+    assert updated.status_code == 200
+    assert all(updated.json()[key] == value for key, value in patch.items())
+    follow_up = await client.get("/api/v1/settings")
+    assert all(follow_up.json()[key] == value for key, value in patch.items())
+
+
+@pytest.mark.asyncio
+async def test_context_settings_reject_invalid_values(client: AsyncClient) -> None:
+    for patch in (
+        {"compaction_model": ""},
+        {"compaction_trigger_ratio": 0},
+        {"compaction_tail_window_ratio": 1.1},
+        {"compaction_tail_token_budget": 0},
+        {"prune_minimum_tokens": -1},
+    ):
+        response = await client.put("/api/v1/settings", json=patch)
+        assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_audit_persistence_memory_state_does_not_change_when_settings_write_fails(
     client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,

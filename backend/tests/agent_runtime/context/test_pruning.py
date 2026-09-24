@@ -76,6 +76,18 @@ def test_prunes_old_tool_outputs_after_the_protected_budget(monkeypatch) -> None
     assert all(part.content == OLD_TOOL_OUTPUT_PLACEHOLDER for part in pruned)
 
 
+def test_pruning_uses_configured_budgets(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.agent_runtime.context.pruning.count_text_tokens",
+        lambda content: {"old": 15, "recent": 15}[content],
+    )
+    parts = _multi_turn_history(
+        ("bash", "old"), ("bash", "recent"), ("bash", "recent")
+    )
+    result = prune_tool_outputs(parts, protected_tokens=10, minimum_tokens=5)
+    assert [part.tool_call_id for part in result if (part.metadata or {}).get("pruned")] == ["call-1"]
+
+
 def test_does_not_prune_when_excess_budget_is_exactly_twenty_thousand(monkeypatch) -> None:
     sizes = {
         "old-near": PRUNE_PROTECTED_TOKENS - PRUNE_MINIMUM_TOKENS + 1,

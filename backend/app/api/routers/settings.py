@@ -67,6 +67,7 @@ from app.memory.summary_config import (
     SETTING_KEY_SUMMARY_MODEL,
     parse_summary_settings,
 )
+from app.agent_runtime.context.settings import parse_context_settings
 from app.memory.chapter.summary_service import invalidate_all_long_term_summaries
 from app.retrieval.chapter_index import (
     DEFAULT_INDEX_AUTO_STRATEGY,
@@ -310,6 +311,7 @@ async def get_settings(
     # 将设置列表转换为字典
     settings_dict = {s.key: s.value for s in settings_list}
     summary_settings = parse_summary_settings(settings_dict)
+    context_settings = parse_context_settings(settings_dict)
     agent_tool_permissions = _merge_default_agent_tool_permissions(
         _parse_agent_tool_permissions(
             settings_dict.get(
@@ -457,6 +459,10 @@ code_font_family=settings_dict.get(
             ),
             default=False,
         ),
+        **{
+            key: getattr(context_settings, key)
+            for key in context_settings.__dataclass_fields__
+        },
         editor_auto_pair_symbols=_parse_bool_setting(
             settings_dict.get(
                 SETTING_KEY_EDITOR_AUTO_PAIR_SYMBOLS,
@@ -704,6 +710,15 @@ async def update_settings(
             request.editor_auto_convert_punctuation,
             ensure_ascii=False,
         )
+    for key in (
+        "auto_compact_context", "compaction_model", "compaction_trigger_ratio",
+        "compaction_tail_token_budget", "compaction_tail_window_ratio",
+        "compaction_min_compactable_tokens", "auto_prune_tool_outputs",
+        "prune_protected_tokens", "prune_minimum_tokens",
+    ):
+        value = getattr(request, key)
+        if value is not None:
+            settings_to_update[key] = value if isinstance(value, str) else json.dumps(value)
     if request.editor_auto_pair_symbols is not None:
         settings_to_update[SETTING_KEY_EDITOR_AUTO_PAIR_SYMBOLS] = json.dumps(
             request.editor_auto_pair_symbols,

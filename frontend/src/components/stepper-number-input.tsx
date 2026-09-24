@@ -25,7 +25,8 @@ function clamp(value: number, min?: number, max?: number): number {
 }
 
 function roundToStep(value: number, step: number): number {
-  return Math.round(value / step) * step;
+  const precision = String(step).split(".")[1]?.length ?? 0;
+  return Number((Math.round(value / step) * step).toFixed(precision));
 }
 
 export function StepperNumberInput({
@@ -82,7 +83,11 @@ export function StepperNumberInput({
   const stepBy = (delta: number) => {
     const currentValue = Number(draftRef.current);
     const base = Number.isFinite(currentValue) ? currentValue : Number(valueRef.current);
-    const nextValue = clamp(base + delta * step, min, max);
+    const precision = Math.max(
+      String(base).split(".")[1]?.length ?? 0,
+      String(step).split(".")[1]?.length ?? 0,
+    );
+    const nextValue = clamp(Number((base + delta * step).toFixed(precision)), min, max);
     updateDraft(String(nextValue));
     inputRef.current?.focus();
   };

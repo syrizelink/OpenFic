@@ -5,7 +5,10 @@ Setting API Schemas - 设置请求/响应模型。
 
 from pydantic import BaseModel, Field
 
+from app.agent_runtime.context.settings import ContextSettings
 from app.memory.summary_config import DEFAULT_SUMMARY_MODEL
+
+_context_defaults = ContextSettings()
 
 
 class AgentToolPermissionItem(BaseModel):
@@ -146,6 +149,15 @@ class SettingsResponse(BaseModel):
         default=False,
         description="输入半角标点符号时是否自动转换为全角",
     )
+    auto_compact_context: bool = _context_defaults.auto_compact_context
+    compaction_model: str = "__session_model__"
+    compaction_trigger_ratio: float = Field(default=_context_defaults.compaction_trigger_ratio, gt=0, le=1)
+    compaction_tail_token_budget: int = Field(default=_context_defaults.compaction_tail_token_budget, gt=0)
+    compaction_tail_window_ratio: float = Field(default=_context_defaults.compaction_tail_window_ratio, gt=0, le=1)
+    compaction_min_compactable_tokens: int = Field(default=_context_defaults.compaction_min_compactable_tokens, gt=0)
+    auto_prune_tool_outputs: bool = _context_defaults.auto_prune_tool_outputs
+    prune_protected_tokens: int = Field(default=_context_defaults.prune_protected_tokens, gt=0)
+    prune_minimum_tokens: int = Field(default=_context_defaults.prune_minimum_tokens, gt=0)
     editor_auto_pair_symbols: bool = Field(
         default=False,
         description="输入成对符号的左符号时是否自动补齐右符号",
@@ -175,6 +187,15 @@ class SettingsUpdateRequest(BaseModel):
         default=None,
         description="摘要模型 ID，空值时跟随轻量模型",
     )
+    auto_compact_context: bool | None = None
+    compaction_model: str | None = Field(default=None, min_length=1)
+    compaction_trigger_ratio: float | None = Field(default=None, gt=0, le=1)
+    compaction_tail_token_budget: int | None = Field(default=None, gt=0)
+    compaction_tail_window_ratio: float | None = Field(default=None, gt=0, le=1)
+    compaction_min_compactable_tokens: int | None = Field(default=None, gt=0)
+    auto_prune_tool_outputs: bool | None = None
+    prune_protected_tokens: int | None = Field(default=None, gt=0)
+    prune_minimum_tokens: int | None = Field(default=None, gt=0)
     summary_auto_generate_chapter: bool | None = Field(
         default=None,
         description="是否自动生成章节摘要",

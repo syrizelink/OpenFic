@@ -80,6 +80,10 @@ def select_compaction_window(
     history_messages: list[ContextMessage],
     existing_compactions: list[PersistedCompaction],
     max_context_tokens: int,
+    *,
+    tail_token_budget: int = TAIL_TOKEN_BUDGET,
+    tail_window_ratio: float = TAIL_WINDOW_RATIO,
+    min_compactable_tokens: int = MIN_COMPACTABLE_TOKENS,
 ) -> CompactionWindow:
     lower_bound = _lower_bound(history_messages, existing_compactions)
     sequenced_messages = [
@@ -91,7 +95,7 @@ def select_compaction_window(
     if len(turns) < 2:
         _raise_no_window()
 
-    tail_budget = min(TAIL_TOKEN_BUDGET, int(max_context_tokens * TAIL_WINDOW_RATIO))
+    tail_budget = min(tail_token_budget, int(max_context_tokens * tail_window_ratio))
     tail_start = _tail_start_index(turns, tail_budget)
     window_turns = turns[:tail_start]
     if not window_turns:
@@ -101,7 +105,7 @@ def select_compaction_window(
         message for turn in window_turns for message in turn.messages
     ]
     source_input_tokens = count_context_tokens(window_messages)
-    if source_input_tokens < MIN_COMPACTABLE_TOKENS:
+    if source_input_tokens < min_compactable_tokens:
         _raise_no_window()
 
     seqs = [seq for message in window_messages if (seq := _seq(message)) is not None]
