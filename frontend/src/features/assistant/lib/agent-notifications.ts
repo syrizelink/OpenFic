@@ -61,13 +61,23 @@ export function getAgentNotificationType(
   eventType: string,
   previousStatus: string,
   nextStatus: string,
+  previousMessages: AgentMessage[],
+  message: AgentMessage | null,
 ): AgentNotificationType | null {
   if (eventType === "task_completed" && previousStatus === "running" && nextStatus === "completed")
     return "completed";
   if (
     eventType === "approval" &&
-    previousStatus !== "waiting_approval" &&
-    nextStatus === "waiting_approval"
+    nextStatus === "waiting_approval" &&
+    message?.type === "approval" &&
+    message.status === "pending" &&
+    !previousMessages.some(
+      (item) =>
+        item.type === "approval" &&
+        (message.interruptBatchId
+          ? item.interruptBatchId === message.interruptBatchId
+          : item.id === message.id),
+    )
   )
     return "approval";
   if (

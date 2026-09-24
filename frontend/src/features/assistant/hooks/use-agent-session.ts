@@ -857,12 +857,15 @@ export function useAgentSession({
       }
 
       const previousStatus = transcriptStateRef.current.status;
+      const previousMessages = transcriptStateRef.current.messages;
       const result = applyTranscriptEvent(event);
       const message = result.message;
       const notificationType = getAgentNotificationType(
         event.type,
         previousStatus,
         result.state.status,
+        previousMessages,
+        message,
       );
       const notificationSettings = notificationType
         ? queryClient.getQueryData<Settings>(["settings"])
