@@ -1021,7 +1021,7 @@
     "contextAutoCompact": "Automatically compact context",
     "contextAutoCompactHint": "Automatically compact older conversation to reduce context size before reaching the context limit.",
     "contextCompactionModel": "Compaction model",
-    "contextCompactionModelHint": "Model used for automatic and manual compaction. Defaults to the model selected for the session; summary quality depends on the model's capabilities.",
+    "contextCompactionModelHint": "Model used for automatic and manual compaction. Summary quality depends on the model's capabilities.",
     "contextSessionModel": "Session model",
     "contextTriggerRatio": "Automatic compaction threshold",
     "contextTriggerRatioHint": "Automatically compact when the context token count reaches this percentage of the model's context window.",

@@ -6,6 +6,12 @@ from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.clients.model_params import (
+    DEFAULT_REASONING_EFFORT,
+    ReasoningEffort,
+    normalize_reasoning_effort,
+)
+
 
 
 SUMMARY_MODEL_POLICY = "summary_model"
@@ -13,6 +19,7 @@ SUMMARY_DEFAULT_MODEL_REFERENCE = "__system_default_model__"
 SUMMARY_LIGHT_MODEL_REFERENCE = "__system_light_model__"
 
 SETTING_KEY_SUMMARY_MODEL = "summary_model"
+SETTING_KEY_SUMMARY_MODEL_REASONING_EFFORT = "summary_model_reasoning_effort"
 SETTING_KEY_SUMMARY_AUTO_GENERATE_CHAPTER = "summary_auto_generate_chapter"
 SETTING_KEY_SUMMARY_AUTO_GENERATE_LONG_TERM = "summary_auto_generate_long_term"
 SETTING_KEY_SUMMARY_MIN_CHAPTER_WORD_COUNT = "summary_min_chapter_word_count"
@@ -36,6 +43,7 @@ class SummarySettings:
     """Resolved global summary settings."""
 
     model_id: str = DEFAULT_SUMMARY_MODEL
+    model_reasoning_effort: ReasoningEffort = DEFAULT_REASONING_EFFORT
     auto_generate_chapter: bool = DEFAULT_SUMMARY_AUTO_GENERATE_CHAPTER
     auto_generate_long_term: bool = DEFAULT_SUMMARY_AUTO_GENERATE_LONG_TERM
     min_chapter_word_count: int = DEFAULT_SUMMARY_MIN_CHAPTER_WORD_COUNT
@@ -70,6 +78,9 @@ def parse_summary_settings(raw_settings: Mapping[str, str]) -> SummarySettings:
         model_id = DEFAULT_SUMMARY_MODEL
     return SummarySettings(
         model_id=model_id,
+        model_reasoning_effort=normalize_reasoning_effort(
+            raw_settings.get(SETTING_KEY_SUMMARY_MODEL_REASONING_EFFORT)
+        ),
         auto_generate_chapter=_parse_bool(
             raw_settings.get(SETTING_KEY_SUMMARY_AUTO_GENERATE_CHAPTER),
             DEFAULT_SUMMARY_AUTO_GENERATE_CHAPTER,

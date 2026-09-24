@@ -25,6 +25,7 @@ import { ProviderIcon } from "@/features/settings/lib/provider-icons";
 import type { AgentPendingMessage, AgentSessionStatus, ReasoningEffort } from "@/lib/agent.types";
 import { fetchAgentComposerItems } from "@/lib/api-client";
 import type { AgentComposerItems } from "@/lib/command.types";
+import { REASONING_EFFORT_OPTIONS } from "@/lib/reasoning-effort";
 
 import { useAgentInputHistory } from "../../hooks/use-agent-input-history";
 import {
@@ -216,15 +217,6 @@ export function AgentInput({
     shouldShowReasoningEffort,
     toolApprovalBypassEnabled,
   ].join("|");
-  const reasoningEffortOptions: SelectOption[] = [
-    { value: "off", label: "Off" },
-    { value: "low", label: "Low" },
-    { value: "medium", label: "Medium" },
-    { value: "high", label: "High" },
-    { value: "xhigh", label: "Xhigh" },
-    { value: "max", label: "Max" },
-  ];
-
   useEffect(() => {
     if (previousProjectIdRef.current === projectId) return;
     previousProjectIdRef.current = projectId;
@@ -827,7 +819,7 @@ export function AgentInput({
                     >
                       <SimpleSelect
                         value={reasoningEffort}
-                        options={reasoningEffortOptions}
+                        options={REASONING_EFFORT_OPTIONS}
                         onChange={(value) => onReasoningEffortChange(value as ReasoningEffort)}
                         size="1"
                         variant={isReasoningCompact ? "icon" : "default"}

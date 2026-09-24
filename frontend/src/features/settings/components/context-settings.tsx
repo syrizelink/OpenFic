@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import {
   ModelIdSelect,
+  ReasoningEffortSelect,
   Spinner,
   StepperNumberInput,
   toast,
@@ -165,6 +166,9 @@ export function ContextSettings() {
           autoCompactContext: patch.auto_compact_context ?? previousSettings.autoCompactContext,
           autoPruneToolOutputs:
             patch.auto_prune_tool_outputs ?? previousSettings.autoPruneToolOutputs,
+          compactionModelReasoningEffort:
+            patch.compaction_model_reasoning_effort ??
+            previousSettings.compactionModelReasoningEffort,
         });
       }
 
@@ -233,6 +237,12 @@ export function ContextSettings() {
     </Flex>
   );
 
+  const hasDedicatedCompactionModel = ![
+    "__session_model__",
+    SYSTEM_DEFAULT_MODEL_REFERENCE,
+    SYSTEM_LIGHT_MODEL_REFERENCE,
+  ].includes(settings.compactionModel);
+
   return (
     <Box>
       <Flex
@@ -240,10 +250,10 @@ export function ContextSettings() {
         gap="5"
       >
         <Flex
-          className="context-settings__row"
-          align="center"
+          align="end"
           justify="between"
           gap="4"
+          wrap="wrap"
         >
           <Flex
             direction="column"
@@ -322,7 +332,11 @@ export function ContextSettings() {
               {t("settings.contextCompactionModelHint")}
             </Text>
           </Flex>
-          <Box className="context-settings__control">
+          <Flex
+            align="end"
+            gap="3"
+            wrap="wrap"
+          >
             <ModelIdSelect
               value={settings.compactionModel}
               onChange={(value) => updateMutation.mutate({ compaction_model: value })}
@@ -330,10 +344,20 @@ export function ContextSettings() {
               isLoading={isModelsLoading}
               editable={false}
               allowCustomValue={false}
+              triggerStyle={{ width: 160 }}
               triggerClassName="select-trigger--background"
               contentClassName="settings-background-panel"
             />
-          </Box>
+            {hasDedicatedCompactionModel ? (
+              <ReasoningEffortSelect
+                value={settings.compactionModelReasoningEffort}
+                onChange={(value) =>
+                  updateMutation.mutate({ compaction_model_reasoning_effort: value })
+                }
+                size="2"
+              />
+            ) : null}
+          </Flex>
         </Flex>
         {numericFields.slice(0, 4).map(renderNumericField)}
         <Flex

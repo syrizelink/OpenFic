@@ -10,7 +10,7 @@ import { Edit, PlugZap, Plus, Trash2 } from "lucide-react";
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Spinner } from "@/components";
+import { ReasoningEffortSelect, Spinner } from "@/components";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   CapabilityIcon,
@@ -20,7 +20,12 @@ import {
 } from "@/components/model-capability-tags";
 import { ModelIdSelect, type ModelIdSelectOption } from "@/components/model-id-select";
 import { toast } from "@/components/toast";
-import type { Model, ModelCreateRequest, ModelUpdateRequest } from "@/lib/model.types";
+import type {
+  Model,
+  ModelCreateRequest,
+  ModelUpdateRequest,
+  ReasoningEffort,
+} from "@/lib/model.types";
 
 import {
   fetchModelProviderCatalogModels,
@@ -43,6 +48,8 @@ import { fetchSettings, updateSettings } from "../lib/settings-api";
 import { DEFAULT_MODEL_SETTINGS_TAB, type ModelSettingsTab } from "../lib/settings-route";
 import { AgentSettingsLockNotice } from "./agent-settings-lock-notice";
 import { ModelFormDialog } from "./model-form-dialog";
+
+import "./models-settings.css";
 
 interface ModelsSettingsProps {
   activeTab?: ModelSettingsTab;
@@ -129,6 +136,20 @@ export function ModelsSettings({
   const handleLightModelChange = useCallback(
     (value: string) => {
       updateSettingsMutation.mutate({ light_model: value });
+    },
+    [updateSettingsMutation],
+  );
+
+  const handleDefaultModelReasoningEffortChange = useCallback(
+    (value: ReasoningEffort) => {
+      updateSettingsMutation.mutate({ default_model_reasoning_effort: value });
+    },
+    [updateSettingsMutation],
+  );
+
+  const handleLightModelReasoningEffortChange = useCallback(
+    (value: ReasoningEffort) => {
+      updateSettingsMutation.mutate({ light_model_reasoning_effort: value });
     },
     [updateSettingsMutation],
   );
@@ -420,7 +441,7 @@ export function ModelsSettings({
           <Flex
             direction="column"
             gap="1"
-            style={{ maxWidth: 400, minWidth: 0 }}
+            className="models-settings__model-section"
           >
             <Text
               size="2"
@@ -435,26 +456,46 @@ export function ModelsSettings({
             >
               {t("models.defaultModelDesc")}
             </Text>
-            <ModelIdSelect
-              value={settings?.defaultModel || ""}
-              onChange={handleDefaultModelChange}
-              models={llmModelOptions}
-              placeholder={
-                hasLlmModels ? t("models.selectModelPlaceholder") : t("models.noModelPlaceholder")
-              }
-              editable={false}
-              allowCustomValue={false}
-              disabled={isAgentSettingsLocked || !hasLlmModels}
-              emptyOptionLabel={`（${t("models.selectModelPlaceholder")}）`}
-              triggerClassName="select-trigger--background"
-              contentClassName="settings-background-panel"
-            />
+            <Flex
+              align="end"
+              gap="3"
+              wrap="wrap"
+            >
+              <Box className="models-settings__model-selector">
+                <ModelIdSelect
+                  value={settings?.defaultModel || ""}
+                  onChange={handleDefaultModelChange}
+                  models={llmModelOptions}
+                  placeholder={
+                    hasLlmModels
+                      ? t("models.selectModelPlaceholder")
+                      : t("models.noModelPlaceholder")
+                  }
+                  editable={false}
+                  allowCustomValue={false}
+                  disabled={isAgentSettingsLocked || !hasLlmModels}
+                  emptyOptionLabel={`（${t("models.selectModelPlaceholder")}）`}
+                  triggerClassName="select-trigger--background"
+                  contentClassName="settings-background-panel"
+                />
+              </Box>
+              {settings?.defaultModel ? (
+                <Box className="models-settings__reasoning-selector">
+                  <ReasoningEffortSelect
+                    value={settings.defaultModelReasoningEffort}
+                    onChange={handleDefaultModelReasoningEffortChange}
+                    disabled={isAgentSettingsLocked || !hasLlmModels}
+                    size="2"
+                  />
+                </Box>
+              ) : null}
+            </Flex>
           </Flex>
 
           <Flex
             direction="column"
             gap="1"
-            style={{ maxWidth: 400, minWidth: 0 }}
+            className="models-settings__model-section"
           >
             <Text
               size="2"
@@ -469,20 +510,40 @@ export function ModelsSettings({
             >
               {t("models.lightModelDesc")}
             </Text>
-            <ModelIdSelect
-              value={settings?.lightModel || ""}
-              onChange={handleLightModelChange}
-              models={llmModelOptions}
-              placeholder={
-                hasLlmModels ? t("models.selectModelPlaceholder") : t("models.noModelPlaceholder")
-              }
-              editable={false}
-              allowCustomValue={false}
-              disabled={isAgentSettingsLocked || !hasLlmModels}
-              emptyOptionLabel={`（${t("models.selectModelPlaceholder")}）`}
-              triggerClassName="select-trigger--background"
-              contentClassName="settings-background-panel"
-            />
+            <Flex
+              align="end"
+              gap="3"
+              wrap="wrap"
+            >
+              <Box className="models-settings__model-selector">
+                <ModelIdSelect
+                  value={settings?.lightModel || ""}
+                  onChange={handleLightModelChange}
+                  models={llmModelOptions}
+                  placeholder={
+                    hasLlmModels
+                      ? t("models.selectModelPlaceholder")
+                      : t("models.noModelPlaceholder")
+                  }
+                  editable={false}
+                  allowCustomValue={false}
+                  disabled={isAgentSettingsLocked || !hasLlmModels}
+                  emptyOptionLabel={`（${t("models.selectModelPlaceholder")}）`}
+                  triggerClassName="select-trigger--background"
+                  contentClassName="settings-background-panel"
+                />
+              </Box>
+              {settings?.lightModel ? (
+                <Box className="models-settings__reasoning-selector">
+                  <ReasoningEffortSelect
+                    value={settings.lightModelReasoningEffort}
+                    onChange={handleLightModelReasoningEffortChange}
+                    disabled={isAgentSettingsLocked || !hasLlmModels}
+                    size="2"
+                  />
+                </Box>
+              ) : null}
+            </Flex>
           </Flex>
         </Flex>
 

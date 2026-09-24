@@ -325,7 +325,7 @@ export function ModelIdSelect({
       color={compact ? undefined : "gray"}
       size={compact || compactTrigger ? "1" : "2"}
       disabled={disabled}
-      className={`${triggerClassName ?? ""} ${compactTrigger ? "model-id-select-trigger--compact" : ""}`.trim()}
+      className={`${triggerClassName ?? ""} model-id-select-trigger ${compactTrigger ? "model-id-select-trigger--compact" : ""}`.trim()}
       aria-label={compactTrigger ? selectedModel?.name || value : undefined}
       style={{
         width: "100%",
@@ -341,7 +341,7 @@ export function ModelIdSelect({
         {resolvedTriggerPrefix}
         {!compactTrigger ? (
           <Text
-            color={selectedModel ? undefined : "gray"}
+            className={selectedModel ? undefined : "model-id-select-placeholder"}
             truncate
           >
             {selectedModel?.name || placeholder || t("models.modelIdPlaceholder")}

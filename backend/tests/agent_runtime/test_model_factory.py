@@ -230,14 +230,14 @@ def test_create_chat_model_sends_non_default_advanced_params():
     }
 
 
-def test_create_chat_model_omits_disabled_reasoning_effort():
+def test_create_chat_model_omits_auto_reasoning_effort():
     model = create_chat_model(
         ModelConfig(
             provider_type="openai-compatible",
             base_url="https://custom.api/v1",
             api_key="sk-test",
             model_id="new-reasoning-model",
-            reasoning_effort="off",
+            reasoning_effort="auto",
         )
     )
 
@@ -247,14 +247,14 @@ def test_create_chat_model_omits_disabled_reasoning_effort():
     }
 
 
-def test_create_chat_model_deepseek_omits_disabled_reasoning_effort():
+def test_create_chat_model_deepseek_omits_auto_reasoning_effort():
     model = create_chat_model(
         ModelConfig(
             provider_type="deepseek",
             base_url="https://api.deepseek.com",
             api_key="sk-test",
             model_id="deepseek-reasoner",
-            reasoning_effort="off",
+            reasoning_effort="auto",
         )
     )
 

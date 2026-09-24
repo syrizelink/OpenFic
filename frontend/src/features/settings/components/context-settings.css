@@ -2,14 +2,3 @@
   flex: 1;
   min-width: 0;
 }
-
-.context-settings__control {
-  width: 160px;
-  flex: none;
-}
-
-@media (max-width: 767px) {
-  .context-settings__control {
-    width: 120px;
-  }
-}

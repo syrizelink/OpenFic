@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from app.agent_runtime.types import DEFAULT_AGENT_MAX_ITERATIONS
 from app.api.schemas.task import TaskMessage
-from app.models.clients.model_params import ReasoningEffort
+from app.models.clients.model_params import ReasoningEffortInput
 
 class AgentSessionCreateRequest(BaseModel):
     """创建 Agent 会话请求。"""
@@ -26,7 +26,7 @@ class AgentSessionCreateRequest(BaseModel):
         default="build",
         description="主智能体标识，用于选择启用的 primary agent",
     )
-    reasoning_effort: ReasoningEffort | None = Field(
+    reasoning_effort: ReasoningEffortInput | None = Field(
         default=None,
         description="当前会话推理强度，仅 reasoning 模型可用",
     )
@@ -84,7 +84,7 @@ class AgentSendMessageRequest(BaseModel):
     )
     model_id: str | None = Field(default=None, description="下一轮执行使用的模型ID")
     agent_key: str | None = Field(default=None, description="下一轮执行使用的主智能体标识")
-    reasoning_effort: ReasoningEffort | None = Field(
+    reasoning_effort: ReasoningEffortInput | None = Field(
         default=None,
         description="当前轮推理强度，仅 reasoning 模型可用",
     )
@@ -378,7 +378,7 @@ class AgentForkRequest(BaseModel):
 
     source_revision_id: str = Field(..., description="分叉来源用户消息 revision ID")
     model_id: str = Field(..., description="Fork 会话后续使用的模型 ID")
-    reasoning_effort: ReasoningEffort | None = Field(
+    reasoning_effort: ReasoningEffortInput | None = Field(
         default=None,
         description="Fork 会话后续使用的推理强度",
     )

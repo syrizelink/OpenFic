@@ -7,6 +7,11 @@ from pydantic import BaseModel, Field
 
 from app.agent_runtime.context.settings import ContextSettings
 from app.memory.summary_config import DEFAULT_SUMMARY_MODEL
+from app.models.clients.model_params import (
+    DEFAULT_REASONING_EFFORT,
+    ReasoningEffort,
+    ReasoningEffortInput,
+)
 
 _context_defaults = ContextSettings()
 
@@ -80,7 +85,19 @@ class SettingsResponse(BaseModel):
     editor_font_size: int = Field(default=16, description="编辑器字号（px）")
     default_model: str = Field(default="", description="默认模型 ID")
     light_model: str = Field(default="", description="轻量模型 ID")
+    default_model_reasoning_effort: ReasoningEffort = Field(
+        default=DEFAULT_REASONING_EFFORT,
+        description="默认模型推理强度",
+    )
+    light_model_reasoning_effort: ReasoningEffort = Field(
+        default=DEFAULT_REASONING_EFFORT,
+        description="轻量模型推理强度",
+    )
     summary_model: str = Field(default=DEFAULT_SUMMARY_MODEL, description="摘要模型引用")
+    summary_model_reasoning_effort: ReasoningEffort = Field(
+        default=DEFAULT_REASONING_EFFORT,
+        description="指定摘要模型时的推理强度",
+    )
     summary_auto_generate_chapter: bool = Field(
         default=True,
         description="是否自动生成章节摘要",
@@ -151,6 +168,10 @@ class SettingsResponse(BaseModel):
     )
     auto_compact_context: bool = _context_defaults.auto_compact_context
     compaction_model: str = "__session_model__"
+    compaction_model_reasoning_effort: ReasoningEffort = Field(
+        default=DEFAULT_REASONING_EFFORT,
+        description="指定上下文压缩模型时的推理强度",
+    )
     compaction_trigger_ratio: float = Field(default=_context_defaults.compaction_trigger_ratio, gt=0, le=1)
     compaction_tail_token_budget: int = Field(default=_context_defaults.compaction_tail_token_budget, gt=0)
     compaction_tail_window_ratio: float = Field(default=_context_defaults.compaction_tail_window_ratio, gt=0, le=1)
@@ -183,12 +204,28 @@ class SettingsUpdateRequest(BaseModel):
     editor_font_size: int | None = Field(default=None, description="编辑器字号（px）")
     default_model: str | None = Field(default=None, description="默认模型 ID")
     light_model: str | None = Field(default=None, description="轻量模型 ID")
+    default_model_reasoning_effort: ReasoningEffortInput | None = Field(
+        default=None,
+        description="默认模型推理强度",
+    )
+    light_model_reasoning_effort: ReasoningEffortInput | None = Field(
+        default=None,
+        description="轻量模型推理强度",
+    )
     summary_model: str | None = Field(
         default=None,
         description="摘要模型 ID，空值时跟随轻量模型",
     )
+    summary_model_reasoning_effort: ReasoningEffortInput | None = Field(
+        default=None,
+        description="指定摘要模型时的推理强度",
+    )
     auto_compact_context: bool | None = None
     compaction_model: str | None = Field(default=None, min_length=1)
+    compaction_model_reasoning_effort: ReasoningEffortInput | None = Field(
+        default=None,
+        description="指定上下文压缩模型时的推理强度",
+    )
     compaction_trigger_ratio: float | None = Field(default=None, gt=0, le=1)
     compaction_tail_token_budget: int | None = Field(default=None, gt=0)
     compaction_tail_window_ratio: float | None = Field(default=None, gt=0, le=1)

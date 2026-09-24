@@ -119,6 +119,7 @@ async def test_resolve_agent_model_config_prefers_configured_default_setting(
             )
         )
         session.add(Setting(key="default_model", value="model-default"))
+        session.add(Setting(key="default_model_reasoning_effort", value="high"))
         await session.commit()
 
         resolved = await _resolve_agent_model_config(
@@ -130,7 +131,7 @@ async def test_resolve_agent_model_config_prefers_configured_default_setting(
                 "api_key": "parent-key",
                 "model_id": "model-parent",
                 "max_context_tokens": 8000,
-                "reasoning_effort": "high",
+                "reasoning_effort": "low",
             },
         )
 
@@ -168,6 +169,118 @@ async def test_resolve_agent_model_config_falls_back_to_inherited_when_unconfigu
 
     assert resolved == inherited
     assert resolved is not inherited
+
+
+@pytest.mark.asyncio
+async def test_resolve_agent_model_config_uses_definition_reasoning_effort(
+    db_session_factory,
+):
+    from app.agent_runtime.runner.subagent_runner import _resolve_agent_model_config
+    from app.core.encryption import EncryptionService
+    from app.models.entities.model import Model
+    from app.models.entities.model_provider import ModelProvider
+    from app.settings import settings
+
+    api_key = EncryptionService(settings.encryption_key).encrypt("provider-key")
+
+    async with db_session_factory() as session:
+        session.add(
+            ModelProvider(
+                id="provider-explicit",
+                url="https://explicit.example.com",
+                api_key_encrypted=api_key,
+                provider_type="openai",
+            )
+        )
+        session.add(
+            Model(
+                id="model-explicit",
+                name="Explicit",
+                provider_id="provider-explicit",
+                model_id="explicit-llm",
+                context_length=64000,
+            )
+        )
+        await session.commit()
+
+        resolved = await _resolve_agent_model_config(
+            session,
+            configured_model_id="model-explicit",
+            configured_reasoning_effort="max",
+            inherited_config={"reasoning_effort": "low"},
+        )
+
+    assert resolved["reasoning_effort"] == "max"
+
+
+@pytest.mark.asyncio
+async def test_subagent_graph_uses_resolved_model_config_for_runtime_state(
+    db_session_factory,
+    monkeypatch,
+):
+    from app.agent_runtime.agents.definitions import AgentDefinition
+    from app.agent_runtime.runner.subagent_runner import SubagentRunner
+
+    parent_config = {
+        "model_id": "parent-model",
+        "max_context_tokens": 8000,
+        "reasoning_effort": "low",
+    }
+    resolved_config = {
+        "provider_type": "openai",
+        "base_url": "https://child.example.com",
+        "api_key": "child-key",
+        "model_id": "child-model",
+        "max_context_tokens": 64000,
+        "reasoning_effort": "high",
+    }
+    captured_states: list[dict[str, Any]] = []
+
+    runner = SubagentRunner(
+        session_factory=db_session_factory,
+        model_config=parent_config,
+        project_id="project-1",
+    )
+    definition = AgentDefinition(
+        key="configured-subagent",
+        display_name="Configured Subagent",
+        description="",
+        kind="subagent",
+        prompt_agent_name="configured-subagent",
+        model_id="child-record",
+        enabled_tool_categories=(),
+        enabled_skills=(),
+        metadata={},
+        reasoning_effort="high",
+    )
+
+    async def fake_build_tools(_definition, runtime_state):
+        captured_states.append(runtime_state)
+        return []
+
+    monkeypatch.setattr(runner, "_build_tools", fake_build_tools)
+    monkeypatch.setattr(
+        "app.agent_runtime.runner.subagent_runner._resolve_agent_model_config",
+        AsyncMock(return_value=resolved_config),
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.runner.subagent_runner.create_chat_model",
+        lambda _config: object(),
+    )
+    monkeypatch.setattr(
+        "app.agent_runtime.runner.subagent_runner.create_react_agent",
+        lambda *_args, **_kwargs: object(),
+    )
+
+    graph, model_config = await runner._build_graph(
+        SimpleNamespace(agent_key="configured-subagent"),
+        definition,
+        {"model_config": dict(parent_config)},
+    )
+
+    assert graph is not None
+    assert model_config == resolved_config
+    assert captured_states == [{"model_config": resolved_config}]
 
 
 @pytest.mark.asyncio

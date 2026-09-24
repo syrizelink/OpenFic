@@ -1,3 +1,15 @@
+.model-id-select-trigger {
+  color: var(--gray-12) !important;
+}
+
+.model-id-select-trigger[data-disabled] {
+  color: var(--gray-a8) !important;
+}
+
+.model-id-select-placeholder {
+  color: var(--gray-a10) !important;
+}
+
 .model-id-select-trigger--compact {
   width: 26px !important;
   min-width: 26px !important;

@@ -110,6 +110,10 @@ async def test_get_settings_default(client: AsyncClient) -> None:
     assert data["editor_font_size"] == 16
     assert data["default_model"] == ""
     assert data["light_model"] == ""
+    assert data["default_model_reasoning_effort"] == "medium"
+    assert data["light_model_reasoning_effort"] == "medium"
+    assert data["summary_model_reasoning_effort"] == "medium"
+    assert data["compaction_model_reasoning_effort"] == "medium"
     assert data["default_embedding_model"] == ""
     assert data["index_mode"] == "off"
     assert data["index_enabled_projects"] == []
@@ -360,6 +364,51 @@ async def test_update_settings_model_persistence(client: AsyncClient) -> None:
     data = response.json()
     assert data["default_model"] == "model-123"
     assert data["light_model"] == "model-456"
+
+
+@pytest.mark.asyncio
+async def test_update_settings_reasoning_effort_persistence(client: AsyncClient) -> None:
+    response = await client.put(
+        "/api/v1/settings",
+        json={
+            "default_model_reasoning_effort": "high",
+            "light_model_reasoning_effort": "low",
+            "summary_model_reasoning_effort": "xhigh",
+            "compaction_model_reasoning_effort": "auto",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["default_model_reasoning_effort"] == "high"
+    assert data["light_model_reasoning_effort"] == "low"
+    assert data["summary_model_reasoning_effort"] == "xhigh"
+    assert data["compaction_model_reasoning_effort"] == "auto"
+
+    follow_up = await client.get("/api/v1/settings")
+    assert follow_up.status_code == 200
+    assert follow_up.json()["compaction_model_reasoning_effort"] == "auto"
+
+
+@pytest.mark.asyncio
+async def test_update_settings_normalizes_legacy_off_reasoning_effort(client: AsyncClient) -> None:
+    response = await client.put(
+        "/api/v1/settings",
+        json={"default_model_reasoning_effort": "off"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["default_model_reasoning_effort"] == "auto"
+
+
+@pytest.mark.asyncio
+async def test_update_settings_rejects_invalid_reasoning_effort(client: AsyncClient) -> None:
+    response = await client.put(
+        "/api/v1/settings",
+        json={"default_model_reasoning_effort": "extreme"},
+    )
+
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio

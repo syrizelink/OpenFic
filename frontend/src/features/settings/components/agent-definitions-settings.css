@@ -1,0 +1,30 @@
+.agent-definitions-settings__form {
+  width: 100%;
+}
+
+.agent-definitions-settings__model-row {
+  width: 100%;
+  max-width: 100%;
+  flex-wrap: nowrap;
+}
+
+.agent-definitions-settings__model-selector {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.agent-definitions-settings__reasoning-selector {
+  flex: 0 0 160px;
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .agent-definitions-settings__model-row {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .agent-definitions-settings__model-selector {
+    flex: 0 0 100%;
+  }
+}

@@ -82,6 +82,7 @@ from app.api.schemas.agent import (
 from app.core.encryption import EncryptionService
 from app.core.errors import NotFoundError
 from app.core.ids import generate_id
+from app.models.clients.model_params import normalize_reasoning_effort
 from app.models.repos import model_provider_repo, model_repo
 from app.models.services.model_provider_service import ModelProviderService
 from app.settings import settings
@@ -92,6 +93,7 @@ from app.socket.handlers import agent_session_room, background_project_room
 from app.storage.database import get_session
 from app.storage.models.chapter import Chapter
 from app.storage.repos import revision_repo
+from app.storage.repos import setting_repo
 from app.storage.services import task_service
 
 router = APIRouter(tags=["Agent"])
@@ -492,8 +494,8 @@ async def _build_model_config(
         "presence_penalty": model.presence_penalty,
         "repetition_penalty": model.repetition_penalty,
     }
-    if reasoning_effort and reasoning_effort != "off":
-        model_config["reasoning_effort"] = reasoning_effort
+    if reasoning_effort is not None:
+        model_config["reasoning_effort"] = normalize_reasoning_effort(reasoning_effort)
     if custom_headers:
         model_config["custom_headers"] = custom_headers
     return model_config
@@ -539,6 +541,19 @@ async def _resolve_model_config(
     custom_headers = ModelProviderService(
         encryption_service
     ).get_decrypted_custom_headers(provider)
+    if reasoning_effort is None:
+        for model_setting_key, effort_setting_key in (
+            ("default_model", "default_model_reasoning_effort"),
+            ("light_model", "light_model_reasoning_effort"),
+        ):
+            configured_model = await setting_repo.get_by_key(session, model_setting_key)
+            if configured_model is None or configured_model.value.strip() != model.id:
+                continue
+            effort_setting = await setting_repo.get_by_key(session, effort_setting_key)
+            reasoning_effort = normalize_reasoning_effort(
+                effort_setting.value if effort_setting else None
+            )
+            break
     return await _build_model_config(
         model,
         provider,

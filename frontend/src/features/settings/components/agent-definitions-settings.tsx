@@ -30,7 +30,12 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 
-import { LabeledSelect, ModelIdSelect, type ModelIdSelectOption } from "@/components";
+import {
+  LabeledSelect,
+  ModelIdSelect,
+  ReasoningEffortSelect,
+  type ModelIdSelectOption,
+} from "@/components";
 import { ContextMenu, type ContextMenuItem, toast, ConfirmDialog, Spinner } from "@/components";
 import { AgentBrandIcon } from "@/components/agent-brand-icon";
 import {
@@ -39,6 +44,7 @@ import {
   getAgentDisplayDescription,
 } from "@/lib/agent-branding";
 import { fetchSkills } from "@/lib/api-client";
+import type { ReasoningEffort } from "@/lib/model.types";
 import type { Skill } from "@/lib/skill.types";
 import { useLlmModelOptions } from "@/lib/use-llm-model-options";
 
@@ -68,6 +74,8 @@ import {
 import { fetchSettings } from "../lib/settings-api";
 import { AgentBrandingPicker } from "./agent-branding-picker";
 import { AgentSettingsLockNotice } from "./agent-settings-lock-notice";
+
+import "./agent-definitions-settings.css";
 
 const LIST_WIDTH = 280;
 const SUBAGENT_RESTRICTED_TOOL_CATEGORIES = new Set(["orchestration", "interaction"]);
@@ -159,6 +167,9 @@ function AgentForm({
   const [formColor, setFormColor] = useState<string | null>(def.color ?? DEFAULT_AGENT_COLOR);
   const [formIcon, setFormIcon] = useState<string | null>(def.icon ?? DEFAULT_AGENT_ICON);
   const [formModelId, setFormModelId] = useState(getEffectiveModelSelection(def.model_id));
+  const [formReasoningEffort, setFormReasoningEffort] = useState<ReasoningEffort>(
+    def.reasoning_effort ?? "medium",
+  );
   const [formEnabledToolCategories, setFormEnabledToolCategories] = useState<string[]>([
     ...getEnabledToolCategoriesForAgent(def.kind, def.enabled_tool_categories),
   ]);
@@ -187,6 +198,9 @@ function AgentForm({
   );
 
   const hasFormChanges = useMemo(() => {
+    const hasDedicatedModel =
+      formModelId !== SYSTEM_DEFAULT_MODEL_REFERENCE &&
+      formModelId !== SYSTEM_LIGHT_MODEL_REFERENCE;
     return (
       formDisplayName !== def.display_name ||
       formDescription !== def.description ||
@@ -194,6 +208,7 @@ function AgentForm({
       formColor !== (def.color ?? DEFAULT_AGENT_COLOR) ||
       formIcon !== (def.icon ?? DEFAULT_AGENT_ICON) ||
       formModelId !== getEffectiveModelSelection(def.model_id) ||
+      (hasDedicatedModel && formReasoningEffort !== (def.reasoning_effort ?? "medium")) ||
       JSON.stringify(formEnabledToolCategories) !==
         JSON.stringify(getEnabledToolCategoriesForAgent(def.kind, def.enabled_tool_categories)) ||
       JSON.stringify(formEnabledSkills) !== JSON.stringify(def.enabled_skills) ||
@@ -207,12 +222,15 @@ function AgentForm({
     formColor,
     formIcon,
     formModelId,
+    formReasoningEffort,
     formEnabledToolCategories,
     formEnabledSkills,
     formDelegatableAgents,
   ]);
 
   const isPrimary = formKind === "primary";
+  const hasDedicatedModel =
+    formModelId !== SYSTEM_DEFAULT_MODEL_REFERENCE && formModelId !== SYSTEM_LIGHT_MODEL_REFERENCE;
   const hasDelegationCapability = formEnabledToolCategories.includes("orchestration");
   const canChangeKind = def.source === "custom";
   const selectableToolCategoryOptions = useMemo(
@@ -230,6 +248,7 @@ function AgentForm({
         description: formDescription,
         ...(canChangeKind ? { kind: formKind } : {}),
         model_id: formModelId,
+        ...(hasDedicatedModel ? { reasoning_effort: formReasoningEffort } : {}),
         color: formColor,
         icon: formIcon,
         enabled_tool_categories: getEnabledToolCategoriesForAgent(
@@ -308,7 +327,7 @@ function AgentForm({
       direction="column"
       gap="5"
       key={def.key}
-      className="agent-definition-form"
+      className="agent-definition-form agent-definitions-settings__form"
     >
       <Flex
         direction="column"
@@ -418,17 +437,35 @@ function AgentForm({
         >
           {t("settings.agentsModelId")}
         </Text>
-        <ModelIdSelect
-          value={formModelId}
-          models={llmModelOptions}
-          onChange={setFormModelId}
-          editable={false}
-          allowCustomValue={false}
-          disabled={isAgentSettingsLocked || !hasLlmModels}
-          triggerStyle={{ width: "100%" }}
-          triggerClassName="select-trigger--background"
-          contentClassName="settings-background-panel"
-        />
+        <Flex
+          align="end"
+          gap="3"
+          className="agent-definitions-settings__model-row"
+        >
+          <Box className="agent-definitions-settings__model-selector">
+            <ModelIdSelect
+              value={formModelId}
+              models={llmModelOptions}
+              onChange={setFormModelId}
+              editable={false}
+              allowCustomValue={false}
+              disabled={isAgentSettingsLocked || !hasLlmModels}
+              triggerStyle={{ width: "100%" }}
+              triggerClassName="select-trigger--background"
+              contentClassName="settings-background-panel"
+            />
+          </Box>
+          {hasDedicatedModel ? (
+            <Box className="agent-definitions-settings__reasoning-selector">
+              <ReasoningEffortSelect
+                value={formReasoningEffort}
+                onChange={setFormReasoningEffort}
+                disabled={isAgentSettingsLocked}
+                size="2"
+              />
+            </Box>
+          ) : null}
+        </Flex>
       </Flex>
 
       <Flex
@@ -921,6 +958,7 @@ export function AgentDefinitionsSettings({
         kind: newKind,
         prompt_agent_name: newKey.trim(),
         model_id: sourceDefinition?.model_id ?? SYSTEM_DEFAULT_MODEL_REFERENCE,
+        reasoning_effort: sourceDefinition?.reasoning_effort ?? null,
         enabled_tool_categories: getEnabledToolCategoriesForAgent(
           newKind,
           sourceDefinition?.enabled_tool_categories ?? [],

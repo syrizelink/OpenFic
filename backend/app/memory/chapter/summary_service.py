@@ -943,7 +943,7 @@ async def append_chapter_summary_items(
     effective_model_policy = model_policy
     if model_policy == SUMMARY_MODEL_POLICY:
         effective_model_id = await resolve_summary_model_id(session, model_id)
-        effective_model_policy = "light_model"
+        effective_model_policy = SUMMARY_MODEL_POLICY
     batch_job, created = await _get_or_create_summary_batch_job(
         session,
         project_id,
@@ -1052,7 +1052,7 @@ async def append_long_term_summary_items(
     effective_model_policy = model_policy
     if model_policy == SUMMARY_MODEL_POLICY:
         effective_model_id = await resolve_summary_model_id(session, model_id)
-        effective_model_policy = "light_model"
+        effective_model_policy = SUMMARY_MODEL_POLICY
     batch_job, created = await _get_or_create_summary_batch_job(
         session,
         project_id,

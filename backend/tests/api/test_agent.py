@@ -319,7 +319,7 @@ class TestAgentAPI:
 
         assert config["reasoning_effort"] == "high"
 
-    async def test_build_model_config_omits_disabled_reasoning_effort(self) -> None:
+    async def test_build_model_config_preserves_auto_reasoning_effort(self) -> None:
         model = SimpleNamespace(
             id="reasoning-model-record",
             model_id="reasoning-model",
@@ -339,9 +339,9 @@ class TestAgentAPI:
             url="https://custom.api/v1",
         )
 
-        config = await _build_model_config(model, provider, "sk-test", "off")
+        config = await _build_model_config(model, provider, "sk-test", "auto")
 
-        assert "reasoning_effort" not in config
+        assert config["reasoning_effort"] == "auto"
 
     async def test_list_agent_tools_success(self, client: AsyncClient) -> None:
         response = await client.get("/api/v1/agent/tools")

@@ -12,6 +12,11 @@ from app.agent_runtime.context.compaction.config import (
     TAIL_WINDOW_RATIO,
 )
 from app.agent_runtime.context.pruning import PRUNE_MINIMUM_TOKENS, PRUNE_PROTECTED_TOKENS
+from app.models.clients.model_params import (
+    DEFAULT_REASONING_EFFORT,
+    ReasoningEffort,
+    normalize_reasoning_effort,
+)
 from app.storage.repos import setting_repo
 
 SESSION_MODEL_REFERENCE = "__session_model__"
@@ -23,6 +28,7 @@ LIGHT_MODEL_REFERENCE = "__system_light_model__"
 class ContextSettings:
     auto_compact_context: bool = True
     compaction_model: str = SESSION_MODEL_REFERENCE
+    compaction_model_reasoning_effort: ReasoningEffort = DEFAULT_REASONING_EFFORT
     compaction_trigger_ratio: float = AUTO_TRIGGER_RATIO
     compaction_tail_token_budget: int = TAIL_TOKEN_BUDGET
     compaction_tail_window_ratio: float = TAIL_WINDOW_RATIO
@@ -57,6 +63,9 @@ def parse_context_settings(raw: Mapping[str, str]) -> ContextSettings:
     return ContextSettings(
         auto_compact_context=boolean("auto_compact_context"),
         compaction_model=model,
+        compaction_model_reasoning_effort=normalize_reasoning_effort(
+            raw.get("compaction_model_reasoning_effort")
+        ),
         compaction_trigger_ratio=number("compaction_trigger_ratio", AUTO_TRIGGER_RATIO, maximum=1),
         compaction_tail_token_budget=int(number("compaction_tail_token_budget", TAIL_TOKEN_BUDGET)),
         compaction_tail_window_ratio=number("compaction_tail_window_ratio", TAIL_WINDOW_RATIO, maximum=1),

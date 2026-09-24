@@ -118,6 +118,7 @@ class AgentDefinitionRecord(SQLModel, table=True):
     kind: str = Field(index=True, max_length=20)
     prompt_agent_name: str = Field(max_length=50)
     model_id: str | None = Field(default=None, max_length=100)
+    reasoning_effort: str | None = Field(default=None, max_length=10)
     enabled_tool_categories: list[str] = Field(
         default_factory=list,
         sa_column=Column(JSON, nullable=False, default=list),

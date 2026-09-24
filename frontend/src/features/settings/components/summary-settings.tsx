@@ -9,6 +9,7 @@ import { useNavigate } from "react-router";
 import {
   ConfirmDialog,
   ModelIdSelect,
+  ReasoningEffortSelect,
   Spinner,
   StepperNumberInput,
   toast,
@@ -182,6 +183,9 @@ export function SummarySettings({ onCloseSettings, isAgentSettingsLocked }: Summ
   });
   const { options: llmModelOptions, isLoading: isModelsLoading } = useLlmModelOptions();
   const [summaryModel, setSummaryModel] = useState(settings?.summaryModel ?? "");
+  const [summaryModelReasoningEffort, setSummaryModelReasoningEffort] = useState(
+    settings?.summaryModelReasoningEffort ?? "medium",
+  );
   const [autoGenerateChapter, setAutoGenerateChapter] = useState(
     settings?.summaryAutoGenerateChapter ?? false,
   );
@@ -208,6 +212,7 @@ export function SummarySettings({ onCloseSettings, isAgentSettingsLocked }: Summ
   useEffect(() => {
     if (!settings) return;
     setSummaryModel(settings.summaryModel);
+    setSummaryModelReasoningEffort(settings.summaryModelReasoningEffort);
     setAutoGenerateChapter(settings.summaryAutoGenerateChapter);
     setAutoGenerateLongTerm(settings.summaryAutoGenerateLongTerm);
     setMinChapterWordCount(String(settings.summaryMinChapterWordCount));
@@ -216,6 +221,10 @@ export function SummarySettings({ onCloseSettings, isAgentSettingsLocked }: Summ
     setChapterTargetLength(String(settings.summaryChapterTargetLength));
     setLongTermTargetLength(String(settings.summaryLongTermTargetLength));
   }, [settings]);
+
+  const hasDedicatedSummaryModel =
+    summaryModel !== SYSTEM_DEFAULT_MODEL_REFERENCE &&
+    summaryModel !== SYSTEM_LIGHT_MODEL_REFERENCE;
 
   const modelOptions = useMemo<ModelIdSelectOption[]>(
     () => [
@@ -252,6 +261,8 @@ export function SummarySettings({ onCloseSettings, isAgentSettingsLocked }: Summ
     settings &&
     isFormValid &&
     (summaryModel !== settings.summaryModel ||
+      (hasDedicatedSummaryModel &&
+        summaryModelReasoningEffort !== settings.summaryModelReasoningEffort) ||
       autoGenerateChapter !== settings.summaryAutoGenerateChapter ||
       autoGenerateLongTerm !== settings.summaryAutoGenerateLongTerm ||
       formValues.minChapterWordCount !== settings.summaryMinChapterWordCount ||
@@ -287,6 +298,10 @@ export function SummarySettings({ onCloseSettings, isAgentSettingsLocked }: Summ
 
     return {
       ...(summaryModel !== settings.summaryModel ? { summary_model: summaryModel } : {}),
+      ...(hasDedicatedSummaryModel &&
+      summaryModelReasoningEffort !== settings.summaryModelReasoningEffort
+        ? { summary_model_reasoning_effort: summaryModelReasoningEffort }
+        : {}),
       summary_auto_generate_chapter: autoGenerateChapter,
       summary_auto_generate_long_term: autoGenerateLongTerm,
       summary_min_chapter_word_count: formValues.minChapterWordCount ?? 0,
@@ -302,6 +317,8 @@ export function SummarySettings({ onCloseSettings, isAgentSettingsLocked }: Summ
     isFormValid,
     settings,
     summaryModel,
+    summaryModelReasoningEffort,
+    hasDedicatedSummaryModel,
     t,
   ]);
 
@@ -346,26 +363,41 @@ export function SummarySettings({ onCloseSettings, isAgentSettingsLocked }: Summ
         gap="5"
       >
         <Flex
-          align="center"
+          align="end"
           justify="between"
           gap="4"
+          wrap="wrap"
         >
           <SummarySettingLabel
             label={t("settings.summaryModel")}
             description={t("settings.summaryModelHint")}
           />
-          <ModelIdSelect
-            value={summaryModel}
-            onChange={(value) => setSummaryModel(value)}
-            models={modelOptions}
-            isLoading={isModelsLoading}
-            editable={false}
-            allowCustomValue={false}
-            disabled={isAgentSettingsLocked || llmModelOptions.length === 0}
-            triggerStyle={{ width: 160 }}
-            triggerClassName="select-trigger--background"
-            contentClassName="settings-background-panel"
-          />
+          <Flex
+            align="end"
+            gap="3"
+            wrap="wrap"
+          >
+            <ModelIdSelect
+              value={summaryModel}
+              onChange={(value) => setSummaryModel(value)}
+              models={modelOptions}
+              isLoading={isModelsLoading}
+              editable={false}
+              allowCustomValue={false}
+              disabled={isAgentSettingsLocked || llmModelOptions.length === 0}
+              triggerStyle={{ width: 160 }}
+              triggerClassName="select-trigger--background"
+              contentClassName="settings-background-panel"
+            />
+            {hasDedicatedSummaryModel ? (
+              <ReasoningEffortSelect
+                value={summaryModelReasoningEffort}
+                onChange={setSummaryModelReasoningEffort}
+                disabled={isAgentSettingsLocked}
+                size="2"
+              />
+            ) : null}
+          </Flex>
         </Flex>
 
         <Flex

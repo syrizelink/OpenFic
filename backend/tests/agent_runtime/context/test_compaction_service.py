@@ -274,7 +274,10 @@ async def test_compact_window_uses_selected_light_model(
         "app.agent_runtime.context.compaction.service.prompt_chain_service.get_latest_version_with_entries_or_default",
         AsyncMock(return_value=_prompt_version()),
     )
-    setting_lookup = AsyncMock(return_value=SimpleNamespace(value="light-record"))
+    async def lookup_setting(_session, key: str):
+        return SimpleNamespace(value="light-record" if key == "light_model" else "high")
+
+    setting_lookup = AsyncMock(side_effect=lookup_setting)
     monkeypatch.setattr(
         "app.agent_runtime.context.compaction.service.setting_repo.get_by_key",
         setting_lookup,
@@ -310,11 +313,12 @@ async def test_compact_window_uses_selected_light_model(
         model_reference=model_reference,
     )
     assert selected_configs[0].model_id == "light-llm"
+    assert selected_configs[0].reasoning_effort == "high"
     record_lookup.assert_awaited_once_with(
         db_session, "light-record" if model_reference == "__system_light_model__" else model_reference
     )
     if model_reference == "dedicated-model-record":
-        setting_lookup.assert_not_awaited()
+        setting_lookup.assert_awaited_once_with(db_session, "compaction_model_reasoning_effort")
 
 
 @pytest.mark.asyncio

@@ -5,6 +5,7 @@
  */
 
 import type { IndexAutoStrategy, IndexMode } from "@/lib/index-status";
+import type { ReasoningEffort } from "@/lib/model.types";
 import type { ThemeConfig, ThemeConfigResponse, ThemeMode, ThemePresetId } from "@/lib/theme";
 
 export type { ThemeMode } from "@/lib/theme";
@@ -38,7 +39,10 @@ export interface Settings {
   editorFontSize: number;
   defaultModel: string;
   lightModel: string;
+  defaultModelReasoningEffort: ReasoningEffort;
+  lightModelReasoningEffort: ReasoningEffort;
   summaryModel: string;
+  summaryModelReasoningEffort: ReasoningEffort;
   summaryAutoGenerateChapter: boolean;
   summaryAutoGenerateLongTerm: boolean;
   summaryMinChapterWordCount: number;
@@ -60,6 +64,7 @@ export interface Settings {
   compressSystemPrompts: boolean;
   autoCompactContext: boolean;
   compactionModel: string;
+  compactionModelReasoningEffort: ReasoningEffort;
   compactionTriggerRatio: number;
   compactionTailTokenBudget: number;
   compactionTailWindowRatio: number;
@@ -88,7 +93,10 @@ export interface SettingsResponse {
   editor_font_size?: number;
   default_model: string;
   light_model: string;
+  default_model_reasoning_effort: ReasoningEffort;
+  light_model_reasoning_effort: ReasoningEffort;
   summary_model: string;
+  summary_model_reasoning_effort: ReasoningEffort;
   summary_auto_generate_chapter: boolean;
   summary_auto_generate_long_term: boolean;
   summary_min_chapter_word_count: number;
@@ -113,6 +121,7 @@ export interface SettingsResponse {
   compress_system_prompts: boolean;
   auto_compact_context: boolean;
   compaction_model: string;
+  compaction_model_reasoning_effort: ReasoningEffort;
   compaction_trigger_ratio: number;
   compaction_tail_token_budget: number;
   compaction_tail_window_ratio: number;
@@ -141,7 +150,10 @@ export interface SettingsUpdateRequest {
   editor_font_size?: number;
   default_model?: string;
   light_model?: string;
+  default_model_reasoning_effort?: ReasoningEffort;
+  light_model_reasoning_effort?: ReasoningEffort;
   summary_model?: string;
+  summary_model_reasoning_effort?: ReasoningEffort;
   summary_auto_generate_chapter?: boolean;
   summary_auto_generate_long_term?: boolean;
   summary_min_chapter_word_count?: number;
@@ -167,6 +179,7 @@ export interface SettingsUpdateRequest {
   compress_system_prompts?: boolean;
   auto_compact_context?: boolean;
   compaction_model?: string;
+  compaction_model_reasoning_effort?: ReasoningEffort;
   compaction_trigger_ratio?: number;
   compaction_tail_token_budget?: number;
   compaction_tail_window_ratio?: number;

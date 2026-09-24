@@ -25,6 +25,8 @@ export type { ModelIdSelectOption } from "./model-id-select";
 export { getModelValue } from "./model-id-select";
 export { ProviderIdSelect } from "./provider-id-select";
 export type { ProviderIdSelectProps } from "./provider-id-select";
+export { ReasoningEffortSelect } from "./reasoning-effort-select";
+export type { ReasoningEffortSelectProps } from "./reasoning-effort-select";
 export { StreamingMarkdown } from "./streaming-markdown";
 export { CircularProgress } from "./circular-progress";
 export { MarkdownEditor } from "./markdown-editor";

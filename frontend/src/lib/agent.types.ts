@@ -4,6 +4,7 @@
  * Agent 工作流相关类型定义
  */
 
+import type { ReasoningEffort } from "./model.types";
 import type { TaskMessage } from "./task.types";
 
 export type AgentType = string;
@@ -371,7 +372,7 @@ export interface AgentAttachmentErrorRequest {
   error: string;
 }
 
-export type ReasoningEffort = "off" | "low" | "medium" | "high" | "xhigh" | "max";
+export type { ReasoningEffort } from "./model.types";
 
 export type AgentPendingMessageAction = "queued" | "cancelled" | "consumed";
 

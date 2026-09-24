@@ -10,6 +10,8 @@ export type ProviderType = string;
 /** 任务类型 */
 export type TaskType = "llm" | "embedding" | "rerank";
 
+export type ReasoningEffort = "auto" | "low" | "medium" | "high" | "xhigh" | "max";
+
 /** 模型服务提供商 */
 export interface ModelProvider {
   id: string;

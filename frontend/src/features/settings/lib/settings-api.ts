@@ -5,6 +5,7 @@
  */
 
 import { apiClient } from "@/lib/api-client";
+import { normalizeReasoningEffort } from "@/lib/reasoning-effort";
 import { normalizeThemeMode, normalizeThemePreset, transformThemeConfig } from "@/lib/theme";
 
 import { SYSTEM_LIGHT_MODEL_REFERENCE } from "./agent-definitions.types";
@@ -44,7 +45,10 @@ export function transformSettings(raw: SettingsResponse): Settings {
     editorFontSize: raw.editor_font_size ?? 16,
     defaultModel: raw.default_model || "",
     lightModel: raw.light_model || "",
+    defaultModelReasoningEffort: normalizeReasoningEffort(raw.default_model_reasoning_effort),
+    lightModelReasoningEffort: normalizeReasoningEffort(raw.light_model_reasoning_effort),
     summaryModel: raw.summary_model || SYSTEM_LIGHT_MODEL_REFERENCE,
+    summaryModelReasoningEffort: normalizeReasoningEffort(raw.summary_model_reasoning_effort),
     summaryAutoGenerateChapter: raw.summary_auto_generate_chapter ?? true,
     summaryAutoGenerateLongTerm: raw.summary_auto_generate_long_term ?? true,
     summaryMinChapterWordCount: raw.summary_min_chapter_word_count ?? 500,
@@ -69,6 +73,7 @@ export function transformSettings(raw: SettingsResponse): Settings {
     compressSystemPrompts: raw.compress_system_prompts ?? false,
     autoCompactContext: raw.auto_compact_context ?? true,
     compactionModel: raw.compaction_model || "__session_model__",
+    compactionModelReasoningEffort: normalizeReasoningEffort(raw.compaction_model_reasoning_effort),
     compactionTriggerRatio: raw.compaction_trigger_ratio ?? 0.8,
     compactionTailTokenBudget: raw.compaction_tail_token_budget ?? 20000,
     compactionTailWindowRatio: raw.compaction_tail_window_ratio ?? 0.5,

@@ -18,7 +18,9 @@ from app.models.clients.model_params import (
     DEFAULT_TOP_K,
     DEFAULT_TOP_P,
     ReasoningEffort,
+    ReasoningEffortInput,
     is_non_default,
+    normalize_reasoning_effort,
     with_default,
 )
 from app.models.helpers.openrouter_attribution import (
@@ -45,9 +47,11 @@ class ModelConfig:
     frequency_penalty: float | None = DEFAULT_FREQUENCY_PENALTY
     presence_penalty: float | None = DEFAULT_PRESENCE_PENALTY
     repetition_penalty: float | None = DEFAULT_REPETITION_PENALTY
-    reasoning_effort: ReasoningEffort | None = None
+    reasoning_effort: ReasoningEffortInput | None = None
 
     def __post_init__(self) -> None:
+        if self.reasoning_effort == "off":
+            self.reasoning_effort = "auto"
         self.temperature = with_default(self.temperature, DEFAULT_TEMPERATURE)
         self.top_p = with_default(self.top_p, DEFAULT_TOP_P)
         self.top_k = with_default(self.top_k, DEFAULT_TOP_K)
@@ -73,7 +77,10 @@ def _non_default(value: Any, default: Any) -> Any | None:
 
 
 def _enabled_reasoning_effort(config: ModelConfig) -> ReasoningEffort | None:
-    return config.reasoning_effort if config.reasoning_effort != "off" else None
+    if config.reasoning_effort is None:
+        return None
+    reasoning_effort = normalize_reasoning_effort(config.reasoning_effort)
+    return None if reasoning_effort == "auto" else reasoning_effort
 
 
 def _three_level_reasoning_effort(
